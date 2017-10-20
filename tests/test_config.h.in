@@ -1,0 +1,18 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2017, Massachusetts Institute of Technology,
+ * Cambridge, MA 02139
+ * All Rights Reserved
+ * Authors: Luca Carlone, et al. (see THANKS for the full author list)
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ * @file   test_config.h
+ * @brief  info common to all tests
+ * @author Luca Carlone
+ */
+
+#pragma once
+
+// Path to the library
+#define DATASET_PATH "@TEST_DATA_PATH@"

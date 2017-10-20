@@ -1,0 +1,17 @@
+%YAML:1.0
+#VIO PARAMETERS
+gyroNoiseDensity: 0.00016968
+accNoiseDensity: 0.002
+imuIntegrationSigma: 1e-08
+gyroBiasSigma: 1.9393e-05
+accBiasSigma: 0.003
+relinearizeThreshold: 0.01
+relinearizeSkip: 1
+numOptimize: 0
+horizon: 6
+useDogLeg: 0
+smartNoiseSigma: 3
+rankTolerance: 1
+landmarkDistanceThreshold: 10
+outlierRejection: 5
+retriangulationThreshold: 0.001

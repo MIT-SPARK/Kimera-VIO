@@ -1,0 +1,7 @@
+VIO is released under the simplified BSD license.
+
+VIO contains three third party libraries:
+
+- GTSAM
+- OpenCV
+- OpenGV
