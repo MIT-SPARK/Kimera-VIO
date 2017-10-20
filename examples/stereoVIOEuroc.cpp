@@ -260,7 +260,8 @@ int main(const int argc, const char *argv[])
       vector<Point3> points3d = vioBackEnd->get3DPoints();
       //for(size_t pti=0; pti < points3d.size(); pti++)
       //  points3d[pti].print();
-      // coordinates of each point: points3d[pti].x(), points3d[pti].y(), points3d[pti].z()
+      // coordinates of each point pti: points3d[pti].x(), points3d[pti].y(), points3d[pti].z()
+      // printing this data to file
 
       ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////////////////////////////////////////
       startTime = UtilsOpenCV::GetTimeInSeconds();
