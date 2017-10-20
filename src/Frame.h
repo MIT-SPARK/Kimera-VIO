@@ -21,10 +21,6 @@
 #include <cstdlib>
 #include <vector>
 
-#include <gtsam/base/Matrix.h>
-#include <gtsam/geometry/Point3.h>
-#include <gtsam/geometry/PinholeCamera.h>
-
 // Including opencv
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -33,6 +29,10 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "CameraParams.h"
 #include "UtilsOpenCV.h"
+
+#include <gtsam/base/Matrix.h>
+#include <gtsam/geometry/Point3.h>
+#include <gtsam/geometry/PinholeCamera.h>
 
 namespace VIO {
 

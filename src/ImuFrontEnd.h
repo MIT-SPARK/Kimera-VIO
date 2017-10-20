@@ -16,6 +16,7 @@
 #define ImuFrontEnd_H_
 
 #include <map>
+#include <string>
 #include <tuple>
 #include <thread>
 #include <utility>

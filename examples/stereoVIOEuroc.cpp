@@ -12,12 +12,12 @@
  * @author Luca Carlone
  */
 
-#include <gtsam/geometry/Pose3.h>
 #include "ETH_parser.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
 #include "VioBackEnd.h"
+#include <gtsam/geometry/Pose3.h>
 
 using namespace std;
 using namespace gtsam;

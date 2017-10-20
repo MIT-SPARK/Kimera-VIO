@@ -415,14 +415,14 @@ TEST(testTracker, geometricOutlierRejectionMono) {
 
   // Generate Test Configurations
   // (is_planar, inlier_num, outlier_num, noise_sigma)
-  vector<tuple<bool, int, int, double>> test_configurations;
+  vector<std::tuple<bool, int, int, double>> test_configurations;
 
   // Test case 1: Idea test, 3d rigid scene, 80 inliers, no outliers, no noise
-  test_configurations.push_back(make_tuple(false, 82, 0, 0.0));
+  test_configurations.push_back(std::make_tuple(false, 82, 0, 0.0));
   // Test case 2: Noisy/Outlier test, 3d rigid scene, 80 inliers, 40 outliers, noise_level 1
-  test_configurations.push_back(make_tuple(false, 80, 40, 1));
+  test_configurations.push_back(std::make_tuple(false, 80, 40, 1));
   // Test case 3: Noisy/Outlier test, Planar scene, 80 inliers, 40 outliers, noise_level 1
-  test_configurations.push_back(make_tuple(true, 80, 40, 1));
+  test_configurations.push_back(std::make_tuple(true, 80, 40, 1));
 
   for (auto test_conf : test_configurations) {
     bool is_planar = get<0>(test_conf);
@@ -502,14 +502,14 @@ TEST(testTracker, geometricOutlierRejectionMonoGivenRotation) {
 
   // Generate Test Configurations
   // (is_planar, inlier_num, outlier_num, noise_sigma)
-  vector<tuple<bool, int, int, double>> test_configurations;
+  vector<std::tuple<bool, int, int, double>> test_configurations;
 
   // Test case 1: Idea test, 3d rigid scene, 80 inliers, no outliers, no noise
-  test_configurations.push_back(make_tuple(false, 80, 0, 0.0));
+  test_configurations.push_back(std::make_tuple(false, 80, 0, 0.0));
   // Test case 2: Noisy/Outlier test, 3d rigid scene, 80 inliers, 40 outliers, noise_level 1
-  test_configurations.push_back(make_tuple(false, 80, 20, 1));
+  test_configurations.push_back(std::make_tuple(false, 80, 20, 1));
   // Test case 3: Noisy/Outlier test, Planar scene, 80 inliers, 40 outliers, noise_level 1
-  test_configurations.push_back(make_tuple(true, 80, 20, 1));
+  test_configurations.push_back(std::make_tuple(true, 80, 20, 1));
 
 
   for (auto test_conf : test_configurations) {
@@ -585,16 +585,16 @@ TEST(testTracker, geometricOutlierRejectionStereo) {
 
   // Generate Test Configurations
   // (is_planar, inlier_num, outlier_num, noise_sigma)
-  vector<tuple<bool, int, int, double>> test_configurations;
+  vector<std::tuple<bool, int, int, double>> test_configurations;
 
   // Test case 1: Idea test, 3d rigid scene, 3 inliers, no outliers, no noise
-  test_configurations.push_back(make_tuple(false, 3, 0, 0.0));
+  test_configurations.push_back(std::make_tuple(false, 3, 0, 0.0));
   // Test case 2: Idea test, 3d rigid scene, 80 inliers, no outliers, no noise
-  test_configurations.push_back(make_tuple(false, 40, 0, 0.0));
+  test_configurations.push_back(std::make_tuple(false, 40, 0, 0.0));
   // Test case 3: Noisy/Outlier test, 3d rigid scene, 80 inliers, 40 outliers, noise_level 1
-  test_configurations.push_back(make_tuple(false, 80, 40, 0));
+  test_configurations.push_back(std::make_tuple(false, 80, 40, 0));
   // Test case 4: Noisy/Outlier test, Planar scene, 80 inliers, 40 outliers, noise_level 1
-  test_configurations.push_back(make_tuple(true, 80, 40, 0.1));
+  test_configurations.push_back(std::make_tuple(true, 80, 40, 0.1));
 
   for (size_t testId = 0;  testId < test_configurations.size(); testId++) {
     auto test_conf = test_configurations.at(testId);
@@ -701,16 +701,16 @@ TEST(testTracker, geometricOutlierRejectionStereoGivenRotation) {
 
   // Generate Test Configurations
   // (is_planar, inlier_num, outlier_num, noise_sigma)
-  vector<tuple<bool, int, int, double>> test_configurations;
+  vector<std::tuple<bool, int, int, double>> test_configurations;
 
   // Test case 1: Idea test, 3d rigid scene, 3 inliers, no outliers, no noise
-  test_configurations.push_back(make_tuple(false, 3, 0, 0.0));
+  test_configurations.push_back(std::make_tuple(false, 3, 0, 0.0));
   // Test case 2: Idea test, 3d rigid scene, 80 inliers, no outliers, no noise
-  test_configurations.push_back(make_tuple(false, 40, 0, 0.0));
+  test_configurations.push_back(std::make_tuple(false, 40, 0, 0.0));
   // Test case 3: Noisy/Outlier test, 3d rigid scene, 80 inliers, 40 outliers, noise_level 1
-  test_configurations.push_back(make_tuple(false, 80, 40, 0));
+  test_configurations.push_back(std::make_tuple(false, 80, 40, 0));
   // Test case 4: Noisy/Outlier test, Planar scene, 80 inliers, 40 outliers, noise_level 1
-  test_configurations.push_back(make_tuple(true, 80, 40, 0.1));
+  test_configurations.push_back(std::make_tuple(true, 80, 40, 0.1));
 
   for (size_t testId = 0;  testId < test_configurations.size(); testId++) {
     auto test_conf = test_configurations.at(testId);

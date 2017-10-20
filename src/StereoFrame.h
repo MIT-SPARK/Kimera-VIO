@@ -15,6 +15,8 @@
 #ifndef StereoFrame_H_
 #define StereoFrame_H_
 
+#include "Frame.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string>
@@ -25,7 +27,6 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
-#include "Frame.h"
 
 namespace VIO {
 
