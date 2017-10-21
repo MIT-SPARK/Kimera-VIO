@@ -50,11 +50,9 @@ bool CameraImageLists::parseCameraImageList(const std::string folderpath, const 
 /* --------------------------------------------------------------------------------------- */
 void CameraImageLists::print()
 {
-#ifdef ETH_PARSER_DEBUG_COUT
   std::cout << "------------ CameraImageLists::print -------------" << std::endl;
   std::cout << "image_folder_path: " << image_folder_path_ << std::endl;
   std::cout << "img_lists size: " << img_lists.size() << std::endl;
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,12 +61,10 @@ void CameraImageLists::print()
 /* --------------------------------------------------------------------------------------- */
 void GroundTruthData::print()
 {
-#ifdef ETH_PARSER_DEBUG_COUT
   std::cout << "------------ GroundTruthData::print -------------" << std::endl;
   body_Pose_cam_.print("body_Pose_cam_: \n");
   std::cout << "\n gt_rate: " << gt_rate_ << std::endl;
   std::cout << "nr of gtStates: " << mapToGt_.size() << std::endl;
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,7 +73,6 @@ void GroundTruthData::print()
 /* --------------------------------------------------------------------------------------- */
 void ImuData::print()
 {
-#ifdef ETH_PARSER_DEBUG_COUT
   std::cout << "------------ ImuData::print    -------------" << std::endl;
   body_Pose_cam_.print("body_Pose_cam_: \n");
   std::cout << "\n nominal_imu_rate: " << nominal_imu_rate_ << std::endl;
@@ -89,7 +84,6 @@ void ImuData::print()
   std::cout << "accelerometer_noise_density: " << acc_noise_ << std::endl;
   std::cout << "accelerometer_random_walk: " << acc_walk_ << std::endl;
   std::cout << "nr of imu measurements: " << imu_buffer_.size() << std::endl;
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -192,9 +186,7 @@ bool ETHDatasetParser::parseImuData(const std::string input_dataset_path, const 
   imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
   fin.close();
 
-#ifdef ETH_PARSER_DEBUG_COUT
   std::cout << "Maximum measured rotation rate (norm):" << maxNormRotRate << " - Maximum measured acceleration (norm): " << maxNormAcc << std::endl;
-#endif
   return true;
 }
 
@@ -304,9 +296,7 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path, const s
   gtData_.gt_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9; // converted in seconds
   fin.close();
 
-#ifdef ETH_PARSER_DEBUG_COUT
   std::cout << "Maximum ground truth velocity: " << maxGTvel << std::endl;
-#endif
   return true;
 }
 
@@ -329,9 +319,7 @@ bool ETHDatasetParser::parseDataset(const std::string input_dataset_path,
     foundLastSlash = dataset_path_tmp.find_last_of("/\\"); // repeat the search
     dataset_name_ = dataset_path_tmp.substr(foundLastSlash+1); // try to pick right name
   }
-#ifdef ETH_PARSER_DEBUG_COUT
   std::cout << "dataset_name " << dataset_name_ << std::endl;
-#endif
 
   return true;
 }
@@ -350,9 +338,7 @@ bool ETHDatasetParser::parseCameraData(const std::string input_dataset_path,
   camera_info.clear();
   camera_image_lists.clear();
   for (int i = 0; i < camera_names.size(); i++) { // for each of the 2 cameras
-#ifdef ETH_PARSER_DEBUG_COUT
     std::cout << "reading camera: " << i <<std::endl;
-#endif
     CameraParams cam_info_i;
     cam_info_i.parseYAML(input_dataset_path + "/mav0/" +
         camera_names[i] + "/sensor.yaml");
@@ -368,11 +354,11 @@ bool ETHDatasetParser::parseCameraData(const std::string input_dataset_path,
 
   // SANITY CHECK: nr images is the same for left and right camera
   if(camera_image_lists[leftCameraName].img_lists.size() != camera_image_lists[rightCameraName].img_lists.size()){
-#ifdef ETH_PARSER_DEBUG_COUT
+
     std::cout << "\n\n\n\n WARNING: parseCameraData: different number of images in left and right camera!!" << std::endl;
     std::cout << "Left: " << camera_image_lists[leftCameraName].img_lists.size() << " Right: " <<
         camera_image_lists[rightCameraName].img_lists.size() << "\n\n\n\n" << std::endl;
-#endif
+
     size_t nrCommonImages = std::min(camera_image_lists[leftCameraName].img_lists.size(),camera_image_lists[rightCameraName].img_lists.size());
     camera_image_lists[leftCameraName].img_lists.resize(nrCommonImages);
     camera_image_lists[rightCameraName].img_lists.resize(nrCommonImages);
@@ -403,11 +389,10 @@ bool ETHDatasetParser::parseCameraData(const std::string input_dataset_path,
       throw std::runtime_error("parseCameraData: different timestamp for left and right image!!");
     }
   }
-#ifdef ETH_PARSER_DEBUG_COUT
+
   std::cout << "nominal frame rate: " << camera_info[leftCameraName].frame_rate_ << std::endl;
   std::cout << "frame rate std: " << sqrt( stdDelta / double(deltaCount-1) ) << std::endl;
   std::cout << "frame rate maxMismatch: " << frame_rate_maxMismatch << std::endl;
-#endif
 
   // Set extrinsic for the sterep
   CameraParams& left_camera_info = camera_info[camera_names[0]];
@@ -471,7 +456,6 @@ std::pair<double,double> ETHDatasetParser::computePoseErrors(const gtsam::Pose3 
 /* --------------------------------------------------------------------------------------- */
 void ETHDatasetParser::print()
 {
-#ifdef ETH_PARSER_DEBUG_COUT
   std::cout << "----------------------------------------------------------------------------------------------------------------------------"<< std::endl;
   std::cout << "------------------ ETHDatasetParser::print ---------------------------------------------------------------------------------" << std::endl;
   std::cout << "----------------------------------------------------------------------------------------------------------------------------"<< std::endl;
@@ -494,5 +478,4 @@ void ETHDatasetParser::print()
   std::cout << "----------------------------------------------------------------------------------------------------------------------------"<< std::endl;
   std::cout << "----------------------------------------------------------------------------------------------------------------------------"<< std::endl;
   std::cout << "----------------------------------------------------------------------------------------------------------------------------"<< std::endl;
-#endif
 }
