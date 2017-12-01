@@ -57,6 +57,33 @@ public:
   static void VisualizeMesh2D(const Frame& frame, const std::vector<cv::Vec6f> triangulation2D){
     cv::Scalar delaunay_color(255,255,255), points_color(0, 0, 255);
 
+    const cv::Mat& img = frame.img_; // frame is declared const... so can below operations be done on frame.img_?
+
+    cv::Size size = img.size();
+    cv::Rect rect(0,0, size.width, size.height);
+
+    std::vector<cv::Point> pt(3);
+
+    for(size_t i = 0; i < triangulation2D.size(); i++)
+    {
+      cv::Vec6f t = triangulation2D[i];
+      pt[0] = cv::Point(cvRound(t[0]), cvRound(t[1]));
+      pt[1] = cv::Point(cvRound(t[2]), cvRound(t[3]));
+      pt[2] = cv::Point(cvRound(t[4]), cvRound(t[5]));
+
+      if(rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2]))
+      {
+        cv::line(img, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
+        cv::line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
+        cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
+      } 
+    }
+
+    for(size_t i=0; i < frame.keypoints_.size(); i++)
+      cv::circle(img, frame.keypoints_[i], 2, points_color, CV_FILLED, CV_AA, 0);
+
+    cv::imshow("Mesh Results", img);
+    cv::waitKey(0);
   }
 };
 } // namespace VIO
