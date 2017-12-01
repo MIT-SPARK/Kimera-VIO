@@ -98,6 +98,7 @@ int main(const int argc, const char *argv[])
   // srand(0); // still does not make RANSAC REPEATABLE across different machines
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
+  const bool createMesh = true;
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
@@ -257,11 +258,16 @@ int main(const int argc, const char *argv[])
       logger.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
 
       ////////////////// GET 3D POINTS /////////////////////////////////////////////////////////////////////
-      vector<Point3> points3d = vioBackEnd->get3DPoints();
-      //for(size_t pti=0; pti < points3d.size(); pti++)
-      //  points3d[pti].print();
-      // coordinates of each point pti: points3d[pti].x(), points3d[pti].y(), points3d[pti].z()
-      // printing this data to file
+      if(createMesh){
+        vector<Point3> points3d = vioBackEnd->get3DPoints();
+        //
+        //stereoVisionFrontEnd.stereoFrame_k_.left_frame_.keypoints_;
+        //stereoVisionFrontEnd.stereoFrame_k_.left_frame_.img_;
+        //for(size_t pti=0; pti < points3d.size(); pti++)
+        //  points3d[pti].print();
+        // coordinates of each point pti: points3d[pti].x(), points3d[pti].y(), points3d[pti].z()
+        // printing this data to file
+      }
 
       ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////////////////////////////////////////
       startTime = UtilsOpenCV::GetTimeInSeconds();
