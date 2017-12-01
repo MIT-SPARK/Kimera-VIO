@@ -55,9 +55,10 @@ public:
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   static void VisualizeMesh2D(const Frame& frame, const std::vector<cv::Vec6f> triangulation2D){
-    cv::Scalar delaunay_color(255,255,255), points_color(0, 0, 255);
+    cv::Scalar delaunay_color(0,255,0), points_color(255, 0,0);
 
-    const cv::Mat& img = frame.img_; // frame is declared const... so can below operations be done on frame.img_?
+    cv::Mat img = frame.img_.clone();
+    cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
 
     cv::Size size = img.size();
     cv::Rect rect(0,0, size.width, size.height);
@@ -83,7 +84,7 @@ public:
       cv::circle(img, frame.keypoints_[i], 2, points_color, CV_FILLED, CV_AA, 0);
 
     cv::imshow("Mesh Results", img);
-    cv::waitKey(0);
+    cv::waitKey(1000);
   }
 };
 } // namespace VIO
