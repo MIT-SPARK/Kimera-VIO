@@ -156,7 +156,7 @@ TEST(testStereoFrame, findMatchingKeypointRectified) {
   // Synthetic experiments for findMatchingKeypointRectified
 
   // Extract keypoints from the left img!
-  sf->left_frame_.ExtractCorners();
+  sf->left_frame_.extractCorners();
   Mat left_img = sf->left_frame_.img_;
   KeypointsCV &left_keypoints = sf->left_frame_.keypoints_;
   const int num_points = left_keypoints.size();
@@ -490,7 +490,7 @@ TEST(testStereoFrame, getDepthFromRectifiedMatches) {
 TEST(testStereoFrame, getRightKeypointsRectified) {
 
   // Extract keypoints from the left img!
-  sf->left_frame_.ExtractCorners();
+  sf->left_frame_.extractCorners();
   Mat left_img = sf->left_frame_.img_;
   KeypointsCV &left_keypoints = sf->left_frame_.keypoints_;
   const int num_points = left_keypoints.size();
@@ -597,7 +597,7 @@ void initializeDataStereo() {
       stereo_dataset_path + right_image_name, cam_params_left,
       cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
 
-  sfnew->left_frame_.ExtractCorners();
+  sfnew->left_frame_.extractCorners();
   sfnew->left_frame_.versors_.reserve(sfnew->left_frame_.keypoints_.size());
   int landmark_count_ = 0;
   for (size_t i=0; i < sfnew->left_frame_.keypoints_.size(); i++)

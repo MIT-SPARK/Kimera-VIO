@@ -79,7 +79,7 @@ public:
 public:
   /* +++++++++++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++++++++ */
   // ExtractCorners using goodFeaturesToTrack
-  void ExtractCorners(const double qualityLevel = 0.01, const double minDistance = 10,
+  void extractCorners(const double qualityLevel = 0.01, const double minDistance = 10,
       const int blockSize = 3, const bool useHarrisDetector = false, const double k = 0.04, const int maxCorners = 100)
   {
     keypoints_ = UtilsOpenCV::ExtractCorners(img_, qualityLevel, minDistance, blockSize, k, maxCorners, useHarrisDetector);

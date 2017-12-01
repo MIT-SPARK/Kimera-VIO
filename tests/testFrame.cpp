@@ -47,7 +47,7 @@ TEST(testFrame, constructor) {
 /* ************************************************************************* */
 TEST(testFrame, ExtractCornersChessboard) {
   Frame f(0, 0, chessboardImgName, CameraParams());
-  f.ExtractCorners();
+  f.extractCorners();
   int numCorners_expected = 7 * 9;
   int numCorners_actual = f.keypoints_.size();
   // Assert that there are right number of corners!
@@ -57,7 +57,7 @@ TEST(testFrame, ExtractCornersChessboard) {
 /* ************************************************************************* */
 TEST(testFrame, ExtractCornersWhiteBoard) {
   Frame f(0, 0, whitewallImgName, CameraParams());
-  f.ExtractCorners();
+  f.extractCorners();
   int numCorners_expected = 0;
   int numCorners_actual = f.keypoints_.size();
   // Assert that there are no corners!
