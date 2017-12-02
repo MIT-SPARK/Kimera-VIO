@@ -41,23 +41,29 @@ public:
 
     // Rectangle to be used with Subdiv2D
     cv::Size size = frame.img_.size();
-    cv::Rect rect(0, 0, size.width, size.height);
+    cv::Rect2f rect(0, 0, size.width, size.height);
 
+    std::cout << "before subdiv" << std::endl;
     // subdiv has the delaunay triangulation function
     cv::Subdiv2D subdiv(rect);
 
+    std::cout << "after subdiv" << std::endl;
+
     // add points from Frame
     for(size_t i=0; i < frame.keypoints_.size(); i++){
-      if(frame.landmarks_[i] != -1) // only for valid keypoints
+      if(frame.landmarks_[i] != -1 && rect.contains(frame.keypoints_[i])){ // only for valid keypoints
+        std::cout << "frame.keypoints_[i]" << frame.keypoints_[i] << std::endl;
         subdiv.insert(frame.keypoints_[i]);
+      }
     }
 
     // do triangulation
     std::vector<cv::Vec6f> triangulation2D, triangulation2DwithExtraTriangles;
 
+    std::cout << "before getTriangleList" << std::endl;
     // getTriangleList returns some spurious triangle with vertices outside image
     subdiv.getTriangleList(triangulation2DwithExtraTriangles);
-
+    std::cout << "after getTriangleList" << std::endl;
     std::vector<cv::Point> pt(3);
     for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++)
         {
