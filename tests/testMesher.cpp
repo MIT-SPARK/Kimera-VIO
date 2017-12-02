@@ -42,44 +42,41 @@ TEST(testMesher, createMesh2D) {
   vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(f);
   Mesher::VisualizeMesh2D(f, triangulation2D);
 
-  cout <<  f.keypoints_[0].x << endl;
-  cout <<  f.keypoints_[0].y << endl;
-  cout <<  f.keypoints_[1].x << endl;
-  cout <<  f.keypoints_[1].y << endl;
-  cout <<  f.keypoints_[2].x << endl;
-  cout <<  f.keypoints_[2].y << endl;
-  cout <<  f.keypoints_[3].x << endl;
-  cout <<  f.keypoints_[3].y << endl;
-  cout <<  f.keypoints_.size() << endl;
+  // Expected triangulation
+  //  3 -- 2
+  //  | /  |
+  //  1 -- 0
 
   // triangle 1:
-  double triangle1_pt1_x = double (triangulation2D[0][0]);
-  EXPECT_DOUBLES_EQUAL(1308, triangle1_pt1_x, tol);
-  double triangle1_pt1_y = double (triangulation2D[0][1]);
-  EXPECT_DOUBLES_EQUAL(0.0, triangle1_pt1_y, tol);
-  double triangle1_pt2_x = double (triangulation2D[0][2]);
-  EXPECT_DOUBLES_EQUAL(0.0, triangle1_pt2_x, tol);
-  double triangle1_pt2_y = double (triangulation2D[0][3]);
-  EXPECT_DOUBLES_EQUAL(1308, triangle1_pt2_y, tol);
-  double triangle1_pt3_x = double (triangulation2D[0][4]);
-  EXPECT_DOUBLES_EQUAL( 291.49, triangle1_pt3_x, tol);
-  double triangle1_pt3_y = double (triangulation2D[0][5]);
-  EXPECT_DOUBLES_EQUAL(293.49, triangle1_pt3_y, tol);
+  Vec6f triangle1 = triangulation2D[0];
+  double triangle1_pt1_x = double (triangle1[0]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[2].x, triangle1_pt1_x, tol);
+  double triangle1_pt1_y = double (triangle1[1]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[2].y, triangle1_pt1_y, tol);
+  double triangle1_pt2_x = double (triangle1[2]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[1].x, triangle1_pt2_x, tol);
+  double triangle1_pt2_y = double (triangle1[3]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[1].y, triangle1_pt2_y, tol);
+  double triangle1_pt3_x = double (triangle1[4]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[3].x, triangle1_pt3_x, tol);
+  double triangle1_pt3_y = double (triangle1[5]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[3].y, triangle1_pt3_y, tol);
 
+  // triangle 2:
+  Vec6f triangle2 = triangulation2D[1];
+  double triangle2_pt1_x = double (triangle2[0]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[1].x, triangle2_pt1_x, tol);
+  double triangle2_pt1_y = double (triangle2[1]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[1].y, triangle2_pt1_y, tol);
+  double triangle2_pt2_x = double (triangle2[2]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[2].x, triangle2_pt2_x, tol);
+  double triangle2_pt2_y = double (triangle2[3]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[2].y, triangle2_pt2_y, tol);
+  double triangle2_pt3_x = double (triangle2[4]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[0].x, triangle2_pt3_x, tol);
+  double triangle2_pt3_y = double (triangle2[5]);
+  EXPECT_DOUBLES_EQUAL(f.keypoints_[0].y, triangle2_pt3_y, tol);
 }
-
-
-/* ************************************************************************* */
-TEST(testMesher, visualizeMesh2D) {
-  // Mesher class
-  //
-  // vector<Vec6f triangulation2D = mesher.createMesh2D(Frame& currentFrame)
-  //
-  // mesher.visualizeMesh2D(Frame& currentFrame, vector<Vec6f> triangulation2D);
-
-
-}
-
 
 /* ************************************************************************* */
 int main() {
