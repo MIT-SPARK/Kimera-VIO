@@ -36,6 +36,9 @@ public:
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   static std::vector<cv::Vec6f> CreateMesh2D(const Frame& frame){
+
+    frame.print();
+
     // Rectangle to be used with Subdiv2D
     cv::Size size = frame.img_.size();
     cv::Rect rect(0, 0, size.width, size.height);
@@ -44,8 +47,10 @@ public:
     cv::Subdiv2D subdiv(rect);
 
     // add points from Frame
-    for(size_t i=0; i < frame.keypoints_.size(); i++)
-      subdiv.insert(frame.keypoints_[i]);
+    for(size_t i=0; i < frame.keypoints_.size(); i++){
+      if(frame.landmarks_[i] != -1) // only for valid keypoints
+        subdiv.insert(frame.keypoints_[i]);
+    }
 
     // do triangulation
     std::vector<cv::Vec6f> triangulation2D, triangulation2DwithExtraTriangles;
@@ -69,7 +74,7 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static void VisualizeMesh2D(const Frame& frame, const std::vector<cv::Vec6f> triangulation2D){
+  static void VisualizeMesh2D(const Frame& frame, const std::vector<cv::Vec6f> triangulation2D, const double waitTime = 0){
     cv::Scalar delaunay_color(0,255,0), points_color(255, 0,0);
 
     cv::Mat img = frame.img_.clone();
@@ -92,11 +97,12 @@ public:
       cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
     }
 
-    for(size_t i=0; i < frame.keypoints_.size(); i++)
-      cv::circle(img, frame.keypoints_[i], 2, points_color, CV_FILLED, CV_AA, 0);
-
+    for(size_t i=0; i < frame.keypoints_.size(); i++){
+      if(frame.landmarks_[i] != -1) // only for valid keypoints
+        cv::circle(img, frame.keypoints_[i], 2, points_color, CV_FILLED, CV_AA, 0);
+    }
     cv::imshow("Mesh Results", img);
-    cv::waitKey(1000);
+    cv::waitKey(waitTime);
   }
 };
 } // namespace VIO

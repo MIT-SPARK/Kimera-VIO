@@ -15,6 +15,7 @@
 #include "ETH_parser.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
+#include "Mesher.h"
 #include "LoggerMatlab.h"
 #include "VioBackEnd.h"
 #include <gtsam/geometry/Pose3.h>
@@ -257,18 +258,6 @@ int main(const int argc, const char *argv[])
       }
       logger.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
 
-      ////////////////// GET 3D POINTS /////////////////////////////////////////////////////////////////////
-      if(createMesh){
-        vector<Point3> points3d = vioBackEnd->get3DPoints();
-        //
-        //stereoVisionFrontEnd.stereoFrame_k_.left_frame_.keypoints_;
-        //stereoVisionFrontEnd.stereoFrame_k_.left_frame_.img_;
-        //for(size_t pti=0; pti < points3d.size(); pti++)
-        //  points3d[pti].print();
-        // coordinates of each point pti: points3d[pti].x(), points3d[pti].y(), points3d[pti].z()
-        // printing this data to file
-      }
-
       ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////////////////////////////////////////
       startTime = UtilsOpenCV::GetTimeInSeconds();
       logger.logBackendResults(dataset,stereoVisionFrontEnd,vioBackEnd,timestamp_lkf,timestamp_k,k);
@@ -276,6 +265,25 @@ int main(const int argc, const char *argv[])
       logger.timing_loggerBackend_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
       logger.displayOverallTiming();
       ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////////////////////////////////////////
+      if(createMesh){
+        // vector<Point3> points3d = vioBackEnd->get3DPoints();
+        cv::Mat img = stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_.clone();
+        cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
+        UtilsOpenCV::DrawCrossesInPlace(img, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.getValidKeypoints(), cv::Scalar(0, 0, 255),0.4);
+        cv::imshow("Valid keypoints", img);
+        cv::waitKey(100);
+
+        vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
+        std::cout <<"visualizing mesh:" << std::endl;
+        Mesher::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
+
+        //for(size_t pti=0; pti < points3d.size(); pti++)
+        //  points3d[pti].print();
+        // coordinates of each point pti: points3d[pti].x(), points3d[pti].y(), points3d[pti].z()
+        // printing this data to file
+      }
 
       didFirstOptimization = true;
       timestamp_lkf = timestamp_k;

@@ -40,7 +40,6 @@ TEST(testMesher, createMesh2D) {
 
   // compute mesh
   vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(f);
-  Mesher::VisualizeMesh2D(f, triangulation2D);
 
   // Expected triangulation
   //  3 -- 2
@@ -77,6 +76,37 @@ TEST(testMesher, createMesh2D) {
   double triangle2_pt3_y = double (triangle2[5]);
   EXPECT_DOUBLES_EQUAL(f.keypoints_[0].y, triangle2_pt3_y, tol);
 }
+
+/* ************************************************************************* */
+TEST(testMesher, createMesh2D_noKeypoints) {
+
+  // Construct a frame from image name.
+  FrameId id = 0;
+  Timestamp tmp = 123;
+  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
+  Frame f(id, tmp, imgName, CameraParams());
+
+  // compute mesh without points
+  vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(f);
+
+  EXPECT(triangulation2D.size() == 0);
+}
+
+/* ************************************************************************* */
+TEST(testMesher, visualizeMesh2D) {
+
+  // Construct a frame from image name.
+  FrameId id = 0;
+  Timestamp tmp = 123;
+  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
+  Frame f(id, tmp, imgName, CameraParams());
+  f.extractCorners();
+
+  // compute mesh
+  vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(f);
+  Mesher::VisualizeMesh2D(f, triangulation2D,1000);
+}
+
 
 /* ************************************************************************* */
 int main() {

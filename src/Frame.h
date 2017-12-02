@@ -126,17 +126,6 @@ public:
   //    return undistortedImage;
   //  }
   /* --------------------------------------------------------------------------------------- */
-  void print() const
-  {
-    std::cout << "Frame id: " << id_ <<  " at timestamp: " << timestamp_ << std::endl;
-    std::cout << "isKeyframe_: " << isKeyframe_ << std::endl;
-    std::cout << "nr keypoints_: " << keypoints_.size() << std::endl;
-    std::cout << "nr landmarks_: " << landmarks_.size() << std::endl;
-    std::cout << "nr versors_: " << versors_.size() << std::endl;
-    std::cout << "size descriptors_: " << descriptors_.size() << std::endl;
-    cam_param_.print();
-  }
-  /* --------------------------------------------------------------------------------------- */
   size_t getNrValidKeypoints() const
   {
     size_t count = 0;
@@ -145,6 +134,28 @@ public:
         count += 1;
     }
     return count;
+  }
+  /* --------------------------------------------------------------------------------------- */
+  KeypointsCV getValidKeypoints() const
+  {
+    KeypointsCV validKeypoints;
+    for(size_t i=0; i < landmarks_.size(); i++){
+      if(landmarks_.at(i) != -1)// it is valid
+        validKeypoints.push_back(keypoints_[i]);
+    }
+    return validKeypoints;
+  }
+  /* --------------------------------------------------------------------------------------- */
+  void print() const
+  {
+    std::cout << "Frame id: " << id_ <<  " at timestamp: " << timestamp_ << std::endl;
+    std::cout << "isKeyframe_: " << isKeyframe_ << std::endl;
+    std::cout << "nr keypoints_: " << keypoints_.size() << std::endl;
+    std::cout << "nr valid keypoints_: " << getNrValidKeypoints() << std::endl;
+    std::cout << "nr landmarks_: " << landmarks_.size() << std::endl;
+    std::cout << "nr versors_: " << versors_.size() << std::endl;
+    std::cout << "size descriptors_: " << descriptors_.size() << std::endl;
+    cam_param_.print();
   }
   /* --------------------------------------------------------------------------------------- */
   static Vector3 CalibratePixel(const KeypointCV& cv_px, const CameraParams cam_param)
