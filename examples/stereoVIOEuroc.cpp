@@ -268,7 +268,6 @@ int main(const int argc, const char *argv[])
 
       ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////////////////////////////////////////
       if(createMesh){
-        // vector<Point3> points3d = vioBackEnd->get3DPoints();
         cv::Mat img = stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_.clone();
         cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
         UtilsOpenCV::DrawCrossesInPlace(img, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.getValidKeypoints(), cv::Scalar(0, 0, 255),0.4);
@@ -279,10 +278,9 @@ int main(const int argc, const char *argv[])
         std::cout <<"visualizing mesh:" << std::endl;
         Mesher::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
 
-        //for(size_t pti=0; pti < points3d.size(); pti++)
-        //  points3d[pti].print();
-        // coordinates of each point pti: points3d[pti].x(), points3d[pti].y(), points3d[pti].z()
-        // printing this data to file
+        // visualize points 3D
+        vector<Point3> points3d = vioBackEnd->get3DPoints();
+        Mesher::VisualizePoints3D(points3d);
       }
 
       didFirstOptimization = true;

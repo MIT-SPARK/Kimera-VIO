@@ -23,6 +23,9 @@
 #include "opencv2/opencv.hpp"
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/viz/vizcore.hpp>
+//#include <opencv2/viz/widget_accessor.hpp> // TODO: needed for sphere visualize, but cause compile issues
+
 #include <sstream>
 #include <iomanip>
 #include <fstream>
@@ -43,16 +46,12 @@ public:
     cv::Size size = frame.img_.size();
     cv::Rect2f rect(0, 0, size.width, size.height);
 
-    std::cout << "before subdiv" << std::endl;
     // subdiv has the delaunay triangulation function
     cv::Subdiv2D subdiv(rect);
-
-    std::cout << "after subdiv" << std::endl;
 
     // add points from Frame
     for(size_t i=0; i < frame.keypoints_.size(); i++){
       if(frame.landmarks_[i] != -1 && rect.contains(frame.keypoints_[i])){ // only for valid keypoints
-        std::cout << "frame.keypoints_[i]" << frame.keypoints_[i] << std::endl;
         subdiv.insert(frame.keypoints_[i]);
       }
     }
@@ -60,10 +59,8 @@ public:
     // do triangulation
     std::vector<cv::Vec6f> triangulation2D, triangulation2DwithExtraTriangles;
 
-    std::cout << "before getTriangleList" << std::endl;
     // getTriangleList returns some spurious triangle with vertices outside image
     subdiv.getTriangleList(triangulation2DwithExtraTriangles);
-    std::cout << "after getTriangleList" << std::endl;
     std::vector<cv::Point> pt(3);
     for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++)
         {
@@ -110,8 +107,118 @@ public:
     cv::imshow("Mesh Results", img);
     cv::waitKey(waitTime);
   }
+
+  /* ----------------------------------------------------------------------------- */
+  // TODO: make the following code compile
+  //  // Visualize a 3D point cloud using sphere widget from opencv viz
+  //  static void VisualizePoints3D_sphere(vector<gtsam::Point3> points){
+  //
+  //    const double radius = .15;
+  //    const int resolution = 15;
+  //    const cv::viz::Color color = viz::Color::green();
+  //    cv::viz::Viz3d myWindow("Point Cloud 3D");
+  //
+  //    vector<cv::viz::WSphere> widgets;
+  //    for(size_t i = 0 ; i < points.size(); i++){
+  //      cv::Point3f point_i;
+  //      point_i.x = float ( points.at(i).x() );
+  //      point_i.y = float ( points.at(i).y() );
+  //      point_i.z = float ( points.at(i).z() );
+  //      widgets.push_back(viz::WSphere(points[i], radius, resolution, color));
+  //    }
+  //
+  //    for(size_t i = 0; i < widgets.size(); i++)
+  //      myWindow.showWidget("Point #" + std::to_string(i), widgets[i]);
+  //
+  //    myWindow.showWidget("Coordinate Widget", viz::WCoordinateSystem());
+  //
+  //    myWindow.spin();
+  //  }
+
+  /* ----------------------------------------------------------------------------- */
+  // Visualize a 3D point cloud using cloud widget from opencv viz
+  static void VisualizePoints3D(vector<gtsam::Point3> points){
+    // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
+
+    if(points.size() == 0) // no points to visualize
+      return;
+
+    // populate cloud structure with 3D points
+    cv::Mat pointCloud(1,points.size(),CV_32FC3);
+    cv::Point3f* data = pointCloud.ptr<cv::Point3f>();
+    std::cout << "points.size() " << points.size() << std::endl;
+    for(size_t i=0; i<points.size();i++){
+      data[i].x = float ( points.at(i).x() );
+      data[i].y = float ( points.at(i).y() );
+      data[i].z = float ( points.at(i).z() );
+      std::cout << "data[i] " << data[i] << std::endl;
+    }
+    // pointCloud *= 5.0f; // my guess: rescaling the cloud
+
+    std::cout << "before creating widget" << std::endl;
+    // Create a cloud widget.
+    cv::viz::WCloud cloud_widget(pointCloud, cv::viz::Color::green());
+    cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
+
+
+
+    std::cout << "before Coordinate frame" << std::endl;
+    // create window and create axes:
+    cv::viz::Viz3d myWindow("Coordinate Frame");
+    myWindow.showWidget("Coordinate Widget", viz::WCoordinateSystem());
+
+    std::cout << "before cloud_widget show" << std::endl;
+    // plot points
+    myWindow.showWidget("point cloud", cloud_widget);
+
+    /// Start event loop.
+    myWindow.spin();
+  }
+
 };
 } // namespace VIO
 #endif /* Mesher_H_ */
+
+
+//
+//    /// Let's assume camera has the following properties
+//    Point3f cam_pos(3.0f,3.0f,3.0f), cam_focal_point(3.0f,3.0f,2.0f), cam_y_dir(-1.0f,0.0f,0.0f);
+//
+//    /// We can get the pose of the cam using makeCameraPose
+//    Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
+//
+//    /// We can get the transformation matrix from camera coordinate system to global using
+//    /// - makeTransformToGlobal. We need the axes of the camera
+//    Affine3f transform = viz::makeTransformToGlobal(Vec3f(0.0f,-1.0f,0.0f), Vec3f(-1.0f,0.0f,0.0f), Vec3f(0.0f,0.0f,-1.0f), cam_pos);
+//
+//    /// Create a cloud widget.
+//    Mat bunny_cloud = cvcloud_load();
+//    viz::WCloud cloud_widget(bunny_cloud, viz::Color::green());
+//
+//    /// Pose of the widget in camera frame
+//    Affine3f cloud_pose = Affine3f().translate(Vec3f(0.0f,0.0f,3.0f));
+//    /// Pose of the widget in global frame
+//    Affine3f cloud_pose_global = transform * cloud_pose;
+//
+//    /// Visualize camera frame
+//    if (!camera_pov)
+//    {
+//        viz::WCameraPosition cpw(0.5); // Coordinate axes
+//        viz::WCameraPosition cpw_frustum(Vec2f(0.889484, 0.523599)); // Camera frustum
+//        myWindow.showWidget("CPW", cpw, cam_pose);
+//        myWindow.showWidget("CPW_FRUSTUM", cpw_frustum, cam_pose);
+//    }
+//
+//    /// Visualize widget
+//    myWindow.showWidget("bunny", cloud_widget, cloud_pose_global);
+//
+//    /// Set the viewer pose to that of camera
+//    if (camera_pov)
+//        myWindow.setViewerPose(cam_pose);
+//
+//    /// Start event loop.
+//    myWindow.spin();
+//
+//    return 0;
 
 
