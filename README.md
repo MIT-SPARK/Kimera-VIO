@@ -27,8 +27,33 @@ $ make check (optional, runs unit tests)
 Prerequisites:
 
 - [GTSAM](https://bitbucket.org/gtborg/gtsam/overview/) >= 4.0 (Branch: `feature/ImprovementsIncrementalFilter`)
-- [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0
+- [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0 (Installation instructions below)
 - [OpenGV] Installation instructions below 
+
+Installation of OpenCV
+----------------------
+- on Mac:
+```
+#!bash
+$ homebrew install vtk (to check)
+download opencv3.3.1 from https://opencv.org/releases.html
+unzip and go to opencv3.3.1
+$ mkdir build
+$ cd build
+$ cmake ../
+$ sudo make install
+```
+- on Linux:
+```
+#!bash
+$ sudo apt-get install libvtk5-dev
+download opencv3.3.1 from https://opencv.org/releases.html
+unzip and go to opencv3.3.1
+$ mkdir build
+$ cd build
+$ cmake -DWITH_VTK=On ..
+$ sudo make install
+```
 
 Installation of OpenGV
 ----------------------
