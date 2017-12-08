@@ -35,7 +35,18 @@ namespace VIO {
 
 class Mesher {
 
+
 public:
+
+  cv::viz::WCloudCollection map_;
+  cv::viz::Viz3d myWindow_;
+
+  // constructors
+  Mesher(): myWindow_("3D Mapper") {
+    // create window and create axes:
+    myWindow_.showWidget("Coordinate Widget", viz::WCoordinateSystem());
+  }
+
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   static std::vector<cv::Vec6f> CreateMesh2D(const Frame& frame){
@@ -137,7 +148,7 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
-  static void VisualizePoints3D(vector<gtsam::Point3> points){
+  static void VisualizePoints3D(vector<gtsam::Point3> points, int timeHold = 0){
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
     if(points.size() == 0) // no points to visualize
@@ -146,12 +157,10 @@ public:
     // populate cloud structure with 3D points
     cv::Mat pointCloud(1,points.size(),CV_32FC3);
     cv::Point3f* data = pointCloud.ptr<cv::Point3f>();
-    std::cout << "points.size() " << points.size() << std::endl;
     for(size_t i=0; i<points.size();i++){
       data[i].x = float ( points.at(i).x() );
       data[i].y = float ( points.at(i).y() );
       data[i].z = float ( points.at(i).z() );
-      std::cout << "data[i] " << data[i] << std::endl;
     }
     // pointCloud *= 5.0f; // my guess: rescaling the cloud
 
@@ -160,19 +169,46 @@ public:
     cv::viz::WCloud cloud_widget(pointCloud, cv::viz::Color::green());
     cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
 
-
-
-    std::cout << "before Coordinate frame" << std::endl;
     // create window and create axes:
     cv::viz::Viz3d myWindow("Coordinate Frame");
     myWindow.showWidget("Coordinate Widget", viz::WCoordinateSystem());
 
-    std::cout << "before cloud_widget show" << std::endl;
     // plot points
-    myWindow.showWidget("point cloud", cloud_widget);
+    myWindow.showWidget("point cloud map",  cloud_widget);
 
     /// Start event loop.
-    myWindow.spin();
+    if(timeHold == 0)
+      myWindow.spin();
+    else
+      myWindow.spinOnce(timeHold);
+  }
+
+  /* ----------------------------------------------------------------------------- */
+  // Visualize a 3D point cloud using cloud widget from opencv viz
+  void visualizeMap3D(vector<gtsam::Point3> points){
+    // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
+
+    if(points.size() == 0) // no points to visualize
+      return;
+
+    // populate cloud structure with 3D points
+    cv::Mat pointCloud(1,points.size(),CV_32FC3);
+    cv::Point3f* data = pointCloud.ptr<cv::Point3f>();
+    for(size_t i=0; i<points.size();i++){
+      data[i].x = float ( points.at(i).x() );
+      data[i].y = float ( points.at(i).y() );
+      data[i].z = float ( points.at(i).z() );
+    }
+
+    // add to the existing map
+    map_.addCloud(pointCloud, cv::viz::Color::green());
+    map_.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
+
+    // plot points
+    myWindow_.showWidget("point cloud map", map_);
+
+    /// Start event loop.
+    myWindow_.spinOnce(100);
   }
 
 };

@@ -121,6 +121,9 @@ int main(const int argc, const char *argv[])
   // Create VIO: class that tracks implements estimation back-end
   boost::shared_ptr<VioBackEnd> vioBackEnd;
 
+  // create class to visualize 3D points and mesh:
+  Mesher mesher;
+
   // structures to be filled with imu data
   ImuStamps imu_stamps;
   ImuAccGyr imu_accgyr;
@@ -280,7 +283,7 @@ int main(const int argc, const char *argv[])
 
         // visualize points 3D
         vector<Point3> points3d = vioBackEnd->get3DPoints();
-        Mesher::VisualizePoints3D(points3d);
+        mesher.visualizeMap3D(points3d);
       }
 
       didFirstOptimization = true;
