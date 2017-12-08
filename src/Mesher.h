@@ -24,8 +24,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/viz/vizcore.hpp>
-//#include <opencv2/viz/widget_accessor.hpp> // TODO: needed for sphere visualize, but cause compile issues
-
 #include <sstream>
 #include <iomanip>
 #include <fstream>
@@ -37,16 +35,17 @@ class Mesher {
 
 
 public:
-  using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, size_t>;
+  using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, int>;
 
   cv::viz::WCloudCollection mapWithRepeatedPoints_;
   cv::viz::Viz3d myWindow_;
 
   cv::Mat mapPoints3d_; // set of (non-repeated) points = valid landmark positions
   LandmarkIdToMapPointId lmkIdToMapPointId_; // maps lmk id to corresponding 3D points
+  int points3D_count_; // number of points
 
   // constructors
-  Mesher(): myWindow_("3D Mapper") {
+  Mesher(): myWindow_("3D Mapper"), points3D_count_(0) {
     // create window and create axes:
     myWindow_.showWidget("Coordinate Widget", viz::WCoordinateSystem());
   }
@@ -124,33 +123,6 @@ public:
   }
 
   /* ----------------------------------------------------------------------------- */
-  // TODO: make the following code compile
-  //  // Visualize a 3D point cloud using sphere widget from opencv viz
-  //  static void VisualizePoints3D_sphere(vector<gtsam::Point3> points){
-  //
-  //    const double radius = .15;
-  //    const int resolution = 15;
-  //    const cv::viz::Color color = viz::Color::green();
-  //    cv::viz::Viz3d myWindow("Point Cloud 3D");
-  //
-  //    vector<cv::viz::WSphere> widgets;
-  //    for(size_t i = 0 ; i < points.size(); i++){
-  //      cv::Point3f point_i;
-  //      point_i.x = float ( points.at(i).x() );
-  //      point_i.y = float ( points.at(i).y() );
-  //      point_i.z = float ( points.at(i).z() );
-  //      widgets.push_back(viz::WSphere(points[i], radius, resolution, color));
-  //    }
-  //
-  //    for(size_t i = 0; i < widgets.size(); i++)
-  //      myWindow.showWidget("Point #" + std::to_string(i), widgets[i]);
-  //
-  //    myWindow.showWidget("Coordinate Widget", viz::WCoordinateSystem());
-  //
-  //    myWindow.spin();
-  //  }
-
-  /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
   static void VisualizePoints3D(vector<gtsam::Point3> points, int timeHold = 0){
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
@@ -168,7 +140,6 @@ public:
     }
     // pointCloud *= 5.0f; // my guess: rescaling the cloud
 
-    std::cout << "before creating widget" << std::endl;
     // Create a cloud widget.
     cv::viz::WCloud cloud_widget(pointCloud, cv::viz::Color::green());
     cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
@@ -216,34 +187,41 @@ public:
   }
 
   /* ----------------------------------------------------------------------------- */
-
-//  mapPoints3d_; // set of (non-repeated) points = valid landmark positions
-//    LandmarkIdToMapPointId lmkIdToMapPointId_
   // Visualize a 3D mesh of unique 3D landmarks with its connectivity
-  void visualizeMesh3D(vector<gtsam::Point3> points, LandmarkIds lmkIds){
+  void visualizeMesh3D(vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId){
 
-    if(points.size() == 0) // no points to visualize
+    // sanity check dimension
+    if(pointsWithId.size() == 0) // no points to visualize
       return;
 
-    if(points.size() != lmkIds.size())
-      throw std::runtime_error("Mesher: points and lmk id dimension mismatch \n");
+    // update 3D points by adding new points or updating old reobserved ones
+    for(size_t i=0; i<pointsWithId.size();i++) {
 
-
-    // populate cloud structure with 3D points
-    cv::Mat pointCloud(1,points.size(),CV_32FC3);
-    cv::Point3f* data = pointCloud.ptr<cv::Point3f>();
-    for(size_t i=0; i<points.size();i++){
-      data[i].x = float ( points.at(i).x() );
-      data[i].y = float ( points.at(i).y() );
-      data[i].z = float ( points.at(i).z() );
+      LandmarkId lmk_id = pointsWithId.at(i).first;
+      gtsam::Point3 point_i = pointsWithId.at(i).second;
+      auto lm_it = lmkIdToMapPointId_.find(lmk_id);
+      if (lm_it == lmkIdToMapPointId_.end()) // new landmark
+      {
+        cv::Point3f p(float(point_i.x()), float(point_i.y()), float(point_i.z()));
+        mapPoints3d_.push_back(p);
+        lmkIdToMapPointId_.insert(std::make_pair(lmk_id, mapPoints3d_.rows-1));
+        ++points3D_count_;
+      }
+      else // replace point for existing landmark
+      {
+        cv::Point3f* data = mapPoints3d_.ptr<cv::Point3f>();
+        int row_id = (*lm_it).second;
+        data[row_id].x = float ( point_i.x() );
+        data[row_id].y = float ( point_i.y() );
+        data[row_id].z = float ( point_i.z() );
+      }
     }
-
-    // add to the existing map
-    mapWithRepeatedPoints_.addCloud(pointCloud, cv::viz::Color::green());
-    mapWithRepeatedPoints_.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
+    // Create a cloud widget.
+    cv::viz::WCloud cloud_widget(mapPoints3d_, cv::viz::Color::green());
+    cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
 
     // plot points
-    myWindow_.showWidget("point cloud map", mapWithRepeatedPoints_);
+    myWindow_.showWidget("point cloud map",  cloud_widget);
 
     /// Start event loop.
     myWindow_.spinOnce(100);

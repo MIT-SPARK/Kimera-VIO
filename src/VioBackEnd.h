@@ -166,6 +166,9 @@ public:
   using LandmarkIdSmartFactorMap = std::unordered_map<LandmarkId, SmartStereoFactor::shared_ptr>;
   using SmartFactorMap = gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, int>>;
 
+  using PointWithId = std::pair<LandmarkId, gtsam::Point3>;
+  using PointsWithId = std::vector<PointWithId>;
+
   // verbosity_ explanation
   /*
    * 4: display smart factors statistics
@@ -477,6 +480,33 @@ public:
     }
     return points3D;
   }
+  /* ----------------------------------------------------------------------------------- */
+  PointsWithId get3DPointsAndLmkIds() const{
+
+    // output
+    PointsWithId pointsWithId;
+
+    gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
+    for (auto& sf : old_smart_factors_) //!< landmarkId -> {SmartFactorPtr, SlotIndex}
+    {
+      const LandmarkId lmkId = sf.first;
+      const SmartStereoFactor::shared_ptr& sf_ptr = sf.second.first;
+      const int slotId = sf.second.second;
+
+      if(sf_ptr && graph.size() > slotId && sf_ptr == graph[slotId]){
+        auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slotId]);
+        if (gsf){
+          // Check SF status
+          gtsam::TriangulationResult result = gsf->point();
+          if(result.valid()){
+            pointsWithId.push_back(std::make_pair(lmkId,*result));
+          }
+        }
+      }
+    }
+    return pointsWithId;
+  }
+
   /* ----------------------------------------------------------------------------------- */
   void computeSmartFactorStatistics()
   {

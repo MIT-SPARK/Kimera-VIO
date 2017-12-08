@@ -271,19 +271,23 @@ int main(const int argc, const char *argv[])
 
       ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////////////////////////////////////////
       if(createMesh){
-        cv::Mat img = stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_.clone();
-        cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
-        UtilsOpenCV::DrawCrossesInPlace(img, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.getValidKeypoints(), cv::Scalar(0, 0, 255),0.4);
-        cv::imshow("Valid keypoints", img);
-        cv::waitKey(100);
+        //cv::Mat img = stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_.clone();
+        //cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
+        //UtilsOpenCV::DrawCrossesInPlace(img, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.getValidKeypoints(), cv::Scalar(0, 0, 255),0.4);
+        //cv::imshow("Valid keypoints", img);
+        //cv::waitKey(100);
 
         vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
         std::cout <<"visualizing mesh:" << std::endl;
         Mesher::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
 
         // visualize points 3D
-        vector<Point3> points3d = vioBackEnd->get3DPoints();
-        mesher.visualizeMap3D_repeatedPoints(points3d);
+        // vector<Point3> points3d = vioBackEnd->get3DPoints();
+        // mesher.visualizeMap3D_repeatedPoints(points3d);
+
+        // visualize Mesh
+        VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
+        mesher.visualizeMesh3D(pointsWithId);
       }
 
       didFirstOptimization = true;
