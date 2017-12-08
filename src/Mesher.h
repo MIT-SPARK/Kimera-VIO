@@ -37,9 +37,13 @@ class Mesher {
 
 
 public:
+  using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, size_t>;
 
-  cv::viz::WCloudCollection map_;
+  cv::viz::WCloudCollection mapWithRepeatedPoints_;
   cv::viz::Viz3d myWindow_;
+
+  cv::Mat mapPoints3d_; // set of (non-repeated) points = valid landmark positions
+  LandmarkIdToMapPointId lmkIdToMapPointId_; // maps lmk id to corresponding 3D points
 
   // constructors
   Mesher(): myWindow_("3D Mapper") {
@@ -185,7 +189,7 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
-  void visualizeMap3D(vector<gtsam::Point3> points){
+  void visualizeMap3D_repeatedPoints(vector<gtsam::Point3> points){
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
     if(points.size() == 0) // no points to visualize
@@ -201,11 +205,45 @@ public:
     }
 
     // add to the existing map
-    map_.addCloud(pointCloud, cv::viz::Color::green());
-    map_.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
+    mapWithRepeatedPoints_.addCloud(pointCloud, cv::viz::Color::green());
+    mapWithRepeatedPoints_.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
 
     // plot points
-    myWindow_.showWidget("point cloud map", map_);
+    myWindow_.showWidget("point cloud map", mapWithRepeatedPoints_);
+
+    /// Start event loop.
+    myWindow_.spinOnce(100);
+  }
+
+  /* ----------------------------------------------------------------------------- */
+
+//  mapPoints3d_; // set of (non-repeated) points = valid landmark positions
+//    LandmarkIdToMapPointId lmkIdToMapPointId_
+  // Visualize a 3D mesh of unique 3D landmarks with its connectivity
+  void visualizeMesh3D(vector<gtsam::Point3> points, LandmarkIds lmkIds){
+
+    if(points.size() == 0) // no points to visualize
+      return;
+
+    if(points.size() != lmkIds.size())
+      throw std::runtime_error("Mesher: points and lmk id dimension mismatch \n");
+
+
+    // populate cloud structure with 3D points
+    cv::Mat pointCloud(1,points.size(),CV_32FC3);
+    cv::Point3f* data = pointCloud.ptr<cv::Point3f>();
+    for(size_t i=0; i<points.size();i++){
+      data[i].x = float ( points.at(i).x() );
+      data[i].y = float ( points.at(i).y() );
+      data[i].z = float ( points.at(i).z() );
+    }
+
+    // add to the existing map
+    mapWithRepeatedPoints_.addCloud(pointCloud, cv::viz::Color::green());
+    mapWithRepeatedPoints_.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
+
+    // plot points
+    myWindow_.showWidget("point cloud map", mapWithRepeatedPoints_);
 
     /// Start event loop.
     myWindow_.spinOnce(100);
@@ -214,47 +252,5 @@ public:
 };
 } // namespace VIO
 #endif /* Mesher_H_ */
-
-
-//
-//    /// Let's assume camera has the following properties
-//    Point3f cam_pos(3.0f,3.0f,3.0f), cam_focal_point(3.0f,3.0f,2.0f), cam_y_dir(-1.0f,0.0f,0.0f);
-//
-//    /// We can get the pose of the cam using makeCameraPose
-//    Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
-//
-//    /// We can get the transformation matrix from camera coordinate system to global using
-//    /// - makeTransformToGlobal. We need the axes of the camera
-//    Affine3f transform = viz::makeTransformToGlobal(Vec3f(0.0f,-1.0f,0.0f), Vec3f(-1.0f,0.0f,0.0f), Vec3f(0.0f,0.0f,-1.0f), cam_pos);
-//
-//    /// Create a cloud widget.
-//    Mat bunny_cloud = cvcloud_load();
-//    viz::WCloud cloud_widget(bunny_cloud, viz::Color::green());
-//
-//    /// Pose of the widget in camera frame
-//    Affine3f cloud_pose = Affine3f().translate(Vec3f(0.0f,0.0f,3.0f));
-//    /// Pose of the widget in global frame
-//    Affine3f cloud_pose_global = transform * cloud_pose;
-//
-//    /// Visualize camera frame
-//    if (!camera_pov)
-//    {
-//        viz::WCameraPosition cpw(0.5); // Coordinate axes
-//        viz::WCameraPosition cpw_frustum(Vec2f(0.889484, 0.523599)); // Camera frustum
-//        myWindow.showWidget("CPW", cpw, cam_pose);
-//        myWindow.showWidget("CPW_FRUSTUM", cpw_frustum, cam_pose);
-//    }
-//
-//    /// Visualize widget
-//    myWindow.showWidget("bunny", cloud_widget, cloud_pose_global);
-//
-//    /// Set the viewer pose to that of camera
-//    if (camera_pov)
-//        myWindow.setViewerPose(cam_pose);
-//
-//    /// Start event loop.
-//    myWindow.spin();
-//
-//    return 0;
 
 

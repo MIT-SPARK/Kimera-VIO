@@ -283,7 +283,7 @@ int main(const int argc, const char *argv[])
 
         // visualize points 3D
         vector<Point3> points3d = vioBackEnd->get3DPoints();
-        mesher.visualizeMap3D(points3d);
+        mesher.visualizeMap3D_repeatedPoints(points3d);
       }
 
       didFirstOptimization = true;

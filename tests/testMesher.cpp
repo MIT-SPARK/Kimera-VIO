@@ -107,6 +107,21 @@ TEST(testMesher, visualizeMesh2D) {
   Mesher::VisualizeMesh2D(f, triangulation2D,1000);
 }
 
+/* ************************************************************************* */
+TEST(testMesher, pointCloudResize) {
+
+  // Construct a frame from image name.
+  FrameId id = 0;
+  Timestamp tmp = 123;
+  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
+  Frame f(id, tmp, imgName, CameraParams());
+  f.extractCorners();
+
+  // compute mesh
+  vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(f);
+  Mesher::VisualizeMesh2D(f, triangulation2D,1000);
+}
+
 
 /* ************************************************************************* */
 int main() {
