@@ -285,9 +285,13 @@ int main(const int argc, const char *argv[])
         // vector<Point3> points3d = vioBackEnd->get3DPoints();
         // mesher.visualizeMap3D_repeatedPoints(points3d);
 
-        // visualize Mesh
+        // visualize points 3D without repetition
+        // VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
+        // mesher.visualizePoints3D(pointsWithId);
+
+        // visualize mesh 3D
         VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
-        mesher.visualizeMesh3D(pointsWithId);
+        mesher.visualizeMesh3D(pointsWithId, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
       }
 
       didFirstOptimization = true;

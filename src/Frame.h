@@ -146,6 +146,17 @@ public:
     return validKeypoints;
   }
   /* --------------------------------------------------------------------------------------- */
+  LandmarkId findLmkIdFromPixel(KeypointCV px) const
+  {
+    for(size_t i=0; i < keypoints_.size(); i++){
+      if(keypoints_.at(i).x == px.x && keypoints_.at(i).y == px.y)// it's matching the query point
+        return landmarks_[i];
+    }
+    for(size_t i=0; i < keypoints_.size(); i++)
+      std::cout << "px: " << px << " kpi: " << keypoints_.at(i) << std::endl;
+    throw std::runtime_error("findLmkIdFromPixel: px not found");
+  }
+  /* --------------------------------------------------------------------------------------- */
   void print() const
   {
     std::cout << "Frame id: " << id_ <<  " at timestamp: " << timestamp_ << std::endl;
