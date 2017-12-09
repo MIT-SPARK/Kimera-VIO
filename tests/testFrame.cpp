@@ -114,5 +114,15 @@ TEST(testFrame, CalibratePixel) {
 }
 
 /* ************************************************************************* */
+TEST(testFrame, findLmkIdFromPixel) {
+  Frame f(0, 0, chessboardImgName, CameraParams());
+  f.extractCorners();
+  for (int i = 0; i < f.keypoints_.size(); i++) {
+    f.landmarks_.push_back(i+5); // always push a valid and sometimes also an outlier
+  }
+  // check that if you query ith f.keypoints_ you get i+5
+}
+
+/* ************************************************************************* */
 int main() { TestResult tr; return TestRegistry::runAllTests(tr); }
 /* ************************************************************************* */
