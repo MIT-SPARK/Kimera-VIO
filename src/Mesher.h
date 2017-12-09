@@ -120,11 +120,10 @@ public:
             << id_pt1 << " " << id_pt2 << " " << id_pt3 << " (" <<
             mapPoints3d_.rows-1 << ")"<< std::endl;
       }
-
-//      int* data = polygon.ptr<int>();
-//      for(size_t i=0; i<polygon.rows;i++)
-//        std::cout << data[i] << std::endl;
     }
+    int* data = polygon.ptr<int>();
+    for(size_t i=0; i<polygon.rows;i++)
+      std::cout << data[i] << std::endl;
     return polygon;
   }
   /* ----------------------------------------------------------------------------- */
@@ -286,7 +285,7 @@ public:
 
     // Create a cloud widget.
     std::cout << "WMesh " <<  std::endl;
-    cv::viz::WMesh mesh(mapPoints3d_, createMesh3d_MapPointId(frame), cv::viz::Color::green());
+    cv::viz::WMesh mesh(mapPoints3d_.t(), createMesh3d_MapPointId(frame));
 
     // plot points
     std::cout << "WMesh  showWidget" <<  std::endl;
