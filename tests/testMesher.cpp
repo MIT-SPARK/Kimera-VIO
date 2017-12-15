@@ -37,6 +37,9 @@ TEST(testMesher, createMesh2D) {
   const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
   Frame f(id, tmp, imgName, CameraParams());
   f.extractCorners();
+  for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
+    f.landmarks_.push_back(i);
+  }
 
   // compute mesh
   vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(f);
@@ -101,6 +104,9 @@ TEST(testMesher, visualizeMesh2D) {
   const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
   Frame f(id, tmp, imgName, CameraParams());
   f.extractCorners();
+  for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
+    f.landmarks_.push_back(i);
+  }
 
   // compute mesh
   vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(f);

@@ -47,12 +47,16 @@ public:
   // constructors
   Mesher(): myWindow_("3D Mapper"), points3D_count_(0) {
     // create window and create axes:
-    myWindow_.showWidget("Coordinate Widget", viz::WCoordinateSystem());
+    myWindow_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
 
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   static std::vector<cv::Vec6f> CreateMesh2D(const Frame& frame){
+
+    // sanity check
+    if(frame.landmarks_.size() != frame.keypoints_.size())
+      throw std::runtime_error("mesher: wrong dimension for the landmarks");
 
     // Rectangle to be used with Subdiv2D
     cv::Size size = frame.img_.size();
@@ -90,7 +94,7 @@ public:
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   cv::Mat createMesh3d_MapPointId(const Frame& frame){
-    vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(frame);
+    std::vector<cv::Vec6f> triangulation2D = Mesher::CreateMesh2D(frame);
 
     // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
     // where n is the number of points in the poligon, and id is a zero-offset
@@ -131,6 +135,11 @@ public:
   static void VisualizeMesh2D(const Frame& frame, const std::vector<cv::Vec6f> triangulation2D, const double waitTime = 0){
     cv::Scalar delaunay_color(0,255,0), points_color(255, 0,0);
 
+    // sanity check
+    if(frame.landmarks_.size() != frame.keypoints_.size())
+      throw std::runtime_error("mesher: wrong dimension for the landmarks");
+
+
     cv::Mat img = frame.img_.clone();
     cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
 
@@ -161,7 +170,7 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
-  static void VisualizePoints3D(vector<gtsam::Point3> points, int timeHold = 0){
+  static void VisualizePoints3D(std::vector<gtsam::Point3> points, int timeHold = 0){
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
     if(points.size() == 0) // no points to visualize
@@ -183,7 +192,7 @@ public:
 
     // create window and create axes:
     cv::viz::Viz3d myWindow("Coordinate Frame");
-    myWindow.showWidget("Coordinate Widget", viz::WCoordinateSystem());
+    myWindow.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
 
     // plot points
     myWindow.showWidget("point cloud map",  cloud_widget);
@@ -197,7 +206,7 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
-  void visualizeMap3D_repeatedPoints(vector<gtsam::Point3> points){
+  void visualizeMap3D_repeatedPoints(std::vector<gtsam::Point3> points){
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
     if(points.size() == 0) // no points to visualize
@@ -224,7 +233,7 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Update map
-  void updateMap3D(vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId){
+  void updateMap3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId){
 
     // update 3D points by adding new points or updating old reobserved ones
     for(size_t i=0; i<pointsWithId.size();i++) {
@@ -251,7 +260,7 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
-  void visualizePoints3D(vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId){
+  void visualizePoints3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId){
 
     // sanity check dimension
     if(pointsWithId.size() == 0) // no points to visualize
@@ -273,7 +282,7 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
-  void visualizeMesh3D(vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame){
+  void visualizeMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame){
 
     // sanity check dimension
     if(pointsWithId.size() == 0) // no points to visualize

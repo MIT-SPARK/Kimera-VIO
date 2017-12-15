@@ -99,7 +99,7 @@ int main(const int argc, const char *argv[])
   // srand(0); // still does not make RANSAC REPEATABLE across different machines
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
-  const bool createMesh = false;
+  const bool createMesh = true;
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;

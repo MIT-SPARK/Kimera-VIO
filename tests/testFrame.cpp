@@ -121,7 +121,7 @@ TEST(testFrame, findLmkIdFromPixel) {
     f.landmarks_.push_back(i+5); // always push a valid and sometimes also an outlier
   }
   // check that if you query ith f.keypoints_ you get i+5
-  for (int i = 0; i < f.keypoints_size(); i++) {
+  for (int i = 0; i < f.keypoints_.size(); i++) {
     EXPECT(f.findLmkIdFromPixel(f.keypoints_[i]) == i+5);
   }
 }
