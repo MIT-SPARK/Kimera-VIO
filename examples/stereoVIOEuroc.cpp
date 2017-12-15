@@ -279,9 +279,9 @@ int main(const int argc, const char *argv[])
         //cv::imshow("Valid keypoints", img);
         //cv::waitKey(100);
 
-//        vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
-//        std::cout <<"visualizing mesh:" << std::endl;
-//        Mesher::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
+        //        vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
+        //        std::cout <<"visualizing mesh:" << std::endl;
+        //        Mesher::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
 
         // visualize points 3D
         // vector<Point3> points3d = vioBackEnd->get3DPoints();
@@ -289,8 +289,8 @@ int main(const int argc, const char *argv[])
 
         // visualize points 3D without repetition
         // VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
-//        std::cout << "updateMap3D " <<  std::endl;
-//        mesher.updateMap3D(pointsWithId);
+        //        std::cout << "updateMap3D " <<  std::endl;
+        //        mesher.updateMap3D(pointsWithId);
         // mesher.visualizePoints3D(pointsWithId);
 
         if(visualizationType == VisualizationType::MESH){
@@ -301,6 +301,9 @@ int main(const int argc, const char *argv[])
           visualizer.visualizeMesh3D(pointsWithId, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, mesher);
         }
 
+        // visualize trajectory
+        visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
+        visualizer.visualizeTrajectory();
       }
 
       didFirstOptimization = true;

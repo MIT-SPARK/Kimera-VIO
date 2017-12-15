@@ -177,7 +177,7 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
-  void addPose(gtsam::Pose3 current_pose_gtsam){
+  void addPoseToTrajectory(gtsam::Pose3 current_pose_gtsam){
     trajectoryPoses3d_.push_back( UtilsOpenCV::Pose2Affine3f(current_pose_gtsam) );
   }
 
