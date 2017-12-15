@@ -100,7 +100,7 @@ int main(const int argc, const char *argv[])
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::MESH;
+  VisualizationType visualizationType = VisualizationType::POINTCLOUD;
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
@@ -288,10 +288,12 @@ int main(const int argc, const char *argv[])
         // mesher.visualizeMap3D_repeatedPoints(points3d);
 
         // visualize points 3D without repetition
-        // VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
-        //        std::cout << "updateMap3D " <<  std::endl;
-        //        mesher.updateMap3D(pointsWithId);
-        // mesher.visualizePoints3D(pointsWithId);
+        if(visualizationType == VisualizationType::POINTCLOUD){
+          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
+          std::cout << "updateMap3D " <<  std::endl;
+          mesher.updateMap3D(pointsWithId);
+          visualizer.visualizePoints3D(pointsWithId,mesher);
+        }
 
         if(visualizationType == VisualizationType::MESH){
           // update structures keeping memory of the map before visualization
@@ -304,6 +306,7 @@ int main(const int argc, const char *argv[])
         // visualize trajectory
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory();
+        visualizer.myWindow_.spinOnce(50);
       }
 
       didFirstOptimization = true;

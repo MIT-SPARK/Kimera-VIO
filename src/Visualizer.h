@@ -103,10 +103,11 @@ public:
     myWindow.showWidget("point cloud map",  cloud_widget);
 
     /// Start event loop.
-    if(timeHold == 0)
-      myWindow.spin();
-    else
-      myWindow.spinOnce(timeHold);
+    // TODO
+//    if(timeHold == 0)
+//      myWindow.spin();
+//    else
+//      myWindow.spinOnce(timeHold);
   }
 
   /* ----------------------------------------------------------------------------- */
@@ -134,7 +135,7 @@ public:
     myWindow_.showWidget("point cloud map", mapWithRepeatedPoints_);
 
     /// Start event loop.
-    myWindow_.spinOnce(100);
+    //TODO: myWindow_.spinOnce(100);
   }
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
@@ -147,18 +148,15 @@ public:
     // Create a cloud widget.
     cv::viz::WCloud cloud_widget(mesher.mapPoints3d_, cv::viz::Color::green());
     cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
-
     // plot points
     myWindow_.showWidget("point cloud map",  cloud_widget);
-
     /// Start event loop.
-    myWindow_.spinOnce(50);
+    //TODO: myWindow_.spinOnce(50);
   }
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
   void visualizeMesh3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame, const Mesher& mesher){
-
     // sanity check dimension
     if(pointsWithId.size() == 0) // no points to visualize
       return;
@@ -166,31 +164,31 @@ public:
     // Create a cloud widget.
     std::cout << "WMesh " <<  std::endl;
     cv::viz::WMesh mesh(mesher.mapPoints3d_.t(), mesher.createMesh3d_MapPointId(frame));
-
     // plot points
     std::cout << "WMesh  showWidget" <<  std::endl;
     myWindow_.showWidget("point cloud map",  mesh);
-
     /// Start event loop.
-    myWindow_.spinOnce(100);
+    //TODO: myWindow_.spinOnce(100);
   }
 
   /* ----------------------------------------------------------------------------- */
-  // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
+  // add pose to the previous trajectory
   void addPoseToTrajectory(gtsam::Pose3 current_pose_gtsam){
     trajectoryPoses3d_.push_back( UtilsOpenCV::Pose2Affine3f(current_pose_gtsam) );
   }
 
-  void visualizeTrajectory() const{
+  /* ----------------------------------------------------------------------------- */
+  // Visualize trajectory
+  void visualizeTrajectory(){
+    // sanity check dimension
+    if(trajectoryPoses3d_.size() == 0) // no points to visualize
+      return;
 
-
-	// Create a Trajectory widget.
-	cv::viz::Trajectory trajectory_widget(trajectoryPoses3d_, viz::WTRajectory::PATH, 1.0, viz::Color::green());
-
+	// Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH)
+	cv::viz::WTrajectory trajectory_widget(trajectoryPoses3d_, cv::viz::WTrajectory::BOTH, 0.1, cv::viz::Color::blue());
 	myWindow_.showWidget("Trajectory",  trajectory_widget);
-
 	/// Start event loop.
-	myWindow_.spinOnce(50);
+	//TODO: myWindow_.spinOnce(50);
   }
 
 };
