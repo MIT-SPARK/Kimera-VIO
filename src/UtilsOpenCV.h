@@ -144,6 +144,19 @@ public:
     return std::make_pair(R,T);
   }
   /* ----------------------------------------------------------------------------- */
+  // Converts a gtsam pose3 to a opencv Affine3d
+  static cv::Affine3f Pose2Affine3f(const gtsam::Pose3 pose){
+    gtsam::Matrix4 Agtsam = pose.matrix();
+    cv::Mat RT(4,4,CV_32FC1); // 4x4
+    // [R t ; 0 1]
+    for(int i=0;i<4;i++){
+      for(int j=0;j<4;j++)
+        RT.at<float>(i,j) = float (Agtsam(i,j));
+    }
+    cv::Affine3f A(RT);
+    return A;
+  }
+  /* ----------------------------------------------------------------------------- */
   // Converts a rotation matrix and translation vector from opencv to gtsam pose3
   static gtsam::Pose3 Cvmats2pose(const cv::Mat& R, const cv::Mat& T){
     gtsam::Matrix poseMat = gtsam::Matrix::Identity(4,4);
