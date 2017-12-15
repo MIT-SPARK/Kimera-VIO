@@ -18,13 +18,16 @@
 #include "Mesher.h"
 
 namespace VIO {
+enum VisualizationType {
+  POINTCLOUD, POINTCLOUD_REPEATEDPOINTS, MESH
+};
 
 class Visualizer {
-
-
 public:
+
   cv::viz::WCloudCollection mapWithRepeatedPoints_;
   cv::viz::Viz3d myWindow_;
+  std::vector<cv::Affine3f> trajectoryPoses3d_;
 
   // constructors
   Visualizer(): myWindow_("3D Mapper") {
@@ -171,6 +174,17 @@ public:
     /// Start event loop.
     myWindow_.spinOnce(100);
   }
+
+  /* ----------------------------------------------------------------------------- */
+  // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
+  void addPose(gtsam::Pose3 current_pose_gtsam){
+    trajectoryPoses3d_.push_back( UtilsOpenCV::Pose2Affine3f(current_pose_gtsam) );
+  }
+
+  void visualizeTrajectory() const{
+
+  }
+
 };
 } // namespace VIO
 #endif /* Visualizer_H_ */
