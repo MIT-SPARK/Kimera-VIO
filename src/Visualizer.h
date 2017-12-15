@@ -183,6 +183,14 @@ public:
 
   void visualizeTrajectory() const{
 
+
+	// Create a Trajectory widget.
+	cv::viz::Trajectory trajectory_widget(trajectoryPoses3d_, viz::WTRajectory::PATH, 1.0, viz::Color::green());
+
+	myWindow_.showWidget("Trajectory",  trajectory_widget);
+
+	/// Start event loop.
+	myWindow_.spinOnce(50);
   }
 
 };
