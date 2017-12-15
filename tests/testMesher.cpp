@@ -96,30 +96,6 @@ TEST(testMesher, createMesh2D_noKeypoints) {
 }
 
 /* ************************************************************************* */
-TEST(testMesher, visualizeMesh2D) {
-
-  // Construct a frame from image name.
-  FrameId id = 0;
-  Timestamp tmp = 123;
-  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
-  Frame f(id, tmp, imgName, CameraParams());
-  f.extractCorners();
-  for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
-    f.landmarks_.push_back(i);
-  }
-
-  // compute mesh
-  vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(f);
-  Mesher::VisualizeMesh2D(f, triangulation2D,1000);
-}
-
-/* ************************************************************************* */
-TEST(testMesher, mapPoints3dUpdate) {
-
-}
-
-
-/* ************************************************************************* */
 int main() {
   TestResult tr; return TestRegistry::runAllTests(tr); }
 /* ************************************************************************* */
