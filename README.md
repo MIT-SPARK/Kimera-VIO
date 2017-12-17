@@ -13,7 +13,7 @@ VIO is a library of C++ classes that implement the visual-inertial odometry pipe
 Quickstart
 ----------
 
-In the root library folder execute:
+In the root library folder execute (if you changed the GTSAM install folder, you may need to redrect VIO to your-gtsam-install-folder/lib/cmake/GTSAM):
 
 ```
 #!bash
@@ -21,8 +21,12 @@ $ mkdir build
 $ cd build
 $ cmake ../
 $ make
-$ make check (optional, runs unit tests)
+$ make check
 ```
+
+Notea: if you use MKL in gtsam, you may need to add to .bashrc a line similar to: source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64
+Note1b: sometimes you may need to add /usr/local/lib to LD_LIBRARY_PATH in ~/.bashrc (if you get lib not found errors at run or test time)
+Note2: you may have to add %YAML:1.0 as first line in all YAML files :-(
 
 Prerequisites:
 
@@ -47,13 +51,15 @@ $ sudo make install
 ```
 #!bash
 $ sudo apt-get install libvtk5-dev   (libvtk6-dev in ubuntu 17.10)
+$ sudo apt-get install libgtk2.0-dev 
+$ sudo apt-get install pkg-config
 download opencv3.3.1 from https://opencv.org/releases.html
 unzip and go to opencv3.3.1
 $ mkdir build
 $ cd build
 $ cmake -DWITH_VTK=On ..
 $ sudo make -j8 install
-$ sudo make -j8 test
+$ sudo make -j8 test (optional - quite slow)
 ```
 
 Installation of OpenGV
