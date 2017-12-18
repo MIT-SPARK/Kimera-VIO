@@ -5,14 +5,14 @@ clc
 addpath('./myLib/')
 %% CONDITIONS TO TEST
 descriptionResults = 'featureSelection'
-conditions = [1:6]; % 1=baseline, 2=quality, 3=eigmin, 4=logdet, 5=quality+binning, 6=baseline+binning
+conditions = [6]; % 1=baseline, 2=quality, 3=eigmin, 4=logdet, 5=quality+binning, 6=baseline+binning
 datasetsToRun = [1:11]
 nrDatasetsToTest = length(datasetsToRun);
-nrRuns = 5;
+nrRuns = 3;
 allDatasetsToRun = repmat(datasetsToRun,1,nrRuns);
 
 %% RUN!
-useSudo = 1;
+useSudo = 0;
 usePlain = 0;
 vioParams = defaultVioParams();
 trackerParams = defaultTrackerParams();

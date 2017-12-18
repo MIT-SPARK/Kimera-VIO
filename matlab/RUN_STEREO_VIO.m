@@ -1,10 +1,6 @@
 disp('running script:')
 usePlain
-if ~exist('usePlain', 'var') || usePlain == 0
-    appName = 'build/stereoVIOExample';
-else
-    appName = 'build/stereoVIOBackend';
-end
+appName = 'build/stereoVIOEuroc';
 
 if exist('useSudo', 'var') && useSudo == 0
     sudoName = '';
@@ -12,6 +8,7 @@ else
     sudoName = 'sudo ';
 end
 
+% setenv('LD_LIBRARY_PATH', '/opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64')
 if initialFrameID ==-1 || finalFrameID == -1
     % use default initial and final frame
     myCommand = horzcat('%s../%s ',datasetPath,' ',filenameVioParams,' ',...

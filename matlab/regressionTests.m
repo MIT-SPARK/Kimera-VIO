@@ -41,12 +41,8 @@ description = horzcat('minFeat',num2str(trackerParams.minNumberFeatures),'-maxFe
 % Setting dataPath to different locations depending on the server
 fcn_file_path = mfilename('fullpath');
 [pathstr, ~, ~] = fileparts(fcn_file_path);
-if ~exist(fullfile(pathstr, 'mark_zhengdong'), 'file')
-    dataPath = '/home/luca/data/';
-else
-    dataPath = '/u/eems/workspace3/video/asl_euroc_mav/';
-end
-
+% dataPath = '/home/luca/data/';
+dataPath = '/home/luca/data/euroc/';
 
 datasetPaths = {horzcat(dataPath,'MH_01_easy'),horzcat(dataPath,'MH_02_easy'),horzcat(dataPath,'MH_03_medium'),...
     horzcat(dataPath,'MH_04_difficult'),horzcat(dataPath,'MH_05_difficult'), ...
@@ -131,7 +127,6 @@ for i = 1:length(datasetToRun)
         pause(5)
     end
 end
-
 
 if(size(runResults,1)~=1 || size(runResults,1)~=1)
     warning('regression Tests: multiple runs, only one logged!')
