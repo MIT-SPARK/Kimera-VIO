@@ -78,4 +78,10 @@ $ sudo make -j8 install
 $ sudo make -j8 check
 ```
 
+Running examples
+----------------------
 
+stereoVIOEuroc:
+- Download [EuRoC](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) dataset. You can just download this [file](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip) to do a first test.
+- Add the comment ```%YAML:1.0``` at the top of each .yaml file in the dataset (each folder has one sensor.yaml).
+- Execute ```stereoVIOEuroc``` located in your build folder.
