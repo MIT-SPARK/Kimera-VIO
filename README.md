@@ -83,5 +83,10 @@ Running examples
 
 stereoVIOEuroc:
 - Download [EuRoC](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) dataset. You can just download this [file](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip) to do a first test.
-- Add the comment ```%YAML:1.0``` at the top of each .yaml file in the dataset (each folder has one sensor.yaml).
-- Execute ```stereoVIOEuroc``` located in your build folder.
+- Add the comment ```%YAML:1.0``` at the top of each .yaml file in the dataset (each folder has one sensor.yaml). You can do this manually or alternatively paste and run the following bash script from within the dataset folder:
+```
+#!bash
+sed -i '1 i\%YAML:1.0' body.yaml
+sed -i '1 i\%YAML:1.0' */sensor.yaml
+```
+- Execute ```stereoVIOEuroc {DATASET_PATH}``` located in your build folder, where ```{DATASET_PATH}``` is the path to a dataset.
