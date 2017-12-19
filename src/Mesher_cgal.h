@@ -54,6 +54,7 @@ public:
     std::cerr << "Reconstruction ";
     CGAL::Timer t;
     t.start();
+    t.reset();
     // Construct the mesh in a scale space.
     Reconstruction reconstruct (points.begin(), points.end());
     reconstruct.increase_scale(4);
