@@ -13,7 +13,7 @@ VIO is a library of C++ classes that implement the visual-inertial odometry pipe
 Quickstart
 ----------
 
-In the root library folder execute (if you changed the GTSAM install folder, you may need to redrect VIO to your-gtsam-install-folder/lib/cmake/GTSAM):
+In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redrect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly,you may need to change the folder for CGAL and OpenGV):
 
 ```
 #!bash
@@ -33,6 +33,7 @@ Prerequisites:
 - [GTSAM](https://bitbucket.org/gtborg/gtsam/overview/) >= 4.0 (Branch: `feature/ImprovementsIncrementalFilter`)
 - [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0 (Installation instructions below)
 - [OpenGV] Installation instructions below 
+- [CGAL] Installation instructions below
 
 Installation of OpenCV
 ----------------------
@@ -76,6 +77,27 @@ $ cd build
 $ cmake ../
 $ sudo make -j8 install
 $ sudo make -j8 check
+```
+
+Installation of CGAL
+----------------------
+- download CGAL `https://www.cgal.org/download.html` (I tried CGAL-4.11 on Ubuntu 17.10)
+- go to CGAL downloaded folder and execute the following:
+
+```
+#!bash
+$ mkdir build
+$ cd build
+$ cmake ../
+```
+- using cmake-gui enable WithEigen3, click configure, and set the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen)
+- using cmake-gui check that CMAKE_BUILD_TYPE is set to 'Release" 
+- go back to the build folder and execute the following:
+
+```
+#!bash
+$ make -j8 
+$ sudo make install
 ```
 
 Running examples
