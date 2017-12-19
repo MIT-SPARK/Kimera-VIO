@@ -30,6 +30,47 @@ endif (OpenCV_FOUND)
 include_directories(${OpenCV_INCLUDE_DIRS})
 set (LIBS "${LIBS}" ${OpenCV_LIBS})
 
+### Find CGAL
+message(STATUS "Setting CGAL on Luca's machine")
+# find_package(CGAL REQUIRED COMPONENTS Core)
+set (CGAL_DIR /home/luca/Desktop/code/CGAL-4.11/build/) 
+if ( CGAL_FOUND )
+  include( ${CGAL_USE_FILE} )
+  include( CGAL_CreateSingleSourceCGALProgram )
+  include_directories (BEFORE "../../include")
+else() 
+    message(STATUS "This program requires the CGAL library, and will not be compiled.")
+ 
+endif()
+
+#include_directories($CGAL_DIR)
+#find_package(CGAL REQUIRED COMPONENTS Core)
+#include( ${CGAL_USE_FILE} )
+#if (CGAL_FOUND)
+#  message(STATUS "FOUND CGAL! ${CGAL_INCLUDE_DIRS}")
+#else (CGAL_FOUND)
+#  message(STATUS "CANNOT FOUND CGAL!")
+#endif (CGAL_FOUND)
+#include_directories(${CGAL_INCLUDE_DIRS})
+#set (LIBS "${LIBS}" ${CGAL_LIBS})
+#include_directories (BEFORE "../../include")
+#message(STATUS BEFORE "../../include")
+#include_directories (BEFORE "include")
+#message(STATUS BEFORE "include")
+#include( CGAL_CreateSingleSourceCGALProgram )
+
+# ///////////////////////////////////////////////////////////
+# Find VTK
+#find_package(VTK REQUIRED)
+#include(${VTK_USE_FILE})
+
+#
+#create_single_source_cgal_program( "cgal_vtk_test.cpp" ) # This will create an executable target with name 'cgal_vtk_test'
+
+# Add VTK link libraries to your executable target
+#target_link_libraries(cgal_vtk_test ${VTK_LIBRARIES})
+# ///////////////////////////////////////////////////////////
+
 message(STATUS "ALL LIBS: ${LIBS}")
 
 ### Compile the code
