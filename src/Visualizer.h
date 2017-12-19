@@ -148,27 +148,25 @@ public:
     // Create a cloud widget.
     cv::viz::WCloud cloud_widget(mesher.mapPoints3d_, cv::viz::Color::green());
     cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
-    // plot points
-    myWindow_.showWidget("point cloud map",  cloud_widget);
+
+    myWindow_.showWidget("point cloud map",  cloud_widget); // plot points
     /// Start event loop.
     //TODO: myWindow_.spinOnce(50);
   }
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
-  void visualizeMesh3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame, const Mesher& mesher){
+  void visualizeMesh3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Mesher& mesher){
+
     // sanity check dimension
-    if(pointsWithId.size() == 0) // no points to visualize
+    if(pointsWithId.size() == 0 || mesher.polygonsMesh_.cols == 0) // no points/mesh to visualize
       return;
 
     // Create a cloud widget.
-    std::cout << "WMesh " <<  std::endl;
-    cv::viz::WMesh mesh(mesher.mapPoints3d_.t(), mesher.createMesh3d_MapPointId(frame));
-    // plot points
-    std::cout << "WMesh  showWidget" <<  std::endl;
-    myWindow_.showWidget("point cloud map",  mesh);
+    cv::viz::WMesh mesh(mesher.mapPoints3d_.t(), mesher.polygonsMesh_);
+    myWindow_.showWidget("point cloud map",  mesh); // plot mesh
     /// Start event loop.
-    //TODO: myWindow_.spinOnce(100);
+    myWindow_.spinOnce(100);
   }
 
   /* ----------------------------------------------------------------------------- */

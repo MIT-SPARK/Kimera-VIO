@@ -100,7 +100,7 @@ int main(const int argc, const char *argv[])
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::POINTCLOUD;
+  VisualizationType visualizationType = VisualizationType::MESH; //POINTCLOUD
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
@@ -279,9 +279,9 @@ int main(const int argc, const char *argv[])
         //cv::imshow("Valid keypoints", img);
         //cv::waitKey(100);
 
-        //        vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
-        //        std::cout <<"visualizing mesh:" << std::endl;
-        //        Mesher::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
+        // vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
+        // std::cout <<"visualizing mesh:" << std::endl;
+        // Mesher::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
 
         // visualize points 3D
         // vector<Point3> points3d = vioBackEnd->get3DPoints();
@@ -290,17 +290,14 @@ int main(const int argc, const char *argv[])
         // visualize points 3D without repetition
         if(visualizationType == VisualizationType::POINTCLOUD){
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
-          std::cout << "updateMap3D " <<  std::endl;
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizePoints3D(pointsWithId,mesher);
         }
 
         if(visualizationType == VisualizationType::MESH){
-          // update structures keeping memory of the map before visualization
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
-          std::cout << "updateMap3D " <<  std::endl;
-          mesher.updateMap3D(pointsWithId);
-          visualizer.visualizeMesh3D(pointsWithId, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, mesher);
+          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
+          visualizer.visualizeMesh3D(pointsWithId,mesher);
         }
 
         // visualize trajectory

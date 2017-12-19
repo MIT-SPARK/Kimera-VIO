@@ -464,9 +464,10 @@ public:
     std::cout << " =============== END: " <<  message << " =============== " << std::endl;
   }
   /* ----------------------------------------------------------------------------------- */
+  // get valid 3D points - TODO: this copies the graph
   vector<gtsam::Point3> get3DPoints() const{
     vector<gtsam::Point3> points3D;
-    gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
+    gtsam::NonlinearFactorGraph graph = smoother_->getFactors(); // TODO: this copies the graph
     for (auto& g : graph){
       if(g){
         auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
@@ -481,29 +482,36 @@ public:
     return points3D;
   }
   /* ----------------------------------------------------------------------------------- */
+  // get valid 3D points and corresponding lmk id
   PointsWithId get3DPointsAndLmkIds() const{
 
     // output
     PointsWithId pointsWithId;
 
-    gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
+    gtsam::NonlinearFactorGraph graph = smoother_->getFactors(); // TODO: this copies the graph
+    // old_smart_factors_ has all smart factors included so far
+    int nrValidPts = 0, nrPts = 0;
     for (auto& sf : old_smart_factors_) //!< landmarkId -> {SmartFactorPtr, SlotIndex}
     {
       const LandmarkId lmkId = sf.first;
       const SmartStereoFactor::shared_ptr& sf_ptr = sf.second.first;
       const int slotId = sf.second.second;
 
-      if(sf_ptr && graph.size() > slotId && sf_ptr == graph[slotId]){
+      if(sf_ptr && // if pointer is well definied
+    		  slotId >= 0 && graph.size() > slotId && // and slot is admissible
+			  sf_ptr == graph[slotId]){ // and the pointer in the graph matches the one we stored in old_smart_factors_
         auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slotId]);
         if (gsf){
-          // Check SF status
+          nrPts++;
           gtsam::TriangulationResult result = gsf->point();
           if(result.valid()){
+            nrValidPts++;
             pointsWithId.push_back(std::make_pair(lmkId,*result));
           }
         }
       }
     }
+    std::cout << "nrValidPts= "<< nrValidPts << " out of " << nrPts << std::endl;
     return pointsWithId;
   }
 

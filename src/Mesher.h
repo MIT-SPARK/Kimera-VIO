@@ -38,6 +38,7 @@ public:
   using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, int>;
 
   cv::Mat mapPoints3d_; // set of (non-repeated) points = valid landmark positions
+  cv::Mat polygonsMesh_; // set of polygons
   LandmarkIdToMapPointId lmkIdToMapPointId_; // maps lmk id to corresponding 3D points
   int points3D_count_; // number of points
 
@@ -71,13 +72,13 @@ public:
 
     // getTriangleList returns some spurious triangle with vertices outside image
     subdiv.getTriangleList(triangulation2DwithExtraTriangles);
-    std::vector<cv::Point> pt(3);
-    for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++)
+    std::vector<cv::Point2f> pt(3);
+    for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++) // TODO: this is doing a lot of computation
         {
           cv::Vec6f t = triangulation2DwithExtraTriangles[i];
-          pt[0] = cv::Point(t[0], t[1]);
-          pt[1] = cv::Point(t[2], t[3]);
-          pt[2] = cv::Point(t[4], t[5]);
+          pt[0] = cv::Point2f(t[0], t[1]);
+          pt[1] = cv::Point2f(t[2], t[3]);
+          pt[2] = cv::Point2f(t[4], t[5]);
 
           if(rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2]))
             triangulation2D.push_back(t);
@@ -88,30 +89,34 @@ public:
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   cv::Mat createMesh3d_MapPointId(const Frame& frame) const{
+
+    // build 2D mesh, resticted to points with lmk!=-1
     std::vector<cv::Vec6f> triangulation2D = Mesher::CreateMesh2D(frame);
 
     // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
-    // where n is the number of points in the poligon, and id is a zero-offset
+    // where n is the number of points in the polygon, and id is a zero-offset
     // index into an associated cloud.
     cv::Mat polygon(1,0,CV_32SC1);
 
-    // Populate polygons with indices: note: we restrict to valid triangles in which
-    // each landmark has a 3D point
-    for(size_t i=0; i<triangulation2D.size();i++){
+    // Populate polygons with indices:
+    // note: we restrict to valid triangles in which each landmark has a 3D point
+    for(size_t i=0; i<triangulation2D.size();i++){ // TODO: this is doing a lot of computation
 
       cv::Vec6f t = triangulation2D[i];
       LandmarkId id_pt1 = frame.findLmkIdFromPixel(cv::Point2f(t[0], t[1]));
       LandmarkId id_pt2 = frame.findLmkIdFromPixel(cv::Point2f(t[2], t[3]));
       LandmarkId id_pt3 = frame.findLmkIdFromPixel(cv::Point2f(t[4], t[5]));
 
-      // check if they are in the map (ie they have an associated 3D point)
+      // check if they are in mapPoints3d_
+
       if ( lmkIdToMapPointId_.find(id_pt1) != lmkIdToMapPointId_.end() &&
           lmkIdToMapPointId_.find(id_pt2) != lmkIdToMapPointId_.end() &&
           lmkIdToMapPointId_.find(id_pt3) != lmkIdToMapPointId_.end() ){
+
         polygon.push_back(3);
-        polygon.push_back(lmkIdToMapPointId_.at(id_pt1));
-        polygon.push_back(lmkIdToMapPointId_.at(id_pt2));
-        polygon.push_back(lmkIdToMapPointId_.at(id_pt3));
+        polygon.push_back(lmkIdToMapPointId_.at(id_pt1)); // row in mapPoints3d_
+        polygon.push_back(lmkIdToMapPointId_.at(id_pt2)); // row in mapPoints3d_
+        polygon.push_back(lmkIdToMapPointId_.at(id_pt3)); // row in mapPoints3d_
 
 //        std::cout << lmkIdToMapPointId_[id_pt1] << " " << lmkIdToMapPointId_[id_pt2] << " "
 //            << lmkIdToMapPointId_[id_pt3] << " - "
@@ -119,13 +124,13 @@ public:
 //            mapPoints3d_.rows-1 << ")"<< std::endl;
       }
     }
-    int* data = polygon.ptr<int>();
-    for(size_t i=0; i<polygon.rows;i++)
-      std::cout << data[i] << std::endl;
+//    int* data = polygon.ptr<int>();
+//    for(size_t i=0; i<polygon.rows;i++)
+//      std::cout << data[i] << std::endl;
     return polygon;
   }
   /* ----------------------------------------------------------------------------- */
-  // Update map
+  // Update map: update structures keeping memory of the map before visualization
   void updateMap3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId){
 
     // update 3D points by adding new points or updating old reobserved ones
@@ -150,6 +155,14 @@ public:
         data[row_id].z = float ( point_i.z() );
       }
     }
+  }
+  /* ----------------------------------------------------------------------------- */
+  // Update mesh: update structures keeping memory of the map before visualization
+  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame){
+    updateMap3D(pointsWithId);
+    // concatenate mesh in the current image to existing mesh
+    polygonsMesh_.push_back(createMesh3d_MapPointId(frame));
+//    hconcat(polygonsMesh_,createMesh3d_MapPointId(frame),polygonsMesh_);
   }
 };
 } // namespace VIO
