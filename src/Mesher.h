@@ -43,7 +43,7 @@ public:
   int points3D_count_; // number of points
 
   // constructors
-  Mesher(): points3D_count_(0) {}
+  Mesher(): polygonsMesh_(cv::Mat(0,1,CV_32SC1)), points3D_count_(0) { }
 
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
@@ -96,7 +96,7 @@ public:
     // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
     // where n is the number of points in the polygon, and id is a zero-offset
     // index into an associated cloud.
-    cv::Mat polygon(1,0,CV_32SC1);
+    cv::Mat polygon(0,1,CV_32SC1);
 
     // Populate polygons with indices:
     // note: we restrict to valid triangles in which each landmark has a 3D point
@@ -113,7 +113,7 @@ public:
           lmkIdToMapPointId_.find(id_pt2) != lmkIdToMapPointId_.end() &&
           lmkIdToMapPointId_.find(id_pt3) != lmkIdToMapPointId_.end() ){
 
-        polygon.push_back(3);
+        polygon.push_back(3); // add rows
         polygon.push_back(lmkIdToMapPointId_.at(id_pt1)); // row in mapPoints3d_
         polygon.push_back(lmkIdToMapPointId_.at(id_pt2)); // row in mapPoints3d_
         polygon.push_back(lmkIdToMapPointId_.at(id_pt3)); // row in mapPoints3d_
@@ -127,6 +127,7 @@ public:
 //    int* data = polygon.ptr<int>();
 //    for(size_t i=0; i<polygon.rows;i++)
 //      std::cout << data[i] << std::endl;
+    std::cout << "polygon.rows:"<<  polygon.rows << " polygon.cols: " << polygon.cols << std::endl;
     return polygon;
   }
   /* ----------------------------------------------------------------------------- */
