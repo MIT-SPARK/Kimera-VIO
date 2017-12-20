@@ -321,7 +321,7 @@ void StereoFrame::createMesh2Dobs(){
 }
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::visualizeMesh2Dobs(const double waitTime) const{
-  cv::Scalar delaunay_color(0,255,0), green(0, 255,0), red(0,0,255;
+  cv::Scalar delaunay_color(0,255,0), green(0, 255,0), red(0,0,255);
 
   // everything is visualized on the left image
   const Frame& ref_frame = left_frame_;
