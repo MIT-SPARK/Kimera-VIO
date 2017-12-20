@@ -283,8 +283,7 @@ int main(const int argc, const char *argv[])
         case VisualizationType::MESH2D:
         {
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D();
-          Visualizer3D::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_,
-              stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.triangulation2D_, 100);
+          stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.visualizeMesh2D(100);
           break;
         }
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS:
@@ -317,7 +316,7 @@ int main(const int argc, const char *argv[])
         }
         // visualize trajectory
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
-        visualizer.visualizeTrajectory();
+        visualizer.visualizeTrajectory3D();
         visualizer.myWindow_.spinOnce(50);
       }
 

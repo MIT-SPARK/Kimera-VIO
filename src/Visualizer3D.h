@@ -35,45 +35,6 @@ public:
     // create window and create axes:
     myWindow_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
-
-  /* ----------------------------------------------------------------------------- */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static void VisualizeMesh2D(const Frame& frame, const std::vector<cv::Vec6f> triangulation2D, const double waitTime = 0){
-    cv::Scalar delaunay_color(0,255,0), points_color(255, 0,0);
-
-    // sanity check
-    if(frame.landmarks_.size() != frame.keypoints_.size())
-      throw std::runtime_error("mesher: wrong dimension for the landmarks");
-
-
-    cv::Mat img = frame.img_.clone();
-    cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
-
-    cv::Size size = img.size();
-    cv::Rect rect(0,0, size.width, size.height);
-
-    std::vector<cv::Point> pt(3);
-
-    for(size_t i = 0; i < triangulation2D.size(); i++)
-    {
-      cv::Vec6f t = triangulation2D[i];
-      pt[0] = cv::Point(cvRound(t[0]), cvRound(t[1]));
-      pt[1] = cv::Point(cvRound(t[2]), cvRound(t[3]));
-      pt[2] = cv::Point(cvRound(t[4]), cvRound(t[5]));
-
-      cv::line(img, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
-      cv::line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
-      cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
-    }
-
-    for(size_t i=0; i < frame.keypoints_.size(); i++){
-      if(frame.landmarks_[i] != -1) // only for valid keypoints
-        cv::circle(img, frame.keypoints_[i], 2, points_color, CV_FILLED, CV_AA, 0);
-    }
-    cv::imshow("Mesh Results", img);
-    cv::waitKey(waitTime);
-  }
-
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
   static void VisualizePoints3D(std::vector<gtsam::Point3> points, int timeHold = 0){
@@ -181,16 +142,14 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Visualize trajectory
-  void visualizeTrajectory(){
-    // sanity check dimension
+  void visualizeTrajectory3D(){
     if(trajectoryPoses3d_.size() == 0) // no points to visualize
       return;
-
-	// Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH)
-	cv::viz::WTrajectory trajectory_widget(trajectoryPoses3d_, cv::viz::WTrajectory::BOTH, 0.1, cv::viz::Color::blue());
-	myWindow_.showWidget("Trajectory",  trajectory_widget);
-	/// Start event loop.
-	//TODO: myWindow_.spinOnce(50);
+    // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH)
+    cv::viz::WTrajectory trajectory_widget(trajectoryPoses3d_, cv::viz::WTrajectory::BOTH, 0.1, cv::viz::Color::blue());
+    myWindow_.showWidget("Trajectory",  trajectory_widget);
+    /// Start event loop.
+    //TODO: myWindow_.spinOnce(50);
   }
 
 };

@@ -136,6 +136,42 @@ public:
         triangulation2D_.push_back(t);
     }
   }
+  /* ----------------------------------------------------------------------------- */
+  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  void visualizeMesh2D(const double waitTime = 0) const{
+    cv::Scalar delaunay_color(0,255,0), points_color(255, 0,0);
+
+    // sanity check
+    if(landmarks_.size() != keypoints_.size())
+      throw std::runtime_error("Frame: wrong dimension for the landmarks");
+
+    //duplicate image for annotation ad visualization
+    cv::Mat img = img_.clone();
+    cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
+    cv::Size size = img.size();
+    cv::Rect rect(0,0, size.width, size.height);
+
+    std::vector<cv::Point> pt(3);
+    for(size_t i = 0; i < triangulation2D_.size(); i++)
+    {
+      cv::Vec6f t = triangulation2D_[i];
+      // visualize mesh vertices
+      pt[0] = cv::Point(cvRound(t[0]), cvRound(t[1]));
+      pt[1] = cv::Point(cvRound(t[2]), cvRound(t[3]));
+      pt[2] = cv::Point(cvRound(t[4]), cvRound(t[5]));
+      // visualize mesh edges
+      cv::line(img, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
+      cv::line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
+      cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
+    }
+    // visualize extra vertices
+    for(size_t i=0; i < keypoints_.size(); i++){
+      if(landmarks_[i] != -1) // only for valid keypoints
+        cv::circle(img, keypoints_[i], 2, points_color, CV_FILLED, CV_AA, 0);
+    }
+    cv::imshow("Mesh Results",img);
+    cv::waitKey(waitTime);
+  }
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // NOT TESTED: get surf descriptors
   //  void extractDescriptors()
