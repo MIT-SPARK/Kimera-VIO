@@ -23,7 +23,7 @@ enum VisualizationType {
   POINTCLOUD, POINTCLOUD_REPEATEDPOINTS,MESH2D,MESH2DTo3D, MESH3D
 };
 
-class Visualizer {
+class Visualizer3D {
 public:
 
   cv::viz::WCloudCollection mapWithRepeatedPoints_;
@@ -31,7 +31,7 @@ public:
   std::vector<cv::Affine3f> trajectoryPoses3d_;
 
   // constructors
-  Visualizer(): myWindow_("3D Mapper") {
+  Visualizer3D(): myWindow_("3D Mapper") {
     // create window and create axes:
     myWindow_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }

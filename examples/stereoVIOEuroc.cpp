@@ -15,10 +15,10 @@
 #include "ETH_parser.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
-#include "Visualizer.h"
 #include "LoggerMatlab.h"
 #include "VioBackEnd.h"
 #include <gtsam/geometry/Pose3.h>
+#include "../src/Visualizer3D.h"
 
 using namespace std;
 using namespace gtsam;
@@ -124,7 +124,7 @@ int main(const int argc, const char *argv[])
 
   // create class to visualize 3D points and mesh:
   Mesher mesher;
-  Visualizer visualizer;
+  Visualizer3D visualizer;
 
   // structures to be filled with imu data
   ImuStamps imu_stamps;
@@ -283,7 +283,7 @@ int main(const int argc, const char *argv[])
         case VisualizationType::MESH2D:
         {
           vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
-          Visualizer::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
+          Visualizer3D::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
           break;
         }
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS:

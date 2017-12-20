@@ -117,16 +117,8 @@ public:
         polygon.push_back(lmkIdToMapPointId_.at(id_pt1)); // row in mapPoints3d_
         polygon.push_back(lmkIdToMapPointId_.at(id_pt2)); // row in mapPoints3d_
         polygon.push_back(lmkIdToMapPointId_.at(id_pt3)); // row in mapPoints3d_
-
-//        std::cout << lmkIdToMapPointId_[id_pt1] << " " << lmkIdToMapPointId_[id_pt2] << " "
-//            << lmkIdToMapPointId_[id_pt3] << " - "
-//            << id_pt1 << " " << id_pt2 << " " << id_pt3 << " (" <<
-//            mapPoints3d_.rows-1 << ")"<< std::endl;
       }
     }
-//    int* data = polygon.ptr<int>();
-//    for(size_t i=0; i<polygon.rows;i++)
-//      std::cout << data[i] << std::endl;
     std::cout << "polygon.rows:"<<  polygon.rows << " polygon.cols: " << polygon.cols << std::endl;
     return polygon;
   }
@@ -160,6 +152,7 @@ public:
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
   void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame){
+    // update 3D points (possibly replacing some points with new estimates)
     updateMap3D(pointsWithId);
     // concatenate mesh in the current image to existing mesh
     polygonsMesh_.push_back(createMesh2DTo3D_MapPointId(frame));
