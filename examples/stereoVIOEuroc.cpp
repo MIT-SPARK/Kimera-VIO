@@ -100,7 +100,7 @@ int main(const int argc, const char *argv[])
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::MESH3D; // MESH3D; //POINTCLOUD
+  VisualizationType visualizationType = VisualizationType::MESH2D; // MESH3D; //POINTCLOUD
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;

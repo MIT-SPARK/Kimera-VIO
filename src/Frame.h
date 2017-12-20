@@ -20,6 +20,7 @@
 #include <string>
 #include <cstdlib>
 #include <vector>
+#include <boost/foreach.hpp>
 
 // Including opencv
 #include <opencv2/opencv.hpp>
@@ -101,30 +102,35 @@ public:
   }
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  void createMesh2D(){
-    if(landmarks_.size() != keypoints_.size()) // sanity check
+  void createMesh2D(){ // called without input, it considers all valid keypoints for the mesh
+    std::vector<int> selectedIndices;
+    selectedIndices.reserve(keypoints_.size()); // preallocate
+    for(size_t i=0; i < keypoints_.size(); i++){ selectedIndices.push_back(i);}
+    triangulation2D_ = CreateMesh2D(*this,selectedIndices);
+  }
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  static std::vector<cv::Vec6f> CreateMesh2D(const Frame& frame, const std::vector<int>& selectedIndices){
+
+    if(frame.landmarks_.size() != frame.keypoints_.size()) // sanity check
       throw std::runtime_error("Frame: wrong dimension for the landmarks");
 
     // Rectangle to be used with Subdiv2D
-    cv::Size size = img_.size();
+    cv::Size size = frame.img_.size();
     cv::Rect2f rect(0, 0, size.width, size.height);
     cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
 
     // add points from Frame
-    for(size_t i=0; i < keypoints_.size(); i++){
-      if(landmarks_[i] != -1 && rect.contains(keypoints_[i])) // only for valid keypoints
-        subdiv.insert(keypoints_[i]);
+    BOOST_FOREACH(auto i, selectedIndices){
+      if(frame.landmarks_[i] != -1 && rect.contains(frame.keypoints_[i])) // only for valid keypoints
+        subdiv.insert(frame.keypoints_[i]);
     }
     // getTriangleList returns some spurious triangle with vertices outside image
-    std::vector<cv::Vec6f> triangulation2DwithExtraTriangles;
+    std::vector<cv::Vec6f> triangulation2D,triangulation2DwithExtraTriangles;
     subdiv.getTriangleList(triangulation2DwithExtraTriangles); // do triangulation
 
     // retrieve "good triangles"
-    triangulation2D_.resize(0); // reinitialize
-    triangulation2D_.reserve(triangulation2DwithExtraTriangles.size()); // preallocate
-    if(triangulation2D_.size()>0)
-      throw std::runtime_error("Frame: wrong dimension for the landmarks");
-
+    triangulation2D.reserve(triangulation2DwithExtraTriangles.size()); // preallocate
     std::vector<cv::Point2f> pt(3);
     for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++) // TODO: this is doing a lot of computation
     {
@@ -133,8 +139,9 @@ public:
       pt[1] = cv::Point2f(t[2], t[3]);
       pt[2] = cv::Point2f(t[4], t[5]);
       if(rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2]))
-        triangulation2D_.push_back(t);
+        triangulation2D.push_back(t);
     }
+    return triangulation2D;
   }
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
@@ -150,7 +157,6 @@ public:
     cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
     cv::Size size = img.size();
     cv::Rect rect(0,0, size.width, size.height);
-
     std::vector<cv::Point> pt(3);
     for(size_t i = 0; i < triangulation2D_.size(); i++)
     {
