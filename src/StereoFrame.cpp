@@ -300,6 +300,64 @@ cv::Mat StereoFrame::getDisparityImage(const cv::Mat imgLeft, const cv::Mat imgR
 //  cv::waitKey(50);
 //  return imgDisparity16S;
 }
+/* --------------------------------------------------------------------------------------- */
+void StereoFrame::createMesh2Dobs(){
+  Frame& ref_frame = left_frame_;
+
+  if(ref_frame.landmarks_.size() != right_keypoints_status_.size()) // sanity check
+    throw std::runtime_error("StereoFrame: wrong dimension for the landmarks");
+
+  std::vector<int> selectedIndices;
+  selectedIndices.reserve(ref_frame.landmarks_.size()); // preallocate
+  for(size_t i=0; i < ref_frame.landmarks_.size(); i++){
+    if(right_keypoints_status_.at(i)==Kstatus::VALID)
+      selectedIndices.push_back(i);
+  }
+
+  // get a triangulation for all valid keypoints
+  triangulation2Dobs_ = Frame::CreateMesh2D(ref_frame,selectedIndices);
+
+  // retain only "full" triangles (the one representing a planar surface)
+}
+/* --------------------------------------------------------------------------------------- */
+void StereoFrame::visualizeMesh2Dobs(const double waitTime) const{
+  cv::Scalar delaunay_color(0,255,0), green(0, 255,0), red(0,0,255;
+
+  // everything is visualized on the left image
+  const Frame& ref_frame = left_frame_;
+  if(ref_frame.landmarks_.size() != ref_frame.keypoints_.size()) // sanity check
+    throw std::runtime_error("Frame: wrong dimension for the landmarks");
+
+  //duplicate image for annotation ad visualization
+  cv::Mat img = ref_frame.img_.clone();
+  cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
+  // visualize extra vertices
+  for(size_t i=0; i < ref_frame.keypoints_.size(); i++){
+    if(ref_frame.landmarks_[i] != -1) // only for valid keypoints, but possibly without a right pixel
+      cv::circle(img, ref_frame.keypoints_[i], 2, red, CV_FILLED, CV_AA, 0);
+  }
+
+  cv::Size size = img.size();
+  cv::Rect rect(0,0, size.width, size.height);
+  std::vector<cv::Point> pt(3);
+  for(size_t i = 0; i < triangulation2Dobs_.size(); i++)
+  {
+    cv::Vec6f t = triangulation2Dobs_[i];
+    // visualize mesh vertices
+    pt[0] = cv::Point(cvRound(t[0]), cvRound(t[1]));
+    pt[1] = cv::Point(cvRound(t[2]), cvRound(t[3]));
+    pt[2] = cv::Point(cvRound(t[4]), cvRound(t[5]));
+    cv::circle(img, pt[0], 2, green, CV_FILLED, CV_AA, 0);
+    cv::circle(img, pt[1], 2, green, CV_FILLED, CV_AA, 0);
+    cv::circle(img, pt[2], 2, red, CV_FILLED, CV_AA, 0);
+    // visualize mesh edges
+    cv::line(img, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
+    cv::line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
+    cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
+  }
+  cv::imshow("visualizeMesh2Dobs",img);
+  cv::waitKey(waitTime);
+}
 
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {

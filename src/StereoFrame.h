@@ -116,6 +116,9 @@ public:
 
   StereoMatchingParams sparseStereoParams_;
 
+  std::vector<cv::Vec6f> triangulation2Dobs_; // list of triangles such that each triangle defines
+  // is a planar surface observed in by the stereo camera (each triangle is described by 3 pairs of pixels)
+
   // RELATIVE POSE BEFORE RECTIFICATION
   const gtsam::Pose3 camL_Pose_camR; // relative pose between left and right camera
 
@@ -133,6 +136,10 @@ public:
     left_frame_.isKeyframe_ = isKf;
     right_frame_.isKeyframe_ = isKf;
   }
+  // Create a 2D mesh only including triangles corresponding to obstables (planar surfaces)
+  void createMesh2Dobs();
+  // visualize stored mesh
+  void visualizeMesh2Dobs(const double waitTime = 0) const;
   // copy rectification parameters from another stereo camera
   void cloneRectificationParameters(const StereoFrame& sf);
   // compute rectification parameters

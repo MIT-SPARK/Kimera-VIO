@@ -175,7 +175,7 @@ public:
       if(landmarks_[i] != -1) // only for valid keypoints
         cv::circle(img, keypoints_[i], 2, points_color, CV_FILLED, CV_AA, 0);
     }
-    cv::imshow("Mesh Results",img);
+    cv::imshow("visualizeMesh2D",img);
     cv::waitKey(waitTime);
   }
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

@@ -100,7 +100,7 @@ int main(const int argc, const char *argv[])
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::MESH2D; // MESH3D; //POINTCLOUD
+  VisualizationType visualizationType = VisualizationType::MESH2Dobs; // MESH3D; //POINTCLOUD
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
@@ -284,6 +284,12 @@ int main(const int argc, const char *argv[])
         {
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D();
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.visualizeMesh2D(100);
+          break;
+        }
+        case VisualizationType::MESH2Dobs:
+        {
+          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs();
+          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dobs(100);
           break;
         }
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS:
