@@ -283,9 +283,6 @@ int main(const int argc, const char *argv[])
         //        std::cout <<"visualizing mesh:" << std::endl;
         //        Mesher::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
 
-        // visualize points 3D
-        // vector<Point3> points3d = vioBackEnd->get3DPoints();
-        // mesher.visualizeMap3D_repeatedPoints(points3d);
 
         // visualize points 3D without repetition
         if(visualizationType == VisualizationType::POINTCLOUD){
@@ -295,12 +292,19 @@ int main(const int argc, const char *argv[])
           visualizer.visualizePoints3D(pointsWithId,mesher);
         }
 
+        // mesh non-repeating 3D points into surface
         if(visualizationType == VisualizationType::MESH){
           // update structures keeping memory of the map before visualization
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           std::cout << "updateMap3D " <<  std::endl;
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizeMesh3D(pointsWithId, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, mesher);
+        }
+
+        // visualize points 3D with repetition
+        if(visualizationType == VisualizationType::POINTCLOUD_REPEATEDPOINTS){
+          vector<Point3> points = vioBackEnd->get3DPoints();
+          visualizer.visualizeMap3D_repeatedPoints(points);
         }
 
         // visualize trajectory

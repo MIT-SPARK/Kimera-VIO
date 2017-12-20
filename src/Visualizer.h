@@ -28,16 +28,20 @@ public:
   cv::viz::WCloudCollection mapWithRepeatedPoints_;
   cv::viz::Viz3d myWindow_;
   std::vector<cv::Affine3f> trajectoryPoses3d_;
+  cv::viz::Color cloudColor;
+  cv::viz::Color backgroundColor;
 
   // constructors
-  Visualizer(): myWindow_("3D Mapper") {
+  Visualizer(/*point color and background color*/cv::viz::Color cloudColor = cv::viz::Color::green(), cv::viz::Color backgroundColor = cv::viz::Color::black())
+  	  	  	 : myWindow_("3D Mapper"), cloudColor(cloudColor), backgroundColor(backgroundColor) {
     // create window and create axes:
+	myWindow_.setBackgroundColor(backgroundColor);
     myWindow_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
 
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static void VisualizeMesh2D(const Frame& frame, const std::vector<cv::Vec6f> triangulation2D, const double waitTime = 0){
+  static void VisualizeMesh2D(const Frame& frame, const std::vector<cv::Vec6f> triangulation2D, const int waitTime = 0){
     cv::Scalar delaunay_color(0,255,0), points_color(255, 0,0);
 
     // sanity check
@@ -75,7 +79,7 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
-  static void VisualizePoints3D(std::vector<gtsam::Point3> points, int timeHold = 0){
+  static void VisualizePoints3D(std::vector<gtsam::Point3> points, const int waitTime = 0){
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
     if(points.size() == 0) // no points to visualize
@@ -92,7 +96,7 @@ public:
     // pointCloud *= 5.0f; // my guess: rescaling the cloud
 
     // Create a cloud widget.
-    cv::viz::WCloud cloud_widget(pointCloud, cv::viz::Color::green());
+    cv::viz::WCloud cloud_widget(pointCloud, cv::viz::Color::green()); // TODO: consider this entire method with its own window. Is it out of place?
     cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
 
     // create window and create axes:
@@ -103,16 +107,12 @@ public:
     myWindow.showWidget("point cloud map",  cloud_widget);
 
     /// Start event loop.
-    // TODO
-//    if(timeHold == 0)
-//      myWindow.spin();
-//    else
-//      myWindow.spinOnce(timeHold);
+    myWindow.spinOnce(waitTime);
   }
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
-  void visualizeMap3D_repeatedPoints(const std::vector<gtsam::Point3> points){
+  void visualizeMap3D_repeatedPoints(const std::vector<gtsam::Point3> points, const int waitTime = 0){
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
     if(points.size() == 0) // no points to visualize
@@ -128,35 +128,35 @@ public:
     }
 
     // add to the existing map
-    mapWithRepeatedPoints_.addCloud(pointCloud, cv::viz::Color::green());
+    mapWithRepeatedPoints_.addCloud(pointCloud, cloudColor);
     mapWithRepeatedPoints_.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
 
     // plot points
     myWindow_.showWidget("point cloud map", mapWithRepeatedPoints_);
 
     /// Start event loop.
-    //TODO: myWindow_.spinOnce(100);
+    myWindow_.spinOnce(waitTime);
   }
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
-  void visualizePoints3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Mesher& mesher){
+  void visualizePoints3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Mesher& mesher, const int waitTime = 0){
 
     // sanity check dimension
     if(pointsWithId.size() == 0) // no points to visualize
       return;
 
     // Create a cloud widget.
-    cv::viz::WCloud cloud_widget(mesher.mapPoints3d_, cv::viz::Color::green());
+    cv::viz::WCloud cloud_widget(mesher.mapPoints3d_, cloudColor);
     cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
     // plot points
     myWindow_.showWidget("point cloud map",  cloud_widget);
     /// Start event loop.
-    //TODO: myWindow_.spinOnce(50);
+    myWindow_.spinOnce(waitTime);
   }
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
-  void visualizeMesh3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame, const Mesher& mesher){
+  void visualizeMesh3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame, const Mesher& mesher, const int waitTime = 0){
     // sanity check dimension
     if(pointsWithId.size() == 0) // no points to visualize
       return;
@@ -168,7 +168,7 @@ public:
     std::cout << "WMesh  showWidget" <<  std::endl;
     myWindow_.showWidget("point cloud map",  mesh);
     /// Start event loop.
-    //TODO: myWindow_.spinOnce(100);
+    myWindow_.spinOnce(waitTime);
   }
 
   /* ----------------------------------------------------------------------------- */
@@ -179,7 +179,7 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Visualize trajectory
-  void visualizeTrajectory(){
+  void visualizeTrajectory(const int waitTime = 0){
     // sanity check dimension
     if(trajectoryPoses3d_.size() == 0) // no points to visualize
       return;
@@ -188,7 +188,7 @@ public:
 	cv::viz::WTrajectory trajectory_widget(trajectoryPoses3d_, cv::viz::WTrajectory::BOTH, 0.1, cv::viz::Color::blue());
 	myWindow_.showWidget("Trajectory",  trajectory_widget);
 	/// Start event loop.
-	//TODO: myWindow_.spinOnce(50);
+	myWindow_.spinOnce(waitTime);
   }
 
 };
