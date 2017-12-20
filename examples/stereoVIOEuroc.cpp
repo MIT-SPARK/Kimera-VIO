@@ -279,39 +279,44 @@ int main(const int argc, const char *argv[])
         //cv::imshow("Valid keypoints", img);
         //cv::waitKey(100);
 
-        // vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
-        // std::cout <<"visualizing mesh:" << std::endl;
-        // Mesher::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
-
-        // visualize points 3D
-        // vector<Point3> points3d = vioBackEnd->get3DPoints();
-        // mesher.visualizeMap3D_repeatedPoints(points3d);
-
-        // visualize points 3D without repetition
-        if(visualizationType == VisualizationType::POINTCLOUD){
+        switch(visualizationType) {
+        case VisualizationType::MESH2D:
+        {
+          vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
+          Visualizer::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
+          break;
+        }
+        case VisualizationType::POINTCLOUD_REPEATEDPOINTS:
+        {
+          vector<Point3> points3d = vioBackEnd->get3DPoints();
+          visualizer.visualizeMap3D_repeatedPoints(points3d);
+          break;
+        }
+        case VisualizationType::POINTCLOUD:
+        {
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizePoints3D(pointsWithId,mesher);
         }
-
-        if(visualizationType == VisualizationType::MESH2DTo3D){
+        case VisualizationType::MESH2DTo3D:
+        {
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
           visualizer.visualizeMesh3D(mesher);
         }
-
-        if(visualizationType == VisualizationType::MESH3D){
+        case VisualizationType::MESH3D:
+        {
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizeMesh3D(mesher.mapPoints3d_, Mesher_cgal::CreateMesh3D_MapPointId(mesher.mapPoints3d_));
         }
-
+        default:
+          throw std::runtime_error("stereoVIOEuroc: unknown visualizationType");
+          break;
+        }
         // visualize trajectory
-        std::cout <<"add pose" << std::endl;
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
-        std::cout <<"visualizeTrajectory" << std::endl;
         visualizer.visualizeTrajectory();
-        std::cout <<"spinOnce" << std::endl;
         visualizer.myWindow_.spinOnce(50);
       }
 
