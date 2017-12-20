@@ -303,14 +303,13 @@ int main(const int argc, const char *argv[])
 
         // visualize points 3D with repetition
         if(visualizationType == VisualizationType::POINTCLOUD_REPEATEDPOINTS){
-          vector<Point3> points = vioBackEnd->get3DPoints();
-          visualizer.visualizeMap3D_repeatedPoints(points);
+          visualizer.visualizeMap3D_repeatedPoints(vioBackEnd->get3DPoints());
         }
 
         // visualize trajectory
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory();
-        visualizer.myWindow_.spinOnce(50);
+        visualizer.myWindow_.spinOnce(10);
       }
 
       didFirstOptimization = true;
