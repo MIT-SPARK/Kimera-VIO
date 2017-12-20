@@ -7,7 +7,7 @@ trackerParams.klt_max_level = 4;
 trackerParams.klt_eps = 0.1;
 trackerParams.maxFeatureAge = 25;
 %
-trackerParams.maxFeaturesPerFrame = 200; 
+trackerParams.maxFeaturesPerFrame = 100; 
 trackerParams.quality_level = 0.001;
 trackerParams.min_distance = 20.0;
 trackerParams.block_size = 3;

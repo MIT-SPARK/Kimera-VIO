@@ -25,15 +25,15 @@ trackerParams.equalizeImage = 1;
 vioParams.addBetweenStereoFactors = 0;
 vioParams.relinearizeThreshold = 0;
 
-nrFeaturesPerFrame = 100;
-nrFeatSelect = 10;
+nrFeaturesPerFrame = 200;
+nrFeatSelect = 1000;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 timeStart = fix(clock);
 for testCond = conditions
     testCounter = 0;
     switch testCond  
         case 1 % baseline: large number of features
-            trackerParams.maxFeaturesPerFrame = 200;
+            trackerParams.maxFeaturesPerFrame = 100;
             trackerParams.featureSelectionNrCornersToSelect = trackerParams.maxFeaturesPerFrame;
             trackerParams.featureSelectionCriterion = 0; % quality
         case 2
@@ -56,7 +56,7 @@ for testCond = conditions
             trackerParams.featureSelectionCriterion = 0; % quality
             trackerParams.min_distance = 30; % binning
         case 6 % baseline + binning: expected to be best result
-            trackerParams.maxFeaturesPerFrame = 200;
+            trackerParams.maxFeaturesPerFrame = 1000;
             trackerParams.featureSelectionNrCornersToSelect = trackerParams.maxFeaturesPerFrame;
             trackerParams.min_distance = 20; % binning (defult)
             trackerParams.featureSelectionCriterion = 0; % quality

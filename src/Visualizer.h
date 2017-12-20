@@ -154,22 +154,25 @@ public:
     /// Start event loop.
     //TODO: myWindow_.spinOnce(50);
   }
-
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
-  void visualizeMesh3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Mesher& mesher){
+  void visualizeMesh3D(const cv::Mat mapPoints3d, const cv::Mat polygonsMesh){
 
     // sanity check dimension
-    if(pointsWithId.size() == 0 || mesher.polygonsMesh_.cols == 0) // no points/mesh to visualize
+    if(mapPoints3d.rows == 0 || polygonsMesh.rows == 0) // no points/mesh to visualize
       return;
 
     // Create a cloud widget.
-    cv::viz::WMesh mesh(mesher.mapPoints3d_.t(), mesher.polygonsMesh_);
+    cv::viz::WMesh mesh(mapPoints3d.t(), polygonsMesh);
     myWindow_.showWidget("point cloud map",  mesh); // plot mesh
     /// Start event loop.
     myWindow_.spinOnce(100);
   }
-
+  /* ----------------------------------------------------------------------------- */
+  // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
+  void visualizeMesh3D(const Mesher& mesher){
+    visualizeMesh3D(mesher.mapPoints3d_,mesher.polygonsMesh_);
+  }
   /* ----------------------------------------------------------------------------- */
   // add pose to the previous trajectory
   void addPoseToTrajectory(gtsam::Pose3 current_pose_gtsam){

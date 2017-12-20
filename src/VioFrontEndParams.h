@@ -43,7 +43,7 @@ public:
     klt_eps_(0.1), // Before tuning: 0.001
     maxFeatureAge_(25), // upper bounded by horizon / min intra_keyframe_time_
     // detection params
-    maxFeaturesPerFrame_(200), // Max nr of features to track per frame
+    maxFeaturesPerFrame_(1000), // Max nr of features to track per frame
     quality_level_(0.001), // Quality of feature from 0-1 (mono: 0.995) // before tuning: 0.5
     min_distance_(20.0), // Minimum allowable distance (in pixels) between feature detections // Before tuning: 20
     block_size_(3),
@@ -63,7 +63,7 @@ public:
     // selector params
     featureSelectionCriterion_(FeatureSelectionCriterion::QUALITY),
     featureSelectionHorizon_(3), // in seconds
-    featureSelectionNrCornersToSelect_(200), // detect larger number of keypoints, and then select maxFeaturesPerFrame_
+    featureSelectionNrCornersToSelect_(1000), // detect larger number of keypoints, and then select maxFeaturesPerFrame_
     featureSelectionImuRate_(0.005), // for feature selector
     featureSelectionDefaultDepth_(5.0), // for feature selector
     featureSelectionCosineNeighborhood_(cos( (10*PI)/(180.0) )), // 10 degrees

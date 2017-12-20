@@ -88,7 +88,7 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  cv::Mat createMesh3d_MapPointId(const Frame& frame) const{
+  cv::Mat createMesh2DTo3D_MapPointId(const Frame& frame) const{
 
     // build 2D mesh, resticted to points with lmk!=-1
     std::vector<cv::Vec6f> triangulation2D = Mesher::CreateMesh2D(frame);
@@ -162,8 +162,7 @@ public:
   void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame){
     updateMap3D(pointsWithId);
     // concatenate mesh in the current image to existing mesh
-    polygonsMesh_.push_back(createMesh3d_MapPointId(frame));
-//    hconcat(polygonsMesh_,createMesh3d_MapPointId(frame),polygonsMesh_);
+    polygonsMesh_.push_back(createMesh2DTo3D_MapPointId(frame));
   }
 };
 } // namespace VIO

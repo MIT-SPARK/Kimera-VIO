@@ -100,7 +100,7 @@ int main(const int argc, const char *argv[])
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::MESH; //POINTCLOUD
+  VisualizationType visualizationType = VisualizationType::MESH3D; // MESH3D; //POINTCLOUD
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
@@ -294,15 +294,24 @@ int main(const int argc, const char *argv[])
           visualizer.visualizePoints3D(pointsWithId,mesher);
         }
 
-        if(visualizationType == VisualizationType::MESH){
+        if(visualizationType == VisualizationType::MESH2DTo3D){
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
-          visualizer.visualizeMesh3D(pointsWithId,mesher);
+          visualizer.visualizeMesh3D(mesher);
+        }
+
+        if(visualizationType == VisualizationType::MESH3D){
+          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
+          mesher.updateMap3D(pointsWithId);
+          visualizer.visualizeMesh3D(mesher.mapPoints3d_, Mesher_cgal::CreateMesh3D_MapPointId(mesher.mapPoints3d_));
         }
 
         // visualize trajectory
+        std::cout <<"add pose" << std::endl;
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
+        std::cout <<"visualizeTrajectory" << std::endl;
         visualizer.visualizeTrajectory();
+        std::cout <<"spinOnce" << std::endl;
         visualizer.myWindow_.spinOnce(50);
       }
 
