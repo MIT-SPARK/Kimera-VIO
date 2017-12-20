@@ -282,8 +282,9 @@ int main(const int argc, const char *argv[])
         switch(visualizationType) {
         case VisualizationType::MESH2D:
         {
-          vector<Vec6f> triangulation2D = Mesher::CreateMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
-          Visualizer3D::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, triangulation2D, 100);
+          stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D();
+          Visualizer3D::VisualizeMesh2D(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_,
+              stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.triangulation2D_, 100);
           break;
         }
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS:

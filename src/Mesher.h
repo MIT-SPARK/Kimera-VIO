@@ -47,51 +47,11 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static std::vector<cv::Vec6f> CreateMesh2D(const Frame& frame){
-
-    // sanity check
-    if(frame.landmarks_.size() != frame.keypoints_.size())
-      throw std::runtime_error("mesher: wrong dimension for the landmarks");
-
-    // Rectangle to be used with Subdiv2D
-    cv::Size size = frame.img_.size();
-    cv::Rect2f rect(0, 0, size.width, size.height);
-
-    // subdiv has the delaunay triangulation function
-    cv::Subdiv2D subdiv(rect);
-
-    // add points from Frame
-    for(size_t i=0; i < frame.keypoints_.size(); i++){
-      if(frame.landmarks_[i] != -1 && rect.contains(frame.keypoints_[i])){ // only for valid keypoints
-        subdiv.insert(frame.keypoints_[i]);
-      }
-    }
-
-    // do triangulation
-    std::vector<cv::Vec6f> triangulation2D, triangulation2DwithExtraTriangles;
-
-    // getTriangleList returns some spurious triangle with vertices outside image
-    subdiv.getTriangleList(triangulation2DwithExtraTriangles);
-    std::vector<cv::Point2f> pt(3);
-    for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++) // TODO: this is doing a lot of computation
-        {
-          cv::Vec6f t = triangulation2DwithExtraTriangles[i];
-          pt[0] = cv::Point2f(t[0], t[1]);
-          pt[1] = cv::Point2f(t[2], t[3]);
-          pt[2] = cv::Point2f(t[4], t[5]);
-
-          if(rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2]))
-            triangulation2D.push_back(t);
-        }
-
-    return triangulation2D;
-  }
-  /* ----------------------------------------------------------------------------- */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  cv::Mat createMesh2DTo3D_MapPointId(const Frame& frame) const{
+  cv::Mat createMesh2DTo3D_MapPointId(Frame& frame) const{
 
     // build 2D mesh, resticted to points with lmk!=-1
-    std::vector<cv::Vec6f> triangulation2D = Mesher::CreateMesh2D(frame);
+    frame.createMesh2D();
+    std::vector<cv::Vec6f> triangulation2D = frame.triangulation2D_;
 
     // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
     // where n is the number of points in the polygon, and id is a zero-offset
@@ -151,7 +111,7 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Frame& frame){
+  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, Frame& frame){
     // update 3D points (possibly replacing some points with new estimates)
     updateMap3D(pointsWithId);
     // concatenate mesh in the current image to existing mesh

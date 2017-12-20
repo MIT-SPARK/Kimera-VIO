@@ -75,6 +75,7 @@ public:
   std::vector<int> landmarksAge_; // how many consecutive *keyframes* saw the keypoint
   BearingVectors versors_; // in the ref frame of the UNRECTIFIED left frame
   cv::Mat descriptors_; // not currently used
+  std::vector<cv::Vec6f> triangulation2D_;
 
 public:
   /* +++++++++++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++++++++ */
@@ -96,6 +97,43 @@ public:
         }
       }
       if(!found) throw std::runtime_error("setLandmarksToMinus1: lmk not found");
+    }
+  }
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  void createMesh2D(){
+    if(landmarks_.size() != keypoints_.size()) // sanity check
+      throw std::runtime_error("Frame: wrong dimension for the landmarks");
+
+    // Rectangle to be used with Subdiv2D
+    cv::Size size = img_.size();
+    cv::Rect2f rect(0, 0, size.width, size.height);
+    cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
+
+    // add points from Frame
+    for(size_t i=0; i < keypoints_.size(); i++){
+      if(landmarks_[i] != -1 && rect.contains(keypoints_[i])) // only for valid keypoints
+        subdiv.insert(keypoints_[i]);
+    }
+    // getTriangleList returns some spurious triangle with vertices outside image
+    std::vector<cv::Vec6f> triangulation2DwithExtraTriangles;
+    subdiv.getTriangleList(triangulation2DwithExtraTriangles); // do triangulation
+
+    // retrieve "good triangles"
+    triangulation2D_.resize(0); // reinitialize
+    triangulation2D_.reserve(triangulation2DwithExtraTriangles.size()); // preallocate
+    if(triangulation2D_.size()>0)
+      throw std::runtime_error("Frame: wrong dimension for the landmarks");
+
+    std::vector<cv::Point2f> pt(3);
+    for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++) // TODO: this is doing a lot of computation
+    {
+      cv::Vec6f t = triangulation2DwithExtraTriangles[i];
+      pt[0] = cv::Point2f(t[0], t[1]);
+      pt[1] = cv::Point2f(t[2], t[3]);
+      pt[2] = cv::Point2f(t[4], t[5]);
+      if(rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2]))
+        triangulation2D_.push_back(t);
     }
   }
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
