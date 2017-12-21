@@ -761,6 +761,44 @@ public:
     }
     return maxVal;
   }
+  /* ----------------------------------------------------------------------------- */
+  // compute image gradients (untested: taken from
+  // http://www.coldvision.io/2016/03/18/image-gradient-sobel-operator-opencv-3-x-cuda/)
+  static cv::Mat ImageLaplacian(const cv::Mat img) {
+
+    // duplicate image to preserve const input
+    cv::Mat input = img.clone();
+
+    // blur the input image to remove the noise
+    cv::GaussianBlur( input, input, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT );
+
+    // convert it to grayscale (CV_8UC3 -> CV_8UC1)
+    cv::Mat input_gray;
+    if (input.channels() > 1)
+      cv::cvtColor( input, input_gray, cv::COLOR_RGB2GRAY );
+    else
+      input_gray = input.clone();
+
+    // compute the gradients on both directions x and y
+    cv::Mat grad_x, grad_y;
+    cv::Mat abs_grad_x, abs_grad_y;
+    int scale = 1;
+    int delta = 0;
+    int ddepth = CV_16S; // use 16 bits unsigned to avoid overflow
+
+    //Scharr( input_gray, grad_x, ddepth, 1, 0, scale, delta, BORDER_DEFAULT );
+    cv::Sobel( input_gray, grad_x, ddepth, 1, 0, 3, scale, delta, cv::BORDER_DEFAULT );
+    cv::convertScaleAbs( grad_x, abs_grad_x ); // CV_16S -> CV_8U
+
+    //Scharr( input_gray, grad_y, ddepth, 0, 1, scale, delta, BORDER_DEFAULT );
+    cv::Sobel( input_gray, grad_y, ddepth, 0, 1, 3, scale, delta, cv::BORDER_DEFAULT );
+    cv::convertScaleAbs( grad_y, abs_grad_y ); // CV_16S -> // CV_16S -> CV_8U
+
+    // create the output by adding the absolute gradient images of each x and y direction
+    cv::Mat output;
+    cv::addWeighted( abs_grad_x, 0.5, abs_grad_y, 0.5, 0, output );
+    return output;
+  }
 };
 
 } // namespace VIO

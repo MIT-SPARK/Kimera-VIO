@@ -126,7 +126,7 @@ TEST(testFrame, findLmkIdFromPixel) {
   }
 }
 /* ************************************************************************* */
-TEST(testMesher, createMesh2D) {
+TEST(testFrame, createMesh2D) {
 
   // Construct a frame from image name.
   FrameId id = 0;
@@ -179,7 +179,7 @@ TEST(testMesher, createMesh2D) {
 }
 
 /* ************************************************************************* */
-TEST(testMesher, createMesh2D_noKeypoints) {
+TEST(testFrame, createMesh2D_noKeypoints) {
 
   // Construct a frame from image name.
   FrameId id = 0;
@@ -192,6 +192,23 @@ TEST(testMesher, createMesh2D_noKeypoints) {
   vector<Vec6f> triangulation2D = f.triangulation2D_;
 
   EXPECT(triangulation2D.size() == 0);
+}
+/* ************************************************************************* */
+TEST(testFrame, visualizeMesh2D) {
+
+  // Construct a frame from image name.
+  FrameId id = 0;
+  Timestamp tmp = 123;
+  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
+  Frame f(id, tmp, imgName, CameraParams());
+  f.extractCorners();
+  for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
+    f.landmarks_.push_back(i);
+  }
+
+  // compute mesh
+  f.createMesh2D();
+  f.visualizeMesh2D(100);
 }
 
 /* ************************************************************************* */

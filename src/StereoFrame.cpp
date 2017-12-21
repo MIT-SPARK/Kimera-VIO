@@ -318,6 +318,12 @@ void StereoFrame::createMesh2Dobs(){
   triangulation2Dobs_ = Frame::CreateMesh2D(ref_frame,selectedIndices);
 
   // retain only "full" triangles (the one representing a planar surface)
+  // 1: compute image gradients:
+  cv::Mat left_img_grads = UtilsOpenCV::ImageLaplacian(ref_frame.img_);
+  cv::imshow("left_img_grads",left_img_grads);
+  cv::waitKey(100);
+
+  // 2: for each triangle, set to full the triangles that have near-zero gradient
 }
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::visualizeMesh2Dobs(const double waitTime) const{

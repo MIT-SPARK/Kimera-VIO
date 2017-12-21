@@ -584,7 +584,7 @@ TEST(testUtils, covariance_bvx2xvb) {
 static const string chessboardImgName = string(DATASET_PATH) + "/chessboard.png";
 static const string realImgName = string(DATASET_PATH) + "/realImage.png";
 
-/* *************************************************************************  *
+/* ************************************************************************* *
 TEST(UtilsOpenCV, ExtractCornersChessboard) {
 
   Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName);
@@ -606,13 +606,13 @@ TEST(UtilsOpenCV, ExtractCornersChessboard) {
     EXPECT_DOUBLES_EQUAL(0.333333,actualScores.at(i), 1e-3);
   }
 }
-
 /* ************************************************************************* */
 TEST(UtilsOpenCV, ExtractCornersImage) {
 
   Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(realImgName);
   vector<cv::Point2f> actualCorners,actualCorners2;
   vector<double> actualScores;
+
   tie(actualCorners,actualScores) =
       UtilsOpenCV::MyGoodFeaturesToTrackSubPix(img, 100, 0.01, 10, Mat(), 3, false, 0.04 );
 
@@ -644,17 +644,15 @@ TEST(UtilsOpenCV, VectorUnique){
     EXPECT(vexpected[i] == vactual[i]);
   }
 }
-
-/* ************************************************************************* *
-TEST(UtilsOpenCV, ExtractCornersWhiteBoard) {
-  Frame f(0, 0, whitewallImgName, CameraParams());
-  f.ExtractCorners();
-  int numCorners_expected = 0;
-  int numCorners_actual = f.keypoints_.size();
-  // Assert that there are no corners!
-  EXPECT(numCorners_actual == numCorners_expected);
+/* ************************************************************************* */
+TEST(UtilsOpenCV, ImageLaplacian) {
+Mat chessboardImg;
+  vector<cv::Point2f> notUsed;
+  tie(chessboardImg, notUsed) = cvCreateChessboard(30, 10, 8);
+  Mat actual = UtilsOpenCV::ImageLaplacian(chessboardImg);
+  cv::imshow("actual",actual);
+  cv::waitKey(100);
 }
-
 /* ************************************************************************* */
 int main() {
   TestResult tr; return TestRegistry::runAllTests(tr); }
