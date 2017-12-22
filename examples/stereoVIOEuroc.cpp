@@ -301,10 +301,11 @@ int main(const int argc, const char *argv[])
         }
         case VisualizationType::MESH2DTo3Dobs:
         {
-          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs();
+          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs(70);
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dobs(100);
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(5); // obs in 3 kf
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_);
+          mesher.removeElongatedTriangles(0.2);
           visualizer.visualizeMesh3D(mesher);
 
           break;

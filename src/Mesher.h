@@ -128,6 +128,16 @@ public:
     // concatenate mesh in the current image to existing mesh
     polygonsMesh_.push_back(createMesh2DTo3D_MapPointId(frame));
   }
+  /* ----------------------------------------------------------------------------- */
+  // Update mesh: update structures keeping memory of the map before visualization
+  void removeElongatedTriangles(double maxRatioBetweenLargestAnSmallestSide){
+    for(size_t t=0; t<polygonsMesh_.rows; t++){
+      int
+      cv::Point3f p0 = mapPoints3d_.at<cv::Point3f>(i);
+      cv::Point3f p1 = mapPoints3d_.at<cv::Point3f>(i);
+      cv::Point3f p2 = mapPoints3d_.at<cv::Point3f>(i);
+    }
+  }
 };
 } // namespace VIO
 #endif /* Mesher_H_ */

@@ -44,8 +44,8 @@ public:
     maxFeatureAge_(25), // upper bounded by horizon / min intra_keyframe_time_
     // detection params
     maxFeaturesPerFrame_(1000), // Max nr of features to track per frame
-    quality_level_(0.001), // Quality of feature from 0-1 (mono: 0.995) // before tuning: 0.5
-    min_distance_(20.0), // Minimum allowable distance (in pixels) between feature detections // Before tuning: 20
+    quality_level_(0.01), // Quality of feature from 0-1 (mono: 0.995) // before tuning: 0.5
+    min_distance_(10.0), // Minimum allowable distance (in pixels) between feature detections // Before tuning: 20
     block_size_(3),
     use_harris_detector_(false),
     k_(0.04),

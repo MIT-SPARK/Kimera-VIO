@@ -301,7 +301,7 @@ cv::Mat StereoFrame::getDisparityImage(const cv::Mat imgLeft, const cv::Mat imgR
 //  return imgDisparity16S;
 }
 /* --------------------------------------------------------------------------------------- */
-void StereoFrame::createMesh2Dobs(){
+void StereoFrame::createMesh2Dobs(float gradBound){
   Frame& ref_frame = left_frame_;
 
   if(ref_frame.landmarks_.size() != right_keypoints_status_.size()) // sanity check
@@ -324,7 +324,6 @@ void StereoFrame::createMesh2Dobs(){
   cv::waitKey(100);
 
   // 2: for each triangle, set to full the triangles that have near-zero gradient
-  float gradBound = 50; // max=255 // if pixels in triangle have all grad smaller than this, triangle is rejected
   triangulation2Dobs_.reserve(triangulation2D.size());
   for(size_t i=0; i<triangulation2D.size(); i++)
   {

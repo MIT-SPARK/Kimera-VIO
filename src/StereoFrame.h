@@ -137,7 +137,8 @@ public:
     right_frame_.isKeyframe_ = isKf;
   }
   // Create a 2D mesh only including triangles corresponding to obstables (planar surfaces)
-  void createMesh2Dobs();
+  // gradBound = 50 (255):if pixels in triangle have all grad smaller than gradBound, triangle is rejected
+  void createMesh2Dobs(float gradBound = 50);
   // visualize stored mesh
   void visualizeMesh2Dobs(const double waitTime = 0) const;
   // copy rectification parameters from another stereo camera
