@@ -100,7 +100,7 @@ int main(const int argc, const char *argv[])
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::MESH2Dobs; // MESH3D; //POINTCLOUD
+  VisualizationType visualizationType = VisualizationType::MESH2Dobs; // MESH2Dobs MESH3D; //POINTCLOUD
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
@@ -303,18 +303,21 @@ int main(const int argc, const char *argv[])
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizePoints3D(pointsWithId,mesher);
+          break;
         }
         case VisualizationType::MESH2DTo3D:
         {
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
           visualizer.visualizeMesh3D(mesher);
+          break;
         }
         case VisualizationType::MESH3D:
         {
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizeMesh3D(mesher.mapPoints3d_, Mesher_cgal::CreateMesh3D_MapPointId(mesher.mapPoints3d_));
+          break;
         }
         default:
           throw std::runtime_error("stereoVIOEuroc: unknown visualizationType");

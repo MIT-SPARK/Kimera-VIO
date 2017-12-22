@@ -315,7 +315,7 @@ void StereoFrame::createMesh2Dobs(){
   }
 
   // get a triangulation for all valid keypoints
-  triangulation2Dobs_ = Frame::CreateMesh2D(ref_frame,selectedIndices);
+  std::vector<cv::Vec6f> triangulation2D = Frame::CreateMesh2D(ref_frame,selectedIndices);
 
   // retain only "full" triangles (the one representing a planar surface)
   // 1: compute image gradients:
@@ -324,6 +324,17 @@ void StereoFrame::createMesh2Dobs(){
   cv::waitKey(100);
 
   // 2: for each triangle, set to full the triangles that have near-zero gradient
+  float gradBound = 0; // if pixels in triangle have all grad smaller than this, triangle is rejected
+  triangulation2Dobs_.reserve(triangulation2D.size());
+  for(size_t i=0; i<triangulation2D.size(); i++)
+  {
+    // find all pixels with grad higher then gradBound
+    std::vector<std::pair<KeypointCV,double>> keypointsWithHighIntensities =
+      UtilsOpenCV::FindHighIntensityInTriangle(left_img_grads, triangulation2D.at(i),gradBound);
+    // if no high-grad pixels exist, then this triangle is a plane
+    if(keypointsWithHighIntensities.size() > 0) // if there is at least 1 corner
+      triangulation2Dobs_.push_back(triangulation2D.at(i));
+  }
 }
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::visualizeMesh2Dobs(const double waitTime) const{
