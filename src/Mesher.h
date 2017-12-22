@@ -68,7 +68,6 @@ public:
       LandmarkId id_pt3 = frame.findLmkIdFromPixel(cv::Point2f(t[4], t[5]));
 
       // check if they are in mapPoints3d_
-
       if ( lmkIdToMapPointId_.find(id_pt1) != lmkIdToMapPointId_.end() &&
           lmkIdToMapPointId_.find(id_pt2) != lmkIdToMapPointId_.end() &&
           lmkIdToMapPointId_.find(id_pt3) != lmkIdToMapPointId_.end() ){
@@ -79,7 +78,6 @@ public:
         polygon.push_back(lmkIdToMapPointId_.at(id_pt3)); // row in mapPoints3d_
       }
     }
-    std::cout << "polygon.rows:"<<  polygon.rows << " polygon.cols: " << polygon.cols << std::endl;
     return polygon;
   }
   /* ----------------------------------------------------------------------------- */
@@ -108,6 +106,14 @@ public:
         data[row_id].z = float ( point_i.z() );
       }
     }
+  }
+  /* ----------------------------------------------------------------------------- */
+  // Update mesh: update structures keeping memory of the map before visualization
+  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, Frame& frame){
+    // update 3D points (possibly replacing some points with new estimates)
+    updateMap3D(pointsWithId);
+    // concatenate mesh in the current image to existing mesh
+    polygonsMesh_.push_back(createMesh2DTo3D_MapPointId(frame));
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization

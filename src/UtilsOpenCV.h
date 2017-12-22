@@ -784,26 +784,26 @@ public:
     cv::Mat abs_grad_x, abs_grad_y;
     int scale = 1;
     int delta = 0;
-    int ddepth = CV_16S; // use 16 bits unsigned to avoid overflow
 
     //Scharr( input_gray, grad_x, ddepth, 1, 0, scale, delta, BORDER_DEFAULT );
-    cv::Sobel( input_gray, grad_x, ddepth, 1, 0, 3, scale, delta, cv::BORDER_DEFAULT );
+    cv::Sobel( input_gray, grad_x, CV_16S, 1, 0, 3, scale, delta, cv::BORDER_DEFAULT );
     cv::convertScaleAbs( grad_x, abs_grad_x ); // CV_16S -> CV_8U
 
     //Scharr( input_gray, grad_y, ddepth, 0, 1, scale, delta, BORDER_DEFAULT );
-    cv::Sobel( input_gray, grad_y, ddepth, 0, 1, 3, scale, delta, cv::BORDER_DEFAULT );
+    cv::Sobel( input_gray, grad_y, CV_16S, 0, 1, 3, scale, delta, cv::BORDER_DEFAULT );
     cv::convertScaleAbs( grad_y, abs_grad_y ); // CV_16S -> // CV_16S -> CV_8U
 
     // create the output by adding the absolute gradient images of each x and y direction
     cv::Mat output;
     cv::addWeighted( abs_grad_x, 0.5, abs_grad_y, 0.5, 0, output );
+    std::cout << "output.type() " << output.type() <<std::endl;
     return output;
   }
   /* ----------------------------------------------------------------------------- */
   // compute max intensity of pixels within a triangle specified by the pixel location of its vertices
   static std::vector<std::pair<KeypointCV,double>> FindHighIntensityInTriangle(const cv::Mat img, const cv::Vec6f px_vertices, const float intensityThreshold){
 
-    bool isDebug = true;
+    bool isDebug = false;
     // parse input vertices
     int x0 = std::round(px_vertices[0]);
     int y0 = std::round(px_vertices[1]);
@@ -839,73 +839,50 @@ public:
       // find smallest col inside triangle:
       int min_x = botRight_x; // initialized to largest
       int max_x = topLeft_x; // initialized to smallest
-      int margin = 5;
+      int margin = 0;
       // check triangle 01:
       if( y0 != y1 ){ // in this case segment is horizontal and we can skip it
         double lambda01 = double( r-y1 ) / double( y0 - y1 );
         if(lambda01>=0 && lambda01<=1){ // intersection belongs to segment
-          int x = int ( (lambda01)*double(x0) + (1-lambda01)*double(x1) );
+          int x = std::round( (lambda01)*double(x0) + (1-lambda01)*double(x1) );
           min_x = std::min(min_x, x ); // try to expand segment to the left
           max_x = std::max(max_x, x ); // try to expand segment to the right
-//          if(isDebug){
-//            cv::Mat imgCopy2 = img.clone();
-//            cv::cvtColor(imgCopy2, imgCopy2, cv::COLOR_GRAY2BGR);
-//            cv::line(imgCopy2, pt[0], pt[1], cv::Scalar(0, 255,0), 1, CV_AA, 0);
-//            cv::circle(imgCopy2, cv::Point(x,r), 3, cv::Scalar(0,0,255), CV_FILLED, CV_AA, 0);
-//            cv::imshow("lambda01",imgCopy2);
-//            cv::waitKey(0);
-//          }
         }
       }
       // check triangle 12:
       if( y1 != y2 ){ // in this case segment is horizontal and we can skip it
         double lambda12 = double( r-y2 ) / double( y1 - y2 );
         if(lambda12>=0 && lambda12<=1){ // intersection belongs to segment
-          int x = int ( (lambda12)*double(x1) + (1-lambda12)*double(x2) );
+          int x = std::round( (lambda12)*double(x1) + (1-lambda12)*double(x2) );
           min_x = std::min(min_x, x ); // try to expand segment to the left
           max_x = std::max(max_x, x ); // try to expand segment to the right
-//          if(isDebug){
-//            cv::Mat imgCopy2 = img.clone();
-//            cv::cvtColor(imgCopy2, imgCopy2, cv::COLOR_GRAY2BGR);
-//            cv::line(imgCopy2, pt[1], pt[2], cv::Scalar(0, 255,0), 1, CV_AA, 0);
-//            cv::circle(imgCopy2, cv::Point(x,r), 3, cv::Scalar(0,0,255), CV_FILLED, CV_AA, 0);
-//            cv::imshow("lambda12",imgCopy2);
-//            cv::waitKey(0);
-//          }
         }
       }
       // check triangle 20:
       if( y2 != y0 ){ // in this case segment is horizontal and we can skip it
         double lambda20 = double( r-y0 ) / double( y2 - y0 );
         if(lambda20>=0 && lambda20<=1){ // intersection belongs to segment
-          int x = int ( (lambda20)*double(x2) + (1-lambda20)*double(x0) );
+          int x = std::round( (lambda20)*double(x2) + (1-lambda20)*double(x0) );
           min_x = std::min(min_x, x ); // try to expand segment to the left
           max_x = std::max(max_x, x ); // try to expand segment to the right
-//          if(isDebug){
-//            cv::Mat imgCopy2 = img.clone();
-//            cv::cvtColor(imgCopy2, imgCopy2, cv::COLOR_GRAY2BGR);
-//            cv::line(imgCopy2, pt[2], pt[0], cv::Scalar(0, 255,0), 1, CV_AA, 0);
-//            cv::circle(imgCopy2, cv::Point(x,r), 3, cv::Scalar(0,0,255), CV_FILLED, CV_AA, 0);
-//            cv::imshow("lambda20",imgCopy2);
-//            cv::waitKey(0);
-//          }
         }
       }
       // sanity check
-      if(min_x < topLeft_x || max_x > botRight_x)
+      if(min_x < topLeft_x || max_x > botRight_x){
+        std::cout << min_x << " " << topLeft_x << " " << max_x << " " << botRight_x << std::endl;
         throw std::runtime_error("FindHighIntensityInTriangle: inconsistent extrema");
+      }
 
-      for (int c = min_x + margin; c <= max_x - margin; c++) {
-        float intensity_rc = double(img.at<int16_t>(r, c));
-        std::cout << "intensity- : " << img.at<int16_t>(r, c) << std::endl;
-        std::cout << "intensity_rc (r,c): " << intensity_rc << " (" << r <<"," <<c << ")"<< std::endl;
-        std::cout << "min: " << min << " max " << max << std::endl;
-        if(isDebug){cv::circle(imgCopy, cv::Point(c,r), 1, cv::Scalar(255,0,0), CV_FILLED, CV_AA, 0);}
+      for (int c = min_x + margin; c < max_x - margin; c++) {
+        float intensity_rc = float(img.at<uint8_t>(r, c));
+        if(isDebug){
+          std::cout << "intensity_rc (r,c): " << intensity_rc << " (" << r <<"," <<c << ")"<< std::endl;
+          std::cout << "min: " << min << " max " << max << std::endl;
+          cv::circle(imgCopy, cv::Point(c,r), 1, cv::Scalar(255,0,0), CV_FILLED, CV_AA, 0);
+        }
         if(intensity_rc > intensityThreshold){
           keypointsWithIntensities.push_back(std::make_pair(cv::Point(c,r),intensity_rc));
-          //if(isDebug){cv::circle(imgCopy, cv::Point(c,r), 1, cv::Scalar(255,0,0), CV_FILLED, CV_AA, 0);}
-        }else{
-          //if(isDebug){cv::circle(imgCopy, cv::Point(c,r), 1, cv::Scalar(0, 0,255), CV_FILLED, CV_AA, 0);}
+          if(isDebug){cv::circle(imgCopy, cv::Point(c,r), 1, cv::Scalar(0,0,255), CV_FILLED, CV_AA, 0);}
         }
       }
     }

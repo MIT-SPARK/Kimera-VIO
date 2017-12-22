@@ -324,7 +324,7 @@ void StereoFrame::createMesh2Dobs(){
   cv::waitKey(100);
 
   // 2: for each triangle, set to full the triangles that have near-zero gradient
-  float gradBound = 0; // if pixels in triangle have all grad smaller than this, triangle is rejected
+  float gradBound = 50; // max=255 // if pixels in triangle have all grad smaller than this, triangle is rejected
   triangulation2Dobs_.reserve(triangulation2D.size());
   for(size_t i=0; i<triangulation2D.size(); i++)
   {
@@ -332,7 +332,7 @@ void StereoFrame::createMesh2Dobs(){
     std::vector<std::pair<KeypointCV,double>> keypointsWithHighIntensities =
       UtilsOpenCV::FindHighIntensityInTriangle(left_img_grads, triangulation2D.at(i),gradBound);
     // if no high-grad pixels exist, then this triangle is a plane
-    if(keypointsWithHighIntensities.size() > 0) // if there is at least 1 corner
+    if(keypointsWithHighIntensities.size() == 0) // if there is no high-gradient point
       triangulation2Dobs_.push_back(triangulation2D.at(i));
   }
 }

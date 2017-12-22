@@ -286,6 +286,13 @@ int main(const int argc, const char *argv[])
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.visualizeMesh2D(100);
           break;
         }
+        case VisualizationType::MESH2DTo3D:
+        {
+          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
+          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
+          visualizer.visualizeMesh3D(mesher);
+          break;
+        }
         case VisualizationType::MESH2Dobs:
         {
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs();
@@ -303,13 +310,6 @@ int main(const int argc, const char *argv[])
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizePoints3D(pointsWithId,mesher);
-          break;
-        }
-        case VisualizationType::MESH2DTo3D:
-        {
-          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
-          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
-          visualizer.visualizeMesh3D(mesher);
           break;
         }
         case VisualizationType::MESH3D:
