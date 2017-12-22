@@ -483,7 +483,7 @@ public:
   }
   /* ----------------------------------------------------------------------------------- */
   // get valid 3D points and corresponding lmk id
-  PointsWithId get3DPointsAndLmkIds() const{
+  PointsWithId get3DPointsAndLmkIds(const int minAge = 0) const{
 
     // output
     PointsWithId pointsWithId;
@@ -504,7 +504,7 @@ public:
         if (gsf){
           nrPts++;
           gtsam::TriangulationResult result = gsf->point();
-          if(result.valid()){
+          if(result.valid() && gsf->measured().size() >= minAge){
             nrValidPts++;
             pointsWithId.push_back(std::make_pair(lmkId,*result));
           }

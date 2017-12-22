@@ -47,12 +47,7 @@ public:
 
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  cv::Mat createMesh2DTo3D_MapPointId(Frame& frame) const{
-
-    // build 2D mesh, resticted to points with lmk!=-1
-    frame.createMesh2D();
-    std::vector<cv::Vec6f> triangulation2D = frame.triangulation2D_;
-
+  cv::Mat getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D, Frame& frame) const{
     // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
     // where n is the number of points in the polygon, and id is a zero-offset
     // index into an associated cloud.
@@ -79,6 +74,15 @@ public:
       }
     }
     return polygon;
+  }
+  /* ----------------------------------------------------------------------------- */
+  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  cv::Mat createMesh2DTo3D_MapPointId(Frame& frame) const{
+
+    // build 2D mesh, resticted to points with lmk!=-1
+    frame.createMesh2D();
+    std::vector<cv::Vec6f> triangulation2D = frame.triangulation2D_;
+    getTriangulationIndices(triangulation2D,frame);
   }
   /* ----------------------------------------------------------------------------- */
   // Update map: update structures keeping memory of the map before visualization
@@ -109,11 +113,12 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, Frame& frame){
+  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
+      std::shared_ptr<StereoFrame> stereoFrame){
     // update 3D points (possibly replacing some points with new estimates)
     updateMap3D(pointsWithId);
     // concatenate mesh in the current image to existing mesh
-    polygonsMesh_.push_back(createMesh2DTo3D_MapPointId(frame));
+    polygonsMesh_.push_back(getTriangulationIndices(stereoFrame->triangulation2Dobs_,stereoFrame->left_frame_));
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization

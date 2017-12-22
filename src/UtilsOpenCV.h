@@ -839,7 +839,7 @@ public:
       // find smallest col inside triangle:
       int min_x = botRight_x; // initialized to largest
       int max_x = topLeft_x; // initialized to smallest
-      int margin = 0;
+      int margin = 4;
       // check triangle 01:
       if( y0 != y1 ){ // in this case segment is horizontal and we can skip it
         double lambda01 = double( r-y1 ) / double( y0 - y1 );
