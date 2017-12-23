@@ -118,12 +118,15 @@ public:
     // Rectangle to be used with Subdiv2D
     cv::Size size = frame.img_.size();
     cv::Rect2f rect(0, 0, size.width, size.height);
+    std::cout << "before subdiv" << std::endl;
     cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
 
     // add points from Frame
     BOOST_FOREACH(auto i, selectedIndices){
-      if(frame.landmarks_[i] != -1 && rect.contains(frame.keypoints_[i])) // only for valid keypoints
-        subdiv.insert(frame.keypoints_[i]);
+      if(frame.landmarks_.at(i) != -1 && rect.contains(frame.keypoints_.at(i))){ // only for valid keypoints (not keypoints may
+          // end up outside image after tracking which causes subdiv to crash)
+        int kpi_id = subdiv.insert(frame.keypoints_.at(i));
+      }
     }
     // getTriangleList returns some spurious triangle with vertices outside image
     std::vector<cv::Vec6f> triangulation2D,triangulation2DwithExtraTriangles;
@@ -172,8 +175,8 @@ public:
     }
     // visualize extra vertices
     for(size_t i=0; i < keypoints_.size(); i++){
-      if(landmarks_[i] != -1) // only for valid keypoints
-        cv::circle(img, keypoints_[i], 2, points_color, CV_FILLED, CV_AA, 0);
+      if(landmarks_.at(i) != -1) // only for valid keypoints
+        cv::circle(img, keypoints_.at(i), 2, points_color, CV_FILLED, CV_AA, 0);
     }
     cv::imshow("visualizeMesh2D",img);
     cv::waitKey(waitTime);

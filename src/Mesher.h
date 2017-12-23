@@ -48,7 +48,10 @@ public:
   /* ----------------------------------------------------------------------------- */
   // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
   // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
-  double getRatioBetweenSmallestAndLargestSidesquared(const int rowId_pt1,const int rowId_pt2,const int rowId_pt3) const{
+  double getRatioBetweenSmallestAndLargestSidesquared(const int rowId_pt1,const int rowId_pt2,const int rowId_pt3,
+      boost::optional<double &> d12_out = boost::none,
+      boost::optional<double &> d23_out = boost::none,
+      boost::optional<double &> d31_out = boost::none) const{
 
     // get 3D points
     cv::Point3f p1 = mapPoints3d_.at<cv::Point3f>(rowId_pt1);
@@ -59,6 +62,12 @@ public:
     double d12 = double( (p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y) + (p1.z - p2.z)*(p1.z - p2.z) );
     double d23 = double( (p2.x - p3.x)*(p2.x - p3.x) + (p2.y - p3.y)*(p2.y - p3.y) + (p2.z - p3.z)*(p2.z - p3.z) );
     double d31 = double( (p3.x - p1.x)*(p3.x - p1.x) + (p3.y - p1.y)*(p3.y - p1.y) + (p3.z - p1.z)*(p3.z - p1.z) );
+
+    if(d12_out && d23_out && d31_out){ // return distances, mainly for debug
+      *d12_out = d12;
+      *d23_out = d23;
+      *d31_out = d31;
+    }
 
     // compute and return ratio
     double ratio = std::min(d12,std::min(d23,d31)) / std::max(d12,std::max(d23,d31));

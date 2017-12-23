@@ -301,7 +301,7 @@ int main(const int argc, const char *argv[])
         }
         case VisualizationType::MESH2DTo3Dobs:
         {
-          float maxGradInTriangle = 70.0;
+          float maxGradInTriangle = 50.0;
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs(maxGradInTriangle);
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dobs(100);
           int  minKfValidPoints = 5;
