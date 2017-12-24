@@ -16,7 +16,9 @@
 #define Visualizer_H_
 
 #include "Mesher.h"
+#ifdef USE_CGAL
 #include "Mesher_cgal.h"
+#endif
 
 namespace VIO {
 enum VisualizationType {

@@ -328,10 +328,15 @@ int main(const int argc, const char *argv[])
         }
         case VisualizationType::MESH3D:
         {
+#ifdef USE_CGAL
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizeMesh3D(mesher.mapPoints3d_, Mesher_cgal::CreateMesh3D_MapPointId(mesher.mapPoints3d_));
           break;
+#else
+          throw std::runtime_error("VisualizationType::MESH3D requires flag USE_CGAL to be true");
+          break;
+#endif
         }
         default:
           throw std::runtime_error("stereoVIOEuroc: unknown visualizationType");

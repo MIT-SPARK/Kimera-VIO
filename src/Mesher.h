@@ -127,7 +127,7 @@ public:
     // build 2D mesh, resticted to points with lmk!=-1
     frame.createMesh2D();
     std::vector<cv::Vec6f> triangulation2D = frame.triangulation2D_;
-    getTriangulationIndices(triangulation2D,frame,maxRatioBetweenLargestAnSmallestSide);
+    return getTriangulationIndices(triangulation2D,frame,maxRatioBetweenLargestAnSmallestSide);
   }
   /* ----------------------------------------------------------------------------- */
   // Update map: update structures keeping memory of the map before visualization
