@@ -301,7 +301,7 @@ cv::Mat StereoFrame::getDisparityImage(const cv::Mat imgLeft, const cv::Mat imgR
 //  return imgDisparity16S;
 }
 /* --------------------------------------------------------------------------------------- */
-void StereoFrame::createMesh2Dobs(float gradBound){
+void StereoFrame::createMesh2Dobs(float gradBound, double min_elongation_ratio){
   Frame& ref_frame = left_frame_;
 
   if(ref_frame.landmarks_.size() != right_keypoints_status_.size()) // sanity check
@@ -330,9 +330,24 @@ void StereoFrame::createMesh2Dobs(float gradBound){
     // find all pixels with grad higher then gradBound
     std::vector<std::pair<KeypointCV,double>> keypointsWithHighIntensities =
       UtilsOpenCV::FindHighIntensityInTriangle(left_img_grads, triangulation2D.at(i),gradBound);
+
     // if no high-grad pixels exist, then this triangle is a plane
-    if(keypointsWithHighIntensities.size() == 0) // if there is no high-gradient point
-      triangulation2Dobs_.push_back(triangulation2D.at(i));
+    if(keypointsWithHighIntensities.size() == 0){ // if there is no high-gradient point
+
+      cv::Vec6f t = triangulation2D.at(i);
+      // check that the depth makes sense and they are not very elongated triangles:
+      gtsam::Point3 p1 = getPoint3DinCameraFrame(ref_frame.findLmkIdFromPixel(cv::Point2f(t[0], t[1])));
+      gtsam::Point3 p2 = getPoint3DinCameraFrame(ref_frame.findLmkIdFromPixel(cv::Point2f(t[2], t[3])));
+      gtsam::Point3 p3 = getPoint3DinCameraFrame(ref_frame.findLmkIdFromPixel(cv::Point2f(t[4], t[5])));
+      std::vector <gtsam::Point3> points;
+      points.push_back(p1); points.push_back(p2); points.push_back(p2);
+
+      double ratio = UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
+
+      if(ratio >= min_elongation_ratio){
+        triangulation2Dobs_.push_back(triangulation2D.at(i));
+      }
+    }
   }
 }
 /* --------------------------------------------------------------------------------------- */

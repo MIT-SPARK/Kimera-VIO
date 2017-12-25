@@ -304,7 +304,7 @@ int main(const int argc, const char *argv[])
           float maxGradInTriangle = 50.0;
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs(maxGradInTriangle);
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dobs(100);
-          int  minKfValidPoints = 5;
+          int  minKfValidPoints = 3;
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints); // obs in 3 kf
           double maxRatioBetweenLargestAnSmallestSide = 0.5;
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,

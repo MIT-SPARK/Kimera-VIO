@@ -15,8 +15,26 @@
 #ifndef StereoFrame_H_
 #define StereoFrame_H_
 
-#include "Frame.h"
+//#include "opencv2/calib3d/calib3d.hpp"
+//#include "opencv2/highgui/highgui.hpp"
+//#include "opencv2/imgproc/imgproc.hpp"
+//#include <opencv2/opencv.hpp>
+//#include <opencv2/core/core.hpp>
+//#include "opencv2/features2d/features2d.hpp"
+//#include "opencv2/highgui/highgui.hpp"
+//#include "opencv2/imgproc/imgproc.hpp"
+//#include <opencv2/video/tracking.hpp>
+//#include "StereoFrame.h"
+//#include <vector>
+//#include <string>
+//#include <algorithm>
+//#include <iostream>
+//#include <iterator>
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <ctype.h>
 
+#include "Frame.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string>
@@ -24,7 +42,7 @@
 #include <vector>
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/StereoPoint2.h>
-
+#include "UtilsGeometry.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 
@@ -138,7 +156,7 @@ public:
   }
   // Create a 2D mesh only including triangles corresponding to obstables (planar surfaces)
   // gradBound = 50 (255):if pixels in triangle have all grad smaller than gradBound, triangle is rejected
-  void createMesh2Dobs(float gradBound = 50);
+  void createMesh2Dobs(float gradBound = 50, double min_elongation_ratio = 0.5);
   // visualize stored mesh
   void visualizeMesh2Dobs(const double waitTime = 0) const;
   // copy rectification parameters from another stereo camera
@@ -168,6 +186,14 @@ public:
   std::pair<StatusKeypointCV,double> findMatchingKeypointRectified(const cv::Mat left_rectified, const KeypointCV left_rectified_i,
       const cv::Mat right_rectified, const int templ_cols, const int templ_rows, const int stripe_cols, const int stripe_rows,
       const double tol_corr, const bool debugStereoMatching = false) const;
+  /* --------------------------------------------------------------------------------------- */
+  // query 3D point for a valid landmark (with right pixel = VALID)
+  gtsam::Point3 getPoint3DinCameraFrame(LandmarkId i) const{
+    if(right_keypoints_status_.at(i)==Kstatus::VALID){
+      throw std::runtime_error("getPoint3DinCameraFrame: asked for invalid keypoint3d");
+    }
+    return gtsam::Point3(keypoints_3d_.at(i));
+  }
   /* --------------------------------------------------------------------------------------- */
   LandmarkInfo getLandmarkInfo(const LandmarkId i) const{
     // output to populate:
