@@ -15,36 +15,27 @@
 #ifndef StereoFrame_H_
 #define StereoFrame_H_
 
-//#include "opencv2/calib3d/calib3d.hpp"
-//#include "opencv2/highgui/highgui.hpp"
-//#include "opencv2/imgproc/imgproc.hpp"
-//#include <opencv2/opencv.hpp>
-//#include <opencv2/core/core.hpp>
-//#include "opencv2/features2d/features2d.hpp"
-//#include "opencv2/highgui/highgui.hpp"
-//#include "opencv2/imgproc/imgproc.hpp"
-//#include <opencv2/video/tracking.hpp>
-//#include "StereoFrame.h"
-//#include <vector>
-//#include <string>
-//#include <algorithm>
-//#include <iostream>
-//#include <iterator>
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <ctype.h>
-
-#include "Frame.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <string>
-#include <cstdlib>
-#include <vector>
-#include <gtsam/geometry/Cal3_S2.h>
-#include <gtsam/geometry/StereoPoint2.h>
-#include "UtilsGeometry.h"
+#include "opencv2/calib3d/calib3d.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include <opencv2/video/tracking.hpp>
+#include <gtsam/geometry/Cal3_S2.h>
+#include <gtsam/geometry/StereoPoint2.h>
+#include "Frame.h"
+#include "UtilsGeometry.h"
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <iostream>
+#include <iterator>
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 namespace VIO {
 
@@ -189,7 +180,7 @@ public:
   /* --------------------------------------------------------------------------------------- */
   // query 3D point for a valid landmark (with right pixel = VALID)
   gtsam::Point3 getPoint3DinCameraFrame(LandmarkId i) const{
-    if(right_keypoints_status_.at(i)==Kstatus::VALID){
+    if(right_keypoints_status_.at(i)!=Kstatus::VALID){
       throw std::runtime_error("getPoint3DinCameraFrame: asked for invalid keypoint3d");
     }
     return gtsam::Point3(keypoints_3d_.at(i));
