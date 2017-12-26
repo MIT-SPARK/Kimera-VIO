@@ -118,7 +118,7 @@ public:
     // Rectangle to be used with Subdiv2D
     cv::Size size = frame.img_.size();
     cv::Rect2f rect(0, 0, size.width, size.height);
-    std::cout << "before subdiv" << std::endl;
+    std::cout << "CreateMesh2D: before subdiv" << std::endl;
     cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
 
     // add points from Frame
@@ -130,12 +130,14 @@ public:
     }
     // getTriangleList returns some spurious triangle with vertices outside image
     std::vector<cv::Vec6f> triangulation2D,triangulation2DwithExtraTriangles;
+    std::cout << "CreateMesh2D: before get triangles" << std::endl;
     subdiv.getTriangleList(triangulation2DwithExtraTriangles); // do triangulation
 
-    // retrieve "good triangles"
+    // retrieve "good triangles" (all vertices are inside image)
     triangulation2D.reserve(triangulation2DwithExtraTriangles.size()); // preallocate
     std::vector<cv::Point2f> pt(3);
-    for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++) // TODO: this is doing a lot of computation
+    std::cout << "CreateMesh2D: before last loop" << std::endl;
+    for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++)
     {
       cv::Vec6f t = triangulation2DwithExtraTriangles[i];
       pt[0] = cv::Point2f(t[0], t[1]);
@@ -144,6 +146,7 @@ public:
       if(rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2]))
         triangulation2D.push_back(t);
     }
+    std::cout << "CreateMesh2D: end" << std::endl;
     return triangulation2D;
   }
   /* ----------------------------------------------------------------------------- */

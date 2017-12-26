@@ -305,12 +305,14 @@ int main(const int argc, const char *argv[])
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs(maxGradInTriangle);
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dobs(100);
           int  minKfValidPoints = 3;
+          std::cout << "stereoVIOEuroc: get3DPointsAndLmkIds" << std::endl;
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints); // obs in 3 kf
           double maxRatioBetweenLargestAnSmallestSide = 0.5;
+          std::cout << "stereoVIOEuroc:updateMesh3D" << std::endl;
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,
               maxRatioBetweenLargestAnSmallestSide);
+          std::cout << "stereoVIOEuroc: visualizer" << std::endl;
           visualizer.visualizeMesh3D(mesher);
-
           break;
         }
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS:

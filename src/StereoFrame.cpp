@@ -301,21 +301,26 @@ void StereoFrame::createMesh2Dobs(float gradBound, double min_elongation_ratio){
 
   // retain only "full" triangles (the one representing a planar surface)
   // 1: compute image gradients:
+  std::cout << "createMesh2Dobs: before ImageLaplacian" << std::endl;
   cv::Mat left_img_grads = UtilsOpenCV::ImageLaplacian(ref_frame.img_);
   cv::imshow("left_img_grads",left_img_grads);
   cv::waitKey(100);
 
   // 2: for each triangle, set to full the triangles that have near-zero gradient
   triangulation2Dobs_.reserve(triangulation2D.size());
+  std::cout << "createMesh2Dobs: before loop" << std::endl;
   for(size_t i=0; i<triangulation2D.size(); i++)
   {
     // find all pixels with grad higher then gradBound
     std::vector<std::pair<KeypointCV,double>> keypointsWithHighIntensities =
       UtilsOpenCV::FindHighIntensityInTriangle(left_img_grads, triangulation2D.at(i),gradBound);
 
+    std::cout << "createMesh2Dobs: after FindHighIntensityInTriangle" << std::endl;
+
     // if no high-grad pixels exist, then this triangle is a plane
     if(keypointsWithHighIntensities.size() == 0){ // if there is no high-gradient point
 
+      std::cout << "createMesh2Dobs: before picking vertices" << std::endl;
       cv::Vec6f t = triangulation2D.at(i);
       // check that the depth makes sense and they are not very elongated triangles:
       gtsam::Point3 p1 = getPoint3DinCameraFrame(ref_frame.findLmkIdFromPixel(cv::Point2f(t[0], t[1])));
@@ -323,8 +328,10 @@ void StereoFrame::createMesh2Dobs(float gradBound, double min_elongation_ratio){
       gtsam::Point3 p3 = getPoint3DinCameraFrame(ref_frame.findLmkIdFromPixel(cv::Point2f(t[4], t[5])));
       std::vector <gtsam::Point3> points;
       points.push_back(p1); points.push_back(p2); points.push_back(p2);
+      std::cout << "createMesh2Dobs: after picking vertices" << std::endl;
 
       double ratio = UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
+      std::cout << "createMesh2Dobs: after getRatioBetweenTangentialAndRadialDisplacement" << std::endl;
 
       if(ratio >= min_elongation_ratio){
         triangulation2Dobs_.push_back(triangulation2D.at(i));
