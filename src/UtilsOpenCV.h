@@ -796,7 +796,6 @@ public:
     // create the output by adding the absolute gradient images of each x and y direction
     cv::Mat output;
     cv::addWeighted( abs_grad_x, 0.5, abs_grad_y, 0.5, 0, output );
-    std::cout << "output.type() " << output.type() <<std::endl;
     return output;
   }
   /* ----------------------------------------------------------------------------- */

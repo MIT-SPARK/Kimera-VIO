@@ -118,7 +118,6 @@ public:
     // Rectangle to be used with Subdiv2D
     cv::Size size = frame.img_.size();
     cv::Rect2f rect(0, 0, size.width, size.height);
-    std::cout << "CreateMesh2D: before subdiv" << std::endl;
     cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
 
     // add points from Frame
@@ -130,12 +129,10 @@ public:
     }
     // getTriangleList returns some spurious triangle with vertices outside image
     std::vector<cv::Vec6f> triangulation2D,triangulation2DwithExtraTriangles;
-    std::cout << "CreateMesh2D: before get triangles" << std::endl;
     subdiv.getTriangleList(triangulation2DwithExtraTriangles); // do triangulation
 
     // retrieve "good triangles" (all vertices are inside image)
     std::vector<cv::Point2f> pt(3);
-    std::cout << "CreateMesh2D: before last loop" << std::endl;
     for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++)
     {
       cv::Vec6f t = triangulation2DwithExtraTriangles[i];
@@ -146,7 +143,6 @@ public:
         triangulation2D.push_back(t);
       }
     }
-    std::cout << "CreateMesh2D: end" << std::endl;
     return triangulation2D;
   }
   /* ----------------------------------------------------------------------------- */
@@ -234,10 +230,8 @@ public:
   /* --------------------------------------------------------------------------------------- */
   LandmarkId findLmkIdFromPixel(KeypointCV px, boost::optional<int &> indInKeypoints_ = boost::none) const
   {
-    std::cout << "findLmkIdFromPixel: start" << std::endl;
     for(LandmarkId i = 0; i < keypoints_.size(); i++){
       if(keypoints_.at(i).x == px.x && keypoints_.at(i).y == px.y){// it's matching the query point
-        std::cout << "findLmkIdFromPixel: i " << i << std::endl;
         if(indInKeypoints_){*indInKeypoints_ = i;} // return index
         return landmarks_.at(i);
       }
