@@ -105,7 +105,7 @@ public:
   void createMesh2D(){ // called without input, it considers all valid keypoints for the mesh
     std::vector<int> selectedIndices;
     selectedIndices.reserve(keypoints_.size()); // preallocate
-    for(size_t i=0; i < keypoints_.size(); i++){ selectedIndices.push_back(i);}
+    for(int i=0; i < keypoints_.size(); i++){ selectedIndices.push_back(i);}
     triangulation2D_ = CreateMesh2D(*this,selectedIndices);
   }
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -122,9 +122,9 @@ public:
     cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
 
     // add points from Frame
-    BOOST_FOREACH(auto i, selectedIndices){
-      if(frame.landmarks_.at(i) != -1 && rect.contains(frame.keypoints_.at(i))){ // only for valid keypoints (not keypoints may
-          // end up outside image after tracking which causes subdiv to crash)
+    BOOST_FOREACH(int i, selectedIndices){
+      if(frame.landmarks_.at(i) != -1 && rect.contains(frame.keypoints_.at(i))){ // only for valid keypoints (some keypoints may
+        // end up outside image after tracking which causes subdiv to crash)
         int kpi_id = subdiv.insert(frame.keypoints_.at(i));
       }
     }
@@ -134,7 +134,6 @@ public:
     subdiv.getTriangleList(triangulation2DwithExtraTriangles); // do triangulation
 
     // retrieve "good triangles" (all vertices are inside image)
-    triangulation2D.reserve(triangulation2DwithExtraTriangles.size()); // preallocate
     std::vector<cv::Point2f> pt(3);
     std::cout << "CreateMesh2D: before last loop" << std::endl;
     for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++)
@@ -143,8 +142,9 @@ public:
       pt[0] = cv::Point2f(t[0], t[1]);
       pt[1] = cv::Point2f(t[2], t[3]);
       pt[2] = cv::Point2f(t[4], t[5]);
-      if(rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2]))
+      if(rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2])){
         triangulation2D.push_back(t);
+      }
     }
     std::cout << "CreateMesh2D: end" << std::endl;
     return triangulation2D;
@@ -232,14 +232,18 @@ public:
     return validKeypoints;
   }
   /* --------------------------------------------------------------------------------------- */
-  LandmarkId findLmkIdFromPixel(KeypointCV px) const
+  LandmarkId findLmkIdFromPixel(KeypointCV px, boost::optional<int &> indInKeypoints_ = boost::none) const
   {
-    for(size_t i = 0; i < keypoints_.size(); i++){
-      if(keypoints_.at(i).x == px.x && keypoints_.at(i).y == px.y)// it's matching the query point
-        return landmarks_[i];
+    std::cout << "findLmkIdFromPixel: start" << std::endl;
+    for(LandmarkId i = 0; i < keypoints_.size(); i++){
+      if(keypoints_.at(i).x == px.x && keypoints_.at(i).y == px.y){// it's matching the query point
+        std::cout << "findLmkIdFromPixel: i " << i << std::endl;
+        if(indInKeypoints_){*indInKeypoints_ = i;} // return index
+        return landmarks_.at(i);
+      }
     }
-    std::cout << "could not find px: debug info:" << std::endl;
-    for(size_t i=0; i < keypoints_.size(); i++)
+    std::cout << "findLmkIdFromPixel: could not find px: debug info:" << std::endl;
+    for(LandmarkId i=0; i < keypoints_.size(); i++)
       std::cout << "px: " << px << " kpi: " << keypoints_.at(i) << std::endl;
     throw std::runtime_error("findLmkIdFromPixel: px not found");
   }

@@ -178,14 +178,6 @@ public:
       const cv::Mat right_rectified, const int templ_cols, const int templ_rows, const int stripe_cols, const int stripe_rows,
       const double tol_corr, const bool debugStereoMatching = false) const;
   /* --------------------------------------------------------------------------------------- */
-  // query 3D point for a valid landmark (with right pixel = VALID)
-  gtsam::Point3 getPoint3DinCameraFrame(LandmarkId i) const{
-    if(right_keypoints_status_.at(i)!=Kstatus::VALID){
-      throw std::runtime_error("getPoint3DinCameraFrame: asked for invalid keypoint3d");
-    }
-    return gtsam::Point3(keypoints_3d_.at(i));
-  }
-  /* --------------------------------------------------------------------------------------- */
   LandmarkInfo getLandmarkInfo(const LandmarkId i) const{
     // output to populate:
     LandmarkInfo lInfo;

@@ -284,18 +284,19 @@ cv::Mat StereoFrame::getDisparityImage(const cv::Mat imgLeft, const cv::Mat imgR
 }
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::createMesh2Dobs(float gradBound, double min_elongation_ratio){
+  // pick left frame
   Frame& ref_frame = left_frame_;
 
   if(ref_frame.landmarks_.size() != right_keypoints_status_.size()) // sanity check
     throw std::runtime_error("StereoFrame: wrong dimension for the landmarks");
 
+  // create mesh including indices of keypoints with valid 3D (which have right px)
   std::vector<int> selectedIndices;
-  selectedIndices.reserve(ref_frame.landmarks_.size()); // preallocate
-  for(size_t i=0; i < ref_frame.landmarks_.size(); i++){
-    if(right_keypoints_status_.at(i)==Kstatus::VALID)
+  for(int i=0; i < ref_frame.landmarks_.size(); i++){
+    if(right_keypoints_status_.at(i)==Kstatus::VALID && ref_frame.landmarks_.at(i)!=-1){
       selectedIndices.push_back(i);
+    }
   }
-
   // get a triangulation for all valid keypoints
   std::vector<cv::Vec6f> triangulation2D = Frame::CreateMesh2D(ref_frame,selectedIndices);
 
@@ -307,7 +308,7 @@ void StereoFrame::createMesh2Dobs(float gradBound, double min_elongation_ratio){
   cv::waitKey(100);
 
   // 2: for each triangle, set to full the triangles that have near-zero gradient
-  triangulation2Dobs_.reserve(triangulation2D.size());
+  // triangulation2Dobs_.reserve(triangulation2D.size());
   std::cout << "createMesh2Dobs: before loop" << std::endl;
   for(size_t i=0; i<triangulation2D.size(); i++)
   {
@@ -322,12 +323,29 @@ void StereoFrame::createMesh2Dobs(float gradBound, double min_elongation_ratio){
 
       std::cout << "createMesh2Dobs: before picking vertices" << std::endl;
       cv::Vec6f t = triangulation2D.at(i);
+      std::cout << "t " <<t << std::endl;
       // check that the depth makes sense and they are not very elongated triangles:
-      gtsam::Point3 p1 = getPoint3DinCameraFrame(ref_frame.findLmkIdFromPixel(cv::Point2f(t[0], t[1])));
-      gtsam::Point3 p2 = getPoint3DinCameraFrame(ref_frame.findLmkIdFromPixel(cv::Point2f(t[2], t[3])));
-      gtsam::Point3 p3 = getPoint3DinCameraFrame(ref_frame.findLmkIdFromPixel(cv::Point2f(t[4], t[5])));
+      std::cout << "createMesh2Dobs: before p1" << std::endl;
       std::vector <gtsam::Point3> points;
-      points.push_back(p1); points.push_back(p2); points.push_back(p2);
+      // get first point
+      int i1; ref_frame.findLmkIdFromPixel(cv::Point2f(t[0], t[1]), i1);
+      if(right_keypoints_status_.at(i1) != Kstatus::VALID){
+        throw std::runtime_error("getPoint3D: asked for invalid keypoint3d - i1");
+      }
+      points.push_back(gtsam::Point3(keypoints_3d_.at(i1)));
+      // get second point
+      int i2; ref_frame.findLmkIdFromPixel(cv::Point2f(t[2], t[3]), i2);
+      if(right_keypoints_status_.at(i2) != Kstatus::VALID){
+        throw std::runtime_error("getPoint3D: asked for invalid keypoint3d - i2");
+      }
+      points.push_back(gtsam::Point3(keypoints_3d_.at(i2)));
+      // get third point
+      int i3; ref_frame.findLmkIdFromPixel(cv::Point2f(t[4], t[5]), i3);
+      if(right_keypoints_status_.at(i3) != Kstatus::VALID){
+              throw std::runtime_error("getPoint3D: asked for invalid keypoint3d - i3");
+            }
+      points.push_back(gtsam::Point3(keypoints_3d_.at(i3)));
+      std::cout << "points.sze() " << points.size() << std::endl;
       std::cout << "createMesh2Dobs: after picking vertices" << std::endl;
 
       double ratio = UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
