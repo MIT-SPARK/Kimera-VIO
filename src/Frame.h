@@ -125,6 +125,14 @@ public:
       if(frame.landmarks_.at(i) != -1 && rect.contains(frame.keypoints_.at(i))){ // only for valid keypoints (some keypoints may
         // end up outside image after tracking which causes subdiv to crash)
         int kpi_id = subdiv.insert(frame.keypoints_.at(i));
+//        try{
+//          kpi_id = subdiv.insert(frame.keypoints_.at(i));
+//        }
+//        catch(...){
+//          std::cout << "i " << i << " selectedIndices.size() " << selectedIndices.size() << std::endl;
+//          std::cout << "frame.keypoints_.at(i) " << frame.keypoints_.at(i) << std::endl;
+//          std::runtime_error("CreateMesh2D: subdiv.insert error");
+//        }
       }
     }
     // getTriangleList returns some spurious triangle with vertices outside image
