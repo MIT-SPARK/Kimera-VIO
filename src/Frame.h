@@ -122,17 +122,23 @@ public:
 
     // add points from Frame
     BOOST_FOREACH(int i, selectedIndices){
-      if(frame.landmarks_.at(i) != -1 && rect.contains(frame.keypoints_.at(i))){ // only for valid keypoints (some keypoints may
+      cv::Point2f kp_i = cv::Point2f(float(frame.keypoints_.at(i).x),float(frame.keypoints_.at(i).y));
+      if(frame.landmarks_.at(i) != -1 && rect.contains(kp_i)){ // only for valid keypoints (some keypoints may
         // end up outside image after tracking which causes subdiv to crash)
-        int kpi_id = subdiv.insert(frame.keypoints_.at(i));
-//        try{
-//          kpi_id = subdiv.insert(frame.keypoints_.at(i));
-//        }
-//        catch(...){
-//          std::cout << "i " << i << " selectedIndices.size() " << selectedIndices.size() << std::endl;
-//          std::cout << "frame.keypoints_.at(i) " << frame.keypoints_.at(i) << std::endl;
-//          std::runtime_error("CreateMesh2D: subdiv.insert error");
-//        }
+        int kpi_id; // = subdiv.insert(frame.keypoints_.at(i));
+        try{
+          kpi_id = subdiv.insert(kp_i);
+        }
+        catch(...){
+          std::cout << "i " << i << " selectedIndices.size() " << selectedIndices.size() << std::endl;
+          std::cout << "size " << size << std::endl;
+          std::cout << "kp_i " << kp_i << std::endl;
+          UtilsOpenCV::PrintVector(selectedIndices,"selectedIndices");
+          subdiv.insert(kp_i);
+         // std::cout << "--- " << std::endl;
+          throw
+          std::runtime_error("CreateMesh2D: subdiv.insert error");
+        }
       }
     }
     // getTriangleList returns some spurious triangle with vertices outside image

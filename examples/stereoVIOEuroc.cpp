@@ -12,6 +12,8 @@
  * @author Luca Carlone
  */
 
+//#define USE_CGAL
+
 #include "ETH_parser.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
@@ -100,7 +102,7 @@ int main(const int argc, const char *argv[])
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::MESH2DTo3Dobs; // MESH2Dobs MESH3D; //POINTCLOUD
+  VisualizationType visualizationType = VisualizationType::MESH2DTo3Dobs; // MESH2Dobs MESH3D MESH2DTo3Dobs
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
@@ -304,7 +306,7 @@ int main(const int argc, const char *argv[])
           float maxGradInTriangle = 50.0;
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs(maxGradInTriangle);
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dobs(100);
-          int  minKfValidPoints = 3;
+          int  minKfValidPoints = 0;
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints); // obs in 3 kf
           double maxRatioBetweenLargestAnSmallestSide = 0.5;
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,
