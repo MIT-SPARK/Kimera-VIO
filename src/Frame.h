@@ -133,10 +133,7 @@ public:
           std::cout << "i " << i << " selectedIndices.size() " << selectedIndices.size() << std::endl;
           std::cout << "size " << size << std::endl;
           std::cout << "kp_i " << kp_i << std::endl;
-          UtilsOpenCV::PrintVector(selectedIndices,"selectedIndices");
-          subdiv.insert(kp_i);
-         // std::cout << "--- " << std::endl;
-          throw
+          // throw
           std::runtime_error("CreateMesh2D: subdiv.insert error");
         }
       }
