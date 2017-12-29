@@ -100,7 +100,7 @@ TEST(testTracker, equals) {
   EXPECT(!tp.equals(tp2));
 }
 
-/* ************************************************************************* */
+/* ************************************************************************* *
 TEST(testTracker, cppVSmatlabVioFrontEndParams) {
   // check that the cpp default params match the matlab ones.
   // before running, make sure that you run "writeDefaultParams" in matlab
