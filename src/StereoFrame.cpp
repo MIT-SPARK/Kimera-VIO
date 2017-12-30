@@ -283,7 +283,7 @@ cv::Mat StereoFrame::getDisparityImage(const cv::Mat imgLeft, const cv::Mat imgR
 //  return imgDisparity16S;
 }
 /* --------------------------------------------------------------------------------------- */
-void StereoFrame::createMesh2Dobs(float gradBound, double min_elongation_ratio){
+void StereoFrame::createMesh2Dplanes(float gradBound, double min_elongation_ratio){
   // pick left frame
   Frame& ref_frame = left_frame_;
 
@@ -348,7 +348,7 @@ void StereoFrame::createMesh2Dobs(float gradBound, double min_elongation_ratio){
   }
 }
 /* --------------------------------------------------------------------------------------- */
-void StereoFrame::visualizeMesh2Dobs(const double waitTime) const{
+void StereoFrame::visualizeMesh2Dplanes(const double waitTime) const{
   cv::Scalar delaunay_color(0,255,0), green(0, 255,0), red(0,0,255);
 
   // everything is visualized on the left image
@@ -383,7 +383,7 @@ void StereoFrame::visualizeMesh2Dobs(const double waitTime) const{
     cv::line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
     cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
   }
-  cv::imshow("visualizeMesh2Dobs",img);
+  cv::imshow("visualizeMesh2Dplanes",img);
   cv::waitKey(waitTime);
 }
 

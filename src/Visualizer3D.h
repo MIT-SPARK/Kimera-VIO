@@ -22,7 +22,14 @@
 
 namespace VIO {
 enum VisualizationType {
-  POINTCLOUD,POINTCLOUD_REPEATEDPOINTS,MESH2D,MESH2DTo3D,MESH2Dplanes,MESH2DTo3Dplanes,MESH3D
+  POINTCLOUD, // visualize 3D VIO points  (no repeated point)
+  POINTCLOUD_REPEATEDPOINTS, // visualize VIO points as point clouds (points are re-plotted at every frame)
+  MESH2D, // only visualizes 2D mesh on image
+  MESH2DTo3D, // get a 3D mesh from a 2D triangulation of the (right-VALID) keypoints in the left frame
+  MESH2Dplanes, // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
+  MESH2DTo3Dplanes, // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
+  MESH3D, // 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)
+  NONE // does not visualize map
 };
 
 class Visualizer3D {

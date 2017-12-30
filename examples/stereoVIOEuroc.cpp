@@ -282,30 +282,30 @@ int main(const int argc, const char *argv[])
         //cv::waitKey(100);
 
         switch(visualizationType) {
-        case VisualizationType::MESH2D:
+        case VisualizationType::MESH2D: // only visualizes 2D mesh
         {
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D();
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.visualizeMesh2D(100);
           break;
         }
-        case VisualizationType::MESH2DTo3D:
+        case VisualizationType::MESH2DTo3D: // get a 3D mesh from a triangulation of the (right-VALID) keypoints in the left frame
         {
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
           visualizer.visualizeMesh3D(mesher);
           break;
         }
-        case VisualizationType::MESH2Dplanes:
+        case VisualizationType::MESH2Dplanes: // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
         {
-          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs();
-          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dobs(100);
+          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes();
+          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
           break;
         }
-        case VisualizationType::MESH2DTo3Dplanes:
+        case VisualizationType::MESH2DTo3Dplanes: // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
         {
           float maxGradInTriangle = 50.0;
-          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dobs(maxGradInTriangle);
-          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dobs(100);
+          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes(maxGradInTriangle);
+          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
           int  minKfValidPoints = 0;
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints); // obs in 3 kf
           double maxRatioBetweenLargestAnSmallestSide = 0.5;
@@ -314,20 +314,20 @@ int main(const int argc, const char *argv[])
           visualizer.visualizeMesh3D(mesher);
           break;
         }
-        case VisualizationType::POINTCLOUD_REPEATEDPOINTS:
+        case VisualizationType::POINTCLOUD_REPEATEDPOINTS: // visualize VIO points as point clouds (points are replotted at every frame)
         {
           vector<Point3> points3d = vioBackEnd->get3DPoints();
           visualizer.visualizeMap3D_repeatedPoints(points3d);
           break;
         }
-        case VisualizationType::POINTCLOUD:
+        case VisualizationType::POINTCLOUD: // visualize VIO points  (no repeated point)
         {
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizePoints3D(pointsWithId,mesher);
           break;
         }
-        case VisualizationType::MESH3D:
+        case VisualizationType::MESH3D: // 3D mesh from CGAL using VIO points
         {
 #ifdef USE_CGAL
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
@@ -338,6 +338,10 @@ int main(const int argc, const char *argv[])
           throw std::runtime_error("VisualizationType::MESH3D requires flag USE_CGAL to be true");
           break;
 #endif
+        }
+        case VisualizationType::NONE: // does not visualize map
+        {
+          break;
         }
         default:
           throw std::runtime_error("stereoVIOEuroc: unknown visualizationType");
