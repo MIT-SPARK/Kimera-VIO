@@ -283,7 +283,7 @@ cv::Mat StereoFrame::getDisparityImage(const cv::Mat imgLeft, const cv::Mat imgR
 //  return imgDisparity16S;
 }
 /* --------------------------------------------------------------------------------------- */
-void StereoFrame::createMesh2Dplanes(float gradBound, double min_elongation_ratio){
+void StereoFrame::createMesh2Dplanes(float gradBound, double min_elongation_ratio, Mesh2Dtype mesh2Dtype){
   // pick left frame
   Frame& ref_frame = left_frame_;
 
@@ -291,20 +291,26 @@ void StereoFrame::createMesh2Dplanes(float gradBound, double min_elongation_rati
     throw std::runtime_error("StereoFrame: wrong dimension for the landmarks");
 
   // create mesh including indices of keypoints with valid 3D (which have right px)
-  std::vector<int> selectedIndices;
+  std::vector<cv::Point2f> keypointsToTriangulate;
   for(int i=0; i < ref_frame.landmarks_.size(); i++){
     if(right_keypoints_status_.at(i)==Kstatus::VALID && ref_frame.landmarks_.at(i)!=-1){
-      selectedIndices.push_back(i);
+      keypointsToTriangulate.push_back(ref_frame.keypoints_.at(i));
     }
   }
-  // get a triangulation for all valid keypoints
-  std::vector<cv::Vec6f> triangulation2D = Frame::CreateMesh2D(ref_frame,selectedIndices);
-
   // retain only "full" triangles (the one representing a planar surface)
   // 1: compute image gradients:
   cv::Mat left_img_grads = UtilsOpenCV::ImageLaplacian(ref_frame.img_);
   // cv::imshow("left_img_grads",left_img_grads);
   // cv::waitKey(100);
+
+  if(mesh2Dtype == DENSE){ // add other keypoints densely
+    // populate extra keypoints for which we can compute 3D:
+    // extraStereoKeypoints_
+  }
+
+  // get a triangulation for all valid keypoints
+  std::vector<cv::Vec6f> triangulation2D =
+      Frame::CreateMesh2D(ref_frame.img_.size(),keypointsToTriangulate);
 
   // 2: for each triangle, set to full the triangles that have near-zero gradient
   // triangulation2Dobs_.reserve(triangulation2D.size());
@@ -335,8 +341,8 @@ void StereoFrame::createMesh2Dplanes(float gradBound, double min_elongation_rati
       // get third point
       int i3; ref_frame.findLmkIdFromPixel(cv::Point2f(t[4], t[5]), i3);
       if(right_keypoints_status_.at(i3) != Kstatus::VALID){
-              throw std::runtime_error("getPoint3D: asked for invalid keypoint3d - i3");
-            }
+        throw std::runtime_error("getPoint3D: asked for invalid keypoint3d - i3");
+      }
       points.push_back(gtsam::Point3(keypoints_3d_.at(i3)));
 
       double ratio = UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);

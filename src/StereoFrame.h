@@ -42,6 +42,8 @@ namespace VIO {
 using SmartStereoMeasurement = std::pair<LandmarkId,gtsam::StereoPoint2>;
 using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
 
+enum Mesh2Dtype {VALIDKEYPOINTS,DENSE};
+
 //////////////////////////////////////////////////////////////////////
 class StereoMatchingParams{
 public:
@@ -125,11 +127,11 @@ public:
 
   StereoMatchingParams sparseStereoParams_;
 
+  // 2D-3D MESH CREATION
+  // used for dense mesh creation
+  std::pair< KeypointCV, gtsam::Point3> extraStereoKeypoints_;
   std::vector<cv::Vec6f> triangulation2Dplanes_; // list of triangles such that each triangle defines
   // is a planar surface observed in by the stereo camera (each triangle is described by 3 pairs of pixels)
-
-  std::vector<cv::Vec6f> triangulation2Ddense_; // triangulation from dense corners in stereo pair
-  // NOTE: each corner is not necessarily associated to a lmk id and may not show up in VIO
 
   // RELATIVE POSE BEFORE RECTIFICATION
   const gtsam::Pose3 camL_Pose_camR; // relative pose between left and right camera
@@ -149,10 +151,11 @@ public:
     right_frame_.isKeyframe_ = isKf;
   }
   // Create a 2D mesh only including triangles corresponding to obstables (planar surfaces)
-  // gradBound = 50 (max 255):if pixels in triangle have all grad smaller than gradBound, triangle is rejected
+  // gradBound = 50 (max 255): if pixels in triangle have all grad smaller than gradBound, triangle is rejected
   // min_elongation_ratio = 0.5 (max 1): check on the elongation of the triangle (TODO: this check is conservative)
-  // Note: 2D triangulation is computed form keypoints with VALID right match and valid lmk id (!=-1)
-  void createMesh2Dplanes(float gradBound = 50, double min_elongation_ratio = 0.5);
+  // if mesh2Dtype = VALIDKEYPOINTS: 2D triangulation is computed form keypoints with VALID right match and valid lmk id (!=-1)
+  // if mesh2Dtype = DENSE: to the keypoints mentioned in the sparse case, we add other points without lmk id (but with valid stereo)
+  void createMesh2Dplanes(float gradBound = 50, double min_elongation_ratio = 0.5, Mesh2Dtype mesh2Dtype = VALIDKEYPOINTS);
   // visualize stored mesh
   void visualizeMesh2Dplanes(const double waitTime = 0) const;
   // copy rectification parameters from another stereo camera

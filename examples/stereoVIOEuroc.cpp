@@ -275,6 +275,7 @@ int main(const int argc, const char *argv[])
 
       ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////////////////////////////////////////
       if(doVisualize){
+        // DEBUG: this is the image from which the triangulation is computed
         //cv::Mat img = stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_.clone();
         //cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
         //UtilsOpenCV::DrawCrossesInPlace(img, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.getValidKeypoints(), cv::Scalar(0, 0, 255),0.4);
@@ -305,7 +306,7 @@ int main(const int argc, const char *argv[])
         {
           float maxGradInTriangle = 50.0;
           double min_elongation_ratio = 0.5;  // TODO: this check should be improved
-          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes(maxGradInTriangle);
+          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes(maxGradInTriangle,min_elongation_ratio,Mesh2Dtype::VALIDKEYPOINTS);
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
           int  minKfValidPoints = 0;
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
@@ -317,14 +318,16 @@ int main(const int argc, const char *argv[])
         }
         case VisualizationType::MESH2DTo3Ddense: // dense triangulation of stereo corners (only a subset are VIO keypoints)
         {
-//          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Ddense();
-//          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
-//          int  minKfValidPoints = 0;
-//          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
-//          double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
-//          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,
-//              minRatioBetweenLargestAnSmallestSide);
-//          visualizer.visualizeMesh3D(mesher);
+          float maxGradInTriangle = 50.0;
+          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes(maxGradInTriangle,min_elongation_ratio,Mesh2Dtype::DENSE);
+          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
+          int  minKfValidPoints = 0;
+          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
+          double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
+          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,
+              minRatioBetweenLargestAnSmallestSide);
+          visualizer.visualizeMesh3D(mesher);
           break;
         }
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS: // visualize VIO points as point clouds (points are replotted at every frame)

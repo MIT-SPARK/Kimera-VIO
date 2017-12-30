@@ -68,7 +68,6 @@ public:
       *d23_out = d23;
       *d31_out = d31;
     }
-
     // compute and return ratio
     double ratio = std::min(d12,std::min(d23,d31)) / std::max(d12,std::max(d23,d31));
     return ratio;

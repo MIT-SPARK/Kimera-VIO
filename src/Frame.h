@@ -115,31 +115,40 @@ public:
     if(frame.landmarks_.size() != frame.keypoints_.size()) // sanity check
       throw std::runtime_error("Frame: wrong dimension for the landmarks");
 
-    // Rectangle to be used with Subdiv2D
     cv::Size size = frame.img_.size();
     cv::Rect2f rect(0, 0, size.width, size.height);
-    cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
 
     // add points from Frame
+    std::vector<cv::Point2f> keypointsToTriangulate;
     BOOST_FOREACH(int i, selectedIndices){
       cv::Point2f kp_i = cv::Point2f(float(frame.keypoints_.at(i).x),float(frame.keypoints_.at(i).y));
       if(frame.landmarks_.at(i) != -1 && rect.contains(kp_i)){ // only for valid keypoints (some keypoints may
         // end up outside image after tracking which causes subdiv to crash)
-        int kpi_id; // = subdiv.insert(frame.keypoints_.at(i));
-        try{
-          kpi_id = subdiv.insert(kp_i);
-        }
-        catch(...){
-          std::cout << "i " << i << " selectedIndices.size() " << selectedIndices.size() << std::endl;
-          std::cout << "size " << size << std::endl;
-          std::cout << "kp_i " << kp_i << std::endl;
-          // throw
-          std::runtime_error("CreateMesh2D: subdiv.insert error");
-        }
+        keypointsToTriangulate.push_back(kp_i);
       }
     }
-    // getTriangleList returns some spurious triangle with vertices outside image
+    return CreateMesh2D(frame.img_.size(),keypointsToTriangulate);
+  }
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  static std::vector<cv::Vec6f> CreateMesh2D(const cv::Size size, std::vector<cv::Point2f> keypointsToTriangulate){
+
+    // define output (+ a temporary variable)
     std::vector<cv::Vec6f> triangulation2D,triangulation2DwithExtraTriangles;
+    if(keypointsToTriangulate.size()==0)
+      return triangulation2D; //nothing to triangulate
+
+    // Rectangle to be used with Subdiv2D
+    cv::Rect2f rect(0, 0, size.width, size.height);
+    cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
+
+    // perform triangulation
+    try{ subdiv.insert(keypointsToTriangulate); }
+    catch(...){
+      std::cout << keypointsToTriangulate.size() << std::endl;
+      std::runtime_error("CreateMesh2D: subdiv.insert error (2)");
+    }
+    // getTriangleList returns some spurious triangle with vertices outside image
     subdiv.getTriangleList(triangulation2DwithExtraTriangles); // do triangulation
 
     // retrieve "good triangles" (all vertices are inside image)
