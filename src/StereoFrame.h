@@ -155,7 +155,8 @@ public:
   // min_elongation_ratio = 0.5 (max 1): check on the elongation of the triangle (TODO: this check is conservative)
   // if mesh2Dtype = VALIDKEYPOINTS: 2D triangulation is computed form keypoints with VALID right match and valid lmk id (!=-1)
   // if mesh2Dtype = DENSE: to the keypoints mentioned in the sparse case, we add other points without lmk id (but with valid stereo)
-  void createMesh2Dplanes(float gradBound = 50, double min_elongation_ratio = 0.5, Mesh2Dtype mesh2Dtype = VALIDKEYPOINTS);
+  void createMesh2Dplanes(float gradBound = 50,
+      Mesh2Dtype mesh2Dtype = VALIDKEYPOINTS, bool useCanny = true);
   // visualize stored mesh
   void visualizeMesh2Dplanes(const double waitTime = 0) const;
   // copy rectification parameters from another stereo camera

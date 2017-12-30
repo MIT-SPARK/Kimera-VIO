@@ -283,7 +283,7 @@ cv::Mat StereoFrame::getDisparityImage(const cv::Mat imgLeft, const cv::Mat imgR
 //  return imgDisparity16S;
 }
 /* --------------------------------------------------------------------------------------- */
-void StereoFrame::createMesh2Dplanes(float gradBound, double min_elongation_ratio, Mesh2Dtype mesh2Dtype){
+void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, bool useCanny){
   // pick left frame
   Frame& ref_frame = left_frame_;
 
@@ -299,13 +299,24 @@ void StereoFrame::createMesh2Dplanes(float gradBound, double min_elongation_rati
   }
   // retain only "full" triangles (the one representing a planar surface)
   // 1: compute image gradients:
-  cv::Mat left_img_grads = UtilsOpenCV::ImageLaplacian(ref_frame.img_);
-  // cv::imshow("left_img_grads",left_img_grads);
-  // cv::waitKey(100);
+  cv::Mat left_img_grads;
+  //left_img_grads = UtilsOpenCV::ImageLaplacian(ref_frame.img_);
+  left_img_grads = UtilsOpenCV::EdgeDetectorCanny(ref_frame.img_);
+  cv::imshow("left_img_grads",left_img_grads);
+  cv::waitKey(100);
+
+  //double minVal,maxVal;
+  //cv::minMaxLoc( left_img_grads, &minVal, &maxVal);
+  //std::cout << "minVal = " << minVal << " maxVal = " << maxVal << std::endl;
 
   if(mesh2Dtype == DENSE){ // add other keypoints densely
     // populate extra keypoints for which we can compute 3D:
-    // extraStereoKeypoints_
+    for(size_t i = 0; i<left_img_grads.rows;i++){
+      for(size_t j = 0; i<left_img_grads.cols;i++){
+
+        //extraStereoKeypoints_
+      }
+    }
   }
 
   // get a triangulation for all valid keypoints
@@ -318,38 +329,11 @@ void StereoFrame::createMesh2Dplanes(float gradBound, double min_elongation_rati
   {
     // find all pixels with grad higher then gradBound
     std::vector<std::pair<KeypointCV,double>> keypointsWithHighIntensities =
-      UtilsOpenCV::FindHighIntensityInTriangle(left_img_grads, triangulation2D.at(i),gradBound);
+        UtilsOpenCV::FindHighIntensityInTriangle(left_img_grads, triangulation2D.at(i),gradBound);
 
     // if no high-grad pixels exist, then this triangle is a plane
     if(keypointsWithHighIntensities.size() == 0){ // if there is no high-gradient point
-
-      cv::Vec6f t = triangulation2D.at(i);
-      // check that the depth makes sense and they are not very elongated triangles:
-      std::vector <gtsam::Point3> points;
-      // get first point
-      int i1; ref_frame.findLmkIdFromPixel(cv::Point2f(t[0], t[1]), i1);
-      if(right_keypoints_status_.at(i1) != Kstatus::VALID){
-        throw std::runtime_error("getPoint3D: asked for invalid keypoint3d - i1");
-      }
-      points.push_back(gtsam::Point3(keypoints_3d_.at(i1)));
-      // get second point
-      int i2; ref_frame.findLmkIdFromPixel(cv::Point2f(t[2], t[3]), i2);
-      if(right_keypoints_status_.at(i2) != Kstatus::VALID){
-        throw std::runtime_error("getPoint3D: asked for invalid keypoint3d - i2");
-      }
-      points.push_back(gtsam::Point3(keypoints_3d_.at(i2)));
-      // get third point
-      int i3; ref_frame.findLmkIdFromPixel(cv::Point2f(t[4], t[5]), i3);
-      if(right_keypoints_status_.at(i3) != Kstatus::VALID){
-        throw std::runtime_error("getPoint3D: asked for invalid keypoint3d - i3");
-      }
-      points.push_back(gtsam::Point3(keypoints_3d_.at(i3)));
-
-      double ratio = UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
-
-      if(ratio >= min_elongation_ratio){
-        triangulation2Dplanes_.push_back(triangulation2D.at(i));
-      }
+      triangulation2Dplanes_.push_back(triangulation2D.at(i));
     }
   }
 }

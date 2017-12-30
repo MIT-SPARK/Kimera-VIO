@@ -799,6 +799,31 @@ public:
     return output;
   }
   /* ----------------------------------------------------------------------------- */
+   // compute canny edges (TODO: untested: taken from
+   // https://github.com/opencv/opencv/blob/master/samples/cpp/edge.cpp)
+   static cv::Mat EdgeDetectorCanny(const cv::Mat img) {
+
+     // duplicate image to preserve const input
+     cv::Mat input = img.clone();
+     cv::equalizeHist(input, input);
+
+     // blur the input image to remove the noise
+     cv::GaussianBlur( input, input, cv::Size(3,3), 0, 0, cv::BORDER_DEFAULT );
+
+     // convert it to grayscale (CV_8UC3 -> CV_8UC1)
+     cv::Mat input_gray;
+     if (input.channels() > 1)
+       cv::cvtColor( input, input_gray, cv::COLOR_RGB2GRAY );
+     else
+       input_gray = input.clone();
+
+     // Run the edge detector on grayscale
+     cv::Mat edges;
+     double edgeThresh = 40;
+     cv::Canny(input_gray, edges, edgeThresh, edgeThresh*3, 3);
+     return edges;
+   }
+  /* ----------------------------------------------------------------------------- */
   // compute max intensity of pixels within a triangle specified by the pixel location of its vertices
   static std::vector<std::pair<KeypointCV,double>> FindHighIntensityInTriangle(const cv::Mat img, const cv::Vec6f px_vertices, const float intensityThreshold){
 
