@@ -286,39 +286,57 @@ int main(const int argc, const char *argv[])
         gtsam::Pose3 W_Pose_camlkf_vio = vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
 
         switch(visualizationType) {
-        case VisualizationType::MESH2D: // only visualizes 2D mesh
+        // computes and visualizes 2D mesh
+        // vertices: all leftframe kps with lmkId != -1 and inside the image
+        // triangles: all the ones with edges inside images as produced by cv::subdiv
+        case VisualizationType::MESH2D:
         {
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D();
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.visualizeMesh2D(100);
           break;
         }
-        case VisualizationType::MESH2DTo3D: // get a 3D mesh from a triangulation of the (right-VALID) keypoints in the left frame
+        // computes and visualizes a 3D mesh from 2D triangulation
+        // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
+        // triangles: all the ones with edges inside images as produced by cv::subdiv
+        // (updateMesh3D also filters out geometrically)
+        case VisualizationType::MESH2DTo3D:
         {
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_,W_Pose_camlkf_vio);
           visualizer.visualizeMesh3D(mesher);
           break;
         }
+        // computes and visualizes 2D mesh
+        // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
+        // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
         case VisualizationType::MESH2Dplanes: // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
         {
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes();
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
           break;
         }
+        // computes and visualizes 3D mesh from 2D triangulation
+        // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
+        // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
+        // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Dplanes: // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
         {
           float maxGradInTriangle = 50.0;
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes(maxGradInTriangle,Mesh2Dtype::VALIDKEYPOINTS);
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
-          int  minKfValidPoints = 0;
+          int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
           double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
-          //double min_elongation_ratio = 0.5;  // TODO: this check should be improved
-          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,
-              minRatioBetweenLargestAnSmallestSide);
+          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,W_Pose_camlkf_vio,
+              minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
           visualizer.visualizeMesh3D(mesher);
           break;
         }
+        // computes and visualizes 3D mesh from 2D triangulation
+        // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image + extra points with high gradient
+        // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
+        // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Ddense: // dense triangulation of stereo corners (only a subset are VIO keypoints)
         {
           float maxGradInTriangle = 50.0;
@@ -327,25 +345,15 @@ int main(const int argc, const char *argv[])
           int  minKfValidPoints = 0;
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
           double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
-          //double min_elongation_ratio = 0.5;  // TODO: this check should be improved
-          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,
-              minRatioBetweenLargestAnSmallestSide);
+          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,W_Pose_camlkf_vio,
+              minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
           visualizer.visualizeMesh3D(mesher);
           break;
         }
-        case VisualizationType::POINTCLOUD_REPEATEDPOINTS: // visualize VIO points as point clouds (points are replotted at every frame)
-        {
-          vector<Point3> points3d = vioBackEnd->get3DPoints();
-          visualizer.visualizeMap3D_repeatedPoints(points3d);
-          break;
-        }
-        case VisualizationType::POINTCLOUD: // visualize VIO points  (no repeated point)
-        {
-          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
-          mesher.updateMap3D(pointsWithId);
-          visualizer.visualizePoints3D(pointsWithId,mesher);
-          break;
-        }
+        // computes and visualizes 3D mesh
+        // vertices: all VALID VIO points (that can be triangulated)
+        // triangles: the ones produced by CGAL
         case VisualizationType::MESH3D: // 3D mesh from CGAL using VIO points
         {
 #ifdef USE_CGAL
@@ -357,6 +365,21 @@ int main(const int argc, const char *argv[])
           throw std::runtime_error("VisualizationType::MESH3D requires flag USE_CGAL to be true");
           break;
 #endif
+        }
+        // computes and visualizes a 3D point cloud
+        case VisualizationType::POINTCLOUD_REPEATEDPOINTS: // visualize VIO points as point clouds (points are replotted at every frame)
+        {
+          vector<Point3> points3d = vioBackEnd->get3DPoints();
+          visualizer.visualizeMap3D_repeatedPoints(points3d);
+          break;
+        }
+        // computes and visualizes a 3D point cloud
+        case VisualizationType::POINTCLOUD: // visualize VIO points  (no repeated point)
+        {
+          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds();
+          mesher.updateMap3D(pointsWithId);
+          visualizer.visualizePoints3D(pointsWithId,mesher);
+          break;
         }
         case VisualizationType::NONE: // does not visualize map
         {

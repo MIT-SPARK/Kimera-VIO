@@ -188,9 +188,10 @@ public:
   // Update mesh: update structures keeping memory of the map before visualization
   void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
       std::shared_ptr<StereoFrame> stereoFrame,
+      gtsam::Pose3 cameraPose,
       double minRatioBetweenLargestAnSmallestSide = 0,
-      double min_elongation_ratio = 0.5
-      ){
+      double min_elongation_ratio = 0.5)
+  {
     // update 3D points (possibly replacing some points with new estimates)
     updateMap3D(pointsWithId);
     // concatenate mesh in the current image to existing mesh
@@ -199,10 +200,12 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, Frame& frame,
+  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
+      Frame& frame,
       gtsam::Pose3 cameraPose,
       double minRatioBetweenLargestAnSmallestSide = 0,
-      double min_elongation_ratio = 0.5){
+      double min_elongation_ratio = 0.5)
+  {
     // update 3D points (possibly replacing some points with new estimates)
     updateMap3D(pointsWithId);
     // concatenate mesh in the current image to existing mesh
