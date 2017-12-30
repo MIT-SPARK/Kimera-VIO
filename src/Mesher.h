@@ -75,7 +75,7 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  cv::Mat getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D, Frame& frame, double maxRatioBetweenLargestAnSmallestSide) const{
+  cv::Mat getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D, Frame& frame, double minRatioBetweenLargestAnSmallestSide) const{
     // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
     // where n is the number of points in the polygon, and id is a zero-offset
     // index into an associated cloud.
@@ -110,7 +110,7 @@ public:
         double ratio = getRatioBetweenSmallestAndLargestSidesquared(rowId_pt1,rowId_pt2,rowId_pt3);
 
         // check if triangle is not elongated
-        if(ratio >= maxRatioBetweenLargestAnSmallestSide*maxRatioBetweenLargestAnSmallestSide){
+        if(ratio >= minRatioBetweenLargestAnSmallestSide*minRatioBetweenLargestAnSmallestSide){
           polygon.push_back(3); // add rows
           polygon.push_back(rowId_pt1); // row in mapPoints3d_
           polygon.push_back(rowId_pt2); // row in mapPoints3d_
@@ -122,12 +122,12 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  cv::Mat createMesh2DTo3D_MapPointId(Frame& frame, double maxRatioBetweenLargestAnSmallestSide = 0) const{
+  cv::Mat createMesh2DTo3D_MapPointId(Frame& frame, double minRatioBetweenLargestAnSmallestSide = 0) const{
 
     // build 2D mesh, resticted to points with lmk!=-1
     frame.createMesh2D();
     std::vector<cv::Vec6f> triangulation2D = frame.triangulation2D_;
-    return getTriangulationIndices(triangulation2D,frame,maxRatioBetweenLargestAnSmallestSide);
+    return getTriangulationIndices(triangulation2D,frame,minRatioBetweenLargestAnSmallestSide);
   }
   /* ----------------------------------------------------------------------------- */
   // Update map: update structures keeping memory of the map before visualization
@@ -159,21 +159,21 @@ public:
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
   void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
-      std::shared_ptr<StereoFrame> stereoFrame, double maxRatioBetweenLargestAnSmallestSide = 0){
+      std::shared_ptr<StereoFrame> stereoFrame, double minRatioBetweenLargestAnSmallestSide = 0){
     // update 3D points (possibly replacing some points with new estimates)
     updateMap3D(pointsWithId);
     // concatenate mesh in the current image to existing mesh
-    polygonsMesh_.push_back(getTriangulationIndices(stereoFrame->triangulation2Dobs_,
-        stereoFrame->left_frame_,maxRatioBetweenLargestAnSmallestSide));
+    polygonsMesh_.push_back(getTriangulationIndices(stereoFrame->triangulation2Dplanes_,
+        stereoFrame->left_frame_,minRatioBetweenLargestAnSmallestSide));
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
   void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
-      Frame& frame, double maxRatioBetweenLargestAnSmallestSide = 0){
+      Frame& frame, double minRatioBetweenLargestAnSmallestSide = 0){
     // update 3D points (possibly replacing some points with new estimates)
     updateMap3D(pointsWithId);
     // concatenate mesh in the current image to existing mesh
-    polygonsMesh_.push_back(createMesh2DTo3D_MapPointId(frame,maxRatioBetweenLargestAnSmallestSide));
+    polygonsMesh_.push_back(createMesh2DTo3D_MapPointId(frame,minRatioBetweenLargestAnSmallestSide));
   }
 };
 } // namespace VIO

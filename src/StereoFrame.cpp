@@ -342,7 +342,7 @@ void StereoFrame::createMesh2Dplanes(float gradBound, double min_elongation_rati
       double ratio = UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
 
       if(ratio >= min_elongation_ratio){
-        triangulation2Dobs_.push_back(triangulation2D.at(i));
+        triangulation2Dplanes_.push_back(triangulation2D.at(i));
       }
     }
   }
@@ -368,9 +368,9 @@ void StereoFrame::visualizeMesh2Dplanes(const double waitTime) const{
   cv::Size size = img.size();
   cv::Rect rect(0,0, size.width, size.height);
   std::vector<cv::Point> pt(3);
-  for(size_t i = 0; i < triangulation2Dobs_.size(); i++)
+  for(size_t i = 0; i < triangulation2Dplanes_.size(); i++)
   {
-    cv::Vec6f t = triangulation2Dobs_[i];
+    cv::Vec6f t = triangulation2Dplanes_[i];
     // visualize mesh vertices
     pt[0] = cv::Point(cvRound(t[0]), cvRound(t[1]));
     pt[1] = cv::Point(cvRound(t[2]), cvRound(t[3]));

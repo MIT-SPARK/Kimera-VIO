@@ -304,14 +304,27 @@ int main(const int argc, const char *argv[])
         case VisualizationType::MESH2DTo3Dplanes: // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
         {
           float maxGradInTriangle = 50.0;
+          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes(maxGradInTriangle);
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
           int  minKfValidPoints = 0;
-          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints); // obs in 3 kf
-          double maxRatioBetweenLargestAnSmallestSide = 0.5;
+          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
+          double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,
-              maxRatioBetweenLargestAnSmallestSide);
+              minRatioBetweenLargestAnSmallestSide);
           visualizer.visualizeMesh3D(mesher);
+          break;
+        }
+        case VisualizationType::MESH2DTo3Ddense: // dense triangulation of stereo corners (only a subset are VIO keypoints)
+        {
+//          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Ddense();
+//          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
+//          int  minKfValidPoints = 0;
+//          VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
+//          double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
+//          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,
+//              minRatioBetweenLargestAnSmallestSide);
+//          visualizer.visualizeMesh3D(mesher);
           break;
         }
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS: // visualize VIO points as point clouds (points are replotted at every frame)
