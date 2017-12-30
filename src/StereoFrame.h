@@ -172,8 +172,8 @@ public:
   void getRightKeypointsLKunrectified();
   /* --------------------------------------------------------------------------------------- */
   // CONST functions:
-  // deprecated
-  cv::Mat getDisparityImage(const cv::Mat imgLeft, const cv::Mat imgRight, const int verbosity = 0) const;
+  // get disparity image
+  cv::Mat getDisparityImage(const int verbosity = 0) const;
   StatusKeypointsCV undistortRectifyPoints(KeypointsCV left_keypoints_unrectified, const CameraParams cam_param,
       const gtsam::Cal3_S2 rectCameraMatrix) const;
   StatusKeypointsCV getRightKeypointsRectified(const cv::Mat left_rectified, const cv::Mat right_rectified,

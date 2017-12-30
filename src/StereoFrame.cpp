@@ -41,9 +41,6 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   //  }
 
   // **** now we get corresponding keypoints in right image ***************************
-  // one way to go is to compute a dense disparity map,
-  // COMMENT: This is beyond what we need, moreover, for GTSAM we'll also need the right keypoints
-  // getDisparityImage(left_img_rectified_, right_img_rectified_, verbosity);
   //////////////////////////////////////////////////////////////////////////
   // another way is to find for sparse correspondences in right image using optical flow
   // COMMENT: this does not work, probably the baseline is too large
@@ -250,37 +247,34 @@ StatusKeypointsCV StereoFrame::undistortRectifyPoints(KeypointsCV left_keypoints
 }
 
 /* --------------------------------------------------------------------------------------- */
-cv::Mat StereoFrame::getDisparityImage(const cv::Mat imgLeft, const cv::Mat imgRight, const int verbosity) const
+cv::Mat StereoFrame::getDisparityImage(const int verbosity) const
 {
-    throw std::runtime_error("getDisparityImage: not implemented");
-//  cv::Mat imgDisparity16S = cv::Mat(imgLeft.rows, imgLeft.cols, CV_16S);
-//  cv::Mat imgDisparity8U = cv::Mat(imgLeft.rows, imgLeft.cols, CV_8UC1);
-//
-//  //-- Call the constructor for StereoBM
-//  int ndisparities = 16 * 5;   /**< Range of disparity */
-//  int SADWindowSize = 21; /**< Size of the block window. Must be odd */
-//  cv::StereoBM sbm(cv::StereoBM::BASIC_PRESET,ndisparities,SADWindowSize);
-//
-//  //-- Calculate the disparity image
-//  sbm(imgLeft, imgRight, imgDisparity16S, CV_16S);
-//
-//  //-- Check its extreme values
-//  double minVal; double maxVal;
-//  minMaxLoc(imgDisparity16S, &minVal, &maxVal);
-//
-//  //-- Display it as a CV_8UC1 image
-//  imgDisparity16S.convertTo(imgDisparity8U, CV_8UC1, 255 / (maxVal - minVal));
-//
-//  cv::namedWindow("disparity", cv::WINDOW_NORMAL);
-//  cv::imshow("disparity", imgDisparity8U);
-//
-//  //-- Save the image
-//  if(verbosity>1){
-//    std::string img_name = "./outputImages/disparity_" + std::to_string(id_) + ".png";
-//    cv::imwrite(img_name, imgDisparity16S);
-//  }
-//  cv::waitKey(50);
-//  return imgDisparity16S;
+  const cv::Mat imgLeft = left_img_rectified_.clone();
+  const cv::Mat imgRight = right_img_rectified_.clone();
+  bool isDebug = true;
+
+  cv::Mat imgDisparity16S = cv::Mat(imgLeft.rows, imgLeft.cols, CV_16S);
+
+  //-- Call the constructor for StereoBM
+  int ndisparities = 16 * 5;   /**< Range of disparity */
+  int SADWindowSize = 21; /**< Size of the block window. Must be odd */
+  cv::Ptr<cv::StereoBM> sbm = cv::StereoBM::create( ndisparities, SADWindowSize );
+
+  // Calculate the disparity image
+  sbm->compute( imgLeft, imgRight, imgDisparity16S );
+
+  if(isDebug){
+    cv::Mat imgDisparity8U = cv::Mat(imgLeft.rows, imgLeft.cols, CV_8UC1);
+    //-- Check its extreme values
+    double minVal; double maxVal;
+    minMaxLoc(imgDisparity16S, &minVal, &maxVal);
+    //-- Display it as a CV_8UC1 image
+    imgDisparity16S.convertTo(imgDisparity8U, CV_8UC1, 255 / (maxVal - minVal));
+    cv::namedWindow("disparity", cv::WINDOW_NORMAL);
+    cv::imshow("disparity", imgDisparity8U);
+    cv::waitKey(50);
+  }
+  return imgDisparity16S;
 }
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, bool useCanny){
@@ -310,9 +304,17 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
   //std::cout << "minVal = " << minVal << " maxVal = " << maxVal << std::endl;
 
   if(mesh2Dtype == DENSE){ // add other keypoints densely
+    cv::Mat disparity = getDisparityImage();
+
     // populate extra keypoints for which we can compute 3D:
-    for(size_t i = 0; i<left_img_grads.rows;i++){
-      for(size_t j = 0; i<left_img_grads.cols;i++){
+    for(size_t r = 0; r<left_img_grads.rows;r++){
+      for(size_t c = 0; c<left_img_grads.cols;c++){
+        float intensity_rc = float(left_img_grads.at<uint8_t>(r, c));
+        if(intensity_rc > 125){ // if it's an edge
+
+        }
+        if(intensity_rc != 0 && intensity_rc != 255){
+          std::cout << "intensity_rc: " << intensity_rc << std::endl;}
 
         //extraStereoKeypoints_
       }
