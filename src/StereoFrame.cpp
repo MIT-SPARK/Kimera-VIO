@@ -253,28 +253,28 @@ cv::Mat StereoFrame::getDisparityImage(const int verbosity) const
   const cv::Mat imgRight = right_img_rectified_.clone();
   bool isDebug = true;
 
-  cv::Mat imgDisparity16S = cv::Mat(imgLeft.rows, imgLeft.cols, CV_16S);
+  cv::Mat imgDisparity = cv::Mat(imgLeft.rows, imgLeft.cols, CV_32F);
 
   //-- Call the constructor for StereoBM
-  int ndisparities = 16 * 5;   /**< Range of disparity */
+  int ndisparities =  0; //16 * 5;   /**< Range of disparity */
   int SADWindowSize = 21; /**< Size of the block window. Must be odd */
   cv::Ptr<cv::StereoBM> sbm = cv::StereoBM::create( ndisparities, SADWindowSize );
 
   // Calculate the disparity image
-  sbm->compute( imgLeft, imgRight, imgDisparity16S );
+  sbm->compute( imgLeft, imgRight, imgDisparity );
 
   if(isDebug){
     cv::Mat imgDisparity8U = cv::Mat(imgLeft.rows, imgLeft.cols, CV_8UC1);
     //-- Check its extreme values
     double minVal; double maxVal;
-    minMaxLoc(imgDisparity16S, &minVal, &maxVal);
+    minMaxLoc(imgDisparity, &minVal, &maxVal);
     //-- Display it as a CV_8UC1 image
-    imgDisparity16S.convertTo(imgDisparity8U, CV_8UC1, 255 / (maxVal - minVal));
+    imgDisparity.convertTo(imgDisparity8U, CV_8UC1, 255 / (maxVal - minVal));
     cv::namedWindow("disparity", cv::WINDOW_NORMAL);
     cv::imshow("disparity", imgDisparity8U);
     cv::waitKey(50);
   }
-  return imgDisparity16S;
+  return imgDisparity;
 }
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, bool useCanny){
@@ -307,16 +307,44 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
     cv::Mat disparity = getDisparityImage();
 
     // populate extra keypoints for which we can compute 3D:
+    KeypointsCV kptsWithGradient;
     for(size_t r = 0; r<left_img_grads.rows;r++){
       for(size_t c = 0; c<left_img_grads.cols;c++){
         float intensity_rc = float(left_img_grads.at<uint8_t>(r, c));
         if(intensity_rc > 125){ // if it's an edge
-
+          kptsWithGradient.push_back(cv::Point2f(c,r));
         }
-        if(intensity_rc != 0 && intensity_rc != 255){
-          std::cout << "intensity_rc: " << intensity_rc << std::endl;}
+        if(useCanny && (intensity_rc != 0 && intensity_rc != 255))
+          throw std::runtime_error("createMesh2Dplanes: wrong Canny");
+      }
+    }
+    // Get rectified left keypoints (we use semiglobal block matching as a proof of concept)
+    gtsam::Rot3 camLrect_R_camL = UtilsOpenCV::Cvmat2rot(left_frame_.cam_param_.R_rectify_);
+    StatusKeypointsCV left_keypoints_rectified = undistortRectifyPoints(kptsWithGradient,left_frame_.cam_param_,left_undistRectCameraMatrix_);
+    for(size_t i=0;i<left_keypoints_rectified.size();i++){
+      if(left_keypoints_rectified.at(i).first == Kstatus::VALID){
+        // get rectified keypoint:
+        cv::Point2f kpt_i_rectified = left_keypoints_rectified.at(i).second;
 
-        //extraStereoKeypoints_
+        // get disparity:
+        double disparity_i = double( disparity.at<float>(kpt_i_rectified) );
+
+        // get depth
+        double fx = left_undistRectCameraMatrix_.fx();
+        double fx_b = fx * baseline();
+        double depth = fx_b / disparity_i;
+
+        if(depth >= sparseStereoParams_.minPointDist || depth <= sparseStereoParams_.maxPointDist){
+          // get 3D point
+          Vector3 versor_rect_i = Frame::CalibratePixel(kptsWithGradient.at(i), left_frame_.cam_param_);
+
+          Vector3 versor_i = camLrect_R_camL.rotate( versor_rect_i );
+          if(versor_i(2) < 1e-3) { throw std::runtime_error("sparseStereoMatching: found point with nonpositive depth! (2)"); }
+          gtsam::Point3 p = versor_i * depth / versor_i(2);
+
+          keypointsToTriangulate.push_back(kptsWithGradient.at(i));
+          extraStereoKeypoints_.push_back(std::make_pair(kptsWithGradient.at(i),p));
+        }
       }
     }
   }

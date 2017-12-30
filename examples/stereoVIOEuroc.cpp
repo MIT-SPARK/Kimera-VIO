@@ -102,7 +102,7 @@ int main(const int argc, const char *argv[])
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::MESH2DTo3Dplanes; // MESH2Dobs MESH3D MESH2DTo3Dobs
+  VisualizationType visualizationType = VisualizationType::MESH2DTo3Ddense; // MESH2Dobs MESH3D MESH2DTo3Dobs
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;

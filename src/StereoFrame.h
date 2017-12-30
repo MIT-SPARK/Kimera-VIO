@@ -129,7 +129,7 @@ public:
 
   // 2D-3D MESH CREATION
   // used for dense mesh creation
-  std::pair< KeypointCV, gtsam::Point3> extraStereoKeypoints_;
+  std::vector< std::pair< KeypointCV, gtsam::Point3> > extraStereoKeypoints_;
   std::vector<cv::Vec6f> triangulation2Dplanes_; // list of triangles such that each triangle defines
   // is a planar surface observed in by the stereo camera (each triangle is described by 3 pairs of pixels)
 
