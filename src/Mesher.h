@@ -174,29 +174,29 @@ public:
     }
   }
   /* ----------------------------------------------------------------------------- */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  cv::Mat createMesh2DTo3D_MapPointId(Frame& frame,
-      double minRatioBetweenLargestAnSmallestSide = 0,
-      double min_elongation_ratio = 0.5) const{
-
-    // build 2D mesh, restricted to points with lmk!=-1
-    frame.createMesh2D();
-    std::vector<cv::Vec6f> triangulation2D = frame.triangulation2D_;
-    return getTriangulationIndices(triangulation2D,frame,minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
-  }
-  /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
   void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
       std::shared_ptr<StereoFrame> stereoFrame,
-      gtsam::Pose3 cameraPose,
+      gtsam::Pose3 leftCameraPose,
+      Mesh2Dtype mesh2Dtype = Mesh2Dtype::VALIDKEYPOINTS,
+      float maxGradInTriangle = 50,
       double minRatioBetweenLargestAnSmallestSide = 0,
       double min_elongation_ratio = 0.5)
   {
+    // debug:
+    bool doVisualize2Dmesh = true;
+
     // update 3D points (possibly replacing some points with new estimates)
     updateMap3D(pointsWithId);
+
+    // build 2D mesh
+    stereoFrame->createMesh2Dplanes(maxGradInTriangle,mesh2Dtype);
+    if(doVisualize2Dmesh){stereoFrame->visualizeMesh2Dplanes(100);}
+
     // concatenate mesh in the current image to existing mesh
     polygonsMesh_.push_back(getTriangulationIndices(stereoFrame->triangulation2Dplanes_,
-        stereoFrame->left_frame_,minRatioBetweenLargestAnSmallestSide,min_elongation_ratio));
+        stereoFrame->left_frame_,
+        minRatioBetweenLargestAnSmallestSide,min_elongation_ratio));
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
@@ -206,10 +206,19 @@ public:
       double minRatioBetweenLargestAnSmallestSide = 0,
       double min_elongation_ratio = 0.5)
   {
+    // debug:
+    bool doVisualize2Dmesh = true;
+
     // update 3D points (possibly replacing some points with new estimates)
     updateMap3D(pointsWithId);
+
+    // build 2D mesh, restricted to points with lmk!=-1
+    frame.createMesh2D();
+    if(doVisualize2Dmesh){frame.visualizeMesh2D(100);}
+
     // concatenate mesh in the current image to existing mesh
-    polygonsMesh_.push_back(createMesh2DTo3D_MapPointId(frame,
+    polygonsMesh_.push_back(getTriangulationIndices(frame.triangulation2D_,
+        frame,
         minRatioBetweenLargestAnSmallestSide,min_elongation_ratio));
   }
 };

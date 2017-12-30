@@ -321,15 +321,16 @@ int main(const int argc, const char *argv[])
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Dplanes: // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
         {
-          float maxGradInTriangle = 50.0;
-          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes(maxGradInTriangle,Mesh2Dtype::VALIDKEYPOINTS);
-          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
           int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
+
+          float maxGradInTriangle = 50.0;
           double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
           double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,W_Pose_camlkf_vio,
-              minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
+              Mesh2Dtype::VALIDKEYPOINTS,
+              maxGradInTriangle, minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
+
           visualizer.visualizeMesh3D(mesher);
           break;
         }
@@ -339,15 +340,16 @@ int main(const int argc, const char *argv[])
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Ddense: // dense triangulation of stereo corners (only a subset are VIO keypoints)
         {
-          float maxGradInTriangle = 50.0;
-          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes(maxGradInTriangle,Mesh2Dtype::DENSE);
-          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
           int  minKfValidPoints = 0;
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
+
+          float maxGradInTriangle = 50.0;
           double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
           double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,W_Pose_camlkf_vio,
-              minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
+              Mesh2Dtype::DENSE,
+              maxGradInTriangle, minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
+
           visualizer.visualizeMesh3D(mesher);
           break;
         }
