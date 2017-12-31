@@ -278,9 +278,9 @@ cv::Mat StereoFrame::getDisparityImage(const int verbosity) const
 }
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, bool useCanny){
+
   // pick left frame
   Frame& ref_frame = left_frame_;
-
   if(ref_frame.landmarks_.size() != right_keypoints_status_.size()) // sanity check
     throw std::runtime_error("StereoFrame: wrong dimension for the landmarks");
 
@@ -291,17 +291,12 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
       keypointsToTriangulate.push_back(ref_frame.keypoints_.at(i));
     }
   }
-  // retain only "full" triangles (the one representing a planar surface)
-  // 1: compute image gradients:
+  // compute image gradients: used later to check intensity gradient in each triangle
   cv::Mat left_img_grads;
   //left_img_grads = UtilsOpenCV::ImageLaplacian(ref_frame.img_);
   left_img_grads = UtilsOpenCV::EdgeDetectorCanny(ref_frame.img_);
   cv::imshow("left_img_grads",left_img_grads);
   cv::waitKey(100);
-
-  //double minVal,maxVal;
-  //cv::minMaxLoc( left_img_grads, &minVal, &maxVal);
-  //std::cout << "minVal = " << minVal << " maxVal = " << maxVal << std::endl;
 
   if(mesh2Dtype == DENSE){ // add other keypoints densely
     cv::Mat disparity = getDisparityImage();
@@ -322,26 +317,20 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
     gtsam::Rot3 camLrect_R_camL = UtilsOpenCV::Cvmat2rot(left_frame_.cam_param_.R_rectify_);
     StatusKeypointsCV left_keypoints_rectified = undistortRectifyPoints(kptsWithGradient,left_frame_.cam_param_,left_undistRectCameraMatrix_);
     for(size_t i=0;i<left_keypoints_rectified.size();i++){
-      if(left_keypoints_rectified.at(i).first == Kstatus::VALID){
-        // get rectified keypoint:
-        cv::Point2f kpt_i_rectified = left_keypoints_rectified.at(i).second;
-
-        // get disparity:
-        double disparity_i = double( disparity.at<float>(kpt_i_rectified) );
-
+      if(left_keypoints_rectified.at(i).first == Kstatus::VALID){ // if rectification was correct
+        cv::Point2f kpt_i_rectified = left_keypoints_rectified.at(i).second; // get rectified keypoint:
+        double disparity_i = double( disparity.at<float>(kpt_i_rectified) ); // get disparity:
         // get depth
         double fx = left_undistRectCameraMatrix_.fx();
         double fx_b = fx * baseline();
         double depth = fx_b / disparity_i;
-
+        // if point is valid, store it
         if(depth >= sparseStereoParams_.minPointDist || depth <= sparseStereoParams_.maxPointDist){
-          // get 3D point
-          Vector3 versor_rect_i = Frame::CalibratePixel(kptsWithGradient.at(i), left_frame_.cam_param_);
-
+          Vector3 versor_rect_i = Frame::CalibratePixel(kptsWithGradient.at(i), left_frame_.cam_param_); // get 3D point
           Vector3 versor_i = camLrect_R_camL.rotate( versor_rect_i );
           if(versor_i(2) < 1e-3) { throw std::runtime_error("sparseStereoMatching: found point with nonpositive depth! (2)"); }
-          gtsam::Point3 p = versor_i * depth / versor_i(2);
-
+          gtsam::Point3 p = versor_i * depth / versor_i(2); // in the camera frame
+          // store point
           keypointsToTriangulate.push_back(kptsWithGradient.at(i));
           extraStereoKeypoints_.push_back(std::make_pair(kptsWithGradient.at(i),p));
         }
@@ -353,7 +342,7 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
   std::vector<cv::Vec6f> triangulation2D =
       Frame::CreateMesh2D(ref_frame.img_.size(),keypointsToTriangulate);
 
-  // 2: for each triangle, set to full the triangles that have near-zero gradient
+  // for each triangle, set to full the triangles that have near-zero gradient
   // triangulation2Dobs_.reserve(triangulation2D.size());
   for(size_t i=0; i<triangulation2D.size(); i++)
   {

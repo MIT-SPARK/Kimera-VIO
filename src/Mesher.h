@@ -35,14 +35,16 @@ class Mesher {
 
 
 public:
-  using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, int>;
+  using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, int>; // map a lmk id to a row in mapPoints3d_
+  using KeypointToMapPointId = std::vector< std::pair<KeypointCV,int>>; // map a keypoint (without lmk id) to a row in mapPoints3d_
 
   cv::Mat mapPoints3d_; // set of (non-repeated) points = valid landmark positions
   cv::Mat polygonsMesh_; // set of polygons
   LandmarkIdToMapPointId lmkIdToMapPointId_; // maps lmk id to corresponding 3D points
   int points3D_count_; // number of points
+  KeypointToMapPointId keypointToMapPointId_;
 
-  // constructors
+// constructors
   Mesher(): polygonsMesh_(cv::Mat(0,1,CV_32SC1)), points3D_count_(0) { }
 
   /* ----------------------------------------------------------------------------- */
@@ -75,30 +77,61 @@ public:
   /* ----------------------------------------------------------------------------- */
     // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
   // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
-  double getRatioBetweenTangentialAndRadialDisplacement(const int rowId_pt1,const int rowId_pt2,const int rowId_pt3) const{
+  double getRatioBetweenTangentialAndRadialDisplacement(
+      const int rowId_pt1,const int rowId_pt2,const int rowId_pt3, gtsam::Pose3 leftCameraPose) const{
 
     std::vector<gtsam::Point3> points;
-
-    // TODO: these should be in the camera frame
 
     // get 3D points
     cv::Point3f p1 = mapPoints3d_.at<cv::Point3f>(rowId_pt1);
     gtsam::Point3 p1_C = gtsam::Point3(double(p1.x),double(p1.y),double(p1.z));
-    points.push_back(p1_C);
+    points.push_back(leftCameraPose.transform_to(p1_C)); // checks elongation in *camera frame*
 
     cv::Point3f p2 = mapPoints3d_.at<cv::Point3f>(rowId_pt2);
     gtsam::Point3 p2_C = gtsam::Point3(double(p2.x),double(p2.y),double(p2.z));
-    points.push_back(p2_C);
+    points.push_back(leftCameraPose.transform_to(p2_C)); // checks elongation in *camera frame*
 
     cv::Point3f p3 = mapPoints3d_.at<cv::Point3f>(rowId_pt3);
     gtsam::Point3 p3_C = gtsam::Point3(double(p3.x),double(p3.y),double(p3.z));
-    points.push_back(p3_C);
+    points.push_back(leftCameraPose.transform_to(p3_C)); // checks elongation in *camera frame*
 
     return UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
   }
   /* ----------------------------------------------------------------------------- */
+  // searches in both the keypoints in frame as well as in the
+  int findRowIdFromPixel(Frame& frame, KeypointCV px) const{
+    // output
+    int rowId_pt;
+    bool found = false;
+
+    // look for a lmk id
+    LandmarkId id_pt = frame.findLmkIdFromPixel(px);
+    if(id_pt != -1){ // if we found the point in the frame (it has a valid lmk id)
+      auto it = lmkIdToMapPointId_.find(id_pt); // get row ids
+      if(it != lmkIdToMapPointId_.end()){
+        rowId_pt = it->second;
+        found = true;
+      }else{
+        throw std::runtime_error("findRowIdFromPixel: kpt has lmk id but was not found in lmkIdToMapPointId_");
+      }
+    }else{ // we have to look for the point inside
+      for(size_t i=0; i<keypointToMapPointId_.size();i++){
+        if(keypointToMapPointId_.at(i).first.x == px.x &&
+            keypointToMapPointId_.at(i).first.y == px.y){
+          rowId_pt = keypointToMapPointId_.at(i).second;
+          found = true;
+          break;
+        }
+      }
+    }
+    if(found == false){ throw std::runtime_error("findRowIdFromPixel: kpt not found at all"); }
+    return rowId_pt;
+  }
+
+  /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   cv::Mat getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D, Frame& frame,
+      gtsam::Pose3 leftCameraPose, // for some geometric check
       double minRatioBetweenLargestAnSmallestSide, double min_elongation_ratio) const{
     // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
     // where n is the number of points in the polygon, and id is a zero-offset
@@ -112,47 +145,32 @@ public:
       cv::Vec6f t = triangulation2D[i];
 
       // get lmk ids mapPoints3d_ (iterators)
-      LandmarkId id_pt1 = frame.findLmkIdFromPixel(cv::Point2f(t[0], t[1]));
-      LandmarkId id_pt2 = frame.findLmkIdFromPixel(cv::Point2f(t[2], t[3]));
-      LandmarkId id_pt3 = frame.findLmkIdFromPixel(cv::Point2f(t[4], t[5]));
+      int rowId_pt1 = findRowIdFromPixel(frame, cv::Point2f(t[0], t[1]));
+      int rowId_pt2 = findRowIdFromPixel(frame, cv::Point2f(t[2], t[3]));
+      int rowId_pt3 = findRowIdFromPixel(frame, cv::Point2f(t[4], t[5]));
 
-      // get row ids in
-      auto it1 = lmkIdToMapPointId_.find(id_pt1);
-      auto it2 = lmkIdToMapPointId_.find(id_pt2);
-      auto it3 = lmkIdToMapPointId_.find(id_pt3);
+      double ratioSquaredSides = getRatioBetweenSmallestAndLargestSidesquared(rowId_pt1,rowId_pt2,rowId_pt3);
+      double ratioTangentialRadial = getRatioBetweenTangentialAndRadialDisplacement(rowId_pt1,rowId_pt2,rowId_pt3, leftCameraPose);
 
-      // check if they are in mapPoints3d_
-      if ( it1 != lmkIdToMapPointId_.end() &&
-           it2 != lmkIdToMapPointId_.end() &&
-           it3 != lmkIdToMapPointId_.end() ){
-
-        // get lmk ids mapPoints3d_
-        int rowId_pt1 = it1->second;
-        int rowId_pt2 = it2->second;
-        int rowId_pt3 = it3->second;
-
-        double ratioSquaredSides = getRatioBetweenSmallestAndLargestSidesquared(rowId_pt1,rowId_pt2,rowId_pt3);
-        double ratioTangentialRadial = getRatioBetweenTangentialAndRadialDisplacement(rowId_pt1,rowId_pt2,rowId_pt3);
-
-        // check if triangle is not elongated
-        if( (ratioSquaredSides >= minRatioBetweenLargestAnSmallestSide*minRatioBetweenLargestAnSmallestSide) &&
-            (ratioTangentialRadial >= min_elongation_ratio)){
-          polygon.push_back(3); // add rows
-          polygon.push_back(rowId_pt1); // row in mapPoints3d_
-          polygon.push_back(rowId_pt2); // row in mapPoints3d_
-          polygon.push_back(rowId_pt3); // row in mapPoints3d_
-        }
+      // check if triangle is not elongated
+      if( (ratioSquaredSides >= minRatioBetweenLargestAnSmallestSide*minRatioBetweenLargestAnSmallestSide) &&
+          (ratioTangentialRadial >= min_elongation_ratio)){
+        polygon.push_back(3); // add rows
+        polygon.push_back(rowId_pt1); // row in mapPoints3d_
+        polygon.push_back(rowId_pt2); // row in mapPoints3d_
+        polygon.push_back(rowId_pt3); // row in mapPoints3d_
       }
     }
     return polygon;
   }
   /* ----------------------------------------------------------------------------- */
   // Update map: update structures keeping memory of the map before visualization
-  void updateMap3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId){
+  void updateMap3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
+      std::vector<std::pair<KeypointCV, gtsam::Point3> > pointsWithoutId =
+          std::vector<std::pair<KeypointCV, gtsam::Point3> >()){
 
-    // update 3D points by adding new points or updating old reobserved ones
+    // update 3D points by adding new points or updating old reobserved ones (for the one with lmk id)
     for(size_t i=0; i<pointsWithId.size();i++) {
-
       LandmarkId lmk_id = pointsWithId.at(i).first;
       gtsam::Point3 point_i = pointsWithId.at(i).second;
       auto lm_it = lmkIdToMapPointId_.find(lmk_id);
@@ -172,6 +190,15 @@ public:
         data[row_id].z = float ( point_i.z() );
       }
     }
+    // add other extra points without lmk if:
+    for(size_t i=0; i<pointsWithoutId.size();i++) {
+      KeypointCV kps_i = pointsWithoutId.at(i).first;
+      gtsam::Point3 point_i = pointsWithoutId.at(i).second;
+      cv::Point3f p(float(point_i.x()), float(point_i.y()), float(point_i.z()));
+      mapPoints3d_.push_back(p);
+      keypointToMapPointId_.push_back(std::pair<KeypointCV,int>(kps_i,points3D_count_));
+      ++points3D_count_;
+    }
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
@@ -186,23 +213,34 @@ public:
     // debug:
     bool doVisualize2Dmesh = true;
 
-    // update 3D points (possibly replacing some points with new estimates)
-    updateMap3D(pointsWithId);
-
     // build 2D mesh
     stereoFrame->createMesh2Dplanes(maxGradInTriangle,mesh2Dtype);
     if(doVisualize2Dmesh){stereoFrame->visualizeMesh2Dplanes(100);}
 
+    // update 3D points (possibly replacing some points with new estimates)
+    std::vector<std::pair<KeypointCV, gtsam::Point3> > pointsWithoutId;
+    if(mesh2Dtype == Mesh2Dtype::DENSE){
+      for(size_t i=0; i<stereoFrame->extraStereoKeypoints_.size();i++){ // convert to global coordinates
+        KeypointCV px = stereoFrame->extraStereoKeypoints_.at(i).first;
+        gtsam::Point3 point = leftCameraPose.transform_from(stereoFrame->extraStereoKeypoints_.at(i).second);
+        pointsWithoutId.push_back(std::make_pair(px,point));
+      }
+    }
+    updateMap3D(pointsWithId,pointsWithoutId);
+
     // concatenate mesh in the current image to existing mesh
     polygonsMesh_.push_back(getTriangulationIndices(stereoFrame->triangulation2Dplanes_,
-        stereoFrame->left_frame_,
+        stereoFrame->left_frame_, leftCameraPose,
         minRatioBetweenLargestAnSmallestSide,min_elongation_ratio));
+
+    // after filling in polygonsMesh_, we don't need this, and it must be reset:
+    keypointToMapPointId_.resize(0);
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
   void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
       Frame& frame,
-      gtsam::Pose3 cameraPose,
+      gtsam::Pose3 leftCameraPose,
       double minRatioBetweenLargestAnSmallestSide = 0,
       double min_elongation_ratio = 0.5)
   {
@@ -218,7 +256,7 @@ public:
 
     // concatenate mesh in the current image to existing mesh
     polygonsMesh_.push_back(getTriangulationIndices(frame.triangulation2D_,
-        frame,
+        frame, leftCameraPose,
         minRatioBetweenLargestAnSmallestSide,min_elongation_ratio));
   }
 };

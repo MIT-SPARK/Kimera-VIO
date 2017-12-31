@@ -248,18 +248,16 @@ public:
     return validKeypoints;
   }
   /* --------------------------------------------------------------------------------------- */
-  LandmarkId findLmkIdFromPixel(KeypointCV px, boost::optional<int &> indInKeypoints_ = boost::none) const
-  {
+  LandmarkId findLmkIdFromPixel(KeypointCV px, boost::optional<int &> indInKeypoints_ = boost::none) const{
     for(LandmarkId i = 0; i < keypoints_.size(); i++){
       if(keypoints_.at(i).x == px.x && keypoints_.at(i).y == px.y){// it's matching the query point
         if(indInKeypoints_){*indInKeypoints_ = i;} // return index
         return landmarks_.at(i);
       }
     }
-    std::cout << "findLmkIdFromPixel: could not find px: debug info:" << std::endl;
-    for(LandmarkId i=0; i < keypoints_.size(); i++)
-      std::cout << "px: " << px << " kpi: " << keypoints_.at(i) << std::endl;
-    throw std::runtime_error("findLmkIdFromPixel: px not found");
+    // we did not find the keypoint
+    if(indInKeypoints_){*indInKeypoints_ = -1;}
+    return -1;
   }
   /* --------------------------------------------------------------------------------------- */
   void print() const

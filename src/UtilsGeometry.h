@@ -61,7 +61,9 @@ public:
       double tangentialElongation_i = (minNorm * u_mean - points.at(i).vector()).norm(); // distance with respect to a central point at distance minNorm
       max_t = std::max(max_t, tangentialElongation_i);
     }
-    if(min_r<0 || max_r <0 || min_r > max_r){
+    if(min_r<0 || max_r<0 || min_r>max_r){
+      std::cout << "min_r = " << min_r << " min_r = " << min_r << std::endl;
+      for(size_t i=0;i<points.size();i++){ points.at(i).print("\n");}
       throw std::runtime_error("getRatioBetweenTangentialAndRadialDisplacement: negative radial components");
     }
     return  max_t / (max_r-min_r);
