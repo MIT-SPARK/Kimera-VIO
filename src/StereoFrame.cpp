@@ -253,10 +253,10 @@ cv::Mat StereoFrame::getDisparityImage(const int verbosity) const
   const cv::Mat imgRight = right_img_rectified_.clone();
   bool isDebug = true;
 
-  cv::Mat imgDisparity = cv::Mat(imgLeft.rows, imgLeft.cols, CV_32F);
+  cv::Mat imgDisparity = cv::Mat(imgLeft.rows, imgLeft.cols, CV_16S);
 
   //-- Call the constructor for StereoBM
-  int ndisparities =  0; //16 * 5;   /**< Range of disparity */
+  int ndisparities = 16 * 5;   /**< Range of disparity */
   int SADWindowSize = 21; /**< Size of the block window. Must be odd */
   cv::Ptr<cv::StereoBM> sbm = cv::StereoBM::create( ndisparities, SADWindowSize );
 
@@ -268,6 +268,7 @@ cv::Mat StereoFrame::getDisparityImage(const int verbosity) const
     //-- Check its extreme values
     double minVal; double maxVal;
     minMaxLoc(imgDisparity, &minVal, &maxVal);
+    std::cout << "getDisparityImage: minVal = " << minVal << " maxVal " << maxVal<< std::endl;
     //-- Display it as a CV_8UC1 image
     imgDisparity.convertTo(imgDisparity8U, CV_8UC1, 255 / (maxVal - minVal));
     cv::namedWindow("disparity", cv::WINDOW_NORMAL);
@@ -319,7 +320,8 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
     for(size_t i=0;i<left_keypoints_rectified.size();i++){
       if(left_keypoints_rectified.at(i).first == Kstatus::VALID){ // if rectification was correct
         cv::Point2f kpt_i_rectified = left_keypoints_rectified.at(i).second; // get rectified keypoint:
-        double disparity_i = double( disparity.at<float>(kpt_i_rectified) ); // get disparity:
+        double disparity_i = double( disparity.at<int16_t>(kpt_i_rectified) ) / 16.0; // get disparity:
+        std::cout << "disparity_i " << disparity_i << std::endl;
         // get depth
         double fx = left_undistRectCameraMatrix_.fx();
         double fx_b = fx * baseline();
@@ -330,6 +332,7 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
           Vector3 versor_i = camLrect_R_camL.rotate( versor_rect_i );
           if(versor_i(2) < 1e-3) { throw std::runtime_error("sparseStereoMatching: found point with nonpositive depth! (2)"); }
           gtsam::Point3 p = versor_i * depth / versor_i(2); // in the camera frame
+          p.print("point from versor");
           // store point
           keypointsToTriangulate.push_back(kptsWithGradient.at(i));
           extraStereoKeypoints_.push_back(std::make_pair(kptsWithGradient.at(i),p));

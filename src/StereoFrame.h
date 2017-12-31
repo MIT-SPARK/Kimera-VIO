@@ -172,7 +172,7 @@ public:
   void getRightKeypointsLKunrectified();
   /* --------------------------------------------------------------------------------------- */
   // CONST functions:
-  // get disparity image
+  // get disparity image: https://github.com/opencv/opencv/blob/master/samples/cpp/tutorial_code/calib3d/stereoBM/SBM_Sample.cpp
   cv::Mat getDisparityImage(const int verbosity = 0) const;
   StatusKeypointsCV undistortRectifyPoints(KeypointsCV left_keypoints_unrectified, const CameraParams cam_param,
       const gtsam::Cal3_S2 rectCameraMatrix) const;

@@ -84,16 +84,19 @@ public:
 
     // get 3D points
     cv::Point3f p1 = mapPoints3d_.at<cv::Point3f>(rowId_pt1);
+    std::cout << "p1 " << p1 << std::endl;
     gtsam::Point3 p1_C = gtsam::Point3(double(p1.x),double(p1.y),double(p1.z));
     points.push_back(leftCameraPose.transform_to(p1_C)); // checks elongation in *camera frame*
 
     cv::Point3f p2 = mapPoints3d_.at<cv::Point3f>(rowId_pt2);
     gtsam::Point3 p2_C = gtsam::Point3(double(p2.x),double(p2.y),double(p2.z));
     points.push_back(leftCameraPose.transform_to(p2_C)); // checks elongation in *camera frame*
+    std::cout << "p2 " << p2 << std::endl;
 
     cv::Point3f p3 = mapPoints3d_.at<cv::Point3f>(rowId_pt3);
     gtsam::Point3 p3_C = gtsam::Point3(double(p3.x),double(p3.y),double(p3.z));
     points.push_back(leftCameraPose.transform_to(p3_C)); // checks elongation in *camera frame*
+    std::cout << "p3 " << p3 << std::endl;
 
     return UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
   }
@@ -194,7 +197,10 @@ public:
     for(size_t i=0; i<pointsWithoutId.size();i++) {
       KeypointCV kps_i = pointsWithoutId.at(i).first;
       gtsam::Point3 point_i = pointsWithoutId.at(i).second;
+
       cv::Point3f p(float(point_i.x()), float(point_i.y()), float(point_i.z()));
+      std::cout << "pwihtout " << p << std::endl;
+
       mapPoints3d_.push_back(p);
       keypointToMapPointId_.push_back(std::pair<KeypointCV,int>(kps_i,points3D_count_));
       ++points3D_count_;
