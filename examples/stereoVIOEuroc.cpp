@@ -321,6 +321,7 @@ int main(const int argc, const char *argv[])
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Dplanes: // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
         {
+          std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
           int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 

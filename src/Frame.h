@@ -131,7 +131,8 @@ public:
   }
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static std::vector<cv::Vec6f> CreateMesh2D(const cv::Size size, std::vector<cv::Point2f> keypointsToTriangulate){
+  static std::vector<cv::Vec6f> CreateMesh2D(const cv::Size size,
+      std::vector<cv::Point2f> keypointsToTriangulate){
 
     // define output (+ a temporary variable)
     std::vector<cv::Vec6f> triangulation2D,triangulation2DwithExtraTriangles;

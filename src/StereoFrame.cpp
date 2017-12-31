@@ -300,13 +300,25 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
   cv::waitKey(100);
 
   if(mesh2Dtype == DENSE){ // add other keypoints densely
+    extraStereoKeypoints_.resize(0); // reset
+
     cv::Mat disparity = getDisparityImage();
+
+    // Create mask around existing keypoints
+    cv::Mat left_img_grads_filtered = left_img_grads.clone();
+    for(size_t i = 0; i < ref_frame.keypoints_.size(); ++i) {
+      //if(ref_frame.landmarks_.at(i) != -1) {
+        cv::circle(left_img_grads_filtered, ref_frame.keypoints_.at(i), 5, cv::Scalar(0), CV_FILLED);
+      //}
+    }
+    cv::imshow("left_img_grads - filtered",left_img_grads_filtered);
+    cv::waitKey(100);
 
     // populate extra keypoints for which we can compute 3D:
     KeypointsCV kptsWithGradient;
-    for(size_t r = 0; r<left_img_grads.rows;r++){
-      for(size_t c = 0; c<left_img_grads.cols;c++){
-        float intensity_rc = float(left_img_grads.at<uint8_t>(r, c));
+    for(size_t r = 0; r<left_img_grads_filtered.rows;r++){
+      for(size_t c = 0; c<left_img_grads_filtered.cols;c++){
+        float intensity_rc = float(left_img_grads_filtered.at<uint8_t>(r, c));
         if(intensity_rc > 125){ // if it's an edge
           kptsWithGradient.push_back(cv::Point2f(c,r));
         }

@@ -108,13 +108,16 @@ public:
     bool found = false;
 
     // look for a lmk id
-    LandmarkId id_pt = frame.findLmkIdFromPixel(px);
+    int ind;
+    LandmarkId id_pt = frame.findLmkIdFromPixel(px,ind);
     if(id_pt != -1){ // if we found the point in the frame (it has a valid lmk id)
       auto it = lmkIdToMapPointId_.find(id_pt); // get row ids
       if(it != lmkIdToMapPointId_.end()){
-        rowId_pt = it->second;
+        rowId_pt = it->second; // lmkIdToMapPointId_.at(id_pt)
         found = true;
       }else{
+        // this case can actually happen since some points have lmk ids, but do not have 3D in vio
+        // hence they do not show up in updateMap3D
         throw std::runtime_error("findRowIdFromPixel: kpt has lmk id but was not found in lmkIdToMapPointId_");
       }
     }else{ // we have to look for the point inside
@@ -175,6 +178,9 @@ public:
     // update 3D points by adding new points or updating old reobserved ones (for the one with lmk id)
     for(size_t i=0; i<pointsWithId.size();i++) {
       LandmarkId lmk_id = pointsWithId.at(i).first;
+
+      if(lmk_id == -1){throw std::runtime_error("updateMap3D: pointsWithId are supposed to have valid lmk id");}
+
       gtsam::Point3 point_i = pointsWithId.at(i).second;
       auto lm_it = lmkIdToMapPointId_.find(lmk_id);
       if (lm_it == lmkIdToMapPointId_.end()) // new landmark
@@ -182,6 +188,7 @@ public:
         cv::Point3f p(float(point_i.x()), float(point_i.y()), float(point_i.z()));
         mapPoints3d_.push_back(p);
         lmkIdToMapPointId_.insert(std::make_pair(lmk_id, points3D_count_));
+        std::cout << "inserted lmk_id "<< lmk_id << " pointing to "<< points3D_count_ << std::endl;
         ++points3D_count_;
       }
       else // replace point for existing landmark
@@ -199,7 +206,7 @@ public:
       gtsam::Point3 point_i = pointsWithoutId.at(i).second;
 
       cv::Point3f p(float(point_i.x()), float(point_i.y()), float(point_i.z()));
-      std::cout << "pwihtout " << p << std::endl;
+      std::cout << "without " << p << std::endl;
 
       mapPoints3d_.push_back(p);
       keypointToMapPointId_.push_back(std::pair<KeypointCV,int>(kps_i,points3D_count_));
@@ -208,7 +215,7 @@ public:
   }
   /* ----------------------------------------------------------------------------- */
   // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
+  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithIdVIO,
       std::shared_ptr<StereoFrame> stereoFrame,
       gtsam::Pose3 leftCameraPose,
       Mesh2Dtype mesh2Dtype = Mesh2Dtype::VALIDKEYPOINTS,
@@ -223,6 +230,21 @@ public:
     stereoFrame->createMesh2Dplanes(maxGradInTriangle,mesh2Dtype);
     if(doVisualize2Dmesh){stereoFrame->visualizeMesh2Dplanes(100);}
 
+    // add points in stereo camera that are not in vio but have lmk id:
+    std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithIdStereo;
+    Frame leftFrame = stereoFrame->left_frame_;
+    for(size_t i=0;i<leftFrame.landmarks_.size();i++){
+      if(stereoFrame->right_keypoints_status_.at(i)==Kstatus::VALID && leftFrame.landmarks_.at(i)!=-1){
+        gtsam::Point3 p_i_global =
+            leftCameraPose.transform_from(gtsam::Point3(stereoFrame->keypoints_3d_.at(i)));
+        pointsWithIdStereo.push_back(std::make_pair(leftFrame.landmarks_.at(i),p_i_global));
+      }
+    }
+    // put all landmark points inside a single structure:
+    std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId = pointsWithIdStereo;
+    pointsWithIdStereo.insert( pointsWithIdStereo.end(),
+        pointsWithIdVIO.begin(), pointsWithIdVIO.end() ); // order is important (VIO last)
+
     // update 3D points (possibly replacing some points with new estimates)
     std::vector<std::pair<KeypointCV, gtsam::Point3> > pointsWithoutId;
     if(mesh2Dtype == Mesh2Dtype::DENSE){
@@ -233,11 +255,15 @@ public:
       }
     }
     updateMap3D(pointsWithId,pointsWithoutId);
+    std::cout << "after update map: pointsWithId.size() " <<  pointsWithId.size()<< std::endl;
+    std::cout << "after update map: pointsWithoutId.size() " <<  pointsWithoutId.size()<< std::endl;
 
+    std::cout << "before polygonsMesh_.size() " <<  polygonsMesh_.size << std::endl;
     // concatenate mesh in the current image to existing mesh
     polygonsMesh_.push_back(getTriangulationIndices(stereoFrame->triangulation2Dplanes_,
         stereoFrame->left_frame_, leftCameraPose,
         minRatioBetweenLargestAnSmallestSide,min_elongation_ratio));
+    std::cout << "after polygonsMesh_.size() " <<  polygonsMesh_.size << std::endl;
 
     // after filling in polygonsMesh_, we don't need this, and it must be reset:
     keypointToMapPointId_.resize(0);
