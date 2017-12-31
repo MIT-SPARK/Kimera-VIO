@@ -50,7 +50,8 @@ public:
   /* ----------------------------------------------------------------------------- */
   // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
   // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
-  double getRatioBetweenSmallestAndLargestSidesquared(const int rowId_pt1,const int rowId_pt2,const int rowId_pt3,
+  double getRatioBetweenSmallestAndLargestSide(
+      const int rowId_pt1, const int rowId_pt2, const int rowId_pt3,
       boost::optional<double &> d12_out = boost::none,
       boost::optional<double &> d23_out = boost::none,
       boost::optional<double &> d31_out = boost::none) const{
@@ -72,7 +73,7 @@ public:
     }
     // compute and return ratio
     double ratio = std::min(d12,std::min(d23,d31)) / std::max(d12,std::max(d23,d31));
-    return ratio;
+    return sqrt(ratio);
   }
   /* ----------------------------------------------------------------------------- */
     // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
@@ -140,11 +141,12 @@ public:
     // where n is the number of points in the polygon, and id is a zero-offset
     // index into an associated cloud.
     cv::Mat polygon(0,1,CV_32SC1);
+    int countSmallRatio = 0;
 
     // Populate polygons with indices:
     // note: we restrict to valid triangles in which each landmark has a 3D point
-    for(size_t i=0; i<triangulation2D.size();i++){ // TODO: this is doing a lot of computation
-
+    for(size_t i=0; i<triangulation2D.size();i++)
+    { // TODO: this is doing a lot of computation
       cv::Vec6f t = triangulation2D[i];
 
       // get lmk ids mapPoints3d_ (iterators)
@@ -152,22 +154,34 @@ public:
       int rowId_pt2 = findRowIdFromPixel(frame, cv::Point2f(t[2], t[3]));
       int rowId_pt3 = findRowIdFromPixel(frame, cv::Point2f(t[4], t[5]));
 
-      double ratioSquaredSides = 1,ratioTangentialRadial = 1;
+      double maxTriangleSide = 1.0; //[m]
+      double ratioSides = 1,ratioTangentialRadial = 1, maxTriangleSide_i = 1;
+      double d12, d23, d31;
       if(minRatioBetweenLargestAnSmallestSide > 0){ // if threshold is disabled, avoid computation
-        ratioSquaredSides = getRatioBetweenSmallestAndLargestSidesquared(rowId_pt1,rowId_pt2,rowId_pt3);
+        ratioSides = getRatioBetweenSmallestAndLargestSide(rowId_pt1,rowId_pt2,rowId_pt3,d12, d23, d31);
       }
       if(min_elongation_ratio > 0){ // if threshold is disabled, avoid computation
        ratioTangentialRadial = getRatioBetweenTangentialAndRadialDisplacement(rowId_pt1,rowId_pt2,rowId_pt3, leftCameraPose);
       }
+      if(maxTriangleSide < 0){ // if threshold is disabled, avoid computation
+        maxTriangleSide_i = std::max(d12, std::max(d23, d31));
+      }
+
+      if(ratioSides >= minRatioBetweenLargestAnSmallestSide)
+        countSmallRatio++;
+
       // check if triangle is not elongated
-      if( (sqrt(ratioSquaredSides) >= minRatioBetweenLargestAnSmallestSide) &&
-          (ratioTangentialRadial >= min_elongation_ratio)){
+      if( (ratioSides >= minRatioBetweenLargestAnSmallestSide) &&
+          (ratioTangentialRadial >= min_elongation_ratio) &&
+          maxTriangleSide_i <= maxTriangleSide)
+      {
         polygon.push_back(3); // add rows
         polygon.push_back(rowId_pt1); // row in mapPoints3d_
         polygon.push_back(rowId_pt2); // row in mapPoints3d_
         polygon.push_back(rowId_pt3); // row in mapPoints3d_
       }
     }
+    std::cout << "fraction of large ratio triangles: " << double(countSmallRatio) / double(triangulation2D.size()) << std::endl;
     return polygon;
   }
   /* ----------------------------------------------------------------------------- */

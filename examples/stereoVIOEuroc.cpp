@@ -102,7 +102,7 @@ int main(const int argc, const char *argv[])
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::MESH2DTo3Dplanes; // MESH2Dobs MESH3D MESH2DTo3Dobs
+  VisualizationType visualizationType = VisualizationType::MESH2DTo3Dsparse; // MESH2Dobs MESH3D MESH2DTo3Dobs
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
@@ -319,13 +319,13 @@ int main(const int argc, const char *argv[])
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
         // (updateMesh3D also filters out geometrically)
-        case VisualizationType::MESH2DTo3Dplanes: // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
+        case VisualizationType::MESH2DTo3Dsparse: // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
         {
           std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
           int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
-          float maxGradInTriangle = 50.0;
+          float maxGradInTriangle = -1; //50.0;
           double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
           double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,W_Pose_camlkf_vio,
@@ -345,8 +345,8 @@ int main(const int argc, const char *argv[])
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
           float maxGradInTriangle = -1; // 50 // TODO: re-enable
-          double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
-          double min_elongation_ratio = -1; // = 0.5;  // TODO: this check should be improved
+          double minRatioBetweenLargestAnSmallestSide = 0.7; //= 0.5; // TODO: this check should be improved
+          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,W_Pose_camlkf_vio,
               Mesh2Dtype::DENSE,
               maxGradInTriangle, minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
