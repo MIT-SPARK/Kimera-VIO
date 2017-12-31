@@ -344,9 +344,9 @@ int main(const int argc, const char *argv[])
           int  minKfValidPoints = 0;
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
-          float maxGradInTriangle = 50.0;
-          double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
-          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          float maxGradInTriangle = -1; // 50 // TODO: re-enable
+          double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
+          double min_elongation_ratio = -1; // = 0.5;  // TODO: this check should be improved
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,W_Pose_camlkf_vio,
               Mesh2Dtype::DENSE,
               maxGradInTriangle, minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);

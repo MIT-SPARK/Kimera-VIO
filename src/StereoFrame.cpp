@@ -365,7 +365,7 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
   {
     // find all pixels with grad higher then gradBound
     std::vector<std::pair<KeypointCV,double>> keypointsWithHighIntensities =
-        UtilsOpenCV::FindHighIntensityInTriangle(left_img_grads, triangulation2D.at(i),gradBound);
+        UtilsOpenCV::FindHighIntensityInTriangle(left_img_grads, triangulation2D.at(i), gradBound);
 
     // if no high-grad pixels exist, then this triangle is a plane
     if(keypointsWithHighIntensities.size() == 0){ // if there is no high-gradient point

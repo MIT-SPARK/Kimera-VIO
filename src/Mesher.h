@@ -152,11 +152,15 @@ public:
       int rowId_pt2 = findRowIdFromPixel(frame, cv::Point2f(t[2], t[3]));
       int rowId_pt3 = findRowIdFromPixel(frame, cv::Point2f(t[4], t[5]));
 
-      double ratioSquaredSides = getRatioBetweenSmallestAndLargestSidesquared(rowId_pt1,rowId_pt2,rowId_pt3);
-      double ratioTangentialRadial = 1; // TODO getRatioBetweenTangentialAndRadialDisplacement(rowId_pt1,rowId_pt2,rowId_pt3, leftCameraPose);
-
+      double ratioSquaredSides = 1,ratioTangentialRadial = 1;
+      if(minRatioBetweenLargestAnSmallestSide > 0){ // if threshold is disabled, avoid computation
+        ratioSquaredSides = getRatioBetweenSmallestAndLargestSidesquared(rowId_pt1,rowId_pt2,rowId_pt3);
+      }
+      if(min_elongation_ratio > 0){ // if threshold is disabled, avoid computation
+       ratioTangentialRadial = getRatioBetweenTangentialAndRadialDisplacement(rowId_pt1,rowId_pt2,rowId_pt3, leftCameraPose);
+      }
       // check if triangle is not elongated
-      if( (ratioSquaredSides >= minRatioBetweenLargestAnSmallestSide*minRatioBetweenLargestAnSmallestSide) &&
+      if( (sqrt(ratioSquaredSides) >= minRatioBetweenLargestAnSmallestSide) &&
           (ratioTangentialRadial >= min_elongation_ratio)){
         polygon.push_back(3); // add rows
         polygon.push_back(rowId_pt1); // row in mapPoints3d_

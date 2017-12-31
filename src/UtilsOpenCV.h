@@ -827,6 +827,11 @@ public:
   // compute max intensity of pixels within a triangle specified by the pixel location of its vertices
   static std::vector<std::pair<KeypointCV,double>> FindHighIntensityInTriangle(const cv::Mat img, const cv::Vec6f px_vertices, const float intensityThreshold){
 
+    std::vector<std::pair<KeypointCV,double>> keypointsWithIntensities;
+    if(intensityThreshold < 0){ // check is disabled
+      return keypointsWithIntensities;
+    }
+
     bool isDebug = false;
     // parse input vertices
     int x0 = std::round(px_vertices[0]);
@@ -858,7 +863,6 @@ public:
       cv::line(imgCopy, pt[2], pt[0], cv::Scalar(0, 255,0), 1, CV_AA, 0);
     }
 
-    std::vector<std::pair<KeypointCV,double>> keypointsWithIntensities;
     for (int r = topLeft_y; r < botRight_y; r++) {
       // find smallest col inside triangle:
       int min_x = botRight_x; // initialized to largest
