@@ -307,9 +307,9 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
     // Create mask around existing keypoints
     cv::Mat left_img_grads_filtered = left_img_grads.clone();
     for(size_t i = 0; i < ref_frame.keypoints_.size(); ++i) {
-      //if(ref_frame.landmarks_.at(i) != -1) {
+      if(ref_frame.landmarks_.at(i) != -1) {
         cv::circle(left_img_grads_filtered, ref_frame.keypoints_.at(i), 5, cv::Scalar(0), CV_FILLED);
-      //}
+      }
     }
     cv::imshow("left_img_grads - filtered",left_img_grads_filtered);
     cv::waitKey(100);
@@ -321,6 +321,8 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
         float intensity_rc = float(left_img_grads_filtered.at<uint8_t>(r, c));
         if(intensity_rc > 125){ // if it's an edge
           kptsWithGradient.push_back(cv::Point2f(c,r));
+          // get rid of the area around the point:
+          cv::circle(left_img_grads_filtered, cv::Point2f(c,r), 10, cv::Scalar(0), CV_FILLED);
         }
         if(useCanny && (intensity_rc != 0 && intensity_rc != 255))
           throw std::runtime_error("createMesh2Dplanes: wrong Canny");
@@ -333,7 +335,6 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
       if(left_keypoints_rectified.at(i).first == Kstatus::VALID){ // if rectification was correct
         cv::Point2f kpt_i_rectified = left_keypoints_rectified.at(i).second; // get rectified keypoint:
         double disparity_i = double( disparity.at<int16_t>(kpt_i_rectified) ) / 16.0; // get disparity:
-        std::cout << "disparity_i " << disparity_i << std::endl;
         // get depth
         double fx = left_undistRectCameraMatrix_.fx();
         double fx_b = fx * baseline();
@@ -344,7 +345,7 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
           Vector3 versor_i = camLrect_R_camL.rotate( versor_rect_i );
           if(versor_i(2) < 1e-3) { throw std::runtime_error("sparseStereoMatching: found point with nonpositive depth! (2)"); }
           gtsam::Point3 p = versor_i * depth / versor_i(2); // in the camera frame
-          p.print("point from versor");
+          // p.print("point from versor");
           // store point
           keypointsToTriangulate.push_back(kptsWithGradient.at(i));
           extraStereoKeypoints_.push_back(std::make_pair(kptsWithGradient.at(i),p));

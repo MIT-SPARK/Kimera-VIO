@@ -84,19 +84,16 @@ public:
 
     // get 3D points
     cv::Point3f p1 = mapPoints3d_.at<cv::Point3f>(rowId_pt1);
-    std::cout << "p1 " << p1 << std::endl;
     gtsam::Point3 p1_C = gtsam::Point3(double(p1.x),double(p1.y),double(p1.z));
     points.push_back(leftCameraPose.transform_to(p1_C)); // checks elongation in *camera frame*
 
     cv::Point3f p2 = mapPoints3d_.at<cv::Point3f>(rowId_pt2);
     gtsam::Point3 p2_C = gtsam::Point3(double(p2.x),double(p2.y),double(p2.z));
     points.push_back(leftCameraPose.transform_to(p2_C)); // checks elongation in *camera frame*
-    std::cout << "p2 " << p2 << std::endl;
 
     cv::Point3f p3 = mapPoints3d_.at<cv::Point3f>(rowId_pt3);
     gtsam::Point3 p3_C = gtsam::Point3(double(p3.x),double(p3.y),double(p3.z));
     points.push_back(leftCameraPose.transform_to(p3_C)); // checks elongation in *camera frame*
-    std::cout << "p3 " << p3 << std::endl;
 
     return UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
   }
@@ -156,7 +153,7 @@ public:
       int rowId_pt3 = findRowIdFromPixel(frame, cv::Point2f(t[4], t[5]));
 
       double ratioSquaredSides = getRatioBetweenSmallestAndLargestSidesquared(rowId_pt1,rowId_pt2,rowId_pt3);
-      double ratioTangentialRadial = getRatioBetweenTangentialAndRadialDisplacement(rowId_pt1,rowId_pt2,rowId_pt3, leftCameraPose);
+      double ratioTangentialRadial = 1; // TODO getRatioBetweenTangentialAndRadialDisplacement(rowId_pt1,rowId_pt2,rowId_pt3, leftCameraPose);
 
       // check if triangle is not elongated
       if( (ratioSquaredSides >= minRatioBetweenLargestAnSmallestSide*minRatioBetweenLargestAnSmallestSide) &&
@@ -188,7 +185,6 @@ public:
         cv::Point3f p(float(point_i.x()), float(point_i.y()), float(point_i.z()));
         mapPoints3d_.push_back(p);
         lmkIdToMapPointId_.insert(std::make_pair(lmk_id, points3D_count_));
-        std::cout << "inserted lmk_id "<< lmk_id << " pointing to "<< points3D_count_ << std::endl;
         ++points3D_count_;
       }
       else // replace point for existing landmark
@@ -206,8 +202,6 @@ public:
       gtsam::Point3 point_i = pointsWithoutId.at(i).second;
 
       cv::Point3f p(float(point_i.x()), float(point_i.y()), float(point_i.z()));
-      std::cout << "without " << p << std::endl;
-
       mapPoints3d_.push_back(p);
       keypointToMapPointId_.push_back(std::pair<KeypointCV,int>(kps_i,points3D_count_));
       ++points3D_count_;
@@ -255,8 +249,6 @@ public:
       }
     }
     updateMap3D(pointsWithId,pointsWithoutId);
-    std::cout << "after update map: pointsWithId.size() " <<  pointsWithId.size()<< std::endl;
-    std::cout << "after update map: pointsWithoutId.size() " <<  pointsWithoutId.size()<< std::endl;
 
     std::cout << "before polygonsMesh_.size() " <<  polygonsMesh_.size << std::endl;
     // concatenate mesh in the current image to existing mesh
