@@ -303,12 +303,13 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
     extraStereoKeypoints_.resize(0); // reset
 
     cv::Mat disparity = getDisparityImage();
+    int pxRadiusSubsample = 20;
 
     // Create mask around existing keypoints
     cv::Mat left_img_grads_filtered = left_img_grads.clone();
     for(size_t i = 0; i < ref_frame.keypoints_.size(); ++i) {
       if(ref_frame.landmarks_.at(i) != -1) {
-        cv::circle(left_img_grads_filtered, ref_frame.keypoints_.at(i), 5, cv::Scalar(0), CV_FILLED);
+        cv::circle(left_img_grads_filtered, ref_frame.keypoints_.at(i), pxRadiusSubsample, cv::Scalar(0), CV_FILLED);
       }
     }
     cv::imshow("left_img_grads - filtered",left_img_grads_filtered);
@@ -322,7 +323,7 @@ void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, boo
         if(intensity_rc > 125){ // if it's an edge
           kptsWithGradient.push_back(cv::Point2f(c,r));
           // get rid of the area around the point:
-          cv::circle(left_img_grads_filtered, cv::Point2f(c,r), 10, cv::Scalar(0), CV_FILLED);
+          cv::circle(left_img_grads_filtered, cv::Point2f(c,r), pxRadiusSubsample, cv::Scalar(0), CV_FILLED);
         }
         if(useCanny && (intensity_rc != 0 && intensity_rc != 255))
           throw std::runtime_error("createMesh2Dplanes: wrong Canny");
