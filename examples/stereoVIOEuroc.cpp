@@ -328,9 +328,10 @@ int main(const int argc, const char *argv[])
           float maxGradInTriangle = -1; //50.0;
           double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
           double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          double maxTriangleSide = 0.5;
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,W_Pose_camlkf_vio,
               Mesh2Dtype::VALIDKEYPOINTS,
-              maxGradInTriangle, minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
+              maxGradInTriangle, minRatioBetweenLargestAnSmallestSide,min_elongation_ratio,maxTriangleSide);
 
           visualizer.visualizeMesh3D(mesher);
           break;
@@ -345,11 +346,12 @@ int main(const int argc, const char *argv[])
           VioBackEnd::PointsWithId pointsWithId = vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
           float maxGradInTriangle = -1; // 50 // TODO: re-enable
-          double minRatioBetweenLargestAnSmallestSide = 0.7; //= 0.5; // TODO: this check should be improved
+          double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
           double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          double maxTriangleSide = 1.0;
           mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd.stereoFrame_lkf_,W_Pose_camlkf_vio,
               Mesh2Dtype::DENSE,
-              maxGradInTriangle, minRatioBetweenLargestAnSmallestSide,min_elongation_ratio);
+              maxGradInTriangle, minRatioBetweenLargestAnSmallestSide,min_elongation_ratio,maxTriangleSide);
 
           visualizer.visualizeMesh3D(mesher);
           break;

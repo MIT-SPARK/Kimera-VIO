@@ -54,7 +54,9 @@ public:
       const int rowId_pt1, const int rowId_pt2, const int rowId_pt3,
       boost::optional<double &> d12_out = boost::none,
       boost::optional<double &> d23_out = boost::none,
-      boost::optional<double &> d31_out = boost::none) const{
+      boost::optional<double &> d31_out = boost::none,
+      boost::optional<double &> minSide_out = boost::none,
+      boost::optional<double &> maxSide_out = boost::none) const{
 
     // get 3D points
     cv::Point3f p1 = mapPoints3d_.at<cv::Point3f>(rowId_pt1);
@@ -62,18 +64,23 @@ public:
     cv::Point3f p3 = mapPoints3d_.at<cv::Point3f>(rowId_pt3);
 
     // measure sides:
-    double d12 = double( (p1.x - p2.x)*(p1.x - p2.x) + (p1.y - p2.y)*(p1.y - p2.y) + (p1.z - p2.z)*(p1.z - p2.z) );
-    double d23 = double( (p2.x - p3.x)*(p2.x - p3.x) + (p2.y - p3.y)*(p2.y - p3.y) + (p2.z - p3.z)*(p2.z - p3.z) );
-    double d31 = double( (p3.x - p1.x)*(p3.x - p1.x) + (p3.y - p1.y)*(p3.y - p1.y) + (p3.z - p1.z)*(p3.z - p1.z) );
+    double d12 = double(cv::norm(p1-p2));
+    double d23 = double(cv::norm(p2-p3));
+    double d31 = double(cv::norm(p3-p1));
+    double minSide = std::min(d12,std::min(d23,d31));
+    double maxSide = std::max(d12,std::max(d23,d31));
 
     if(d12_out && d23_out && d31_out){ // return distances, mainly for debug
       *d12_out = d12;
       *d23_out = d23;
       *d31_out = d31;
     }
+    if(minSide_out && maxSide_out){
+      *minSide_out = minSide;
+      *maxSide_out = maxSide;
+    }
     // compute and return ratio
-    double ratio = std::min(d12,std::min(d23,d31)) / std::max(d12,std::max(d23,d31));
-    return sqrt(ratio);
+    return minSide / maxSide;
   }
   /* ----------------------------------------------------------------------------- */
     // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
@@ -131,17 +138,57 @@ public:
     if(found == false){ throw std::runtime_error("findRowIdFromPixel: kpt not found at all"); }
     return rowId_pt;
   }
+  /* ----------------------------------------------------------------------------- */
+  // Try to reject bad triangles, corresponding to outliers
+  void filterOutBadTriangles(gtsam::Pose3 leftCameraPose,
+      double minRatioBetweenLargestAnSmallestSide,
+      double min_elongation_ratio,
+      double maxTriangleSide)
+  {
+    double ratioSides_i = 1.0,ratioTangentialRadial_i = 1.0, maxTriangleSide_i = 2.0;
+    cv::Mat tmpPolygons = polygonsMesh_.clone();
+    polygonsMesh_ = cv::Mat(0,1,CV_32SC1); // reset
 
+    for(size_t i=0;i<tmpPolygons.rows;i=i+4){ // for each polygon
+      // get polygon vertices:
+      if(tmpPolygons.at<int32_t>(i) != 3){
+        throw std::runtime_error("filterOutBadTriangles: expecting 3 vertices in triangle");
+      }
+      int rowId_pt1 = tmpPolygons.at<int32_t>(i+1);
+      int rowId_pt2 = tmpPolygons.at<int32_t>(i+2);
+      int rowId_pt3 = tmpPolygons.at<int32_t>(i+3);
+
+      // check geometric dimensions
+      double d12, d23, d31;
+      if(minRatioBetweenLargestAnSmallestSide > 0.0){ // if threshold is disabled, avoid computation
+        ratioSides_i = getRatioBetweenSmallestAndLargestSide(rowId_pt1,rowId_pt2,rowId_pt3,d12,d23,d31);
+      }
+      if(min_elongation_ratio > 0.0){ // if threshold is disabled, avoid computation
+        ratioTangentialRadial_i = getRatioBetweenTangentialAndRadialDisplacement(rowId_pt1,rowId_pt2,rowId_pt3, leftCameraPose);
+      }
+      if(maxTriangleSide > 0.0){ // if threshold is disabled, avoid computation
+        std::vector<double> sidesLen; sidesLen.push_back(d12);sidesLen.push_back(d23);sidesLen.push_back(d31);
+        maxTriangleSide_i = *std::max_element(sidesLen.begin(), sidesLen.end());
+      }
+      // check if triangle is not elongated
+      if( (ratioSides_i >= minRatioBetweenLargestAnSmallestSide) &&
+          (ratioTangentialRadial_i >= min_elongation_ratio) &&
+          maxTriangleSide_i <= maxTriangleSide)
+      {
+        polygonsMesh_.push_back(3); // add rows
+        polygonsMesh_.push_back(rowId_pt1); // row in mapPoints3d_
+        polygonsMesh_.push_back(rowId_pt2); // row in mapPoints3d_
+        polygonsMesh_.push_back(rowId_pt3); // row in mapPoints3d_
+      }
+    }
+  }
   /* ----------------------------------------------------------------------------- */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  cv::Mat getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D, Frame& frame,
-      gtsam::Pose3 leftCameraPose, // for some geometric check
-      double minRatioBetweenLargestAnSmallestSide, double min_elongation_ratio) const{
+  cv::Mat getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D, Frame& frame) const{
     // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
     // where n is the number of points in the polygon, and id is a zero-offset
     // index into an associated cloud.
     cv::Mat polygon(0,1,CV_32SC1);
-    int countSmallRatio = 0;
 
     // Populate polygons with indices:
     // note: we restrict to valid triangles in which each landmark has a 3D point
@@ -154,34 +201,11 @@ public:
       int rowId_pt2 = findRowIdFromPixel(frame, cv::Point2f(t[2], t[3]));
       int rowId_pt3 = findRowIdFromPixel(frame, cv::Point2f(t[4], t[5]));
 
-      double maxTriangleSide = 1.0; //[m]
-      double ratioSides = 1,ratioTangentialRadial = 1, maxTriangleSide_i = 1;
-      double d12, d23, d31;
-      if(minRatioBetweenLargestAnSmallestSide > 0){ // if threshold is disabled, avoid computation
-        ratioSides = getRatioBetweenSmallestAndLargestSide(rowId_pt1,rowId_pt2,rowId_pt3,d12, d23, d31);
-      }
-      if(min_elongation_ratio > 0){ // if threshold is disabled, avoid computation
-       ratioTangentialRadial = getRatioBetweenTangentialAndRadialDisplacement(rowId_pt1,rowId_pt2,rowId_pt3, leftCameraPose);
-      }
-      if(maxTriangleSide < 0){ // if threshold is disabled, avoid computation
-        maxTriangleSide_i = std::max(d12, std::max(d23, d31));
-      }
-
-      if(ratioSides >= minRatioBetweenLargestAnSmallestSide)
-        countSmallRatio++;
-
-      // check if triangle is not elongated
-      if( (ratioSides >= minRatioBetweenLargestAnSmallestSide) &&
-          (ratioTangentialRadial >= min_elongation_ratio) &&
-          maxTriangleSide_i <= maxTriangleSide)
-      {
-        polygon.push_back(3); // add rows
-        polygon.push_back(rowId_pt1); // row in mapPoints3d_
-        polygon.push_back(rowId_pt2); // row in mapPoints3d_
-        polygon.push_back(rowId_pt3); // row in mapPoints3d_
-      }
+      polygon.push_back(3); // add rows
+      polygon.push_back(rowId_pt1); // row in mapPoints3d_
+      polygon.push_back(rowId_pt2); // row in mapPoints3d_
+      polygon.push_back(rowId_pt3); // row in mapPoints3d_
     }
-    std::cout << "fraction of large ratio triangles: " << double(countSmallRatio) / double(triangulation2D.size()) << std::endl;
     return polygon;
   }
   /* ----------------------------------------------------------------------------- */
@@ -233,7 +257,8 @@ public:
       Mesh2Dtype mesh2Dtype = Mesh2Dtype::VALIDKEYPOINTS,
       float maxGradInTriangle = 50,
       double minRatioBetweenLargestAnSmallestSide = 0,
-      double min_elongation_ratio = 0.5)
+      double min_elongation_ratio = 0.5,
+      double maxTriangleSide = 10)
   {
     // debug:
     bool doVisualize2Dmesh = true;
@@ -271,9 +296,13 @@ public:
     std::cout << "before polygonsMesh_.size() " <<  polygonsMesh_.size << std::endl;
     // concatenate mesh in the current image to existing mesh
     polygonsMesh_.push_back(getTriangulationIndices(stereoFrame->triangulation2Dplanes_,
-        stereoFrame->left_frame_, leftCameraPose,
-        minRatioBetweenLargestAnSmallestSide,min_elongation_ratio));
+        stereoFrame->left_frame_));
     std::cout << "after polygonsMesh_.size() " <<  polygonsMesh_.size << std::endl;
+
+    filterOutBadTriangles(leftCameraPose,
+            minRatioBetweenLargestAnSmallestSide,
+            min_elongation_ratio,
+            maxTriangleSide);
 
     // after filling in polygonsMesh_, we don't need this, and it must be reset:
     keypointToMapPointId_.resize(0);
@@ -283,8 +312,9 @@ public:
   void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
       Frame& frame,
       gtsam::Pose3 leftCameraPose,
-      double minRatioBetweenLargestAnSmallestSide = 0,
-      double min_elongation_ratio = 0.5)
+      double minRatioBetweenLargestAnSmallestSide = 0.0,
+      double min_elongation_ratio = 0.5,
+      double maxTriangleSide = 10.0)
   {
     // debug:
     bool doVisualize2Dmesh = true;
@@ -297,9 +327,12 @@ public:
     if(doVisualize2Dmesh){frame.visualizeMesh2D(100);}
 
     // concatenate mesh in the current image to existing mesh
-    polygonsMesh_.push_back(getTriangulationIndices(frame.triangulation2D_,
-        frame, leftCameraPose,
-        minRatioBetweenLargestAnSmallestSide,min_elongation_ratio));
+    polygonsMesh_.push_back(getTriangulationIndices(frame.triangulation2D_,frame));
+
+    filterOutBadTriangles(leftCameraPose,
+        minRatioBetweenLargestAnSmallestSide,
+        min_elongation_ratio,
+        maxTriangleSide);
   }
 };
 } // namespace VIO
