@@ -20,7 +20,7 @@ include_directories(/usr/local/include//opengv/)
 set (LIBS "${LIBS}" /usr/local/lib/libopengv.a)
 
 ### Find opencv
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3.3.1 REQUIRED)
 if (OpenCV_FOUND)
   message(STATUS "FOUND OpenCV! ${OpenCV_INCLUDE_DIRS}")
   message(STATUS "LIB_PATH = ${OpenCV_LIBS}")
