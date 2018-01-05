@@ -14,6 +14,7 @@
 
 //#define USE_CGAL
 
+#include "gflags/gflags.h"
 #include "ETH_parser.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
@@ -22,12 +23,28 @@
 #include <gtsam/geometry/Pose3.h>
 #include "../src/Visualizer3D.h"
 
+DEFINE_int32(viz_type, 3,
+  "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
+  "1: POINTCLOUD_REPEATEDPOINTS, visualize VIO points as point clouds (points "
+    "are re-plotted at every frame)\n"
+  "2: MESH2D, only visualizes 2D mesh on image\n"
+  "3: MESH2DTo3D, get a 3D mesh from a 2D triangulation of the (right-VALID) "
+    "keypoints in the left frame\n"
+  "4: MESH2DTo3Ddense, dense triangulation of stereo corners (only a subset "
+    "are VIO keypoints)\n"
+  "5: MESH2Dplanes, visualize a 2D mesh of (right-valid) keypoints discarding "
+    "triangles corresponding to non planar obstacles\n"
+  "6: MESH2DTo3Dsparse, same as MESH2DTo3D but filters out triangles "
+    "corresponding to non planar obstacles\n"
+  "7: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
+  "8: NONE, does not visualize map\n");
+
 using namespace std;
 using namespace gtsam;
 using namespace VIO;
 
 // helper function to parse dataset and user-specified parameters
-void parseDatasetAndParams(const int argc, const char *argv[],
+void parseDatasetAndParams(const int argc, const char * const *argv,
     //output:
     ETHDatasetParser& dataset,VioBackEndParams& vioParams,VioFrontEndParams& trackerParams,
     size_t& initial_k, size_t& final_k){
@@ -95,14 +112,17 @@ void parseDatasetAndParams(const int argc, const char *argv[],
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int main(const int argc, const char *argv[])
+int main(int argc, char *argv[])
 {
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+
   // initialize random seed for repeatability (only on the same machine)
   // srand(0); // still does not make RANSAC REPEATABLE across different machines
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
   const bool doVisualize = true;
-  VisualizationType visualizationType = VisualizationType::MESH2DTo3Dsparse; // MESH2Dobs MESH3D MESH2DTo3Dobs
+  VisualizationType visualizationType = static_cast<VisualizationType>(
+        FLAGS_viz_type); // MESH2Dobs MESH3D MESH2DTo3Dobs
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
