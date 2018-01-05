@@ -21,7 +21,8 @@
 #endif
 
 namespace VIO {
-enum VisualizationType {
+
+enum class VisualizationType {
   POINTCLOUD, // visualize 3D VIO points  (no repeated point)
   POINTCLOUD_REPEATEDPOINTS, // visualize VIO points as point clouds (points are re-plotted at every frame)
   MESH2D, // only visualizes 2D mesh on image
