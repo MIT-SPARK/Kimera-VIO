@@ -43,6 +43,10 @@ else()
     message(STATUS "CGAL not found - code will work, but flag USE_CGAL = false.")
 endif()
 
+### Include the gflags directory
+add_subdirectory(lib/gflags)
+set (LIBS "${LIBS}" gflags)
+
 #include_directories($CGAL_DIR)
 #find_package(CGAL REQUIRED COMPONENTS Core)
 #include( ${CGAL_USE_FILE} )
