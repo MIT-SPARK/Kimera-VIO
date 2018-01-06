@@ -12,7 +12,7 @@
  * @author Luca Carlone
  */
 
-//#define USE_CGAL
+#define USE_CGAL
 
 #include "gflags/gflags.h"
 #include "ETH_parser.h"
@@ -329,7 +329,7 @@ int main(int argc, char *argv[])
         // computes and visualizes 2D mesh
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
-        case VisualizationType::MESH2Dplanes: // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
+        case VisualizationType::MESH2Dsparse: // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
         {
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes();
           stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);

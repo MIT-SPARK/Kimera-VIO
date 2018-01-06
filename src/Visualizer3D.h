@@ -28,7 +28,7 @@ enum class VisualizationType {
   MESH2D, // only visualizes 2D mesh on image
   MESH2DTo3D, // get a 3D mesh from a 2D triangulation of the (right-VALID) keypoints in the left frame
   MESH2DTo3Ddense, // dense triangulation of stereo corners (only a subset are VIO keypoints)
-  MESH2Dplanes, // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
+  MESH2Dsparse, // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
   MESH2DTo3Dsparse, // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
   MESH3D, // 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)
   NONE // does not visualize map

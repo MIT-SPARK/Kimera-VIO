@@ -33,7 +33,6 @@ namespace VIO {
 
 class Mesher {
 
-
 public:
   using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, int>; // map a lmk id to a row in mapPoints3d_
   using KeypointToMapPointId = std::vector< std::pair<KeypointCV,int>>; // map a keypoint (without lmk id) to a row in mapPoints3d_
@@ -44,7 +43,7 @@ public:
   int points3D_count_; // number of points
   KeypointToMapPointId keypointToMapPointId_;
 
-// constructors
+  // constructors
   Mesher(): polygonsMesh_(cv::Mat(0,1,CV_32SC1)), points3D_count_(0) { }
 
   /* ----------------------------------------------------------------------------- */
