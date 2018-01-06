@@ -102,6 +102,12 @@ $ make -j8
 $ sudo make install
 ```
 
+Submodules
+----------------------
+Third-party software used and included in this repository as submodules:
+- glog: https://github.com/google/glog.
+- gflags: https://github.com/gflags/gflags
+
 Running examples
 ----------------------
 
