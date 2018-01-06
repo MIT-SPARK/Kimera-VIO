@@ -1,0 +1,6 @@
+[submodule "lib/gflags"]
+	path = lib/gflags
+	url = git@github.com:gflags/gflags.git
+[submodule "lib/glog"]
+	path = lib/glog
+	url = git@github.com:google/glog.git

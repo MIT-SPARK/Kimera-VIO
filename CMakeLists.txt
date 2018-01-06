@@ -33,15 +33,19 @@ set (LIBS "${LIBS}" ${OpenCV_LIBS})
 ### Find CGAL (not REQUIRED)
 message(STATUS "Setting CGAL on Luca's machine")
 find_package(CGAL COMPONENTS Core)
-set (CGAL_DIR /home/luca/Desktop/code/CGAL-4.11/build/) 
+set (CGAL_DIR /home/luca/Desktop/code/CGAL-4.11/build/)
 if ( CGAL_FOUND )
   include( ${CGAL_USE_FILE} )
   include( CGAL_CreateSingleSourceCGALProgram )
   include_directories (BEFORE "../../include")
   set (LIBS "${LIBS}" ${CGAL_LIBS})
-else() 
+else()
     message(STATUS "CGAL not found - code will work, but flag USE_CGAL = false.")
 endif()
+
+### Include the gflags directory
+add_subdirectory(lib/gflags)
+set (LIBS "${LIBS}" gflags)
 
 #include_directories($CGAL_DIR)
 #find_package(CGAL REQUIRED COMPONENTS Core)
@@ -65,13 +69,18 @@ message(STATUS "ALL LIBS: ${LIBS}")
 ### Compile the code
 include_directories("./src")
 
-add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp 
-    ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp  ./src/Tracker.cpp ./src/StereoFrame.cpp ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp)
-target_link_libraries (stereoVIOEuroc ${LIBS})
+add_library(stereoVIO ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
+                      ./src/Tracker.cpp ./src/StereoFrame.cpp
+                      ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
+                      ./src/FeatureSelector.h ./src/LoggerMatlab.h
+                      ./src/VioBackEndParams.h ./src/VioFrontEndParams.h)
+target_link_libraries(stereoVIO ${LIBS})
 
-add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp 
-    ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp  ./src/Tracker.cpp ./src/StereoFrame.cpp ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp)
-target_link_libraries (stereoVIOSimulation ${LIBS})
+add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
+target_link_libraries (stereoVIOEuroc stereoVIO)
+
+add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
+target_link_libraries (stereoVIOSimulation stereoVIO)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)

@@ -13,6 +13,8 @@ VIO is a library of C++ classes that implement the visual-inertial odometry pipe
 Quickstart
 ----------
 
+Clone this repository, including submodules: `git clone --recursive git@github.mit.edu:lcarlone/VIO.git`
+
 In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redrect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly,you may need to change the folder for CGAL and OpenGV):
 
 ```
@@ -99,6 +101,12 @@ $ cmake ../
 $ make -j8 
 $ sudo make install
 ```
+
+Submodules
+----------------------
+Third-party software used and included in this repository as submodules:
+- glog: https://github.com/google/glog.
+- gflags: https://github.com/gflags/gflags
 
 Running examples
 ----------------------
