@@ -69,13 +69,16 @@ message(STATUS "ALL LIBS: ${LIBS}")
 ### Compile the code
 include_directories("./src")
 
-add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp 
-    ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp  ./src/Tracker.cpp ./src/StereoFrame.cpp ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp)
-target_link_libraries (stereoVIOEuroc ${LIBS})
+add_library(stereoVIO ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
+                      ./src/Tracker.cpp ./src/StereoFrame.cpp
+                      ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp)
+target_link_libraries(stereoVIO ${LIBS})
 
-add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp 
-    ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp  ./src/Tracker.cpp ./src/StereoFrame.cpp ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp)
-target_link_libraries (stereoVIOSimulation ${LIBS})
+add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
+target_link_libraries (stereoVIOEuroc stereoVIO)
+
+add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
+target_link_libraries (stereoVIOSimulation stereoVIO)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
