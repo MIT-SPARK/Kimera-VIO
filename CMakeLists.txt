@@ -33,13 +33,13 @@ set (LIBS "${LIBS}" ${OpenCV_LIBS})
 ### Find CGAL (not REQUIRED)
 message(STATUS "Setting CGAL on Luca's machine")
 find_package(CGAL COMPONENTS Core)
-set (CGAL_DIR /home/luca/Desktop/code/CGAL-4.11/build/) 
+set (CGAL_DIR /home/luca/Desktop/code/CGAL-4.11/build/)
 if ( CGAL_FOUND )
   include( ${CGAL_USE_FILE} )
   include( CGAL_CreateSingleSourceCGALProgram )
   include_directories (BEFORE "../../include")
   set (LIBS "${LIBS}" ${CGAL_LIBS})
-else() 
+else()
     message(STATUS "CGAL not found - code will work, but flag USE_CGAL = false.")
 endif()
 
@@ -71,7 +71,9 @@ include_directories("./src")
 
 add_library(stereoVIO ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Tracker.cpp ./src/StereoFrame.cpp
-                      ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp)
+                      ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
+                      ./src/FeatureSelector.h ./src/LoggerMatlab.h
+                      ./src/VioBackEndParams.h ./src/VioFrontEndParams.h)
 target_link_libraries(stereoVIO ${LIBS})
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
