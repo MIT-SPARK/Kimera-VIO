@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.0.2)
 # set(CMAKE_CXX_FLAGS "-std=c++11") #  -stdlib=libc++
 # set(CMAKE_CXX_FLAGS "-stdlib=libc++")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -43,9 +43,18 @@ else()
     message(STATUS "CGAL not found - code will work, but flag USE_CGAL = false.")
 endif()
 
+### External Dependencies
+include(ExternalProject)
+
 ### Include the gflags directory
-add_subdirectory(lib/gflags)
-set (LIBS "${LIBS}" gflags)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
+list(APPEND VIO_INCLUDE_DIRS PUBLIC ${GFLAGS_INCLUDE_DIRS})
+set(LIBS "${LIBS}" ${GFLAGS_LIBRARIES})
+
+### Include the glog directory
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
+list(APPEND VIO_INCLUDE_DIRS PUBLIC ${GLOG_INCLUDE_DIRS})
+set(LIBS "${LIBS}" ${GLOG_LIBRARIES})
 
 #include_directories($CGAL_DIR)
 #find_package(CGAL REQUIRED COMPONENTS Core)
@@ -73,8 +82,15 @@ add_library(stereoVIO ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Tracker.cpp ./src/StereoFrame.cpp
                       ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
                       ./src/FeatureSelector.h ./src/LoggerMatlab.h
-                      ./src/VioBackEndParams.h ./src/VioFrontEndParams.h)
+                      ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
+                      ./src/CameraParams.h ./src/Frame.h ./src/Mesher_cgal.h
+                      ./src/UtilsGeometry.h ./src/Visualizer3D ./src/UtilsOpenCV.h
+                      )
+if (DEFINED external_project_dependencies)
+  add_dependencies(stereoVIO ${external_project_dependencies})
+endif()
 target_link_libraries(stereoVIO ${LIBS})
+target_include_directories(stereoVIO ${VIO_INCLUDE_DIRS})
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
 target_link_libraries (stereoVIOEuroc stereoVIO)
