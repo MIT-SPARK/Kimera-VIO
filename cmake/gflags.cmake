@@ -16,12 +16,12 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
 
     # we build gflags statically, but want to link it into the caffe shared library
     # this requires position-independent code
-    #if (UNIX)
-    #    set(GFLAGS_EXTRA_COMPILER_FLAGS "-fPIC")
-    #endif()
+    if (UNIX)
+        set(GFLAGS_EXTRA_COMPILER_FLAGS "-fPIC")
+    endif()
 
-    set(GFLAGS_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    set(GFLAGS_C_FLAGS ${CMAKE_C_FLAGS})
+    set(GFLAGS_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS}")
+    set(GFLAGS_C_FLAGS "${CMAKE_C_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS}")
 
     ExternalProject_Add(gflags
       PREFIX ${gflags_PREFIX}
@@ -51,5 +51,4 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
 
     list(APPEND external_project_dependencies gflags)
   endif()
-
 endif()
