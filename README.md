@@ -102,11 +102,9 @@ $ make -j8
 $ sudo make install
 ```
 
-Submodules
+Glog and Gflags
 ----------------------
-Third-party software used and included in this repository as submodules:
-- glog: https://github.com/google/glog.
-- gflags: https://github.com/gflags/gflags
+Glog and gflags will be automatically downloaded using cmake unless there is a system-wide installation found.
 
 Running examples
 ----------------------
