@@ -16,6 +16,7 @@
 #define Visualizer_H_
 
 #include "Mesher.h"
+#include "glog/logging.h"
 #ifdef USE_CGAL
 #include "Mesher_cgal.h"
 #endif
@@ -156,8 +157,12 @@ public:
   void visualizeTrajectory3D(){
     if(trajectoryPoses3d_.size() == 0) // no points to visualize
       return;
-    // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH)
-    cv::viz::WTrajectory trajectory_widget(trajectoryPoses3d_, cv::viz::WTrajectory::BOTH, 0.1, cv::viz::Color::blue());
+    // Show current camera pose.
+    static const cv::Matx33d K (458,0.0,360,0.0,458,240,0.0,0.0,1.0);
+    cv::viz::WCameraPosition cam_widget (K, 1.0, cv::viz::Color::white());
+    myWindow_.showWidget("Camera Pose with Frustum",  cam_widget, trajectoryPoses3d_.back());
+    // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
+    cv::viz::WTrajectory trajectory_widget (trajectoryPoses3d_, cv::viz::WTrajectory::PATH, 1.0, cv::viz::Color::red());
     myWindow_.showWidget("Trajectory",  trajectory_widget);
     /// Start event loop.
     //TODO: myWindow_.spinOnce(50);

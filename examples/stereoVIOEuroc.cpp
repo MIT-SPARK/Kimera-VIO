@@ -15,6 +15,7 @@
 #define USE_CGAL
 
 #include "gflags/gflags.h"
+#include "glog/logging.h"
 #include "ETH_parser.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
@@ -23,6 +24,14 @@
 #include <gtsam/geometry/Pose3.h>
 #include "../src/Visualizer3D.h"
 
+DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
+              "Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).");
+DEFINE_string(vio_params_path, "",
+              "Path to vio user-defined parameters.");
+DEFINE_string(tracker_params_path, "",
+              "Path to tracker user-defined parameters.");
+DEFINE_bool(log_output, false, "Log output to matlab.");
+DEFINE_bool(viz, true, "Enable visualization.");
 DEFINE_int32(viz_type, 3,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
   "1: POINTCLOUD_REPEATEDPOINTS, visualize VIO points as point clouds (points "
@@ -50,14 +59,7 @@ void parseDatasetAndParams(const int argc, const char * const *argv,
     size_t& initial_k, size_t& final_k){
 
   // dataset path
-  std::string dataset_path;
-  if (argc < 2){
-    dataset_path = "/Users/Luca/data/MH_01_easy";
-    std::cout << "stereoVIOexample: no dataset path specified, using default path: " << dataset_path << std::endl;
-  }else{
-    dataset_path = argv[1];
-    std::cout << "stereoVIOexample: using user-specified dataset path: " << dataset_path << std::endl;
-  }
+  VLOG(100) << "stereoVIOexample: using dataset path: " << FLAGS_dataset_path;
 
   // parse the dataset (ETH format)
   std::string leftCameraName = "cam0";
@@ -65,28 +67,34 @@ void parseDatasetAndParams(const int argc, const char * const *argv,
   std::string imuName = "imu0";
   std::string gtSensorName = "state_groundtruth_estimate0";
 
-  dataset.parseDataset(dataset_path, leftCameraName, rightCameraName, imuName, gtSensorName);
+  dataset.parseDataset(FLAGS_dataset_path, leftCameraName, rightCameraName,
+                       imuName, gtSensorName);
   dataset.print();
 
   // read/define vio params
-  if (argc < 3){
-    std::cout << "stereoVIOexample: no vio parameters specified, using default" << std::endl;
-    vioParams = VioBackEndParams(dataset.imuData_.gyro_noise_, dataset.imuData_.acc_noise_,
-        dataset.imuData_.gyro_walk_, dataset.imuData_.acc_walk_); // default params with IMU stats from dataset
-  }else{
-    std::string vioParams_path = argv[2];
-    std::cout << "stereoVIOexample: using user-specified vio parameters: " << vioParams_path << std::endl;
-    vioParams.parseYAML(vioParams_path);
+  if (FLAGS_vio_params_path.empty()) {
+    VLOG(100) << "stereoVIOexample: no vio parameters specified, "
+                 "using default.";
+    // Default params with IMU stats from dataset
+    vioParams = VioBackEndParams(dataset.imuData_.gyro_noise_,
+                                 dataset.imuData_.acc_noise_,
+                                 dataset.imuData_.gyro_walk_,
+                                 dataset.imuData_.acc_walk_);
+  } else {
+    VLOG(100) << "stereoVIOexample: using user-specified vio parameters: "
+              << FLAGS_vio_params_path;
+    vioParams.parseYAML(FLAGS_vio_params_path);
   }
 
   // read/define tracker params
-  if (argc < 4){
-    std::cout << "stereoVIOexample: no tracker parameters specified, using default" << std::endl;
+  if (FLAGS_tracker_params_path.empty()){
+    VLOG(100) << "stereoVIOexample: no tracker parameters specified, "
+                 "using default";
     trackerParams = VioFrontEndParams(); // default params
   }else{
-    std::string trackerParams_path = argv[3];
-    std::cout << "stereoVIOexample: using user-specified vio parameters: " << trackerParams_path << std::endl;
-    trackerParams.parseYAML(trackerParams_path);
+    VLOG(100) << "stereoVIOexample: using user-specified tracker parameters: "
+              << FLAGS_tracker_params_path;
+    trackerParams.parseYAML(FLAGS_tracker_params_path);
   }
 
   // start processing dataset from frame initial_k
@@ -114,13 +122,15 @@ void parseDatasetAndParams(const int argc, const char * const *argv,
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
+  // Initialize Google's flags library.
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+  // Initialize Google's logging library.
+  google::InitGoogleLogging(argv[0]);
 
   // initialize random seed for repeatability (only on the same machine)
   // srand(0); // still does not make RANSAC REPEATABLE across different machines
   const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   const int saveImagesSelector = 1; // 0: don't show, >0 write & save
-  const bool doVisualize = true;
   VisualizationType visualizationType = static_cast<VisualizationType>(
         FLAGS_viz_type); // MESH2Dobs MESH3D MESH2DTo3Dobs
 
@@ -154,7 +164,9 @@ int main(int argc, char *argv[])
 
   // instantiate Logger class (stores data for matlab visualization)
   LoggerMatlab logger;
-  logger.openLogFiles();
+  if (FLAGS_log_output) {
+    logger.openLogFiles();
+  }
 
   Timestamp timestamp_lkf = dataset.timestampAtFrame(initial_k-10); //  timestamp 10 frames before the first (for imu calibration) //TODO: remove hardcoded 10
   Timestamp timestamp_k;
@@ -175,7 +187,7 @@ int main(int argc, char *argv[])
     StereoFrame stereoFrame_k(k,timestamp_k,leftImageName,rightImageName,
         dataset.camera_info["cam0"],dataset.camera_info["cam1"],
         dataset.camL_Pose_calR, trackerParams.getStereoMatchingParams());
-    logger.timing_loadStereoFrame_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    if (FLAGS_log_output) logger.timing_loadStereoFrame_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
 
     ////////////////////////////////////////////////////////////////
     // for k == 1 (initial frame)
@@ -204,8 +216,10 @@ int main(int argc, char *argv[])
         vioBackEnd->initializeStateAndSetPriors(timestamp_k, initialStateGT.pose,initialStateGT.velocity,initialStateGT.imuBias);
       }
       ////////////////// DEBUG INITIALIZATION ////////////////////////////////////////////////
-      logger.displayInitialStateVioInfo(dataset,vioBackEnd,initialStateGT,imu_accgyr,timestamp_k);
-      logger.W_Pose_Bprevkf_vio_ = vioBackEnd->W_Pose_Blkf_; // store latest pose estimate
+      if (FLAGS_log_output){
+        logger.displayInitialStateVioInfo(dataset,vioBackEnd,initialStateGT,imu_accgyr,timestamp_k);
+        logger.W_Pose_Bprevkf_vio_ = vioBackEnd->W_Pose_Blkf_; // store latest pose estimate
+      }
 
       timestamp_lkf = timestamp_k; // store latest keyframe time stamp
       continue;
@@ -223,7 +237,7 @@ int main(int argc, char *argv[])
     // main function for tracking
     startTime = UtilsOpenCV::GetTimeInSeconds();
     StatusSmartStereoMeasurements statusSmartStereoMeasurements = stereoVisionFrontEnd.processStereoFrame(stereoFrame_k, calLrectLkf_R_camLrectKf_imu); // rotation used in 1 and 2 point ransac
-    logger.timing_processStereoFrame_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    if (FLAGS_log_output) logger.timing_processStereoFrame_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
 
     // pass info to vio if it's keyframe
     startTime = UtilsOpenCV::GetTimeInSeconds();
@@ -255,17 +269,22 @@ int main(int argc, char *argv[])
           trackerParams.featureSelectionCriterion_, trackerParams.featureSelectionNrCornersToSelect_, trackerParams.maxFeatureAge_,
           posesAtFutureKeyframes, vioBackEnd->getCurrentStateCovariance(),
           dataset.dataset_name_, frame_km1_debug); // last 2 are for visualization
-      logger.timing_featureSelection_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+      if (FLAGS_log_output) logger.timing_featureSelection_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
       TrackerStatusSummary status = statusSmartStereoMeasurements.first;
       statusSmartStereoMeasurements = std::make_pair(status, // same status as before
               trackedAndSelectedSmartStereoMeasurements);
-      std::cout << "overall selection time (logger.timing_featureSelection_) " << logger.timing_featureSelection_ << std::endl;
-      std::cout << "actual selection time (stereoTracker.tracker_.debugInfo_.featureSelectionTime_) " << stereoVisionFrontEnd.tracker_.debugInfo_.featureSelectionTime_ << std::endl;
+
+      VLOG_IF(100, FLAGS_log_output) << "overall selection time (logger.timing_featureSelection_) "
+                                     << logger.timing_featureSelection_ << '\n'
+                                     << "actual selection time (stereoTracker.tracker_.debugInfo_.featureSelectionTime_) "
+                                     << stereoVisionFrontEnd.tracker_.debugInfo_.featureSelectionTime_;
 
       ////////////////// DEBUG INFO FOR FRONT-END /////////////////////////////////////////////////////////////////
       startTime = UtilsOpenCV::GetTimeInSeconds();
-      logger.logFrontendResults(dataset,stereoVisionFrontEnd,timestamp_lkf,timestamp_k);
-      logger.timing_loggerFrontend_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+      if(FLAGS_log_output) {
+        logger.logFrontendResults(dataset,stereoVisionFrontEnd,timestamp_lkf,timestamp_k);
+        logger.timing_loggerFrontend_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+      }
 
       //////////////////// BACK-END /////////////////////////////////////////////////////////////////////
       // get IMU data
@@ -283,18 +302,20 @@ int main(int argc, char *argv[])
       }else{
         vioBackEnd->addVisualInertialStateAndOptimize(timestamp_k,statusSmartStereoMeasurements,imu_stamps, imu_accgyr); // same but no pose
       }
-      logger.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+      if (FLAGS_log_output) {
+        logger.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
 
-      ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////////////////////////////////////////
-      startTime = UtilsOpenCV::GetTimeInSeconds();
-      logger.logBackendResults(dataset,stereoVisionFrontEnd,vioBackEnd,timestamp_lkf,timestamp_k,k);
-      logger.W_Pose_Bprevkf_vio_ = vioBackEnd->W_Pose_Blkf_;
-      logger.timing_loggerBackend_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
-      logger.displayOverallTiming();
+        ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////////////////////////////////////////
+        startTime = UtilsOpenCV::GetTimeInSeconds();
+        logger.logBackendResults(dataset,stereoVisionFrontEnd,vioBackEnd,timestamp_lkf,timestamp_k,k);
+        logger.W_Pose_Bprevkf_vio_ = vioBackEnd->W_Pose_Blkf_;
+        logger.timing_loggerBackend_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+        logger.displayOverallTiming();
+      }
       ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
       ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////////////////////////////////////////
-      if(doVisualize){
+      if(FLAGS_viz){
         // DEBUG: this is the image from which the triangulation is computed
         //cv::Mat img = stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_.clone();
         //cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
