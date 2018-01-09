@@ -1,0 +1,39 @@
+%YAML:1.0
+#IMU PARAMETERS
+gyroNoiseDensity: 0.00016968
+accNoiseDensity: 0.002
+gyroBiasSigma: 1.9393e-05
+accBiasSigma: 0.003
+imuIntegrationSigma: 1.0e-8
+n_gravity: [0.0, 0.0, -9.81]
+nominalImuRate: 0.005
+#INITIALIZATION PARAMETERS
+autoInitialize: false
+roundOnAutoInitialize: false
+initialPositionSigma: 0.00001
+initialRollPitchSigma: 0.17453292519 # 10.0/180.0*M_PI
+initialYawSigma: 0.00174532925 # 0.1/180.0*M_PI
+initialVelocitySigma: 0.001
+initialAccBiasSigma: 0.1
+initialGyroBiasSigma: 0.01
+#VISION PARAMETERS
+linearizationMode: 0
+degeneracyMode: 1
+smartNoiseSigma: 3
+rankTolerance: 1
+landmarkDistanceThreshold: 20
+outlierRejection: 8
+retriangulationThreshold: 0.001
+addBetweenStereoFactors: true
+betweenRotationPrecision: 0.0 # Inverse of variance.
+betweenTranslationPrecision: 100 # 1/(0.1*0.1)
+relinearizeThreshold: 0.01
+#OPTIMIZATION PARAMETERS
+relinearizeSkip: 1
+zeroVelocitySigma: 0.001
+noMotionPositionSigma: 0.001
+noMotionRotationSigma: 0.0001
+constantVelSigma: 0.01
+numOptimize: 2
+horizon: 6 # In seconds.
+useDogLeg: false
