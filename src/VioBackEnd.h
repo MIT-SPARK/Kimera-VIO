@@ -202,7 +202,6 @@ public:
     smartFactorsParams_.setLandmarkDistanceThreshold(vioParams_.landmarkDistanceThreshold_);
     smartFactorsParams_.setRetriangulationThreshold(vioParams_.retriangulationThreshold_);
     smartFactorsParams_.setDynamicOutlierRejectionThreshold(vioParams_.outlierRejection_);
-    smartFactorsParams_.setEnableEPI(true);
 
     // IMU FACTORS SETTINGS
     imuParams_ = boost::make_shared<PreintegratedImuMeasurements::Params>(vioParams.n_gravity_);
