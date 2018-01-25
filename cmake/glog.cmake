@@ -25,9 +25,6 @@ if (NOT __GLOG_INCLUDED)
     set(GLOG_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GLOG_EXTRA_COMPILER_FLAGS}")
     set(GLOG_C_FLAGS "${CMAKE_C_FLAGS} ${GLOG_EXTRA_COMPILER_FLAGS}")
 
-    message("CMAKE_CXX_FLAGS: " ${CMAKE_CXX_FLAGS} )
-    message("GLOG_CXX_FLAGS: " ${GLOG_CXX_FLAGS} )
-
     # depend on gflags if we're also building it
     if (GFLAGS_EXTERNAL)
       set(GLOG_DEPENDS gflags)
