@@ -103,8 +103,9 @@ public:
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   void createMesh2D(){ // called without input, it considers all valid keypoints for the mesh
-    std::vector<int> selectedIndices(keypoints_.size());
-    std::iota(std::begin(selectedIndices), std::end(selectedIndices), 0);
+    std::vector<int> selectedIndices;
+    selectedIndices.reserve(keypoints_.size()); // preallocate
+    for(int i=0; i < keypoints_.size(); i++){ selectedIndices.push_back(i);}
     triangulation2D_ = CreateMesh2D(*this,selectedIndices);
   }
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
