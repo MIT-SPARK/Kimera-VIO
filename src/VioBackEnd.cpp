@@ -314,6 +314,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id, const FrameId& to_id)
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 LandmarkIds VioBackEnd::addStereoMeasurementsToFeatureTracks(int frameNum, const SmartStereoMeasurements& stereoMeasurements_kf)
 {
+  //TODO: feature tracks will grow unbounded.
   LandmarkIds landmarks_kf;
   landmarks_kf.reserve(stereoMeasurements_kf.size());
   // Pack information in landmark structure
