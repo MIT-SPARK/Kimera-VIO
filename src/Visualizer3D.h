@@ -39,15 +39,18 @@ public:
   cv::viz::WCloudCollection mapWithRepeatedPoints_;
   cv::viz::Viz3d myWindow_;
   std::vector<cv::Affine3f> trajectoryPoses3d_;
+  cv::viz::Color cloudColor;
+  cv::viz::Color backgroundColor;
 
   // constructors
   Visualizer3D(): myWindow_("3D Mapper") {
     // create window and create axes:
+	myWindow_.setBackgroundColor(backgroundColor);
     myWindow_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
-  static void VisualizePoints3D(std::vector<gtsam::Point3> points, int timeHold = 0){
+  static void VisualizePoints3D(std::vector<gtsam::Point3> points, const int waitTime = 0){
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
     if(points.size() == 0) // no points to visualize
@@ -64,7 +67,7 @@ public:
     // pointCloud *= 5.0f; // my guess: rescaling the cloud
 
     // Create a cloud widget.
-    cv::viz::WCloud cloud_widget(pointCloud, cv::viz::Color::green());
+    cv::viz::WCloud cloud_widget(pointCloud, cv::viz::Color::green()); // TODO: consider this entire method with its own window. Is it out of place?
     cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
 
     // create window and create axes:
@@ -75,16 +78,12 @@ public:
     myWindow.showWidget("point cloud map",  cloud_widget);
 
     /// Start event loop.
-    // TODO
-//    if(timeHold == 0)
-//      myWindow.spin();
-//    else
-//      myWindow.spinOnce(timeHold);
+    myWindow.spinOnce(waitTime);
   }
 
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud using cloud widget from opencv viz
-  void visualizeMap3D_repeatedPoints(const std::vector<gtsam::Point3> points){
+  void visualizeMap3D_repeatedPoints(const std::vector<gtsam::Point3> points, const int waitTime = 0){
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
     if(points.size() == 0) // no points to visualize
@@ -100,30 +99,30 @@ public:
     }
 
     // add to the existing map
-    mapWithRepeatedPoints_.addCloud(pointCloud, cv::viz::Color::green());
+    mapWithRepeatedPoints_.addCloud(pointCloud, cloudColor);
     mapWithRepeatedPoints_.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
 
     // plot points
     myWindow_.showWidget("point cloud map", mapWithRepeatedPoints_);
 
     /// Start event loop.
-    //TODO: myWindow_.spinOnce(100);
+    myWindow_.spinOnce(waitTime);
   }
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
-  void visualizePoints3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Mesher& mesher){
+  void visualizePoints3D(const std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId, const Mesher& mesher, const int waitTime = 0){
 
     // sanity check dimension
     if(pointsWithId.size() == 0) // no points to visualize
       return;
 
     // Create a cloud widget.
-    cv::viz::WCloud cloud_widget(mesher.mapPoints3d_, cv::viz::Color::green());
+    cv::viz::WCloud cloud_widget(mesher.mapPoints3d_, cloudColor);
     cloud_widget.setRenderingProperty( cv::viz::POINT_SIZE, 2 );
 
     myWindow_.showWidget("point cloud map",  cloud_widget); // plot points
     /// Start event loop.
-    //TODO: myWindow_.spinOnce(50);
+    myWindow_.spinOnce(waitTime);
   }
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
