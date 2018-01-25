@@ -2,7 +2,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
   set(__GFLAGS_INCLUDED TRUE)
 
   # use the system-wide gflags if present
-  find_package(GFlags)
+  find_package(GFlags QUIET)
   if (GFLAGS_FOUND)
     set(GFLAGS_EXTERNAL FALSE)
   else()
