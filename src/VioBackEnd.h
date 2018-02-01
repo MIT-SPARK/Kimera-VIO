@@ -287,6 +287,9 @@ public:
     debugInfo_.nrZeroElementsInMatrix_ = 0;
   }
 
+  // Virtual destructor needed for potential derived class (i.e. RegularVioBackEnd)
+  virtual ~VioBackEnd() = default;
+
   // STATE ESTIMATES
   ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
   ImuBias imu_bias_prev_kf_;   //!< bias estimate at previous keyframe
