@@ -88,7 +88,8 @@ class RegularVioBackEnd: public VioBackEnd
 //Does this play well with BackendVIO?
 //What happens when we marginalize? (attach right timestamp to landmark.. )
 //
-//};
+};
+
 
 } // namespace VIO
 #endif /* RegularVioBackEnd_H_ */
