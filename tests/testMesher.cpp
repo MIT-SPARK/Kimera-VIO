@@ -38,7 +38,7 @@ TEST(testMesher, getRatioBetweenLargestAnSmallestSide) {
 
   int rowId_pt1 = 0,rowId_pt2 = 2,rowId_pt3 = 3;
   double d12_out, d23_out, d31_out;
-  double actual_ratio = mesher.getRatioBetweenSmallestAndLargestSidesquared(rowId_pt1,rowId_pt2,rowId_pt3);
+  double actual_ratio = mesher.getRatioBetweenSmallestAndLargestSide(rowId_pt1,rowId_pt2,rowId_pt3);
 
   // from MATLAB
   //   A =[   0.5377    0.3188    3.5784
@@ -64,7 +64,7 @@ TEST(testMesher, getRatioBetweenLargestAnSmallestSide2) {
 
   int rowId_pt1 = 0,rowId_pt2 = 2,rowId_pt3 = 3;
   double d12_out_actual,d23_out_actual,d31_out_actual;
-  double actual_ratio = mesher.getRatioBetweenSmallestAndLargestSidesquared(rowId_pt1,rowId_pt2,rowId_pt3,
+  double actual_ratio = mesher.getRatioBetweenSmallestAndLargestSide(rowId_pt1,rowId_pt2,rowId_pt3,
       d12_out_actual, d23_out_actual, d31_out_actual);
 
   // from MATLAB
