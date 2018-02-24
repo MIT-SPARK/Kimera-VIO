@@ -86,6 +86,7 @@ add_library(stereoVIO ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Tracker.cpp ./src/StereoFrame.cpp
                       ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
                       ./src/RegularVioBackEnd.cpp
+                      ./src/RegularPlane3Factor.cpp
                       ./src/FeatureSelector.h ./src/LoggerMatlab.h
                       ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
                       ./src/CameraParams.h ./src/Frame.h ./src/Mesher_cgal.h
@@ -102,6 +103,9 @@ target_link_libraries (stereoVIOEuroc stereoVIO)
 
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
 target_link_libraries (stereoVIOSimulation stereoVIO)
+
+add_executable(regularFactorGraph ./examples/regularFactorGraphExample.cpp)
+target_link_libraries(regularFactorGraph stereoVIO)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
