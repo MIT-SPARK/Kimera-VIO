@@ -41,8 +41,8 @@ public:
   cv::viz::WCloudCollection mapWithRepeatedPoints_;
   cv::viz::Viz3d myWindow_;
   std::vector<cv::Affine3f> trajectoryPoses3d_;
-  cv::viz::Color cloudColor;
-  cv::viz::Color backgroundColor;
+  cv::viz::Color cloudColor = cv::viz::Color::white();
+  cv::viz::Color backgroundColor = cv::viz::Color::black();
 
   // constructors
   Visualizer3D(): myWindow_("3D Mapper") {
