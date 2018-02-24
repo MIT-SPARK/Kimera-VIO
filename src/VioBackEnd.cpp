@@ -192,7 +192,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
   integrateImuMeasurements(imu_stamps, imu_accgyr);
-  addValues(cur_id_);
+  addImuValues(cur_id_);
 
   // add imu factors between consecutive keyframe states
   addImuFactor(last_id_, cur_id_);
@@ -262,7 +262,7 @@ void VioBackEnd::integrateImuMeasurements(const ImuStamps& imu_stamps, const Imu
   }
 }
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void VioBackEnd::addValues(const FrameId& cur_id)
+void VioBackEnd::addImuValues(const FrameId& cur_id)
 {
   gtsam::NavState navstate_lkf(W_Pose_Blkf_, W_Vel_Blkf_);
   gtsam::NavState navstate_k = pim_->predict(navstate_lkf, imu_bias_lkf_);

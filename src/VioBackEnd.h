@@ -352,7 +352,7 @@ public:
   // integrate imu measurements into pim_
   void integrateImuMeasurements(const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr);
   // set initial guess at current state
-  void addValues(const FrameId& cur_id);
+  void addImuValues(const FrameId& cur_id);
   // add imu factors:
   void addImuFactor(const FrameId& from_id, const FrameId& to_id);
   // store stereo frame info into landmarks table: returns landmarks observed in current frame
