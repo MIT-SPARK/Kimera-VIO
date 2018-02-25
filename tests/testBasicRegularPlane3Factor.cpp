@@ -105,7 +105,9 @@ TEST(testBasicRegularPlane3Factor, JacobiansNegative) {
   CHECK(assert_equal(H2Expected, H2Actual, tol));
 }
 
-TEST(testBasicRegularPlane3Factor, Optimization) {
+TEST(testBasicRegularPlane3Factor, PlaneOptimization) {
+  /// Three landmarks, with prior factors, and a plane constrained together
+  /// using the landmark-plane factor.
   NonlinearFactorGraph graph;
 
   Point3 priorMean1(0.0, 0.0, 1.0); // prior at origin
@@ -121,14 +123,11 @@ TEST(testBasicRegularPlane3Factor, Optimization) {
   graph.emplace_shared<BasicRegularPlane3Factor>(2, 4, regularityNoise);
   graph.emplace_shared<BasicRegularPlane3Factor>(3, 4, regularityNoise);
 
-  graph.print("\nFactor Graph:\n"); // print
-
   Values initial;
-  initial.insert(1, Point3(0.0, 0.0, 3.0));
-  initial.insert(2, Point3(1.0, 2.0, 2.0));
-  initial.insert(3, Point3(0.3, 1.0, 8.0));
+  initial.insert(1, Point3(0.0, 19.0, 3.0));
+  initial.insert(2, Point3(-1.0, 2.0, 2.0));
+  initial.insert(3, Point3(0.3, -1.0, 8.0));
   initial.insert(4, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
-  initial.print("\nInitial Estimate:\n"); // print
 
   GaussNewtonParams params;
   params.setVerbosity("ERROR");
@@ -138,14 +137,63 @@ TEST(testBasicRegularPlane3Factor, Optimization) {
   params.setAbsoluteErrorTol(-std::numeric_limits<double>::max());
 
   Values result = GaussNewtonOptimizer(graph, initial, params).optimize();
-  result.print("Final Result:\n");
 
   Values expected;
   expected.insert(1, priorMean1);
   expected.insert(2, priorMean2);
   expected.insert(3, priorMean3);
   expected.insert(4, OrientedPlane3(0.0, 0.0, 1.0, 1.0));
-  expected.print("Expected Result:\n");
+
+  CHECK(assert_equal(expected, result, tol))
+}
+
+TEST(testBasicRegularPlane3Factor, LandmarkOptimization) {
+  /// Three landmarks, with prior factor with high uncertainty in z, and a plane,
+  /// with a confident prior factor, constrained together using the
+  /// landmark-plane factor.
+  NonlinearFactorGraph graph;
+
+  // Set landmark priors, with high uncertainty on z.
+  Point3 priorMean1(0.0, 0.0, 2.0);
+  noiseModel::Diagonal::shared_ptr priorNoise =
+          noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 100.0));
+  graph.emplace_shared<PriorFactor<Point3> >(1, priorMean1, priorNoise);
+  Point3 priorMean2(1.0, 0.0, 0.0);
+  graph.emplace_shared<PriorFactor<Point3> >(2, priorMean2, priorNoise);
+  Point3 priorMean3(0.0, 1.0, -2.0);
+  graph.emplace_shared<PriorFactor<Point3> >(3, priorMean3, priorNoise);
+
+  // Horizontal Plane with prior.
+  Key planeKey = 4;
+  OrientedPlane3 priorMean(0.0, 0.0, 1.0, 1.0);
+  noiseModel::Diagonal::shared_ptr priorNoisePlane =
+          noiseModel::Diagonal::Sigmas(Vector3(0.01, 0.01, 0.01));
+  graph.emplace_shared<PriorFactor<OrientedPlane3> >(planeKey, priorMean, priorNoisePlane);
+
+  noiseModel::Isotropic::shared_ptr regularityNoise = noiseModel::Isotropic::Sigma(1, 0.1);
+  graph.emplace_shared<BasicRegularPlane3Factor>(1, planeKey, regularityNoise);
+  graph.emplace_shared<BasicRegularPlane3Factor>(2, planeKey, regularityNoise);
+  graph.emplace_shared<BasicRegularPlane3Factor>(3, planeKey, regularityNoise);
+
+  Values initial;
+  initial.insert(1, Point3(0.0, 0.0, -3.0));
+  initial.insert(2, Point3(1.0, 2.0, 2.0));
+  initial.insert(3, Point3(0.3, 1.0, 8.0));
+  initial.insert(4, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
+
+  GaussNewtonParams params;
+  params.setVerbosity("ERROR");
+  params.setMaxIterations(20);
+  params.setRelativeErrorTol(-std::numeric_limits<double>::max());
+  params.setAbsoluteErrorTol(-std::numeric_limits<double>::max());
+
+  Values result = GaussNewtonOptimizer(graph, initial, params).optimize();
+
+  Values expected;
+  expected.insert(1, Point3(0.0, 0.0, 1.0));
+  expected.insert(2, Point3(1.0, 0.0, 1.0));
+  expected.insert(3, Point3(0.0, 1.0, 1.0));
+  expected.insert(4, OrientedPlane3(0.0, 0.0, 1.0, 1.0));
 
   CHECK(assert_equal(expected, result, tol))
 }
