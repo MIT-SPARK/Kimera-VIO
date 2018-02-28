@@ -123,11 +123,14 @@ TEST(testBasicRegularPlane3Factor, PlaneOptimization) {
   graph.emplace_shared<BasicRegularPlane3Factor>(2, 4, regularityNoise);
   graph.emplace_shared<BasicRegularPlane3Factor>(3, 4, regularityNoise);
 
+  graph.print("\nFactor Graph:\n"); // print
+
   Values initial;
   initial.insert(1, Point3(0.0, 19.0, 3.0));
   initial.insert(2, Point3(-1.0, 2.0, 2.0));
   initial.insert(3, Point3(0.3, -1.0, 8.0));
   initial.insert(4, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
+  initial.print("\nInitial Estimate:\n"); // print
 
   GaussNewtonParams params;
   params.setVerbosity("ERROR");
@@ -137,12 +140,14 @@ TEST(testBasicRegularPlane3Factor, PlaneOptimization) {
   params.setAbsoluteErrorTol(-std::numeric_limits<double>::max());
 
   Values result = GaussNewtonOptimizer(graph, initial, params).optimize();
+  result.print("Final Result:\n");
 
   Values expected;
   expected.insert(1, priorMean1);
   expected.insert(2, priorMean2);
   expected.insert(3, priorMean3);
   expected.insert(4, OrientedPlane3(0.0, 0.0, 1.0, 1.0));
+  expected.print("Expected Result:\n");
 
   CHECK(assert_equal(expected, result, tol))
 }
@@ -175,11 +180,14 @@ TEST(testBasicRegularPlane3Factor, LandmarkOptimization) {
   graph.emplace_shared<BasicRegularPlane3Factor>(2, planeKey, regularityNoise);
   graph.emplace_shared<BasicRegularPlane3Factor>(3, planeKey, regularityNoise);
 
+  graph.print("\nFactor Graph:\n"); // print
+
   Values initial;
   initial.insert(1, Point3(0.0, 0.0, -3.0));
   initial.insert(2, Point3(1.0, 2.0, 2.0));
   initial.insert(3, Point3(0.3, 1.0, 8.0));
   initial.insert(4, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
+  initial.print("\nInitial Estimate:\n"); // print
 
   GaussNewtonParams params;
   params.setVerbosity("ERROR");
@@ -194,6 +202,7 @@ TEST(testBasicRegularPlane3Factor, LandmarkOptimization) {
   expected.insert(2, Point3(1.0, 0.0, 1.0));
   expected.insert(3, Point3(0.0, 1.0, 1.0));
   expected.insert(4, OrientedPlane3(0.0, 0.0, 1.0, 1.0));
+  expected.print("Expected Result:\n");
 
   CHECK(assert_equal(expected, result, tol))
 }
