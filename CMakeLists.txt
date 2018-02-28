@@ -87,6 +87,7 @@ add_library(stereoVIO ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
                       ./src/RegularVioBackEnd.cpp
                       ./src/RegularPlane3Factor.cpp
+                      ./src/ParallelPlaneRegularFactor.cpp
                       ./src/FeatureSelector.h ./src/LoggerMatlab.h
                       ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
                       ./src/CameraParams.h ./src/Frame.h ./src/Mesher_cgal.h
