@@ -18,11 +18,17 @@ namespace gtsam {
 class ParallelPlaneRegularFactor: public NoiseModelFactor2<OrientedPlane3,
                                                            OrientedPlane3> {
 protected:
+  //// Keys of the planes involved.
   Key plane1Key_;
   Key plane2Key_;
 
   //// Type of Factor.
   std::string factor_type_;
+
+  //// Measured distance from plane2 to plane1, with the normal of plane2 defining
+  //// the sign (a plane1 3 meters away from plane2 in the negative direction of
+  //// the normal of plane2 will have a meadured distance of -2.
+  double measured_distance_from_plane2_to_plane1;
 
   typedef NoiseModelFactor2<OrientedPlane3, OrientedPlane3> Base;
 
@@ -33,11 +39,14 @@ public:
   virtual ~ParallelPlaneRegularFactor() {}
 
   ParallelPlaneRegularFactor(const Key& plane1Key, const Key& plane2Key,
-                             const SharedGaussian& noiseModel) :
-                                        Base(noiseModel, plane1Key, plane2Key),
-                                        plane1Key_(plane1Key),
-                                        plane2Key_(plane2Key),
-                                        type_("None") {}
+                     const SharedGaussian& noiseModel,
+                     const double& measured_distance_from_plane2_to_plane1 = 0)
+    : Base(noiseModel, plane1Key, plane2Key),
+      plane1Key_(plane1Key),
+      plane2Key_(plane2Key),
+      factor_type_("None, this is an abstract class."),
+      measured_distance_from_plane2_to_plane1(
+        measured_distance_from_plane2_to_plane1) {}
 
   /// print
   void print(const std::string& s = "ParallelPlaneRegularFactor",
@@ -221,23 +230,77 @@ private:
     err =  Vector4(plane_normal_1.point3().x() - plane_normal_2.point3().x(),
                    plane_normal_1.point3().y() - plane_normal_2.point3().y(),
                    plane_normal_1.point3().z() - plane_normal_2.point3().z(),
-                   std::pow(plane_1.distance() - plane_2.distance(), 2) - 4);
+                   plane_1.distance() - plane_2.distance());
     if (H_plane_1) {
       // Jacobian of plane retraction when v = Vector3::Zero(), to speed-up
       // computations.
       Matrix43 tmp;
-      tmp << plane_normal_1.basis(), Vector3::Zero(), 0, 0, 2*(plane_1.distance() - plane_2.distance());
+      tmp << plane_normal_1.basis(), Vector3::Zero(), 0, 0, 1;
       *H_plane_1 = tmp;
     }
     if (H_plane_2) {
       // Jacobian of plane retraction when v = Vector3::Zero(), to speed-up
       // computations.
       Matrix43 tmp;
-      tmp << -plane_normal_2.basis(), Vector3::Zero(), 0, 0, -2*(plane_1.distance() - plane_2.distance());
+      tmp << -plane_normal_2.basis(), Vector3::Zero(), 0, 0, -1;
       *H_plane_2 = tmp;
     }
     return (err);
   }
 };
+
+class GeneralParallelPlaneRegularBasicFactor: public ParallelPlaneRegularFactor {
+public:
+  /// Constructor
+  GeneralParallelPlaneRegularBasicFactor() {
+  }
+  virtual ~GeneralParallelPlaneRegularBasicFactor() {}
+
+  GeneralParallelPlaneRegularBasicFactor(const Key& plane1Key,
+                        const Key& plane2Key,
+                        const SharedGaussian& noiseModel,
+                        const double& measured_distance_from_plane2_to_plane1) :
+          ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
+                                     measured_distance_from_plane2_to_plane1) {
+      this->factor_type_ = "Parallelism + Distance Basic Factor between Planes";
+  }
+
+private:
+  /// evaluateError
+  /// Hplane1: jacobian of h wrt plane1
+  /// Hplane2: jacobian of h wrt plane2
+  virtual Vector doEvaluateError(
+                       const OrientedPlane3& plane_1,
+                       const OrientedPlane3& plane_2,
+                       boost::optional<Matrix&> H_plane_1,
+                       boost::optional<Matrix&> H_plane_2) const {
+    const Unit3& plane_normal_1(plane_1.normal());
+    const Unit3& plane_normal_2(plane_2.normal());
+    Vector4 err (0.0, 0.0, 0.0, 0.0);
+    err =  Vector4(plane_normal_1.point3().x() - plane_normal_2.point3().x(),
+                   plane_normal_1.point3().y() - plane_normal_2.point3().y(),
+                   plane_normal_1.point3().z() - plane_normal_2.point3().z(),
+                   plane_1.distance() - plane_2.distance() -
+                                       measured_distance_from_plane2_to_plane1);
+    if (H_plane_1) {
+      // Jacobian of plane retraction when v = Vector3::Zero(), to speed-up
+      // computations.
+      Matrix43 tmp;
+      tmp << plane_normal_1.basis(), Vector3::Zero(),
+              0, 0, 1;
+      *H_plane_1 = tmp;
+    }
+    if (H_plane_2) {
+      // Jacobian of plane retraction when v = Vector3::Zero(), to speed-up
+      // computations.
+      Matrix43 tmp;
+      tmp << -plane_normal_2.basis(), Vector3::Zero(),
+              0, 0, -1;
+      *H_plane_2 = tmp;
+    }
+    return (err);
+  }
+};
+
 
 } // End of gtsam namespace.
