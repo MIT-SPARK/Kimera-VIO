@@ -50,7 +50,7 @@ public:
                     const OrientedPlane3& plane_2,
                     boost::optional<Matrix&> H_plane_1 = boost::none,
                     boost::optional<Matrix&> H_plane_2 = boost::none) const {
-      doEvaluateError(plane_1, plane_2, H_plane_1, H_plane_2);
+      return doEvaluateError(plane_1, plane_2, H_plane_1, H_plane_2);
   }
 
 private:
@@ -93,10 +93,10 @@ private:
     Vector2 err;
     err =  plane_normal_1.errorVector(plane_normal_2, H_n_1, H_n_2);
     if (H_plane_1) {
-      *H_plane_1 << H_n_1, Vector2::Zero();
+      *H_plane_1 = H_n_1, Vector2::Zero();
     }
     if (H_plane_2) {
-      *H_plane_2 << H_n_2, Vector2::Zero();
+      *H_plane_2 = H_n_2, Vector2::Zero();
     }
     return (err);
   }
@@ -128,19 +128,19 @@ private:
                        boost::optional<Matrix&> H_plane_2) const {
     Unit3 plane_normal_1 = plane_1.normal();
     Unit3 plane_normal_2 = plane_2.normal();
-    Vector3 err;
+    Vector3 err (0,0,0);
     err =  Vector3(plane_normal_1.point3().x() - plane_normal_2.point3().x(),
                    plane_normal_1.point3().y() - plane_normal_2.point3().y(),
                    plane_normal_1.point3().z() - plane_normal_2.point3().z());
     if (H_plane_1) {
       // Jacobian of plane retraction when v = Vector3::Zero(), to speed-up
       // computations.
-      *H_plane_1 << plane_normal_1.basis(), Vector3::Zero();
+      *H_plane_1 = plane_normal_1.basis(), Vector3::Zero();
     }
     if (H_plane_2) {
       // Jacobian of plane retraction when v = Vector3::Zero(), to speed-up
       // computations.
-      *H_plane_2 << -plane_normal_2.basis(), Vector3::Zero();
+      *H_plane_2 = -plane_normal_2.basis(), Vector3::Zero();
     }
     return (err);
   }
