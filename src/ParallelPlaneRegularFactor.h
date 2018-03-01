@@ -36,7 +36,7 @@ public:
                                         Base(noiseModel, plane1Key, plane2Key),
                                         plane1Key_(plane1Key),
                                         plane2Key_(plane2Key),
-                                        type_("None"){}
+                                        type_("None") {}
 
   /// print
   void print(const std::string& s = "ParallelPlaneRegularFactor",
@@ -109,12 +109,11 @@ public:
   }
   virtual ~ParallelPlaneRegularBasicFactor() {}
 
-  /// Constructor with measured plane coefficients (a,b,c,d), noise model, pose symbol
   ParallelPlaneRegularBasicFactor(const Key& plane1Key,
                                          const Key& plane2Key,
                                          const SharedGaussian& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->type_ = "Tangent Space";
+      this->type_ = "Basic Factor";
   }
 
 private:
