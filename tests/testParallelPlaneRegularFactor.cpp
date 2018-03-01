@@ -207,8 +207,8 @@ TEST(testParallelPlaneRegularFactor, PlaneOptimization) {
   CHECK(assert_equal(expected, result, tol))
 }
 
-TEST(testCoplanarPlaneRegularFactor, PlaneOptimization) {
-  /// Two planes constrained together, using co-planarity factor.
+TEST(testCoplanarPlaneTangentSpaceRegularFactor, PlaneOptimization) {
+  /// Two planes constrained together, using co-planarity factor, in tangent space.
   /// With one of the planes having a prior.
   NonlinearFactorGraph graph;
   Key planeKey1 = 7;
