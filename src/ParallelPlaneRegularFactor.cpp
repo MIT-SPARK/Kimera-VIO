@@ -12,7 +12,7 @@ namespace gtsam {
 //***************************************************************************
 void ParallelPlaneRegularFactor::print(const std::string& s,
     const KeyFormatter& keyFormatter) const {
-  std::cout << "ParallelPlaneRegularFactor of type " << this->type_
+  std::cout << "ParallelPlaneRegularFactor of type " << this->factor_type_
             << " acting on plane " << plane1Key_
             << ", and plane " << plane2Key_  << "\n";
   this->noiseModel_->print("  noise model: ");

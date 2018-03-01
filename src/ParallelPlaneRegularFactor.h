@@ -20,15 +20,16 @@ class ParallelPlaneRegularFactor: public NoiseModelFactor2<OrientedPlane3,
 protected:
   Key plane1Key_;
   Key plane2Key_;
-  std::string type_;
+
+  //// Type of Factor.
+  std::string factor_type_;
 
   typedef NoiseModelFactor2<OrientedPlane3, OrientedPlane3> Base;
 
 public:
 
   /// Constructor
-  ParallelPlaneRegularFactor() {
-  }
+  ParallelPlaneRegularFactor() {}
   virtual ~ParallelPlaneRegularFactor() {}
 
   ParallelPlaneRegularFactor(const Key& plane1Key, const Key& plane2Key,
@@ -54,6 +55,7 @@ public:
   }
 
 private:
+
   //// See non-virtual interface idiom (NVI idiom) for reasons to do this.
   /// Basically it's to avoid re-defining default parameters in derived classes.
   /// See also Item 37 of Effective_C++.
@@ -75,7 +77,7 @@ public:
                                          const Key& plane2Key,
                                          const SharedGaussian& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->type_ = "Tangent Space";
+      this->factor_type_ = "Tangent Space";
   }
 
 private:
@@ -113,7 +115,7 @@ public:
                                          const Key& plane2Key,
                                          const SharedGaussian& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->type_ = "Co-planarity, using Tangent Space";
+      this->factor_type_ = "Co-planarity, using Tangent Space";
   }
 
 private:
@@ -158,7 +160,7 @@ public:
                                          const Key& plane2Key,
                                          const SharedGaussian& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->type_ = "Basic Factor";
+      this->factor_type_ = "Basic Factor";
   }
 
 private:
@@ -201,7 +203,7 @@ public:
                                          const Key& plane2Key,
                                          const SharedGaussian& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->type_ = "Coplanar Basic Factor";
+      this->factor_type_ = "Coplanar Basic Factor";
   }
 
 private:
