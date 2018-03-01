@@ -207,9 +207,9 @@ TEST(testParallelPlaneRegularFactor, PlaneOptimization) {
   CHECK(assert_equal(expected, result, tol))
 }
 
-TEST(testCoplanarPlaneTangentSpaceRegularFactor, PlaneOptimization) {
-  /// Two planes constrained together, using co-planarity factor, in tangent space.
-  /// With one of the planes having a prior.
+TEST(testGeneralParallelPlaneTangentSpaceRegularFactor, PlaneOptimization) {
+  /// Two planes constrained together, using distance + parallelism factor,
+  ///  in tangent space. With one of the planes having a prior.
   NonlinearFactorGraph graph;
   Key planeKey1 = 7;
   Key planeKey2 = 8;
@@ -227,12 +227,14 @@ TEST(testCoplanarPlaneTangentSpaceRegularFactor, PlaneOptimization) {
           noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
   /// Factor between planes for co-planarity.
-  graph.emplace_shared<CoplanarPlaneRegularTangentSpaceFactor>(
-              planeKey1, planeKey2, regularityNoise);
+  const double measured_distance_from_plane2_to_plane1(-2.0);
+  graph.emplace_shared<GeneralParallelPlaneRegularTangentSpaceFactor>(
+              planeKey1, planeKey2, regularityNoise,
+              measured_distance_from_plane2_to_plane1);
 
   Values initial;
   initial.insert(planeKey1, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
-  initial.insert(planeKey2, OrientedPlane3(0.1, 0.2, 0.3, 2.0));
+  initial.insert(planeKey2, OrientedPlane3(0.1, 0.2, 0.3, -2.0));
 
   GaussNewtonParams params;
   params.setVerbosity("ERROR");
@@ -246,14 +248,14 @@ TEST(testCoplanarPlaneTangentSpaceRegularFactor, PlaneOptimization) {
 
   Values expected;
   expected.insert(planeKey1, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
-  expected.insert(planeKey2, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
+  expected.insert(planeKey2, OrientedPlane3(0.0, 0.0, 1.0, 2.0));
 
   CHECK(assert_equal(expected, result, tol))
 }
 
 TEST(testGeneralParallelPlaneBasicRegularFactor, PlaneOptimization) {
-  /// Two planes constrained together, using co-planarity basic factor.
-  /// With one of the planes having a prior.
+  /// Two planes constrained together, using distance + parallelism factor,
+  ///  in tangent space. With one of the planes having a prior.
   NonlinearFactorGraph graph;
   Key planeKey1 = 7;
   Key planeKey2 = 8;
@@ -278,7 +280,7 @@ TEST(testGeneralParallelPlaneBasicRegularFactor, PlaneOptimization) {
 
   Values initial;
   initial.insert(planeKey1, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
-  initial.insert(planeKey2, OrientedPlane3(0.1, 0.2, 0.3, 2.0));
+  initial.insert(planeKey2, OrientedPlane3(0.1, 0.2, 0.3, -2.0));
 
   GaussNewtonParams params;
   params.setVerbosity("ERROR");

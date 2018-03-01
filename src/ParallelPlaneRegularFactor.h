@@ -113,18 +113,20 @@ private:
   }
 };
 
-class CoplanarPlaneRegularTangentSpaceFactor: public ParallelPlaneRegularFactor {
+class GeneralParallelPlaneRegularTangentSpaceFactor: public ParallelPlaneRegularFactor {
 public:
   /// Constructor
-  CoplanarPlaneRegularTangentSpaceFactor() {
+  GeneralParallelPlaneRegularTangentSpaceFactor() {
   }
-  virtual ~CoplanarPlaneRegularTangentSpaceFactor() {}
+  virtual ~GeneralParallelPlaneRegularTangentSpaceFactor() {}
 
-  CoplanarPlaneRegularTangentSpaceFactor(const Key& plane1Key,
-                                         const Key& plane2Key,
-                                         const SharedGaussian& noiseModel) :
-                ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->factor_type_ = "Co-planarity, using Tangent Space";
+  GeneralParallelPlaneRegularTangentSpaceFactor(const Key& plane1Key,
+                        const Key& plane2Key,
+                        const SharedGaussian& noiseModel,
+                        const double& measured_distance_from_plane2_to_plane1) :
+          ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
+                                     measured_distance_from_plane2_to_plane1) {
+      this->factor_type_ = "General Parallelism, using Tangent Space";
   }
 
 private:
@@ -143,7 +145,8 @@ private:
                                                   H_n_1, H_n_2));
     Vector3 err;
     err = Vector3(normal_err(0), normal_err(1),
-                  plane_1.distance() - plane_2.distance());
+                  plane_1.distance() - plane_2.distance()
+                  - measured_distance_from_plane2_to_plane1);
     if (H_plane_1) {
       Matrix33 a;
       a << H_n_1, Vector2::Zero(), 0, 0, 1;
@@ -214,7 +217,7 @@ public:
                     const double& measured_distance_from_plane2_to_plane1 = 0) :
           ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
                                      measured_distance_from_plane2_to_plane1) {
-      this->factor_type_ = "Parallelism + Distance Basic Factor between Planes";
+      this->factor_type_ = "General Parallelism Basic Factor";
   }
 
 private:
