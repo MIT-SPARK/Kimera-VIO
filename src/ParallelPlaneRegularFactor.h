@@ -102,6 +102,51 @@ private:
   }
 };
 
+class CoplanarPlaneRegularTangentSpaceFactor: public ParallelPlaneRegularFactor {
+public:
+  /// Constructor
+  CoplanarPlaneRegularTangentSpaceFactor() {
+  }
+  virtual ~CoplanarPlaneRegularTangentSpaceFactor() {}
+
+  CoplanarPlaneRegularTangentSpaceFactor(const Key& plane1Key,
+                                         const Key& plane2Key,
+                                         const SharedGaussian& noiseModel) :
+                ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
+      this->type_ = "Co-planarity, using Tangent Space";
+  }
+
+private:
+  /// evaluateError
+  /// Hplane1: jacobian of h wrt plane1
+  /// Hplane2: jacobian of h wrt plane2
+  virtual Vector doEvaluateError(
+                       const OrientedPlane3& plane_1,
+                       const OrientedPlane3& plane_2,
+                       boost::optional<Matrix&> H_plane_1,
+                       boost::optional<Matrix&> H_plane_2) const {
+    Unit3 plane_normal_1 = plane_1.normal();
+    Unit3 plane_normal_2 = plane_2.normal();
+    Matrix22 H_n_1, H_n_2;
+    Vector2 normal_err(plane_normal_1.errorVector(plane_normal_2,
+                                                  H_n_1, H_n_2));
+    Vector3 err;
+    err = Vector3(normal_err(0), normal_err(1),
+                  plane_1.distance() - plane_2.distance());
+    if (H_plane_1) {
+      Matrix33 a;
+      a << H_n_1, Vector2::Zero(), 0, 0, 1;
+      *H_plane_1 = a;
+    }
+    if (H_plane_2) {
+      Matrix33 a;
+      a << H_n_2, Vector2::Zero(), 0, 0, -1;
+      *H_plane_2 = a;
+    }
+    return (err);
+  }
+};
+
 class ParallelPlaneRegularBasicFactor: public ParallelPlaneRegularFactor {
 public:
   /// Constructor
