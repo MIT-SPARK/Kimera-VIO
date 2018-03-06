@@ -107,6 +107,46 @@ static const double der_tol = 1e-5;
 //  CHECK(assert_equal(H2Expected, H2Actual, tol));
 //}
 
+/* ************************************************************************* *
+TEST(testParallelPlaneRegularFactor, PlanePrior) {
+  /// Three landmarks, with prior factors, and a plane constrained together
+  /// using the landmark-plane factor.
+  NonlinearFactorGraph graph;
+
+  /// Keys
+  Key plane_key_1 = 1;
+
+  /// Shared noise for all landmarks.
+  noiseModel::Diagonal::shared_ptr prior_noise =
+          noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
+
+  OrientedPlane3 priorMeanPlane(0.0, 0.0, 1.0, 0.0);
+  graph.emplace_shared<PriorFactor<OrientedPlane3> >(plane_key_1,
+                                                     priorMeanPlane,
+                                                     prior_noise);
+
+  graph.print("\nFactor Graph:\n");
+
+  Values initial;
+  initial.insert(plane_key_1, OrientedPlane3(0.1, 0.2, 0.9, 0.8));
+
+  GaussNewtonParams params;
+  params.setVerbosity("ERROR");
+  params.setMaxIterations(20);
+  params.setRelativeErrorTol(-std::numeric_limits<double>::max());
+  //params.setErrorTol(-std::numeric_limits<double>::max());
+  params.setAbsoluteErrorTol(-std::numeric_limits<double>::max());
+
+  Values result = GaussNewtonOptimizer(graph, initial, params).optimize();
+  //Values result = LevenbergMarquardtOptimizer(graph, initial, params).optimize();
+
+  Values expected;
+  expected.insert(plane_key_1, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
+
+  EXPECT(assert_equal(expected, result, tol))
+}
+
+/* ************************************************************************* */
 TEST(testParallelPlaneRegularFactor, PlaneOptimization) {
   /// Three landmarks, with prior factors, and a plane constrained together
   /// using the landmark-plane factor.
