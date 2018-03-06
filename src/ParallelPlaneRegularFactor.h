@@ -193,12 +193,16 @@ private:
     if (H_plane_1) {
       // Jacobian of plane retraction when v = Vector3::Zero(), to speed-up
       // computations.
-      *H_plane_1 = plane_normal_1.basis(), Vector3::Zero();
+      Matrix33 tmp;
+      tmp << plane_normal_1.basis(), Vector3::Zero();
+      *H_plane_1 = tmp;
     }
     if (H_plane_2) {
       // Jacobian of plane retraction when v = Vector3::Zero(), to speed-up
       // computations.
-      *H_plane_2 = -plane_normal_2.basis(), Vector3::Zero();
+      Matrix33 tmp;
+      tmp << -plane_normal_2.basis(), Vector3::Zero();
+      *H_plane_2 = tmp;
     }
     return (err);
   }
