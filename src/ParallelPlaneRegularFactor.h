@@ -27,7 +27,9 @@ protected:
 
   //// Measured distance from plane2 to plane1, with the normal of plane2 defining
   //// the sign (a plane1 3 meters away from plane2 in the negative direction of
-  //// the normal of plane2 will have a meadured distance of -2.
+  //// the normal of plane2 will have a measured distance of -2).
+  // Careful with this convention, it is already encoded in the between factor
+  // of GTSAM
   double measured_distance_from_plane2_to_plane1;
 
   typedef NoiseModelFactor2<OrientedPlane3, OrientedPlane3> Base;
