@@ -277,7 +277,7 @@ TEST(testGeneralParallelPlaneTangentSpaceRegularFactor, PlaneOptimization) {
   initial.insert(planeKey2, OrientedPlane3(0.1, 0.2, 0.3, -2.0));
 
   GaussNewtonParams params;
-  params.setVerbosity("ERROR");
+  //params.setVerbosity("ERROR");
   params.setMaxIterations(20);
   params.setRelativeErrorTol(-std::numeric_limits<double>::max());
   //params.setErrorTol(-std::numeric_limits<double>::max());
@@ -290,9 +290,10 @@ TEST(testGeneralParallelPlaneTangentSpaceRegularFactor, PlaneOptimization) {
   expected.insert(planeKey1, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
   expected.insert(planeKey2, OrientedPlane3(0.0, 0.0, 1.0, 2.0));
 
-  CHECK(assert_equal(expected, result, tol))
+  EXPECT(assert_equal(expected, result, tol))
 }
 
+/* ************************************************************************* */
 TEST(testGeneralParallelPlaneBasicRegularFactor, PlaneOptimization) {
   /// Two planes constrained together, using distance + parallelism factor,
   ///  in tangent space. With one of the planes having a prior.
@@ -323,7 +324,7 @@ TEST(testGeneralParallelPlaneBasicRegularFactor, PlaneOptimization) {
   initial.insert(planeKey2, OrientedPlane3(0.1, 0.2, 0.3, -2.0));
 
   GaussNewtonParams params;
-  params.setVerbosity("ERROR");
+  //params.setVerbosity("ERROR");
   params.setMaxIterations(20);
   params.setRelativeErrorTol(-std::numeric_limits<double>::max());
   //params.setErrorTol(-std::numeric_limits<double>::max());
@@ -336,8 +337,9 @@ TEST(testGeneralParallelPlaneBasicRegularFactor, PlaneOptimization) {
   expected.insert(planeKey1, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
   expected.insert(planeKey2, OrientedPlane3(0.0, 0.0, 1.0, 2.0));
 
-  CHECK(assert_equal(expected, result, tol))
+  EXPECT(assert_equal(expected, result, tol))
 }
+/* ************************************************************************* */
 
 
 /* ************************************************************************* */
