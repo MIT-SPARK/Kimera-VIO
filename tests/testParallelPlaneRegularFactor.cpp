@@ -151,55 +151,56 @@ TEST(testParallelPlaneRegularFactor, PlaneOptimization) {
   /// Three landmarks, with prior factors, and a plane constrained together
   /// using the landmark-plane factor.
   NonlinearFactorGraph graph;
-  Key planeKey1 = 7;
-  Key planeKey2 = 8;
+
+  /// Keys
+  Key landmark_key_1 = 1;
+  Key landmark_key_2 = 2;
+  Key landmark_key_3 = 3;
+  Key plane_key_1 = 4;
+  Key plane_key_2 = 5;
 
   /// Shared noise for all landmarks.
-  noiseModel::Diagonal::shared_ptr priorNoise =
+  noiseModel::Diagonal::shared_ptr prior_noise =
           noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
   /// Landmarks at same z=1.0
-  Point3 priorMean1(0.0, 0.0, 1.0);
-  graph.emplace_shared<PriorFactor<Point3> >(1, priorMean1, priorNoise);
-  Point3 priorMean2(1.0, 0.0, 1.0);
-  graph.emplace_shared<PriorFactor<Point3> >(2, priorMean2, priorNoise);
-  Point3 priorMean3(0.0, 1.0, 1.0);
-  graph.emplace_shared<PriorFactor<Point3> >(3, priorMean3, priorNoise);
+  Point3 prior_mean_1(0.0, 0.0, 1.0);
+  Point3 prior_mean_2(1.0, 0.0, 1.0);
+  Point3 prior_mean_3(0.0, 1.0, 1.0);
 
-  /// Landmarks at same z=0.0
-  Point3 priorMean4(1.0, 0.0, 0.0);
-  graph.emplace_shared<PriorFactor<Point3> >(4, priorMean4, priorNoise);
-  Point3 priorMean5(1.0, 0.0, 0.0);
-  graph.emplace_shared<PriorFactor<Point3> >(5, priorMean5, priorNoise);
-  Point3 priorMean6(0.0, 1.0, 0.0);
-  graph.emplace_shared<PriorFactor<Point3> >(6, priorMean6, priorNoise);
+  graph.emplace_shared<PriorFactor<Point3> >(landmark_key_1, prior_mean_1, prior_noise);
+  graph.emplace_shared<PriorFactor<Point3> >(landmark_key_2, prior_mean_2, prior_noise);
+  graph.emplace_shared<PriorFactor<Point3> >(landmark_key_3, prior_mean_3, prior_noise);
 
-  OrientedPlane3 priorMean7(0.0, 0.0, 1.0, 1.0);
-  graph.emplace_shared<PriorFactor<OrientedPlane3> >(7, priorMean7, priorNoise);
+  OrientedPlane3 priorMeanPlane2(0.0, 0.0, 1.0, 0.0);
+  graph.emplace_shared<PriorFactor<OrientedPlane3> >(plane_key_2,
+                                                     priorMeanPlane2,
+                                                     prior_noise);
+
+  OrientedPlane3 priorMeanPlane1(0.0, 0.0, 1.0, 1.0);
+  graph.emplace_shared<PriorFactor<OrientedPlane3> >(plane_key_1,
+                                                     priorMeanPlane1,
+                                                     prior_noise);
 
   /// Shared noise for all constraints between landmarks and planes.
-  noiseModel::Isotropic::shared_ptr regularityNoise =
+  noiseModel::Isotropic::shared_ptr regularity_noise =
           noiseModel::Isotropic::Sigma(1, 0.5);
 
   /// Plane 1 to landmarks 1,2,3.
-  graph.emplace_shared<BasicRegularPlane3Factor>(1, planeKey1, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(2, planeKey1, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(3, planeKey1, regularityNoise);
-  /// Plane 2 to landmarks 4,5,6.
-  graph.emplace_shared<BasicRegularPlane3Factor>(4, planeKey2, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(5, planeKey2, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(6, planeKey2, regularityNoise);
+  graph.emplace_shared<BasicRegularPlane3Factor>(landmark_key_1, plane_key_1, regularity_noise);
+  graph.emplace_shared<BasicRegularPlane3Factor>(landmark_key_2, plane_key_1, regularity_noise);
+  graph.emplace_shared<BasicRegularPlane3Factor>(landmark_key_3, plane_key_1, regularity_noise);
 
   if (true) {
     /// Noise model for cosntraint between the two planes.
-    noiseModel::Diagonal::shared_ptr parallelPlaneNoise =
+    noiseModel::Diagonal::shared_ptr parallel_plane_noise =
         noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
     /// Parallelism constraint between Plane 1 and Plane 2.
     graph.emplace_shared<ParallelPlaneRegularBasicFactor>(
-          planeKey1,
-          planeKey2,
-          parallelPlaneNoise);
+          plane_key_1,
+          plane_key_2,
+          parallel_plane_noise);
   } else {
       /// Noise model for constraint between the two planes, in tangent space.
       noiseModel::Diagonal::shared_ptr parallelPlaneNoise =
@@ -207,46 +208,44 @@ TEST(testParallelPlaneRegularFactor, PlaneOptimization) {
 
       /// Parallelism constraint between Plane 1 and Plane 2, in tangent space.
       graph.emplace_shared<ParallelPlaneRegularTangentSpaceFactor>(
-            planeKey1,
-            planeKey2,
+            plane_key_1,
+            plane_key_2,
             parallelPlaneNoise);
   }
 
-  graph.print("\nFactor Graph:\n");
+  //graph.print("\nFactor Graph:\n");
 
   Values initial;
-  initial.insert(1, Point3(0.0, 19.0, 3.0));
-  initial.insert(2, Point3(-1.0, 2.0, 2.0));
-  initial.insert(3, Point3(0.3, -1.0, 8.0));
-  initial.insert(4, Point3(0.0, 1.0, -1.0));
-  initial.insert(5, Point3(3.0, 2.0, 2.0));
-  initial.insert(6, Point3(0.3, -1.0, 1.0));
-  initial.insert(planeKey1, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
-  initial.insert(planeKey2, OrientedPlane3(0.1, 0.2, 0.9, 2.0));
+  initial.insert(landmark_key_1, Point3(0.0, 0.2, 0.9));
+  initial.insert(landmark_key_2, Point3(1.0, 0.0, 1.0));
+  initial.insert(landmark_key_3, Point3(0.1, 1.1, 1.1));
+  initial.insert(plane_key_1, OrientedPlane3(0.1, 0.1, 0.9, 0.9));
+  initial.insert(plane_key_2, OrientedPlane3(0.1, 0.1, 0.9, 0.1));
 
-  GaussNewtonParams params;
-  params.setVerbosity("ERROR");
-  params.setMaxIterations(20);
-  params.setRelativeErrorTol(-std::numeric_limits<double>::max());
-  //params.setErrorTol(-std::numeric_limits<double>::max());
-  params.setAbsoluteErrorTol(-std::numeric_limits<double>::max());
+  GaussianFactorGraph gfg = *graph.linearize(initial);
+  gfg.print("\nFactor Graph:\n");
 
-  Values result = GaussNewtonOptimizer(graph, initial, params).optimize();
+  //GaussNewtonParams params;
+  //params.setVerbosity("LINEAR");
+  //params.setMaxIterations(1);
+  //params.setRelativeErrorTol(-std::numeric_limits<double>::max());
+  ////params.setErrorTol(-std::numeric_limits<double>::max());
+  //params.setAbsoluteErrorTol(-std::numeric_limits<double>::max());
+
+  //Values result = GaussNewtonOptimizer(graph, initial, params).optimize();
   //Values result = LevenbergMarquardtOptimizer(graph, initial, params).optimize();
 
   Values expected;
-  expected.insert(1, priorMean1);
-  expected.insert(2, priorMean2);
-  expected.insert(3, priorMean3);
-  expected.insert(4, priorMean4);
-  expected.insert(5, priorMean5);
-  expected.insert(6, priorMean6);
-  expected.insert(planeKey1, OrientedPlane3(0.0, 0.0, 1.0, 1.0));
-  expected.insert(planeKey2, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
+  expected.insert(landmark_key_1, prior_mean_1);
+  expected.insert(landmark_key_2, prior_mean_2);
+  expected.insert(landmark_key_3, prior_mean_3);
+  expected.insert(plane_key_1, priorMeanPlane1);
+  expected.insert(plane_key_2, priorMeanPlane2);
 
-  CHECK(assert_equal(expected, result, tol))
+  //EXPECT(assert_equal(expected, result, tol))
 }
 
+/* ************************************************************************* */
 TEST(testGeneralParallelPlaneTangentSpaceRegularFactor, PlaneOptimization) {
   /// Two planes constrained together, using distance + parallelism factor,
   ///  in tangent space. With one of the planes having a prior.
