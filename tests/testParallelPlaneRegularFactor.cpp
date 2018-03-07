@@ -107,7 +107,7 @@ static const double der_tol = 1e-5;
 //  CHECK(assert_equal(H2Expected, H2Actual, tol));
 //}
 
-/* ************************************************************************* *
+/* ************************************************************************* */
 TEST(testParallelPlaneRegularFactor, PlanePrior) {
   /// Three landmarks, with prior factors, and a plane constrained together
   /// using the landmark-plane factor.
