@@ -346,7 +346,7 @@ public:
   // add initial prior factors
   void addInitialPriorFactors(const FrameId& frame_id, const ImuAccGyr& imu_accgyr);
   // workhorse that stores data and optimizes at each keyframe
-  void addVisualInertialStateAndOptimize(const Timestamp timestamp_kf_nsec, // keyframe timestamp
+  virtual void addVisualInertialStateAndOptimize(const Timestamp timestamp_kf_nsec, // keyframe timestamp
       const StatusSmartStereoMeasurements statusSmartStereoMeasurements_kf, // vision data
       ImuStamps imu_stamps, ImuAccGyr imu_accgyr, boost::optional<gtsam::Pose3> stereoRansacBodyPose = boost::none); // inertial data
   // integrate imu measurements into pim_
@@ -365,9 +365,9 @@ public:
   // uses landmark table to add factors in graph
   void addLandmarksToGraph(LandmarkIds landmarks_kf);
   void addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& lm);
-  void updateLandmarkInGraph(const LandmarkId lm_id, const std::pair<FrameId, StereoPoint2>& newObs);
+  virtual void updateLandmarkInGraph(const LandmarkId lm_id, const std::pair<FrameId, StereoPoint2>& newObs);
   void optimize(const FrameId& cur_id, const int max_iterations);
-  void findSmartFactorsSlots(const std::vector<Key> new_smart_factors_keys_tmp);
+  virtual void findSmartFactorsSlots(const std::vector<Key> new_smart_factors_keys_tmp);
   void findSmartFactorsSlotsSlow(const std::vector<Key> new_smart_factors_keys_tmp);
   /* --------------------------------- CONST FUNCTIONS ------------------------------------ */
   void print() const {

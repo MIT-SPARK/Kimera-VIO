@@ -13,6 +13,13 @@
  */
 
 #define USE_CGAL
+#define USE_REGULAR_VIO
+
+#ifdef USE_REGULAR_VIO
+  #include "RegularVioBackEnd.h"
+#else
+  #include "VioBackEnd.h"
+#endif
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -20,7 +27,6 @@
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
-#include "VioBackEnd.h"
 #include <gtsam/geometry/Pose3.h>
 #include "../src/Visualizer3D.h"
 
@@ -123,6 +129,12 @@ void parseDatasetAndParams(const int argc, const char * const *argv,
   }
 }
 
+#ifdef USE_REGULAR_VIO
+  typedef RegularVioBackEnd MyVioBackEnd;
+#else
+  typedef VioBackEnd MyVioBackEnd;
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -159,7 +171,7 @@ int main(int argc, char *argv[])
   FeatureSelector featureSelector(trackerParams, vioParams);
 
   // Create VIO: class that tracks implements estimation back-end
-  boost::shared_ptr<VioBackEnd> vioBackEnd;
+    boost::shared_ptr<MyVioBackEnd> vioBackEnd;
 
   // create class to visualize 3D points and mesh:
   Mesher mesher;
@@ -213,7 +225,7 @@ int main(int argc, char *argv[])
                       .getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
 
       // create VIO
-      vioBackEnd = boost::make_shared<VioBackEnd>(
+      vioBackEnd = boost::make_shared<MyVioBackEnd>(
             stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
             stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
             stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams);
@@ -412,10 +424,10 @@ int main(int argc, char *argv[])
         // triangles: all the ones with edges inside images as produced by cv::subdiv
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3D: {
-          VioBackEnd::PointsWithId pointsWithId =
+          MyVioBackEnd::PointsWithId pointsWithId =
                                              vioBackEnd->get3DPointsAndLmkIds();
-          mesher.updateMesh3D(pointsWithId,stereoVisionFrontEnd
-                              .stereoFrame_lkf_->left_frame_,W_Pose_camlkf_vio);
+          mesher.updateMesh3D(pointsWithId, stereoVisionFrontEnd
+                             .stereoFrame_lkf_->left_frame_, W_Pose_camlkf_vio);
           visualizer.visualizeMesh3D(mesher);
           break;
         }
@@ -434,7 +446,7 @@ int main(int argc, char *argv[])
         case VisualizationType::MESH2DTo3Dsparse: {// same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
           std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
           int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
-          VioBackEnd::PointsWithId pointsWithId =
+          MyVioBackEnd::PointsWithId pointsWithId =
                              vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
           float maxGradInTriangle = -1; //50.0;
@@ -458,7 +470,7 @@ int main(int argc, char *argv[])
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Ddense: {// dense triangulation of stereo corners (only a subset are VIO keypoints)a
           int  minKfValidPoints = 0;
-          VioBackEnd::PointsWithId pointsWithId =
+          MyVioBackEnd::PointsWithId pointsWithId =
                              vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
           float maxGradInTriangle = -1; // 50 // TODO: re-enable
@@ -480,7 +492,7 @@ int main(int argc, char *argv[])
         // triangles: the ones produced by CGAL
         case VisualizationType::MESH3D: {// 3D mesh from CGAL using VIO points
 #ifdef USE_CGAL
-          VioBackEnd::PointsWithId pointsWithId =
+          MyVioBackEnd::PointsWithId pointsWithId =
                                              vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizeMesh3D(mesher.mapPoints3d_,
@@ -500,7 +512,7 @@ int main(int argc, char *argv[])
         }
         // computes and visualizes a 3D point cloud
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
-          VioBackEnd::PointsWithId pointsWithId =
+          MyVioBackEnd::PointsWithId pointsWithId =
                                              vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizePoints3D(pointsWithId, mesher);
@@ -516,7 +528,7 @@ int main(int argc, char *argv[])
         // visualize trajectory
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory3D();
-        visualizer.myWindow_.spinOnce(50);
+        visualizer.myWindow_.spinOnce(1);
       }
 
       didFirstOptimization = true;
