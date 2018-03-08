@@ -364,10 +364,10 @@ public:
   void addConstantVelocityFactor(const FrameId& from_id, const FrameId& to_id);
   // uses landmark table to add factors in graph
   void addLandmarksToGraph(LandmarkIds landmarks_kf);
-  void addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& lm);
+  virtual void addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& lm);
   virtual void updateLandmarkInGraph(const LandmarkId lm_id, const std::pair<FrameId, StereoPoint2>& newObs);
   void optimize(const FrameId& cur_id, const int max_iterations);
-  virtual void findSmartFactorsSlots(const std::vector<Key> new_smart_factors_keys_tmp);
+  void findSmartFactorsSlots(const std::vector<Key> new_smart_factors_keys_tmp);
   void findSmartFactorsSlotsSlow(const std::vector<Key> new_smart_factors_keys_tmp);
   /* --------------------------------- CONST FUNCTIONS ------------------------------------ */
   void print() const {

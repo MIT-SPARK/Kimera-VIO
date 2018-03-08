@@ -17,6 +17,7 @@
 #define RegularVioBackEnd_H_
 
 #include <VioBackEnd.h>
+#include <gtsam/slam/StereoFactor.h>
 
 namespace VIO {
 
@@ -38,8 +39,9 @@ class RegularVioBackEnd: public VioBackEnd
   public:
   // Map from ldmrk ID to corresponding factor type, true: smart.
   using LmkIdIsSmart = gtsam::FastMap<LandmarkId, bool>;
-  ///
-  void findSmartFactorsSlots(const std::vector<Key> new_smart_factors_keys_tmp);
+  LmkIdIsSmart lmk_id_is_smart_;
+
+  void addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& lm);
 
   void updateLandmarkInGraph(const LandmarkId lm_id, const std::pair<FrameId, StereoPoint2>& newObs);
 

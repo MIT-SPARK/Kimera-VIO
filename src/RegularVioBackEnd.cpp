@@ -33,7 +33,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
 
-  std::cout << "VIO: adding keyframe " << cur_id_ << " at timestamp:" << timestamp_kf_ << " (sec)" << std::endl;
+  std::cout << "RegularVIO: adding keyframe " << cur_id_ << " at timestamp:" << timestamp_kf_ << " (sec)" << std::endl;
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
@@ -45,7 +45,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   // add between factor from RANSAC
   if(stereoRansacBodyPose){
-    std::cout << "VIO: adding between " << std::endl;
+    std::cout << "RegularVIO: adding between " << std::endl;
     (*stereoRansacBodyPose).print();
     addBetweenFactor(last_id_, cur_id_, *stereoRansacBodyPose);
   }
@@ -85,40 +85,68 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   imu_bias_prev_kf_ = imu_bias_lkf_; // this lags 1 step behind to mimic hw
+  // TODO add conversion from Smart factor to regular.
   optimize(cur_id_, vioParams_.numOptimize_);
+}
+
+void RegularVioBackEnd::addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& ft)
+{
+  if(ft.in_ba_graph_)
+    throw std::runtime_error("addLandmarkToGraph: feature already in the graph!");
+
+  ft.in_ba_graph_ = true;
+
+  // We use a unit pinhole projection camera for the smart factors to be more efficient.
+  SmartStereoFactor::shared_ptr new_factor(
+      new SmartStereoFactor(smart_noise_, smartFactorsParams_, B_Pose_leftCam_));
+
+  if (verbosity_ >= 9) {std::cout << "Adding landmark with: " << ft.obs_.size() << " landmarks to graph, with keys: ";}
+  if (verbosity_ >= 9){new_factor->print();}
+
+  // add observations to smart factor
+  for (const std::pair<FrameId,StereoPoint2>& obs : ft.obs_)
+  {
+    new_factor->add(obs.second, gtsam::Symbol('x', obs.first), stereoCal_);
+    if (verbosity_ >= 9) {std::cout << " " <<  obs.first;}
+  }
+  if (verbosity_ >= 9) {std::cout << std::endl;}
+  // add new factor to suitable structures:
+  new_smart_factors_.insert(std::make_pair(lm_id, new_factor));
+  old_smart_factors_.insert(std::make_pair(lm_id, std::make_pair(new_factor, -1)));
+  // This is the ONLY difference wrt VioBackEnd: add to the map of lmkID (at the
+  // beginning they are all smart factors) whether it is smart of not.
+  lmk_id_is_smart_.insert(std::make_pair(lm_id, true));
 }
 
 void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId lm_id, const std::pair<FrameId, StereoPoint2>& newObs)
 {
-  // Update existing smart-factor
-  auto old_smart_factors_it = old_smart_factors_.find(lm_id);
-  if (old_smart_factors_it == old_smart_factors_.end())
-    throw std::runtime_error("updateLandmarkInGraph: landmark not found in old_smart_factors_\n");
+  bool is_lmk_smart = lmk_id_is_smart_.at(lm_id);
+  if (is_lmk_smart == true) {
+    // Update existing smart-factor
+    auto old_smart_factors_it = old_smart_factors_.find(lm_id);
+    if (old_smart_factors_it == old_smart_factors_.end())
+      throw std::runtime_error("updateLandmarkInGraph: landmark not found in old_smart_factors_\n");
 
-  SmartStereoFactor::shared_ptr old_factor = old_smart_factors_it->second.first;
-  SmartStereoFactor::shared_ptr new_factor = boost::make_shared<SmartStereoFactor>(*old_factor); // clone old factor
-  new_factor->add(newObs.second, gtsam::Symbol('x', newObs.first), stereoCal_);
+    SmartStereoFactor::shared_ptr old_factor = old_smart_factors_it->second.first;
+    SmartStereoFactor::shared_ptr new_factor = boost::make_shared<SmartStereoFactor>(*old_factor); // clone old factor
+    new_factor->add(newObs.second, gtsam::Symbol('x', newObs.first), stereoCal_);
 
-  // update the factor
-  if (old_smart_factors_it->second.second != -1){// if slot is still -1, it means that the factor has not been inserted yet in the graph
-    new_smart_factors_.insert(std::make_pair(lm_id, new_factor));
-  }else{
-    throw std::runtime_error("updateLandmarkInGraph: when calling update the slot should be already != -1! \n");
+    // update the factor
+    if (old_smart_factors_it->second.second != -1){// if slot is still -1, it means that the factor has not been inserted yet in the graph
+      new_smart_factors_.insert(std::make_pair(lm_id, new_factor));
+    }else{
+      throw std::runtime_error("updateLandmarkInGraph: when calling update the slot should be already != -1! \n");
+    }
+    old_smart_factors_it->second.first = new_factor;
+    if (verbosity_ >= 8) {std::cout << "updateLandmarkInGraph: added observation to point: " << lm_id << std::endl;}
+  } else {
+    // If it is not smart, just add current measurement.
+    new_imu_and_prior_factors_.push_back(gtsam::GenericStereoFactor<Pose3, Point3>
+                                         (newObs.second, smart_noise_,
+                                          gtsam::Symbol('x', newObs.first),
+                                          gtsam::Symbol('l', lm_id),
+                                          stereoCal_, B_Pose_leftCam_));
   }
-  old_smart_factors_it->second.first = new_factor;
-  if (verbosity_ >= 8) {std::cout << "updateLandmarkInGraph: added observation to point: " << lm_id << std::endl;}
 }
-
-void RegularVioBackEnd::findSmartFactorsSlots(const std::vector<Key> new_smart_factors_lmkID_tmp) {
-
-  gtsam::ISAM2Result result = smoother_->getISAM2Result();
-  // Simple version of find smart factors
-  for (size_t i = 0; i < new_smart_factors_lmkID_tmp.size(); ++i) // for each landmark id currently observed (just re-added to graph)
-  {
-    const auto& it = old_smart_factors_.find(new_smart_factors_lmkID_tmp.at(i)); // find the entry in old_smart_factors_
-    it->second.second = result.newFactorsIndices.at(i); // update slot using isam2 indices
-  }
-}
-
 
 } // namespace VIO
