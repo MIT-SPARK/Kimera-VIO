@@ -182,6 +182,99 @@ cv::Mat Mesher::getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D, 
 }
 
 /* ----------------------------------------------------------------------------- */
+// Calculate normals of polygonMesh.
+bool Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
+  if (normals == nullptr) return false;
+
+  // Brute force, ideally only call when a new triangle appears...
+  normals->clear();
+  normals->resize(std::floor(polygonsMesh_.rows / 4)); // Assumes we have triangles...
+
+  // Loop over all triangles (TODO: group all loopy operations, now there
+  // are two or more loops over polygonsMesh around the code...
+  for (size_t i = 0; i < polygonsMesh_.rows; i = i + 4) { // for each polygon
+    // Get triangle vertices:
+    if (polygonsMesh_.at<int32_t>(i) != 3) {
+      throw std::runtime_error("filterOutBadTriangles: expecting 3 vertices in triangle");
+    }
+
+    int rowId_pt1 = polygonsMesh_.at<int32_t>(i + 1);
+    int rowId_pt2 = polygonsMesh_.at<int32_t>(i + 2);
+    int rowId_pt3 = polygonsMesh_.at<int32_t>(i + 3);
+
+    cv::Point3f p1 = mapPoints3d_.at<cv::Point3f>(rowId_pt1);
+    cv::Point3f p2 = mapPoints3d_.at<cv::Point3f>(rowId_pt2);
+    cv::Point3f p3 = mapPoints3d_.at<cv::Point3f>(rowId_pt3);
+
+    // Calculate vectors of the triangle.
+    cv::Point3f v21 = p2 - p1;
+    cv::Point3f v31 = p3 - p1;
+
+    // Calculate normal (cross product).
+    cv::Point3f normal = v21.cross(v31);
+
+    // Normalize
+    normal /= (cv::norm(v21) * cv::norm(v31));
+
+    // Store normal to triangle i.
+    normals->at(i) = normal;
+  }
+  return true;
+}
+
+/* ------------------------------------------------------------------------ */
+// Clusters normals given an axis, a set of normals and a
+// tolerance. The result is a vector of indices of the given set of normals
+// that are in the cluster.
+void Mesher::clusterNormalsAroundAxis(const cv::Point3f& axis,
+                                      const std::vector<cv::Point3f>& normals,
+                                      const double& tolerance,
+                                      std::vector<int>* cluster_normals_idx) {
+  size_t idx = 0;
+  // TODO, this should be in the same loop as the one calculating
+  // the normals...
+  for (const cv::Point3f& normal: normals) {
+    if (isNormalAroundAxis(axis, normal, tolerance))
+      cluster_normals_idx->push_back(idx);
+    idx++;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+// Is normal around axis?
+bool Mesher::isNormalAroundAxis(const cv::Point3f& axis,
+                                const cv::Point3f& normal,
+                                const double& tolerance) const {
+    return ((cv::norm(normal - axis) < tolerance)? true: false);
+}
+
+/* ------------------------------------------------------------------------ */
+// Clusters normals perpendicular to an axis. Given an axis, a set of normals and a
+// tolerance. The result is a vector of indices of the given set of normals
+// that are in the cluster.
+void Mesher::clusterNormalsPerpendicularToAxis(const cv::Point3f& axis,
+                                      const std::vector<cv::Point3f>& normals,
+                                      const double& tolerance,
+                                      std::vector<int>* cluster_normals_idx) {
+  size_t idx = 0;
+  // TODO, this should be in the same loop as the one calculating
+  // the normals...
+  for (const cv::Point3f& normal: normals) {
+    if (isNormalPerpendicularToAxis(axis, normal, tolerance))
+      cluster_normals_idx->push_back(idx);
+    idx++;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+// Is normal perpendicular to axis?
+bool Mesher::isNormalPerpendicularToAxis(const cv::Point3f& axis,
+                                         const cv::Point3f& normal,
+                                         const double& tolerance) const {
+    return ((cv::norm(normal.dot(axis)) < tolerance)? true: false);
+}
+
+/* ----------------------------------------------------------------------------- */
 // Update map: update structures keeping memory of the map before visualization
 void Mesher::updateMap3D(
     std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,

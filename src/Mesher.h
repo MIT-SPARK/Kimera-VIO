@@ -86,6 +86,39 @@ public:
                                   Frame& frame) const;
 
   /* ------------------------------------------------------------------------ */
+  // Calculate normals of polygonMesh.
+  bool calculateNormals(std::vector<cv::Point3f>* normals);
+
+  /* ------------------------------------------------------------------------ */
+  // Clusters normals given an axis, a set of normals and a
+  // tolerance. The result is a vector of indices of the given set of normals
+  // that are in the cluster.
+  void clusterNormalsAroundAxis(const cv::Point3f& axis,
+                                const std::vector<cv::Point3f>& normals,
+                                const double& tolerance,
+                                std::vector<int>* cluster_normals_idx);
+
+  /* ------------------------------------------------------------------------ */
+  // Is normal around axis?
+  bool isNormalAroundAxis(const cv::Point3f& axis,
+                          const cv::Point3f& normal,
+                          const double& tolerance) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Clusters normals perpendicular to an axis. Given an axis, a set of normals and a
+  // tolerance. The result is a vector of indices of the given set of normals
+  // that are in the cluster.
+  void clusterNormalsPerpendicularToAxis(const cv::Point3f& axis,
+                                         const std::vector<cv::Point3f>& normals,
+                                         const double& tolerance,
+                                         std::vector<int>* cluster_normals_idx);
+  /* ------------------------------------------------------------------------ */
+  // Is normal perpendicular to axis?
+  bool isNormalPerpendicularToAxis(const cv::Point3f& axis,
+                                   const cv::Point3f& normal,
+                                   const double& tolerance) const;
+
+  /* ------------------------------------------------------------------------ */
   // Update map: update structures keeping memory of the map before visualization
   void updateMap3D(
       std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
