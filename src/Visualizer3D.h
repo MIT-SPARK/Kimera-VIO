@@ -161,7 +161,28 @@ public:
   /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
   void visualizeMesh3D(const Mesher& mesher){
-    visualizeMesh3D(mesher.mapPoints3d_,mesher.polygonsMesh_);
+    // Color the mesh.
+    cv::Mat colors (mesher.mapPoints3d_.rows, 1, CV_8UC3, cv::viz::Color::red());
+    // The code below assumes triangles as polygons.
+    if (mesher.triangle_clusters_.size() > 0) {
+      // TODO now it only prints the first cluster.
+      if (mesher.triangle_clusters_.at(0).triangle_ids_.size() > 0) {
+        for (const size_t& triangle_id: mesher.triangle_clusters_.at(0).triangle_ids_) {
+          colors.at<cv::viz::Color>(mesher.polygonsMesh_.at<int>(triangle_id * 4 + 1)) =
+              cv::viz::Color::green();
+          colors.at<cv::viz::Color>(mesher.polygonsMesh_.at<int>(triangle_id * 4 + 2)) =
+              cv::viz::Color::green();
+          colors.at<cv::viz::Color>(mesher.polygonsMesh_.at<int>(triangle_id * 4 + 3)) =
+              cv::viz::Color::green();
+        }
+      } else {
+        LOG(ERROR) << "No elements in triangle cluster.";
+      }
+    } else {
+      LOG(ERROR) << "Triangle clusters is empty.";
+    }
+
+    visualizeMesh3D(mesher.mapPoints3d_, mesher.polygonsMesh_, colors);
   }
 
   /* ----------------------------------------------------------------------------- */
