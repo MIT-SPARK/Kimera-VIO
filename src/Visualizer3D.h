@@ -168,12 +168,13 @@ public:
       // TODO now it only prints the first cluster.
       if (mesher.triangle_clusters_.at(0).triangle_ids_.size() > 0) {
         for (const size_t& triangle_id: mesher.triangle_clusters_.at(0).triangle_ids_) {
-          colors.at<cv::viz::Color>(mesher.polygonsMesh_.at<int>(triangle_id * 4 + 1)) =
-              cv::viz::Color::green();
-          colors.at<cv::viz::Color>(mesher.polygonsMesh_.at<int>(triangle_id * 4 + 2)) =
-              cv::viz::Color::green();
-          colors.at<cv::viz::Color>(mesher.polygonsMesh_.at<int>(triangle_id * 4 + 3)) =
-              cv::viz::Color::green();
+          size_t triangle_idx = std::round(triangle_id * 4);
+          if (triangle_idx + 3 >= mesher.polygonsMesh_.rows) {
+            throw std::runtime_error("Visualizer3D: an id in triangle_ids_ is too large.");
+          }
+          colors.row(mesher.polygonsMesh_.at<int32_t>(triangle_idx + 1)) = cv::viz::Color::green();
+          colors.row(mesher.polygonsMesh_.at<int32_t>(triangle_idx + 2)) = cv::viz::Color::green();
+          colors.row(mesher.polygonsMesh_.at<int32_t>(triangle_idx + 3)) = cv::viz::Color::green();
         }
       } else {
         LOG(ERROR) << "No elements in triangle cluster.";

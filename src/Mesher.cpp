@@ -386,6 +386,24 @@ void Mesher::updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > poi
 
   // after filling in polygonsMesh_, we don't need this, and it must be reset:
   keypointToMapPointId_.resize(0);
+
+  // Calculate normals
+  std::vector<cv::Point3f> normals;
+  calculateNormals(&normals);
+
+  // Cluster triangles along axis.
+  cv::Point3f axis (0, 0, 1);
+  double tolerance = 0.9;
+  TriangleCluster triangle_cluster;
+  triangle_cluster.cluster_direction_ = axis;
+  triangle_cluster.cluster_id_ = 0;
+  clusterNormalsAroundAxis(axis, normals, tolerance,
+                           &(triangle_cluster.triangle_ids_));
+  if (triangle_clusters_.size() == 0) {
+    triangle_clusters_.push_back(triangle_cluster);
+  } else {
+    triangle_clusters_.at(0) = triangle_cluster;
+  }
 }
 
 /* ----------------------------------------------------------------------------- */
