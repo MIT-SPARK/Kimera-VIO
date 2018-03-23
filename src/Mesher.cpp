@@ -188,19 +188,27 @@ bool Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
 
   // Brute force, ideally only call when a new triangle appears...
   normals->clear();
-  normals->resize(std::floor(polygonsMesh_.rows / 4)); // Assumes we have triangles...
+  normals->resize(std::round(polygonsMesh_.rows / 4)); // TODO Assumes we have triangles...
 
   // Loop over all triangles (TODO: group all loopy operations, now there
   // are two or more loops over polygonsMesh around the code...
   for (size_t i = 0; i < polygonsMesh_.rows; i = i + 4) { // for each polygon
     // Get triangle vertices:
     if (polygonsMesh_.at<int32_t>(i) != 3) {
-      throw std::runtime_error("filterOutBadTriangles: expecting 3 vertices in triangle");
+      throw std::runtime_error("CalculateNormals: expecting 3 vertices in triangle");
     }
 
+    // TODO Assumes we have triangles...
     int rowId_pt1 = polygonsMesh_.at<int32_t>(i + 1);
     int rowId_pt2 = polygonsMesh_.at<int32_t>(i + 2);
     int rowId_pt3 = polygonsMesh_.at<int32_t>(i + 3);
+
+    size_t size_map_points_3d = mapPoints3d_.rows;
+    if (rowId_pt1 >= size_map_points_3d &&
+        rowId_pt2 >= size_map_points_3d &&
+        rowId_pt3 >= size_map_points_3d) {
+      throw std::runtime_error("CalculateNormals: polygonsMesh corrupted.");
+    }
 
     cv::Point3f p1 = mapPoints3d_.at<cv::Point3f>(rowId_pt1);
     cv::Point3f p2 = mapPoints3d_.at<cv::Point3f>(rowId_pt2);
@@ -214,11 +222,16 @@ bool Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
     cv::Point3f normal = v21.cross(v31);
 
     // Normalize
-    normal /= (cv::norm(v21) * cv::norm(v31));
+    double norm = (cv::norm(v21) * cv::norm(v31));
+    if (norm == 0) {
+      throw std::runtime_error("CalculateNormals: norm is 0.");
+    }
+    normal /= norm;
 
     // Store normal to triangle i.
-    normals->at(i) = normal;
+    normals->at(std::round(i / 4)) = normal; // TODO Assumes we have triangles...
   }
+
   return true;
 }
 
