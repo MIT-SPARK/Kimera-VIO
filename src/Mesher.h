@@ -39,15 +39,27 @@ public:
   // map a keypoint (without lmk id) to a row in mapPoints3d_
   using KeypointToMapPointId = std::vector< std::pair<KeypointCV,int>>;
 
+  struct TriangleCluster {
+    std::vector<int> triangle_ids_;
+
+    int cluster_id_;
+    cv::Point3f cluster_direction_;
+  };
+
   // set of (non-repeated) points = valid landmark positions
   cv::Mat mapPoints3d_;
   // set of polygons
   cv::Mat polygonsMesh_;
+  // set of triangle clusters;
+  std::vector<TriangleCluster> triangle_clusters_;
+
+
   // maps lmk id to corresponding 3D points
   LandmarkIdToMapPointId lmkIdToMapPointId_;
   // number of points
   int points3D_count_;
   KeypointToMapPointId keypointToMapPointId_;
+
 
   Mesher(): polygonsMesh_(cv::Mat(0,1,CV_32SC1)), points3D_count_(0) {}
 
@@ -96,7 +108,7 @@ public:
   void clusterNormalsAroundAxis(const cv::Point3f& axis,
                                 const std::vector<cv::Point3f>& normals,
                                 const double& tolerance,
-                                std::vector<int>* cluster_normals_idx);
+                                std::vector<int>* triangle_cluster);
 
   /* ------------------------------------------------------------------------ */
   // Is normal around axis?
