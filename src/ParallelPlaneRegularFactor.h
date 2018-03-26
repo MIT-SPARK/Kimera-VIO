@@ -96,7 +96,7 @@ public:
                                          const Key& plane2Key,
                                          const SharedGaussian& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->factor_type_ = "Parallel Plane in Tangent Space";
+      this->factor_type_ = "ParallelPlaneRegularTangentSpaceFactor";
   }
 
 private:
@@ -143,7 +143,7 @@ public:
                         const double& measured_distance_from_plane2_to_plane1) :
           ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
                                      measured_distance_from_plane2_to_plane1) {
-      this->factor_type_ = "Parallelism + Separation, using Tangent Space";
+      this->factor_type_ = "GeneralParallelPlaneRegularTangentSpaceFactor";
   }
 
 private:
@@ -196,7 +196,7 @@ public:
                                          const Key& plane2Key,
                                          const SharedGaussian& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->factor_type_ = "Basic Factor";
+      this->factor_type_ = "ParallelPlaneRegularBasicFactor";
   }
 
 private:
@@ -250,7 +250,7 @@ public:
                     const double& measured_distance_from_plane2_to_plane1 = 0) :
           ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
                                      measured_distance_from_plane2_to_plane1) {
-      this->factor_type_ = "General Parallelism Basic Factor";
+      this->factor_type_ = "GeneralParallelPlaneRegularBasicFactor";
   }
 
 private:
