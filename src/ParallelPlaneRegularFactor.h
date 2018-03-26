@@ -13,7 +13,8 @@
 namespace gtsam {
 
 /**
- * Factor to implement error between a point landmark and a plane.
+ * Factor to implement error between different planes.
+ * (TODO, check BetweenFactor)
  */
 class ParallelPlaneRegularFactor: public NoiseModelFactor2<OrientedPlane3,
                                                            OrientedPlane3> {
