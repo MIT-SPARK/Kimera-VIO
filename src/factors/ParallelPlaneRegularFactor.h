@@ -1,6 +1,6 @@
 /*
- * @file RegularPlane3Factor.cpp
- * @brief RegularPlane3 Factor class
+ * @file ParallelPlaneRegularFactor.h
+ * @brief ParallelPlaneRegular Factor class
  * @author Antoni Rosinol
  * @date February 20, 2018
  */

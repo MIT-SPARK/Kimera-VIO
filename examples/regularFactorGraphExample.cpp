@@ -22,7 +22,7 @@
 #include <gtsam/slam/BetweenFactor.h>
 
 // Factor between a point landmark and a plane.
-#include "RegularPlane3Factor.h"
+#include "factors/RegularPlane3Factor.h"
 
 // When the factors are created, we will add them to a Factor Graph. As the factors we are using
 // are nonlinear factors, we will need a Nonlinear Factor Graph.

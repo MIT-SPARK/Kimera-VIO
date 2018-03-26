@@ -28,7 +28,7 @@
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/OrientedPlane3.h>
-#include "RegularPlane3Factor.h"
+#include "factors/RegularPlane3Factor.h"
 
 using namespace std;
 using namespace gtsam;

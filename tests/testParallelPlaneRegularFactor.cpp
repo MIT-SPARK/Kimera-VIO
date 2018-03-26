@@ -29,8 +29,8 @@
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/OrientedPlane3.h>
-#include "RegularPlane3Factor.h"
-#include "ParallelPlaneRegularFactor.h"
+#include "factors/RegularPlane3Factor.h"
+#include "factors/ParallelPlaneRegularFactor.h"
 
 using namespace std;
 using namespace gtsam;
