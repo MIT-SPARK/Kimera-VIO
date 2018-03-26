@@ -28,7 +28,7 @@
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/OrientedPlane3.h>
-#include "factors/RegularPlane3Factor.h"
+#include "factors/PointPlaneFactor.h"
 
 using namespace std;
 using namespace gtsam;
@@ -37,13 +37,13 @@ static const double tol = 1e-5;
 static const double der_tol = 1e-5;
 
 /* ************************************************************************* */
-TEST(testBasicRegularPlane3Factor, Jacobians) {
+TEST(testPointPlaneFactor, Jacobians) {
   // Create the factor with a measurement that is 3 pixels off in x
   Key pointKey(1);
   Key planeKey(2);
   noiseModel::Diagonal::shared_ptr regularityNoise =
           noiseModel::Diagonal::Sigmas(Vector1(0.1));
-  BasicRegularPlane3Factor factor(pointKey, planeKey, regularityNoise);
+  PointPlaneFactor factor(pointKey, planeKey, regularityNoise);
 
   double plane_normal [3] = {2.4, 1.2, 1.9};
   double distance(2.3);
@@ -59,11 +59,11 @@ TEST(testBasicRegularPlane3Factor, Jacobians) {
 
   // Calculate numerical derivatives
   Matrix H1Expected = numericalDerivative21<Vector, Point3, OrientedPlane3>(
-      boost::bind(&BasicRegularPlane3Factor::evaluateError, &factor, _1, _2,
+      boost::bind(&PointPlaneFactor::evaluateError, &factor, _1, _2,
           boost::none, boost::none), point, plane, der_tol);
 
   Matrix H2Expected = numericalDerivative22<Vector, Point3, OrientedPlane3>(
-      boost::bind(&BasicRegularPlane3Factor::evaluateError, &factor, _1, _2,
+      boost::bind(&PointPlaneFactor::evaluateError, &factor, _1, _2,
           boost::none, boost::none), point, plane, der_tol);
 
   // Verify the Jacobians are correct
@@ -71,13 +71,13 @@ TEST(testBasicRegularPlane3Factor, Jacobians) {
   CHECK(assert_equal(H2Expected, H2Actual, tol));
 }
 
-TEST(testBasicRegularPlane3Factor, JacobiansNegative) {
+TEST(testPointPlaneFactor, JacobiansNegative) {
   // Create the factor with a measurement that is 3 pixels off in x
   Key pointKey(1);
   Key planeKey(2);
   noiseModel::Diagonal::shared_ptr regularityNoise =
           noiseModel::Diagonal::Sigmas(Vector1(0.1));
-  BasicRegularPlane3Factor factor(pointKey, planeKey, regularityNoise);
+  PointPlaneFactor factor(pointKey, planeKey, regularityNoise);
 
   double plane_normal [3] = {2.4, 1.2, 1.9};
   double distance(-2.3);
@@ -93,11 +93,11 @@ TEST(testBasicRegularPlane3Factor, JacobiansNegative) {
 
   // Calculate numerical derivatives
   Matrix H1Expected = numericalDerivative21<Vector, Point3, OrientedPlane3>(
-      boost::bind(&BasicRegularPlane3Factor::evaluateError, &factor, _1, _2,
+      boost::bind(&PointPlaneFactor::evaluateError, &factor, _1, _2,
           boost::none, boost::none), point, plane, der_tol);
 
   Matrix H2Expected = numericalDerivative22<Vector, Point3, OrientedPlane3>(
-      boost::bind(&BasicRegularPlane3Factor::evaluateError, &factor, _1, _2,
+      boost::bind(&PointPlaneFactor::evaluateError, &factor, _1, _2,
           boost::none, boost::none), point, plane, der_tol);
 
   // Verify the Jacobians are correct
@@ -105,7 +105,7 @@ TEST(testBasicRegularPlane3Factor, JacobiansNegative) {
   CHECK(assert_equal(H2Expected, H2Actual, tol));
 }
 
-TEST(testBasicRegularPlane3Factor, PlaneOptimization) {
+TEST(testPointPlaneFactor, PlaneOptimization) {
   /// Three landmarks, with prior factors, and a plane constrained together
   /// using the landmark-plane factor.
   NonlinearFactorGraph graph;
@@ -119,9 +119,9 @@ TEST(testBasicRegularPlane3Factor, PlaneOptimization) {
   graph.emplace_shared<PriorFactor<Point3> >(3, priorMean3, priorNoise);
 
   noiseModel::Isotropic::shared_ptr regularityNoise = noiseModel::Isotropic::Sigma(1, 0.5);
-  graph.emplace_shared<BasicRegularPlane3Factor>(1, 4, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(2, 4, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(3, 4, regularityNoise);
+  graph.emplace_shared<PointPlaneFactor>(1, 4, regularityNoise);
+  graph.emplace_shared<PointPlaneFactor>(2, 4, regularityNoise);
+  graph.emplace_shared<PointPlaneFactor>(3, 4, regularityNoise);
 
   Values initial;
   initial.insert(1, Point3(0.0, 19.0, 3.0));
@@ -171,9 +171,9 @@ TEST(testBasicRegularPlane3Factor, LandmarkOptimization) {
   graph.emplace_shared<PriorFactor<OrientedPlane3> >(planeKey, priorMean, priorNoisePlane);
 
   noiseModel::Isotropic::shared_ptr regularityNoise = noiseModel::Isotropic::Sigma(1, 0.1);
-  graph.emplace_shared<BasicRegularPlane3Factor>(1, planeKey, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(2, planeKey, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(3, planeKey, regularityNoise);
+  graph.emplace_shared<PointPlaneFactor>(1, planeKey, regularityNoise);
+  graph.emplace_shared<PointPlaneFactor>(2, planeKey, regularityNoise);
+  graph.emplace_shared<PointPlaneFactor>(3, planeKey, regularityNoise);
 
   Values initial;
   initial.insert(1, Point3(0.0, 0.0, -3.0));

@@ -29,7 +29,7 @@
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/OrientedPlane3.h>
-#include "factors/RegularPlane3Factor.h"
+#include "factors/PointPlaneFactor.h"
 #include "factors/ParallelPlaneRegularFactor.h"
 
 using namespace std;
@@ -187,9 +187,9 @@ TEST(testParallelPlaneRegularFactor, PlaneOptimization) {
           noiseModel::Isotropic::Sigma(1, 0.5);
 
   /// Plane 1 to landmarks 1,2,3.
-  graph.emplace_shared<BasicRegularPlane3Factor>(landmark_key_1, plane_key_1, regularity_noise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(landmark_key_2, plane_key_1, regularity_noise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(landmark_key_3, plane_key_1, regularity_noise);
+  graph.emplace_shared<PointPlaneFactor>(landmark_key_1, plane_key_1, regularity_noise);
+  graph.emplace_shared<PointPlaneFactor>(landmark_key_2, plane_key_1, regularity_noise);
+  graph.emplace_shared<PointPlaneFactor>(landmark_key_3, plane_key_1, regularity_noise);
 
   if (true) {
     /// Noise model for cosntraint between the two planes.

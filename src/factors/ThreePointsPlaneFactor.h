@@ -1,6 +1,6 @@
 /*
- * @file RegularPlane3Factor.cpp
- * @brief RegularPlane3 Factor class
+ * @file ThreePointsPlaneFactor.h
+ * @brief ThreePointsPlane Factor class
  * @author Antoni Rosinol
  * @date February 20, 2018
  */
@@ -13,63 +13,12 @@
 namespace gtsam {
 
 /**
- * Factor to implement error between a point landmark and a plane.
+ * Factor to implement error between three point landmarks and a plane.
  */
-class BasicRegularPlane3Factor: public NoiseModelFactor2<Point3, OrientedPlane3> {
-
-protected:
-  Key pointKey_;
-  Key planeKey_;
-
-  typedef NoiseModelFactor2<Point3, OrientedPlane3> Base;
-
-public:
-
-  /// Constructor
-  BasicRegularPlane3Factor() {
-  }
-  virtual ~BasicRegularPlane3Factor() {}
-
-  /// Constructor with measured plane coefficients (a,b,c,d), noise model, pose symbol
-  BasicRegularPlane3Factor(
-      const Key& pointKey, const Key& planeKey, const SharedGaussian& noiseModel) :
-      Base(noiseModel, pointKey, planeKey), pointKey_(pointKey), planeKey_(planeKey) {
-  }
-
-  /// print
-  virtual void print(const std::string& s = "RegularPlane3Factor",
-      const KeyFormatter& keyFormatter = DefaultKeyFormatter) const;
-
-  /// evaluateError
-  /// Hpoint: jacobian of h wrt point landmark
-  /// Hplane: jacobian of h wrt plane
-  virtual Vector evaluateError(const Point3& point, const OrientedPlane3& plane,
-                               boost::optional<Matrix&> H_point = boost::none,
-                               boost::optional<Matrix&> H_plane = boost::none) const {
-    Vector err(1);
-    Unit3 plane_normal = plane.normal();
-    double plane_distance = plane.distance();
-
-    if (H_point) *H_point = plane_normal.unitVector().transpose();
-    if (H_plane) {
-      Matrix43 H_plane_retract;
-      // Jacobian of plane retraction when v = Vector3::Zero(), to speed-up
-      // computations.
-      H_plane_retract << plane_normal.basis(), Vector3::Zero(), 0, 0, 1;
-      Vector4 p;
-      p << point.vector(), -1;
-      *H_plane =  p.transpose() * H_plane_retract;
-    }
-
-    err << point.dot(plane_normal.unitVector()) - plane_distance;
-    return (err);
-  }
-};
-
-class RegularPlane3Factor: public NoiseModelFactor4<Point3,
-                                                    Point3,
-                                                    Point3,
-                                                    OrientedPlane3> {
+class ThreePointsPlaneFactor: public NoiseModelFactor4<Point3,
+                                                       Point3,
+                                                       Point3,
+                                                       OrientedPlane3> {
 
 protected:
   Key point1Key_;
@@ -82,12 +31,12 @@ protected:
 public:
 
   /// Constructor
-  RegularPlane3Factor() {
+  ThreePointsPlaneFactor() {
   }
-  virtual ~RegularPlane3Factor() {}
+  virtual ~ThreePointsPlaneFactor() {}
 
   /// Constructor with measured plane coefficients (a,b,c,d), noise model, pose symbol
-  RegularPlane3Factor(
+  ThreePointsPlaneFactor(
       const Key& point1,
       const Key& point2,
       const Key& point3,

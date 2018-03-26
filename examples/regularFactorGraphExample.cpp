@@ -22,7 +22,7 @@
 #include <gtsam/slam/BetweenFactor.h>
 
 // Factor between a point landmark and a plane.
-#include "factors/RegularPlane3Factor.h"
+#include "factors/PointPlaneFactor.h"
 
 // When the factors are created, we will add them to a Factor Graph. As the factors we are using
 // are nonlinear factors, we will need a Nonlinear Factor Graph.
@@ -72,9 +72,9 @@ int main(int argc, char** argv) {
   noiseModel::Diagonal::shared_ptr regularityNoise = noiseModel::Diagonal::Sigmas(Vector1(0.1));
   // Notice there is no measurement argument!
   //graph.emplace_shared<RegularPlane3Factor>(1, 2, 3, 4, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(1, 4, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(2, 4, regularityNoise);
-  graph.emplace_shared<BasicRegularPlane3Factor>(3, 4, regularityNoise);
+  graph.emplace_shared<PointPlaneFactor>(1, 4, regularityNoise);
+  graph.emplace_shared<PointPlaneFactor>(2, 4, regularityNoise);
+  graph.emplace_shared<PointPlaneFactor>(3, 4, regularityNoise);
 
   graph.print("\nFactor Graph:\n"); // print
 
