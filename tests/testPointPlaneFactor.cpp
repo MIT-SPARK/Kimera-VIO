@@ -33,9 +33,64 @@
 using namespace std;
 using namespace gtsam;
 
-static const double tol = 1e-5;
-static const double der_tol = 1e-5;
+/// Test tolerance
+static constexpr double tol = 1e-5;
+/// Delta increment for numerical derivative
+static constexpr double delta_value = 1e-5;
 
+/**
+  * Test that error does give the right result when it is zero.
+/* ************************************************************************* */
+TEST(testPointPlaneFactor, ErrorIsZero) {
+  Key pointKey(1);
+  Key planeKey(2);
+  noiseModel::Diagonal::shared_ptr regularityNoise =
+          noiseModel::Diagonal::Sigmas(Vector1(0.1));
+  PointPlaneFactor factor(pointKey, planeKey, regularityNoise);
+
+  Unit3 plane_normal(2.4, 1.2, 1.9);
+  double distance(2.3);
+
+  // Set the linearization point
+  Point3 point(distance * plane_normal.unitVector()[0],
+               distance * plane_normal.unitVector()[1],
+               distance * plane_normal.unitVector()[2]);
+  OrientedPlane3 plane(plane_normal, distance);
+
+  // Use the factor to calculate the Jacobians
+  Vector error = factor.evaluateError(point, plane);
+  Vector1 expected_error = Vector1::Constant(0.0);
+
+  CHECK(assert_equal(expected_error, error, tol));
+}
+
+/**
+  * Test that error does give the right result when it is not zero.
+/* ************************************************************************* */
+TEST(testPointPlaneFactor, ErrorOtherThanZero) {
+  Key pointKey(1);
+  Key planeKey(2);
+  noiseModel::Diagonal::shared_ptr regularityNoise =
+          noiseModel::Diagonal::Sigmas(Vector1(0.1));
+  PointPlaneFactor factor(pointKey, planeKey, regularityNoise);
+
+  Unit3 plane_normal(2.4, 1.2, 1.9);
+  double distance(2.3);
+
+  // Set the linearization point
+  Point3 point(-2.3, 2.1, 0.0);
+  OrientedPlane3 plane(plane_normal, distance);
+
+  // Use the factor to calculate the Jacobians
+  Vector error = factor.evaluateError(point, plane);
+  Vector1 expected_error = Vector1::Constant(-3.2124498);
+
+  CHECK(assert_equal(expected_error, error, tol));
+}
+
+/**
+  * Test that analytical jacobians equal numerical ones.
+  *
 /* ************************************************************************* */
 TEST(testPointPlaneFactor, Jacobians) {
   // Create the factor with a measurement that is 3 pixels off in x
@@ -60,17 +115,21 @@ TEST(testPointPlaneFactor, Jacobians) {
   // Calculate numerical derivatives
   Matrix H1Expected = numericalDerivative21<Vector, Point3, OrientedPlane3>(
       boost::bind(&PointPlaneFactor::evaluateError, &factor, _1, _2,
-          boost::none, boost::none), point, plane, der_tol);
+          boost::none, boost::none), point, plane, delta_value);
 
   Matrix H2Expected = numericalDerivative22<Vector, Point3, OrientedPlane3>(
       boost::bind(&PointPlaneFactor::evaluateError, &factor, _1, _2,
-          boost::none, boost::none), point, plane, der_tol);
+          boost::none, boost::none), point, plane, delta_value);
 
   // Verify the Jacobians are correct
   CHECK(assert_equal(H1Expected, H1Actual, tol));
   CHECK(assert_equal(H2Expected, H2Actual, tol));
 }
 
+/**
+  * Test that analytical jacobians equal numerical ones, with negative values.
+  *
+/* ************************************************************************* */
 TEST(testPointPlaneFactor, JacobiansNegative) {
   // Create the factor with a measurement that is 3 pixels off in x
   Key pointKey(1);
@@ -94,20 +153,24 @@ TEST(testPointPlaneFactor, JacobiansNegative) {
   // Calculate numerical derivatives
   Matrix H1Expected = numericalDerivative21<Vector, Point3, OrientedPlane3>(
       boost::bind(&PointPlaneFactor::evaluateError, &factor, _1, _2,
-          boost::none, boost::none), point, plane, der_tol);
+          boost::none, boost::none), point, plane, delta_value);
 
   Matrix H2Expected = numericalDerivative22<Vector, Point3, OrientedPlane3>(
       boost::bind(&PointPlaneFactor::evaluateError, &factor, _1, _2,
-          boost::none, boost::none), point, plane, der_tol);
+          boost::none, boost::none), point, plane, delta_value);
 
   // Verify the Jacobians are correct
   CHECK(assert_equal(H1Expected, H1Actual, tol));
   CHECK(assert_equal(H2Expected, H2Actual, tol));
 }
 
+/**
+  * Test that optimization works for plane parameters.
+  * Three landmarks, with prior factors, and a plane constrained together
+  * using the landmark-plane factor.
+  *
+/* ************************************************************************* */
 TEST(testPointPlaneFactor, PlaneOptimization) {
-  /// Three landmarks, with prior factors, and a plane constrained together
-  /// using the landmark-plane factor.
   NonlinearFactorGraph graph;
 
   Point3 priorMean1(0.0, 0.0, 1.0); // prior at origin
@@ -130,7 +193,7 @@ TEST(testPointPlaneFactor, PlaneOptimization) {
   initial.insert(4, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
 
   GaussNewtonParams params;
-  params.setVerbosity("ERROR");
+  //params.setVerbosity("ERROR");
   params.setMaxIterations(20);
   params.setRelativeErrorTol(-std::numeric_limits<double>::max());
   //params.setErrorTol(-std::numeric_limits<double>::max());
@@ -147,10 +210,14 @@ TEST(testPointPlaneFactor, PlaneOptimization) {
   CHECK(assert_equal(expected, result, tol))
 }
 
+/**
+  * Test that optimization works for landmark parameters.
+  * Three landmarks, with prior factor with high uncertainty in z, and a plane,
+  * with a confident prior factor, constrained together using the
+  * landmark-plane factor.
+  *
+/* ************************************************************************* */
 TEST(testBasicRegularPlane3Factor, LandmarkOptimization) {
-  /// Three landmarks, with prior factor with high uncertainty in z, and a plane,
-  /// with a confident prior factor, constrained together using the
-  /// landmark-plane factor.
   NonlinearFactorGraph graph;
 
   // Set landmark priors, with high uncertainty on z.
@@ -182,7 +249,7 @@ TEST(testBasicRegularPlane3Factor, LandmarkOptimization) {
   initial.insert(4, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
 
   GaussNewtonParams params;
-  params.setVerbosity("ERROR");
+  //params.setVerbosity("ERROR");
   params.setMaxIterations(20);
   params.setRelativeErrorTol(-std::numeric_limits<double>::max());
   params.setAbsoluteErrorTol(-std::numeric_limits<double>::max());
