@@ -114,10 +114,14 @@ private:
     Vector2 err;
     err =  plane_normal_1.errorVector(plane_normal_2, H_n_1, H_n_2);
     if (H_plane_1) {
-      *H_plane_1 = H_n_1, Vector2::Zero();
+      Matrix23 tmp;
+      tmp << H_n_1, Vector2::Zero();
+      *H_plane_1 = tmp;
     }
     if (H_plane_2) {
-      *H_plane_2 = H_n_2, Vector2::Zero();
+      Matrix23 tmp;
+      tmp << H_n_2, Vector2::Zero();
+      *H_plane_2 = tmp;
     }
     return (err);
   }
