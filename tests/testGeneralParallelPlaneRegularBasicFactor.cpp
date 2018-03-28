@@ -126,11 +126,11 @@ TEST(testGeneralParallelPlaneRegularFactor, Jacobians) {
   OrientedPlane3 plane_1(0.3, 0.2, 1.9, 0.9);
   OrientedPlane3 plane_2(0.1, 0.1, 0.9, 0.1);
 
-  // Use the factor to calculate the Jacobians
+  /// Use the factor to calculate the Jacobians.
   gtsam::Matrix H1Actual, H2Actual;
   factor.evaluateError(plane_1, plane_2, H1Actual, H2Actual);
 
-  // Calculate numerical derivatives
+  /// Calculate numerical derivatives.
   Matrix H1Expected = numericalDerivative21<Vector,
                                             OrientedPlane3, OrientedPlane3>(
       boost::bind(&GeneralParallelPlaneRegularBasicFactor::evaluateError, &factor, _1, _2,
@@ -141,15 +141,15 @@ TEST(testGeneralParallelPlaneRegularFactor, Jacobians) {
       boost::bind(&GeneralParallelPlaneRegularBasicFactor::evaluateError, &factor, _1, _2,
           boost::none, boost::none), plane_1, plane_2, der_tol);
 
-  // Verify the Jacobians are correct
+  /// Verify the Jacobians are correct.
   CHECK(assert_equal(H1Expected, H1Actual, tol));
   CHECK(assert_equal(H2Expected, H2Actual, tol));
 }
 
 /**
   * Test that optimization works.
-  * Two planes constrained together, using distance + parallelism factor,
-  *  in tangent space. With one of the planes having a prior.
+  * Two planes constrained together, using distance + parallelism factor.
+  * With one of the planes having a prior.
   *
   *                  Prior
   *                   +-+        Parallelism +
