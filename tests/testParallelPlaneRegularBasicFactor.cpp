@@ -177,16 +177,27 @@ TEST(testParallelPlaneRegularBasicFactor, PlanePrior) {
   EXPECT(assert_equal(expected, result, tol))
 }
 
+/**
+  * Test that optimization works.
+  * A plane and a landmark with prior factors, and a second plane constrained
+  * together with the first plane using the ParallelPlaneRegularBasic factor.
+  *
+  *              Prior                      +-------+    +-+
+  *               +-+                       | Lmk 1 +----+ | Prior
+  *               +-+        Parallelism    +---+---+    +-+
+  *                |           factor           |
+  *            +---+---+        +-+         +---+---+
+  *            |Plane 1+--------+ +---------+Plane 2|
+  *            +-------+        +-+         +-------+
+  *
 /* ************************************************************************* */
 TEST(testParallelPlaneRegularBasicFactor, PlaneOptimization) {
-  /// Three landmarks, with prior factors, and a plane constrained together
-  /// using the landmark-plane factor.
   NonlinearFactorGraph graph;
 
   /// Keys
   Key landmark_key = 1;
-  Key plane_key_1 = 4;
-  Key plane_key_2 = 5;
+  Key plane_key_1 = 2;
+  Key plane_key_2 = 3;
 
   /// Shared noise for all landmarks.
   noiseModel::Diagonal::shared_ptr prior_noise =
