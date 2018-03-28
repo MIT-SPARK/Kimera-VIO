@@ -1,5 +1,5 @@
 # exclude certain files
-# note the source dir on each 
+# note the source dir on each
 set (tests_exclude "")
 
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR = ${CMAKE_CURRENT_SOURCE_DIR}")
@@ -10,5 +10,3 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # Build tests
 gtsamAddTestsGlobAll(VIOTests "test*.cpp" "${tests_exclude}" "${LIBS}" "${src_cpp_files}")
-
-

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0.2)
+cmake_minimum_required (VERSION 3.1)
 project (VIO CXX C)
 # set(CMAKE_CXX_FLAGS "-std=c++11") #  -stdlib=libc++
 # set(CMAKE_CXX_FLAGS "-stdlib=libc++")
@@ -86,15 +86,17 @@ add_library(stereoVIO ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Tracker.cpp ./src/StereoFrame.cpp
                       ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
                       ./src/Mesher.cpp ./src/RegularVioBackEnd.cpp
-                      ./src/RegularPlane3Factor.cpp
-                      ./src/ParallelPlaneRegularFactor.cpp
                       ./src/FeatureSelector.h ./src/LoggerMatlab.h
                       ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
                       ./src/CameraParams.h ./src/Frame.h
                       ./src/Mesher.h ./src/Mesher_cgal.h
                       ./src/UtilsGeometry.h ./src/Visualizer3D
                       ./src/UtilsOpenCV.h
-                      )
+                      "")
+
+### Add source code for factors
+include(src/factors/CMakeLists.txt)
+
 if (DEFINED external_project_dependencies)
   add_dependencies(stereoVIO ${external_project_dependencies})
 endif()
@@ -115,7 +117,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
 
 ### Get all the cpp files in ./src except the main file
 set(VIO_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(cpp_file_pattern "${VIO_SRC_DIR}/*.cpp")
+set(cpp_file_pattern "${VIO_SRC_DIR}/*.cpp" "${VIO_SRC_DIR}/factors/*.cpp")
 file(GLOB src_cpp_files ${cpp_file_pattern})
 
 #set(main_file_pattern "${VIO_SRC_DIR}/stereoVIOExample.cpp" "${VIO_SRC_DIR}/#stereoVIOExampleSimulation.cpp" "${VIO_SRC_DIR}/stereoVIOPlainBackend.cpp")

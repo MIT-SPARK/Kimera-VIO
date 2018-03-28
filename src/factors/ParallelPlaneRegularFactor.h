@@ -1,6 +1,6 @@
 /*
- * @file RegularPlane3Factor.cpp
- * @brief RegularPlane3 Factor class
+ * @file ParallelPlaneRegularFactor.h
+ * @brief ParallelPlaneRegular Factor class
  * @author Antoni Rosinol
  * @date February 20, 2018
  */
@@ -13,7 +13,8 @@
 namespace gtsam {
 
 /**
- * Factor to implement error between a point landmark and a plane.
+ * Pure virtual class to implement different factors between planes.
+ * (TODO, check BetweenFactor)
  */
 class ParallelPlaneRegularFactor: public NoiseModelFactor2<OrientedPlane3,
                                                            OrientedPlane3> {
@@ -77,7 +78,14 @@ private:
                    boost::optional<Matrix&> H_plane_2) const = 0;
 };
 
-class ParallelPlaneRegularTangentSpaceFactor: public ParallelPlaneRegularFactor {
+/**
+ * Specialization of a ParallelPlaneRegularFactor using normals error
+ * in Tangent Space of S² (geodesic).
+ * The error metric only considers parallelism between planes,
+ * no distance is enforced.
+ */
+class ParallelPlaneRegularTangentSpaceFactor:
+    public ParallelPlaneRegularFactor {
 public:
   /// Constructor
   ParallelPlaneRegularTangentSpaceFactor() {
@@ -88,7 +96,7 @@ public:
                                          const Key& plane2Key,
                                          const SharedGaussian& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->factor_type_ = "Tangent Space";
+      this->factor_type_ = "ParallelPlaneRegularTangentSpaceFactor";
   }
 
 private:
@@ -106,16 +114,27 @@ private:
     Vector2 err;
     err =  plane_normal_1.errorVector(plane_normal_2, H_n_1, H_n_2);
     if (H_plane_1) {
-      *H_plane_1 = H_n_1, Vector2::Zero();
+      Matrix23 tmp;
+      tmp << H_n_1, Vector2::Zero();
+      *H_plane_1 = tmp;
     }
     if (H_plane_2) {
-      *H_plane_2 = H_n_2, Vector2::Zero();
+      Matrix23 tmp;
+      tmp << H_n_2, Vector2::Zero();
+      *H_plane_2 = tmp;
     }
     return (err);
   }
 };
 
-class GeneralParallelPlaneRegularTangentSpaceFactor: public ParallelPlaneRegularFactor {
+/**
+ * Specialization of a ParallelPlaneRegularFactor using normals error
+ * in Tangent Space of S² (geodesic) and distance error in R.
+ * The error metric considers parallelism between planes, as well as distance
+ * between planes.
+ */
+class GeneralParallelPlaneRegularTangentSpaceFactor:
+    public ParallelPlaneRegularFactor {
 public:
   /// Constructor
   GeneralParallelPlaneRegularTangentSpaceFactor() {
@@ -123,12 +142,12 @@ public:
   virtual ~GeneralParallelPlaneRegularTangentSpaceFactor() {}
 
   GeneralParallelPlaneRegularTangentSpaceFactor(const Key& plane1Key,
-                        const Key& plane2Key,
-                        const SharedGaussian& noiseModel,
-                        const double& measured_distance_from_plane2_to_plane1) :
+                    const Key& plane2Key,
+                    const SharedGaussian& noiseModel,
+                    const double& measured_distance_from_plane2_to_plane1 = 0) :
           ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
                                      measured_distance_from_plane2_to_plane1) {
-      this->factor_type_ = "General Parallelism, using Tangent Space";
+      this->factor_type_ = "GeneralParallelPlaneRegularTangentSpaceFactor";
   }
 
 private:
@@ -163,7 +182,14 @@ private:
   }
 };
 
-class ParallelPlaneRegularBasicFactor: public ParallelPlaneRegularFactor {
+/**
+ * Specialization of a ParallelPlaneRegularFactor where normals error is in
+ *  R³ (chordal).
+ * The error metric only considers parallelism between planes,
+ * no distance is enforced.
+ */
+class ParallelPlaneRegularBasicFactor:
+    public ParallelPlaneRegularFactor {
 public:
   /// Constructor
   ParallelPlaneRegularBasicFactor() {
@@ -174,7 +200,7 @@ public:
                                          const Key& plane2Key,
                                          const SharedGaussian& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
-      this->factor_type_ = "Basic Factor";
+      this->factor_type_ = "ParallelPlaneRegularBasicFactor";
   }
 
 private:
@@ -208,7 +234,14 @@ private:
   }
 };
 
-class GeneralParallelPlaneRegularBasicFactor: public ParallelPlaneRegularFactor {
+/**
+ * Specialization of a ParallelPlaneRegularFactor where normals error is in
+ *  R³ (chordal) and the distance error is in R.
+ * The error metric considers parallelism between planes, as well as distance
+ * between planes.
+ */
+class GeneralParallelPlaneRegularBasicFactor:
+    public ParallelPlaneRegularFactor {
 public:
   /// Constructor
   GeneralParallelPlaneRegularBasicFactor() {
@@ -221,7 +254,7 @@ public:
                     const double& measured_distance_from_plane2_to_plane1 = 0) :
           ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
                                      measured_distance_from_plane2_to_plane1) {
-      this->factor_type_ = "General Parallelism Basic Factor";
+      this->factor_type_ = "GeneralParallelPlaneRegularBasicFactor";
   }
 
 private:
@@ -260,6 +293,5 @@ private:
     return (err);
   }
 };
-
 
 } // End of gtsam namespace.
