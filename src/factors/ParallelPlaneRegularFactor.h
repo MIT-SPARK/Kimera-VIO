@@ -142,9 +142,9 @@ public:
   virtual ~GeneralParallelPlaneRegularTangentSpaceFactor() {}
 
   GeneralParallelPlaneRegularTangentSpaceFactor(const Key& plane1Key,
-                        const Key& plane2Key,
-                        const SharedGaussian& noiseModel,
-                        const double& measured_distance_from_plane2_to_plane1) :
+                    const Key& plane2Key,
+                    const SharedGaussian& noiseModel,
+                    const double& measured_distance_from_plane2_to_plane1 = 0) :
           ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
                                      measured_distance_from_plane2_to_plane1) {
       this->factor_type_ = "GeneralParallelPlaneRegularTangentSpaceFactor";
