@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
   FeatureSelector featureSelector(trackerParams, vioParams);
 
   // Create VIO: class that tracks implements estimation back-end
-    boost::shared_ptr<MyVioBackEnd> vioBackEnd;
+  boost::shared_ptr<MyVioBackEnd> vioBackEnd;
 
   // create class to visualize 3D points and mesh:
   Mesher mesher;
