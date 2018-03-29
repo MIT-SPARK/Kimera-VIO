@@ -445,14 +445,15 @@ int main(int argc, char *argv[])
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Dsparse: {// same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
           std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
-          int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
+
+          static constexpr int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
           MyVioBackEnd::PointsWithId pointsWithId =
                              vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
-          float maxGradInTriangle = -1; //50.0;
-          double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
-          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
-          double maxTriangleSide = 0.5;
+          static constexpr float maxGradInTriangle = -1; //50.0;
+          static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
+          static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          static constexpr double maxTriangleSide = 0.5;
           mesher.updateMesh3D(pointsWithId,
                               stereoVisionFrontEnd.stereoFrame_lkf_,
                               W_Pose_camlkf_vio, Mesh2Dtype::VALIDKEYPOINTS,
@@ -469,14 +470,14 @@ int main(int argc, char *argv[])
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Ddense: {// dense triangulation of stereo corners (only a subset are VIO keypoints)a
-          int  minKfValidPoints = 0;
+          static constexpr int  minKfValidPoints = 0;
           MyVioBackEnd::PointsWithId pointsWithId =
                              vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
-          float maxGradInTriangle = -1; // 50 // TODO: re-enable
-          double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
-          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
-          double maxTriangleSide = 1.0;
+          static constexpr float maxGradInTriangle = -1; // 50 // TODO: re-enable
+          static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
+          static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          static constexpr double maxTriangleSide = 1.0;
           mesher.updateMesh3D(pointsWithId,
                               stereoVisionFrontEnd.stereoFrame_lkf_,
                               W_Pose_camlkf_vio, Mesh2Dtype::DENSE,
