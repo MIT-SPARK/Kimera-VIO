@@ -52,13 +52,14 @@ double Mesher::getRatioBetweenSmallestAndLargestSide(
   return minSide / maxSide;
 }
 
-/* ----------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
 // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
-double Mesher::getRatioBetweenTangentialAndRadialDisplacement(const int rowId_pt1,
-                                                              const int rowId_pt2,
-                                                              const int rowId_pt3,
-                                                              gtsam::Pose3 leftCameraPose) const {
+double Mesher::getRatioBetweenTangentialAndRadialDisplacement(
+                                     const int rowId_pt1,
+                                     const int rowId_pt2,
+                                     const int rowId_pt3,
+                                     const gtsam::Pose3& leftCameraPose) const {
   std::vector<gtsam::Point3> points;
 
   // get 3D points
@@ -113,7 +114,7 @@ int Mesher::findRowIdFromPixel(Frame& frame, KeypointCV px) const {
 
 /* ----------------------------------------------------------------------------- */
 // Try to reject bad triangles, corresponding to outliers
-void Mesher::filterOutBadTriangles(gtsam::Pose3 leftCameraPose,
+void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
                                    double minRatioBetweenLargestAnSmallestSide,
                                    double min_elongation_ratio,
                                    double maxTriangleSide) {
@@ -155,9 +156,10 @@ void Mesher::filterOutBadTriangles(gtsam::Pose3 leftCameraPose,
   }
 }
 
-/* ----------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-cv::Mat Mesher::getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D, Frame& frame) const {
+cv::Mat Mesher::getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D,
+                                        Frame& frame) const {
   // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
   // where n is the number of points in the polygon, and id is a zero-offset
   // index into an associated cloud.
@@ -165,7 +167,7 @@ cv::Mat Mesher::getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D, 
 
   // Populate polygons with indices:
   // note: we restrict to valid triangles in which each landmark has a 3D point
-  for (size_t i=0; i<triangulation2D.size();i++) { // TODO: this is doing a lot of computation
+  for (size_t i = 0; i < triangulation2D.size(); i++) { // TODO: this is doing a lot of computation
     cv::Vec6f t = triangulation2D[i];
 
     // get lmk ids mapPoints3d_ (iterators)
@@ -330,24 +332,26 @@ void Mesher::updateMap3D(
 
 /* ----------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
-void Mesher::updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithIdVIO,
-                          std::shared_ptr<StereoFrame> stereoFrame,
-                          gtsam::Pose3 leftCameraPose,
-                          Mesh2Dtype mesh2Dtype,
-                          float maxGradInTriangle,
-                          double minRatioBetweenLargestAnSmallestSide,
-                          double min_elongation_ratio,
-                          double maxTriangleSide) {
-  // debug:
-  bool doVisualize2Dmesh = true;
+void Mesher::updateMesh3D(
+              std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithIdVIO,
+              std::shared_ptr<StereoFrame> stereoFrame,
+              const gtsam::Pose3& leftCameraPose,
+              Mesh2Dtype mesh2Dtype,
+              float maxGradInTriangle,
+              double minRatioBetweenLargestAnSmallestSide,
+              double min_elongation_ratio,
+              double maxTriangleSide) {
+  // Debug:
+  static constexpr bool doVisualize2Dmesh = true;
 
-  // build 2D mesh
-  stereoFrame->createMesh2Dplanes(maxGradInTriangle,mesh2Dtype);
+  // Build 2D mesh.
+  stereoFrame->createMesh2Dplanes(maxGradInTriangle, mesh2Dtype);
+
   if (doVisualize2Dmesh) {
     stereoFrame->visualizeMesh2Dplanes(100);
   }
 
-  // add points in stereo camera that are not in vio but have lmk id:
+  // Add points in stereo camera that are not in vio but have lmk id.
   std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithIdStereo;
   Frame leftFrame = stereoFrame->left_frame_;
   for (size_t i = 0; i < leftFrame.landmarks_.size(); i++) {
@@ -373,11 +377,12 @@ void Mesher::updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > poi
   }
   updateMap3D(pointsWithId,pointsWithoutId);
 
-  std::cout << "before polygonsMesh_.size() " <<  polygonsMesh_.size << std::endl;
+  std::cout << "before polygonsMesh_.size() " <<  polygonsMesh_.size << "\n";
   // concatenate mesh in the current image to existing mesh
-  polygonsMesh_.push_back(getTriangulationIndices(stereoFrame->triangulation2Dplanes_,
-                                                  stereoFrame->left_frame_));
-  std::cout << "after polygonsMesh_.size() " <<  polygonsMesh_.size << std::endl;
+  polygonsMesh_.push_back(getTriangulationIndices(
+                                            stereoFrame->triangulation2Dplanes_,
+                                            stereoFrame->left_frame_));
+  std::cout << "after polygonsMesh_.size() " <<  polygonsMesh_.size << "\n";
 
   filterOutBadTriangles(leftCameraPose,
                         minRatioBetweenLargestAnSmallestSide,
@@ -387,17 +392,17 @@ void Mesher::updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > poi
   // after filling in polygonsMesh_, we don't need this, and it must be reset:
   keypointToMapPointId_.resize(0);
 
-  // Calculate normals
+  // Calculate normals.
   std::vector<cv::Point3f> normals;
   calculateNormals(&normals);
 
   // Cluster triangles along axis.
   cv::Point3f axis (0, 0, 1);
-  double tolerance = 0.9;
+  double normal_tolerance = 0.9;
   TriangleCluster triangle_cluster;
   triangle_cluster.cluster_direction_ = axis;
   triangle_cluster.cluster_id_ = 0;
-  clusterNormalsAroundAxis(axis, normals, tolerance,
+  clusterNormalsAroundAxis(axis, normals, normal_tolerance,
                            &(triangle_cluster.triangle_ids_));
   if (triangle_clusters_.size() == 0) {
     triangle_clusters_.push_back(triangle_cluster);
@@ -408,14 +413,15 @@ void Mesher::updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > poi
 
 /* ----------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
-void Mesher::updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
-                          Frame& frame,
-                          gtsam::Pose3 leftCameraPose,
-                          double minRatioBetweenLargestAnSmallestSide,
-                          double min_elongation_ratio,
-                          double maxTriangleSide) {
-  // debug:
-  bool doVisualize2Dmesh = true;
+void Mesher::updateMesh3D(
+                std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
+                Frame& frame,
+                const gtsam::Pose3& leftCameraPose,
+                double minRatioBetweenLargestAnSmallestSide,
+                double min_elongation_ratio,
+                double maxTriangleSide) {
+// debug:
+  static constexpr bool doVisualize2Dmesh = true;
 
   // update 3D points (possibly replacing some points with new estimates)
   updateMap3D(pointsWithId);
@@ -427,7 +433,8 @@ void Mesher::updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3> > poi
   }
 
   // concatenate mesh in the current image to existing mesh
-  polygonsMesh_.push_back(getTriangulationIndices(frame.triangulation2D_,frame));
+  polygonsMesh_.push_back(getTriangulationIndices(frame.triangulation2D_,
+                                                  frame));
 
   filterOutBadTriangles(leftCameraPose,
                         minRatioBetweenLargestAnSmallestSide,

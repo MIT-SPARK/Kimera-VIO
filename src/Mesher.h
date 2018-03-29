@@ -79,7 +79,7 @@ public:
   // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
   double getRatioBetweenTangentialAndRadialDisplacement(
       const int rowId_pt1, const int rowId_pt2, const int rowId_pt3,
-      gtsam::Pose3 leftCameraPose) const;
+      const gtsam::Pose3& leftCameraPose) const;
 
   /* ------------------------------------------------------------------------ */
   // searches in both the keypoints in frame as well as in the
@@ -87,7 +87,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Try to reject bad triangles, corresponding to outliers
-  void filterOutBadTriangles(gtsam::Pose3 leftCameraPose,
+  void filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
                              double minRatioBetweenLargestAnSmallestSide,
                              double min_elongation_ratio,
                              double maxTriangleSide);
@@ -142,7 +142,7 @@ public:
   void updateMesh3D(
       std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithIdVIO,
       std::shared_ptr<StereoFrame> stereoFrame,
-      gtsam::Pose3 leftCameraPose,
+      const gtsam::Pose3& leftCameraPose,
       Mesh2Dtype mesh2Dtype = Mesh2Dtype::VALIDKEYPOINTS,
       float maxGradInTriangle = 50,
       double minRatioBetweenLargestAnSmallestSide = 0,
@@ -151,10 +151,9 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(
-      std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithId,
+  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithId,
       Frame& frame,
-      gtsam::Pose3 leftCameraPose,
+      const gtsam::Pose3& leftCameraPose,
       double minRatioBetweenLargestAnSmallestSide = 0.0,
       double min_elongation_ratio = 0.5,
       double maxTriangleSide = 10.0);
