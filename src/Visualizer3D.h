@@ -47,7 +47,7 @@ public:
   // constructors
   Visualizer3D(): myWindow_("3D Mapper") {
     // create window and create axes:
-	myWindow_.setBackgroundColor(backgroundColor);
+  myWindow_.setBackgroundColor(backgroundColor);
     myWindow_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
   /* ----------------------------------------------------------------------------- */
@@ -162,22 +162,43 @@ public:
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
   void visualizeMesh3D(const Mesher& mesher){
     // Color the mesh.
-    cv::Mat colors (mesher.mapPoints3d_.rows, 1, CV_8UC3, cv::viz::Color::red());
-    // The code below assumes triangles as polygons.
+    cv::Mat colors (mesher.mapPoints3d_.rows, 1, CV_8UC3, cv::viz::Color::gray());
     if (mesher.triangle_clusters_.size() > 0) {
-      // TODO now it only prints the first cluster.
-      if (mesher.triangle_clusters_.at(0).triangle_ids_.size() > 0) {
-        for (const size_t& triangle_id: mesher.triangle_clusters_.at(0).triangle_ids_) {
-          size_t triangle_idx = std::round(triangle_id * 4);
-          if (triangle_idx + 3 >= mesher.polygonsMesh_.rows) {
-            throw std::runtime_error("Visualizer3D: an id in triangle_ids_ is too large.");
-          }
-          colors.row(mesher.polygonsMesh_.at<int32_t>(triangle_idx + 1)) = cv::viz::Color::green();
-          colors.row(mesher.polygonsMesh_.at<int32_t>(triangle_idx + 2)) = cv::viz::Color::green();
-          colors.row(mesher.polygonsMesh_.at<int32_t>(triangle_idx + 3)) = cv::viz::Color::green();
+      for (const Mesher::TriangleCluster& cluster: mesher.triangle_clusters_) {
+        // Decide color for cluster.
+        cv::viz::Color cluster_color;
+        switch (cluster.cluster_id_) {
+        case 0: {
+          cluster_color = cv::viz::Color::red();
+          break;
         }
-      } else {
-        LOG(ERROR) << "No elements in triangle cluster.";
+        case 1: {
+          cluster_color = cv::viz::Color::green();
+          break;
+        }
+        case 2:{
+          cluster_color = cv::viz::Color::blue();
+          break;
+        }
+        default :{
+          break;
+        }
+        }
+
+        // The code below assumes triangles as polygons.
+        if (cluster.triangle_ids_.size() > 0) {
+          for (const size_t& triangle_id: cluster.triangle_ids_) {
+            size_t triangle_idx = std::round(triangle_id * 4);
+            if (triangle_idx + 3 >= mesher.polygonsMesh_.rows) {
+              throw std::runtime_error("Visualizer3D: an id in triangle_ids_ is too large.");
+            }
+            colors.row(mesher.polygonsMesh_.at<int32_t>(triangle_idx + 1)) = cluster_color;
+            colors.row(mesher.polygonsMesh_.at<int32_t>(triangle_idx + 2)) = cluster_color;
+            colors.row(mesher.polygonsMesh_.at<int32_t>(triangle_idx + 3)) = cluster_color;
+          }
+        } else {
+          LOG(ERROR) << "No elements in triangle cluster.";
+        }
       }
     } else {
       LOG(ERROR) << "Triangle clusters is empty.";

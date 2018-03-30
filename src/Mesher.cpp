@@ -261,7 +261,11 @@ void Mesher::clusterNormalsAroundAxis(const cv::Point3f& axis,
 bool Mesher::isNormalAroundAxis(const cv::Point3f& axis,
                                 const cv::Point3f& normal,
                                 const double& tolerance) const {
-    return ((cv::norm(normal - axis) < tolerance)? true: false);
+  double diff_a = cv::norm(normal - axis);
+  double diff_b = cv::norm(normal + axis);
+  return (((diff_a < tolerance) || //  axis and normal almost aligned
+           (diff_b < tolerance)) // axis and normal in opp directions.
+           ? true : false);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -400,21 +404,42 @@ void Mesher::updateMesh3D(
   keypointToMapPointId_.resize(0);
 
   // Calculate normals of the triangles in the mesh.
+  // The normals are in the camera frame of reference?
   std::vector<cv::Point3f> normals;
   calculateNormals(&normals);
 
-  // Cluster triangles along axis.
-  cv::Point3f axis (0, 0, 1);
-  double normal_tolerance = 0.9;
-  TriangleCluster triangle_cluster;
-  triangle_cluster.cluster_direction_ = axis;
-  triangle_cluster.cluster_id_ = 0;
-  clusterNormalsAroundAxis(axis, normals, normal_tolerance,
-                           &(triangle_cluster.triangle_ids_));
+  // Cluster triangles along x, y and z axis.
+  static constexpr double normal_tolerance = 0.6;
+  static const cv::Point3f x_axis(1, 0, 0);
+  static const cv::Point3f y_axis(0, 1, 0);
+  static const cv::Point3f z_axis(0, 0, 1);
+
+  TriangleCluster x_triangle_cluster;
+  x_triangle_cluster.cluster_direction_ = x_axis;
+  x_triangle_cluster.cluster_id_ = 0;
+  clusterNormalsAroundAxis(x_axis, normals, normal_tolerance,
+                           &(x_triangle_cluster.triangle_ids_));
+
+  TriangleCluster y_triangle_cluster;
+  y_triangle_cluster.cluster_direction_ = y_axis;
+  y_triangle_cluster.cluster_id_ = 1;
+  clusterNormalsAroundAxis(y_axis, normals, normal_tolerance,
+                           &(y_triangle_cluster.triangle_ids_));
+
+  TriangleCluster z_triangle_cluster;
+  z_triangle_cluster.cluster_direction_ = z_axis;
+  z_triangle_cluster.cluster_id_ = 2;
+  clusterNormalsAroundAxis(z_axis, normals, normal_tolerance,
+                           &(z_triangle_cluster.triangle_ids_));
+
   if (triangle_clusters_.size() == 0) {
-    triangle_clusters_.push_back(triangle_cluster);
+    triangle_clusters_.push_back(x_triangle_cluster);
+    triangle_clusters_.push_back(y_triangle_cluster);
+    triangle_clusters_.push_back(z_triangle_cluster);
   } else {
-    triangle_clusters_.at(0) = triangle_cluster;
+    triangle_clusters_.at(0) = x_triangle_cluster;
+    triangle_clusters_.at(1) = y_triangle_cluster;
+    triangle_clusters_.at(2) = z_triangle_cluster;
   }
 }
 
