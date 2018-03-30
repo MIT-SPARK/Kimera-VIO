@@ -528,7 +528,8 @@ int main(int argc, char *argv[])
         }
         // visualize trajectory
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
-        visualizer.visualizeTrajectory3D();
+        visualizer.visualizeTrajectory3D(
+                      &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
         visualizer.myWindow_.spinOnce(1);
       }
 

@@ -189,21 +189,36 @@ public:
   /* ----------------------------------------------------------------------------- */
   // add pose to the previous trajectory
   void addPoseToTrajectory(gtsam::Pose3 current_pose_gtsam){
-    trajectoryPoses3d_.push_back( UtilsOpenCV::Pose2Affine3f(current_pose_gtsam) );
+    trajectoryPoses3d_.push_back(UtilsOpenCV::Pose2Affine3f(current_pose_gtsam));
   }
 
   /* ----------------------------------------------------------------------------- */
   // Visualize trajectory
-  void visualizeTrajectory3D(){
+  void visualizeTrajectory3D(const cv::Mat* frustum_image = nullptr){
     if(trajectoryPoses3d_.size() == 0) // no points to visualize
       return;
     // Show current camera pose.
-    static const cv::Matx33d K (458,0.0,360,0.0,458,240,0.0,0.0,1.0);
-    cv::viz::WCameraPosition cam_widget (K, 1.0, cv::viz::Color::white());
-    myWindow_.showWidget("Camera Pose with Frustum",  cam_widget, trajectoryPoses3d_.back());
+    static const cv::Matx33d K (458, 0.0, 360,
+                                0.0, 458, 240,
+                                0.0, 0.0, 1.0);
+    cv::viz::WCameraPosition cam_widget_ptr;
+    if (frustum_image == nullptr) {
+      cam_widget_ptr = cv::viz::WCameraPosition(K, 1.0, cv::viz::Color::white());
+    } else {
+      cv::Mat display_img;
+      cv::rotate(*frustum_image, display_img, cv::ROTATE_90_CLOCKWISE);
+      cam_widget_ptr = cv::viz::WCameraPosition(K, display_img,
+                                                 1.0, cv::viz::Color::white());
+    }
+    myWindow_.showWidget("Camera Pose with Frustum", cam_widget_ptr,
+                         trajectoryPoses3d_.back());
+    myWindow_.setWidgetPose("Camera Pose with Frustum", trajectoryPoses3d_.back());
+
     // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
-    cv::viz::WTrajectory trajectory_widget (trajectoryPoses3d_, cv::viz::WTrajectory::PATH, 1.0, cv::viz::Color::red());
-    myWindow_.showWidget("Trajectory",  trajectory_widget);
+    cv::viz::WTrajectory trajectory_widget (trajectoryPoses3d_,
+                                            cv::viz::WTrajectory::PATH,
+                                            1.0, cv::viz::Color::red());
+    myWindow_.showWidget("Trajectory", trajectory_widget);
     /// Start event loop.
     //TODO: myWindow_.spinOnce(50);
   }
