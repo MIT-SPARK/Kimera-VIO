@@ -183,7 +183,7 @@ cv::Mat Mesher::getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D,
   return polygon;
 }
 
-/* ----------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 // Calculate normals of polygonMesh.
 bool Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
   if (normals == nullptr) return false;
@@ -197,7 +197,8 @@ bool Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
   for (size_t i = 0; i < polygonsMesh_.rows; i = i + 4) { // for each polygon
     // Get triangle vertices:
     if (polygonsMesh_.at<int32_t>(i) != 3) {
-      throw std::runtime_error("CalculateNormals: expecting 3 vertices in triangle");
+      throw std::runtime_error("CalculateNormals:"
+                               " expecting 3 vertices in triangle");
     }
 
     // TODO Assumes we have triangles...
@@ -336,12 +337,12 @@ void Mesher::updateMesh3D(
               std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithIdVIO,
               std::shared_ptr<StereoFrame> stereoFrame,
               const gtsam::Pose3& leftCameraPose,
-              Mesh2Dtype mesh2Dtype,
+              const Mesh2Dtype& mesh2Dtype,
               float maxGradInTriangle,
               double minRatioBetweenLargestAnSmallestSide,
               double min_elongation_ratio,
               double maxTriangleSide) {
-  // Debug:
+  // Debug flag.
   static constexpr bool doVisualize2Dmesh = true;
 
   // Build 2D mesh.
@@ -352,47 +353,53 @@ void Mesher::updateMesh3D(
   }
 
   // Add points in stereo camera that are not in vio but have lmk id.
-  std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithIdStereo;
+  std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithIdStereo;
   Frame leftFrame = stereoFrame->left_frame_;
   for (size_t i = 0; i < leftFrame.landmarks_.size(); i++) {
-    if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID && leftFrame.landmarks_.at(i) != -1) {
+    if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID &&
+        leftFrame.landmarks_.at(i) != -1) {
       gtsam::Point3 p_i_global =
-          leftCameraPose.transform_from(gtsam::Point3(stereoFrame->keypoints_3d_.at(i)));
-      pointsWithIdStereo.push_back(std::make_pair(leftFrame.landmarks_.at(i),p_i_global));
+          leftCameraPose.transform_from(gtsam::Point3(
+                                          stereoFrame->keypoints_3d_.at(i)));
+      pointsWithIdStereo.push_back(std::make_pair(
+                                     leftFrame.landmarks_.at(i), p_i_global));
     }
   }
-  // put all landmark points inside a single structure:
-  std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId = pointsWithIdStereo;
-  pointsWithIdStereo.insert( pointsWithIdStereo.end(),
-                             pointsWithIdVIO.begin(), pointsWithIdVIO.end() ); // order is important (VIO last)
 
-  // update 3D points (possibly replacing some points with new estimates)
-  std::vector<std::pair<KeypointCV, gtsam::Point3> > pointsWithoutId;
+  // Put all landmark points inside a single structure.
+  std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithId =
+                                                             pointsWithIdStereo;
+  pointsWithIdStereo.insert(pointsWithIdStereo.end(),
+                            pointsWithIdVIO.begin(),
+                            pointsWithIdVIO.end()); // order is important (VIO last)
+
+  // Update 3D points (possibly replacing some points with new estimates).
+  std::vector<std::pair<KeypointCV, gtsam::Point3>> pointsWithoutId;
   if (mesh2Dtype == Mesh2Dtype::DENSE) {
-    for (size_t i = 0; i<stereoFrame->extraStereoKeypoints_.size(); i++){ // convert to global coordinates
+    for (size_t i = 0; i < stereoFrame->extraStereoKeypoints_.size(); i++) { // convert to global coordinates
       KeypointCV px = stereoFrame->extraStereoKeypoints_.at(i).first;
       gtsam::Point3 point = leftCameraPose.transform_from(stereoFrame->extraStereoKeypoints_.at(i).second);
-      pointsWithoutId.push_back(std::make_pair(px,point));
+      pointsWithoutId.push_back(std::make_pair(px, point));
     }
   }
-  updateMap3D(pointsWithId,pointsWithoutId);
+  updateMap3D(pointsWithId, pointsWithoutId);
 
-  std::cout << "before polygonsMesh_.size() " <<  polygonsMesh_.size << "\n";
-  // concatenate mesh in the current image to existing mesh
+  std::cout << "Before polygonsMesh_.size() " <<  polygonsMesh_.size << "\n";
+  // Concatenate mesh in the current image to existing mesh.
   polygonsMesh_.push_back(getTriangulationIndices(
                                             stereoFrame->triangulation2Dplanes_,
                                             stereoFrame->left_frame_));
-  std::cout << "after polygonsMesh_.size() " <<  polygonsMesh_.size << "\n";
+  std::cout << "After polygonsMesh_.size() " <<  polygonsMesh_.size << "\n";
 
   filterOutBadTriangles(leftCameraPose,
                         minRatioBetweenLargestAnSmallestSide,
                         min_elongation_ratio,
                         maxTriangleSide);
 
-  // after filling in polygonsMesh_, we don't need this, and it must be reset:
+  // After filling in polygonsMesh_, we don't need this, and it must be reset.
   keypointToMapPointId_.resize(0);
 
-  // Calculate normals.
+  // Calculate normals of the triangles in the mesh.
   std::vector<cv::Point3f> normals;
   calculateNormals(&normals);
 
