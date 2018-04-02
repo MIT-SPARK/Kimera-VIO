@@ -38,6 +38,8 @@ public:
   std::ofstream outputFile_;
   std::ofstream outputFile_posesVIO_;
   std::ofstream outputFile_posesGT_;
+  std::ofstream outputFile_landmarks_;
+  std::ofstream outputFile_normals_;
   std::ofstream outputFile_smartFactors_;
   std::ofstream outputFile_timingVIO_;
   std::ofstream outputFile_timingTracker_;
@@ -50,28 +52,54 @@ public:
   timing_featureSelection_,timing_vio_ ,timing_loggerBackend_ ,timing_loggerFrontend_;
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void openLogFiles(){
+  void openLogFiles(int i = -1) {
     // store output data and debug info:
-    UtilsOpenCV::OpenFile("./output.txt",outputFile_);
-    UtilsOpenCV::OpenFile("./output_posesVIO.txt",outputFile_posesVIO_);
-    UtilsOpenCV::OpenFile("./output_posesGT.txt",outputFile_posesGT_);
-    UtilsOpenCV::OpenFile("./output_smartFactors.txt",outputFile_smartFactors_);
-    UtilsOpenCV::OpenFile("./output_timingVIO.txt",outputFile_timingVIO_);
-    UtilsOpenCV::OpenFile("./output_timingTracker.txt",outputFile_timingTracker_);
-    UtilsOpenCV::OpenFile("./output_statsTracker.txt",outputFile_statsTracker_);
-    UtilsOpenCV::OpenFile("./output_statsFactors.txt",outputFile_statsFactors_);
+    if (i == 0 || i == -1)
+      UtilsOpenCV::OpenFile("./output.txt",outputFile_);
+    if (i == 1 || i == -1)
+      UtilsOpenCV::OpenFile("./output_posesVIO.txt",outputFile_posesVIO_);
+    if (i == 2 || i == -1)
+      UtilsOpenCV::OpenFile("./output_posesGT.txt",outputFile_posesGT_);
+    if (i == 3 || i == -1)
+      UtilsOpenCV::OpenFile("./output_landmarks.txt",outputFile_landmarks_);
+    if (i == 4 || i == -1)
+      UtilsOpenCV::OpenFile("./output_normals.txt",outputFile_normals_);
+    if (i == 5 || i == -1)
+      UtilsOpenCV::OpenFile("./output_smartFactors.txt",outputFile_smartFactors_);
+    if (i == 6 || i == -1)
+      UtilsOpenCV::OpenFile("./output_timingVIO.txt",outputFile_timingVIO_);
+    if (i == 7 || i == -1)
+      UtilsOpenCV::OpenFile("./output_timingTracker.txt",outputFile_timingTracker_);
+    if (i == 8 || i == -1)
+      UtilsOpenCV::OpenFile("./output_statsTracker.txt",outputFile_statsTracker_);
+    if (i == 9 || i == -1)
+      UtilsOpenCV::OpenFile("./output_statsFactors.txt",outputFile_statsFactors_);
   }
+
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void closeLogFiles(){
-    outputFile_.close();
-    outputFile_posesVIO_.close();
-    outputFile_posesGT_.close();
-    outputFile_smartFactors_.close();
-    outputFile_timingVIO_.close();
-    outputFile_timingTracker_.close();
-    outputFile_statsTracker_.close();
-    outputFile_statsFactors_.close();
+  void closeLogFiles(int i = -1) {
+    if (i == 0 || i == -1)
+      outputFile_.close();
+    if (i == 1 || i == -1)
+      outputFile_posesVIO_.close();
+    if (i == 2 || i == -1)
+      outputFile_posesGT_.close();
+    if (i == 3 || i == -1)
+      outputFile_landmarks_.close();
+    if (i == 4 || i == -1)
+      outputFile_normals_.close();
+    if (i == 5 || i == -1)
+      outputFile_smartFactors_.close();
+    if (i == 6 || i == -1)
+      outputFile_timingVIO_.close();
+    if (i == 7 || i == -1)
+      outputFile_timingTracker_.close();
+    if (i == 8 || i == -1)
+      outputFile_statsTracker_.close();
+    if (i == 9 || i == -1)
+      outputFile_statsFactors_.close();
   }
+
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logFrontendResults(const ETHDatasetParser& dataset,
       const StereoVisionFrontEnd& stereoTracker, const Timestamp timestamp_lkf, const Timestamp timestamp_k){
@@ -89,6 +117,59 @@ public:
     outputFile_ << stereoTracker.trackerStatusSummary_.kfTrackingStatus_stereo_
         << " " <<  relativeRotError << " " << relativeTranError << " " << nrKeypoints << " ";
   }
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logLandmarks(const VioBackEnd::PointsWithId& lmks) {
+    // Absolute vio errors
+    if (outputFile_landmarks_) {
+      outputFile_landmarks_ << "Id" << "\t" << "x" << "\t" << "y" << "\t" << "z\n";
+      for (const VioBackEnd::PointWithId& point: lmks) {
+        outputFile_landmarks_ << point.first << "\t" << point.second.x()
+                              << "\t" << point.second.y()
+                              << "\t" << point.second.z() << "\n";
+      }
+      outputFile_landmarks_ << std::endl;
+    } else {
+       throw std::runtime_error("Output File Landmarks: error writing.");
+    }
+  }
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logLandmarks(const cv::Mat& lmks) {
+    // cv::Mat each row has a lmk with x, y, z.
+    // Absolute vio errors
+    if (outputFile_landmarks_) {
+      outputFile_landmarks_ << "x" << "\t" << "y" << "\t" << "z" << std::endl;
+      for (int i = 0; i < lmks.rows; i++) {
+        outputFile_landmarks_ << lmks.at<float>(i, 0) << "\t"
+                              << lmks.at<float>(i, 1) << "\t"
+                              << lmks.at<float>(i, 2) << "\n";
+      }
+      outputFile_landmarks_ << std::endl;
+    } else {
+       throw std::runtime_error("Output File Landmarks: error writing.");
+    }
+  }
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logNormals(const std::vector<cv::Point3f>& normals) {
+    if (outputFile_normals_) {
+      static bool once = true;
+      if (once) {
+        outputFile_normals_ << "x" << "\t" << "y" << "\t" << "z" << std::endl;
+        once = false;
+      }
+      for (const cv::Point3f& normal: normals) {
+        outputFile_normals_ << normal.x << "\t"
+                            << normal.y << "\t"
+                            << normal.z << "\n";
+      }
+      outputFile_normals_.flush();
+    } else {
+      throw std::runtime_error("Output File Normals: error writing.");
+    }
+  }
+
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(const ETHDatasetParser& dataset,
       const StereoVisionFrontEnd& stereoTracker, const boost::shared_ptr<VioBackEnd>& vio,
@@ -98,7 +179,7 @@ public:
     gtsam::Pose3 W_Pose_Bkf_gt = (dataset.getGroundTruthState(timestamp_k)).pose;
     std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(W_Pose_Bkf_gt, vio->W_Pose_Blkf_);
     std::cout << "vioRotError " << vioRotError << ", vioTranError " << vioTranError << std::endl;
-    
+
     // Absolute vio errors
     outputFile_ << vio->cur_id_ << " " <<  vioRotError << " " << vioTranError << " " << vio->landmark_count_ << " ";
 
@@ -184,7 +265,7 @@ public:
         vio->debugInfo_.retractTime_ << " " <<
         vio->debugInfo_.linearizeMarginalizeTime_ << " " <<
         vio->debugInfo_.marginalizeTime_ << " " <<
-		vio->debugInfo_.imuPreintegrateTime_ << std::endl;
+               vio->debugInfo_.imuPreintegrateTime_ << std::endl;
 
     outputFile_timingTracker_ << vio->cur_id_ << " " <<
         stereoTracker.tracker_.debugInfo_.featureDetectionTime_ << " " <<
@@ -225,7 +306,7 @@ public:
     std::cout << "data written to file" << std::endl;
   }
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-   void displayInitialStateVioInfo(const ETHDatasetParser& dataset, const boost::shared_ptr<VIO::VioBackEnd>& vio,
+  void displayInitialStateVioInfo(const ETHDatasetParser& dataset, const boost::shared_ptr<VIO::VioBackEnd>& vio,
        gtNavState initialStateGT, const ImuAccGyr& imu_accgyr, const Timestamp timestamp_k) const {
      initialStateGT.print("initialStateGT\n");
      gtsam::Vector3 rpy_gt = initialStateGT.pose.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
