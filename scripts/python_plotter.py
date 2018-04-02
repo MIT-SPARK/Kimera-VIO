@@ -62,7 +62,7 @@ def main():
     plt.xlabel('Theta[rad]')
     plt.ylabel('Number of normals')
     plt.title('Histogram of Normals by theta')
-    plt.axis([-math.pi, math.pi, 0, max(n)+10])
+    plt.axis([-math.pi/2, math.pi/2, 0, max(n)+10])
     plt.grid(True)
     plt.show()
 
