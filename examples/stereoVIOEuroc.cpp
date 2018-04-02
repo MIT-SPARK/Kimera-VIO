@@ -183,9 +183,8 @@ int main(int argc, char *argv[])
 
   // instantiate Logger class (stores data for matlab visualization)
   LoggerMatlab logger;
-  if (FLAGS_log_output) {
+  if (FLAGS_log_output)
     logger.openLogFiles();
-  }
 
   // timestamp 10 frames before the first (for imu calibration)
   // TODO: remove hardcoded 10
@@ -541,6 +540,7 @@ int main(int argc, char *argv[])
       std::cout << "stereoVIOExample completed successfully!" << std::endl;
   }
 
-  logger.closeLogFiles();
+  if (FLAGS_log_output)
+    logger.closeLogFiles();
   return 0;
 }
