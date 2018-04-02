@@ -13,6 +13,7 @@
  */
 
 #include "Mesher.h"
+#include "LoggerMatlab.h"
 
 namespace VIO {
 
@@ -279,10 +280,24 @@ void Mesher::clusterNormalsPerpendicularToAxis(const cv::Point3f& axis,
   size_t idx = 0;
   // TODO, this should be in the same loop as the one calculating
   // the normals...
+  // TODO: remove logger.
+  static constexpr bool log_normals = true;
+  std::vector<cv::Point3f> cluster_normals;
   for (const cv::Point3f& normal: normals) {
-    if (isNormalPerpendicularToAxis(axis, normal, tolerance))
+    if (isNormalPerpendicularToAxis(axis, normal, tolerance)) {
       cluster_normals_idx->push_back(idx);
+      // TODO: remove logger.
+      if (log_normals) {
+        cluster_normals.push_back(normal);
+      }
+    }
     idx++;
+  }
+  if (log_normals) {
+    LoggerMatlab logger;
+    logger.openLogFiles(4);
+    logger.logNormals(cluster_normals);
+    logger.closeLogFiles(4);
   }
 }
 
