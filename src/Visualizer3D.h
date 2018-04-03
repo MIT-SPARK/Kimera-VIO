@@ -160,73 +160,77 @@ public:
   }
 
   /* ----------------------------------------------------------------------------- */
+  // Input the mesh points and triangle clusters (via mesher) and
+  // output colors matrix for mesh visualizer.
+  void colorMesh(const Mesher& mesher, cv::Mat* colors) {
+    CHECK_NOTNULL(colors);
+    *colors = cv::Mat(mesher.mapPoints3d_.rows, 1, CV_8UC3,
+                      cv::viz::Color::gray());
+    // The code below assumes triangles as polygons.
+    static constexpr bool log_landmarks = false;
+    cv::Mat points;
+    for (const Mesher::TriangleCluster& cluster: mesher.triangle_clusters_) {
+      // Decide color for cluster.
+      cv::viz::Color cluster_color = cv::viz::Color::gray();
+      switch (cluster.cluster_id_) {
+      case 0: {
+        cluster_color = cv::viz::Color::red();
+        break;
+      }
+      case 1: {
+        cluster_color = cv::viz::Color::green();
+        break;
+      }
+      case 2:{
+        cluster_color = cv::viz::Color::blue();
+        break;
+      }
+      default :{
+        break;
+      }
+      }
+
+      for (const size_t& triangle_id: cluster.triangle_ids_) {
+        size_t triangle_idx = std::round(triangle_id * 4);
+        if (triangle_idx + 3 >= mesher.polygonsMesh_.rows) {
+          throw std::runtime_error("Visualizer3D: an id in triangle_ids_ is"
+                                   " too large.");
+        }
+        int32_t idx_1 = mesher.polygonsMesh_.at<int32_t>(triangle_idx + 1);
+        int32_t idx_2 = mesher.polygonsMesh_.at<int32_t>(triangle_idx + 2);
+        int32_t idx_3 = mesher.polygonsMesh_.at<int32_t>(triangle_idx + 3);
+        colors->row(idx_1) = cluster_color;
+        colors->row(idx_2) = cluster_color;
+        colors->row(idx_3) = cluster_color;
+        // Debug TODO remove: logging triangles perpendicular to z_axis.
+        if (cluster.cluster_id_ == 2 && log_landmarks) {
+          points.push_back(mesher.mapPoints3d_.row(idx_1));
+          points.push_back(mesher.mapPoints3d_.row(idx_2));
+          points.push_back(mesher.mapPoints3d_.row(idx_3));
+        }
+      }
+    }
+
+    // Debug TODO remove
+    /// Store in file
+    if (log_landmarks) {
+      LoggerMatlab logger;
+      logger.openLogFiles(3);
+      logger.logLandmarks(points);
+      logger.closeLogFiles(3);
+    }
+  }
+
+  /* ----------------------------------------------------------------------------- */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity
   void visualizeMesh3D(const Mesher& mesher){
     // Color the mesh.
-    cv::Mat colors (mesher.mapPoints3d_.rows, 1, CV_8UC3, cv::viz::Color::gray());
-    if (mesher.triangle_clusters_.size() > 0) {
-      // The code below assumes triangles as polygons.
-      static constexpr bool log_landmarks = true;
-      cv::Mat points;
-      for (const Mesher::TriangleCluster& cluster: mesher.triangle_clusters_) {
-        // Decide color for cluster.
-        cv::viz::Color cluster_color;
-        switch (cluster.cluster_id_) {
-        case 0: {
-          cluster_color = cv::viz::Color::red();
-          break;
-        }
-        case 1: {
-          cluster_color = cv::viz::Color::green();
-          break;
-        }
-        case 2:{
-          cluster_color = cv::viz::Color::blue();
-          break;
-        }
-        default :{
-          break;
-        }
-        }
+    cv::Mat colors;
+    colorMesh(mesher, &colors);
 
-        if (cluster.triangle_ids_.size() > 0) {
-          for (const size_t& triangle_id: cluster.triangle_ids_) {
-            size_t triangle_idx = std::round(triangle_id * 4);
-            if (triangle_idx + 3 >= mesher.polygonsMesh_.rows) {
-              throw std::runtime_error("Visualizer3D: an id in triangle_ids_ is too large.");
-            }
-            int32_t idx_1 = mesher.polygonsMesh_.at<int32_t>(triangle_idx + 1);
-            int32_t idx_2 = mesher.polygonsMesh_.at<int32_t>(triangle_idx + 2);
-            int32_t idx_3 = mesher.polygonsMesh_.at<int32_t>(triangle_idx + 3);
-            colors.row(idx_1) = cluster_color;
-            colors.row(idx_2) = cluster_color;
-            colors.row(idx_3) = cluster_color;
-            // Debug TODO remove: logging triangles perpendicular to z_axis.
-            if (cluster.cluster_id_ == 2 && log_landmarks) {
-              points.push_back(mesher.mapPoints3d_.row(idx_1));
-              points.push_back(mesher.mapPoints3d_.row(idx_2));
-              points.push_back(mesher.mapPoints3d_.row(idx_3));
-            }
-          }
-        } else {
-          LOG(ERROR) << "No elements in triangle cluster.";
-        }
-
-      }
-
-      // Debug TODO remove
-      /// Store in file
-      if (log_landmarks) {
-        LoggerMatlab logger;
-        logger.openLogFiles(3);
-        logger.logLandmarks(points);
-        logger.closeLogFiles(3);
-      }
-    } else {
-      LOG(ERROR) << "Triangle clusters is empty.";
-    }
-
-    static constexpr bool log_mesh = true;
+    // TODO remove debug.
+    /// Log the mesh in a ply file.
+    static constexpr bool log_mesh = false;
     if (log_mesh) {
       LoggerMatlab logger;
       logger.openLogFiles(10);
@@ -234,6 +238,7 @@ public:
       logger.closeLogFiles(10);
     }
 
+    // Visualize the mesh.
     visualizeMesh3D(mesher.mapPoints3d_, mesher.polygonsMesh_, colors);
   }
 
