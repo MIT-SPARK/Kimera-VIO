@@ -9,7 +9,7 @@
 /**
  * @file   Visualizer.h
  * @brief  Build and visualize 2D mesh from Frame
- * @author Luca Carlone, AJ Haeffner
+ * @author Luca Carlone, AJ Haeffner, Antoni Rosinol
  */
 
 #ifndef Visualizer_H_
