@@ -419,53 +419,36 @@ void Mesher::updateMesh3D(
   keypointToMapPointId_.resize(0);
 
   // Calculate normals of the triangles in the mesh.
-  // The normals are in the camera frame of reference?
+  // The normals are in the world frame of reference.
   std::vector<cv::Point3f> normals;
   calculateNormals(&normals);
 
-  // Cluster triangles oriented along x, y and z axis.
-  static constexpr double normal_tolerance = 0.2; //0.08715 === 10 deg. aperture.
-  static const cv::Point3f x_axis(1, 0, 0);
-  static const cv::Point3f y_axis(0, 1, 0);
+  // Cluster triangles oriented along z axis.
   static const cv::Point3f z_axis(0, 0, 1);
-
-  //TriangleCluster x_triangle_cluster;
-  //x_triangle_cluster.cluster_direction_ = x_axis;
-  //x_triangle_cluster.cluster_id_ = 0;
-  //clusterNormalsAroundAxis(x_axis, normals, normal_tolerance,
-  //                         &(x_triangle_cluster.triangle_ids_));
-
-  //TriangleCluster y_triangle_cluster;
-  //y_triangle_cluster.cluster_direction_ = y_axis;
-  //y_triangle_cluster.cluster_id_ = 1;
-  //clusterNormalsAroundAxis(y_axis, normals, normal_tolerance,
-  //                         &(y_triangle_cluster.triangle_ids_));
 
   TriangleCluster z_triangle_cluster;
   z_triangle_cluster.cluster_direction_ = z_axis;
   z_triangle_cluster.cluster_id_ = 2;
+
+  static constexpr double normal_tolerance = 0.2; // 0.087 === 10 deg. aperture.
   clusterNormalsAroundAxis(z_axis, normals, normal_tolerance,
                            &(z_triangle_cluster.triangle_ids_));
 
   // Cluster triangles with normal perpendicular to z_axis, aka along equator.
-
   TriangleCluster equatorial_triangle_cluster;
   equatorial_triangle_cluster.cluster_direction_ = z_axis;
   equatorial_triangle_cluster.cluster_id_ = 0;
-  static constexpr double normal_tolerance_perpendicular = 0.1; //0.08715 === 10 deg. aperture.
+
+  static constexpr double normal_tolerance_perpendicular = 0.1;
   clusterNormalsPerpendicularToAxis(z_axis, normals,
                                     normal_tolerance_perpendicular,
                            &(equatorial_triangle_cluster.triangle_ids_));
 
 
   if (triangle_clusters_.size() == 0) {
-    //triangle_clusters_.push_back(x_triangle_cluster);
-    //triangle_clusters_.push_back(y_triangle_cluster);
     triangle_clusters_.push_back(z_triangle_cluster);
     triangle_clusters_.push_back(equatorial_triangle_cluster);
   } else {
-    //triangle_clusters_.at(0) = x_triangle_cluster;
-    //triangle_clusters_.at(1) = y_triangle_cluster;
     triangle_clusters_.at(0) = z_triangle_cluster;
     triangle_clusters_.at(1) = equatorial_triangle_cluster;
   }

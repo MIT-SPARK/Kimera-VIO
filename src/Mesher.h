@@ -39,16 +39,6 @@ public:
   // map a keypoint (without lmk id) to a row in mapPoints3d_
   using KeypointToMapPointId = std::vector< std::pair<KeypointCV,int>>;
 
-  struct TriangleCluster {
-    // Ids of the triangles in the cluster.
-    std::vector<int> triangle_ids_;
-
-    // Id of the cluster, determines the color of the cluster when plotting.
-    int cluster_id_;
-
-    // Direction of the normal defining the cluster.
-    cv::Point3f cluster_direction_;
-  };
 
   // set of (non-repeated) points = valid landmark positions
   cv::Mat mapPoints3d_;

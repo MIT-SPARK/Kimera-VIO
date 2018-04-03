@@ -24,6 +24,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "ETH_parser.h"
+#include "Mesher.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
@@ -427,7 +428,7 @@ int main(int argc, char *argv[])
                                              vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMesh3D(pointsWithId, stereoVisionFrontEnd
                              .stereoFrame_lkf_->left_frame_, W_Pose_camlkf_vio);
-          visualizer.visualizeMesh3D(mesher);
+          visualizer.visualizeMesh3D(mesher.mapPoints3d_, mesher.polygonsMesh_);
           break;
         }
         // computes and visualizes 2D mesh
@@ -460,7 +461,10 @@ int main(int argc, char *argv[])
                               minRatioBetweenLargestAnSmallestSide,
                               min_elongation_ratio, maxTriangleSide);
 
-          visualizer.visualizeMesh3D(mesher);
+          visualizer.visualizeMesh3DWithColoredClusters(
+                                                      mesher.triangle_clusters_,
+                                                      mesher.mapPoints3d_,
+                                                      mesher.polygonsMesh_);
           break;
         }
 
@@ -484,7 +488,10 @@ int main(int argc, char *argv[])
                               minRatioBetweenLargestAnSmallestSide,
                               min_elongation_ratio, maxTriangleSide);
 
-          visualizer.visualizeMesh3D(mesher);
+          visualizer.visualizeMesh3DWithColoredClusters(
+                                                      mesher.triangle_clusters_,
+                                                      mesher.mapPoints3d_,
+                                                      mesher.polygonsMesh_);
           break;
         }
         // computes and visualizes 3D mesh
@@ -507,7 +514,7 @@ int main(int argc, char *argv[])
         // computes and visualizes a 3D point cloud
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
           vector<Point3> points3d = vioBackEnd->get3DPoints();
-          visualizer.visualizeMap3D_repeatedPoints(points3d);
+          visualizer.visualizeMap3D(points3d);
           break;
         }
         // computes and visualizes a 3D point cloud
@@ -515,7 +522,7 @@ int main(int argc, char *argv[])
           MyVioBackEnd::PointsWithId pointsWithId =
                                              vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
-          visualizer.visualizePoints3D(pointsWithId, mesher);
+          visualizer.visualizePoints3D(pointsWithId, mesher.mapPoints3d_);
           break;
         }
         case VisualizationType::NONE: {
@@ -529,7 +536,6 @@ int main(int argc, char *argv[])
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory3D(
                       &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
-        visualizer.myWindow_.spinOnce(1);
       }
 
       didFirstOptimization = true;

@@ -73,6 +73,18 @@ using StatusKeypointCV = std::pair<Kstatus,KeypointCV>;
 using StatusKeypointsCV = std::vector<StatusKeypointCV>;
 using BearingVectors = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
+// Holds the ids of the mesh triangles that should be clustered together.
+struct TriangleCluster {
+  // Ids of the triangles in the cluster.
+  std::vector<int> triangle_ids_;
+
+  // Id of the cluster, determines the color of the cluster when plotting.
+  int cluster_id_;
+
+  // Direction of the normal defining the cluster.
+  cv::Point3f cluster_direction_;
+};
+
 class UtilsOpenCV {
 
 public:
