@@ -85,11 +85,13 @@ include_directories("./src")
 add_library(stereoVIO ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Tracker.cpp ./src/StereoFrame.cpp
                       ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
-                      ./src/RegularVioBackEnd.cpp
+                      ./src/Mesher.cpp ./src/RegularVioBackEnd.cpp
                       ./src/FeatureSelector.h ./src/LoggerMatlab.h
                       ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
-                      ./src/CameraParams.h ./src/Frame.h ./src/Mesher_cgal.h
-                      ./src/UtilsGeometry.h ./src/Visualizer3D ./src/UtilsOpenCV.h
+                      ./src/CameraParams.h ./src/Frame.h
+                      ./src/Mesher.h ./src/Mesher_cgal.h
+                      ./src/UtilsGeometry.h ./src/Visualizer3D
+                      ./src/UtilsOpenCV.h
                       "")
 
 ### Add source code for factors

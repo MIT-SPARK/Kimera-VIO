@@ -24,6 +24,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "ETH_parser.h"
+#include "Mesher.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
@@ -171,7 +172,7 @@ int main(int argc, char *argv[])
   FeatureSelector featureSelector(trackerParams, vioParams);
 
   // Create VIO: class that tracks implements estimation back-end
-    boost::shared_ptr<MyVioBackEnd> vioBackEnd;
+  boost::shared_ptr<MyVioBackEnd> vioBackEnd;
 
   // create class to visualize 3D points and mesh:
   Mesher mesher;
@@ -183,9 +184,8 @@ int main(int argc, char *argv[])
 
   // instantiate Logger class (stores data for matlab visualization)
   LoggerMatlab logger;
-  if (FLAGS_log_output) {
+  if (FLAGS_log_output)
     logger.openLogFiles();
-  }
 
   // timestamp 10 frames before the first (for imu calibration)
   // TODO: remove hardcoded 10
@@ -428,7 +428,7 @@ int main(int argc, char *argv[])
                                              vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMesh3D(pointsWithId, stereoVisionFrontEnd
                              .stereoFrame_lkf_->left_frame_, W_Pose_camlkf_vio);
-          visualizer.visualizeMesh3D(mesher);
+          visualizer.visualizeMesh3D(mesher.mapPoints3d_, mesher.polygonsMesh_);
           break;
         }
         // computes and visualizes 2D mesh
@@ -445,14 +445,15 @@ int main(int argc, char *argv[])
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Dsparse: {// same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
           std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
-          int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
+
+          static constexpr int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
           MyVioBackEnd::PointsWithId pointsWithId =
                              vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
-          float maxGradInTriangle = -1; //50.0;
-          double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
-          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
-          double maxTriangleSide = 0.5;
+          static constexpr float maxGradInTriangle = -1; //50.0;
+          static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
+          static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          static constexpr double maxTriangleSide = 0.5;
           mesher.updateMesh3D(pointsWithId,
                               stereoVisionFrontEnd.stereoFrame_lkf_,
                               W_Pose_camlkf_vio, Mesh2Dtype::VALIDKEYPOINTS,
@@ -460,7 +461,10 @@ int main(int argc, char *argv[])
                               minRatioBetweenLargestAnSmallestSide,
                               min_elongation_ratio, maxTriangleSide);
 
-          visualizer.visualizeMesh3D(mesher);
+          visualizer.visualizeMesh3DWithColoredClusters(
+                                                      mesher.triangle_clusters_,
+                                                      mesher.mapPoints3d_,
+                                                      mesher.polygonsMesh_);
           break;
         }
 
@@ -469,14 +473,14 @@ int main(int argc, char *argv[])
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Ddense: {// dense triangulation of stereo corners (only a subset are VIO keypoints)a
-          int  minKfValidPoints = 0;
+          static constexpr int  minKfValidPoints = 0;
           MyVioBackEnd::PointsWithId pointsWithId =
                              vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
 
-          float maxGradInTriangle = -1; // 50 // TODO: re-enable
-          double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
-          double min_elongation_ratio = 0.5;  // TODO: this check should be improved
-          double maxTriangleSide = 1.0;
+          static constexpr float maxGradInTriangle = -1; // 50 // TODO: re-enable
+          static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
+          static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
+          static constexpr double maxTriangleSide = 1.0;
           mesher.updateMesh3D(pointsWithId,
                               stereoVisionFrontEnd.stereoFrame_lkf_,
                               W_Pose_camlkf_vio, Mesh2Dtype::DENSE,
@@ -484,7 +488,10 @@ int main(int argc, char *argv[])
                               minRatioBetweenLargestAnSmallestSide,
                               min_elongation_ratio, maxTriangleSide);
 
-          visualizer.visualizeMesh3D(mesher);
+          visualizer.visualizeMesh3DWithColoredClusters(
+                                                      mesher.triangle_clusters_,
+                                                      mesher.mapPoints3d_,
+                                                      mesher.polygonsMesh_);
           break;
         }
         // computes and visualizes 3D mesh
@@ -507,7 +514,7 @@ int main(int argc, char *argv[])
         // computes and visualizes a 3D point cloud
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
           vector<Point3> points3d = vioBackEnd->get3DPoints();
-          visualizer.visualizeMap3D_repeatedPoints(points3d);
+          visualizer.visualizeMap3D(points3d);
           break;
         }
         // computes and visualizes a 3D point cloud
@@ -515,7 +522,7 @@ int main(int argc, char *argv[])
           MyVioBackEnd::PointsWithId pointsWithId =
                                              vioBackEnd->get3DPointsAndLmkIds();
           mesher.updateMap3D(pointsWithId);
-          visualizer.visualizePoints3D(pointsWithId, mesher);
+          visualizer.visualizePoints3D(pointsWithId, mesher.mapPoints3d_);
           break;
         }
         case VisualizationType::NONE: {
@@ -527,8 +534,8 @@ int main(int argc, char *argv[])
         }
         // visualize trajectory
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
-        visualizer.visualizeTrajectory3D();
-        visualizer.myWindow_.spinOnce(1);
+        visualizer.visualizeTrajectory3D(
+                      &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
       }
 
       didFirstOptimization = true;
@@ -539,6 +546,7 @@ int main(int argc, char *argv[])
       std::cout << "stereoVIOExample completed successfully!" << std::endl;
   }
 
-  logger.closeLogFiles();
+  if (FLAGS_log_output)
+    logger.closeLogFiles();
   return 0;
 }
