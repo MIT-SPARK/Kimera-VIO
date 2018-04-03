@@ -12,7 +12,7 @@
  * @author Luca Carlone
  */
 
-#define USE_CGAL
+//#define USE_CGAL
 #define USE_REGULAR_VIO
 
 #ifdef USE_REGULAR_VIO
