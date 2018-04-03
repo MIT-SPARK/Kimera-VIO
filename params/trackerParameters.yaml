@@ -4,7 +4,7 @@ klt_win_size: 24
 klt_max_iter: 30
 klt_max_level: 4
 klt_eps: 0.1
-maxFeatureAge: 25
+maxFeatureAge: 75
 maxFeaturesPerFrame: 100
 quality_level: 0.001
 min_distance: 10
