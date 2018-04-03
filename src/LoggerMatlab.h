@@ -159,11 +159,7 @@ public:
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logNormals(const std::vector<cv::Point3f>& normals) {
     if (outputFile_normals_) {
-      static bool once = true;
-      if (once) {
-        outputFile_normals_ << "x" << "\t" << "y" << "\t" << "z" << std::endl;
-        once = false;
-      }
+      outputFile_normals_ << "x" << "\t" << "y" << "\t" << "z" << std::endl;
       for (const cv::Point3f& normal: normals) {
         outputFile_normals_ << normal.x << "\t"
                             << normal.y << "\t"
