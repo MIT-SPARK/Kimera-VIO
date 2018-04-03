@@ -281,7 +281,7 @@ void Mesher::clusterNormalsPerpendicularToAxis(const cv::Point3f& axis,
   // TODO, this should be in the same loop as the one calculating
   // the normals...
   // TODO: remove logger.
-  static constexpr bool log_normals = true;
+  static constexpr bool log_normals = false;
   std::vector<cv::Point3f> cluster_normals;
   for (const cv::Point3f& normal: normals) {
     if (isNormalPerpendicularToAxis(axis, normal, tolerance)) {
