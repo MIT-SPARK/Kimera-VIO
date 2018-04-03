@@ -226,6 +226,14 @@ public:
       LOG(ERROR) << "Triangle clusters is empty.";
     }
 
+    static constexpr bool log_mesh = true;
+    if (log_mesh) {
+      LoggerMatlab logger;
+      logger.openLogFiles(10);
+      logger.logMesh(mesher.mapPoints3d_, colors, mesher.polygonsMesh_);
+      logger.closeLogFiles(10);
+    }
+
     visualizeMesh3D(mesher.mapPoints3d_, mesher.polygonsMesh_, colors);
   }
 
