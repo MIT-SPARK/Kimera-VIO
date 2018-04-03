@@ -424,8 +424,8 @@ int main(int argc, char *argv[])
         // triangles: all the ones with edges inside images as produced by cv::subdiv
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3D: {
-          MyVioBackEnd::PointsWithId pointsWithId =
-                                             vioBackEnd->get3DPointsAndLmkIds();
+          MyVioBackEnd::PointsWithId pointsWithId;
+          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
           mesher.updateMesh3D(pointsWithId, stereoVisionFrontEnd
                              .stereoFrame_lkf_->left_frame_, W_Pose_camlkf_vio);
           visualizer.visualizeMesh3D(mesher.mapPoints3d_, mesher.polygonsMesh_);
@@ -447,8 +447,8 @@ int main(int argc, char *argv[])
           std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
 
           static constexpr int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
-          MyVioBackEnd::PointsWithId pointsWithId =
-                             vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
+          MyVioBackEnd::PointsWithId pointsWithId;
+          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId, minKfValidPoints);
 
           static constexpr float maxGradInTriangle = -1; //50.0;
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
@@ -474,8 +474,9 @@ int main(int argc, char *argv[])
         // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3Ddense: {// dense triangulation of stereo corners (only a subset are VIO keypoints)a
           static constexpr int  minKfValidPoints = 0;
-          MyVioBackEnd::PointsWithId pointsWithId =
-                             vioBackEnd->get3DPointsAndLmkIds(minKfValidPoints);
+          MyVioBackEnd::PointsWithId pointsWithId;
+          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId,
+                                           minKfValidPoints);
 
           static constexpr float maxGradInTriangle = -1; // 50 // TODO: re-enable
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
@@ -499,8 +500,8 @@ int main(int argc, char *argv[])
         // triangles: the ones produced by CGAL
         case VisualizationType::MESH3D: {// 3D mesh from CGAL using VIO points
 #ifdef USE_CGAL
-          MyVioBackEnd::PointsWithId pointsWithId =
-                                             vioBackEnd->get3DPointsAndLmkIds();
+          MyVioBackEnd::PointsWithId pointsWithId;
+          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizeMesh3D(mesher.mapPoints3d_,
                                      Mesher_cgal::CreateMesh3D_MapPointId(
@@ -519,8 +520,8 @@ int main(int argc, char *argv[])
         }
         // computes and visualizes a 3D point cloud
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
-          MyVioBackEnd::PointsWithId pointsWithId =
-                                             vioBackEnd->get3DPointsAndLmkIds();
+          MyVioBackEnd::PointsWithId pointsWithId;
+          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizePoints3D(pointsWithId, mesher.mapPoints3d_);
           break;

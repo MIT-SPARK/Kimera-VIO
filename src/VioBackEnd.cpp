@@ -173,13 +173,13 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id, const ImuAccGyr
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp timestamp_kf_nsec,
-    const StatusSmartStereoMeasurements statusSmartStereoMeasurements_kf, // vision data
+    const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf,
     ImuStamps imu_stamps, ImuAccGyr imu_accgyr,
-    boost::optional<gtsam::Pose3> stereoRansacBodyPose) // inertial data
+    boost::optional<gtsam::Pose3> stereo_ransac_body_pose)
 {
   debugInfo_.resetAddedFactorsStatistics();
 
-  if (verbosity_ >= 7) { StereoVisionFrontEnd::PrintStatusStereoMeasurements(statusSmartStereoMeasurements_kf); }
+  if (verbosity_ >= 7) { StereoVisionFrontEnd::PrintStatusStereoMeasurements(status_smart_stereo_measurements_kf); }
 
   // Features and IMU line up --> do iSAM update
   last_id_ = cur_id_;
@@ -198,17 +198,17 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   addImuFactor(last_id_, cur_id_);
 
   // add between factor from RANSAC
-  if(stereoRansacBodyPose){
+  if(stereo_ransac_body_pose){
     std::cout << "VIO: adding between " << std::endl;
-    (*stereoRansacBodyPose).print();
-    addBetweenFactor(last_id_, cur_id_, *stereoRansacBodyPose);
+    (*stereo_ransac_body_pose).print();
+    addBetweenFactor(last_id_, cur_id_, *stereo_ransac_body_pose);
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
-  SmartStereoMeasurements smartStereoMeasurements_kf = statusSmartStereoMeasurements_kf.second;
+  SmartStereoMeasurements smartStereoMeasurements_kf = status_smart_stereo_measurements_kf.second;
 
   // if stereo ransac failed, remove all right pixels:
-  Tracker::TrackingStatus kfTrackingStatus_stereo = statusSmartStereoMeasurements_kf.first.kfTrackingStatus_stereo_;
+  Tracker::TrackingStatus kfTrackingStatus_stereo = status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
   // if(kfTrackingStatus_stereo == Tracker::TrackingStatus::INVALID){
   //   for(size_t i = 0; i < smartStereoMeasurements_kf.size(); i++)
   //     smartStereoMeasurements_kf[i].uR = std::numeric_limits<double>::quiet_NaN();;
@@ -219,7 +219,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   if (verbosity_ >= 8) { printFeatureTracks(); }
 
   // decide which factors to add
-  Tracker::TrackingStatus kfTrackingStatus_mono = statusSmartStereoMeasurements_kf.first.kfTrackingStatus_mono_;
+  Tracker::TrackingStatus kfTrackingStatus_mono = status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch(kfTrackingStatus_mono){
   case Tracker::TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
     if (verbosity_ >= 7) {printf("Add zero velocity and no motion factors\n");}
