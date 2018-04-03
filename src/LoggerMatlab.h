@@ -45,6 +45,7 @@ public:
   std::ofstream outputFile_timingTracker_;
   std::ofstream outputFile_statsTracker_;
   std::ofstream outputFile_statsFactors_;
+  std::ofstream outputFile_mesh_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
 
@@ -74,6 +75,8 @@ public:
       UtilsOpenCV::OpenFile("./output_statsTracker.txt",outputFile_statsTracker_);
     if (i == 9 || i == -1)
       UtilsOpenCV::OpenFile("./output_statsFactors.txt",outputFile_statsFactors_);
+    if (i == 10 || i == -1)
+      UtilsOpenCV::OpenFile("./output_mesh.ply",outputFile_mesh_);
   }
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -98,6 +101,8 @@ public:
       outputFile_statsTracker_.close();
     if (i == 9 || i == -1)
       outputFile_statsFactors_.close();
+    if (i == 10 || i == -1)
+      outputFile_mesh_.close();
   }
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -167,6 +172,51 @@ public:
       outputFile_normals_.flush();
     } else {
       throw std::runtime_error("Output File Normals: error writing.");
+    }
+  }
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logMesh(const cv::Mat& lmks, const cv::Mat& colors, const cv::Mat& mesh) {
+    if (outputFile_mesh_) {
+      // Number of vertices in the mesh.
+      int vertex_count = lmks.rows;
+      // Number of faces in the mesh.
+      int faces_count = std::round(mesh.rows / 4);
+      // First, write header.
+      outputFile_mesh_ << "ply\n"
+                       << "format ascii 1.0\n"
+                       << "comment Mesh for SPARK VIO\n"
+                       << "element vertex " << vertex_count << "\n"
+                       << "property float x\n"
+                       << "property float y\n"
+                       << "property float z\n"
+                       << "property uchar red\n" // Start of vertex color.
+                       << "property uchar green\n"
+                       << "property uchar blue\n"
+                       << "element face " << faces_count << "\n"
+                       << "property list uchar int vertex_indices\n"
+                       << "end_header\n";
+      // Second, log vertices.
+      for (int i = 0; i < lmks.rows; i++) {
+        outputFile_mesh_ << lmks.at<float>(i, 0) << " " // Log vertices x y z.
+                         << lmks.at<float>(i, 1) << " "
+                         << lmks.at<float>(i, 2) << " "
+                         << int(colors.at<uint8_t>(i, 0)) << " " // Log vertices colors.
+                         << int(colors.at<uint8_t>(i, 1)) << " "
+                         << int(colors.at<uint8_t>(i, 2)) << " \n";
+      }
+      // Finally, log faces.
+      for (int i = 0; i < faces_count; i++) {
+        // Assumes the mesh is made of triangles
+        int index = i * 4;
+        outputFile_mesh_ << mesh.at<int32_t>(index) << " "
+                         << mesh.at<int32_t>(index + 1) << " "
+                         << mesh.at<int32_t>(index + 2) << " "
+                         << mesh.at<int32_t>(index + 3) << " \n";
+      }
+      outputFile_mesh_ << std::endl;
+    } else {
+      throw std::runtime_error("Output File Mesh: error writing.");
     }
   }
 
