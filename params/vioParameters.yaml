@@ -35,5 +35,5 @@ noMotionPositionSigma: 0.001
 noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
 numOptimize: 2
-horizon: 20 # In seconds.
+horizon: 6 # In seconds.
 useDogLeg: false
