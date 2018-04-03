@@ -69,6 +69,36 @@ public:
       boost::optional<double &> maxSide_out = boost::none) const;
 
   /* ------------------------------------------------------------------------ */
+  // Update map: update structures keeping memory of the map before visualization
+  void updateMap3D(
+      std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
+      std::vector<std::pair<KeypointCV, gtsam::Point3> > pointsWithoutId =
+                          std::vector<std::pair<KeypointCV, gtsam::Point3>>());
+
+  /* ------------------------------------------------------------------------ */
+  // Update mesh: update structures keeping memory of the map before visualization
+  void updateMesh3D(
+      std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithIdVIO,
+      std::shared_ptr<StereoFrame> stereoFrame,
+      const gtsam::Pose3& leftCameraPose,
+      const Mesh2Dtype& mesh2Dtype = Mesh2Dtype::VALIDKEYPOINTS,
+      float maxGradInTriangle = 50,
+      double minRatioBetweenLargestAnSmallestSide = 0,
+      double min_elongation_ratio = 0.5,
+      double maxTriangleSide = 10);
+
+  /* ------------------------------------------------------------------------ */
+  // Update mesh: update structures keeping memory of the map before visualization
+  void updateMesh3D(
+      std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithId,
+      Frame& frame,
+      const gtsam::Pose3& leftCameraPose,
+      double minRatioBetweenLargestAnSmallestSide = 0.0,
+      double min_elongation_ratio = 0.5,
+      double maxTriangleSide = 10.0);
+
+private:
+  /* ------------------------------------------------------------------------ */
     // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
   // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
   double getRatioBetweenTangentialAndRadialDisplacement(
@@ -96,6 +126,18 @@ public:
   bool calculateNormals(std::vector<cv::Point3f>* normals);
 
   /* ------------------------------------------------------------------------ */
+  // Is normal perpendicular to axis?
+  bool isNormalPerpendicularToAxis(const cv::Point3f& axis,
+                                   const cv::Point3f& normal,
+                                   const double& tolerance) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Is normal around axis?
+  bool isNormalAroundAxis(const cv::Point3f& axis,
+                          const cv::Point3f& normal,
+                          const double& tolerance) const;
+
+  /* ------------------------------------------------------------------------ */
   // Clusters normals given an axis, a set of normals and a
   // tolerance. The result is a vector of indices of the given set of normals
   // that are in the cluster.
@@ -105,12 +147,6 @@ public:
                                 std::vector<int>* triangle_cluster);
 
   /* ------------------------------------------------------------------------ */
-  // Is normal around axis?
-  bool isNormalAroundAxis(const cv::Point3f& axis,
-                          const cv::Point3f& normal,
-                          const double& tolerance) const;
-
-  /* ------------------------------------------------------------------------ */
   // Clusters normals perpendicular to an axis. Given an axis, a set of normals and a
   // tolerance. The result is a vector of indices of the given set of normals
   // that are in the cluster.
@@ -118,38 +154,6 @@ public:
                                          const std::vector<cv::Point3f>& normals,
                                          const double& tolerance,
                                          std::vector<int>* cluster_normals_idx);
-  /* ------------------------------------------------------------------------ */
-  // Is normal perpendicular to axis?
-  bool isNormalPerpendicularToAxis(const cv::Point3f& axis,
-                                   const cv::Point3f& normal,
-                                   const double& tolerance) const;
-
-  /* ------------------------------------------------------------------------ */
-  // Update map: update structures keeping memory of the map before visualization
-  void updateMap3D(
-      std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
-      std::vector<std::pair<KeypointCV, gtsam::Point3> > pointsWithoutId =
-                          std::vector<std::pair<KeypointCV, gtsam::Point3> >());
-
-  /* ------------------------------------------------------------------------ */
-  // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithIdVIO,
-      std::shared_ptr<StereoFrame> stereoFrame,
-      const gtsam::Pose3& leftCameraPose,
-      const Mesh2Dtype& mesh2Dtype = Mesh2Dtype::VALIDKEYPOINTS,
-      float maxGradInTriangle = 50,
-      double minRatioBetweenLargestAnSmallestSide = 0,
-      double min_elongation_ratio = 0.5,
-      double maxTriangleSide = 10);
-
-  /* ------------------------------------------------------------------------ */
-  // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithId,
-      Frame& frame,
-      const gtsam::Pose3& leftCameraPose,
-      double minRatioBetweenLargestAnSmallestSide = 0.0,
-      double min_elongation_ratio = 0.5,
-      double maxTriangleSide = 10.0);
 };
 
 } // namespace VIO

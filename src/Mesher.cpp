@@ -454,7 +454,7 @@ void Mesher::updateMesh3D(
   }
 }
 
-/* ----------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
 void Mesher::updateMesh3D(
                 std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
