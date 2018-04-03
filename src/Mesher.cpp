@@ -452,7 +452,9 @@ void Mesher::updateMesh3D(
   TriangleCluster equatorial_triangle_cluster;
   equatorial_triangle_cluster.cluster_direction_ = z_axis;
   equatorial_triangle_cluster.cluster_id_ = 0;
-  clusterNormalsPerpendicularToAxis(z_axis, normals, normal_tolerance,
+  static constexpr double normal_tolerance_perpendicular = 0.1; //0.08715 === 10 deg. aperture.
+  clusterNormalsPerpendicularToAxis(z_axis, normals,
+                                    normal_tolerance_perpendicular,
                            &(equatorial_triangle_cluster.triangle_ids_));
 
 
