@@ -386,11 +386,11 @@ void Mesher::updateMesh3D(
   }
 
   // Put all landmark points inside a single structure.
-  std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithId =
+  std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithId =
                                                              pointsWithIdStereo;
-  pointsWithIdStereo.insert(pointsWithIdStereo.end(),
-                            pointsWithIdVIO.begin(),
-                            pointsWithIdVIO.end()); // order is important (VIO last)
+  pointsWithId.insert(pointsWithId.end(),
+                      pointsWithIdVIO.begin(),
+                      pointsWithIdVIO.end()); // order is important (VIO last)
 
   // Update 3D points (possibly replacing some points with new estimates).
   std::vector<std::pair<KeypointCV, gtsam::Point3>> pointsWithoutId;
@@ -401,6 +401,7 @@ void Mesher::updateMesh3D(
       pointsWithoutId.push_back(std::make_pair(px, point));
     }
   }
+
   updateMap3D(pointsWithId, pointsWithoutId);
 
   std::cout << "Before polygonsMesh_.size() " <<  polygonsMesh_.size << "\n";
