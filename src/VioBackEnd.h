@@ -537,16 +537,15 @@ public:
                             const int& minAge = 0) const {
     CHECK_NOTNULL(points_with_id);
 
-    // TODO: this copies the graph.
-    gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
+    const gtsam::NonlinearFactorGraph& graph (smoother_->getFactors());
 
     // old_smart_factors_ has all smart factors included so far.
     int nrValidPts = 0, nrPts = 0;
     for (auto& sf : old_smart_factors_) //!< landmarkId -> {SmartFactorPtr, SlotIndex}
     {
-      const LandmarkId lmkId = sf.first;
+      const LandmarkId& lmkId = sf.first;
       const SmartStereoFactor::shared_ptr& sf_ptr = sf.second.first;
-      const int slotId = sf.second.second;
+      const int& slotId = sf.second.second;
 
       if (sf_ptr && // if pointer is well definied
           (slotId >= 0) && (graph.size() > slotId) && // and slot is admissible

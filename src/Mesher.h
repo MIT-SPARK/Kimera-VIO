@@ -16,46 +16,54 @@
 #define Mesher_H_
 
 #include "StereoFrame.h"
+
 #include <stdlib.h>
+#include <sstream>
+#include <iomanip>
+#include <fstream>
+#include <iostream>
+
 #include <opengv/point_cloud/methods.hpp>
+
 #include <opencv2/core/core.hpp>
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/opencv.hpp"
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/viz/vizcore.hpp>
-#include <sstream>
-#include <iomanip>
-#include <fstream>
-#include <iostream>
+
 
 namespace VIO {
 
 class Mesher {
 public:
-  // map a lmk id to a row in mapPoints3d_
-  using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, int>;
+  // map a lmk id to a row in map_points_3d_
+  using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, size_t>;
 
-  // map a keypoint (without lmk id) to a row in mapPoints3d_
-  using KeypointToMapPointId = std::vector< std::pair<KeypointCV,int>>;
-
-
-  // set of (non-repeated) points = valid landmark positions
-  cv::Mat mapPoints3d_;
-  // set of polygons
-  cv::Mat polygonsMesh_;
-  // set of triangle clusters;
-  std::vector<TriangleCluster> triangle_clusters_;
+  // map a keypoint (without lmk id) to a row in map_points_3d_
+  using KeypointToMapPointId = std::vector<std::pair<KeypointCV, size_t>>;
 
 
-  // maps lmk id to corresponding 3D points
-  LandmarkIdToMapPointId lmkIdToMapPointId_;
-  // number of points
-  int points3D_count_;
-  KeypointToMapPointId keypointToMapPointId_;
+  // Set of (non-repeated) points = valid landmark positions.
+  // Format: n rows (one for each n points), with each row being a cv::Point3f.
+  cv::Mat map_points_3d_;
+  // Set of polygons.
+  cv::Mat polygons_mesh_;
 
+  // Maps a lmk id to its corresponding row in map_points_3d_.
+  LandmarkIdToMapPointId lmk_id_to_map_point_id_;
+  KeypointToMapPointId keypoint_to_map_point_id_;
 
-  Mesher(): polygonsMesh_(cv::Mat(0,1,CV_32SC1)), points3D_count_(0) {}
+  // Last id given to a point in map_points_3d_,
+  // also represents number of points.
+  size_t last_map_point_id_;
+
+  Mesher()
+    : map_points_3d_(cv::Mat(0, 1, CV_32FC3)),
+      polygons_mesh_(cv::Mat(0, 1, CV_32SC1)),
+      lmk_id_to_map_point_id_(),
+      keypoint_to_map_point_id_(),
+      last_map_point_id_(0) {}
 
   /* ------------------------------------------------------------------------ */
   // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
@@ -71,9 +79,9 @@ public:
   /* ------------------------------------------------------------------------ */
   // Update map: update structures keeping memory of the map before visualization
   void updateMap3D(
-      std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
-      std::vector<std::pair<KeypointCV, gtsam::Point3> > pointsWithoutId =
-                          std::vector<std::pair<KeypointCV, gtsam::Point3>>());
+       std::vector<std::pair<LandmarkId, gtsam::Point3>> points_with_id,
+       std::vector<std::pair<KeypointCV, gtsam::Point3>> points_without_id =
+                           std::vector<std::pair<KeypointCV, gtsam::Point3>>());
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
@@ -97,6 +105,10 @@ public:
       double min_elongation_ratio = 0.5,
       double maxTriangleSide = 10.0);
 
+  /* ------------------------------------------------------------------------ */
+  // Perform Mesh clustering.
+  void clusterMesh(std::vector<TriangleCluster>* clusters);
+
 private:
   /* ------------------------------------------------------------------------ */
     // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
@@ -106,8 +118,14 @@ private:
       const gtsam::Pose3& leftCameraPose) const;
 
   /* ------------------------------------------------------------------------ */
-  // searches in both the keypoints in frame as well as in the
-  int findRowIdFromPixel(Frame& frame, KeypointCV px) const;
+  // Searches in lmk_id_to_map_point_id_.
+  bool findMapPointIdFromLandmarkId(const LandmarkId& id_pt,
+                                    int* row_id) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Searches in keypoint_to_map_point_id_ (the keypoints in frame).
+  bool findMapPointIdFromPixel(const KeypointCV& px,
+                               int* row_id) const;
 
   /* ------------------------------------------------------------------------ */
   // Try to reject bad triangles, corresponding to outliers
@@ -118,8 +136,9 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  cv::Mat getTriangulationIndices(std::vector<cv::Vec6f> triangulation2D,
-                                  Frame& frame) const;
+  void populate3dMesh(const std::vector<cv::Vec6f>& triangulation2D,
+                                  const Frame& frame,
+                                  cv::Mat* polygon) const;
 
   /* ------------------------------------------------------------------------ */
   // Calculate normals of polygonMesh.
@@ -147,9 +166,9 @@ private:
                                 std::vector<int>* triangle_cluster);
 
   /* ------------------------------------------------------------------------ */
-  // Clusters normals perpendicular to an axis. Given an axis, a set of normals and a
-  // tolerance. The result is a vector of indices of the given set of normals
-  // that are in the cluster.
+  // Clusters normals perpendicular to an axis. Given an axis, a set of normals
+  // and a tolerance. The result is a vector of indices of the given set of
+  // normals that are in the cluster.
   void clusterNormalsPerpendicularToAxis(const cv::Point3f& axis,
                                          const std::vector<cv::Point3f>& normals,
                                          const double& tolerance,

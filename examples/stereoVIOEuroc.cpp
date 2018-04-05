@@ -428,22 +428,25 @@ int main(int argc, char *argv[])
           vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
           mesher.updateMesh3D(pointsWithId, stereoVisionFrontEnd
                              .stereoFrame_lkf_->left_frame_, W_Pose_camlkf_vio);
-          visualizer.visualizeMesh3D(mesher.mapPoints3d_, mesher.polygonsMesh_);
+          visualizer.visualizeMesh3D(mesher.map_points_3d_, mesher.polygons_mesh_);
           break;
         }
         // computes and visualizes 2D mesh
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
         case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
-          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2Dplanes();
-          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2Dplanes(100);
+          std::vector<cv::Vec6f> mesh_2d;
+          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2dStereo(&mesh_2d);
+          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2DStereo(mesh_2d,
+                                                                       100);
           break;
         }
         // computes and visualizes 3D mesh from 2D triangulation
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
         // (updateMesh3D also filters out geometrically)
-        case VisualizationType::MESH2DTo3Dsparse: {// same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
+        // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
+        case VisualizationType::MESH2DTo3Dsparse: {
           std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
 
           static constexpr int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
@@ -461,10 +464,13 @@ int main(int argc, char *argv[])
                               minRatioBetweenLargestAnSmallestSide,
                               min_elongation_ratio, maxTriangleSide);
 
+          std::vector<TriangleCluster> triangle_clusters;
+          mesher.clusterMesh(&triangle_clusters);
+
           visualizer.visualizeMesh3DWithColoredClusters(
-                                                      mesher.triangle_clusters_,
-                                                      mesher.mapPoints3d_,
-                                                      mesher.polygonsMesh_);
+                                                      triangle_clusters,
+                                                      mesher.map_points_3d_,
+                                                      mesher.polygons_mesh_);
           break;
         }
 
@@ -489,10 +495,13 @@ int main(int argc, char *argv[])
                               minRatioBetweenLargestAnSmallestSide,
                               min_elongation_ratio, maxTriangleSide);
 
+          std::vector<TriangleCluster> triangle_clusters;
+          mesher.clusterMesh(&triangle_clusters);
+
           visualizer.visualizeMesh3DWithColoredClusters(
-                                                      mesher.triangle_clusters_,
-                                                      mesher.mapPoints3d_,
-                                                      mesher.polygonsMesh_);
+                                                      triangle_clusters,
+                                                      mesher.map_points_3d_,
+                                                      mesher.polygons_mesh_);
           break;
         }
         // computes and visualizes 3D mesh
@@ -523,7 +532,7 @@ int main(int argc, char *argv[])
           MyVioBackEnd::PointsWithId pointsWithId;
           vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
           mesher.updateMap3D(pointsWithId);
-          visualizer.visualizePoints3D(pointsWithId, mesher.mapPoints3d_);
+          visualizer.visualizePoints3D(pointsWithId, mesher.map_points_3d_);
           break;
         }
         case VisualizationType::NONE: {

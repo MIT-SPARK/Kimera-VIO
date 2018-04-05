@@ -130,8 +130,6 @@ public:
   // 2D-3D MESH CREATION
   // used for dense mesh creation
   std::vector< std::pair< KeypointCV, gtsam::Point3> > extraStereoKeypoints_;
-  std::vector<cv::Vec6f> triangulation2Dplanes_; // list of triangles such that each triangle defines
-  // is a planar surface observed in by the stereo camera (each triangle is described by 3 pairs of pixels)
 
   // RELATIVE POSE BEFORE RECTIFICATION
   const gtsam::Pose3 camL_Pose_camR; // relative pose between left and right camera
@@ -151,14 +149,40 @@ public:
     right_frame_.isKeyframe_ = isKf;
   }
   // Create a 2D mesh only including triangles corresponding to obstables (planar surfaces)
-  // gradBound = 50 (max 255): if pixels in triangle have all grad smaller than gradBound, triangle is rejected
   // min_elongation_ratio = 0.5 (max 1): check on the elongation of the triangle (TODO: this check is conservative)
   // if mesh2Dtype = VALIDKEYPOINTS: 2D triangulation is computed form keypoints with VALID right match and valid lmk id (!=-1)
   // if mesh2Dtype = DENSE: to the keypoints mentioned in the sparse case, we add other points without lmk id (but with valid stereo)
-  void createMesh2Dplanes(float gradBound = 50,
-      Mesh2Dtype mesh2Dtype = VALIDKEYPOINTS, bool useCanny = true);
+  // pointsWithIdStereo is optional, and represents the landmarks corresponding
+  // to the keypoints used to create the 2d mesh.
+  void createMesh2dStereo(
+          std::vector<cv::Vec6f>* triangulation_2D,
+          std::vector<std::pair<LandmarkId, gtsam::Point3>>*
+                                                   pointsWithIdStereo = nullptr,
+          const Mesh2Dtype& mesh2Dtype = VALIDKEYPOINTS,
+          const bool& useCanny = true);
+
+  /* -------------------------------------------------------------------------- */
+  // Removes triangles in the 2d mesh that have more than "max_keypoints_with_
+  // gradient" keypoints with higher gradient than "gradient_bound".
+  // Input the original triangulation: original_triangulation_2D
+  // Output the filtered triangulation wo high-gradient triangles:
+  // filtered_triangulation_2D.
+  // gradient_bound = 50 (max 255): if pixels in triangle have at least max_keypoints
+  // _with_gradient grad smaller than gradient_bound, triangle is rejected
+  void filterTrianglesWithGradients(const cv::Mat& img_grads,
+                        const std::vector<cv::Vec6f>& original_triangulation_2D,
+                        std::vector<cv::Vec6f>* filtered_triangulation_2D,
+                        const float& gradient_bound = 50.0,
+                        const size_t& max_keypoints_with_gradient = 0);
+
+  /* -------------------------------------------------------------------------- */
+  // Given an image img, computes its gradients in img_grads.
+  void computeImgGradients(const cv::Mat& img, cv::Mat* img_grads);
+
   // visualize stored mesh
-  void visualizeMesh2Dplanes(const double waitTime = 0) const;
+  void visualizeMesh2DStereo(const std::vector<cv::Vec6f>& triangulation_2D,
+                             const double waitTime = 0,
+                             const std::string& window_name = "Mesh 2D") const;
   // copy rectification parameters from another stereo camera
   void cloneRectificationParameters(const StereoFrame& sf);
   // compute rectification parameters

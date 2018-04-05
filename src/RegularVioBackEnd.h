@@ -11,18 +11,19 @@
  * @brief  Derived class from VioBackEnd which enforces regularity constraints
  * on the factor graph.
  * @author Toni Rosinol
+ * @author Luca Carlone
  */
 
 #ifndef RegularVioBackEnd_H_
 #define RegularVioBackEnd_H_
 
 #include <VioBackEnd.h>
+#include <glog/logging.h>
 #include <gtsam/slam/StereoFactor.h>
 
 namespace VIO {
 
-class RegularVioBackEnd: public VioBackEnd
-{
+class RegularVioBackEnd: public VioBackEnd {
   using GenericProjectionFactor = gtsam::GenericStereoFactor<Pose3, Point3>;
 
   public:
@@ -31,7 +32,7 @@ class RegularVioBackEnd: public VioBackEnd
                     const double baseline,
                     const VioBackEndParams vioParams = VioBackEndParams()) :
     VioBackEnd(leftCamPose, leftCameraCalRectified, baseline, vioParams) {
-    std::cout << "I'm the regular vio back end\n";
+    LOG(INFO) << "Using Regular VIO backend.\n";
   }
 
   ~RegularVioBackEnd() = default;
@@ -45,9 +46,11 @@ class RegularVioBackEnd: public VioBackEnd
 
   void updateLandmarkInGraph(const LandmarkId lm_id, const std::pair<FrameId, StereoPoint2>& newObs);
 
-  void addVisualInertialStateAndOptimize(const Timestamp timestamp_kf_nsec, // keyframe timestamp
-         const StatusSmartStereoMeasurements statusSmartStereoMeasurements_kf, // vision data
-         ImuStamps imu_stamps, ImuAccGyr imu_accgyr, boost::optional<gtsam::Pose3> stereoRansacBodyPose = boost::none); // inertial data
+  void addVisualInertialStateAndOptimize(
+    const Timestamp timestamp_kf_nsec, // keyframe timestamp
+    const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf, // vision data
+    ImuStamps imu_stamps, ImuAccGyr imu_accgyr, // inertial data
+    boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
 
   //    for (i in sf->measured().size) {
@@ -106,7 +109,6 @@ class RegularVioBackEnd: public VioBackEnd
   //What happens when we marginalize? (attach right timestamp to landmark.. )
   //
 };
-
 
 } // namespace VIO
 #endif /* RegularVioBackEnd_H_ */
