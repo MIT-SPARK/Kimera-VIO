@@ -837,6 +837,7 @@ public:
    }
   /* ----------------------------------------------------------------------------- */
   // compute max intensity of pixels within a triangle specified by the pixel location of its vertices
+  // If intensityThreshold is < 0, then the check is disabled.
   static std::vector<std::pair<KeypointCV, double>> FindHighIntensityInTriangle(
                                  const cv::Mat img, const cv::Vec6f px_vertices,
                                  const float intensityThreshold) {
