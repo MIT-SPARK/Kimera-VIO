@@ -534,37 +534,41 @@ public:
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
   void get3DPointsAndLmkIds(PointsWithId* points_with_id,
-                            const int& minAge = 0) const {
+                            const int& min_age = 0) const {
     CHECK_NOTNULL(points_with_id);
 
     const gtsam::NonlinearFactorGraph& graph (smoother_->getFactors());
 
     // old_smart_factors_ has all smart factors included so far.
-    int nrValidPts = 0, nrPts = 0;
-    for (auto& sf : old_smart_factors_) //!< landmarkId -> {SmartFactorPtr, SlotIndex}
-    {
-      const LandmarkId& lmkId = sf.first;
-      const SmartStereoFactor::shared_ptr& sf_ptr = sf.second.first;
-      const int& slotId = sf.second.second;
+    int nr_valid_pts = 0, nr_pts = 0;
+    //!< old_smart_factor  === ( landmarkId -> {SmartFactorPtr, SlotIndex} )
+    for (auto& old_smart_factor : old_smart_factors_) {
+      const LandmarkId& lmkId = old_smart_factor.first;
+      const SmartStereoFactor::shared_ptr& old_smart_factor_ptr =
+                                                  old_smart_factor.second.first;
+      const int& slot_id = old_smart_factor.second.second;
 
-      if (sf_ptr && // if pointer is well definied
-          (slotId >= 0) && (graph.size() > slotId) && // and slot is admissible
-          (sf_ptr == graph[slotId]) // and the pointer in the graph matches the one we stored in old_smart_factors_
+      if (old_smart_factor_ptr && // If smart factor pointer is well definied.
+          (slot_id >= 0) && (slot_id < graph.size()) && // And slot is admissible.
+          (old_smart_factor_ptr == graph[slot_id]) // And the pointer in the graph matches the one we stored in old_smart_factors_.
           ) {
-        auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slotId]);
-        if (gsf) {
-          nrPts++;
-          gtsam::TriangulationResult result = gsf->point();
-          if (result.valid() && gsf->measured().size() >= minAge) {
-            nrValidPts++;
-            points_with_id->push_back(std::make_pair(lmkId, *result));
+        auto graph_smart_factor =
+                boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slot_id]);
+        if (graph_smart_factor) {
+          nr_pts++;
+          const gtsam::TriangulationResult& smart_factor_point =
+                                                    graph_smart_factor->point();
+          if (smart_factor_point.valid() &&
+              graph_smart_factor->measured().size() >= min_age) {
+            nr_valid_pts++;
+            points_with_id->push_back(std::make_pair(lmkId, *smart_factor_point));
           }
         }
       }
     }
 
-    VLOG(100) << "nrValidPts= "<< nrValidPts << " out of "
-              << nrPts << std::endl;
+    VLOG(100) << "nrValidPts= "<< nr_valid_pts << " out of "
+              << nr_pts << std::endl;
   }
 
   /* ------------------------------------------------------------------------ */
