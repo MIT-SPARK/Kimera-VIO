@@ -434,6 +434,9 @@ void Mesher::updateMesh3D(
   std::vector<std::pair<LandmarkId, gtsam::Point3>>& points_with_id =
                                                              pointsWithIdStereo;
 
+  // some points are both in stereo frame and in the VIO, so there is some overlap
+  // But if we put the VIO points last in the following structure we make sure that
+  // updateMap3D below takes the most accurate points (the ones in VIO, not stereo).
   points_with_id.insert(points_with_id.end(),
                         pointsWithIdVIO.begin(),
                         pointsWithIdVIO.end()); // order is important (VIO last)

@@ -18,9 +18,9 @@
 namespace VIO {
 
 void RegularVioBackEnd::addVisualInertialStateAndOptimize(
-    const Timestamp timestamp_kf_nsec,
-    const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf,
-    ImuStamps imu_stamps, ImuAccGyr imu_accgyr,
+    const Timestamp& timestamp_kf_nsec,
+    const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+    const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
 
   debugInfo_.resetAddedFactorsStatistics();
@@ -58,7 +58,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   SmartStereoMeasurements smartStereoMeasurements_kf =
                                     status_smart_stereo_measurements_kf.second;
 
-  // if stereo ransac failed, remove all right pixels:
+  // If stereo ransac failed, remove all right pixels:
   Tracker::TrackingStatus kfTrackingStatus_stereo =
             status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
   // if(kfTrackingStatus_stereo == Tracker::TrackingStatus::INVALID){
@@ -66,41 +66,50 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   //     smartStereoMeasurements_kf[i].uR = std::numeric_limits<double>::quiet_NaN();;
   //}
 
-  // extract relevant information from stereo frame
+  // Extract relevant information from stereo frame.
   LandmarkIds landmarks_kf = addStereoMeasurementsToFeatureTracks(
                                                      cur_id_,
                                                      smartStereoMeasurements_kf);
-  if (verbosity_ >= 8) { printFeatureTracks(); }
+  if (verbosity_ >= 8) {
+    printFeatureTracks();
+  }
 
   // Decide which factors to add.
   Tracker::TrackingStatus kfTrackingStatus_mono =
                 status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch(kfTrackingStatus_mono) {
-  case Tracker::TrackingStatus::LOW_DISPARITY : {  // vehicle is not moving
-    if (verbosity_ >= 7) {printf("Add zero velocity and no motion factors\n");}
-    addZeroVelocityPrior(cur_id_);
-    addNoMotionFactor(last_id_, cur_id_);
-    break;
+    case Tracker::TrackingStatus::LOW_DISPARITY : {
+      // Vehicle is not moving.
+      if (verbosity_ >= 7) {
+        printf("Add zero velocity and no motion factors\n");
+      }
+      addZeroVelocityPrior(cur_id_);
+      addNoMotionFactor(last_id_, cur_id_);
+      break;
+    }
+      // This did not improve in any case
+      //  case Tracker::TrackingStatus::INVALID :// ransac failed hence we cannot trust features
+      //    if (verbosity_ >= 7) {printf("Add constant velocity factor (monoRansac is INVALID)\n");}
+      //    addConstantVelocityFactor(last_id_, cur_id_);
+      //    break;
 
-    // This did not improve in any case
-    //  case Tracker::TrackingStatus::INVALID :// ransac failed hence we cannot trust features
-    //    if (verbosity_ >= 7) {printf("Add constant velocity factor (monoRansac is INVALID)\n");}
-    //    addConstantVelocityFactor(last_id_, cur_id_);
-    //    break;
+    default: {
+      // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED :
+      // we add features in VIO
+      addLandmarksToGraph(landmarks_kf);
+      break;
+    }
   }
 
-  default: { // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : // we add features in VIO
-    addLandmarksToGraph(landmarks_kf);
-    break;
-  }
-  }
+  // This lags 1 step behind to mimic hw.
+  imu_bias_prev_kf_ = imu_bias_lkf_;
 
-  imu_bias_prev_kf_ = imu_bias_lkf_; // this lags 1 step behind to mimic hw
   // TODO add conversion from Smart factor to regular.
   optimize(cur_id_, vioParams_.numOptimize_);
 }
 
-void RegularVioBackEnd::addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& ft) {
+void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
+                                           FeatureTrack& ft) {
   if(ft.in_ba_graph_)
     throw std::runtime_error("addLandmarkToGraph:"
                              " feature already in the graph!");
@@ -134,8 +143,7 @@ void RegularVioBackEnd::addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& ft) {
   lmk_id_is_smart_.insert(std::make_pair(lm_id, true));
 }
 
-void RegularVioBackEnd::updateLandmarkInGraph(
-                               const LandmarkId lm_id,
+void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId& lm_id,
                                const std::pair<FrameId, StereoPoint2>& newObs) {
   bool is_lmk_smart = lmk_id_is_smart_.at(lm_id);
   if (is_lmk_smart == true) {

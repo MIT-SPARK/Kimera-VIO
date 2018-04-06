@@ -165,7 +165,9 @@ public:
     cv::Rect2f rect (0, 0, img_size.width, img_size.height);
     cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
 
-    // Make sure we only pass keypoints inside the image!
+    // TODO Luca: there are kpts outside image, probably from tracker. This check
+    // should be in the tracker.
+    // -> Make sure we only pass keypoints inside the image!
     for (auto it = keypoints_to_triangulate.begin();
          it != keypoints_to_triangulate.end(); it++) {
       if (!rect.contains(*it)) {
