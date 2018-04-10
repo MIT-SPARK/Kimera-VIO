@@ -115,15 +115,6 @@ public:
        const double& min_elongation_ratio = 0.5,
        const double& maxTriangleSide = 10);
 
-  /* -------------------------------------------------------------------------- */
-  // Create a 3D mesh from 2D corners in an image, coded as a Frame class
-  void populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulation2D,
-                                 const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
-                                 const Frame& frame,
-                                 std::map<int, LandmarkId>* vertex_to_lmk_id_map,
-                                 std::map<LandmarkId, int>* lmk_id_to_vertex_map,
-                                 cv::Mat* vertices_mesh,
-                                 cv::Mat* polygon_mesh);
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
@@ -174,6 +165,27 @@ private:
   void populate3dMesh(const std::vector<cv::Vec6f>& triangulation2D,
                                   const Frame& frame,
                                   cv::Mat* polygon) const;
+
+  /* -------------------------------------------------------------------------- */
+  // Create a 3D mesh from 2D corners in an image, coded as a Frame class
+  void populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulation2D,
+                                 const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
+                                 const Frame& frame,
+                                 std::map<int, LandmarkId>* vertex_to_lmk_id_map,
+                                 std::map<LandmarkId, int>* lmk_id_to_vertex_map,
+                                 cv::Mat* vertices_mesh,
+                                 cv::Mat* polygon_mesh);
+
+  /* -------------------------------------------------------------------------- */
+  // Updates mesh data structures incrementally, by adding new landmark
+  // if there was no previous id, or updating it if it was already present.
+  void updateMeshDataStructures(
+    const LandmarkId& id_pt_1,
+    const cv::Point3f& point_1,
+    std::map<int, LandmarkId>* vertex_to_lmk_id_map,
+    std::map<LandmarkId, int>* lmk_id_to_vertex_map,
+    cv::Mat* vertices_mesh,
+    cv::Mat* polygon_mesh);
 
   /* ------------------------------------------------------------------------ */
   // Calculate normals of polygonMesh.

@@ -290,83 +290,50 @@ void Mesher::populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulati
     if (lmk_1_it != points_with_id_map_end &&
         lmk_2_it != points_with_id_map_end &&
         lmk_3_it != points_with_id_map_end) {
-      // Extract 3d points as cv::Point3f, needed to store points
-      // in map_points_3d.
-      const gtsam::Point3& point_1 (lmk_1_it->second);
-      const gtsam::Point3& point_2 (lmk_2_it->second);
-      const gtsam::Point3& point_3 (lmk_3_it->second);
-      cv::Point3f lmk_1(float(point_1.x()),
-                        float(point_1.y()),
-                        float(point_1.z()));
-      cv::Point3f lmk_2(float(point_2.x()),
-                        float(point_2.y()),
-                        float(point_2.z()));
-      cv::Point3f lmk_3(float(point_3.x()),
-                        float(point_3.y()),
-                        float(point_3.z()));
-
-      // Check whether the triangle is already encoded in the mesh, in which case
-      // no need to update the connectivity part of the mesh but just the corres-
-      // ponding vertices in map_points_3d.
-      const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map->end();
-      const auto& vertex_1_it = lmk_id_to_vertex_map->find(id_pt_1);
-      const auto& vertex_2_it = lmk_id_to_vertex_map->find(id_pt_2);
-      const auto& vertex_3_it = lmk_id_to_vertex_map->find(id_pt_3);
-
-      int row_id_pt_1;
-      // Check whether this landmark is already in the set of vertices of the
-      // mesh.
-      if (vertex_1_it == lmk_id_to_vertex_map_end) {
-        // New landmark, create a new entrance in the set of vertices.
-        // Store 3D points in map_points_3d.
-        vertices_mesh->push_back(lmk_1);
-        row_id_pt_1 = vertices_mesh->rows - 1;
-        // Store the row in the vertices structure of this new landmark id.
-        (*lmk_id_to_vertex_map)[id_pt_1] = row_id_pt_1;
-        (*vertex_to_lmk_id_map)[row_id_pt_1] = id_pt_1;
-      } else {
-        // Update old landmark with new position.
-        vertices_mesh->at<cv::Point3f>(vertex_1_it->second) = lmk_1;
-        row_id_pt_1 = vertex_1_it->second;
-      }
-
-      // Same for pt 2.
-      int row_id_pt_2;
-      if (vertex_2_it == lmk_id_to_vertex_map_end) {
-        vertices_mesh->push_back(lmk_2);
-        row_id_pt_2 = vertices_mesh->rows - 1;
-        // Store the row in the vertices structure of this new landmark id.
-        (*lmk_id_to_vertex_map)[id_pt_2] = row_id_pt_2;
-        (*vertex_to_lmk_id_map)[row_id_pt_2] = id_pt_2;
-      } else {
-        vertices_mesh->at<cv::Point3f>(vertex_2_it->second)= lmk_2;
-        row_id_pt_2 = vertex_2_it->second;
-      }
-
-      // Same for pt 3.
-      int row_id_pt_3;
-      if (vertex_3_it == lmk_id_to_vertex_map_end) {
-        vertices_mesh->push_back(lmk_3);
-        row_id_pt_3 = vertices_mesh->rows - 1;
-        // Store the row in the vertices structure of this new landmark id.
-        (*lmk_id_to_vertex_map)[id_pt_3] = row_id_pt_3;
-        (*vertex_to_lmk_id_map)[row_id_pt_3] = id_pt_3;
-      } else {
-        vertices_mesh->at<cv::Point3f>(vertex_3_it->second)= lmk_3;
-        row_id_pt_3 = vertex_3_it->second;
-      }
-
-      // Update mesh connectivity, this might be duplicated, but it does not
-      // really matter visually.
+      // Update mesh connectivity, this might duplicate faces, but it does not
+      // really matter visually. It does in terms of speed and memory...
       // Specify number of point ids per face in the mesh.
       // Currently 3, as we are dealing with a triangular 3d mesh.
       polygon_mesh->push_back(3);
 
-      // Store corresponding ids (row index) to the 3d point in map_points_3d.
-      // This structure encodes the connectivity of the mesh:
-      polygon_mesh->push_back(row_id_pt_1);
-      polygon_mesh->push_back(row_id_pt_2);
-      polygon_mesh->push_back(row_id_pt_3);
+      // Check whether the triangle is already encoded in the mesh, in which case
+      // no need to update the connectivity part of the mesh but just the corres-
+      // ponding vertices in vertices_mesh.
+      const gtsam::Point3& point_1 (lmk_1_it->second);
+      cv::Point3f lmk_1(float(point_1.x()),
+                        float(point_1.y()),
+                        float(point_1.z()));
+      updateMeshDataStructures(
+            id_pt_1, lmk_1,
+            vertex_to_lmk_id_map,
+            lmk_id_to_vertex_map,
+            vertices_mesh,
+            polygon_mesh);
+
+      // Same for pt 2.
+      const gtsam::Point3& point_2 (lmk_2_it->second);
+      cv::Point3f lmk_2(float(point_2.x()),
+                        float(point_2.y()),
+                        float(point_2.z()));
+      updateMeshDataStructures(
+            id_pt_2, lmk_2,
+            vertex_to_lmk_id_map,
+            lmk_id_to_vertex_map,
+            vertices_mesh,
+            polygon_mesh);
+
+      // Same for pt 3.
+      const gtsam::Point3& point_3 (lmk_3_it->second);
+      cv::Point3f lmk_3(float(point_3.x()),
+                        float(point_3.y()),
+                        float(point_3.z()));
+      updateMeshDataStructures(
+            id_pt_3, lmk_3,
+            vertex_to_lmk_id_map,
+            lmk_id_to_vertex_map,
+            vertices_mesh,
+            polygon_mesh);
+
     } else {
       LOG(ERROR) << "Landmarks with ids : "
                  << lmk_1_it->first << " or "
@@ -375,6 +342,42 @@ void Mesher::populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulati
                  << ", could not be found in points_with_id_map.\n";
     }
   }
+}
+
+void Mesher::updateMeshDataStructures(
+    const LandmarkId& id_pt_1,
+    const cv::Point3f& lmk_1,
+    std::map<int, LandmarkId>* vertex_to_lmk_id_map,
+    std::map<LandmarkId, int>* lmk_id_to_vertex_map,
+    cv::Mat* vertices_mesh,
+    cv::Mat* polygon_mesh) {
+  CHECK_NOTNULL(vertex_to_lmk_id_map);
+  CHECK_NOTNULL(lmk_id_to_vertex_map);
+  CHECK_NOTNULL(vertices_mesh);
+  CHECK_NOTNULL(polygon_mesh);
+
+  const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map->end();
+  const auto& vertex_1_it = lmk_id_to_vertex_map->find(id_pt_1);
+
+  int row_id_pt_1;
+  // Check whether this landmark is already in the set of vertices of the
+  // mesh.
+  if (vertex_1_it == lmk_id_to_vertex_map_end) {
+    // New landmark, create a new entrance in the set of vertices.
+    // Store 3D points in map_points_3d.
+    vertices_mesh->push_back(lmk_1);
+    row_id_pt_1 = vertices_mesh->rows - 1;
+    // Store the row in the vertices structure of this new landmark id.
+    (*lmk_id_to_vertex_map)[id_pt_1] = row_id_pt_1;
+    (*vertex_to_lmk_id_map)[row_id_pt_1] = id_pt_1;
+  } else {
+    // Update old landmark with new position.
+    vertices_mesh->at<cv::Point3f>(vertex_1_it->second) = lmk_1;
+    row_id_pt_1 = vertex_1_it->second;
+  }
+  // Store corresponding ids (row index) to the 3d point in map_points_3d.
+  // This structure encodes the connectivity of the mesh:
+  polygon_mesh->push_back(row_id_pt_1);
 }
 
 // TODO the polygon_mesh has repeated faces...
@@ -421,27 +424,30 @@ void Mesher::reducePolygonMeshToTimeHorizon(
       // Store the new face of the mesh in the output data structures.
       /// The last row index is necessary later to encode the connectivity of the
       /// mesh.
-      int32_t last_row = vertices_mesh_output->rows - 1;
-
-      // Save vertices of the mesh.
-      // TODO CHECK THAT THE NEW VERTICES ARE NOT ALREADY THERE!!!!
-      vertices_mesh_output->push_back(vertices_mesh.at<cv::Point3f>(row_id_pt1));
-      vertices_mesh_output->push_back(vertices_mesh.at<cv::Point3f>(row_id_pt2));
-      vertices_mesh_output->push_back(vertices_mesh.at<cv::Point3f>(row_id_pt3));
-
-      // Update lmk_id_to_vertex_map and vertex_to_lmk_id_map structures.
-      (*lmk_id_to_vertex_map_output)[lmk_id_1] = last_row + 1;
-      (*lmk_id_to_vertex_map_output)[lmk_id_2] = last_row + 2;
-      (*lmk_id_to_vertex_map_output)[lmk_id_3] = last_row + 3;
-      (*vertex_to_lmk_id_map_output)[last_row + 1] = lmk_id_1;
-      (*vertex_to_lmk_id_map_output)[last_row + 2] = lmk_id_2;
-      (*vertex_to_lmk_id_map_output)[last_row + 3] = lmk_id_3;
 
       // Encode connectivity of the vertices of the mesh.
       polygon_mesh_output->push_back(3);
-      polygon_mesh_output->push_back(last_row + 1);
-      polygon_mesh_output->push_back(last_row + 2);
-      polygon_mesh_output->push_back(last_row + 3);
+
+      // Save vertices of the mesh.
+      // TODO CHECK THAT THE NEW VERTICES ARE NOT ALREADY THERE!!!!
+      const cv::Point3f& point_1 = vertices_mesh.at<cv::Point3f>(row_id_pt1);
+      updateMeshDataStructures(lmk_id_1, point_1,
+                               vertex_to_lmk_id_map_output,
+                               lmk_id_to_vertex_map_output,
+                               vertices_mesh_output,
+                               polygon_mesh_output);
+      const cv::Point3f& point_2 = vertices_mesh.at<cv::Point3f>(row_id_pt2);
+      updateMeshDataStructures(lmk_id_2, point_2,
+                               vertex_to_lmk_id_map_output,
+                               lmk_id_to_vertex_map_output,
+                               vertices_mesh_output,
+                               polygon_mesh_output);
+      const cv::Point3f& point_3 = vertices_mesh.at<cv::Point3f>(row_id_pt3);
+      updateMeshDataStructures(lmk_id_3, point_3,
+                               vertex_to_lmk_id_map_output,
+                               lmk_id_to_vertex_map_output,
+                               vertices_mesh_output,
+                               polygon_mesh_output);
     }
     // Delete the rest by not adding them to polygon_mesh_output.
   }
