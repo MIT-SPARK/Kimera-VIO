@@ -378,12 +378,14 @@ int main(int argc, char *argv[])
               timestamp_k, // current time for fixed lag smoother
               statusSmartStereoMeasurements, // vision data
               imu_stamps, imu_accgyr, // inertial data
+              mesh_lmk_ids_ground_cluster,
               stereoVisionFrontEnd.getRelativePoseBodyStereo()); // optional: pose estimate from stereo ransac
       } else {
         vioBackEnd->addVisualInertialStateAndOptimize(
               timestamp_k,
               statusSmartStereoMeasurements,
-              imu_stamps, imu_accgyr); // same but no pose
+              imu_stamps, imu_accgyr,
+              mesh_lmk_ids_ground_cluster); // same but no pose
       }
 
       if (FLAGS_log_output) {

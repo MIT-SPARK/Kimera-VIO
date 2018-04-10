@@ -324,7 +324,7 @@ public:
   std::shared_ptr<Smoother> smoother_;
 
   gtsam::Values state_;                        //!< current state of the system.
-  gtsam::NonlinearFactorGraph new_imu_and_prior_factors_;    //!< new factors to be added
+  gtsam::NonlinearFactorGraph new_imu_prior_and_other_factors_;    //!< new factors to be added
   gtsam::Values new_values_;                   //!< new states to be added
   LandmarkIdSmartFactorMap new_smart_factors_; //!< landmarkId -> {SmartFactorPtr}
   SmartFactorMap old_smart_factors_;           //!< landmarkId -> {SmartFactorPtr, SlotIndex}
@@ -395,7 +395,9 @@ public:
   virtual void addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& lm);
   virtual void updateLandmarkInGraph(const LandmarkId lm_id,
                                const std::pair<FrameId, StereoPoint2>& newObs);
-  void optimize(const FrameId& cur_id, const int max_iterations);
+  void optimize(const FrameId& cur_id, const int max_iterations,
+                const std::vector<size_t>& extra_factor_slots_to_delete =
+                                                        std::vector<size_t>());
   void findSmartFactorsSlots(const std::vector<Key> new_smart_factors_keys_tmp);
   void findSmartFactorsSlotsSlow(
                              const std::vector<Key> new_smart_factors_keys_tmp);

@@ -147,14 +147,14 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id, const ImuAccGyr
   // Add pose prior.
   gtsam::SharedNoiseModel noise_init_pose =
       gtsam::noiseModel::Gaussian::Covariance(pose_prior_covariance);
-  new_imu_and_prior_factors_.push_back(
+  new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::PriorFactor<gtsam::Pose3> >(
           gtsam::Symbol('x', frame_id), W_Pose_Blkf_, noise_init_pose));
 
   // Add initial velocity priors.
   gtsam::SharedNoiseModel initialVelocityPriorNoise =
       gtsam::noiseModel::Isotropic::Sigma(3, vioParams_.initialVelocitySigma_);
-  new_imu_and_prior_factors_.push_back(
+  new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
           gtsam::Symbol('v', frame_id), W_Vel_Blkf_, initialVelocityPriorNoise));
 
@@ -164,7 +164,7 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id, const ImuAccGyr
   prior_biasSigmas.tail<3>().setConstant(vioParams_.initialGyroBiasSigma_);
   gtsam::SharedNoiseModel imu_bias_prior_noise =
       gtsam::noiseModel::Diagonal::Sigmas(prior_biasSigmas);
-  new_imu_and_prior_factors_.push_back(
+  new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
           gtsam::Symbol('b', frame_id), imu_bias_lkf_, imu_bias_prior_noise));
 
@@ -286,7 +286,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id, const FrameId& to_id)
           gtsam::Symbol('b', to_id),
           *pim_));
 #else
-  new_imu_and_prior_factors_.push_back(
+  new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::ImuFactor>(
           gtsam::Symbol('x', from_id), gtsam::Symbol('v', from_id),
           gtsam::Symbol('x', to_id), gtsam::Symbol('v', to_id),
@@ -300,7 +300,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id, const FrameId& to_id)
   biasSigmas.tail<3>().setConstant(d * vioParams_.gyroBiasSigma_);
   gtsam::SharedNoiseModel bias_noise_model = gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
 
-  new_imu_and_prior_factors_.push_back(
+  new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::imuBias::ConstantBias> >(
           gtsam::Symbol('b', from_id), gtsam::Symbol('b', to_id), zero_bias, bias_noise_model));
 #endif
@@ -346,7 +346,7 @@ LandmarkIds VioBackEnd::addStereoMeasurementsToFeatureTracks(int frameNum, const
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id)
 {
-  new_imu_and_prior_factors_.push_back(
+  new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
           gtsam::Symbol('v', frame_id), gtsam::Vector3::Zero(), zeroVelocityPriorNoise_));
   if (verbosity_ >= 7) {std::cout << "No motion detected, adding zero velocity prior" << std::endl;}
@@ -363,7 +363,7 @@ void VioBackEnd::addBetweenFactor(const FrameId& from_id, const FrameId& to_id, 
   precisions.tail<3>().setConstant(vioParams_.betweenTranslationPrecision_);
   gtsam::SharedNoiseModel betweenNoise_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
 
-  new_imu_and_prior_factors_.push_back(
+  new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
           gtsam::Symbol('x', from_id), gtsam::Symbol('x', to_id), from_id_POSE_to_id, betweenNoise_));
 
@@ -374,7 +374,7 @@ void VioBackEnd::addBetweenFactor(const FrameId& from_id, const FrameId& to_id, 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void VioBackEnd::addNoMotionFactor(const FrameId& from_id, const FrameId& to_id)
 {
-  new_imu_and_prior_factors_.push_back(
+  new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
           gtsam::Symbol('x', from_id), gtsam::Symbol('x', to_id), Pose3(), noMotionPriorNoise_));
 
@@ -385,7 +385,7 @@ void VioBackEnd::addNoMotionFactor(const FrameId& from_id, const FrameId& to_id)
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void VioBackEnd::addConstantVelocityFactor(const FrameId& from_id, const FrameId& to_id)
 {
-  new_imu_and_prior_factors_.push_back(
+  new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::Vector3>>(
           gtsam::Symbol('v', from_id), gtsam::Symbol('v', to_id), gtsam::Vector3::Zero(), constantVelocityPriorNoise_));
 
@@ -477,7 +477,8 @@ void VioBackEnd::updateLandmarkInGraph(const LandmarkId lm_id, const std::pair<F
   if (verbosity_ >= 8) {std::cout << "updateLandmarkInGraph: added observation to point: " << lm_id << std::endl;}
 }
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void VioBackEnd::optimize(const FrameId& cur_id, const int max_extra_iterations)
+void VioBackEnd::optimize(const FrameId& cur_id, const int max_extra_iterations,
+                          const std::vector<size_t>& extra_factor_slots_to_delete)
 {
   if (!smoother_.get())
     throw std::runtime_error("optimize: Incremental smoother is a null pointer\n");
@@ -488,7 +489,9 @@ void VioBackEnd::optimize(const FrameId& cur_id, const int max_extra_iterations)
   if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
 
   // We need to remove all smart factors that have new observations.
-  std::vector<size_t> delete_slots;
+  // Extra factor slots to delete contains potential factors that we want to delete, it is ty
+  // typically an empty vector. And is only used to give flexibility to subclasses.
+  std::vector<size_t> delete_slots = extra_factor_slots_to_delete;
   std::vector<Key> new_smart_factors_lmkID_tmp;
   gtsam::NonlinearFactorGraph new_factors_tmp;
   for (auto& s : new_smart_factors_)
@@ -500,8 +503,8 @@ void VioBackEnd::optimize(const FrameId& cur_id, const int max_extra_iterations)
       delete_slots.push_back(it->second.second);
   }
   // add also other factors (imu, priors)
-  new_factors_tmp.push_back(new_imu_and_prior_factors_.begin(), new_imu_and_prior_factors_.end());
-  new_imu_and_prior_factors_.resize(0); // clean up stuff which is not in new_factors_tmp
+  new_factors_tmp.push_back(new_imu_prior_and_other_factors_.begin(), new_imu_prior_and_other_factors_.end());
+  new_imu_prior_and_other_factors_.resize(0); // clean up stuff which is not in new_factors_tmp
 
   if (verbosity_ >= 5) debugInfo_.factorsAndSlotsTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
 

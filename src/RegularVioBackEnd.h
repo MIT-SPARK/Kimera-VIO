@@ -41,6 +41,7 @@ class RegularVioBackEnd: public VioBackEnd {
   // Map from ldmrk ID to corresponding factor type, true: smart.
   using LmkIdIsSmart = gtsam::FastMap<LandmarkId, bool>;
   LmkIdIsSmart lmk_id_is_smart_;
+  std::vector<size_t> delete_slots_converted_factors_;
 
   void addLandmarkToGraph(const LandmarkId& lm_id, FeatureTrack& lm);
 
@@ -55,6 +56,8 @@ class RegularVioBackEnd: public VioBackEnd {
    boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   void addRegularityFactors(const LandmarkIds& mesh_lmk_ids_ground_cluster);
+
+
 };
 
 } // namespace VIO
