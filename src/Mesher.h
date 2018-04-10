@@ -36,7 +36,12 @@
 namespace VIO {
 
 class Mesher {
+
 public:
+  typedef int VertexId;
+  typedef std::map<VertexId, LandmarkId> VertexToLmkIdMap;
+  typedef std::map<LandmarkId, VertexId> LmkIdToVertexMap;
+
   // map a lmk id to a row in map_points_3d_
   using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, size_t>;
 

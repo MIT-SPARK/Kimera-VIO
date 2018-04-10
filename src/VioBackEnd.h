@@ -391,7 +391,7 @@ public:
   void addConstantVelocityFactor(const FrameId& from_id, const FrameId& to_id);
 
   // Uses landmark table to add factors in graph.
-  void addLandmarksToGraph(LandmarkIds landmarks_kf);
+  virtual void addLandmarksToGraph(LandmarkIds landmarks_kf);
   virtual void addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& lm);
   virtual void updateLandmarkInGraph(const LandmarkId lm_id,
                                const std::pair<FrameId, StereoPoint2>& newObs);
@@ -498,6 +498,12 @@ public:
       std::cout << delete_slots[i] << " ";
     std::cout <<  std::endl;
 
+    std::cout << "nr of values in state_ : " << state_.size() << ", with keys: " << std::endl;
+    BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
+      std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+    }
+    std::cout <<  std::endl;
+
     std::cout << "nr values in new_values_ : " << new_values_.size() << ", with keys: " << std::endl;
     BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
       std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
@@ -539,7 +545,7 @@ public:
                             const int& minAge = 0) const {
     CHECK_NOTNULL(points_with_id);
 
-    const gtsam::NonlinearFactorGraph& graph (smoother_->getFactors());
+    const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
     // old_smart_factors_ has all smart factors included so far.
     int nrValidPts = 0, nrPts = 0;
@@ -562,6 +568,17 @@ public:
             points_with_id->push_back(std::make_pair(lmkId, *result));
           }
         }
+      }
+    }
+
+    BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
+      // If we found a lmk
+      if (gtsam::Symbol(key_value.key).chr() == 'l') {
+        std::cout << "We added the landmark" << std::endl;
+        points_with_id->push_back(std::make_pair(key_value.key,
+                                                 key_value.value.cast<gtsam::Point3>()
+                                     //state_.at<gtsam::Point3> (key_value.key)
+                                                 ));
       }
     }
 

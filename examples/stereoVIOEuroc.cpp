@@ -371,6 +371,8 @@ int main(int argc, char *argv[])
       // process data with VIO
       startTime = UtilsOpenCV::GetTimeInSeconds();
 
+
+      std::cout << " Size of mesh_lmk_ids_ground_cluster : " << mesh_lmk_ids_ground_cluster.size() << std::endl; // TODO remove
       if (vioParams.addBetweenStereoFactors_ == true &&
           stereoVisionFrontEnd.trackerStatusSummary_.kfTrackingStatus_stereo_ ==
                                                               Tracker::VALID ) {
@@ -456,35 +458,45 @@ int main(int argc, char *argv[])
           std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
 
           static constexpr int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
-          MyVioBackEnd::PointsWithId pointsWithId;
-          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId, minKfValidPoints);
+
+          // Points_with_id_VIO contains all the points in the optimization,
+          // (encoded as either smart factors or explicit values), potentially
+          // restricting to points seen in at least minKfValidPoints keyframes
+          // (TODO restriction is not enforced for projection factors).
+          MyVioBackEnd::PointsWithId points_with_id_VIO;
+          vioBackEnd->get3DPointsAndLmkIds(&points_with_id_VIO, minKfValidPoints);
 
           static constexpr float maxGradInTriangle = -1; //50.0;
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
           static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           static constexpr double maxTriangleSide = 0.5;
-          static cv::Mat map_points_3d, polygons_mesh;
-          static std::map<int, LandmarkId> vertex_to_id_map;
-          vertex_to_id_map = mesher.updateMesh3D(pointsWithId,
-                              stereoVisionFrontEnd.stereoFrame_lkf_,
-                              W_Pose_camlkf_vio,
-                              &map_points_3d,
-                              &polygons_mesh,
-                              Mesh2Dtype::VALIDKEYPOINTS,
-                              maxGradInTriangle,
-                              minRatioBetweenLargestAnSmallestSide,
-                              min_elongation_ratio, maxTriangleSide);
 
+          // Create mesh.
+          static cv::Mat vertices_mesh, polygons_mesh;
+          static Mesher::VertexToLmkIdMap vertex_to_id_map;
+          vertex_to_id_map = mesher.updateMesh3D(
+                                         points_with_id_VIO,
+                                         stereoVisionFrontEnd.stereoFrame_lkf_,
+                                         W_Pose_camlkf_vio,
+                                         &vertices_mesh,
+                                         &polygons_mesh,
+                                         Mesh2Dtype::VALIDKEYPOINTS,
+                                         maxGradInTriangle,
+                                         minRatioBetweenLargestAnSmallestSide,
+                                         min_elongation_ratio, maxTriangleSide);
+
+          // Find regularities in the mesh.
+          // Currently only triangles in the ground floor.
           std::vector<TriangleCluster> triangle_clusters;
-          mesher.clusterMesh(map_points_3d,
+          mesher.clusterMesh(vertices_mesh,
                              polygons_mesh,
                              &triangle_clusters);
 
-          double z = -0.1;
-          double tolerance = 0.10;
+          static constexpr double z = -0.1;
+          static constexpr double tolerance = 0.10;
           mesher.filterZComponent(z,
                                   tolerance,
-                                  map_points_3d,
+                                  vertices_mesh,
                                   polygons_mesh,
                                   &triangle_clusters.at(0));
 
@@ -495,7 +507,7 @@ int main(int argc, char *argv[])
 
           visualizer.visualizeMesh3DWithColoredClusters(
                                                       triangle_clusters,
-                                                      map_points_3d,
+                                                      vertices_mesh,
                                                       polygons_mesh);
           break;
         }

@@ -91,6 +91,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     } else {
       // This lmk is involved in regular factor, hence it should be a variable in
       // the factor graph (connected to projection factor).
+      std::cout << "Lmk_id = " << lmk_id  << " Needs to be proj. factor!" << std::endl; // TODO delete this!
       if (lmk_id_slot == lmk_id_is_smart_.end()) {
         // We did not find the lmk_id in the lmk_id_is_smart_ map.
         // Add it as a projection factor.
@@ -254,6 +255,9 @@ void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId& lmk_id,
   } else {
     // Update lmk_id as a projection factor.
     gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id);
+    std::cout << " GOT IN ELSE" << std::endl;
+    // TODO remove debug
+    state_.print("Smoother state\n");
     if (state_.find(lmk_key) == state_.end()) {
       // We did not find the lmk in the state.
       // It was a smart factor before.
@@ -270,6 +274,15 @@ void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId& lmk_id,
       CHECK(old_factor->point()) << "Does not have a value for point in proj."
                                     " factor.";
       new_values_.insert(lmk_key, *old_factor->point());
+      // TODO  remove lose prior only used for debugging!
+      gtsam::SharedNoiseModel model = gtsam::noiseModel::Isotropic::Sigma(
+        3, 0.5); // 0.5 meters std variation.
+      new_imu_prior_and_other_factors_.push_back(gtsam::PriorFactor<Point3>(
+                                                   lmk_key, *old_factor->point(),
+                                                   model));
+      std::cout << " Performing conversion for lmk_id: "
+                << lmk_id
+                << std::endl;
 
       // Convert smart factor to multiple projection factors.
       for (size_t i = 0; i < old_factor->keys().size(); i++) {
@@ -302,6 +315,43 @@ void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId& lmk_id,
            gtsam::Symbol('x', newObs.first),
            lmk_key,
            stereoCal_, B_Pose_leftCam_));
+  }
+}
+
+
+// TODO Virtualize this appropriately,
+void RegularVioBackEnd::addLandmarksToGraph(LandmarkIds landmarks_kf) {
+  // Add selected landmarks to graph:
+  int n_new_landmarks = 0;
+  int n_updated_landmarks = 0;
+  debugInfo_.numAddedSmartF_ += landmarks_kf.size();
+
+  for (const LandmarkId lm_id : landmarks_kf)
+  {
+    FeatureTrack& ft = featureTracks_.at(lm_id);
+    if(ft.obs_.size()<2) // we only insert feature tracks of length at least 2 (otherwise uninformative)
+      continue;
+
+    if(!ft.in_ba_graph_)
+    {
+      addLandmarkToGraph(lm_id, ft);
+      ++n_new_landmarks;
+    }
+    else
+    {
+      const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
+
+      if(obs_kf.first != cur_id_) // sanity check
+        throw std::runtime_error("addLandmarksToGraph: last obs is not from the current keyframe!\n");
+
+      updateLandmarkInGraph(lm_id, obs_kf);
+      ++n_updated_landmarks;
+    }
+  }
+  if (verbosity_ >= 7)
+  {
+    std::cout << "Added " << n_new_landmarks << " new landmarks" << std::endl;
+    std::cout << "Updated " << n_updated_landmarks << " landmarks in graph" << std::endl;
   }
 }
 

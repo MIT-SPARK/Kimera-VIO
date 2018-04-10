@@ -756,10 +756,10 @@ std::map<int, LandmarkId> Mesher::updateMesh3D(
         &lmk_id_to_vertex_map,
         map_points_3d,
         polygons_mesh);
-  std::cout << "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n"
-            << "Polygons size is : " << polygons_mesh->rows / 4 << "\n"
-            << " While Stereo points size is: " << pointsWithIdStereo.size() << "\n"
-            << " While VIO points size is: " << pointsWithIdVIO.size() << std::endl;
+  //std::cout << "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n"
+  //          << "Polygons size is : " << polygons_mesh->rows / 4 << "\n"
+  //          << " While Stereo points size is: " << pointsWithIdStereo.size() << "\n"
+  //          << " While VIO points size is: " << pointsWithIdVIO.size() << std::endl;
   std::map<int, LandmarkId> vertex_to_lmk_id_map_output;
   cv::Mat map_points_3d_output;
   cv::Mat polygons_mesh_output;
@@ -775,10 +775,10 @@ std::map<int, LandmarkId> Mesher::updateMesh3D(
   vertex_to_lmk_id_map = vertex_to_lmk_id_map_output;
   *map_points_3d = map_points_3d_output.clone();
   *polygons_mesh = polygons_mesh_output.clone();
-  std::cout << "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU\n"
-            << "Polygons size is : " << polygons_mesh->rows / 4 << "\n"
-            << " While Stereo points size is: " << pointsWithIdStereo.size() << "\n"
-            << " While VIO points size is: " << pointsWithIdVIO.size() << std::endl;
+  //std::cout << "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU\n"
+  //          << "Polygons size is : " << polygons_mesh->rows / 4 << "\n"
+  //          << " While Stereo points size is: " << pointsWithIdStereo.size() << "\n"
+  //          << " While VIO points size is: " << pointsWithIdVIO.size() << std::endl;
 
   VLOG(100) << "After polygonsMesh_.size() " <<  polygons_mesh_.size << "\n";
 

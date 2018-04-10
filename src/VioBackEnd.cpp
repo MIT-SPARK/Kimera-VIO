@@ -429,6 +429,7 @@ void VioBackEnd::addLandmarksToGraph(LandmarkIds landmarks_kf)
     std::cout << "Updated " << n_updated_landmarks << " landmarks in graph" << std::endl;
   }
 }
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void VioBackEnd::addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& ft)
 {
@@ -519,7 +520,8 @@ void VioBackEnd::optimize(const FrameId& cur_id, const int max_extra_iterations,
       debugInfo_.stateBeforeOpt.insert(key_value.key, key_value.value);
     }
   }
-  if (verbosity_ >= 8){ showSmootherInfo(new_factors_tmp,delete_slots,"Smoother status before update:",verbosity_ >= 9); }
+  // TODO increase verbosity to 8
+  if (verbosity_ >= 0){ showSmootherInfo(new_factors_tmp,delete_slots,"Smoother status before update:",verbosity_ >= 9); }
 
   // recreate the graph before marginalization
   if (verbosity_ >= 5){

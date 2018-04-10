@@ -43,6 +43,9 @@ class RegularVioBackEnd: public VioBackEnd {
   LmkIdIsSmart lmk_id_is_smart_;
   std::vector<size_t> delete_slots_converted_factors_;
 
+  // TODO Virtualize this appropriately,
+  void addLandmarksToGraph(LandmarkIds landmarks_kf);
+
   void addLandmarkToGraph(const LandmarkId& lm_id, FeatureTrack& lm);
 
   void updateLandmarkInGraph(const LandmarkId& lm_id,
