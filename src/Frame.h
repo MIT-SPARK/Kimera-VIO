@@ -123,12 +123,12 @@ public:
     for(int i = 0; i < keypoints_.size(); i++) {
       selectedIndices.push_back(i);
     }
-    triangulation2D_ = CreateMesh2D(*this, selectedIndices);
+    triangulation2D_ = createMesh2D(*this, selectedIndices);
   }
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static std::vector<cv::Vec6f> CreateMesh2D(const Frame& frame,
+  static std::vector<cv::Vec6f> createMesh2D(const Frame& frame,
                                       const std::vector<int>& selectedIndices) {
 
     if(frame.landmarks_.size() != frame.keypoints_.size()) // sanity check
@@ -147,36 +147,52 @@ public:
         keypointsToTriangulate.push_back(kp_i);
       }
     }
-    return CreateMesh2D(frame.img_.size(), keypointsToTriangulate);
+    return createMesh2D(frame.img_.size(), keypointsToTriangulate);
   }
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static std::vector<cv::Vec6f> CreateMesh2D(const cv::Size size,
-                              std::vector<cv::Point2f> keypointsToTriangulate) {
+  static std::vector<cv::Vec6f> createMesh2D(
+                       const cv::Size& img_size,
+                       std::vector<cv::Point2f>& keypoints_to_triangulate) {
 
-    // define output (+ a temporary variable)
+    // Define output (+ a temporary variable).
     std::vector<cv::Vec6f> triangulation2D, triangulation2DwithExtraTriangles;
-    if (keypointsToTriangulate.size() == 0)
+    if (keypoints_to_triangulate.size() == 0)
       return triangulation2D; //nothing to triangulate
 
-    // Rectangle to be used with Subdiv2D
-    cv::Rect2f rect (0, 0, size.width, size.height);
+    // Rectangle to be used with Subdiv2D.
+    cv::Rect2f rect (0, 0, img_size.width, img_size.height);
     cv::Subdiv2D subdiv(rect); // subdiv has the delaunay triangulation function
 
+    // Make sure we only pass keypoints inside the image!
+    for (auto it = keypoints_to_triangulate.begin();
+         it != keypoints_to_triangulate.end(); it++) {
+      if (!rect.contains(*it)) {
+        std::cerr << "Frame.h: createMesh2D - error, keypoint out of "
+                  << "image frame." << std::endl;
+        keypoints_to_triangulate.erase(it);
+        // Go backwards, otherwise it++ will jump one keypoint...
+        it--;
+      }
+    }
+
     // perform triangulation
-    try{ subdiv.insert(keypointsToTriangulate); }
-    catch(...){
-      std::cout << keypointsToTriangulate.size() << std::endl;
+    try {
+      subdiv.insert(keypoints_to_triangulate);
+    } catch(...) {
+      std::cout << keypoints_to_triangulate.size() << std::endl;
       std::runtime_error("CreateMesh2D: subdiv.insert error (2)");
     }
+
     // getTriangleList returns some spurious triangle with vertices outside image
+    // TODO I think that the spurious triangles are due to ourselves sending keypoints
+    // out of the image...
     subdiv.getTriangleList(triangulation2DwithExtraTriangles); // do triangulation
 
     // retrieve "good triangles" (all vertices are inside image)
     std::vector<cv::Point2f> pt(3);
-    for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++)
-    {
+    for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++) {
       cv::Vec6f t = triangulation2DwithExtraTriangles[i];
       pt[0] = cv::Point2f(t[0], t[1]);
       pt[1] = cv::Point2f(t[2], t[3]);
@@ -185,12 +201,13 @@ public:
         triangulation2D.push_back(t);
       }
     }
+
     return triangulation2D;
   }
 
   /* ------------------------------------------------------------------------ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  void visualizeMesh2D(const double waitTime = 0) const {
+  void visualizeMesh2D(const double& waitTime = 0) const {
     cv::Scalar delaunay_color(0, 255, 0), points_color(255, 0, 0);
 
     // Sanity check.
@@ -278,18 +295,24 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  LandmarkId findLmkIdFromPixel(KeypointCV px,
-                    boost::optional<int &> indInKeypoints_ = boost::none) const{
-    for (LandmarkId i = 0; i < keypoints_.size(); i++) {
-      if (keypoints_.at(i).x == px.x && keypoints_.at(i).y == px.y) { // it's matching the query point
-        if (indInKeypoints_) {
-          *indInKeypoints_ = i; // return indexh
+  LandmarkId findLmkIdFromPixel(
+                  const KeypointCV& px,
+                  boost::optional<int &> idx_in_keypoints = boost::none) const {
+
+    // Iterate over all current keypoints_.
+    for (int i = 0; i < keypoints_.size(); i++) {
+      // If we have found the pixel px in the set of keypoints, return the
+      // landmark id of the keypoint and return the index of it at keypoints_.
+      if (keypoints_.at(i).x == px.x &&
+          keypoints_.at(i).y == px.y) {
+        if (idx_in_keypoints) {
+          *idx_in_keypoints = i; // Return index.
         }
         return landmarks_.at(i);
       }
     }
-    // we did not find the keypoint
-    if (indInKeypoints_) *indInKeypoints_ = -1;
+    // We did not find the keypoint.
+    if (idx_in_keypoints) idx_in_keypoints = boost::optional<int &>();
     return -1;
   }
 
