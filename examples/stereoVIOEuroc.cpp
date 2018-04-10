@@ -13,7 +13,7 @@
  */
 
 //#define USE_CGAL
-#define USE_REGULAR_VIO
+//#define USE_REGULAR_VIO
 
 #ifdef USE_REGULAR_VIO
   #include "RegularVioBackEnd.h"
@@ -431,14 +431,14 @@ int main(int argc, char *argv[])
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv
         // (updateMesh3D also filters out geometrically)
-        case VisualizationType::MESH2DTo3D: {
-          MyVioBackEnd::PointsWithId pointsWithId;
-          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
-          mesher.updateMesh3D(pointsWithId, stereoVisionFrontEnd
-                             .stereoFrame_lkf_->left_frame_, W_Pose_camlkf_vio);
-          visualizer.visualizeMesh3D(mesher.map_points_3d_, mesher.polygons_mesh_);
-          break;
-        }
+        //case VisualizationType::MESH2DTo3D: {
+        //  MyVioBackEnd::PointsWithId pointsWithId;
+        //  vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
+        //  mesher.updateMesh3D(pointsWithId, stereoVisionFrontEnd
+        //                     .stereoFrame_lkf_->left_frame_, W_Pose_camlkf_vio);
+        //  visualizer.visualizeMesh3D(mesher.map_points_3d_, mesher.polygons_mesh_);
+        //  break;
+        //}
         // computes and visualizes 2D mesh
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
@@ -464,7 +464,8 @@ int main(int argc, char *argv[])
           // restricting to points seen in at least minKfValidPoints keyframes
           // (TODO restriction is not enforced for projection factors).
           MyVioBackEnd::PointsWithId points_with_id_VIO;
-          vioBackEnd->get3DPointsAndLmkIds(&points_with_id_VIO, minKfValidPoints);
+          vioBackEnd->get3DPointsAndLmkIds(&points_with_id_VIO,
+                                           minKfValidPoints);
 
           static constexpr float maxGradInTriangle = -1; //50.0;
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
@@ -491,14 +492,6 @@ int main(int argc, char *argv[])
           mesher.clusterMesh(vertices_mesh,
                              polygons_mesh,
                              &triangle_clusters);
-
-          static constexpr double z = -0.1;
-          static constexpr double tolerance = 0.10;
-          mesher.filterZComponent(z,
-                                  tolerance,
-                                  vertices_mesh,
-                                  polygons_mesh,
-                                  &triangle_clusters.at(0));
 
           mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
                                                   vertex_to_id_map,

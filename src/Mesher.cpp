@@ -756,10 +756,7 @@ std::map<int, LandmarkId> Mesher::updateMesh3D(
         &lmk_id_to_vertex_map,
         map_points_3d,
         polygons_mesh);
-  //std::cout << "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n"
-  //          << "Polygons size is : " << polygons_mesh->rows / 4 << "\n"
-  //          << " While Stereo points size is: " << pointsWithIdStereo.size() << "\n"
-  //          << " While VIO points size is: " << pointsWithIdVIO.size() << std::endl;
+
   std::map<int, LandmarkId> vertex_to_lmk_id_map_output;
   cv::Mat map_points_3d_output;
   cv::Mat polygons_mesh_output;
@@ -775,10 +772,6 @@ std::map<int, LandmarkId> Mesher::updateMesh3D(
   vertex_to_lmk_id_map = vertex_to_lmk_id_map_output;
   *map_points_3d = map_points_3d_output.clone();
   *polygons_mesh = polygons_mesh_output.clone();
-  //std::cout << "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU\n"
-  //          << "Polygons size is : " << polygons_mesh->rows / 4 << "\n"
-  //          << " While Stereo points size is: " << pointsWithIdStereo.size() << "\n"
-  //          << " While VIO points size is: " << pointsWithIdVIO.size() << std::endl;
 
   VLOG(100) << "After polygonsMesh_.size() " <<  polygons_mesh_.size << "\n";
 
@@ -797,7 +790,7 @@ std::map<int, LandmarkId> Mesher::updateMesh3D(
 }
 
 void Mesher::clusterMesh(
-    const cv::Mat& map_points_3d,
+    const cv::Mat& vertices_mesh,
     const cv::Mat& polygons_mesh,
     std::vector<TriangleCluster>* clusters) {
   CHECK_NOTNULL(clusters);
@@ -805,7 +798,7 @@ void Mesher::clusterMesh(
   // Calculate normals of the triangles in the mesh.
   // The normals are in the world frame of reference.
   std::vector<cv::Point3f> normals;
-  calculateNormals(map_points_3d, polygons_mesh, &normals);
+  calculateNormals(vertices_mesh, polygons_mesh, &normals);
 
   // Cluster triangles oriented along z axis.
   static const cv::Point3f z_axis(0, 0, 1);
@@ -831,40 +824,17 @@ void Mesher::clusterMesh(
   // Append clusters.
   clusters->push_back(z_triangle_cluster);
   clusters->push_back(equatorial_triangle_cluster);
-}
 
-/* -------------------------------------------------------------------------- */
-// Update mesh: update structures keeping memory of the map before visualization
-void Mesher::updateMesh3D(
-                std::vector<std::pair<LandmarkId, gtsam::Point3> > pointsWithId,
-                Frame& frame,
-                const gtsam::Pose3& leftCameraPose,
-                const double& minRatioBetweenLargestAnSmallestSide,
-                const double& min_elongation_ratio,
-                const double& maxTriangleSide) {
-// debug:
-  static constexpr bool doVisualize2Dmesh = true;
 
-  // update 3D points (possibly replacing some points with new estimates)
-  updateMap3D(pointsWithId);
-
-  // build 2D mesh, restricted to points with lmk!=-1
-  frame.createMesh2D();
-  if (doVisualize2Dmesh) {
-    frame.visualizeMesh2D(100);
-  }
-
-  // (do not concatenate) mesh in the current image to existing mesh
-  populate3dMesh(frame.triangulation2D_,
-                          frame,
-                          &polygons_mesh_);
-
-  filterOutBadTriangles(leftCameraPose,
-                        map_points_3d_,
-                        &polygons_mesh_,
-                        minRatioBetweenLargestAnSmallestSide,
-                        min_elongation_ratio,
-                        maxTriangleSide);
+  // Only keep ground landmarks for cluster of triangles perpendicular
+  // to vertical axis.
+  // clusters.at(0) is therefore just the triangles on the ground plane.
+  static constexpr double z = -0.1;
+  static constexpr double tolerance = 0.10;
+  filterZComponent(z, tolerance,
+                   vertices_mesh,
+                   polygons_mesh,
+                   &(clusters->at(0)));
 }
 
 void Mesher::extractLmkIdsFromTriangleCluster(

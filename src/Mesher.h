@@ -122,18 +122,9 @@ public:
 
 
   /* ------------------------------------------------------------------------ */
-  // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithId,
-      Frame& frame,
-      const gtsam::Pose3& leftCameraPose,
-      const double& minRatioBetweenLargestAnSmallestSide = 0.0,
-      const double& min_elongation_ratio = 0.5,
-      const double& maxTriangleSide = 10.0);
-
-  /* ------------------------------------------------------------------------ */
   // Perform Mesh clustering.
   void clusterMesh(
-      const cv::Mat& map_points_3d,
+      const cv::Mat& vertices_mesh,
       const cv::Mat& polygons_mesh,
       std::vector<TriangleCluster>* clusters);
 
