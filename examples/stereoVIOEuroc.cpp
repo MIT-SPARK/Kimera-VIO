@@ -195,6 +195,9 @@ int main(int argc, char *argv[])
   bool didFirstOptimization = false;
   double startTime; // to log timing results
 
+  /// Lmk ids that are considered to be in the same cluster.
+  static LandmarkIds mesh_lmk_ids_ground_cluster;
+
   // start actual processing of the dataset
   for(size_t k = initial_k; k < final_k; k++)  // for each image
   {
@@ -378,8 +381,9 @@ int main(int argc, char *argv[])
               stereoVisionFrontEnd.getRelativePoseBodyStereo()); // optional: pose estimate from stereo ransac
       } else {
         vioBackEnd->addVisualInertialStateAndOptimize(
-                    timestamp_k, statusSmartStereoMeasurements, imu_stamps,
-                    imu_accgyr); // same but no pose
+              timestamp_k,
+              statusSmartStereoMeasurements,
+              imu_stamps, imu_accgyr); // same but no pose
       }
 
       if (FLAGS_log_output) {
@@ -482,11 +486,10 @@ int main(int argc, char *argv[])
                                   polygons_mesh,
                                   &triangle_clusters.at(0));
 
-          LandmarkIds lmk_ids_cluster;
           mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
                                                   vertex_to_id_map,
                                                   polygons_mesh,
-                                                  &lmk_ids_cluster);
+                                                  &mesh_lmk_ids_ground_cluster);
 
           visualizer.visualizeMesh3DWithColoredClusters(
                                                       triangle_clusters,

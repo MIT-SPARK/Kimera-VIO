@@ -21,6 +21,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
     const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
+    const LandmarkIds& mesh_lmk_ids_ground_cluster,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
 
   debugInfo_.resetAddedFactorsStatistics();
@@ -70,6 +71,35 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   LandmarkIds landmarks_kf = addStereoMeasurementsToFeatureTracks(
                                                      cur_id_,
                                                      smartStereoMeasurements_kf);
+  // For each landmark we decide if it's going to be a smart factor or not.
+  //
+  for (const LandmarkId& lmk_id: landmarks_kf) {
+    const auto& lmk_id_slot = lmk_id_is_smart_.find(lmk_id);
+    if (std::find(mesh_lmk_ids_ground_cluster.begin(),
+                  mesh_lmk_ids_ground_cluster.end(), lmk_id) ==
+        mesh_lmk_ids_ground_cluster.end()) {
+      // This lmk is not involved in any regularity.
+      if (lmk_id_slot == lmk_id_is_smart_.end()) {
+        // We did not find the lmk_id in the lmk_id_is_smart_ map.
+        // Add it as a smart factor.
+        lmk_id_is_smart_.insert(std::make_pair(lmk_id, true));
+      } else {
+        lmk_id_is_smart_.at(lmk_id) = true;
+      }
+    } else {
+      // This lmk is involved in regular factor, hence it should be a variable in
+      // the factor graph (connected to projection factor).
+      if (lmk_id_slot == lmk_id_is_smart_.end()) {
+        // We did not find the lmk_id in the lmk_id_is_smart_ map.
+        // Add it as a projection factor.
+        lmk_id_is_smart_.insert(std::make_pair(lmk_id, false));
+      } else {
+        // Change it to a projection factor.
+        lmk_id_is_smart_.at(lmk_id) = false;
+      }
+    }
+  }
+
   if (verbosity_ >= 8) {
     printFeatureTracks();
   }
@@ -94,6 +124,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
       //    break;
 
     default: {
+
       // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED :
       // we add features in VIO
       addLandmarksToGraph(landmarks_kf);
@@ -101,11 +132,32 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     }
   }
 
+  // Add regularity factor on vertices of the mesh.
+  // TODO argument should be generalized to diff type of cluster and regularities.
+  addRegularityFactors(mesh_lmk_ids_ground_cluster); // This currently assumes only planar triangles on the ground.
+
   // This lags 1 step behind to mimic hw.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   // TODO add conversion from Smart factor to regular.
   optimize(cur_id_, vioParams_.numOptimize_);
+}
+
+void RegularVioBackEnd::addRegularityFactors(
+    const LandmarkIds& mesh_lmk_ids_ground_cluster) {
+
+  Vector6 precisions;
+  precisions.head<3>().setConstant(vioParams_.betweenRotationPrecision_);
+  precisions.tail<3>().setConstant(vioParams_.betweenTranslationPrecision_);
+  gtsam::SharedNoiseModel betweenNoise_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
+
+  new_imu_and_prior_factors_.push_back(
+        boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
+          gtsam::Symbol('x', from_id), gtsam::Symbol('x', to_id), from_id_POSE_to_id, betweenNoise_));
+
+  debugInfo_.numAddedBetweenStereoF_++;
+
+  if (verbosity_ >= 7) {std::cout << "addBetweenFactor" << std::endl;}
 }
 
 void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,

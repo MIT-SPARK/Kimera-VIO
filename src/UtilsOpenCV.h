@@ -76,7 +76,8 @@ using BearingVectors = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 // Holds the ids of the mesh triangles that should be clustered together.
 struct TriangleCluster {
   // Ids of the triangles in the cluster.
-  std::vector<int> triangle_ids_;
+  // Increasing id assigned to each triangle.
+  std::vector<int> triangle_ids_; // TODO refactor
 
   // Id of the cluster, determines the color of the cluster when plotting.
   int cluster_id_;

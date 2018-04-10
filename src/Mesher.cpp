@@ -874,6 +874,7 @@ void Mesher::extractLmkIdsFromTriangleCluster(
     LandmarkIds* lmk_ids) {
 
   CHECK_NOTNULL(lmk_ids);
+  lmk_ids->clear();
 
   for (const size_t& triangle_id: triangle_cluster.triangle_ids_) {
     size_t triangle_idx = std::round(triangle_id * 4);
