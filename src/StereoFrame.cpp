@@ -391,6 +391,38 @@ void StereoFrame::createMesh2dStereo(
                                           keypoints_for_mesh);
 }
 
+/* -------------------------------------------------------------------------- */
+void StereoFrame::createMesh2dVIO(
+          std::vector<cv::Vec6f>* triangulation_2D,
+          const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO) {
+  CHECK_NOTNULL(triangulation_2D);
+
+  // Pick left frame.
+  const Frame& ref_frame = left_frame_;
+  if (ref_frame.landmarks_.size() != right_keypoints_status_.size()) // sanity check
+    throw std::runtime_error("StereoFrame: wrong dimension for the landmarks");
+
+  // Create mesh including indices of keypoints with valid 3D.
+  // (which have right px).
+  std::vector<cv::Point2f> keypoints_for_mesh;
+  // TODO this double loop is quite expensive.
+  for (int i = 0; i < pointsWithIdVIO.size(); i++) {
+    for (int j = 0; j < ref_frame.landmarks_.size(); j++) {
+      // If we are seeing a VIO point in left and right frame, add to keypoints
+      // to generate the mesh in 2D.
+      if (ref_frame.landmarks_.at(j) == pointsWithIdVIO.at(i).first &&
+          right_keypoints_status_.at(j) == Kstatus::VALID) {
+        // Add keypoints for mesh 2d.
+        keypoints_for_mesh.push_back(ref_frame.keypoints_.at(j));
+      }
+    }
+  }
+
+  // Get a triangulation for all valid keypoints.
+  *triangulation_2D = Frame::createMesh2D(ref_frame.img_.size(),
+                                          keypoints_for_mesh);
+}
+
 
 /* -------------------------------------------------------------------------- */
 // Removes triangles in the 2d mesh that have more than "max_keypoints_with_

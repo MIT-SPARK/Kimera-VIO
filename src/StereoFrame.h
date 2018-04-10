@@ -160,6 +160,10 @@ public:
                                                    pointsWithIdStereo = nullptr,
           const Mesh2Dtype& mesh2Dtype = VALIDKEYPOINTS,
           const bool& useCanny = true);
+  /* -------------------------------------------------------------------------- */
+  void createMesh2dVIO(
+      std::vector<cv::Vec6f>* triangulation_2D,
+      const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO);
 
   /* -------------------------------------------------------------------------- */
   // Removes triangles in the 2d mesh that have more than "max_keypoints_with_
