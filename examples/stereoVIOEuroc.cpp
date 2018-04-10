@@ -457,20 +457,26 @@ int main(int argc, char *argv[])
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
           static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           static constexpr double maxTriangleSide = 0.5;
+          static cv::Mat map_points_3d, polygons_mesh;
           mesher.updateMesh3D(pointsWithId,
                               stereoVisionFrontEnd.stereoFrame_lkf_,
-                              W_Pose_camlkf_vio, Mesh2Dtype::VALIDKEYPOINTS,
+                              W_Pose_camlkf_vio,
+                              &map_points_3d,
+                              &polygons_mesh,
+                              Mesh2Dtype::VALIDKEYPOINTS,
                               maxGradInTriangle,
                               minRatioBetweenLargestAnSmallestSide,
                               min_elongation_ratio, maxTriangleSide);
 
           std::vector<TriangleCluster> triangle_clusters;
-          mesher.clusterMesh(&triangle_clusters);
+          mesher.clusterMesh(map_points_3d,
+                             polygons_mesh,
+                             &triangle_clusters);
 
           visualizer.visualizeMesh3DWithColoredClusters(
                                                       triangle_clusters,
-                                                      mesher.map_points_3d_,
-                                                      mesher.polygons_mesh_);
+                                                      map_points_3d,
+                                                      polygons_mesh);
           break;
         }
 
@@ -488,20 +494,30 @@ int main(int argc, char *argv[])
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
           static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           static constexpr double maxTriangleSide = 1.0;
+          cv::Mat map_points_3d, polygons_mesh;
           mesher.updateMesh3D(pointsWithId,
                               stereoVisionFrontEnd.stereoFrame_lkf_,
-                              W_Pose_camlkf_vio, Mesh2Dtype::DENSE,
+                              W_Pose_camlkf_vio,
+                              &map_points_3d,
+                              &polygons_mesh,
+                              Mesh2Dtype::DENSE,
                               maxGradInTriangle,
                               minRatioBetweenLargestAnSmallestSide,
                               min_elongation_ratio, maxTriangleSide);
 
           std::vector<TriangleCluster> triangle_clusters;
-          mesher.clusterMesh(&triangle_clusters);
+          // TODO make a structure called Mesh, where we have
+          // map_points_3d and polygons_mesh, and which checks consistency
+          // of the data.
+          mesher.clusterMesh(
+                map_points_3d,
+                polygons_mesh,
+                &triangle_clusters);
 
           visualizer.visualizeMesh3DWithColoredClusters(
                                                       triangle_clusters,
-                                                      mesher.map_points_3d_,
-                                                      mesher.polygons_mesh_);
+                                                      map_points_3d,
+                                                      polygons_mesh);
           break;
         }
         // computes and visualizes 3D mesh
