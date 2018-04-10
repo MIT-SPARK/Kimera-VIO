@@ -103,17 +103,17 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(
-       const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
-       std::shared_ptr<StereoFrame> stereoFrame,
-       const gtsam::Pose3& leftCameraPose,
-       cv::Mat* map_points_3d,
-       cv::Mat* polygons_mesh,
-       const Mesh2Dtype& mesh2Dtype = Mesh2Dtype::VALIDKEYPOINTS,
-       const float& maxGradInTriangle = 50,
-       const double& minRatioBetweenLargestAnSmallestSide = 0,
-       const double& min_elongation_ratio = 0.5,
-       const double& maxTriangleSide = 10);
+  std::map<int, LandmarkId> updateMesh3D(
+      const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
+      std::shared_ptr<StereoFrame> stereoFrame,
+      const gtsam::Pose3& leftCameraPose,
+      cv::Mat* map_points_3d,
+      cv::Mat* polygons_mesh,
+      const Mesh2Dtype& mesh2Dtype = Mesh2Dtype::VALIDKEYPOINTS,
+      const float& maxGradInTriangle = 50,
+      const double& minRatioBetweenLargestAnSmallestSide = 0,
+      const double& min_elongation_ratio = 0.5,
+      const double& maxTriangleSide = 10);
 
 
   /* ------------------------------------------------------------------------ */
@@ -131,6 +131,23 @@ public:
       const cv::Mat& map_points_3d,
       const cv::Mat& polygons_mesh,
       std::vector<TriangleCluster>* clusters);
+
+  /* ------------------------------------------------------------------------ */
+  // Extract lmk ids from triangle cluster.
+  void extractLmkIdsFromTriangleCluster(
+      const TriangleCluster& triangle_cluster,
+      const std::map<int, LandmarkId>& vertex_to_id_map,
+      const cv::Mat& polygons_mesh,
+      LandmarkIds* lmk_ids);
+
+  /* ------------------------------------------------------------------------ */
+  // Filter z component in triangle cluster.
+  void filterZComponent(
+    const double& z,
+    const double& tolerance,
+    const cv::Mat& map_points_3d_,
+    const cv::Mat& polygons_mesh,
+    TriangleCluster* triangle_cluster);
 
 private:
   /* ------------------------------------------------------------------------ */
@@ -220,6 +237,7 @@ private:
                                          const std::vector<cv::Point3f>& normals,
                                          const double& tolerance,
                                          std::vector<int>* cluster_normals_idx);
+
 };
 
 } // namespace VIO

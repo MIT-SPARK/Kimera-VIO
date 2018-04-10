@@ -458,7 +458,8 @@ int main(int argc, char *argv[])
           static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           static constexpr double maxTriangleSide = 0.5;
           static cv::Mat map_points_3d, polygons_mesh;
-          mesher.updateMesh3D(pointsWithId,
+          static std::map<int, LandmarkId> vertex_to_id_map;
+          vertex_to_id_map = mesher.updateMesh3D(pointsWithId,
                               stereoVisionFrontEnd.stereoFrame_lkf_,
                               W_Pose_camlkf_vio,
                               &map_points_3d,
@@ -472,6 +473,20 @@ int main(int argc, char *argv[])
           mesher.clusterMesh(map_points_3d,
                              polygons_mesh,
                              &triangle_clusters);
+
+          double z = -0.1;
+          double tolerance = 0.10;
+          mesher.filterZComponent(z,
+                                  tolerance,
+                                  map_points_3d,
+                                  polygons_mesh,
+                                  &triangle_clusters.at(0));
+
+          LandmarkIds lmk_ids_cluster;
+          mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
+                                                  vertex_to_id_map,
+                                                  polygons_mesh,
+                                                  &lmk_ids_cluster);
 
           visualizer.visualizeMesh3DWithColoredClusters(
                                                       triangle_clusters,

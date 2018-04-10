@@ -667,7 +667,7 @@ void Mesher::updateMap3dTimeHorizon(
 
 /* ----------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
-void Mesher::updateMesh3D(
+std::map<int, LandmarkId> Mesher::updateMesh3D(
        const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
        std::shared_ptr<StereoFrame> stereoFrame,
        const gtsam::Pose3& leftCameraPose,
@@ -791,6 +791,9 @@ void Mesher::updateMesh3D(
 
   // After filling in polygonsMesh_, we don't need this, and it must be reset.
   keypoint_to_map_point_id_.resize(0);
+
+  // Quick and dirty, TODO change.
+  return vertex_to_lmk_id_map;
 }
 
 void Mesher::clusterMesh(
@@ -862,6 +865,65 @@ void Mesher::updateMesh3D(
                         minRatioBetweenLargestAnSmallestSide,
                         min_elongation_ratio,
                         maxTriangleSide);
+}
+
+void Mesher::extractLmkIdsFromTriangleCluster(
+    const TriangleCluster& triangle_cluster,
+    const std::map<int, LandmarkId>& vertex_to_id_map,
+    const cv::Mat& polygons_mesh,
+    LandmarkIds* lmk_ids) {
+
+  CHECK_NOTNULL(lmk_ids);
+
+  for (const size_t& triangle_id: triangle_cluster.triangle_ids_) {
+    size_t triangle_idx = std::round(triangle_id * 4);
+    if (triangle_idx + 3 >= polygons_mesh.rows) {
+      LOG(ERROR) << "An id in triangle_ids_ is too large.";
+    }
+    int32_t idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
+    int32_t idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
+    int32_t idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
+    lmk_ids->push_back(vertex_to_id_map.at(idx_1));
+    lmk_ids->push_back(vertex_to_id_map.at(idx_2));
+    lmk_ids->push_back(vertex_to_id_map.at(idx_3));
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+// Filter z component in triangle cluster.
+void Mesher::filterZComponent(
+    const double& z,
+    const double& tolerance,
+    const cv::Mat& map_points_3d_,
+    const cv::Mat& polygons_mesh,
+    TriangleCluster* triangle_cluster) {
+  CHECK_NOTNULL(triangle_cluster);
+  TriangleCluster triangle_cluster_output;
+  triangle_cluster_output.cluster_id_ =
+      triangle_cluster->cluster_id_;
+  triangle_cluster_output.cluster_direction_ =
+      triangle_cluster->cluster_direction_;
+
+  for (const size_t& triangle_id: triangle_cluster->triangle_ids_) {
+    size_t triangle_idx = std::round(triangle_id * 4);
+    if (triangle_idx + 3 >= polygons_mesh.rows) {
+      LOG(ERROR) << "An id in triangle_ids_ is too large.";
+    }
+    const int32_t& idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
+    const int32_t& idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
+    const int32_t& idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
+    const cv::Point3f& lmk_1 = map_points_3d_.at<cv::Point3f>(idx_1);
+    const cv::Point3f& lmk_2 = map_points_3d_.at<cv::Point3f>(idx_2);
+    const cv::Point3f& lmk_3 = map_points_3d_.at<cv::Point3f>(idx_3);
+    const double min_z = z - tolerance;
+    const double max_z = z + tolerance;
+    if (lmk_1.z >= min_z && lmk_1.z <= max_z &&
+        lmk_2.z >= min_z && lmk_2.z <= max_z &&
+        lmk_3.z >= min_z && lmk_3.z <= max_z ) {
+      triangle_cluster_output.triangle_ids_.push_back(triangle_id);
+    }
+  }
+  *triangle_cluster = triangle_cluster_output;
 }
 
 } // namespace VIO
