@@ -24,7 +24,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "ETH_parser.h"
-#include "Mesher.h"
+#include "mesh/Mesher.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"

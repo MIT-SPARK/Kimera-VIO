@@ -19,7 +19,7 @@
 #include <algorithm>
 
 #include <CppUnitLite/TestHarness.h>
-#include "Mesher.h"
+#include "mesh/Mesher.h"
 #include "test_config.h"
 
 using namespace std;
