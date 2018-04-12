@@ -362,11 +362,11 @@ public:
   // [in] status_smart_stereo_measurements_kf, vision data.
   // [in] imu_stamps, [in] imu_accgyr.
   // [in] stereo_ransac_body_pose, inertial data.
-  virtual void addVisualInertialStateAndOptimize(
-        const Timestamp timestamp_kf_nsec,
-        const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf,
-        ImuStamps imu_stamps, ImuAccGyr imu_accgyr,
-        boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
+  virtual void addVisualInertialStateAndOptimize(const Timestamp timestamp_kf_nsec,
+         const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf,
+         ImuStamps imu_stamps, ImuAccGyr imu_accgyr,
+         const LandmarkIds& mesh_lmk_ids_ground_cluster,
+         boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   // Integrate imu measurements into pim_.
   void integrateImuMeasurements(const ImuStamps& imu_stamps,

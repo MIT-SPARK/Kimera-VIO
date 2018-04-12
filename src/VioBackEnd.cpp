@@ -175,6 +175,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp timestamp_kf_nsec,
     const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf,
     ImuStamps imu_stamps, ImuAccGyr imu_accgyr,
+    const LandmarkIds& mesh_lmk_ids_ground_cluster,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose)
 {
   debugInfo_.resetAddedFactorsStatistics();
@@ -520,8 +521,11 @@ void VioBackEnd::optimize(const FrameId& cur_id, const int max_extra_iterations,
       debugInfo_.stateBeforeOpt.insert(key_value.key, key_value.value);
     }
   }
-  // TODO increase verbosity to 8
-  if (verbosity_ >= 0){ showSmootherInfo(new_factors_tmp,delete_slots,"Smoother status before update:",verbosity_ >= 9); }
+  if (verbosity_ >= 8){
+    showSmootherInfo(new_factors_tmp,delete_slots,
+                     "Smoother status before update:",
+                     verbosity_ >= 9);
+  }
 
   // recreate the graph before marginalization
   if (verbosity_ >= 5){
