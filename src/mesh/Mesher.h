@@ -32,20 +32,8 @@
 namespace VIO {
 class Mesher {
 public:
-
-  // map a lmk id to a row in map_points_3d_
-  using LandmarkIdToMapPointId = std::unordered_map<LandmarkId, size_t>;
-
-  // map a keypoint (without lmk id) to a row in map_points_3d_
-  using KeypointToMapPointId = std::vector<std::pair<KeypointCV, size_t>>;
-
-  // Maps a lmk id to its corresponding row in map_points_3d_.
-  LandmarkIdToMapPointId lmk_id_to_map_point_id_;
-  KeypointToMapPointId keypoint_to_map_point_id_;
-
   Mesher()
     : mesh_() {}
-
 
   /* ------------------------------------------------------------------------ */
   // Reduce the 3D mesh to the current VIO lmks only.
