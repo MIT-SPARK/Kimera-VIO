@@ -431,14 +431,14 @@ int main(int argc, char *argv[])
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv
         // (updateMesh3D also filters out geometrically)
-        //case VisualizationType::MESH2DTo3D: {
-        //  MyVioBackEnd::PointsWithId pointsWithId;
-        //  vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
-        //  mesher.updateMesh3D(pointsWithId, stereoVisionFrontEnd
-        //                     .stereoFrame_lkf_->left_frame_, W_Pose_camlkf_vio);
-        //  visualizer.visualizeMesh3D(mesher.map_points_3d_, mesher.polygons_mesh_);
-        //  break;
-        //}
+        case VisualizationType::MESH2DTo3D: {
+          CHECK(false)
+              << "This is the same as Mesh2Dto3Dsparse except the fact"
+              << "that we do not restrict triangles to be on planar surfaces."
+              << "Deprecated for simplicity, it can be executed by running mesh2dto3dsparse with "
+              << "maxGradInTriangle being very large.";
+          break;
+        }
         // computes and visualizes 2D mesh
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
@@ -500,41 +500,6 @@ int main(int argc, char *argv[])
           break;
         }
 
-        // computes and visualizes 3D mesh from 2D triangulation
-        // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image + extra points with high gradient
-        // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
-        // (updateMesh3D also filters out geometrically)
-        case VisualizationType::MESH2DTo3Ddense: {// dense triangulation of stereo corners (only a subset are VIO keypoints)a
-          static constexpr int  minKfValidPoints = 0;
-          MyVioBackEnd::PointsWithId pointsWithId;
-          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId,
-                                           minKfValidPoints);
-
-          static constexpr float maxGradInTriangle = -1; // 50 // TODO: re-enable
-          static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
-          static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
-          static constexpr double maxTriangleSide = 1.0;
-          mesher.updateMesh3D(pointsWithId,
-                              stereoVisionFrontEnd.stereoFrame_lkf_,
-                              W_Pose_camlkf_vio,
-                              Mesh2Dtype::DENSE,
-                              maxGradInTriangle,
-                              minRatioBetweenLargestAnSmallestSide,
-                              min_elongation_ratio, maxTriangleSide);
-
-          std::vector<TriangleCluster> triangle_clusters;
-          // TODO make a structure called Mesh, where we have
-          // map_points_3d and polygons_mesh, and which checks consistency
-          // of the data.
-          mesher.clusterMesh(
-                &triangle_clusters);
-
-          //visualizer.visualizeMesh3DWithColoredClusters(
-          //                                            triangle_clusters,
-          //                                            map_points_3d,
-          //                                            polygons_mesh);
-          break;
-        }
         // computes and visualizes 3D mesh
         // vertices: all VALID VIO points (that can be triangulated)
         // triangles: the ones produced by CGAL
