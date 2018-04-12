@@ -138,82 +138,62 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
 }
 
 /* -------------------------------------------------------------------------- */
-// Create a 3D mesh from 2D corners in an image, coded as a Frame class
-void Mesher::populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulation2D,
-                                       const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
-                                       const Frame& frame) {
-  // Clear the polygon_mesh, equivalent to have a per-frame mesh.
-  //*polygon_mesh = cv::Mat(0, 1, CV_32SC1);
-
-  // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
-  // where n is the number of points in the polygon, and id is a zero-offset
-  // index into an associated cloud.
-
-  // Populate polygons with indices:
-  // note: we restrict to valid triangles in which each landmark has a 3D point
-  // Iterate over each face in the 2d mesh, and generate the data structure
-  // for the 3d mesh: map_points_3d and polygons_mesh.
+// Create a 3D mesh from 2D corners in an image (coded as a Frame class).
+void Mesher::populate3dMeshTimeHorizon(
+      const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
+      const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
+      const Frame& frame) {
+  // Note: we restrict to valid triangles in which each landmark has a 3D point.
+  // Iterate over each face in the 2d mesh, and generate the 3d mesh.
 
   // Create polygon and add it to the mesh.
   Mesh3D::Polygon polygon;
   polygon.resize(3);
-  for (size_t i = 0; i < triangulation2D.size(); i++) {
-    const cv::Vec6f& t = triangulation2D[i];
+  const auto& points_with_id_map_end = points_with_id_map.end();
+  // Iterate over the 2d mesh triangles.
+  for (size_t i = 0; i < mesh_2d.size(); i++) {
+    const cv::Vec6f& triangle_2d = mesh_2d.at(i);
 
-    // Since the triangulation is done at the pixel coordinates level,
-    // we need to find which lmk_ids correspond to the three pixel coordinates
-    // chosen as a face of the mesh.
-    const cv::Point2f pixel_1 (t[0], t[1]);
-    const cv::Point2f pixel_2 (t[2], t[3]);
-    const cv::Point2f pixel_3 (t[4], t[5]);
+    // Iterate over each vertex (pixel) of the triangle.
+    for (size_t j = 0; j < triangle_2d.rows / 2; j++) {
+      // Extract pixel.
+      const cv::Point2f pixel (triangle_2d[j * 2],
+                               triangle_2d[j * 2 + 1]);
 
-    // These are the lmk_ids of the three vertices of a triangular face in the
-    // mesh.
-    const LandmarkId id_pt_1 (frame.findLmkIdFromPixel(pixel_1));
-    const LandmarkId id_pt_2 (frame.findLmkIdFromPixel(pixel_2));
-    const LandmarkId id_pt_3 (frame.findLmkIdFromPixel(pixel_3));
+      // Extract landmark id corresponding to this pixel.
+      const LandmarkId id_pt (frame.findLmkIdFromPixel(pixel));
 
-    // We try to find which 3d points correspond to these ids.
-    const auto& points_with_id_map_end = points_with_id_map.end();
-    const auto& lmk_1_it = points_with_id_map.find(id_pt_1);
-    const auto& lmk_2_it = points_with_id_map.find(id_pt_2);
-    const auto& lmk_3_it = points_with_id_map.find(id_pt_3);
-
-    // If we managed to find the 3d points corresponding to the three lmk_ids,
-    // we then proceed to build the mesh in 3d.
-    // Unless the triangle is already there, then we just update the mesh.
-    if (lmk_1_it != points_with_id_map_end &&
-        lmk_2_it != points_with_id_map_end &&
-        lmk_3_it != points_with_id_map_end) {
-
-      const gtsam::Point3& point_1 (lmk_1_it->second);
-      cv::Point3f lmk_1(float(point_1.x()),
-                        float(point_1.y()),
-                        float(point_1.z()));
-      // Same for pt 2.
-      const gtsam::Point3& point_2 (lmk_2_it->second);
-      cv::Point3f lmk_2(float(point_2.x()),
-                        float(point_2.y()),
-                        float(point_2.z()));
-      // Same for pt 3.
-      const gtsam::Point3& point_3 (lmk_3_it->second);
-      cv::Point3f lmk_3(float(point_3.x()),
-                        float(point_3.y()),
-                        float(point_3.z()));
-
-      polygon.at(0) = Mesh3D::MeshVertex(id_pt_1, lmk_1);
-      polygon.at(1) = Mesh3D::MeshVertex(id_pt_2, lmk_2);
-      polygon.at(2) = Mesh3D::MeshVertex(id_pt_3, lmk_3);
-      mesh_.addPolygonToMesh(polygon);
-    } else {
-      LOG(ERROR) << "Landmarks with ids : "
-                 << lmk_1_it->first << " or "
-                 << lmk_2_it->first << " or "
-                 << lmk_3_it->first
-                 << ", could not be found in points_with_id_map.\n";
+      // Try to find this landmark id in points_with_id_map.
+      const auto& lmk_it = points_with_id_map.find(id_pt);
+      if (lmk_it != points_with_id_map_end) {
+        // We found the landmark.
+        // Extract 3D position of the landmark.
+        const gtsam::Point3& point (lmk_it->second);
+        cv::Point3f lmk(float(point.x()),
+                        float(point.y()),
+                        float(point.z()));
+        // Add landmark as one of the vertices of the current polygon in 3D.
+        polygon.at(j) = Mesh3D::MeshVertex(id_pt, lmk);
+        static const size_t loop_end = triangle_2d.rows / 2 - 1;
+        if (j == loop_end) {
+          // Last iteration.
+          // Save the valid triangular polygon, since it has all vertices in
+          // points_with_id_map.
+          mesh_.addPolygonToMesh(polygon);
+        }
+      } else {
+        // Do not save current polygon, since it has at least one vertex that
+        // is not in points_with_id_map.
+        LOG(ERROR) << "Landmark with id : " << lmk_it->first
+                   << ", could not be found in points_with_id_map. "
+                   << "But it should have been.\n";
+        break;
+      }
     }
   }
 
+  // Remove faces in the mesh that have vertices which are not in
+  // points_with_id_map anymore.
   reducePolygonMeshToTimeHorizon(points_with_id_map);
 }
 

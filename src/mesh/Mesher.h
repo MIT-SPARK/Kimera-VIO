@@ -52,7 +52,6 @@ public:
       const double& min_elongation_ratio = 0.5,
       const double& maxTriangleSide = 10);
 
-
   /* ------------------------------------------------------------------------ */
   // Perform Mesh clustering.
   void clusterMesh(std::vector<TriangleCluster>* clusters);
@@ -70,8 +69,8 @@ private:
 
 private:
   /* ------------------------------------------------------------------------ */
-  // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
-  // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
+  // For a triangle defined by the 3d points p1, p2, and p3
+  // compute ratio between largest side and smallest side (how elongated it is)
   double getRatioBetweenSmallestAndLargestSide(
       const Mesh3D::VertexPosition3D& p1,
       const Mesh3D::VertexPosition3D& p2,
@@ -83,8 +82,8 @@ private:
       boost::optional<double &> maxSide_out = boost::none) const;
 
   /* ------------------------------------------------------------------------ */
-  // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
-  // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
+  // For a triangle defined by the 3d points p1, p2, and p3
+  // compute ratio between largest side and smallest side (how elongated it is)
   double getRatioBetweenTangentialAndRadialDisplacement(
       const Mesh3D::VertexPosition3D& p1,
       const Mesh3D::VertexPosition3D& p2,
@@ -92,22 +91,20 @@ private:
       const gtsam::Pose3& leftCameraPose) const;
 
   /* ------------------------------------------------------------------------ */
-  // Try to reject bad triangles, corresponding to outliers
+  // Try to reject bad triangles, corresponding to outliers.
   void filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
                              double minRatioBetweenLargestAnSmallestSide,
                              double min_elongation_ratio,
                              double maxTriangleSide);
 
-  /* ------------------------------------------------------------------------ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  void populate3dMesh(const std::vector<cv::Vec6f>& triangulation2D,
-                                  const Frame& frame,
-                                  cv::Mat* polygon) const;
-
   /* -------------------------------------------------------------------------- */
-  // Create a 3D mesh from 2D corners in an image, coded as a Frame class
+  // Create a 3D mesh from a 2d mesh in pixel coordinates.
+  // The 3D mesh is constructed by finding the 3D landmark corresponding to the
+  // pixel in the 2d mesh. The correspondence is found using the frame parameter.
+  // The 3D mesh contains, at any given time, only points that are in
+  // points_with_id_map.
   void populate3dMeshTimeHorizon(
-      const std::vector<cv::Vec6f>& triangulation2D,
+      const std::vector<cv::Vec6f>& mesh_2d,
       const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
       const Frame& frame);
 

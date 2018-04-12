@@ -46,15 +46,16 @@ Mesh3D& Mesh3D::operator=(const Mesh3D& rhs_mesh) {
 void Mesh3D::addPolygonToMesh(const Polygon& polygon) {
   // Update mesh connectivity, this might duplicate faces, but it does not
   // really matter visually. It does in terms of speed and memory...
-  // Specify number of point ids per face in the mesh.
-  // Currently 3, as we are dealing with a triangular 3d mesh.
   CHECK_EQ(polygon.size(), polygon_dimension_)
       << "Trying to insert a polygon of different dimension than "
       << "the mesh's polygons.\n"
       << "Polygon dimension: " << polygon.size() << "\n"
       << "Mesh expected polygon dimension: " << polygon_dimension_ << ".\n";
+  // Specify number of point ids per face in the mesh.
   polygons_mesh_.push_back(static_cast<int>(polygon_dimension_));
+  // Loop over each vertex in the given polygon.
   for (const MeshVertex& vertex: polygon) {
+    // Add or update vertex in the mesh, and encode its connectivity in the mesh.
     updateMeshDataStructures(vertex.getLandmarkId(),
                              vertex.getVertexPosition(),
                              &vertex_to_lmk_id_map_,

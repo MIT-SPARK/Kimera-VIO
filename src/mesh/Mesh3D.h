@@ -105,7 +105,7 @@ public:
 
 private:
   /// Members
-  // Bimap.
+  /// TODO maybe use bimap.
   // Vertex to LmkId Map
   VertexToLmkIdMap vertex_to_lmk_id_map_;
 
@@ -119,6 +119,9 @@ private:
 
   // Connectivity.
   // Set of polygons.
+  // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
+  // where n is the number of points in the polygon, and id is a zero-offset
+  // index into an associated cloud.
   cv::Mat polygons_mesh_;
 
   // Number of vertices per polygon.
