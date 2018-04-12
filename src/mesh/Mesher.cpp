@@ -173,7 +173,7 @@ void Mesher::populate3dMeshTimeHorizon(
                         float(point.y()),
                         float(point.z()));
         // Add landmark as one of the vertices of the current polygon in 3D.
-        polygon.at(j) = Mesh3D::MeshVertex(id_pt, lmk);
+        polygon.at(j) = Mesh3D::Vertex(id_pt, lmk);
         static const size_t loop_end = triangle_2d.rows / 2 - 1;
         if (j == loop_end) {
           // Last iteration.
@@ -210,8 +210,8 @@ void Mesher::reducePolygonMeshToTimeHorizon(
   for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
     CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     bool save_polygon = true;
-    for (const Mesh3D::MeshVertex& vertex: polygon) {
-      if (points_with_id_map.find(vertex.getLandmarkId()) == end) {
+    for (const Mesh3D::Vertex& vertex: polygon) {
+      if (points_with_id_map.find(vertex.getLmkId()) == end) {
         // Vertex of current polygon is not in points_with_id_map
         // Delete the polygon by not adding it to the new mesh.
         save_polygon = false;
@@ -370,7 +370,7 @@ void Mesher::clusterZComponent(
     CHECK(mesh_.getPolygon(polygon_idx, &polygon))
         << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
     bool save_polygon = true;
-    for (const Mesh3D::MeshVertex& vertex: polygon) {
+    for (const Mesh3D::Vertex& vertex: polygon) {
       lmk = vertex.getVertexPosition();
       if (lmk.z <= min_z || lmk.z >= max_z) {
         // Remove current polygon from cluster.
@@ -516,8 +516,8 @@ void Mesher::extractLmkIdsFromTriangleCluster(
   for (const size_t& polygon_idx: triangle_cluster.triangle_ids_) {
     CHECK(mesh_.getPolygon(polygon_idx, &polygon))
         << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
-    for (const Mesh3D::MeshVertex& vertex: polygon) {
-      lmk_ids->push_back(vertex.getLandmarkId());
+    for (const Mesh3D::Vertex& vertex: polygon) {
+      lmk_ids->push_back(vertex.getLmkId());
     }
   }
 }
@@ -525,11 +525,11 @@ void Mesher::extractLmkIdsFromTriangleCluster(
 /* -------------------------------------------------------------------------- */
 void Mesher::getVerticesMesh(cv::Mat* vertices_mesh) const {
   CHECK_NOTNULL(vertices_mesh);
-  mesh_.getVerticesMesh(vertices_mesh);
+  mesh_.convertVerticesMeshToMat(vertices_mesh);
 }
 void Mesher::getPolygonsMesh(cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
-  mesh_.getPolygonsMesh(polygons_mesh);
+  mesh_.convertPolygonsMeshToMat(polygons_mesh);
 }
 
 } // namespace VIO

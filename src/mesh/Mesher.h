@@ -36,11 +36,6 @@ public:
     : mesh_() {}
 
   /* ------------------------------------------------------------------------ */
-  // Reduce the 3D mesh to the current VIO lmks only.
-  void reducePolygonMeshToTimeHorizon(
-      const std::map<LandmarkId, gtsam::Point3>& points_with_id_map);
-
-  /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
   void updateMesh3D(
       const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
@@ -68,6 +63,11 @@ private:
   Mesh3D mesh_;
 
 private:
+  /* ------------------------------------------------------------------------ */
+  // Reduce the 3D mesh to the current VIO lmks only.
+  void reducePolygonMeshToTimeHorizon(
+      const std::map<LandmarkId, gtsam::Point3>& points_with_id_map);
+
   /* ------------------------------------------------------------------------ */
   // For a triangle defined by the 3d points p1, p2, and p3
   // compute ratio between largest side and smallest side (how elongated it is)

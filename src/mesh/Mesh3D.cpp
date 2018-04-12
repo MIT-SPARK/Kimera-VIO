@@ -55,9 +55,9 @@ void Mesh3D::addPolygonToMesh(const Polygon& polygon) {
   // Specify number of point ids per face in the mesh.
   polygons_mesh_.push_back(static_cast<int>(polygon_dimension_));
   // Loop over each vertex in the given polygon.
-  for (const MeshVertex& vertex: polygon) {
+  for (const Vertex& vertex: polygon) {
     // Add or update vertex in the mesh, and encode its connectivity in the mesh.
-    updateMeshDataStructures(vertex.getLandmarkId(),
+    updateMeshDataStructures(vertex.getLmkId(),
                              vertex.getVertexPosition(),
                              &vertex_to_lmk_id_map_,
                              &lmk_id_to_vertex_map_,
@@ -124,19 +124,19 @@ bool Mesh3D::getPolygon(const size_t& polygon_idx, Polygon* polygon) {
         polygons_mesh_.at<int32_t>(idx_in_polygon_mesh + j + 1);
     const LandmarkId& lmk_id_j  = vertex_to_lmk_id_map_.at(row_id_pt_j);
     const cv::Point3f& point_j  = vertices_mesh_.at<cv::Point3f>(row_id_pt_j);
-    polygon->at(j) = MeshVertex(lmk_id_j, point_j);
+    polygon->at(j) = Vertex(lmk_id_j, point_j);
   }
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesh3D::getVerticesMesh(cv::Mat* vertices_mesh) const {
+void Mesh3D::convertVerticesMeshToMat(cv::Mat* vertices_mesh) const {
   CHECK_NOTNULL(vertices_mesh);
   *vertices_mesh = vertices_mesh_.clone();
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesh3D::getPolygonsMesh(cv::Mat* polygons_mesh) const {
+void Mesh3D::convertPolygonsMeshToMat(cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
   *polygons_mesh = polygons_mesh_.clone();
 }

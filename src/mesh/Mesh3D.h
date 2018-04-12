@@ -54,35 +54,35 @@ private:
   typedef std::map<LandmarkId, VertexId> LmkIdToVertexMap;
 
 public:
-  struct MeshVertex {
+  struct Vertex {
   public:
-    MeshVertex()
+    Vertex()
       : lmk_id_(-1),
         vertex_position_() {}
 
-    MeshVertex(const LandmarkId& lmk_id,
-               const VertexPosition3D& vertex_position)
+    Vertex(const LandmarkId& lmk_id,
+           const VertexPosition3D& vertex_position)
       : lmk_id_(lmk_id),
         vertex_position_(vertex_position) {}
 
     // Make explicit that we are using the default copy constructor and
     // copy assignement operator.
-    MeshVertex(const MeshVertex& rhs_mesh_vertex) = default;
-    MeshVertex& operator=(const MeshVertex& rhs_mesh_vertex) = default;
+    Vertex(const Vertex& rhs_mesh_vertex) = default;
+    Vertex& operator=(const Vertex& rhs_mesh_vertex) = default;
 
     // Make explicit that we are using the default move constructor and
     // move assignement operator.
-    MeshVertex(MeshVertex&& rhs_mesh_vertex) = default;
-    MeshVertex& operator=(MeshVertex&& rhs_mesh_vertex) = default;
+    Vertex(Vertex&& rhs_mesh_vertex) = default;
+    Vertex& operator=(Vertex&& rhs_mesh_vertex) = default;
 
     // Default destructor.
-    ~MeshVertex() = default;
+    ~Vertex() = default;
 
     /// Getters
     inline const VertexPosition3D getVertexPosition() const {
       return vertex_position_;
     }
-    inline const LandmarkId getLandmarkId() const {
+    inline const LandmarkId getLmkId() const {
       return lmk_id_;
     }
 
@@ -92,7 +92,7 @@ public:
     VertexPosition3D vertex_position_;
   };
   // We define a polygon of the mesh as a set of mesh vertices.
-  typedef std::vector<MeshVertex> Polygon;
+  typedef std::vector<Vertex> Polygon;
 
 public:
   // Adds a new polygon into the mesh, updates the internal data structures.
@@ -105,13 +105,15 @@ public:
   inline size_t getNumberOfPolygons() const {
     return static_cast<size_t>(polygons_mesh_.rows / (polygon_dimension_ + 1));
   }
+  // TODO needs to be generalized to aleatory polygonal meshes.
+  // Currently it only allows polygons of same size.
   inline size_t getMeshPolygonDimension() const {
     return polygon_dimension_;
   }
 
   // Retrieve the mesh data structures.
-  void getVerticesMesh(cv::Mat* vertices_mesh) const;
-  void getPolygonsMesh(cv::Mat* polygons_mesh) const;
+  void convertVerticesMeshToMat(cv::Mat* vertices_mesh) const;
+  void convertPolygonsMeshToMat(cv::Mat* polygons_mesh) const;
 
   // Retrieve a single polygon in the mesh.
   // Iterate over the total number of polygons (given by getNumberOfPolygons)
@@ -119,6 +121,8 @@ public:
   bool getPolygon(const size_t& polygon_idx, Polygon* polygon);
 
 private:
+  /// TODO change internal structures for the mesh with std::vector<Polygon>.
+
   /// Members
   /// TODO maybe use bimap.
   // Vertex to LmkId Map
