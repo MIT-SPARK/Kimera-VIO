@@ -53,13 +53,16 @@ class RegularVioBackEnd: public VioBackEnd {
 
   void addVisualInertialStateAndOptimize(const Timestamp& timestamp_kf_nsec, // keyframe timestamp
    const StatusSmartStereoMeasurements&
-   status_smart_stereo_measurements_kf, // vision data
+                             status_smart_stereo_measurements_kf, // vision data
    const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr, // inertial data
    const LandmarkIds& mesh_lmk_ids_ground_cluster,
    boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
-  void addRegularityFactors(const LandmarkIds& mesh_lmk_ids_ground_cluster);
+  void isLandmarkSmart(const LandmarkIds& lmk_kf,
+                       const LandmarkIds& mesh_lmk_ids,
+                       LmkIdIsSmart* lmk_id_is_smart);
 
+  void addRegularityFactors(const LandmarkIds& mesh_lmk_ids);
 
 };
 

@@ -71,37 +71,11 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   LandmarkIds landmarks_kf = addStereoMeasurementsToFeatureTracks(
                                                      cur_id_,
                                                      smartStereoMeasurements_kf);
+
   // For each landmark we decide if it's going to be a smart factor or not.
-  //
-  for (const LandmarkId& lmk_id: landmarks_kf) {
-    const auto& lmk_id_slot = lmk_id_is_smart_.find(lmk_id);
-    if (std::find(mesh_lmk_ids_ground_cluster.begin(),
-                  mesh_lmk_ids_ground_cluster.end(), lmk_id) ==
-        mesh_lmk_ids_ground_cluster.end()) {
-      // This lmk is not involved in any regularity.
-      if (lmk_id_slot == lmk_id_is_smart_.end()) {
-        // We did not find the lmk_id in the lmk_id_is_smart_ map.
-        // Add it as a smart factor.
-        lmk_id_is_smart_.insert(std::make_pair(lmk_id, true));
-      } else {
-        // Let the lmk be as it was before (note is not allowed to go from
-        // projection to smart.
-        continue;
-      }
-    } else {
-      // This lmk is involved in regular factor, hence it should be a variable in
-      // the factor graph (connected to projection factor).
-      std::cout << "Lmk_id = " << lmk_id  << " Needs to be proj. factor!" << std::endl; // TODO delete this!
-      if (lmk_id_slot == lmk_id_is_smart_.end()) {
-        // We did not find the lmk_id in the lmk_id_is_smart_ map.
-        // Add it as a projection factor.
-        lmk_id_is_smart_.insert(std::make_pair(lmk_id, false));
-      } else {
-        // Change it to a projection factor.
-        lmk_id_is_smart_.at(lmk_id) = false;
-      }
-    }
-  }
+  isLandmarkSmart(landmarks_kf,
+                  mesh_lmk_ids_ground_cluster,
+                  &lmk_id_is_smart_);
 
   if (verbosity_ >= 8) {
     printFeatureTracks();
@@ -148,10 +122,45 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   optimize(cur_id_, vioParams_.numOptimize_, delete_slots_converted_factors_);
 }
 
+void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmk_kf,
+                                        const LandmarkIds& mesh_lmk_ids,
+                                        LmkIdIsSmart* lmk_id_is_smart) {
+  CHECK_NOTNULL(lmk_id_is_smart);
+  for (const LandmarkId& lmk_id: lmk_kf) {
+    const auto& lmk_id_slot = lmk_id_is_smart->find(lmk_id);
+    if (std::find(mesh_lmk_ids.begin(),
+                  mesh_lmk_ids.end(), lmk_id) ==
+        mesh_lmk_ids.end()) {
+      // This lmk is not involved in any regularity.
+      if (lmk_id_slot == lmk_id_is_smart->end()) {
+        // We did not find the lmk_id in the lmk_id_is_smart_ map.
+        // Add it as a smart factor.
+        lmk_id_is_smart->insert(std::make_pair(lmk_id, true));
+      } else {
+        // Let the lmk be as it was before (note is not allowed to go from
+        // projection to smart.
+        continue;
+      }
+    } else {
+      // This lmk is involved in regular factor, hence it should be a variable in
+      // the factor graph (connected to projection factor).
+      std::cout << "Lmk_id = " << lmk_id
+                << " Needs to be proj. factor!" << std::endl; // TODO delete this!
+      if (lmk_id_slot == lmk_id_is_smart->end()) {
+        // We did not find the lmk_id in the lmk_id_is_smart_ map.
+        // Add it as a projection factor.
+        lmk_id_is_smart->insert(std::make_pair(lmk_id, false));
+      } else {
+        // Change it to a projection factor.
+        lmk_id_is_smart->at(lmk_id) = false;
+      }
+    }
+  }
+}
+
+
 void RegularVioBackEnd::addRegularityFactors(
-    const LandmarkIds& mesh_lmk_ids_ground_cluster) {
-
-
+    const LandmarkIds& mesh_lmk_ids) {
  // Vector6 precisions;
  // precisions.head<3>().setConstant(vioParams_.betweenRotationPrecision_);
  // precisions.tail<3>().setConstant(vioParams_.betweenTranslationPrecision_);
@@ -317,7 +326,6 @@ void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId& lmk_id,
            stereoCal_, B_Pose_leftCam_));
   }
 }
-
 
 // TODO Virtualize this appropriately,
 void RegularVioBackEnd::addLandmarksToGraph(LandmarkIds landmarks_kf) {

@@ -13,7 +13,7 @@
  */
 
 //#define USE_CGAL
-//#define USE_REGULAR_VIO
+#define USE_REGULAR_VIO
 
 #ifdef USE_REGULAR_VIO
   #include "RegularVioBackEnd.h"
