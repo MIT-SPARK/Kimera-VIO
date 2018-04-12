@@ -46,14 +46,12 @@ DEFINE_int32(viz_type, 3,
   "2: MESH2D, only visualizes 2D mesh on image\n"
   "3: MESH2DTo3D, get a 3D mesh from a 2D triangulation of the (right-VALID) "
     "keypoints in the left frame\n"
-  "4: MESH2DTo3Ddense, dense triangulation of stereo corners (only a subset "
-    "are VIO keypoints)\n"
-  "5: MESH2Dplanes, visualize a 2D mesh of (right-valid) keypoints discarding "
+  "4: MESH2Dsparse, visualize a 2D mesh of (right-valid) keypoints discarding "
     "triangles corresponding to non planar obstacles\n"
-  "6: MESH2DTo3Dsparse, same as MESH2DTo3D but filters out triangles "
+  "5: MESH2DTo3Dsparse, same as MESH2DTo3D but filters out triangles "
     "corresponding to non planar obstacles\n"
-  "7: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
-  "8: NONE, does not visualize map\n");
+  "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
+  "7: NONE, does not visualize map\n");
 
 using namespace std;
 using namespace gtsam;
