@@ -473,35 +473,30 @@ int main(int argc, char *argv[])
           static constexpr double maxTriangleSide = 0.5;
 
           // Create mesh.
-          static cv::Mat vertices_mesh, polygons_mesh;
-          static Mesher::VertexToLmkIdMap vertex_to_id_map;
-          vertex_to_id_map = mesher.updateMesh3D(
-                                         points_with_id_VIO,
-                                         stereoVisionFrontEnd.stereoFrame_lkf_,
-                                         W_Pose_camlkf_vio,
-                                         &vertices_mesh,
-                                         &polygons_mesh,
-                                         Mesh2Dtype::VALIDKEYPOINTS,
-                                         maxGradInTriangle,
-                                         minRatioBetweenLargestAnSmallestSide,
-                                         min_elongation_ratio, maxTriangleSide);
+          mesher.updateMesh3D(
+                points_with_id_VIO,
+                stereoVisionFrontEnd.stereoFrame_lkf_,
+                W_Pose_camlkf_vio,
+                Mesh2Dtype::VALIDKEYPOINTS,
+                maxGradInTriangle,
+                minRatioBetweenLargestAnSmallestSide,
+                min_elongation_ratio, maxTriangleSide);
 
           // Find regularities in the mesh.
           // Currently only triangles in the ground floor.
           std::vector<TriangleCluster> triangle_clusters;
-          mesher.clusterMesh(vertices_mesh,
-                             polygons_mesh,
-                             &triangle_clusters);
+          mesher.clusterMesh(&triangle_clusters);
 
           mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
-                                                  vertex_to_id_map,
-                                                  polygons_mesh,
                                                   &mesh_lmk_ids_ground_cluster);
 
-          visualizer.visualizeMesh3DWithColoredClusters(
-                                                      triangle_clusters,
-                                                      vertices_mesh,
-                                                      polygons_mesh);
+          cv::Mat vertices_mesh;
+          cv::Mat polygons_mesh;
+          mesher.getVerticesMesh(&vertices_mesh);
+          mesher.getPolygonsMesh(&polygons_mesh);
+          visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters,
+                                                        vertices_mesh,
+                                                        polygons_mesh);
           break;
         }
 
@@ -519,12 +514,9 @@ int main(int argc, char *argv[])
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; //= 0.5; // TODO: this check should be improved
           static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
           static constexpr double maxTriangleSide = 1.0;
-          cv::Mat map_points_3d, polygons_mesh;
           mesher.updateMesh3D(pointsWithId,
                               stereoVisionFrontEnd.stereoFrame_lkf_,
                               W_Pose_camlkf_vio,
-                              &map_points_3d,
-                              &polygons_mesh,
                               Mesh2Dtype::DENSE,
                               maxGradInTriangle,
                               minRatioBetweenLargestAnSmallestSide,
@@ -535,14 +527,12 @@ int main(int argc, char *argv[])
           // map_points_3d and polygons_mesh, and which checks consistency
           // of the data.
           mesher.clusterMesh(
-                map_points_3d,
-                polygons_mesh,
                 &triangle_clusters);
 
-          visualizer.visualizeMesh3DWithColoredClusters(
-                                                      triangle_clusters,
-                                                      map_points_3d,
-                                                      polygons_mesh);
+          //visualizer.visualizeMesh3DWithColoredClusters(
+          //                                            triangle_clusters,
+          //                                            map_points_3d,
+          //                                            polygons_mesh);
           break;
         }
         // computes and visualizes 3D mesh
@@ -572,8 +562,8 @@ int main(int argc, char *argv[])
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
           MyVioBackEnd::PointsWithId pointsWithId;
           vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
-          mesher.updateMap3D(pointsWithId);
-          visualizer.visualizePoints3D(pointsWithId, mesher.map_points_3d_);
+          //mesher.updateMap3D(pointsWithId);
+          //visualizer.visualizePoints3D(pointsWithId, mesher.map_points_3d_);
           break;
         }
         case VisualizationType::NONE: {

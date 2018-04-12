@@ -17,24 +17,145 @@
 
 namespace VIO {
 
+Mesh3D::Mesh3D(const size_t& polygon_dimension)
+  : vertex_to_lmk_id_map_(),
+    lmk_id_to_vertex_map_(),
+    vertices_mesh_(cv::Mat(0, 1, CV_32FC3)),
+    polygons_mesh_(cv::Mat(0, 1, CV_32SC1)),
+    polygon_dimension_(polygon_dimension) {
+  CHECK_GE(polygon_dimension, 3) << "A polygon must have more than 2"
+                                    " vertices";
+}
+
+/* -------------------------------------------------------------------------- */
+Mesh3D& Mesh3D::operator=(const Mesh3D& rhs_mesh) {
+  // Check for self-assignment.
+  if(&rhs_mesh == this)
+    return *this;
+  CHECK_EQ(polygon_dimension_, rhs_mesh.polygon_dimension_)
+      << "The Mesh that you are trying to copy has different dimensions"
+      << " for the polygons!";
+  lmk_id_to_vertex_map_ = rhs_mesh.lmk_id_to_vertex_map_;
+  vertex_to_lmk_id_map_ = rhs_mesh.vertex_to_lmk_id_map_;
+  vertices_mesh_ = rhs_mesh.vertices_mesh_.clone();
+  polygons_mesh_ = rhs_mesh.polygons_mesh_.clone();
+}
+
+/* -------------------------------------------------------------------------- */
+void Mesh3D::addPolygonToMesh(const Polygon& polygon) {
+  // Update mesh connectivity, this might duplicate faces, but it does not
+  // really matter visually. It does in terms of speed and memory...
+  // Specify number of point ids per face in the mesh.
+  // Currently 3, as we are dealing with a triangular 3d mesh.
+  CHECK_EQ(polygon.size(), polygon_dimension_)
+      << "Trying to insert a polygon of different dimension than "
+      << "the mesh's polygons.\n"
+      << "Polygon dimension: " << polygon.size() << "\n"
+      << "Mesh expected polygon dimension: " << polygon_dimension_ << ".\n";
+  polygons_mesh_.push_back(static_cast<int>(polygon_dimension_));
+  for (const MeshVertex& vertex: polygon) {
+    updateMeshDataStructures(vertex.getLandmarkId(),
+                             vertex.getVertexPosition(),
+                             &vertex_to_lmk_id_map_,
+                             &lmk_id_to_vertex_map_,
+                             &vertices_mesh_,
+                             &polygons_mesh_);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Updates mesh data structures incrementally, by adding new landmark
+// if there was no previous id, or updating it if it was already present.
+void Mesh3D::updateMeshDataStructures(
+                          const LandmarkId& lmk_id,
+                          const VertexPosition3D& lmk_position,
+                          std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
+                          std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
+                          cv::Mat* vertices_mesh,
+                          cv::Mat* polygon_mesh) const {
+  CHECK_NOTNULL(vertex_to_lmk_id_map);
+  CHECK_NOTNULL(lmk_id_to_vertex_map);
+  CHECK_NOTNULL(vertices_mesh);
+  CHECK_NOTNULL(polygon_mesh);
+
+  const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map->end();
+  const auto& vertex_1_it = lmk_id_to_vertex_map->find(lmk_id);
+
+  int row_id_pt_1;
+  // Check whether this landmark is already in the set of vertices of the
+  // mesh.
+  if (vertex_1_it == lmk_id_to_vertex_map_end) {
+    // New landmark, create a new entrance in the set of vertices.
+    // Store 3D points in map_points_3d.
+    vertices_mesh->push_back(lmk_position);
+    row_id_pt_1 = vertices_mesh->rows - 1;
+    // Store the row in the vertices structure of this new landmark id.
+    (*lmk_id_to_vertex_map)[lmk_id] = row_id_pt_1;
+    (*vertex_to_lmk_id_map)[row_id_pt_1] = lmk_id;
+  } else {
+    // Update old landmark with new position.
+    vertices_mesh->at<cv::Point3f>(vertex_1_it->second) = lmk_position;
+    row_id_pt_1 = vertex_1_it->second;
+  }
+  // Store corresponding ids (row index) to the 3d point in map_points_3d.
+  // This structure encodes the connectivity of the mesh:
+  polygon_mesh->push_back(row_id_pt_1);
+}
+
+// Get a polygon in the mesh.
+// Returns false if there is no polygon.
+bool Mesh3D::getPolygon(const size_t& polygon_idx, Polygon* polygon) {
+  CHECK_NOTNULL(polygon);
+  if (polygon_idx >= getNumberOfPolygons()) {
+    VLOG(10) << "Requested polygon number: " << polygon_idx
+             << ". But there are only " << getNumberOfPolygons()
+             << " polygons.";
+    return false;
+  };
+
+  size_t idx_in_polygon_mesh = polygon_idx * (polygon_dimension_ + 1);
+  polygon->resize(polygon_dimension_);
+  for (size_t j = 0; j < polygon_dimension_; j++) {
+    const int32_t& row_id_pt_j =
+        polygons_mesh_.at<int32_t>(idx_in_polygon_mesh + j + 1);
+    const LandmarkId& lmk_id_j  = vertex_to_lmk_id_map_.at(row_id_pt_j);
+    const cv::Point3f& point_j  = vertices_mesh_.at<cv::Point3f>(row_id_pt_j);
+    polygon->at(j) = MeshVertex(lmk_id_j, point_j);
+  }
+  return true;
+}
+
+void Mesh3D::getVerticesMesh(cv::Mat* vertices_mesh) const {
+  CHECK_NOTNULL(vertices_mesh);
+  *vertices_mesh = vertices_mesh_.clone();
+}
+void Mesh3D::getPolygonsMesh(cv::Mat* polygons_mesh) const {
+  CHECK_NOTNULL(polygons_mesh);
+  *polygons_mesh = polygons_mesh_.clone();
+}
+
+// Reset all data structures of the mesh.
+void Mesh3D::clearMesh() {
+  vertices_mesh_ = cv::Mat(0, 1, CV_32FC3);
+  polygons_mesh_ = cv::Mat(0, 1, CV_32SC1);
+  vertex_to_lmk_id_map_.clear();
+  lmk_id_to_vertex_map_.clear();
+}
+
 /* ----------------------------------------------------------------------------- */
 // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
 // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
 double Mesher::getRatioBetweenSmallestAndLargestSide(
-    const cv::Mat& map_points_3d,
-    const int rowId_pt1, const int rowId_pt2, const int rowId_pt3,
+    const Mesh3D::VertexPosition3D& p1,
+    const Mesh3D::VertexPosition3D& p2,
+    const Mesh3D::VertexPosition3D& p3,
     boost::optional<double &> d12_out,
     boost::optional<double &> d23_out,
     boost::optional<double &> d31_out,
     boost::optional<double &> minSide_out,
-    boost::optional<double &> maxSide_out) const{
+    boost::optional<double &> maxSide_out) const {
 
-  // get 3D points
-  cv::Point3f p1 = map_points_3d.at<cv::Point3f>(rowId_pt1);
-  cv::Point3f p2 = map_points_3d.at<cv::Point3f>(rowId_pt2);
-  cv::Point3f p3 = map_points_3d.at<cv::Point3f>(rowId_pt3);
-
-  // measure sides:
+  // Measure sides.
   double d12 = double(cv::norm(p1-p2));
   double d23 = double(cv::norm(p2-p3));
   double d31 = double(cv::norm(p3-p1));
@@ -58,24 +179,26 @@ double Mesher::getRatioBetweenSmallestAndLargestSide(
 // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
 // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
 double Mesher::getRatioBetweenTangentialAndRadialDisplacement(
-                                     const cv::Mat& map_points_3d,
-                                     const int rowId_pt1,
-                                     const int rowId_pt2,
-                                     const int rowId_pt3,
-                                     const gtsam::Pose3& leftCameraPose) const {
+    const Mesh3D::VertexPosition3D& p1,
+    const Mesh3D::VertexPosition3D& p2,
+    const Mesh3D::VertexPosition3D& p3,
+    const gtsam::Pose3& leftCameraPose) const {
   std::vector<gtsam::Point3> points;
 
   // get 3D points
-  cv::Point3f p1 = map_points_3d.at<cv::Point3f>(rowId_pt1);
-  gtsam::Point3 p1_C = gtsam::Point3(double(p1.x),double(p1.y),double(p1.z));
+  gtsam::Point3 p1_C = gtsam::Point3(double(p1.x),
+                                     double(p1.y),
+                                     double(p1.z));
   points.push_back(leftCameraPose.transform_to(p1_C)); // checks elongation in *camera frame*
 
-  cv::Point3f p2 = map_points_3d.at<cv::Point3f>(rowId_pt2);
-  gtsam::Point3 p2_C = gtsam::Point3(double(p2.x),double(p2.y),double(p2.z));
+  gtsam::Point3 p2_C = gtsam::Point3(double(p2.x),
+                                     double(p2.y),
+                                     double(p2.z));
   points.push_back(leftCameraPose.transform_to(p2_C)); // checks elongation in *camera frame*
 
-  cv::Point3f p3 = map_points_3d.at<cv::Point3f>(rowId_pt3);
-  gtsam::Point3 p3_C = gtsam::Point3(double(p3.x),double(p3.y),double(p3.z));
+  gtsam::Point3 p3_C = gtsam::Point3(double(p3.x),
+                                     double(p3.y),
+                                     double(p3.z));
   points.push_back(leftCameraPose.transform_to(p3_C)); // checks elongation in *camera frame*
 
   return UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
@@ -124,16 +247,10 @@ bool Mesher::findMapPointIdFromPixel(const KeypointCV& px,
 
 /* ----------------------------------------------------------------------------- */
 // Try to reject bad triangles, corresponding to outliers
-// TODO now we remove bad triangles, but the vertices of those are still in
-// the data structure.
 void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
-                                   const cv::Mat& map_points_3d,
-                                   cv::Mat* polygons_mesh,
                                    double minRatioBetweenLargestAnSmallestSide,
                                    double min_elongation_ratio,
                                    double maxTriangleSide) {
-  CHECK_NOTNULL(polygons_mesh);
-
   double ratioSides_i;
   double ratioTangentialRadial_i;
   double maxTriangleSide_i;
@@ -141,38 +258,30 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
   // Check geometric dimensions.
   double d12, d23, d31;
 
-  cv::Mat tmpPolygons = polygons_mesh->clone();
-  *polygons_mesh = cv::Mat(0, 1, CV_32SC1); // reset
+  Mesh3D mesh_output;
 
-  // For each polygon.
-  for (size_t i = 0; i < tmpPolygons.rows; i = i + 4) {
-    // Get polygon vertices:
-    if (tmpPolygons.at<int32_t>(i) != 3) {
-      throw std::runtime_error("filterOutBadTriangles: expecting 3 vertices in triangle");
-    }
+  // Loop over each face in the mesh.
+  Mesh3D::Polygon polygon;
 
-    int rowId_pt1 = tmpPolygons.at<int32_t>(i + 1);
-    int rowId_pt2 = tmpPolygons.at<int32_t>(i + 2);
-    int rowId_pt3 = tmpPolygons.at<int32_t>(i + 3);
+  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+    CHECK_EQ(polygon.size(), 3) << "Expecting 3 vertices in triangle";
+    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
 
     // If threshold is disabled, avoid computation.
     if (minRatioBetweenLargestAnSmallestSide > 0.0) {
       ratioSides_i = getRatioBetweenSmallestAndLargestSide(
-                       map_points_3d,
-                       rowId_pt1,
-                       rowId_pt2,
-                       rowId_pt3,
-                       d12, d23, d31);
+                      p1, p2, p3,
+                      d12, d23, d31);
     }
-
     // If threshold is disabled, avoid computation.
-    if (min_elongation_ratio > 0.0){
+    if (min_elongation_ratio > 0.0) {
       ratioTangentialRadial_i = getRatioBetweenTangentialAndRadialDisplacement(
-                                  map_points_3d,
-                                  rowId_pt1, rowId_pt2, rowId_pt3,
+                                  p1, p2, p3,
                                   leftCameraPose);
     }
-
     // If threshold is disabled, avoid computation.
     if (maxTriangleSide > 0.0) {
       std::vector<double> sidesLen;
@@ -186,12 +295,11 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
     if ((ratioSides_i >= minRatioBetweenLargestAnSmallestSide) &&
         (ratioTangentialRadial_i >= min_elongation_ratio) &&
         (maxTriangleSide_i <= maxTriangleSide)) {
-      polygons_mesh->push_back(3); // Add rows.
-      polygons_mesh->push_back(rowId_pt1); // Row in mapPoints3d_.
-      polygons_mesh->push_back(rowId_pt2); // Row in mapPoints3d_.
-      polygons_mesh->push_back(rowId_pt3); // Row in mapPoints3d_.
+      mesh_output.addPolygonToMesh(polygon);
     }
   }
+
+  mesh_ = mesh_output;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -242,15 +350,7 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& triangulation2D,
 // Create a 3D mesh from 2D corners in an image, coded as a Frame class
 void Mesher::populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulation2D,
                                        const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
-                                       const Frame& frame,
-                                       std::map<int, LandmarkId>* vertex_to_lmk_id_map,
-                                       std::map<LandmarkId, int>* lmk_id_to_vertex_map,
-                                       cv::Mat* vertices_mesh,
-                                       cv::Mat* polygon_mesh) {
-  CHECK_NOTNULL(vertex_to_lmk_id_map);
-  CHECK_NOTNULL(lmk_id_to_vertex_map);
-  CHECK_NOTNULL(vertices_mesh);
-  CHECK_NOTNULL(polygon_mesh);
+                                       const Frame& frame) {
   // Clear the polygon_mesh, equivalent to have a per-frame mesh.
   //*polygon_mesh = cv::Mat(0, 1, CV_32SC1);
 
@@ -262,6 +362,10 @@ void Mesher::populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulati
   // note: we restrict to valid triangles in which each landmark has a 3D point
   // Iterate over each face in the 2d mesh, and generate the data structure
   // for the 3d mesh: map_points_3d and polygons_mesh.
+
+  // Create polygon and add it to the mesh.
+  Mesh3D::Polygon polygon;
+  polygon.resize(3);
   for (size_t i = 0; i < triangulation2D.size(); i++) {
     const cv::Vec6f& t = triangulation2D[i];
 
@@ -290,49 +394,26 @@ void Mesher::populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulati
     if (lmk_1_it != points_with_id_map_end &&
         lmk_2_it != points_with_id_map_end &&
         lmk_3_it != points_with_id_map_end) {
-      // Update mesh connectivity, this might duplicate faces, but it does not
-      // really matter visually. It does in terms of speed and memory...
-      // Specify number of point ids per face in the mesh.
-      // Currently 3, as we are dealing with a triangular 3d mesh.
-      polygon_mesh->push_back(3);
 
-      // Check whether the triangle is already encoded in the mesh, in which case
-      // no need to update the connectivity part of the mesh but just the corres-
-      // ponding vertices in vertices_mesh.
       const gtsam::Point3& point_1 (lmk_1_it->second);
       cv::Point3f lmk_1(float(point_1.x()),
                         float(point_1.y()),
                         float(point_1.z()));
-      updateMeshDataStructures(
-            id_pt_1, lmk_1,
-            vertex_to_lmk_id_map,
-            lmk_id_to_vertex_map,
-            vertices_mesh,
-            polygon_mesh);
-
       // Same for pt 2.
       const gtsam::Point3& point_2 (lmk_2_it->second);
       cv::Point3f lmk_2(float(point_2.x()),
                         float(point_2.y()),
                         float(point_2.z()));
-      updateMeshDataStructures(
-            id_pt_2, lmk_2,
-            vertex_to_lmk_id_map,
-            lmk_id_to_vertex_map,
-            vertices_mesh,
-            polygon_mesh);
-
       // Same for pt 3.
       const gtsam::Point3& point_3 (lmk_3_it->second);
       cv::Point3f lmk_3(float(point_3.x()),
                         float(point_3.y()),
                         float(point_3.z()));
-      updateMeshDataStructures(
-            id_pt_3, lmk_3,
-            vertex_to_lmk_id_map,
-            lmk_id_to_vertex_map,
-            vertices_mesh,
-            polygon_mesh);
+
+      polygon.at(0) = Mesh3D::MeshVertex(id_pt_1, lmk_1);
+      polygon.at(1) = Mesh3D::MeshVertex(id_pt_2, lmk_2);
+      polygon.at(2) = Mesh3D::MeshVertex(id_pt_3, lmk_3);
+      mesh_.addPolygonToMesh(polygon);
 
     } else {
       LOG(ERROR) << "Landmarks with ids : "
@@ -344,172 +425,84 @@ void Mesher::populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulati
   }
 }
 
-void Mesher::updateMeshDataStructures(
-    const LandmarkId& id_pt_1,
-    const cv::Point3f& lmk_1,
-    std::map<int, LandmarkId>* vertex_to_lmk_id_map,
-    std::map<LandmarkId, int>* lmk_id_to_vertex_map,
-    cv::Mat* vertices_mesh,
-    cv::Mat* polygon_mesh) {
-  CHECK_NOTNULL(vertex_to_lmk_id_map);
-  CHECK_NOTNULL(lmk_id_to_vertex_map);
-  CHECK_NOTNULL(vertices_mesh);
-  CHECK_NOTNULL(polygon_mesh);
-
-  const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map->end();
-  const auto& vertex_1_it = lmk_id_to_vertex_map->find(id_pt_1);
-
-  int row_id_pt_1;
-  // Check whether this landmark is already in the set of vertices of the
-  // mesh.
-  if (vertex_1_it == lmk_id_to_vertex_map_end) {
-    // New landmark, create a new entrance in the set of vertices.
-    // Store 3D points in map_points_3d.
-    vertices_mesh->push_back(lmk_1);
-    row_id_pt_1 = vertices_mesh->rows - 1;
-    // Store the row in the vertices structure of this new landmark id.
-    (*lmk_id_to_vertex_map)[id_pt_1] = row_id_pt_1;
-    (*vertex_to_lmk_id_map)[row_id_pt_1] = id_pt_1;
-  } else {
-    // Update old landmark with new position.
-    vertices_mesh->at<cv::Point3f>(vertex_1_it->second) = lmk_1;
-    row_id_pt_1 = vertex_1_it->second;
-  }
-  // Store corresponding ids (row index) to the 3d point in map_points_3d.
-  // This structure encodes the connectivity of the mesh:
-  polygon_mesh->push_back(row_id_pt_1);
-}
-
 // TODO the polygon_mesh has repeated faces...
 // And this seems to slow down quite a bit the for loop!
 void Mesher::reducePolygonMeshToTimeHorizon(
-                  const std::map<int, LandmarkId>& vertex_to_lmk_id_map,
-                  const cv::Mat& vertices_mesh,
-                  const cv::Mat& polygon_mesh,
-                  const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
-                  std::map<int, LandmarkId>* vertex_to_lmk_id_map_output, //
-                  std::map<LandmarkId, int>* lmk_id_to_vertex_map_output, //
-                  cv::Mat* vertices_mesh_output,
-                  cv::Mat* polygon_mesh_output) {
-  CHECK_NOTNULL(vertex_to_lmk_id_map_output);
-  CHECK_NOTNULL(lmk_id_to_vertex_map_output);
-  CHECK_NOTNULL(vertices_mesh_output);
-  CHECK_NOTNULL(polygon_mesh_output);
-
-  // Check that output is different than input.
-  CHECK_NE(vertex_to_lmk_id_map_output, &vertex_to_lmk_id_map);
-  CHECK_NE(vertices_mesh_output, &vertices_mesh);
-  CHECK_NE(polygon_mesh_output, &polygon_mesh);
-
-  *vertices_mesh_output = cv::Mat(0, 1, CV_32FC3);
-  *polygon_mesh_output = cv::Mat(0, 1, CV_32SC1);
-  vertex_to_lmk_id_map_output->clear();
-  lmk_id_to_vertex_map_output->clear();
+                const std::map<LandmarkId, gtsam::Point3>& points_with_id_map) {
+  Mesh3D mesh_output;
 
   auto end = points_with_id_map.end();
   // Loop over each face in the mesh.
-  for (int i = 0; i < polygon_mesh.rows; i = i + 4) {
-    CHECK_EQ(polygon_mesh.at<int32_t>(i), 3) << "Expected triangular mesh!";
-    int32_t row_id_pt1 = polygon_mesh.at<int32_t>(i + 1);
-    int32_t row_id_pt2 = polygon_mesh.at<int32_t>(i + 2);
-    int32_t row_id_pt3 = polygon_mesh.at<int32_t>(i + 3);
+  Mesh3D::Polygon polygon;
 
-    // If the three vertices of the current face are in the set of points
-    const LandmarkId& lmk_id_1 = vertex_to_lmk_id_map.at(row_id_pt1);
-    const LandmarkId& lmk_id_2 = vertex_to_lmk_id_map.at(row_id_pt2);
-    const LandmarkId& lmk_id_3 = vertex_to_lmk_id_map.at(row_id_pt3);
-    if (points_with_id_map.find(lmk_id_1) != end &&
-        points_with_id_map.find(lmk_id_2) != end &&
-        points_with_id_map.find(lmk_id_3) != end) {
-      // Store the new face of the mesh in the output data structures.
-      /// The last row index is necessary later to encode the connectivity of the
-      /// mesh.
-
-      // Encode connectivity of the vertices of the mesh.
-      polygon_mesh_output->push_back(3);
-
-      // Save vertices of the mesh.
-      // TODO CHECK THAT THE NEW VERTICES ARE NOT ALREADY THERE!!!!
-      const cv::Point3f& point_1 = vertices_mesh.at<cv::Point3f>(row_id_pt1);
-      updateMeshDataStructures(lmk_id_1, point_1,
-                               vertex_to_lmk_id_map_output,
-                               lmk_id_to_vertex_map_output,
-                               vertices_mesh_output,
-                               polygon_mesh_output);
-      const cv::Point3f& point_2 = vertices_mesh.at<cv::Point3f>(row_id_pt2);
-      updateMeshDataStructures(lmk_id_2, point_2,
-                               vertex_to_lmk_id_map_output,
-                               lmk_id_to_vertex_map_output,
-                               vertices_mesh_output,
-                               polygon_mesh_output);
-      const cv::Point3f& point_3 = vertices_mesh.at<cv::Point3f>(row_id_pt3);
-      updateMeshDataStructures(lmk_id_3, point_3,
-                               vertex_to_lmk_id_map_output,
-                               lmk_id_to_vertex_map_output,
-                               vertices_mesh_output,
-                               polygon_mesh_output);
+  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+    bool save_polygon = true;
+    for (const Mesh3D::MeshVertex& vertex: polygon) {
+      if (points_with_id_map.find(vertex.getLandmarkId()) == end) {
+        // Vertex of current polygon is not in points_with_id_map
+        // Delete the polygon by not adding it to the new mesh.
+        save_polygon = false;
+        break;
+      }
     }
-    // Delete the rest by not adding them to polygon_mesh_output.
+
+    if (save_polygon) {
+      mesh_output.addPolygonToMesh(polygon);
+    }
   }
+
+  mesh_ = mesh_output;
 }
 
 /* -------------------------------------------------------------------------- */
 // Calculate normals of polygonMesh.
-bool Mesher::calculateNormals(
-    const cv::Mat& map_points_3d,
-    const cv::Mat& polygons_mesh,
-    std::vector<cv::Point3f>* normals) {
-  if (normals == nullptr) return false;
+void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
+  CHECK_NOTNULL(normals);
+  CHECK_EQ(mesh_.getMeshPolygonDimension(), 3)
+      << "Expecting 3 vertices in triangle.";
 
   // Brute force, ideally only call when a new triangle appears...
   normals->clear();
-  normals->resize(std::round(polygons_mesh.rows / 4)); // TODO Assumes we have triangles...
+  normals->resize(mesh_.getNumberOfPolygons()); // TODO Assumes we have triangles...
 
-  // Loop over all triangles (TODO: group all loopy operations, now there
-  // are two or more loops over polygonsMesh around the code...
-  for (size_t i = 0; i < polygons_mesh.rows; i = i + 4) { // for each polygon
-    // Get triangle vertices:
-    if (polygons_mesh.at<int32_t>(i) != 3) {
-      throw std::runtime_error("CalculateNormals:"
-                               " expecting 3 vertices in triangle");
-    }
+  // Loop over each polygon face in the mesh.
+  // TODO there are far too many loops over the total number of Polygon faces...
+  // Should put them all in the same loop!
+  Mesh3D::Polygon polygon;
+  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+    CHECK_EQ(polygon.size(), 3);
+    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
 
-    // TODO Assumes we have triangles...
-    int rowId_pt1 = polygons_mesh.at<int32_t>(i + 1);
-    int rowId_pt2 = polygons_mesh.at<int32_t>(i + 2);
-    int rowId_pt3 = polygons_mesh.at<int32_t>(i + 3);
-
-    size_t size_map_points_3d = map_points_3d.rows;
-    if (rowId_pt1 >= size_map_points_3d &&
-        rowId_pt2 >= size_map_points_3d &&
-        rowId_pt3 >= size_map_points_3d) {
-      throw std::runtime_error("CalculateNormals: polygons_mesh_ "
-                               "or map_points_3d_ corrupted.");
-    }
-
-    cv::Point3f p1 = map_points_3d.at<cv::Point3f>(rowId_pt1);
-    cv::Point3f p2 = map_points_3d.at<cv::Point3f>(rowId_pt2);
-    cv::Point3f p3 = map_points_3d.at<cv::Point3f>(rowId_pt3);
-
-    // Calculate vectors of the triangle.
-    cv::Point3f v21 = p2 - p1;
-    cv::Point3f v31 = p3 - p1;
-
-    // Calculate normal (cross product).
-    cv::Point3f normal = v21.cross(v31);
-
-    // Normalize
-    double norm = (cv::norm(v21) * cv::norm(v31));
-    if (norm == 0) {
-      throw std::runtime_error("CalculateNormals: norm is 0.");
-    }
-    normal /= norm;
+    cv::Point3f normal;
+    calculateNormal(p1, p2, p3, &normal);
 
     // Store normal to triangle i.
-    normals->at(std::round(i / 4)) = normal; // TODO Assumes we have triangles...
+    normals->at(i) = normal;
   }
+}
 
-  return true;
+/* -------------------------------------------------------------------------- */
+// Calculate normal of a triangle.
+void Mesher::calculateNormal( const Mesh3D::VertexPosition3D& p1,
+                              const Mesh3D::VertexPosition3D& p2,
+                              const Mesh3D::VertexPosition3D& p3,
+                              cv::Point3f* normal) {
+  CHECK_NOTNULL(normal);
+  // Calculate vectors of the triangle.
+  cv::Point3f v21 = p2 - p1;
+  cv::Point3f v31 = p3 - p1;
+
+  // Calculate normal (cross product).
+  *normal = v21.cross(v31);
+
+  // Normalize.
+  double norm = cv::norm(v21) * cv::norm(v31);
+  CHECK_NE(norm, 0) << "Norm is 0.";
+  *normal /= norm;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -582,105 +575,17 @@ bool Mesher::isNormalPerpendicularToAxis(const cv::Point3f& axis,
     return ((cv::norm(normal.dot(axis)) < tolerance)? true: false);
 }
 
-/* -------------------------------------------------------------------------- */
-// Update map: update structures keeping memory of the map before visualization.
-void Mesher::updateMap3D(
-   const std::vector<std::pair<LandmarkId, gtsam::Point3>>& points_with_id,
-   const std::vector<std::pair<KeypointCV, gtsam::Point3>>& points_without_id) {
-
-  // Update 3D points by adding new points or updating old re-observed ones
-  // (for the one with lmk id).
-  for (size_t i = 0; i < points_with_id.size(); i++) {
-    const LandmarkId& lmk_id (points_with_id.at(i).first);
-    const gtsam::Point3& point_i (points_with_id.at(i).second);
-
-    if (lmk_id == -1) {
-      throw std::runtime_error("updateMap3D: points_with_id are supposed to have"
-                               " valid lmk id");
-    }
-
-    auto lmk_it = lmk_id_to_map_point_id_.find(lmk_id);
-    if (lmk_it == lmk_id_to_map_point_id_.end()) { // New landmark.
-      cv::Point3f new_lmk(float(point_i.x()),
-                          float(point_i.y()),
-                          float(point_i.z()));
-      map_points_3d_.push_back(new_lmk);
-      lmk_id_to_map_point_id_.insert(
-                                    std::make_pair(lmk_id, last_map_point_id_));
-      ++last_map_point_id_;
-    } else { // Replace point for existing landmark.
-      cv::Point3f* data = map_points_3d_.ptr<cv::Point3f>();
-      int row_id = (*lmk_it).second;
-      data[row_id].x = float(point_i.x());
-      data[row_id].y = float(point_i.y());
-      data[row_id].z = float(point_i.z());
-    }
-  }
-
-  // Add other extra points without lmk if:
-  for (size_t i = 0; i < points_without_id.size(); i++) {
-    const KeypointCV& kps_i (points_without_id.at(i).first);
-    const gtsam::Point3& point_i (points_without_id.at(i).second);
-
-    cv::Point3f p(float(point_i.x()),
-                  float(point_i.y()),
-                  float(point_i.z()));
-
-    map_points_3d_.push_back(p);
-    keypoint_to_map_point_id_.push_back(std::pair<KeypointCV,int>
-                                        (kps_i, last_map_point_id_));
-    ++last_map_point_id_;
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-// Update map such that it only contains lmks in time horizon of optimization:
-// update structures keeping memory of the map before visualization.
-void Mesher::updateMap3dTimeHorizon(
-      const std::vector<std::pair<LandmarkId, gtsam::Point3>>& points_with_id) {
-
-  // Update 3D points by adding new points or updating old re-observed ones
-  // (for the one with lmk id).
-  // Clean old structures.
-  lmk_id_to_map_point_id_.clear();
-  map_points_3d_ = cv::Mat(0, 1, CV_32FC3);
-  last_map_point_id_ = 0;
-  for (size_t i = 0; i < points_with_id.size(); i++) {
-    const LandmarkId& lmk_id (points_with_id.at(i).first);
-    const gtsam::Point3& point_i (points_with_id.at(i).second);
-
-    if (lmk_id == -1) {
-      throw std::runtime_error("updateMap3D: points_with_id are supposed to have"
-                               " valid lmk id");
-    }
-
-    // Add new lmk.
-    cv::Point3f new_lmk(float(point_i.x()),
-                        float(point_i.y()),
-                        float(point_i.z()));
-    map_points_3d_.push_back(new_lmk);
-    lmk_id_to_map_point_id_.insert(
-          std::make_pair(lmk_id, last_map_point_id_));
-    ++last_map_point_id_;
-  }
-}
-
 /* ----------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
-std::map<int, LandmarkId> Mesher::updateMesh3D(
+void Mesher::updateMesh3D(
        const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
        std::shared_ptr<StereoFrame> stereoFrame,
        const gtsam::Pose3& leftCameraPose,
-       cv::Mat* map_points_3d,
-       cv::Mat* polygons_mesh,
        const Mesh2Dtype& mesh2Dtype,
        const float& maxGradInTriangle,
        const double& minRatioBetweenLargestAnSmallestSide,
        const double& min_elongation_ratio,
        const double& maxTriangleSide) {
-  CHECK_NOTNULL(map_points_3d);
-  CHECK_NOTNULL(polygons_mesh);
-
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
   std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithIdStereo;
@@ -737,7 +642,6 @@ std::map<int, LandmarkId> Mesher::updateMesh3D(
   //updateMap3D(points_with_id, points_without_id);
   //updateMap3dTimeHorizon(points_with_id);
 
-  VLOG(100) << "Before polygonsMesh_.size() " <<  polygons_mesh_.size << "\n";
   // Concatenate mesh in the current image to existing mesh.
 
   // Convert points_with_id to a map, otherwise following algorithms are
@@ -747,58 +651,29 @@ std::map<int, LandmarkId> Mesher::updateMesh3D(
 
   // Set of polygons.
   static std::map<int, LandmarkId> vertex_to_lmk_id_map;
-  static std::map<LandmarkId, int> lmk_id_to_vertex_map;
   populate3dMeshTimeHorizon(
         mesh_2d,
         points_with_id_map,
-        stereoFrame->left_frame_,
-        &vertex_to_lmk_id_map,
-        &lmk_id_to_vertex_map,
-        map_points_3d,
-        polygons_mesh);
+        stereoFrame->left_frame_);
 
-  std::map<int, LandmarkId> vertex_to_lmk_id_map_output;
-  cv::Mat map_points_3d_output;
-  cv::Mat polygons_mesh_output;
-  reducePolygonMeshToTimeHorizon(
-                                 vertex_to_lmk_id_map,
-                                 *map_points_3d,
-                                 *polygons_mesh,
-                                 points_with_id_map,
-                                 &vertex_to_lmk_id_map_output,
-                                 &lmk_id_to_vertex_map,
-                                 &map_points_3d_output,
-                                 &polygons_mesh_output);
-  vertex_to_lmk_id_map = vertex_to_lmk_id_map_output;
-  *map_points_3d = map_points_3d_output.clone();
-  *polygons_mesh = polygons_mesh_output.clone();
-
-  VLOG(100) << "After polygonsMesh_.size() " <<  polygons_mesh_.size << "\n";
+  reducePolygonMeshToTimeHorizon(points_with_id_map);
 
   filterOutBadTriangles(leftCameraPose,
-                        *map_points_3d,
-                        polygons_mesh,
                         minRatioBetweenLargestAnSmallestSide,
                         min_elongation_ratio,
                         maxTriangleSide);
 
   // After filling in polygonsMesh_, we don't need this, and it must be reset.
   keypoint_to_map_point_id_.resize(0);
-
-  // Quick and dirty, TODO change.
-  return vertex_to_lmk_id_map;
 }
 
-void Mesher::clusterMesh(
-    const cv::Mat& vertices_mesh,
-    const cv::Mat& polygons_mesh,
-    std::vector<TriangleCluster>* clusters) {
+void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) {
   CHECK_NOTNULL(clusters);
 
   // Calculate normals of the triangles in the mesh.
   // The normals are in the world frame of reference.
   std::vector<cv::Point3f> normals;
-  calculateNormals(vertices_mesh, polygons_mesh, &normals);
+  calculateNormals(&normals);
 
   // Cluster triangles oriented along z axis.
   static const cv::Point3f z_axis(0, 0, 1);
@@ -825,48 +700,36 @@ void Mesher::clusterMesh(
   clusters->push_back(z_triangle_cluster);
   clusters->push_back(equatorial_triangle_cluster);
 
-
   // Only keep ground landmarks for cluster of triangles perpendicular
   // to vertical axis.
   // clusters.at(0) is therefore just the triangles on the ground plane.
   static constexpr double z = -0.1;
   static constexpr double tolerance = 0.10;
-  filterZComponent(z, tolerance,
-                   vertices_mesh,
-                   polygons_mesh,
+  clusterZComponent(z, tolerance,
                    &(clusters->at(0)));
 }
 
 void Mesher::extractLmkIdsFromTriangleCluster(
     const TriangleCluster& triangle_cluster,
-    const std::map<int, LandmarkId>& vertex_to_id_map,
-    const cv::Mat& polygons_mesh,
     LandmarkIds* lmk_ids) {
-
   CHECK_NOTNULL(lmk_ids);
   lmk_ids->resize(0);
 
-  for (const size_t& triangle_id: triangle_cluster.triangle_ids_) {
-    size_t triangle_idx = std::round(triangle_id * 4);
-    if (triangle_idx + 3 >= polygons_mesh.rows) {
-      LOG(ERROR) << "An id in triangle_ids_ is too large.";
+  Mesh3D::Polygon polygon;
+  for (const size_t& polygon_idx: triangle_cluster.triangle_ids_) {
+    CHECK(mesh_.getPolygon(polygon_idx, &polygon))
+        << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
+    for (const Mesh3D::MeshVertex& vertex: polygon) {
+      lmk_ids->push_back(vertex.getLandmarkId());
     }
-    int32_t idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
-    int32_t idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
-    int32_t idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
-    lmk_ids->push_back(vertex_to_id_map.at(idx_1));
-    lmk_ids->push_back(vertex_to_id_map.at(idx_2));
-    lmk_ids->push_back(vertex_to_id_map.at(idx_3));
   }
 }
 
 /* ------------------------------------------------------------------------ */
 // Filter z component in triangle cluster.
-void Mesher::filterZComponent(
+void Mesher::clusterZComponent(
     const double& z,
     const double& tolerance,
-    const cv::Mat& map_points_3d_,
-    const cv::Mat& polygons_mesh,
     TriangleCluster* triangle_cluster) {
   CHECK_NOTNULL(triangle_cluster);
   TriangleCluster triangle_cluster_output;
@@ -875,26 +738,39 @@ void Mesher::filterZComponent(
   triangle_cluster_output.cluster_direction_ =
       triangle_cluster->cluster_direction_;
 
-  for (const size_t& triangle_id: triangle_cluster->triangle_ids_) {
-    size_t triangle_idx = std::round(triangle_id * 4);
-    if (triangle_idx + 3 >= polygons_mesh.rows) {
-      LOG(ERROR) << "An id in triangle_ids_ is too large.";
+  // TODO consider using erase or a list, instead of creating a new one
+  // and then copying!!!
+  const double min_z = z - tolerance;
+  const double max_z = z + tolerance;
+  Mesh3D::Polygon polygon;
+  Mesh3D::VertexPosition3D lmk;
+  for (const size_t& polygon_idx: triangle_cluster->triangle_ids_) {
+    CHECK(mesh_.getPolygon(polygon_idx, &polygon))
+        << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
+    bool save_polygon = true;
+    for (const Mesh3D::MeshVertex& vertex: polygon) {
+      lmk = vertex.getVertexPosition();
+      if (lmk.z <= min_z || lmk.z >= max_z) {
+        // Remove current polygon from cluster.
+        save_polygon = false;
+        break;
+      }
     }
-    const int32_t& idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
-    const int32_t& idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
-    const int32_t& idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
-    const cv::Point3f& lmk_1 = map_points_3d_.at<cv::Point3f>(idx_1);
-    const cv::Point3f& lmk_2 = map_points_3d_.at<cv::Point3f>(idx_2);
-    const cv::Point3f& lmk_3 = map_points_3d_.at<cv::Point3f>(idx_3);
-    const double min_z = z - tolerance;
-    const double max_z = z + tolerance;
-    if (lmk_1.z >= min_z && lmk_1.z <= max_z &&
-        lmk_2.z >= min_z && lmk_2.z <= max_z &&
-        lmk_3.z >= min_z && lmk_3.z <= max_z ) {
-      triangle_cluster_output.triangle_ids_.push_back(triangle_id);
+
+    if (save_polygon) {
+      triangle_cluster_output.triangle_ids_.push_back(polygon_idx);
     }
   }
   *triangle_cluster = triangle_cluster_output;
+}
+
+void Mesher::getVerticesMesh(cv::Mat* vertices_mesh) const {
+  CHECK_NOTNULL(vertices_mesh);
+  mesh_.getVerticesMesh(vertices_mesh);
+}
+void Mesher::getPolygonsMesh(cv::Mat* polygons_mesh) const {
+  CHECK_NOTNULL(polygons_mesh);
+  mesh_.getPolygonsMesh(polygons_mesh);
 }
 
 } // namespace VIO
