@@ -53,6 +53,7 @@ private:
   typedef std::map<VertexId, LandmarkId> VertexToLmkIdMap;
   typedef std::map<LandmarkId, VertexId> LmkIdToVertexMap;
 
+public:
   struct MeshVertex {
   public:
     MeshVertex()
