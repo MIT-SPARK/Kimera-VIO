@@ -173,8 +173,7 @@ public:
   // filtered_triangulation_2D.
   // gradient_bound = 50 (max 255): if pixels in triangle have at least max_keypoints
   // _with_gradient grad smaller than gradient_bound, triangle is rejected
-  void filterTrianglesWithGradients(const cv::Mat& img_grads,
-                        const std::vector<cv::Vec6f>& original_triangulation_2D,
+  void filterTrianglesWithGradients(const std::vector<cv::Vec6f>& original_triangulation_2D,
                         std::vector<cv::Vec6f>* filtered_triangulation_2D,
                         const float& gradient_bound = 50.0,
                         const size_t& max_keypoints_with_gradient = 0);

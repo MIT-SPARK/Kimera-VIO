@@ -431,7 +431,7 @@ void StereoFrame::createMesh2dVIO(
 // Output the filtered triangulation wo high-gradient triangles:
 // filtered_triangulation_2D.
 // If gradient_bound < 0, the check is disabled.
-void StereoFrame::filterTrianglesWithGradients(const cv::Mat& img_grads,
+void StereoFrame::filterTrianglesWithGradients(
                       const std::vector<cv::Vec6f>& original_triangulation_2D,
                       std::vector<cv::Vec6f>* filtered_triangulation_2D,
                       const float& gradient_bound,
@@ -440,6 +440,10 @@ void StereoFrame::filterTrianglesWithGradients(const cv::Mat& img_grads,
   CHECK_NE(filtered_triangulation_2D, &original_triangulation_2D)
       << "Input original_triangulation_2D should be different that the object "
       << "pointed by filtered_triangulation_2D. Input=*Output error." ;
+
+  // Compute img gradients.
+  cv::Mat img_grads;
+  computeImgGradients(left_frame_.img_, &img_grads);
 
   // For each triangle, set to full the triangles that have near-zero gradient.
   // triangulation2Dobs_.reserve(triangulation2D.size());

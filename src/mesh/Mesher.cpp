@@ -469,11 +469,8 @@ void Mesher::updateMesh3D(
   std::vector<cv::Vec6f> mesh_2d;
   stereoFrame->createMesh2dVIO(&mesh_2d,
                                pointsWithIdVIO);
-  cv::Mat img_grads;
-  stereoFrame->computeImgGradients(stereoFrame->left_frame_.img_,
-                                   &img_grads);
   std::vector<cv::Vec6f> mesh_2d_filtered;
-  stereoFrame->filterTrianglesWithGradients(img_grads, mesh_2d,
+  stereoFrame->filterTrianglesWithGradients(mesh_2d,
                                             &mesh_2d_filtered,
                                             maxGradInTriangle);
 
