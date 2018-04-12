@@ -213,6 +213,8 @@ void Mesher::populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& triangulati
                  << ", could not be found in points_with_id_map.\n";
     }
   }
+
+  reducePolygonMeshToTimeHorizon(points_with_id_map);
 }
 
 // TODO the polygon_mesh has repeated faces...
@@ -460,10 +462,6 @@ void Mesher::updateMesh3D(
        const double& maxTriangleSide) {
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
-  std::vector<std::pair<LandmarkId, gtsam::Point3>> pointsWithIdStereo;
-  //stereoFrame->createMesh2dStereo(&mesh_2d,
-  //                                &pointsWithIdStereo,
-  //                                mesh2Dtype);
   stereoFrame->createMesh2dVIO(&mesh_2d,
                                pointsWithIdVIO);
   cv::Mat img_grads;
@@ -484,51 +482,16 @@ void Mesher::updateMesh3D(
     stereoFrame->visualizeMesh2DStereo(mesh_2d_filtered, 1, "2D Mesh Filtered");
   }
 
-  // All lmks corresponding to the kpts used for delaunay triangulation are in
-  // the frame of the camera.
-  // Transform 3d lmk from camera frame to global frame.
-  for (std::pair<LandmarkId, gtsam::Point3>& lmk_id_to_3d_point:
-                                                           pointsWithIdStereo) {
-      lmk_id_to_3d_point.second = leftCameraPose.transform_from(
-                                      gtsam::Point3(lmk_id_to_3d_point.second));
-  }
-
-  // Put all landmark points inside a single structure.
-  const std::vector<std::pair<LandmarkId, gtsam::Point3>>& points_with_id =
-                                                             pointsWithIdVIO;
-
-  //points_with_id.insert(points_with_id.end(),
-  //                      pointsWithIdVIO.begin(),
-  //                      pointsWithIdVIO.end()); // order is important (VIO last)
-
-  // Update 3D points (possibly replacing some points with new estimates).
-  std::vector<std::pair<KeypointCV, gtsam::Point3>> points_without_id;
-  if (mesh2Dtype == Mesh2Dtype::DENSE) {
-    for (size_t i = 0; i < stereoFrame->extraStereoKeypoints_.size(); i++) { // convert to global coordinates
-      KeypointCV px = stereoFrame->extraStereoKeypoints_.at(i).first;
-      gtsam::Point3 point = leftCameraPose.transform_from(stereoFrame->extraStereoKeypoints_.at(i).second);
-      points_without_id.push_back(std::make_pair(px, point));
-    }
-  }
-
-  //updateMap3D(points_with_id, points_without_id);
-  //updateMap3dTimeHorizon(points_with_id);
-
-  // Concatenate mesh in the current image to existing mesh.
-
   // Convert points_with_id to a map, otherwise following algorithms are
   // ridiculously slow.
-  const std::map<LandmarkId, gtsam::Point3> points_with_id_map (points_with_id.begin(),
-                                                          points_with_id.end());
+  const std::map<LandmarkId, gtsam::Point3> points_with_id_map (
+        pointsWithIdVIO.begin(),
+        pointsWithIdVIO.end());
 
-  // Set of polygons.
-  static std::map<int, LandmarkId> vertex_to_lmk_id_map;
   populate3dMeshTimeHorizon(
         mesh_2d,
         points_with_id_map,
         stereoFrame->left_frame_);
-
-  reducePolygonMeshToTimeHorizon(points_with_id_map);
 
   filterOutBadTriangles(leftCameraPose,
                         minRatioBetweenLargestAnSmallestSide,
