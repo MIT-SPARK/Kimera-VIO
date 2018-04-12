@@ -410,11 +410,6 @@ void Mesher::clusterZComponent(
 void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) {
   CHECK_NOTNULL(clusters);
 
-  // Calculate normals of the triangles in the mesh.
-  // The normals are in the world frame of reference.
-  std::vector<cv::Point3f> normals;
-  calculateNormals(&normals);
-
   // Cluster triangles oriented along z axis.
   static const cv::Point3f z_axis(0, 0, 1);
 
@@ -422,19 +417,50 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) {
   z_triangle_cluster.cluster_direction_ = z_axis;
   z_triangle_cluster.cluster_id_ = 2;
 
-  static constexpr double normal_tolerance = 0.2; // 0.087 === 10 deg. aperture.
-  clusterNormalsAroundAxis(z_axis, normals, normal_tolerance,
-                           &(z_triangle_cluster.triangle_ids_));
-
   // Cluster triangles with normal perpendicular to z_axis, aka along equator.
   TriangleCluster equatorial_triangle_cluster;
   equatorial_triangle_cluster.cluster_direction_ = z_axis;
   equatorial_triangle_cluster.cluster_id_ = 0;
 
-  static constexpr double normal_tolerance_perpendicular = 0.1;
-  clusterNormalsPerpendicularToAxis(z_axis, normals,
-                                    normal_tolerance_perpendicular,
-                           &(equatorial_triangle_cluster.triangle_ids_));
+  // Calculate normals of the triangles in the mesh.
+  // The normals are in the world frame of reference.
+  std::vector<cv::Point3f> normals;
+  // Brute force, ideally only call when a new triangle appears...
+  normals.clear();
+  normals.resize(mesh_.getNumberOfPolygons()); // TODO Assumes we have triangles...
+
+  CHECK_EQ(mesh_.getMeshPolygonDimension(), 3)
+      << "Expecting 3 vertices in triangle.";
+
+  // Loop over each polygon face in the mesh.
+  Mesh3D::Polygon polygon;
+  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+    CHECK_EQ(polygon.size(), 3);
+    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
+
+    cv::Point3f normal;
+    calculateNormal(p1, p2, p3, &normal);
+
+    // Store normal to triangle i.
+    normals.at(i) = normal;
+
+    static constexpr double normal_tolerance = 0.2; // 0.087 === 10 deg. aperture.
+    static constexpr double normal_tolerance_perpendicular = 0.1;
+    if (isNormalAroundAxis(z_axis,
+                           normal,
+                           normal_tolerance)) {
+      // Cluster Normal around z_axis.
+      z_triangle_cluster.triangle_ids_.push_back(i);
+    } else if (isNormalPerpendicularToAxis(z_axis,
+                                           normal,
+                                           normal_tolerance_perpendicular)) {
+      // Cluster Normal perpendicular to z_axis.
+      equatorial_triangle_cluster.triangle_ids_.push_back(i);
+    }
+  }
 
   // Append clusters.
   clusters->push_back(z_triangle_cluster);
