@@ -141,7 +141,7 @@ public:
     colorMeshByClusters(clusters, map_points_3d, polygons_mesh, &colors);
 
     // Log the mesh.
-    static constexpr bool log_mesh = true;
+    static constexpr bool log_mesh = false;
     if (log_mesh) {
       logMesh(map_points_3d, colors, polygons_mesh);
     }
