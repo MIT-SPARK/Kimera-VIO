@@ -19,10 +19,6 @@
 #include "mesh/Mesh3D.h"
 
 #include <stdlib.h>
-#include <sstream>
-#include <iomanip>
-#include <fstream>
-#include <iostream>
 
 #include <opengv/point_cloud/methods.hpp>
 

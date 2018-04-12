@@ -13,6 +13,7 @@
  */
 
 #include "mesh/Mesher.h"
+
 #include "LoggerMatlab.h"
 
 namespace VIO {
