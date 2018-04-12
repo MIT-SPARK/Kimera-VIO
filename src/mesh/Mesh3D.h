@@ -20,8 +20,8 @@
 
 #include "UtilsOpenCV.h"
 
-// Class defining the concept of a polygonal mesh.
 namespace VIO {
+// Class defining the concept of a polygonal mesh.
 class Mesh3D {
 public:
   // Default constructor.
@@ -31,7 +31,7 @@ public:
   Mesh3D(const Mesh3D& rhs_mesh) = delete;
 
   // Copy assignement operator.
-  // Performs a deep copy (clones) the data members!
+  // Performs a deep copy (clones) the data members.
   Mesh3D& operator=(const Mesh3D& mesh);
 
   // Delete move constructor.
@@ -44,9 +44,12 @@ public:
   ~Mesh3D() = default;
 
 public:
-  typedef int VertexId;
   typedef cv::Point3f VertexPosition3D;
 
+private:
+  // Vertex id (for internal processing).
+  typedef int VertexId;
+  // Maps (for internal processing).
   typedef std::map<VertexId, LandmarkId> VertexToLmkIdMap;
   typedef std::map<LandmarkId, VertexId> LmkIdToVertexMap;
 
@@ -61,12 +64,17 @@ public:
       : lmk_id_(lmk_id),
         vertex_position_(vertex_position) {}
 
+    // Make explicit that we are using the default copy constructor and
+    // copy assignement operator.
     MeshVertex(const MeshVertex& rhs_mesh_vertex) = default;
     MeshVertex& operator=(const MeshVertex& rhs_mesh_vertex) = default;
 
+    // Make explicit that we are using the default move constructor and
+    // move assignement operator.
     MeshVertex(MeshVertex&& rhs_mesh_vertex) = default;
     MeshVertex& operator=(MeshVertex&& rhs_mesh_vertex) = default;
 
+    // Default destructor.
     ~MeshVertex() = default;
 
     /// Getters
@@ -82,12 +90,14 @@ public:
     LandmarkId lmk_id_;
     VertexPosition3D vertex_position_;
   };
+  // We define a polygon of the mesh as a set of mesh vertices.
   typedef std::vector<MeshVertex> Polygon;
 
 public:
-
+  // Adds a new polygon into the mesh, updates the internal data structures.
   void addPolygonToMesh(const Polygon& polygon);
 
+  // Completely clears the mesh.
   void clearMesh();
 
   /// Getters
@@ -98,9 +108,13 @@ public:
     return polygon_dimension_;
   }
 
+  // Retrieve the mesh data structures.
   void getVerticesMesh(cv::Mat* vertices_mesh) const;
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
+  // Retrieve a single polygon in the mesh.
+  // Iterate over the total number of polygons (given by getNumberOfPolygons)
+  // to retrieve one polygon at a time.
   bool getPolygon(const size_t& polygon_idx, Polygon* polygon);
 
 private:
@@ -112,22 +126,25 @@ private:
   // LmkId to Vertex Map
   LmkIdToVertexMap lmk_id_to_vertex_map_;
 
-  // Vertices 3D. // map of lmkid to vertex
-  // Set of (non-repeated) points = valid landmark positions.
-  // Format: n rows (one for each n points), with each row being a cv::Point3f.
+  // Vertices 3D.
+  // Set of (non-repeated) 3d points.
+  // Format: n rows (one for each point), with each row being a cv::Point3f.
   cv::Mat vertices_mesh_;
 
-  // Connectivity.
+  // Connectivity of the mesh.
   // Set of polygons.
-  // Raw integer list of the form: (n,id1,id2,...,idn, n,id1,id2,...,idn, ...)
-  // where n is the number of points in the polygon, and id is a zero-offset
-  // index into an associated cloud.
+  // Raw integer list of the form: (n,id1_a,id2_a,...,idn_a,
+  // n,id1_b,id2_b,...,idn_b, ..., n, ... idn_x)
+  // where n is the number of points per polygon, and id is a zero-offset
+  // index into the associated row in vertices_mesh_.
   cv::Mat polygons_mesh_;
 
   // Number of vertices per polygon.
   const size_t polygon_dimension_;
 
   /// Functions
+  // Updates internal structures to add a vertex.
+  // Used by addPolygonToMesh, it is not supposed to be used by the end user.
   void updateMeshDataStructures(
       const LandmarkId& lmk_id,
       const VertexPosition3D& lmk_position,

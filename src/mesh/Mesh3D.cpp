@@ -36,6 +36,7 @@ Mesh3D& Mesh3D::operator=(const Mesh3D& rhs_mesh) {
   CHECK_EQ(polygon_dimension_, rhs_mesh.polygon_dimension_)
       << "The Mesh that you are trying to copy has different dimensions"
       << " for the polygons!";
+  // Deep copy internal data.
   lmk_id_to_vertex_map_ = rhs_mesh.lmk_id_to_vertex_map_;
   vertex_to_lmk_id_map_ = rhs_mesh.vertex_to_lmk_id_map_;
   vertices_mesh_ = rhs_mesh.vertices_mesh_.clone();
@@ -44,8 +45,8 @@ Mesh3D& Mesh3D::operator=(const Mesh3D& rhs_mesh) {
 
 /* -------------------------------------------------------------------------- */
 void Mesh3D::addPolygonToMesh(const Polygon& polygon) {
-  // Update mesh connectivity, this might duplicate faces, but it does not
-  // really matter visually. It does in terms of speed and memory...
+  // Update mesh connectivity (this does duplicate polygons, adding twice the
+  // same polygon is permitted, although it should not for efficiency).
   CHECK_EQ(polygon.size(), polygon_dimension_)
       << "Trying to insert a polygon of different dimension than "
       << "the mesh's polygons.\n"
@@ -133,6 +134,8 @@ void Mesh3D::getVerticesMesh(cv::Mat* vertices_mesh) const {
   CHECK_NOTNULL(vertices_mesh);
   *vertices_mesh = vertices_mesh_.clone();
 }
+
+/* -------------------------------------------------------------------------- */
 void Mesh3D::getPolygonsMesh(cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
   *polygons_mesh = polygons_mesh_.clone();
