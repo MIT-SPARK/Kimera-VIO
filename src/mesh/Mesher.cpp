@@ -461,7 +461,6 @@ void Mesher::updateMesh3D(
        const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
        std::shared_ptr<StereoFrame> stereoFrame,
        const gtsam::Pose3& leftCameraPose,
-       const Mesh2Dtype& mesh2Dtype,
        const float& maxGradInTriangle,
        const double& minRatioBetweenLargestAnSmallestSide,
        const double& min_elongation_ratio,

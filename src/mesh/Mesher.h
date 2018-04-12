@@ -37,11 +37,9 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(
-      const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
+  void updateMesh3D(const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
       std::shared_ptr<StereoFrame> stereoFrame,
       const gtsam::Pose3& leftCameraPose,
-      const Mesh2Dtype& mesh2Dtype = Mesh2Dtype::VALIDKEYPOINTS,
       const float& maxGradInTriangle = 50,
       const double& minRatioBetweenLargestAnSmallestSide = 0,
       const double& min_elongation_ratio = 0.5,

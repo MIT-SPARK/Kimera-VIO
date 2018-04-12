@@ -475,7 +475,6 @@ int main(int argc, char *argv[])
                 points_with_id_VIO,
                 stereoVisionFrontEnd.stereoFrame_lkf_,
                 W_Pose_camlkf_vio,
-                Mesh2Dtype::VALIDKEYPOINTS,
                 maxGradInTriangle,
                 minRatioBetweenLargestAnSmallestSide,
                 min_elongation_ratio, maxTriangleSide);
