@@ -9,7 +9,7 @@ $PROJECT_PATH/build/stereoVIOEuroc \
 --dataset_path="$DATASET_PATH" \
 --vio_params_path= "$PROJECT_PATH/params/vioParameters.yaml" \
 --tracker_params_path= "$PROJECT_PATH/params/trackerParameters.yaml" \
---viz_type=6 \
+--viz_type=5 \
 --log_output=false \
 --v=0 # Verbosity level.
 
