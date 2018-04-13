@@ -35,38 +35,41 @@ public:
   // Open files with name output_filename, and checks that it is valid
   static double getRatioBetweenTangentialAndRadialDisplacement(std::vector<gtsam::Point3> points){
     // compute radial directions
-    gtsam::Vector3 u_mean = gtsam::Vector3::Zero();
-    double minNorm = std::numeric_limits<double>::max();
-    size_t minNormInd;
+    double minZ = std::numeric_limits<double>::max();
+    double maxZ = 0;
     for(size_t i=0; i<points.size();i++){
-      double norm_i = points.at(i).vector().norm();
-      u_mean += points.at(i).vector() / norm_i; // average versors
-      if (norm_i < minNorm){
-        minNormInd=i; // point closest to the camera
-        minNorm = norm_i;
+      double z_i = points.at(i).z();
+
+      if (z_i < minZ) {
+        minZ = z_i;
+      }
+      if (z_i > maxZ) {
+        maxZ = z_i;
       }
     }
-    u_mean = u_mean / u_mean.norm();
 
-    // compute elongation
-    double min_r = std::numeric_limits<double>::max(), max_r = 0.0;
-    double max_t = 0.0;
+    std::vector<gtsam::Point3> points_rescaled;
     for(size_t i=0; i<points.size();i++){
-      // compute min and max radial elongation (parallel to u_mean)
-      double radialElongation_i = u_mean.dot(points.at(i).vector());
-      min_r = std::min(min_r, radialElongation_i);
-      max_r = std::max(max_r, radialElongation_i);
-
-      // compute min and max tangential elongation (orthogonal to u_mean)
-      double tangentialElongation_i = (minNorm * u_mean - points.at(i).vector()).norm(); // distance with respect to a central point at distance minNorm
-      max_t = std::max(max_t, tangentialElongation_i);
+      // Point rescaled is a projection of point on a virtual img plane at
+      // distance minZ.
+      points_rescaled.push_back((points.at(i) / points.at(i).z()) * minZ);
     }
-    if(min_r<0 || max_r<0 || min_r>max_r){
-      std::cout << "min_r = " << min_r << " min_r = " << min_r << std::endl;
+
+    double max_t = 0.0;
+    double tangential_elongation_1 = (points_rescaled.at(0) - points_rescaled.at(1)).norm();
+    max_t = std::max(max_t, tangential_elongation_1);
+    double tangential_elongation_2 = (points_rescaled.at(1) - points_rescaled.at(2)).norm();
+    max_t = std::max(max_t, tangential_elongation_2);
+    double tangential_elongation_3 = (points_rescaled.at(0) - points_rescaled.at(2)).norm();
+    max_t = std::max(max_t, tangential_elongation_3);
+
+    // Points must be in front of the camera, and min should be less than max.
+    if(minZ<0 || maxZ<0 || minZ>maxZ){
+      std::cout << "min_r = " << minZ << " max_r = " << maxZ << std::endl;
       for(size_t i=0;i<points.size();i++){ points.at(i).print("\n");}
       throw std::runtime_error("getRatioBetweenTangentialAndRadialDisplacement: negative radial components");
     }
-    return  max_t / (max_r-min_r);
+    return  max_t / (maxZ-minZ);
   }
 };
 } // namespace VIO
