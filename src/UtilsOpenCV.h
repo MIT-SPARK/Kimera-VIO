@@ -77,6 +77,8 @@ using BearingVectors = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 struct TriangleCluster {
   // Ids of the triangles in the cluster.
   // Increasing id assigned to each triangle.
+  // Maybe ask for Lmk ids of vertices in triangle? Later needed to know
+  // which lmks have regularity constraints and which do not.
   std::vector<int> triangle_ids_; // TODO refactor
 
   // Id of the cluster, determines the color of the cluster when plotting.
