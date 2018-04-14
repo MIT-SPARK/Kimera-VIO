@@ -1190,7 +1190,7 @@ public:
           successProbabilities.push_back(  newlyAvailableKeypointsScore.at(ni)
               / newlyAvailableKeypointsScore.at(0)  ); // normalized wrt largest (starting from 1 and decreasing)
         }
-        UtilsOpenCV::PrintVector(successProbabilities,"successProbabilities");
+        UtilsOpenCV::PrintVector<double>(successProbabilities,"successProbabilities");
 
         // featureSelectionData.print();
         gtsam::Cal3_S2& K = stereoFrame_km1->left_undistRectCameraMatrix_;
