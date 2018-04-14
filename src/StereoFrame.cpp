@@ -447,6 +447,7 @@ void StereoFrame::filterTrianglesWithGradients(
 
   // For each triangle, set to full the triangles that have near-zero gradient.
   // triangulation2Dobs_.reserve(triangulation2D.size());
+  // TODO far too many loops over triangles.
   for (const cv::Vec6f& triangle: original_triangulation_2D) {
     // Find all pixels with a gradient higher than gradBound.
     std::vector<std::pair<KeypointCV, double>> keypoints_with_high_gradient =

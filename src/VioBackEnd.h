@@ -541,6 +541,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
+  // TODO output a map instead of a vector for points_with_id.
   void get3DPointsAndLmkIds(PointsWithId* points_with_id,
                             const int& minAge = 0) const {
     CHECK_NOTNULL(points_with_id);
