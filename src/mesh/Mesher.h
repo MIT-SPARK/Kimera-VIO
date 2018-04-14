@@ -156,6 +156,7 @@ private:
                          TriangleCluster* triangle_cluster) const;
 
   /* ------------------------------------------------------------------------ */
+  // Try to reject bad triangles, corresponding to outliers.
   bool isBadTriangle(const Mesh3D::Polygon& polygon,
                      const gtsam::Pose3& left_camera_pose,
                      const double& min_ratio_between_largest_an_smallest_side,

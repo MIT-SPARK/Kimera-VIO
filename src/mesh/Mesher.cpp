@@ -101,6 +101,8 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
   mesh_ = mesh_output;
 }
 
+/* -------------------------------------------------------------------------- */
+// Try to reject bad triangles, corresponding to outliers.
 bool Mesher::isBadTriangle(
                        const Mesh3D::Polygon& polygon,
                        const gtsam::Pose3& left_camera_pose,
