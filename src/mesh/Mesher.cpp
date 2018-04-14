@@ -19,39 +19,31 @@
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-// for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
-// mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
+// For a triangle defined by the 3d points p1, p2, and p3
+// compute ratio between largest side and smallest side (how elongated it is).
 double Mesher::getRatioBetweenSmallestAndLargestSide(
-    const Mesh3D::VertexPosition3D& p1,
-    const Mesh3D::VertexPosition3D& p2,
-    const Mesh3D::VertexPosition3D& p3,
-    boost::optional<double &> d12_out,
-    boost::optional<double &> d23_out,
-    boost::optional<double &> d31_out,
+    const double& d12,
+    const double& d23,
+    const double& d31,
     boost::optional<double &> minSide_out,
     boost::optional<double &> maxSide_out) const {
 
   // Measure sides.
-  double d12 = double(cv::norm(p1-p2));
-  double d23 = double(cv::norm(p2-p3));
-  double d31 = double(cv::norm(p3-p1));
-  double minSide = std::min(d12,std::min(d23,d31));
-  double maxSide = std::max(d12,std::max(d23,d31));
+  double minSide = std::min(d12, std::min(d23, d31));
+  double maxSide = std::max(d12, std::max(d23, d31));
 
-  if(d12_out && d23_out && d31_out){ // return distances, mainly for debug
-    *d12_out = d12;
-    *d23_out = d23;
-    *d31_out = d31;
-  }
   if(minSide_out && maxSide_out){
     *minSide_out = minSide;
     *maxSide_out = maxSide;
   }
-  // compute and return ratio
+
+  // Compute and return ratio.
   return minSide / maxSide;
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO this only works for current points in the current frame!!!
+// Not for the landmarks in time horizon, since they can be behind the camera!!!
 // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
 // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
 double Mesher::getRatioBetweenTangentialAndRadialDisplacement(
@@ -82,17 +74,13 @@ double Mesher::getRatioBetweenTangentialAndRadialDisplacement(
 
 /* -------------------------------------------------------------------------- */
 // Try to reject bad triangles, corresponding to outliers
+// TODO filter out bad triangle without s, and use it in reduce Mesh.
+// TODO filter before and not using the mesh itself because there are lmks
+// that might not be seen in the current frame!
 void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
                                    double minRatioBetweenLargestAnSmallestSide,
                                    double min_elongation_ratio,
                                    double maxTriangleSide) {
-  double ratioSides_i;
-  double ratioTangentialRadial_i;
-  double maxTriangleSide_i;
-
-  // Check geometric dimensions.
-  double d12, d23, d31;
-
   Mesh3D mesh_output;
 
   // Loop over each face in the mesh.
@@ -101,24 +89,54 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
   for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
     CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), 3) << "Expecting 3 vertices in triangle";
+   // Check if triangle is good.
+    if (!isBadTriangle(polygon, leftCameraPose,
+                       minRatioBetweenLargestAnSmallestSide,
+                       min_elongation_ratio,
+                       maxTriangleSide)) {
+      mesh_output.addPolygonToMesh(polygon);
+    }
+  }
+
+  mesh_ = mesh_output;
+}
+
+bool Mesher::isBadTriangle(
+                       const Mesh3D::Polygon& polygon,
+                       const gtsam::Pose3& left_camera_pose,
+                       const double& min_ratio_between_largest_an_smallest_side,
+                       const double& min_elongation_ratio,
+                       const double& max_triangle_side) const {
+    CHECK_EQ(polygon.size(), 3) << "Expecting 3 vertices in triangle";
     const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
     const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
     const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
 
+    double ratioSides_i = 0;
+    double ratioTangentialRadial_i = 0;
+    double maxTriangleSide_i = 0;
+
+    // Check geometric dimensions.
+    // Measure sides.
+    double d12 = double(cv::norm(p1 - p2));
+    double d23 = double(cv::norm(p2 - p3));
+    double d31 = double(cv::norm(p3 - p1));
+
     // If threshold is disabled, avoid computation.
-    if (minRatioBetweenLargestAnSmallestSide > 0.0) {
+    if (min_ratio_between_largest_an_smallest_side > 0.0) {
       ratioSides_i = getRatioBetweenSmallestAndLargestSide(
-                      p1, p2, p3,
                       d12, d23, d31);
     }
+
     // If threshold is disabled, avoid computation.
     if (min_elongation_ratio > 0.0) {
       ratioTangentialRadial_i = getRatioBetweenTangentialAndRadialDisplacement(
                                   p1, p2, p3,
-                                  leftCameraPose);
+                                  left_camera_pose);
     }
+
     // If threshold is disabled, avoid computation.
-    if (maxTriangleSide > 0.0) {
+    if (max_triangle_side > 0.0) {
       std::vector<double> sidesLen;
       sidesLen.push_back(d12);
       sidesLen.push_back(d23);
@@ -127,25 +145,29 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
     }
 
     // Check if triangle is not elongated.
-    if ((ratioSides_i >= minRatioBetweenLargestAnSmallestSide) &&
+    if ((ratioSides_i >= min_ratio_between_largest_an_smallest_side) &&
         (ratioTangentialRadial_i >= min_elongation_ratio) &&
-        (maxTriangleSide_i <= maxTriangleSide)) {
-      mesh_output.addPolygonToMesh(polygon);
+        (maxTriangleSide_i <= max_triangle_side)) {
+      return false;
+    } else {
+      return true;
     }
-  }
-
-  mesh_ = mesh_output;
 }
 
 /* -------------------------------------------------------------------------- */
 // Create a 3D mesh from 2D corners in an image (coded as a Frame class).
 void Mesher::populate3dMeshTimeHorizon(
-      const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
-      const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
-      const Frame& frame) {
+    const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
+    const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
+    const Frame& frame,
+    const gtsam::Pose3& leftCameraPose,
+    double min_ratio_largest_smallest_side,
+    double min_elongation_ratio,
+    double max_triangle_side) {
   // Note: we restrict to valid triangles in which each landmark has a 3D point.
   // Iterate over each face in the 2d mesh, and generate the 3d mesh.
 
+  //TODO to retrieve lmk id from pixels, do it in the stereo frame! not here.
   // Create polygon and add it to the mesh.
   Mesh3D::Polygon polygon;
   polygon.resize(3);
@@ -177,9 +199,15 @@ void Mesher::populate3dMeshTimeHorizon(
         static const size_t loop_end = triangle_2d.rows / 2 - 1;
         if (j == loop_end) {
           // Last iteration.
-          // Save the valid triangular polygon, since it has all vertices in
-          // points_with_id_map.
-          mesh_.addPolygonToMesh(polygon);
+          // Filter out bad polygons.
+          if (!isBadTriangle(polygon, leftCameraPose,
+                             min_ratio_largest_smallest_side,
+                             min_elongation_ratio,
+                             max_triangle_side)) {
+            // Save the valid triangular polygon, since it has all vertices in
+            // points_with_id_map.
+            mesh_.addPolygonToMesh(polygon);
+          }
         }
       } else {
         // Do not save current polygon, since it has at least one vertex that
@@ -493,15 +521,16 @@ void Mesher::updateMesh3D(
   populate3dMeshTimeHorizon(
         mesh_2d,
         points_with_id_map,
-        stereoFrame->left_frame_);
-
-  filterOutBadTriangles(leftCameraPose,
-                        minRatioBetweenLargestAnSmallestSide,
-                        min_elongation_ratio,
-                        maxTriangleSide);
+        stereoFrame->left_frame_,
+        leftCameraPose,
+        minRatioBetweenLargestAnSmallestSide,
+        min_elongation_ratio,
+        maxTriangleSide);
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO avoid this loop by enforcing to pass the lmk id of the vertex of the
+// triangle in the triangle cluster.
 void Mesher::extractLmkIdsFromTriangleCluster(
     const TriangleCluster& triangle_cluster,
     LandmarkIds* lmk_ids) {

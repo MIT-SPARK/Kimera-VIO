@@ -66,16 +66,14 @@ private:
   void reducePolygonMeshToTimeHorizon(
       const std::map<LandmarkId, gtsam::Point3>& points_with_id_map);
 
+
   /* ------------------------------------------------------------------------ */
   // For a triangle defined by the 3d points p1, p2, and p3
-  // compute ratio between largest side and smallest side (how elongated it is)
+  // compute ratio between largest side and smallest side (how elongated it is).
   double getRatioBetweenSmallestAndLargestSide(
-      const Mesh3D::VertexPosition3D& p1,
-      const Mesh3D::VertexPosition3D& p2,
-      const Mesh3D::VertexPosition3D& p3,
-      boost::optional<double &> d12_out,
-      boost::optional<double &> d23_out,
-      boost::optional<double &> d31_out,
+      const double& d12,
+      const double& d23,
+      const double& d31,
       boost::optional<double &> minSide_out = boost::none,
       boost::optional<double &> maxSide_out = boost::none) const;
 
@@ -104,7 +102,11 @@ private:
   void populate3dMeshTimeHorizon(
       const std::vector<cv::Vec6f>& mesh_2d,
       const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
-      const Frame& frame);
+      const Frame& frame,
+      const gtsam::Pose3& leftCameraPose,
+      double min_ratio_largest_smallest_side,
+      double min_elongation_ratio,
+      double max_triangle_side);
 
   /* ------------------------------------------------------------------------ */
   // Calculate normals of each polygon in the mesh.
@@ -153,6 +155,13 @@ private:
     const double& z,
     const double& tolerance,
     TriangleCluster* triangle_cluster);
+
+  /* ------------------------------------------------------------------------ */
+  bool isBadTriangle(const Mesh3D::Polygon& polygon,
+                     const gtsam::Pose3& left_camera_pose,
+                     const double& min_ratio_between_largest_an_smallest_side,
+                     const double& min_elongation_ratio,
+                     const double& max_triangle_side) const;
 };
 
 } // namespace VIO
