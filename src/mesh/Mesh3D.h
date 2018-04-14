@@ -118,7 +118,7 @@ public:
   // Retrieve a single polygon in the mesh.
   // Iterate over the total number of polygons (given by getNumberOfPolygons)
   // to retrieve one polygon at a time.
-  bool getPolygon(const size_t& polygon_idx, Polygon* polygon);
+  bool getPolygon(const size_t& polygon_idx, Polygon* polygon) const;
 
 private:
   /// TODO change internal structures for the mesh with std::vector<Polygon>.

@@ -47,7 +47,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Perform Mesh clustering.
-  void clusterMesh(std::vector<TriangleCluster>* clusters);
+  void clusterMesh(std::vector<TriangleCluster>* clusters) const;
 
   /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.
@@ -117,7 +117,7 @@ private:
   void calculateNormal(const Mesh3D::VertexPosition3D& p1,
                        const Mesh3D::VertexPosition3D& p2,
                        const Mesh3D::VertexPosition3D& p3,
-                       cv::Point3f* normal);
+                       cv::Point3f* normal) const;
 
   /* ------------------------------------------------------------------------ */
   // Is normal perpendicular to axis?
@@ -151,10 +151,9 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Filter z component in triangle cluster.
-  void clusterZComponent(
-    const double& z,
-    const double& tolerance,
-    TriangleCluster* triangle_cluster);
+  void clusterZComponent(const double& z,
+                         const double& tolerance,
+                         TriangleCluster* triangle_cluster) const;
 
   /* ------------------------------------------------------------------------ */
   bool isBadTriangle(const Mesh3D::Polygon& polygon,

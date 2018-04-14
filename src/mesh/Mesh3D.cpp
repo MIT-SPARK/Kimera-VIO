@@ -108,7 +108,7 @@ void Mesh3D::updateMeshDataStructures(
 /* -------------------------------------------------------------------------- */
 // Get a polygon in the mesh.
 // Returns false if there is no polygon.
-bool Mesh3D::getPolygon(const size_t& polygon_idx, Polygon* polygon) {
+bool Mesh3D::getPolygon(const size_t& polygon_idx, Polygon* polygon) const {
   CHECK_NOTNULL(polygon);
   if (polygon_idx >= getNumberOfPolygons()) {
     VLOG(10) << "Requested polygon number: " << polygon_idx

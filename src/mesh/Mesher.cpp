@@ -290,7 +290,7 @@ void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
 void Mesher::calculateNormal( const Mesh3D::VertexPosition3D& p1,
                               const Mesh3D::VertexPosition3D& p2,
                               const Mesh3D::VertexPosition3D& p3,
-                              cv::Point3f* normal) {
+                              cv::Point3f* normal) const {
   CHECK_NOTNULL(normal);
   // Calculate vectors of the triangle.
   cv::Point3f v21 = p2 - p1;
@@ -380,7 +380,7 @@ bool Mesher::isNormalPerpendicularToAxis(const cv::Point3f& axis,
 void Mesher::clusterZComponent(
     const double& z,
     const double& tolerance,
-    TriangleCluster* triangle_cluster) {
+    TriangleCluster* triangle_cluster) const {
   CHECK_NOTNULL(triangle_cluster);
   TriangleCluster triangle_cluster_output;
   triangle_cluster_output.cluster_id_ =
@@ -415,7 +415,7 @@ void Mesher::clusterZComponent(
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) {
+void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) const {
   CHECK_NOTNULL(clusters);
 
   // Cluster triangles oriented along z axis.
@@ -430,17 +430,13 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) {
   equatorial_triangle_cluster.cluster_direction_ = z_axis;
   equatorial_triangle_cluster.cluster_id_ = 0;
 
-  // Calculate normals of the triangles in the mesh.
-  // The normals are in the world frame of reference.
-  std::vector<cv::Point3f> normals;
-  // Brute force, ideally only call when a new triangle appears...
-  normals.clear();
-  normals.resize(mesh_.getNumberOfPolygons()); // TODO Assumes we have triangles...
 
   CHECK_EQ(mesh_.getMeshPolygonDimension(), 3)
       << "Expecting 3 vertices in triangle.";
 
   // Loop over each polygon face in the mesh.
+  // TODO consider computing normals in the mesh3D instead, per polygon
+  // each time you add it.
   Mesh3D::Polygon polygon;
   for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
     CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
@@ -449,22 +445,21 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) {
     const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
     const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
 
+    // Calculate normal of the triangle in the mesh.
+    // The normals are in the world frame of reference.
     cv::Point3f normal;
     calculateNormal(p1, p2, p3, &normal);
 
-    // Store normal to triangle i.
-    normals.at(i) = normal;
-
-    static constexpr double normal_tolerance = 0.2; // 0.087 === 10 deg. aperture.
-    static constexpr double normal_tolerance_perpendicular = 0.1;
+    static constexpr double normal_tol_z = 0.2; // 0.087 === 10 deg. aperture.
+    static constexpr double normal_tol_equatorial = 0.1;
     if (isNormalAroundAxis(z_axis,
                            normal,
-                           normal_tolerance)) {
+                           normal_tol_z)) {
       // Cluster Normal around z_axis.
       z_triangle_cluster.triangle_ids_.push_back(i);
     } else if (isNormalPerpendicularToAxis(z_axis,
                                            normal,
-                                           normal_tolerance_perpendicular)) {
+                                           normal_tol_equatorial)) {
       // Cluster Normal perpendicular to z_axis.
       equatorial_triangle_cluster.triangle_ids_.push_back(i);
     }
@@ -480,7 +475,7 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) {
   static constexpr double z = -0.1;
   static constexpr double tolerance = 0.10;
   clusterZComponent(z, tolerance,
-                   &(clusters->at(0)));
+                    &(clusters->at(0)));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -514,6 +509,7 @@ void Mesher::updateMesh3D(
 
   // Convert points_with_id to a map, otherwise following algorithms are
   // ridiculously slow.
+  // TODO do it before, when you retrieve this.
   const std::map<LandmarkId, gtsam::Point3> points_with_id_map (
         pointsWithIdVIO.begin(),
         pointsWithIdVIO.end());
