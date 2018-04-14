@@ -264,10 +264,12 @@ TEST(testVio, robotMovingWithConstantVelocity) {
         timestamp_lkf, timestamp_k);
 
     // process data with VIO
+    LandmarkIds mesh_lmk_ids_ground_cluster;
     vio->addVisualInertialStateAndOptimize(
-        timestamp_k, // current time for fixed lag smoother
-        all_measurements[k], // vision data
-        imu_stamps, imu_accgyr); // inertial data
+          timestamp_k, // current time for fixed lag smoother
+          all_measurements[k], // vision data
+          imu_stamps, imu_accgyr,
+          mesh_lmk_ids_ground_cluster); // inertial data
 
     NonlinearFactorGraph nlfg = vio->smoother_->getFactors();
     size_t nrFactorsInSmoother = 0;
@@ -299,7 +301,6 @@ TEST(testVio, robotMovingWithConstantVelocity) {
       EXPECT((imu_bias_lkf - imu_bias).vector().norm() < tol);
     }
   }
-
 }
 
 /* ************************************************************************* */
