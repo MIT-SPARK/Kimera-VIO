@@ -14,6 +14,28 @@
 
 #include <UtilsOpenCV.h>
 
+#include <stdlib.h>
+#include <sstream>
+#include <iomanip>
+#include <fstream>
+#include <sys/time.h>
+
+#include <opengv/point_cloud/methods.hpp>
+
+#include <gtsam/base/Vector.h>
+#include <gtsam/base/Matrix.h>
+#include <gtsam/geometry/Point2.h>
+#include <gtsam/geometry/Point3.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/geometry/Cal3DS2.h>
+#include <gtsam/geometry/Cal3_S2.h>
+#include <gtsam/navigation/ImuBias.h>
+
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/opencv.hpp"
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */

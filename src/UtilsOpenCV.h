@@ -15,22 +15,39 @@
 #ifndef UtilsOpenCV_H_
 #define UtilsOpenCV_H_
 
-#include <stdlib.h>
-#include <opengv/point_cloud/methods.hpp>
-#include <gtsam/geometry/Cal3DS2.h>
-#include <gtsam/geometry/Cal3_S2.h>
-#include <gtsam/geometry/Pose3.h>
-#include <gtsam/navigation/ImuBias.h>
-#include <opencv2/core/core.hpp>
-#include "opencv2/features2d/features2d.hpp"
-#include "opencv2/opencv.hpp"
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <sstream>
-#include <iomanip>
-#include <fstream>
 #include <iostream>
-#include <sys/time.h>
+#include <Eigen/Core>
+#include <opencv2/core/core.hpp>
+
+// Forward declare classes.
+namespace gtsam {
+class Point2;
+class Point3;
+class Pose3;
+class Unit3;
+typedef Eigen::MatrixXd Matrix;
+typedef Eigen::Vector3d Vector3;
+typedef Eigen::Matrix<double, 6, 1> Vector6; \
+typedef Eigen::Matrix<double, 3, 3> Matrix33; \
+typedef Eigen::Matrix<double, 3, 3> Matrix3; \
+typedef Eigen::Matrix<double, 6, 6> Matrix66; \
+class Rot3;
+class Cal3_S2;
+}
+
+namespace Eigen {
+class Dynamic;
+}
+
+namespace cv {
+template<typename T>
+class Affine3;
+typedef Affine3<float> Affine3f;
+}
+
+namespace opengv {
+typedef Eigen::Matrix<double,3,4> transformation_t;
+}
 
 namespace VIO {
 
@@ -212,7 +229,8 @@ public:
       const int remId = 1e9);
   /* ------------------------------------------------------------------------ */
   // add squares in the image at desired position/size/color
-  static void DrawSquaresInPlace(cv::Mat& img, const std::vector<cv::Point2f> imagePoints,
+  static void DrawSquaresInPlace(cv::Mat& img,
+                                 const std::vector<cv::Point2f> imagePoints,
                                  const cv::Scalar color = cv::Scalar(0, 255, 0),
                                  const double msize = 10, const
                                  std::vector<int> pointIds = std::vector<int>(),
@@ -227,7 +245,8 @@ public:
                                  const int remId = 1e9);
   /* ------------------------------------------------------------------------ */
   // add text (vector of doubles) in the image at desired position/size/color
-  static void DrawTextInPlace(cv::Mat& img, const std::vector<cv::Point2f> imagePoints,
+  static void DrawTextInPlace(cv::Mat& img,
+                              const std::vector<cv::Point2f> imagePoints,
                               const cv::Scalar color = cv::Scalar(0, 255, 0),
                               const double msize = 0.4,
                               const std::vector<double> textDoubles = std::vector<double>());
@@ -264,7 +283,7 @@ public:
   // function definition to the cpp file!
   template<typename T>
   static void PrintVector(const std::vector<T>& vect,
-                   const std::string& vectorName) {
+                          const std::string& vectorName) {
     std::cout << vectorName << std::endl;
     for(auto si : vect) std::cout << " " << si;
     std::cout << std::endl;
