@@ -67,7 +67,11 @@ private:
   /* ------------------------------------------------------------------------ */
   // Reduce the 3D mesh to the current VIO lmks only.
   void reducePolygonMeshToTimeHorizon(
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map);
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+      const gtsam::Pose3& leftCameraPose,
+      double min_ratio_largest_smallest_side,
+      double max_triangle_side);
+
 
   /* ------------------------------------------------------------------------ */
   // For a triangle defined by the 3d points p1, p2, and p3

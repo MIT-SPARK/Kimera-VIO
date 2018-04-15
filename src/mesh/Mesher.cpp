@@ -224,13 +224,19 @@ void Mesher::populate3dMeshTimeHorizon(
 
   // Remove faces in the mesh that have vertices which are not in
   // points_with_id_map anymore.
-  reducePolygonMeshToTimeHorizon(points_with_id_map);
+  reducePolygonMeshToTimeHorizon(points_with_id_map,
+                                 leftCameraPose,
+                                 min_ratio_largest_smallest_side,
+                                 max_triangle_side);
 }
 
 // TODO the polygon_mesh has repeated faces...
 // And this seems to slow down quite a bit the for loop!
 void Mesher::reducePolygonMeshToTimeHorizon(
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map) {
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+    const gtsam::Pose3& leftCameraPose,
+    double min_ratio_largest_smallest_side,
+    double max_triangle_side) {
   Mesh3D mesh_output;
 
   auto end = points_with_id_map.end();
@@ -259,7 +265,15 @@ void Mesher::reducePolygonMeshToTimeHorizon(
     }
 
     if (save_polygon) {
-      mesh_output.addPolygonToMesh(polygon);
+      // Refilter polygons, as the updated vertices might make it unvalid.
+      if (!isBadTriangle(polygon,
+                         leftCameraPose,
+                         min_ratio_largest_smallest_side,
+                         -1.0, // elongation test is invalid, no per-frame concept
+                         max_triangle_side)) {
+        // Finally add the polygon to the mesh.
+        mesh_output.addPolygonToMesh(polygon);
+      }
     }
   }
 
