@@ -78,12 +78,16 @@ public:
     // Default destructor.
     ~Vertex() = default;
 
-    /// Getters
+    /// Getters.
     inline const VertexPosition3D getVertexPosition() const {
       return vertex_position_;
     }
     inline const LandmarkId getLmkId() const {
       return lmk_id_;
+    }
+    /// Setters.
+    void setVertexPosition(const Mesh3D::VertexPosition3D& position) {
+      vertex_position_ = position;
     }
 
   private:

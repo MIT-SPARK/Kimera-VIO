@@ -240,12 +240,21 @@ void Mesher::reducePolygonMeshToTimeHorizon(
   for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
     CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     bool save_polygon = true;
-    for (const Mesh3D::Vertex& vertex: polygon) {
-      if (points_with_id_map.find(vertex.getLmkId()) == end) {
+    for (Mesh3D::Vertex& vertex: polygon) {
+      const auto& point_with_id_it = points_with_id_map.find(vertex.getLmkId());
+      if (point_with_id_it == end) {
         // Vertex of current polygon is not in points_with_id_map
         // Delete the polygon by not adding it to the new mesh.
         save_polygon = false;
         break;
+      } else {
+        // Update the vertex with newest landmark position.
+        // This is to ensure we have latest update, the previous addPolygonToMesh
+        // only updates the positions of the vertices in the visible frame.
+        vertex.setVertexPosition(Mesh3D::VertexPosition3D(
+                                   point_with_id_it->second.x(),
+                                   point_with_id_it->second.y(),
+                                   point_with_id_it->second.z()));
       }
     }
 
