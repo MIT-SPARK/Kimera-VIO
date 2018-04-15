@@ -37,7 +37,8 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
-  void updateMesh3D(const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
+  void updateMesh3D(
+      const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO,
       std::shared_ptr<StereoFrame> stereoFrame,
       const gtsam::Pose3& leftCameraPose,
       const float& maxGradInTriangle = 50,
@@ -64,8 +65,7 @@ private:
   /* ------------------------------------------------------------------------ */
   // Reduce the 3D mesh to the current VIO lmks only.
   void reducePolygonMeshToTimeHorizon(
-      const std::map<LandmarkId, gtsam::Point3>& points_with_id_map);
-
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map);
 
   /* ------------------------------------------------------------------------ */
   // For a triangle defined by the 3d points p1, p2, and p3
@@ -99,9 +99,8 @@ private:
   // pixel in the 2d mesh. The correspondence is found using the frame parameter.
   // The 3D mesh contains, at any given time, only points that are in
   // points_with_id_map.
-  void populate3dMeshTimeHorizon(
-      const std::vector<cv::Vec6f>& mesh_2d,
-      const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
+  void populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& mesh_2d,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
       const Frame& frame,
       const gtsam::Pose3& leftCameraPose,
       double min_ratio_largest_smallest_side,

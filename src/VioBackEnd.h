@@ -169,6 +169,7 @@ public:
 
   using PointWithId = std::pair<LandmarkId, gtsam::Point3>;
   using PointsWithId = std::vector<PointWithId>;
+  using PointsWithIdMap = std::unordered_map<LandmarkId, gtsam::Point3>;
 
   // verbosity_ explanation
   /*
@@ -542,49 +543,52 @@ public:
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
   // TODO output a map instead of a vector for points_with_id.
-  void get3DPointsAndLmkIds(PointsWithId* points_with_id,
-                            const int& minAge = 0) const {
+  void get3DPointsAndLmkIds(PointsWithIdMap* points_with_id,
+                            const int& min_age = 0) const {
     CHECK_NOTNULL(points_with_id);
 
+    // Add landmarks encoded in the smart factors.
     const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
     // old_smart_factors_ has all smart factors included so far.
-    int nrValidPts = 0, nrPts = 0;
-    for (auto& sf : old_smart_factors_) //!< landmarkId -> {SmartFactorPtr, SlotIndex}
-    {
-      const LandmarkId& lmkId = sf.first;
-      const SmartStereoFactor::shared_ptr& sf_ptr = sf.second.first;
-      const int& slotId = sf.second.second;
+    int nr_valid_pts = 0, nr_pts = 0;
+    for (const auto& smart_factor : old_smart_factors_) {//!< landmarkId -> {SmartFactorPtr, SlotIndex}
+      const LandmarkId& lmk_id = smart_factor.first;
+      const SmartStereoFactor::shared_ptr& smart_factor_ptr =
+          smart_factor.second.first;
+      const int& slot_id = smart_factor.second.second;
 
-      if (sf_ptr && // if pointer is well definied
-          (slotId >= 0) && (graph.size() > slotId) && // and slot is admissible
-          (sf_ptr == graph[slotId]) // and the pointer in the graph matches the one we stored in old_smart_factors_
+      if (smart_factor_ptr && // If pointer is well definied.
+          (slot_id >= 0) && (graph.size() > slot_id) && // Slot is admissible.
+          (smart_factor_ptr == graph[slot_id]) // Pointer in the graph matches the one we stored in old_smart_factors_.
           ) {
-        auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slotId]);
+        boost::shared_ptr<SmartStereoFactor> gsf =
+            boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slot_id]);
         if (gsf) {
-          nrPts++;
+          nr_pts++;
           gtsam::TriangulationResult result = gsf->point();
-          if (result.valid() && gsf->measured().size() >= minAge) {
-            nrValidPts++;
-            points_with_id->push_back(std::make_pair(lmkId, *result));
+          if (result.valid() &&
+              gsf->measured().size() >= min_age) {
+            nr_valid_pts++;
+            (*points_with_id)[lmk_id] = *result;
           }
         }
       }
     }
 
+    // Add landmarks that now are in projection factors.
     BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
-      // If we found a lmk
+      // If we found a lmk.
+      // TODO this loop is huge, as we check all variables in the graph...
       if (gtsam::Symbol(key_value.key).chr() == 'l') {
         std::cout << "We added the landmark" << std::endl;
-        points_with_id->push_back(std::make_pair(key_value.key,
-                                                 key_value.value.cast<gtsam::Point3>()
+        (*points_with_id)[key_value.key] = key_value.value.cast<gtsam::Point3>();
                                      //state_.at<gtsam::Point3> (key_value.key)
-                                                 ));
       }
     }
 
-    VLOG(100) << "nrValidPts= "<< nrValidPts << " out of "
-              << nrPts << std::endl;
+    VLOG(100) << "nrValidPts= "<< nr_valid_pts << " out of "
+              << nr_pts << std::endl;
   }
 
   /* ------------------------------------------------------------------------ */

@@ -461,7 +461,7 @@ int main(int argc, char *argv[])
           // (encoded as either smart factors or explicit values), potentially
           // restricting to points seen in at least minKfValidPoints keyframes
           // (TODO restriction is not enforced for projection factors).
-          MyVioBackEnd::PointsWithId points_with_id_VIO;
+          MyVioBackEnd::PointsWithIdMap points_with_id_VIO;
           vioBackEnd->get3DPointsAndLmkIds(&points_with_id_VIO,
                                            minKfValidPoints);
 
@@ -522,7 +522,7 @@ int main(int argc, char *argv[])
         }
         // computes and visualizes a 3D point cloud
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
-          MyVioBackEnd::PointsWithId pointsWithId;
+          MyVioBackEnd::PointsWithIdMap pointsWithId;
           vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
           //mesher.updateMap3D(pointsWithId);
           //visualizer.visualizePoints3D(pointsWithId, mesher.map_points_3d_);

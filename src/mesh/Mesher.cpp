@@ -160,7 +160,7 @@ bool Mesher::isBadTriangle(
 // Create a 3D mesh from 2D corners in an image (coded as a Frame class).
 void Mesher::populate3dMeshTimeHorizon(
     const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
-    const std::map<LandmarkId, gtsam::Point3>& points_with_id_map,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
     const Frame& frame,
     const gtsam::Pose3& leftCameraPose,
     double min_ratio_largest_smallest_side,
@@ -230,7 +230,7 @@ void Mesher::populate3dMeshTimeHorizon(
 // TODO the polygon_mesh has repeated faces...
 // And this seems to slow down quite a bit the for loop!
 void Mesher::reducePolygonMeshToTimeHorizon(
-                const std::map<LandmarkId, gtsam::Point3>& points_with_id_map) {
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map) {
   Mesh3D mesh_output;
 
   auto end = points_with_id_map.end();
@@ -492,17 +492,17 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) const {
 /* -------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
 void Mesher::updateMesh3D(
-       const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO,
-       std::shared_ptr<StereoFrame> stereoFrame,
-       const gtsam::Pose3& leftCameraPose,
-       const float& maxGradInTriangle,
-       const double& minRatioBetweenLargestAnSmallestSide,
-       const double& min_elongation_ratio,
-       const double& maxTriangleSide) {
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
+    std::shared_ptr<StereoFrame> stereoFrame,
+    const gtsam::Pose3& leftCameraPose,
+    const float& maxGradInTriangle,
+    const double& minRatioBetweenLargestAnSmallestSide,
+    const double& min_elongation_ratio,
+    const double& maxTriangleSide) {
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
   stereoFrame->createMesh2dVIO(&mesh_2d,
-                               pointsWithIdVIO);
+                               points_with_id_VIO);
   std::vector<cv::Vec6f> mesh_2d_filtered;
   stereoFrame->filterTrianglesWithGradients(mesh_2d,
                                             &mesh_2d_filtered,
@@ -518,16 +518,9 @@ void Mesher::updateMesh3D(
     stereoFrame->visualizeMesh2DStereo(mesh_2d_filtered, 1, "2D Mesh Filtered");
   }
 
-  // Convert points_with_id to a map, otherwise following algorithms are
-  // ridiculously slow.
-  // TODO do it before, when you retrieve this.
-  const std::map<LandmarkId, gtsam::Point3> points_with_id_map (
-        pointsWithIdVIO.begin(),
-        pointsWithIdVIO.end());
-
   populate3dMeshTimeHorizon(
         mesh_2d,
-        points_with_id_map,
+        points_with_id_VIO,
         stereoFrame->left_frame_,
         leftCameraPose,
         minRatioBetweenLargestAnSmallestSide,

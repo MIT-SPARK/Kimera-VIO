@@ -393,8 +393,8 @@ void StereoFrame::createMesh2dStereo(
 
 /* -------------------------------------------------------------------------- */
 void StereoFrame::createMesh2dVIO(
-          std::vector<cv::Vec6f>* triangulation_2D,
-          const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO) {
+    std::vector<cv::Vec6f>* triangulation_2D,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO) {
   CHECK_NOTNULL(triangulation_2D);
 
   // Pick left frame.
@@ -406,11 +406,11 @@ void StereoFrame::createMesh2dVIO(
   // (which have right px).
   std::vector<cv::Point2f> keypoints_for_mesh;
   // TODO this double loop is quite expensive.
-  for (int i = 0; i < pointsWithIdVIO.size(); i++) {
+  for (const auto& point_with_id : pointsWithIdVIO) {
     for (int j = 0; j < ref_frame.landmarks_.size(); j++) {
       // If we are seeing a VIO point in left and right frame, add to keypoints
       // to generate the mesh in 2D.
-      if (ref_frame.landmarks_.at(j) == pointsWithIdVIO.at(i).first &&
+      if (ref_frame.landmarks_.at(j) == point_with_id.first &&
           right_keypoints_status_.at(j) == Kstatus::VALID) {
         // Add keypoints for mesh 2d.
         keypoints_for_mesh.push_back(ref_frame.keypoints_.at(j));
