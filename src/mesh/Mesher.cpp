@@ -533,7 +533,7 @@ void Mesher::updateMesh3D(
 // triangle in the triangle cluster.
 void Mesher::extractLmkIdsFromTriangleCluster(
     const TriangleCluster& triangle_cluster,
-    LandmarkIds* lmk_ids) {
+    LandmarkIds* lmk_ids) const {
   CHECK_NOTNULL(lmk_ids);
   lmk_ids->resize(0);
 

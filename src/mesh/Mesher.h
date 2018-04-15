@@ -53,8 +53,10 @@ public:
   /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.
   void extractLmkIdsFromTriangleCluster(const TriangleCluster& triangle_cluster,
-                                        LandmarkIds* lmk_ids);
+                                        LandmarkIds* lmk_ids) const;
 
+  /* ------------------------------------------------------------------------ */
+  // Clones underlying data structures encoding the mesh.
   void getVerticesMesh(cv::Mat* vertices_mesh) const;
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
