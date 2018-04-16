@@ -18,10 +18,10 @@
 #include <random>
 #include <algorithm>
 
-#include <CppUnitLite/TestHarness.h>
-
 #include "../src/Visualizer3D.h"
 #include "test_config.h"
+
+#include <CppUnitLite/TestHarness.h>
 
 using namespace std;
 using namespace VIO;

@@ -16,9 +16,10 @@
 #include <iostream>
 #include <random>
 #include <algorithm>
-#include <CppUnitLite/TestHarness.h>
 #include "VioBackEnd.h"
 #include "test_config.h"
+
+#include <CppUnitLite/TestHarness.h> // CHECK REDEFINED!!
 
 using namespace gtsam;
 using namespace std;

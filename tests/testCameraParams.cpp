@@ -19,6 +19,7 @@
 #include <CppUnitLite/TestHarness.h>
 
 #include "UtilsOpenCV.h"
+#include "gtsam/geometry/Cal3_S2.h"
 #include "CameraParams.h"
 #include "test_config.h"
 
