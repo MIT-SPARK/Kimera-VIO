@@ -21,6 +21,7 @@
 #include "../src/Visualizer3D.h"
 #include "test_config.h"
 
+// Add last, since it redefines CHECK, which is first defined by glog.
 #include <CppUnitLite/TestHarness.h>
 
 using namespace std;

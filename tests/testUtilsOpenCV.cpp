@@ -33,6 +33,7 @@
 
 #include "test_config.h"
 
+// Add last, since it redefines CHECK, which is first defined by glog.
 #include <CppUnitLite/TestHarness.h>
 
 using namespace gtsam;

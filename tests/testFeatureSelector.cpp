@@ -23,6 +23,8 @@
 #include "FeatureSelector.h"
 #include <gtsam/navigation/ImuBias.h>
 #include <gtsam/inference/Ordering.h>
+
+// Add last, since it redefines CHECK, which is first defined by glog.
 #include <CppUnitLite/TestHarness.h>
 
 using namespace gtsam;

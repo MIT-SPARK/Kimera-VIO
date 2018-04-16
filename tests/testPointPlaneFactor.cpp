@@ -22,13 +22,14 @@
 #include <boost/bind.hpp>
 #include <boost/assign/std/vector.hpp>
 
-#include <CppUnitLite/TestHarness.h>
-
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/OrientedPlane3.h>
 #include "factors/PointPlaneFactor.h"
+
+// Add last, since it redefines CHECK, which is first defined by glog.
+#include <CppUnitLite/TestHarness.h>
 
 using namespace std;
 using namespace gtsam;

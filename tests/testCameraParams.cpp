@@ -16,12 +16,14 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
-#include <CppUnitLite/TestHarness.h>
 
 #include "UtilsOpenCV.h"
 #include "gtsam/geometry/Cal3_S2.h"
 #include "CameraParams.h"
 #include "test_config.h"
+
+// Add last, since it redefines CHECK, which is first defined by glog.
+#include <CppUnitLite/TestHarness.h>
 
 using namespace std;
 using namespace gtsam;
