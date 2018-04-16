@@ -82,7 +82,7 @@ message(STATUS "ALL LIBS: ${LIBS}")
 ### Compile the code
 include_directories("./src")
 
-add_library(stereoVIO ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
+add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Tracker.cpp ./src/StereoFrame.cpp
                       ./src/UtilsGeometry.cpp ./src/UtilsOpenCV.cpp
                       ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
