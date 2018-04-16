@@ -38,7 +38,7 @@ class RegularVioBackEnd: public VioBackEnd {
   ~RegularVioBackEnd() = default;
 
   public:
-  // Map from ldmrk ID to corresponding factor type, true: smart.
+  // Map from lmk ID to corresponding factor type, true: smart.
   using LmkIdIsSmart = gtsam::FastMap<LandmarkId, bool>;
   LmkIdIsSmart lmk_id_is_smart_;
   std::vector<size_t> delete_slots_converted_factors_;
@@ -51,12 +51,13 @@ class RegularVioBackEnd: public VioBackEnd {
   void updateLandmarkInGraph(const LandmarkId& lm_id,
                              const std::pair<FrameId, StereoPoint2>& newObs);
 
-  void addVisualInertialStateAndOptimize(const Timestamp& timestamp_kf_nsec, // keyframe timestamp
-   const StatusSmartStereoMeasurements&
-                             status_smart_stereo_measurements_kf, // vision data
-   const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr, // inertial data
-   const LandmarkIds& mesh_lmk_ids_ground_cluster,
-   boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
+  void addVisualInertialStateAndOptimize(
+      const Timestamp& timestamp_kf_nsec, // Keyframe timestamp.
+      const StatusSmartStereoMeasurements&
+                           status_smart_stereo_measurements_kf, // Vision data.
+      const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr, // Inertial data.
+      const LandmarkIds& mesh_lmk_ids_ground_cluster,
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   void isLandmarkSmart(const LandmarkIds& lmk_kf,
                        const LandmarkIds& mesh_lmk_ids,
@@ -67,5 +68,6 @@ class RegularVioBackEnd: public VioBackEnd {
 };
 
 } // namespace VIO
+
 #endif /* RegularVioBackEnd_H_ */
 

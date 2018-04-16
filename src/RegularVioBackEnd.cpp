@@ -26,7 +26,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   debugInfo_.resetAddedFactorsStatistics();
 
-  if (verbosity_ >= 7) {
+  if (VLOG_IS_ON(7)) {
     StereoVisionFrontEnd::PrintStatusStereoMeasurements(
                                           status_smart_stereo_measurements_kf);
   }
@@ -77,7 +77,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
                   mesh_lmk_ids_ground_cluster,
                   &lmk_id_is_smart_);
 
-  if (verbosity_ >= 8) {
+  if (VLOG_IS_ON(8)) {
     printFeatureTracks();
   }
 
@@ -85,30 +85,28 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   Tracker::TrackingStatus kfTrackingStatus_mono =
                 status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch(kfTrackingStatus_mono) {
-    case Tracker::TrackingStatus::LOW_DISPARITY : {
-      // Vehicle is not moving.
-      if (verbosity_ >= 7) {
-        printf("Add zero velocity and no motion factors\n");
-      }
-      addZeroVelocityPrior(cur_id_);
-      addNoMotionFactor(last_id_, cur_id_);
-      break;
-    }
-      // This did not improve in any case
-      //  case Tracker::TrackingStatus::INVALID :// ransac failed hence we cannot trust features
-      //    if (verbosity_ >= 7) {printf("Add constant velocity factor (monoRansac is INVALID)\n");}
-      //    addConstantVelocityFactor(last_id_, cur_id_);
-      //    break;
+  case Tracker::TrackingStatus::LOW_DISPARITY : {
+    // Vehicle is not moving.
+    VLOG(7) << "Add zero velocity and no motion factors\n";
+    addZeroVelocityPrior(cur_id_);
+    addNoMotionFactor(last_id_, cur_id_);
+    break;
+  }
+    // This did not improve in any case
+    //  case Tracker::TrackingStatus::INVALID :// ransac failed hence we cannot trust features
+    //    if (verbosity_ >= 7) {printf("Add constant velocity factor (monoRansac is INVALID)\n");}
+    //    addConstantVelocityFactor(last_id_, cur_id_);
+    //    break;
 
-    default: {
-      // Clear vector.
-      delete_slots_converted_factors_.resize(0);
+  default: {
+    // Clear vector.
+    delete_slots_converted_factors_.resize(0);
 
-      // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED :
-      // we add features in VIO
-      addLandmarksToGraph(landmarks_kf);
-      break;
-    }
+    // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED :
+    // we add features in VIO
+    addLandmarksToGraph(landmarks_kf);
+    break;
+  }
   }
 
   // Add regularity factor on vertices of the mesh.
@@ -192,18 +190,16 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
     SmartStereoFactor::shared_ptr new_factor(
           new SmartStereoFactor(smart_noise_, smartFactorsParams_, B_Pose_leftCam_));
 
-    if (verbosity_ >= 9) {
-      std::cout << "Adding landmark with: " << ft.obs_.size()
-                << " landmarks to graph, with keys: ";
+    if (VLOG_IS_ON(9)) {
+      VLOG(9) << "Adding landmark with: " << ft.obs_.size()
+              << " observations to graph, with keys:\n";
       new_factor->print();
     }
 
     // Add observations to smart factor.
     for (const std::pair<FrameId,StereoPoint2>& obs: ft.obs_) {
       new_factor->add(obs.second, gtsam::Symbol('x', obs.first), stereoCal_);
-      if (verbosity_ >= 9) {
-        std::cout << " " <<  obs.first;
-      }
+      VLOG(9) << " " <<  obs.first;
     }
 
     // Add new factor to suitable structures:
@@ -227,10 +223,13 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   //}
 }
 
-void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId& lmk_id,
-                               const std::pair<FrameId, StereoPoint2>& newObs) {
+void RegularVioBackEnd::updateLandmarkInGraph(
+    const LandmarkId& lmk_id,
+    const std::pair<FrameId, StereoPoint2>& newObs) {
+
   bool is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
   if (is_lmk_smart == true) {
+    LOG(INFO) << "Lmk with id:" << lmk_id << " is set to be smart.\n";
     // Update existing smart-factor.
     auto old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end())
@@ -256,18 +255,17 @@ void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId& lmk_id,
     }
 
     old_smart_factors_it->second.first = new_factor;
-    if (verbosity_ >= 8) {
-      std::cout << "updateLandmarkInGraph: added observation to point: "
-                << lmk_id << std::endl;
-    }
+    VLOG(8) << "updateLandmarkInGraph: added observation to point: "
+            << lmk_id;
 
   } else {
     // Update lmk_id as a projection factor.
     gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id);
-    std::cout << " GOT IN ELSE" << std::endl;
+    LOG(INFO) << "Lmk with id:" << lmk_id << " is set to be non-smart.\n";
     // TODO remove debug
-    state_.print("Smoother state\n");
+    // state_.print("Smoother state\n");
     if (state_.find(lmk_key) == state_.end()) {
+      LOG(INFO) << "Lmk with id:" << lmk_id << " is not found in state.\n";
       // We did not find the lmk in the state.
       // It was a smart factor before.
       // Convert smart to projection.
@@ -280,18 +278,16 @@ void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId& lmk_id,
           old_smart_factors_it->second.first;
 
       // Add landmark value to graph.
-      CHECK(old_factor->point()) << "Does not have a value for point in proj."
-                                    " factor.";
+      CHECK(old_factor->point().valid())
+          <<  "Does not have a value for point in proj. factor.\n";
       new_values_.insert(lmk_key, *old_factor->point());
-      // TODO  remove lose prior only used for debugging!
+      // TODO remove lose prior only used for debugging!
       gtsam::SharedNoiseModel model = gtsam::noiseModel::Isotropic::Sigma(
         3, 0.5); // 0.5 meters std variation.
       new_imu_prior_and_other_factors_.push_back(gtsam::PriorFactor<Point3>(
                                                    lmk_key, *old_factor->point(),
                                                    model));
-      std::cout << " Performing conversion for lmk_id: "
-                << lmk_id
-                << std::endl;
+      LOG(INFO) << " Performing conversion for lmk_id: " << lmk_id << "\n";
 
       // Convert smart factor to multiple projection factors.
       for (size_t i = 0; i < old_factor->keys().size(); i++) {
@@ -318,6 +314,8 @@ void RegularVioBackEnd::updateLandmarkInGraph(const LandmarkId& lmk_id,
 
     // If it is not smart, just add current measurement.
     // It was a projection factor before.
+    // Also add it if it was smart but now is projection factor...
+    LOG(INFO) << "Lmk with id:" << lmk_id << " added as a new projection factor.\n";
     new_imu_prior_and_other_factors_.push_back(
           gtsam::GenericStereoFactor<Pose3, Point3>
           (newObs.second, smart_noise_,
@@ -334,33 +332,27 @@ void RegularVioBackEnd::addLandmarksToGraph(LandmarkIds landmarks_kf) {
   int n_updated_landmarks = 0;
   debugInfo_.numAddedSmartF_ += landmarks_kf.size();
 
-  for (const LandmarkId lm_id : landmarks_kf)
-  {
-    FeatureTrack& ft = featureTracks_.at(lm_id);
+  for (const LandmarkId& lmk_id : landmarks_kf) {
+    FeatureTrack& ft = featureTracks_.at(lmk_id);
     if(ft.obs_.size()<2) // we only insert feature tracks of length at least 2 (otherwise uninformative)
       continue;
 
-    if(!ft.in_ba_graph_)
-    {
-      addLandmarkToGraph(lm_id, ft);
+    if(!ft.in_ba_graph_) {
+      addLandmarkToGraph(lmk_id, ft);
       ++n_new_landmarks;
-    }
-    else
-    {
+    } else {
       const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
 
-      if(obs_kf.first != cur_id_) // sanity check
-        throw std::runtime_error("addLandmarksToGraph: last obs is not from the current keyframe!\n");
+      // Sanity check.
+      CHECK_EQ(obs_kf.first, cur_id_) << "Last obs is not from the current"
+                                         " keyframe!\n";
 
-      updateLandmarkInGraph(lm_id, obs_kf);
+      updateLandmarkInGraph(lmk_id, obs_kf);
       ++n_updated_landmarks;
     }
   }
-  if (verbosity_ >= 7)
-  {
-    std::cout << "Added " << n_new_landmarks << " new landmarks" << std::endl;
-    std::cout << "Updated " << n_updated_landmarks << " landmarks in graph" << std::endl;
-  }
+  VLOG(7) << "Added " << n_new_landmarks << " new landmarks"
+          << "Updated " << n_updated_landmarks << " landmarks in graph\n";
 }
 
 } // namespace VIO
