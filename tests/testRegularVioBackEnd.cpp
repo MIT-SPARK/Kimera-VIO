@@ -151,6 +151,10 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
   tracker_status_valid.kfTrackingStatus_mono_ = Tracker::VALID;
   tracker_status_valid.kfTrackingStatus_stereo_ = Tracker::VALID;
 
+  // TODO add regularities vector.
+  // TODO fill mesh_lmk_ids with a triplet of lmk_ids.
+  LandmarkIds mesh_lmk_ids_ground_cluster;
+
   vector<StatusSmartStereoMeasurements> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
     PinholeCamera<Cal3_S2> cam_left(poses.at(i).first,
@@ -159,6 +163,9 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
                                      cam_params);
     SmartStereoMeasurements measurement_frame;
     for (int lmk_id = 0; lmk_id < num_lmk_pts; lmk_id++) {
+      if (mesh_lmk_ids_ground_cluster.size() < num_lmk_pts) {
+        mesh_lmk_ids_ground_cluster.push_back(lmk_id);
+      }
       Point2 px_left  = cam_left.project (lmk_pts.at(lmk_id));
       Point2 px_right = cam_right.project(lmk_pts.at(lmk_id));
       StereoPoint2 px_lr(px_left.x(),
@@ -187,9 +194,6 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
                                            v,
                                            imu_bias);
 
-  // TODO add regularities vector.
-  // TODO fill mesh_lmk_ids with a triplet of lmk_ids.
-  LandmarkIds mesh_lmk_ids_ground_cluster;
 
   // For each frame, add landmarks and optimize.
   for (int64_t k = 1; k < num_key_frames; k++) {
@@ -243,9 +247,14 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
 }
 
 /* ************************************************************************** */
-int main() {
+int main(int argc, char *argv[]) {
   // Initialize the data!
   // initializeData();
+
+  // Initialize Google's flags library.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  // Initialize Google's logging library.
+  google::InitGoogleLogging(argv[0]);
 
   TestResult tr; return TestRegistry::runAllTests(tr); }
 /* ************************************************************************** */
