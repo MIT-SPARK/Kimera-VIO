@@ -97,7 +97,7 @@ void parseDatasetAndParams(const int argc, const char * const *argv,
     VLOG(100) << "stereoVIOexample: no tracker parameters specified, "
                  "using default";
     trackerParams = VioFrontEndParams(); // default params
-  }else{
+  } else {
     VLOG(100) << "stereoVIOexample: using user-specified tracker parameters: "
               << FLAGS_tracker_params_path;
     trackerParams.parseYAML(FLAGS_tracker_params_path);

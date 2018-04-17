@@ -188,7 +188,9 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
     // We use a unit pinhole projection camera for the smart factors to be
     // more efficient.
     SmartStereoFactor::shared_ptr new_factor(
-          new SmartStereoFactor(smart_noise_, smartFactorsParams_, B_Pose_leftCam_));
+          new SmartStereoFactor(smart_noise_,
+                                smartFactorsParams_,
+                                B_Pose_leftCam_));
 
     if (VLOG_IS_ON(9)) {
       VLOG(9) << "Adding landmark with: " << ft.obs_.size()
@@ -261,7 +263,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
   } else {
     // Update lmk_id as a projection factor.
     gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id);
-    LOG(INFO) << "Lmk with id:" << lmk_id << " is set to be non-smart.\n";
+    LOG(INFO) << "Lmk with id:" << lmk_id << " is set to be a projection factor.\n";
     // TODO remove debug
     // state_.print("Smoother state\n");
     if (state_.find(lmk_key) == state_.end()) {
@@ -315,7 +317,8 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     // If it is not smart, just add current measurement.
     // It was a projection factor before.
     // Also add it if it was smart but now is projection factor...
-    LOG(INFO) << "Lmk with id:" << lmk_id << " added as a new projection factor.\n";
+    LOG(INFO) << "Lmk with id:" << lmk_id
+              << " added as a new projection factor.\n";
     new_imu_prior_and_other_factors_.push_back(
           gtsam::GenericStereoFactor<Pose3, Point3>
           (newObs.second, smart_noise_,
