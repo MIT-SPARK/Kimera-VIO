@@ -556,7 +556,17 @@ void Mesher::extractLmkIdsFromTriangleCluster(
     CHECK(mesh_.getPolygon(polygon_idx, &polygon))
         << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
     for (const Mesh3D::Vertex& vertex: polygon) {
-      lmk_ids->push_back(vertex.getLmkId());
+      // Ensure we are not adding more than once the same lmk_id.
+      const auto& it = std::find(lmk_ids->begin(),
+                                 lmk_ids->end(),
+                                 vertex.getLmkId());
+      if (it == lmk_ids->end()) {
+        // The lmk id is not present in the lmk_ids vector, add it.
+        lmk_ids->push_back(vertex.getLmkId());
+      } else {
+        // The lmk id is already in the lmk_ids vector, do not add it.
+        continue;
+      }
     }
   }
 }
