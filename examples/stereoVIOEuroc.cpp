@@ -137,8 +137,8 @@ void parseDatasetAndParams(const int argc, const char * const *argv,
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
+
   // Initialize Google's flags library.
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
@@ -146,8 +146,8 @@ int main(int argc, char *argv[])
 
   // initialize random seed for repeatability (only on the same machine)
   // srand(0); // still does not make RANSAC REPEATABLE across different machines
-  const int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
-  const int saveImagesSelector = 1; // 0: don't show, >0 write & save
+  static constexpr int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
+  static constexpr int saveImagesSelector = 1; // 0: don't show, >0 write & save
   VisualizationType visualizationType = static_cast<VisualizationType>(
         FLAGS_viz_type); // MESH2Dobs MESH3D MESH2DTo3Dobs
 
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
   // instantiate stereo tracker (class that tracks implements estimation front-end) and print parameters
   StereoVisionFrontEnd stereoVisionFrontEnd(trackerParams, vioParams, saveImages); // vioParams used by feature selection
   stereoVisionFrontEnd.tracker_.trackerParams_.print();
-  if(saveImages>0) {
+  if (saveImages > 0) {
     stereoVisionFrontEnd.outputImagesPath_ = "./outputStereoTrackerImages-" + dataset.dataset_name_;
     stereoVisionFrontEnd.tracker_.outputImagesPath_ = "./outputTrackerImages-" + dataset.dataset_name_;
   }
@@ -182,8 +182,9 @@ int main(int argc, char *argv[])
 
   // instantiate Logger class (stores data for matlab visualization)
   LoggerMatlab logger;
-  if (FLAGS_log_output)
+  if (FLAGS_log_output) {
     logger.openLogFiles();
+  }
 
   // timestamp 10 frames before the first (for imu calibration)
   // TODO: remove hardcoded 10
@@ -197,8 +198,8 @@ int main(int argc, char *argv[])
   static LandmarkIds mesh_lmk_ids_ground_cluster;
 
   // start actual processing of the dataset
-  for(size_t k = initial_k; k < final_k; k++)  // for each image
-  {
+  for(size_t k = initial_k; k < final_k; k++) { // for each image
+
     std::cout << "------------------- Processing frame k="<< k
               << "--------------------" << std::endl;
     std::string leftImageName = dataset.camera_image_lists["cam0"]
@@ -549,7 +550,9 @@ int main(int argc, char *argv[])
       std::cout << "stereoVIOExample completed successfully!" << std::endl;
   }
 
-  if (FLAGS_log_output)
+  if (FLAGS_log_output) {
     logger.closeLogFiles();
+  }
+
   return 0;
 }
