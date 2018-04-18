@@ -179,7 +179,7 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                                            FeatureTrack* ft) {
-  CHECK(ft->in_ba_graph_) << "Feature already in the graph!\n";
+  CHECK(!ft->in_ba_graph_) << "Feature already in the graph!\n";
 
   // Acknowledge that we have added the landmark in the graph.
   ft->in_ba_graph_ = true;
