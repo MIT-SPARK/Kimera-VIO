@@ -17,6 +17,20 @@
 
 namespace VIO {
 
+/* -------------------------------------------------------------------------- */
+RegularVioBackEnd::RegularVioBackEnd(
+    const Pose3& leftCamPose,
+    const Cal3_S2& leftCameraCalRectified,
+    const double& baseline,
+    const VioBackEndParams& vioParams) :
+  VioBackEnd(leftCamPose,
+             leftCameraCalRectified,
+             baseline,
+             vioParams) {
+  LOG(INFO) << "Using Regular VIO backend.\n";
+}
+
+/* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
@@ -120,6 +134,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   optimize(cur_id_, vioParams_.numOptimize_, delete_slots_converted_factors_);
 }
 
+/* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmk_kf,
                                         const LandmarkIds& mesh_lmk_ids,
                                         LmkIdIsSmart* lmk_id_is_smart) {
@@ -157,9 +172,11 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmk_kf,
 }
 
 
+/* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
 }
 
+/* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                                            FeatureTrack* ft) {
   CHECK(ft->in_ba_graph_) << "Feature already in the graph!\n";
@@ -198,6 +215,7 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                                            std::make_pair(new_factor, -1)));
 }
 
+/* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::updateLandmarkInGraph(
     const LandmarkId& lmk_id,
     const std::pair<FrameId, StereoPoint2>& newObs) {
@@ -303,8 +321,9 @@ void RegularVioBackEnd::updateLandmarkInGraph(
   }
 }
 
+/* -------------------------------------------------------------------------- */
 // TODO Virtualize this appropriately,
-void RegularVioBackEnd::addLandmarksToGraph(LandmarkIds landmarks_kf) {
+void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
   // Add selected landmarks to graph:
   int n_new_landmarks = 0;
   int n_updated_landmarks = 0;
