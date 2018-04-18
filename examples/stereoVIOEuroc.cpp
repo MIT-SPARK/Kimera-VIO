@@ -148,7 +148,7 @@ int main(int argc, char *argv[]) {
   // srand(0); // still does not make RANSAC REPEATABLE across different machines
   static constexpr int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
   static constexpr int saveImagesSelector = 1; // 0: don't show, >0 write & save
-  VisualizationType visualizationType = static_cast<VisualizationType>(
+  VisualizationType visualization_type = static_cast<VisualizationType>(
         FLAGS_viz_type); // MESH2Dobs MESH3D MESH2DTo3Dobs
 
   ETHDatasetParser dataset;
@@ -210,14 +210,20 @@ int main(int argc, char *argv[]) {
 
     // load stereo images
     startTime = UtilsOpenCV::GetTimeInSeconds();
-    StereoFrame stereoFrame_k(k, timestamp_k, leftImageName, rightImageName,
-        dataset.camera_info["cam0"], dataset.camera_info["cam1"],
-        dataset.camL_Pose_calR, trackerParams.getStereoMatchingParams());
-    if (FLAGS_log_output) logger.timing_loadStereoFrame_ =
-                                    UtilsOpenCV::GetTimeInSeconds() - startTime;
+    StereoFrame stereoFrame_k(
+          k, timestamp_k,
+          leftImageName, rightImageName,
+          dataset.camera_info["cam0"], dataset.camera_info["cam1"],
+          dataset.camL_Pose_calR,
+          trackerParams.getStereoMatchingParams());
+
+    if (FLAGS_log_output) {
+      logger.timing_loadStereoFrame_ =
+          UtilsOpenCV::GetTimeInSeconds() - startTime;
+    }
 
     ////////////////////////////////////////////////////////////////////////////
-    // for k == 1 (initial frame)
+    // For k == 1 (initial frame).
     if (k == initial_k) {
       // process frame
       stereoVisionFrontEnd.processFirstStereoFrame(stereoFrame_k);
@@ -267,57 +273,69 @@ int main(int argc, char *argv[]) {
     }
 
     ////////////////////////////////////////////////////////////////////////////
-    // for k > 1
-    // For visualization purposes
+    // For k > 1
+    // For visualization purposes.
     Frame frame_km1_debug = Frame(stereoVisionFrontEnd.
                                   stereoFrame_lkf_->left_frame_);
 
-    // integrate rotation measurements (rotation is used in RANSAC)
+    // Integrate rotation measurements (rotation is used in RANSAC).
     std::tie(imu_stamps, imu_accgyr) = dataset.imuData_.imu_buffer_.
-        getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
+                                     getBetweenValuesInterpolated(timestamp_lkf,
+                                                                  timestamp_k);
     gtsam::Rot3 calLrectLkf_R_camLrectKf_imu = vioBackEnd->
-        preintegrateGyroMeasurements(imu_stamps, imu_accgyr);
+                                       preintegrateGyroMeasurements(imu_stamps,
+                                                                    imu_accgyr);
 
-    ////////////////// FRONT-END ///////////////////////////////////////////////
-    // main function for tracking
+    ////////////////////////////// FRONT-END ///////////////////////////////////
+    // Main function for tracking.
     startTime = UtilsOpenCV::GetTimeInSeconds();
-    // Rotation used in 1 and 2 point ransac
+
+    // Rotation used in 1 and 2 point ransac.
     StatusSmartStereoMeasurements statusSmartStereoMeasurements =
         stereoVisionFrontEnd.processStereoFrame(stereoFrame_k,
                                                 calLrectLkf_R_camLrectKf_imu);
-    if (FLAGS_log_output) logger.timing_processStereoFrame_ =
-                                    UtilsOpenCV::GetTimeInSeconds() - startTime;
 
-    // pass info to vio if it's keyframe
+    if (FLAGS_log_output) {
+      logger.timing_processStereoFrame_ =
+          UtilsOpenCV::GetTimeInSeconds() - startTime;
+    }
+
+    // Pass info to VIO if it's keyframe.
     startTime = UtilsOpenCV::GetTimeInSeconds();
-    if (stereoVisionFrontEnd.stereoFrame_km1_->isKeyframe_) {// it's a keyframe!
+    if (stereoVisionFrontEnd.stereoFrame_km1_->isKeyframe_) {
+      // It's a keyframe!
       std::cout << "Keyframe " << k << " with: "
                 << statusSmartStereoMeasurements.second.size()
                 << " smart measurements" << std::endl;
 
-      //////////////////////////////////// FEATURE SELECTOR ////////////////////
+      ////////////////////////////// FEATURE SELECTOR //////////////////////////
       // ------------ DATA ABOUT CURRENT AND FUTURE ROBOT STATE ------------- //
       KeyframeToStampedPose posesAtFutureKeyframes;
-      // Consider using static here
+      // Consider using static here.
       size_t nrKfInHorizon =
           round(stereoVisionFrontEnd.tracker_.trackerParams_
                 .featureSelectionHorizon_ /
                 stereoVisionFrontEnd.tracker_.trackerParams_
                 .intra_keyframe_time_);
       std::cout << "nrKfInHorizon for selector: " << nrKfInHorizon << std::endl;
-      // Future poses are gt and might be far from the vio pose: we have to
-      // attach the *relative* poses from the gt to the latest vio estimate
-      // W_Pose_Bkf_gt    : ground truth pose at previous keyframe
-      // vio->W_Pose_Blkf_: vio pose at previous keyframe
-      Pose3 W_Pose_Bkf_gt = dataset.getGroundTruthState(timestamp_lkf).pose; // more important than the time, it is important that
-      // it is the same time as vio->W_Pose_Blkf_
 
-      for (size_t kk = 0; kk < nrKfInHorizon+1; kk++) {// including current pose
-        Timestamp timestamp_kk = timestamp_k + UtilsOpenCV::SecToNsec(kk *
-             stereoVisionFrontEnd.tracker_.trackerParams_.intra_keyframe_time_);
-        // Relative pose wrt ground truth at last kf
+      // Future poses are gt and might be far from the vio pose: we have to
+      // attach the *relative* poses from the gt to the latest vio estimate.
+      // W_Pose_Bkf_gt    : ground truth pose at previous keyframe.
+      // vio->W_Pose_Blkf_: vio pose at previous keyframe.
+      // More important than the time, it is important that
+      // it is the same time as vio->W_Pose_Blkf_
+      Pose3 W_Pose_Bkf_gt = dataset.getGroundTruthState(timestamp_lkf).pose;
+
+      for (size_t kk = 0; kk < nrKfInHorizon + 1; kk++) {
+        // Including current pose.
+        Timestamp timestamp_kk = timestamp_k + UtilsOpenCV::SecToNsec(
+                                   kk * stereoVisionFrontEnd.tracker_.
+                                   trackerParams_.intra_keyframe_time_);
+
+        // Relative pose wrt ground truth at last kf.
         Pose3 poseGT_km1_kk = W_Pose_Bkf_gt.between(dataset.getGroundTruthState(
-                                                        timestamp_kk).pose);
+                                                      timestamp_kk).pose);
         posesAtFutureKeyframes.push_back(
               StampedPose(vioBackEnd->W_Pose_Blkf_.compose(poseGT_km1_kk),
                           UtilsOpenCV::NsecToSec(timestamp_kk)) );
@@ -334,19 +352,22 @@ int main(int argc, char *argv[]) {
             trackerParams.featureSelectionCriterion_,
             trackerParams.featureSelectionNrCornersToSelect_,
             trackerParams.maxFeatureAge_, posesAtFutureKeyframes,
-            vioBackEnd->getCurrentStateCovariance(), dataset.dataset_name_,
+            vioBackEnd->getCurrentStateCovariance(),
+            dataset.dataset_name_,
             frame_km1_debug); // last 2 are for visualization
 
-      if (FLAGS_log_output) logger.timing_featureSelection_ =
-          UtilsOpenCV::GetTimeInSeconds() - startTime;
+      if (FLAGS_log_output) {
+        logger.timing_featureSelection_ =
+            UtilsOpenCV::GetTimeInSeconds() - startTime;
+      }
 
       TrackerStatusSummary status = statusSmartStereoMeasurements.first;
       statusSmartStereoMeasurements = std::make_pair(
-            status, // same status as before
-            trackedAndSelectedSmartStereoMeasurements);
+                                     status, // same status as before
+                                     trackedAndSelectedSmartStereoMeasurements);
 
       VLOG_IF(100, FLAGS_log_output)
-          << "overall selection time (logger.timing_featureSelection_) "
+          << "Overall selection time (logger.timing_featureSelection_) "
           << logger.timing_featureSelection_ << '\n'
           << "actual selection time (stereoTracker.tracker_.debugInfo_."
           << "featureSelectionTime_) "
@@ -363,22 +384,21 @@ int main(int argc, char *argv[]) {
       }
 
       //////////////////// BACK-END ////////////////////////////////////////////
-      // get IMU data
+      // Get IMU data.
       std::tie(imu_stamps, imu_accgyr) = dataset.imuData_.imu_buffer_
-          .getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
+                                    .getBetweenValuesInterpolated(timestamp_lkf,
+                                                                  timestamp_k);
 
-      // process data with VIO
+      // Process data with VIO.
       startTime = UtilsOpenCV::GetTimeInSeconds();
 
-
-      std::cout << " Size of mesh_lmk_ids_ground_cluster : " << mesh_lmk_ids_ground_cluster.size() << std::endl; // TODO remove
       if (vioParams.addBetweenStereoFactors_ == true &&
           stereoVisionFrontEnd.trackerStatusSummary_.kfTrackingStatus_stereo_ ==
                                                               Tracker::VALID ) {
         vioBackEnd->addVisualInertialStateAndOptimize(
-              timestamp_k, // current time for fixed lag smoother
-              statusSmartStereoMeasurements, // vision data
-              imu_stamps, imu_accgyr, // inertial data
+              timestamp_k, // Current time for fixed lag smoother.
+              statusSmartStereoMeasurements, // Vision data.
+              imu_stamps, imu_accgyr, // Inertial data.
               mesh_lmk_ids_ground_cluster,
               stereoVisionFrontEnd.getRelativePoseBodyStereo()); // optional: pose estimate from stereo ransac
       } else {
@@ -386,7 +406,7 @@ int main(int argc, char *argv[]) {
               timestamp_k,
               statusSmartStereoMeasurements,
               imu_stamps, imu_accgyr,
-              mesh_lmk_ids_ground_cluster); // same but no pose
+              mesh_lmk_ids_ground_cluster); // Same but no pose.
       }
 
       if (FLAGS_log_output) {
@@ -395,29 +415,22 @@ int main(int argc, char *argv[]) {
         ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////
         startTime = UtilsOpenCV::GetTimeInSeconds();
         logger.logBackendResults(dataset, stereoVisionFrontEnd, vioBackEnd,
-                                 timestamp_lkf,timestamp_k,k);
+                                 timestamp_lkf, timestamp_k,k);
         logger.W_Pose_Bprevkf_vio_ = vioBackEnd->W_Pose_Blkf_;
         logger.timing_loggerBackend_ =
-                                    UtilsOpenCV::GetTimeInSeconds() - startTime;
+            UtilsOpenCV::GetTimeInSeconds() - startTime;
         logger.displayOverallTiming();
       }
       //////////////////////////////////////////////////////////////////////////
 
       ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////
       if (FLAGS_viz) {
-        // DEBUG: this is the image from which the triangulation is computed
-        //cv::Mat img = stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_.clone();
-        //cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
-        //UtilsOpenCV::DrawCrossesInPlace(img, stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.getValidKeypoints(), cv::Scalar(0, 0, 255),0.4);
-        //cv::imshow("Valid keypoints", img);
-        //cv::waitKey(100);
-
-        // get camera pose
+        // Get camera pose.
         gtsam::Pose3 W_Pose_camlkf_vio =
                 vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
 
-        switch (visualizationType) {
-        // computes and visualizes 2D mesh
+        switch (visualization_type) {
+        // Computes and visualizes 2D mesh.
         // vertices: all leftframe kps with lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv
         case VisualizationType::MESH2D: {
@@ -426,7 +439,8 @@ int main(int argc, char *argv[]) {
                                                           .visualizeMesh2D(100);
           break;
         }
-        // computes and visualizes a 3D mesh from 2D triangulation
+
+        // Computes and visualizes a 3D mesh from 2D triangulation.
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv
         // (updateMesh3D also filters out geometrically)
@@ -438,7 +452,8 @@ int main(int argc, char *argv[]) {
               << "maxGradInTriangle being very large.";
           break;
         }
-        // computes and visualizes 2D mesh
+
+        // Computes and visualizes 2D mesh.
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
         case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
@@ -448,7 +463,8 @@ int main(int argc, char *argv[]) {
                                                                        100);
           break;
         }
-        // computes and visualizes 3D mesh from 2D triangulation
+
+        // Computes and visualizes 3D mesh from 2D triangulation.
         // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
         // (updateMesh3D also filters out geometrically)
@@ -498,7 +514,7 @@ int main(int argc, char *argv[]) {
           break;
         }
 
-        // computes and visualizes 3D mesh
+        // Computes and visualizes 3D mesh.
         // vertices: all VALID VIO points (that can be triangulated)
         // triangles: the ones produced by CGAL
         case VisualizationType::MESH3D: {// 3D mesh from CGAL using VIO points
@@ -515,13 +531,15 @@ int main(int argc, char *argv[]) {
           break;
 #endif
         }
-        // computes and visualizes a 3D point cloud
+
+        // Computes and visualizes a 3D point cloud.
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
           vector<Point3> points3d = vioBackEnd->get3DPoints();
           visualizer.visualizeMap3D(points3d);
           break;
         }
-        // computes and visualizes a 3D point cloud
+
+        // Computes and visualizes a 3D point cloud.
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
           MyVioBackEnd::PointsWithIdMap pointsWithId;
           vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
@@ -529,14 +547,17 @@ int main(int argc, char *argv[]) {
           //visualizer.visualizePoints3D(pointsWithId, mesher.map_points_3d_);
           break;
         }
+
         case VisualizationType::NONE: {
           break;
         }
+
         default:
           throw std::runtime_error("stereoVIOEuroc: unknown visualizationType");
           break;
         }
-        // visualize trajectory
+
+        // Visualize trajectory.
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory3D(
                       &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
@@ -546,8 +567,9 @@ int main(int argc, char *argv[]) {
       timestamp_lkf = timestamp_k;
     }
 
-    if (k == final_k-1)
+    if (k == final_k - 1) {
       std::cout << "stereoVIOExample completed successfully!" << std::endl;
+    }
   }
 
   if (FLAGS_log_output) {
