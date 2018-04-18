@@ -393,9 +393,12 @@ public:
 
   // Uses landmark table to add factors in graph.
   virtual void addLandmarksToGraph(LandmarkIds landmarks_kf);
-  virtual void addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& lm);
-  virtual void updateLandmarkInGraph(const LandmarkId lm_id,
-                               const std::pair<FrameId, StereoPoint2>& newObs);
+  // Adds a landmark to the graph for the first time.
+  virtual void addLandmarkToGraph(const LandmarkId& lm_id,
+                                  FeatureTrack* lm);
+  virtual void updateLandmarkInGraph(
+      const LandmarkId& lm_id,
+      const std::pair<FrameId, StereoPoint2>& newObs);
   void optimize(const FrameId& cur_id, const int max_iterations,
                 const std::vector<size_t>& extra_factor_slots_to_delete =
                                                         std::vector<size_t>());

@@ -344,13 +344,16 @@ LandmarkIds VioBackEnd::addStereoMeasurementsToFeatureTracks(int frameNum, const
   }
   return landmarks_kf;
 }
-/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id)
-{
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id) {
   new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
-          gtsam::Symbol('v', frame_id), gtsam::Vector3::Zero(), zeroVelocityPriorNoise_));
-  if (verbosity_ >= 7) {std::cout << "No motion detected, adding zero velocity prior" << std::endl;}
+        boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+          gtsam::Symbol('v', frame_id),
+          gtsam::Vector3::Zero(),
+          zeroVelocityPriorNoise_));
+  if (verbosity_ >= 7) {
+    std::cout << "No motion detected, adding zero velocity prior" << std::endl;
+  }
 }
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void VioBackEnd::addBetweenFactor(const FrameId& from_id, const FrameId& to_id, const gtsam::Pose3 from_id_POSE_to_id)
@@ -372,17 +375,25 @@ void VioBackEnd::addBetweenFactor(const FrameId& from_id, const FrameId& to_id, 
 
   if (verbosity_ >= 7) {std::cout << "addBetweenFactor" << std::endl;}
 }
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void VioBackEnd::addNoMotionFactor(const FrameId& from_id, const FrameId& to_id)
-{
+void VioBackEnd::addNoMotionFactor(const FrameId& from_id,
+                                   const FrameId& to_id) {
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
-          gtsam::Symbol('x', from_id), gtsam::Symbol('x', to_id), Pose3(), noMotionPriorNoise_));
+          gtsam::Symbol('x', from_id),
+          gtsam::Symbol('x', to_id),
+          Pose3(),
+          noMotionPriorNoise_));
 
   debugInfo_.numAddedNoMotionF_++;
 
-  if (verbosity_ >= 7) {std::cout << "No motion detected, adding no relative motion prior" << std::endl;}
+  if (verbosity_ >= 7) {
+    std::cout << "No motion detected, adding no relative motion prior"
+              << std::endl;
+  }
 }
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void VioBackEnd::addConstantVelocityFactor(const FrameId& from_id, const FrameId& to_id)
 {
@@ -410,7 +421,7 @@ void VioBackEnd::addLandmarksToGraph(LandmarkIds landmarks_kf)
 
     if(!ft.in_ba_graph_)
     {
-      addLandmarkToGraph(lm_id, ft);
+      addLandmarkToGraph(lm_id, &ft);
       ++n_new_landmarks;
     }
     else
@@ -431,23 +442,22 @@ void VioBackEnd::addLandmarksToGraph(LandmarkIds landmarks_kf)
   }
 }
 
-/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void VioBackEnd::addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& ft)
-{
-  if(ft.in_ba_graph_)
-    throw std::runtime_error("addLandmarkToGraph: feature already in the graph!");
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id, FeatureTrack* ft) {
+  CHECK_NOTNULL(ft);
+  CHECK(ft->in_ba_graph_) << "Feature already in the graph!";
 
-  ft.in_ba_graph_ = true;
+  ft->in_ba_graph_ = true;
 
   // We use a unit pinhole projection camera for the smart factors to be more efficient.
   SmartStereoFactor::shared_ptr new_factor(
       new SmartStereoFactor(smart_noise_, smartFactorsParams_, B_Pose_leftCam_));
 
-  if (verbosity_ >= 9) {std::cout << "Adding landmark with: " << ft.obs_.size() << " landmarks to graph, with keys: ";}
+  if (verbosity_ >= 9) {std::cout << "Adding landmark with: " << ft->obs_.size() << " landmarks to graph, with keys: ";}
   if (verbosity_ >= 9){new_factor->print();}
 
   // add observations to smart factor
-  for (const std::pair<FrameId,StereoPoint2>& obs : ft.obs_)
+  for (const std::pair<FrameId,StereoPoint2>& obs : ft->obs_)
   {
     new_factor->add(obs.second, gtsam::Symbol('x', obs.first), stereoCal_);
     if (verbosity_ >= 9) {std::cout << " " <<  obs.first;}
@@ -457,9 +467,12 @@ void VioBackEnd::addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& ft)
   new_smart_factors_.insert(std::make_pair(lm_id, new_factor));
   old_smart_factors_.insert(std::make_pair(lm_id, std::make_pair(new_factor, -1)));
 }
-/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void VioBackEnd::updateLandmarkInGraph(const LandmarkId lm_id, const std::pair<FrameId, StereoPoint2>& newObs)
-{
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+void VioBackEnd::updateLandmarkInGraph(
+    const LandmarkId& lm_id,
+    const std::pair<FrameId, StereoPoint2>& newObs) {
+
   // Update existing smart-factor
   auto old_smart_factors_it = old_smart_factors_.find(lm_id);
   if (old_smart_factors_it == old_smart_factors_.end())

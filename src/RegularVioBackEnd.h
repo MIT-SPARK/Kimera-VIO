@@ -46,7 +46,7 @@ class RegularVioBackEnd: public VioBackEnd {
   // TODO Virtualize this appropriately,
   void addLandmarksToGraph(LandmarkIds landmarks_kf);
 
-  void addLandmarkToGraph(const LandmarkId& lm_id, FeatureTrack& lm);
+  void addLandmarkToGraph(const LandmarkId& lm_id, FeatureTrack* lm);
 
   void updateLandmarkInGraph(const LandmarkId& lm_id,
                              const std::pair<FrameId, StereoPoint2>& newObs);
