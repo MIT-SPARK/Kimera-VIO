@@ -474,7 +474,7 @@ public:
                                                    const bool& round = true);
 
   /* ------------------------------------------------------------------------ */
-  void showSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
+  void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
                         const std::vector<size_t>& delete_slots,
                         const std::string& message,
                         const bool& showDetails) const;

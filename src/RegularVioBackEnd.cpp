@@ -15,6 +15,8 @@
 
 #include "RegularVioBackEnd.h"
 
+#include <gtsam/slam/ProjectionFactor.h>
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -27,6 +29,9 @@ RegularVioBackEnd::RegularVioBackEnd(
              leftCameraCalRectified,
              baseline,
              vioParams) {
+  mono_noise_ = gtsam::noiseModel::Isotropic::Sigma(
+                                    2, vioParams_.smartNoiseSigma_);
+  mono_cal_ = boost::make_shared<Cal3_S2>(stereoCal_->calibration());
   LOG(INFO) << "Using Regular VIO backend.\n";
 }
 
@@ -300,12 +305,23 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         LOG(INFO) << "Lmk with id: " << lmk_id
                   << " added as a new projection factor with pose with id: "
                   << static_cast<int>(cam_key) << ".\n";
-        new_imu_prior_and_other_factors_.push_back(
-              gtsam::GenericStereoFactor<Pose3, Point3>
-              (sp2, smart_noise_,
-               cam_key,
-               lmk_key,
-               stereoCal_, B_Pose_leftCam_));
+        if (!std::isnan(sp2.uR())) {
+          new_imu_prior_and_other_factors_.push_back(
+                gtsam::GenericStereoFactor<Pose3, Point3>
+                (sp2, smart_noise_,
+                 cam_key,
+                 lmk_key,
+                 stereoCal_, B_Pose_leftCam_));
+        } else {
+          new_imu_prior_and_other_factors_.push_back(
+                gtsam::GenericProjectionFactor<Pose3, Point3>
+                (gtsam::Point2(sp2.uL(),
+                               sp2.v()),
+                 mono_noise_,
+                 cam_key,
+                 lmk_key,
+                 mono_cal_, B_Pose_leftCam_));
+        }
       }
 
       // Make sure that the smart factor that we converted to projection
@@ -327,12 +343,24 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     LOG(INFO) << "Lmk with id: " << lmk_id
               << " added as a new projection factor with pose with id: "
               << newObs.first << ".\n";
-    new_imu_prior_and_other_factors_.push_back(
-          gtsam::GenericStereoFactor<Pose3, Point3>
-          (newObs.second, smart_noise_,
-           gtsam::Symbol('x', newObs.first),
-           lmk_key,
-           stereoCal_, B_Pose_leftCam_));
+    if (!std::isnan(newObs.second.uR())) {
+      new_imu_prior_and_other_factors_.push_back(
+            gtsam::GenericStereoFactor<Pose3, Point3>
+            (newObs.second, smart_noise_,
+             gtsam::Symbol('x', newObs.first),
+             lmk_key,
+             stereoCal_, B_Pose_leftCam_));
+    } else {
+      new_imu_prior_and_other_factors_.push_back(
+            gtsam::GenericProjectionFactor<Pose3, Point3>
+              (gtsam::Point2(newObs.second.uL(),
+                             newObs.second.v()),
+               mono_noise_,
+               gtsam::Symbol('x', newObs.first),
+               lmk_key,
+               mono_cal_, B_Pose_leftCam_)
+            );
+    }
   }
 }
 

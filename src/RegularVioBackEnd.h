@@ -63,6 +63,9 @@ private:
   LmkIdIsSmart lmk_id_is_smart_;
   std::vector<size_t> delete_slots_converted_factors_;
 
+  gtsam::SharedNoiseModel mono_noise_;
+  boost::shared_ptr<Cal3_S2> mono_cal_;
+
 private:
   /* ------------------------------------------------------------------------ */
   void isLandmarkSmart(const LandmarkIds& lmk_kf,

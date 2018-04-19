@@ -617,7 +617,7 @@ void VioBackEnd::optimize(
     }
   }
   if (verbosity_ >= 8){
-    showSmootherInfo(new_factors_tmp,delete_slots,
+    printSmootherInfo(new_factors_tmp,delete_slots,
                      "Smoother status before update:",
                      verbosity_ >= 9);
   }
@@ -659,6 +659,11 @@ void VioBackEnd::optimize(
     std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
         << "and index " << symb.index() << std::endl;
     smoother_->getFactors().print("smoother's factors:\n");
+    state_.print("State values\n");
+
+    printSmootherInfo(new_factors_tmp,delete_slots,
+                     "CATCHING EXCEPTION",
+                     false);
     throw;
   }
   // update slots of smart factors:
@@ -853,7 +858,7 @@ gtsam::Pose3 VioBackEnd::GuessPoseFromIMUmeasurements(
 
 
 /* -------------------------------------------------------------------------- */
-void VioBackEnd::showSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
+void VioBackEnd::printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
     const std::vector<size_t>& delete_slots,
     const string& message,
     const bool& showDetails) const {
@@ -864,12 +869,15 @@ void VioBackEnd::showSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors
     auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
     if (gsf){
       std::cout << " SF(valid: " << gsf->isValid() <<
-                   ", deg: " << gsf->isDegenerate() << " isCheir: " << gsf->isPointBehindCamera() << "): " << std::endl;
+                   ", deg: " << gsf->isDegenerate()
+                << " isCheir: " << gsf->isPointBehindCamera() << "): " << std::endl;
     }
-    if (g) { g->printKeys(); }
+    if (g) {
+      g->printKeys();
+    }
   }
   std::cout << "nr of new factors to add: " << new_factors_tmp.size() << " with factors:" << std::endl;
-  for (auto& g : new_factors_tmp){
+  for (auto& g : new_factors_tmp) {
     auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
     if (gsf){
       std::cout << " SF(valid: " << gsf->isValid() <<
