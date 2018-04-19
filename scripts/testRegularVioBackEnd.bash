@@ -4,6 +4,7 @@
 # does.
 $PROJECT_PATH/build/tests/testRegularVioBackEnd \
 --logtostderr=1 \
+--log_prefix=0 \
 --colorlogtostderr=1 \
 --v=1000 # Verbosity level.
 
