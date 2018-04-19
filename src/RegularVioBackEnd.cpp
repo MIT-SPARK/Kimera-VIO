@@ -184,17 +184,19 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                                              B_Pose_leftCam_));
 
   if (VLOG_IS_ON(9)) {
-    VLOG(9) << "Adding landmark with: " << ft->obs_.size()
-            << " observations to graph, with keys:\n";
+    VLOG(9) << "Adding landmark with id: " << lmk_id << " for the first time to graph. \n"
+            << "Nr of observations of the lmk: " << ft->obs_.size() << " observations.\n";
     new_factor->print();
   }
 
   // Add observations to smart factor.
+  VLOG(9) << "Creating smart factor involving lmk with id: " << lmk_id;
   for (const std::pair<FrameId, StereoPoint2>& obs: ft->obs_) {
     new_factor->add(obs.second,
                     gtsam::Symbol('x', obs.first),
                     stereoCal_);
-    VLOG(9) << "Observation frame id:" <<  obs.first;
+    VLOG(9) << "SmartFactor: adding observation of lmk with id: " << lmk_id
+            << " from frame with id: " << obs.first;
   }
 
   // Add new factor to suitable structures.
@@ -215,7 +217,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
   }
   bool is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
   if (is_lmk_smart == true) {
-    LOG(INFO) << "Lmk with id:" << lmk_id << " is set to be smart.\n";
+    LOG(INFO) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
     // Update existing smart-factor.
     auto old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end())
@@ -247,11 +249,11 @@ void RegularVioBackEnd::updateLandmarkInGraph(
   } else {
     // Update lmk_id as a projection factor.
     gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id);
-    LOG(INFO) << "Lmk with id:" << lmk_id << " is set to be a projection factor.\n";
+    LOG(INFO) << "Lmk with id: " << lmk_id << " is set to be a projection factor.\n";
     // TODO remove debug
     // state_.print("Smoother state\n");
     if (state_.find(lmk_key) == state_.end()) {
-      LOG(INFO) << "Lmk with id:" << lmk_id << " is not found in state.\n";
+      LOG(INFO) << "Lmk with id: " << lmk_id << " is not found in state.\n";
       // We did not find the lmk in the state.
       // It was a smart factor before.
       // Convert smart to projection.
@@ -304,8 +306,9 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     // If it is not smart, just add current measurement.
     // It was a projection factor before.
     // Also add it if it was smart but now is projection factor...
-    LOG(INFO) << "Lmk with id:" << lmk_id
-              << " added as a new projection factor.\n";
+    LOG(INFO) << "Lmk with id: " << lmk_id
+              << " added as a new projection factor with pose with id: "
+              << newObs.first << ".\n";
     new_imu_prior_and_other_factors_.push_back(
           gtsam::GenericStereoFactor<Pose3, Point3>
           (newObs.second, smart_noise_,
