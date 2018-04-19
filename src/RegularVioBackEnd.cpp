@@ -135,45 +135,34 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 }
 
 /* -------------------------------------------------------------------------- */
-void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmk_kf,
-                                        const LandmarkIds& mesh_lmk_ids,
-                                        LmkIdIsSmart* lmk_id_is_smart) {
-  CHECK_NOTNULL(lmk_id_is_smart);
-  for (const LandmarkId& lmk_id: lmk_kf) {
-    const auto& lmk_id_slot = lmk_id_is_smart->find(lmk_id);
-    if (std::find(mesh_lmk_ids.begin(),
-                  mesh_lmk_ids.end(), lmk_id) ==
-        mesh_lmk_ids.end()) {
-      // This lmk is not involved in any regularity.
-      if (lmk_id_slot == lmk_id_is_smart->end()) {
-        // We did not find the lmk_id in the lmk_id_is_smart_ map.
-        // Add it as a smart factor.
-        lmk_id_is_smart->insert(std::make_pair(lmk_id, true));
-      } else {
-        // Let the lmk be as it was before (note is not allowed to go from
-        // projection to smart.
-        continue;
-      }
+// TODO Virtualize this appropriately,
+void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
+  // Add selected landmarks to graph:
+  int n_new_landmarks = 0;
+  int n_updated_landmarks = 0;
+  debugInfo_.numAddedSmartF_ += landmarks_kf.size();
+
+  for (const LandmarkId& lmk_id : landmarks_kf) {
+    FeatureTrack& ft = featureTracks_.at(lmk_id);
+    if(ft.obs_.size()<2) // we only insert feature tracks of length at least 2 (otherwise uninformative)
+      continue;
+
+    if(!ft.in_ba_graph_) {
+      addLandmarkToGraph(lmk_id, &ft);
+      ++n_new_landmarks;
     } else {
-      // This lmk is involved in regular factor, hence it should be a variable in
-      // the factor graph (connected to projection factor).
-      std::cout << "Lmk_id = " << lmk_id
-                << " Needs to be proj. factor!" << std::endl; // TODO delete this!
-      if (lmk_id_slot == lmk_id_is_smart->end()) {
-        // We did not find the lmk_id in the lmk_id_is_smart_ map.
-        // Add it as a projection factor.
-        lmk_id_is_smart->insert(std::make_pair(lmk_id, false));
-      } else {
-        // Change it to a projection factor.
-        lmk_id_is_smart->at(lmk_id) = false;
-      }
+      const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
+
+      // Sanity check.
+      CHECK_EQ(obs_kf.first, cur_id_) << "Last obs is not from the current"
+                                         " keyframe!\n";
+
+      updateLandmarkInGraph(lmk_id, obs_kf);
+      ++n_updated_landmarks;
     }
   }
-}
-
-
-/* -------------------------------------------------------------------------- */
-void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
+  VLOG(7) << "Added " << n_new_landmarks << " new landmarks\n"
+          << "Updated " << n_updated_landmarks << " landmarks in graph\n";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -220,6 +209,10 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     const LandmarkId& lmk_id,
     const std::pair<FrameId, StereoPoint2>& newObs) {
 
+  if (lmk_id_is_smart_.find(lmk_id) == lmk_id_is_smart_.end()) {
+    // We are not tracking whether the lmk is smart or not, assume it is smart.
+
+  }
   bool is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
   if (is_lmk_smart == true) {
     LOG(INFO) << "Lmk with id:" << lmk_id << " is set to be smart.\n";
@@ -273,15 +266,16 @@ void RegularVioBackEnd::updateLandmarkInGraph(
       // Add landmark value to graph.
       LOG(INFO) << "PRINT FACTOR of lmk_id: " << lmk_id << ".\n" ;
       old_factor->print();
+      // TODO make sure that if point is not valid it works.
       CHECK(old_factor->point().valid())
           <<  "Does not have a value for point in proj. factor.\n";
       new_values_.insert(lmk_key, *old_factor->point());
       // TODO remove lose prior only used for debugging!
-      gtsam::SharedNoiseModel model = gtsam::noiseModel::Isotropic::Sigma(
-        3, 0.5); // 0.5 meters std variation.
-      new_imu_prior_and_other_factors_.push_back(gtsam::PriorFactor<Point3>(
-                                                   lmk_key, *old_factor->point(),
-                                                   model));
+      //gtsam::SharedNoiseModel model = gtsam::noiseModel::Isotropic::Sigma(
+      //  3, 0.5); // 0.5 meters std variation.
+      //new_imu_prior_and_other_factors_.push_back(gtsam::PriorFactor<Point3>(
+      //                                             lmk_key, *old_factor->point(),
+      //                                             model));
       LOG(INFO) << " Performing conversion for lmk_id: " << lmk_id << "\n";
 
       // Convert smart factor to multiple projection factors.
@@ -322,34 +316,59 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO Virtualize this appropriately,
-void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
-  // Add selected landmarks to graph:
-  int n_new_landmarks = 0;
-  int n_updated_landmarks = 0;
-  debugInfo_.numAddedSmartF_ += landmarks_kf.size();
-
-  for (const LandmarkId& lmk_id : landmarks_kf) {
-    FeatureTrack& ft = featureTracks_.at(lmk_id);
-    if(ft.obs_.size()<2) // we only insert feature tracks of length at least 2 (otherwise uninformative)
-      continue;
-
-    if(!ft.in_ba_graph_) {
-      addLandmarkToGraph(lmk_id, &ft);
-      ++n_new_landmarks;
+void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmk_kf,
+                                        const LandmarkIds& mesh_lmk_ids,
+                                        LmkIdIsSmart* lmk_id_is_smart) {
+  CHECK_NOTNULL(lmk_id_is_smart);
+  for (const LandmarkId& lmk_id: lmk_kf) {
+    const auto& lmk_id_slot = lmk_id_is_smart->find(lmk_id);
+    if (std::find(mesh_lmk_ids.begin(),
+                  mesh_lmk_ids.end(), lmk_id) ==
+        mesh_lmk_ids.end()) {
+      // This lmk is not involved in any regularity.
+      if (lmk_id_slot == lmk_id_is_smart->end()) {
+        // We did not find the lmk_id in the lmk_id_is_smart_ map.
+        // Add it as a smart factor.
+        lmk_id_is_smart->insert(std::make_pair(lmk_id, true));
+      } else {
+        // Let the lmk be as it was before (note is not allowed to go from
+        // projection to smart.
+        continue;
+      }
     } else {
-      const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
-
-      // Sanity check.
-      CHECK_EQ(obs_kf.first, cur_id_) << "Last obs is not from the current"
-                                         " keyframe!\n";
-
-      updateLandmarkInGraph(lmk_id, obs_kf);
-      ++n_updated_landmarks;
+      if (std::find(mesh_lmk_ids.begin(),
+                    mesh_lmk_ids.end(), lmk_id) ==
+          mesh_lmk_ids.end()) {
+        // This lmk is not involved in any regularity.
+        if (lmk_id_slot == lmk_id_is_smart->end()) {
+          // We did not find the lmk_id in the lmk_id_is_smart_ map.
+          // Add it as a smart factor.
+          lmk_id_is_smart->insert(std::make_pair(lmk_id, true));
+        } else {
+          // Let the lmk be as it was before (note is not allowed to go from
+          // projection to smart.
+          continue;
+        }
+      } else {
+        // This lmk is involved in regular factor, hence it should be a variable in
+        // the factor graph (connected to projection factor).
+        std::cout << "Lmk_id = " << lmk_id
+                  << " Needs to be proj. factor!" << std::endl; // TODO delete this!
+        if (lmk_id_slot == lmk_id_is_smart->end()) {
+          // We did not find the lmk_id in the lmk_id_is_smart_ map.
+          // Add it as a projection factor.
+          lmk_id_is_smart->insert(std::make_pair(lmk_id, false));
+        } else {
+          // Change it to a projection factor.
+          lmk_id_is_smart->at(lmk_id) = false;
+        }
+      }
     }
   }
-  VLOG(7) << "Added " << n_new_landmarks << " new landmarks\n"
-          << "Updated " << n_updated_landmarks << " landmarks in graph\n";
+}
+
+/* -------------------------------------------------------------------------- */
+void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
 }
 
 } // namespace VIO
