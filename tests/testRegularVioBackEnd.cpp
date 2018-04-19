@@ -33,7 +33,7 @@ static constexpr double tol = 1e-7;
 
 /* ************************************************************************* */
 // Parameters
-static constexpr int num_key_frames = 10; // number of frames of the synthetic scene
+static constexpr int num_key_frames = 20; // number of frames of the synthetic scene
 static const Vector3 p0(0, 0, 0); // initial pose of the robot camera
 static const Vector3 v(1.0, 0, 0); // velocity of the robot, per time_step
 static constexpr int time_step = 1e9; // elapsed time between two consecutive frames is 1 second (1e9 nsecs)
@@ -62,6 +62,7 @@ vector<Point3> CreateScene() {
 
   return points;
 }
+
 /* -------------------------------------------------------------------------- */
 StereoPoses CreateCameraPoses(
     const int& num_keyframes,
@@ -116,6 +117,7 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
   vioParams.landmarkDistanceThreshold_ = 30; // We simulate points 20m away.
   vioParams.imuIntegrationSigma_ = 1e-4;
   vioParams.horizon_ = 100;
+  vioParams.landmarkDistanceThreshold_ = 50;
 
   // Create 3D points
   vector<Point3> lmk_pts = CreateScene();
@@ -154,6 +156,9 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
   // TODO add regularities vector.
   // TODO fill mesh_lmk_ids with a triplet of lmk_ids.
   LandmarkIds mesh_lmk_ids_ground_cluster;
+  for (int lmk_id = 0; lmk_id < num_lmk_pts; lmk_id++) {
+    mesh_lmk_ids_ground_cluster.push_back(lmk_id);
+  }
 
   vector<StatusSmartStereoMeasurements> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
@@ -163,9 +168,6 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
                                      cam_params);
     SmartStereoMeasurements measurement_frame;
     for (int lmk_id = 0; lmk_id < num_lmk_pts; lmk_id++) {
-      if (mesh_lmk_ids_ground_cluster.size() < num_lmk_pts) {
-        mesh_lmk_ids_ground_cluster.push_back(lmk_id);
-      }
       Point2 px_left  = cam_left.project (lmk_pts.at(lmk_id));
       Point2 px_right = cam_right.project(lmk_pts.at(lmk_id));
       StereoPoint2 px_lr(px_left.x(),
@@ -222,13 +224,20 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
     }
     cout << "at frame " << k << " nr factors: " << nrFactorsInSmoother << endl;
 
+    nlfg.print("PRINTING Graph at timestamp: ");
 #ifdef USE_COMBINED_IMU_FACTOR
     EXPECT(nrFactorsInSmoother == 3 + k + 8); // 3 priors, 1 imu per time stamp, 8 smart factors
 #else
     if (k == 1) {
-      EXPECT(nrFactorsInSmoother == 3 + 2 * k); // 3 priors, 1 imu + 1 between per time stamp: we do not include smart factors of length 1
+      // 3 priors, 1 imu + 1 between per time stamp:
+      // we do not include smart factors of length 1.
+      EXPECT(nrFactorsInSmoother == 3 + 2 * k);
+    } else if (k == 2){
+      // 3 priors, 1 imu + 1 between per time stamp, 8 smart factors.
+      EXPECT(nrFactorsInSmoother == 3 + 2 * k + 8);
     } else {
-      EXPECT(nrFactorsInSmoother == 3 + 2 * k + 8); // 3 priors, 1 imu + 1 between per time stamp, 8 smart factors
+      // 3 priors, 1 imu + 1 between per time stamp, 8 * k projection factors.
+      EXPECT(nrFactorsInSmoother == 3 + 2 * k + 8 * k);
     }
 #endif
     // Check the results!
@@ -247,10 +256,158 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
 }
 
 /* ************************************************************************** */
-int main(int argc, char *argv[]) {
-  // Initialize the data!
-  // initializeData();
+TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
+  // Additional parameters.
+  VioBackEndParams vioParams;
+  vioParams.landmarkDistanceThreshold_ = 30; // We simulate points 20m away.
+  vioParams.imuIntegrationSigma_       = 1e-4;
+  vioParams.horizon_                   = 100;
+  vioParams.landmarkDistanceThreshold_ = 50;
 
+  // Create 3D points
+  vector<Point3> lmk_pts = CreateScene();
+  const int num_lmk_pts = lmk_pts.size();
+
+  // Create cameras.
+  static const     double fov          = M_PI / 3 * 2;
+  // Create image size to initiate meaningful intrinsic camera matrix.
+  static constexpr double img_height   = 600;
+  static constexpr double img_width    = 800;
+  static const     double fx           = img_width / 2 / tan(fov / 2);
+  static const     double fy           = fx;
+  static constexpr double s            = 0;
+  static const     double u0           = img_width / 2;
+  static const     double v0           = img_height / 2;
+
+  Cal3_S2 cam_params(fx, fy, s, u0, v0);
+
+  // Create camera poses and IMU data.
+  StereoPoses poses;
+  ImuFrontEnd imu_buf;
+  poses = CreateCameraPoses(num_key_frames, baseline, p0, v);
+  CreateImuBuffer(imu_buf, num_key_frames, v, imu_bias,
+                  vioParams.n_gravity_,
+                  time_step, t_start);
+
+  // Create measurements.
+  //    using SmartStereoMeasurement = pair<LandmarkId,StereoPoint2>;
+  //    using SmartStereoMeasurements = vector<SmartStereoMeasurement>;
+  //    using StatusSmartStereoMeasurements =
+  //                        pair<TrackerStatusSummary, SmartStereoMeasurements>;
+  TrackerStatusSummary tracker_status_valid;
+  tracker_status_valid.kfTrackingStatus_mono_   = Tracker::VALID;
+  tracker_status_valid.kfTrackingStatus_stereo_ = Tracker::VALID;
+
+
+  vector<StatusSmartStereoMeasurements> all_measurements;
+  for (size_t i = 0; i < num_key_frames; i++) {
+    PinholeCamera<Cal3_S2> cam_left (poses.at(i).first,
+                                     cam_params);
+    PinholeCamera<Cal3_S2> cam_right(poses.at(i).second,
+                                     cam_params);
+    SmartStereoMeasurements measurement_frame;
+    for (int lmk_id = 0; lmk_id < num_lmk_pts; lmk_id++) {
+      Point2 px_left  = cam_left.project (lmk_pts.at(lmk_id));
+      Point2 px_right = cam_right.project(lmk_pts.at(lmk_id));
+      StereoPoint2 px_lr(px_left.x(),
+                         px_right.x(),
+                         px_left.y());
+      EXPECT_DOUBLES_EQUAL(px_left.y(),
+                           px_right.y(),
+                           tol);
+      measurement_frame.push_back(make_pair(lmk_id, px_lr));
+    }
+    all_measurements.push_back(make_pair(tracker_status_valid,
+                                         measurement_frame));
+  }
+
+  // Create regular VIO.
+  Pose3 B_pose_camLrect(Rot3::identity(),
+                        Vector3::Zero());
+  boost::shared_ptr<RegularVioBackEnd> regular_vio =
+      boost::make_shared<RegularVioBackEnd>(B_pose_camLrect,
+                                            cam_params,
+                                            baseline,
+                                            vioParams);
+
+  regular_vio->initializeStateAndSetPriors(t_start,
+                                           poses.at(0).first,
+                                           v,
+                                           imu_bias);
+
+
+  // For each frame, add landmarks and optimize.
+  for (int64_t k = 1; k < num_key_frames; k++) {
+    // Timestamp for the current keyframe and the next frame.
+    Timestamp timestamp_lkf = (k - 1) * time_step + t_start;
+    Timestamp timestamp_k   = k * time_step + t_start;
+
+    // Get the IMU data.
+    ImuStamps imu_stamps;
+    ImuAccGyr imu_accgyr;
+    tie(imu_stamps, imu_accgyr) = imu_buf.getBetweenValuesInterpolated(
+                                                    timestamp_lkf, timestamp_k);
+
+    // TODO add regularities vector.
+    // TODO fill mesh_lmk_ids with a triplet of lmk_ids.
+    LandmarkIds mesh_lmk_ids_ground_cluster;
+    if ((k - 1) < num_lmk_pts) {
+      mesh_lmk_ids_ground_cluster.push_back(k - 1);
+    }
+
+    // Process data with VIO.
+    regular_vio->addVisualInertialStateAndOptimize(
+          timestamp_k, // Current time for fixed lag smoother.
+          all_measurements[k], // Vision data.
+          imu_stamps, imu_accgyr, // Inertial data.
+          mesh_lmk_ids_ground_cluster); // Lmk ids with regularities.
+
+    NonlinearFactorGraph nlfg = regular_vio->smoother_->getFactors();
+    size_t nrFactorsInSmoother = 0;
+    for (auto f: nlfg){ // Count the number of nonempty factors.
+      if(f)
+        nrFactorsInSmoother++;
+    }
+    cout << "at frame " << k << " nr factors: " << nrFactorsInSmoother << endl;
+
+    nlfg.print("PRINTING Graph at timestamp: ");
+#ifdef USE_COMBINED_IMU_FACTOR
+    EXPECT(nrFactorsInSmoother == 3 + k + 8); // 3 priors, 1 imu per time stamp, 8 smart factors
+#else
+    if (k == 1) {
+      // 3 priors, 1 imu + 1 between per time stamp:
+      // we do not include smart factors of length 1.
+      EXPECT(nrFactorsInSmoother == 3 + 2 * k);
+    } else if (k == 2){
+      // 3 priors, 1 imu + 1 between per time stamp,  smart factors.
+      EXPECT(nrFactorsInSmoother == 3 + 2 * k + 8);
+    } else {
+      // 3 priors, 1 imu + 1 between per time stamp,
+      // Smart Factors: max (0, 8 - k). such that when k > 8 smart factors = 0.
+      // Projection Factors: min ( , ). such that when k > 8 proj factors = 8*k.
+      EXPECT(nrFactorsInSmoother == 3 + 2 * k +
+             std::max(static_cast<int64_t>(0), (8 - k)) + // TODO get it right!
+             std::min((k * k), (8 * k)));
+    }
+#endif
+    // Check the results!
+    Values& results = regular_vio->state_;
+
+    for (int frame_id = 0; frame_id <= k; frame_id++) {
+      Pose3 W_Pose_Blkf     = results.at<Pose3>  (Symbol('x', frame_id));
+      Vector3 W_Vel_Blkf    = results.at<Vector3>(Symbol('v', frame_id));
+      ImuBias imu_bias_lkf  = results.at<ImuBias>(Symbol('b', frame_id));
+
+      EXPECT(assert_equal(poses.at(frame_id).first, W_Pose_Blkf, tol));
+      EXPECT((W_Vel_Blkf - v).norm() < tol);
+      EXPECT((imu_bias_lkf - imu_bias).vector().norm() < tol);
+    }
+  }
+}
+
+
+/* ************************************************************************** */
+int main(int argc, char *argv[]) {
   // Initialize Google's flags library.
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
