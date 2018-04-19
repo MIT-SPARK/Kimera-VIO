@@ -382,7 +382,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Adds a landmark to the graph for the first time.
   virtual void addLandmarkToGraph(const LandmarkId& lm_id,
-                                  FeatureTrack* lm);
+                                  const FeatureTrack& lm);
 
   /* ------------------------------------------------------------------------ */
   virtual void updateLandmarkInGraph(

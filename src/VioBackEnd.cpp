@@ -479,11 +479,13 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
 
   for (const LandmarkId& lm_id : landmarks_kf) {
     FeatureTrack& ft = featureTracks_.at(lm_id);
-    if(ft.obs_.size()<2) // we only insert feature tracks of length at least 2 (otherwise uninformative)
+    if (ft.obs_.size() < 2) {// we only insert feature tracks of length at least 2 (otherwise uninformative)
       continue;
+    }
 
-    if(!ft.in_ba_graph_) {
-      addLandmarkToGraph(lm_id, &ft);
+    if (!ft.in_ba_graph_) {
+      ft.in_ba_graph_ = true;
+      addLandmarkToGraph(lm_id, ft);
       ++n_new_landmarks;
     } else {
       const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
@@ -503,21 +505,18 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id, FeatureTrack* ft) {
-  CHECK_NOTNULL(ft);
-  CHECK(ft->in_ba_graph_) << "Feature already in the graph!";
-
-  ft->in_ba_graph_ = true;
+void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
+                                    const FeatureTrack& ft) {
 
   // We use a unit pinhole projection camera for the smart factors to be more efficient.
   SmartStereoFactor::shared_ptr new_factor(
       new SmartStereoFactor(smart_noise_, smartFactorsParams_, B_Pose_leftCam_));
 
-  if (verbosity_ >= 9) {std::cout << "Adding landmark with: " << ft->obs_.size() << " landmarks to graph, with keys: ";}
+  if (verbosity_ >= 9) {std::cout << "Adding landmark with: " << ft.obs_.size() << " landmarks to graph, with keys: ";}
   if (verbosity_ >= 9){new_factor->print();}
 
   // add observations to smart factor
-  for (const std::pair<FrameId,StereoPoint2>& obs : ft->obs_)
+  for (const std::pair<FrameId,StereoPoint2>& obs : ft.obs_)
   {
     new_factor->add(obs.second, gtsam::Symbol('x', obs.first), stereoCal_);
     if (verbosity_ >= 9) {std::cout << " " <<  obs.first;}
