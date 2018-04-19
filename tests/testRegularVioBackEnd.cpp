@@ -218,9 +218,10 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
 
     NonlinearFactorGraph nlfg = regular_vio->smoother_->getFactors();
     size_t nrFactorsInSmoother = 0;
-    for (auto f: nlfg){ // Count the number of nonempty factors.
-      if(f)
+    for (const auto& f: nlfg){ // Count the number of nonempty factors.
+      if (f) {
         nrFactorsInSmoother++;
+      }
     }
     cout << "at frame " << k << " nr factors: " << nrFactorsInSmoother << endl;
 
@@ -241,9 +242,9 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
     }
 #endif
     // Check the results!
-    Values& results = regular_vio->state_;
+    const Values& results = regular_vio->state_;
 
-    for (int frame_id = 0; frame_id <= k; frame_id++) {
+    for (size_t frame_id = 0; frame_id <= k; frame_id++) {
       Pose3 W_Pose_Blkf     = results.at<Pose3>  (Symbol('x', frame_id));
       Vector3 W_Vel_Blkf    = results.at<Vector3>(Symbol('v', frame_id));
       ImuBias imu_bias_lkf  = results.at<ImuBias>(Symbol('b', frame_id));
