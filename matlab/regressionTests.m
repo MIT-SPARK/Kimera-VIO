@@ -2,9 +2,6 @@ function [mean_rotErrors_vio_align, mean_tranErrors_vio_align, run1results] = ..
     regressionTests(trackerParams,vioParams,datasetToRun,testCondition,...
     testCounter, usePlain, useSudo)
 
-if ~exist('usePlain', 'var')
-    usePlain = 0;
-end
 if ~exist('useSudo', 'var')
     useSudo = 1;
 end
@@ -42,7 +39,7 @@ description = horzcat('minFeat',num2str(trackerParams.minNumberFeatures),'-maxFe
 fcn_file_path = mfilename('fullpath');
 [pathstr, ~, ~] = fileparts(fcn_file_path);
 % dataPath = '/home/luca/data/';
-dataPath = '/home/luca/data/euroc/';
+dataPath = '/home/tonirv/datasets/EuRoC/'; % TODO remove hardcoded things
 
 datasetPaths = {horzcat(dataPath,'MH_01_easy'),horzcat(dataPath,'MH_02_easy'),horzcat(dataPath,'MH_03_medium'),...
     horzcat(dataPath,'MH_04_difficult'),horzcat(dataPath,'MH_05_difficult'), ...
