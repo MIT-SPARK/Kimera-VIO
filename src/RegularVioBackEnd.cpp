@@ -79,9 +79,11 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
                                     status_smart_stereo_measurements_kf.second;
 
   // Extract relevant information from stereo frame.
-  LandmarkIds landmarks_kf = addStereoMeasurementsToFeatureTracks(
-                               cur_id_,
-                               smart_stereo_measurements_kf);
+  LandmarkIds landmarks_kf;
+  addStereoMeasurementsToFeatureTracks(
+        cur_id_,
+        smart_stereo_measurements_kf,
+        &landmarks_kf);
 
   // For each landmark we decide if it's going to be a smart factor or not.
   isLandmarkSmart(landmarks_kf,

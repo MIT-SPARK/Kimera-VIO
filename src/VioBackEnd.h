@@ -354,9 +354,10 @@ public:
   /* ------------------------------------------------------------------------ */
   // Store stereo frame info into landmarks table:
   // returns landmarks observed in current frame.
-  LandmarkIds addStereoMeasurementsToFeatureTracks(
+  void addStereoMeasurementsToFeatureTracks(
       const int& frameNum,
-      const SmartStereoMeasurements& stereoMeasurements_kf);
+      const SmartStereoMeasurements& stereoMeasurements_kf,
+      LandmarkIds* landmarks_kf);
 
   /* ------------------------------------------------------------------------ */
   // Add no motion factors in case of low disparity.

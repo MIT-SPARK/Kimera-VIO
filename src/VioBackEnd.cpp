@@ -271,7 +271,11 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   //}
 
   // extract relevant information from stereo frame
-  LandmarkIds landmarks_kf = addStereoMeasurementsToFeatureTracks(cur_id_, smartStereoMeasurements_kf);
+  LandmarkIds landmarks_kf;
+  addStereoMeasurementsToFeatureTracks(cur_id_,
+                                       smartStereoMeasurements_kf,
+                                       &landmarks_kf);
+
   if (verbosity_ >= 8) { printFeatureTracks(); }
 
   // decide which factors to add
@@ -371,37 +375,54 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-LandmarkIds VioBackEnd::addStereoMeasurementsToFeatureTracks(
+// TODO this function doesn't do just one thing... Should be refactored!
+// It returns the landmark ids of the stereo measurements
+// It also updates the feature tracks. Why is this in the backend???
+void VioBackEnd::addStereoMeasurementsToFeatureTracks(
     const int& frameNum,
-    const SmartStereoMeasurements& stereoMeasurements_kf) {
-  //TODO: feature tracks will grow unbounded.
-  LandmarkIds landmarks_kf;
-  landmarks_kf.reserve(stereoMeasurements_kf.size());
-  // Pack information in landmark structure
-  for (size_t i = 0; i < stereoMeasurements_kf.size(); ++i)
-  {
-    LandmarkId landmarkId_kf_i = stereoMeasurements_kf[i].first;
-    StereoPoint2 stereo_px_i = stereoMeasurements_kf[i].second;
-    if(landmarkId_kf_i==-1) // we filtered them out in the StereoTracker, so this should not happen
-      throw std::runtime_error("addStereoMeasurementsToFeatureTracks: landmarkId_kf_i==-1?");
+    const SmartStereoMeasurements& stereoMeasurements_kf,
+    LandmarkIds* landmarks_kf) {
+  CHECK_NOTNULL(landmarks_kf);
 
-    landmarks_kf.push_back(landmarkId_kf_i); // thinner structure that only keeps landmarkIds
-    // Add features to vio->featureTracks_ if they are new
+  //TODO: feature tracks will grow unbounded.
+
+  // Make sure the landmarks_kf vector is empty and has a suitable size.
+  landmarks_kf->clear();
+  landmarks_kf->reserve(stereoMeasurements_kf.size());
+
+  // Store landmark ids.
+  for (size_t i = 0; i < stereoMeasurements_kf.size(); ++i) {
+    const LandmarkId& landmarkId_kf_i = stereoMeasurements_kf.at(i).first;
+    const StereoPoint2& stereo_px_i   = stereoMeasurements_kf.at(i).second;
+
+    // We filtered invalid lmks in the StereoTracker, so this should not happen.
+    CHECK_NE(landmarkId_kf_i, -1)
+        << "landmarkId_kf_i == -1?";
+
+    // Thinner structure that only keeps landmarkIds.
+    landmarks_kf->push_back(landmarkId_kf_i);
+
+    // Add features to vio->featureTracks_ if they are new.
     auto lm_it = featureTracks_.find(landmarkId_kf_i);
-    if (lm_it == featureTracks_.end()) // new feature
-    {
-      if(verbosity_ >= 7) { std::cout << "Adding landmark: " << landmarkId_kf_i << std::endl; }
-      featureTracks_.insert(std::make_pair(landmarkId_kf_i, FeatureTrack(frameNum, stereo_px_i)));
+    if (lm_it == featureTracks_.end()) {
+      // New feature.
+      VLOG(7) << "Adding landmark: " << landmarkId_kf_i
+              << " to feature track.";
+
+      featureTracks_.insert(std::make_pair(landmarkId_kf_i,
+                                           FeatureTrack(frameNum,
+                                                        stereo_px_i)));
       ++landmark_count_;
-    }
-    // @TODO: It seems that this else condition does not help -- conjecture that it creates long feature tracks with low information (i.e. we're not moving)
-    // This is problematic in conjunction with our landmark selection mechanism which prioritizes long feature tracks
-    else // add observation to existing landmark
-    {
+    } else {
+      // Add observation to existing landmark.
+      // @TODO: It seems that this else condition does not help -- conjecture
+      // that it creates long feature tracks with low information
+      // (i.e. we're not moving)
+      // This is problematic in conjunction with our landmark selection
+      // mechanism which prioritizes long feature tracks
       (*lm_it).second.obs_.push_back(std::make_pair(frameNum, stereo_px_i));
     }
   }
-  return landmarks_kf;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
