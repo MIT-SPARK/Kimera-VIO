@@ -49,7 +49,7 @@ public:
   void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
 
   /* ------------------------------------------------------------------------ */
-  void addLandmarkToGraph(const LandmarkId& lm_id, FeatureTrack* lm);
+  void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
 
   /* ------------------------------------------------------------------------ */
   void updateLandmarkInGraph(const LandmarkId& lm_id,
