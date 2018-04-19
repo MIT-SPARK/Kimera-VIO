@@ -6,6 +6,7 @@
 $PROJECT_PATH/build/stereoVIOEuroc \
 --logtostderr=1 \
 --colorlogtostderr=1 \
+--log_prefix=0 \
 --dataset_path="$DATASET_PATH" \
 --vio_params_path="${PROJECT_PATH}/params/vioParameters.yaml" \
 --tracker_params_path="${PROJECT_PATH}/params/trackerParameters.yaml" \
