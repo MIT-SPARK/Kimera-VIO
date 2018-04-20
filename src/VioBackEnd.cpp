@@ -591,7 +591,7 @@ void VioBackEnd::optimize(
   std::vector<size_t> delete_slots = extra_factor_slots_to_delete;
   std::vector<Key> new_smart_factors_lmkID_tmp;
   gtsam::NonlinearFactorGraph new_factors_tmp;
-  for (auto& s : new_smart_factors_)
+  for (const auto& s : new_smart_factors_)
   {
     new_factors_tmp.push_back(s.second); // push back the factor
     new_smart_factors_lmkID_tmp.push_back(s.first); // these are the lmk id of the factors to add to graph
@@ -740,6 +740,7 @@ void VioBackEnd::optimize(
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+// Modifies old_smart_factors_, it adds the slot number.
 void VioBackEnd::findSmartFactorsSlotsSlow(
     const std::vector<Key> new_smart_factors_lmkID_tmp) {
 
@@ -747,29 +748,35 @@ void VioBackEnd::findSmartFactorsSlotsSlow(
   const gtsam::NonlinearFactorGraph& graphFactors = smoother_->getFactors();
 
   vector<LandmarkId> landmarksToRemove;
-  for (auto& it : old_smart_factors_)
-  {
+  for (auto& it : old_smart_factors_) {
     bool found = false;
-    for (size_t slot = 0; slot < graphFactors.size(); ++slot)
-    {
+    for (size_t slot = 0; slot < graphFactors.size(); ++slot) {
       const gtsam::NonlinearFactor::shared_ptr& f = graphFactors[slot];
-      if(f) {
-        SmartStereoFactor::shared_ptr smartfactor = boost::dynamic_pointer_cast<SmartStereoFactor>(graphFactors.at(slot));
-        if (smartfactor && it.second.first == smartfactor) {
+      if (f) {
+        SmartStereoFactor::shared_ptr smartfactor =
+            boost::dynamic_pointer_cast<SmartStereoFactor>(graphFactors.at(slot));
+        if (smartfactor &&
+            it.second.first == smartfactor) {
           it.second.second = slot;
           found = true;
           break;
         }
       }
     }
-    if (!found) { // if it's not in the graph we can delete if from the map
-      if (verbosity_ >= 6) { std::cout << "Smart factor with id: " << it.first << " not found" << std::endl; }
+
+    if (!found) {
+      // If it's not in the graph we can delete if from the map.
+      if (verbosity_ >= 6) {
+        std::cout << "Smart factor with id: " << it.first
+                  << " not found" << std::endl; }
       landmarksToRemove.push_back(it.first);
     }
   }
-  // erase factors that are no longer there
-  for (auto& i : landmarksToRemove)
+
+  // Erase factors that are no longer there.
+  for (const auto& i: landmarksToRemove) {
     old_smart_factors_.erase(i);
+  }
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
