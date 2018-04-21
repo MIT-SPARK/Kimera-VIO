@@ -13,13 +13,9 @@
  */
 
 //#define USE_CGAL
-#define USE_REGULAR_VIO
 
-#ifdef USE_REGULAR_VIO
-  #include "RegularVioBackEnd.h"
-#else
-  #include "VioBackEnd.h"
-#endif
+#include "RegularVioBackEnd.h"
+#include "VioBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -40,6 +36,9 @@ DEFINE_string(vio_params_path, "",
 DEFINE_string(tracker_params_path, "",
               "Path to tracker user-defined parameters.");
 DEFINE_bool(log_output, false, "Log output to matlab.");
+DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
+                                 "0: VioBackEnd\n"
+                                 "1: RegularVioBackEnd");
 DEFINE_bool(visualize, true, "Enable visualization.");
 DEFINE_int32(viz_type, 3,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
@@ -130,12 +129,6 @@ void parseDatasetAndParams(const int argc, const char * const *argv,
   }
 }
 
-#ifdef USE_REGULAR_VIO
-  typedef RegularVioBackEnd MyVioBackEnd;
-#else
-  typedef VioBackEnd MyVioBackEnd;
-#endif
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,7 +141,7 @@ int main(int argc, char *argv[]) {
 
   // initialize random seed for repeatability (only on the same machine)
   // srand(0); // still does not make RANSAC REPEATABLE across different machines
-  static const int saveImages = FLAGS_visualize? 1 : 0; // 0: don't show, 1: show, 2: write & save
+  static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
   static constexpr int saveImagesSelector = 1;          // 0: don't show, >0 write & save
   VisualizationType visualization_type = static_cast<VisualizationType>(
         FLAGS_viz_type);
@@ -172,7 +165,7 @@ int main(int argc, char *argv[]) {
   FeatureSelector featureSelector(trackerParams, vioParams);
 
   // Create VIO: class that tracks implements estimation back-end
-  boost::shared_ptr<MyVioBackEnd> vioBackEnd;
+  boost::shared_ptr<VioBackEnd> vioBackEnd;
 
   // create class to visualize 3D points and mesh:
   Mesher mesher;
@@ -234,11 +227,26 @@ int main(int argc, char *argv[]) {
       std::tie(imu_stamps, imu_accgyr) = dataset.imuData_.imu_buffer_
                       .getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
 
-      // create VIO
-      vioBackEnd = boost::make_shared<MyVioBackEnd>(
-            stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
-            stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
-            stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams);
+      // Create VIO.
+      switch(FLAGS_backend_type) {
+        case 0: {
+          LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
+          vioBackEnd = boost::make_shared<VioBackEnd>(
+           stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
+           stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
+           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams);
+
+          break;
+        }
+        case 1: {
+          LOG(INFO) << "\e[1m Using Regular VIO. \e[0m";
+          vioBackEnd = boost::make_shared<RegularVioBackEnd>(
+           stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
+           stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
+           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams);
+          break;
+        }
+      }
 
       // initialize Vio
       gtNavState initialStateGT;
@@ -479,7 +487,7 @@ int main(int argc, char *argv[]) {
           // (encoded as either smart factors or explicit values), potentially
           // restricting to points seen in at least minKfValidPoints keyframes
           // (TODO restriction is not enforced for projection factors).
-          MyVioBackEnd::PointsWithIdMap points_with_id_VIO;
+          VioBackEnd::PointsWithIdMap points_with_id_VIO;
           vioBackEnd->get3DPointsAndLmkIds(&points_with_id_VIO,
                                            minKfValidPoints);
 
@@ -524,7 +532,7 @@ int main(int argc, char *argv[]) {
           // triangles: the ones produced by CGAL
         case VisualizationType::MESH3D: {// 3D mesh from CGAL using VIO points
 #ifdef USE_CGAL
-          MyVioBackEnd::PointsWithId pointsWithId;
+          VioBackEnd::PointsWithId pointsWithId;
           vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizeMesh3D(mesher.mapPoints3d_,
@@ -546,7 +554,7 @@ int main(int argc, char *argv[]) {
 
           // Computes and visualizes a 3D point cloud.
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
-          MyVioBackEnd::PointsWithIdMap pointsWithId;
+          VioBackEnd::PointsWithIdMap pointsWithId;
           vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
           //mesher.updateMap3D(pointsWithId);
           //visualizer.visualizePoints3D(pointsWithId, mesher.map_points_3d_);
