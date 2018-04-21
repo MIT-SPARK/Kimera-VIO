@@ -44,7 +44,8 @@ public:
       const float& maxGradInTriangle = 50,
       const double& minRatioBetweenLargestAnSmallestSide = 0,
       const double& min_elongation_ratio = 0.5,
-      const double& maxTriangleSide = 10);
+      const double& maxTriangleSide = 10,
+      const bool& visualize = true);
 
   /* ------------------------------------------------------------------------ */
   // Perform Mesh clustering.

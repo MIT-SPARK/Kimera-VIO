@@ -21,15 +21,17 @@
   #include "VioBackEnd.h"
 #endif
 
-#include "gflags/gflags.h"
-#include "glog/logging.h"
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+
+#include <gtsam/geometry/Pose3.h>
+
 #include "ETH_parser.h"
 #include "mesh/Mesher.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
-#include <gtsam/geometry/Pose3.h>
-#include "../src/Visualizer3D.h"
+#include "Visualizer3D.h"
 
 DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
               "Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).");
@@ -38,7 +40,7 @@ DEFINE_string(vio_params_path, "",
 DEFINE_string(tracker_params_path, "",
               "Path to tracker user-defined parameters.");
 DEFINE_bool(log_output, false, "Log output to matlab.");
-DEFINE_bool(viz, true, "Enable visualization.");
+DEFINE_bool(visualize, true, "Enable visualization.");
 DEFINE_int32(viz_type, 3,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
   "1: POINTCLOUD_REPEATEDPOINTS, visualize VIO points as point clouds (points "
@@ -146,10 +148,10 @@ int main(int argc, char *argv[]) {
 
   // initialize random seed for repeatability (only on the same machine)
   // srand(0); // still does not make RANSAC REPEATABLE across different machines
-  static constexpr int saveImages = 0;         // 0: don't show, 1: show, 2: write & save
-  static constexpr int saveImagesSelector = 1; // 0: don't show, >0 write & save
+  static const int saveImages = FLAGS_visualize? 1 : 0; // 0: don't show, 1: show, 2: write & save
+  static constexpr int saveImagesSelector = 1;          // 0: don't show, >0 write & save
   VisualizationType visualization_type = static_cast<VisualizationType>(
-        FLAGS_viz_type); // MESH2Dobs MESH3D MESH2DTo3Dobs
+        FLAGS_viz_type);
 
   ETHDatasetParser dataset;
   VioBackEndParams vioParams;
@@ -424,26 +426,25 @@ int main(int argc, char *argv[]) {
       //////////////////////////////////////////////////////////////////////////
 
       ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////
-      if (FLAGS_viz) {
-        // Get camera pose.
-        gtsam::Pose3 W_Pose_camlkf_vio =
-                vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
+      // Get camera pose.
+      gtsam::Pose3 W_Pose_camlkf_vio =
+          vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
 
-        switch (visualization_type) {
+      switch (visualization_type) {
         // Computes and visualizes 2D mesh.
         // vertices: all leftframe kps with lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv
         case VisualizationType::MESH2D: {
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D();
           stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_
-                                                          .visualizeMesh2D(100);
+              .visualizeMesh2D(100);
           break;
         }
 
-        // Computes and visualizes a 3D mesh from 2D triangulation.
-        // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
-        // triangles: all the ones with edges inside images as produced by cv::subdiv
-        // (updateMesh3D also filters out geometrically)
+          // Computes and visualizes a 3D mesh from 2D triangulation.
+          // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
+          // triangles: all the ones with edges inside images as produced by cv::subdiv
+          // (updateMesh3D also filters out geometrically)
         case VisualizationType::MESH2DTo3D: {
           CHECK(false)
               << "This is the same as Mesh2Dto3Dsparse except the fact"
@@ -453,9 +454,9 @@ int main(int argc, char *argv[]) {
           break;
         }
 
-        // Computes and visualizes 2D mesh.
-        // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
-        // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
+          // Computes and visualizes 2D mesh.
+          // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
+          // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
         case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
           std::vector<cv::Vec6f> mesh_2d;
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2dStereo(&mesh_2d);
@@ -464,11 +465,11 @@ int main(int argc, char *argv[]) {
           break;
         }
 
-        // Computes and visualizes 3D mesh from 2D triangulation.
-        // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
-        // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
-        // (updateMesh3D also filters out geometrically)
-        // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
+          // Computes and visualizes 3D mesh from 2D triangulation.
+          // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
+          // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
+          // (updateMesh3D also filters out geometrically)
+          // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
         case VisualizationType::MESH2DTo3Dsparse: {
           std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
 
@@ -494,7 +495,8 @@ int main(int argc, char *argv[]) {
                 W_Pose_camlkf_vio,
                 maxGradInTriangle,
                 minRatioBetweenLargestAnSmallestSide,
-                min_elongation_ratio, maxTriangleSide);
+                min_elongation_ratio, maxTriangleSide,
+                FLAGS_visualize);
 
           // Find regularities in the mesh.
           // Currently only triangles in the ground floor.
@@ -508,15 +510,18 @@ int main(int argc, char *argv[]) {
           cv::Mat polygons_mesh;
           mesher.getVerticesMesh(&vertices_mesh);
           mesher.getPolygonsMesh(&polygons_mesh);
-          visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters,
-                                                        vertices_mesh,
-                                                        polygons_mesh);
+          if (FLAGS_visualize) {
+            visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters,
+                                                          vertices_mesh,
+                                                          polygons_mesh);
+          }
+
           break;
         }
 
-        // Computes and visualizes 3D mesh.
-        // vertices: all VALID VIO points (that can be triangulated)
-        // triangles: the ones produced by CGAL
+          // Computes and visualizes 3D mesh.
+          // vertices: all VALID VIO points (that can be triangulated)
+          // triangles: the ones produced by CGAL
         case VisualizationType::MESH3D: {// 3D mesh from CGAL using VIO points
 #ifdef USE_CGAL
           MyVioBackEnd::PointsWithId pointsWithId;
@@ -524,7 +529,7 @@ int main(int argc, char *argv[]) {
           mesher.updateMap3D(pointsWithId);
           visualizer.visualizeMesh3D(mesher.mapPoints3d_,
                                      Mesher_cgal::CreateMesh3D_MapPointId(
-                                         mesher.mapPoints3d_));
+                                       mesher.mapPoints3d_));
           break;
 #else
           throw std::runtime_error("VisualizationType::MESH3D requires flag USE_CGAL to be true");
@@ -532,14 +537,14 @@ int main(int argc, char *argv[]) {
 #endif
         }
 
-        // Computes and visualizes a 3D point cloud.
+          // Computes and visualizes a 3D point cloud.
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
           vector<Point3> points3d = vioBackEnd->get3DPoints();
           visualizer.visualizeMap3D(points3d);
           break;
         }
 
-        // Computes and visualizes a 3D point cloud.
+          // Computes and visualizes a 3D point cloud.
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
           MyVioBackEnd::PointsWithIdMap pointsWithId;
           vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
@@ -552,15 +557,17 @@ int main(int argc, char *argv[]) {
           break;
         }
 
-        default:
+        default:{
           throw std::runtime_error("stereoVIOEuroc: unknown visualizationType");
           break;
         }
+      }
 
-        // Visualize trajectory.
+      // Visualize trajectory.
+      if (FLAGS_visualize) {
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory3D(
-                      &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
+              &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
       }
 
       didFirstOptimization = true;

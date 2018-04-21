@@ -512,7 +512,8 @@ void Mesher::updateMesh3D(
     const float& maxGradInTriangle,
     const double& minRatioBetweenLargestAnSmallestSide,
     const double& min_elongation_ratio,
-    const double& maxTriangleSide) {
+    const double& maxTriangleSide,
+    const bool& visualize) {
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
   stereoFrame->createMesh2dVIO(&mesh_2d,
@@ -523,13 +524,16 @@ void Mesher::updateMesh3D(
                                             maxGradInTriangle);
 
   // Debug.
-  static constexpr bool visualize_mesh_2d = false;
-  if (visualize_mesh_2d) {
-    stereoFrame->visualizeMesh2DStereo(mesh_2d, 1);
-  }
-  static constexpr bool visualize_mesh_2d_filtered = true;
-  if (visualize_mesh_2d_filtered) {
-    stereoFrame->visualizeMesh2DStereo(mesh_2d_filtered, 1, "2D Mesh Filtered");
+  if (visualize) {
+    static constexpr bool visualize_mesh_2d = false;
+    if (visualize_mesh_2d) {
+      stereoFrame->visualizeMesh2DStereo(mesh_2d, 1);
+    }
+    static constexpr bool visualize_mesh_2d_filtered = true;
+    if (visualize_mesh_2d_filtered) {
+      stereoFrame->visualizeMesh2DStereo(mesh_2d_filtered, 1,
+                                         "2D Mesh Filtered");
+    }
   }
 
   populate3dMeshTimeHorizon(
