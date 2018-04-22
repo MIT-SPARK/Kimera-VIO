@@ -393,8 +393,8 @@ void StereoFrame::createMesh2dStereo(
 
 /* -------------------------------------------------------------------------- */
 void StereoFrame::createMesh2dVIO(
-          std::vector<cv::Vec6f>* triangulation_2D,
-          const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithIdVIO) {
+    std::vector<cv::Vec6f>* triangulation_2D,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO) {
   CHECK_NOTNULL(triangulation_2D);
 
   // Pick left frame.
@@ -406,11 +406,11 @@ void StereoFrame::createMesh2dVIO(
   // (which have right px).
   std::vector<cv::Point2f> keypoints_for_mesh;
   // TODO this double loop is quite expensive.
-  for (int i = 0; i < pointsWithIdVIO.size(); i++) {
+  for (const auto& point_with_id : pointsWithIdVIO) {
     for (int j = 0; j < ref_frame.landmarks_.size(); j++) {
       // If we are seeing a VIO point in left and right frame, add to keypoints
       // to generate the mesh in 2D.
-      if (ref_frame.landmarks_.at(j) == pointsWithIdVIO.at(i).first &&
+      if (ref_frame.landmarks_.at(j) == point_with_id.first &&
           right_keypoints_status_.at(j) == Kstatus::VALID) {
         // Add keypoints for mesh 2d.
         keypoints_for_mesh.push_back(ref_frame.keypoints_.at(j));
@@ -431,7 +431,7 @@ void StereoFrame::createMesh2dVIO(
 // Output the filtered triangulation wo high-gradient triangles:
 // filtered_triangulation_2D.
 // If gradient_bound < 0, the check is disabled.
-void StereoFrame::filterTrianglesWithGradients(const cv::Mat& img_grads,
+void StereoFrame::filterTrianglesWithGradients(
                       const std::vector<cv::Vec6f>& original_triangulation_2D,
                       std::vector<cv::Vec6f>* filtered_triangulation_2D,
                       const float& gradient_bound,
@@ -441,8 +441,13 @@ void StereoFrame::filterTrianglesWithGradients(const cv::Mat& img_grads,
       << "Input original_triangulation_2D should be different that the object "
       << "pointed by filtered_triangulation_2D. Input=*Output error." ;
 
+  // Compute img gradients.
+  cv::Mat img_grads;
+  computeImgGradients(left_frame_.img_, &img_grads);
+
   // For each triangle, set to full the triangles that have near-zero gradient.
   // triangulation2Dobs_.reserve(triangulation2D.size());
+  // TODO far too many loops over triangles.
   for (const cv::Vec6f& triangle: original_triangulation_2D) {
     // Find all pixels with a gradient higher than gradBound.
     std::vector<std::pair<KeypointCV, double>> keypoints_with_high_gradient =

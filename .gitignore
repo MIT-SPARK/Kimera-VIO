@@ -1,3 +1,6 @@
 /build/
 /data-sets/
 /.settings/
+/matlab/result-*
+% Remove recovery files from matlab.
+*~

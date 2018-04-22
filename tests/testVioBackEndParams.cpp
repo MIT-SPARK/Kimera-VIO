@@ -16,9 +16,11 @@
 #include <iostream>
 #include <random>
 #include <algorithm>
-#include <CppUnitLite/TestHarness.h>
 #include "VioBackEndParams.h"
 #include "test_config.h"
+
+// Add last, since it redefines CHECK, which is first defined by glog.
+#include <CppUnitLite/TestHarness.h>
 
 using namespace gtsam;
 using namespace std;

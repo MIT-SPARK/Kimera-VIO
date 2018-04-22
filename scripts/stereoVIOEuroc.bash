@@ -4,10 +4,14 @@
 # Execute stereoVIOEuroc with given flags. The flag --help will provide you with information about what each flag
 # does.
 $PROJECT_PATH/build/stereoVIOEuroc \
+--logtostderr=1 \
+--colorlogtostderr=1 \
+--log_prefix=0 \
 --dataset_path="$DATASET_PATH" \
---vio_params_path= "$PROJECT_PATH/params/vioParameters.yaml" \
---tracker_params_path= "$PROJECT_PATH/params/trackerParameters.yaml" \
---viz_type=6 \
+--vio_params_path="${PROJECT_PATH}/params/vioParameters.yaml" \
+--tracker_params_path="${PROJECT_PATH}/params/trackerParameters.yaml" \
+--backend_type=1 \
+--viz_type=5 \
 --log_output=false \
---v=0 # Verbosity level.
+--v=1000 # Verbosity level.
 

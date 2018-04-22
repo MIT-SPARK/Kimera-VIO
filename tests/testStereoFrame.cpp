@@ -13,12 +13,14 @@
  */
 
 #include <iostream>
-#include <CppUnitLite/TestHarness.h>
 #include "Frame.h"
 #include "StereoFrame.h"
 #include "VioFrontEndParams.h"
 #include <gtsam/geometry/StereoCamera.h>
 #include "test_config.h"
+
+// Add last, since it redefines CHECK, which is first defined by glog.
+#include <CppUnitLite/TestHarness.h>
 
 using namespace gtsam;
 using namespace std;

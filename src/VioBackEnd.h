@@ -78,82 +78,142 @@ typedef gtsam::BatchFixedLagSmoother Smoother;
 
 ////////////////////////////////////////////////////////////////////////////////
 // FeatureTrack
-class FeatureTrack
-{
+class FeatureTrack {
 public:
-  std::vector<std::pair<FrameId, StereoPoint2>> obs_; //! Observation: { FrameId, Px-Measurement}
+  //! Observation: { FrameId, Px-Measurement}
+  std::vector<std::pair<FrameId, StereoPoint2>> obs_;
+
+  // Is the lmk in the graph?
   bool in_ba_graph_ = false;
 
-  FeatureTrack(FrameId frame_id, const StereoPoint2& px)
-  {
+  FeatureTrack(FrameId frame_id, const StereoPoint2& px) {
     obs_.push_back(std::make_pair(frame_id, px));
   }
-  void print() const{
+
+  void print() const {
     std::cout << " feature track with cameras: ";
-    for(size_t i=0; i<obs_.size();i++)
+    for (size_t i = 0; i < obs_.size() ; i++) {
       std::cout << " " <<  obs_[i].first << " ";
+    }
     std::cout << std::endl;
   }
 };
-using FeatureTracks = std::unordered_map<Key, FeatureTrack>; // landmark if to measurements
+
+// Landmark id to measurements.
+using FeatureTracks = std::unordered_map<Key, FeatureTrack>;
 
 ////////////////////////////////////////////////////////////////////////////////
-class DebugVioInfo
-{
+class DebugVioInfo {
 public:
-  int numSF_, numValid_, numDegenerate_, numFarPoints_, numOutliers_, numCheirality_;
+  int numSF_;
+  int numValid_;
+  int numDegenerate_;
+  int numFarPoints_;
+  int numOutliers_;
+  int numCheirality_;
 
   gtsam::Rot3 imuR_lkf_kf = gtsam::Rot3();
 
   gtsam::Values stateBeforeOpt;
   gtsam::NonlinearFactorGraph graphBeforeOpt;
 
-  double factorsAndSlotsTime_, preUpdateTime_, updateTime_, updateSlotTime_, extraIterationsTime_, printTime_;
+  double factorsAndSlotsTime_;
+  double preUpdateTime_;
+  double updateTime_;
+  double updateSlotTime_;
+  double extraIterationsTime_;
+  double printTime_;
 
-  double meanPixelError_, maxPixelError_, meanTrackLength_;
+  double meanPixelError_;
+  double maxPixelError_;
+  double meanTrackLength_;
   int maxTrackLength_;
 
-  int numAddedSmartF_, numAddedImuF_, numAddedNoMotionF_, numAddedConstantVelF_, numAddedBetweenStereoF_;
+  int numAddedSmartF_;
+  int numAddedImuF_;
+  int numAddedNoMotionF_;
+  int numAddedConstantVelF_;
+  int numAddedBetweenStereoF_;
 
-  int nrElementsInMatrix_, nrZeroElementsInMatrix_;
+  int nrElementsInMatrix_;
+  int nrZeroElementsInMatrix_;
 
   gtsam::NavState navstate_k_;
 
-  double linearizeTime_, linearSolveTime_, retractTime_, linearizeMarginalizeTime_, marginalizeTime_, imuPreintegrateTime_;
+  double linearizeTime_;
+  double linearSolveTime_;
+  double retractTime_;
+  double linearizeMarginalizeTime_;
+  double marginalizeTime_;
+  double imuPreintegrateTime_;
 
-  void resetSmartFactorsStatistics(){
-    numSF_ = 0; numValid_ = 0; numDegenerate_ = 0; numFarPoints_ = 0; numOutliers_ = 0;  numCheirality_ = 0;
-    meanPixelError_ = 0; maxPixelError_ = 0; meanTrackLength_ = 0; maxTrackLength_ = 0;
+  /* ------------------------------------------------------------------------ */
+  void resetSmartFactorsStatistics() {
+    numSF_ = 0;
+    numValid_ = 0;
+    numDegenerate_ = 0;
+    numFarPoints_ = 0;
+    numOutliers_ = 0;
+    numCheirality_ = 0;
+
+    meanPixelError_ = 0;
+    maxPixelError_ = 0;
+    meanTrackLength_ = 0;
+    maxTrackLength_ = 0;
   }
-  void resetTimes(){
-    factorsAndSlotsTime_= 0; preUpdateTime_= 0; updateTime_= 0; updateSlotTime_= 0; extraIterationsTime_= 0; printTime_= 0;
-    linearizeTime_= 0; linearSolveTime_= 0; retractTime_= 0; linearizeMarginalizeTime_= 0; marginalizeTime_= 0;
+
+  /* ------------------------------------------------------------------------ */
+  void resetTimes() {
+    factorsAndSlotsTime_= 0;
+    preUpdateTime_= 0;
+    updateTime_= 0;
+    updateSlotTime_= 0;
+    extraIterationsTime_= 0;
+    printTime_= 0;
+    linearizeTime_= 0;
+    linearSolveTime_= 0;
+    retractTime_= 0;
+    linearizeMarginalizeTime_= 0;
+    marginalizeTime_= 0;
   }
-  void resetAddedFactorsStatistics(){
-    numAddedSmartF_ = 0; numAddedImuF_ = 0; numAddedNoMotionF_ = 0; numAddedConstantVelF_ = 0; numAddedBetweenStereoF_ = 0;
+
+  /* ------------------------------------------------------------------------ */
+  void resetAddedFactorsStatistics() {
+    numAddedSmartF_ = 0;
+    numAddedImuF_ = 0;
+    numAddedNoMotionF_ = 0;
+    numAddedConstantVelF_ = 0;
+    numAddedBetweenStereoF_ = 0;
   }
-  void printTimes() const
-  {
-    std::cout << "Find delete time: " << factorsAndSlotsTime_ << " s" << std::endl;
-    std::cout << "preUpdate time: " << preUpdateTime_ << " s" << std::endl;
-    std::cout << "Update Time time: " << updateTime_ << " s" << std::endl;
-    std::cout << "Update slot time: " << updateSlotTime_ << " s" << std::endl;
-    std::cout << "Extra iterations time: " << extraIterationsTime_ << " s" << std::endl;
-    std::cout << "Print time: " << printTime_ << " s" << std::endl;
+
+  /* ------------------------------------------------------------------------ */
+  void printTimes() const {
+    std::cout << "Find delete time: " << factorsAndSlotsTime_ << std::endl
+              << "preUpdate time: " << preUpdateTime_ << std::endl
+              << "Update Time time: " << updateTime_ << std::endl
+              << "Update slot time: " << updateSlotTime_ << std::endl
+              << "Extra iterations time: " << extraIterationsTime_ << std::endl
+              << "Print time: " << printTime_ << std::endl;
   }
-  void print() const{
+
+  /* ------------------------------------------------------------------------ */
+  void print() const {
     std::cout << "----- DebugVioInfo: --------" << std::endl;
-    std::cout << " numSF: " << numSF_ << " numValid: " << numValid_ << " numDegenerate: " << numDegenerate_
-        << " numOutliers: " << numOutliers_ << " numFarPoints: " << numFarPoints_ << " numCheirality: " << numCheirality_
-        << std::endl
-        << " meanPixelError: " << meanPixelError_ << " maxPixelError: " << maxPixelError_
-        << " meanTrackLength: " << meanTrackLength_ << " maxTrackLength: " << maxTrackLength_ << std::endl;
+    std::cout << " numSF: " << numSF_
+              << " numValid: " << numValid_
+              << " numDegenerate: " << numDegenerate_
+              << " numOutliers: " << numOutliers_
+              << " numFarPoints: " << numFarPoints_
+              << " numCheirality: " << numCheirality_ << std::endl
+              << " meanPixelError: " << meanPixelError_
+              << " maxPixelError: " << maxPixelError_
+              << " meanTrackLength: " << meanTrackLength_
+              << " maxTrackLength: " << maxTrackLength_ << std::endl;
   }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-class VioBackEnd
-{
+class VioBackEnd {
 public:
   using SmartStereoFactor = gtsam::SmartStereoProjectionPoseFactor;
   using SmartFactorParams = gtsam::SmartStereoProjectionParams;
@@ -161,14 +221,19 @@ public:
   using PreintegratedImuMeasurements = gtsam::PreintegratedCombinedMeasurements;
   using PreintegratedImuMeasurementPtr = std::shared_ptr<PreintegratedImuMeasurements>;
 #else
-  using PreintegratedImuMeasurements = gtsam::PreintegratedImuMeasurements;
-  using PreintegratedImuMeasurementPtr = std::shared_ptr<PreintegratedImuMeasurements>;
+  using PreintegratedImuMeasurements   = gtsam::PreintegratedImuMeasurements;
+  using PreintegratedImuMeasurementPtr = std::shared_ptr<
+                                                  PreintegratedImuMeasurements>;
 #endif
-  using LandmarkIdSmartFactorMap = std::unordered_map<LandmarkId, SmartStereoFactor::shared_ptr>;
-  using SmartFactorMap = gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, int>>;
+  using LandmarkIdSmartFactorMap = std::unordered_map<
+                                                LandmarkId,
+                                                SmartStereoFactor::shared_ptr>;
+  using SmartFactorMap =
+      gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, int>>;
 
-  using PointWithId = std::pair<LandmarkId, gtsam::Point3>;
-  using PointsWithId = std::vector<PointWithId>;
+  using PointWithId     = std::pair<LandmarkId, gtsam::Point3>;
+  using PointsWithId    = std::vector<PointWithId>;
+  using PointsWithIdMap = std::unordered_map<LandmarkId, gtsam::Point3>;
 
   // verbosity_ explanation
   /*
@@ -180,151 +245,51 @@ public:
    * 9: display also factors and values
    */
 
-  // constructor -------------------------------------------------------------------------
-  VioBackEnd(const Pose3 leftCamPose, const Cal3_S2 leftCameraCalRectified, const double baseline,
-      const VioBackEndParams vioParams = VioBackEndParams()) :
-        B_Pose_leftCam_(leftCamPose),
-        stereoCal_(boost::make_shared<gtsam::Cal3_S2Stereo>(leftCameraCalRectified.fx(),
-            leftCameraCalRectified.fy(), leftCameraCalRectified.skew(),
-            leftCameraCalRectified.px(), leftCameraCalRectified.py(), baseline)),
-            vioParams_(vioParams),
-            imu_bias_lkf_(ImuBias()), imu_bias_prev_kf_(ImuBias()),
-            W_Vel_Blkf_(Vector3::Zero()), W_Pose_Blkf_(Pose3()),
-            last_id_(-1), cur_id_(0), verbosity_(5), landmark_count_(0)
-  {
-    // SMART PROJECTION FACTORS SETTINGS
-    gtsam::SharedNoiseModel model = gtsam::noiseModel::Isotropic::Sigma(
-        3, vioParams_.smartNoiseSigma_); //  vio_smart_reprojection_err_thresh / cam_->fx());
-    // smart_noise_ = gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(1.345), model);
-    smart_noise_ = model;
-    smartFactorsParams_ = SmartFactorParams( // JACOBIAN_SVD, IGNORE_DEGENERACY
-        gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true); // ThrowCherality = false, verboseCherality = true
-    smartFactorsParams_.setRankTolerance(vioParams_.rankTolerance_);
-    smartFactorsParams_.setLandmarkDistanceThreshold(vioParams_.landmarkDistanceThreshold_);
-    smartFactorsParams_.setRetriangulationThreshold(vioParams_.retriangulationThreshold_);
-    smartFactorsParams_.setDynamicOutlierRejectionThreshold(vioParams_.outlierRejection_);
+  /* ------------------------------------------------------------------------ */
+  VioBackEnd(const Pose3& leftCamPose,
+             const Cal3_S2& leftCameraCalRectified,
+             const double& baseline,
+             const VioBackEndParams& vioParams = VioBackEndParams());
 
-    // IMU FACTORS SETTINGS
-    imuParams_ = boost::make_shared<PreintegratedImuMeasurements::Params>(vioParams.n_gravity_);
-    imuParams_->gyroscopeCovariance =
-        std::pow(vioParams.gyroNoiseDensity_, 2.0) * Eigen::Matrix3d::Identity();
-    imuParams_->accelerometerCovariance =
-        std::pow(vioParams.accNoiseDensity_, 2.0) * Eigen::Matrix3d::Identity();
-    imuParams_->integrationCovariance =
-        std::pow(vioParams.imuIntegrationSigma_, 2.0) * Eigen::Matrix3d::Identity();
-#ifdef USE_COMBINED_IMU_FACTOR
-    imuParams_->biasAccCovariance =
-        std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-    imuParams_->biasOmegaCovariance =
-        std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-#endif
-    imuParams_->use2ndOrderCoriolis = false; // TODO: expose this parameter
-
-    // NO MOTION FACTORS SETTINGS:
-    zeroVelocityPriorNoise_ = gtsam::noiseModel::Isotropic::Sigma(3, vioParams.zeroVelocitySigma_);
-
-    Vector6 sigmas;
-    sigmas.head<3>().setConstant(vioParams.noMotionRotationSigma_);
-    sigmas.tail<3>().setConstant(vioParams.noMotionPositionSigma_);
-    noMotionPriorNoise_ = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
-
-    // CONSTANT VELOCITY FACTORS SETTINGS:
-    constantVelocityPriorNoise_ = gtsam::noiseModel::Isotropic::Sigma(3, vioParams.constantVelSigma_);
-
-#ifdef INCREMENTAL_SMOOTHER
-    // iSAM2 SETTINGS
-    gtsam::ISAM2GaussNewtonParams gauss_newton_params;
-    gauss_newton_params.wildfireThreshold = -1.0;
-
-    // gauss_newton_params.setWildfireThreshold(0.001);
-    gtsam::ISAM2DoglegParams dogleg_params;
-    // dogleg_params.setVerbose(false); // only for debugging.
-    gtsam::ISAM2Params isam_param;
-
-    if (vioParams_.useDogLeg_)
-      isam_param.optimizationParams = dogleg_params;
-    else
-      isam_param.optimizationParams = gauss_newton_params;
-
-    //gtsam::FastMap<char,gtsam::Vector> thresholds;
-    //gtsam::Vector xThresh(6); // = {0.05, 0.05, 0.05, 0.1, 0.1, 0.1};
-    //gtsam::Vector vThresh(3); //= {1.0, 1.0, 1.0};
-    //gtsam::Vector bThresh(6); // = {1.0, 1.0, 1.0};
-    //xThresh << relinearizeThresholdRot_, relinearizeThresholdRot_, relinearizeThresholdRot_, relinearizeThresholdPos_, relinearizeThresholdPos_, relinearizeThresholdPos_;
-    //vThresh << relinearizeThresholdVel_, relinearizeThresholdVel_, relinearizeThresholdVel_;
-    //bThresh << relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_;
-    //thresholds['x'] = xThresh;
-    //thresholds['v'] = vThresh;
-    //thresholds['b'] = bThresh;
-    // isam_param.setRelinearizeThreshold(thresholds);
-    isam_param.setCacheLinearizedFactors(false);
-    isam_param.setEvaluateNonlinearError(true);
-
-    isam_param.relinearizeThreshold = vioParams.relinearizeThreshold_;
-    isam_param.relinearizeSkip = vioParams.relinearizeSkip_;
-    // isam_param.enablePartialRelinearizationCheck = true;
-    isam_param.findUnusedFactorSlots = true;
-    // isam_param.cacheLinearizedFactors = true;
-    // isam_param.enableDetailedResults = true;   // only for debugging.
-    isam_param.factorization = gtsam::ISAM2Params::CHOLESKY; // QR
-    isam_param.print("isam_param");
-
-    //isam_param.evaluateNonlinearError = true;  // only for debugging.
-
-    smoother_ = std::make_shared<Smoother>(vioParams.horizon_, isam_param);
-#else // BATCH SMOOTHER
-    gtsam::LevenbergMarquardtParams lmParams;
-    lmParams.setlambdaInitial(0.0); // same as GN
-    lmParams.setlambdaLowerBound(0.0); // same as GN
-    lmParams.setlambdaUpperBound(0.0); // same as GN)
-    smoother_ = std::make_shared<Smoother>(vioParams.horizon_,lmParams);
-#endif
-
-    // reset debug info
-    debugInfo_.resetSmartFactorsStatistics();
-    debugInfo_.resetTimes();
-    debugInfo_.resetAddedFactorsStatistics();
-    debugInfo_.nrElementsInMatrix_ = 0;
-    debugInfo_.nrZeroElementsInMatrix_ = 0;
-  }
-
-  // Virtual destructor needed for potential derived class (i.e. RegularVioBackEnd)
+  // Virtual destructor needed for derived class (i.e. RegularVioBackEnd).
   virtual ~VioBackEnd() = default;
 
-  // STATE ESTIMATES
+  // STATE ESTIMATES.
   ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
   ImuBias imu_bias_prev_kf_;   //!< bias estimate at previous keyframe
-  Vector3 W_Vel_Blkf_;  		//!< Velocity of body at k-1 in world coordinates
-  Pose3   W_Pose_Blkf_;      //!< Body pose at at k-1 in world coordinates.
+  Vector3 W_Vel_Blkf_;  		   //!< Velocity of body at k-1 in world coordinates
+  Pose3   W_Pose_Blkf_;        //!< Body pose at at k-1 in world coordinates.
 
-  // counters
+  // Counters.
   int last_id_;
   int cur_id_;
 
-  // RAW, user-specified params
+  // RAW, user-specified params.
   const VioBackEndParams vioParams_;
 
-  // current time
+  // Current time.
   double timestamp_kf_; // timestamp in seconds attached to the last keyframe
 
-  // IMU params
+  // IMU params.
   boost::shared_ptr<PreintegratedImuMeasurements::Params> imuParams_;
   PreintegratedImuMeasurementPtr pim_;
 
-  // VISION params
+  // VISION params.
   gtsam::SmartStereoProjectionParams smartFactorsParams_;
   gtsam::SharedNoiseModel smart_noise_;
   const Pose3 B_Pose_leftCam_; // pose of the left camera wrt body
   const gtsam::Cal3_S2Stereo::shared_ptr stereoCal_; // stores calibration, baseline
 
-  // NO MOTION FACTORS settings
-  gtsam::SharedNoiseModel zeroVelocityPriorNoise_, noMotionPriorNoise_, constantVelocityPriorNoise_;
+  // NO MOTION FACTORS settings.
+  gtsam::SharedNoiseModel zeroVelocityPriorNoise_;
+  gtsam::SharedNoiseModel noMotionPriorNoise_;
+  gtsam::SharedNoiseModel constantVelocityPriorNoise_;
 
   // GTSAM:
   std::shared_ptr<Smoother> smoother_;
 
   gtsam::Values state_;                        //!< current state of the system.
-  gtsam::NonlinearFactorGraph new_imu_and_prior_factors_;    //!< new factors to be added
+  gtsam::NonlinearFactorGraph new_imu_prior_and_other_factors_;    //!< new factors to be added
   gtsam::Values new_values_;                   //!< new states to be added
   LandmarkIdSmartFactorMap new_smart_factors_; //!< landmarkId -> {SmartFactorPtr}
   SmartFactorMap old_smart_factors_;           //!< landmarkId -> {SmartFactorPtr, SlotIndex}
@@ -333,74 +298,113 @@ public:
   FeatureTracks featureTracks_;
   int landmark_count_;
 
-  // Flags
+  // Flags.
   const int verbosity_;
 
-  // debug info
+  // Debug info.
   DebugVioInfo debugInfo_;
 
-  /* +++++++++++++++++++++++++++++ NONCONST FUNCTIONS +++++++++++++++++++++++ */
-
+  /* ------------------------------------------------------------------------ */
   // Sets initial state at given pose, zero velociy and with imu bias obtained
   // by assuming steady upright platform.
-  void initializeStateAndSetPriors(const Timestamp timestamp_kf_nsec,
-                                   const Pose3 initialPose,
-                                   const ImuAccGyr accGyroRaw);
+  void initializeStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
+                                   const Pose3& initialPose,
+                                   const ImuAccGyr& accGyroRaw);
 
+  /* ------------------------------------------------------------------------ */
   // Set initial state at given pose, velocity and bias.
-  void initializeStateAndSetPriors(const Timestamp timestamp_kf_nsec,
-                                   const Pose3 initialPose,
-                                   const Vector3 initialVel,
-                                   const ImuBias initialBias);
+  void initializeStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
+                                   const Pose3& initialPose,
+                                   const Vector3& initialVel,
+                                   const ImuBias& initialBias);
 
+  /* ------------------------------------------------------------------------ */
   // Add initial prior factors.
   void addInitialPriorFactors(const FrameId& frame_id,
                               const ImuAccGyr& imu_accgyr);
 
+  /* ------------------------------------------------------------------------ */
   // Workhorse that stores data and optimizes at each keyframe.
   // [in] timestamp_kf_nsec, keyframe timestamp.
   // [in] status_smart_stereo_measurements_kf, vision data.
   // [in] imu_stamps, [in] imu_accgyr.
   // [in] stereo_ransac_body_pose, inertial data.
   virtual void addVisualInertialStateAndOptimize(
-        const Timestamp timestamp_kf_nsec,
-        const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf,
-        ImuStamps imu_stamps, ImuAccGyr imu_accgyr,
-        boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
+      const Timestamp& timestamp_kf_nsec,
+      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+      const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
+      const LandmarkIds& mesh_lmk_ids_ground_cluster,
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
+
+  /* ------------------------------------------------------------------------ */
   // Integrate imu measurements into pim_.
   void integrateImuMeasurements(const ImuStamps& imu_stamps,
                                 const ImuAccGyr& imu_accgyr);
 
+  /* ------------------------------------------------------------------------ */
   // Set initial guess at current state.
   void addImuValues(const FrameId& cur_id);
 
+  /* ------------------------------------------------------------------------ */
   // Add imu factors:
-  void addImuFactor(const FrameId& from_id, const FrameId& to_id);
+  void addImuFactor(const FrameId& from_id,
+                    const FrameId& to_id);
 
+  /* ------------------------------------------------------------------------ */
   // Store stereo frame info into landmarks table:
   // returns landmarks observed in current frame.
-  LandmarkIds addStereoMeasurementsToFeatureTracks(int frameNum,
-                          const SmartStereoMeasurements& stereoMeasurements_kf);
+  void addStereoMeasurementsToFeatureTracks(
+      const int& frameNum,
+      const SmartStereoMeasurements& stereoMeasurements_kf,
+      LandmarkIds* landmarks_kf);
 
+  /* ------------------------------------------------------------------------ */
   // Add no motion factors in case of low disparity.
   void addZeroVelocityPrior(const FrameId& frame_id);
-  void addNoMotionFactor(const FrameId& from_id, const FrameId& to_id);
-  void addBetweenFactor(const FrameId& from_id, const FrameId& to_id,
-                        const gtsam::Pose3 from_id_POSE_to_id);
-  void addConstantVelocityFactor(const FrameId& from_id, const FrameId& to_id);
 
+  /* ------------------------------------------------------------------------ */
+  void addNoMotionFactor(const FrameId& from_id,
+                         const FrameId& to_id);
+
+  /* ------------------------------------------------------------------------ */
+  void addBetweenFactor(const FrameId& from_id,
+                        const FrameId& to_id,
+                        const gtsam::Pose3& from_id_POSE_to_id);
+
+  /* ------------------------------------------------------------------------ */
+  void addConstantVelocityFactor(const FrameId& from_id,
+                                 const FrameId& to_id);
+
+  /* ------------------------------------------------------------------------ */
   // Uses landmark table to add factors in graph.
-  void addLandmarksToGraph(LandmarkIds landmarks_kf);
-  virtual void addLandmarkToGraph(LandmarkId lm_id, FeatureTrack& lm);
-  virtual void updateLandmarkInGraph(const LandmarkId lm_id,
-                               const std::pair<FrameId, StereoPoint2>& newObs);
-  void optimize(const FrameId& cur_id, const int max_iterations);
-  void findSmartFactorsSlots(const std::vector<Key> new_smart_factors_keys_tmp);
-  void findSmartFactorsSlotsSlow(
-                             const std::vector<Key> new_smart_factors_keys_tmp);
+  virtual void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
 
-  /* ---------------------------- CONST FUNCTIONS --------------------------- */
+  /* ------------------------------------------------------------------------ */
+  // Adds a landmark to the graph for the first time.
+  virtual void addLandmarkToGraph(const LandmarkId& lm_id,
+                                  const FeatureTrack& lm);
+
+  /* ------------------------------------------------------------------------ */
+  virtual void updateLandmarkInGraph(
+      const LandmarkId& lm_id,
+      const std::pair<FrameId, StereoPoint2>& newObs);
+
+  /* ------------------------------------------------------------------------ */
+  void optimize(const FrameId& cur_id,
+                const int& max_iterations,
+                const std::vector<size_t>& extra_factor_slots_to_delete =
+                                                        std::vector<size_t>());
+
+  /* ------------------------------------------------------------------------ */
+  void findSmartFactorsSlots(
+      const std::vector<Key> new_smart_factors_keys_tmp);
+
+  /* ------------------------------------------------------------------------ */
+  void findSmartFactorsSlotsSlow(
+      const std::vector<Key> new_smart_factors_keys_tmp);
+
+  /* ------------------------------------------------------------------------ */
   void print() const {
     std::cout << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
               << ")))))))))))))))))))))))))))))))) " <<std::endl;
@@ -419,7 +423,8 @@ public:
               << "))))))))))))))))))))))))))))))))) " <<std::endl;
   }
 
-  /* NOT TESTED ------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
+  /// NOT TESTED
   gtsam::Matrix getCurrentStateCovariance() const {
     gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
     // current state includes pose, velocity and imu biases
@@ -431,7 +436,8 @@ public:
     return UtilsOpenCV::Covariance_bvx2xvb(marginals.jointMarginalCovariance(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
   }
 
-  /* NOT TESTED ------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
+  /// NOT TESTED
   gtsam::Matrix getCurrentStateInformation() const {
     gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
     // current state includes pose, velocity and imu biases
@@ -459,217 +465,38 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  static ImuBias InitializeImuBias(const ImuAccGyr accGyroRaw,
-                                   const Vector3 n_gravity);
-  static gtsam::Pose3 GuessPoseFromIMUmeasurements(const ImuAccGyr accGyroRaw,
-                                                   const Vector3 n_gravity,
-                                                   const bool round = true);
+  static ImuBias InitializeImuBias(const ImuAccGyr& accGyroRaw,
+                                   const Vector3& n_gravity);
 
   /* ------------------------------------------------------------------------ */
-  void showSmootherInfo(const gtsam::NonlinearFactorGraph new_factors_tmp,
-                        const std::vector<size_t> delete_slots,
-                        const std::string message,
-                        const bool showDetails) const
-  {
-    std::cout << " =============== START:" <<  message << " =============== " << std::endl;
-    gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
-    std::cout << "nr factors in isam2: " << graph.size() << ", with factors:" << std::endl;
-    for (auto& g : graph){
-      auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
-      if (gsf){
-        std::cout << " SF(valid: " << gsf->isValid() <<
-            ", deg: " << gsf->isDegenerate() << " isCheir: " << gsf->isPointBehindCamera() << "): " << std::endl;
-      }
-      if (g) { g->printKeys(); }
-    }
-    std::cout << "nr of new factors to add: " << new_factors_tmp.size() << " with factors:" << std::endl;
-    for (auto& g : new_factors_tmp){
-      auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
-      if (gsf){
-        std::cout << " SF(valid: " << gsf->isValid() <<
-            ", deg: " << gsf->isDegenerate() << " isCheir: " << gsf->isPointBehindCamera() << "): ";
-      }
-      if (g) { g->printKeys(); }
-    }
-    std::cout << "nr deleted slots: " << delete_slots.size() << ", with slots: " << std::endl;
-    for (int i = 0; i < delete_slots.size(); ++i)
-      std::cout << delete_slots[i] << " ";
-    std::cout <<  std::endl;
+  static gtsam::Pose3 GuessPoseFromIMUmeasurements(const ImuAccGyr& accGyroRaw,
+                                                   const Vector3& n_gravity,
+                                                   const bool& round = true);
 
-    std::cout << "nr values in new_values_ : " << new_values_.size() << ", with keys: " << std::endl;
-    BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
-      std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
-    }
-    std::cout <<  std::endl;
-    if(showDetails){
-      graph.print("isam2 graph:\n");
-      new_factors_tmp.print("new_factors_tmp:\n");
-      new_values_.print("new values:\n");
-      //std::cout << "new_smart_factors_: "  << std::endl;
-      //for (auto& s : new_smart_factors_)
-      //	s.second->print();
-    }
-    std::cout << " =============== END: " <<  message << " =============== " << std::endl;
-  }
+  /* ------------------------------------------------------------------------ */
+  void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
+                        const std::vector<size_t>& delete_slots,
+                        const std::string& message,
+                        const bool& showDetails) const;
 
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points - TODO: this copies the graph.
-  vector<gtsam::Point3> get3DPoints() const {
-    vector<gtsam::Point3> points3D;
-    gtsam::NonlinearFactorGraph graph = smoother_->getFactors(); // TODO: this copies the graph
-    for (auto& g : graph){
-      if(g){
-        auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
-        if (gsf){
-          // Check SF status
-          gtsam::TriangulationResult result = gsf->point();
-          if(result.valid())
-            points3D.push_back(*result);
-        }
-      }
-    }
-    return points3D;
-  }
+  vector<gtsam::Point3> get3DPoints() const;
 
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
-  void get3DPointsAndLmkIds(PointsWithId* points_with_id,
-                            const int& minAge = 0) const {
-    CHECK_NOTNULL(points_with_id);
-
-    const gtsam::NonlinearFactorGraph& graph (smoother_->getFactors());
-
-    // old_smart_factors_ has all smart factors included so far.
-    int nrValidPts = 0, nrPts = 0;
-    for (auto& sf : old_smart_factors_) //!< landmarkId -> {SmartFactorPtr, SlotIndex}
-    {
-      const LandmarkId& lmkId = sf.first;
-      const SmartStereoFactor::shared_ptr& sf_ptr = sf.second.first;
-      const int& slotId = sf.second.second;
-
-      if (sf_ptr && // if pointer is well definied
-          (slotId >= 0) && (graph.size() > slotId) && // and slot is admissible
-          (sf_ptr == graph[slotId]) // and the pointer in the graph matches the one we stored in old_smart_factors_
-          ) {
-        auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slotId]);
-        if (gsf) {
-          nrPts++;
-          gtsam::TriangulationResult result = gsf->point();
-          if (result.valid() && gsf->measured().size() >= minAge) {
-            nrValidPts++;
-            points_with_id->push_back(std::make_pair(lmkId, *result));
-          }
-        }
-      }
-    }
-
-    VLOG(100) << "nrValidPts= "<< nrValidPts << " out of "
-              << nrPts << std::endl;
-  }
+  // TODO output a map instead of a vector for points_with_id.
+  void get3DPointsAndLmkIds(PointsWithIdMap* points_with_id,
+                            const int& min_age = 0) const;
 
   /* ------------------------------------------------------------------------ */
-  void computeSmartFactorStatistics()
-  {
-    if(verbosity_>8)
-    {
-      std::cout << "Landmarks in old_smart_factors_: " << std::endl;
-      for (auto it : old_smart_factors_)
-      {
-        std::cout << "Landmark " << it.first << " with slot " << it.second.second << std::endl;
-      }
-    }
-    // Compute number of valid/degenerate
-    debugInfo_.resetSmartFactorsStatistics();
-    gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
-    for (auto& g : graph)
-    {
-      if (g)
-      {
-        auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
-        if (gsf)
-        {
-          debugInfo_.numSF_ += 1;
-
-          // Check for consecutive Keys: this check is wrong: if there is LOW_DISPARITY
-          // at some frame, we do not add the measurement to the smart factor, hence keys are not necessarily consecutive
-          //auto keys = g->keys();
-          //Key last_key;
-          //bool first_key = true;
-          //for (Key key : keys)
-          //{
-          //  if (!first_key && key - last_key != 1){
-          //    std::cout << " Last: " << gtsam::DefaultKeyFormatter(last_key) << " Current: " << gtsam::DefaultKeyFormatter(key) << std::endl;
-          //    for (Key k : keys){ std::cout << " " << gtsam::DefaultKeyFormatter(k) << " "; }
-          //    throw std::runtime_error("\n computeSmartFactorStatistics: found nonconsecutive keys in smart factors \n");
-          //  }
-          //  last_key = key;
-          //  first_key = false;
-          //}
-          // Check SF status
-          gtsam::TriangulationResult result = gsf->point();
-          if (result.degenerate())
-            debugInfo_.numDegenerate_ += 1;
-
-          if (result.farPoint())
-            debugInfo_.numFarPoints_ += 1;
-
-          if (result.outlier())
-            debugInfo_.numOutliers_ += 1;
-
-          if (result.valid())
-          {
-            debugInfo_.numValid_ += 1;
-            // Check track length
-            size_t trackLength = gsf->keys().size();
-            if (trackLength > debugInfo_.maxTrackLength_)
-              debugInfo_.maxTrackLength_ = trackLength;
-
-            debugInfo_.meanTrackLength_ += trackLength;
-          }
-
-          if (result.behindCamera())
-            debugInfo_.numCheirality_ += 1;
-        }
-      }
-    }
-    if (debugInfo_.numValid_ > 0)
-      debugInfo_.meanTrackLength_ = debugInfo_.meanTrackLength_/( (double) debugInfo_.numValid_);
-    else
-      debugInfo_.meanTrackLength_ = 0;
-    if (verbosity_ >= 4) {debugInfo_.print();}
-  }
+  void computeSmartFactorStatistics();
 
   /* ------------------------------------------------------------------------ */
-  void computeSparsityStatistics() {
-    gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
-    gtsam::GaussianFactorGraph::shared_ptr gfg = graph.linearize(state_);
-    gtsam::Matrix Hessian = gfg->hessian().first;
-    debugInfo_.nrElementsInMatrix_ = Hessian.rows() * Hessian.cols();
-    debugInfo_.nrZeroElementsInMatrix_ = 0;
-    for(size_t i=0; i<Hessian.rows();++i){
-      for(size_t j=0; j<Hessian.cols();++j){
-        if(fabs(Hessian(i,j))<1e-15)
-          debugInfo_.nrZeroElementsInMatrix_ += 1;
-      }
-    }
-    // sanity check
-    if(Hessian.rows() != Hessian.cols()) // matrix is not square
-      throw std::runtime_error("computeSparsityStatistics: hessian is not a square matrix?");
-
-    std::cout << "Hessian stats: =========== " << std::endl;
-    std::cout << "rows: " << Hessian.rows() << std::endl;
-    std::cout << "nrElementsInMatrix_: " << debugInfo_.nrElementsInMatrix_ << std::endl;
-    std::cout << "nrZeroElementsInMatrix_: " << debugInfo_.nrZeroElementsInMatrix_ << std::endl;
-  }
+  void computeSparsityStatistics();
 
   /* ------------------------------------------------------------------------ */
-  void printFeatureTracks() const {
-    std::cout << "---- Feature tracks: --------- " << std::endl;
-    BOOST_FOREACH(auto keyTrack_j, featureTracks_) {
-      std::cout << "Landmark " << keyTrack_j.first << " having ";
-      keyTrack_j.second.print();
-    }
-  }
+  void printFeatureTracks() const;
 };
 
 } // namespace VIO

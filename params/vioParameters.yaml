@@ -8,8 +8,8 @@ imuIntegrationSigma: 1.0e-8
 n_gravity: [0.0, 0.0, -9.81]
 nominalImuRate: 0.005
 #INITIALIZATION PARAMETERS
-autoInitialize: false
-roundOnAutoInitialize: false
+autoInitialize: 0
+roundOnAutoInitialize: 0
 initialPositionSigma: 0.00001
 initialRollPitchSigma: 0.17453292519 # 10.0/180.0*M_PI
 initialYawSigma: 0.00174532925 # 0.1/180.0*M_PI
@@ -24,11 +24,11 @@ rankTolerance: 1
 landmarkDistanceThreshold: 20
 outlierRejection: 8
 retriangulationThreshold: 0.001
-addBetweenStereoFactors: true
+addBetweenStereoFactors: 1
 betweenRotationPrecision: 0.0 # Inverse of variance.
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
-relinearizeThreshold: 0.01
 #OPTIMIZATION PARAMETERS
+relinearizeThreshold: 0.01
 relinearizeSkip: 1
 zeroVelocitySigma: 0.001
 noMotionPositionSigma: 0.001
@@ -36,4 +36,4 @@ noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
 numOptimize: 2
 horizon: 6 # In seconds.
-useDogLeg: false
+useDogLeg: 0

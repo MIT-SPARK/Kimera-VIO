@@ -16,13 +16,15 @@
 #include <iostream>
 #include <random>
 #include <algorithm>
-#include <CppUnitLite/TestHarness.h>
 #include "Frame.h"
 #include "StereoFrame.h"
 #include "Tracker.h"
 #include "CameraParams.h"
 #include "test_config.h"
 #include <algorithm>
+
+// Add last, since it redefines CHECK, which is first defined by glog.
+#include <CppUnitLite/TestHarness.h>
 
 using namespace gtsam;
 using namespace std;
