@@ -13,5 +13,5 @@ $PROJECT_PATH/build/stereoVIOEuroc \
 --backend_type=1 \
 --viz_type=5 \
 --log_output=false \
---v=1000 # Verbosity level.
+--v=0 # Verbosity level.
 

@@ -53,6 +53,7 @@ public:
       const gtsam::LinearizationMode linMode = gtsam::HESSIAN,
       const gtsam::DegeneracyMode degMode = gtsam::ZERO_ON_DEGENERACY,
       const double smartNoiseSigma = 3,
+      const double monoNoiseSigma = 3,
       const double rankTolerance = 1, // we might also use 0.1
       const double landmarkDistanceThreshold = 20, // max distance to triangulate point in meters
       const double outlierRejection = 8, // max acceptable reprojection error // before tuning: 3
@@ -77,7 +78,7 @@ public:
   initialYawSigma_(initialYawSigma), initialVelocitySigma_(initialVelocitySigma),
   initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
   linearizationMode_(linMode), degeneracyMode_(degMode),
-  smartNoiseSigma_(smartNoiseSigma), rankTolerance_(rankTolerance),
+  smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
   retriangulationThreshold_(retriangulationThreshold), relinearizeThreshold_(relinearizeThreshold),
   addBetweenStereoFactors_(addBetweenStereoFactors),betweenRotationPrecision_(betweenRotationPrecision), betweenTranslationPrecision_(betweenTranslationPrecision),
@@ -96,7 +97,7 @@ public:
   // Smart factor params
   gtsam::LinearizationMode linearizationMode_;
   gtsam::DegeneracyMode degeneracyMode_;
-  double smartNoiseSigma_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
+  double smartNoiseSigma_, monoNoiseSigma_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
   bool addBetweenStereoFactors_;
   double betweenRotationPrecision_, betweenTranslationPrecision_;
 
@@ -167,6 +168,7 @@ public:
       throw std::runtime_error("VIOparams parseYAML: wrong degeneracyMode_"); break;
     }
     fs["smartNoiseSigma"] >> smartNoiseSigma_;
+    fs["monoNoiseSigma"] >> monoNoiseSigma_;
     fs["rankTolerance"] >> rankTolerance_;
     fs["landmarkDistanceThreshold"] >> landmarkDistanceThreshold_;
     fs["outlierRejection"] >> outlierRejection_;
@@ -215,6 +217,7 @@ public:
         (linearizationMode_ == vp2.linearizationMode_) &&
         (degeneracyMode_ == vp2.degeneracyMode_) &&
         (fabs(smartNoiseSigma_ - vp2.smartNoiseSigma_) <= tol) &&
+        (fabs(monoNoiseSigma_ - vp2.monoNoiseSigma_) <= tol) &&
         (fabs(rankTolerance_ - vp2.rankTolerance_) <= tol) &&
         (fabs(landmarkDistanceThreshold_ - vp2.landmarkDistanceThreshold_) <= tol) &&
         (fabs(outlierRejection_ - vp2.outlierRejection_) <= tol) &&

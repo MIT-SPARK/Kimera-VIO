@@ -30,8 +30,10 @@ RegularVioBackEnd::RegularVioBackEnd(
              baseline,
              vioParams) {
   mono_noise_ = gtsam::noiseModel::Isotropic::Sigma(
-                                    2, vioParams_.smartNoiseSigma_);
+                                    2, vioParams_.monoNoiseSigma_);
   mono_cal_ = boost::make_shared<Cal3_S2>(stereoCal_->calibration());
+  CHECK(mono_cal_->equals(stereoCal_->calibration()))
+      << "Monocular calibration should match Stereo calibration";
   LOG(INFO) << "Using Regular VIO backend.\n";
 }
 
@@ -292,7 +294,9 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 
       // Add landmark value to graph.
       VLOG(10) << "PRINT FACTOR of lmk_id: " << lmk_id;
-      old_factor->print();
+      if (VLOG_IS_ON(9)) {
+        old_factor->print();
+      }
       // TODO make sure that if point is not valid it works as well...
       CHECK(old_factor->point().valid())
           << "Does not have a value for point in proj. factor.";
@@ -343,9 +347,9 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     // If it is not smart, just add current measurement.
     // It was a projection factor before.
     // Also add it if it was smart but now is projection factor...
-    LOG(INFO) << "Lmk with id: " << lmk_id
-              << " added as a new projection factor with pose with id: "
-              << newObs.first << ".\n";
+    VLOG(10) << "Lmk with id: " << lmk_id
+             << " added as a new projection factor with pose with id: "
+             << newObs.first << ".\n";
     if (!std::isnan(newObs.second.uR())) {
       new_imu_prior_and_other_factors_.push_back(
             gtsam::GenericStereoFactor<Pose3, Point3>
@@ -406,8 +410,8 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmk_kf,
       } else {
         // This lmk is involved in regular factor, hence it should be a variable in
         // the factor graph (connected to projection factor).
-        std::cout << "Lmk_id = " << lmk_id
-                  << " Needs to be proj. factor!" << std::endl; // TODO delete this!
+        VLOG(10) << "Lmk_id = " << lmk_id
+                 << " Needs to be proj. factor!";
         if (lmk_id_slot == lmk_id_is_smart->end()) {
           // We did not find the lmk_id in the lmk_id_is_smart_ map.
           // Add it as a projection factor.

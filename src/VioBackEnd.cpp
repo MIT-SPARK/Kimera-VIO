@@ -979,11 +979,17 @@ void VioBackEnd::get3DPointsAndLmkIds(PointsWithIdMap* points_with_id,
     // If we found a lmk.
     // TODO this loop is huge, as we check all variables in the graph...
     if (gtsam::Symbol(key_value.key).chr() == 'l') {
-      std::cout << "We added the landmark" << std::endl;
       (*points_with_id)[key_value.key] = key_value.value.cast<gtsam::Point3>();
       //state_.at<gtsam::Point3> (key_value.key)
     }
   }
+
+  // TODO what about the other landmarks.
+  // TODO aren't these points post-optimization? Shouldn't we instead add
+  // the points before optimization? Then the regularities we enforce will
+  // have the most impact, otherwise the points in the optimization horizon
+  // do not move that much after optimizing... they are almost frozen and
+  // are not visually changing much...
 
   VLOG(100) << "nrValidPts= "<< nr_valid_pts << " out of "
             << nr_pts << std::endl;
