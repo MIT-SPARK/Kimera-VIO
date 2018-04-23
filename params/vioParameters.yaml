@@ -20,6 +20,8 @@ initialGyroBiasSigma: 0.01
 linearizationMode: 0
 degeneracyMode: 1
 smartNoiseSigma: 3
+monoNoiseSigma: 3 # Only used in RegularVioBackEnd
+huberParam: 2.0 # Only used in RegularVioBackEnd
 rankTolerance: 1
 landmarkDistanceThreshold: 20
 outlierRejection: 8

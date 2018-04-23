@@ -29,8 +29,14 @@ RegularVioBackEnd::RegularVioBackEnd(
              leftCameraCalRectified,
              baseline,
              vioParams) {
-  mono_noise_ = gtsam::noiseModel::Isotropic::Sigma(
-                                    2, vioParams_.monoNoiseSigma_);
+  //mono_noise_ = gtsam::noiseModel::Isotropic::Sigma(
+  //                                  2, vioParams_.monoNoiseSigma_);
+  mono_noise_ =
+      gtsam::noiseModel::Robust::Create(
+        gtsam::noiseModel::mEstimator::Huber::Create(
+          vioParams_.huberParam_, gtsam::noiseModel::mEstimator::Huber::Scalar),
+        gtsam::noiseModel::Isotropic::Sigma(2, vioParams_.monoNoiseSigma_));
+
   mono_cal_ = boost::make_shared<Cal3_S2>(stereoCal_->calibration());
   CHECK(mono_cal_->equals(stereoCal_->calibration()))
       << "Monocular calibration should match Stereo calibration";
