@@ -11,6 +11,7 @@ $PROJECT_PATH/build/stereoVIOEuroc \
 --vio_params_path="${PROJECT_PATH}/params/vioParameters.yaml" \
 --tracker_params_path="${PROJECT_PATH}/params/trackerParameters.yaml" \
 --backend_type=1 \
+--visualize=0 \
 --viz_type=5 \
 --log_output=false \
 --v=0 # Verbosity level.
