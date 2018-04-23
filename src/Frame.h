@@ -35,6 +35,8 @@
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/PinholeCamera.h>
 
+#include <glog/logging.h>
+
 namespace VIO {
 
 ////////////////////////////////////////////////////////////////////////////
@@ -171,8 +173,7 @@ public:
     for (auto it = keypoints_to_triangulate.begin();
          it != keypoints_to_triangulate.end(); it++) {
       if (!rect.contains(*it)) {
-        std::cerr << "Frame.h: createMesh2D - error, keypoint out of "
-                  << "image frame." << std::endl;
+        LOG(ERROR) << "createMesh2D - error, keypoint out of image frame.";
         keypoints_to_triangulate.erase(it);
         // Go backwards, otherwise it++ will jump one keypoint...
         it--;
