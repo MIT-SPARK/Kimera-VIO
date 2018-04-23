@@ -53,8 +53,9 @@ public:
       const gtsam::LinearizationMode linMode = gtsam::HESSIAN,
       const gtsam::DegeneracyMode degMode = gtsam::ZERO_ON_DEGENERACY,
       const double smartNoiseSigma = 3,
+      // TODO inherit from this for regularVIO backend
       const double monoNoiseSigma = 3, // for regularVioBackEnd only.
-      const double huberParam = 1.0, // for regularVioBackEnd only.
+      const double huberParam = 1.345, // for regularVioBackEnd only.
       const double rankTolerance = 1, // we might also use 0.1
       const double landmarkDistanceThreshold = 20, // max distance to triangulate point in meters
       const double outlierRejection = 8, // max acceptable reprojection error // before tuning: 3
