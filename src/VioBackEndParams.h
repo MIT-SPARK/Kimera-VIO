@@ -56,6 +56,8 @@ public:
       // TODO inherit from this for regularVIO backend
       const double monoNoiseSigma = 3, // for regularVioBackEnd only.
       const double huberParam = 1.345, // for regularVioBackEnd only.
+      const double tukeyParam = 4.6851, // for regularVioBackEnd only.
+      const int normType = 2, // for regularVioBackEnd only. 0: norm 2, 1: Huber, 2: Tukey.
       const double rankTolerance = 1, // we might also use 0.1
       const double landmarkDistanceThreshold = 20, // max distance to triangulate point in meters
       const double outlierRejection = 8, // max acceptable reprojection error // before tuning: 3
@@ -81,7 +83,7 @@ public:
   initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
   linearizationMode_(linMode), degeneracyMode_(degMode),
   smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma),
-  huberParam_(huberParam), rankTolerance_(rankTolerance),
+  huberParam_(huberParam), tukeyParam_(tukeyParam), normType_(normType), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
   retriangulationThreshold_(retriangulationThreshold), relinearizeThreshold_(relinearizeThreshold),
   addBetweenStereoFactors_(addBetweenStereoFactors),betweenRotationPrecision_(betweenRotationPrecision), betweenTranslationPrecision_(betweenTranslationPrecision),
@@ -101,7 +103,8 @@ public:
   gtsam::LinearizationMode linearizationMode_;
   gtsam::DegeneracyMode degeneracyMode_;
   double smartNoiseSigma_, monoNoiseSigma_;
-  double huberParam_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
+  double huberParam_, tukeyParam_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
+  int normType_;
   bool addBetweenStereoFactors_;
   double betweenRotationPrecision_, betweenTranslationPrecision_;
 
@@ -174,6 +177,8 @@ public:
     fs["smartNoiseSigma"] >> smartNoiseSigma_;
     fs["monoNoiseSigma"] >> monoNoiseSigma_;
     fs["huberParam"] >> huberParam_;
+    fs["tukeyParam"] >> tukeyParam_;
+    fs["normType"] >> normType_;
     fs["rankTolerance"] >> rankTolerance_;
     fs["landmarkDistanceThreshold"] >> landmarkDistanceThreshold_;
     fs["outlierRejection"] >> outlierRejection_;
@@ -224,6 +229,8 @@ public:
         (fabs(smartNoiseSigma_ - vp2.smartNoiseSigma_) <= tol) &&
         (fabs(monoNoiseSigma_ - vp2.monoNoiseSigma_) <= tol) &&
         (fabs(huberParam_ - vp2.huberParam_) <= tol) &&
+        (fabs(tukeyParam_ - vp2.tukeyParam_) <= tol) &&
+        (normType_ == vp2.normType_) &&
         (fabs(rankTolerance_ - vp2.rankTolerance_) <= tol) &&
         (fabs(landmarkDistanceThreshold_ - vp2.landmarkDistanceThreshold_) <= tol) &&
         (fabs(outlierRejection_ - vp2.outlierRejection_) <= tol) &&

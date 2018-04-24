@@ -22,6 +22,8 @@ degeneracyMode: 1
 smartNoiseSigma: 3
 monoNoiseSigma: 1.0 # Only used in RegularVioBackEnd
 huberParam: 1.0 # Only used in RegularVioBackEnd
+tukeyParam: 4.6851 # Only used in RegularVioBackEnd
+normType: 1 # Only used in RegularVioBackEnd
 rankTolerance: 1
 landmarkDistanceThreshold: 20
 outlierRejection: 8
