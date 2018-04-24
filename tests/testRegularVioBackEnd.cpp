@@ -225,7 +225,9 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
     }
     cout << "at frame " << k << " nr factors: " << nrFactorsInSmoother << endl;
 
-    nlfg.print("PRINTING Graph at timestamp: ");
+    if (VLOG_IS_ON(10)) {
+      nlfg.print("PRINTING Graph at timestamp: ");
+    }
 #ifdef USE_COMBINED_IMU_FACTOR
     EXPECT(nrFactorsInSmoother == 3 + k + 8); // 3 priors, 1 imu per time stamp, 8 smart factors
 #else
@@ -371,7 +373,9 @@ TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
     }
     cout << "at frame " << k << " nr factors: " << nrFactorsInSmoother << endl;
 
-    nlfg.print("PRINTING Graph at timestamp: ");
+    if (VLOG_IS_ON(10)) {
+      nlfg.print("PRINTING Graph at timestamp: ");
+    }
 #ifdef USE_COMBINED_IMU_FACTOR
     EXPECT(nrFactorsInSmoother == 3 + k + 8); // 3 priors, 1 imu per time stamp, 8 smart factors
 #else
