@@ -577,87 +577,113 @@ void VioBackEnd::optimize(
     const FrameId& cur_id,
     const int& max_extra_iterations,
     const std::vector<size_t>& extra_factor_slots_to_delete) {
-  if (!smoother_.get())
+  if (!smoother_.get()) {
     throw std::runtime_error("optimize: Incremental smoother is a null pointer\n");
+  }
 
-  // only for statistics and debugging
+  // Only for statistics and debugging.
   double startTime, endTime;
   debugInfo_.resetTimes();
-  if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
+  if (verbosity_ >= 5) {
+    startTime = UtilsOpenCV::GetTimeInSeconds();
+  }
 
   // We need to remove all smart factors that have new observations.
-  // Extra factor slots to delete contains potential factors that we want to delete, it is ty
+  // Extra factor slots to delete contains potential factors that we want to delete, it is
   // typically an empty vector. And is only used to give flexibility to subclasses.
   std::vector<size_t> delete_slots = extra_factor_slots_to_delete;
   std::vector<Key> new_smart_factors_lmkID_tmp;
   gtsam::NonlinearFactorGraph new_factors_tmp;
-  for (const auto& s : new_smart_factors_)
-  {
+  for (const auto& s : new_smart_factors_) {
     new_factors_tmp.push_back(s.second); // push back the factor
     new_smart_factors_lmkID_tmp.push_back(s.first); // these are the lmk id of the factors to add to graph
     const auto& it = old_smart_factors_.find(s.first);
-    if(it->second.second != -1) // get current slot (if factor is already there it must be deleted)
+    if (it->second.second != -1) {// get current slot (if factor is already there it must be deleted)
       delete_slots.push_back(it->second.second);
+    }
   }
-  // add also other factors (imu, priors)
-  new_factors_tmp.push_back(new_imu_prior_and_other_factors_.begin(), new_imu_prior_and_other_factors_.end());
+
+  // Add also other factors (imu, priors).
+  new_factors_tmp.push_back(new_imu_prior_and_other_factors_.begin(),
+                            new_imu_prior_and_other_factors_.end());
   new_imu_prior_and_other_factors_.resize(0); // clean up stuff which is not in new_factors_tmp
 
-  if (verbosity_ >= 5) debugInfo_.factorsAndSlotsTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
-
-  if (verbosity_ >= 5){
-    std::cout << "iSAM2 update with " << new_factors_tmp.size() << " new factors"
-        << " , " << new_values_.size() << " new values "
-        << " , and " << delete_slots.size() << " delete indices" << std::endl;
+  if (verbosity_ >= 5) {
+    debugInfo_.factorsAndSlotsTime_ = UtilsOpenCV::GetTimeInSeconds() -
+                                      startTime;
   }
-  if (verbosity_ >= 5){ // get state before optimization to compute error
+
+  if (verbosity_ >= 5) {
+    std::cout << "iSAM2 update with " << new_factors_tmp.size() << " new factors"
+              << " , " << new_values_.size() << " new values "
+              << " , and " << delete_slots.size() << " delete indices" << std::endl;
+  }
+
+  if (verbosity_ >= 5) { // get state before optimization to compute error
     debugInfo_.stateBeforeOpt = gtsam::Values(state_);
     BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
       debugInfo_.stateBeforeOpt.insert(key_value.key, key_value.value);
     }
   }
-  if (verbosity_ >= 8){
+
+  if (verbosity_ >= 8) {
     printSmootherInfo(new_factors_tmp,delete_slots,
                      "Smoother status before update:",
                      verbosity_ >= 9);
   }
 
-  // recreate the graph before marginalization
-  if (verbosity_ >= 5){
+  // Recreate the graph before marginalization.
+  if (verbosity_ >= 5) {
     debugInfo_.graphBeforeOpt = gtsam::NonlinearFactorGraph();
-    for(size_t i = 0; i<smoother_->getFactors().size(); i++){
-      if(std::find(delete_slots.begin(), delete_slots.end(), i) == delete_slots.end()) // if not to be deleted
+    for (size_t i = 0; i<smoother_->getFactors().size(); i++) {
+      if (std::find(delete_slots.begin(),
+                    delete_slots.end(), i) == delete_slots.end()) {// if not to be deleted
         debugInfo_.graphBeforeOpt.push_back(smoother_->getFactors().at(i));
+      }
     }
-    for (auto& f : new_factors_tmp)
+    for (const auto& f: new_factors_tmp) {
       debugInfo_.graphBeforeOpt.push_back(f);
+    }
   }
 
   // Compute iSAM update.
   Smoother::Result result;
-  try
-  {
+  try {
     std::map<Key, double> timestamps;
-    for(auto keyValue : new_values_)
+    for(const auto& keyValue : new_values_) {
       timestamps[keyValue.key] = timestamp_kf_; // for the latest pose, velocity, and bias
+    }
 
-    if (verbosity_ >= 5) {std::cout << "starting first update:" << std::endl;}
-    if (verbosity_ >= 5) debugInfo_.preUpdateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    if (verbosity_ >= 5) {
+      std::cout << "starting first update:" << std::endl;
+    }
+
+    if (verbosity_ >= 5) {
+      debugInfo_.preUpdateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    }
+
     result = smoother_->update(new_factors_tmp, new_values_,timestamps, delete_slots);
-    if (verbosity_ >= 5) debugInfo_.updateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
-    if (verbosity_ >= 5) {std::cout << "finished first update!" << std::endl;}
+
+    if (verbosity_ >= 5) {
+      debugInfo_.updateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    }
+
+    if (verbosity_ >= 5) {
+      std::cout << "finished first update!" << std::endl;
+    }
 
     // reset everything for next round
     new_smart_factors_.clear();
     new_values_.clear();
-  }
-  catch (const gtsam::IndeterminantLinearSystemException& e)
-  {
+  } catch (const gtsam::IndeterminantLinearSystemException& e) {
     std::cerr << e.what() << std::endl;
+
     gtsam::Key var = e.nearbyVariable();
     gtsam::Symbol symb(var);
+
     std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
         << "and index " << symb.index() << std::endl;
+
     smoother_->getFactors().print("smoother's factors:\n");
     state_.print("State values\n");
 
@@ -666,59 +692,87 @@ void VioBackEnd::optimize(
                      false);
     throw;
   }
+
   // update slots of smart factors:
-  if (verbosity_ >= 5) {std::cout << "starting findSmartFactorsSlots" << std::endl;}
+  if (verbosity_ >= 5) {
+    std::cout << "starting findSmartFactorsSlots" << std::endl;
+  }
 #ifdef INCREMENTAL_SMOOTHER
   findSmartFactorsSlots(new_smart_factors_lmkID_tmp);
 #else
   findSmartFactorsSlotsSlow(new_smart_factors_lmkID_tmp);
 #endif
-  if (verbosity_ >= 5) {std::cout << "finished findSmartFactorsSlots" << std::endl;}
+  if (verbosity_ >= 5) {
+    std::cout << "finished findSmartFactorsSlots" << std::endl;
+  }
 
-  if (verbosity_ >= 5) debugInfo_.updateSlotTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+  if (verbosity_ >= 5) {
+    debugInfo_.updateSlotTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+  }
 
   // Do some more iterations.
-  for  (size_t n_iter = 1; n_iter < max_extra_iterations; ++n_iter)
-  {
+  for (size_t n_iter = 1; n_iter < max_extra_iterations; ++n_iter) {
     std::cout << "Doing extra iteration nr: " << n_iter << std::endl;
-    try
-    {
+    try {
       result = smoother_->update();
-    }
-    catch(const gtsam::IndeterminantLinearSystemException& e)
-    {
+    } catch(const gtsam::IndeterminantLinearSystemException& e) {
       std::cout << "ERROR: " << e.what() << std::endl;
+
       gtsam::Key var = e.nearbyVariable();
       gtsam::Symbol symb(var);
+
       std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
           << "and index " << symb.index() << std::endl;
+
       smoother_->getFactors().print("smoother's factors:\n");
       throw;
     }
   }
-  if (verbosity_ >= 5) debugInfo_.extraIterationsTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
 
-  if (verbosity_ >= 5) {std::cout << "starting calculateEstimate" << std::endl;}
-  // Get states we need for next iteration
+  if (verbosity_ >= 5) {
+    debugInfo_.extraIterationsTime_ = UtilsOpenCV::GetTimeInSeconds() -
+                                      startTime;
+  }
+
+  if (verbosity_ >= 5) {
+    std::cout << "starting calculateEstimate" << std::endl;
+  }
+
+  // Get states we need for next iteration.
   state_ = smoother_->calculateEstimate();
   W_Pose_Blkf_ = state_.at<Pose3>(gtsam::Symbol('x', cur_id));
   W_Vel_Blkf_ = state_.at<Vector3>(gtsam::Symbol('v', cur_id));
   imu_bias_lkf_ = state_.at<gtsam::imuBias::ConstantBias>(gtsam::Symbol('b', cur_id));
-  if (verbosity_ >= 5) {std::cout << "finished calculateEstimate!" << std::endl;}
-  if (verbosity_ >= 9) { computeSparsityStatistics(); }
+
+  if (verbosity_ >= 5) {
+    std::cout << "finished calculateEstimate!" << std::endl;
+  }
+
+  if (verbosity_ >= 9) {
+    computeSparsityStatistics();
+  }
 
   // DEBUG:
-  if (verbosity_ >= 5) {std::cout << "starting computeSmartFactorStatistics" << std::endl;}
-  if (verbosity_ >= 4) {computeSmartFactorStatistics(); }
-  if (verbosity_ >= 5) {std::cout << "finished computeSmartFactorStatistics" << std::endl;}
-  if (verbosity_ >= 6){
-    gtsam::NonlinearFactorGraph graph = gtsam::NonlinearFactorGraph(smoother_->getFactors()); // clone, expensive but safer!
-    std::cout << "Error before: " << graph.error(debugInfo_.stateBeforeOpt) << std::endl;
-    std::cout << "Error after: " << graph.error(state_) << std::endl;
+  if (verbosity_ >= 5) {
+    std::cout << "starting computeSmartFactorStatistics" << std::endl;
   }
-  if (verbosity_ >= 5) debugInfo_.printTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
-  if (verbosity_ >= 5)
-  {
+  if (verbosity_ >= 4) {
+    computeSmartFactorStatistics();
+  }
+  if (verbosity_ >= 5) {
+    std::cout << "finished computeSmartFactorStatistics" << std::endl;
+  }
+  if (verbosity_ >= 6) {
+    gtsam::NonlinearFactorGraph graph =
+        gtsam::NonlinearFactorGraph(smoother_->getFactors()); // clone, expensive but safer!
+    std::cout << "Error before: " << graph.error(debugInfo_.stateBeforeOpt)
+              << "Error after: " << graph.error(state_) << std::endl;
+  }
+  if (verbosity_ >= 5) {
+    debugInfo_.printTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+  }
+
+  if (verbosity_ >= 5) {
     // order of the following is important:
     debugInfo_.printTime_ -= debugInfo_.extraIterationsTime_;
     debugInfo_.extraIterationsTime_ -= debugInfo_.updateSlotTime_;
@@ -727,14 +781,21 @@ void VioBackEnd::optimize(
     debugInfo_.preUpdateTime_ -= debugInfo_.factorsAndSlotsTime_;
     debugInfo_.printTimes();
   }
-  if (verbosity_ >= 5){
+
+  if (verbosity_ >= 5) {
     endTime = UtilsOpenCV::GetTimeInSeconds() - startTime;
     // sanity check:
-    double endTimeFromSum = debugInfo_.factorsAndSlotsTime_ + debugInfo_.preUpdateTime_ +
-        debugInfo_.updateTime_ + debugInfo_.updateSlotTime_ + debugInfo_.extraIterationsTime_ + debugInfo_.printTime_;
-    if(fabs(endTimeFromSum - endTime)>1e-1){
-      std::cout << "endTime: " << endTime << " endTimeFromSum: " << endTimeFromSum;
-      throw std::runtime_error("optimize: time measurement mismatch (this check on timing might be too strict)");
+    double endTimeFromSum = debugInfo_.factorsAndSlotsTime_ +
+                            debugInfo_.preUpdateTime_ +
+                            debugInfo_.updateTime_ +
+                            debugInfo_.updateSlotTime_ +
+                            debugInfo_.extraIterationsTime_ +
+                            debugInfo_.printTime_;
+    if (fabs(endTimeFromSum - endTime) > 1e-1) {
+      std::cout << "endTime: " << endTime
+                << " endTimeFromSum: " << endTimeFromSum;
+      throw std::runtime_error("optimize: time measurement mismatch"
+                               " (this check on timing might be too strict)");
     }
   }
 }
