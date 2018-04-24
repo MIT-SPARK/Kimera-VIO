@@ -271,11 +271,12 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     const LandmarkId& lmk_id,
     const std::pair<FrameId, StereoPoint2>& newObs) {
 
-  if (lmk_id_is_smart_.find(lmk_id) == lmk_id_is_smart_.end()) {
-    // We are not tracking whether the lmk is smart or not, assume it is smart.
+  // We are not tracking whether the lmk is smart or not, but we should.
+  CHECK(lmk_id_is_smart_.find(lmk_id) != lmk_id_is_smart_.end())
+      << "Lmk with id: " << lmk_id << " is not being tracked whether it is "
+                                      "smart or not...";
 
-  }
-  bool is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
+  const bool& is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
   if (is_lmk_smart == true) {
     VLOG(10) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
 
