@@ -17,6 +17,8 @@
 
 #include <gtsam/slam/ProjectionFactor.h>
 
+#include "factors/PointPlaneFactor.h"
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -29,13 +31,42 @@ RegularVioBackEnd::RegularVioBackEnd(
              leftCameraCalRectified,
              baseline,
              vioParams) {
-  //mono_noise_ = gtsam::noiseModel::Isotropic::Sigma(
-  //                                  2, vioParams_.monoNoiseSigma_);
-  mono_noise_ =
-      gtsam::noiseModel::Robust::Create(
-        gtsam::noiseModel::mEstimator::Huber::Create(
-          vioParams_.huberParam_, gtsam::noiseModel::mEstimator::Huber::Scalar),
-        gtsam::noiseModel::Isotropic::Sigma(2, vioParams_.monoNoiseSigma_));
+  gtsam::SharedNoiseModel gaussian =
+      gtsam::noiseModel::Isotropic::Sigma(2, vioParams_.monoNoiseSigma_);
+
+  switch (vioParams_.normType_) {
+    case 0: {
+      LOG(INFO) << "Using square norm.";
+      mono_noise_ = gaussian;
+      break;
+    }
+    case 1: {
+      LOG(INFO) << "Using Huber norm, with parameter value: " << vioParams_.huberParam_;
+      mono_noise_ =
+          gtsam::noiseModel::Robust::Create(
+            gtsam::noiseModel::mEstimator::Huber::Create(
+              vioParams_.huberParam_,
+              gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
+            gaussian);
+      break;
+    }
+    case 2: {
+      LOG(INFO) << "Using Tukey norm, with parameter value: " << vioParams_.tukeyParam_;
+      mono_noise_ = gtsam::noiseModel::Robust::Create(
+                      gtsam::noiseModel::mEstimator::Tukey::Create(
+                        vioParams_.tukeyParam_,
+                        gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
+                      gaussian); //robust
+      break;
+    }
+    default: {
+      LOG(INFO) << "Using square norm.";
+      mono_noise_ = gtsam::noiseModel::Isotropic::Sigma(
+                      2, vioParams_.monoNoiseSigma_);
+
+      break;
+    }
+  }
 
   mono_cal_ = boost::make_shared<Cal3_S2>(stereoCal_->calibration());
   CHECK(mono_cal_->equals(stereoCal_->calibration()))
@@ -146,7 +177,11 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   // Add regularity factor on vertices of the mesh.
   // TODO argument should be generalized to diff
   // type of cluster and regularities.
-  addRegularityFactors(mesh_lmk_ids_ground_cluster);
+  if (mesh_lmk_ids_ground_cluster.size() != 0) {
+    // TODO what happens if mesh has same ids over and over, are we duplicating
+    // factors?
+    addRegularityFactors(mesh_lmk_ids_ground_cluster);
+  }
 
   // This lags 1 step behind to mimic hw.
   imu_bias_prev_kf_ = imu_bias_lkf_;
@@ -433,6 +468,41 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmk_kf,
 
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
+
+  // Noise model.
+  static const gtsam::noiseModel::Diagonal::shared_ptr regularityNoise =
+          gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.1));
+
+  // Plane key.
+  static const gtsam::Key plane_key (gtsam::Symbol('P', 0));
+
+  if (!state_.exists(plane_key)) {
+    VLOG(10) << "Plane key does NOT exist, adding new plane with key: "
+             << plane_key;
+    new_values_.insert(plane_key, gtsam::OrientedPlane3(0.0, 0.0, 1.0, 0.0));
+  } else {
+    VLOG(10) << "Plane key does exist already: " << plane_key;
+  }
+
+  // Temporal graph.
+  gtsam::NonlinearFactorGraph tmp_graph;    //!< new factors to be added
+
+  // For each lmk id, add a point plane factor.
+  // TODO only add regularity for triangles! so check that.
+  for (const LandmarkId& lmk_id: mesh_lmk_ids) {
+    if (state_.exists(gtsam::Symbol('l', lmk_id))) {
+      VLOG(10) << "Lmk id: " << lmk_id
+                << " is in state_, adding PointPlaneFactor.";
+      new_imu_prior_and_other_factors_.push_back(
+            boost::make_shared<gtsam::PointPlaneFactor>(
+              gtsam::Symbol('l', lmk_id),
+              plane_key,
+              regularityNoise));
+    } else {
+      VLOG(10) << "Lmk id: "
+              << lmk_id << " is NOT in state_, NOT adding PointPlaneFactor.";
+    }
+  }
 }
 
 } // namespace VIO
