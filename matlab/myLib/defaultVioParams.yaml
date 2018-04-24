@@ -18,6 +18,10 @@ initialGyroBiasSigma:       0.01
 linearizationMode: 0
 degeneracyMode: 1
 smartNoiseSigma: 3
+monoNoiseSigma: 3 # For RegularVio only
+huberParam: 1.345 # For RegularVio only
+tukeyParam: 4.6851 # For RegularVio only
+normType: 2 # For RegularVio only
 rankTolerance: 1
 landmarkDistanceThreshold: 20
 outlierRejection: 8
