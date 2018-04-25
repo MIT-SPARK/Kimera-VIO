@@ -15,7 +15,7 @@ Quickstart
 
 Clone this repository: `git clone git@github.mit.edu:lcarlone/VIO.git`
 
-In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redrect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly,you may need to change the folder for CGAL and OpenGV):
+In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly,you may need to change the folder for CGAL and OpenGV):
 
 ```
 #!bash
@@ -26,10 +26,10 @@ $ make
 $ make check
 ```
 
-Notea: if you use MKL in gtsam, you may need to add to .bashrc a line similar to: source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64
-Note1b: sometimes you may need to add /usr/local/lib to LD_LIBRARY_PATH in ~/.bashrc (if you get lib not found errors at run or test time)
-Note2: you may have to add %YAML:1.0 as first line in all YAML files :-(
-Note3: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
+Note 1a: if you use MKL in gtsam, you may need to add to .bashrc a line similar to: source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64
+Note 1b: sometimes you may need to add /usr/local/lib to LD_LIBRARY_PATH in ~/.bashrc (if you get lib not found errors at run or test time)
+Note 2: you may have to add %YAML:1.0 as first line in all YAML files :-(
+Note 3: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
 
 Prerequisites:
 
