@@ -31,6 +31,8 @@ RegularVioBackEnd::RegularVioBackEnd(
              leftCameraCalRectified,
              baseline,
              vioParams) {
+  LOG(INFO) << "Using Regular VIO backend.\n";
+
   gtsam::SharedNoiseModel gaussian =
       gtsam::noiseModel::Isotropic::Sigma(2, vioParams_.monoNoiseSigma_);
 
@@ -71,7 +73,6 @@ RegularVioBackEnd::RegularVioBackEnd(
   mono_cal_ = boost::make_shared<Cal3_S2>(stereoCal_->calibration());
   CHECK(mono_cal_->equals(stereoCal_->calibration()))
       << "Monocular calibration should match Stereo calibration";
-  LOG(INFO) << "Using Regular VIO backend.\n";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -169,6 +170,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED :
         // We add features in VIO.
         addLandmarksToGraph(landmarks_kf);
+
       }
       break;
     }
@@ -335,7 +337,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
           old_smart_factors_it->second.first;
 
       // Add landmark value to graph.
-      VLOG(10) << "PRINT FACTOR of lmk_id: " << lmk_id;
+      VLOG(9) << "PRINT FACTOR of lmk_id: " << lmk_id;
       if (VLOG_IS_ON(9)) {
         old_factor->print();
       }
@@ -384,6 +386,9 @@ void RegularVioBackEnd::updateLandmarkInGraph(
       // Erase from old_smart_factors_ list since this has been converted into
       // projection factors.
       old_smart_factors_.erase(lmk_id);
+    } else {
+      VLOG(10) << "Lmk with id: " << lmk_id << " has been found in state:\n"
+               << "it is being used in a projection factor.";
     }
 
     // If it is not smart, just add current measurement.
@@ -425,6 +430,8 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmk_kf,
     if (std::find(mesh_lmk_ids.begin(),
                   mesh_lmk_ids.end(), lmk_id) ==
         mesh_lmk_ids.end()) {
+      VLOG(10) << "Lmk_id = " << lmk_id
+               << " needs to stay as it is since it is NOT involved in any regularity.";
       // This lmk is not involved in any regularity.
       if (lmk_id_slot == lmk_id_is_smart->end()) {
         // We did not find the lmk_id in the lmk_id_is_smart_ map.
@@ -494,6 +501,7 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
     if (state_.exists(gtsam::Symbol('l', lmk_id))) {
       VLOG(10) << "Lmk id: " << lmk_id
                 << " is in state_, adding PointPlaneFactor.";
+      // TODO we are repeating factor!
       new_imu_prior_and_other_factors_.push_back(
             boost::make_shared<gtsam::PointPlaneFactor>(
               gtsam::Symbol('l', lmk_id),
