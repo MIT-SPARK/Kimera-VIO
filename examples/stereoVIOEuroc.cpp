@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   // initialize random seed for repeatability (only on the same machine)
-  // srand(0); // still does not make RANSAC REPEATABLE across different machines
+  srand(0); // still does not make RANSAC REPEATABLE across different machines
   static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
   static constexpr int saveImagesSelector = 1;          // 0: don't show, >0 write & save
   VisualizationType visualization_type = static_cast<VisualizationType>(
