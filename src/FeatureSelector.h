@@ -1122,8 +1122,15 @@ public:
       if(newlyAvailableKeypointsDistance.at(ni) > 1e-2)
         ratioOfNewKeypointsWithDistance +=1;
     }
-    ratioOfNewKeypointsWithDistance = ratioOfNewKeypointsWithDistance / double(newlyAvailableKeypointsDistance.size());
-    std::cout << "ratioOfNewKeypointsWithDistance: " << ratioOfNewKeypointsWithDistance << std::endl;
+    if (newlyAvailableKeypointsDistance.size() != 0) {
+      ratioOfNewKeypointsWithDistance = ratioOfNewKeypointsWithDistance / double(newlyAvailableKeypointsDistance.size());
+    } else {
+      LOG(ERROR) << "We are about to divide by 0 to calculate "
+                    "ratioOfNewKeypointsWithDistance!";
+      ratioOfNewKeypointsWithDistance =
+          std::numeric_limits<double>::signaling_NaN();
+    }
+    VLOG(10) << "ratioOfNewKeypointsWithDistance: " << ratioOfNewKeypointsWithDistance;
     // UtilsOpenCV::PrintVector(newlyAvailableKeypointsDistance,"newlyAvailableKeypointsDistance");
 
     //////////////////////////////////////////////////////////////////
@@ -1132,9 +1139,10 @@ public:
     // 2.1) figure out how many features we need!
     int need_nr_features = std::max(nrFeaturesToSelect
         - int(trackedkeypoints_3d.size()), int (0) ); // at least zero
-    std::cout << "Nr features tracked: " << trackedSmartStereoMeasurements.size() << std::endl;
-    std::cout << "Nr new features needed: " << need_nr_features << std::endl;
-    std::cout << "Nr new features before selector: " << newSmartStereoMeasurements.size() << std::endl;
+    VLOG(10) << "Nr features tracked: " << trackedSmartStereoMeasurements.size()
+             << "Nr new features needed: " << need_nr_features
+             << "Nr new features before selector: "
+             << newSmartStereoMeasurements.size();
 
     // 2.2) run a feature selector of your choice
     KeypointsCV selectedKeypoints; // only for visualization
@@ -1221,7 +1229,7 @@ public:
       SmartStereoMeasurements tmp = newSmartStereoMeasurements;
       newSmartStereoMeasurements.resize(0); // delete everything and repopulate
       newSmartStereoMeasurements.reserve(selectedIndices.size()); // preallocate
-      for(auto i : selectedIndices){
+      for(const auto& i : selectedIndices){
         newSmartStereoMeasurements.push_back(tmp.at(i));
         selectedKeypoints.push_back(newlyAvailableKeypoints.at(i));
         selectedLmks.push_back(newlyAvailableLmks.at(i));
