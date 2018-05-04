@@ -45,7 +45,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   imu_bias_lkf_(ImuBias()), imu_bias_prev_kf_(ImuBias()),
   W_Vel_Blkf_(Vector3::Zero()), W_Pose_Blkf_(Pose3()),
   last_id_(-1), cur_id_(0),
-  verbosity_(5), landmark_count_(0) {
+  verbosity_(0), landmark_count_(0) {
 
   // SMART PROJECTION FACTORS SETTINGS
   gtsam::SharedNoiseModel model = gtsam::noiseModel::Isotropic::Sigma(
@@ -646,40 +646,26 @@ void VioBackEnd::optimize(
     }
   }
 
+  std::map<Key, double> timestamps;
+  for(const auto& keyValue : new_values_) {
+    timestamps[keyValue.key] = timestamp_kf_; // for the latest pose, velocity, and bias
+  }
+
+  if (verbosity_ >= 5) {
+    std::cout << "starting first update:" << std::endl;
+    debugInfo_.preUpdateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+  }
+
   // Compute iSAM update.
   Smoother::Result result;
   try {
-    std::map<Key, double> timestamps;
-    for(const auto& keyValue : new_values_) {
-      timestamps[keyValue.key] = timestamp_kf_; // for the latest pose, velocity, and bias
-    }
-
-    if (verbosity_ >= 5) {
-      std::cout << "starting first update:" << std::endl;
-    }
-
-    if (verbosity_ >= 5) {
-      debugInfo_.preUpdateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
-    }
-
-    result = smoother_->update(new_factors_tmp, new_values_,timestamps, delete_slots);
-
-    if (verbosity_ >= 5) {
-      debugInfo_.updateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
-    }
-
-    if (verbosity_ >= 5) {
-      std::cout << "finished first update!" << std::endl;
-    }
-
-    // reset everything for next round
-    new_smart_factors_.clear();
-    new_values_.clear();
+    result = smoother_->update(new_factors_tmp, new_values_,
+                               timestamps, delete_slots);
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
     std::cerr << e.what() << std::endl;
 
     gtsam::Key var = e.nearbyVariable();
-    gtsam::Symbol symb(var);
+    gtsam::Symbol symb (var);
 
     std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
         << "and index " << symb.index() << std::endl;
@@ -692,6 +678,15 @@ void VioBackEnd::optimize(
                      false);
     throw;
   }
+
+  if (verbosity_ >= 5) {
+    debugInfo_.updateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    std::cout << "finished first update!" << std::endl;
+  }
+
+  // Reset everything for next round.
+  new_smart_factors_.clear();
+  new_values_.clear();
 
   // update slots of smart factors:
   if (verbosity_ >= 5) {
@@ -850,6 +845,10 @@ void VioBackEnd::findSmartFactorsSlots(
   for (size_t i = 0; i < new_smart_factors_lmkID_tmp.size(); ++i) // for each landmark id currently observed (just re-added to graph)
   {
     const auto& it = old_smart_factors_.find(new_smart_factors_lmkID_tmp.at(i)); // find the entry in old_smart_factors_
+    CHECK(it != old_smart_factors_.end())
+        << "Trying to access unavailable factor.";
+    CHECK(i < result.newFactorsIndices.size())
+        << "Trying to access unavailable factor index.";
     it->second.second = result.newFactorsIndices.at(i); // update slot using isam2 indices
   }
 }
@@ -1052,8 +1051,7 @@ void VioBackEnd::get3DPointsAndLmkIds(PointsWithIdMap* points_with_id,
   // do not move that much after optimizing... they are almost frozen and
   // are not visually changing much...
 
-  VLOG(100) << "nrValidPts= "<< nr_valid_pts << " out of "
-            << nr_pts << std::endl;
+  VLOG(100) << "nrValidPts= "<< nr_valid_pts << " out of " << nr_pts <<"\n";
 }
 
 /* -------------------------------------------------------------------------- */
