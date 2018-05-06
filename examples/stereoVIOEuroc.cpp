@@ -60,10 +60,11 @@ using namespace VIO;
 
 // helper function to parse dataset and user-specified parameters
 void parseDatasetAndParams(const int argc, const char * const *argv,
-    //output:
-                         ETHDatasetParser& dataset, VioBackEndParams& vioParams,
-                         VioFrontEndParams& trackerParams,
-                         size_t& initial_k, size_t& final_k) {
+                           //output:
+                           ETHDatasetParser& dataset,
+                           VioBackEndParams& vioParams,
+                           VioFrontEndParams& trackerParams,
+                           size_t& initial_k, size_t& final_k) {
 
   // dataset path
   VLOG(100) << "stereoVIOexample: using dataset path: " << FLAGS_dataset_path;
@@ -220,10 +221,10 @@ int main(int argc, char *argv[]) {
     ////////////////////////////////////////////////////////////////////////////
     // For k == 1 (initial frame).
     if (k == initial_k) {
-      // process frame
+      // Process frame.
       stereoVisionFrontEnd.processFirstStereoFrame(stereoFrame_k);
 
-      // get IMU data
+      // Get IMU data.
       std::tie(imu_stamps, imu_accgyr) = dataset.imuData_.imu_buffer_
                       .getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
 
@@ -248,8 +249,9 @@ int main(int argc, char *argv[]) {
         }
       }
 
-      // initialize Vio
+      // Initialize VIO.
       gtNavState initialStateGT;
+
       // Use initial IMU measurements to guess first pose
       if (vioParams.autoInitialize_) {
           initialStateGT.pose = vioBackEnd->GuessPoseFromIMUmeasurements(
