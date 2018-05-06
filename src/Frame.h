@@ -102,18 +102,23 @@ public:
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // NOT TESTED:
-  void setLandmarksToMinus1(const LandmarkIds lmkIds) { // TODO: this has quadratic complexity
-    for (const LandmarkId& lmkId : lmkIds) { // for each landmark we want to discard
+  void setLandmarksToMinus1(const LandmarkIds& lmkIds) {
+    // TODO: this has quadratic complexity
+    for (const LandmarkId& lmkId: lmkIds) {
+      // For each landmark we want to discard.
       bool found = false;
-      for (size_t ind = 0; ind < landmarks_.size(); ind++) { // we look for it among landmarks_
-        if (landmarks_.at(ind) == lmkId) { // if found, we set it to -1
+      for (size_t ind = 0; ind < landmarks_.size(); ind++) {
+        // We look for it among landmarks_.
+        if (landmarks_.at(ind) == lmkId) {
+          // We found it, so we set it to -1.
           landmarks_.at(ind) = -1;
           found = true;
           break;
         }
       }
-      if (!found)
+      if (!found) {
         throw std::runtime_error("setLandmarksToMinus1: lmk not found");
+      }
     }
   }
 
