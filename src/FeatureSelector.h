@@ -1180,8 +1180,6 @@ public:
     if (newlyAvailableKeypointsDistance.size() != 0) {
       ratioOfNewKeypointsWithDistance = ratioOfNewKeypointsWithDistance / double(newlyAvailableKeypointsDistance.size());
     } else {
-      LOG(ERROR) << "We are about to divide by 0 to calculate "
-                    "ratioOfNewKeypointsWithDistance!";
       ratioOfNewKeypointsWithDistance =
           std::numeric_limits<double>::signaling_NaN();
     }
