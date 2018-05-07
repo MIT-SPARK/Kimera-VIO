@@ -334,6 +334,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 
     // Update lmk_id as a projection factor.
     gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id);
+    bool lmk_position_available = true;
     if (state_.find(lmk_key) == state_.end()) {
       VLOG(10) << "Lmk with id: " << lmk_id << " is not found in state.\n";
       // We did not find the lmk in the state.
@@ -347,85 +348,100 @@ void RegularVioBackEnd::updateLandmarkInGraph(
           old_smart_factors_it->second.first;
 
       // Add landmark value to graph.
-      VLOG(9) << "PRINT FACTOR of lmk_id: " << lmk_id;
-      if (VLOG_IS_ON(9)) {
+      VLOG(20) << "Print old_factor of lmk_id: " << lmk_id;
+      if (VLOG_IS_ON(20)) {
         old_factor->print();
       }
       // TODO make sure that if point is not valid it works as well...
-      CHECK(old_factor->point().valid())
-          << "Does not have a value for point in proj. factor.";
-      new_values_.insert(lmk_key, *old_factor->point());
-      VLOG(10) << "Performing conversion for lmk_id: " << lmk_id;
+      if (old_factor->point().valid()) {
+        VLOG(10) << "Performing conversion for lmk_id: " << lmk_id;
 
-      // Convert smart factor to multiple projection factors.
-      for (size_t i = 0; i < old_factor->keys().size(); i++) {
-        const gtsam::Key& cam_key = old_factor->keys().at(i);
-        const StereoPoint2& sp2   = old_factor->measured().at(i);
-        VLOG(10) << "Lmk with id: " << lmk_id
-                  << " added as a new projection factor with pose with id: "
-                  << static_cast<int>(cam_key) << ".\n";
-        if (!std::isnan(sp2.uR())) {
-          new_imu_prior_and_other_factors_.push_back(
-                gtsam::GenericStereoFactor<Pose3, Point3>
-                (sp2, smart_noise_,
-                 cam_key,
-                 lmk_key,
-                 stereoCal_, B_Pose_leftCam_));
-        } else {
-          // Right pixel has a NAN value for u, use GenericProjectionFactor instead
-          // of stereo.
-          new_imu_prior_and_other_factors_.push_back(
-                gtsam::GenericProjectionFactor<Pose3, Point3>
-                (gtsam::Point2(sp2.uL(),
-                               sp2.v()),
-                 mono_noise_,
-                 cam_key,
-                 lmk_key,
-                 mono_cal_, B_Pose_leftCam_));
+        new_values_.insert(lmk_key, *(old_factor->point()));
+
+        // Convert smart factor to multiple projection factors.
+        for (size_t i = 0; i < old_factor->keys().size(); i++) {
+          const gtsam::Key& cam_key = old_factor->keys().at(i);
+          const StereoPoint2& sp2   = old_factor->measured().at(i);
+          VLOG(10) << "Lmk with id: " << lmk_id
+                   << " added as a new projection factor with pose with id: "
+                   << static_cast<int>(cam_key) << ".\n";
+          if (!std::isnan(sp2.uR())) {
+            new_imu_prior_and_other_factors_.push_back(
+                  gtsam::GenericStereoFactor<Pose3, Point3>
+                  (sp2,
+                   smart_noise_,
+                   cam_key,
+                   lmk_key,
+                   stereoCal_, B_Pose_leftCam_));
+          } else {
+            // Right pixel has a NAN value for u, use GenericProjectionFactor instead
+            // of stereo.
+            new_imu_prior_and_other_factors_.push_back(
+                  gtsam::GenericProjectionFactor<Pose3, Point3>
+                  (gtsam::Point2(sp2.uL(),
+                                 sp2.v()),
+                   mono_noise_,
+                   cam_key,
+                   lmk_key,
+                   mono_cal_, B_Pose_leftCam_));
+          }
         }
-      }
 
-      // Make sure that the smart factor that we converted to projection
-      // gets deleted from the graph.
-      if (old_smart_factors_it->second.second != -1) {
-        // Get current slot (if factor is already there it must be deleted).
-        delete_slots_converted_factors_.push_back(
-              old_smart_factors_it->second.second);
-      }
+        // Make sure that the smart factor that we converted to projection
+        // gets deleted from the graph.
+        if (old_smart_factors_it->second.second != -1) {
+          // Get current slot (if factor is already there it must be deleted).
+          delete_slots_converted_factors_.push_back(
+                old_smart_factors_it->second.second);
+        }
 
-      // Erase from old_smart_factors_ list since this has been converted into
-      // projection factors.
-      old_smart_factors_.erase(lmk_id);
+        // Erase from old_smart_factors_ list since this has been converted into
+        // projection factors.
+        old_smart_factors_.erase(lmk_id);
+      } else {
+        LOG(ERROR) << "Cannot convert smart factor to proj. factor.\n"
+                   << "Smart factor does not have a valid 3D position for lmk: "
+                   << lmk_id << "\n"
+                   << "Smart factor point status: \n" << old_factor->point();
+        lmk_position_available = false;
+      }
     } else {
-      VLOG(10) << "Lmk with id: " << lmk_id << " has been found in state:\n"
+      VLOG(10) << "Lmk with id: " << lmk_id << " has been found in state: "
                << "it is being used in a projection factor.";
     }
 
     // If it is not smart, just add current measurement.
     // It was a projection factor before.
-    // Also add it if it was smart but now is projection factor...
-    VLOG(10) << "Lmk with id: " << lmk_id
-             << " added as a new projection factor with pose with id: "
-             << newObs.first << ".\n";
-    if (!std::isnan(newObs.second.uR())) {
-      new_imu_prior_and_other_factors_.push_back(
-            gtsam::GenericStereoFactor<Pose3, Point3>
-            (newObs.second, smart_noise_,
-             gtsam::Symbol('x', newObs.first),
-             lmk_key,
-             stereoCal_, B_Pose_leftCam_));
-    } else {
-      // Right pixel has a NAN value for u, use GenericProjectionFactor instead
-      // of stereo.
-      new_imu_prior_and_other_factors_.push_back(
-            gtsam::GenericProjectionFactor<Pose3, Point3>
+    // Also add it if it was smart but now is projection factor, unless we could
+    // not convert the smart factor to a set of projection factors, then do not
+    // add it because we do not have a right value to use.
+    if (lmk_position_available) {
+      VLOG(10) << "Lmk with id: " << lmk_id
+               << " added as a new projection factor with pose with id: "
+               << newObs.first << ".\n";
+      if (!std::isnan(newObs.second.uR())) {
+        new_imu_prior_and_other_factors_.push_back(
+              gtsam::GenericStereoFactor<Pose3, Point3>
+              (newObs.second, smart_noise_,
+               gtsam::Symbol('x', newObs.first),
+               lmk_key,
+               stereoCal_, B_Pose_leftCam_));
+      } else {
+        // Right pixel has a NAN value for u, use GenericProjectionFactor instead
+        // of stereo.
+        new_imu_prior_and_other_factors_.push_back(
+              gtsam::GenericProjectionFactor<Pose3, Point3>
               (gtsam::Point2(newObs.second.uL(),
                              newObs.second.v()),
                mono_noise_,
                gtsam::Symbol('x', newObs.first),
                lmk_key,
                mono_cal_, B_Pose_leftCam_)
-            );
+              );
+      }
+    } else {
+      LOG(ERROR) << "Not using new observation for lmk: " << lmk_id
+                 << " because we do not have a good initial value for it.";
     }
   }
 }
