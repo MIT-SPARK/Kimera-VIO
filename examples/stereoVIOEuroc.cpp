@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
   double startTime; // to log timing results
 
   /// Lmk ids that are considered to be in the same cluster.
-  static LandmarkIds mesh_lmk_ids_ground_cluster;
+  LandmarkIds mesh_lmk_ids_ground_cluster;
 
   // start actual processing of the dataset
   for(size_t k = initial_k; k < final_k; k++) { // for each image
