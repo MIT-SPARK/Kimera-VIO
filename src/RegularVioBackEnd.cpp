@@ -85,7 +85,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   debugInfo_.resetAddedFactorsStatistics();
 
-  if (VLOG_IS_ON(7)) {
+  if (VLOG_IS_ON(20)) {
     StereoVisionFrontEnd::PrintStatusStereoMeasurements(
                                           status_smart_stereo_measurements_kf);
   }
@@ -96,8 +96,8 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
 
-  VLOG(7) << "Adding keyframe " << cur_kf_id_
-          << " at timestamp:" << timestamp_kf_ << " (sec)\n";
+  VLOG(7) << "Processing keyframe " << cur_kf_id_
+          << " at timestamp: " << timestamp_kf_ << " (sec)\n";
 
   /////////////////// MANAGE IMU MEASUREMENTS //////////////////////////////////
   // Predict next step, add initial guess.
@@ -105,16 +105,16 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   addImuValues(cur_kf_id_);
 
   // Add imu factors between consecutive keyframe states.
-  VLOG(7) << "Adding IMU factor between pose id: " << last_kf_id_
+  VLOG(20) << "Adding IMU factor between pose id: " << last_kf_id_
           << " and pose id: " << cur_kf_id_;
   addImuFactor(last_kf_id_, cur_kf_id_);
 
   // Add between factor from RANSAC.
   if (stereo_ransac_body_pose) {
-    VLOG(7) << "Adding RANSAC factor between pose id: " << last_kf_id_
+    VLOG(20) << "Adding RANSAC factor between pose id: " << last_kf_id_
             << " and pose id: " << cur_kf_id_;
-    if (VLOG_IS_ON(7)) {
-      (*stereo_ransac_body_pose).print();
+    if (VLOG_IS_ON(20)) {
+      stereo_ransac_body_pose->print();
     }
     addBetweenFactor(last_kf_id_, cur_kf_id_, *stereo_ransac_body_pose);
   }
@@ -139,7 +139,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
                   mesh_lmk_ids_ground_cluster,
                   &lmk_id_is_smart_);
 
-  if (VLOG_IS_ON(8)) {
+  if (VLOG_IS_ON(20)) {
     printFeatureTracks();
   }
 
@@ -153,26 +153,27 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   switch(kfTrackingStatus_mono) {
     case Tracker::TrackingStatus::LOW_DISPARITY : {
       // Vehicle is not moving.
-      VLOG(7) << "Landmark has a LOW_DISPARITY kfTrackingStatus_mono.";
-      VLOG(7) << "Add zero velocity and no motion factors.\n";
+      VLOG(10) << "Tracker has a LOW_DISPARITY status.";
+      VLOG(10) << "Add zero velocity and no motion factors.\n";
       addZeroVelocityPrior(cur_kf_id_);
       addNoMotionFactor(last_kf_id_, cur_kf_id_);
       break;
     }
     default: {
       kfTrackingStatus_mono == Tracker::TrackingStatus::VALID?
-          VLOG(7) << "Landmark has a VALID kfTrackingStatus_mono.":
+          VLOG(10) << "Tracker has a VALID status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::FEW_MATCHES?
-          VLOG(7) << "Landmark has a FEW_MATCHES kfTrackingStatus_mono.":
+          VLOG(10) << "Tracker has a FEW_MATCHES status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::INVALID?
-          VLOG(7) << "Landmark has a INVALID kfTrackingStatus_mono.":
+          VLOG(10) << "Tracker has a INVALID status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::DISABLED?
-          VLOG(7) << "Landmark has a DISABLED kfTrackingStatus_mono.":
-                     VLOG(7) << "";
+          VLOG(10) << "Tracker has a DISABLED status.":
+                     VLOG(10) << "";
 
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
         // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED :
         // We add features in VIO.
+        VLOG(10) << "Adding/Updating landmarks to graph.";
         addLandmarksToGraph(lmks_kf);
       }
       break;
@@ -211,12 +212,16 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
     // (otherwise uninformative)
     static constexpr size_t min_num_of_observations = 2;
     if (feature_track.obs_.size() < min_num_of_observations) {
+      VLOG(10) << "Feature track is shorter (" << feature_track.obs_.size()
+               << ") than min_num_of_observations (" << min_num_of_observations
+               << ") for lmk with id: " << lmk_id;
       continue;
     }
 
     if (!feature_track.in_ba_graph_) {
       // Acknowledge that we have added the landmark in the graph.
       feature_track.in_ba_graph_ = true;
+      VLOG(10) << "Adding lmk " << lmk_id << " to graph.\n";
       addLandmarkToGraph(lmk_id, feature_track);
       ++n_new_landmarks;
     } else {
@@ -226,6 +231,7 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
       CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
                                             " keyframe!\n";
 
+      VLOG(10) << "Updating lmk " << lmk_id << " to graph.\n";
       updateLandmarkInGraph(lmk_id, obs_kf);
       ++n_updated_landmarks;
     }
@@ -246,18 +252,18 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                                              smartFactorsParams_,
                                              B_Pose_leftCam_));
 
-  if (VLOG_IS_ON(9)) {
-    VLOG(9) << "Adding landmark with id: " << lmk_id
-            << " for the first time to graph. \n"
-            << "Nr of observations of the lmk: " << ft.obs_.size()
-            << " observations.\n";
+  VLOG(10) << "Adding landmark with id: " << lmk_id
+           << " for the first time to graph. \n"
+           << "Nr of observations of the lmk: " << ft.obs_.size()
+           << " observations.\n";
+  if (VLOG_IS_ON(20)) {
     new_factor->print();
   }
 
   // Add observations to smart factor.
-  VLOG(9) << "Creating smart factor involving lmk with id: " << lmk_id;
+  VLOG(10) << "Creating smart factor involving lmk with id: " << lmk_id;
   for (const std::pair<FrameId, StereoPoint2>& obs: ft.obs_) {
-    VLOG(9) << "SmartFactor: adding observation of lmk with id: " << lmk_id
+    VLOG(10) << "SmartFactor: adding observation of lmk with id: " << lmk_id
             << " from frame with id: " << obs.first;
 
     new_factor->add(obs.second,

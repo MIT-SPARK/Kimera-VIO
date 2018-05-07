@@ -407,6 +407,8 @@ int main(int argc, char *argv[]) {
       if (vioParams.addBetweenStereoFactors_ == true &&
           stereoVisionFrontEnd.trackerStatusSummary_.kfTrackingStatus_stereo_ ==
                                                               Tracker::VALID ) {
+        VLOG(10) << "Add visual inertial state and optimize,"
+                    " using stereo between factor.";
         vioBackEnd->addVisualInertialStateAndOptimize(
               timestamp_k, // Current time for fixed lag smoother.
               statusSmartStereoMeasurements, // Vision data.
@@ -414,6 +416,8 @@ int main(int argc, char *argv[]) {
               mesh_lmk_ids_ground_cluster,
               stereoVisionFrontEnd.getRelativePoseBodyStereo()); // optional: pose estimate from stereo ransac
       } else {
+        VLOG(10) << "Add visual inertial state and optimize,"
+                    " without using stereo between factor.";
         vioBackEnd->addVisualInertialStateAndOptimize(
               timestamp_k,
               statusSmartStereoMeasurements,
@@ -481,9 +485,9 @@ int main(int argc, char *argv[]) {
           // (updateMesh3D also filters out geometrically)
           // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
         case VisualizationType::MESH2DTo3Dsparse: {
-          std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
+          VLOG(10) << "Mesh2Dtype::MESH2DTo3Dsparse";
 
-          static constexpr int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
+          static constexpr int minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
 
           // Points_with_id_VIO contains all the points in the optimization,
           // (encoded as either smart factors or explicit values), potentially

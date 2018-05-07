@@ -418,8 +418,8 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
         featureTracks_.find(lmk_id_in_kf_i);
     if (feature_track_it == featureTracks_.end()) {
       // New feature.
-      VLOG(7) << "Adding landmark: " << lmk_id_in_kf_i
-              << " to feature track.";
+      VLOG(10) << "Creating new feature track for lmk: "
+               << lmk_id_in_kf_i << ".";
       featureTracks_.insert(std::make_pair(lmk_id_in_kf_i,
                                            FeatureTrack(frame_num,
                                                         stereo_px_i)));
@@ -437,6 +437,8 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
       // above, using the tmp structure of course).
 
       // Add observation to existing landmark.
+      VLOG(10) << "Updating feature track for lmk: "
+               << lmk_id_in_kf_i << ".";
       feature_track_it->second.obs_.push_back(
             std::make_pair(frame_num, stereo_px_i));
     }
@@ -692,6 +694,9 @@ void VioBackEnd::optimize(
                      "CATCHING EXCEPTION",
                      false);
     throw;
+  } catch (...) {
+    // Catch the rest of exceptions.
+    LOG(ERROR) << "Unrecognized exception.";
   }
 
   if (verbosity_ >= 5) {

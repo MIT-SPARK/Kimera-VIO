@@ -91,7 +91,7 @@ public:
   }
 
   void print() const {
-    std::cout << " feature track with cameras: ";
+    std::cout << "feature track with cameras: ";
     for (size_t i = 0; i < obs_.size() ; i++) {
       std::cout << " " <<  obs_[i].first << " ";
     }

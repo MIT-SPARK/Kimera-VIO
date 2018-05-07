@@ -341,9 +341,12 @@ public:
       if(right_keypoints_rectified.at(i).first == Kstatus::NO_DEPTH)
         nrNoDepth++;
     }
-    std::cout << "Nr of right keypoints: " << right_keypoints_rectified.size()  << " of which: " << std::endl <<
-        "valid: " << nrValid << " nrNoLeftRect: " << nrNoLeftRect <<
-        " nrNoRightRect: " << nrNoRightRect << " nrNoDepth: " << nrNoDepth << std::endl;
+    std::cout << "Nr of right keypoints: " << right_keypoints_rectified.size()
+              << " of which:\n"
+              << "nrValid: " << nrValid << "\n"
+              << "nrNoLeftRect: " << nrNoLeftRect << "\n"
+              << "nrNoRightRect: " << nrNoRightRect << "\n"
+              << "nrNoDepth: " << nrNoDepth << std::endl;
   }
 };
 
