@@ -16,6 +16,8 @@
  * @author Luca Carlone
  */
 
+#include <glog/logging.h>
+
 #include <gtsam/linear/GaussianFactorGraph.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
@@ -1089,7 +1091,12 @@ TEST(FeatureSelector, smallestEigSpectraShift ) {
 }
 
 /* ************************************************************************* */
-int main() {
+int main(int argc, char *argv[]) {
+  // Initialize Google's flags library.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  // Initialize Google's logging library.
+  google::InitGoogleLogging(argv[0]);
+
   vioParams.smartNoiseSigma_ = 1; // parameter include after the test were written
   TestResult tr;
   return TestRegistry::runAllTests(tr);
