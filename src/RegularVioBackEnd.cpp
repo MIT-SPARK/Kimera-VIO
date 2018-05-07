@@ -360,6 +360,16 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 
         new_values_.insert(lmk_key, *(old_factor->point()));
 
+        // DEBUG add prior to lmks.
+        LOG_EVERY_N(ERROR, 100) << "Do not forget to remove lmk prior!";
+        static const gtsam::noiseModel::Diagonal::shared_ptr prior_lmk_noise =
+            gtsam::noiseModel::Diagonal::Sigmas(Vector3(1, 1, 1));
+        new_imu_prior_and_other_factors_.push_back(
+              boost::make_shared<gtsam::PriorFactor<gtsam::Point3> >(
+                lmk_key,
+                *(old_factor->point()),
+                prior_lmk_noise));
+
         // Convert smart factor to multiple projection factors.
         for (size_t i = 0; i < old_factor->keys().size(); i++) {
           const gtsam::Key& cam_key = old_factor->keys().at(i);
