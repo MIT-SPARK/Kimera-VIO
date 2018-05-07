@@ -439,7 +439,7 @@ int main(const int argc, const char *argv[])
     std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(W_Pose_Bkf_gt, vio->W_Pose_Blkf_);
     std::cout << "vioRotError " << vioRotError << ", vioTranError " << vioTranError << std::endl;
     // Absolute vio errors
-    outputFile << vio->cur_id_ << " " <<  vioRotError << " " << vioTranError << " " << vio->landmark_count_ << " ";
+    outputFile << vio->cur_kf_id_ << " " <<  vioRotError << " " << vioTranError << " " << vio->landmark_count_ << " ";
 
     // RPY vio errors
     gtsam::Vector3 rpy_gt = W_Pose_Bkf_gt.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
@@ -454,7 +454,7 @@ int main(const int argc, const char *argv[])
     outputFile << relativeRotError << " " << relativeTranError << " " << std::endl;
 
     // debug smart factors:
-    outputFile_smartFactors << vio->cur_id_ << " " << k << " " << UtilsOpenCV::NsecToSec(timestamp_k) // keyframe id, frame id, timestamp
+    outputFile_smartFactors << vio->cur_kf_id_ << " " << k << " " << UtilsOpenCV::NsecToSec(timestamp_k) // keyframe id, frame id, timestamp
     << " " << vio->debugInfo_.numSF_ << " " << vio->debugInfo_.numValid_
     << " " << vio->debugInfo_.numDegenerate_ << " " << vio->debugInfo_.numFarPoints_
     << " " << vio->debugInfo_.numOutliers_ << " " << vio->debugInfo_.numCheirality_
@@ -463,7 +463,7 @@ int main(const int argc, const char *argv[])
 
     // we log the camera since we will display camera poses in matlab
     gtsam::Pose3 W_Pose_camlkf_vio = vio->W_Pose_Blkf_.compose(vio->B_Pose_leftCam_);
-    outputFile_posesVIO << vio->cur_id_ << " " << W_Pose_camlkf_vio.translation().transpose() << " " <<
+    outputFile_posesVIO << vio->cur_kf_id_ << " " << W_Pose_camlkf_vio.translation().transpose() << " " <<
         W_Pose_camlkf_vio.rotation().matrix().row(0) << " " <<
         W_Pose_camlkf_vio.rotation().matrix().row(1) << " " <<
         W_Pose_camlkf_vio.rotation().matrix().row(2) << " " <<
@@ -475,7 +475,7 @@ int main(const int argc, const char *argv[])
     gtsam::Pose3 W_Pose_camlkf_gt = W_Pose_Bkf_gt.compose(vio->B_Pose_leftCam_);
     Vector3 W_Vel_camlkf_gt = (dataset.getGroundTruthState(timestamp_k)).velocity;
     ImuBias imu_bias_lkf_gt = (dataset.getGroundTruthState(timestamp_k)).imuBias;
-    outputFile_posesGT << vio->cur_id_ << " " << W_Pose_camlkf_gt.translation().transpose() << " " <<
+    outputFile_posesGT << vio->cur_kf_id_ << " " << W_Pose_camlkf_gt.translation().transpose() << " " <<
         W_Pose_camlkf_gt.rotation().matrix().row(0) << " " <<
         W_Pose_camlkf_gt.rotation().matrix().row(1) << " " <<
         W_Pose_camlkf_gt.rotation().matrix().row(2) << " " <<
@@ -484,7 +484,7 @@ int main(const int argc, const char *argv[])
         imu_bias_lkf_gt.gyroscope().transpose() << std::endl;
 
     // log timing for benchmarking and performance profiling
-    outputFile_timingVIO << vio->cur_id_ << " " <<
+    outputFile_timingVIO << vio->cur_kf_id_ << " " <<
         vio->debugInfo_.factorsAndSlotsTime_ << " " <<
         vio->debugInfo_.preUpdateTime_ << " " <<
         vio->debugInfo_.updateTime_ << " " <<
@@ -493,17 +493,17 @@ int main(const int argc, const char *argv[])
         vio->debugInfo_.printTime_ << std::endl;
 
     // fake front end info:
-    outputFile_timingTracker << vio->cur_id_ << " " <<
+    outputFile_timingTracker << vio->cur_kf_id_ << " " <<
         -1 << " " <<  -1 << " " << -1 << " " <<  -1 << " " << -1 << " " << -1 << " " << featureSelectionTime << " " << std::endl;
 
     // log performance of tracker (currently we only log info at keyframes!!)
-    outputFile_statsTracker << vio->cur_id_ << " " <<
+    outputFile_statsTracker << vio->cur_kf_id_ << " " <<
         -1 << " " <<
         -1 << " " << -1 << " " << -1 << " " << -1<< " " << -1<< " " << -1 << " " <<
         -1 << " " << -1 << " " << -1 << " " << -1 << " " << -1 << " " << -1  << std::endl;
 
     // statistics about factors added to the graph
-    outputFile_statsFactors << vio->cur_id_ << " " <<
+    outputFile_statsFactors << vio->cur_kf_id_ << " " <<
         vio->debugInfo_.numAddedSmartF_ << " " <<
         vio->debugInfo_.numAddedImuF_ << " " <<
         vio->debugInfo_.numAddedNoMotionF_ << " " <<

@@ -91,32 +91,32 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   // Features and IMU line up --> do iSAM update.
-  last_id_ = cur_id_;
-  ++cur_id_;
+  last_kf_id_ = cur_kf_id_;
+  ++cur_kf_id_;
 
   timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
 
-  VLOG(7) << "Adding keyframe " << cur_id_
+  VLOG(7) << "Adding keyframe " << cur_kf_id_
           << " at timestamp:" << timestamp_kf_ << " (sec)\n";
 
   /////////////////// MANAGE IMU MEASUREMENTS //////////////////////////////////
   // Predict next step, add initial guess.
   integrateImuMeasurements(imu_stamps, imu_accgyr);
-  addImuValues(cur_id_);
+  addImuValues(cur_kf_id_);
 
   // Add imu factors between consecutive keyframe states.
-  VLOG(7) << "Adding IMU factor between pose id: " << last_id_
-          << " and pose id: " << cur_id_;
-  addImuFactor(last_id_, cur_id_);
+  VLOG(7) << "Adding IMU factor between pose id: " << last_kf_id_
+          << " and pose id: " << cur_kf_id_;
+  addImuFactor(last_kf_id_, cur_kf_id_);
 
   // Add between factor from RANSAC.
   if (stereo_ransac_body_pose) {
-    VLOG(7) << "Adding RANSAC factor between pose id: " << last_id_
-            << " and pose id: " << cur_id_;
+    VLOG(7) << "Adding RANSAC factor between pose id: " << last_kf_id_
+            << " and pose id: " << cur_kf_id_;
     if (VLOG_IS_ON(7)) {
       (*stereo_ransac_body_pose).print();
     }
-    addBetweenFactor(last_id_, cur_id_, *stereo_ransac_body_pose);
+    addBetweenFactor(last_kf_id_, cur_kf_id_, *stereo_ransac_body_pose);
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////////
@@ -124,14 +124,18 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
                                     status_smart_stereo_measurements_kf.second;
 
   // Extract relevant information from stereo frame.
-  LandmarkIds landmarks_kf;
+  // Get the landmarks visible in current keyframe. (These are not all the lmks
+  // in time horizon used for the optimization!)
+  LandmarkIds lmks_kf;
   addStereoMeasurementsToFeatureTracks(
-        cur_id_,
+        cur_kf_id_,
         smart_stereo_measurements_kf,
-        &landmarks_kf);
+        &lmks_kf);
 
   // For each landmark we decide if it's going to be a smart factor or not.
-  isLandmarkSmart(landmarks_kf,
+  // TODO here there is a timeline mismatch, while landmarks_kf are only currently
+  // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
+  isLandmarkSmart(lmks_kf,
                   mesh_lmk_ids_ground_cluster,
                   &lmk_id_is_smart_);
 
@@ -151,8 +155,8 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
       // Vehicle is not moving.
       VLOG(7) << "Landmark has a LOW_DISPARITY kfTrackingStatus_mono.";
       VLOG(7) << "Add zero velocity and no motion factors.\n";
-      addZeroVelocityPrior(cur_id_);
-      addNoMotionFactor(last_id_, cur_id_);
+      addZeroVelocityPrior(cur_kf_id_);
+      addNoMotionFactor(last_kf_id_, cur_kf_id_);
       break;
     }
     default: {
@@ -169,8 +173,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
         // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED :
         // We add features in VIO.
-        addLandmarksToGraph(landmarks_kf);
-
+        addLandmarksToGraph(lmks_kf);
       }
       break;
     }
@@ -182,45 +185,46 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   if (mesh_lmk_ids_ground_cluster.size() != 0) {
     // TODO what happens if mesh has same ids over and over, are we duplicating
     // factors?
-    addRegularityFactors(mesh_lmk_ids_ground_cluster);
+    //addRegularityFactors(mesh_lmk_ids_ground_cluster);
   }
 
   // This lags 1 step behind to mimic hw.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   // TODO add conversion from Smart factor to regular.
-  optimize(cur_id_, vioParams_.numOptimize_, delete_slots_converted_factors_);
+  optimize(cur_kf_id_, vioParams_.numOptimize_, delete_slots_converted_factors_);
 }
 
 /* -------------------------------------------------------------------------- */
 // TODO Virtualize this appropriately,
-void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
+void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
   // Add selected landmarks to graph:
   int n_new_landmarks = 0;
   int n_updated_landmarks = 0;
-  debugInfo_.numAddedSmartF_ += landmarks_kf.size();
+  debugInfo_.numAddedSmartF_ += lmks_kf.size();
 
-  for (const LandmarkId& lmk_id: landmarks_kf) {
-    FeatureTrack& ft = featureTracks_.at(lmk_id);
+  //CHECK(lmk_id_is_smart_.size() == landmarks_kf.size());
+  for (const LandmarkId& lmk_id: lmks_kf) {
+    FeatureTrack& feature_track = featureTracks_.at(lmk_id);
 
     // Only insert feature tracks of length at least 2
     // (otherwise uninformative)
     static constexpr size_t min_num_of_observations = 2;
-    if (ft.obs_.size() < min_num_of_observations) {
+    if (feature_track.obs_.size() < min_num_of_observations) {
       continue;
     }
 
-    if (!ft.in_ba_graph_) {
+    if (!feature_track.in_ba_graph_) {
       // Acknowledge that we have added the landmark in the graph.
-      ft.in_ba_graph_ = true;
-      addLandmarkToGraph(lmk_id, ft);
+      feature_track.in_ba_graph_ = true;
+      addLandmarkToGraph(lmk_id, feature_track);
       ++n_new_landmarks;
     } else {
-      const std::pair<FrameId, StereoPoint2>& obs_kf = ft.obs_.back();
+      const std::pair<FrameId, StereoPoint2>& obs_kf = feature_track.obs_.back();
 
       // Sanity check.
-      CHECK_EQ(obs_kf.first, cur_id_) << "Last obs is not from the current"
-                                         " keyframe!\n";
+      CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
+                                            " keyframe!\n";
 
       updateLandmarkInGraph(lmk_id, obs_kf);
       ++n_updated_landmarks;
@@ -283,7 +287,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     VLOG(10) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
 
     // Update existing smart-factor.
-    auto old_smart_factors_it = old_smart_factors_.find(lmk_id);
+    const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     CHECK(old_smart_factors_it != old_smart_factors_.end())
         << "Landmark not found in old_smart_factors_\n";
 
@@ -421,11 +425,15 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 }
 
 /* -------------------------------------------------------------------------- */
-void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmk_kf,
+void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
                                         const LandmarkIds& mesh_lmk_ids,
                                         LmkIdIsSmart* lmk_id_is_smart) {
   CHECK_NOTNULL(lmk_id_is_smart);
-  for (const LandmarkId& lmk_id: lmk_kf) {
+  // WARNING I think this loop should not be over lmks_kf, which are in the
+  // current keyframe but over the time horizon instead!!!
+  // Otherwise we can have some lmks that are not set as projection factors
+  // but will be in the future involved in some kind of regularity...
+  for (const LandmarkId& lmk_id: lmks_kf) {
     const auto& lmk_id_slot = lmk_id_is_smart->find(lmk_id);
     if (std::find(mesh_lmk_ids.begin(),
                   mesh_lmk_ids.end(), lmk_id) ==

@@ -44,7 +44,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   vioParams_(vioParams),
   imu_bias_lkf_(ImuBias()), imu_bias_prev_kf_(ImuBias()),
   W_Vel_Blkf_(Vector3::Zero()), W_Pose_Blkf_(Pose3()),
-  last_id_(-1), cur_id_(0),
+  last_kf_id_(-1), cur_kf_id_(0),
   verbosity_(0), landmark_count_(0) {
 
   // SMART PROJECTION FACTORS SETTINGS
@@ -169,13 +169,13 @@ void VioBackEnd::initializeStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
   imu_bias_lkf_.print("Initial bias: \n");
 
   // Cant add inertial prior factor until we have a state measurement
-  addInitialPriorFactors(cur_id_, imu_bias_lkf_.vector());
+  addInitialPriorFactors(cur_kf_id_, imu_bias_lkf_.vector());
 
-  new_values_.insert(gtsam::Symbol('x', cur_id_), W_Pose_Blkf_);
-  new_values_.insert(gtsam::Symbol('v', cur_id_), W_Vel_Blkf_);
-  new_values_.insert(gtsam::Symbol('b', cur_id_), imu_bias_lkf_);
+  new_values_.insert(gtsam::Symbol('x', cur_kf_id_), W_Pose_Blkf_);
+  new_values_.insert(gtsam::Symbol('v', cur_kf_id_), W_Vel_Blkf_);
+  new_values_.insert(gtsam::Symbol('b', cur_kf_id_), imu_bias_lkf_);
 
-  optimize(cur_id_, vioParams_.numOptimize_);
+  optimize(cur_kf_id_, vioParams_.numOptimize_);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -238,26 +238,26 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   if (verbosity_ >= 7) { StereoVisionFrontEnd::PrintStatusStereoMeasurements(status_smart_stereo_measurements_kf); }
 
   // Features and IMU line up --> do iSAM update
-  last_id_ = cur_id_;
-  ++cur_id_;
+  last_kf_id_ = cur_kf_id_;
+  ++cur_kf_id_;
 
   timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
 
-  std::cout << "VIO: adding keyframe " << cur_id_ << " at timestamp:" << timestamp_kf_ << " (sec)" << std::endl;
+  std::cout << "VIO: adding keyframe " << cur_kf_id_ << " at timestamp:" << timestamp_kf_ << " (sec)" << std::endl;
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
   integrateImuMeasurements(imu_stamps, imu_accgyr);
-  addImuValues(cur_id_);
+  addImuValues(cur_kf_id_);
 
   // add imu factors between consecutive keyframe states
-  addImuFactor(last_id_, cur_id_);
+  addImuFactor(last_kf_id_, cur_kf_id_);
 
   // add between factor from RANSAC
   if(stereo_ransac_body_pose){
     std::cout << "VIO: adding between " << std::endl;
     (*stereo_ransac_body_pose).print();
-    addBetweenFactor(last_id_, cur_id_, *stereo_ransac_body_pose);
+    addBetweenFactor(last_kf_id_, cur_kf_id_, *stereo_ransac_body_pose);
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
@@ -272,7 +272,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
 
   // extract relevant information from stereo frame
   LandmarkIds landmarks_kf;
-  addStereoMeasurementsToFeatureTracks(cur_id_,
+  addStereoMeasurementsToFeatureTracks(cur_kf_id_,
                                        smartStereoMeasurements_kf,
                                        &landmarks_kf);
 
@@ -283,8 +283,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   switch(kfTrackingStatus_mono){
   case Tracker::TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
     if (verbosity_ >= 7) {printf("Add zero velocity and no motion factors\n");}
-    addZeroVelocityPrior(cur_id_);
-    addNoMotionFactor(last_id_, cur_id_);
+    addZeroVelocityPrior(cur_kf_id_);
+    addNoMotionFactor(last_kf_id_, cur_kf_id_);
     break;
 
     // This did not improve in any case
@@ -299,7 +299,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   imu_bias_prev_kf_ = imu_bias_lkf_; // this lags 1 step behind to mimic hw
-  optimize(cur_id_, vioParams_.numOptimize_);
+  optimize(cur_kf_id_, vioParams_.numOptimize_);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -354,17 +354,26 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
           gtsam::Symbol('x', to_id), gtsam::Symbol('v', to_id),
           gtsam::Symbol('b', from_id), *pim_));
 
-  gtsam::imuBias::ConstantBias zero_bias(Vector3(0, 0, 0), Vector3(0, 0, 0));
-  // factor to discretize and move normalize by the interval between measurements:
-  double d = sqrt(pim_->deltaTij()) / vioParams_.nominalImuRate_; // 1/sqrt(nominalImuRate_) to discretize, then sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements
+  gtsam::imuBias::ConstantBias zero_bias(Vector3(0, 0, 0),
+                                         Vector3(0, 0, 0));
+
+  // Factor to discretize and move normalize by the interval between measurements:
+  CHECK_NE(vioParams_.nominalImuRate_, 0)
+      << "Nominal IMU rate param cannot be 0.";
+  // 1/sqrt(nominalImuRate_) to discretize, then
+  // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
+  const double d = sqrt(pim_->deltaTij()) / vioParams_.nominalImuRate_;
   Vector6 biasSigmas;
   biasSigmas.head<3>().setConstant(d * vioParams_.accBiasSigma_);
   biasSigmas.tail<3>().setConstant(d * vioParams_.gyroBiasSigma_);
-  gtsam::SharedNoiseModel bias_noise_model = gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
+  const gtsam::SharedNoiseModel& bias_noise_model =
+      gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
 
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::imuBias::ConstantBias> >(
-          gtsam::Symbol('b', from_id), gtsam::Symbol('b', to_id), zero_bias, bias_noise_model));
+          gtsam::Symbol('b', from_id),
+          gtsam::Symbol('b', to_id),
+          zero_bias, bias_noise_model));
 #endif
 
   debugInfo_.imuR_lkf_kf = pim_->deltaRij();
@@ -379,7 +388,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
 // It returns the landmark ids of the stereo measurements
 // It also updates the feature tracks. Why is this in the backend???
 void VioBackEnd::addStereoMeasurementsToFeatureTracks(
-    const int& frameNum,
+    const int& frame_num,
     const SmartStereoMeasurements& stereoMeasurements_kf,
     LandmarkIds* landmarks_kf) {
   CHECK_NOTNULL(landmarks_kf);
@@ -392,35 +401,44 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
 
   // Store landmark ids.
   for (size_t i = 0; i < stereoMeasurements_kf.size(); ++i) {
-    const LandmarkId& landmarkId_kf_i = stereoMeasurements_kf.at(i).first;
+    const LandmarkId& lmk_id_in_kf_i = stereoMeasurements_kf.at(i).first;
     const StereoPoint2& stereo_px_i   = stereoMeasurements_kf.at(i).second;
 
     // We filtered invalid lmks in the StereoTracker, so this should not happen.
-    CHECK_NE(landmarkId_kf_i, -1)
+    CHECK_NE(lmk_id_in_kf_i, -1)
         << "landmarkId_kf_i == -1?";
 
     // Thinner structure that only keeps landmarkIds.
-    landmarks_kf->push_back(landmarkId_kf_i);
+    // These landmark ids are only the ones visible in current keyframe,
+    // with a valid track...
+    landmarks_kf->push_back(lmk_id_in_kf_i);
 
     // Add features to vio->featureTracks_ if they are new.
-    auto lm_it = featureTracks_.find(landmarkId_kf_i);
-    if (lm_it == featureTracks_.end()) {
+    const FeatureTracks::iterator& feature_track_it =
+        featureTracks_.find(lmk_id_in_kf_i);
+    if (feature_track_it == featureTracks_.end()) {
       // New feature.
-      VLOG(7) << "Adding landmark: " << landmarkId_kf_i
+      VLOG(7) << "Adding landmark: " << lmk_id_in_kf_i
               << " to feature track.";
-
-      featureTracks_.insert(std::make_pair(landmarkId_kf_i,
-                                           FeatureTrack(frameNum,
+      featureTracks_.insert(std::make_pair(lmk_id_in_kf_i,
+                                           FeatureTrack(frame_num,
                                                         stereo_px_i)));
       ++landmark_count_;
     } else {
-      // Add observation to existing landmark.
       // @TODO: It seems that this else condition does not help -- conjecture
       // that it creates long feature tracks with low information
       // (i.e. we're not moving)
       // This is problematic in conjunction with our landmark selection
       // mechanism which prioritizes long feature tracks
-      (*lm_it).second.obs_.push_back(std::make_pair(frameNum, stereo_px_i));
+
+      // TODO: to avoid making the feature tracks grow unbounded we could
+      // use a tmp feature tracks container to which we would add the old feature track
+      // plus the new observation on it. (for new tracks, it would be the same as
+      // above, using the tmp structure of course).
+
+      // Add observation to existing landmark.
+      feature_track_it->second.obs_.push_back(
+            std::make_pair(frame_num, stereo_px_i));
     }
   }
 }
@@ -440,24 +458,21 @@ void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id) {
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void VioBackEnd::addBetweenFactor(const FrameId& from_id,
                                   const FrameId& to_id,
-                                  const gtsam::Pose3& from_id_POSE_to_id)
-{
-  //  Vector6 sigmas;
-  //  sigmas.head<3>().setConstant(0.05);
-  //  sigmas.tail<3>().setConstant(0.1);
-  //  gtsam::SharedNoiseModel betweenNoise_ = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+                                  const gtsam::Pose3& from_id_POSE_to_id) {
   Vector6 precisions;
   precisions.head<3>().setConstant(vioParams_.betweenRotationPrecision_);
   precisions.tail<3>().setConstant(vioParams_.betweenTranslationPrecision_);
-  gtsam::SharedNoiseModel betweenNoise_ = gtsam::noiseModel::Diagonal::Precisions(precisions);
+  static const gtsam::SharedNoiseModel& betweenNoise_ =
+      gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
-          gtsam::Symbol('x', from_id), gtsam::Symbol('x', to_id), from_id_POSE_to_id, betweenNoise_));
+          gtsam::Symbol('x', from_id),
+          gtsam::Symbol('x', to_id),
+          from_id_POSE_to_id,
+          betweenNoise_));
 
   debugInfo_.numAddedBetweenStereoF_++;
-
-  if (verbosity_ >= 7) {std::cout << "addBetweenFactor" << std::endl;}
 }
 
 
@@ -511,7 +526,7 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
     } else {
       const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
 
-      if(obs_kf.first != cur_id_) // sanity check
+      if(obs_kf.first != cur_kf_id_) // sanity check
         throw std::runtime_error("addLandmarksToGraph: last obs is not from the current keyframe!\n");
 
       updateLandmarkInGraph(lm_id, obs_kf);

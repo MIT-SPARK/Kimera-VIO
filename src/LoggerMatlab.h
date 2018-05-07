@@ -227,7 +227,7 @@ public:
     std::cout << "vioRotError " << vioRotError << ", vioTranError " << vioTranError << std::endl;
 
     // Absolute vio errors
-    outputFile_ << vio->cur_id_ << " " <<  vioRotError << " " << vioTranError << " " << vio->landmark_count_ << " ";
+    outputFile_ << vio->cur_kf_id_ << " " <<  vioRotError << " " << vioTranError << " " << vio->landmark_count_ << " ";
 
     // RPY vio errors
     gtsam::Vector3 rpy_gt = W_Pose_Bkf_gt.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
@@ -264,7 +264,7 @@ public:
     outputFile_ << (Tstereo - Tgt).norm() << " " << (Tstereo - Tgt).transpose() * infoMat * (Tstereo - Tgt) << " " << std::endl;
 
     // debug smart factors:
-    outputFile_smartFactors_ << vio->cur_id_ << " " << k << " " << UtilsOpenCV::NsecToSec(timestamp_k) // keyframe id, frame id, timestamp
+    outputFile_smartFactors_ << vio->cur_kf_id_ << " " << k << " " << UtilsOpenCV::NsecToSec(timestamp_k) // keyframe id, frame id, timestamp
     << " " << vio->debugInfo_.numSF_ << " " << vio->debugInfo_.numValid_
     << " " << vio->debugInfo_.numDegenerate_ << " " << vio->debugInfo_.numFarPoints_
     << " " << vio->debugInfo_.numOutliers_ << " " << vio->debugInfo_.numCheirality_
@@ -274,7 +274,7 @@ public:
 
     // we log the camera since we will display camera poses in matlab
     gtsam::Pose3 W_Pose_camlkf_vio = vio->W_Pose_Blkf_.compose(vio->B_Pose_leftCam_);
-    outputFile_posesVIO_ << vio->cur_id_ << " " << W_Pose_camlkf_vio.translation().transpose() << " " <<
+    outputFile_posesVIO_ << vio->cur_kf_id_ << " " << W_Pose_camlkf_vio.translation().transpose() << " " <<
         W_Pose_camlkf_vio.rotation().matrix().row(0) << " " <<
         W_Pose_camlkf_vio.rotation().matrix().row(1) << " " <<
         W_Pose_camlkf_vio.rotation().matrix().row(2) << " " <<
@@ -286,7 +286,7 @@ public:
     gtsam::Pose3 W_Pose_camlkf_gt = W_Pose_Bkf_gt.compose(vio->B_Pose_leftCam_);
     Vector3 W_Vel_camlkf_gt = (dataset.getGroundTruthState(timestamp_k)).velocity;
     gtsam::imuBias::ConstantBias imu_bias_lkf_gt = (dataset.getGroundTruthState(timestamp_k)).imuBias;
-    outputFile_posesGT_ << vio->cur_id_ << " " << W_Pose_camlkf_gt.translation().transpose() << " " <<
+    outputFile_posesGT_ << vio->cur_kf_id_ << " " << W_Pose_camlkf_gt.translation().transpose() << " " <<
         W_Pose_camlkf_gt.rotation().matrix().row(0) << " " <<
         W_Pose_camlkf_gt.rotation().matrix().row(1) << " " <<
         W_Pose_camlkf_gt.rotation().matrix().row(2) << " " <<
@@ -295,7 +295,7 @@ public:
         imu_bias_lkf_gt.gyroscope().transpose() << std::endl;
 
     // log timing for benchmarking and performance profiling
-    outputFile_timingVIO_ << vio->cur_id_ << " " <<
+    outputFile_timingVIO_ << vio->cur_kf_id_ << " " <<
         vio->debugInfo_.factorsAndSlotsTime_ << " " <<
         vio->debugInfo_.preUpdateTime_ << " " <<
         vio->debugInfo_.updateTime_ << " " <<
@@ -313,7 +313,7 @@ public:
         vio->debugInfo_.marginalizeTime_ << " " <<
                vio->debugInfo_.imuPreintegrateTime_ << std::endl;
 
-    outputFile_timingTracker_ << vio->cur_id_ << " " <<
+    outputFile_timingTracker_ << vio->cur_kf_id_ << " " <<
         stereoTracker.tracker_.debugInfo_.featureDetectionTime_ << " " <<
         stereoTracker.tracker_.debugInfo_.featureTrackingTime_ << " " <<
         stereoTracker.tracker_.debugInfo_.monoRansacTime_ << " " <<
@@ -323,7 +323,7 @@ public:
         stereoTracker.tracker_.debugInfo_.featureSelectionTime_ << " " << std::endl;
 
     // log performance of tracker (currently we only log info at keyframes!!)
-    outputFile_statsTracker_ << vio->cur_id_ << " " <<
+    outputFile_statsTracker_ << vio->cur_kf_id_ << " " <<
         stereoTracker.tracker_.debugInfo_.nrDetectedFeatures_ << " " <<
         stereoTracker.tracker_.debugInfo_.nrTrackerFeatures_ << " " <<
         stereoTracker.tracker_.debugInfo_.nrMonoInliers_ << " " <<
@@ -339,14 +339,14 @@ public:
         stereoTracker.tracker_.debugInfo_.extracted_corners_  << std::endl;
 
     // statistics about factors added to the graph
-    outputFile_statsFactors_ << vio->cur_id_ << " " <<
+    outputFile_statsFactors_ << vio->cur_kf_id_ << " " <<
         vio->debugInfo_.numAddedSmartF_ << " " <<
         vio->debugInfo_.numAddedImuF_ << " " <<
         vio->debugInfo_.numAddedNoMotionF_ << " " <<
         vio->debugInfo_.numAddedConstantVelF_ << " " <<
         vio->debugInfo_.numAddedBetweenStereoF_ << " " <<
         vio->state_.size() << " " << // current number of states
-        3 * std::min( double(vio->cur_id_ + 1),
+        3 * std::min( double(vio->cur_kf_id_ + 1),
             vio->vioParams_.horizon_  / (stereoTracker.tracker_.trackerParams_.intra_keyframe_time_)  + 1) << std::endl; // expected nr of states
 
     std::cout << "data written to file" << std::endl;
