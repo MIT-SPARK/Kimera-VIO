@@ -401,7 +401,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         // projection factors.
         old_smart_factors_.erase(lmk_id);
       } else {
-        LOG(ERROR) << "Cannot convert smart factor to proj. factor.\n"
+        LOG(WARNING) << "Cannot convert smart factor to proj. factor.\n"
                    << "Smart factor does not have a valid 3D position for lmk: "
                    << lmk_id << "\n"
                    << "Smart factor point status: \n" << old_factor->point();
@@ -479,13 +479,40 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
       // the factor graph (connected to projection factor).
       VLOG(10) << "Lmk_id = " << lmk_id
                << " needs to be a proj. factor, as it is involved in a regularity.";
-      if (lmk_id_slot == lmk_id_is_smart->end()) {
-        // We did not find the lmk_id in the lmk_id_is_smart_ map.
-        // Add it as a projection factor.
-        lmk_id_is_smart->insert(std::make_pair(lmk_id, false));
+      const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
+      if (old_smart_factors_it == old_smart_factors_.end()) {
+        // We did not find the factor (this is the case when feature track is
+        // shorter than the minimum, typically 1. And the factor is not
+        // added to the graph.
+        VLOG(10)  << "Landmark not found in old_smart_factors_ !";
       } else {
-        // Change it to a projection factor.
-        lmk_id_is_smart->at(lmk_id) = false;
+        // We found the factor.
+
+        // Get whether the smart factor is valid or not.
+        bool lmk_is_valid = true;
+
+        SmartStereoFactor::shared_ptr old_factor =
+            old_smart_factors_it->second.first;
+
+        if (!old_factor->point().valid()) {
+          // The point is not valid.
+          VLOG(20) << "Smart factor for lmk: " << lmk_id << "is NOT valid.";
+          lmk_is_valid = false;
+        } else {
+          VLOG(20) << "Smart factor for lmk: " << lmk_id << "is valid.";
+          lmk_is_valid = true;
+        }
+
+        if (lmk_id_slot == lmk_id_is_smart->end()) {
+          // We did not find the lmk_id in the lmk_id_is_smart_ map.
+          // Add it as a projection factor.
+          // TODO use an enum instead of bool for lmk_id_is_smart, otherwise
+          // it is too difficult to read.
+          lmk_id_is_smart->insert(std::make_pair(lmk_id, lmk_is_valid?false:true));
+        } else {
+          // Change it to a projection factor.
+          lmk_id_is_smart->at(lmk_id) = lmk_is_valid?false:true;
+        }
       }
     }
   }
@@ -528,6 +555,9 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
 
   // For each lmk id, add a point plane factor.
   // TODO only add regularity for triangles! so check that.
+  // TODO this will bring an error for sure in the sense that
+  // not all lmks in mesh_lmk_ids will be used in projection factor
+  // because mesh_lmk_ids is time-horizon vs backend operation is in per frame.
   for (const LandmarkId& lmk_id: mesh_lmk_ids) {
     if (state_.exists(gtsam::Symbol('l', lmk_id))) {
       VLOG(10) << "Lmk id: " << lmk_id
@@ -539,7 +569,7 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
               plane_key,
               regularityNoise));
     } else {
-      VLOG(10) << "Lmk id: "
+      LOG(ERROR) << "Lmk id: "
               << lmk_id << " is NOT in state_, NOT adding PointPlaneFactor.";
     }
   }
