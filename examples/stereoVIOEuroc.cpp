@@ -355,6 +355,22 @@ int main(int argc, char *argv[]) {
 
       startTime = UtilsOpenCV::GetTimeInSeconds();
       SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
+
+      VLOG(100) << "Starting feature selection.";
+      // ToDo init to invalid value.
+      gtsam::Matrix curr_state_cov;
+      if (trackerParams.featureSelectionCriterion_ !=
+          VioFrontEndParams::FeatureSelectionCriterion::QUALITY) {
+        VLOG(100) << "Using feature selection criterion diff than QUALITY ";
+        try {
+          curr_state_cov = vioBackEnd->getCurrentStateCovariance();
+        } catch(const gtsam::IndeterminantLinearSystemException& e) {
+          LOG(ERROR) << "Error when calculating current state covariance.";
+        }
+      } else {
+        VLOG(100) << "Using QUALITY as feature selection criterion";
+      }
+
       std::tie(trackedAndSelectedSmartStereoMeasurements,
                stereoVisionFrontEnd.tracker_.debugInfo_.featureSelectionTime_) =
           featureSelector.splitTrackedAndNewFeatures_Select_Display(
@@ -364,9 +380,10 @@ int main(int argc, char *argv[]) {
             trackerParams.featureSelectionCriterion_,
             trackerParams.featureSelectionNrCornersToSelect_,
             trackerParams.maxFeatureAge_, posesAtFutureKeyframes,
-            vioBackEnd->getCurrentStateCovariance(),
+            curr_state_cov,
             dataset.dataset_name_,
             frame_km1_debug); // last 2 are for visualization
+      VLOG(100) << "Feature selection completed.";
 
       if (FLAGS_log_output) {
         logger.timing_featureSelection_ =
