@@ -19,6 +19,8 @@
 
 #include "factors/PointPlaneFactor.h"
 
+#include <gtsam/slam/PriorFactor.h>
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -492,11 +494,14 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO we have a: terminate called after throwing an instance of 'std::out_of_range'
+//  what():  map::at when running this function... And it does not appear very often.
 void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
 
   // Noise model.
+  // TODO remove hardcoded value.
   static const gtsam::noiseModel::Diagonal::shared_ptr regularityNoise =
-          gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.1));
+          gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.5));
 
   // Plane key.
   static const gtsam::Key plane_key (gtsam::Symbol('P', 0));
@@ -504,7 +509,16 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
   if (!state_.exists(plane_key)) {
     VLOG(10) << "Plane key does NOT exist, adding new plane with key: "
              << plane_key;
-    new_values_.insert(plane_key, gtsam::OrientedPlane3(0.0, 0.0, 1.0, 0.0));
+    static const gtsam::OrientedPlane3 plane(0.0, 0.0, 1.0, -0.1);
+    new_values_.insert(plane_key, plane);
+
+    static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise =
+        gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.5, 0.5, 0.5));
+    new_imu_prior_and_other_factors_.push_back(
+          boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3> >(
+            plane_key,
+            plane,
+            prior_noise));
   } else {
     VLOG(10) << "Plane key does exist already: " << plane_key;
   }
