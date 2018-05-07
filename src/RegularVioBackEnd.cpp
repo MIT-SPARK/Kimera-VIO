@@ -473,35 +473,22 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
         continue;
       }
     } else {
-      if (std::find(mesh_lmk_ids.begin(),
-                    mesh_lmk_ids.end(), lmk_id) ==
-          mesh_lmk_ids.end()) {
-        // This lmk is not involved in any regularity.
-        if (lmk_id_slot == lmk_id_is_smart->end()) {
-          // We did not find the lmk_id in the lmk_id_is_smart_ map.
-          // Add it as a smart factor.
-          lmk_id_is_smart->insert(std::make_pair(lmk_id, true));
-        } else {
-          // Let the lmk be as it was before (note is not allowed to go from
-          // projection to smart.
-          continue;
-        }
+      // This lmk is involved in a regularity, hence it should be a variable in
+      // the factor graph (connected to projection factor).
+      VLOG(10) << "Lmk_id = " << lmk_id
+               << " needs to be a proj. factor, as it is involved in a regularity.";
+      if (lmk_id_slot == lmk_id_is_smart->end()) {
+        // We did not find the lmk_id in the lmk_id_is_smart_ map.
+        // Add it as a projection factor.
+        lmk_id_is_smart->insert(std::make_pair(lmk_id, false));
       } else {
-        // This lmk is involved in regular factor, hence it should be a variable in
-        // the factor graph (connected to projection factor).
-        VLOG(10) << "Lmk_id = " << lmk_id
-                 << " Needs to be proj. factor!";
-        if (lmk_id_slot == lmk_id_is_smart->end()) {
-          // We did not find the lmk_id in the lmk_id_is_smart_ map.
-          // Add it as a projection factor.
-          lmk_id_is_smart->insert(std::make_pair(lmk_id, false));
-        } else {
-          // Change it to a projection factor.
-          lmk_id_is_smart->at(lmk_id) = false;
-        }
+        // Change it to a projection factor.
+        lmk_id_is_smart->at(lmk_id) = false;
       }
     }
   }
+
+  // TODO all lmks should be smart the first time they are added!
 }
 
 /* -------------------------------------------------------------------------- */
