@@ -537,11 +537,11 @@ int main(int argc, char *argv[]) {
           mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
                                                   &mesh_lmk_ids_ground_cluster);
 
-          cv::Mat vertices_mesh;
-          cv::Mat polygons_mesh;
-          mesher.getVerticesMesh(&vertices_mesh);
-          mesher.getPolygonsMesh(&polygons_mesh);
           if (FLAGS_visualize) {
+            cv::Mat vertices_mesh;
+            cv::Mat polygons_mesh;
+            mesher.getVerticesMesh(&vertices_mesh);
+            mesher.getPolygonsMesh(&polygons_mesh);
             visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters,
                                                           vertices_mesh,
                                                           polygons_mesh);
