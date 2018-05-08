@@ -291,7 +291,8 @@ void RegularVioBackEnd::updateLandmarkInGraph(
                                       "smart or not...";
 
   const bool& is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
-  if (is_lmk_smart == true) {
+  if (is_lmk_smart) {
+    // Lmk is meant to be smart.
     VLOG(10) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
 
     // Update existing smart-factor.
@@ -314,18 +315,18 @@ void RegularVioBackEnd::updateLandmarkInGraph(
                     gtsam::Symbol('x', newObs.first),
                     stereoCal_);
 
-    // Update the set of new smart factors.
-    if (old_smart_factors_it->second.second != -1) {
-      // Slot is different than -1
-      // It means that the factor has already been inserted in the graph.
-      VLOG(10) << "Update new_smart_factors_";
-      new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
-    } else {
-      // If slot is still -1, it means that the factor has not been inserted yet
-      // in the graph.
-      CHECK(false) << "When calling update "
+    // If slot is still -1, it means that the factor has not been inserted yet
+    // in the graph.
+    CHECK(old_smart_factors_it->second.second != -1) << "When calling update "
                       "the slot should be already != -1";
-    }
+
+    // Slot is different than -1
+    // It means that the factor has already been inserted in the graph.
+    VLOG(10) << "Insert new smart factor to new_smart_factors_ for lmk with"
+             << " id: " << lmk_id;
+
+    // Update the set of new smart factors.
+    new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
 
     // TODO Why do we do this??
     old_smart_factors_it->second.first = new_factor;
