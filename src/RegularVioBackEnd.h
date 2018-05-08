@@ -46,7 +46,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // TODO Virtualize this appropriately,
-  void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
+  void addLandmarksToGraph(const LandmarkIds& lmks_kf);
 
   /* ------------------------------------------------------------------------ */
   void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
@@ -68,7 +68,7 @@ private:
 
 private:
   /* ------------------------------------------------------------------------ */
-  void isLandmarkSmart(const LandmarkIds& lmk_kf,
+  void isLandmarkSmart(const LandmarkIds& lmks_kf,
                        const LandmarkIds& mesh_lmk_ids,
                        LmkIdIsSmart* lmk_id_is_smart);
 

@@ -167,6 +167,7 @@ TEST(testParallelPlaneRegularTangentSpaceFactor, PlaneOptimization) {
           noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
   Point3 priorMeanLandmark1(0.0, 0.0, 0.0);
+  // TODO change for push_back or add.
   graph.emplace_shared<PriorFactor<Point3> >(landmark_key,
                                                      priorMeanLandmark1,
                                                      prior_noise);

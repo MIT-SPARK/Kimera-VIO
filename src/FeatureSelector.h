@@ -108,13 +108,13 @@ public:
 class FeatureSelector{
 public:
 
-  // definitions
+  // Definitions.
   typedef gtsam::PinholeCamera<gtsam::Cal3_S2> Camera;
   typedef std::vector<Camera> Cameras;
   typedef gtsam::Matrix69 MatrixZD;
   typedef std::vector<MatrixZD> FBlocks;
 
-  // variables
+  // Variables.
   double accVarianceDiscTime_;
   double biasAccVarianceDiscTime_;
   double integrationVar_;
@@ -122,22 +122,23 @@ public:
   double imuDeltaT_;
   bool useStereo_;
   bool useLazyEvaluation_;
-  double featureSelectionDefaultDepth_, featureSelectionCosineNeighborhood_, landmarkDistanceThreshold_;
+  double featureSelectionDefaultDepth_, featureSelectionCosineNeighborhood_,
+  landmarkDistanceThreshold_;
   bool useSuccessProbabilities_;
 
-  // constructor
-  FeatureSelector(const VioFrontEndParams trackerParams, const VioBackEndParams vioParams)
-  {
+  // Constructor.
+  FeatureSelector(const VioFrontEndParams trackerParams,
+                  const VioBackEndParams vioParams) {
     imuDeltaT_ = trackerParams.featureSelectionImuRate_;
-    // variance, converted to discrete time, see ImuFactor.cpp
+    // Variance, converted to discrete time, see ImuFactor.cpp
     accVarianceDiscTime_ = pow(vioParams.accNoiseDensity_,2) / imuDeltaT_;
-    // variance, converted to discrete time, see CombinedImuFactor.cpp
+    // Variance, converted to discrete time, see CombinedImuFactor.cpp
     biasAccVarianceDiscTime_ = pow(vioParams.accBiasSigma_,2) * imuDeltaT_;
-    // inverse of std of vision measurements
+    // Inverse of std of vision measurements
     sqrtInfoVision_ = 1 / vioParams.smartNoiseSigma_; // TODO: this * 1000 should be fx of the calibration
-    // predict that we'll have stereo measurement or not
+    // Predict that we'll have stereo measurement or not
     useStereo_ = trackerParams.useStereoTracking_;
-    // variance of integration noise, converted to discrete time, see ImuFactor.cpp (?)
+    // Variance of integration noise, converted to discrete time, see ImuFactor.cpp (?)
     integrationVar_ = pow(vioParams.imuIntegrationSigma_,2) * imuDeltaT_;
     featureSelectionDefaultDepth_ = trackerParams.featureSelectionDefaultDepth_;
     featureSelectionCosineNeighborhood_ = trackerParams.featureSelectionCosineNeighborhood_;
@@ -146,6 +147,7 @@ public:
     useSuccessProbabilities_ = trackerParams.useSuccessProbabilities_;
     print();
   }
+
   void print()const {
     std::cout << "=============== FEATURE SELECTOR =============" << std::endl;
     std::cout << "imuDeltaT_: " << imuDeltaT_ << std::endl;
@@ -160,9 +162,11 @@ public:
     std::cout << "useLazyEvaluation_: " << useLazyEvaluation_ << std::endl;
     std::cout << "useSuccessProbabilities_: " << useSuccessProbabilities_ << std::endl;
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   // Multiply hessian in hessian factor ptr by nonnegative double
-  static void MultiplyHessianInPlace(gtsam::HessianFactor::shared_ptr Deltaj, const double c){
+  static void MultiplyHessianInPlace(gtsam::HessianFactor::shared_ptr Deltaj,
+                                     const double c){
     if(c < 0)
       throw std::runtime_error("MultiplyHessianInPlace: cannot multiply by negative number");
 
@@ -179,15 +183,17 @@ public:
       }
     }
   }
-  /* ----------------------------------------------------------------------------------------- */
-  // cam_param contains the distorted, unrectified camera calibration used to undistorRectify availableCorners
-  std::tuple< KeypointsCV , std::vector<size_t> , std::vector<double> >
+
+  /* ------------------------------------------------------------------------ */
+  // cam_param contains the distorted, unrectified camera calibration used to
+  // undistorRectify availableCorners.
+  std::tuple<KeypointsCV, std::vector<size_t>, std::vector<double>>
   featureSelectionLinearModel(const KeypointsCV availableCorners,
-      const std::vector<double> successProbabilities,
-      const std::vector<double> availableCornersDistances,
-      const CameraParams cam_param,
-      const int need_n_corners, const FeatureSelectorData& featureSelectionData,
-      const VioFrontEndParams::FeatureSelectionCriterion criterion) const{
+                              const std::vector<double> successProbabilities,
+                              const std::vector<double> availableCornersDistances,
+                              const CameraParams cam_param,
+                              const int need_n_corners, const FeatureSelectorData& featureSelectionData,
+                              const VioFrontEndParams::FeatureSelectionCriterion criterion) const {
 
 #ifdef FEATURE_SELECTOR_DEBUG_COUT
     double startTime = UtilsOpenCV::GetTimeInSeconds();
@@ -262,13 +268,15 @@ public:
 
     return std::make_tuple(selectedCorners,selectedIndices,selectedMarginalGains);
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   static bool Comparator ( const std::pair<size_t,double>& l, const std::pair<size_t,double>& r) { return l.second > r.second; }
-  /* ----------------------------------------------------------------------------------------- */
-  // sort upperBounds in descending order, storing the corresponding indices in the second
-  // output argument (as in matlab sort)
+
+  /* ------------------------------------------------------------------------ */
+  // Sort upperBounds in descending order, storing the corresponding indices in the second
+  // output argument (as in matlab sort).
   static std::pair< std::vector<size_t>,std::vector<double> >
-  SortDescending(const std::vector<double> upperBounds){
+  SortDescending(const std::vector<double> upperBounds) {
 
     size_t N = upperBounds.size();
 
@@ -289,7 +297,8 @@ public:
     }
     return std::make_pair(ordering, sortedUpperBound);
   }
-  /* ************************************************************************* */
+
+  /* ************************************************************************ */
   static double Logdet(const gtsam::Matrix& M) {
     double logDet = 0;
     gtsam::Matrix llt = gtsam::LLt(M); // lower triangular
@@ -298,8 +307,10 @@ public:
     logDet *= 2;
     return logDet;
   }
-  /* ************************************************************************* */
-  static boost::tuple<int, double, gtsam::Vector> SmallestEigs(const gtsam::Matrix& A) {
+
+  /* ************************************************************************ */
+  static boost::tuple<int, double, gtsam::Vector> SmallestEigs(
+      const gtsam::Matrix& A) {
 
     // Check size of A
     size_t n = A.rows(), p = A.cols(), m = std::min(n,p);
@@ -318,7 +329,8 @@ public:
     double error = m<p ? 0 : s(m-1);
     return boost::tuple<int, double, gtsam::Vector>((int)rank, error, gtsam::Vector(gtsam::column(V, p-1)));
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   static std::tuple< std::vector<size_t>,std::vector<double>,double >
   OrderByUpperBound(const gtsam::GaussianFactorGraph::shared_ptr& bestOmegaBar,
       const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
@@ -379,11 +391,14 @@ public:
     std::tie(ordering,sortedUpperBounds) = SortDescending(upperBounds);
     return std::make_tuple(ordering,sortedUpperBounds,gainOmegaBar);
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   static std::pair< std::vector<size_t>,std::vector<double> >
   GreedyAlgorithm(const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
-      const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas, const int need_n_corners,
-      const VioFrontEndParams::FeatureSelectionCriterion criterion, const bool useLazyEval = true) {
+                  const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
+                  const int need_n_corners,
+                  const VioFrontEndParams::FeatureSelectionCriterion criterion,
+                  const bool useLazyEval = true) {
 
     size_t N = Deltas.size(); // nr of available features
 
@@ -478,7 +493,8 @@ public:
         N * need_n_corners << " (relative: " << relNrGainEval << ") " << std::endl;
     return std::make_pair(selectedIndices,selectedMarginalGains);
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   static boost::tuple<int, double, gtsam::Vector>
   SmallestEigsPowerIter(const gtsam::Matrix& M){
 
@@ -536,7 +552,8 @@ public:
     double error = - normx + lambdaMax;
     return boost::tuple<int, double, gtsam::Vector>(rank, error, -x);
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   static boost::tuple<int, double, gtsam::Vector>
   SmallestEigsSpectra(const gtsam::Matrix& M){
 #ifdef useSpectra
@@ -566,7 +583,8 @@ public:
     return SmallestEigs(M);
 #endif
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   static boost::tuple<int, double, gtsam::Vector>
   SmallestEigsSpectraShift(const gtsam::Matrix& M){
 #ifdef useSpectra
@@ -593,9 +611,12 @@ public:
     return SmallestEigs(M);
 #endif
   }
-  /* ----------------------------------------------------------------------------------------- */
-  static double EvaluateGain(const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
-      const gtsam::HessianFactor::shared_ptr& Deltaj, const VioFrontEndParams::FeatureSelectionCriterion criterion,
+
+  /* ------------------------------------------------------------------------ */
+  static double EvaluateGain(
+      const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
+      const gtsam::HessianFactor::shared_ptr& Deltaj,
+      const VioFrontEndParams::FeatureSelectionCriterion criterion,
       bool useDenseMatrices = true) {
 
     // augment graph
@@ -644,8 +665,10 @@ public:
     OmegaBar->resize(sizeOmegaBar); // without this, since we work with shared ptrs, we would also carry Deltaj
     return gain;
   }
-  /* ----------------------------------------------------------------------------------------- */
-  std::pair<Cameras,Cameras> getCameras(const FeatureSelectorData& featureSelectionData) const {
+
+  /* ------------------------------------------------------------------------ */
+  std::pair<Cameras,Cameras> getCameras(
+      const FeatureSelectorData& featureSelectionData) const {
 
     // future poses:
     const KeyframeToStampedPose& posesAtFutureKeyframes = featureSelectionData.posesAtFutureKeyframes;
@@ -666,8 +689,10 @@ public:
     }
     return std::make_pair(left_cameras,right_cameras);
   }
-  /* ----------------------------------------------------------------------------------------- */
-  gtsam::JacobianFactor createPrior(const FeatureSelectorData& featureSelectionData) const{
+
+  /* ------------------------------------------------------------------------ */
+  gtsam::JacobianFactor createPrior(
+      const FeatureSelectorData& featureSelectionData) const {
 
     // get prior over nonlinear state: pose, velocity, biases
     gtsam::Matrix9 covariancePriorLocal = featureSelectionData.currentNavStateCovariance.block<9,9>(3,3); // happens to be the matrix we want
@@ -692,9 +717,11 @@ public:
     // values in the vector are irrelevant
     return gtsam::JacobianFactor(stateIndex, A_prior, gtsam::Vector::Zero(9));;
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   std::pair<gtsam::Matrix, gtsam::Matrix> createMatricesLinearImuFactor(
-      const StampedPose& poseStamped_i, const StampedPose& poseStamped_j) const{
+      const StampedPose& poseStamped_i,
+      const StampedPose& poseStamped_j) const {
 
     double Deltaij = poseStamped_j.timestampInSec - poseStamped_i.timestampInSec; // clearly in seconds
 
@@ -761,8 +788,10 @@ public:
 
     return std::make_pair(Ai,covImu);
   }
-  /* ----------------------------------------------------------------------------------------- */
-  gtsam::GaussianFactorGraph createOmegaBarImuAndPrior(const FeatureSelectorData& featureSelectionData) const{
+
+  /* ------------------------------------------------------------------------ */
+  gtsam::GaussianFactorGraph createOmegaBarImuAndPrior(
+      const FeatureSelectorData& featureSelectionData) const {
 
     const KeyframeToStampedPose& posesAtFutureKeyframes = featureSelectionData.posesAtFutureKeyframes;
 
@@ -797,13 +826,16 @@ public:
     }
     return OmegaBar;
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   // Create projection factors on the Linear navigation state: position, vel, accBias
   // This "emulates" an actual smart factor and marginalizes out point
   // 1) Models measurement std and max distance
   // 2) does not mode outliers, since we "predict" ground truth measurements
-  gtsam::HessianFactor::shared_ptr createLinearVisionFactor(const gtsam::Point3& pworld_l,
-      const Cameras& left_cameras,const Cameras& right_cameras,
+  gtsam::HessianFactor::shared_ptr createLinearVisionFactor(
+      const gtsam::Point3& pworld_l,
+      const Cameras& left_cameras,
+      const Cameras& right_cameras,
       double &debugFETime, double &debugSVDTime, double &debugSchurTime, // debug
       const int keypointLife = 1e9, bool hasRightPixel = true) const {
 
@@ -881,9 +913,12 @@ public:
 
     return boost::make_shared<gtsam::HessianFactor>(keys,H);
   }
-  /* ----------------------------------------------------------------------------------------- */
-  gtsam::GaussianFactorGraph::shared_ptr createOmegaBar(const FeatureSelectorData& featureSelectionData,
-      const Cameras& left_cameras, const Cameras& right_cameras) const {
+
+  /* ------------------------------------------------------------------------ */
+  gtsam::GaussianFactorGraph::shared_ptr createOmegaBar(
+      const FeatureSelectorData& featureSelectionData,
+      const Cameras& left_cameras,
+      const Cameras& right_cameras) const {
     // 1) add imu factors
 
 #ifdef FEATURE_SELECTOR_DEBUG_COUT
@@ -933,7 +968,8 @@ public:
     if(testing){ if(OmegaBar.size() != 1){ throw std::runtime_error("createOmegaBar: createOmegaBarImuAndPrior has wrong size after hessian factor remake"); } }
     return boost::make_shared<gtsam::GaussianFactorGraph>(OmegaBar);
   }
-  /* ----------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   std::vector<gtsam::HessianFactor::shared_ptr> createDeltas(
       const std::vector<gtsam::Vector3> availableVersors,
       const std::vector<double> availableCornersDistances,
@@ -984,11 +1020,13 @@ public:
     }
     return Deltas;
   }
-  /* ----------------------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   // check if point, expressed in world frame, is within fov of camera (fov defined in terms of
   // angle and maxDistance). If so returns a versor corresponding to the direction to the point
-  static boost::optional<gtsam::Unit3> GetVersorIfInFOV(const Camera& cam, const gtsam::Point3& pworld,
-      const double maxDistance = 1e9){
+  static boost::optional<gtsam::Unit3> GetVersorIfInFOV(
+      const Camera& cam,
+      const gtsam::Point3& pworld,
+      const double maxDistance = 1e9) {
     // check if a point p (expressed in global frame) falls in the FOV of the camera cam,
     // in which case the function returns a unit3 corresponding to the direction at which p is observed
     if(pworld.vector().norm() <= 1e-3)
@@ -1010,15 +1048,18 @@ public:
     }
     return gtsam::Unit3( pcam );
   }
-  /* ----------------------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   /**
    * Do Schur complement, given Jacobian as Fs,E,P, return SymmetricBlockMatrix
    * G = F' * F - F' * E * P * E' * F
    * g = zero
    * Fixed size version
    */
-  static gtsam::SymmetricBlockMatrix SchurComplement(const FBlocks& Fs,
-      const gtsam::Matrix& E, const gtsam::Matrix3& P, const gtsam::Vector& b) {
+  static gtsam::SymmetricBlockMatrix SchurComplement(
+      const FBlocks& Fs,
+      const gtsam::Matrix& E,
+      const gtsam::Matrix3& P,
+      const gtsam::Vector& b) {
 
     // a single point is observed in m cameras
     size_t m = Fs.size();
@@ -1060,14 +1101,21 @@ public:
     return augmentedHessian;
   }
 
-  /* ----------------------------------------------------------------------------------------- */
-  // before starting feature selection: returns selected smart measurements (included tracked ones)
-  // and actual time it took for the selection
-  std::pair<SmartStereoMeasurements,double> splitTrackedAndNewFeatures_Select_Display(std::shared_ptr<StereoFrame>& stereoFrame_km1, // not constant since we discard nonselected lmks
-      const SmartStereoMeasurements& smartStereoMeasurements, const int vio_cur_id, const int saveImagesSelector,
-      const VioFrontEndParams::FeatureSelectionCriterion criterion, const int nrFeaturesToSelect, const int maxFeatureAge,
-      const KeyframeToStampedPose posesAtFutureKeyframes, const gtsam::Matrix currNavStateCovariance,
-      const std::string dataset_name, const Frame frame_km1){
+  /* ------------------------------------------------------------------------ */
+  // Before starting feature selection: returns selected smart measurements
+  // (included tracked ones) and actual time it took for the selection.
+  std::pair<SmartStereoMeasurements,double> splitTrackedAndNewFeatures_Select_Display(
+      std::shared_ptr<StereoFrame>& stereoFrame_km1, // not constant since we discard nonselected lmks
+      const SmartStereoMeasurements& smartStereoMeasurements,
+      const int& vio_cur_id,
+      const int& saveImagesSelector,
+      const VioFrontEndParams::FeatureSelectionCriterion& criterion,
+      const int& nrFeaturesToSelect,
+      const int& maxFeatureAge,
+      const KeyframeToStampedPose& posesAtFutureKeyframes,
+      const gtsam::Matrix& currNavStateCovariance,
+      const std::string& dataset_name,
+      const Frame& frame_km1) {
 
     //////////////////////////////////////////////////////////////////
     // 1) split tracked VS new features:
@@ -1086,55 +1134,69 @@ public:
     std::vector<double> newlyAvailableKeypointsScore;
     std::vector<double> newlyAvailableKeypointsDistance;
 
-    for(auto ssm : smartStereoMeasurements) { // for each smart stereo measurement:
+    for (auto ssm : smartStereoMeasurements) { // for each smart stereo measurement:
       LandmarkId lmkId = ssm.first;
       StereoFrame::LandmarkInfo lmkInfo = stereoFrame_km1->getLandmarkInfo(lmkId);
-      // Age can be 1, 2, ...: at age 1 we do not do anything, at age 2 we consider them new measurements, > 2 we consider them tracked
-      if(lmkInfo.age == 2){ // new feature (already observed in two consecutive frames)
+      // Age can be 1, 2, ...: at age 1 we do not do anything,
+      // at age 2 we consider them new measurements,
+      // > 2 we consider them tracked
+      if (lmkInfo.age == 2) { // new feature (already observed in two consecutive frames)
         newlyAvailableLmks.push_back(lmkId);
         newlyAvailableKeypoints.push_back(lmkInfo.keypoint);
-        newSmartStereoMeasurements.push_back(ssm); // it is a new measurement
+        newSmartStereoMeasurements.push_back(ssm); // it is a new measurement.
         newlyAvailableKeypointsScore.push_back(lmkInfo.score);
         newlyAvailableKeypointsDistance.push_back(lmkInfo.keypoint_3d.norm());
-      }else{ // tracked measurements that have age greater than 1
-        if(lmkInfo.age > 2){ //if age = 0 they are not informative for pose estimation
-          trackedKeypoints.push_back(lmkInfo.keypoint); // for visualization
-          trackedLmks.push_back(lmkId);
-          trackedSmartStereoMeasurements.push_back(ssm);
-          trackedkeypoints_3d.push_back(lmkInfo.keypoint_3d);
-          trackedLandmarksAge.push_back(lmkInfo.age); // for feature selection
-        }
+      } else if (lmkInfo.age > 2) {
+        //if age = 0 they are not informative for pose estimation
+        trackedKeypoints.push_back(lmkInfo.keypoint); // for visualization
+        trackedLmks.push_back(lmkId);
+        trackedSmartStereoMeasurements.push_back(ssm);
+        trackedkeypoints_3d.push_back(lmkInfo.keypoint_3d);
+        trackedLandmarksAge.push_back(lmkInfo.age); // for feature selection
       }
     }
-    std::cout << "split features into tracked and new smart measurements" << std::endl;
 
-    // sanity check:
-    if(newlyAvailableKeypointsScore.size() > 0 && newlyAvailableKeypointsScore.at(0) <= 0)
+    VLOG(20) << "Split features into tracked and new smart measurements.";
+
+    // Sanity check:
+    if (newlyAvailableKeypointsScore.size() > 0 &&
+        newlyAvailableKeypointsScore.at(0) <= 0) {
       throw std::runtime_error("stereoVioExample: max score is zero");
-    for(size_t ni = 1; ni < newlyAvailableKeypointsScore.size(); ++ni){
-      if(newlyAvailableKeypointsScore.at(ni-1) < newlyAvailableKeypointsScore.at(ni))
-        throw std::runtime_error("stereoVioExample: scores are not in descending order");
     }
 
-    // debugging
+    for (size_t ni = 1; ni < newlyAvailableKeypointsScore.size(); ++ni) {
+      if (newlyAvailableKeypointsScore.at(ni-1) <
+          newlyAvailableKeypointsScore.at(ni)) {
+        throw std::runtime_error("stereoVioExample: scores are not in descending order");
+      }
+    }
+
+    // Debugging.
     double ratioOfNewKeypointsWithDistance = 0;
     for (size_t ni = 0; ni < newlyAvailableKeypointsDistance.size(); ++ni){
       if(newlyAvailableKeypointsDistance.at(ni) > 1e-2)
         ratioOfNewKeypointsWithDistance +=1;
     }
-    ratioOfNewKeypointsWithDistance = ratioOfNewKeypointsWithDistance / double(newlyAvailableKeypointsDistance.size());
-    std::cout << "ratioOfNewKeypointsWithDistance: " << ratioOfNewKeypointsWithDistance << std::endl;
+    if (newlyAvailableKeypointsDistance.size() != 0) {
+      ratioOfNewKeypointsWithDistance = ratioOfNewKeypointsWithDistance / double(newlyAvailableKeypointsDistance.size());
+    } else {
+      ratioOfNewKeypointsWithDistance =
+          std::numeric_limits<double>::signaling_NaN();
+    }
+    VLOG(10) << "ratioOfNewKeypointsWithDistance: " << ratioOfNewKeypointsWithDistance;
     // UtilsOpenCV::PrintVector(newlyAvailableKeypointsDistance,"newlyAvailableKeypointsDistance");
 
     //////////////////////////////////////////////////////////////////
     // 2) select best among the newSmartStereoMeasurements
     //////////////////////////////////////////////////////////////////
     // 2.1) figure out how many features we need!
-    int need_nr_features = std::max(nrFeaturesToSelect
-        - int(trackedkeypoints_3d.size()), int (0) ); // at least zero
-    std::cout << "Nr features tracked: " << trackedSmartStereoMeasurements.size() << std::endl;
-    std::cout << "Nr new features needed: " << need_nr_features << std::endl;
-    std::cout << "Nr new features before selector: " << newSmartStereoMeasurements.size() << std::endl;
+    int need_nr_features = std::max(nrFeaturesToSelect -
+                                    int(trackedkeypoints_3d.size()),
+                                    int(0)); // at least zero
+    VLOG(10) << "Nr features tracked: " << trackedSmartStereoMeasurements.size()
+             << "Nr new features needed: " << need_nr_features
+             << "Nr new features before selector: "
+             << newSmartStereoMeasurements.size();
 
     // 2.2) run a feature selector of your choice
     KeypointsCV selectedKeypoints; // only for visualization
@@ -1143,33 +1205,51 @@ public:
     std::vector<double> selectedGains;
 
     double featureSelectionTime = 0.0; // later saved to: stereoTracker.tracker_.debugInfo_.featureSelectionTime_
-    if(newSmartStereoMeasurements.size() > need_nr_features) // if we have to select something
-    {
-      ////////////////////////////////////////////////////////////////////////////////////////////
-      if(criterion == VioFrontEndParams::FeatureSelectionCriterion::QUALITY){
-        // features were already inserted in order of quality
-        for(size_t ii = 0; ii < need_nr_features; ii++){
-          selectedIndices.push_back(ii); // these are the landmarks we are going to select
+    if (newSmartStereoMeasurements.size() > need_nr_features) {
+      // If we have to select something.
+      //////////////////////////////////////////////////////////////////////////
+      if (criterion == VioFrontEndParams::FeatureSelectionCriterion::QUALITY) {
+        // Features were already inserted in order of quality.
+        for (size_t ii = 0; ii < need_nr_features; ii++) {
+          // These are the landmarks we are going to select.
+          selectedIndices.push_back(ii);
         }
-      ////////////////////////////////////////////////////////////////////////////////////////////
-      }else if(criterion == VioFrontEndParams::FeatureSelectionCriterion::RANDOM){ // reshuffle
+
+      //////////////////////////////////////////////////////////////////////////
+      } else if (criterion ==
+                 VioFrontEndParams::FeatureSelectionCriterion::RANDOM) {
+        // Reshuffle.
         for(size_t ii = 0; ii < newSmartStereoMeasurements.size(); ii++){
-          selectedIndices.push_back(ii); // these are the landmarks we are going to select
+          // These are the landmarks we are going to select.
+          selectedIndices.push_back(ii);
         }
-        unsigned seedShuffle = rand(); // randomized seed, but fixed if we fix srand
-        std::shuffle ( selectedIndices.begin(), selectedIndices.end(), std::default_random_engine(seedShuffle) ); // randomize order
-        selectedIndices.resize(need_nr_features); // take only first need_nr_features
-      ////////////////////////////////////////////////////////////////////////////////////////////
-      }else{ // Use our more clever feature selection algorithms:
+
+        // Randomized seed, but fixed if we fix srand.
+        unsigned seedShuffle = rand();
+        // Randomize order.
+        std::shuffle(selectedIndices.begin(), selectedIndices.end(),
+                     std::default_random_engine(seedShuffle) );
+        // Take only first need_nr_features.
+        selectedIndices.resize(need_nr_features);
+      //////////////////////////////////////////////////////////////////////////
+      // Use our more clever feature selection algorithms:
+      } else {
         FeatureSelectorData featureSelectionData;
-        featureSelectionData.currentNavStateCovariance = currNavStateCovariance; // covariance of current state
+        // Covariance of current state.
+        featureSelectionData.currentNavStateCovariance = currNavStateCovariance;
         featureSelectionData.posesAtFutureKeyframes = posesAtFutureKeyframes;
-        // ------------------ DATA ABOUT FEATURES WE ARE TRACKING ----------------- //
-        std::cout << "selector: populating data about existing feature tracks" << std::endl;
-        featureSelectionData.keypoints_3d = trackedkeypoints_3d; // current 3D points
+
+        // ----------------- DATA ABOUT FEATURES WE ARE TRACKING ------------ //
+        VLOG(20) << "Selector: populating data about existing feature tracks.";
+        // Current 3D points.
+        featureSelectionData.keypoints_3d = trackedkeypoints_3d;
         featureSelectionData.keypointLife.reserve(trackedLandmarksAge.size());
-        for(int age : trackedLandmarksAge) // compute age as maxFeatureAge_ - current age
-          featureSelectionData.keypointLife.push_back(maxFeatureAge-age); // this is life
+        for (const int& age: trackedLandmarksAge) {
+          // Compute age as maxFeatureAge_ - current age.
+          // This is life.
+          featureSelectionData.keypointLife.push_back(maxFeatureAge - age);
+        }
+
         if(featureSelectionData.keypoints_3d.size() != featureSelectionData.keypointLife.size())
           throw std::runtime_error("stereoVioExample: keypoint age inconsistent with keypoint 3D");
         featureSelectionData.body_P_leftCam = stereoFrame_km1->B_Pose_camLrect;
@@ -1215,29 +1295,35 @@ public:
         UtilsOpenCV::PrintVector<size_t>(selectedIndices,"selectedIndices");
         UtilsOpenCV::PrintVector<double>(selectedGains,"selectedGains");
       }
-      //////////////////////////////////////////////////////////////////
+
+      //////////////////////////////////////////////////////////////////////////
       // 3) POPULATE NEW SMART STEREO MEASUREMENTS
-      //////////////////////////////////////////////////////////////////
+      //////////////////////////////////////////////////////////////////////////
       SmartStereoMeasurements tmp = newSmartStereoMeasurements;
-      newSmartStereoMeasurements.resize(0); // delete everything and repopulate
-      newSmartStereoMeasurements.reserve(selectedIndices.size()); // preallocate
-      for(auto i : selectedIndices){
+      // Delete everything and repopulate.
+      newSmartStereoMeasurements.resize(0);
+      // Preallocate.
+      newSmartStereoMeasurements.reserve(selectedIndices.size());
+      for (const auto& i: selectedIndices) {
         newSmartStereoMeasurements.push_back(tmp.at(i));
         selectedKeypoints.push_back(newlyAvailableKeypoints.at(i));
         selectedLmks.push_back(newlyAvailableLmks.at(i));
       }
-      std::cout << "selector: populated SmartStereoMeasurements" << std::endl;
+
+      VLOG(20) << "Selector: populated SmartStereoMeasurements.";
 
       //////////////////////////////////////////////////////////////////
       // 4) REMOVE NONSELECTED FEATURES FROM FRAME
       //////////////////////////////////////////////////////////////////
       LandmarkIds discardedLmks;
       std::vector<size_t> nonSelectedIndices;
-      for(size_t ii = 0; ii < tmp.size(); ii++){ // all new measurements
-        if (find (selectedIndices.begin(), selectedIndices.end(), ii) == selectedIndices.end()){
-          // ii was not selected
+      // All new measurements.
+      for (size_t ii = 0; ii < tmp.size(); ii++) {
+        if (std::find(selectedIndices.begin(), selectedIndices.end(), ii) ==
+            selectedIndices.end()) {
+          // ii was not selected.
           nonSelectedIndices.push_back(ii);
-          LandmarkId lmkId = tmp.at(ii).first;
+          const LandmarkId& lmkId = tmp.at(ii).first;
           discardedLmks.push_back(lmkId);
         }
       }
@@ -1246,77 +1332,105 @@ public:
 
       stereoFrame_km1->left_frame_.setLandmarksToMinus1(discardedLmks);
 
-      // sanity check:
-      if(discardedLmks.size() + newSmartStereoMeasurements.size() != tmp.size())
+      // Sanity check:
+      if (discardedLmks.size() + newSmartStereoMeasurements.size() !=
+          tmp.size()) {
         throw std::runtime_error("stereoVIOexample: wrong feature selection");
-
-    }else{ // we have less features than what we need:
+      }
+    } else {
+      // We have less features than what we need:
       selectedKeypoints = newlyAvailableKeypoints;
       selectedLmks = newlyAvailableLmks;
     }
-    std::cout << "Nr new features after selector: " << newSmartStereoMeasurements.size() << std::endl;
-    // put only the selected features in statusSmartStereoMeasurements
 
-    SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements = trackedSmartStereoMeasurements;
-    trackedAndSelectedSmartStereoMeasurements.insert(trackedAndSelectedSmartStereoMeasurements.end(),
-        newSmartStereoMeasurements.begin(), newSmartStereoMeasurements.end() );
-    std::cout << "Nr features tracked & selected " << trackedAndSelectedSmartStereoMeasurements.size() << std::endl;
+    VLOG(20) << "Nr new features after selector: "
+             << newSmartStereoMeasurements.size();
+
+    // Put only the selected features in statusSmartStereoMeasurements.
+    SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements =
+        trackedSmartStereoMeasurements;
+    trackedAndSelectedSmartStereoMeasurements.insert(
+          trackedAndSelectedSmartStereoMeasurements.end(),
+          newSmartStereoMeasurements.begin(),
+          newSmartStereoMeasurements.end());
+    VLOG(20) << "Nr features tracked & selected "
+             << trackedAndSelectedSmartStereoMeasurements.size();
 
     //////////////////////////////////////////////////////////////////
     // 5) DISPLAY FEATURE SELECTION:
     //////////////////////////////////////////////////////////////////
-    int remId = 1000; // landmark ids are visualized modulo this number to improve visualization
+    static constexpr int remId = 1000; // landmark ids are visualized modulo this number to improve visualization
     cv::Mat img = stereoFrame_km1->left_frame_.img_.clone();
     //UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints, cv::Scalar(0, 0, 255),0.4,newlyAvailableLmks,remId);
     //UtilsOpenCV::DrawCirclesInPlace(img, selectedKeypoints, cv::Scalar(0, 255, 255), 4,selectedLmks,remId);
     //UtilsOpenCV::DrawSquaresInPlace(img, trackedKeypoints, cv::Scalar(0, 255, 0),10,trackedLmks,remId);
     std::vector<int> emptyVect;
-    UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints, cv::Scalar(0, 0, 255),0.4,emptyVect,remId);
-    UtilsOpenCV::DrawCirclesInPlace(img, selectedKeypoints, cv::Scalar(0, 255, 255), 4,emptyVect,remId);
-    UtilsOpenCV::DrawSquaresInPlace(img, trackedKeypoints, cv::Scalar(0, 255, 0),10,emptyVect,remId);
-    for(size_t ii=0; ii<trackedLmks.size(); ii++){
+    UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints,
+                                    cv::Scalar(0, 0, 255), 0.4,
+                                    emptyVect, remId);
+    UtilsOpenCV::DrawCirclesInPlace(img, selectedKeypoints,
+                                    cv::Scalar(0, 255, 255), 4,
+                                    emptyVect, remId);
+    UtilsOpenCV::DrawSquaresInPlace(img, trackedKeypoints,
+                                    cv::Scalar(0, 255, 0), 10,
+                                    emptyVect, remId);
+    for (size_t ii = 0; ii < trackedLmks.size(); ii++) {
       KeypointCV px_cur = trackedKeypoints.at(ii);
       KeypointCV px_ref;
-      for(size_t jj = 0; jj < frame_km1.landmarks_.size(); jj++){
-        if(frame_km1.landmarks_.at(jj) == trackedLmks.at(ii)){ // current landmark in previous frame
-          px_ref = frame_km1.keypoints_.at(jj); break;
+      for (size_t jj = 0; jj < frame_km1.landmarks_.size(); jj++) {
+        // Current landmark in previous frame.
+        if (frame_km1.landmarks_.at(jj) == trackedLmks.at(ii)) {
+          px_ref = frame_km1.keypoints_.at(jj);
+          break;
         }
         continue; // if we did not find the point, we skip the line
       }
       cv::line(img, px_cur, px_ref, cv::Scalar(0,255,0), 1);
     }
-    // plot text with keyframe id
-    cv::putText(img, "kf:" + std::to_string(vio_cur_id) + " #tracked:" + std::to_string(trackedLmks.size()) + " #selected:" + std::to_string(selectedLmks.size()),
-            KeypointCV(10,15), CV_FONT_HERSHEY_COMPLEX, 0.4, cv::Scalar(0, 255, 255));
 
-    std::cout << "trackedKeypoints: " << trackedKeypoints.size() <<
-        " newlyAvailableKeypoints " << newlyAvailableKeypoints.size() <<
-        " selectedKeypoints " << selectedKeypoints.size() << std::endl;
+    // Plot text with keyframe id.
+    cv::putText(img,
+                "kf:" + std::to_string(vio_cur_id)
+                + " #tracked:" + std::to_string(trackedLmks.size())
+                + " #selected:" + std::to_string(selectedLmks.size()),
+                KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.4,
+                cv::Scalar(0, 255, 255));
 
-    if(saveImagesSelector == 1){
+    VLOG(20) << "trackedKeypoints: " << trackedKeypoints.size()
+             << " newlyAvailableKeypoints " << newlyAvailableKeypoints.size()
+             << " selectedKeypoints " << selectedKeypoints.size();
+
+    if (saveImagesSelector == 1) {
       cv::imshow("Selection results", img);
       cv::waitKey(100);
     }
-    if(saveImagesSelector == 2){
-      // create output folders:
-      std::string folderName = "./result-FeatureSelection-" + dataset_name + "-" +
-          VioFrontEndParams::FeatureSelectionCriterionStr(criterion) + "/";
+
+    if(saveImagesSelector == 2) {
+      // Create output folders:
+      std::string folderName =
+          "./result-FeatureSelection-" + dataset_name + "-"
+          + VioFrontEndParams::FeatureSelectionCriterionStr(criterion) + "/";
       boost::filesystem::path stereoTrackerDir(folderName.c_str());
       boost::filesystem::create_directory(stereoTrackerDir);
-      // write image
-      std::string img_name = folderName + "img_" + std::to_string(vio_cur_id) + ".png";
+      // Write image.
+      std::string img_name = folderName + "img_"
+                             + std::to_string(vio_cur_id) + ".png";
       cv::imwrite(img_name, img);
 
-      // create output folders:
-      folderName = "./result-original-" + dataset_name + "-" +
-          VioFrontEndParams::FeatureSelectionCriterionStr(criterion) + "/";
+      // Create output folders:
+      folderName =
+          "./result-original-" + dataset_name + "-"
+          + VioFrontEndParams::FeatureSelectionCriterionStr(criterion) + "/";
       boost::filesystem::path originalImgDir(folderName.c_str());
       boost::filesystem::create_directory(originalImgDir);
-      // write image
+
+      // Write image.
       img_name = folderName + "img_" + std::to_string(vio_cur_id) + ".png";
       cv::imwrite(img_name, stereoFrame_km1->left_frame_.img_);
     }
-    return std::make_pair(trackedAndSelectedSmartStereoMeasurements, featureSelectionTime);
+
+    return std::make_pair(trackedAndSelectedSmartStereoMeasurements,
+                          featureSelectionTime);
   }
 };
 

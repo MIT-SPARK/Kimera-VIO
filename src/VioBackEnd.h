@@ -80,7 +80,7 @@ typedef gtsam::BatchFixedLagSmoother Smoother;
 // FeatureTrack
 class FeatureTrack {
 public:
-  //! Observation: { FrameId, Px-Measurement}
+  //! Observation: {FrameId, Px-Measurement}
   std::vector<std::pair<FrameId, StereoPoint2>> obs_;
 
   // Is the lmk in the graph?
@@ -91,7 +91,7 @@ public:
   }
 
   void print() const {
-    std::cout << " feature track with cameras: ";
+    std::cout << "feature track with cameras: ";
     for (size_t i = 0; i < obs_.size() ; i++) {
       std::cout << " " <<  obs_[i].first << " ";
     }
@@ -100,6 +100,8 @@ public:
 };
 
 // Landmark id to measurements.
+// Key is the lmk_id and feature track the collection of pairs of
+// frame id and pixel location.
 using FeatureTracks = std::unordered_map<Key, FeatureTrack>;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -260,9 +262,10 @@ public:
   Vector3 W_Vel_Blkf_;  		   //!< Velocity of body at k-1 in world coordinates
   Pose3   W_Pose_Blkf_;        //!< Body pose at at k-1 in world coordinates.
 
-  // Counters.
-  int last_id_;
-  int cur_id_;
+  /// Counters.
+  int last_kf_id_;
+  // Id of current keyframe, increases from 0 to inf.
+  int cur_kf_id_;
 
   // RAW, user-specified params.
   const VioBackEndParams vioParams_;
@@ -295,6 +298,7 @@ public:
   SmartFactorMap old_smart_factors_;           //!< landmarkId -> {SmartFactorPtr, SlotIndex}
 
   // Data:
+  // TODO grows unbounded currently, but it should be limited to time horizon.
   FeatureTracks featureTracks_;
   int landmark_count_;
 
@@ -415,8 +419,8 @@ public:
     std::cout << "\n W_Vel_Blkf_ " << W_Vel_Blkf_.transpose() <<std::endl;
     imu_bias_lkf_.print("\n imu_bias_lkf_ \n");
     imu_bias_prev_kf_.print("\n imu_bias_prev_kf_ \n");
-    std::cout << "last_id_ " << last_id_ <<std::endl;
-    std::cout << "cur_id_ " << cur_id_ <<std::endl;
+    std::cout << "last_id_ " << last_kf_id_ <<std::endl;
+    std::cout << "cur_id_ " << cur_kf_id_ <<std::endl;
     std::cout << "verbosity_ " << verbosity_ <<std::endl;
     std::cout << "landmark_count_ " << landmark_count_ <<std::endl;
     std::cout << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
@@ -429,9 +433,9 @@ public:
     gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
     // current state includes pose, velocity and imu biases
     std::vector<gtsam::Key> keys;
-    keys.push_back(gtsam::Symbol('x', cur_id_));
-    keys.push_back(gtsam::Symbol('v', cur_id_));
-    keys.push_back(gtsam::Symbol('b', cur_id_));
+    keys.push_back(gtsam::Symbol('x', cur_kf_id_));
+    keys.push_back(gtsam::Symbol('v', cur_kf_id_));
+    keys.push_back(gtsam::Symbol('b', cur_kf_id_));
     // return the marginal covariance matrix
     return UtilsOpenCV::Covariance_bvx2xvb(marginals.jointMarginalCovariance(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
   }
@@ -442,9 +446,9 @@ public:
     gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
     // current state includes pose, velocity and imu biases
     std::vector<gtsam::Key> keys;
-    keys.push_back(gtsam::Symbol('x', cur_id_));
-    keys.push_back(gtsam::Symbol('v', cur_id_));
-    keys.push_back(gtsam::Symbol('b', cur_id_));
+    keys.push_back(gtsam::Symbol('x', cur_kf_id_));
+    keys.push_back(gtsam::Symbol('v', cur_kf_id_));
+    keys.push_back(gtsam::Symbol('b', cur_kf_id_));
     // return the marginal covariance
     return UtilsOpenCV::Covariance_bvx2xvb(marginals.jointMarginalInformation(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
   }

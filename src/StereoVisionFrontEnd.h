@@ -51,10 +51,10 @@ using StatusSmartStereoMeasurements = std::pair<TrackerStatusSummary,SmartStereo
 
 ///////////////////////////////////////////////////////////////////////////////////////
 class StereoVisionFrontEnd{
-
 public:
-  //constructor
-  StereoVisionFrontEnd(const VioFrontEndParams trackerParams = VioFrontEndParams(),
+  // Constructor.
+  StereoVisionFrontEnd(
+      const VioFrontEndParams trackerParams = VioFrontEndParams(),
       const VioBackEndParams vioParams = VioBackEndParams(),
       const int saveImages = 1) :
     frame_count_(0), keyframe_count_(0), last_landmark_count_(0),
@@ -96,35 +96,44 @@ public:
   const int saveImages_; // 0: don't show, 1: show, 2: write & save
 
 public:
-  /* +++++++++++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++++++++ */
-  // Functions
+  /* ------------------------------------------------------------------------ */
   virtual void processFirstStereoFrame(StereoFrame& firstFrame);
   StatusSmartStereoMeasurements processStereoFrame(StereoFrame& cur_Frame,
       boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
 
-  /* ---------------------------- CONST FUNCTIONS ------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   // returns extracted left and right rectified features in a suitable format for VIO
-  SmartStereoMeasurements getSmartStereoMeasurements(const StereoFrame& stereoFrame_kf) const;
+  SmartStereoMeasurements getSmartStereoMeasurements(
+      const StereoFrame& stereoFrame_kf) const;
+
+  /* ------------------------------------------------------------------------ */
   // visualize quality of temporal and stereo matching
-  void displayStereoTrack(const int verbosity) const;
+  void displayStereoTrack(const int& verbosity) const;
+
+  /* ------------------------------------------------------------------------ */
   // visualize quality of temporal and stereo matching
-  void displayMonoTrack(const int verbosity) const;
+  void displayMonoTrack(const int& verbosity) const;
+
+  /* ------------------------------------------------------------------------ */
   // return relative pose between last (lkf) and current keyframe (k) - MONO RANSAC
-  gtsam::Pose3 getRelativePoseBodyMono() const
-  {
+  gtsam::Pose3 getRelativePoseBodyMono() const {
     // lkfBody_T_kBody = lkfBody_T_lkfCamera *  lkfCamera_T_kCamera_ * kCamera_T_kBody =
     // body_Pose_cam_ * lkf_T_k_mono_ * body_Pose_cam_^-1
     gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect; // of the left camera!!
     return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_mono_ * body_Pose_cam_.inverse();
   }
+
+  /* ------------------------------------------------------------------------ */
   // return relative pose between last (lkf) and current keyframe (k) - STEREO RANSAC
-  gtsam::Pose3 getRelativePoseBodyStereo() const
-  {
+  gtsam::Pose3 getRelativePoseBodyStereo() const {
     gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect; // of the left camera!!
     return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_stereo_ * body_Pose_cam_.inverse();
   }
+
+  /* ------------------------------------------------------------------------ */
   // static function to display output of stereo tracker
-  static void PrintStatusStereoMeasurements(const StatusSmartStereoMeasurements statusStereoMeasurements){
+  static void PrintStatusStereoMeasurements(
+      const StatusSmartStereoMeasurements statusStereoMeasurements) {
     std::cout << " SmartStereoMeasurements with mono status " << statusStereoMeasurements.first.kfTrackingStatus_mono_
         << " , stereo status " << statusStereoMeasurements.first.kfTrackingStatus_stereo_
         << " observing landmarks:" << std::endl;

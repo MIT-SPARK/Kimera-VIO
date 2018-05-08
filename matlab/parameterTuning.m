@@ -58,3 +58,11 @@ parameterTuningSingle('ransac_threshold_stereo',[0.1 0.3 0.5],datasetPath,initia
 % trackerParams.minNumberFeatures = 100;
 % COMMENT:
 % trackerParams.useStereoTracking = true;
+
+
+% TODO do parameter tuning over the following parameters:
+% Type of robust cost function.
+
+% Noise sigma.
+
+% Parameter of loss function.

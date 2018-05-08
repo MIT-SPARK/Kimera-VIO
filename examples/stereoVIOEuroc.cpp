@@ -60,10 +60,11 @@ using namespace VIO;
 
 // helper function to parse dataset and user-specified parameters
 void parseDatasetAndParams(const int argc, const char * const *argv,
-    //output:
-                         ETHDatasetParser& dataset, VioBackEndParams& vioParams,
-                         VioFrontEndParams& trackerParams,
-                         size_t& initial_k, size_t& final_k) {
+                           //output:
+                           ETHDatasetParser& dataset,
+                           VioBackEndParams& vioParams,
+                           VioFrontEndParams& trackerParams,
+                           size_t& initial_k, size_t& final_k) {
 
   // dataset path
   VLOG(100) << "stereoVIOexample: using dataset path: " << FLAGS_dataset_path;
@@ -140,7 +141,7 @@ int main(int argc, char *argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   // initialize random seed for repeatability (only on the same machine)
-  // srand(0); // still does not make RANSAC REPEATABLE across different machines
+  srand(0); // still does not make RANSAC REPEATABLE across different machines
   static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
   static constexpr int saveImagesSelector = 1;          // 0: don't show, >0 write & save
   VisualizationType visualization_type = static_cast<VisualizationType>(
@@ -190,7 +191,7 @@ int main(int argc, char *argv[]) {
   double startTime; // to log timing results
 
   /// Lmk ids that are considered to be in the same cluster.
-  static LandmarkIds mesh_lmk_ids_ground_cluster;
+  LandmarkIds mesh_lmk_ids_ground_cluster;
 
   // start actual processing of the dataset
   for(size_t k = initial_k; k < final_k; k++) { // for each image
@@ -220,10 +221,10 @@ int main(int argc, char *argv[]) {
     ////////////////////////////////////////////////////////////////////////////
     // For k == 1 (initial frame).
     if (k == initial_k) {
-      // process frame
+      // Process frame.
       stereoVisionFrontEnd.processFirstStereoFrame(stereoFrame_k);
 
-      // get IMU data
+      // Get IMU data.
       std::tie(imu_stamps, imu_accgyr) = dataset.imuData_.imu_buffer_
                       .getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
 
@@ -248,8 +249,9 @@ int main(int argc, char *argv[]) {
         }
       }
 
-      // initialize Vio
+      // Initialize VIO.
       gtNavState initialStateGT;
+
       // Use initial IMU measurements to guess first pose
       if (vioParams.autoInitialize_) {
           initialStateGT.pose = vioBackEnd->GuessPoseFromIMUmeasurements(
@@ -353,18 +355,35 @@ int main(int argc, char *argv[]) {
 
       startTime = UtilsOpenCV::GetTimeInSeconds();
       SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
+
+      VLOG(100) << "Starting feature selection.";
+      // ToDo init to invalid value.
+      gtsam::Matrix curr_state_cov;
+      if (trackerParams.featureSelectionCriterion_ !=
+          VioFrontEndParams::FeatureSelectionCriterion::QUALITY) {
+        VLOG(100) << "Using feature selection criterion diff than QUALITY ";
+        try {
+          curr_state_cov = vioBackEnd->getCurrentStateCovariance();
+        } catch(const gtsam::IndeterminantLinearSystemException& e) {
+          LOG(ERROR) << "Error when calculating current state covariance.";
+        }
+      } else {
+        VLOG(100) << "Using QUALITY as feature selection criterion";
+      }
+
       std::tie(trackedAndSelectedSmartStereoMeasurements,
                stereoVisionFrontEnd.tracker_.debugInfo_.featureSelectionTime_) =
           featureSelector.splitTrackedAndNewFeatures_Select_Display(
             stereoVisionFrontEnd.stereoFrame_km1_,
             statusSmartStereoMeasurements.second,
-            vioBackEnd->cur_id_, saveImagesSelector,
+            vioBackEnd->cur_kf_id_, saveImagesSelector,
             trackerParams.featureSelectionCriterion_,
             trackerParams.featureSelectionNrCornersToSelect_,
             trackerParams.maxFeatureAge_, posesAtFutureKeyframes,
-            vioBackEnd->getCurrentStateCovariance(),
+            curr_state_cov,
             dataset.dataset_name_,
             frame_km1_debug); // last 2 are for visualization
+      VLOG(100) << "Feature selection completed.";
 
       if (FLAGS_log_output) {
         logger.timing_featureSelection_ =
@@ -405,6 +424,8 @@ int main(int argc, char *argv[]) {
       if (vioParams.addBetweenStereoFactors_ == true &&
           stereoVisionFrontEnd.trackerStatusSummary_.kfTrackingStatus_stereo_ ==
                                                               Tracker::VALID ) {
+        VLOG(10) << "Add visual inertial state and optimize,"
+                    " using stereo between factor.";
         vioBackEnd->addVisualInertialStateAndOptimize(
               timestamp_k, // Current time for fixed lag smoother.
               statusSmartStereoMeasurements, // Vision data.
@@ -412,6 +433,8 @@ int main(int argc, char *argv[]) {
               mesh_lmk_ids_ground_cluster,
               stereoVisionFrontEnd.getRelativePoseBodyStereo()); // optional: pose estimate from stereo ransac
       } else {
+        VLOG(10) << "Add visual inertial state and optimize,"
+                    " without using stereo between factor.";
         vioBackEnd->addVisualInertialStateAndOptimize(
               timestamp_k,
               statusSmartStereoMeasurements,
@@ -479,9 +502,9 @@ int main(int argc, char *argv[]) {
           // (updateMesh3D also filters out geometrically)
           // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
         case VisualizationType::MESH2DTo3Dsparse: {
-          std::cout << "Mesh2Dtype::VALIDKEYPOINTS" << std::endl;
+          VLOG(10) << "Mesh2Dtype::MESH2DTo3Dsparse";
 
-          static constexpr int  minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
+          static constexpr int minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
 
           // Points_with_id_VIO contains all the points in the optimization,
           // (encoded as either smart factors or explicit values), potentially
