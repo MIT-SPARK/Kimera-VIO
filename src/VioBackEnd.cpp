@@ -594,12 +594,12 @@ void VioBackEnd::optimize(
     const FrameId& cur_id,
     const int& max_extra_iterations,
     const std::vector<size_t>& extra_factor_slots_to_delete) {
-  if (!smoother_.get()) {
-    throw std::runtime_error("optimize: Incremental smoother is a null pointer\n");
-  }
+  CHECK(smoother_.get()) << "Incremental smoother is a null pointer.";
 
   // Only for statistics and debugging.
-  double startTime, endTime;
+  // Store start time.
+  double startTime;
+  // Reset all timing info.
   debugInfo_.resetTimes();
   if (verbosity_ >= 5) {
     startTime = UtilsOpenCV::GetTimeInSeconds();
@@ -630,13 +630,12 @@ void VioBackEnd::optimize(
                                       startTime;
   }
 
-  if (verbosity_ >= 5) {
-    std::cout << "iSAM2 update with " << new_factors_tmp.size() << " new factors"
-              << " , " << new_values_.size() << " new values "
-              << " , and " << delete_slots.size() << " delete indices" << std::endl;
-  }
+  VLOG(10) << "iSAM2 update with " << new_factors_tmp.size() << " new factors "
+           << ", " << new_values_.size() << " new values "
+           << ", and " << delete_slots.size() << " deleted factors.";
 
-  if (verbosity_ >= 5) { // get state before optimization to compute error
+  if (verbosity_ >= 5) {
+    // Get state before optimization to compute error.
     debugInfo_.stateBeforeOpt = gtsam::Values(state_);
     BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
       debugInfo_.stateBeforeOpt.insert(key_value.key, key_value.value);
@@ -644,7 +643,7 @@ void VioBackEnd::optimize(
   }
 
   if (verbosity_ >= 8) {
-    printSmootherInfo(new_factors_tmp,delete_slots,
+    printSmootherInfo(new_factors_tmp, delete_slots,
                      "Smoother status before update:",
                      verbosity_ >= 9);
   }
@@ -669,57 +668,35 @@ void VioBackEnd::optimize(
   }
 
   if (verbosity_ >= 5) {
-    std::cout << "starting first update:" << std::endl;
     debugInfo_.preUpdateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
   }
 
   // Compute iSAM update.
   Smoother::Result result;
-  try {
-    result = smoother_->update(new_factors_tmp, new_values_,
-                               timestamps, delete_slots);
-  } catch (const gtsam::IndeterminantLinearSystemException& e) {
-    std::cerr << e.what() << std::endl;
-
-    gtsam::Key var = e.nearbyVariable();
-    gtsam::Symbol symb (var);
-
-    std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
-        << "and index " << symb.index() << std::endl;
-
-    smoother_->getFactors().print("smoother's factors:\n");
-    state_.print("State values\n");
-
-    printSmootherInfo(new_factors_tmp,delete_slots,
-                     "CATCHING EXCEPTION",
-                     false);
-    throw;
-  } catch (...) {
-    // Catch the rest of exceptions.
-    LOG(ERROR) << "Unrecognized exception.";
-  }
+  VLOG(10) << "Starting first update.";
+  updateSmoother(&result,
+                 new_factors_tmp,
+                 new_values_,
+                 timestamps,
+                 delete_slots);
+  VLOG(10) << "Finished first update.";
 
   if (verbosity_ >= 5) {
     debugInfo_.updateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
-    std::cout << "finished first update!" << std::endl;
   }
 
   // Reset everything for next round.
   new_smart_factors_.clear();
   new_values_.clear();
 
-  // update slots of smart factors:
-  if (verbosity_ >= 5) {
-    std::cout << "starting findSmartFactorsSlots" << std::endl;
-  }
+  // Update slots of smart factors:.
+  VLOG(10) << "Starting to find smart factors slots.";
 #ifdef INCREMENTAL_SMOOTHER
   findSmartFactorsSlots(new_smart_factors_lmkID_tmp);
 #else
   findSmartFactorsSlotsSlow(new_smart_factors_lmkID_tmp);
 #endif
-  if (verbosity_ >= 5) {
-    std::cout << "finished findSmartFactorsSlots" << std::endl;
-  }
+  VLOG(10) << "Finished to find smart factors slots.";
 
   if (verbosity_ >= 5) {
     debugInfo_.updateSlotTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
@@ -727,21 +704,8 @@ void VioBackEnd::optimize(
 
   // Do some more iterations.
   for (size_t n_iter = 1; n_iter < max_extra_iterations; ++n_iter) {
-    std::cout << "Doing extra iteration nr: " << n_iter << std::endl;
-    try {
-      result = smoother_->update();
-    } catch(const gtsam::IndeterminantLinearSystemException& e) {
-      std::cout << "ERROR: " << e.what() << std::endl;
-
-      gtsam::Key var = e.nearbyVariable();
-      gtsam::Symbol symb(var);
-
-      std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
-          << "and index " << symb.index() << std::endl;
-
-      smoother_->getFactors().print("smoother's factors:\n");
-      throw;
-    }
+    VLOG(10) << "Doing extra iteration nr: " << n_iter;
+    updateSmoother(&result);
   }
 
   if (verbosity_ >= 5) {
@@ -749,25 +713,27 @@ void VioBackEnd::optimize(
                                       startTime;
   }
 
-  if (verbosity_ >= 5) {
-    std::cout << "starting calculateEstimate" << std::endl;
-  }
-
   // Get states we need for next iteration.
+  VLOG(10) << "Starting to calculate estimate.";
   state_ = smoother_->calculateEstimate();
-  W_Pose_Blkf_ = state_.at<Pose3>(gtsam::Symbol('x', cur_id));
-  W_Vel_Blkf_ = state_.at<Vector3>(gtsam::Symbol('v', cur_id));
-  imu_bias_lkf_ = state_.at<gtsam::imuBias::ConstantBias>(gtsam::Symbol('b', cur_id));
+  VLOG(10) << "Finished to calculate estimate.";
 
-  if (verbosity_ >= 5) {
-    std::cout << "finished calculateEstimate!" << std::endl;
-  }
+  W_Pose_Blkf_  = state_.at<Pose3>(gtsam::Symbol('x', cur_id));
+  W_Vel_Blkf_   = state_.at<Vector3>(gtsam::Symbol('v', cur_id));
+  imu_bias_lkf_ = state_.at<gtsam::imuBias::ConstantBias>(
+                    gtsam::Symbol('b', cur_id));
 
+  // DEBUG:
+  postDebug(startTime);
+}
+
+/* -------------------------------------------------------------------------- */
+// Debugging post optimization and estimate calculation.
+void VioBackEnd::postDebug(const double& start_time) {
   if (verbosity_ >= 9) {
     computeSparsityStatistics();
   }
 
-  // DEBUG:
   if (verbosity_ >= 5) {
     std::cout << "starting computeSmartFactorStatistics" << std::endl;
   }
@@ -784,7 +750,7 @@ void VioBackEnd::optimize(
               << "Error after: " << graph.error(state_) << std::endl;
   }
   if (verbosity_ >= 5) {
-    debugInfo_.printTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    debugInfo_.printTime_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
   }
 
   if (verbosity_ >= 5) {
@@ -798,7 +764,7 @@ void VioBackEnd::optimize(
   }
 
   if (verbosity_ >= 5) {
-    endTime = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    double endTime = UtilsOpenCV::GetTimeInSeconds() - start_time;
     // sanity check:
     double endTimeFromSum = debugInfo_.factorsAndSlotsTime_ +
                             debugInfo_.preUpdateTime_ +
@@ -812,6 +778,45 @@ void VioBackEnd::optimize(
       throw std::runtime_error("optimize: time measurement mismatch"
                                " (this check on timing might be too strict)");
     }
+  }
+
+}
+
+/* -------------------------------------------------------------------------- */
+// Update smoother.
+void VioBackEnd::updateSmoother(
+    Smoother::Result* result,
+    const gtsam::NonlinearFactorGraph& new_factors_tmp,
+    const gtsam::Values& new_values,
+    const std::map<Key, double>& timestamps,
+    const std::vector<size_t>& delete_slots) {
+  CHECK_NOTNULL(result);
+
+  try {
+    // Update smoother.
+    *result = smoother_->update(new_factors_tmp,
+                               new_values,
+                               timestamps,
+                               delete_slots);
+  } catch (const gtsam::IndeterminantLinearSystemException& e) {
+    LOG(ERROR) << e.what();
+
+    gtsam::Key var = e.nearbyVariable();
+    gtsam::Symbol symb (var);
+
+    LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
+               << "and index " << symb.index() << std::endl;
+
+    smoother_->getFactors().print("smoother's factors:\n");
+    state_.print("State values\n");
+
+    printSmootherInfo(new_factors_tmp,delete_slots,
+                     "CATCHING EXCEPTION",
+                     false);
+    throw;
+  } catch (...) {
+    // Catch the rest of exceptions.
+    LOG(ERROR) << "Unrecognized exception.";
   }
 }
 
@@ -1020,7 +1025,6 @@ vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
 
 /* -------------------------------------------------------------------------- */
 // Get valid 3D points and corresponding lmk id.
-// TODO output a map instead of a vector for points_with_id.
 void VioBackEnd::get3DPointsAndLmkIds(PointsWithIdMap* points_with_id,
                                       const int& min_age) const {
   CHECK_NOTNULL(points_with_id);
@@ -1029,29 +1033,41 @@ void VioBackEnd::get3DPointsAndLmkIds(PointsWithIdMap* points_with_id,
   const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
   // old_smart_factors_ has all smart factors included so far.
-  int nr_valid_pts = 0, nr_pts = 0;
+  int nr_valid_pts = 0, nr_pts = 0, nr_lmks = 0;
   for (const auto& smart_factor : old_smart_factors_) {//!< landmarkId -> {SmartFactorPtr, SlotIndex}
     const LandmarkId& lmk_id = smart_factor.first;
     const SmartStereoFactor::shared_ptr& smart_factor_ptr =
         smart_factor.second.first;
     const int& slot_id = smart_factor.second.second;
 
-    if (smart_factor_ptr && // If pointer is well definied.
-        (slot_id >= 0) && (graph.size() > slot_id) && // Slot is admissible.
-        (smart_factor_ptr == graph[slot_id]) // Pointer in the graph matches the one we stored in old_smart_factors_.
-        ) {
-      boost::shared_ptr<SmartStereoFactor> gsf =
-          boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slot_id]);
-      if (gsf) {
-        nr_pts++;
-        gtsam::TriangulationResult result = gsf->point();
-        if (result.valid() &&
-            gsf->measured().size() >= min_age) {
-          nr_valid_pts++;
-          (*points_with_id)[lmk_id] = *result;
-        }
-      }
+    // Check that pointer is well definied.
+    CHECK(smart_factor_ptr) << "Smart factor is not well defined.";
+
+    // Check that slot is admissible.
+    CHECK((slot_id >= 0) && (slot_id < graph.size()))
+        << "Slot of smart factor is not admissible.";
+
+    if (smart_factor_ptr != graph[slot_id]) {
+      // Pointer in the graph does not match
+      // the one we stored in old_smart_factors_
+      LOG(ERROR) << "Smart factor in old_smart_factors_"
+                 << " and graph do not coincide";
+      continue;
     }
+
+    boost::shared_ptr<SmartStereoFactor> gsf =
+        boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slot_id]);
+    CHECK(gsf) << "Cannot cast factor in graph to a smart stereo factor.";
+
+    gtsam::TriangulationResult result = gsf->point();
+    if (result.valid() &&
+        gsf->measured().size() >= min_age) {
+      // Triangulation result from smart factor is valid and
+      // we have observed the lmk at least min_age times.
+      (*points_with_id)[lmk_id] = *result;
+      nr_valid_pts++;
+    }
+    nr_pts++;
   }
 
   // Add landmarks that now are in projection factors.
@@ -1060,18 +1076,25 @@ void VioBackEnd::get3DPointsAndLmkIds(PointsWithIdMap* points_with_id,
     // TODO this loop is huge, as we check all variables in the graph...
     if (gtsam::Symbol(key_value.key).chr() == 'l') {
       (*points_with_id)[key_value.key] = key_value.value.cast<gtsam::Point3>();
-      //state_.at<gtsam::Point3> (key_value.key)
+      nr_lmks++;
     }
   }
 
-  // TODO what about the other landmarks.
   // TODO aren't these points post-optimization? Shouldn't we instead add
   // the points before optimization? Then the regularities we enforce will
   // have the most impact, otherwise the points in the optimization horizon
   // do not move that much after optimizing... they are almost frozen and
   // are not visually changing much...
+  // They might actually not be changing that much because we are not enforcing
+  // the regularities on the points that are out of current frame in the backend
+  // currently...
 
-  VLOG(100) << "nrValidPts= "<< nr_valid_pts << " out of " << nr_pts <<"\n";
+  VLOG(100) << "Landmark typology to be used for the mesh:\n"
+            << "Number of valid smart factors " << nr_valid_pts
+            << " out of " << nr_pts << "\n"
+            << "Number of landmarks (not involved in a smart factor) "
+            << nr_lmks
+            << "Total number of landmarks: " << (nr_valid_pts + nr_lmks);
 }
 
 /* -------------------------------------------------------------------------- */

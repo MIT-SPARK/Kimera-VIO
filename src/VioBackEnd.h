@@ -401,6 +401,22 @@ public:
                                                         std::vector<size_t>());
 
   /* ------------------------------------------------------------------------ */
+  // Debugging post optimization and estimate calculation.
+  void postDebug(const double& start_time);
+
+  /* ------------------------------------------------------------------------ */
+  // Update smoother.
+  void updateSmoother(
+      Smoother::Result* result,
+      const gtsam::NonlinearFactorGraph& new_factors_tmp =
+                                                  gtsam::NonlinearFactorGraph(),
+      const gtsam::Values& new_values = gtsam::Values(),
+      const std::map<Key, double>& timestamps =
+                                     gtsam::FixedLagSmoother::KeyTimestampMap(),
+      const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
+
+
+  /* ------------------------------------------------------------------------ */
   void findSmartFactorsSlots(
       const std::vector<Key> new_smart_factors_keys_tmp);
 
