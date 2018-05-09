@@ -446,7 +446,12 @@ protected:
                 const int& max_iterations,
                 const std::vector<size_t>& extra_factor_slots_to_delete =
                                                         std::vector<size_t>());
+  /// Printers.
+  /* ------------------------------------------------------------------------ */
+  void printFeatureTracks() const;
 
+private:
+  /// Private Methods.
   /* ------------------------------------------------------------------------ */
   // Update states.
   void updateStates(const FrameId& cur_id);
@@ -471,15 +476,45 @@ protected:
   void findSmartFactorsSlotsSlow(
       const std::vector<Key>& new_smart_factors_keys_tmp);
 
-  /// Printers.
   /* ------------------------------------------------------------------------ */
-  void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
-                        const std::vector<size_t>& delete_slots,
-                        const std::string& message,
-                        const bool& showDetails) const;
+  // Debugging post optimization and estimate calculation.
+  void postDebug(const double& start_time);
+
+  /// Private setters.
+  /* ------------------------------------------------------------------------ */
+  // Set parameters for all types of factors.
+  void setFactorsParams(
+      const VioBackEndParams& vio_params,
+      gtsam::SharedNoiseModel* smart_noise,
+      gtsam::SmartStereoProjectionParams* smart_factors_params,
+      boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
+      gtsam::SharedNoiseModel* no_motion_prior_noise,
+      gtsam::SharedNoiseModel* zero_velocity_prior_noise,
+      gtsam::SharedNoiseModel* constant_velocity_prior_noise);
 
   /* ------------------------------------------------------------------------ */
-  void printFeatureTracks() const;
+  // Set parameters for ISAM 2 incremental smoother.
+  void setIsam2Params(const VioBackEndParams& vio_params,
+                      gtsam::ISAM2Params* isam_param);
+
+  /* ------------------------------------------------------------------------ */
+  // Set parameters for smart factors.
+  void setSmartFactorsParams(
+      gtsam::SharedNoiseModel* smart_noise,
+      gtsam::SmartStereoProjectionParams* smart_factors_params,
+      const double& smart_noise_sigma,
+      const double& rank_tolerance,
+      const double& landmark_distance_threshold,
+      const double& retriangulation_threshold,
+      const double& outlier_rejection);
+
+  /* ------------------------------------------------------------------------ */
+  // Set parameters for imu factors.
+  void setImuFactorsParams(boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
+      const gtsam::Vector3& n_gravity,
+      const double& gyro_noise_density,
+      const double& acc_noise_density,
+      const double& imu_integration_sigma);
 
   /// Debuggers.
   /* ------------------------------------------------------------------------ */
@@ -489,8 +524,15 @@ protected:
   void computeSparsityStatistics();
 
   /* ------------------------------------------------------------------------ */
-  // Debugging post optimization and estimate calculation.
-  void postDebug(const double& start_time);
+  // Reset state of debug info.
+  void resetDebugInfo(DebugVioInfo* debug_info);
+
+  /// Private printers.
+  /* ------------------------------------------------------------------------ */
+  void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
+                         const std::vector<size_t>& delete_slots,
+                         const std::string& message,
+                         const bool& showDetails) const;
 };
 
 } // namespace VIO

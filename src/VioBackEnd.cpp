@@ -28,7 +28,8 @@
 #include "VioBackEnd.h"
 
 using namespace std;
-using namespace VIO;
+
+namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
@@ -42,89 +43,28 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                leftCameraCalRectified.px(), leftCameraCalRectified.py(),
                baseline)),
   vioParams_(vioParams),
-  imu_bias_lkf_(ImuBias()), imu_bias_prev_kf_(ImuBias()),
-  W_Vel_Blkf_(Vector3::Zero()), W_Pose_Blkf_(Pose3()),
-  last_kf_id_(-1), cur_kf_id_(0),
-  verbosity_(0), landmark_count_(0) {
+  imu_bias_lkf_(ImuBias()),
+  imu_bias_prev_kf_(ImuBias()),
+  W_Vel_Blkf_(Vector3::Zero()),
+  W_Pose_Blkf_(Pose3()),
+  last_kf_id_(-1),
+  cur_kf_id_(0),
+  verbosity_(0),
+  landmark_count_(0) {
 
-  // SMART PROJECTION FACTORS SETTINGS
-  gtsam::SharedNoiseModel model = gtsam::noiseModel::Isotropic::Sigma(
-                                    3, vioParams_.smartNoiseSigma_); //  vio_smart_reprojection_err_thresh / cam_->fx());
-  // smart_noise_ = gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(1.345), model);
-  smart_noise_ = model;
-  smartFactorsParams_ = SmartFactorParams( // JACOBIAN_SVD, IGNORE_DEGENERACY
-                                           gtsam::HESSIAN, gtsam::ZERO_ON_DEGENERACY, false, true); // ThrowCherality = false, verboseCherality = true
-  smartFactorsParams_.setRankTolerance(vioParams_.rankTolerance_);
-  smartFactorsParams_.setLandmarkDistanceThreshold(vioParams_.landmarkDistanceThreshold_);
-  smartFactorsParams_.setRetriangulationThreshold(vioParams_.retriangulationThreshold_);
-  smartFactorsParams_.setDynamicOutlierRejectionThreshold(vioParams_.outlierRejection_);
+  // Set parameters for all factors.
+  setFactorsParams(vioParams,
+                   &smart_noise_,
+                   &smartFactorsParams_,
+                   &imuParams_,
+                   &noMotionPriorNoise_,
+                   &zeroVelocityPriorNoise_,
+                   &constantVelocityPriorNoise_);
 
-  // IMU FACTORS SETTINGS
-  imuParams_ = boost::make_shared<PreintegratedImuMeasurements::Params>(vioParams.n_gravity_);
-  imuParams_->gyroscopeCovariance =
-      std::pow(vioParams.gyroNoiseDensity_, 2.0) * Eigen::Matrix3d::Identity();
-  imuParams_->accelerometerCovariance =
-      std::pow(vioParams.accNoiseDensity_, 2.0) * Eigen::Matrix3d::Identity();
-  imuParams_->integrationCovariance =
-      std::pow(vioParams.imuIntegrationSigma_, 2.0) * Eigen::Matrix3d::Identity();
-#ifdef USE_COMBINED_IMU_FACTOR
-  imuParams_->biasAccCovariance =
-      std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-  imuParams_->biasOmegaCovariance =
-      std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-#endif
-  imuParams_->use2ndOrderCoriolis = false; // TODO: expose this parameter
-
-  // NO MOTION FACTORS SETTINGS:
-  zeroVelocityPriorNoise_ = gtsam::noiseModel::Isotropic::Sigma(3, vioParams.zeroVelocitySigma_);
-
-  Vector6 sigmas;
-  sigmas.head<3>().setConstant(vioParams.noMotionRotationSigma_);
-  sigmas.tail<3>().setConstant(vioParams.noMotionPositionSigma_);
-  noMotionPriorNoise_ = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
-
-  // CONSTANT VELOCITY FACTORS SETTINGS:
-  constantVelocityPriorNoise_ = gtsam::noiseModel::Isotropic::Sigma(3, vioParams.constantVelSigma_);
-
+  //////////////////////////////////////////////////////////////////////////////
 #ifdef INCREMENTAL_SMOOTHER
-  // iSAM2 SETTINGS
-  gtsam::ISAM2GaussNewtonParams gauss_newton_params;
-  gauss_newton_params.wildfireThreshold = -1.0;
-
-  // gauss_newton_params.setWildfireThreshold(0.001);
-  gtsam::ISAM2DoglegParams dogleg_params;
-  // dogleg_params.setVerbose(false); // only for debugging.
   gtsam::ISAM2Params isam_param;
-
-  if (vioParams_.useDogLeg_)
-    isam_param.optimizationParams = dogleg_params;
-  else
-    isam_param.optimizationParams = gauss_newton_params;
-
-  //gtsam::FastMap<char,gtsam::Vector> thresholds;
-  //gtsam::Vector xThresh(6); // = {0.05, 0.05, 0.05, 0.1, 0.1, 0.1};
-  //gtsam::Vector vThresh(3); //= {1.0, 1.0, 1.0};
-  //gtsam::Vector bThresh(6); // = {1.0, 1.0, 1.0};
-  //xThresh << relinearizeThresholdRot_, relinearizeThresholdRot_, relinearizeThresholdRot_, relinearizeThresholdPos_, relinearizeThresholdPos_, relinearizeThresholdPos_;
-  //vThresh << relinearizeThresholdVel_, relinearizeThresholdVel_, relinearizeThresholdVel_;
-  //bThresh << relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_;
-  //thresholds['x'] = xThresh;
-  //thresholds['v'] = vThresh;
-  //thresholds['b'] = bThresh;
-  // isam_param.setRelinearizeThreshold(thresholds);
-  isam_param.setCacheLinearizedFactors(false);
-  isam_param.setEvaluateNonlinearError(true);
-
-  isam_param.relinearizeThreshold = vioParams.relinearizeThreshold_;
-  isam_param.relinearizeSkip = vioParams.relinearizeSkip_;
-  // isam_param.enablePartialRelinearizationCheck = true;
-  isam_param.findUnusedFactorSlots = true;
-  // isam_param.cacheLinearizedFactors = true;
-  // isam_param.enableDetailedResults = true;   // only for debugging.
-  isam_param.factorization = gtsam::ISAM2Params::CHOLESKY; // QR
-  isam_param.print("isam_param");
-
-  //isam_param.evaluateNonlinearError = true;  // only for debugging.
+  setIsam2Params(vioParams, &isam_param);
 
   smoother_ = std::make_shared<Smoother>(vioParams.horizon_, isam_param);
 #else // BATCH SMOOTHER
@@ -135,12 +75,150 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   smoother_ = std::make_shared<Smoother>(vioParams.horizon_,lmParams);
 #endif
 
-  // reset debug info
-  debugInfo_.resetSmartFactorsStatistics();
-  debugInfo_.resetTimes();
-  debugInfo_.resetAddedFactorsStatistics();
-  debugInfo_.nrElementsInMatrix_ = 0;
-  debugInfo_.nrZeroElementsInMatrix_ = 0;
+  // Reset debug info.
+  resetDebugInfo(&debugInfo_);
+}
+
+/* -------------------------------------------------------------------------- */
+// Set parameters for ISAM 2 incremental smoother.
+void VioBackEnd::setIsam2Params(
+    const VioBackEndParams& vio_params,
+    gtsam::ISAM2Params* isam_param) {
+  CHECK_NOTNULL(isam_param);
+  // iSAM2 SETTINGS
+  gtsam::ISAM2GaussNewtonParams gauss_newton_params;
+  // TODO remove this hardcoded value...
+  gauss_newton_params.wildfireThreshold = -1.0;
+  // gauss_newton_params.setWildfireThreshold(0.001);
+
+  gtsam::ISAM2DoglegParams dogleg_params;
+  // dogleg_params.setVerbose(false); // only for debugging.
+
+  if (vio_params.useDogLeg_) {
+    isam_param->optimizationParams = dogleg_params;
+  } else {
+    isam_param->optimizationParams = gauss_newton_params;
+  }
+
+  // Here there was commented code about setRelinearizeThreshold.
+  isam_param->setCacheLinearizedFactors(false);
+  isam_param->setEvaluateNonlinearError(true);
+  isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
+  isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
+  // isam_param->enablePartialRelinearizationCheck = true;
+  isam_param->findUnusedFactorSlots = true;
+  // isam_param->cacheLinearizedFactors = true;
+  // isam_param->enableDetailedResults = true;   // only for debugging.
+  isam_param->factorization = gtsam::ISAM2Params::CHOLESKY; // QR
+  isam_param->print("isam_param");
+  //isam_param.evaluateNonlinearError = true;  // only for debugging.
+}
+
+/* -------------------------------------------------------------------------- */
+// Set parameters for all the factors.
+void VioBackEnd::setFactorsParams(
+    const VioBackEndParams& vio_params,
+    gtsam::SharedNoiseModel* smart_noise,
+    gtsam::SmartStereoProjectionParams* smart_factors_params,
+    boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
+    gtsam::SharedNoiseModel* no_motion_prior_noise,
+    gtsam::SharedNoiseModel* zero_velocity_prior_noise,
+    gtsam::SharedNoiseModel* constant_velocity_prior_noise) {
+  CHECK_NOTNULL(smart_noise);
+  CHECK_NOTNULL(smart_factors_params);
+  CHECK_NOTNULL(imu_params);
+  CHECK_NOTNULL(no_motion_prior_noise);
+  CHECK_NOTNULL(zero_velocity_prior_noise);
+  CHECK_NOTNULL(constant_velocity_prior_noise);
+
+  //////////////////////// SMART PROJECTION FACTORS SETTINGS ///////////////////
+  setSmartFactorsParams(smart_noise,
+                        smart_factors_params,
+                        vio_params.smartNoiseSigma_,
+                        vio_params.rankTolerance_,
+                        vio_params.landmarkDistanceThreshold_,
+                        vio_params.retriangulationThreshold_,
+                        vio_params.outlierRejection_);
+
+  //////////////////////// IMU FACTORS SETTINGS ////////////////////////////////
+  setImuFactorsParams(imu_params,
+                      vio_params.n_gravity_,
+                      vio_params.gyroNoiseDensity_,
+                      vio_params.accNoiseDensity_,
+                      vio_params.imuIntegrationSigma_);
+#ifdef USE_COMBINED_IMU_FACTOR
+  imuParams_->biasAccCovariance =
+      std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
+  imuParams_->biasOmegaCovariance =
+      std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
+#endif
+
+  //////////////////////// NO MOTION FACTORS SETTINGS //////////////////////////
+  Vector6 sigmas;
+  sigmas.head<3>().setConstant(vio_params.noMotionRotationSigma_);
+  sigmas.tail<3>().setConstant(vio_params.noMotionPositionSigma_);
+  *no_motion_prior_noise = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+
+  //////////////////////// ZERO VELOCITY FACTORS SETTINGS //////////////////////
+  *zero_velocity_prior_noise =
+      gtsam::noiseModel::Isotropic::Sigma(3, vio_params.zeroVelocitySigma_);
+
+  //////////////////////// CONSTANT VELOCITY FACTORS SETTINGS //////////////////
+  *constant_velocity_prior_noise =
+      gtsam::noiseModel::Isotropic::Sigma(3, vio_params.constantVelSigma_);
+}
+
+/* -------------------------------------------------------------------------- */
+// Set parameters for smart factors.
+void VioBackEnd::setSmartFactorsParams(
+    gtsam::SharedNoiseModel* smart_noise,
+    gtsam::SmartStereoProjectionParams* smart_factors_params,
+    const double& smart_noise_sigma,
+    const double& rank_tolerance,
+    const double& landmark_distance_threshold,
+    const double& retriangulation_threshold,
+    const double& outlier_rejection) {
+  CHECK_NOTNULL(smart_noise);
+  CHECK_NOTNULL(smart_factors_params);
+  gtsam::SharedNoiseModel model = gtsam::noiseModel::Isotropic::Sigma(
+                                    3, smart_noise_sigma); // vio_smart_reprojection_err_thresh / cam_->fx());
+  // smart_noise_ = gtsam::noiseModel::Robust::Create(
+  //                  gtsam::noiseModel::mEstimator::Huber::Create(1.345),
+  //                  model);
+  *smart_noise = model;
+  *smart_factors_params = SmartFactorParams(
+                            gtsam::HESSIAN,// JACOBIAN_SVD
+                            gtsam::ZERO_ON_DEGENERACY, // IGNORE_DEGENERACY
+                            false, // ThrowCherality = false
+                            true); // verboseCherality = true
+  smart_factors_params->setRankTolerance(
+        rank_tolerance);
+  smart_factors_params->setLandmarkDistanceThreshold(
+        landmark_distance_threshold);
+  smart_factors_params->setRetriangulationThreshold(
+        retriangulation_threshold);
+  smart_factors_params->setDynamicOutlierRejectionThreshold(
+        outlier_rejection);
+}
+
+/* -------------------------------------------------------------------------- */
+// Set parameters for imu factors.
+void VioBackEnd::setImuFactorsParams(
+    boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
+    const gtsam::Vector3& n_gravity,
+    const double& gyro_noise_density,
+    const double& acc_noise_density,
+    const double& imu_integration_sigma) {
+  CHECK_NOTNULL(imu_params);
+  *imu_params = boost::make_shared<PreintegratedImuMeasurements::Params>(
+                  n_gravity);
+  (*imu_params)->gyroscopeCovariance =
+      std::pow(gyro_noise_density, 2.0) * Eigen::Matrix3d::Identity();
+  (*imu_params)->accelerometerCovariance =
+      std::pow(acc_noise_density, 2.0) * Eigen::Matrix3d::Identity();
+  (*imu_params)->integrationCovariance =
+      std::pow(imu_integration_sigma, 2.0) * Eigen::Matrix3d::Identity();
+  (*imu_params)->use2ndOrderCoriolis = false; // TODO: expose this parameter
 }
 
 /* -------------------------------------------------------------------------- */
@@ -234,21 +312,21 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   // decide which factors to add
   Tracker::TrackingStatus kfTrackingStatus_mono = status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch(kfTrackingStatus_mono){
-  case Tracker::TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
-    if (verbosity_ >= 7) {printf("Add zero velocity and no motion factors\n");}
-    addZeroVelocityPrior(cur_kf_id_);
-    addNoMotionFactor(last_kf_id_, cur_kf_id_);
-    break;
+    case Tracker::TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
+      if (verbosity_ >= 7) {printf("Add zero velocity and no motion factors\n");}
+      addZeroVelocityPrior(cur_kf_id_);
+      addNoMotionFactor(last_kf_id_, cur_kf_id_);
+      break;
 
-    // This did not improve in any case
-    //  case Tracker::TrackingStatus::INVALID :// ransac failed hence we cannot trust features
-    //    if (verbosity_ >= 7) {printf("Add constant velocity factor (monoRansac is INVALID)\n");}
-    //    addConstantVelocityFactor(last_id_, cur_id_);
-    //    break;
+      // This did not improve in any case
+      //  case Tracker::TrackingStatus::INVALID :// ransac failed hence we cannot trust features
+      //    if (verbosity_ >= 7) {printf("Add constant velocity factor (monoRansac is INVALID)\n");}
+      //    addConstantVelocityFactor(last_id_, cur_id_);
+      //    break;
 
-  default: // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : // we add features in VIO
-    addLandmarksToGraph(landmarks_kf);
-    break;
+    default: // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : // we add features in VIO
+      addLandmarksToGraph(landmarks_kf);
+      break;
   }
 
   // Why do we do this??
@@ -299,7 +377,7 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
 
   // We use a unit pinhole projection camera for the smart factors to be more efficient.
   SmartStereoFactor::shared_ptr new_factor(
-      new SmartStereoFactor(smart_noise_, smartFactorsParams_, B_Pose_leftCam_));
+        new SmartStereoFactor(smart_noise_, smartFactorsParams_, B_Pose_leftCam_));
 
   if (verbosity_ >= 9) {std::cout << "Adding landmark with: " << ft.obs_.size() << " landmarks to graph, with keys: ";}
   if (verbosity_ >= 9){new_factor->print();}
@@ -443,7 +521,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
                               const FrameId& to_id) {
 #ifdef USE_COMBINED_IMU_FACTOR
   new_imu_and_prior_factors_.push_back(
-      boost::make_shared<gtsam::CombinedImuFactor>(
+        boost::make_shared<gtsam::CombinedImuFactor>(
           gtsam::Symbol('x', from_id), gtsam::Symbol('v', from_id),
           gtsam::Symbol('x', to_id), gtsam::Symbol('v', to_id),
           gtsam::Symbol('b', from_id),
@@ -451,7 +529,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
           *pim_));
 #else
   new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::ImuFactor>(
+        boost::make_shared<gtsam::ImuFactor>(
           gtsam::Symbol('x', from_id), gtsam::Symbol('v', from_id),
           gtsam::Symbol('x', to_id), gtsam::Symbol('v', to_id),
           gtsam::Symbol('b', from_id), *pim_));
@@ -472,7 +550,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
       gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
 
   new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::BetweenFactor<gtsam::imuBias::ConstantBias> >(
+        boost::make_shared<gtsam::BetweenFactor<gtsam::imuBias::ConstantBias> >(
           gtsam::Symbol('b', from_id),
           gtsam::Symbol('b', to_id),
           zero_bias, bias_noise_model));
@@ -511,14 +589,14 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id,
   gtsam::SharedNoiseModel noise_init_pose =
       gtsam::noiseModel::Gaussian::Covariance(pose_prior_covariance);
   new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::PriorFactor<gtsam::Pose3> >(
+        boost::make_shared<gtsam::PriorFactor<gtsam::Pose3> >(
           gtsam::Symbol('x', frame_id), W_Pose_Blkf_, noise_init_pose));
 
   // Add initial velocity priors.
   gtsam::SharedNoiseModel initialVelocityPriorNoise =
       gtsam::noiseModel::Isotropic::Sigma(3, vioParams_.initialVelocitySigma_);
   new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
+        boost::make_shared<gtsam::PriorFactor<gtsam::Vector3>>(
           gtsam::Symbol('v', frame_id), W_Vel_Blkf_, initialVelocityPriorNoise));
 
   // Add initial bias priors:
@@ -528,7 +606,7 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id,
   gtsam::SharedNoiseModel imu_bias_prior_noise =
       gtsam::noiseModel::Diagonal::Sigmas(prior_biasSigmas);
   new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
+        boost::make_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
           gtsam::Symbol('b', frame_id), imu_bias_lkf_, imu_bias_prior_noise));
 
   if (verbosity_ >= 7) {std::cout << "Added initial priors for frame " << frame_id << std::endl;}
@@ -546,7 +624,7 @@ void VioBackEnd::addBetweenFactor(const FrameId& from_id,
       gtsam::noiseModel::Diagonal::Precisions(precisions);
 
   new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
+        boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
           gtsam::Symbol('x', from_id),
           gtsam::Symbol('x', to_id),
           from_id_POSE_to_id,
@@ -560,7 +638,7 @@ void VioBackEnd::addBetweenFactor(const FrameId& from_id,
 void VioBackEnd::addNoMotionFactor(const FrameId& from_id,
                                    const FrameId& to_id) {
   new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
+        boost::make_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
           gtsam::Symbol('x', from_id),
           gtsam::Symbol('x', to_id),
           Pose3(),
@@ -589,7 +667,7 @@ void VioBackEnd::addConstantVelocityFactor(const FrameId& from_id,
                                            const FrameId& to_id) {
   VLOG(10) << "Adding constant velocity factor.";
   new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::BetweenFactor<gtsam::Vector3>>(
+        boost::make_shared<gtsam::BetweenFactor<gtsam::Vector3>>(
           gtsam::Symbol('v', from_id),
           gtsam::Symbol('v', to_id),
           gtsam::Vector3::Zero(),
@@ -670,8 +748,8 @@ void VioBackEnd::optimize(
 
   if (verbosity_ >= 8) {
     printSmootherInfo(new_factors_tmp, delete_slots,
-                     "Smoother status before update:",
-                     verbosity_ >= 9);
+                      "Smoother status before update:",
+                      verbosity_ >= 9);
   }
 
   // Recreate the graph before marginalization.
@@ -846,9 +924,9 @@ void VioBackEnd::updateSmoother(
   try {
     // Update smoother.
     *result = smoother_->update(new_factors_tmp,
-                               new_values,
-                               timestamps,
-                               delete_slots);
+                                new_values,
+                                timestamps,
+                                delete_slots);
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
     LOG(ERROR) << e.what();
 
@@ -862,8 +940,8 @@ void VioBackEnd::updateSmoother(
     state_.print("State values\n");
 
     printSmootherInfo(new_factors_tmp,delete_slots,
-                     "CATCHING EXCEPTION",
-                     false);
+                      "CATCHING EXCEPTION",
+                      false);
     throw;
   } catch (...) {
     // Catch the rest of exceptions.
@@ -995,7 +1073,7 @@ gtsam::Pose3 VioBackEnd::GuessPoseFromIMUmeasurements(
     const bool& round) {
   // compute average of initial measurements
   std::cout << "GuessPoseFromIMUmeasurements: currently assumes that the vehicle is stationary and upright along some axis,"
-      "and gravity vector is along a single axis!" << std::endl;
+               "and gravity vector is along a single axis!" << std::endl;
   Vector3 sumAccMeasurements = Vector3::Zero();
   size_t nrMeasured = accGyroRaw.cols();
   for(size_t i=0; i < nrMeasured; i++){
@@ -1153,11 +1231,11 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
   // currently...
 
   VLOG(10) << "Landmark typology to be used for the mesh:\n"
-            << "Number of valid smart factors " << nr_valid_smart_lmks
-            << " out of " << nr_smart_lmks << "\n"
-            << "Number of landmarks (not involved in a smart factor) "
-            << nr_proj_lmks << ".\n Total number of landmarks: "
-            << (nr_valid_smart_lmks + nr_proj_lmks);
+           << "Number of valid smart factors " << nr_valid_smart_lmks
+           << " out of " << nr_smart_lmks << "\n"
+           << "Number of landmarks (not involved in a smart factor) "
+           << nr_proj_lmks << ".\n Total number of landmarks: "
+           << (nr_valid_smart_lmks + nr_proj_lmks);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1374,3 +1452,16 @@ void VioBackEnd::print() const {
   std::cout << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
             << "))))))))))))))))))))))))))))))))) " <<std::endl;
 }
+
+/* -------------------------------------------------------------------------- */
+// Reset state of debug info.
+void VioBackEnd::resetDebugInfo(DebugVioInfo* debug_info) {
+  CHECK_NOTNULL(debug_info);
+  debug_info->resetSmartFactorsStatistics();
+  debug_info->resetTimes();
+  debug_info->resetAddedFactorsStatistics();
+  debug_info->nrElementsInMatrix_ = 0;
+  debug_info->nrZeroElementsInMatrix_ = 0;
+}
+
+} // namespace VIO.
