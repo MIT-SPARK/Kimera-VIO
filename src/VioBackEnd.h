@@ -268,25 +268,25 @@ public:
   int cur_kf_id_;
 
   // RAW, user-specified params.
-  const VioBackEndParams vioParams_;
+  const VioBackEndParams vio_params_;
 
   // Current time.
   double timestamp_kf_; // timestamp in seconds attached to the last keyframe
 
   // IMU params.
-  boost::shared_ptr<PreintegratedImuMeasurements::Params> imuParams_;
+  boost::shared_ptr<PreintegratedImuMeasurements::Params> imu_params_;
   PreintegratedImuMeasurementPtr pim_;
 
   // VISION params.
-  gtsam::SmartStereoProjectionParams smartFactorsParams_;
+  gtsam::SmartStereoProjectionParams smart_factors_params_;
   gtsam::SharedNoiseModel smart_noise_;
   const Pose3 B_Pose_leftCam_; // pose of the left camera wrt body
-  const gtsam::Cal3_S2Stereo::shared_ptr stereoCal_; // stores calibration, baseline
+  const gtsam::Cal3_S2Stereo::shared_ptr stereo_cal_; // stores calibration, baseline
 
   // NO MOTION FACTORS settings.
-  gtsam::SharedNoiseModel zeroVelocityPriorNoise_;
-  gtsam::SharedNoiseModel noMotionPriorNoise_;
-  gtsam::SharedNoiseModel constantVelocityPriorNoise_;
+  gtsam::SharedNoiseModel zero_velocity_prior_noise_;
+  gtsam::SharedNoiseModel no_motion_prior_noise_;
+  gtsam::SharedNoiseModel constant_velocity_prior_noise_;
 
   // GTSAM:
   std::shared_ptr<Smoother> smoother_;
@@ -304,14 +304,14 @@ public:
 
   // Data:
   // TODO grows unbounded currently, but it should be limited to time horizon.
-  FeatureTracks featureTracks_;
+  FeatureTracks feature_tracks_;
   int landmark_count_;
 
   // Flags.
   const int verbosity_;
 
   // Debug info.
-  DebugVioInfo debugInfo_;
+  DebugVioInfo debug_info_;
 
 public:
   /// Methods

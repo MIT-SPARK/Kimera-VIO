@@ -36,29 +36,29 @@ RegularVioBackEnd::RegularVioBackEnd(
   LOG(INFO) << "Using Regular VIO backend.\n";
 
   gtsam::SharedNoiseModel gaussian =
-      gtsam::noiseModel::Isotropic::Sigma(2, vioParams_.monoNoiseSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
 
-  switch (vioParams_.normType_) {
+  switch (vio_params_.normType_) {
     case 0: {
       LOG(INFO) << "Using square norm.";
       mono_noise_ = gaussian;
       break;
     }
     case 1: {
-      LOG(INFO) << "Using Huber norm, with parameter value: " << vioParams_.huberParam_;
+      LOG(INFO) << "Using Huber norm, with parameter value: " << vio_params_.huberParam_;
       mono_noise_ =
           gtsam::noiseModel::Robust::Create(
             gtsam::noiseModel::mEstimator::Huber::Create(
-              vioParams_.huberParam_,
+              vio_params_.huberParam_,
               gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
             gaussian);
       break;
     }
     case 2: {
-      LOG(INFO) << "Using Tukey norm, with parameter value: " << vioParams_.tukeyParam_;
+      LOG(INFO) << "Using Tukey norm, with parameter value: " << vio_params_.tukeyParam_;
       mono_noise_ = gtsam::noiseModel::Robust::Create(
                       gtsam::noiseModel::mEstimator::Tukey::Create(
-                        vioParams_.tukeyParam_,
+                        vio_params_.tukeyParam_,
                         gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
                       gaussian); //robust
       break;
@@ -66,14 +66,14 @@ RegularVioBackEnd::RegularVioBackEnd(
     default: {
       LOG(INFO) << "Using square norm.";
       mono_noise_ = gtsam::noiseModel::Isotropic::Sigma(
-                      2, vioParams_.monoNoiseSigma_);
+                      2, vio_params_.monoNoiseSigma_);
 
       break;
     }
   }
 
-  mono_cal_ = boost::make_shared<Cal3_S2>(stereoCal_->calibration());
-  CHECK(mono_cal_->equals(stereoCal_->calibration()))
+  mono_cal_ = boost::make_shared<Cal3_S2>(stereo_cal_->calibration());
+  CHECK(mono_cal_->equals(stereo_cal_->calibration()))
       << "Monocular calibration should match Stereo calibration";
 }
 
@@ -85,7 +85,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const LandmarkIds& mesh_lmk_ids_ground_cluster,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
 
-  debugInfo_.resetAddedFactorsStatistics();
+  debug_info_.resetAddedFactorsStatistics();
 
   if (VLOG_IS_ON(20)) {
     StereoVisionFrontEnd::PrintStatusStereoMeasurements(
@@ -193,7 +193,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   // TODO add conversion from Smart factor to regular.
-  optimize(cur_kf_id_, vioParams_.numOptimize_,
+  optimize(cur_kf_id_, vio_params_.numOptimize_,
            delete_slots_of_converted_smart_factors_);
 
   // Reset list of factors to delete.
@@ -208,10 +208,10 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
   // Add selected landmarks to graph:
   int n_new_landmarks = 0;
   int n_updated_landmarks = 0;
-  debugInfo_.numAddedSmartF_ += lmks_kf.size();
+  debug_info_.numAddedSmartF_ += lmks_kf.size();
 
   for (const LandmarkId& lmk_id: lmks_kf) {
-    FeatureTrack& feature_track = featureTracks_.at(lmk_id);
+    FeatureTrack& feature_track = feature_tracks_.at(lmk_id);
 
     // Only insert feature tracks of length at least 2
     // (otherwise uninformative)
@@ -254,7 +254,7 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   // more efficient.
   SmartStereoFactor::shared_ptr new_factor(new SmartStereoFactor(
                                              smart_noise_,
-                                             smartFactorsParams_,
+                                             smart_factors_params_,
                                              B_Pose_leftCam_));
 
   VLOG(10) << "Adding landmark with id: " << lmk_id
@@ -273,7 +273,7 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
 
     new_factor->add(obs.second,
                     gtsam::Symbol('x', obs.first),
-                    stereoCal_);
+                    stereo_cal_);
   }
 
   // Add new factor to suitable structures.
@@ -318,7 +318,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
              << lmk_id;
     new_factor->add(newObs.second,
                     gtsam::Symbol('x', newObs.first),
-                    stereoCal_);
+                    stereo_cal_);
 
     // If slot is still -1, it means that the factor has not been inserted yet
     // in the graph.
@@ -390,7 +390,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
                    smart_noise_,
                    cam_key,
                    lmk_key,
-                   stereoCal_, B_Pose_leftCam_));
+                   stereo_cal_, B_Pose_leftCam_));
           } else {
             // Right pixel has a NAN value for u, use GenericProjectionFactor instead
             // of stereo.
@@ -443,7 +443,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
               (newObs.second, smart_noise_,
                gtsam::Symbol('x', newObs.first),
                lmk_key,
-               stereoCal_, B_Pose_leftCam_));
+               stereo_cal_, B_Pose_leftCam_));
       } else {
         // Right pixel has a NAN value for u, use GenericProjectionFactor instead
         // of stereo.

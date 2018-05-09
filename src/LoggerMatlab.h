@@ -244,7 +244,7 @@ public:
 
     // relative imu rotation errors
     double relativeRotError_imu_wrt_gt, relativeRotError_imu_wrt_5point;
-    gtsam::Pose3 Bprevkf_Pose_Bkf_imuPreint( vio->debugInfo_.imuR_lkf_kf, gtsam::Point3() );// rotation from imu preintegration, no translation
+    gtsam::Pose3 Bprevkf_Pose_Bkf_imuPreint( vio->debug_info_.imuR_lkf_kf, gtsam::Point3() );// rotation from imu preintegration, no translation
     boost::tie(relativeRotError_imu_wrt_gt,relativeTranError) =
         dataset.computePoseErrors(Bprevkf_Pose_Bkf_imuPreint, true, timestamp_lkf, timestamp_k); // always VALID = TRUE
     std::tie(relativeRotError_imu_wrt_5point,relativeTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(
@@ -252,7 +252,7 @@ public:
     outputFile_ << relativeRotError_imu_wrt_gt << " " << relativeRotError_imu_wrt_5point << " ";
 
     // relative imu prediction errors
-    gtsam::Pose3 Bprevkf_Pose_Bkf_imuPredict = W_Pose_Bprevkf_vio_.between(vio->debugInfo_.navstate_k_.pose());
+    gtsam::Pose3 Bprevkf_Pose_Bkf_imuPredict = W_Pose_Bprevkf_vio_.between(vio->debug_info_.navstate_k_.pose());
     boost::tie(relativeRotError,relativeTranError) =
         dataset.computePoseErrors(Bprevkf_Pose_Bkf_imuPredict, true, timestamp_lkf, timestamp_k); // always VALID = TRUE
     outputFile_ << relativeRotError << " " << relativeTranError << " ";
@@ -265,12 +265,12 @@ public:
 
     // debug smart factors:
     outputFile_smartFactors_ << vio->cur_kf_id_ << " " << k << " " << UtilsOpenCV::NsecToSec(timestamp_k) // keyframe id, frame id, timestamp
-    << " " << vio->debugInfo_.numSF_ << " " << vio->debugInfo_.numValid_
-    << " " << vio->debugInfo_.numDegenerate_ << " " << vio->debugInfo_.numFarPoints_
-    << " " << vio->debugInfo_.numOutliers_ << " " << vio->debugInfo_.numCheirality_
-    << " " << vio->debugInfo_.meanPixelError_ << " " << vio->debugInfo_.maxPixelError_
-    << " " << vio->debugInfo_.meanTrackLength_ << " " << vio->debugInfo_.maxTrackLength_
-    << " " << vio->debugInfo_.nrElementsInMatrix_ << " " << vio->debugInfo_.nrZeroElementsInMatrix_ <<  std::endl;
+    << " " << vio->debug_info_.numSF_ << " " << vio->debug_info_.numValid_
+    << " " << vio->debug_info_.numDegenerate_ << " " << vio->debug_info_.numFarPoints_
+    << " " << vio->debug_info_.numOutliers_ << " " << vio->debug_info_.numCheirality_
+    << " " << vio->debug_info_.meanPixelError_ << " " << vio->debug_info_.maxPixelError_
+    << " " << vio->debug_info_.meanTrackLength_ << " " << vio->debug_info_.maxTrackLength_
+    << " " << vio->debug_info_.nrElementsInMatrix_ << " " << vio->debug_info_.nrZeroElementsInMatrix_ <<  std::endl;
 
     // we log the camera since we will display camera poses in matlab
     gtsam::Pose3 W_Pose_camlkf_vio = vio->W_Pose_Blkf_.compose(vio->B_Pose_leftCam_);
@@ -296,22 +296,22 @@ public:
 
     // log timing for benchmarking and performance profiling
     outputFile_timingVIO_ << vio->cur_kf_id_ << " " <<
-        vio->debugInfo_.factorsAndSlotsTime_ << " " <<
-        vio->debugInfo_.preUpdateTime_ << " " <<
-        vio->debugInfo_.updateTime_ << " " <<
-        vio->debugInfo_.updateSlotTime_ << " " <<
-        vio->debugInfo_.extraIterationsTime_ << " " <<
-        vio->debugInfo_.printTime_ << " " <<
+        vio->debug_info_.factorsAndSlotsTime_ << " " <<
+        vio->debug_info_.preUpdateTime_ << " " <<
+        vio->debug_info_.updateTime_ << " " <<
+        vio->debug_info_.updateSlotTime_ << " " <<
+        vio->debug_info_.extraIterationsTime_ << " " <<
+        vio->debug_info_.printTime_ << " " <<
         timing_loadStereoFrame_ << " " <<
         timing_processStereoFrame_ << " " <<
         timing_featureSelection_ << " " <<
         timing_vio_ << " " <<
-        vio->debugInfo_.linearizeTime_ << " " <<
-        vio->debugInfo_.linearSolveTime_ << " " <<
-        vio->debugInfo_.retractTime_ << " " <<
-        vio->debugInfo_.linearizeMarginalizeTime_ << " " <<
-        vio->debugInfo_.marginalizeTime_ << " " <<
-               vio->debugInfo_.imuPreintegrateTime_ << std::endl;
+        vio->debug_info_.linearizeTime_ << " " <<
+        vio->debug_info_.linearSolveTime_ << " " <<
+        vio->debug_info_.retractTime_ << " " <<
+        vio->debug_info_.linearizeMarginalizeTime_ << " " <<
+        vio->debug_info_.marginalizeTime_ << " " <<
+               vio->debug_info_.imuPreintegrateTime_ << std::endl;
 
     outputFile_timingTracker_ << vio->cur_kf_id_ << " " <<
         stereoTracker.tracker_.debugInfo_.featureDetectionTime_ << " " <<
@@ -340,14 +340,14 @@ public:
 
     // statistics about factors added to the graph
     outputFile_statsFactors_ << vio->cur_kf_id_ << " " <<
-        vio->debugInfo_.numAddedSmartF_ << " " <<
-        vio->debugInfo_.numAddedImuF_ << " " <<
-        vio->debugInfo_.numAddedNoMotionF_ << " " <<
-        vio->debugInfo_.numAddedConstantVelF_ << " " <<
-        vio->debugInfo_.numAddedBetweenStereoF_ << " " <<
+        vio->debug_info_.numAddedSmartF_ << " " <<
+        vio->debug_info_.numAddedImuF_ << " " <<
+        vio->debug_info_.numAddedNoMotionF_ << " " <<
+        vio->debug_info_.numAddedConstantVelF_ << " " <<
+        vio->debug_info_.numAddedBetweenStereoF_ << " " <<
         vio->state_.size() << " " << // current number of states
         3 * std::min( double(vio->cur_kf_id_ + 1),
-            vio->vioParams_.horizon_  / (stereoTracker.tracker_.trackerParams_.intra_keyframe_time_)  + 1) << std::endl; // expected nr of states
+            vio->vio_params_.horizon_  / (stereoTracker.tracker_.trackerParams_.intra_keyframe_time_)  + 1) << std::endl; // expected nr of states
 
     std::cout << "data written to file" << std::endl;
   }
@@ -357,8 +357,8 @@ public:
      initialStateGT.print("initialStateGT\n");
      gtsam::Vector3 rpy_gt = initialStateGT.pose.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
      std::cout << "yaw= " << rpy_gt(2) << " pitch= " << rpy_gt(1) << " roll= "<< rpy_gt(0) << std::endl;
-     Vector3 localGravity = initialStateGT.pose.rotation().inverse().matrix() * vio->vioParams_.n_gravity_;
-     std::cout << "gravity in global frame: \n" << vio->vioParams_.n_gravity_ << std::endl;
+     Vector3 localGravity = initialStateGT.pose.rotation().inverse().matrix() * vio->vio_params_.n_gravity_;
+     std::cout << "gravity in global frame: \n" << vio->vio_params_.n_gravity_ << std::endl;
      std::cout << "gravity in local frame: \n" << localGravity << std::endl;
      std::cout << "expected initial acc measurement (no bias correction): \n" << -localGravity  << std::endl;
      std::cout << "expected initial acc measurement: \n" << -localGravity + initialStateGT.imuBias.accelerometer()  << std::endl;
