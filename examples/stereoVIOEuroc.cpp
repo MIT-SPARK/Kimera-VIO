@@ -254,7 +254,7 @@ int main(int argc, char *argv[]) {
 
       // Use initial IMU measurements to guess first pose
       if (vioParams.autoInitialize_) {
-          initialStateGT.pose = vioBackEnd->GuessPoseFromIMUmeasurements(
+          initialStateGT.pose = vioBackEnd->guessPoseFromIMUmeasurements(
                                               imu_accgyr, vioParams.n_gravity_,
                                               vioParams.roundOnAutoInitialize_);
           vioBackEnd->initializeStateAndSetPriors(timestamp_k,
