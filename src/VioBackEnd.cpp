@@ -965,6 +965,20 @@ ImuBias VioBackEnd::initializeImuBias(const ImuAccGyr& accGyroRaw,
   return imuInit;
 }
 
+/* ------------------------------------------------------------------------ */
+gtsam::Rot3 VioBackEnd::preintegrateGyroMeasurements(
+    const ImuStamps imu_stamps,
+    const ImuAccGyr imu_accgyr) const {
+  gtsam::PreintegratedAhrsMeasurements pimRot(imu_bias_prev_kf_.gyroscope(),
+                                              gtsam::Matrix3::Identity());
+  for (int i = 0; i < imu_stamps.size()-1; ++i) {
+    Vector3 measured_omega = imu_accgyr.block<3, 1>(3, i);
+    double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
+    pimRot.integrateMeasurement(measured_omega, delta_t);
+  }
+  gtsam::Rot3 body_Rot_cam_ = B_Pose_leftCam_.rotation(); // of the left camera!!
+  return body_Rot_cam_.inverse() * pimRot.deltaRij() * body_Rot_cam_;
+}
 
 /* -------------------------------------------------------------------------- */
 gtsam::Pose3 VioBackEnd::GuessPoseFromIMUmeasurements(
@@ -1295,4 +1309,59 @@ void VioBackEnd::printFeatureTracks() const {
     std::cout << "Landmark " << keyTrack_j.first << " having ";
     keyTrack_j.second.print();
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/// NOT TESTED
+gtsam::Matrix VioBackEnd::getCurrentStateCovariance() const {
+  gtsam::Marginals marginals(smoother_->getFactors(),
+                             state_,
+                             gtsam::Marginals::Factorization::CHOLESKY);
+
+  // Current state includes pose, velocity and imu biases.
+  std::vector<gtsam::Key> keys;
+  keys.push_back(gtsam::Symbol('x', cur_kf_id_));
+  keys.push_back(gtsam::Symbol('v', cur_kf_id_));
+  keys.push_back(gtsam::Symbol('b', cur_kf_id_));
+
+  // Return the marginal covariance matrix.
+  return UtilsOpenCV::Covariance_bvx2xvb(
+        marginals.jointMarginalCovariance(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
+}
+
+/* -------------------------------------------------------------------------- */
+/// NOT TESTED
+gtsam::Matrix VioBackEnd::getCurrentStateInformation() const {
+  gtsam::Marginals marginals(smoother_->getFactors(),
+                             state_,
+                             gtsam::Marginals::Factorization::CHOLESKY);
+
+  // Current state includes pose, velocity and imu biases.
+  std::vector<gtsam::Key> keys;
+  keys.push_back(gtsam::Symbol('x', cur_kf_id_));
+  keys.push_back(gtsam::Symbol('v', cur_kf_id_));
+  keys.push_back(gtsam::Symbol('b', cur_kf_id_));
+
+  // Return the marginal covariance.
+  return UtilsOpenCV::Covariance_bvx2xvb(
+        marginals.jointMarginalInformation(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
+}
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::print() const {
+  std::cout << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
+            << ")))))))))))))))))))))))))))))))) " <<std::endl;
+  B_Pose_leftCam_.print("\n B_Pose_leftCam_\n");
+  stereoCal_->print("\n stereoCal_\n");
+  vioParams_.print();
+  W_Pose_Blkf_.print("\n W_Pose_Blkf_ \n");
+  std::cout << "\n W_Vel_Blkf_ " << W_Vel_Blkf_.transpose() <<std::endl;
+  imu_bias_lkf_.print("\n imu_bias_lkf_ \n");
+  imu_bias_prev_kf_.print("\n imu_bias_prev_kf_ \n");
+  std::cout << "last_id_ " << last_kf_id_ <<std::endl;
+  std::cout << "cur_id_ " << cur_kf_id_ <<std::endl;
+  std::cout << "verbosity_ " << verbosity_ <<std::endl;
+  std::cout << "landmark_count_ " << landmark_count_ <<std::endl;
+  std::cout << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
+            << "))))))))))))))))))))))))))))))))) " <<std::endl;
 }

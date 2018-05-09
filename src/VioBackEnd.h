@@ -369,18 +369,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamps imu_stamps,
-                                           const ImuAccGyr imu_accgyr) const {
-    gtsam::PreintegratedAhrsMeasurements pimRot(imu_bias_prev_kf_.gyroscope(),
-                                                gtsam::Matrix3::Identity());
-    for (int i = 0; i < imu_stamps.size()-1; ++i)
-    {
-      Vector3 measured_omega = imu_accgyr.block<3,1>(3,i);
-      double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i+1) - imu_stamps(i));
-      pimRot.integrateMeasurement(measured_omega, delta_t);
-    }
-    gtsam::Rot3 body_Rot_cam_ = B_Pose_leftCam_.rotation(); // of the left camera!!
-    return body_Rot_cam_.inverse() * pimRot.deltaRij() * body_Rot_cam_;
-  }
+                                           const ImuAccGyr imu_accgyr) const;
 
   /* ------------------------------------------------------------------------ */
   static gtsam::Pose3 GuessPoseFromIMUmeasurements(const ImuAccGyr& accGyroRaw,
@@ -397,54 +386,19 @@ public:
   // Get valid 3D points and corresponding lmk id.
   // TODO output a map instead of a vector for points_with_id.
   void getMapLmkIdsTo3dPointsInTimeHorizon(PointsWithIdMap* points_with_id,
-                            const int& min_age = 2) const;
+                                           const int& min_age = 2) const;
 
   /* ------------------------------------------------------------------------ */
-  /// NOT TESTED
-  gtsam::Matrix getCurrentStateCovariance() const {
-    gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
-    // current state includes pose, velocity and imu biases
-    std::vector<gtsam::Key> keys;
-    keys.push_back(gtsam::Symbol('x', cur_kf_id_));
-    keys.push_back(gtsam::Symbol('v', cur_kf_id_));
-    keys.push_back(gtsam::Symbol('b', cur_kf_id_));
-    // return the marginal covariance matrix
-    return UtilsOpenCV::Covariance_bvx2xvb(marginals.jointMarginalCovariance(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
-  }
+  // NOT TESTED
+  gtsam::Matrix getCurrentStateCovariance() const;
 
   /* ------------------------------------------------------------------------ */
-  /// NOT TESTED
-  gtsam::Matrix getCurrentStateInformation() const {
-    gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
-    // current state includes pose, velocity and imu biases
-    std::vector<gtsam::Key> keys;
-    keys.push_back(gtsam::Symbol('x', cur_kf_id_));
-    keys.push_back(gtsam::Symbol('v', cur_kf_id_));
-    keys.push_back(gtsam::Symbol('b', cur_kf_id_));
-    // return the marginal covariance
-    return UtilsOpenCV::Covariance_bvx2xvb(marginals.jointMarginalInformation(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
-  }
+  // NOT TESTED
+  gtsam::Matrix getCurrentStateInformation() const;
 
   /// Printers
-
   /* ------------------------------------------------------------------------ */
-  void print() const {
-    std::cout << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
-              << ")))))))))))))))))))))))))))))))) " <<std::endl;
-    B_Pose_leftCam_.print("\n B_Pose_leftCam_\n");
-    stereoCal_->print("\n stereoCal_\n");
-    vioParams_.print();
-    W_Pose_Blkf_.print("\n W_Pose_Blkf_ \n");
-    std::cout << "\n W_Vel_Blkf_ " << W_Vel_Blkf_.transpose() <<std::endl;
-    imu_bias_lkf_.print("\n imu_bias_lkf_ \n");
-    imu_bias_prev_kf_.print("\n imu_bias_prev_kf_ \n");
-    std::cout << "last_id_ " << last_kf_id_ <<std::endl;
-    std::cout << "cur_id_ " << cur_kf_id_ <<std::endl;
-    std::cout << "verbosity_ " << verbosity_ <<std::endl;
-    std::cout << "landmark_count_ " << landmark_count_ <<std::endl;
-    std::cout << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
-              << "))))))))))))))))))))))))))))))))) " <<std::endl;
-  }
+  void print() const;
 
 protected:
   /* ------------------------------------------------------------------------ */
@@ -502,10 +456,10 @@ protected:
   void updateSmoother(
       Smoother::Result* result,
       const gtsam::NonlinearFactorGraph& new_factors_tmp =
-                                                  gtsam::NonlinearFactorGraph(),
+      gtsam::NonlinearFactorGraph(),
       const gtsam::Values& new_values = gtsam::Values(),
       const std::map<Key, double>& timestamps =
-                                     gtsam::FixedLagSmoother::KeyTimestampMap(),
+      gtsam::FixedLagSmoother::KeyTimestampMap(),
       const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
 
   /* ------------------------------------------------------------------------ */
