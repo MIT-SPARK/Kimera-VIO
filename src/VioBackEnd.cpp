@@ -1252,7 +1252,7 @@ void VioBackEnd::print() const {
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::printFeatureTracks() const {
   std::cout << "---- Feature tracks: --------- " << std::endl;
-  BOOST_FOREACH(auto keyTrack_j, featureTracks_) {
+  BOOST_FOREACH(auto keyTrack_j, feature_tracks_) {
     std::cout << "Landmark " << keyTrack_j.first << " having ";
     keyTrack_j.second.print();
   }
