@@ -101,7 +101,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   VLOG(7) << "Processing keyframe " << cur_kf_id_
           << " at timestamp: " << timestamp_kf_ << " (sec)\n";
 
-  /////////////////// MANAGE IMU MEASUREMENTS //////////////////////////////////
+  /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Predict next step, add initial guess.
   integrateImuMeasurements(imu_stamps, imu_accgyr);
   addImuValues(cur_kf_id_);
@@ -111,6 +111,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           << " and pose id: " << cur_kf_id_;
   addImuFactor(last_kf_id_, cur_kf_id_);
 
+  /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
   // Add between factor from RANSAC.
   if (stereo_ransac_body_pose) {
     VLOG(20) << "Adding RANSAC factor between pose id: " << last_kf_id_
@@ -121,7 +122,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     addBetweenFactor(last_kf_id_, cur_kf_id_, *stereo_ransac_body_pose);
   }
 
-  /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////////
+  /////////////////// VISION MEASUREMENTS //////////////////////////////////////
   const SmartStereoMeasurements& smart_stereo_measurements_kf =
                                     status_smart_stereo_measurements_kf.second;
 
@@ -177,6 +178,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     }
   }
 
+  /////////////////// REGULARITY FACTORS ///////////////////////////////////////
   // Add regularity factor on vertices of the mesh.
   // TODO argument should be generalized to diff
   // type of cluster and regularities.
@@ -186,6 +188,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     //addRegularityFactors(mesh_lmk_ids_ground_cluster);
   }
 
+  /////////////////// OPTIMIZE /////////////////////////////////////////////////
   // This lags 1 step behind to mimic hw.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
@@ -207,7 +210,6 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
   int n_updated_landmarks = 0;
   debugInfo_.numAddedSmartF_ += lmks_kf.size();
 
-  //CHECK(lmk_id_is_smart_.size() == landmarks_kf.size());
   for (const LandmarkId& lmk_id: lmks_kf) {
     FeatureTrack& feature_track = featureTracks_.at(lmk_id);
 
@@ -224,7 +226,7 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
     if (!feature_track.in_ba_graph_) {
       // Acknowledge that we have added the landmark in the graph.
       feature_track.in_ba_graph_ = true;
-      VLOG(10) << "Adding lmk " << lmk_id << " to graph.\n";
+      VLOG(10) << "Adding lmk " << lmk_id << " to graph.";
       addLandmarkToGraph(lmk_id, feature_track);
       ++n_new_landmarks;
     } else {
@@ -232,15 +234,15 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
 
       // Sanity check.
       CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
-                                            " keyframe!\n";
+                                            " keyframe!";
 
-      VLOG(10) << "Updating lmk " << lmk_id << " to graph.\n";
+      VLOG(10) << "Updating lmk " << lmk_id << " to graph.";
       updateLandmarkInGraph(lmk_id, obs_kf);
       ++n_updated_landmarks;
     }
   }
-  VLOG(7) << "Added " << n_new_landmarks << " new landmarks\n"
-          << "Updated " << n_updated_landmarks << " landmarks in graph\n";
+  VLOG(7) << "Added " << n_new_landmarks << " new landmarks.\n"
+          << "Updated " << n_updated_landmarks << " landmarks in graph.";
 }
 
 /* -------------------------------------------------------------------------- */
