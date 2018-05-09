@@ -335,11 +335,6 @@ public:
                                    const Vector3& n_gravity);
 
   /* ------------------------------------------------------------------------ */
-  // Add initial prior factors.
-  void addInitialPriorFactors(const FrameId& frame_id,
-                              const ImuAccGyr& imu_accgyr);
-
-  /* ------------------------------------------------------------------------ */
   // Workhorse that stores data and optimizes at each keyframe.
   // [in] timestamp_kf_nsec, keyframe timestamp.
   // [in] status_smart_stereo_measurements_kf, vision data.
@@ -351,7 +346,6 @@ public:
       const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
       const LandmarkIds& mesh_lmk_ids_ground_cluster,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
-
 
   /* ------------------------------------------------------------------------ */
   // Uses landmark table to add factors in graph.
@@ -377,7 +371,6 @@ public:
                                                    const bool& round = true);
 
   /// Getters
-
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points - TODO: this copies the graph.
   vector<gtsam::Point3> get3DPoints() const;
@@ -437,11 +430,6 @@ protected:
                         const gtsam::Pose3& from_id_POSE_to_id);
 
   /* ------------------------------------------------------------------------ */
-  void addConstantVelocityFactor(const FrameId& from_id,
-                                 const FrameId& to_id);
-
-
-  /* ------------------------------------------------------------------------ */
   void optimize(const FrameId& cur_id,
                 const int& max_iterations,
                 const std::vector<size_t>& extra_factor_slots_to_delete =
@@ -452,6 +440,15 @@ protected:
 
 private:
   /// Private Methods.
+  /* ------------------------------------------------------------------------ */
+  // Add initial prior factors.
+  void addInitialPriorFactors(const FrameId& frame_id,
+                              const ImuAccGyr& imu_accgyr);
+
+  /* ------------------------------------------------------------------------ */
+  void addConstantVelocityFactor(const FrameId& from_id,
+                                 const FrameId& to_id);
+
   /* ------------------------------------------------------------------------ */
   // Update states.
   void updateStates(const FrameId& cur_id);
@@ -510,7 +507,8 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Set parameters for imu factors.
-  void setImuFactorsParams(boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
+  void setImuFactorsParams(
+      boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
       const gtsam::Vector3& n_gravity,
       const double& gyro_noise_density,
       const double& acc_noise_density,
