@@ -291,9 +291,14 @@ public:
   // GTSAM:
   std::shared_ptr<Smoother> smoother_;
 
+  // State
   gtsam::Values state_;                        //!< current state of the system.
-  gtsam::NonlinearFactorGraph new_imu_prior_and_other_factors_;    //!< new factors to be added
+
+  // Values
   gtsam::Values new_values_;                   //!< new states to be added
+
+  // Factors.
+  gtsam::NonlinearFactorGraph new_imu_prior_and_other_factors_;    //!< new factors to be added
   LandmarkIdSmartFactorMap new_smart_factors_; //!< landmarkId -> {SmartFactorPtr}
   SmartFactorMap old_smart_factors_;           //!< landmarkId -> {SmartFactorPtr, SlotIndex}
 
@@ -308,6 +313,9 @@ public:
   // Debug info.
   DebugVioInfo debugInfo_;
 
+public:
+  /// Methods
+
   /* ------------------------------------------------------------------------ */
   // Sets initial state at given pose, zero velociy and with imu bias obtained
   // by assuming steady upright platform.
@@ -321,6 +329,10 @@ public:
                                    const Pose3& initialPose,
                                    const Vector3& initialVel,
                                    const ImuBias& initialBias);
+
+  /* ------------------------------------------------------------------------ */
+  static ImuBias initializeImuBias(const ImuAccGyr& accGyroRaw,
+                                   const Vector3& n_gravity);
 
   /* ------------------------------------------------------------------------ */
   // Add initial prior factors.
@@ -341,6 +353,100 @@ public:
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
 
+  /* ------------------------------------------------------------------------ */
+  // Uses landmark table to add factors in graph.
+  virtual void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
+
+  /* ------------------------------------------------------------------------ */
+  // Adds a landmark to the graph for the first time.
+  virtual void addLandmarkToGraph(const LandmarkId& lm_id,
+                                  const FeatureTrack& lm);
+
+  /* ------------------------------------------------------------------------ */
+  virtual void updateLandmarkInGraph(
+      const LandmarkId& lm_id,
+      const std::pair<FrameId, StereoPoint2>& newObs);
+
+  /* ------------------------------------------------------------------------ */
+  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamps imu_stamps,
+                                           const ImuAccGyr imu_accgyr) const {
+    gtsam::PreintegratedAhrsMeasurements pimRot(imu_bias_prev_kf_.gyroscope(),
+                                                gtsam::Matrix3::Identity());
+    for (int i = 0; i < imu_stamps.size()-1; ++i)
+    {
+      Vector3 measured_omega = imu_accgyr.block<3,1>(3,i);
+      double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i+1) - imu_stamps(i));
+      pimRot.integrateMeasurement(measured_omega, delta_t);
+    }
+    gtsam::Rot3 body_Rot_cam_ = B_Pose_leftCam_.rotation(); // of the left camera!!
+    return body_Rot_cam_.inverse() * pimRot.deltaRij() * body_Rot_cam_;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  static gtsam::Pose3 GuessPoseFromIMUmeasurements(const ImuAccGyr& accGyroRaw,
+                                                   const Vector3& n_gravity,
+                                                   const bool& round = true);
+
+  /// Getters
+
+  /* ------------------------------------------------------------------------ */
+  // Get valid 3D points - TODO: this copies the graph.
+  vector<gtsam::Point3> get3DPoints() const;
+
+  /* ------------------------------------------------------------------------ */
+  // Get valid 3D points and corresponding lmk id.
+  // TODO output a map instead of a vector for points_with_id.
+  void getMapLmkIdsTo3dPointsInTimeHorizon(PointsWithIdMap* points_with_id,
+                            const int& min_age = 2) const;
+
+  /* ------------------------------------------------------------------------ */
+  /// NOT TESTED
+  gtsam::Matrix getCurrentStateCovariance() const {
+    gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
+    // current state includes pose, velocity and imu biases
+    std::vector<gtsam::Key> keys;
+    keys.push_back(gtsam::Symbol('x', cur_kf_id_));
+    keys.push_back(gtsam::Symbol('v', cur_kf_id_));
+    keys.push_back(gtsam::Symbol('b', cur_kf_id_));
+    // return the marginal covariance matrix
+    return UtilsOpenCV::Covariance_bvx2xvb(marginals.jointMarginalCovariance(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /// NOT TESTED
+  gtsam::Matrix getCurrentStateInformation() const {
+    gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
+    // current state includes pose, velocity and imu biases
+    std::vector<gtsam::Key> keys;
+    keys.push_back(gtsam::Symbol('x', cur_kf_id_));
+    keys.push_back(gtsam::Symbol('v', cur_kf_id_));
+    keys.push_back(gtsam::Symbol('b', cur_kf_id_));
+    // return the marginal covariance
+    return UtilsOpenCV::Covariance_bvx2xvb(marginals.jointMarginalInformation(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
+  }
+
+  /// Printers
+
+  /* ------------------------------------------------------------------------ */
+  void print() const {
+    std::cout << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
+              << ")))))))))))))))))))))))))))))))) " <<std::endl;
+    B_Pose_leftCam_.print("\n B_Pose_leftCam_\n");
+    stereoCal_->print("\n stereoCal_\n");
+    vioParams_.print();
+    W_Pose_Blkf_.print("\n W_Pose_Blkf_ \n");
+    std::cout << "\n W_Vel_Blkf_ " << W_Vel_Blkf_.transpose() <<std::endl;
+    imu_bias_lkf_.print("\n imu_bias_lkf_ \n");
+    imu_bias_prev_kf_.print("\n imu_bias_prev_kf_ \n");
+    std::cout << "last_id_ " << last_kf_id_ <<std::endl;
+    std::cout << "cur_id_ " << cur_kf_id_ <<std::endl;
+    std::cout << "verbosity_ " << verbosity_ <<std::endl;
+    std::cout << "landmark_count_ " << landmark_count_ <<std::endl;
+    std::cout << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
+              << "))))))))))))))))))))))))))))))))) " <<std::endl;
+  }
+
+protected:
   /* ------------------------------------------------------------------------ */
   // Integrate imu measurements into pim_.
   void integrateImuMeasurements(const ImuStamps& imu_stamps,
@@ -380,19 +486,6 @@ public:
   void addConstantVelocityFactor(const FrameId& from_id,
                                  const FrameId& to_id);
 
-  /* ------------------------------------------------------------------------ */
-  // Uses landmark table to add factors in graph.
-  virtual void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
-
-  /* ------------------------------------------------------------------------ */
-  // Adds a landmark to the graph for the first time.
-  virtual void addLandmarkToGraph(const LandmarkId& lm_id,
-                                  const FeatureTrack& lm);
-
-  /* ------------------------------------------------------------------------ */
-  virtual void updateLandmarkInGraph(
-      const LandmarkId& lm_id,
-      const std::pair<FrameId, StereoPoint2>& newObs);
 
   /* ------------------------------------------------------------------------ */
   void optimize(const FrameId& cur_id,
@@ -401,8 +494,8 @@ public:
                                                         std::vector<size_t>());
 
   /* ------------------------------------------------------------------------ */
-  // Debugging post optimization and estimate calculation.
-  void postDebug(const double& start_time);
+  // Update states.
+  void updateStates(const FrameId& cur_id);
 
   /* ------------------------------------------------------------------------ */
   // Update smoother.
@@ -415,84 +508,16 @@ public:
                                      gtsam::FixedLagSmoother::KeyTimestampMap(),
       const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
 
-
   /* ------------------------------------------------------------------------ */
-  void findSmartFactorsSlots(
-      const std::vector<Key> new_smart_factors_keys_tmp);
+  void updateNewSmartFactorsSlots(
+      const std::vector<Key>& lmk_ids_of_new_smart_factors_tmp,
+      SmartFactorMap* lmk_id_to_smart_factor_slot_map);
 
   /* ------------------------------------------------------------------------ */
   void findSmartFactorsSlotsSlow(
-      const std::vector<Key> new_smart_factors_keys_tmp);
+      const std::vector<Key>& new_smart_factors_keys_tmp);
 
-  /* ------------------------------------------------------------------------ */
-  void print() const {
-    std::cout << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
-              << ")))))))))))))))))))))))))))))))) " <<std::endl;
-    B_Pose_leftCam_.print("\n B_Pose_leftCam_\n");
-    stereoCal_->print("\n stereoCal_\n");
-    vioParams_.print();
-    W_Pose_Blkf_.print("\n W_Pose_Blkf_ \n");
-    std::cout << "\n W_Vel_Blkf_ " << W_Vel_Blkf_.transpose() <<std::endl;
-    imu_bias_lkf_.print("\n imu_bias_lkf_ \n");
-    imu_bias_prev_kf_.print("\n imu_bias_prev_kf_ \n");
-    std::cout << "last_id_ " << last_kf_id_ <<std::endl;
-    std::cout << "cur_id_ " << cur_kf_id_ <<std::endl;
-    std::cout << "verbosity_ " << verbosity_ <<std::endl;
-    std::cout << "landmark_count_ " << landmark_count_ <<std::endl;
-    std::cout << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
-              << "))))))))))))))))))))))))))))))))) " <<std::endl;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /// NOT TESTED
-  gtsam::Matrix getCurrentStateCovariance() const {
-    gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
-    // current state includes pose, velocity and imu biases
-    std::vector<gtsam::Key> keys;
-    keys.push_back(gtsam::Symbol('x', cur_kf_id_));
-    keys.push_back(gtsam::Symbol('v', cur_kf_id_));
-    keys.push_back(gtsam::Symbol('b', cur_kf_id_));
-    // return the marginal covariance matrix
-    return UtilsOpenCV::Covariance_bvx2xvb(marginals.jointMarginalCovariance(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /// NOT TESTED
-  gtsam::Matrix getCurrentStateInformation() const {
-    gtsam::Marginals marginals(smoother_->getFactors(), state_, gtsam::Marginals::Factorization::CHOLESKY);
-    // current state includes pose, velocity and imu biases
-    std::vector<gtsam::Key> keys;
-    keys.push_back(gtsam::Symbol('x', cur_kf_id_));
-    keys.push_back(gtsam::Symbol('v', cur_kf_id_));
-    keys.push_back(gtsam::Symbol('b', cur_kf_id_));
-    // return the marginal covariance
-    return UtilsOpenCV::Covariance_bvx2xvb(marginals.jointMarginalInformation(keys).fullMatrix()); // 6 + 3 + 6 = 15x15matrix
-  }
-
-  /* ------------------------------------------------------------------------ */
-  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamps imu_stamps,
-                                           const ImuAccGyr imu_accgyr) const {
-    gtsam::PreintegratedAhrsMeasurements pimRot(imu_bias_prev_kf_.gyroscope(),
-                                                gtsam::Matrix3::Identity());
-    for (int i = 0; i < imu_stamps.size()-1; ++i)
-    {
-      Vector3 measured_omega = imu_accgyr.block<3,1>(3,i);
-      double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i+1) - imu_stamps(i));
-      pimRot.integrateMeasurement(measured_omega, delta_t);
-    }
-    gtsam::Rot3 body_Rot_cam_ = B_Pose_leftCam_.rotation(); // of the left camera!!
-    return body_Rot_cam_.inverse() * pimRot.deltaRij() * body_Rot_cam_;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  static ImuBias InitializeImuBias(const ImuAccGyr& accGyroRaw,
-                                   const Vector3& n_gravity);
-
-  /* ------------------------------------------------------------------------ */
-  static gtsam::Pose3 GuessPoseFromIMUmeasurements(const ImuAccGyr& accGyroRaw,
-                                                   const Vector3& n_gravity,
-                                                   const bool& round = true);
-
+  /// Printers.
   /* ------------------------------------------------------------------------ */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
                         const std::vector<size_t>& delete_slots,
@@ -500,15 +525,9 @@ public:
                         const bool& showDetails) const;
 
   /* ------------------------------------------------------------------------ */
-  // Get valid 3D points - TODO: this copies the graph.
-  vector<gtsam::Point3> get3DPoints() const;
+  void printFeatureTracks() const;
 
-  /* ------------------------------------------------------------------------ */
-  // Get valid 3D points and corresponding lmk id.
-  // TODO output a map instead of a vector for points_with_id.
-  void get3DPointsAndLmkIds(PointsWithIdMap* points_with_id,
-                            const int& min_age = 0) const;
-
+  /// Debuggers.
   /* ------------------------------------------------------------------------ */
   void computeSmartFactorStatistics();
 
@@ -516,7 +535,8 @@ public:
   void computeSparsityStatistics();
 
   /* ------------------------------------------------------------------------ */
-  void printFeatureTracks() const;
+  // Debugging post optimization and estimate calculation.
+  void postDebug(const double& start_time);
 };
 
 } // namespace VIO

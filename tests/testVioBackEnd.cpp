@@ -175,7 +175,7 @@ TEST(testVio, InitializeImuBias) {
   }
 
   // Compute the actual bias!
-  ImuBias imu_bias_actual = VioBackEnd::InitializeImuBias(imu_accgyr, n_gravity);
+  ImuBias imu_bias_actual = VioBackEnd::initializeImuBias(imu_accgyr, n_gravity);
 
   // Compute the expected value!
   Vector6 imu_mean = Vector6::Zero();

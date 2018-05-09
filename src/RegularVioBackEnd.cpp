@@ -149,14 +149,11 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   Tracker::TrackingStatus kfTrackingStatus_mono =
                 status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
 
-  // Clear vector.
-  delete_slots_converted_factors_.resize(0);
-
   switch(kfTrackingStatus_mono) {
     case Tracker::TrackingStatus::LOW_DISPARITY : {
       // Vehicle is not moving.
       VLOG(10) << "Tracker has a LOW_DISPARITY status.";
-      VLOG(10) << "Add zero velocity and no motion factors.\n";
+      VLOG(10) << "Add zero velocity and no motion factors.";
       addZeroVelocityPrior(cur_kf_id_);
       addNoMotionFactor(last_kf_id_, cur_kf_id_);
       break;
@@ -169,11 +166,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
             kfTrackingStatus_mono == Tracker::TrackingStatus::INVALID?
           VLOG(10) << "Tracker has a INVALID status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::DISABLED?
-          VLOG(10) << "Tracker has a DISABLED status.":
-                     VLOG(10) << "";
+          VLOG(10) << "Tracker has a DISABLED status.": VLOG(10) << "";
 
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
-        // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED :
         // We add features in VIO.
         VLOG(10) << "Adding/Updating landmarks to graph.";
         addLandmarksToGraph(lmks_kf);
@@ -195,7 +190,13 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   // TODO add conversion from Smart factor to regular.
-  optimize(cur_kf_id_, vioParams_.numOptimize_, delete_slots_converted_factors_);
+  optimize(cur_kf_id_, vioParams_.numOptimize_,
+           delete_slots_of_converted_smart_factors_);
+
+  // Reset list of factors to delete.
+  // These are the smart factors that have been converted to projection factors
+  // and must be deleted from the factor graph.
+  delete_slots_of_converted_smart_factors_.resize(0);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -274,6 +275,7 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   }
 
   // Add new factor to suitable structures.
+  // TODO why do we need to store the new_factor in both structures??
   new_smart_factors_.insert(std::make_pair(lmk_id,
                                            new_factor));
   old_smart_factors_.insert(std::make_pair(lmk_id,
@@ -296,7 +298,8 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     VLOG(10) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
 
     // Update existing smart-factor.
-    const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
+    const SmartFactorMap::const_iterator& old_smart_factors_it =
+        old_smart_factors_.find(lmk_id);
     CHECK(old_smart_factors_it != old_smart_factors_.end())
         << "Landmark not found in old_smart_factors_\n";
 
@@ -329,7 +332,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
 
     // TODO Why do we do this??
-    old_smart_factors_it->second.first = new_factor;
+    // old_smart_factors_it->second.first = new_factor;
 
   } else {
     VLOG(10) << "Lmk with id: " << lmk_id
@@ -404,7 +407,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         // gets deleted from the graph.
         if (old_smart_factors_it->second.second != -1) {
           // Get current slot (if factor is already there it must be deleted).
-          delete_slots_converted_factors_.push_back(
+          delete_slots_of_converted_smart_factors_.push_back(
                 old_smart_factors_it->second.second);
         }
 
