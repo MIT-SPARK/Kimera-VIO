@@ -298,28 +298,31 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     break;
   }
 
-  imu_bias_prev_kf_ = imu_bias_lkf_; // this lags 1 step behind to mimic hw
+  // Why do we do this??
+  // This lags 1 step behind to mimic hw.
+  imu_bias_prev_kf_ = imu_bias_lkf_;
+
   optimize(cur_kf_id_, vioParams_.numOptimize_);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void VioBackEnd::integrateImuMeasurements(const ImuStamps& imu_stamps,
                                           const ImuAccGyr& imu_accgyr) {
-  if (imu_stamps.size() >= 2){
-    if (!pim_)
-      pim_ = std::make_shared<PreintegratedImuMeasurements>(imuParams_, imu_bias_prev_kf_);
-    else
-      pim_->resetIntegrationAndSetBias(imu_bias_prev_kf_);
+  CHECK(imu_stamps.size() >= 2) << "No Imu data found.";
 
-    for (int i = 0; i < imu_stamps.size()-1; ++i)
-    {
-      Vector3 measured_acc = imu_accgyr.block<3,1>(0,i);
-      Vector3 measured_omega = imu_accgyr.block<3,1>(3,i);
-      double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i+1) - imu_stamps(i));
-      pim_->integrateMeasurement(measured_acc, measured_omega, delta_t);
-    }
-  }else{
-    throw std::runtime_error("integrateImuMeasurements: no imu data found");
+  if (!pim_) {
+    pim_ = std::make_shared<PreintegratedImuMeasurements>(imuParams_,
+                                                          imu_bias_prev_kf_);
+  } else {
+    pim_->resetIntegrationAndSetBias(imu_bias_prev_kf_);
+  }
+
+  for (size_t i = 0; i < imu_stamps.size() - 1; ++i) {
+    const Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
+    const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
+    const double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
+                                                  imu_stamps(i));
+    pim_->integrateMeasurement(measured_acc, measured_omega, delta_t);
   }
 }
 
