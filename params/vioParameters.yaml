@@ -38,6 +38,6 @@ zeroVelocitySigma: 0.001
 noMotionPositionSigma: 0.001
 noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
-numOptimize: 2
+numOptimize: 0
 horizon: 6 # In seconds.
 useDogLeg: 0
