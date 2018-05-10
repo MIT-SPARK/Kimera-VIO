@@ -432,8 +432,8 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       // not make any sense, since we are using lmk_id which comes from smart_factor
       // and result which comes from graph[slot_id], we should use smart_factor_ptr
       // instead then...
-      LOG(ERROR) << "Smart factor in old_smart_factors_"
-                 << " and graph do not coincide.";
+      LOG_EVERY_N(ERROR, 30) << "Smart factor in old_smart_factors_"
+                             << " and graph do not coincide.";
       continue;
     }
 
