@@ -300,7 +300,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     VLOG(10) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
 
     // Update existing smart-factor.
-    const SmartFactorMap::const_iterator& old_smart_factors_it =
+    const SmartFactorMap::iterator& old_smart_factors_it =
         old_smart_factors_.find(lmk_id);
     CHECK(old_smart_factors_it != old_smart_factors_.end())
         << "Landmark not found in old_smart_factors_\n";
@@ -330,11 +330,16 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     VLOG(10) << "Insert new smart factor to new_smart_factors_ for lmk with"
              << " id: " << lmk_id;
 
+    ///// Book Keeping, update factors /////////////////////////////////////////
     // Update the set of new smart factors.
     new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
 
     // TODO Why do we do this??
-    // old_smart_factors_it->second.first = new_factor;
+    // if we don't the 3d points seem to be off.
+    // is there a way to viz 3d points?
+    old_smart_factors_it->second.first = new_factor;
+
+    ////////////////////////////////////////////////////////////////////////////
 
   } else {
     VLOG(10) << "Lmk with id: " << lmk_id
