@@ -35,6 +35,7 @@ RegularVioBackEnd::RegularVioBackEnd(
              vioParams) {
   LOG(INFO) << "Using Regular VIO backend.\n";
 
+  // Set type of mono_noise_ for projection factors.
   gtsam::SharedNoiseModel gaussian =
       gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
 
@@ -157,6 +158,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
       VLOG(10) << "Add zero velocity and no motion factors.";
       addZeroVelocityPrior(cur_kf_id_);
       addNoMotionFactor(last_kf_id_, cur_kf_id_);
+      // TODO why are we not adding the regularities here as well...?
       break;
     }
     default: {
@@ -580,7 +582,10 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
   // not all lmks in mesh_lmk_ids will be used in projection factor
   // because mesh_lmk_ids is time-horizon vs backend operation is in per frame.
   for (const LandmarkId& lmk_id: mesh_lmk_ids) {
-    if (state_.exists(gtsam::Symbol('l', lmk_id))) {
+    // TODO this won't work as expected because the lmks that have the regularities
+    // are not yet in the state! They will be once we optimize, but not yet!
+    if (state_.exists(gtsam::Symbol('l', lmk_id)) ||
+        new_values_.exists(gtsam::Symbol('l', lmk_id))) {
       VLOG(10) << "Lmk id: " << lmk_id
                 << " is in state_, adding PointPlaneFactor.";
       // TODO we are repeating factor!
