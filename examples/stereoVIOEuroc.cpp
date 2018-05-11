@@ -504,7 +504,9 @@ int main(int argc, char *argv[]) {
         case VisualizationType::MESH2DTo3Dsparse: {
           VLOG(10) << "Mesh2Dtype::MESH2DTo3Dsparse";
 
-          static constexpr int minKfValidPoints = 2; // only select points which have been tracked for minKfValidPoints keyframes
+          // only select points which have been tracked for minKfValidPoints keyframes
+          // If this is 0 it breaks!!!!!!!!!!!!!!!!!!!!!!
+          static constexpr int minKfValidPoints = 4;
 
           // Points_with_id_VIO contains all the points in the optimization,
           // (encoded as either smart factors or explicit values), potentially
