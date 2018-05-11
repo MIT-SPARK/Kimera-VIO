@@ -581,22 +581,37 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
   // TODO this will bring an error for sure in the sense that
   // not all lmks in mesh_lmk_ids will be used in projection factor
   // because mesh_lmk_ids is time-horizon vs backend operation is in per frame.
+  // but we are checking lmks in state_! so they should be ok right?
   for (const LandmarkId& lmk_id: mesh_lmk_ids) {
-    // TODO this won't work as expected because the lmks that have the regularities
-    // are not yet in the state! They will be once we optimize, but not yet!
     if (state_.exists(gtsam::Symbol('l', lmk_id)) ||
         new_values_.exists(gtsam::Symbol('l', lmk_id))) {
       VLOG(10) << "Lmk id: " << lmk_id
                 << " is in state_, adding PointPlaneFactor.";
-      // TODO we are repeating factor!
-      new_imu_prior_and_other_factors_.push_back(
-            boost::make_shared<gtsam::PointPlaneFactor>(
-              gtsam::Symbol('l', lmk_id),
-              plane_key,
-              regularityNoise));
+      const auto& lmk_id_regularity_type = lmk_id_to_regularity_type_map_.find(lmk_id);
+      if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end() ||
+          lmk_id_regularity_type->second != RegularityType::POINT_PLANE) {
+        // If this lmk has not already been used in a regularity, then do so.
+        new_imu_prior_and_other_factors_.push_back(
+              boost::make_shared<gtsam::PointPlaneFactor>(
+                gtsam::Symbol('l', lmk_id),
+                plane_key,
+                regularityNoise));
+
+        // Acknowledge that this lmk has been used in a regularity.
+        lmk_id_to_regularity_type_map_[lmk_id] = RegularityType::POINT_PLANE;
+      } else {
+        // This lmk has already been used in a regularity, avoid duplication
+        // of factors.
+        VLOG(10) << "Avoiding duplicated regularity factor for lmk id: " << lmk_id;
+      }
     } else {
-      LOG(ERROR) << "Lmk id: "
-              << lmk_id << " is NOT in state_, NOT adding PointPlaneFactor.";
+      LOG(ERROR) << "Lmk id: " << lmk_id
+                 << " is NOT in state_ or in new_values_,"
+                 << " NOT adding PointPlaneFactor.";
+      // "It probably is still a smart factor that was not converted"
+      //              " to a projection factor because it was not a regularity when"
+      //              " it was being processed... since backend processing is per"
+      //              " frame (current feature tracks)...";
     }
   }
 }
