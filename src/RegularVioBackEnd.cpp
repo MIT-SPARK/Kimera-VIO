@@ -554,11 +554,13 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
           gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.5));
 
   // Plane key.
-  static const gtsam::Key plane_key (gtsam::Symbol('P', 0));
+  static gtsam::Key plane_key (gtsam::Symbol('P', 0));
 
   if (!state_.exists(plane_key)) {
     VLOG(10) << "Plane key does NOT exist, adding new plane with key: "
              << plane_key;
+    static size_t i = 0;
+    plane_key = gtsam::Symbol('P', i++);
     static const gtsam::OrientedPlane3 plane(0.0, 0.0, 1.0, -0.1);
     new_values_.insert(plane_key, plane);
 
