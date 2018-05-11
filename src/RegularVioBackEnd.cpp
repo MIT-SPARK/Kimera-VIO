@@ -136,13 +136,6 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         smart_stereo_measurements_kf,
         &lmks_kf);
 
-  // For each landmark we decide if it's going to be a smart factor or not.
-  // TODO here there is a timeline mismatch, while landmarks_kf are only currently
-  // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
-  isLandmarkSmart(lmks_kf,
-                  mesh_lmk_ids_ground_cluster,
-                  &lmk_id_is_smart_);
-
   if (VLOG_IS_ON(20)) {
     printFeatureTracks();
   }
@@ -172,22 +165,29 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           VLOG(10) << "Tracker has a DISABLED status.": VLOG(10) << "";
 
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
+        // For each landmark we decide if it's going to be a smart factor or not.
+        // TODO here there is a timeline mismatch, while landmarks_kf are only currently
+        // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
+        isLandmarkSmart(lmks_kf,
+                        mesh_lmk_ids_ground_cluster,
+                        &lmk_id_is_smart_);
+
         // We add features in VIO.
         VLOG(10) << "Adding/Updating landmarks to graph.";
         addLandmarksToGraph(lmks_kf);
+
+        /////////////////// REGULARITY FACTORS ///////////////////////////////////////
+        // Add regularity factor on vertices of the mesh.
+        // TODO argument should be generalized to diff
+        // type of cluster and regularities.
+        if (mesh_lmk_ids_ground_cluster.size() != 0) {
+          // TODO what happens if mesh has same ids over and over, are we duplicating
+          // factors?
+          addRegularityFactors(mesh_lmk_ids_ground_cluster);
+        }
       }
       break;
     }
-  }
-
-  /////////////////// REGULARITY FACTORS ///////////////////////////////////////
-  // Add regularity factor on vertices of the mesh.
-  // TODO argument should be generalized to diff
-  // type of cluster and regularities.
-  if (mesh_lmk_ids_ground_cluster.size() != 0) {
-    // TODO what happens if mesh has same ids over and over, are we duplicating
-    // factors?
-    //addRegularityFactors(mesh_lmk_ids_ground_cluster);
   }
 
   /////////////////// OPTIMIZE /////////////////////////////////////////////////
