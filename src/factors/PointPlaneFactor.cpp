@@ -14,9 +14,9 @@ namespace gtsam {
 //***************************************************************************
 void PointPlaneFactor::print(const string& s,
     const KeyFormatter& keyFormatter) const {
-  cout << "BasicRegularPlane3Factor Factor on point " <<
-       pointKey_ << ", " <<
-       planeKey_  << "\n";
+  std::cout << s << " Factor on point " <<
+       keyFormatter(pointKey_) << ", and plane " <<
+       keyFormatter(planeKey_)  << "\n";
   this->noiseModel_->print("  noise model: ");
 }
 
