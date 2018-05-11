@@ -550,8 +550,8 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
 
   // Noise model.
   // TODO remove hardcoded value.
-  static const gtsam::noiseModel::Diagonal::shared_ptr regularityNoise =
-          gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.1));
+  static const gtsam::noiseModel::Isotropic::shared_ptr regularityNoise =
+      gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
 
   // Plane key.
   static gtsam::Key plane_key (gtsam::Symbol('P', 0));
