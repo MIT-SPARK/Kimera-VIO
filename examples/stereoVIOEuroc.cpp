@@ -254,7 +254,7 @@ int main(int argc, char *argv[]) {
 
       // Use initial IMU measurements to guess first pose
       if (vioParams.autoInitialize_) {
-          initialStateGT.pose = vioBackEnd->GuessPoseFromIMUmeasurements(
+          initialStateGT.pose = vioBackEnd->guessPoseFromIMUmeasurements(
                                               imu_accgyr, vioParams.n_gravity_,
                                               vioParams.roundOnAutoInitialize_);
           vioBackEnd->initializeStateAndSetPriors(timestamp_k,
@@ -504,15 +504,15 @@ int main(int argc, char *argv[]) {
         case VisualizationType::MESH2DTo3Dsparse: {
           VLOG(10) << "Mesh2Dtype::MESH2DTo3Dsparse";
 
-          static constexpr int minKfValidPoints = 0; // only select points which have been tracked for minKfValidPoints keyframes
+          static constexpr int minKfValidPoints = 2; // only select points which have been tracked for minKfValidPoints keyframes
 
           // Points_with_id_VIO contains all the points in the optimization,
           // (encoded as either smart factors or explicit values), potentially
           // restricting to points seen in at least minKfValidPoints keyframes
           // (TODO restriction is not enforced for projection factors).
           VioBackEnd::PointsWithIdMap points_with_id_VIO;
-          vioBackEnd->get3DPointsAndLmkIds(&points_with_id_VIO,
-                                           minKfValidPoints);
+          vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(&points_with_id_VIO,
+                                                          minKfValidPoints);
 
           static constexpr float maxGradInTriangle = -1; //50.0;
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
@@ -537,11 +537,11 @@ int main(int argc, char *argv[]) {
           mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
                                                   &mesh_lmk_ids_ground_cluster);
 
-          cv::Mat vertices_mesh;
-          cv::Mat polygons_mesh;
-          mesher.getVerticesMesh(&vertices_mesh);
-          mesher.getPolygonsMesh(&polygons_mesh);
           if (FLAGS_visualize) {
+            cv::Mat vertices_mesh;
+            cv::Mat polygons_mesh;
+            mesher.getVerticesMesh(&vertices_mesh);
+            mesher.getPolygonsMesh(&polygons_mesh);
             visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters,
                                                           vertices_mesh,
                                                           polygons_mesh);
@@ -578,7 +578,7 @@ int main(int argc, char *argv[]) {
           // Computes and visualizes a 3D point cloud.
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
           VioBackEnd::PointsWithIdMap pointsWithId;
-          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
+          vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(&pointsWithId);
           //mesher.updateMap3D(pointsWithId);
           //visualizer.visualizePoints3D(pointsWithId, mesher.map_points_3d_);
           break;

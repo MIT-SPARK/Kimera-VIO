@@ -36,29 +36,29 @@ RegularVioBackEnd::RegularVioBackEnd(
   LOG(INFO) << "Using Regular VIO backend.\n";
 
   gtsam::SharedNoiseModel gaussian =
-      gtsam::noiseModel::Isotropic::Sigma(2, vioParams_.monoNoiseSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
 
-  switch (vioParams_.normType_) {
+  switch (vio_params_.normType_) {
     case 0: {
       LOG(INFO) << "Using square norm.";
       mono_noise_ = gaussian;
       break;
     }
     case 1: {
-      LOG(INFO) << "Using Huber norm, with parameter value: " << vioParams_.huberParam_;
+      LOG(INFO) << "Using Huber norm, with parameter value: " << vio_params_.huberParam_;
       mono_noise_ =
           gtsam::noiseModel::Robust::Create(
             gtsam::noiseModel::mEstimator::Huber::Create(
-              vioParams_.huberParam_,
+              vio_params_.huberParam_,
               gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
             gaussian);
       break;
     }
     case 2: {
-      LOG(INFO) << "Using Tukey norm, with parameter value: " << vioParams_.tukeyParam_;
+      LOG(INFO) << "Using Tukey norm, with parameter value: " << vio_params_.tukeyParam_;
       mono_noise_ = gtsam::noiseModel::Robust::Create(
                       gtsam::noiseModel::mEstimator::Tukey::Create(
-                        vioParams_.tukeyParam_,
+                        vio_params_.tukeyParam_,
                         gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
                       gaussian); //robust
       break;
@@ -66,14 +66,14 @@ RegularVioBackEnd::RegularVioBackEnd(
     default: {
       LOG(INFO) << "Using square norm.";
       mono_noise_ = gtsam::noiseModel::Isotropic::Sigma(
-                      2, vioParams_.monoNoiseSigma_);
+                      2, vio_params_.monoNoiseSigma_);
 
       break;
     }
   }
 
-  mono_cal_ = boost::make_shared<Cal3_S2>(stereoCal_->calibration());
-  CHECK(mono_cal_->equals(stereoCal_->calibration()))
+  mono_cal_ = boost::make_shared<Cal3_S2>(stereo_cal_->calibration());
+  CHECK(mono_cal_->equals(stereo_cal_->calibration()))
       << "Monocular calibration should match Stereo calibration";
 }
 
@@ -85,7 +85,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const LandmarkIds& mesh_lmk_ids_ground_cluster,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
 
-  debugInfo_.resetAddedFactorsStatistics();
+  debug_info_.resetAddedFactorsStatistics();
 
   if (VLOG_IS_ON(20)) {
     StereoVisionFrontEnd::PrintStatusStereoMeasurements(
@@ -101,7 +101,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   VLOG(7) << "Processing keyframe " << cur_kf_id_
           << " at timestamp: " << timestamp_kf_ << " (sec)\n";
 
-  /////////////////// MANAGE IMU MEASUREMENTS //////////////////////////////////
+  /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Predict next step, add initial guess.
   integrateImuMeasurements(imu_stamps, imu_accgyr);
   addImuValues(cur_kf_id_);
@@ -111,6 +111,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           << " and pose id: " << cur_kf_id_;
   addImuFactor(last_kf_id_, cur_kf_id_);
 
+  /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
   // Add between factor from RANSAC.
   if (stereo_ransac_body_pose) {
     VLOG(20) << "Adding RANSAC factor between pose id: " << last_kf_id_
@@ -121,7 +122,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     addBetweenFactor(last_kf_id_, cur_kf_id_, *stereo_ransac_body_pose);
   }
 
-  /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////////
+  /////////////////// VISION MEASUREMENTS //////////////////////////////////////
   const SmartStereoMeasurements& smart_stereo_measurements_kf =
                                     status_smart_stereo_measurements_kf.second;
 
@@ -149,14 +150,11 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   Tracker::TrackingStatus kfTrackingStatus_mono =
                 status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
 
-  // Clear vector.
-  delete_slots_converted_factors_.resize(0);
-
   switch(kfTrackingStatus_mono) {
     case Tracker::TrackingStatus::LOW_DISPARITY : {
       // Vehicle is not moving.
       VLOG(10) << "Tracker has a LOW_DISPARITY status.";
-      VLOG(10) << "Add zero velocity and no motion factors.\n";
+      VLOG(10) << "Add zero velocity and no motion factors.";
       addZeroVelocityPrior(cur_kf_id_);
       addNoMotionFactor(last_kf_id_, cur_kf_id_);
       break;
@@ -169,11 +167,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
             kfTrackingStatus_mono == Tracker::TrackingStatus::INVALID?
           VLOG(10) << "Tracker has a INVALID status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::DISABLED?
-          VLOG(10) << "Tracker has a DISABLED status.":
-                     VLOG(10) << "";
+          VLOG(10) << "Tracker has a DISABLED status.": VLOG(10) << "";
 
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
-        // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED :
         // We add features in VIO.
         VLOG(10) << "Adding/Updating landmarks to graph.";
         addLandmarksToGraph(lmks_kf);
@@ -182,6 +178,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     }
   }
 
+  /////////////////// REGULARITY FACTORS ///////////////////////////////////////
   // Add regularity factor on vertices of the mesh.
   // TODO argument should be generalized to diff
   // type of cluster and regularities.
@@ -191,11 +188,18 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     //addRegularityFactors(mesh_lmk_ids_ground_cluster);
   }
 
+  /////////////////// OPTIMIZE /////////////////////////////////////////////////
   // This lags 1 step behind to mimic hw.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   // TODO add conversion from Smart factor to regular.
-  optimize(cur_kf_id_, vioParams_.numOptimize_, delete_slots_converted_factors_);
+  optimize(cur_kf_id_, vio_params_.numOptimize_,
+           delete_slots_of_converted_smart_factors_);
+
+  // Reset list of factors to delete.
+  // These are the smart factors that have been converted to projection factors
+  // and must be deleted from the factor graph.
+  delete_slots_of_converted_smart_factors_.resize(0);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -204,11 +208,10 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
   // Add selected landmarks to graph:
   int n_new_landmarks = 0;
   int n_updated_landmarks = 0;
-  debugInfo_.numAddedSmartF_ += lmks_kf.size();
+  debug_info_.numAddedSmartF_ += lmks_kf.size();
 
-  //CHECK(lmk_id_is_smart_.size() == landmarks_kf.size());
   for (const LandmarkId& lmk_id: lmks_kf) {
-    FeatureTrack& feature_track = featureTracks_.at(lmk_id);
+    FeatureTrack& feature_track = feature_tracks_.at(lmk_id);
 
     // Only insert feature tracks of length at least 2
     // (otherwise uninformative)
@@ -223,7 +226,7 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
     if (!feature_track.in_ba_graph_) {
       // Acknowledge that we have added the landmark in the graph.
       feature_track.in_ba_graph_ = true;
-      VLOG(10) << "Adding lmk " << lmk_id << " to graph.\n";
+      VLOG(10) << "Adding lmk " << lmk_id << " to graph.";
       addLandmarkToGraph(lmk_id, feature_track);
       ++n_new_landmarks;
     } else {
@@ -231,15 +234,15 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
 
       // Sanity check.
       CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
-                                            " keyframe!\n";
+                                            " keyframe!";
 
-      VLOG(10) << "Updating lmk " << lmk_id << " to graph.\n";
+      VLOG(10) << "Updating lmk " << lmk_id << " to graph.";
       updateLandmarkInGraph(lmk_id, obs_kf);
       ++n_updated_landmarks;
     }
   }
-  VLOG(7) << "Added " << n_new_landmarks << " new landmarks\n"
-          << "Updated " << n_updated_landmarks << " landmarks in graph\n";
+  VLOG(7) << "Added " << n_new_landmarks << " new landmarks.\n"
+          << "Updated " << n_updated_landmarks << " landmarks in graph.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -251,7 +254,7 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   // more efficient.
   SmartStereoFactor::shared_ptr new_factor(new SmartStereoFactor(
                                              smart_noise_,
-                                             smartFactorsParams_,
+                                             smart_factors_params_,
                                              B_Pose_leftCam_));
 
   VLOG(10) << "Adding landmark with id: " << lmk_id
@@ -270,10 +273,11 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
 
     new_factor->add(obs.second,
                     gtsam::Symbol('x', obs.first),
-                    stereoCal_);
+                    stereo_cal_);
   }
 
   // Add new factor to suitable structures.
+  // TODO why do we need to store the new_factor in both structures??
   new_smart_factors_.insert(std::make_pair(lmk_id,
                                            new_factor));
   old_smart_factors_.insert(std::make_pair(lmk_id,
@@ -291,11 +295,13 @@ void RegularVioBackEnd::updateLandmarkInGraph(
                                       "smart or not...";
 
   const bool& is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
-  if (is_lmk_smart == true) {
+  if (is_lmk_smart) {
+    // Lmk is meant to be smart.
     VLOG(10) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
 
     // Update existing smart-factor.
-    const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
+    const SmartFactorMap::const_iterator& old_smart_factors_it =
+        old_smart_factors_.find(lmk_id);
     CHECK(old_smart_factors_it != old_smart_factors_.end())
         << "Landmark not found in old_smart_factors_\n";
 
@@ -312,23 +318,23 @@ void RegularVioBackEnd::updateLandmarkInGraph(
              << lmk_id;
     new_factor->add(newObs.second,
                     gtsam::Symbol('x', newObs.first),
-                    stereoCal_);
+                    stereo_cal_);
+
+    // If slot is still -1, it means that the factor has not been inserted yet
+    // in the graph.
+    CHECK(old_smart_factors_it->second.second != -1) << "When calling update "
+                      "the slot should be already != -1";
+
+    // Slot is different than -1
+    // It means that the factor has already been inserted in the graph.
+    VLOG(10) << "Insert new smart factor to new_smart_factors_ for lmk with"
+             << " id: " << lmk_id;
 
     // Update the set of new smart factors.
-    if (old_smart_factors_it->second.second != -1) {
-      // Slot is different than -1
-      // It means that the factor has already been inserted in the graph.
-      VLOG(10) << "Update new_smart_factors_";
-      new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
-    } else {
-      // If slot is still -1, it means that the factor has not been inserted yet
-      // in the graph.
-      CHECK(false) << "When calling update "
-                      "the slot should be already != -1";
-    }
+    new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
 
     // TODO Why do we do this??
-    old_smart_factors_it->second.first = new_factor;
+    // old_smart_factors_it->second.first = new_factor;
 
   } else {
     VLOG(10) << "Lmk with id: " << lmk_id
@@ -384,7 +390,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
                    smart_noise_,
                    cam_key,
                    lmk_key,
-                   stereoCal_, B_Pose_leftCam_));
+                   stereo_cal_, B_Pose_leftCam_));
           } else {
             // Right pixel has a NAN value for u, use GenericProjectionFactor instead
             // of stereo.
@@ -403,7 +409,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         // gets deleted from the graph.
         if (old_smart_factors_it->second.second != -1) {
           // Get current slot (if factor is already there it must be deleted).
-          delete_slots_converted_factors_.push_back(
+          delete_slots_of_converted_smart_factors_.push_back(
                 old_smart_factors_it->second.second);
         }
 
@@ -437,7 +443,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
               (newObs.second, smart_noise_,
                gtsam::Symbol('x', newObs.first),
                lmk_key,
-               stereoCal_, B_Pose_leftCam_));
+               stereo_cal_, B_Pose_leftCam_));
       } else {
         // Right pixel has a NAN value for u, use GenericProjectionFactor instead
         // of stereo.
