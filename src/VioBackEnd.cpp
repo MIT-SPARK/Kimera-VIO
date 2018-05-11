@@ -394,9 +394,10 @@ vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
 
 /* -------------------------------------------------------------------------- */
 // Get valid 3D points and corresponding lmk id.
+// Warning! it modifies old_smart_factors_!!
 void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     PointsWithIdMap* points_with_id,
-    const int& min_age) const {
+    const int& min_age) {
   CHECK_NOTNULL(points_with_id);
 
   // Add landmarks encoded in the smart factors.
@@ -404,9 +405,9 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
 
   // old_smart_factors_ has all smart factors included so far.
   int nr_valid_smart_lmks = 0, nr_smart_lmks = 0, nr_proj_lmks = 0;
-  for (auto& smart_factor_it = old_smart_factors_.begin();
+  for (SmartFactorMap::iterator smart_factor_it = old_smart_factors_.begin();
        smart_factor_it != old_smart_factors_.end();
-       smart_factor_it++) {//!< landmarkId -> {SmartFactorPtr, SlotIndex}
+       smart_factor_it++) { //!< landmarkId -> {SmartFactorPtr, SlotIndex}
     // Store number of smart lmks (one smart factor per landmark).
     nr_smart_lmks++;
 
@@ -434,8 +435,10 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       // not make any sense, since we are using lmk_id which comes from smart_factor
       // and result which comes from graph[slot_id], we should use smart_factor_ptr
       // instead then...
-      LOG_EVERY_N(ERROR, 30) << "Smart factor in old_smart_factors_"
-                             << " and graph do not coincide.";
+      VLOG_EVERY_N(20, 30) << "Smart factor in old_smart_factors_"
+                           << " and graph do not coincide:\n"
+                           << "the smart factor " << lmk_id
+                           << " is out of time-horizon.";
       smart_factor_it = old_smart_factors_.erase(smart_factor_it);
       continue;
     }
