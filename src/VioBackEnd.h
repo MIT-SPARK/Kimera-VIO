@@ -379,7 +379,7 @@ public:
   // Get valid 3D points and corresponding lmk id.
   // Warning! it modifies old_smart_factors_!!
   void getMapLmkIdsTo3dPointsInTimeHorizon(PointsWithIdMap* points_with_id,
-                                           const int& min_age = 0);
+                                           const int& min_age = 2);
 
   /* ------------------------------------------------------------------------ */
   // NOT TESTED
