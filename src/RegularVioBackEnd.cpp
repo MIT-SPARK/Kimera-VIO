@@ -551,69 +551,170 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
   // Noise model.
   // TODO remove hardcoded value.
   static const gtsam::noiseModel::Diagonal::shared_ptr regularityNoise =
-          gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.5));
+          gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector1(0.1));
 
   // Plane key.
   static gtsam::Key plane_key (gtsam::Symbol('P', 0));
 
+  // Vars to check whether the new plane is going to be fully constrained or not.
+  static bool is_plane_constrained = false;
+  static std::vector<LandmarkId> list_of_constraints;
+
   if (!state_.exists(plane_key)) {
-    VLOG(10) << "Plane key does NOT exist, adding new plane with key: "
-             << plane_key;
-    static size_t i = 0;
-    plane_key = gtsam::Symbol('P', i++);
-    static const gtsam::OrientedPlane3 plane(0.0, 0.0, 1.0, -0.1);
-    new_values_.insert(plane_key, plane);
+    VLOG(10) << "Plane key, " << gtsam::DefaultKeyFormatter(plane_key)
+             << " does NOT exist.";
 
-    static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise =
-        gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.5, 0.5, 0.5));
-    new_imu_prior_and_other_factors_.push_back(
-          boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3> >(
-            plane_key,
-            plane,
-            prior_noise));
-  } else {
-    VLOG(10) << "Plane key does exist already: " << plane_key;
-  }
+    // Verify that the plane is going to be fully constrained before adding it.
+    static constexpr size_t min_number_of_constraints = 3;
 
-  // Temporal graph.
-  gtsam::NonlinearFactorGraph tmp_graph;    //!< new factors to be added
+    // Loop over all lmks which are involved in the regularity, to both
+    // check that the new plane is going to be fully constrained and that
+    // in case it is we add all the corresponding factors.
+    for (const LandmarkId& lmk_id: mesh_lmk_ids) {
+      if (state_.exists(gtsam::Symbol('l', lmk_id)) ||
+          new_values_.exists(gtsam::Symbol('l', lmk_id))) {
+        // Lmk id exists either in the state or it is going to be added in the
+        // next optimization.
+        VLOG(10) << "Lmk id: " << lmk_id
+                 << " is in state_ or is going to be added in next optimization.";
 
-  // For each lmk id, add a point plane factor.
-  // TODO only add regularity for triangles! so check that.
-  // TODO this will bring an error for sure in the sense that
-  // not all lmks in mesh_lmk_ids will be used in projection factor
-  // because mesh_lmk_ids is time-horizon vs backend operation is in per frame.
-  // but we are checking lmks in state_! so they should be ok right?
-  for (const LandmarkId& lmk_id: mesh_lmk_ids) {
-    if (state_.exists(gtsam::Symbol('l', lmk_id)) ||
-        new_values_.exists(gtsam::Symbol('l', lmk_id))) {
-      VLOG(10) << "Lmk id: " << lmk_id
-                << " is in state_, adding PointPlaneFactor.";
-      const auto& lmk_id_regularity_type = lmk_id_to_regularity_type_map_.find(lmk_id);
-      if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end() ||
-          lmk_id_regularity_type->second != RegularityType::POINT_PLANE) {
-        // If this lmk has not already been used in a regularity, then do so.
-        new_imu_prior_and_other_factors_.push_back(
-              boost::make_shared<gtsam::PointPlaneFactor>(
-                gtsam::Symbol('l', lmk_id),
-                plane_key,
-                regularityNoise));
+        const auto& lmk_id_regularity_type =
+            lmk_id_to_regularity_type_map_.find(lmk_id);
+        if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end() ||
+            lmk_id_regularity_type->second != RegularityType::POINT_PLANE) {
+          // Lmk has not been used in a regularity.
+          VLOG(10) << "Lmk id: " << lmk_id
+                   << " has not yet been used in a regularity.";
 
-        // Acknowledge that this lmk has been used in a regularity.
-        lmk_id_to_regularity_type_map_[lmk_id] = RegularityType::POINT_PLANE;
+          // Check that the plane is constrained before adding factors.
+          if (!is_plane_constrained) {
+            // Still need to check whether the plane is fully constrained.
+            // Add lmk to list of potential constraints.
+            VLOG(10) << "Checking that plane has enough constraints...";
+            list_of_constraints.push_back(lmk_id);
+          } else {
+            // Act as usual, the plane is already fully constrained, keep
+            // adding new factors.
+            VLOG(10) << "Adding PointPlaneFactor.";
+            new_imu_prior_and_other_factors_.push_back(
+                  boost::make_shared<gtsam::PointPlaneFactor>(
+                    gtsam::Symbol('l', lmk_id),
+                    plane_key,
+                    regularityNoise));
+            // Acknowledge that this lmk has been used in a regularity.
+            lmk_id_to_regularity_type_map_[lmk_id] =
+                RegularityType::POINT_PLANE;
+          }
+
+          if (list_of_constraints.size() > min_number_of_constraints) {
+            // Acknowledge that the plane is constrained.
+            is_plane_constrained = true;
+
+            static size_t i = 0;
+            plane_key = gtsam::Symbol('P', i);
+            i++;
+            static const gtsam::OrientedPlane3 plane(0.0, 0.0, 1.0, -0.1);
+
+            // The plane is constrained, add it.
+            VLOG(10) << "Adding new plane with key: "
+                     << gtsam::DefaultKeyFormatter(plane_key);
+            new_values_.insert(plane_key, plane);
+
+            // TODO Remove! DEBUG add a prior to the plane.
+            //static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise =
+            //    gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.5, 0.5, 0.5));
+            //new_imu_prior_and_other_factors_.push_back(
+            //      boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3> >(
+            //        plane_key,
+            //        plane,
+            //        prior_noise));
+
+            // Add the factors for the lmks that we skipped while checking
+            // that the plane is fully constrained.
+            for (const LandmarkId& prev_lmk_id: list_of_constraints) {
+              VLOG(10) << "Adding PointPlaneFactor.";
+              new_imu_prior_and_other_factors_.push_back(
+                    boost::make_shared<gtsam::PointPlaneFactor>(
+                      gtsam::Symbol('l', prev_lmk_id),
+                      plane_key,
+                      regularityNoise));
+              // Acknowledge that this lmk has been used in a regularity.
+              lmk_id_to_regularity_type_map_[prev_lmk_id] =
+                  RegularityType::POINT_PLANE;
+            }
+
+            // Clear list of constraints, so that we do not enter in this
+            // condition anymore.
+            list_of_constraints.resize(0);
+          }
+        }
       } else {
-        // This lmk has already been used in a regularity, avoid duplication
-        // of factors.
-        VLOG(10) << "Avoiding duplicated regularity factor for lmk id: " << lmk_id;
+        LOG(ERROR) << "Lmk id: " << lmk_id
+                   << " is NOT in state_ or in new_values_,"
+                   << " NOT adding PointPlaneFactor.";
+        // "It probably is still a smart factor that was not converted"
+        //              " to a projection factor because it was not a regularity when"
+        //              " it was being processed... since backend processing is per"
+        //              " frame (current feature tracks)...";
       }
-    } else {
-      LOG(ERROR) << "Lmk id: " << lmk_id
-                 << " is NOT in state_ or in new_values_,"
-                 << " NOT adding PointPlaneFactor.";
-      // "It probably is still a smart factor that was not converted"
-      //              " to a projection factor because it was not a regularity when"
-      //              " it was being processed... since backend processing is per"
-      //              " frame (current feature tracks)...";
+    }
+
+    if (!is_plane_constrained) {
+      VLOG(10) << "Plane with key " << gtsam::DefaultKeyFormatter(plane_key)
+               << " is not sufficiently constrained, not adding it.";
+    }
+
+    // Reset the flag for next time we have to add a plane.
+    is_plane_constrained = false;
+    // Also reset vector of constraints, just to be sure.
+    list_of_constraints.resize(0);
+  } else {
+    VLOG(10) << "Plane key does exist already: "
+             << gtsam::DefaultKeyFormatter(plane_key);
+
+    // The plane exists, just add regularities that are ok.
+    for (const LandmarkId& lmk_id: mesh_lmk_ids) {
+      if (state_.exists(gtsam::Symbol('l', lmk_id)) ||
+          new_values_.exists(gtsam::Symbol('l', lmk_id))) {
+        // Lmk id exists either in the state or it is going to be added in the
+        // next optimization.
+        VLOG(10) << "Lmk id: " << lmk_id
+                 << " is in state_ or is going to be added in next optimization.";
+
+        const auto& lmk_id_regularity_type =
+            lmk_id_to_regularity_type_map_.find(lmk_id);
+        if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end() ||
+            lmk_id_regularity_type->second != RegularityType::POINT_PLANE) {
+          // Lmk has not been used in a regularity.
+          // Lmk has not been used in a regularity.
+          VLOG(10) << "Lmk id: " << lmk_id
+                   << " has not yet been used in a regularity.";
+
+          // The plane is already in the graph so it must be fully constrained,
+          // keep adding new factors.
+          VLOG(10) << "Adding PointPlaneFactor.";
+          new_imu_prior_and_other_factors_.push_back(
+                boost::make_shared<gtsam::PointPlaneFactor>(
+                  gtsam::Symbol('l', lmk_id),
+                  plane_key,
+                  regularityNoise));
+          // Acknowledge that this lmk has been used in a regularity.
+          lmk_id_to_regularity_type_map_[lmk_id] =
+              RegularityType::POINT_PLANE;
+        } else {
+          // This lmk has already been used in a regularity, avoid duplication
+          // of factors.
+          VLOG(10) << "Avoiding duplicated regularity factor for lmk id: " << lmk_id;
+        }
+      } else {
+        LOG(ERROR) << "Lmk id: " << lmk_id
+                   << " is NOT in state_ or in new_values_,"
+                   << " NOT adding PointPlaneFactor.";
+        // "It probably is still a smart factor that was not converted"
+        //              " to a projection factor because it was not a regularity when"
+        //              " it was being processed... since backend processing is per"
+        //              " frame (current feature tracks)...";
+      }
     }
   }
 }
