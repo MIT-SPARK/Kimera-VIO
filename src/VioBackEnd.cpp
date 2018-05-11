@@ -404,21 +404,23 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
 
   // old_smart_factors_ has all smart factors included so far.
   int nr_valid_smart_lmks = 0, nr_smart_lmks = 0, nr_proj_lmks = 0;
-  for (const auto& smart_factor : old_smart_factors_) {//!< landmarkId -> {SmartFactorPtr, SlotIndex}
+  for (auto& smart_factor_it = old_smart_factors_.begin();
+       smart_factor_it != old_smart_factors_.end();
+       smart_factor_it++) {//!< landmarkId -> {SmartFactorPtr, SlotIndex}
     // Store number of smart lmks (one smart factor per landmark).
     nr_smart_lmks++;
 
     // Retrieve lmk_id of the smart factor.
-    const LandmarkId& lmk_id = smart_factor.first;
+    const LandmarkId& lmk_id = smart_factor_it->first;
 
     // Retrieve smart factor.
     const SmartStereoFactor::shared_ptr& smart_factor_ptr =
-        smart_factor.second.first;
+        smart_factor_it->second.first;
     // Check that pointer is well definied.
     CHECK(smart_factor_ptr) << "Smart factor is not well defined.";
 
     // Retrieve smart factor slot in the graph.
-    const int& slot_id = smart_factor.second.second;
+    const int& slot_id = smart_factor_it->second.second;
     // Check that slot is admissible.
     CHECK((slot_id >= 0) && (slot_id < graph.size()))
         << "Slot of smart factor is not admissible.";
@@ -434,6 +436,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       // instead then...
       LOG_EVERY_N(ERROR, 30) << "Smart factor in old_smart_factors_"
                              << " and graph do not coincide.";
+      smart_factor_it = old_smart_factors_.erase(smart_factor_it);
       continue;
     }
 

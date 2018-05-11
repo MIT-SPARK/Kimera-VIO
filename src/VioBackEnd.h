@@ -377,9 +377,9 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
-  // TODO output a map instead of a vector for points_with_id.
+  // Warning! it modifies old_smart_factors_!!
   void getMapLmkIdsTo3dPointsInTimeHorizon(PointsWithIdMap* points_with_id,
-                                           const int& min_age = 2) const;
+                                           const int& min_age = 0);
 
   /* ------------------------------------------------------------------------ */
   // NOT TESTED
