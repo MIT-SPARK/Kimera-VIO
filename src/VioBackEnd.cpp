@@ -1000,10 +1000,11 @@ void VioBackEnd::updateSmoother(
     LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
                << "and index " << symb.index() << std::endl;
 
-    smoother_->getFactors().print("smoother's factors:\n");
+    smoother_->getFactors().print("Smoother's factors:\n");
     state_.print("State values\n");
 
-    printSmootherInfo(new_factors_tmp,delete_slots,
+    printSmootherInfo(new_factors_tmp,
+                      delete_slots,
                       "CATCHING EXCEPTION",
                       false);
     throw;
@@ -1267,46 +1268,79 @@ void VioBackEnd::printSmootherInfo(
     const std::vector<size_t>& delete_slots,
     const string& message,
     const bool& showDetails) const {
-  std::cout << " =============== START:" <<  message << " =============== " << std::endl;
-  gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
-  std::cout << "nr factors in isam2: " << graph.size() << ", with factors:" << std::endl;
-  for (auto& g : graph){
-    auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
-    if (gsf){
-      std::cout << " SF(valid: " << gsf->isValid() <<
-                   ", deg: " << gsf->isDegenerate()
-                << " isCheir: " << gsf->isPointBehindCamera() << "): " << std::endl;
+  std::cout << " =============== START:" <<  message << " =============== "
+            << std::endl;
+
+  const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
+
+  // Print all factors.
+  std::cout << "\e[1m Nr factors in isam2: \e[0m" << graph.size()
+            << ", with factors:" << std::endl;
+  std::cout << "[\n";
+  for (const auto& g : graph){
+    const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
+
+    // Print smart factor.
+    if (gsf) {
+      std::cout << "\tSmart Factor (valid: " << gsf->isValid()
+                << ", deg: " << gsf->isDegenerate()
+                << " isCheir: " << gsf->isPointBehindCamera() << "): ";
     }
+
+    // Print the keys of the factor.
     if (g) {
+      std::cout << "\t";
       g->printKeys();
     }
   }
-  std::cout << "nr of new factors to add: " << new_factors_tmp.size() << " with factors:" << std::endl;
-  for (auto& g : new_factors_tmp) {
-    auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
-    if (gsf){
-      std::cout << " SF(valid: " << gsf->isValid() <<
-                   ", deg: " << gsf->isDegenerate() << " isCheir: " << gsf->isPointBehindCamera() << "): ";
+  std::cout << " ]" << std::endl;
+
+  // Print factors that were newly added to the optimization.
+  std::cout << "\e[1m Nr of new factors to add: \e[0m" << new_factors_tmp.size()
+            << " with factors:" << std::endl;
+  std::cout << "[\n\t";
+  for (const auto& g : new_factors_tmp) {
+    const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
+    if (gsf) {
+      std::cout << "\tSmart Factor (valid: " << gsf->isValid()
+                << ", deg: " << gsf->isDegenerate()
+                << " isCheir: " << gsf->isPointBehindCamera() << "): ";
     }
-    if (g) { g->printKeys(); }
+
+    if (g) {
+      std::cout << "\t";
+      g->printKeys();
+    }
   }
-  std::cout << "nr deleted slots: " << delete_slots.size() << ", with slots: " << std::endl;
+  std::cout << " ]" << std::endl;
+
+  // Print deleted slots.
+  std::cout << "\e[1m Nr deleted slots: \e[0m" << delete_slots.size()
+            << ", with slots: " << std::endl;
+  std::cout << "[\n\t";
   for (int i = 0; i < delete_slots.size(); ++i)
     std::cout << delete_slots[i] << " ";
-  std::cout <<  std::endl;
+  std::cout << " ]" << std::endl;
 
-  std::cout << "nr of values in state_ : " << state_.size() << ", with keys: " << std::endl;
+  // Print all values in state.
+  std::cout << "\e[1m Nr of values in state_ : \e[0m" << state_.size()
+            << ", with keys: " << std::endl;
+  std::cout << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
     std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  std::cout <<  std::endl;
+  std::cout << " ]" << std::endl;
 
-  std::cout << "nr values in new_values_ : " << new_values_.size() << ", with keys: " << std::endl;
+  // Print only new values.
+  std::cout << "\e[1m Nr values in new_values_ : \e[0m" << new_values_.size()
+            << ", with keys: " << std::endl;
+  std::cout << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
-    std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+    std::cout << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  std::cout <<  std::endl;
-  if(showDetails){
+  std::cout << " ]" << std::endl;
+
+  if (showDetails) {
     graph.print("isam2 graph:\n");
     new_factors_tmp.print("new_factors_tmp:\n");
     new_values_.print("new values:\n");
@@ -1314,7 +1348,9 @@ void VioBackEnd::printSmootherInfo(
     //for (auto& s : new_smart_factors_)
     //	s.second->print();
   }
-  std::cout << " =============== END: " <<  message << " =============== " << std::endl;
+
+  std::cout << " =============== END: " <<  message << " =============== "
+            << std::endl;
 }
 
 /* -------------------------------------------------------------------------- */
