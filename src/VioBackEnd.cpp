@@ -1277,7 +1277,7 @@ void VioBackEnd::printSmootherInfo(
   const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
   // Print all factors.
-  std::cout << "\e[1m Nr factors in isam2: \e[0m" << graph.size()
+  std::cout << "Nr of factors in isam2: " << graph.size()
             << ", with factors:" << std::endl;
   std::cout << "[\n";
   for (const auto& g : graph){
@@ -1299,7 +1299,7 @@ void VioBackEnd::printSmootherInfo(
   std::cout << " ]" << std::endl;
 
   // Print factors that were newly added to the optimization.
-  std::cout << "\e[1m Nr of new factors to add: \e[0m" << new_factors_tmp.size()
+  std::cout << "Nr of new factors to add: " << new_factors_tmp.size()
             << " with factors:" << std::endl;
   std::cout << "[\n\t";
   for (const auto& g : new_factors_tmp) {
@@ -1318,7 +1318,7 @@ void VioBackEnd::printSmootherInfo(
   std::cout << " ]" << std::endl;
 
   // Print deleted slots.
-  std::cout << "\e[1m Nr deleted slots: \e[0m" << delete_slots.size()
+  std::cout << "Nr deleted slots: " << delete_slots.size()
             << ", with slots: " << std::endl;
   std::cout << "[\n\t";
   for (int i = 0; i < delete_slots.size(); ++i)
@@ -1326,7 +1326,7 @@ void VioBackEnd::printSmootherInfo(
   std::cout << " ]" << std::endl;
 
   // Print all values in state.
-  std::cout << "\e[1m Nr of values in state_ : \e[0m" << state_.size()
+  std::cout << "Nr of values in state_ : " << state_.size()
             << ", with keys: " << std::endl;
   std::cout << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
@@ -1335,7 +1335,7 @@ void VioBackEnd::printSmootherInfo(
   std::cout << " ]" << std::endl;
 
   // Print only new values.
-  std::cout << "\e[1m Nr values in new_values_ : \e[0m" << new_values_.size()
+  std::cout << "Nr values in new_values_ : " << new_values_.size()
             << ", with keys: " << std::endl;
   std::cout << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
