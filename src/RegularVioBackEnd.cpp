@@ -380,7 +380,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         new_values_.insert(lmk_key, *(old_factor->point()));
 
         // DEBUG add prior to lmks.
-        LOG_EVERY_N(ERROR, 100) << "Do not forget to remove lmk prior!";
+        //LOG_EVERY_N(ERROR, 100) << "Do not forget to remove lmk prior!";
         //static const gtsam::noiseModel::Diagonal::shared_ptr prior_lmk_noise =
         //    gtsam::noiseModel::Diagonal::Sigmas(Vector3(1, 1, 1));
         //new_imu_prior_and_other_factors_.push_back(
@@ -621,6 +621,9 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
             static size_t i = 0;
             plane_key = gtsam::Symbol('P', i);
             i++;
+
+            // TODO find a way to add initial guess, maybe when sending the lmk_ids
+            // having a regularity we could regress a plane through it?
             static const gtsam::OrientedPlane3 plane(0.0, 0.0, 1.0, -0.1);
 
             // The plane is constrained, add it.
@@ -657,7 +660,7 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
           }
         }
       } else {
-        LOG(ERROR) << "Lmk id: " << lmk_id
+        LOG(WARNING) << "Lmk id: " << lmk_id
                    << " is NOT in state_ or in new_values_,"
                    << " NOT adding PointPlaneFactor.";
         // "It probably is still a smart factor that was not converted"
@@ -694,7 +697,6 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
         if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end() ||
             lmk_id_regularity_type->second != RegularityType::POINT_PLANE) {
           // Lmk has not been used in a regularity.
-          // Lmk has not been used in a regularity.
           VLOG(10) << "Lmk id: " << lmk_id
                    << " has not yet been used in a regularity.";
 
@@ -715,7 +717,7 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
           VLOG(10) << "Avoiding duplicated regularity factor for lmk id: " << lmk_id;
         }
       } else {
-        LOG(ERROR) << "Lmk id: " << lmk_id
+        LOG(WARNING) << "Lmk id: " << lmk_id
                    << " is NOT in state_ or in new_values_,"
                    << " NOT adding PointPlaneFactor.";
         // "It probably is still a smart factor that was not converted"
