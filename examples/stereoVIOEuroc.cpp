@@ -53,86 +53,90 @@ DEFINE_int32(viz_type, 3,
     "corresponding to non planar obstacles\n"
   "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
   "7: NONE, does not visualize map\n");
+DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
+                            "previous frames will not be used.");
+DEFINE_int32(final_k, 2812, "Final frame to finish processing dataset, "
+                            "subsequent frames will not be used.");
 
 using namespace std;
 using namespace gtsam;
 using namespace VIO;
 
-// helper function to parse dataset and user-specified parameters
-void parseDatasetAndParams(const int argc, const char * const *argv,
-                           //output:
-                           ETHDatasetParser& dataset,
-                           VioBackEndParams& vioParams,
-                           VioFrontEndParams& trackerParams,
-                           size_t& initial_k, size_t& final_k) {
+// Helper function to parse dataset and user-specified parameters.
+void parseDatasetAndParams(ETHDatasetParser* dataset,
+                           VioBackEndParams* vioParams,
+                           VioFrontEndParams* trackerParams,
+                           size_t* initial_k, size_t* final_k) {
+  CHECK_NOTNULL(dataset);
+  CHECK_NOTNULL(vioParams);
+  CHECK_NOTNULL(trackerParams);
+  CHECK_NOTNULL(initial_k);
+  CHECK_NOTNULL(final_k);
 
-  // dataset path
-  VLOG(100) << "stereoVIOexample: using dataset path: " << FLAGS_dataset_path;
+  // Dataset path.
+  VLOG(100) << "Using dataset path: " << FLAGS_dataset_path;
 
-  // parse the dataset (ETH format)
-  std::string leftCameraName = "cam0";
-  std::string rightCameraName = "cam1";
-  std::string imuName = "imu0";
-  std::string gtSensorName = "state_groundtruth_estimate0";
+  // Parse the dataset (ETH format).
+  static const std::string leftCameraName = "cam0";
+  static const std::string rightCameraName = "cam1";
+  static const std::string imuName = "imu0";
+  static const std::string gtSensorName = "state_groundtruth_estimate0";
 
-  dataset.parseDataset(FLAGS_dataset_path, leftCameraName, rightCameraName,
+  dataset->parseDataset(FLAGS_dataset_path, leftCameraName, rightCameraName,
                        imuName, gtSensorName);
-  dataset.print();
+  dataset->print();
 
-  // read/define vio params
+  // Read/define vio params.
   if (FLAGS_vio_params_path.empty()) {
-    VLOG(100) << "stereoVIOexample: no vio parameters specified, "
-                 "using default.";
-    // Default params with IMU stats from dataset
-    vioParams = VioBackEndParams(dataset.imuData_.gyro_noise_,
-                                 dataset.imuData_.acc_noise_,
-                                 dataset.imuData_.gyro_walk_,
-                                 dataset.imuData_.acc_walk_);
+    VLOG(100) << "No vio parameters specified, using default.";
+    // Default params with IMU stats from dataset.
+    *vioParams = VioBackEndParams(dataset->imuData_.gyro_noise_,
+                                  dataset->imuData_.acc_noise_,
+                                  dataset->imuData_.gyro_walk_,
+                                  dataset->imuData_.acc_walk_);
   } else {
-    VLOG(100) << "stereoVIOexample: using user-specified vio parameters: "
+    VLOG(100) << "Using user-specified VIO parameters: "
               << FLAGS_vio_params_path;
-    vioParams.parseYAML(FLAGS_vio_params_path);
+    vioParams->parseYAML(FLAGS_vio_params_path);
   }
 
-  // read/define tracker params
-  if (FLAGS_tracker_params_path.empty()){
-    VLOG(100) << "stereoVIOexample: no tracker parameters specified, "
-                 "using default";
-    trackerParams = VioFrontEndParams(); // default params
+  // Read/define tracker params.
+  if (FLAGS_tracker_params_path.empty()) {
+    VLOG(100) << "No tracker parameters specified, using default";
+    *trackerParams = VioFrontEndParams(); // default params
   } else {
-    VLOG(100) << "stereoVIOexample: using user-specified tracker parameters: "
+    VLOG(100) << "Using user-specified tracker parameters: "
               << FLAGS_tracker_params_path;
-    trackerParams.parseYAML(FLAGS_tracker_params_path);
+    trackerParams->parseYAML(FLAGS_tracker_params_path);
   }
 
-  // start processing dataset from frame initial_k
-  initial_k = 50; // useful to skip a bunch of images at the beginning (imu calibration)
-  if (argc >= 5){
-    initial_k = size_t(stoi(argv[4]));
-    std::cout << "stereoVIOexample: using user-specified initial_k: "
-              << initial_k << std::endl;
-  }
+  // Start processing dataset from frame initial_k.
+  // Useful to skip a bunch of images at the beginning (imu calibration).
+  *initial_k = FLAGS_initial_k;
+  CHECK_GE(*initial_k, 0);
+  CHECK_GE(*initial_k, 10)
+      << "initial_k should be >= 10 for IMU bias initialization";
 
-  // finish processing dataset at frame final_k
-  final_k = dataset.nrImages() - 100; // last frame to process (to avoid processing the entire dataset), skip last frames
-  if (argc >= 6){
-    final_k = size_t(stoi(argv[5]));
-    std::cout << "stereoVIOexample: using user-specified final_k "
-              << "(may be saturated later): " << final_k << std::endl;
-  }
-  final_k = std::min(final_k,dataset.nrImages());
-  std::cout << "Running dataset between frame " << initial_k << " and frame "
-            <<  final_k << std::endl;
+  // Finish processing dataset at frame final_k.
+  // Last frame to process (to avoid processing the entire dataset),
+  // skip last frames.
+  *final_k = FLAGS_final_k;
+  CHECK_GT(*final_k, 0);
+  const size_t& nr_images = dataset->nrImages();
+  CHECK(*final_k < nr_images)
+      << "Value for final_k, " << *final_k << " is larger than total"
+      << " number of frames in dataset " << nr_images;
+  CHECK(*final_k > *initial_k)
+      << "Value for final_k (" << *final_k << ") is smaller than value for"
+      << " initial_k (" << *initial_k << ").";
 
-  if (initial_k < 10) {
-    throw std::runtime_error(
-      "stereoVIOExample: initial_k should be > 10 for IMU bias initialization");
-  }
+  LOG(INFO) << "Running dataset between frame " << *initial_k
+            << " and frame " <<  *final_k;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
 
   // Initialize Google's flags library.
@@ -151,8 +155,8 @@ int main(int argc, char *argv[]) {
   VioBackEndParams vioParams;
   VioFrontEndParams trackerParams;
   size_t initial_k, final_k; // initial and final frame: useful to skip a bunch of images at the beginning (imu calibration)
-  parseDatasetAndParams(argc, argv, dataset, vioParams, trackerParams,
-                        initial_k, final_k);
+  parseDatasetAndParams(&dataset, &vioParams, &trackerParams,
+                        &initial_k, &final_k);
 
   // instantiate stereo tracker (class that tracks implements estimation front-end) and print parameters
   StereoVisionFrontEnd stereoVisionFrontEnd(trackerParams, vioParams, saveImages); // vioParams used by feature selection
