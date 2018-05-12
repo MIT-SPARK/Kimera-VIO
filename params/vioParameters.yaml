@@ -21,6 +21,8 @@ linearizationMode: 0
 degeneracyMode: 1
 smartNoiseSigma: 3
 monoNoiseSigma: 1.0 # Only used in RegularVioBackEnd
+regularityNoiseSigma: 0.1 # Only used in RegularVioBackEnd
+minPlaneConstraints: 3 # Only used in RegularVioBackEnd
 huberParam: 1.0 # Only used in RegularVioBackEnd
 tukeyParam: 4.6851 # Only used in RegularVioBackEnd
 normType: 1 # Only used in RegularVioBackEnd

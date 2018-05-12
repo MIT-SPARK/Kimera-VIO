@@ -555,9 +555,8 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
 void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
 
   // Noise model.
-  // TODO remove hardcoded value.
   static const gtsam::noiseModel::Isotropic::shared_ptr regularityNoise =
-      gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
+      gtsam::noiseModel::Isotropic::Sigma(1, vio_params_.regularityNoiseSigma_);
 
   // Plane key.
   static gtsam::Key plane_key (gtsam::Symbol('P', 0));
@@ -571,7 +570,10 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
              << " does NOT exist.";
 
     // Verify that the plane is going to be fully constrained before adding it.
-    static constexpr size_t min_number_of_constraints = 3;
+    // TODO it might be more robust to increase this, to reduce the
+    // possibility of having degenerate configs such as points aligned...
+    static const size_t min_number_of_constraints =
+        vio_params_.minPlaneConstraints_;
 
     // Loop over all lmks which are involved in the regularity, to both
     // check that the new plane is going to be fully constrained and that
