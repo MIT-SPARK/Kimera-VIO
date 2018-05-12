@@ -278,12 +278,18 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                     stereo_cal_);
   }
 
+  /////////////////////// BOOK KEEPING /////////////////////////////////////////
+  // Set lmk id to smart.
+  CHECK(lmk_id_is_smart_.find(lmk_id) != lmk_id_is_smart_.end());
+  CHECK(lmk_id_is_smart_.at(lmk_id) == true);
+
   // Add new factor to suitable structures.
   // TODO why do we need to store the new_factor in both structures??
   new_smart_factors_.insert(std::make_pair(lmk_id,
                                            new_factor));
   old_smart_factors_.insert(std::make_pair(lmk_id,
                                            std::make_pair(new_factor, -1)));
+  //////////////////////////////////////////////////////////////////////////////
 }
 
 /* -------------------------------------------------------------------------- */
