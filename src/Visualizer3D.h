@@ -133,40 +133,6 @@ public:
     window_.spinOnce(waitTime);
   }
 
-  /* ------------------------------------------------------------------------ */
-  // Draw a line from lmk to plane center.
-  void drawLineFromPlaneToPoint(
-      const std::string& line_id,
-      const double& plane_n_x,
-      const double& plane_n_y,
-      const double& plane_n_z,
-      const double& plane_d,
-      const double& point_x,
-      const double& point_y,
-      const double& point_z) {
-    const cv::Point3d center (plane_d * plane_n_x,
-                              plane_d * plane_n_y,
-                              plane_d * plane_n_z);
-    const cv::Point3d point(point_x, point_y, point_z);
-    drawLine(line_id, center, point);
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Update line from lmk to plane center.
-  void updateLineFromPlaneToPoint(
-      const std::string& line_id,
-      const double& plane_n_x,
-      const double& plane_n_y,
-      const double& plane_n_z,
-      const double& plane_d,
-      const double& point_x,
-      const double& point_y,
-      const double& point_z) {
-    removeWidget(line_id);
-    drawLineFromPlaneToPoint(line_id, plane_n_x, plane_n_y, plane_n_z,
-                             plane_d, point_x, point_y, point_z);
-  }
-
 
   /* ------------------------------------------------------------------------ */
   // Draw a line in opencv.
@@ -291,6 +257,48 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
+  // Remove line widgets from plane to lmks.
+  // Point key is required to avoid duplicated lines!
+  void visualizePlaneConstraints(const gtsam::Point3& normal,
+                                 const double& distance,
+                                 const Key& point_key,
+                                 const gtsam::Point3& point) {
+    const auto& point_key_to_line_id =
+        point_key_to_line_id_map_.find(point_key);
+    if (point_key_to_line_id ==
+        point_key_to_line_id_map_.end()) {
+      // We have never drawn this line.
+      // Store line nr (as line id).
+      point_key_to_line_id_map_[point_key] = line_nr_;
+      std::string line_id =  "Line " + line_nr_;
+      // Draw it.
+      drawLineFromPlaneToPoint(line_id,
+                               normal.x(), normal.y(), normal.z(), distance,
+                               point.x(), point.y(), point.z());
+      // Augment line_nr for next line_id.
+      line_nr_++;
+    } else {
+      // We have drawn this line before.
+      // Update line.
+      updateLineFromPlaneToPoint(
+            "Line " + point_key_to_line_id->second,
+            normal.x(), normal.y(), normal.z(), distance,
+            point.x(), point.y(), point.z());
+
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Remove line widgets from plane to lmks.
+  void removePlaneConstraintsViz() {
+    for (size_t i = 0; i < line_nr_; i++) {
+      removeWidget("Line " + i);
+    }
+    line_nr_ = 0;
+    point_key_to_line_id_map_.clear();
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Add pose to the previous trajectory.
   void addPoseToTrajectory(gtsam::Pose3 current_pose_gtsam){
     trajectoryPoses3d_.push_back(UtilsOpenCV::Pose2Affine3f(current_pose_gtsam));
@@ -302,7 +310,10 @@ private:
   cv::viz::Color cloud_color_ = cv::viz::Color::white();
   cv::viz::Color background_color_ = cv::viz::Color::black();
 
-  /* ----------------------------------------------------------------------------- */
+  size_t line_nr_ = 0;
+  std::map<Key, size_t> point_key_to_line_id_map_;
+
+  /* ------------------------------------------------------------------------ */
   // Log mesh to ply file.
   void logMesh(const cv::Mat& map_points_3d, const cv::Mat& colors,
                const cv::Mat& polygons_mesh) {
@@ -313,7 +324,7 @@ private:
     logger.closeLogFiles(10);
   }
 
-  /* ----------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   // Input the mesh points and triangle clusters, and
   // output colors matrix for mesh visualizer.
   void colorMeshByClusters(const std::vector<TriangleCluster>& clusters,
@@ -376,6 +387,40 @@ private:
       logger.logLandmarks(points);
       logger.closeLogFiles(3);
     }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Draw a line from lmk to plane center.
+  void drawLineFromPlaneToPoint(
+      const std::string& line_id,
+      const double& plane_n_x,
+      const double& plane_n_y,
+      const double& plane_n_z,
+      const double& plane_d,
+      const double& point_x,
+      const double& point_y,
+      const double& point_z) {
+    const cv::Point3d center (plane_d * plane_n_x,
+                              plane_d * plane_n_y,
+                              plane_d * plane_n_z);
+    const cv::Point3d point(point_x, point_y, point_z);
+    drawLine(line_id, center, point);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Update line from lmk to plane center.
+  void updateLineFromPlaneToPoint(
+      const std::string& line_id,
+      const double& plane_n_x,
+      const double& plane_n_y,
+      const double& plane_n_z,
+      const double& plane_d,
+      const double& point_x,
+      const double& point_y,
+      const double& point_z) {
+    removeWidget(line_id);
+    drawLineFromPlaneToPoint(line_id, plane_n_x, plane_n_y, plane_n_z,
+                             plane_d, point_x, point_y, point_z);
   }
 
 };
