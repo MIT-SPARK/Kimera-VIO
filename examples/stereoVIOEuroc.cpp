@@ -21,6 +21,7 @@
 #include <glog/logging.h>
 
 #include <gtsam/geometry/Pose3.h>
+#include <gtsam/slam/OrientedPlane3Factor.h>
 
 #include "ETH_parser.h"
 #include "mesh/Mesher.h"
@@ -548,9 +549,32 @@ int main(int argc, char *argv[]) {
             cv::Mat polygons_mesh;
             mesher.getVerticesMesh(&vertices_mesh);
             mesher.getPolygonsMesh(&polygons_mesh);
-            visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters,
-                                                          vertices_mesh,
-                                                          polygons_mesh);
+            static constexpr bool visualize_mesh = true;
+            if (visualize_mesh) {
+              visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters,
+                                                            vertices_mesh,
+                                                            polygons_mesh);
+            }
+            static constexpr bool visualize_point_cloud = true;
+            if (visualize_point_cloud) {
+              visualizer.visualizePoints3D(points_with_id_VIO);
+            }
+            static constexpr bool visualize_planes = true;
+            if (visualize_planes) {
+              gtsam::Symbol plane_key ('P', 0);
+              if (vioBackEnd->state_.exists(plane_key)) {
+                const gtsam::OrientedPlane3& plane =
+                    vioBackEnd->state_.at<gtsam::OrientedPlane3>(
+                      plane_key);
+                const Point3& normal = plane.normal().point3();
+                visualizer.visualizePlane(normal.x(),
+                                          normal.y(),
+                                          normal.z(),
+                                          plane.distance());
+              } else {
+                visualizer.removeWidget("Plane.");
+              }
+            }
           }
 
           break;

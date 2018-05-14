@@ -619,7 +619,7 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
             is_plane_constrained = true;
 
             static size_t i = 0;
-            plane_key = gtsam::Symbol('P', i);
+            plane_key = gtsam::Symbol('P', 0);
             i++;
 
             // TODO find a way to add initial guess, maybe when sending the lmk_ids

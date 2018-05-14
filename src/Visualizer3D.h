@@ -49,16 +49,20 @@ public:
                       const int waitTime = 0) {
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
-    if(points.size() == 0) // no points to visualize
+    // No points to visualize.
+    if (points.size() == 0) {
       return;
+    }
 
     // Populate cloud structure with 3D points.
     cv::Mat pointCloud(1, points.size(), CV_32FC3);
     cv::Point3f* data = pointCloud.ptr<cv::Point3f>();
-    for(size_t i = 0; i < points.size();i++){
-      data[i].x = float(points.at(i).x());
-      data[i].y = float(points.at(i).y());
-      data[i].z = float(points.at(i).z());
+    size_t i = 0;
+    for (const gtsam::Point3& point: points) {
+      data[i].x = float(point.x());
+      data[i].y = float(point.y());
+      data[i].z = float(point.z());
+      i++;
     }
 
     // Add to the existing map.
@@ -67,29 +71,66 @@ public:
     map_with_repeated_points.setRenderingProperty(cv::viz::POINT_SIZE, 2);
 
     // Plot points.
-    window_.showWidget("point cloud map", map_with_repeated_points);
+    window_.showWidget("Point cloud map", map_with_repeated_points);
 
-    /// Start event loop.
+    // Start event loop.
     window_.spinOnce(waitTime);
   }
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   void visualizePoints3D(
-          const std::vector<std::pair<LandmarkId, gtsam::Point3>>& pointsWithId,
-          const cv::Mat& map_points_3d, const int& waitTime = 0) {
+          const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id,
+          const int& waitTime = 0) {
 
     // Sanity check dimension.
-    if(pointsWithId.size() == 0) // no points to visualize
+    if (points_with_id.size() == 0) {
+      // No points to visualize.
       return;
+    }
+
+    // Populate cloud structure with 3D points.
+    cv::Mat point_cloud(1, points_with_id.size(), CV_32FC3);
+    cv::Point3f* data = point_cloud.ptr<cv::Point3f>();
+    size_t i = 0;
+    for (const std::pair<LandmarkId, gtsam::Point3>& id_point: points_with_id) {
+      data[i].x = float(id_point.second.x());
+      data[i].y = float(id_point.second.y());
+      data[i].z = float(id_point.second.z());
+      i++;
+    }
 
     // Create a cloud widget.
-    cv::viz::WCloud cloud_widget(map_points_3d, cloud_color_);
+    cv::viz::WCloud cloud_widget(point_cloud, cloud_color_);
     cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 2);
 
-    window_.showWidget("point cloud map", cloud_widget);
-    /// Start event loop.
+    window_.showWidget("Point cloud.", cloud_widget);
+
+    // Start event loop.
     window_.spinOnce(waitTime);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
+  void visualizePlane(
+          const double& n_x,
+          const double& n_y,
+          const double& n_z,
+          const double& d,
+          const int& waitTime = 0) {
+    // Create a plane widget.
+    const Vec3d normal (n_x, n_y, n_z);
+    const Point3d center (d * n_x, d * n_y, d * n_z);
+    static const Vec3d new_yaxis (0, 1, 0);
+    static const Size2d size (1.0, 1.0);
+    static const cv::viz::Color plane_color = cv::viz::Color::blue();
+    cv::viz::WPlane plane_widget (center, normal, new_yaxis, size, plane_color);
+
+    window_.showWidget("Plane.", plane_widget);
+
+    // Start event loop.
+    window_.spinOnce(waitTime);
+
   }
 
   /* ------------------------------------------------------------------------ */
@@ -109,15 +150,19 @@ public:
                                                  "have same number of rows. One"
                                                  " color per map point.";
     // No points/mesh to visualize.
-    if(map_points_3d.rows == 0 || polygons_mesh.rows == 0)
+    if (map_points_3d.rows == 0 ||
+        polygons_mesh.rows == 0) {
       return;
+    }
 
     // Create a cloud widget.
     cv::viz::WMesh mesh(map_points_3d.t(), polygons_mesh, colors.t());
-    window_.showWidget("Mesh", mesh); // plot mesh
-    /// Start event loop.
-    window_.spinOnce(1);
 
+    // Plot mesh.
+    window_.showWidget("Mesh", mesh);
+
+    // Start event loop.
+    window_.spinOnce(1);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -178,6 +223,16 @@ public:
     window_.showWidget("Trajectory", trajectory_widget);
     /// Start event loop.
     window_.spinOnce(1);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Remove widget.
+  void removeWidget(const std::string& widget_id){
+    try {
+      window_.removeWidget(widget_id);
+    } catch (const cv::Exception& e) {
+      VLOG(20) << e.what();
+    }
   }
 
   /* ------------------------------------------------------------------------ */
