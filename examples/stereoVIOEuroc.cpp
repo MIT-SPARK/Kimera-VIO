@@ -579,18 +579,18 @@ int main(int argc, char *argv[]) {
             }
             static constexpr bool visualize_planes = true;
             if (visualize_planes) {
-              gtsam::Symbol plane_key ('P', 0);
               static const std::string plane_id = "Plane 0.";
               gtsam::OrientedPlane3 plane;
               if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
                    gtsam::Symbol('P', 0), &plane)) {
                 const Point3& normal = plane.normal().point3();
-                visualizer.visualizePlane(normal.x(),
+                visualizer.visualizePlane(plane_id,
+                                          normal.x(),
                                           normal.y(),
                                           normal.z(),
                                           plane.distance());
               } else {
-                visualizer.removeWidget("Plane.");
+                visualizer.removeWidget(plane_id);
               }
             }
           }

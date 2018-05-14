@@ -113,11 +113,12 @@ public:
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   void visualizePlane(
-          const double& n_x,
-          const double& n_y,
-          const double& n_z,
-          const double& d,
-          const int& waitTime = 0) {
+      const std::string& plane_id,
+      const double& n_x,
+      const double& n_y,
+      const double& n_z,
+      const double& d,
+      const int& waitTime = 0) {
     // Create a plane widget.
     const Vec3d normal (n_x, n_y, n_z);
     const Point3d center (d * n_x, d * n_y, d * n_z);
@@ -126,7 +127,7 @@ public:
     static const cv::viz::Color plane_color = cv::viz::Color::blue();
     cv::viz::WPlane plane_widget (center, normal, new_yaxis, size, plane_color);
 
-    window_.showWidget("Plane.", plane_widget);
+    window_.showWidget(plane_id, plane_widget);
 
     // Start event loop.
     window_.spinOnce(waitTime);
