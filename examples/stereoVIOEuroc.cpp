@@ -22,6 +22,7 @@
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/slam/OrientedPlane3Factor.h>
+#include "factors/PointPlaneFactor.h"
 
 #include "ETH_parser.h"
 #include "mesh/Mesher.h"
@@ -578,8 +579,11 @@ int main(int argc, char *argv[]) {
               visualizer.visualizePoints3D(points_with_id_VIO);
             }
             static constexpr bool visualize_planes = true;
+            static constexpr bool visualize_plane_constraints = true;
             if (visualize_planes) {
               static const std::string plane_id = "Plane 0.";
+              static size_t line_nr = 0;
+              static std::map<Key, size_t> point_key_to_line_id_map;
               gtsam::OrientedPlane3 plane;
               if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
                    gtsam::Symbol('P', 0), &plane)) {
@@ -589,8 +593,58 @@ int main(int argc, char *argv[]) {
                                           normal.y(),
                                           normal.z(),
                                           plane.distance());
+                if (visualize_plane_constraints) {
+                  const gtsam::NonlinearFactorGraph& graph =
+                      vioBackEnd->smoother_->getFactors();
+
+                  for (const auto& g : graph) {
+                    const auto& ppf =
+                        boost::dynamic_pointer_cast<PointPlaneFactor>(g);
+                    if (ppf) {
+                      // We found a PointPlaneFactor.
+                      // Get point key.
+                      Key point_key = ppf->getPointKey();
+
+                      // Get point estimate.
+                      gtsam::Point3 point;
+                      vioBackEnd->getEstimateOfKey(point_key, &point);
+
+                      const auto& point_key_to_line_id =
+                          point_key_to_line_id_map.find(point_key);
+                      if (point_key_to_line_id ==
+                          point_key_to_line_id_map.end()) {
+                        // We have never drawn this line.
+                        // Store line nr (as line id).
+                        point_key_to_line_id_map[point_key] = line_nr;
+                        std::string line_id =  "Line " + line_nr;
+                        // Draw it.
+                        visualizer.drawLineFromPlaneToPoint(
+                              line_id,
+                              normal.x(), normal.y(), normal.z(), plane.distance(),
+                              point.x(), point.y(), point.z());
+                        // Augment line_nr for next line_id.
+                        line_nr++;
+                      } else {
+                        // We have drawn this line before.
+                        // Update line.
+                        visualizer.updateLineFromPlaneToPoint(
+                              "Line " + point_key_to_line_id->second,
+                              normal.x(), normal.y(), normal.z(), plane.distance(),
+                              point.x(), point.y(), point.z());
+
+                      }
+                    }
+                  }
+                }
               } else {
                 visualizer.removeWidget(plane_id);
+                if (visualize_plane_constraints) {
+                  for (size_t i = 0; i < line_nr; i++) {
+                    visualizer.removeWidget("Line " + i);
+                  }
+                  line_nr = 0;
+                  point_key_to_line_id_map.clear();
+                }
               }
             }
           }
