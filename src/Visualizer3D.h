@@ -131,7 +131,61 @@ public:
 
     // Start event loop.
     window_.spinOnce(waitTime);
+  }
 
+  /* ------------------------------------------------------------------------ */
+  // Draw a line from lmk to plane center.
+  void drawLineFromPlaneToPoint(
+      const std::string& line_id,
+      const double& plane_n_x,
+      const double& plane_n_y,
+      const double& plane_n_z,
+      const double& plane_d,
+      const double& point_x,
+      const double& point_y,
+      const double& point_z) {
+    const cv::Point3d center (plane_d * plane_n_x,
+                              plane_d * plane_n_y,
+                              plane_d * plane_n_z);
+    const cv::Point3d point(point_x, point_y, point_z);
+    drawLine(line_id, center, point);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Update line from lmk to plane center.
+  void updateLineFromPlaneToPoint(
+      const std::string& line_id,
+      const double& plane_n_x,
+      const double& plane_n_y,
+      const double& plane_n_z,
+      const double& plane_d,
+      const double& point_x,
+      const double& point_y,
+      const double& point_z) {
+    removeWidget(line_id);
+    drawLineFromPlaneToPoint(line_id, plane_n_x, plane_n_y, plane_n_z,
+                             plane_d, point_x, point_y, point_z);
+  }
+
+
+  /* ------------------------------------------------------------------------ */
+  // Draw a line in opencv.
+  void drawLine(const std::string& line_id,
+                const double& from_x,
+                const double& from_y,
+                const double& from_z,
+                const double& to_x,
+                const double& to_y,
+                const double& to_z) {
+    cv::Point3d pt1 (from_x, from_y, from_z);
+    cv::Point3d pt2 (to_x, to_y, to_z);
+    drawLine(line_id, pt1, pt2);
+  }
+
+  void drawLine(const std::string& line_id,
+                const cv::Point3d& pt1, const cv::Point3d& pt2) {
+    cv::viz::WLine line_widget (pt1, pt2);
+    window_.showWidget(line_id, line_widget);
   }
 
   /* ------------------------------------------------------------------------ */
