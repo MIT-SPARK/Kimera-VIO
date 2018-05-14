@@ -440,19 +440,23 @@ void Mesher::clusterZComponent(
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) const {
+void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters,
+                         const gtsam::Point3& plane_normal,
+                         const double& plane_distance) const {
   CHECK_NOTNULL(clusters);
 
   // Cluster triangles oriented along z axis.
-  static const cv::Point3f z_axis(0, 0, 1);
+  const cv::Point3f cluster_normal (plane_normal.x(),
+                                    plane_normal.y(),
+                                    plane_normal.z());
 
   TriangleCluster z_triangle_cluster;
-  z_triangle_cluster.cluster_direction_ = z_axis;
+  z_triangle_cluster.cluster_direction_ = cluster_normal;
   z_triangle_cluster.cluster_id_ = 2;
 
   // Cluster triangles with normal perpendicular to z_axis, aka along equator.
   TriangleCluster equatorial_triangle_cluster;
-  equatorial_triangle_cluster.cluster_direction_ = z_axis;
+  equatorial_triangle_cluster.cluster_direction_ = cluster_normal;
   equatorial_triangle_cluster.cluster_id_ = 0;
 
 
@@ -477,12 +481,12 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) const {
 
     static constexpr double normal_tol_z = 0.15; // 0.087 === 10 deg. aperture.
     static constexpr double normal_tol_equatorial = 0.1;
-    if (isNormalAroundAxis(z_axis,
+    if (isNormalAroundAxis(cluster_normal,
                            normal,
                            normal_tol_z)) {
       // Cluster Normal around z_axis.
       z_triangle_cluster.triangle_ids_.push_back(i);
-    } else if (isNormalPerpendicularToAxis(z_axis,
+    } else if (isNormalPerpendicularToAxis(cluster_normal,
                                            normal,
                                            normal_tol_equatorial)) {
       // Cluster Normal perpendicular to z_axis.
@@ -497,7 +501,7 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) const {
   // Only keep ground landmarks for cluster of triangles perpendicular
   // to vertical axis.
   // clusters.at(0) is therefore just the triangles on the ground plane.
-  static constexpr double z = -0.2;
+  const double z = plane_distance;
   static constexpr double tolerance = 0.1;
   clusterZComponent(z, tolerance,
                     &(clusters->at(0)));

@@ -49,7 +49,9 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Perform Mesh clustering.
-  void clusterMesh(std::vector<TriangleCluster>* clusters) const;
+  void clusterMesh(std::vector<TriangleCluster>* clusters,
+                   const gtsam::Point3& plane_normal,
+                   const double& plane_distance) const;
 
   /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.

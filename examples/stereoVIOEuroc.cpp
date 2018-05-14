@@ -539,7 +539,25 @@ int main(int argc, char *argv[]) {
           // Find regularities in the mesh.
           // Currently only triangles in the ground floor.
           std::vector<TriangleCluster> triangle_clusters;
-          mesher.clusterMesh(&triangle_clusters);
+          gtsam::OrientedPlane3 plane;
+          if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+               gtsam::Symbol('P', 0), &plane)) {
+            // Use the plane estimate of the backend.
+            // TODO this can lead to issues, when the plane estimate gets
+            // quite crazy, but at the same time it will avoid crashing the
+            // optimization, because otherwise we are providing huge outliers.
+            mesher.clusterMesh(&triangle_clusters,
+                               plane.normal().point3(),
+                               plane.distance());
+          } else {
+            // Try to cluster the ground plane.
+            static const gtsam::Point3 plane_normal (0.0, 0.0, 1.0);
+            static constexpr double plane_distance = -0.15;
+            mesher.clusterMesh(&triangle_clusters,
+                               plane_normal,
+                               plane_distance);
+          }
+
 
           mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
                                                   &mesh_lmk_ids_ground_cluster);
@@ -562,10 +580,10 @@ int main(int argc, char *argv[]) {
             static constexpr bool visualize_planes = true;
             if (visualize_planes) {
               gtsam::Symbol plane_key ('P', 0);
-              if (vioBackEnd->state_.exists(plane_key)) {
-                const gtsam::OrientedPlane3& plane =
-                    vioBackEnd->state_.at<gtsam::OrientedPlane3>(
-                      plane_key);
+              static const std::string plane_id = "Plane 0.";
+              gtsam::OrientedPlane3 plane;
+              if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+                   gtsam::Symbol('P', 0), &plane)) {
                 const Point3& normal = plane.normal().point3();
                 visualizer.visualizePlane(normal.x(),
                                           normal.y(),

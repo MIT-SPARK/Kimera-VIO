@@ -372,6 +372,21 @@ public:
 
   /// Getters
   /* ------------------------------------------------------------------------ */
+  // Get the most recent estimate of the given gtsam key.
+  // Mind that to have the most up to date key, you should call this after
+  // optimize (or addVisualInertialStateandOptimize)
+  template<class T>
+  bool getEstimateOfKey(const gtsam::Symbol& key, T* estimate) {
+    CHECK_NOTNULL(estimate);
+    if (state_.exists(key)) {
+      *estimate = state_.at<T>(key);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Get valid 3D points - TODO: this copies the graph.
   vector<gtsam::Point3> get3DPoints() const;
 
