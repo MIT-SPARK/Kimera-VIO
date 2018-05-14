@@ -57,7 +57,6 @@ public:
 private:
   // Type of handled regularities.
   enum class RegularityType{
-    NONE,
     POINT_PLANE
   };
 
@@ -67,7 +66,7 @@ private:
 
   /// Members
   LmkIdIsSmart lmk_id_is_smart_; // TODO GROWS UNBOUNDED, use the loop in getMapLmkIdsTo3dPointsInTimeHorizon();
-  std::map<LandmarkId, RegularityType> lmk_id_to_regularity_type_map_; // TODO GROWS UNBOUNDED, use same as above.
+  std::map<LandmarkId, RegularityType> lmk_id_to_regularity_type_map_;
   std::vector<size_t> delete_slots_of_converted_smart_factors_;
 
   gtsam::SharedNoiseModel mono_noise_;
