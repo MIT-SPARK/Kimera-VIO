@@ -475,7 +475,7 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) const {
     cv::Point3f normal;
     calculateNormal(p1, p2, p3, &normal);
 
-    static constexpr double normal_tol_z = 0.2; // 0.087 === 10 deg. aperture.
+    static constexpr double normal_tol_z = 0.15; // 0.087 === 10 deg. aperture.
     static constexpr double normal_tol_equatorial = 0.1;
     if (isNormalAroundAxis(z_axis,
                            normal,
@@ -497,8 +497,8 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters) const {
   // Only keep ground landmarks for cluster of triangles perpendicular
   // to vertical axis.
   // clusters.at(0) is therefore just the triangles on the ground plane.
-  static constexpr double z = -0.1;
-  static constexpr double tolerance = 0.10;
+  static constexpr double z = -0.2;
+  static constexpr double tolerance = 0.1;
   clusterZComponent(z, tolerance,
                     &(clusters->at(0)));
 }
