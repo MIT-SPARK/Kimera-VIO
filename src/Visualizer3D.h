@@ -243,15 +243,17 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  // Remove line widgets from plane to lmks.
+  // Visualize line widgets from plane to lmks.
   // Point key is required to avoid duplicated lines!
   void visualizePlaneConstraints(const gtsam::Point3& normal,
                                  const double& distance,
                                  const LandmarkId& lmk_id,
                                  const gtsam::Point3& point) {
-    const auto& point_key_to_line_id =
+    // TODO should use map from line_id_to_lmk_id as well,
+    // to remove the line_ids which are not having a lmk_id...
+    const auto& lmk_id_to_line_id =
         lmk_id_to_line_id_map_.find(lmk_id);
-    if (point_key_to_line_id ==
+    if (lmk_id_to_line_id ==
         lmk_id_to_line_id_map_.end()) {
       // We have never drawn this line.
       // Store line nr (as line id).
@@ -266,21 +268,44 @@ public:
     } else {
       // We have drawn this line before.
       // Update line.
-      std::string line_id =  "Line " +
-                             std::to_string((int)point_key_to_line_id->second);
+      std::string line_id = "Line " +
+                            std::to_string((int)lmk_id_to_line_id->second);
       updateLineFromPlaneToPoint(
             line_id,
             normal.x(), normal.y(), normal.z(), distance,
             point.x(), point.y(), point.z());
+    }
+  }
 
+  /* ------------------------------------------------------------------------ */
+  // Remove line widgets from plane to lmks, for lines that are not pointing
+  // to any lmk_id in lmk_ids.
+  void removeOldLines(const LandmarkIds& lmk_ids) {
+    for (std::map<LandmarkId, size_t>::iterator lmk_id_to_line_id_it =
+         lmk_id_to_line_id_map_.begin();
+         lmk_id_to_line_id_it != lmk_id_to_line_id_map_.end();
+         lmk_id_to_line_id_it++) {
+      if (std::find(lmk_ids.begin(), lmk_ids.end(), lmk_id_to_line_id_it->first)
+          == lmk_ids.end()) {
+        // We did not find the lmk_id of the current line in the list
+        // of lmk_ids...
+        // Delete the corresponding line.
+        std::string line_id = "Line " +
+                              std::to_string((int)lmk_id_to_line_id_it->second);
+        removeWidget(line_id);
+        // Delete the corresponding entry in the map from lmk id to line id.
+        lmk_id_to_line_id_it =
+            lmk_id_to_line_id_map_.erase(lmk_id_to_line_id_it);
+      }
     }
   }
 
   /* ------------------------------------------------------------------------ */
   // Remove line widgets from plane to lmks.
   void removePlaneConstraintsViz() {
-    for (size_t i = 0; i < line_nr_; i++) {
-      std::string line_id = "Line " + std::to_string((int)i);
+    for (const auto& lmk_id_to_line_id: lmk_id_to_line_id_map_) {
+      std::string line_id = "Line " +
+                            std::to_string((int)lmk_id_to_line_id.second);
       removeWidget(line_id);
     }
     line_nr_ = 0;

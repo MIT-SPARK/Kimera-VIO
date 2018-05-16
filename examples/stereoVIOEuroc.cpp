@@ -598,6 +598,7 @@ int main(int argc, char *argv[]) {
                   const gtsam::NonlinearFactorGraph& graph =
                       vioBackEnd->smoother_->getFactors();
 
+                  LandmarkIds lmk_ids_in_current_pp_factors;
                   for (const auto& g : graph) {
                     const auto& ppf =
                         boost::dynamic_pointer_cast<PointPlaneFactor>(g);
@@ -605,6 +606,8 @@ int main(int argc, char *argv[]) {
                       // We found a PointPlaneFactor.
                       // Get point key.
                       Key point_key = ppf->getPointKey();
+                      LandmarkId lmk_id = gtsam::Symbol(point_key).index();
+                      lmk_ids_in_current_pp_factors.push_back(lmk_id);
                       // Get point estimate.
                       gtsam::Point3 point;
                       CHECK(vioBackEnd->getEstimateOfKey(point_key, &point));
@@ -615,9 +618,13 @@ int main(int argc, char *argv[]) {
 
                       visualizer.visualizePlaneConstraints(
                             normal, plane.distance(),
-                            gtsam::Symbol(point_key).index(), point);
+                            lmk_id, point);
                     }
                   }
+
+                  // Remove lines that are not representing a point plane factor
+                  // in the current graph.
+                  visualizer.removeOldLines(lmk_ids_in_current_pp_factors);
                 }
 
                 // VisualizePlane last, so it calls spinOnce and refreshed window.
