@@ -812,12 +812,18 @@ void VioBackEnd::optimize(
   }
 
   // Recreate the graph before marginalization.
-  if (verbosity_ >= 5) {
+  static constexpr bool debug_graph_before_opt = true;
+  if (verbosity_ >= 5 || debug_graph_before_opt) {
     debug_info_.graphBeforeOpt = gtsam::NonlinearFactorGraph();
-    for (size_t i = 0; i<smoother_->getFactors().size(); i++) {
+    for (size_t i = 0; i < smoother_->getFactors().size(); i++) {
       if (std::find(delete_slots.begin(),
-                    delete_slots.end(), i) == delete_slots.end()) {// if not to be deleted
+                    delete_slots.end(), i) == delete_slots.end()) {
+        // If the factor is NOT to be deleted, store it as graph before
+        // optimization.
         debug_info_.graphBeforeOpt.push_back(smoother_->getFactors().at(i));
+      } else {
+        // If the factor is to be deleted, store it as graph to be deleted.
+        debug_info_.graphToBeDeleted.push_back(smoother_->getFactors().at(i));
       }
     }
     for (const auto& f: new_factors_tmp) {
@@ -1003,8 +1009,10 @@ void VioBackEnd::updateSmoother(
     LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
                << "and index " << symb.index() << std::endl;
 
-    smoother_->getFactors().print("Smoother's factors:\n");
-    state_.print("State values\n");
+    smoother_->getFactors().print("Smoother's factors:\n[\n\t");
+    std::cout << " ]" << std::endl;
+    state_.print("State values\n[\n\t");
+    std::cout << " ]" << std::endl;
 
     printSmootherInfo(new_factors_tmp,
                       delete_slots,
@@ -1280,88 +1288,97 @@ void VioBackEnd::printSmootherInfo(
     const std::vector<size_t>& delete_slots,
     const string& message,
     const bool& showDetails) const {
-  std::cout << " =============== START:" <<  message << " =============== "
+  LOG(INFO) << " =============== START:" <<  message << " =============== "
             << std::endl;
 
   const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
   // Print all factors.
-  std::cout << "Nr of factors in isam2: " << graph.size()
+  LOG(INFO) << "Nr of factors in isam2: " << graph.size()
             << ", with factors:" << std::endl;
-  std::cout << "[\n";
+  LOG(INFO) << "[\n";
   for (const auto& g : graph){
     const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
 
     // Print smart factor.
     if (gsf) {
-      std::cout << "\tSmart Factor (valid: " << gsf->isValid()
-                << ", deg: " << gsf->isDegenerate()
-                << " isCheir: " << gsf->isPointBehindCamera() << "): ";
+      LOG(INFO) << "\tSmart Factor (valid: "
+                << (gsf->isValid()? "yes" : "\e[1mNo!\[0m")
+                << ", deg: "
+                << (gsf->isDegenerate()?"\e[1mYes!\[0m" : "no")
+                << " isCheir: "
+                << (gsf->isPointBehindCamera()?"\e[1mYes!\[0m" : "no")
+                << "): ";
     }
 
     // Print the keys of the factor.
     if (g) {
-      std::cout << "\t";
+      LOG(INFO) << "\t";
       g->printKeys();
     }
   }
-  std::cout << " ]" << std::endl;
+  LOG(INFO) << " ]" << std::endl;
 
   // Print factors that were newly added to the optimization.
-  std::cout << "Nr of new factors to add: " << new_factors_tmp.size()
+  LOG(INFO) << "Nr of new factors to add: " << new_factors_tmp.size()
             << " with factors:" << std::endl;
-  std::cout << "[\n\t";
+  LOG(INFO) << "[\n\t";
   for (const auto& g : new_factors_tmp) {
     const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
     if (gsf) {
-      std::cout << "\tSmart Factor (valid: " << gsf->isValid()
-                << ", deg: " << gsf->isDegenerate()
-                << " isCheir: " << gsf->isPointBehindCamera() << "): ";
+      LOG(INFO) << "\tSmart Factor (valid: "
+                << (gsf->isValid()? "yes" : "\e[1mNo!\[0m")
+                << ", deg: "
+                << (gsf->isDegenerate()?"\e[1mYes!\[0m" : "no")
+                << " isCheir: "
+                << (gsf->isPointBehindCamera()?"\e[1mYes!\[0m" : "no")
+                << "): ";
     }
 
     if (g) {
-      std::cout << "\t";
+      LOG(INFO) << "\t";
       g->printKeys();
     }
   }
-  std::cout << " ]" << std::endl;
+  LOG(INFO) << " ]" << std::endl;
 
   // Print deleted slots.
-  std::cout << "Nr deleted slots: " << delete_slots.size()
+  LOG(INFO) << "Nr deleted slots: " << delete_slots.size()
             << ", with slots: " << std::endl;
-  std::cout << "[\n\t";
-  for (int i = 0; i < delete_slots.size(); ++i)
-    std::cout << delete_slots[i] << " ";
-  std::cout << " ]" << std::endl;
+  LOG(INFO) << "[\n\t";
+  for (int i = 0; i < delete_slots.size(); ++i) {
+    LOG(INFO) << delete_slots[i] << " ";
+  }
+  LOG(INFO) << " ]" << std::endl;
 
   // Print all values in state.
-  std::cout << "Nr of values in state_ : " << state_.size()
+  LOG(INFO) << "Nr of values in state_ : " << state_.size()
             << ", with keys: " << std::endl;
-  std::cout << "[\n\t";
+  LOG(INFO) << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
-    std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+    LOG(INFO) << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  std::cout << " ]" << std::endl;
+  LOG(INFO) << " ]" << std::endl;
 
   // Print only new values.
-  std::cout << "Nr values in new_values_ : " << new_values_.size()
+  LOG(INFO) << "Nr values in new_values_ : " << new_values_.size()
             << ", with keys: " << std::endl;
-  std::cout << "[\n\t";
+  LOG(INFO) << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
-    std::cout << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+    LOG(INFO) << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  std::cout << " ]" << std::endl;
+  LOG(INFO) << " ]" << std::endl;
 
   if (showDetails) {
     graph.print("isam2 graph:\n");
     new_factors_tmp.print("new_factors_tmp:\n");
     new_values_.print("new values:\n");
-    //std::cout << "new_smart_factors_: "  << std::endl;
+    //LOG(INFO) << "new_smart_factors_: "  << std::endl;
     //for (auto& s : new_smart_factors_)
     //	s.second->print();
   }
 
-  std::cout << " =============== END: " <<  message << " =============== "
+  LOG(INFO) << " =============== END: " <<  message << " =============== "
             << std::endl;
 }
 

@@ -4,7 +4,8 @@
 # Execute stereoVIOEuroc with given flags. The flag --help will provide you with information about what each flag
 # does.
 $PROJECT_PATH/build/stereoVIOEuroc \
---logtostderr=1 \
+--log_dir=logs \
+--alsologtostderr=1 \
 --colorlogtostderr=1 \
 --log_prefix=0 \
 --dataset_path="$DATASET_PATH" \
@@ -15,5 +16,4 @@ $PROJECT_PATH/build/stereoVIOEuroc \
 --viz_type=5 \
 --log_output=false \
 --v=0 \
---vmodule=VioBackEnd=0=,RegularVioBackEnd=0 \
-
+--vmodule=VioBackEnd=0,RegularVioBackEnd=0 \

@@ -118,6 +118,7 @@ public:
 
   gtsam::Values stateBeforeOpt;
   gtsam::NonlinearFactorGraph graphBeforeOpt;
+  gtsam::NonlinearFactorGraph graphToBeDeleted;
 
   double factorsAndSlotsTime_;
   double preUpdateTime_;
