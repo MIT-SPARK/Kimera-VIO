@@ -376,7 +376,7 @@ public:
   // Mind that to have the most up to date key, you should call this after
   // optimize (or addVisualInertialStateandOptimize)
   template<class T>
-  bool getEstimateOfKey(const gtsam::Symbol& key, T* estimate) {
+  bool getEstimateOfKey(const gtsam::Key& key, T* estimate) const {
     CHECK_NOTNULL(estimate);
     if (state_.exists(key)) {
       *estimate = state_.at<T>(key);

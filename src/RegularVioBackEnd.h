@@ -79,7 +79,15 @@ private:
                        LmkIdIsSmart* lmk_id_is_smart);
 
   /* ------------------------------------------------------------------------ */
-  void addRegularityFactors(const LandmarkIds& mesh_lmk_ids);
+  void addRegularityFactors(const LandmarkIds& mesh_lmk_ids,
+                            gtsam::Symbol* plane_symbol,
+                            size_t* plane_constraints_to_be_added);
+
+  /* ------------------------------------------------------------------------ */
+  void removeOldRegularityFactors_Slow(const gtsam::Symbol& plane_symbol,
+                                       const size_t& nr_of_plane_constraints,
+                                       const LandmarkIds& mesh_lmk_ids,
+                                       std::vector<size_t>* delete_slots);
 
 };
 
