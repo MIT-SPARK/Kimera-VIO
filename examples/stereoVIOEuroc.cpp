@@ -542,7 +542,7 @@ int main(int argc, char *argv[]) {
           std::vector<TriangleCluster> triangle_clusters;
           gtsam::OrientedPlane3 plane;
           if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-               gtsam::Symbol('P', 0), &plane)) {
+               gtsam::Symbol('P', 0).key(), &plane)) {
             // Use the plane estimate of the backend.
             // TODO this can lead to issues, when the plane estimate gets
             // quite crazy, but at the same time it will avoid crashing the
@@ -568,15 +568,25 @@ int main(int argc, char *argv[]) {
             cv::Mat polygons_mesh;
             mesher.getVerticesMesh(&vertices_mesh);
             mesher.getPolygonsMesh(&polygons_mesh);
+
+            static VioBackEnd::PointsWithIdMap points_with_id_VIO_prev;
+            static cv::Mat vertices_mesh_prev;
+            static cv::Mat polygons_mesh_prev;
+            static std::vector<TriangleCluster> triangle_clusters_prev;
+
             static constexpr bool visualize_mesh = true;
             if (visualize_mesh) {
-              visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters,
-                                                            vertices_mesh,
-                                                            polygons_mesh);
+              if (vertices_mesh_prev.rows != 0) {
+                visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters_prev,
+                                                              vertices_mesh_prev,
+                                                              polygons_mesh_prev);
+
+              }
             }
             static constexpr bool visualize_point_cloud = true;
             if (visualize_point_cloud) {
-              visualizer.visualizePoints3D(points_with_id_VIO);
+              if (points_with_id_VIO_prev.size() != 0)
+                visualizer.visualizePoints3D(points_with_id_VIO_prev);
             }
             static constexpr bool visualize_planes = true;
             static constexpr bool visualize_plane_constraints = true;
@@ -584,7 +594,7 @@ int main(int argc, char *argv[]) {
               static const std::string plane_id = "Plane 0.";
               gtsam::OrientedPlane3 plane;
               if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-                   gtsam::Symbol('P', 0), &plane)) {
+                   gtsam::Symbol('P', 0).key(), &plane)) {
                 const Point3& normal = plane.normal().point3();
                 visualizer.visualizePlane(plane_id,
                                           normal.x(),
@@ -620,6 +630,12 @@ int main(int argc, char *argv[]) {
                 }
               }
             }
+
+            // Store current mesh for display later.
+            vertices_mesh_prev = vertices_mesh;
+            polygons_mesh_prev = polygons_mesh;
+            triangle_clusters_prev = triangle_clusters;
+            points_with_id_VIO_prev = points_with_id_VIO;
           }
 
           break;
