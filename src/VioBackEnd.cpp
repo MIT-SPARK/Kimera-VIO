@@ -1303,11 +1303,11 @@ void VioBackEnd::printSmootherInfo(
     // Print smart factor.
     if (gsf) {
       LOG(INFO) << "\tSmart Factor (valid: "
-                << (gsf->isValid()? "yes" : "\e[1mNo!\[0m")
+                << (gsf->isValid()? "yes" : "\e[1mNo!\e[0m")
                 << ", deg: "
-                << (gsf->isDegenerate()?"\e[1mYes!\[0m" : "no")
+                << (gsf->isDegenerate()?"\e[1mYes!\e[0m" : "no")
                 << " isCheir: "
-                << (gsf->isPointBehindCamera()?"\e[1mYes!\[0m" : "no")
+                << (gsf->isPointBehindCamera()?"\e[1mYes!\e[0m" : "no")
                 << "): ";
     }
 
@@ -1327,11 +1327,11 @@ void VioBackEnd::printSmootherInfo(
     const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
     if (gsf) {
       LOG(INFO) << "\tSmart Factor (valid: "
-                << (gsf->isValid()? "yes" : "\e[1mNo!\[0m")
+                << (gsf->isValid()? "yes" : "\e[1mNo!\e[0m")
                 << ", deg: "
-                << (gsf->isDegenerate()?"\e[1mYes!\[0m" : "no")
+                << (gsf->isDegenerate()?"\e[1mYes!\e[0m" : "no")
                 << " isCheir: "
-                << (gsf->isPointBehindCamera()?"\e[1mYes!\[0m" : "no")
+                << (gsf->isPointBehindCamera()?"\e[1mYes!\e[0m" : "no")
                 << "): ";
     }
 
