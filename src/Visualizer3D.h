@@ -45,8 +45,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud using cloud widget from opencv viz.
-  void visualizeMap3D(const std::vector<gtsam::Point3>& points,
-                      const int waitTime = 0) {
+  void visualizeMap3D(const std::vector<gtsam::Point3>& points) {
     // based on longer example: https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
 
     // No points to visualize.
@@ -72,16 +71,12 @@ public:
 
     // Plot points.
     window_.showWidget("Point cloud map", map_with_repeated_points);
-
-    // Start event loop.
-    window_.spinOnce(waitTime);
   }
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   void visualizePoints3D(
-          const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id,
-          const int& waitTime = 0) {
+          const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id) {
 
     // Sanity check dimension.
     if (points_with_id.size() == 0) {
@@ -102,12 +97,9 @@ public:
 
     // Create a cloud widget.
     cv::viz::WCloud cloud_widget(point_cloud, cloud_color_);
-    cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 2);
+    cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 4);
 
     window_.showWidget("Point cloud.", cloud_widget);
-
-    // Start event loop.
-    window_.spinOnce(waitTime);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -117,8 +109,7 @@ public:
       const double& n_x,
       const double& n_y,
       const double& n_z,
-      const double& d,
-      const int& waitTime = 0) {
+      const double& d) {
     // Create a plane widget.
     const Vec3d normal (n_x, n_y, n_z);
     const Point3d center (d * n_x, d * n_y, d * n_z);
@@ -128,9 +119,6 @@ public:
     cv::viz::WPlane plane_widget (center, normal, new_yaxis, size, plane_color);
 
     window_.showWidget(plane_id, plane_widget);
-
-    // Start event loop.
-    window_.spinOnce(waitTime);
   }
 
 
@@ -181,9 +169,6 @@ public:
 
     // Plot mesh.
     window_.showWidget("Mesh", mesh);
-
-    // Start event loop.
-    window_.spinOnce(1);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -242,8 +227,6 @@ public:
                                             cv::viz::WTrajectory::PATH,
                                             1.0, cv::viz::Color::red());
     window_.showWidget("Trajectory", trajectory_widget);
-    /// Start event loop.
-    window_.spinOnce(1);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -253,6 +236,9 @@ public:
       window_.removeWidget(widget_id);
     } catch (const cv::Exception& e) {
       VLOG(20) << e.what();
+      LOG(ERROR) << "Widget with id: " << widget_id.c_str() << " is not in window.";
+    } catch (...) {
+      LOG(ERROR) << "Widget with id: " << widget_id.c_str() << " is not in window.";
     }
   }
 
@@ -261,16 +247,16 @@ public:
   // Point key is required to avoid duplicated lines!
   void visualizePlaneConstraints(const gtsam::Point3& normal,
                                  const double& distance,
-                                 const Key& point_key,
+                                 const LandmarkId& lmk_id,
                                  const gtsam::Point3& point) {
     const auto& point_key_to_line_id =
-        point_key_to_line_id_map_.find(point_key);
+        lmk_id_to_line_id_map_.find(lmk_id);
     if (point_key_to_line_id ==
-        point_key_to_line_id_map_.end()) {
+        lmk_id_to_line_id_map_.end()) {
       // We have never drawn this line.
       // Store line nr (as line id).
-      point_key_to_line_id_map_[point_key] = line_nr_;
-      std::string line_id =  "Line " + line_nr_;
+      lmk_id_to_line_id_map_[lmk_id] = line_nr_;
+      std::string line_id =  "Line " + std::to_string((int)line_nr_);
       // Draw it.
       drawLineFromPlaneToPoint(line_id,
                                normal.x(), normal.y(), normal.z(), distance,
@@ -280,8 +266,10 @@ public:
     } else {
       // We have drawn this line before.
       // Update line.
+      std::string line_id =  "Line " +
+                             std::to_string((int)point_key_to_line_id->second);
       updateLineFromPlaneToPoint(
-            "Line " + point_key_to_line_id->second,
+            line_id,
             normal.x(), normal.y(), normal.z(), distance,
             point.x(), point.y(), point.z());
 
@@ -292,16 +280,25 @@ public:
   // Remove line widgets from plane to lmks.
   void removePlaneConstraintsViz() {
     for (size_t i = 0; i < line_nr_; i++) {
-      removeWidget("Line " + i);
+      std::string line_id = "Line " + std::to_string((int)i);
+      removeWidget(line_id);
     }
     line_nr_ = 0;
-    point_key_to_line_id_map_.clear();
+    lmk_id_to_line_id_map_.clear();
   }
 
   /* ------------------------------------------------------------------------ */
   // Add pose to the previous trajectory.
   void addPoseToTrajectory(gtsam::Pose3 current_pose_gtsam){
     trajectoryPoses3d_.push_back(UtilsOpenCV::Pose2Affine3f(current_pose_gtsam));
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Render window with drawn objects/widgets.
+  // @param wait_time Amount of time in milliseconds for the event loop to keep running.
+  // @param force_redraw If true, window renders.
+  void renderWindow(int wait_time = 1, bool force_redraw = true) {
+    window_.spinOnce(wait_time, force_redraw);
   }
 
 private:
@@ -311,7 +308,7 @@ private:
   cv::viz::Color background_color_ = cv::viz::Color::black();
 
   size_t line_nr_ = 0;
-  std::map<Key, size_t> point_key_to_line_id_map_;
+  std::map<LandmarkId, size_t> lmk_id_to_line_id_map_;
 
   /* ------------------------------------------------------------------------ */
   // Log mesh to ply file.

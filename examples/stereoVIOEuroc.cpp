@@ -576,18 +576,16 @@ int main(int argc, char *argv[]) {
 
             static constexpr bool visualize_mesh = true;
             if (visualize_mesh) {
-              if (vertices_mesh_prev.rows != 0) {
-                visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters_prev,
-                                                              vertices_mesh_prev,
-                                                              polygons_mesh_prev);
-
-              }
+              visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters_prev,
+                                                            vertices_mesh_prev,
+                                                            polygons_mesh_prev);
             }
+
             static constexpr bool visualize_point_cloud = true;
             if (visualize_point_cloud) {
-              if (points_with_id_VIO_prev.size() != 0)
                 visualizer.visualizePoints3D(points_with_id_VIO_prev);
             }
+
             static constexpr bool visualize_planes = true;
             static constexpr bool visualize_plane_constraints = true;
             if (visualize_planes) {
@@ -596,11 +594,6 @@ int main(int argc, char *argv[]) {
               if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
                    gtsam::Symbol('P', 0).key(), &plane)) {
                 const Point3& normal = plane.normal().point3();
-                visualizer.visualizePlane(plane_id,
-                                          normal.x(),
-                                          normal.y(),
-                                          normal.z(),
-                                          plane.distance());
                 if (visualize_plane_constraints) {
                   const gtsam::NonlinearFactorGraph& graph =
                       vioBackEnd->smoother_->getFactors();
@@ -614,22 +607,35 @@ int main(int argc, char *argv[]) {
                       Key point_key = ppf->getPointKey();
                       // Get point estimate.
                       gtsam::Point3 point;
-                      vioBackEnd->getEstimateOfKey(point_key, &point);
+                      CHECK(vioBackEnd->getEstimateOfKey(point_key, &point));
 
                       // Visualize.
+                      Key plane_key = ppf->getPlaneKey();
+                      CHECK(plane_key == gtsam::Symbol('P', 0).key());
+
                       visualizer.visualizePlaneConstraints(
                             normal, plane.distance(),
-                            point_key, point);
+                            gtsam::Symbol(point_key).index(), point);
                     }
                   }
                 }
+
+                // VisualizePlane last, so it calls spinOnce and refreshed window.
+                visualizer.visualizePlane(plane_id,
+                                          normal.x(),
+                                          normal.y(),
+                                          normal.z(),
+                                          plane.distance());
               } else {
-                visualizer.removeWidget(plane_id);
                 if (visualize_plane_constraints) {
                   visualizer.removePlaneConstraintsViz();
                 }
+                visualizer.removeWidget(plane_id);
               }
             }
+
+            // Render current window.
+            visualizer.renderWindow();
 
             // Store current mesh for display later.
             vertices_mesh_prev = vertices_mesh;
@@ -663,6 +669,7 @@ int main(int argc, char *argv[]) {
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
           vector<Point3> points3d = vioBackEnd->get3DPoints();
           visualizer.visualizeMap3D(points3d);
+          visualizer.renderWindow();
           break;
         }
 
@@ -690,6 +697,7 @@ int main(int argc, char *argv[]) {
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory3D(
               &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
+        visualizer.renderWindow();
       }
 
       didFirstOptimization = true;
