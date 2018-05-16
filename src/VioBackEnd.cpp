@@ -1011,9 +1011,18 @@ void VioBackEnd::updateSmoother(
                       "CATCHING EXCEPTION",
                       false);
     throw;
+  } catch (const gtsam::InvalidNoiseModel& e) {
+    LOG(ERROR) << e.what();
+  } catch (const gtsam::InvalidMatrixBlock& e) {
+    LOG(ERROR) << e.what();
+  } catch (const gtsam::InvalidDenseElimination& e) {
+    LOG(ERROR) << e.what();
+  } catch (const gtsam::InvalidArgumentThreadsafe& e) {
+    LOG(ERROR) << e.what();
   } catch (...) {
     // Catch the rest of exceptions.
     LOG(ERROR) << "Unrecognized exception.";
+    // Do not intentionally throw to see what checks fail later.
   }
 }
 
