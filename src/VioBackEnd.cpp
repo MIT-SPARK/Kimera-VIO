@@ -26,7 +26,6 @@
  */
 
 #include "VioBackEnd.h"
-#include "factors/PointPlaneFactor.h"
 
 using namespace std;
 
@@ -815,21 +814,14 @@ void VioBackEnd::optimize(
   // Recreate the graph before marginalization.
   static constexpr bool debug_graph_before_opt = true;
   if (verbosity_ >= 5 || debug_graph_before_opt) {
-    debug_info_.graphBeforeOpt = gtsam::NonlinearFactorGraph();
+    debug_info_.graphBeforeOpt = smoother_->getFactors();
     debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
-    for (size_t i = 0; i < smoother_->getFactors().size(); i++) {
-      if (std::find(delete_slots.begin(),
-                    delete_slots.end(), i) == delete_slots.end()) {
-        // If the factor is NOT to be deleted, store it as graph before
-        // optimization.
-        debug_info_.graphBeforeOpt.push_back(smoother_->getFactors().at(i));
-      } else {
-        // If the factor is to be deleted, store it as graph to be deleted.
-        debug_info_.graphToBeDeleted.push_back(smoother_->getFactors().at(i));
-      }
-    }
-    for (const auto& f: new_factors_tmp) {
-      debug_info_.graphBeforeOpt.push_back(f);
+    debug_info_.graphToBeDeleted.resize(delete_slots.size());
+    for (size_t i = 0; i < delete_slots.size(); i++) {
+      // If the factor is to be deleted, store it as graph to be deleted.
+      CHECK(smoother_->getFactors().exists(delete_slots.at(i)));
+      debug_info_.graphToBeDeleted.at(i) =
+          smoother_->getFactors().at(delete_slots.at(i));
     }
   }
 
@@ -1293,96 +1285,80 @@ void VioBackEnd::printSmootherInfo(
   LOG(INFO) << " =============== START:" <<  message << " =============== "
             << std::endl;
 
+
+  const std::string* which_graph = nullptr;
+  const gtsam::NonlinearFactorGraph* graph = nullptr;
+  // Pick the graph that makes more sense:
+  // This is code is mostly run post update, when it throws exception,
+  // shouldn't we print the graph before optimization instead?
+  // Yes if available, but if not, then just ask the smoother.
+  static const std::string graph_before_opt = "(graph before optimization)";
+  static const std::string smoother_get_factors = "(smoother getFactors)";
+  if (debug_info_.graphBeforeOpt.size() != 0) {
+    which_graph = &graph_before_opt;
+    graph = &(debug_info_.graphBeforeOpt);
+  } else {
+    which_graph = &smoother_get_factors;
+    graph = &(smoother_->getFactors());
+  }
+  CHECK_NOTNULL(which_graph);
+  CHECK_NOTNULL(graph);
+
   static constexpr bool print_smart_factors = false;
   static constexpr bool print_point_plane_factors = true;
-
-  const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
-
-  // Print all factors.
-  LOG(INFO) << "Nr of factors in graph: " << graph.size()
+  static constexpr bool print_plane_priors = true;
+  static constexpr bool print_linear_container_factors = true;
+  ////////////////////// Print all factors. ////////////////////////////////////
+  LOG(INFO) << "Nr of factors in graph " + *which_graph << ": " << graph->size()
             << ", with factors:" << std::endl;
   LOG(INFO) << "[\n";
-  for (const auto& g : graph){
-    const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
-    const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
-
-    // Print smart factor.
-    if (print_smart_factors) {
-      if (gsf) {
-        std::cout << "\tSmart Factor (valid: "
-                  << (gsf->isValid()? "yes" : "NO!")
-                  << ", deg: "
-                  << (gsf->isDegenerate()?"YES!" : "no")
-                  << " isCheir: "
-                  << (gsf->isPointBehindCamera()?"YES!" : "no")
-                  << "): ";
-        if (g) {
-          std::cout << "\t";
-          g->printKeys();
-        } else {
-          LOG(ERROR) << "g is null?!";
-        }
-      }
-    }
-
-    if (print_point_plane_factors) {
-      if (ppf) {
-        std::cout << "\tPoint Plane Factor: plane key " << gtsam::DefaultKeyFormatter(ppf->getPlaneKey())
-                  << ", point key " << gtsam::DefaultKeyFormatter(ppf->getPointKey())
-                  << "\n";
-      }
-    }
+  size_t slot = 0;
+  for (const auto& g : *graph) {
+    printSelectedFactors(g, slot,
+                         print_smart_factors,
+                         print_point_plane_factors,
+                         print_plane_priors,
+                         print_linear_container_factors);
+    slot++;
   }
   std::cout << std::endl;
   LOG(INFO) << " ]" << std::endl;
 
-  // Print factors that were newly added to the optimization.
+  ///////////// Print factors that were newly added to the optimization.////////
   LOG(INFO) << "Nr of new factors to add: " << new_factors_tmp.size()
             << " with factors:" << std::endl;
   LOG(INFO) << "[\n\t";
   for (const auto& g : new_factors_tmp) {
-    const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
-    const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
-
-    if (print_smart_factors) {
-      if (gsf) {
-        std::cout << "\tSmart Factor (valid: "
-                  << (gsf->isValid()? "yes" : "NO!")
-                  << ", deg: "
-                  << (gsf->isDegenerate()?"YES!" : "no")
-                  << " isCheir: "
-                  << (gsf->isPointBehindCamera()?"YES!" : "no")
-                  << "): ";
-        if (g) {
-          std::cout << "\t";
-          g->printKeys();
-        } else {
-          LOG(ERROR) << "g is null?!";
-        }
-      }
-    }
-
-    if (print_point_plane_factors) {
-      if (ppf) {
-        std::cout << "\tPoint Plane Factor: plane key " << gtsam::DefaultKeyFormatter(ppf->getPlaneKey())
-                  << ", point key " << gtsam::DefaultKeyFormatter(ppf->getPointKey())
-                  << "\n";
-      }
-    }
+    printSelectedFactors(g, -1,
+                         print_smart_factors,
+                         print_point_plane_factors,
+                         print_plane_priors,
+                         print_linear_container_factors);
   }
   std::cout << std::endl;
   LOG(INFO) << " ]" << std::endl;
 
-  // Print deleted slots.
+  ////////////////////////////// Print deleted slots.///////////////////////////
   LOG(INFO) << "Nr deleted slots: " << delete_slots.size()
             << ", with slots:" << std::endl;
   LOG(INFO) << "[\n\t";
   if (debug_info_.graphToBeDeleted.size() != 0) {
+    // If we are storing the graph to be deleted, then print extended info
+    // besides the slot to be deleted.
     CHECK_EQ(debug_info_.graphToBeDeleted.size(), delete_slots.size());
     for (int i = 0; i < delete_slots.size(); ++i) {
-      std::cout << "\tSlot # " << delete_slots[i] << ":";
-      std::cout << "\t";
-      debug_info_.graphToBeDeleted.at(i)->printKeys();
+      CHECK_NOTNULL(debug_info_.graphToBeDeleted.at(i).get());
+      if (print_point_plane_factors) {
+        boost::shared_ptr<gtsam::PointPlaneFactor> ppf =
+            boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(debug_info_.graphToBeDeleted.at(i));
+        if (ppf) {
+          printPointPlaneFactor(ppf);
+        }
+      } else {
+        std::cout << "\tSlot # " << delete_slots.at(i) << ":";
+        std::cout << "\t";
+        debug_info_.graphToBeDeleted.at(i)->printKeys();
+      }
     }
   } else {
     for (int i = 0; i < delete_slots.size(); ++i) {
@@ -1392,7 +1368,7 @@ void VioBackEnd::printSmootherInfo(
   std::cout << std::endl;
   LOG(INFO) << " ]" << std::endl;
 
-  // Print all values in state.
+  //////////////////////// Print all values in state. //////////////////////////
   LOG(INFO) << "Nr of values in state_ : " << state_.size()
             << ", with keys:";
   LOG(INFO) << "[\n\t";
@@ -1413,7 +1389,7 @@ void VioBackEnd::printSmootherInfo(
   LOG(INFO) << " ]";
 
   if (showDetails) {
-    graph.print("isam2 graph:\n");
+    graph->print("isam2 graph:\n");
     new_factors_tmp.print("new_factors_tmp:\n");
     new_values_.print("new values:\n");
     //LOG(INFO) << "new_smart_factors_: "  << std::endl;
@@ -1423,6 +1399,94 @@ void VioBackEnd::printSmootherInfo(
 
   LOG(INFO) << " =============== END: " <<  message << " =============== "
             << std::endl;
+}
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::printSmartFactor(
+    boost::shared_ptr<SmartStereoFactor> gsf) const {
+  CHECK(gsf);
+  std::cout << "Smart Factor (valid: "
+            << (gsf->isValid()? "yes" : "NO!")
+            << ", deg: "
+            << (gsf->isDegenerate()?"YES!" : "no")
+            << " isCheir: "
+            << (gsf->isPointBehindCamera()?"YES!" : "no")
+            << "): \t";
+  gsf->printKeys();
+}
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::printPointPlaneFactor(
+    boost::shared_ptr<gtsam::PointPlaneFactor> ppf) const {
+  CHECK(ppf);
+  std::cout << "Point Plane Factor: plane key "
+            << gtsam::DefaultKeyFormatter(ppf->getPlaneKey())
+            << ", point key " << gtsam::DefaultKeyFormatter(ppf->getPointKey())
+            << "\n";
+}
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::printPlanePrior(
+    boost::shared_ptr<gtsam::PriorFactor<gtsam::OrientedPlane3> > ppp) const {
+  CHECK(ppp);
+  std::cout << "Plane Prior: plane key \t";
+  ppp->printKeys();
+}
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::printLinearContainerFactor(
+    boost::shared_ptr<gtsam::LinearContainerFactor> lcf) const {
+  CHECK(lcf);
+  std::cout << "Linear Container Factor: \t";
+  lcf->printKeys();
+}
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::printSelectedFactors(
+    const boost::shared_ptr<gtsam::NonlinearFactor>& g,
+    const size_t& slot,
+    const bool print_smart_factors,
+    const bool print_point_plane_factors,
+    const bool print_plane_priors,
+    const bool print_linear_container_factors) const {
+
+  if (print_smart_factors) {
+    const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
+    if (gsf) {
+      if (slot != -1)
+        std::cout << "\tSlot # " << slot << ": ";
+      printSmartFactor(gsf);
+    }
+  }
+
+  if (print_point_plane_factors) {
+    const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
+    if (ppf) {
+      if (slot != -1)
+        std::cout << "\tSlot # " << slot << ": ";
+      printPointPlaneFactor(ppf);
+    }
+  }
+
+  if (print_plane_priors) {
+    const auto& ppp = boost::dynamic_pointer_cast<gtsam::PriorFactor<
+                      gtsam::OrientedPlane3>>(g);
+    if (ppp) {
+      if (slot != -1)
+        std::cout << "\tSlot # " << slot << ": ";
+      printPlanePrior(ppp);
+    }
+  }
+
+  if (print_linear_container_factors) {
+    const auto& lcf = boost::dynamic_pointer_cast<
+                      gtsam::LinearContainerFactor>(g);
+    if (lcf) {
+      if (slot != -1)
+        std::cout << "\tSlot # " << slot << ": ";
+      printLinearContainerFactor(lcf);
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */
