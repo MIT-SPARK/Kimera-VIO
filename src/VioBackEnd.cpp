@@ -1293,6 +1293,9 @@ void VioBackEnd::printSmootherInfo(
   LOG(INFO) << " =============== START:" <<  message << " =============== "
             << std::endl;
 
+  static constexpr bool print_smart_factors = false;
+  static constexpr bool print_point_plane_factors = true;
+
   const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
   // Print all factors.
@@ -1304,24 +1307,33 @@ void VioBackEnd::printSmootherInfo(
     const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
 
     // Print smart factor.
-    if (gsf) {
-      std::cout << "\tSmart Factor (valid: "
-                << (gsf->isValid()? "yes" : "NO!")
-                << ", deg: "
-                << (gsf->isDegenerate()?"YES!" : "no")
-                << " isCheir: "
-                << (gsf->isPointBehindCamera()?"YES!" : "no")
-                << "): ";
-      std::cout << "\t";
-      g->printKeys();
+    if (print_smart_factors) {
+      if (gsf) {
+        std::cout << "\tSmart Factor (valid: "
+                  << (gsf->isValid()? "yes" : "NO!")
+                  << ", deg: "
+                  << (gsf->isDegenerate()?"YES!" : "no")
+                  << " isCheir: "
+                  << (gsf->isPointBehindCamera()?"YES!" : "no")
+                  << "): ";
+        if (g) {
+          std::cout << "\t";
+          g->printKeys();
+        } else {
+          LOG(ERROR) << "g is null?!";
+        }
+      }
     }
 
-    if (ppf) {
-      std::cout << "\tPoint Plane Factor: plane key " << gtsam::DefaultKeyFormatter(ppf->getPlaneKey())
-                << ", point key " << gtsam::DefaultKeyFormatter(ppf->getPointKey())
-                << "\n";
+    if (print_point_plane_factors) {
+      if (ppf) {
+        std::cout << "\tPoint Plane Factor: plane key " << gtsam::DefaultKeyFormatter(ppf->getPlaneKey())
+                  << ", point key " << gtsam::DefaultKeyFormatter(ppf->getPointKey())
+                  << "\n";
+      }
     }
   }
+  std::cout << std::endl;
   LOG(INFO) << " ]" << std::endl;
 
   // Print factors that were newly added to the optimization.
@@ -1331,24 +1343,34 @@ void VioBackEnd::printSmootherInfo(
   for (const auto& g : new_factors_tmp) {
     const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
     const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
-    if (gsf) {
-      std::cout << "\tSmart Factor (valid: "
-                << (gsf->isValid()? "yes" : "NO!")
-                << ", deg: "
-                << (gsf->isDegenerate()?"YES!" : "no")
-                << " isCheir: "
-                << (gsf->isPointBehindCamera()?"YES!" : "no")
-                << "): ";
-      std::cout << "\t";
-      g->printKeys();
+
+    if (print_smart_factors) {
+      if (gsf) {
+        std::cout << "\tSmart Factor (valid: "
+                  << (gsf->isValid()? "yes" : "NO!")
+                  << ", deg: "
+                  << (gsf->isDegenerate()?"YES!" : "no")
+                  << " isCheir: "
+                  << (gsf->isPointBehindCamera()?"YES!" : "no")
+                  << "): ";
+        if (g) {
+          std::cout << "\t";
+          g->printKeys();
+        } else {
+          LOG(ERROR) << "g is null?!";
+        }
+      }
     }
 
-    if (ppf) {
-      std::cout << "\tPoint Plane Factor: plane key " << gtsam::DefaultKeyFormatter(ppf->getPlaneKey())
-                << ", point key " << gtsam::DefaultKeyFormatter(ppf->getPointKey())
-                << "\n";
+    if (print_point_plane_factors) {
+      if (ppf) {
+        std::cout << "\tPoint Plane Factor: plane key " << gtsam::DefaultKeyFormatter(ppf->getPlaneKey())
+                  << ", point key " << gtsam::DefaultKeyFormatter(ppf->getPointKey())
+                  << "\n";
+      }
     }
   }
+  std::cout << std::endl;
   LOG(INFO) << " ]" << std::endl;
 
   // Print deleted slots.
@@ -1367,6 +1389,7 @@ void VioBackEnd::printSmootherInfo(
       std::cout << delete_slots[i] << " ";
     }
   }
+  std::cout << std::endl;
   LOG(INFO) << " ]" << std::endl;
 
   // Print all values in state.
@@ -1376,6 +1399,7 @@ void VioBackEnd::printSmootherInfo(
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
     std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
+  std::cout << std::endl;
   LOG(INFO) << " ]";
 
   // Print only new values.
@@ -1385,6 +1409,7 @@ void VioBackEnd::printSmootherInfo(
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
     std::cout << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
+  std::cout << std::endl;
   LOG(INFO) << " ]";
 
   if (showDetails) {
