@@ -26,6 +26,7 @@
  */
 
 #include "VioBackEnd.h"
+#include "factors/PointPlaneFactor.h"
 
 using namespace std;
 
@@ -815,6 +816,7 @@ void VioBackEnd::optimize(
   static constexpr bool debug_graph_before_opt = true;
   if (verbosity_ >= 5 || debug_graph_before_opt) {
     debug_info_.graphBeforeOpt = gtsam::NonlinearFactorGraph();
+    debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
     for (size_t i = 0; i < smoother_->getFactors().size(); i++) {
       if (std::find(delete_slots.begin(),
                     delete_slots.end(), i) == delete_slots.end()) {
@@ -1294,27 +1296,30 @@ void VioBackEnd::printSmootherInfo(
   const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
   // Print all factors.
-  LOG(INFO) << "Nr of factors in isam2: " << graph.size()
+  LOG(INFO) << "Nr of factors in graph: " << graph.size()
             << ", with factors:" << std::endl;
   LOG(INFO) << "[\n";
   for (const auto& g : graph){
     const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
+    const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
 
     // Print smart factor.
     if (gsf) {
-      LOG(INFO) << "\tSmart Factor (valid: "
-                << (gsf->isValid()? "yes" : "\e[1mNo!\e[0m")
+      std::cout << "\tSmart Factor (valid: "
+                << (gsf->isValid()? "yes" : "NO!")
                 << ", deg: "
-                << (gsf->isDegenerate()?"\e[1mYes!\e[0m" : "no")
+                << (gsf->isDegenerate()?"YES!" : "no")
                 << " isCheir: "
-                << (gsf->isPointBehindCamera()?"\e[1mYes!\e[0m" : "no")
+                << (gsf->isPointBehindCamera()?"YES!" : "no")
                 << "): ";
+      std::cout << "\t";
+      g->printKeys();
     }
 
-    // Print the keys of the factor.
-    if (g) {
-      LOG(INFO) << "\t";
-      g->printKeys();
+    if (ppf) {
+      std::cout << "\tPoint Plane Factor: plane key " << gtsam::DefaultKeyFormatter(ppf->getPlaneKey())
+                << ", point key " << gtsam::DefaultKeyFormatter(ppf->getPointKey())
+                << "\n";
     }
   }
   LOG(INFO) << " ]" << std::endl;
@@ -1325,49 +1330,62 @@ void VioBackEnd::printSmootherInfo(
   LOG(INFO) << "[\n\t";
   for (const auto& g : new_factors_tmp) {
     const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
+    const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
     if (gsf) {
-      LOG(INFO) << "\tSmart Factor (valid: "
-                << (gsf->isValid()? "yes" : "\e[1mNo!\e[0m")
+      std::cout << "\tSmart Factor (valid: "
+                << (gsf->isValid()? "yes" : "NO!")
                 << ", deg: "
-                << (gsf->isDegenerate()?"\e[1mYes!\e[0m" : "no")
+                << (gsf->isDegenerate()?"YES!" : "no")
                 << " isCheir: "
-                << (gsf->isPointBehindCamera()?"\e[1mYes!\e[0m" : "no")
+                << (gsf->isPointBehindCamera()?"YES!" : "no")
                 << "): ";
+      std::cout << "\t";
+      g->printKeys();
     }
 
-    if (g) {
-      LOG(INFO) << "\t";
-      g->printKeys();
+    if (ppf) {
+      std::cout << "\tPoint Plane Factor: plane key " << gtsam::DefaultKeyFormatter(ppf->getPlaneKey())
+                << ", point key " << gtsam::DefaultKeyFormatter(ppf->getPointKey())
+                << "\n";
     }
   }
   LOG(INFO) << " ]" << std::endl;
 
   // Print deleted slots.
   LOG(INFO) << "Nr deleted slots: " << delete_slots.size()
-            << ", with slots: " << std::endl;
+            << ", with slots:" << std::endl;
   LOG(INFO) << "[\n\t";
-  for (int i = 0; i < delete_slots.size(); ++i) {
-    LOG(INFO) << delete_slots[i] << " ";
+  if (debug_info_.graphToBeDeleted.size() != 0) {
+    CHECK_EQ(debug_info_.graphToBeDeleted.size(), delete_slots.size());
+    for (int i = 0; i < delete_slots.size(); ++i) {
+      std::cout << "\tSlot # " << delete_slots[i] << ":";
+      std::cout << "\t";
+      debug_info_.graphToBeDeleted.at(i)->printKeys();
+    }
+  } else {
+    for (int i = 0; i < delete_slots.size(); ++i) {
+      std::cout << delete_slots[i] << " ";
+    }
   }
   LOG(INFO) << " ]" << std::endl;
 
   // Print all values in state.
   LOG(INFO) << "Nr of values in state_ : " << state_.size()
-            << ", with keys: " << std::endl;
+            << ", with keys:";
   LOG(INFO) << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
-    LOG(INFO) << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+    std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  LOG(INFO) << " ]" << std::endl;
+  LOG(INFO) << " ]";
 
   // Print only new values.
   LOG(INFO) << "Nr values in new_values_ : " << new_values_.size()
-            << ", with keys: " << std::endl;
+            << ", with keys:";
   LOG(INFO) << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
-    LOG(INFO) << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
+    std::cout << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
-  LOG(INFO) << " ]" << std::endl;
+  LOG(INFO) << " ]";
 
   if (showDetails) {
     graph.print("isam2 graph:\n");
