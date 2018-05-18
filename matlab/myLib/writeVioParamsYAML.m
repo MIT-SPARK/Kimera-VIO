@@ -12,9 +12,9 @@ fprintf(fid,'#VIO PARAMETERS\n');
 % IMU PARAMS
 fprintf(fid,'gyroNoiseDensity: %g\n', vioParams.gyroNoiseDensity);
 fprintf(fid,'accNoiseDensity: %g\n', vioParams.accNoiseDensity);
-fprintf(fid,'imuIntegrationSigma: %g\n', vioParams.imuIntegrationSigma);
 fprintf(fid,'gyroBiasSigma: %g\n', vioParams.gyroBiasSigma);
 fprintf(fid,'accBiasSigma: %g\n', vioParams.accBiasSigma);
+fprintf(fid,'imuIntegrationSigma: %g\n', vioParams.imuIntegrationSigma);
 fprintf(fid,'n_gravity: [%g, %g, %g]\n', vioParams.n_gravity(1),vioParams.n_gravity(2),vioParams.n_gravity(3));
 fprintf(fid,'nominalImuRate: %g\n', vioParams.nominalImuRate);
 % INITIALIZATION PARAMS
