@@ -176,12 +176,13 @@ public:
     // should be in the tracker.
     // -> Make sure we only pass keypoints inside the image!
     for (auto it = keypoints_to_triangulate.begin();
-         it != keypoints_to_triangulate.end(); it++) {
+         it != keypoints_to_triangulate.end();) {
       if (!rect.contains(*it)) {
         LOG(ERROR) << "createMesh2D - error, keypoint out of image frame.";
-        keypoints_to_triangulate.erase(it);
+        it = keypoints_to_triangulate.erase(it);
         // Go backwards, otherwise it++ will jump one keypoint...
-        it--;
+      } else {
+        it++;
       }
     }
 
