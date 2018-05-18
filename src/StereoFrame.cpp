@@ -102,7 +102,9 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   }
 
   // visualize statistics on the performance of the sparse stereo matching
-  displayKeypointStats(right_keypoints_rectified);
+  if (VLOG_IS_ON(20)) {
+    displayKeypointStats(right_keypoints_rectified);
+  }
 
   // sanity check
   checkStereoFrame();
