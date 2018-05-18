@@ -281,10 +281,8 @@ public:
   // Remove line widgets from plane to lmks, for lines that are not pointing
   // to any lmk_id in lmk_ids.
   void removeOldLines(const LandmarkIds& lmk_ids) {
-    for (std::map<LandmarkId, size_t>::iterator lmk_id_to_line_id_it =
-         lmk_id_to_line_id_map_.begin();
-         lmk_id_to_line_id_it != lmk_id_to_line_id_map_.end();
-         lmk_id_to_line_id_it++) {
+    for (std::map<LandmarkId, size_t>::iterator lmk_id_to_line_id_it = lmk_id_to_line_id_map_.begin();
+         lmk_id_to_line_id_it != lmk_id_to_line_id_map_.end(); ) {
       if (std::find(lmk_ids.begin(), lmk_ids.end(), lmk_id_to_line_id_it->first)
           == lmk_ids.end()) {
         // We did not find the lmk_id of the current line in the list
@@ -296,6 +294,8 @@ public:
         // Delete the corresponding entry in the map from lmk id to line id.
         lmk_id_to_line_id_it =
             lmk_id_to_line_id_map_.erase(lmk_id_to_line_id_it);
+      } else {
+        lmk_id_to_line_id_it++;
       }
     }
   }
