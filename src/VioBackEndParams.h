@@ -81,20 +81,21 @@ public:
       const bool useDogLeg = false
   ) : gyroNoiseDensity_(gyroNoiseDensity), accNoiseDensity_(accNoiseDensity),
   imuIntegrationSigma_(imuIntegrationSigma), gyroBiasSigma_(gyroBiasSigma), accBiasSigma_(accBiasSigma),
-  n_gravity_(n_gravity), nominalImuRate_(nominalImuRate), autoInitialize_(autoInitialize), roundOnAutoInitialize_(roundOnAutoInitialize),
+  nominalImuRate_(nominalImuRate), n_gravity_(n_gravity), autoInitialize_(autoInitialize), roundOnAutoInitialize_(roundOnAutoInitialize),
   initialPositionSigma_(initialPositionSigma), initialRollPitchSigma_(initialRollPitchSigma),
   initialYawSigma_(initialYawSigma), initialVelocitySigma_(initialVelocitySigma),
   initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
   linearizationMode_(linMode), degeneracyMode_(degMode),
   smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma), regularityNoiseSigma_(regularityNoiseSigma),
   minPlaneConstraints_(minPlaneConstraints),
-  huberParam_(huberParam), tukeyParam_(tukeyParam), normType_(normType), rankTolerance_(rankTolerance),
+  huberParam_(huberParam), tukeyParam_(tukeyParam), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
-  retriangulationThreshold_(retriangulationThreshold), relinearizeThreshold_(relinearizeThreshold),
+  retriangulationThreshold_(retriangulationThreshold), normType_(normType),
   addBetweenStereoFactors_(addBetweenStereoFactors),betweenRotationPrecision_(betweenRotationPrecision), betweenTranslationPrecision_(betweenTranslationPrecision),
-  relinearizeSkip_(relinearizeSkip), zeroVelocitySigma_(zeroVelocitySigma),
-  noMotionPositionSigma_(noMotionPositionSigma), noMotionRotationSigma_(noMotionRotationSigma), constantVelSigma_(constantVelSigma),
-  numOptimize_(numOptimize), horizon_(horizon), useDogLeg_(useDogLeg) {
+  relinearizeThreshold_(relinearizeThreshold), relinearizeSkip_(relinearizeSkip), horizon_(horizon), numOptimize_(numOptimize),useDogLeg_(useDogLeg),
+  zeroVelocitySigma_(zeroVelocitySigma), noMotionPositionSigma_(noMotionPositionSigma),
+  noMotionRotationSigma_(noMotionRotationSigma), constantVelSigma_(constantVelSigma)
+  {
     // Trivial sanity checks.
     CHECK(minPlaneConstraints >= 3);
     CHECK(horizon >= 0);
