@@ -4,7 +4,12 @@ clc
 
 addpath('./myLib/')
 %% CONDITIONS TO TEST
-descriptionResults = 'regularVioTest'
+regularVio = true;
+if (regularVio) 
+    descriptionResults = 'regularVioTest'
+else 
+    descriptionResults = 'VioTest'
+end
 conditions = [1];
 %datasetsToRun = [1:11]
 datasetsToRun = 6
@@ -15,8 +20,13 @@ allDatasetsToRun = repmat(datasetsToRun,1,nrRuns);
 usePlain = 0;
 %% RUN!
 useSudo = 0;
-vioParams = defaultVioParams();
-trackerParams = defaultTrackerParams();
+if (regularVio) 
+    vioParams = defaultVioParamsRegularVio();
+    trackerParams = defaultTrackerParamsRegularVio();
+else
+    vioParams = defaultVioParams();
+    trackerParams = defaultTrackerParams();
+end
 warning('AD HOC PARAMS')  
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % TODO change params to the ones in pipeline
