@@ -1024,6 +1024,10 @@ void VioBackEnd::updateSmoother(
   } catch (...) {
     // Catch the rest of exceptions.
     LOG(ERROR) << "Unrecognized exception.";
+    printSmootherInfo(new_factors_tmp,
+                      delete_slots,
+                      "CATCHING EXCEPTION",
+                      false);
     // Do not intentionally throw to see what checks fail later.
   }
 }
@@ -1307,6 +1311,7 @@ void VioBackEnd::printSmootherInfo(
   static constexpr bool print_smart_factors = false;
   static constexpr bool print_point_plane_factors = true;
   static constexpr bool print_plane_priors = true;
+  static constexpr bool print_point_priors = true;
   static constexpr bool print_linear_container_factors = true;
   ////////////////////// Print all factors. ////////////////////////////////////
   LOG(INFO) << "Nr of factors in graph " + *which_graph << ": " << graph->size()
@@ -1318,6 +1323,7 @@ void VioBackEnd::printSmootherInfo(
                          print_smart_factors,
                          print_point_plane_factors,
                          print_plane_priors,
+                         print_point_priors,
                          print_linear_container_factors);
     slot++;
   }
@@ -1329,10 +1335,11 @@ void VioBackEnd::printSmootherInfo(
             << " with factors:" << std::endl;
   LOG(INFO) << "[\n\t";
   for (const auto& g : new_factors_tmp) {
-    printSelectedFactors(g, -1,
+    printSelectedFactors(g, 1,
                          print_smart_factors,
                          print_point_plane_factors,
                          print_plane_priors,
+                         print_point_priors,
                          print_linear_container_factors);
   }
   std::cout << std::endl;
@@ -1349,11 +1356,13 @@ void VioBackEnd::printSmootherInfo(
     for (int i = 0; i < delete_slots.size(); ++i) {
       CHECK_NOTNULL(debug_info_.graphToBeDeleted.at(i).get());
       if (print_point_plane_factors) {
-        boost::shared_ptr<gtsam::PointPlaneFactor> ppf =
-            boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(debug_info_.graphToBeDeleted.at(i));
-        if (ppf) {
-          printPointPlaneFactor(ppf);
-        }
+        printSelectedFactors(debug_info_.graphToBeDeleted.at(i),
+                             delete_slots.at(i),
+                             false,
+                             print_point_plane_factors,
+                             false,
+                             false,
+                             false);
       } else {
         std::cout << "\tSlot # " << delete_slots.at(i) << ":";
         std::cout << "\t";
@@ -1434,6 +1443,14 @@ void VioBackEnd::printPlanePrior(
 }
 
 /* -------------------------------------------------------------------------- */
+void VioBackEnd::printPointPrior(
+    boost::shared_ptr<gtsam::PriorFactor<gtsam::Point3>> ppp) const {
+  CHECK(ppp);
+  std::cout << "Point Prior: point key \t";
+  ppp->printKeys();
+}
+
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::printLinearContainerFactor(
     boost::shared_ptr<gtsam::LinearContainerFactor> lcf) const {
   CHECK(lcf);
@@ -1448,13 +1465,13 @@ void VioBackEnd::printSelectedFactors(
     const bool print_smart_factors,
     const bool print_point_plane_factors,
     const bool print_plane_priors,
+    const bool print_point_priors,
     const bool print_linear_container_factors) const {
 
   if (print_smart_factors) {
     const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
     if (gsf) {
-      if (slot != -1)
-        std::cout << "\tSlot # " << slot << ": ";
+      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
       printSmartFactor(gsf);
     }
   }
@@ -1462,8 +1479,7 @@ void VioBackEnd::printSelectedFactors(
   if (print_point_plane_factors) {
     const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
     if (ppf) {
-      if (slot != -1)
-        std::cout << "\tSlot # " << slot << ": ";
+      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
       printPointPlaneFactor(ppf);
     }
   }
@@ -1472,9 +1488,17 @@ void VioBackEnd::printSelectedFactors(
     const auto& ppp = boost::dynamic_pointer_cast<gtsam::PriorFactor<
                       gtsam::OrientedPlane3>>(g);
     if (ppp) {
-      if (slot != -1)
-        std::cout << "\tSlot # " << slot << ": ";
+      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
       printPlanePrior(ppp);
+    }
+  }
+
+  if (print_point_priors) {
+    const auto& ppp = boost::dynamic_pointer_cast<gtsam::PriorFactor<
+                      gtsam::Point3>>(g);
+    if (ppp) {
+      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
+      printPointPrior(ppp);
     }
   }
 
@@ -1482,8 +1506,7 @@ void VioBackEnd::printSelectedFactors(
     const auto& lcf = boost::dynamic_pointer_cast<
                       gtsam::LinearContainerFactor>(g);
     if (lcf) {
-      if (slot != -1)
-        std::cout << "\tSlot # " << slot << ": ";
+      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
       printLinearContainerFactor(lcf);
     }
   }

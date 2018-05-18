@@ -549,6 +549,10 @@ private:
       boost::shared_ptr<gtsam::PriorFactor<gtsam::OrientedPlane3>> ppp) const;
 
   /* ------------------------------------------------------------------------ */
+  void printPointPrior(
+      boost::shared_ptr<gtsam::PriorFactor<gtsam::Point3>> ppp) const;
+
+  /* ------------------------------------------------------------------------ */
   void printLinearContainerFactor(
       boost::shared_ptr<gtsam::LinearContainerFactor> lcf) const;
 
@@ -563,6 +567,7 @@ private:
       const bool print_smart_factors = true,
       const bool print_point_plane_factors = true,
       const bool print_plane_priors = true,
+      const bool print_point_priors = true,
       const bool print_linear_container_factors = true) const;
 
   /// Debuggers.
