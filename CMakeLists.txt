@@ -2,11 +2,14 @@ cmake_minimum_required (VERSION 3.1)
 project (VIO CXX C)
 # set(CMAKE_CXX_FLAGS "-std=c++11") #  -stdlib=libc++
 # set(CMAKE_CXX_FLAGS "-stdlib=libc++")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 ### Include the boost directory
 find_package(Boost COMPONENTS filesystem REQUIRED)
