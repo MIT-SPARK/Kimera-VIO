@@ -995,6 +995,13 @@ void VioBackEnd::updateSmoother(
                                 new_values,
                                 timestamps,
                                 delete_slots);
+    if (DEBUG_) {
+      printSmootherInfo(new_factors_tmp,
+                        delete_slots,
+                        "CATCHING EXCEPTION",
+                        false);
+      DEBUG_ = false;
+    }
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
     LOG(ERROR) << e.what();
 

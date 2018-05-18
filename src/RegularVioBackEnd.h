@@ -55,6 +55,8 @@ public:
   void updateLandmarkInGraph(const LandmarkId& lm_id,
                              const std::pair<FrameId, StereoPoint2>& newObs);
 private:
+  typedef size_t Slot;
+
   // Type of handled regularities.
   enum class RegularityType{
     POINT_PLANE
@@ -79,15 +81,21 @@ private:
                        LmkIdIsSmart* lmk_id_is_smart);
 
   /* ------------------------------------------------------------------------ */
-  void addRegularityFactors(const LandmarkIds& mesh_lmk_ids,
-                            gtsam::Symbol* plane_symbol,
-                            size_t* plane_constraints_to_be_added);
+  void addRegularityFactors(
+      const LandmarkIds& mesh_lmk_ids,
+      gtsam::Symbol* plane_symbol,
+      std::vector<std::pair<Slot, LandmarkId>>* idx_of_point_plane_factors_to_add);
 
   /* ------------------------------------------------------------------------ */
-  void removeOldRegularityFactors_Slow(const gtsam::Symbol& plane_symbol,
-                                       const size_t& nr_of_plane_constraints,
-                                       const LandmarkIds& mesh_lmk_ids,
-                                       std::vector<size_t>* delete_slots);
+  void removeOldRegularityFactors_Slow(
+      const gtsam::Symbol& plane_symbol,
+      const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+      const LandmarkIds& mesh_lmk_ids,
+      std::vector<size_t>* delete_slots);
+
+  /* ------------------------------------------------------------------------ */
+  void fillDeleteSlots(const std::vector<std::pair<Slot, LandmarkId> >& point_plane_factor_slots,
+      std::vector<size_t>* delete_slots);
 
 };
 

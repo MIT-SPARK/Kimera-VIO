@@ -319,6 +319,9 @@ public:
   // Debug info.
   DebugVioInfo debug_info_;
 
+  // TODO remove this.
+  bool DEBUG_ = false;
+
 public:
   /// Methods
 
