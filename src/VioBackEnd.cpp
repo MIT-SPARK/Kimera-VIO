@@ -1371,8 +1371,8 @@ void VioBackEnd::printSmootherInfo(
       }
     }
   } else {
-    for (int i = 0; i < delete_slots.size(); ++i) {
-      std::cout << delete_slots[i] << " ";
+    for (size_t i = 0; i < delete_slots.size(); ++i) {
+      std::cout << delete_slots.at(i) << " ";
     }
   }
   std::cout << std::endl;
