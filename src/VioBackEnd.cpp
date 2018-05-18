@@ -136,6 +136,7 @@ ImuBias VioBackEnd::initializeImuBias(const ImuAccGyr& accGyroRaw,
     sumGyroMeasurements += accGyroRaw_i.tail(3);
   }
 
+  // Avoid the dark world of Undefined Behaviour...
   CHECK_NE(nrMeasured, 0) << "About to divide by 0!";
   gtsam::imuBias::ConstantBias
       imuInit(sumAccMeasurements/double(nrMeasured) + n_gravity,
@@ -397,7 +398,7 @@ vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
 // Warning! it modifies old_smart_factors_!!
 void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     PointsWithIdMap* points_with_id,
-    const int& min_age) {
+    const size_t& min_age) {
   CHECK_NOTNULL(points_with_id);
 
   // Add landmarks encoded in the smart factors.
@@ -615,7 +616,7 @@ void VioBackEnd::integrateImuMeasurements(const ImuStamps& imu_stamps,
     pim_->resetIntegrationAndSetBias(imu_bias_prev_kf_);
   }
 
-  for (size_t i = 0; i < imu_stamps.size() - 1; ++i) {
+  for (int i = 0; i < imu_stamps.size() - 1; ++i) {
     const Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
     const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
     const double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
@@ -740,7 +741,7 @@ void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id) {
 // TODO make changes to global variables to the addVisualInertial blah blah.
 void VioBackEnd::optimize(
     const FrameId& cur_id,
-    const int& max_extra_iterations,
+    const size_t& max_extra_iterations,
     const std::vector<size_t>& extra_factor_slots_to_delete) {
   CHECK(smoother_.get()) << "Incremental smoother is a null pointer.";
 
@@ -1353,7 +1354,7 @@ void VioBackEnd::printSmootherInfo(
     // If we are storing the graph to be deleted, then print extended info
     // besides the slot to be deleted.
     CHECK_EQ(debug_info_.graphToBeDeleted.size(), delete_slots.size());
-    for (int i = 0; i < delete_slots.size(); ++i) {
+    for (size_t i = 0; i < delete_slots.size(); ++i) {
       CHECK_NOTNULL(debug_info_.graphToBeDeleted.at(i).get());
       if (print_point_plane_factors) {
         printSelectedFactors(debug_info_.graphToBeDeleted.at(i),
@@ -1471,7 +1472,7 @@ void VioBackEnd::printSelectedFactors(
   if (print_smart_factors) {
     const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
     if (gsf) {
-      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
+      std::cout << "\tSlot # " << slot << ": ";
       printSmartFactor(gsf);
     }
   }
@@ -1479,7 +1480,7 @@ void VioBackEnd::printSelectedFactors(
   if (print_point_plane_factors) {
     const auto& ppf = boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
     if (ppf) {
-      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
+      std::cout << "\tSlot # " << slot << ": ";
       printPointPlaneFactor(ppf);
     }
   }
@@ -1488,7 +1489,7 @@ void VioBackEnd::printSelectedFactors(
     const auto& ppp = boost::dynamic_pointer_cast<gtsam::PriorFactor<
                       gtsam::OrientedPlane3>>(g);
     if (ppp) {
-      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
+      std::cout << "\tSlot # " << slot << ": ";
       printPlanePrior(ppp);
     }
   }
@@ -1497,7 +1498,7 @@ void VioBackEnd::printSelectedFactors(
     const auto& ppp = boost::dynamic_pointer_cast<gtsam::PriorFactor<
                       gtsam::Point3>>(g);
     if (ppp) {
-      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
+      std::cout << "\tSlot # " << slot << ": ";
       printPointPrior(ppp);
     }
   }
@@ -1506,7 +1507,7 @@ void VioBackEnd::printSelectedFactors(
     const auto& lcf = boost::dynamic_pointer_cast<
                       gtsam::LinearContainerFactor>(g);
     if (lcf) {
-      if (slot != -1) std::cout << "\tSlot # " << slot << ": ";
+      std::cout << "\tSlot # " << slot << ": ";
       printLinearContainerFactor(lcf);
     }
   }
@@ -1590,8 +1591,8 @@ void VioBackEnd::computeSparsityStatistics() {
   gtsam::Matrix Hessian = gfg->hessian().first;
   debug_info_.nrElementsInMatrix_ = Hessian.rows() * Hessian.cols();
   debug_info_.nrZeroElementsInMatrix_ = 0;
-  for(size_t i=0; i<Hessian.rows();++i){
-    for(size_t j=0; j<Hessian.cols();++j){
+  for(int i = 0; i < Hessian.rows(); ++i){
+    for(int j = 0; j < Hessian.cols(); ++j){
       if(fabs(Hessian(i,j))<1e-15)
         debug_info_.nrZeroElementsInMatrix_ += 1;
     }

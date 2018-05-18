@@ -134,7 +134,7 @@ public:
   double meanPixelError_;
   double maxPixelError_;
   double meanTrackLength_;
-  int maxTrackLength_;
+  size_t maxTrackLength_;
 
   int numAddedSmartF_;
   int numAddedImuF_;
@@ -236,7 +236,7 @@ public:
                                                 LandmarkId,
                                                 SmartStereoFactor::shared_ptr>;
   using SmartFactorMap =
-      gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, int>>;
+  gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, int>>;
 
   using PointWithId     = std::pair<LandmarkId, gtsam::Point3>;
   using PointsWithId    = std::vector<PointWithId>;
@@ -261,6 +261,9 @@ public:
   // Virtual destructor needed for derived class (i.e. RegularVioBackEnd).
   virtual ~VioBackEnd() = default;
 
+  // RAW, user-specified params.
+  const VioBackEndParams vio_params_;
+
   // STATE ESTIMATES.
   ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
   ImuBias imu_bias_prev_kf_;   //!< bias estimate at previous keyframe
@@ -272,8 +275,6 @@ public:
   // Id of current keyframe, increases from 0 to inf.
   int cur_kf_id_;
 
-  // RAW, user-specified params.
-  const VioBackEndParams vio_params_;
 
   // Current time.
   double timestamp_kf_; // timestamp in seconds attached to the last keyframe
@@ -399,7 +400,7 @@ public:
   // Get valid 3D points and corresponding lmk id.
   // Warning! it modifies old_smart_factors_!!
   void getMapLmkIdsTo3dPointsInTimeHorizon(PointsWithIdMap* points_with_id,
-                                           const int& min_age = 2);
+                                           const size_t& min_age = 2);
 
   /* ------------------------------------------------------------------------ */
   // NOT TESTED
@@ -451,7 +452,7 @@ protected:
 
   /* ------------------------------------------------------------------------ */
   void optimize(const FrameId& cur_id,
-                const int& max_iterations,
+                const size_t& max_iterations,
                 const std::vector<size_t>& extra_factor_slots_to_delete =
                                                         std::vector<size_t>());
   /// Printers.
@@ -563,7 +564,7 @@ private:
   // If slot is -1, there is no slot number printed.
   void printSelectedFactors(
       const boost::shared_ptr<gtsam::NonlinearFactor>& g,
-      const size_t& slot = -1,
+      const size_t& slot = 0,
       const bool print_smart_factors = true,
       const bool print_point_plane_factors = true,
       const bool print_plane_priors = true,
