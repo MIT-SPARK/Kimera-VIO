@@ -193,7 +193,6 @@ int main(int argc, char *argv[]) {
   Timestamp timestamp_lkf = dataset.timestampAtFrame(initial_k - 10);
   Timestamp timestamp_k;
 
-  bool didFirstOptimization = false;
   double startTime; // to log timing results
 
   /// Lmk ids that are considered to be in the same cluster.
@@ -362,7 +361,7 @@ int main(int argc, char *argv[]) {
       startTime = UtilsOpenCV::GetTimeInSeconds();
       SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
 
-      VLOG(100) << "Starting feature selection.";
+      VLOG(100) << "Starting feature selection...";
       // ToDo init to invalid value.
       gtsam::Matrix curr_state_cov;
       if (trackerParams.featureSelectionCriterion_ !=
@@ -438,6 +437,7 @@ int main(int argc, char *argv[]) {
               imu_stamps, imu_accgyr, // Inertial data.
               mesh_lmk_ids_ground_cluster,
               stereoVisionFrontEnd.getRelativePoseBodyStereo()); // optional: pose estimate from stereo ransac
+        VLOG(10) << "Finished addVisualInertialStateAndOptimize.";
       } else {
         VLOG(10) << "Add visual inertial state and optimize,"
                     " without using stereo between factor.";
@@ -446,6 +446,7 @@ int main(int argc, char *argv[]) {
               statusSmartStereoMeasurements,
               imu_stamps, imu_accgyr,
               mesh_lmk_ids_ground_cluster); // Same but no pose.
+        VLOG(10) << "Finished addVisualInertialStateAndOptimize.";
       }
 
       if (FLAGS_log_output) {
@@ -564,6 +565,7 @@ int main(int argc, char *argv[]) {
                                                   &mesh_lmk_ids_ground_cluster);
 
           if (FLAGS_visualize) {
+            VLOG(10) << "Starting mesh visualization...";
             cv::Mat vertices_mesh;
             cv::Mat polygons_mesh;
             mesher.getVerticesMesh(&vertices_mesh);
@@ -583,7 +585,7 @@ int main(int argc, char *argv[]) {
 
             static constexpr bool visualize_point_cloud = true;
             if (visualize_point_cloud) {
-                visualizer.visualizePoints3D(points_with_id_VIO_prev);
+              visualizer.visualizePoints3D(points_with_id_VIO_prev);
             }
 
             static constexpr bool visualize_planes = true;
@@ -591,8 +593,8 @@ int main(int argc, char *argv[]) {
             if (visualize_planes) {
               static const std::string plane_id = "Plane 0.";
               gtsam::OrientedPlane3 plane;
-              if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-                   gtsam::Symbol('P', 0).key(), &plane)) {
+              if (vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+                    gtsam::Symbol('P', 0).key(), &plane)) {
                 const Point3& normal = plane.normal().point3();
                 if (visualize_plane_constraints) {
                   const gtsam::NonlinearFactorGraph& graph =
@@ -627,7 +629,7 @@ int main(int argc, char *argv[]) {
                   visualizer.removeOldLines(lmk_ids_in_current_pp_factors);
                 }
 
-                // VisualizePlane last, so it calls spinOnce and refreshed window.
+                // Visualize plane.
                 visualizer.visualizePlane(plane_id,
                                           normal.x(),
                                           normal.y(),
@@ -642,14 +644,15 @@ int main(int argc, char *argv[]) {
             }
 
             // Render current window.
-            visualizer.renderWindow();
+            visualizer.renderWindow(1, true);
 
             // Store current mesh for display later.
             vertices_mesh_prev = vertices_mesh;
             polygons_mesh_prev = polygons_mesh;
             triangle_clusters_prev = triangle_clusters;
             points_with_id_VIO_prev = points_with_id_VIO;
-          }
+            VLOG(10) << "Finished mesh visualization.";
+          } // FLAGS_visualize.
 
           break;
         }
@@ -701,13 +704,14 @@ int main(int argc, char *argv[]) {
 
       // Visualize trajectory.
       if (FLAGS_visualize) {
+        VLOG(10) << "Starting trajectory visualization...";
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory3D(
               &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
         visualizer.renderWindow();
+        VLOG(10) << "Finsihed trajectory visualization.";
       }
 
-      didFirstOptimization = true;
       timestamp_lkf = timestamp_k;
     }
 
