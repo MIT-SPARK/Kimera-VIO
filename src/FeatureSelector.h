@@ -1193,8 +1193,8 @@ public:
     int need_nr_features = std::max(nrFeaturesToSelect -
                                     int(trackedkeypoints_3d.size()),
                                     int(0)); // at least zero
-    VLOG(10) << "Nr features tracked: " << trackedSmartStereoMeasurements.size()
-             << "Nr new features needed: " << need_nr_features
+    VLOG(10) << "Nr features tracked: " << trackedSmartStereoMeasurements.size() << "\n"
+             << "Nr new features needed: " << need_nr_features << "\n"
              << "Nr new features before selector: "
              << newSmartStereoMeasurements.size();
 

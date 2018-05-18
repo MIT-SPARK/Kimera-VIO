@@ -166,6 +166,7 @@ void Mesher::populate3dMeshTimeHorizon(
     double min_ratio_largest_smallest_side,
     double min_elongation_ratio,
     double max_triangle_side) {
+  VLOG(10) << "Starting populate3dMeshTimeHorizon...";
   // Note: we restrict to valid triangles in which each landmark has a 3D point.
   // Iterate over each face in the 2d mesh, and generate the 3d mesh.
 
@@ -228,6 +229,7 @@ void Mesher::populate3dMeshTimeHorizon(
                                  leftCameraPose,
                                  min_ratio_largest_smallest_side,
                                  max_triangle_side);
+  VLOG(10) << "Finished populate3dMeshTimeHorizon.";
 }
 
 // TODO the polygon_mesh has repeated faces...
@@ -237,6 +239,7 @@ void Mesher::reducePolygonMeshToTimeHorizon(
     const gtsam::Pose3& leftCameraPose,
     double min_ratio_largest_smallest_side,
     double max_triangle_side) {
+  VLOG(10) << "Starting reducePolygonMeshToTimeHorizon...";
   Mesh3D mesh_output;
 
   auto end = points_with_id_map.end();
@@ -278,6 +281,7 @@ void Mesher::reducePolygonMeshToTimeHorizon(
   }
 
   mesh_ = mesh_output;
+  VLOG(10) << "Finished reducePolygonMeshToTimeHorizon.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -443,6 +447,7 @@ void Mesher::clusterZComponent(
 void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters,
                          const gtsam::Point3& plane_normal,
                          const double& plane_distance) const {
+  VLOG(10) << "Starting clusterMesh...";
   CHECK_NOTNULL(clusters);
 
   // Cluster triangles oriented along z axis.
@@ -505,6 +510,7 @@ void Mesher::clusterMesh(std::vector<TriangleCluster>* clusters,
   static constexpr double tolerance = 0.1;
   clusterZComponent(z, tolerance,
                     &(clusters->at(0)));
+  VLOG(10) << "Finished clusterMesh.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -518,6 +524,8 @@ void Mesher::updateMesh3D(
     const double& min_elongation_ratio,
     const double& maxTriangleSide,
     const bool& visualize) {
+  VLOG(10) << "Starting updateMesh3D...";
+
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
   stereoFrame->createMesh2dVIO(&mesh_2d,
@@ -548,6 +556,8 @@ void Mesher::updateMesh3D(
         minRatioBetweenLargestAnSmallestSide,
         min_elongation_ratio,
         maxTriangleSide);
+
+  VLOG(10) << "Finished updateMesh3D.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -556,6 +566,7 @@ void Mesher::updateMesh3D(
 void Mesher::extractLmkIdsFromTriangleCluster(
     const TriangleCluster& triangle_cluster,
     LandmarkIds* lmk_ids) const {
+  VLOG(10) << "Starting extractLmkIdsFromTriangleCluster...";
   CHECK_NOTNULL(lmk_ids);
   lmk_ids->resize(0);
 
@@ -577,6 +588,7 @@ void Mesher::extractLmkIdsFromTriangleCluster(
       }
     }
   }
+  VLOG(10) << "Finished extractLmkIdsFromTriangleCluster.";
 }
 
 /* -------------------------------------------------------------------------- */

@@ -108,14 +108,14 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   addImuValues(cur_kf_id_);
 
   // Add imu factors between consecutive keyframe states.
-  VLOG(20) << "Adding IMU factor between pose id: " << last_kf_id_
+  VLOG(10) << "Adding IMU factor between pose id: " << last_kf_id_
           << " and pose id: " << cur_kf_id_;
   addImuFactor(last_kf_id_, cur_kf_id_);
 
   /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
   // Add between factor from RANSAC.
   if (stereo_ransac_body_pose) {
-    VLOG(20) << "Adding RANSAC factor between pose id: " << last_kf_id_
+    VLOG(10) << "Adding RANSAC factor between pose id: " << last_kf_id_
             << " and pose id: " << cur_kf_id_;
     if (VLOG_IS_ON(20)) {
       stereo_ransac_body_pose->print();
@@ -169,6 +169,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // For each landmark we decide if it's going to be a smart factor or not.
         // TODO here there is a timeline mismatch, while landmarks_kf are only currently
         // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
+        VLOG(10) << "Updating lmk_id_is_smart_.";
         isLandmarkSmart(lmks_kf,
                         mesh_lmk_ids_ground_cluster,
                         &lmk_id_is_smart_);
@@ -232,7 +233,7 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
     // (otherwise uninformative)
     static constexpr size_t min_num_of_observations = 2;
     if (feature_track.obs_.size() < min_num_of_observations) {
-      VLOG(10) << "Feature track is shorter (" << feature_track.obs_.size()
+      VLOG(20) << "Feature track is shorter (" << feature_track.obs_.size()
                << ") than min_num_of_observations (" << min_num_of_observations
                << ") for lmk with id: " << lmk_id;
       continue;
@@ -241,7 +242,7 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
     if (!feature_track.in_ba_graph_) {
       // Acknowledge that we have added the landmark in the graph.
       feature_track.in_ba_graph_ = true;
-      VLOG(10) << "Adding lmk " << lmk_id << " to graph.";
+      VLOG(20) << "Adding lmk " << lmk_id << " to graph.";
       addLandmarkToGraph(lmk_id, feature_track);
       ++n_new_landmarks;
     } else {
@@ -251,12 +252,12 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
       CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
                                             " keyframe!";
 
-      VLOG(10) << "Updating lmk " << lmk_id << " to graph.";
+      VLOG(20) << "Updating lmk " << lmk_id << " to graph.";
       updateLandmarkInGraph(lmk_id, obs_kf);
       ++n_updated_landmarks;
     }
   }
-  VLOG(7) << "Added " << n_new_landmarks << " new landmarks.\n"
+  VLOG(10) << "Added " << n_new_landmarks << " new landmarks.\n"
           << "Updated " << n_updated_landmarks << " landmarks in graph.";
 }
 
@@ -272,18 +273,18 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                                              smart_factors_params_,
                                              B_Pose_leftCam_));
 
-  VLOG(10) << "Adding landmark with id: " << lmk_id
+  VLOG(20) << "Adding landmark with id: " << lmk_id
            << " for the first time to graph. \n"
            << "Nr of observations of the lmk: " << ft.obs_.size()
            << " observations.\n";
-  if (VLOG_IS_ON(20)) {
+  if (VLOG_IS_ON(30)) {
     new_factor->print();
   }
 
   // Add observations to smart factor.
-  VLOG(10) << "Creating smart factor involving lmk with id: " << lmk_id;
+  VLOG(20) << "Creating smart factor involving lmk with id: " << lmk_id;
   for (const std::pair<FrameId, StereoPoint2>& obs: ft.obs_) {
-    VLOG(10) << "SmartFactor: adding observation of lmk with id: " << lmk_id
+    VLOG(20) << "SmartFactor: adding observation of lmk with id: " << lmk_id
             << " from frame with id: " << obs.first;
 
     new_factor->add(obs.second,
@@ -318,7 +319,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
   const bool& is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
   if (is_lmk_smart) {
     // Lmk is meant to be smart.
-    VLOG(10) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
+    VLOG(20) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
 
     // Update existing smart-factor.
     const SmartFactorMap::iterator& old_smart_factors_it =
@@ -331,11 +332,12 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         old_smart_factors_it->second.first;
 
     // Clone old factor as a new factor.
+    CHECK_NOTNULL(old_factor.get());
     SmartStereoFactor::shared_ptr new_factor =
         boost::make_shared<SmartStereoFactor>(*old_factor);
 
     // Add observation to new factor.
-    VLOG(10) << "Added observation for smart factor of lmk with id: "
+    VLOG(20) << "Added observation for smart factor of lmk with id: "
              << lmk_id;
     new_factor->add(newObs.second,
                     gtsam::Symbol('x', newObs.first),
@@ -348,7 +350,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 
     // Slot is different than -1
     // It means that the factor has already been inserted in the graph.
-    VLOG(10) << "Insert new smart factor to new_smart_factors_ for lmk with"
+    VLOG(20) << "Insert new smart factor to new_smart_factors_ for lmk with"
              << " id: " << lmk_id;
 
     ///// Book Keeping, update factors /////////////////////////////////////////
@@ -363,14 +365,14 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     ////////////////////////////////////////////////////////////////////////////
 
   } else {
-    VLOG(10) << "Lmk with id: " << lmk_id
+    VLOG(20) << "Lmk with id: " << lmk_id
               << " is set to be a projection factor.\n";
 
     // Update lmk_id as a projection factor.
     gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id);
     bool lmk_position_available = true;
     if (state_.find(lmk_key) == state_.end()) {
-      VLOG(10) << "Lmk with id: " << lmk_id << " is not found in state.\n";
+      VLOG(20) << "Lmk with id: " << lmk_id << " is not found in state.\n";
       // We did not find the lmk in the state.
       // It was a smart factor before.
       // Convert smart to projection.
@@ -380,16 +382,19 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 
       SmartStereoFactor::shared_ptr old_factor =
           old_smart_factors_it->second.first;
+      CHECK_NOTNULL(old_factor.get());
 
       // Add landmark value to graph.
-      VLOG(20) << "Print old_factor of lmk_id: " << lmk_id;
-      if (VLOG_IS_ON(20)) {
+      VLOG(30) << "Print old_factor of lmk_id: " << lmk_id;
+      if (VLOG_IS_ON(30)) {
         old_factor->print();
       }
       // TODO make sure that if point is not valid it works as well...
       if (old_factor->point().valid()) {
-        VLOG(10) << "Performing conversion for lmk_id: " << lmk_id;
+        VLOG(20) << "Performing conversion for lmk_id: " << lmk_id;
 
+        CHECK(old_factor->point());
+        // TODO check all the * whatever, for segmentation fault!
         new_values_.insert(lmk_key, *(old_factor->point()));
 
         // DEBUG add prior to lmks.
@@ -406,7 +411,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         for (size_t i = 0; i < old_factor->keys().size(); i++) {
           const gtsam::Key& cam_key = old_factor->keys().at(i);
           const StereoPoint2& sp2   = old_factor->measured().at(i);
-          VLOG(10) << "Lmk with id: " << lmk_id
+          VLOG(20) << "Lmk with id: " << lmk_id
                    << " added as a new projection factor with pose with id: "
                    << static_cast<int>(cam_key) << ".\n";
           if (!std::isnan(sp2.uR())) {
@@ -441,6 +446,8 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 
         // Erase from old_smart_factors_ list since this has been converted into
         // projection factors.
+        // Check to avoid undefined behaviour.
+        CHECK(old_smart_factors_.find(lmk_id) != old_smart_factors_.end());
         old_smart_factors_.erase(lmk_id);
       } else {
         LOG(WARNING) << "Cannot convert smart factor to proj. factor.\n"
@@ -450,7 +457,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         lmk_position_available = false;
       }
     } else {
-      VLOG(10) << "Lmk with id: " << lmk_id << " has been found in state: "
+      VLOG(20) << "Lmk with id: " << lmk_id << " has been found in state: "
                << "it is being used in a projection factor.";
     }
 
@@ -460,7 +467,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     // not convert the smart factor to a set of projection factors, then do not
     // add it because we do not have a right value to use.
     if (lmk_position_available) {
-      VLOG(10) << "Lmk with id: " << lmk_id
+      VLOG(20) << "Lmk with id: " << lmk_id
                << " added as a new projection factor with pose with id: "
                << newObs.first << ".\n";
       if (!std::isnan(newObs.second.uR())) {
@@ -504,7 +511,7 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
     if (std::find(mesh_lmk_ids.begin(),
                   mesh_lmk_ids.end(), lmk_id) ==
         mesh_lmk_ids.end()) {
-      VLOG(10) << "Lmk_id = " << lmk_id
+      VLOG(20) << "Lmk_id = " << lmk_id
                << " needs to stay as it is since it is NOT involved in any regularity.";
       // This lmk is not involved in any regularity.
       if (lmk_id_slot == lmk_id_is_smart->end()) {
@@ -519,7 +526,7 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
     } else {
       // This lmk is involved in a regularity, hence it should be a variable in
       // the factor graph (connected to projection factor).
-      VLOG(10) << "Lmk_id = " << lmk_id
+      VLOG(20) << "Lmk_id = " << lmk_id
                << " needs to be a proj. factor, as it is involved in a regularity.";
       const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
       if (old_smart_factors_it == old_smart_factors_.end()) {
@@ -535,6 +542,7 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
 
         SmartStereoFactor::shared_ptr old_factor =
             old_smart_factors_it->second.first;
+        CHECK_NOTNULL(old_factor.get());
 
         if (!old_factor->point().valid()) {
           // The point is not valid.
@@ -602,14 +610,14 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids,
           new_values_.exists(gtsam::Symbol('l', lmk_id))) {
         // Lmk id exists either in the state or it is going to be added in the
         // next optimization.
-        VLOG(10) << "Lmk id: " << lmk_id
+        VLOG(20) << "Lmk id: " << lmk_id
                  << " is in state_ or is going to be added in next optimization.";
 
         const auto& lmk_id_regularity_type =
             lmk_id_to_regularity_type_map_.find(lmk_id);
         if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end()) {
           // Lmk has not been used in a regularity.
-          VLOG(10) << "Lmk id: " << lmk_id
+          VLOG(20) << "Lmk id: " << lmk_id
                    << " has not yet been used in a regularity.";
 
           // Check that the plane is constrained before adding factors.
@@ -680,6 +688,11 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids,
             // condition anymore.
             list_of_constraints.resize(0);
           }
+        } else {
+          LOG(FATAL) << "If this is a new plane, the lmks should not have any "
+                        "regularities...";
+          // And this if condition will prevent multiple regularities on the
+          // same point...
         }
       } else {
         LOG(WARNING) << "Lmk id: " << lmk_id
@@ -709,7 +722,7 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids,
 
     // Reset the flag for next time we have to add a plane.
     is_plane_constrained = false;
-    // Also reset vector of constraints, just to be sure.
+    // Also reset vector of constraints to empty.
     list_of_constraints.resize(0);
   } else {
     VLOG(10) << "Plane key does exist already: "
@@ -721,15 +734,16 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids,
           new_values_.exists(gtsam::Symbol('l', lmk_id))) {
         // Lmk id exists either in the state or it is going to be added in the
         // next optimization.
-        VLOG(10) << "Lmk id: " << lmk_id
+        VLOG(20) << "Lmk id: " << lmk_id
                  << " is in state_ or is going to be added in next optimization.";
 
         const auto& lmk_id_regularity_type =
             lmk_id_to_regularity_type_map_.find(lmk_id);
         if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end() ||
             lmk_id_regularity_type->second != RegularityType::POINT_PLANE) {
-          // Lmk has not been used in a regularity.
-          VLOG(10) << "Lmk id: " << lmk_id
+          // Lmk has not been used in a regularity or is not in a point plane
+          // factor.
+          VLOG(20) << "Lmk id: " << lmk_id
                    << " has not yet been used in a regularity.";
 
           // The plane is already in the graph so it must be fully constrained,
@@ -745,9 +759,9 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids,
           lmk_id_to_regularity_type_map_[lmk_id] =
               RegularityType::POINT_PLANE;
         } else {
-          // This lmk has already been used in a regularity, avoid duplication
-          // of factors.
-          VLOG(10) << "Avoiding duplicated regularity factor for lmk id: " << lmk_id;
+          // This lmk has already been used in a regularity and is a point plane
+          // factor, avoid duplication of factors.
+          VLOG(20) << "Avoiding duplicated regularity factor for lmk id: " << lmk_id;
         }
       } else {
         LOG(WARNING) << "Lmk id: " << lmk_id
@@ -774,6 +788,10 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   CHECK_NOTNULL(delete_slots);
   delete_slots->resize(0);
 
+  CHECK(!(state_.exists(plane_symbol.key()) &&
+        new_values_.exists(plane_symbol.key())))
+      << "Inconsistency: plane is in current state,"
+         " but it is going to be added.";
   if (!state_.exists(plane_symbol.key())){
     // The plane is not in the state, it is probably going to be added in
     // this iteration, so it must be already well constrained and attached

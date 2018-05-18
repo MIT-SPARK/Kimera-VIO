@@ -454,7 +454,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     // Get triangulation result from smart factor.
     const gtsam::TriangulationResult& result = gsf->point();
     if (!result.valid()) { // Why not use smart_factor_ptr->point().valid()
-      VLOG(10) << "Rejecting lmk with id: " << lmk_id
+      VLOG(20) << "Rejecting lmk with id: " << lmk_id
                << " from list of lmks in time horizon:\n"
                << "triangulation result is not valid (result= {"
                << result << "}).";
@@ -462,7 +462,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     }
 
     if (gsf->measured().size() < min_age) { // Why not use smart_factor_ptr->measured().size();
-      VLOG(10) << "Rejecting lmk with id: " << lmk_id
+      VLOG(20) << "Rejecting lmk with id: " << lmk_id
                << " from list of lmks in time horizon: "
                << "not enough measurements, " << gsf->measured().size()
                << ", vs min_age of " << min_age << ".";
@@ -471,7 +471,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
 
     // Triangulation result from smart factor is valid and
     // we have observed the lmk at least min_age times.
-    VLOG(10) << "Adding lmk with id: " << lmk_id
+    VLOG(20) << "Adding lmk with id: " << lmk_id
              << " to list of lmks in time horizon";
     (*points_with_id)[lmk_id] = *result; // Why not use smart_factor_ptr->point().
     nr_valid_smart_lmks++;
@@ -576,7 +576,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
         feature_tracks_.find(lmk_id_in_kf_i);
     if (feature_track_it == feature_tracks_.end()) {
       // New feature.
-      VLOG(10) << "Creating new feature track for lmk: "
+      VLOG(20) << "Creating new feature track for lmk: "
                << lmk_id_in_kf_i << ".";
       feature_tracks_.insert(std::make_pair(lmk_id_in_kf_i,
                                            FeatureTrack(frame_num,
@@ -595,7 +595,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
       // above, using the tmp structure of course).
 
       // Add observation to existing landmark.
-      VLOG(10) << "Updating feature track for lmk: "
+      VLOG(20) << "Updating feature track for lmk: "
                << lmk_id_in_kf_i << ".";
       feature_track_it->second.obs_.push_back(
             std::make_pair(frame_num, stereo_px_i));
