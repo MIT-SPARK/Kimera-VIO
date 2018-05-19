@@ -462,10 +462,8 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       // not make any sense, since we are using lmk_id which comes from smart_factor
       // and result which comes from graph[slot_id], we should use smart_factor_ptr
       // instead then...
-      VLOG_EVERY_N(20, 30) << "Smart factor in old_smart_factors_"
-                           << " and graph do not coincide:\n"
-                           << "the smart factor " << lmk_id
-                           << " is out of time-horizon.";
+      VLOG(20) << "Deleting element in old_smart_factors_ for lmk with id: "
+               << lmk_id;
       old_smart_factor_it = old_smart_factors_.erase(old_smart_factor_it);
       continue;
     }
@@ -520,6 +518,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     // If we found a lmk.
     // TODO this loop is huge, as we check all variables in the graph...
     if (gtsam::Symbol(key_value.key).chr() == 'l') {
+      CHECK(points_with_id->find(key_value.key) == points_with_id->end());
       (*points_with_id)[key_value.key] = key_value.value.cast<gtsam::Point3>();
       nr_proj_lmks++;
     }
