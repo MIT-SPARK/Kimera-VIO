@@ -385,8 +385,12 @@ vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
       if (gsf){
         // Check SF status
         gtsam::TriangulationResult result = gsf->point();
-        if(result.valid())
-          points3D.push_back(*result);
+        if (result.is_initialized()) {
+          if(result.valid())
+            points3D.push_back(*result);
+        } else {
+          LOG(ERROR) << "Triangulation result is not initialized...";
+        }
       }
     }
   }
@@ -401,35 +405,57 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     const size_t& min_age) {
   CHECK_NOTNULL(points_with_id);
 
-  // Add landmarks encoded in the smart factors.
+  /////////////// Add landmarks encoded in the smart factors. //////////////////
   const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
   // old_smart_factors_ has all smart factors included so far.
-  int nr_valid_smart_lmks = 0, nr_smart_lmks = 0, nr_proj_lmks = 0;
-  for (SmartFactorMap::iterator smart_factor_it = old_smart_factors_.begin();
-       smart_factor_it != old_smart_factors_.end();
-       smart_factor_it++) { //!< landmarkId -> {SmartFactorPtr, SlotIndex}
+  // Retrieve lmk ids from smart factors in state.
+  size_t nr_valid_smart_lmks = 0, nr_smart_lmks = 0, nr_proj_lmks = 0;
+  for (SmartFactorMap::iterator old_smart_factor_it = old_smart_factors_.begin();
+       old_smart_factor_it != old_smart_factors_.end(); ) { //!< landmarkId -> {SmartFactorPtr, SlotIndex}
     // Store number of smart lmks (one smart factor per landmark).
     nr_smart_lmks++;
 
     // Retrieve lmk_id of the smart factor.
-    const LandmarkId& lmk_id = smart_factor_it->first;
+    const LandmarkId& lmk_id = old_smart_factor_it->first;
 
     // Retrieve smart factor.
     const SmartStereoFactor::shared_ptr& smart_factor_ptr =
-        smart_factor_it->second.first;
+        old_smart_factor_it->second.first;
     // Check that pointer is well definied.
     CHECK(smart_factor_ptr) << "Smart factor is not well defined.";
 
     // Retrieve smart factor slot in the graph.
-    const int& slot_id = smart_factor_it->second.second;
+    const int& slot_id = old_smart_factor_it->second.second;
+
     // Check that slot is admissible.
-    CHECK((slot_id >= 0) && (slot_id < graph.size()))
-        << "Slot of smart factor is not admissible.";
+    // Slot should be positive.
+    CHECK(slot_id >= 0) << "Slot of smart factor is not admissible.";
+    // Ensure the graph size is small enough to cast to int.
+    CHECK_LT(graph.size(), std::numeric_limits<int>::max())
+        << "Invalid cast, that would cause an overflow!";
+    // Slot should be inferior to the size of the graph.
+    CHECK_LT(slot_id, static_cast<int>(graph.size()));
+
+    // Check that this slot_id exists in the graph, aka check that it is
+    // in bounds and that the pointer is live (aka at(slot_id) works).
+    if (!graph.exists(slot_id)) {
+      // This slot does not exist in the current graph...
+      LOG(ERROR) << "The slot with id: " << slot_id
+                 << " does not exist in the graph! This should not be the case"
+                    " since old_smart_factor_ should have the slots of the"
+                    " new factors in the graph...";
+      LOG(WARNING) << "Deleting old_smart_factor_it with lmk id: " << lmk_id;
+      old_smart_factor_it = old_smart_factors_.erase(old_smart_factor_it);
+      continue;
+    } else {
+      VLOG(20) << "Slot id: " << slot_id
+               << "for smart factor of lmk id: " << lmk_id;
+    }
 
     // Check that the pointer smart_factor_ptr points to the right element
     // in the graph.
-    if (smart_factor_ptr != graph[slot_id]) {
+    if (smart_factor_ptr != graph.at(slot_id)) {
       // Pointer in the graph does not match
       // the one we stored in old_smart_factors_
       // ERROR: if the pointers don't match, then the code that follows does
@@ -440,7 +466,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
                            << " and graph do not coincide:\n"
                            << "the smart factor " << lmk_id
                            << " is out of time-horizon.";
-      smart_factor_it = old_smart_factors_.erase(smart_factor_it);
+      old_smart_factor_it = old_smart_factors_.erase(old_smart_factor_it);
       continue;
     }
 
@@ -449,36 +475,47 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     // and the number of observations...
     // Is graph more up to date?
     boost::shared_ptr<SmartStereoFactor> gsf =
-        boost::dynamic_pointer_cast<SmartStereoFactor>(graph[slot_id]);
+        boost::dynamic_pointer_cast<SmartStereoFactor>(graph.at(slot_id));
     CHECK(gsf) << "Cannot cast factor in graph to a smart stereo factor.";
 
     // Get triangulation result from smart factor.
     const gtsam::TriangulationResult& result = gsf->point();
-    if (!result.valid()) { // Why not use smart_factor_ptr->point().valid()
-      VLOG(20) << "Rejecting lmk with id: " << lmk_id
-               << " from list of lmks in time horizon:\n"
-               << "triangulation result is not valid (result= {"
-               << result << "}).";
-      continue;
-    }
+    // Check that the boost::optional result is initialized.
+    // Otherwise we will be dereferencing a nullptr and we will head directly
+    // to undefined behaviour wonderland.
+    if (result.is_initialized()) {
+      if (result.valid()) {
+        if (gsf->measured().size() >= min_age) {
+          // Triangulation result from smart factor is valid and
+          // we have observed the lmk at least min_age times.
+          VLOG(20) << "Adding lmk with id: " << lmk_id
+                   << " to list of lmks in time horizon";
+          // Check that we have not added this lmk already...
+          CHECK(points_with_id->find(lmk_id) == points_with_id->end());
+          (*points_with_id)[lmk_id] = *result;
+          nr_valid_smart_lmks++;
+        } else {
+          VLOG(20) << "Rejecting lmk with id: " << lmk_id
+                   << " from list of lmks in time horizon: "
+                   << "not enough measurements, " << gsf->measured().size()
+                   << ", vs min_age of " << min_age << ".";
+        } // gsf->measured().size() >= min_age ?
+      } else {
+        VLOG(20) << "Rejecting lmk with id: " << lmk_id
+                 << " from list of lmks in time horizon:\n"
+                 << "triangulation result is not valid (result= {"
+                 << result << "}).";
+      } // result.valid()?
+    } else {
+      VLOG(20) << "Triangulation result for smart factor of lmk with id "
+               << lmk_id << " is not initialized...";
+    } // result.is_initialized()?
 
-    if (gsf->measured().size() < min_age) { // Why not use smart_factor_ptr->measured().size();
-      VLOG(20) << "Rejecting lmk with id: " << lmk_id
-               << " from list of lmks in time horizon: "
-               << "not enough measurements, " << gsf->measured().size()
-               << ", vs min_age of " << min_age << ".";
-      continue;
-    }
-
-    // Triangulation result from smart factor is valid and
-    // we have observed the lmk at least min_age times.
-    VLOG(20) << "Adding lmk with id: " << lmk_id
-             << " to list of lmks in time horizon";
-    (*points_with_id)[lmk_id] = *result; // Why not use smart_factor_ptr->point().
-    nr_valid_smart_lmks++;
+    // Next iteration.
+    old_smart_factor_it++;
   }
 
-  // Add landmarks that now are in projection factors.
+  ////////////// Add landmarks that now are in projection factors. /////////////
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
     // If we found a lmk.
     // TODO this loop is huge, as we check all variables in the graph...
@@ -1559,28 +1596,32 @@ void VioBackEnd::computeSmartFactorStatistics() {
         //}
         // Check SF status
         gtsam::TriangulationResult result = gsf->point();
-        if (result.degenerate())
-          debug_info_.numDegenerate_ += 1;
+        if (result.is_initialized()) {
+          if (result.degenerate())
+            debug_info_.numDegenerate_ += 1;
 
-        if (result.farPoint())
-          debug_info_.numFarPoints_ += 1;
+          if (result.farPoint())
+            debug_info_.numFarPoints_ += 1;
 
-        if (result.outlier())
-          debug_info_.numOutliers_ += 1;
+          if (result.outlier())
+            debug_info_.numOutliers_ += 1;
 
-        if (result.valid())
-        {
-          debug_info_.numValid_ += 1;
-          // Check track length
-          size_t trackLength = gsf->keys().size();
-          if (trackLength > debug_info_.maxTrackLength_)
-            debug_info_.maxTrackLength_ = trackLength;
+          if (result.valid())
+          {
+            debug_info_.numValid_ += 1;
+            // Check track length
+            size_t trackLength = gsf->keys().size();
+            if (trackLength > debug_info_.maxTrackLength_)
+              debug_info_.maxTrackLength_ = trackLength;
 
-          debug_info_.meanTrackLength_ += trackLength;
+            debug_info_.meanTrackLength_ += trackLength;
+          }
+
+          if (result.behindCamera())
+            debug_info_.numCheirality_ += 1;
+        } else {
+          LOG(WARNING) << "Triangulation result is not initialized...";
         }
-
-        if (result.behindCamera())
-          debug_info_.numCheirality_ += 1;
       }
     }
   }
