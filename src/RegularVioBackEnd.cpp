@@ -250,10 +250,10 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
     }
 
     if (!feature_track.in_ba_graph_) {
-      // Acknowledge that we have added the landmark in the graph.
-      feature_track.in_ba_graph_ = true;
       VLOG(20) << "Adding lmk " << lmk_id << " to graph.";
       addLandmarkToGraph(lmk_id, feature_track);
+      // Acknowledge that we have added the landmark in the graph.
+      feature_track.in_ba_graph_ = true;
       ++n_new_landmarks;
     } else {
       const std::pair<FrameId, StereoPoint2>& obs_kf = feature_track.obs_.back();
@@ -556,8 +556,15 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
       if (old_smart_factors_it == old_smart_factors_.end()) {
         // We did not find the factor (this is the case when feature track is
         // shorter than the minimum, typically 1. And the factor is not
-        // added to the graph.
-        VLOG(10)  << "Landmark not found in old_smart_factors_ !";
+        // added to the graph) ONLY if called after addLandmarkToGraph!.
+        // Or even when this is called before addLandmarkToGraph, since then
+        // we are checking old_smart_factors_ while it has not been really
+        // updated... But this will never happen because the mesher only looks
+        // for landmarks in either old_smart_factors_ or projection factors!!
+        LOG(ERROR) << "Landmark with id: " << lmk_id
+                   << " not found in old_smart_factors!";
+        // This lmk must be tracked?
+        CHECK(lmk_id_slot != lmk_id_is_smart->end());
       } else {
         // We found the factor.
 
@@ -986,9 +993,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                       delete_slots);
     } else {
       // The plane has NOT a prior.
-      // Delete all factors involving the plane so that iSAM removes the plane
-      // from the optimization.
-      static constexpr bool use_unstable = false;
+      static constexpr bool use_unstable = true;
       if (use_unstable) {
         // Delete all factors involving the plane so that iSAM removes the plane
         // from the optimization.
