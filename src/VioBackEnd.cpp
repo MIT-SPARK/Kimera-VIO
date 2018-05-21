@@ -1009,6 +1009,10 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
   state_ = smoother_->calculateEstimate();
   VLOG(10) << "Finished to calculate estimate.";
 
+  CHECK(state_.find(gtsam::Symbol('x', cur_id)) != state_.end());
+  CHECK(state_.find(gtsam::Symbol('v', cur_id)) != state_.end());
+  CHECK(state_.find(gtsam::Symbol('b', cur_id)) != state_.end());
+
   W_Pose_Blkf_  = state_.at<Pose3>(gtsam::Symbol('x', cur_id));
   W_Vel_Blkf_   = state_.at<Vector3>(gtsam::Symbol('v', cur_id));
   imu_bias_lkf_ = state_.at<gtsam::imuBias::ConstantBias>(
@@ -1053,25 +1057,33 @@ void VioBackEnd::updateSmoother(
     std::cout << " ]" << std::endl;
 
     printSmootherInfo(new_factors_tmp,
-                      delete_slots,
-                      "CATCHING EXCEPTION",
-                      false);
+                      delete_slots);
     throw;
   } catch (const gtsam::InvalidNoiseModel& e) {
     LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::InvalidMatrixBlock& e) {
     LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::InvalidDenseElimination& e) {
     LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::InvalidArgumentThreadsafe& e) {
     LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const gtsam::CheiralityException& e) {
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const gtsam::ValuesKeyDoesNotExist& e){
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const gtsam::CholeskyFailed& e){
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (...) {
     // Catch the rest of exceptions.
     LOG(ERROR) << "Unrecognized exception.";
-    printSmootherInfo(new_factors_tmp,
-                      delete_slots,
-                      "CATCHING EXCEPTION",
-                      false);
+    printSmootherInfo(new_factors_tmp, delete_slots);
     // Do not intentionally throw to see what checks fail later.
   }
 }

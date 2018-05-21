@@ -538,8 +538,8 @@ private:
   /* ------------------------------------------------------------------------ */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
                          const std::vector<size_t>& delete_slots,
-                         const std::string& message,
-                         const bool& showDetails) const;
+                         const std::string& message = "CATCHING EXCEPTION",
+                         const bool& showDetails = false) const;
 
   /* ------------------------------------------------------------------------ */
   void printSmartFactor(boost::shared_ptr<SmartStereoFactor> gsf) const;
