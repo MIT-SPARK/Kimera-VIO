@@ -169,14 +169,16 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // For each landmark we decide if it's going to be a smart factor or not.
         // TODO here there is a timeline mismatch, while landmarks_kf are only currently
         // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
-        VLOG(10) << "Updating lmk_id_is_smart_.";
+        VLOG(10) << "Starting isLandmarkSmart...";
         isLandmarkSmart(lmks_kf,
                         mesh_lmk_ids_ground_cluster,
                         &lmk_id_is_smart_);
+        VLOG(10) << "Finished isLandmarkSmart.";
 
         // We add features in VIO.
-        VLOG(10) << "Adding/Updating landmarks to graph.";
+        VLOG(10) << "Starting adding/updating landmarks to graph...";
         addLandmarksToGraph(lmks_kf);
+        VLOG(10) << "Finished adding/updating landmarks to graph.";
 
         /////////////////// REGULARITY FACTORS ///////////////////////////////////////
         // Add regularity factor on vertices of the mesh.
@@ -303,7 +305,7 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   /////////////////////// BOOK KEEPING /////////////////////////////////////////
   // Set lmk id to smart.
   CHECK(lmk_id_is_smart_.find(lmk_id) != lmk_id_is_smart_.end());
-  CHECK(lmk_id_is_smart_.at(lmk_id) == true);
+  CHECK_EQ(lmk_id_is_smart_.at(lmk_id), true);
 
   // Add new factor to suitable structures.
   // TODO why do we need to store the new_factor in both structures??
@@ -397,11 +399,14 @@ void RegularVioBackEnd::updateLandmarkInGraph(
       if (VLOG_IS_ON(30)) {
         old_factor->print();
       }
+
+      // Check triangulation result is initialized.
+      CHECK(old_factor->point().is_initialized());
+
       // TODO make sure that if point is not valid it works as well...
       if (old_factor->point().valid()) {
         VLOG(20) << "Performing conversion for lmk_id: " << lmk_id;
 
-        CHECK(old_factor->point());
         // TODO check all the * whatever, for segmentation fault!
         new_values_.insert(lmk_key, *(old_factor->point()));
 
@@ -444,6 +449,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
           }
         }
 
+        ////////////////// BOOKKEEPING /////////////////////////////////////////
         // Make sure that the smart factor that we converted to projection
         // gets deleted from the graph.
         if (old_smart_factors_it->second.second != -1) {
@@ -457,6 +463,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         // Check to avoid undefined behaviour.
         CHECK(old_smart_factors_.find(lmk_id) != old_smart_factors_.end());
         old_smart_factors_.erase(lmk_id);
+        ////////////////////////////////////////////////////////////////////////
       } else {
         LOG(WARNING) << "Cannot convert smart factor to proj. factor.\n"
                    << "Smart factor does not have a valid 3D position for lmk: "
@@ -509,11 +516,20 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
                                         const LandmarkIds& mesh_lmk_ids,
                                         LmkIdIsSmart* lmk_id_is_smart) {
+  // TODOOOOO completely change this function: it should be
+  // if the lmk_id is not found in is_lmk_smart
+  // then add it as smart
+  // else if it was smart, but now it is in regularity, add it as regularity
+  // if it was not smart, keep it as such...
   CHECK_NOTNULL(lmk_id_is_smart);
   // WARNING I think this loop should not be over lmks_kf, which are in the
   // current keyframe but over the time horizon instead!!!
   // Otherwise we can have some lmks that are not set as projection factors
   // but will be in the future involved in some kind of regularity...
+  // MORE WARNING: this function is tightly coupled with the landmarks we
+  // feed to the mesher that then sends mesh_lmk_ids.
+  // i.e. if the mesher has lmks that are in the keyframe but not in the
+  // optimization, it won't work...
   for (const LandmarkId& lmk_id: lmks_kf) {
     const auto& lmk_id_slot = lmk_id_is_smart->find(lmk_id);
     if (std::find(mesh_lmk_ids.begin(),
@@ -550,15 +566,35 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
 
         SmartStereoFactor::shared_ptr old_factor =
             old_smart_factors_it->second.first;
-        CHECK_NOTNULL(old_factor.get());
+        CHECK(old_factor);
+        CHECK(old_factor->point().is_initialized());
 
         if (!old_factor->point().valid()) {
           // The point is not valid.
           VLOG(20) << "Smart factor for lmk: " << lmk_id << "is NOT valid.";
           lmk_is_valid = false;
         } else {
-          VLOG(20) << "Smart factor for lmk: " << lmk_id << "is valid.";
-          lmk_is_valid = true;
+          // If the smart factor has less than x number of observations,
+          // then do not consider the landmark as valid.
+          // This param is different from the one counting the track length
+          // as it controls only the quality of the subsequentproj factors,
+          // and has no effect on how the smart factors are created.
+          // This param is very correlated to the one we use to get lmks,
+          // in time horizon (aka min_age) since only the ones that have reached
+          // the mesher and have been clustered will have the possibility of
+          // being here, so this param must be higher than the min_age one to
+          // have any impact.
+          static constexpr size_t min_num_obs_for_proj_factor = 4;
+          if (old_factor->measured().size() >= min_num_obs_for_proj_factor) {
+            LOG(WARNING) << "Smart factor for lmk: " << lmk_id << " is valid.";
+            lmk_is_valid = true;
+          } else {
+            LOG(ERROR) << "Smart factor for lmk: " << lmk_id << " has not enough"
+                     << " observations: " << old_factor->measured().size()
+                     << ", but should be more or equal to "
+                     << min_num_obs_for_proj_factor;
+            lmk_is_valid = false;
+          }
         }
 
         if (lmk_id_slot == lmk_id_is_smart->end()) {
@@ -568,8 +604,16 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
           // it is too difficult to read.
           lmk_id_is_smart->insert(std::make_pair(lmk_id, lmk_is_valid?false:true));
         } else {
-          // Change it to a projection factor.
-          lmk_id_is_smart->at(lmk_id) = lmk_is_valid?false:true;
+          if (lmk_is_valid) {
+            // Change it to a projection factor.
+            lmk_id_is_smart->at(lmk_id) = false;
+          } else {
+            // Keep it to a smart factor.
+            // We cannot allow conversion back from proj to smart factor.
+            // So just check that this is still smart, otherwise we are stuck.
+            CHECK(lmk_id_is_smart->at(lmk_id) == true);
+            //lmk_id_is_smart->at(lmk_id) = true;
+          }
         }
       }
     }
@@ -932,7 +976,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
     // The plane is NOT fully constrained if we remove all bad factors,
     // unless the plane has a prior.
     // Check if the plane has a prior.
-    VLOG(10) << "Plane is NOT fully constrained, if we remove bad factors.";
+    VLOG(10) << "Plane is NOT fully constrained if we just remove"
+                " the bad factors.";
     if (has_plane_a_prior) {
       // The plane has a prior.
       // Delete just the bad factors.
@@ -945,7 +990,10 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
       // from the optimization.
       static constexpr bool use_unstable = false;
       if (use_unstable) {
-        LOG(ERROR) << "Trying to forcefully remove the PLANE!";
+        // Delete all factors involving the plane so that iSAM removes the plane
+        // from the optimization.
+        LOG(ERROR) << "Plane has no prior, trying to forcefully"
+                      " remove the PLANE!";
         DEBUG_ = true;
         std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_all (
               point_plane_factor_slots_bad);
@@ -956,37 +1004,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                         delete_slots);
 
         // Remove as well the factors that are going to be added in this iteration.
-        for (const std::pair<Slot, LandmarkId>& i:
-             idx_of_point_plane_factors_to_add) {
-          CHECK(new_imu_prior_and_other_factors_.exists(i.first));
-          // WARNING using erase moves all factors! aka the idx_of_point_plane_factors_to_add will
-          // be wrong!!!!
-          // Remove will just insert a nullptr, is this ok for iSAM??
-          new_imu_prior_and_other_factors_.remove(i.first);
-
-          // Acknowledge that these lmks are not in a regularity anymore.
-          // TODO this does not generalize to multiple planes...
-          const LandmarkId& lmk_id = i.second;
-          CHECK(lmk_id_to_regularity_type_map_.find(lmk_id) !=
-              lmk_id_to_regularity_type_map_.end())
-              << "Avoid undefined behaviour by checking that the lmk was in the "
-                 "container.";
-          lmk_id_to_regularity_type_map_.erase(lmk_id);
-          // TODO maybe check that lmk_id_is_smart makes sense, aka it should be
-          // false...
-        }
-
-        // TODO since we do not know if iSAM handles well nullptr as new factors,
-        // clean the new_imu_prior_and_other_factors_
-        // This is because we are using "remove" to remove factors.
-        gtsam::NonlinearFactorGraph tmp_graph =
-            new_imu_prior_and_other_factors_.clone();
-        new_imu_prior_and_other_factors_.resize(0);
-        for (const auto& factor: tmp_graph) {
-          if (factor != nullptr) {
-            new_imu_prior_and_other_factors_.push_back(factor);
-          }
-        }
+        deleteNewSlots(idx_of_point_plane_factors_to_add,
+                       &new_imu_prior_and_other_factors_);
       } else {
         // Do not use unstable implementation...
         // Just add a prior on the plane and remove only bad factors...
@@ -1038,6 +1057,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   //  //  }
 }
 
+/* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::fillDeleteSlots(
     const std::vector<std::pair<Slot, LandmarkId>>& point_plane_factor_slots_bad,
     std::vector<size_t>* delete_slots) {
@@ -1064,6 +1084,74 @@ void RegularVioBackEnd::fillDeleteSlots(
     lmk_id_to_regularity_type_map_.erase(lmk_id);
   }
   VLOG(10) << "Finished fillDeleteSlots...";
+}
+
+/* -------------------------------------------------------------------------- */
+// Remove as well the factors that are going to be added in this iteration.
+void RegularVioBackEnd::deleteNewSlots(
+    const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+    gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors) {
+  CHECK_NOTNULL(new_imu_prior_and_other_factors);
+
+  bool clean_nullptrs = false;
+  for (const std::pair<Slot, LandmarkId>& i:
+       idx_of_point_plane_factors_to_add) {
+    // Sanity checks.
+    // The slot is valid.
+    CHECK(new_imu_prior_and_other_factors->exists(i.first));
+
+    const auto& ppf =
+        boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(
+          new_imu_prior_and_other_factors->at(i.first));
+    // The factor is really a point plane one.
+    CHECK(ppf);
+    // The factor is the one related to the right lmk.
+    CHECK(ppf->getPointKey() == gtsam::Symbol('l', i.second).key());
+
+    // WARNING using erase moves all factors! aka the idx_of_point_plane_factors_to_add will
+    // be wrong!!!!
+    // Remove will just insert a nullptr, is this ok for iSAM??
+    new_imu_prior_and_other_factors->remove(i.first);
+    clean_nullptrs = true;
+
+    // Acknowledge that these lmks are not in a regularity anymore.
+    // TODO this does not generalize to multiple planes...
+    const LandmarkId& lmk_id = i.second;
+    CHECK(lmk_id_to_regularity_type_map_.find(lmk_id) !=
+        lmk_id_to_regularity_type_map_.end())
+        << "Avoid undefined behaviour by checking that the lmk was in the "
+           "container.";
+    lmk_id_to_regularity_type_map_.erase(lmk_id);
+    // Sanity check that lmk_id_is_smart makes sense, aka it should be
+    // false...
+    CHECK(lmk_id_is_smart_.exists(lmk_id));
+    CHECK(lmk_id_is_smart_.at(lmk_id) == false);
+  }
+
+  // TODO since we do not know if iSAM handles well nullptr as new factors,
+  // clean the new_imu_prior_and_other_factors_
+  // This is because we are using "remove" to remove factors.
+  if (clean_nullptrs) {
+    cleanNullPtrsFromGraph(new_imu_prior_and_other_factors);
+  } else {
+    // Avoid unnecessary loop if there are no nullptrs in the graph.
+    VLOG(10) << "Avoid cleaning graph of null pointers, since we did "
+                "not remove any new factor.";
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void RegularVioBackEnd::cleanNullPtrsFromGraph(
+    gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors) {
+  CHECK_NOTNULL(new_imu_prior_and_other_factors);
+  gtsam::NonlinearFactorGraph tmp_graph =
+      new_imu_prior_and_other_factors->clone();
+  new_imu_prior_and_other_factors->resize(0);
+  for (const auto& factor: tmp_graph) {
+    if (factor != nullptr) {
+      new_imu_prior_and_other_factors->push_back(factor);
+    }
+  }
 }
 
 } // namespace VIO

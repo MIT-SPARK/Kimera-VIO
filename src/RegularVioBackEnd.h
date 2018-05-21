@@ -97,6 +97,15 @@ private:
   void fillDeleteSlots(const std::vector<std::pair<Slot, LandmarkId> >& point_plane_factor_slots,
       std::vector<size_t>* delete_slots);
 
+  /* ------------------------------------------------------------------------ */
+  // Remove as well the factors that are going to be added in this iteration.
+  void deleteNewSlots(
+      const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors_);
+
+  /* ------------------------------------------------------------------------ */
+  void cleanNullPtrsFromGraph(
+      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
 };
 
 } // namespace VIO
