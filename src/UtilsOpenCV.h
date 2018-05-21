@@ -83,7 +83,7 @@ enum Kstatus {
 };
 
 // Definitions relevant to frame types
-using FrameId = int;
+using FrameId = uint64_t; // Frame id is used as the index of gtsam symbol (not as a gtsam key).
 using LandmarkId = int; // -1 for invalid landmarks.
 using LandmarkIds = std::vector<LandmarkId>;
 using KeypointCV = cv::Point2f;
