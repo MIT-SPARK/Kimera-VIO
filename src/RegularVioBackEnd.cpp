@@ -236,39 +236,48 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
   int n_updated_landmarks = 0;
   debug_info_.numAddedSmartF_ += lmks_kf.size();
 
+  // Iterate over all landmarks in current key frame.
   for (const LandmarkId& lmk_id: lmks_kf) {
+    CHECK(feature_tracks_.find(lmk_id) != feature_tracks_.end());
     FeatureTrack& feature_track = feature_tracks_.at(lmk_id);
 
     // Only insert feature tracks of length at least 2
     // (otherwise uninformative)
     static constexpr size_t min_num_of_observations = 2;
-    if (feature_track.obs_.size() < min_num_of_observations) {
+    if (feature_track.obs_.size() >= min_num_of_observations) {
+      // We have enough observations of the lmk.
+      if (!feature_track.in_ba_graph_) {
+        // The lmk has not yet been added to the graph.
+        VLOG(20) << "Adding lmk " << lmk_id << " to graph.";
+        addLandmarkToGraph(lmk_id, feature_track);
+        // Acknowledge that we have added the landmark in the graph.
+        feature_track.in_ba_graph_ = true;
+        ++n_new_landmarks;
+      } else {
+        //The lmk has already been added to the graph.
+        CHECK_GE(feature_track.obs_.size(), 1);
+        const std::pair<FrameId, StereoPoint2>& obs_kf =
+            feature_track.obs_.back();
+
+        // Sanity check.
+        CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
+                                              " keyframe!";
+
+        VLOG(20) << "Updating lmk " << lmk_id << " to graph.";
+        updateLandmarkInGraph(lmk_id, obs_kf);
+        ++n_updated_landmarks;
+      }
+    } else {
       VLOG(20) << "Feature track is shorter (" << feature_track.obs_.size()
                << ") than min_num_of_observations (" << min_num_of_observations
                << ") for lmk with id: " << lmk_id;
-      continue;
-    }
-
-    if (!feature_track.in_ba_graph_) {
-      VLOG(20) << "Adding lmk " << lmk_id << " to graph.";
-      addLandmarkToGraph(lmk_id, feature_track);
-      // Acknowledge that we have added the landmark in the graph.
-      feature_track.in_ba_graph_ = true;
-      ++n_new_landmarks;
-    } else {
-      const std::pair<FrameId, StereoPoint2>& obs_kf = feature_track.obs_.back();
-
-      // Sanity check.
-      CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
-                                            " keyframe!";
-
-      VLOG(20) << "Updating lmk " << lmk_id << " to graph.";
-      updateLandmarkInGraph(lmk_id, obs_kf);
-      ++n_updated_landmarks;
     }
   }
+
+  // Convert to projection factors those landmarks that are not in the current
+  // key frame, but that have a regularity.
   VLOG(10) << "Added " << n_new_landmarks << " new landmarks.\n"
-          << "Updated " << n_updated_landmarks << " landmarks in graph.";
+           << "Updated " << n_updated_landmarks << " landmarks in graph.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -319,7 +328,7 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::updateLandmarkInGraph(
     const LandmarkId& lmk_id,
-    const std::pair<FrameId, StereoPoint2>& newObs) {
+    const std::pair<FrameId, StereoPoint2>& new_obs) {
 
   // We are not tracking whether the lmk is smart or not, but we should.
   CHECK(lmk_id_is_smart_.find(lmk_id) != lmk_id_is_smart_.end())
@@ -331,184 +340,225 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     // Lmk is meant to be smart.
     VLOG(20) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
 
-    // Update existing smart-factor.
-    const SmartFactorMap::iterator& old_smart_factors_it =
-        old_smart_factors_.find(lmk_id);
-    CHECK(old_smart_factors_it != old_smart_factors_.end())
-        << "Landmark not found in old_smart_factors_\n";
-
-    // Get old factor.
-    SmartStereoFactor::shared_ptr old_factor =
-        old_smart_factors_it->second.first;
-
-    // Clone old factor as a new factor.
-    CHECK_NOTNULL(old_factor.get());
-    SmartStereoFactor::shared_ptr new_factor =
-        boost::make_shared<SmartStereoFactor>(*old_factor);
-
-    // Add observation to new factor.
-    VLOG(20) << "Added observation for smart factor of lmk with id: "
-             << lmk_id;
-    new_factor->add(newObs.second,
-                    gtsam::Symbol('x', newObs.first),
-                    stereo_cal_);
-
-    // If slot is still -1, it means that the factor has not been inserted yet
-    // in the graph.
-    CHECK(old_smart_factors_it->second.second != -1) << "When calling update "
-                      "the slot should be already != -1";
-
-    // Slot is different than -1
-    // It means that the factor has already been inserted in the graph.
-    VLOG(20) << "Insert new smart factor to new_smart_factors_ for lmk with"
-             << " id: " << lmk_id;
-
-    ///// Book Keeping, update factors /////////////////////////////////////////
-    // Update the set of new smart factors.
-    new_smart_factors_.insert(std::make_pair(lmk_id, new_factor));
-
-    // TODO Why do we do this??
-    // if we don't the 3d points seem to be off.
-    // is there a way to viz 3d points?
-    old_smart_factors_it->second.first = new_factor;
-
-    ////////////////////////////////////////////////////////////////////////////
-
+    updateExistingSmartFactor(lmk_id,
+                              new_obs,
+                              &new_smart_factors_,
+                              &old_smart_factors_);
   } else {
     VLOG(20) << "Lmk with id: " << lmk_id
               << " is set to be a projection factor.\n";
 
     // Update lmk_id as a projection factor.
-    gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id);
-    bool lmk_position_available = true;
+    gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id).key();
     if (state_.find(lmk_key) == state_.end()) {
       VLOG(20) << "Lmk with id: " << lmk_id << " is not found in state.\n";
       // We did not find the lmk in the state.
       // It was a smart factor before.
       // Convert smart to projection.
-      const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
-      CHECK(old_smart_factors_it != old_smart_factors_.end())
-          << "Landmark not found in old_smart_factors_ !";
-
-      SmartStereoFactor::shared_ptr old_factor =
-          old_smart_factors_it->second.first;
-      CHECK_NOTNULL(old_factor.get());
-
-      // Add landmark value to graph.
-      VLOG(30) << "Print old_factor of lmk_id: " << lmk_id;
-      if (VLOG_IS_ON(30)) {
-        old_factor->print();
-      }
-
-      // Check triangulation result is initialized.
-      CHECK(old_factor->point().is_initialized());
-
-      // TODO make sure that if point is not valid it works as well...
-      if (old_factor->point().valid()) {
-        VLOG(20) << "Performing conversion for lmk_id: " << lmk_id;
-
-        // TODO check all the * whatever, for segmentation fault!
-        new_values_.insert(lmk_key, *(old_factor->point()));
-
-        // DEBUG add prior to lmks.
-        //LOG_EVERY_N(ERROR, 100) << "Do not forget to remove lmk prior!";
-        //static const gtsam::noiseModel::Diagonal::shared_ptr prior_lmk_noise =
-        //    gtsam::noiseModel::Diagonal::Sigmas(Vector3(1, 1, 1));
-        //new_imu_prior_and_other_factors_.push_back(
-        //      boost::make_shared<gtsam::PriorFactor<gtsam::Point3> >(
-        //        lmk_key,
-        //        *(old_factor->point()),
-        //        prior_lmk_noise));
-
-        // Convert smart factor to multiple projection factors.
-        for (size_t i = 0; i < old_factor->keys().size(); i++) {
-          const gtsam::Key& cam_key = old_factor->keys().at(i);
-          const StereoPoint2& sp2   = old_factor->measured().at(i);
-          VLOG(20) << "Lmk with id: " << lmk_id
-                   << " added as a new projection factor with pose with id: "
-                   << static_cast<int>(cam_key) << ".\n";
-          if (!std::isnan(sp2.uR())) {
-            new_imu_prior_and_other_factors_.push_back(
-                  gtsam::GenericStereoFactor<Pose3, Point3>
-                  (sp2,
-                   smart_noise_,
-                   cam_key,
-                   lmk_key,
-                   stereo_cal_, B_Pose_leftCam_));
-          } else {
-            // Right pixel has a NAN value for u, use GenericProjectionFactor instead
-            // of stereo.
-            new_imu_prior_and_other_factors_.push_back(
-                  gtsam::GenericProjectionFactor<Pose3, Point3>
-                  (gtsam::Point2(sp2.uL(),
-                                 sp2.v()),
-                   mono_noise_,
-                   cam_key,
-                   lmk_key,
-                   mono_cal_, B_Pose_leftCam_));
-          }
-        }
-
-        ////////////////// BOOKKEEPING /////////////////////////////////////////
-        // Make sure that the smart factor that we converted to projection
-        // gets deleted from the graph.
-        if (old_smart_factors_it->second.second != -1) {
-          // Get current slot (if factor is already there it must be deleted).
-          delete_slots_of_converted_smart_factors_.push_back(
-                old_smart_factors_it->second.second);
-        }
-
-        // Erase from old_smart_factors_ list since this has been converted into
-        // projection factors.
-        // Check to avoid undefined behaviour.
-        CHECK(old_smart_factors_.find(lmk_id) != old_smart_factors_.end());
-        old_smart_factors_.erase(lmk_id);
-        ////////////////////////////////////////////////////////////////////////
+      bool is_conversion_done = convertSmartToProjectionFactor(
+                                  lmk_id,
+                                  &old_smart_factors_,
+                                  &new_values_,
+                                  &new_imu_prior_and_other_factors_,
+                                  &delete_slots_of_converted_smart_factors_);
+      // Unless we could not convert the smart factor to a set of projection
+      // factors, then do not add it because we do not have a right value
+      // to use.
+      if (is_conversion_done) {
+        VLOG(20) << "Lmk with id: " << lmk_id
+                 << " added as a new projection factor with pose with id: "
+                 << new_obs.first << ".\n";
+        addProjectionFactor(lmk_id,
+                            new_obs,
+                            &new_imu_prior_and_other_factors_);
       } else {
-        LOG(WARNING) << "Cannot convert smart factor to proj. factor.\n"
-                   << "Smart factor does not have a valid 3D position for lmk: "
-                   << lmk_id << "\n"
-                   << "Smart factor point status: \n" << old_factor->point();
-        lmk_position_available = false;
+        LOG(ERROR) << "Not using new observation for lmk: " << lmk_id
+                   << " because we do not have a good initial value for it.";
       }
     } else {
       VLOG(20) << "Lmk with id: " << lmk_id << " has been found in state: "
-               << "it is being used in a projection factor.";
+               << "it is being used in a projection factor.\n"
+               << "Adding lmk as a new projection factor with pose with id: "
+               << new_obs.first << ".\n";
+      // If it is not smart, just add current measurement.
+      // It was a projection factor before.
+      addProjectionFactor(lmk_id,
+                          new_obs,
+                          &new_imu_prior_and_other_factors_);
     }
+  }
+}
 
-    // If it is not smart, just add current measurement.
-    // It was a projection factor before.
-    // Also add it if it was smart but now is projection factor, unless we could
-    // not convert the smart factor to a set of projection factors, then do not
-    // add it because we do not have a right value to use.
-    if (lmk_position_available) {
+/* -------------------------------------------------------------------------- */
+void RegularVioBackEnd::updateExistingSmartFactor(
+    const LandmarkId& lmk_id,
+    const std::pair<FrameId, StereoPoint2>& new_obs,
+    LandmarkIdSmartFactorMap* new_smart_factors,
+    SmartFactorMap* old_smart_factors) {
+  CHECK_NOTNULL(new_smart_factors);
+  CHECK_NOTNULL(old_smart_factors);
+
+  // Update existing smart-factor.
+  const SmartFactorMap::iterator& old_smart_factors_it =
+      old_smart_factors->find(lmk_id);
+  CHECK(old_smart_factors_it != old_smart_factors->end())
+      << "Landmark not found in old_smart_factors_\n";
+
+  // Get old factor.
+  SmartStereoFactor::shared_ptr old_factor =
+      old_smart_factors_it->second.first;
+
+  // Clone old factor as a new factor.
+  CHECK_NOTNULL(old_factor.get());
+  SmartStereoFactor::shared_ptr new_factor =
+      boost::make_shared<SmartStereoFactor>(*old_factor);
+
+  // Add observation to new factor.
+  VLOG(20) << "Added observation for smart factor of lmk with id: "
+           << lmk_id;
+  new_factor->add(new_obs.second,
+                  gtsam::Symbol('x', new_obs.first),
+                  stereo_cal_);
+
+  // If slot is still -1, it means that the factor has not been inserted yet
+  // in the graph.
+  CHECK(old_smart_factors_it->second.second != -1)
+      << "When calling update the slot should be already != -1";
+
+  // Slot is different than -1
+  // It means that the factor has already been inserted in the graph.
+  VLOG(20) << "Insert new smart factor to new_smart_factors_ for lmk with"
+           << " id: " << lmk_id;
+
+  ///// Book Keeping, update factors ///////////////////////////////////////////
+  // Update the set of new smart factors.
+  new_smart_factors->insert(std::make_pair(lmk_id, new_factor));
+
+  // TODO Why do we do this??
+  // if we don't the 3d points seem to be off.
+  // is there a way to viz 3d points?
+  old_smart_factors_it->second.first = new_factor;
+
+  //////////////////////////////////////////////////////////////////////////////
+}
+
+/* -------------------------------------------------------------------------- */
+// Converts a smart factor to a set of projection factors.
+// Returns whether the conversion was possible or not.
+bool RegularVioBackEnd::convertSmartToProjectionFactor(
+    const LandmarkId& lmk_id,
+    SmartFactorMap* old_smart_factors,
+    gtsam::Values* new_values,
+    gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors,
+    std::vector<size_t>* delete_slots_of_converted_smart_factors) {
+  CHECK_NOTNULL(old_smart_factors);
+  CHECK_NOTNULL(new_values);
+  CHECK_NOTNULL(new_imu_prior_and_other_factors);
+  CHECK_NOTNULL(delete_slots_of_converted_smart_factors);
+
+  const auto& old_smart_factors_it = old_smart_factors->find(lmk_id);
+  CHECK(old_smart_factors_it != old_smart_factors->end())
+      << "Landmark not found in old_smart_factors_ !";
+
+  SmartStereoFactor::shared_ptr old_factor =
+      old_smart_factors_it->second.first;
+  CHECK_NOTNULL(old_factor.get());
+
+  // Add landmark value to graph.
+  VLOG(30) << "Print old_factor of lmk_id: " << lmk_id;
+  if (VLOG_IS_ON(30)) {
+    old_factor->print();
+  }
+
+  // Check triangulation result is initialized.
+  CHECK(old_factor->point().is_initialized());
+
+  if (old_factor->point().valid()) {
+    VLOG(20) << "Performing conversion for lmk_id: " << lmk_id;
+
+    // TODO check all the * whatever, for segmentation fault!
+    gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id).key();
+    new_values->insert(lmk_key, *(old_factor->point()));
+
+    // DEBUG add prior to lmks.
+    //LOG_EVERY_N(ERROR, 100) << "Do not forget to remove lmk prior!";
+    //static const gtsam::noiseModel::Diagonal::shared_ptr prior_lmk_noise =
+    //    gtsam::noiseModel::Diagonal::Sigmas(Vector3(1, 1, 1));
+    //new_imu_prior_and_other_factors_.push_back(
+    //      boost::make_shared<gtsam::PriorFactor<gtsam::Point3> >(
+    //        lmk_key,
+    //        *(old_factor->point()),
+    //        prior_lmk_noise));
+
+    // Convert smart factor to multiple projection factors.
+    // There is no need to have a threshold for how many observations we want
+    // , since it is done already in the isLandmarkSmart function.
+    // Nevertheless, check that there are at least 2 observations.
+    CHECK_GE(old_factor->measured().size(), 2);
+    for (size_t i = 0; i < old_factor->keys().size(); i++) {
+      const gtsam::Symbol& cam_sym = gtsam::Symbol(old_factor->keys().at(i));
+      CHECK_LT(i, old_factor->measured().size());
+      const StereoPoint2& sp2 = old_factor->measured().at(i);
+      std::pair<FrameId, StereoPoint2> obs (std::make_pair(cam_sym.index(),
+                                                           sp2));
       VLOG(20) << "Lmk with id: " << lmk_id
                << " added as a new projection factor with pose with id: "
-               << newObs.first << ".\n";
-      if (!std::isnan(newObs.second.uR())) {
-        new_imu_prior_and_other_factors_.push_back(
-              gtsam::GenericStereoFactor<Pose3, Point3>
-              (newObs.second, smart_noise_,
-               gtsam::Symbol('x', newObs.first),
-               lmk_key,
-               stereo_cal_, B_Pose_leftCam_));
-      } else {
-        // Right pixel has a NAN value for u, use GenericProjectionFactor instead
-        // of stereo.
-        new_imu_prior_and_other_factors_.push_back(
-              gtsam::GenericProjectionFactor<Pose3, Point3>
-              (gtsam::Point2(newObs.second.uL(),
-                             newObs.second.v()),
-               mono_noise_,
-               gtsam::Symbol('x', newObs.first),
-               lmk_key,
-               mono_cal_, B_Pose_leftCam_)
-              );
-      }
-    } else {
-      LOG(ERROR) << "Not using new observation for lmk: " << lmk_id
-                 << " because we do not have a good initial value for it.";
+               << static_cast<int>(cam_sym.index()) << ".\n";
+      addProjectionFactor(lmk_id,
+                          obs,
+                          &new_imu_prior_and_other_factors_);
     }
+
+    ////////////////// BOOKKEEPING /////////////////////////////////////////
+    // Make sure that the smart factor that we converted to projection
+    // gets deleted from the graph.
+    if (old_smart_factors_it->second.second != -1) {
+      // Get current slot (if factor is already there it must be deleted).
+      delete_slots_of_converted_smart_factors->push_back(
+            old_smart_factors_it->second.second);
+    }
+
+    // Erase from old_smart_factors_ list since this has been converted into
+    // projection factors.
+    // Check to avoid undefined behaviour.
+    CHECK(old_smart_factors->find(lmk_id) != old_smart_factors->end());
+    old_smart_factors->erase(lmk_id);
+    ////////////////////////////////////////////////////////////////////////
+    return true;
+  } else {
+    LOG(WARNING) << "Cannot convert smart factor to proj. factor.\n"
+                 << "Smart factor does not have a valid 3D position for lmk: "
+                 << lmk_id << "\n"
+                 << "Smart factor point status: \n" << old_factor->point();
+    return false;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void RegularVioBackEnd::addProjectionFactor(
+    const LandmarkId& lmk_id,
+    const std::pair<FrameId, StereoPoint2>& new_obs,
+    gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors) {
+  CHECK_NOTNULL(new_imu_prior_and_other_factors);
+  if (!std::isnan(new_obs.second.uR())) {
+    new_imu_prior_and_other_factors->push_back(
+          gtsam::GenericStereoFactor<Pose3, Point3>
+          (new_obs.second, smart_noise_,
+           gtsam::Symbol('x', new_obs.first),
+           gtsam::Symbol('l', lmk_id),
+           stereo_cal_, B_Pose_leftCam_));
+  } else {
+    // Right pixel has a NAN value for u, use GenericProjectionFactor instead
+    // of stereo.
+    new_imu_prior_and_other_factors->push_back(
+          gtsam::GenericProjectionFactor<Pose3, Point3>
+          (gtsam::Point2(new_obs.second.uL(),
+                         new_obs.second.v()),
+           mono_noise_,
+           gtsam::Symbol('x', new_obs.first),
+           gtsam::Symbol('l', lmk_id),
+           mono_cal_, B_Pose_leftCam_)
+          );
   }
 }
 

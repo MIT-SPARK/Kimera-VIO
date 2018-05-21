@@ -81,6 +81,25 @@ private:
                        LmkIdIsSmart* lmk_id_is_smart);
 
   /* ------------------------------------------------------------------------ */
+  void updateExistingSmartFactor(const LandmarkId& lmk_id,
+                                 const std::pair<FrameId, StereoPoint2>& new_obs,
+                                 LandmarkIdSmartFactorMap* new_smart_factors,
+                                 SmartFactorMap* old_smart_factors);
+  /* ------------------------------------------------------------------------ */
+  bool convertSmartToProjectionFactor(
+      const LandmarkId& lmk_id,
+      SmartFactorMap* old_smart_factors,
+      gtsam::Values* new_values,
+      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors,
+      std::vector<size_t>* delete_slots_of_converted_smart_factors);
+
+  /* ------------------------------------------------------------------------ */
+  void addProjectionFactor(
+      const LandmarkId& lmk_id,
+      const std::pair<FrameId, StereoPoint2>& new_obs,
+      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
+
+  /* ------------------------------------------------------------------------ */
   void addRegularityFactors(
       const LandmarkIds& mesh_lmk_ids,
       gtsam::Symbol* plane_symbol,
