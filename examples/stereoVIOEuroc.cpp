@@ -553,7 +553,9 @@ int main(int argc, char *argv[]) {
           // Currently only triangles in the ground floor.
           std::vector<TriangleCluster> triangle_clusters;
           gtsam::OrientedPlane3 plane;
-          if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+          static constexpr bool use_expectation_maximization = true;
+          if(use_expectation_maximization &&
+             vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
                gtsam::Symbol('P', 0).key(), &plane)) {
             // Use the plane estimate of the backend.
             // TODO this can lead to issues, when the plane estimate gets
