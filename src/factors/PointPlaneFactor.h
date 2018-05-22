@@ -64,6 +64,14 @@ public:
     err << point.dot(plane_normal.unitVector()) - plane_distance;
     return (err);
   }
+
+  inline Key getPointKey() const {
+    return pointKey_;
+  }
+
+  inline Key getPlaneKey() const {
+    return planeKey_;
+  }
 };
 
 } // gtsam

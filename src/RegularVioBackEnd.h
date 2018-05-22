@@ -55,9 +55,10 @@ public:
   void updateLandmarkInGraph(const LandmarkId& lm_id,
                              const std::pair<FrameId, StereoPoint2>& newObs);
 private:
+  typedef size_t Slot;
+
   // Type of handled regularities.
   enum class RegularityType{
-    NONE,
     POINT_PLANE
   };
 
@@ -67,7 +68,7 @@ private:
 
   /// Members
   LmkIdIsSmart lmk_id_is_smart_; // TODO GROWS UNBOUNDED, use the loop in getMapLmkIdsTo3dPointsInTimeHorizon();
-  std::map<LandmarkId, RegularityType> lmk_id_to_regularity_type_map_; // TODO GROWS UNBOUNDED, use same as above.
+  std::map<LandmarkId, RegularityType> lmk_id_to_regularity_type_map_;
   std::vector<size_t> delete_slots_of_converted_smart_factors_;
 
   gtsam::SharedNoiseModel mono_noise_;
@@ -80,7 +81,21 @@ private:
                        LmkIdIsSmart* lmk_id_is_smart);
 
   /* ------------------------------------------------------------------------ */
-  void addRegularityFactors(const LandmarkIds& mesh_lmk_ids);
+  void addRegularityFactors(
+      const LandmarkIds& mesh_lmk_ids,
+      gtsam::Symbol* plane_symbol,
+      std::vector<std::pair<Slot, LandmarkId>>* idx_of_point_plane_factors_to_add);
+
+  /* ------------------------------------------------------------------------ */
+  void removeOldRegularityFactors_Slow(
+      const gtsam::Symbol& plane_symbol,
+      const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+      const LandmarkIds& mesh_lmk_ids,
+      std::vector<size_t>* delete_slots);
+
+  /* ------------------------------------------------------------------------ */
+  void fillDeleteSlots(const std::vector<std::pair<Slot, LandmarkId> >& point_plane_factor_slots,
+      std::vector<size_t>* delete_slots);
 
 };
 

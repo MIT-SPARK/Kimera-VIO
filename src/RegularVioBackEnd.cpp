@@ -108,14 +108,14 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   addImuValues(cur_kf_id_);
 
   // Add imu factors between consecutive keyframe states.
-  VLOG(20) << "Adding IMU factor between pose id: " << last_kf_id_
+  VLOG(10) << "Adding IMU factor between pose id: " << last_kf_id_
           << " and pose id: " << cur_kf_id_;
   addImuFactor(last_kf_id_, cur_kf_id_);
 
   /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
   // Add between factor from RANSAC.
   if (stereo_ransac_body_pose) {
-    VLOG(20) << "Adding RANSAC factor between pose id: " << last_kf_id_
+    VLOG(10) << "Adding RANSAC factor between pose id: " << last_kf_id_
             << " and pose id: " << cur_kf_id_;
     if (VLOG_IS_ON(20)) {
       stereo_ransac_body_pose->print();
@@ -144,6 +144,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   Tracker::TrackingStatus kfTrackingStatus_mono =
                 status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
 
+  std::vector<size_t> delete_old_regularity_factors;
   switch(kfTrackingStatus_mono) {
     case Tracker::TrackingStatus::LOW_DISPARITY : {
       // Vehicle is not moving.
@@ -168,6 +169,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // For each landmark we decide if it's going to be a smart factor or not.
         // TODO here there is a timeline mismatch, while landmarks_kf are only currently
         // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
+        VLOG(10) << "Updating lmk_id_is_smart_.";
         isLandmarkSmart(lmks_kf,
                         mesh_lmk_ids_ground_cluster,
                         &lmk_id_is_smart_);
@@ -180,11 +182,27 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // Add regularity factor on vertices of the mesh.
         // TODO argument should be generalized to diff
         // type of cluster and regularities.
+        gtsam::Symbol plane_symbol;
+        std::vector<std::pair<Slot, LandmarkId>> idx_of_point_plane_factors_to_add;
         if (mesh_lmk_ids_ground_cluster.size() != 0) {
           // TODO what happens if mesh has same ids over and over, are we duplicating
           // factors?
-          addRegularityFactors(mesh_lmk_ids_ground_cluster);
+          VLOG(10) << "Adding regularity factors.";
+          addRegularityFactors(mesh_lmk_ids_ground_cluster,
+                               &plane_symbol,
+                               &idx_of_point_plane_factors_to_add);
+          VLOG(10) << "Finished adding regularity factors.";
+        } else {
+          VLOG(10) << "The clustered mesh on the ground is empty, skipping "
+                      "addition of regularity factors.";
         }
+
+        VLOG(10) << "Removing old regularity factors.";
+        removeOldRegularityFactors_Slow(plane_symbol,
+                                        idx_of_point_plane_factors_to_add,
+                                        mesh_lmk_ids_ground_cluster,
+                                        &delete_old_regularity_factors);
+        VLOG(10) << "Finished removing old regularity factors.";
       }
       break;
     }
@@ -194,9 +212,13 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   // This lags 1 step behind to mimic hw.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
+  std::vector<size_t> delete_slots (delete_slots_of_converted_smart_factors_);
+  delete_slots.insert(delete_slots.end(),
+                      delete_old_regularity_factors.begin(),
+                      delete_old_regularity_factors.end());
   // TODO add conversion from Smart factor to regular.
   optimize(cur_kf_id_, vio_params_.numOptimize_,
-           delete_slots_of_converted_smart_factors_);
+           delete_slots);
 
   // Reset list of factors to delete.
   // These are the smart factors that have been converted to projection factors
@@ -219,7 +241,7 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
     // (otherwise uninformative)
     static constexpr size_t min_num_of_observations = 2;
     if (feature_track.obs_.size() < min_num_of_observations) {
-      VLOG(10) << "Feature track is shorter (" << feature_track.obs_.size()
+      VLOG(20) << "Feature track is shorter (" << feature_track.obs_.size()
                << ") than min_num_of_observations (" << min_num_of_observations
                << ") for lmk with id: " << lmk_id;
       continue;
@@ -228,7 +250,7 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
     if (!feature_track.in_ba_graph_) {
       // Acknowledge that we have added the landmark in the graph.
       feature_track.in_ba_graph_ = true;
-      VLOG(10) << "Adding lmk " << lmk_id << " to graph.";
+      VLOG(20) << "Adding lmk " << lmk_id << " to graph.";
       addLandmarkToGraph(lmk_id, feature_track);
       ++n_new_landmarks;
     } else {
@@ -238,12 +260,12 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
       CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
                                             " keyframe!";
 
-      VLOG(10) << "Updating lmk " << lmk_id << " to graph.";
+      VLOG(20) << "Updating lmk " << lmk_id << " to graph.";
       updateLandmarkInGraph(lmk_id, obs_kf);
       ++n_updated_landmarks;
     }
   }
-  VLOG(7) << "Added " << n_new_landmarks << " new landmarks.\n"
+  VLOG(10) << "Added " << n_new_landmarks << " new landmarks.\n"
           << "Updated " << n_updated_landmarks << " landmarks in graph.";
 }
 
@@ -259,18 +281,18 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                                              smart_factors_params_,
                                              B_Pose_leftCam_));
 
-  VLOG(10) << "Adding landmark with id: " << lmk_id
+  VLOG(20) << "Adding landmark with id: " << lmk_id
            << " for the first time to graph. \n"
            << "Nr of observations of the lmk: " << ft.obs_.size()
            << " observations.\n";
-  if (VLOG_IS_ON(20)) {
+  if (VLOG_IS_ON(30)) {
     new_factor->print();
   }
 
   // Add observations to smart factor.
-  VLOG(10) << "Creating smart factor involving lmk with id: " << lmk_id;
+  VLOG(20) << "Creating smart factor involving lmk with id: " << lmk_id;
   for (const std::pair<FrameId, StereoPoint2>& obs: ft.obs_) {
-    VLOG(10) << "SmartFactor: adding observation of lmk with id: " << lmk_id
+    VLOG(20) << "SmartFactor: adding observation of lmk with id: " << lmk_id
             << " from frame with id: " << obs.first;
 
     new_factor->add(obs.second,
@@ -305,7 +327,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
   const bool& is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
   if (is_lmk_smart) {
     // Lmk is meant to be smart.
-    VLOG(10) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
+    VLOG(20) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
 
     // Update existing smart-factor.
     const SmartFactorMap::iterator& old_smart_factors_it =
@@ -318,11 +340,12 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         old_smart_factors_it->second.first;
 
     // Clone old factor as a new factor.
+    CHECK_NOTNULL(old_factor.get());
     SmartStereoFactor::shared_ptr new_factor =
         boost::make_shared<SmartStereoFactor>(*old_factor);
 
     // Add observation to new factor.
-    VLOG(10) << "Added observation for smart factor of lmk with id: "
+    VLOG(20) << "Added observation for smart factor of lmk with id: "
              << lmk_id;
     new_factor->add(newObs.second,
                     gtsam::Symbol('x', newObs.first),
@@ -335,7 +358,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 
     // Slot is different than -1
     // It means that the factor has already been inserted in the graph.
-    VLOG(10) << "Insert new smart factor to new_smart_factors_ for lmk with"
+    VLOG(20) << "Insert new smart factor to new_smart_factors_ for lmk with"
              << " id: " << lmk_id;
 
     ///// Book Keeping, update factors /////////////////////////////////////////
@@ -350,14 +373,14 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     ////////////////////////////////////////////////////////////////////////////
 
   } else {
-    VLOG(10) << "Lmk with id: " << lmk_id
+    VLOG(20) << "Lmk with id: " << lmk_id
               << " is set to be a projection factor.\n";
 
     // Update lmk_id as a projection factor.
     gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id);
     bool lmk_position_available = true;
     if (state_.find(lmk_key) == state_.end()) {
-      VLOG(10) << "Lmk with id: " << lmk_id << " is not found in state.\n";
+      VLOG(20) << "Lmk with id: " << lmk_id << " is not found in state.\n";
       // We did not find the lmk in the state.
       // It was a smart factor before.
       // Convert smart to projection.
@@ -367,20 +390,23 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 
       SmartStereoFactor::shared_ptr old_factor =
           old_smart_factors_it->second.first;
+      CHECK_NOTNULL(old_factor.get());
 
       // Add landmark value to graph.
-      VLOG(20) << "Print old_factor of lmk_id: " << lmk_id;
-      if (VLOG_IS_ON(20)) {
+      VLOG(30) << "Print old_factor of lmk_id: " << lmk_id;
+      if (VLOG_IS_ON(30)) {
         old_factor->print();
       }
       // TODO make sure that if point is not valid it works as well...
       if (old_factor->point().valid()) {
-        VLOG(10) << "Performing conversion for lmk_id: " << lmk_id;
+        VLOG(20) << "Performing conversion for lmk_id: " << lmk_id;
 
+        CHECK(old_factor->point());
+        // TODO check all the * whatever, for segmentation fault!
         new_values_.insert(lmk_key, *(old_factor->point()));
 
         // DEBUG add prior to lmks.
-        LOG_EVERY_N(ERROR, 100) << "Do not forget to remove lmk prior!";
+        //LOG_EVERY_N(ERROR, 100) << "Do not forget to remove lmk prior!";
         //static const gtsam::noiseModel::Diagonal::shared_ptr prior_lmk_noise =
         //    gtsam::noiseModel::Diagonal::Sigmas(Vector3(1, 1, 1));
         //new_imu_prior_and_other_factors_.push_back(
@@ -393,7 +419,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         for (size_t i = 0; i < old_factor->keys().size(); i++) {
           const gtsam::Key& cam_key = old_factor->keys().at(i);
           const StereoPoint2& sp2   = old_factor->measured().at(i);
-          VLOG(10) << "Lmk with id: " << lmk_id
+          VLOG(20) << "Lmk with id: " << lmk_id
                    << " added as a new projection factor with pose with id: "
                    << static_cast<int>(cam_key) << ".\n";
           if (!std::isnan(sp2.uR())) {
@@ -428,6 +454,8 @@ void RegularVioBackEnd::updateLandmarkInGraph(
 
         // Erase from old_smart_factors_ list since this has been converted into
         // projection factors.
+        // Check to avoid undefined behaviour.
+        CHECK(old_smart_factors_.find(lmk_id) != old_smart_factors_.end());
         old_smart_factors_.erase(lmk_id);
       } else {
         LOG(WARNING) << "Cannot convert smart factor to proj. factor.\n"
@@ -437,7 +465,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         lmk_position_available = false;
       }
     } else {
-      VLOG(10) << "Lmk with id: " << lmk_id << " has been found in state: "
+      VLOG(20) << "Lmk with id: " << lmk_id << " has been found in state: "
                << "it is being used in a projection factor.";
     }
 
@@ -447,7 +475,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
     // not convert the smart factor to a set of projection factors, then do not
     // add it because we do not have a right value to use.
     if (lmk_position_available) {
-      VLOG(10) << "Lmk with id: " << lmk_id
+      VLOG(20) << "Lmk with id: " << lmk_id
                << " added as a new projection factor with pose with id: "
                << newObs.first << ".\n";
       if (!std::isnan(newObs.second.uR())) {
@@ -491,7 +519,7 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
     if (std::find(mesh_lmk_ids.begin(),
                   mesh_lmk_ids.end(), lmk_id) ==
         mesh_lmk_ids.end()) {
-      VLOG(10) << "Lmk_id = " << lmk_id
+      VLOG(20) << "Lmk_id = " << lmk_id
                << " needs to stay as it is since it is NOT involved in any regularity.";
       // This lmk is not involved in any regularity.
       if (lmk_id_slot == lmk_id_is_smart->end()) {
@@ -506,7 +534,7 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
     } else {
       // This lmk is involved in a regularity, hence it should be a variable in
       // the factor graph (connected to projection factor).
-      VLOG(10) << "Lmk_id = " << lmk_id
+      VLOG(20) << "Lmk_id = " << lmk_id
                << " needs to be a proj. factor, as it is involved in a regularity.";
       const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
       if (old_smart_factors_it == old_smart_factors_.end()) {
@@ -522,6 +550,7 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
 
         SmartStereoFactor::shared_ptr old_factor =
             old_smart_factors_it->second.first;
+        CHECK_NOTNULL(old_factor.get());
 
         if (!old_factor->point().valid()) {
           // The point is not valid.
@@ -552,15 +581,23 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
 /* -------------------------------------------------------------------------- */
 // TODO we have a: terminate called after throwing an instance of 'std::out_of_range'
 //  what():  map::at when running this function... And it does not appear very often.
-void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
+void RegularVioBackEnd::addRegularityFactors(
+    const LandmarkIds& mesh_lmk_ids,
+    gtsam::Symbol* plane_symbol,
+    std::vector<std::pair<Slot, LandmarkId>>* idx_of_point_plane_factors_to_add) {
+  CHECK_NOTNULL(plane_symbol);
+  CHECK_NOTNULL(idx_of_point_plane_factors_to_add);
+  idx_of_point_plane_factors_to_add->resize(0);
+
+  VLOG(10) << "Starting addRegularityFactors...";
 
   // Noise model.
-  // TODO remove hardcoded value.
   static const gtsam::noiseModel::Isotropic::shared_ptr regularityNoise =
-      gtsam::noiseModel::Isotropic::Sigma(1, 0.1);
+      gtsam::noiseModel::Isotropic::Sigma(1, vio_params_.regularityNoiseSigma_);
 
   // Plane key.
   static gtsam::Key plane_key (gtsam::Symbol('P', 0));
+  *plane_symbol = plane_key;
 
   // Vars to check whether the new plane is going to be fully constrained or not.
   static bool is_plane_constrained = false;
@@ -569,9 +606,15 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
   if (!state_.exists(plane_key)) {
     VLOG(10) << "Plane key, " << gtsam::DefaultKeyFormatter(plane_key)
              << " does NOT exist.";
+    // If the plane is new, and we are only using one plane as regularity
+    // then there should be no lmk_id with a regularity now...
+    lmk_id_to_regularity_type_map_.clear();
 
     // Verify that the plane is going to be fully constrained before adding it.
-    static constexpr size_t min_number_of_constraints = 3;
+    // TODO it might be more robust to increase this, to reduce the
+    // possibility of having degenerate configs such as points aligned...
+    static const size_t min_number_of_constraints =
+        vio_params_.minPlaneConstraints_;
 
     // Loop over all lmks which are involved in the regularity, to both
     // check that the new plane is going to be fully constrained and that
@@ -581,15 +624,14 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
           new_values_.exists(gtsam::Symbol('l', lmk_id))) {
         // Lmk id exists either in the state or it is going to be added in the
         // next optimization.
-        VLOG(10) << "Lmk id: " << lmk_id
+        VLOG(20) << "Lmk id: " << lmk_id
                  << " is in state_ or is going to be added in next optimization.";
 
         const auto& lmk_id_regularity_type =
             lmk_id_to_regularity_type_map_.find(lmk_id);
-        if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end() ||
-            lmk_id_regularity_type->second != RegularityType::POINT_PLANE) {
+        if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end()) {
           // Lmk has not been used in a regularity.
-          VLOG(10) << "Lmk id: " << lmk_id
+          VLOG(20) << "Lmk id: " << lmk_id
                    << " has not yet been used in a regularity.";
 
           // Check that the plane is constrained before adding factors.
@@ -601,7 +643,10 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
           } else {
             // Act as usual, the plane is already fully constrained, keep
             // adding new factors.
-            VLOG(10) << "Adding PointPlaneFactor.";
+            VLOG(20) << "Adding PointPlaneFactor.";
+            idx_of_point_plane_factors_to_add->push_back(
+                  std::make_pair(new_imu_prior_and_other_factors_.size(),
+                                 lmk_id));
             new_imu_prior_and_other_factors_.push_back(
                   boost::make_shared<gtsam::PointPlaneFactor>(
                     gtsam::Symbol('l', lmk_id),
@@ -617,9 +662,14 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
             is_plane_constrained = true;
 
             static size_t i = 0;
-            plane_key = gtsam::Symbol('P', i);
+            *plane_symbol = gtsam::Symbol('P', 0); // gtsam::Symbol('P', i);
+            plane_key = plane_symbol->key();
             i++;
-            static const gtsam::OrientedPlane3 plane(0.0, 0.0, 1.0, -0.1);
+
+            // TODO find a way to add initial guess, maybe when sending the lmk_ids
+            // having a regularity we could regress a plane through it?
+            // The mesher should send the plane!
+            static const gtsam::OrientedPlane3 plane(0.0, 0.0, 1.0, -0.2);
 
             // The plane is constrained, add it.
             VLOG(10) << "Adding new plane with key: "
@@ -638,7 +688,10 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
             // Add the factors for the lmks that we skipped while checking
             // that the plane is fully constrained.
             for (const LandmarkId& prev_lmk_id: list_of_constraints) {
-              VLOG(10) << "Adding PointPlaneFactor.";
+              VLOG(20) << "Adding PointPlaneFactor.";
+              idx_of_point_plane_factors_to_add->push_back(
+                  std::make_pair(new_imu_prior_and_other_factors_.size(),
+                                 prev_lmk_id));
               new_imu_prior_and_other_factors_.push_back(
                     boost::make_shared<gtsam::PointPlaneFactor>(
                       gtsam::Symbol('l', prev_lmk_id),
@@ -653,11 +706,26 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
             // condition anymore.
             list_of_constraints.resize(0);
           }
+        } else {
+          LOG(FATAL) << "If this is a new plane, the lmks should not have any "
+                        "regularities...";
+          // And this if condition will prevent multiple regularities on the
+          // same point...
         }
       } else {
-        LOG(ERROR) << "Lmk id: " << lmk_id
+        LOG(WARNING) << "Lmk id: " << lmk_id
                    << " is NOT in state_ or in new_values_,"
                    << " NOT adding PointPlaneFactor.";
+
+        // Erase from map of lmk id to regularity type, since the lmk does not
+        // exist anymore, or has never existed.
+        // Avoid the world of undefined behaviour by checking that the lmk_id
+        // we want to erase is actually there.
+        if (lmk_id_to_regularity_type_map_.find(lmk_id) !=
+            lmk_id_to_regularity_type_map_.end()) {
+          lmk_id_to_regularity_type_map_.erase(lmk_id);
+        }
+
         // "It probably is still a smart factor that was not converted"
         //              " to a projection factor because it was not a regularity when"
         //              " it was being processed... since backend processing is per"
@@ -672,7 +740,7 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
 
     // Reset the flag for next time we have to add a plane.
     is_plane_constrained = false;
-    // Also reset vector of constraints, just to be sure.
+    // Also reset vector of constraints to empty.
     list_of_constraints.resize(0);
   } else {
     VLOG(10) << "Plane key does exist already: "
@@ -684,21 +752,24 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
           new_values_.exists(gtsam::Symbol('l', lmk_id))) {
         // Lmk id exists either in the state or it is going to be added in the
         // next optimization.
-        VLOG(10) << "Lmk id: " << lmk_id
+        VLOG(20) << "Lmk id: " << lmk_id
                  << " is in state_ or is going to be added in next optimization.";
 
         const auto& lmk_id_regularity_type =
             lmk_id_to_regularity_type_map_.find(lmk_id);
         if (lmk_id_regularity_type == lmk_id_to_regularity_type_map_.end() ||
             lmk_id_regularity_type->second != RegularityType::POINT_PLANE) {
-          // Lmk has not been used in a regularity.
-          // Lmk has not been used in a regularity.
-          VLOG(10) << "Lmk id: " << lmk_id
+          // Lmk has not been used in a regularity or is not in a point plane
+          // factor.
+          VLOG(20) << "Lmk id: " << lmk_id
                    << " has not yet been used in a regularity.";
 
           // The plane is already in the graph so it must be fully constrained,
           // keep adding new factors.
-          VLOG(10) << "Adding PointPlaneFactor.";
+          VLOG(20) << "Adding PointPlaneFactor.";
+          idx_of_point_plane_factors_to_add->push_back(
+                  std::make_pair(new_imu_prior_and_other_factors_.size(),
+                                 lmk_id));
           new_imu_prior_and_other_factors_.push_back(
                 boost::make_shared<gtsam::PointPlaneFactor>(
                   gtsam::Symbol('l', lmk_id),
@@ -708,12 +779,12 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
           lmk_id_to_regularity_type_map_[lmk_id] =
               RegularityType::POINT_PLANE;
         } else {
-          // This lmk has already been used in a regularity, avoid duplication
-          // of factors.
-          VLOG(10) << "Avoiding duplicated regularity factor for lmk id: " << lmk_id;
+          // This lmk has already been used in a regularity and is a point plane
+          // factor, avoid duplication of factors.
+          VLOG(20) << "Avoiding duplicated regularity factor for lmk id: " << lmk_id;
         }
       } else {
-        LOG(ERROR) << "Lmk id: " << lmk_id
+        LOG(WARNING) << "Lmk id: " << lmk_id
                    << " is NOT in state_ or in new_values_,"
                    << " NOT adding PointPlaneFactor.";
         // "It probably is still a smart factor that was not converted"
@@ -723,6 +794,276 @@ void RegularVioBackEnd::addRegularityFactors(const LandmarkIds& mesh_lmk_ids) {
       }
     }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+void RegularVioBackEnd::removeOldRegularityFactors_Slow(
+    const gtsam::Symbol& plane_symbol,
+    const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+    const LandmarkIds& mesh_lmk_ids,
+    std::vector<size_t>* delete_slots) {
+  CHECK_NOTNULL(delete_slots);
+  delete_slots->resize(0);
+
+  CHECK(!(state_.exists(plane_symbol.key()) &&
+        new_values_.exists(plane_symbol.key())))
+      << "Inconsistency: plane is in current state,"
+         " but it is going to be added.";
+  if (!state_.exists(plane_symbol.key())){
+    // The plane is not in the state, it is probably going to be added in
+    // this iteration, so it must be already well constrained and attached
+    // to the right lmks.
+    // Or it could be that it is not going to be added at all, so we
+    // do not need to do anything.
+    LOG(INFO) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
+              << " is not in state, skipping removeOldRegularityFactors.";
+    return; // Leave this function.
+  }
+
+  if (new_values_.exists(plane_symbol.key())) {
+    // The plane is not in the state, and it is going to be added in
+    // this iteration, so it must be already well constrained and attached
+    // to the right lmks.
+    LOG(INFO) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
+              << " is in new_values_, skipping removeOldRegularityFactors.";
+    return;
+  }
+
+  VLOG(10) << "Starting removeOldRegularityFactors_Slow...";
+
+  // If the plane exists in the state_ and not in new_values_,
+  // then let us remove old regularity factors.
+  const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
+  Slot slot = 0;
+  std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_bad;
+  std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_good;
+  bool has_plane_a_prior = false;
+  // Loop over current graph.
+  for (const auto& g: graph) {
+    const auto& ppf =
+        boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
+    if (ppf) {
+      // We found a PointPlaneFactor.
+      if (plane_symbol.key() == ppf->getPlaneKey()) {
+        // We found a PointPlaneFactor that involves our plane.
+        // Get point symbol.
+        gtsam::Symbol point_symbol (ppf->getPointKey());
+        // Get lmk id of this point.
+        LandmarkId lmk_id = point_symbol.index();
+        // Find this lmk id in the set of regularities.
+        if (std::find(mesh_lmk_ids.begin(),
+                      mesh_lmk_ids.end(), lmk_id) == mesh_lmk_ids.end()) {
+          // We did not find the point in mesh_lmk_ids, therefore it should
+          // not be involved in a regularity anymore, delete this slot (but I
+          // want to remove the landmark! and all its factors, to avoid having
+          // underconstrained lmks...)
+          LOG(WARNING) << "Found bad point plane factor on lmk with id: "
+                       << point_symbol.index();
+          point_plane_factor_slots_bad.push_back(
+                std::make_pair(slot, lmk_id));
+
+          // Before deleting this slot, we must ensure that both the plane
+          // and the landmark are well constrained!
+        } else {
+          // Store those factors that we will potentially keep.
+          point_plane_factor_slots_good.push_back(
+                std::make_pair(slot, lmk_id));
+        }
+      } else {
+        LOG(ERROR) << "Point plane keys do not match..."
+                      " Are we using multiple planes?";
+      }
+    }
+
+    // Check for priors attached to the plane.
+    const auto& plane_prior = boost::dynamic_pointer_cast<
+                              gtsam::PriorFactor<gtsam::OrientedPlane3>>(g);
+    if (plane_prior) {
+      if (plane_prior->find(plane_symbol.key()) != plane_prior->end()) {
+        LOG(WARNING) << "Found plane prior factor.";
+        has_plane_a_prior = true;
+      }
+    }
+
+    // Check for linear container factors having the plane.
+    const auto& lcf = boost::dynamic_pointer_cast<
+                      gtsam::LinearContainerFactor>(g);
+    if (lcf) {
+      if (lcf->find(plane_symbol.key()) != lcf->end()) {
+        LOG(WARNING) << "Found linear container factor with our plane.";
+        has_plane_a_prior = true;
+      }
+    }
+
+    // Next slot.
+    slot++;
+  }
+
+  // Decide whether we can just delete the bad point plane factors,
+  // or whether we need to delete all the factors involving the plane
+  // so that it is removed.
+  // For this we need to check if the plane is fully constrained!
+
+  /// If there are enough new constraints to be added then delete only delete_slots
+  /// else, if there are enough constraints left, only delete delete_slots
+  /// otherwise delete ALL constraints, both old and new, so that the plane
+  /// disappears (take into account priors!).
+  /// Priors affecting planes: linear container factor & prior on OrientedPlane3
+  static constexpr size_t min_num_of_constraints = 10;
+  size_t total_nr_of_plane_constraints =
+      point_plane_factor_slots_good.size() +
+      idx_of_point_plane_factors_to_add.size();
+  VLOG(10) << "Plane total number of constraints is: "
+           << total_nr_of_plane_constraints << "\n"
+           << "\tConstraints in graph which are good: "
+           << point_plane_factor_slots_good.size() << "\n"
+           << "\tConstraints that are going to be added: "
+           << idx_of_point_plane_factors_to_add.size() << "\n"
+           << "Constraints in graph which are bad: "
+           << point_plane_factor_slots_bad.size();
+  if (total_nr_of_plane_constraints > min_num_of_constraints) {
+    // The plane is fully constrained.
+    // We can just delete bad factors, assuming lmks will be well constrained.
+    // TODO ensure the lmks are themselves well constrained.
+    VLOG(10) << "Plane is fully constrained, removing only bad factors.";
+    fillDeleteSlots(point_plane_factor_slots_bad,
+                    delete_slots);
+  } else {
+    // The plane is NOT fully constrained if we remove all bad factors,
+    // unless the plane has a prior.
+    // Check if the plane has a prior.
+    VLOG(10) << "Plane is NOT fully constrained, if we remove bad factors.";
+    if (has_plane_a_prior) {
+      // The plane has a prior.
+      // Delete just the bad factors.
+      VLOG(10) << "Plane has a prior, delete just the bad factors.";
+      fillDeleteSlots(point_plane_factor_slots_bad,
+                      delete_slots);
+    } else {
+      // The plane has NOT a prior.
+      // Delete all factors involving the plane so that iSAM removes the plane
+      // from the optimization.
+      static constexpr bool use_unstable = false;
+      if (use_unstable) {
+        LOG(ERROR) << "Trying to forcefully remove the PLANE!";
+        DEBUG_ = true;
+        std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_all (
+              point_plane_factor_slots_bad);
+        point_plane_factor_slots_all.insert(point_plane_factor_slots_all.end(),
+                                            point_plane_factor_slots_good.begin(),
+                                            point_plane_factor_slots_good.end());
+        fillDeleteSlots(point_plane_factor_slots_all,
+                        delete_slots);
+
+        // Remove as well the factors that are going to be added in this iteration.
+        for (const std::pair<Slot, LandmarkId>& i:
+             idx_of_point_plane_factors_to_add) {
+          CHECK(new_imu_prior_and_other_factors_.exists(i.first));
+          // WARNING using erase moves all factors! aka the idx_of_point_plane_factors_to_add will
+          // be wrong!!!!
+          // Remove will just insert a nullptr, is this ok for iSAM??
+          new_imu_prior_and_other_factors_.remove(i.first);
+
+          // Acknowledge that these lmks are not in a regularity anymore.
+          // TODO this does not generalize to multiple planes...
+          const LandmarkId& lmk_id = i.second;
+          CHECK(lmk_id_to_regularity_type_map_.find(lmk_id) !=
+              lmk_id_to_regularity_type_map_.end())
+              << "Avoid undefined behaviour by checking that the lmk was in the "
+                 "container.";
+          lmk_id_to_regularity_type_map_.erase(lmk_id);
+          // TODO maybe check that lmk_id_is_smart makes sense, aka it should be
+          // false...
+        }
+
+        // TODO since we do not know if iSAM handles well nullptr as new factors,
+        // clean the new_imu_prior_and_other_factors_
+        // This is because we are using "remove" to remove factors.
+        gtsam::NonlinearFactorGraph tmp_graph =
+            new_imu_prior_and_other_factors_.clone();
+        new_imu_prior_and_other_factors_.resize(0);
+        for (const auto& factor: tmp_graph) {
+          if (factor != nullptr) {
+            new_imu_prior_and_other_factors_.push_back(factor);
+          }
+        }
+      } else {
+        // Do not use unstable implementation...
+        // Just add a prior on the plane and remove only bad factors...
+        // Add a prior to the plane.
+        VLOG(10) << "Adding a prior to the plane, delete just the bad factors.";
+        gtsam::OrientedPlane3 plane_estimate;
+        CHECK(getEstimateOfKey(plane_symbol.key(), &plane_estimate));
+        LOG(WARNING) << "Using plane prior on plane with id "
+                     << gtsam::DefaultKeyFormatter(plane_symbol);
+        CHECK(!has_plane_a_prior) << "Check that the plane has no prior.";
+        static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise =
+            gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.5, 0.5, 0.5));
+        new_imu_prior_and_other_factors_.push_back(
+              boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3>>(
+                plane_symbol.key(),
+                plane_estimate,
+                prior_noise));
+
+        // Delete just the bad factors.
+        fillDeleteSlots(point_plane_factor_slots_bad,
+                        delete_slots);
+      }
+    } // The plane has NOT a prior.
+  } // The plane is NOT fully constraint.
+
+  //  // TODO now the plane could be floating around with a prior attached, but
+  //  // not really attached to the rest of the graph...
+
+  //  //  gtsam::Point3 point;
+  //  //  if (getEstimateOfKey(point_symbol.key(), &point)) {
+  //  //    LOG(WARNING) << "Using lmk prior on lmk with id " <<
+  //  //                    gtsam::DefaultKeyFormatter(point_symbol);
+  //  //    // TODO make sure this prior is not repeated over and over on the same
+  //  //    // lmk id.
+  //  //    // TODO is there the possibility that this lmk just have a prior attached
+  //  //    // to it? and nothing else, I guess that it is unlikely because to
+  //  //    // be first added it must have had some proj factors besides PointPlane
+  //  //    // factor...
+  //  //    static const gtsam::noiseModel::Diagonal::shared_ptr prior_lmk_noise =
+  //  //        gtsam::noiseModel::Diagonal::Sigmas(Vector3(1.0, 1.0, 1.0));
+  //  //    new_imu_prior_and_other_factors_.push_back(
+  //  //          boost::make_shared<gtsam::PriorFactor<gtsam::Point3>>(
+  //  //            point_symbol.key(),
+  //  //            point,
+  //  //            prior_lmk_noise));
+  //  //  } else {
+  //  //    LOG(ERROR) << "Lmk with id " << gtsam::DefaultKeyFormatter(point_symbol)
+  //  //               << " does not exist in graph.";
+  //  //  }
+}
+
+void RegularVioBackEnd::fillDeleteSlots(
+    const std::vector<std::pair<Slot, LandmarkId>>& point_plane_factor_slots_bad,
+    std::vector<size_t>* delete_slots) {
+  CHECK_NOTNULL(delete_slots);
+  VLOG(10) << "Starting fillDeleteSlots...";
+  delete_slots->resize(point_plane_factor_slots_bad.size());
+  size_t i = 0;
+  for (const std::pair<Slot, LandmarkId>& ppf_bad:
+       point_plane_factor_slots_bad) {
+    CHECK_LT(i, delete_slots->size());
+    CHECK(smoother_->getFactors().exists(ppf_bad.first));
+
+    // Add factor slot to delete slots.
+    delete_slots->at(i) = ppf_bad.first;
+    i++;
+
+    // Acknowledge that these lmks are not in a regularity anymore.
+    // TODO this does not generalize to multiple planes...
+    const LandmarkId& lmk_id = ppf_bad.second;
+    CHECK(lmk_id_to_regularity_type_map_.find(lmk_id) !=
+        lmk_id_to_regularity_type_map_.end())
+        << "Avoid undefined behaviour by checking that the lmk was in the "
+           "container.";
+    lmk_id_to_regularity_type_map_.erase(lmk_id);
+  }
+  VLOG(10) << "Finished fillDeleteSlots...";
 }
 
 } // namespace VIO

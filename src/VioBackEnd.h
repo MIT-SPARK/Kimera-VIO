@@ -48,12 +48,16 @@
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 #include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 #include <gtsam/geometry/StereoCamera.h>
 #include <gtsam/geometry/StereoPoint2.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/navigation/AHRSFactor.h>
+
+#include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
+#include <gtsam/nonlinear/LinearContainerFactor.h>
+#include "factors/PointPlaneFactor.h"
+
 
 namespace VIO {
 
@@ -118,6 +122,7 @@ public:
 
   gtsam::Values stateBeforeOpt;
   gtsam::NonlinearFactorGraph graphBeforeOpt;
+  gtsam::NonlinearFactorGraph graphToBeDeleted;
 
   double factorsAndSlotsTime_;
   double preUpdateTime_;
@@ -129,7 +134,7 @@ public:
   double meanPixelError_;
   double maxPixelError_;
   double meanTrackLength_;
-  int maxTrackLength_;
+  size_t maxTrackLength_;
 
   int numAddedSmartF_;
   int numAddedImuF_;
@@ -231,7 +236,7 @@ public:
                                                 LandmarkId,
                                                 SmartStereoFactor::shared_ptr>;
   using SmartFactorMap =
-      gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, int>>;
+  gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, int>>;
 
   using PointWithId     = std::pair<LandmarkId, gtsam::Point3>;
   using PointsWithId    = std::vector<PointWithId>;
@@ -256,6 +261,9 @@ public:
   // Virtual destructor needed for derived class (i.e. RegularVioBackEnd).
   virtual ~VioBackEnd() = default;
 
+  // RAW, user-specified params.
+  const VioBackEndParams vio_params_;
+
   // STATE ESTIMATES.
   ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
   ImuBias imu_bias_prev_kf_;   //!< bias estimate at previous keyframe
@@ -267,8 +275,6 @@ public:
   // Id of current keyframe, increases from 0 to inf.
   int cur_kf_id_;
 
-  // RAW, user-specified params.
-  const VioBackEndParams vio_params_;
 
   // Current time.
   double timestamp_kf_; // timestamp in seconds attached to the last keyframe
@@ -312,6 +318,9 @@ public:
 
   // Debug info.
   DebugVioInfo debug_info_;
+
+  // TODO remove this.
+  bool DEBUG_ = false;
 
 public:
   /// Methods
@@ -372,6 +381,21 @@ public:
 
   /// Getters
   /* ------------------------------------------------------------------------ */
+  // Get the most recent estimate of the given gtsam key.
+  // Mind that to have the most up to date key, you should call this after
+  // optimize (or addVisualInertialStateandOptimize)
+  template<class T>
+  bool getEstimateOfKey(const gtsam::Key& key, T* estimate) const {
+    CHECK_NOTNULL(estimate);
+    if (state_.exists(key)) {
+      *estimate = state_.at<T>(key);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Get valid 3D points - TODO: this copies the graph.
   vector<gtsam::Point3> get3DPoints() const;
 
@@ -379,7 +403,7 @@ public:
   // Get valid 3D points and corresponding lmk id.
   // Warning! it modifies old_smart_factors_!!
   void getMapLmkIdsTo3dPointsInTimeHorizon(PointsWithIdMap* points_with_id,
-                                           const int& min_age = 2);
+                                           const size_t& min_age = 2);
 
   /* ------------------------------------------------------------------------ */
   // NOT TESTED
@@ -431,7 +455,7 @@ protected:
 
   /* ------------------------------------------------------------------------ */
   void optimize(const FrameId& cur_id,
-                const int& max_iterations,
+                const size_t& max_iterations,
                 const std::vector<size_t>& extra_factor_slots_to_delete =
                                                         std::vector<size_t>());
   /// Printers.
@@ -516,6 +540,39 @@ private:
                          const std::vector<size_t>& delete_slots,
                          const std::string& message,
                          const bool& showDetails) const;
+
+  /* ------------------------------------------------------------------------ */
+  void printSmartFactor(boost::shared_ptr<SmartStereoFactor> gsf) const;
+
+  /* ------------------------------------------------------------------------ */
+  void printPointPlaneFactor(
+      boost::shared_ptr<gtsam::PointPlaneFactor> ppf) const;
+
+  /* ------------------------------------------------------------------------ */
+  void printPlanePrior(
+      boost::shared_ptr<gtsam::PriorFactor<gtsam::OrientedPlane3>> ppp) const;
+
+  /* ------------------------------------------------------------------------ */
+  void printPointPrior(
+      boost::shared_ptr<gtsam::PriorFactor<gtsam::Point3>> ppp) const;
+
+  /* ------------------------------------------------------------------------ */
+  void printLinearContainerFactor(
+      boost::shared_ptr<gtsam::LinearContainerFactor> lcf) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Provide a nonlinear factor, which will be casted to any of the selected
+  // factors, and then printed.
+  // Slot argument, is just to print the slot of the factor if you know it.
+  // If slot is -1, there is no slot number printed.
+  void printSelectedFactors(
+      const boost::shared_ptr<gtsam::NonlinearFactor>& g,
+      const size_t& slot = 0,
+      const bool print_smart_factors = true,
+      const bool print_point_plane_factors = true,
+      const bool print_plane_priors = true,
+      const bool print_point_priors = true,
+      const bool print_linear_container_factors = true) const;
 
   /// Debuggers.
   /* ------------------------------------------------------------------------ */

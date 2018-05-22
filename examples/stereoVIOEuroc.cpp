@@ -21,6 +21,8 @@
 #include <glog/logging.h>
 
 #include <gtsam/geometry/Pose3.h>
+#include <gtsam/slam/OrientedPlane3Factor.h>
+#include "factors/PointPlaneFactor.h"
 
 #include "ETH_parser.h"
 #include "mesh/Mesher.h"
@@ -53,86 +55,90 @@ DEFINE_int32(viz_type, 3,
     "corresponding to non planar obstacles\n"
   "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
   "7: NONE, does not visualize map\n");
+DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
+                            "previous frames will not be used.");
+DEFINE_int32(final_k, 2812, "Final frame to finish processing dataset, "
+                            "subsequent frames will not be used.");
 
 using namespace std;
 using namespace gtsam;
 using namespace VIO;
 
-// helper function to parse dataset and user-specified parameters
-void parseDatasetAndParams(const int argc, const char * const *argv,
-                           //output:
-                           ETHDatasetParser& dataset,
-                           VioBackEndParams& vioParams,
-                           VioFrontEndParams& trackerParams,
-                           size_t& initial_k, size_t& final_k) {
+// Helper function to parse dataset and user-specified parameters.
+void parseDatasetAndParams(ETHDatasetParser* dataset,
+                           VioBackEndParams* vioParams,
+                           VioFrontEndParams* trackerParams,
+                           size_t* initial_k, size_t* final_k) {
+  CHECK_NOTNULL(dataset);
+  CHECK_NOTNULL(vioParams);
+  CHECK_NOTNULL(trackerParams);
+  CHECK_NOTNULL(initial_k);
+  CHECK_NOTNULL(final_k);
 
-  // dataset path
-  VLOG(100) << "stereoVIOexample: using dataset path: " << FLAGS_dataset_path;
+  // Dataset path.
+  VLOG(100) << "Using dataset path: " << FLAGS_dataset_path;
 
-  // parse the dataset (ETH format)
-  std::string leftCameraName = "cam0";
-  std::string rightCameraName = "cam1";
-  std::string imuName = "imu0";
-  std::string gtSensorName = "state_groundtruth_estimate0";
+  // Parse the dataset (ETH format).
+  static const std::string leftCameraName = "cam0";
+  static const std::string rightCameraName = "cam1";
+  static const std::string imuName = "imu0";
+  static const std::string gtSensorName = "state_groundtruth_estimate0";
 
-  dataset.parseDataset(FLAGS_dataset_path, leftCameraName, rightCameraName,
+  dataset->parseDataset(FLAGS_dataset_path, leftCameraName, rightCameraName,
                        imuName, gtSensorName);
-  dataset.print();
+  dataset->print();
 
-  // read/define vio params
+  // Read/define vio params.
   if (FLAGS_vio_params_path.empty()) {
-    VLOG(100) << "stereoVIOexample: no vio parameters specified, "
-                 "using default.";
-    // Default params with IMU stats from dataset
-    vioParams = VioBackEndParams(dataset.imuData_.gyro_noise_,
-                                 dataset.imuData_.acc_noise_,
-                                 dataset.imuData_.gyro_walk_,
-                                 dataset.imuData_.acc_walk_);
+    VLOG(100) << "No vio parameters specified, using default.";
+    // Default params with IMU stats from dataset.
+    *vioParams = VioBackEndParams(dataset->imuData_.gyro_noise_,
+                                  dataset->imuData_.acc_noise_,
+                                  dataset->imuData_.gyro_walk_,
+                                  dataset->imuData_.acc_walk_);
   } else {
-    VLOG(100) << "stereoVIOexample: using user-specified vio parameters: "
+    VLOG(100) << "Using user-specified VIO parameters: "
               << FLAGS_vio_params_path;
-    vioParams.parseYAML(FLAGS_vio_params_path);
+    vioParams->parseYAML(FLAGS_vio_params_path);
   }
 
-  // read/define tracker params
-  if (FLAGS_tracker_params_path.empty()){
-    VLOG(100) << "stereoVIOexample: no tracker parameters specified, "
-                 "using default";
-    trackerParams = VioFrontEndParams(); // default params
+  // Read/define tracker params.
+  if (FLAGS_tracker_params_path.empty()) {
+    VLOG(100) << "No tracker parameters specified, using default";
+    *trackerParams = VioFrontEndParams(); // default params
   } else {
-    VLOG(100) << "stereoVIOexample: using user-specified tracker parameters: "
+    VLOG(100) << "Using user-specified tracker parameters: "
               << FLAGS_tracker_params_path;
-    trackerParams.parseYAML(FLAGS_tracker_params_path);
+    trackerParams->parseYAML(FLAGS_tracker_params_path);
   }
 
-  // start processing dataset from frame initial_k
-  initial_k = 50; // useful to skip a bunch of images at the beginning (imu calibration)
-  if (argc >= 5){
-    initial_k = size_t(stoi(argv[4]));
-    std::cout << "stereoVIOexample: using user-specified initial_k: "
-              << initial_k << std::endl;
-  }
+  // Start processing dataset from frame initial_k.
+  // Useful to skip a bunch of images at the beginning (imu calibration).
+  *initial_k = FLAGS_initial_k;
+  CHECK_GE(*initial_k, 0);
+  CHECK_GE(*initial_k, 10)
+      << "initial_k should be >= 10 for IMU bias initialization";
 
-  // finish processing dataset at frame final_k
-  final_k = dataset.nrImages() - 100; // last frame to process (to avoid processing the entire dataset), skip last frames
-  if (argc >= 6){
-    final_k = size_t(stoi(argv[5]));
-    std::cout << "stereoVIOexample: using user-specified final_k "
-              << "(may be saturated later): " << final_k << std::endl;
-  }
-  final_k = std::min(final_k,dataset.nrImages());
-  std::cout << "Running dataset between frame " << initial_k << " and frame "
-            <<  final_k << std::endl;
+  // Finish processing dataset at frame final_k.
+  // Last frame to process (to avoid processing the entire dataset),
+  // skip last frames.
+  *final_k = FLAGS_final_k;
+  CHECK_GT(*final_k, 0);
+  const size_t& nr_images = dataset->nrImages();
+  CHECK(*final_k < nr_images)
+      << "Value for final_k, " << *final_k << " is larger than total"
+      << " number of frames in dataset " << nr_images;
+  CHECK(*final_k > *initial_k)
+      << "Value for final_k (" << *final_k << ") is smaller than value for"
+      << " initial_k (" << *initial_k << ").";
 
-  if (initial_k < 10) {
-    throw std::runtime_error(
-      "stereoVIOExample: initial_k should be > 10 for IMU bias initialization");
-  }
+  LOG(INFO) << "Running dataset between frame " << *initial_k
+            << " and frame " <<  *final_k;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
 
   // Initialize Google's flags library.
@@ -151,8 +157,8 @@ int main(int argc, char *argv[]) {
   VioBackEndParams vioParams;
   VioFrontEndParams trackerParams;
   size_t initial_k, final_k; // initial and final frame: useful to skip a bunch of images at the beginning (imu calibration)
-  parseDatasetAndParams(argc, argv, dataset, vioParams, trackerParams,
-                        initial_k, final_k);
+  parseDatasetAndParams(&dataset, &vioParams, &trackerParams,
+                        &initial_k, &final_k);
 
   // instantiate stereo tracker (class that tracks implements estimation front-end) and print parameters
   StereoVisionFrontEnd stereoVisionFrontEnd(trackerParams, vioParams, saveImages); // vioParams used by feature selection
@@ -187,7 +193,6 @@ int main(int argc, char *argv[]) {
   Timestamp timestamp_lkf = dataset.timestampAtFrame(initial_k - 10);
   Timestamp timestamp_k;
 
-  bool didFirstOptimization = false;
   double startTime; // to log timing results
 
   /// Lmk ids that are considered to be in the same cluster.
@@ -356,7 +361,7 @@ int main(int argc, char *argv[]) {
       startTime = UtilsOpenCV::GetTimeInSeconds();
       SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
 
-      VLOG(100) << "Starting feature selection.";
+      VLOG(100) << "Starting feature selection...";
       // ToDo init to invalid value.
       gtsam::Matrix curr_state_cov;
       if (trackerParams.featureSelectionCriterion_ !=
@@ -432,6 +437,7 @@ int main(int argc, char *argv[]) {
               imu_stamps, imu_accgyr, // Inertial data.
               mesh_lmk_ids_ground_cluster,
               stereoVisionFrontEnd.getRelativePoseBodyStereo()); // optional: pose estimate from stereo ransac
+        VLOG(10) << "Finished addVisualInertialStateAndOptimize.";
       } else {
         VLOG(10) << "Add visual inertial state and optimize,"
                     " without using stereo between factor.";
@@ -440,6 +446,7 @@ int main(int argc, char *argv[]) {
               statusSmartStereoMeasurements,
               imu_stamps, imu_accgyr,
               mesh_lmk_ids_ground_cluster); // Same but no pose.
+        VLOG(10) << "Finished addVisualInertialStateAndOptimize.";
       }
 
       if (FLAGS_log_output) {
@@ -534,20 +541,118 @@ int main(int argc, char *argv[]) {
           // Find regularities in the mesh.
           // Currently only triangles in the ground floor.
           std::vector<TriangleCluster> triangle_clusters;
-          mesher.clusterMesh(&triangle_clusters);
+          gtsam::OrientedPlane3 plane;
+          if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+               gtsam::Symbol('P', 0).key(), &plane)) {
+            // Use the plane estimate of the backend.
+            // TODO this can lead to issues, when the plane estimate gets
+            // quite crazy, but at the same time it will avoid crashing the
+            // optimization, because otherwise we are providing huge outliers.
+            mesher.clusterMesh(&triangle_clusters,
+                               plane.normal().point3(),
+                               plane.distance());
+          } else {
+            // Try to cluster the ground plane.
+            static const gtsam::Point3 plane_normal (0.0, 0.0, 1.0);
+            static constexpr double plane_distance = -0.15;
+            mesher.clusterMesh(&triangle_clusters,
+                               plane_normal,
+                               plane_distance);
+          }
+
 
           mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
                                                   &mesh_lmk_ids_ground_cluster);
 
           if (FLAGS_visualize) {
+            VLOG(10) << "Starting mesh visualization...";
             cv::Mat vertices_mesh;
             cv::Mat polygons_mesh;
             mesher.getVerticesMesh(&vertices_mesh);
             mesher.getPolygonsMesh(&polygons_mesh);
-            visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters,
-                                                          vertices_mesh,
-                                                          polygons_mesh);
-          }
+
+            static VioBackEnd::PointsWithIdMap points_with_id_VIO_prev;
+            static cv::Mat vertices_mesh_prev;
+            static cv::Mat polygons_mesh_prev;
+            static std::vector<TriangleCluster> triangle_clusters_prev;
+
+            static constexpr bool visualize_mesh = true;
+            if (visualize_mesh) {
+              visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters_prev,
+                                                            vertices_mesh_prev,
+                                                            polygons_mesh_prev);
+            }
+
+            static constexpr bool visualize_point_cloud = true;
+            if (visualize_point_cloud) {
+              visualizer.visualizePoints3D(points_with_id_VIO_prev);
+            }
+
+            static constexpr bool visualize_planes = true;
+            static constexpr bool visualize_plane_constraints = true;
+            if (visualize_planes) {
+              static const std::string plane_id = "Plane 0.";
+              gtsam::OrientedPlane3 plane;
+              if (vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+                    gtsam::Symbol('P', 0).key(), &plane)) {
+                const Point3& normal = plane.normal().point3();
+                if (visualize_plane_constraints) {
+                  const gtsam::NonlinearFactorGraph& graph =
+                      vioBackEnd->smoother_->getFactors();
+
+                  LandmarkIds lmk_ids_in_current_pp_factors;
+                  for (const auto& g : graph) {
+                    const auto& ppf =
+                        boost::dynamic_pointer_cast<PointPlaneFactor>(g);
+                    if (ppf) {
+                      // We found a PointPlaneFactor.
+                      // Get point key.
+                      Key point_key = ppf->getPointKey();
+                      LandmarkId lmk_id = gtsam::Symbol(point_key).index();
+                      lmk_ids_in_current_pp_factors.push_back(lmk_id);
+                      // Get point estimate.
+                      gtsam::Point3 point;
+                      CHECK(vioBackEnd->getEstimateOfKey(point_key, &point));
+
+                      // Visualize.
+                      Key plane_key = ppf->getPlaneKey();
+                      CHECK(plane_key == gtsam::Symbol('P', 0).key());
+
+                      visualizer.visualizePlaneConstraints(
+                            normal, plane.distance(),
+                            lmk_id, point);
+                    }
+                  }
+
+                  // Remove lines that are not representing a point plane factor
+                  // in the current graph.
+                  visualizer.removeOldLines(lmk_ids_in_current_pp_factors);
+                }
+
+                // Visualize plane.
+                visualizer.visualizePlane(plane_id,
+                                          normal.x(),
+                                          normal.y(),
+                                          normal.z(),
+                                          plane.distance());
+              } else {
+                if (visualize_plane_constraints) {
+                  visualizer.removePlaneConstraintsViz();
+                }
+                visualizer.removeWidget(plane_id);
+              }
+            }
+
+            // Render current window.
+            visualizer.renderWindow(1, true);
+
+            // Store current mesh for display later.
+            vertices_mesh_prev = vertices_mesh;
+            polygons_mesh_prev = polygons_mesh;
+            triangle_clusters_prev = triangle_clusters;
+            points_with_id_VIO_prev = points_with_id_VIO;
+            VLOG(10) << "Finished mesh visualization.";
+          } // FLAGS_visualize.
 
           break;
         }
@@ -574,6 +679,7 @@ int main(int argc, char *argv[]) {
         case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
           vector<Point3> points3d = vioBackEnd->get3DPoints();
           visualizer.visualizeMap3D(points3d);
+          visualizer.renderWindow();
           break;
         }
 
@@ -598,12 +704,14 @@ int main(int argc, char *argv[]) {
 
       // Visualize trajectory.
       if (FLAGS_visualize) {
+        VLOG(10) << "Starting trajectory visualization...";
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory3D(
               &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
+        visualizer.renderWindow();
+        VLOG(10) << "Finsihed trajectory visualization.";
       }
 
-      didFirstOptimization = true;
       timestamp_lkf = timestamp_k;
     }
 
