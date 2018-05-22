@@ -334,7 +334,7 @@ int main(int argc, char *argv[]) {
                 .featureSelectionHorizon_ /
                 stereoVisionFrontEnd.tracker_.trackerParams_
                 .intra_keyframe_time_);
-      std::cout << "nrKfInHorizon for selector: " << nrKfInHorizon << std::endl;
+      VLOG(100) << "nrKfInHorizon for selector: " << nrKfInHorizon;
 
       // Future poses are gt and might be far from the vio pose: we have to
       // attach the *relative* poses from the gt to the latest vio estimate.
@@ -608,6 +608,7 @@ int main(int argc, char *argv[]) {
             static constexpr bool visualize_plane_constraints = true;
             if (visualize_planes) {
               static const std::string plane_id = "Plane 0.";
+              static bool is_plane_in_window = false;
               gtsam::OrientedPlane3 plane;
               if (vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
                     gtsam::Symbol('P', 0).key(), &plane)) {
@@ -651,11 +652,15 @@ int main(int argc, char *argv[]) {
                                           normal.y(),
                                           normal.z(),
                                           plane.distance());
+                is_plane_in_window = true;
               } else {
                 if (visualize_plane_constraints) {
                   visualizer.removePlaneConstraintsViz();
                 }
-                visualizer.removeWidget(plane_id);
+                if (is_plane_in_window) {
+                  visualizer.removeWidget(plane_id)?
+                        is_plane_in_window = false : is_plane_in_window = true;
+                }
               }
             }
 
@@ -713,7 +718,7 @@ int main(int argc, char *argv[]) {
           break;
         }
 
-        default:{
+        default: {
           throw std::runtime_error("stereoVIOEuroc: unknown visualizationType");
           break;
         }
@@ -733,7 +738,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (k == final_k - 1) {
-      std::cout << "stereoVIOExample completed successfully!" << std::endl;
+      LOG(INFO) << "stereoVIOExample completed successfully!";
     }
   }
 
