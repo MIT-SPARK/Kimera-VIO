@@ -136,6 +136,8 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   /////////////////// VISION MEASUREMENTS //////////////////////////////////////
+  static constexpr bool convert_extra_smart_factors_to_proj_factors = true;
+  static constexpr bool remove_old_reg_factors = true;
   const SmartStereoMeasurements& smart_stereo_measurements_kf =
                                     status_smart_stereo_measurements_kf.second;
 
@@ -184,6 +186,17 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
                             mesh_lmk_ids_ground_cluster);
         VLOG(10) << "Finished adding/updating landmarks to graph.";
 
+        // Convert all smart factors of lmks in time horizon that have
+        // regularities to projection factors.
+        // Most conversions from smart to proj are done before,
+        // in addLandmarksToGraph, but here we also make sure we have converted
+        // the ones with regularities in time horizon.
+        if (convert_extra_smart_factors_to_proj_factors) {
+          VLOG(10) << "Starting converting extra smart factors to proj factors...";
+          convertExtraSmartFactorToProjFactor(mesh_lmk_ids_ground_cluster);
+          VLOG(10) << "Finished converting extra smart factors to proj factors...";
+        }
+
         /////////////////// REGULARITY FACTORS ///////////////////////////////////////
         // Add regularity factor on vertices of the mesh.
         // TODO argument should be generalized to diff
@@ -203,12 +216,14 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
                       "addition of regularity factors.";
         }
 
-        VLOG(10) << "Removing old regularity factors.";
-        removeOldRegularityFactors_Slow(plane_symbol,
-                                        idx_of_point_plane_factors_to_add,
-                                        mesh_lmk_ids_ground_cluster,
-                                        &delete_old_regularity_factors);
-        VLOG(10) << "Finished removing old regularity factors.";
+        if (remove_old_reg_factors) {
+          VLOG(10) << "Removing old regularity factors.";
+          removeOldRegularityFactors_Slow(plane_symbol,
+                                          idx_of_point_plane_factors_to_add,
+                                          mesh_lmk_ids_ground_cluster,
+                                          &delete_old_regularity_factors);
+          VLOG(10) << "Finished removing old regularity factors.";
+        }
       }
       break;
     }
@@ -535,6 +550,35 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
                  << lmk_id << "\n"
                  << "Smart factor point status: \n" << old_factor->point();
     return false;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void RegularVioBackEnd::convertExtraSmartFactorToProjFactor(
+    const LandmarkIds& mesh_lmk_ids_ground_cluster) {
+  for (const LandmarkId& lmk_id: mesh_lmk_ids_ground_cluster) {
+    // Track this lmk, if it was not already...
+    if (old_smart_factors_.exists(lmk_id) &&
+        !isLandmarkSmart(lmk_id,
+                         mesh_lmk_ids_ground_cluster,
+                         &lmk_id_is_smart_)) {
+      // We have found a smart factor that should be a projection factor.
+      // Convert it to a projection factor, so that we can enforce
+      // regularities on it.
+      if (convertSmartToProjectionFactor(
+            lmk_id,
+            &old_smart_factors_,
+            &new_values_,
+            &new_imu_prior_and_other_factors_,
+            &delete_slots_of_converted_smart_factors_)) {
+        LOG(ERROR) << "EOOEOEOEOEOEOOEOEOEOOE";
+        VLOG(30) << "Converting smart factor to proj factor for lmk"
+                    " with id: " << lmk_id;
+      } else {
+        VLOG(30) << "NOT converting smart factor to proj factor for lmk"
+                    " with id: " << lmk_id;
+      }
+    }
   }
 }
 

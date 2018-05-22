@@ -98,6 +98,10 @@ private:
       std::vector<size_t>* delete_slots_of_converted_smart_factors);
 
   /* ------------------------------------------------------------------------ */
+  void convertExtraSmartFactorToProjFactor(
+      const LandmarkIds& mesh_lmk_ids_ground_cluster);
+
+  /* ------------------------------------------------------------------------ */
   void addProjectionFactor(
       const LandmarkId& lmk_id,
       const std::pair<FrameId, StereoPoint2>& new_obs,
