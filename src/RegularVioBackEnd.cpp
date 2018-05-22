@@ -373,6 +373,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
       VLOG(20) << "Lmk with id: " << lmk_id << " is not found in state.\n";
       // We did not find the lmk in the state.
       // It was a smart factor before.
+      CHECK(old_smart_factors_.exists(lmk_id));
       // Convert smart to projection.
       bool is_conversion_done = convertSmartToProjectionFactor(
                                   lmk_id,
@@ -390,6 +391,9 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         addProjectionFactor(lmk_id,
                             new_obs,
                             &new_imu_prior_and_other_factors_);
+        // Sanity check, if the conversion was successful, then we should
+        // not be able to see the smart factor anymore.
+        CHECK(!old_smart_factors_.exists(lmk_id));
       } else {
         LOG(ERROR) << "Not using new observation for lmk: " << lmk_id
                    << " because we do not have a good initial value for it.";
@@ -421,7 +425,7 @@ void RegularVioBackEnd::updateExistingSmartFactor(
   const SmartFactorMap::iterator& old_smart_factors_it =
       old_smart_factors->find(lmk_id);
   CHECK(old_smart_factors_it != old_smart_factors->end())
-      << "Landmark not found in old_smart_factors_\n";
+      << "Landmark with id: " << lmk_id << " not found in old_smart_factors_\n";
 
   // Get old factor.
   SmartStereoFactor::shared_ptr old_factor =
@@ -477,7 +481,7 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
 
   const auto& old_smart_factors_it = old_smart_factors->find(lmk_id);
   CHECK(old_smart_factors_it != old_smart_factors->end())
-      << "Landmark not found in old_smart_factors_ !";
+      << "Landmark not found in old_smart_factors_.";
 
   SmartStereoFactor::shared_ptr old_factor =
       old_smart_factors_it->second.first;
@@ -870,11 +874,6 @@ void RegularVioBackEnd::addRegularityFactors(
             lmk_id_to_regularity_type_map_.end()) {
           lmk_id_to_regularity_type_map_.erase(lmk_id);
         }
-
-        // "It probably is still a smart factor that was not converted"
-        //              " to a projection factor because it was not a regularity when"
-        //              " it was being processed... since backend processing is per"
-        //              " frame (current feature tracks)...";
       }
     }
 
