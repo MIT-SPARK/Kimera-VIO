@@ -931,10 +931,15 @@ void RegularVioBackEnd::addRegularityFactors(
         LOG(WARNING) << "Lmk id: " << lmk_id
                    << " is NOT in state_ or in new_values_,"
                    << " NOT adding PointPlaneFactor.";
-        // "It probably is still a smart factor that was not converted"
-        //              " to a projection factor because it was not a regularity when"
-        //              " it was being processed... since backend processing is per"
-        //              " frame (current feature tracks)...";
+
+        // Erase from map of lmk id to regularity type, since the lmk does not
+        // exist anymore, or has never existed.
+        // Avoid the world of undefined behaviour by checking that the lmk_id
+        // we want to erase is actually there.
+        if (lmk_id_to_regularity_type_map_.find(lmk_id) !=
+            lmk_id_to_regularity_type_map_.end()) {
+          lmk_id_to_regularity_type_map_.erase(lmk_id);
+        }
       }
     }
   }
