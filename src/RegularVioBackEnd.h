@@ -46,14 +46,16 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // TODO Virtualize this appropriately,
-  void addLandmarksToGraph(const LandmarkIds& lmks_kf);
+  void addLandmarksToGraph(const LandmarkIds& lmks_kf,
+                           const LandmarkIds& mesh_lmk_ids_ground_cluster);
 
   /* ------------------------------------------------------------------------ */
   void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
 
   /* ------------------------------------------------------------------------ */
-  void updateLandmarkInGraph(const LandmarkId& lm_id,
-                             const std::pair<FrameId, StereoPoint2>& newObs);
+  void updateLandmarkInGraph(const LandmarkId& lmk_id,
+                             const bool& is_lmk_smart,
+                             const std::pair<FrameId, StereoPoint2>& new_obs);
 private:
   typedef size_t Slot;
 
