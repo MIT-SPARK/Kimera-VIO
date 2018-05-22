@@ -241,6 +241,7 @@ public:
   using PointWithId     = std::pair<LandmarkId, gtsam::Point3>;
   using PointsWithId    = std::vector<PointWithId>;
   using PointsWithIdMap = std::unordered_map<LandmarkId, gtsam::Point3>;
+  using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
 
   // verbosity_ explanation
   /*
@@ -402,8 +403,10 @@ public:
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
   // Warning! it modifies old_smart_factors_!!
-  void getMapLmkIdsTo3dPointsInTimeHorizon(PointsWithIdMap* points_with_id,
-                                           const size_t& min_age = 2);
+  void getMapLmkIdsTo3dPointsInTimeHorizon(
+      PointsWithIdMap* points_with_id,
+      LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map = nullptr,
+      const size_t& min_age = 2);
 
   /* ------------------------------------------------------------------------ */
   // NOT TESTED

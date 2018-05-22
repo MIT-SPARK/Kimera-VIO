@@ -402,8 +402,14 @@ vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
 // Warning! it modifies old_smart_factors_!!
 void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     PointsWithIdMap* points_with_id,
+    LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
     const size_t& min_age) {
   CHECK_NOTNULL(points_with_id);
+  points_with_id->clear();
+
+  if (lmk_id_to_lmk_type_map) {
+    lmk_id_to_lmk_type_map->clear();
+  }
 
   /////////////// Add landmarks encoded in the smart factors. //////////////////
   const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
@@ -491,6 +497,9 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
           // Check that we have not added this lmk already...
           CHECK(points_with_id->find(lmk_id) == points_with_id->end());
           (*points_with_id)[lmk_id] = *result;
+          if (lmk_id_to_lmk_type_map) {
+            (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::SMART;
+          }
           nr_valid_smart_lmks++;
         } else {
           VLOG(20) << "Rejecting lmk with id: " << lmk_id
@@ -518,8 +527,12 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     // If we found a lmk.
     // TODO this loop is huge, as we check all variables in the graph...
     if (gtsam::Symbol(key_value.key).chr() == 'l') {
-      CHECK(points_with_id->find(key_value.key) == points_with_id->end());
-      (*points_with_id)[key_value.key] = key_value.value.cast<gtsam::Point3>();
+      const LandmarkId& lmk_id = gtsam::Symbol(key_value.key).index();
+      CHECK(points_with_id->find(lmk_id) == points_with_id->end());
+      (*points_with_id)[lmk_id] = key_value.value.cast<gtsam::Point3>();
+      if (lmk_id_to_lmk_type_map) {
+        (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::PROJECTION;
+      }
       nr_proj_lmks++;
     }
   }

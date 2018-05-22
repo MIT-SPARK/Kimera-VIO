@@ -520,8 +520,19 @@ int main(int argc, char *argv[]) {
           // restricting to points seen in at least minKfValidPoints keyframes
           // (TODO restriction is not enforced for projection factors).
           VioBackEnd::PointsWithIdMap points_with_id_VIO;
-          vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(&points_with_id_VIO,
-                                                          minKfValidPoints);
+          VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+          static constexpr bool visualize_lmk_type = true;
+          if (visualize_lmk_type) {
+            vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
+                  &points_with_id_VIO,
+                  &lmk_id_to_lmk_type_map,
+                  minKfValidPoints);
+          } else {
+            vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
+                  &points_with_id_VIO,
+                  nullptr,
+                  minKfValidPoints);
+          }
 
           static constexpr float maxGradInTriangle = -1; //50.0;
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
@@ -572,6 +583,7 @@ int main(int argc, char *argv[]) {
             mesher.getPolygonsMesh(&polygons_mesh);
 
             static VioBackEnd::PointsWithIdMap points_with_id_VIO_prev;
+            static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
             static cv::Mat vertices_mesh_prev;
             static cv::Mat polygons_mesh_prev;
             static std::vector<TriangleCluster> triangle_clusters_prev;
@@ -585,7 +597,8 @@ int main(int argc, char *argv[]) {
 
             static constexpr bool visualize_point_cloud = true;
             if (visualize_point_cloud) {
-              visualizer.visualizePoints3D(points_with_id_VIO_prev);
+              visualizer.visualizePoints3D(points_with_id_VIO_prev,
+                                           lmk_id_to_lmk_type_map_prev);
             }
 
             static constexpr bool visualize_planes = true;
@@ -651,6 +664,7 @@ int main(int argc, char *argv[]) {
             polygons_mesh_prev = polygons_mesh;
             triangle_clusters_prev = triangle_clusters;
             points_with_id_VIO_prev = points_with_id_VIO;
+            lmk_id_to_lmk_type_map_prev = lmk_id_to_lmk_type_map;
             VLOG(10) << "Finished mesh visualization.";
           } // FLAGS_visualize.
 
