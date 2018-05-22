@@ -178,18 +178,10 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           VLOG(10) << "Tracker has a DISABLED status.": VLOG(10) << "";
 
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
-        // For each landmark we decide if it's going to be a smart factor or not.
-        // TODO here there is a timeline mismatch, while landmarks_kf are only currently
-        // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
-        VLOG(10) << "Starting isLandmarkSmart...";
-        isLandmarkSmart(lmks_kf,
-                        mesh_lmk_ids_ground_cluster,
-                        &lmk_id_is_smart_);
-        VLOG(10) << "Finished isLandmarkSmart.";
-
         // We add features in VIO.
         VLOG(10) << "Starting adding/updating landmarks to graph...";
-        addLandmarksToGraph(lmks_kf);
+        addLandmarksToGraph(lmks_kf,
+                            mesh_lmk_ids_ground_cluster);
         VLOG(10) << "Finished adding/updating landmarks to graph.";
 
         /////////////////// REGULARITY FACTORS ///////////////////////////////////////
@@ -242,10 +234,12 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
 /* -------------------------------------------------------------------------- */
 // TODO Virtualize this appropriately,
-void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
+void RegularVioBackEnd::addLandmarksToGraph(
+    const LandmarkIds& lmks_kf,
+    const LandmarkIds& mesh_lmk_ids_ground_cluster) {
   // Add selected landmarks to graph:
-  int n_new_landmarks = 0;
-  int n_updated_landmarks = 0;
+  size_t n_new_landmarks = 0;
+  size_t n_updated_landmarks = 0;
   debug_info_.numAddedSmartF_ += lmks_kf.size();
 
   // Iterate over all landmarks in current key frame.
@@ -275,8 +269,15 @@ void RegularVioBackEnd::addLandmarksToGraph(const LandmarkIds& lmks_kf) {
         CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
                                               " keyframe!";
 
+        // For each landmark we decide if it's going to be a smart factor or not.
+        // TODO here there is a timeline mismatch, while landmarks_kf are only currently
+        // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
+        const bool& is_lmk_smart = isLandmarkSmart(lmk_id,
+                                                   mesh_lmk_ids_ground_cluster,
+                                                   &lmk_id_is_smart_);
+
         VLOG(20) << "Updating lmk " << lmk_id << " to graph.";
-        updateLandmarkInGraph(lmk_id, obs_kf);
+        updateLandmarkInGraph(lmk_id, is_lmk_smart, obs_kf);
         ++n_updated_landmarks;
       }
     } else {
@@ -324,9 +325,6 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   }
 
   /////////////////////// BOOK KEEPING /////////////////////////////////////////
-  // Set lmk id to smart.
-  CHECK(lmk_id_is_smart_.find(lmk_id) != lmk_id_is_smart_.end());
-  CHECK_EQ(lmk_id_is_smart_.at(lmk_id), true);
 
   // Add new factor to suitable structures.
   // TODO why do we need to store the new_factor in both structures??
@@ -340,14 +338,8 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::updateLandmarkInGraph(
     const LandmarkId& lmk_id,
+    const bool& is_lmk_smart,
     const std::pair<FrameId, StereoPoint2>& new_obs) {
-
-  // We are not tracking whether the lmk is smart or not, but we should.
-  CHECK(lmk_id_is_smart_.find(lmk_id) != lmk_id_is_smart_.end())
-      << "Lmk with id: " << lmk_id << " is not being tracked whether it is "
-                                      "smart or not...";
-
-  const bool& is_lmk_smart = lmk_id_is_smart_.at(lmk_id);
   if (is_lmk_smart) {
     // Lmk is meant to be smart.
     VLOG(20) << "Lmk with id: " << lmk_id << " is set to be smart.\n";
