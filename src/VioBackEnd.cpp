@@ -1084,13 +1084,22 @@ void VioBackEnd::updateSmoother(
   } catch (const gtsam::InvalidArgumentThreadsafe& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors_tmp, delete_slots);
-  } catch (const gtsam::CheiralityException& e) {
-    LOG(ERROR) << e.what();
-    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::ValuesKeyDoesNotExist& e){
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::CholeskyFailed& e){
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const gtsam::CheiralityException& e) {
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const gtsam::StereoCheiralityException& e) {
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const gtsam::RuntimeErrorThreadsafe& e) {
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const gtsam::OutOfRangeThreadsafe& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (...) {
