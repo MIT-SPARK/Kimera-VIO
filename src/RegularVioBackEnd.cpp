@@ -1164,24 +1164,29 @@ void RegularVioBackEnd::fillDeleteSlots(
   VLOG(10) << "Starting fillDeleteSlots...";
   delete_slots->resize(point_plane_factor_slots_bad.size());
   size_t i = 0;
-  for (const std::pair<Slot, LandmarkId>& ppf_bad:
-       point_plane_factor_slots_bad) {
-    CHECK_LT(i, delete_slots->size());
-    CHECK(smoother_->getFactors().exists(ppf_bad.first));
+  if (point_plane_factor_slots_bad.size() > 0) {
+    for (const std::pair<Slot, LandmarkId>& ppf_bad:
+         point_plane_factor_slots_bad) {
+      CHECK_LT(i, delete_slots->size());
+      CHECK(smoother_->getFactors().exists(ppf_bad.first));
 
-    // Add factor slot to delete slots.
-    delete_slots->at(i) = ppf_bad.first;
-    i++;
+      // Add factor slot to delete slots.
+      delete_slots->at(i) = ppf_bad.first;
+      i++;
 
-    // Acknowledge that these lmks are not in a regularity anymore.
-    // TODO this does not generalize to multiple planes...
-    const LandmarkId& lmk_id = ppf_bad.second;
-    CHECK(lmk_id_to_regularity_type_map_.find(lmk_id) !=
-        lmk_id_to_regularity_type_map_.end())
-        << "Avoid undefined behaviour by checking that the lmk was in the "
-           "container.";
-    lmk_id_to_regularity_type_map_.erase(lmk_id);
+      // Acknowledge that these lmks are not in a regularity anymore.
+      // TODO this does not generalize to multiple planes...
+      const LandmarkId& lmk_id = ppf_bad.second;
+      CHECK(lmk_id_to_regularity_type_map_.find(lmk_id) !=
+          lmk_id_to_regularity_type_map_.end())
+          << "Avoid undefined behaviour by checking that the lmk was in the "
+             "container.";
+      lmk_id_to_regularity_type_map_.erase(lmk_id);
+    }
+  } else {
+    VLOG(10) << "There are no bad factors to remove.";
   }
+
   VLOG(10) << "Finished fillDeleteSlots...";
 }
 
