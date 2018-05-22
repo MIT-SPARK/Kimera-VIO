@@ -523,18 +523,16 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
   }
 
   ////////////// Add landmarks that now are in projection factors. /////////////
-  BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
-    // If we found a lmk.
-    // TODO this loop is huge, as we check all variables in the graph...
-    if (gtsam::Symbol(key_value.key).chr() == 'l') {
-      const LandmarkId& lmk_id = gtsam::Symbol(key_value.key).index();
-      CHECK(points_with_id->find(lmk_id) == points_with_id->end());
-      (*points_with_id)[lmk_id] = key_value.value.cast<gtsam::Point3>();
-      if (lmk_id_to_lmk_type_map) {
-        (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::PROJECTION;
-      }
-      nr_proj_lmks++;
+  for(const gtsam::Values::Filtered<gtsam::Value>::ConstKeyValuePair& key_value:
+      state_.filter(gtsam::Symbol::ChrTest('l'))) {
+    CHECK(gtsam::Symbol(key_value.key).chr() == 'l');
+    const LandmarkId& lmk_id = gtsam::Symbol(key_value.key).index();
+    CHECK(points_with_id->find(lmk_id) == points_with_id->end());
+    (*points_with_id)[lmk_id] = key_value.value.cast<gtsam::Point3>();
+    if (lmk_id_to_lmk_type_map) {
+      (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::PROJECTION;
     }
+    nr_proj_lmks++;
   }
 
   // TODO aren't these points post-optimization? Shouldn't we instead add
