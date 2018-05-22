@@ -598,7 +598,7 @@ void RegularVioBackEnd::addProjectionFactor(
           (new_obs.second, smart_noise_,
            gtsam::Symbol('x', new_obs.first),
            gtsam::Symbol('l', lmk_id),
-           stereo_cal_, B_Pose_leftCam_));
+           stereo_cal_, false, true, B_Pose_leftCam_));
   } else {
     // Right pixel has a NAN value for u, use GenericProjectionFactor instead
     // of stereo.
