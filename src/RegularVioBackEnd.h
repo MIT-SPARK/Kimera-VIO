@@ -71,8 +71,12 @@ private:
   std::map<LandmarkId, RegularityType> lmk_id_to_regularity_type_map_;
   std::vector<size_t> delete_slots_of_converted_smart_factors_;
 
+  // For Stereo and Projection factors.
   gtsam::SharedNoiseModel mono_noise_;
   boost::shared_ptr<Cal3_S2> mono_cal_;
+
+  // For regularity factors.
+  gtsam::SharedNoiseModel point_plane_regularity_noise_;
 
 private:
   /* ------------------------------------------------------------------------ */
