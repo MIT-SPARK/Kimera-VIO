@@ -575,7 +575,6 @@ void RegularVioBackEnd::convertExtraSmartFactorToProjFactor(
             &new_values_,
             &new_imu_prior_and_other_factors_,
             &delete_slots_of_converted_smart_factors_)) {
-        LOG(ERROR) << "EOOEOEOEOEOEOOEOEOEOOE";
         VLOG(30) << "Converting smart factor to proj factor for lmk"
                     " with id: " << lmk_id;
       } else {
@@ -655,17 +654,14 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
              << " needs to be a proj. factor, as it is involved in a regularity.";
     const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end()) {
-      // We did not find the factor (this is the case when feature track is
-      // shorter than the minimum, typically 1. And the factor is not
-      // added to the graph) ONLY if called after addLandmarkToGraph!.
-      // Or even when this is called before addLandmarkToGraph, since then
-      // we are checking old_smart_factors_ while it has not been really
-      // updated... But this will never happen because the mesher only looks
-      // for landmarks in either old_smart_factors_ or projection factors!!
-      LOG(ERROR) << "Landmark with id: " << lmk_id
-                 << " not found in old_smart_factors!";
-      // This lmk must be tracked?
+      // This should only happen if the lmk was already in a regularity,
+      // and subsequently updated asa a projection factor...
+      VLOG(20) << "Landmark with id: " << lmk_id
+               << " not found in old_smart_factors.";
+      // This lmk must be tracked.
       CHECK(lmk_id_slot != lmk_id_is_smart->end());
+      // This lmk must not be a smart factor.
+      CHECK(lmk_id_is_smart->at(lmk_id) == false);
     } else {
       // We found the factor.
 
@@ -697,13 +693,14 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
         // careful that the lmk_id_is_smart is re-changed to smart right?
         static constexpr size_t min_num_obs_for_proj_factor = 4;
         if (old_factor->measured().size() >= min_num_obs_for_proj_factor) {
-          LOG(WARNING) << "Smart factor for lmk: " << lmk_id << " is valid.";
+          VLOG(20) << "Smart factor for lmk: " << lmk_id << " is valid.";
           lmk_is_valid = true;
         } else {
-          LOG(ERROR) << "Smart factor for lmk: " << lmk_id << " has not enough"
-                     << " observations: " << old_factor->measured().size()
-                     << ", but should be more or equal to "
-                     << min_num_obs_for_proj_factor;
+          // Should not be a warning this, but just in case.
+          LOG(WARNING) << "Smart factor for lmk: " << lmk_id << " has not enough"
+                       << " observations: " << old_factor->measured().size()
+                       << ", but should be more or equal to "
+                       << min_num_obs_for_proj_factor;
           lmk_is_valid = false;
         }
       }
@@ -960,14 +957,14 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
         new_values_.exists(plane_symbol.key())))
       << "Inconsistency: plane is in current state,"
          " but it is going to be added.";
-  if (!state_.exists(plane_symbol.key())){
+  if (!state_.exists(plane_symbol.key())) {
     // The plane is not in the state, it is probably going to be added in
     // this iteration, so it must be already well constrained and attached
     // to the right lmks.
     // Or it could be that it is not going to be added at all, so we
     // do not need to do anything.
-    LOG(INFO) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
-              << " is not in state, skipping removeOldRegularityFactors.";
+    VLOG(10) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
+             << " is not in state, skipping removeOldRegularityFactors.";
     return; // Leave this function.
   }
 
@@ -975,8 +972,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
     // The plane is not in the state, and it is going to be added in
     // this iteration, so it must be already well constrained and attached
     // to the right lmks.
-    LOG(INFO) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
-              << " is in new_values_, skipping removeOldRegularityFactors.";
+    VLOG(10) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
+             << " is in new_values_, skipping removeOldRegularityFactors.";
     return;
   }
 
@@ -1005,11 +1002,11 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
         if (std::find(mesh_lmk_ids.begin(),
                       mesh_lmk_ids.end(), lmk_id) == mesh_lmk_ids.end()) {
           // We did not find the point in mesh_lmk_ids, therefore it should
-          // not be involved in a regularity anymore, delete this slot (but I
-          // want to remove the landmark! and all its factors, to avoid having
-          // underconstrained lmks...)
-          LOG(WARNING) << "Found bad point plane factor on lmk with id: "
-                       << point_symbol.index();
+          // not be involved in a regularity anymore, delete this slot.
+          // (but I want to remove the landmark! and all its factors,
+          // to avoid having underconstrained lmks...)
+          VLOG(20) << "Found bad point plane factor on lmk with id: "
+                   << point_symbol.index();
           point_plane_factor_slots_bad.push_back(
                 std::make_pair(slot, lmk_id));
 
@@ -1041,7 +1038,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                       gtsam::LinearContainerFactor>(g);
     if (lcf) {
       if (lcf->find(plane_symbol.key()) != lcf->end()) {
-        LOG(WARNING) << "Found linear container factor with our plane.";
+        VLOG(10) << "Found linear container factor with our plane.";
         has_plane_a_prior = true;
       }
     }
@@ -1093,7 +1090,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                       delete_slots);
     } else {
       // The plane has NOT a prior.
-      static constexpr bool use_unstable = true;
+      static constexpr bool use_unstable = false;
       if (use_unstable) {
         // Delete all factors involving the plane so that iSAM removes the plane
         // from the optimization.
@@ -1122,7 +1119,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                      << gtsam::DefaultKeyFormatter(plane_symbol);
         CHECK(!has_plane_a_prior) << "Check that the plane has no prior.";
         static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise =
-            gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.5, 0.5, 0.5));
+            gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
         new_imu_prior_and_other_factors_.push_back(
               boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3>>(
                 plane_symbol.key(),

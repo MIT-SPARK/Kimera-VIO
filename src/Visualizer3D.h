@@ -260,16 +260,20 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  // Remove widget.
-  void removeWidget(const std::string& widget_id){
+  // Remove widget. True if successful, false if not.
+  bool removeWidget(const std::string& widget_id) {
     try {
       window_.removeWidget(widget_id);
+      return true;
     } catch (const cv::Exception& e) {
       VLOG(20) << e.what();
-      LOG(ERROR) << "Widget with id: " << widget_id.c_str() << " is not in window.";
+      LOG(ERROR) << "Widget with id: " << widget_id.c_str()
+                 << " is not in window.";
     } catch (...) {
-      LOG(ERROR) << "Widget with id: " << widget_id.c_str() << " is not in window.";
+      LOG(ERROR) << "Unrecognized exception when using window_.removeWidget() "
+                 << "with widget with id: " << widget_id.c_str();
     }
+    return false;
   }
 
   /* ------------------------------------------------------------------------ */

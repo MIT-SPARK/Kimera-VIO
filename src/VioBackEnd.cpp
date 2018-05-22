@@ -447,11 +447,9 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     // in bounds and that the pointer is live (aka at(slot_id) works).
     if (!graph.exists(slot_id)) {
       // This slot does not exist in the current graph...
-      LOG(ERROR) << "The slot with id: " << slot_id
-                 << " does not exist in the graph! This should not be the case"
-                    " since old_smart_factor_ should have the slots of the"
-                    " new factors in the graph...";
-      LOG(WARNING) << "Deleting old_smart_factor_it with lmk id: " << lmk_id;
+      VLOG(20) << "The slot with id: " << slot_id
+               << " does not exist in the graph.\n"
+               << "Deleting old_smart_factor of lmk id: " << lmk_id;
       old_smart_factor_it = old_smart_factors_.erase(old_smart_factor_it);
       continue;
     } else {
@@ -468,8 +466,10 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       // not make any sense, since we are using lmk_id which comes from smart_factor
       // and result which comes from graph[slot_id], we should use smart_factor_ptr
       // instead then...
-      VLOG(20) << "Deleting element in old_smart_factors_ for lmk with id: "
-               << lmk_id;
+      VLOG(20) << "The factor with slot id: " << slot_id
+               << " in the graph does not match the old_smart_factor of "
+               << " lmk with id: " << lmk_id << "\n."
+               << "Deleting old_smart_factor of lmk id: " << lmk_id;
       old_smart_factor_it = old_smart_factors_.erase(old_smart_factor_it);
       continue;
     }
