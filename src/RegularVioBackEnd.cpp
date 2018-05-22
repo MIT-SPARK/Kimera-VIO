@@ -649,83 +649,85 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
       // projection to smart.
     }
   } else {
-      // This lmk is involved in a regularity, hence it should be a variable in
-      // the factor graph (connected to projection factor).
-      VLOG(20) << "Lmk_id = " << lmk_id
-               << " needs to be a proj. factor, as it is involved in a regularity.";
-      const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
-      if (old_smart_factors_it == old_smart_factors_.end()) {
-        // We did not find the factor (this is the case when feature track is
-        // shorter than the minimum, typically 1. And the factor is not
-        // added to the graph) ONLY if called after addLandmarkToGraph!.
-        // Or even when this is called before addLandmarkToGraph, since then
-        // we are checking old_smart_factors_ while it has not been really
-        // updated... But this will never happen because the mesher only looks
-        // for landmarks in either old_smart_factors_ or projection factors!!
-        LOG(ERROR) << "Landmark with id: " << lmk_id
-                   << " not found in old_smart_factors!";
-        // This lmk must be tracked?
-        CHECK(lmk_id_slot != lmk_id_is_smart->end());
+    // This lmk is involved in a regularity, hence it should be a variable in
+    // the factor graph (connected to projection factor).
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to be a proj. factor, as it is involved in a regularity.";
+    const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
+    if (old_smart_factors_it == old_smart_factors_.end()) {
+      // We did not find the factor (this is the case when feature track is
+      // shorter than the minimum, typically 1. And the factor is not
+      // added to the graph) ONLY if called after addLandmarkToGraph!.
+      // Or even when this is called before addLandmarkToGraph, since then
+      // we are checking old_smart_factors_ while it has not been really
+      // updated... But this will never happen because the mesher only looks
+      // for landmarks in either old_smart_factors_ or projection factors!!
+      LOG(ERROR) << "Landmark with id: " << lmk_id
+                 << " not found in old_smart_factors!";
+      // This lmk must be tracked?
+      CHECK(lmk_id_slot != lmk_id_is_smart->end());
+    } else {
+      // We found the factor.
+
+      // Get whether the smart factor is valid or not.
+      bool lmk_is_valid = true;
+
+      SmartStereoFactor::shared_ptr old_factor =
+          old_smart_factors_it->second.first;
+      CHECK(old_factor);
+      CHECK(old_factor->point().is_initialized());
+
+      if (!old_factor->point().valid()) {
+        // The point is not valid.
+        VLOG(20) << "Smart factor for lmk: " << lmk_id << "is NOT valid.";
+        lmk_is_valid = false;
       } else {
-        // We found the factor.
-
-        // Get whether the smart factor is valid or not.
-        bool lmk_is_valid = true;
-
-        SmartStereoFactor::shared_ptr old_factor =
-            old_smart_factors_it->second.first;
-        CHECK(old_factor);
-        CHECK(old_factor->point().is_initialized());
-
-        if (!old_factor->point().valid()) {
-          // The point is not valid.
-          VLOG(20) << "Smart factor for lmk: " << lmk_id << "is NOT valid.";
-          lmk_is_valid = false;
+        // If the smart factor has less than x number of observations,
+        // then do not consider the landmark as valid.
+        // This param is different from the one counting the track length
+        // as it controls only the quality of the subsequent proj factors,
+        // and has no effect on how the smart factors are created.
+        // This param is very correlated to the one we use to get lmks,
+        // in time horizon (aka min_age) since only the ones that have reached
+        // the mesher and have been clustered will have the possibility of
+        // being here, so this param must be higher than the min_age one to
+        // have any impact.
+        // TODO Do this when we convert the factor not when we decide if
+        // it should be a proj or a smart factor! But then we must be
+        // careful that the lmk_id_is_smart is re-changed to smart right?
+        static constexpr size_t min_num_obs_for_proj_factor = 4;
+        if (old_factor->measured().size() >= min_num_obs_for_proj_factor) {
+          LOG(WARNING) << "Smart factor for lmk: " << lmk_id << " is valid.";
+          lmk_is_valid = true;
         } else {
-          // If the smart factor has less than x number of observations,
-          // then do not consider the landmark as valid.
-          // This param is different from the one counting the track length
-          // as it controls only the quality of the subsequentproj factors,
-          // and has no effect on how the smart factors are created.
-          // This param is very correlated to the one we use to get lmks,
-          // in time horizon (aka min_age) since only the ones that have reached
-          // the mesher and have been clustered will have the possibility of
-          // being here, so this param must be higher than the min_age one to
-          // have any impact.
-          static constexpr size_t min_num_obs_for_proj_factor = 4;
-          if (old_factor->measured().size() >= min_num_obs_for_proj_factor) {
-            LOG(WARNING) << "Smart factor for lmk: " << lmk_id << " is valid.";
-            lmk_is_valid = true;
-          } else {
-            LOG(ERROR) << "Smart factor for lmk: " << lmk_id << " has not enough"
+          LOG(ERROR) << "Smart factor for lmk: " << lmk_id << " has not enough"
                      << " observations: " << old_factor->measured().size()
                      << ", but should be more or equal to "
                      << min_num_obs_for_proj_factor;
-            lmk_is_valid = false;
-          }
+          lmk_is_valid = false;
         }
+      }
 
-        if (lmk_id_slot == lmk_id_is_smart->end()) {
-          // We did not find the lmk_id in the lmk_id_is_smart_ map.
-          // Add it as a projection factor.
-          // TODO use an enum instead of bool for lmk_id_is_smart, otherwise
-          // it is too difficult to read.
-          lmk_id_is_smart->insert(std::make_pair(lmk_id, lmk_is_valid?false:true));
+      if (lmk_id_slot == lmk_id_is_smart->end()) {
+        // We did not find the lmk_id in the lmk_id_is_smart_ map.
+        // Add it as a projection factor.
+        // TODO use an enum instead of bool for lmk_id_is_smart, otherwise
+        // it is too difficult to read.
+        lmk_id_is_smart->insert(std::make_pair(lmk_id, lmk_is_valid?false:true));
+      } else {
+        if (lmk_is_valid) {
+          // Change it to a projection factor.
+          lmk_id_is_smart->at(lmk_id) = false;
         } else {
-          if (lmk_is_valid) {
-            // Change it to a projection factor.
-            lmk_id_is_smart->at(lmk_id) = false;
-          } else {
-            // Keep it to a smart factor.
-            // We cannot allow conversion back from proj to smart factor.
-            // So just check that this is still smart, otherwise we are stuck.
-            CHECK(lmk_id_is_smart->at(lmk_id) == true);
-            //lmk_id_is_smart->at(lmk_id) = true;
-          }
+          // Keep it to a smart factor.
+          // We cannot allow conversion back from proj to smart factor.
+          // So just check that this is still smart, otherwise we are stuck.
+          CHECK(lmk_id_is_smart->at(lmk_id) == true);
+          //lmk_id_is_smart->at(lmk_id) = true;
         }
-
       }
     }
+  }
 
   CHECK(lmk_id_is_smart->find(lmk_id) != lmk_id_is_smart->end());
   return lmk_id_is_smart->at(lmk_id);
