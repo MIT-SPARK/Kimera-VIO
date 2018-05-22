@@ -36,38 +36,50 @@ RegularVioBackEnd::RegularVioBackEnd(
   LOG(INFO) << "Using Regular VIO backend.\n";
 
   // Set type of mono_noise_ for projection factors.
-  gtsam::SharedNoiseModel gaussian =
+  gtsam::SharedNoiseModel gaussian_dim_2 =
       gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
 
-  switch (vio_params_.normType_) {
-    case 0: {
-      LOG(INFO) << "Using square norm.";
-      mono_noise_ = gaussian;
-      break;
-    }
-    case 1: {
-      LOG(INFO) << "Using Huber norm, with parameter value: " << vio_params_.huberParam_;
-      mono_noise_ =
+  mono_noise_ = point_plane_regularity_noise_ =
           gtsam::noiseModel::Robust::Create(
             gtsam::noiseModel::mEstimator::Huber::Create(
               vio_params_.huberParam_,
               gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
-            gaussian);
+            gaussian_dim_2);
+
+  // Set type of regularity noise for point plane factors.
+  gtsam::SharedNoiseModel gaussian_dim_1 =
+      gtsam::noiseModel::Isotropic::Sigma(1, vio_params_.regularityNoiseSigma_);
+
+  switch (vio_params_.normType_) {
+    case 0: {
+      LOG(INFO) << "Using square norm.";
+      point_plane_regularity_noise_ = gaussian_dim_1;
+      break;
+    }
+    case 1: {
+      LOG(INFO) << "Using Huber norm, with parameter value: " << vio_params_.huberParam_;
+      point_plane_regularity_noise_ =
+          gtsam::noiseModel::Robust::Create(
+            gtsam::noiseModel::mEstimator::Huber::Create(
+              vio_params_.huberParam_,
+              gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
+            gaussian_dim_1);
       break;
     }
     case 2: {
       LOG(INFO) << "Using Tukey norm, with parameter value: " << vio_params_.tukeyParam_;
-      mono_noise_ = gtsam::noiseModel::Robust::Create(
-                      gtsam::noiseModel::mEstimator::Tukey::Create(
-                        vio_params_.tukeyParam_,
-                        gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
-                      gaussian); //robust
+      point_plane_regularity_noise_ =
+          gtsam::noiseModel::Robust::Create(
+            gtsam::noiseModel::mEstimator::Tukey::Create(
+              vio_params_.tukeyParam_,
+              gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
+            gaussian_dim_1); //robust
       break;
     }
     default: {
       LOG(INFO) << "Using square norm.";
-      mono_noise_ = gtsam::noiseModel::Isotropic::Sigma(
-                      2, vio_params_.monoNoiseSigma_);
+      point_plane_regularity_noise_ = gtsam::noiseModel::Isotropic::Sigma(
+                                        1, vio_params_.regularityNoiseSigma_);
 
       break;
     }
@@ -692,10 +704,6 @@ void RegularVioBackEnd::addRegularityFactors(
 
   VLOG(10) << "Starting addRegularityFactors...";
 
-  // Noise model.
-  static const gtsam::noiseModel::Isotropic::shared_ptr regularityNoise =
-      gtsam::noiseModel::Isotropic::Sigma(1, vio_params_.regularityNoiseSigma_);
-
   // Plane key.
   static gtsam::Key plane_key (gtsam::Symbol('P', 0));
   *plane_symbol = plane_key;
@@ -752,7 +760,7 @@ void RegularVioBackEnd::addRegularityFactors(
                   boost::make_shared<gtsam::PointPlaneFactor>(
                     gtsam::Symbol('l', lmk_id),
                     plane_key,
-                    regularityNoise));
+                    point_plane_regularity_noise_));
             // Acknowledge that this lmk has been used in a regularity.
             lmk_id_to_regularity_type_map_[lmk_id] =
                 RegularityType::POINT_PLANE;
@@ -797,7 +805,7 @@ void RegularVioBackEnd::addRegularityFactors(
                     boost::make_shared<gtsam::PointPlaneFactor>(
                       gtsam::Symbol('l', prev_lmk_id),
                       plane_key,
-                      regularityNoise));
+                      point_plane_regularity_noise_));
               // Acknowledge that this lmk has been used in a regularity.
               lmk_id_to_regularity_type_map_[prev_lmk_id] =
                   RegularityType::POINT_PLANE;
@@ -815,8 +823,8 @@ void RegularVioBackEnd::addRegularityFactors(
         }
       } else {
         LOG(WARNING) << "Lmk id: " << lmk_id
-                   << " is NOT in state_ or in new_values_,"
-                   << " NOT adding PointPlaneFactor.";
+                     << " is NOT in state_ or in new_values_,"
+                     << " NOT adding PointPlaneFactor.";
 
         // Erase from map of lmk id to regularity type, since the lmk does not
         // exist anymore, or has never existed.
@@ -875,7 +883,7 @@ void RegularVioBackEnd::addRegularityFactors(
                 boost::make_shared<gtsam::PointPlaneFactor>(
                   gtsam::Symbol('l', lmk_id),
                   plane_key,
-                  regularityNoise));
+                  point_plane_regularity_noise_));
           // Acknowledge that this lmk has been used in a regularity.
           lmk_id_to_regularity_type_map_[lmk_id] =
               RegularityType::POINT_PLANE;
