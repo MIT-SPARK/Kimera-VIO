@@ -80,7 +80,7 @@ private:
 
 private:
   /* ------------------------------------------------------------------------ */
-  void isLandmarkSmart(const LandmarkIds& lmks_kf,
+  bool isLandmarkSmart(const LandmarkId& lmk_id,
                        const LandmarkIds& mesh_lmk_ids,
                        LmkIdIsSmart* lmk_id_is_smart);
 

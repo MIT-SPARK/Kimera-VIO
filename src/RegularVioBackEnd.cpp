@@ -561,13 +561,13 @@ void RegularVioBackEnd::addProjectionFactor(
            mono_noise_,
            gtsam::Symbol('x', new_obs.first),
            gtsam::Symbol('l', lmk_id),
-           mono_cal_, B_Pose_leftCam_)
+           mono_cal_, false, true, B_Pose_leftCam_)
           );
   }
 }
 
 /* -------------------------------------------------------------------------- */
-void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
+bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
                                         const LandmarkIds& mesh_lmk_ids,
                                         LmkIdIsSmart* lmk_id_is_smart) {
   // TODOOOOO completely change this function: it should be
@@ -576,6 +576,7 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
   // else if it was smart, but now it is in regularity, add it as regularity
   // if it was not smart, keep it as such...
   CHECK_NOTNULL(lmk_id_is_smart);
+
   // WARNING I think this loop should not be over lmks_kf, which are in the
   // current keyframe but over the time horizon instead!!!
   // Otherwise we can have some lmks that are not set as projection factors
@@ -584,24 +585,22 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
   // feed to the mesher that then sends mesh_lmk_ids.
   // i.e. if the mesher has lmks that are in the keyframe but not in the
   // optimization, it won't work...
-  for (const LandmarkId& lmk_id: lmks_kf) {
-    const auto& lmk_id_slot = lmk_id_is_smart->find(lmk_id);
-    if (std::find(mesh_lmk_ids.begin(),
-                  mesh_lmk_ids.end(), lmk_id) ==
-        mesh_lmk_ids.end()) {
-      VLOG(20) << "Lmk_id = " << lmk_id
-               << " needs to stay as it is since it is NOT involved in any regularity.";
-      // This lmk is not involved in any regularity.
-      if (lmk_id_slot == lmk_id_is_smart->end()) {
-        // We did not find the lmk_id in the lmk_id_is_smart_ map.
-        // Add it as a smart factor.
-        lmk_id_is_smart->insert(std::make_pair(lmk_id, true));
-      } else {
-        // Let the lmk be as it was before (note is not allowed to go from
-        // projection to smart.
-        continue;
-      }
+  const auto& lmk_id_slot = lmk_id_is_smart->find(lmk_id);
+  if (std::find(mesh_lmk_ids.begin(),
+                mesh_lmk_ids.end(), lmk_id) ==
+      mesh_lmk_ids.end()) {
+    VLOG(20) << "Lmk_id = " << lmk_id
+             << " needs to stay as it is since it is NOT involved in any regularity.";
+    // This lmk is not involved in any regularity.
+    if (lmk_id_slot == lmk_id_is_smart->end()) {
+      // We did not find the lmk_id in the lmk_id_is_smart_ map.
+      // Add it as a smart factor.
+      lmk_id_is_smart->insert(std::make_pair(lmk_id, true));
     } else {
+      // Let the lmk be as it was before (note is not allowed to go from
+      // projection to smart.
+    }
+  } else {
       // This lmk is involved in a regularity, hence it should be a variable in
       // the factor graph (connected to projection factor).
       VLOG(20) << "Lmk_id = " << lmk_id
@@ -676,11 +675,12 @@ void RegularVioBackEnd::isLandmarkSmart(const LandmarkIds& lmks_kf,
             //lmk_id_is_smart->at(lmk_id) = true;
           }
         }
+
       }
     }
-  }
 
-  // TODO all lmks should be smart the first time they are added!
+  CHECK(lmk_id_is_smart->find(lmk_id) != lmk_id_is_smart->end());
+  return lmk_id_is_smart->at(lmk_id);
 }
 
 /* -------------------------------------------------------------------------- */
