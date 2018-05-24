@@ -236,7 +236,7 @@ public:
                                                 LandmarkId,
                                                 SmartStereoFactor::shared_ptr>;
   using SmartFactorMap =
-  gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, int>>;
+  gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, long int>>;
 
   using PointWithId     = std::pair<LandmarkId, gtsam::Point3>;
   using PointsWithId    = std::vector<PointWithId>;
