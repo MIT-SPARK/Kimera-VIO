@@ -74,6 +74,7 @@ private:
   std::vector<size_t> delete_slots_of_converted_smart_factors_;
 
   // For Stereo and Projection factors.
+  gtsam::SharedNoiseModel stereo_noise_;
   gtsam::SharedNoiseModel mono_noise_;
   boost::shared_ptr<Cal3_S2> mono_cal_;
 

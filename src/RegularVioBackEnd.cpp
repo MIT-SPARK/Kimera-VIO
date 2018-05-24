@@ -35,16 +35,26 @@ RegularVioBackEnd::RegularVioBackEnd(
              vioParams) {
   LOG(INFO) << "Using Regular VIO backend.\n";
 
-  // Set type of mono_noise_ for projection factors.
+  // Set type of mono_noise_ for generic projection factors.
   gtsam::SharedNoiseModel gaussian_dim_2 =
       gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
 
-  mono_noise_ = point_plane_regularity_noise_ =
-          gtsam::noiseModel::Robust::Create(
-            gtsam::noiseModel::mEstimator::Huber::Create(
-              vio_params_.huberParam_,
-              gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
-            gaussian_dim_2);
+  mono_noise_ = gtsam::noiseModel::Robust::Create(
+                  gtsam::noiseModel::mEstimator::Huber::Create(
+                    vio_params_.huberParam_,
+                    gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
+                  gaussian_dim_2);
+
+  // Set type of stereo_noise_ for generic stereo projection factors.
+  gtsam::SharedNoiseModel gaussian_dim_3 =
+      // TODO USE STEREO NOISE SIGMA.
+      gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.monoNoiseSigma_);
+
+  stereo_noise_ = gtsam::noiseModel::Robust::Create(
+                    gtsam::noiseModel::mEstimator::Huber::Create(
+                      vio_params_.huberParam_,
+                      gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
+                    gaussian_dim_3);
 
   // Set type of regularity noise for point plane factors.
   gtsam::SharedNoiseModel gaussian_dim_1 =
@@ -594,10 +604,10 @@ void RegularVioBackEnd::addProjectionFactor(
   if (!std::isnan(new_obs.second.uR())) {
     new_imu_prior_and_other_factors->push_back(
           gtsam::GenericStereoFactor<Pose3, Point3>
-          (new_obs.second, smart_noise_,
+          (new_obs.second, stereo_noise_,
            gtsam::Symbol('x', new_obs.first),
            gtsam::Symbol('l', lmk_id),
-           stereo_cal_, false, true, B_Pose_leftCam_));
+           stereo_cal_, true, true, B_Pose_leftCam_));
   } else {
     // Right pixel has a NAN value for u, use GenericProjectionFactor instead
     // of stereo.
@@ -608,7 +618,7 @@ void RegularVioBackEnd::addProjectionFactor(
            mono_noise_,
            gtsam::Symbol('x', new_obs.first),
            gtsam::Symbol('l', lmk_id),
-           mono_cal_, false, true, B_Pose_leftCam_)
+           mono_cal_, true, true, B_Pose_leftCam_)
           );
   }
 }
