@@ -513,8 +513,8 @@ private:
 
   /* ------------------------------------------------------------------------ */
   void updateNewSmartFactorsSlots(
-      const std::vector<Key>& lmk_ids_of_new_smart_factors_tmp,
-      SmartFactorMap* lmk_id_to_smart_factor_slot_map);
+      const std::vector<LandmarkId>& lmk_ids_of_new_smart_factors_tmp,
+      SmartFactorMap* old_smart_factors);
 
   /// Private setters.
   /* ------------------------------------------------------------------------ */

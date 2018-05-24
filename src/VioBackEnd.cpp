@@ -806,7 +806,7 @@ void VioBackEnd::optimize(
   // Extra factor slots to delete contains potential factors that we want to delete, it is
   // typically an empty vector. And is only used to give flexibility to subclasses.
   std::vector<size_t> delete_slots = extra_factor_slots_to_delete;
-  std::vector<Key> lmk_ids_of_new_smart_factors_tmp;
+  std::vector<LandmarkId> lmk_ids_of_new_smart_factors_tmp;
   gtsam::NonlinearFactorGraph new_factors_tmp;
   for (const auto& lmk_id_smart_factor_pair: new_smart_factors_) {
     // Push back the smart factor to the list of new factors to add to the graph.
@@ -1251,7 +1251,8 @@ void VioBackEnd::cleanCheiralityLmk(
         // We found our lmk in the list of keys of the factor.
         // Sanity check, this lmk has no priors right?
         CHECK(!boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(*it));
-        // We are not deleting a smart factor right? Otherwise we need to update structures.
+        // We are not deleting a smart factor right?
+        // Otherwise we need to update structure: lmk_ids_of_new_smart_factors...
         CHECK(!boost::dynamic_pointer_cast<SmartStereoFactor>(*it));
         // Whatever factor this is, it has our lmk...
         // Delete it.
@@ -1382,9 +1383,9 @@ void VioBackEnd::findSmartFactorsSlotsSlow(
 // BOOKKEEPING, for next iteration to know which slots have to be deleted
 // before adding the new smart factors.
 void VioBackEnd::updateNewSmartFactorsSlots(
-    const std::vector<Key>& lmk_ids_of_new_smart_factors,
-    SmartFactorMap* lmk_id_to_smart_factor_slot_map) {
-  CHECK_NOTNULL(lmk_id_to_smart_factor_slot_map);
+    const std::vector<LandmarkId>& lmk_ids_of_new_smart_factors,
+    SmartFactorMap* old_smart_factors) {
+  CHECK_NOTNULL(old_smart_factors);
 
   // Get result.
   const gtsam::ISAM2Result& result = smoother_->getISAM2Result();
@@ -1404,10 +1405,10 @@ void VioBackEnd::updateNewSmartFactorsSlots(
     // BOOKKEEPING, for next iteration to know which slots have to be deleted
     // before adding the new smart factors.
     // Find the entry in old_smart_factors_.
-    const auto& it = lmk_id_to_smart_factor_slot_map->find(
+    const auto& it = old_smart_factors->find(
                        lmk_ids_of_new_smart_factors.at(i));
 
-    CHECK(it != lmk_id_to_smart_factor_slot_map->end())
+    CHECK(it != old_smart_factors->end())
         << "Trying to access unavailable factor.";
 
     // Update slot number in old_smart_factors_.
