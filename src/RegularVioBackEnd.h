@@ -105,6 +105,9 @@ private:
       const LandmarkIds& mesh_lmk_ids_ground_cluster);
 
   /* ------------------------------------------------------------------------ */
+  virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
+
+  /* ------------------------------------------------------------------------ */
   void addProjectionFactor(
       const LandmarkId& lmk_id,
       const std::pair<FrameId, StereoPoint2>& new_obs,
