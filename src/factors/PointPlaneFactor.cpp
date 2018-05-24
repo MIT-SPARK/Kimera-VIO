@@ -20,5 +20,10 @@ void PointPlaneFactor::print(const string& s,
   this->noiseModel_->print("  noise model: ");
 }
 
+gtsam::NonlinearFactor::shared_ptr PointPlaneFactor::clone() const {
+  return boost::static_pointer_cast<gtsam::NonlinearFactor>(
+        gtsam::NonlinearFactor::shared_ptr(new PointPlaneFactor(*this)));
 }
+
+} // End of gtsam namespace.
 

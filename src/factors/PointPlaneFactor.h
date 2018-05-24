@@ -72,6 +72,10 @@ public:
   inline Key getPlaneKey() const {
     return planeKey_;
   }
+
+
+  // Perform deep copy of this factor
+  virtual gtsam::NonlinearFactor::shared_ptr clone() const;
 };
 
 } // gtsam
