@@ -1272,18 +1272,4 @@ void RegularVioBackEnd::deleteNewSlots(
   }
 }
 
-/* -------------------------------------------------------------------------- */
-void RegularVioBackEnd::cleanNullPtrsFromGraph(
-    gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors) {
-  CHECK_NOTNULL(new_imu_prior_and_other_factors);
-  gtsam::NonlinearFactorGraph tmp_graph =
-      new_imu_prior_and_other_factors->clone();
-  new_imu_prior_and_other_factors->resize(0);
-  for (const auto& factor: tmp_graph) {
-    if (factor != nullptr) {
-      new_imu_prior_and_other_factors->push_back(factor);
-    }
-  }
-}
-
 } // namespace VIO

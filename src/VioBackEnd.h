@@ -465,6 +465,10 @@ protected:
   /* ------------------------------------------------------------------------ */
   void printFeatureTracks() const;
 
+  /* ------------------------------------------------------------------------ */
+  void cleanNullPtrsFromGraph(
+      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
+
 private:
   /// Private Methods.
   /* ------------------------------------------------------------------------ */

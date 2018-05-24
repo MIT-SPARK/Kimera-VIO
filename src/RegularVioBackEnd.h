@@ -136,9 +136,6 @@ private:
       const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors_);
 
-  /* ------------------------------------------------------------------------ */
-  void cleanNullPtrsFromGraph(
-      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
 };
 
 } // namespace VIO
