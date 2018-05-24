@@ -454,7 +454,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       continue;
     } else {
       VLOG(20) << "Slot id: " << slot_id
-               << "for smart factor of lmk id: " << lmk_id;
+               << " for smart factor of lmk id: " << lmk_id;
     }
 
     // Check that the pointer smart_factor_ptr points to the right element
@@ -468,7 +468,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       // instead then...
       VLOG(20) << "The factor with slot id: " << slot_id
                << " in the graph does not match the old_smart_factor of "
-               << " lmk with id: " << lmk_id << "\n."
+               << "lmk with id: " << lmk_id << "\n."
                << "Deleting old_smart_factor of lmk id: " << lmk_id;
       old_smart_factor_it = old_smart_factors_.erase(old_smart_factor_it);
       continue;
@@ -1056,7 +1056,7 @@ void VioBackEnd::updateSmoother(
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
     LOG(ERROR) << e.what();
 
-    gtsam::Key var = e.nearbyVariable();
+    const gtsam::Key& var = e.nearbyVariable();
     gtsam::Symbol symb (var);
 
     LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
@@ -1175,7 +1175,8 @@ void VioBackEnd::updateNewSmartFactorsSlots(
     // BOOKKEEPING, for next iteration to know which slots have to be deleted
     // before adding the new smart factors.
     // Find the entry in old_smart_factors_.
-    const auto& it = lmk_id_to_smart_factor_slot_map->find(lmk_ids_of_new_smart_factors.at(i));
+    const auto& it = lmk_id_to_smart_factor_slot_map->find(
+                       lmk_ids_of_new_smart_factors.at(i));
 
     CHECK(it != lmk_id_to_smart_factor_slot_map->end())
         << "Trying to access unavailable factor.";
@@ -1409,14 +1410,16 @@ void VioBackEnd::printSmootherInfo(
   ///////////// Print factors that were newly added to the optimization.////////
   LOG(INFO) << "Nr of new factors to add: " << new_factors_tmp.size()
             << " with factors:" << std::endl;
-  LOG(INFO) << "[\n\t";
+  LOG(INFO) << "[\n (slot # wrt to new_factors_tmp graph) \t";
+  size_t new_factors_tmp_slot = 0;
   for (const auto& g : new_factors_tmp) {
-    printSelectedFactors(g, 1,
+    printSelectedFactors(g, new_factors_tmp_slot,
                          print_smart_factors,
                          print_point_plane_factors,
                          print_plane_priors,
                          print_point_priors,
                          print_linear_container_factors);
+    new_factors_tmp_slot++;
   }
   std::cout << std::endl;
   LOG(INFO) << " ]" << std::endl;
@@ -1456,7 +1459,7 @@ void VioBackEnd::printSmootherInfo(
   //////////////////////// Print all values in state. //////////////////////////
   LOG(INFO) << "Nr of values in state_ : " << state_.size()
             << ", with keys:";
-  LOG(INFO) << "[\n\t";
+  std::cout << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, state_) {
     std::cout << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
@@ -1466,7 +1469,7 @@ void VioBackEnd::printSmootherInfo(
   // Print only new values.
   LOG(INFO) << "Nr values in new_values_ : " << new_values_.size()
             << ", with keys:";
-  LOG(INFO) << "[\n\t";
+  std::cout << "[\n\t";
   BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
     std::cout << " " << gtsam::DefaultKeyFormatter(key_value.key) << " ";
   }
