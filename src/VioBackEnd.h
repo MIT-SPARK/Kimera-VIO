@@ -492,6 +492,22 @@ private:
       const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
 
   /* ------------------------------------------------------------------------ */
+  void cleanCheiralityLmk(
+      const gtsam::Symbol& lmk_symbol,
+      gtsam::NonlinearFactorGraph* new_factors_tmp_cheirality,
+      gtsam::Values* new_values_cheirality,
+      std::map<Key, double>* timestamps_cheirality,
+      std::vector<size_t>* delete_slots_cheirality,
+      const gtsam::NonlinearFactorGraph& graph,
+      const gtsam::NonlinearFactorGraph& new_factors_tmp,
+      const gtsam::Values& new_values,
+      const std::map<Key, double>& timestamps,
+      const std::vector<size_t>& delete_slots);
+
+  /* ------------------------------------------------------------------------ */
+  virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
+
+  /* ------------------------------------------------------------------------ */
   void findSmartFactorsSlotsSlow(
       const std::vector<Key>& new_smart_factors_keys_tmp);
 

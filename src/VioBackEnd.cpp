@@ -1040,6 +1040,13 @@ void VioBackEnd::updateSmoother(
     const std::vector<size_t>& delete_slots) {
   CHECK_NOTNULL(result);
 
+  // Store smoother as backup.
+  CHECK(smoother_);
+  Smoother smoother_backup (*smoother_); // This is not doing a deep copy... the equals does not even work for one to the same...
+  CHECK(smoother_backup.getFactors().size() == smoother_->getFactors().size());
+
+  bool got_cheirality_exception = false;
+  gtsam::Symbol lmk_symbol_cheirality;
   try {
     // Update smoother.
     *result = smoother_->update(new_factors_tmp,
@@ -1090,10 +1097,20 @@ void VioBackEnd::updateSmoother(
     printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::CheiralityException& e) {
     LOG(ERROR) << e.what();
+    const gtsam::Key& lmk_key = e.nearbyVariable();
+    lmk_symbol_cheirality = gtsam::Symbol(lmk_key);
+    LOG(ERROR) << "ERROR: Variable has type '" << lmk_symbol_cheirality.chr() << "' "
+               << "and index " << lmk_symbol_cheirality.index();
     printSmootherInfo(new_factors_tmp, delete_slots);
+    got_cheirality_exception = true;
   } catch (const gtsam::StereoCheiralityException& e) {
     LOG(ERROR) << e.what();
+    const gtsam::Key& lmk_key = e.nearbyVariable();
+    lmk_symbol_cheirality = gtsam::Symbol(lmk_key);
+    LOG(ERROR) << "ERROR: Variable has type '" << lmk_symbol_cheirality.chr() << "' "
+               << "and index " << lmk_symbol_cheirality.index();
     printSmootherInfo(new_factors_tmp, delete_slots);
+    got_cheirality_exception = true;
   } catch (const gtsam::RuntimeErrorThreadsafe& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors_tmp, delete_slots);
@@ -1106,6 +1123,216 @@ void VioBackEnd::updateSmoother(
     printSmootherInfo(new_factors_tmp, delete_slots);
     // Do not intentionally throw to see what checks fail later.
   }
+
+  static constexpr bool process_cheirality = true;
+  if (process_cheirality) {
+    static size_t counter_of_exceptions = 0;
+    if (got_cheirality_exception) {
+      LOG(ERROR) << "Starting processing cheirality exception # "
+                 << counter_of_exceptions;
+      counter_of_exceptions++;
+
+      // Restore smoother as it was before failure.
+      *smoother_ = smoother_backup;
+      // Update pointers of old_smart_factors_... Since they are now pointing
+      // to wrong addresses, since we reset the smoother_...
+      const gtsam::NonlinearFactorGraph& factors = smoother_->getFactors();
+      for (auto& old_smart_factor: old_smart_factors_) {
+        long int slot = old_smart_factor.second.second;
+        if (slot == -1) {
+          continue;
+        }
+        if (factors.exists(slot)) {
+          LOG(ERROR) << "Updating old_smart_factor with slot " << slot;
+          const gtsam::NonlinearFactor::shared_ptr& factor_ptr =
+              factors.at(slot);
+          CHECK(factor_ptr);
+          const SmartStereoFactor::shared_ptr& ssf =
+              boost::dynamic_pointer_cast<SmartStereoFactor>(factor_ptr);
+          CHECK(ssf);
+          // Update factor address (shared_ptr).
+          old_smart_factor.second.first = ssf;
+          CHECK(old_smart_factor.second.first == factors.at(slot));
+        }
+        // TODO delete factors here...
+      }
+
+      // Limit the number of cheirality exceptions per run.
+      static constexpr size_t max_number_of_cheirality_exceptions = 5;
+      CHECK_LE(counter_of_exceptions, max_number_of_cheirality_exceptions);
+
+      // Check that we have a landmark.
+      CHECK(lmk_symbol_cheirality.chr() == 'l');
+
+      // Now that we know the lmk id, delete all factors attached to it!
+      gtsam::NonlinearFactorGraph new_factors_tmp_cheirality;
+      gtsam::Values new_values_cheirality;
+      std::map<Key, double> timestamps_cheirality;
+      std::vector<size_t> delete_slots_cheirality;
+      const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
+      LOG(ERROR) << "Starting cleanCheiralityLmk...";
+      cleanCheiralityLmk(lmk_symbol_cheirality,
+                         &new_factors_tmp_cheirality,
+                         &new_values_cheirality,
+                         &timestamps_cheirality,
+                         &delete_slots_cheirality,
+                         graph,
+                         new_factors_tmp,
+                         new_values,
+                         timestamps,
+                         delete_slots);
+      LOG(ERROR) << "Finished cleanCheiralityLmk.";
+
+      // TODO should we store the smoother_ before the exception,
+      // and then call the update on the previous smoother_prev, instead
+      // of the potentially corrupted current one?
+
+      // Recreate the graph before marginalization.
+      static constexpr bool debug_graph_before_opt = true;
+      if (verbosity_ >= 5 || debug_graph_before_opt) {
+        debug_info_.graphBeforeOpt = graph;
+        debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
+        debug_info_.graphToBeDeleted.resize(delete_slots_cheirality.size());
+        for (size_t i = 0; i < delete_slots_cheirality.size(); i++) {
+          // If the factor is to be deleted, store it as graph to be deleted.
+          CHECK(graph.exists(delete_slots_cheirality.at(i)))
+              << "Slot # " << delete_slots_cheirality.at(i)
+              << "does not exist in smoother graph.";
+          // TODO here we can get the right slot that we are going to delete,
+          // extend graphToBeDeleted to have both the factor and the slot.
+          debug_info_.graphToBeDeleted.at(i) =
+              graph.at(delete_slots_cheirality.at(i));
+        }
+      }
+
+      // Try again to optimize. This is a recursive call.
+      LOG(ERROR) << "Starting updateSmoother...";
+      updateSmoother(result,
+                     new_factors_tmp_cheirality,
+                     new_values_cheirality,
+                     timestamps_cheirality,
+                     delete_slots_cheirality);
+      LOG(ERROR) << "Finished updateSmoother.";
+    } else {
+      counter_of_exceptions = 0;
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::cleanCheiralityLmk(
+    const gtsam::Symbol& lmk_symbol,
+    gtsam::NonlinearFactorGraph* new_factors_tmp_cheirality,
+    gtsam::Values* new_values_cheirality,
+    std::map<Key, double>* timestamps_cheirality,
+    std::vector<size_t>* delete_slots_cheirality,
+    const gtsam::NonlinearFactorGraph& graph,
+    const gtsam::NonlinearFactorGraph& new_factors_tmp,
+    const gtsam::Values& new_values,
+    const std::map<Key, double>& timestamps,
+    const std::vector<size_t>& delete_slots) {
+  CHECK_NOTNULL(new_factors_tmp_cheirality);
+  CHECK_NOTNULL(new_values_cheirality);
+  CHECK_NOTNULL(timestamps_cheirality);
+  CHECK_NOTNULL(delete_slots_cheirality);
+  const gtsam::Key& lmk_key = lmk_symbol.key();
+
+  // Delete from new factors.
+  // TODO, this will not delete smart factors, but these will not trigger Cheirality right?
+  LOG(ERROR) << "Starting delete from new factors.";
+  //*new_factors_tmp_cheirality = new_factors_tmp.clone(); // TODO WARNING we have to update old_smart_factors pointers then...
+  // We are modifying the underlying content...
+  *new_factors_tmp_cheirality = new_factors_tmp; // TODO WARNING we have to update old_smart_factors pointers then...
+  size_t new_factors_slot = 0;
+  for (auto it = new_factors_tmp_cheirality->begin();
+       it != new_factors_tmp_cheirality->end();) {
+    if (*it) {
+      if ((*it)->find(lmk_key) != (*it)->end()) {
+        // We found our lmk in the list of keys of the factor.
+        // Sanity check, this lmk has no priors right?
+        CHECK(!boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(*it));
+        // We are not deleting a smart factor right? Otherwise we need to update structures.
+        CHECK(!boost::dynamic_pointer_cast<SmartStereoFactor>(*it));
+        // Whatever factor this is, it has our lmk...
+        // Delete it.
+        LOG(ERROR) << "Delete factor in new_factors at slot # " << new_factors_slot
+                   << " of new_factors graph.";
+        it = new_factors_tmp_cheirality->erase(it);
+        LOG(ERROR) << "Finish delete.";
+      } else {
+        it++;
+      }
+    } else {
+      LOG(ERROR) << "*it, which is itself a pointer, is null.";
+      it++;
+    }
+    new_factors_slot++;
+  }
+  LOG(ERROR) << "Finished delete from new factors.";
+
+  // Delete from new values and timestamps.
+  LOG(ERROR) << "Starting delete from new values and timestamps.";
+  *new_values_cheirality = new_values;
+  *timestamps_cheirality = timestamps;
+  if (new_values.find(lmk_key) != new_values.end()) {
+    // We found the lmk in new values, delete it.
+    LOG(ERROR) << "Delete value in new_values and timestamp for lmk key "
+               << gtsam::DefaultKeyFormatter(lmk_key);
+    CHECK(new_values_cheirality->find(lmk_key) != new_values_cheirality->end());
+    try {
+      new_values_cheirality->erase(lmk_key);
+    } catch (const gtsam::ValuesKeyDoesNotExist& e) {
+      LOG(ERROR) << e.what();
+    } catch (...) {
+      LOG(ERROR) << "Unhandled exception when erasing key in new_values_cheirality";
+    }
+    CHECK(timestamps_cheirality->find(lmk_key) != timestamps.end());
+    timestamps_cheirality->erase(lmk_key);
+  }
+  LOG(ERROR) << "Finished delete from new values and timestamps.";
+
+  // Delete slots in current graph.
+  // TODO, this will not delete smart factors, but these will not trigger Cheirality right?
+  LOG(ERROR) << "Starting delete from current graph.";
+  *delete_slots_cheirality = delete_slots;
+  size_t slot = 0;
+  for (const boost::shared_ptr<gtsam::NonlinearFactor>& g: graph) {
+    // TODO confirm that this loop is ordered!
+    if (g) {
+      // Found a valid factor.
+      if (g->find(lmk_key) != g->end()) {
+        // Whatever factor this is, it has our lmk...
+        // Sanity check, this lmk has no priors right?
+        CHECK(!boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(g));
+        CHECK(!boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(g));
+        // Delete it.
+        // Achtung: This has the chance to make the plane underconstrained, if
+        // we delete too many point_plane factors.
+        LOG(ERROR) << "Delete factor in graph at slot # " << slot;
+        CHECK(graph.exists(slot));
+        delete_slots_cheirality->push_back(slot);
+      }
+    }
+    slot++;
+  }
+
+  //////////////////////////// BOOKKEEPING /////////////////////////////////////
+  // Delete from feature tracks.
+  const LandmarkId& lmk_id = lmk_symbol.index();
+  CHECK(feature_tracks_.find(lmk_id) != feature_tracks_.end());
+  LOG(ERROR) << "Deleting feature track for lmk with id: " << lmk_id;
+  feature_tracks_.erase(lmk_id);
+
+  // Delete from extra structures (for derived classes).
+  deleteLmkFromExtraStructures(lmk_id);
+  //////////////////////////////////////////////////////////////////////////////
+
+  LOG(ERROR) << "Finished delete from current graph.";
+}
+
+void VioBackEnd::deleteLmkFromExtraStructures(const LandmarkId& lmk_id) {
+  LOG(ERROR) << "There is nothing to delete for lmk with id: " << lmk_id;
+  return;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1125,6 +1352,8 @@ void VioBackEnd::findSmartFactorsSlotsSlow(
         // TODO that will not work anymore!!! not all factors are smart!!!
         SmartStereoFactor::shared_ptr smartfactor =
             boost::dynamic_pointer_cast<SmartStereoFactor>(graphFactors.at(slot));
+        // TODO smartfactor == won't work if cheirality exception is handled,
+        // because we clone the graph.
         if (smartfactor &&
             it.second.first == smartfactor) {
           it.second.second = slot;
@@ -1183,6 +1412,7 @@ void VioBackEnd::updateNewSmartFactorsSlots(
 
     // Update slot number in old_smart_factors_.
     it->second.second = slot;
+    it->second.first = boost::dynamic_pointer_cast<SmartStereoFactor>(smoother_->getFactors().at(slot));
   }
 }
 
