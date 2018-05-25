@@ -23,6 +23,7 @@ vioParams.linearizationMode = 0;
 vioParams.degeneracyMode = 1;
 vioParams.smartNoiseSigma = 3;
 vioParams.monoNoiseSigma = 1.2; % Only used for RegularVioBackEnd
+vioParams.stereoNoiseSigma = 1.2; % Only used for RegularVioBackEnd
 vioParams.regularityNoiseSigma = 0.05; % Only used for RegularVioBackEnd
 vioParams.minPlaneConstraints = 20; % Only used for RegularVioBackEnd
 vioParams.huberParam = 0.8 % Only used for RegularVioBackEnd

@@ -48,7 +48,7 @@ RegularVioBackEnd::RegularVioBackEnd(
   // Set type of stereo_noise_ for generic stereo projection factors.
   gtsam::SharedNoiseModel gaussian_dim_3 =
       // TODO USE STEREO NOISE SIGMA.
-      gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.monoNoiseSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.stereoNoiseSigma_);
 
   stereo_noise_ = gtsam::noiseModel::Robust::Create(
                     gtsam::noiseModel::mEstimator::Huber::Create(
