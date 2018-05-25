@@ -1043,8 +1043,10 @@ void VioBackEnd::updateSmoother(
 
   // Store smoother as backup.
   CHECK(smoother_);
-  Smoother smoother_backup (*smoother_); // This is not doing a deep copy... the equals does not even work for one to the same...
-  CHECK(smoother_backup.getFactors().size() == smoother_->getFactors().size());
+  // This is not doing a deep copy of factors, just of isam result...
+  // so the addresses of the factors are the same...
+  std::shared_ptr<Smoother> smoother_backup =
+      std::make_shared<Smoother>(*smoother_);
 
   bool got_cheirality_exception = false;
   gtsam::Symbol lmk_symbol_cheirality;
@@ -1134,29 +1136,9 @@ void VioBackEnd::updateSmoother(
       counter_of_exceptions++;
 
       // Restore smoother as it was before failure.
-      *smoother_ = smoother_backup;
-      // Update pointers of old_smart_factors_... Since they are now pointing
-      // to wrong addresses, since we reset the smoother_...
-      const gtsam::NonlinearFactorGraph& factors = smoother_->getFactors();
-      for (auto& old_smart_factor: old_smart_factors_) {
-        long int slot = old_smart_factor.second.second;
-        if (slot == -1) {
-          continue;
-        }
-        if (factors.exists(slot)) {
-          LOG(ERROR) << "Updating old_smart_factor with slot " << slot;
-          const gtsam::NonlinearFactor::shared_ptr& factor_ptr =
-              factors.at(slot);
-          CHECK(factor_ptr);
-          const SmartStereoFactor::shared_ptr& ssf =
-              boost::dynamic_pointer_cast<SmartStereoFactor>(factor_ptr);
-          CHECK(ssf);
-          // Update factor address (shared_ptr).
-          old_smart_factor.second.first = ssf;
-          CHECK(old_smart_factor.second.first == factors.at(slot));
-        }
-        // TODO delete factors here...
-      }
+      // Basically restore the isam2 result... the factors are just the same
+      // shared_ptrs...
+      smoother_ = smoother_backup ;
 
       // Limit the number of cheirality exceptions per run.
       static constexpr size_t max_number_of_cheirality_exceptions = 5;
