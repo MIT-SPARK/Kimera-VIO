@@ -808,18 +808,18 @@ void VioBackEnd::optimize(
   std::vector<size_t> delete_slots = extra_factor_slots_to_delete;
   std::vector<LandmarkId> lmk_ids_of_new_smart_factors_tmp;
   gtsam::NonlinearFactorGraph new_factors_tmp;
-  for (const auto& lmk_id_smart_factor_pair: new_smart_factors_) {
+  for (const auto& new_smart_factor: new_smart_factors_) {
     // Push back the smart factor to the list of new factors to add to the graph.
-    new_factors_tmp.push_back(lmk_id_smart_factor_pair.second);
+    new_factors_tmp.push_back(new_smart_factor.second); // Smart factor, so same address right?
 
-    // Store lmk ids of the smart factors to add to the graph.
-    lmk_ids_of_new_smart_factors_tmp.push_back(lmk_id_smart_factor_pair.first);
+    // Store lmk id of the smart factor to add to the graph.
+    lmk_ids_of_new_smart_factors_tmp.push_back(new_smart_factor.first);
 
     // Find smart factor and slot in old_smart_factors_ corresponding to
     // the lmk with id of the new smart factor.
-    const auto& it = old_smart_factors_.find(lmk_id_smart_factor_pair.first);
+    const auto& it = old_smart_factors_.find(new_smart_factor.first);
     CHECK(it != old_smart_factors_.end())
-        << "Lmk with id: " << lmk_id_smart_factor_pair.first
+        << "Lmk with id: " << new_smart_factor.first
         << " could not be found in old_smart_factors_.";
 
     if (it->second.second != -1) {
