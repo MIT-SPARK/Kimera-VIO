@@ -598,6 +598,15 @@ private:
       const bool print_point_priors = true,
       const bool print_linear_container_factors = true) const;
 
+  /* ------------------------------------------------------------------------ */
+  void printSelectedGraph(
+      const gtsam::NonlinearFactorGraph& graph,
+      const bool& print_smart_factors = true,
+      const bool& print_point_plane_factors = true,
+      const bool& print_plane_priors = true,
+      const bool& print_point_priors = true,
+      const bool& print_linear_container_factors = true) const ;
+
   /// Debuggers.
   /* ------------------------------------------------------------------------ */
   void computeSmartFactorStatistics();
