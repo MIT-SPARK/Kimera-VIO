@@ -1155,7 +1155,6 @@ void VioBackEnd::updateSmoother(
       gtsam::Values new_values_cheirality;
       std::map<Key, double> timestamps_cheirality;
       std::vector<size_t> delete_slots_cheirality;
-      const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
       LOG(ERROR) << "Starting cleanCheiralityLmk...";
       cleanCheiralityLmk(lmk_symbol_cheirality,
                          new_factors_tmp,
@@ -1172,6 +1171,7 @@ void VioBackEnd::updateSmoother(
       // of the potentially corrupted current one?
 
       // Recreate the graph before marginalization.
+      const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
       static constexpr bool debug_graph_before_opt = true;
       if (verbosity_ >= 5 || debug_graph_before_opt) {
         debug_info_.graphBeforeOpt = graph;
