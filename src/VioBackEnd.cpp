@@ -1047,10 +1047,9 @@ void VioBackEnd::updateSmoother(
 
   // Store smoother as backup.
   CHECK(smoother_);
-  // This is not doing a deep copy of factors, just of isam result...
-  // so the addresses of the factors are the same...
-  std::shared_ptr<Smoother> smoother_backup =
-      std::make_shared<Smoother>(*smoother_);
+  // This is not doing a full deep copy: it is keeping same shared_ptrs for factors
+  // but copying the isam result.
+  Smoother smoother_backup (*smoother_);
 
   bool got_cheirality_exception = false;
   gtsam::Symbol lmk_symbol_cheirality;
@@ -1140,9 +1139,7 @@ void VioBackEnd::updateSmoother(
       counter_of_exceptions++;
 
       // Restore smoother as it was before failure.
-      // Basically restore the isam2 result... the factors are just the same
-      // shared_ptrs...
-      smoother_ = smoother_backup ;
+      *smoother_ = smoother_backup;
 
       // Limit the number of cheirality exceptions per run.
       static constexpr size_t max_number_of_cheirality_exceptions = 5;
@@ -1165,10 +1162,6 @@ void VioBackEnd::updateSmoother(
                          timestamps,
                          delete_slots);
       LOG(ERROR) << "Finished cleanCheiralityLmk.";
-
-      // TODO should we store the smoother_ before the exception,
-      // and then call the update on the previous smoother_prev, instead
-      // of the potentially corrupted current one?
 
       // Recreate the graph before marginalization.
       const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
