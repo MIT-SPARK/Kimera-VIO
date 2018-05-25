@@ -432,16 +432,16 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     CHECK(smart_factor_ptr) << "Smart factor is not well defined.";
 
     // Retrieve smart factor slot in the graph.
-    const int& slot_id = old_smart_factor_it->second.second;
+    const Slot& slot_id = old_smart_factor_it->second.second;
 
     // Check that slot is admissible.
     // Slot should be positive.
     CHECK(slot_id >= 0) << "Slot of smart factor is not admissible.";
     // Ensure the graph size is small enough to cast to int.
-    CHECK_LT(graph.size(), std::numeric_limits<int>::max())
+    CHECK_LT(graph.size(), std::numeric_limits<Slot>::max())
         << "Invalid cast, that would cause an overflow!";
     // Slot should be inferior to the size of the graph.
-    CHECK_LT(slot_id, static_cast<int>(graph.size()));
+    CHECK_LT(slot_id, static_cast<Slot>(graph.size()));
 
     // Check that this slot_id exists in the graph, aka check that it is
     // in bounds and that the pointer is live (aka at(slot_id) works).
@@ -466,7 +466,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       // not make any sense, since we are using lmk_id which comes from smart_factor
       // and result which comes from graph[slot_id], we should use smart_factor_ptr
       // instead then...
-      VLOG(20) << "The factor with slot id: " << slot_id
+      LOG(ERROR) << "The factor with slot id: " << slot_id
                << " in the graph does not match the old_smart_factor of "
                << "lmk with id: " << lmk_id << "\n."
                << "Deleting old_smart_factor of lmk id: " << lmk_id;
@@ -828,6 +828,7 @@ void VioBackEnd::optimize(
       // We must delete the smart factor from the graph.
       // We need to remove all smart factors that have new observations.
       // TODO what happens if delete_slots has repeated elements?
+      CHECK_GE(it->second.second, 0);
       delete_slots.push_back(it->second.second);
     }
   }
@@ -1306,6 +1307,8 @@ void VioBackEnd::cleanCheiralityLmk(
         // Sanity check, this lmk has no priors right?
         CHECK(!boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(g));
         CHECK(!boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(g));
+        // Sanity check that we are not deleting a smart factor.
+        CHECK(!boost::dynamic_pointer_cast<SmartStereoFactor>(g));
         // Delete it.
         // Achtung: This has the chance to make the plane underconstrained, if
         // we delete too many point_plane factors.

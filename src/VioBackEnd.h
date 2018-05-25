@@ -235,8 +235,9 @@ public:
   using LandmarkIdSmartFactorMap = std::unordered_map<
                                                 LandmarkId,
                                                 SmartStereoFactor::shared_ptr>;
+  using Slot = long int;
   using SmartFactorMap =
-  gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, long int>>;
+  gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, Slot>>;
 
   using PointWithId     = std::pair<LandmarkId, gtsam::Point3>;
   using PointsWithId    = std::vector<PointWithId>;
