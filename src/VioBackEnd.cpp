@@ -893,7 +893,7 @@ void VioBackEnd::optimize(
   Smoother::Result result;
   VLOG(10) << "Starting first update.";
   updateSmoother(&result,
-                 new_factors_tmp,
+                 &new_factors_tmp,
                  new_values_,
                  timestamps,
                  delete_slots);
@@ -1035,11 +1035,15 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
 // Update smoother.
 void VioBackEnd::updateSmoother(
     Smoother::Result* result,
-    const gtsam::NonlinearFactorGraph& new_factors_tmp,
+    gtsam::NonlinearFactorGraph* new_factors_tmp,
     const gtsam::Values& new_values,
     const std::map<Key, double>& timestamps,
     const std::vector<size_t>& delete_slots) {
   CHECK_NOTNULL(result);
+  gtsam::NonlinearFactorGraph empty_graph;
+  if (new_factors_tmp == nullptr) {
+    new_factors_tmp = &empty_graph;
+  }
 
   // Store smoother as backup.
   CHECK(smoother_);
@@ -1052,12 +1056,12 @@ void VioBackEnd::updateSmoother(
   gtsam::Symbol lmk_symbol_cheirality;
   try {
     // Update smoother.
-    *result = smoother_->update(new_factors_tmp,
+    *result = smoother_->update(*new_factors_tmp,
                                 new_values,
                                 timestamps,
                                 delete_slots);
     if (DEBUG_) {
-      printSmootherInfo(new_factors_tmp,
+      printSmootherInfo(*new_factors_tmp,
                         delete_slots,
                         "CATCHING EXCEPTION",
                         false);
@@ -1077,34 +1081,34 @@ void VioBackEnd::updateSmoother(
     state_.print("State values\n[\n\t");
     std::cout << " ]" << std::endl;
 
-    printSmootherInfo(new_factors_tmp,
+    printSmootherInfo(*new_factors_tmp,
                       delete_slots);
     throw;
   } catch (const gtsam::InvalidNoiseModel& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
   } catch (const gtsam::InvalidMatrixBlock& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
   } catch (const gtsam::InvalidDenseElimination& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
   } catch (const gtsam::InvalidArgumentThreadsafe& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
   } catch (const gtsam::ValuesKeyDoesNotExist& e){
     LOG(ERROR) << e.what();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
   } catch (const gtsam::CholeskyFailed& e){
     LOG(ERROR) << e.what();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
   } catch (const gtsam::CheiralityException& e) {
     LOG(ERROR) << e.what();
     const gtsam::Key& lmk_key = e.nearbyVariable();
     lmk_symbol_cheirality = gtsam::Symbol(lmk_key);
     LOG(ERROR) << "ERROR: Variable has type '" << lmk_symbol_cheirality.chr() << "' "
                << "and index " << lmk_symbol_cheirality.index();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
     got_cheirality_exception = true;
   } catch (const gtsam::StereoCheiralityException& e) {
     LOG(ERROR) << e.what();
@@ -1112,18 +1116,18 @@ void VioBackEnd::updateSmoother(
     lmk_symbol_cheirality = gtsam::Symbol(lmk_key);
     LOG(ERROR) << "ERROR: Variable has type '" << lmk_symbol_cheirality.chr() << "' "
                << "and index " << lmk_symbol_cheirality.index();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
     got_cheirality_exception = true;
   } catch (const gtsam::RuntimeErrorThreadsafe& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
   } catch (const gtsam::OutOfRangeThreadsafe& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
   } catch (...) {
     // Catch the rest of exceptions.
     LOG(ERROR) << "Unrecognized exception.";
-    printSmootherInfo(new_factors_tmp, delete_slots);
+    printSmootherInfo(*new_factors_tmp, delete_slots);
     // Do not intentionally throw to see what checks fail later.
   }
 
@@ -1148,19 +1152,16 @@ void VioBackEnd::updateSmoother(
       CHECK(lmk_symbol_cheirality.chr() == 'l');
 
       // Now that we know the lmk id, delete all factors attached to it!
-      gtsam::NonlinearFactorGraph new_factors_tmp_cheirality;
       gtsam::Values new_values_cheirality;
       std::map<Key, double> timestamps_cheirality;
       std::vector<size_t> delete_slots_cheirality;
       const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
       LOG(ERROR) << "Starting cleanCheiralityLmk...";
       cleanCheiralityLmk(lmk_symbol_cheirality,
-                         &new_factors_tmp_cheirality,
+                         new_factors_tmp,
                          &new_values_cheirality,
                          &timestamps_cheirality,
                          &delete_slots_cheirality,
-                         graph,
-                         new_factors_tmp,
                          new_values,
                          timestamps,
                          delete_slots);
@@ -1191,7 +1192,7 @@ void VioBackEnd::updateSmoother(
       // Try again to optimize. This is a recursive call.
       LOG(ERROR) << "Starting updateSmoother...";
       updateSmoother(result,
-                     new_factors_tmp_cheirality,
+                     new_factors_tmp,
                      new_values_cheirality,
                      timestamps_cheirality,
                      delete_slots_cheirality);
@@ -1209,8 +1210,6 @@ void VioBackEnd::cleanCheiralityLmk(
     gtsam::Values* new_values_cheirality,
     std::map<Key, double>* timestamps_cheirality,
     std::vector<size_t>* delete_slots_cheirality,
-    const gtsam::NonlinearFactorGraph& graph,
-    const gtsam::NonlinearFactorGraph& new_factors_tmp,
     const gtsam::Values& new_values,
     const std::map<Key, double>& timestamps,
     const std::vector<size_t>& delete_slots) {
@@ -1221,11 +1220,7 @@ void VioBackEnd::cleanCheiralityLmk(
   const gtsam::Key& lmk_key = lmk_symbol.key();
 
   // Delete from new factors.
-  // TODO, this will not delete smart factors, but these will not trigger Cheirality right?
   LOG(ERROR) << "Starting delete from new factors.";
-  //*new_factors_tmp_cheirality = new_factors_tmp.clone(); // TODO WARNING we have to update old_smart_factors pointers then...
-  // We are modifying the underlying content...
-  *new_factors_tmp_cheirality = new_factors_tmp; // TODO WARNING we have to update old_smart_factors pointers then...
   size_t new_factors_slot = 0;
   for (auto it = new_factors_tmp_cheirality->begin();
        it != new_factors_tmp_cheirality->end();) {
@@ -1280,7 +1275,7 @@ void VioBackEnd::cleanCheiralityLmk(
   LOG(ERROR) << "Starting delete from current graph.";
   *delete_slots_cheirality = delete_slots;
   size_t slot = 0;
-  for (const boost::shared_ptr<gtsam::NonlinearFactor>& g: graph) {
+  for (const boost::shared_ptr<gtsam::NonlinearFactor>& g: smoother_->getFactors()) {
     // TODO confirm that this loop is ordered!
     if (g) {
       // Found a valid factor.
@@ -1294,14 +1289,14 @@ void VioBackEnd::cleanCheiralityLmk(
         // Delete it.
         // Achtung: This has the chance to make the plane underconstrained, if
         // we delete too many point_plane factors.
-        LOG(ERROR) << "Delete factor in graph at slot # " << slot;
-        CHECK(graph.exists(slot));
+        LOG(ERROR) << "Delete factor in graph at slot # " << slot
+                   << " corresponding to lmk with id: " << lmk_symbol.index();
+        CHECK(smoother_->getFactors().exists(slot));
         delete_slots_cheirality->push_back(slot);
       }
     }
     slot++;
   }
-
   //////////////////////////// BOOKKEEPING /////////////////////////////////////
   // Delete from feature tracks.
   const LandmarkId& lmk_id = lmk_symbol.index();

@@ -489,8 +489,7 @@ private:
   // Update smoother.
   void updateSmoother(
       Smoother::Result* result,
-      const gtsam::NonlinearFactorGraph& new_factors_tmp =
-      gtsam::NonlinearFactorGraph(),
+      gtsam::NonlinearFactorGraph* new_factors_tmp = nullptr,
       const gtsam::Values& new_values = gtsam::Values(),
       const std::map<Key, double>& timestamps =
       gtsam::FixedLagSmoother::KeyTimestampMap(),
@@ -503,8 +502,6 @@ private:
       gtsam::Values* new_values_cheirality,
       std::map<Key, double>* timestamps_cheirality,
       std::vector<size_t>* delete_slots_cheirality,
-      const gtsam::NonlinearFactorGraph& graph,
-      const gtsam::NonlinearFactorGraph& new_factors_tmp,
       const gtsam::Values& new_values,
       const std::map<Key, double>& timestamps,
       const std::vector<size_t>& delete_slots);
