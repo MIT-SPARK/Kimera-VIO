@@ -325,10 +325,10 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
   // Add as a smart factor.
   // We use a unit pinhole projection camera for the smart factors to be
   // more efficient.
-  SmartStereoFactor::shared_ptr new_factor(new SmartStereoFactor(
-                                             smart_noise_,
-                                             smart_factors_params_,
-                                             B_Pose_leftCam_));
+  SmartStereoFactor::shared_ptr new_factor =
+      boost::make_shared<SmartStereoFactor>(smart_noise_,
+                                            smart_factors_params_,
+                                            B_Pose_leftCam_);
 
   VLOG(20) << "Adding landmark with id: " << lmk_id
            << " for the first time to graph. \n"
@@ -470,6 +470,10 @@ void RegularVioBackEnd::updateExistingSmartFactor(
   // TODO Why do we do this??
   // if we don't the 3d points seem to be off.
   // is there a way to viz 3d points?
+  // BUT then we are not pointing to the factor in the graph anymore, and a
+  // check such as old_smart_factor_it->second.first ==
+  //                graph.at[old_smart_factor_it->second.second
+  // will fail!
   old_smart_factors_it->second.first = new_factor;
 
   //////////////////////////////////////////////////////////////////////////////
@@ -618,7 +622,8 @@ void RegularVioBackEnd::addProjectionFactor(
   CHECK_NOTNULL(new_imu_prior_and_other_factors);
   if (!std::isnan(new_obs.second.uR())) {
     new_imu_prior_and_other_factors->push_back(
-          gtsam::GenericStereoFactor<Pose3, Point3>
+          boost::make_shared<
+          gtsam::GenericStereoFactor<Pose3, Point3>>
           (new_obs.second, stereo_noise_,
            gtsam::Symbol('x', new_obs.first),
            gtsam::Symbol('l', lmk_id),
@@ -627,7 +632,8 @@ void RegularVioBackEnd::addProjectionFactor(
     // Right pixel has a NAN value for u, use GenericProjectionFactor instead
     // of stereo.
     new_imu_prior_and_other_factors->push_back(
-          gtsam::GenericProjectionFactor<Pose3, Point3>
+          boost::make_shared<
+          gtsam::GenericProjectionFactor<Pose3, Point3>>
           (gtsam::Point2(new_obs.second.uL(),
                          new_obs.second.v()),
            mono_noise_,
