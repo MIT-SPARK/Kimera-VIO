@@ -87,7 +87,7 @@ public:
   initialYawSigma_(initialYawSigma), initialVelocitySigma_(initialVelocitySigma),
   initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
   linearizationMode_(linMode), degeneracyMode_(degMode),
-  smartNoiseSigma_(smartNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma), regularityNoiseSigma_(regularityNoiseSigma),
+  smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma), regularityNoiseSigma_(regularityNoiseSigma),
   minPlaneConstraints_(minPlaneConstraints),
   huberParam_(huberParam), tukeyParam_(tukeyParam), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
