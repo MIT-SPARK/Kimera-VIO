@@ -1396,9 +1396,21 @@ void VioBackEnd::updateNewSmartFactorsSlots(
     CHECK(it != old_smart_factors->end())
         << "Trying to access unavailable factor.";
 
+    // CHECK that the factor in the graph at slot position is a smart factor.
+    CHECK(boost::dynamic_pointer_cast<SmartStereoFactor>(
+            smoother_->getFactors().at(slot)));
+
+    // CHECK that shared ptrs point to the same smart factor.
+    // make sure no one is cloning SmartSteroFactors.
+    CHECK_EQ(it->second.first, boost::dynamic_pointer_cast<SmartStereoFactor>(
+               smoother_->getFactors().at(slot)))
+        << "Non-matching addresses for same factors for lmk with id: "
+        << lmk_ids_of_new_smart_factors.at(i) << " in old_smart_factors_ "
+        << "VS factor in graph at slot: " << slot
+        << ". Slot previous to update was: " << it->second.second;
+
     // Update slot number in old_smart_factors_.
     it->second.second = slot;
-    it->second.first = boost::dynamic_pointer_cast<SmartStereoFactor>(smoother_->getFactors().at(slot));
   }
 }
 
