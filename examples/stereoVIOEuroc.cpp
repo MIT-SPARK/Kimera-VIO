@@ -334,7 +334,7 @@ int main(int argc, char *argv[]) {
                 .featureSelectionHorizon_ /
                 stereoVisionFrontEnd.tracker_.trackerParams_
                 .intra_keyframe_time_);
-      std::cout << "nrKfInHorizon for selector: " << nrKfInHorizon << std::endl;
+      VLOG(100) << "nrKfInHorizon for selector: " << nrKfInHorizon;
 
       // Future poses are gt and might be far from the vio pose: we have to
       // attach the *relative* poses from the gt to the latest vio estimate.
@@ -520,8 +520,19 @@ int main(int argc, char *argv[]) {
           // restricting to points seen in at least minKfValidPoints keyframes
           // (TODO restriction is not enforced for projection factors).
           VioBackEnd::PointsWithIdMap points_with_id_VIO;
-          vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(&points_with_id_VIO,
-                                                          minKfValidPoints);
+          VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+          static constexpr bool visualize_lmk_type = true;
+          if (visualize_lmk_type) {
+            vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
+                  &points_with_id_VIO,
+                  &lmk_id_to_lmk_type_map,
+                  minKfValidPoints);
+          } else {
+            vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
+                  &points_with_id_VIO,
+                  nullptr,
+                  minKfValidPoints);
+          }
 
           static constexpr float maxGradInTriangle = -1; //50.0;
           static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
@@ -542,18 +553,21 @@ int main(int argc, char *argv[]) {
           // Currently only triangles in the ground floor.
           std::vector<TriangleCluster> triangle_clusters;
           gtsam::OrientedPlane3 plane;
-          if(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+          static constexpr bool use_expectation_maximization = true;
+          static constexpr bool use_normal_estimation = false;
+          static const gtsam::Point3 plane_normal (0.0, 0.0, 1.0);
+          if(use_expectation_maximization &&
+             vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
                gtsam::Symbol('P', 0).key(), &plane)) {
             // Use the plane estimate of the backend.
             // TODO this can lead to issues, when the plane estimate gets
             // quite crazy, but at the same time it will avoid crashing the
             // optimization, because otherwise we are providing huge outliers.
             mesher.clusterMesh(&triangle_clusters,
-                               plane.normal().point3(),
+                               use_normal_estimation?plane.normal().point3():plane_normal,
                                plane.distance());
           } else {
             // Try to cluster the ground plane.
-            static const gtsam::Point3 plane_normal (0.0, 0.0, 1.0);
             static constexpr double plane_distance = -0.15;
             mesher.clusterMesh(&triangle_clusters,
                                plane_normal,
@@ -572,6 +586,7 @@ int main(int argc, char *argv[]) {
             mesher.getPolygonsMesh(&polygons_mesh);
 
             static VioBackEnd::PointsWithIdMap points_with_id_VIO_prev;
+            static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
             static cv::Mat vertices_mesh_prev;
             static cv::Mat polygons_mesh_prev;
             static std::vector<TriangleCluster> triangle_clusters_prev;
@@ -585,13 +600,15 @@ int main(int argc, char *argv[]) {
 
             static constexpr bool visualize_point_cloud = true;
             if (visualize_point_cloud) {
-              visualizer.visualizePoints3D(points_with_id_VIO_prev);
+              visualizer.visualizePoints3D(points_with_id_VIO_prev,
+                                           lmk_id_to_lmk_type_map_prev);
             }
 
             static constexpr bool visualize_planes = true;
             static constexpr bool visualize_plane_constraints = true;
             if (visualize_planes) {
               static const std::string plane_id = "Plane 0.";
+              static bool is_plane_in_window = false;
               gtsam::OrientedPlane3 plane;
               if (vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
                     gtsam::Symbol('P', 0).key(), &plane)) {
@@ -635,11 +652,15 @@ int main(int argc, char *argv[]) {
                                           normal.y(),
                                           normal.z(),
                                           plane.distance());
+                is_plane_in_window = true;
               } else {
                 if (visualize_plane_constraints) {
                   visualizer.removePlaneConstraintsViz();
                 }
-                visualizer.removeWidget(plane_id);
+                if (is_plane_in_window) {
+                  visualizer.removeWidget(plane_id)?
+                        is_plane_in_window = false : is_plane_in_window = true;
+                }
               }
             }
 
@@ -651,6 +672,7 @@ int main(int argc, char *argv[]) {
             polygons_mesh_prev = polygons_mesh;
             triangle_clusters_prev = triangle_clusters;
             points_with_id_VIO_prev = points_with_id_VIO;
+            lmk_id_to_lmk_type_map_prev = lmk_id_to_lmk_type_map;
             VLOG(10) << "Finished mesh visualization.";
           } // FLAGS_visualize.
 
@@ -696,7 +718,7 @@ int main(int argc, char *argv[]) {
           break;
         }
 
-        default:{
+        default: {
           throw std::runtime_error("stereoVIOEuroc: unknown visualizationType");
           break;
         }
@@ -716,7 +738,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (k == final_k - 1) {
-      std::cout << "stereoVIOExample completed successfully!" << std::endl;
+      LOG(INFO) << "stereoVIOExample completed successfully!";
     }
   }
 

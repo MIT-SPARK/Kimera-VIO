@@ -235,12 +235,14 @@ public:
   using LandmarkIdSmartFactorMap = std::unordered_map<
                                                 LandmarkId,
                                                 SmartStereoFactor::shared_ptr>;
+  using Slot = long int;
   using SmartFactorMap =
-  gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, int>>;
+  gtsam::FastMap<LandmarkId, std::pair<SmartStereoFactor::shared_ptr, Slot>>;
 
   using PointWithId     = std::pair<LandmarkId, gtsam::Point3>;
   using PointsWithId    = std::vector<PointWithId>;
   using PointsWithIdMap = std::unordered_map<LandmarkId, gtsam::Point3>;
+  using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
 
   // verbosity_ explanation
   /*
@@ -402,8 +404,10 @@ public:
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
   // Warning! it modifies old_smart_factors_!!
-  void getMapLmkIdsTo3dPointsInTimeHorizon(PointsWithIdMap* points_with_id,
-                                           const size_t& min_age = 2);
+  void getMapLmkIdsTo3dPointsInTimeHorizon(
+      PointsWithIdMap* points_with_id,
+      LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map = nullptr,
+      const size_t& min_age = 2);
 
   /* ------------------------------------------------------------------------ */
   // NOT TESTED
@@ -462,6 +466,10 @@ protected:
   /* ------------------------------------------------------------------------ */
   void printFeatureTracks() const;
 
+  /* ------------------------------------------------------------------------ */
+  void cleanNullPtrsFromGraph(
+      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
+
 private:
   /// Private Methods.
   /* ------------------------------------------------------------------------ */
@@ -489,13 +497,59 @@ private:
       const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
 
   /* ------------------------------------------------------------------------ */
+  void cleanCheiralityLmk(
+      const gtsam::Symbol& lmk_symbol,
+      gtsam::NonlinearFactorGraph* new_factors_tmp_cheirality,
+      gtsam::Values* new_values_cheirality,
+      std::map<Key, double>* timestamps_cheirality,
+      std::vector<size_t>* delete_slots_cheirality,
+      const gtsam::NonlinearFactorGraph& graph,
+      const gtsam::NonlinearFactorGraph& new_factors_tmp,
+      const gtsam::Values& new_values,
+      const std::map<Key, double>& timestamps,
+      const std::vector<size_t>& delete_slots);
+
+  /* ------------------------------------------------------------------------ */
+  void deleteAllFactorsWithKeyFromFactorGraph(
+      const gtsam::Key& key,
+      const gtsam::NonlinearFactorGraph& new_factors_tmp,
+      gtsam::NonlinearFactorGraph* factor_graph_output);
+
+  /* ------------------------------------------------------------------------ */
+  // Returns if the key in timestamps could be removed or not.
+  bool deleteKeyFromTimestamps(
+      const gtsam::Key& key,
+      const std::map<Key, double>& timestamps,
+      std::map<Key, double>* timestamps_output);
+
+  /* ------------------------------------------------------------------------ */
+  // Returns if the key in timestamps could be removed or not.
+  bool deleteKeyFromValues(
+      const gtsam::Key& key,
+      const gtsam::Values& values,
+      gtsam::Values* values_output);
+
+  /* ------------------------------------------------------------------------ */
+  // Find all slots of factors that have the given key in the list of keys.
+  void findSlotsOfFactorsWithKey(
+      const gtsam::Key& key,
+      const gtsam::NonlinearFactorGraph& graph,
+      std::vector<size_t>* slots_of_factors_with_key);
+
+  /* ------------------------------------------------------------------------ */
+  bool deleteLmkFromFeatureTracks(const LandmarkId& lmk_id);
+
+  /* ------------------------------------------------------------------------ */
+  virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
+
+  /* ------------------------------------------------------------------------ */
   void findSmartFactorsSlotsSlow(
       const std::vector<Key>& new_smart_factors_keys_tmp);
 
   /* ------------------------------------------------------------------------ */
   void updateNewSmartFactorsSlots(
-      const std::vector<Key>& lmk_ids_of_new_smart_factors_tmp,
-      SmartFactorMap* lmk_id_to_smart_factor_slot_map);
+      const std::vector<LandmarkId>& lmk_ids_of_new_smart_factors_tmp,
+      SmartFactorMap* old_smart_factors);
 
   /// Private setters.
   /* ------------------------------------------------------------------------ */
@@ -538,8 +592,8 @@ private:
   /* ------------------------------------------------------------------------ */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
                          const std::vector<size_t>& delete_slots,
-                         const std::string& message,
-                         const bool& showDetails) const;
+                         const std::string& message = "CATCHING EXCEPTION",
+                         const bool& showDetails = false) const;
 
   /* ------------------------------------------------------------------------ */
   void printSmartFactor(boost::shared_ptr<SmartStereoFactor> gsf) const;
@@ -573,6 +627,15 @@ private:
       const bool print_plane_priors = true,
       const bool print_point_priors = true,
       const bool print_linear_container_factors = true) const;
+
+  /* ------------------------------------------------------------------------ */
+  void printSelectedGraph(
+      const gtsam::NonlinearFactorGraph& graph,
+      const bool& print_smart_factors = true,
+      const bool& print_point_plane_factors = true,
+      const bool& print_plane_priors = true,
+      const bool& print_point_priors = true,
+      const bool& print_linear_container_factors = true) const ;
 
   /// Debuggers.
   /* ------------------------------------------------------------------------ */

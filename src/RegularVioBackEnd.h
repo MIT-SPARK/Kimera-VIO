@@ -46,14 +46,16 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // TODO Virtualize this appropriately,
-  void addLandmarksToGraph(const LandmarkIds& lmks_kf);
+  void addLandmarksToGraph(const LandmarkIds& lmks_kf,
+                           const LandmarkIds& mesh_lmk_ids_ground_cluster);
 
   /* ------------------------------------------------------------------------ */
   void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
 
   /* ------------------------------------------------------------------------ */
-  void updateLandmarkInGraph(const LandmarkId& lm_id,
-                             const std::pair<FrameId, StereoPoint2>& newObs);
+  void updateLandmarkInGraph(const LandmarkId& lmk_id,
+                             const bool& is_lmk_smart,
+                             const std::pair<FrameId, StereoPoint2>& new_obs);
 private:
   typedef size_t Slot;
 
@@ -71,14 +73,45 @@ private:
   std::map<LandmarkId, RegularityType> lmk_id_to_regularity_type_map_;
   std::vector<size_t> delete_slots_of_converted_smart_factors_;
 
+  // For Stereo and Projection factors.
+  gtsam::SharedNoiseModel stereo_noise_;
   gtsam::SharedNoiseModel mono_noise_;
   boost::shared_ptr<Cal3_S2> mono_cal_;
 
+  // For regularity factors.
+  gtsam::SharedNoiseModel point_plane_regularity_noise_;
+
 private:
   /* ------------------------------------------------------------------------ */
-  void isLandmarkSmart(const LandmarkIds& lmks_kf,
+  bool isLandmarkSmart(const LandmarkId& lmk_id,
                        const LandmarkIds& mesh_lmk_ids,
                        LmkIdIsSmart* lmk_id_is_smart);
+
+  /* ------------------------------------------------------------------------ */
+  void updateExistingSmartFactor(const LandmarkId& lmk_id,
+                                 const std::pair<FrameId, StereoPoint2>& new_obs,
+                                 LandmarkIdSmartFactorMap* new_smart_factors,
+                                 SmartFactorMap* old_smart_factors);
+  /* ------------------------------------------------------------------------ */
+  bool convertSmartToProjectionFactor(
+      const LandmarkId& lmk_id,
+      SmartFactorMap* old_smart_factors,
+      gtsam::Values* new_values,
+      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors,
+      std::vector<size_t>* delete_slots_of_converted_smart_factors);
+
+  /* ------------------------------------------------------------------------ */
+  void convertExtraSmartFactorToProjFactor(
+      const LandmarkIds& mesh_lmk_ids_ground_cluster);
+
+  /* ------------------------------------------------------------------------ */
+  virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
+
+  /* ------------------------------------------------------------------------ */
+  void addProjectionFactor(
+      const LandmarkId& lmk_id,
+      const std::pair<FrameId, StereoPoint2>& new_obs,
+      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
 
   /* ------------------------------------------------------------------------ */
   void addRegularityFactors(
@@ -96,6 +129,12 @@ private:
   /* ------------------------------------------------------------------------ */
   void fillDeleteSlots(const std::vector<std::pair<Slot, LandmarkId> >& point_plane_factor_slots,
       std::vector<size_t>* delete_slots);
+
+  /* ------------------------------------------------------------------------ */
+  // Remove as well the factors that are going to be added in this iteration.
+  void deleteNewSlots(
+      const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+      gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors_);
 
 };
 

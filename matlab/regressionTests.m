@@ -74,6 +74,7 @@ for i = 1:length(datasetToRun)
             %vioParams.autoInitialize = 1;
             %vioParams.initialRollPitchSigma = 20.0 / 180.0 * pi;
             %vioParams.initialYawSigma  = 3.0 / 180.0 * pi;
+            fprintf('Achtung: modifying default parameters.\n'); 
             trackerParams.featureSelectionDefaultDepth = 2.0; % indoor scenarios
         end
     %     if datasetId > 11 % duo datasets

@@ -42,7 +42,7 @@ public:
   virtual ~ParallelPlaneRegularFactor() {}
 
   ParallelPlaneRegularFactor(const Key& plane1Key, const Key& plane2Key,
-                     const SharedGaussian& noiseModel,
+                     const SharedNoiseModel& noiseModel,
                      const double& measured_distance_from_plane2_to_plane1 = 0)
     : Base(noiseModel, plane1Key, plane2Key),
       plane1Key_(plane1Key),
@@ -94,7 +94,7 @@ public:
 
   ParallelPlaneRegularTangentSpaceFactor(const Key& plane1Key,
                                          const Key& plane2Key,
-                                         const SharedGaussian& noiseModel) :
+                                         const SharedNoiseModel& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
       this->factor_type_ = "ParallelPlaneRegularTangentSpaceFactor";
   }
@@ -143,7 +143,7 @@ public:
 
   GeneralParallelPlaneRegularTangentSpaceFactor(const Key& plane1Key,
                     const Key& plane2Key,
-                    const SharedGaussian& noiseModel,
+                    const SharedNoiseModel& noiseModel,
                     const double& measured_distance_from_plane2_to_plane1 = 0) :
           ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
                                      measured_distance_from_plane2_to_plane1) {
@@ -198,7 +198,7 @@ public:
 
   ParallelPlaneRegularBasicFactor(const Key& plane1Key,
                                          const Key& plane2Key,
-                                         const SharedGaussian& noiseModel) :
+                                         const SharedNoiseModel& noiseModel) :
                 ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel) {
       this->factor_type_ = "ParallelPlaneRegularBasicFactor";
   }
@@ -250,7 +250,7 @@ public:
 
   GeneralParallelPlaneRegularBasicFactor(const Key& plane1Key,
                     const Key& plane2Key,
-                    const SharedGaussian& noiseModel,
+                    const SharedNoiseModel& noiseModel,
                     const double& measured_distance_from_plane2_to_plane1 = 0) :
           ParallelPlaneRegularFactor(plane1Key, plane2Key, noiseModel,
                                      measured_distance_from_plane2_to_plane1) {

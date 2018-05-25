@@ -57,6 +57,7 @@ public:
       const double smartNoiseSigma = 3,
       // TODO inherit from this for regularVIO backend
       const double monoNoiseSigma = 3, // for regularVioBackEnd only.
+      const double stereoNoiseSigma = 3, // for regularVioBackEnd only.
       const double regularityNoiseSigma = 0.1, // for regularVioBackEnd only.
       const size_t minPlaneConstraints = 3, // for regularVioBackEnd only.
       const double huberParam = 1.345, // for regularVioBackEnd only.
@@ -86,7 +87,7 @@ public:
   initialYawSigma_(initialYawSigma), initialVelocitySigma_(initialVelocitySigma),
   initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
   linearizationMode_(linMode), degeneracyMode_(degMode),
-  smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma), regularityNoiseSigma_(regularityNoiseSigma),
+  smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma), regularityNoiseSigma_(regularityNoiseSigma),
   minPlaneConstraints_(minPlaneConstraints),
   huberParam_(huberParam), tukeyParam_(tukeyParam), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
@@ -112,7 +113,7 @@ public:
   // Smart factor params
   gtsam::LinearizationMode linearizationMode_;
   gtsam::DegeneracyMode degeneracyMode_;
-  double smartNoiseSigma_, monoNoiseSigma_, regularityNoiseSigma_;
+  double smartNoiseSigma_, monoNoiseSigma_, stereoNoiseSigma_, regularityNoiseSigma_;
   double minPlaneConstraints_;
   double huberParam_, tukeyParam_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
   int normType_;
@@ -211,6 +212,8 @@ public:
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> smartNoiseSigma_;
     file_handle = fs["monoNoiseSigma"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNoiseSigma_;
+    file_handle = fs["stereoNoiseSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNoiseSigma_;
     file_handle = fs["regularityNoiseSigma"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNoiseSigma_;
     file_handle = fs["minPlaneConstraints"] ;
@@ -287,6 +290,7 @@ public:
         (degeneracyMode_ == vp2.degeneracyMode_) &&
         (fabs(smartNoiseSigma_ - vp2.smartNoiseSigma_) <= tol) &&
         (fabs(monoNoiseSigma_ - vp2.monoNoiseSigma_) <= tol) &&
+        (fabs(stereoNoiseSigma_ - vp2.stereoNoiseSigma_) <= tol) &&
         (fabs(regularityNoiseSigma_ - vp2.regularityNoiseSigma_) <= tol) &&
         (minPlaneConstraints_ == vp2.minPlaneConstraints_) && (minPlaneConstraints_ >= 3) &&
         (fabs(huberParam_ - vp2.huberParam_) <= tol) &&

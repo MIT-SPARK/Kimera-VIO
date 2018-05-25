@@ -32,7 +32,7 @@ public:
 
   /// Constructor with measured plane coefficients (a,b,c,d), noise model, pose symbol
   PointPlaneFactor(
-      const Key& pointKey, const Key& planeKey, const SharedGaussian& noiseModel) :
+      const Key& pointKey, const Key& planeKey, const SharedNoiseModel& noiseModel) :
       Base(noiseModel, pointKey, planeKey), pointKey_(pointKey), planeKey_(planeKey) {
   }
 
@@ -72,6 +72,10 @@ public:
   inline Key getPlaneKey() const {
     return planeKey_;
   }
+
+
+  // Perform deep copy of this factor
+  virtual gtsam::NonlinearFactor::shared_ptr clone() const;
 };
 
 } // gtsam

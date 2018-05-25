@@ -76,7 +76,13 @@ public:
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   void visualizePoints3D(
-          const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id) {
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id,
+      const std::unordered_map<LandmarkId, LandmarkType>& lmk_id_to_lmk_type_map) {
+    bool color_the_mesh = false;
+    if (lmk_id_to_lmk_type_map.size() != 0) {
+      color_the_mesh = true;
+      CHECK_EQ(points_with_id.size(), lmk_id_to_lmk_type_map.size());
+    }
 
     // Sanity check dimension.
     if (points_with_id.size() == 0) {
@@ -86,18 +92,39 @@ public:
 
     // Populate cloud structure with 3D points.
     cv::Mat point_cloud(1, points_with_id.size(), CV_32FC3);
+    cv::Mat point_cloud_color (1, lmk_id_to_lmk_type_map.size(), CV_8UC3,
+                               cloud_color_);
     cv::Point3f* data = point_cloud.ptr<cv::Point3f>();
     size_t i = 0;
     for (const std::pair<LandmarkId, gtsam::Point3>& id_point: points_with_id) {
       data[i].x = float(id_point.second.x());
       data[i].y = float(id_point.second.y());
       data[i].z = float(id_point.second.z());
+      if (color_the_mesh) {
+        CHECK(lmk_id_to_lmk_type_map.find(id_point.first) !=
+            lmk_id_to_lmk_type_map.end());
+        switch (lmk_id_to_lmk_type_map.at(id_point.first)) {
+          case LandmarkType::SMART: {
+            point_cloud_color.col(i) = cv::viz::Color::white();
+            break;
+          }
+          case LandmarkType::PROJECTION: {
+            point_cloud_color.col(i) = cv::viz::Color::green();
+            break;
+          }
+          default: {
+            point_cloud_color.col(i) = cv::viz::Color::white();
+            break;
+          }
+        }
+      }
       i++;
     }
 
     // Create a cloud widget.
-    cv::viz::WCloud cloud_widget(point_cloud, cloud_color_);
-    cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 4);
+    cv::viz::WCloud cloud_widget (point_cloud, point_cloud_color);
+    cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 6);
+    cloud_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
     window_.showWidget("Point cloud.", cloud_widget);
   }
@@ -117,6 +144,7 @@ public:
     static const Size2d size (1.0, 1.0);
     static const cv::viz::Color plane_color = cv::viz::Color::blue();
     cv::viz::WPlane plane_widget (center, normal, new_yaxis, size, plane_color);
+    plane_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
     window_.showWidget(plane_id, plane_widget);
   }
@@ -139,6 +167,7 @@ public:
   void drawLine(const std::string& line_id,
                 const cv::Point3d& pt1, const cv::Point3d& pt2) {
     cv::viz::WLine line_widget (pt1, pt2);
+    line_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
     window_.showWidget(line_id, line_widget);
   }
 
@@ -166,6 +195,7 @@ public:
 
     // Create a cloud widget.
     cv::viz::WMesh mesh(map_points_3d.t(), polygons_mesh, colors.t());
+    mesh.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
     // Plot mesh.
     window_.showWidget("Mesh", mesh);
@@ -230,16 +260,20 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  // Remove widget.
-  void removeWidget(const std::string& widget_id){
+  // Remove widget. True if successful, false if not.
+  bool removeWidget(const std::string& widget_id) {
     try {
       window_.removeWidget(widget_id);
+      return true;
     } catch (const cv::Exception& e) {
       VLOG(20) << e.what();
-      LOG(ERROR) << "Widget with id: " << widget_id.c_str() << " is not in window.";
+      LOG(ERROR) << "Widget with id: " << widget_id.c_str()
+                 << " is not in window.";
     } catch (...) {
-      LOG(ERROR) << "Widget with id: " << widget_id.c_str() << " is not in window.";
+      LOG(ERROR) << "Unrecognized exception when using window_.removeWidget() "
+                 << "with widget with id: " << widget_id.c_str();
     }
+    return false;
   }
 
   /* ------------------------------------------------------------------------ */
