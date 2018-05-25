@@ -489,7 +489,8 @@ private:
   // Update smoother.
   void updateSmoother(
       Smoother::Result* result,
-      gtsam::NonlinearFactorGraph* new_factors_tmp = nullptr,
+      const gtsam::NonlinearFactorGraph& new_factors_tmp =
+      gtsam::NonlinearFactorGraph(),
       const gtsam::Values& new_values = gtsam::Values(),
       const std::map<Key, double>& timestamps =
       gtsam::FixedLagSmoother::KeyTimestampMap(),
@@ -502,9 +503,41 @@ private:
       gtsam::Values* new_values_cheirality,
       std::map<Key, double>* timestamps_cheirality,
       std::vector<size_t>* delete_slots_cheirality,
+      const gtsam::NonlinearFactorGraph& graph,
+      const gtsam::NonlinearFactorGraph& new_factors_tmp,
       const gtsam::Values& new_values,
       const std::map<Key, double>& timestamps,
       const std::vector<size_t>& delete_slots);
+
+  /* ------------------------------------------------------------------------ */
+  void deleteAllFactorsWithKeyFromFactorGraph(
+      const gtsam::Key& key,
+      const gtsam::NonlinearFactorGraph& new_factors_tmp,
+      gtsam::NonlinearFactorGraph* factor_graph_output);
+
+  /* ------------------------------------------------------------------------ */
+  // Returns if the key in timestamps could be removed or not.
+  bool deleteKeyFromTimestamps(
+      const gtsam::Key& key,
+      const std::map<Key, double>& timestamps,
+      std::map<Key, double>* timestamps_output);
+
+  /* ------------------------------------------------------------------------ */
+  // Returns if the key in timestamps could be removed or not.
+  bool deleteKeyFromValues(
+      const gtsam::Key& key,
+      const gtsam::Values& values,
+      gtsam::Values* values_output);
+
+  /* ------------------------------------------------------------------------ */
+  // Find all slots of factors that have the given key in the list of keys.
+  void findSlotsOfFactorsWithKey(
+      const gtsam::Key& key,
+      const gtsam::NonlinearFactorGraph& graph,
+      std::vector<size_t>* slots_of_factors_with_key);
+
+  /* ------------------------------------------------------------------------ */
+  bool deleteLmkFromFeatureTracks(const LandmarkId& lmk_id);
 
   /* ------------------------------------------------------------------------ */
   virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);

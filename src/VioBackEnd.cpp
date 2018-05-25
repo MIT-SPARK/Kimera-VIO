@@ -22,7 +22,7 @@
  * Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.
  * In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
  *
- * @author Luca Carlone
+ * @author Luca Carlone, Antoni Rosinol
  */
 
 #include "VioBackEnd.h"
@@ -893,7 +893,7 @@ void VioBackEnd::optimize(
   Smoother::Result result;
   VLOG(10) << "Starting first update.";
   updateSmoother(&result,
-                 &new_factors_tmp,
+                 new_factors_tmp,
                  new_values_,
                  timestamps,
                  delete_slots);
@@ -1035,15 +1035,12 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
 // Update smoother.
 void VioBackEnd::updateSmoother(
     Smoother::Result* result,
-    gtsam::NonlinearFactorGraph* new_factors_tmp,
+    const gtsam::NonlinearFactorGraph& new_factors_tmp,
     const gtsam::Values& new_values,
     const std::map<Key, double>& timestamps,
     const std::vector<size_t>& delete_slots) {
   CHECK_NOTNULL(result);
   gtsam::NonlinearFactorGraph empty_graph;
-  if (new_factors_tmp == nullptr) {
-    new_factors_tmp = &empty_graph;
-  }
 
   // Store smoother as backup.
   CHECK(smoother_);
@@ -1055,12 +1052,12 @@ void VioBackEnd::updateSmoother(
   gtsam::Symbol lmk_symbol_cheirality;
   try {
     // Update smoother.
-    *result = smoother_->update(*new_factors_tmp,
+    *result = smoother_->update(new_factors_tmp,
                                 new_values,
                                 timestamps,
                                 delete_slots);
     if (DEBUG_) {
-      printSmootherInfo(*new_factors_tmp,
+      printSmootherInfo(new_factors_tmp,
                         delete_slots,
                         "CATCHING EXCEPTION",
                         false);
@@ -1080,34 +1077,34 @@ void VioBackEnd::updateSmoother(
     state_.print("State values\n[\n\t");
     std::cout << " ]" << std::endl;
 
-    printSmootherInfo(*new_factors_tmp,
+    printSmootherInfo(new_factors_tmp,
                       delete_slots);
     throw;
   } catch (const gtsam::InvalidNoiseModel& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::InvalidMatrixBlock& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::InvalidDenseElimination& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::InvalidArgumentThreadsafe& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::ValuesKeyDoesNotExist& e){
     LOG(ERROR) << e.what();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::CholeskyFailed& e){
     LOG(ERROR) << e.what();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::CheiralityException& e) {
     LOG(ERROR) << e.what();
     const gtsam::Key& lmk_key = e.nearbyVariable();
     lmk_symbol_cheirality = gtsam::Symbol(lmk_key);
     LOG(ERROR) << "ERROR: Variable has type '" << lmk_symbol_cheirality.chr() << "' "
                << "and index " << lmk_symbol_cheirality.index();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
     got_cheirality_exception = true;
   } catch (const gtsam::StereoCheiralityException& e) {
     LOG(ERROR) << e.what();
@@ -1115,18 +1112,18 @@ void VioBackEnd::updateSmoother(
     lmk_symbol_cheirality = gtsam::Symbol(lmk_key);
     LOG(ERROR) << "ERROR: Variable has type '" << lmk_symbol_cheirality.chr() << "' "
                << "and index " << lmk_symbol_cheirality.index();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
     got_cheirality_exception = true;
   } catch (const gtsam::RuntimeErrorThreadsafe& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::OutOfRangeThreadsafe& e) {
     LOG(ERROR) << e.what();
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (...) {
     // Catch the rest of exceptions.
     LOG(ERROR) << "Unrecognized exception.";
-    printSmootherInfo(*new_factors_tmp, delete_slots);
+    printSmootherInfo(new_factors_tmp, delete_slots);
     // Do not intentionally throw to see what checks fail later.
   }
 
@@ -1134,8 +1131,8 @@ void VioBackEnd::updateSmoother(
   if (process_cheirality) {
     static size_t counter_of_exceptions = 0;
     if (got_cheirality_exception) {
-      LOG(ERROR) << "Starting processing cheirality exception # "
-                 << counter_of_exceptions;
+      LOG(WARNING) << "Starting processing cheirality exception # "
+                   << counter_of_exceptions;
       counter_of_exceptions++;
 
       // Restore smoother as it was before failure.
@@ -1149,22 +1146,25 @@ void VioBackEnd::updateSmoother(
       CHECK(lmk_symbol_cheirality.chr() == 'l');
 
       // Now that we know the lmk id, delete all factors attached to it!
+      gtsam::NonlinearFactorGraph new_factors_tmp_cheirality;
       gtsam::Values new_values_cheirality;
       std::map<Key, double> timestamps_cheirality;
       std::vector<size_t> delete_slots_cheirality;
-      LOG(ERROR) << "Starting cleanCheiralityLmk...";
+      const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
+      VLOG(10) << "Starting cleanCheiralityLmk...";
       cleanCheiralityLmk(lmk_symbol_cheirality,
-                         new_factors_tmp,
+                         &new_factors_tmp_cheirality,
                          &new_values_cheirality,
                          &timestamps_cheirality,
                          &delete_slots_cheirality,
+                         graph,
+                         new_factors_tmp,
                          new_values,
                          timestamps,
                          delete_slots);
-      LOG(ERROR) << "Finished cleanCheiralityLmk.";
+      VLOG(10) << "Finished cleanCheiralityLmk.";
 
       // Recreate the graph before marginalization.
-      const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
       static constexpr bool debug_graph_before_opt = true;
       if (verbosity_ >= 5 || debug_graph_before_opt) {
         debug_info_.graphBeforeOpt = graph;
@@ -1183,13 +1183,15 @@ void VioBackEnd::updateSmoother(
       }
 
       // Try again to optimize. This is a recursive call.
-      LOG(ERROR) << "Starting updateSmoother...";
+      LOG(WARNING) << "Starting updateSmoother after handling "
+                      "cheirality exception.";
       updateSmoother(result,
-                     new_factors_tmp,
+                     new_factors_tmp_cheirality,
                      new_values_cheirality,
                      timestamps_cheirality,
                      delete_slots_cheirality);
-      LOG(ERROR) << "Finished updateSmoother.";
+      LOG(WARNING) << "Finished updateSmoother after handling "
+                      "cheirality exception";
     } else {
       counter_of_exceptions = 0;
     }
@@ -1203,6 +1205,8 @@ void VioBackEnd::cleanCheiralityLmk(
     gtsam::Values* new_values_cheirality,
     std::map<Key, double>* timestamps_cheirality,
     std::vector<size_t>* delete_slots_cheirality,
+    const gtsam::NonlinearFactorGraph& graph,
+    const gtsam::NonlinearFactorGraph& new_factors_tmp,
     const gtsam::Values& new_values,
     const std::map<Key, double>& timestamps,
     const std::vector<size_t>& delete_slots) {
@@ -1213,95 +1217,59 @@ void VioBackEnd::cleanCheiralityLmk(
   const gtsam::Key& lmk_key = lmk_symbol.key();
 
   // Delete from new factors.
-  LOG(ERROR) << "Starting delete from new factors.";
-  size_t new_factors_slot = 0;
-  for (auto it = new_factors_tmp_cheirality->begin();
-       it != new_factors_tmp_cheirality->end();) {
-    if (*it) {
-      if ((*it)->find(lmk_key) != (*it)->end()) {
-        // We found our lmk in the list of keys of the factor.
-        // Sanity check, this lmk has no priors right?
-        CHECK(!boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(*it));
-        // We are not deleting a smart factor right?
-        // Otherwise we need to update structure: lmk_ids_of_new_smart_factors...
-        CHECK(!boost::dynamic_pointer_cast<SmartStereoFactor>(*it));
-        // Whatever factor this is, it has our lmk...
-        // Delete it.
-        LOG(ERROR) << "Delete factor in new_factors at slot # " << new_factors_slot
-                   << " of new_factors graph.";
-        it = new_factors_tmp_cheirality->erase(it);
-        LOG(ERROR) << "Finish delete.";
-      } else {
-        it++;
-      }
-    } else {
-      LOG(ERROR) << "*it, which is itself a pointer, is null.";
-      it++;
-    }
-    new_factors_slot++;
-  }
-  LOG(ERROR) << "Finished delete from new factors.";
+  VLOG(10) << "Starting delete from new factors...";
+  deleteAllFactorsWithKeyFromFactorGraph(lmk_key,
+                                         new_factors_tmp,
+                                         new_factors_tmp_cheirality);
+  VLOG(10) << "Finished delete from new factors.";
 
-  // Delete from new values and timestamps.
-  LOG(ERROR) << "Starting delete from new values and timestamps.";
-  *new_values_cheirality = new_values;
-  *timestamps_cheirality = timestamps;
-  if (new_values.find(lmk_key) != new_values.end()) {
-    // We found the lmk in new values, delete it.
-    LOG(ERROR) << "Delete value in new_values and timestamp for lmk key "
-               << gtsam::DefaultKeyFormatter(lmk_key);
-    CHECK(new_values_cheirality->find(lmk_key) != new_values_cheirality->end());
-    try {
-      new_values_cheirality->erase(lmk_key);
-    } catch (const gtsam::ValuesKeyDoesNotExist& e) {
-      LOG(ERROR) << e.what();
-    } catch (...) {
-      LOG(ERROR) << "Unhandled exception when erasing key in new_values_cheirality";
-    }
-    CHECK(timestamps_cheirality->find(lmk_key) != timestamps.end());
-    timestamps_cheirality->erase(lmk_key);
-  }
-  LOG(ERROR) << "Finished delete from new values and timestamps.";
+  // Delete from new values.
+  VLOG(10) << "Starting delete from new values...";
+  bool is_deleted_from_values = deleteKeyFromValues(
+                                  lmk_key,
+                                  new_values,
+                                  new_values_cheirality);
+  VLOG(10) << "Finished delete from timestamps.";
+
+  // Delete from new values.
+  VLOG(10) << "Starting delete from timestamps...";
+  bool is_deleted_from_timestamps = deleteKeyFromTimestamps(
+                                      lmk_key,
+                                      timestamps,
+                                      timestamps_cheirality);
+  VLOG(10) << "Finished delete from timestamps.";
+
+  // Check that if we deleted from values, we should have deleted as well from
+  // timestamps.
+  CHECK_EQ(is_deleted_from_values, is_deleted_from_timestamps);
 
   // Delete slots in current graph.
-  // TODO, this will not delete smart factors, but these will not trigger Cheirality right?
-  LOG(ERROR) << "Starting delete from current graph.";
+  VLOG(10) << "Starting delete from current graph...";
   *delete_slots_cheirality = delete_slots;
-  size_t slot = 0;
-  for (const boost::shared_ptr<gtsam::NonlinearFactor>& g: smoother_->getFactors()) {
-    // TODO confirm that this loop is ordered!
-    if (g) {
-      // Found a valid factor.
-      if (g->find(lmk_key) != g->end()) {
-        // Whatever factor this is, it has our lmk...
-        // Sanity check, this lmk has no priors right?
-        CHECK(!boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(g));
-        CHECK(!boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(g));
-        // Sanity check that we are not deleting a smart factor.
-        CHECK(!boost::dynamic_pointer_cast<SmartStereoFactor>(g));
-        // Delete it.
-        // Achtung: This has the chance to make the plane underconstrained, if
-        // we delete too many point_plane factors.
-        LOG(ERROR) << "Delete factor in graph at slot # " << slot
-                   << " corresponding to lmk with id: " << lmk_symbol.index();
-        CHECK(smoother_->getFactors().exists(slot));
-        delete_slots_cheirality->push_back(slot);
-      }
-    }
-    slot++;
-  }
+  std::vector<size_t> slots_of_extra_factors_to_delete;
+  // Achtung: This has the chance to make the plane underconstrained, if
+  // we delete too many point_plane factors.
+  findSlotsOfFactorsWithKey(lmk_key,
+                            graph,
+                            &slots_of_extra_factors_to_delete);
+  delete_slots_cheirality->insert(delete_slots_cheirality->end(),
+                                  slots_of_extra_factors_to_delete.begin(),
+                                  slots_of_extra_factors_to_delete.end());
+  VLOG(10) << "Finished delete from current graph.";
+
   //////////////////////////// BOOKKEEPING /////////////////////////////////////
-  // Delete from feature tracks.
   const LandmarkId& lmk_id = lmk_symbol.index();
-  CHECK(feature_tracks_.find(lmk_id) != feature_tracks_.end());
-  LOG(ERROR) << "Deleting feature track for lmk with id: " << lmk_id;
-  feature_tracks_.erase(lmk_id);
+
+  // Delete from feature tracks.
+  VLOG(10) << "Starting delete from feature tracks...";
+  CHECK(deleteLmkFromFeatureTracks(lmk_id));
+  VLOG(10) << "Finished delete from feature tracks.";
 
   // Delete from extra structures (for derived classes).
+  VLOG(10) << "Starting delete from extra structures...";
   deleteLmkFromExtraStructures(lmk_id);
+  VLOG(10) << "Finished delete from extra structures.";
   //////////////////////////////////////////////////////////////////////////////
-
-  LOG(ERROR) << "Finished delete from current graph.";
 }
 
 void VioBackEnd::deleteLmkFromExtraStructures(const LandmarkId& lmk_id) {
@@ -1996,5 +1964,123 @@ void VioBackEnd::cleanNullPtrsFromGraph(
   }
 }
 
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::deleteAllFactorsWithKeyFromFactorGraph(
+    const gtsam::Key& key,
+    const gtsam::NonlinearFactorGraph& factor_graph,
+    gtsam::NonlinearFactorGraph* factor_graph_output) {
+  CHECK_NOTNULL(factor_graph_output);
+  size_t new_factors_slot = 0;
+  *factor_graph_output = factor_graph;
+  for (auto it = factor_graph_output->begin();
+       it != factor_graph_output->end();) {
+    if (*it) {
+      if ((*it)->find(key) != (*it)->end()) {
+        // We found our lmk in the list of keys of the factor.
+        // Sanity check, this lmk has no priors right?
+        CHECK(!boost::dynamic_pointer_cast<
+              gtsam::PriorFactor<gtsam::Point3>>(*it));
+        // We are not deleting a smart factor right?
+        // Otherwise we need to update structure: lmk_ids_of_new_smart_factors...
+        CHECK(!boost::dynamic_pointer_cast<
+              SmartStereoFactor>(*it));
+        // Whatever factor this is, it has our lmk...
+        // Delete it.
+        LOG(WARNING) << "Delete factor in new_factors at slot # "
+                     << new_factors_slot << " of new_factors graph.";
+        it = factor_graph_output->erase(it);
+      } else {
+        it++;
+      }
+    } else {
+      LOG(ERROR) << "*it, which is itself a pointer, is null.";
+      it++;
+    }
+    new_factors_slot++;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Returns if the key in timestamps could be removed or not.
+bool VioBackEnd::deleteKeyFromTimestamps(
+    const gtsam::Key& key,
+    const std::map<Key, double>& timestamps,
+    std::map<Key, double>* timestamps_output) {
+  CHECK_NOTNULL(timestamps_output);
+  *timestamps_output = timestamps;
+  if (timestamps_output->find(key) != timestamps_output->end()) {
+    timestamps_output->erase(key);
+    return true;
+  }
+  return false;
+}
+
+/* -------------------------------------------------------------------------- */
+// Returns if the key in timestamps could be removed or not.
+bool VioBackEnd::deleteKeyFromValues(
+    const gtsam::Key& key,
+    const gtsam::Values& values,
+    gtsam::Values* values_output) {
+  CHECK_NOTNULL(values_output);
+  *values_output = values;
+  if (values.find(key) != values.end()) {
+    // We found the lmk in new values, delete it.
+    LOG(WARNING) << "Delete value in new_values for key "
+                 << gtsam::DefaultKeyFormatter(key);
+    CHECK(values_output->find(key) != values_output->end());
+    try {
+      values_output->erase(key);
+    } catch (const gtsam::ValuesKeyDoesNotExist& e) {
+      LOG(FATAL) << e.what();
+    } catch (...) {
+      LOG(FATAL) << "Unhandled exception when erasing key"
+                    " in new_values_cheirality";
+    }
+    return true;
+  }
+  return false;
+}
+
+/* -------------------------------------------------------------------------- */
+// Returns if the key in timestamps could be removed or not.
+void VioBackEnd::findSlotsOfFactorsWithKey(
+    const gtsam::Key& key,
+    const gtsam::NonlinearFactorGraph& graph,
+    std::vector<size_t>* slots_of_factors_with_key) {
+  CHECK_NOTNULL(slots_of_factors_with_key);
+  slots_of_factors_with_key->resize(0);
+  size_t slot = 0;
+  for (const boost::shared_ptr<gtsam::NonlinearFactor>& g: graph) {
+    if (g) {
+      // Found a valid factor.
+      if (g->find(key) != g->end()) {
+        // Whatever factor this is, it has our lmk...
+        // Sanity check, this lmk has no priors right?
+        CHECK(!boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(g));
+        CHECK(!boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::Point3>>(g));
+        // Sanity check that we are not deleting a smart factor.
+        CHECK(!boost::dynamic_pointer_cast<SmartStereoFactor>(g));
+        // Delete it.
+        LOG(WARNING) << "Delete factor in graph at slot # " << slot
+                     << " corresponding to lmk with id: "
+                     << gtsam::Symbol(key).index();
+        CHECK(graph.exists(slot));
+        slots_of_factors_with_key->push_back(slot);
+      }
+    }
+    slot++;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Returns if the key in feature tracks could be removed or not.
+bool VioBackEnd::deleteLmkFromFeatureTracks(const LandmarkId& lmk_id) {
+  if (feature_tracks_.find(lmk_id) != feature_tracks_.end()) {
+    LOG(WARNING) << "Deleting feature track for lmk with id: " << lmk_id;
+    feature_tracks_.erase(lmk_id);
+    return true;
+  }
+  return false;
+}
 
 } // namespace VIO.

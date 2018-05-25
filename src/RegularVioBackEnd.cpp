@@ -602,13 +602,13 @@ void RegularVioBackEnd::convertExtraSmartFactorToProjFactor(
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::deleteLmkFromExtraStructures(const LandmarkId& lmk_id) {
   if (lmk_id_is_smart_.find(lmk_id) != lmk_id_is_smart_.end()) {
-    LOG(ERROR) << "Delete entrance in lmk_id_is_smart_"
+    LOG(WARNING) << "Delete entrance in lmk_id_is_smart_"
                   " for lmk with id: " << lmk_id;
     lmk_id_is_smart_.erase(lmk_id);
   }
   if (lmk_id_to_regularity_type_map_.find(lmk_id) !=
       lmk_id_to_regularity_type_map_.end()) {
-  LOG(ERROR) << "Delete entrance in lmk_id_to_regularity_type_map_"
+  LOG(WARNING) << "Delete entrance in lmk_id_to_regularity_type_map_"
                 " for lmk with id: " << lmk_id;
   lmk_id_to_regularity_type_map_.erase(lmk_id);
   }
