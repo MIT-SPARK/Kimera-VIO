@@ -1628,34 +1628,24 @@ void VioBackEnd::printSmootherInfo(
   LOG(INFO) << "Nr of factors in graph " + *which_graph << ": " << graph->size()
             << ", with factors:" << std::endl;
   LOG(INFO) << "[\n";
-  size_t slot = 0;
-  for (const auto& g : *graph) {
-    printSelectedFactors(g, slot,
-                         print_smart_factors,
-                         print_point_plane_factors,
-                         print_plane_priors,
-                         print_point_priors,
-                         print_linear_container_factors);
-    slot++;
-  }
-  std::cout << std::endl;
+  printSelectedGraph(*graph,
+                     print_smart_factors,
+                     print_point_plane_factors,
+                     print_plane_priors,
+                     print_point_priors,
+                     print_linear_container_factors);
   LOG(INFO) << " ]" << std::endl;
 
   ///////////// Print factors that were newly added to the optimization.////////
   LOG(INFO) << "Nr of new factors to add: " << new_factors_tmp.size()
             << " with factors:" << std::endl;
   LOG(INFO) << "[\n (slot # wrt to new_factors_tmp graph) \t";
-  size_t new_factors_tmp_slot = 0;
-  for (const auto& g : new_factors_tmp) {
-    printSelectedFactors(g, new_factors_tmp_slot,
-                         print_smart_factors,
-                         print_point_plane_factors,
-                         print_plane_priors,
-                         print_point_priors,
-                         print_linear_container_factors);
-    new_factors_tmp_slot++;
-  }
-  std::cout << std::endl;
+  printSelectedGraph(new_factors_tmp,
+                     print_smart_factors,
+                     print_point_plane_factors,
+                     print_plane_priors,
+                     print_point_priors,
+                     print_linear_container_factors);
   LOG(INFO) << " ]" << std::endl;
 
   ////////////////////////////// Print deleted slots.///////////////////////////
@@ -1823,6 +1813,27 @@ void VioBackEnd::printSelectedFactors(
       printLinearContainerFactor(lcf);
     }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::printSelectedGraph(
+    const gtsam::NonlinearFactorGraph& graph,
+    const bool& print_smart_factors,
+    const bool& print_point_plane_factors,
+    const bool& print_plane_priors,
+    const bool& print_point_priors,
+    const bool& print_linear_container_factors) const {
+  size_t slot = 0;
+  for (const auto& g : graph) {
+    printSelectedFactors(g, slot,
+                         print_smart_factors,
+                         print_point_plane_factors,
+                         print_plane_priors,
+                         print_point_priors,
+                         print_linear_container_factors);
+    slot++;
+  }
+  std::cout << std::endl;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2002,5 +2013,6 @@ void VioBackEnd::cleanNullPtrsFromGraph(
     }
   }
 }
+
 
 } // namespace VIO.
