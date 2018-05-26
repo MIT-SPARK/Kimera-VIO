@@ -47,7 +47,6 @@ RegularVioBackEnd::RegularVioBackEnd(
 
   // Set type of stereo_noise_ for generic stereo projection factors.
   gtsam::SharedNoiseModel gaussian_dim_3 =
-      // TODO USE STEREO NOISE SIGMA.
       gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.stereoNoiseSigma_);
 
   stereo_noise_ = gtsam::noiseModel::Robust::Create(
@@ -621,13 +620,21 @@ void RegularVioBackEnd::addProjectionFactor(
     gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors) {
   CHECK_NOTNULL(new_imu_prior_and_other_factors);
   if (!std::isnan(new_obs.second.uR())) {
-    new_imu_prior_and_other_factors->push_back(
-          boost::make_shared<
-          gtsam::GenericStereoFactor<Pose3, Point3>>
-          (new_obs.second, stereo_noise_,
-           gtsam::Symbol('x', new_obs.first),
-           gtsam::Symbol('l', lmk_id),
-           stereo_cal_, true, true, B_Pose_leftCam_));
+    double parallax = new_obs.second.uL() - new_obs.second.uR();
+    static constexpr double max_parallax = 200;
+    if (parallax < max_parallax) {
+      CHECK_GT(parallax, 0);
+      new_imu_prior_and_other_factors->push_back(
+            boost::make_shared<
+            gtsam::GenericStereoFactor<Pose3, Point3>>
+            (new_obs.second, stereo_noise_,
+             gtsam::Symbol('x', new_obs.first),
+             gtsam::Symbol('l', lmk_id),
+             stereo_cal_, true, true, B_Pose_leftCam_));
+    } else {
+      LOG(ERROR) << "Parallax for lmk_id: " << lmk_id << " is = "
+                 << parallax;
+    }
   } else {
     // Right pixel has a NAN value for u, use GenericProjectionFactor instead
     // of stereo.
