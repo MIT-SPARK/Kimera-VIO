@@ -1097,7 +1097,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                       delete_slots);
     } else {
       // The plane has NOT a prior.
-      static constexpr bool use_unstable = true;
+      static constexpr bool use_unstable = false;
       if (use_unstable) {
         // Delete all factors involving the plane so that iSAM removes the plane
         // from the optimization.
