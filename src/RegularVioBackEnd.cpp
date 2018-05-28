@@ -993,7 +993,6 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   bool has_plane_a_prior = false;
   // Loop over current graph.
   for (const auto& g: graph) {
-    // TODO if (g) ...
     if (g) {
       const auto& ppf =
           boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
