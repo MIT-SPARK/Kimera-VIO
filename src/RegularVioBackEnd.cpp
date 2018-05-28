@@ -39,60 +39,27 @@ RegularVioBackEnd::RegularVioBackEnd(
   gtsam::SharedNoiseModel gaussian_dim_2 =
       gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
 
-  mono_noise_ = gtsam::noiseModel::Robust::Create(
-                  gtsam::noiseModel::mEstimator::Huber::Create(
-                    vio_params_.huberParam_,
-                    gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
-                  gaussian_dim_2);
+  static constexpr size_t mono_noise_type = 0; // l-2
+  selectNormType(&mono_noise_,
+                 gaussian_dim_2,
+                 mono_noise_type);
 
   // Set type of stereo_noise_ for generic stereo projection factors.
   gtsam::SharedNoiseModel gaussian_dim_3 =
       gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.stereoNoiseSigma_);
 
-  stereo_noise_ = gtsam::noiseModel::Robust::Create(
-                    gtsam::noiseModel::mEstimator::Huber::Create(
-                      vio_params_.huberParam_,
-                      gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
-                    gaussian_dim_3);
+  static constexpr size_t stereo_norm_type = 0; // l-2
+  selectNormType(&stereo_noise_,
+                 gaussian_dim_3,
+                 stereo_norm_type); // l-2
 
   // Set type of regularity noise for point plane factors.
   gtsam::SharedNoiseModel gaussian_dim_1 =
       gtsam::noiseModel::Isotropic::Sigma(1, vio_params_.regularityNoiseSigma_);
 
-  switch (vio_params_.normType_) {
-    case 0: {
-      LOG(INFO) << "Using square norm.";
-      point_plane_regularity_noise_ = gaussian_dim_1;
-      break;
-    }
-    case 1: {
-      LOG(INFO) << "Using Huber norm, with parameter value: " << vio_params_.huberParam_;
-      point_plane_regularity_noise_ =
-          gtsam::noiseModel::Robust::Create(
-            gtsam::noiseModel::mEstimator::Huber::Create(
-              vio_params_.huberParam_,
-              gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
-            gaussian_dim_1);
-      break;
-    }
-    case 2: {
-      LOG(INFO) << "Using Tukey norm, with parameter value: " << vio_params_.tukeyParam_;
-      point_plane_regularity_noise_ =
-          gtsam::noiseModel::Robust::Create(
-            gtsam::noiseModel::mEstimator::Tukey::Create(
-              vio_params_.tukeyParam_,
-              gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
-            gaussian_dim_1); //robust
-      break;
-    }
-    default: {
-      LOG(INFO) << "Using square norm.";
-      point_plane_regularity_noise_ = gtsam::noiseModel::Isotropic::Sigma(
-                                        1, vio_params_.regularityNoiseSigma_);
-
-      break;
-    }
-  }
+  selectNormType(&point_plane_regularity_noise_,
+                 gaussian_dim_1,
+                 vio_params_.regularityNormType_);
 
   mono_cal_ = boost::make_shared<Cal3_S2>(stereo_cal_->calibration());
   CHECK(mono_cal_->equals(stereo_cal_->calibration()))
@@ -621,7 +588,7 @@ void RegularVioBackEnd::addProjectionFactor(
   CHECK_NOTNULL(new_imu_prior_and_other_factors);
   if (!std::isnan(new_obs.second.uR())) {
     double parallax = new_obs.second.uL() - new_obs.second.uR();
-    static constexpr double max_parallax = 200;
+    static constexpr double max_parallax = 150;
     if (parallax < max_parallax) {
       CHECK_GT(parallax, 0);
       new_imu_prior_and_other_factors->push_back(
@@ -1282,6 +1249,51 @@ void RegularVioBackEnd::deleteNewSlots(
     // Avoid unnecessary loop if there are no nullptrs in the graph.
     VLOG(10) << "Avoid cleaning graph of null pointers, since we did "
                 "not remove any new factor.";
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Output a noise model with a selected norm type:
+// norm_type = 0: l-2.
+// norm_type = 1: Huber.
+// norm_type = 2: Tukey.
+void RegularVioBackEnd::selectNormType(
+    gtsam::SharedNoiseModel* noise_model_output,
+    const gtsam::SharedNoiseModel& noise_model_input,
+    const size_t& norm_type) {
+  CHECK_NOTNULL(noise_model_output);
+  switch (norm_type) {
+    case 0: {
+      LOG(INFO) << "Using l-2 norm.";
+      *noise_model_output = noise_model_input;
+      break;
+    }
+    case 1: {
+      LOG(INFO) << "Using Huber norm, with parameter value: "
+                << vio_params_.huberParam_;
+      *noise_model_output =
+          gtsam::noiseModel::Robust::Create(
+            gtsam::noiseModel::mEstimator::Huber::Create(
+              vio_params_.huberParam_,
+              gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
+            noise_model_input);
+      break;
+    }
+    case 2: {
+      LOG(INFO) << "Using Tukey norm, with parameter value: "
+                << vio_params_.tukeyParam_;
+      *noise_model_output=
+          gtsam::noiseModel::Robust::Create(
+            gtsam::noiseModel::mEstimator::Tukey::Create(
+              vio_params_.tukeyParam_,
+              gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
+            noise_model_input); //robust
+      break;
+    }
+    default: {
+      LOG(ERROR) << "Wrong norm_type passed...";
+      break;
+    }
   }
 }
 
