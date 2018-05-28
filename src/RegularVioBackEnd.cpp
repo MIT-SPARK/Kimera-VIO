@@ -993,58 +993,61 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   bool has_plane_a_prior = false;
   // Loop over current graph.
   for (const auto& g: graph) {
-    const auto& ppf =
-        boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
-    if (ppf) {
-      // We found a PointPlaneFactor.
-      if (plane_symbol.key() == ppf->getPlaneKey()) {
-        // We found a PointPlaneFactor that involves our plane.
-        // Get point symbol.
-        gtsam::Symbol point_symbol (ppf->getPointKey());
-        // Get lmk id of this point.
-        LandmarkId lmk_id = point_symbol.index();
-        // Find this lmk id in the set of regularities.
-        if (std::find(mesh_lmk_ids.begin(),
-                      mesh_lmk_ids.end(), lmk_id) == mesh_lmk_ids.end()) {
-          // We did not find the point in mesh_lmk_ids, therefore it should
-          // not be involved in a regularity anymore, delete this slot.
-          // (but I want to remove the landmark! and all its factors,
-          // to avoid having underconstrained lmks...)
-          VLOG(20) << "Found bad point plane factor on lmk with id: "
-                   << point_symbol.index();
-          point_plane_factor_slots_bad.push_back(
-                std::make_pair(slot, lmk_id));
+    // TODO if (g) ...
+    if (g) {
+      const auto& ppf =
+          boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
+      // Check for priors attached to the plane.
+      const auto& plane_prior = boost::dynamic_pointer_cast<
+                                gtsam::PriorFactor<gtsam::OrientedPlane3>>(g);
+      // Check for linear container factors having the plane.
+      const auto& lcf = boost::dynamic_pointer_cast<
+                        gtsam::LinearContainerFactor>(g);
+      if (ppf) {
+        // We found a PointPlaneFactor.
+        if (plane_symbol.key() == ppf->getPlaneKey()) {
+          // We found a PointPlaneFactor that involves our plane.
+          // Get point symbol.
+          gtsam::Symbol point_symbol (ppf->getPointKey());
+          // Get lmk id of this point.
+          LandmarkId lmk_id = point_symbol.index();
+          // Find this lmk id in the set of regularities.
+          if (std::find(mesh_lmk_ids.begin(),
+                        mesh_lmk_ids.end(), lmk_id) == mesh_lmk_ids.end()) {
+            // We did not find the point in mesh_lmk_ids, therefore it should
+            // not be involved in a regularity anymore, delete this slot.
+            // (but I want to remove the landmark! and all its factors,
+            // to avoid having underconstrained lmks...)
+            VLOG(20) << "Found bad point plane factor on lmk with id: "
+                     << point_symbol.index();
+            point_plane_factor_slots_bad.push_back(
+                  std::make_pair(slot, lmk_id));
 
-          // Before deleting this slot, we must ensure that both the plane
-          // and the landmark are well constrained!
+            // Before deleting this slot, we must ensure that both the plane
+            // and the landmark are well constrained!
+          } else {
+            // Store those factors that we will potentially keep.
+            point_plane_factor_slots_good.push_back(
+                  std::make_pair(slot, lmk_id));
+          }
         } else {
-          // Store those factors that we will potentially keep.
-          point_plane_factor_slots_good.push_back(
-                std::make_pair(slot, lmk_id));
+          LOG(ERROR) << "Point plane keys do not match..."
+                        " Are we using multiple planes?";
+        }
+      } else if (plane_prior) {
+        if (plane_prior->find(plane_symbol.key()) != plane_prior->end()) {
+          LOG(WARNING) << "Found plane prior factor.";
+          has_plane_a_prior = true;
+        }
+      } else if (lcf) {
+        if (lcf->find(plane_symbol.key()) != lcf->end()) {
+          VLOG(10) << "Found linear container factor with our plane.";
+          has_plane_a_prior = true;
         }
       } else {
-        LOG(ERROR) << "Point plane keys do not match..."
-                      " Are we using multiple planes?";
-      }
-    }
-
-    // Check for priors attached to the plane.
-    const auto& plane_prior = boost::dynamic_pointer_cast<
-                              gtsam::PriorFactor<gtsam::OrientedPlane3>>(g);
-    if (plane_prior) {
-      if (plane_prior->find(plane_symbol.key()) != plane_prior->end()) {
-        LOG(WARNING) << "Found plane prior factor.";
-        has_plane_a_prior = true;
-      }
-    }
-
-    // Check for linear container factors having the plane.
-    const auto& lcf = boost::dynamic_pointer_cast<
-                      gtsam::LinearContainerFactor>(g);
-    if (lcf) {
-      if (lcf->find(plane_symbol.key()) != lcf->end()) {
-        VLOG(10) << "Found linear container factor with our plane.";
-        has_plane_a_prior = true;
+        // Sanity check that we are not forgetting a factor with the plane key...
+        CHECK(std::find(g->keys().begin(), g->keys().end(),
+                        plane_symbol.key()) == g->keys().end());
       }
     }
 
@@ -1095,7 +1098,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                       delete_slots);
     } else {
       // The plane has NOT a prior.
-      static constexpr bool use_unstable = false;
+      static constexpr bool use_unstable = true;
       if (use_unstable) {
         // Delete all factors involving the plane so that iSAM removes the plane
         // from the optimization.
