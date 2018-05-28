@@ -62,10 +62,10 @@ close all
 %% figure: error
 if (saveImages>=1)
     fh = figure();
-    subplotCondition(2,2,1,runResults,conditions,nrRuns,'meanRotErrors_vio')
-    subplotCondition(2,2,3,runResults,conditions,nrRuns,'maxRotErrors_vio')
-    subplotCondition(2,2,2,runResults,conditions,nrRuns,'meanTranErrors_vio')
-    subplotCondition(2,2,4,runResults,conditions,nrRuns,'maxTranErrors_vio')
+    subplotCondition(2,2,1,paramName,runResults,conditions,nrRuns,'meanRotErrors_vio')
+    subplotCondition(2,2,3,paramName,runResults,conditions,nrRuns,'maxRotErrors_vio')
+    subplotCondition(2,2,2,paramName,runResults,conditions,nrRuns,'meanTranErrors_vio')
+    subplotCondition(2,2,4,paramName,runResults,conditions,nrRuns,'maxTranErrors_vio')
 end
 if (saveImages>=2)
     filename = horzcat('resultsParam_',paramName,'_errors');
@@ -75,10 +75,10 @@ end
 %% figure: time
 if (saveImages>=1)
     fh = figure();
-    subplotCondition(2,2,1,runResults,conditions,nrRuns,'meanTimeUpdate')
-    subplotCondition(2,2,3,runResults,conditions,nrRuns,'maxTimeUpdate')
-    subplotCondition(2,2,2,runResults,conditions,nrRuns,'meanTimeExtraUpdates')
-    subplotCondition(2,2,4,runResults,conditions,nrRuns,'maxTimeExtraUpdates')
+    subplotCondition(2,2,1,paramName,runResults,conditions,nrRuns,'meanTimeUpdate')
+    subplotCondition(2,2,3,paramName,runResults,conditions,nrRuns,'maxTimeUpdate')
+    subplotCondition(2,2,2,paramName,runResults,conditions,nrRuns,'meanTimeExtraUpdates')
+    subplotCondition(2,2,4,paramName,runResults,conditions,nrRuns,'maxTimeExtraUpdates')
 end
 if (saveImages>=2)
     filename = horzcat('resultsParam_',paramName,'_timing');

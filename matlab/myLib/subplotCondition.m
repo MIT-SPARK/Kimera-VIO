@@ -1,7 +1,7 @@
-function subplotCondition(r,c,i,runResults,conditions,nrRuns,s)
+function subplotCondition(r,c,i,paramName,runResults,conditions,nrRuns,s)
 
 subplot(r,c,i); hold on
-xlabel('datasets'); ylabel(s,'interpreter','none');
+xlabel(paramName); ylabel(s,'interpreter','none');
 for j = 1:nrRuns 
     v = zeros(length(conditions),1);
     for i = 1:length(conditions)
