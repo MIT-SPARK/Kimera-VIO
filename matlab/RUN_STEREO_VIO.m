@@ -2,6 +2,7 @@ disp('running script:')
 
 appName = 'build/stereoVIOEuroc';
 
+useSudo = 0
 if exist('useSudo', 'var') && useSudo == 0
     sudoName = '';
 else
