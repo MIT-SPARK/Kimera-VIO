@@ -62,6 +62,7 @@ close all
 %% figure: error
 if (saveImages>=1)
     fh = figure();
+    set(fh, 'Visible', 'off');
     subplotCondition(2,2,1,paramName,runResults,conditions,nrRuns,'meanRotErrors_vio')
     subplotCondition(2,2,3,paramName,runResults,conditions,nrRuns,'maxRotErrors_vio')
     subplotCondition(2,2,2,paramName,runResults,conditions,nrRuns,'meanTranErrors_vio')
@@ -75,6 +76,7 @@ end
 %% figure: time
 if (saveImages>=1)
     fh = figure();
+    set(fh, 'Visible', 'off');
     subplotCondition(2,2,1,paramName,runResults,conditions,nrRuns,'meanTimeUpdate')
     subplotCondition(2,2,3,paramName,runResults,conditions,nrRuns,'maxTimeUpdate')
     subplotCondition(2,2,2,paramName,runResults,conditions,nrRuns,'meanTimeExtraUpdates')
