@@ -14,8 +14,15 @@ addpath('./myLib/')
 filenameVioParams = './vioParameters.txt';
 filenameTrackerParams = './trackerParameters.txt';
 
-vioParams = defaultVioParams();
-trackerParams = defaultTrackerParams();
+regularVio = true;
+if (regularVio) 
+    vioParams = defaultVioParamsRegularVio();
+    trackerParams = defaultTrackerParamsRegularVio();
+else
+    vioParams = defaultVioParams();
+    trackerParams = defaultTrackerParams();
+end
+
 if(trackerParams.maxFeatureAge * trackerParams.intra_keyframe_time + 1 > vioParams.horizon)
     error('horizon is short compared to maxFeatureAge: this might segfault')
 end
