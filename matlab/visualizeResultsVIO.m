@@ -2,6 +2,7 @@ function results = visualizeResultsVIO(resultsInFolder,doSaveFigures,hasGroundTr
 % doSaveFigures = 0: no save nor display
 % doSaveFigures = 1: display but no save
 % doSaveFigures = 2: save and display
+
 close all
 addpath('./myLib')
 
@@ -102,6 +103,7 @@ end
 %% plot keyframe spacing (not regularly spaced in time now)
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(1,2,1); hold on
     plot(keyframesId,framesId,'-b')
     axis equal
@@ -123,6 +125,7 @@ end
 %% consistency check for stereo translation estimates
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     semilogy(keyframesId,log10(relTranErrorsMahalanobis_stereoRansac),'-b')
     xlabel('keyframes')
     ylabel('stereo translation Consistency (log mahl dist)')
@@ -144,6 +147,7 @@ end
 %% plot estimation errors imu preintegration
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(1,2,1); hold on;
     plot(relativeRotError_imu_wrt_gt,'-g','linewidth',2)
     title('relativeRotError imu wrt gt')
@@ -168,6 +172,7 @@ end
 %% plot nr of tracker features
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     title('nr of tracked features')
     plot(nrTrackedFeatures,'-k','linewidth',2);
     xlabel('keyframes'); ylabel('nr features')
@@ -179,6 +184,8 @@ end
 
 %% plot vio errors
 if (doSaveFigures>=1)
+    fh = figure;
+    set(fh, 'Visible', 'off');
     fh =  plotErrorWithStatus(rotErrors_vio,tranErrors_vio,zeros(size(rotErrors_vio)),'vio');
 end
 if (doSaveFigures>=2)
@@ -188,6 +195,8 @@ end
 
 %% plot vio RELATIVE errors
 if (doSaveFigures>=1)
+    fh = figure;
+    set(fh, 'Visible', 'off');
     fh =  plotErrorWithStatus(relRotErrors_vio,relTranErrors_vio,zeros(size(rotErrors_vio)),'vio (relative)');
 end
 if (doSaveFigures>=2)
@@ -197,6 +206,8 @@ end
 
 %% plot imuPredict (RELATIVE) errors
 if (doSaveFigures>=1)
+    fh = figure;
+    set(fh, 'Visible', 'off');
     fh =  plotErrorWithStatus(relRotErrors_imuPredict,relTranErrors_imuPredict,zeros(size(relRotErrors_imuPredict)),'imuPredict (relative)');
 end
 if (doSaveFigures>=2)
@@ -208,6 +219,7 @@ end
 err_rpy = rpy_gt - rpy_vio;
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(1,2,1); hold on; title('yaw errors')
     plot(wrapToPi(err_rpy(:,3)),'-b')
     subplot(1,2,2); hold on; title('roll-pitch errors')
@@ -223,6 +235,7 @@ end
 %% plot smart factors statistics:
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     title('smart factors statistics')
     xlabel('keyframes')
     plot(numSF,'-k')
@@ -241,6 +254,7 @@ end
 %% feature tracks stats
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     title('smart factors statistics')
     xlabel('keyframes')
     plot(maxTrackLength,'-k')
@@ -305,6 +319,7 @@ end
 velErrors = velVio - velGT; % 3 x nrPoses matrix
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     normVelErrors = sqrt(velErrors(1,:).^2 + velErrors(2,:).^2 + velErrors(3,:).^2);
     subplot(2,2,1)
     plot(velErrors(1,:),'-r'); hold on; ylabel('x velocity error [m]'); xlabel('keyframes')
@@ -323,6 +338,7 @@ end
 %% display biases
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     subplot(3,2,1)
     plot(accBiasVio(1,:),'-b'); hold on
     plot(accBiasGT(1,:),'-g');
@@ -385,6 +401,7 @@ imuPreintegrationTime = M_timeVIO(:,17);
 overall_times = loadStereoFrame_times + processStereoFrame_times + featureSelection_times + overallVIO_times;
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(1,2,1); hold on
     plot(factorsAndSlotsTimes,'-r','linewidth',2)
     plot(preUpdateTimes,'-g','linewidth',2)
@@ -415,6 +432,7 @@ if (doSaveFigures>=1)
     end
     
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(1,2,1); hold on
     plot(linearizeTime,'-r','linewidth',2)
     plot(linearSolveTime,'-g','linewidth',2)
@@ -463,6 +481,7 @@ featureSelectionTimes = M_timeST(:,8);
 
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(2,2,1)
     plot(featureDetectionTimes,'-r','linewidth',2); hold on
     plot(featureTrackingTimes,'-g','linewidth',2)
@@ -497,6 +516,7 @@ end
 
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     plot(featureSelectionTimes,'-m','linewidth',2)
     plot(overallVIO_times,'-b','linewidth',2)
     ylabel('time [sec]');
@@ -535,6 +555,7 @@ lw = 1; % line width
 %% TRACKER STATS
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(2,2,1); hold on
     plot(nrDetectedFeatures,'-r','linewidth',lw)
     plot(nrTrackerFeatures,'-g','linewidth',lw)
@@ -569,6 +590,7 @@ end
 %% RANSAC STATS
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(1,2,1); hold on
     plot(nrMonoInliers,'-b','linewidth',lw)
     plot(nrMonoPutatives,'-m','linewidth',lw)
@@ -610,7 +632,9 @@ if norm(numKeysInState - expectedNumKeysInState) > 1e-3
 end
 
 if (doSaveFigures>=1)
-    fh = figure; hold on; title('nr of added factors')
+    fh = figure;
+    set(fh, 'Visible', 'off');
+    hold on; title('nr of added factors')
     plot(numAddedSmartF/100,'-r')
     plot(numAddedImuF,'-g')
     plot(numAddedNoMotionF,'-b')
@@ -625,7 +649,9 @@ if (doSaveFigures>=2)
 end
 
 if (doSaveFigures>=1)
-    fh = figure; hold on; title('nr of keys in state')
+    fh = figure; 
+    set(fh, 'Visible', 'off');
+    hold on; title('nr of keys in state')
     plot(numKeysInState,'-k')
     plot(expectedNumKeysInState,'--r')
     ylabel('nr keys in state'); xlabel('keyframes')

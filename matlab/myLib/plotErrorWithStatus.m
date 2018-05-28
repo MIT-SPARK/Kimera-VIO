@@ -4,6 +4,7 @@ function f = plotErrorWithStatus(rotErrors,tranErrors,testStatus,name)
 % points, associated with testStatus (0 = good status), (1 = bad status)
 
 f = figure;
+set(f, 'Visible', 'off');
 testStatus(1) = 0;
 testStatus(end) = 1;
 
