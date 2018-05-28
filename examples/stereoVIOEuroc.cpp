@@ -381,7 +381,7 @@ int main(int argc, char *argv[]) {
           featureSelector.splitTrackedAndNewFeatures_Select_Display(
             stereoVisionFrontEnd.stereoFrame_km1_,
             statusSmartStereoMeasurements.second,
-            vioBackEnd->cur_kf_id_, saveImagesSelector,
+            vioBackEnd->cur_kf_id_, (FLAGS_visualize?saveImagesSelector:0),
             trackerParams.featureSelectionCriterion_,
             trackerParams.featureSelectionNrCornersToSelect_,
             trackerParams.maxFeatureAge_, posesAtFutureKeyframes,
