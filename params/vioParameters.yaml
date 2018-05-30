@@ -20,12 +20,12 @@ initialGyroBiasSigma: 0.01
 linearizationMode: 0
 degeneracyMode: 1
 smartNoiseSigma: 3
-monoNoiseSigma: 1.2 # Only used in RegularVioBackEnd
-stereoNoiseSigma: 1.0 # Only used in RegularVioBackEnd
+monoNoiseSigma: 0.85 #0.4 # Only used in RegularVioBackEnd
+stereoNoiseSigma: 0.6 #1.15 # Only used in RegularVioBackEnd
 regularityNoiseSigma: 0.05 # Only used in RegularVioBackEnd
-minPlaneConstraints: 20 # Only used in RegularVioBackEnd
+minPlaneConstraints: 14 # Only used in RegularVioBackEnd
 huberParam: 0.8 # Only used in RegularVioBackEnd
-tukeyParam: 4.6851 # Only used in RegularVioBackEnd
+tukeyParam: 4.2 # Only used in RegularVioBackEnd
 regularityNormType: 2 # Only used in RegularVioBackEnd
 rankTolerance: 1
 landmarkDistanceThreshold: 20
