@@ -61,6 +61,7 @@ end
 close all
 %% figure: error
 fh = figure();
+% Plot BoxPlots instead...
 if (saveImages>=1)
     r = 3;
     c = 2;
