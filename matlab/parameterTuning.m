@@ -64,13 +64,13 @@ nrRuns = 1;
 
 %%% TODO tune both mono and stereo params at the same time...
 % Mono noise sigma.
-parameterTuningSingle('monoNoiseSigma',[0.8 1.0 1.2 1.4],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+parameterTuningSingle('monoNoiseSigma',[0.6 0.85 1.15],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
 
 % Stereo noise sigma.
-parameterTuningSingle('stereoNoiseSigma',[0.8 1.0 1.2 1.4],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+%parameterTuningSingle('stereoNoiseSigma',[0.3 0.4 0.5 0.6 1.125 1.15 1.175],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
 
 % Regularity noise sigma.
-parameterTuningSingle('regularityNoiseSigma',[0.025 0.05 0.1 0.2 0.3 0.4 0.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+%parameterTuningSingle('regularityNoiseSigma',[0.005 0.01 0.015 0.02 0.03 0.04 0.06],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
 
 %% Norms
 %%% TODO tune both the type of norm and the param norm at the same time...
@@ -84,11 +84,11 @@ parameterTuningSingle('regularityNoiseSigma',[0.025 0.05 0.1 0.2 0.3 0.4 0.5],da
 %parameterTuningSingle('huberParam',[0.8 1.0 1.2 1.3 1.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
 
 % Tukey param.
-parameterTuningSingle('tukeyParam',[1.87404 2.34255 4.6851 5.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+%parameterTuningSingle('tukeyParam',[3.4 3.5 3.6 3.7 3.8 4.1 4.2 4.25 4.3 4.4],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
 
 %% Plane thresholds
 % Min Plane Constraints
-parameterTuningSingle('minPlaneConstraints',[10 20],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+%parameterTuningSingle('minPlaneConstraints',[12 13 14 15],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
 
 % Others
 %parameterTuningSingle('ransac_threshold_stereo',[0.1 0.1 0.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'tracker')
