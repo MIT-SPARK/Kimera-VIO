@@ -553,9 +553,10 @@ int main(int argc, char *argv[]) {
           // Currently only triangles in the ground floor.
           std::vector<TriangleCluster> triangle_clusters;
           gtsam::OrientedPlane3 plane;
-          static constexpr bool use_expectation_maximization = true;
-          static constexpr bool use_normal_estimation = false;
           static const gtsam::Point3 plane_normal (0.0, 0.0, 1.0);
+          static constexpr double plane_distance = -0.15;
+
+          static constexpr bool use_expectation_maximization = true;
           if(use_expectation_maximization &&
              vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
                gtsam::Symbol('P', 0).key(), &plane)) {
@@ -563,12 +564,12 @@ int main(int argc, char *argv[]) {
             // TODO this can lead to issues, when the plane estimate gets
             // quite crazy, but at the same time it will avoid crashing the
             // optimization, because otherwise we are providing huge outliers.
+            static constexpr bool use_normal_estimation = false;
             mesher.clusterMesh(&triangle_clusters,
                                use_normal_estimation?plane.normal().point3():plane_normal,
                                plane.distance());
           } else {
             // Try to cluster the ground plane.
-            static constexpr double plane_distance = -0.15;
             mesher.clusterMesh(&triangle_clusters,
                                plane_normal,
                                plane_distance);
