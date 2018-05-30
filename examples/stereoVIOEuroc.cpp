@@ -555,11 +555,12 @@ int main(int argc, char *argv[]) {
           gtsam::OrientedPlane3 plane;
           static const gtsam::Point3 plane_normal (0.0, 0.0, 1.0);
           static constexpr double plane_distance = -0.15;
+          static const gtsam::Symbol plane_symbol ('P', 0);
 
           static constexpr bool use_expectation_maximization = true;
           if(use_expectation_maximization &&
              vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-               gtsam::Symbol('P', 0).key(), &plane)) {
+               plane_symbol.key(), &plane)) {
             // Use the plane estimate of the backend.
             // TODO this can lead to issues, when the plane estimate gets
             // quite crazy, but at the same time it will avoid crashing the
@@ -618,7 +619,7 @@ int main(int argc, char *argv[]) {
               static bool is_plane_in_window = false;
               gtsam::OrientedPlane3 plane;
               if (vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-                    gtsam::Symbol('P', 0).key(), &plane)) {
+                    plane_symbol.key(), &plane)) {
                 const Point3& normal = plane.normal().point3();
                 if (visualize_plane_constraints) {
                   const gtsam::NonlinearFactorGraph& graph =
@@ -640,7 +641,7 @@ int main(int argc, char *argv[]) {
 
                       // Visualize.
                       Key plane_key = ppf->getPlaneKey();
-                      CHECK(plane_key == gtsam::Symbol('P', 0).key());
+                      CHECK(plane_key == plane_symbol.key());
 
                       visualizer.visualizePlaneConstraints(
                             normal, plane.distance(),
