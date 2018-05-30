@@ -19,11 +19,15 @@
 #include <Eigen/Core>
 #include <opencv2/core/core.hpp>
 
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/geometry/Unit3.h>
+
 // Forward declare classes.
 namespace gtsam {
 class Point2;
 class Point3;
 class Pose3;
+class Symbol;
 class Unit3;
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::Vector3d Vector3;
@@ -107,6 +111,25 @@ struct TriangleCluster {
   // Direction of the normal defining the cluster.
   cv::Point3f cluster_direction_;
 };
+
+struct Plane {
+public:
+  Plane(const gtsam::Symbol& plane_symbol)
+    : plane_symbol_(plane_symbol) {}
+
+  inline const gtsam::Symbol& getPlaneSymbol() const {
+    return plane_symbol_;
+  }
+
+private:
+  gtsam::Symbol plane_symbol_;
+
+public:
+  gtsam::Unit3 normal_;
+  double distance_;
+  LandmarkIds lmk_ids_;
+};
+
 
 class UtilsOpenCV {
 
