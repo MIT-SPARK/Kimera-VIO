@@ -737,6 +737,12 @@ results.nrZeroElementsInMatrix = nrZeroElementsInMatrix;
 
 results.rotErrors_vio_align = rotErrors_vio_align;
 results.tranErrors_vio_align = tranErrors_vio_align;
+results.max_rotErrors_vio_align = max(rotErrors_vio_align);
+results.max_tranErrors_vio_align = max(tranErrors_vio_align);
+results.min_rotErrors_vio_align = min(rotErrors_vio_align);
+results.min_tranErrors_vio_align =min(tranErrors_vio_align);
+results.mean_rotErrors_vio_align = mean(rotErrors_vio_align);
+results.mean_tranErrors_vio_align = mean(tranErrors_vio_align);
 
 results.loadStereoFrame_times = loadStereoFrame_times;
 results.processStereoFrame_times = processStereoFrame_times;
