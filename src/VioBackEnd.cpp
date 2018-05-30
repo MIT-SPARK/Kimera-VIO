@@ -155,7 +155,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
     const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
-    const LandmarkIds& mesh_lmk_ids_ground_cluster,
+    const std::vector<Plane>& planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
 

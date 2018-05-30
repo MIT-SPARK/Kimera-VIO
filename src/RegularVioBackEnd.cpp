@@ -71,10 +71,18 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
     const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
-    const LandmarkIds& mesh_lmk_ids_ground_cluster,
+    const std::vector<Plane>& planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
 
   debug_info_.resetAddedFactorsStatistics();
+
+  // Extract lmk ids that are involved in a regularity.
+  VLOG(10) << "Starting extracting lmk ids from set of planes...";
+  LandmarkIds lmk_ids_with_regularity;
+  extractLmkIdsFromPlanes(planes,
+                          &lmk_ids_with_regularity);
+  VLOG(10) << "Finished extracting lmk ids from set of planes, total of "
+          << lmk_ids_with_regularity.size() << " lmks with regularities.";
 
   if (VLOG_IS_ON(20)) {
     StereoVisionFrontEnd::PrintStatusStereoMeasurements(
@@ -159,7 +167,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // We add features in VIO.
         VLOG(10) << "Starting adding/updating landmarks to graph...";
         addLandmarksToGraph(lmks_kf,
-                            mesh_lmk_ids_ground_cluster);
+                            lmk_ids_with_regularity);
         VLOG(10) << "Finished adding/updating landmarks to graph.";
 
         // Convert all smart factors of lmks in time horizon that have
@@ -169,7 +177,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // the ones with regularities in time horizon.
         if (convert_extra_smart_factors_to_proj_factors) {
           VLOG(10) << "Starting converting extra smart factors to proj factors...";
-          convertExtraSmartFactorToProjFactor(mesh_lmk_ids_ground_cluster);
+          convertExtraSmartFactorToProjFactor(lmk_ids_with_regularity);
           VLOG(10) << "Finished converting extra smart factors to proj factors...";
         }
 
@@ -179,11 +187,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // type of cluster and regularities.
         gtsam::Symbol plane_symbol;
         std::vector<std::pair<Slot, LandmarkId>> idx_of_point_plane_factors_to_add;
-        if (mesh_lmk_ids_ground_cluster.size() != 0) {
-          // TODO what happens if mesh has same ids over and over, are we duplicating
-          // factors?
+        if (lmk_ids_with_regularity.size() != 0) {
           VLOG(10) << "Adding regularity factors.";
-          addRegularityFactors(mesh_lmk_ids_ground_cluster,
+          addRegularityFactors(lmk_ids_with_regularity,
                                &plane_symbol,
                                &idx_of_point_plane_factors_to_add);
           VLOG(10) << "Finished adding regularity factors.";
@@ -196,7 +202,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           VLOG(10) << "Removing old regularity factors.";
           removeOldRegularityFactors_Slow(plane_symbol,
                                           idx_of_point_plane_factors_to_add,
-                                          mesh_lmk_ids_ground_cluster,
+                                          lmk_ids_with_regularity,
                                           &delete_old_regularity_factors);
           VLOG(10) << "Finished removing old regularity factors.";
         }
@@ -227,7 +233,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 // TODO Virtualize this appropriately,
 void RegularVioBackEnd::addLandmarksToGraph(
     const LandmarkIds& lmks_kf,
-    const LandmarkIds& mesh_lmk_ids_ground_cluster) {
+    const LandmarkIds& lmk_ids_with_regularity) {
   // Add selected landmarks to graph:
   size_t n_new_landmarks = 0;
   size_t n_updated_landmarks = 0;
@@ -264,7 +270,7 @@ void RegularVioBackEnd::addLandmarksToGraph(
         // TODO here there is a timeline mismatch, while landmarks_kf are only currently
         // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
         const bool& is_lmk_smart = isLandmarkSmart(lmk_id,
-                                                   mesh_lmk_ids_ground_cluster,
+                                                   lmk_ids_with_regularity,
                                                    &lmk_id_is_smart_);
 
         VLOG(20) << "Updating lmk " << lmk_id << " to graph.";
@@ -539,12 +545,12 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
 
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::convertExtraSmartFactorToProjFactor(
-    const LandmarkIds& mesh_lmk_ids_ground_cluster) {
-  for (const LandmarkId& lmk_id: mesh_lmk_ids_ground_cluster) {
+    const LandmarkIds& lmk_ids_with_regularity) {
+  for (const LandmarkId& lmk_id: lmk_ids_with_regularity) {
     // Track this lmk, if it was not already...
     if (old_smart_factors_.exists(lmk_id) &&
         !isLandmarkSmart(lmk_id,
-                         mesh_lmk_ids_ground_cluster,
+                         lmk_ids_with_regularity,
                          &lmk_id_is_smart_)) {
       // We have found a smart factor that should be a projection factor.
       // Convert it to a projection factor, so that we can enforce
@@ -620,7 +626,7 @@ void RegularVioBackEnd::addProjectionFactor(
 
 /* -------------------------------------------------------------------------- */
 bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
-                                        const LandmarkIds& mesh_lmk_ids,
+                                        const LandmarkIds& lmk_ids_with_regularity,
                                         LmkIdIsSmart* lmk_id_is_smart) {
   // TODOOOOO completely change this function: it should be
   // if the lmk_id is not found in is_lmk_smart
@@ -634,13 +640,13 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
   // Otherwise we can have some lmks that are not set as projection factors
   // but will be in the future involved in some kind of regularity...
   // MORE WARNING: this function is tightly coupled with the landmarks we
-  // feed to the mesher that then sends mesh_lmk_ids.
+  // feed to the mesher that then sends lmk_ids_with_regularity.
   // i.e. if the mesher has lmks that are in the keyframe but not in the
   // optimization, it won't work...
   const auto& lmk_id_slot = lmk_id_is_smart->find(lmk_id);
-  if (std::find(mesh_lmk_ids.begin(),
-                mesh_lmk_ids.end(), lmk_id) ==
-      mesh_lmk_ids.end()) {
+  if (std::find(lmk_ids_with_regularity.begin(),
+                lmk_ids_with_regularity.end(), lmk_id) ==
+      lmk_ids_with_regularity.end()) {
     VLOG(20) << "Lmk_id = " << lmk_id
              << " needs to stay as it is since it is NOT involved in any regularity.";
     // This lmk is not involved in any regularity.
@@ -736,8 +742,6 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO we have a: terminate called after throwing an instance of 'std::out_of_range'
-//  what():  map::at when running this function... And it does not appear very often.
 void RegularVioBackEnd::addRegularityFactors(
     const LandmarkIds& mesh_lmk_ids,
     gtsam::Symbol* plane_symbol,
@@ -1295,6 +1299,29 @@ void RegularVioBackEnd::selectNormType(
     default: {
       LOG(ERROR) << "Wrong norm_type passed...";
       break;
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Extract all lmk ids, wo repetition, from the set of planes.
+void RegularVioBackEnd::extractLmkIdsFromPlanes(
+    const std::vector<Plane>& planes,
+    LandmarkIds* lmk_ids_with_regularity) const {
+  CHECK_NOTNULL(lmk_ids_with_regularity);
+  for (const Plane& plane: planes) {
+    for (const LandmarkId& lmk_id: plane.lmk_ids_) {
+      // Ensure we are not adding more than once the same lmk_id.
+      const auto& it = std::find(lmk_ids_with_regularity->begin(),
+                                 lmk_ids_with_regularity->end(),
+                                 lmk_id);
+      if (it == lmk_ids_with_regularity->end()) {
+        // The lmk id is not present in the lmk_ids vector, add it.
+        lmk_ids_with_regularity->push_back(lmk_id);
+      } else {
+        // The lmk id is already in the lmk_ids vector, do not add it.
+        continue;
+      }
     }
   }
 }

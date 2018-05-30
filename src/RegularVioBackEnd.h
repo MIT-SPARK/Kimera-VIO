@@ -41,13 +41,13 @@ public:
       const StatusSmartStereoMeasurements&
                             status_smart_stereo_measurements_kf, // Vision data.
       const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,  // Inertial data.
-      const LandmarkIds& mesh_lmk_ids_ground_cluster,
+      const std::vector<Plane>& planes,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   /* ------------------------------------------------------------------------ */
   // TODO Virtualize this appropriately,
   void addLandmarksToGraph(const LandmarkIds& lmks_kf,
-                           const LandmarkIds& mesh_lmk_ids_ground_cluster);
+                           const LandmarkIds& lmk_ids_with_regularity);
 
   /* ------------------------------------------------------------------------ */
   void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
@@ -84,7 +84,7 @@ private:
 private:
   /* ------------------------------------------------------------------------ */
   bool isLandmarkSmart(const LandmarkId& lmk_id,
-                       const LandmarkIds& mesh_lmk_ids,
+                       const LandmarkIds& lmk_ids_with_regularity,
                        LmkIdIsSmart* lmk_id_is_smart);
 
   /* ------------------------------------------------------------------------ */
@@ -102,7 +102,7 @@ private:
 
   /* ------------------------------------------------------------------------ */
   void convertExtraSmartFactorToProjFactor(
-      const LandmarkIds& mesh_lmk_ids_ground_cluster);
+      const LandmarkIds& lmk_ids_with_regularity);
 
   /* ------------------------------------------------------------------------ */
   virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
@@ -145,6 +145,11 @@ private:
       gtsam::SharedNoiseModel* noise_model_output,
       const gtsam::SharedNoiseModel& noise_model_input,
       const size_t& norm_type);
+
+  /* -------------------------------------------------------------------------- */
+  // Extract all lmk ids, wo repetition, from the set of planes.
+  void extractLmkIdsFromPlanes(const std::vector<Plane>& planes,
+                               LandmarkIds* lmk_ids_with_regularity) const;
 };
 
 } // namespace VIO
