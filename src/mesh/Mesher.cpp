@@ -563,28 +563,30 @@ void Mesher::updateMesh3D(
 /* -------------------------------------------------------------------------- */
 // TODO avoid this loop by enforcing to pass the lmk id of the vertex of the
 // triangle in the triangle cluster.
-void Mesher::extractLmkIdsFromTriangleCluster(
-    const TriangleCluster& triangle_cluster,
+void Mesher::extractLmkIdsFromTriangleClusters(
+    const std::vector<TriangleCluster>& triangle_clusters,
     LandmarkIds* lmk_ids) const {
   VLOG(10) << "Starting extractLmkIdsFromTriangleCluster...";
   CHECK_NOTNULL(lmk_ids);
   lmk_ids->resize(0);
 
   Mesh3D::Polygon polygon;
-  for (const size_t& polygon_idx: triangle_cluster.triangle_ids_) {
-    CHECK(mesh_.getPolygon(polygon_idx, &polygon))
-        << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
-    for (const Mesh3D::Vertex& vertex: polygon) {
-      // Ensure we are not adding more than once the same lmk_id.
-      const auto& it = std::find(lmk_ids->begin(),
-                                 lmk_ids->end(),
-                                 vertex.getLmkId());
-      if (it == lmk_ids->end()) {
-        // The lmk id is not present in the lmk_ids vector, add it.
-        lmk_ids->push_back(vertex.getLmkId());
-      } else {
-        // The lmk id is already in the lmk_ids vector, do not add it.
-        continue;
+  for (const TriangleCluster& triangle_cluster: triangle_clusters) {
+    for (const size_t& polygon_idx: triangle_cluster.triangle_ids_) {
+      CHECK(mesh_.getPolygon(polygon_idx, &polygon))
+          << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
+      for (const Mesh3D::Vertex& vertex: polygon) {
+        // Ensure we are not adding more than once the same lmk_id.
+        const auto& it = std::find(lmk_ids->begin(),
+                                   lmk_ids->end(),
+                                   vertex.getLmkId());
+        if (it == lmk_ids->end()) {
+          // The lmk id is not present in the lmk_ids vector, add it.
+          lmk_ids->push_back(vertex.getLmkId());
+        } else {
+          // The lmk id is already in the lmk_ids vector, do not add it.
+          continue;
+        }
       }
     }
   }

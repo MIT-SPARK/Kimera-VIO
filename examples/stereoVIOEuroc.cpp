@@ -576,7 +576,13 @@ int main(int argc, char *argv[]) {
           }
 
 
-          mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
+          // TODO remove the two lines below, just used to maintain functionality
+          // during generalization of pipeline to multiple planes.
+          std::vector<TriangleCluster> ground_clusters;
+          ground_clusters.push_back(triangle_clusters.at(0));
+
+          // Get lmk ids of lmks that are involved in a plane.
+          mesher.extractLmkIdsFromTriangleClusters(ground_clusters,
                                                   &mesh_lmk_ids_ground_cluster);
 
           if (FLAGS_visualize) {

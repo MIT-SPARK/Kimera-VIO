@@ -55,8 +55,9 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.
-  void extractLmkIdsFromTriangleCluster(const TriangleCluster& triangle_cluster,
-                                        LandmarkIds* lmk_ids) const;
+  void extractLmkIdsFromTriangleClusters(
+      const std::vector<TriangleCluster>& triangle_cluster,
+      LandmarkIds* lmk_ids) const;
 
   /* ------------------------------------------------------------------------ */
   // Clones underlying data structures encoding the mesh.
