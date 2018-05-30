@@ -39,61 +39,27 @@ RegularVioBackEnd::RegularVioBackEnd(
   gtsam::SharedNoiseModel gaussian_dim_2 =
       gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
 
-  mono_noise_ = gtsam::noiseModel::Robust::Create(
-                  gtsam::noiseModel::mEstimator::Huber::Create(
-                    vio_params_.huberParam_,
-                    gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
-                  gaussian_dim_2);
+  static constexpr size_t mono_noise_type = 0; // l-2
+  selectNormType(&mono_noise_,
+                 gaussian_dim_2,
+                 mono_noise_type);
 
   // Set type of stereo_noise_ for generic stereo projection factors.
   gtsam::SharedNoiseModel gaussian_dim_3 =
-      // TODO USE STEREO NOISE SIGMA.
       gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.stereoNoiseSigma_);
 
-  stereo_noise_ = gtsam::noiseModel::Robust::Create(
-                    gtsam::noiseModel::mEstimator::Huber::Create(
-                      vio_params_.huberParam_,
-                      gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
-                    gaussian_dim_3);
+  static constexpr size_t stereo_norm_type = 0; // l-2
+  selectNormType(&stereo_noise_,
+                 gaussian_dim_3,
+                 stereo_norm_type); // l-2
 
   // Set type of regularity noise for point plane factors.
   gtsam::SharedNoiseModel gaussian_dim_1 =
       gtsam::noiseModel::Isotropic::Sigma(1, vio_params_.regularityNoiseSigma_);
 
-  switch (vio_params_.normType_) {
-    case 0: {
-      LOG(INFO) << "Using square norm.";
-      point_plane_regularity_noise_ = gaussian_dim_1;
-      break;
-    }
-    case 1: {
-      LOG(INFO) << "Using Huber norm, with parameter value: " << vio_params_.huberParam_;
-      point_plane_regularity_noise_ =
-          gtsam::noiseModel::Robust::Create(
-            gtsam::noiseModel::mEstimator::Huber::Create(
-              vio_params_.huberParam_,
-              gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
-            gaussian_dim_1);
-      break;
-    }
-    case 2: {
-      LOG(INFO) << "Using Tukey norm, with parameter value: " << vio_params_.tukeyParam_;
-      point_plane_regularity_noise_ =
-          gtsam::noiseModel::Robust::Create(
-            gtsam::noiseModel::mEstimator::Tukey::Create(
-              vio_params_.tukeyParam_,
-              gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
-            gaussian_dim_1); //robust
-      break;
-    }
-    default: {
-      LOG(INFO) << "Using square norm.";
-      point_plane_regularity_noise_ = gtsam::noiseModel::Isotropic::Sigma(
-                                        1, vio_params_.regularityNoiseSigma_);
-
-      break;
-    }
-  }
+  selectNormType(&point_plane_regularity_noise_,
+                 gaussian_dim_1,
+                 vio_params_.regularityNormType_);
 
   mono_cal_ = boost::make_shared<Cal3_S2>(stereo_cal_->calibration());
   CHECK(mono_cal_->equals(stereo_cal_->calibration()))
@@ -621,13 +587,21 @@ void RegularVioBackEnd::addProjectionFactor(
     gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors) {
   CHECK_NOTNULL(new_imu_prior_and_other_factors);
   if (!std::isnan(new_obs.second.uR())) {
-    new_imu_prior_and_other_factors->push_back(
-          boost::make_shared<
-          gtsam::GenericStereoFactor<Pose3, Point3>>
-          (new_obs.second, stereo_noise_,
-           gtsam::Symbol('x', new_obs.first),
-           gtsam::Symbol('l', lmk_id),
-           stereo_cal_, true, true, B_Pose_leftCam_));
+    double parallax = new_obs.second.uL() - new_obs.second.uR();
+    static constexpr double max_parallax = 150;
+    if (parallax < max_parallax) {
+      CHECK_GT(parallax, 0);
+      new_imu_prior_and_other_factors->push_back(
+            boost::make_shared<
+            gtsam::GenericStereoFactor<Pose3, Point3>>
+            (new_obs.second, stereo_noise_,
+             gtsam::Symbol('x', new_obs.first),
+             gtsam::Symbol('l', lmk_id),
+             stereo_cal_, true, true, B_Pose_leftCam_));
+    } else {
+      LOG(ERROR) << "Parallax for lmk_id: " << lmk_id << " is = "
+                 << parallax;
+    }
   } else {
     // Right pixel has a NAN value for u, use GenericProjectionFactor instead
     // of stereo.
@@ -1019,58 +993,60 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   bool has_plane_a_prior = false;
   // Loop over current graph.
   for (const auto& g: graph) {
-    const auto& ppf =
-        boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
-    if (ppf) {
-      // We found a PointPlaneFactor.
-      if (plane_symbol.key() == ppf->getPlaneKey()) {
-        // We found a PointPlaneFactor that involves our plane.
-        // Get point symbol.
-        gtsam::Symbol point_symbol (ppf->getPointKey());
-        // Get lmk id of this point.
-        LandmarkId lmk_id = point_symbol.index();
-        // Find this lmk id in the set of regularities.
-        if (std::find(mesh_lmk_ids.begin(),
-                      mesh_lmk_ids.end(), lmk_id) == mesh_lmk_ids.end()) {
-          // We did not find the point in mesh_lmk_ids, therefore it should
-          // not be involved in a regularity anymore, delete this slot.
-          // (but I want to remove the landmark! and all its factors,
-          // to avoid having underconstrained lmks...)
-          VLOG(20) << "Found bad point plane factor on lmk with id: "
-                   << point_symbol.index();
-          point_plane_factor_slots_bad.push_back(
-                std::make_pair(slot, lmk_id));
+    if (g) {
+      const auto& ppf =
+          boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
+      // Check for priors attached to the plane.
+      const auto& plane_prior = boost::dynamic_pointer_cast<
+                                gtsam::PriorFactor<gtsam::OrientedPlane3>>(g);
+      // Check for linear container factors having the plane.
+      const auto& lcf = boost::dynamic_pointer_cast<
+                        gtsam::LinearContainerFactor>(g);
+      if (ppf) {
+        // We found a PointPlaneFactor.
+        if (plane_symbol.key() == ppf->getPlaneKey()) {
+          // We found a PointPlaneFactor that involves our plane.
+          // Get point symbol.
+          gtsam::Symbol point_symbol (ppf->getPointKey());
+          // Get lmk id of this point.
+          LandmarkId lmk_id = point_symbol.index();
+          // Find this lmk id in the set of regularities.
+          if (std::find(mesh_lmk_ids.begin(),
+                        mesh_lmk_ids.end(), lmk_id) == mesh_lmk_ids.end()) {
+            // We did not find the point in mesh_lmk_ids, therefore it should
+            // not be involved in a regularity anymore, delete this slot.
+            // (but I want to remove the landmark! and all its factors,
+            // to avoid having underconstrained lmks...)
+            VLOG(20) << "Found bad point plane factor on lmk with id: "
+                     << point_symbol.index();
+            point_plane_factor_slots_bad.push_back(
+                  std::make_pair(slot, lmk_id));
 
-          // Before deleting this slot, we must ensure that both the plane
-          // and the landmark are well constrained!
+            // Before deleting this slot, we must ensure that both the plane
+            // and the landmark are well constrained!
+          } else {
+            // Store those factors that we will potentially keep.
+            point_plane_factor_slots_good.push_back(
+                  std::make_pair(slot, lmk_id));
+          }
         } else {
-          // Store those factors that we will potentially keep.
-          point_plane_factor_slots_good.push_back(
-                std::make_pair(slot, lmk_id));
+          LOG(ERROR) << "Point plane keys do not match..."
+                        " Are we using multiple planes?";
+        }
+      } else if (plane_prior) {
+        if (plane_prior->find(plane_symbol.key()) != plane_prior->end()) {
+          LOG(WARNING) << "Found plane prior factor.";
+          has_plane_a_prior = true;
+        }
+      } else if (lcf) {
+        if (lcf->find(plane_symbol.key()) != lcf->end()) {
+          VLOG(10) << "Found linear container factor with our plane.";
+          has_plane_a_prior = true;
         }
       } else {
-        LOG(ERROR) << "Point plane keys do not match..."
-                      " Are we using multiple planes?";
-      }
-    }
-
-    // Check for priors attached to the plane.
-    const auto& plane_prior = boost::dynamic_pointer_cast<
-                              gtsam::PriorFactor<gtsam::OrientedPlane3>>(g);
-    if (plane_prior) {
-      if (plane_prior->find(plane_symbol.key()) != plane_prior->end()) {
-        LOG(WARNING) << "Found plane prior factor.";
-        has_plane_a_prior = true;
-      }
-    }
-
-    // Check for linear container factors having the plane.
-    const auto& lcf = boost::dynamic_pointer_cast<
-                      gtsam::LinearContainerFactor>(g);
-    if (lcf) {
-      if (lcf->find(plane_symbol.key()) != lcf->end()) {
-        VLOG(10) << "Found linear container factor with our plane.";
-        has_plane_a_prior = true;
+        // Sanity check that we are not forgetting a factor with the plane key...
+        CHECK(std::find(g->keys().begin(), g->keys().end(),
+                        plane_symbol.key()) == g->keys().end());
       }
     }
 
@@ -1275,6 +1251,51 @@ void RegularVioBackEnd::deleteNewSlots(
     // Avoid unnecessary loop if there are no nullptrs in the graph.
     VLOG(10) << "Avoid cleaning graph of null pointers, since we did "
                 "not remove any new factor.";
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Output a noise model with a selected norm type:
+// norm_type = 0: l-2.
+// norm_type = 1: Huber.
+// norm_type = 2: Tukey.
+void RegularVioBackEnd::selectNormType(
+    gtsam::SharedNoiseModel* noise_model_output,
+    const gtsam::SharedNoiseModel& noise_model_input,
+    const size_t& norm_type) {
+  CHECK_NOTNULL(noise_model_output);
+  switch (norm_type) {
+    case 0: {
+      LOG(INFO) << "Using l-2 norm.";
+      *noise_model_output = noise_model_input;
+      break;
+    }
+    case 1: {
+      LOG(INFO) << "Using Huber norm, with parameter value: "
+                << vio_params_.huberParam_;
+      *noise_model_output =
+          gtsam::noiseModel::Robust::Create(
+            gtsam::noiseModel::mEstimator::Huber::Create(
+              vio_params_.huberParam_,
+              gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
+            noise_model_input);
+      break;
+    }
+    case 2: {
+      LOG(INFO) << "Using Tukey norm, with parameter value: "
+                << vio_params_.tukeyParam_;
+      *noise_model_output=
+          gtsam::noiseModel::Robust::Create(
+            gtsam::noiseModel::mEstimator::Tukey::Create(
+              vio_params_.tukeyParam_,
+              gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
+            noise_model_input); //robust
+      break;
+    }
+    default: {
+      LOG(ERROR) << "Wrong norm_type passed...";
+      break;
+    }
   }
 }
 

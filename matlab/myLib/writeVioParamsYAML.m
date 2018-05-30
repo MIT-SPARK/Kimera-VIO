@@ -36,7 +36,7 @@ fprintf(fid,'regularityNoiseSigma: %g\n', vioParams.regularityNoiseSigma);
 fprintf(fid,'minPlaneConstraints: %g\n', vioParams.minPlaneConstraints);
 fprintf(fid,'huberParam: %g\n', vioParams.huberParam);
 fprintf(fid,'tukeyParam: %g\n', vioParams.tukeyParam);
-fprintf(fid,'normType: %g\n', vioParams.normType);
+fprintf(fid,'regularityNormType: %g\n', vioParams.regularityNormType);
 fprintf(fid,'rankTolerance: %g\n', vioParams.rankTolerance);
 fprintf(fid,'landmarkDistanceThreshold: %g\n', vioParams.landmarkDistanceThreshold);
 fprintf(fid,'outlierRejection: %g\n', vioParams.outlierRejection);

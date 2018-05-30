@@ -4,8 +4,8 @@ clc
 
 % datasetPath = '/homes/zhangzd/research/slam/data/MH_01_easy';
 datasetPath = '/home/tonirv/datasets/EuRoC/V1_01_easy';
-initialFrameID = 800;
-finalFrameID = 2000;
+initialFrameID = -1;
+finalFrameID = -1;
 saveImages = 2;
 nrRuns = 1;
 
@@ -60,19 +60,35 @@ nrRuns = 1;
 % COMMENT:
 % trackerParams.useStereoTracking = true;
 
-% Huber param
-parameterTuningSingle('huberParam',[0.8 1.0 1.2 1.3 1.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
-% TODO do parameter tuning over the following parameters:
-% Type of robust cost function.
-%parameterTuningSingle('ransac_threshold_stereo',[0.1 0.1 0.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'tracker')
-% Mono noise sigma.
-parameterTuningSingle('monoNoiseSigma',[0.8 1.0 1.2],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
-% Stereo noise sigma. %TODO necesito cambiar smart a stereo...
-% parameterTuningSingle('regularityNoiseSigma',[0.1 0.1 0.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
-% Regularity noise sigma.
-parameterTuningSingle('regularityNoiseSigma',[0.05 0.1 0.2 0.3 0.4 0.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
-% Min Plane Constraints
-parameterTuningSingle('minPlaneConstraints',[3 6],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+%% Noise
 
-% Parameter of loss function.
-%parameterTuningSingle('',[0.1 0.3 0.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+%%% TODO tune both mono and stereo params at the same time...
+% Mono noise sigma.
+parameterTuningSingle('monoNoiseSigma',[0.6 0.85 1.15],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+
+% Stereo noise sigma.
+%parameterTuningSingle('stereoNoiseSigma',[0.3 0.4 0.5 0.6 1.125 1.15 1.175],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+
+% Regularity noise sigma.
+%parameterTuningSingle('regularityNoiseSigma',[0.005 0.01 0.015 0.02 0.03 0.04 0.06],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+
+%% Norms
+%%% TODO tune both the type of norm and the param norm at the same time...
+% Type of robust norm for regularity factors.
+% 0: l2,
+% 1: Huber,
+% 2: Tukey.
+%parameterTuningSingle('regularityNormType',[0 1 2],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+
+% Huber param.
+%parameterTuningSingle('huberParam',[0.8 1.0 1.2 1.3 1.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+
+% Tukey param.
+%parameterTuningSingle('tukeyParam',[3.4 3.5 3.6 3.7 3.8 4.1 4.2 4.25 4.3 4.4],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+
+%% Plane thresholds
+% Min Plane Constraints
+%parameterTuningSingle('minPlaneConstraints',[12 13 14 15],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
+
+% Others
+%parameterTuningSingle('ransac_threshold_stereo',[0.1 0.1 0.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'tracker')

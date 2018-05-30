@@ -66,7 +66,7 @@ TEST(testVioBackEndParams, VioParseYAML) {
   EXPECT(7 == vp.minPlaneConstraints_);
   EXPECT_DOUBLES_EQUAL(2.2, vp.huberParam_, tol);
   EXPECT_DOUBLES_EQUAL(5.1, vp.tukeyParam_, tol);
-  EXPECT(1 == vp.normType_);
+  EXPECT(1 == vp.regularityNormType_);
   EXPECT_DOUBLES_EQUAL(2.1, vp.rankTolerance_, tol);
   EXPECT_DOUBLES_EQUAL(10.2, vp.landmarkDistanceThreshold_, tol);
   EXPECT_DOUBLES_EQUAL(3.2, vp.outlierRejection_, tol);

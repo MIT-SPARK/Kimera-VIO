@@ -136,6 +136,15 @@ private:
       const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors_);
 
+  /* ------------------------------------------------------------------------ */
+  // Output a noise model with a selected norm type:
+  // norm_type = 0: l-2.
+  // norm_type = 1: Huber.
+  // norm_type = 2: Tukey.
+  void selectNormType(
+      gtsam::SharedNoiseModel* noise_model_output,
+      const gtsam::SharedNoiseModel& noise_model_input,
+      const size_t& norm_type);
 };
 
 } // namespace VIO
