@@ -1,18 +1,20 @@
-function subplotCondition(r,c,i,paramName,runResults,conditions,nrRuns,s)
+function subplotCondition(r,c,i,paramName,runResults,conditions,nrRuns,field,fieldName)
 
 subplot(r,c,i); hold on
-xlabel(paramName); ylabel(s,'interpreter','none');
+xlabel(paramName); ylabel(fieldName,'interpreter','none');
+
 for j = 1:nrRuns 
     v = zeros(length(conditions),1);
-    for i = 1:length(conditions)
-      v(i) = getfield(runResults(i,j).results,s); % put in vector form
+    for k = 1:length(conditions)
+      v(k) = getfield(runResults(k,j).results,field); % put in vector form
     end
-    disp(v')
-    plot(1:length(conditions),v,'-b')
+    plot(conditions,v,'-ob')
 end
-for i=1:length(conditions)
-    labels{i} = num2str(conditions(i));
+
+for j=1:length(conditions)
+    labels{j} = num2str(round(conditions(j),2));
 end
-set(gca,'XTick',1:length(conditions))
-set(gca,'XTickLabel',labels)
+
+%set(gca,'XTick',1:length(conditions));
+%set(gca,'XTickLabel',labels)
 % set(gca,'YTicklabel',num2str(get(gca,'xtick')','%.2f'))
