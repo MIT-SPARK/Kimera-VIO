@@ -91,7 +91,7 @@ public:
   minPlaneConstraints_(minPlaneConstraints),
   huberParam_(huberParam), tukeyParam_(tukeyParam), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
-  retriangulationThreshold_(retriangulationThreshold), normType_(normType),
+  retriangulationThreshold_(retriangulationThreshold), regularityNormType_(normType),
   addBetweenStereoFactors_(addBetweenStereoFactors),betweenRotationPrecision_(betweenRotationPrecision), betweenTranslationPrecision_(betweenTranslationPrecision),
   relinearizeThreshold_(relinearizeThreshold), relinearizeSkip_(relinearizeSkip), horizon_(horizon), numOptimize_(numOptimize),useDogLeg_(useDogLeg),
   zeroVelocitySigma_(zeroVelocitySigma), noMotionPositionSigma_(noMotionPositionSigma),
@@ -116,7 +116,7 @@ public:
   double smartNoiseSigma_, monoNoiseSigma_, stereoNoiseSigma_, regularityNoiseSigma_;
   double minPlaneConstraints_;
   double huberParam_, tukeyParam_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
-  int normType_;
+  int regularityNormType_;
   bool addBetweenStereoFactors_;
   double betweenRotationPrecision_, betweenTranslationPrecision_;
 
@@ -222,8 +222,8 @@ public:
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> huberParam_;
     file_handle = fs["tukeyParam"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> tukeyParam_;
-    file_handle = fs["normType"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> normType_;
+    file_handle = fs["regularityNormType"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNormType_;
     file_handle = fs["rankTolerance"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> rankTolerance_;
     file_handle = fs["landmarkDistanceThreshold"];
@@ -295,7 +295,7 @@ public:
         (minPlaneConstraints_ == vp2.minPlaneConstraints_) && (minPlaneConstraints_ >= 3) &&
         (fabs(huberParam_ - vp2.huberParam_) <= tol) &&
         (fabs(tukeyParam_ - vp2.tukeyParam_) <= tol) &&
-        (normType_ == vp2.normType_) &&
+        (regularityNormType_ == vp2.regularityNormType_) &&
         (fabs(rankTolerance_ - vp2.rankTolerance_) <= tol) &&
         (fabs(landmarkDistanceThreshold_ - vp2.landmarkDistanceThreshold_) <= tol) &&
         (fabs(outlierRejection_ - vp2.outlierRejection_) <= tol) &&

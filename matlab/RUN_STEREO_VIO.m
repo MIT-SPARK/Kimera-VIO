@@ -2,6 +2,7 @@ disp('running script:')
 
 appName = 'build/stereoVIOEuroc';
 
+useSudo = 0;
 if exist('useSudo', 'var') && useSudo == 0
     sudoName = '';
 else
@@ -20,15 +21,24 @@ end
 %         ' > out-',num2str(i),'.txt');
 % end
 
- 
+if (not(exist('initialFrameID')) || initialFrameID == -1)
+    initialFrameID = 50;
+end
+if (not(exist('finalFrameID')) || finalFrameID == -1)
+    finalFrameID = 2812;
+end
+
 myCommand = horzcat('%s../%s ', ...
 '--dataset_path=', datasetPath, ...
 ' --vio_params_path=', filenameVioParams, ...
 ' --tracker_params_path=',  filenameTrackerParams, ...
 ' --backend_type=1', ... % backend_type: 0 for Normal VIO, 1 for Regular VIO.
 ' --log_output=true', ...
-' --visualize=true', ...
-' --viz_type=5', ' > out-', num2str(i),'.txt');
+' --visualize=false', ...
+' --viz_type=5', ...
+' --initial_k=',  num2str(initialFrameID), ...
+' --final_k=',  num2str(finalFrameID), ...
+' &> out-', num2str(i),'.txt');
 
 myCommand = sprintf(myCommand, sudoName, appName);
 

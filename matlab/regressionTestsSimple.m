@@ -31,8 +31,8 @@ warning('AD HOC PARAMS')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % TODO change params to the ones in pipeline
 
-nrFeaturesPerFrame = 100;
-nrFeatSelect = 100; % Avoid feature selection by setting it equal to above
+%nrFeaturesPerFrame = 100;
+%nrFeatSelect = 100; % Avoid feature selection by setting it equal to above
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 timeStart = fix(clock);
 for testCond = conditions
