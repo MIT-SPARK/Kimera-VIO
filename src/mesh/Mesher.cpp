@@ -582,6 +582,7 @@ void Mesher::updateMesh3D(
 // triangle in the triangle cluster.
 void Mesher::extractLmkIdsFromTriangleClusters(
     const std::vector<TriangleCluster>& triangle_clusters,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
     LandmarkIds* lmk_ids) const {
   VLOG(10) << "Starting extractLmkIdsFromTriangleCluster...";
   CHECK_NOTNULL(lmk_ids);
@@ -593,16 +594,20 @@ void Mesher::extractLmkIdsFromTriangleClusters(
       CHECK(mesh_.getPolygon(polygon_idx, &polygon))
           << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
       for (const Mesh3D::Vertex& vertex: polygon) {
-        // Ensure we are not adding more than once the same lmk_id.
-        const auto& it = std::find(lmk_ids->begin(),
-                                   lmk_ids->end(),
-                                   vertex.getLmkId());
-        if (it == lmk_ids->end()) {
-          // The lmk id is not present in the lmk_ids vector, add it.
-          lmk_ids->push_back(vertex.getLmkId());
-        } else {
-          // The lmk id is already in the lmk_ids vector, do not add it.
-          continue;
+        // Only add lmks that are used in the backend (time-horizon).
+        if (points_with_id_vio.find(vertex.getLmkId()) !=
+            points_with_id_vio.end()) {
+          // Ensure we are not adding more than once the same lmk_id.
+          const auto& it = std::find(lmk_ids->begin(),
+                                     lmk_ids->end(),
+                                     vertex.getLmkId());
+          if (it == lmk_ids->end()) {
+            // The lmk id is not present in the lmk_ids vector, add it.
+            lmk_ids->push_back(vertex.getLmkId());
+          } else {
+            // The lmk id is already in the lmk_ids vector, do not add it.
+            continue;
+          }
         }
       }
     }

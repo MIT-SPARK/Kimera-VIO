@@ -57,6 +57,7 @@ public:
   // Extract lmk ids from triangle cluster.
   void extractLmkIdsFromTriangleClusters(
       const std::vector<TriangleCluster>& triangle_cluster,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
   /* ------------------------------------------------------------------------ */

@@ -593,7 +593,8 @@ int main(int argc, char *argv[]) {
 
           // Get lmk ids of lmks that are involved in a plane.
           mesher.extractLmkIdsFromTriangleClusters(ground_clusters,
-                                                  &lmk_ids_with_regularity);
+                                                   points_with_id_VIO,
+                                                   &lmk_ids_with_regularity);
           plane.lmk_ids_ = lmk_ids_with_regularity;
           planes.clear();
           planes.push_back(plane);
