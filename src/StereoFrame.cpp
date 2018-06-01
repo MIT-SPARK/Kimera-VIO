@@ -446,7 +446,7 @@ void StereoFrame::filterTrianglesWithGradients(
   if (gradient_bound == -1) {
     // Skip filter.
     *filtered_triangulation_2D = original_triangulation_2D;
-    LOG_EVERY_N(WARNING, 200) << "Filter triangles with gradients is disabled.";
+    LOG_FIRST_N(WARNING, 1) << "Filter triangles with gradients is disabled.";
     return;
   }
 
