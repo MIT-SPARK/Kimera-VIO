@@ -443,6 +443,12 @@ void StereoFrame::filterTrianglesWithGradients(
       << "Input original_triangulation_2D should be different that the object "
       << "pointed by filtered_triangulation_2D. Input=*Output error." ;
 
+  if (gradient_bound == -1) {
+    // Skip filter.
+    *filtered_triangulation_2D = original_triangulation_2D;
+    return;
+  }
+
   // Compute img gradients.
   cv::Mat img_grads;
   computeImgGradients(left_frame_.img_, &img_grads);
