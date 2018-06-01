@@ -174,10 +174,12 @@ void Mesher::populate3dMeshTimeHorizon(
 
   // Remove faces in the mesh that have vertices which are not in
   // points_with_id_map anymore.
-  reducePolygonMeshToTimeHorizon(points_with_id_map,
+  static constexpr bool reduce_mesh_to_time_horizon = false;
+  updatePolygonMeshToTimeHorizon(points_with_id_map,
                                  leftCameraPose,
                                  min_ratio_largest_smallest_side,
-                                 max_triangle_side);
+                                 max_triangle_side,
+                                 reduce_mesh_to_time_horizon);
   VLOG(10) << "Finished populate3dMeshTimeHorizon.";
 }
 
@@ -251,12 +253,13 @@ void Mesher::populate3dMesh(
 /* -------------------------------------------------------------------------- */
 // TODO the polygon_mesh has repeated faces...
 // And this seems to slow down quite a bit the for loop!
-void Mesher::reducePolygonMeshToTimeHorizon(
+void Mesher::updatePolygonMeshToTimeHorizon(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
     const gtsam::Pose3& leftCameraPose,
     double min_ratio_largest_smallest_side,
-    double max_triangle_side) {
-  VLOG(10) << "Starting reducePolygonMeshToTimeHorizon...";
+    double max_triangle_side,
+    const bool& reduce_mesh_to_time_horizon) {
+  VLOG(10) << "Starting updatePolygonMeshToTimeHorizon...";
   Mesh3D mesh_output;
 
   auto end = points_with_id_map.end();
@@ -270,9 +273,15 @@ void Mesher::reducePolygonMeshToTimeHorizon(
       const auto& point_with_id_it = points_with_id_map.find(vertex.getLmkId());
       if (point_with_id_it == end) {
         // Vertex of current polygon is not in points_with_id_map
-        // Delete the polygon by not adding it to the new mesh.
-        save_polygon = false;
-        break;
+        if (reduce_mesh_to_time_horizon) {
+          // We want to reduce the mesh to time horizon.
+          // Delete the polygon by not adding it to the new mesh.
+          save_polygon = false;
+          break;
+        } else {
+          // We do not want to reduce the mesh to time horizon.
+          save_polygon = true;
+        }
       } else {
         // Update the vertex with newest landmark position.
         // This is to ensure we have latest update, the previous addPolygonToMesh
@@ -298,7 +307,7 @@ void Mesher::reducePolygonMeshToTimeHorizon(
   }
 
   mesh_ = mesh_output;
-  VLOG(10) << "Finished reducePolygonMeshToTimeHorizon.";
+  VLOG(10) << "Finished updatePolygonMeshToTimeHorizon.";
 }
 
 /* -------------------------------------------------------------------------- */
