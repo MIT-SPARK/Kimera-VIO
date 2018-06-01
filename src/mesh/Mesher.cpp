@@ -552,10 +552,25 @@ void Mesher::updateMesh3D(
     const bool& visualize) {
   VLOG(10) << "Starting updateMesh3D...";
 
+  // Get points in stereo camera that are not in vio but have lmk id:
+  static constexpr bool add_extra_lmks_from_stereo = false;
+  std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_all =
+      points_with_id_VIO;
+  if (add_extra_lmks_from_stereo) {
+    std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_stereo;
+    getNonVioStereoPoints(stereoFrame,
+                          leftCameraPose,
+                          &points_with_id_stereo);
+
+    // Append vio points.
+    points_with_id_all.insert(points_with_id_stereo.begin(),
+                              points_with_id_stereo.end());
+  }
+
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
   stereoFrame->createMesh2dVIO(&mesh_2d,
-                               points_with_id_VIO);
+                               points_with_id_all);
   std::vector<cv::Vec6f> mesh_2d_filtered;
   stereoFrame->filterTrianglesWithGradients(mesh_2d,
                                             &mesh_2d_filtered,
@@ -576,7 +591,7 @@ void Mesher::updateMesh3D(
 
   populate3dMeshTimeHorizon(
         mesh_2d,
-        points_with_id_VIO,
+        points_with_id_all,
         stereoFrame->left_frame_,
         leftCameraPose,
         minRatioBetweenLargestAnSmallestSide,
@@ -584,6 +599,26 @@ void Mesher::updateMesh3D(
         maxTriangleSide);
 
   VLOG(10) << "Finished updateMesh3D.";
+}
+
+
+/* -------------------------------------------------------------------------- */
+void Mesher::getNonVioStereoPoints(
+    std::shared_ptr<StereoFrame> stereoFrame,
+    const gtsam::Pose3& leftCameraPose,
+    std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo) const {
+  CHECK_NOTNULL(points_with_id_stereo);
+  points_with_id_stereo->clear();
+  const Frame& leftFrame = stereoFrame->left_frame_;
+  for (size_t i = 0; i < leftFrame.landmarks_.size(); i++) {
+    if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID &&
+        leftFrame.landmarks_.at(i) != -1) {
+      const gtsam::Point3& p_i_global =
+          leftCameraPose.transform_from(gtsam::Point3(
+                                          stereoFrame->keypoints_3d_.at(i)));
+      (*points_with_id_stereo)[leftFrame.landmarks_.at(i)] = p_i_global;
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */

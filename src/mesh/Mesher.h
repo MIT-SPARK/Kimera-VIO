@@ -54,6 +54,12 @@ public:
                    const double& plane_distance) const;
 
   /* ------------------------------------------------------------------------ */
+  void getNonVioStereoPoints(
+      std::shared_ptr<StereoFrame> stereoFrame,
+      const gtsam::Pose3& leftCameraPose,
+      std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo) const;
+
+  /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.
   void extractLmkIdsFromTriangleClusters(
       const std::vector<TriangleCluster>& triangle_cluster,
