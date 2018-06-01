@@ -174,7 +174,7 @@ void Mesher::populate3dMeshTimeHorizon(
 
   // Remove faces in the mesh that have vertices which are not in
   // points_with_id_map anymore.
-  static constexpr bool reduce_mesh_to_time_horizon = false;
+  static constexpr bool reduce_mesh_to_time_horizon = true;
   updatePolygonMeshToTimeHorizon(points_with_id_map,
                                  leftCameraPose,
                                  min_ratio_largest_smallest_side,
