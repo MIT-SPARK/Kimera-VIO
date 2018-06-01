@@ -157,7 +157,7 @@ bool Mesher::isBadTriangle(
 }
 
 /* -------------------------------------------------------------------------- */
-// Create a 3D mesh from 2D corners in an image (coded as a Frame class).
+// Create a 3D mesh from 2D corners in an image, keeps the mesh in time horizon.
 void Mesher::populate3dMeshTimeHorizon(
     const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
@@ -167,10 +167,32 @@ void Mesher::populate3dMeshTimeHorizon(
     double min_elongation_ratio,
     double max_triangle_side) {
   VLOG(10) << "Starting populate3dMeshTimeHorizon...";
-  // Note: we restrict to valid triangles in which each landmark has a 3D point.
-  // Iterate over each face in the 2d mesh, and generate the 3d mesh.
+  populate3dMesh(mesh_2d, points_with_id_map, frame, leftCameraPose,
+                 min_ratio_largest_smallest_side,
+                 min_elongation_ratio,
+                 max_triangle_side);
 
-  //TODO to retrieve lmk id from pixels, do it in the stereo frame! not here.
+  // Remove faces in the mesh that have vertices which are not in
+  // points_with_id_map anymore.
+  reducePolygonMeshToTimeHorizon(points_with_id_map,
+                                 leftCameraPose,
+                                 min_ratio_largest_smallest_side,
+                                 max_triangle_side);
+  VLOG(10) << "Finished populate3dMeshTimeHorizon.";
+}
+
+/* -------------------------------------------------------------------------- */
+// Create a 3D mesh from 2D corners in an image.
+void Mesher::populate3dMesh(
+    const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+    const Frame& frame,
+    const gtsam::Pose3& leftCameraPose,
+    double min_ratio_largest_smallest_side,
+    double min_elongation_ratio,
+    double max_triangle_side) {
+  // Iterate over each face in the 2d mesh, and generate the 3d mesh.
+  // TODO to retrieve lmk id from pixels, do it in the stereo frame! not here.
   // Create polygon and add it to the mesh.
   Mesh3D::Polygon polygon;
   polygon.resize(3);
@@ -223,15 +245,10 @@ void Mesher::populate3dMeshTimeHorizon(
     }
   }
 
-  // Remove faces in the mesh that have vertices which are not in
-  // points_with_id_map anymore.
-  reducePolygonMeshToTimeHorizon(points_with_id_map,
-                                 leftCameraPose,
-                                 min_ratio_largest_smallest_side,
-                                 max_triangle_side);
-  VLOG(10) << "Finished populate3dMeshTimeHorizon.";
+
 }
 
+/* -------------------------------------------------------------------------- */
 // TODO the polygon_mesh has repeated faces...
 // And this seems to slow down quite a bit the for loop!
 void Mesher::reducePolygonMeshToTimeHorizon(
