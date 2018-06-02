@@ -78,9 +78,9 @@ public:
   void visualizePoints3D(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id,
       const std::unordered_map<LandmarkId, LandmarkType>& lmk_id_to_lmk_type_map) {
-    bool color_the_mesh = false;
+    bool color_the_cloud = false;
     if (lmk_id_to_lmk_type_map.size() != 0) {
-      color_the_mesh = true;
+      color_the_cloud = true;
       CHECK_EQ(points_with_id.size(), lmk_id_to_lmk_type_map.size());
     }
 
@@ -100,7 +100,7 @@ public:
       data[i].x = float(id_point.second.x());
       data[i].y = float(id_point.second.y());
       data[i].z = float(id_point.second.z());
-      if (color_the_mesh) {
+      if (color_the_cloud) {
         CHECK(lmk_id_to_lmk_type_map.find(id_point.first) !=
             lmk_id_to_lmk_type_map.end());
         switch (lmk_id_to_lmk_type_map.at(id_point.first)) {
@@ -122,7 +122,10 @@ public:
     }
 
     // Create a cloud widget.
-    cv::viz::WCloud cloud_widget (point_cloud, point_cloud_color);
+    cv::viz::WCloud cloud_widget (point_cloud, cloud_color_);
+    if (color_the_cloud) {
+      cloud_widget = cv::viz::WCloud(point_cloud, point_cloud_color);
+    }
     cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 6);
     cloud_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
