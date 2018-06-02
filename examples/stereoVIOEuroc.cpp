@@ -589,6 +589,7 @@ int main(int argc, char *argv[]) {
           // TODO remove the two lines below, just used to maintain functionality
           // during generalization of pipeline to multiple planes.
           std::vector<TriangleCluster> ground_clusters;
+          CHECK_NE(triangle_clusters.size(), 0);
           ground_clusters.push_back(triangle_clusters.at(0));
 
           // Get lmk ids of lmks that are involved in a plane.
