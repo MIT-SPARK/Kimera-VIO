@@ -234,6 +234,131 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
+  // Visualize convex hull in 2D for set of points in triangle cluster,
+  // projected along the normal of the cluster.
+  void visualizeConvexHull (const TriangleCluster& cluster,
+                            const cv::Mat& map_points_3d,
+                            const cv::Mat& polygons_mesh) {
+
+    // Create a new coord system, which has as z the normal.
+    cv::Point3f normal = cluster.cluster_direction_;
+
+    // Find first axis of the coord system.
+    // Pick random x and y
+    float random_x = 0.1;
+    float random_y = 0.0;
+    // Find z, such that dot product with the normal is 0.
+    float z = -(normal.x * random_x + normal.y * random_y) / normal.z;
+    // Create new first axis:
+    cv::Point3f x_axis (random_x, random_y, z);
+    // Normalize new first axis:
+    x_axis /= cv::norm(x_axis);
+    // Create new second axis, by cross product normal to x_axis;
+    cv::Point3f y_axis = normal.cross(x_axis);
+    // Normalize just in case?
+    y_axis /= cv::norm(y_axis);
+    // Construct new cartesian coord system:
+    cv::Mat new_coordinates (3, 3, CV_32FC1);
+    new_coordinates.at<float>(0, 0) = x_axis.x;
+    new_coordinates.at<float>(0, 1) = x_axis.y;
+    new_coordinates.at<float>(0, 2) = x_axis.z;
+    new_coordinates.at<float>(1, 0) = y_axis.x;
+    new_coordinates.at<float>(1, 1) = y_axis.y;
+    new_coordinates.at<float>(1, 2) = y_axis.z;
+    new_coordinates.at<float>(2, 0) = normal.x;
+    new_coordinates.at<float>(2, 1) = normal.y;
+    new_coordinates.at<float>(2, 2) = normal.z;
+
+    std::vector<cv::Point2f> points_2d;
+    std::vector<float> z_s;
+    for (const size_t& triangle_id: cluster.triangle_ids_) {
+      size_t triangle_idx = std::round(triangle_id * 4);
+      if (triangle_idx + 3 >= polygons_mesh.rows) {
+        throw std::runtime_error("Visualizer3D: an id in triangle_ids_ is"
+                                 " too large.");
+      }
+      int32_t idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
+      int32_t idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
+      int32_t idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
+
+      // Project points to new coord system
+      cv::Point3f new_map_point_1 =// new_coordinates *
+                            // map_points_3d.row(idx_1).t();
+                            map_points_3d.at<cv::Point3f>(idx_1);
+      cv::Point3f new_map_point_2 =// new_coordinates *
+                            // map_points_3d.row(idx_2).t();
+                            map_points_3d.at<cv::Point3f>(idx_2);
+      cv::Point3f new_map_point_3 =// new_coordinates *
+                               // map_points_3d.row(idx_3).t();
+                               map_points_3d.at<cv::Point3f>(idx_3);
+
+      // Keep only 1st and 2nd component, aka the projection of the point on the
+      // plane.
+      points_2d.push_back(cv::Point2f(new_map_point_1.x,
+                                      new_map_point_1.y));
+      z_s.push_back(new_map_point_1.z);
+      points_2d.push_back(cv::Point2f(new_map_point_2.x,
+                                      new_map_point_2.y));
+      z_s.push_back(new_map_point_2.z);
+      points_2d.push_back(cv::Point2f(new_map_point_3.x,
+                                      new_map_point_3.y));
+      z_s.push_back(new_map_point_3.z);
+    }
+
+    // Create convex hull.
+    if (points_2d.size() != 0) {
+      std::vector<int> hull_idx;
+      convexHull(Mat(points_2d), hull_idx, false);
+
+      static constexpr bool visualize_hull_as_polyline = false;
+
+      // Add the z component.
+      std::vector<cv::Point3f> hull_3d;
+      for (const int& idx: hull_idx) {
+        hull_3d.push_back(cv::Point3f(
+                            points_2d.at(idx).x,
+                            points_2d.at(idx).y,
+                            z_s.at(idx)));
+      }
+
+
+      if (visualize_hull_as_polyline) {
+        // Close the hull.
+        CHECK_NE(hull_idx.size(), 0);
+        hull_3d.push_back(cv::Point3f(
+                            points_2d.at(hull_idx.at(0)).x,
+                            points_2d.at(hull_idx.at(0)).y,
+                            z_s.at(hull_idx.at(0))));
+        // Visualize convex hull.
+        cv::viz::WPolyLine convex_hull (hull_3d);
+        window_.showWidget("Convex hull", convex_hull);
+      } else {
+        // Visualize convex hull as a mesh of one polygon with multiple points.
+        if (hull_3d.size() > 2) {
+          cv::Mat polygon_hull = cv::Mat(4 * (hull_3d.size() - 2), 1, CV_32SC1);
+          size_t i = 1;
+          for (size_t k = 0; k + 3 < polygon_hull.rows; k += 4) {
+            polygon_hull.row(k)     = 3;
+            polygon_hull.row(k + 1) = 0;
+            polygon_hull.row(k + 2) = static_cast<int>(i);
+            polygon_hull.row(k + 3) = static_cast<int>(i) + 1;
+            i++;
+          }
+          cv::viz::Color mesh_color;
+          getClusterColorById(cluster.cluster_id_, &mesh_color);
+          cv::Mat normals = cv::Mat(0, 1, CV_32FC3);
+          for (size_t k = 0; k < hull_3d.size(); k++) {
+            normals.push_back(normal);
+          }
+          cv::Mat colors (hull_3d.size(), 1, CV_8UC3, mesh_color);
+          cv::viz::WMesh mesh (hull_3d, polygon_hull, colors.t(), normals.t());
+          window_.showWidget("Convex hull", mesh);
+        }
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Visualize trajectory.
   void visualizeTrajectory3D(const cv::Mat* frustum_image = nullptr){
     if(trajectoryPoses3d_.size() == 0) // no points to visualize
@@ -399,23 +524,7 @@ private:
     for (const TriangleCluster& cluster: clusters) {
       // Decide color for cluster.
       cv::viz::Color cluster_color = cv::viz::Color::gray();
-      switch (cluster.cluster_id_) {
-      case 0: {
-        cluster_color = cv::viz::Color::red();
-        break;
-      }
-      case 1: {
-        cluster_color = cv::viz::Color::green();
-        break;
-      }
-      case 2:{
-        cluster_color = cv::viz::Color::blue();
-        break;
-      }
-      default :{
-        break;
-      }
-      }
+      getClusterColorById(cluster.cluster_id_, &cluster_color);
 
       for (const size_t& triangle_id: cluster.triangle_ids_) {
         size_t triangle_idx = std::round(triangle_id * 4);
@@ -447,6 +556,31 @@ private:
       logger.closeLogFiles(3);
     }
   }
+
+  /* ------------------------------------------------------------------------ */
+  // Decide color of the cluster depending on its id.
+  void getClusterColorById(const size_t& id, cv::viz::Color* cluster_color) {
+    CHECK_NOTNULL(cluster_color);
+    switch (id) {
+      case 0: {
+        *cluster_color = cv::viz::Color::red();
+        break;
+      }
+      case 1: {
+        *cluster_color = cv::viz::Color::green();
+        break;
+      }
+      case 2:{
+        *cluster_color = cv::viz::Color::blue();
+        break;
+      }
+      default :{
+        *cluster_color = cv::viz::Color::gray();
+        break;
+      }
+    }
+  }
+
 
   /* ------------------------------------------------------------------------ */
   // Draw a line from lmk to plane center.
