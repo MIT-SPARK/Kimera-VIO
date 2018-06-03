@@ -40,6 +40,9 @@ public:
   Visualizer3D(): window_("3D Visualizer") {
     // Create window and create axes:
     window_.registerKeyboardCallback(keyboardCallback, &window_);
+    window_.setFullScreen();
+//    window_.setWindowPosition();
+//    window_.setWindowSize();
     window_.setBackgroundColor(background_color_);
     window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
