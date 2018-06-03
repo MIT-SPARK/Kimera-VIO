@@ -626,8 +626,6 @@ int main(int argc, char *argv[]) {
                                            lmk_id_to_lmk_type_map_prev);
             }
 
-            static constexpr bool visualize_planes = true;
-            static constexpr bool visualize_plane_constraints = true;
             static constexpr bool visualize_convex_hull = true;
             if (visualize_convex_hull) {
               if (triangle_clusters_prev.size() != 0) {
@@ -637,6 +635,8 @@ int main(int argc, char *argv[]) {
               }
             }
 
+            static constexpr bool visualize_planes = true;
+            static constexpr bool visualize_plane_constraints = true;
             if (visualize_planes) {
               static const std::string plane_id = "Plane 0.";
               static bool is_plane_in_window = false;
