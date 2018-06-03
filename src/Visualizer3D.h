@@ -39,10 +39,14 @@ class Visualizer3D {
 public:
   Visualizer3D(): window_("3D Visualizer") {
     // Create window and create axes:
-    cv::Affine3f viewer_pose (cv::Vec3f(-1.6432757, 1.6432757, -0.8554352),
-                              cv::Vec3f(-3.0, 0.0, 4));
+    //cv::Affine3f viewer_pose (cv::Vec3f(-1.6432757, 1.6432757, -0.8554352),
+    //                          cv::Vec3f(0.0, 0.0, 0.0));
     window_.registerKeyboardCallback(keyboardCallback, &window_);
-    window_.setViewerPose(viewer_pose);
+    Vec3d cam_pos(-5.0,0.0,6.0);
+    Vec3d cam_focal_point(1.0,0.0,0.0);
+    Vec3d cam_y_dir(-1.0,0.0,0.0);
+    Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
+    window_.setViewerPose(cam_pose);
     window_.setFullScreen();
 //    window_.setWindowPosition();
 //    window_.setWindowSize();
@@ -367,7 +371,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Visualize trajectory.
-  void visualizeTrajectory3D(const cv::Mat* frustum_image = nullptr){
+  void visualizeTrajectory3D(const cv::Mat* frustum_image = nullptr) {
     if(trajectoryPoses3d_.size() == 0) // no points to visualize
       return;
     // Show current camera pose.
@@ -381,22 +385,31 @@ public:
       cv::Mat display_img;
       cv::rotate(*frustum_image, display_img, cv::ROTATE_90_CLOCKWISE);
       cam_widget_ptr = cv::viz::WCameraPosition(K, display_img,
-                                                 1.0, cv::viz::Color::white());
+                                                1.0, cv::viz::Color::white());
     }
     window_.showWidget("Camera Pose with Frustum", cam_widget_ptr,
-                         trajectoryPoses3d_.back());
+                       trajectoryPoses3d_.back());
     window_.setWidgetPose("Camera Pose with Frustum", trajectoryPoses3d_.back());
     //window_.resetCameraViewpoint("Camera Pose with Frustum");
     // Viewer is our viewpoint, camera the pose estimate (frustum).
     static constexpr bool follow_camera = false;
     if (follow_camera) {
-      cv::Affine3f camera_in_world_coord = trajectoryPoses3d_.front();
+      cv::Affine3f camera_in_world_coord = trajectoryPoses3d_.back();
       cv::Affine3f viewer_in_camera_coord (Vec3f(
                                              //-0.6139431, -0.6139431, 1.4821898),
                                              -0.3422019, -0.3422019, 1.5435732),
                                            Vec3f(3.0, 0.0, -4.5));
-      cv::Affine3f viewer_in_world_coord = viewer_in_camera_coord.concatenate(camera_in_world_coord);
-      window_.setViewerPose(viewer_in_world_coord);
+      cv::Affine3f viewer_in_world_coord =
+          viewer_in_camera_coord.concatenate(camera_in_world_coord);
+
+      Vec3d cam_pos(-6.0,0.0,6.0);
+      Vec3d cam_focal_point(camera_in_world_coord.translation());
+      Vec3d cam_y_dir(0.0,0.0,-1.0);
+      Affine3f cam_pose = viz::makeCameraPose(cam_pos,
+                                              cam_focal_point,
+                                              cam_y_dir);
+      window_.setViewerPose(cam_pose);
+      //window_.setViewerPose(viewer_in_world_coord);
     }
 
     // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
