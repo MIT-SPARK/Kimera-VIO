@@ -39,7 +39,10 @@ class Visualizer3D {
 public:
   Visualizer3D(): window_("3D Visualizer") {
     // Create window and create axes:
+    cv::Affine3f viewer_pose (cv::Vec3f(-1.6432757, 1.6432757, -0.8554352),
+                              cv::Vec3f(-3.0, 0.0, 4));
     window_.registerKeyboardCallback(keyboardCallback, &window_);
+    window_.setViewerPose(viewer_pose);
     window_.setFullScreen();
 //    window_.setWindowPosition();
 //    window_.setWindowSize();
