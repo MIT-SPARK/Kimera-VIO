@@ -46,7 +46,7 @@ public:
     Vec3d cam_focal_point(1.0,0.0,0.0);
     Vec3d cam_y_dir(-1.0,0.0,0.0);
     Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
-    window_.setViewerPose(cam_pose);
+    //window_.setViewerPose(cam_pose);
     window_.setFullScreen();
 //    window_.setWindowPosition();
 //    window_.setWindowSize();
