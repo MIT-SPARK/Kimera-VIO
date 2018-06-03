@@ -334,6 +334,9 @@ void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
 
     cv::Point3f normal;
     calculateNormal(p1, p2, p3, &normal);
+//    Mat normal2;
+//    viz::computeNormals(mesh, normal2);
+    // https://github.com/zhoushiwei/Viz-opencv/blob/master/Viz/main.cpp
 
     // Store normal to triangle i.
     normals->at(i) = normal;
