@@ -39,6 +39,7 @@ class Visualizer3D {
 public:
   Visualizer3D(): window_("3D Visualizer") {
     // Create window and create axes:
+    window_.registerKeyboardCallback(keyboardCallback, &window_);
     window_.setBackgroundColor(background_color_);
     window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
@@ -620,6 +621,47 @@ private:
     removeWidget(line_id);
     drawLineFromPlaneToPoint(line_id, plane_n_x, plane_n_y, plane_n_z,
                              plane_d, point_x, point_y, point_z);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback.
+  static void keyboardCallback(const viz::KeyboardEvent &event, void *t) {
+    viz::Viz3d* window = (viz::Viz3d*)t;
+    LOG(WARNING)
+        << "You pressed key "
+        << (event.action == viz::KeyboardEvent::KEY_UP? "up": "down")
+        << " with code: " << event.code << " and symbol " << event.symbol
+        << " in viz window " << window->getWindowName();
+    toggleFreezeScreenKeyboardCallback(event.action, event.code);
+    getViewerPoseKeyboardCallback(event.action, event.code, *window);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to toggle freezing screen.
+  static void toggleFreezeScreenKeyboardCallback(
+      const viz::KeyboardEvent::Action& action,
+      const uchar code) {
+    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
+      if (code == 't') {
+        LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
+        cv::waitKey(0);
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to get current viewer pose.
+  static void getViewerPoseKeyboardCallback(
+      const viz::KeyboardEvent::Action& action,
+      const uchar& code,
+      viz::Viz3d& window) {
+    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
+      if (code == 'v') {
+        LOG(INFO) << "Current viewer pose:\n"
+                  << "\tRodriguez vector: " << window.getViewerPose().rvec()
+                  << "\n\tAffine matrix: " << window.getViewerPose().matrix;
+      }
+    }
   }
 
 };
