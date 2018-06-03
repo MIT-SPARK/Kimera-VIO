@@ -380,6 +380,18 @@ public:
     window_.showWidget("Camera Pose with Frustum", cam_widget_ptr,
                          trajectoryPoses3d_.back());
     window_.setWidgetPose("Camera Pose with Frustum", trajectoryPoses3d_.back());
+    //window_.resetCameraViewpoint("Camera Pose with Frustum");
+    // Viewer is our viewpoint, camera the pose estimate (frustum).
+    static constexpr bool follow_camera = false;
+    if (follow_camera) {
+      cv::Affine3f camera_in_world_coord = trajectoryPoses3d_.front();
+      cv::Affine3f viewer_in_camera_coord (Vec3f(
+                                             //-0.6139431, -0.6139431, 1.4821898),
+                                             -0.3422019, -0.3422019, 1.5435732),
+                                           Vec3f(3.0, 0.0, -4.5));
+      cv::Affine3f viewer_in_world_coord = viewer_in_camera_coord.concatenate(camera_in_world_coord);
+      window_.setViewerPose(viewer_in_world_coord);
+    }
 
     // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
     std::vector<cv::Affine3f> trajectory (trajectoryPoses3d_.begin(),
