@@ -381,7 +381,9 @@ public:
     window_.setWidgetPose("Camera Pose with Frustum", trajectoryPoses3d_.back());
 
     // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
-    cv::viz::WTrajectory trajectory_widget (trajectoryPoses3d_,
+    std::vector<cv::Affine3f> trajectory (trajectoryPoses3d_.begin(),
+                                          trajectoryPoses3d_.end());
+    cv::viz::WTrajectory trajectory_widget (trajectory,
                                             cv::viz::WTrajectory::PATH,
                                             1.0, cv::viz::Color::red());
     window_.showWidget("Trajectory", trajectory_widget);
@@ -476,8 +478,12 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Add pose to the previous trajectory.
-  void addPoseToTrajectory(gtsam::Pose3 current_pose_gtsam){
+  void addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam){
     trajectoryPoses3d_.push_back(UtilsOpenCV::Pose2Affine3f(current_pose_gtsam));
+    static constexpr size_t trajectory_size = 50;
+    while (trajectoryPoses3d_.size() > trajectory_size) {
+      trajectoryPoses3d_.pop_front();
+    }
   }
 
   /* ------------------------------------------------------------------------ */
@@ -490,7 +496,7 @@ public:
 
 private:
   cv::viz::Viz3d window_;
-  std::vector<cv::Affine3f> trajectoryPoses3d_;
+  std::deque<cv::Affine3f> trajectoryPoses3d_;
   cv::viz::Color cloud_color_ = cv::viz::Color::white();
   cv::viz::Color background_color_ = cv::viz::Color::black();
 
