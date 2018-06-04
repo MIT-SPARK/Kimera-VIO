@@ -626,7 +626,7 @@ int main(int argc, char *argv[]) {
                                            lmk_id_to_lmk_type_map_prev);
             }
 
-            static constexpr bool visualize_convex_hull = true;
+            static constexpr bool visualize_convex_hull = false;
             if (visualize_convex_hull) {
               if (triangle_clusters_prev.size() != 0) {
                 visualizer.visualizeConvexHull(triangle_clusters_prev.at(0),
