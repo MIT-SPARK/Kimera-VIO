@@ -195,12 +195,8 @@ int main(int argc, char *argv[]) {
 
   double startTime; // to log timing results
 
-  /// Lmk ids that are considered to be in the same cluster.
-  LandmarkIds lmk_ids_with_regularity;
-
   /// Set of planes in the scene.
   std::vector<Plane> planes;
-
 
   // start actual processing of the dataset
   for(size_t k = initial_k; k < final_k; k++) { // for each image
@@ -439,7 +435,7 @@ int main(int argc, char *argv[]) {
               timestamp_k, // Current time for fixed lag smoother.
               statusSmartStereoMeasurements, // Vision data.
               imu_stamps, imu_accgyr, // Inertial data.
-              planes,
+              &planes,
               stereoVisionFrontEnd.getRelativePoseBodyStereo()); // optional: pose estimate from stereo ransac
         VLOG(10) << "Finished addVisualInertialStateAndOptimize.";
       } else {
@@ -449,7 +445,7 @@ int main(int argc, char *argv[]) {
               timestamp_k,
               statusSmartStereoMeasurements,
               imu_stamps, imu_accgyr,
-              planes); // Same but no pose.
+              &planes); // Same but no pose.
         VLOG(10) << "Finished addVisualInertialStateAndOptimize.";
       }
 
@@ -553,50 +549,22 @@ int main(int argc, char *argv[]) {
                 min_elongation_ratio, maxTriangleSide,
                 FLAGS_visualize);
 
-          // Find regularities in the mesh.
-          // Currently only triangles in the ground floor.
-          std::vector<TriangleCluster> triangle_clusters;
-          gtsam::OrientedPlane3 plane_estimate;
+          // TODO Remove, just to keep functional pipeline.
           static const gtsam::Symbol plane_symbol ('P', 0);
-          static const gtsam::Point3 plane_normal (0.0, 0.0, 1.0);
-          static constexpr double plane_distance = -0.15;
-
-          static Plane plane (plane_symbol);
-          plane.distance_ = plane_distance;
-          plane.normal_ = gtsam::Unit3(plane_normal);
-
-          static constexpr bool use_expectation_maximization = true;
-          if(use_expectation_maximization &&
-             vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-               plane_symbol.key(), &plane_estimate)) {
-            // Use the plane estimate of the backend.
-            // TODO this can lead to issues, when the plane estimate gets
-            // quite crazy, but at the same time it will avoid crashing the
-            // optimization, because otherwise we are providing huge outliers.
-            static constexpr bool use_normal_estimation = false;
-            mesher.clusterMesh(&triangle_clusters,
-                               use_normal_estimation?
-                                 plane_estimate.normal().point3() : plane_normal,
-                               plane_estimate.distance());
+          static const gtsam::Unit3 plane_normal (0.0, 0.0, 1.0);
+          static constexpr double plane_distance = 0.0;
+          static Plane plane (plane_symbol,
+                              plane_normal,
+                              plane_distance);
+          if (planes.size() == 0) {
+            planes.push_back(plane);
           } else {
-            // Try to cluster the ground plane.
-            mesher.clusterMesh(&triangle_clusters,
-                               plane_normal,
-                               plane_distance);
+            planes.at(0).normal_ = plane_normal;
           }
 
-
-          // TODO remove the two lines below, just used to maintain functionality
-          // during generalization of pipeline to multiple planes.
-          std::vector<TriangleCluster> ground_clusters;
-          ground_clusters.push_back(triangle_clusters.at(0));
-
-          // Get lmk ids of lmks that are involved in a plane.
-          mesher.extractLmkIdsFromTriangleClusters(ground_clusters,
-                                                  &lmk_ids_with_regularity);
-          plane.lmk_ids_ = lmk_ids_with_regularity;
-          planes.clear();
-          planes.push_back(plane);
+          // Find regularities in the mesh.
+          // Currently only triangles in the ground floor.
+          mesher.clusterPlanesFromMesh(&planes);
 
           if (FLAGS_visualize) {
             VLOG(10) << "Starting mesh visualization...";
@@ -610,6 +578,11 @@ int main(int argc, char *argv[]) {
             static cv::Mat vertices_mesh_prev;
             static cv::Mat polygons_mesh_prev;
             static std::vector<TriangleCluster> triangle_clusters_prev;
+            // TODO remove, temporary hack to visualize, and keep functionality.
+            std::vector<TriangleCluster> triangle_clusters;
+            if (planes.size() > 0) {
+              triangle_clusters.push_back(planes.at(0).triangle_cluster_);
+            }
 
             static constexpr bool visualize_mesh = true;
             if (visualize_mesh) {

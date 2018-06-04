@@ -48,16 +48,8 @@ public:
       const bool& visualize = true);
 
   /* ------------------------------------------------------------------------ */
-  // Perform Mesh clustering.
-  void clusterMesh(std::vector<TriangleCluster>* clusters,
-                   const gtsam::Point3& plane_normal,
-                   const double& plane_distance) const;
-
-  /* ------------------------------------------------------------------------ */
-  // Extract lmk ids from triangle cluster.
-  void extractLmkIdsFromTriangleClusters(
-      const std::vector<TriangleCluster>& triangle_cluster,
-      LandmarkIds* lmk_ids) const;
+  // Cluster planes from the mesh.
+  void clusterPlanesFromMesh(std::vector<Plane>* planes) const;
 
   /* ------------------------------------------------------------------------ */
   // Clones underlying data structures encoding the mesh.
@@ -161,9 +153,10 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Filter z component in triangle cluster.
-  void clusterZComponent(const double& z,
-                         const double& tolerance,
-                         TriangleCluster* triangle_cluster) const;
+  void clusterAtDistanceFromPlane(const double& plane_distance,
+                                  const cv::Point3f& plane_normal,
+                                  const double& distance_tolerance,
+                                  TriangleCluster* triangle_cluster) const;
 
   /* ------------------------------------------------------------------------ */
   // Try to reject bad triangles, corresponding to outliers.
@@ -172,6 +165,43 @@ private:
                      const double& min_ratio_between_largest_an_smallest_side,
                      const double& min_elongation_ratio,
                      const double& max_triangle_side) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Perform Mesh clustering of triangles on a plane given by a normal and a
+  // distance to the origin.
+  void clusterTrianglesOnPlane(TriangleCluster* clusters,
+                               const gtsam::Unit3& plane_normal,
+                               const double& plane_distance,
+                               const double& normal_tolerance,
+                               const double& distance_tolerance) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Segment planes in the mesh, by using initial plane seeds.
+  void segmentPlanesInMesh(std::vector<Plane>* seed_planes,
+                           const double& normal_tolerance,
+                           const double& distance_tolerance) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Segment planes in the mesh, without having initial plane seeds.
+  void segmentPlanesInMeshNaive(std::vector<Plane>* segmented_planes) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Data association between planes.
+  void associatePlanes(const std::vector<Plane>& segmented_planes,
+                       std::vector<Plane>* planes,
+                       const double& normal_tolerance,
+                       const double& distance_tolerance) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Extract lmk ids from a vector of triangle clusters.
+  void extractLmkIdsFromVectorOfTriangleClusters(
+      const std::vector<TriangleCluster>& triangle_cluster,
+      LandmarkIds* lmk_ids) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Extract lmk ids from triangle cluster.
+  void extractLmkIdsFromTriangleCluster(const TriangleCluster& triangle_cluster,
+                                        LandmarkIds* lmk_ids) const;
 };
 
 } // namespace VIO

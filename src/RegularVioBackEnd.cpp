@@ -71,17 +71,18 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
     const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
-    const std::vector<Plane>& planes,
+    std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
+  CHECK_NOTNULL(planes);
 
   debug_info_.resetAddedFactorsStatistics();
 
   // Extract lmk ids that are involved in a regularity.
-  VLOG(10) << "Starting extracting lmk ids from set of planes...";
+  VLOG(0) << "Starting extracting lmk ids from set of planes...";
   LandmarkIds lmk_ids_with_regularity;
-  extractLmkIdsFromPlanes(planes,
+  extractLmkIdsFromPlanes(*planes,
                           &lmk_ids_with_regularity);
-  VLOG(10) << "Finished extracting lmk ids from set of planes, total of "
+  VLOG(0) << "Finished extracting lmk ids from set of planes, total of "
           << lmk_ids_with_regularity.size() << " lmks with regularities.";
 
   if (VLOG_IS_ON(20)) {
@@ -219,9 +220,12 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   delete_slots.insert(delete_slots.end(),
                       delete_old_regularity_factors.begin(),
                       delete_old_regularity_factors.end());
-  // TODO add conversion from Smart factor to regular.
+
   optimize(cur_kf_id_, vio_params_.numOptimize_,
            delete_slots);
+
+  // Update estimates of planes, and remove planes that are not in the state.
+  updatePlaneEstimates(planes);
 
   // Reset list of factors to delete.
   // These are the smart factors that have been converted to projection factors
@@ -1322,6 +1326,36 @@ void RegularVioBackEnd::extractLmkIdsFromPlanes(
         // The lmk id is already in the lmk_ids vector, do not add it.
         continue;
       }
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Update plane normal and distance if the plane could be found in the state.
+// Otherwise, erase the plane.
+void RegularVioBackEnd::updatePlaneEstimates(std::vector<Plane>* planes) {
+  CHECK_NOTNULL(planes);
+  gtsam::OrientedPlane3 plane_estimate;
+  for (std::vector<Plane>::iterator plane_it = planes->begin();
+       plane_it != planes->end();) {
+    if (getEstimateOfKey<gtsam::OrientedPlane3>(
+          plane_it->getPlaneSymbol().key(),
+          &plane_estimate)) {
+      // We found the plane in the state.
+      // Update the plane.
+      VLOG(10) << "Update plane with id "
+              << gtsam::DefaultKeyFormatter(plane_it->getPlaneSymbol().key())
+              << " from the set of planes.";
+      plane_it->normal_ = plane_estimate.normal();
+      plane_it->distance_ = plane_estimate.distance();
+      plane_it++;
+    } else {
+      // We did not find the plane in the state.
+      // Delete the plane.
+      VLOG(10) << "Erase plane with id "
+              << gtsam::DefaultKeyFormatter(plane_it->getPlaneSymbol().key())
+              << " from the set of planes.";
+      plane_it = planes->erase(plane_it);
     }
   }
 }

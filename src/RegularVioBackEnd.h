@@ -41,7 +41,7 @@ public:
       const StatusSmartStereoMeasurements&
                             status_smart_stereo_measurements_kf, // Vision data.
       const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,  // Inertial data.
-      const std::vector<Plane>& planes,
+      std::vector<Plane>* planes,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   /* ------------------------------------------------------------------------ */
@@ -146,10 +146,16 @@ private:
       const gtsam::SharedNoiseModel& noise_model_input,
       const size_t& norm_type);
 
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   // Extract all lmk ids, wo repetition, from the set of planes.
   void extractLmkIdsFromPlanes(const std::vector<Plane>& planes,
                                LandmarkIds* lmk_ids_with_regularity) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Update plane normal and distance if the plane could be found in the state.
+  // Otherwise, erase the plane.
+  void updatePlaneEstimates(std::vector<Plane>* planes);
+
 };
 
 } // namespace VIO
