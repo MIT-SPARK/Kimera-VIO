@@ -16,6 +16,10 @@
 
 #include "LoggerMatlab.h"
 
+// WARNING this is computationally expensive.
+DEFINE_bool(add_extra_lmks_from_stereo, false,
+            "Add extra landmarks that are stereo triangulated to the mesh.");
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -556,10 +560,9 @@ void Mesher::updateMesh3D(
   VLOG(10) << "Starting updateMesh3D...";
 
   // Get points in stereo camera that are not in vio but have lmk id:
-  static constexpr bool add_extra_lmks_from_stereo = false;
   std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_all =
       points_with_id_VIO;
-  if (add_extra_lmks_from_stereo) {
+  if (FLAGS_add_extra_lmks_from_stereo) {
     std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_stereo;
     getNonVioStereoPoints(stereoFrame,
                           leftCameraPose,
@@ -641,20 +644,25 @@ void Mesher::extractLmkIdsFromTriangleClusters(
       CHECK(mesh_.getPolygon(polygon_idx, &polygon))
           << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
       for (const Mesh3D::Vertex& vertex: polygon) {
-        // Only add lmks that are used in the backend (time-horizon).
-        if (points_with_id_vio.find(vertex.getLmkId()) !=
-            points_with_id_vio.end()) {
-          // Ensure we are not adding more than once the same lmk_id.
-          const auto& it = std::find(lmk_ids->begin(),
-                                     lmk_ids->end(),
-                                     vertex.getLmkId());
-          if (it == lmk_ids->end()) {
-            // The lmk id is not present in the lmk_ids vector, add it.
-            lmk_ids->push_back(vertex.getLmkId());
+        // Ensure we are not adding more than once the same lmk_id.
+        const auto& it = std::find(lmk_ids->begin(),
+                                   lmk_ids->end(),
+                                   vertex.getLmkId());
+        if (it == lmk_ids->end()) {
+          // The lmk id is not present in the lmk_ids vector, add it.
+          if (FLAGS_add_extra_lmks_from_stereo) {
+            // Only add lmks that are used in the backend (time-horizon).
+            // This is just needed when adding extra lmks from stereo...
+            if (points_with_id_vio.find(vertex.getLmkId()) !=
+                points_with_id_vio.end()) {
+              lmk_ids->push_back(vertex.getLmkId());
+            }
           } else {
-            // The lmk id is already in the lmk_ids vector, do not add it.
-            continue;
+            lmk_ids->push_back(vertex.getLmkId());
           }
+        } else {
+          // The lmk id is already in the lmk_ids vector, do not add it.
+          continue;
         }
       }
     }

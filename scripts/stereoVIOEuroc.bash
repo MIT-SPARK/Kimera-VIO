@@ -16,3 +16,4 @@ $PROJECT_PATH/build/stereoVIOEuroc \
 --log_output=false \
 --v=0 \
 --vmodule=VioBackEnd=0,RegularVioBackEnd=0 \
+--add_extra_lmks_from_stereo=false \
