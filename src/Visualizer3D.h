@@ -655,11 +655,6 @@ private:
   // Keyboard callback.
   static void keyboardCallback(const viz::KeyboardEvent &event, void *t) {
     viz::Viz3d* window = (viz::Viz3d*)t;
-    LOG(WARNING)
-        << "You pressed key "
-        << (event.action == viz::KeyboardEvent::KEY_UP? "up": "down")
-        << " with code: " << event.code << " and symbol " << event.symbol
-        << " in viz window " << window->getWindowName();
     toggleFreezeScreenKeyboardCallback(event.action, event.code);
     getViewerPoseKeyboardCallback(event.action, event.code, *window);
     getCurrentWindowSizeKeyboardCallback(event.action, event.code, *window);
