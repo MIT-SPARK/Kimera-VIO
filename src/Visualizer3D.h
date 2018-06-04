@@ -252,12 +252,12 @@ public:
                             const cv::Mat& polygons_mesh) {
 
     // Create a new coord system, which has as z the normal.
-    cv::Point3f normal = cluster.cluster_direction_;
+    const cv::Point3f& normal = cluster.cluster_direction_;
 
     // Find first axis of the coord system.
     // Pick random x and y
-    float random_x = 0.1;
-    float random_y = 0.0;
+    static constexpr float random_x = 0.1;
+    static constexpr float random_y = 0.0;
     // Find z, such that dot product with the normal is 0.
     float z = -(normal.x * random_x + normal.y * random_y) / normal.z;
     // Create new first axis:
@@ -321,8 +321,6 @@ public:
       std::vector<int> hull_idx;
       convexHull(Mat(points_2d), hull_idx, false);
 
-      static constexpr bool visualize_hull_as_polyline = false;
-
       // Add the z component.
       std::vector<cv::Point3f> hull_3d;
       for (const int& idx: hull_idx) {
@@ -332,7 +330,7 @@ public:
                             z_s.at(idx)));
       }
 
-
+      static constexpr bool visualize_hull_as_polyline = false;
       if (visualize_hull_as_polyline) {
         // Close the hull.
         CHECK_NE(hull_idx.size(), 0);
