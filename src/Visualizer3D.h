@@ -195,7 +195,13 @@ public:
 
     // Create a cloud widget.
     cv::viz::WMesh mesh(map_points_3d.t(), polygons_mesh, colors.t());
-    mesh.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
+    static constexpr bool use_gouraud_shading = false;
+    if (use_gouraud_shading) {
+      mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_GOURAUD);
+    }
+    mesh.setRenderingProperty(cv::viz::AMBIENT, false);
+    mesh.setRenderingProperty(cv::viz::LIGHTING, false);
+    mesh.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, true);
 
     // Plot mesh.
     window_.showWidget("Mesh", mesh);
