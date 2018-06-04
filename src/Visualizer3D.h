@@ -655,7 +655,7 @@ private:
   // Keyboard callback.
   static void keyboardCallback(const viz::KeyboardEvent &event, void *t) {
     viz::Viz3d* window = (viz::Viz3d*)t;
-    toggleFreezeScreenKeyboardCallback(event.action, event.code);
+    toggleFreezeScreenKeyboardCallback(event.action, event.code, *window);
     getViewerPoseKeyboardCallback(event.action, event.code, *window);
     getCurrentWindowSizeKeyboardCallback(event.action, event.code, *window);
   }
@@ -664,11 +664,21 @@ private:
   // Keyboard callback to toggle freezing screen.
   static void toggleFreezeScreenKeyboardCallback(
       const viz::KeyboardEvent::Action& action,
-      const uchar code) {
+      const uchar code,
+      viz::Viz3d& window) {
     if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
       if (code == 't') {
         LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
-        cv::waitKey(0);
+        static bool freeze = false;
+        freeze = !freeze; // Toggle.
+        window.spinOnce(1, true);
+        while(!window.wasStopped()) {
+          if (freeze) {
+            window.spinOnce(1, true);
+          } else {
+            break;
+          }
+        }
       }
     }
   }
