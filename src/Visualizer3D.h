@@ -42,14 +42,14 @@ public:
     //cv::Affine3f viewer_pose (cv::Vec3f(-1.6432757, 1.6432757, -0.8554352),
     //                          cv::Vec3f(0.0, 0.0, 0.0));
     window_.registerKeyboardCallback(keyboardCallback, &window_);
-    Vec3d cam_pos(-5.0,0.0,6.0);
-    Vec3d cam_focal_point(1.0,0.0,0.0);
-    Vec3d cam_y_dir(-1.0,0.0,0.0);
-    Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
+    //Vec3d cam_pos(-5.0,0.0,6.0);
+    //Vec3d cam_focal_point(1.0,0.0,0.0);
+    //Vec3d cam_y_dir(-1.0,0.0,0.0);
+    //Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
     //window_.setViewerPose(cam_pose);
     window_.setFullScreen();
-//    window_.setWindowPosition();
-//    window_.setWindowSize();
+    window_.setWindowPosition(Size(3*1861+1080/2, 2212/2));
+    window_.setWindowSize(Size(1861, 2056));
     window_.setBackgroundColor(background_color_);
     window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
@@ -662,6 +662,7 @@ private:
         << " in viz window " << window->getWindowName();
     toggleFreezeScreenKeyboardCallback(event.action, event.code);
     getViewerPoseKeyboardCallback(event.action, event.code, *window);
+    getCurrentWindowSizeKeyboardCallback(event.action, event.code, *window);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -688,6 +689,21 @@ private:
         LOG(INFO) << "Current viewer pose:\n"
                   << "\tRodriguez vector: " << window.getViewerPose().rvec()
                   << "\n\tAffine matrix: " << window.getViewerPose().matrix;
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to get current screen size.
+  static void getCurrentWindowSizeKeyboardCallback(
+      const viz::KeyboardEvent::Action& action,
+      const uchar code,
+      viz::Viz3d& window) {
+    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
+      if (code == 'w') {
+        LOG(WARNING) << "Pressing " << code << " displays current window size:\n"
+                     << "\theight: " << window.getWindowSize().height
+                     << "\twidth: " << window.getWindowSize().width;
       }
     }
   }
