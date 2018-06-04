@@ -22,6 +22,8 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/geometry/Unit3.h>
 
+#include <glog/logging.h>
+
 // Forward declare classes.
 namespace gtsam {
 class Point2;
@@ -112,24 +114,6 @@ struct TriangleCluster {
   cv::Point3f cluster_direction_;
 };
 
-struct Plane {
-public:
-  Plane(const gtsam::Symbol& plane_symbol)
-    : plane_symbol_(plane_symbol) {}
-
-  inline const gtsam::Symbol& getPlaneSymbol() const {
-    return plane_symbol_;
-  }
-
-private:
-  gtsam::Symbol plane_symbol_;
-
-public:
-  gtsam::Unit3 normal_;
-  double distance_;
-  LandmarkIds lmk_ids_;
-};
-
 
 class UtilsOpenCV {
 
@@ -146,6 +130,14 @@ public:
   // comparse 2 cvPoints
   static bool CvPointCmp(const cv::Point2f &p1, const cv::Point2f &p2,
                          const double tol = 1e-7);
+  /* ------------------------------------------------------------------------ */
+  // Converts a gtsam::Unit3 to a cv::Point3d.
+  static inline cv::Point3d unit3ToPoint3d(const gtsam::Unit3& unit3) {
+    return cv::Point3d(unit3.point3().x(),
+                       unit3.point3().y(),
+                       unit3.point3().z());
+  }
+
   /* ------------------------------------------------------------------------ */
   // converts a vector of 16 elements listing the elements of a 4x4 3D pose matrix by rows
   // into a pose3 in gtsam
@@ -339,6 +331,79 @@ public:
   static std::vector<std::pair<KeypointCV, double>> FindHighIntensityInTriangle(
       const cv::Mat img, const cv::Vec6f px_vertices,
       const float intensityThreshold) ;
+};
+
+
+/* -------------------------------------------------------------------------- */
+// A Plane defined by a gtsam::Symbol, a normal, a distance, and the set
+// of lmk ids that are part of the plane.
+struct Plane {
+public:
+  typedef gtsam::Unit3 Normal;
+
+public:
+  Plane(const gtsam::Symbol& plane_symbol,
+        const Normal& normal = Normal(),
+        const double& distance = 0.0,
+        const LandmarkIds& lmk_ids = LandmarkIds())
+    : plane_symbol_(plane_symbol),
+      normal_(normal),
+      distance_(distance),
+      lmk_ids_(lmk_ids) {}
+
+  inline const gtsam::Symbol& getPlaneSymbol() const {
+    return plane_symbol_;
+  }
+
+  bool geometricEqual(const Plane& rhs,
+             const double& normal_tolerance,
+             const double& distance_tolerance) const {
+    return isNormalEqual(UtilsOpenCV::unit3ToPoint3d(rhs.normal_),
+                         UtilsOpenCV::unit3ToPoint3d(normal_),
+                         normal_tolerance) &&
+        // TODO implement a better test for distance tolerance... as it can
+        // be large for small normal difference and distances are big.
+        isDistanceEqual(rhs.distance_,
+                        distance_,
+                        distance_tolerance);
+  }
+
+private:
+  gtsam::Symbol plane_symbol_;
+
+public:
+  Normal normal_;
+  double distance_;
+  LandmarkIds lmk_ids_;
+
+  // TODO remove, only used for visualization...
+  TriangleCluster triangle_cluster_;
+
+private:
+  typedef cv::Point3d NormalInternal;
+  /* ------------------------------------------------------------------------ */
+  // Is normal equal? True whenever normals are parallel,
+  // indep of their direction.
+  bool isNormalEqual(const NormalInternal& axis,
+                     const NormalInternal& normal,
+                     const double& tolerance) const {
+    CHECK_DOUBLE_EQ(axis.dot(axis), 1.0); // Expect unit norm.
+    CHECK_DOUBLE_EQ(normal.dot(normal), 1.0); // Expect unit norm.
+    double diff_a = cv::norm(normal - axis);
+    double diff_b = cv::norm(normal + axis);
+    return (((diff_a < tolerance) || //  axis and normal almost aligned
+             (diff_b < tolerance)) // axis and normal in opp directions.
+            ? true : false);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Is distance equal? true whenever distances are of similar absolute value.
+  bool isDistanceEqual(const double& dist_1,
+                       const double& dist_2,
+                       const double& tolerance) const {
+    return std::fabs((std::fabs(dist_1) -
+                      std::fabs(dist_2)) < tolerance);
+  }
 };
 
 } // namespace VIO
