@@ -122,8 +122,9 @@ private:
   void calculateNormals(std::vector<cv::Point3f>* normals);
 
   /* ------------------------------------------------------------------------ */
-  // Calculate normal of a triangle.
-  void calculateNormal(const Mesh3D::VertexPosition3D& p1,
+  // Calculate normal of a triangle, and return whether it was possible or not.
+  // Calculating the normal of aligned points in 3D is not possible...
+  bool calculateNormal(const Mesh3D::VertexPosition3D& p1,
                        const Mesh3D::VertexPosition3D& p2,
                        const Mesh3D::VertexPosition3D& p3,
                        cv::Point3f* normal) const;

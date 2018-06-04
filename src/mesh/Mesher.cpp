@@ -315,23 +315,44 @@ void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
 }
 
 /* -------------------------------------------------------------------------- */
-// Calculate normal of a triangle.
-void Mesher::calculateNormal( const Mesh3D::VertexPosition3D& p1,
-                              const Mesh3D::VertexPosition3D& p2,
-                              const Mesh3D::VertexPosition3D& p3,
-                              cv::Point3f* normal) const {
+// Calculate normal of a triangle, and return whether it was possible or not.
+// Calculating the normal of aligned points in 3D is not possible...
+bool Mesher::calculateNormal(const Mesh3D::VertexPosition3D& p1,
+                             const Mesh3D::VertexPosition3D& p2,
+                             const Mesh3D::VertexPosition3D& p3,
+                             cv::Point3f* normal) const {
   CHECK_NOTNULL(normal);
   // Calculate vectors of the triangle.
   cv::Point3f v21 = p2 - p1;
   cv::Point3f v31 = p3 - p1;
 
-  // Calculate normal (cross product).
-  *normal = v21.cross(v31);
+  // Normalize vectors.
+  double v21_norm = cv::norm(v21);
+  CHECK_GT(v21_norm, 0.0);
+  v21 /= v21_norm;
 
-  // Normalize.
-  double norm = cv::norm(v21) * cv::norm(v31);
-  CHECK_NE(norm, 0) << "Norm is 0.";
-  *normal /= norm;
+  double v31_norm = cv::norm(v31);
+  CHECK_GT(v31_norm, 0.0);
+  v31 /= v31_norm;
+
+  // Check that vectors are not aligned, dot product should not be 1 or -1.
+  static constexpr double epsilon = 1e-3; // 2.5 degrees aperture.
+  if (std::fabs(v21.ddot(v31)) >= 1.0 - epsilon) {
+    // Dot prod very close to 1.0
+    // We have a degenerate configuration with aligned vectors.
+    LOG(WARNING) << "Cross product of aligned vectors.";
+    return false;
+  } else {
+    // Calculate normal (cross product).
+    *normal = v21.cross(v31);
+
+    // Normalize.
+    double norm = cv::norm(*normal);
+    CHECK_GT(norm, 0.0);
+    *normal /= norm;
+    CHECK_NEAR(cv::norm(*normal), 1.0, 1e-5); // Expect unit norm.
+    return true;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
