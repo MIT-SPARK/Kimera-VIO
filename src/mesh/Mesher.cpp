@@ -16,6 +16,10 @@
 
 #include "LoggerMatlab.h"
 
+// WARNING this is computationally expensive.
+DEFINE_bool(add_extra_lmks_from_stereo, false,
+            "Add extra landmarks that are stereo triangulated to the mesh.");
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -120,9 +124,9 @@ bool Mesher::isBadTriangle(
 
     // Check geometric dimensions.
     // Measure sides.
-    double d12 = double(cv::norm(p1 - p2));
-    double d23 = double(cv::norm(p2 - p3));
-    double d31 = double(cv::norm(p3 - p1));
+    double d12 = cv::norm(p1 - p2);
+    double d23 = cv::norm(p2 - p3);
+    double d31 = cv::norm(p3 - p1);
 
     // If threshold is disabled, avoid computation.
     if (min_ratio_between_largest_an_smallest_side > 0.0) {
@@ -157,7 +161,7 @@ bool Mesher::isBadTriangle(
 }
 
 /* -------------------------------------------------------------------------- */
-// Create a 3D mesh from 2D corners in an image (coded as a Frame class).
+// Create a 3D mesh from 2D corners in an image, keeps the mesh in time horizon.
 void Mesher::populate3dMeshTimeHorizon(
     const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
@@ -167,30 +171,59 @@ void Mesher::populate3dMeshTimeHorizon(
     double min_elongation_ratio,
     double max_triangle_side) {
   VLOG(10) << "Starting populate3dMeshTimeHorizon...";
-  // Note: we restrict to valid triangles in which each landmark has a 3D point.
-  // Iterate over each face in the 2d mesh, and generate the 3d mesh.
+  VLOG(10) << "Starting populate3dMesh...";
+  populate3dMesh(mesh_2d, points_with_id_map, frame, leftCameraPose,
+                 min_ratio_largest_smallest_side,
+                 min_elongation_ratio,
+                 max_triangle_side);
+  VLOG(10) << "Finished populate3dMesh.";
 
-  //TODO to retrieve lmk id from pixels, do it in the stereo frame! not here.
+  // Remove faces in the mesh that have vertices which are not in
+  // points_with_id_map anymore.
+  static constexpr bool reduce_mesh_to_time_horizon = true;
+  VLOG(10) << "Starting updatePolygonMeshToTimeHorizon...";
+  updatePolygonMeshToTimeHorizon(points_with_id_map,
+                                 leftCameraPose,
+                                 min_ratio_largest_smallest_side,
+                                 max_triangle_side,
+                                 reduce_mesh_to_time_horizon);
+  VLOG(10) << "Finished updatePolygonMeshToTimeHorizon.";
+  VLOG(10) << "Finished populate3dMeshTimeHorizon.";
+}
+
+/* -------------------------------------------------------------------------- */
+// Create a 3D mesh from 2D corners in an image.
+void Mesher::populate3dMesh(
+    const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+    const Frame& frame,
+    const gtsam::Pose3& leftCameraPose,
+    double min_ratio_largest_smallest_side,
+    double min_elongation_ratio,
+    double max_triangle_side) {
+  // Iterate over each face in the 2d mesh, and generate the 3d mesh.
+  // TODO to retrieve lmk id from pixels, do it in the stereo frame! not here.
   // Create polygon and add it to the mesh.
   Mesh3D::Polygon polygon;
   polygon.resize(3);
-  const auto& points_with_id_map_end = points_with_id_map.end();
   // Iterate over the 2d mesh triangles.
   for (size_t i = 0; i < mesh_2d.size(); i++) {
     const cv::Vec6f& triangle_2d = mesh_2d.at(i);
 
     // Iterate over each vertex (pixel) of the triangle.
+    // Triangle_2d.rows = 3.
     for (size_t j = 0; j < triangle_2d.rows / 2; j++) {
       // Extract pixel.
       const cv::Point2f pixel (triangle_2d[j * 2],
                                triangle_2d[j * 2 + 1]);
 
       // Extract landmark id corresponding to this pixel.
-      const LandmarkId id_pt (frame.findLmkIdFromPixel(pixel));
+      const LandmarkId lmk_id (frame.findLmkIdFromPixel(pixel));
+      CHECK_NE(lmk_id, -1);
 
       // Try to find this landmark id in points_with_id_map.
-      const auto& lmk_it = points_with_id_map.find(id_pt);
-      if (lmk_it != points_with_id_map_end) {
+      const auto& lmk_it = points_with_id_map.find(lmk_id);
+      if (lmk_it != points_with_id_map.end()) {
         // We found the landmark.
         // Extract 3D position of the landmark.
         const gtsam::Point3& point (lmk_it->second);
@@ -198,7 +231,8 @@ void Mesher::populate3dMeshTimeHorizon(
                         float(point.y()),
                         float(point.z()));
         // Add landmark as one of the vertices of the current polygon in 3D.
-        polygon.at(j) = Mesh3D::Vertex(id_pt, lmk);
+        DCHECK_LT(j, polygon.size());
+        polygon.at(j) = Mesh3D::Vertex(lmk_id, lmk);
         static const size_t loop_end = triangle_2d.rows / 2 - 1;
         if (j == loop_end) {
           // Last iteration.
@@ -215,31 +249,25 @@ void Mesher::populate3dMeshTimeHorizon(
       } else {
         // Do not save current polygon, since it has at least one vertex that
         // is not in points_with_id_map.
-        LOG(ERROR) << "Landmark with id : " << lmk_it->first
+        LOG(ERROR) << "Landmark with id : " << lmk_id
                    << ", could not be found in points_with_id_map. "
                    << "But it should have been.\n";
         break;
       }
     }
   }
-
-  // Remove faces in the mesh that have vertices which are not in
-  // points_with_id_map anymore.
-  reducePolygonMeshToTimeHorizon(points_with_id_map,
-                                 leftCameraPose,
-                                 min_ratio_largest_smallest_side,
-                                 max_triangle_side);
-  VLOG(10) << "Finished populate3dMeshTimeHorizon.";
 }
 
+/* -------------------------------------------------------------------------- */
 // TODO the polygon_mesh has repeated faces...
 // And this seems to slow down quite a bit the for loop!
-void Mesher::reducePolygonMeshToTimeHorizon(
+void Mesher::updatePolygonMeshToTimeHorizon(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
     const gtsam::Pose3& leftCameraPose,
     double min_ratio_largest_smallest_side,
-    double max_triangle_side) {
-  VLOG(10) << "Starting reducePolygonMeshToTimeHorizon...";
+    double max_triangle_side,
+    const bool& reduce_mesh_to_time_horizon) {
+  VLOG(10) << "Starting updatePolygonMeshToTimeHorizon...";
   Mesh3D mesh_output;
 
   auto end = points_with_id_map.end();
@@ -253,9 +281,15 @@ void Mesher::reducePolygonMeshToTimeHorizon(
       const auto& point_with_id_it = points_with_id_map.find(vertex.getLmkId());
       if (point_with_id_it == end) {
         // Vertex of current polygon is not in points_with_id_map
-        // Delete the polygon by not adding it to the new mesh.
-        save_polygon = false;
-        break;
+        if (reduce_mesh_to_time_horizon) {
+          // We want to reduce the mesh to time horizon.
+          // Delete the polygon by not adding it to the new mesh.
+          save_polygon = false;
+          break;
+        } else {
+          // We do not want to reduce the mesh to time horizon.
+          save_polygon = true;
+        }
       } else {
         // Update the vertex with newest landmark position.
         // This is to ensure we have latest update, the previous addPolygonToMesh
@@ -281,7 +315,7 @@ void Mesher::reducePolygonMeshToTimeHorizon(
   }
 
   mesh_ = mesh_output;
-  VLOG(10) << "Finished reducePolygonMeshToTimeHorizon.";
+  VLOG(10) << "Finished updatePolygonMeshToTimeHorizon.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -308,6 +342,9 @@ void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
 
     cv::Point3f normal;
     CHECK(calculateNormal(p1, p2, p3, &normal));
+    // Mat normal2;
+    // viz::computeNormals(mesh, normal2);
+    // https://github.com/zhoushiwei/Viz-opencv/blob/master/Viz/main.cpp
 
     // Store normal to triangle i.
     normals->at(i) = normal;
@@ -541,7 +578,13 @@ void Mesher::clusterTrianglesOnPlane(TriangleCluster* cluster,
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesher::clusterPlanesFromMesh(std::vector<Plane>* planes) const {
+// Cluster planes from Mesh.
+// Points_with_id_vio are only used when add_extra_lmks_from_stereo is true, so
+// that we only extract lmk ids that are in the optimization time horizon.
+void Mesher::clusterPlanesFromMesh(
+    std::vector<Plane>* planes,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+const {
   CHECK_NOTNULL(planes);
   static constexpr bool naive_implementation = false;
   static constexpr double normal_tolerance = 0.15; // 0.087 === 10 deg. aperture.
@@ -562,6 +605,7 @@ void Mesher::clusterPlanesFromMesh(std::vector<Plane>* planes) const {
     // Segment planes in the mesh, using seeds.
     VLOG(10) << "Starting plane segmentation...";
     segmentPlanesInMesh(planes,
+                        points_with_id_vio,
                         normal_tolerance,
                         distance_tolerance);
     VLOG(10) << "Finished plane segmentation.";
@@ -570,9 +614,14 @@ void Mesher::clusterPlanesFromMesh(std::vector<Plane>* planes) const {
 
 /* -------------------------------------------------------------------------- */
 // Segment planes in the mesh.
-void Mesher::segmentPlanesInMesh(std::vector<Plane>* seed_planes,
-                                 const double& normal_tolerance,
-                                 const double& distance_tolerance) const {
+// Points_with_id_vio are only used if add_extra_lmks_from_stereo is true,
+// They are used by extractLmkIdsFromTriangleCluster to extract only lmk ids
+// that are in the time horizon (aka points_with_id_vio).
+void Mesher::segmentPlanesInMesh(
+    std::vector<Plane>* seed_planes,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+    const double& normal_tolerance,
+    const double& distance_tolerance) const {
   CHECK_NOTNULL(seed_planes);
   // Cluster new lmk ids for seed planes.
   for (Plane& seed_plane: *seed_planes) {
@@ -588,6 +637,7 @@ void Mesher::segmentPlanesInMesh(std::vector<Plane>* seed_planes,
     VLOG(10) << "Starting extractLmkIdsFromTriangleCluster...";
     LandmarkIds lmk_ids;
     extractLmkIdsFromTriangleCluster(triangle_cluster,
+                                     points_with_id_vio,
                                      &lmk_ids);
     VLOG(10) << "Finished extractLmkIdsFromTriangleCluster.";
 
@@ -699,10 +749,34 @@ void Mesher::updateMesh3D(
     const bool& visualize) {
   VLOG(10) << "Starting updateMesh3D...";
 
+  const std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_all =
+      &points_with_id_VIO;
+
+  // Get points in stereo camera that are not in vio but have lmk id:
+  std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_stereo;
+  if (FLAGS_add_extra_lmks_from_stereo) {
+    // Append vio points.
+    // WARNING some stereo and vio lmks share the same id, so adding order matters!
+    // first add vio points, then stereo, so that vio points have preference
+    // over stereo ones if they are repeated!
+    points_with_id_stereo = points_with_id_VIO;
+    appendNonVioStereoPoints(stereoFrame,
+                             leftCameraPose,
+                             &points_with_id_stereo);
+    VLOG(20) << "Number of stereo landmarks used for the mesh: "
+            << points_with_id_stereo.size() << "\n"
+            << "Number of VIO landmarks used for the mesh: "
+            << points_with_id_VIO.size();
+
+    points_with_id_all = &points_with_id_stereo;
+  }
+  VLOG(20) << "Total number of landmarks used for the mesh: "
+          << points_with_id_all->size();
+
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
   stereoFrame->createMesh2dVIO(&mesh_2d,
-                               points_with_id_VIO);
+                               *points_with_id_all);
   std::vector<cv::Vec6f> mesh_2d_filtered;
   stereoFrame->filterTrianglesWithGradients(mesh_2d,
                                             &mesh_2d_filtered,
@@ -722,8 +796,8 @@ void Mesher::updateMesh3D(
   }
 
   populate3dMeshTimeHorizon(
-        mesh_2d,
-        points_with_id_VIO,
+        mesh_2d_filtered,
+        *points_with_id_all,
         stereoFrame->left_frame_,
         leftCameraPose,
         minRatioBetweenLargestAnSmallestSide,
@@ -733,25 +807,61 @@ void Mesher::updateMesh3D(
   VLOG(10) << "Finished updateMesh3D.";
 }
 
+
+/* -------------------------------------------------------------------------- */
+// Attempts to insert new points in the map, but does not override if there
+// is already a point with the same lmk id.
+void Mesher::appendNonVioStereoPoints(
+    std::shared_ptr<StereoFrame> stereoFrame,
+    const gtsam::Pose3& leftCameraPose,
+    std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo) const {
+  CHECK_NOTNULL(points_with_id_stereo);
+  const Frame& leftFrame = stereoFrame->left_frame_;
+  for (size_t i = 0; i < leftFrame.landmarks_.size(); i++) {
+    if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID &&
+        leftFrame.landmarks_.at(i) != -1) {
+      const gtsam::Point3& p_i_global =
+          leftCameraPose.transform_from(gtsam::Point3(
+                                          stereoFrame->keypoints_3d_.at(i)));
+      // Use insert() instead of [] operator, to make sure that if there is
+      // already a point with the same lmk_id, we do not override it.
+      points_with_id_stereo->insert(std::make_pair(
+                                      leftFrame.landmarks_.at(i),
+                                      p_i_global));
+    }
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 // TODO avoid this loop by enforcing to pass the lmk id of the vertex of the
 // triangle in the triangle cluster.
+// In case we are using extra lmks from stereo,
+// then it makes sure that the lmk ids are used in the optimization
+// (they are present in time horizon).
 void Mesher::extractLmkIdsFromVectorOfTriangleClusters(
     const std::vector<TriangleCluster>& triangle_clusters,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
     LandmarkIds* lmk_ids) const {
   VLOG(10) << "Starting extract lmk ids for vector of triangle cluster...";
   CHECK_NOTNULL(lmk_ids);
   lmk_ids->resize(0);
 
   for (const TriangleCluster& triangle_cluster: triangle_clusters) {
-    extractLmkIdsFromTriangleCluster(triangle_cluster, lmk_ids);
+    extractLmkIdsFromTriangleCluster(triangle_cluster,
+                                     points_with_id_vio,
+                                     lmk_ids);
   }
   VLOG(10) << "Finished extract lmk ids for vector of triangle cluster.";
 }
 
 /* -------------------------------------------------------------------------- */
+// Extracts lmk ids from triangle cluster. In case we are using extra lmks
+// from stereo, then it makes sure that the lmk ids are used in the optimization
+// (they are present in time horizon: meaning it checks that we can find the
+// lmk id in points_with_id_vio...
 void Mesher::extractLmkIdsFromTriangleCluster(
     const TriangleCluster& triangle_cluster,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
     LandmarkIds* lmk_ids) const {
   VLOG(10) << "Starting extractLmkIdsFromTriangleCluster...";
   CHECK_NOTNULL(lmk_ids);
@@ -768,7 +878,16 @@ void Mesher::extractLmkIdsFromTriangleCluster(
                                    vertex.getLmkId());
         if (it == lmk_ids->end()) {
           // The lmk id is not present in the lmk_ids vector, add it.
-          lmk_ids->push_back(vertex.getLmkId());
+          if (FLAGS_add_extra_lmks_from_stereo) {
+            // Only add lmks that are used in the backend (time-horizon).
+            // This is just needed when adding extra lmks from stereo...
+            if (points_with_id_vio.find(vertex.getLmkId()) !=
+                points_with_id_vio.end()) {
+              lmk_ids->push_back(vertex.getLmkId());
+            }
+          } else {
+            lmk_ids->push_back(vertex.getLmkId());
+          }
         } else {
           // The lmk id is already in the lmk_ids vector, do not add it.
           continue;

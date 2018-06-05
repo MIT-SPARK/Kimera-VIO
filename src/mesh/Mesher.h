@@ -49,7 +49,23 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Cluster planes from the mesh.
-  void clusterPlanesFromMesh(std::vector<Plane>* planes) const;
+  void clusterPlanesFromMesh(
+      std::vector<Plane>* planes,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  const;
+
+  /* ------------------------------------------------------------------------ */
+  void appendNonVioStereoPoints(
+      std::shared_ptr<StereoFrame> stereoFrame,
+      const gtsam::Pose3& leftCameraPose,
+      std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Extract lmk ids from triangle cluster.
+  void extractLmkIdsFromTriangleClusters(
+      const std::vector<TriangleCluster>& triangle_cluster,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      LandmarkIds* lmk_ids) const;
 
   /* ------------------------------------------------------------------------ */
   // Clones underlying data structures encoding the mesh.
@@ -62,12 +78,12 @@ private:
 private:
   /* ------------------------------------------------------------------------ */
   // Reduce the 3D mesh to the current VIO lmks only.
-  void reducePolygonMeshToTimeHorizon(
+  void updatePolygonMeshToTimeHorizon(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
       const gtsam::Pose3& leftCameraPose,
       double min_ratio_largest_smallest_side,
-      double max_triangle_side);
-
+      double max_triangle_side,
+      const bool& reduce_mesh_to_time_horizon = true);
 
   /* ------------------------------------------------------------------------ */
   // For a triangle defined by the 3d points p1, p2, and p3
@@ -95,13 +111,24 @@ private:
                              double min_elongation_ratio,
                              double maxTriangleSide);
 
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   // Create a 3D mesh from a 2d mesh in pixel coordinates.
   // The 3D mesh is constructed by finding the 3D landmark corresponding to the
   // pixel in the 2d mesh. The correspondence is found using the frame parameter.
   // The 3D mesh contains, at any given time, only points that are in
   // points_with_id_map.
   void populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& mesh_2d,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+      const Frame& frame,
+      const gtsam::Pose3& leftCameraPose,
+      double min_ratio_largest_smallest_side,
+      double min_elongation_ratio,
+      double max_triangle_side);
+
+  /* ------------------------------------------------------------------------ */
+  // Create a 3D mesh from 2D corners in an image.
+  void populate3dMesh(
+      const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
       const Frame& frame,
       const gtsam::Pose3& leftCameraPose,
@@ -178,6 +205,7 @@ private:
   /* ------------------------------------------------------------------------ */
   // Segment planes in the mesh, by using initial plane seeds.
   void segmentPlanesInMesh(std::vector<Plane>* seed_planes,
+                           const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
                            const double& normal_tolerance,
                            const double& distance_tolerance) const;
 
@@ -196,12 +224,15 @@ private:
   // Extract lmk ids from a vector of triangle clusters.
   void extractLmkIdsFromVectorOfTriangleClusters(
       const std::vector<TriangleCluster>& triangle_cluster,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
   /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.
-  void extractLmkIdsFromTriangleCluster(const TriangleCluster& triangle_cluster,
-                                        LandmarkIds* lmk_ids) const;
+  void extractLmkIdsFromTriangleCluster(
+      const TriangleCluster& triangle_cluster,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      LandmarkIds* lmk_ids) const;
 };
 
 } // namespace VIO

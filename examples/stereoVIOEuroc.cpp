@@ -564,7 +564,8 @@ int main(int argc, char *argv[]) {
 
           // Find regularities in the mesh.
           // Currently only triangles in the ground floor.
-          mesher.clusterPlanesFromMesh(&planes);
+          mesher.clusterPlanesFromMesh(&planes,
+                                       points_with_id_VIO);
 
           if (FLAGS_visualize) {
             VLOG(10) << "Starting mesh visualization...";
@@ -595,6 +596,15 @@ int main(int argc, char *argv[]) {
             if (visualize_point_cloud) {
               visualizer.visualizePoints3D(points_with_id_VIO_prev,
                                            lmk_id_to_lmk_type_map_prev);
+            }
+
+            static constexpr bool visualize_convex_hull = false;
+            if (visualize_convex_hull) {
+              if (triangle_clusters_prev.size() != 0) {
+                visualizer.visualizeConvexHull(triangle_clusters_prev.at(0),
+                                               vertices_mesh_prev,
+                                               polygons_mesh_prev);
+              }
             }
 
             static constexpr bool visualize_planes = true;

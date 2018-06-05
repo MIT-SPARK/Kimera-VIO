@@ -409,7 +409,7 @@ void StereoFrame::createMesh2dVIO(
   std::vector<cv::Point2f> keypoints_for_mesh;
   // TODO this double loop is quite expensive.
   for (const auto& point_with_id : pointsWithIdVIO) {
-    for (int j = 0; j < ref_frame.landmarks_.size(); j++) {
+    for (size_t j = 0; j < ref_frame.landmarks_.size(); j++) {
       // If we are seeing a VIO point in left and right frame, add to keypoints
       // to generate the mesh in 2D.
       if (ref_frame.landmarks_.at(j) == point_with_id.first &&
@@ -442,6 +442,13 @@ void StereoFrame::filterTrianglesWithGradients(
   CHECK_NE(filtered_triangulation_2D, &original_triangulation_2D)
       << "Input original_triangulation_2D should be different that the object "
       << "pointed by filtered_triangulation_2D. Input=*Output error." ;
+
+  if (gradient_bound == -1) {
+    // Skip filter.
+    *filtered_triangulation_2D = original_triangulation_2D;
+    LOG_FIRST_N(WARNING, 1) << "Filter triangles with gradients is disabled.";
+    return;
+  }
 
   // Compute img gradients.
   cv::Mat img_grads;
