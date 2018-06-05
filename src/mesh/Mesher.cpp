@@ -420,11 +420,9 @@ bool Mesher::isNormalAroundAxis(const cv::Point3f& axis,
   CHECK_NEAR(cv::norm(axis), 1.0, 1e-5); // Expect unit norm.
   CHECK_NEAR(cv::norm(normal), 1.0, 1e-5); // Expect unit norm.
   CHECK_GT(tolerance, 0.0); // Tolerance is positive.
-  double diff_a = cv::norm(normal - axis);
-  double diff_b = cv::norm(normal + axis);
-  return (((diff_a < tolerance) || //  axis and normal almost aligned
-           (diff_b < tolerance)) // axis and normal in opp directions.
-           ? true : false);
+  CHECK_LT(tolerance, 1.0); // Tolerance is lower than maximum dot product.
+  // Dot product should be close to 1 or -1 if axis is aligned with normal.
+  return (std::fabs(normal.ddot(axis)) > 1.0 - tolerance);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -464,7 +462,12 @@ void Mesher::clusterNormalsPerpendicularToAxis(const cv::Point3f& axis,
 bool Mesher::isNormalPerpendicularToAxis(const cv::Point3f& axis,
                                          const cv::Point3f& normal,
                                          const double& tolerance) const {
-    return ((cv::norm(normal.dot(axis)) < tolerance)? true: false);
+  CHECK_NEAR(cv::norm(axis), 1.0, 1e-5); // Expect unit norm.
+  CHECK_NEAR(cv::norm(normal), 1.0, 1e-5); // Expect unit norm.
+  CHECK_GT(tolerance, 0.0); // Tolerance is positive.
+  CHECK_LT(tolerance, 1.0); // Tolerance is lower than maximum dot product.
+  // Dot product should be close to 0 if axis is perpendicular to normal.
+  return (cv::norm(normal.ddot(axis)) < tolerance);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -764,14 +767,14 @@ void Mesher::updateMesh3D(
                              leftCameraPose,
                              &points_with_id_stereo);
     VLOG(20) << "Number of stereo landmarks used for the mesh: "
-            << points_with_id_stereo.size() << "\n"
-            << "Number of VIO landmarks used for the mesh: "
-            << points_with_id_VIO.size();
+             << points_with_id_stereo.size() << "\n"
+             << "Number of VIO landmarks used for the mesh: "
+             << points_with_id_VIO.size();
 
     points_with_id_all = &points_with_id_stereo;
   }
   VLOG(20) << "Total number of landmarks used for the mesh: "
-          << points_with_id_all->size();
+           << points_with_id_all->size();
 
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;

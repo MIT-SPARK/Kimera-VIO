@@ -387,13 +387,13 @@ private:
   bool isNormalEqual(const NormalInternal& axis,
                      const NormalInternal& normal,
                      const double& tolerance) const {
-    CHECK_DOUBLE_EQ(axis.dot(axis), 1.0); // Expect unit norm.
-    CHECK_DOUBLE_EQ(normal.dot(normal), 1.0); // Expect unit norm.
-    double diff_a = cv::norm(normal - axis);
-    double diff_b = cv::norm(normal + axis);
-    return (((diff_a < tolerance) || //  axis and normal almost aligned
-             (diff_b < tolerance)) // axis and normal in opp directions.
-            ? true : false);
+    // TODO typedef normals and axis to Normal, and use cv::Point3d instead.
+    CHECK_NEAR(cv::norm(axis), 1.0, 1e-5); // Expect unit norm.
+    CHECK_NEAR(cv::norm(normal), 1.0, 1e-5); // Expect unit norm.
+    CHECK_GT(tolerance, 0.0); // Tolerance is positive.
+    CHECK_LT(tolerance, 1.0); // Tolerance is positive.
+    // Dot product should be close to 1 or -1 if axis is aligned with normal.
+    return (std::fabs(normal.ddot(axis)) > 1.0 - tolerance);
   }
 
   /* ------------------------------------------------------------------------ */
