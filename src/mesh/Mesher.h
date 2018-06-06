@@ -185,6 +185,20 @@ private:
                                   const double& distance_tolerance,
                                   TriangleCluster* triangle_cluster) const;
 
+  /* -------------------------------------------------------------------------- */
+  // Checks whether all points in polygon are closer than tolerance to the plane.
+  bool isPolygonAtDistanceFromPlane(const Mesh3D::Polygon& polygon,
+                                    const double& plane_distance,
+                                    const cv::Point3f& plane_normal,
+                                    const double& distance_tolerance) const;
+
+  /* -------------------------------------------------------------------------- */
+  // Checks whether the point is closer than tolerance to the plane.
+  bool isPointAtDistanceFromPlane(const Mesh3D::VertexPosition3D& point,
+                                  const double& plane_distance,
+                                  const cv::Point3f& plane_normal,
+                                  const double& distance_tolerance) const;
+
   /* ------------------------------------------------------------------------ */
   // Try to reject bad triangles, corresponding to outliers.
   bool isBadTriangle(const Mesh3D::Polygon& polygon,

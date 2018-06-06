@@ -517,6 +517,40 @@ void Mesher::clusterAtDistanceFromPlane(
 }
 
 /* -------------------------------------------------------------------------- */
+// Checks whether all points in polygon are closer than tolerance to the plane.
+bool Mesher::isPolygonAtDistanceFromPlane(const Mesh3D::Polygon& polygon,
+                                          const double& plane_distance,
+                                          const cv::Point3f& plane_normal,
+                                          const double& distance_tolerance)
+const {
+  CHECK_NEAR(cv::norm(plane_normal), 1.0, 1e-05); // Expect unit norm.
+  CHECK_GE(distance_tolerance, 0.0);
+  for (const Mesh3D::Vertex& vertex: polygon) {
+    if (!isPointAtDistanceFromPlane(vertex.getVertexPosition(),
+                                    plane_distance, plane_normal,
+                                    distance_tolerance)) {
+      return false;
+    }
+  }
+  // All lmks are close to the plane.
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+// Checks whether the point is closer than tolerance to the plane.
+bool Mesher::isPointAtDistanceFromPlane(
+    const Mesh3D::VertexPosition3D& point,
+    const double& plane_distance,
+    const cv::Point3f& plane_normal,
+    const double& distance_tolerance) const {
+  CHECK_NEAR(cv::norm(plane_normal), 1.0, 1e-05); // Expect unit norm.
+  CHECK_GE(distance_tolerance, 0.0);
+  // The lmk is closer to the plane than given tolerance.
+  return (std::fabs(plane_distance - point.ddot(plane_normal)) <=
+          distance_tolerance);
+}
+
+/* -------------------------------------------------------------------------- */
 void Mesher::clusterTrianglesOnPlane(TriangleCluster* cluster,
                                      const gtsam::Unit3& plane_normal,
                                      const double& plane_distance,
