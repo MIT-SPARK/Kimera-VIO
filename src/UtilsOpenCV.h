@@ -355,7 +355,11 @@ public:
     : plane_symbol_(plane_symbol),
       normal_(normal),
       distance_(distance),
-      lmk_ids_(lmk_ids) {}
+      lmk_ids_(lmk_ids) {
+    // TODO remove, only used for consistency.
+    // triangle_cluster is only used for visualziation.
+    triangle_cluster_.cluster_direction_ = normal;
+  }
 
   inline const gtsam::Symbol& getPlaneSymbol() const {
     return plane_symbol_;
