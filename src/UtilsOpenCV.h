@@ -137,6 +137,12 @@ public:
                        unit3.point3().y(),
                        unit3.point3().z());
   }
+  /* ------------------------------------------------------------------------ */
+  // Converts a cv::Point3d to a gtsam::Unit3.
+  static inline gtsam::Unit3 unit3ToPoint3d(const cv::Point3d& point_3d) {
+    CHECK_NEAR(cv::norm(point_3d), 1.0, 1e-5); // Expect unit norm.
+    return gtsam::Unit3(point_3d.x, point_3d.y, point_3d.z);
+  }
 
   /* ------------------------------------------------------------------------ */
   // converts a vector of 16 elements listing the elements of a 4x4 3D pose matrix by rows
