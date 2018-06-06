@@ -247,6 +247,19 @@ private:
       const TriangleCluster& triangle_cluster,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
+
+  /* -------------------------------------------------------------------------- */
+  // Extracts lmk ids from a mesh polygon.
+  // In case we are using extra lmks from stereo, then it makes sure that the lmk
+  // ids are used in the optimization (they are present in time horizon: meaning
+  // it checks that we can find the lmk id in points_with_id_vio...
+  // WARNING: this function won't check that the original lmk_ids are in the
+  // optimization (time-horizon)...
+  void appendLmkIdsOfPolygon(
+      const Mesh3D::Polygon& polygon,
+      LandmarkIds* lmk_ids,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  const;
 };
 
 } // namespace VIO

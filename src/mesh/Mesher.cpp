@@ -928,10 +928,46 @@ void Mesher::extractLmkIdsFromTriangleCluster(
         } else {
           // The lmk id is already in the lmk_ids vector, do not add it.
           continue;
-        }
-      }
-    }
   VLOG(10) << "Finished extractLmkIdsFromTriangleCluster.";
+}
+
+/* -------------------------------------------------------------------------- */
+// Extracts lmk ids from a mesh polygon and appends them to lmk_ids.
+// In case we are using extra lmks from stereo, then it makes sure that the lmk
+// ids are used in the optimization (they are present in time horizon: meaning
+// it checks that we can find the lmk id in points_with_id_vio...
+// WARNING: this function won't check that the original lmk_ids are in the
+// optimization (time-horizon)...
+void Mesher::appendLmkIdsOfPolygon(
+    const Mesh3D::Polygon& polygon,
+    LandmarkIds* lmk_ids,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+const {
+  CHECK_NOTNULL(lmk_ids);
+  for (const Mesh3D::Vertex& vertex: polygon) {
+    // Ensure we are not adding more than once the same lmk_id.
+    const auto& it = std::find(lmk_ids->begin(),
+                               lmk_ids->end(),
+                               vertex.getLmkId());
+    if (it == lmk_ids->end()) {
+      // The lmk id is not present in the lmk_ids vector, add it.
+      if (FLAGS_add_extra_lmks_from_stereo) {
+        // Only add lmks that are used in the backend (time-horizon).
+        // This is just needed when adding extra lmks from stereo...
+        // We are assuming lmk_ids has already only points in time-horizon,
+        // so no need to check them as well.
+        if (points_with_id_vio.find(vertex.getLmkId()) !=
+            points_with_id_vio.end()) {
+          lmk_ids->push_back(vertex.getLmkId());
+        }
+      } else {
+        lmk_ids->push_back(vertex.getLmkId());
+      }
+    } else {
+      // The lmk id is already in the lmk_ids vector, do not add it.
+      continue;
+    }
+  }
 }
 
 
