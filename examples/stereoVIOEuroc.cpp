@@ -551,15 +551,17 @@ int main(int argc, char *argv[]) {
 
           // TODO Remove, just to keep functional pipeline.
           static const gtsam::Symbol plane_symbol ('P', 0);
-          static const gtsam::Unit3 plane_normal (0.0, 0.0, 1.0);
+          static const cv::Point3d plane_normal (0.0, 0.0, 1.0);
           static constexpr double plane_distance = 0.0;
           static Plane plane (plane_symbol,
                               plane_normal,
                               plane_distance);
           if (planes.size() == 0) {
+            // TODO remove hardcoded, just for visualization.
+            plane.triangle_cluster_.cluster_id_ = 2;
             planes.push_back(plane);
           } else {
-            planes.at(0).normal_ = plane_normal;
+            planes.at(0).normal_ = plane_normal; // Do not use normal estimate.
           }
 
           // Find regularities in the mesh.

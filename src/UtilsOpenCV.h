@@ -345,7 +345,7 @@ public:
 // of lmk ids that are part of the plane.
 struct Plane {
 public:
-  typedef gtsam::Unit3 Normal;
+  typedef cv::Point3d Normal;
 
 public:
   Plane(const gtsam::Symbol& plane_symbol,
@@ -368,9 +368,7 @@ public:
   bool geometricEqual(const Plane& rhs,
              const double& normal_tolerance,
              const double& distance_tolerance) const {
-    return isNormalEqual(UtilsOpenCV::unit3ToPoint3d(rhs.normal_),
-                         UtilsOpenCV::unit3ToPoint3d(normal_),
-                         normal_tolerance) &&
+    return isNormalEqual(rhs.normal_, normal_, normal_tolerance) &&
         // TODO implement a better test for distance tolerance... as it can
         // be large for small normal difference and distances are big.
         isDistanceEqual(rhs.distance_,

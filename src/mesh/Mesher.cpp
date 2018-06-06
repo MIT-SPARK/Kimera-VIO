@@ -471,52 +471,6 @@ bool Mesher::isNormalPerpendicularToAxis(const cv::Point3f& axis,
 }
 
 /* -------------------------------------------------------------------------- */
-// Filter z component in triangle cluster.
-// Warning: plane_distance is not the d factor in the hessian form of a plane:
-// a*X+b*Y+c*Z+d = 0 but -d! a*X+b*Y+c*Z = -d = plane_distance.
-// TODO must unit test this function!
-void Mesher::clusterAtDistanceFromPlane(
-    const double& plane_distance,
-    const cv::Point3f& plane_normal,
-    const double& distance_tolerance,
-    TriangleCluster* triangle_cluster) const {
-  CHECK_NOTNULL(triangle_cluster);
-  CHECK_EQ(triangle_cluster->cluster_direction_, plane_normal);
-  CHECK_NEAR(cv::norm(plane_normal), 1.0, 1e-5); // Expect unit norm.
-  CHECK_GE(distance_tolerance, 0.0);
-  TriangleCluster triangle_cluster_output;
-  triangle_cluster_output.cluster_id_ =
-      triangle_cluster->cluster_id_;
-  triangle_cluster_output.cluster_direction_ =
-      triangle_cluster->cluster_direction_;
-
-  // TODO consider using erase or a list, instead of creating a new one
-  // and then copying!!!
-  Mesh3D::Polygon polygon;
-  Mesh3D::VertexPosition3D lmk;
-  for (const size_t& polygon_idx: triangle_cluster->triangle_ids_) {
-    CHECK(mesh_.getPolygon(polygon_idx, &polygon))
-        << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
-    bool save_polygon = true;
-    for (const Mesh3D::Vertex& vertex: polygon) {
-      lmk = vertex.getVertexPosition();
-      double point_plane_distance =
-          std::fabs(plane_distance - lmk.ddot(plane_normal));
-      if (point_plane_distance > distance_tolerance) {
-        // Do not save current polygon from cluster.
-        save_polygon = false;
-        break;
-      }
-    }
-
-    if (save_polygon) {
-      triangle_cluster_output.triangle_ids_.push_back(polygon_idx);
-    }
-  }
-  *triangle_cluster = triangle_cluster_output;
-}
-
-/* -------------------------------------------------------------------------- */
 // Checks whether all points in polygon are closer than tolerance to the plane.
 bool Mesher::isPolygonAtDistanceFromPlane(const Mesh3D::Polygon& polygon,
                                           const double& plane_distance,
@@ -548,70 +502,6 @@ bool Mesher::isPointAtDistanceFromPlane(
   // The lmk is closer to the plane than given tolerance.
   return (std::fabs(plane_distance - point.ddot(plane_normal)) <=
           distance_tolerance);
-}
-
-/* -------------------------------------------------------------------------- */
-void Mesher::clusterTrianglesOnPlane(TriangleCluster* cluster,
-                                     const gtsam::Unit3& plane_normal,
-                                     const double& plane_distance,
-                                     const double& normal_tolerance,
-                                     const double& distance_tolerance) const {
-  CHECK_NOTNULL(cluster);
-
-  // Cluster triangles oriented along z axis.
-  const cv::Point3f plane_normal_cv (plane_normal.point3().x(),
-                                     plane_normal.point3().y(),
-                                     plane_normal.point3().z());
-
-  TriangleCluster triangle_cluster;
-  triangle_cluster.cluster_direction_ = plane_normal_cv;
-  triangle_cluster.cluster_id_ = 2; // TODO remove hardcoded value,
-  // only to visualize...
-
-  static constexpr size_t mesh_polygon_dim = 3;
-  CHECK_EQ(mesh_.getMeshPolygonDimension(), mesh_polygon_dim)
-      << "Expecting 3 vertices in triangle.";
-
-  // Loop over each polygon face in the mesh.
-  // TODO consider computing normals in the mesh3D instead, per polygon
-  // each time you add it.
-  Mesh3D::Polygon polygon;
-  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
-    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
-    CHECK_EQ(polygon.size(), mesh_polygon_dim);
-    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
-
-    // Calculate normal of the triangle in the mesh.
-    // The normals are in the world frame of reference.
-    cv::Point3f triangle_normal;
-    if (calculateNormal(p1, p2, p3, &triangle_normal) &&
-        isNormalAroundAxis(plane_normal_cv, triangle_normal, normal_tolerance)) {
-      // Cluster Normal around z_axis.
-      triangle_cluster.triangle_ids_.push_back(i);
-
-      // Collect z values of these points so that we can build an histogram.
-    }
-  }
-
-  // For the first 2 maximums on the histogram: histogram.getPeaks();
-  // We have two candidate planes with variables
-  // P_a: normal = (0, 0, 1) & distance = max_0
-  // P_b: normal = (0, 0, 1) & distance = max_1
-  // Check among the current planes, if we are re-seeing the same.
-  // If not create new plane with new symbol...
-  // Decide symbol should we say P0 is P_a or P_b?
-  //
-
-  // Only keep ground landmarks for cluster of triangles perpendicular
-  // to vertical axis.
-  // clusters.at(0) is therefore just the triangles on the ground plane.
-  clusterAtDistanceFromPlane(plane_distance, plane_normal_cv, distance_tolerance,
-                             &triangle_cluster);
-
-  // Add cluster.
-  *cluster = triangle_cluster;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -660,33 +550,66 @@ void Mesher::segmentPlanesInMesh(
     const double& normal_tolerance,
     const double& distance_tolerance) const {
   CHECK_NOTNULL(seed_planes);
-  // Cluster new lmk ids for seed planes.
+
+  // Clean seed_planes of lmk_ids:
   for (Plane& seed_plane: *seed_planes) {
-    VLOG(10) << "Starting clusterTrianglesOnPlane...";
-    TriangleCluster triangle_cluster;
-    clusterTrianglesOnPlane(&triangle_cluster,
-                            seed_plane.normal_,
-                            seed_plane.distance_,
-                            normal_tolerance,
-                            distance_tolerance);
-    VLOG(10) << "Finished clusterTrianglesOnPlane.";
+    seed_plane.lmk_ids_.clear();
+    seed_plane.triangle_cluster_.triangle_ids_.clear();
+  }
 
-    VLOG(10) << "Starting extractLmkIdsFromTriangleCluster...";
-    LandmarkIds lmk_ids;
-    extractLmkIdsFromTriangleCluster(triangle_cluster,
-                                     points_with_id_vio,
-                                     &lmk_ids);
-    VLOG(10) << "Finished extractLmkIdsFromTriangleCluster.";
+  static constexpr size_t mesh_polygon_dim = 3;
+  CHECK_EQ(mesh_.getMeshPolygonDimension(), mesh_polygon_dim)
+      << "Expecting 3 vertices in triangle.";
 
-    // Update lmk_ids.
-    seed_plane.lmk_ids_ = lmk_ids;
-    // TODO Remove, only used for visualization...
-    seed_plane.triangle_cluster_ = triangle_cluster;
+  // Cluster new lmk ids for seed planes.
+  // Loop over the mesh only once.
+  Mesh3D::Polygon polygon;
+  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+    CHECK_EQ(polygon.size(), mesh_polygon_dim);
+    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
+
+    // Calculate normal of the triangle in the mesh.
+    // The normals are in the world frame of reference.
+    cv::Point3f triangle_normal;
+    if (calculateNormal(p1, p2, p3, &triangle_normal)) {
+      // Loop over each seed plane.
+      for (Plane& seed_plane: *seed_planes) {
+        if (isNormalAroundAxis(seed_plane.normal_,
+                               triangle_normal,
+                               normal_tolerance) &&
+            isPolygonAtDistanceFromPlane(polygon,
+                                         seed_plane.distance_,
+                                         seed_plane.normal_,
+                                         distance_tolerance)) {
+          // Cluster Normal around z_axis.
+          //triangle_cluster.triangle_ids_.push_back(i);
+          // Update lmk_ids of seed plane.
+          // Points_with_id_vio are only used for stereo.
+          appendLmkIdsOfPolygon(polygon, &seed_plane.lmk_ids_,
+                                points_with_id_vio);
+
+          // TODO Remove, only used for visualization...
+          seed_plane.triangle_cluster_.triangle_ids_.push_back(i);
+
+          // Collect z values of these points so that we can build an histogram.
+        }
+      }
+    }
   }
 
   // Segment new planes.
-  // TODO
   // Make sure you do not re-use lmks that were used by the seed_planes...
+  segmentNewPlanes(seed_planes);
+}
+
+/* -------------------------------------------------------------------------- */
+// Segment new planes in the mesh.
+void Mesher::segmentNewPlanes(std::vector<Plane>* new_segmented_planes) const {
+  CHECK_NOTNULL(new_segmented_planes);
+
 }
 
 /* -------------------------------------------------------------------------- */
@@ -908,26 +831,8 @@ void Mesher::extractLmkIdsFromTriangleCluster(
     for (const size_t& polygon_idx: triangle_cluster.triangle_ids_) {
       CHECK(mesh_.getPolygon(polygon_idx, &polygon))
           << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
-      for (const Mesh3D::Vertex& vertex: polygon) {
-        // Ensure we are not adding more than once the same lmk_id.
-        const auto& it = std::find(lmk_ids->begin(),
-                                   lmk_ids->end(),
-                                   vertex.getLmkId());
-        if (it == lmk_ids->end()) {
-          // The lmk id is not present in the lmk_ids vector, add it.
-          if (FLAGS_add_extra_lmks_from_stereo) {
-            // Only add lmks that are used in the backend (time-horizon).
-            // This is just needed when adding extra lmks from stereo...
-            if (points_with_id_vio.find(vertex.getLmkId()) !=
-                points_with_id_vio.end()) {
-              lmk_ids->push_back(vertex.getLmkId());
-            }
-          } else {
-            lmk_ids->push_back(vertex.getLmkId());
-          }
-        } else {
-          // The lmk id is already in the lmk_ids vector, do not add it.
-          continue;
+      appendLmkIdsOfPolygon(polygon, lmk_ids, points_with_id_vio);
+    }
   VLOG(10) << "Finished extractLmkIdsFromTriangleCluster.";
 }
 

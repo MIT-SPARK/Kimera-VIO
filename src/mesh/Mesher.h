@@ -178,13 +178,6 @@ private:
                                          const double& tolerance,
                                          std::vector<int>* cluster_normals_idx);
 
-  /* ------------------------------------------------------------------------ */
-  // Filter z component in triangle cluster.
-  void clusterAtDistanceFromPlane(const double& plane_distance,
-                                  const cv::Point3f& plane_normal,
-                                  const double& distance_tolerance,
-                                  TriangleCluster* triangle_cluster) const;
-
   /* -------------------------------------------------------------------------- */
   // Checks whether all points in polygon are closer than tolerance to the plane.
   bool isPolygonAtDistanceFromPlane(const Mesh3D::Polygon& polygon,
@@ -208,24 +201,20 @@ private:
                      const double& max_triangle_side) const;
 
   /* ------------------------------------------------------------------------ */
-  // Perform Mesh clustering of triangles on a plane given by a normal and a
-  // distance to the origin.
-  void clusterTrianglesOnPlane(TriangleCluster* clusters,
-                               const gtsam::Unit3& plane_normal,
-                               const double& plane_distance,
-                               const double& normal_tolerance,
-                               const double& distance_tolerance) const;
-
-  /* ------------------------------------------------------------------------ */
   // Segment planes in the mesh, by using initial plane seeds.
-  void segmentPlanesInMesh(std::vector<Plane>* seed_planes,
-                           const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
-                           const double& normal_tolerance,
-                           const double& distance_tolerance) const;
+  void segmentPlanesInMesh(
+      std::vector<Plane>* seed_planes,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      const double& normal_tolerance,
+      const double& distance_tolerance) const;
 
   /* ------------------------------------------------------------------------ */
   // Segment planes in the mesh, without having initial plane seeds.
   void segmentPlanesInMeshNaive(std::vector<Plane>* segmented_planes) const;
+
+  /* -------------------------------------------------------------------------- */
+  // Segment new planes in the mesh.
+  void segmentNewPlanes(std::vector<Plane>* new_segmented_planes) const;
 
   /* ------------------------------------------------------------------------ */
   // Data association between planes.

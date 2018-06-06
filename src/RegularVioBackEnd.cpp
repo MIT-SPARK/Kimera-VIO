@@ -1339,14 +1339,15 @@ void RegularVioBackEnd::updatePlaneEstimates(std::vector<Plane>* planes) {
   for (std::vector<Plane>::iterator plane_it = planes->begin();
        plane_it != planes->end();) {
     if (getEstimateOfKey<gtsam::OrientedPlane3>(
-          plane_it->getPlaneSymbol().key(),
-          &plane_estimate)) {
+          plane_it->getPlaneSymbol().key(), &plane_estimate)) {
       // We found the plane in the state.
       // Update the plane.
       VLOG(10) << "Update plane with id "
               << gtsam::DefaultKeyFormatter(plane_it->getPlaneSymbol().key())
               << " from the set of planes.";
-      plane_it->normal_ = plane_estimate.normal();
+      plane_it->normal_ = cv::Point3d(plane_estimate.normal().point3().x(),
+                                      plane_estimate.normal().point3().y(),
+                                      plane_estimate.normal().point3().z());
       plane_it->distance_ = plane_estimate.distance();
       plane_it++;
     } else {
