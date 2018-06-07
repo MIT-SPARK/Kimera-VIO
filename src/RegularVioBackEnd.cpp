@@ -1349,13 +1349,16 @@ void RegularVioBackEnd::updatePlaneEstimates(std::vector<Plane>* planes) {
                                       plane_estimate.normal().point3().y(),
                                       plane_estimate.normal().point3().z());
       plane_it->distance_ = plane_estimate.distance();
+      VLOG(0) << "\t Updated plane normal = " << plane_it->normal_
+              << "\t Updated plane distance = " << plane_it->distance_;
       plane_it++;
     } else {
       // We did not find the plane in the state.
       // Delete the plane.
       VLOG(10) << "Erase plane with id "
               << gtsam::DefaultKeyFormatter(plane_it->getPlaneSymbol().key())
-              << " from the set of planes.";
+              << " from the set of planes, since it is not in the state"
+                 " anymore.";
       plane_it = planes->erase(plane_it);
     }
   }
