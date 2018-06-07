@@ -15,6 +15,7 @@
 #include "mesh/Mesher.h"
 
 #include "LoggerMatlab.h"
+#include <opencv2/imgproc.hpp>
 
 // WARNING this is computationally expensive.
 DEFINE_bool(add_extra_lmks_from_stereo, false,
@@ -564,6 +565,7 @@ void Mesher::segmentPlanesInMesh(
   // Cluster new lmk ids for seed planes.
   // Loop over the mesh only once.
   Mesh3D::Polygon polygon;
+  cv::Mat z_components (1, 0, CV_32F);
   for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
     CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), mesh_polygon_dim);
@@ -575,8 +577,14 @@ void Mesher::segmentPlanesInMesh(
     // The normals are in the world frame of reference.
     cv::Point3f triangle_normal;
     if (calculateNormal(p1, p2, p3, &triangle_normal)) {
-      // Loop over each seed plane.
+      ////////////////////////// Update seed planes ////////////////////////////
+      // Flag to see if the polygon has already been clustered in a plane.
+      bool is_polygon_on_a_plane = false;
+      // Loop over each seed plane and update it.
       for (Plane& seed_plane: *seed_planes) {
+        // Only cluster if normal and distance of polygon are close to plane.
+        // WARNING: same polygon is being possibly clustered in multiple planes.
+        // Break loop when polygon is in a plane?
         if (isNormalAroundAxis(seed_plane.normal_,
                                triangle_normal,
                                normal_tolerance) &&
@@ -584,8 +592,8 @@ void Mesher::segmentPlanesInMesh(
                                          seed_plane.distance_,
                                          seed_plane.normal_,
                                          distance_tolerance)) {
-          // Cluster Normal around z_axis.
-          //triangle_cluster.triangle_ids_.push_back(i);
+          CHECK(!is_polygon_on_a_plane) << "Polygon was already in a plane,"
+                                           " are we having similar planes?";
           // Update lmk_ids of seed plane.
           // Points_with_id_vio are only used for stereo.
           appendLmkIdsOfPolygon(polygon, &seed_plane.lmk_ids_,
@@ -594,11 +602,59 @@ void Mesher::segmentPlanesInMesh(
           // TODO Remove, only used for visualization...
           seed_plane.triangle_cluster_.triangle_ids_.push_back(i);
 
-          // Collect z values of these points so that we can build an histogram.
+          // Acknowledge that the polygon is at least in one plane, to avoid
+          // sending this polygon to segmentation and segment the same plane
+          // again.
+          is_polygon_on_a_plane = true;
         }
+      }
+
+      ////////////////// Build Histogram for new planes ////////////////////////
+      // Collect z values of vertices of polygon which is not already on a plane
+      // and which has the normal aligned with the vertical direction so that we
+      // can build an histogram.
+      static const cv::Point3f vertical (0, 0, 1);
+      if (!is_polygon_on_a_plane &&
+          isNormalAroundAxis(vertical, triangle_normal, normal_tolerance)) {
+        // We have a triangle with a normal aligned with gravity, which is not
+        // already clustered in a plane.
+        // Store z components to build histogram.
+        z_components.push_back(p1.z);
+        z_components.push_back(p2.z);
+        z_components.push_back(p3.z);
       }
     }
   }
+
+  // WARNING: when building histogram, since we are not using all polygons
+  // available the max peak won't be anything relevant... since we got rid of
+  // the ground and table... Make sure we count how many points there are
+  // validating our assumption.
+  // Or make data association: if we have a new_plane that looks very similar to
+  // the new plane...
+  cv::Mat z_histogram;
+  // Quantize the z to 30 levels
+  int z_bins = 30;
+  int hist_size[] = {z_bins};
+  // Z varies from -1 to 4, approx.
+  float z_range[] = {-1, 4};
+  const float* ranges[] = { z_range };
+  // We compute the histogram from the 0-th channel, z is 1-dimensional data.
+  int channels[] = {0};
+  // No mask, would it help?
+  cv::Mat mask;
+  static constexpr bool uniform = true;
+  static constexpr bool accumulate = false;
+  cv::calcHist(&z_components, 1, channels, mask, z_histogram, 1, hist_size, ranges,
+               uniform, accumulate);
+  LOG(WARNING) << "Histogram:\n" << z_histogram.t();
+  //true for accumulate can be interesting?, maybe not...
+  // A blur the data.
+  // B find local max.
+  double max_val = 0;
+  cv::Point max_val_idx;
+  minMaxLoc(z_histogram, 0, &max_val, 0, &max_val_idx);
+  LOG(WARNING) << "Max val: " << max_val << " Max val idx: " << max_val_idx.y;
 
   // Segment new planes.
   // Make sure you do not re-use lmks that were used by the seed_planes...
