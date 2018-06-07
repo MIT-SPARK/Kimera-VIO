@@ -59,6 +59,7 @@ int Histogram::drawPeaks(cv::Mat &histImage,
                          int hist_size,
                          cv::Scalar color,
                          bool display_image) {
+  CHECK_NE(hist_size, 0);
   int bin_w = cvRound((double) histImage.cols / hist_size);
   for (size_t i = 0; i < peaks.size(); i++) {
     cv::line(histImage,
