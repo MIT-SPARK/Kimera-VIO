@@ -635,7 +635,7 @@ void Mesher::segmentPlanesInMesh(
   // the new plane...
   cv::Mat z_histogram;
   // Quantize the z to 30 levels
-  int z_bins = 30;
+  int z_bins = 256;
   int hist_size[] = {z_bins};
   // Z varies from -1 to 4, approx.
   float z_range[] = {-1, 4};
@@ -646,6 +646,8 @@ void Mesher::segmentPlanesInMesh(
   cv::Mat mask;
   static constexpr bool uniform = true;
   static constexpr bool accumulate = false;
+  Histogram hist (1, channels, mask, 1, hist_size, ranges, uniform, accumulate);
+  hist.calculateHistogram(z_components);
   cv::calcHist(&z_components, 1, channels, mask, z_histogram, 1, hist_size, ranges,
                uniform, accumulate);
   LOG(WARNING) << "Histogram:\n" << z_histogram.t();
@@ -655,13 +657,25 @@ void Mesher::segmentPlanesInMesh(
   double max_val = 0;
   cv::Point max_val_idx;
   minMaxLoc(z_histogram, 0, &max_val, 0, &max_val_idx);
-  LOG(WARNING) << "Max val: " << max_val << " Max val idx: " << max_val_idx.y;
+  LOG(WARNING) << "Max val: " << max_val << " Max val idx: " << max_val_idx.y
+               << "Max z is hence : " << max_val_idx.y*(z_range[1]-z_range[0])/z_bins;
 
   cv::Mat z_histogram_blur;
   GaussianBlur(z_histogram, z_histogram_blur, Size(1,3), 0, 0);
   LOG(WARNING) << "Histogram_blur:\n" << z_histogram_blur.t();
   minMaxLoc(z_histogram_blur, 0, &max_val, 0, &max_val_idx);
   LOG(WARNING) << "Max val: " << max_val << " Max val idx: " << max_val_idx.y;
+
+  VLOG(0) << "Starting get local maximum.";
+  vector<int> peaks = hist.getLocalMaximum();
+  LOG(WARNING) << "# of peaks = " << peaks.size();
+  size_t i = 0;
+  for (int peak: peaks) {
+    LOG(WARNING) << "Peak #" << i << " in bin " << peak
+                 << " so = " << (peak*(z_range[1]-z_range[0])/z_bins) + z_range[0];
+    i++;
+  }
+
 
   // Segment new planes.
   // Make sure you do not re-use lmks that were used by the seed_planes...
