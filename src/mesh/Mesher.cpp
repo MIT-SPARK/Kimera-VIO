@@ -15,6 +15,7 @@
 #include "mesh/Mesher.h"
 
 #include "LoggerMatlab.h"
+#include "Histogram.h"
 #include <opencv2/imgproc.hpp>
 
 // WARNING this is computationally expensive.
