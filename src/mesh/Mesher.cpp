@@ -615,7 +615,9 @@ void Mesher::segmentPlanesInMesh(
       // and which has the normal aligned with the vertical direction so that we
       // can build an histogram.
       static const cv::Point3f vertical (0, 0, 1);
-      if (!is_polygon_on_a_plane &&
+      static constexpr bool only_use_non_clustered_points = false;
+      if ((only_use_non_clustered_points?
+           !is_polygon_on_a_plane : true) &&
           isNormalAroundAxis(vertical, triangle_normal, normal_tolerance)) {
         // We have a triangle with a normal aligned with gravity, which is not
         // already clustered in a plane.
