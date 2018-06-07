@@ -63,9 +63,10 @@ public:
   /* ------------------------------------------------------------------------ */
   // If you play with the peak_per attribute value, you can increase/decrease the
   // number of peaks found.
-  std::vector<int> getLocalMaximum(int smooth_size = 9,
+  std::vector<int> getLocalMaximum(cv::Size smooth_size = cv::Size(9, 9),
                                    int neighbor_size = 3,
-                                   float peak_per = 0.5);
+                                   float peak_per = 0.5,
+                                   bool display_histogram = false);
 
   /* ------------------------------------------------------------------------ */
   struct PeakInfo {
@@ -91,8 +92,8 @@ private:
 
   /* ------------------------------------------------------------------------ */
   struct Length {
-    int pos1;
-    int pos2;
+    int pos1 = 0;
+    int pos2 = 0;
     int size() {
       return pos2 - pos1 + 1;
     }
@@ -103,7 +104,8 @@ private:
   int drawPeaks(cv::Mat &histImage,
                 std::vector<int>& peaks,
                 int hist_size = 256,
-                cv::Scalar color = cv::Scalar(0, 0, 255));
+                cv::Scalar color = cv::Scalar(0, 0, 255),
+                bool display_image = false);
 
   /* ------------------------------------------------------------------------ */
   cv::Mat drawHistogram(cv::Mat &hist,
@@ -111,7 +113,8 @@ private:
                         int hist_w = 1024,
                         int hist_size = 256,
                         cv::Scalar color = cv::Scalar(255, 255, 255),
-                        int type = 2);
+                        int type = 2,
+                        bool display_image = false);
 
   /* ------------------------------------------------------------------------ */
   PeakInfo peakInfo(int pos, int left_size, int right_size,

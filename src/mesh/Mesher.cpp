@@ -633,49 +633,36 @@ void Mesher::segmentPlanesInMesh(
   // validating our assumption.
   // Or make data association: if we have a new_plane that looks very similar to
   // the new plane...
-  cv::Mat z_histogram;
   // Quantize the z to 30 levels
-  int z_bins = 256;
-  int hist_size[] = {z_bins};
+  static constexpr int z_bins = 256;
+  static constexpr int hist_size[] = {z_bins};
   // Z varies from -1 to 4, approx.
-  float z_range[] = {-1, 4};
-  const float* ranges[] = { z_range };
+  static const float z_range[] = {-1, 4};
+  static const float* ranges[] = { z_range };
   // We compute the histogram from the 0-th channel, z is 1-dimensional data.
-  int channels[] = {0};
+  static const int channels[] = {0};
   // No mask, would it help?
-  cv::Mat mask;
+  static const cv::Mat mask;
   static constexpr bool uniform = true;
   static constexpr bool accumulate = false;
   Histogram hist (1, channels, mask, 1, hist_size, ranges, uniform, accumulate);
   hist.calculateHistogram(z_components);
-  cv::calcHist(&z_components, 1, channels, mask, z_histogram, 1, hist_size, ranges,
-               uniform, accumulate);
-  LOG(WARNING) << "Histogram:\n" << z_histogram.t();
-  //true for accumulate can be interesting?, maybe not...
-  // A blur the data.
-  // B find local max.
-  double max_val = 0;
-  cv::Point max_val_idx;
-  minMaxLoc(z_histogram, 0, &max_val, 0, &max_val_idx);
-  LOG(WARNING) << "Max val: " << max_val << " Max val idx: " << max_val_idx.y
-               << "Max z is hence : " << max_val_idx.y*(z_range[1]-z_range[0])/z_bins;
-
-  cv::Mat z_histogram_blur;
-  GaussianBlur(z_histogram, z_histogram_blur, Size(1,3), 0, 0);
-  LOG(WARNING) << "Histogram_blur:\n" << z_histogram_blur.t();
-  minMaxLoc(z_histogram_blur, 0, &max_val, 0, &max_val_idx);
-  LOG(WARNING) << "Max val: " << max_val << " Max val idx: " << max_val_idx.y;
 
   VLOG(0) << "Starting get local maximum.";
-  vector<int> peaks = hist.getLocalMaximum();
+  static const cv::Size kernel_size (1, 9);
+  static constexpr int neighbor_size = 3;
+  static constexpr float peak_per = 0.5;
+  static constexpr bool display_histogram = true;
+  vector<int> peaks = hist.getLocalMaximum(kernel_size, neighbor_size,
+                                           peak_per, display_histogram);
+
   LOG(WARNING) << "# of peaks = " << peaks.size();
   size_t i = 0;
-  for (int peak: peaks) {
+  for (const int& peak: peaks) {
     LOG(WARNING) << "Peak #" << i << " in bin " << peak
                  << " so = " << (peak*(z_range[1]-z_range[0])/z_bins) + z_range[0];
     i++;
   }
-
 
   // Segment new planes.
   // Make sure you do not re-use lmks that were used by the seed_planes...

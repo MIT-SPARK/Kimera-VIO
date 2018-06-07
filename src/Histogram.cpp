@@ -57,7 +57,8 @@ void Histogram::calculateHistogram(const cv::Mat& input) {
 int Histogram::drawPeaks(cv::Mat &histImage,
                          std::vector<int>& peaks,
                          int hist_size,
-                         cv::Scalar color) {
+                         cv::Scalar color,
+                         bool display_image) {
   int bin_w = cvRound((double) histImage.cols / hist_size);
   for (size_t i = 0; i < peaks.size(); i++) {
     cv::line(histImage,
@@ -66,7 +67,10 @@ int Histogram::drawPeaks(cv::Mat &histImage,
              cv::Point(bin_w * peaks[i], 0), color);
   }
 
-  cv::imshow("Peaks", histImage);
+  if (display_image) {
+    cv::imshow("Peaks", histImage);
+  }
+
   return EXIT_SUCCESS;
 }
 
@@ -76,7 +80,8 @@ cv::Mat Histogram::drawHistogram(cv::Mat &hist,
                                  int hist_w,
                                  int hist_size,
                                  cv::Scalar color,
-                                 int type) {
+                                 int type,
+                                 bool display_image) {
   CHECK_NE(hist_size, 0);
   int bin_w = cvRound((double) hist_w / hist_size);
 
@@ -124,7 +129,9 @@ cv::Mat Histogram::drawHistogram(cv::Mat &hist,
       break;
   }
 
-  cv::imshow("Histogram", histImage);
+  if (display_image) {
+    cv::imshow("Histogram", histImage);
+  }
 
   return histImage;
 }
@@ -202,29 +209,49 @@ std::vector<Histogram::PeakInfo> Histogram::findPeaks(cv::InputArray _src,
 /* -------------------------------------------------------------------------- */
 // If you play with the peak_per attribute value, you can increase/decrease the
 // number of peaks found.
-std::vector<int> Histogram::getLocalMaximum(int smooth_size,
+// cv::Point smooth_size: x: smoothing size in x, y: smoothing size in y.
+std::vector<int> Histogram::getLocalMaximum(cv::Size smooth_size,
                                             int neighbor_size,
-                                            float peak_per) {
+                                            float peak_per,
+                                            bool display_histogram) {
+  VLOG(0) << "Cloning histogram.";
   cv::Mat src = histogram_.clone();
 
+  VLOG(0) << "Gaussian blur.";
   std::vector<int> output;
-  cv::GaussianBlur(src, src, cv::Size(1, smooth_size), 0); // Assumes 1D hist !
+  CHECK_GE(histogram_.rows, smooth_size.height);
+  CHECK_GE(histogram_.cols, smooth_size.width);
+  //cv::GaussianBlur(InputArray src, OutputArray dst, Size ksize,
+  //                 double sigmaX, double sigmaY = 0,
+  //                 int borderType = BORDER_DEFAULT );
+  cv::GaussianBlur(src, src, smooth_size, 0);
+
+  VLOG(0) << "Find peaks.";
   std::vector<PeakInfo> peaks = findPeaks(src, neighbor_size);
 
+  VLOG(0) << "min Max loc.";
   double min_val, max_val;
   cv::minMaxLoc(src, &min_val, &max_val);
 
-  for(size_t i = 0; i < peaks.size(); i++) {
-    if(peaks[i].value > max_val * peak_per &&
-       peaks[i].left_size >= 2 &&
-       peaks[i].right_size >= 2) {
+  for (size_t i = 0; i < peaks.size(); i++) {
+    if (peaks[i].value > max_val * peak_per &&
+        peaks[i].left_size >= 2 &&
+        peaks[i].right_size >= 2) {
       output.push_back(peaks[i].pos);
     }
   }
 
-  VLOG(0) << "Drawing histogram.";
-  cv::Mat histImg = drawHistogram(src);
-  drawPeaks(histImg, output);
+  if (display_histogram) {
+    VLOG(0) << "Drawing histogram.";
+    cv::Mat histImg = drawHistogram(src);
+
+    VLOG(0) << "Drawing peaks.";
+    static const cv::Scalar peak_color (0, 0, 255);
+
+
+    int hist_size = histogram_.rows; // WARNING assumes a 1D Histogram.
+    drawPeaks(histImg, output, hist_size, peak_color, display_histogram);
+  }
   return output;
 }
 
