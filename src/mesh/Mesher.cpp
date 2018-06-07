@@ -656,6 +656,12 @@ void Mesher::segmentPlanesInMesh(
   minMaxLoc(z_histogram, 0, &max_val, 0, &max_val_idx);
   LOG(WARNING) << "Max val: " << max_val << " Max val idx: " << max_val_idx.y;
 
+  cv::Mat z_histogram_blur;
+  GaussianBlur(z_histogram, z_histogram_blur, Size(1,3), 0, 0);
+  LOG(WARNING) << "Histogram_blur:\n" << z_histogram_blur.t();
+  minMaxLoc(z_histogram_blur, 0, &max_val, 0, &max_val_idx);
+  LOG(WARNING) << "Max val: " << max_val << " Max val idx: " << max_val_idx.y;
+
   // Segment new planes.
   // Make sure you do not re-use lmks that were used by the seed_planes...
   segmentNewPlanes(seed_planes);
