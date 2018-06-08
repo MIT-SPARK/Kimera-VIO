@@ -567,8 +567,7 @@ void Mesher::segmentPlanesInMesh(
   // Loop over the mesh only once.
   Mesh3D::Polygon polygon;
   cv::Mat z_components (1, 0, CV_32F);
-  cv::Mat theta (1, 0, CV_32F);
-  cv::Mat distance (1, 0, CV_32F);
+  cv::Mat walls (0, 0, CV_32FC2);
   for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
     CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), mesh_polygon_dim);
@@ -631,24 +630,39 @@ void Mesher::segmentPlanesInMesh(
         z_components.push_back(p3.z);
       }
 
-//      if (isNormalPerpendicularToAxis(vertical, triangle_normal,
-//                                      normal_tolerance)) {
+      if (isNormalPerpendicularToAxis(vertical, triangle_normal,
+                                      normal_tolerance)) {
         // WARNING if we do not normalize, we'll have two peaks for the same
         // plane, no?
         // Store theta.
-        ////theta.push_back(getTheta(vertical, triangle_normal));
+        // A get projection on equatorial plane.
+        // i get projection of triangle normal on vertical
+        CHECK_NEAR(cv::norm(triangle_normal), 1.0, 1e-5); // Expect unit norm.
+        CHECK_NEAR(cv::norm(vertical), 1.0, 1e-5); // Expect unit norm.
+        cv::Point3f n_proj = vertical.ddot(triangle_normal) * vertical;
+        cv::Point3f equatorial_proj = triangle_normal - n_proj;
+        CHECK_NEAR(equatorial_proj.z, 0.0, 1e-5); // Only valid if vertical is (0,0,1).
+        equatorial_proj /= cv::norm(equatorial_proj);
+        // theta goes from 0 to 2*pi, as we are using atan2, which looks at sign
+        // of arguments.
+        double theta = std::atan2(equatorial_proj.y, equatorial_proj.x);
+
         // Store distance.
         // Using triangle_normal.
-        ////CHECK_NEAR(triangle_normal, 1.0, 1e-5);
-        ////distance.push_back(p1.ddot(triangle_normal));
+        double distance = p1.ddot(triangle_normal);
+        walls.push_back(cv::Point2f(theta, distance));
         // Using projected triangle normal on equator, and taking average of
         // three distances...
         // NORMALIZE if a theta is positive and distance negative, it is the
         // same as if theta is 180 deg from it and distance positive...
 
-//      }
+      }
     }
   }
+
+  VLOG(0) << "Number of polygons potentially on a wall: " << walls.rows <<
+             "\n"
+          << " Walls mat: \n" << "channels: " << walls.channels() << " cols: " << walls.cols;
 
   // WARNING: when building histogram, since we are not using all polygons
   // available the max peak won't be anything relevant... since we got rid of
@@ -688,19 +702,64 @@ void Mesher::segmentPlanesInMesh(
   }
 
   ///////////////////////////// TODO delete, just trying////////////////////////
-  // Read random image
-  cv::Mat src = cv::imread("/home/tonirv/code/spark_vio/build/cubic_noise.jpg",
-                           CV_LOAD_IMAGE_COLOR);
-  if (!src.data) {
-    CHECK(false);
+  // Quantize the hue to 30 levels
+  // and the saturation to 32 levels
+  int theta_bins = 60, distance_bins = 80;
+  int histSize[] = {theta_bins, distance_bins};
+  // Theta varies from 0 to 2*pi.
+  float theta_range[] = {-PI, PI};
+  // Distances varie from -8 to 8.
+  float distance_range[] = {-4.0, 4.0};
+  const float* aranges[] = {theta_range, distance_range};
+
+  Mat hist_2d;
+  // we compute the histogram from the 0-th and 1-st channels
+  int achannels[] = {0, 1};
+
+  calcHist(&walls, 1, achannels,
+           Mat(), // do not use mask
+           hist_2d, 2,
+           histSize, aranges,
+           true, // the histogram is uniform
+           false);
+  double maxVal = 0;
+  minMaxLoc(hist_2d, 0, &maxVal, 0, 0);
+
+  int scale_theta = 10;
+  int scale_distance = 10;
+  Mat histImg = Mat::zeros(distance_bins * scale_distance,
+                           theta_bins * scale_theta, CV_8UC1);
+
+  for (int h = 0; h < theta_bins; h++ ) {
+    for (int s = 0; s < distance_bins; s++ ) {
+      float binVal = hist_2d.at<float>(h, s);
+      int intensity = cvRound(binVal * 255 / maxVal);
+      rectangle(histImg,
+                Point(h * scale_distance,
+                      s * scale_theta),
+                Point((h + 1) * scale_distance - 1,
+                      (s + 1) * scale_theta - 1),
+                Scalar::all(intensity),
+                CV_FILLED);
+    }
   }
 
-  cv::Mat src1;
-  // Convert to gray.
-  cvtColor(src, src1, CV_RGB2GRAY);
+  namedWindow( "H-S Histogram", 1 );
+  imshow( "H-S Histogram", histImg );
+  /// HUE SATURATION histogram///////////
+
+  /// Added by me
+  //cv::GaussianBlur(histImg, histImg, cv::Size(9, 9), 0);
+  // Display
+  //namedWindow("H-S Histogram_blurred", 1);
+  //imshow("H-S Histogram_blurred", histImg);
+  ///
+
   // Try to find local max.
-  std::vector<cv::Point> peaks2 = Histogram::findLocalMaximum(src1);
-  cv::Mat img_display = src1.clone();
+  std::vector<cv::Point> peaks2 = Histogram::findLocalMaximum(histImg, 8);
+
+  cv::Mat img_display = histImg.clone();
+  cvtColor(img_display, img_display, cv::COLOR_GRAY2RGB);
   for (const cv::Point& peak: peaks2) {
     cv::circle(img_display, peak, 2, cv::Scalar(255,0,0), 1, 8, 0);
   }
