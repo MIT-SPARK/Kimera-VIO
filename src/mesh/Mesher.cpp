@@ -567,6 +567,8 @@ void Mesher::segmentPlanesInMesh(
   // Loop over the mesh only once.
   Mesh3D::Polygon polygon;
   cv::Mat z_components (1, 0, CV_32F);
+  cv::Mat theta (1, 0, CV_32F);
+  cv::Mat distance (1, 0, CV_32F);
   for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
     CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), mesh_polygon_dim);
@@ -622,10 +624,29 @@ void Mesher::segmentPlanesInMesh(
         // We have a triangle with a normal aligned with gravity, which is not
         // already clustered in a plane.
         // Store z components to build histogram.
+        // TODO instead of storing z_components, use the accumulate flag in
+        // calcHist and add them straight.
         z_components.push_back(p1.z);
         z_components.push_back(p2.z);
         z_components.push_back(p3.z);
       }
+
+//      if (isNormalPerpendicularToAxis(vertical, triangle_normal,
+//                                      normal_tolerance)) {
+        // WARNING if we do not normalize, we'll have two peaks for the same
+        // plane, no?
+        // Store theta.
+        ////theta.push_back(getTheta(vertical, triangle_normal));
+        // Store distance.
+        // Using triangle_normal.
+        ////CHECK_NEAR(triangle_normal, 1.0, 1e-5);
+        ////distance.push_back(p1.ddot(triangle_normal));
+        // Using projected triangle normal on equator, and taking average of
+        // three distances...
+        // NORMALIZE if a theta is positive and distance negative, it is the
+        // same as if theta is 180 deg from it and distance positive...
+
+//      }
     }
   }
 
