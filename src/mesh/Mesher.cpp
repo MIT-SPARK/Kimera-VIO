@@ -666,6 +666,26 @@ void Mesher::segmentPlanesInMesh(
     i++;
   }
 
+  ///////////////////////////// TODO delete, just trying////////////////////////
+  // Read random image
+  cv::Mat src = cv::imread("/home/tonirv/code/spark_vio/build/cubic_noise.jpg",
+                           CV_LOAD_IMAGE_COLOR);
+  if (!src.data) {
+    CHECK(false);
+  }
+
+  cv::Mat src1;
+  // Convert to gray.
+  cvtColor(src, src1, CV_RGB2GRAY);
+  // Try to find local max.
+  std::vector<cv::Point> peaks2 = Histogram::findLocalMaximum(src1);
+  cv::Mat img_display = src1.clone();
+  for (const cv::Point& peak: peaks2) {
+    cv::circle(img_display, peak, 2, cv::Scalar(255,0,0), 1, 8, 0);
+  }
+  cv::imshow("Peaks 2D", img_display);
+  /////////////////////////////////////////////////////////////////////////////
+
   // Segment new planes.
   // Make sure you do not re-use lmks that were used by the seed_planes...
   segmentNewPlanes(seed_planes);

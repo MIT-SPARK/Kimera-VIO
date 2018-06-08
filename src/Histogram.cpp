@@ -16,8 +16,6 @@
 
 #include <glog/logging.h>
 
-#include <opencv2/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
 
 namespace VIO {
 
@@ -211,6 +209,8 @@ std::vector<Histogram::PeakInfo> Histogram::findPeaks(cv::InputArray _src,
 // If you play with the peak_per attribute value, you can increase/decrease the
 // number of peaks found.
 // cv::Point smooth_size: x: smoothing size in x, y: smoothing size in y.
+// Dilates, does a difference of images, takes contour, find center of mass
+// and that is the max, definitely not the best way...
 std::vector<int> Histogram::getLocalMaximum(cv::Size smooth_size,
                                             int neighbor_size,
                                             float peak_per,
@@ -244,11 +244,11 @@ std::vector<int> Histogram::getLocalMaximum(cv::Size smooth_size,
 
   if (display_histogram) {
     VLOG(0) << "Drawing histogram.";
-    cv::Mat histImg = drawHistogram(src);
+    cv::Mat histImg = drawHistogram(src, 400, 1024, 256,
+                                    cv::Scalar(255,255,255), 2, false);
 
     VLOG(0) << "Drawing peaks.";
     static const cv::Scalar peak_color (0, 0, 255);
-
 
     int hist_size = histogram_.rows; // WARNING assumes a 1D Histogram.
     drawPeaks(histImg, output, hist_size, peak_color, display_histogram);

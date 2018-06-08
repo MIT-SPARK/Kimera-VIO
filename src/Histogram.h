@@ -17,6 +17,10 @@
 #include <vector>
 #include <opencv2/core.hpp>
 
+// TODO move these to .cpp when removing static functions...
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 namespace VIO {
 
 class Histogram {
@@ -124,6 +128,71 @@ private:
   std::vector<PeakInfo> findPeaks(cv::InputArray _src,
                                   int window_size);
 
+public:
+
+/////// FOR 2D MAX Finding /////////////////////////////////////////////////////
+  /* ------------------------------------------------------------------------ */
+  static std::vector<cv::Point> contoursCenter(
+      const std::vector<std::vector<cv::Point>>& contours,
+      bool centerOfMass,
+      int contourIdx = -1) {
+    std::vector<cv::Point> result;
+    if (contourIdx > -1) {
+      if (centerOfMass) {
+        cv::Moments m = cv::moments(contours.at(contourIdx), true);
+        result.push_back(cv::Point(m.m10 / m.m00,
+                                   m.m01 / m.m00));
+      } else {
+        cv::Rect rct = cv::boundingRect(contours[contourIdx]);
+        result.push_back(cv::Point(rct.x + rct.width / 2 ,
+                                   rct.y + rct.height / 2));
+      }
+    } else {
+      if (centerOfMass) {
+        for (int i = 0; i < contours.size(); i++) {
+          cv::Moments m = cv::moments(contours[i], true);
+          result.push_back(cv::Point(m.m10/m.m00,
+                                     m.m01/m.m00));
+
+        }
+      } else {
+        for (int i = 0; i < contours.size(); i++) {
+          cv::Rect rct = cv::boundingRect(contours.at(i));
+          result.push_back(cv::Point(rct.x + rct.width / 2 ,
+                                     rct.y + rct.height / 2));
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  static std::vector<cv::Point> findLocalMaximum(cv::InputArray _src,
+                                                 int neighbor = 2) {
+    cv::Mat src = _src.getMat();
+
+    cv::Mat peak_img = src.clone();
+    cv::dilate(peak_img, peak_img, cv::Mat(), cv::Point(-1,-1), neighbor);
+    peak_img = peak_img - src;
+
+    cv::Mat flat_img ;
+    cv::erode(src, flat_img, cv::Mat(), cv::Point(-1, -1), neighbor);
+    flat_img = src - flat_img;
+
+    cv::threshold(peak_img, peak_img, 0, 255, CV_THRESH_BINARY);
+    cv::threshold(flat_img, flat_img, 0, 255, CV_THRESH_BINARY);
+    cv::bitwise_not(flat_img, flat_img);
+
+    peak_img.setTo(cv::Scalar::all(255), flat_img);
+    cv::bitwise_not(peak_img, peak_img);
+
+    std::vector<std::vector<cv::Point>> contours;
+    cv::findContours(peak_img, contours,
+                     CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+
+    return contoursCenter(contours,true);
+  }
 };
 
 } // namespace VIO
