@@ -660,10 +660,9 @@ void Mesher::segmentPlanesInMesh(
     }
   }
 
-  VLOG(0) << "Number of polygons potentially on a wall: " << walls.rows <<
-             "\n"
-          << " Walls mat: \n" << "channels: " << walls.channels() << " cols: " << walls.cols;
+  VLOG(10) << "Number of polygons potentially on a wall: " << walls.rows;
 
+  ////////////////////////////// 1D Histogram //////////////////////////////////
   // WARNING: when building histogram, since we are not using all polygons
   // available the max peak won't be anything relevant... since we got rid of
   // the ground and table... Make sure we count how many points there are
@@ -675,25 +674,29 @@ void Mesher::segmentPlanesInMesh(
   static constexpr int hist_size[] = {z_bins};
   // Z varies from -1 to 4, approx.
   static const float z_range[] = {-1, 4};
-  static const float* ranges[] = { z_range };
+  static const float* ranges[] = {z_range};
   // We compute the histogram from the 0-th channel, z is 1-dimensional data.
   static const int channels[] = {0};
   // No mask, would it help?
   static const cv::Mat mask;
   static constexpr bool uniform = true;
   static constexpr bool accumulate = false;
-  Histogram hist (1, channels, mask, 1, hist_size, ranges, uniform, accumulate);
+  Histogram hist (1, channels, mask, 1,
+                  hist_size, ranges, uniform, accumulate);
+  VLOG(10) << "Starting calculate 1D histogram.";
   hist.calculateHistogram(z_components);
+  VLOG(10) << "Finished calculate 1D histogram.";
 
-  VLOG(0) << "Starting get local maximum.";
+  VLOG(10) << "Starting get local maximum for 1D.";
   static const cv::Size kernel_size (1, 9);
   static constexpr int neighbor_size = 3;
   static constexpr float peak_per = 0.5;
   static constexpr bool display_histogram = true;
-  vector<int> peaks = hist.getLocalMaximum(kernel_size, neighbor_size,
-                                           peak_per, display_histogram);
+  vector<int> peaks = hist.getLocalMaximum1D(kernel_size, neighbor_size,
+                                             peak_per, display_histogram);
+  VLOG(10) << "Finished get local maximum for 1D.";
 
-  LOG(WARNING) << "# of peaks = " << peaks.size();
+  LOG(WARNING) << "# of peaks in 1D histogram = " << peaks.size();
   size_t i = 0;
   for (const int& peak: peaks) {
     LOG(WARNING) << "Peak #" << i << " in bin " << peak
@@ -701,70 +704,47 @@ void Mesher::segmentPlanesInMesh(
     i++;
   }
 
-  ///////////////////////////// TODO delete, just trying////////////////////////
-  // Quantize the hue to 30 levels
-  // and the saturation to 32 levels
-  int theta_bins = 60, distance_bins = 80;
-  int histSize[] = {theta_bins, distance_bins};
-  // Theta varies from 0 to 2*pi.
-  float theta_range[] = {-PI, PI};
+  ////////////////////////////// 2D Histogram //////////////////////////////////
+  // Quantize the theta values to 60 levels
+  // and the distances to 80 levels
+  static constexpr int theta_bins = 60, distance_bins = 80;
+  static constexpr int hist_2d_size[] = {theta_bins, distance_bins};
+  // Theta varies from -pi to pi.
+  static const float theta_range[] = {-PI, PI};
   // Distances varie from -8 to 8.
-  float distance_range[] = {-4.0, 4.0};
-  const float* aranges[] = {theta_range, distance_range};
+  static const float distance_range[] = {-4.0, 4.0};
+  static const float* ranges_2d[] = {theta_range, distance_range};
 
-  Mat hist_2d;
   // we compute the histogram from the 0-th and 1-st channels
   int achannels[] = {0, 1};
 
-  calcHist(&walls, 1, achannels,
-           Mat(), // do not use mask
-           hist_2d, 2,
-           histSize, aranges,
-           true, // the histogram is uniform
-           false);
-  double maxVal = 0;
-  minMaxLoc(hist_2d, 0, &maxVal, 0, 0);
-
-  int scale_theta = 10;
-  int scale_distance = 10;
-  Mat histImg = Mat::zeros(distance_bins * scale_distance,
-                           theta_bins * scale_theta, CV_8UC1);
-
-  for (int h = 0; h < theta_bins; h++ ) {
-    for (int s = 0; s < distance_bins; s++ ) {
-      float binVal = hist_2d.at<float>(h, s);
-      int intensity = cvRound(binVal * 255 / maxVal);
-      rectangle(histImg,
-                Point(h * scale_distance,
-                      s * scale_theta),
-                Point((h + 1) * scale_distance - 1,
-                      (s + 1) * scale_theta - 1),
-                Scalar::all(intensity),
-                CV_FILLED);
-    }
-  }
-
-  namedWindow( "H-S Histogram", 1 );
-  imshow( "H-S Histogram", histImg );
-  /// HUE SATURATION histogram///////////
+  Histogram hist_2d (1, achannels, mask, 2,
+                     hist_2d_size, ranges_2d, uniform, accumulate);
+  VLOG(10) << "Starting to calculate 2D histogram...";
+  hist_2d.calculateHistogram(walls);
+  VLOG(10) << "Finished to calculate 2D histogram.";
 
   /// Added by me
   //cv::GaussianBlur(histImg, histImg, cv::Size(9, 9), 0);
-  // Display
-  //namedWindow("H-S Histogram_blurred", 1);
-  //imshow("H-S Histogram_blurred", histImg);
   ///
+  VLOG(10) << "Starting get local maximum for 2D histogram...";
+  std::vector<cv::Point> peaks2 = hist_2d.getLocalMaximum2D(8, true);
+  VLOG(10) << "Finished get local maximum for 2D histogram.";
 
-  // Try to find local max.
-  std::vector<cv::Point> peaks2 = Histogram::findLocalMaximum(histImg, 8);
-
-  cv::Mat img_display = histImg.clone();
-  cvtColor(img_display, img_display, cv::COLOR_GRAY2RGB);
+  LOG(WARNING) << "# of peaks in 2D histogram = " << peaks2.size();
+  i = 0;
   for (const cv::Point& peak: peaks2) {
-    cv::circle(img_display, peak, 2, cv::Scalar(255,0,0), 1, 8, 0);
+    LOG(WARNING)
+        << "Peak #" << i << " in bin with coords: "
+        << " x= " << peak.x << " y= " << peak.y
+        << ". So peak with theta = " << (peak.x/10 * (theta_range[1] -
+                                         theta_range[0]) / theta_bins)
+        + theta_range[0]
+        << " and distance = " << (peak.y/10 * (distance_range[1] -
+                                  distance_range[0]) / distance_bins)
+        + distance_range[0];
+    i++;
   }
-  cv::imshow("Peaks 2D", img_display);
-  /////////////////////////////////////////////////////////////////////////////
 
   // Segment new planes.
   // Make sure you do not re-use lmks that were used by the seed_planes...

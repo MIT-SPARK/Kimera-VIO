@@ -67,10 +67,16 @@ public:
   /* ------------------------------------------------------------------------ */
   // If you play with the peak_per attribute value, you can increase/decrease the
   // number of peaks found.
-  std::vector<int> getLocalMaximum(cv::Size smooth_size = cv::Size(9, 9),
-                                   int neighbor_size = 3,
-                                   float peak_per = 0.5,
-                                   bool display_histogram = false);
+  std::vector<int> getLocalMaximum1D(cv::Size smooth_size = cv::Size(9, 9),
+                                     int neighbor_size = 3,
+                                     float peak_per = 0.5,
+                                     bool display_histogram = false) const;
+
+  /* ------------------------------------------------------------------------ */
+  // findLocalMaximum for a 2D histogram, it dilates the image and erodes it,
+  // then makes the difference and checks centers of countours to get maximums.
+  std::vector<cv::Point> getLocalMaximum2D(int neighbor = 2,
+                                           bool visualize = false) const;
 
   /* ------------------------------------------------------------------------ */
   struct PeakInfo {
@@ -85,7 +91,7 @@ private:
   const int n_images_;
   const int* channels_;
   const cv::Mat mask_; // Should be InputArray
-  const int& dims_;
+  const int dims_;
   const int* hist_size_;
   const float** ranges_;
   const bool uniform_;
@@ -98,101 +104,52 @@ private:
   struct Length {
     int pos1 = 0;
     int pos2 = 0;
-    int size() {
+    int size() const {
       return pos2 - pos1 + 1;
     }
   };
 
 
   /* ------------------------------------------------------------------------ */
-  int drawPeaks(cv::Mat &histImage,
-                std::vector<int>& peaks,
-                int hist_size = 256,
-                cv::Scalar color = cv::Scalar(0, 0, 255),
-                bool display_image = false);
+  int drawPeaks1D(cv::Mat& histImage,
+                  std::vector<int>& peaks,
+                  int hist_size = 256,
+                  cv::Scalar color = cv::Scalar(0, 0, 255),
+                  bool display_image = false) const;
 
   /* ------------------------------------------------------------------------ */
-  cv::Mat drawHistogram(cv::Mat &hist,
-                        int hist_h = 400,
-                        int hist_w = 1024,
-                        int hist_size = 256,
-                        cv::Scalar color = cv::Scalar(255, 255, 255),
-                        int type = 2,
-                        bool display_image = false);
+  cv::Mat drawHistogram1D(cv::Mat& hist,
+                          int hist_h = 400,
+                          int hist_w = 1024,
+                          int hist_size = 256,
+                          cv::Scalar color = cv::Scalar(255, 255, 255),
+                          int type = 2,
+                          bool display_image = false) const;
 
   /* ------------------------------------------------------------------------ */
   PeakInfo peakInfo(int pos, int left_size, int right_size,
-                    float value);
+                    float value) const;
 
   /* ------------------------------------------------------------------------ */
   std::vector<PeakInfo> findPeaks(cv::InputArray _src,
-                                  int window_size);
+                                  int window_size) const;
 
-public:
-
-/////// FOR 2D MAX Finding /////////////////////////////////////////////////////
+//////////////////////////// FOR 2D HISTOGRAM //////////////////////////////////
   /* ------------------------------------------------------------------------ */
-  static std::vector<cv::Point> contoursCenter(
+  std::vector<cv::Point> contoursCenter(
       const std::vector<std::vector<cv::Point>>& contours,
       bool centerOfMass,
-      int contourIdx = -1) {
-    std::vector<cv::Point> result;
-    if (contourIdx > -1) {
-      if (centerOfMass) {
-        cv::Moments m = cv::moments(contours.at(contourIdx), true);
-        result.push_back(cv::Point(m.m10 / m.m00,
-                                   m.m01 / m.m00));
-      } else {
-        cv::Rect rct = cv::boundingRect(contours[contourIdx]);
-        result.push_back(cv::Point(rct.x + rct.width / 2 ,
-                                   rct.y + rct.height / 2));
-      }
-    } else {
-      if (centerOfMass) {
-        for (int i = 0; i < contours.size(); i++) {
-          cv::Moments m = cv::moments(contours[i], true);
-          result.push_back(cv::Point(m.m10/m.m00,
-                                     m.m01/m.m00));
+      int contourIdx = -1,
+      bool visualize = false) const;
 
-        }
-      } else {
-        for (int i = 0; i < contours.size(); i++) {
-          cv::Rect rct = cv::boundingRect(contours.at(i));
-          result.push_back(cv::Point(rct.x + rct.width / 2 ,
-                                     rct.y + rct.height / 2));
-        }
-      }
-    }
-
-    return result;
-  }
 
   /* ------------------------------------------------------------------------ */
-  static std::vector<cv::Point> findLocalMaximum(cv::InputArray _src,
-                                                 int neighbor = 2) {
-    cv::Mat src = _src.getMat();
+  // Visualize 2D histogram.
+  void visualizeHistogram2DWithPeaks(const std::vector<cv::Point>& peaks) const;
 
-    cv::Mat peak_img = src.clone();
-    cv::dilate(peak_img, peak_img, cv::Mat(), cv::Point(-1,-1), neighbor);
-    peak_img = peak_img - src;
-
-    cv::Mat flat_img ;
-    cv::erode(src, flat_img, cv::Mat(), cv::Point(-1, -1), neighbor);
-    flat_img = src - flat_img;
-
-    cv::threshold(peak_img, peak_img, 0, 255, CV_THRESH_BINARY);
-    cv::threshold(flat_img, flat_img, 0, 255, CV_THRESH_BINARY);
-    cv::bitwise_not(flat_img, flat_img);
-
-    peak_img.setTo(cv::Scalar::all(255), flat_img);
-    cv::bitwise_not(peak_img, peak_img);
-
-    std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(peak_img, contours,
-                     CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-
-    return contoursCenter(contours,true);
-  }
+  /* ------------------------------------------------------------------------ */
+  // Draw the histogram in 2D, returns the image of it.
+  void drawHistogram2D(cv::Mat* img_output) const;
 };
 
 } // namespace VIO
