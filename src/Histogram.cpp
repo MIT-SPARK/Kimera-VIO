@@ -52,89 +52,91 @@ void Histogram::calculateHistogram(const cv::Mat& input) {
 //}
 
 /* -------------------------------------------------------------------------- */
-int Histogram::drawPeaks1D(cv::Mat &histImage,
-                         std::vector<int>& peaks,
-                         int hist_size,
-                         cv::Scalar color,
-                         bool display_image) const {
+int Histogram::drawPeaks1D(cv::Mat* hist_image,
+                           const std::vector<int>& peaks,
+                           int hist_size,
+                           const cv::Scalar& color,
+                           bool display_image) const {
+  CHECK_NOTNULL(hist_image);
   CHECK_EQ(dims_, 1) << "This function is meant for 1D histograms.";
   CHECK_NE(hist_size, 0);
-  int bin_w = cvRound((double) histImage.cols / hist_size);
+  int bin_w = cvRound((double) hist_image->cols / hist_size);
   for (size_t i = 0; i < peaks.size(); i++) {
-    cv::line(histImage,
+    cv::line(*hist_image,
              cv::Point(bin_w * peaks[i],
-                       histImage.rows),
+                       hist_image->rows),
              cv::Point(bin_w * peaks[i], 0), color);
   }
 
   if (display_image) {
-    cv::imshow("Peaks", histImage);
+    cv::imshow("Peaks", *hist_image);
   }
 
   return EXIT_SUCCESS;
 }
 
 /* -------------------------------------------------------------------------- */
-cv::Mat Histogram::drawHistogram1D(cv::Mat& hist,
+cv::Mat Histogram::drawHistogram1D(cv::Mat* hist,
                                    int hist_h,
                                    int hist_w,
                                    int hist_size,
-                                   cv::Scalar color,
+                                   const cv::Scalar& color,
                                    int type,
                                    bool display_image) const {
+  CHECK_NOTNULL(hist);
   CHECK_EQ(dims_, 1) << "This function is meant for 1D histograms.";
   CHECK_NE(hist_size, 0);
   int bin_w = cvRound((double) hist_w / hist_size);
 
-  cv::Mat histImage (hist_h, hist_w, CV_8UC3, cv::Scalar(0,0,0));
+  cv::Mat hist_image (hist_h, hist_w, CV_8UC3, cv::Scalar(0,0,0));
 
   /// Normalize the result to [ 0, histImage.rows ]
   VLOG(10) << "Normalize image hist.";
-  cv::normalize(hist, hist, 0, histImage.rows, cv::NORM_MINMAX, -1, cv::Mat());
+  cv::normalize(*hist, *hist, 0, hist_image.rows, cv::NORM_MINMAX, -1, cv::Mat());
 
   switch (type) {
     case 1:
-      for(int i = 0; i < histImage.cols; i++) {
+      for(int i = 0; i < hist_image.cols; i++) {
         const unsigned x = i;
         const unsigned y = hist_h;
 
-        cv::line(histImage,
+        cv::line(hist_image,
                  cv::Point(bin_w * x, y),
-                 cv::Point(bin_w * x, y - cvRound(hist.at<float>(i))), color);
+                 cv::Point(bin_w * x, y - cvRound(hist->at<float>(i))), color);
       }
       break;
     case 2:
       for(int i = 1; i < hist_size; ++i) {
-        cv::Point pt1 = cv::Point(bin_w * (i-1),
+        cv::Point pt1 = cv::Point(bin_w * (i - 1),
                                   hist_h);
         cv::Point pt2 = cv::Point(bin_w * i,
                                   hist_h);
         cv::Point pt3 = cv::Point(bin_w * i,
-                                  hist_h - cvRound(hist.at<float>(i)));
-        cv::Point pt4 = cv::Point(bin_w * (i-1),
-                                  hist_h - cvRound(hist.at<float>(i-1)));
+                                  hist_h - cvRound(hist->at<float>(i)));
+        cv::Point pt4 = cv::Point(bin_w * (i - 1),
+                                  hist_h - cvRound(hist->at<float>(i - 1)));
         cv::Point pts[] = {pt1, pt2, pt3, pt4, pt1};
 
-        cv::fillConvexPoly(histImage, pts, 5, color);
+        cv::fillConvexPoly(hist_image, pts, 5, color);
       }
       break;
     default:
       for( int i = 1; i < hist_size; ++i) {
-        cv::line(histImage,
-                 cv::Point(bin_w * (i-1),
-                           hist_h - cvRound(hist.at<float>(i-1))),
+        cv::line(hist_image,
+                 cv::Point(bin_w * (i - 1),
+                           hist_h - cvRound(hist->at<float>(i - 1))),
                  cv::Point(bin_w * (i),
-                           hist_h - cvRound(hist.at<float>(i))),
+                           hist_h - cvRound(hist->at<float>(i))),
                  color, 1, 8, 0);
       }
       break;
   }
 
   if (display_image) {
-    cv::imshow("Histogram", histImage);
+    cv::imshow("Histogram", hist_image);
   }
 
-  return histImage;
+  return hist_image;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -249,14 +251,14 @@ std::vector<int> Histogram::getLocalMaximum1D(cv::Size smooth_size,
 
   if (display_histogram) {
     VLOG(10) << "Drawing histogram.";
-    cv::Mat histImg = drawHistogram1D(src, 400, 1024, 256,
-                                    cv::Scalar(255,255,255), 2, false);
+    cv::Mat hist_img = drawHistogram1D(&src, 400, 1024, 256, // WARNING: this number has to coincide with nr of bins...
+                                       cv::Scalar(255,255,255), 2, false);
 
     VLOG(10) << "Drawing peaks.";
     static const cv::Scalar peak_color (0, 0, 255);
 
     int hist_size = histogram_.rows; // WARNING assumes a 1D Histogram.
-    drawPeaks1D(histImg, output, hist_size, peak_color, display_histogram);
+    drawPeaks1D(&hist_img, output, hist_size, peak_color, display_histogram);
   }
   return output;
 }
@@ -282,14 +284,14 @@ std::vector<cv::Point> Histogram::contoursCenter(
     }
   } else {
     if (centerOfMass) {
-      for (int i = 0; i < contours.size(); i++) {
+      for (size_t i = 0; i < contours.size(); i++) {
         cv::Moments m = cv::moments(contours[i], true);
         result.push_back(cv::Point(m.m10/m.m00,
                                    m.m01/m.m00));
 
       }
     } else {
-      for (int i = 0; i < contours.size(); i++) {
+      for (size_t i = 0; i < contours.size(); i++) {
         cv::Rect rct = cv::boundingRect(contours.at(i));
         result.push_back(cv::Point(rct.x + rct.width / 2 ,
                                    rct.y + rct.height / 2));
@@ -318,7 +320,8 @@ std::vector<cv::Point> Histogram::getLocalMaximum2D(int neighbor,
   }
 
   VLOG(10) << "Histogram size is: " << histogram_.size;
-  // TODO remove hack.........
+  // TODO remove hack: we are passing recontructed image of histogram, instead
+  // of the histogram itself...
   cv::Mat src; // = histogram_; //Should be histogram, hacking system!
   drawHistogram2D(&src);
   cv::Mat peak_img = src.clone();
@@ -403,6 +406,5 @@ void Histogram::drawHistogram2D(cv::Mat* img_output) const {
     }
   }
 }
-
 
 } // namespace VIO

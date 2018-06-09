@@ -111,18 +111,19 @@ private:
 
 
   /* ------------------------------------------------------------------------ */
-  int drawPeaks1D(cv::Mat& histImage,
-                  std::vector<int>& peaks,
+  int drawPeaks1D(cv::Mat* histImage,
+                  const std::vector<int>& peaks,
                   int hist_size = 256,
-                  cv::Scalar color = cv::Scalar(0, 0, 255),
+                  const cv::Scalar& color = cv::Scalar(0, 0, 255),
                   bool display_image = false) const;
 
   /* ------------------------------------------------------------------------ */
-  cv::Mat drawHistogram1D(cv::Mat& hist,
+  // It normalizes the histogram...
+  cv::Mat drawHistogram1D(cv::Mat* hist,
                           int hist_h = 400,
                           int hist_w = 1024,
                           int hist_size = 256,
-                          cv::Scalar color = cv::Scalar(255, 255, 255),
+                          const cv::Scalar& color = cv::Scalar(255, 255, 255),
                           int type = 2,
                           bool display_image = false) const;
 
