@@ -41,7 +41,7 @@ public:
       const StatusSmartStereoMeasurements&
                             status_smart_stereo_measurements_kf, // Vision data.
       const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,  // Inertial data.
-      std::vector<Plane>* planes,
+      std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   /* ------------------------------------------------------------------------ */

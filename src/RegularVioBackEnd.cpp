@@ -73,7 +73,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
     std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
-  CHECK_NOTNULL(planes);
+  CHECK(planes != nullptr)
+      << "Consider using normal VIO instead of regular VIO if you are not "
+         "passing planes...";
 
   debug_info_.resetAddedFactorsStatistics();
 
