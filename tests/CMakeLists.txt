@@ -9,4 +9,4 @@ configure_file(test_config.h.in test_config.h)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # Build tests
-gtsamAddTestsGlobAll(VIOTests "test*.cpp" "${tests_exclude}" "stereoVIO" "${src_cpp_files}")
+gtsamAddTestsGlob(VIOTests "test*.cpp" "${tests_exclude}" "stereoVIO")
