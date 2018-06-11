@@ -42,7 +42,7 @@ DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
                                  "0: VioBackEnd\n"
                                  "1: RegularVioBackEnd");
 DEFINE_bool(visualize, true, "Enable visualization.");
-DEFINE_int32(viz_type, 3,
+DEFINE_int32(viz_type, 0,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
   "1: POINTCLOUD_REPEATEDPOINTS, visualize VIO points as point clouds (points "
     "are re-plotted at every frame)\n"
@@ -714,8 +714,10 @@ int main(int argc, char *argv[]) {
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
           VioBackEnd::PointsWithIdMap pointsWithId;
           vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(&pointsWithId);
-          //mesher.updateMap3D(pointsWithId);
-          //visualizer.visualizePoints3D(pointsWithId, mesher.map_points_3d_);
+          // Do not color the cloud, send empty lmk id to lmk type map
+          static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+          visualizer.visualizePoints3D(pointsWithId,
+                                       lmk_id_to_lmk_type_map);
           break;
         }
 
