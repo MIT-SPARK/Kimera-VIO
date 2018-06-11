@@ -17,6 +17,7 @@
 #include "LoggerMatlab.h"
 #include "Histogram.h"
 #include <opencv2/imgproc.hpp>
+#include <gflags/gflags.h>
 
 // WARNING this is computationally expensive.
 DEFINE_bool(add_extra_lmks_from_stereo, false,
