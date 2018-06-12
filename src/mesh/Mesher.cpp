@@ -638,8 +638,7 @@ void Mesher::segmentPlanesInMesh(
 }
 
 /* -------------------------------------------------------------------------- */
-// Updates planes lmk ids field with a polygon vertices ids if this polygon
-// Output goes from 0 to 2*pi, as we are using atan2, which looks at sign
+// Output goes from (-pi to pi], as we are using atan2, which looks at sign
 // of arguments.
 double Mesher::getLongitude(const cv::Point3f& triangle_normal,
                             const cv::Point3f& vertical) const {
@@ -650,8 +649,7 @@ double Mesher::getLongitude(const cv::Point3f& triangle_normal,
   cv::Point3f equatorial_proj = triangle_normal -
                                 vertical.ddot(triangle_normal) * vertical;
   CHECK_NEAR(equatorial_proj.ddot(vertical), 0.0, 1e-5);
-  // theta goes from 0 to 2*pi, as we are using atan2, which looks at sign
-  // of arguments.
+  CHECK(equatorial_proj.y != 0 || equatorial_proj.x != 0);
   return std::atan2(equatorial_proj.y, equatorial_proj.x);
 }
 
