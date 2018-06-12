@@ -116,7 +116,7 @@ private:
   /* ------------------------------------------------------------------------ */
   void addRegularityFactors(
       const LandmarkIds& mesh_lmk_ids,
-      gtsam::Symbol* plane_symbol,
+      const Plane& plane,
       std::vector<std::pair<Slot, LandmarkId>>* idx_of_point_plane_factors_to_add);
 
   /* ------------------------------------------------------------------------ */

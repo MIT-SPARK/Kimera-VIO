@@ -53,6 +53,11 @@ public:
     window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
 
+  typedef size_t LineNr;
+  typedef std::uint64_t PlaneId;
+  typedef std::map<LandmarkId, size_t> LmkIdToLineIdMap;
+  typedef std::map<PlaneId, LmkIdToLineIdMap> PlaneIdMap;
+
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud using cloud widget from opencv viz.
   void visualizeMap3D(const std::vector<gtsam::Point3>& points) {
@@ -145,11 +150,14 @@ public:
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   void visualizePlane(
-      const std::string& plane_id,
+      const PlaneId& plane_index,
       const double& n_x,
       const double& n_y,
       const double& n_z,
-      const double& d) {
+      const double& d,
+      const bool& visualize_plane_label = true) {
+    const std::string& plane_id_for_viz =
+        "Plane " + std::to_string(plane_index);
     // Create a plane widget.
     const Vec3d normal (n_x, n_y, n_z);
     const Point3d center (d * n_x, d * n_y, d * n_z);
@@ -159,9 +167,19 @@ public:
     cv::viz::WPlane plane_widget (center, normal, new_yaxis, size, plane_color);
     plane_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
-    window_.showWidget(plane_id, plane_widget);
-  }
+    if (visualize_plane_label) {
+      static double increase = 0.0;
+      const Point3d text_position (d * n_x, d * n_y,
+                                   d * n_z + std::fmod(increase, 1));
+      increase += 0.1;
+      window_.showWidget(plane_id_for_viz + "_label",
+                         cv::viz::WText3D(plane_id_for_viz, text_position,
+                                          0.07, true));
+    }
 
+    window_.showWidget(plane_id_for_viz, plane_widget);
+    is_plane_id_in_window_[plane_index] = true;
+  }
 
   /* ------------------------------------------------------------------------ */
   // Draw a line in opencv.
@@ -447,30 +465,59 @@ public:
   /* ------------------------------------------------------------------------ */
   // Visualize line widgets from plane to lmks.
   // Point key is required to avoid duplicated lines!
-  void visualizePlaneConstraints(const gtsam::Point3& normal,
+  void visualizePlaneConstraints(const PlaneId& plane_id,
+                                 const gtsam::Point3& normal,
                                  const double& distance,
                                  const LandmarkId& lmk_id,
                                  const gtsam::Point3& point) {
+    PlaneIdMap::iterator plane_id_it = plane_id_map_.find(plane_id);
+    LmkIdToLineIdMap* lmk_id_to_line_id_map_ptr = nullptr;
+    LineNr* line_nr_ptr = nullptr;
+    if (plane_id_it != plane_id_map_.end()) {
+      // We already have this plane id stored.
+      lmk_id_to_line_id_map_ptr = &(plane_id_it->second);
+
+      // Ensure we also have the line nr stored.
+      const auto& line_nr_it = plane_to_line_nr_map_.find(plane_id);
+      CHECK(line_nr_it != plane_to_line_nr_map_.end());
+      line_nr_ptr = &(line_nr_it->second);
+    } else {
+      // We have not this plane id stored.
+      // Create it by calling default ctor.
+      lmk_id_to_line_id_map_ptr = &(plane_id_map_[plane_id]);
+      plane_id_it = plane_id_map_.find(plane_id);
+      DCHECK(plane_id_it != plane_id_map_.end());
+
+      // Also start line nr to 0.
+      plane_to_line_nr_map_[plane_id] = 0;
+      DCHECK(plane_to_line_nr_map_.find(plane_id) !=
+          plane_to_line_nr_map_.end());
+      line_nr_ptr = &(plane_to_line_nr_map_[plane_id]);
+    }
+    CHECK_NOTNULL(lmk_id_to_line_id_map_ptr);
+    CHECK_NOTNULL(line_nr_ptr);
+
     // TODO should use map from line_id_to_lmk_id as well,
     // to remove the line_ids which are not having a lmk_id...
-    const auto& lmk_id_to_line_id =
-        lmk_id_to_line_id_map_.find(lmk_id);
-    if (lmk_id_to_line_id ==
-        lmk_id_to_line_id_map_.end()) {
+    const auto& lmk_id_to_line_id = lmk_id_to_line_id_map_ptr->find(lmk_id);
+    if (lmk_id_to_line_id == lmk_id_to_line_id_map_ptr->end()) {
       // We have never drawn this line.
       // Store line nr (as line id).
-      lmk_id_to_line_id_map_[lmk_id] = line_nr_;
-      std::string line_id =  "Line " + std::to_string((int)line_nr_);
+      (*lmk_id_to_line_id_map_ptr)[lmk_id] = *line_nr_ptr;
+      std::string line_id = "Line " +
+                            std::to_string((int)plane_id_it->first) +
+                            std::to_string((int)(*line_nr_ptr));
       // Draw it.
       drawLineFromPlaneToPoint(line_id,
                                normal.x(), normal.y(), normal.z(), distance,
                                point.x(), point.y(), point.z());
       // Augment line_nr for next line_id.
-      line_nr_++;
+      (*line_nr_ptr)++;
     } else {
       // We have drawn this line before.
       // Update line.
       std::string line_id = "Line " +
+                            std::to_string((int)plane_id_it->first) +
                             std::to_string((int)lmk_id_to_line_id->second);
       updateLineFromPlaneToPoint(
             line_id,
@@ -483,35 +530,80 @@ public:
   // Remove line widgets from plane to lmks, for lines that are not pointing
   // to any lmk_id in lmk_ids.
   void removeOldLines(const LandmarkIds& lmk_ids) {
-    for (std::map<LandmarkId, size_t>::iterator lmk_id_to_line_id_it = lmk_id_to_line_id_map_.begin();
-         lmk_id_to_line_id_it != lmk_id_to_line_id_map_.end(); ) {
-      if (std::find(lmk_ids.begin(), lmk_ids.end(), lmk_id_to_line_id_it->first)
-          == lmk_ids.end()) {
-        // We did not find the lmk_id of the current line in the list
-        // of lmk_ids...
-        // Delete the corresponding line.
-        std::string line_id = "Line " +
-                              std::to_string((int)lmk_id_to_line_id_it->second);
-        removeWidget(line_id);
-        // Delete the corresponding entry in the map from lmk id to line id.
-        lmk_id_to_line_id_it =
-            lmk_id_to_line_id_map_.erase(lmk_id_to_line_id_it);
-      } else {
-        lmk_id_to_line_id_it++;
+    for (PlaneIdMap::value_type& plane_id_pair: plane_id_map_) {
+      LmkIdToLineIdMap& lmk_id_to_line_id_map = plane_id_pair.second;
+      for (LmkIdToLineIdMap::iterator lmk_id_to_line_id_it =
+           lmk_id_to_line_id_map.begin();
+           lmk_id_to_line_id_it != lmk_id_to_line_id_map.end();) {
+        if (std::find(lmk_ids.begin(), lmk_ids.end(),
+                      lmk_id_to_line_id_it->first)
+            == lmk_ids.end()) {
+          // We did not find the lmk_id of the current line in the list
+          // of lmk_ids...
+          // Delete the corresponding line.
+          std::string line_id =
+              "Line " + std::to_string((int)plane_id_pair.first) +
+              std::to_string((int)lmk_id_to_line_id_it->second);
+          removeWidget(line_id);
+          // Delete the corresponding entry in the map from lmk id to line id.
+          lmk_id_to_line_id_it =
+              lmk_id_to_line_id_map.erase(lmk_id_to_line_id_it);
+        } else {
+          lmk_id_to_line_id_it++;
+        }
       }
     }
   }
 
   /* ------------------------------------------------------------------------ */
   // Remove line widgets from plane to lmks.
-  void removePlaneConstraintsViz() {
-    for (const auto& lmk_id_to_line_id: lmk_id_to_line_id_map_) {
-      std::string line_id = "Line " +
-                            std::to_string((int)lmk_id_to_line_id.second);
-      removeWidget(line_id);
+  void removePlaneConstraintsViz(const PlaneId& plane_id) {
+    PlaneIdMap::iterator plane_id_it = plane_id_map_.find(plane_id);
+    if (plane_id_it != plane_id_map_.end()) {
+      VLOG(0) << "Removing line constraints for plane with id: "
+                   << plane_id;
+      for (const auto& lmk_id_to_line_id: plane_id_it->second) {
+        std::string line_id =
+            "Line " + std::to_string((int)plane_id_it->first) +
+            std::to_string((int)lmk_id_to_line_id.second);
+        removeWidget(line_id);
+      }
+      // Delete the corresponding entry in the map for this plane.
+      plane_id_map_.erase(plane_id_it);
+      // Same for the map holding the line nr.
+      auto line_nr_it = plane_to_line_nr_map_.find(plane_id);
+      CHECK(line_nr_it != plane_to_line_nr_map_.end());
+      plane_to_line_nr_map_.erase(line_nr_it);
+    } else{
+      // Careful if we did not find, might be because it is a newly segmented
+      // plane.
+      LOG(WARNING) << "Could not find plane with id: " << plane_id
+                   << " from plane_id_map_...";
     }
-    line_nr_ = 0;
-    lmk_id_to_line_id_map_.clear();
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Remove plane widget.
+  void removePlane(const PlaneId& plane_index,
+                   const bool& remove_plane_label = true) {
+    const std::string& plane_id_for_viz =
+        "Plane " + std::to_string(plane_index);
+    if (is_plane_id_in_window_.find(plane_index) !=
+        is_plane_id_in_window_.end() &&
+        is_plane_id_in_window_[plane_index]) {
+      if (removeWidget(plane_id_for_viz)) {
+        if (remove_plane_label) {
+          if (!removeWidget(plane_id_for_viz + "_label")) {
+            LOG(WARNING) << "Did you disable labels of planes?, then also"
+                            "disable label removal. Otherwise, did you change "
+                            "the id of the label? then change it here as well.";
+          }
+        }
+        is_plane_id_in_window_[plane_index] = false;
+      } else {
+        is_plane_id_in_window_[plane_index] = true;
+      }
+    }
   }
 
   /* ------------------------------------------------------------------------ */
@@ -538,8 +630,9 @@ private:
   cv::viz::Color cloud_color_ = cv::viz::Color::white();
   cv::viz::Color background_color_ = cv::viz::Color::black();
 
-  size_t line_nr_ = 0;
-  std::map<LandmarkId, size_t> lmk_id_to_line_id_map_;
+  std::map<PlaneId, LineNr> plane_to_line_nr_map_;
+  PlaneIdMap plane_id_map_;
+  std::map<PlaneId, bool> is_plane_id_in_window_;
 
   /* ------------------------------------------------------------------------ */
   // Log mesh to ply file.

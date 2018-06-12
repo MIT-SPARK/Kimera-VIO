@@ -178,14 +178,14 @@ private:
                                          const double& tolerance,
                                          std::vector<int>* cluster_normals_idx);
 
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   // Checks whether all points in polygon are closer than tolerance to the plane.
   bool isPolygonAtDistanceFromPlane(const Mesh3D::Polygon& polygon,
                                     const double& plane_distance,
                                     const cv::Point3f& plane_normal,
                                     const double& distance_tolerance) const;
 
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   // Checks whether the point is closer than tolerance to the plane.
   bool isPointAtDistanceFromPlane(const Mesh3D::VertexPosition3D& point,
                                   const double& plane_distance,
@@ -201,20 +201,66 @@ private:
                      const double& max_triangle_side) const;
 
   /* ------------------------------------------------------------------------ */
-  // Segment planes in the mesh, by using initial plane seeds.
+  // Segment planes in the mesh:
+  // Updates seed_planes lmk ids of the plane by using initial plane seeds.
+  // Extracts new planes from the mesh.
+  // WARNING: data association must be performed between seed_planes and new_planes
+  // since both structures might have the same planes.
   void segmentPlanesInMesh(
       std::vector<Plane>* seed_planes,
+      std::vector<Plane>* new_planes,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       const double& normal_tolerance,
       const double& distance_tolerance) const;
 
+  /* -------------------------------------------------------------------------- */
+  // Updates planes lmk ids field with a polygon vertices ids if this polygon
+  // Output goes from 0 to 2*pi, as we are using atan2, which looks at sign
+  // of arguments.
+  double getLongitude(const cv::Point3f& triangle_normal,
+                      const cv::Point3f& vertical) const;
+
   /* ------------------------------------------------------------------------ */
-  // Segment planes in the mesh, without having initial plane seeds.
-  void segmentPlanesInMeshNaive(std::vector<Plane>* segmented_planes) const;
+  // Updates planes lmk ids field with a polygon vertices ids if this polygon
+  // is part of the plane according to given tolerance.
+  bool updatePlanesWithPolygon(
+      std::vector<Plane>* seed_planes,
+      const Mesh3D::Polygon& polygon,
+      const size_t& triangle_id,
+      const cv::Point3f& triangle_normal,
+      double normal_tolerance, double distance_tolerance,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  const;
 
   /* -------------------------------------------------------------------------- */
   // Segment new planes in the mesh.
-  void segmentNewPlanes(std::vector<Plane>* new_segmented_planes) const;
+  // Currently segments horizontal planes using z_components, which is
+  // expected to be a cv::Mat z_components (1, 0, CV_32F);
+  // And walls perpendicular to the ground, using a cv::Mat which is expected to be
+  // a cv::Mat walls (0, 0, CV_32FC2), with first channel being theta (yaw angle of
+  // the wall) and the second channel the distance of it.
+  // points_with_id_vio is only used if we are using stereo points...
+  void segmentNewPlanes(
+      std::vector<Plane>* new_segmented_planes,
+      const cv::Mat& z_components,
+      const cv::Mat& walls,
+      const double& normal_tolerance,
+      const double& distance_tolerance,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  const;
+
+  /* ------------------------------------------------------------------------ */
+  // Segment wall planes.
+  void segmentWalls(std::vector<Plane>* wall_planes,
+                    size_t* plane_id,
+                    const cv::Mat& walls) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Segment new planes horizontal.
+  void segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
+                               size_t* plane_id,
+                               const Plane::Normal& normal,
+                               const cv::Mat& z_components) const;
 
   /* ------------------------------------------------------------------------ */
   // Data association between planes.
