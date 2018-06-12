@@ -146,11 +146,13 @@ bool Mesher::isBadTriangle(
 
     // If threshold is disabled, avoid computation.
     if (max_triangle_side > 0.0) {
-      std::vector<double> sidesLen;
-      sidesLen.push_back(d12);
-      sidesLen.push_back(d23);
-      sidesLen.push_back(d31);
-      maxTriangleSide_i = *std::max_element(sidesLen.begin(), sidesLen.end());
+      std::array<double, 3> sidesLen;
+      sidesLen.at(0) = d12;
+      sidesLen.at(1) = d23;
+      sidesLen.at(2) = d31;
+      const auto& it = std::max_element(sidesLen.begin(), sidesLen.end());
+      DCHECK(it != sidesLen.end());
+      maxTriangleSide_i = *it;
     }
 
     // Check if triangle is not elongated.
