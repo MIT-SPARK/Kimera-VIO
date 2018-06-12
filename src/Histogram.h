@@ -61,6 +61,22 @@ public:
             const bool& accumulate = false);
 
   /* ------------------------------------------------------------------------ */
+  struct PeakInfo {
+    int pos = 0;
+    int left_size = 0;
+    int right_size = 0;
+    // Number of points supporting this peak (it does not need to be an int
+    // since we smooth the histogram...)
+    float value = 0;
+    // < Operator will compare the support (# of points) of one peak vs the other.
+    // nothing else.
+    // Used for std::max_element.
+    bool operator<(const PeakInfo& rhd) {
+      return (value < rhd.value)? true : false;
+    }
+  };
+
+  /* ------------------------------------------------------------------------ */
   // Calculates histogram.
   void calculateHistogram(const cv::Mat& input);
 
@@ -77,14 +93,6 @@ public:
   // then makes the difference and checks centers of countours to get maximums.
   std::vector<cv::Point> getLocalMaximum2D(int neighbor = 2,
                                            bool visualize = false) const;
-
-  /* ------------------------------------------------------------------------ */
-  struct PeakInfo {
-    int pos;
-    int left_size;
-    int right_size;
-    float value;
-  };
 
 private:
   // Should be all const.
