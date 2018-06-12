@@ -531,9 +531,29 @@ const {
   VLOG(10) << "Finished plane segmentation.";
   // Do data association between the planes given and the ones segmented.
   VLOG(0) << "Starting plane association...";
-  associatePlanes(new_planes, planes,
+  std::vector<Plane> new_non_associated_planes;
+  associatePlanes(new_planes, *planes, &new_non_associated_planes,
                   normal_tolerance, distance_tolerance);
   VLOG(0) << "Finished plane association.";
+  if (new_non_associated_planes.size() > 0) {
+    // Update lmk ids of the newly added planes.
+
+    // TODO delete this loop by customizing histograms!!
+    // WARNING Here we are updatinh lmk ids in new non associated planes,
+    // BUT it requires another loop over mesh, and recalculates normals!!!
+    // Very unefficient.
+    updatePlanesLmkIdsFromMesh(&new_non_associated_planes,
+                               normal_tolerance, distance_tolerance,
+                               points_with_id_vio);
+  } else {
+    VLOG(0) << "Avoid extra loop over mesh, since there are no new non associated"
+               "planes to be updated.";
+  }
+
+  // Append new planes that where not associated to original planes.
+  planes->insert(planes->end(),
+                 new_non_associated_planes.begin(),
+                 new_non_associated_planes.end());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -579,12 +599,11 @@ void Mesher::segmentPlanesInMesh(
       ////////////////////////// Update seed planes ////////////////////////////
       // Update seed_planes lmk_ids field with ids of vertices of polygon if the
       // polygon is on the plane.
-      bool is_polygon_on_a_plane = updatePlanesWithPolygon(seed_planes,
-                                                           polygon,
-                                                           i, triangle_normal,
-                                                           normal_tolerance,
-                                                           distance_tolerance,
-                                                           points_with_id_vio);
+      bool is_polygon_on_a_plane = updatePlanesLmkIdsFromPolygon(
+                                     seed_planes, polygon,
+                                     i, triangle_normal,
+                                     normal_tolerance, distance_tolerance,
+                                     points_with_id_vio);
 
       ////////////////// Build Histogram for new planes ////////////////////////
       /// Values for Z Histogram.///////////////////////////////////////////////
@@ -629,12 +648,8 @@ void Mesher::segmentPlanesInMesh(
   VLOG(10) << "Number of polygons potentially on a wall: " << walls.rows;
 
   // Segment new planes.
-  // Make sure you do not re-use lmks that were used by the seed_planes...
-  segmentNewPlanes(new_planes,
-                   z_components,
-                   walls,
-                   normal_tolerance, distance_tolerance,
-                   points_with_id_vio);
+  // Currently using lmks that were used by the seed_planes...
+  segmentNewPlanes(new_planes, z_components, walls);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -654,10 +669,48 @@ double Mesher::getLongitude(const cv::Point3f& triangle_normal,
 }
 
 /* -------------------------------------------------------------------------- */
+// Update plane lmk ids field, by looping over the mesh and stoting lmk ids of
+// the vertices of the polygons that are close to the plane.
+// It will append lmk ids to the ones already present in the plane.
+// Points with id vio, only used if we are using stereo points to build the mesh.
+void Mesher::updatePlanesLmkIdsFromMesh(
+    std::vector<Plane>* planes,
+    double normal_tolerance, double distance_tolerance,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+const {
+  CHECK_NOTNULL(planes);
+  static constexpr size_t mesh_polygon_dim = 3;
+  CHECK_EQ(mesh_.getMeshPolygonDimension(), mesh_polygon_dim)
+      << "Expecting 3 vertices in triangle.";
+  Mesh3D::Polygon polygon;
+  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+    CHECK_EQ(polygon.size(), mesh_polygon_dim);
+    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
+    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
+
+    // Calculate normal of the triangle in the mesh.
+    // The normals are in the world frame of reference.
+    cv::Point3f triangle_normal;
+    if (calculateNormal(p1, p2, p3, &triangle_normal)) {
+      // Loop over newly segmented planes, and update lmk ids field if
+      // the current polygon is on the plane.
+      updatePlanesLmkIdsFromPolygon(planes,
+                                    polygon,
+                                    i, triangle_normal,
+                                    normal_tolerance,
+                                    distance_tolerance,
+                                    points_with_id_vio);
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 // Updates planes lmk ids field with a polygon vertices ids if this polygon
 // is part of the plane according to given tolerance.
 // points_with_id_vio is only used if we are using stereo points...
-bool Mesher::updatePlanesWithPolygon(
+bool Mesher::updatePlanesLmkIdsFromPolygon(
     std::vector<Plane>* seed_planes,
     const Mesh3D::Polygon& polygon,
     const size_t& triangle_id,
@@ -708,50 +761,23 @@ const {
 void Mesher::segmentNewPlanes(
     std::vector<Plane>* new_segmented_planes,
     const cv::Mat& z_components,
-    const cv::Mat& walls,
-    const double& normal_tolerance,
-    const double& distance_tolerance,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+    const cv::Mat& walls)
 const {
   CHECK_NOTNULL(new_segmented_planes);
   new_segmented_planes->clear();
 
+  // Segment horizontal planes.
   static size_t plane_id = 0;
   static const Plane::Normal vertical (0, 0, 1);
   segmentHorizontalPlanes(new_segmented_planes,
                           &plane_id,
                           vertical,
                           z_components);
+
+  // Segment vertical planes.
   //segmentWalls(new_segmented_planes,
   //             &plane_id,
   //             walls);
-
-  // TODO delete this loop by customizing histograms!!
-  // WARNING Update lmk ids in new planes, requires another loop over mesh, and
-  // recalculates normals!.............
-  static constexpr size_t mesh_polygon_dim = 3;
-  CHECK_EQ(mesh_.getMeshPolygonDimension(), mesh_polygon_dim)
-      << "Expecting 3 vertices in triangle.";
-  Mesh3D::Polygon polygon;
-  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
-    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
-    CHECK_EQ(polygon.size(), mesh_polygon_dim);
-    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
-
-    // Calculate normal of the triangle in the mesh.
-    // The normals are in the world frame of reference.
-    cv::Point3f triangle_normal;
-    if (calculateNormal(p1, p2, p3, &triangle_normal)) {
-      updatePlanesWithPolygon(new_segmented_planes,
-                              polygon,
-                              i, triangle_normal,
-                              normal_tolerance,
-                              distance_tolerance,
-                              points_with_id_vio);
-    }
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -895,17 +921,19 @@ void Mesher::segmentHorizontalPlanes(
 /* -------------------------------------------------------------------------- */
 // Data association between planes.
 void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
-                             std::vector<Plane>* planes,
+                             const std::vector<Plane>& planes,
+                             std::vector<Plane>* non_associated_planes,
                              const double& normal_tolerance,
                              const double& distance_tolerance) const {
-  CHECK_NOTNULL(planes);
-  if (planes->size() == 0) {
+  CHECK_NOTNULL(non_associated_planes);
+  non_associated_planes->clear();
+  if (planes.size() == 0) {
     // There are no previous planes, data association unnecessary, just copy
     // segmented planes to output planes.
     VLOG(0) << "No planes in backend, just copy the "
             << segmented_planes.size() << " segmented planes to the set of "
             << "backend planes, skipping data association.";
-    *planes = segmented_planes;
+    *non_associated_planes = segmented_planes;
   } else {
     // Planes tmp will contain the new segmented planes.
     // Both the ones that could be associated, in which case only the landmark
@@ -923,7 +951,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
     std::vector<uint64_t> associated_plane_ids;
     for (const Plane& segmented_plane: segmented_planes) {
       bool is_segmented_plane_associated = false;
-      for (Plane& plane_backend: *planes) {
+      for (const Plane& plane_backend: planes) {
         // Check if normals are close or 180 degrees apart.
         // Check if distance is similar in absolute value.
         // TODO check distance given the difference in normals.
@@ -932,9 +960,9 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
                                          distance_tolerance)) {
           // We found a plane association
           // Check that it was not associated before.
-          uint64_t plane_index = plane_backend.getPlaneSymbol().index();
+          uint64_t backend_plane_index = plane_backend.getPlaneSymbol().index();
           if (std::find(associated_plane_ids.begin(),
-                        associated_plane_ids.end(), plane_index) ==
+                        associated_plane_ids.end(), backend_plane_index) ==
               associated_plane_ids.end()) {
             // It is the first time we associate this plane.
             // Update lmk ids in plane.
@@ -950,10 +978,12 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
             // its own lmk ids already...
             // Actually YES DO IT, so we can spare one loop over the mesh!
             // the first one ! (aka go back to the so-called naive implementation!
-            plane_backend.lmk_ids_ = segmented_plane.lmk_ids_;
+            // Not entirely true, since we still need to loop over the mesh to get
+            // the points for extracting new planes...
+            //plane_backend.lmk_ids_ = segmented_plane.lmk_ids_;
             // WARNING TODO should we also update the normal & distance??
             // Acknowledge that we have an association.
-            associated_plane_ids.push_back(plane_index);
+            associated_plane_ids.push_back(backend_plane_index);
             is_segmented_plane_associated = true;
           } else {
             LOG(ERROR) << "WARNING we are double associating: two segmented planes"
@@ -984,7 +1014,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
         // them, do we want this? Maybe yes because we have some repeated
         // segmented planes that are very similar, but then what's up with the
         // lmk ids, which should we keep?
-        planes->push_back(segmented_plane);
+        non_associated_planes->push_back(segmented_plane);
       }
     }
 

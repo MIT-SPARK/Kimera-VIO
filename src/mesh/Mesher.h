@@ -220,10 +220,20 @@ private:
   double getLongitude(const cv::Point3f& triangle_normal,
                       const cv::Point3f& vertical) const;
 
+  /* -------------------------------------------------------------------------- */
+  // Update plane lmk ids field, by looping over the mesh and stoting lmk ids of
+  // the vertices of the polygons that are close to the plane.
+  // It will append lmk ids to the ones already present in the plane.
+  void updatePlanesLmkIdsFromMesh(
+      std::vector<Plane>* planes,
+      double normal_tolerance, double distance_tolerance,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  const;
+
   /* ------------------------------------------------------------------------ */
   // Updates planes lmk ids field with a polygon vertices ids if this polygon
   // is part of the plane according to given tolerance.
-  bool updatePlanesWithPolygon(
+  bool updatePlanesLmkIdsFromPolygon(
       std::vector<Plane>* seed_planes,
       const Mesh3D::Polygon& polygon,
       const size_t& triangle_id,
@@ -240,14 +250,9 @@ private:
   // a cv::Mat walls (0, 0, CV_32FC2), with first channel being theta (yaw angle of
   // the wall) and the second channel the distance of it.
   // points_with_id_vio is only used if we are using stereo points...
-  void segmentNewPlanes(
-      std::vector<Plane>* new_segmented_planes,
-      const cv::Mat& z_components,
-      const cv::Mat& walls,
-      const double& normal_tolerance,
-      const double& distance_tolerance,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-  const;
+  void segmentNewPlanes(std::vector<Plane>* new_segmented_planes,
+                        const cv::Mat& z_components,
+                        const cv::Mat& walls) const;
 
   /* ------------------------------------------------------------------------ */
   // Segment wall planes.
@@ -263,9 +268,12 @@ private:
                                const cv::Mat& z_components) const;
 
   /* ------------------------------------------------------------------------ */
-  // Data association between planes.
+  // Data association between planes:
+  // It just outputs the set of planes that could not be associated.
+  // It does not change the original planes.
   void associatePlanes(const std::vector<Plane>& segmented_planes,
-                       std::vector<Plane>* planes,
+                       const std::vector<Plane>& planes,
+                       std::vector<Plane>* non_associated_planes,
                        const double& normal_tolerance,
                        const double& distance_tolerance) const;
 
