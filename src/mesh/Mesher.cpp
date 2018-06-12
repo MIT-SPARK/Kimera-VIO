@@ -532,8 +532,11 @@ const {
   // Do data association between the planes given and the ones segmented.
   VLOG(0) << "Starting plane association...";
   std::vector<Plane> new_non_associated_planes;
+  static constexpr double normal_tolerance_for_association = 0.15; // 0.087 === 10 deg. aperture.
+  static constexpr double distance_tolerance_for_association = 0.20;
   associatePlanes(new_planes, *planes, &new_non_associated_planes,
-                  normal_tolerance, distance_tolerance);
+                  normal_tolerance_for_association,
+                  distance_tolerance_for_association);
   VLOG(0) << "Finished plane association.";
   if (new_non_associated_planes.size() > 0) {
     // Update lmk ids of the newly added planes.
