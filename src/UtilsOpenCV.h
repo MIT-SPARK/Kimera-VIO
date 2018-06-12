@@ -351,13 +351,15 @@ public:
   Plane(const gtsam::Symbol& plane_symbol,
         const Normal& normal = Normal(),
         const double& distance = 0.0,
-        const LandmarkIds& lmk_ids = LandmarkIds())
+        const LandmarkIds& lmk_ids = LandmarkIds(),
+        const int& cluster_id = 0)
     : plane_symbol_(plane_symbol),
       normal_(normal),
       distance_(distance),
       lmk_ids_(lmk_ids) {
     // TODO remove, only used for consistency.
     // triangle_cluster is only used for visualziation.
+    triangle_cluster_.cluster_id_ = cluster_id;
     triangle_cluster_.cluster_direction_ = normal;
   }
 
