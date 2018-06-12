@@ -83,10 +83,14 @@ public:
   /* ------------------------------------------------------------------------ */
   // If you play with the peak_per attribute value, you can increase/decrease the
   // number of peaks found.
-  std::vector<int> getLocalMaximum1D(cv::Size smooth_size = cv::Size(9, 9),
-                                     int neighbor_size = 3,
-                                     float peak_per = 0.5,
-                                     bool display_histogram = false) const;
+  // Min_support specifies the minimal number of votes for a bin to be considered
+  // a peak.
+  std::vector<PeakInfo> getLocalMaximum1D(
+      const cv::Size& smooth_size = cv::Size(9, 9),
+      int neighbor_size = 3,
+      float peak_per = 0.5,
+      float min_support = 10,
+      bool display_histogram = false) const;
 
   /* ------------------------------------------------------------------------ */
   // findLocalMaximum for a 2D histogram, it dilates the image and erodes it,
@@ -120,7 +124,7 @@ private:
 
   /* ------------------------------------------------------------------------ */
   int drawPeaks1D(cv::Mat* histImage,
-                  const std::vector<int>& peaks,
+                  const std::vector<PeakInfo>& peaks,
                   int hist_size = 256,
                   const cv::Scalar& color = cv::Scalar(0, 0, 255),
                   bool display_image = false) const;

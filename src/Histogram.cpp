@@ -53,7 +53,7 @@ void Histogram::calculateHistogram(const cv::Mat& input) {
 
 /* -------------------------------------------------------------------------- */
 int Histogram::drawPeaks1D(cv::Mat* hist_image,
-                           const std::vector<int>& peaks,
+                           const std::vector<PeakInfo>& peaks,
                            int hist_size,
                            const cv::Scalar& color,
                            bool display_image) const {
@@ -63,9 +63,9 @@ int Histogram::drawPeaks1D(cv::Mat* hist_image,
   int bin_w = cvRound((double) hist_image->cols / hist_size);
   for (size_t i = 0; i < peaks.size(); i++) {
     cv::line(*hist_image,
-             cv::Point(bin_w * peaks[i],
+             cv::Point(bin_w * peaks[i].pos,
                        hist_image->rows),
-             cv::Point(bin_w * peaks[i], 0), color);
+             cv::Point(bin_w * peaks[i].pos, 0), color);
   }
 
   if (display_image) {
@@ -217,16 +217,18 @@ std::vector<Histogram::PeakInfo> Histogram::findPeaks(cv::InputArray _src,
 // cv::Point smooth_size: x: smoothing size in x, y: smoothing size in y.
 // Dilates, does a difference of images, takes contour, find center of mass
 // and that is the max, definitely not the best way...
-std::vector<int> Histogram::getLocalMaximum1D(cv::Size smooth_size,
-                                            int neighbor_size,
-                                            float peak_per,
-                                            bool display_histogram) const {
+std::vector<Histogram::PeakInfo> Histogram::getLocalMaximum1D(
+    const cv::Size& smooth_size,
+    int neighbor_size,
+    float peak_per,
+    float min_support, // Minimal number of votes for a peak.
+    bool display_histogram) const {
   CHECK_EQ(dims_, 1) << "This function is meant for 1D histograms.";
   VLOG(10) << "Cloning histogram.";
   cv::Mat src = histogram_.clone();
 
   VLOG(10) << "Adding gaussian blur to histogram.";
-  std::vector<int> output;
+  std::vector<PeakInfo> output;
   CHECK_GE(histogram_.rows, smooth_size.height);
   CHECK_GE(histogram_.cols, smooth_size.width);
   //cv::GaussianBlur(InputArray src, OutputArray dst, Size ksize,
@@ -243,9 +245,10 @@ std::vector<int> Histogram::getLocalMaximum1D(cv::Size smooth_size,
 
   for (size_t i = 0; i < peaks.size(); i++) {
     if (peaks[i].value > max_val * peak_per &&
+        peaks[i].value > min_support &&
         peaks[i].left_size >= 2 &&
         peaks[i].right_size >= 2) {
-      output.push_back(peaks[i].pos);
+      output.push_back(peaks[i]);
     }
   }
 
