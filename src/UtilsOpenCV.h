@@ -368,14 +368,19 @@ public:
   }
 
   bool geometricEqual(const Plane& rhs,
-             const double& normal_tolerance,
-             const double& distance_tolerance) const {
-    return isNormalEqual(rhs.normal_, normal_, normal_tolerance) &&
-        // TODO implement a better test for distance tolerance... as it can
-        // be large for small normal difference and distances are big.
-        isDistanceEqual(rhs.distance_,
-                        distance_,
-                        distance_tolerance);
+                      const double& normal_tolerance,
+                      const double& distance_tolerance) const {
+    return (isNormalStrictlyEqual(rhs.normal_, normal_, normal_tolerance) &&
+            // TODO implement a better test for distance tolerance... as it can
+            // be large for small normal difference and distances are big.
+            isPlaneDistanceStrictlyEqual(rhs.distance_,
+                                         distance_,
+                                         distance_tolerance)) ||
+        // Check also the other possible case.
+        (isNormalStrictlyEqual(rhs.normal_, -normal_, normal_tolerance) &&
+         isPlaneDistanceStrictlyEqual(rhs.distance_,
+                                      -distance_,
+                                      distance_tolerance));
   }
 
 private:
@@ -407,12 +412,34 @@ private:
   }
 
   /* ------------------------------------------------------------------------ */
+  // Is normal equal? True whenever normals are aligned.
+  bool isNormalStrictlyEqual(const NormalInternal& axis,
+                             const NormalInternal& normal,
+                             const double& tolerance) const {
+    // TODO typedef normals and axis to Normal, and use cv::Point3d instead.
+    CHECK_NEAR(cv::norm(axis), 1.0, 1e-5); // Expect unit norm.
+    CHECK_NEAR(cv::norm(normal), 1.0, 1e-5); // Expect unit norm.
+    CHECK_GT(tolerance, 0.0); // Tolerance is positive.
+    CHECK_LT(tolerance, 1.0); // Tolerance is positive.
+    // Dot product should be close to 1 or -1 if axis is aligned with normal.
+    return (normal.ddot(axis) > 1.0 - tolerance);
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Is distance equal? true whenever distances are of similar absolute value.
-  bool isDistanceEqual(const double& dist_1,
+  bool isPlaneDistanceEqual(const double& dist_1,
                        const double& dist_2,
                        const double& tolerance) const {
     return std::fabs((std::fabs(dist_1) -
                       std::fabs(dist_2)) < tolerance);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Is distance equal? true whenever distances are of similar absolute value.
+  bool isPlaneDistanceStrictlyEqual(const double& dist_1,
+                                    const double& dist_2,
+                                    const double& tolerance) const {
+    return std::fabs(dist_1 - dist_2) < tolerance;
   }
 };
 
