@@ -139,7 +139,7 @@ public:
   }
   /* ------------------------------------------------------------------------ */
   // Converts a cv::Point3d to a gtsam::Unit3.
-  static inline gtsam::Unit3 unit3ToPoint3d(const cv::Point3d& point_3d) {
+  static inline gtsam::Unit3 point3dToUnit3(const cv::Point3d& point_3d) {
     CHECK_NEAR(cv::norm(point_3d), 1.0, 1e-5); // Expect unit norm.
     return gtsam::Unit3(point_3d.x, point_3d.y, point_3d.z);
   }
