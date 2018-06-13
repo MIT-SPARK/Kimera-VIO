@@ -79,14 +79,6 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   debug_info_.resetAddedFactorsStatistics();
 
-  // Extract lmk ids that are involved in a regularity.
-  VLOG(0) << "Starting extracting lmk ids from set of planes...";
-  LandmarkIds lmk_ids_with_regularity;
-  extractLmkIdsFromPlanes(*planes,
-                          &lmk_ids_with_regularity);
-  VLOG(0) << "Finished extracting lmk ids from set of planes, total of "
-          << lmk_ids_with_regularity.size() << " lmks with regularities.";
-
   if (VLOG_IS_ON(20)) {
     StereoVisionFrontEnd::PrintStatusStereoMeasurements(
                                           status_smart_stereo_measurements_kf);
@@ -167,6 +159,15 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           VLOG(0) << "Tracker has a DISABLED status.": VLOG(10) << "";
 
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
+
+        // Extract lmk ids that are involved in a regularity.
+        VLOG(0) << "Starting extracting lmk ids from set of planes...";
+        LandmarkIds lmk_ids_with_regularity;
+        extractLmkIdsFromPlanes(*planes,
+                                &lmk_ids_with_regularity);
+        VLOG(0) << "Finished extracting lmk ids from set of planes, total of "
+                << lmk_ids_with_regularity.size() << " lmks with regularities.";
+
         // We add features in VIO.
         VLOG(10) << "Starting adding/updating landmarks to graph...";
         addLandmarksToGraph(lmks_kf,
@@ -599,9 +600,9 @@ void RegularVioBackEnd::deleteLmkFromExtraStructures(const LandmarkId& lmk_id) {
   }
   if (lmk_id_to_regularity_type_map_.find(lmk_id) !=
       lmk_id_to_regularity_type_map_.end()) {
-  LOG(WARNING) << "Delete entrance in lmk_id_to_regularity_type_map_"
-                " for lmk with id: " << lmk_id;
-  lmk_id_to_regularity_type_map_.erase(lmk_id);
+    LOG(WARNING) << "Delete entrance in lmk_id_to_regularity_type_map_"
+                    " for lmk with id: " << lmk_id;
+    lmk_id_to_regularity_type_map_.erase(lmk_id);
   }
 }
 
@@ -769,13 +770,6 @@ void RegularVioBackEnd::addRegularityFactors(
   idx_of_point_plane_factors_to_add->resize(0);
 
   VLOG(10) << "Starting addRegularityFactors...";
-
-  // Plane key.
-
-  // Vars to check whether the new plane is going to be fully constrained or not.
-  static bool is_plane_constrained = false;
-  static std::vector<LandmarkId> list_of_constraints;
-
   const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
   const gtsam::Key& plane_key = plane_symbol.key();
   if (!state_.exists(plane_key)) {
@@ -791,6 +785,9 @@ void RegularVioBackEnd::addRegularityFactors(
     // possibility of having degenerate configs such as points aligned...
     static const size_t min_number_of_constraints =
         vio_params_.minPlaneConstraints_;
+    // Vars to check whether the new plane is going to be fully constrained or not.
+    bool is_plane_constrained = false;
+    std::vector<LandmarkId> list_of_constraints;
 
     // Loop over all lmks which are involved in the regularity, to both
     // check that the new plane is going to be fully constrained and that
