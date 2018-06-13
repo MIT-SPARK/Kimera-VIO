@@ -1020,6 +1020,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_good;
   bool has_plane_a_prior = false;
   // Loop over current graph.
+  // TODO this loop is very expensive for multiple planes...
   for (const auto& g: graph) {
     if (g) {
       const auto& ppf =
@@ -1058,11 +1059,11 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                   std::make_pair(slot, lmk_id));
           }
         } else {
-          VLOG(20) << "Plane keys do not match:\n"
+          VLOG(0) << "Plane keys do not match:\n"
                       "Removing old regularity factors for plane: "
                    << gtsam::DefaultKeyFormatter(plane_symbol.key())
                    << "\n But current point plane factor is for plane: "
-                   << gtsam::DefaultKeyFormatter(ppf->getPointKey());
+                   << gtsam::DefaultKeyFormatter(ppf->getPlaneKey());
         }
       } else if (plane_prior) {
         if (plane_prior->find(plane_symbol.key()) != plane_prior->end()) {
