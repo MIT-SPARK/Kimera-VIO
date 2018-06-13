@@ -545,9 +545,11 @@ const {
     // WARNING Here we are updatinh lmk ids in new non associated planes,
     // BUT it requires another loop over mesh, and recalculates normals!!!
     // Very unefficient.
+    VLOG(0) << "Starting update plane lmk ids for new non-associated planes.";
     updatePlanesLmkIdsFromMesh(&new_non_associated_planes,
                                normal_tolerance, distance_tolerance,
                                points_with_id_vio);
+    VLOG(0) << "Finished update plane lmk ids for new non-associated planes.";
   } else {
     VLOG(0) << "Avoid extra loop over mesh, since there are no new non associated"
                "planes to be updated.";
@@ -886,11 +888,24 @@ void Mesher::segmentHorizontalPlanes(
 
   LOG(WARNING) << "# of peaks in 1D histogram = " << peaks.size();
   size_t i = 0;
-  for (const Histogram::PeakInfo& peak: peaks) {
+  for (std::vector<Histogram::PeakInfo>::iterator peak_it = peaks.begin();
+       peak_it != peaks.end();) {
     LOG(WARNING)
-        << "Peak #" << i << " in bin " << peak.pos << " so = "
-        << (peak.pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0]
-        << " with a support of " << peak.value << " points";
+        << "Peak #" << i << " in bin " << peak_it->pos << " so = "
+        << (peak_it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0]
+        << " with a support of " << peak_it->value << " points";
+
+    // Remove duplicates.
+    // Assuming repeated peaks are ordered...
+    if (i > 0 && *peak_it == peaks.at(i - 1)) {
+      // Repeated element... delete it.
+      LOG(WARNING) << "Deleting repeated peak for peak # " << i << " in bin "
+                   << peak_it->pos;
+      peak_it = peaks.erase(peak_it);
+    } else {
+      peak_it++;
+    }
+
     i++;
   }
 
