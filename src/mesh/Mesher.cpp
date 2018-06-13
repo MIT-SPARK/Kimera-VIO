@@ -877,10 +877,11 @@ void Mesher::segmentHorizontalPlanes(
   static const cv::Size kernel_size (1, 9);
   static constexpr int neighbor_size = 3;
   static constexpr float peak_per = 0.5;
+  static constexpr float min_support = 200;
   static constexpr bool display_histogram = true;
   std::vector<Histogram::PeakInfo> peaks =
       hist.getLocalMaximum1D(kernel_size, neighbor_size, peak_per,
-                             display_histogram);
+                             min_support, display_histogram);
   VLOG(10) << "Finished get local maximum for 1D.";
 
   LOG(WARNING) << "# of peaks in 1D histogram = " << peaks.size();
