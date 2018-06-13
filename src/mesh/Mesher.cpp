@@ -542,7 +542,7 @@ const {
     // Update lmk ids of the newly added planes.
 
     // TODO delete this loop by customizing histograms!!
-    // WARNING Here we are updatinh lmk ids in new non associated planes,
+    // WARNING Here we are updating lmk ids in new non-associated planes,
     // BUT it requires another loop over mesh, and recalculates normals!!!
     // Very unefficient.
     VLOG(0) << "Starting update plane lmk ids for new non-associated planes.";
@@ -551,8 +551,8 @@ const {
                                points_with_id_vio);
     VLOG(0) << "Finished update plane lmk ids for new non-associated planes.";
   } else {
-    VLOG(0) << "Avoid extra loop over mesh, since there are no new non associated"
-               "planes to be updated.";
+    VLOG(0) << "Avoid extra loop over mesh, since there are no new non-associated"
+               " planes to be updated.";
   }
 
   // Append new planes that where not associated to original planes.
@@ -991,8 +991,8 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
                                          normal_tolerance,
                                          distance_tolerance)) {
           // We found a plane association
-          // Check that it was not associated before.
           uint64_t backend_plane_index = plane_backend.getPlaneSymbol().index();
+          // Check that it was not associated before.
           if (std::find(associated_plane_ids.begin(),
                         associated_plane_ids.end(), backend_plane_index) ==
               associated_plane_ids.end()) {
