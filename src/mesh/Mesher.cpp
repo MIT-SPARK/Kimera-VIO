@@ -909,31 +909,40 @@ void Mesher::segmentHorizontalPlanes(
     i++;
   }
 
-  // Get only the peak with max support.
-  std::vector<Histogram::PeakInfo>::iterator it =
-      std::max_element(peaks.begin(), peaks.end());
-  if (it != peaks.end()) {
-    double plane_distance =
-        (it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
-    // WARNING we are not giving lmk ids to this plane!
-    // We should either completely customize the histogram calc to pass lmk ids
-    // or do another loop over the mesh to cluster new triangles.
-    const gtsam::Symbol plane_symbol ('P', *plane_id);
-    static constexpr int cluster_id = 2; // Only used for visualization. 2 = ground.
-    VLOG(0) << "Segmented an horizontal plane with:\n"
-            <<"\t distance: " << plane_distance
-           << "\n\t plane id: " << gtsam::DefaultKeyFormatter(plane_symbol.key())
-           << "\n\t cluster id: " << cluster_id;
-    horizontal_planes->push_back(Plane(plane_symbol,
-                                       normal,
-                                       plane_distance,
-                                       // Currently filled after this function...
-                                       LandmarkIds(), // We should fill this!!!
-                                       cluster_id));
-    (*plane_id)++; // CRITICAL TO GET THIS RIGHT: ensure no duplicates,
-    // no wrong ids...
-  } else {
-    VLOG(0) << "Did not segment an horizontal plane.";
+  static constexpr size_t max_number_of_peaks_to_select = 2;
+  for (size_t peak_nr = 0; peak_nr < max_number_of_peaks_to_select;
+       peak_nr++) {
+    // Get the peaks in order of max support.
+    std::vector<Histogram::PeakInfo>::iterator it =
+        std::max_element(peaks.begin(), peaks.end());
+    if (it != peaks.end()) {
+      double plane_distance =
+          (it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
+      // WARNING we are not giving lmk ids to this plane!
+      // We should either completely customize the histogram calc to pass lmk ids
+      // or do another loop over the mesh to cluster new triangles.
+      const gtsam::Symbol plane_symbol ('P', *plane_id);
+      static constexpr int cluster_id = 2; // Only used for visualization. 2 = ground.
+      VLOG(0) << "Segmented an horizontal plane with:\n"
+              <<"\t distance: " << plane_distance
+             << "\n\t plane id: " << gtsam::DefaultKeyFormatter(plane_symbol.key())
+             << "\n\t cluster id: " << cluster_id;
+      horizontal_planes->push_back(Plane(plane_symbol,
+                                         normal,
+                                         plane_distance,
+                                         // Currently filled after this function...
+                                         LandmarkIds(), // We should fill this!!!
+                                         cluster_id));
+      (*plane_id)++; // CRITICAL TO GET THIS RIGHT: ensure no duplicates,
+      // no wrong ids...
+
+      // Delete current peak from set of peaks, so that we can find next maximum.
+      peaks.erase(it);
+    } else {
+      VLOG(0) << "Did not find a maximum among the list of " << peaks.size() <<
+                 " peaks in histogram of horizontal planes.";
+      break;
+    }
   }
 }
 
