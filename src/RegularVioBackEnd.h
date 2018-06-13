@@ -115,7 +115,6 @@ private:
 
   /* ------------------------------------------------------------------------ */
   void addRegularityFactors(
-      const LandmarkIds& mesh_lmk_ids,
       const Plane& plane,
       std::vector<std::pair<Slot, LandmarkId>>* idx_of_point_plane_factors_to_add);
 
@@ -123,7 +122,7 @@ private:
   void removeOldRegularityFactors_Slow(
       const gtsam::Symbol& plane_symbol,
       const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
-      const LandmarkIds& mesh_lmk_ids,
+      const LandmarkIds& plane_lmk_ids,
       std::vector<size_t>* delete_slots);
 
   /* ------------------------------------------------------------------------ */

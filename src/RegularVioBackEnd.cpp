@@ -195,28 +195,24 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           // remove the plane from the optimization, since it won't be in planes.
           for(const Plane& plane: *planes) {
             std::vector<std::pair<Slot, LandmarkId>> idx_of_point_plane_factors_to_add;
-            const LandmarkIds& lmk_ids_with_regularity_for_plane = plane.lmk_ids_;
-            if (lmk_ids_with_regularity_for_plane.size() != 0) {
-              VLOG(0) << "Adding regularity factors.";
-              addRegularityFactors(lmk_ids_with_regularity_for_plane,
-                                   plane,
-                                   &idx_of_point_plane_factors_to_add);
-              VLOG(0) << "Finished adding regularity factors.";
-            } else {
-              VLOG(0) << "There are no lmk ids on plane: "
-                      << gtsam::DefaultKeyFormatter(plane.getPlaneSymbol())
-                      <<", skipping addition of regularity factors.";
-            }
+            VLOG(0) << "Adding regularity factors.";
+            addRegularityFactors(plane, &idx_of_point_plane_factors_to_add);
+            VLOG(0) << "Finished adding regularity factors.";
 
             if (remove_old_reg_factors) {
               VLOG(0) << "Removing old regularity factors.";
               removeOldRegularityFactors_Slow(plane.getPlaneSymbol(),
                                               idx_of_point_plane_factors_to_add,
-                                              lmk_ids_with_regularity_for_plane,
+                                              plane.lmk_ids_,
                                               &delete_old_regularity_factors);
               VLOG(0) << "Finished removing old regularity factors.";
             }
           }
+        } else {
+          // TODO shouldn't we "removeOldRegularityFactors_Slow" because there
+          // are no planes anymore? shouldn't we delete them or something?
+          LOG(WARNING) << "We are not receiving planes for the backend, but we "
+                          "are not cleaning planes in the optimization.";
         }
       }
       break;
@@ -763,11 +759,12 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
 
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::addRegularityFactors(
-    const LandmarkIds& mesh_lmk_ids,
     const Plane& plane,
     std::vector<std::pair<Slot, LandmarkId>>* idx_of_point_plane_factors_to_add) {
   CHECK_NOTNULL(idx_of_point_plane_factors_to_add);
   idx_of_point_plane_factors_to_add->resize(0);
+
+  const LandmarkIds& plane_lmk_ids = plane.lmk_ids_;
 
   VLOG(10) << "Starting addRegularityFactors...";
   const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
@@ -792,7 +789,7 @@ void RegularVioBackEnd::addRegularityFactors(
     // Loop over all lmks which are involved in the regularity, to both
     // check that the new plane is going to be fully constrained and that
     // in case it is we add all the corresponding factors.
-    for (const LandmarkId& lmk_id: mesh_lmk_ids) {
+    for (const LandmarkId& lmk_id: plane_lmk_ids) {
       if (state_.exists(gtsam::Symbol('l', lmk_id)) ||
           new_values_.exists(gtsam::Symbol('l', lmk_id))) {
         // Lmk id exists either in the state or it is going to be added in the
@@ -886,7 +883,7 @@ void RegularVioBackEnd::addRegularityFactors(
             list_of_constraints.resize(0);
           }
         } else {
-          LOG(FATAL) << "If this is a new plane, the lmks should not have any "
+          LOG(ERROR) << "If this is a new plane, the lmks should not have any "
                         "regularities...";
           // And this if condition will prevent multiple regularities on the
           // same point...
@@ -926,7 +923,7 @@ void RegularVioBackEnd::addRegularityFactors(
             << gtsam::DefaultKeyFormatter(plane_key);
 
     // The plane exists, just add regularities that are ok.
-    for (const LandmarkId& lmk_id: mesh_lmk_ids) {
+    for (const LandmarkId& lmk_id: plane_lmk_ids) {
       if (state_.exists(gtsam::Symbol('l', lmk_id)) ||
           new_values_.exists(gtsam::Symbol('l', lmk_id))) {
         // Lmk id exists either in the state or it is going to be added in the
@@ -984,7 +981,7 @@ void RegularVioBackEnd::addRegularityFactors(
 void RegularVioBackEnd::removeOldRegularityFactors_Slow(
     const gtsam::Symbol& plane_symbol,
     const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
-    const LandmarkIds& mesh_lmk_ids,
+    const LandmarkIds& plane_lmk_ids,
     std::vector<size_t>* delete_slots) {
   CHECK_NOTNULL(delete_slots);
   delete_slots->resize(0);
@@ -999,7 +996,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
     // to the right lmks.
     // Or it could be that it is not going to be added at all, so we
     // do not need to do anything.
-    VLOG(10) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
+    VLOG(0) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
              << " is not in state, skipping removeOldRegularityFactors.";
     return; // Leave this function.
   }
@@ -1008,8 +1005,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
     // The plane is not in the state, and it is going to be added in
     // this iteration, so it must be already well constrained and attached
     // to the right lmks.
-    VLOG(10) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
-             << " is in new_values_, skipping removeOldRegularityFactors.";
+    VLOG(0) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
+            << " is in new_values_, skipping removeOldRegularityFactors.";
     return;
   }
 
@@ -1042,8 +1039,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
           // Get lmk id of this point.
           LandmarkId lmk_id = point_symbol.index();
           // Find this lmk id in the set of regularities.
-          if (std::find(mesh_lmk_ids.begin(),
-                        mesh_lmk_ids.end(), lmk_id) == mesh_lmk_ids.end()) {
+          if (std::find(plane_lmk_ids.begin(),
+                        plane_lmk_ids.end(), lmk_id) == plane_lmk_ids.end()) {
             // We did not find the point in mesh_lmk_ids, therefore it should
             // not be involved in a regularity anymore, delete this slot.
             // (but I want to remove the landmark! and all its factors,
@@ -1207,7 +1204,7 @@ void RegularVioBackEnd::fillDeleteSlots(
     const std::vector<std::pair<Slot, LandmarkId>>& point_plane_factor_slots_bad,
     std::vector<size_t>* delete_slots) {
   CHECK_NOTNULL(delete_slots);
-  VLOG(10) << "Starting fillDeleteSlots...";
+  VLOG(0) << "Starting fillDeleteSlots...";
   delete_slots->resize(point_plane_factor_slots_bad.size());
   size_t i = 0;
   if (point_plane_factor_slots_bad.size() > 0) {
@@ -1227,13 +1224,15 @@ void RegularVioBackEnd::fillDeleteSlots(
           lmk_id_to_regularity_type_map_.end())
           << "Avoid undefined behaviour by checking that the lmk was in the "
              "container.";
+      VLOG(0) << "Deleting lmk_id " << lmk_id
+              << " from lmk_id_to_regularity_type_map_";
       lmk_id_to_regularity_type_map_.erase(lmk_id);
     }
   } else {
-    VLOG(10) << "There are no bad factors to remove.";
+    VLOG(0) << "There are no bad factors to remove.";
   }
 
-  VLOG(10) << "Finished fillDeleteSlots...";
+  VLOG(0) << "Finished fillDeleteSlots...";
 }
 
 /* -------------------------------------------------------------------------- */
