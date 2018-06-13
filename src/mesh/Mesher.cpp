@@ -939,8 +939,12 @@ void Mesher::segmentHorizontalPlanes(
       // Delete current peak from set of peaks, so that we can find next maximum.
       peaks.erase(it);
     } else {
-      VLOG(0) << "Did not find a maximum among the list of " << peaks.size() <<
-                 " peaks in histogram of horizontal planes.";
+      if (peaks.size() == 0) {
+        VLOG(0) << "No more peaks available.";
+      } else {
+        VLOG(0) << "Could not find a maximum among the list of " << peaks.size()
+                << " peaks in histogram of horizontal planes.";
+      }
       break;
     }
   }
