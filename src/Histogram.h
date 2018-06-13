@@ -72,7 +72,12 @@ public:
     // nothing else.
     // Used for std::max_element.
     bool operator<(const PeakInfo& rhd) {
-      return (value < rhd.value)? true : false;
+      return (value < rhd.value);
+    }
+
+    // Used to remove duplicates.
+    bool operator==(const PeakInfo& rhd) {
+      return (value == rhd.value && pos == rhd.pos);
     }
   };
 
