@@ -1017,11 +1017,20 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
             // Acknowledge that we have an association.
             associated_plane_ids.push_back(backend_plane_index);
             is_segmented_plane_associated = true;
+            break;
           } else {
-            LOG(ERROR) << "WARNING we are double associating: two segmented planes"
-                          " to the same backend plane";
+            LOG(ERROR)
+                << "Avoiding double plane association of backend plane: "
+                << gtsam::DefaultKeyFormatter(
+                     plane_backend.getPlaneSymbol().key())
+                << " with another segmented plane: " << gtsam::DefaultKeyFormatter(
+                     segmented_plane.getPlaneSymbol().key()) << "\n."
+                << "Searching instead for another possible backend plane for this"
+                   " segmented plane.";
+            // Continue, to see if we can associate the current segmented plane
+            // to another backend plane.
+            continue;
           }
-          break;
         } else {
           VLOG(0)
               << "Plane " << gtsam::DefaultKeyFormatter(
