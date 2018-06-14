@@ -879,7 +879,7 @@ void RegularVioBackEnd::addRegularityFactors(
             //new_imu_prior_and_other_factors_.push_back(
             //      boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3> >(
             //        plane_key,
-            //        plane,
+            //        plane_value,
             //        prior_noise));
 
             // Add the factors for the lmks that we skipped while checking
