@@ -784,6 +784,9 @@ int main(int argc, char *argv[]) {
     if (k == final_k - 1) {
       LOG(INFO) << "stereoVIOExample completed successfully!";
     }
+
+    // Loop visualization.
+    cv::waitKey(1);
   }
 
   if (FLAGS_log_output) {

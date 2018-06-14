@@ -1400,9 +1400,9 @@ public:
              << " newlyAvailableKeypoints " << newlyAvailableKeypoints.size()
              << " selectedKeypoints " << selectedKeypoints.size();
 
-    if (saveImagesSelector == 1) {
+    static constexpr bool visualize_selection_results = false;
+    if (saveImagesSelector == 1 && visualize_selection_results) {
       cv::imshow("Selection results", img);
-      cv::waitKey(100);
     }
 
     if(saveImagesSelector == 2) {
