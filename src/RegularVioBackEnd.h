@@ -70,7 +70,10 @@ private:
 
   /// Members
   LmkIdIsSmart lmk_id_is_smart_; // TODO GROWS UNBOUNDED, use the loop in getMapLmkIdsTo3dPointsInTimeHorizon();
-  std::map<LandmarkId, RegularityType> lmk_id_to_regularity_type_map_;
+  typedef std::map<LandmarkId, RegularityType> LmkIdToRegularityTypeMap;
+  typedef std::map<PlaneId, LmkIdToRegularityTypeMap> PlaneIdToLmkIdRegType;
+  PlaneIdToLmkIdRegType plane_id_to_lmk_id_reg_type_;
+  LmkIdToRegularityTypeMap lmk_id_to_regularity_type_map_;
   std::vector<size_t> delete_slots_of_converted_smart_factors_;
 
   // For Stereo and Projection factors.
@@ -116,23 +119,29 @@ private:
   /* ------------------------------------------------------------------------ */
   void addRegularityFactors(
       const Plane& plane,
+      LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
       std::vector<std::pair<Slot, LandmarkId>>* idx_of_point_plane_factors_to_add);
 
   /* ------------------------------------------------------------------------ */
   void removeOldRegularityFactors_Slow(
       const gtsam::Symbol& plane_symbol,
       const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+      LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
       const LandmarkIds& plane_lmk_ids,
       std::vector<size_t>* delete_slots);
 
   /* ------------------------------------------------------------------------ */
-  void fillDeleteSlots(const std::vector<std::pair<Slot, LandmarkId> >& point_plane_factor_slots,
+  void fillDeleteSlots(
+      const std::vector<std::pair<Slot, LandmarkId>>& point_plane_factor_slots,
+      LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
       std::vector<size_t>* delete_slots);
 
   /* ------------------------------------------------------------------------ */
   // Remove as well the factors that are going to be added in this iteration.
   void deleteNewSlots(
+      const PlaneId& plane_key,
       const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+      LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors_);
 
   /* ------------------------------------------------------------------------ */
