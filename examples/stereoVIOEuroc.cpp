@@ -638,7 +638,7 @@ int main(int argc, char *argv[]) {
                       // WARNING assumes the backend updates normal and distance
                       // of plane and that no one modifies it afterwards...
                       visualizer.visualizePlaneConstraints(
-                            plane.getPlaneSymbol().index(),
+                            plane.getPlaneSymbol().key(),
                             current_plane_estimate.normal().point3(),
                             current_plane_estimate.distance(), lmk_id, point);
                       // Stop since there are not multiple planes for one
