@@ -550,15 +550,15 @@ const {
                                normal_tolerance, distance_tolerance,
                                points_with_id_vio);
     VLOG(0) << "Finished update plane lmk ids for new non-associated planes.";
+
+    // Append new planes that where not associated to original planes.
+    planes->insert(planes->end(),
+                   new_non_associated_planes.begin(),
+                   new_non_associated_planes.end());
   } else {
     VLOG(0) << "Avoid extra loop over mesh, since there are no new non-associated"
                " planes to be updated.";
   }
-
-  // Append new planes that where not associated to original planes.
-  planes->insert(planes->end(),
-                 new_non_associated_planes.begin(),
-                 new_non_associated_planes.end());
 }
 
 /* -------------------------------------------------------------------------- */
