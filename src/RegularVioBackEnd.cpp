@@ -215,9 +215,11 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
                     plane.lmk_ids_,
                     &delete_old_regularity_factors);
               VLOG(0) << "Finished removing old regularity factors.";
-              delete_slots.insert(delete_slots.end(),
-                                  delete_old_regularity_factors.begin(),
-                                  delete_old_regularity_factors.end());
+              if (delete_old_regularity_factors.size() > 0) {
+                delete_slots.insert(delete_slots.end(),
+                                    delete_old_regularity_factors.begin(),
+                                    delete_old_regularity_factors.end());
+              }
             }
           }
         } else {
@@ -235,15 +237,19 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   // This lags 1 step behind to mimic hw.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
+  VLOG(0) << "Starting optimize...";
   optimize(cur_kf_id_, vio_params_.numOptimize_,
            delete_slots);
+  VLOG(0) << "Finished optimize.";
 
   // Sanity check: ensure no one is removing planes outside updatePlaneEstimates.
   static size_t nr_of_planes = 0;
   CHECK_LE(nr_of_planes, planes->size());
 
   // Update estimates of planes, and remove planes that are not in the state.
+  VLOG(0) << "Starting updatePlaneEstimates...";
   updatePlaneEstimates(planes);
+  VLOG(0) << "Finished updatePlaneEstimates.";
   nr_of_planes = planes->size();
 
   // Reset list of factors to delete.
@@ -1160,9 +1166,11 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
         DEBUG_ = true;
         std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_all (
               point_plane_factor_slots_bad);
-        point_plane_factor_slots_all.insert(point_plane_factor_slots_all.end(),
-                                            point_plane_factor_slots_good.begin(),
-                                            point_plane_factor_slots_good.end());
+        if (point_plane_factor_slots_good.size() > 0) {
+          point_plane_factor_slots_all.insert(point_plane_factor_slots_all.end(),
+                                              point_plane_factor_slots_good.begin(),
+                                              point_plane_factor_slots_good.end());
+        }
         fillDeleteSlots(point_plane_factor_slots_all,
                         lmk_id_to_regularity_type_map,
                         delete_slots);
