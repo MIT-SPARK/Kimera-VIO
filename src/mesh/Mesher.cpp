@@ -520,7 +520,7 @@ void Mesher::clusterPlanesFromMesh(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
 const {
   CHECK_NOTNULL(planes);
-  static constexpr double normal_tolerance = 0.15; // 0.087 === 10 deg. aperture.
+  static constexpr double normal_tolerance = 0.011; // 0.087 === 10 deg. aperture.
   static constexpr double distance_tolerance = 0.10;
   // Segment planes in the mesh, using seeds.
   VLOG(10) << "Starting plane segmentation...";
@@ -532,7 +532,7 @@ const {
   // Do data association between the planes given and the ones segmented.
   VLOG(0) << "Starting plane association...";
   std::vector<Plane> new_non_associated_planes;
-  static constexpr double normal_tolerance_for_association = 0.15; // 0.087 === 10 deg. aperture.
+  static constexpr double normal_tolerance_for_association = 0.011; // 0.087 === 10 deg. aperture.
   static constexpr double distance_tolerance_for_association = 0.20;
   associatePlanes(new_planes, *planes, &new_non_associated_planes,
                   normal_tolerance_for_association,
