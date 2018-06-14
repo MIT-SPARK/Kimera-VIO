@@ -880,6 +880,7 @@ void VioBackEnd::optimize(
   for(const auto& keyValue : new_values_) {
     timestamps[keyValue.key] = timestamp_kf_; // for the latest pose, velocity, and bias
   }
+  CHECK_EQ(timestamps.size(), new_values_.size());
 
   // Store time before iSAM update.
   if (verbosity_ >= 5) {
