@@ -225,6 +225,8 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         } else {
           // TODO shouldn't we "removeOldRegularityFactors_Slow" because there
           // are no planes anymore? shouldn't we delete them or something?
+          // Not really because the mesher will only add planes, it won't delete
+          // an existing plane from planes structure...
           LOG(WARNING) << "We are not receiving planes for the backend, but we "
                           "are not cleaning planes in the optimization.";
         }
@@ -869,8 +871,8 @@ void RegularVioBackEnd::addRegularityFactors(
             VLOG(0) << "Adding new plane with key: "
                      << gtsam::DefaultKeyFormatter(plane_key)
                      << " as a new variable in backend.\n"
-                     << "\tWith normal: " << plane.normal_ << "\n"
-                     << "\tWith distance: " << plane.distance_;
+                     << "\tWith normal: " << plane_value.normal() << "\n"
+                     << "\tWith distance: " << plane_value.distance();
             new_values_.insert(plane_key, plane_value);
 
             // TODO Remove! DEBUG add a prior to the plane.
