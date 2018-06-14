@@ -378,18 +378,20 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
   noiseModel::Diagonal::shared_ptr priorNoise =
       noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
   Point3 priorMean1(0.0, 0.0, 1.0); // prior at origin
-  graph.emplace_shared<PriorFactor<Point3> >(1, priorMean1, priorNoise);
+  graph.push_back(boost::make_shared<PriorFactor<Point3>>(1, priorMean1, priorNoise));
   Point3 priorMean2(1.0, 0.0, 1.0); // prior at origin
-  graph.emplace_shared<PriorFactor<Point3> >(2, priorMean2, priorNoise);
+  graph.push_back(boost::make_shared<PriorFactor<Point3>>(2, priorMean2, priorNoise));
   Point3 priorMean3(0.0, 1.0, 1.0); // prior at origin
-  graph.emplace_shared<PriorFactor<Point3> >(3, priorMean3, priorNoise);
+  graph.push_back(boost::make_shared<PriorFactor<Point3>>(3, priorMean3, priorNoise));
 
   noiseModel::Isotropic::shared_ptr regularityNoise =
       noiseModel::Isotropic::Sigma(1, 0.5);
-  graph.emplace_shared<PointPlaneFactor>(1, 4, regularityNoise);
-  graph.emplace_shared<PointPlaneFactor>(2, 4, regularityNoise);
-  graph.emplace_shared<PointPlaneFactor>(3, 4, regularityNoise);
-
+  graph.push_back(boost::make_shared<gtsam::PointPlaneFactor>(1, 4,
+                                                              regularityNoise));
+  graph.push_back(boost::make_shared<gtsam::PointPlaneFactor>(2, 4,
+                                                              regularityNoise));
+  graph.push_back(boost::make_shared<gtsam::PointPlaneFactor>(3, 4,
+                                                              regularityNoise));
   Values initial;
   initial.insert(1, Point3(0.0, 19.0, 3.0));
   initial.insert(2, Point3(-1.0, 2.0, 2.0));
@@ -450,15 +452,22 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
 
   // Add new plane.
   Point3 priorMeanA(0.0, 0.0, 2.0); // prior at origin
-  graph.emplace_shared<PriorFactor<Point3>>(5, priorMeanA, priorNoise);
+  graph.push_back(boost::make_shared<PriorFactor<Point3>>(5, priorMeanA, priorNoise));
   Point3 priorMeanB(1.0, 0.0, 2.0); // prior at origin
-  graph.emplace_shared<PriorFactor<Point3>>(6, priorMeanB, priorNoise);
+  graph.push_back(boost::make_shared<PriorFactor<Point3>>(6, priorMeanB, priorNoise));
   Point3 priorMeanC(0.0, 1.0, 2.0); // prior at origin
-  graph.emplace_shared<PriorFactor<Point3>>(7, priorMeanC, priorNoise);
+  graph.push_back(boost::make_shared<PriorFactor<Point3>>(7, priorMeanC, priorNoise));
 
-  graph.emplace_shared<PointPlaneFactor>(5, 8, regularityNoise);
-  graph.emplace_shared<PointPlaneFactor>(6, 8, regularityNoise);
-  graph.emplace_shared<PointPlaneFactor>(7, 8, regularityNoise);
+  //graph.emplace_shared<PointPlaneFactor>(5, 8, regularityNoise);
+  //graph.emplace_shared<PointPlaneFactor>(6, 8, regularityNoise);
+  //graph.emplace_shared<PointPlaneFactor>(7, 8, regularityNoise);
+  graph.push_back(boost::make_shared<gtsam::PointPlaneFactor>(5, 8,
+                                                              regularityNoise));
+  graph.push_back(boost::make_shared<gtsam::PointPlaneFactor>(6, 8,
+                                                              regularityNoise));
+  graph.push_back(boost::make_shared<gtsam::PointPlaneFactor>(7, 8,
+                                                              regularityNoise));
+
 
   initial.clear();
   initial.insert(5, Point3(0.0, 19.0, 2.0));
