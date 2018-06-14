@@ -860,10 +860,10 @@ void RegularVioBackEnd::addRegularityFactors(
             // TODO find a way to add initial guess, maybe when sending the lmk_ids
             // having a regularity we could regress a plane through it?
             // The mesher should send the plane!
-            static const gtsam::OrientedPlane3 plane_value(plane.normal_.x,
-                                                           plane.normal_.y,
-                                                           plane.normal_.z,
-                                                           plane.distance_);
+            const gtsam::OrientedPlane3 plane_value(plane.normal_.x,
+                                                    plane.normal_.y,
+                                                    plane.normal_.z,
+                                                    plane.distance_);
 
             // The plane is constrained, add it.
             VLOG(0) << "Adding new plane with key: "
