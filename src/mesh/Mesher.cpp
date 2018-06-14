@@ -1120,7 +1120,7 @@ void Mesher::updateMesh3D(
     if (visualize_mesh_2d) {
       stereoFrame->visualizeMesh2DStereo(mesh_2d, 1);
     }
-    static constexpr bool visualize_mesh_2d_filtered = true;
+    static constexpr bool visualize_mesh_2d_filtered = false;
     if (visualize_mesh_2d_filtered) {
       stereoFrame->visualizeMesh2DStereo(mesh_2d_filtered, 1,
                                          "2D Mesh Filtered");
