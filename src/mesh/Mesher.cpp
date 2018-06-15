@@ -807,19 +807,20 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   ////////////////////////////// 2D Histogram //////////////////////////////////
   // Quantize the theta values to 60 levels
   // and the distances to 80 levels.
-  static constexpr int theta_bins = 60, distance_bins = 80;
+  static constexpr int theta_bins = 40, distance_bins = 40;
   static constexpr int hist_2d_size[] = {theta_bins, distance_bins};
   // Theta varies from -pi to pi.
-  static const float theta_range[] = {-PI, PI};
+  static const float theta_range[] = {0, PI};
   // Distances varie from -8 to 8.
-  static const float distance_range[] = {-4.0, 4.0};
+  static const float distance_range[] = {-6.0, 6.0};
   static const float* ranges_2d[] = {theta_range, distance_range};
-  static constexpr bool uniform = true, accumulate = false;
+  static constexpr bool uniform = true;
+  static constexpr bool accumulate = false;
   // We compute the histogram from the 0-th and 1-st channels.
   static const int channels_2d[] = {0, 1};
 
-  Histogram hist_2d (1, channels_2d, cv::Mat(), 2,
-                     hist_2d_size, ranges_2d, uniform, accumulate);
+  static Histogram hist_2d (1, channels_2d, cv::Mat(), 2,
+                            hist_2d_size, ranges_2d, uniform, accumulate);
   VLOG(10) << "Starting to calculate 2D histogram...";
   hist_2d.calculateHistogram(walls);
   VLOG(10) << "Finished to calculate 2D histogram.";
@@ -879,8 +880,8 @@ void Mesher::segmentHorizontalPlanes(
   // We compute the histogram from the 0-th channel, z is 1-dimensional data.
   static const int channels[] = {0};
   static constexpr bool uniform = true, accumulate = false;
-  Histogram hist (1, channels, cv::Mat(), 1,
-                  hist_size, ranges, uniform, accumulate);
+  static Histogram hist (1, channels, cv::Mat(), 1,
+                         hist_size, ranges, uniform, accumulate);
   VLOG(10) << "Starting calculate 1D histogram.";
   hist.calculateHistogram(z_components);
   VLOG(10) << "Finished calculate 1D histogram.";
