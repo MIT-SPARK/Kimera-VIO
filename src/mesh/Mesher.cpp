@@ -641,6 +641,16 @@ void Mesher::segmentPlanesInMesh(
         // Store distance.
         // Using triangle_normal.
         double distance = p1.ddot(triangle_normal);
+        if (theta < 0) {
+          VLOG(10) << "Normalize theta: " << theta
+                   << " and distance: " << distance;
+          // Say theta is -pi/2, then normalized theta is pi/2.
+          theta = theta + PI;
+          // Change distance accordingly.
+          distance = -distance;
+          VLOG(10) << "New normalized theta: " << theta
+                   << " and distance: " << distance;
+        }
         walls.push_back(cv::Point2f(theta, distance));
         // WARNING should we instead be using projected triangle normal
         // on equator, and taking average of three distances...
