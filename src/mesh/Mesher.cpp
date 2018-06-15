@@ -790,9 +790,9 @@ const {
                           z_components);
 
   // Segment vertical planes.
-  //segmentWalls(new_segmented_planes,
-  //             &plane_id,
-  //             walls);
+  segmentWalls(new_segmented_planes,
+               &plane_id,
+               walls);
 }
 
 /* -------------------------------------------------------------------------- */
