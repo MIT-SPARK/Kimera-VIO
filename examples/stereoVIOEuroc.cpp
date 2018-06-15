@@ -581,16 +581,10 @@ int main(int argc, char *argv[]) {
             static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
             static cv::Mat vertices_mesh_prev;
             static cv::Mat polygons_mesh_prev;
-            static std::vector<TriangleCluster> triangle_clusters_prev;
-            // TODO remove, temporary hack to visualize, and keep functionality.
-            std::vector<TriangleCluster> triangle_clusters;
-            if (planes.size() > 0) {
-              triangle_clusters.push_back(planes.at(0).triangle_cluster_);
-            }
 
             static constexpr bool visualize_mesh = true;
             if (visualize_mesh) {
-              visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters_prev,
+              visualizer.visualizeMesh3DWithColoredClusters(planes_prev,
                                                             vertices_mesh_prev,
                                                             polygons_mesh_prev);
             }
@@ -603,8 +597,8 @@ int main(int argc, char *argv[]) {
 
             static constexpr bool visualize_convex_hull = false;
             if (visualize_convex_hull) {
-              if (triangle_clusters_prev.size() != 0) {
-                visualizer.visualizeConvexHull(triangle_clusters_prev.at(0),
+              if (planes_prev.size() != 0) {
+                visualizer.visualizeConvexHull(planes_prev.at(0).triangle_cluster_,
                                                vertices_mesh_prev,
                                                polygons_mesh_prev);
               }
@@ -630,7 +624,7 @@ int main(int argc, char *argv[]) {
 
                   // Visualize.
                   const Key& ppf_plane_key = ppf->getPlaneKey();
-                  for (const Plane& plane: planes) {
+                  for (const Plane& plane: planes) { // not sure, we are having some w planes_prev others with planes...
                     if (ppf_plane_key == plane.getPlaneSymbol().key()) {
                       gtsam::OrientedPlane3 current_plane_estimate;
                       CHECK(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
@@ -712,7 +706,6 @@ int main(int argc, char *argv[]) {
             planes_prev = planes;
             vertices_mesh_prev = vertices_mesh;
             polygons_mesh_prev = polygons_mesh;
-            triangle_clusters_prev = triangle_clusters;
             points_with_id_VIO_prev = points_with_id_VIO;
             lmk_id_to_lmk_type_map_prev = lmk_id_to_lmk_type_map;
             VLOG(10) << "Finished mesh visualization.";

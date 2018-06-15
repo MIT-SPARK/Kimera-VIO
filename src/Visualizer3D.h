@@ -250,12 +250,12 @@ public:
   ///  with [n id_a id_b id_c, ..., n /id_x id_y id_z], where n = polygon size
   ///  n=3 for triangles.
   void visualizeMesh3DWithColoredClusters(
-                           const std::vector<TriangleCluster>& clusters,
-                           const cv::Mat& map_points_3d,
-                           const cv::Mat& polygons_mesh) {
+      const std::vector<Plane>& planes,
+      const cv::Mat& map_points_3d,
+      const cv::Mat& polygons_mesh) {
     // Color the mesh.
     cv::Mat colors;
-    colorMeshByClusters(clusters, map_points_3d, polygons_mesh, &colors);
+    colorMeshByClusters(planes, map_points_3d, polygons_mesh, &colors);
 
     // Log the mesh.
     static constexpr bool log_mesh = false;
@@ -648,7 +648,8 @@ private:
   /* ------------------------------------------------------------------------ */
   // Input the mesh points and triangle clusters, and
   // output colors matrix for mesh visualizer.
-  void colorMeshByClusters(const std::vector<TriangleCluster>& clusters,
+  // This will color the point with the color of the last plane having it.
+  void colorMeshByClusters(const std::vector<Plane>& planes,
                            const cv::Mat& map_points_3d,
                            const cv::Mat& polygons_mesh,
                            cv::Mat* colors) {
@@ -658,7 +659,8 @@ private:
     // The code below assumes triangles as polygons.
     static constexpr bool log_landmarks = false;
     cv::Mat points;
-    for (const TriangleCluster& cluster: clusters) {
+    for (const Plane& plane: planes) {
+      const TriangleCluster& cluster = plane.triangle_cluster_;
       // Decide color for cluster.
       cv::viz::Color cluster_color = cv::viz::Color::gray();
       getClusterColorById(cluster.cluster_id_, &cluster_color);
@@ -672,14 +674,16 @@ private:
         int32_t idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
         int32_t idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
         int32_t idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
+        // Overrides potential previous color.
         colors->row(idx_1) = cluster_color;
         colors->row(idx_2) = cluster_color;
         colors->row(idx_3) = cluster_color;
         // Debug TODO remove: logging triangles perpendicular to z_axis.
         if (cluster.cluster_id_ == 2 && log_landmarks) {
-          points.push_back(map_points_3d.row(idx_1));
-          points.push_back(map_points_3d.row(idx_2));
-          points.push_back(map_points_3d.row(idx_3));
+          // Do not use push back, or you'll be having repeated points I guess.
+          //points.push_back(map_points_3d.row(idx_1));
+          //points.push_back(map_points_3d.row(idx_2));
+          //points.push_back(map_points_3d.row(idx_3));
         }
       }
     }
