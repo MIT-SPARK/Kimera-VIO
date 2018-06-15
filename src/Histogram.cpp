@@ -393,19 +393,23 @@ void Histogram::drawHistogram2D(cv::Mat* img_output) const {
 
   static constexpr int scale_theta = 10;
   static constexpr int scale_distance = 10;
-  *img_output = cv::Mat::zeros(hist_size_[0] * scale_distance,
-      hist_size_[1] * scale_theta, CV_8UC1);
-  for (int h = 0; h < hist_size_[0]; h++) {
-    for (int s = 0; s < hist_size_[1]; s++) {
-      float binVal = histogram_.at<float>(h, s);
-      int intensity = cvRound(binVal * 255 / maxVal);
-      cv::rectangle(*img_output,
-                    cv::Point(h * scale_distance,
-                              s * scale_theta),
-                    cv::Point((h + 1) * scale_distance - 1,
-                              (s + 1) * scale_theta - 1),
-                    cv::Scalar::all(intensity),
-                    CV_FILLED);
+  *img_output = cv::Mat::zeros(hist_size_[0] * scale_theta,
+      hist_size_[1] * scale_distance, CV_8UC1);
+  if (max_val == 0) {
+    return;
+  } else {
+    for (int t = 0; t < hist_size_[0]; t++) {
+      for (int d = 0; d < hist_size_[1]; d++) {
+        float binVal = histogram_.at<float>(t, d);
+        int intensity = cvRound(binVal * 255 / max_val);
+        cv::rectangle(*img_output,
+                      cv::Point(t * scale_theta,
+                                d * scale_distance),
+                      cv::Point((t + 1) * scale_theta - 1,
+                                (d + 1) * scale_distance - 1),
+                      cv::Scalar::all(intensity),
+                      CV_FILLED);
+      }
     }
   }
 }
