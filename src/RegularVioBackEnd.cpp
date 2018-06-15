@@ -1045,6 +1045,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_bad;
   std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_good;
   bool has_plane_a_prior = false;
+  bool has_plane_a_linear_factor = false;
+  Slot plane_prior_slot = 0; // Set as invalid slot.
   // Loop over current graph.
   // TODO this loop is very expensive for multiple planes...
   for (const auto& g: graph) {
@@ -1095,13 +1097,19 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
         if (plane_prior->find(plane_symbol.key()) != plane_prior->end()) {
           LOG(WARNING) << "Found plane prior factor for plane: "
                        << gtsam::DefaultKeyFormatter(plane_symbol.key());
+          // Store slot of plane_prior, since we might have to delete it
+          // if the plane has no constraints.
+          // Ensure the plane has not two priors or more.
+          CHECK(!has_plane_a_prior);
+          plane_prior_slot = slot;
           has_plane_a_prior = true;
         }
       } else if (lcf) {
         if (lcf->find(plane_symbol.key()) != lcf->end()) {
           VLOG(10) << "Found linear container factor for plane: "
                    << gtsam::DefaultKeyFormatter(plane_symbol.key());
-          has_plane_a_prior = true;
+          CHECK(!has_plane_a_linear_factor);
+          has_plane_a_linear_factor = true;
         }
       } else {
         // Sanity check that we are not forgetting a factor with the plane key...
@@ -1128,14 +1136,19 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   size_t total_nr_of_plane_constraints =
       point_plane_factor_slots_good.size() +
       idx_of_point_plane_factors_to_add.size();
-  VLOG(10) << "Plane total number of constraints is: "
+  VLOG(10) << "Total number of constraints of plane "
+           << gtsam::DefaultKeyFormatter(plane_symbol.key()) << " is: "
            << total_nr_of_plane_constraints << "\n"
            << "\tConstraints in graph which are good: "
            << point_plane_factor_slots_good.size() << "\n"
            << "\tConstraints that are going to be added: "
            << idx_of_point_plane_factors_to_add.size() << "\n"
            << "Constraints in graph which are bad: "
-           << point_plane_factor_slots_bad.size();
+           << point_plane_factor_slots_bad.size() << "\n"
+           << "Has the plane a prior? "
+           << (has_plane_a_prior? "Yes" : "No") << ".\n"
+           << "Has the plane a linear factor? "
+           << (has_plane_a_linear_factor? "Yes" : "No") << ".";
   if (total_nr_of_plane_constraints > min_num_of_constraints) {
     // The plane is fully constrained.
     // We can just delete bad factors, assuming lmks will be well constrained.
@@ -1150,10 +1163,10 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
     // Check if the plane has a prior.
     VLOG(10) << "Plane is NOT fully constrained if we just remove"
                 " the bad factors.";
-    if (has_plane_a_prior) {
+    if (has_plane_a_prior || has_plane_a_linear_factor) {
       // The plane has a prior.
       // Delete just the bad factors.
-      VLOG(10) << "Plane has a prior, delete just the bad factors.";
+      VLOG(10) << "Plane has a prior, delete the bad factors.";
       fillDeleteSlots(point_plane_factor_slots_bad,
                       lmk_id_to_regularity_type_map,
                       delete_slots);
@@ -1192,7 +1205,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
         CHECK(getEstimateOfKey(plane_symbol.key(), &plane_estimate));
         LOG(WARNING) << "Using plane prior on plane with id "
                      << gtsam::DefaultKeyFormatter(plane_symbol);
-        CHECK(!has_plane_a_prior) << "Check that the plane has no prior.";
+        CHECK(!has_plane_a_prior && !has_plane_a_linear_factor)
+            << "Check that the plane has no prior.";
         static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise =
             gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
         new_imu_prior_and_other_factors_.push_back(
