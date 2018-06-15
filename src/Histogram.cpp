@@ -388,8 +388,23 @@ void Histogram::visualizeHistogram2DWithPeaks(
 void Histogram::drawHistogram2D(cv::Mat* img_output) const {
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
   CHECK_NOTNULL(img_output);
-  double maxVal = 0;
-  cv::minMaxLoc(histogram_, 0, &maxVal, 0, 0);
+  double max_val = 0;
+  static constexpr bool use_fixed_histogram_height = false;
+  if (use_fixed_histogram_height) {
+    //max_val = 175;
+    max_val = 100;
+  } else {
+    cv::minMaxLoc(histogram_, 0, &max_val, 0, 0);
+  }
+  LOG(INFO) <<  "Very MAX value: " << max_val;
+
+  // TODO remove below, it was just to find the max_val ever, to scale the
+  // histogram size accordingly.
+  //static double very_max_val = 0;
+  //if (max_val > very_max_val) {
+  //  very_max_val = max_val;
+  //}
+  //LOG(INFO) <<  "Very MAX value: " << very_max_val;
 
   static constexpr int scale_theta = 10;
   static constexpr int scale_distance = 10;
