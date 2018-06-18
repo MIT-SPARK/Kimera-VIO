@@ -396,7 +396,6 @@ void Histogram::drawHistogram2D(cv::Mat* img_output) const {
   } else {
     cv::minMaxLoc(histogram_, 0, &max_val, 0, 0);
   }
-  LOG(INFO) <<  "Very MAX value: " << max_val;
 
   // TODO remove below, it was just to find the max_val ever, to scale the
   // histogram size accordingly.

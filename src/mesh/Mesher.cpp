@@ -530,14 +530,14 @@ const {
                       normal_tolerance, distance_tolerance);
   VLOG(10) << "Finished plane segmentation.";
   // Do data association between the planes given and the ones segmented.
-  VLOG(0) << "Starting plane association...";
+  VLOG(10) << "Starting plane association...";
   std::vector<Plane> new_non_associated_planes;
   static constexpr double normal_tolerance_for_association = 0.011; // 0.087 === 10 deg. aperture.
   static constexpr double distance_tolerance_for_association = 0.20;
   associatePlanes(new_planes, *planes, &new_non_associated_planes,
                   normal_tolerance_for_association,
                   distance_tolerance_for_association);
-  VLOG(0) << "Finished plane association.";
+  VLOG(10) << "Finished plane association.";
   if (new_non_associated_planes.size() > 0) {
     // Update lmk ids of the newly added planes.
 
@@ -545,18 +545,18 @@ const {
     // WARNING Here we are updating lmk ids in new non-associated planes,
     // BUT it requires another loop over mesh, and recalculates normals!!!
     // Very unefficient.
-    VLOG(0) << "Starting update plane lmk ids for new non-associated planes.";
+    VLOG(10) << "Starting update plane lmk ids for new non-associated planes.";
     updatePlanesLmkIdsFromMesh(&new_non_associated_planes,
                                normal_tolerance, distance_tolerance,
                                points_with_id_vio);
-    VLOG(0) << "Finished update plane lmk ids for new non-associated planes.";
+    VLOG(10) << "Finished update plane lmk ids for new non-associated planes.";
 
     // Append new planes that where not associated to original planes.
     planes->insert(planes->end(),
                    new_non_associated_planes.begin(),
                    new_non_associated_planes.end());
   } else {
-    VLOG(0) << "Avoid extra loop over mesh, since there are no new non-associated"
+    VLOG(10) << "Avoid extra loop over mesh, since there are no new non-associated"
                " planes to be updated.";
   }
 }
@@ -829,13 +829,15 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   //cv::GaussianBlur(histImg, histImg, cv::Size(9, 9), 0);
   ///
   VLOG(10) << "Starting get local maximum for 2D histogram...";
-  std::vector<cv::Point> peaks2 = hist_2d.getLocalMaximum2D(8, true);
+  static constexpr bool visualize_hist_2d = false;
+  std::vector<cv::Point> peaks2 = hist_2d.getLocalMaximum2D(8,
+                                                            visualize_hist_2d);
   VLOG(10) << "Finished get local maximum for 2D histogram.";
 
-  LOG(WARNING) << "# of peaks in 2D histogram = " << peaks2.size();
+  VLOG(10) << "# of peaks in 2D histogram = " << peaks2.size();
   size_t i = 0;
   for (const cv::Point& peak: peaks2) {
-    LOG(WARNING)
+    VLOG(10)
         << "Peak #" << i << " in bin with coords: "
         << " x= " << peak.x << " y= " << peak.y
         << ". So peak with theta = " << (peak.x/10 * (theta_range[1] -
@@ -906,9 +908,9 @@ void Mesher::segmentHorizontalPlanes(
     // Make sure it is below min possible value for distance.
     double plane_distance =
         (peak_it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
-    LOG(WARNING) << "Peak #" << i << " in bin " << peak_it->pos
-                 << " has distance = " << plane_distance
-                 << " with a support of " << peak_it->value << " points";
+    VLOG(10) << "Peak #" << i << " in bin " << peak_it->pos
+             << " has distance = " << plane_distance
+             << " with a support of " << peak_it->value << " points";
 
     // Remove duplicates, and, for peaks that are too close, take the one with
     // maximum support.
@@ -962,10 +964,10 @@ void Mesher::segmentHorizontalPlanes(
       // or do another loop over the mesh to cluster new triangles.
       const gtsam::Symbol plane_symbol ('P', *plane_id);
       static constexpr int cluster_id = 2; // Only used for visualization. 2 = ground.
-      VLOG(0) << "Segmented an horizontal plane with:\n"
-              <<"\t distance: " << plane_distance
-             << "\n\t plane id: " << gtsam::DefaultKeyFormatter(plane_symbol.key())
-             << "\n\t cluster id: " << cluster_id;
+      VLOG(10) << "Segmented an horizontal plane with:\n"
+               <<"\t distance: " << plane_distance << "\n\t plane id: "
+               << gtsam::DefaultKeyFormatter(plane_symbol.key())
+               << "\n\t cluster id: " << cluster_id;
       horizontal_planes->push_back(Plane(plane_symbol,
                                          normal,
                                          plane_distance,
@@ -979,9 +981,9 @@ void Mesher::segmentHorizontalPlanes(
       peaks.erase(it);
     } else {
       if (peaks.size() == 0) {
-        VLOG(0) << "No more peaks available.";
+        VLOG(10) << "No more peaks available.";
       } else {
-        VLOG(0) << "Could not find a maximum among the list of " << peaks.size()
+        VLOG(10) << "Could not find a maximum among the list of " << peaks.size()
                 << " peaks in histogram of horizontal planes.";
       }
       break;
@@ -1037,7 +1039,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
               associated_plane_ids.end()) {
             // It is the first time we associate this plane.
             // Update lmk ids in plane.
-            VLOG(0)
+            VLOG(10)
                 << "Plane from backend with id " << gtsam::DefaultKeyFormatter(
                      plane_backend.getPlaneSymbol().key())
                 << " has been associated with segmented plane: "

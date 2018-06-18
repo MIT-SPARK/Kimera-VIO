@@ -161,11 +161,11 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
 
         // Extract lmk ids that are involved in a regularity.
-        VLOG(0) << "Starting extracting lmk ids from set of planes...";
+        VLOG(10) << "Starting extracting lmk ids from set of planes...";
         LandmarkIds lmk_ids_with_regularity;
         extractLmkIdsFromPlanes(*planes,
                                 &lmk_ids_with_regularity);
-        VLOG(0) << "Finished extracting lmk ids from set of planes, total of "
+        VLOG(10) << "Finished extracting lmk ids from set of planes, total of "
                 << lmk_ids_with_regularity.size() << " lmks with regularities.";
 
         // We add features in VIO.
@@ -1303,7 +1303,7 @@ void RegularVioBackEnd::fillDeleteSlots(
     std::vector<size_t>* delete_slots) {
   CHECK_NOTNULL(lmk_id_to_regularity_type_map);
   CHECK_NOTNULL(delete_slots);
-  VLOG(0) << "Starting fillDeleteSlots...";
+  VLOG(10) << "Starting fillDeleteSlots...";
   delete_slots->resize(point_plane_factor_slots_bad.size());
   size_t i = 0;
   if (point_plane_factor_slots_bad.size() > 0) {
@@ -1323,15 +1323,15 @@ void RegularVioBackEnd::fillDeleteSlots(
           lmk_id_to_regularity_type_map->end())
           << "Could not delete lmk_id " << lmk_id
           << " from lmk_id_to_regularity_type_map.";
-      VLOG(0) << "Deleting lmk_id " << lmk_id
-              << " from lmk_id_to_regularity_type_map_";
+      VLOG(20) << "Deleting lmk_id " << lmk_id
+               << " from lmk_id_to_regularity_type_map_";
       lmk_id_to_regularity_type_map->erase(lmk_id);
     }
   } else {
-    VLOG(0) << "There are no bad factors to remove.";
+    VLOG(10) << "There are no bad factors to remove.";
   }
 
-  VLOG(0) << "Finished fillDeleteSlots...";
+  VLOG(10) << "Finished fillDeleteSlots...";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1474,22 +1474,22 @@ void RegularVioBackEnd::updatePlaneEstimates(std::vector<Plane>* planes) {
                                                 &plane_estimate)) {
       // We found the plane in the state.
       // Update the plane.
-      VLOG(0) << "Update plane with id "
-              << gtsam::DefaultKeyFormatter(plane_key)
-              << " from the set of planes.";
+      VLOG(10) << "Update plane with id "
+               << gtsam::DefaultKeyFormatter(plane_key)
+               << " from the set of planes.";
       plane_it->normal_ = cv::Point3d(plane_estimate.normal().point3().x(),
                                       plane_estimate.normal().point3().y(),
                                       plane_estimate.normal().point3().z());
       plane_it->distance_ = plane_estimate.distance();
-      VLOG(0) << "\t Updated plane normal = " << plane_it->normal_ << "\n"
-              << "\t Updated plane distance = " << plane_it->distance_;
+      VLOG(10) << "\t Updated plane normal = " << plane_it->normal_ << "\n"
+               << "\t Updated plane distance = " << plane_it->distance_;
 
       plane_it++;
     } else {
       // We did not find the plane in the state.
-      VLOG(0) << "Erase plane with id " << gtsam::DefaultKeyFormatter(plane_key)
-              << " from the set of planes, since it is not in the state"
-                 " anymore, or it has never been added.";
+      VLOG(10) << "Erase plane with id " << gtsam::DefaultKeyFormatter(plane_key)
+               << " from the set of planes, since it is not in the state"
+                  " anymore, or it has never been added.";
 
       // Clean data structures involving this plane.
       if (plane_id_to_lmk_id_reg_type_.find(plane_key)
