@@ -28,7 +28,7 @@ huberParam: 0.8 # Only used in RegularVioBackEnd
 tukeyParam: 4.6851 # Only used in RegularVioBackEnd
 regularityNormType: 2 # Only used in RegularVioBackEnd
 rankTolerance: 1
-landmarkDistanceThreshold: 20
+landmarkDistanceThreshold: 15
 outlierRejection: 8
 retriangulationThreshold: 0.001
 addBetweenStereoFactors: 1
@@ -41,6 +41,6 @@ zeroVelocitySigma: 0.001
 noMotionPositionSigma: 0.001
 noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
-numOptimize: 0
+numOptimize: 2
 horizon: 6 # In seconds.
 useDogLeg: 0
