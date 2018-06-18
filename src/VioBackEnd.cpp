@@ -1121,6 +1121,13 @@ void VioBackEnd::updateSmoother(
   } catch (const gtsam::OutOfRangeThreadsafe& e) {
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const std::out_of_range& e) {
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const std::exception& e) {
+    // Catch anything thrown within try block that derives from std::exception.
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (...) {
     // Catch the rest of exceptions.
     LOG(ERROR) << "Unrecognized exception.";
