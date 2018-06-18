@@ -25,7 +25,7 @@ featureSelectionCriterion: 0
 featureSelectionHorizon: 3
 featureSelectionNrCornersToSelect: 600
 featureSelectionImuRate: 0.005
-featureSelectionDefaultDepth: 5.0
+featureSelectionDefaultDepth: 2.0
 featureSelectionCosineNeighborhood: 0.9848077 # Rad
 featureSelectionUseLazyEvaluation: 1
 useSuccessProbabilities: 1
