@@ -899,25 +899,53 @@ void Mesher::segmentHorizontalPlanes(
 
   LOG(WARNING) << "# of peaks in 1D histogram = " << peaks.size();
   size_t i = 0;
+  std::vector<Histogram::PeakInfo>::iterator previous_peak_it;
+  double previous_plane_distance = z_range[0] - 1;
   for (std::vector<Histogram::PeakInfo>::iterator peak_it = peaks.begin();
        peak_it != peaks.end();) {
-    LOG(WARNING)
-        << "Peak #" << i << " in bin " << peak_it->pos << " so = "
-        << (peak_it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0]
-        << " with a support of " << peak_it->value << " points";
+    // Make sure it is below min possible value for distance.
+    double plane_distance =
+        (peak_it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
+    LOG(WARNING) << "Peak #" << i << " in bin " << peak_it->pos
+                 << " has distance = " << plane_distance
+                 << " with a support of " << peak_it->value << " points";
 
-    // Remove duplicates.
+    // Remove duplicates, and, for peaks that are too close, take the one with
+    // maximum support.
     // Assuming repeated peaks are ordered...
+    static constexpr double min_plane_separation = 0.1; //Disable by setting < 0
     if (i > 0 && *peak_it == peaks.at(i - 1)) {
-      // Repeated element... delete it.
+      // Repeated element, delete it.
       LOG(WARNING) << "Deleting repeated peak for peak # " << i << " in bin "
                    << peak_it->pos;
       peak_it = peaks.erase(peak_it);
+      i--;
+    } else if (i > 0 && std::fabs(previous_plane_distance - plane_distance) <
+               min_plane_separation) {
+      // Not enough separation between planes, delete the one with less support.
+      if (previous_peak_it->value < peak_it->value) {
+        // Delete previous_peak.
+        LOG(WARNING) << "Deleting peak in bin " << previous_peak_it->pos;
+        //Iterators, pointers and references pointing to position (or first) and
+        // beyond are invalidated, with all iterators, pointers and references
+        // to elements before position (or first) are guaranteed to keep
+        // referring to the same elements they were referring to before the call.
+        peaks.erase(previous_peak_it);
+        peak_it = peaks.begin() + i - 1;
+        i--;
+      } else {
+        // Delete peak_it.
+        LOG(WARNING) << "Deleting too close peak # " << i << " in bin "
+                     << peak_it->pos;
+        peak_it = peaks.erase(peak_it);
+        i--;
+      }
     } else {
+      previous_peak_it = peak_it;
+      previous_plane_distance = plane_distance;
       peak_it++;
+      i++;
     }
-
-    i++;
   }
 
   static constexpr size_t max_number_of_peaks_to_select = 3;
