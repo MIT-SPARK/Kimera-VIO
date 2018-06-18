@@ -1409,8 +1409,7 @@ void VioBackEnd::setIsam2Params(
   isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
   // isam_param->enablePartialRelinearizationCheck = true;
   isam_param->findUnusedFactorSlots = true;
-  // isam_param->cacheLinearizedFactors = true;
-  // isam_param->enableDetailedResults = true;   // only for debugging.
+  isam_param->enableDetailedResults = false;   // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY; // QR
   isam_param->print("isam_param");
   //isam_param.evaluateNonlinearError = true;  // only for debugging.
