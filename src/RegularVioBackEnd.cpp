@@ -1165,11 +1165,44 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                 " the bad factors.";
     if (has_plane_a_prior || has_plane_a_linear_factor) {
       // The plane has a prior.
-      // Delete just the bad factors.
-      VLOG(10) << "Plane has a prior, delete the bad factors.";
-      fillDeleteSlots(point_plane_factor_slots_bad,
-                      lmk_id_to_regularity_type_map,
-                      delete_slots);
+      VLOG(10) << "Plane has a prior.";
+      // TODO Remove: this is just a patch to avoid issue 32:
+      // https://github.mit.edu/lcarlone/VIO/issues/32
+      static constexpr bool use_unstable = false;
+      if (use_unstable) {
+        // This should be the correct way to do it, but a bug in gtsam will make
+        // the optimization break.
+        if (total_nr_of_plane_constraints == 0 &&
+            has_plane_a_prior &&
+            !has_plane_a_linear_factor) {
+          // Not only the plane is not fully constrained, it has no constraints
+          // at all, and we are going to delete the bad ones, so plane floating
+          // with a plane prior, not attached to anything else...
+          // Delete the prior as well, to get rid of this plane.
+          LOG(ERROR) << "Plane has no constraints at all, deleting prior as well.";
+          CHECK_NE(plane_prior_slot, 0);
+          delete_slots->push_back(plane_prior_slot);
+        }
+      } else {
+        // This is just a patch...
+        // TODO maybe if we are deleting too much constraints, add a no information
+        // factor btw the plane and a lmk!
+        static constexpr size_t min_num_of_constraints_to_avoid_seg_fault = 3;
+        if (total_nr_of_plane_constraints >
+            min_num_of_constraints_to_avoid_seg_fault) {
+          // Delete just the bad factors, since we still have some factors
+          // that won't make the optimizer try to delete the plane variable,
+          // which at the current time breaks gtsam.
+          VLOG(10) << "Delete bad factors attached to plane.";
+          fillDeleteSlots(point_plane_factor_slots_bad,
+                          lmk_id_to_regularity_type_map,
+                          delete_slots);
+        } else {
+          // Do not delete all factors, otherwise gtsam will break.
+          VLOG(10) << "Not deleting bad factors attached to plane, or gtsam will "
+                      "break.";
+        }
+      }
     } else {
       // The plane has NOT a prior.
       static constexpr bool use_unstable = false;
@@ -1216,9 +1249,23 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
                 prior_noise));
 
         // Delete just the bad factors.
-        fillDeleteSlots(point_plane_factor_slots_bad,
-                        lmk_id_to_regularity_type_map,
-                        delete_slots);
+        // TODO Remove: this is just a patch to avoid issue 32:
+        // https://github.mit.edu/lcarlone/VIO/issues/32
+        static constexpr size_t min_num_of_constraints_to_avoid_seg_fault = 3;
+        if (total_nr_of_plane_constraints >
+            min_num_of_constraints_to_avoid_seg_fault) {
+          // Delete just the bad factors, since we still have some factors
+          // that won't make the optimizer try to delete the plane variable,
+          // which at the current time breaks gtsam.
+          VLOG(10) << "Delete bad factors attached to plane.";
+          fillDeleteSlots(point_plane_factor_slots_bad,
+                          lmk_id_to_regularity_type_map,
+                          delete_slots);
+        } else {
+          // Do not delete all factors, otherwise gtsam will break.
+          VLOG(10) << "Not deleting bad factors attached to plane, or gtsam will "
+                      "break.";
+        }
       }
     } // The plane has NOT a prior.
   } // The plane is NOT fully constraint.
