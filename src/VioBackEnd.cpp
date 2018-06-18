@@ -1399,8 +1399,11 @@ void VioBackEnd::setIsam2Params(
     isam_param->optimizationParams = gauss_newton_params;
   }
 
-  // Here there was commented code about setRelinearizeThreshold.
-  isam_param->setCacheLinearizedFactors(false);
+  // TODO Luca: Here there was commented code about setRelinearizeThreshold.
+  // was it important?
+
+  // Cache Linearized Factors seems to improve performance.
+  isam_param->setCacheLinearizedFactors(true);
   isam_param->setEvaluateNonlinearError(true);
   isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
   isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
