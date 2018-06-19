@@ -254,13 +254,13 @@ std::vector<Histogram::PeakInfo> Histogram::getLocalMaximum1D(
 
   if (display_histogram) {
     VLOG(10) << "Drawing histogram.";
-    cv::Mat hist_img = drawHistogram1D(&src, 400, 1024, 256, // WARNING: this number has to coincide with nr of bins...
+    int hist_size = histogram_.rows; // WARNING assumes a 1D Histogram.
+    cv::Mat hist_img = drawHistogram1D(&src, 400, 1024, hist_size, // WARNING: this number has to coincide with nr of bins...
                                        cv::Scalar(255,255,255), 2, false);
 
     VLOG(10) << "Drawing peaks.";
     static const cv::Scalar peak_color (0, 0, 255);
 
-    int hist_size = histogram_.rows; // WARNING assumes a 1D Histogram.
     drawPeaks1D(&hist_img, output, hist_size, peak_color, display_histogram);
   }
   return output;
