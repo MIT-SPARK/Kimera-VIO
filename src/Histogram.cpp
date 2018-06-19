@@ -63,9 +63,9 @@ int Histogram::drawPeaks1D(cv::Mat* hist_image,
   int bin_w = cvRound((double) hist_image->cols / hist_size);
   for (size_t i = 0; i < peaks.size(); i++) {
     cv::line(*hist_image,
-             cv::Point(bin_w * peaks[i].pos,
+             cv::Point(bin_w * peaks[i].pos_,
                        hist_image->rows),
-             cv::Point(bin_w * peaks[i].pos, 0), color);
+             cv::Point(bin_w * peaks[i].pos_, 0), color);
   }
 
   if (display_image) {
@@ -145,10 +145,10 @@ Histogram::PeakInfo Histogram::peakInfo(int pos,
                                         float value) const {
   CHECK_EQ(dims_, 1) << "This function is meant for 1D histograms.";
   PeakInfo output;
-  output.pos = pos;
-  output.left_size = left_size;
-  output.right_size = right_size;
-  output.value = value;
+  output.pos_ = pos;
+  output.left_size_ = left_size;
+  output.right_size_ = right_size;
+  output.value_ = value;
   return output;
 }
 
@@ -244,139 +244,83 @@ std::vector<Histogram::PeakInfo> Histogram::getLocalMaximum1D(
   cv::minMaxLoc(src, &min_val, &max_val);
 
   for (size_t i = 0; i < peaks.size(); i++) {
-    if (peaks[i].value > max_val * peak_per &&
-        peaks[i].value > min_support &&
-        peaks[i].left_size >= 2 &&
-        peaks[i].right_size >= 2) {
+    if (peaks[i].value_ > max_val * peak_per &&
+        peaks[i].value_ > min_support &&
+        peaks[i].left_size_ >= 2 &&
+        peaks[i].right_size_ >= 2) {
       output.push_back(peaks[i]);
     }
   }
 
   if (display_histogram) {
     VLOG(10) << "Drawing histogram.";
-    cv::Mat hist_img = drawHistogram1D(&src, 400, 1024, 256, // WARNING: this number has to coincide with nr of bins...
+    int hist_size = histogram_.rows; // WARNING assumes a 1D Histogram.
+    cv::Mat hist_img = drawHistogram1D(&src, 400, 1024, hist_size, // WARNING: this number has to coincide with nr of bins...
                                        cv::Scalar(255,255,255), 2, false);
 
     VLOG(10) << "Drawing peaks.";
     static const cv::Scalar peak_color (0, 0, 255);
 
-    int hist_size = histogram_.rows; // WARNING assumes a 1D Histogram.
     drawPeaks1D(&hist_img, output, hist_size, peak_color, display_histogram);
   }
   return output;
 }
 
 /* -------------------------------------------------------------------------- */
-std::vector<cv::Point> Histogram::contoursCenter(
-    const std::vector<std::vector<cv::Point>>& contours,
-    bool centerOfMass,
-    int contourIdx,
-    bool visualize) const {
-  CHECK_EQ(dims_, 2) << "This function only works with 2D histograms.";
-  VLOG(10) << "Starting contoursCenter.";
-  std::vector<cv::Point> result;
-  if (contourIdx > -1) {
-    if (centerOfMass) {
-      cv::Moments m = cv::moments(contours.at(contourIdx), true);
-      result.push_back(cv::Point(m.m10 / m.m00,
-                                 m.m01 / m.m00));
-    } else {
-      cv::Rect rct = cv::boundingRect(contours[contourIdx]);
-      result.push_back(cv::Point(rct.x + rct.width / 2 ,
-                                 rct.y + rct.height / 2));
-    }
-  } else {
-    if (centerOfMass) {
-      for (size_t i = 0; i < contours.size(); i++) {
-        cv::Moments m = cv::moments(contours[i], true);
-        result.push_back(cv::Point(m.m10/m.m00,
-                                   m.m01/m.m00));
-
-      }
-    } else {
-      for (size_t i = 0; i < contours.size(); i++) {
-        cv::Rect rct = cv::boundingRect(contours.at(i));
-        result.push_back(cv::Point(rct.x + rct.width / 2 ,
-                                   rct.y + rct.height / 2));
-      }
-    }
-  }
-
-  if (visualize) {
-    VLOG(10) << "Starting visualizeHistogram2DWithPeaks.";
-    visualizeHistogram2DWithPeaks(result);
-    VLOG(10) << "Finished visualizeHistogram2DWithPeaks.";
-  }
-
-  VLOG(10) << "Finished contoursCenter.";
-  return result;
-}
-
-/* -------------------------------------------------------------------------- */
-std::vector<cv::Point> Histogram::getLocalMaximum2D(int neighbor,
-                                                    bool visualize) const {
+// Does not resize the peaks vector, so make sure it is empty before sending.
+bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
+                                  const cv::Size& smooth_size,
+                                  int number_of_local_max,
+                                  int min_support,
+                                  int min_dist_btw_loc_max,
+                                  bool visualize) const {
+  CHECK_NOTNULL(peaks);
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
   if (histogram_.rows == 0 || histogram_.cols == 0) {
     LOG(WARNING) << "Histogram is empty, cannot compute local max 2d."
                  << " Did you calculateHistogram before?";
-    return std::vector<cv::Point>();
+    return false;
   }
 
   VLOG(10) << "Histogram size is: " << histogram_.size;
   // TODO remove hack: we are passing recontructed image of histogram, instead
   // of the histogram itself...
-  cv::Mat src; // = histogram_; //Should be histogram, hacking system!
-  drawHistogram2D(&src);
-  cv::Mat peak_img = src.clone();
+  CHECK_GE(histogram_.rows, smooth_size.height);
+  CHECK_GE(histogram_.cols, smooth_size.width);
+  cv::GaussianBlur(histogram_, histogram_, smooth_size, 0);
 
-  VLOG(10) << "Starting dilate...";
-  cv::dilate(peak_img, peak_img, cv::Mat(), cv::Point(-1,-1), neighbor);
-  peak_img = peak_img - src;
-  VLOG(10) << "Finished dilate.";
+  int nr_of_maximums = imgRegionalMax(histogram_, number_of_local_max,
+                                      min_support, min_dist_btw_loc_max,
+                                      peaks);
+  if (nr_of_maximums > 0) {
+    VLOG(0) << "Found local maximum in 2D histogram.";
+  }
 
-  cv::Mat flat_img ;
-  VLOG(10) << "Starting erode...";
-  cv::erode(src, flat_img, cv::Mat(), cv::Point(-1, -1), neighbor);
-  flat_img = src - flat_img;
-  VLOG(10) << "Finished erode.";
-
-  cv::threshold(peak_img, peak_img, 0, 255, CV_THRESH_BINARY);
-  cv::threshold(flat_img, flat_img, 0, 255, CV_THRESH_BINARY);
-  VLOG(10) << "Starting bitwise_not for flat_img...";
-  cv::bitwise_not(flat_img, flat_img);
-  VLOG(10) << "Finished bitwise_not for flat_img.";
-
-  VLOG(10) << "Starting setTo for peak_img...";
-  peak_img.setTo(cv::Scalar::all(255), flat_img);
-  VLOG(10) << "Finished setTo for peak_img.";
-
-  VLOG(10) << "Starting bitwise_not for peak_img...";
-  cv::bitwise_not(peak_img, peak_img);
-  VLOG(10) << "Finished bitwise_not for peak_img.";
-
-  std::vector<std::vector<cv::Point>> contours;
-  VLOG(10) << "Starting contours for peak_img...";
-  cv::findContours(peak_img, contours,
-                   CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-  VLOG(10) << "Finished contours for peak_img.";
-
-  return contoursCenter(contours, true, -1, visualize);
+  if (visualize) {
+    VLOG(10) << "Starting visualizeHistogram2DWithPeaks.";
+    visualizeHistogram2DWithPeaks(*peaks);
+    VLOG(10) << "Finished visualizeHistogram2DWithPeaks.";
+  }
+  return true;
 }
-
 
 /* -------------------------------------------------------------------------- */
 // Visualize 2D histogram.
 void Histogram::visualizeHistogram2DWithPeaks(
-    const std::vector<cv::Point>& peaks) const {
+    const std::vector<PeakInfo2D>& peaks) const {
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
+
   cv::Mat hist_img;
-  VLOG(10) << "Starting drawHistogram2D.";
-  drawHistogram2D(&hist_img);
-  VLOG(10) << "Finished drawHistogram2D.";
+  static constexpr int scale_theta = 10;
+  static constexpr int scale_distance = 10;
+  drawHistogram2D(&hist_img, scale_theta, scale_distance);
 
   cv::cvtColor(hist_img, hist_img, cv::COLOR_GRAY2RGB);
-  for (const cv::Point& peak: peaks) {
-    cv::circle(hist_img, peak, 2, cv::Scalar(255,0,0), 1, 8, 0);
+  cv::bitwise_not(hist_img, hist_img);
+  for (const PeakInfo2D& peak: peaks) {
+    cv::Point peak_scaled (peak.pos_.x * scale_theta,
+                           peak.pos_.y * scale_distance);
+    cv::circle(hist_img, peak_scaled, 2, cv::Scalar(255,0,0), -1, 8, 0);
   }
 
   cv::namedWindow("Theta/Distance Histogram", 1);
@@ -385,11 +329,13 @@ void Histogram::visualizeHistogram2DWithPeaks(
 
 
 /* -------------------------------------------------------------------------- */
-void Histogram::drawHistogram2D(cv::Mat* img_output) const {
+void Histogram::drawHistogram2D(cv::Mat* img_output,
+                                int scale_theta,
+                                int scale_distance) const {
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
   CHECK_NOTNULL(img_output);
   double max_val = 0;
-  static constexpr bool use_fixed_histogram_height = false;
+  static constexpr bool use_fixed_histogram_height = true;
   if (use_fixed_histogram_height) {
     //max_val = 175;
     max_val = 100;
@@ -405,8 +351,6 @@ void Histogram::drawHistogram2D(cv::Mat* img_output) const {
   //}
   //LOG(INFO) <<  "Very MAX value: " << very_max_val;
 
-  static constexpr int scale_theta = 10;
-  static constexpr int scale_distance = 10;
   *img_output = cv::Mat::zeros(hist_size_[0] * scale_theta,
       hist_size_[1] * scale_distance, CV_8UC1);
   if (max_val == 0) {
@@ -426,6 +370,50 @@ void Histogram::drawHistogram2D(cv::Mat* img_output) const {
       }
     }
   }
+}
+
+/* -------------------------------------------------------------------------- */
+// Calculates local max in 2D image.
+// Locations is a list of point locations.
+int Histogram::imgRegionalMax(cv::Mat input,
+                              int number_of_local_max,
+                              float min_support,
+                              float min_dist_btw_loc_max,
+                              std::vector<PeakInfo2D>* locations) const {
+  CHECK_NOTNULL(locations);
+  cv::Mat scratch = input.clone();
+  int nFoundLocMax = 0;
+  for (int i = 0; i < number_of_local_max; i++) {
+    cv::Point location;
+    double max_val;
+    cv::minMaxLoc(scratch, NULL, &max_val, NULL, &location);
+    if (max_val > min_support) {
+      nFoundLocMax += 1;
+      int row = location.y;
+      int col = location.x;
+      locations->push_back(PeakInfo2D(cv::Point(location.y, location.x),
+                                      max_val));
+      int r0 = (row - min_dist_btw_loc_max > -1 ?
+                  row - min_dist_btw_loc_max : 0);
+      int r1 = (row + min_dist_btw_loc_max < scratch.rows ?
+                  row + min_dist_btw_loc_max : scratch.rows - 1);
+      int c0 = (col - min_dist_btw_loc_max > -1 ?
+                  col - min_dist_btw_loc_max : 0);
+      int c1 = (col + min_dist_btw_loc_max < scratch.cols ?
+                  col + min_dist_btw_loc_max : scratch.cols - 1);
+      for (int r = r0; r <= r1; r++) {
+        for (int c = c0; c <= c1; c++) {
+          if (std::sqrt(std::pow(r - row, 2) + std::pow(c - col, 2))
+              <= min_dist_btw_loc_max) {
+            scratch.at<float>(r, c) = 0.0;
+          }
+        }
+      }
+    } else {
+      break;
+    }
+  }
+  return nFoundLocMax;
 }
 
 } // namespace VIO

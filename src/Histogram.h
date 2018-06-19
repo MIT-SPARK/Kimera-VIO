@@ -62,22 +62,44 @@ public:
 
   /* ------------------------------------------------------------------------ */
   struct PeakInfo {
-    int pos = 0;
-    int left_size = 0;
-    int right_size = 0;
+    int pos_ = 0;
+    int left_size_ = 0;
+    int right_size_ = 0;
     // Number of points supporting this peak (it does not need to be an int
     // since we smooth the histogram...)
-    float value = 0;
+    float value_ = 0;
     // < Operator will compare the support (# of points) of one peak vs the other.
     // nothing else.
     // Used for std::max_element.
     bool operator<(const PeakInfo& rhd) {
-      return (value < rhd.value);
+      return (value_ < rhd.value_);
     }
 
     // Used to remove duplicates.
     bool operator==(const PeakInfo& rhd) {
-      return (value == rhd.value && pos == rhd.pos);
+      return (value_ == rhd.value_ && pos_ == rhd.pos_);
+    }
+  };
+
+  /* ------------------------------------------------------------------------ */
+  struct PeakInfo2D {
+    PeakInfo2D (const cv::Point& pos,
+                const double& value)
+      : pos_(pos),
+        value_(value) {}
+    cv::Point pos_;
+    double value_ = 0;
+
+    // < Operator will compare the support (# of points) of one peak vs the other.
+    // nothing else.
+    // Used for std::max_element.
+    bool operator<(const PeakInfo2D& rhd) {
+      return (value_ < rhd.value_);
+    }
+
+    // Used to remove duplicates.
+    bool operator==(const PeakInfo2D& rhd) {
+      return (value_ == rhd.value_ && pos_ == rhd.pos_);
     }
   };
 
@@ -100,8 +122,12 @@ public:
   /* ------------------------------------------------------------------------ */
   // findLocalMaximum for a 2D histogram, it dilates the image and erodes it,
   // then makes the difference and checks centers of countours to get maximums.
-  std::vector<cv::Point> getLocalMaximum2D(int neighbor = 2,
-                                           bool visualize = false) const;
+  bool getLocalMaximum2D(std::vector<PeakInfo2D>* peaks,
+                         const cv::Size& smooth_size,
+                         int number_of_local_max = 2,
+                         int min_support = 30,
+                         int min_dist_btw_loc_max = 5,
+                         bool visualize = false) const;
 
 private:
   // Should be all const.
@@ -154,20 +180,22 @@ private:
 
 //////////////////////////// FOR 2D HISTOGRAM //////////////////////////////////
   /* ------------------------------------------------------------------------ */
-  std::vector<cv::Point> contoursCenter(
-      const std::vector<std::vector<cv::Point>>& contours,
-      bool centerOfMass,
-      int contourIdx = -1,
-      bool visualize = false) const;
-
-
-  /* ------------------------------------------------------------------------ */
   // Visualize 2D histogram.
-  void visualizeHistogram2DWithPeaks(const std::vector<cv::Point>& peaks) const;
+  void visualizeHistogram2DWithPeaks(const std::vector<PeakInfo2D>& peaks) const;
 
   /* ------------------------------------------------------------------------ */
   // Draw the histogram in 2D, returns the image of it.
-  void drawHistogram2D(cv::Mat* img_output) const;
+  void drawHistogram2D(cv::Mat* img_output,
+                       int scale_theta = 10,
+                       int scale_distance = 10) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Calculates local max in 2D image.
+  int imgRegionalMax(cv::Mat input,
+                     int number_of_local_max,
+                     float min_support,
+                     float min_dist_btw_loc_max,
+                     std::vector<PeakInfo2D>* locations) const;
 };
 
 } // namespace VIO

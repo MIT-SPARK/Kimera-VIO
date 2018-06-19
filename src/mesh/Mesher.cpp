@@ -833,29 +833,55 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   //cv::GaussianBlur(histImg, histImg, cv::Size(9, 9), 0);
   ///
   VLOG(10) << "Starting get local maximum for 2D histogram...";
-  static constexpr bool visualize_hist_2d = false;
-  std::vector<cv::Point> peaks2 = hist_2d.getLocalMaximum2D(8,
-                                                            visualize_hist_2d);
+  static constexpr bool visualize_hist_2d = true;
+  std::vector<Histogram::PeakInfo2D> peaks2;
+  static const cv::Size kernel_size_2d (3, 3);
+  static constexpr int number_of_local_max = 2;
+  static constexpr int min_support = 30;
+  static constexpr int min_dist_btw_loc_max = 5;
+  hist_2d.getLocalMaximum2D(&peaks2, kernel_size_2d,
+                            number_of_local_max,
+                            min_support,
+                            min_dist_btw_loc_max,
+                            visualize_hist_2d);
   VLOG(10) << "Finished get local maximum for 2D histogram.";
 
-  VLOG(10) << "# of peaks in 2D histogram = " << peaks2.size();
+  VLOG(0) << "# of peaks in 2D histogram = " << peaks2.size();
   size_t i = 0;
-  for (const cv::Point& peak: peaks2) {
-    VLOG(10)
-        << "Peak #" << i << " in bin with coords: "
-        << " x= " << peak.x << " y= " << peak.y
-        << ". So peak with theta = " << (peak.x/10 * (theta_range[1] -
-                                         theta_range[0]) / theta_bins)
-        + theta_range[0]
-        << " and distance = " << (peak.y/10 * (distance_range[1] -
+  for (const Histogram::PeakInfo2D& peak: peaks2) {
+    double plane_theta = (peak.pos_.x * (theta_range[1] - theta_range[0])
+        / theta_bins) + theta_range[0];
+    double plane_distance = (peak.pos_.y * (distance_range[1] -
                                   distance_range[0]) / distance_bins)
         + distance_range[0];
+    cv::Point3f plane_normal (std::cos(plane_theta), std::sin(plane_theta), 0);
+    VLOG(0) << "Peak #" << i << " in bin with coords: "
+            << " x= " << peak.pos_.x << " y= " << peak.pos_.y
+            << ". So peak with theta = " << plane_theta
+            << " (normal: x= " << plane_normal.x
+            << " and y= " << plane_normal.y << " )"
+            << " and distance = " << plane_distance;
+
+    // WARNING we are not giving lmk ids to this plane!
+    // We should either completely customize the histogram calc to pass lmk ids
+    // or do another loop over the mesh to cluster new triangles.
+    const gtsam::Symbol plane_symbol ('P', *plane_id);
+    static constexpr int cluster_id = 1; // Only used for visualization. 1 = walls.
+    VLOG(10) << "Segmented a wall plane with:\n"
+             <<"\t normal: " << plane_normal
+             <<"\t distance: " << plane_distance
+            << "\n\t plane id: " << gtsam::DefaultKeyFormatter(plane_symbol.key())
+            << "\n\t cluster id: " << cluster_id;
+    wall_planes->push_back(Plane(plane_symbol,
+                                 plane_normal,
+                                 plane_distance,
+                                 // Currently filled after this function...
+                                 LandmarkIds(), // We should fill this!!!
+                                 cluster_id));
+    (*plane_id)++; // CRITICAL TO GET THIS RIGHT: ensure no duplicates,
+
     i++;
   }
-
-  // TODO fill wall_planes.
-  // Increase plane_id++;
-
 }
 
 /* -------------------------------------------------------------------------- */
@@ -878,10 +904,10 @@ void Mesher::segmentHorizontalPlanes(
   // the new plane...
   // Quantize the z to 30 levels
   // TODO put this in ctor of Mesher... and make hist a private member.
-  static constexpr int z_bins = 256;
+  static constexpr int z_bins = 512;
   static constexpr int hist_size[] = {z_bins};
   // Z varies from -1 to 4, approx.
-  static const float z_range[] = {-0.5, 3};
+  static const float z_range[] = {-0.75, 3};
   static const float* ranges[] = {z_range};
   // We compute the histogram from the 0-th channel, z is 1-dimensional data.
   static const int channels[] = {0};
@@ -893,7 +919,7 @@ void Mesher::segmentHorizontalPlanes(
   VLOG(10) << "Finished calculate 1D histogram.";
 
   VLOG(10) << "Starting get local maximum for 1D.";
-  static const cv::Size kernel_size (1, 9);
+  static const cv::Size kernel_size (1, 5);
   static constexpr int neighbor_size = 3;
   static constexpr float peak_per = 0.5;
   static constexpr float min_support = 50;
@@ -911,10 +937,10 @@ void Mesher::segmentHorizontalPlanes(
        peak_it != peaks.end();) {
     // Make sure it is below min possible value for distance.
     double plane_distance =
-        (peak_it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
-    VLOG(10) << "Peak #" << i << " in bin " << peak_it->pos
+        (peak_it->pos_ * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
+    VLOG(10) << "Peak #" << i << " in bin " << peak_it->pos_
              << " has distance = " << plane_distance
-             << " with a support of " << peak_it->value << " points";
+             << " with a support of " << peak_it->value_ << " points";
 
     // Remove duplicates, and, for peaks that are too close, take the one with
     // maximum support.
@@ -923,15 +949,15 @@ void Mesher::segmentHorizontalPlanes(
     if (i > 0 && *peak_it == peaks.at(i - 1)) {
       // Repeated element, delete it.
       LOG(WARNING) << "Deleting repeated peak for peak # " << i << " in bin "
-                   << peak_it->pos;
+                   << peak_it->pos_;
       peak_it = peaks.erase(peak_it);
       i--;
     } else if (i > 0 && std::fabs(previous_plane_distance - plane_distance) <
                min_plane_separation) {
       // Not enough separation between planes, delete the one with less support.
-      if (previous_peak_it->value < peak_it->value) {
+      if (previous_peak_it->value_ < peak_it->value_) {
         // Delete previous_peak.
-        LOG(WARNING) << "Deleting peak in bin " << previous_peak_it->pos;
+        LOG(WARNING) << "Deleting peak in bin " << previous_peak_it->pos_;
         //Iterators, pointers and references pointing to position (or first) and
         // beyond are invalidated, with all iterators, pointers and references
         // to elements before position (or first) are guaranteed to keep
@@ -942,7 +968,7 @@ void Mesher::segmentHorizontalPlanes(
       } else {
         // Delete peak_it.
         LOG(WARNING) << "Deleting too close peak # " << i << " in bin "
-                     << peak_it->pos;
+                     << peak_it->pos_;
         peak_it = peaks.erase(peak_it);
         i--;
       }
@@ -962,7 +988,7 @@ void Mesher::segmentHorizontalPlanes(
         std::max_element(peaks.begin(), peaks.end());
     if (it != peaks.end()) {
       double plane_distance =
-          (it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
+          (it->pos_ * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
       // WARNING we are not giving lmk ids to this plane!
       // We should either completely customize the histogram calc to pass lmk ids
       // or do another loop over the mesh to cluster new triangles.
@@ -1061,20 +1087,30 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
             // WARNING TODO should we also update the normal & distance??
             // Acknowledge that we have an association.
             associated_plane_ids.push_back(backend_plane_index);
+
             is_segmented_plane_associated = true;
             break;
           } else {
-            LOG(ERROR)
-                << "Avoiding double plane association of backend plane: "
-                << gtsam::DefaultKeyFormatter(
-                     plane_backend.getPlaneSymbol().key())
-                << " with another segmented plane: " << gtsam::DefaultKeyFormatter(
-                     segmented_plane.getPlaneSymbol().key()) << "\n."
-                << "Searching instead for another possible backend plane for this"
-                   " segmented plane.";
             // Continue, to see if we can associate the current segmented plane
             // to another backend plane.
-            continue;
+            LOG(ERROR) << "Double plane association of backend plane: "
+                       << gtsam::DefaultKeyFormatter(
+                            plane_backend.getPlaneSymbol().key())
+                       << " with another segmented plane: "
+                       << gtsam::DefaultKeyFormatter(
+                            segmented_plane.getPlaneSymbol().key()) << "\n.";
+            static constexpr bool do_double_association = true;
+            if (do_double_association) {
+              LOG(ERROR) << "Doing double plane association of backend plane.";
+              is_segmented_plane_associated = true;
+              break;
+            } else {
+              LOG(ERROR)
+                   << "Avoiding double plane association of backend plane. "
+                   << "Searching instead for another possible backend plane for this"
+                      " segmented plane.";
+              continue;
+            }
           }
         } else {
           VLOG(0)

@@ -155,7 +155,8 @@ public:
       const double& n_y,
       const double& n_z,
       const double& d,
-      const bool& visualize_plane_label = true) {
+      const bool& visualize_plane_label = true,
+      const int& cluster_id = 1) {
     const std::string& plane_id_for_viz =
         "Plane " + std::to_string(plane_index);
     // Create a plane widget.
@@ -163,7 +164,9 @@ public:
     const Point3d center (d * n_x, d * n_y, d * n_z);
     static const Vec3d new_yaxis (0, 1, 0);
     static const Size2d size (1.0, 1.0);
-    static const cv::viz::Color plane_color = cv::viz::Color::blue();
+
+    cv::viz::Color plane_color;
+    getColorById(cluster_id, &plane_color);
     cv::viz::WPlane plane_widget (center, normal, new_yaxis, size, plane_color);
     plane_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
@@ -377,7 +380,7 @@ public:
             i++;
           }
           cv::viz::Color mesh_color;
-          getClusterColorById(cluster.cluster_id_, &mesh_color);
+          getColorById(cluster.cluster_id_, &mesh_color);
           cv::Mat normals = cv::Mat(0, 1, CV_32FC3);
           for (size_t k = 0; k < hull_3d.size(); k++) {
             normals.push_back(normal);
@@ -663,7 +666,7 @@ private:
       const TriangleCluster& cluster = plane.triangle_cluster_;
       // Decide color for cluster.
       cv::viz::Color cluster_color = cv::viz::Color::gray();
-      getClusterColorById(cluster.cluster_id_, &cluster_color);
+      getColorById(cluster.cluster_id_, &cluster_color);
 
       for (const size_t& triangle_id: cluster.triangle_ids_) {
         size_t triangle_idx = std::round(triangle_id * 4);
@@ -700,23 +703,23 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Decide color of the cluster depending on its id.
-  void getClusterColorById(const size_t& id, cv::viz::Color* cluster_color) {
-    CHECK_NOTNULL(cluster_color);
+  void getColorById(const size_t& id, cv::viz::Color* color) {
+    CHECK_NOTNULL(color);
     switch (id) {
       case 0: {
-        *cluster_color = cv::viz::Color::red();
+        *color = cv::viz::Color::red();
         break;
       }
       case 1: {
-        *cluster_color = cv::viz::Color::green();
+        *color = cv::viz::Color::green();
         break;
       }
       case 2:{
-        *cluster_color = cv::viz::Color::blue();
+        *color = cv::viz::Color::blue();
         break;
       }
       default :{
-        *cluster_color = cv::viz::Color::gray();
+        *color = cv::viz::Color::gray();
         break;
       }
     }
