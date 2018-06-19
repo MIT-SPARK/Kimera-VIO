@@ -904,10 +904,10 @@ void Mesher::segmentHorizontalPlanes(
   // the new plane...
   // Quantize the z to 30 levels
   // TODO put this in ctor of Mesher... and make hist a private member.
-  static constexpr int z_bins = 256;
+  static constexpr int z_bins = 512;
   static constexpr int hist_size[] = {z_bins};
   // Z varies from -1 to 4, approx.
-  static const float z_range[] = {-0.5, 3};
+  static const float z_range[] = {-0.75, 3};
   static const float* ranges[] = {z_range};
   // We compute the histogram from the 0-th channel, z is 1-dimensional data.
   static const int channels[] = {0};
@@ -919,7 +919,7 @@ void Mesher::segmentHorizontalPlanes(
   VLOG(10) << "Finished calculate 1D histogram.";
 
   VLOG(10) << "Starting get local maximum for 1D.";
-  static const cv::Size kernel_size (1, 9);
+  static const cv::Size kernel_size (1, 5);
   static constexpr int neighbor_size = 3;
   static constexpr float peak_per = 0.5;
   static constexpr float min_support = 50;
