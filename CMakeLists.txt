@@ -91,10 +91,12 @@ add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/UtilsGeometry.cpp ./src/UtilsOpenCV.cpp
                       ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
                       ./src/RegularVioBackEnd.cpp
+                      ./src/Histogram.cpp
                       ./src/FeatureSelector.h ./src/LoggerMatlab.h
                       ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
                       ./src/CameraParams.h ./src/Frame.h
                       ./src/Visualizer3D.h
+                      ./src/Histogram.h
                       "")
 
 ### Add source code for factors

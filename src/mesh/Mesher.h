@@ -48,15 +48,24 @@ public:
       const bool& visualize = true);
 
   /* ------------------------------------------------------------------------ */
-  // Perform Mesh clustering.
-  void clusterMesh(std::vector<TriangleCluster>* clusters,
-                   const gtsam::Point3& plane_normal,
-                   const double& plane_distance) const;
+  // Cluster planes from the mesh.
+  void clusterPlanesFromMesh(
+      std::vector<Plane>* planes,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  const;
+
+  /* ------------------------------------------------------------------------ */
+  void appendNonVioStereoPoints(
+      std::shared_ptr<StereoFrame> stereoFrame,
+      const gtsam::Pose3& leftCameraPose,
+      std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo) const;
 
   /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.
-  void extractLmkIdsFromTriangleCluster(const TriangleCluster& triangle_cluster,
-                                        LandmarkIds* lmk_ids) const;
+  void extractLmkIdsFromTriangleClusters(
+      const std::vector<TriangleCluster>& triangle_cluster,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      LandmarkIds* lmk_ids) const;
 
   /* ------------------------------------------------------------------------ */
   // Clones underlying data structures encoding the mesh.
@@ -69,12 +78,12 @@ private:
 private:
   /* ------------------------------------------------------------------------ */
   // Reduce the 3D mesh to the current VIO lmks only.
-  void reducePolygonMeshToTimeHorizon(
+  void updatePolygonMeshToTimeHorizon(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
       const gtsam::Pose3& leftCameraPose,
       double min_ratio_largest_smallest_side,
-      double max_triangle_side);
-
+      double max_triangle_side,
+      const bool& reduce_mesh_to_time_horizon = true);
 
   /* ------------------------------------------------------------------------ */
   // For a triangle defined by the 3d points p1, p2, and p3
@@ -102,7 +111,7 @@ private:
                              double min_elongation_ratio,
                              double maxTriangleSide);
 
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   // Create a 3D mesh from a 2d mesh in pixel coordinates.
   // The 3D mesh is constructed by finding the 3D landmark corresponding to the
   // pixel in the 2d mesh. The correspondence is found using the frame parameter.
@@ -117,12 +126,24 @@ private:
       double max_triangle_side);
 
   /* ------------------------------------------------------------------------ */
+  // Create a 3D mesh from 2D corners in an image.
+  void populate3dMesh(
+      const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+      const Frame& frame,
+      const gtsam::Pose3& leftCameraPose,
+      double min_ratio_largest_smallest_side,
+      double min_elongation_ratio,
+      double max_triangle_side);
+
+  /* ------------------------------------------------------------------------ */
   // Calculate normals of each polygon in the mesh.
   void calculateNormals(std::vector<cv::Point3f>* normals);
 
   /* ------------------------------------------------------------------------ */
-  // Calculate normal of a triangle.
-  void calculateNormal(const Mesh3D::VertexPosition3D& p1,
+  // Calculate normal of a triangle, and return whether it was possible or not.
+  // Calculating the normal of aligned points in 3D is not possible...
+  bool calculateNormal(const Mesh3D::VertexPosition3D& p1,
                        const Mesh3D::VertexPosition3D& p2,
                        const Mesh3D::VertexPosition3D& p3,
                        cv::Point3f* normal) const;
@@ -158,10 +179,18 @@ private:
                                          std::vector<int>* cluster_normals_idx);
 
   /* ------------------------------------------------------------------------ */
-  // Filter z component in triangle cluster.
-  void clusterZComponent(const double& z,
-                         const double& tolerance,
-                         TriangleCluster* triangle_cluster) const;
+  // Checks whether all points in polygon are closer than tolerance to the plane.
+  bool isPolygonAtDistanceFromPlane(const Mesh3D::Polygon& polygon,
+                                    const double& plane_distance,
+                                    const cv::Point3f& plane_normal,
+                                    const double& distance_tolerance) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Checks whether the point is closer than tolerance to the plane.
+  bool isPointAtDistanceFromPlane(const Mesh3D::VertexPosition3D& point,
+                                  const double& plane_distance,
+                                  const cv::Point3f& plane_normal,
+                                  const double& distance_tolerance) const;
 
   /* ------------------------------------------------------------------------ */
   // Try to reject bad triangles, corresponding to outliers.
@@ -170,6 +199,110 @@ private:
                      const double& min_ratio_between_largest_an_smallest_side,
                      const double& min_elongation_ratio,
                      const double& max_triangle_side) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Segment planes in the mesh:
+  // Updates seed_planes lmk ids of the plane by using initial plane seeds.
+  // Extracts new planes from the mesh.
+  // WARNING: data association must be performed between seed_planes and new_planes
+  // since both structures might have the same planes.
+  void segmentPlanesInMesh(
+      std::vector<Plane>* seed_planes,
+      std::vector<Plane>* new_planes,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      const double& normal_tolerance,
+      const double& distance_tolerance) const;
+
+  /* -------------------------------------------------------------------------- */
+  // Updates planes lmk ids field with a polygon vertices ids if this polygon
+  // Output goes from 0 to 2*pi, as we are using atan2, which looks at sign
+  // of arguments.
+  double getLongitude(const cv::Point3f& triangle_normal,
+                      const cv::Point3f& vertical) const;
+
+  /* -------------------------------------------------------------------------- */
+  // Update plane lmk ids field, by looping over the mesh and stoting lmk ids of
+  // the vertices of the polygons that are close to the plane.
+  // It will append lmk ids to the ones already present in the plane.
+  void updatePlanesLmkIdsFromMesh(
+      std::vector<Plane>* planes,
+      double normal_tolerance, double distance_tolerance,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  const;
+
+  /* ------------------------------------------------------------------------ */
+  // Updates planes lmk ids field with a polygon vertices ids if this polygon
+  // is part of the plane according to given tolerance.
+  bool updatePlanesLmkIdsFromPolygon(
+      std::vector<Plane>* seed_planes,
+      const Mesh3D::Polygon& polygon,
+      const size_t& triangle_id,
+      const cv::Point3f& triangle_normal,
+      double normal_tolerance, double distance_tolerance,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  const;
+
+  /* -------------------------------------------------------------------------- */
+  // Segment new planes in the mesh.
+  // Currently segments horizontal planes using z_components, which is
+  // expected to be a cv::Mat z_components (1, 0, CV_32F);
+  // And walls perpendicular to the ground, using a cv::Mat which is expected to be
+  // a cv::Mat walls (0, 0, CV_32FC2), with first channel being theta (yaw angle of
+  // the wall) and the second channel the distance of it.
+  // points_with_id_vio is only used if we are using stereo points...
+  void segmentNewPlanes(std::vector<Plane>* new_segmented_planes,
+                        const cv::Mat& z_components,
+                        const cv::Mat& walls) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Segment wall planes.
+  void segmentWalls(std::vector<Plane>* wall_planes,
+                    size_t* plane_id,
+                    const cv::Mat& walls) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Segment new planes horizontal.
+  void segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
+                               size_t* plane_id,
+                               const Plane::Normal& normal,
+                               const cv::Mat& z_components) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Data association between planes:
+  // It just outputs the set of planes that could not be associated.
+  // It does not change the original planes.
+  void associatePlanes(const std::vector<Plane>& segmented_planes,
+                       const std::vector<Plane>& planes,
+                       std::vector<Plane>* non_associated_planes,
+                       const double& normal_tolerance,
+                       const double& distance_tolerance) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Extract lmk ids from a vector of triangle clusters.
+  void extractLmkIdsFromVectorOfTriangleClusters(
+      const std::vector<TriangleCluster>& triangle_cluster,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      LandmarkIds* lmk_ids) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Extract lmk ids from triangle cluster.
+  void extractLmkIdsFromTriangleCluster(
+      const TriangleCluster& triangle_cluster,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      LandmarkIds* lmk_ids) const;
+
+  /* -------------------------------------------------------------------------- */
+  // Extracts lmk ids from a mesh polygon.
+  // In case we are using extra lmks from stereo, then it makes sure that the lmk
+  // ids are used in the optimization (they are present in time horizon: meaning
+  // it checks that we can find the lmk id in points_with_id_vio...
+  // WARNING: this function won't check that the original lmk_ids are in the
+  // optimization (time-horizon)...
+  void appendLmkIdsOfPolygon(
+      const Mesh3D::Polygon& polygon,
+      LandmarkIds* lmk_ids,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  const;
 };
 
 } // namespace VIO

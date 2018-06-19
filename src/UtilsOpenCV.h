@@ -19,11 +19,17 @@
 #include <Eigen/Core>
 #include <opencv2/core/core.hpp>
 
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/geometry/Unit3.h>
+
+#include <glog/logging.h>
+
 // Forward declare classes.
 namespace gtsam {
 class Point2;
 class Point3;
 class Pose3;
+class Symbol;
 class Unit3;
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::Vector3d Vector3;
@@ -84,6 +90,7 @@ enum Kstatus {
 
 // Definitions relevant to frame types
 using FrameId = uint64_t; // Frame id is used as the index of gtsam symbol (not as a gtsam key).
+using PlaneId = uint64_t;
 using LandmarkId = long int; // -1 for invalid landmarks. // int would be too small if it is 16 bits!
 using LandmarkIds = std::vector<LandmarkId>;
 enum class LandmarkType {SMART, PROJECTION};
@@ -108,6 +115,7 @@ struct TriangleCluster {
   cv::Point3f cluster_direction_;
 };
 
+
 class UtilsOpenCV {
 
 public:
@@ -123,6 +131,20 @@ public:
   // comparse 2 cvPoints
   static bool CvPointCmp(const cv::Point2f &p1, const cv::Point2f &p2,
                          const double tol = 1e-7);
+  /* ------------------------------------------------------------------------ */
+  // Converts a gtsam::Unit3 to a cv::Point3d.
+  static inline cv::Point3d unit3ToPoint3d(const gtsam::Unit3& unit3) {
+    return cv::Point3d(unit3.point3().x(),
+                       unit3.point3().y(),
+                       unit3.point3().z());
+  }
+  /* ------------------------------------------------------------------------ */
+  // Converts a cv::Point3d to a gtsam::Unit3.
+  static inline gtsam::Unit3 point3dToUnit3(const cv::Point3d& point_3d) {
+    CHECK_NEAR(cv::norm(point_3d), 1.0, 1e-5); // Expect unit norm.
+    return gtsam::Unit3(point_3d.x, point_3d.y, point_3d.z);
+  }
+
   /* ------------------------------------------------------------------------ */
   // converts a vector of 16 elements listing the elements of a 4x4 3D pose matrix by rows
   // into a pose3 in gtsam
@@ -316,6 +338,110 @@ public:
   static std::vector<std::pair<KeypointCV, double>> FindHighIntensityInTriangle(
       const cv::Mat img, const cv::Vec6f px_vertices,
       const float intensityThreshold) ;
+};
+
+
+/* -------------------------------------------------------------------------- */
+// A Plane defined by a gtsam::Symbol, a normal, a distance, and the set
+// of lmk ids that are part of the plane.
+struct Plane {
+public:
+  typedef cv::Point3d Normal;
+
+public:
+  Plane(const gtsam::Symbol& plane_symbol,
+        const Normal& normal = Normal(),
+        const double& distance = 0.0,
+        const LandmarkIds& lmk_ids = LandmarkIds(),
+        const int& cluster_id = 0)
+    : plane_symbol_(plane_symbol),
+      normal_(normal),
+      distance_(distance),
+      lmk_ids_(lmk_ids) {
+    // TODO remove, only used for consistency.
+    // triangle_cluster is only used for visualziation.
+    triangle_cluster_.cluster_id_ = cluster_id;
+    triangle_cluster_.cluster_direction_ = normal;
+  }
+
+  inline const gtsam::Symbol& getPlaneSymbol() const {
+    return plane_symbol_;
+  }
+
+  bool geometricEqual(const Plane& rhs,
+                      const double& normal_tolerance,
+                      const double& distance_tolerance) const {
+    return (isNormalStrictlyEqual(rhs.normal_, normal_, normal_tolerance) &&
+            // TODO implement a better test for distance tolerance... as it can
+            // be large for small normal difference and distances are big.
+            isPlaneDistanceStrictlyEqual(rhs.distance_,
+                                         distance_,
+                                         distance_tolerance)) ||
+        // Check also the other possible case.
+        (isNormalStrictlyEqual(rhs.normal_, -normal_, normal_tolerance) &&
+         isPlaneDistanceStrictlyEqual(rhs.distance_,
+                                      -distance_,
+                                      distance_tolerance));
+  }
+
+private:
+  gtsam::Symbol plane_symbol_;
+
+public:
+  Normal normal_;
+  double distance_;
+  LandmarkIds lmk_ids_;
+
+  // TODO remove, only used for visualization...
+  TriangleCluster triangle_cluster_;
+
+private:
+  typedef cv::Point3d NormalInternal;
+  /* ------------------------------------------------------------------------ */
+  // Is normal equal? True whenever normals are parallel,
+  // indep of their direction.
+  bool isNormalEqual(const NormalInternal& axis,
+                     const NormalInternal& normal,
+                     const double& tolerance) const {
+    // TODO typedef normals and axis to Normal, and use cv::Point3d instead.
+    CHECK_NEAR(cv::norm(axis), 1.0, 1e-5); // Expect unit norm.
+    CHECK_NEAR(cv::norm(normal), 1.0, 1e-5); // Expect unit norm.
+    CHECK_GT(tolerance, 0.0); // Tolerance is positive.
+    CHECK_LT(tolerance, 1.0); // Tolerance is positive.
+    // Dot product should be close to 1 or -1 if axis is aligned with normal.
+    return (std::fabs(normal.ddot(axis)) > 1.0 - tolerance);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Is normal equal? True whenever normals are aligned.
+  bool isNormalStrictlyEqual(const NormalInternal& axis,
+                             const NormalInternal& normal,
+                             const double& tolerance) const {
+    // TODO typedef normals and axis to Normal, and use cv::Point3d instead.
+    CHECK_NEAR(cv::norm(axis), 1.0, 1e-5); // Expect unit norm.
+    CHECK_NEAR(cv::norm(normal), 1.0, 1e-5); // Expect unit norm.
+    CHECK_GT(tolerance, 0.0); // Tolerance is positive.
+    CHECK_LT(tolerance, 1.0); // Tolerance is positive.
+    // Dot product should be close to 1 or -1 if axis is aligned with normal.
+    return (normal.ddot(axis) > 1.0 - tolerance);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Is distance equal? true whenever distances are of similar absolute value.
+  bool isPlaneDistanceEqual(const double& dist_1,
+                       const double& dist_2,
+                       const double& tolerance) const {
+    return std::fabs((std::fabs(dist_1) -
+                      std::fabs(dist_2)) < tolerance);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Is distance equal? true whenever distances are of similar absolute value.
+  bool isPlaneDistanceStrictlyEqual(const double& dist_1,
+                                    const double& dist_2,
+                                    const double& tolerance) const {
+    return std::fabs(dist_1 - dist_2) < tolerance;
+  }
 };
 
 } // namespace VIO

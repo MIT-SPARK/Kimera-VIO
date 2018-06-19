@@ -155,7 +155,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
     const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
-    const LandmarkIds& mesh_lmk_ids_ground_cluster,
+    std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
 
@@ -880,6 +880,7 @@ void VioBackEnd::optimize(
   for(const auto& keyValue : new_values_) {
     timestamps[keyValue.key] = timestamp_kf_; // for the latest pose, velocity, and bias
   }
+  CHECK_EQ(timestamps.size(), new_values_.size());
 
   // Store time before iSAM update.
   if (verbosity_ >= 5) {
@@ -1118,6 +1119,13 @@ void VioBackEnd::updateSmoother(
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (const gtsam::OutOfRangeThreadsafe& e) {
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const std::out_of_range& e) {
+    LOG(ERROR) << e.what();
+    printSmootherInfo(new_factors_tmp, delete_slots);
+  } catch (const std::exception& e) {
+    // Catch anything thrown within try block that derives from std::exception.
     LOG(ERROR) << e.what();
     printSmootherInfo(new_factors_tmp, delete_slots);
   } catch (...) {
@@ -1391,15 +1399,17 @@ void VioBackEnd::setIsam2Params(
     isam_param->optimizationParams = gauss_newton_params;
   }
 
-  // Here there was commented code about setRelinearizeThreshold.
-  isam_param->setCacheLinearizedFactors(false);
+  // TODO Luca: Here there was commented code about setRelinearizeThreshold.
+  // was it important?
+
+  // Cache Linearized Factors seems to improve performance.
+  isam_param->setCacheLinearizedFactors(true);
   isam_param->setEvaluateNonlinearError(true);
   isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
   isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
   // isam_param->enablePartialRelinearizationCheck = true;
   isam_param->findUnusedFactorSlots = true;
-  // isam_param->cacheLinearizedFactors = true;
-  // isam_param->enableDetailedResults = true;   // only for debugging.
+  isam_param->enableDetailedResults = false;   // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY; // QR
   isam_param->print("isam_param");
   //isam_param.evaluateNonlinearError = true;  // only for debugging.

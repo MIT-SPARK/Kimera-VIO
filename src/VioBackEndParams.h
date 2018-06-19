@@ -62,7 +62,7 @@ public:
       const size_t minPlaneConstraints = 3, // for regularVioBackEnd only.
       const double huberParam = 1.345, // for regularVioBackEnd only.
       const double tukeyParam = 4.6851, // for regularVioBackEnd only.
-      const size_t normType = 2, // for regularVioBackEnd only. 0: norm 2, 1: Huber, 2: Tukey.
+      const size_t regularityNormType = 2, // for regularVioBackEnd only. 0: norm 2, 1: Huber, 2: Tukey.
       const double rankTolerance = 1, // we might also use 0.1
       const double landmarkDistanceThreshold = 20, // max distance to triangulate point in meters
       const double outlierRejection = 8, // max acceptable reprojection error // before tuning: 3
@@ -91,7 +91,7 @@ public:
   minPlaneConstraints_(minPlaneConstraints),
   huberParam_(huberParam), tukeyParam_(tukeyParam), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
-  retriangulationThreshold_(retriangulationThreshold), regularityNormType_(normType),
+  retriangulationThreshold_(retriangulationThreshold), regularityNormType_(regularityNormType),
   addBetweenStereoFactors_(addBetweenStereoFactors),betweenRotationPrecision_(betweenRotationPrecision), betweenTranslationPrecision_(betweenTranslationPrecision),
   relinearizeThreshold_(relinearizeThreshold), relinearizeSkip_(relinearizeSkip), horizon_(horizon), numOptimize_(numOptimize),useDogLeg_(useDogLeg),
   zeroVelocitySigma_(zeroVelocitySigma), noMotionPositionSigma_(noMotionPositionSigma),

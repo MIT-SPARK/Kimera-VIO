@@ -41,13 +41,13 @@ public:
       const StatusSmartStereoMeasurements&
                             status_smart_stereo_measurements_kf, // Vision data.
       const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,  // Inertial data.
-      const LandmarkIds& mesh_lmk_ids_ground_cluster,
+      std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   /* ------------------------------------------------------------------------ */
   // TODO Virtualize this appropriately,
   void addLandmarksToGraph(const LandmarkIds& lmks_kf,
-                           const LandmarkIds& mesh_lmk_ids_ground_cluster);
+                           const LandmarkIds& lmk_ids_with_regularity);
 
   /* ------------------------------------------------------------------------ */
   void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
@@ -70,7 +70,10 @@ private:
 
   /// Members
   LmkIdIsSmart lmk_id_is_smart_; // TODO GROWS UNBOUNDED, use the loop in getMapLmkIdsTo3dPointsInTimeHorizon();
-  std::map<LandmarkId, RegularityType> lmk_id_to_regularity_type_map_;
+  typedef std::map<LandmarkId, RegularityType> LmkIdToRegularityTypeMap;
+  typedef std::map<PlaneId, LmkIdToRegularityTypeMap> PlaneIdToLmkIdRegType;
+  PlaneIdToLmkIdRegType plane_id_to_lmk_id_reg_type_;
+  LmkIdToRegularityTypeMap lmk_id_to_regularity_type_map_;
   std::vector<size_t> delete_slots_of_converted_smart_factors_;
 
   // For Stereo and Projection factors.
@@ -84,7 +87,7 @@ private:
 private:
   /* ------------------------------------------------------------------------ */
   bool isLandmarkSmart(const LandmarkId& lmk_id,
-                       const LandmarkIds& mesh_lmk_ids,
+                       const LandmarkIds& lmk_ids_with_regularity,
                        LmkIdIsSmart* lmk_id_is_smart);
 
   /* ------------------------------------------------------------------------ */
@@ -102,7 +105,7 @@ private:
 
   /* ------------------------------------------------------------------------ */
   void convertExtraSmartFactorToProjFactor(
-      const LandmarkIds& mesh_lmk_ids_ground_cluster);
+      const LandmarkIds& lmk_ids_with_regularity);
 
   /* ------------------------------------------------------------------------ */
   virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
@@ -115,25 +118,30 @@ private:
 
   /* ------------------------------------------------------------------------ */
   void addRegularityFactors(
-      const LandmarkIds& mesh_lmk_ids,
-      gtsam::Symbol* plane_symbol,
+      const Plane& plane,
+      LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
       std::vector<std::pair<Slot, LandmarkId>>* idx_of_point_plane_factors_to_add);
 
   /* ------------------------------------------------------------------------ */
   void removeOldRegularityFactors_Slow(
       const gtsam::Symbol& plane_symbol,
       const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
-      const LandmarkIds& mesh_lmk_ids,
+      LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
+      const LandmarkIds& plane_lmk_ids,
       std::vector<size_t>* delete_slots);
 
   /* ------------------------------------------------------------------------ */
-  void fillDeleteSlots(const std::vector<std::pair<Slot, LandmarkId> >& point_plane_factor_slots,
+  void fillDeleteSlots(
+      const std::vector<std::pair<Slot, LandmarkId>>& point_plane_factor_slots,
+      LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
       std::vector<size_t>* delete_slots);
 
   /* ------------------------------------------------------------------------ */
   // Remove as well the factors that are going to be added in this iteration.
   void deleteNewSlots(
+      const PlaneId& plane_key,
       const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+      LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors_);
 
   /* ------------------------------------------------------------------------ */
@@ -145,6 +153,17 @@ private:
       gtsam::SharedNoiseModel* noise_model_output,
       const gtsam::SharedNoiseModel& noise_model_input,
       const size_t& norm_type);
+
+  /* ------------------------------------------------------------------------ */
+  // Extract all lmk ids, wo repetition, from the set of planes.
+  void extractLmkIdsFromPlanes(const std::vector<Plane>& planes,
+                               LandmarkIds* lmk_ids_with_regularity) const;
+
+  /* ------------------------------------------------------------------------ */
+  // Update plane normal and distance if the plane could be found in the state.
+  // Otherwise, erase the plane.
+  void updatePlaneEstimates(std::vector<Plane>* planes);
+
 };
 
 } // namespace VIO

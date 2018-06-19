@@ -42,7 +42,7 @@ DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
                                  "0: VioBackEnd\n"
                                  "1: RegularVioBackEnd");
 DEFINE_bool(visualize, true, "Enable visualization.");
-DEFINE_int32(viz_type, 3,
+DEFINE_int32(viz_type, 0,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
   "1: POINTCLOUD_REPEATEDPOINTS, visualize VIO points as point clouds (points "
     "are re-plotted at every frame)\n"
@@ -195,8 +195,8 @@ int main(int argc, char *argv[]) {
 
   double startTime; // to log timing results
 
-  /// Lmk ids that are considered to be in the same cluster.
-  LandmarkIds mesh_lmk_ids_ground_cluster;
+  /// Set of planes in the scene.
+  std::vector<Plane> planes;
 
   // start actual processing of the dataset
   for(size_t k = initial_k; k < final_k; k++) { // for each image
@@ -435,7 +435,7 @@ int main(int argc, char *argv[]) {
               timestamp_k, // Current time for fixed lag smoother.
               statusSmartStereoMeasurements, // Vision data.
               imu_stamps, imu_accgyr, // Inertial data.
-              mesh_lmk_ids_ground_cluster,
+              &planes,
               stereoVisionFrontEnd.getRelativePoseBodyStereo()); // optional: pose estimate from stereo ransac
         VLOG(10) << "Finished addVisualInertialStateAndOptimize.";
       } else {
@@ -445,7 +445,7 @@ int main(int argc, char *argv[]) {
               timestamp_k,
               statusSmartStereoMeasurements,
               imu_stamps, imu_accgyr,
-              mesh_lmk_ids_ground_cluster); // Same but no pose.
+              &planes); // Same but no pose.
         VLOG(10) << "Finished addVisualInertialStateAndOptimize.";
       }
 
@@ -549,34 +549,25 @@ int main(int argc, char *argv[]) {
                 min_elongation_ratio, maxTriangleSide,
                 FLAGS_visualize);
 
+          // TODO Remove, just to keep functional pipeline.
+          //static const gtsam::Symbol plane_symbol ('P', 0);
+          //static const cv::Point3d plane_normal (0.0, 0.0, 1.0);
+          //static constexpr double plane_distance = 0.0;
+          //static Plane plane (plane_symbol,
+          //                    plane_normal,
+          //                    plane_distance);
+          //if (planes.size() == 0) {
+          //  // TODO remove hardcoded, just for visualization.
+          //  plane.triangle_cluster_.cluster_id_ = 2;
+          //  planes.push_back(plane);
+          //} else {
+          //  planes.at(0).normal_ = plane_normal; // Do not use normal estimate.
+          //}
+
           // Find regularities in the mesh.
           // Currently only triangles in the ground floor.
-          std::vector<TriangleCluster> triangle_clusters;
-          gtsam::OrientedPlane3 plane;
-          static constexpr bool use_expectation_maximization = true;
-          static constexpr bool use_normal_estimation = false;
-          static const gtsam::Point3 plane_normal (0.0, 0.0, 1.0);
-          if(use_expectation_maximization &&
-             vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-               gtsam::Symbol('P', 0).key(), &plane)) {
-            // Use the plane estimate of the backend.
-            // TODO this can lead to issues, when the plane estimate gets
-            // quite crazy, but at the same time it will avoid crashing the
-            // optimization, because otherwise we are providing huge outliers.
-            mesher.clusterMesh(&triangle_clusters,
-                               use_normal_estimation?plane.normal().point3():plane_normal,
-                               plane.distance());
-          } else {
-            // Try to cluster the ground plane.
-            static constexpr double plane_distance = -0.15;
-            mesher.clusterMesh(&triangle_clusters,
-                               plane_normal,
-                               plane_distance);
-          }
-
-
-          mesher.extractLmkIdsFromTriangleCluster(triangle_clusters.at(0),
-                                                  &mesh_lmk_ids_ground_cluster);
+          mesher.clusterPlanesFromMesh(&planes,
+                                       points_with_id_VIO);
 
           if (FLAGS_visualize) {
             VLOG(10) << "Starting mesh visualization...";
@@ -585,15 +576,15 @@ int main(int argc, char *argv[]) {
             mesher.getVerticesMesh(&vertices_mesh);
             mesher.getPolygonsMesh(&polygons_mesh);
 
+            static std::vector<Plane> planes_prev;
             static VioBackEnd::PointsWithIdMap points_with_id_VIO_prev;
             static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
             static cv::Mat vertices_mesh_prev;
             static cv::Mat polygons_mesh_prev;
-            static std::vector<TriangleCluster> triangle_clusters_prev;
 
             static constexpr bool visualize_mesh = true;
             if (visualize_mesh) {
-              visualizer.visualizeMesh3DWithColoredClusters(triangle_clusters_prev,
+              visualizer.visualizeMesh3DWithColoredClusters(planes_prev,
                                                             vertices_mesh_prev,
                                                             polygons_mesh_prev);
             }
@@ -604,62 +595,106 @@ int main(int argc, char *argv[]) {
                                            lmk_id_to_lmk_type_map_prev);
             }
 
-            static constexpr bool visualize_planes = true;
+            static constexpr bool visualize_convex_hull = false;
+            if (visualize_convex_hull) {
+              if (planes_prev.size() != 0) {
+                visualizer.visualizeConvexHull(planes_prev.at(0).triangle_cluster_,
+                                               vertices_mesh_prev,
+                                               polygons_mesh_prev);
+              }
+            }
+
             static constexpr bool visualize_plane_constraints = true;
-            if (visualize_planes) {
-              static const std::string plane_id = "Plane 0.";
-              static bool is_plane_in_window = false;
-              gtsam::OrientedPlane3 plane;
-              if (vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-                    gtsam::Symbol('P', 0).key(), &plane)) {
-                const Point3& normal = plane.normal().point3();
-                if (visualize_plane_constraints) {
-                  const gtsam::NonlinearFactorGraph& graph =
-                      vioBackEnd->smoother_->getFactors();
+            if (visualize_plane_constraints) {
+              const gtsam::NonlinearFactorGraph& graph =
+                  vioBackEnd->smoother_->getFactors();
+              LandmarkIds lmk_ids_in_current_pp_factors;
+              for (const auto& g : graph) {
+                const auto& ppf =
+                    boost::dynamic_pointer_cast<PointPlaneFactor>(g);
+                if (ppf) {
+                  // We found a PointPlaneFactor.
+                  // Get point key.
+                  Key point_key = ppf->getPointKey();
+                  LandmarkId lmk_id = gtsam::Symbol(point_key).index();
+                  lmk_ids_in_current_pp_factors.push_back(lmk_id);
+                  // Get point estimate.
+                  gtsam::Point3 point;
+                  CHECK(vioBackEnd->getEstimateOfKey(point_key, &point));
 
-                  LandmarkIds lmk_ids_in_current_pp_factors;
-                  for (const auto& g : graph) {
-                    const auto& ppf =
-                        boost::dynamic_pointer_cast<PointPlaneFactor>(g);
-                    if (ppf) {
-                      // We found a PointPlaneFactor.
-                      // Get point key.
-                      Key point_key = ppf->getPointKey();
-                      LandmarkId lmk_id = gtsam::Symbol(point_key).index();
-                      lmk_ids_in_current_pp_factors.push_back(lmk_id);
-                      // Get point estimate.
-                      gtsam::Point3 point;
-                      CHECK(vioBackEnd->getEstimateOfKey(point_key, &point));
-
-                      // Visualize.
-                      Key plane_key = ppf->getPlaneKey();
-                      CHECK(plane_key == gtsam::Symbol('P', 0).key());
-
+                  // Visualize.
+                  const Key& ppf_plane_key = ppf->getPlaneKey();
+                  for (const Plane& plane: planes) { // not sure, we are having some w planes_prev others with planes...
+                    if (ppf_plane_key == plane.getPlaneSymbol().key()) {
+                      gtsam::OrientedPlane3 current_plane_estimate;
+                      CHECK(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+                              ppf_plane_key, &current_plane_estimate));
+                      // WARNING assumes the backend updates normal and distance
+                      // of plane and that no one modifies it afterwards...
                       visualizer.visualizePlaneConstraints(
-                            normal, plane.distance(),
-                            lmk_id, point);
+                            plane.getPlaneSymbol().key(),
+                            current_plane_estimate.normal().point3(),
+                            current_plane_estimate.distance(), lmk_id, point);
+                      // Stop since there are not multiple planes for one
+                      // ppf.
+                      break;
                     }
                   }
-
-                  // Remove lines that are not representing a point plane factor
-                  // in the current graph.
-                  visualizer.removeOldLines(lmk_ids_in_current_pp_factors);
                 }
+              }
 
-                // Visualize plane.
-                visualizer.visualizePlane(plane_id,
-                                          normal.x(),
-                                          normal.y(),
-                                          normal.z(),
-                                          plane.distance());
-                is_plane_in_window = true;
-              } else {
-                if (visualize_plane_constraints) {
-                  visualizer.removePlaneConstraintsViz();
+              // Remove lines that are not representing a point plane factor
+              // in the current graph.
+              visualizer.removeOldLines(lmk_ids_in_current_pp_factors);
+            }
+
+            // Must go after visualize plane constraints.
+            static constexpr bool visualize_planes = true;
+            if (visualize_planes || visualize_plane_constraints) {
+              for (const Plane& plane: planes) {
+                const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
+                const std::uint64_t& plane_index = plane_symbol.index();
+                gtsam::OrientedPlane3 current_plane_estimate;
+                if (vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+                      plane_symbol.key(), &current_plane_estimate)) {
+                  const cv::Point3d& plane_normal_estimate =
+                      UtilsOpenCV::unit3ToPoint3d(
+                        current_plane_estimate.normal());
+                  CHECK(plane.normal_ == plane_normal_estimate);
+                  // We have the plane in the optimization.
+                  // Visualize plane.
+                  visualizer.visualizePlane(
+                        plane_index,
+                        plane_normal_estimate.x,
+                        plane_normal_estimate.y,
+                        plane_normal_estimate.z,
+                        current_plane_estimate.distance());
+                } else {
+                  // We could not find the plane in the optimization...
+                  // Careful cause we might enter here because there are new
+                  // segmented planes.
+                  // Delete the plane.
+                  LOG(ERROR) << "Remove plane viz for id:" << plane_index;
+                  if (visualize_plane_constraints) {
+                    visualizer.removePlaneConstraintsViz(plane_index);
+                  }
+                  visualizer.removePlane(plane_index);
                 }
-                if (is_plane_in_window) {
-                  visualizer.removeWidget(plane_id)?
-                        is_plane_in_window = false : is_plane_in_window = true;
+              }
+
+              // Also remove planes that were deleted by the backend...
+              for (const Plane& plane: planes_prev) {
+                const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
+                const std::uint64_t& plane_index = plane_symbol.index();
+                gtsam::OrientedPlane3 current_plane_estimate;
+                if (!vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
+                      plane_symbol.key(), &current_plane_estimate)) {
+                  // We could not find the plane in the optimization...
+                  // Delete the plane.
+                  if (visualize_plane_constraints) {
+                    visualizer.removePlaneConstraintsViz(plane_index);
+                  }
+                  visualizer.removePlane(plane_index);
                 }
               }
             }
@@ -668,9 +703,9 @@ int main(int argc, char *argv[]) {
             visualizer.renderWindow(1, true);
 
             // Store current mesh for display later.
+            planes_prev = planes;
             vertices_mesh_prev = vertices_mesh;
             polygons_mesh_prev = polygons_mesh;
-            triangle_clusters_prev = triangle_clusters;
             points_with_id_VIO_prev = points_with_id_VIO;
             lmk_id_to_lmk_type_map_prev = lmk_id_to_lmk_type_map;
             VLOG(10) << "Finished mesh visualization.";
@@ -709,8 +744,10 @@ int main(int argc, char *argv[]) {
         case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
           VioBackEnd::PointsWithIdMap pointsWithId;
           vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(&pointsWithId);
-          //mesher.updateMap3D(pointsWithId);
-          //visualizer.visualizePoints3D(pointsWithId, mesher.map_points_3d_);
+          // Do not color the cloud, send empty lmk id to lmk type map
+          static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+          visualizer.visualizePoints3D(pointsWithId,
+                                       lmk_id_to_lmk_type_map);
           break;
         }
 
@@ -740,6 +777,9 @@ int main(int argc, char *argv[]) {
     if (k == final_k - 1) {
       LOG(INFO) << "stereoVIOExample completed successfully!";
     }
+
+    // Loop visualization.
+    cv::waitKey(1);
   }
 
   if (FLAGS_log_output) {

@@ -355,7 +355,7 @@ public:
       const Timestamp& timestamp_kf_nsec,
       const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
       const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
-      const LandmarkIds& mesh_lmk_ids_ground_cluster,
+      std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   /* ------------------------------------------------------------------------ */

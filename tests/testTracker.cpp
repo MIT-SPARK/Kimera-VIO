@@ -93,9 +93,9 @@ void AddKeypointsVersorsToFrames(Frame* f_ref, Frame* f_cur,
   if (f_ref->landmarks_.size() == 0 && f_cur->landmarks_.size() == 0) {
     max_id = 0;
   } else {
-    vector<int>::iterator max_id_ref =
+    vector<LandmarkId>::iterator max_id_ref =
         max_element(f_ref->landmarks_.begin(), f_ref->landmarks_.end());
-    vector<int>::iterator max_id_cur =
+    vector<LandmarkId>::iterator max_id_cur =
         max_element(f_cur->landmarks_.begin(), f_cur->landmarks_.end());
     max_id = max(*max_id_ref, *max_id_cur);
   }
@@ -233,10 +233,10 @@ void AddVersorsToStereoFrames(StereoFrame* sf_ref, StereoFrame* sf_cur,
       sf_cur->left_frame_.landmarks_.size() == 0) {
     max_id = 0;
   } else {
-    vector<int>::iterator max_id_ref =
+    vector<LandmarkId>::iterator max_id_ref =
         max_element(sf_ref->left_frame_.landmarks_.begin(),
             sf_ref->left_frame_.landmarks_.end());
-    vector<int>::iterator max_id_cur =
+    vector<LandmarkId>::iterator max_id_cur =
         max_element(sf_cur->left_frame_.landmarks_.begin(),
             sf_cur->left_frame_.landmarks_.end());
     max_id = max(*max_id_ref, *max_id_cur);

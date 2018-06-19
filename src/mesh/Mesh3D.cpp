@@ -21,8 +21,8 @@ namespace VIO {
 Mesh3D::Mesh3D(const size_t& polygon_dimension)
   : vertex_to_lmk_id_map_(),
     lmk_id_to_vertex_map_(),
-    vertices_mesh_(cv::Mat(0, 1, CV_32FC3)),
-    polygons_mesh_(cv::Mat(0, 1, CV_32SC1)),
+    vertices_mesh_(0, 1, CV_32FC3),
+    polygons_mesh_(0, 1, CV_32SC1),
     polygon_dimension_(polygon_dimension) {
   CHECK_GE(polygon_dimension, 3) << "A polygon must have more than 2"
                                     " vertices";

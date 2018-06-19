@@ -118,6 +118,11 @@ stereoVIOEuroc:
 sed -i '1 i\%YAML:1.0' body.yaml
 sed -i '1 i\%YAML:1.0' */sensor.yaml
 ```
+You have two ways to start the example:
+- Using the script stereoVIOEuroc.bash:
+  -- You will need to first specify the DATASET_PATH variable inside the script.
+  -- Optionally, modify flag USE_REGULAR_VIO to 0 to run the normal VIO, or 1 to run the regular version of VIO (recommended: 0).
+  -- Then just execute the script ```./scripts/stereoVIOEuroc.bash```.
 - Execute ```stereoVIOEuroc {DATASET_PATH}``` located in your build folder, where ```{DATASET_PATH}``` is the path to a dataset.
 
 Tips for development

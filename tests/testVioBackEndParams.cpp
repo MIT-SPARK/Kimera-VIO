@@ -62,6 +62,7 @@ TEST(testVioBackEndParams, VioParseYAML) {
   EXPECT(vp.degeneracyMode_ == 2);
   EXPECT_DOUBLES_EQUAL(5, vp.smartNoiseSigma_, tol);
   EXPECT_DOUBLES_EQUAL(6, vp.monoNoiseSigma_, tol);
+  EXPECT_DOUBLES_EQUAL(3, vp.stereoNoiseSigma_, tol);
   EXPECT_DOUBLES_EQUAL(0.3, vp.regularityNoiseSigma_, tol);
   EXPECT(7 == vp.minPlaneConstraints_);
   EXPECT_DOUBLES_EQUAL(2.2, vp.huberParam_, tol);
