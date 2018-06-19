@@ -124,6 +124,9 @@ public:
   // then makes the difference and checks centers of countours to get maximums.
   bool getLocalMaximum2D(std::vector<PeakInfo2D>* peaks,
                          const cv::Size& smooth_size,
+                         int number_of_local_max = 2,
+                         int min_support = 30,
+                         int min_dist_btw_loc_max = 5,
                          bool visualize = false) const;
 
 private:

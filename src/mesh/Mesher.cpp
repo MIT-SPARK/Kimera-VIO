@@ -836,27 +836,52 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   static constexpr bool visualize_hist_2d = true;
   std::vector<Histogram::PeakInfo2D> peaks2;
   static const cv::Size kernel_size_2d (3, 3);
-  hist_2d.getLocalMaximum2D(&peaks2, kernel_size_2d, visualize_hist_2d);
+  static constexpr int number_of_local_max = 2;
+  static constexpr int min_support = 30;
+  static constexpr int min_dist_btw_loc_max = 5;
+  hist_2d.getLocalMaximum2D(&peaks2, kernel_size_2d,
+                            number_of_local_max,
+                            min_support,
+                            min_dist_btw_loc_max,
+                            visualize_hist_2d);
   VLOG(10) << "Finished get local maximum for 2D histogram.";
 
   VLOG(0) << "# of peaks in 2D histogram = " << peaks2.size();
   size_t i = 0;
   for (const Histogram::PeakInfo2D& peak: peaks2) {
-    VLOG(0)
-        << "Peak #" << i << " in bin with coords: "
-        << " x= " << peak.pos_.x << " y= " << peak.pos_.y
-        << ". So peak with theta = " << (peak.pos_.x * (theta_range[1] -
-                                         theta_range[0]) / theta_bins)
-        + theta_range[0]
-        << " and distance = " << (peak.pos_.y * (distance_range[1] -
+    double plane_theta = (peak.pos_.x * (theta_range[1] - theta_range[0])
+        / theta_bins) + theta_range[0];
+    double plane_distance = (peak.pos_.y * (distance_range[1] -
                                   distance_range[0]) / distance_bins)
         + distance_range[0];
+    cv::Point3f plane_normal (std::cos(plane_theta), std::sin(plane_theta), 0);
+    VLOG(0) << "Peak #" << i << " in bin with coords: "
+            << " x= " << peak.pos_.x << " y= " << peak.pos_.y
+            << ". So peak with theta = " << plane_theta
+            << " (normal: x= " << plane_normal.x
+            << " and y= " << plane_normal.y << " )"
+            << " and distance = " << plane_distance;
+
+    // WARNING we are not giving lmk ids to this plane!
+    // We should either completely customize the histogram calc to pass lmk ids
+    // or do another loop over the mesh to cluster new triangles.
+    const gtsam::Symbol plane_symbol ('P', *plane_id);
+    static constexpr int cluster_id = 1; // Only used for visualization. 1 = walls.
+    VLOG(10) << "Segmented a wall plane with:\n"
+             <<"\t normal: " << plane_normal
+             <<"\t distance: " << plane_distance
+            << "\n\t plane id: " << gtsam::DefaultKeyFormatter(plane_symbol.key())
+            << "\n\t cluster id: " << cluster_id;
+    wall_planes->push_back(Plane(plane_symbol,
+                                 plane_normal,
+                                 plane_distance,
+                                 // Currently filled after this function...
+                                 LandmarkIds(), // We should fill this!!!
+                                 cluster_id));
+    (*plane_id)++; // CRITICAL TO GET THIS RIGHT: ensure no duplicates,
+
     i++;
   }
-
-  // TODO fill wall_planes.
-  // Increase plane_id++;
-
 }
 
 /* -------------------------------------------------------------------------- */

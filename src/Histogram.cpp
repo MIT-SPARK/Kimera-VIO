@@ -270,6 +270,9 @@ std::vector<Histogram::PeakInfo> Histogram::getLocalMaximum1D(
 // Does not resize the peaks vector, so make sure it is empty before sending.
 bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
                                   const cv::Size& smooth_size,
+                                  int number_of_local_max,
+                                  int min_support,
+                                  int min_dist_btw_loc_max,
                                   bool visualize) const {
   CHECK_NOTNULL(peaks);
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
@@ -286,9 +289,6 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
   CHECK_GE(histogram_.cols, smooth_size.width);
   cv::GaussianBlur(histogram_, histogram_, smooth_size, 0);
 
-  static constexpr int number_of_local_max = 2;
-  static constexpr int min_support = 30;
-  static constexpr int min_dist_btw_loc_max = 5;
   int nr_of_maximums = imgRegionalMax(histogram_, number_of_local_max,
                                       min_support, min_dist_btw_loc_max,
                                       peaks);
