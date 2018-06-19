@@ -73,7 +73,6 @@ private:
   typedef std::map<LandmarkId, RegularityType> LmkIdToRegularityTypeMap;
   typedef std::map<PlaneId, LmkIdToRegularityTypeMap> PlaneIdToLmkIdRegType;
   PlaneIdToLmkIdRegType plane_id_to_lmk_id_reg_type_;
-  LmkIdToRegularityTypeMap lmk_id_to_regularity_type_map_;
   std::vector<size_t> delete_slots_of_converted_smart_factors_;
 
   // For Stereo and Projection factors.
@@ -124,11 +123,11 @@ private:
 
   /* ------------------------------------------------------------------------ */
   void removeOldRegularityFactors_Slow(
-      const gtsam::Symbol& plane_symbol,
-      const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
-      LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
-      const LandmarkIds& plane_lmk_ids,
-      std::vector<size_t>* delete_slots);
+    const std::vector<Plane>& planes,
+    const std::map<PlaneId, std::vector<std::pair<Slot, LandmarkId>>>&
+    map_idx_of_point_plane_factors_to_add,
+    PlaneIdToLmkIdRegType* plane_id_to_lmk_id_to_regularity_type_map,
+    std::vector<size_t>* delete_slots);
 
   /* ------------------------------------------------------------------------ */
   void fillDeleteSlots(
