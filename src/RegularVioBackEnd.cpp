@@ -188,39 +188,38 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         if (planes->size() > 0) {
           /////////////////// REGULARITY FACTORS ///////////////////////////////////////
           // Add regularity factor on vertices of the mesh.
-          // TODO argument should be generalized to diff
-          // type of cluster and regularities.
-          // TODO FOR NOW ONLY ADD FIRST PLANE.
           // WARNING if a plane has been removed by the mesher, then we will not
           // remove the plane from the optimization, since it won't be in planes.
+          std::map<PlaneId, std::vector<std::pair<Slot, LandmarkId>>>
+              idx_of_point_plane_factors_to_add;
           for(const Plane& plane: *planes) {
             const PlaneId& plane_key = plane.getPlaneSymbol().key();
 
-            std::vector<std::pair<Slot, LandmarkId>> idx_of_point_plane_factors_to_add;
             VLOG(0) << "Adding regularity factors.";
             addRegularityFactors(
                   plane,
                   // Creates a new entry if the plane key was not found.
+                  // So make sure you use [plane_key] instead of .at(plane_key).
                   &(plane_id_to_lmk_id_reg_type_[plane_key]),
-                  &idx_of_point_plane_factors_to_add);
+                  &(idx_of_point_plane_factors_to_add[plane_key]));
             VLOG(0) << "Finished adding regularity factors.";
 
-            if (remove_old_reg_factors) {
-              VLOG(0) << "Removing old regularity factors.";
-              std::vector<size_t> delete_old_regularity_factors;
-              removeOldRegularityFactors_Slow(
-                    plane.getPlaneSymbol(),
-                    idx_of_point_plane_factors_to_add,
-                    &(plane_id_to_lmk_id_reg_type_[plane_key]),
-                    plane.lmk_ids_,
-                    &delete_old_regularity_factors);
-              VLOG(0) << "Finished removing old regularity factors.";
-              if (delete_old_regularity_factors.size() > 0) {
-                delete_slots.insert(delete_slots.end(),
-                                    delete_old_regularity_factors.begin(),
-                                    delete_old_regularity_factors.end());
-              }
+          }
+
+          if (remove_old_reg_factors) {
+            VLOG(0) << "Removing old regularity factors.";
+            std::vector<size_t> delete_old_regularity_factors;
+            removeOldRegularityFactors_Slow(
+                  *planes,
+                  idx_of_point_plane_factors_to_add,
+                  &plane_id_to_lmk_id_reg_type_,
+                  &delete_old_regularity_factors);
+            if (delete_old_regularity_factors.size() > 0) {
+              delete_slots.insert(delete_slots.end(),
+                                  delete_old_regularity_factors.begin(),
+                                  delete_old_regularity_factors.end());
             }
+            VLOG(0) << "Finished removing old regularity factors.";
           }
         } else {
           // TODO shouldn't we "removeOldRegularityFactors_Slow" because there
@@ -1003,37 +1002,60 @@ void RegularVioBackEnd::addRegularityFactors(
 
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::removeOldRegularityFactors_Slow(
-    const gtsam::Symbol& plane_symbol,
-    const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
-    LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
-    const LandmarkIds& plane_lmk_ids,
+    const std::vector<Plane>& planes,
+    const std::map<PlaneId, std::vector<std::pair<Slot, LandmarkId>>>&
+    map_idx_of_point_plane_factors_to_add,
+    PlaneIdToLmkIdRegType* plane_id_to_lmk_id_to_reg_type_map,
     std::vector<size_t>* delete_slots) {
-  CHECK_NOTNULL(lmk_id_to_regularity_type_map);
+  CHECK_NOTNULL(plane_id_to_lmk_id_to_reg_type_map);
   CHECK_NOTNULL(delete_slots);
-  delete_slots->resize(0);
 
-  CHECK(!(state_.exists(plane_symbol.key()) &&
-        new_values_.exists(plane_symbol.key())))
-      << "Inconsistency: plane is in current state,"
-         " but it is going to be added.";
-  if (!state_.exists(plane_symbol.key())) {
-    // The plane is not in the state, it is probably going to be added in
-    // this iteration, so it must be already well constrained and attached
-    // to the right lmks.
-    // Or it could be that it is not going to be added at all, so we
-    // do not need to do anything.
-    VLOG(0) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
-             << " is not in state, skipping removeOldRegularityFactors.";
-    return; // Leave this function.
-  }
+  std::vector<size_t> plane_idx_to_clean;
+  std::map<size_t, std::vector<std::pair<Slot, LandmarkId>>>
+      plane_id_to_factor_slots_bad;
+  std::map<size_t, std::vector<std::pair<Slot, LandmarkId>>>
+      plane_id_to_factor_slots_good;
+  std::map<size_t, bool> has_plane_a_prior_map;
+  std::map<size_t, bool> has_plane_a_linear_factor_map;
+  std::map<size_t, Slot> plane_prior_slot_map;
+  size_t i = 0;
+  for (const Plane& plane: planes) {
+    const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
+    CHECK(!(state_.exists(plane_symbol.key()) &&
+            new_values_.exists(plane_symbol.key())))
+        << "Inconsistency: plane is in current state,"
+           " but it is going to be added.";
+    if (!state_.exists(plane_symbol.key())) {
+      // The plane is not in the state, it is probably going to be added in
+      // this iteration, so it must be already well constrained and attached
+      // to the right lmks.
+      // Or it could be that it is not going to be added at all, so we
+      // do not need to do anything.
+      VLOG(0) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
+              << " is not in state.";
+      i++;
+      continue;
+    }
 
-  if (new_values_.exists(plane_symbol.key())) {
-    // The plane is not in the state, and it is going to be added in
-    // this iteration, so it must be already well constrained and attached
-    // to the right lmks.
-    VLOG(0) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
-            << " is in new_values_, skipping removeOldRegularityFactors.";
-    return;
+    if (new_values_.exists(plane_symbol.key())) {
+      // The plane is not in the state, and it is going to be added in
+      // this iteration, so it must be already well constrained and attached
+      // to the right lmks.
+      VLOG(0) << "Plane with id " << gtsam::DefaultKeyFormatter(plane_symbol)
+              << " is in new_values_.";
+      i++;
+      continue;
+    }
+
+    plane_idx_to_clean.push_back(i);
+    // Init data structures empty, by using [] instead of .at().
+    plane_id_to_factor_slots_bad[i];
+    plane_id_to_factor_slots_good[i];
+    has_plane_a_prior_map[i] = false;
+    has_plane_a_linear_factor_map[i] = false;
+    plane_prior_slot_map[i] = 0; // Set as invalid slot.
+
+    i++;
   }
 
   VLOG(10) << "Starting removeOldRegularityFactors_Slow...";
@@ -1042,79 +1064,69 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   // then let us remove old regularity factors.
   const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
   Slot slot = 0;
-  std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_bad;
-  std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_good;
-  bool has_plane_a_prior = false;
-  bool has_plane_a_linear_factor = false;
-  Slot plane_prior_slot = 0; // Set as invalid slot.
   // Loop over current graph.
-  // TODO this loop is very expensive for multiple planes...
   for (const auto& g: graph) {
     if (g) {
       const auto& ppf =
           boost::dynamic_pointer_cast<gtsam::PointPlaneFactor>(g);
-      // Check for priors attached to the plane.
-      const auto& plane_prior = boost::dynamic_pointer_cast<
-                                gtsam::PriorFactor<gtsam::OrientedPlane3>>(g);
-      // Check for linear container factors having the plane.
-      const auto& lcf = boost::dynamic_pointer_cast<
-                        gtsam::LinearContainerFactor>(g);
+      const auto& plane_prior =
+          boost::dynamic_pointer_cast<gtsam::PriorFactor<gtsam::OrientedPlane3>>(g);
+      const auto& lcf =
+          boost::dynamic_pointer_cast<gtsam::LinearContainerFactor>(g);
       if (ppf) {
         // We found a PointPlaneFactor.
-        if (plane_symbol.key() == ppf->getPlaneKey()) {
-          // We found a PointPlaneFactor that involves our plane.
-          // Get point symbol.
-          gtsam::Symbol point_symbol (ppf->getPointKey());
-          // Get lmk id of this point.
-          LandmarkId lmk_id = point_symbol.index();
-          // Find this lmk id in the set of regularities.
-          if (std::find(plane_lmk_ids.begin(),
-                        plane_lmk_ids.end(), lmk_id) == plane_lmk_ids.end()) {
-            // We did not find the point in mesh_lmk_ids, therefore it should
-            // not be involved in a regularity anymore, delete this slot.
-            // (but I want to remove the landmark! and all its factors,
-            // to avoid having underconstrained lmks...)
-            VLOG(20) << "Found bad point plane factor on lmk with id: "
-                     << point_symbol.index();
-            point_plane_factor_slots_bad.push_back(
-                  std::make_pair(slot, lmk_id));
+        for (const size_t& plane_id: plane_idx_to_clean) {
+          const gtsam::Symbol& plane_symbol =
+              planes.at(plane_id).getPlaneSymbol().key();
+          if (plane_symbol ==
+              ppf->getPlaneKey()) {
+            // We found the plane involved in current PointPlaneFactor.
+            const LandmarkId& lmk_id = gtsam::Symbol(ppf->getPointKey()).index();
+            const LandmarkIds& plane_lmk_ids = planes.at(plane_id).lmk_ids_;
+            // Try to find this lmk id in the set of lmks of the plane.
+            if (std::find(plane_lmk_ids.begin(),
+                          plane_lmk_ids.end(), lmk_id) == plane_lmk_ids.end()) {
+              // We did not find the point in plane's lmks, therefore it should
+              // not be involved in a regularity anymore, delete this slot.
+              // (but I want to remove the landmark! and all its factors,
+              // to avoid having underconstrained lmks...)
+              VLOG(20) << "Found bad point plane factor on lmk with id: "
+                       << lmk_id;
+              plane_id_to_factor_slots_bad.at(plane_id).push_back(
+                    std::make_pair(slot, lmk_id));
 
-            // Before deleting this slot, we must ensure that both the plane
-            // and the landmark are well constrained!
-          } else {
-            // Store those factors that we will potentially keep.
-            point_plane_factor_slots_good.push_back(
-                  std::make_pair(slot, lmk_id));
+              // Before deleting this slot, we must ensure that both the plane
+              // and the landmark are well constrained!
+            } else {
+              // Store those factors that we will potentially keep.
+              plane_id_to_factor_slots_good.at(plane_id).push_back(
+                    std::make_pair(slot, lmk_id));
+            }
           }
-        } else {
-          VLOG_EVERY_N(0, 20) << "Plane keys do not match:\n"
-                      "Removing old regularity factors for plane: "
-                   << gtsam::DefaultKeyFormatter(plane_symbol.key())
-                   << "\n But current point plane factor is for plane: "
-                   << gtsam::DefaultKeyFormatter(ppf->getPlaneKey());
         }
       } else if (plane_prior) {
-        if (plane_prior->find(plane_symbol.key()) != plane_prior->end()) {
-          LOG(WARNING) << "Found plane prior factor for plane: "
-                       << gtsam::DefaultKeyFormatter(plane_symbol.key());
-          // Store slot of plane_prior, since we might have to delete it
-          // if the plane has no constraints.
-          // Ensure the plane has not two priors or more.
-          CHECK(!has_plane_a_prior);
-          plane_prior_slot = slot;
-          has_plane_a_prior = true;
+        for (const size_t& plane_idx: plane_idx_to_clean) {
+          const gtsam::Symbol& plane_symbol =
+              planes.at(plane_idx).getPlaneSymbol().key();
+          if (plane_prior->find(plane_symbol) != plane_prior->end()) {
+            LOG(WARNING) << "Found plane prior for plane: "
+                         << gtsam::DefaultKeyFormatter(plane_symbol.key());
+            // Store slot of plane_prior, since we might have to delete it
+            // if the plane has no constraints.
+            plane_prior_slot_map.at(plane_idx) = slot;
+            has_plane_a_prior_map.at(plane_idx) = true;
+          }
         }
       } else if (lcf) {
-        if (lcf->find(plane_symbol.key()) != lcf->end()) {
-          VLOG(10) << "Found linear container factor for plane: "
-                   << gtsam::DefaultKeyFormatter(plane_symbol.key());
-          CHECK(!has_plane_a_linear_factor);
-          has_plane_a_linear_factor = true;
+        for (const size_t& plane_idx: plane_idx_to_clean) {
+          const gtsam::Symbol& plane_symbol =
+              planes.at(plane_idx).getPlaneSymbol().key();
+          if (lcf->find(plane_symbol.key()) != lcf->end()) {
+            VLOG(10) << "Found linear container factor for plane: "
+                     << gtsam::DefaultKeyFormatter(plane_symbol.key());
+            has_plane_a_linear_factor_map.at(plane_idx) = true;
+          }
         }
-      } else {
-        // Sanity check that we are not forgetting a factor with the plane key...
-        CHECK(std::find(g->keys().begin(), g->keys().end(),
-                        plane_symbol.key()) == g->keys().end());
       }
     }
 
@@ -1126,150 +1138,167 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   // or whether we need to delete all the factors involving the plane
   // so that it is removed.
   // For this we need to check if the plane is fully constrained!
-
-  /// If there are enough new constraints to be added then delete only delete_slots
-  /// else, if there are enough constraints left, only delete delete_slots
-  /// otherwise delete ALL constraints, both old and new, so that the plane
-  /// disappears (take into account priors!).
-  /// Priors affecting planes: linear container factor & prior on OrientedPlane3
-  static constexpr size_t min_num_of_constraints = 10;
-  size_t total_nr_of_plane_constraints =
-      point_plane_factor_slots_good.size() +
-      idx_of_point_plane_factors_to_add.size();
-  VLOG(10) << "Total number of constraints of plane "
-           << gtsam::DefaultKeyFormatter(plane_symbol.key()) << " is: "
-           << total_nr_of_plane_constraints << "\n"
-           << "\tConstraints in graph which are good: "
-           << point_plane_factor_slots_good.size() << "\n"
-           << "\tConstraints that are going to be added: "
-           << idx_of_point_plane_factors_to_add.size() << "\n"
-           << "Constraints in graph which are bad: "
-           << point_plane_factor_slots_bad.size() << "\n"
-           << "Has the plane a prior? "
-           << (has_plane_a_prior? "Yes" : "No") << ".\n"
-           << "Has the plane a linear factor? "
-           << (has_plane_a_linear_factor? "Yes" : "No") << ".";
-  if (total_nr_of_plane_constraints > min_num_of_constraints) {
-    // The plane is fully constrained.
-    // We can just delete bad factors, assuming lmks will be well constrained.
-    // TODO ensure the lmks are themselves well constrained.
-    VLOG(10) << "Plane is fully constrained, removing only bad factors.";
-    fillDeleteSlots(point_plane_factor_slots_bad,
-                    lmk_id_to_regularity_type_map,
-                    delete_slots);
-  } else {
-    // The plane is NOT fully constrained if we remove all bad factors,
-    // unless the plane has a prior.
-    // Check if the plane has a prior.
-    VLOG(10) << "Plane is NOT fully constrained if we just remove"
-                " the bad factors.";
-    if (has_plane_a_prior || has_plane_a_linear_factor) {
-      // The plane has a prior.
-      VLOG(10) << "Plane has a prior.";
-      // TODO Remove: this is just a patch to avoid issue 32:
-      // https://github.mit.edu/lcarlone/VIO/issues/32
-      static constexpr bool use_unstable = false;
-      if (use_unstable) {
-        // This should be the correct way to do it, but a bug in gtsam will make
-        // the optimization break.
-        if (total_nr_of_plane_constraints == 0 &&
-            has_plane_a_prior &&
-            !has_plane_a_linear_factor) {
-          // Not only the plane is not fully constrained, it has no constraints
-          // at all, and we are going to delete the bad ones, so plane floating
-          // with a plane prior, not attached to anything else...
-          // Delete the prior as well, to get rid of this plane.
-          LOG(ERROR) << "Plane has no constraints at all, deleting prior as well.";
-          CHECK_NE(plane_prior_slot, 0);
-          delete_slots->push_back(plane_prior_slot);
-        }
-      } else {
-        // This is just a patch...
-        // TODO maybe if we are deleting too much constraints, add a no information
-        // factor btw the plane and a lmk!
-        static constexpr size_t min_num_of_constraints_to_avoid_seg_fault = 3;
-        if (total_nr_of_plane_constraints >
-            min_num_of_constraints_to_avoid_seg_fault) {
-          // Delete just the bad factors, since we still have some factors
-          // that won't make the optimizer try to delete the plane variable,
-          // which at the current time breaks gtsam.
-          VLOG(10) << "Delete bad factors attached to plane.";
-          fillDeleteSlots(point_plane_factor_slots_bad,
-                          lmk_id_to_regularity_type_map,
-                          delete_slots);
-        } else {
-          // Do not delete all factors, otherwise gtsam will break.
-          VLOG(10) << "Not deleting bad factors attached to plane, or gtsam will "
-                      "break.";
-        }
-      }
+  for (const size_t& plane_idx: plane_idx_to_clean) {
+    const gtsam::Symbol& plane_symbol =
+        planes.at(plane_idx).getPlaneSymbol().key();
+    const std::vector<std::pair<Slot, LandmarkId>>& point_plane_factor_slots_bad =
+        plane_id_to_factor_slots_bad.at(plane_idx);
+    const std::vector<std::pair<Slot, LandmarkId>>& point_plane_factor_slots_good =
+        plane_id_to_factor_slots_good.at(plane_idx);
+    DCHECK(map_idx_of_point_plane_factors_to_add.find(plane_symbol.key()) !=
+        map_idx_of_point_plane_factors_to_add.end());
+    const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add
+        = map_idx_of_point_plane_factors_to_add.at(plane_symbol.key());
+    DCHECK(plane_id_to_lmk_id_to_reg_type_map->find(plane_symbol.key()) !=
+        plane_id_to_lmk_id_to_reg_type_map->end());
+    LmkIdToRegularityTypeMap& lmk_id_to_regularity_type_map =
+        (*plane_id_to_lmk_id_to_reg_type_map).at(plane_symbol.key());
+    const bool& has_plane_a_prior =
+        has_plane_a_prior_map.at(plane_idx);
+    const bool& has_plane_a_linear_factor =
+        has_plane_a_linear_factor_map.at(plane_idx);
+    const size_t& plane_prior_slot =
+        plane_prior_slot_map.at(plane_idx);
+    /// If there are enough new constraints to be added then delete only delete_slots
+    /// else, if there are enough constraints left, only delete delete_slots
+    /// otherwise delete ALL constraints, both old and new, so that the plane
+    /// disappears (take into account priors!).
+    /// Priors affecting planes: linear container factor & prior on OrientedPlane3
+    static constexpr size_t min_num_of_constraints = 10;
+    size_t total_nr_of_plane_constraints =
+        point_plane_factor_slots_bad.size() +
+        idx_of_point_plane_factors_to_add.size();
+    VLOG(10) << "Total number of constraints of plane "
+             << gtsam::DefaultKeyFormatter(plane_symbol.key()) << " is: "
+             << total_nr_of_plane_constraints << "\n"
+             << "\tConstraints in graph which are good: "
+             << point_plane_factor_slots_good.size() << "\n"
+             << "\tConstraints that are going to be added: "
+             << idx_of_point_plane_factors_to_add.size() << "\n"
+             << "Constraints in graph which are bad: "
+             << point_plane_factor_slots_bad.size() << "\n"
+             << "Has the plane a prior? "
+             << (has_plane_a_prior? "Yes" : "No") << ".\n"
+             << "Has the plane a linear factor? "
+             << (has_plane_a_linear_factor? "Yes" : "No") << ".";
+    if (total_nr_of_plane_constraints > min_num_of_constraints) {
+      // The plane is fully constrained.
+      // We can just delete bad factors, assuming lmks will be well constrained.
+      // TODO ensure the lmks are themselves well constrained.
+      VLOG(10) << "Plane is fully constrained, removing only bad factors.";
+      fillDeleteSlots(point_plane_factor_slots_bad,
+                      &lmk_id_to_regularity_type_map,
+                      delete_slots);
     } else {
-      // The plane has NOT a prior.
-      static constexpr bool use_unstable = false;
-      if (use_unstable) {
-        // Delete all factors involving the plane so that iSAM removes the plane
-        // from the optimization.
-        LOG(ERROR) << "Plane has no prior, trying to forcefully"
-                      " remove the PLANE!";
-        DEBUG_ = true;
-        std::vector<std::pair<Slot, LandmarkId>> point_plane_factor_slots_all (
-              point_plane_factor_slots_bad);
-        if (point_plane_factor_slots_good.size() > 0) {
-          point_plane_factor_slots_all.insert(point_plane_factor_slots_all.end(),
-                                              point_plane_factor_slots_good.begin(),
-                                              point_plane_factor_slots_good.end());
-        }
-        fillDeleteSlots(point_plane_factor_slots_all,
-                        lmk_id_to_regularity_type_map,
-                        delete_slots);
-
-        // Remove as well the factors that are going to be added in this iteration.
-        deleteNewSlots(
-              plane_symbol.key(),
-              idx_of_point_plane_factors_to_add,
-              lmk_id_to_regularity_type_map,
-              &new_imu_prior_and_other_factors_);
-      } else {
-        // Do not use unstable implementation...
-        // Just add a prior on the plane and remove only bad factors...
-        // Add a prior to the plane.
-        VLOG(0) << "Adding a prior to the plane, delete just the bad factors.";
-        gtsam::OrientedPlane3 plane_estimate;
-        CHECK(getEstimateOfKey(plane_symbol.key(), &plane_estimate));
-        LOG(WARNING) << "Using plane prior on plane with id "
-                     << gtsam::DefaultKeyFormatter(plane_symbol);
-        CHECK(!has_plane_a_prior && !has_plane_a_linear_factor)
-            << "Check that the plane has no prior.";
-        static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise =
-            gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
-        new_imu_prior_and_other_factors_.push_back(
-              boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3>>(
-                plane_symbol.key(),
-                plane_estimate,
-                prior_noise));
-
-        // Delete just the bad factors.
+      // The plane is NOT fully constrained if we remove all bad factors,
+      // unless the plane has a prior.
+      // Check if the plane has a prior.
+      VLOG(10) << "Plane is NOT fully constrained if we just remove"
+                  " the bad factors.";
+      if (has_plane_a_prior ||
+          has_plane_a_linear_factor) {
+        // The plane has a prior.
+        VLOG(10) << "Plane has a prior.";
         // TODO Remove: this is just a patch to avoid issue 32:
         // https://github.mit.edu/lcarlone/VIO/issues/32
-        static constexpr size_t min_num_of_constraints_to_avoid_seg_fault = 3;
-        if (total_nr_of_plane_constraints >
-            min_num_of_constraints_to_avoid_seg_fault) {
-          // Delete just the bad factors, since we still have some factors
-          // that won't make the optimizer try to delete the plane variable,
-          // which at the current time breaks gtsam.
-          VLOG(10) << "Delete bad factors attached to plane.";
-          fillDeleteSlots(point_plane_factor_slots_bad,
-                          lmk_id_to_regularity_type_map,
-                          delete_slots);
+        static constexpr bool use_unstable = false;
+        if (use_unstable) {
+          // This should be the correct way to do it, but a bug in gtsam will make
+          // the optimization break.
+          if (total_nr_of_plane_constraints == 0 &&
+              has_plane_a_prior &&
+              !has_plane_a_linear_factor) {
+            // Not only the plane is not fully constrained, it has no constraints
+            // at all, and we are going to delete the bad ones, so plane floating
+            // with a plane prior, not attached to anything else...
+            // Delete the prior as well, to get rid of this plane.
+            LOG(ERROR) << "Plane has no constraints at all, deleting prior as well.";
+            CHECK_NE(plane_prior_slot, 0);
+            delete_slots->push_back(plane_prior_slot);
+          }
         } else {
-          // Do not delete all factors, otherwise gtsam will break.
-          VLOG(10) << "Not deleting bad factors attached to plane, or gtsam will "
-                      "break.";
+          // This is just a patch...
+          // TODO maybe if we are deleting too much constraints, add a no information
+          // factor btw the plane and a lmk!
+          static constexpr size_t min_num_of_constraints_to_avoid_seg_fault = 3;
+          if (total_nr_of_plane_constraints >
+              min_num_of_constraints_to_avoid_seg_fault) {
+            // Delete just the bad factors, since we still have some factors
+            // that won't make the optimizer try to delete the plane variable,
+            // which at the current time breaks gtsam.
+            VLOG(10) << "Delete bad factors attached to plane.";
+            fillDeleteSlots(point_plane_factor_slots_bad,
+                            &lmk_id_to_regularity_type_map,
+                            delete_slots);
+          } else {
+            // Do not delete all factors, otherwise gtsam will break.
+            VLOG(10) << "Not deleting bad factors attached to plane, or gtsam will "
+                        "break.";
+          }
         }
-      }
-    } // The plane has NOT a prior.
-  } // The plane is NOT fully constraint.
+      } else {
+        // The plane has NOT a prior.
+        static constexpr bool use_unstable = false;
+        if (use_unstable) {
+          // Delete all factors involving the plane so that iSAM removes the plane
+          // from the optimization.
+          LOG(ERROR) << "Plane has no prior, trying to forcefully"
+                        " remove the PLANE!";
+          DEBUG_ = true;
+          fillDeleteSlots(point_plane_factor_slots_bad,
+                          &lmk_id_to_regularity_type_map,
+                          delete_slots);
+          fillDeleteSlots(point_plane_factor_slots_good,
+                          &lmk_id_to_regularity_type_map,
+                          delete_slots);
 
+          // Remove as well the factors that are going to be added in this iteration.
+          deleteNewSlots(
+                plane_symbol.key(),
+                idx_of_point_plane_factors_to_add,
+                &lmk_id_to_regularity_type_map,
+                &new_imu_prior_and_other_factors_);
+        } else {
+          // Do not use unstable implementation...
+          // Just add a prior on the plane and remove only bad factors...
+          // Add a prior to the plane.
+          VLOG(0) << "Adding a prior to the plane, delete just the bad factors.";
+          gtsam::OrientedPlane3 plane_estimate;
+          CHECK(getEstimateOfKey(plane_symbol.key(), &plane_estimate));
+          LOG(WARNING) << "Using plane prior on plane with id "
+                       << gtsam::DefaultKeyFormatter(plane_symbol);
+          CHECK(!has_plane_a_prior && !has_plane_a_linear_factor)
+              << "Check that the plane has no prior.";
+          static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise =
+              gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
+          new_imu_prior_and_other_factors_.push_back(
+                boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3>>(
+                  plane_symbol.key(),
+                  plane_estimate,
+                  prior_noise));
+
+          // Delete just the bad factors.
+          // TODO Remove: this is just a patch to avoid issue 32:
+          // https://github.mit.edu/lcarlone/VIO/issues/32
+          static constexpr size_t min_num_of_constraints_to_avoid_seg_fault = 3;
+          if (total_nr_of_plane_constraints >
+              min_num_of_constraints_to_avoid_seg_fault) {
+            // Delete just the bad factors, since we still have some factors
+            // that won't make the optimizer try to delete the plane variable,
+            // which at the current time breaks gtsam.
+            VLOG(10) << "Delete bad factors attached to plane.";
+            fillDeleteSlots(point_plane_factor_slots_bad,
+                            &lmk_id_to_regularity_type_map,
+                            delete_slots);
+          } else {
+            // Do not delete all factors, otherwise gtsam will break.
+            VLOG(10) << "Not deleting bad factors attached to plane, or gtsam will "
+                        "break.";
+          }
+        }
+      } // The plane has NOT a prior.
+    } // The plane is NOT fully constraint.
+  }
   //  // TODO now the plane could be floating around with a prior attached, but
   //  // not really attached to the rest of the graph...
 
@@ -1304,9 +1333,11 @@ void RegularVioBackEnd::fillDeleteSlots(
   CHECK_NOTNULL(lmk_id_to_regularity_type_map);
   CHECK_NOTNULL(delete_slots);
   VLOG(10) << "Starting fillDeleteSlots...";
-  delete_slots->resize(point_plane_factor_slots_bad.size());
-  size_t i = 0;
   if (point_plane_factor_slots_bad.size() > 0) {
+    size_t prev_delete_slots_size = delete_slots->size();
+    delete_slots->resize(prev_delete_slots_size +
+                         point_plane_factor_slots_bad.size());
+    size_t i = prev_delete_slots_size;
     for (const std::pair<Slot, LandmarkId>& ppf_bad:
          point_plane_factor_slots_bad) {
       CHECK_LT(i, delete_slots->size());
