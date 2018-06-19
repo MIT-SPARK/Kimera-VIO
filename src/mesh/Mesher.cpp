@@ -833,21 +833,22 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   //cv::GaussianBlur(histImg, histImg, cv::Size(9, 9), 0);
   ///
   VLOG(10) << "Starting get local maximum for 2D histogram...";
-  static constexpr bool visualize_hist_2d = false;
-  std::vector<cv::Point> peaks2 = hist_2d.getLocalMaximum2D(8,
-                                                            visualize_hist_2d);
+  static constexpr bool visualize_hist_2d = true;
+  std::vector<Histogram::PeakInfo2D> peaks2;
+  static const cv::Size kernel_size_2d (3, 3);
+  hist_2d.getLocalMaximum2D(&peaks2, kernel_size_2d, visualize_hist_2d);
   VLOG(10) << "Finished get local maximum for 2D histogram.";
 
-  VLOG(10) << "# of peaks in 2D histogram = " << peaks2.size();
+  VLOG(0) << "# of peaks in 2D histogram = " << peaks2.size();
   size_t i = 0;
-  for (const cv::Point& peak: peaks2) {
-    VLOG(10)
+  for (const Histogram::PeakInfo2D& peak: peaks2) {
+    VLOG(0)
         << "Peak #" << i << " in bin with coords: "
-        << " x= " << peak.x << " y= " << peak.y
-        << ". So peak with theta = " << (peak.x/10 * (theta_range[1] -
+        << " x= " << peak.pos_.x << " y= " << peak.pos_.y
+        << ". So peak with theta = " << (peak.pos_.x * (theta_range[1] -
                                          theta_range[0]) / theta_bins)
         + theta_range[0]
-        << " and distance = " << (peak.y/10 * (distance_range[1] -
+        << " and distance = " << (peak.pos_.y * (distance_range[1] -
                                   distance_range[0]) / distance_bins)
         + distance_range[0];
     i++;
@@ -911,10 +912,10 @@ void Mesher::segmentHorizontalPlanes(
        peak_it != peaks.end();) {
     // Make sure it is below min possible value for distance.
     double plane_distance =
-        (peak_it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
-    VLOG(10) << "Peak #" << i << " in bin " << peak_it->pos
+        (peak_it->pos_ * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
+    VLOG(10) << "Peak #" << i << " in bin " << peak_it->pos_
              << " has distance = " << plane_distance
-             << " with a support of " << peak_it->value << " points";
+             << " with a support of " << peak_it->value_ << " points";
 
     // Remove duplicates, and, for peaks that are too close, take the one with
     // maximum support.
@@ -923,15 +924,15 @@ void Mesher::segmentHorizontalPlanes(
     if (i > 0 && *peak_it == peaks.at(i - 1)) {
       // Repeated element, delete it.
       LOG(WARNING) << "Deleting repeated peak for peak # " << i << " in bin "
-                   << peak_it->pos;
+                   << peak_it->pos_;
       peak_it = peaks.erase(peak_it);
       i--;
     } else if (i > 0 && std::fabs(previous_plane_distance - plane_distance) <
                min_plane_separation) {
       // Not enough separation between planes, delete the one with less support.
-      if (previous_peak_it->value < peak_it->value) {
+      if (previous_peak_it->value_ < peak_it->value_) {
         // Delete previous_peak.
-        LOG(WARNING) << "Deleting peak in bin " << previous_peak_it->pos;
+        LOG(WARNING) << "Deleting peak in bin " << previous_peak_it->pos_;
         //Iterators, pointers and references pointing to position (or first) and
         // beyond are invalidated, with all iterators, pointers and references
         // to elements before position (or first) are guaranteed to keep
@@ -942,7 +943,7 @@ void Mesher::segmentHorizontalPlanes(
       } else {
         // Delete peak_it.
         LOG(WARNING) << "Deleting too close peak # " << i << " in bin "
-                     << peak_it->pos;
+                     << peak_it->pos_;
         peak_it = peaks.erase(peak_it);
         i--;
       }
@@ -962,7 +963,7 @@ void Mesher::segmentHorizontalPlanes(
         std::max_element(peaks.begin(), peaks.end());
     if (it != peaks.end()) {
       double plane_distance =
-          (it->pos * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
+          (it->pos_ * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
       // WARNING we are not giving lmk ids to this plane!
       // We should either completely customize the histogram calc to pass lmk ids
       // or do another loop over the mesh to cluster new triangles.
