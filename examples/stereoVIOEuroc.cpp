@@ -663,12 +663,15 @@ int main(int argc, char *argv[]) {
                   CHECK(plane.normal_ == plane_normal_estimate);
                   // We have the plane in the optimization.
                   // Visualize plane.
+                  static constexpr bool visualize_plane_label = true;
                   visualizer.visualizePlane(
                         plane_index,
                         plane_normal_estimate.x,
                         plane_normal_estimate.y,
                         plane_normal_estimate.z,
-                        current_plane_estimate.distance());
+                        current_plane_estimate.distance(),
+                        visualize_plane_label,
+                        plane.triangle_cluster_.cluster_id_);
                 } else {
                   // We could not find the plane in the optimization...
                   // Careful cause we might enter here because there are new
