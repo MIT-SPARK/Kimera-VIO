@@ -5,7 +5,7 @@
 DATASET_PATH="/home/tonirv/datasets/EuRoC/V1_01_easy"
 
 # 1 to use regular vio, 0 to use normal vio with default parameters.
-USE_REGULAR_VIO=1
+USE_REGULAR_VIO=0
 
 ###################################################################
 # Change directory to parent path, in order to make this script
