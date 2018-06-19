@@ -267,45 +267,6 @@ std::vector<Histogram::PeakInfo> Histogram::getLocalMaximum1D(
 }
 
 /* -------------------------------------------------------------------------- */
-std::vector<cv::Point> Histogram::contoursCenter(
-    const std::vector<std::vector<cv::Point>>& contours,
-    bool centerOfMass,
-    int contourIdx) const {
-  CHECK_EQ(dims_, 2) << "This function only works with 2D histograms.";
-  VLOG(10) << "Starting contoursCenter.";
-  std::vector<cv::Point> result;
-  if (contourIdx > -1) {
-    if (centerOfMass) {
-      cv::Moments m = cv::moments(contours.at(contourIdx), true);
-      result.push_back(cv::Point(m.m10 / m.m00,
-                                 m.m01 / m.m00));
-    } else {
-      cv::Rect rct = cv::boundingRect(contours[contourIdx]);
-      result.push_back(cv::Point(rct.x + rct.width / 2 ,
-                                 rct.y + rct.height / 2));
-    }
-  } else {
-    if (centerOfMass) {
-      for (size_t i = 0; i < contours.size(); i++) {
-        cv::Moments m = cv::moments(contours[i], true);
-        result.push_back(cv::Point(m.m10/m.m00,
-                                   m.m01/m.m00));
-
-      }
-    } else {
-      for (size_t i = 0; i < contours.size(); i++) {
-        cv::Rect rct = cv::boundingRect(contours.at(i));
-        result.push_back(cv::Point(rct.x + rct.width / 2 ,
-                                   rct.y + rct.height / 2));
-      }
-    }
-  }
-
-  VLOG(10) << "Finished contoursCenter.";
-  return result;
-}
-
-/* -------------------------------------------------------------------------- */
 // Does not resize the peaks vector, so make sure it is empty before sending.
 bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
                                   const cv::Size& smooth_size,
@@ -344,45 +305,6 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
 }
 
 /* -------------------------------------------------------------------------- */
-std::vector<cv::Point> Histogram::getLocalMaximum2D_DilateErodeAlgorithm(
-    cv::Mat peak_img,
-    cv::Mat src,
-    int neighbour) const {
-  VLOG(10) << "Starting dilate...";
-  cv::dilate(peak_img, peak_img, cv::Mat(), cv::Point(-1,-1), neighbour);
-  peak_img = peak_img - src;
-  VLOG(10) << "Finished dilate.";
-
-  cv::Mat flat_img ;
-  VLOG(10) << "Starting erode...";
-  cv::erode(src, flat_img, cv::Mat(), cv::Point(-1, -1), neighbour);
-  flat_img = src - flat_img;
-  VLOG(10) << "Finished erode.";
-
-  cv::threshold(peak_img, peak_img, 0, 255, CV_THRESH_BINARY);
-  cv::threshold(flat_img, flat_img, 0, 255, CV_THRESH_BINARY);
-  VLOG(10) << "Starting bitwise_not for flat_img...";
-  cv::bitwise_not(flat_img, flat_img);
-  VLOG(10) << "Finished bitwise_not for flat_img.";
-
-  VLOG(10) << "Starting setTo for peak_img...";
-  peak_img.setTo(cv::Scalar::all(255), flat_img);
-  VLOG(10) << "Finished setTo for peak_img.";
-
-  VLOG(10) << "Starting bitwise_not for peak_img...";
-  cv::bitwise_not(peak_img, peak_img);
-  VLOG(10) << "Finished bitwise_not for peak_img.";
-
-  std::vector<std::vector<cv::Point>> contours;
-  VLOG(10) << "Starting contours for peak_img...";
-  cv::findContours(peak_img, contours,
-                   CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-  VLOG(10) << "Finished contours for peak_img.";
-
-  return contoursCenter(contours, true, -1);
-}
-
-/* -------------------------------------------------------------------------- */
 // Visualize 2D histogram.
 void Histogram::visualizeHistogram2DWithPeaks(
     const std::vector<PeakInfo2D>& peaks) const {
@@ -396,8 +318,6 @@ void Histogram::visualizeHistogram2DWithPeaks(
   cv::cvtColor(hist_img, hist_img, cv::COLOR_GRAY2RGB);
   cv::bitwise_not(hist_img, hist_img);
   for (const PeakInfo2D& peak: peaks) {
-    // TODO why do I have to switch coordinates here... I was doing theta first
-    // then distance...
     cv::Point peak_scaled (peak.pos_.x * scale_theta,
                            peak.pos_.y * scale_distance);
     cv::circle(hist_img, peak_scaled, 2, cv::Scalar(255,0,0), -1, 8, 0);

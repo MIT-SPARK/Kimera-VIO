@@ -177,13 +177,6 @@ private:
 
 //////////////////////////// FOR 2D HISTOGRAM //////////////////////////////////
   /* ------------------------------------------------------------------------ */
-  std::vector<cv::Point> contoursCenter(
-      const std::vector<std::vector<cv::Point>>& contours,
-      bool centerOfMass,
-      int contourIdx = -1) const;
-
-
-  /* ------------------------------------------------------------------------ */
   // Visualize 2D histogram.
   void visualizeHistogram2DWithPeaks(const std::vector<PeakInfo2D>& peaks) const;
 
@@ -192,12 +185,6 @@ private:
   void drawHistogram2D(cv::Mat* img_output,
                        int scale_theta = 10,
                        int scale_distance = 10) const;
-
-  /* ------------------------------------------------------------------------ */
-  std::vector<cv::Point> getLocalMaximum2D_DilateErodeAlgorithm(
-      cv::Mat peak_img,
-      cv::Mat src,
-      int neighbour) const;
 
   /* ------------------------------------------------------------------------ */
   // Calculates local max in 2D image.
