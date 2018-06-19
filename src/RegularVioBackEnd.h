@@ -73,7 +73,6 @@ private:
   typedef std::map<LandmarkId, RegularityType> LmkIdToRegularityTypeMap;
   typedef std::map<PlaneId, LmkIdToRegularityTypeMap> PlaneIdToLmkIdRegType;
   PlaneIdToLmkIdRegType plane_id_to_lmk_id_reg_type_;
-  LmkIdToRegularityTypeMap lmk_id_to_regularity_type_map_;
   std::vector<size_t> delete_slots_of_converted_smart_factors_;
 
   // For Stereo and Projection factors.
