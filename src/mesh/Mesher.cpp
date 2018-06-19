@@ -746,8 +746,12 @@ const {
                                      seed_plane.distance_,
                                      seed_plane.normal_,
                                      distance_tolerance)) {
-      CHECK(!is_polygon_on_a_plane) << "Polygon was already in a plane,"
-                                       " are we having similar planes?";
+      // I guess we can comment out the check below since it can happen that
+      // a poygon is segmented in two very close planes? Better we enable
+      // it again!
+      //CHECK(!is_polygon_on_a_plane) << "Polygon was already in a plane,"
+      //                                 " are we having similar planes?";
+
       // Update lmk_ids of seed plane.
       // Points_with_id_vio are only used for stereo.
       appendLmkIdsOfPolygon(polygon, &seed_plane.lmk_ids_,
