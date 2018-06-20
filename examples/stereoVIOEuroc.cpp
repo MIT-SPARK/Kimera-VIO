@@ -41,7 +41,18 @@ DEFINE_bool(log_output, false, "Log output to matlab.");
 DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
                                  "0: VioBackEnd\n"
                                  "1: RegularVioBackEnd");
-DEFINE_bool(visualize, true, "Enable visualization.");
+DEFINE_bool(visualize, true, "Enable overall visualization.");
+DEFINE_bool(visualize_lmk_type, true, "Enable landmark type visualization.");
+DEFINE_bool(visualize_mesh, true, "Enable mesh visualization.");
+DEFINE_bool(visualize_point_cloud, true, "Enable point cloud visualization.");
+DEFINE_bool(visualize_convex_hull, false, "Enable convex hull visualization.");
+DEFINE_bool(visualize_plane_constraints, true, "Enable plane constraints"
+                                               " visualization.");
+DEFINE_bool(visualize_planes, true, "Enable plane visualization.");
+DEFINE_bool(visualize_plane_label, true, "Enable plane label visualization.");
+DEFINE_bool(visualize_mesh_in_frustum, true, "Enable mesh visualization in "
+                                             "camera frustum.");
+
 DEFINE_int32(viz_type, 0,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
   "1: POINTCLOUD_REPEATEDPOINTS, visualize VIO points as point clouds (points "
@@ -55,6 +66,7 @@ DEFINE_int32(viz_type, 0,
     "corresponding to non planar obstacles\n"
   "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
   "7: NONE, does not visualize map\n");
+
 DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
                             "previous frames will not be used.");
 DEFINE_int32(final_k, 2812, "Final frame to finish processing dataset, "
@@ -524,8 +536,7 @@ int main(int argc, char *argv[]) {
           // (TODO restriction is not enforced for projection factors).
           VioBackEnd::PointsWithIdMap points_with_id_VIO;
           VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-          static constexpr bool visualize_lmk_type = true;
-          if (visualize_lmk_type) {
+          if (FLAGS_visualize_lmk_type) {
             vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
                   &points_with_id_VIO,
                   &lmk_id_to_lmk_type_map,
@@ -562,21 +573,18 @@ int main(int argc, char *argv[]) {
             static cv::Mat vertices_mesh_prev;
             static cv::Mat polygons_mesh_prev;
 
-            static constexpr bool visualize_mesh = true;
-            if (visualize_mesh) {
+            if (FLAGS_visualize_mesh) {
               visualizer.visualizeMesh3DWithColoredClusters(planes_prev,
                                                             vertices_mesh_prev,
                                                             polygons_mesh_prev);
             }
 
-            static constexpr bool visualize_point_cloud = true;
-            if (visualize_point_cloud) {
+            if (FLAGS_visualize_point_cloud) {
               visualizer.visualizePoints3D(points_with_id_VIO_prev,
                                            lmk_id_to_lmk_type_map_prev);
             }
 
-            static constexpr bool visualize_convex_hull = false;
-            if (visualize_convex_hull) {
+            if (FLAGS_visualize_convex_hull) {
               if (planes_prev.size() != 0) {
                 visualizer.visualizeConvexHull(planes_prev.at(0).triangle_cluster_,
                                                vertices_mesh_prev,
@@ -584,8 +592,7 @@ int main(int argc, char *argv[]) {
               }
             }
 
-            static constexpr bool visualize_plane_constraints = true;
-            if (visualize_plane_constraints) {
+            if (FLAGS_visualize_plane_constraints) {
               const gtsam::NonlinearFactorGraph& graph =
                   vioBackEnd->smoother_->getFactors();
               LandmarkIds lmk_ids_in_current_pp_factors;
@@ -629,8 +636,7 @@ int main(int argc, char *argv[]) {
             }
 
             // Must go after visualize plane constraints.
-            static constexpr bool visualize_planes = true;
-            if (visualize_planes || visualize_plane_constraints) {
+            if (FLAGS_visualize_planes || FLAGS_visualize_plane_constraints) {
               for (const Plane& plane: planes) {
                 const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
                 const std::uint64_t& plane_index = plane_symbol.index();
@@ -643,14 +649,13 @@ int main(int argc, char *argv[]) {
                   CHECK(plane.normal_ == plane_normal_estimate);
                   // We have the plane in the optimization.
                   // Visualize plane.
-                  static constexpr bool visualize_plane_label = true;
                   visualizer.visualizePlane(
                         plane_index,
                         plane_normal_estimate.x,
                         plane_normal_estimate.y,
                         plane_normal_estimate.z,
                         current_plane_estimate.distance(),
-                        visualize_plane_label,
+                        FLAGS_visualize_plane_label,
                         plane.triangle_cluster_.cluster_id_);
                 } else {
                   // We could not find the plane in the optimization...
@@ -658,7 +663,7 @@ int main(int argc, char *argv[]) {
                   // segmented planes.
                   // Delete the plane.
                   LOG(ERROR) << "Remove plane viz for id:" << plane_index;
-                  if (visualize_plane_constraints) {
+                  if (FLAGS_visualize_plane_constraints) {
                     visualizer.removePlaneConstraintsViz(plane_index);
                   }
                   visualizer.removePlane(plane_index);
@@ -674,7 +679,7 @@ int main(int argc, char *argv[]) {
                       plane_symbol.key(), &current_plane_estimate)) {
                   // We could not find the plane in the optimization...
                   // Delete the plane.
-                  if (visualize_plane_constraints) {
+                  if (FLAGS_visualize_plane_constraints) {
                     visualizer.removePlaneConstraintsViz(plane_index);
                   }
                   visualizer.removePlane(plane_index);
@@ -748,9 +753,8 @@ int main(int argc, char *argv[]) {
       if (FLAGS_visualize) {
         VLOG(10) << "Starting trajectory visualization...";
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
-        static constexpr bool visualize_mesh_in_frustum = true;
         visualizer.visualizeTrajectory3D(
-              (visualize_mesh_in_frustum && mesh_2d != nullptr)? mesh_2d :
+              (FLAGS_visualize_mesh_in_frustum && mesh_2d != nullptr)? mesh_2d :
               &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
         visualizer.renderWindow();
         VLOG(10) << "Finsihed trajectory visualization.";

@@ -22,6 +22,8 @@
 #include "Mesher_cgal.h"
 #endif
 
+DEFINE_bool(use_gouraud_shading, false, "Use Gouraud shading for mesh.");
+
 namespace VIO {
 
 enum class VisualizationType {
@@ -229,8 +231,7 @@ public:
 
     // Create a cloud widget.
     cv::viz::WMesh mesh(map_points_3d.t(), polygons_mesh, colors.t());
-    static constexpr bool use_gouraud_shading = false;
-    if (use_gouraud_shading) {
+    if (FLAGS_use_gouraud_shading) {
       mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_GOURAUD);
     }
     mesh.setRenderingProperty(cv::viz::AMBIENT, false);

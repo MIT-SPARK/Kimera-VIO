@@ -27,12 +27,14 @@ if [ $USE_REGULAR_VIO == 1 ]; then
     --tracker_params_path="../params/trackerParameters.yaml" \
     --backend_type=1 \
     --visualize=1 \
+    --visualize_plane_constraints=false \
     --viz_type=5 \
     --log_output=false \
     --v=0 \
     --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
     --add_extra_lmks_from_stereo=false \
     --visualize_mesh_2d_filtered=false \
+    --use_gouraud_shading=true \
     --max_triangle_side=0.5
 else
   ../build/stereoVIOEuroc \
