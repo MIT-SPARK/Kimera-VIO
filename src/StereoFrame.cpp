@@ -170,8 +170,8 @@ void StereoFrame::checkStereoFrame() const {
 }
 /* --------------------------------------------------------------------------------------- */
 std::pair<KeypointsCV, std::vector<Kstatus>> StereoFrame::DistortUnrectifyPoints(
-    const StatusKeypointsCV keypoints_rectified, const cv::Mat map_x, const cv::Mat map_y)
-{
+    const StatusKeypointsCV& keypoints_rectified,
+    const cv::Mat map_x, const cv::Mat map_y) {
   std::vector<Kstatus> pointStatuses;
   KeypointsCV points;
   for(size_t i=0; i< keypoints_rectified.size(); i++){
@@ -187,10 +187,12 @@ std::pair<KeypointsCV, std::vector<Kstatus>> StereoFrame::DistortUnrectifyPoints
   }
   return std::make_pair(points,pointStatuses);
 }
+
 /* --------------------------------------------------------------------------------------- */
-StatusKeypointsCV StereoFrame::undistortRectifyPoints(KeypointsCV left_keypoints_unrectified, const CameraParams cam_param,
-    const gtsam::Cal3_S2 rectCameraMatrix) const
-{
+StatusKeypointsCV StereoFrame::undistortRectifyPoints(
+    KeypointsCV left_keypoints_unrectified,
+    const CameraParams& cam_param,
+    const gtsam::Cal3_S2& rectCameraMatrix) const {
   StatusKeypointsCV left_keypoints_rectified;
   int invalidCount = 0;
   left_keypoints_rectified.reserve(left_keypoints_unrectified.size());
@@ -673,6 +675,7 @@ void StereoFrame::getRectifiedImages() {
   //  cv::imshow("right_img_rectified_", right_img_rectified_);
   //  cv::waitKey(0);
 }
+
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::getRightKeypointsLKunrectified() {
 
@@ -735,9 +738,10 @@ void StereoFrame::getRightKeypointsLKunrectified() {
 
 /* --------------------------------------------------------------------------------------- */
 StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
-    const cv::Mat left_rectified, const cv::Mat right_rectified, const StatusKeypointsCV left_keypoints_rectified,
-    const double fx, const double baseline) const
-{
+    const cv::Mat left_rectified,
+    const cv::Mat right_rectified,
+    const StatusKeypointsCV& left_keypoints_rectified,
+    const double fx, const double baseline) const {
   int verbosity = 0;
   bool writeImageLeftRightMatching = false;
 
@@ -853,9 +857,14 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
   }
   return right_keypoints_rectified;
 }
+
 /* --------------------------------------------------------------------------------------- */
-std::pair<StatusKeypointCV,double> StereoFrame::findMatchingKeypointRectified(const cv::Mat left_rectified, const KeypointCV left_rectified_i,
-    const cv::Mat right_rectified, const int templ_cols, const int templ_rows, const int stripe_cols, const int stripe_rows,
+std::pair<StatusKeypointCV,double> StereoFrame::findMatchingKeypointRectified(
+    const cv::Mat left_rectified,
+    const KeypointCV& left_rectified_i,
+    const cv::Mat right_rectified,
+    const int templ_cols, const int templ_rows,
+    const int stripe_cols, const int stripe_rows,
     const double tol_corr, const bool debugStereoMatching) const
 {
   /// correlation matrix

@@ -92,8 +92,9 @@ public:
   };
 
   // Constructor
-  Tracker(const VioFrontEndParams trackerParams = VioFrontEndParams(),
-      const VioBackEndParams vioParams = VioBackEndParams(),
+  Tracker(
+      const VioFrontEndParams& trackerParams = VioFrontEndParams(),
+      const VioBackEndParams& vioParams = VioBackEndParams(),
       const int saveImages = 1):
     trackerParams_(trackerParams),
     saveImages_(saveImages),
@@ -129,21 +130,33 @@ public:
   void featureTracking(Frame& ref_frame, Frame& cur_frame);
   void featureDetection(Frame& cur_frame);
 
-  std::pair<Tracker::TrackingStatus,gtsam::Pose3> geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame);
-  std::pair<Tracker::TrackingStatus,gtsam::Pose3> geometricOutlierRejectionStereo(StereoFrame& ref_frame, StereoFrame& cur_frame);
+  std::pair<Tracker::TrackingStatus,gtsam::Pose3>
+  geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame);
+
+  std::pair<Tracker::TrackingStatus,gtsam::Pose3>
+  geometricOutlierRejectionStereo(StereoFrame& ref_frame, StereoFrame& cur_frame);
+
   // contrarily to the previous 2 this also returns a 3x3 covariance for the translation estimate
   std::pair<Tracker::TrackingStatus,gtsam::Pose3>
   geometricOutlierRejectionMonoGivenRotation(
-      Frame& ref_frame, Frame& cur_frame, const gtsam::Rot3 R);
+      Frame& ref_frame, Frame& cur_frame, const gtsam::Rot3& R);
+
   std::pair< std::pair<Tracker::TrackingStatus,gtsam::Pose3> , gtsam::Matrix3 >
   geometricOutlierRejectionStereoGivenRotation(
-      StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame, const gtsam::Rot3 R);
-  void removeOutliersMono(Frame& ref_frame, Frame& cur_frame, const std::vector<std::pair<size_t, size_t>> matches_ref_cur,
+      StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame, const gtsam::Rot3& R);
+
+  void removeOutliersMono(
+      Frame& ref_frame, Frame& cur_frame,
+      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
       std::vector<int> inliers, const int iterations);
-  void removeOutliersStereo(StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame, const std::vector<std::pair<size_t, size_t>> matches_ref_cur,
+
+  void removeOutliersStereo(
+      StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame,
+      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
       std::vector<int> inliers, const int iterations);
-  void checkStatusRightKeypoints(const std::vector<Kstatus> right_keypoints_status)
-  {
+
+  void checkStatusRightKeypoints(
+      const std::vector<Kstatus>& right_keypoints_status) {
     debugInfo_.nrValidRKP_ = 0; debugInfo_.nrNoLeftRectRKP_ = 0; debugInfo_.nrNoRightRectRKP_ = 0;
     debugInfo_.nrNoDepthRKP_ = 0; debugInfo_.nrFailedArunRKP_ = 0;
     for(size_t i=0; i<right_keypoints_status.size(); i++){
@@ -157,26 +170,45 @@ public:
         debugInfo_.nrNoDepthRKP_++;
     }
   }
+
   /* ---------------------------- CONST FUNCTIONS ------------------------------------------- */
   // returns frame with markers
-  cv::Mat displayFrame(const Frame& ref_frame, const Frame& cur_frame,
-      const int verbosity=0, const KeypointsCV extraCorners1 = KeypointsCV(),
-      const KeypointsCV extraCorners2 = KeypointsCV(), const std::string extraString = "") const;
+  cv::Mat displayFrame(
+      const Frame& ref_frame, const Frame& cur_frame,
+      const int verbosity=0,
+      const KeypointsCV& extraCorners1 = KeypointsCV(),
+      const KeypointsCV& extraCorners2 = KeypointsCV(),
+      const std::string& extraString = "") const;
+
   /* ---------------------------- STATIC FUNCTIONS ------------------------------------------ */
-  static std::vector<int> FindOutliers(const std::vector<std::pair<size_t, size_t>> matches_ref_cur, std::vector<int> inliers);
-  static std::vector<std::pair<size_t, size_t>> FindMatchingKeypoints(const Frame& ref_frame, const Frame& cur_frame);
+  static std::vector<int> FindOutliers(
+      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
+      std::vector<int> inliers);
+
+  static std::vector<std::pair<size_t, size_t>> FindMatchingKeypoints(
+      const Frame& ref_frame, const Frame& cur_frame);
+
   static std::vector<std::pair<size_t, size_t>> FindMatchingStereoKeypoints(
       const StereoFrame& ref_stereoFrame, const StereoFrame& cur_stereoFrame);
+
   static std::vector<std::pair<size_t, size_t>> FindMatchingStereoKeypoints(
       const StereoFrame& ref_stereoFrame, const StereoFrame& cur_stereoFrame,
-      const std::vector<std::pair<size_t, size_t>> matches_ref_cur_mono);
-  static double ComputeMedianDisparity(const Frame& ref_frame, const Frame& cur_frame);
+      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur_mono);
+
+  static double ComputeMedianDisparity(const Frame& ref_frame,
+                                       const Frame& cur_frame);
+
   // returns landmark_count (updated from the new keypoints), and nr or extracted corners
   static std::pair<KeypointsCV, std::vector<double> >
-  FeatureDetection(Frame& cur_frame, const VioFrontEndParams& trackerParams,
-      const cv::Mat camMask, const int need_n_corners);
-  static std::pair< Vector3, Matrix3 > GetPoint3AndCovariance(const StereoFrame& stereoFrame,
-      const gtsam::StereoCamera stereoCam, const int pointId, const gtsam::Matrix3 stereoPtCov,
+  FeatureDetection(Frame& cur_frame,
+                   const VioFrontEndParams& trackerParams,
+                   const cv::Mat camMask, const int need_n_corners);
+
+  static std::pair< Vector3, Matrix3 > GetPoint3AndCovariance(
+      const StereoFrame& stereoFrame,
+      const gtsam::StereoCamera& stereoCam,
+      const int pointId,
+      const gtsam::Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 };
 

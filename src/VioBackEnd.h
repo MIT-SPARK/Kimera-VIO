@@ -373,8 +373,8 @@ public:
       const std::pair<FrameId, StereoPoint2>& newObs);
 
   /* ------------------------------------------------------------------------ */
-  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamps imu_stamps,
-                                           const ImuAccGyr imu_accgyr) const;
+  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamps& imu_stamps,
+                                           const ImuAccGyr& imu_accgyr) const;
 
   /* ------------------------------------------------------------------------ */
   static gtsam::Pose3 guessPoseFromIMUmeasurements(const ImuAccGyr& accGyroRaw,

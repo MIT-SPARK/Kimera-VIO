@@ -45,9 +45,9 @@ class Frame {
 
 public:
   // constructors
-  Frame(const FrameId id,
-        const int64_t timestamp,
-        const std::string img_name,
+  Frame(const FrameId& id,
+        const int64_t& timestamp,
+        const std::string& img_name,
         const CameraParams& cam_param,
         const bool equalizeImage = false):
     id_(id),
@@ -339,7 +339,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   static Vector3 CalibratePixel(const KeypointCV& cv_px,
-                                const CameraParams cam_param) {
+                                const CameraParams& cam_param) {
     // Calibrate pixel.
     cv::Mat_<KeypointCV> uncalibrated_px(1, 1); // matrix of px with a single entry, i.e., a single pixel
     uncalibrated_px(0) = cv_px;

@@ -40,7 +40,7 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 // Open files with name output_filename, and checks that it is valid
-void UtilsOpenCV::OpenFile(const std::string output_filename,
+void UtilsOpenCV::OpenFile(const std::string& output_filename,
                            std::ofstream& outputFile) {
   outputFile.open(output_filename.c_str()); outputFile.precision(20);
   if (!outputFile.is_open()){
@@ -77,7 +77,7 @@ bool UtilsOpenCV::CvPointCmp(const cv::Point2f &p1,
 // converts a vector of 16 elements listing the elements of a 4x4 3D pose matrix by rows
 // into a pose3 in gtsam
 gtsam::Pose3 UtilsOpenCV::Vec2pose(
-    const std::vector<double> vecRows,
+    const std::vector<double>& vecRows,
     const int n_rows,
     const int n_cols){
   if(n_rows!=4 || n_cols!=4)
@@ -96,7 +96,7 @@ gtsam::Pose3 UtilsOpenCV::Vec2pose(
 /* -------------------------------------------------------------------------- */
 // Converts a gtsam pose3 to a 3x3 rotation matrix and translation vector
 // in opencv format (note: the function only extracts R and t, without changing them)
-std::pair<cv::Mat,cv::Mat> UtilsOpenCV::Pose2cvmats(const gtsam::Pose3 pose){
+std::pair<cv::Mat,cv::Mat> UtilsOpenCV::Pose2cvmats(const gtsam::Pose3& pose){
   gtsam::Matrix3 rot = pose.rotation().matrix();
   cv::Mat R = cv::Mat(3,3,CV_64F);
   for (int r = 0; r < 3; r++) {
@@ -113,7 +113,7 @@ std::pair<cv::Mat,cv::Mat> UtilsOpenCV::Pose2cvmats(const gtsam::Pose3 pose){
 }
 /* -------------------------------------------------------------------------- */
 // Converts a gtsam pose3 to a opencv Affine3d
-cv::Affine3f UtilsOpenCV::Pose2Affine3f(const gtsam::Pose3 pose){
+cv::Affine3f UtilsOpenCV::Pose2Affine3f(const gtsam::Pose3& pose){
   gtsam::Matrix4 Agtsam = pose.matrix();
   cv::Mat RT(4,4,CV_32FC1); // 4x4
   // [R t ; 0 1]
@@ -172,7 +172,7 @@ cv::Mat UtilsOpenCV::Cal3_S2ToCvmat (const gtsam::Cal3_S2& M){
 }
 /* -------------------------------------------------------------------------- */
 // converts an opengv transformation (3x4 [R t] matrix) to a gtsam::Pose3
-gtsam::Pose3 UtilsOpenCV::Gvtrans2pose(const opengv::transformation_t RT){
+gtsam::Pose3 UtilsOpenCV::Gvtrans2pose(const opengv::transformation_t& RT){
   gtsam::Matrix poseMat = gtsam::Matrix::Identity(4,4);
   for (int r = 0; r < 3; r++) {
     for (int c = 0; c < 4; c++) {
@@ -391,7 +391,7 @@ break_out:
 }
 /* -------------------------------------------------------------------------- */
 // rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0
-gtsam::Unit3 UtilsOpenCV::RoundUnit3(const gtsam::Unit3 x){
+gtsam::Unit3 UtilsOpenCV::RoundUnit3(const gtsam::Unit3& x){
 
   gtsam::Vector3 x_vect_round = gtsam::Vector3::Zero();
   gtsam::Vector3 x_vect = x.unitVector();
@@ -423,7 +423,7 @@ std::string UtilsOpenCV::To_string_with_precision(const double a_value,
 }
 /* -------------------------------------------------------------------------- */
 // converts time from nanoseconds to seconds
-double UtilsOpenCV::NsecToSec(const std::int64_t timestamp)
+double UtilsOpenCV::NsecToSec(const std::int64_t& timestamp)
 {
   return double(timestamp) * 1e-9;
 }
@@ -445,8 +445,8 @@ double UtilsOpenCV::GetTimeInSeconds()
 /* -------------------------------------------------------------------------- */
 // given two gtsam::Pose3 computes the relative rotation and translation errors: rotError,tranError
 std::pair<double,double> UtilsOpenCV::ComputeRotationAndTranslationErrors(
-    const gtsam::Pose3 expectedPose,
-    const gtsam::Pose3 actualPose,
+    const gtsam::Pose3& expectedPose,
+    const gtsam::Pose3& actualPose,
     const bool upToScale) {
   // compute errors
   gtsam::Rot3 rotErrorMat = (expectedPose.rotation()).between(actualPose.rotation());
@@ -467,7 +467,7 @@ std::pair<double,double> UtilsOpenCV::ComputeRotationAndTranslationErrors(
 }
 /* -------------------------------------------------------------------------- */
 // reads image and converts to 1 channel image
-cv::Mat UtilsOpenCV::ReadAndConvertToGrayScale(const std::string img_name,
+cv::Mat UtilsOpenCV::ReadAndConvertToGrayScale(const std::string& img_name,
                                                bool const equalize) {
   cv::Mat img = cv::imread(img_name, cv::IMREAD_ANYCOLOR);
   if (img.channels() > 1)
@@ -480,7 +480,7 @@ cv::Mat UtilsOpenCV::ReadAndConvertToGrayScale(const std::string img_name,
 }
 /* -------------------------------------------------------------------------- */
 // reorder block entries of covariance from state: [bias, vel, pose] to [pose vel bias]
-gtsam::Matrix UtilsOpenCV::Covariance_bvx2xvb(const gtsam::Matrix COV_bvx)
+gtsam::Matrix UtilsOpenCV::Covariance_bvx2xvb(const gtsam::Matrix& COV_bvx)
 {
   gtsam::Matrix cov_xvb = COV_bvx;
   // fix diagonals: poses
@@ -533,10 +533,10 @@ void UtilsOpenCV::PlainMatchTemplate(const cv::Mat stripe,
 /* -------------------------------------------------------------------------- */
 // add circles in the image at desired position/size/color
 void UtilsOpenCV::DrawCirclesInPlace(cv::Mat& img,
-                                     const std::vector<cv::Point2f> imagePoints,
-                                     const cv::Scalar color,
+                                     const std::vector<cv::Point2f>& imagePoints,
+                                     const cv::Scalar& color,
                                      const double msize,
-                                     const std::vector<int> pointIds,
+                                     const std::vector<int>& pointIds,
                                      const int remId) {
 
   cv::Point2f textOffset = cv::Point2f(-10,-5); // text offset
@@ -552,10 +552,10 @@ void UtilsOpenCV::DrawCirclesInPlace(cv::Mat& img,
 /* -------------------------------------------------------------------------- */
 // add squares in the image at desired position/size/color
 void UtilsOpenCV::DrawSquaresInPlace(cv::Mat& img,
-                                     const std::vector<cv::Point2f> imagePoints,
-                                     const cv::Scalar color,
+                                     const std::vector<cv::Point2f>& imagePoints,
+                                     const cv::Scalar& color,
                                      const double msize,
-                                     const std::vector<int> pointIds,
+                                     const std::vector<int>& pointIds,
                                      const int remId) {
 
   cv::Point2f textOffset = cv::Point2f(-10,-5); // text offset
@@ -572,10 +572,10 @@ void UtilsOpenCV::DrawSquaresInPlace(cv::Mat& img,
 /* -------------------------------------------------------------------------- */
 // add x in the image at desired position/size/color
 void UtilsOpenCV::DrawCrossesInPlace(cv::Mat& img,
-                                     const std::vector<cv::Point2f> imagePoints,
-                                     const cv::Scalar color,
+                                     const std::vector<cv::Point2f>& imagePoints,
+                                     const cv::Scalar& color,
                                      const double msize,
-                                     const std::vector<int> pointIds,
+                                     const std::vector<int>& pointIds,
                                      const int remId) {
 
   cv::Point2f textOffset = cv::Point2f(-10,-5); // text offset
@@ -592,10 +592,10 @@ void UtilsOpenCV::DrawCrossesInPlace(cv::Mat& img,
 /* -------------------------------------------------------------------------- */
 // add text (vector of doubles) in the image at desired position/size/color
 void UtilsOpenCV::DrawTextInPlace(cv::Mat& img,
-                                  const std::vector<cv::Point2f> imagePoints,
-                                  const cv::Scalar color,
+                                  const std::vector<cv::Point2f>& imagePoints,
+                                  const cv::Scalar& color,
                                   const double msize,
-                                  const std::vector<double> textDoubles) {
+                                  const std::vector<double>& textDoubles) {
   cv::Point2f textOffset = cv::Point2f(-12,-5); // text offset
   if (img.channels() < 3)
     cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
@@ -632,7 +632,7 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(const cv::Mat img1,
                                         const std::vector<cv::Point2f> &corners1,
                                         const cv::Mat img2,
                                         const std::vector<cv::Point2f> &corners2,
-                                        const std::vector<cv::DMatch> matches,
+                                        const std::vector<cv::DMatch> &matches,
                                         const bool randomColor)
 {
   cv::Mat canvas = UtilsOpenCV::ConcatenateTwoImages(img1, img2);
@@ -652,8 +652,8 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(const cv::Mat img1,
 }
 /* -------------------------------------------------------------------------- */
 cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
-                                 const StatusKeypointsCV imagePoints,
-                                 const std::vector<double> circleSizes)
+                                 const StatusKeypointsCV& imagePoints,
+                                 const std::vector<double>& circleSizes)
 {
   KeypointsCV valid_imagePoints;
   std::vector<cv::Scalar> circleColors;
@@ -675,9 +675,9 @@ cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
 }
 /* -------------------------------------------------------------------------- */
 cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
-                                 const KeypointsCV imagePoints,
-                                 const std::vector<cv::Scalar> circleColors,
-                                 const std::vector<double> circleSizes) {
+                                 const KeypointsCV& imagePoints,
+                                 const std::vector<cv::Scalar>& circleColors,
+                                 const std::vector<double>& circleSizes) {
   bool displayWithSize = false; // if true size of circles is proportional to depth
   bool displayWithText = true; // if true display text with depth
   KeypointCV textOffset = KeypointCV(-10,-5); // text offset
@@ -708,10 +708,10 @@ cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
 /* -------------------------------------------------------------------------- */
 void UtilsOpenCV::DrawCornersMatchesOneByOne(
     const cv::Mat img1,
-    const std::vector<cv::Point2f> &corners1,
+    const std::vector<cv::Point2f>& corners1,
     const cv::Mat img2,
-    const std::vector<cv::Point2f> &corners2,
-    const std::vector<cv::DMatch> matches) {
+    const std::vector<cv::Point2f>& corners2,
+    const std::vector<cv::DMatch>& matches) {
   cv::Mat canvas = UtilsOpenCV::ConcatenateTwoImages(img1, img2);
   cv::Point2f ptOffset = cv::Point2f(img1.cols, 0);
 
@@ -739,7 +739,7 @@ double UtilsOpenCV::MaxAbsValue(gtsam::Matrix M){
 /* -------------------------------------------------------------------------- */
 // compute image gradients (TODO: untested: taken from
 // http://www.coldvision.io/2016/03/18/image-gradient-sobel-operator-opencv-3-x-cuda/)
-cv::Mat UtilsOpenCV::ImageLaplacian(const cv::Mat img) {
+cv::Mat UtilsOpenCV::ImageLaplacian(const cv::Mat& img) {
 
   // duplicate image to preserve const input
   cv::Mat input = img.clone();
@@ -776,7 +776,7 @@ cv::Mat UtilsOpenCV::ImageLaplacian(const cv::Mat img) {
 /* -------------------------------------------------------------------------- */
 // compute canny edges (TODO: untested: taken from
 // https://github.com/opencv/opencv/blob/master/samples/cpp/edge.cpp)
-cv::Mat UtilsOpenCV::EdgeDetectorCanny(const cv::Mat img) {
+cv::Mat UtilsOpenCV::EdgeDetectorCanny(const cv::Mat& img) {
 
   // duplicate image to preserve const input
   cv::Mat input = img.clone();
@@ -803,7 +803,7 @@ cv::Mat UtilsOpenCV::EdgeDetectorCanny(const cv::Mat img) {
 // If intensityThreshold is < 0, then the check is disabled.
 std::vector<std::pair<KeypointCV, double>>
 UtilsOpenCV::FindHighIntensityInTriangle(
-    const cv::Mat img, const cv::Vec6f px_vertices,
+    const cv::Mat img, const cv::Vec6f& px_vertices,
     const float intensityThreshold) {
 
   std::vector<std::pair<KeypointCV,double>> keypointsWithIntensities;

@@ -68,9 +68,11 @@ void Tracker::featureDetection(Frame& cur_frame)
 #endif
 }
 
-/* ---------------------------------------------------------------------------------------- */
-std::pair<KeypointsCV, std::vector<double> > Tracker::FeatureDetection(Frame& cur_frame,
-    const VioFrontEndParams& trackerParams, const cv::Mat camMask, const int need_n_corners){
+/* -------------------------------------------------------------------------- */
+std::pair<KeypointsCV, std::vector<double> > Tracker::FeatureDetection(
+    Frame& cur_frame,
+    const VioFrontEndParams& trackerParams, const cv::Mat camMask,
+    const int need_n_corners) {
 
   // Create mask such that new keypoints are not close to old ones.
   cv::Mat mask;
@@ -101,7 +103,7 @@ std::pair<KeypointsCV, std::vector<double> > Tracker::FeatureDetection(Frame& cu
   return std::make_pair(corners,cornerScores);
 }
 
-/* --------------------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 void Tracker::featureTracking(Frame& ref_frame, Frame& cur_frame)
 {
   double startTime;
@@ -174,9 +176,9 @@ void Tracker::featureTracking(Frame& ref_frame, Frame& cur_frame)
   if (verbosity_ >= 5) debugInfo_.featureTrackingTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
 }
 
-/* --------------------------------------------------------------------------------------- */
-std::pair<Tracker::TrackingStatus,gtsam::Pose3> Tracker::geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame)
-{
+/* -------------------------------------------------------------------------- */
+std::pair<Tracker::TrackingStatus,gtsam::Pose3>
+Tracker::geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame) {
   double startTime;
   if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
 
@@ -267,9 +269,10 @@ std::pair<Tracker::TrackingStatus,gtsam::Pose3> Tracker::geometricOutlierRejecti
   return std::make_pair(status , camLrectlkf_P_camLrectkf);
 }
 
-/* --------------------------------------------------------------------------------------- */
-std::pair<Tracker::TrackingStatus,gtsam::Pose3> Tracker::geometricOutlierRejectionMonoGivenRotation(
-    Frame& ref_frame, Frame& cur_frame, const gtsam::Rot3 R)
+/* -------------------------------------------------------------------------- */
+std::pair<Tracker::TrackingStatus,gtsam::Pose3>
+Tracker::geometricOutlierRejectionMonoGivenRotation(
+    Frame& ref_frame, Frame& cur_frame, const gtsam::Rot3& R)
 {
   double startTime;
   if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
@@ -306,13 +309,13 @@ std::pair<Tracker::TrackingStatus,gtsam::Pose3> Tracker::geometricOutlierRejecti
   std::vector<double> translation;
   translation.resize(3);
   std::vector<int> inliers = cv::ransac_2_point(f_ref, f_cur, trackerParams_.ransac_max_iterations_, trackerParams_.ransac_threshold_mono_, trackerParams_.ransac_probability_,
-  		  	  	  	  	  	  	  	  	  	  	  translation, actual_iterations);
+                                                translation, actual_iterations);
   gtsam::Matrix3 rot_mat = R.matrix();
   Eigen::Matrix<double,3,4> myModel;
   for (int i=0 ; i<3 ; i++){
-	  for (int j=0 ; j<3 ; j++)
-		  myModel(i,j) = rot_mat(i,j);
-  	  myModel(i,3) = translation[i];
+    for (int j=0 ; j<3 ; j++)
+      myModel(i,j) = rot_mat(i,j);
+      myModel(i,3) = translation[i];
   }
   ransac.model_coefficients_ = myModel;
   ransac.inliers_ = inliers;
@@ -391,10 +394,12 @@ std::pair<Tracker::TrackingStatus,gtsam::Pose3> Tracker::geometricOutlierRejecti
   return std::make_pair(status , camLrectlkf_P_camLrectkf);
 }
 
-/* --------------------------------------------------------------------------------------- */
-std::pair< Vector3, Matrix3 > Tracker::GetPoint3AndCovariance(const StereoFrame& stereoFrame,
-    const gtsam::StereoCamera stereoCam, const int pointId,
-    const Matrix3 stereoPtCov, boost::optional<gtsam::Matrix3> Rmat){
+/* -------------------------------------------------------------------------- */
+std::pair< Vector3, Matrix3 > Tracker::GetPoint3AndCovariance(
+    const StereoFrame& stereoFrame,
+    const gtsam::StereoCamera& stereoCam,
+    const int pointId,
+    const Matrix3& stereoPtCov, boost::optional<gtsam::Matrix3> Rmat) {
 
   gtsam::StereoPoint2 stereoPoint = gtsam::StereoPoint2(
       double(stereoFrame.left_keypoints_rectified_[pointId].x),
@@ -421,10 +426,12 @@ std::pair< Vector3, Matrix3 > Tracker::GetPoint3AndCovariance(const StereoFrame&
 
   return std::make_pair(point3_i,cov_i);
 }
-/* --------------------------------------------------------------------------------------- */
-std::pair< std::pair<Tracker::TrackingStatus,gtsam::Pose3> , gtsam::Matrix3 > Tracker::geometricOutlierRejectionStereoGivenRotation(
-    StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame, const gtsam::Rot3 R)
-{
+
+/* -------------------------------------------------------------------------- */
+std::pair< std::pair<Tracker::TrackingStatus,gtsam::Pose3>, gtsam::Matrix3 >
+Tracker::geometricOutlierRejectionStereoGivenRotation(
+    StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame,
+    const gtsam::Rot3& R) {
   double startTime, timeMatchingAndAllocation_p, timeCreatePointsAndCov_p, timeVoting_p, timeTranslationComputation_p;
   if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
 
@@ -600,9 +607,11 @@ std::pair< std::pair<Tracker::TrackingStatus,gtsam::Pose3> , gtsam::Matrix3 > Tr
 
   return std::make_pair( std::make_pair(status , gtsam::Pose3(R,gtsam::Point3(t))) , totalInfo.cast <double> () );
 }
-/* --------------------------------------------------------------------------------------- */
-std::pair<Tracker::TrackingStatus,gtsam::Pose3> Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame)
-{
+
+/* -------------------------------------------------------------------------- */
+std::pair<Tracker::TrackingStatus,gtsam::Pose3>
+Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
+                                         StereoFrame& cur_stereoFrame) {
   double startTime;
   if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
 
@@ -658,18 +667,19 @@ std::pair<Tracker::TrackingStatus,gtsam::Pose3> Tracker::geometricOutlierRejecti
 
   return std::make_pair(status , UtilsOpenCV::Gvtrans2pose(best_transformation));
 }
-/* --------------------------------------------------------------------------------------- */
-std::vector<int> Tracker::FindOutliers(const std::vector<std::pair<size_t, size_t>> matches_ref_cur,
-    std::vector<int> inliers)
-{
+
+/* -------------------------------------------------------------------------- */
+// TODO do not use return for vector, pass by pointer.
+std::vector<int> Tracker::FindOutliers(
+    const std::vector<std::pair<size_t, size_t> >& matches_ref_cur,
+    std::vector<int> inliers) {
   // Get outlier indices from inlier indices.
   std::sort(inliers.begin(), inliers.end(), std::less<int>());
   std::vector<int> outliers;
   outliers.reserve(matches_ref_cur.size() - inliers.size());
   // The following is a complicated way of computing a set difference
   size_t k = 0;
-  for (size_t i = 0u; i < matches_ref_cur.size(); ++i)
-  {
+  for (size_t i = 0u; i < matches_ref_cur.size(); ++i) {
     if ( k < inliers.size() // If we haven't exhaused inliers
         && static_cast<int>(i) > inliers[k]) // If we are after the inlier[k]
       ++k;					    // Check the next inlier
@@ -679,10 +689,12 @@ std::vector<int> Tracker::FindOutliers(const std::vector<std::pair<size_t, size_
   }
   return outliers;
 }
-/* --------------------------------------------------------------------------------------- */
-void Tracker::removeOutliersMono(Frame& ref_frame, Frame& cur_frame, const std::vector<std::pair<size_t, size_t>> matches_ref_cur,
-    std::vector<int> inliers, const int iterations)
-{
+
+/* -------------------------------------------------------------------------- */
+void Tracker::removeOutliersMono(
+    Frame& ref_frame, Frame& cur_frame,
+    const std::vector<std::pair<size_t, size_t> >& matches_ref_cur,
+    std::vector<int> inliers, const int iterations) {
   // find indices of outliers in current frame
   std::vector<int> outliers = FindOutliers(matches_ref_cur, inliers);
 
@@ -697,10 +709,12 @@ void Tracker::removeOutliersMono(Frame& ref_frame, Frame& cur_frame, const std::
       " #outliers = " << outliers.size() << std::endl;
 #endif
 }
-/* --------------------------------------------------------------------------------------- */
-void Tracker::removeOutliersStereo(StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame, const std::vector<std::pair<size_t, size_t>> matches_ref_cur,
-    std::vector<int> inliers, const int iterations)
-{
+
+/* -------------------------------------------------------------------------- */
+void Tracker::removeOutliersStereo(
+    StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame,
+    const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
+    std::vector<int> inliers, const int iterations) {
   // find indices of outliers in current stereo frame
   std::vector<int> outliers = FindOutliers(matches_ref_cur, inliers);
 
@@ -720,7 +734,8 @@ void Tracker::removeOutliersStereo(StereoFrame& ref_stereoFrame, StereoFrame& cu
       " #outliers = " << outliers.size() << std::endl;
 #endif
 }
-/* --------------------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
 std::vector<std::pair<size_t, size_t>> Tracker::FindMatchingStereoKeypoints(
     const StereoFrame& ref_stereoFrame, const StereoFrame& cur_stereoFrame)
 {
@@ -729,10 +744,11 @@ std::vector<std::pair<size_t, size_t>> Tracker::FindMatchingStereoKeypoints(
 
   return FindMatchingStereoKeypoints(ref_stereoFrame,cur_stereoFrame,matches_ref_cur_mono);
 }
-/* --------------------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
 std::vector<std::pair<size_t, size_t>> Tracker::FindMatchingStereoKeypoints(
     const StereoFrame& ref_stereoFrame, const StereoFrame& cur_stereoFrame,
-    const std::vector<std::pair<size_t, size_t>> matches_ref_cur_mono)
+    const std::vector<std::pair<size_t, size_t>>& matches_ref_cur_mono)
 {
   std::vector<std::pair<size_t, size_t>> matches_ref_cur_stereo;
   for(size_t i = 0; i < matches_ref_cur_mono.size(); ++i)
@@ -747,7 +763,8 @@ std::vector<std::pair<size_t, size_t>> Tracker::FindMatchingStereoKeypoints(
   }
   return matches_ref_cur_stereo;
 }
-/* --------------------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
 std::vector<std::pair<size_t, size_t>> Tracker::FindMatchingKeypoints(
     const Frame& ref_frame, const Frame& cur_frame)
 {
@@ -777,8 +794,10 @@ std::vector<std::pair<size_t, size_t>> Tracker::FindMatchingKeypoints(
   }
   return matches_ref_cur;
 }
-/* --------------------------------------------------------------------------------------- */
-double Tracker::ComputeMedianDisparity(const Frame& ref_frame, const Frame& cur_frame)
+
+/* -------------------------------------------------------------------------- */
+double Tracker::ComputeMedianDisparity(const Frame& ref_frame,
+                                       const Frame& cur_frame)
 {
   // Find keypoints that observe the same landmarks in both frames:
   std::vector<std::pair<size_t, size_t>> matches_ref_cur =
@@ -811,9 +830,13 @@ double Tracker::ComputeMedianDisparity(const Frame& ref_frame, const Frame& cur_
   return disparity[center];
 }
 
-/* --------------------------------------------------------------------------------------- */
-cv::Mat Tracker::displayFrame(const Frame& ref_frame, const Frame& cur_frame, const int verbosity,
-    const KeypointsCV extraCorners1, const KeypointsCV extraCorners2, const std::string extraString) const
+/* -------------------------------------------------------------------------- */
+cv::Mat Tracker::displayFrame(
+    const Frame& ref_frame, const Frame& cur_frame,
+    const int verbosity,
+    const KeypointsCV& extraCorners1,
+    const KeypointsCV& extraCorners2,
+    const std::string& extraString) const
 {
   cv::Mat img_rgb = cv::Mat(cur_frame.img_.size(), CV_8U);
   cv::cvtColor(cur_frame.img_, img_rgb, cv::COLOR_GRAY2RGB);
@@ -862,4 +885,3 @@ cv::Mat Tracker::displayFrame(const Frame& ref_frame, const Frame& cur_frame, co
   }
   return img_rgb;
 }
-/* --------------------------------------------------------------------------------------- */

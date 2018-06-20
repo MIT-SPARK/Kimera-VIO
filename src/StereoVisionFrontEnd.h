@@ -133,7 +133,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // static function to display output of stereo tracker
   static void PrintStatusStereoMeasurements(
-      const StatusSmartStereoMeasurements statusStereoMeasurements) {
+      const StatusSmartStereoMeasurements& statusStereoMeasurements) {
     std::cout << " SmartStereoMeasurements with mono status " << statusStereoMeasurements.first.kfTrackingStatus_mono_
         << " , stereo status " << statusStereoMeasurements.first.kfTrackingStatus_stereo_
         << " observing landmarks:" << std::endl;

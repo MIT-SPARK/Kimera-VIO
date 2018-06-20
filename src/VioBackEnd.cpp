@@ -314,8 +314,8 @@ void VioBackEnd::updateLandmarkInGraph(
 
 /* -------------------------------------------------------------------------- */
 gtsam::Rot3 VioBackEnd::preintegrateGyroMeasurements(
-    const ImuStamps imu_stamps,
-    const ImuAccGyr imu_accgyr) const {
+    const ImuStamps& imu_stamps,
+    const ImuAccGyr& imu_accgyr) const {
   gtsam::PreintegratedAhrsMeasurements pimRot(imu_bias_prev_kf_.gyroscope(),
                                               gtsam::Matrix3::Identity());
   for (int i = 0; i < imu_stamps.size() - 1; ++i) {

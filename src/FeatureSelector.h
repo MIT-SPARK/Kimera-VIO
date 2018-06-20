@@ -188,12 +188,12 @@ public:
   // cam_param contains the distorted, unrectified camera calibration used to
   // undistorRectify availableCorners.
   std::tuple<KeypointsCV, std::vector<size_t>, std::vector<double>>
-  featureSelectionLinearModel(const KeypointsCV availableCorners,
-                              const std::vector<double> successProbabilities,
-                              const std::vector<double> availableCornersDistances,
-                              const CameraParams cam_param,
+  featureSelectionLinearModel(const KeypointsCV& availableCorners,
+                              const std::vector<double>& successProbabilities,
+                              const std::vector<double>& availableCornersDistances,
+                              const CameraParams& cam_param,
                               const int need_n_corners, const FeatureSelectorData& featureSelectionData,
-                              const VioFrontEndParams::FeatureSelectionCriterion criterion) const {
+                              const VioFrontEndParams::FeatureSelectionCriterion& criterion) const {
 
 #ifdef FEATURE_SELECTOR_DEBUG_COUT
     double startTime = UtilsOpenCV::GetTimeInSeconds();
@@ -276,7 +276,7 @@ public:
   // Sort upperBounds in descending order, storing the corresponding indices in the second
   // output argument (as in matlab sort).
   static std::pair< std::vector<size_t>,std::vector<double> >
-  SortDescending(const std::vector<double> upperBounds) {
+  SortDescending(const std::vector<double>& upperBounds) {
 
     size_t N = upperBounds.size();
 
@@ -334,7 +334,7 @@ public:
   static std::tuple< std::vector<size_t>,std::vector<double>,double >
   OrderByUpperBound(const gtsam::GaussianFactorGraph::shared_ptr& bestOmegaBar,
       const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
-      const VioFrontEndParams::FeatureSelectionCriterion criterion) {
+      const VioFrontEndParams::FeatureSelectionCriterion& criterion) {
 
     std::vector<double> upperBounds; upperBounds.reserve(N); // for lazy evaluation
     size_t sizeBestOmegaBar = bestOmegaBar->size();
@@ -397,7 +397,7 @@ public:
   GreedyAlgorithm(const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
                   const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
                   const int need_n_corners,
-                  const VioFrontEndParams::FeatureSelectionCriterion criterion,
+                  const VioFrontEndParams::FeatureSelectionCriterion& criterion,
                   const bool useLazyEval = true) {
 
     size_t N = Deltas.size(); // nr of available features
@@ -616,7 +616,7 @@ public:
   static double EvaluateGain(
       const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
       const gtsam::HessianFactor::shared_ptr& Deltaj,
-      const VioFrontEndParams::FeatureSelectionCriterion criterion,
+      const VioFrontEndParams::FeatureSelectionCriterion& criterion,
       bool useDenseMatrices = true) {
 
     // augment graph
@@ -971,8 +971,8 @@ public:
 
   /* ------------------------------------------------------------------------ */
   std::vector<gtsam::HessianFactor::shared_ptr> createDeltas(
-      const std::vector<gtsam::Vector3> availableVersors,
-      const std::vector<double> availableCornersDistances,
+      const std::vector<gtsam::Vector3>& availableVersors,
+      const std::vector<double>& availableCornersDistances,
       const FeatureSelectorData& featureSelectionData,
       const Cameras& left_cameras, const Cameras& right_cameras) const {
 
@@ -1026,7 +1026,7 @@ public:
   static boost::optional<gtsam::Unit3> GetVersorIfInFOV(
       const Camera& cam,
       const gtsam::Point3& pworld,
-      const double maxDistance = 1e9) {
+      const double& maxDistance = 1e9) {
     // check if a point p (expressed in global frame) falls in the FOV of the camera cam,
     // in which case the function returns a unit3 corresponding to the direction at which p is observed
     if(pworld.vector().norm() <= 1e-3)
@@ -1400,8 +1400,8 @@ public:
              << " newlyAvailableKeypoints " << newlyAvailableKeypoints.size()
              << " selectedKeypoints " << selectedKeypoints.size();
 
-    static constexpr bool visualize_selection_results = false;
-    if (saveImagesSelector == 1 && visualize_selection_results) {
+    static constexpr bool visualize_selection_results = true;
+    if (visualize_selection_results) {
       cv::imshow("Selection results", img);
     }
 
