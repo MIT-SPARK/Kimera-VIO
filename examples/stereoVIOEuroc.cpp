@@ -125,9 +125,12 @@ void parseDatasetAndParams(ETHDatasetParser* dataset,
   *final_k = FLAGS_final_k;
   CHECK_GT(*final_k, 0);
   const size_t& nr_images = dataset->nrImages();
-  CHECK(*final_k < nr_images)
-      << "Value for final_k, " << *final_k << " is larger than total"
-      << " number of frames in dataset " << nr_images;
+  if (*final_k > nr_images) {
+    LOG(WARNING) << "Value for final_k, " << *final_k << " is larger than total"
+                 << " number of frames in dataset " << nr_images;
+    *final_k = nr_images;
+    LOG(WARNING) << "Using final_k = " << *final_k;
+  }
   CHECK(*final_k > *initial_k)
       << "Value for final_k (" << *final_k << ") is smaller than value for"
       << " initial_k (" << *initial_k << ").";
