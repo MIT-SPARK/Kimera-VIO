@@ -38,8 +38,8 @@ DEFINE_double(min_ratio_btw_largest_smallest_side, 0.5,
               "side of a triangle."); // TODO: this check should be improved
 DEFINE_double(min_elongation_ratio, 0.5, "Minimum allowed elongation "
                                          "ratio for a triangle.");  // TODO: this check should be improved
-DEFINE_double(max_triangle_side, 1.5, "Maximum allowed side for "
-                                    "a triangle.");
+DEFINE_double(max_triangle_side, 0.5, "Maximum allowed side for "
+                                      "a triangle.");
 
 namespace VIO {
 
