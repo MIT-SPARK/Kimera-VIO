@@ -33,7 +33,7 @@ if [ $USE_REGULAR_VIO == 1 ]; then
     --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
     --add_extra_lmks_from_stereo=false \
     --visualize_mesh_2d_filtered=false \
-    --max_triangle_side=0.5 \
+    --max_triangle_side=0.5
 else
   ../build/stereoVIOEuroc \
     --logtostderr=1 \
