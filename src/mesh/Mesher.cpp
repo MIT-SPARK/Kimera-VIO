@@ -24,6 +24,22 @@
 // WARNING this is computationally expensive.
 DEFINE_bool(add_extra_lmks_from_stereo, false,
             "Add extra landmarks that are stereo triangulated to the mesh.");
+DEFINE_bool(visualize_histogram_1D, false, "Visualize 1D histogram.");
+DEFINE_bool(visualize_histogram_2D, false, "Visualize 2D histogram.");
+
+DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");
+DEFINE_bool(visualize_mesh_2d_filtered, false, "Visualize mesh 2D filtered.");
+
+// Mesher.
+DEFINE_double(max_grad_in_triangle, -1,
+              "Maximum allowed gradient inside a triangle.");
+DEFINE_double(min_ratio_btw_largest_smallest_side, 0.5,
+              "Minimum ratio between largest and smallest "
+              "side of a triangle."); // TODO: this check should be improved
+DEFINE_double(min_elongation_ratio, 0.5, "Minimum allowed elongation "
+                                         "ratio for a triangle.");  // TODO: this check should be improved
+DEFINE_double(max_triangle_side, 1.5, "Maximum allowed side for "
+                                    "a triangle.");
 
 namespace VIO {
 
@@ -833,7 +849,6 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   //cv::GaussianBlur(histImg, histImg, cv::Size(9, 9), 0);
   ///
   VLOG(10) << "Starting get local maximum for 2D histogram...";
-  static constexpr bool visualize_hist_2d = true;
   std::vector<Histogram::PeakInfo2D> peaks2;
   static const cv::Size kernel_size_2d (3, 3);
   static constexpr int number_of_local_max = 2;
@@ -843,7 +858,7 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
                             number_of_local_max,
                             min_support,
                             min_dist_btw_loc_max,
-                            visualize_hist_2d);
+                            FLAGS_visualize_histogram_2D);
   VLOG(10) << "Finished get local maximum for 2D histogram.";
 
   VLOG(0) << "# of peaks in 2D histogram = " << peaks2.size();
@@ -923,10 +938,9 @@ void Mesher::segmentHorizontalPlanes(
   static constexpr int neighbor_size = 3;
   static constexpr float peak_per = 0.5;
   static constexpr float min_support = 50;
-  static constexpr bool visualize_hist = false;
   std::vector<Histogram::PeakInfo> peaks =
       hist.getLocalMaximum1D(kernel_size, neighbor_size, peak_per,
-                             min_support, visualize_hist);
+                             min_support, FLAGS_visualize_histogram_1D);
   VLOG(10) << "Finished get local maximum for 1D.";
 
   LOG(WARNING) << "# of peaks in 1D histogram = " << peaks.size();
@@ -1155,13 +1169,8 @@ void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
     std::shared_ptr<StereoFrame> stereoFrame,
     const gtsam::Pose3& leftCameraPose,
-    const float& maxGradInTriangle,
-    const double& minRatioBetweenLargestAnSmallestSide,
-    const double& min_elongation_ratio,
-    const double& maxTriangleSide,
-    const bool& visualize) {
+    cv::Mat* mesh_2d_img) {
   VLOG(10) << "Starting updateMesh3D...";
-
   const std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_all =
       &points_with_id_VIO;
 
@@ -1193,19 +1202,14 @@ void Mesher::updateMesh3D(
   std::vector<cv::Vec6f> mesh_2d_filtered;
   stereoFrame->filterTrianglesWithGradients(mesh_2d,
                                             &mesh_2d_filtered,
-                                            maxGradInTriangle);
+                                            FLAGS_max_grad_in_triangle);
 
   // Debug.
-  if (visualize) {
-    static constexpr bool visualize_mesh_2d = false;
-    if (visualize_mesh_2d) {
-      stereoFrame->visualizeMesh2DStereo(mesh_2d, 1);
-    }
-    static constexpr bool visualize_mesh_2d_filtered = false;
-    if (visualize_mesh_2d_filtered) {
-      stereoFrame->visualizeMesh2DStereo(mesh_2d_filtered, 1,
-                                         "2D Mesh Filtered");
-    }
+  if (FLAGS_visualize_mesh_2d) {
+    stereoFrame->visualizeMesh2DStereo(mesh_2d, mesh_2d_img);
+  } else if (FLAGS_visualize_mesh_2d_filtered) {
+    stereoFrame->visualizeMesh2DStereo(mesh_2d_filtered, mesh_2d_img,
+                                       "2D Mesh Filtered");
   }
 
   populate3dMeshTimeHorizon(
@@ -1213,9 +1217,9 @@ void Mesher::updateMesh3D(
         *points_with_id_all,
         stereoFrame->left_frame_,
         leftCameraPose,
-        minRatioBetweenLargestAnSmallestSide,
-        min_elongation_ratio,
-        maxTriangleSide);
+        FLAGS_min_ratio_btw_largest_smallest_side,
+        FLAGS_min_elongation_ratio,
+        FLAGS_max_triangle_side);
 
   VLOG(10) << "Finished updateMesh3D.";
 }

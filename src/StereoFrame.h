@@ -211,9 +211,10 @@ public:
   void computeImgGradients(const cv::Mat& img, cv::Mat* img_grads);
 
   // visualize stored mesh
-  void visualizeMesh2DStereo(const std::vector<cv::Vec6f>& triangulation_2D,
-                             const double waitTime = 0,
-                             const std::string& window_name = "Mesh 2D") const;
+  void visualizeMesh2DStereo(
+      const std::vector<cv::Vec6f>& triangulation_2D,
+      cv::Mat* mesh_2d_img = nullptr,
+      const std::string& window_name = "Mesh 2D") const;
 
   // copy rectification parameters from another stereo camera
   void cloneRectificationParameters(const StereoFrame& sf);

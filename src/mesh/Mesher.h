@@ -41,11 +41,7 @@ public:
       const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO,
       std::shared_ptr<StereoFrame> stereoFrame,
       const gtsam::Pose3& leftCameraPose,
-      const float& maxGradInTriangle = 50,
-      const double& minRatioBetweenLargestAnSmallestSide = 0,
-      const double& min_elongation_ratio = 0.5,
-      const double& maxTriangleSide = 10,
-      const bool& visualize = true);
+      cv::Mat* mesh_2d_img = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Cluster planes from the mesh.

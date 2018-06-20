@@ -1359,74 +1359,74 @@ public:
     //////////////////////////////////////////////////////////////////
     // 5) DISPLAY FEATURE SELECTION:
     //////////////////////////////////////////////////////////////////
-    static constexpr int remId = 1000; // landmark ids are visualized modulo this number to improve visualization
-    cv::Mat img = stereoFrame_km1->left_frame_.img_.clone();
-    //UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints, cv::Scalar(0, 0, 255),0.4,newlyAvailableLmks,remId);
-    //UtilsOpenCV::DrawCirclesInPlace(img, selectedKeypoints, cv::Scalar(0, 255, 255), 4,selectedLmks,remId);
-    //UtilsOpenCV::DrawSquaresInPlace(img, trackedKeypoints, cv::Scalar(0, 255, 0),10,trackedLmks,remId);
-    std::vector<int> emptyVect;
-    UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints,
-                                    cv::Scalar(0, 0, 255), 0.4,
-                                    emptyVect, remId);
-    UtilsOpenCV::DrawCirclesInPlace(img, selectedKeypoints,
-                                    cv::Scalar(0, 255, 255), 4,
-                                    emptyVect, remId);
-    UtilsOpenCV::DrawSquaresInPlace(img, trackedKeypoints,
-                                    cv::Scalar(0, 255, 0), 10,
-                                    emptyVect, remId);
-    for (size_t ii = 0; ii < trackedLmks.size(); ii++) {
-      KeypointCV px_cur = trackedKeypoints.at(ii);
-      KeypointCV px_ref;
-      for (size_t jj = 0; jj < frame_km1.landmarks_.size(); jj++) {
-        // Current landmark in previous frame.
-        if (frame_km1.landmarks_.at(jj) == trackedLmks.at(ii)) {
-          px_ref = frame_km1.keypoints_.at(jj);
-          break;
-        }
-        continue; // if we did not find the point, we skip the line
-      }
-      cv::line(img, px_cur, px_ref, cv::Scalar(0,255,0), 1);
-    }
-
-    // Plot text with keyframe id.
-    cv::putText(img,
-                "kf:" + std::to_string(vio_cur_id)
-                + " #tracked:" + std::to_string(trackedLmks.size())
-                + " #selected:" + std::to_string(selectedLmks.size()),
-                KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.4,
-                cv::Scalar(0, 255, 255));
-
-    VLOG(20) << "trackedKeypoints: " << trackedKeypoints.size()
-             << " newlyAvailableKeypoints " << newlyAvailableKeypoints.size()
-             << " selectedKeypoints " << selectedKeypoints.size();
-
-    static constexpr bool visualize_selection_results = true;
+    static constexpr bool visualize_selection_results = false;
     if (visualize_selection_results) {
+      static constexpr int remId = 1000; // landmark ids are visualized modulo this number to improve visualization
+      cv::Mat img = stereoFrame_km1->left_frame_.img_.clone();
+      //UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints, cv::Scalar(0, 0, 255),0.4,newlyAvailableLmks,remId);
+      //UtilsOpenCV::DrawCirclesInPlace(img, selectedKeypoints, cv::Scalar(0, 255, 255), 4,selectedLmks,remId);
+      //UtilsOpenCV::DrawSquaresInPlace(img, trackedKeypoints, cv::Scalar(0, 255, 0),10,trackedLmks,remId);
+      std::vector<int> emptyVect;
+      UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints,
+                                      cv::Scalar(0, 0, 255), 0.4,
+                                      emptyVect, remId);
+      UtilsOpenCV::DrawCirclesInPlace(img, selectedKeypoints,
+                                      cv::Scalar(0, 255, 255), 4,
+                                      emptyVect, remId);
+      UtilsOpenCV::DrawSquaresInPlace(img, trackedKeypoints,
+                                      cv::Scalar(0, 255, 0), 10,
+                                      emptyVect, remId);
+      for (size_t ii = 0; ii < trackedLmks.size(); ii++) {
+        KeypointCV px_cur = trackedKeypoints.at(ii);
+        KeypointCV px_ref;
+        for (size_t jj = 0; jj < frame_km1.landmarks_.size(); jj++) {
+          // Current landmark in previous frame.
+          if (frame_km1.landmarks_.at(jj) == trackedLmks.at(ii)) {
+            px_ref = frame_km1.keypoints_.at(jj);
+            break;
+          }
+          continue; // if we did not find the point, we skip the line
+        }
+        cv::line(img, px_cur, px_ref, cv::Scalar(0,255,0), 1);
+      }
+
+      // Plot text with keyframe id.
+      cv::putText(img,
+                  "kf:" + std::to_string(vio_cur_id)
+                  + " #tracked:" + std::to_string(trackedLmks.size())
+                  + " #selected:" + std::to_string(selectedLmks.size()),
+                  KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.4,
+                  cv::Scalar(0, 255, 255));
+
+      VLOG(20) << "trackedKeypoints: " << trackedKeypoints.size()
+               << " newlyAvailableKeypoints " << newlyAvailableKeypoints.size()
+               << " selectedKeypoints " << selectedKeypoints.size();
+
       cv::imshow("Selection results", img);
-    }
 
-    if(saveImagesSelector == 2) {
-      // Create output folders:
-      std::string folderName =
-          "./result-FeatureSelection-" + dataset_name + "-"
-          + VioFrontEndParams::FeatureSelectionCriterionStr(criterion) + "/";
-      boost::filesystem::path stereoTrackerDir(folderName.c_str());
-      boost::filesystem::create_directory(stereoTrackerDir);
-      // Write image.
-      std::string img_name = folderName + "img_"
-                             + std::to_string(vio_cur_id) + ".png";
-      cv::imwrite(img_name, img);
+      if(saveImagesSelector == 2) {
+        // Create output folders:
+        std::string folderName =
+            "./result-FeatureSelection-" + dataset_name + "-"
+            + VioFrontEndParams::FeatureSelectionCriterionStr(criterion) + "/";
+        boost::filesystem::path stereoTrackerDir(folderName.c_str());
+        boost::filesystem::create_directory(stereoTrackerDir);
+        // Write image.
+        std::string img_name = folderName + "img_"
+                               + std::to_string(vio_cur_id) + ".png";
+        cv::imwrite(img_name, img);
 
-      // Create output folders:
-      folderName =
-          "./result-original-" + dataset_name + "-"
-          + VioFrontEndParams::FeatureSelectionCriterionStr(criterion) + "/";
-      boost::filesystem::path originalImgDir(folderName.c_str());
-      boost::filesystem::create_directory(originalImgDir);
+        // Create output folders:
+        folderName =
+            "./result-original-" + dataset_name + "-"
+            + VioFrontEndParams::FeatureSelectionCriterionStr(criterion) + "/";
+        boost::filesystem::path originalImgDir(folderName.c_str());
+        boost::filesystem::create_directory(originalImgDir);
 
-      // Write image.
-      img_name = folderName + "img_" + std::to_string(vio_cur_id) + ".png";
-      cv::imwrite(img_name, stereoFrame_km1->left_frame_.img_);
+        // Write image.
+        img_name = folderName + "img_" + std::to_string(vio_cur_id) + ".png";
+        cv::imwrite(img_name, stereoFrame_km1->left_frame_.img_);
+      }
     }
 
     return std::make_pair(trackedAndSelectedSmartStereoMeasurements,

@@ -471,6 +471,7 @@ int main(int argc, char *argv[]) {
       gtsam::Pose3 W_Pose_camlkf_vio =
           vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
 
+      cv::Mat mesh_2d; // Only for visualization.
       switch (visualization_type) {
         // Computes and visualizes 2D mesh.
         // vertices: all leftframe kps with lmkId != -1 and inside the image
@@ -501,8 +502,7 @@ int main(int argc, char *argv[]) {
         case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
           std::vector<cv::Vec6f> mesh_2d;
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2dStereo(&mesh_2d);
-          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2DStereo(mesh_2d,
-                                                                       100);
+          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2DStereo(mesh_2d);
           break;
         }
 
@@ -537,35 +537,12 @@ int main(int argc, char *argv[]) {
                   minKfValidPoints);
           }
 
-          static constexpr float maxGradInTriangle = -1; //50.0;
-          static constexpr double minRatioBetweenLargestAnSmallestSide = 0.5; // TODO: this check should be improved
-          static constexpr double min_elongation_ratio = 0.5;  // TODO: this check should be improved
-          static constexpr double maxTriangleSide = 0.5;
-
           // Create mesh.
           mesher.updateMesh3D(
                 points_with_id_VIO,
                 stereoVisionFrontEnd.stereoFrame_lkf_,
                 W_Pose_camlkf_vio,
-                maxGradInTriangle,
-                minRatioBetweenLargestAnSmallestSide,
-                min_elongation_ratio, maxTriangleSide,
-                FLAGS_visualize);
-
-          // TODO Remove, just to keep functional pipeline.
-          //static const gtsam::Symbol plane_symbol ('P', 0);
-          //static const cv::Point3d plane_normal (0.0, 0.0, 1.0);
-          //static constexpr double plane_distance = 0.0;
-          //static Plane plane (plane_symbol,
-          //                    plane_normal,
-          //                    plane_distance);
-          //if (planes.size() == 0) {
-          //  // TODO remove hardcoded, just for visualization.
-          //  plane.triangle_cluster_.cluster_id_ = 2;
-          //  planes.push_back(plane);
-          //} else {
-          //  planes.at(0).normal_ = plane_normal; // Do not use normal estimate.
-          //}
+                &mesh_2d);
 
           // Find regularities in the mesh.
           // Currently only triangles in the ground floor.
@@ -771,7 +748,9 @@ int main(int argc, char *argv[]) {
       if (FLAGS_visualize) {
         VLOG(10) << "Starting trajectory visualization...";
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
+        static constexpr bool visualize_mesh_in_frustum = true;
         visualizer.visualizeTrajectory3D(
+              visualize_mesh_in_frustum? &mesh_2d :
               &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
         visualizer.renderWindow();
         VLOG(10) << "Finsihed trajectory visualization.";

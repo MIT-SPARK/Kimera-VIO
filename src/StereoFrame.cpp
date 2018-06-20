@@ -490,9 +490,9 @@ void StereoFrame::computeImgGradients(const cv::Mat& img, cv::Mat* img_grads) {
 
 /* -------------------------------------------------------------------------- */
 void StereoFrame::visualizeMesh2DStereo(
-                                 const std::vector<cv::Vec6f>& triangulation_2D,
-                                 const double waitTime,
-                                 const std::string& window_name) const {
+    const std::vector<cv::Vec6f>& triangulation_2D,
+    cv::Mat* mesh_2d_img,
+    const std::string& window_name) const {
   cv::Scalar delaunay_color(0, 255, 0), // Green
              mesh_vertex_color(255, 0, 0), // Blue
              valid_keypoints_color(0, 0, 255); //Red
@@ -536,7 +536,9 @@ void StereoFrame::visualizeMesh2DStereo(
     cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
   }
   cv::imshow(window_name, img);
-  cv::waitKey(waitTime);
+  if (mesh_2d_img != nullptr) {
+    *mesh_2d_img = img;
+  }
 }
 
 /* --------------------------------------------------------------------------------------- */
