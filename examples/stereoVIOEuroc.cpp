@@ -471,7 +471,7 @@ int main(int argc, char *argv[]) {
       gtsam::Pose3 W_Pose_camlkf_vio =
           vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
 
-      cv::Mat mesh_2d; // Only for visualization.
+      cv::Mat* mesh_2d = nullptr; // Only for visualization.
       switch (visualization_type) {
         // Computes and visualizes 2D mesh.
         // vertices: all leftframe kps with lmkId != -1 and inside the image
@@ -542,7 +542,7 @@ int main(int argc, char *argv[]) {
                 points_with_id_VIO,
                 stereoVisionFrontEnd.stereoFrame_lkf_,
                 W_Pose_camlkf_vio,
-                &mesh_2d);
+                mesh_2d);
 
           // Find regularities in the mesh.
           // Currently only triangles in the ground floor.
@@ -750,7 +750,7 @@ int main(int argc, char *argv[]) {
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         static constexpr bool visualize_mesh_in_frustum = true;
         visualizer.visualizeTrajectory3D(
-              visualize_mesh_in_frustum? &mesh_2d :
+              (visualize_mesh_in_frustum && mesh_2d != nullptr)? mesh_2d :
               &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
         visualizer.renderWindow();
         VLOG(10) << "Finsihed trajectory visualization.";
