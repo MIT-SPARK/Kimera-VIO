@@ -273,7 +273,7 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
                                   int number_of_local_max,
                                   int min_support,
                                   int min_dist_btw_loc_max,
-                                  bool visualize) const {
+                                  bool visualize) {
   CHECK_NOTNULL(peaks);
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
   if (histogram_.rows == 0 || histogram_.cols == 0) {
@@ -289,7 +289,7 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
   CHECK_GE(histogram_.cols, smooth_size.width);
   cv::GaussianBlur(histogram_, histogram_, smooth_size, 0);
 
-  int nr_of_maximums = imgRegionalMax(histogram_, number_of_local_max,
+  int nr_of_maximums = imgRegionalMax(&histogram_, number_of_local_max,
                                       min_support, min_dist_btw_loc_max,
                                       peaks);
   if (nr_of_maximums > 0) {
@@ -375,18 +375,18 @@ void Histogram::drawHistogram2D(cv::Mat* img_output,
 /* -------------------------------------------------------------------------- */
 // Calculates local max in 2D image.
 // Locations is a list of point locations.
-int Histogram::imgRegionalMax(cv::Mat input,
+int Histogram::imgRegionalMax(cv::Mat* input,
                               int number_of_local_max,
                               float min_support,
                               float min_dist_btw_loc_max,
-                              std::vector<PeakInfo2D>* locations) const {
+                              std::vector<PeakInfo2D>* locations) {
+  CHECK_NOTNULL(input);
   CHECK_NOTNULL(locations);
-  cv::Mat scratch = input.clone();
   int nFoundLocMax = 0;
   for (int i = 0; i < number_of_local_max; i++) {
     cv::Point location;
     double max_val;
-    cv::minMaxLoc(scratch, NULL, &max_val, NULL, &location);
+    cv::minMaxLoc(*input, NULL, &max_val, NULL, &location);
     if (max_val > min_support) {
       nFoundLocMax += 1;
       int row = location.y;
@@ -395,17 +395,17 @@ int Histogram::imgRegionalMax(cv::Mat input,
                                       max_val));
       int r0 = (row - min_dist_btw_loc_max > -1 ?
                   row - min_dist_btw_loc_max : 0);
-      int r1 = (row + min_dist_btw_loc_max < scratch.rows ?
-                  row + min_dist_btw_loc_max : scratch.rows - 1);
+      int r1 = (row + min_dist_btw_loc_max < input->rows ?
+                  row + min_dist_btw_loc_max : input->rows - 1);
       int c0 = (col - min_dist_btw_loc_max > -1 ?
                   col - min_dist_btw_loc_max : 0);
-      int c1 = (col + min_dist_btw_loc_max < scratch.cols ?
-                  col + min_dist_btw_loc_max : scratch.cols - 1);
+      int c1 = (col + min_dist_btw_loc_max < input->cols ?
+                  col + min_dist_btw_loc_max : input->cols - 1);
       for (int r = r0; r <= r1; r++) {
         for (int c = c0; c <= c1; c++) {
           if (std::sqrt(std::pow(r - row, 2) + std::pow(c - col, 2))
               <= min_dist_btw_loc_max) {
-            scratch.at<float>(r, c) = 0.0;
+            input->at<float>(r, c) = 0.0;
           }
         }
       }

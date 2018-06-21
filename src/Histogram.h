@@ -127,7 +127,7 @@ public:
                          int number_of_local_max = 2,
                          int min_support = 30,
                          int min_dist_btw_loc_max = 5,
-                         bool visualize = false) const;
+                         bool visualize = false);
 
 private:
   // Should be all const.
@@ -191,11 +191,11 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Calculates local max in 2D image.
-  int imgRegionalMax(cv::Mat input,
+  int imgRegionalMax(cv::Mat* input,
                      int number_of_local_max,
                      float min_support,
                      float min_dist_btw_loc_max,
-                     std::vector<PeakInfo2D>* locations) const;
+                     std::vector<PeakInfo2D>* locations);
 };
 
 } // namespace VIO
