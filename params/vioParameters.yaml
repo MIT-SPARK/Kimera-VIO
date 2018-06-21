@@ -10,9 +10,9 @@ nominalImuRate: 0.005
 #INITIALIZATION PARAMETERS
 autoInitialize: 0
 roundOnAutoInitialize: 0
-initialPositionSigma: 0.00001
-initialRollPitchSigma: 0.17453292519 # 10.0/180.0*M_PI
-initialYawSigma: 0.00174532925 # 0.1/180.0*M_PI
+initialPositionSigma: 1e-05
+initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI
+initialYawSigma: 0.00174533 # 0.1/180.0*M_PI
 initialVelocitySigma: 0.001
 initialAccBiasSigma: 0.1
 initialGyroBiasSigma: 0.01
@@ -32,7 +32,7 @@ landmarkDistanceThreshold: 15
 outlierRejection: 8
 retriangulationThreshold: 0.001
 addBetweenStereoFactors: 1
-betweenRotationPrecision: 0.0 # Inverse of variance.
+betweenRotationPrecision: 0 # Inverse of variance.
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 #OPTIMIZATION PARAMETERS
 relinearizeThreshold: 0.01
@@ -41,6 +41,6 @@ zeroVelocitySigma: 0.001
 noMotionPositionSigma: 0.001
 noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
-numOptimize: 2
+numOptimize: 0
 horizon: 6 # In seconds.
 useDogLeg: 0
