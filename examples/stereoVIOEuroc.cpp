@@ -214,6 +214,7 @@ int main(int argc, char *argv[]) {
   std::vector<Plane> planes;
 
   // start actual processing of the dataset
+  static bool is_pipeline_successful = false;
   for(size_t k = initial_k; k < final_k; k++) { // for each image
 
     std::cout << "------------------- Processing frame k="<< k
@@ -765,6 +766,7 @@ int main(int argc, char *argv[]) {
 
     if (k == final_k - 1) {
       LOG(INFO) << "stereoVIOExample completed successfully!";
+      is_pipeline_successful = true;
     }
 
     // Loop visualization.
@@ -775,5 +777,5 @@ int main(int argc, char *argv[]) {
     logger.closeLogFiles();
   }
 
-  return EXIT_SUCCESS;
+  return is_pipeline_successful? EXIT_SUCCESS : EXIT_FAILURE;
 }
