@@ -762,7 +762,7 @@ int main(int argc, char *argv[]) {
               (FLAGS_visualize_mesh_in_frustum && mesh_2d != nullptr)? mesh_2d :
               &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
         visualizer.renderWindow();
-        VLOG(10) << "Finsihed trajectory visualization.";
+        VLOG(10) << "Finished trajectory visualization.";
       }
 
       timestamp_lkf = timestamp_k;
