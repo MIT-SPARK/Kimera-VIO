@@ -775,5 +775,5 @@ int main(int argc, char *argv[]) {
     logger.closeLogFiles();
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
