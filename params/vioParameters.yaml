@@ -19,10 +19,10 @@ initialGyroBiasSigma: 0.01
 #VISION PARAMETERS
 linearizationMode: 0
 degeneracyMode: 1
-smartNoiseSigma: 3
-monoNoiseSigma: 1.2 #0.4 # Only used in RegularVioBackEnd
-stereoNoiseSigma: 1.2 #1.15 # Only used in RegularVioBackEnd
-regularityNoiseSigma: 0.05 # Only used in RegularVioBackEnd
+smartNoiseSigma: 2
+monoNoiseSigma: 1.6 #0.4 # Only used in RegularVioBackEnd
+stereoNoiseSigma: 1.6 #1.15 # Only used in RegularVioBackEnd
+regularityNoiseSigma: 0.03 # Only used in RegularVioBackEnd
 minPlaneConstraints: 20 # Only used in RegularVioBackEnd
 huberParam: 0.8 # Only used in RegularVioBackEnd
 tukeyParam: 4.6851 # Only used in RegularVioBackEnd
@@ -41,6 +41,6 @@ zeroVelocitySigma: 0.001
 noMotionPositionSigma: 0.001
 noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
-numOptimize: 0
+numOptimize: 1
 horizon: 6 # In seconds.
 useDogLeg: 0
