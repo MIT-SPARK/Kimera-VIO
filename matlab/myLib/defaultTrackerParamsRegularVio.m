@@ -9,7 +9,7 @@ trackerParams.maxFeatureAge = 25;
 %
 trackerParams.maxFeaturesPerFrame = 600;
 trackerParams.quality_level = 0.001;
-trackerParams.min_distance = 10;
+trackerParams.min_distance = 20.0;
 trackerParams.block_size = 3;
 trackerParams.use_harris_detector = 0;
 trackerParams.k = 0.04;
@@ -30,7 +30,7 @@ trackerParams.featureSelectionHorizon = 3;
 trackerParams.featureSelectionNrCornersToSelect = 600;
 trackerParams.featureSelectionImuRate = 0.005;
 trackerParams.featureSelectionDefaultDepth = 2.0;
-trackerParams.featureSelectionCosineNeighborhood = 0.9848077
+trackerParams.featureSelectionCosineNeighborhood = cos( (10*pi)/(180.0) );
 trackerParams.featureSelectionUseLazyEvaluation = 1;
 trackerParams.useSuccessProbabilities = 1;
 %
@@ -47,7 +47,7 @@ trackerParams.ransac_randomize = 0;
 %
 trackerParams.intra_keyframe_time = 0.2;
 trackerParams.minNumberFeatures = 0;
-trackerParams.useStereoTracking = 1;
+trackerParams.useStereoTracking = true;
 %
 trackerParams.display_time = 100;
 trackerParams.disparityThreshold = 0.5;
