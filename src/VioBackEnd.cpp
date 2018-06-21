@@ -37,7 +37,8 @@ namespace VIO {
 VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const Cal3_S2& leftCameraCalRectified,
                        const double& baseline,
-                       const VioBackEndParams& vioParams):
+                       const VioBackEndParams& vioParams,
+                       const bool log_timing):
   B_Pose_leftCam_(leftCamPose),
   stereo_cal_(boost::make_shared<gtsam::Cal3_S2Stereo>(
                leftCameraCalRectified.fx(),
@@ -52,6 +53,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   last_kf_id_(-1),
   cur_kf_id_(0),
   verbosity_(0),
+  log_timing_(log_timing),
   landmark_count_(0) {
 
   // Set parameters for all factors.
@@ -797,7 +799,7 @@ void VioBackEnd::optimize(
   double startTime;
   // Reset all timing info.
   debug_info_.resetTimes();
-  if (verbosity_ >= 5) {
+  if (verbosity_ >= 5 || log_timing_) {
     startTime = UtilsOpenCV::GetTimeInSeconds();
   }
 
@@ -841,7 +843,7 @@ void VioBackEnd::optimize(
 
   //////////////////////////////////////////////////////////////////////////////
 
-  if (verbosity_ >= 5) {
+  if (verbosity_ >= 5 || log_timing_) {
     debug_info_.factorsAndSlotsTime_ = UtilsOpenCV::GetTimeInSeconds() -
                                       startTime;
   }
@@ -883,7 +885,7 @@ void VioBackEnd::optimize(
   CHECK_EQ(timestamps.size(), new_values_.size());
 
   // Store time before iSAM update.
-  if (verbosity_ >= 5) {
+  if (verbosity_ >= 5 || log_timing_) {
     debug_info_.preUpdateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
   }
 
@@ -901,7 +903,7 @@ void VioBackEnd::optimize(
   VLOG(10) << "Finished first update.";
 
   // Store time after iSAM update.
-  if (verbosity_ >= 5) {
+  if (verbosity_ >= 5 || log_timing_) {
     debug_info_.updateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
   }
 
@@ -928,7 +930,7 @@ void VioBackEnd::optimize(
 #endif
   VLOG(10) << "Finished to find smart factors slots.";
 
-  if (verbosity_ >= 5) {
+  if (verbosity_ >= 5 || log_timing_) {
     debug_info_.updateSlotTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
   }
 
@@ -940,7 +942,7 @@ void VioBackEnd::optimize(
     updateSmoother(&result);
   }
 
-  if (verbosity_ >= 5) {
+  if (verbosity_ >= 5 || log_timing_) {
     debug_info_.extraIterationsTime_ = UtilsOpenCV::GetTimeInSeconds() -
                                       startTime;
   }
@@ -1916,11 +1918,11 @@ void VioBackEnd::postDebug(const double& start_time) {
     std::cout << "Error before: " << graph.error(debug_info_.stateBeforeOpt)
               << "Error after: " << graph.error(state_) << std::endl;
   }
-  if (verbosity_ >= 5) {
+  if (verbosity_ >= 5 || log_timing_) {
     debug_info_.printTime_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
   }
 
-  if (verbosity_ >= 5) {
+  if (verbosity_ >= 5 || log_timing_) {
     // order of the following is important:
     debug_info_.printTime_ -= debug_info_.extraIterationsTime_;
     debug_info_.extraIterationsTime_ -= debug_info_.updateSlotTime_;
@@ -1930,7 +1932,7 @@ void VioBackEnd::postDebug(const double& start_time) {
     debug_info_.printTimes();
   }
 
-  if (verbosity_ >= 5) {
+  if (verbosity_ >= 5 || log_timing_) {
     double endTime = UtilsOpenCV::GetTimeInSeconds() - start_time;
     // sanity check:
     double endTimeFromSum = debug_info_.factorsAndSlotsTime_ +

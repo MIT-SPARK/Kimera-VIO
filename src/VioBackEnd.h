@@ -258,7 +258,8 @@ public:
   VioBackEnd(const Pose3& leftCamPose,
              const Cal3_S2& leftCameraCalRectified,
              const double& baseline,
-             const VioBackEndParams& vioParams = VioBackEndParams());
+             const VioBackEndParams& vioParams = VioBackEndParams(),
+             const bool log_timing = false);
 
   // Virtual destructor needed for derived class (i.e. RegularVioBackEnd).
   virtual ~VioBackEnd() = default;
@@ -317,6 +318,7 @@ public:
 
   // Flags.
   const int verbosity_;
+  const bool log_timing_;
 
   // Debug info.
   DebugVioInfo debug_info_;

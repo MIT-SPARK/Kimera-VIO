@@ -256,7 +256,8 @@ int main(int argc, char *argv[]) {
           vioBackEnd = boost::make_shared<VioBackEnd>(
            stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
            stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
-           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams);
+           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams,
+                         FLAGS_log_output);
 
           break;
         }
@@ -265,7 +266,8 @@ int main(int argc, char *argv[]) {
           vioBackEnd = boost::make_shared<RegularVioBackEnd>(
            stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
            stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
-           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams);
+           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams,
+                         FLAGS_log_output);
           break;
         }
       }

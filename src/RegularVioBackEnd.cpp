@@ -28,11 +28,13 @@ RegularVioBackEnd::RegularVioBackEnd(
     const Pose3& leftCamPose,
     const Cal3_S2& leftCameraCalRectified,
     const double& baseline,
-    const VioBackEndParams& vioParams) :
+    const VioBackEndParams& vioParams,
+    const bool log_timing) :
   VioBackEnd(leftCamPose,
              leftCameraCalRectified,
              baseline,
-             vioParams) {
+             vioParams,
+             log_timing) {
   LOG(INFO) << "Using Regular VIO backend.\n";
 
   // Set type of mono_noise_ for generic projection factors.

@@ -401,7 +401,7 @@ imuPreintegrationTime = M_timeVIO(:,17);
 
 overall_times = loadStereoFrame_times + processStereoFrame_times + featureSelection_times + overallVIO_times;
 
-display_vio_timing = false;
+display_vio_timing = true;
 if (display_vio_timing)
     if (doSaveFigures>=1)
         fh = figure;

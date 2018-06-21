@@ -29,7 +29,8 @@ public:
   RegularVioBackEnd(const Pose3& leftCamPose,
                     const Cal3_S2& leftCameraCalRectified,
                     const double& baseline,
-                    const VioBackEndParams& vioParams = VioBackEndParams());
+                    const VioBackEndParams& vioParams = VioBackEndParams(),
+                    const bool log_timing = false);
 
   /* ------------------------------------------------------------------------ */
   ~RegularVioBackEnd() = default;
