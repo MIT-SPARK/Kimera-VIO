@@ -1403,10 +1403,21 @@ void VioBackEnd::setIsam2Params(
 
   // TODO Luca: Here there was commented code about setRelinearizeThreshold.
   // was it important?
+  //gtsam::FastMap<char,gtsam::Vector> thresholds;
+    //gtsam::Vector xThresh(6); // = {0.05, 0.05, 0.05, 0.1, 0.1, 0.1};
+    //gtsam::Vector vThresh(3); //= {1.0, 1.0, 1.0};
+    //gtsam::Vector bThresh(6); // = {1.0, 1.0, 1.0};
+    //xThresh << relinearizeThresholdRot_, relinearizeThresholdRot_, relinearizeThresholdRot_, relinearizeThresholdPos_, relinearizeThresholdPos_, relinearizeThresholdPos_;
+    //vThresh << relinearizeThresholdVel_, relinearizeThresholdVel_, relinearizeThresholdVel_;
+    //bThresh << relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_, relinearizeThresholdIMU_;
+    //thresholds['x'] = xThresh;
+    //thresholds['v'] = vThresh;
+    //thresholds['b'] = bThresh;
+    // isam_param.setRelinearizeThreshold(thresholds);
 
   // Cache Linearized Factors seems to improve performance.
   isam_param->setCacheLinearizedFactors(true);
-  isam_param->setEvaluateNonlinearError(true);
+  isam_param->setEvaluateNonlinearError(false);
   isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
   isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
   // isam_param->enablePartialRelinearizationCheck = true;
