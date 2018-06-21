@@ -41,6 +41,14 @@ DEFINE_double(min_elongation_ratio, 0.5, "Minimum allowed elongation "
 DEFINE_double(max_triangle_side, 0.5, "Maximum allowed side for "
                                       "a triangle.");
 
+DEFINE_int32(gaussian_kernel_size, 3, "Kernel size for gaussian blur.");
+DEFINE_int32(hist_2d_nr_of_local_max, 2, "Number of local maximums to extract in 2D"
+                                     " histogram.");
+DEFINE_int32(hist_2d_min_support, 20, "Minimum number of votes to consider a local "
+                              "maximum in 2D histogram a valid peak.");
+DEFINE_int32(hist_2d_min_dist_btw_local_max, 5, "Minimum distance between local "
+                                        "maximums to be considered different.");
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -850,14 +858,12 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   ///
   VLOG(10) << "Starting get local maximum for 2D histogram...";
   std::vector<Histogram::PeakInfo2D> peaks2;
-  static const cv::Size kernel_size_2d (3, 3);
-  static constexpr int number_of_local_max = 2;
-  static constexpr int min_support = 30;
-  static constexpr int min_dist_btw_loc_max = 5;
+  static const cv::Size kernel_size_2d (FLAGS_gaussian_kernel_size,
+                                        FLAGS_gaussian_kernel_size);
   hist_2d.getLocalMaximum2D(&peaks2, kernel_size_2d,
-                            number_of_local_max,
-                            min_support,
-                            min_dist_btw_loc_max,
+                            FLAGS_hist_2d_nr_of_local_max,
+                            FLAGS_hist_2d_min_support,
+                            FLAGS_hist_2d_min_dist_btw_local_max,
                             FLAGS_visualize_histogram_2D);
   VLOG(10) << "Finished get local maximum for 2D histogram.";
 
