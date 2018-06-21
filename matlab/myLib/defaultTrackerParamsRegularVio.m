@@ -20,8 +20,8 @@ trackerParams.toleranceTemplateMatching = 0.15;
 trackerParams.templ_cols = 101;
 trackerParams.templ_rows = 11;
 trackerParams.stripe_extra_rows = 0;
-trackerParams.minPointDist = 0.1;
-trackerParams.maxPointDist = 15;
+trackerParams.minPointDist = 0.5;
+trackerParams.maxPointDist = 10;
 trackerParams.bidirectionalMatching = 0;
 trackerParams.subpixelRefinementStereo = 0;
 %
