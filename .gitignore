@@ -1,3 +1,8 @@
 /build/
 /data-sets/
 /.settings/
+/matlab/result-*
+% Ignore logged mesh ply
+*.ply
+% Remove recovery files from matlab.
+*~

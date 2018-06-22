@@ -13,7 +13,9 @@ VIO is a library of C++ classes that implement the visual-inertial odometry pipe
 Quickstart
 ----------
 
-In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redrect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly,you may need to change the folder for CGAL and OpenGV):
+Clone this repository: `git clone git@github.mit.edu:lcarlone/VIO.git`
+
+In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly,you may need to change the folder for CGAL and OpenGV):
 
 ```
 #!bash
@@ -24,9 +26,11 @@ $ make
 $ make check
 ```
 
-Notea: if you use MKL in gtsam, you may need to add to .bashrc a line similar to: source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64
-Note1b: sometimes you may need to add /usr/local/lib to LD_LIBRARY_PATH in ~/.bashrc (if you get lib not found errors at run or test time)
-Note2: you may have to add %YAML:1.0 as first line in all YAML files :-(
+Note 1a: if you use MKL in gtsam, you may need to add to .bashrc a line similar to: source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64
+Note 1b: sometimes you may need to add /usr/local/lib to LD_LIBRARY_PATH in ~/.bashrc (if you get lib not found errors at run or test time)
+Note 2: you may have to add %YAML:1.0 as first line in all YAML files :-(
+Note 3: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
+Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag) 
 
 Prerequisites:
 
@@ -100,6 +104,10 @@ $ make -j8
 $ sudo make install
 ```
 
+Glog and Gflags
+----------------------
+Glog and gflags will be automatically downloaded using cmake unless there is a system-wide installation found.
+
 Running examples
 ----------------------
 
@@ -111,4 +119,19 @@ stereoVIOEuroc:
 sed -i '1 i\%YAML:1.0' body.yaml
 sed -i '1 i\%YAML:1.0' */sensor.yaml
 ```
+You have two ways to start the example:
+- Using the script stereoVIOEuroc.bash:
+  -- You will need to first specify the DATASET_PATH variable inside the script.
+  -- Optionally, modify flag USE_REGULAR_VIO to 0 to run the normal VIO, or 1 to run the regular version of VIO (recommended: 0).
+  -- Then just execute the script ```./scripts/stereoVIOEuroc.bash```.
 - Execute ```stereoVIOEuroc {DATASET_PATH}``` located in your build folder, where ```{DATASET_PATH}``` is the path to a dataset.
+
+Tips for development
+----------------------
+-- To make the pipeline deterministic:
+
+- Disable TBB in GTSAM (go to build folder in gtsam, use cmake-gui to unset ```GTSAM_WITH_TBB```).
+- Specify ```srand(0)``` in main function, to make randomized algorithms deterministic.
+- Change ```ransac_randomize``` flag in ```params/trackerParameters.yaml``` to 0, to disable ransac randomization.
+
+Note: these changes are not sufficient to make the output repeatable between different machines.

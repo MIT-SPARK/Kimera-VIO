@@ -17,9 +17,8 @@
 using namespace std;
 using namespace VIO;
 
-/* --------------------------------------------------------------------------------------- */
-void StereoVisionFrontEnd::processFirstStereoFrame(StereoFrame& firstFrame)
-{
+/* -------------------------------------------------------------------------- */
+void StereoVisionFrontEnd::processFirstStereoFrame(StereoFrame& firstFrame) {
 #ifdef STEREO_TRACKER_DEBUG_COUT
   printf("Processing first stereo frame \n");
 #endif
@@ -49,9 +48,10 @@ void StereoVisionFrontEnd::processFirstStereoFrame(StereoFrame& firstFrame)
   ++frame_count_;
 }
 
-/* --------------------------------------------------------------------------------------- */
-StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(StereoFrame& cur_frame, boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu)
-{
+/* -------------------------------------------------------------------------- */
+StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
+    StereoFrame& cur_frame,
+    boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu) {
 #ifdef STEREO_TRACKER_DEBUG_COUT
   std::cout << "===================================================" <<  std::endl;
   std::cout << "Frame number: " << frame_count_ << " at time " << cur_frame.timestamp_
@@ -75,20 +75,25 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(StereoFra
   Frame& left_frame_km1 = stereoFrame_km1_->left_frame_;
   Frame& left_frame_k = stereoFrame_k_->left_frame_;
   tracker_.featureTracking(left_frame_km1, left_frame_k);
-  if(verbosityFrames>0) { tracker_.displayFrame(left_frame_km1, left_frame_k, verbosityFrames); }
+  if (verbosityFrames > 0) {
+    tracker_.displayFrame(left_frame_km1, left_frame_k, verbosityFrames);
+  }
 
-  trackerStatusSummary_.kfTrackingStatus_mono_ = Tracker::INVALID; // not tracking at all in this phase
+  // Not tracking at all in this phase.
+  trackerStatusSummary_.kfTrackingStatus_mono_ = Tracker::INVALID;
   trackerStatusSummary_.kfTrackingStatus_stereo_ = Tracker::INVALID;
 
-  SmartStereoMeasurements smartStereoMeasurements; // this will be the info we actually care about
+  // This will be the info we actually care about
+  SmartStereoMeasurements smartStereoMeasurements;
   // smartStereoMeasurements.clear();
 
-  bool maxTimeElapsed = UtilsOpenCV::NsecToSec(stereoFrame_k_->timestamp_ - last_keyframe_timestamp_)
-  >= tracker_.trackerParams_.intra_keyframe_time_;
+  bool maxTimeElapsed = UtilsOpenCV::NsecToSec(stereoFrame_k_->timestamp_ -
+                                               last_keyframe_timestamp_) >=
+                        tracker_.trackerParams_.intra_keyframe_time_;
   int nrValidFeatures = left_frame_k.getNrValidKeypoints();
-  bool nrFeaturesIsLow = nrValidFeatures <= tracker_.trackerParams_.minNumberFeatures_;
-  if(maxTimeElapsed || nrFeaturesIsLow)
-  {
+  bool nrFeaturesIsLow = nrValidFeatures <=
+                         tracker_.trackerParams_.minNumberFeatures_;
+  if (maxTimeElapsed || nrFeaturesIsLow) {
     ++keyframe_count_; // mainly for debugging
 
 #ifdef STEREO_TRACKER_DEBUG_COUT
@@ -192,13 +197,9 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(StereoFra
         << "timeGetMeasurements: " << timeGetMeasurements << std::endl;
 #endif
 
-  }
-  else
-  {
+  } else {
     stereoFrame_k_->isKeyframe_ = false;
   }
-
-
 
   // Reset frames
   stereoFrame_km1_ = stereoFrame_k_;
@@ -206,9 +207,10 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(StereoFra
   ++frame_count_;
   return std::make_pair(trackerStatusSummary_,smartStereoMeasurements);
 }
-/* --------------------------------------------------------------------------------------- */
-SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(const StereoFrame& stereoFrame_kf) const
-{
+
+/* -------------------------------------------------------------------------- */
+SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
+    const StereoFrame& stereoFrame_kf) const {
   // sanity check first
   if(!stereoFrame_kf.isRectified_)
     throw std::runtime_error("getSmartStereoMeasurements: stereo pair is not rectified");
@@ -242,9 +244,9 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(const S
   }
   return smartStereoMeasurements;
 }
-/* --------------------------------------------------------------------------------------- */
-void StereoVisionFrontEnd::displayStereoTrack(const int verbosity) const
-{
+
+/* -------------------------------------------------------------------------- */
+void StereoVisionFrontEnd::displayStereoTrack(const int& verbosity) const {
   Frame& left_frame_k = stereoFrame_k_->left_frame_;
 
   // Show current frame with tracking results
@@ -338,9 +340,9 @@ void StereoVisionFrontEnd::displayStereoTrack(const int verbosity) const
     cv::imwrite(img_name, img_left_right_rectified);
   }
 }
-/* --------------------------------------------------------------------------------------- */
-void StereoVisionFrontEnd::displayMonoTrack(const int verbosity) const
-{
+
+/* -------------------------------------------------------------------------- */
+void StereoVisionFrontEnd::displayMonoTrack(const int& verbosity) const {
   Frame& cur_left_frame = stereoFrame_k_->left_frame_;
   Frame& ref_left_frame = stereoFrame_lkf_->left_frame_;
 
@@ -409,5 +411,4 @@ void StereoVisionFrontEnd::displayMonoTrack(const int verbosity) const
     cv::imwrite(img_name, img_left_lfk_kf_rectified);
   }
 }
-/* --------------------------------------------------------------------------------------- */
 

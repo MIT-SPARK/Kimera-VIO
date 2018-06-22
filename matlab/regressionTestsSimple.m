@@ -4,30 +4,42 @@ clc
 
 addpath('./myLib/')
 %% CONDITIONS TO TEST
-descriptionResults = 'gtsam_vs_plain'
-conditions = [1 2]; % 1==original gtsam code, 2==plain cpp
-allDatasetsToRun = [1:11 1:11 1:11];
-
-%% RUN!
-useSudo = 1;
-fcn_file_path = mfilename('fullpath');
-[pathstr, ~, ~] = fileparts(fcn_file_path);
-if exist(fullfile(pathstr, 'mark_zhengdong'), 'file')
-    system('source ~/.cshrc.zzd');
-    useSudo = 0;
+runRegularVio = false;
+if (runRegularVio)
+    descriptionResults = 'regularVioTest'
+else
+    descriptionResults = 'VioTest'
 end
+conditions = [1];
+datasetsToRun = [1:11]
+% datasetsToRun = 6
+nrDatasetsToTest = length(datasetsToRun);
+nrRuns = 1;
+allDatasetsToRun = repmat(datasetsToRun,1,nrRuns);
+% TODO remove usePlain from everywhere...
+usePlain = 0;
+%% RUN!
+useSudo = 0;
+if (runRegularVio)
+    vioParams = defaultRegularVioParams();
+    trackerParams = defaultTrackerParamsRegularVio();
+else
+    vioParams = defaultVioParams();
+    trackerParams = defaultTrackerParams();
+end
+warning('AD HOC PARAMS')  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% TODO change params to the ones in pipeline
 
-vioParams = defaultVioParams_sw();
-trackerParams = defaultTrackerParams_sw();
-        
+%nrFeaturesPerFrame = 100;
+%nrFeatSelect = 100; % Avoid feature selection by setting it equal to above
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 timeStart = fix(clock);
 for testCond = conditions
     testCounter = 0;
     switch testCond  
-        case 1 % original gtsam code
-            usePlain = 0;
-        case 2 % code with tight params
-            usePlain = 1;
+        case 1 % baseline: large number of features
+            % TODO use to test different conditions... like diff params.
         otherwise
             error('wrong choice of conditions')
     end
@@ -38,8 +50,8 @@ for testCond = conditions
             testCond,length(conditions),testCounter,length(allDatasetsToRun));
         
         [mean_rotErrors_vio_align, mean_tranErrors_vio_align, results(testCounter,testCond)] = ...
-            regressionTests(trackerParams,vioParams,datasetToRun,testCond,testCounter,usePlain,useSudo);
-        
+            regressionTests(trackerParams,vioParams,datasetToRun,testCond,testCounter,usePlain,useSudo,runRegularVio);
+
         rotationErrors(testCounter,testCond) = mean_rotErrors_vio_align;
         translationErrors(testCounter,testCond) = mean_tranErrors_vio_align;
         
@@ -61,6 +73,9 @@ end
 timeStart
 timeEnd = fix(clock)
 save(horzcat('result-summary-',descriptionResults));
+
+%% plot final results
+%PLOT_SELECTOR_RESULTS
 
 
 

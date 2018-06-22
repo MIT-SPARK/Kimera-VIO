@@ -14,8 +14,15 @@ addpath('./myLib/')
 filenameVioParams = './vioParameters.txt';
 filenameTrackerParams = './trackerParameters.txt';
 
-vioParams = defaultVioParams();
-trackerParams = defaultTrackerParams();
+regularVio = true;
+if (regularVio) 
+    vioParams = defaultVioParamsRegularVio();
+    trackerParams = defaultTrackerParamsRegularVio();
+else
+    vioParams = defaultVioParams();
+    trackerParams = defaultTrackerParams();
+end
+
 if(trackerParams.maxFeatureAge * trackerParams.intra_keyframe_time + 1 > vioParams.horizon)
     error('horizon is short compared to maxFeatureAge: this might segfault')
 end
@@ -53,32 +60,39 @@ end
 
 close all
 %% figure: error
+fh = figure();
+% Plot BoxPlots instead...
 if (saveImages>=1)
-    fh = figure();
-    subplotCondition(2,2,1,runResults,conditions,nrRuns,'meanRotErrors_vio')
-    subplotCondition(2,2,3,runResults,conditions,nrRuns,'maxRotErrors_vio')
-    subplotCondition(2,2,2,runResults,conditions,nrRuns,'meanTranErrors_vio')
-    subplotCondition(2,2,4,runResults,conditions,nrRuns,'maxTranErrors_vio')
+    r = 3;
+    c = 2;
+    subplotCondition(r,c,1,paramName,runResults,conditions,nrRuns,'mean_rotErrors_vio_align','meanRotAligned')
+    subplotCondition(r,c,3,paramName,runResults,conditions,nrRuns,'max_rotErrors_vio_align','maxRotAligned')
+    subplotCondition(r,c,5,paramName,runResults,conditions,nrRuns,'min_rotErrors_vio_align','minRotAligned')
+    subplotCondition(r,c,2,paramName,runResults,conditions,nrRuns,'mean_tranErrors_vio_align','meanTransAligned')
+    subplotCondition(r,c,4,paramName,runResults,conditions,nrRuns,'max_tranErrors_vio_align','maxTranAligned')
+    subplotCondition(r,c,6,paramName,runResults,conditions,nrRuns,'min_tranErrors_vio_align','minTranAligned')
 end
 if (saveImages>=2)
     filename = horzcat('resultsParam_',paramName,'_errors');
-    saveas(fh,filename,'epsc');
+    print(fh, filename, '-dsvg')
+    saveas(fh,filename,'svg');
 end
 
 %% figure: time
-if (saveImages>=1)
-    fh = figure();
-    subplotCondition(2,2,1,runResults,conditions,nrRuns,'meanTimeUpdate')
-    subplotCondition(2,2,3,runResults,conditions,nrRuns,'maxTimeUpdate')
-    subplotCondition(2,2,2,runResults,conditions,nrRuns,'meanTimeExtraUpdates')
-    subplotCondition(2,2,4,runResults,conditions,nrRuns,'maxTimeExtraUpdates')
-end
-if (saveImages>=2)
-    filename = horzcat('resultsParam_',paramName,'_timing');
-    saveas(fh,filename,'epsc');
-end
+% if (saveImages>=1)
+%     fh = figure();
+%     set(fh, 'Visible', 'off');
+%     subplotCondition(2,2,1,paramName,runResults,conditions,nrRuns,'meanTimeUpdate')
+%     subplotCondition(2,2,3,paramName,runResults,conditions,nrRuns,'maxTimeUpdate')
+%     subplotCondition(2,2,2,paramName,runResults,conditions,nrRuns,'meanTimeExtraUpdates')
+%     subplotCondition(2,2,4,paramName,runResults,conditions,nrRuns,'maxTimeExtraUpdates')
+% end
+% if (saveImages>=2)
+%     filename = horzcat('resultsParam_',paramName,'_timing');
+%     saveas(fh,filename,'epsc');
+% end
 
 save(horzcat('resultsParam_',paramName,'.mat'))
 
 folderName = horzcat('results_parameterTuning');
-moveOutput(folderName,{'*.mat','*.eps'});
+moveOutput(folderName,{'*.mat','*.eps','*.png','*.svg'});

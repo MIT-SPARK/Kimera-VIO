@@ -19,7 +19,7 @@
 #include <algorithm>
 
 #include <CppUnitLite/TestHarness.h>
-#include "Mesher.h"
+#include "mesh/Mesher.h"
 #include "test_config.h"
 
 using namespace std;
@@ -31,10 +31,10 @@ static const double tol = 1e-1;
 /* ************************************************************************* */
 TEST(testMesher, getRatioBetweenLargestAnSmallestSide) {
   Mesher mesher;
-  mesher.mapPoints3d_.push_back(cv::Point3f(0.5377  ,  0.3188  ,  3.5784)); //pt0
-  mesher.mapPoints3d_.push_back(cv::Point3f(1.8339  , -1.3077  ,  2.7694)); //pt1
-  mesher.mapPoints3d_.push_back(cv::Point3f(-2.2588  , -0.4336 ,  -1.3499)); //pt2
-  mesher.mapPoints3d_.push_back(cv::Point3f(0.8622  ,  0.3426  ,  3.0349)); //pt3
+  mesher.map_points_3d_.push_back(cv::Point3f(0.5377  ,  0.3188  ,  3.5784)); //pt0
+  mesher.map_points_3d_.push_back(cv::Point3f(1.8339  , -1.3077  ,  2.7694)); //pt1
+  mesher.map_points_3d_.push_back(cv::Point3f(-2.2588  , -0.4336 ,  -1.3499)); //pt2
+  mesher.map_points_3d_.push_back(cv::Point3f(0.8622  ,  0.3426  ,  3.0349)); //pt3
 
   int rowId_pt1 = 0,rowId_pt2 = 2,rowId_pt3 = 3;
   double d12_out, d23_out, d31_out;
@@ -57,10 +57,10 @@ TEST(testMesher, getRatioBetweenLargestAnSmallestSide) {
 /* ************************************************************************* */
 TEST(testMesher, getRatioBetweenLargestAnSmallestSide2) {
   Mesher mesher;
-  mesher.mapPoints3d_.push_back(cv::Point3f(0.5377  ,  0.3188  ,  3.5784)); //pt0
-  mesher.mapPoints3d_.push_back(cv::Point3f(1.8339  , -1.3077  ,  2.7694)); //pt1
-  mesher.mapPoints3d_.push_back(cv::Point3f(-2.2588  , -0.4336 ,  -1.3499)); //pt2
-  mesher.mapPoints3d_.push_back(cv::Point3f(0.8622  ,  0.3426  ,  3.0349)); //pt3
+  mesher.map_points_3d_.push_back(cv::Point3f(0.5377  ,  0.3188  ,  3.5784)); //pt0
+  mesher.map_points_3d_.push_back(cv::Point3f(1.8339  , -1.3077  ,  2.7694)); //pt1
+  mesher.map_points_3d_.push_back(cv::Point3f(-2.2588  , -0.4336 ,  -1.3499)); //pt2
+  mesher.map_points_3d_.push_back(cv::Point3f(0.8622  ,  0.3426  ,  3.0349)); //pt3
 
   int rowId_pt1 = 0,rowId_pt2 = 2,rowId_pt3 = 3;
   double d12_out_actual,d23_out_actual,d31_out_actual;

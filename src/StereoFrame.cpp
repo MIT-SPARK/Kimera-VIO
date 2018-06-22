@@ -13,6 +13,8 @@
  */
 
 #include "StereoFrame.h"
+#include "glog/logging.h"
+
 using namespace VIO;
 
 /* --------------------------------------------------------------------------------------- */
@@ -100,7 +102,9 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   }
 
   // visualize statistics on the performance of the sparse stereo matching
-  displayKeypointStats(right_keypoints_rectified);
+  if (VLOG_IS_ON(20)) {
+    displayKeypointStats(right_keypoints_rectified);
+  }
 
   // sanity check
   checkStereoFrame();
@@ -166,8 +170,8 @@ void StereoFrame::checkStereoFrame() const {
 }
 /* --------------------------------------------------------------------------------------- */
 std::pair<KeypointsCV, std::vector<Kstatus>> StereoFrame::DistortUnrectifyPoints(
-    const StatusKeypointsCV keypoints_rectified, const cv::Mat map_x, const cv::Mat map_y)
-{
+    const StatusKeypointsCV& keypoints_rectified,
+    const cv::Mat map_x, const cv::Mat map_y) {
   std::vector<Kstatus> pointStatuses;
   KeypointsCV points;
   for(size_t i=0; i< keypoints_rectified.size(); i++){
@@ -183,10 +187,12 @@ std::pair<KeypointsCV, std::vector<Kstatus>> StereoFrame::DistortUnrectifyPoints
   }
   return std::make_pair(points,pointStatuses);
 }
+
 /* --------------------------------------------------------------------------------------- */
-StatusKeypointsCV StereoFrame::undistortRectifyPoints(KeypointsCV left_keypoints_unrectified, const CameraParams cam_param,
-    const gtsam::Cal3_S2 rectCameraMatrix) const
-{
+StatusKeypointsCV StereoFrame::undistortRectifyPoints(
+    KeypointsCV left_keypoints_unrectified,
+    const CameraParams& cam_param,
+    const gtsam::Cal3_S2& rectCameraMatrix) const {
   StatusKeypointsCV left_keypoints_rectified;
   int invalidCount = 0;
   left_keypoints_rectified.reserve(left_keypoints_unrectified.size());
@@ -277,140 +283,262 @@ cv::Mat StereoFrame::getDisparityImage(const int verbosity) const
   }
   return imgDisparity;
 }
-/* --------------------------------------------------------------------------------------- */
-void StereoFrame::createMesh2Dplanes(float gradBound, Mesh2Dtype mesh2Dtype, bool useCanny){
 
-  // pick left frame
-  Frame& ref_frame = left_frame_;
-  if(ref_frame.landmarks_.size() != right_keypoints_status_.size()) // sanity check
+/* -------------------------------------------------------------------------- */
+void StereoFrame::createMesh2dStereo(
+          std::vector<cv::Vec6f>* triangulation_2D,
+          std::vector<std::pair<LandmarkId, gtsam::Point3>>* pointsWithIdStereo,
+          const Mesh2Dtype& mesh2Dtype,
+          const bool& useCanny) {
+  // triangulation_2D is compulsory, pointsWithIdStereo is optional.
+  CHECK_NOTNULL(triangulation_2D);
+
+  // Pick left frame.
+  const Frame& ref_frame = left_frame_;
+  if (ref_frame.landmarks_.size() != right_keypoints_status_.size()) // sanity check
     throw std::runtime_error("StereoFrame: wrong dimension for the landmarks");
 
-  // create mesh including indices of keypoints with valid 3D (which have right px)
-  std::vector<cv::Point2f> keypointsToTriangulate;
-  for(int i=0; i < ref_frame.landmarks_.size(); i++){
-    if(right_keypoints_status_.at(i)==Kstatus::VALID && ref_frame.landmarks_.at(i)!=-1){
-      keypointsToTriangulate.push_back(ref_frame.keypoints_.at(i));
+  // Create mesh including indices of keypoints with valid 3D
+  // (which have right px).
+  std::vector<cv::Point2f> keypoints_for_mesh;
+  for (int i = 0; i < ref_frame.landmarks_.size(); i++) {
+    if (right_keypoints_status_.at(i) == Kstatus::VALID &&
+        ref_frame.landmarks_.at(i) != -1) {
+      // Add keypoints for mesh 2d.
+      keypoints_for_mesh.push_back(ref_frame.keypoints_.at(i));
+
+      // Store corresponding landmarks.
+      // These points are in stereo camera and are not in VIO, but have lmk id.
+      if (pointsWithIdStereo != nullptr) {
+        const gtsam::Point3& p_i_camera_left =
+                                             gtsam::Point3(keypoints_3d_.at(i));
+        pointsWithIdStereo->push_back(std::make_pair(ref_frame.landmarks_.at(i),
+                                                     p_i_camera_left));
+      }
     }
   }
-  // compute image gradients: used later to check intensity gradient in each triangle
-  cv::Mat left_img_grads;
-  //left_img_grads = UtilsOpenCV::ImageLaplacian(ref_frame.img_);
-  left_img_grads = UtilsOpenCV::EdgeDetectorCanny(ref_frame.img_);
-  cv::imshow("left_img_grads",left_img_grads);
-  cv::waitKey(100);
 
-  if(mesh2Dtype == DENSE){ // add other keypoints densely
+  // Add other keypoints densely.
+  if (mesh2Dtype == DENSE) {
     extraStereoKeypoints_.resize(0); // reset
 
     cv::Mat disparity = getDisparityImage();
-    int pxRadiusSubsample = 20;
+    static constexpr int pxRadiusSubsample = 20;
 
     // Create mask around existing keypoints
-    cv::Mat left_img_grads_filtered = left_img_grads.clone();
-    for(size_t i = 0; i < ref_frame.keypoints_.size(); ++i) {
-      if(ref_frame.landmarks_.at(i) != -1) {
-        cv::circle(left_img_grads_filtered, ref_frame.keypoints_.at(i), pxRadiusSubsample, cv::Scalar(0), CV_FILLED);
+    cv::Mat left_img_grads_filtered;
+    computeImgGradients(ref_frame.img_, &left_img_grads_filtered);
+    for (size_t i = 0; i < ref_frame.keypoints_.size(); ++i) {
+      if (ref_frame.landmarks_.at(i) != -1) {
+        cv::circle(left_img_grads_filtered, ref_frame.keypoints_.at(i),
+                   pxRadiusSubsample, cv::Scalar(0), CV_FILLED);
       }
     }
+
     cv::imshow("left_img_grads - filtered",left_img_grads_filtered);
     cv::waitKey(100);
 
-    // populate extra keypoints for which we can compute 3D:
+    // Populate extra keypoints for which we can compute 3D:
     KeypointsCV kptsWithGradient;
-    for(size_t r = 0; r<left_img_grads_filtered.rows;r++){
-      for(size_t c = 0; c<left_img_grads_filtered.cols;c++){
+    for (size_t r = 0; r < left_img_grads_filtered.rows; r++) {
+      for (size_t c = 0; c < left_img_grads_filtered.cols; c++) {
         float intensity_rc = float(left_img_grads_filtered.at<uint8_t>(r, c));
-        if(intensity_rc > 125){ // if it's an edge
-          kptsWithGradient.push_back(cv::Point2f(c,r));
-          // get rid of the area around the point:
-          cv::circle(left_img_grads_filtered, cv::Point2f(c,r), pxRadiusSubsample, cv::Scalar(0), CV_FILLED);
+        if (intensity_rc > 125) { // if it's an edge
+          kptsWithGradient.push_back(cv::Point2f(c, r));
+          // Get rid of the area around the point:
+          cv::circle(left_img_grads_filtered, cv::Point2f(c, r),
+                     pxRadiusSubsample, cv::Scalar(0), CV_FILLED);
         }
-        if(useCanny && (intensity_rc != 0 && intensity_rc != 255))
+        if (useCanny && (intensity_rc != 0 && intensity_rc != 255))
           throw std::runtime_error("createMesh2Dplanes: wrong Canny");
       }
     }
-    // Get rectified left keypoints (we use semiglobal block matching as a proof of concept)
-    gtsam::Rot3 camLrect_R_camL = UtilsOpenCV::Cvmat2rot(left_frame_.cam_param_.R_rectify_);
-    StatusKeypointsCV left_keypoints_rectified = undistortRectifyPoints(kptsWithGradient,left_frame_.cam_param_,left_undistRectCameraMatrix_);
-    for(size_t i=0;i<left_keypoints_rectified.size();i++){
-      if(left_keypoints_rectified.at(i).first == Kstatus::VALID){ // if rectification was correct
+
+    // Get rectified left keypoints (we use semiglobal block matching as a proof of concept).
+    gtsam::Rot3 camLrect_R_camL =
+                      UtilsOpenCV::Cvmat2rot(left_frame_.cam_param_.R_rectify_);
+    StatusKeypointsCV left_keypoints_rectified =
+        undistortRectifyPoints(kptsWithGradient,
+                               left_frame_.cam_param_,
+                               left_undistRectCameraMatrix_);
+
+    for (size_t i = 0; i < left_keypoints_rectified.size(); i++) {
+      if (left_keypoints_rectified.at(i).first == Kstatus::VALID) { // if rectification was correct
         cv::Point2f kpt_i_rectified = left_keypoints_rectified.at(i).second; // get rectified keypoint:
-        double disparity_i = double( disparity.at<int16_t>(kpt_i_rectified) ) / 16.0; // get disparity:
+        double disparity_i =
+            static_cast<double>(disparity.at<int16_t>(kpt_i_rectified)) / 16.0; // get disparity:
         // get depth
         double fx = left_undistRectCameraMatrix_.fx();
         double fx_b = fx * baseline();
         double depth = fx_b / disparity_i;
         // if point is valid, store it
-        if(depth >= sparseStereoParams_.minPointDist || depth <= sparseStereoParams_.maxPointDist){
-          Vector3 versor_rect_i = Frame::CalibratePixel(kptsWithGradient.at(i), left_frame_.cam_param_); // get 3D point
-          Vector3 versor_i = camLrect_R_camL.rotate( versor_rect_i );
-          if(versor_i(2) < 1e-3) { throw std::runtime_error("sparseStereoMatching: found point with nonpositive depth! (2)"); }
+        if (depth >= sparseStereoParams_.minPointDist ||
+            depth <= sparseStereoParams_.maxPointDist) {
+          Vector3 versor_rect_i = Frame::CalibratePixel(kptsWithGradient.at(i),
+                                                        left_frame_.cam_param_); // get 3D point
+          Vector3 versor_i = camLrect_R_camL.rotate(versor_rect_i);
+          if (versor_i(2) < 1e-3) throw std::runtime_error(
+               "sparseStereoMatching: found point with nonpositive depth! (2)");
           gtsam::Point3 p = versor_i * depth / versor_i(2); // in the camera frame
           // p.print("point from versor");
           // store point
-          keypointsToTriangulate.push_back(kptsWithGradient.at(i));
-          extraStereoKeypoints_.push_back(std::make_pair(kptsWithGradient.at(i),p));
+          keypoints_for_mesh.push_back(kptsWithGradient.at(i));
+          extraStereoKeypoints_.push_back(std::make_pair(kptsWithGradient.at(i),
+                                                         p));
         }
       }
     }
   }
 
-  // get a triangulation for all valid keypoints
-  std::vector<cv::Vec6f> triangulation2D =
-      Frame::CreateMesh2D(ref_frame.img_.size(),keypointsToTriangulate);
+  // Get a triangulation for all valid keypoints.
+  *triangulation_2D = Frame::createMesh2D(ref_frame.img_.size(),
+                                          keypoints_for_mesh);
+}
 
-  // for each triangle, set to full the triangles that have near-zero gradient
+/* -------------------------------------------------------------------------- */
+void StereoFrame::createMesh2dVIO(
+    std::vector<cv::Vec6f>* triangulation_2D,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO) {
+  CHECK_NOTNULL(triangulation_2D);
+
+  // Pick left frame.
+  const Frame& ref_frame = left_frame_;
+  if (ref_frame.landmarks_.size() != right_keypoints_status_.size()) // sanity check
+    throw std::runtime_error("StereoFrame: wrong dimension for the landmarks");
+
+  // Create mesh including indices of keypoints with valid 3D.
+  // (which have right px).
+  std::vector<cv::Point2f> keypoints_for_mesh;
+  // TODO this double loop is quite expensive.
+  for (const auto& point_with_id : pointsWithIdVIO) {
+    for (size_t j = 0; j < ref_frame.landmarks_.size(); j++) {
+      // If we are seeing a VIO point in left and right frame, add to keypoints
+      // to generate the mesh in 2D.
+      if (ref_frame.landmarks_.at(j) == point_with_id.first &&
+          right_keypoints_status_.at(j) == Kstatus::VALID) {
+        // Add keypoints for mesh 2d.
+        keypoints_for_mesh.push_back(ref_frame.keypoints_.at(j));
+      }
+    }
+  }
+
+  // Get a triangulation for all valid keypoints.
+  *triangulation_2D = Frame::createMesh2D(ref_frame.img_.size(),
+                                          keypoints_for_mesh);
+}
+
+
+/* -------------------------------------------------------------------------- */
+// Removes triangles in the 2d mesh that have more than "max_keypoints_with_
+// gradient" keypoints with higher gradient than "gradient_bound".
+// Input the original triangulation: original_triangulation_2D
+// Output the filtered triangulation wo high-gradient triangles:
+// filtered_triangulation_2D.
+// If gradient_bound < 0, the check is disabled.
+void StereoFrame::filterTrianglesWithGradients(
+                      const std::vector<cv::Vec6f>& original_triangulation_2D,
+                      std::vector<cv::Vec6f>* filtered_triangulation_2D,
+                      const float& gradient_bound,
+                      const size_t& max_keypoints_with_gradient) {
+  CHECK_NOTNULL(filtered_triangulation_2D);
+  CHECK_NE(filtered_triangulation_2D, &original_triangulation_2D)
+      << "Input original_triangulation_2D should be different that the object "
+      << "pointed by filtered_triangulation_2D. Input=*Output error." ;
+
+  if (gradient_bound == -1) {
+    // Skip filter.
+    *filtered_triangulation_2D = original_triangulation_2D;
+    LOG_FIRST_N(WARNING, 1) << "Filter triangles with gradients is disabled.";
+    return;
+  }
+
+  // Compute img gradients.
+  cv::Mat img_grads;
+  computeImgGradients(left_frame_.img_, &img_grads);
+
+  // For each triangle, set to full the triangles that have near-zero gradient.
   // triangulation2Dobs_.reserve(triangulation2D.size());
-  for(size_t i=0; i<triangulation2D.size(); i++)
-  {
-    // find all pixels with grad higher then gradBound
-    std::vector<std::pair<KeypointCV,double>> keypointsWithHighIntensities =
-        UtilsOpenCV::FindHighIntensityInTriangle(left_img_grads, triangulation2D.at(i), gradBound);
+  // TODO far too many loops over triangles.
+  for (const cv::Vec6f& triangle: original_triangulation_2D) {
+    // Find all pixels with a gradient higher than gradBound.
+    std::vector<std::pair<KeypointCV, double>> keypoints_with_high_gradient =
+        UtilsOpenCV::FindHighIntensityInTriangle(img_grads,
+                                                 triangle,
+                                                 gradient_bound);
 
-    // if no high-grad pixels exist, then this triangle is a plane
-    if(keypointsWithHighIntensities.size() == 0){ // if there is no high-gradient point
-      triangulation2Dplanes_.push_back(triangulation2D.at(i));
+    // If no high-grad pixels exist,
+    // then this triangle is assumed to be a plane.
+    if (keypoints_with_high_gradient.size() <= max_keypoints_with_gradient) {
+      filtered_triangulation_2D->push_back(triangle);
     }
   }
 }
-/* --------------------------------------------------------------------------------------- */
-void StereoFrame::visualizeMesh2Dplanes(const double waitTime) const{
-  cv::Scalar delaunay_color(0,255,0), green(0, 255,0), red(0,0,255);
 
-  // everything is visualized on the left image
+void StereoFrame::computeImgGradients(const cv::Mat& img, cv::Mat* img_grads) {
+  CHECK_NOTNULL(img_grads);
+
+  // Compute image gradients to check intensity gradient in each triangle.
+  // UtilsOpenCV::ImageLaplacian(ref_frame.img_);
+  *img_grads = UtilsOpenCV::EdgeDetectorCanny(img);
+
+  static constexpr bool visualize_gradients = false;
+  if (visualize_gradients) {
+    cv::imshow("left_img_grads", *img_grads);
+    cv::waitKey(100);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void StereoFrame::visualizeMesh2DStereo(
+    const std::vector<cv::Vec6f>& triangulation_2D,
+    cv::Mat* mesh_2d_img,
+    const std::string& window_name) const {
+  cv::Scalar delaunay_color(0, 255, 0), // Green
+             mesh_vertex_color(255, 0, 0), // Blue
+             valid_keypoints_color(0, 0, 255); //Red
+
+  // Everything is visualized on the left image.
   const Frame& ref_frame = left_frame_;
-  if(ref_frame.landmarks_.size() != ref_frame.keypoints_.size()) // sanity check
-    throw std::runtime_error("Frame: wrong dimension for the landmarks");
 
-  //duplicate image for annotation ad visualization
-  cv::Mat img = ref_frame.img_.clone();
-  cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
-  // visualize extra vertices
-  for(size_t i=0; i < ref_frame.keypoints_.size(); i++){
-    if(ref_frame.landmarks_[i] != -1) // only for valid keypoints, but possibly without a right pixel
-      cv::circle(img, ref_frame.keypoints_[i], 2, red, CV_FILLED, CV_AA, 0);
+  // Sanity check.
+  if (ref_frame.landmarks_.size() != ref_frame.keypoints_.size()) {
+    throw std::runtime_error("Frame: wrong dimension for the landmarks");
   }
 
-  cv::Size size = img.size();
-  cv::Rect rect(0,0, size.width, size.height);
+  // Duplicate image for annotation and visualization.
+  cv::Mat img = ref_frame.img_.clone();
+  cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
+
+  // Visualize extra vertices.
+  for (size_t i = 0; i < ref_frame.keypoints_.size(); i++) {
+    // Only for valid keypoints, but possibly without a right pixel.
+    // Kpts that are both valid and have a right pixel are currently the ones
+    // passed to the mesh.
+    if (ref_frame.landmarks_[i] != -1) {
+      cv::circle(img, ref_frame.keypoints_[i], 2, valid_keypoints_color,
+                 CV_FILLED, CV_AA, 0);
+    }
+  }
+
   std::vector<cv::Point> pt(3);
-  for(size_t i = 0; i < triangulation2Dplanes_.size(); i++)
-  {
-    cv::Vec6f t = triangulation2Dplanes_[i];
-    // visualize mesh vertices
-    pt[0] = cv::Point(cvRound(t[0]), cvRound(t[1]));
-    pt[1] = cv::Point(cvRound(t[2]), cvRound(t[3]));
-    pt[2] = cv::Point(cvRound(t[4]), cvRound(t[5]));
-    cv::circle(img, pt[0], 2, green, CV_FILLED, CV_AA, 0);
-    cv::circle(img, pt[1], 2, green, CV_FILLED, CV_AA, 0);
-    cv::circle(img, pt[2], 2, red, CV_FILLED, CV_AA, 0);
-    // visualize mesh edges
+  for (const cv::Vec6f& triangle: triangulation_2D) {
+    // Visualize mesh vertices.
+    pt[0] = cv::Point(cvRound(triangle[0]), cvRound(triangle[1]));
+    pt[1] = cv::Point(cvRound(triangle[2]), cvRound(triangle[3]));
+    pt[2] = cv::Point(cvRound(triangle[4]), cvRound(triangle[5]));
+    cv::circle(img, pt[0], 2, mesh_vertex_color, CV_FILLED, CV_AA, 0);
+    cv::circle(img, pt[1], 2, mesh_vertex_color, CV_FILLED, CV_AA, 0);
+    cv::circle(img, pt[2], 2, mesh_vertex_color, CV_FILLED, CV_AA, 0);
+
+    // Visualize mesh edges.
     cv::line(img, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
     cv::line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
     cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
   }
-  cv::imshow("visualizeMesh2Dplanes",img);
-  cv::waitKey(waitTime);
+  cv::imshow(window_name, img);
+  if (mesh_2d_img != nullptr) {
+    *mesh_2d_img = img;
+  }
 }
 
 /* --------------------------------------------------------------------------------------- */
@@ -549,6 +677,7 @@ void StereoFrame::getRectifiedImages() {
   //  cv::imshow("right_img_rectified_", right_img_rectified_);
   //  cv::waitKey(0);
 }
+
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::getRightKeypointsLKunrectified() {
 
@@ -611,9 +740,10 @@ void StereoFrame::getRightKeypointsLKunrectified() {
 
 /* --------------------------------------------------------------------------------------- */
 StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
-    const cv::Mat left_rectified, const cv::Mat right_rectified, const StatusKeypointsCV left_keypoints_rectified,
-    const double fx, const double baseline) const
-{
+    const cv::Mat left_rectified,
+    const cv::Mat right_rectified,
+    const StatusKeypointsCV& left_keypoints_rectified,
+    const double fx, const double baseline) const {
   int verbosity = 0;
   bool writeImageLeftRightMatching = false;
 
@@ -729,9 +859,14 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
   }
   return right_keypoints_rectified;
 }
+
 /* --------------------------------------------------------------------------------------- */
-std::pair<StatusKeypointCV,double> StereoFrame::findMatchingKeypointRectified(const cv::Mat left_rectified, const KeypointCV left_rectified_i,
-    const cv::Mat right_rectified, const int templ_cols, const int templ_rows, const int stripe_cols, const int stripe_rows,
+std::pair<StatusKeypointCV,double> StereoFrame::findMatchingKeypointRectified(
+    const cv::Mat left_rectified,
+    const KeypointCV& left_rectified_i,
+    const cv::Mat right_rectified,
+    const int templ_cols, const int templ_rows,
+    const int stripe_cols, const int stripe_rows,
     const double tol_corr, const bool debugStereoMatching) const
 {
   /// correlation matrix

@@ -2,6 +2,7 @@ function results = visualizeResultsVIO(resultsInFolder,doSaveFigures,hasGroundTr
 % doSaveFigures = 0: no save nor display
 % doSaveFigures = 1: display but no save
 % doSaveFigures = 2: save and display
+
 close all
 addpath('./myLib')
 
@@ -102,6 +103,7 @@ end
 %% plot keyframe spacing (not regularly spaced in time now)
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(1,2,1); hold on
     plot(keyframesId,framesId,'-b')
     axis equal
@@ -123,6 +125,7 @@ end
 %% consistency check for stereo translation estimates
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     semilogy(keyframesId,log10(relTranErrorsMahalanobis_stereoRansac),'-b')
     xlabel('keyframes')
     ylabel('stereo translation Consistency (log mahl dist)')
@@ -144,6 +147,7 @@ end
 %% plot estimation errors imu preintegration
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(1,2,1); hold on;
     plot(relativeRotError_imu_wrt_gt,'-g','linewidth',2)
     title('relativeRotError imu wrt gt')
@@ -168,6 +172,7 @@ end
 %% plot nr of tracker features
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     title('nr of tracked features')
     plot(nrTrackedFeatures,'-k','linewidth',2);
     xlabel('keyframes'); ylabel('nr features')
@@ -179,6 +184,8 @@ end
 
 %% plot vio errors
 if (doSaveFigures>=1)
+    fh = figure;
+    set(fh, 'Visible', 'off');
     fh =  plotErrorWithStatus(rotErrors_vio,tranErrors_vio,zeros(size(rotErrors_vio)),'vio');
 end
 if (doSaveFigures>=2)
@@ -188,6 +195,8 @@ end
 
 %% plot vio RELATIVE errors
 if (doSaveFigures>=1)
+    fh = figure;
+    set(fh, 'Visible', 'off');
     fh =  plotErrorWithStatus(relRotErrors_vio,relTranErrors_vio,zeros(size(rotErrors_vio)),'vio (relative)');
 end
 if (doSaveFigures>=2)
@@ -197,6 +206,8 @@ end
 
 %% plot imuPredict (RELATIVE) errors
 if (doSaveFigures>=1)
+    fh = figure;
+    set(fh, 'Visible', 'off');
     fh =  plotErrorWithStatus(relRotErrors_imuPredict,relTranErrors_imuPredict,zeros(size(relRotErrors_imuPredict)),'imuPredict (relative)');
 end
 if (doSaveFigures>=2)
@@ -208,6 +219,7 @@ end
 err_rpy = rpy_gt - rpy_vio;
 if (doSaveFigures>=1)
     fh = figure;
+    set(fh, 'Visible', 'off');
     subplot(1,2,1); hold on; title('yaw errors')
     plot(wrapToPi(err_rpy(:,3)),'-b')
     subplot(1,2,2); hold on; title('roll-pitch errors')
@@ -223,6 +235,7 @@ end
 %% plot smart factors statistics:
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     title('smart factors statistics')
     xlabel('keyframes')
     plot(numSF,'-k')
@@ -241,6 +254,7 @@ end
 %% feature tracks stats
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     title('smart factors statistics')
     xlabel('keyframes')
     plot(maxTrackLength,'-k')
@@ -305,6 +319,7 @@ end
 velErrors = velVio - velGT; % 3 x nrPoses matrix
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     normVelErrors = sqrt(velErrors(1,:).^2 + velErrors(2,:).^2 + velErrors(3,:).^2);
     subplot(2,2,1)
     plot(velErrors(1,:),'-r'); hold on; ylabel('x velocity error [m]'); xlabel('keyframes')
@@ -323,6 +338,7 @@ end
 %% display biases
 if (doSaveFigures>=1)
     fh = figure; hold on
+    set(fh, 'Visible', 'off');
     subplot(3,2,1)
     plot(accBiasVio(1,:),'-b'); hold on
     plot(accBiasGT(1,:),'-g');
@@ -360,6 +376,7 @@ end
 
 %% plot VIO timing
 disp('- displaying vio timing')
+ 
 M_timeVIO = dlmread(horzcat(resultsInFolder,'output_timingVIO.txt'));
 if(size(M_timeVIO,2)~=17 || size(M_timeVIO,1)~=nrPoses) error('wrong size of M_timeVIO'); end
 % first entry is the keyframeID
@@ -383,73 +400,81 @@ marginalizeTime = M_timeVIO(:,16);
 imuPreintegrationTime = M_timeVIO(:,17);
 
 overall_times = loadStereoFrame_times + processStereoFrame_times + featureSelection_times + overallVIO_times;
-if (doSaveFigures>=1)
-    fh = figure;
-    subplot(1,2,1); hold on
-    plot(factorsAndSlotsTimes,'-r','linewidth',2)
-    plot(preUpdateTimes,'-g','linewidth',2)
-    plot(updateTimes,'-b','linewidth',2)
-    plot(updateSlotTimes,'-m','linewidth',2)
-    plot(extraIterationsTimes,'-c','linewidth',2)
-    plot(printTimes,'-k','linewidth',2)
-    ylabel('time [sec]');
-    xlabel('keyframes');
-    title('detailed VIO timing')
-    legend('factorsAndSlotsTimes','preUpdateTimes','updateTimes',...
-        'updateSlotTimes','extraIterationsTimes','printTimes')
-    
-    subplot(1,2,2); hold on
-    plot(loadStereoFrame_times,'-g','linewidth',2)
-    plot(processStereoFrame_times,'-r','linewidth',2)
-    plot(featureSelection_times,'-m','linewidth',2)
-    plot(overallVIO_times,'-b','linewidth',2)
-    plot(overall_times,'-k','linewidth',2)
-    ylabel('time [sec]');
-    xlabel('keyframes');
-    title('overall VIO timing')
-    legend('loadStereoFrameTimes','processStereoFrameTimes','featureSelectionTimes','overallVIOTimes','overallTimes')
-    
-    if (doSaveFigures>=2)
-        filename = horzcat(resultsOutFolder,'/vioTiming');
-        saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+
+display_vio_timing = true;
+if (display_vio_timing)
+    if (doSaveFigures>=1)
+        fh = figure;
+        set(fh, 'Visible', 'off');
+        subplot(1,2,1); hold on
+        plot(factorsAndSlotsTimes,'-r','linewidth',2)
+        plot(preUpdateTimes,'-g','linewidth',2)
+        plot(updateTimes,'-b','linewidth',2)
+        plot(updateSlotTimes,'-m','linewidth',2)
+        plot(extraIterationsTimes,'-c','linewidth',2)
+        plot(printTimes,'-k','linewidth',2)
+        ylabel('time [sec]');
+        xlabel('keyframes');
+        title('detailed VIO timing')
+        legend('factorsAndSlotsTimes','preUpdateTimes','updateTimes',...
+            'updateSlotTimes','extraIterationsTimes','printTimes')
+
+        subplot(1,2,2); hold on
+        plot(loadStereoFrame_times,'-g','linewidth',2)
+        plot(processStereoFrame_times,'-r','linewidth',2)
+        plot(featureSelection_times,'-m','linewidth',2)
+        plot(overallVIO_times,'-b','linewidth',2)
+        plot(overall_times,'-k','linewidth',2)
+        ylabel('time [sec]');
+        xlabel('keyframes');
+        title('overall VIO timing')
+        legend('loadStereoFrameTimes','processStereoFrameTimes','featureSelectionTimes','overallVIOTimes','overallTimes')
+
+        if (doSaveFigures>=2)
+            filename = horzcat(resultsOutFolder,'/vioTiming');
+            saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+        end
+
+        fh = figure;
+        set(fh, 'Visible', 'off');
+        subplot(1,2,1); hold on
+        plot(linearizeTime,'-r','linewidth',2)
+        plot(linearSolveTime,'-g','linewidth',2)
+        plot(retractTime,'-b','linewidth',2)
+        plot(linearizeMarginalizeTime,'-m','linewidth',2)
+        plot(marginalizeTime,'-c','linewidth',2)
+        plot(imuPreintegrationTime,'-y','linewidth',2)
+        plot(overallVIO_times,'-k','linewidth',2)
+        ylabel('time [sec]');
+        xlabel('keyframes');
+        title('VIO timing breakdown')
+        legend('linearizeTime','linearSolveTime','retractTime',...
+            'linearizeMarginalizeTime','marginalizeTime','imuPreintegrationTime','total')
+
+        subplot(1,2,2); hold on
+        plot(linearizeTime / overallVIO_times * 100,'-g','linewidth',2)
+        plot(linearSolveTime / overallVIO_times * 100,'-r','linewidth',2)
+        plot(retractTime / overallVIO_times * 100,'-m','linewidth',2)
+        plot(linearizeMarginalizeTime / overallVIO_times * 100,'-b','linewidth',2)
+        plot(marginalizeTime / overallVIO_times * 100,'-k','linewidth',2)
+        plot(imuPreintegrationTime / overallVIO_times * 100,'-y','linewidth',2)
+        ylabel('time [sec] - percentage');
+        xlabel('keyframes');
+        title('VIO timing breakdown - percent')
+        legend('linearizeTime','linearSolveTime','retractTime',...
+            'linearizeMarginalizeTime','imuPreintegrationTime','marginalizeTime')
+
+        if (doSaveFigures>=2)
+            filename = horzcat(resultsOutFolder,'/vioTimingBreakdown');
+            saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+        end 
     end
-    
-    fh = figure;
-    subplot(1,2,1); hold on
-    plot(linearizeTime,'-r','linewidth',2)
-    plot(linearSolveTime,'-g','linewidth',2)
-    plot(retractTime,'-b','linewidth',2)
-    plot(linearizeMarginalizeTime,'-m','linewidth',2)
-    plot(marginalizeTime,'-c','linewidth',2)
-    plot(imuPreintegrationTime,'-y','linewidth',2)
-    plot(overallVIO_times,'-k','linewidth',2)
-    ylabel('time [sec]');
-    xlabel('keyframes');
-    title('VIO timing breakdown')
-    legend('linearizeTime','linearSolveTime','retractTime',...
-        'linearizeMarginalizeTime','marginalizeTime','imuPreintegrationTime','total')
-    
-    subplot(1,2,2); hold on
-    plot(linearizeTime / overallVIO_times * 100,'-g','linewidth',2)
-    plot(linearSolveTime / overallVIO_times * 100,'-r','linewidth',2)
-    plot(retractTime / overallVIO_times * 100,'-m','linewidth',2)
-    plot(linearizeMarginalizeTime / overallVIO_times * 100,'-b','linewidth',2)
-    plot(marginalizeTime / overallVIO_times * 100,'-k','linewidth',2)
-    plot(imuPreintegrationTime / overallVIO_times * 100,'-y','linewidth',2)
-    ylabel('time [sec] - percentage');
-    xlabel('keyframes');
-    title('VIO timing breakdown - percent')
-    legend('linearizeTime','linearSolveTime','retractTime',...
-        'linearizeMarginalizeTime','imuPreintegrationTime','marginalizeTime')
-    
-    if (doSaveFigures>=2)
-        filename = horzcat(resultsOutFolder,'/vioTimingBreakdown');
-        saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
-    end 
 end
 
 %% plot StereoTracker timing
 disp('- displaying StereoTracker timing')
+
+
 M_timeST = dlmread(horzcat(resultsInFolder,'output_timingTracker.txt'));
 if(size(M_timeST,2)~=8 || size(M_timeST,1)~=nrPoses) error('wrong size of M_timeST'); end
 % first entry is the keyframeID
@@ -461,59 +486,65 @@ monoRansacIters = M_timeST(:,6);
 stereoRansacIters = M_timeST(:,7);
 featureSelectionTimes = M_timeST(:,8);
 
-if (doSaveFigures>=1)
-    fh = figure;
-    subplot(2,2,1)
-    plot(featureDetectionTimes,'-r','linewidth',2); hold on
-    plot(featureTrackingTimes,'-g','linewidth',2)
-    plot(monoRansacTimes,'-b','linewidth',2)
-    plot(stereoRansacTimes,'-m','linewidth',2)
-    ylabel('time [sec]');
-    xlabel('keyframes');
-    title('Stereo Tracker timing')
-    legend('featureDetectionTimes','featureTrackingTimes', ...
-        'monoRansacTimes','stereoRansacTimes')
-    subplot(2,2,3)
-    plot(monoRansacIters,'-b','linewidth',2); hold on
-    plot(stereoRansacIters,'-m','linewidth',2)
-    ylabel('ransac iterations');
-    xlabel('keyframes');
-    legend('mono','stereo')
-    subplot(2,2,2)
-    plot(featureSelectionTimes,'-b','linewidth',2); hold on
-    ylabel('feature selection time');
-    xlabel('keyframes');
-    
-    subplot(2,2,4)
-    plot(nrZeroElementsInMatrix./nrElementsInMatrix,'-b','linewidth',2); hold on
-    str = horzcat('percent of zeros, ave nr rows:',num2str(sqrt(mean(nrElementsInMatrix))));
-    ylabel(str);
-    xlabel('keyframes');
-end
-if (doSaveFigures>=2)
-    filename = horzcat(resultsOutFolder,'/trackerTiming');
-    saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
-end
+display_stereo_tracker_timing = false;
+if (display_stereo_tracker_timing)
+    if (doSaveFigures>=1)
+        fh = figure;
+        set(fh, 'Visible', 'off');
+        subplot(2,2,1)
+        plot(featureDetectionTimes,'-r','linewidth',2); hold on
+        plot(featureTrackingTimes,'-g','linewidth',2)
+        plot(monoRansacTimes,'-b','linewidth',2)
+        plot(stereoRansacTimes,'-m','linewidth',2)
+        ylabel('time [sec]');
+        xlabel('keyframes');
+        title('Stereo Tracker timing')
+        legend('featureDetectionTimes','featureTrackingTimes', ...
+            'monoRansacTimes','stereoRansacTimes')
+        subplot(2,2,3)
+        plot(monoRansacIters,'-b','linewidth',2); hold on
+        plot(stereoRansacIters,'-m','linewidth',2)
+        ylabel('ransac iterations');
+        xlabel('keyframes');
+        legend('mono','stereo')
+        subplot(2,2,2)
+        plot(featureSelectionTimes,'-b','linewidth',2); hold on
+        ylabel('feature selection time');
+        xlabel('keyframes');
 
-if (doSaveFigures>=1)
-    fh = figure; hold on
-    plot(featureSelectionTimes,'-m','linewidth',2)
-    plot(overallVIO_times,'-b','linewidth',2)
-    ylabel('time [sec]');
-    xlabel('keyframes');
-    str = horzcat('vio (',num2str(mean(overallVIO_times(2:end))),...
-        ') + actual feat sel (',num2str(mean(featureSelectionTimes(2:end))),')');
-    title(str)
-    legend('featureSelection times','overallVIO times')
-    
+        subplot(2,2,4)
+        plot(nrZeroElementsInMatrix./nrElementsInMatrix,'-b','linewidth',2); hold on
+        str = horzcat('percent of zeros, ave nr rows:',num2str(sqrt(mean(nrElementsInMatrix))));
+        ylabel(str);
+        xlabel('keyframes');
+    end
     if (doSaveFigures>=2)
-        filename = horzcat(resultsOutFolder,'/featureSelectionTime');
+        filename = horzcat(resultsOutFolder,'/trackerTiming');
         saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+    end
+
+    if (doSaveFigures>=1)
+        fh = figure; hold on
+        set(fh, 'Visible', 'off');
+        plot(featureSelectionTimes,'-m','linewidth',2)
+        plot(overallVIO_times,'-b','linewidth',2)
+        ylabel('time [sec]');
+        xlabel('keyframes');
+        str = horzcat('vio (',num2str(mean(overallVIO_times(2:end))),...
+            ') + actual feat sel (',num2str(mean(featureSelectionTimes(2:end))),')');
+        title(str)
+        legend('featureSelection times','overallVIO times')
+
+        if (doSaveFigures>=2)
+            filename = horzcat(resultsOutFolder,'/featureSelectionTime');
+            saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+        end
     end
 end
 
 %% plot StereoTracker statistics
 disp('- displaying StereoTracker statistics')
+
 M_statsST = dlmread(horzcat(resultsInFolder,'output_statsTracker.txt'));
 if(size(M_statsST,2)~=14 || size(M_statsST,1)~=nrPoses) error('wrong size of M_statsST'); end
 % first entry is the keyframeID
@@ -533,64 +564,70 @@ extracted_corners = M_statsST(:,14);
 
 lw = 1; % line width
 %% TRACKER STATS
-if (doSaveFigures>=1)
-    fh = figure;
-    subplot(2,2,1); hold on
-    plot(nrDetectedFeatures,'-r','linewidth',lw)
-    plot(nrTrackerFeatures,'-g','linewidth',lw)
-    ylabel('nr features'); xlabel('keyframes');
-    title('Stereo Tracker statistics')
-    legend('nrDetectedFeatures','nrTrackerFeatures')
-    %
-    subplot(2,2,2); hold on
-    plot(nrValidRKP,'-g','linewidth',lw)
-    plot(nrNoLeftRectRKP,'-r','linewidth',lw)
-    plot(nrNoRightRectRKP,'-b','linewidth',lw)
-    plot(nrNoDepthRKP,'-m','linewidth',lw)
-    plot(nrFailedArunRKP,'--c','linewidth',lw)
-    ylabel('nr features with status'); xlabel('keyframes');
-    title('Sparse stereo matching statistics (arun = 0 after detection)')
-    legend('nrValidRKP','nrNoLeftRectRKP','nrNoRightRectRKP', ...
-        'nrNoDepthRKP','nrFailedArunRKP')
-    %
-    subplot(2,2,3); hold on
-    plot(need_n_corners,'-c','linewidth',lw)
-    plot(extracted_corners,'-k','linewidth',lw)
-    ylabel('nr features');
-    xlabel('keyframes');
-    title('feature selection statistics')
-    legend('needNcorners','extractedCorners')
-end
-if (doSaveFigures>=2)
-    filename = horzcat(resultsOutFolder,'/trackerStats');
-    saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+display_stereo_tracker_statistics = false;
+if (display_stereo_tracker_statistics)
+    if (doSaveFigures>=1)
+        fh = figure;
+        set(fh, 'Visible', 'off');
+        subplot(2,2,1); hold on
+        plot(nrDetectedFeatures,'-r','linewidth',lw)
+        plot(nrTrackerFeatures,'-g','linewidth',lw)
+        ylabel('nr features'); xlabel('keyframes');
+        title('Stereo Tracker statistics')
+        legend('nrDetectedFeatures','nrTrackerFeatures')
+        %
+        subplot(2,2,2); hold on
+        plot(nrValidRKP,'-g','linewidth',lw)
+        plot(nrNoLeftRectRKP,'-r','linewidth',lw)
+        plot(nrNoRightRectRKP,'-b','linewidth',lw)
+        plot(nrNoDepthRKP,'-m','linewidth',lw)
+        plot(nrFailedArunRKP,'--c','linewidth',lw)
+        ylabel('nr features with status'); xlabel('keyframes');
+        title('Sparse stereo matching statistics (arun = 0 after detection)')
+        legend('nrValidRKP','nrNoLeftRectRKP','nrNoRightRectRKP', ...
+            'nrNoDepthRKP','nrFailedArunRKP')
+        %
+        subplot(2,2,3); hold on
+        plot(need_n_corners,'-c','linewidth',lw)
+        plot(extracted_corners,'-k','linewidth',lw)
+        ylabel('nr features');
+        xlabel('keyframes');
+        title('feature selection statistics')
+        legend('needNcorners','extractedCorners')
+    end
+    if (doSaveFigures>=2)
+        filename = horzcat(resultsOutFolder,'/trackerStats');
+        saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+    end
+
+    %% RANSAC STATS
+    if (doSaveFigures>=1)
+        fh = figure;
+        set(fh, 'Visible', 'off');
+        subplot(1,2,1); hold on
+        plot(nrMonoInliers,'-b','linewidth',lw)
+        plot(nrMonoPutatives,'-m','linewidth',lw)
+        ylabel('nr features'); xlabel('keyframes');
+        title('Mono ransac statistics')
+        legend('nrMonoInliers','nrMonoPutatives')
+        %
+        subplot(1,2,2); hold on
+        plot(nrStereoInliers,'-c','linewidth',lw)
+        plot(nrStereoPutatives,'-k','linewidth',lw)
+        ylabel('nr features');
+        xlabel('keyframes');
+        title('Stereo ransac statistics')
+        legend('nrStereoInliers','nrStereoPutatives')
+    end
+    if (doSaveFigures>=2)
+        filename = horzcat(resultsOutFolder,'/ransacStats');
+        saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+    end
 end
 
-%% RANSAC STATS
-if (doSaveFigures>=1)
-    fh = figure;
-    subplot(1,2,1); hold on
-    plot(nrMonoInliers,'-b','linewidth',lw)
-    plot(nrMonoPutatives,'-m','linewidth',lw)
-    ylabel('nr features'); xlabel('keyframes');
-    title('Mono ransac statistics')
-    legend('nrMonoInliers','nrMonoPutatives')
-    %
-    subplot(1,2,2); hold on
-    plot(nrStereoInliers,'-c','linewidth',lw)
-    plot(nrStereoPutatives,'-k','linewidth',lw)
-    ylabel('nr features');
-    xlabel('keyframes');
-    title('Stereo ransac statistics')
-    legend('nrStereoInliers','nrStereoPutatives')
-end
-if (doSaveFigures>=2)
-    filename = horzcat(resultsOutFolder,'/ransacStats');
-    saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
-end
-
-%% plot StereoTracker statistics
+%% plot Stereo Factors statistics
 disp('- display stereo factors stats')
+
 M_statsF = dlmread(horzcat(resultsInFolder,'output_statsFactors.txt'));
 if(size(M_statsF,2)~=8 || size(M_statsF,1)~=nrPoses) error('wrong size of M_statsF'); end
 % first entry is the keyframeID
@@ -609,30 +646,37 @@ if norm(numKeysInState - expectedNumKeysInState) > 1e-3
    [numKeysInState(ind) expectedNumKeysInState(ind)]
 end
 
-if (doSaveFigures>=1)
-    fh = figure; hold on; title('nr of added factors')
-    plot(numAddedSmartF/100,'-r')
-    plot(numAddedImuF,'-g')
-    plot(numAddedNoMotionF,'-b')
-    plot(numAddedConstantVelF,'-m')
-    plot(numAddedBetweenStereoF,'-c')
-    legend('numAddedSmartF/100','numAddedImuF','numAddedNoMotionF','numAddedConstantVelF','numAddedBetweenStereoF')
-    ylabel('added factors'); xlabel('keyframes')
-end
-if (doSaveFigures>=2)
-    filename = horzcat(resultsOutFolder,'/addedFactors');
-    saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
-end
+display_stereo_factors_stats = false;
+if (display_stereo_factors_stats)
+    if (doSaveFigures>=1)
+        fh = figure;
+        set(fh, 'Visible', 'off');
+        hold on; title('nr of added factors')
+        plot(numAddedSmartF/100,'-r')
+        plot(numAddedImuF,'-g')
+        plot(numAddedNoMotionF,'-b')
+        plot(numAddedConstantVelF,'-m')
+        plot(numAddedBetweenStereoF,'-c')
+        legend('numAddedSmartF/100','numAddedImuF','numAddedNoMotionF','numAddedConstantVelF','numAddedBetweenStereoF')
+        ylabel('added factors'); xlabel('keyframes')
+    end
+    if (doSaveFigures>=2)
+        filename = horzcat(resultsOutFolder,'/addedFactors');
+        saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+    end
 
-if (doSaveFigures>=1)
-    fh = figure; hold on; title('nr of keys in state')
-    plot(numKeysInState,'-k')
-    plot(expectedNumKeysInState,'--r')
-    ylabel('nr keys in state'); xlabel('keyframes')
-end
-if (doSaveFigures>=2)
-    filename = horzcat(resultsOutFolder,'/nrKeysInState');
-    saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+    if (doSaveFigures>=1)
+        fh = figure; 
+        set(fh, 'Visible', 'off');
+        hold on; title('nr of keys in state')
+        plot(numKeysInState,'-k')
+        plot(expectedNumKeysInState,'--r')
+        ylabel('nr keys in state'); xlabel('keyframes')
+    end
+    if (doSaveFigures>=2)
+        filename = horzcat(resultsOutFolder,'/nrKeysInState');
+        saveas(fh,filename,'epsc'); saveas(fh,filename,'fig');
+    end
 end
 
 %% store high level summary
@@ -711,6 +755,12 @@ results.nrZeroElementsInMatrix = nrZeroElementsInMatrix;
 
 results.rotErrors_vio_align = rotErrors_vio_align;
 results.tranErrors_vio_align = tranErrors_vio_align;
+results.max_rotErrors_vio_align = max(rotErrors_vio_align);
+results.max_tranErrors_vio_align = max(tranErrors_vio_align);
+results.min_rotErrors_vio_align = min(rotErrors_vio_align);
+results.min_tranErrors_vio_align =min(tranErrors_vio_align);
+results.mean_rotErrors_vio_align = mean(rotErrors_vio_align);
+results.mean_tranErrors_vio_align = mean(tranErrors_vio_align);
 
 results.loadStereoFrame_times = loadStereoFrame_times;
 results.processStereoFrame_times = processStereoFrame_times;

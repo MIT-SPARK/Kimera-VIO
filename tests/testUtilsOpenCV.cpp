@@ -21,9 +21,20 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
-#include <CppUnitLite/TestHarness.h>
+
 #include "UtilsOpenCV.h"
+
+#include <gtsam/geometry/Cal3_S2.h>
+#include <gtsam/geometry/Rot3.h>
+#include <gtsam/geometry/Point3.h>
+#include <gtsam/geometry/Pose3.h>
+
+#include <opencv2/opencv.hpp>
+
 #include "test_config.h"
+
+// Add last, since it redefines CHECK, which is first defined by glog.
+#include <CppUnitLite/TestHarness.h>
 
 using namespace gtsam;
 using namespace std;

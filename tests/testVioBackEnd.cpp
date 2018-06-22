@@ -16,9 +16,11 @@
 #include <iostream>
 #include <random>
 #include <algorithm>
-#include <CppUnitLite/TestHarness.h>
 #include "VioBackEnd.h"
 #include "test_config.h"
+
+// Add last, since it redefines CHECK, which is first defined by glog.
+#include <CppUnitLite/TestHarness.h>
 
 using namespace gtsam;
 using namespace std;
@@ -133,7 +135,7 @@ TEST(testVio, GuessPoseFromIMUmeasurements) {
       accGyroRaw.col(i) << -a , Vector3::Zero(); // we measure the opposite of gravity
 
     bool round = false;
-    Pose3 poseActual = VioBackEnd::GuessPoseFromIMUmeasurements(accGyroRaw,n_gravity,round);
+    Pose3 poseActual = VioBackEnd::guessPoseFromIMUmeasurements(accGyroRaw,n_gravity,round);
     Vector3 tExpected = Vector3::Zero();
     Vector3 tActual = poseActual.translation();
     EXPECT(assert_equal(tExpected, tActual, tol));
@@ -145,12 +147,12 @@ TEST(testVio, GuessPoseFromIMUmeasurements) {
     if(test>0 && test<4){ // case in which true gravity is along a single axis
       round = true;
       // check that rounding does not mess up with the previous cases
-      Pose3 poseActual2 = VioBackEnd::GuessPoseFromIMUmeasurements(accGyroRaw,n_gravity,round); // by rounding we should filter out perturbation
+      Pose3 poseActual2 = VioBackEnd::guessPoseFromIMUmeasurements(accGyroRaw,n_gravity,round); // by rounding we should filter out perturbation
       EXPECT(assert_equal(poseActual, poseActual2, tol));
 
       // check that rounding filter out perturbation
       Vector3 n_gravity_perturbed = n_gravity + Vector3(-0.1,0.1,0.3);
-      Pose3 poseActualRound = VioBackEnd::GuessPoseFromIMUmeasurements(accGyroRaw,n_gravity_perturbed,round);
+      Pose3 poseActualRound = VioBackEnd::guessPoseFromIMUmeasurements(accGyroRaw,n_gravity_perturbed,round);
       EXPECT(assert_equal(poseActual, poseActualRound, tol));
     }
   }
@@ -173,7 +175,7 @@ TEST(testVio, InitializeImuBias) {
   }
 
   // Compute the actual bias!
-  ImuBias imu_bias_actual = VioBackEnd::InitializeImuBias(imu_accgyr, n_gravity);
+  ImuBias imu_bias_actual = VioBackEnd::initializeImuBias(imu_accgyr, n_gravity);
 
   // Compute the expected value!
   Vector6 imu_mean = Vector6::Zero();
@@ -265,9 +267,9 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
     // process data with VIO
     vio->addVisualInertialStateAndOptimize(
-        timestamp_k, // current time for fixed lag smoother
-        all_measurements[k], // vision data
-        imu_stamps, imu_accgyr); // inertial data
+          timestamp_k, // current time for fixed lag smoother
+          all_measurements[k], // vision data
+          imu_stamps, imu_accgyr);
 
     NonlinearFactorGraph nlfg = vio->smoother_->getFactors();
     size_t nrFactorsInSmoother = 0;
@@ -299,7 +301,6 @@ TEST(testVio, robotMovingWithConstantVelocity) {
       EXPECT((imu_bias_lkf - imu_bias).vector().norm() < tol);
     }
   }
-
 }
 
 /* ************************************************************************* */

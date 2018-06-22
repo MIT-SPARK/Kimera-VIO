@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <gtsam/slam/SmartFactorParams.h>
 
+#include <glog/logging.h>
+
 namespace VIO {
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -53,6 +55,14 @@ public:
       const gtsam::LinearizationMode linMode = gtsam::HESSIAN,
       const gtsam::DegeneracyMode degMode = gtsam::ZERO_ON_DEGENERACY,
       const double smartNoiseSigma = 3,
+      // TODO inherit from this for regularVIO backend
+      const double monoNoiseSigma = 3, // for regularVioBackEnd only.
+      const double stereoNoiseSigma = 3, // for regularVioBackEnd only.
+      const double regularityNoiseSigma = 0.1, // for regularVioBackEnd only.
+      const size_t minPlaneConstraints = 3, // for regularVioBackEnd only.
+      const double huberParam = 1.345, // for regularVioBackEnd only.
+      const double tukeyParam = 4.6851, // for regularVioBackEnd only.
+      const size_t regularityNormType = 2, // for regularVioBackEnd only. 0: norm 2, 1: Huber, 2: Tukey.
       const double rankTolerance = 1, // we might also use 0.1
       const double landmarkDistanceThreshold = 20, // max distance to triangulate point in meters
       const double outlierRejection = 8, // max acceptable reprojection error // before tuning: 3
@@ -67,23 +77,30 @@ public:
       const double noMotionPositionSigma = 1e-3,
       const double noMotionRotationSigma = 1e-4,
       const double constantVelSigma = 1e-2,
-      const int numOptimize = 2,
+      const size_t numOptimize = 2,
       const double horizon = 6, // in seconds
       const bool useDogLeg = false
   ) : gyroNoiseDensity_(gyroNoiseDensity), accNoiseDensity_(accNoiseDensity),
   imuIntegrationSigma_(imuIntegrationSigma), gyroBiasSigma_(gyroBiasSigma), accBiasSigma_(accBiasSigma),
-  n_gravity_(n_gravity), nominalImuRate_(nominalImuRate), autoInitialize_(autoInitialize), roundOnAutoInitialize_(roundOnAutoInitialize),
+  nominalImuRate_(nominalImuRate), n_gravity_(n_gravity), autoInitialize_(autoInitialize), roundOnAutoInitialize_(roundOnAutoInitialize),
   initialPositionSigma_(initialPositionSigma), initialRollPitchSigma_(initialRollPitchSigma),
   initialYawSigma_(initialYawSigma), initialVelocitySigma_(initialVelocitySigma),
   initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
   linearizationMode_(linMode), degeneracyMode_(degMode),
-  smartNoiseSigma_(smartNoiseSigma), rankTolerance_(rankTolerance),
+  smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma), regularityNoiseSigma_(regularityNoiseSigma),
+  minPlaneConstraints_(minPlaneConstraints),
+  huberParam_(huberParam), tukeyParam_(tukeyParam), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
-  retriangulationThreshold_(retriangulationThreshold), relinearizeThreshold_(relinearizeThreshold),
+  retriangulationThreshold_(retriangulationThreshold), regularityNormType_(regularityNormType),
   addBetweenStereoFactors_(addBetweenStereoFactors),betweenRotationPrecision_(betweenRotationPrecision), betweenTranslationPrecision_(betweenTranslationPrecision),
-  relinearizeSkip_(relinearizeSkip), zeroVelocitySigma_(zeroVelocitySigma),
-  noMotionPositionSigma_(noMotionPositionSigma), noMotionRotationSigma_(noMotionRotationSigma), constantVelSigma_(constantVelSigma),
-  numOptimize_(numOptimize), horizon_(horizon), useDogLeg_(useDogLeg) {}
+  relinearizeThreshold_(relinearizeThreshold), relinearizeSkip_(relinearizeSkip), horizon_(horizon), numOptimize_(numOptimize),useDogLeg_(useDogLeg),
+  zeroVelocitySigma_(zeroVelocitySigma), noMotionPositionSigma_(noMotionPositionSigma),
+  noMotionRotationSigma_(noMotionRotationSigma), constantVelSigma_(constantVelSigma)
+  {
+    // Trivial sanity checks.
+    CHECK(minPlaneConstraints >= 3);
+    CHECK(horizon >= 0);
+  }
 
   // initialization params
   double initialPositionSigma_, initialRollPitchSigma_, initialYawSigma_, initialVelocitySigma_, initialAccBiasSigma_, initialGyroBiasSigma_;
@@ -96,7 +113,10 @@ public:
   // Smart factor params
   gtsam::LinearizationMode linearizationMode_;
   gtsam::DegeneracyMode degeneracyMode_;
-  double smartNoiseSigma_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
+  double smartNoiseSigma_, monoNoiseSigma_, stereoNoiseSigma_, regularityNoiseSigma_;
+  double minPlaneConstraints_;
+  double huberParam_, tukeyParam_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
+  int regularityNormType_;
   bool addBetweenStereoFactors_;
   double betweenRotationPrecision_, betweenTranslationPrecision_;
 
@@ -117,31 +137,51 @@ public:
       std::cout << "Cannot open file in parseYAML: " << filepath << std::endl;
       throw std::runtime_error("parseYAML (Vio): cannot open file (remember first line: %YAML:1.0)");
     }
+    cv::FileNode file_handle;
+
     // IMU PARAMS
-    fs["gyroNoiseDensity"] >> gyroNoiseDensity_;
-    fs["accNoiseDensity"] >> accNoiseDensity_;
-    fs["imuIntegrationSigma"] >> imuIntegrationSigma_;
-    fs["gyroBiasSigma"] >> gyroBiasSigma_;
-    fs["accBiasSigma"] >> accBiasSigma_;
+    file_handle = fs["gyroNoiseDensity"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> gyroNoiseDensity_;
+    file_handle = fs["accNoiseDensity"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> accNoiseDensity_;
+    file_handle = fs["imuIntegrationSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> imuIntegrationSigma_;
+    file_handle = fs["gyroBiasSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> gyroBiasSigma_;
+    file_handle = fs["accBiasSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> accBiasSigma_;
     std::vector<double> n_gravity_stdVect;
     n_gravity_stdVect.clear();
-    fs["n_gravity"] >> n_gravity_stdVect;
+    file_handle = fs["n_gravity"];
+    CHECK(file_handle.type() != cv::FileNode::NONE);
+    file_handle >> n_gravity_stdVect;
     for (int k = 0; k < 3; k++) {
       n_gravity_(k) = n_gravity_stdVect[k];
     }
-    fs["nominalImuRate"] >> nominalImuRate_;
+    file_handle = fs["nominalImuRate"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> nominalImuRate_;
     // INITIALIZATION
-    fs["autoInitialize"] >> autoInitialize_;
-    fs["roundOnAutoInitialize"] >> roundOnAutoInitialize_;
-    fs["initialPositionSigma"] >> initialPositionSigma_;
-    fs["initialRollPitchSigma"] >> initialRollPitchSigma_;
-    fs["initialYawSigma"] >> initialYawSigma_;
-    fs["initialVelocitySigma"] >> initialVelocitySigma_;
-    fs["initialAccBiasSigma"] >> initialAccBiasSigma_;
-    fs["initialGyroBiasSigma"] >> initialGyroBiasSigma_;
+    file_handle = fs["autoInitialize"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >>autoInitialize_;
+    file_handle = fs["roundOnAutoInitialize"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> roundOnAutoInitialize_;
+    file_handle = fs["initialPositionSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialPositionSigma_;
+    file_handle = fs["initialRollPitchSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialRollPitchSigma_;
+    file_handle = fs["initialYawSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialYawSigma_;
+    file_handle = fs["initialVelocitySigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialVelocitySigma_;
+    file_handle = fs["initialAccBiasSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialAccBiasSigma_;
+    file_handle = fs["initialGyroBiasSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialGyroBiasSigma_;
     // VISION PARAMS
     int linearizationModeId;
-    fs["linearizationMode"] >> linearizationModeId;
+    file_handle = fs["linearizationMode"];
+    CHECK(file_handle.type() != cv::FileNode::NONE);
+    file_handle >> linearizationModeId;
     switch(linearizationModeId){
     case 0:
       linearizationMode_ = gtsam::HESSIAN; break;
@@ -155,7 +195,9 @@ public:
       throw std::runtime_error("VIOparams parseYAML: wrong linearizationModeId"); break;
     }
     int degeneracyModeId;
-    fs["degeneracyMode"] >> degeneracyModeId;
+    file_handle = fs["degeneracyMode"];
+    CHECK(file_handle.type() != cv::FileNode::NONE);
+    file_handle >> degeneracyModeId;
     switch(degeneracyModeId){
     case 0:
       degeneracyMode_ = gtsam::IGNORE_DEGENERACY; break;
@@ -166,29 +208,61 @@ public:
     default:
       throw std::runtime_error("VIOparams parseYAML: wrong degeneracyMode_"); break;
     }
-    fs["smartNoiseSigma"] >> smartNoiseSigma_;
-    fs["rankTolerance"] >> rankTolerance_;
-    fs["landmarkDistanceThreshold"] >> landmarkDistanceThreshold_;
-    fs["outlierRejection"] >> outlierRejection_;
-    fs["retriangulationThreshold"] >> retriangulationThreshold_;
-    fs["addBetweenStereoFactors"] >> addBetweenStereoFactors_;
-    fs["betweenRotationPrecision"] >> betweenRotationPrecision_;
-    fs["betweenTranslationPrecision"] >> betweenTranslationPrecision_;
+    file_handle = fs["smartNoiseSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> smartNoiseSigma_;
+    file_handle = fs["monoNoiseSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNoiseSigma_;
+    file_handle = fs["stereoNoiseSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNoiseSigma_;
+    file_handle = fs["regularityNoiseSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNoiseSigma_;
+    file_handle = fs["minPlaneConstraints"] ;
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> minPlaneConstraints_;
+    file_handle = fs["huberParam"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> huberParam_;
+    file_handle = fs["tukeyParam"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> tukeyParam_;
+    file_handle = fs["regularityNormType"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNormType_;
+    file_handle = fs["rankTolerance"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> rankTolerance_;
+    file_handle = fs["landmarkDistanceThreshold"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> landmarkDistanceThreshold_;
+    file_handle = fs["outlierRejection"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> outlierRejection_;
+    file_handle = fs["retriangulationThreshold"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> retriangulationThreshold_;
+    file_handle = fs["addBetweenStereoFactors"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> addBetweenStereoFactors_;
+    file_handle = fs["betweenRotationPrecision"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> betweenRotationPrecision_;
+    file_handle = fs["betweenTranslationPrecision"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> betweenTranslationPrecision_;
 
     // OPTIMIZATION PARAMS
-    fs["relinearizeThreshold"] >> relinearizeThreshold_;
-    fs["relinearizeSkip"] >> relinearizeSkip_;
-    fs["zeroVelocitySigma"] >> zeroVelocitySigma_;
-    fs["noMotionPositionSigma"] >> noMotionPositionSigma_;
-    fs["noMotionRotationSigma"] >> noMotionRotationSigma_;
-    fs["constantVelSigma"] >> constantVelSigma_;
-    fs["numOptimize"] >> numOptimize_;
-    fs["horizon"] >> horizon_;
-    fs["useDogLeg"] >> useDogLeg_;
+    file_handle = fs["relinearizeThreshold"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> relinearizeThreshold_;
+    file_handle = fs["relinearizeSkip"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> relinearizeSkip_;
+    file_handle = fs["zeroVelocitySigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> zeroVelocitySigma_;
+    file_handle = fs["noMotionPositionSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> noMotionPositionSigma_;
+    file_handle = fs["noMotionRotationSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> noMotionRotationSigma_;
+    file_handle = fs["constantVelSigma"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> constantVelSigma_;
+    file_handle = fs["numOptimize"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> numOptimize_;
+    file_handle = fs["horizon"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> horizon_;
+    file_handle = fs["useDogLeg"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> useDogLeg_;
 
     fs.release();
     return true;
   }
+
   /* ------------------------------------------------------------------------------------- */
   bool equals(const VioBackEndParams& vp2, double tol = 1e-8) const{
     return
@@ -215,6 +289,13 @@ public:
         (linearizationMode_ == vp2.linearizationMode_) &&
         (degeneracyMode_ == vp2.degeneracyMode_) &&
         (fabs(smartNoiseSigma_ - vp2.smartNoiseSigma_) <= tol) &&
+        (fabs(monoNoiseSigma_ - vp2.monoNoiseSigma_) <= tol) &&
+        (fabs(stereoNoiseSigma_ - vp2.stereoNoiseSigma_) <= tol) &&
+        (fabs(regularityNoiseSigma_ - vp2.regularityNoiseSigma_) <= tol) &&
+        (minPlaneConstraints_ == vp2.minPlaneConstraints_) && (minPlaneConstraints_ >= 3) &&
+        (fabs(huberParam_ - vp2.huberParam_) <= tol) &&
+        (fabs(tukeyParam_ - vp2.tukeyParam_) <= tol) &&
+        (regularityNormType_ == vp2.regularityNormType_) &&
         (fabs(rankTolerance_ - vp2.rankTolerance_) <= tol) &&
         (fabs(landmarkDistanceThreshold_ - vp2.landmarkDistanceThreshold_) <= tol) &&
         (fabs(outlierRejection_ - vp2.outlierRejection_) <= tol) &&

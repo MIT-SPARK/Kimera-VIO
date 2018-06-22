@@ -1,10 +1,7 @@
 function [mean_rotErrors_vio_align, mean_tranErrors_vio_align, run1results] = ...
     regressionTests(trackerParams,vioParams,datasetToRun,testCondition,...
-    testCounter, usePlain, useSudo)
+    testCounter, usePlain, useSudo,runRegularVio)
 
-if ~exist('usePlain', 'var')
-    usePlain = 0;
-end
 if ~exist('useSudo', 'var')
     useSudo = 1;
 end
@@ -41,8 +38,8 @@ description = horzcat('minFeat',num2str(trackerParams.minNumberFeatures),'-maxFe
 % Setting dataPath to different locations depending on the server
 fcn_file_path = mfilename('fullpath');
 [pathstr, ~, ~] = fileparts(fcn_file_path);
-% dataPath = '/home/luca/data/';
 dataPath = '/home/luca/data/euroc/';
+%dataPath = '/home/tonirv/datasets/EuRoC/'; % TODO remove hardcoded things
 
 datasetPaths = {horzcat(dataPath,'MH_01_easy'),horzcat(dataPath,'MH_02_easy'),horzcat(dataPath,'MH_03_medium'),...
     horzcat(dataPath,'MH_04_difficult'),horzcat(dataPath,'MH_05_difficult'), ...
@@ -77,6 +74,7 @@ for i = 1:length(datasetToRun)
             %vioParams.autoInitialize = 1;
             %vioParams.initialRollPitchSigma = 20.0 / 180.0 * pi;
             %vioParams.initialYawSigma  = 3.0 / 180.0 * pi;
+            fprintf('Achtung: modifying default parameters.\n'); 
             trackerParams.featureSelectionDefaultDepth = 2.0; % indoor scenarios
         end
     %     if datasetId > 11 % duo datasets

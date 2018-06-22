@@ -16,9 +16,13 @@
 #include <iostream>
 #include <random>
 #include <algorithm>
-#include <CppUnitLite/TestHarness.h>
 #include "VioBackEndParams.h"
 #include "test_config.h"
+
+#include <glog/logging.h>
+
+// Add last, since it redefines CHECK, which is first defined by glog.
+#include <CppUnitLite/TestHarness.h>
 
 using namespace gtsam;
 using namespace std;
@@ -57,6 +61,13 @@ TEST(testVioBackEndParams, VioParseYAML) {
   EXPECT(vp.linearizationMode_ == 3);
   EXPECT(vp.degeneracyMode_ == 2);
   EXPECT_DOUBLES_EQUAL(5, vp.smartNoiseSigma_, tol);
+  EXPECT_DOUBLES_EQUAL(6, vp.monoNoiseSigma_, tol);
+  EXPECT_DOUBLES_EQUAL(3, vp.stereoNoiseSigma_, tol);
+  EXPECT_DOUBLES_EQUAL(0.3, vp.regularityNoiseSigma_, tol);
+  EXPECT(7 == vp.minPlaneConstraints_);
+  EXPECT_DOUBLES_EQUAL(2.2, vp.huberParam_, tol);
+  EXPECT_DOUBLES_EQUAL(5.1, vp.tukeyParam_, tol);
+  EXPECT(1 == vp.regularityNormType_);
   EXPECT_DOUBLES_EQUAL(2.1, vp.rankTolerance_, tol);
   EXPECT_DOUBLES_EQUAL(10.2, vp.landmarkDistanceThreshold_, tol);
   EXPECT_DOUBLES_EQUAL(3.2, vp.outlierRejection_, tol);
@@ -106,6 +117,12 @@ TEST(testVioBackEndParams, cppVSmatlabTrackerParams) {
 }
 
 /* ************************************************************************* */
-int main() {
-  TestResult tr; return TestRegistry::runAllTests(tr); }
+int main(int argc, char *argv[]) {
+  // Initialize Google's flags library.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  // Initialize Google's logging library.
+  google::InitGoogleLogging(argv[0]);
+
+  TestResult tr; return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************* */
