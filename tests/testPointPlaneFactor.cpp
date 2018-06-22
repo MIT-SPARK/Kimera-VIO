@@ -88,7 +88,7 @@ TEST(testPointPlaneFactor, ErrorIsZero) {
   Key pointKey(1);
   Key planeKey(2);
   noiseModel::Diagonal::shared_ptr regularityNoise =
-          noiseModel::Diagonal::Sigmas(Vector1(0.1));
+          noiseModel::Diagonal::Sigmas(Vector1::Constant(0.1));
   PointPlaneFactor factor(pointKey, planeKey, regularityNoise);
 
   Unit3 plane_normal(2.4, 1.2, 1.9);
@@ -96,8 +96,8 @@ TEST(testPointPlaneFactor, ErrorIsZero) {
 
   // Set the linearization point
   Point3 point(distance * plane_normal.unitVector()[0],
-               distance * plane_normal.unitVector()[1],
-               distance * plane_normal.unitVector()[2]);
+      distance * plane_normal.unitVector()[1],
+      distance * plane_normal.unitVector()[2]);
   OrientedPlane3 plane(plane_normal, distance);
 
   // Use the factor to calculate the Jacobians
@@ -114,7 +114,7 @@ TEST(testPointPlaneFactor, ErrorOtherThanZero) {
   Key pointKey(1);
   Key planeKey(2);
   noiseModel::Diagonal::shared_ptr regularityNoise =
-          noiseModel::Diagonal::Sigmas(Vector1(0.1));
+          noiseModel::Diagonal::Sigmas(Vector1::Constant(0.1));
   PointPlaneFactor factor(pointKey, planeKey, regularityNoise);
 
   Unit3 plane_normal(2.4, 1.2, 1.9);
@@ -140,7 +140,7 @@ TEST(testPointPlaneFactor, Jacobians) {
   Key pointKey(1);
   Key planeKey(2);
   noiseModel::Diagonal::shared_ptr regularityNoise =
-          noiseModel::Diagonal::Sigmas(Vector1(0.1));
+          noiseModel::Diagonal::Sigmas(Vector1::Constant(0.1));
   PointPlaneFactor factor(pointKey, planeKey, regularityNoise);
 
   double plane_normal [3] = {2.4, 1.2, 1.9};
@@ -178,7 +178,7 @@ TEST(testPointPlaneFactor, JacobiansNegative) {
   Key pointKey(1);
   Key planeKey(2);
   noiseModel::Diagonal::shared_ptr regularityNoise =
-          noiseModel::Diagonal::Sigmas(Vector1(0.1));
+          noiseModel::Diagonal::Sigmas(Vector1::Constant(0.1));
   PointPlaneFactor factor(pointKey, planeKey, regularityNoise);
 
   double plane_normal [3] = {2.4, 1.2, 1.9};
