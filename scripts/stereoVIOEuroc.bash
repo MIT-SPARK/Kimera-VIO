@@ -26,6 +26,7 @@ if [ $USE_REGULAR_VIO == 1 ]; then
     --vio_params_path="../params/vioParameters.yaml" \
     --tracker_params_path="../params/trackerParameters.yaml" \
     --backend_type=1 \
+    --deterministic_random_number_generator=true \
     --visualize=1 \
     --visualize_plane_constraints=false \
     --viz_type=5 \
