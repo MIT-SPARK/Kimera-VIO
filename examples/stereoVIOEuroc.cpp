@@ -69,7 +69,7 @@ DEFINE_int32(viz_type, 0,
 
 DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
                             "previous frames will not be used.");
-DEFINE_int32(final_k, 2812, "Final frame to finish processing dataset, "
+DEFINE_int32(final_k, 5000, "Final frame to finish processing dataset, "
                             "subsequent frames will not be used.");
 
 using namespace std;
@@ -140,7 +140,9 @@ void parseDatasetAndParams(ETHDatasetParser* dataset,
   if (*final_k > nr_images) {
     LOG(WARNING) << "Value for final_k, " << *final_k << " is larger than total"
                  << " number of frames in dataset " << nr_images;
-    *final_k = nr_images;
+    // Skip last frames which are typically problematic
+    // (IMU bumps, FOV occluded)...
+    *final_k = nr_images - 100;
     LOG(WARNING) << "Using final_k = " << *final_k;
   }
   CHECK(*final_k > *initial_k)
