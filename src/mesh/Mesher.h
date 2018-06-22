@@ -206,8 +206,10 @@ private:
       std::vector<Plane>* seed_planes,
       std::vector<Plane>* new_planes,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
-      const double& normal_tolerance,
-      const double& distance_tolerance) const;
+      const double& normal_tolerance_polygon_plane_association,
+      const double& distance_tolerance_polygon_plane_association,
+      const double& normal_tolerance_horizontal_surface,
+      const double& normal_tolerance_walls) const;
 
   /* -------------------------------------------------------------------------- */
   // Updates planes lmk ids field with a polygon vertices ids if this polygon

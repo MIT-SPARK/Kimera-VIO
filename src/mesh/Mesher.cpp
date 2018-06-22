@@ -49,6 +49,25 @@ DEFINE_int32(hist_2d_min_support, 20, "Minimum number of votes to consider a loc
 DEFINE_int32(hist_2d_min_dist_btw_local_max, 5, "Minimum distance between local "
                                         "maximums to be considered different.");
 
+DEFINE_double(normal_tolerance_polygon_plane_association, 0.011,
+              "Tolerance for a polygon's normal and a plane's normal to be "
+              "considered equal (0.087 === 10 deg. aperture).");
+DEFINE_double(distance_tolerance_polygon_plane_association, 0.10,
+              "Tolerance for a polygon vertices to be considered close to a "
+              "plane.");
+DEFINE_double(normal_tolerance_horizontal_surface, 0.011,
+              "Normal tolerance for a polygon to be considered parallel to the "
+              "ground (0.087 === 10 deg. aperture).");
+DEFINE_double(normal_tolerance_walls, 0.0165,
+              "Normal tolerance for a polygon to be considered perpendicular to"
+              " the vertical direction.");
+DEFINE_double(normal_tolerance_plane_plane_association, 0.011,
+              "Normal tolerance for a plane to be associated to another plane "
+              "(0.087 === 10 deg. aperture).");
+DEFINE_double(distance_tolerance_plane_plane_association, 0.20,
+              "Distance tolerance for a plane to be associated to another "
+              "plane.");
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -544,23 +563,22 @@ void Mesher::clusterPlanesFromMesh(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
 const {
   CHECK_NOTNULL(planes);
-  static constexpr double normal_tolerance = 0.011; // 0.087 === 10 deg. aperture.
-  static constexpr double distance_tolerance = 0.10;
   // Segment planes in the mesh, using seeds.
   VLOG(10) << "Starting plane segmentation...";
   std::vector<Plane> new_planes;
   segmentPlanesInMesh(planes, &new_planes,
                       points_with_id_vio,
-                      normal_tolerance, distance_tolerance);
+                      FLAGS_normal_tolerance_polygon_plane_association,
+                      FLAGS_distance_tolerance_polygon_plane_association,
+                      FLAGS_normal_tolerance_horizontal_surface,
+                      FLAGS_normal_tolerance_walls);
   VLOG(10) << "Finished plane segmentation.";
   // Do data association between the planes given and the ones segmented.
   VLOG(10) << "Starting plane association...";
   std::vector<Plane> new_non_associated_planes;
-  static constexpr double normal_tolerance_for_association = 0.011; // 0.087 === 10 deg. aperture.
-  static constexpr double distance_tolerance_for_association = 0.20;
   associatePlanes(new_planes, *planes, &new_non_associated_planes,
-                  normal_tolerance_for_association,
-                  distance_tolerance_for_association);
+                  FLAGS_normal_tolerance_plane_plane_association,
+                  FLAGS_distance_tolerance_plane_plane_association);
   VLOG(10) << "Finished plane association.";
   if (new_non_associated_planes.size() > 0) {
     // Update lmk ids of the newly added planes.
@@ -571,7 +589,8 @@ const {
     // Very unefficient.
     VLOG(10) << "Starting update plane lmk ids for new non-associated planes.";
     updatePlanesLmkIdsFromMesh(&new_non_associated_planes,
-                               normal_tolerance, distance_tolerance,
+                               FLAGS_normal_tolerance_polygon_plane_association,
+                               FLAGS_distance_tolerance_polygon_plane_association,
                                points_with_id_vio);
     VLOG(10) << "Finished update plane lmk ids for new non-associated planes.";
 
@@ -594,8 +613,10 @@ void Mesher::segmentPlanesInMesh(
     std::vector<Plane>* seed_planes,
     std::vector<Plane>* new_planes,
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
-    const double& normal_tolerance,
-    const double& distance_tolerance) const {
+    const double& normal_tolerance_polygon_plane_association,
+    const double& distance_tolerance_polygon_plane_association,
+    const double& normal_tolerance_horizontal_surface,
+    const double& normal_tolerance_walls) const {
   CHECK_NOTNULL(seed_planes);
   CHECK_NOTNULL(new_planes);
 
@@ -631,7 +652,8 @@ void Mesher::segmentPlanesInMesh(
       bool is_polygon_on_a_plane = updatePlanesLmkIdsFromPolygon(
                                      seed_planes, polygon,
                                      i, triangle_normal,
-                                     normal_tolerance, distance_tolerance,
+                                     normal_tolerance_polygon_plane_association,
+                                     distance_tolerance_polygon_plane_association,
                                      points_with_id_vio);
 
       ////////////////// Build Histogram for new planes ////////////////////////
@@ -643,7 +665,7 @@ void Mesher::segmentPlanesInMesh(
       static constexpr bool only_use_non_clustered_points = false;
       if ((only_use_non_clustered_points?
            !is_polygon_on_a_plane : true) &&
-          isNormalAroundAxis(vertical, triangle_normal, normal_tolerance)) {
+          isNormalAroundAxis(vertical, triangle_normal, normal_tolerance_horizontal_surface)) {
         // We have a triangle with a normal aligned with gravity, which is not
         // already clustered in a plane.
         // Store z components to build histogram.
@@ -656,7 +678,7 @@ void Mesher::segmentPlanesInMesh(
 
       /// Values for walls Histogram.///////////////////////////////////////////
       if (isNormalPerpendicularToAxis(vertical, triangle_normal,
-                                      normal_tolerance)) {
+                                      normal_tolerance_walls)) {
         // WARNING if we do not normalize, we'll have two peaks for the same
         // plane, no?
         // Store theta.
