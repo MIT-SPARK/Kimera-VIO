@@ -1,4 +1,4 @@
-function vioParams = defaultVioParamsRegularVio()
+function vioParams = defaultRegularVioParams()
 
 %% VIO PARAMS:
 % IMU PARAMS

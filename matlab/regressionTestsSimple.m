@@ -21,7 +21,7 @@ usePlain = 0;
 %% RUN!
 useSudo = 0;
 if (runRegularVio)
-    vioParams = defaultVioParamsRegularVio();
+    vioParams = defaultRegularVioParams();
     trackerParams = defaultTrackerParamsRegularVio();
 else
     vioParams = defaultVioParams();
