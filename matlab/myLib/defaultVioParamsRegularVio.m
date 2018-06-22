@@ -43,6 +43,6 @@ vioParams.zeroVelocitySigma = 0.001;
 vioParams.noMotionPositionSigma = 0.001;
 vioParams.noMotionRotationSigma = 0.0001;
 vioParams.constantVelSigma = 0.01;
-vioParams.numOptimize = 1;
+vioParams.numOptimize = 0;
 vioParams.horizon = 6;
 vioParams.useDogLeg = 0;

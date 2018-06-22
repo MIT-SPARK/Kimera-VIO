@@ -1,6 +1,6 @@
 function [mean_rotErrors_vio_align, mean_tranErrors_vio_align, run1results] = ...
     regressionTests(trackerParams,vioParams,datasetToRun,testCondition,...
-    testCounter, usePlain, useSudo)
+    testCounter, usePlain, useSudo,runRegularVio)
 
 if ~exist('useSudo', 'var')
     useSudo = 1;
