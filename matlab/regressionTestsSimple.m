@@ -4,15 +4,15 @@ clc
 
 addpath('./myLib/')
 %% CONDITIONS TO TEST
-regularVio = true;
+regularVio = false;
 if (regularVio) 
     descriptionResults = 'regularVioTest'
 else 
     descriptionResults = 'VioTest'
 end
 conditions = [1];
-%datasetsToRun = [1:11]
-datasetsToRun = 6
+datasetsToRun = [1:11]
+% datasetsToRun = 6
 nrDatasetsToTest = length(datasetsToRun);
 nrRuns = 1;
 allDatasetsToRun = repmat(datasetsToRun,1,nrRuns);
