@@ -4,10 +4,10 @@ clc
 
 addpath('./myLib/')
 %% CONDITIONS TO TEST
-regularVio = false;
-if (regularVio) 
+runRegularVio = false;
+if (runRegularVio)
     descriptionResults = 'regularVioTest'
-else 
+else
     descriptionResults = 'VioTest'
 end
 conditions = [1];
@@ -20,7 +20,7 @@ allDatasetsToRun = repmat(datasetsToRun,1,nrRuns);
 usePlain = 0;
 %% RUN!
 useSudo = 0;
-if (regularVio) 
+if (runRegularVio)
     vioParams = defaultVioParamsRegularVio();
     trackerParams = defaultTrackerParamsRegularVio();
 else
@@ -50,8 +50,8 @@ for testCond = conditions
             testCond,length(conditions),testCounter,length(allDatasetsToRun));
         
         [mean_rotErrors_vio_align, mean_tranErrors_vio_align, results(testCounter,testCond)] = ...
-            regressionTests(trackerParams,vioParams,datasetToRun,testCond,testCounter,usePlain,useSudo);
-        
+            regressionTests(trackerParams,vioParams,datasetToRun,testCond,testCounter,usePlain,useSudo,runRegularVio);
+
         rotationErrors(testCounter,testCond) = mean_rotErrors_vio_align;
         translationErrors(testCounter,testCond) = mean_tranErrors_vio_align;
         
