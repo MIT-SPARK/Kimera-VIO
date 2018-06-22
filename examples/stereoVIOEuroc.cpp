@@ -69,7 +69,7 @@ DEFINE_int32(viz_type, 0,
 
 DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
                             "previous frames will not be used.");
-DEFINE_int32(final_k, 5000, "Final frame to finish processing dataset, "
+DEFINE_int32(final_k, 10000, "Final frame to finish processing dataset, "
                             "subsequent frames will not be used.");
 
 using namespace std;
