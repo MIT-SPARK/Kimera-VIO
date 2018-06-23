@@ -27,6 +27,17 @@
 
 #include "VioBackEnd.h"
 
+DEFINE_bool(debug_graph_before_opt, true,
+            "Store factor graph before optimization for later printing if the "
+            "optimization fails.");
+DEFINE_bool(process_cheirality, true,
+            "Handle cheirality exception by removing problematic landmarks and "
+            "re-running optimization.");
+DEFINE_int32(max_number_of_cheirality_exceptions, 5,
+             "Sets the maximum number of times we process a cheirality "
+             "exception for a given optimization problem. This is to avoid too "
+             "many recursive calls to update the smoother");
+
 using namespace std;
 
 namespace VIO {
@@ -863,8 +874,7 @@ void VioBackEnd::optimize(
   }
 
   // Recreate the graph before marginalization.
-  static constexpr bool debug_graph_before_opt = true;
-  if (verbosity_ >= 5 || debug_graph_before_opt) {
+  if (verbosity_ >= 5 || FLAGS_debug_graph_before_opt) {
     debug_info_.graphBeforeOpt = smoother_->getFactors();
     debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
     debug_info_.graphToBeDeleted.resize(delete_slots.size());
@@ -1137,8 +1147,7 @@ void VioBackEnd::updateSmoother(
     // Do not intentionally throw to see what checks fail later.
   }
 
-  static constexpr bool process_cheirality = true;
-  if (process_cheirality) {
+  if (FLAGS_process_cheirality) {
     static size_t counter_of_exceptions = 0;
     if (got_cheirality_exception) {
       LOG(WARNING) << "Starting processing cheirality exception # "
@@ -1149,8 +1158,7 @@ void VioBackEnd::updateSmoother(
       *smoother_ = smoother_backup;
 
       // Limit the number of cheirality exceptions per run.
-      static constexpr size_t max_number_of_cheirality_exceptions = 5;
-      CHECK_LE(counter_of_exceptions, max_number_of_cheirality_exceptions);
+      CHECK_LE(counter_of_exceptions, FLAGS_max_number_of_cheirality_exceptions);
 
       // Check that we have a landmark.
       CHECK(lmk_symbol_cheirality.chr() == 'l');
@@ -1175,8 +1183,7 @@ void VioBackEnd::updateSmoother(
       VLOG(10) << "Finished cleanCheiralityLmk.";
 
       // Recreate the graph before marginalization.
-      static constexpr bool debug_graph_before_opt = true;
-      if (verbosity_ >= 5 || debug_graph_before_opt) {
+      if (verbosity_ >= 5 || FLAGS_debug_graph_before_opt) {
         debug_info_.graphBeforeOpt = graph;
         debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
         debug_info_.graphToBeDeleted.resize(delete_slots_cheirality.size());
