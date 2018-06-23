@@ -132,6 +132,7 @@ Tips for development
 
 - Disable TBB in GTSAM (go to build folder in gtsam, use cmake-gui to unset ```GTSAM_WITH_TBB```).
 - Specify ```srand(0)``` in main function, to make randomized algorithms deterministic.
+To do that use the flag ```--deterministic_random_number_generator=true```
 - Change ```ransac_randomize``` flag in ```params/trackerParameters.yaml``` to 0, to disable ransac randomization.
 
 Note: these changes are not sufficient to make the output repeatable between different machines.
