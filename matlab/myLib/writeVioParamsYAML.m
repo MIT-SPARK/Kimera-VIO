@@ -2,7 +2,7 @@ function writeVioParamsYAML(filename, vioParams)
 
 % sanity check
 nrFields = length(fieldnames(vioParams));
-if(nrFields ~= 41)
+if(nrFields ~= 42)
    error('wrong number of fields in vioParams') 
 end
 
