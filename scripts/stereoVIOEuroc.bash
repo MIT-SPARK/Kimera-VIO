@@ -2,7 +2,7 @@
 # Fill the variables DATASET_PATH and USE_REGULAR_VIO.
 
 # Specify path of the EuRoC dataset.
-DATASET_PATH="/home/tonirv/datasets/EuRoC/V1_01_easy"
+DATASET_PATH="/home/luca/data/euroc/V1_01_easy"
 
 # 1 to use regular vio, 0 to use normal vio with default parameters.
 USE_REGULAR_VIO=0
@@ -26,6 +26,7 @@ if [ $USE_REGULAR_VIO == 1 ]; then
     --vio_params_path="../params/vioParameters.yaml" \
     --tracker_params_path="../params/trackerParameters.yaml" \
     --backend_type=1 \
+    --deterministic_random_number_generator=true \
     --visualize=1 \
     --visualize_plane_constraints=false \
     --viz_type=5 \
@@ -58,7 +59,7 @@ else
     --backend_type=0 \
     --visualize=1 \
     --viz_type=0 \
-    --log_output=false \
+    --log_output=true \
     --v=0 \
     --vmodule=stereoVIOEuroc=100,VioBackEnd=0,Mesher=0 \
     --add_extra_lmks_from_stereo=false

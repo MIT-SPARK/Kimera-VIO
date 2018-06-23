@@ -1,4 +1,4 @@
-function trackerParams = defaultTrackerParams()
+function trackerParams = defaultTrackerParamsRegularVio()
 
 %% TRACKER PARAMS:
 trackerParams.klt_win_size = 24;

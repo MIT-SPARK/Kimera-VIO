@@ -67,6 +67,12 @@ DEFINE_int32(viz_type, 0,
   "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
   "7: NONE, does not visualize map\n");
 
+DEFINE_bool(deterministic_random_number_generator, false,
+            "If true the random number generator will consistently output the "
+            "same sequence of pseudo-random numbers for every run (use it to "
+            "have repeatable output). If false the random number generator "
+            "will output a different sequence for each run.");
+
 DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
                             "previous frames will not be used.");
 DEFINE_int32(final_k, 10000, "Final frame to finish processing dataset, "
@@ -163,8 +169,11 @@ int main(int argc, char *argv[]) {
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
-  // initialize random seed for repeatability (only on the same machine)
-  srand(0); // still does not make RANSAC REPEATABLE across different machines
+  if (FLAGS_deterministic_random_number_generator) {
+    // Initialize random seed for repeatability (only on the same machine).
+    // Still does not make RANSAC REPEATABLE across different machines.
+    srand(0);
+  }
   static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
   static constexpr int saveImagesSelector = 1;          // 0: don't show, >0 write & save
   VisualizationType visualization_type = static_cast<VisualizationType>(
