@@ -21,7 +21,9 @@ linearizationMode: 3
 degeneracyMode: 2
 smartNoiseSigma: 5
 monoNoiseSigma: 6 # For RegularVio only
-stereoNoiseSigma: 3 # For RegularVio only
+monoNormType: 0 # For RegularVio only
+stereoNoiseSigma: 3 # For Regularvio only
+stereoNormType: 0 # For RegularVio only
 regularityNoiseSigma: 0.3 # For RegularVio only
 minPlaneConstraints: 7 # For RegularVio only
 huberParam: 2.2 # For RegularVio only
