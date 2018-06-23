@@ -1216,8 +1216,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
     /// otherwise delete ALL constraints, both old and new, so that the plane
     /// disappears (take into account priors!).
     /// Priors affecting planes: linear container factor & prior on OrientedPlane3
-    size_t total_nr_of_plane_constraints =
-        point_plane_factor_slots_bad.size() +
+    const int32_t total_nr_of_plane_constraints =
+        point_plane_factor_slots_good.size() +
         idx_of_point_plane_factors_to_add.size();
     VLOG(10) << "Total number of constraints of plane "
              << gtsam::DefaultKeyFormatter(plane_symbol.key()) << " is: "
