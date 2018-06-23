@@ -51,7 +51,7 @@ DEFINE_bool(convert_extra_smart_factors_to_proj_factors, true,
 DEFINE_bool(remove_old_reg_factors, true,
             "Remove regularity factors for those landmarks that were "
             "originally associated to the plane, but which are not anymore.");
-DEFINE_int32(min_num_of_constraints, 10,
+DEFINE_int32(min_num_of_plane_constraints_to_remove_factors, 10,
              "Number of constraints for a plane to be considered "
              "underconstrained when trying to remove old regularity factors. "
              "If a plane is thought to be underconstrained, we'll try to "
@@ -65,7 +65,7 @@ DEFINE_bool(use_unstable_plane_removal, false,
             "faults if we do so. The stable implementation instead puts a "
             "prior on the plane and removes as many factors from the plane as "
             "possible to avoid seg fault.");
-DEFINE_int32(min_num_of_constraints_to_avoid_seg_fault, 3,
+DEFINE_int32(min_num_of_plane_constraints_to_avoid_seg_fault, 3,
              "Minimum number of constraints from landmark to plane to keep in "
              "order to avoid seg fault when removing factors for a specific "
              "plane. If all the factors are removed, then ISAM2 will seg fault,"
@@ -1232,7 +1232,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
              << (has_plane_a_prior? "Yes" : "No") << ".\n"
              << "Has the plane a linear factor? "
              << (has_plane_a_linear_factor? "Yes" : "No") << ".";
-    if (total_nr_of_plane_constraints > FLAGS_min_num_of_constraints) {
+    if (total_nr_of_plane_constraints >
+        FLAGS_min_num_of_plane_constraints_to_remove_factors) {
       // The plane is fully constrained.
       // We can just delete bad factors, assuming lmks will be well constrained.
       // TODO ensure the lmks are themselves well constrained.
@@ -1271,7 +1272,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
           // TODO maybe if we are deleting too much constraints, add a no information
           // factor btw the plane and a lmk!
           if (total_nr_of_plane_constraints >
-              FLAGS_min_num_of_constraints_to_avoid_seg_fault) {
+              FLAGS_min_num_of_plane_constraints_to_avoid_seg_fault) {
             // Delete just the bad factors, since we still have some factors
             // that won't make the optimizer try to delete the plane variable,
             // which at the current time breaks gtsam.
@@ -1332,7 +1333,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
           // TODO Remove: this is just a patch to avoid issue 32:
           // https://github.mit.edu/lcarlone/VIO/issues/32
           if (total_nr_of_plane_constraints >
-              FLAGS_min_num_of_constraints_to_avoid_seg_fault) {
+              FLAGS_min_num_of_plane_constraints_to_avoid_seg_fault) {
             // Delete just the bad factors, since we still have some factors
             // that won't make the optimizer try to delete the plane variable,
             // which at the current time breaks gtsam.
