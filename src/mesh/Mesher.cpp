@@ -20,16 +20,20 @@
 #include <opencv2/imgproc.hpp>
 #include <gflags/gflags.h>
 
-// WARNING this is computationally expensive.
+// General functionality for the mesher.
 DEFINE_bool(add_extra_lmks_from_stereo, false,
-            "Add extra landmarks that are stereo triangulated to the mesh.");
+            "Add extra landmarks that are stereo triangulated to the mesh. "
+            "WARNING this is computationally expensive.");
+DEFINE_bool(reduce_mesh_to_time_horizon, true, "Reduce mesh vertices to the "
+            "landmarks available in current optimization's time horizon.");
+
+// Visualization.
 DEFINE_bool(visualize_histogram_1D, false, "Visualize 1D histogram.");
 DEFINE_bool(visualize_histogram_2D, false, "Visualize 2D histogram.");
-
 DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");
 DEFINE_bool(visualize_mesh_2d_filtered, false, "Visualize mesh 2D filtered.");
 
-// Mesher.
+// Mesh filters.
 DEFINE_double(max_grad_in_triangle, -1,
               "Maximum allowed gradient inside a triangle.");
 DEFINE_double(min_ratio_btw_largest_smallest_side, 0.5,
@@ -40,24 +44,35 @@ DEFINE_double(min_elongation_ratio, 0.5, "Minimum allowed elongation "
 DEFINE_double(max_triangle_side, 0.5, "Maximum allowed side for "
                                       "a triangle.");
 
+// Association.
 DEFINE_double(normal_tolerance_polygon_plane_association, 0.011,
               "Tolerance for a polygon's normal and a plane's normal to be "
               "considered equal (0.087 === 10 deg. aperture).");
 DEFINE_double(distance_tolerance_polygon_plane_association, 0.10,
               "Tolerance for a polygon vertices to be considered close to a "
               "plane.");
-DEFINE_double(normal_tolerance_horizontal_surface, 0.011,
-              "Normal tolerance for a polygon to be considered parallel to the "
-              "ground (0.087 === 10 deg. aperture).");
-DEFINE_double(normal_tolerance_walls, 0.0165,
-              "Normal tolerance for a polygon to be considered perpendicular to"
-              " the vertical direction.");
 DEFINE_double(normal_tolerance_plane_plane_association, 0.011,
               "Normal tolerance for a plane to be associated to another plane "
               "(0.087 === 10 deg. aperture).");
 DEFINE_double(distance_tolerance_plane_plane_association, 0.20,
               "Distance tolerance for a plane to be associated to another "
               "plane.");
+DEFINE_bool(do_double_association, true,
+            "Do double plane association of backend plane with multiple "
+            "segmented planes. Otherwise search for another possible "
+            "backend plane for the segmented plane.");
+
+// Segmentation.
+DEFINE_double(normal_tolerance_horizontal_surface, 0.011,
+              "Normal tolerance for a polygon to be considered parallel to the "
+              "ground (0.087 === 10 deg. aperture).");
+DEFINE_double(normal_tolerance_walls, 0.0165,
+              "Normal tolerance for a polygon to be considered perpendicular to"
+              " the vertical direction.");
+DEFINE_bool(only_use_non_clustered_points, true,
+            "Only use points that have not been clustered in a plane already "
+            "when filling both histograms.");
+
 // Histogram 2D.
 DEFINE_int32(hist_2d_gaussian_kernel_size, 3,
              "Kernel size for gaussian blur of 2D histogram.");
@@ -284,13 +299,12 @@ void Mesher::populate3dMeshTimeHorizon(
 
   // Remove faces in the mesh that have vertices which are not in
   // points_with_id_map anymore.
-  static constexpr bool reduce_mesh_to_time_horizon = true;
   VLOG(10) << "Starting updatePolygonMeshToTimeHorizon...";
   updatePolygonMeshToTimeHorizon(points_with_id_map,
                                  leftCameraPose,
                                  min_ratio_largest_smallest_side,
                                  max_triangle_side,
-                                 reduce_mesh_to_time_horizon);
+                                 FLAGS_reduce_mesh_to_time_horizon);
   VLOG(10) << "Finished updatePolygonMeshToTimeHorizon.";
   VLOG(10) << "Finished populate3dMeshTimeHorizon.";
 }
@@ -614,8 +628,7 @@ bool Mesher::isPointAtDistanceFromPlane(
 // that we only extract lmk ids that are in the optimization time horizon.
 void Mesher::clusterPlanesFromMesh(
     std::vector<Plane>* planes,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-const {
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio) {
   CHECK_NOTNULL(planes);
   // Segment planes in the mesh, using seeds.
   VLOG(10) << "Starting plane segmentation...";
@@ -670,7 +683,7 @@ void Mesher::segmentPlanesInMesh(
     const double& normal_tolerance_polygon_plane_association,
     const double& distance_tolerance_polygon_plane_association,
     const double& normal_tolerance_horizontal_surface,
-    const double& normal_tolerance_walls) const {
+    const double& normal_tolerance_walls) {
   CHECK_NOTNULL(seed_planes);
   CHECK_NOTNULL(new_planes);
 
@@ -716,8 +729,7 @@ void Mesher::segmentPlanesInMesh(
       // and which has the normal aligned with the vertical direction so that we
       // can build an histogram.
       static const cv::Point3f vertical (0, 0, 1);
-      static constexpr bool only_use_non_clustered_points = false;
-      if ((only_use_non_clustered_points?
+      if ((FLAGS_only_use_non_clustered_points?
            !is_polygon_on_a_plane : true) &&
           isNormalAroundAxis(vertical, triangle_normal, normal_tolerance_horizontal_surface)) {
         // We have a triangle with a normal aligned with gravity, which is not
@@ -731,7 +743,9 @@ void Mesher::segmentPlanesInMesh(
       }
 
       /// Values for walls Histogram.///////////////////////////////////////////
-      if (isNormalPerpendicularToAxis(vertical, triangle_normal,
+      if ((FLAGS_only_use_non_clustered_points?
+           !is_polygon_on_a_plane : true) &&
+          isNormalPerpendicularToAxis(vertical, triangle_normal,
                                       normal_tolerance_walls)) {
         // WARNING if we do not normalize, we'll have two peaks for the same
         // plane, no?
@@ -1036,8 +1050,7 @@ void Mesher::segmentHorizontalPlanes(
     }
   }
 
-  static constexpr size_t max_number_of_peaks_to_select = 3;
-  for (size_t peak_nr = 0; peak_nr < max_number_of_peaks_to_select;
+  for (int peak_nr = 0; peak_nr < FLAGS_z_histogram_max_number_of_peaks_to_select;
        peak_nr++) {
     // Get the peaks in order of max support.
     std::vector<Histogram::PeakInfo>::iterator it =
@@ -1154,8 +1167,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
                        << " with another segmented plane: "
                        << gtsam::DefaultKeyFormatter(
                             segmented_plane.getPlaneSymbol().key()) << "\n.";
-            static constexpr bool do_double_association = true;
-            if (do_double_association) {
+            if (FLAGS_do_double_association) {
               LOG(ERROR) << "Doing double plane association of backend plane.";
               is_segmented_plane_associated = true;
               break;

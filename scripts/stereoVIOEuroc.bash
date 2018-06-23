@@ -40,12 +40,12 @@ if [ $USE_REGULAR_VIO == 1 ]; then
     --hist_2d_min_support=20 \
     --initial_k=10 \
     --final_k=10000 \
-    --normal_tolerance_polygon_plane_association= 0.011 \
-    --distance_tolerance_polygon_plane_association= 0.10 \
-    --normal_tolerance_horizontal_surface= 0.011 \
-    --normal_tolerance_walls= 0.0165 \
-    --normal_tolerance_plane_plane_association= 0.011 \
-    --distance_tolerance_plane_plane_association= 0.20
+    --normal_tolerance_polygon_plane_association=0.011 \
+    --distance_tolerance_polygon_plane_association=0.10 \
+    --normal_tolerance_horizontal_surface=0.011 \
+    --normal_tolerance_walls=0.0165 \
+    --normal_tolerance_plane_plane_association=0.011 \
+    --distance_tolerance_plane_plane_association=0.20
 
 else
   ../build/stereoVIOEuroc \

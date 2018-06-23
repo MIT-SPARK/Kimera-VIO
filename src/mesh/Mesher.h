@@ -216,7 +216,7 @@ private:
       const double& normal_tolerance_polygon_plane_association,
       const double& distance_tolerance_polygon_plane_association,
       const double& normal_tolerance_horizontal_surface,
-      const double& normal_tolerance_walls) const;
+      const double& normal_tolerance_walls);
 
   /* -------------------------------------------------------------------------- */
   // Updates planes lmk ids field with a polygon vertices ids if this polygon
@@ -257,20 +257,20 @@ private:
   // points_with_id_vio is only used if we are using stereo points...
   void segmentNewPlanes(std::vector<Plane>* new_segmented_planes,
                         const cv::Mat& z_components,
-                        const cv::Mat& walls) const;
+                        const cv::Mat& walls);
 
   /* ------------------------------------------------------------------------ */
   // Segment wall planes.
   void segmentWalls(std::vector<Plane>* wall_planes,
                     size_t* plane_id,
-                    const cv::Mat& walls) const;
+                    const cv::Mat& walls);
 
   /* ------------------------------------------------------------------------ */
   // Segment new planes horizontal.
   void segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
                                size_t* plane_id,
                                const Plane::Normal& normal,
-                               const cv::Mat& z_components) const;
+                               const cv::Mat& z_components);
 
   /* ------------------------------------------------------------------------ */
   // Data association between planes:
