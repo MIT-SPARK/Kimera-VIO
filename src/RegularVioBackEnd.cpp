@@ -21,6 +21,58 @@
 
 #include <gtsam/slam/PriorFactor.h>
 
+DEFINE_int32(min_num_of_observations, 2,
+             "Minimum number of observations for a feature track to be added "
+             "in the optimization problem (corresponds to number of "
+             "measurements in smart factors. Only insert feature tracks of "
+             "length at least 2 (otherwise uninformative).");
+DEFINE_double(max_parallax, 150,
+              "Maximum parallax to be considered correct. This is a patch to "
+              "remove outliers when using mono and stereo projection factors.");
+DEFINE_int32(min_num_obs_for_proj_factor, 4,
+             "If the smart factor has less than x number of observations, "
+             "then do not consider the landmark as valid to transform to proj."
+             "This param is different from the one counting the track length "
+             "as it controls only the quality of the subsequent proj factors, "
+             "and has no effect on how the smart factors are created. "
+             "This param is very correlated to the one we use to get lmks "
+             "in time horizon (aka min_age) since only the ones that have "
+             "reached the mesher and have been clustered will have the "
+             "possibility of being here, so this param must be higher than the "
+             "min_age one to have any impact.");
+
+DEFINE_bool(convert_extra_smart_factors_to_proj_factors, true,
+            "Whether to convert all smart factors in time horizon to "
+            "projection factors, instead of just the ones in current frame.");
+DEFINE_bool(remove_old_reg_factors, true,
+            "Remove regularity factors for those landmarks that were "
+            "originally associated to the plane, but which are not anymore.");
+DEFINE_int32(min_num_of_constraints, 10,
+             "Number of constraints for a plane to be considered "
+             "underconstrained when trying to remove old regularity factors. "
+             "If a plane is thought to be underconstrained, we'll try to "
+             "remove it from the optimization or set a prior to it (depending "
+             "on the use_unstable_plane_removal flag.");
+
+DEFINE_bool(use_unstable_plane_removal, false,
+            "Remove planes from optimization using unstable implementation, "
+            "which tries to remove all factors attached to the plane so that "
+            "ISAM2 deletes it. Unfortunately, ISAM2 has a bug and leads to seg "
+            "faults if we do so. The stable implementation instead puts a "
+            "prior on the plane and removes as many factors from the plane as "
+            "possible to avoid seg fault.");
+DEFINE_int32(min_num_of_constraints_to_avoid_seg_fault, 3,
+             "Minimum number of constraints from landmark to plane to keep in "
+             "order to avoid seg fault when removing factors for a specific "
+             "plane. If all the factors are removed, then ISAM2 will seg fault,"
+             " check issue:https://github.mit.edu/lcarlone/VIO/issues/32.");
+DEFINE_double(prior_noise_sigma_normal, 0.1,
+              "Sigma for the noise model of the prior on the normal of the "
+              "plane.");
+DEFINE_double(prior_noise_sigma_distance, 0.1,
+              "Sigma for the noise model of the prior on the distance of the "
+              "plane.");
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -41,19 +93,17 @@ RegularVioBackEnd::RegularVioBackEnd(
   gtsam::SharedNoiseModel gaussian_dim_2 =
       gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
 
-  static constexpr size_t mono_noise_type = 0; // l-2
   selectNormType(&mono_noise_,
                  gaussian_dim_2,
-                 mono_noise_type);
+                 vio_params_.monoNormType_);
 
   // Set type of stereo_noise_ for generic stereo projection factors.
   gtsam::SharedNoiseModel gaussian_dim_3 =
       gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.stereoNoiseSigma_);
 
-  static constexpr size_t stereo_norm_type = 0; // l-2
   selectNormType(&stereo_noise_,
                  gaussian_dim_3,
-                 stereo_norm_type); // l-2
+                 vio_params_.stereoNormType_);
 
   // Set type of regularity noise for point plane factors.
   gtsam::SharedNoiseModel gaussian_dim_1 =
@@ -117,8 +167,6 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   /////////////////// VISION MEASUREMENTS //////////////////////////////////////
-  static constexpr bool convert_extra_smart_factors_to_proj_factors = true;
-  static constexpr bool remove_old_reg_factors = true;
   const SmartStereoMeasurements& smart_stereo_measurements_kf =
                                     status_smart_stereo_measurements_kf.second;
 
@@ -181,7 +229,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // Most conversions from smart to proj are done before,
         // in addLandmarksToGraph, but here we also make sure we have converted
         // the ones with regularities in time horizon.
-        if (convert_extra_smart_factors_to_proj_factors) {
+        if (FLAGS_convert_extra_smart_factors_to_proj_factors) {
           VLOG(10) << "Starting converting extra smart factors to proj factors...";
           convertExtraSmartFactorToProjFactor(lmk_ids_with_regularity);
           VLOG(10) << "Finished converting extra smart factors to proj factors...";
@@ -208,7 +256,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
           }
 
-          if (remove_old_reg_factors) {
+          if (FLAGS_remove_old_reg_factors) {
             VLOG(0) << "Removing old regularity factors.";
             std::vector<size_t> delete_old_regularity_factors;
             removeOldRegularityFactors_Slow(
@@ -278,8 +326,7 @@ void RegularVioBackEnd::addLandmarksToGraph(
 
     // Only insert feature tracks of length at least 2
     // (otherwise uninformative)
-    static constexpr size_t min_num_of_observations = 2;
-    if (feature_track.obs_.size() >= min_num_of_observations) {
+    if (feature_track.obs_.size() >= FLAGS_min_num_of_observations) {
       // We have enough observations of the lmk.
       if (!feature_track.in_ba_graph_) {
         // The lmk has not yet been added to the graph.
@@ -299,8 +346,10 @@ void RegularVioBackEnd::addLandmarksToGraph(
                                               " keyframe!";
 
         // For each landmark we decide if it's going to be a smart factor or not.
-        // TODO here there is a timeline mismatch, while landmarks_kf are only currently
-        // visible lmks, mesh_lmks_ids contains lmks in time_horizon!
+        // Here there is a timeline mismatch, while landmarks_kf are only currently
+        // visible lmks, lmk_ids_with_regularity contains lmks in time_horizon.
+        // To further convert the lmks in time_horizon we use the
+        // convertExtraSmartFactorToProjFactor function.
         const bool& is_lmk_smart = isLandmarkSmart(lmk_id,
                                                    lmk_ids_with_regularity,
                                                    &lmk_id_is_smart_);
@@ -311,7 +360,8 @@ void RegularVioBackEnd::addLandmarksToGraph(
       }
     } else {
       VLOG(20) << "Feature track is shorter (" << feature_track.obs_.size()
-               << ") than min_num_of_observations (" << min_num_of_observations
+               << ") than min_num_of_observations ("
+               << FLAGS_min_num_of_observations
                << ") for lmk with id: " << lmk_id;
     }
   }
@@ -632,8 +682,7 @@ void RegularVioBackEnd::addProjectionFactor(
   CHECK_NOTNULL(new_imu_prior_and_other_factors);
   if (!std::isnan(new_obs.second.uR())) {
     double parallax = new_obs.second.uL() - new_obs.second.uR();
-    static constexpr double max_parallax = 150;
-    if (parallax < max_parallax) {
+    if (parallax < FLAGS_max_parallax) {
       CHECK_GT(parallax, 0);
       new_imu_prior_and_other_factors->push_back(
             boost::make_shared<
@@ -740,8 +789,7 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
         // TODO Do this when we convert the factor not when we decide if
         // it should be a proj or a smart factor! But then we must be
         // careful that the lmk_id_is_smart is re-changed to smart right?
-        static constexpr size_t min_num_obs_for_proj_factor = 4;
-        if (old_factor->measured().size() >= min_num_obs_for_proj_factor) {
+        if (old_factor->measured().size() >= FLAGS_min_num_obs_for_proj_factor) {
           VLOG(20) << "Smart factor for lmk: " << lmk_id << " is valid.";
           lmk_is_valid = true;
         } else {
@@ -749,7 +797,7 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
           LOG(WARNING) << "Smart factor for lmk: " << lmk_id << " has not enough"
                        << " observations: " << old_factor->measured().size()
                        << ", but should be more or equal to "
-                       << min_num_obs_for_proj_factor;
+                       << FLAGS_min_num_obs_for_proj_factor;
           lmk_is_valid = false;
         }
       }
@@ -1166,7 +1214,6 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
     /// otherwise delete ALL constraints, both old and new, so that the plane
     /// disappears (take into account priors!).
     /// Priors affecting planes: linear container factor & prior on OrientedPlane3
-    static constexpr size_t min_num_of_constraints = 10;
     size_t total_nr_of_plane_constraints =
         point_plane_factor_slots_bad.size() +
         idx_of_point_plane_factors_to_add.size();
@@ -1183,7 +1230,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
              << (has_plane_a_prior? "Yes" : "No") << ".\n"
              << "Has the plane a linear factor? "
              << (has_plane_a_linear_factor? "Yes" : "No") << ".";
-    if (total_nr_of_plane_constraints > min_num_of_constraints) {
+    if (total_nr_of_plane_constraints > FLAGS_min_num_of_constraints) {
       // The plane is fully constrained.
       // We can just delete bad factors, assuming lmks will be well constrained.
       // TODO ensure the lmks are themselves well constrained.
@@ -1203,8 +1250,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
         VLOG(10) << "Plane has a prior.";
         // TODO Remove: this is just a patch to avoid issue 32:
         // https://github.mit.edu/lcarlone/VIO/issues/32
-        static constexpr bool use_unstable = false;
-        if (use_unstable) {
+        if (FLAGS_use_unstable_plane_removal) {
           // This should be the correct way to do it, but a bug in gtsam will make
           // the optimization break.
           if (total_nr_of_plane_constraints == 0 &&
@@ -1222,9 +1268,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
           // This is just a patch...
           // TODO maybe if we are deleting too much constraints, add a no information
           // factor btw the plane and a lmk!
-          static constexpr size_t min_num_of_constraints_to_avoid_seg_fault = 3;
           if (total_nr_of_plane_constraints >
-              min_num_of_constraints_to_avoid_seg_fault) {
+              FLAGS_min_num_of_constraints_to_avoid_seg_fault) {
             // Delete just the bad factors, since we still have some factors
             // that won't make the optimizer try to delete the plane variable,
             // which at the current time breaks gtsam.
@@ -1240,8 +1285,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
         }
       } else {
         // The plane has NOT a prior.
-        static constexpr bool use_unstable = false;
-        if (use_unstable) {
+        if (FLAGS_use_unstable_plane_removal) {
           // Delete all factors involving the plane so that iSAM removes the plane
           // from the optimization.
           LOG(ERROR) << "Plane has no prior, trying to forcefully"
@@ -1272,7 +1316,10 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
           CHECK(!has_plane_a_prior && !has_plane_a_linear_factor)
               << "Check that the plane has no prior.";
           static const gtsam::noiseModel::Diagonal::shared_ptr prior_noise =
-              gtsam::noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
+              gtsam::noiseModel::Diagonal::Sigmas(
+                Vector3(FLAGS_prior_noise_sigma_normal,
+                        FLAGS_prior_noise_sigma_normal,
+                        FLAGS_prior_noise_sigma_distance));
           new_imu_prior_and_other_factors_.push_back(
                 boost::make_shared<gtsam::PriorFactor<gtsam::OrientedPlane3>>(
                   plane_symbol.key(),
@@ -1282,9 +1329,8 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
           // Delete just the bad factors.
           // TODO Remove: this is just a patch to avoid issue 32:
           // https://github.mit.edu/lcarlone/VIO/issues/32
-          static constexpr size_t min_num_of_constraints_to_avoid_seg_fault = 3;
           if (total_nr_of_plane_constraints >
-              min_num_of_constraints_to_avoid_seg_fault) {
+              FLAGS_min_num_of_constraints_to_avoid_seg_fault) {
             // Delete just the bad factors, since we still have some factors
             // that won't make the optimizer try to delete the plane variable,
             // which at the current time breaks gtsam.
