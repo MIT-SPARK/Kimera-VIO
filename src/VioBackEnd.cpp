@@ -538,9 +538,9 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
   ////////////// Add landmarks that now are in projection factors. /////////////
   for(const gtsam::Values::Filtered<gtsam::Value>::ConstKeyValuePair& key_value:
       state_.filter(gtsam::Symbol::ChrTest('l'))) {
-    CHECK(gtsam::Symbol(key_value.key).chr() == 'l');
+    DCHECK(gtsam::Symbol(key_value.key).chr() == 'l');
     const LandmarkId& lmk_id = gtsam::Symbol(key_value.key).index();
-    CHECK(points_with_id->find(lmk_id) == points_with_id->end());
+    DCHECK(points_with_id->find(lmk_id) == points_with_id->end());
     (*points_with_id)[lmk_id] = key_value.value.cast<gtsam::Point3>();
     if (lmk_id_to_lmk_type_map) {
       (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::PROJECTION;
@@ -1065,10 +1065,12 @@ void VioBackEnd::updateSmoother(
   gtsam::Symbol lmk_symbol_cheirality;
   try {
     // Update smoother.
+    VLOG(10) << "Starting update of smoother_...";
     *result = smoother_->update(new_factors_tmp,
                                 new_values,
                                 timestamps,
                                 delete_slots);
+    VLOG(10) << "Finished update of smoother_.";
     if (DEBUG_) {
       printSmootherInfo(new_factors_tmp,
                         delete_slots,
