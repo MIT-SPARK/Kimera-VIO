@@ -26,6 +26,9 @@ namespace VIO {
 class Histogram {
 public:
   /* ------------------------------------------------------------------------ */
+  Histogram();
+
+  /* ------------------------------------------------------------------------ */
   /** @brief Calculates a histogram of a set of arrays.
    * @param nimages Number of source images. (no idea what it does)
    * @param channels List of the dims channels used to compute the histogram. The first array channels
@@ -51,14 +54,24 @@ public:
    * arrays, or to update the histogram in time.
    */
 
-  Histogram(const int& n_images,
-            const int* channels,
-            const cv::Mat& mask,
-            const int& dims,
-            const int* hist_size,
-            const float** ranges,
-            const bool& uniform = true,
-            const bool& accumulate = false);
+  Histogram(int n_images,
+            const std::vector<int>& channels,
+            cv::Mat mask,
+            int dims,
+            const std::vector<int>& hist_size,
+            const std::vector<std::array<float, 2>>& ranges,
+            bool uniform = true,
+            bool accumulate = false);
+
+  /* ------------------------------------------------------------------------ */
+  // Destructor will delete dynamically allocated arrays.
+  ~Histogram();
+
+  /* ------------------------------------------------------------------------ */
+  Histogram(const Histogram& other);
+
+  /* ------------------------------------------------------------------------ */
+  Histogram& operator=(const Histogram& other);
 
   /* ------------------------------------------------------------------------ */
   struct PeakInfo {
@@ -67,39 +80,46 @@ public:
     int right_size_ = 0;
     // Number of points supporting this peak (it does not need to be an int
     // since we smooth the histogram...)
-    float value_ = 0;
+    float support_ = 0;
+    double value_ = 0;
     // < Operator will compare the support (# of points) of one peak vs the other.
     // nothing else.
     // Used for std::max_element.
     bool operator<(const PeakInfo& rhd) {
-      return (value_ < rhd.value_);
+      return (support_ < rhd.support_);
     }
 
     // Used to remove duplicates.
     bool operator==(const PeakInfo& rhd) {
-      return (value_ == rhd.value_ && pos_ == rhd.pos_);
+      return (support_ == rhd.support_ && pos_ == rhd.pos_);
     }
   };
 
   /* ------------------------------------------------------------------------ */
   struct PeakInfo2D {
     PeakInfo2D (const cv::Point& pos,
-                const double& value)
+                const double& support,
+                const double& x_value,
+                const double& y_value)
       : pos_(pos),
-        value_(value) {}
+        support_(support),
+        x_value_(x_value),
+        y_value_(y_value) {}
     cv::Point pos_;
-    double value_ = 0;
+    double support_ = 0;
+    double x_value_;
+    double y_value_;
 
     // < Operator will compare the support (# of points) of one peak vs the other.
     // nothing else.
     // Used for std::max_element.
     bool operator<(const PeakInfo2D& rhd) {
-      return (value_ < rhd.value_);
+      return (support_ < rhd.support_);
     }
 
     // Used to remove duplicates.
     bool operator==(const PeakInfo2D& rhd) {
-      return (value_ == rhd.value_ && pos_ == rhd.pos_);
+      return (support_ == rhd.support_ && pos_ == rhd.pos_);
     }
   };
 
@@ -127,18 +147,17 @@ public:
                          int number_of_local_max = 2,
                          int min_support = 30,
                          int min_dist_btw_loc_max = 5,
-                         bool visualize = false);
+                         bool visualize = false) const;
 
 private:
-  // Should be all const.
-  const int n_images_;
-  const int* channels_;
-  const cv::Mat mask_; // Should be InputArray
-  const int dims_;
-  const int* hist_size_;
-  const float** ranges_;
-  const bool uniform_;
-  const bool accumulate_;
+  int n_images_;
+  int* channels_;
+  cv::Mat mask_;
+  int dims_;
+  int* hist_size_;
+  float** ranges_;
+  bool uniform_;
+  bool accumulate_;
 
   // The actual histogram.
   cv::Mat histogram_;
@@ -181,11 +200,14 @@ private:
 //////////////////////////// FOR 2D HISTOGRAM //////////////////////////////////
   /* ------------------------------------------------------------------------ */
   // Visualize 2D histogram.
-  void visualizeHistogram2DWithPeaks(const std::vector<PeakInfo2D>& peaks) const;
+  void visualizeHistogram2DWithPeaks(
+      cv::Mat histogram,
+      const std::vector<PeakInfo2D>& peaks) const;
 
   /* ------------------------------------------------------------------------ */
   // Draw the histogram in 2D, returns the image of it.
-  void drawHistogram2D(cv::Mat* img_output,
+  void drawHistogram2D(cv::Mat histogram,
+                       cv::Mat* img_output,
                        int scale_theta = 10,
                        int scale_distance = 10) const;
 
@@ -195,7 +217,7 @@ private:
                      int number_of_local_max,
                      float min_support,
                      float min_dist_btw_loc_max,
-                     std::vector<PeakInfo2D>* locations);
+                     std::vector<PeakInfo2D>* locations) const;
 };
 
 } // namespace VIO

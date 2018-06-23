@@ -16,6 +16,8 @@
 #define Mesher_H_
 
 #include "StereoFrame.h"
+
+#include "Histogram.h"
 #include "mesh/Mesh3D.h"
 
 #include <stdlib.h>
@@ -32,8 +34,8 @@
 namespace VIO {
 class Mesher {
 public:
-  Mesher()
-    : mesh_() {}
+  /* ------------------------------------------------------------------------ */
+  Mesher();
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
@@ -47,8 +49,7 @@ public:
   // Cluster planes from the mesh.
   void clusterPlanesFromMesh(
       std::vector<Plane>* planes,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-  const;
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio);
 
   /* ------------------------------------------------------------------------ */
   void appendNonVioStereoPoints(
@@ -69,7 +70,13 @@ public:
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
 private:
+  // The actual mesh.
   Mesh3D mesh_;
+  // The histogram of z values for vertices of polygons parallel to ground.
+  Histogram z_hist_;
+  // The 2d histogram of theta angle (latitude) and distance of polygons
+  // perpendicular to the vertical (aka parallel to walls).
+  Histogram hist_2d_;
 
 private:
   /* ------------------------------------------------------------------------ */

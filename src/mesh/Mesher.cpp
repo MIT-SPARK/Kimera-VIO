@@ -17,7 +17,6 @@
 #include <algorithm>
 
 #include "LoggerMatlab.h"
-#include "Histogram.h"
 #include <opencv2/imgproc.hpp>
 #include <gflags/gflags.h>
 
@@ -41,14 +40,6 @@ DEFINE_double(min_elongation_ratio, 0.5, "Minimum allowed elongation "
 DEFINE_double(max_triangle_side, 0.5, "Maximum allowed side for "
                                       "a triangle.");
 
-DEFINE_int32(gaussian_kernel_size, 3, "Kernel size for gaussian blur.");
-DEFINE_int32(hist_2d_nr_of_local_max, 2, "Number of local maximums to extract in 2D"
-                                     " histogram.");
-DEFINE_int32(hist_2d_min_support, 20, "Minimum number of votes to consider a local "
-                              "maximum in 2D histogram a valid peak.");
-DEFINE_int32(hist_2d_min_dist_btw_local_max, 5, "Minimum distance between local "
-                                        "maximums to be considered different.");
-
 DEFINE_double(normal_tolerance_polygon_plane_association, 0.011,
               "Tolerance for a polygon's normal and a plane's normal to be "
               "considered equal (0.087 === 10 deg. aperture).");
@@ -67,8 +58,71 @@ DEFINE_double(normal_tolerance_plane_plane_association, 0.011,
 DEFINE_double(distance_tolerance_plane_plane_association, 0.20,
               "Distance tolerance for a plane to be associated to another "
               "plane.");
+// Histogram 2D.
+DEFINE_int32(hist_2d_gaussian_kernel_size, 3,
+             "Kernel size for gaussian blur of 2D histogram.");
+DEFINE_int32(hist_2d_nr_of_local_max, 2,
+             "Number of local maximums to extract in 2D histogram.");
+DEFINE_int32(hist_2d_min_support, 20,
+             "Minimum number of votes to consider a local maximum in 2D "
+             "histogram a valid peak.");
+DEFINE_int32(hist_2d_min_dist_btw_local_max, 5,
+             "Minimum distance between local maximums to be considered different.");
+DEFINE_int32(hist_2d_theta_bins, 40, ".");
+DEFINE_int32(hist_2d_distance_bins, 40, ".");
+DEFINE_double(hist_2d_theta_range_min, 0, ".");
+DEFINE_double(hist_2d_theta_range_max, PI, ".");
+DEFINE_double(hist_2d_distance_range_min, -6.0, ".");
+DEFINE_double(hist_2d_distance_range_max, 6.0, ".");
+
+// Z histogram.
+DEFINE_int32(z_histogram_bins, 512, "Number of bins for z histogram.");
+DEFINE_double(z_histogram_min_range, -0.75, "Minimum z value for z histogram.");
+DEFINE_double(z_histogram_max_range, 3.0, "Maximum z value for z histogram.");
+DEFINE_int32(z_histogram_window_size, 3, "Window size of z histogram to "
+             "calculate derivatives, not sure in fact.");
+DEFINE_double(z_histogram_peak_per, 0.5,
+              "Extra peaks in the z histogram will be only considered if it "
+              "has a value of peak_per (< 1) times the value of the max peak"
+              " in the histogram.");
+DEFINE_double(z_histogram_min_support, 50,
+              "Minimum number of votes for a value in the z histogram to be "
+              "considered a peak.");
+DEFINE_double(z_histogram_min_separation, 0.1,
+             "If two peaks in the z histogram lie within min_separation "
+             ", only the one with maximum support will be taken "
+             "(sisable by setting < 0).");
+DEFINE_int32(z_histogram_gaussian_kernel_size, 5,
+             "Kernel size for gaussian blur of z histogram (should be odd).");
+DEFINE_int32(z_histogram_max_number_of_peaks_to_select, 3,
+             "Maximum number of peaks to select in z histogram.");
 
 namespace VIO {
+
+/* -------------------------------------------------------------------------- */
+Mesher::Mesher()
+  : mesh_() {
+  // Create z histogram.
+  std::vector<int> hist_size = {FLAGS_z_histogram_bins};
+  std::array<float, 2> z_range = {FLAGS_z_histogram_min_range,
+                                  FLAGS_z_histogram_max_range};
+  std::vector<std::array<float, 2>> ranges = {z_range};
+  std::vector<int> channels = {0};
+  z_hist_ = Histogram(1, channels, cv::Mat(), 1, hist_size, ranges, true, false);
+
+  // Create 2d histogram.
+  std::vector<int> hist_2d_size = {FLAGS_hist_2d_theta_bins,
+                                   FLAGS_hist_2d_distance_bins};
+  std::array<float, 2> theta_range = {FLAGS_hist_2d_theta_range_min,
+                                      FLAGS_hist_2d_theta_range_max};
+  std::array<float, 2> distance_range = {FLAGS_hist_2d_distance_range_min,
+                                         FLAGS_hist_2d_distance_range_max};
+  std::vector<std::array<float, 2>> ranges_2d = {theta_range, distance_range};
+  std::vector<int> channels_2d = {0, 1};
+  hist_2d_ = Histogram(1, channels_2d, cv::Mat(), 2, hist_2d_size, ranges_2d,
+                       true, false);
+}
+
 
 /* -------------------------------------------------------------------------- */
 // For a triangle defined by the 3d points p1, p2, and p3
@@ -826,8 +880,7 @@ const {
 void Mesher::segmentNewPlanes(
     std::vector<Plane>* new_segmented_planes,
     const cv::Mat& z_components,
-    const cv::Mat& walls)
-const {
+    const cv::Mat& walls) {
   CHECK_NOTNULL(new_segmented_planes);
   new_segmented_planes->clear();
 
@@ -851,28 +904,12 @@ const {
 // new plane.
 void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
                           size_t* plane_id,
-                          const cv::Mat& walls) const {
+                          const cv::Mat& walls) {
   CHECK_NOTNULL(wall_planes);
   CHECK_NOTNULL(plane_id);
   ////////////////////////////// 2D Histogram //////////////////////////////////
-  // Quantize the theta values to 60 levels
-  // and the distances to 80 levels.
-  static constexpr int theta_bins = 40, distance_bins = 40;
-  static constexpr int hist_2d_size[] = {theta_bins, distance_bins};
-  // Theta varies from -pi to pi.
-  static const float theta_range[] = {0, PI};
-  // Distances varie from -8 to 8.
-  static const float distance_range[] = {-6.0, 6.0};
-  static const float* ranges_2d[] = {theta_range, distance_range};
-  static constexpr bool uniform = true;
-  static constexpr bool accumulate = false;
-  // We compute the histogram from the 0-th and 1-st channels.
-  static const int channels_2d[] = {0, 1};
-
-  static Histogram hist_2d (1, channels_2d, cv::Mat(), 2,
-                            hist_2d_size, ranges_2d, uniform, accumulate);
   VLOG(10) << "Starting to calculate 2D histogram...";
-  hist_2d.calculateHistogram(walls);
+  hist_2d_.calculateHistogram(walls);
   VLOG(10) << "Finished to calculate 2D histogram.";
 
   /// Added by me
@@ -880,9 +917,9 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   ///
   VLOG(10) << "Starting get local maximum for 2D histogram...";
   std::vector<Histogram::PeakInfo2D> peaks2;
-  static const cv::Size kernel_size_2d (FLAGS_gaussian_kernel_size,
-                                        FLAGS_gaussian_kernel_size);
-  hist_2d.getLocalMaximum2D(&peaks2, kernel_size_2d,
+  static const cv::Size kernel_size_2d (FLAGS_hist_2d_gaussian_kernel_size,
+                                        FLAGS_hist_2d_gaussian_kernel_size);
+  hist_2d_.getLocalMaximum2D(&peaks2, kernel_size_2d,
                             FLAGS_hist_2d_nr_of_local_max,
                             FLAGS_hist_2d_min_support,
                             FLAGS_hist_2d_min_dist_btw_local_max,
@@ -892,11 +929,8 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   VLOG(0) << "# of peaks in 2D histogram = " << peaks2.size();
   size_t i = 0;
   for (const Histogram::PeakInfo2D& peak: peaks2) {
-    double plane_theta = (peak.pos_.x * (theta_range[1] - theta_range[0])
-        / theta_bins) + theta_range[0];
-    double plane_distance = (peak.pos_.y * (distance_range[1] -
-                                  distance_range[0]) / distance_bins)
-        + distance_range[0];
+    double plane_theta = peak.x_value_;
+    double plane_distance = peak.y_value_;
     cv::Point3f plane_normal (std::cos(plane_theta), std::sin(plane_theta), 0);
     VLOG(0) << "Peak #" << i << " in bin with coords: "
             << " x= " << peak.pos_.x << " y= " << peak.pos_.y
@@ -935,59 +969,39 @@ void Mesher::segmentHorizontalPlanes(
     std::vector<Plane>* horizontal_planes,
     size_t* plane_id,
     const Plane::Normal& normal,
-    const cv::Mat& z_components) const {
+    const cv::Mat& z_components) {
   CHECK_NOTNULL(horizontal_planes);
   CHECK_NOTNULL(plane_id);
   ////////////////////////////// 1D Histogram //////////////////////////////////
-  // WARNING: when building histogram, since we are not using all polygons
-  // available the max peak won't be anything relevant... since we got rid of
-  // the ground and table... Make sure we count how many points there are
-  // validating our assumption.
-  // Or make data association: if we have a new_plane that looks very similar to
-  // the new plane...
-  // Quantize the z to 30 levels
-  // TODO put this in ctor of Mesher... and make hist a private member.
-  static constexpr int z_bins = 512;
-  static constexpr int hist_size[] = {z_bins};
-  // Z varies from -1 to 4, approx.
-  static const float z_range[] = {-0.75, 3};
-  static const float* ranges[] = {z_range};
-  // We compute the histogram from the 0-th channel, z is 1-dimensional data.
-  static const int channels[] = {0};
-  static constexpr bool uniform = true, accumulate = false;
-  static Histogram hist (1, channels, cv::Mat(), 1,
-                         hist_size, ranges, uniform, accumulate);
   VLOG(10) << "Starting calculate 1D histogram.";
-  hist.calculateHistogram(z_components);
+  z_hist_.calculateHistogram(z_components);
   VLOG(10) << "Finished calculate 1D histogram.";
 
   VLOG(10) << "Starting get local maximum for 1D.";
-  static const cv::Size kernel_size (1, 5);
-  static constexpr int neighbor_size = 3;
-  static constexpr float peak_per = 0.5;
-  static constexpr float min_support = 50;
+  static const cv::Size kernel_size (1, FLAGS_z_histogram_gaussian_kernel_size);
   std::vector<Histogram::PeakInfo> peaks =
-      hist.getLocalMaximum1D(kernel_size, neighbor_size, peak_per,
-                             min_support, FLAGS_visualize_histogram_1D);
+      z_hist_.getLocalMaximum1D(kernel_size,
+                             FLAGS_z_histogram_window_size,
+                             FLAGS_z_histogram_peak_per,
+                             FLAGS_z_histogram_min_support,
+                             FLAGS_visualize_histogram_1D);
   VLOG(10) << "Finished get local maximum for 1D.";
 
   LOG(WARNING) << "# of peaks in 1D histogram = " << peaks.size();
   size_t i = 0;
   std::vector<Histogram::PeakInfo>::iterator previous_peak_it;
-  double previous_plane_distance = z_range[0] - 1;
+  double previous_plane_distance = -DBL_MAX;
   for (std::vector<Histogram::PeakInfo>::iterator peak_it = peaks.begin();
        peak_it != peaks.end();) {
     // Make sure it is below min possible value for distance.
-    double plane_distance =
-        (peak_it->pos_ * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
+    double plane_distance = peak_it->value_;
     VLOG(10) << "Peak #" << i << " in bin " << peak_it->pos_
              << " has distance = " << plane_distance
-             << " with a support of " << peak_it->value_ << " points";
+             << " with a support of " << peak_it->support_ << " points";
 
     // Remove duplicates, and, for peaks that are too close, take the one with
     // maximum support.
     // Assuming repeated peaks are ordered...
-    static constexpr double min_plane_separation = 0.1; //Disable by setting < 0
     if (i > 0 && *peak_it == peaks.at(i - 1)) {
       // Repeated element, delete it.
       LOG(WARNING) << "Deleting repeated peak for peak # " << i << " in bin "
@@ -995,9 +1009,9 @@ void Mesher::segmentHorizontalPlanes(
       peak_it = peaks.erase(peak_it);
       i--;
     } else if (i > 0 && std::fabs(previous_plane_distance - plane_distance) <
-               min_plane_separation) {
+               FLAGS_z_histogram_min_separation) {
       // Not enough separation between planes, delete the one with less support.
-      if (previous_peak_it->value_ < peak_it->value_) {
+      if (previous_peak_it->support_ < peak_it->support_) {
         // Delete previous_peak.
         LOG(WARNING) << "Deleting peak in bin " << previous_peak_it->pos_;
         //Iterators, pointers and references pointing to position (or first) and
@@ -1029,8 +1043,7 @@ void Mesher::segmentHorizontalPlanes(
     std::vector<Histogram::PeakInfo>::iterator it =
         std::max_element(peaks.begin(), peaks.end());
     if (it != peaks.end()) {
-      double plane_distance =
-          (it->pos_ * (z_range[1] - z_range[0]) / z_bins) + z_range[0];
+      double plane_distance = it->value_;
       // WARNING we are not giving lmk ids to this plane!
       // We should either completely customize the histogram calc to pass lmk ids
       // or do another loop over the mesh to cluster new triangles.
