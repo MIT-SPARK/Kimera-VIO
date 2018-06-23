@@ -922,7 +922,7 @@ void RegularVioBackEnd::addRegularityFactors(
             VLOG(0) << "Adding new plane with key: "
                      << gtsam::DefaultKeyFormatter(plane_key)
                      << " as a new variable in backend.\n"
-                     << "\tWith normal: " << plane_value.normal() << "\n"
+                     << "\tWith normal: " << plane_value.normal()
                      << "\tWith distance: " << plane_value.distance();
             new_values_.insert(plane_key, plane_value);
 
@@ -979,13 +979,17 @@ void RegularVioBackEnd::addRegularityFactors(
     }
 
     if (!is_plane_constrained) {
-      // The plane is not constrained, do nothing.
       VLOG(0) << "Plane with key: "
               << gtsam::DefaultKeyFormatter(plane_key)
               << " is not sufficiently constrained:\n"
               << "\tConstraints: " << list_of_constraints.size() << "\n"
               << "\tMin number of constraints: "
               << FLAGS_min_num_of_plane_constraints_to_add_factors;
+    } else {
+      VLOG(0) << "Plane with key: "
+              << gtsam::DefaultKeyFormatter(plane_key)
+              << " is sufficiently constrained with "
+              << idx_of_point_plane_factors_to_add->size() << " constraints.";
     }
 
     // Reset the flag for next time we have to add a plane.
