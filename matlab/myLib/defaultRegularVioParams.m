@@ -27,7 +27,6 @@ vioParams.monoNormType = 0; % Only used for RegularVioBackEnd.t 0: square 1:hube
 vioParams.stereoNoiseSigma = 1.6; % Only used for RegularVioBackEnd
 vioParams.stereoNormType = 0; % Only used for RegularVioBackEnd. 0: square 1:huber 2:tukey
 vioParams.regularityNoiseSigma = 0.03; % Only used for RegularVioBackEnd
-vioParams.minPlaneConstraints = 20; % Only used for RegularVioBackEnd
 vioParams.huberParam = 0.8; % Only used for RegularVioBackEnd
 vioParams.tukeyParam = 4.6851; % Only used for RegularVioBackEnd
 vioParams.regularityNormType = 2; % Only used for RegularVioBackEnd. 0: square 1:huber 2:tukey

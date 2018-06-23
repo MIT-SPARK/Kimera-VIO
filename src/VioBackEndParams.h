@@ -61,7 +61,6 @@ public:
       const double stereoNoiseSigma = 3, // for regularVioBackEnd only.
       const size_t stereoNormType = 0, // for regularVioBackEnd only.
       const double regularityNoiseSigma = 0.1, // for regularVioBackEnd only.
-      const size_t minPlaneConstraints = 3, // for regularVioBackEnd only.
       const double huberParam = 1.345, // for regularVioBackEnd only.
       const double tukeyParam = 4.6851, // for regularVioBackEnd only.
       const size_t regularityNormType = 2, // for regularVioBackEnd only. 0: norm 2, 1: Huber, 2: Tukey.
@@ -91,7 +90,6 @@ public:
   linearizationMode_(linMode), degeneracyMode_(degMode),
   smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma), regularityNoiseSigma_(regularityNoiseSigma),
   monoNormType_(monoNormType), stereoNormType_(stereoNormType),
-  minPlaneConstraints_(minPlaneConstraints),
   huberParam_(huberParam), tukeyParam_(tukeyParam), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
   retriangulationThreshold_(retriangulationThreshold), regularityNormType_(regularityNormType),
@@ -101,7 +99,6 @@ public:
   noMotionRotationSigma_(noMotionRotationSigma), constantVelSigma_(constantVelSigma)
   {
     // Trivial sanity checks.
-    CHECK(minPlaneConstraints >= 3);
     CHECK(horizon >= 0);
   }
 
@@ -118,7 +115,6 @@ public:
   gtsam::DegeneracyMode degeneracyMode_;
   double smartNoiseSigma_, monoNoiseSigma_, stereoNoiseSigma_, regularityNoiseSigma_;
   int monoNormType_, stereoNormType_;
-  double minPlaneConstraints_;
   double huberParam_, tukeyParam_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
   int regularityNormType_;
   bool addBetweenStereoFactors_;
@@ -224,8 +220,6 @@ public:
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNormType_;
     file_handle = fs["regularityNoiseSigma"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNoiseSigma_;
-    file_handle = fs["minPlaneConstraints"] ;
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> minPlaneConstraints_;
     file_handle = fs["huberParam"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> huberParam_;
     file_handle = fs["tukeyParam"];
@@ -302,7 +296,6 @@ public:
         (fabs(stereoNoiseSigma_ - vp2.stereoNoiseSigma_) <= tol) &&
         (stereoNormType_ == vp2.stereoNormType_) &&
         (fabs(regularityNoiseSigma_ - vp2.regularityNoiseSigma_) <= tol) &&
-        (minPlaneConstraints_ == vp2.minPlaneConstraints_) && (minPlaneConstraints_ >= 3) &&
         (fabs(huberParam_ - vp2.huberParam_) <= tol) &&
         (fabs(tukeyParam_ - vp2.tukeyParam_) <= tol) &&
         (regularityNormType_ == vp2.regularityNormType_) &&
