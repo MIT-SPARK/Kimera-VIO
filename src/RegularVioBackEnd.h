@@ -18,7 +18,6 @@
 #define RegularVioBackEnd_H_
 
 #include <VioBackEnd.h>
-#include <glog/logging.h>
 #include <gtsam/slam/StereoFactor.h>
 
 namespace VIO {

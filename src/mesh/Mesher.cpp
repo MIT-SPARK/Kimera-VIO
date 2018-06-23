@@ -18,8 +18,9 @@
 
 #include "LoggerMatlab.h"
 #include <opencv2/imgproc.hpp>
-#include <gflags/gflags.h>
 
+#include <glog/logging.h>
+#include <gflags/gflags.h>
 // General functionality for the mesher.
 DEFINE_bool(add_extra_lmks_from_stereo, false,
             "Add extra landmarks that are stereo triangulated to the mesh. "

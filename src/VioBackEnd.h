@@ -33,7 +33,6 @@
 #include <iostream>
 #include <fstream>
 #include <boost/foreach.hpp>
-#include <glog/logging.h>
 
 #include "ImuFrontEnd.h"
 #include "StereoVisionFrontEnd.h"

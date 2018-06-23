@@ -21,6 +21,8 @@
 
 #include <gtsam/slam/PriorFactor.h>
 
+#include <glog/logging.h>
+#include <gflags/gflags.h>
 DEFINE_int32(min_num_of_observations, 2,
              "Minimum number of observations for a feature track to be added "
              "in the optimization problem (corresponds to number of "

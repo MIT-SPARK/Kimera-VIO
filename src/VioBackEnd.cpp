@@ -27,6 +27,8 @@
 
 #include "VioBackEnd.h"
 
+#include <glog/logging.h>
+#include <gflags/gflags.h>
 DEFINE_bool(debug_graph_before_opt, true,
             "Store factor graph before optimization for later printing if the "
             "optimization fails.");
