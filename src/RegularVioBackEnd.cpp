@@ -42,6 +42,8 @@ DEFINE_int32(min_num_obs_for_proj_factor, 4,
              "reached the mesher and have been clustered will have the "
              "possibility of being here, so this param must be higher than the "
              "min_age one to have any impact.");
+DEFINE_int32(min_num_of_plane_constraints_to_add_factors, 20,
+             "Minimum number of plane constraints to ");
 
 DEFINE_bool(convert_extra_smart_factors_to_proj_factors, true,
             "Whether to convert all smart factors in time horizon to "
@@ -852,11 +854,8 @@ void RegularVioBackEnd::addRegularityFactors(
     CHECK_EQ(lmk_id_to_regularity_type_map->size(), 0);
 
     // Verify that the plane is going to be fully constrained before adding it.
-    // TODO it might be more robust to increase this, to reduce the
-    // possibility of having degenerate configs such as points aligned...
-    static const size_t min_number_of_constraints =
-        vio_params_.minPlaneConstraints_;
-    // Vars to check whether the new plane is going to be fully constrained or not.
+    // Variables to check whether the new plane is going to be fully
+    // constrained or not.
     bool is_plane_constrained = false;
     std::vector<LandmarkId> list_of_constraints;
 
@@ -901,7 +900,8 @@ void RegularVioBackEnd::addRegularityFactors(
                 RegularityType::POINT_PLANE;
           }
 
-          if (list_of_constraints.size() > min_number_of_constraints) {
+          if (list_of_constraints.size() >
+              FLAGS_min_num_of_plane_constraints_to_add_factors) {
             // Acknowledge that the plane is constrained.
             is_plane_constrained = true;
 
@@ -985,7 +985,7 @@ void RegularVioBackEnd::addRegularityFactors(
               << " is not sufficiently constrained:\n"
               << "\tConstraints: " << list_of_constraints.size() << "\n"
               << "\tMin number of constraints: "
-              << min_number_of_constraints;
+              << FLAGS_min_num_of_plane_constraints_to_add_factors;
     }
 
     // Reset the flag for next time we have to add a plane.
