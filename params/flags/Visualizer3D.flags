@@ -1,0 +1,4 @@
+#!/bin/bash
+# Visualizer 3D parameters.
+--use_gouraud_shading=true
+

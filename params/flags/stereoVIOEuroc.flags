@@ -1,0 +1,16 @@
+#!/bin/bash
+--log_output=false
+--backend_type=1
+--deterministic_random_number_generator=true
+--visualize=true
+--visualize_lmk_type=true
+--visualize_mesh=true
+--visualize_point_cloud=true
+--visualize_convex_hull=false
+--visualize_plane_constraints=false
+--visualize_planes=true
+--visualize_plane_label=true
+--visualize_mesh_in_frustum=true
+--viz_type=5
+--initial_k=50
+--final_k=10000
