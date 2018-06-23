@@ -686,18 +686,22 @@ void RegularVioBackEnd::addProjectionFactor(
   CHECK_NOTNULL(new_imu_prior_and_other_factors);
   if (!std::isnan(new_obs.second.uR())) {
     double parallax = new_obs.second.uL() - new_obs.second.uR();
-    if (parallax < FLAGS_max_parallax) {
-      CHECK_GT(parallax, 0);
-      new_imu_prior_and_other_factors->push_back(
-            boost::make_shared<
-            gtsam::GenericStereoFactor<Pose3, Point3>>
-            (new_obs.second, stereo_noise_,
-             gtsam::Symbol('x', new_obs.first),
-             gtsam::Symbol('l', lmk_id),
-             stereo_cal_, true, true, B_Pose_leftCam_));
+    if (!std::isnan(parallax)) {
+      if (parallax < FLAGS_max_parallax) {
+        CHECK_GT(parallax, 0.0);
+        new_imu_prior_and_other_factors->push_back(
+              boost::make_shared<
+              gtsam::GenericStereoFactor<Pose3, Point3>>
+              (new_obs.second, stereo_noise_,
+               gtsam::Symbol('x', new_obs.first),
+               gtsam::Symbol('l', lmk_id),
+               stereo_cal_, true, true, B_Pose_leftCam_));
+      } else {
+        LOG(ERROR) << "Parallax for lmk_id: " << lmk_id << " is = "
+                   << parallax;
+      }
     } else {
-      LOG(ERROR) << "Parallax for lmk_id: " << lmk_id << " is = "
-                 << parallax;
+      LOG(ERROR) << "Parallax for lmk_id: " << lmk_id << " is NAN.";
     }
   } else {
     // Right pixel has a NAN value for u, use GenericProjectionFactor instead
