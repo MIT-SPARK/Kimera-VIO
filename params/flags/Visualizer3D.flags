@@ -1,4 +1,4 @@
 #!/bin/bash
 # Visualizer 3D parameters.
---use_gouraud_shading=true
-
+--mesh_shading=2
+--mesh_representation=2

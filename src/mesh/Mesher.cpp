@@ -1223,7 +1223,7 @@ void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
     std::shared_ptr<StereoFrame> stereoFrame,
     const gtsam::Pose3& leftCameraPose,
-    cv::Mat* mesh_2d_img) {
+    cv::Mat* mesh_2d_img_ptr) {
   VLOG(10) << "Starting updateMesh3D...";
   const std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_all =
       &points_with_id_VIO;
@@ -1260,10 +1260,12 @@ void Mesher::updateMesh3D(
 
   // Debug.
   if (FLAGS_visualize_mesh_2d) {
-    stereoFrame->visualizeMesh2DStereo(mesh_2d, mesh_2d_img);
-  } else if (FLAGS_visualize_mesh_2d_filtered) {
-    stereoFrame->visualizeMesh2DStereo(mesh_2d_filtered, mesh_2d_img,
-                                       "2D Mesh Filtered");
+    stereoFrame->drawMesh2DStereo(mesh_2d, nullptr);
+  }
+  if (FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr) {
+    stereoFrame->drawMesh2DStereo(mesh_2d_filtered, mesh_2d_img_ptr,
+                                       "2D Mesh Filtered",
+                                  FLAGS_visualize_mesh_2d_filtered);
   }
 
   populate3dMeshTimeHorizon(

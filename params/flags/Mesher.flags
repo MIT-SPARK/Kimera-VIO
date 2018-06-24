@@ -23,7 +23,6 @@
 --distance_tolerance_plane_plane_association=0.20
 --do_double_association=true
 
-
 # Segmentation.
 --normal_tolerance_horizontal_surface=0.035
 --normal_tolerance_walls=0.021

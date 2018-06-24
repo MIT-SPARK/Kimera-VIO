@@ -44,6 +44,8 @@ DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
 DEFINE_bool(visualize, true, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, true, "Enable landmark type visualization.");
 DEFINE_bool(visualize_mesh, true, "Enable mesh visualization.");
+DEFINE_bool(visualize_mesh_with_colored_polygon_clusters, true,
+            "Color the polygon clusters according to their cluster id.");
 DEFINE_bool(visualize_point_cloud, true, "Enable point cloud visualization.");
 DEFINE_bool(visualize_convex_hull, false, "Enable convex hull visualization.");
 DEFINE_bool(visualize_plane_constraints, true, "Enable plane constraints"
@@ -497,7 +499,13 @@ int main(int argc, char *argv[]) {
       gtsam::Pose3 W_Pose_camlkf_vio =
           vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
 
-      cv::Mat* mesh_2d = nullptr; // Only for visualization.
+      cv::Mat mesh_2d_img; // Only for visualization.
+      cv::Mat* mesh_2d_img_ptr = nullptr; // Only for visualization.
+      if (FLAGS_visualize_mesh_in_frustum) {
+        // We need to store the image of the mesh in 2D to display it in the
+        // camera's frustum.
+        mesh_2d_img_ptr = &mesh_2d_img;
+      }
       switch (visualization_type) {
         // Computes and visualizes 2D mesh.
         // vertices: all leftframe kps with lmkId != -1 and inside the image
@@ -528,7 +536,7 @@ int main(int argc, char *argv[]) {
         case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
           std::vector<cv::Vec6f> mesh_2d;
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2dStereo(&mesh_2d);
-          stereoVisionFrontEnd.stereoFrame_lkf_->visualizeMesh2DStereo(mesh_2d);
+          stereoVisionFrontEnd.stereoFrame_lkf_->drawMesh2DStereo(mesh_2d);
           break;
         }
 
@@ -567,7 +575,7 @@ int main(int argc, char *argv[]) {
                 points_with_id_VIO,
                 stereoVisionFrontEnd.stereoFrame_lkf_,
                 W_Pose_camlkf_vio,
-                mesh_2d);
+                mesh_2d_img_ptr);
 
           // Find regularities in the mesh.
           // Currently only triangles in the ground floor.
@@ -588,9 +596,11 @@ int main(int argc, char *argv[]) {
             static cv::Mat polygons_mesh_prev;
 
             if (FLAGS_visualize_mesh) {
-              visualizer.visualizeMesh3DWithColoredClusters(planes_prev,
-                                                            vertices_mesh_prev,
-                                                            polygons_mesh_prev);
+              visualizer.visualizeMesh3DWithColoredClusters(
+                    planes_prev,
+                    vertices_mesh_prev,
+                    polygons_mesh_prev,
+                    FLAGS_visualize_mesh_with_colored_polygon_clusters);
             }
 
             if (FLAGS_visualize_point_cloud) {
@@ -768,7 +778,8 @@ int main(int argc, char *argv[]) {
         VLOG(10) << "Starting trajectory visualization...";
         visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
         visualizer.visualizeTrajectory3D(
-              (FLAGS_visualize_mesh_in_frustum && mesh_2d != nullptr)? mesh_2d :
+              (FLAGS_visualize_mesh_in_frustum && mesh_2d_img_ptr != nullptr)?
+                mesh_2d_img_ptr :
               &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
         visualizer.renderWindow();
         VLOG(10) << "Finished trajectory visualization.";
