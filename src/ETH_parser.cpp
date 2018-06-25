@@ -199,9 +199,10 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
   // Make sure that each YAML file has %YAML:1.0 as first line.
   cv::FileStorage fs (filename_sensor, cv::FileStorage::READ);
   if (!fs.isOpened()) {
-    throw std::runtime_error("parseGTdata: cannot open file");
     std::cout << "Cannot open file in parseGTYAML: "
               << filename_sensor << std::endl;
+    std::cout << "Assuming dataset has no ground truth...";
+    return false;
   }
 
   // body_Pose_cam_: usually this is the identity matrix as the GT "sensor" is
@@ -232,7 +233,8 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
   std::ifstream fin (filename_data.c_str());
   if (!fin.is_open()) {
     std::cout << "Cannot open file: " << filename_data << std::endl;
-    throw std::runtime_error("parseGTdata: cannot open file?");
+    std::cout << "Assuming dataset has no ground truth...";
+    return false;
   }
 
   // Skip the first line, containing the header.
@@ -318,13 +320,15 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
 
 /* --------------------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseDataset(const std::string input_dataset_path,
-    const std::string leftCameraName, const std::string rightCameraName,
-    const std::string imuName, const std::string gtSensorName, const bool doParseImages)
-{
+                                    const std::string leftCameraName,
+                                    const std::string rightCameraName,
+                                    const std::string imuName,
+                                    const std::string gtSensorName,
+                                    const bool doParseImages) {
   dataset_path_ = input_dataset_path;
-  parseCameraData(dataset_path_,leftCameraName,rightCameraName,doParseImages);
-  parseImuData(dataset_path_,imuName);
-  parseGTdata(dataset_path_,gtSensorName);
+  parseCameraData(dataset_path_, leftCameraName, rightCameraName, doParseImages);
+  parseImuData(dataset_path_, imuName);
+  is_gt_available_ = parseGTdata(dataset_path_, gtSensorName);
 
   // find and store actual name (rather than path) of the dataset
   std::size_t foundLastSlash = dataset_path_.find_last_of("/\\");
@@ -433,6 +437,11 @@ bool ETHDatasetParser::isGroundTruthAvailable(const long long timestamp) const
 {
   auto it_begin = gtData_.mapToGt_.begin();
   return timestamp > it_begin->first;
+}
+
+/* -------------------------------------------------------------------------- */
+bool ETHDatasetParser::isGroundTruthAvailable() const {
+  return is_gt_available_;
 }
 
 /* --------------------------------------------------------------------------------------- */
