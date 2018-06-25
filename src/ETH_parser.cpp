@@ -215,10 +215,13 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
   gtData_.body_Pose_cam_ = UtilsOpenCV::Vec2pose(vec, n_rows, n_cols);
 
   // sanity check: usually this is the identity matrix as the GT "sensor"
+  // is at the body frame
   gtsam::Pose3 identityPose = gtsam::Pose3();
 
-  if(!gtData_.body_Pose_cam_.equals(gtData_.body_Pose_cam_))
-    throw std::runtime_error("parseGTdata: we expected identity body_Pose_cam_: is everything ok?");
+  if(!gtData_.body_Pose_cam_.equals(identityPose)) {
+    throw std::runtime_error("parseGTdata: we expected identity body_Pose_cam_:"
+                             " is everything ok?");
+  }
 
   fs.release();
 
