@@ -303,7 +303,7 @@ public:
       const cv::Mat& map_points_3d,
       const cv::Mat& polygons_mesh,
       const bool& color_mesh = false) {
-    if (color_mesh == false) {
+    if (color_mesh) {
       // Colour the mesh.
       cv::Mat colors;
       colorMeshByClusters(planes, map_points_3d, polygons_mesh, &colors);
