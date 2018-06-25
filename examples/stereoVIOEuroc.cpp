@@ -301,6 +301,14 @@ int main(int argc, char *argv[]) {
               FLAGS_regular_vio_backend_modality));
           break;
         }
+        default: {
+          LOG(FATAL) << "Requested backend type is not supported.\n"
+                     << "Currently supported backend types:\n"
+                     << "0: normal VIO\n"
+                     << "1: regular VIO\n"
+                     << " but requested backend: " << FLAGS_backend_type;
+          break;
+        }
       }
 
       // Initialize VIO.
