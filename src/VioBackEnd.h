@@ -361,15 +361,15 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Uses landmark table to add factors in graph.
-  virtual void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
+  void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
 
   /* ------------------------------------------------------------------------ */
   // Adds a landmark to the graph for the first time.
-  virtual void addLandmarkToGraph(const LandmarkId& lm_id,
-                                  const FeatureTrack& lm);
+  void addLandmarkToGraph(const LandmarkId& lm_id,
+                          const FeatureTrack& lm);
 
   /* ------------------------------------------------------------------------ */
-  virtual void updateLandmarkInGraph(
+  void updateLandmarkInGraph(
       const LandmarkId& lm_id,
       const std::pair<FrameId, StereoPoint2>& newObs);
 
