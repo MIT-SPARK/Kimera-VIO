@@ -1,6 +1,7 @@
 #!/bin/bash
 --log_output=false
 --backend_type=1
+--regular_vio_backend_modality=1
 --deterministic_random_number_generator=true
 --visualize=true
 --visualize_lmk_type=true

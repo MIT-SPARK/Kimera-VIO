@@ -85,7 +85,9 @@ RegularVioBackEnd::RegularVioBackEnd(
     const Cal3_S2& leftCameraCalRectified,
     const double& baseline,
     const VioBackEndParams& vioParams,
-    const bool log_timing) :
+    const bool& log_timing,
+    const BackendModality& backend_modality) :
+  backend_modality_(backend_modality),
   VioBackEnd(leftCamPose,
              leftCameraCalRectified,
              baseline,
@@ -217,8 +219,47 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // Extract lmk ids that are involved in a regularity.
         VLOG(10) << "Starting extracting lmk ids from set of planes...";
         LandmarkIds lmk_ids_with_regularity;
-        extractLmkIdsFromPlanes(*planes,
-                                &lmk_ids_with_regularity);
+        switch (backend_modality_) {
+        case BackendModality::STRUCTURELESS: {
+          // Do nothing, lmk_ids_with_regularity should be empty.
+          CHECK_EQ(lmk_ids_with_regularity.size(), 0);
+          planes->clear();
+          break;
+        }
+        case BackendModality::STRUCTURELESS_AND_PROJECTION: {
+          // Transforms to projection factors only the ones that should
+          // have regularities, but do not use the planes anymore.
+          extractLmkIdsFromPlanes(*planes,
+                                  &lmk_ids_with_regularity);
+          planes->clear();
+          break;
+        }
+        case BackendModality::PROJECTION: {
+          // Transform all smart factors to projection factors,
+          // and clear all planes.
+          lmk_ids_with_regularity = lmks_kf;
+          planes->clear();
+          break;
+        }
+        case BackendModality::PROJECTION_AND_REGULARITY: {
+          // Keep the planes, but change all smart factors to projection factors.
+          lmk_ids_with_regularity = lmks_kf;
+          break;
+        }
+        case BackendModality::STRUCTURELESS_PROJECTION_AND_REGULARITY: {
+          // Act as usual, keep planes, and transform smart factors to projj
+          // factors for those that will have regularities.
+          extractLmkIdsFromPlanes(*planes,
+                                  &lmk_ids_with_regularity);
+          break;
+        }
+        default: {
+          LOG(ERROR) << "Backend modality: "
+                     << static_cast<std::underlying_type<BackendModality>::type>
+                        (backend_modality_) << " is not supported.";
+          break;
+        }
+        }
         VLOG(10) << "Finished extracting lmk ids from set of planes, total of "
                 << lmk_ids_with_regularity.size() << " lmks with regularities.";
 

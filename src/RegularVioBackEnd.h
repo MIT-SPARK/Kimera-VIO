@@ -24,12 +24,26 @@ namespace VIO {
 
 class RegularVioBackEnd: public VioBackEnd {
 public:
+
   /* ------------------------------------------------------------------------ */
-  RegularVioBackEnd(const Pose3& leftCamPose,
-                    const Cal3_S2& leftCameraCalRectified,
-                    const double& baseline,
-                    const VioBackEndParams& vioParams = VioBackEndParams(),
-                    const bool log_timing = false);
+  // Defines the behaviour of this backend.
+  enum class BackendModality {
+    STRUCTURELESS = 0, // Only use structureless factors, equiv to normal Vio.
+    PROJECTION = 1, // Use only projection factors, equiv to a typical Vio.
+    STRUCTURELESS_AND_PROJECTION = 2, // Both above.
+    PROJECTION_AND_REGULARITY = 3, // Like typical Vio + regularity factors.
+    STRUCTURELESS_PROJECTION_AND_REGULARITY = 4 // All types of factors used.
+  };
+
+  /* ------------------------------------------------------------------------ */
+  RegularVioBackEnd(
+      const Pose3& leftCamPose,
+      const Cal3_S2& leftCameraCalRectified,
+      const double& baseline,
+      const VioBackEndParams& vioParams = VioBackEndParams(),
+      const bool& log_timing = false,
+      const BackendModality& backend_modality =
+      BackendModality::STRUCTURELESS_PROJECTION_AND_REGULARITY);
 
   /* ------------------------------------------------------------------------ */
   ~RegularVioBackEnd() = default;
@@ -82,6 +96,9 @@ private:
 
   // For regularity factors.
   gtsam::SharedNoiseModel point_plane_regularity_noise_;
+
+  // Decides which kind of functionality the backend exhibits.
+  const BackendModality backend_modality_;
 
 private:
   /* ------------------------------------------------------------------------ */

@@ -41,6 +41,16 @@ DEFINE_bool(log_output, false, "Log output to matlab.");
 DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
                                  "0: VioBackEnd\n"
                                  "1: RegularVioBackEnd");
+DEFINE_int32(regular_vio_backend_modality, 4,
+             "Modality for regular Vio backend, currently supported:\n"
+             "0: Structureless (equiv to normal VIO)\n"
+             "1: Projection (as if it was a typical VIO backend with projection"
+             "factors\n"
+             "2: Structureless and projection, sets to projection factors the "
+             "structureless factors that are supposed to be in a regularity.\n"
+             "3: Projection and regularity, sets all structureless factors to"
+             "projection factors and adds regularity factors to a subset.\n"
+             "4: structureless, projection and regularity factors used.");
 DEFINE_bool(visualize, true, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, true, "Enable landmark type visualization.");
 DEFINE_bool(visualize_mesh, true, "Enable mesh visualization.");
@@ -277,12 +287,15 @@ int main(int argc, char *argv[]) {
           break;
         }
         case 1: {
-          LOG(INFO) << "\e[1m Using Regular VIO. \e[0m";
+          LOG(INFO) << "\e[1m Using Regular VIO with modality "
+                    << FLAGS_regular_vio_backend_modality << "\e[0m";
           vioBackEnd = boost::make_shared<RegularVioBackEnd>(
-           stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
-           stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
-           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams,
-                         FLAGS_log_output);
+            stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
+            stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
+            stereoVisionFrontEnd.stereoFrame_km1_->baseline_,
+            vioParams, FLAGS_log_output,
+            static_cast<RegularVioBackEnd::BackendModality>(
+              FLAGS_regular_vio_backend_modality));
           break;
         }
       }
