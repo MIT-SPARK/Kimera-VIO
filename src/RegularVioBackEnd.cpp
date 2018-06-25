@@ -376,7 +376,8 @@ void RegularVioBackEnd::addLandmarksToGraph(
       if (!feature_track.in_ba_graph_) {
         // The lmk has not yet been added to the graph.
         VLOG(20) << "Adding lmk " << lmk_id << " to graph.";
-        addLandmarkToGraph(lmk_id, feature_track);
+        addLandmarkToGraph(lmk_id, feature_track,
+                           &lmk_id_is_smart_);
         // Acknowledge that we have added the landmark in the graph.
         feature_track.in_ba_graph_ = true;
         ++n_new_landmarks;
@@ -395,9 +396,9 @@ void RegularVioBackEnd::addLandmarksToGraph(
         // visible lmks, lmk_ids_with_regularity contains lmks in time_horizon.
         // To further convert the lmks in time_horizon we use the
         // convertExtraSmartFactorToProjFactor function.
-        const bool& is_lmk_smart = isLandmarkSmart(lmk_id,
-                                                   lmk_ids_with_regularity,
-                                                   &lmk_id_is_smart_);
+        const bool& is_lmk_smart = updateLmkIdIsSmart(lmk_id,
+                                                      lmk_ids_with_regularity,
+                                                      &lmk_id_is_smart_);
 
         VLOG(20) << "Updating lmk " << lmk_id << " to graph.";
         updateLandmarkInGraph(lmk_id, is_lmk_smart, obs_kf);
@@ -419,7 +420,9 @@ void RegularVioBackEnd::addLandmarksToGraph(
 
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
-                                           const FeatureTrack& ft) {
+                                           const FeatureTrack& ft,
+                                           LmkIdIsSmart* lmk_id_is_smart) {
+  CHECK_NOTNULL(lmk_id_is_smart);
   // All landmarks should be smart the first time we add them to the graph.
   // Add as a smart factor.
   // We use a unit pinhole projection camera for the smart factors to be
@@ -452,10 +455,13 @@ void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
 
   // Add new factor to suitable structures.
   // TODO why do we need to store the new_factor in both structures??
+  VLOG(0) << "Add lmk with id: " << lmk_id << " to new_smart_factors_";
   new_smart_factors_.insert(std::make_pair(lmk_id,
                                            new_factor));
+  VLOG(0) << "Add lmk with id: " << lmk_id << " to old_smart_factors_";
   old_smart_factors_.insert(std::make_pair(lmk_id,
                                            std::make_pair(new_factor, -1)));
+  lmk_id_is_smart->insert(std::make_pair(lmk_id, true));
   //////////////////////////////////////////////////////////////////////////////
 }
 
@@ -486,6 +492,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
       // Convert smart to projection.
       bool is_conversion_done = convertSmartToProjectionFactor(
                                   lmk_id,
+                                  &new_smart_factors_,
                                   &old_smart_factors_,
                                   &new_values_,
                                   &new_imu_prior_and_other_factors_,
@@ -503,6 +510,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
         // Sanity check, if the conversion was successful, then we should
         // not be able to see the smart factor anymore.
         CHECK(!old_smart_factors_.exists(lmk_id));
+        CHECK(new_smart_factors_.find(lmk_id) == new_smart_factors_.end());
       } else {
         LOG(ERROR) << "Not using new observation for lmk: " << lmk_id
                    << " because we do not have a good initial value for it.";
@@ -583,10 +591,12 @@ void RegularVioBackEnd::updateExistingSmartFactor(
 // Returns whether the conversion was possible or not.
 bool RegularVioBackEnd::convertSmartToProjectionFactor(
     const LandmarkId& lmk_id,
+    LandmarkIdSmartFactorMap* new_smart_factors,
     SmartFactorMap* old_smart_factors,
     gtsam::Values* new_values,
     gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors,
     std::vector<size_t>* delete_slots_of_converted_smart_factors) {
+  CHECK_NOTNULL(new_smart_factors);
   CHECK_NOTNULL(old_smart_factors);
   CHECK_NOTNULL(new_values);
   CHECK_NOTNULL(new_imu_prior_and_other_factors);
@@ -607,10 +617,10 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
   }
 
   // Check triangulation result is initialized.
-  CHECK(old_factor->point().is_initialized());
-
   if (old_factor->point().valid()) {
-    VLOG(20) << "Performing conversion for lmk_id: " << lmk_id;
+    CHECK(old_factor->point().is_initialized());
+    VLOG(0) << "Performing conversion for lmk with id: " << lmk_id << " from "
+             << " smart factor to projection factor.";
 
     // TODO check all the * whatever, for segmentation fault!
     gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id).key();
@@ -628,7 +638,7 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
 
     // Convert smart factor to multiple projection factors.
     // There is no need to have a threshold for how many observations we want
-    // , since it is done already in the isLandmarkSmart function.
+    // , since it is done already in the updateLmkIsSmart function.
     // Nevertheless, check that there are at least 2 observations.
     CHECK_GE(old_factor->measured().size(), 2);
     for (size_t i = 0; i < old_factor->keys().size(); i++) {
@@ -638,27 +648,46 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
       std::pair<FrameId, StereoPoint2> obs (std::make_pair(cam_sym.index(),
                                                            sp2));
       VLOG(20) << "Lmk with id: " << lmk_id
-               << " added as a new projection factor with pose with id: "
+               << " added as a new projection factor attached to pose with id: "
                << static_cast<int>(cam_sym.index()) << ".\n";
-      addProjectionFactor(lmk_id,
-                          obs,
-                          &new_imu_prior_and_other_factors_);
+      addProjectionFactor(lmk_id, obs, &new_imu_prior_and_other_factors_);
     }
 
     ////////////////// BOOKKEEPING /////////////////////////////////////////
     // Make sure that the smart factor that we converted to projection
-    // gets deleted from the graph.
+    // gets deleted from the graph. If the slot is -1, then it is not in the
+    // graph so we do not need to delete it.
+    VLOG(0) << "Starting bookkeeping for converted smart factor to "
+               "projection factor for lmk with id: " << lmk_id;
     if (old_smart_factors_it->second.second != -1) {
       // Get current slot (if factor is already there it must be deleted).
+      VLOG(0) << "Remove smart factor by adding its slot to the list of slots to "
+                 "delete from optimization graph";
       delete_slots_of_converted_smart_factors->push_back(
             old_smart_factors_it->second.second);
+      // Check that we are not actually updating the smart factor.
+      // Otherwise we would have an sporadic smart factor.
+      CHECK(new_smart_factors->find(lmk_id) == new_smart_factors->end())
+          << "Someone is updating the smart factor while it should be a "
+             "projection factor...";
+    } else {
+      // The slot is -1, so the smart factor is not in the graph yet, but it is
+      // going to be added in this iteration as a new_smart_factor...
+      // Erase from new_smart_factors_ list since this has been converted into
+      // projection factors.
+      // Check to avoid undefined behaviour.
+      //CHECK(new_smart_factors->find(lmk_id) != new_smart_factors->end());
+      //VLOG(0) << "Erasing lmk with id " << lmk_id << " from new_smart_factors";
+      //new_smart_factors->erase(lmk_id);
     }
 
     // Erase from old_smart_factors_ list since this has been converted into
     // projection factors.
     // Check to avoid undefined behaviour.
     CHECK(old_smart_factors->find(lmk_id) != old_smart_factors->end());
+    VLOG(0) << "Erasing lmk with id " << lmk_id << " from old_smart_factors";
     old_smart_factors->erase(lmk_id);
+
     ////////////////////////////////////////////////////////////////////////
     return true;
   } else {
@@ -674,26 +703,56 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
 void RegularVioBackEnd::convertExtraSmartFactorToProjFactor(
     const LandmarkIds& lmk_ids_with_regularity) {
   for (const LandmarkId& lmk_id: lmk_ids_with_regularity) {
-    // Track this lmk, if it was not already...
-    if (old_smart_factors_.exists(lmk_id) &&
-        !isLandmarkSmart(lmk_id,
-                         lmk_ids_with_regularity,
-                         &lmk_id_is_smart_)) {
-      // We have found a smart factor that should be a projection factor.
-      // Convert it to a projection factor, so that we can enforce
-      // regularities on it.
-      if (convertSmartToProjectionFactor(
-            lmk_id,
-            &old_smart_factors_,
-            &new_values_,
-            &new_imu_prior_and_other_factors_,
-            &delete_slots_of_converted_smart_factors_)) {
-        VLOG(30) << "Converting smart factor to proj factor for lmk"
-                    " with id: " << lmk_id;
+    // Check that we are tracking this lmk to avoid not calling
+    // updateLmkIdIsSmart beforehand.
+    VLOG(0) << "Dealing with lmk id: " << lmk_id;
+    if (lmk_id_is_smart_.exists(lmk_id)) {
+      if (lmk_id_is_smart_.at(lmk_id)) {
+        // We have found a smart factor that should be a projection factor.
+        // Convert it to a projection factor, so that we can enforce
+        // regularities on it, but only if it is valid.
+        CHECK(old_smart_factors_.exists(lmk_id));
+        VLOG(0) << "We found a smart factor that should be in a regularity for "
+                   "lmk with id: " << lmk_id;
+        // We do FLAGS_min_num_obs_for_proj_factor + 1,
+        // because we have to substract the fact that in this iteration we added
+        // an extra measurement to the factor. This is to be consistent with the
+        // check of isSmartFactor3dPointGood when deciding if the 3d point is valid
+        // for changing from smart to projection factor.
+        if (isSmartFactor3dPointGood(old_smart_factors_.at(lmk_id).first,
+                                     FLAGS_min_num_obs_for_proj_factor + 1)) {
+          VLOG(0) << "Converting extra smart factor to proj factor for lmk"
+                     " with id: " << lmk_id << ", since 3d point is good enough";
+          if(convertSmartToProjectionFactor(
+               lmk_id,
+               &new_smart_factors_,
+               &old_smart_factors_,
+               &new_values_,
+               &new_imu_prior_and_other_factors_,
+               &delete_slots_of_converted_smart_factors_)) {
+            VLOG(30) << "Converted smart factor to proj factor for lmk"
+                        " with id: " << lmk_id;
+            // Acknowledge the lmk is now in a projection factor.
+            lmk_id_is_smart_.at(lmk_id) = false;
+          } else {
+            VLOG(30) << "NOT converted smart factor to proj factor for lmk"
+                        " with id: " << lmk_id;
+          }
+        } else {
+          VLOG(0) << "Not converting extra smart factor to proj factor for lmk"
+                     " with id: " << lmk_id << ", since 3d point is not good enough";
+        }
       } else {
-        VLOG(30) << "NOT converting smart factor to proj factor for lmk"
-                    " with id: " << lmk_id;
+        VLOG(0) << "The current factor for lmk: " << lmk_id
+                << " is already a projection factor.";
       }
+    } else {
+      // We are not (yet) tracking this lmk id.
+      // We should only get to this condition when the lmk id is
+      // so new that it has not even passed the check on minimum number of
+      // feature_track size in addLandmarksToGraph.
+      CHECK(!old_smart_factors_.exists(lmk_id));
+      CHECK(new_smart_factors_.find(lmk_id) == new_smart_factors_.end());
     }
   }
 }
@@ -761,7 +820,9 @@ void RegularVioBackEnd::addProjectionFactor(
 }
 
 /* -------------------------------------------------------------------------- */
-bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
+// TODO keep deleting the used lmk_ids_with_regularities to diminish
+// runtime of the algorithm.
+bool RegularVioBackEnd::updateLmkIdIsSmart(const LandmarkId& lmk_id,
                                         const LandmarkIds& lmk_ids_with_regularity,
                                         LmkIdIsSmart* lmk_id_is_smart) {
   // TODOOOOO completely change this function: it should be
@@ -783,8 +844,8 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
   if (std::find(lmk_ids_with_regularity.begin(),
                 lmk_ids_with_regularity.end(), lmk_id) ==
       lmk_ids_with_regularity.end()) {
-    VLOG(20) << "Lmk_id = " << lmk_id
-             << " needs to stay as it is since it is NOT involved in any regularity.";
+    VLOG(0) << "Lmk_id = " << lmk_id << " needs to stay as it is since it is "
+                                         "NOT involved in any regularity.";
     // This lmk is not involved in any regularity.
     if (lmk_id_slot == lmk_id_is_smart->end()) {
       // We did not find the lmk_id in the lmk_id_is_smart_ map.
@@ -797,12 +858,12 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
   } else {
     // This lmk is involved in a regularity, hence it should be a variable in
     // the factor graph (connected to projection factor).
-    VLOG(20) << "Lmk_id = " << lmk_id
-             << " needs to be a proj. factor, as it is involved in a regularity.";
+    VLOG(0) << "Lmk_id = " << lmk_id << " needs to be a proj. factor, as it "
+                                         "is involved in a regularity.";
     const auto& old_smart_factors_it = old_smart_factors_.find(lmk_id);
     if (old_smart_factors_it == old_smart_factors_.end()) {
       // This should only happen if the lmk was already in a regularity,
-      // and subsequently updated asa a projection factor...
+      // and subsequently updated as a a projection factor...
       VLOG(20) << "Landmark with id: " << lmk_id
                << " not found in old_smart_factors.";
       // This lmk must be tracked.
@@ -813,47 +874,17 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
       // We found the factor.
 
       // Get whether the smart factor is valid or not.
-      bool lmk_is_valid = true;
-
       SmartStereoFactor::shared_ptr old_factor =
           old_smart_factors_it->second.first;
-      CHECK(old_factor);
-      CHECK(old_factor->point().is_initialized());
-
-      if (!old_factor->point().valid()) {
-        // The point is not valid.
-        VLOG(20) << "Smart factor for lmk: " << lmk_id << "is NOT valid.";
-        lmk_is_valid = false;
-      } else {
-        // If the smart factor has less than x number of observations,
-        // then do not consider the landmark as valid.
-        // This param is different from the one counting the track length
-        // as it controls only the quality of the subsequent proj factors,
-        // and has no effect on how the smart factors are created.
-        // This param is very correlated to the one we use to get lmks,
-        // in time horizon (aka min_age) since only the ones that have reached
-        // the mesher and have been clustered will have the possibility of
-        // being here, so this param must be higher than the min_age one to
-        // have any impact.
-        // TODO Do this when we convert the factor not when we decide if
-        // it should be a proj or a smart factor! But then we must be
-        // careful that the lmk_id_is_smart is re-changed to smart right?
-        if (old_factor->measured().size() >= FLAGS_min_num_obs_for_proj_factor) {
-          VLOG(20) << "Smart factor for lmk: " << lmk_id << " is valid.";
-          lmk_is_valid = true;
-        } else {
-          // Should not be a warning this, but just in case.
-          LOG(WARNING) << "Smart factor for lmk: " << lmk_id << " has not enough"
-                       << " observations: " << old_factor->measured().size()
-                       << ", but should be more or equal to "
-                       << FLAGS_min_num_obs_for_proj_factor;
-          lmk_is_valid = false;
-        }
-      }
+      // Mind that we are going to add an extra measurement in this iteration
+      // so in reality we are checking that the factor number of measurements
+      // (without the new measurement) accounts for at least min_num_obs...
+      bool lmk_is_valid = isSmartFactor3dPointGood(
+            old_factor, FLAGS_min_num_obs_for_proj_factor);
 
       if (lmk_id_slot == lmk_id_is_smart->end()) {
         // We did not find the lmk_id in the lmk_id_is_smart_ map.
-        // Add it as a projection factor.
+        // Add it as a projection factor only if it is valid.
         // TODO use an enum instead of bool for lmk_id_is_smart, otherwise
         // it is too difficult to read.
         lmk_id_is_smart->insert(std::make_pair(lmk_id, lmk_is_valid?false:true));
@@ -874,6 +905,50 @@ bool RegularVioBackEnd::isLandmarkSmart(const LandmarkId& lmk_id,
 
   CHECK(lmk_id_is_smart->find(lmk_id) != lmk_id_is_smart->end());
   return lmk_id_is_smart->at(lmk_id);
+}
+
+/* -------------------------------------------------------------------------- */
+// Returns whether the lmk of the smart factor is valid:
+// - It checks that the point is valid.
+// - It checks that the point has been seen at least a certain number of times.
+bool RegularVioBackEnd::isSmartFactor3dPointGood(
+    SmartStereoFactor::shared_ptr factor,
+    const size_t& min_num_of_observations) {
+  CHECK(factor);
+  if (!factor->point().valid()) {
+    // The point is not valid.
+    VLOG(20) << "Smart factor is NOT valid.";
+    return false;
+  } else {
+    CHECK(factor->point().is_initialized());
+    // If the smart factor has less than x number of observations,
+    // then do not consider the landmark as valid.
+    // This param is different from the one counting the track length
+    // as it controls only the quality of the subsequent proj factors,
+    // and has no effect on how the smart factors are created.
+    // This param is very correlated to the one we use to get lmks,
+    // in time horizon (aka min_age) since only the ones that have reached
+    // the mesher and have been clustered will have the possibility of
+    // being here, so this param must be higher than the min_age one to
+    // have any impact.
+    // TODO Do this when we convert the factor not when we decide if
+    // it should be a proj or a smart factor! But then we must be
+    // careful that the lmk_id_is_smart is re-changed to smart right?
+    // ALSO, this is not taking into account that we are going to add a new
+    // observation next...
+    if (factor->measured().size() >= min_num_of_observations) {
+      VLOG(20) << "Smart factor is valid with: " << factor->measured().size()
+               << " observations (wo the one we are going to add now).";
+      return true;
+    } else {
+      // Should not be a warning this, but just in case.
+      LOG(WARNING) << "Smart factor has not enough"
+                   << " observations: " << factor->measured().size()
+                   << ", but should be more or equal to "
+                   << min_num_of_observations;
+      return false;
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */

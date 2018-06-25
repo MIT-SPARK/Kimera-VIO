@@ -58,18 +58,6 @@ public:
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
-  /* ------------------------------------------------------------------------ */
-  // TODO Virtualize this appropriately,
-  void addLandmarksToGraph(const LandmarkIds& lmks_kf,
-                           const LandmarkIds& lmk_ids_with_regularity);
-
-  /* ------------------------------------------------------------------------ */
-  void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
-
-  /* ------------------------------------------------------------------------ */
-  void updateLandmarkInGraph(const LandmarkId& lmk_id,
-                             const bool& is_lmk_smart,
-                             const std::pair<FrameId, StereoPoint2>& new_obs);
 private:
   typedef size_t Slot;
 
@@ -101,9 +89,27 @@ private:
 
 private:
   /* ------------------------------------------------------------------------ */
-  bool isLandmarkSmart(const LandmarkId& lmk_id,
+  void addLandmarksToGraph(const LandmarkIds& lmks_kf,
+                           const LandmarkIds& lmk_ids_with_regularity);
+
+  /* ------------------------------------------------------------------------ */
+  void addLandmarkToGraph(const LandmarkId& lm_id,
+                          const FeatureTrack& lm,
+                          LmkIdIsSmart* lmk_id_is_smart);
+
+  /* ------------------------------------------------------------------------ */
+  void updateLandmarkInGraph(const LandmarkId& lmk_id,
+                             const bool& is_lmk_smart,
+                             const std::pair<FrameId, StereoPoint2>& new_obs);
+
+  /* ------------------------------------------------------------------------ */
+  bool updateLmkIdIsSmart(const LandmarkId& lmk_id,
                        const LandmarkIds& lmk_ids_with_regularity,
                        LmkIdIsSmart* lmk_id_is_smart);
+
+  /* ------------------------------------------------------------------------ */
+  bool isSmartFactor3dPointGood(SmartStereoFactor::shared_ptr factor,
+                                 const size_t &min_num_of_observations);
 
   /* ------------------------------------------------------------------------ */
   void updateExistingSmartFactor(const LandmarkId& lmk_id,
@@ -113,6 +119,7 @@ private:
   /* ------------------------------------------------------------------------ */
   bool convertSmartToProjectionFactor(
       const LandmarkId& lmk_id,
+      LandmarkIdSmartFactorMap* new_smart_factors,
       SmartFactorMap* old_smart_factors,
       gtsam::Values* new_values,
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors,
