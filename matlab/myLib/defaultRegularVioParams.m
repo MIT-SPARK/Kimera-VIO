@@ -21,12 +21,12 @@ vioParams.initialGyroBiasSigma = 1e-2;
 % VISION PARAMS
 vioParams.linearizationMode = 0;
 vioParams.degeneracyMode = 1;
-vioParams.smartNoiseSigma = 2;
+vioParams.smartNoiseSigma = 2.5;
 vioParams.monoNoiseSigma = 1.6; % Only used for RegularVioBackEnd
 vioParams.monoNormType = 0; % Only used for RegularVioBackEnd.t 0: square 1:huber 2:tukey
 vioParams.stereoNoiseSigma = 1.6; % Only used for RegularVioBackEnd
 vioParams.stereoNormType = 0; % Only used for RegularVioBackEnd. 0: square 1:huber 2:tukey
-vioParams.regularityNoiseSigma = 0.03; % Only used for RegularVioBackEnd
+vioParams.regularityNoiseSigma = 0.02; % Only used for RegularVioBackEnd
 vioParams.huberParam = 0.8; % Only used for RegularVioBackEnd
 vioParams.tukeyParam = 4.6851; % Only used for RegularVioBackEnd
 vioParams.regularityNormType = 2; % Only used for RegularVioBackEnd. 0: square 1:huber 2:tukey
