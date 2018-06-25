@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
     srand(0);
   }
   static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
-  static constexpr int saveImagesSelector = 1;          // 0: don't show, >0 write & save
+  static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
   VisualizationType visualization_type = static_cast<VisualizationType>(
         FLAGS_viz_type);
 
@@ -192,8 +192,10 @@ int main(int argc, char *argv[]) {
   StereoVisionFrontEnd stereoVisionFrontEnd(trackerParams, vioParams, saveImages); // vioParams used by feature selection
   stereoVisionFrontEnd.tracker_.trackerParams_.print();
   if (saveImages > 0) {
-    stereoVisionFrontEnd.outputImagesPath_ = "./outputStereoTrackerImages-" + dataset.dataset_name_;
-    stereoVisionFrontEnd.tracker_.outputImagesPath_ = "./outputTrackerImages-" + dataset.dataset_name_;
+    stereoVisionFrontEnd.outputImagesPath_ = "./outputStereoTrackerImages-" +
+                                             dataset.dataset_name_;
+    stereoVisionFrontEnd.tracker_.outputImagesPath_ = "./outputTrackerImages-" +
+                                                      dataset.dataset_name_;
   }
 
   // instantiate feature selector: not used in vanilla implementation
