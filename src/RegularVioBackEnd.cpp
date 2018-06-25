@@ -712,8 +712,15 @@ void RegularVioBackEnd::convertExtraSmartFactorToProjFactor(
         // an extra measurement to the factor. This is to be consistent with the
         // check of isSmartFactor3dPointGood when deciding if the 3d point is valid
         // for changing from smart to projection factor.
+        // Well this is only true if lmk_id is in the set of lmks observed now...
+        // But if it is not, then there is no new observation...
+        // Check nwe_smart_factors_ to see if there is indeed a new observation
+        // or not.
         if (isSmartFactor3dPointGood(old_smart_factors_.at(lmk_id).first,
-                                     FLAGS_min_num_obs_for_proj_factor + 1)) {
+                                     (new_smart_factors_.find(lmk_id) !=
+                                     new_smart_factors_.end())?
+                                     FLAGS_min_num_obs_for_proj_factor + 1:
+                                     FLAGS_min_num_obs_for_proj_factor)) {
           VLOG(20) << "Converting extra smart factor to proj factor for lmk"
                      " with id: " << lmk_id << ", since 3d point is good enough";
           if(convertSmartToProjectionFactor(
