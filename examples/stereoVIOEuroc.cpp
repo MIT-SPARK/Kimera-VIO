@@ -84,6 +84,9 @@ DEFINE_bool(deterministic_random_number_generator, false,
             "same sequence of pseudo-random numbers for every run (use it to "
             "have repeatable output). If false the random number generator "
             "will output a different sequence for each run.");
+DEFINE_int32(min_num_obs_for_mesher_points, 4,
+             "Minimum number of observations for a smart factor's landmark to "
+             "to be used as a 3d point to consider for the mesher");
 
 DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
                             "previous frames will not be used.");
@@ -570,13 +573,9 @@ int main(int argc, char *argv[]) {
         case VisualizationType::MESH2DTo3Dsparse: {
           VLOG(10) << "Mesh2Dtype::MESH2DTo3Dsparse";
 
-          // only select points which have been tracked for minKfValidPoints keyframes
-          // If this is 0 it breaks!!!!!!!!!!!!!!!!!!!!!!
-          static constexpr int minKfValidPoints = 4;
-
           // Points_with_id_VIO contains all the points in the optimization,
           // (encoded as either smart factors or explicit values), potentially
-          // restricting to points seen in at least minKfValidPoints keyframes
+          // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
           // (TODO restriction is not enforced for projection factors).
           VioBackEnd::PointsWithIdMap points_with_id_VIO;
           VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
@@ -584,12 +583,12 @@ int main(int argc, char *argv[]) {
             vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
                   &points_with_id_VIO,
                   &lmk_id_to_lmk_type_map,
-                  minKfValidPoints);
+                  FLAGS_min_num_obs_for_mesher_points);
           } else {
             vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
                   &points_with_id_VIO,
                   nullptr,
-                  minKfValidPoints);
+                  FLAGS_min_num_obs_for_mesher_points);
           }
 
           // Create mesh.

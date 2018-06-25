@@ -14,5 +14,6 @@
 --visualize_plane_label=true
 --visualize_mesh_in_frustum=true
 --viz_type=5
+--min_num_obs_for_mesher_points=4
 --initial_k=50
 --final_k=10000
