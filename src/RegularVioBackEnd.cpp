@@ -670,15 +670,8 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
       CHECK(new_smart_factors->find(lmk_id) == new_smart_factors->end())
           << "Someone is updating the smart factor while it should be a "
              "projection factor...";
-    } else {
-      // The slot is -1, so the smart factor is not in the graph yet, but it is
-      // going to be added in this iteration as a new_smart_factor...
-      // Erase from new_smart_factors_ list since this has been converted into
-      // projection factors.
-      // Check to avoid undefined behaviour.
-      //CHECK(new_smart_factors->find(lmk_id) != new_smart_factors->end());
-      //VLOG(0) << "Erasing lmk with id " << lmk_id << " from new_smart_factors";
-      //new_smart_factors->erase(lmk_id);
+      // NOTE If the slot is -1, so the smart factor is not in the graph yet, but it is
+      // maybe going to be added in this iteration as a new_smart_factor...
     }
 
     // Erase from old_smart_factors_ list since this has been converted into
