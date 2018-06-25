@@ -83,6 +83,8 @@ private:
   using LmkIdIsSmart = gtsam::FastMap<LandmarkId, bool>;
 
   /// Members
+  // Decides which kind of functionality the backend exhibits.
+  const BackendModality backend_modality_;
   LmkIdIsSmart lmk_id_is_smart_; // TODO GROWS UNBOUNDED, use the loop in getMapLmkIdsTo3dPointsInTimeHorizon();
   typedef std::map<LandmarkId, RegularityType> LmkIdToRegularityTypeMap;
   typedef std::map<PlaneId, LmkIdToRegularityTypeMap> PlaneIdToLmkIdRegType;
@@ -96,9 +98,6 @@ private:
 
   // For regularity factors.
   gtsam::SharedNoiseModel point_plane_regularity_noise_;
-
-  // Decides which kind of functionality the backend exhibits.
-  const BackendModality backend_modality_;
 
 private:
   /* ------------------------------------------------------------------------ */
