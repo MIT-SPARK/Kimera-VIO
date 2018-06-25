@@ -291,13 +291,16 @@ int main(int argc, char *argv[]) {
       gtNavState initialStateGT;
 
       // Use initial IMU measurements to guess first pose
-      if (vioParams.autoInitialize_) {
-          initialStateGT.pose = vioBackEnd->guessPoseFromIMUmeasurements(
-                                              imu_accgyr, vioParams.n_gravity_,
-                                              vioParams.roundOnAutoInitialize_);
-          vioBackEnd->initializeStateAndSetPriors(timestamp_k,
-                                                  initialStateGT.pose,
-                                                  imu_accgyr);
+      if (vioParams.autoInitialize_ || !dataset.isGroundTruthAvailable()) {
+        LOG_IF(WARNING, !vioParams.autoInitialize_)
+            << "Could not initialize from ground truth, since it is not "
+               "available";
+        initialStateGT.pose = vioBackEnd->guessPoseFromIMUmeasurements(
+                                imu_accgyr, vioParams.n_gravity_,
+                                vioParams.roundOnAutoInitialize_);
+        vioBackEnd->initializeStateAndSetPriors(timestamp_k,
+                                                initialStateGT.pose,
+                                                imu_accgyr);
         // Only for display later on
         initialStateGT.velocity = vioBackEnd->W_Vel_Blkf_;
         // Only for display
@@ -375,20 +378,23 @@ int main(int argc, char *argv[]) {
       // vio->W_Pose_Blkf_: vio pose at previous keyframe.
       // More important than the time, it is important that
       // it is the same time as vio->W_Pose_Blkf_
-      Pose3 W_Pose_Bkf_gt = dataset.getGroundTruthState(timestamp_lkf).pose;
+      Pose3 W_Pose_Bkf_gt;
+      if (dataset.isGroundTruthAvailable()) {
+         W_Pose_Bkf_gt= dataset.getGroundTruthState(timestamp_lkf).pose;
 
-      for (size_t kk = 0; kk < nrKfInHorizon + 1; kk++) {
-        // Including current pose.
-        Timestamp timestamp_kk = timestamp_k + UtilsOpenCV::SecToNsec(
-                                   kk * stereoVisionFrontEnd.tracker_.
-                                   trackerParams_.intra_keyframe_time_);
+        for (size_t kk = 0; kk < nrKfInHorizon + 1; kk++) {
+          // Including current pose.
+          Timestamp timestamp_kk = timestamp_k + UtilsOpenCV::SecToNsec(
+                                     kk * stereoVisionFrontEnd.tracker_.
+                                     trackerParams_.intra_keyframe_time_);
 
-        // Relative pose wrt ground truth at last kf.
-        Pose3 poseGT_km1_kk = W_Pose_Bkf_gt.between(dataset.getGroundTruthState(
-                                                      timestamp_kk).pose);
-        posesAtFutureKeyframes.push_back(
-              StampedPose(vioBackEnd->W_Pose_Blkf_.compose(poseGT_km1_kk),
-                          UtilsOpenCV::NsecToSec(timestamp_kk)) );
+          // Relative pose wrt ground truth at last kf.
+          Pose3 poseGT_km1_kk = W_Pose_Bkf_gt.between(dataset.getGroundTruthState(
+                                                        timestamp_kk).pose);
+          posesAtFutureKeyframes.push_back(
+                StampedPose(vioBackEnd->W_Pose_Blkf_.compose(poseGT_km1_kk),
+                            UtilsOpenCV::NsecToSec(timestamp_kk)) );
+        }
       }
 
       startTime = UtilsOpenCV::GetTimeInSeconds();
@@ -417,7 +423,8 @@ int main(int argc, char *argv[]) {
             vioBackEnd->cur_kf_id_, (FLAGS_visualize?saveImagesSelector:0),
             trackerParams.featureSelectionCriterion_,
             trackerParams.featureSelectionNrCornersToSelect_,
-            trackerParams.maxFeatureAge_, posesAtFutureKeyframes,
+            trackerParams.maxFeatureAge_,
+            posesAtFutureKeyframes, // TODO Luca: can we make this optional, for the case where we do not have ground truth?
             curr_state_cov,
             dataset.dataset_name_,
             frame_km1_debug); // last 2 are for visualization
