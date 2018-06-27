@@ -163,8 +163,10 @@ void parseDatasetAndParams(ETHDatasetParser* dataset,
                  << " number of frames in dataset " << nr_images;
     // Skip last frames which are typically problematic
     // (IMU bumps, FOV occluded)...
-    *final_k = nr_images - 100;
-    LOG(WARNING) << "Using final_k = " << *final_k;
+    static constexpr size_t skip_n_end_frames = 100;
+    *final_k = nr_images - skip_n_end_frames;
+    LOG(WARNING) << "Using final_k = " << *final_k << ", where we removed "
+                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
   }
   CHECK(*final_k > *initial_k)
       << "Value for final_k (" << *final_k << ") is smaller than value for"
