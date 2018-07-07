@@ -74,7 +74,8 @@ public:
   void logNormals(const std::vector<cv::Point3f>& normals);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void logMesh(const cv::Mat& lmks, const cv::Mat& colors, const cv::Mat& mesh);
+  void logMesh(const cv::Mat& lmks, const cv::Mat& colors, const cv::Mat& mesh,
+               const double& timestamp);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(const ETHDatasetParser& dataset,

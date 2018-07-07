@@ -631,7 +631,8 @@ int main(int argc, char *argv[]) {
                     planes_prev,
                     vertices_mesh_prev,
                     polygons_mesh_prev,
-                    FLAGS_visualize_mesh_with_colored_polygon_clusters);
+                    FLAGS_visualize_mesh_with_colored_polygon_clusters,
+                    timestamp_k);
             }
 
             if (FLAGS_visualize_point_cloud) {

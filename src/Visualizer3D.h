@@ -26,6 +26,7 @@ DEFINE_int32(mesh_shading, 0,
              "Mesh shading:\n 0: Flat, 1: Gouraud, 2: Phong");
 DEFINE_int32(mesh_representation, 1,
              "Mesh representation:\n 0: Points, 1: Wireframe, 2: Surface");
+DEFINE_bool(log_mesh, false, "Log the mesh at time horizon.");
 
 namespace VIO {
 
@@ -298,11 +299,14 @@ public:
   /// [in] polygons_mesh: mesh faces, format is n rows, 1 column,
   ///  with [n id_a id_b id_c, ..., n /id_x id_y id_z], where n = polygon size
   ///  n=3 for triangles.
+  /// [in] color_mesh whether to color the mesh or not
+  /// [in] timestamp to store the timestamp of the mesh when logging the mesh.
   void visualizeMesh3DWithColoredClusters(
-      const std::vector<Plane>& planes,
-      const cv::Mat& map_points_3d,
-      const cv::Mat& polygons_mesh,
-      const bool& color_mesh = false) {
+        const std::vector<Plane>& planes,
+        const cv::Mat& map_points_3d,
+        const cv::Mat& polygons_mesh,
+        const bool& color_mesh = false,
+        const double& timestamp = 0.0) {
     if (color_mesh) {
       // Colour the mesh.
       cv::Mat colors;
@@ -310,9 +314,8 @@ public:
       // Visualize the colored mesh.
       visualizeMesh3D(map_points_3d, colors, polygons_mesh);
       // Log the mesh.
-      static constexpr bool log_mesh = false;
-      if (log_mesh) {
-        logMesh(map_points_3d, colors, polygons_mesh);
+      if (FLAGS_log_mesh) {
+        logMesh(map_points_3d, colors, polygons_mesh, timestamp);
       }
     } else {
       // Visualize the mesh with same colour.
@@ -690,11 +693,11 @@ private:
   /* ------------------------------------------------------------------------ */
   // Log mesh to ply file.
   void logMesh(const cv::Mat& map_points_3d, const cv::Mat& colors,
-               const cv::Mat& polygons_mesh) {
+               const cv::Mat& polygons_mesh, const double& timestamp) {
     /// Log the mesh in a ply file.
     LoggerMatlab logger;
     logger.openLogFiles(10);
-    logger.logMesh(map_points_3d, colors, polygons_mesh);
+    logger.logMesh(map_points_3d, colors, polygons_mesh, timestamp);
     logger.closeLogFiles(10);
   }
 

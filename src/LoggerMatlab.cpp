@@ -162,7 +162,10 @@ void LoggerMatlab::logNormals(const std::vector<cv::Point3f>& normals) {
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void LoggerMatlab::logMesh(const cv::Mat& lmks, const cv::Mat& colors, const cv::Mat& mesh) {
+void LoggerMatlab::logMesh(const cv::Mat& lmks,
+                           const cv::Mat& colors,
+                           const cv::Mat& mesh,
+                           const double& timestamp) {
   if (outputFile_mesh_) {
     // Number of vertices in the mesh.
     int vertex_count = lmks.rows;
@@ -171,7 +174,8 @@ void LoggerMatlab::logMesh(const cv::Mat& lmks, const cv::Mat& colors, const cv:
     // First, write header.
     outputFile_mesh_ << "ply\n"
                      << "format ascii 1.0\n"
-                     << "comment Mesh for SPARK VIO\n"
+                     << "comment Mesh for SPARK VIO at timestamp " << timestamp
+                     << "\n"
                      << "element vertex " << vertex_count << "\n"
                      << "property float x\n"
                      << "property float y\n"
