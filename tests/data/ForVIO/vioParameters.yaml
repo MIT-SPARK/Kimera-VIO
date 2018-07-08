@@ -22,12 +22,13 @@ degeneracyMode: 2
 smartNoiseSigma: 5
 monoNoiseSigma: 6 # For RegularVio only
 monoNormType: 0 # For RegularVio only
+monoNormParam: 0 # For RegularVio only
 stereoNoiseSigma: 3 # For Regularvio only
 stereoNormType: 0 # For RegularVio only
+stereoNormParam: 0 # For RegularVio only
 regularityNoiseSigma: 0.3 # For RegularVio only
-huberParam: 2.2 # For RegularVio only
-tukeyParam: 5.1 # For RegularVio only
 regularityNormType: 1 # For RegularVio only
+regularityNormParam: 5.1 # For RegularVio only
 rankTolerance: 2.1
 landmarkDistanceThreshold: 10.2
 outlierRejection: 3.2

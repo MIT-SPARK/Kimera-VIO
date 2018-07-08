@@ -101,7 +101,8 @@ RegularVioBackEnd::RegularVioBackEnd(
 
   selectNormType(&mono_noise_,
                  gaussian_dim_2,
-                 vio_params_.monoNormType_);
+                 vio_params_.monoNormType_,
+                 vio_params_.monoNormParam_);
 
   // Set type of stereo_noise_ for generic stereo projection factors.
   gtsam::SharedNoiseModel gaussian_dim_3 =
@@ -109,7 +110,8 @@ RegularVioBackEnd::RegularVioBackEnd(
 
   selectNormType(&stereo_noise_,
                  gaussian_dim_3,
-                 vio_params_.stereoNormType_);
+                 vio_params_.stereoNormType_,
+                 vio_params_.stereoNormParam_);
 
   // Set type of regularity noise for point plane factors.
   gtsam::SharedNoiseModel gaussian_dim_1 =
@@ -117,7 +119,8 @@ RegularVioBackEnd::RegularVioBackEnd(
 
   selectNormType(&point_plane_regularity_noise_,
                  gaussian_dim_1,
-                 vio_params_.regularityNormType_);
+                 vio_params_.regularityNormType_,
+                 vio_params_.regularityNormParam_);
 
   mono_cal_ = boost::make_shared<Cal3_S2>(stereo_cal_->calibration());
   CHECK(mono_cal_->equals(stereo_cal_->calibration()))
@@ -1607,7 +1610,8 @@ void RegularVioBackEnd::deleteNewSlots(
 void RegularVioBackEnd::selectNormType(
     gtsam::SharedNoiseModel* noise_model_output,
     const gtsam::SharedNoiseModel& noise_model_input,
-    const size_t& norm_type) {
+    const size_t& norm_type,
+    const double& norm_type_parameter) {
   CHECK_NOTNULL(noise_model_output);
   switch (norm_type) {
     case 0: {
@@ -1617,22 +1621,22 @@ void RegularVioBackEnd::selectNormType(
     }
     case 1: {
       LOG(INFO) << "Using Huber norm, with parameter value: "
-                << vio_params_.huberParam_;
+                << norm_type_parameter;
       *noise_model_output =
           gtsam::noiseModel::Robust::Create(
             gtsam::noiseModel::mEstimator::Huber::Create(
-              vio_params_.huberParam_,
+              norm_type_parameter,
               gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
             noise_model_input);
       break;
     }
     case 2: {
       LOG(INFO) << "Using Tukey norm, with parameter value: "
-                << vio_params_.tukeyParam_;
+                << norm_type_parameter;
       *noise_model_output=
           gtsam::noiseModel::Robust::Create(
             gtsam::noiseModel::mEstimator::Tukey::Create(
-              vio_params_.tukeyParam_,
+              norm_type_parameter,
               gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
             noise_model_input); //robust
       break;

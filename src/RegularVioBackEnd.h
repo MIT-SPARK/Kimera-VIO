@@ -174,7 +174,8 @@ private:
   void selectNormType(
       gtsam::SharedNoiseModel* noise_model_output,
       const gtsam::SharedNoiseModel& noise_model_input,
-      const size_t& norm_type);
+      const size_t& norm_type,
+      const double& norm_type_parameter);
 
   /* ------------------------------------------------------------------------ */
   // Extract all lmk ids, wo repetition, from the set of planes.
