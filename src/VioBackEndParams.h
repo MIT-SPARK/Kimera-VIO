@@ -58,11 +58,12 @@ public:
       // TODO inherit from this for regularVIO backend
       const double monoNoiseSigma = 3, // for regularVioBackEnd only.
       const size_t monoNormType = 0, // for regularVioBackEnd only.
+      const double monoNormParam = 0, // for regularVioBackEnd only.
       const double stereoNoiseSigma = 3, // for regularVioBackEnd only.
       const size_t stereoNormType = 0, // for regularVioBackEnd only.
+      const double stereoNormParam = 0, // for regularVioBackEnd only.
       const double regularityNoiseSigma = 0.1, // for regularVioBackEnd only.
-      const double huberParam = 1.345, // for regularVioBackEnd only.
-      const double tukeyParam = 4.6851, // for regularVioBackEnd only.
+      const double regularityNormParam = 4.6851, // for regularVioBackEnd only.
       const size_t regularityNormType = 2, // for regularVioBackEnd only. 0: norm 2, 1: Huber, 2: Tukey.
       const double rankTolerance = 1, // we might also use 0.1
       const double landmarkDistanceThreshold = 20, // max distance to triangulate point in meters
@@ -90,7 +91,7 @@ public:
   linearizationMode_(linMode), degeneracyMode_(degMode),
   smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma), regularityNoiseSigma_(regularityNoiseSigma),
   monoNormType_(monoNormType), stereoNormType_(stereoNormType),
-  huberParam_(huberParam), tukeyParam_(tukeyParam), rankTolerance_(rankTolerance),
+  monoNormParam_(monoNormParam), stereoNormParam_(stereoNormParam), regularityNormParam_(regularityNormParam), rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
   retriangulationThreshold_(retriangulationThreshold), regularityNormType_(regularityNormType),
   addBetweenStereoFactors_(addBetweenStereoFactors),betweenRotationPrecision_(betweenRotationPrecision), betweenTranslationPrecision_(betweenTranslationPrecision),
@@ -115,7 +116,7 @@ public:
   gtsam::DegeneracyMode degeneracyMode_;
   double smartNoiseSigma_, monoNoiseSigma_, stereoNoiseSigma_, regularityNoiseSigma_;
   int monoNormType_, stereoNormType_;
-  double huberParam_, tukeyParam_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
+  double monoNormParam_, stereoNormParam_, regularityNormParam_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
   int regularityNormType_;
   bool addBetweenStereoFactors_;
   double betweenRotationPrecision_, betweenTranslationPrecision_;
@@ -214,16 +215,18 @@ public:
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNoiseSigma_;
     file_handle = fs["monoNormType"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNormType_;
+    file_handle = fs["monoNormParam"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNormParam_;
     file_handle = fs["stereoNoiseSigma"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNoiseSigma_;
     file_handle = fs["stereoNormType"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNormType_;
+    file_handle = fs["stereoNormParam"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNormParam_;
     file_handle = fs["regularityNoiseSigma"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNoiseSigma_;
-    file_handle = fs["huberParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> huberParam_;
-    file_handle = fs["tukeyParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> tukeyParam_;
+    file_handle = fs["regularityNormParam"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNormParam_;
     file_handle = fs["regularityNormType"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNormType_;
     file_handle = fs["rankTolerance"];
@@ -296,8 +299,9 @@ public:
         (fabs(stereoNoiseSigma_ - vp2.stereoNoiseSigma_) <= tol) &&
         (stereoNormType_ == vp2.stereoNormType_) &&
         (fabs(regularityNoiseSigma_ - vp2.regularityNoiseSigma_) <= tol) &&
-        (fabs(huberParam_ - vp2.huberParam_) <= tol) &&
-        (fabs(tukeyParam_ - vp2.tukeyParam_) <= tol) &&
+        (fabs(monoNormParam_ - vp2.monoNormParam_) <= tol) &&
+        (fabs(stereoNormParam_ - vp2.stereoNormParam_) <= tol) &&
+        (fabs(regularityNormParam_ - vp2.regularityNormParam_) <= tol) &&
         (regularityNormType_ == vp2.regularityNormType_) &&
         (fabs(rankTolerance_ - vp2.rankTolerance_) <= tol) &&
         (fabs(landmarkDistanceThreshold_ - vp2.landmarkDistanceThreshold_) <= tol) &&
