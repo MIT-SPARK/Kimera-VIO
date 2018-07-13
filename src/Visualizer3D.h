@@ -55,7 +55,7 @@ public:
     //window_.setViewerPose(cam_pose);
     window_.setWindowPosition(Size(3*1861+1080/2, 2212/2));
     window_.setWindowSize(Size(1861, 2056));
-    window_.setBackgroundColor(background_color_);
+    //window_.setBackgroundColor(background_color_);
     window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
 
