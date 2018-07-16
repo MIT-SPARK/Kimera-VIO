@@ -26,7 +26,10 @@ DEFINE_int32(mesh_shading, 0,
              "Mesh shading:\n 0: Flat, 1: Gouraud, 2: Phong");
 DEFINE_int32(mesh_representation, 1,
              "Mesh representation:\n 0: Points, 1: Wireframe, 2: Surface");
+DEFINE_bool(set_mesh_ambient, false, "Whether to use lighting for the mesh.");
+DEFINE_bool(set_mesh_lighting, false, "Whether to use lighting for the mesh.");
 DEFINE_bool(log_mesh, false, "Log the mesh at time horizon.");
+DEFINE_bool(log_accumulated_mesh, false, "Accumulate the mesh when logging.");
 
 namespace VIO {
 
@@ -280,8 +283,8 @@ public:
         break;
       }
     }
-    mesh.setRenderingProperty(cv::viz::AMBIENT, false);
-    mesh.setRenderingProperty(cv::viz::LIGHTING, false);
+    mesh.setRenderingProperty(cv::viz::AMBIENT, FLAGS_set_mesh_ambient);
+    mesh.setRenderingProperty(cv::viz::LIGHTING, FLAGS_set_mesh_lighting);
     mesh.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, true);
 
     // Plot mesh.
