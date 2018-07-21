@@ -217,7 +217,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   void visualizeMesh3D(const cv::Mat& mapPoints3d, const cv::Mat& polygonsMesh) {
-    cv::Mat colors (mapPoints3d.rows, 1, CV_8UC3, cv::viz::Color::gray());
+    cv::Mat colors (0, 1, CV_8UC3, cv::viz::Color::gray()); // Do not color mesh.
     visualizeMesh3D(mapPoints3d, colors, polygonsMesh);
   }
 
@@ -227,17 +227,26 @@ public:
   void visualizeMesh3D(const cv::Mat& map_points_3d, const cv::Mat& colors,
                        const cv::Mat& polygons_mesh) {
     // Check data
-    CHECK_EQ(map_points_3d.rows, colors.rows) << "Map points and Colors should "
-                                                 "have same number of rows. One"
-                                                 " color per map point.";
+    bool color_mesh = false;
+    if (colors.rows != 0) {
+      CHECK_EQ(map_points_3d.rows, colors.rows) << "Map points and Colors should "
+                                                   "have same number of rows. One"
+                                                   " color per map point.";
+      LOG(ERROR) << "Coloring mesh!";
+      color_mesh = true;
+    }
+
     // No points/mesh to visualize.
     if (map_points_3d.rows == 0 ||
         polygons_mesh.rows == 0) {
       return;
     }
 
-    // Create a cloud widget.
-    cv::viz::WMesh mesh(map_points_3d.t(), polygons_mesh, colors.t());
+    // Create a mesh widget.
+    cv::viz::WMesh mesh (map_points_3d.t(), polygons_mesh);
+    if (color_mesh) {
+      mesh = cv::viz::WMesh(map_points_3d.t(), polygons_mesh, colors.t());
+    }
 
     // Decide mesh shading style.
     switch (FLAGS_mesh_shading) {
@@ -254,7 +263,6 @@ public:
         break;
       }
       default: {
-        mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_GOURAUD);
         break;
       }
     }
@@ -278,8 +286,6 @@ public:
         break;
       }
       default: {
-        mesh.setRenderingProperty(cv::viz::REPRESENTATION,
-                                  cv::viz::REPRESENTATION_SURFACE);
         break;
       }
     }
@@ -309,7 +315,7 @@ public:
         const cv::Mat& map_points_3d,
         const cv::Mat& polygons_mesh,
         const bool& color_mesh = false,
-        const double& timestamp = 0.0) {
+        const Timestamp& timestamp = 0.0) {
     if (color_mesh) {
       // Colour the mesh.
       cv::Mat colors;
@@ -318,7 +324,8 @@ public:
       visualizeMesh3D(map_points_3d, colors, polygons_mesh);
       // Log the mesh.
       if (FLAGS_log_mesh) {
-        logMesh(map_points_3d, colors, polygons_mesh, timestamp);
+        logMesh(map_points_3d, colors, polygons_mesh, timestamp,
+                FLAGS_log_accumulated_mesh);
       }
     } else {
       // Visualize the mesh with same colour.
@@ -696,12 +703,22 @@ private:
   /* ------------------------------------------------------------------------ */
   // Log mesh to ply file.
   void logMesh(const cv::Mat& map_points_3d, const cv::Mat& colors,
-               const cv::Mat& polygons_mesh, const double& timestamp) {
+               const cv::Mat& polygons_mesh, const Timestamp& timestamp,
+               bool log_accumulated_mesh = false) {
     /// Log the mesh in a ply file.
     LoggerMatlab logger;
-    logger.openLogFiles(10);
-    logger.logMesh(map_points_3d, colors, polygons_mesh, timestamp);
-    logger.closeLogFiles(10);
+    static Timestamp last_timestamp = timestamp;
+    static const Timestamp first_timestamp = timestamp;
+    if ((timestamp - last_timestamp) > 6500000000) { // Log every 6 seconds approx. (a little bit more than time-horizon)
+      LOG(WARNING) << "Logging mesh every (ns) = " << timestamp - last_timestamp;
+      logger.openLogFiles(10, "\output_mesh_" +
+                          std::to_string(timestamp - first_timestamp) + ".ply",
+                          log_accumulated_mesh);
+      logger.logMesh(map_points_3d, colors, polygons_mesh, timestamp,
+                     log_accumulated_mesh);
+      logger.closeLogFiles(10);
+      last_timestamp = timestamp;
+    }
   }
 
   /* ------------------------------------------------------------------------ */
@@ -823,6 +840,7 @@ private:
     toggleFreezeScreenKeyboardCallback(event.action, event.code, *window);
     getViewerPoseKeyboardCallback(event.action, event.code, *window);
     getCurrentWindowSizeKeyboardCallback(event.action, event.code, *window);
+    getScreenshot(event.action, event.code, *window);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -877,6 +895,24 @@ private:
       }
     }
   }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to get screenshot of current windodw.
+  static void getScreenshot(
+      const viz::KeyboardEvent::Action& action,
+      const uchar code,
+      viz::Viz3d& window) {
+    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
+      if (code == 's') {
+        static int i = 0;
+        std::string filename = "screenshot_3d_window" + std::to_string(i);
+        LOG(WARNING) << "Pressing " << code << " takes a screenshot of the "
+                                               "window, saved in: " + filename;
+        window.saveScreenshot(filename);
+      }
+    }
+  }
+
 
 };
 } // namespace VIO
