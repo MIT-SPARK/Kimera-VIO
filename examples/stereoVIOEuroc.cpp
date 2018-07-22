@@ -65,6 +65,10 @@ DEFINE_bool(visualize_plane_label, true, "Enable plane label visualization.");
 DEFINE_bool(visualize_mesh_in_frustum, true, "Enable mesh visualization in "
                                              "camera frustum.");
 
+DEFINE_bool(show_groundtruth_pointcloud, true,
+            "Show ground truth point cloud of the scene, only available on "
+            "Euroc's Vicon dataset.");
+
 DEFINE_int32(viz_type, 0,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
   "1: POINTCLOUD_REPEATEDPOINTS, visualize VIO points as point clouds (points "
@@ -638,6 +642,15 @@ int main(int argc, char *argv[]) {
             if (FLAGS_visualize_point_cloud) {
               visualizer.visualizePoints3D(points_with_id_VIO_prev,
                                            lmk_id_to_lmk_type_map_prev);
+            }
+
+            if (FLAGS_show_groundtruth_pointcloud) {
+              static bool visualize_ply_mesh_once = true;
+              if (visualize_ply_mesh_once) {
+                visualizer.visualizePlyMesh(
+                      "/home/tonirv/datasets/EuRoC/V1_01_easy/mav0/pointcloud0/data.ply");
+                visualize_ply_mesh_once = false;
+              }
             }
 
             if (FLAGS_visualize_convex_hull) {
