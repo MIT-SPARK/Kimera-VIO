@@ -62,6 +62,11 @@ DEFINE_bool(do_double_association, true,
             "Do double plane association of backend plane with multiple "
             "segmented planes. Otherwise search for another possible "
             "backend plane for the segmented plane.");
+DEFINE_bool(only_associate_a_polygon_to_a_single_plane, true,
+            "Limit association of a particular polygon to a single plane. "
+            "Otherwise, a polygon can be associated to different planes "
+            " depending on the tolerance given by the thresholds set for "
+            "association.");
 
 // Segmentation.
 DEFINE_double(normal_tolerance_horizontal_surface, 0.011,
@@ -717,12 +722,14 @@ void Mesher::segmentPlanesInMesh(
       ////////////////////////// Update seed planes ////////////////////////////
       // Update seed_planes lmk_ids field with ids of vertices of polygon if the
       // polygon is on the plane.
-      bool is_polygon_on_a_plane = updatePlanesLmkIdsFromPolygon(
-                                     seed_planes, polygon,
-                                     i, triangle_normal,
-                                     normal_tolerance_polygon_plane_association,
-                                     distance_tolerance_polygon_plane_association,
-                                     points_with_id_vio);
+      bool is_polygon_on_a_plane =
+          updatePlanesLmkIdsFromPolygon(
+            seed_planes, polygon,
+            i, triangle_normal,
+            normal_tolerance_polygon_plane_association,
+            distance_tolerance_polygon_plane_association,
+            points_with_id_vio,
+            FLAGS_only_associate_a_polygon_to_a_single_plane);
 
       ////////////////// Build Histogram for new planes ////////////////////////
       /// Values for Z Histogram.///////////////////////////////////////////////
@@ -826,12 +833,14 @@ const {
     if (calculateNormal(p1, p2, p3, &triangle_normal)) {
       // Loop over newly segmented planes, and update lmk ids field if
       // the current polygon is on the plane.
-      updatePlanesLmkIdsFromPolygon(planes,
-                                    polygon,
-                                    i, triangle_normal,
-                                    normal_tolerance,
-                                    distance_tolerance,
-                                    points_with_id_vio);
+      updatePlanesLmkIdsFromPolygon(
+            planes,
+            polygon,
+            i, triangle_normal,
+            normal_tolerance,
+            distance_tolerance,
+            points_with_id_vio,
+            FLAGS_only_associate_a_polygon_to_a_single_plane);
     }
   }
 }
