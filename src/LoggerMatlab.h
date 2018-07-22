@@ -53,7 +53,8 @@ public:
   timing_loggerFrontend_;
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void openLogFiles(int i = -1);
+  void openLogFiles(int i = -1, const string &output_file_name = "",
+                    bool open_file_in_append_mode = false);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void closeLogFiles(int i = -1);
@@ -75,7 +76,7 @@ public:
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logMesh(const cv::Mat& lmks, const cv::Mat& colors, const cv::Mat& mesh,
-               const double& timestamp);
+               const double& timestamp, bool log_accumulated_mesh = false);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(const ETHDatasetParser& dataset,

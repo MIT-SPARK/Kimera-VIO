@@ -25,44 +25,69 @@ LoggerMatlab::LoggerMatlab()
   : output_path_(FLAGS_output_path) {}
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void LoggerMatlab::openLogFiles(int i) {
+void LoggerMatlab::openLogFiles(int i, const std::string& output_file_name,
+                                bool open_file_in_append_mode) {
   // Store output data and debug info:
   if (i == 0 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output.txt",
-                          outputFile_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output.txt":output_file_name),
+                          outputFile_, open_file_in_append_mode);
   if (i == 1 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_posesVIO.txt",
-                          outputFile_posesVIO_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_posesVIO.txt":output_file_name),
+                          outputFile_posesVIO_, open_file_in_append_mode);
   if (i == 1 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_posesVIO.csv",
-                          outputFile_posesVIO_csv_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_posesVIO.csv" : output_file_name),
+                          outputFile_posesVIO_csv_, open_file_in_append_mode);
   if (i == 2 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_posesGT.txt",
-                          outputFile_posesGT_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_posesGT.txt" : output_file_name),
+                          outputFile_posesGT_, open_file_in_append_mode);
   if (i == 3 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_landmarks.txt",
-                          outputFile_landmarks_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_landmarks.txt" : output_file_name),
+                          outputFile_landmarks_, open_file_in_append_mode);
   if (i == 4 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_normals.txt",
-                          outputFile_normals_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_normals.txt" : output_file_name),
+                          outputFile_normals_, open_file_in_append_mode);
   if (i == 5 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_smartFactors.txt",
-                          outputFile_smartFactors_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_smartFactors.txt" : output_file_name),
+                          outputFile_smartFactors_, open_file_in_append_mode);
   if (i == 6 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_timingVIO.txt",
-                          outputFile_timingVIO_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_timingVIO.txt" : output_file_name),
+                          outputFile_timingVIO_, open_file_in_append_mode);
   if (i == 7 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_timingTracker.txt",
-                          outputFile_timingTracker_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_timingTracker.txt" : output_file_name),
+                          outputFile_timingTracker_, open_file_in_append_mode);
   if (i == 8 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_statsTracker.txt",
-                          outputFile_statsTracker_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_statsTracker.txt" : output_file_name),
+                          outputFile_statsTracker_, open_file_in_append_mode);
   if (i == 9 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_statsFactors.txt",
-                          outputFile_statsFactors_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_statsFactors.txt" : output_file_name),
+                          outputFile_statsFactors_, open_file_in_append_mode);
   if (i == 10 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + "/output_mesh.ply",
-                          outputFile_mesh_);
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_mesh.ply" : output_file_name),
+                          outputFile_mesh_, open_file_in_append_mode);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -165,27 +190,33 @@ void LoggerMatlab::logNormals(const std::vector<cv::Point3f>& normals) {
 void LoggerMatlab::logMesh(const cv::Mat& lmks,
                            const cv::Mat& colors,
                            const cv::Mat& mesh,
-                           const double& timestamp) {
+                           const double& timestamp,
+                           bool log_accumulated_mesh) {
   if (outputFile_mesh_) {
     // Number of vertices in the mesh.
     int vertex_count = lmks.rows;
     // Number of faces in the mesh.
     int faces_count = std::round(mesh.rows / 4);
-    // First, write header.
-    outputFile_mesh_ << "ply\n"
-                     << "format ascii 1.0\n"
-                     << "comment Mesh for SPARK VIO at timestamp " << timestamp
-                     << "\n"
-                     << "element vertex " << vertex_count << "\n"
-                     << "property float x\n"
-                     << "property float y\n"
-                     << "property float z\n"
-                     << "property uchar red\n" // Start of vertex color.
-                     << "property uchar green\n"
-                     << "property uchar blue\n"
-                     << "element face " << faces_count << "\n"
-                     << "property list uchar int vertex_indices\n"
-                     << "end_header\n";
+    // First, write header, but only once.
+    static bool is_header_written = false;
+    if (!is_header_written || !log_accumulated_mesh) {
+      outputFile_mesh_ << "ply\n"
+                       << "format ascii 1.0\n"
+                       << "comment Mesh for SPARK VIO at timestamp " << timestamp
+                       << "\n"
+                       << "element vertex " << vertex_count << "\n"
+                       << "property float x\n"
+                       << "property float y\n"
+                       << "property float z\n"
+                       << "property uchar red\n" // Start of vertex color.
+                       << "property uchar green\n"
+                       << "property uchar blue\n"
+                       << "element face " << faces_count << "\n"
+                       << "property list uchar int vertex_indices\n"
+                       << "end_header\n";
+      is_header_written = true;
+    }
+
     // Second, log vertices.
     for (int i = 0; i < lmks.rows; i++) {
       outputFile_mesh_ << lmks.at<float>(i, 0) << " " // Log vertices x y z.
