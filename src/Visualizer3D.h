@@ -298,6 +298,17 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
+  ///Visualize a PLY from filename (absolute path).
+  void visualizePlyMesh(const std::string& filename) {
+   cv::viz::Widget cloud;
+   LOG(INFO) << "Showing ground truth mesh: " << filename;
+   cloud.fromPlyFile(filename);
+
+   //// Plot mesh.
+   window_.showWidget("Cloud from ply", cloud);
+  }
+
+  /* ------------------------------------------------------------------------ */
   ///Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   /// Each triangle is colored depending on the cluster it is in, or gray if it
   /// is in no cluster.
