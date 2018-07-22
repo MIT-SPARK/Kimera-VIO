@@ -846,7 +846,8 @@ bool Mesher::updatePlanesLmkIdsFromPolygon(
     const size_t& triangle_id,
     const cv::Point3f& triangle_normal,
     double normal_tolerance, double distance_tolerance,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+    bool only_associate_a_polygon_to_a_single_plane)
 const {
   CHECK_NOTNULL(seed_planes);
   bool is_polygon_on_a_plane = false;
@@ -879,6 +880,9 @@ const {
       // sending this polygon to segmentation and segment the same plane
       // again.
       is_polygon_on_a_plane = true;
+      if (only_associate_a_polygon_to_a_single_plane) {
+        break;
+      }
     }
   }
   return is_polygon_on_a_plane;
