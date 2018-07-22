@@ -41,8 +41,11 @@ namespace VIO {
 /* -------------------------------------------------------------------------- */
 // Open files with name output_filename, and checks that it is valid
 void UtilsOpenCV::OpenFile(const std::string& output_filename,
-                           std::ofstream& outputFile) {
-  outputFile.open(output_filename.c_str()); outputFile.precision(20);
+                           std::ofstream& outputFile,
+                           bool append_mode) {
+  outputFile.open(output_filename.c_str(), append_mode?std::ios_base::app:
+                                                       std::ios_base::out);
+  outputFile.precision(20);
   if (!outputFile.is_open()){
     std::cout << "Cannot open file: " << output_filename << std::endl;
     throw std::runtime_error("OpenFile: cannot open the file!!!");
