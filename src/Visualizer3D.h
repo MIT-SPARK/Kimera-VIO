@@ -57,10 +57,16 @@ public:
     //Vec3d cam_focal_point(1.0,0.0,0.0);
     //Vec3d cam_y_dir(-1.0,0.0,0.0);
     //Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
-    //window_.setViewerPose(cam_pose);
+
+    Matx<float, 4, 4> affine_mat (0.5970806335215125, -0.2511873864393509, 0.7618396248340706, -4.65035521115159,
+                                  -0.8021577964418465, -0.1942169917289065, 0.5646438078393627, -2.292167985863969,
+                                  0.006130797754819367, -0.9482534771977069, -0.3174551248623141, 3.340255621458009,
+                                  0, 0, 0, 1);
+    Affine3f cam_pose (affine_mat);
+    window_.setViewerPose(cam_pose);
     window_.setWindowPosition(Size(3*1861+1080/2, 2212/2));
     window_.setWindowSize(Size(1861, 2056));
-    //window_.setBackgroundColor(background_color_);
+    window_.setBackgroundColor(background_color_);
     window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
 
@@ -471,6 +477,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Visualize trajectory.
+  // TODO visualize frustums for cameras in time horizon, use WTrajectoryFrustums
   void visualizeTrajectory3D(const cv::Mat* frustum_image = nullptr) {
     if(trajectoryPoses3d_.size() == 0) // no points to visualize
       return;
