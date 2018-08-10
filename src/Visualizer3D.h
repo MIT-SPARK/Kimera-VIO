@@ -30,6 +30,8 @@ DEFINE_bool(set_mesh_ambient, false, "Whether to use lighting for the mesh.");
 DEFINE_bool(set_mesh_lighting, false, "Whether to use lighting for the mesh.");
 DEFINE_bool(log_mesh, false, "Log the mesh at time horizon.");
 DEFINE_bool(log_accumulated_mesh, false, "Accumulate the mesh when logging.");
+DEFINE_int32(displayed_trajectory_length, 50, "Set length of plotted trajectory."
+                                  "If -1 then all the trajectory is plotted.");
 
 namespace VIO {
 
@@ -687,9 +689,10 @@ public:
   // Add pose to the previous trajectory.
   void addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam){
     trajectoryPoses3d_.push_back(UtilsOpenCV::Pose2Affine3f(current_pose_gtsam));
-    static constexpr size_t trajectory_size = 50;
-    while (trajectoryPoses3d_.size() > trajectory_size) {
-      trajectoryPoses3d_.pop_front();
+    if (FLAGS_displayed_trajectory_length > 0) {
+      while (trajectoryPoses3d_.size() > FLAGS_displayed_trajectory_length) {
+        trajectoryPoses3d_.pop_front();
+      }
     }
   }
 
