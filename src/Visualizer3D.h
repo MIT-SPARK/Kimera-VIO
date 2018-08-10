@@ -522,6 +522,15 @@ public:
       //window_.setViewerPose(viewer_in_world_coord);
     }
 
+    // Create a Trajectory frustums widget.
+    std::vector<cv::Affine3f> trajectory_frustums (
+          trajectoryPoses3d_.end() -
+          std::min(trajectoryPoses3d_.size(), (size_t)10),
+          trajectoryPoses3d_.end());
+    cv::viz::WTrajectoryFrustums trajectory_frustums_widget (trajectory_frustums, K,
+                                                             0.2, cv::viz::Color::red());
+    window_.showWidget("Trajectory Frustums", trajectory_frustums_widget);
+
     // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
     std::vector<cv::Affine3f> trajectory (trajectoryPoses3d_.begin(),
                                           trajectoryPoses3d_.end());
