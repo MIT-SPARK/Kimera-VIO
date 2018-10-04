@@ -58,12 +58,12 @@ public:
     //Vec3d cam_y_dir(-1.0,0.0,0.0);
     //Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
 
-    Matx<float, 4, 4> affine_mat (0.5970806335215125, -0.2511873864393509, 0.7618396248340706, -4.65035521115159,
-                                  -0.8021577964418465, -0.1942169917289065, 0.5646438078393627, -2.292167985863969,
-                                  0.006130797754819367, -0.9482534771977069, -0.3174551248623141, 3.340255621458009,
+    Matx<float, 4, 4> affine_mat (-0.8641128994034195, 0.2019955488442005, -0.4609844849143474, 2.908219292546002,
+                                  0.4987743894671546, 0.4662154890376632, -0.7306621833604362, 4.09172591866712,
+                                  0.06732759832552458, -0.8613018727650037, -0.5036130245289671, 4.298938071390474,
                                   0, 0, 0, 1);
     Affine3f cam_pose (affine_mat);
-    window_.setViewerPose(cam_pose);
+    //window_.setViewerPose(cam_pose);
     window_.setWindowPosition(Size(3*1861+1080/2, 2212/2));
     window_.setWindowSize(Size(1861, 2056));
     window_.setBackgroundColor(background_color_);
@@ -720,6 +720,14 @@ public:
     window_.spinOnce(wait_time, force_redraw);
   }
 
+  /* ------------------------------------------------------------------------ */
+  // Get a screenshot of the window.
+  void getScreenshot(const std::string& filename) {
+    LOG(WARNING) << "Taking a screenshot of the window, saved in: " +
+                    filename;
+    window_.saveScreenshot(filename);
+  }
+
 private:
   cv::viz::Viz3d window_;
   std::deque<cv::Affine3f> trajectoryPoses3d_;
@@ -760,8 +768,8 @@ private:
                            const cv::Mat& polygons_mesh,
                            cv::Mat* colors) {
     CHECK_NOTNULL(colors);
-    *colors = cv::Mat(map_points_3d.rows, 1, CV_8UC3,
-                      cv::viz::Color::gray());
+    *colors = cv::Mat(map_points_3d.rows, 1, CV_8UC3, cv::viz::Color::gray());
+
     // The code below assumes triangles as polygons.
     static constexpr bool log_landmarks = false;
     cv::Mat points;
@@ -870,7 +878,7 @@ private:
     toggleFreezeScreenKeyboardCallback(event.action, event.code, *window);
     getViewerPoseKeyboardCallback(event.action, event.code, *window);
     getCurrentWindowSizeKeyboardCallback(event.action, event.code, *window);
-    getScreenshot(event.action, event.code, *window);
+    getScreenshotCallback(event.action, event.code, *window);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -928,7 +936,7 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to get screenshot of current windodw.
-  static void getScreenshot(
+  static void getScreenshotCallback(
       const viz::KeyboardEvent::Action& action,
       const uchar code,
       viz::Viz3d& window) {
@@ -942,7 +950,6 @@ private:
       }
     }
   }
-
 
 };
 } // namespace VIO
