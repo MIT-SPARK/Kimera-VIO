@@ -30,7 +30,11 @@ DEFINE_bool(reduce_mesh_to_time_horizon, true, "Reduce mesh vertices to the "
 
 // Visualization.
 DEFINE_bool(visualize_histogram_1D, false, "Visualize 1D histogram.");
+DEFINE_bool(log_histogram_1D, false, "Log 1D histogram to file."
+                                     " It logs the raw and smoothed histogram.");
 DEFINE_bool(visualize_histogram_2D, false, "Visualize 2D histogram.");
+DEFINE_bool(log_histogram_2D, false, "Log 2D histogram to file."
+                                     " It logs the raw and smoothed histogram.");
 DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");
 DEFINE_bool(visualize_mesh_2d_filtered, false, "Visualize mesh 2D filtered.");
 
@@ -748,13 +752,11 @@ void Mesher::segmentPlanesInMesh(
         z_components.push_back(p1.z);
         z_components.push_back(p2.z);
         z_components.push_back(p3.z);
-      }
-
-      /// Values for walls Histogram.///////////////////////////////////////////
-      if ((FLAGS_only_use_non_clustered_points?
-           !is_polygon_on_a_plane : true) &&
-          isNormalPerpendicularToAxis(vertical, triangle_normal,
-                                      normal_tolerance_walls)) {
+      } else if ((FLAGS_only_use_non_clustered_points?
+                  !is_polygon_on_a_plane : true) &&
+                 isNormalPerpendicularToAxis(vertical, triangle_normal,
+                                             normal_tolerance_walls)) {
+        /// Values for walls Histogram./////////////////////////////////////////
         // WARNING if we do not normalize, we'll have two peaks for the same
         // plane, no?
         // Store theta.
@@ -937,7 +939,8 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   CHECK_NOTNULL(plane_id);
   ////////////////////////////// 2D Histogram //////////////////////////////////
   VLOG(10) << "Starting to calculate 2D histogram...";
-  hist_2d_.calculateHistogram(walls);
+  hist_2d_.calculateHistogram(walls,
+                              FLAGS_log_histogram_2D);
   VLOG(10) << "Finished to calculate 2D histogram.";
 
   /// Added by me
@@ -951,7 +954,8 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
                             FLAGS_hist_2d_nr_of_local_max,
                             FLAGS_hist_2d_min_support,
                             FLAGS_hist_2d_min_dist_btw_local_max,
-                            FLAGS_visualize_histogram_2D);
+                            FLAGS_visualize_histogram_2D,
+                            FLAGS_log_histogram_2D);
   VLOG(10) << "Finished get local maximum for 2D histogram.";
 
   VLOG(0) << "# of peaks in 2D histogram = " << peaks2.size();
@@ -1002,17 +1006,19 @@ void Mesher::segmentHorizontalPlanes(
   CHECK_NOTNULL(plane_id);
   ////////////////////////////// 1D Histogram //////////////////////////////////
   VLOG(10) << "Starting calculate 1D histogram.";
-  z_hist_.calculateHistogram(z_components);
+  z_hist_.calculateHistogram(z_components,
+                             FLAGS_log_histogram_1D);
   VLOG(10) << "Finished calculate 1D histogram.";
 
   VLOG(10) << "Starting get local maximum for 1D.";
   static const cv::Size kernel_size (1, FLAGS_z_histogram_gaussian_kernel_size);
   std::vector<Histogram::PeakInfo> peaks =
       z_hist_.getLocalMaximum1D(kernel_size,
-                             FLAGS_z_histogram_window_size,
-                             FLAGS_z_histogram_peak_per,
-                             FLAGS_z_histogram_min_support,
-                             FLAGS_visualize_histogram_1D);
+                                FLAGS_z_histogram_window_size,
+                                FLAGS_z_histogram_peak_per,
+                                FLAGS_z_histogram_min_support,
+                                FLAGS_visualize_histogram_1D,
+                                FLAGS_log_histogram_1D);
   VLOG(10) << "Finished get local maximum for 1D.";
 
   LOG(WARNING) << "# of peaks in 1D histogram = " << peaks.size();
