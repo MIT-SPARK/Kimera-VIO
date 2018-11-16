@@ -19,16 +19,16 @@ initialGyroBiasSigma: 0.01
 #VISION PARAMETERS
 linearizationMode: 0
 degeneracyMode: 1
-smartNoiseSigma: 2
-monoNoiseSigma: 1.6 #0.4 # Only used in RegularVioBackEnd
-monoNormType: 0 # Only used in RegularVioBackEnd
-monoNormParam: 0 # Only used in RegularVioBackEnd
-stereoNoiseSigma: 1.6 #1.15 # Only used in RegularVioBackEnd
-stereoNormType: 0 # Only used in RegularVioBackEnd
-stereoNormParam: 0 # Only used in RegularVioBackEnd
+smartNoiseSigma: 3.25
+monoNoiseSigma: 1.8 #0.4 # Only used in RegularVioBackEnd
+monoNormType: 2 # Only used in RegularVioBackEnd
+monoNormParam: 4.6851 # Only used in RegularVioBackEnd
+stereoNoiseSigma: 1.8 #1.15 # Only used in RegularVioBackEnd
+stereoNormType: 2 # Only used in RegularVioBackEnd
+stereoNormParam: 4.6851 # Only used in RegularVioBackEnd
 regularityNoiseSigma: 0.03 # Only used in RegularVioBackEnd
-regularityNormType: 2 # Only used in RegularVioBackEnd
-regularityNormParam: 4.6851 # Only used in RegularVioBackEnd
+regularityNormType: 1 # Only used in RegularVioBackEnd
+regularityNormParam: 0.04 # Only used in RegularVioBackEnd
 rankTolerance: 1
 landmarkDistanceThreshold: 15
 outlierRejection: 8
