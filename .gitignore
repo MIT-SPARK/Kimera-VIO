@@ -5,6 +5,9 @@
 /scripts/*.txt
 /scripts/*.csv
 
+% Ignore VS code settings
+.vscode
+
 % Ignore logged mesh ply
 *.ply
 
