@@ -66,6 +66,7 @@ public:
     fs["intrinsics"] >> intrinsics_;
 
     // 4 parameters (read from file): distortion_model: radial-tangential
+    // TODO allow for different distortion models, at least equidistant as well!
     std::vector<double> distortion_coeff4_;
     distortion_coeff4_.clear();
     fs["distortion_coefficients"] >> distortion_coeff4_;
