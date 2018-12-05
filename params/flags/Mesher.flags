@@ -6,7 +6,9 @@
 
 # Visualization.
 --visualize_histogram_1D=false
+--log_histogram_1D=false
 --visualize_histogram_2D=false
+--log_histogram_2D=false
 --visualize_mesh_2d=false
 --visualize_mesh_2d_filtered=false
 
@@ -22,6 +24,7 @@
 --normal_tolerance_plane_plane_association=0.011
 --distance_tolerance_plane_plane_association=0.20
 --do_double_association=true
+--only_associate_a_polygon_to_a_single_plane=true
 
 # Segmentation.
 --normal_tolerance_horizontal_surface=0.035
