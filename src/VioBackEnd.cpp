@@ -29,10 +29,10 @@
 
 #include <glog/logging.h>
 #include <gflags/gflags.h>
-DEFINE_bool(debug_graph_before_opt, true,
+DEFINE_bool(debug_graph_before_opt, false,
             "Store factor graph before optimization for later printing if the "
             "optimization fails.");
-DEFINE_bool(process_cheirality, true,
+DEFINE_bool(process_cheirality, false,
             "Handle cheirality exception by removing problematic landmarks and "
             "re-running optimization.");
 DEFINE_int32(max_number_of_cheirality_exceptions, 5,

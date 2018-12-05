@@ -3,11 +3,11 @@
 --backend_type=1
 --regular_vio_backend_modality=4
 --deterministic_random_number_generator=true
---visualize=false
+--visualize=true
 --visualize_lmk_type=false
 --visualize_mesh=false
 --visualize_mesh_with_colored_polygon_clusters=false
---visualize_point_cloud=false
+--visualize_point_cloud=true
 --visualize_convex_hull=false
 --visualize_plane_constraints=false
 --visualize_planes=false

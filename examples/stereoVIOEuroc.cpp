@@ -42,17 +42,17 @@ DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
                                  "0: VioBackEnd\n"
                                  "1: RegularVioBackEnd");
 DEFINE_bool(visualize, true, "Enable overall visualization.");
-DEFINE_bool(visualize_lmk_type, true, "Enable landmark type visualization.");
-DEFINE_bool(visualize_mesh, true, "Enable mesh visualization.");
-DEFINE_bool(visualize_mesh_with_colored_polygon_clusters, true,
+DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
+DEFINE_bool(visualize_mesh, false, "Enable mesh visualization.");
+DEFINE_bool(visualize_mesh_with_colored_polygon_clusters, false,
             "Color the polygon clusters according to their cluster id.");
 DEFINE_bool(visualize_point_cloud, true, "Enable point cloud visualization.");
 DEFINE_bool(visualize_convex_hull, false, "Enable convex hull visualization.");
-DEFINE_bool(visualize_plane_constraints, true, "Enable plane constraints"
+DEFINE_bool(visualize_plane_constraints, false, "Enable plane constraints"
                                                " visualization.");
-DEFINE_bool(visualize_planes, true, "Enable plane visualization.");
-DEFINE_bool(visualize_plane_label, true, "Enable plane label visualization.");
-DEFINE_bool(visualize_mesh_in_frustum, true, "Enable mesh visualization in "
+DEFINE_bool(visualize_planes, false, "Enable plane visualization.");
+DEFINE_bool(visualize_plane_label, false, "Enable plane label visualization.");
+DEFINE_bool(visualize_mesh_in_frustum, false, "Enable mesh visualization in "
                                              "camera frustum.");
 
 DEFINE_int32(viz_type, 0,
@@ -586,10 +586,12 @@ int main(int argc, char *argv[]) {
                 W_Pose_camlkf_vio,
                 mesh_2d_img_ptr);
 
-          // Find regularities in the mesh.
+          // Find regularities in the mesh if we are using RegularVIO backend.
           // Currently only triangles in the ground floor.
-          mesher.clusterPlanesFromMesh(&planes,
-                                       points_with_id_VIO);
+          if (FLAGS_backend_type == 1) {
+            mesher.clusterPlanesFromMesh(&planes,
+                                         points_with_id_VIO);
+          }
 
           if (FLAGS_visualize) {
             VLOG(10) << "Starting mesh visualization...";
@@ -625,7 +627,7 @@ int main(int argc, char *argv[]) {
               }
             }
 
-            if (FLAGS_visualize_plane_constraints) {
+            if (FLAGS_backend_type == 1 && FLAGS_visualize_plane_constraints) {
               const gtsam::NonlinearFactorGraph& graph =
                   vioBackEnd->smoother_->getFactors();
               LandmarkIds lmk_ids_in_current_pp_factors;
