@@ -3,7 +3,7 @@
 # Fill the variables DATASET_PATH and USE_REGULAR_VIO.
 
 # Specify path of the EuRoC dataset.
-DATASET_PATH="/home/tonirv/datasets/EuRoC/V1_01_easy/"
+DATASET_PATH="/home/luca/data/euroc/V1_01_easy"
 
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
@@ -21,11 +21,11 @@ else
   while [ -n "$1" ]; do # while loop starts
       case "$1" in
         # Option -p, provides path to dataset.
-      -p) $DATASET_PATH="$2"
-          shift
-          echo "Using dataset at path: $DATASET_PATH" ;;
+      -p) DATASET_PATH=$2
+          echo "Using dataset at path: $DATASET_PATH"
+          shift ;;
         # Option -r, specifies that we want to use regular vio.
-      -r) $USE_REGULAR_VIO=1
+      -r) USE_REGULAR_VIO=1
           echo "Using Regular VIO!" ;;
       --)
           shift # The double dash which separates options from parameters
