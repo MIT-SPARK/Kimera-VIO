@@ -43,9 +43,9 @@ BACKEND_TYPE=0
 VIO_PARAMS_PATH=""
 TRACKER_PARAMS_PATH=""
 if [ $USE_REGULAR_VIO == 1 ]; then
-  $BACKEND_TYPE=1
-  $VIO_PARAMS_PATH="../params/vioParameters.yaml"
-  $TRACKER_PARAMS_PATH="../params/trackerParameters.yaml"
+  BACKEND_TYPE=1
+  VIO_PARAMS_PATH="../params/vioParameters.yaml"
+  TRACKER_PARAMS_PATH="../params/trackerParameters.yaml"
 fi
 
 # Change directory to parent path, in order to make this script
