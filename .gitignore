@@ -13,7 +13,6 @@
 
 % Remove recovery files from matlab.
 *~
-
 % Ignore media files
 *.png
 *.mp4

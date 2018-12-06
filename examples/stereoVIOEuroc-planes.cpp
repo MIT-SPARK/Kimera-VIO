@@ -41,16 +41,6 @@ DEFINE_bool(log_output, false, "Log output to matlab.");
 DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
                                  "0: VioBackEnd\n"
                                  "1: RegularVioBackEnd");
-DEFINE_int32(regular_vio_backend_modality, 4,
-             "Modality for regular Vio backend, currently supported:\n"
-             "0: Structureless (equiv to normal VIO)\n"
-             "1: Projection (as if it was a typical VIO backend with projection"
-             "factors\n"
-             "2: Structureless and projection, sets to projection factors the "
-             "structureless factors that are supposed to be in a regularity.\n"
-             "3: Projection and regularity, sets all structureless factors to"
-             "projection factors and adds regularity factors to a subset.\n"
-             "4: structureless, projection and regularity factors used.");
 DEFINE_bool(visualize, true, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
 DEFINE_bool(visualize_mesh, false, "Enable mesh visualization.");
@@ -64,10 +54,6 @@ DEFINE_bool(visualize_planes, false, "Enable plane visualization.");
 DEFINE_bool(visualize_plane_label, false, "Enable plane label visualization.");
 DEFINE_bool(visualize_mesh_in_frustum, false, "Enable mesh visualization in "
                                              "camera frustum.");
-
-DEFINE_bool(show_groundtruth_pointcloud, true,
-            "Show ground truth point cloud of the scene, only available on "
-            "Euroc's Vicon dataset.");
 
 DEFINE_int32(viz_type, 0,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
@@ -88,9 +74,6 @@ DEFINE_bool(deterministic_random_number_generator, false,
             "same sequence of pseudo-random numbers for every run (use it to "
             "have repeatable output). If false the random number generator "
             "will output a different sequence for each run.");
-DEFINE_int32(min_num_obs_for_mesher_points, 4,
-             "Minimum number of observations for a smart factor's landmark to "
-             "to be used as a 3d point to consider for the mesher");
 
 DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
                             "previous frames will not be used.");
@@ -167,10 +150,8 @@ void parseDatasetAndParams(ETHDatasetParser* dataset,
                  << " number of frames in dataset " << nr_images;
     // Skip last frames which are typically problematic
     // (IMU bumps, FOV occluded)...
-    static constexpr size_t skip_n_end_frames = 100;
-    *final_k = nr_images - skip_n_end_frames;
-    LOG(WARNING) << "Using final_k = " << *final_k << ", where we removed "
-                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
+    *final_k = nr_images - 100;
+    LOG(WARNING) << "Using final_k = " << *final_k;
   }
   CHECK(*final_k > *initial_k)
       << "Value for final_k (" << *final_k << ") is smaller than value for"
@@ -296,23 +277,12 @@ int main(int argc, char *argv[]) {
           break;
         }
         case 1: {
-          LOG(INFO) << "\e[1m Using Regular VIO with modality "
-                    << FLAGS_regular_vio_backend_modality << "\e[0m";
+          LOG(INFO) << "\e[1m Using Regular VIO. \e[0m";
           vioBackEnd = boost::make_shared<RegularVioBackEnd>(
-            stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
-            stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
-            stereoVisionFrontEnd.stereoFrame_km1_->baseline_,
-            vioParams, FLAGS_log_output,
-            static_cast<RegularVioBackEnd::BackendModality>(
-              FLAGS_regular_vio_backend_modality));
-          break;
-        }
-        default: {
-          LOG(FATAL) << "Requested backend type is not supported.\n"
-                     << "Currently supported backend types:\n"
-                     << "0: normal VIO\n"
-                     << "1: regular VIO\n"
-                     << " but requested backend: " << FLAGS_backend_type;
+           stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
+           stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
+           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams,
+                         FLAGS_log_output);
           break;
         }
       }
@@ -587,9 +557,13 @@ int main(int argc, char *argv[]) {
         case VisualizationType::MESH2DTo3Dsparse: {
           VLOG(10) << "Mesh2Dtype::MESH2DTo3Dsparse";
 
+          // only select points which have been tracked for minKfValidPoints keyframes
+          // If this is 0 it breaks!!!!!!!!!!!!!!!!!!!!!!
+          static constexpr int minKfValidPoints = 4;
+
           // Points_with_id_VIO contains all the points in the optimization,
           // (encoded as either smart factors or explicit values), potentially
-          // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
+          // restricting to points seen in at least minKfValidPoints keyframes
           // (TODO restriction is not enforced for projection factors).
           VioBackEnd::PointsWithIdMap points_with_id_VIO;
           VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
@@ -597,12 +571,12 @@ int main(int argc, char *argv[]) {
             vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
                   &points_with_id_VIO,
                   &lmk_id_to_lmk_type_map,
-                  FLAGS_min_num_obs_for_mesher_points);
+                  minKfValidPoints);
           } else {
             vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
                   &points_with_id_VIO,
                   nullptr,
-                  FLAGS_min_num_obs_for_mesher_points);
+                  minKfValidPoints);
           }
 
           // Create mesh.
@@ -637,22 +611,12 @@ int main(int argc, char *argv[]) {
                     planes_prev,
                     vertices_mesh_prev,
                     polygons_mesh_prev,
-                    FLAGS_visualize_mesh_with_colored_polygon_clusters,
-                    timestamp_k);
+                    FLAGS_visualize_mesh_with_colored_polygon_clusters);
             }
 
             if (FLAGS_visualize_point_cloud) {
               visualizer.visualizePoints3D(points_with_id_VIO_prev,
                                            lmk_id_to_lmk_type_map_prev);
-            }
-
-            if (FLAGS_show_groundtruth_pointcloud) {
-              static bool visualize_ply_mesh_once = true;
-              if (visualize_ply_mesh_once) {
-                visualizer.visualizePlyMesh(
-                      "/home/tonirv/datasets/EuRoC/V1_01_easy/mav0/pointcloud0/data.ply");
-                visualize_ply_mesh_once = false;
-              }
             }
 
             if (FLAGS_visualize_convex_hull) {
@@ -834,14 +798,6 @@ int main(int argc, char *argv[]) {
 
       timestamp_lkf = timestamp_k;
     }
-
-    // To take a screenshot of the scene at the indicated frame.
-    //if (k >= 1206) {
-    //  std::string filename = "spr_overview.png";
-    //  visualizer.getScreenshot(filename);
-    //  // Exit.
-    //  break;
-    //}
 
     if (k == final_k - 1) {
       LOG(INFO) << "stereoVIOExample completed successfully!";

@@ -1,51 +1,84 @@
 #!/bin/bash
+###################################################################
 # Fill the variables DATASET_PATH and USE_REGULAR_VIO.
 
 # Specify path of the EuRoC dataset.
 DATASET_PATH="/home/luca/data/euroc/V1_01_easy"
 
-# 1 to use regular vio, 0 to use normal vio with default parameters.
+# Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
-
 ###################################################################
+
+# Parse Options.
+if [ $# -eq 0 ]; then
+  # If there is no options tell user what are the values we are using.
+  echo "Using dataset at path: $DATASET_PATH"
+  if [ $USE_REGULAR_VIO == 1 ]; then
+    echo "Using REGULAR VIO."
+  fi
+else
+  # Parse all the options.
+  while [ -n "$1" ]; do # while loop starts
+      case "$1" in
+        # Option -p, provides path to dataset.
+      -p) DATASET_PATH=$2
+          echo "Using dataset at path: $DATASET_PATH"
+          shift ;;
+        # Option -r, specifies that we want to use regular vio.
+      -r) USE_REGULAR_VIO=1
+          echo "Using Regular VIO!" ;;
+      --)
+          shift # The double dash which separates options from parameters
+          break
+          ;; # Exit the loop using break command
+      *) echo "Option $1 not recognized" ;;
+      esac
+      shift
+  done
+fi
+
+# No user input from this point on.
+# Unless user specified to use Regular VIO, run pipeline with default parameters.
+BACKEND_TYPE=0
+VIO_PARAMS_PATH=""
+TRACKER_PARAMS_PATH=""
+if [ $USE_REGULAR_VIO == 1 ]; then
+  BACKEND_TYPE=1
+  VIO_PARAMS_PATH="../params/vioParameters.yaml"
+  TRACKER_PARAMS_PATH="../params/trackerParameters.yaml"
+fi
+
 # Change directory to parent path, in order to make this script
 # independent of where we call it from.
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$parent_path"
 
+echo """ Launching:
+
+         ███████╗██████╗  █████╗ ██████╗ ██╗  ██╗    ██╗   ██╗██╗ ██████╗
+         ██╔════╝██╔══██╗██╔══██╗██╔══██╗██║ ██╔╝    ██║   ██║██║██╔═══██╗
+         ███████╗██████╔╝███████║██████╔╝█████╔╝     ██║   ██║██║██║   ██║
+         ╚════██║██╔═══╝ ██╔══██║██╔══██╗██╔═██╗     ╚██╗ ██╔╝██║██║   ██║
+         ███████║██║     ██║  ██║██║  ██║██║  ██╗     ╚████╔╝ ██║╚██████╔╝
+         ╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝      ╚═══╝  ╚═╝ ╚═════╝
+
+ """
 
 # Execute stereoVIOEuroc with given flags.
 # The flag --help will provide you with information about what each flag
 # does.
-if [ $USE_REGULAR_VIO == 1 ]; then
-  ../build/stereoVIOEuroc \
-    --logtostderr=1 \
-    --colorlogtostderr=1 \
-    --log_prefix=0 \
-    --dataset_path="$DATASET_PATH" \
-    --vio_params_path="../params/vioParameters.yaml" \
-    --tracker_params_path="../params/trackerParameters.yaml" \
-    --flagfile="../params/flags/stereoVIOEuroc.flags" \
-    --flagfile="../params/flags/Mesher.flags" \
-    --flagfile="../params/flags/VioBackEnd.flags" \
-    --flagfile="../params/flags/RegularVioBackEnd.flags" \
-    --flagfile="../params/flags/Visualizer3D.flags" \
-    --v=0 \
-    --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0
-
-else
-  ../build/stereoVIOEuroc \
-    --logtostderr=1 \
-    --colorlogtostderr=1 \
-    --log_prefix=0 \
-    --dataset_path="$DATASET_PATH" \
-    --vio_params_path="" \
-    --tracker_params_path="" \
-    --backend_type=0 \
-    --visualize=1 \
-    --viz_type=0 \
-    --log_output=true \
-    --v=0 \
-    --vmodule=stereoVIOEuroc=100,VioBackEnd=0,Mesher=0 \
-    --add_extra_lmks_from_stereo=false
-fi
+../build/stereoVIOEuroc \
+  --logtostderr=1 \
+  --colorlogtostderr=1 \
+  --log_prefix=0 \
+  --dataset_path="$DATASET_PATH" \
+  --vio_params_path="$VIO_PARAMS_PATH" \
+  --tracker_params_path="$TRACKER_PARAMS_PATH" \
+  --flagfile="../params/flags/stereoVIOEuroc.flags" \
+  --flagfile="../params/flags/Mesher.flags" \
+  --flagfile="../params/flags/VioBackEnd.flags" \
+  --flagfile="../params/flags/RegularVioBackEnd.flags" \
+  --flagfile="../params/flags/Visualizer3D.flags" \
+  --v=0 \
+  --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
+  --backend_type="$BACKEND_TYPE"
