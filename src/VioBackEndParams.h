@@ -102,6 +102,9 @@ public:
     CHECK(horizon >= 0);
   }
 
+  // Needed for virtual classes.
+  virtual ~VioBackEndParams() = default;
+
   // initialization params
   double initialPositionSigma_, initialRollPitchSigma_, initialYawSigma_, initialVelocitySigma_, initialAccBiasSigma_, initialGyroBiasSigma_;
 
@@ -128,9 +131,26 @@ public:
   // No Motion params
   double zeroVelocitySigma_, noMotionPositionSigma_, noMotionRotationSigma_, constantVelSigma_;
 
+public:
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  virtual bool parseYAML(const std::string& filepath) {
+    return parseYAMLVioBackEndParams(filepath);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  virtual bool equals(const VioBackEndParams& vp2, double tol = 1e-8) const {
+    return equalsVioBackEndParams(vp2, tol);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  virtual void print() const {
+    printVioBackEndParams();
+  }
+
+protected:
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // parse params YAML file
-  bool parseYAML(std::string filepath){
+  // Parse params YAML file
+  bool parseYAMLVioBackEndParams(std::string filepath){
     // make sure that each YAML file has %YAML:1.0 as first line
     cv::FileStorage fs(filepath, cv::FileStorage::READ);
     if (!fs.isOpened()) {
@@ -266,7 +286,7 @@ public:
   }
 
   /* ------------------------------------------------------------------------------------- */
-  bool equals(const VioBackEndParams& vp2, double tol = 1e-8) const{
+  bool equalsVioBackEndParams(const VioBackEndParams& vp2, double tol = 1e-8) const{
     return
         // IMU PARAMS
         (fabs(gyroNoiseDensity_ - vp2.gyroNoiseDensity_) <= tol) &&
@@ -317,8 +337,9 @@ public:
         (horizon_ == vp2.horizon_) &&
         (useDogLeg_ == vp2.useDogLeg_);
   }
+
   /* ------------------------------------------------------------------------------------- */
-  void print() const{
+  void printVioBackEndParams() const{
     std::cout << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$" << std::endl;
     std::cout << "** IMU parameters **" << std::endl;
     std::cout << "gyroNoiseDensity_: " << gyroNoiseDensity_ << std::endl
