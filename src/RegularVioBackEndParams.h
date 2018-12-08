@@ -35,23 +35,32 @@ class RegularVioBackEndParams: public VioBackEndParams
 {
 public:
   RegularVioBackEndParams(
-      // TODO inherit from this for regularVIO backend
-      const double monoNoiseSigma = 3, // for regularVioBackEnd only.
-      const size_t monoNormType = 0, // for regularVioBackEnd only.
-      const double stereoNoiseSigma = 3, // for regularVioBackEnd only.
-      const size_t stereoNormType = 0, // for regularVioBackEnd only.
-      const double regularityNoiseSigma = 0.1, // for regularVioBackEnd only.
-      const double huberParam = 1.345, // for regularVioBackEnd only.
-      const double tukeyParam = 4.6851, // for regularVioBackEnd only.
-      const size_t regularityNormType = 2 // for regularVioBackEnd only. 0: norm 2, 1: Huber, 2: Tukey.
-      ) :
+      const double monoNoiseSigma = 3.0,
+      const double stereoNoiseSigma = 3.0,
+      const double regularityNoiseSigma = 0.1,
+      // NomrType -> 0: L2 norm, 1: Huber, 2: Tukey.
+      const size_t monoNormType = 0,
+      const size_t stereoNormType = 0,
+      const size_t regularityNormType = 2,
+      const double huberParam = 1.345,
+      const double tukeyParam = 4.6851) :
+    VioBackEndParams(), // Use the default vio parameters.
     monoNoiseSigma_(monoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma),
     regularityNoiseSigma_(regularityNoiseSigma),
     monoNormType_(monoNormType), stereoNormType_(stereoNormType),
     regularityNormType_(regularityNormType),
-    huberParam_(huberParam), tukeyParam_(tukeyParam),
-    VioBackEndParams() // Use the default parameters.
-  {}
+    huberParam_(huberParam), tukeyParam_(tukeyParam)
+  {
+    // Trivial sanity checks.
+    CHECK_GE(monoNoiseSigma_, 0.0);
+    CHECK_GE(stereoNoiseSigma_, 0.0);
+    CHECK_GE(regularityNoiseSigma_, 0.0);
+    CHECK_GE(monoNormType_, 0);
+    CHECK_GE(stereoNormType_, 0);
+    CHECK_GE(regularityNormType_, 0);
+    CHECK_GE(huberParam_, 0.0);
+    CHECK_GE(tukeyParam_, 0.0);
+  }
 
   double monoNoiseSigma_, stereoNoiseSigma_, regularityNoiseSigma_;
   int monoNormType_, stereoNormType_, regularityNormType_;
