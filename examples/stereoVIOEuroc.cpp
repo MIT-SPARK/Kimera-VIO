@@ -16,6 +16,7 @@
 
 #include "RegularVioBackEnd.h"
 #include "VioBackEnd.h"
+#include "RegularVioBackEndParams.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -103,11 +104,11 @@ using namespace VIO;
 
 // Helper function to parse dataset and user-specified parameters.
 void parseDatasetAndParams(ETHDatasetParser* dataset,
-                           VioBackEndParams* vioParams,
+                           VioBackEndParamsPtr vioParams,
                            VioFrontEndParams* trackerParams,
                            size_t* initial_k, size_t* final_k) {
   CHECK_NOTNULL(dataset);
-  CHECK_NOTNULL(vioParams);
+  CHECK(vioParams);
   CHECK_NOTNULL(trackerParams);
   CHECK_NOTNULL(initial_k);
   CHECK_NOTNULL(final_k);
@@ -129,10 +130,10 @@ void parseDatasetAndParams(ETHDatasetParser* dataset,
   if (FLAGS_vio_params_path.empty()) {
     VLOG(100) << "No vio parameters specified, using default.";
     // Default params with IMU stats from dataset.
-    *vioParams = VioBackEndParams(dataset->imuData_.gyro_noise_,
-                                  dataset->imuData_.acc_noise_,
-                                  dataset->imuData_.gyro_walk_,
-                                  dataset->imuData_.acc_walk_);
+    vioParams->gyroNoiseDensity_ = dataset->imuData_.gyro_noise_;
+    vioParams->accNoiseDensity_ = dataset->imuData_.acc_noise_;
+    vioParams->gyroBiasSigma_ = dataset->imuData_.acc_noise_;
+    vioParams->accBiasSigma_ = dataset->imuData_.acc_walk_;
   } else {
     VLOG(100) << "Using user-specified VIO parameters: "
               << FLAGS_vio_params_path;
@@ -201,14 +202,30 @@ int main(int argc, char *argv[]) {
         FLAGS_viz_type);
 
   ETHDatasetParser dataset;
-  VioBackEndParams vioParams;
+
+  VioBackEndParamsPtr vioParams;
+  switch(FLAGS_backend_type) {
+    case 0: {
+      vioParams = boost::make_shared<VioBackEndParams>();
+      break;
+    }
+    case 1: {
+      vioParams = boost::make_shared<RegularVioBackEndParams>();
+      break;
+    }
+    default: {
+      CHECK(false) << "Unrecognized backend type: " << FLAGS_backend_type << "."
+                   << " 0: normalVio, 1: RegularVio.";
+      break;
+    }
+  }
   VioFrontEndParams trackerParams;
   size_t initial_k, final_k; // initial and final frame: useful to skip a bunch of images at the beginning (imu calibration)
-  parseDatasetAndParams(&dataset, &vioParams, &trackerParams,
+  parseDatasetAndParams(&dataset, vioParams, &trackerParams,
                         &initial_k, &final_k);
 
   // instantiate stereo tracker (class that tracks implements estimation front-end) and print parameters
-  StereoVisionFrontEnd stereoVisionFrontEnd(trackerParams, vioParams, saveImages); // vioParams used by feature selection
+  StereoVisionFrontEnd stereoVisionFrontEnd(trackerParams, *vioParams, saveImages); // vioParams used by feature selection
   stereoVisionFrontEnd.tracker_.trackerParams_.print();
   if (saveImages > 0) {
     stereoVisionFrontEnd.outputImagesPath_ = "./outputStereoTrackerImages-" +
@@ -218,7 +235,7 @@ int main(int argc, char *argv[]) {
   }
 
   // instantiate feature selector: not used in vanilla implementation
-  FeatureSelector featureSelector(trackerParams, vioParams);
+  FeatureSelector featureSelector(trackerParams, *vioParams);
 
   // Create VIO: class that tracks implements estimation back-end
   boost::shared_ptr<VioBackEnd> vioBackEnd;
@@ -290,7 +307,7 @@ int main(int argc, char *argv[]) {
           vioBackEnd = boost::make_shared<VioBackEnd>(
            stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
            stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
-           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, vioParams,
+           stereoVisionFrontEnd.stereoFrame_km1_->baseline_, *vioParams,
                          FLAGS_log_output);
 
           break;
@@ -302,7 +319,7 @@ int main(int argc, char *argv[]) {
             stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
             stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
             stereoVisionFrontEnd.stereoFrame_km1_->baseline_,
-            vioParams, FLAGS_log_output,
+            *vioParams, FLAGS_log_output,
             static_cast<RegularVioBackEnd::BackendModality>(
               FLAGS_regular_vio_backend_modality));
           break;
@@ -321,13 +338,13 @@ int main(int argc, char *argv[]) {
       gtNavState initialStateGT;
 
       // Use initial IMU measurements to guess first pose
-      if (vioParams.autoInitialize_ || !dataset.isGroundTruthAvailable()) {
-        LOG_IF(WARNING, !vioParams.autoInitialize_)
+      if (vioParams->autoInitialize_ || !dataset.isGroundTruthAvailable()) {
+        LOG_IF(WARNING, !vioParams->autoInitialize_)
             << "Could not initialize from ground truth, since it is not "
                "available";
         initialStateGT.pose = vioBackEnd->guessPoseFromIMUmeasurements(
-                                imu_accgyr, vioParams.n_gravity_,
-                                vioParams.roundOnAutoInitialize_);
+                                imu_accgyr, vioParams->n_gravity_,
+                                vioParams->roundOnAutoInitialize_);
         vioBackEnd->initializeStateAndSetPriors(timestamp_k,
                                                 initialStateGT.pose,
                                                 imu_accgyr);
@@ -496,7 +513,7 @@ int main(int argc, char *argv[]) {
       // Process data with VIO.
       startTime = UtilsOpenCV::GetTimeInSeconds();
 
-      if (vioParams.addBetweenStereoFactors_ == true &&
+      if (vioParams->addBetweenStereoFactors_ == true &&
           stereoVisionFrontEnd.trackerStatusSummary_.kfTrackingStatus_stereo_ ==
                                                               Tracker::VALID ) {
         VLOG(10) << "Add visual inertial state and optimize,"

@@ -87,6 +87,7 @@ RegularVioBackEnd::RegularVioBackEnd(
     const VioBackEndParams& vioParams,
     const bool& log_timing,
     const BackendModality& backend_modality) :
+  regular_vio_params_(RegularVioBackEndParams::safeCast(vioParams)),
   backend_modality_(backend_modality),
   VioBackEnd(leftCamPose,
              leftCameraCalRectified,
@@ -97,33 +98,33 @@ RegularVioBackEnd::RegularVioBackEnd(
 
   // Set type of mono_noise_ for generic projection factors.
   gtsam::SharedNoiseModel gaussian_dim_2 =
-      gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(2, regular_vio_params_.monoNoiseSigma_);
 
   selectNormType(&mono_noise_,
                  gaussian_dim_2,
-                 vio_params_.monoNormType_,
-                 vio_params_.monoNormParam_,
-                 vio_params_.monoNoiseSigma_);
+                 regular_vio_params_.monoNormType_,
+                 regular_vio_params_.monoNormParam_,
+                 regular_vio_params_.monoNoiseSigma_);
 
   // Set type of stereo_noise_ for generic stereo projection factors.
   gtsam::SharedNoiseModel gaussian_dim_3 =
-      gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.stereoNoiseSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(3, regular_vio_params_.stereoNoiseSigma_);
 
   selectNormType(&stereo_noise_,
                  gaussian_dim_3,
-                 vio_params_.stereoNormType_,
-                 vio_params_.stereoNormParam_,
-                 vio_params_.stereoNoiseSigma_);
+                 regular_vio_params_.stereoNormType_,
+                 regular_vio_params_.stereoNormParam_,
+                 regular_vio_params_.stereoNoiseSigma_);
 
   // Set type of regularity noise for point plane factors.
   gtsam::SharedNoiseModel gaussian_dim_1 =
-      gtsam::noiseModel::Isotropic::Sigma(1, vio_params_.regularityNoiseSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(1, regular_vio_params_.regularityNoiseSigma_);
 
   selectNormType(&point_plane_regularity_noise_,
                  gaussian_dim_1,
-                 vio_params_.regularityNormType_,
-                 vio_params_.regularityNormParam_,
-                 vio_params_.regularityNoiseSigma_);
+                 regular_vio_params_.regularityNormType_,
+                 regular_vio_params_.regularityNormParam_,
+                 regular_vio_params_.regularityNoiseSigma_);
 
   mono_cal_ = boost::make_shared<Cal3_S2>(stereo_cal_->calibration());
   CHECK(mono_cal_->equals(stereo_cal_->calibration()))
