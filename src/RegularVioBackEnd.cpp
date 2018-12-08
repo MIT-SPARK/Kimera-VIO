@@ -86,6 +86,7 @@ RegularVioBackEnd::RegularVioBackEnd(
     const double& baseline,
     const VioBackEndParams& vioParams,
     const bool log_timing) :
+  regular_vio_params_(RegularVioBackEndParams::safeCast(vioParams)),
   VioBackEnd(leftCamPose,
              leftCameraCalRectified,
              baseline,
@@ -95,27 +96,27 @@ RegularVioBackEnd::RegularVioBackEnd(
 
   // Set type of mono_noise_ for generic projection factors.
   gtsam::SharedNoiseModel gaussian_dim_2 =
-      gtsam::noiseModel::Isotropic::Sigma(2, vio_params_.monoNoiseSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(2, regular_vio_params_.monoNoiseSigma_);
 
   selectNormType(&mono_noise_,
                  gaussian_dim_2,
-                 vio_params_.monoNormType_);
+                 regular_vio_params_.monoNormType_);
 
   // Set type of stereo_noise_ for generic stereo projection factors.
   gtsam::SharedNoiseModel gaussian_dim_3 =
-      gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.stereoNoiseSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(3, regular_vio_params_.stereoNoiseSigma_);
 
   selectNormType(&stereo_noise_,
                  gaussian_dim_3,
-                 vio_params_.stereoNormType_);
+                 regular_vio_params_.stereoNormType_);
 
   // Set type of regularity noise for point plane factors.
   gtsam::SharedNoiseModel gaussian_dim_1 =
-      gtsam::noiseModel::Isotropic::Sigma(1, vio_params_.regularityNoiseSigma_);
+      gtsam::noiseModel::Isotropic::Sigma(1, regular_vio_params_.regularityNoiseSigma_);
 
   selectNormType(&point_plane_regularity_noise_,
                  gaussian_dim_1,
-                 vio_params_.regularityNormType_);
+                 regular_vio_params_.regularityNormType_);
 
   mono_cal_ = boost::make_shared<Cal3_S2>(stereo_cal_->calibration());
   CHECK(mono_cal_->equals(stereo_cal_->calibration()))
@@ -293,7 +294,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   VLOG(0) << "Starting optimize...";
-  optimize(cur_kf_id_, vio_params_.numOptimize_,
+  optimize(cur_kf_id_, regular_vio_params_.numOptimize_,
            delete_slots);
   VLOG(0) << "Finished optimize.";
 
@@ -1501,22 +1502,22 @@ void RegularVioBackEnd::selectNormType(
     }
     case 1: {
       LOG(INFO) << "Using Huber norm, with parameter value: "
-                << vio_params_.huberParam_;
+                << regular_vio_params_.huberParam_;
       *noise_model_output =
           gtsam::noiseModel::Robust::Create(
             gtsam::noiseModel::mEstimator::Huber::Create(
-              vio_params_.huberParam_,
+              regular_vio_params_.huberParam_,
               gtsam::noiseModel::mEstimator::Huber::Scalar), // Default is Block
             noise_model_input);
       break;
     }
     case 2: {
       LOG(INFO) << "Using Tukey norm, with parameter value: "
-                << vio_params_.tukeyParam_;
+                << regular_vio_params_.tukeyParam_;
       *noise_model_output=
           gtsam::noiseModel::Robust::Create(
             gtsam::noiseModel::mEstimator::Tukey::Create(
-              vio_params_.tukeyParam_,
+              regular_vio_params_.tukeyParam_,
               gtsam::noiseModel::mEstimator::Tukey::Scalar), // Default is Block
             noise_model_input); //robust
       break;

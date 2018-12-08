@@ -20,6 +20,8 @@
 #include <VioBackEnd.h>
 #include <gtsam/slam/StereoFactor.h>
 
+#include "RegularVioBackEndParams.h"
+
 namespace VIO {
 
 class RegularVioBackEnd: public VioBackEnd {
@@ -82,6 +84,9 @@ private:
 
   // For regularity factors.
   gtsam::SharedNoiseModel point_plane_regularity_noise_;
+
+  // RAW parameters given by the user for the regulaVIO backend.
+  const RegularVioBackEndParams regular_vio_params_;
 
 private:
   /* ------------------------------------------------------------------------ */
