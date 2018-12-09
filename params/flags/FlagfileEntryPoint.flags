@@ -1,5 +1,0 @@
---flagfile="../params/flags/stereoVIOEuroc.flags"
---flagfile="../params/flags/Mesher.flags"
---flagfile="../params/flags/VioBackEnd.flags"
---flagfile="../params/flags/RegularVioBackEnd.flags"
---flagfile="../params/flags/Visualizer3D.flags"
