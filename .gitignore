@@ -2,8 +2,9 @@
 /data-sets/
 /.settings/
 /matlab/result-*
-/scripts/*.txt
-/scripts/*.csv
+/scripts/*/*.txt
+/scripts/*/*.csv
+
 
 % Ignore VS code settings
 .vscode
