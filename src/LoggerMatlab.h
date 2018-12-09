@@ -37,6 +37,7 @@ public:
   //  class variables
   std::ofstream outputFile_;
   std::ofstream outputFile_posesVIO_;
+  std::ofstream outputFile_posesVIO_csv_;
   std::ofstream outputFile_posesGT_;
   std::ofstream outputFile_landmarks_;
   std::ofstream outputFile_normals_;
@@ -59,6 +60,8 @@ public:
       UtilsOpenCV::OpenFile("./output.txt",outputFile_);
     if (i == 1 || i == -1)
       UtilsOpenCV::OpenFile("./output_posesVIO.txt",outputFile_posesVIO_);
+    if (i == 1 || i == -1)
+      UtilsOpenCV::OpenFile("./output_posesVIO.csv",outputFile_posesVIO_csv_);
     if (i == 2 || i == -1)
       UtilsOpenCV::OpenFile("./output_posesGT.txt",outputFile_posesGT_);
     if (i == 3 || i == -1)
@@ -85,6 +88,8 @@ public:
       outputFile_.close();
     if (i == 1 || i == -1)
       outputFile_posesVIO_.close();
+    if (i == 1 || i == -1)
+      outputFile_posesVIO_csv_.close();
     if (i == 2 || i == -1)
       outputFile_posesGT_.close();
     if (i == 3 || i == -1)
@@ -281,6 +286,34 @@ public:
         vio->W_Vel_Blkf_.transpose()               << " " <<
         vio->imu_bias_lkf_.accelerometer().transpose() << " " <<
         vio->imu_bias_lkf_.gyroscope().transpose() << std::endl;
+    // We log the poses in csv format for later alignement and analysis.
+    static bool is_header_written = false;
+    if (!is_header_written) {
+      outputFile_posesVIO_csv_
+          << "timestamp, x, y, z, qx, qy, qz, qw, vx, vy, vz,"
+             " bgx, bgy, bgz, bax, bay, baz" << std::endl;
+      is_header_written = true;
+    }
+    outputFile_posesVIO_csv_
+        //TODO Luca: is W_Vel_Blkf_ at timestamp_lkf or timestamp_kf?
+        // I just want to log latest vio estimate and correct timestamp...
+        << timestamp_lkf                                     << ", "
+        << vio->W_Pose_Blkf_.translation().transpose().x()   << ", "
+        << vio->W_Pose_Blkf_.translation().transpose().y()   << ", "
+        << vio->W_Pose_Blkf_.translation().transpose().z()   << ", "
+        << vio->W_Pose_Blkf_.rotation().quaternion()(1)      << ", " // q_x
+        << vio->W_Pose_Blkf_.rotation().quaternion()(2)      << ", " // q_y
+        << vio->W_Pose_Blkf_.rotation().quaternion()(3)      << ", " // q_z
+        << vio->W_Pose_Blkf_.rotation().quaternion()(0)      << ", " // q_w
+        << vio->W_Vel_Blkf_.transpose()(0)                   << ", "
+        << vio->W_Vel_Blkf_.transpose()(1)                   << ", "
+        << vio->W_Vel_Blkf_.transpose()(2)                   << ", "
+        << vio->imu_bias_lkf_.gyroscope().transpose()(0)     << ", "
+        << vio->imu_bias_lkf_.gyroscope().transpose()(1)     << ", "
+        << vio->imu_bias_lkf_.gyroscope().transpose()(2)     << ", "
+        << vio->imu_bias_lkf_.accelerometer().transpose()(0) << ", "
+        << vio->imu_bias_lkf_.accelerometer().transpose()(1) << ", "
+        << vio->imu_bias_lkf_.accelerometer().transpose()(2) << std::endl;
 
     // we log the camera since we will display camera poses in matlab
     gtsam::Pose3 W_Pose_camlkf_gt = W_Pose_Bkf_gt.compose(vio->B_Pose_leftCam_);

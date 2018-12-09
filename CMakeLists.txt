@@ -8,9 +8,10 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -pipe")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native -DNDEBUG")
+set(CMAKE_C_FLAGS_RELEASE "-O2 -march=native -DNDEBUG")
 
 ### Include the boost directory
 find_package(Boost COMPONENTS filesystem REQUIRED)
@@ -94,6 +95,7 @@ add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Histogram.cpp
                       ./src/FeatureSelector.h ./src/LoggerMatlab.h
                       ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
+                      ./src/RegularVioBackEndParams.h
                       ./src/CameraParams.h ./src/Frame.h
                       ./src/Visualizer3D.h
                       ./src/Histogram.h

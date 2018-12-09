@@ -109,10 +109,10 @@ Glog and Gflags
 Glog and gflags will be automatically downloaded using cmake unless there is a system-wide installation found.
 
 Running examples
-----------------------
+======================
 
 stereoVIOEuroc:
-- Download [EuRoC](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) dataset. You can just download this [file](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip) to do a first test.
+- Download [EuRoC](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) dataset. You can just download this [file](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip) to do a first test, which corresponds to the ```MH_01_easy``` EuRoC dataset.
 - Add the comment ```%YAML:1.0``` at the top of each .yaml file in the dataset (each folder has one sensor.yaml). You can do this manually or alternatively paste and run the following bash script from within the dataset folder:
 ```
 #!bash
@@ -120,18 +120,18 @@ sed -i '1 i\%YAML:1.0' body.yaml
 sed -i '1 i\%YAML:1.0' */sensor.yaml
 ```
 You have two ways to start the example:
-- Using the script stereoVIOEuroc.bash:
-  -- You will need to first specify the DATASET_PATH variable inside the script.
-  -- Optionally, modify flag USE_REGULAR_VIO to 0 to run the normal VIO, or 1 to run the regular version of VIO (recommended: 0).
-  -- Then just execute the script ```./scripts/stereoVIOEuroc.bash```.
-- Execute ```stereoVIOEuroc {DATASET_PATH}``` located in your build folder, where ```{DATASET_PATH}``` is the path to a dataset.
+- Using the script ```stereoVIOEuroc.bash``` inside the ```scripts``` folder:
+  - Run: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy"```
+  - Optionally, you can try the VIO using structural regularities, as in [Toni's thesis](https://www.research-collection.ethz.ch/handle/20.500.11850/297645), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy" -r```
+- Alternatively, have a look inside the script to see how to change extra parameters that control the pipeline itself.
 
 Tips for development
 ----------------------
--- To make the pipeline deterministic:
+- To make the pipeline deterministic:
+    - Disable TBB in GTSAM (go to build folder in gtsam, use cmake-gui to unset ```GTSAM_WITH_TBB```).
+    - Specify ```srand(0)``` in main function, to make randomized algorithms deterministic.
+    - Change ```ransac_randomize``` flag in ```params/trackerParameters.yaml``` to 0, to disable ransac randomization.
 
-- Disable TBB in GTSAM (go to build folder in gtsam, use cmake-gui to unset ```GTSAM_WITH_TBB```).
-- Specify ```srand(0)``` in main function, to make randomized algorithms deterministic.
-- Change ```ransac_randomize``` flag in ```params/trackerParameters.yaml``` to 0, to disable ransac randomization.
+> Note: these changes are not sufficient to make the output repeatable between different machines.
 
-Note: these changes are not sufficient to make the output repeatable between different machines.
+> Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.

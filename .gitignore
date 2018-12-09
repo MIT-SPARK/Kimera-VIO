@@ -6,3 +6,5 @@
 *.ply
 % Remove recovery files from matlab.
 *~
+% Remove vscode settings
+/.vscode

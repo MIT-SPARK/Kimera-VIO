@@ -12,7 +12,7 @@
  * @author Luca Carlone
  */
 
-#include "ETH_parser.h" 
+#include "ETH_parser.h"
 
 using namespace VIO;
 
@@ -45,7 +45,7 @@ bool CameraImageLists::parseCameraImageList(const std::string folderpath, const 
   }
   fin.close();
   return true;
-} 
+}
 
 /* --------------------------------------------------------------------------------------- */
 void CameraImageLists::print()
@@ -59,8 +59,7 @@ void CameraImageLists::print()
 //////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              ////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /* --------------------------------------------------------------------------------------- */
-void GroundTruthData::print()
-{
+void GroundTruthData::print() {
   std::cout << "------------ GroundTruthData::print -------------" << std::endl;
   body_Pose_cam_.print("body_Pose_cam_: \n");
   std::cout << "\n gt_rate: " << gt_rate_ << std::endl;
@@ -90,8 +89,8 @@ void ImuData::print()
 //////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              ////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /* --------------------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseImuData(const std::string input_dataset_path, const std::string imuName)
-{
+bool ETHDatasetParser::parseImuData(const std::string input_dataset_path,
+                                    const std::string imuName) {
   ///////////////// PARSE SENSOR FILE ////////////////////////////////////////////////////////
   std::string filename_sensor = input_dataset_path + "/mav0/" + imuName + "/sensor.yaml";
   // parse sensor parameters
@@ -190,70 +189,81 @@ bool ETHDatasetParser::parseImuData(const std::string input_dataset_path, const 
   return true;
 }
 
-/* --------------------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path, const std::string gtSensorName)
-{
-  ///////////////// PARSE SENSOR FILE ////////////////////////////////////////////////////////
-  std::string filename_sensor = input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
+/* -------------------------------------------------------------------------- */
+bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
+                                   const std::string gtSensorName) {
+  ///////////////// PARSE SENSOR FILE //////////////////////////////////////////
+  std::string filename_sensor =
+      input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
 
-  // make sure that each YAML file has %YAML:1.0 as first line
-  cv::FileStorage fs(filename_sensor, cv::FileStorage::READ);
+  // Make sure that each YAML file has %YAML:1.0 as first line.
+  cv::FileStorage fs (filename_sensor, cv::FileStorage::READ);
   if (!fs.isOpened()) {
-    std::cout << "Cannot open file in parseGTYAML: " << filename_sensor << std::endl;
-    throw std::runtime_error("parseGTdata: cannot open file");
+    std::cout << "Cannot open file in parseGTYAML: "
+              << filename_sensor << std::endl;
+    std::cout << "Assuming dataset has no ground truth...";
+    return false;
   }
 
-  // body_Pose_cam_: usually this is the identity matrix as the GT "sensor" is at the body frame
+  // body_Pose_cam_: usually this is the identity matrix as the GT "sensor" is
+  // at the body frame
   int n_rows = (int)fs["T_BS"]["rows"];
   int n_cols = (int)fs["T_BS"]["cols"];
 
   std::vector<double> vec;
   fs["T_BS"]["data"] >> vec;
-  gtData_.body_Pose_cam_ = UtilsOpenCV::Vec2pose(vec,n_rows,n_cols);
+  gtData_.body_Pose_cam_ = UtilsOpenCV::Vec2pose(vec, n_rows, n_cols);
 
-  // sanity check: usually this is the identity matrix as the GT "sensor" is at the body frame
+  // sanity check: usually this is the identity matrix as the GT "sensor"
+  // is at the body frame
   gtsam::Pose3 identityPose = gtsam::Pose3();
 
-  if(!gtData_.body_Pose_cam_.equals(gtData_.body_Pose_cam_))
-    throw std::runtime_error("parseGTdata: we expected identity body_Pose_cam_: is everything ok?");
+  if(!gtData_.body_Pose_cam_.equals(identityPose)) {
+    throw std::runtime_error("parseGTdata: we expected identity body_Pose_cam_:"
+                             " is everything ok?");
+  }
 
   fs.release();
 
-  ///////////////// PARSE ACTUAL DATA ////////////////////////////////////////////////////////
+  ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
   //#timestamp, p_RS_R_x [m], p_RS_R_y [m], p_RS_R_z [m],
   //q_RS_w [], q_RS_x [], q_RS_y [], q_RS_z [],
   //v_RS_R_x [m s^-1], v_RS_R_y [m s^-1], v_RS_R_z [m s^-1],
   //b_w_RS_S_x [rad s^-1], b_w_RS_S_y [rad s^-1], b_w_RS_S_z [rad s^-1],
   //b_a_RS_S_x [m s^-2], b_a_RS_S_y [m s^-2], b_a_RS_S_z [m s^-2]
-  std::string filename_data = input_dataset_path + "/mav0/" + gtSensorName + "/data.csv";
-  std::ifstream fin(filename_data.c_str());
+  std::string filename_data = input_dataset_path + "/mav0/" + gtSensorName
+                              + "/data.csv";
+  std::ifstream fin (filename_data.c_str());
   if (!fin.is_open()) {
     std::cout << "Cannot open file: " << filename_data << std::endl;
-    throw std::runtime_error("parseGTdata: cannot open file?");
+    std::cout << "Assuming dataset has no ground truth...";
+    return false;
   }
-  // skip the first line, containing the header
+
+  // Skip the first line, containing the header.
   std::string line;
   std::getline(fin, line);
 
   double deltaCount = 0.0;
   long long sumOfDelta = 0;
   long long int previous_timestamp = -1;
-  // read/store gt, line by line
+
+  // Read/store gt, line by line.
   double maxGTvel = 0;
   while (std::getline(fin, line)) {
     long long timestamp;
     std::vector<double> gtDataRaw;
-    for(size_t i=0; i < 17; i++){
+    for (size_t i = 0; i < 17; i++) {
       int idx = line.find_first_of(',');
-      if (i==0)
+      if (i == 0)
         timestamp = std::stoll(line.substr(0, idx));
       else
         gtDataRaw.push_back(std::stod(line.substr(0, idx)));
       line = line.substr(idx+1);
     }
-    if(previous_timestamp == -1){
+    if (previous_timestamp == -1) {
       previous_timestamp = timestamp; // do nothing
-    }else{
+    } else {
       sumOfDelta += (timestamp - previous_timestamp);
       // std::cout << "time diff (sec): " << (timestamp - previous_timestamp) * 1e-9 << std::endl;
       deltaCount += 1.0;
@@ -261,39 +271,50 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path, const s
     }
 
     gtNavState gt_curr;
-    gtsam::Point3 position(gtDataRaw[0],gtDataRaw[1],gtDataRaw[2]);
-    gtsam::Rot3 rot = gtsam::Rot3::Quaternion(gtDataRaw[3],gtDataRaw[4],gtDataRaw[5],gtDataRaw[6]); // quaternion w x y z
+    gtsam::Point3 position(gtDataRaw[0], gtDataRaw[1], gtDataRaw[2]);
+    // Quaternion w x y z.
+    gtsam::Rot3 rot = gtsam::Rot3::Quaternion(
+                        gtDataRaw[3], gtDataRaw[4],gtDataRaw[5],gtDataRaw[6]);
 
-    // sanity check
+    // Sanity check.
     gtsam::Vector q = rot.quaternion();
-    if(fabs(q(0) + gtDataRaw[3]) < fabs(q(0) - gtDataRaw[3])) // figure out sign for quaternion
+    if(fabs(q(0) + gtDataRaw[3]) < fabs(q(0) - gtDataRaw[3])) {// figure out sign for quaternion
       q = -q;
+    }
 
-    if( (fabs(q(0) - gtDataRaw[3]) > 1e-3) || (fabs(q(1) - gtDataRaw[4]) > 1e-3) ||
-        (fabs(q(2) - gtDataRaw[5]) > 1e-3)  || (fabs(q(3) - gtDataRaw[6]) > 1e-3) ){
+    if ((fabs(q(0) - gtDataRaw[3]) > 1e-3) ||
+        (fabs(q(1) - gtDataRaw[4]) > 1e-3) ||
+        (fabs(q(2) - gtDataRaw[5]) > 1e-3) ||
+        (fabs(q(3) - gtDataRaw[6]) > 1e-3)) {
       std::cout << "(" << q(0)  << "," <<  gtDataRaw[3] << ") " <<
           "(" << q(1)  << "," <<  gtDataRaw[4] << ") "
           "(" << q(2)  << "," <<  gtDataRaw[5] << ") "
           "(" << q(3)  << "," <<  gtDataRaw[6] << ") " << std::endl;
       throw std::runtime_error("parseGTdata: wrong quaternion conversion");
     }
+
     gt_curr.pose = gtsam::Pose3(rot, position).compose(gtData_.body_Pose_cam_);
-    gt_curr.velocity = gtsam::Vector3(gtDataRaw[7],gtDataRaw[8],gtDataRaw[9]);
-    gtsam::Vector3 gyroBias = gtsam::Vector3(gtDataRaw[10],gtDataRaw[11],gtDataRaw[12]);
-    gtsam::Vector3 accBias = gtsam::Vector3(gtDataRaw[13],gtDataRaw[14],gtDataRaw[15]);
+    gt_curr.velocity = gtsam::Vector3(gtDataRaw[7], gtDataRaw[8], gtDataRaw[9]);
+    gtsam::Vector3 gyroBias =
+        gtsam::Vector3(gtDataRaw[10], gtDataRaw[11], gtDataRaw[12]);
+    gtsam::Vector3 accBias =
+        gtsam::Vector3(gtDataRaw[13], gtDataRaw[14], gtDataRaw[15]);
     gt_curr.imuBias = gtsam::imuBias::ConstantBias(accBias, gyroBias);
 
-    gtData_.mapToGt_.insert(std::pair<long long, gtNavState>(timestamp,gt_curr));
+    gtData_.mapToGt_.insert(
+          std::pair<long long, gtNavState>(timestamp,gt_curr));
 
     double normVel = gt_curr.velocity.norm();
-    if(normVel > maxGTvel)
-      maxGTvel = normVel;
+    if (normVel > maxGTvel) maxGTvel = normVel;
   }
-  if(deltaCount != gtData_.mapToGt_.size()-1){
-    std::cout << "parseGTdata: wrong nr of deltaCount: deltaCount " << deltaCount << " nrPoses " << gtData_.mapToGt_.size() << std::endl;
+  if (deltaCount != gtData_.mapToGt_.size() - 1) {
+    std::cout << "parseGTdata: wrong nr of deltaCount: deltaCount "
+              << deltaCount << " nrPoses " << gtData_.mapToGt_.size() << '\n';
     throw std::runtime_error("parseGTdata: wrong nr of deltaCount");
   }
-  gtData_.gt_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9; // converted in seconds
+  CHECK_NE(deltaCount, 0);
+  gtData_.gt_rate_ =
+      (double(sumOfDelta) / double(deltaCount)) * 1e-9; // Converted in seconds.
   fin.close();
 
   std::cout << "Maximum ground truth velocity: " << maxGTvel << std::endl;
@@ -302,13 +323,15 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path, const s
 
 /* --------------------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseDataset(const std::string input_dataset_path,
-    const std::string leftCameraName, const std::string rightCameraName,
-    const std::string imuName, const std::string gtSensorName, const bool doParseImages)
-{
+                                    const std::string leftCameraName,
+                                    const std::string rightCameraName,
+                                    const std::string imuName,
+                                    const std::string gtSensorName,
+                                    const bool doParseImages) {
   dataset_path_ = input_dataset_path;
-  parseCameraData(dataset_path_,leftCameraName,rightCameraName,doParseImages);
-  parseImuData(dataset_path_,imuName);
-  parseGTdata(dataset_path_,gtSensorName);
+  parseCameraData(dataset_path_, leftCameraName, rightCameraName, doParseImages);
+  parseImuData(dataset_path_, imuName);
+  is_gt_available_ = parseGTdata(dataset_path_, gtSensorName);
 
   // find and store actual name (rather than path) of the dataset
   std::size_t foundLastSlash = dataset_path_.find_last_of("/\\");
@@ -419,17 +442,23 @@ bool ETHDatasetParser::isGroundTruthAvailable(const long long timestamp) const
   return timestamp > it_begin->first;
 }
 
+/* -------------------------------------------------------------------------- */
+bool ETHDatasetParser::isGroundTruthAvailable() const {
+  return is_gt_available_;
+}
+
 /* --------------------------------------------------------------------------------------- */
-gtNavState ETHDatasetParser::getGroundTruthState(const long long timestamp) const
-{
+gtNavState ETHDatasetParser::getGroundTruthState(
+    const long long timestamp) const {
   auto it_low_up = gtData_.mapToGt_.equal_range(timestamp);
   auto it_low = it_low_up.first; // closest, non-lesser
 
   // sanity check
   double delta_low = double(it_low->first - timestamp) * 1e-9;
   auto it_begin = gtData_.mapToGt_.begin();
-  if(timestamp > it_begin->first && delta_low > 0.01){
-    std::cout << "\n getGroundTruthState: something wrong " << delta_low  << std::endl;
+  if (timestamp > it_begin->first && delta_low > 0.01) {
+    std::cout << "\n getGroundTruthState: something wrong "
+              << delta_low << '\n';
     throw std::runtime_error("getGroundTruthState: something wrong");
   }
   return it_low->second;
@@ -453,9 +482,8 @@ std::pair<double,double> ETHDatasetParser::computePoseErrors(const gtsam::Pose3 
   return std::make_pair(relativeRotError,relativeTranError);
 }
 
-/* --------------------------------------------------------------------------------------- */
-void ETHDatasetParser::print()
-{
+/* -------------------------------------------------------------------------- */
+void ETHDatasetParser::print() {
   std::cout << "----------------------------------------------------------------------------------------------------------------------------"<< std::endl;
   std::cout << "------------------ ETHDatasetParser::print ---------------------------------------------------------------------------------" << std::endl;
   std::cout << "----------------------------------------------------------------------------------------------------------------------------"<< std::endl;

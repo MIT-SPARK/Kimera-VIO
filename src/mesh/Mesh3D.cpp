@@ -13,7 +13,7 @@
  */
 
 #include "mesh/Mesh3D.h"
-#include "glog/logging.h"
+#include <glog/logging.h>
 #include <opencv2/core/core.hpp>
 
 namespace VIO {

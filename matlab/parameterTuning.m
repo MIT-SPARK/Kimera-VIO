@@ -87,8 +87,6 @@ parameterTuningSingle('monoNoiseSigma',[0.6 0.85 1.15],datasetPath,initialFrameI
 %parameterTuningSingle('tukeyParam',[3.4 3.5 3.6 3.7 3.8 4.1 4.2 4.25 4.3 4.4],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
 
 %% Plane thresholds
-% Min Plane Constraints
-%parameterTuningSingle('minPlaneConstraints',[12 13 14 15],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'vio')
 
 % Others
 %parameterTuningSingle('ransac_threshold_stereo',[0.1 0.1 0.5],datasetPath,initialFrameID,finalFrameID,nrRuns,saveImages,'tracker')

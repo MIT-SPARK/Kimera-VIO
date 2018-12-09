@@ -2,7 +2,7 @@ function writeVioParamsYAML(filename, vioParams)
 
 % sanity check
 nrFields = length(fieldnames(vioParams));
-if(nrFields ~= 41)
+if(nrFields ~= 42)
    error('wrong number of fields in vioParams') 
 end
 
@@ -31,9 +31,10 @@ fprintf(fid,'linearizationMode: %d\n', vioParams.linearizationMode);
 fprintf(fid,'degeneracyMode: %d\n', vioParams.degeneracyMode);
 fprintf(fid,'smartNoiseSigma: %g\n', vioParams.smartNoiseSigma);
 fprintf(fid,'monoNoiseSigma: %g\n', vioParams.monoNoiseSigma);
+fprintf(fid,'monoNormType: %g\n', vioParams.monoNormType);
 fprintf(fid,'stereoNoiseSigma: %g\n', vioParams.stereoNoiseSigma);
+fprintf(fid,'stereoNormType: %g\n', vioParams.stereoNormType);
 fprintf(fid,'regularityNoiseSigma: %g\n', vioParams.regularityNoiseSigma);
-fprintf(fid,'minPlaneConstraints: %g\n', vioParams.minPlaneConstraints);
 fprintf(fid,'huberParam: %g\n', vioParams.huberParam);
 fprintf(fid,'tukeyParam: %g\n', vioParams.tukeyParam);
 fprintf(fid,'regularityNormType: %g\n', vioParams.regularityNormType);

@@ -1,0 +1,4 @@
+#!/bin/bash
+# Visualizer 3D parameters.
+--mesh_shading=2
+--mesh_representation=2
