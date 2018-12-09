@@ -297,7 +297,7 @@ public:
     outputFile_posesVIO_csv_
         //TODO Luca: is W_Vel_Blkf_ at timestamp_lkf or timestamp_kf?
         // I just want to log latest vio estimate and correct timestamp...
-        << timestamp_k                                      << ", "
+        << timestamp_lkf                                     << ", "
         << vio->W_Pose_Blkf_.translation().transpose().x()   << ", "
         << vio->W_Pose_Blkf_.translation().transpose().y()   << ", "
         << vio->W_Pose_Blkf_.translation().transpose().z()   << ", "
