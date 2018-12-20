@@ -22,29 +22,27 @@
 
 namespace VIO {
 // Class defining the concept of a polygonal mesh.
-class Mesh3D {
+template<typename VertexPositionType = cv::Point3f>
+class Mesh {
 public:
   // Default constructor.
-  Mesh3D(const size_t& polygon_dimension = 3);
+  Mesh(const size_t& polygon_dimension = 3);
 
   // Delete copy constructor.
-  Mesh3D(const Mesh3D& rhs_mesh) = delete;
+  Mesh(const Mesh& rhs_mesh) = delete;
 
   // Copy assignement operator.
   // Performs a deep copy (clones) the data members.
-  Mesh3D& operator=(const Mesh3D& mesh);
+  Mesh& operator=(const Mesh& mesh);
 
   // Delete move constructor.
-  Mesh3D(Mesh3D&& mesh) = delete;
+  Mesh(Mesh&& mesh) = delete;
 
   // Delete move assignement operator.
-  Mesh3D& operator=(Mesh3D&& mesh) = delete;
+  Mesh& operator=(Mesh&& mesh) = delete;
 
   // Destructor.
-  ~Mesh3D() = default;
-
-public:
-  typedef cv::Point3f VertexPosition3D;
+  ~Mesh() = default;
 
 private:
   // Vertex id (for internal processing).
@@ -54,6 +52,7 @@ private:
   typedef std::map<LandmarkId, VertexId> LmkIdToVertexMap;
 
 public:
+  template<typename PositionType = cv::Point3f>
   struct Vertex {
   public:
     Vertex()
@@ -61,7 +60,7 @@ public:
         vertex_position_() {}
 
     Vertex(const LandmarkId& lmk_id,
-           const VertexPosition3D& vertex_position)
+           const VertexPositionType& vertex_position)
       : lmk_id_(lmk_id),
         vertex_position_(vertex_position) {}
 
@@ -79,24 +78,25 @@ public:
     ~Vertex() = default;
 
     /// Getters.
-    inline const VertexPosition3D& getVertexPosition() const {
+    inline const VertexPositionType& getVertexPosition() const {
       return vertex_position_;
     }
     inline const LandmarkId& getLmkId() const {
       return lmk_id_;
     }
     /// Setters.
-    void setVertexPosition(const Mesh3D::VertexPosition3D& position) {
+    void setVertexPosition(const VertexPositionType& position) {
       vertex_position_ = position;
     }
 
   private:
     /// Members
     LandmarkId lmk_id_;
-    VertexPosition3D vertex_position_;
+    VertexPositionType vertex_position_;
   };
   // We define a polygon of the mesh as a set of mesh vertices.
-  typedef std::vector<Vertex> Polygon;
+  typedef Vertex<VertexPositionType> VertexType;
+  typedef std::vector<VertexType> Polygon;
 
 public:
   // Adds a new polygon into the mesh, updates the internal data structures.
@@ -123,6 +123,11 @@ public:
   // Iterate over the total number of polygons (given by getNumberOfPolygons)
   // to retrieve one polygon at a time.
   bool getPolygon(const size_t& polygon_idx, Polygon* polygon) const;
+
+  // Retrieve a vertex of the mesh given a LandmarkId.
+  // Returns true if we could find the vertex with the given landmark id
+  // false otherwise.
+  bool getVertex(const LandmarkId& lmk_id, VertexPositionType* vertex) const;
 
 private:
   /// TODO change internal structures for the mesh with std::vector<Polygon>.
@@ -156,7 +161,7 @@ private:
   // Used by addPolygonToMesh, it is not supposed to be used by the end user.
   void updateMeshDataStructures(
       const LandmarkId& lmk_id,
-      const VertexPosition3D& lmk_position,
+      const VertexPositionType& lmk_position,
       std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
       std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
       cv::Mat* vertices_mesh,

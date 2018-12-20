@@ -18,7 +18,8 @@
 
 namespace VIO {
 
-Mesh3D::Mesh3D(const size_t& polygon_dimension)
+template<typename VertexPositionType>
+Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
   : vertex_to_lmk_id_map_(),
     lmk_id_to_vertex_map_(),
     vertices_mesh_(0, 1, CV_32FC3),
@@ -29,7 +30,8 @@ Mesh3D::Mesh3D(const size_t& polygon_dimension)
 }
 
 /* -------------------------------------------------------------------------- */
-Mesh3D& Mesh3D::operator=(const Mesh3D& rhs_mesh) {
+template<typename VertexPositionType>
+Mesh<VertexPositionType>& Mesh<VertexPositionType>::operator=(const Mesh<VertexPositionType>& rhs_mesh) {
   // Check for self-assignment.
   if(&rhs_mesh == this)
     return *this;
@@ -41,10 +43,12 @@ Mesh3D& Mesh3D::operator=(const Mesh3D& rhs_mesh) {
   vertex_to_lmk_id_map_ = rhs_mesh.vertex_to_lmk_id_map_;
   vertices_mesh_ = rhs_mesh.vertices_mesh_.clone();
   polygons_mesh_ = rhs_mesh.polygons_mesh_.clone();
+  return *this;
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesh3D::addPolygonToMesh(const Polygon& polygon) {
+template<typename VertexPositionType>
+void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
   // Update mesh connectivity (this does duplicate polygons, adding twice the
   // same polygon is permitted, although it should not for efficiency).
   // This cannot be avoided by just checking that at least one of the
@@ -58,7 +62,7 @@ void Mesh3D::addPolygonToMesh(const Polygon& polygon) {
   // Specify number of point ids per face in the mesh.
   polygons_mesh_.push_back(static_cast<int>(polygon_dimension_));
   // Loop over each vertex in the given polygon.
-  for (const Vertex& vertex: polygon) {
+  for (const VertexType& vertex: polygon) {
     // Add or update vertex in the mesh, and encode its connectivity in the mesh.
     updateMeshDataStructures(vertex.getLmkId(),
                              vertex.getVertexPosition(),
@@ -72,46 +76,51 @@ void Mesh3D::addPolygonToMesh(const Polygon& polygon) {
 /* -------------------------------------------------------------------------- */
 // Updates mesh data structures incrementally, by adding new landmark
 // if there was no previous id, or updating it if it was already present.
-void Mesh3D::updateMeshDataStructures(
-                          const LandmarkId& lmk_id,
-                          const VertexPosition3D& lmk_position,
-                          std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
-                          std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
-                          cv::Mat* vertices_mesh,
-                          cv::Mat* polygon_mesh) const {
+// Provides the id of the row where the new/updated vertex is in the vertices_mesh
+// data structure.
+template<typename VertexPositionType>
+void Mesh<VertexPositionType>::updateMeshDataStructures(
+    const LandmarkId& lmk_id,
+    const VertexPositionType& lmk_position,
+    std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
+    std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
+    cv::Mat* vertices_mesh,
+    cv::Mat* polygon_mesh) const {
   CHECK_NOTNULL(vertex_to_lmk_id_map);
   CHECK_NOTNULL(lmk_id_to_vertex_map);
   CHECK_NOTNULL(vertices_mesh);
   CHECK_NOTNULL(polygon_mesh);
 
   const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map->end();
-  const auto& vertex_1_it = lmk_id_to_vertex_map->find(lmk_id);
+  const auto& vertex_it = lmk_id_to_vertex_map->find(lmk_id);
 
-  int row_id_pt_1;
+  int row_id_vertex;
   // Check whether this landmark is already in the set of vertices of the
   // mesh.
-  if (vertex_1_it == lmk_id_to_vertex_map_end) {
+  if (vertex_it == lmk_id_to_vertex_map_end) {
     // New landmark, create a new entrance in the set of vertices.
     // Store 3D points in map_points_3d.
     vertices_mesh->push_back(lmk_position);
-    row_id_pt_1 = vertices_mesh->rows - 1;
+    row_id_vertex = vertices_mesh->rows - 1;
+    // Book-keeping.
     // Store the row in the vertices structure of this new landmark id.
-    (*lmk_id_to_vertex_map)[lmk_id] = row_id_pt_1;
-    (*vertex_to_lmk_id_map)[row_id_pt_1] = lmk_id;
+    (*lmk_id_to_vertex_map)[lmk_id] = row_id_vertex;
+    (*vertex_to_lmk_id_map)[row_id_vertex] = lmk_id;
   } else {
     // Update old landmark with new position.
-    vertices_mesh->at<cv::Point3f>(vertex_1_it->second) = lmk_position;
-    row_id_pt_1 = vertex_1_it->second;
+    vertices_mesh->at<VertexPositionType>(vertex_it->second) = lmk_position;
+    row_id_vertex = vertex_it->second;
   }
   // Store corresponding ids (row index) to the 3d point in map_points_3d.
   // This structure encodes the connectivity of the mesh:
-  polygon_mesh->push_back(row_id_pt_1);
+  polygon_mesh->push_back(row_id_vertex);
 }
 
 /* -------------------------------------------------------------------------- */
 // Get a polygon in the mesh.
 // Returns false if there is no polygon.
-bool Mesh3D::getPolygon(const size_t& polygon_idx, Polygon* polygon) const {
+template<typename VertexPositionType>
+bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx, Polygon* polygon) const {
   CHECK_NOTNULL(polygon);
   if (polygon_idx >= getNumberOfPolygons()) {
     VLOG(10) << "Requested polygon number: " << polygon_idx
@@ -126,31 +135,61 @@ bool Mesh3D::getPolygon(const size_t& polygon_idx, Polygon* polygon) const {
     const int32_t& row_id_pt_j =
         polygons_mesh_.at<int32_t>(idx_in_polygon_mesh + j + 1);
     const LandmarkId& lmk_id_j  = vertex_to_lmk_id_map_.at(row_id_pt_j);
-    const cv::Point3f& point_j  = vertices_mesh_.at<cv::Point3f>(row_id_pt_j);
-    polygon->at(j) = Vertex(lmk_id_j, point_j);
+    const VertexPositionType& point_j  = vertices_mesh_.at<VertexPositionType>(row_id_pt_j);
+    polygon->at(j) = Vertex<VertexPositionType>(lmk_id_j, point_j);
   }
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesh3D::convertVerticesMeshToMat(cv::Mat* vertices_mesh) const {
+// Retrieve a vertex of the mesh given a LandmarkId.
+// Returns true if we could find the vertex with the given landmark id
+// false otherwise.
+template<typename VertexPositionType>
+bool Mesh<VertexPositionType>::getVertex(const LandmarkId& lmk_id,
+                                         VertexPositionType* vertex) const {
+  CHECK_NOTNULL(vertex);
+  const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map_.end();
+  const auto& vertex_it = lmk_id_to_vertex_map_.find(lmk_id);
+  if (vertex_it == lmk_id_to_vertex_map_end) {
+    // We didn't find the lmk id!
+    VLOG(100) << "Lmk id: " << lmk_id << " not found in mesh.";
+    return false;
+  } else {
+    // Return the vertex.
+    *vertex = vertices_mesh_.at<VertexPositionType>(vertex_it->second);
+    return true; // Meaning we found the vertex.
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+template<typename VertexPositionType>
+void Mesh<VertexPositionType>::convertVerticesMeshToMat(cv::Mat* vertices_mesh) const {
   CHECK_NOTNULL(vertices_mesh);
   *vertices_mesh = vertices_mesh_.clone();
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesh3D::convertPolygonsMeshToMat(cv::Mat* polygons_mesh) const {
+template<typename VertexPositionType>
+void Mesh<VertexPositionType>::convertPolygonsMeshToMat(cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
   *polygons_mesh = polygons_mesh_.clone();
 }
 
 /* -------------------------------------------------------------------------- */
 // Reset all data structures of the mesh.
-void Mesh3D::clearMesh() {
+template<typename VertexPositionType>
+void Mesh<VertexPositionType>::clearMesh() {
   vertices_mesh_ = cv::Mat(0, 1, CV_32FC3);
   polygons_mesh_ = cv::Mat(0, 1, CV_32SC1);
   vertex_to_lmk_id_map_.clear();
   lmk_id_to_vertex_map_.clear();
 }
+
+// explicit instantiations
+template class Mesh<cv::Point3f>;
+template class Mesh<cv::Point3d>;
+template class Mesh<cv::Point2f>;
+template class Mesh<cv::Point2d>;
 
 } // End of VIO namespace.

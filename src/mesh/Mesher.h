@@ -70,8 +70,14 @@ public:
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
 private:
-  // The actual mesh.
-  Mesh3D mesh_;
+  typedef cv::Point2f Vertex2DType;
+  typedef cv::Point3f Vertex3DType;
+  typedef Mesh<Vertex2DType> Mesh2D;
+  typedef Mesh<Vertex3DType> Mesh3D;
+  // The 2D mesh.
+  Mesh2D mesh_2d_;
+  // The 3D mesh.
+  Mesh3D mesh_3d_;
   // The histogram of z values for vertices of polygons parallel to ground.
   Histogram z_hist_;
   // The 2d histogram of theta angle (latitude) and distance of polygons
@@ -102,9 +108,9 @@ private:
   // For a triangle defined by the 3d points p1, p2, and p3
   // compute ratio between largest side and smallest side (how elongated it is)
   double getRatioBetweenTangentialAndRadialDisplacement(
-      const Mesh3D::VertexPosition3D& p1,
-      const Mesh3D::VertexPosition3D& p2,
-      const Mesh3D::VertexPosition3D& p3,
+      const Vertex3DType& p1,
+      const Vertex3DType& p2,
+      const Vertex3DType& p3,
       const gtsam::Pose3& leftCameraPose) const;
 
   /* ------------------------------------------------------------------------ */
@@ -120,24 +126,26 @@ private:
   // pixel in the 2d mesh. The correspondence is found using the frame parameter.
   // The 3D mesh contains, at any given time, only points that are in
   // points_with_id_map.
-  void populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& mesh_2d,
+  void populate3dMeshTimeHorizon(const std::vector<cv::Vec6f>& mesh_2d_pixels,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
       const Frame& frame,
       const gtsam::Pose3& leftCameraPose,
       double min_ratio_largest_smallest_side,
       double min_elongation_ratio,
-      double max_triangle_side);
+      double max_triangle_side,
+      Mesh2D* mesh_2d = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Create a 3D mesh from 2D corners in an image.
   void populate3dMesh(
-      const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
+      const std::vector<cv::Vec6f>& mesh_2d_pixels, // cv::Vec6f assumes triangular mesh.
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
       const Frame& frame,
       const gtsam::Pose3& leftCameraPose,
       double min_ratio_largest_smallest_side,
       double min_elongation_ratio,
-      double max_triangle_side);
+      double max_triangle_side,
+      Mesh2D* mesh_2d = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Calculate normals of each polygon in the mesh.
@@ -146,9 +154,9 @@ private:
   /* ------------------------------------------------------------------------ */
   // Calculate normal of a triangle, and return whether it was possible or not.
   // Calculating the normal of aligned points in 3D is not possible...
-  bool calculateNormal(const Mesh3D::VertexPosition3D& p1,
-                       const Mesh3D::VertexPosition3D& p2,
-                       const Mesh3D::VertexPosition3D& p3,
+  bool calculateNormal(const Vertex3DType& p1,
+                       const Vertex3DType& p2,
+                       const Vertex3DType& p3,
                        cv::Point3f* normal) const;
 
   /* ------------------------------------------------------------------------ */
@@ -190,7 +198,7 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Checks whether the point is closer than tolerance to the plane.
-  bool isPointAtDistanceFromPlane(const Mesh3D::VertexPosition3D& point,
+  bool isPointAtDistanceFromPlane(const Vertex3DType& point,
                                   const double& plane_distance,
                                   const cv::Point3f& plane_normal,
                                   const double& distance_tolerance) const;
