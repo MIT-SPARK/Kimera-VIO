@@ -308,12 +308,26 @@ public:
   /* ------------------------------------------------------------------------ */
   ///Visualize a PLY from filename (absolute path).
   void visualizePlyMesh(const std::string& filename) {
-   cv::viz::Widget cloud;
    LOG(INFO) << "Showing ground truth mesh: " << filename;
-   cloud.fromPlyFile(filename);
+   // The ply file must have in the header a "element vertex" and
+   // a "element face" primitives, otherwise you'll get a
+   // "Cannot read geometry" error.
+   cv::viz::Mesh mesh(cv::viz::Mesh::load(filename));
+   if (mesh.polygons.size[1] == 0) {
+     // If there are no polygons, convert to point cloud, otw there will be
+     // nothing displayed...
+     cv::viz::WCloud cloud (mesh.cloud, cv::viz::Color::lime());
+     cloud.setRenderingProperty(cv::viz::REPRESENTATION,
+                                cv::viz::REPRESENTATION_POINTS);
+     cloud.setRenderingProperty(cv::viz::POINT_SIZE, 2);
+     cloud.setRenderingProperty(cv::viz::OPACITY, 0.1);
 
-   //// Plot mesh.
-   window_.showWidget("Cloud from ply", cloud);
+     // Plot point cloud.
+     window_.showWidget("Mesh from ply", cloud);
+   } else {
+     // Plot mesh.
+     window_.showWidget("Mesh from ply", cv::viz::WMesh(mesh));
+   }
   }
 
   /* ------------------------------------------------------------------------ */

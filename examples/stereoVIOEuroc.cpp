@@ -65,10 +65,9 @@ DEFINE_bool(visualize_planes, false, "Enable plane visualization.");
 DEFINE_bool(visualize_plane_label, false, "Enable plane label visualization.");
 DEFINE_bool(visualize_mesh_in_frustum, false, "Enable mesh visualization in "
                                              "camera frustum.");
-
-DEFINE_bool(show_groundtruth_pointcloud, true,
-            "Show ground truth point cloud of the scene, only available on "
-            "Euroc's Vicon dataset.");
+DEFINE_string(visualize_load_mesh_filename, "",
+            "Load a mesh in the visualization, i.e. to visualize ground-truth "
+            "point cloud from Euroc's Vicon dataset.");
 
 DEFINE_int32(viz_type, 0,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
@@ -663,11 +662,10 @@ int main(int argc, char *argv[]) {
                                            lmk_id_to_lmk_type_map_prev);
             }
 
-            if (FLAGS_show_groundtruth_pointcloud) {
+            if (!FLAGS_visualize_load_mesh_filename.empty()) {
               static bool visualize_ply_mesh_once = true;
               if (visualize_ply_mesh_once) {
-                visualizer.visualizePlyMesh(
-                      "/home/tonirv/datasets/EuRoC/V1_01_easy/mav0/pointcloud0/data.ply");
+                visualizer.visualizePlyMesh(FLAGS_visualize_load_mesh_filename.c_str());
                 visualize_ply_mesh_once = false;
               }
             }
@@ -778,7 +776,6 @@ int main(int argc, char *argv[]) {
             // Render current window.
             visualizer.renderWindow(1, true);
 
-            // Store current mesh for display later.
             planes_prev = planes;
             vertices_mesh_prev = vertices_mesh;
             polygons_mesh_prev = polygons_mesh;
