@@ -849,14 +849,6 @@ int main(int argc, char *argv[]) {
       timestamp_lkf = timestamp_k;
     }
 
-    // To take a screenshot of the scene at the indicated frame.
-    //if (k >= 1206) {
-    //  std::string filename = "spr_overview.png";
-    //  visualizer.getScreenshot(filename);
-    //  // Exit.
-    //  break;
-    //}
-
     if (k == final_k - 1) {
       LOG(INFO) << "stereoVIOExample completed successfully!";
       is_pipeline_successful = true;
