@@ -622,6 +622,12 @@ int main(int argc, char *argv[]) {
           }
 
           // Create mesh.
+          // Also provides an image of the 2d triangulation,
+          // as well as a mesh2D that is linked to the mesh3D via the
+          // landmark ids. Note that the mesh2D only contains those triangles
+          // that have a corresponding polygon face in 3D.
+          // Iterate over the mesh 2D, and use mesh3D getVertex to get the
+          // 3D face from the 2D triangle.
           mesher.updateMesh3D(
                 points_with_id_VIO,
                 stereoVisionFrontEnd.stereoFrame_lkf_,

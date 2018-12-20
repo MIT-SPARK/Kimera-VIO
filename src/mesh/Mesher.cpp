@@ -1260,7 +1260,8 @@ void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
     std::shared_ptr<StereoFrame> stereoFrame,
     const gtsam::Pose3& leftCameraPose,
-    cv::Mat* mesh_2d_img_ptr) {
+    cv::Mat* mesh_2d_img_ptr,
+    Mesh2D* mesh_2d) {
   VLOG(10) << "Starting updateMesh3D...";
   const std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_all =
       &points_with_id_VIO;
@@ -1287,17 +1288,17 @@ void Mesher::updateMesh3D(
            << points_with_id_all->size();
 
   // Build 2D mesh.
-  std::vector<cv::Vec6f> mesh_2d;
-  stereoFrame->createMesh2dVIO(&mesh_2d,
+  std::vector<cv::Vec6f> mesh_2d_pixels;
+  stereoFrame->createMesh2dVIO(&mesh_2d_pixels,
                                *points_with_id_all);
   std::vector<cv::Vec6f> mesh_2d_filtered;
-  stereoFrame->filterTrianglesWithGradients(mesh_2d,
+  stereoFrame->filterTrianglesWithGradients(mesh_2d_pixels,
                                             &mesh_2d_filtered,
                                             FLAGS_max_grad_in_triangle);
 
   // Debug.
   if (FLAGS_visualize_mesh_2d) {
-    stereoFrame->drawMesh2DStereo(mesh_2d, nullptr);
+    stereoFrame->drawMesh2DStereo(mesh_2d_pixels, nullptr);
   }
   if (FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr) {
     stereoFrame->drawMesh2DStereo(mesh_2d_filtered, mesh_2d_img_ptr,
@@ -1312,7 +1313,8 @@ void Mesher::updateMesh3D(
         leftCameraPose,
         FLAGS_min_ratio_btw_largest_smallest_side,
         FLAGS_min_elongation_ratio,
-        FLAGS_max_triangle_side);
+        FLAGS_max_triangle_side,
+        mesh_2d);
 
   VLOG(10) << "Finished updateMesh3D.";
 }

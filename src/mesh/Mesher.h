@@ -33,17 +33,25 @@
 
 namespace VIO {
 class Mesher {
+private:
+  typedef cv::Point2f Vertex2DType;
+  typedef cv::Point3f Vertex3DType;
+  typedef Mesh<Vertex2DType> Mesh2D;
+  typedef Mesh<Vertex3DType> Mesh3D;
+
 public:
   /* ------------------------------------------------------------------------ */
   Mesher();
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
+  // It also returns a mesh_2d which represents the triangulation in the 2d image.
   void updateMesh3D(
       const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO,
       std::shared_ptr<StereoFrame> stereoFrame,
       const gtsam::Pose3& leftCameraPose,
-      cv::Mat* mesh_2d_img_ptr = nullptr);
+      cv::Mat* mesh_2d_img_ptr = nullptr,
+      Mesh2D* mesh_2d = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Cluster planes from the mesh.
@@ -70,10 +78,6 @@ public:
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
 private:
-  typedef cv::Point2f Vertex2DType;
-  typedef cv::Point3f Vertex3DType;
-  typedef Mesh<Vertex2DType> Mesh2D;
-  typedef Mesh<Vertex3DType> Mesh3D;
   // The 2D mesh.
   Mesh2D mesh_2d_;
   // The 3D mesh.
