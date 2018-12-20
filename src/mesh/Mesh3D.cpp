@@ -47,6 +47,9 @@ Mesh3D& Mesh3D::operator=(const Mesh3D& rhs_mesh) {
 void Mesh3D::addPolygonToMesh(const Polygon& polygon) {
   // Update mesh connectivity (this does duplicate polygons, adding twice the
   // same polygon is permitted, although it should not for efficiency).
+  // This cannot be avoided by just checking that at least one of the
+  // vertices of the wanna-be polygon is new, as a polygon that has no new
+  // vertices can be linking in a new way three old vertices.
   CHECK_EQ(polygon.size(), polygon_dimension_)
       << "Trying to insert a polygon of different dimension than "
       << "the mesh's polygons.\n"
