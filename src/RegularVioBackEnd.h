@@ -176,12 +176,10 @@ private:
   // norm_type = 0: l-2.
   // norm_type = 1: Huber.
   // norm_type = 2: Tukey.
-  void selectNormType(
-      gtsam::SharedNoiseModel* noise_model_output,
+  void selectNormType(gtsam::SharedNoiseModel* noise_model_output,
       const gtsam::SharedNoiseModel& noise_model_input,
       const size_t& norm_type,
-      const double& norm_type_parameter,
-      const double& noise_sigma = 1.0);
+      const double& norm_type_parameter);
 
   /* ------------------------------------------------------------------------ */
   // Extract all lmk ids, wo repetition, from the set of planes.
