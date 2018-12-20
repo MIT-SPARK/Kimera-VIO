@@ -25,8 +25,9 @@
 DEFINE_int32(mesh_shading, 0,
              "Mesh shading:\n 0: Flat, 1: Gouraud, 2: Phong");
 DEFINE_int32(mesh_representation, 1,
-             "Mesh representation:\n 0: Points, 1: Wireframe, 2: Surface");
-DEFINE_bool(set_mesh_ambient, false, "Whether to use lighting for the mesh.");
+             "Mesh representation:\n 0: Points, 1: Surface, 2: Wireframe");
+DEFINE_bool(set_mesh_ambient, false, "Whether to use ambient light for the "
+                                     "mesh.");
 DEFINE_bool(set_mesh_lighting, false, "Whether to use lighting for the mesh.");
 DEFINE_bool(log_mesh, false, "Log the mesh at time horizon.");
 DEFINE_bool(log_accumulated_mesh, false, "Accumulate the mesh when logging.");
@@ -251,10 +252,8 @@ public:
     }
 
     // Create a mesh widget.
-    cv::viz::WMesh mesh (map_points_3d.t(), polygons_mesh);
-    if (color_mesh) {
-      mesh = cv::viz::WMesh(map_points_3d.t(), polygons_mesh, colors.t());
-    }
+    cv::viz::WMesh mesh (map_points_3d.t(), polygons_mesh,
+                         color_mesh? colors.t():cv::Mat());
 
     // Decide mesh shading style.
     switch (FLAGS_mesh_shading) {
