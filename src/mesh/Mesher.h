@@ -71,6 +71,12 @@ public:
   void getVerticesMesh(cv::Mat* vertices_mesh) const;
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
+  // Provide Mesh 3D in read-only mode.
+  // Not the nicest to send a const &, should maybe use shared_ptr
+  inline const Mesh3D& get3DMesh() const {
+    return mesh_3d_;
+  }
+
 private:
   // The 3D mesh.
   Mesh3D mesh_3d_;
