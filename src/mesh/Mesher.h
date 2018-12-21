@@ -72,8 +72,6 @@ public:
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
 private:
-  // The 2D mesh.
-  Mesh2D mesh_2d_;
   // The 3D mesh.
   Mesh3D mesh_3d_;
   // The histogram of z values for vertices of polygons parallel to ground.
