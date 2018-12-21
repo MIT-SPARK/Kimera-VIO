@@ -53,3 +53,12 @@ mkdir build
 cd build
 cmake -D CMAKE_BUILD_TYPE=Release ..
 make -j8
+
+# Install spark_vio_evaluation, requires python
+# Make virtualenv? No need really...
+
+# Install spark_vio_evaluation from PyPI
+pip install spark_vio_evalution
+
+# Run performance tests
+./test_spark_vio_performance.py
