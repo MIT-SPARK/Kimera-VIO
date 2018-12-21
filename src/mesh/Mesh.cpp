@@ -187,9 +187,7 @@ void Mesh<VertexPositionType>::clearMesh() {
 }
 
 // explicit instantiations
-template class Mesh<cv::Point3f>;
-template class Mesh<cv::Point3d>;
-template class Mesh<cv::Point2f>;
-template class Mesh<cv::Point2d>;
+template class Mesh<Vertex2DType>;
+template class Mesh<Vertex3DType>;
 
 } // End of VIO namespace.

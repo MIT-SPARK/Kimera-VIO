@@ -33,12 +33,6 @@
 
 namespace VIO {
 class Mesher {
-private:
-  typedef cv::Point2f Vertex2DType;
-  typedef cv::Point3f Vertex3DType;
-  typedef Mesh<Vertex2DType> Mesh2D;
-  typedef Mesh<Vertex3DType> Mesh3D;
-
 public:
   /* ------------------------------------------------------------------------ */
   Mesher();

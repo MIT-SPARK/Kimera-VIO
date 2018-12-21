@@ -168,4 +168,14 @@ private:
       cv::Mat* polygon_mesh) const;
 };
 
+// For example, pixels.
+typedef cv::Point2f Vertex2DType;
+// A 2D Mesh of pixels.
+typedef Mesh<Vertex2DType> Mesh2D;
+
+// For example, landmark positions.
+typedef cv::Point3f Vertex3DType;
+// A 3D Mesh of landmarks.
+typedef Mesh<Vertex3DType> Mesh3D;
+
 } // End of VIO namespace.
