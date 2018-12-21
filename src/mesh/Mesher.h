@@ -18,7 +18,7 @@
 #include "StereoFrame.h"
 
 #include "Histogram.h"
-#include "mesh/Mesh3D.h"
+#include "mesh/Mesh.h"
 
 #include <stdlib.h>
 
