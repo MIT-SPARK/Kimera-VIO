@@ -4,9 +4,8 @@ pipeline {
     stage('Build') {
       steps {
           sh 'ls -la'
-          sh 'cd $DIRPATH'
-          sh 'ls -la'
           sh 'mkdir build'
+          sh 'cd build'
           sh 'cmake ..'
           timeout(time: 20, unit: 'MINUTES') {
             sh 'make -j8'
