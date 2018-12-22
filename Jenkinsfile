@@ -5,10 +5,9 @@ pipeline {
       steps {
           sh 'ls -la'
           sh 'mkdir build'
-          sh 'cd build'
-          sh 'cmake ..'
+          sh 'cd build && cmake ..'
           timeout(time: 20, unit: 'MINUTES') {
-            sh 'make -j8'
+            sh 'cd build && make -j8'
           }
       }
     }
