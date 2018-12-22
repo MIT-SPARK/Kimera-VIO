@@ -7,16 +7,16 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   testVioBackEndParams.cp
- * @brief  test VioBackEndParams
- * @author Luca Carlone
+ * @file   testRegularVioBackEndParams.cp
+ * @brief  test RegularVioBackEndParams
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #include <cstdlib>
 #include <iostream>
 #include <random>
 #include <algorithm>
-#include "VioBackEndParams.h"
+#include "RegularVioBackEndParams.h"
 #include "test_config.h"
 
 #include <glog/logging.h>
@@ -32,9 +32,9 @@ using namespace cv;
 static const double tol = 1e-7;
 
 /* ************************************************************************* */
-TEST(testVioBackEndParams, VioParseYAML) {
+TEST(testRegularVioBackEndParams, VioParseYAML) {
   // Test parseYAML
-  VioBackEndParams vp;
+  RegularVioBackEndParams vp;
   vp.parseYAML(string(DATASET_PATH) + "/ForVIO/vioParameters.yaml");
 
   // Check the parsed values!
@@ -61,6 +61,15 @@ TEST(testVioBackEndParams, VioParseYAML) {
   EXPECT(vp.linearizationMode_ == 3);
   EXPECT(vp.degeneracyMode_ == 2);
   EXPECT_DOUBLES_EQUAL(5, vp.smartNoiseSigma_, tol);
+  EXPECT_DOUBLES_EQUAL(6, vp.monoNoiseSigma_, tol);
+  EXPECT(0 == vp.monoNormType_);
+  EXPECT_DOUBLES_EQUAL(0, vp.monoNormParam_, tol);
+  EXPECT_DOUBLES_EQUAL(3, vp.stereoNoiseSigma_, tol);
+  EXPECT(0 == vp.stereoNormType_);
+  EXPECT_DOUBLES_EQUAL(0, vp.stereoNormParam_, tol);
+  EXPECT_DOUBLES_EQUAL(0.3, vp.regularityNoiseSigma_, tol);
+  EXPECT(1 == vp.regularityNormType_);
+  EXPECT_DOUBLES_EQUAL(5.1, vp.regularityNormParam_, tol);
   EXPECT_DOUBLES_EQUAL(2.1, vp.rankTolerance_, tol);
   EXPECT_DOUBLES_EQUAL(10.2, vp.landmarkDistanceThreshold_, tol);
   EXPECT_DOUBLES_EQUAL(3.2, vp.outlierRejection_, tol);
@@ -82,31 +91,14 @@ TEST(testVioBackEndParams, VioParseYAML) {
 }
 
 /* ************************************************************************* */
-TEST(testVioBackEndParams, equals) {
-  VioBackEndParams vp = VioBackEndParams();
+TEST(testRegularVioBackEndParams, equals) {
+  RegularVioBackEndParams vp = RegularVioBackEndParams();
   EXPECT(vp.equals(vp));
 
-  VioBackEndParams vp2 = VioBackEndParams();
+  RegularVioBackEndParams vp2 = RegularVioBackEndParams();
   vp2.smartNoiseSigma_ += 1e-5; // small perturbation
 
   EXPECT(!vp.equals(vp2));
-}
-
-/* ************************************************************************* */
-TEST(testVioBackEndParams, cppVSmatlabTrackerParams) {
-  // check that the cpp default params match the matlab ones.
-  // before running, make sure that you run "writeDefaultParams" in matlab
-  VioBackEndParams cppDefault_vp = VioBackEndParams();
-
-  VioBackEndParams matlabDefault_vp;
-  matlabDefault_vp.parseYAML(string(DATASET_PATH) + "/../../matlab/myLib/defaultVioParams.yaml");
-
-  EXPECT(matlabDefault_vp.equals(cppDefault_vp,1e-5));
-
-  if(!matlabDefault_vp.equals(cppDefault_vp)){
-    matlabDefault_vp.print();
-    cppDefault_vp.print();
-  }
 }
 
 /* ************************************************************************* */
