@@ -57,5 +57,5 @@ RUN cd opengv/build && \
       make -j$(nproc) install
 
 # Install spark_vio_evaluation from PyPI
-RUN apt-get update && apt-get install -y python-pip
-RUN pip install spark_vio_evalution
+RUN apt-get update && apt-get install -y python-pip python-dev
+RUN pip install spark_vio_evaluation
