@@ -22,9 +22,7 @@ RUN cd gtsam && \
     mkdir build && \
     cd build && \
     cmake -DGTSAM_BUILD_STATIC_LIBRARY=OFF -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release .. && \
-    make -j$(nproc) install && \
-    cd && \
-    rm -r gtsam
+    make -j$(nproc) install
 
 # Install OpenCV for Ubuntu 18.04
 RUN apt-get update && apt-get install -y \
