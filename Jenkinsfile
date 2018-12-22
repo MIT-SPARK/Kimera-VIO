@@ -3,7 +3,6 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-          sh 'ls -la'
           sh 'mkdir build'
           sh 'cd build && cmake ..'
           timeout(time: 20, unit: 'MINUTES') {
@@ -14,7 +13,7 @@ pipeline {
     stage('Test') {
       steps {
         timeout(time: 30, unit: 'MINUTES') {
-          sh 'make check -j8'
+          sh 'cd build && make check -j8'
         }
       }
     }
