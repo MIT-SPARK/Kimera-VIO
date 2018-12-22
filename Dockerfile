@@ -56,17 +56,6 @@ RUN cd opengv/build && \
 # NEEDS TO USE GTSAM's EIGEN!!
       make -j$(nproc) install
 
-# Install SPARK_VIO
-RUN git clone git@github.mit.edu:SPARK/VIO.git spark_vio
-RUN cd ./spark_vio && \
-      mkdir build && \
-      cd build && \
-      cmake -D CMAKE_BUILD_TYPE=Release .. && \
-      make -j8
-
 # Install spark_vio_evaluation from PyPI
 RUN apt-get update && apt-get install -y pip
 RUN pip install spark_vio_evalution
-
-# Run app.py when the container launches
-CMD ["spark_vio/scripts/stereoVIOEuroc.bash"]
