@@ -8,7 +8,7 @@ pipeline {
     }
     stage('Test') {
       steps {
-          sh 'cd build && cmake .. && make check -j 8'
+          cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: 'check -j 8']]
           ctest arguments: '-T test --no-compress-output --verbose', installation: 'InSearchPath', workingDir: 'build/tests'
       }
     }
@@ -18,7 +18,7 @@ pipeline {
       echo 'Jenkins Finished'
       // Archive the CTest xml output
       archiveArtifacts (
-          artifacts: 'build/Testing/**/*.xml',
+          artifacts: 'build/tests/Testing/**/*.xml',
           fingerprint: true
           )
 
@@ -26,7 +26,7 @@ pipeline {
       xunit([CTest(
             deleteOutputFiles: true,
             failIfNotNew: true,
-            pattern: 'build/Testing/**/*.xml',
+            pattern: 'build/tests/Testing/**/*.xml',
             skipNoTestFiles: false,
             stopProcessingIfError: true)
       ])
