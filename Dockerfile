@@ -42,7 +42,14 @@ RUN cd opencv_contrib && \
       git checkout tags/3.3.1
 
 RUN cd opencv/build && \
-      cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DWITH_VTK=On -DOPENCV_EXTRA_MODULES_PATH=$DIRPATH/opencv_contrib/modules .. && \
+      cmake -DCMAKE_BUILD_TYPE=Release 
+      -DCMAKE_INSTALL_PREFIX=/usr/local 
+      -DWITH_VTK=On 
+      -D BUILD_opencv_java=OFF
+      -D BUILD_opencv_python=OFF
+      -D BUILD_opencv_python2=OFF
+      -D BUILD_opencv_python3=OFF ..
+      -DOPENCV_EXTRA_MODULES_PATH=$DIRPATH/opencv_contrib/modules .. && \
       make -j$(nproc) install
 
 # Install Open_GV
