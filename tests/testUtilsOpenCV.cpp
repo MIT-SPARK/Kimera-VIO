@@ -661,6 +661,8 @@ Mat chessboardImg;
   vector<cv::Point2f> notUsed;
   tie(chessboardImg, notUsed) = cvCreateChessboard(30, 10, 8);
   Mat actual = UtilsOpenCV::ImageLaplacian(chessboardImg);
+  cv::imshow("actual",actual);
+  cv::waitKey(100);
 }
 /* ************************************************************************* */
 int main() {
