@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get update && apt-get install -y libboost-all-dev
 RUN git clone https://bitbucket.org/gtborg/gtsam.git
 RUN cd gtsam && \
-    git fetch && git checkout feature/improvementsIncrementalFilter && \
+    git fetch && git checkout c827d4cd6b11f78f3d2d9d52b335ac562a2757fc && \
     mkdir build && \
     cd build && \
     cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_STATIC_LIBRARY=OFF -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON .. && \
@@ -44,8 +44,6 @@ RUN cd opencv_contrib && \
 RUN cd opencv/build && \
       cmake -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_INSTALL_PREFIX=/usr/local \
-      -DWITH_VTK=On \
-      -D BUILD_opencv_java=OFF \
       -D BUILD_opencv_python=OFF \
       -D BUILD_opencv_python2=OFF \
       -D BUILD_opencv_python3=OFF \
@@ -57,7 +55,7 @@ RUN git clone https://github.com/laurentkneip/opengv
 RUN cd opengv && \
       mkdir build
 RUN cd opengv/build && \
-      cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DEIGEN_INCLUDE_DIR=/root/gtsam/gtsam/3rdparty/Eigen .. && \
+      cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DEIGEN_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
 # Install spark_vio_evaluation from PyPI
