@@ -30,7 +30,6 @@ using namespace gtsam;
 using namespace VIO;
 using namespace cv;
 
-static const double tol = 1e-7;
 
 /* ************************************************************************* */
 //TEST(testFrame, parseYAML) {
@@ -95,8 +94,6 @@ static const double tol = 1e-7;
 
 /* ************************************************************************* */
 TEST(testFrame, Cal3_S2ToCvmat) {
-  Cal3_S2 K(500, 500, 0.0, 640 / 2, 480 / 2);
-  Mat C = UtilsOpenCV::Cal3_S2ToCvmat(K);
 }
 
 /* ************************************************************************* */
