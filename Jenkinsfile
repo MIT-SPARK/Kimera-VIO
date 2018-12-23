@@ -3,12 +3,12 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-          cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '$WORKSPACE', steps: [[args: '-j 8']]
+          cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: '-j 8']]
       }
     }
     stage('Test') {
       steps {
-          cmakeBuild buildDir: 'build', buildType: 'Release', generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '$WORKSPACE', steps: [[args: 'check -j 8']]
+          cmakeBuild buildDir: 'build', buildType: 'Release', generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: 'check -j 8']]
       }
     }
   }
