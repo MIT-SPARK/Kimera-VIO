@@ -3,17 +3,12 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-          sh 'cmake .'
-          timeout(time: 20, unit: 'MINUTES') {
-            sh 'make -j8'
-          }
+          cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '$WORKSPACE', steps: [[args: '-j 8']]
       }
     }
     stage('Test') {
       steps {
-        timeout(time: 30, unit: 'MINUTES') {
-          sh 'make check -j8'
-        }
+          cmakeBuild buildDir: 'build', buildType: 'Release', generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '$WORKSPACE', steps: [[args: 'check -j 8']]
       }
     }
   }
