@@ -238,8 +238,6 @@ TEST(testStereoFrame, findMatchingKeypointRectified) {
             matches.push_back(cv::DMatch(0, 0, 0));
             Mat canvas = UtilsOpenCV::DrawCornersMatches(left_img, left_corners,
                 right_img, right_corners, matches);
-            imshow("matched keypoints", canvas);
-            waitKey(0);
           }
         }
       }
@@ -573,8 +571,6 @@ TEST(testStereoFrame, getRightKeypointsRectified) {
             matches.push_back(cv::DMatch(0, 0, 0));
             Mat canvas = UtilsOpenCV::DrawCornersMatches(left_img, left_corners,
                 right_img, right_corners, matches);
-            imshow("matched keypoints", canvas);
-            waitKey(0);
           }
         }
       }

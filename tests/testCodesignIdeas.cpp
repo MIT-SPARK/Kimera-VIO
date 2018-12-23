@@ -17,6 +17,7 @@
 #include "StereoFrame.h"
 #include <gtsam/geometry/StereoCamera.h>
 #include "test_config.h"
+#include "UtilsOpenCV.h"
 
 // Add last, since it redefines CHECK, which is first defined by glog.
 #include <CppUnitLite/TestHarness.h>
