@@ -8,7 +8,7 @@ pipeline {
     }
     stage('Test') {
       steps {
-          cmakeBuild buildDir: 'build', buildType: 'Release', generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: 'check -j 8']]
+          sh 'cd build && cmake .. && make check -j 8'
           ctest arguments: '-T test --no-compress-output --verbose', installation: 'InSearchPath', workingDir: 'build/tests'
       }
     }
