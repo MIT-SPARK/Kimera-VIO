@@ -21,7 +21,7 @@ RUN cd gtsam && \
     git fetch && git checkout feature/improvementsIncrementalFilter && \
     mkdir build && \
     cd build && \
-    cmake -DGTSAM_BUILD_STATIC_LIBRARY=OFF -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release .. && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_STATIC_LIBRARY=OFF -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release .. && \
     make -j$(nproc) install
 
 # Install OpenCV for Ubuntu 18.04
@@ -50,7 +50,7 @@ RUN git clone https://github.com/laurentkneip/opengv
 RUN cd opengv && \
       mkdir build
 RUN cd opengv/build && \
-      cmake -D CMAKE_BUILD_TYPE=Release -DEIGEN_INCLUDE_DIRS=/usr/local/include/gtsam/3rdparty/Eigen .. && \
+      cmake -DCMAKE_BUILD_TYPE=Release -DEIGEN_INCLUDE_DIRS=/usr/local/include/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
 # Install spark_vio_evaluation from PyPI
