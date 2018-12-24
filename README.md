@@ -129,10 +129,8 @@ Tips for development
 ----------------------
 - To make the pipeline deterministic:
     - Disable TBB in GTSAM (go to build folder in gtsam, use cmake-gui to unset ```GTSAM_WITH_TBB```).
-    - Specify ```srand(0)``` in main function, to make randomized algorithms deterministic.
     - Change ```ransac_randomize``` flag in ```params/trackerParameters.yaml``` to 0, to disable ransac randomization.
 
 > Note: these changes are not sufficient to make the output repeatable between different machines.
->>>>>>> 78443ff59c2034c4832db205a7df751624f0762f
 
 > Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
