@@ -489,13 +489,21 @@ void StereoFrame::computeImgGradients(const cv::Mat& img, cv::Mat* img_grads) {
 }
 
 /* -------------------------------------------------------------------------- */
-void StereoFrame::visualizeMesh2DStereo(
+void StereoFrame::drawMesh2DStereo(
     const std::vector<cv::Vec6f>& triangulation_2D,
     cv::Mat* mesh_2d_img,
-    const std::string& window_name) const {
-  cv::Scalar delaunay_color(0, 255, 0), // Green
-             mesh_vertex_color(255, 0, 0), // Blue
-             valid_keypoints_color(0, 0, 255); //Red
+    const std::string& window_name,
+    const bool& visualize) const {
+  static const cv::Scalar delaunay_color(0, 255, 0), // Green
+      mesh_vertex_color(255, 0, 0), // Blue
+      valid_keypoints_color(0, 0, 255); //Red
+
+  // If not asked to visualize, nor to return the image, just skip computation.
+  if (!visualize && mesh_2d_img == nullptr) {
+    LOG(WARNING) << "Asking to draw mesh 2d stereo, but neither asked to "
+                    "visualize it or to return the drawn image, so skipping.";
+    return;
+  }
 
   // Everything is visualized on the left image.
   const Frame& ref_frame = left_frame_;
@@ -535,7 +543,10 @@ void StereoFrame::visualizeMesh2DStereo(
     cv::line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
     cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
   }
-  cv::imshow(window_name, img);
+
+  if (visualize) {
+    cv::imshow(window_name, img);
+  }
   if (mesh_2d_img != nullptr) {
     *mesh_2d_img = img;
   }

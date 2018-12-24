@@ -16,6 +16,8 @@
 #define Mesher_H_
 
 #include "StereoFrame.h"
+
+#include "Histogram.h"
 #include "mesh/Mesh3D.h"
 
 #include <stdlib.h>
@@ -32,8 +34,8 @@
 namespace VIO {
 class Mesher {
 public:
-  Mesher()
-    : mesh_() {}
+  /* ------------------------------------------------------------------------ */
+  Mesher();
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization
@@ -41,14 +43,13 @@ public:
       const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO,
       std::shared_ptr<StereoFrame> stereoFrame,
       const gtsam::Pose3& leftCameraPose,
-      cv::Mat* mesh_2d_img = nullptr);
+      cv::Mat* mesh_2d_img_ptr = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Cluster planes from the mesh.
   void clusterPlanesFromMesh(
       std::vector<Plane>* planes,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-  const;
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio);
 
   /* ------------------------------------------------------------------------ */
   void appendNonVioStereoPoints(
@@ -69,7 +70,13 @@ public:
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
 private:
+  // The actual mesh.
   Mesh3D mesh_;
+  // The histogram of z values for vertices of polygons parallel to ground.
+  Histogram z_hist_;
+  // The 2d histogram of theta angle (latitude) and distance of polygons
+  // perpendicular to the vertical (aka parallel to walls).
+  Histogram hist_2d_;
 
 private:
   /* ------------------------------------------------------------------------ */
@@ -206,8 +213,10 @@ private:
       std::vector<Plane>* seed_planes,
       std::vector<Plane>* new_planes,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
-      const double& normal_tolerance,
-      const double& distance_tolerance) const;
+      const double& normal_tolerance_polygon_plane_association,
+      const double& distance_tolerance_polygon_plane_association,
+      const double& normal_tolerance_horizontal_surface,
+      const double& normal_tolerance_walls);
 
   /* -------------------------------------------------------------------------- */
   // Updates planes lmk ids field with a polygon vertices ids if this polygon
@@ -248,20 +257,20 @@ private:
   // points_with_id_vio is only used if we are using stereo points...
   void segmentNewPlanes(std::vector<Plane>* new_segmented_planes,
                         const cv::Mat& z_components,
-                        const cv::Mat& walls) const;
+                        const cv::Mat& walls);
 
   /* ------------------------------------------------------------------------ */
   // Segment wall planes.
   void segmentWalls(std::vector<Plane>* wall_planes,
                     size_t* plane_id,
-                    const cv::Mat& walls) const;
+                    const cv::Mat& walls);
 
   /* ------------------------------------------------------------------------ */
   // Segment new planes horizontal.
   void segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
                                size_t* plane_id,
                                const Plane::Normal& normal,
-                               const cv::Mat& z_components) const;
+                               const cv::Mat& z_components);
 
   /* ------------------------------------------------------------------------ */
   // Data association between planes:

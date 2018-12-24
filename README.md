@@ -5,7 +5,7 @@ What is VIO?
 ------------
 
 VIO is a library of C++ classes that implement the visual-inertial odometry pipeline described in these papers:
- 
+
  - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
  - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
  - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors. In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
@@ -30,13 +30,13 @@ Note 1a: if you use MKL in gtsam, you may need to add to .bashrc a line similar 
 Note 1b: sometimes you may need to add /usr/local/lib to LD_LIBRARY_PATH in ~/.bashrc (if you get lib not found errors at run or test time)
 Note 2: you may have to add %YAML:1.0 as first line in all YAML files :-(
 Note 3: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
-Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag) 
+Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag)
 
 Prerequisites:
 
 - [GTSAM](https://bitbucket.org/gtborg/gtsam/overview/) >= 4.0 (Branch: `feature/ImprovementsIncrementalFilter`)
 - [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0 (Installation instructions below)
-- [OpenGV] Installation instructions below 
+- [OpenGV] Installation instructions below
 - [CGAL] Installation instructions below
 
 Installation of OpenCV
@@ -56,7 +56,7 @@ $ sudo make install
 ```
 #!bash
 $ sudo apt-get install libvtk5-dev   (libvtk6-dev in ubuntu 17.10)
-$ sudo apt-get install libgtk2.0-dev 
+$ sudo apt-get install libgtk2.0-dev
 $ sudo apt-get install pkg-config
 download opencv3.3.1 from https://opencv.org/releases.html
 unzip and go to opencv3.3.1
@@ -95,12 +95,12 @@ $ cd build
 $ cmake ../
 ```
 - using cmake-gui enable WithEigen3, click configure, and set the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen)
-- using cmake-gui check that CMAKE_BUILD_TYPE is set to 'Release" 
+- using cmake-gui check that CMAKE_BUILD_TYPE is set to 'Release"
 - go back to the build folder and execute the following:
 
 ```
 #!bash
-$ make -j8 
+$ make -j8
 $ sudo make install
 ```
 
@@ -109,10 +109,10 @@ Glog and Gflags
 Glog and gflags will be automatically downloaded using cmake unless there is a system-wide installation found.
 
 Running examples
-----------------------
+======================
 
 stereoVIOEuroc:
-- Download [EuRoC](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) dataset. You can just download this [file](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip) to do a first test.
+- Download [EuRoC](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) dataset. You can just download this [file](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip) to do a first test, which corresponds to the ```MH_01_easy``` EuRoC dataset.
 - Add the comment ```%YAML:1.0``` at the top of each .yaml file in the dataset (each folder has one sensor.yaml). You can do this manually or alternatively paste and run the following bash script from within the dataset folder:
 ```
 #!bash
@@ -120,19 +120,19 @@ sed -i '1 i\%YAML:1.0' body.yaml
 sed -i '1 i\%YAML:1.0' */sensor.yaml
 ```
 You have two ways to start the example:
-- Using the script stereoVIOEuroc.bash:
-  -- You will need to first specify the DATASET_PATH variable inside the script.
-  -- Optionally, modify flag USE_REGULAR_VIO to 0 to run the normal VIO, or 1 to run the regular version of VIO (recommended: 0).
-  -- Then just execute the script ```./scripts/stereoVIOEuroc.bash```.
-- Execute ```stereoVIOEuroc {DATASET_PATH}``` located in your build folder, where ```{DATASET_PATH}``` is the path to a dataset.
+- Using the script ```stereoVIOEuroc.bash``` inside the ```scripts``` folder:
+  - Run: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy"```
+  - Optionally, you can try the VIO using structural regularities, as in [Toni's thesis](https://www.research-collection.ethz.ch/handle/20.500.11850/297645), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy" -r```
+- Alternatively, have a look inside the script to see how to change extra parameters that control the pipeline itself.
 
 Tips for development
 ----------------------
--- To make the pipeline deterministic:
+- To make the pipeline deterministic:
+    - Disable TBB in GTSAM (go to build folder in gtsam, use cmake-gui to unset ```GTSAM_WITH_TBB```).
+    - Specify ```srand(0)``` in main function, to make randomized algorithms deterministic.
+    - Change ```ransac_randomize``` flag in ```params/trackerParameters.yaml``` to 0, to disable ransac randomization.
 
-- Disable TBB in GTSAM (go to build folder in gtsam, use cmake-gui to unset ```GTSAM_WITH_TBB```).
-- Specify ```srand(0)``` in main function, to make randomized algorithms deterministic.
-To do that use the flag ```--deterministic_random_number_generator=true```
-- Change ```ransac_randomize``` flag in ```params/trackerParameters.yaml``` to 0, to disable ransac randomization.
+> Note: these changes are not sufficient to make the output repeatable between different machines.
+>>>>>>> 78443ff59c2034c4832db205a7df751624f0762f
 
-Note: these changes are not sufficient to make the output repeatable between different machines.
+> Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.

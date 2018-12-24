@@ -22,7 +22,10 @@
 #include "Mesher_cgal.h"
 #endif
 
-DEFINE_bool(use_gouraud_shading, false, "Use Gouraud shading for mesh.");
+DEFINE_int32(mesh_shading, 0,
+             "Mesh shading:\n 0: Flat, 1: Gouraud, 2: Phong");
+DEFINE_int32(mesh_representation, 1,
+             "Mesh representation:\n 0: Points, 1: Wireframe, 2: Surface");
 
 namespace VIO {
 
@@ -211,7 +214,7 @@ public:
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   void visualizeMesh3D(const cv::Mat& mapPoints3d, const cv::Mat& polygonsMesh) {
     cv::Mat colors (mapPoints3d.rows, 1, CV_8UC3, cv::viz::Color::gray());
-    visualizeMesh3D(mapPoints3d, polygonsMesh, colors);
+    visualizeMesh3D(mapPoints3d, colors, polygonsMesh);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -231,8 +234,50 @@ public:
 
     // Create a cloud widget.
     cv::viz::WMesh mesh(map_points_3d.t(), polygons_mesh, colors.t());
-    if (FLAGS_use_gouraud_shading) {
-      mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_GOURAUD);
+
+    // Decide mesh shading style.
+    switch (FLAGS_mesh_shading) {
+      case 0: {
+        mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_FLAT);
+        break;
+      }
+      case 1: {
+        mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_GOURAUD);
+        break;
+      }
+      case 2: {
+        mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_PHONG);
+        break;
+      }
+      default: {
+        mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_GOURAUD);
+        break;
+      }
+    }
+
+    // Decide mesh representation style.
+    switch (FLAGS_mesh_representation) {
+      case 0: {
+        mesh.setRenderingProperty(cv::viz::REPRESENTATION,
+                                  cv::viz::REPRESENTATION_POINTS);
+        mesh.setRenderingProperty(cv::viz::POINT_SIZE, 8);
+        break;
+      }
+      case 1: {
+        mesh.setRenderingProperty(cv::viz::REPRESENTATION,
+                                  cv::viz::REPRESENTATION_SURFACE);
+        break;
+      }
+      case 2: {
+        mesh.setRenderingProperty(cv::viz::REPRESENTATION,
+                                  cv::viz::REPRESENTATION_WIREFRAME);
+        break;
+      }
+      default: {
+        mesh.setRenderingProperty(cv::viz::REPRESENTATION,
+                                  cv::viz::REPRESENTATION_SURFACE);
+        break;
+      }
     }
     mesh.setRenderingProperty(cv::viz::AMBIENT, false);
     mesh.setRenderingProperty(cv::viz::LIGHTING, false);
@@ -256,19 +301,23 @@ public:
   void visualizeMesh3DWithColoredClusters(
       const std::vector<Plane>& planes,
       const cv::Mat& map_points_3d,
-      const cv::Mat& polygons_mesh) {
-    // Color the mesh.
-    cv::Mat colors;
-    colorMeshByClusters(planes, map_points_3d, polygons_mesh, &colors);
-
-    // Log the mesh.
-    static constexpr bool log_mesh = false;
-    if (log_mesh) {
-      logMesh(map_points_3d, colors, polygons_mesh);
+      const cv::Mat& polygons_mesh,
+      const bool& color_mesh = false) {
+    if (color_mesh == false) {
+      // Colour the mesh.
+      cv::Mat colors;
+      colorMeshByClusters(planes, map_points_3d, polygons_mesh, &colors);
+      // Visualize the colored mesh.
+      visualizeMesh3D(map_points_3d, colors, polygons_mesh);
+      // Log the mesh.
+      static constexpr bool log_mesh = false;
+      if (log_mesh) {
+        logMesh(map_points_3d, colors, polygons_mesh);
+      }
+    } else {
+      // Visualize the mesh with same colour.
+      visualizeMesh3D(map_points_3d, polygons_mesh);
     }
-
-    // Visualize the mesh.
-    visualizeMesh3D(map_points_3d, colors, polygons_mesh);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -430,9 +479,9 @@ public:
 
       // Option C: use "look-at" camera parametrization.
       // Works, but motion is non-smooth as well.
-      Vec3d cam_pos(-6.0,0.0,6.0);
-      Vec3d cam_focal_point(camera_in_world_coord.translation());
-      Vec3d cam_y_dir(0.0,0.0,-1.0);
+      Vec3d cam_pos (-6.0, 0.0, 6.0);
+      Vec3d cam_focal_point (camera_in_world_coord.translation());
+      Vec3d cam_y_dir (0.0, 0.0, -1.0);
       Affine3f cam_pose = viz::makeCameraPose(cam_pos,
                                               cam_focal_point,
                                               cam_y_dir);

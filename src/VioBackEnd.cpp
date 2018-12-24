@@ -27,6 +27,19 @@
 
 #include "VioBackEnd.h"
 
+#include <glog/logging.h>
+#include <gflags/gflags.h>
+DEFINE_bool(debug_graph_before_opt, false,
+            "Store factor graph before optimization for later printing if the "
+            "optimization fails.");
+DEFINE_bool(process_cheirality, false,
+            "Handle cheirality exception by removing problematic landmarks and "
+            "re-running optimization.");
+DEFINE_int32(max_number_of_cheirality_exceptions, 5,
+             "Sets the maximum number of times we process a cheirality "
+             "exception for a given optimization problem. This is to avoid too "
+             "many recursive calls to update the smoother");
+
 using namespace std;
 
 namespace VIO {
@@ -55,6 +68,17 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   verbosity_(0),
   log_timing_(log_timing),
   landmark_count_(0) {
+
+  // TODO the parsing of the params should be done inside here out from the
+  // path to the params file, otherwise other derived VIO backends will be stuck
+  // with the parameters used by vanilla VIO, as there is no polymorphic
+  // container in C++...
+  // This way VioBackEnd can parse the params it cares about, while others can
+  // have the opportunity to parse their own parameters as well.
+  // Unfortunately, doing that would not work because many other modules use
+  // VioBackEndParams as weird as this may sound...
+  // For now we have polymorphic params, with dynamic_cast to derived class, aka
+  // suboptimal...
 
   // Set parameters for all factors.
   setFactorsParams(vioParams,
@@ -527,9 +551,9 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
   ////////////// Add landmarks that now are in projection factors. /////////////
   for(const gtsam::Values::Filtered<gtsam::Value>::ConstKeyValuePair& key_value:
       state_.filter(gtsam::Symbol::ChrTest('l'))) {
-    CHECK(gtsam::Symbol(key_value.key).chr() == 'l');
+    DCHECK(gtsam::Symbol(key_value.key).chr() == 'l');
     const LandmarkId& lmk_id = gtsam::Symbol(key_value.key).index();
-    CHECK(points_with_id->find(lmk_id) == points_with_id->end());
+    DCHECK(points_with_id->find(lmk_id) == points_with_id->end());
     (*points_with_id)[lmk_id] = key_value.value.cast<gtsam::Point3>();
     if (lmk_id_to_lmk_type_map) {
       (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::PROJECTION;
@@ -863,8 +887,7 @@ void VioBackEnd::optimize(
   }
 
   // Recreate the graph before marginalization.
-  static constexpr bool debug_graph_before_opt = true;
-  if (verbosity_ >= 5 || debug_graph_before_opt) {
+  if (verbosity_ >= 5 || FLAGS_debug_graph_before_opt) {
     debug_info_.graphBeforeOpt = smoother_->getFactors();
     debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
     debug_info_.graphToBeDeleted.resize(delete_slots.size());
@@ -1055,10 +1078,12 @@ void VioBackEnd::updateSmoother(
   gtsam::Symbol lmk_symbol_cheirality;
   try {
     // Update smoother.
+    VLOG(10) << "Starting update of smoother_...";
     *result = smoother_->update(new_factors_tmp,
                                 new_values,
                                 timestamps,
                                 delete_slots);
+    VLOG(10) << "Finished update of smoother_.";
     if (DEBUG_) {
       printSmootherInfo(new_factors_tmp,
                         delete_slots,
@@ -1137,8 +1162,7 @@ void VioBackEnd::updateSmoother(
     // Do not intentionally throw to see what checks fail later.
   }
 
-  static constexpr bool process_cheirality = true;
-  if (process_cheirality) {
+  if (FLAGS_process_cheirality) {
     static size_t counter_of_exceptions = 0;
     if (got_cheirality_exception) {
       LOG(WARNING) << "Starting processing cheirality exception # "
@@ -1149,8 +1173,7 @@ void VioBackEnd::updateSmoother(
       *smoother_ = smoother_backup;
 
       // Limit the number of cheirality exceptions per run.
-      static constexpr size_t max_number_of_cheirality_exceptions = 5;
-      CHECK_LE(counter_of_exceptions, max_number_of_cheirality_exceptions);
+      CHECK_LE(counter_of_exceptions, FLAGS_max_number_of_cheirality_exceptions);
 
       // Check that we have a landmark.
       CHECK(lmk_symbol_cheirality.chr() == 'l');
@@ -1175,8 +1198,7 @@ void VioBackEnd::updateSmoother(
       VLOG(10) << "Finished cleanCheiralityLmk.";
 
       // Recreate the graph before marginalization.
-      static constexpr bool debug_graph_before_opt = true;
-      if (verbosity_ >= 5 || debug_graph_before_opt) {
+      if (verbosity_ >= 5 || FLAGS_debug_graph_before_opt) {
         debug_info_.graphBeforeOpt = graph;
         debug_info_.graphToBeDeleted = gtsam::NonlinearFactorGraph();
         debug_info_.graphToBeDeleted.resize(delete_slots_cheirality.size());

@@ -125,6 +125,9 @@ public:
   // imu data
   ImuData imuData_;
 
+private:
+  bool is_gt_available_;
+
 public:
   // parse camera, gt, and imu
   bool parseDataset(const std::string input_dataset_path,
@@ -153,6 +156,9 @@ public:
 
   // check if the ground truth is available (i.e., the timestamp is after the first gt state)
   bool isGroundTruthAvailable(const long long timestamp) const;
+
+  // Get if the dataset has ground truth.
+  bool isGroundTruthAvailable() const;
 
   // compute error on the relative pose between two time stamps, compared with the relative pose from ground trutu
   std::pair<double,double> computePoseErrors(const gtsam::Pose3 lkf_T_k_body, const bool isTrackingValid,

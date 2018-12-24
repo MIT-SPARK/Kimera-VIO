@@ -18,30 +18,143 @@
 
 
 namespace VIO {
+/* -------------------------------------------------------------------------- */
+Histogram::Histogram()
+  : n_images_(0),
+    channels_(nullptr),
+    mask_(cv::Mat()),
+    dims_(0),
+    hist_size_(nullptr),
+    ranges_(nullptr),
+    uniform_(false),
+    accumulate_(false) {}
 
 /* -------------------------------------------------------------------------- */
-Histogram::Histogram(const int& n_images,
-                     const int* channels,
-                     const cv::Mat& mask,
-                     const int& dims,
-                     const int* hist_size,
-                     const float** ranges,
-                     const bool& uniform,
-                     const bool& accumulate)
+Histogram::Histogram(int n_images,
+                     const std::vector<int>& channels,
+                     cv::Mat mask,
+                     int dims,
+                     const std::vector<int>& hist_size,
+                     const std::vector<std::array<float, 2>>& ranges,
+                     bool uniform,
+                     bool accumulate)
   : n_images_(n_images),
-    channels_(channels),
+    channels_(nullptr),
     mask_(mask),
     dims_(dims),
-    hist_size_(hist_size),
-    ranges_(ranges),
+    hist_size_(nullptr),
+    ranges_(nullptr),
     uniform_(uniform),
-    accumulate_(accumulate) {}
+    accumulate_(accumulate) {
+  CHECK_EQ(dims_, hist_size.size());
+  CHECK_EQ(channels.size(), hist_size.size());
+  channels_ = new int[channels.size()];
+  for (size_t i = 0; i < channels.size(); i++) {
+    channels_[i] = channels.at(i);
+  }
+  hist_size_ = new int[hist_size.size()];
+  for (size_t i = 0; i < hist_size.size(); i++) {
+    hist_size_[i] = hist_size.at(i);
+  }
+  CHECK_EQ(dims_, ranges.size());
+  ranges_ = new float*[ranges.size()];
+  for (size_t i = 0; i < ranges.size(); i++) {
+    float* range = new float[2];
+    range[0] = ranges.at(i).at(0);
+    range[1] = ranges.at(i).at(1);
+    ranges_[i] = range;
+  }
+}
+
+Histogram::~Histogram() {
+  delete[] channels_;
+  delete[] hist_size_;
+  for (int dim = 0; dim < dims_; dim++) {
+    delete ranges_[dim];
+  }
+  delete[] ranges_;
+}
+
+// Copy constructor.
+Histogram::Histogram(const Histogram& other) {
+  n_images_ = other.n_images_;
+  channels_ = new int[dims_];
+  for (size_t i = 0; i < dims_; i++) {
+    *(channels_ + i) = *(other.channels_ + i);
+  }
+  mask_ = other.mask_;
+  dims_ = other.dims_;
+  hist_size_ = new int[dims_];
+  for (size_t i = 0; i < dims_; i++) {
+    *(hist_size_ + i) = *(other.hist_size_ + i);
+  }
+  ranges_ = new float*[dims_];
+  for (size_t k = 0; k < dims_; k++) {
+    float* range = new float[2];
+    range[0] = other.ranges_[k][0];
+    range[1] = other.ranges_[k][1];
+    ranges_[k] = range;
+  }
+  uniform_ = other.uniform_;
+  accumulate_ = other.accumulate_;
+}
+
+// Copy assignment.
+Histogram& Histogram::operator=(const Histogram& other) {
+  // Delete
+  delete[] channels_;
+  delete[] hist_size_;
+  for (int dim = 0; dim < dims_; dim++) {
+    delete ranges_[dim];
+  }
+  delete[] ranges_;
+
+  // Tmp vars.
+  dims_ = other.dims_;
+  int* tmp_channels = new int[dims_];
+  for (int i = 0; i < dims_; i++) {
+    tmp_channels[i] = other.channels_[i];
+  }
+  int* tmp_hist_size = new int[dims_];
+  for (int i = 0; i < dims_; i++) {
+    tmp_hist_size[i] = other.hist_size_[i];
+  }
+  float** tmp_ranges = new float*[dims_];
+  for (int k = 0; k < dims_; k++) {
+    float* range = new float[2];
+    range[0] = other.ranges_[k][0];
+    range[1] = other.ranges_[k][1];
+    tmp_ranges[k] = range;
+  }
+
+  // Re-assign.
+  n_images_ = other.n_images_;
+  channels_ = tmp_channels;
+  mask_ = other.mask_;
+  hist_size_ = tmp_hist_size;
+  ranges_ = tmp_ranges;
+  uniform_ = other.uniform_;
+  accumulate_ = other.accumulate_;
+
+  // Return this object.
+  return *this;
+}
 
 /* -------------------------------------------------------------------------- */
 void Histogram::calculateHistogram(const cv::Mat& input) {
-  cv::calcHist(&input, n_images_, channels_, mask_,
-               histogram_, dims_, hist_size_, ranges_,
-               uniform_, accumulate_);
+  if (dims_ == 1) {
+    static const float* range_hist[] = {ranges_[0]};
+    cv::calcHist(&input, n_images_, channels_, mask_,
+                 histogram_, dims_, hist_size_, range_hist,
+                 uniform_, accumulate_);
+  } else if (dims_ == 2){
+    static const float* range_hist[] = {ranges_[0], ranges_[1]};
+    cv::calcHist(&input, n_images_, channels_, mask_,
+                 histogram_, dims_, hist_size_, range_hist,
+                 uniform_, accumulate_);
+  } else {
+    LOG(FATAL) << "The histogram is not meant for dim: " << dims_;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -142,13 +255,15 @@ cv::Mat Histogram::drawHistogram1D(cv::Mat* hist,
 /* -------------------------------------------------------------------------- */
 Histogram::PeakInfo Histogram::peakInfo(int pos,
                                         int left_size, int right_size,
-                                        float value) const {
+                                        float support) const {
   CHECK_EQ(dims_, 1) << "This function is meant for 1D histograms.";
   PeakInfo output;
   output.pos_ = pos;
   output.left_size_ = left_size;
   output.right_size_ = right_size;
-  output.value_ = value;
+  output.support_ = support;
+  output.value_ = (pos * (ranges_[0][1] - ranges_[0][0]) / hist_size_[0])
+      + ranges_[0][0];
   return output;
 }
 
@@ -215,15 +330,14 @@ std::vector<Histogram::PeakInfo> Histogram::findPeaks(cv::InputArray _src,
 // If you play with the peak_per attribute value, you can increase/decrease the
 // number of peaks found.
 // cv::Point smooth_size: x: smoothing size in x, y: smoothing size in y.
-// Dilates, does a difference of images, takes contour, find center of mass
-// and that is the max, definitely not the best way...
 std::vector<Histogram::PeakInfo> Histogram::getLocalMaximum1D(
     const cv::Size& smooth_size,
-    int neighbor_size,
+    int window_size,
     float peak_per,
     float min_support, // Minimal number of votes for a peak.
     bool display_histogram) const {
   CHECK_EQ(dims_, 1) << "This function is meant for 1D histograms.";
+  CHECK_LT(peak_per, 1);
   VLOG(10) << "Cloning histogram.";
   cv::Mat src = histogram_.clone();
 
@@ -237,15 +351,15 @@ std::vector<Histogram::PeakInfo> Histogram::getLocalMaximum1D(
   cv::GaussianBlur(src, src, smooth_size, 0);
 
   VLOG(10) << "Starting to find peaks in histogram...";
-  std::vector<PeakInfo> peaks = findPeaks(src, neighbor_size);
+  std::vector<PeakInfo> peaks = findPeaks(src, window_size);
   VLOG(10) << "Finished to find peaks in histogram.";
 
   double min_val, max_val;
   cv::minMaxLoc(src, &min_val, &max_val);
 
   for (size_t i = 0; i < peaks.size(); i++) {
-    if (peaks[i].value_ > max_val * peak_per &&
-        peaks[i].value_ > min_support &&
+    if (peaks[i].support_ > max_val * peak_per &&
+        peaks[i].support_ > min_support &&
         peaks[i].left_size_ >= 2 &&
         peaks[i].right_size_ >= 2) {
       output.push_back(peaks[i]);
@@ -273,7 +387,7 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
                                   int number_of_local_max,
                                   int min_support,
                                   int min_dist_btw_loc_max,
-                                  bool visualize) {
+                                  bool visualize) const {
   CHECK_NOTNULL(peaks);
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
   if (histogram_.rows == 0 || histogram_.cols == 0) {
@@ -283,13 +397,12 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
   }
 
   VLOG(10) << "Histogram size is: " << histogram_.size;
-  // TODO remove hack: we are passing recontructed image of histogram, instead
-  // of the histogram itself...
   CHECK_GE(histogram_.rows, smooth_size.height);
   CHECK_GE(histogram_.cols, smooth_size.width);
-  cv::GaussianBlur(histogram_, histogram_, smooth_size, 0);
+  cv::Mat histogram_modified;
+  cv::GaussianBlur(histogram_, histogram_modified, smooth_size, 0);
 
-  int nr_of_maximums = imgRegionalMax(&histogram_, number_of_local_max,
+  int nr_of_maximums = imgRegionalMax(&histogram_modified, number_of_local_max,
                                       min_support, min_dist_btw_loc_max,
                                       peaks);
   if (nr_of_maximums > 0) {
@@ -298,7 +411,7 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
 
   if (visualize) {
     VLOG(10) << "Starting visualizeHistogram2DWithPeaks.";
-    visualizeHistogram2DWithPeaks(*peaks);
+    visualizeHistogram2DWithPeaks(histogram_modified, *peaks);
     VLOG(10) << "Finished visualizeHistogram2DWithPeaks.";
   }
   return true;
@@ -307,13 +420,14 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
 /* -------------------------------------------------------------------------- */
 // Visualize 2D histogram.
 void Histogram::visualizeHistogram2DWithPeaks(
+    cv::Mat histogram,
     const std::vector<PeakInfo2D>& peaks) const {
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
 
   cv::Mat hist_img;
   static constexpr int scale_theta = 10;
   static constexpr int scale_distance = 10;
-  drawHistogram2D(&hist_img, scale_theta, scale_distance);
+  drawHistogram2D(histogram, &hist_img, scale_theta, scale_distance);
 
   cv::cvtColor(hist_img, hist_img, cv::COLOR_GRAY2RGB);
   cv::bitwise_not(hist_img, hist_img);
@@ -329,7 +443,8 @@ void Histogram::visualizeHistogram2DWithPeaks(
 
 
 /* -------------------------------------------------------------------------- */
-void Histogram::drawHistogram2D(cv::Mat* img_output,
+void Histogram::drawHistogram2D(cv::Mat histogram,
+                                cv::Mat* img_output,
                                 int scale_theta,
                                 int scale_distance) const {
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
@@ -340,7 +455,7 @@ void Histogram::drawHistogram2D(cv::Mat* img_output,
     //max_val = 175;
     max_val = 100;
   } else {
-    cv::minMaxLoc(histogram_, 0, &max_val, 0, 0);
+    cv::minMaxLoc(histogram, 0, &max_val, 0, 0);
   }
 
   // TODO remove below, it was just to find the max_val ever, to scale the
@@ -358,7 +473,7 @@ void Histogram::drawHistogram2D(cv::Mat* img_output,
   } else {
     for (int t = 0; t < hist_size_[0]; t++) {
       for (int d = 0; d < hist_size_[1]; d++) {
-        float binVal = histogram_.at<float>(t, d);
+        float binVal = histogram.at<float>(t, d);
         int intensity = cvRound(binVal * 255 / max_val);
         cv::rectangle(*img_output,
                       cv::Point(t * scale_theta,
@@ -379,7 +494,7 @@ int Histogram::imgRegionalMax(cv::Mat* input,
                               int number_of_local_max,
                               float min_support,
                               float min_dist_btw_loc_max,
-                              std::vector<PeakInfo2D>* locations) {
+                              std::vector<PeakInfo2D>* locations) const {
   CHECK_NOTNULL(input);
   CHECK_NOTNULL(locations);
   int nFoundLocMax = 0;
@@ -391,8 +506,12 @@ int Histogram::imgRegionalMax(cv::Mat* input,
       nFoundLocMax += 1;
       int row = location.y;
       int col = location.x;
+      double x_value = (row * (ranges_[0][1] - ranges_[0][0]) / hist_size_[0])
+          + ranges_[0][0];
+      double y_value = (col * (ranges_[1][1] - ranges_[1][0]) / hist_size_[1])
+          + ranges_[1][0];
       locations->push_back(PeakInfo2D(cv::Point(location.y, location.x),
-                                      max_val));
+                                      max_val, x_value, y_value));
       int r0 = (row - min_dist_btw_loc_max > -1 ?
                   row - min_dist_btw_loc_max : 0);
       int r1 = (row + min_dist_btw_loc_max < input->rows ?

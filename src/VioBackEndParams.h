@@ -14,8 +14,7 @@
 
 #ifndef VioBackEndParams_H_
 #define VioBackEndParams_H_
-
-#include <memory>
+ #include <memory>
 #include <unordered_map>
 #include <boost/foreach.hpp>
 #include <iostream>
@@ -32,6 +31,7 @@ namespace VIO {
 class VioBackEndParams
 {
 public:
+  // TODO this should be a map from a string to a double
   VioBackEndParams(
       // IMU PARAMS
       const double gyroNoiseDensity = 0.00016968,
@@ -55,14 +55,6 @@ public:
       const gtsam::LinearizationMode linMode = gtsam::HESSIAN,
       const gtsam::DegeneracyMode degMode = gtsam::ZERO_ON_DEGENERACY,
       const double smartNoiseSigma = 3,
-      // TODO inherit from this for regularVIO backend
-      const double monoNoiseSigma = 3, // for regularVioBackEnd only.
-      const double stereoNoiseSigma = 3, // for regularVioBackEnd only.
-      const double regularityNoiseSigma = 0.1, // for regularVioBackEnd only.
-      const size_t minPlaneConstraints = 3, // for regularVioBackEnd only.
-      const double huberParam = 1.345, // for regularVioBackEnd only.
-      const double tukeyParam = 4.6851, // for regularVioBackEnd only.
-      const size_t regularityNormType = 2, // for regularVioBackEnd only. 0: norm 2, 1: Huber, 2: Tukey.
       const double rankTolerance = 1, // we might also use 0.1
       const double landmarkDistanceThreshold = 20, // max distance to triangulate point in meters
       const double outlierRejection = 8, // max acceptable reprojection error // before tuning: 3
@@ -87,20 +79,21 @@ public:
   initialYawSigma_(initialYawSigma), initialVelocitySigma_(initialVelocitySigma),
   initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
   linearizationMode_(linMode), degeneracyMode_(degMode),
-  smartNoiseSigma_(smartNoiseSigma), monoNoiseSigma_(monoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma), regularityNoiseSigma_(regularityNoiseSigma),
-  minPlaneConstraints_(minPlaneConstraints),
-  huberParam_(huberParam), tukeyParam_(tukeyParam), rankTolerance_(rankTolerance),
+  smartNoiseSigma_(smartNoiseSigma),
+  rankTolerance_(rankTolerance),
   landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
-  retriangulationThreshold_(retriangulationThreshold), regularityNormType_(regularityNormType),
+  retriangulationThreshold_(retriangulationThreshold),
   addBetweenStereoFactors_(addBetweenStereoFactors),betweenRotationPrecision_(betweenRotationPrecision), betweenTranslationPrecision_(betweenTranslationPrecision),
   relinearizeThreshold_(relinearizeThreshold), relinearizeSkip_(relinearizeSkip), horizon_(horizon), numOptimize_(numOptimize),useDogLeg_(useDogLeg),
   zeroVelocitySigma_(zeroVelocitySigma), noMotionPositionSigma_(noMotionPositionSigma),
   noMotionRotationSigma_(noMotionRotationSigma), constantVelSigma_(constantVelSigma)
   {
     // Trivial sanity checks.
-    CHECK(minPlaneConstraints >= 3);
     CHECK(horizon >= 0);
   }
+
+  // Needed for virtual classes.
+  virtual ~VioBackEndParams() = default;
 
   // initialization params
   double initialPositionSigma_, initialRollPitchSigma_, initialYawSigma_, initialVelocitySigma_, initialAccBiasSigma_, initialGyroBiasSigma_;
@@ -113,10 +106,8 @@ public:
   // Smart factor params
   gtsam::LinearizationMode linearizationMode_;
   gtsam::DegeneracyMode degeneracyMode_;
-  double smartNoiseSigma_, monoNoiseSigma_, stereoNoiseSigma_, regularityNoiseSigma_;
-  double minPlaneConstraints_;
-  double huberParam_, tukeyParam_, rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
-  int regularityNormType_;
+  double smartNoiseSigma_;
+  double rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
   bool addBetweenStereoFactors_;
   double betweenRotationPrecision_, betweenTranslationPrecision_;
 
@@ -128,15 +119,45 @@ public:
   // No Motion params
   double zeroVelocitySigma_, noMotionPositionSigma_, noMotionRotationSigma_, constantVelSigma_;
 
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // parse params YAML file
-  bool parseYAML(std::string filepath){
+public:
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  virtual bool parseYAML(const std::string& filepath) {
     // make sure that each YAML file has %YAML:1.0 as first line
-    cv::FileStorage fs(filepath, cv::FileStorage::READ);
-    if (!fs.isOpened()) {
+    cv::FileStorage fs;
+    openFile(filepath, &fs);
+    bool result = parseYAMLVioBackEndParams(fs);
+    closeFile(&fs);
+    return result;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  virtual bool equals(const VioBackEndParams& vp2, double tol = 1e-8) const {
+    return equalsVioBackEndParams(vp2, tol);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  virtual void print() const {
+    printVioBackEndParams();
+  }
+
+protected:
+  void openFile(const std::string& filepath, cv::FileStorage* fs) const {
+    CHECK_NOTNULL(fs);
+    fs->open(filepath, cv::FileStorage::READ);
+    if (!fs->isOpened()) {
       std::cout << "Cannot open file in parseYAML: " << filepath << std::endl;
       throw std::runtime_error("parseYAML (Vio): cannot open file (remember first line: %YAML:1.0)");
     }
+  }
+
+  void closeFile(cv::FileStorage* fs) {
+    CHECK_NOTNULL(fs);
+    fs->release();
+  }
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  // Parse params YAML file
+  bool parseYAMLVioBackEndParams(const cv::FileStorage& fs) {
     cv::FileNode file_handle;
 
     // IMU PARAMS
@@ -210,20 +231,6 @@ public:
     }
     file_handle = fs["smartNoiseSigma"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> smartNoiseSigma_;
-    file_handle = fs["monoNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNoiseSigma_;
-    file_handle = fs["stereoNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNoiseSigma_;
-    file_handle = fs["regularityNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNoiseSigma_;
-    file_handle = fs["minPlaneConstraints"] ;
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> minPlaneConstraints_;
-    file_handle = fs["huberParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> huberParam_;
-    file_handle = fs["tukeyParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> tukeyParam_;
-    file_handle = fs["regularityNormType"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNormType_;
     file_handle = fs["rankTolerance"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> rankTolerance_;
     file_handle = fs["landmarkDistanceThreshold"];
@@ -259,12 +266,11 @@ public:
     file_handle = fs["useDogLeg"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> useDogLeg_;
 
-    fs.release();
     return true;
   }
 
   /* ------------------------------------------------------------------------------------- */
-  bool equals(const VioBackEndParams& vp2, double tol = 1e-8) const{
+  bool equalsVioBackEndParams(const VioBackEndParams& vp2, double tol = 1e-8) const{
     return
         // IMU PARAMS
         (fabs(gyroNoiseDensity_ - vp2.gyroNoiseDensity_) <= tol) &&
@@ -289,13 +295,6 @@ public:
         (linearizationMode_ == vp2.linearizationMode_) &&
         (degeneracyMode_ == vp2.degeneracyMode_) &&
         (fabs(smartNoiseSigma_ - vp2.smartNoiseSigma_) <= tol) &&
-        (fabs(monoNoiseSigma_ - vp2.monoNoiseSigma_) <= tol) &&
-        (fabs(stereoNoiseSigma_ - vp2.stereoNoiseSigma_) <= tol) &&
-        (fabs(regularityNoiseSigma_ - vp2.regularityNoiseSigma_) <= tol) &&
-        (minPlaneConstraints_ == vp2.minPlaneConstraints_) && (minPlaneConstraints_ >= 3) &&
-        (fabs(huberParam_ - vp2.huberParam_) <= tol) &&
-        (fabs(tukeyParam_ - vp2.tukeyParam_) <= tol) &&
-        (regularityNormType_ == vp2.regularityNormType_) &&
         (fabs(rankTolerance_ - vp2.rankTolerance_) <= tol) &&
         (fabs(landmarkDistanceThreshold_ - vp2.landmarkDistanceThreshold_) <= tol) &&
         (fabs(outlierRejection_ - vp2.outlierRejection_) <= tol) &&
@@ -314,8 +313,9 @@ public:
         (horizon_ == vp2.horizon_) &&
         (useDogLeg_ == vp2.useDogLeg_);
   }
+
   /* ------------------------------------------------------------------------------------- */
-  void print() const{
+  void printVioBackEndParams() const{
     std::cout << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$" << std::endl;
     std::cout << "** IMU parameters **" << std::endl;
     std::cout << "gyroNoiseDensity_: " << gyroNoiseDensity_ << std::endl
@@ -357,6 +357,7 @@ public:
   }
 };
 
+typedef boost::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
 } // namespace VIO
 #endif /* VioBackEndParams_H_ */
 
