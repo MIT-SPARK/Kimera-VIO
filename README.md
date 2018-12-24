@@ -26,11 +26,16 @@ $ make
 $ make check
 ```
 
-Note 1a: if you use MKL in gtsam, you may need to add to .bashrc a line similar to: source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64
-Note 1b: sometimes you may need to add /usr/local/lib to LD_LIBRARY_PATH in ~/.bashrc (if you get lib not found errors at run or test time)
-Note 2: you may have to add %YAML:1.0 as first line in all YAML files :-(
-Note 3: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
-Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag)
+> Note 1a: if you use MKL in gtsam, you may need to add to `~/.bashrc` a line similar to:
+>  ```source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64```
+
+> Note 1b: sometimes you may need to add `/usr/local/lib` to `LD_LIBRARY_PATH` in `~/.bashrc` (if you get lib not found errors at run or test time).
+
+> Note 2: you may have to add `%YAML:1.0` as first line in all YAML files that are in the datasets. You can use the script provided, as detailed (here)[#yaml_script].
+
+> Note 3: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
+
+> Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag)
 
 Prerequisites:
 
@@ -97,7 +102,7 @@ $ cmake ../
 - using cmake-gui enable WithEigen3, click configure, and set the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen)
 - using cmake-gui check that CMAKE_BUILD_TYPE is set to 'Release"
 - go back to the build folder and execute the following:
-
+<a name="yaml_script"></a>
 ```
 #!bash
 $ make -j8
