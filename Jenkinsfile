@@ -3,11 +3,13 @@ pipeline {
   stages {
     stage('Build') {
       steps {
+          slackSend "Build Started - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
           cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: '-j 8']]
       }
     }
     stage('Test') {
       steps {
+          slackSend "Test Started - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.TEST_URL}|Open>)"
           cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: 'check -j 8']]
           ctest arguments: '-T test --no-compress-output --verbose', installation: 'InSearchPath', workingDir: 'build/tests'
       }
@@ -36,15 +38,15 @@ pipeline {
     }
     success {
       echo 'Success!'
-      slackSend color: 'good', message: 'Successful Build.'
+      slackSend color: 'good', message: "Successful - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.TEST_URL}|Open>)"
     }
     failure {
       echo 'Fail!'
-      slackSend color: 'danger', message: 'Failing Build.'
+      slackSend color: 'danger', message: "Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.TEST_URL}|Open>)"
     }
     unstable {
       echo 'Unstable!'
-      slackSend color: 'warning', message: 'Unstable Build.'
+      slackSend color: 'warning', message: "Unstable - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.TEST_URL}|Open>)"
     }
   }
 }
