@@ -1,24 +1,24 @@
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+
+node {
+    JSONArray attachments = new JSONArray();
+    JSONObject attachment = new JSONObject();
+
+    attachment.put('text','I find your lack of faith disturbing!');
+    attachment.put('fallback','Hey, Vader seems to be mad at you.');
+    attachment.put('color','#ff0000');
+
+    attachments.add(attachment);
+    slackSend(color: '#00FF00', channel: '@gustavo.maia', attachments: attachments.toString())
+}
+
 pipeline {
   agent { dockerfile true }
   stages {
     stage('Build') {
       steps {
           slackSend color: 'good', message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}/tree/${env.GIT_BRANCH}|${env.GIT_BRANCH}> (${GIT_COMMIT}.take(4)) (author: ${env.GIT_AUTHOR_NAME})."
-
-          script {
-            JSONArray attachments = new JSONArray();
-            JSONObject attachment = new JSONObject();
-
-            attachment.put('text','I find your lack of faith disturbing!');
-            attachment.put('fallback','Hey, Vader seems to be mad at you.');
-            attachment.put('color','#ff0000');
-
-            attachments.add(attachment);
-            slackSend(color: '#00FF00', channel: '@gustavo.maia', attachments: attachments.toString())
-          }
-
           cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: '-j 8']]
         }
       }
