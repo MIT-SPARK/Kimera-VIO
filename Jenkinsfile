@@ -7,23 +7,23 @@ pipeline {
       steps {
           slackSend color: 'good', message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}/tree/${env.GIT_BRANCH}|${env.GIT_BRANCH}> (${GIT_COMMIT}.take(4)) (author: ${env.GIT_AUTHOR_NAME})."
 
-            step {
-              JSONArray attachments = new JSONArray();
-              JSONObject attachment = new JSONObject();
+          script {
+            JSONArray attachments = new JSONArray();
+            JSONObject attachment = new JSONObject();
 
-              attachment.put('text','I find your lack of faith disturbing!');
-              attachment.put('fallback','Hey, Vader seems to be mad at you.');
-              attachment.put('color','#ff0000');
+            attachment.put('text','I find your lack of faith disturbing!');
+            attachment.put('fallback','Hey, Vader seems to be mad at you.');
+            attachment.put('color','#ff0000');
 
-              attachments.add(attachment);
-              slackSend(color: '#00FF00', channel: '@gustavo.maia', attachments: attachments.toString())
-            }
+            attachments.add(attachment);
+            slackSend(color: '#00FF00', channel: '@gustavo.maia', attachments: attachments.toString())
+          }
 
           cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: '-j 8']]
         }
       }
     stage('Test') {
-      script {
+      steps {
           cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: 'check -j 8']]
           ctest arguments: '-T test --no-compress-output --verbose', installation: 'InSearchPath', workingDir: 'build/tests'
       }
