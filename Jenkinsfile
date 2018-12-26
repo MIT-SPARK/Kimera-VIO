@@ -3,7 +3,7 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-          slackSend color: 'good', message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}/tree/${env.GIT_BRANCH}|${env.GIT_BRANCH}> (${GIT_COMMIT:<1>[:10]}) (author: ${env.GIT_AUTHOR_NAME})."
+          slackSend color: 'good', message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}/tree/${env.GIT_BRANCH}|${env.GIT_BRANCH}> (${GIT_COMMIT:1[:10]}) (author: ${env.GIT_AUTHOR_NAME})."
           cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: '-j 8']]
         }
       }
