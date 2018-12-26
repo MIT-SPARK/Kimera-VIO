@@ -9,7 +9,6 @@ pipeline {
     }
     stage('Test') {
       steps {
-          slackSend "Test Started - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.TEST_URL}|Open>)"
           cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: 'check -j 8']]
           ctest arguments: '-T test --no-compress-output --verbose', installation: 'InSearchPath', workingDir: 'build/tests'
       }
