@@ -37,15 +37,15 @@ pipeline {
     }
     success {
       echo 'Success!'
-      slackSend color: 'good', message: "Successful - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.TEST_URL}|Open>)"
+      slackSend color: 'good', message: 'Successful - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)'
     }
     failure {
       echo 'Fail!'
-      slackSend color: 'danger', message: "Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.TEST_URL}|Open>)"
+      slackSend color: 'danger', message: 'Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)'
     }
     unstable {
       echo 'Unstable!'
-      slackSend color: 'warning', message: "Unstable - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.TEST_URL}|Open>)"
+      slackSend color: 'warning', message: 'Unstable - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)'
     }
   }
 }
