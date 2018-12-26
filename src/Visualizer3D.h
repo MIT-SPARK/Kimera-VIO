@@ -160,7 +160,6 @@ public:
       cloud_widget = cv::viz::WCloud(point_cloud, point_cloud_color);
     }
     cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 6);
-    cloud_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
     window_.showWidget("Point cloud.", cloud_widget);
   }
@@ -186,7 +185,6 @@ public:
     cv::viz::Color plane_color;
     getColorById(cluster_id, &plane_color);
     cv::viz::WPlane plane_widget (center, normal, new_yaxis, size, plane_color);
-    plane_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
     if (visualize_plane_label) {
       static double increase = 0.0;
@@ -219,7 +217,6 @@ public:
   void drawLine(const std::string& line_id,
                 const cv::Point3d& pt1, const cv::Point3d& pt2) {
     cv::viz::WLine line_widget (pt1, pt2);
-    line_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
     window_.showWidget(line_id, line_widget);
   }
 
@@ -298,7 +295,6 @@ public:
     }
     mesh.setRenderingProperty(cv::viz::AMBIENT, FLAGS_set_mesh_ambient);
     mesh.setRenderingProperty(cv::viz::LIGHTING, FLAGS_set_mesh_lighting);
-    mesh.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, true);
 
     // Plot mesh.
     window_.showWidget("Mesh", mesh);
