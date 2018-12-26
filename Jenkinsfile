@@ -3,7 +3,7 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-          slackSend color: 'good', message: "Build Started - ${env.JOB_NAME} (<${env.BUILD_URL}|#${env.BUILD_NUMBER}>)"
+          slackSend color: 'good', message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch ${env.GIT_BRANCH} (${GIT_COMMIT}) (author: ${env.GIT_AUTHOR_NAME})."
           cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: true, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: '-j 8']]
       }
     }
@@ -37,7 +37,7 @@ pipeline {
     }
     success {
       echo 'Success!'
-      slackSend color: 'good', message: "Successful Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch ${env.GIT_BRANCH} (${GIT_COMMIT}) in ${currentBuild.durationString} (author: ${env.GIT_AUTHOR_NAME})."
+      slackSend color: 'good', message: "Successful Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch ${env.GIT_BRANCH} (${GIT_COMMIT}) finished in ${currentBuild.durationString} (author: ${env.GIT_AUTHOR_NAME})."
     }
     failure {
       echo 'Fail!'
@@ -49,4 +49,3 @@ pipeline {
     }
   }
 }
-Build #15 (52fafd1) of ToniRV/spark_vio_evaluation@master by Toni passed in 28 min 47 sec
