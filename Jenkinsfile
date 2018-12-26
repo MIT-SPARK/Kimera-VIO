@@ -36,12 +36,15 @@ pipeline {
     }
     success {
       echo 'Success!'
+      slackSend color: 'good', message: 'Successful Build.'
     }
     failure {
       echo 'Fail!'
+      slackSend color: 'danger', message: 'Failing Build.'
     }
     unstable {
       echo 'Unstable!'
+      slackSend color: 'warning', message: 'Unstable Build.'
     }
   }
 }
