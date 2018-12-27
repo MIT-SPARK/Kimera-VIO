@@ -85,12 +85,12 @@ public:
     // < Operator will compare the support (# of points) of one peak vs the other.
     // nothing else.
     // Used for std::max_element.
-    bool operator<(const PeakInfo& rhd) {
+    bool operator<(const PeakInfo& rhd) const {
       return (support_ < rhd.support_);
     }
 
     // Used to remove duplicates.
-    bool operator==(const PeakInfo& rhd) {
+    bool operator==(const PeakInfo& rhd) const {
       return (support_ == rhd.support_ && pos_ == rhd.pos_);
     }
   };

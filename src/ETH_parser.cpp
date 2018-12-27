@@ -135,7 +135,7 @@ bool ETHDatasetParser::parseImuData(const std::string input_dataset_path,
   std::string line;
   std::getline(fin, line);
 
-  double deltaCount = 0.0;
+  uint32_t deltaCount = 0u;
   long long sumOfDelta = 0;
   double stdDelta = 0;
   double imu_rate_maxMismatch = 0;
@@ -172,16 +172,16 @@ bool ETHDatasetParser::parseImuData(const std::string input_dataset_path,
       double deltaMismatch = fabs( double(timestamp - previous_timestamp - imuData_.nominal_imu_rate_) * 1e-9 );
       stdDelta += pow( deltaMismatch , 2);
       imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
-      deltaCount += 1.0;
+      deltaCount += 1u;
       previous_timestamp = timestamp;
     }
   }
-  if(deltaCount != imuData_.imu_buffer_.size()-1){
+  if(deltaCount != imuData_.imu_buffer_.size()-1u){
     std::cout << "parseImuData: wrong nr of deltaCount: deltaCount " << deltaCount << " nr lines " << imuData_.imu_buffer_.size() << std::endl;
     throw std::runtime_error("parseImuData: wrong nr of deltaCount");
   }
   imuData_.imu_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9; // converted to seconds
-  imuData_.imu_rate_std_ = sqrt( stdDelta / double(deltaCount-1) );
+  imuData_.imu_rate_std_ = sqrt( stdDelta / double(deltaCount-1u) );
   imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
   fin.close();
 
@@ -244,7 +244,7 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
   std::string line;
   std::getline(fin, line);
 
-  double deltaCount = 0.0;
+  uint32_t deltaCount = 0u;
   long long sumOfDelta = 0;
   long long int previous_timestamp = -1;
 
@@ -266,7 +266,7 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
     } else {
       sumOfDelta += (timestamp - previous_timestamp);
       // std::cout << "time diff (sec): " << (timestamp - previous_timestamp) * 1e-9 << std::endl;
-      deltaCount += 1.0;
+      deltaCount += 1u;
       previous_timestamp = timestamp;
     }
 
@@ -307,12 +307,12 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
     double normVel = gt_curr.velocity.norm();
     if (normVel > maxGTvel) maxGTvel = normVel;
   }
-  if (deltaCount != gtData_.mapToGt_.size() - 1) {
+  if (deltaCount != gtData_.mapToGt_.size() - 1u) {
     std::cout << "parseGTdata: wrong nr of deltaCount: deltaCount "
               << deltaCount << " nrPoses " << gtData_.mapToGt_.size() << '\n';
     throw std::runtime_error("parseGTdata: wrong nr of deltaCount");
   }
-  CHECK_NE(deltaCount, 0);
+  CHECK_NE(deltaCount, 0u);
   gtData_.gt_rate_ =
       (double(sumOfDelta) / double(deltaCount)) * 1e-9; // Converted in seconds.
   fin.close();
@@ -391,7 +391,7 @@ bool ETHDatasetParser::parseCameraData(const std::string input_dataset_path,
   // SANITY CHECK: time stamps are the same for left and right camera
   double stdDelta = 0;
   double frame_rate_maxMismatch = 0;
-  int deltaCount = 0;
+  uint32_t deltaCount = 0u;
   for(size_t i=0; i<camera_image_lists[leftCameraName].img_lists.size(); i++)
   {
     if(i>0){
@@ -414,7 +414,7 @@ bool ETHDatasetParser::parseCameraData(const std::string input_dataset_path,
   }
 
   std::cout << "nominal frame rate: " << camera_info[leftCameraName].frame_rate_ << std::endl;
-  std::cout << "frame rate std: " << sqrt( stdDelta / double(deltaCount-1) ) << std::endl;
+  std::cout << "frame rate std: " << sqrt( stdDelta / double(deltaCount-1u) ) << std::endl;
   std::cout << "frame rate maxMismatch: " << frame_rate_maxMismatch << std::endl;
 
   // Set extrinsic for the sterep
