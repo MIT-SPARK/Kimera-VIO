@@ -129,8 +129,10 @@ Mesher::Mesher()
   : mesh_3d_() {
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
-  std::array<float, 2> z_range = {FLAGS_z_histogram_min_range,
-                                  FLAGS_z_histogram_max_range};
+  // We cannot use an array of doubles here bcs the function cv::calcHist asks
+  // for floats ... It is not templated.
+  std::array<float, 2> z_range = {static_cast<float>(FLAGS_z_histogram_min_range),
+                                  static_cast<float>(FLAGS_z_histogram_max_range)};
   std::vector<std::array<float, 2>> ranges = {z_range};
   std::vector<int> channels = {0};
   z_hist_ = Histogram(1, channels, cv::Mat(), 1, hist_size, ranges, true, false);
@@ -138,10 +140,10 @@ Mesher::Mesher()
   // Create 2d histogram.
   std::vector<int> hist_2d_size = {FLAGS_hist_2d_theta_bins,
                                    FLAGS_hist_2d_distance_bins};
-  std::array<float, 2> theta_range = {FLAGS_hist_2d_theta_range_min,
-                                      FLAGS_hist_2d_theta_range_max};
-  std::array<float, 2> distance_range = {FLAGS_hist_2d_distance_range_min,
-                                         FLAGS_hist_2d_distance_range_max};
+  std::array<float, 2> theta_range = {static_cast<float>(FLAGS_hist_2d_theta_range_min),
+                                      static_cast<float>(FLAGS_hist_2d_theta_range_max)};
+  std::array<float, 2> distance_range = {static_cast<float>(FLAGS_hist_2d_distance_range_min),
+                                         static_cast<float>(FLAGS_hist_2d_distance_range_max)};
   std::vector<std::array<float, 2>> ranges_2d = {theta_range, distance_range};
   std::vector<int> channels_2d = {0, 1};
   hist_2d_ = Histogram(1, channels_2d, cv::Mat(), 2, hist_2d_size, ranges_2d,
