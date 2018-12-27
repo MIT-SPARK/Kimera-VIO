@@ -50,23 +50,7 @@ enum class VisualizationType {
 class Visualizer3D {
 public:
   Visualizer3D(): window_("3D Visualizer") {
-    // Create window and create axes:
-    //cv::Affine3f viewer_pose (cv::Vec3f(-1.6432757, 1.6432757, -0.8554352),
-    //                          cv::Vec3f(0.0, 0.0, 0.0));
     window_.registerKeyboardCallback(keyboardCallback, &window_);
-    //Vec3d cam_pos(-5.0,0.0,6.0);
-    //Vec3d cam_focal_point(1.0,0.0,0.0);
-    //Vec3d cam_y_dir(-1.0,0.0,0.0);
-    //Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
-
-    Matx<float, 4, 4> affine_mat (-0.8641128994034195, 0.2019955488442005, -0.4609844849143474, 2.908219292546002,
-                                  0.4987743894671546, 0.4662154890376632, -0.7306621833604362, 4.09172591866712,
-                                  0.06732759832552458, -0.8613018727650037, -0.5036130245289671, 4.298938071390474,
-                                  0, 0, 0, 1);
-    Affine3f cam_pose (affine_mat);
-    //window_.setViewerPose(cam_pose);
-    window_.setWindowPosition(Size(3*1861+1080/2, 2212/2));
-    window_.setWindowSize(Size(1861, 2056));
     window_.setBackgroundColor(background_color_);
     window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
