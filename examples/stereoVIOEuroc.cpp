@@ -96,7 +96,6 @@ using namespace VIO;
 // stereoVIOexample
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
-
   // Initialize Google's flags library.
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
@@ -107,13 +106,16 @@ int main(int argc, char *argv[]) {
     // Still does not make RANSAC REPEATABLE across different machines.
     srand(0);
   }
-  static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
-  static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
-  VisualizationType visualization_type = static_cast<VisualizationType>(
-        FLAGS_viz_type);
+  VisualizationType visualization_type =
+          static_cast<VisualizationType>(FLAGS_viz_type);
 
+  // Init dataset parser.
   ETHDatasetParser dataset;
+  size_t initial_k, final_k; // initial and final frame: useful to skip a bunch of images at the beginning (imu calibration)
+  // Parse dataset.
+  dataset.parse(&initial_k, &final_k);
 
+  // Init Vio parameters (should be done inside VIO).
   VioBackEndParamsPtr vioParams;
   switch(FLAGS_backend_type) {
     case 0: {
@@ -131,24 +133,21 @@ int main(int argc, char *argv[]) {
     }
   }
   VioFrontEndParams trackerParams;
-  size_t initial_k, final_k; // initial and final frame: useful to skip a bunch of images at the beginning (imu calibration)
-  dataset.parseDatasetAndParams(vioParams, &trackerParams, &initial_k, &final_k);
+  // Parse parameters.
+  dataset.parseParams(vioParams, dataset.imuData_, &trackerParams);
 
-  // instantiate stereo tracker (class that tracks implements estimation front-end) and print parameters
-  StereoVisionFrontEnd stereoVisionFrontEnd(trackerParams, *vioParams, saveImages); // vioParams used by feature selection
-  stereoVisionFrontEnd.tracker_.trackerParams_.print();
-  if (saveImages > 0) {
-    stereoVisionFrontEnd.outputImagesPath_ = "./outputStereoTrackerImages-" +
-                                             dataset.dataset_name_;
-    stereoVisionFrontEnd.tracker_.outputImagesPath_ = "./outputTrackerImages-" +
-                                                      dataset.dataset_name_;
-  }
+  // instantiate stereo tracker (class that tracks implements estimation
+  // front-end) and print parameters
+  static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
+  StereoVisionFrontEnd stereoVisionFrontEnd(
+              trackerParams, *vioParams, // vioParams used by feature selection
+              saveImages, dataset.getDatasetName());
 
   // instantiate feature selector: not used in vanilla implementation
   FeatureSelector featureSelector(trackerParams, *vioParams);
 
   // Create VIO: class that tracks implements estimation back-end
-  boost::shared_ptr<VioBackEnd> vioBackEnd;
+  std::shared_ptr<VioBackEnd> vioBackEnd;
 
   // create class to visualize 3D points and mesh:
   Mesher mesher;
@@ -174,12 +173,12 @@ int main(int argc, char *argv[]) {
   /// Set of planes in the scene.
   std::vector<Plane> planes;
 
-  // start actual processing of the dataset
   static bool is_pipeline_successful = false;
+  // start actual processing of the dataset
   for(size_t k = initial_k; k < final_k; k++) { // for each image
 
-    std::cout << "------------------- Processing frame k="<< k
-              << "--------------------" << std::endl;
+    LOG(INFO) << "------------------- Processing frame k = " << k
+              << "--------------------";
     std::string leftImageName = dataset.camera_image_lists["cam0"]
                                                            .img_lists[k].second;
     std::string rightImageName = dataset.camera_image_lists["cam1"]
@@ -214,7 +213,7 @@ int main(int argc, char *argv[]) {
       switch(FLAGS_backend_type) {
         case 0: {
           LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
-          vioBackEnd = boost::make_shared<VioBackEnd>(
+          vioBackEnd = std::make_shared<VioBackEnd>(
            stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
            stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
            stereoVisionFrontEnd.stereoFrame_km1_->baseline_, *vioParams,
@@ -225,7 +224,7 @@ int main(int argc, char *argv[]) {
         case 1: {
           LOG(INFO) << "\e[1m Using Regular VIO with modality "
                     << FLAGS_regular_vio_backend_modality << "\e[0m";
-          vioBackEnd = boost::make_shared<RegularVioBackEnd>(
+          vioBackEnd = std::make_shared<RegularVioBackEnd>(
             stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect,
             stereoVisionFrontEnd.stereoFrame_km1_->left_undistRectCameraMatrix_,
             stereoVisionFrontEnd.stereoFrame_km1_->baseline_,
@@ -372,6 +371,7 @@ int main(int argc, char *argv[]) {
         VLOG(100) << "Using QUALITY as feature selection criterion";
       }
 
+      static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
       std::tie(trackedAndSelectedSmartStereoMeasurements,
                stereoVisionFrontEnd.tracker_.debugInfo_.featureSelectionTime_) =
           featureSelector.splitTrackedAndNewFeatures_Select_Display(
@@ -383,7 +383,7 @@ int main(int argc, char *argv[]) {
             trackerParams.maxFeatureAge_,
             posesAtFutureKeyframes, // TODO Luca: can we make this optional, for the case where we do not have ground truth?
             curr_state_cov,
-            dataset.dataset_name_,
+            dataset.getDatasetName(),
             frame_km1_debug); // last 2 are for visualization
       VLOG(100) << "Feature selection completed.";
 

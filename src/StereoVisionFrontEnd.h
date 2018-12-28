@@ -56,12 +56,21 @@ public:
   StereoVisionFrontEnd(
       const VioFrontEndParams trackerParams = VioFrontEndParams(),
       const VioBackEndParams vioParams = VioBackEndParams(),
-      const int saveImages = 1) :
+      int saveImages = 1,
+      const std::string& dataset_name = "") :
     frame_count_(0), keyframe_count_(0), last_landmark_count_(0),
     tracker_(trackerParams,vioParams,saveImages), saveImages_(saveImages),
     trackerStatusSummary_(TrackerStatusSummary()),
     outputImagesPath_("./outputImages/") // only for debugging and visualization
-  {}
+  {
+    if (saveImages > 0) {
+      outputImagesPath_ = "./outputStereoTrackerImages-" +
+          dataset_name;
+      tracker_.outputImagesPath_ = "./outputTrackerImages-" +
+          dataset_name;
+    }
+    tracker_.trackerParams_.print();
+  }
 
   // verbosity_ explanation (TODO: include this)
   /*
@@ -77,12 +86,6 @@ public:
   std::shared_ptr<StereoFrame> stereoFrame_km1_; // Last frame
   std::shared_ptr<StereoFrame> stereoFrame_lkf_; // Last keyframe
 
-  // this is not const as for debugging we want to redirect the image save path where we like
-  std::string outputImagesPath_;
-
-  // summary of information from the tracker, e.g., relative pose estimates and status of mono and stereo ransac
-  TrackerStatusSummary trackerStatusSummary_;
-
   // Counters
   int frame_count_;		      // Frame counter
   int keyframe_count_;        // keyframe counter
@@ -94,6 +97,12 @@ public:
 
   // debug flag
   const int saveImages_; // 0: don't show, 1: show, 2: write & save
+
+  // summary of information from the tracker, e.g., relative pose estimates and status of mono and stereo ransac
+  TrackerStatusSummary trackerStatusSummary_;
+
+  // this is not const as for debugging we want to redirect the image save path where we like
+  std::string outputImagesPath_;
 
 public:
   /* ------------------------------------------------------------------------ */

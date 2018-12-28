@@ -111,9 +111,6 @@ class ETHDatasetParser {
 public:
   ETHDatasetParser() : imuData_() {}
 
-  std::string dataset_path_;
-  std::string dataset_name_;
-
   // images data
   std::vector<std::string> camera_names; // this matches the names of the folders in the dataset
   std::map<std::string, CameraParams> camera_info; // map from camera name to its parameters
@@ -127,14 +124,25 @@ public:
   // imu data
   ImuData imuData_;
 
+  // Getters
+  inline std::string getDatasetName() {
+      return dataset_name_;
+  }
+
 private:
   bool is_gt_available_;
+  std::string dataset_path_;
+  std::string dataset_name_;
 
 public:
-  // Helper function to parse dataset and user-specified parameters.
-  void parseDatasetAndParams(VioBackEndParamsPtr vioParams,
-                             VioFrontEndParams* trackerParams,
-                             size_t* initial_k, size_t* final_k);
+  // Helper function to parse dataset
+  void parse(size_t* initial_k, size_t* final_k);
+
+  // Helper function to parse user-specified parameters.
+  void parseParams(
+      VioBackEndParamsPtr vioParams,
+      const ImuData& imu_data,
+      VioFrontEndParams* trackerParams);
 
   // parse camera, gt, and imu
   bool parseDataset(const std::string& input_dataset_path,
@@ -149,7 +157,7 @@ public:
       const std::string rightCameraName, const bool doParseImages = true);
 
   // Parse imu data of a given dataset
-  bool parseImuData(const std::string input_dataset_path, const std::string imuName);
+  bool parseImuData(const std::string& input_dataset_path, const std::string& imuName);
 
   // Parse ground truth data
   bool parseGTdata(const std::string input_dataset_path, const std::string gtSensorName);

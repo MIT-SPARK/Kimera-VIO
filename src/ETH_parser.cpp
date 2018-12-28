@@ -102,51 +102,20 @@ void ImuData::print()
 //////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
 ////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
-void ETHDatasetParser::parseDatasetAndParams(
-        VioBackEndParamsPtr vioParams,
-        VioFrontEndParams* trackerParams,
-        size_t* initial_k, size_t* final_k) {
-  CHECK(vioParams);
-  CHECK_NOTNULL(trackerParams);
+void ETHDatasetParser::parse(size_t* initial_k, size_t* final_k) {
   CHECK_NOTNULL(initial_k);
   CHECK_NOTNULL(final_k);
 
-  // Dataset path.
   VLOG(100) << "Using dataset path: " << FLAGS_dataset_path;
-
   // Parse the dataset (ETH format).
   static const std::string leftCameraName = "cam0";
   static const std::string rightCameraName = "cam1";
   static const std::string imuName = "imu0";
   static const std::string gtSensorName = "state_groundtruth_estimate0";
-
-  parseDataset(FLAGS_dataset_path, leftCameraName, rightCameraName,
+  parseDataset(FLAGS_dataset_path,
+               leftCameraName, rightCameraName,
                imuName, gtSensorName);
   print();
-
-  // Read/define vio params.
-  if (FLAGS_vio_params_path.empty()) {
-    VLOG(100) << "No vio parameters specified, using default.";
-    // Default params with IMU stats from dataset.
-    vioParams->gyroNoiseDensity_ = imuData_.gyro_noise_;
-    vioParams->accNoiseDensity_ = imuData_.acc_noise_;
-    vioParams->gyroBiasSigma_ = imuData_.acc_noise_;
-    vioParams->accBiasSigma_ = imuData_.acc_walk_;
-  } else {
-    VLOG(100) << "Using user-specified VIO parameters: "
-              << FLAGS_vio_params_path;
-    vioParams->parseYAML(FLAGS_vio_params_path);
-  }
-
-  // Read/define tracker params.
-  if (FLAGS_tracker_params_path.empty()) {
-    VLOG(100) << "No tracker parameters specified, using default";
-    *trackerParams = VioFrontEndParams(); // default params
-  } else {
-    VLOG(100) << "Using user-specified tracker parameters: "
-              << FLAGS_tracker_params_path;
-    trackerParams->parseYAML(FLAGS_tracker_params_path);
-  }
 
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
@@ -160,6 +129,7 @@ void ETHDatasetParser::parseDatasetAndParams(
   // skip last frames.
   *final_k = FLAGS_final_k;
   CHECK_GT(*final_k, 0);
+
   const size_t& nr_images = nrImages();
   if (*final_k > nr_images) {
     LOG(WARNING) << "Value for final_k, " << *final_k << " is larger than total"
@@ -179,9 +149,41 @@ void ETHDatasetParser::parseDatasetAndParams(
             << " and frame " <<  *final_k;
 }
 
+void ETHDatasetParser::parseParams(
+        VioBackEndParamsPtr vioParams,
+        const ImuData& imu_data,
+        VioFrontEndParams* trackerParams) {
+  CHECK(vioParams);
+  CHECK_NOTNULL(trackerParams);
+
+  // Read/define vio params.
+  if (FLAGS_vio_params_path.empty()) {
+    VLOG(100) << "No vio parameters specified, using default.";
+    // Default params with IMU stats from dataset.
+    vioParams->gyroNoiseDensity_ = imu_data.gyro_noise_;
+    vioParams->accNoiseDensity_ = imu_data.acc_noise_;
+    vioParams->gyroBiasSigma_ = imu_data.acc_noise_;
+    vioParams->accBiasSigma_ = imu_data.acc_walk_;
+  } else {
+    VLOG(100) << "Using user-specified VIO parameters: "
+              << FLAGS_vio_params_path;
+    vioParams->parseYAML(FLAGS_vio_params_path);
+  }
+
+  // Read/define tracker params.
+  if (FLAGS_tracker_params_path.empty()) {
+    VLOG(100) << "No tracker parameters specified, using default";
+    *trackerParams = VioFrontEndParams(); // default params
+  } else {
+    VLOG(100) << "Using user-specified tracker parameters: "
+              << FLAGS_tracker_params_path;
+    trackerParams->parseYAML(FLAGS_tracker_params_path);
+  }
+}
+
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseImuData(const std::string input_dataset_path,
-                                    const std::string imuName) {
+bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
+                                    const std::string& imuName) {
   ///////////////// PARSE SENSOR FILE ////////////////////////////////////////////////////////
   std::string filename_sensor = input_dataset_path + "/mav0/" + imuName + "/sensor.yaml";
   // parse sensor parameters
@@ -226,22 +228,23 @@ bool ETHDatasetParser::parseImuData(const std::string input_dataset_path,
   std::string line;
   std::getline(fin, line);
 
-  uint32_t deltaCount = 0u;
+  size_t deltaCount = 0u;
   long long sumOfDelta = 0;
   double stdDelta = 0;
   double imu_rate_maxMismatch = 0;
   double maxNormAcc = 0, maxNormRotRate = 0; // only for debugging
-  long long int previous_timestamp = -1;
+  Timestamp previous_timestamp = -1;
   // read/store imu measurements, line by line
   while (std::getline(fin, line)) {
-    long long timestamp;
+    Timestamp timestamp = 0;
     gtsam::Vector6 gyroAccData;
     for(size_t i=0; i < 7; i++){
       int idx = line.find_first_of(',');
-      if (i==0)
+      if (i==0) {
         timestamp = std::stoll(line.substr(0, idx));
-      else
+      } else {
         gyroAccData(i-1) = std::stod(line.substr(0, idx));
+      }
       line = line.substr(idx+1);
     }
     Vector6 imu_accgyr;
@@ -267,8 +270,10 @@ bool ETHDatasetParser::parseImuData(const std::string input_dataset_path,
       previous_timestamp = timestamp;
     }
   }
-  if(deltaCount != imuData_.imu_buffer_.size()-1u){
-    std::cout << "parseImuData: wrong nr of deltaCount: deltaCount " << deltaCount << " nr lines " << imuData_.imu_buffer_.size() << std::endl;
+  if (deltaCount != imuData_.imu_buffer_.size() - 1u) {
+    std::cout << "parseImuData: wrong nr of deltaCount: deltaCount "
+              << deltaCount << " nr lines "
+              << imuData_.imu_buffer_.size() << std::endl;
     throw std::runtime_error("parseImuData: wrong nr of deltaCount");
   }
   imuData_.imu_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9; // converted to seconds
@@ -336,14 +341,14 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
   std::string line;
   std::getline(fin, line);
 
-  uint32_t deltaCount = 0u;
+  size_t deltaCount = 0u;
   long long sumOfDelta = 0;
-  long long int previous_timestamp = -1;
+  Timestamp previous_timestamp = -1;
 
   // Read/store gt, line by line.
   double maxGTvel = 0;
   while (std::getline(fin, line)) {
-    long long timestamp;
+    Timestamp timestamp = 0;
     std::vector<double> gtDataRaw;
     for (size_t i = 0; i < 17; i++) {
       int idx = line.find_first_of(',');
@@ -483,7 +488,7 @@ bool ETHDatasetParser::parseCameraData(const std::string input_dataset_path,
   // SANITY CHECK: time stamps are the same for left and right camera
   double stdDelta = 0;
   double frame_rate_maxMismatch = 0;
-  uint32_t deltaCount = 0u;
+  size_t deltaCount = 0u;
   for(size_t i=0; i<camera_image_lists[leftCameraName].img_lists.size(); i++)
   {
     if(i>0){

@@ -244,7 +244,7 @@ void LoggerMatlab::logMesh(const cv::Mat& lmks,
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::logBackendResults(const ETHDatasetParser& dataset,
                                      const StereoVisionFrontEnd& stereoTracker,
-                                     const boost::shared_ptr<VioBackEnd>& vio,
+                                     const std::shared_ptr<VioBackEnd>& vio,
                                      const Timestamp timestamp_lkf,
                                      const Timestamp timestamp_k,
                                      const size_t k){
@@ -411,7 +411,7 @@ void LoggerMatlab::logBackendResults(const ETHDatasetParser& dataset,
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::displayInitialStateVioInfo(
     const ETHDatasetParser& dataset,
-    const boost::shared_ptr<VIO::VioBackEnd>& vio,
+    const std::shared_ptr<VIO::VioBackEnd>& vio,
     gtNavState initialStateGT,
     const ImuAccGyr& imu_accgyr,
     const Timestamp timestamp_k) const {
