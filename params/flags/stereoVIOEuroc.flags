@@ -16,5 +16,3 @@
 #--visualize_load_mesh_filename=/home/tonirv/datasets/euroc/V1_01_easy/mav0/pointcloud0/data.ply
 --viz_type=5
 --min_num_obs_for_mesher_points=4
---initial_k=150
---final_k=10000

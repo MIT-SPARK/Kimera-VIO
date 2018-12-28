@@ -15,21 +15,23 @@
 #ifndef ETH_parser_H_
 #define ETH_parser_H_
 
-#include <opencv2/core/core.hpp>
 #include <stdlib.h>
-#include <gtsam/geometry/Cal3DS2.h>
-#include <gtsam/geometry/Pose3.h>
-#include <gtsam/navigation/ImuBias.h>
-#include "Frame.h"
-#include "ImuFrontEnd.h"
+#include <fstream>
+#include <string>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/ml/ml.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include <fstream>
-#include <string>
+#include <gtsam/geometry/Cal3DS2.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/navigation/ImuBias.h>
+
+#include "Frame.h"
+#include "ImuFrontEnd.h"
+#include "VioFrontEndParams.h"
+#include "VioBackEndParams.h"
 
 // #define ETH_PARSER_DEBUG_COUT
 
@@ -129,11 +131,18 @@ private:
   bool is_gt_available_;
 
 public:
+  // Helper function to parse dataset and user-specified parameters.
+  void parseDatasetAndParams(VioBackEndParamsPtr vioParams,
+                             VioFrontEndParams* trackerParams,
+                             size_t* initial_k, size_t* final_k);
+
   // parse camera, gt, and imu
-  bool parseDataset(const std::string input_dataset_path,
-      const std::string leftCameraName, const std::string rightCameraName,
-      const std::string imuName, const std::string gtSensorName,
-      const bool doParseImages = true);
+  bool parseDataset(const std::string& input_dataset_path,
+                    const std::string& leftCameraName,
+                    const std::string& rightCameraName,
+                    const std::string& imuName,
+                    const std::string& gtSensorName,
+                    bool doParseImages = true);
 
   // Parse cam0, cam1 of a given dataset
   bool parseCameraData(const std::string input_dataset_path, const std::string leftCameraName,

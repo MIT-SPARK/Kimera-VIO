@@ -14,13 +14,16 @@
 
 #ifndef VioBackEndParams_H_
 #define VioBackEndParams_H_
- #include <memory>
+
+#include <stdlib.h>
+#include <memory>
 #include <unordered_map>
 #include <boost/foreach.hpp>
 #include <iostream>
 #include <fstream>
+
 #include <opencv2/core/core.hpp>
-#include <stdlib.h>
+
 #include <gtsam/slam/SmartFactorParams.h>
 
 #include <glog/logging.h>
@@ -356,8 +359,8 @@ protected:
         << "useDogLeg_: " << useDogLeg_ << std::endl;
   }
 };
+typedef std::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
 
-typedef boost::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
 } // namespace VIO
 #endif /* VioBackEndParams_H_ */
 

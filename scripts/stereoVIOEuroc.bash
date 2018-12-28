@@ -73,6 +73,8 @@ echo """ Launching:
   --log_prefix=0 \
   --dataset_path="$DATASET_PATH" \
   --vio_params_path="$VIO_PARAMS_PATH" \
+  --initial_k=150 \
+  --final_k=10000 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
   --flagfile="../params/flags/stereoVIOEuroc.flags" \
   --flagfile="../params/flags/Mesher.flags" \

@@ -14,6 +14,19 @@
 
 #include "ETH_parser.h"
 
+#include <gflags/gflags.h>
+
+DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
+              "Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).");
+DEFINE_string(vio_params_path, "",
+              "Path to vio user-defined parameters.");
+DEFINE_string(tracker_params_path, "",
+              "Path to tracker user-defined parameters.");
+DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
+                            "previous frames will not be used.");
+DEFINE_int32(final_k, 10000, "Final frame to finish processing dataset, "
+                            "subsequent frames will not be used.");
+
 using namespace VIO;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,10 +68,10 @@ void CameraImageLists::print()
   std::cout << "img_lists size: " << img_lists.size() << std::endl;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              ////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/* --------------------------------------------------------------------------------------- */
+////////////////////////////////////////////////////////////////////////////////
+//////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
+////////////////////////////////////////////////////////////////////////////////
+/* -------------------------------------------------------------------------- */
 void GroundTruthData::print() {
   std::cout << "------------ GroundTruthData::print -------------" << std::endl;
   body_Pose_cam_.print("body_Pose_cam_: \n");
@@ -66,10 +79,10 @@ void GroundTruthData::print() {
   std::cout << "nr of gtStates: " << mapToGt_.size() << std::endl;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS ImuData                       ////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/* --------------------------------------------------------------------------------------- */
+////////////////////////////////////////////////////////////////////////////////
+//////////////// FUNCTIONS OF THE CLASS ImuData                       //////////
+////////////////////////////////////////////////////////////////////////////////
+/* -------------------------------------------------------------------------- */
 void ImuData::print()
 {
   std::cout << "------------ ImuData::print    -------------" << std::endl;
@@ -85,10 +98,88 @@ void ImuData::print()
   std::cout << "nr of imu measurements: " << imu_buffer_.size() << std::endl;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              ////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/* --------------------------------------------------------------------------------------- */
+////////////////////////////////////////////////////////////////////////////////
+//////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
+////////////////////////////////////////////////////////////////////////////////
+/* -------------------------------------------------------------------------- */
+void ETHDatasetParser::parseDatasetAndParams(
+        VioBackEndParamsPtr vioParams,
+        VioFrontEndParams* trackerParams,
+        size_t* initial_k, size_t* final_k) {
+  CHECK(vioParams);
+  CHECK_NOTNULL(trackerParams);
+  CHECK_NOTNULL(initial_k);
+  CHECK_NOTNULL(final_k);
+
+  // Dataset path.
+  VLOG(100) << "Using dataset path: " << FLAGS_dataset_path;
+
+  // Parse the dataset (ETH format).
+  static const std::string leftCameraName = "cam0";
+  static const std::string rightCameraName = "cam1";
+  static const std::string imuName = "imu0";
+  static const std::string gtSensorName = "state_groundtruth_estimate0";
+
+  parseDataset(FLAGS_dataset_path, leftCameraName, rightCameraName,
+               imuName, gtSensorName);
+  print();
+
+  // Read/define vio params.
+  if (FLAGS_vio_params_path.empty()) {
+    VLOG(100) << "No vio parameters specified, using default.";
+    // Default params with IMU stats from dataset.
+    vioParams->gyroNoiseDensity_ = imuData_.gyro_noise_;
+    vioParams->accNoiseDensity_ = imuData_.acc_noise_;
+    vioParams->gyroBiasSigma_ = imuData_.acc_noise_;
+    vioParams->accBiasSigma_ = imuData_.acc_walk_;
+  } else {
+    VLOG(100) << "Using user-specified VIO parameters: "
+              << FLAGS_vio_params_path;
+    vioParams->parseYAML(FLAGS_vio_params_path);
+  }
+
+  // Read/define tracker params.
+  if (FLAGS_tracker_params_path.empty()) {
+    VLOG(100) << "No tracker parameters specified, using default";
+    *trackerParams = VioFrontEndParams(); // default params
+  } else {
+    VLOG(100) << "Using user-specified tracker parameters: "
+              << FLAGS_tracker_params_path;
+    trackerParams->parseYAML(FLAGS_tracker_params_path);
+  }
+
+  // Start processing dataset from frame initial_k.
+  // Useful to skip a bunch of images at the beginning (imu calibration).
+  *initial_k = FLAGS_initial_k;
+  CHECK_GE(*initial_k, 0);
+  CHECK_GE(*initial_k, 10)
+      << "initial_k should be >= 10 for IMU bias initialization";
+
+  // Finish processing dataset at frame final_k.
+  // Last frame to process (to avoid processing the entire dataset),
+  // skip last frames.
+  *final_k = FLAGS_final_k;
+  CHECK_GT(*final_k, 0);
+  const size_t& nr_images = nrImages();
+  if (*final_k > nr_images) {
+    LOG(WARNING) << "Value for final_k, " << *final_k << " is larger than total"
+                 << " number of frames in dataset " << nr_images;
+    // Skip last frames which are typically problematic
+    // (IMU bumps, FOV occluded)...
+    static constexpr size_t skip_n_end_frames = 100;
+    *final_k = nr_images - skip_n_end_frames;
+    LOG(WARNING) << "Using final_k = " << *final_k << ", where we removed "
+                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
+  }
+  CHECK(*final_k > *initial_k)
+      << "Value for final_k (" << *final_k << ") is smaller than value for"
+      << " initial_k (" << *initial_k << ").";
+
+  LOG(INFO) << "Running dataset between frame " << *initial_k
+            << " and frame " <<  *final_k;
+}
+
+/* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseImuData(const std::string input_dataset_path,
                                     const std::string imuName) {
   ///////////////// PARSE SENSOR FILE ////////////////////////////////////////////////////////
@@ -188,6 +279,7 @@ bool ETHDatasetParser::parseImuData(const std::string input_dataset_path,
   std::cout << "Maximum measured rotation rate (norm):" << maxNormRotRate << " - Maximum measured acceleration (norm): " << maxNormAcc << std::endl;
   return true;
 }
+
 
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
@@ -322,12 +414,12 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
 }
 
 /* --------------------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseDataset(const std::string input_dataset_path,
-                                    const std::string leftCameraName,
-                                    const std::string rightCameraName,
-                                    const std::string imuName,
-                                    const std::string gtSensorName,
-                                    const bool doParseImages) {
+bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
+                                    const std::string& leftCameraName,
+                                    const std::string& rightCameraName,
+                                    const std::string& imuName,
+                                    const std::string& gtSensorName,
+                                    bool doParseImages) {
   dataset_path_ = input_dataset_path;
   parseCameraData(dataset_path_, leftCameraName, rightCameraName, doParseImages);
   parseImuData(dataset_path_, imuName);
