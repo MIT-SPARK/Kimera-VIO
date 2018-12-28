@@ -39,8 +39,8 @@ class ImuFrontEnd
 public:
   using ImuData = std::map<int64_t, Vector6, std::less<int64_t>, Eigen::aligned_allocator<std::pair<int64_t const, Vector6> > >;
 
-  ImuFrontEnd(double buffer_size_seconds = 60 * 120) // 120 minutes of history
-  : buffer_size_microsec_(int64_t(buffer_size_seconds * 1e9)) {} // by default it keeps the entire history
+  explicit ImuFrontEnd(int64_t buffer_size_microseconds = 60 * 120 * 1e9) // 120 minutes of history
+  : buffer_size_microsec_(buffer_size_microseconds) {}
 
 public:
   /* +++++++++++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++++++++ */

@@ -42,7 +42,7 @@ namespace VIO {
  */
 class ImuData {
 public:
-  ImuData() : imu_buffer_(1e20) {} // imu buffer with virtually infinite memory!
+  ImuData() : imu_buffer_(INT64_MAX) {} // imu buffer with virtually infinite memory!
 
   gtsam::Pose3 body_Pose_cam_;
   double imu_rate_;
