@@ -146,10 +146,10 @@ int main(int argc, char *argv[]) {
   // instantiate feature selector: not used in vanilla implementation
   FeatureSelector featureSelector(trackerParams, *vioParams);
 
-  // Create VIO: class that tracks implements estimation back-end
+  // Create VIO: class that implements estimation back-end.
   std::shared_ptr<VioBackEnd> vioBackEnd;
 
-  // create class to visualize 3D points and mesh:
+  // Create class to visualize 3D points and mesh:
   Mesher mesher;
   Visualizer3D visualizer;
 
@@ -165,7 +165,12 @@ int main(int argc, char *argv[]) {
 
   // timestamp 10 frames before the first (for imu calibration)
   // TODO: remove hardcoded 10
-  Timestamp timestamp_lkf = dataset.timestampAtFrame(initial_k - 10);
+  static constexpr size_t frame_offset_for_imu_calib = 10;
+  CHECK_GE(initial_k, frame_offset_for_imu_calib)
+          << "Initial frame " << initial_k << " has to be larger than "
+          << frame_offset_for_imu_calib << " (needed for IMU calibration)";
+  Timestamp timestamp_lkf = dataset.timestampAtFrame(
+              initial_k - frame_offset_for_imu_calib);
   Timestamp timestamp_k;
 
   double startTime; // to log timing results
