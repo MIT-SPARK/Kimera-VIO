@@ -43,7 +43,8 @@ public:
       const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO,
       std::shared_ptr<StereoFrame> stereoFrame,
       const gtsam::Pose3& leftCameraPose,
-      cv::Mat* mesh_2d_img_ptr = nullptr);
+      std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
+      std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Cluster planes from the mesh.

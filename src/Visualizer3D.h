@@ -22,6 +22,8 @@
 #include "Mesher_cgal.h"
 #endif
 
+
+// 3D Mesh related flags.
 DEFINE_int32(mesh_shading, 0,
              "Mesh shading:\n 0: Flat, 1: Gouraud, 2: Phong");
 DEFINE_int32(mesh_representation, 1,
@@ -31,6 +33,7 @@ DEFINE_bool(set_mesh_ambient, false, "Whether to use ambient light for the "
 DEFINE_bool(set_mesh_lighting, false, "Whether to use lighting for the mesh.");
 DEFINE_bool(log_mesh, false, "Log the mesh at time horizon.");
 DEFINE_bool(log_accumulated_mesh, false, "Accumulate the mesh when logging.");
+
 DEFINE_int32(displayed_trajectory_length, 50, "Set length of plotted trajectory."
                                   "If -1 then all the trajectory is plotted.");
 
@@ -101,6 +104,104 @@ public:
     // Plot points.
     window_data_.window_.showWidget("Point cloud map", map_with_repeated_points);
   }
+
+  /* ------------------------------------------------------------------------ */
+  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  void visualizeMesh2D(const cv::Mat& img,
+                       const std::vector<cv::Vec6f>& triangulation2D,
+                       const KeypointsCV& extra_keypoints = KeypointsCV()) const {
+    cv::Scalar delaunay_color(0, 255, 0), points_color(255, 0, 0);
+
+    // Duplicate image for annotation and visualization.
+    cv::Mat img_clone = img.clone();
+    cv::cvtColor(img_clone, img_clone, cv::COLOR_GRAY2BGR);
+    cv::Size size = img_clone.size();
+    cv::Rect rect(0, 0, size.width, size.height);
+    std::vector<cv::Point> pt(3);
+    for (size_t i = 0; i < triangulation2D.size(); i++) {
+      cv::Vec6f t = triangulation2D[i];
+
+      // Visualize mesh vertices.
+      pt[0] = cv::Point(cvRound(t[0]), cvRound(t[1]));
+      pt[1] = cv::Point(cvRound(t[2]), cvRound(t[3]));
+      pt[2] = cv::Point(cvRound(t[4]), cvRound(t[5]));
+
+      // Visualize mesh edges.
+      cv::line(img_clone, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
+      cv::line(img_clone, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
+      cv::line(img_clone, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
+    }
+
+    // Visualize extra vertices.
+    for (auto keypoint: extra_keypoints) {
+      cv::circle(img_clone, keypoint, 2, points_color, CV_FILLED, CV_AA, 0);
+    }
+
+    cv::imshow("visualizeMesh2D", img_clone);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Visualize 2d mesh.
+  void visualizeMesh2DStereo(
+      const std::vector<cv::Vec6f>& triangulation_2D,
+      const Frame& ref_frame,
+      cv::Mat* mesh_2d_img = nullptr,
+      const std::string& window_name = "Mesh 2D",
+      const bool& visualize = true) const {
+    static const cv::Scalar delaunay_color(0, 255, 0), // Green
+        mesh_vertex_color(255, 0, 0), // Blue
+        valid_keypoints_color(0, 0, 255); //Red
+
+    // If not asked to visualize, nor to return the image, just skip computation.
+    if (!visualize && mesh_2d_img == nullptr) {
+      LOG(WARNING) << "Asking to draw mesh 2d stereo, but neither asked to "
+                      "visualize it or to return the drawn image, so skipping.";
+      return;
+    }
+
+    // Sanity check.
+    if (ref_frame.landmarks_.size() != ref_frame.keypoints_.size()) {
+      throw std::runtime_error("Frame: wrong dimension for the landmarks");
+    }
+
+    // Duplicate image for annotation and visualization.
+    cv::Mat img = ref_frame.img_.clone();
+    cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
+
+    // Visualize extra vertices.
+    for (size_t i = 0; i < ref_frame.keypoints_.size(); i++) {
+      // Only for valid keypoints, but possibly without a right pixel.
+      // Kpts that are both valid and have a right pixel are currently the ones
+      // passed to the mesh.
+      if (ref_frame.landmarks_[i] != -1) {
+        cv::circle(img, ref_frame.keypoints_[i], 2, valid_keypoints_color,
+                   CV_FILLED, CV_AA, 0);
+      }
+    }
+
+  std::vector<cv::Point> pt(3);
+  for (const cv::Vec6f& triangle: triangulation_2D) {
+    // Visualize mesh vertices.
+    pt[0] = cv::Point(cvRound(triangle[0]), cvRound(triangle[1]));
+    pt[1] = cv::Point(cvRound(triangle[2]), cvRound(triangle[3]));
+    pt[2] = cv::Point(cvRound(triangle[4]), cvRound(triangle[5]));
+    cv::circle(img, pt[0], 2, mesh_vertex_color, CV_FILLED, CV_AA, 0);
+    cv::circle(img, pt[1], 2, mesh_vertex_color, CV_FILLED, CV_AA, 0);
+    cv::circle(img, pt[2], 2, mesh_vertex_color, CV_FILLED, CV_AA, 0);
+
+    // Visualize mesh edges.
+    cv::line(img, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
+    cv::line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
+    cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
+  }
+
+  if (visualize) {
+    cv::imshow(window_name, img);
+  }
+  if (mesh_2d_img != nullptr) {
+    *mesh_2d_img = img;
+  }
+}
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.

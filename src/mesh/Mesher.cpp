@@ -35,8 +35,6 @@ DEFINE_bool(log_histogram_1D, false, "Log 1D histogram to file."
 DEFINE_bool(visualize_histogram_2D, false, "Visualize 2D histogram.");
 DEFINE_bool(log_histogram_2D, false, "Log 2D histogram to file."
                                      " It logs the raw and smoothed histogram.");
-DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");
-DEFINE_bool(visualize_mesh_2d_filtered, false, "Visualize mesh 2D filtered.");
 
 // Mesh filters.
 DEFINE_double(max_grad_in_triangle, -1,
@@ -1240,11 +1238,13 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 
 /* -------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
+// Optional parameter is the mesh in 2D for visualization.
 void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
     std::shared_ptr<StereoFrame> stereoFrame,
     const gtsam::Pose3& leftCameraPose,
-    cv::Mat* mesh_2d_img_ptr) {
+    std::vector<cv::Vec6f>* mesh_2d_for_viz,
+    std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
   VLOG(10) << "Starting updateMesh3D...";
   const std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_all =
       &points_with_id_VIO;
@@ -1274,20 +1274,14 @@ void Mesher::updateMesh3D(
   std::vector<cv::Vec6f> mesh_2d;
   stereoFrame->createMesh2dVIO(&mesh_2d,
                                *points_with_id_all);
+  if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d;
+
+  // Filter 2D mesh.
   std::vector<cv::Vec6f> mesh_2d_filtered;
   stereoFrame->filterTrianglesWithGradients(mesh_2d,
                                             &mesh_2d_filtered,
                                             FLAGS_max_grad_in_triangle);
-
-  // Debug.
-  if (FLAGS_visualize_mesh_2d) {
-    stereoFrame->drawMesh2DStereo(mesh_2d, nullptr);
-  }
-  if (FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr) {
-    stereoFrame->drawMesh2DStereo(mesh_2d_filtered, mesh_2d_img_ptr,
-                                       "2D Mesh Filtered",
-                                  FLAGS_visualize_mesh_2d_filtered);
-  }
+  if (mesh_2d_filtered_for_viz) *mesh_2d_filtered_for_viz = mesh_2d_filtered;
 
   populate3dMeshTimeHorizon(
         mesh_2d_filtered,

@@ -21,6 +21,7 @@
 #include <string>
 #include <cstdlib>
 #include <vector>
+#include <numeric>
 #include <boost/foreach.hpp>
 
 // Including opencv
@@ -125,19 +126,22 @@ public:
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  void createMesh2D() { // called without input, it considers all valid keypoints for the mesh
-    std::vector<int> selectedIndices;
-    selectedIndices.reserve(keypoints_.size()); // preallocate
-    for(int i = 0; i < keypoints_.size(); i++) {
-      selectedIndices.push_back(i);
-    }
+  // It considers all valid keypoints for the mesh.
+  // Optionally, it returns a 2D mesh via its argument.
+  void createMesh2D(std::vector<cv::Vec6f>* triangulation2D = nullptr) {
+    std::vector<size_t> selectedIndices (keypoints_.size());
+    // Fills selectedIndices with the indices of ALL keypoints: 0, 1, 2...
+    std::iota(selectedIndices.begin(), selectedIndices.end(), 0);
     triangulation2D_ = createMesh2D(*this, selectedIndices);
+    if (triangulation2D != nullptr) {
+        *triangulation2D = triangulation2D_;
+    }
   }
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   static std::vector<cv::Vec6f> createMesh2D(const Frame& frame,
-                                      const std::vector<int>& selectedIndices) {
+                                      const std::vector<size_t>& selectedIndices) {
 
     if(frame.landmarks_.size() != frame.keypoints_.size()) // sanity check
       throw std::runtime_error("Frame: wrong dimension for the landmarks");
@@ -213,45 +217,6 @@ public:
     }
 
     return triangulation2D;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  void visualizeMesh2D(const double& waitTime = 0) const {
-    cv::Scalar delaunay_color(0, 255, 0), points_color(255, 0, 0);
-
-    // Sanity check.
-    if(landmarks_.size() != keypoints_.size())
-      throw std::runtime_error("Frame: wrong dimension for the landmarks");
-
-    // Duplicate image for annotation and visualization.
-    cv::Mat img = img_.clone();
-    cv::cvtColor(img, img, cv::COLOR_GRAY2BGR);
-    cv::Size size = img.size();
-    cv::Rect rect(0, 0, size.width, size.height);
-    std::vector<cv::Point> pt(3);
-    for (size_t i = 0; i < triangulation2D_.size(); i++) {
-      cv::Vec6f t = triangulation2D_[i];
-
-      // Visualize mesh vertices.
-      pt[0] = cv::Point(cvRound(t[0]), cvRound(t[1]));
-      pt[1] = cv::Point(cvRound(t[2]), cvRound(t[3]));
-      pt[2] = cv::Point(cvRound(t[4]), cvRound(t[5]));
-
-      // Visualize mesh edges.
-      cv::line(img, pt[0], pt[1], delaunay_color, 1, CV_AA, 0);
-      cv::line(img, pt[1], pt[2], delaunay_color, 1, CV_AA, 0);
-      cv::line(img, pt[2], pt[0], delaunay_color, 1, CV_AA, 0);
-    }
-
-    // Visualize extra vertices.
-    for (size_t i = 0; i < keypoints_.size(); i++) {
-      if(landmarks_.at(i) != -1) // only for valid keypoints
-        cv::circle(img, keypoints_.at(i), 2, points_color, CV_FILLED, CV_AA, 0);
-    }
-
-    cv::imshow("visualizeMesh2D", img);
-    cv::waitKey(waitTime);
   }
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

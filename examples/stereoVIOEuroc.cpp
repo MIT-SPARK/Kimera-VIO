@@ -50,7 +50,11 @@ DEFINE_int32(regular_vio_backend_modality, 4,
              "4: structureless, projection and regularity factors used.");
 DEFINE_bool(visualize, true, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
-DEFINE_bool(visualize_mesh, false, "Enable mesh visualization.");
+DEFINE_bool(visualize_mesh, false, "Enable 3D mesh visualization.");
+
+DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");
+DEFINE_bool(visualize_mesh_2d_filtered, false, "Visualize mesh 2D filtered.");
+
 DEFINE_bool(visualize_mesh_with_colored_polygon_clusters, false,
             "Color the polygon clusters according to their cluster id.");
 DEFINE_bool(visualize_point_cloud, true, "Enable point cloud visualization.");
@@ -106,8 +110,6 @@ int main(int argc, char *argv[]) {
     // Still does not make RANSAC REPEATABLE across different machines.
     srand(0);
   }
-  VisualizationType visualization_type =
-          static_cast<VisualizationType>(FLAGS_viz_type);
 
   // Init dataset parser.
   ETHDatasetParser dataset;
@@ -151,6 +153,7 @@ int main(int argc, char *argv[]) {
 
   // Create class to visualize 3D points and mesh:
   Mesher mesher;
+
   Visualizer3D visualizer;
 
   // structures to be filled with imu data
@@ -477,14 +480,20 @@ int main(int argc, char *argv[]) {
         // camera's frustum.
         mesh_2d_img_ptr = &mesh_2d_img;
       }
+
+      VisualizationType visualization_type =
+              static_cast<VisualizationType>(FLAGS_viz_type);
       switch (visualization_type) {
         // Computes and visualizes 2D mesh.
         // vertices: all leftframe kps with lmkId != -1 and inside the image
         // triangles: all the ones with edges inside images as produced by cv::subdiv
         case VisualizationType::MESH2D: {
-          stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D();
-          stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_
-              .visualizeMesh2D(100);
+          std::vector<cv::Vec6f> mesh_2d;
+          stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D(
+                      &mesh_2d);
+          visualizer.visualizeMesh2D(
+                      stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_,
+                      mesh_2d);
           break;
         }
 
@@ -507,7 +516,9 @@ int main(int argc, char *argv[]) {
         case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
           std::vector<cv::Vec6f> mesh_2d;
           stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2dStereo(&mesh_2d);
-          stereoVisionFrontEnd.stereoFrame_lkf_->drawMesh2DStereo(mesh_2d);
+          visualizer.visualizeMesh2DStereo(
+                      mesh_2d,
+                      stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
           break;
         }
 
@@ -525,34 +536,52 @@ int main(int argc, char *argv[]) {
           // (TODO restriction is not enforced for projection factors).
           VioBackEnd::PointsWithIdMap points_with_id_VIO;
           VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-          if (FLAGS_visualize_lmk_type) {
-            vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
-                  &points_with_id_VIO,
-                  &lmk_id_to_lmk_type_map,
-                  FLAGS_min_num_obs_for_mesher_points);
-          } else {
-            vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
-                  &points_with_id_VIO,
-                  nullptr,
-                  FLAGS_min_num_obs_for_mesher_points);
-          }
+          vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
+                &points_with_id_VIO,
+                FLAGS_visualize_lmk_type?
+                  &lmk_id_to_lmk_type_map:nullptr,
+                FLAGS_min_num_obs_for_mesher_points);
+
+          std::vector<cv::Vec6f> mesh_2d_for_viz;
+          std::vector<cv::Vec6f> mesh_2d_filtered_for_viz;
 
           // Create mesh.
           mesher.updateMesh3D(
                 points_with_id_VIO,
                 stereoVisionFrontEnd.stereoFrame_lkf_,
                 W_Pose_camlkf_vio,
-                mesh_2d_img_ptr);
+                FLAGS_visualize_mesh_2d?
+                  &mesh_2d_for_viz:nullptr,
+                FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr?
+                &mesh_2d_filtered_for_viz:nullptr);
 
           // Find regularities in the mesh if we are using RegularVIO backend.
-          // Currently only triangles in the ground floor.
           if (FLAGS_backend_type == 1) {
             mesher.clusterPlanesFromMesh(&planes,
                                          points_with_id_VIO);
           }
 
           if (FLAGS_visualize) {
-            VLOG(10) << "Starting mesh visualization...";
+            // Visualize 2d mesh.
+            if (FLAGS_visualize_mesh_2d) {
+              visualizer.visualizeMesh2DStereo(
+                    mesh_2d_for_viz,
+                    stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_,
+                    nullptr);
+            }
+
+            // Visualize filtered 2d mesh.
+            if (FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr) {
+              visualizer.visualizeMesh2DStereo(
+                    mesh_2d_filtered_for_viz,
+                    stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_,
+                    mesh_2d_img_ptr,
+                    "2D Mesh Filtered",
+                    FLAGS_visualize_mesh_2d_filtered);
+            }
+
+            // 3D mesh visualization
+            VLOG(10) << "Starting 3D mesh visualization...";
             cv::Mat vertices_mesh;
             cv::Mat polygons_mesh;
             mesher.getVerticesMesh(&vertices_mesh);
