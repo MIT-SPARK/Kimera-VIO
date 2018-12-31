@@ -31,7 +31,25 @@ using namespace cv;
 static const double tol = 1e-1;
 
 /* ************************************************************************* */
-TEST(testMesher, toAdd) {
+TEST(testFrame, visualizeMesh2D) {
+  // Construct a frame from image name.
+  FrameId id = 0;
+  Timestamp tmp = 123;
+  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
+
+  Frame f(id, tmp, imgName, CameraParams());
+  f.extractCorners();
+  for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
+    f.landmarks_.push_back(i);
+  }
+
+  // Compute mesh.
+  std::vector<cv::Vec6f> mesh_2d;
+  f.createMesh2D(&mesh_2d);
+
+  // Visualize mesh.
+  Visualizer3D visualizer;
+  visualizer.visualizeMesh2D(f.img_, mesh_2d);
 }
 
 /* ************************************************************************* */
