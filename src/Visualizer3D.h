@@ -68,7 +68,7 @@ public:
     // Defines whether the user pressed a key to switch the mesh representation.
     bool user_updated_mesh_representation_ = false;
     // Stores the user set mesh representation.
-    uint16_t mesh_representation_ = 0u;
+    int mesh_representation_ = 0u;
   };
 
 
