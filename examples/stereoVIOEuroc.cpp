@@ -827,17 +827,14 @@ int main(int argc, char *argv[]) {
         case VisualizationType::NONE: {
           break;
         }
-
-        default: {
-          throw std::runtime_error("stereoVIOEuroc: unknown visualizationType");
-          break;
-        }
       }
 
       // Visualize trajectory.
       if (FLAGS_visualize) {
         VLOG(10) << "Starting trajectory visualization...";
-        visualizer.addPoseToTrajectory(vioBackEnd->W_Pose_Blkf_);
+        visualizer.addPoseToTrajectory(
+                    vioBackEnd->W_Pose_Blkf_ *
+                    stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect);
         visualizer.visualizeTrajectory3D(
               (FLAGS_visualize_mesh_in_frustum && mesh_2d_img_ptr != nullptr)?
                 mesh_2d_img_ptr :

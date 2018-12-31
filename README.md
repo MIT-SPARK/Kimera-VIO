@@ -131,10 +131,11 @@ Tips for usage
 - The 3D Visualization window implements the following keyboard shortcuts:
     - Press 't': toggle freezing visualization (as of know, this blocks the whole pipeline, it might change once the visualization is threaded).
     - Press 'v': prints to the terminal the pose of the current viewpoint of the 3D visualization window.
-    - Press ' ': prints to the terminal the size of the 3D visualization window.
+    - Press 'w': prints to the terminal the size of the 3D visualization window.
 
      These last two shortcuts are useful if you want to programmatically set the initial viewpoint and size of the screen when launching the 3D visualization window (this is done at the constructor of the 3DVisualizer class).
     - Press 's': to get a screenshot of the 3D visualization window.
+    - Press '0', '1', or '2': to toggle the 3D mesh representation (only visible if the gflag 'visualize_mesh' is set to true).
 
 > For these shortcuts to take effect you need to have the window in focus. Note also that there might be a big delay between your keypress and the actual processing of the information as this is purely sequential with the VIO pipeline itself; this might change after parallelizing the pipeline).
 

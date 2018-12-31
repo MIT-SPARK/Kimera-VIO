@@ -68,7 +68,7 @@ public:
     // Defines whether the user pressed a key to switch the mesh representation.
     bool user_updated_mesh_representation_ = false;
     // Stores the user set mesh representation.
-    uint16_t mesh_representation_ = 0u;
+    int mesh_representation_ = 0u;
   };
 
 
@@ -483,10 +483,11 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Visualize trajectory.
-  // TODO visualize frustums for cameras in time horizon, use WTrajectoryFrustums
   void visualizeTrajectory3D(const cv::Mat* frustum_image = nullptr) {
-    if(trajectoryPoses3d_.size() == 0) // no points to visualize
+    if(trajectoryPoses3d_.size() == 0) {// no points to visualize
       return;
+    }
+
     // Show current camera pose.
     static const cv::Matx33d K (458, 0.0, 360,
                                 0.0, 458, 240,
@@ -495,14 +496,14 @@ public:
     if (frustum_image == nullptr) {
       cam_widget_ptr = cv::viz::WCameraPosition(K, 1.0, cv::viz::Color::white());
     } else {
-      cv::Mat display_img;
-      cv::rotate(*frustum_image, display_img, cv::ROTATE_90_CLOCKWISE);
-      cam_widget_ptr = cv::viz::WCameraPosition(K, display_img,
+      cam_widget_ptr = cv::viz::WCameraPosition(K, *frustum_image,
                                                 1.0, cv::viz::Color::white());
     }
     window_data_.window_.showWidget("Camera Pose with Frustum", cam_widget_ptr,
                        trajectoryPoses3d_.back());
-    window_data_.window_.setWidgetPose("Camera Pose with Frustum", trajectoryPoses3d_.back());
+    window_data_.window_.setWidgetPose("Camera Pose with Frustum",
+                                       trajectoryPoses3d_.back());
+
     // Option A: This does not work very well.
     // window_data_.window_.resetCameraViewpoint("Camera Pose with Frustum");
     // Viewer is our viewpoint, camera the pose estimate (frustum).
@@ -531,11 +532,12 @@ public:
     // Create a Trajectory frustums widget.
     std::vector<cv::Affine3f> trajectory_frustums (
           trajectoryPoses3d_.end() -
-          std::min(trajectoryPoses3d_.size(), (size_t)10),
+          std::min(trajectoryPoses3d_.size(), size_t(10u)),
           trajectoryPoses3d_.end());
-    cv::viz::WTrajectoryFrustums trajectory_frustums_widget (trajectory_frustums, K,
-                                                             0.2, cv::viz::Color::red());
-    window_data_.window_.showWidget("Trajectory Frustums", trajectory_frustums_widget);
+    cv::viz::WTrajectoryFrustums trajectory_frustums_widget (
+                trajectory_frustums, K, 0.2, cv::viz::Color::red());
+    window_data_.window_.showWidget("Trajectory Frustums",
+                                    trajectory_frustums_widget);
 
     // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
     std::vector<cv::Affine3f> trajectory (trajectoryPoses3d_.begin(),
