@@ -19,8 +19,10 @@
 
 #include "Histogram.h"
 #include "mesh/Mesh3D.h"
+#include "utils/threadSafeQueue.h"
 
 #include <stdlib.h>
+#include <atomic>
 
 #include <opengv/point_cloud/methods.hpp>
 
@@ -32,17 +34,83 @@
 #include <opencv2/viz/vizcore.hpp>
 
 namespace VIO {
+
+struct MesherInputPayload {
+  MesherInputPayload (
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      const StereoFrame& stereo_frame,
+      const gtsam::Pose3& left_camera_pose)
+    : points_with_id_vio_(points_with_id_vio),
+      stereo_frame_(stereo_frame),
+      left_camera_pose_(left_camera_pose) {}
+
+  const std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_vio_;
+  const StereoFrame stereo_frame_;
+  const gtsam::Pose3 left_camera_pose_;
+};
+
+struct MesherOutputPayload {
+  MesherOutputPayload (const std::vector<cv::Vec6f>& mesh_2d_for_viz,
+                       const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
+    : mesh_2d_for_viz_(mesh_2d_for_viz),
+      mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
+
+  MesherOutputPayload () = default;
+
+  // 2D Mesh.
+  std::vector<cv::Vec6f> mesh_2d_for_viz_;
+  std::vector<cv::Vec6f> mesh_2d_filtered_for_viz_;
+
+  // 3D Mesh.
+  cv::Mat vertices_mesh_;
+  cv::Mat polygons_mesh_;
+};
+
+
 class Mesher {
 public:
   /* ------------------------------------------------------------------------ */
   Mesher();
 
   /* ------------------------------------------------------------------------ */
-  // Update mesh: update structures keeping memory of the map before visualization
+  // Method for the mesher to run on a thread.
+  void run(ThreadSafeQueue<MesherInputPayload>& mesher_input_queue,
+           ThreadSafeQueue<MesherOutputPayload>& mesher_output_queue) {
+    LOG(INFO) << "Launch";
+    MesherOutputPayload mesher_output_payload;
+    while(!request_stop_) {
+      LOG(INFO) << "Inside loop before pop";
+      updateMesh3D(mesher_input_queue.popShared(),
+                   &(mesher_output_payload.mesh_2d_for_viz_),
+                   &(mesher_output_payload.mesh_2d_filtered_for_viz_));
+      getVerticesMesh(&(mesher_output_payload.vertices_mesh_));
+      getPolygonsMesh(&(mesher_output_payload.polygons_mesh_));
+      LOG(INFO) << "Inside loop before push";
+      mesher_output_queue.push(mesher_output_payload);
+    }
+    LOG(INFO) << "Stop requested";
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Method for the mesher to request thread stop.
+  inline void shutdown() {
+    LOG(INFO) << "Shutting down Mesher.";
+    request_stop_ = true;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // update mesh: update structures keeping memory of the map before visualization
   void updateMesh3D(
       const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO,
       std::shared_ptr<StereoFrame> stereoFrame,
       const gtsam::Pose3& leftCameraPose,
+      std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
+      std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
+
+  /* ------------------------------------------------------------------------ */
+  // Update mesh, but in a thread-safe way.
+  void updateMesh3D(
+      const std::shared_ptr<const MesherInputPayload>& mesher_payload,
       std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
       std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
 
@@ -65,10 +133,8 @@ public:
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
-  /* ------------------------------------------------------------------------ */
-  // Clones underlying data structures encoding the mesh.
-  void getVerticesMesh(cv::Mat* vertices_mesh) const;
-  void getPolygonsMesh(cv::Mat* polygons_mesh) const;
+  // Signaler for stop.
+  std::atomic_bool request_stop_ = {false};
 
 private:
   // The actual mesh.
@@ -312,6 +378,11 @@ private:
       LandmarkIds* lmk_ids,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
   const;
+
+  /* ------------------------------------------------------------------------ */
+  // Clones underlying data structures encoding the mesh.
+  void getVerticesMesh(cv::Mat* vertices_mesh) const;
+  void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 };
 
 } // namespace VIO

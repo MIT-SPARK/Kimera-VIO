@@ -96,6 +96,7 @@ add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/CameraParams.h ./src/Frame.h
                       ./src/Visualizer3D.h
                       ./src/Histogram.h
+                      ./src/utils/threadSafeQueue.h
                       "")
 
 ### Add source code for factors

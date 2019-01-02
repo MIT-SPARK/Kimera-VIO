@@ -29,12 +29,14 @@
 
 #include "ETH_parser.h"
 #include "mesh/Mesher.h"
+#include "utils/threadSafeQueue.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
 #include "Visualizer3D.h"
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
+DEFINE_bool(parallel_run, true, "Run parallelized pipeline.");
 DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
                                  "0: VioBackEnd\n"
                                  "1: RegularVioBackEnd");
@@ -153,6 +155,15 @@ int main(int argc, char *argv[]) {
 
   // Create class to visualize 3D points and mesh:
   Mesher mesher;
+
+  // Thread-safe queue for the mesher.
+  ThreadSafeQueue<MesherInputPayload> mesher_input_queue;
+  ThreadSafeQueue<MesherOutputPayload> mesher_output_queue;
+
+  // Start mesher_thread.
+  std::thread mesher_thread (&Mesher::run, std::ref(mesher),
+                             std::ref(mesher_input_queue),
+                             std::ref(mesher_output_queue));
 
   Visualizer3D visualizer;
 
@@ -469,10 +480,6 @@ int main(int argc, char *argv[]) {
       //////////////////////////////////////////////////////////////////////////
 
       ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////
-      // Get camera pose.
-      gtsam::Pose3 W_Pose_camlkf_vio =
-          vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
-
       cv::Mat mesh_2d_img; // Only for visualization.
       cv::Mat* mesh_2d_img_ptr = nullptr; // Only for visualization.
       if (FLAGS_visualize_mesh_in_frustum) {
@@ -545,27 +552,34 @@ int main(int argc, char *argv[]) {
           std::vector<cv::Vec6f> mesh_2d_for_viz;
           std::vector<cv::Vec6f> mesh_2d_filtered_for_viz;
 
-          // Create mesh.
-          mesher.updateMesh3D(
-                points_with_id_VIO,
-                stereoVisionFrontEnd.stereoFrame_lkf_,
-                W_Pose_camlkf_vio,
-                FLAGS_visualize_mesh_2d?
-                  &mesh_2d_for_viz:nullptr,
-                FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr?
-                &mesh_2d_filtered_for_viz:nullptr);
+          // Get camera pose.
+          gtsam::Pose3 W_Pose_camlkf_vio =
+              vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
+
+          // Create and fill data packet for mesher.
+
+          // Push to queue.
+          // In another thread, mesher is running, consuming mesher payloads.
+          mesher_input_queue.push(MesherInputPayload (
+                                    points_with_id_VIO, //copy, thread safe, read-only.
+                                    *(stereoVisionFrontEnd.stereoFrame_lkf_), // not really thread safe, read only.
+                                    W_Pose_camlkf_vio)); // copy, thread safe, read-only.
 
           // Find regularities in the mesh if we are using RegularVIO backend.
+          // TODO create a new class that is mesh segmenter or plane extractor.
           if (FLAGS_backend_type == 1) {
             mesher.clusterPlanesFromMesh(&planes,
                                          points_with_id_VIO);
           }
 
+          // In the mesher thread push queue with meshes for visualization.
+          MesherOutputPayload mesher_output_payload (mesher_output_queue.pop());
+
           if (FLAGS_visualize) {
             // Visualize 2d mesh.
             if (FLAGS_visualize_mesh_2d) {
               visualizer.visualizeMesh2DStereo(
-                    mesh_2d_for_viz,
+                    mesher_output_payload.mesh_2d_for_viz_,
                     stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_,
                     nullptr);
             }
@@ -573,7 +587,7 @@ int main(int argc, char *argv[]) {
             // Visualize filtered 2d mesh.
             if (FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr) {
               visualizer.visualizeMesh2DStereo(
-                    mesh_2d_filtered_for_viz,
+                    mesher_output_payload.mesh_2d_filtered_for_viz_,
                     stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_,
                     mesh_2d_img_ptr,
                     "2D Mesh Filtered",
@@ -582,10 +596,6 @@ int main(int argc, char *argv[]) {
 
             // 3D mesh visualization
             VLOG(10) << "Starting 3D mesh visualization...";
-            cv::Mat vertices_mesh;
-            cv::Mat polygons_mesh;
-            mesher.getVerticesMesh(&vertices_mesh);
-            mesher.getPolygonsMesh(&polygons_mesh);
 
             static std::vector<Plane> planes_prev;
             static VioBackEnd::PointsWithIdMap points_with_id_VIO_prev;
@@ -722,8 +732,8 @@ int main(int argc, char *argv[]) {
             visualizer.renderWindow(1, true);
 
             planes_prev = planes;
-            vertices_mesh_prev = vertices_mesh;
-            polygons_mesh_prev = polygons_mesh;
+            vertices_mesh_prev = mesher_output_payload.vertices_mesh_;
+            polygons_mesh_prev = mesher_output_payload.polygons_mesh_;
             points_with_id_VIO_prev = points_with_id_VIO;
             lmk_id_to_lmk_type_map_prev = lmk_id_to_lmk_type_map;
             VLOG(10) << "Finished mesh visualization.";
@@ -799,6 +809,16 @@ int main(int argc, char *argv[]) {
     // Loop visualization.
     cv::waitKey(1);
   }
+
+  // Shutdown workers and queues.
+  mesher_input_queue.shutdown();
+  mesher_output_queue.shutdown();
+  mesher.shutdown();
+
+  while (!mesher_thread.joinable()) {
+      LOG(INFO) << "Thread is not joinable...";
+  }
+  mesher_thread.join();
 
   if (FLAGS_log_output) {
     logger.closeLogFiles();

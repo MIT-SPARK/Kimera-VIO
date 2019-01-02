@@ -1295,6 +1295,20 @@ void Mesher::updateMesh3D(
   VLOG(10) << "Finished updateMesh3D.";
 }
 
+/* -------------------------------------------------------------------------- */
+// Update mesh, but in a thread-safe way.
+void Mesher::updateMesh3D(const std::shared_ptr<const MesherInputPayload>& mesher_payload,
+                          std::vector<cv::Vec6f>* mesh_2d_for_viz,
+                          std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
+    if (!mesher_payload) {
+      LOG(INFO) << "Empty payload skipping mesh update";
+    } else {
+      updateMesh3D(mesher_payload->points_with_id_vio_,
+                   std::make_shared<StereoFrame>(mesher_payload->stereo_frame_),
+                   mesher_payload->left_camera_pose_,
+                   mesh_2d_for_viz, mesh_2d_filtered_for_viz);
+    }
+}
 
 /* -------------------------------------------------------------------------- */
 // Attempts to insert new points in the map, but does not override if there
