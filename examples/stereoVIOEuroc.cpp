@@ -15,6 +15,7 @@
 //#define USE_CGAL
 
 #include <memory>
+#include <chrono>
 
 #include "RegularVioBackEnd.h"
 #include "VioBackEnd.h"
@@ -102,6 +103,8 @@ using namespace VIO;
 // stereoVIOexample
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
+  auto start = std::chrono::high_resolution_clock::now();
+
   // Initialize Google's flags library.
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
@@ -823,6 +826,11 @@ int main(int argc, char *argv[]) {
   if (FLAGS_log_output) {
     logger.closeLogFiles();
   }
+
+  auto stop = std::chrono::high_resolution_clock::now();
+  auto duration_ms =
+          std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+  LOG(WARNING) << "main() took" << duration_ms.count() << " milliseconds.";
 
   return is_pipeline_successful? EXIT_SUCCESS : EXIT_FAILURE;
 }
