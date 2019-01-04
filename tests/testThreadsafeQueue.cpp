@@ -64,11 +64,33 @@ TEST(testThreadsafeQueue, popBlocking_by_reference) {
   p.join();
 }
 
+/* ************************************************************************* */
 TEST(testThreadsafeQueue, popBlocking_by_shared_ptr) {
   ThreadsafeQueue<std::string> q;
   std::thread p ([&] {
     q.push("Hello World!");
     q.push("Hello World 2!");
+  });
+  std::shared_ptr<std::string> s = q.popBlocking();
+  EXPECT(*s == "Hello World!");
+  auto s2 = q.popBlocking();
+  EXPECT(*s2 == "Hello World 2!");
+  q.shutdown();
+  EXPECT(q.popBlocking() == nullptr);
+
+  // Leave some time for p to finish its work.
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  EXPECT(p.joinable());
+  p.join();
+}
+
+/* ************************************************************************* */
+TEST(testThreadsafeQueue, push) {
+  ThreadsafeQueue<std::string> q;
+  std::thread p ([&] {
+    q.push(std::string("Hello World!"));
+    std::string s = "Hello World 2!";
+    q.push(s);
   });
   std::shared_ptr<std::string> s = q.popBlocking();
   EXPECT(*s == "Hello World!");
@@ -108,6 +130,45 @@ TEST(testThreadsafeQueue, producer_consumer) {
   p.join();
   std::cout << "Threads joined.\n";
 }
+
+/* ************************************************************************* */
+TEST(testThreadsafeQueue, stress_test) {
+  ThreadsafeQueue<std::string> q;
+  std::atomic_bool kill_switch (false);
+  std::vector<std::thread> cs;
+  for (size_t i = 0; i < 10; i++){
+      // Create 10 consumers.
+      cs.push_back(std::thread(consumer, std::ref(q), std::ref(kill_switch)));
+  }
+  std::vector<std::thread> ps;
+  for (size_t i = 0; i < 10; i++){
+      // Create 10 producers.
+      ps.push_back(std::thread(producer, std::ref(q), std::ref(kill_switch)));
+  }
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  std::cout << "Shutdown queue.\n";
+  q.shutdown();
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  std::cout << "Resume queue.\n";
+  q.resume();
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  std::cout << "Joining threads.\n";
+  kill_switch = true;
+  for (size_t i = 0; i < cs.size(); i++) {
+    cs[i].join();
+  }
+  for (size_t i = 0; i < ps.size(); i++) {
+    ps[i].join();
+  }
+  std::cout << "Threads joined.\n";
+}
+
 
 /* ************************************************************************* */
 int main() {
