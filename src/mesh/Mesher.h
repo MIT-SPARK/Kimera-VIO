@@ -55,6 +55,12 @@ struct MesherOutputPayload {
     : mesh_2d_for_viz_(mesh_2d_for_viz),
       mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
 
+  MesherOutputPayload (const std::shared_ptr<MesherOutputPayload>& in)
+    : mesh_2d_for_viz_(
+          in? in->mesh_2d_for_viz_ : std::vector<cv::Vec6f>()), // yet another copy...
+      mesh_2d_filtered_for_viz_(
+          in? in->mesh_2d_filtered_for_viz_ : std::vector<cv::Vec6f>()) {}
+
   MesherOutputPayload () = default;
 
   // 2D Mesh.
