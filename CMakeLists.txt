@@ -96,13 +96,14 @@ add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/CameraParams.h ./src/Frame.h
                       ./src/Visualizer3D.h
                       ./src/Histogram.h
-                      ./src/utils/ThreadsafeQueue.h
                       "")
 
 ### Add source code for factors
 include(src/factors/CMakeLists.txt)
 ### Add source code for mesh
 include(src/mesh/CMakeLists.txt)
+### Add source code for utils
+include(src/utils/CMakeLists.txt)
 
 if (DEFINED external_project_dependencies)
   add_dependencies(stereoVIO ${external_project_dependencies})
