@@ -76,7 +76,7 @@ public:
     if (shutdown_) return std::shared_ptr<T>();
     // The shared_ptr allocation might throw an exception.
     // Making the queue hold shared_ptr instead, would avoid this issue.
-    // See listing 6.3 in [1].
+    // See listing 6.3 in [1]. And we also spare copies.
     std::shared_ptr<T> result(std::make_shared<T>(data_queue_.front()));
     data_queue_.pop();
     return result;

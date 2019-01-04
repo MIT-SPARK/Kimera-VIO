@@ -563,10 +563,10 @@ int main(int argc, char *argv[]) {
 
           // Push to queue.
           // In another thread, mesher is running, consuming mesher payloads.
-          mesher_input_queue.push(MesherInputPayload (
+          CHECK(mesher_input_queue.push(MesherInputPayload (
                                     points_with_id_VIO, //copy, thread safe, read-only.
                                     *(stereoVisionFrontEnd.stereoFrame_lkf_), // not really thread safe, read only.
-                                    W_Pose_camlkf_vio)); // copy, thread safe, read-only.
+                                    W_Pose_camlkf_vio))); // copy, thread safe, read-only.
 
           // Find regularities in the mesh if we are using RegularVIO backend.
           // TODO create a new class that is mesh segmenter or plane extractor.
@@ -576,7 +576,8 @@ int main(int argc, char *argv[]) {
           }
 
           // In the mesher thread push queue with meshes for visualization.
-          MesherOutputPayload mesher_output_payload (*mesher_output_queue.pop());
+          MesherOutputPayload mesher_output_payload (
+                      mesher_output_queue.pop()); //Use blocking to avoid skipping frames.
 
           if (FLAGS_visualize) {
             // Visualize 2d mesh.
