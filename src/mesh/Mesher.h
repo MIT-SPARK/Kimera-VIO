@@ -74,13 +74,13 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to run on a thread.
-  void run(ThreadSafeQueue<MesherInputPayload>& mesher_input_queue,
-           ThreadSafeQueue<MesherOutputPayload>& mesher_output_queue) {
+  void run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
+           ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue) {
     LOG(INFO) << "Launch";
     MesherOutputPayload mesher_output_payload;
     while(!request_stop_) {
       LOG(INFO) << "Inside loop before pop";
-      updateMesh3D(mesher_input_queue.popShared(),
+      updateMesh3D(mesher_input_queue.pop(),
                    &(mesher_output_payload.mesh_2d_for_viz_),
                    &(mesher_output_payload.mesh_2d_filtered_for_viz_));
       getVerticesMesh(&(mesher_output_payload.vertices_mesh_));

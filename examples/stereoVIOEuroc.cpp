@@ -30,7 +30,7 @@
 
 #include "ETH_parser.h"
 #include "mesh/Mesher.h"
-#include "utils/threadSafeQueue.h"
+#include "utils/ThreadsafeQueue.h"
 #include "StereoVisionFrontEnd.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
@@ -156,12 +156,12 @@ int main(int argc, char *argv[]) {
   // Create VIO: class that implements estimation back-end.
   std::shared_ptr<VioBackEnd> vioBackEnd;
 
-  // Create class to visualize 3D points and mesh:
+  // Create class to visualize mesh:
   Mesher mesher;
 
   // Thread-safe queue for the mesher.
-  ThreadSafeQueue<MesherInputPayload> mesher_input_queue;
-  ThreadSafeQueue<MesherOutputPayload> mesher_output_queue;
+  ThreadsafeQueue<MesherInputPayload> mesher_input_queue;
+  ThreadsafeQueue<MesherOutputPayload> mesher_output_queue;
 
   // Start mesher_thread.
   std::thread mesher_thread (&Mesher::run, std::ref(mesher),
@@ -576,7 +576,7 @@ int main(int argc, char *argv[]) {
           }
 
           // In the mesher thread push queue with meshes for visualization.
-          MesherOutputPayload mesher_output_payload (mesher_output_queue.pop());
+          MesherOutputPayload mesher_output_payload (*mesher_output_queue.pop());
 
           if (FLAGS_visualize) {
             // Visualize 2d mesh.
