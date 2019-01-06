@@ -49,7 +49,7 @@ TEST(testFrame, visualizeMesh2D) {
 
   // Visualize mesh.
   Visualizer3D visualizer;
-  visualizer.visualizeMesh2D(f.img_, mesh_2d);
+  visualizer.visualizeMesh2D(mesh_2d, f.img_);
 }
 
 /* ************************************************************************* */

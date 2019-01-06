@@ -19,7 +19,7 @@
 
 #include "Histogram.h"
 #include "mesh/Mesh3D.h"
-#include "utils/threadSafeQueue.h"
+#include "utils/ThreadsafeQueue.h"
 
 #include <stdlib.h>
 #include <atomic>

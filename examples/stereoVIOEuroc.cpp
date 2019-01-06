@@ -15,6 +15,8 @@
 //#define USE_CGAL
 
 #include <memory>
+#include <thread>
+#include <future>
 #include <chrono>
 
 #include "RegularVioBackEnd.h"
@@ -51,26 +53,6 @@ DEFINE_int32(regular_vio_backend_modality, 4,
              "3: Projection and regularity, sets all structureless factors to"
              "projection factors and adds regularity factors to a subset.\n"
              "4: structureless, projection and regularity factors used.");
-DEFINE_bool(visualize, true, "Enable overall visualization.");
-DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
-DEFINE_bool(visualize_mesh, false, "Enable 3D mesh visualization.");
-
-DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");
-DEFINE_bool(visualize_mesh_2d_filtered, false, "Visualize mesh 2D filtered.");
-
-DEFINE_bool(visualize_mesh_with_colored_polygon_clusters, false,
-            "Color the polygon clusters according to their cluster id.");
-DEFINE_bool(visualize_point_cloud, true, "Enable point cloud visualization.");
-DEFINE_bool(visualize_convex_hull, false, "Enable convex hull visualization.");
-DEFINE_bool(visualize_plane_constraints, false, "Enable plane constraints"
-                                               " visualization.");
-DEFINE_bool(visualize_planes, false, "Enable plane visualization.");
-DEFINE_bool(visualize_plane_label, false, "Enable plane label visualization.");
-DEFINE_bool(visualize_mesh_in_frustum, false, "Enable mesh visualization in "
-                                             "camera frustum.");
-DEFINE_string(visualize_load_mesh_filename, "",
-            "Load a mesh in the visualization, i.e. to visualize ground-truth "
-            "point cloud from Euroc's Vicon dataset.");
 
 DEFINE_int32(viz_type, 0,
   "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
@@ -85,6 +67,7 @@ DEFINE_int32(viz_type, 0,
     "corresponding to non planar obstacles\n"
   "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
   "7: NONE, does not visualize map\n");
+
 
 DEFINE_bool(deterministic_random_number_generator, false,
             "If true the random number generator will consistently output the "
@@ -168,7 +151,17 @@ int main(int argc, char *argv[]) {
                              std::ref(mesher_input_queue),
                              std::ref(mesher_output_queue));
 
+  // Visualization process.
   Visualizer3D visualizer;
+
+  // Thread-safe queue for the visualizer.
+  ThreadsafeQueue<VisualizerInputPayload> visualizer_input_queue;
+  ThreadsafeQueue<VisualizerOutputPayload> visualizer_output_queue;
+
+  // Start visualizer_thread.
+  std::thread visualizer_thread (&Visualizer3D::run, std::ref(visualizer),
+                                 std::ref(visualizer_input_queue),
+                                 std::ref(visualizer_output_queue));
 
   // structures to be filled with imu data
   ImuStamps imu_stamps;
@@ -483,323 +476,99 @@ int main(int argc, char *argv[]) {
       //////////////////////////////////////////////////////////////////////////
 
       ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////
-      cv::Mat mesh_2d_img; // Only for visualization.
-      cv::Mat* mesh_2d_img_ptr = nullptr; // Only for visualization.
-      if (FLAGS_visualize_mesh_in_frustum) {
-        // We need to store the image of the mesh in 2D to display it in the
-        // camera's frustum.
-        mesh_2d_img_ptr = &mesh_2d_img;
-      }
+      std::vector<cv::Vec6f> mesh_2d;
+      VioBackEnd::PointsWithIdMap points_with_id_VIO;
+      VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+      MesherOutputPayload mesher_output_payload;
+      vector<Point3> points_3d;
+      VioBackEnd::PointsWithIdMap points_with_id;
 
+      // Decide mesh computation:
       VisualizationType visualization_type =
               static_cast<VisualizationType>(FLAGS_viz_type);
       switch (visualization_type) {
-        // Computes and visualizes 2D mesh.
-        // vertices: all leftframe kps with lmkId != -1 and inside the image
-        // triangles: all the ones with edges inside images as produced by cv::subdiv
-        case VisualizationType::MESH2D: {
-          std::vector<cv::Vec6f> mesh_2d;
-          stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D(
-                      &mesh_2d);
-          visualizer.visualizeMesh2D(
-                      stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_,
-                      mesh_2d);
-          break;
+      case VisualizationType::MESH2D: {
+        stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.createMesh2D(
+              &mesh_2d);
+        break;
+      }
+      case VisualizationType::MESH2Dsparse: { // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
+        stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2dStereo(&mesh_2d);
+        break;
+      }
+      case VisualizationType::MESH2DTo3Dsparse: {
+        // Points_with_id_VIO contains all the points in the optimization,
+        // (encoded as either smart factors or explicit values), potentially
+        // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
+        // (TODO restriction is not enforced for projection factors).
+        vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
+              &points_with_id_VIO,
+              FLAGS_visualize_lmk_type?
+                &lmk_id_to_lmk_type_map:nullptr,
+              FLAGS_min_num_obs_for_mesher_points);
+
+        // Get camera pose.
+        gtsam::Pose3 W_Pose_camlkf_vio =
+            vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
+
+        // Create and fill data packet for mesher.
+
+        // Push to queue.
+        // In another thread, mesher is running, consuming mesher payloads.
+        CHECK(mesher_input_queue.push(MesherInputPayload (
+                                        points_with_id_VIO, //copy, thread safe, read-only.
+                                        *(stereoVisionFrontEnd.stereoFrame_lkf_), // not really thread safe, read only.
+                                        W_Pose_camlkf_vio))); // copy, thread safe, read-only.
+
+        // Find regularities in the mesh if we are using RegularVIO backend.
+        // TODO create a new class that is mesh segmenter or plane extractor.
+        if (FLAGS_backend_type == 1) {
+          mesher.clusterPlanesFromMesh(&planes,
+                                       points_with_id_VIO);
         }
 
-          // Computes and visualizes a 3D mesh from 2D triangulation.
-          // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
-          // triangles: all the ones with edges inside images as produced by cv::subdiv
-          // (updateMesh3D also filters out geometrically)
-        case VisualizationType::MESH2DTo3D: {
-          CHECK(false)
-              << "This is the same as Mesh2Dto3Dsparse except the fact"
-              << "that we do not restrict triangles to be on planar surfaces."
-              << "Deprecated for simplicity, it can be executed by running mesh2dto3dsparse with "
-              << "maxGradInTriangle being very large.";
-          break;
+        // In the mesher thread push queue with meshes for visualization.
+        if (!mesher_output_queue.popBlocking(mesher_output_payload)) { //Use blocking to avoid skipping frames.
+          LOG(WARNING) << "Mesher output queue did not pop a payload.";
         }
-
-          // Computes and visualizes 2D mesh.
-          // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
-          // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
-        case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
-          std::vector<cv::Vec6f> mesh_2d;
-          stereoVisionFrontEnd.stereoFrame_lkf_->createMesh2dStereo(&mesh_2d);
-          visualizer.visualizeMesh2DStereo(
-                      mesh_2d,
-                      stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_);
-          break;
-        }
-
-          // Computes and visualizes 3D mesh from 2D triangulation.
-          // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
-          // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
-          // (updateMesh3D also filters out geometrically)
-          // same as MESH2DTo3D but filters out triangles corresponding to non planar obstacles
-        case VisualizationType::MESH2DTo3Dsparse: {
-          VLOG(10) << "Mesh2Dtype::MESH2DTo3Dsparse";
-
-          // Points_with_id_VIO contains all the points in the optimization,
-          // (encoded as either smart factors or explicit values), potentially
-          // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
-          // (TODO restriction is not enforced for projection factors).
-          VioBackEnd::PointsWithIdMap points_with_id_VIO;
-          VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-          vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(
-                &points_with_id_VIO,
-                FLAGS_visualize_lmk_type?
-                  &lmk_id_to_lmk_type_map:nullptr,
-                FLAGS_min_num_obs_for_mesher_points);
-
-          std::vector<cv::Vec6f> mesh_2d_for_viz;
-          std::vector<cv::Vec6f> mesh_2d_filtered_for_viz;
-
-          // Get camera pose.
-          gtsam::Pose3 W_Pose_camlkf_vio =
-              vioBackEnd->W_Pose_Blkf_.compose(vioBackEnd->B_Pose_leftCam_);
-
-          // Create and fill data packet for mesher.
-
-          // Push to queue.
-          // In another thread, mesher is running, consuming mesher payloads.
-          CHECK(mesher_input_queue.push(MesherInputPayload (
-                                    points_with_id_VIO, //copy, thread safe, read-only.
-                                    *(stereoVisionFrontEnd.stereoFrame_lkf_), // not really thread safe, read only.
-                                    W_Pose_camlkf_vio))); // copy, thread safe, read-only.
-
-          // Find regularities in the mesh if we are using RegularVIO backend.
-          // TODO create a new class that is mesh segmenter or plane extractor.
-          if (FLAGS_backend_type == 1) {
-            mesher.clusterPlanesFromMesh(&planes,
-                                         points_with_id_VIO);
-          }
-
-          // In the mesher thread push queue with meshes for visualization.
-          MesherOutputPayload mesher_output_payload (
-                      mesher_output_queue.pop()); //Use blocking to avoid skipping frames.
-
-          if (FLAGS_visualize) {
-            // Visualize 2d mesh.
-            if (FLAGS_visualize_mesh_2d) {
-              visualizer.visualizeMesh2DStereo(
-                    mesher_output_payload.mesh_2d_for_viz_,
-                    stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_,
-                    nullptr);
-            }
-
-            // Visualize filtered 2d mesh.
-            if (FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr) {
-              visualizer.visualizeMesh2DStereo(
-                    mesher_output_payload.mesh_2d_filtered_for_viz_,
-                    stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_,
-                    mesh_2d_img_ptr,
-                    "2D Mesh Filtered",
-                    FLAGS_visualize_mesh_2d_filtered);
-            }
-
-            // 3D mesh visualization
-            VLOG(10) << "Starting 3D mesh visualization...";
-
-            static std::vector<Plane> planes_prev;
-            static VioBackEnd::PointsWithIdMap points_with_id_VIO_prev;
-            static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
-            static cv::Mat vertices_mesh_prev;
-            static cv::Mat polygons_mesh_prev;
-
-            if (FLAGS_visualize_mesh) {
-              visualizer.visualizeMesh3DWithColoredClusters(
-                    planes_prev,
-                    vertices_mesh_prev,
-                    polygons_mesh_prev,
-                    FLAGS_visualize_mesh_with_colored_polygon_clusters,
-                    timestamp_k);
-            }
-
-            if (FLAGS_visualize_point_cloud) {
-              visualizer.visualizePoints3D(points_with_id_VIO_prev,
-                                           lmk_id_to_lmk_type_map_prev);
-            }
-
-            if (!FLAGS_visualize_load_mesh_filename.empty()) {
-              static bool visualize_ply_mesh_once = true;
-              if (visualize_ply_mesh_once) {
-                visualizer.visualizePlyMesh(FLAGS_visualize_load_mesh_filename.c_str());
-                visualize_ply_mesh_once = false;
-              }
-            }
-
-            if (FLAGS_visualize_convex_hull) {
-              if (planes_prev.size() != 0) {
-                visualizer.visualizeConvexHull(planes_prev.at(0).triangle_cluster_,
-                                               vertices_mesh_prev,
-                                               polygons_mesh_prev);
-              }
-            }
-
-            if (FLAGS_backend_type == 1 && FLAGS_visualize_plane_constraints) {
-              const gtsam::NonlinearFactorGraph& graph =
-                  vioBackEnd->smoother_->getFactors();
-              LandmarkIds lmk_ids_in_current_pp_factors;
-              for (const auto& g : graph) {
-                const auto& ppf =
-                    boost::dynamic_pointer_cast<PointPlaneFactor>(g);
-                if (ppf) {
-                  // We found a PointPlaneFactor.
-                  // Get point key.
-                  Key point_key = ppf->getPointKey();
-                  LandmarkId lmk_id = gtsam::Symbol(point_key).index();
-                  lmk_ids_in_current_pp_factors.push_back(lmk_id);
-                  // Get point estimate.
-                  gtsam::Point3 point;
-                  CHECK(vioBackEnd->getEstimateOfKey(point_key, &point));
-
-                  // Visualize.
-                  const Key& ppf_plane_key = ppf->getPlaneKey();
-                  for (const Plane& plane: planes) { // not sure, we are having some w planes_prev others with planes...
-                    if (ppf_plane_key == plane.getPlaneSymbol().key()) {
-                      gtsam::OrientedPlane3 current_plane_estimate;
-                      CHECK(vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-                              ppf_plane_key, &current_plane_estimate));
-                      // WARNING assumes the backend updates normal and distance
-                      // of plane and that no one modifies it afterwards...
-                      visualizer.visualizePlaneConstraints(
-                            plane.getPlaneSymbol().key(),
-                            current_plane_estimate.normal().point3(),
-                            current_plane_estimate.distance(), lmk_id, point);
-                      // Stop since there are not multiple planes for one
-                      // ppf.
-                      break;
-                    }
-                  }
-                }
-              }
-
-              // Remove lines that are not representing a point plane factor
-              // in the current graph.
-              visualizer.removeOldLines(lmk_ids_in_current_pp_factors);
-            }
-
-            // Must go after visualize plane constraints.
-            if (FLAGS_visualize_planes || FLAGS_visualize_plane_constraints) {
-              for (const Plane& plane: planes) {
-                const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
-                const std::uint64_t& plane_index = plane_symbol.index();
-                gtsam::OrientedPlane3 current_plane_estimate;
-                if (vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-                      plane_symbol.key(), &current_plane_estimate)) {
-                  const cv::Point3d& plane_normal_estimate =
-                      UtilsOpenCV::unit3ToPoint3d(
-                        current_plane_estimate.normal());
-                  CHECK(plane.normal_ == plane_normal_estimate);
-                  // We have the plane in the optimization.
-                  // Visualize plane.
-                  visualizer.visualizePlane(
-                        plane_index,
-                        plane_normal_estimate.x,
-                        plane_normal_estimate.y,
-                        plane_normal_estimate.z,
-                        current_plane_estimate.distance(),
-                        FLAGS_visualize_plane_label,
-                        plane.triangle_cluster_.cluster_id_);
-                } else {
-                  // We could not find the plane in the optimization...
-                  // Careful cause we might enter here because there are new
-                  // segmented planes.
-                  // Delete the plane.
-                  LOG(ERROR) << "Remove plane viz for id:" << plane_index;
-                  if (FLAGS_visualize_plane_constraints) {
-                    visualizer.removePlaneConstraintsViz(plane_index);
-                  }
-                  visualizer.removePlane(plane_index);
-                }
-              }
-
-              // Also remove planes that were deleted by the backend...
-              for (const Plane& plane: planes_prev) {
-                const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
-                const std::uint64_t& plane_index = plane_symbol.index();
-                gtsam::OrientedPlane3 current_plane_estimate;
-                if (!vioBackEnd->getEstimateOfKey<gtsam::OrientedPlane3>(
-                      plane_symbol.key(), &current_plane_estimate)) {
-                  // We could not find the plane in the optimization...
-                  // Delete the plane.
-                  if (FLAGS_visualize_plane_constraints) {
-                    visualizer.removePlaneConstraintsViz(plane_index);
-                  }
-                  visualizer.removePlane(plane_index);
-                }
-              }
-            }
-
-            // Render current window.
-            visualizer.renderWindow(1, true);
-
-            planes_prev = planes;
-            vertices_mesh_prev = mesher_output_payload.vertices_mesh_;
-            polygons_mesh_prev = mesher_output_payload.polygons_mesh_;
-            points_with_id_VIO_prev = points_with_id_VIO;
-            lmk_id_to_lmk_type_map_prev = lmk_id_to_lmk_type_map;
-            VLOG(10) << "Finished mesh visualization.";
-          } // FLAGS_visualize.
-
-          break;
-        }
-
-          // Computes and visualizes 3D mesh.
-          // vertices: all VALID VIO points (that can be triangulated)
-          // triangles: the ones produced by CGAL
-        case VisualizationType::MESH3D: {// 3D mesh from CGAL using VIO points
-#ifdef USE_CGAL
-          VioBackEnd::PointsWithId pointsWithId;
-          vioBackEnd->get3DPointsAndLmkIds(&pointsWithId);
-          mesher.updateMap3D(pointsWithId);
-          visualizer.visualizeMesh3D(mesher.mapPoints3d_,
-                                     Mesher_cgal::CreateMesh3D_MapPointId(
-                                       mesher.mapPoints3d_));
-          break;
-#else
-          throw std::runtime_error("VisualizationType::MESH3D requires flag USE_CGAL to be true");
-          break;
-#endif
-        }
-
-          // Computes and visualizes a 3D point cloud.
-        case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
-          vector<Point3> points3d = vioBackEnd->get3DPoints();
-          visualizer.visualizeMap3D(points3d);
-          visualizer.renderWindow();
-          break;
-        }
-
-          // Computes and visualizes a 3D point cloud.
-        case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
-          VioBackEnd::PointsWithIdMap pointsWithId;
-          vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(&pointsWithId);
-          // Do not color the cloud, send empty lmk id to lmk type map
-          static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-          visualizer.visualizePoints3D(pointsWithId,
-                                       lmk_id_to_lmk_type_map);
-          break;
-        }
-
-        case VisualizationType::NONE: {
-          break;
-        }
+        break;
+      }
+      case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
+        points_3d = vioBackEnd->get3DPoints();
+        break;
+      }
+        // Computes and visualizes a 3D point cloud.
+      case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
+        vioBackEnd->getMapLmkIdsTo3dPointsInTimeHorizon(&points_with_id_VIO);
+        break;
+      }
+      case VisualizationType::NONE: {break;}
       }
 
-      // Visualize trajectory.
       if (FLAGS_visualize) {
-        VLOG(10) << "Starting trajectory visualization...";
-        visualizer.addPoseToTrajectory(
-                    vioBackEnd->W_Pose_Blkf_ *
-                    stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect);
-        visualizer.visualizeTrajectory3D(
-              (FLAGS_visualize_mesh_in_frustum && mesh_2d_img_ptr != nullptr)?
-                mesh_2d_img_ptr :
-              &(stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_.img_));
-        visualizer.renderWindow();
-        VLOG(10) << "Finished trajectory visualization.";
+        // Decide corresponding visualization type:
+        visualizer_input_queue.push(VisualizerInputPayload(
+            visualization_type, FLAGS_backend_type,
+            vioBackEnd->W_Pose_Blkf_ * stereoVisionFrontEnd.stereoFrame_km1_->B_Pose_camLrect, // pose for trajectory viz.
+            mesh_2d, // for visualizeMesh2D and visualizeMesh2DStereo
+            stereoVisionFrontEnd.stereoFrame_lkf_->left_frame_, // for visualizeMesh2D and visualizeMesh2DStereo
+            mesher_output_payload, // visualizeConvexHull & visualizeMesh3DWithColoredClusters
+            points_with_id_VIO, // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            lmk_id_to_lmk_type_map, // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            planes,  // visualizeMesh3DWithColoredClusters
+            vioBackEnd->smoother_->getFactors(), // For plane constraints viz.
+            vioBackEnd->state_, // For planes and plane constraints viz.
+            points_3d, timestamp_k));
+        std::shared_ptr<VisualizerOutputPayload> visualizer_output_payload =
+            visualizer_output_queue.popBlocking();
+        for (const ImageToDisplay& img_to_display:
+             visualizer_output_payload->images_to_display_) {
+          cv::imshow(img_to_display.name_, img_to_display.image_);
+        }
+        if (visualization_type != VisualizationType::NONE) {
+          visualizer_output_payload->window_.spinOnce(1, true);
+        }
+        cv::waitKey(1);
       }
 
       timestamp_lkf = timestamp_k;
@@ -809,20 +578,19 @@ int main(int argc, char *argv[]) {
       LOG(INFO) << "stereoVIOExample completed successfully!";
       is_pipeline_successful = true;
     }
-
-    // Loop visualization.
-    cv::waitKey(1);
   }
 
   // Shutdown workers and queues.
   mesher_input_queue.shutdown();
   mesher_output_queue.shutdown();
   mesher.shutdown();
-
-  while (!mesher_thread.joinable()) {
-      LOG(INFO) << "Thread is not joinable...";
-  }
   mesher_thread.join();
+
+  visualizer_input_queue.shutdown();
+  visualizer_output_queue.shutdown();
+  visualizer.shutdown();
+  visualizer_thread.join();
+
 
   if (FLAGS_log_output) {
     logger.closeLogFiles();
