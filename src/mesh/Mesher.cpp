@@ -12,6 +12,8 @@
  * @author Luca Carlone, AJ Haeffner, Antoni Rosinol
  */
 
+#include <math.h>
+
 #include "mesh/Mesher.h"
 
 #include <algorithm>
@@ -94,7 +96,7 @@ DEFINE_int32(hist_2d_min_dist_btw_local_max, 5,
 DEFINE_int32(hist_2d_theta_bins, 40, ".");
 DEFINE_int32(hist_2d_distance_bins, 40, ".");
 DEFINE_double(hist_2d_theta_range_min, 0, ".");
-DEFINE_double(hist_2d_theta_range_max, PI, ".");
+DEFINE_double(hist_2d_theta_range_max, M_PI, ".");
 DEFINE_double(hist_2d_distance_range_min, -6.0, ".");
 DEFINE_double(hist_2d_distance_range_max, 6.0, ".");
 
@@ -769,7 +771,7 @@ void Mesher::segmentPlanesInMesh(
           VLOG(10) << "Normalize theta: " << theta
                    << " and distance: " << distance;
           // Say theta is -pi/2, then normalized theta is pi/2.
-          theta = theta + PI;
+          theta = theta + M_PI;
           // Change distance accordingly.
           distance = -distance;
           VLOG(10) << "New normalized theta: " << theta

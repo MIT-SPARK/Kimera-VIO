@@ -17,16 +17,18 @@
 
 #include <boost/shared_ptr.hpp>     // used for opengv
 #include <time.h>
-#include "opencv2/opencv.hpp"
+
+#include <math.h>
+
+#include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+
 #include "UtilsOpenCV.h"
 #include "StereoFrame.h"
 
 namespace VIO {
-
-#define PI 3.14159265
 
 ///////////////////////////////////////////////////////////////////////////////////////
 class VioFrontEndParams{
@@ -66,7 +68,7 @@ public:
     featureSelectionNrCornersToSelect_(1000), // detect larger number of keypoints, and then select maxFeaturesPerFrame_
     featureSelectionImuRate_(0.005), // for feature selector
     featureSelectionDefaultDepth_(5.0), // for feature selector
-    featureSelectionCosineNeighborhood_(cos( (10*PI)/(180.0) )), // 10 degrees
+    featureSelectionCosineNeighborhood_(cos( (10*M_PI)/(180.0) )), // 10 degrees
     featureSelectionUseLazyEvaluation_(true),
     useSuccessProbabilities_(true),
     // RANSAC params:
