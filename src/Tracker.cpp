@@ -710,6 +710,24 @@ void Tracker::removeOutliersMono(
 #endif
 }
 
+
+/* -------------------------------------------------------------------------- */
+void Tracker::checkStatusRightKeypoints(
+    const std::vector<Kstatus>& right_keypoints_status) {
+  debugInfo_.nrValidRKP_ = 0; debugInfo_.nrNoLeftRectRKP_ = 0; debugInfo_.nrNoRightRectRKP_ = 0;
+  debugInfo_.nrNoDepthRKP_ = 0; debugInfo_.nrFailedArunRKP_ = 0;
+  for(size_t i=0; i<right_keypoints_status.size(); i++){
+    if(right_keypoints_status.at(i) == Kstatus::VALID)
+      debugInfo_.nrValidRKP_++;
+    if(right_keypoints_status.at(i) == Kstatus::NO_LEFT_RECT)
+      debugInfo_.nrNoLeftRectRKP_++;
+    if(right_keypoints_status.at(i) == Kstatus::NO_RIGHT_RECT)
+      debugInfo_.nrNoRightRectRKP_++;
+    if(right_keypoints_status.at(i) == Kstatus::NO_DEPTH)
+      debugInfo_.nrNoDepthRKP_++;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 void Tracker::removeOutliersStereo(
     StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame,

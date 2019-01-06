@@ -33,8 +33,8 @@ using namespace VIO;
 //////////////// FUNCTIONS OF THE CLASS CameraImageLists              ////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /* --------------------------------------------------------------------------------------- */
-bool CameraImageLists::parseCameraImageList(const std::string folderpath, const std::string filename)
-{
+bool CameraImageLists::parseCamImgList(const std::string& folderpath,
+                                       const std::string& filename) {
   image_folder_path_ = folderpath; // stored, only for debug
   const std::string fullname = folderpath + "/" + filename;
   std::ifstream fin(fullname.c_str());
@@ -50,7 +50,7 @@ bool CameraImageLists::parseCameraImageList(const std::string folderpath, const 
   while (std::getline(fin, item)) {
     // print the item!
     int idx = item.find_first_of(',');
-    long long timestamp = std::stoll(item.substr(0, idx));
+    Timestamp timestamp = std::stoll(item.substr(0, idx));
     std::string imageFilename = folderpath + "/data/" + item.substr(0, idx) + ".png";
     // strangely, on mac, it does not work if we use: item.substr(idx + 1);
     // maybe different string termination characters???
@@ -229,7 +229,7 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
   std::getline(fin, line);
 
   size_t deltaCount = 0u;
-  long long sumOfDelta = 0;
+  Timestamp sumOfDelta = 0;
   double stdDelta = 0;
   double imu_rate_maxMismatch = 0;
   double maxNormAcc = 0, maxNormRotRate = 0; // only for debugging
@@ -287,8 +287,8 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
 
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
-                                   const std::string gtSensorName) {
+bool ETHDatasetParser::parseGTdata(const std::string &input_dataset_path,
+                                   const std::string &gtSensorName) {
   ///////////////// PARSE SENSOR FILE //////////////////////////////////////////
   std::string filename_sensor =
       input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
@@ -342,7 +342,7 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
   std::getline(fin, line);
 
   size_t deltaCount = 0u;
-  long long sumOfDelta = 0;
+  Timestamp sumOfDelta = 0;
   Timestamp previous_timestamp = -1;
 
   // Read/store gt, line by line.
@@ -399,7 +399,7 @@ bool ETHDatasetParser::parseGTdata(const std::string input_dataset_path,
     gt_curr.imuBias = gtsam::imuBias::ConstantBias(accBias, gyroBias);
 
     gtData_.mapToGt_.insert(
-          std::pair<long long, gtNavState>(timestamp,gt_curr));
+          std::pair<Timestamp, gtNavState>(timestamp,gt_curr));
 
     double normVel = gt_curr.velocity.norm();
     if (normVel > maxGTvel) maxGTvel = normVel;
@@ -444,97 +444,119 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
   return true;
 }
 
-/* --------------------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseCameraData(const std::string input_dataset_path,
-    const std::string leftCameraName, const std::string rightCameraName,
-    const bool doParseImages)
-{
-  // default names: match names of the corresponding folders
-  camera_names.resize(2);
-  camera_names[0] = leftCameraName;
-  camera_names[1] = rightCameraName;
+bool ETHDatasetParser::sanityCheckCameraData(
+    const std::vector<std::string>& camera_names,
+    const std::map<std::string, CameraParams>& camera_info,
+    std::map<std::string, CameraImageLists>* camera_image_lists) const {
+  CHECK_NOTNULL(camera_image_lists);
+  const auto& left_cam_info = camera_info.at(camera_names.at(0));
+  auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists;
+  auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists;
+  return sanityCheckCamSize(&left_img_lists, &right_img_lists) &&
+      sanityCheckCamTimestamps(left_img_lists, right_img_lists, left_cam_info);
+}
 
-  // read camera info and list of images
-  camera_info.clear();
-  camera_image_lists.clear();
-  for (int i = 0; i < camera_names.size(); i++) { // for each of the 2 cameras
-    std::cout << "reading camera: " << i <<std::endl;
-    CameraParams cam_info_i;
-    cam_info_i.parseYAML(input_dataset_path + "/mav0/" +
-        camera_names[i] + "/sensor.yaml");
-    camera_info[camera_names[i]] = cam_info_i;
-
-    CameraImageLists cam_list_i;
-    if(doParseImages){
-      cam_list_i.parseCameraImageList(input_dataset_path + "/mav0/" +
-          camera_names[i], "data.csv");
-    }
-    camera_image_lists[camera_names[i]] = cam_list_i;
+bool ETHDatasetParser::sanityCheckCamSize(
+    CameraImageLists::ImgLists* left_img_lists,
+    CameraImageLists::ImgLists* right_img_lists) const {
+  CHECK_NOTNULL(left_img_lists);
+  CHECK_NOTNULL(right_img_lists);
+  size_t nr_left_cam_imgs = left_img_lists->size();
+  size_t nr_right_cam_imgs = right_img_lists->size();
+  if (nr_left_cam_imgs!= nr_right_cam_imgs) {
+    LOG(WARNING) << "Different number of images in left and right camera!\n"
+                 << "Left: " << nr_left_cam_imgs << "\n"
+                 << "Right: " << nr_right_cam_imgs;
+    size_t nrCommonImages = std::min(nr_left_cam_imgs, nr_right_cam_imgs);
+    left_img_lists->resize(nrCommonImages);
+    right_img_lists->resize(nrCommonImages);
   }
+  return true;
+}
 
-  // SANITY CHECK: nr images is the same for left and right camera
-  if(camera_image_lists[leftCameraName].img_lists.size() != camera_image_lists[rightCameraName].img_lists.size()){
-
-    std::cout << "\n\n\n\n WARNING: parseCameraData: different number of images in left and right camera!!" << std::endl;
-    std::cout << "Left: " << camera_image_lists[leftCameraName].img_lists.size() << " Right: " <<
-        camera_image_lists[rightCameraName].img_lists.size() << "\n\n\n\n" << std::endl;
-
-    size_t nrCommonImages = std::min(camera_image_lists[leftCameraName].img_lists.size(),camera_image_lists[rightCameraName].img_lists.size());
-    camera_image_lists[leftCameraName].img_lists.resize(nrCommonImages);
-    camera_image_lists[rightCameraName].img_lists.resize(nrCommonImages);
-    //  throw std::runtime_error("parseCameraData: different number of images in left and right camera!!");
-  }
-
-  // SANITY CHECK: time stamps are the same for left and right camera
+bool ETHDatasetParser::sanityCheckCamTimestamps(
+  const CameraImageLists::ImgLists& left_img_lists,
+  const CameraImageLists::ImgLists& right_img_lists,
+  const CameraParams& left_cam_info) const {
   double stdDelta = 0;
   double frame_rate_maxMismatch = 0;
   size_t deltaCount = 0u;
-  for(size_t i=0; i<camera_image_lists[leftCameraName].img_lists.size(); i++)
-  {
-    if(i>0){
+  for (size_t i = 0; i < left_img_lists.size(); i++) {
+    if (i > 0) {
       deltaCount++;
-      Timestamp timestamp = camera_image_lists[leftCameraName].img_lists[i].first;
-      Timestamp previous_timestamp = camera_image_lists[leftCameraName].img_lists[i-1].first;
-      double deltaMismatch = fabs( double(timestamp - previous_timestamp - camera_info[leftCameraName].frame_rate_) * 1e-9 );
+      const Timestamp& timestamp = left_img_lists.at(i).first;
+      const Timestamp& previous_timestamp = left_img_lists.at(i-1).first;
+      double deltaMismatch = fabs(double(timestamp - previous_timestamp - left_cam_info.frame_rate_) * 1e-9 );
       stdDelta += pow( deltaMismatch , 2);
       frame_rate_maxMismatch = std::max(frame_rate_maxMismatch, deltaMismatch);
     }
 
-    if(camera_image_lists[leftCameraName].img_lists[i].first !=
-        camera_image_lists[rightCameraName].img_lists[i].first){
-
-      std::cout << "left: " << camera_image_lists[leftCameraName].img_lists[i].first <<
-          " right: " << camera_image_lists[rightCameraName].img_lists[i].first << " for image " << i << " of " <<
-          camera_image_lists[leftCameraName].img_lists.size() <<  std::endl;
-      throw std::runtime_error("parseCameraData: different timestamp for left and right image!!");
+    if (left_img_lists.at(i).first != right_img_lists.at(i).first) {
+        LOG(FATAL) << "Different timestamp for left and right image!\n"
+        << "left: " <<  left_img_lists.at(i).first << '\n'
+        << "right: " << right_img_lists.at(i).first << '\n'
+        << " for image " << i << " of " << left_img_lists.size();
+        return false;
     }
   }
 
-  std::cout << "nominal frame rate: " << camera_info[leftCameraName].frame_rate_ << std::endl;
-  std::cout << "frame rate std: " << sqrt( stdDelta / double(deltaCount-1u) ) << std::endl;
-  std::cout << "frame rate maxMismatch: " << frame_rate_maxMismatch << std::endl;
-
-  // Set extrinsic for the sterep
-  CameraParams& left_camera_info = camera_info[camera_names[0]];
-  CameraParams& right_camera_info = camera_info[camera_names[1]];
-
-  // Extrinsics of the stereo (not rectified)
-  camL_Pose_calR = (left_camera_info.body_Pose_cam_).between(right_camera_info.body_Pose_cam_); // relative pose between cameras
+  LOG(INFO) << "nominal frame rate: " << left_cam_info.frame_rate_ << '\n'
+            << "frame rate std: " << sqrt(stdDelta / double(deltaCount-1u)) << '\n'
+            << "frame rate maxMismatch: " << frame_rate_maxMismatch;
   return true;
 }
 
 /* --------------------------------------------------------------------------------------- */
-gtsam::Pose3 ETHDatasetParser::getGroundTruthRelativePose(const long long previousTimestamp,
-    const long long currentTimestamp) const
-{
+bool ETHDatasetParser::parseCameraData(
+        const std::string& input_dataset_path,
+        const std::string& left_cam_name,
+        const std::string& right_cam_name,
+        const bool parse_imgs) {
+  // Default names: match names of the corresponding folders.
+  camera_names_.resize(2);
+  camera_names_[0] = left_cam_name;
+  camera_names_[1] = right_cam_name;
+
+  // Read camera info and list of images.
+  camera_info_.clear();
+  camera_image_lists_.clear();
+  for (const std::string& cam_name: camera_names_) {
+    LOG(INFO) << "reading camera: " << cam_name;
+    CameraParams cam_info_i;
+    cam_info_i.parseYAML(input_dataset_path + "/mav0/" + cam_name + "/sensor.yaml");
+    camera_info_[cam_name] = cam_info_i;
+
+    CameraImageLists cam_list_i;
+    if (parse_imgs) {
+      cam_list_i.parseCamImgList(input_dataset_path + "/mav0/" + cam_name, "data.csv");
+    }
+    camera_image_lists_[cam_name] = cam_list_i;
+  }
+
+  CHECK(sanityCheckCameraData(camera_names_, camera_info_,
+                              &camera_image_lists_));
+
+  // Set extrinsic for the stereo.
+  const CameraParams& left_camera_info = camera_info_.at(camera_names_.at(0));
+  const CameraParams& right_camera_info = camera_info_.at(camera_names_.at(1));
+
+  // Extrinsics of the stereo (not rectified)
+  // relative pose between cameras
+  camL_Pose_camR_ = (left_camera_info.body_Pose_cam_).between(right_camera_info.body_Pose_cam_);
+  return true;
+}
+
+/* --------------------------------------------------------------------------------------- */
+gtsam::Pose3 ETHDatasetParser::getGroundTruthRelativePose(
+    const Timestamp& previousTimestamp,
+    const Timestamp& currentTimestamp) const {
   gtsam::Pose3 previousPose = getGroundTruthPose(previousTimestamp);
   gtsam::Pose3 currentPose = getGroundTruthPose(currentTimestamp);
   return previousPose.between(currentPose);
 }
 
 /* --------------------------------------------------------------------------------------- */
-bool ETHDatasetParser::isGroundTruthAvailable(const long long timestamp) const
-{
+bool ETHDatasetParser::isGroundTruthAvailable(const Timestamp& timestamp) const {
   auto it_begin = gtData_.mapToGt_.begin();
   return timestamp > it_begin->first;
 }
@@ -545,8 +567,7 @@ bool ETHDatasetParser::isGroundTruthAvailable() const {
 }
 
 /* --------------------------------------------------------------------------------------- */
-gtNavState ETHDatasetParser::getGroundTruthState(
-    const long long timestamp) const {
+gtNavState ETHDatasetParser::getGroundTruthState(const Timestamp& timestamp) const {
   auto it_low_up = gtData_.mapToGt_.equal_range(timestamp);
   auto it_low = it_low_up.first; // closest, non-lesser
 
@@ -562,8 +583,11 @@ gtNavState ETHDatasetParser::getGroundTruthState(
 }
 
 /* --------------------------------------------------------------------------------------- */
-std::pair<double,double> ETHDatasetParser::computePoseErrors(const gtsam::Pose3 lkf_T_k_body, const bool isTrackingValid,
-    long long previousTimestamp, long long currentTimestamp, const bool upToScale) const
+std::pair<double,double> ETHDatasetParser::computePoseErrors(const gtsam::Pose3 lkf_T_k_body,
+        const bool isTrackingValid,
+        const Timestamp &previousTimestamp,
+        const Timestamp &currentTimestamp,
+        const bool upToScale) const
 {
   double relativeRotError = -1.0;
   double relativeTranError = -1.0;
@@ -585,18 +609,18 @@ void ETHDatasetParser::print() {
   std::cout << "------------------ ETHDatasetParser::print ---------------------------------------------------------------------------------" << std::endl;
   std::cout << "----------------------------------------------------------------------------------------------------------------------------"<< std::endl;
   std::cout << "Displaying info for dataset: " << dataset_path_ << std::endl;
-  camL_Pose_calR.print("camL_Pose_calR \n");
+  camL_Pose_camR_.print("camL_Pose_calR \n");
   std::cout << std::endl;
-  for (int i = 0; i < camera_names.size(); i++) { // for each of the 2 cameras
+  for (int i = 0; i < camera_names_.size(); i++) { // for each of the 2 cameras
     std::string leftOrRight;
     if(i==0)
       leftOrRight = "Left";
     else
       leftOrRight = "Right";
 
-    std::cout << "\n" << leftOrRight << " camera name: " << camera_names[i] << ", with params: " << std::endl;
-    camera_info[camera_names[i]].print();
-    camera_image_lists[camera_names[i]].print();
+    std::cout << "\n" << leftOrRight << " camera name: " << camera_names_[i] << ", with params: " << std::endl;
+    camera_info_[camera_names_[i]].print();
+    camera_image_lists_[camera_names_[i]].print();
   }
   gtData_.print();
   imuData_.print();

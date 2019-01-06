@@ -94,7 +94,6 @@ public:
   // Constructor
   Tracker(
       const VioFrontEndParams& trackerParams = VioFrontEndParams(),
-      const VioBackEndParams& vioParams = VioBackEndParams(),
       const int saveImages = 1):
     trackerParams_(trackerParams),
     saveImages_(saveImages),
@@ -156,20 +155,7 @@ public:
       std::vector<int> inliers, const int iterations);
 
   void checkStatusRightKeypoints(
-      const std::vector<Kstatus>& right_keypoints_status) {
-    debugInfo_.nrValidRKP_ = 0; debugInfo_.nrNoLeftRectRKP_ = 0; debugInfo_.nrNoRightRectRKP_ = 0;
-    debugInfo_.nrNoDepthRKP_ = 0; debugInfo_.nrFailedArunRKP_ = 0;
-    for(size_t i=0; i<right_keypoints_status.size(); i++){
-      if(right_keypoints_status.at(i) == Kstatus::VALID)
-        debugInfo_.nrValidRKP_++;
-      if(right_keypoints_status.at(i) == Kstatus::NO_LEFT_RECT)
-        debugInfo_.nrNoLeftRectRKP_++;
-      if(right_keypoints_status.at(i) == Kstatus::NO_RIGHT_RECT)
-        debugInfo_.nrNoRightRectRKP_++;
-      if(right_keypoints_status.at(i) == Kstatus::NO_DEPTH)
-        debugInfo_.nrNoDepthRKP_++;
-    }
-  }
+      const std::vector<Kstatus>& right_keypoints_status);
 
   /* ---------------------------- CONST FUNCTIONS ------------------------------------------- */
   // returns frame with markers

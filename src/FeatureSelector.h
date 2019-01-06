@@ -127,8 +127,8 @@ public:
   bool useSuccessProbabilities_;
 
   // Constructor.
-  FeatureSelector(const VioFrontEndParams trackerParams,
-                  const VioBackEndParams vioParams) {
+  FeatureSelector(const VioFrontEndParams& trackerParams = VioFrontEndParams(),
+                  const VioBackEndParams& vioParams = VioBackEndParams()) {
     imuDeltaT_ = trackerParams.featureSelectionImuRate_;
     // Variance, converted to discrete time, see ImuFactor.cpp
     accVarianceDiscTime_ = pow(vioParams.accNoiseDensity_,2) / imuDeltaT_;

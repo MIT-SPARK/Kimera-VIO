@@ -90,7 +90,6 @@ struct KeypointWithDepth{
   KeypointCV px;
   double depth;
 
-  // constructor
   KeypointWithDepth(const KeypointCV& p,
                     const double d)
     : px(p),
@@ -105,7 +104,6 @@ using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 //////////////////////////////////////////////////////////////////////
 class StereoFrame {
 public:
-  // constructor
   StereoFrame(
       const FrameId& id,
       const int64_t& timestamp,

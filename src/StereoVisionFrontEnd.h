@@ -59,7 +59,7 @@ public:
       int saveImages = 1,
       const std::string& dataset_name = "") :
     frame_count_(0), keyframe_count_(0), last_landmark_count_(0),
-    tracker_(trackerParams,vioParams,saveImages), saveImages_(saveImages),
+    tracker_(trackerParams,saveImages), saveImages_(saveImages),
     trackerStatusSummary_(TrackerStatusSummary()),
     outputImagesPath_("./outputImages/") // only for debugging and visualization
   {
