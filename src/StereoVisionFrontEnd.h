@@ -41,8 +41,8 @@ public:
 
 public:
   TrackerStatusSummary() :
-    kfTrackingStatus_mono_(Tracker::INVALID),
-    kfTrackingStatus_stereo_(Tracker::INVALID),
+    kfTrackingStatus_mono_(Tracker::TrackingStatus::INVALID),
+    kfTrackingStatus_stereo_(Tracker::TrackingStatus::INVALID),
     lkf_T_k_mono_(gtsam::Pose3()), lkf_T_k_stereo_(gtsam::Pose3()),
     infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
 };
@@ -143,14 +143,32 @@ public:
   // static function to display output of stereo tracker
   static void PrintStatusStereoMeasurements(
       const StatusSmartStereoMeasurements& statusStereoMeasurements) {
-    std::cout << " SmartStereoMeasurements with mono status " << statusStereoMeasurements.first.kfTrackingStatus_mono_
-        << " , stereo status " << statusStereoMeasurements.first.kfTrackingStatus_stereo_
-        << " observing landmarks:" << std::endl;
-    const SmartStereoMeasurements& smartStereMeas = statusStereoMeasurements.second;
-    for(size_t k=0; k<smartStereMeas.size();k++){
-      std::cout << " " << smartStereMeas[k].first << " ";
+    LOG(INFO) << " SmartStereoMeasurements with status:";
+    logTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_mono_,
+                      "mono");
+    logTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_stereo_,
+                      "stereo");
+    LOG(INFO) << " observing landmarks:";
+    const SmartStereoMeasurements& smartStereoMeas = statusStereoMeasurements.second;
+    for(const auto& smart_stereo_meas: smartStereoMeas) {
+      std::cout << " " << smart_stereo_meas.first << " ";
     }
     std::cout << std::endl;
+  }
+
+  static std::string asString(const Tracker::TrackingStatus& status) {
+    switch(status) {
+    case Tracker::TrackingStatus::VALID : return "VALID";
+    case Tracker::TrackingStatus::INVALID : return "INVALID";
+    case Tracker::TrackingStatus::DISABLED : return "DISABLED";
+    case Tracker::TrackingStatus::FEW_MATCHES : return "FEW_MATCHES";
+    case Tracker::TrackingStatus::LOW_DISPARITY : return "LOW_DISPARITY";
+    }
+  }
+private:
+  inline static void logTrackingStatus(const Tracker::TrackingStatus& status,
+                                       const std::string& type = "mono") {
+    LOG(INFO) << "Status " << type << ": " << asString(status);
   }
 };
 

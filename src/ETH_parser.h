@@ -214,9 +214,9 @@ public:
   }
 
   // get timestamp of a given pair of stereo images (synchronized)
-  Timestamp timestampAtFrame(const Timestamp timestamp){
+  Timestamp timestampAtFrame(const long long frame_number){
     std::string leftCameraName = camera_names_[0];
-    return camera_image_lists_[leftCameraName].img_lists[timestamp].first;
+    return camera_image_lists_[leftCameraName].img_lists[frame_number].first;
   }
 
 private:

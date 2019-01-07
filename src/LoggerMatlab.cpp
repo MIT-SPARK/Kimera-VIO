@@ -124,17 +124,21 @@ void LoggerMatlab::logFrontendResults(const ETHDatasetParser& dataset,
                                       const Timestamp timestamp_lkf,
                                       const Timestamp timestamp_k) {
   // If it's a keyframe, check pose estimate.
-  bool isValid = stereoTracker.trackerStatusSummary_.kfTrackingStatus_mono_ != Tracker::INVALID;
+  bool isValid = stereoTracker.trackerStatusSummary_.kfTrackingStatus_mono_ != Tracker::TrackingStatus::INVALID;
   double relativeRotError,relativeTranError;
   // MONO ERROR
   boost::tie(relativeRotError,relativeTranError) = dataset.computePoseErrors(stereoTracker.getRelativePoseBodyMono(), isValid, timestamp_lkf, timestamp_k, true); // true = comparison up to scale
   int nrKeypoints = stereoTracker.stereoFrame_km1_->left_frame_.getNrValidKeypoints();
-  outputFile_ << stereoTracker.trackerStatusSummary_.kfTrackingStatus_mono_ << " "
-              <<  relativeRotError << " " << relativeTranError << " " << nrKeypoints << " ";
+  outputFile_ << static_cast<std::underlying_type<Tracker::TrackingStatus>::type>(
+                 stereoTracker.trackerStatusSummary_.kfTrackingStatus_mono_)
+              << " " <<  relativeRotError << " " << relativeTranError << " " << nrKeypoints << " ";
   // STEREO ERROR
-  isValid = stereoTracker.trackerStatusSummary_.kfTrackingStatus_stereo_ != Tracker::INVALID;
-  boost::tie(relativeRotError,relativeTranError) = dataset.computePoseErrors( stereoTracker.getRelativePoseBodyStereo(), isValid, timestamp_lkf, timestamp_k);
-  outputFile_ << stereoTracker.trackerStatusSummary_.kfTrackingStatus_stereo_
+  isValid = stereoTracker.trackerStatusSummary_.kfTrackingStatus_stereo_ != Tracker::TrackingStatus::INVALID;
+  boost::tie(relativeRotError,relativeTranError) = dataset.computePoseErrors(
+              stereoTracker.getRelativePoseBodyStereo(), isValid,
+              timestamp_lkf, timestamp_k);
+  outputFile_ << static_cast<std::underlying_type<Tracker::TrackingStatus>::type>(
+                 stereoTracker.trackerStatusSummary_.kfTrackingStatus_stereo_)
               << " " <<  relativeRotError << " " << relativeTranError << " " << nrKeypoints << " ";
 }
 

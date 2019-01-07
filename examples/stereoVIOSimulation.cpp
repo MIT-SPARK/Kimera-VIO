@@ -399,8 +399,8 @@ int main(const int argc, const char *argv[])
     // pack measurements for VIO
     previousSmartStereoMeasurements = smartStereoMeasurements;
     TrackerStatusSummary trackerStatusSummary;
-    trackerStatusSummary.kfTrackingStatus_mono_ = Tracker::VALID;
-    trackerStatusSummary.kfTrackingStatus_stereo_ = Tracker::INVALID;
+    trackerStatusSummary.kfTrackingStatus_mono_ = Tracker::TrackingStatus::VALID;
+    trackerStatusSummary.kfTrackingStatus_stereo_ = Tracker::TrackingStatus::INVALID;
     StatusSmartStereoMeasurements statusSmartStereoMeasurements = std::make_pair(trackerStatusSummary, smartStereoMeasurements);
     ////////////////// DEBUG FRONT-END ////////////////////////////////////////////////
     double relativeRotError,relativeTranError;

@@ -214,7 +214,7 @@ Tracker::geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame) {
     std::cout << "failure: 5pt RANSAC could not find a solution" << std::endl;
 #endif
 
-    return std::make_pair(Tracker::INVALID,gtsam::Pose3());
+    return std::make_pair(Tracker::TrackingStatus::INVALID,gtsam::Pose3());
   }
 
 #ifdef TRACKER_DEBUG_COUT
@@ -225,14 +225,14 @@ Tracker::geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame) {
   removeOutliersMono(ref_frame, cur_frame, matches_ref_cur, ransac.inliers_, ransac.iterations_);
 
   // CHECK QUALITY OF TRACKING
-  Tracker::TrackingStatus status = Tracker::VALID;
+  Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
   if(ransac.inliers_.size() < trackerParams_.minNrMonoInliers_){
 
 #ifdef TRACKER_DEBUG_COUT
     std::cout << "FEW_MATCHES: " << ransac.inliers_.size() << std::endl;
 #endif
 
-    status = Tracker::FEW_MATCHES;
+    status = Tracker::TrackingStatus::FEW_MATCHES;
   }
 
   double disparity = ComputeMedianDisparity(ref_frame,cur_frame);
@@ -247,7 +247,7 @@ Tracker::geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame) {
     std::cout << "LOW_DISPARITY: " << disparity << std::endl;
 #endif
 
-    status = Tracker::LOW_DISPARITY;
+    status = Tracker::TrackingStatus::LOW_DISPARITY;
   }
   // GET THE RESULTING TRANSFORMATION: a 3x4 matrix [R t]
   opengv::transformation_t best_transformation = ransac.model_coefficients_;
@@ -334,7 +334,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
     std::cout << "failure: 2pt RANSAC could not find a solution" << std::endl;
 #endif
 
-    return std::make_pair(Tracker::INVALID,gtsam::Pose3());
+    return std::make_pair(Tracker::TrackingStatus::INVALID,gtsam::Pose3());
   }
 
 #ifdef TRACKER_DEBUG_COUT
@@ -346,14 +346,14 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   removeOutliersMono(ref_frame, cur_frame, matches_ref_cur, ransac.inliers_, ransac.iterations_);
 
   // CHECK QUALITY OF TRACKING
-  Tracker::TrackingStatus status = Tracker::VALID;
+  Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
   if(ransac.inliers_.size() < trackerParams_.minNrMonoInliers_){
 
 #ifdef TRACKER_DEBUG_COUT
     std::cout << "FEW_MATCHES: " << ransac.inliers_.size() << std::endl;
 #endif
 
-    status = Tracker::FEW_MATCHES;
+    status = Tracker::TrackingStatus::FEW_MATCHES;
   }
 
   double disparity = ComputeMedianDisparity(ref_frame,cur_frame);
@@ -368,7 +368,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
     std::cout << "LOW_DISPARITY: " << disparity << std::endl;
 #endif
 
-    status = Tracker::LOW_DISPARITY;
+    status = Tracker::TrackingStatus::LOW_DISPARITY;
   }
   // GET THE RESULTING TRANSFORMATION: a 3x4 matrix [R t]
   opengv::transformation_t best_transformation = ransac.model_coefficients_;
@@ -496,7 +496,6 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
 
   size_t maxCoherentSetSize = 0;
   size_t maxCoherentSetId = 0;
-  double timeBefore = 0;
   // double timeMahalanobis = 0, timeAllocate = 0, timePushBack = 0, timeMaxSet = 0;
   float threshold = float(trackerParams_.ransac_threshold_stereo_); // residual should be distributed according to chi-square distribution with 3 dofs,
   // considering a tail probability of 0.1, we get this value (x = chi2inv(0.9,3) = 6.2514
@@ -557,7 +556,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
 #ifdef TRACKER_DEBUG_COUT
     std::cout << "failure: 1point RANSAC (voting) could not find a solution" << std::endl;
 #endif
-    return std::make_pair(  std::make_pair(Tracker::INVALID,gtsam::Pose3()) , gtsam::Matrix3::Zero());
+    return std::make_pair(  std::make_pair(Tracker::TrackingStatus::INVALID,gtsam::Pose3()) , gtsam::Matrix3::Zero());
   }
   // inliers are max coherent set
   std::vector<int> inliers = coherentSet.at(maxCoherentSetId);
@@ -571,12 +570,12 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   removeOutliersStereo(ref_stereoFrame, cur_stereoFrame, matches_ref_cur, inliers, iterations);
 
   // CHECK QUALITY OF TRACKING
-  Tracker::TrackingStatus status = Tracker::VALID;
+  Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
   if(inliers.size() < trackerParams_.minNrStereoInliers_){
 #ifdef TRACKER_DEBUG_COUT
     std::cout << "FEW_MATCHES: " << inliers.size() << std::endl;
 #endif
-    status = Tracker::FEW_MATCHES;
+    status = Tracker::TrackingStatus::FEW_MATCHES;
   }
 
   // GET THE RESULTING TRANSLATION
@@ -642,19 +641,19 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
 #ifdef TRACKER_DEBUG_COUT
     std::cout << "failure: (Arun) RANSAC could not find a solution" << std::endl;
 #endif
-    return std::make_pair(Tracker::INVALID,gtsam::Pose3());
+    return std::make_pair(Tracker::TrackingStatus::INVALID,gtsam::Pose3());
   }
 
   // REMOVE OUTLIERS
   removeOutliersStereo(ref_stereoFrame, cur_stereoFrame, matches_ref_cur, ransac.inliers_, ransac.iterations_);
 
   // CHECK QUALITY OF TRACKING
-  Tracker::TrackingStatus status = Tracker::VALID;
+  Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
   if(ransac.inliers_.size() < trackerParams_.minNrStereoInliers_){
 #ifdef TRACKER_DEBUG_COUT
     std::cout << "FEW_MATCHES: " << ransac.inliers_.size() << std::endl;
 #endif
-    status = Tracker::FEW_MATCHES;
+    status = Tracker::TrackingStatus::FEW_MATCHES;
   }
 
   // GET THE RESULTING TRANSFORMATION: a 3x4 matrix [R t]

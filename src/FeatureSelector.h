@@ -498,7 +498,7 @@ public:
   static boost::tuple<int, double, gtsam::Vector>
   SmallestEigsPowerIter(const gtsam::Matrix& M){
 
-    double minEig = 0; int maxIter=1e7; double tol=1e-4;
+    int maxIter=1e7; double tol=1e-4;
 
     // initialize vector
     gtsam::Vector xold = gtsam::Vector::Zero(M.cols());

@@ -87,8 +87,12 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////////
 class Tracker{
 public:
-  enum TrackingStatus {
-    VALID, LOW_DISPARITY, FEW_MATCHES, INVALID, DISABLED
+  enum class TrackingStatus {
+      VALID,
+      LOW_DISPARITY,
+      FEW_MATCHES,
+      INVALID,
+      DISABLED
   };
 
   // Constructor

@@ -34,8 +34,7 @@ using ImuAccGyr = Eigen::Matrix<double, 6, Eigen::Dynamic>;
 using Vector6 = gtsam::Vector6;
 using Vector3 = gtsam::Vector3;
 
-class ImuFrontEnd
-{
+class ImuFrontEnd {
 public:
   using ImuData = std::map<int64_t, Vector6, std::less<int64_t>, Eigen::aligned_allocator<std::pair<int64_t const, Vector6> > >;
 
@@ -61,7 +60,9 @@ public:
    * of timestamps and a block matrix with values as columns. Returns empty matrices if not successful.
    */
   std::pair<ImuStamps, ImuAccGyr>
-  getBetweenValuesInterpolated(int64_t stamp_from, int64_t stamp_to, bool doInterpolate = true);
+  getBetweenValuesInterpolated(const int64_t& stamp_from,
+                               const int64_t& stamp_to,
+                               bool doInterpolate = true);
   typename ImuData::iterator iterator_equal_or_before(int64_t stamp);
   typename ImuData::iterator iterator_equal_or_after(int64_t stamp);
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

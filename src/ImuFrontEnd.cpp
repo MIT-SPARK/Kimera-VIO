@@ -27,17 +27,19 @@ std::tuple<int64_t, int64_t, bool> ImuFrontEnd::getOldestAndNewestStamp() const
 }
 /* --------------------------------------------------------------------------------------- */
 std::pair<ImuStamps, ImuAccGyr>
-ImuFrontEnd::getBetweenValuesInterpolated(int64_t stamp_from, int64_t stamp_to, bool doInterpolate)
-{
+ImuFrontEnd::getBetweenValuesInterpolated(
+        const int64_t& stamp_from,
+        const int64_t& stamp_to,
+        bool doInterpolate) {
   ImuStamps imu_stamps;
   ImuAccGyr imu_accgyr;
 
-  if (!(stamp_from >= 0 and stamp_from < stamp_to))
-  {
+  if (!(stamp_from >= 0 and stamp_from < stamp_to)) {
 #ifdef IMU_BUFFER_DEBUG_COUT
     printf("WARNING: Timestamps out of order/n");
 #endif
-    return std::make_pair(imu_stamps, imu_accgyr); // return empty means unsuccessful.
+    // Return empty means unsuccessful.
+    return std::make_pair(imu_stamps, imu_accgyr);
   }
 #ifdef IMU_BUFFER_DEBUG_COUT
   if (stamp_from == 0)
@@ -45,8 +47,7 @@ ImuFrontEnd::getBetweenValuesInterpolated(int64_t stamp_from, int64_t stamp_to, 
 #endif
 
   std::lock_guard<std::mutex> lock(mutex_);
-  if(buffer_.size() < 2)
-  {
+  if(buffer_.size() < 2) {
 #ifdef IMU_BUFFER_DEBUG_COUT
     printf("Buffer has less than 2 entries.\n");
 #endif
@@ -55,15 +56,13 @@ ImuFrontEnd::getBetweenValuesInterpolated(int64_t stamp_from, int64_t stamp_to, 
 
   const int64_t oldest_stamp = buffer_.begin()->first;
   const int64_t newest_stamp = buffer_.rbegin()->first;
-  if(stamp_from < oldest_stamp)
-  {
+  if (stamp_from < oldest_stamp) {
 #ifdef IMU_BUFFER_DEBUG_COUT
     printf("Requests older timestamp than in buffer.\n");
 #endif
     return std::make_pair(imu_stamps, imu_accgyr); // return empty means unsuccessful.
   }
-  if(stamp_to > newest_stamp)
-  {
+  if(stamp_to > newest_stamp) {
 #ifdef IMU_BUFFER_DEBUG_COUT
     printf("Requests newer timestamp than in buffer.\n");
 #endif

@@ -1,3 +1,17 @@
+/* ----------------------------------------------------------------------------
+ * Copyright 2017, Massachusetts Institute of Technology,
+ * Cambridge, MA 02139
+ * All Rights Reserved
+ * Authors: Luca Carlone, et al. (see THANKS for the full author list)
+ * See LICENSE for the license information
+ * -------------------------------------------------------------------------- */
+
+/**
+ * @file   Pipeline.h
+ * @brief  Implements VIO pipeline workflow.
+ * @author Antoni Rosinol
+ */
+
 #pragma once
 
 #include <atomic>
@@ -136,23 +150,25 @@ namespace VIO {
         const std::string& right_img_name (dataset.getRightImgName(k));
         timestamp_k = dataset.timestampAtFrame(k); // same in both images
 
-        // load stereo images
+        /////////////////// FRONTEND ///////////////////////////////////////////
+        // Load stereo images.
         startTime = UtilsOpenCV::GetTimeInSeconds();
         StereoFrame stereoFrame_k(
               k, timestamp_k,
               left_img_name, right_img_name,
               dataset.getLeftCamInfo(), dataset.getRightCamInfo(),
-            dataset.camL_Pose_camR_,
-            trackerParams.getStereoMatchingParams());
+              dataset.camL_Pose_camR_,
+              trackerParams.getStereoMatchingParams());
 
         if (FLAGS_log_output) {
           logger.timing_loadStereoFrame_ =
               UtilsOpenCV::GetTimeInSeconds() - startTime;
         }
 
-        ////////////////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////////////
         // For k == 1 (initial frame).
         if (k == initial_k) {
+          ///////////////////////////// FRONTEND    ////////////////////////////
           // Process frame.
           stereoVisionFrontEnd->processFirstStereoFrame(stereoFrame_k);
 
@@ -160,6 +176,7 @@ namespace VIO {
           std::tie(imu_stamps, imu_accgyr) = dataset.imuData_.imu_buffer_
               .getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
 
+          ///////////////////////////// BACKEND   //////////////////////////////
           // Create VIO.
           switch(FLAGS_backend_type) {
           case 0: {
@@ -376,7 +393,7 @@ namespace VIO {
 
           if (vioParams->addBetweenStereoFactors_ == true &&
               stereoVisionFrontEnd->trackerStatusSummary_.kfTrackingStatus_stereo_ ==
-              Tracker::VALID ) {
+              Tracker::TrackingStatus::VALID ) {
             VLOG(10) << "Add visual inertial state and optimize,"
                         " using stereo between factor.";
             vioBackEnd->addVisualInertialStateAndOptimize(
