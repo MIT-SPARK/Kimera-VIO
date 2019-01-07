@@ -378,6 +378,7 @@ public:
 };
 
 
+// TODO define Plane in a Plane.cpp/.h not in utilsOpenCV
 /* -------------------------------------------------------------------------- */
 // A Plane defined by a gtsam::Symbol, a normal, a distance, and the set
 // of lmk ids that are part of the plane.

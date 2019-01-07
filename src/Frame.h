@@ -250,6 +250,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   size_t getNrValidKeypoints() const {
+    // TODO: can we cache this value?
     size_t count = 0;
     for (size_t i = 0; i < landmarks_.size(); i++) {
       if(landmarks_.at(i)!=-1)// It is valid.
@@ -260,6 +261,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   KeypointsCV getValidKeypoints() const {
+    // TODO: can we cache this result?
     KeypointsCV validKeypoints;
     for (size_t i = 0; i < landmarks_.size(); i++) {
       if (landmarks_.at(i) != -1) {// It is valid.
