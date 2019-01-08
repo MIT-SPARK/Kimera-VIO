@@ -78,6 +78,7 @@ TEST(testFrame, parseYAML) {
   EXPECT_DOUBLES_EQUAL(distortion_expected[3], camParams.calibration_.p2(), tol);
 }
 
+
 /* ************************************************************************* */
 TEST(testFrame, equals) {
   CameraParams camParams;
@@ -96,16 +97,6 @@ TEST(testFrame, equals) {
 /* ************************************************************************* */
 TEST(testFrame, Cal3_S2ToCvmat) {
   Cal3_S2 K(500, 500, 0.0, 640 / 2, 480 / 2);
-  Mat C = UtilsOpenCV::Cal3_S2ToCvmat(K);
-  EXPECT_DOUBLES_EQUAL(500, C.at<double>(0, 0), 1e-5);
-  EXPECT_DOUBLES_EQUAL(500, C.at<double>(1, 1), 1e-5);
-  EXPECT_DOUBLES_EQUAL(0.0, C.at<double>(0, 1), 1e-5);
-  EXPECT_DOUBLES_EQUAL(0.0, C.at<double>(1, 0), 1e-5);
-  EXPECT_DOUBLES_EQUAL(640 / 2, C.at<double>(0, 2), 1e-5);
-  EXPECT_DOUBLES_EQUAL(480 / 2, C.at<double>(1, 2), 1e-5);
-  EXPECT_DOUBLES_EQUAL(0.0, C.at<double>(2, 0), 1e-5);
-  EXPECT_DOUBLES_EQUAL(0.0, C.at<double>(2, 1), 1e-5);
-  EXPECT_DOUBLES_EQUAL(1.0, C.at<double>(2, 2), 1e-5);
 }
 
 /* ************************************************************************* */
