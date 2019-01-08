@@ -227,8 +227,8 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   //    using SmartStereoMeasurements = vector<SmartStereoMeasurement>;
   //    using StatusSmartStereoMeasurements = pair<TrackerStatusSummary,SmartStereoMeasurements>;
   TrackerStatusSummary tracker_status_valid;
-  tracker_status_valid.kfTrackingStatus_mono_ = Tracker::VALID;
-  tracker_status_valid.kfTrackingStatus_stereo_ = Tracker::VALID;
+  tracker_status_valid.kfTrackingStatus_mono_ = Tracker::TrackingStatus::VALID;
+  tracker_status_valid.kfTrackingStatus_stereo_ = Tracker::TrackingStatus::VALID;
 
   vector<StatusSmartStereoMeasurements> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
