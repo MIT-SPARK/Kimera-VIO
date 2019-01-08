@@ -6,6 +6,7 @@
  * See LICENSE for the license information
  * -------------------------------------------------------------------------- */
 
+
 /**
  * @file   Frame.h
  * @brief  Class describing a single image
@@ -345,6 +346,8 @@ public:
     uncalibrated_px(0) = cv_px;
     cv::Mat calibrated_px;
 
+    // TODO optimize this in just one call, the s in Points is there for
+    // something I hope.
     cv::undistortPoints(uncalibrated_px, calibrated_px,
                         cam_param.camera_matrix_, cam_param.distortion_coeff_);
 

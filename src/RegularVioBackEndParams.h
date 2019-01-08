@@ -38,6 +38,9 @@ public:
       const double monoNoiseSigma = 3.0,
       const double stereoNoiseSigma = 3.0,
       const double regularityNoiseSigma = 0.1,
+      const double monoNormParam = 0.0,
+      const double stereoNormParam = 0.0,
+      const double regularityNormParam = 4.6851,
       // NomrType -> 0: L2 norm, 1: Huber, 2: Tukey.
       const size_t monoNormType = 0,
       const size_t stereoNormType = 0,
@@ -47,6 +50,8 @@ public:
     VioBackEndParams(), // Use the default vio parameters.
     monoNoiseSigma_(monoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma),
     regularityNoiseSigma_(regularityNoiseSigma),
+    monoNormParam_(monoNormParam), stereoNormParam_(stereoNormParam),
+    regularityNormParam_(regularityNormParam),
     monoNormType_(monoNormType), stereoNormType_(stereoNormType),
     regularityNormType_(regularityNormType),
     huberParam_(huberParam), tukeyParam_(tukeyParam)
@@ -63,6 +68,7 @@ public:
   }
 
   double monoNoiseSigma_, stereoNoiseSigma_, regularityNoiseSigma_;
+  double monoNormParam_, stereoNormParam_, regularityNormParam_;
   int monoNormType_, stereoNormType_, regularityNormType_;
   double huberParam_, tukeyParam_;
 
@@ -114,16 +120,18 @@ protected:
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNoiseSigma_;
     file_handle = fs["monoNormType"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNormType_;
+    file_handle = fs["monoNormParam"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNormParam_;
     file_handle = fs["stereoNoiseSigma"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNoiseSigma_;
     file_handle = fs["stereoNormType"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNormType_;
+    file_handle = fs["stereoNormParam"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNormParam_;
     file_handle = fs["regularityNoiseSigma"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNoiseSigma_;
-    file_handle = fs["huberParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> huberParam_;
-    file_handle = fs["tukeyParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> tukeyParam_;
+    file_handle = fs["regularityNormParam"];
+    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNormParam_;
     file_handle = fs["regularityNormType"];
     CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNormType_;
 
@@ -133,13 +141,15 @@ protected:
   /* ------------------------------------------------------------------------------------- */
   bool equalsRegularVioBackEndParams(const VioBackEndParams& vp2, double tol = 1e-8) const{
     RegularVioBackEndParams rvp2 = RegularVioBackEndParams::safeCast(vp2);
-    return (fabs(monoNoiseSigma_ - rvp2.monoNoiseSigma_) <= tol) &&
+    return
+        (fabs(monoNoiseSigma_ - rvp2.monoNoiseSigma_) <= tol) &&
         (monoNormType_ == rvp2.monoNormType_) &&
         (fabs(stereoNoiseSigma_ - rvp2.stereoNoiseSigma_) <= tol) &&
         (stereoNormType_ == rvp2.stereoNormType_) &&
         (fabs(regularityNoiseSigma_ - rvp2.regularityNoiseSigma_) <= tol) &&
-        (fabs(huberParam_ - rvp2.huberParam_) <= tol) &&
-        (fabs(tukeyParam_ - rvp2.tukeyParam_) <= tol) &&
+        (fabs(monoNormParam_ - rvp2.monoNormParam_) <= tol) &&
+        (fabs(stereoNormParam_ - rvp2.stereoNormParam_) <= tol) &&
+        (fabs(regularityNormParam_ - rvp2.regularityNormParam_) <= tol) &&
         (regularityNormType_ == rvp2.regularityNormType_);
   }
 

@@ -20,6 +20,15 @@ initialGyroBiasSigma: 11
 linearizationMode: 3
 degeneracyMode: 2
 smartNoiseSigma: 5
+monoNoiseSigma: 6
+monoNormType: 0
+monoNormParam: 0
+stereoNoiseSigma: 3
+stereoNormType: 0
+stereoNormParam: 0
+regularityNoiseSigma: 0.3
+regularityNormType: 1
+regularityNormParam: 5.1
 rankTolerance: 2.1
 landmarkDistanceThreshold: 10.2
 outlierRejection: 3.2

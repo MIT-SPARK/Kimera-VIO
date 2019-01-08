@@ -85,12 +85,12 @@ public:
     // < Operator will compare the support (# of points) of one peak vs the other.
     // nothing else.
     // Used for std::max_element.
-    bool operator<(const PeakInfo& rhd) {
+    bool operator<(const PeakInfo& rhd) const {
       return (support_ < rhd.support_);
     }
 
     // Used to remove duplicates.
-    bool operator==(const PeakInfo& rhd) {
+    bool operator==(const PeakInfo& rhd) const {
       return (support_ == rhd.support_ && pos_ == rhd.pos_);
     }
   };
@@ -125,19 +125,19 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Calculates histogram.
-  void calculateHistogram(const cv::Mat& input);
+  void calculateHistogram(const cv::Mat& input, bool log_histogram = false);
 
   /* ------------------------------------------------------------------------ */
   // If you play with the peak_per attribute value, you can increase/decrease the
   // number of peaks found.
   // Min_support specifies the minimal number of votes for a bin to be considered
   // a peak.
-  std::vector<PeakInfo> getLocalMaximum1D(
-      const cv::Size& smooth_size = cv::Size(9, 9),
-      int neighbor_size = 3,
-      float peak_per = 0.5,
-      float min_support = 10,
-      bool display_histogram = false) const;
+  std::vector<PeakInfo> getLocalMaximum1D(const cv::Size& smooth_size = cv::Size(9, 9),
+                                          int neighbor_size = 3,
+                                          float peak_per = 0.5,
+                                          float min_support = 10,
+                                          bool display_histogram = false,
+                                          bool log_histogram = false) const;
 
   /* ------------------------------------------------------------------------ */
   // findLocalMaximum for a 2D histogram, it dilates the image and erodes it,
@@ -147,7 +147,8 @@ public:
                          int number_of_local_max = 2,
                          int min_support = 30,
                          int min_dist_btw_loc_max = 5,
-                         bool visualize = false) const;
+                         bool visualize = false,
+                         bool log_histogram = false) const;
 
 private:
   int n_images_;

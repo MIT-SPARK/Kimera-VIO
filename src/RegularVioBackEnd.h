@@ -26,12 +26,26 @@ namespace VIO {
 
 class RegularVioBackEnd: public VioBackEnd {
 public:
+
   /* ------------------------------------------------------------------------ */
-  RegularVioBackEnd(const Pose3& leftCamPose,
-                    const Cal3_S2& leftCameraCalRectified,
-                    const double& baseline,
-                    const VioBackEndParams& vioParams = VioBackEndParams(),
-                    const bool log_timing = false);
+  // Defines the behaviour of this backend.
+  enum class BackendModality {
+    STRUCTURELESS = 0, // Only use structureless factors, equiv to normal Vio.
+    PROJECTION = 1, // Use only projection factors, equiv to a typical Vio.
+    STRUCTURELESS_AND_PROJECTION = 2, // Both above.
+    PROJECTION_AND_REGULARITY = 3, // Like typical Vio + regularity factors.
+    STRUCTURELESS_PROJECTION_AND_REGULARITY = 4 // All types of factors used.
+  };
+
+  /* ------------------------------------------------------------------------ */
+  RegularVioBackEnd(
+      const Pose3& leftCamPose,
+      const Cal3_S2& leftCameraCalRectified,
+      const double& baseline,
+      const VioBackEndParams& vioParams = VioBackEndParams(),
+      const bool& log_timing = false,
+      const BackendModality& backend_modality =
+      BackendModality::STRUCTURELESS_PROJECTION_AND_REGULARITY);
 
   /* ------------------------------------------------------------------------ */
   ~RegularVioBackEnd() = default;
@@ -46,18 +60,6 @@ public:
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
-  /* ------------------------------------------------------------------------ */
-  // TODO Virtualize this appropriately,
-  void addLandmarksToGraph(const LandmarkIds& lmks_kf,
-                           const LandmarkIds& lmk_ids_with_regularity);
-
-  /* ------------------------------------------------------------------------ */
-  void addLandmarkToGraph(const LandmarkId& lm_id, const FeatureTrack& lm);
-
-  /* ------------------------------------------------------------------------ */
-  void updateLandmarkInGraph(const LandmarkId& lmk_id,
-                             const bool& is_lmk_smart,
-                             const std::pair<FrameId, StereoPoint2>& new_obs);
 private:
   typedef size_t Slot;
 
@@ -71,6 +73,8 @@ private:
   using LmkIdIsSmart = gtsam::FastMap<LandmarkId, bool>;
 
   /// Members
+  // Decides which kind of functionality the backend exhibits.
+  const BackendModality backend_modality_;
   LmkIdIsSmart lmk_id_is_smart_; // TODO GROWS UNBOUNDED, use the loop in getMapLmkIdsTo3dPointsInTimeHorizon();
   typedef std::map<LandmarkId, RegularityType> LmkIdToRegularityTypeMap;
   typedef std::map<PlaneId, LmkIdToRegularityTypeMap> PlaneIdToLmkIdRegType;
@@ -90,9 +94,27 @@ private:
 
 private:
   /* ------------------------------------------------------------------------ */
-  bool isLandmarkSmart(const LandmarkId& lmk_id,
+  void addLandmarksToGraph(const LandmarkIds& lmks_kf,
+                           const LandmarkIds& lmk_ids_with_regularity);
+
+  /* ------------------------------------------------------------------------ */
+  void addLandmarkToGraph(const LandmarkId& lm_id,
+                          const FeatureTrack& lm,
+                          LmkIdIsSmart* lmk_id_is_smart);
+
+  /* ------------------------------------------------------------------------ */
+  void updateLandmarkInGraph(const LandmarkId& lmk_id,
+                             const bool& is_lmk_smart,
+                             const std::pair<FrameId, StereoPoint2>& new_obs);
+
+  /* ------------------------------------------------------------------------ */
+  bool updateLmkIdIsSmart(const LandmarkId& lmk_id,
                        const LandmarkIds& lmk_ids_with_regularity,
                        LmkIdIsSmart* lmk_id_is_smart);
+
+  /* ------------------------------------------------------------------------ */
+  bool isSmartFactor3dPointGood(SmartStereoFactor::shared_ptr factor,
+                                 const size_t &min_num_of_observations);
 
   /* ------------------------------------------------------------------------ */
   void updateExistingSmartFactor(const LandmarkId& lmk_id,
@@ -102,6 +124,7 @@ private:
   /* ------------------------------------------------------------------------ */
   bool convertSmartToProjectionFactor(
       const LandmarkId& lmk_id,
+      LandmarkIdSmartFactorMap* new_smart_factors,
       SmartFactorMap* old_smart_factors,
       gtsam::Values* new_values,
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors,
@@ -153,10 +176,10 @@ private:
   // norm_type = 0: l-2.
   // norm_type = 1: Huber.
   // norm_type = 2: Tukey.
-  void selectNormType(
-      gtsam::SharedNoiseModel* noise_model_output,
+  void selectNormType(gtsam::SharedNoiseModel* noise_model_output,
       const gtsam::SharedNoiseModel& noise_model_input,
-      const size_t& norm_type);
+      const size_t& norm_type,
+      const double& norm_type_parameter);
 
   /* ------------------------------------------------------------------------ */
   // Extract all lmk ids, wo repetition, from the set of planes.

@@ -122,7 +122,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Open files with name output_filename, and checks that it is valid
   static void OpenFile(const std::string& output_filename,
-                       std::ofstream& outputFile);
+                       std::ofstream& outputFile, bool append_mode = false);
 
   /* ------------------------------------------------------------------------ */
   // compares 2 cv::Mat

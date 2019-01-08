@@ -13,7 +13,7 @@
 --visualize_planes=false
 --visualize_plane_label=false
 --visualize_mesh_in_frustum=false
---show_groundtruth_pointcloud=false
+#--visualize_load_mesh_filename=/home/tonirv/datasets/euroc/V1_01_easy/mav0/pointcloud0/data.ply
 --viz_type=5
 --min_num_obs_for_mesher_points=4
 --initial_k=150

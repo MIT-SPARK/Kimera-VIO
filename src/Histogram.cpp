@@ -141,7 +141,7 @@ Histogram& Histogram::operator=(const Histogram& other) {
 }
 
 /* -------------------------------------------------------------------------- */
-void Histogram::calculateHistogram(const cv::Mat& input) {
+void Histogram::calculateHistogram(const cv::Mat& input, bool log_histogram) {
   if (dims_ == 1) {
     static const float* range_hist[] = {ranges_[0]};
     cv::calcHist(&input, n_images_, channels_, mask_,
@@ -154,6 +154,13 @@ void Histogram::calculateHistogram(const cv::Mat& input) {
                  uniform_, accumulate_);
   } else {
     LOG(FATAL) << "The histogram is not meant for dim: " << dims_;
+  }
+
+  if (log_histogram) {
+    cv::FileStorage file("histogram_" + std::to_string(dims_) + ".yaml",
+                         cv::FileStorage::WRITE);
+    file << "Histogram";
+    file << histogram_;
   }
 }
 
@@ -335,7 +342,8 @@ std::vector<Histogram::PeakInfo> Histogram::getLocalMaximum1D(
     int window_size,
     float peak_per,
     float min_support, // Minimal number of votes for a peak.
-    bool display_histogram) const {
+    bool display_histogram,
+    bool log_histogram) const {
   CHECK_EQ(dims_, 1) << "This function is meant for 1D histograms.";
   CHECK_LT(peak_per, 1);
   VLOG(10) << "Cloning histogram.";
@@ -349,6 +357,13 @@ std::vector<Histogram::PeakInfo> Histogram::getLocalMaximum1D(
   //                 double sigmaX, double sigmaY = 0,
   //                 int borderType = BORDER_DEFAULT );
   cv::GaussianBlur(src, src, smooth_size, 0);
+
+  if (log_histogram) {
+    cv::FileStorage file("histogram_" + std::to_string(dims_) + "_smoothed.yaml",
+                         cv::FileStorage::WRITE);
+    file << "HistogramSmoothed";
+    file << src;
+  }
 
   VLOG(10) << "Starting to find peaks in histogram...";
   std::vector<PeakInfo> peaks = findPeaks(src, window_size);
@@ -387,7 +402,8 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
                                   int number_of_local_max,
                                   int min_support,
                                   int min_dist_btw_loc_max,
-                                  bool visualize) const {
+                                  bool visualize,
+                                  bool log_histogram) const {
   CHECK_NOTNULL(peaks);
   CHECK_EQ(dims_, 2) << "This function is meant for 2D histograms.";
   if (histogram_.rows == 0 || histogram_.cols == 0) {
@@ -399,10 +415,17 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
   VLOG(10) << "Histogram size is: " << histogram_.size;
   CHECK_GE(histogram_.rows, smooth_size.height);
   CHECK_GE(histogram_.cols, smooth_size.width);
-  cv::Mat histogram_modified;
-  cv::GaussianBlur(histogram_, histogram_modified, smooth_size, 0);
+  cv::Mat histogram_smoothed;
+  cv::GaussianBlur(histogram_, histogram_smoothed, smooth_size, 0);
 
-  int nr_of_maximums = imgRegionalMax(&histogram_modified, number_of_local_max,
+  if (log_histogram) {
+    cv::FileStorage file("histogram_" + std::to_string(dims_) + "_smoothed.yaml",
+                         cv::FileStorage::WRITE);
+    file << "HistogramSmoothed";
+    file << histogram_smoothed;
+  }
+
+  int nr_of_maximums = imgRegionalMax(&histogram_smoothed, number_of_local_max,
                                       min_support, min_dist_btw_loc_max,
                                       peaks);
   if (nr_of_maximums > 0) {
@@ -411,7 +434,7 @@ bool Histogram::getLocalMaximum2D(std::vector<Histogram::PeakInfo2D>* peaks,
 
   if (visualize) {
     VLOG(10) << "Starting visualizeHistogram2DWithPeaks.";
-    visualizeHistogram2DWithPeaks(histogram_modified, *peaks);
+    visualizeHistogram2DWithPeaks(histogram_smoothed, *peaks);
     VLOG(10) << "Finished visualizeHistogram2DWithPeaks.";
   }
   return true;

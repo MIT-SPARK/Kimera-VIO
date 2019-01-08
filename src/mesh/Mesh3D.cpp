@@ -41,6 +41,7 @@ Mesh3D& Mesh3D::operator=(const Mesh3D& rhs_mesh) {
   vertex_to_lmk_id_map_ = rhs_mesh.vertex_to_lmk_id_map_;
   vertices_mesh_ = rhs_mesh.vertices_mesh_.clone();
   polygons_mesh_ = rhs_mesh.polygons_mesh_.clone();
+  return *this;
 }
 
 /* -------------------------------------------------------------------------- */

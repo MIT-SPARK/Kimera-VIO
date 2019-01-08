@@ -2,9 +2,18 @@
 /data-sets/
 /.settings/
 /matlab/result-*
+/scripts/*/*.txt
+/scripts/*/*.csv
+
+
+% Ignore VS code settings
+.vscode
+
 % Ignore logged mesh ply
 *.ply
+
 % Remove recovery files from matlab.
 *~
-% Remove vscode settings
-/.vscode
+% Ignore media files
+*.png
+*.mp4

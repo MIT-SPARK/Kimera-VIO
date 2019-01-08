@@ -25,7 +25,14 @@
 DEFINE_int32(mesh_shading, 0,
              "Mesh shading:\n 0: Flat, 1: Gouraud, 2: Phong");
 DEFINE_int32(mesh_representation, 1,
-             "Mesh representation:\n 0: Points, 1: Wireframe, 2: Surface");
+             "Mesh representation:\n 0: Points, 1: Surface, 2: Wireframe");
+DEFINE_bool(set_mesh_ambient, false, "Whether to use ambient light for the "
+                                     "mesh.");
+DEFINE_bool(set_mesh_lighting, false, "Whether to use lighting for the mesh.");
+DEFINE_bool(log_mesh, false, "Log the mesh at time horizon.");
+DEFINE_bool(log_accumulated_mesh, false, "Accumulate the mesh when logging.");
+DEFINE_int32(displayed_trajectory_length, 50, "Set length of plotted trajectory."
+                                  "If -1 then all the trajectory is plotted.");
 
 namespace VIO {
 
@@ -42,26 +49,28 @@ enum class VisualizationType {
 
 class Visualizer3D {
 public:
-  Visualizer3D(): window_("3D Visualizer") {
-    // Create window and create axes:
-    //cv::Affine3f viewer_pose (cv::Vec3f(-1.6432757, 1.6432757, -0.8554352),
-    //                          cv::Vec3f(0.0, 0.0, 0.0));
-    window_.registerKeyboardCallback(keyboardCallback, &window_);
-    //Vec3d cam_pos(-5.0,0.0,6.0);
-    //Vec3d cam_focal_point(1.0,0.0,0.0);
-    //Vec3d cam_y_dir(-1.0,0.0,0.0);
-    //Affine3f cam_pose = viz::makeCameraPose(cam_pos, cam_focal_point, cam_y_dir);
-    //window_.setViewerPose(cam_pose);
-    window_.setWindowPosition(Size(3*1861+1080/2, 2212/2));
-    window_.setWindowSize(Size(1861, 2056));
-    window_.setBackgroundColor(background_color_);
-    window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
+  Visualizer3D() {
+    window_data_.window_.registerKeyboardCallback(keyboardCallback, &window_data_);
+    window_data_.window_.setBackgroundColor(window_data_.background_color_);
+    window_data_.window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
   }
 
   typedef size_t LineNr;
   typedef std::uint64_t PlaneId;
   typedef std::map<LandmarkId, size_t> LmkIdToLineIdMap;
   typedef std::map<PlaneId, LmkIdToLineIdMap> PlaneIdMap;
+
+  // Contains internal data for Visualizer3D window.
+  struct WindowData {
+    cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
+    cv::viz::Color cloud_color_ = cv::viz::Color::white();
+    cv::viz::Color background_color_ = cv::viz::Color::black();
+    // Defines whether the user pressed a key to switch the mesh representation.
+    bool user_updated_mesh_representation_ = false;
+    // Stores the user set mesh representation.
+    int mesh_representation_ = 0u;
+  };
+
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud using cloud widget from opencv viz.
@@ -86,11 +95,11 @@ public:
 
     // Add to the existing map.
     cv::viz::WCloudCollection map_with_repeated_points;
-    map_with_repeated_points.addCloud(pointCloud, cloud_color_);
+    map_with_repeated_points.addCloud(pointCloud, window_data_.cloud_color_);
     map_with_repeated_points.setRenderingProperty(cv::viz::POINT_SIZE, 2);
 
     // Plot points.
-    window_.showWidget("Point cloud map", map_with_repeated_points);
+    window_data_.window_.showWidget("Point cloud map", map_with_repeated_points);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -113,7 +122,7 @@ public:
     // Populate cloud structure with 3D points.
     cv::Mat point_cloud(1, points_with_id.size(), CV_32FC3);
     cv::Mat point_cloud_color (1, lmk_id_to_lmk_type_map.size(), CV_8UC3,
-                               cloud_color_);
+                               window_data_.cloud_color_);
     cv::Point3f* data = point_cloud.ptr<cv::Point3f>();
     size_t i = 0;
     for (const std::pair<LandmarkId, gtsam::Point3>& id_point: points_with_id) {
@@ -142,14 +151,13 @@ public:
     }
 
     // Create a cloud widget.
-    cv::viz::WCloud cloud_widget (point_cloud, cloud_color_);
+    cv::viz::WCloud cloud_widget (point_cloud, window_data_.cloud_color_);
     if (color_the_cloud) {
       cloud_widget = cv::viz::WCloud(point_cloud, point_cloud_color);
     }
     cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 6);
-    cloud_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
-    window_.showWidget("Point cloud.", cloud_widget);
+    window_data_.window_.showWidget("Point cloud.", cloud_widget);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -173,19 +181,18 @@ public:
     cv::viz::Color plane_color;
     getColorById(cluster_id, &plane_color);
     cv::viz::WPlane plane_widget (center, normal, new_yaxis, size, plane_color);
-    plane_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
 
     if (visualize_plane_label) {
       static double increase = 0.0;
       const Point3d text_position (d * n_x, d * n_y,
                                    d * n_z + std::fmod(increase, 1));
       increase += 0.1;
-      window_.showWidget(plane_id_for_viz + "_label",
+      window_data_.window_.showWidget(plane_id_for_viz + "_label",
                          cv::viz::WText3D(plane_id_for_viz, text_position,
                                           0.07, true));
     }
 
-    window_.showWidget(plane_id_for_viz, plane_widget);
+    window_data_.window_.showWidget(plane_id_for_viz, plane_widget);
     is_plane_id_in_window_[plane_index] = true;
   }
 
@@ -206,14 +213,13 @@ public:
   void drawLine(const std::string& line_id,
                 const cv::Point3d& pt1, const cv::Point3d& pt2) {
     cv::viz::WLine line_widget (pt1, pt2);
-    line_widget.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, 1);
-    window_.showWidget(line_id, line_widget);
+    window_data_.window_.showWidget(line_id, line_widget);
   }
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
   void visualizeMesh3D(const cv::Mat& mapPoints3d, const cv::Mat& polygonsMesh) {
-    cv::Mat colors (mapPoints3d.rows, 1, CV_8UC3, cv::viz::Color::gray());
+    cv::Mat colors (0, 1, CV_8UC3, cv::viz::Color::gray()); // Do not color mesh.
     visualizeMesh3D(mapPoints3d, colors, polygonsMesh);
   }
 
@@ -223,17 +229,24 @@ public:
   void visualizeMesh3D(const cv::Mat& map_points_3d, const cv::Mat& colors,
                        const cv::Mat& polygons_mesh) {
     // Check data
-    CHECK_EQ(map_points_3d.rows, colors.rows) << "Map points and Colors should "
-                                                 "have same number of rows. One"
-                                                 " color per map point.";
+    bool color_mesh = false;
+    if (colors.rows != 0) {
+      CHECK_EQ(map_points_3d.rows, colors.rows) << "Map points and Colors should "
+                                                   "have same number of rows. One"
+                                                   " color per map point.";
+      LOG(ERROR) << "Coloring mesh!";
+      color_mesh = true;
+    }
+
     // No points/mesh to visualize.
     if (map_points_3d.rows == 0 ||
         polygons_mesh.rows == 0) {
       return;
     }
 
-    // Create a cloud widget.
-    cv::viz::WMesh mesh(map_points_3d.t(), polygons_mesh, colors.t());
+    // Create a mesh widget.
+    cv::viz::WMesh mesh (map_points_3d.t(), polygons_mesh,
+                         color_mesh? colors.t():cv::Mat());
 
     // Decide mesh shading style.
     switch (FLAGS_mesh_shading) {
@@ -250,13 +263,13 @@ public:
         break;
       }
       default: {
-        mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_GOURAUD);
         break;
       }
     }
 
     // Decide mesh representation style.
-    switch (FLAGS_mesh_representation) {
+    switch (window_data_.user_updated_mesh_representation_?
+            window_data_.mesh_representation_:FLAGS_mesh_representation) {
       case 0: {
         mesh.setRenderingProperty(cv::viz::REPRESENTATION,
                                   cv::viz::REPRESENTATION_POINTS);
@@ -274,17 +287,39 @@ public:
         break;
       }
       default: {
-        mesh.setRenderingProperty(cv::viz::REPRESENTATION,
-                                  cv::viz::REPRESENTATION_SURFACE);
         break;
       }
     }
-    mesh.setRenderingProperty(cv::viz::AMBIENT, false);
-    mesh.setRenderingProperty(cv::viz::LIGHTING, false);
-    mesh.setRenderingProperty(cv::viz::IMMEDIATE_RENDERING, true);
+    mesh.setRenderingProperty(cv::viz::AMBIENT, FLAGS_set_mesh_ambient);
+    mesh.setRenderingProperty(cv::viz::LIGHTING, FLAGS_set_mesh_lighting);
 
     // Plot mesh.
-    window_.showWidget("Mesh", mesh);
+    window_data_.window_.showWidget("Mesh", mesh);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  ///Visualize a PLY from filename (absolute path).
+  void visualizePlyMesh(const std::string& filename) {
+   LOG(INFO) << "Showing ground truth mesh: " << filename;
+   // The ply file must have in the header a "element vertex" and
+   // a "element face" primitives, otherwise you'll get a
+   // "Cannot read geometry" error.
+   cv::viz::Mesh mesh(cv::viz::Mesh::load(filename));
+   if (mesh.polygons.size[1] == 0) {
+     // If there are no polygons, convert to point cloud, otw there will be
+     // nothing displayed...
+     cv::viz::WCloud cloud (mesh.cloud, cv::viz::Color::lime());
+     cloud.setRenderingProperty(cv::viz::REPRESENTATION,
+                                cv::viz::REPRESENTATION_POINTS);
+     cloud.setRenderingProperty(cv::viz::POINT_SIZE, 2);
+     cloud.setRenderingProperty(cv::viz::OPACITY, 0.1);
+
+     // Plot point cloud.
+     window_data_.window_.showWidget("Mesh from ply", cloud);
+   } else {
+     // Plot mesh.
+     window_data_.window_.showWidget("Mesh from ply", cv::viz::WMesh(mesh));
+   }
   }
 
   /* ------------------------------------------------------------------------ */
@@ -298,21 +333,24 @@ public:
   /// [in] polygons_mesh: mesh faces, format is n rows, 1 column,
   ///  with [n id_a id_b id_c, ..., n /id_x id_y id_z], where n = polygon size
   ///  n=3 for triangles.
+  /// [in] color_mesh whether to color the mesh or not
+  /// [in] timestamp to store the timestamp of the mesh when logging the mesh.
   void visualizeMesh3DWithColoredClusters(
-      const std::vector<Plane>& planes,
-      const cv::Mat& map_points_3d,
-      const cv::Mat& polygons_mesh,
-      const bool& color_mesh = false) {
-    if (color_mesh == false) {
+        const std::vector<Plane>& planes,
+        const cv::Mat& map_points_3d,
+        const cv::Mat& polygons_mesh,
+        const bool& color_mesh = false,
+        const Timestamp& timestamp = 0.0) {
+    if (color_mesh) {
       // Colour the mesh.
       cv::Mat colors;
       colorMeshByClusters(planes, map_points_3d, polygons_mesh, &colors);
       // Visualize the colored mesh.
       visualizeMesh3D(map_points_3d, colors, polygons_mesh);
       // Log the mesh.
-      static constexpr bool log_mesh = false;
-      if (log_mesh) {
-        logMesh(map_points_3d, colors, polygons_mesh);
+      if (FLAGS_log_mesh) {
+        logMesh(map_points_3d, colors, polygons_mesh, timestamp,
+                FLAGS_log_accumulated_mesh);
       }
     } else {
       // Visualize the mesh with same colour.
@@ -416,7 +454,7 @@ public:
                             z_s.at(hull_idx.at(0))));
         // Visualize convex hull.
         cv::viz::WPolyLine convex_hull (hull_3d);
-        window_.showWidget("Convex hull", convex_hull);
+        window_data_.window_.showWidget("Convex hull", convex_hull);
       } else {
         // Visualize convex hull as a mesh of one polygon with multiple points.
         if (hull_3d.size() > 2) {
@@ -437,7 +475,7 @@ public:
           }
           cv::Mat colors (hull_3d.size(), 1, CV_8UC3, mesh_color);
           cv::viz::WMesh mesh (hull_3d, polygon_hull, colors.t(), normals.t());
-          window_.showWidget("Convex hull", mesh);
+          window_data_.window_.showWidget("Convex hull", mesh);
         }
       }
     }
@@ -446,8 +484,10 @@ public:
   /* ------------------------------------------------------------------------ */
   // Visualize trajectory.
   void visualizeTrajectory3D(const cv::Mat* frustum_image = nullptr) {
-    if(trajectoryPoses3d_.size() == 0) // no points to visualize
+    if(trajectoryPoses3d_.size() == 0) {// no points to visualize
       return;
+    }
+
     // Show current camera pose.
     static const cv::Matx33d K (458, 0.0, 360,
                                 0.0, 458, 240,
@@ -456,16 +496,16 @@ public:
     if (frustum_image == nullptr) {
       cam_widget_ptr = cv::viz::WCameraPosition(K, 1.0, cv::viz::Color::white());
     } else {
-      cv::Mat display_img;
-      cv::rotate(*frustum_image, display_img, cv::ROTATE_90_CLOCKWISE);
-      cam_widget_ptr = cv::viz::WCameraPosition(K, display_img,
+      cam_widget_ptr = cv::viz::WCameraPosition(K, *frustum_image,
                                                 1.0, cv::viz::Color::white());
     }
-    window_.showWidget("Camera Pose with Frustum", cam_widget_ptr,
+    window_data_.window_.showWidget("Camera Pose with Frustum", cam_widget_ptr,
                        trajectoryPoses3d_.back());
-    window_.setWidgetPose("Camera Pose with Frustum", trajectoryPoses3d_.back());
+    window_data_.window_.setWidgetPose("Camera Pose with Frustum",
+                                       trajectoryPoses3d_.back());
+
     // Option A: This does not work very well.
-    // window_.resetCameraViewpoint("Camera Pose with Frustum");
+    // window_data_.window_.resetCameraViewpoint("Camera Pose with Frustum");
     // Viewer is our viewpoint, camera the pose estimate (frustum).
     static constexpr bool follow_camera = false;
     if (follow_camera) {
@@ -485,9 +525,19 @@ public:
       Affine3f cam_pose = viz::makeCameraPose(cam_pos,
                                               cam_focal_point,
                                               cam_y_dir);
-      window_.setViewerPose(cam_pose);
-      //window_.setViewerPose(viewer_in_world_coord);
+      window_data_.window_.setViewerPose(cam_pose);
+      //window_data_.window_.setViewerPose(viewer_in_world_coord);
     }
+
+    // Create a Trajectory frustums widget.
+    std::vector<cv::Affine3f> trajectory_frustums (
+          trajectoryPoses3d_.end() -
+          std::min(trajectoryPoses3d_.size(), size_t(10u)),
+          trajectoryPoses3d_.end());
+    cv::viz::WTrajectoryFrustums trajectory_frustums_widget (
+                trajectory_frustums, K, 0.2, cv::viz::Color::red());
+    window_data_.window_.showWidget("Trajectory Frustums",
+                                    trajectory_frustums_widget);
 
     // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
     std::vector<cv::Affine3f> trajectory (trajectoryPoses3d_.begin(),
@@ -495,21 +545,21 @@ public:
     cv::viz::WTrajectory trajectory_widget (trajectory,
                                             cv::viz::WTrajectory::PATH,
                                             1.0, cv::viz::Color::red());
-    window_.showWidget("Trajectory", trajectory_widget);
+    window_data_.window_.showWidget("Trajectory", trajectory_widget);
   }
 
   /* ------------------------------------------------------------------------ */
   // Remove widget. True if successful, false if not.
   bool removeWidget(const std::string& widget_id) {
     try {
-      window_.removeWidget(widget_id);
+      window_data_.window_.removeWidget(widget_id);
       return true;
     } catch (const cv::Exception& e) {
       VLOG(20) << e.what();
       LOG(ERROR) << "Widget with id: " << widget_id.c_str()
                  << " is not in window.";
     } catch (...) {
-      LOG(ERROR) << "Unrecognized exception when using window_.removeWidget() "
+      LOG(ERROR) << "Unrecognized exception when using window_data_.window_.removeWidget() "
                  << "with widget with id: " << widget_id.c_str();
     }
     return false;
@@ -663,9 +713,10 @@ public:
   // Add pose to the previous trajectory.
   void addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam){
     trajectoryPoses3d_.push_back(UtilsOpenCV::Pose2Affine3f(current_pose_gtsam));
-    static constexpr size_t trajectory_size = 50;
-    while (trajectoryPoses3d_.size() > trajectory_size) {
-      trajectoryPoses3d_.pop_front();
+    if (FLAGS_displayed_trajectory_length > 0) {
+      while (trajectoryPoses3d_.size() > FLAGS_displayed_trajectory_length) {
+        trajectoryPoses3d_.pop_front();
+      }
     }
   }
 
@@ -674,28 +725,45 @@ public:
   // @param wait_time Amount of time in milliseconds for the event loop to keep running.
   // @param force_redraw If true, window renders.
   void renderWindow(int wait_time = 1, bool force_redraw = true) {
-    window_.spinOnce(wait_time, force_redraw);
+    window_data_.window_.spinOnce(wait_time, force_redraw);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Get a screenshot of the window.
+  void getScreenshot(const std::string& filename) {
+    LOG(WARNING) << "Taking a screenshot of the window, saved in: " +
+                    filename;
+    window_data_.window_.saveScreenshot(filename);
   }
 
 private:
-  cv::viz::Viz3d window_;
   std::deque<cv::Affine3f> trajectoryPoses3d_;
-  cv::viz::Color cloud_color_ = cv::viz::Color::white();
-  cv::viz::Color background_color_ = cv::viz::Color::black();
 
   std::map<PlaneId, LineNr> plane_to_line_nr_map_;
   PlaneIdMap plane_id_map_;
   std::map<PlaneId, bool> is_plane_id_in_window_;
 
+  WindowData window_data_;
+
   /* ------------------------------------------------------------------------ */
   // Log mesh to ply file.
   void logMesh(const cv::Mat& map_points_3d, const cv::Mat& colors,
-               const cv::Mat& polygons_mesh) {
+               const cv::Mat& polygons_mesh, const Timestamp& timestamp,
+               bool log_accumulated_mesh = false) {
     /// Log the mesh in a ply file.
     LoggerMatlab logger;
-    logger.openLogFiles(10);
-    logger.logMesh(map_points_3d, colors, polygons_mesh);
-    logger.closeLogFiles(10);
+    static Timestamp last_timestamp = timestamp;
+    static const Timestamp first_timestamp = timestamp;
+    if ((timestamp - last_timestamp) > 6500000000) { // Log every 6 seconds approx. (a little bit more than time-horizon)
+      LOG(WARNING) << "Logging mesh every (ns) = " << timestamp - last_timestamp;
+      logger.openLogFiles(10, "\output_mesh_" +
+                          std::to_string(timestamp - first_timestamp) + ".ply",
+                          log_accumulated_mesh);
+      logger.logMesh(map_points_3d, colors, polygons_mesh, timestamp,
+                     log_accumulated_mesh);
+      logger.closeLogFiles(10);
+      last_timestamp = timestamp;
+    }
   }
 
   /* ------------------------------------------------------------------------ */
@@ -707,8 +775,8 @@ private:
                            const cv::Mat& polygons_mesh,
                            cv::Mat* colors) {
     CHECK_NOTNULL(colors);
-    *colors = cv::Mat(map_points_3d.rows, 1, CV_8UC3,
-                      cv::viz::Color::gray());
+    *colors = cv::Mat(map_points_3d.rows, 1, CV_8UC3, cv::viz::Color::gray());
+
     // The code below assumes triangles as polygons.
     static constexpr bool log_landmarks = false;
     cv::Mat points;
@@ -813,10 +881,12 @@ private:
   /* ------------------------------------------------------------------------ */
   // Keyboard callback.
   static void keyboardCallback(const viz::KeyboardEvent &event, void *t) {
-    viz::Viz3d* window = (viz::Viz3d*)t;
-    toggleFreezeScreenKeyboardCallback(event.action, event.code, *window);
-    getViewerPoseKeyboardCallback(event.action, event.code, *window);
-    getCurrentWindowSizeKeyboardCallback(event.action, event.code, *window);
+    Visualizer3D::WindowData* window_data = (Visualizer3D::WindowData*)t;
+    toggleFreezeScreenKeyboardCallback(event.action, event.code, *window_data);
+    setMeshRepresentation(event.action, event.code, *window_data);
+    getViewerPoseKeyboardCallback(event.action, event.code, *window_data);
+    getCurrentWindowSizeKeyboardCallback(event.action, event.code, *window_data);
+    getScreenshotCallback(event.action, event.code, *window_data);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -824,16 +894,16 @@ private:
   static void toggleFreezeScreenKeyboardCallback(
       const viz::KeyboardEvent::Action& action,
       const uchar code,
-      viz::Viz3d& window) {
+      Visualizer3D::WindowData& window_data) {
     if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
       if (code == 't') {
         LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
         static bool freeze = false;
         freeze = !freeze; // Toggle.
-        window.spinOnce(1, true);
-        while(!window.wasStopped()) {
+        window_data.window_.spinOnce(1, true);
+        while(!window_data.window_.wasStopped()) {
           if (freeze) {
-            window.spinOnce(1, true);
+            window_data.window_.spinOnce(1, true);
           } else {
             break;
           }
@@ -843,16 +913,42 @@ private:
   }
 
   /* ------------------------------------------------------------------------ */
+  // Keyboard callback to set mesh representation.
+  static void setMeshRepresentation(
+      const viz::KeyboardEvent::Action& action,
+      const uchar code,
+      Visualizer3D::WindowData& window_data) {
+    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
+      if (code == '0') {
+        LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                               "a point cloud.";
+        window_data.user_updated_mesh_representation_ = true;
+        window_data.mesh_representation_ = 0u;
+      } else if (code == '1') {
+        LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                               "a mesh.";
+        window_data.user_updated_mesh_representation_ = true;
+        window_data.mesh_representation_ = 1u;
+      } else if (code == '2') {
+        LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                               "a wireframe.";
+        window_data.user_updated_mesh_representation_ = true;
+        window_data.mesh_representation_ = 2u;
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Keyboard callback to get current viewer pose.
   static void getViewerPoseKeyboardCallback(
       const viz::KeyboardEvent::Action& action,
       const uchar& code,
-      viz::Viz3d& window) {
+      Visualizer3D::WindowData& window_data) {
     if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
       if (code == 'v') {
         LOG(INFO) << "Current viewer pose:\n"
-                  << "\tRodriguez vector: " << window.getViewerPose().rvec()
-                  << "\n\tAffine matrix: " << window.getViewerPose().matrix;
+                  << "\tRodriguez vector: " << window_data.window_.getViewerPose().rvec()
+                  << "\n\tAffine matrix: " << window_data.window_.getViewerPose().matrix;
       }
     }
   }
@@ -862,12 +958,29 @@ private:
   static void getCurrentWindowSizeKeyboardCallback(
       const viz::KeyboardEvent::Action& action,
       const uchar code,
-      viz::Viz3d& window) {
+      Visualizer3D::WindowData& window_data) {
     if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
       if (code == 'w') {
         LOG(WARNING) << "Pressing " << code << " displays current window size:\n"
-                     << "\theight: " << window.getWindowSize().height
-                     << "\twidth: " << window.getWindowSize().width;
+                     << "\theight: " << window_data.window_.getWindowSize().height
+                     << "\twidth: " << window_data.window_.getWindowSize().width;
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to get screenshot of current windodw.
+  static void getScreenshotCallback(
+      const viz::KeyboardEvent::Action& action,
+      const uchar code,
+      Visualizer3D::WindowData& window_data) {
+    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
+      if (code == 's') {
+        static int i = 0;
+        std::string filename = "screenshot_3d_window" + std::to_string(i);
+        LOG(WARNING) << "Pressing " << code << " takes a screenshot of the "
+                                               "window, saved in: " + filename;
+        window_data.window_.saveScreenshot(filename);
       }
     }
   }

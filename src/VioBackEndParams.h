@@ -72,12 +72,12 @@ public:
       const size_t numOptimize = 2,
       const double horizon = 6, // in seconds
       const bool useDogLeg = false
-  ) : gyroNoiseDensity_(gyroNoiseDensity), accNoiseDensity_(accNoiseDensity),
-  imuIntegrationSigma_(imuIntegrationSigma), gyroBiasSigma_(gyroBiasSigma), accBiasSigma_(accBiasSigma),
-  nominalImuRate_(nominalImuRate), n_gravity_(n_gravity), autoInitialize_(autoInitialize), roundOnAutoInitialize_(roundOnAutoInitialize),
-  initialPositionSigma_(initialPositionSigma), initialRollPitchSigma_(initialRollPitchSigma),
+  ) : initialPositionSigma_(initialPositionSigma), initialRollPitchSigma_(initialRollPitchSigma),
   initialYawSigma_(initialYawSigma), initialVelocitySigma_(initialVelocitySigma),
   initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
+  gyroNoiseDensity_(gyroNoiseDensity), accNoiseDensity_(accNoiseDensity),
+  imuIntegrationSigma_(imuIntegrationSigma), gyroBiasSigma_(gyroBiasSigma), accBiasSigma_(accBiasSigma),
+  nominalImuRate_(nominalImuRate), n_gravity_(n_gravity), autoInitialize_(autoInitialize), roundOnAutoInitialize_(roundOnAutoInitialize),
   linearizationMode_(linMode), degeneracyMode_(degMode),
   smartNoiseSigma_(smartNoiseSigma),
   rankTolerance_(rankTolerance),

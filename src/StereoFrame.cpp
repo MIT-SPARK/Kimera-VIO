@@ -107,7 +107,9 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   }
 
   // sanity check
+  VLOG(10) << "Sanity check stereo frame...";
   checkStereoFrame();
+  VLOG(10) << "Finished sanity check stereo frame.";
 }
 /* --------------------------------------------------------------------------------------- */
 void StereoFrame::checkStereoFrame() const {

@@ -643,6 +643,9 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
     // Thinner structure that only keeps landmarkIds.
     // These landmark ids are only the ones visible in current keyframe,
     // with a valid track...
+    // CHECK that we do not have repeated lmk ids!
+    DCHECK(std::find(landmarks_kf->begin(),
+                    landmarks_kf->end(), lmk_id_in_kf_i) == landmarks_kf->end());
     landmarks_kf->push_back(lmk_id_in_kf_i);
 
     // Add features to vio->featureTracks_ if they are new.
@@ -934,6 +937,7 @@ void VioBackEnd::optimize(
 
   // Reset everything for next round.
   // TODO what about the old_smart_factors_?
+  VLOG(10) << "Clearing new_smart_factors_!";
   new_smart_factors_.clear();
 
   // Reset list of new imu, prior and other factors to be added.

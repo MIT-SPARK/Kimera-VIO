@@ -238,13 +238,16 @@ private:
   /* ------------------------------------------------------------------------ */
   // Updates planes lmk ids field with a polygon vertices ids if this polygon
   // is part of the plane according to given tolerance.
+  // It can either associate a polygon only once to the first plane it matches,
+  // or it can associate to multiple planes, depending on the flag passed.
   bool updatePlanesLmkIdsFromPolygon(
       std::vector<Plane>* seed_planes,
       const Mesh3D::Polygon& polygon,
       const size_t& triangle_id,
       const cv::Point3f& triangle_normal,
       double normal_tolerance, double distance_tolerance,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      bool only_associate_a_polygon_to_a_single_plane = false)
   const;
 
   /* -------------------------------------------------------------------------- */
