@@ -17,6 +17,7 @@
 #include <queue>
 #include <memory>
 #include <mutex>
+#include <atomic>
 #include <condition_variable>
 
 template <typename T>
