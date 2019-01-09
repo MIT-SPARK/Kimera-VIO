@@ -7,9 +7,9 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   testStereoVisionFrontEnd.cpp
- * @brief  test StereoVisionFrontEnd
- * @author Luca Carlone
+ * @file   testVisualizer3D.cpp
+ * @brief  test Visualizer3D
+ * @author Antoni Rosinol
  */
 
 #include <cstdlib>
@@ -18,7 +18,7 @@
 #include <random>
 #include <algorithm>
 
-#include "../src/Visualizer3D.h"
+#include "Visualizer3D.h"
 #include "test_config.h"
 
 // Add last, since it redefines CHECK, which is first defined by glog.

@@ -1113,7 +1113,6 @@ void Visualizer3D::renderWindow(int wait_time,
 
 
 /* -------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------ */
 // Get a screenshot of the window.
 void Visualizer3D::getScreenshot(const std::string& filename) {
   LOG(WARNING) << "Taking a screenshot of the window, saved in: " +
@@ -1121,9 +1120,13 @@ void Visualizer3D::getScreenshot(const std::string& filename) {
   window_data_.window_.saveScreenshot(filename);
 }
 
+/* -------------------------------------------------------------------------- */
+void Visualizer3D::setOffScreenRendering() {
+    window_data_.window_.setOffScreenRendering();
+}
+
 
 /* -------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------ */
 // Log mesh to ply file.
 void Visualizer3D::logMesh(const cv::Mat& map_points_3d,
                            const cv::Mat& colors,

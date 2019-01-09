@@ -264,6 +264,10 @@ public:
   // Get a screenshot of the window.
   void getScreenshot(const std::string& filename);
 
+  /* ------------------------------------------------------------------------ */
+  // Useful for when testing on servers without display screen.
+  void setOffScreenRendering();
+
 private:
   // Shutdown flag to stop the visualization spin.
   std::atomic_bool shutdown_ = {false};
