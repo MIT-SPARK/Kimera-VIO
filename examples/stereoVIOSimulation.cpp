@@ -211,32 +211,29 @@ int main(const int argc, const char *argv[])
       // get IMU data
       std::tie(imu_stamps, imu_accgyr) = dataset.imuData_.imu_buffer_.getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
 
-      // create VIO
+      // create and initialize VIO
+      std::shared_ptr<gtNavState> initialStateGT =
+              std::make_shared<gtNavState>(dataset.getGroundTruthState(timestamp_k));
+      initialStateGT->print("initialStateGT\n");
+      gtsam::Vector3 rpy_gt = initialStateGT->pose_.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
+      std::cout << "yaw= " << rpy_gt(2) << " pitch= " << rpy_gt(1) << " roll= "<< rpy_gt(0) << std::endl;
+      Vector3 localGravity = initialStateGT->pose_.rotation().inverse().matrix() * vio->vio_params_.n_gravity_;
+      std::cout << "gravity in local frame: \n" << localGravity << std::endl;
+      std::cout << "expected initial acc measurement: \n" << -localGravity + initialStateGT->imu_bias_.accelerometer()  << std::endl;
+      std::cout << "actual initial acc measurement: \n" << imu_accgyr.block<3,1>(0,0) << std::endl;
+      std::cout << "expected initial gyro measurement: \n" << initialStateGT->imu_bias_.gyroscope()  << std::endl;
+      std::cout << "actual initial gyro measurement: \n" << imu_accgyr.block<3,1>(3,0) << std::endl;
       vio = boost::make_shared<VioBackEnd>(dataset.camera_info_[leftCameraName].body_Pose_cam_,
           UtilsOpenCV::Cvmat2Cal3_S2(dataset.camera_info_[leftCameraName].camera_matrix_), // no distortion nor rectification needed
-          baseline, vioParams);
-
-      // initialize Vio
-      gtNavState initialStateGT = dataset.getGroundTruthState(timestamp_k);
-      initialStateGT.print("initialStateGT\n");
-      gtsam::Vector3 rpy_gt = initialStateGT.pose.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
-      std::cout << "yaw= " << rpy_gt(2) << " pitch= " << rpy_gt(1) << " roll= "<< rpy_gt(0) << std::endl;
-      Vector3 localGravity = initialStateGT.pose.rotation().inverse().matrix() * vio->vio_params_.n_gravity_;
-      std::cout << "gravity in local frame: \n" << localGravity << std::endl;
-      std::cout << "expected initial acc measurement: \n" << -localGravity + initialStateGT.imuBias.accelerometer()  << std::endl;
-      std::cout << "actual initial acc measurement: \n" << imu_accgyr.block<3,1>(0,0) << std::endl;
-      std::cout << "expected initial gyro measurement: \n" << initialStateGT.imuBias.gyroscope()  << std::endl;
-      std::cout << "actual initial gyro measurement: \n" << imu_accgyr.block<3,1>(3,0) << std::endl;
-
-      vio->initializeStateAndSetPriors(timestamp_k, initialStateGT.pose,initialStateGT.velocity,initialStateGT.imuBias);
+          baseline, &initialStateGT, timestamp_k, imu_accgyr, vioParams);
       vio->print();
 
-      std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(initialStateGT.pose, vio->W_Pose_Blkf_);
+      std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(initialStateGT->pose_, vio->W_Pose_Blkf_);
       if(vioRotError > 1e-4 || vioTranError > 1e-4)
         throw std::runtime_error("stereoVIOExample: wrong initialization");
 
       // for comparison: gt bias:
-      dataset.gtData_.mapToGt_[timestamp_k].imuBias.print("Ground truth initial bias: \n");
+      dataset.gtData_.mapToGt_[timestamp_k].imu_bias_.print("Ground truth initial bias: \n");
 
       W_Pose_Bprevkf_vio = vio->W_Pose_Blkf_;
       timestamp_lkf = timestamp_k;
@@ -286,7 +283,7 @@ int main(const int argc, const char *argv[])
 
       gtsam::Point3 lposition = landmarkPositions[lid];
       // ground truth left camera
-      gtsam::Pose3 camLPose = dataset.getGroundTruthState(timestamp_k).pose.compose(dataset.camera_info_[leftCameraName].body_Pose_cam_);
+      gtsam::Pose3 camLPose = dataset.getGroundTruthState(timestamp_k).pose_.compose(dataset.camera_info_[leftCameraName].body_Pose_cam_);
       gtsam::PinholeCamera<gtsam::Cal3_S2> camL(camLPose,
           UtilsOpenCV::Cvmat2Cal3_S2(dataset.camera_info_[leftCameraName].camera_matrix_));
       gtsam::Point2 expected_px = camL.project(lposition);
@@ -343,7 +340,7 @@ int main(const int argc, const char *argv[])
         // vio->W_Pose_Blkf_: vio pose at previous time stamp (k-1)
         for(size_t kk = 0; kk < nrKfInHorizon+1; kk++){// including current pose
           Timestamp timestamp_kk = timestamp_k + UtilsOpenCV::SecToNsec(kk * trackerParams.intra_keyframe_time_);
-          Pose3 poseGT_km1_kk = W_Pose_Bkf_gt.between(dataset.getGroundTruthState(timestamp_kk).pose); // relative pose wrt ground truth at time k-1
+          Pose3 poseGT_km1_kk = W_Pose_Bkf_gt.between(dataset.getGroundTruthState(timestamp_kk).pose_); // relative pose wrt ground truth at time k-1
           posesAtFutureKeyframes.push_back( StampedPose( vio->W_Pose_Blkf_.compose(poseGT_km1_kk) , UtilsOpenCV::NsecToSec(timestamp_kk)) );
         }
         std::cout << "getting covariance" << std::endl;
@@ -435,7 +432,7 @@ int main(const int argc, const char *argv[])
     didFirstOptimization = true;
 
     ////////////////// DEBUG BACK-END ////////////////////////////////////////////////
-    W_Pose_Bkf_gt = (dataset.getGroundTruthState(timestamp_k)).pose;
+    W_Pose_Bkf_gt = (dataset.getGroundTruthState(timestamp_k)).pose_;
     std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(W_Pose_Bkf_gt, vio->W_Pose_Blkf_);
     std::cout << "vioRotError " << vioRotError << ", vioTranError " << vioTranError << std::endl;
     // Absolute vio errors
@@ -473,8 +470,8 @@ int main(const int argc, const char *argv[])
 
     // we log the camera since we will display camera poses in matlab
     gtsam::Pose3 W_Pose_camlkf_gt = W_Pose_Bkf_gt.compose(vio->B_Pose_leftCam_);
-    Vector3 W_Vel_camlkf_gt = (dataset.getGroundTruthState(timestamp_k)).velocity;
-    ImuBias imu_bias_lkf_gt = (dataset.getGroundTruthState(timestamp_k)).imuBias;
+    Vector3 W_Vel_camlkf_gt = (dataset.getGroundTruthState(timestamp_k)).velocity_;
+    ImuBias imu_bias_lkf_gt = (dataset.getGroundTruthState(timestamp_k)).imu_bias_;
     outputFile_posesGT << vio->cur_kf_id_ << " " << W_Pose_camlkf_gt.translation().transpose() << " " <<
         W_Pose_camlkf_gt.rotation().matrix().row(0) << " " <<
         W_Pose_camlkf_gt.rotation().matrix().row(1) << " " <<

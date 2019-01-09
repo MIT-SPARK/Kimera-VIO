@@ -494,7 +494,7 @@ void StereoFrame::computeImgGradients(const cv::Mat& img, cv::Mat* img_grads) {
 void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
   left_frame_.cam_param_.R_rectify_ = sf.left_frame_.cam_param_.R_rectify_;
   right_frame_.cam_param_.R_rectify_ = sf.right_frame_.cam_param_.R_rectify_;
-  B_Pose_camLrect = sf.B_Pose_camLrect;
+  B_Pose_camLrect_ = sf.B_Pose_camLrect_;
   baseline_ = sf.baseline_;
   left_frame_.cam_param_.undistRect_map_x_ = sf.left_frame_.cam_param_.undistRect_map_x_.clone();
   left_frame_.cam_param_.undistRect_map_y_ = sf.left_frame_.cam_param_.undistRect_map_y_.clone();
@@ -538,7 +538,7 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   // left camera pose after rectification
   gtsam::Rot3 camL_Rot_camLrect = UtilsOpenCV::Cvmat2rot(left_camera_info.R_rectify_).inverse();
   gtsam::Pose3 camL_Pose_camLrect = gtsam::Pose3(camL_Rot_camLrect,gtsam::Point3());
-  B_Pose_camLrect = (left_camera_info.body_Pose_cam_).compose(camL_Pose_camLrect);
+  B_Pose_camLrect_ = (left_camera_info.body_Pose_cam_).compose(camL_Pose_camLrect);
 
   // right camera pose after rectification
   gtsam::Rot3 camR_Rot_camRrect = UtilsOpenCV::Cvmat2rot(right_camera_info.R_rectify_).inverse();
@@ -546,7 +546,7 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   gtsam::Pose3 B_Pose_camRrect = (right_camera_info.body_Pose_cam_).compose(camR_Pose_camRrect);
 
   // relative pose after rectification
-  gtsam::Pose3 camLrect_Pose_calRrect = B_Pose_camLrect.between(B_Pose_camRrect);
+  gtsam::Pose3 camLrect_Pose_calRrect = B_Pose_camLrect_.between(B_Pose_camRrect);
   // get baseline
   baseline_ = camLrect_Pose_calRrect.translation().x();
   if(baseline_ > 1.1 * sparseStereoParams_.nominalBaseline || baseline_ < 0.9 * sparseStereoParams_.nominalBaseline){ // within 10% of the expected baseline

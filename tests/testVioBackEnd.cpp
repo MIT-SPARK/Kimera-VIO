@@ -17,6 +17,7 @@
 #include <random>
 #include <algorithm>
 #include "VioBackEnd.h"
+#include "ETH_parser.h" // only for gtNavState...
 #include "test_config.h"
 
 // Add last, since it redefines CHECK, which is first defined by glog.
@@ -175,7 +176,7 @@ TEST(testVio, InitializeImuBias) {
   }
 
   // Compute the actual bias!
-  ImuBias imu_bias_actual = VioBackEnd::initializeImuBias(imu_accgyr, n_gravity);
+  ImuBias imu_bias_actual = VioBackEnd::initImuBias(imu_accgyr, n_gravity);
 
   // Compute the expected value!
   Vector6 imu_mean = Vector6::Zero();
@@ -247,11 +248,10 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
   // create vio
   Pose3 B_pose_camLrect(Rot3::identity(), Vector3::Zero());
+  std::shared_ptr<gtNavState> initial_state = std::make_shared<gtNavState>(
+        poses[0].first, v, imu_bias);
   boost::shared_ptr<VioBackEnd> vio = boost::make_shared<VioBackEnd>(B_pose_camLrect,
-      cam_params, baseline, vioParams);
-
-  // initializeStateAndSetPriors
-  vio->initializeStateAndSetPriors(t_start, poses[0].first, v, imu_bias);
+      cam_params, baseline, &initial_state, t_start, ImuAccGyr(), vioParams);
 
   // For each frame, add landmarks and optimize
   for(int64_t k = 1; k < num_key_frames; k++) {

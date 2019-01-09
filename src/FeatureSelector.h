@@ -1252,9 +1252,9 @@ public:
 
         if(featureSelectionData.keypoints_3d.size() != featureSelectionData.keypointLife.size())
           throw std::runtime_error("stereoVioExample: keypoint age inconsistent with keypoint 3D");
-        featureSelectionData.body_P_leftCam = stereoFrame_km1->B_Pose_camLrect;
+        featureSelectionData.body_P_leftCam = stereoFrame_km1->B_Pose_camLrect_;
         featureSelectionData.body_P_rightCam = // rectified right camera only has a translation along x = baseline
-            stereoFrame_km1->B_Pose_camLrect.compose(
+            stereoFrame_km1->B_Pose_camLrect_.compose(
                 gtsam::Pose3(gtsam::Rot3(),gtsam::Point3(stereoFrame_km1->baseline(),0.0,0.0)));
         featureSelectionData.left_undistRectCameraMatrix = stereoFrame_km1->left_undistRectCameraMatrix_;
         featureSelectionData.right_undistRectCameraMatrix = stereoFrame_km1->right_undistRectCameraMatrix_;

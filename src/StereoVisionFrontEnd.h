@@ -128,14 +128,14 @@ public:
   gtsam::Pose3 getRelativePoseBodyMono() const {
     // lkfBody_T_kBody = lkfBody_T_lkfCamera *  lkfCamera_T_kCamera_ * kCamera_T_kBody =
     // body_Pose_cam_ * lkf_T_k_mono_ * body_Pose_cam_^-1
-    gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect; // of the left camera!!
+    gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect_; // of the left camera!!
     return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_mono_ * body_Pose_cam_.inverse();
   }
 
   /* ------------------------------------------------------------------------ */
   // return relative pose between last (lkf) and current keyframe (k) - STEREO RANSAC
   gtsam::Pose3 getRelativePoseBodyStereo() const {
-    gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect; // of the left camera!!
+    gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect_; // of the left camera!!
     return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_stereo_ * body_Pose_cam_.inverse();
   }
 

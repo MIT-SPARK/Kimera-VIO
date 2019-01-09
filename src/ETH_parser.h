@@ -57,21 +57,33 @@ public:
   void print();
 };
 
+// TODO make new file for Ground Truth Data and the like,
+// because it is used by the backend and the feature selector.
+// Leaving it in the parser forces these modules to include a parser which is
+// at the very least weird.
 /*
  * compact storage of state
  */
 class gtNavState {
 public:
-  gtsam::Pose3 pose;
-  gtsam::Vector3 velocity;
-  gtsam::imuBias::ConstantBias imuBias;
-public:
+  gtNavState() = default;
+  gtNavState(const gtsam::Pose3& pose,
+             const gtsam::Vector3& velocity,
+             const gtsam::imuBias::ConstantBias& imu_bias)
+    : pose_(pose),
+      velocity_(velocity),
+      imu_bias_(imu_bias) {}
+
+  gtsam::Pose3 pose_;
+  gtsam::Vector3 velocity_;
+  gtsam::imuBias::ConstantBias imu_bias_;
+
   void print(const std::string message = " ") const {
     if (VLOG_IS_ON(10)) {
       LOG(INFO) << "--- " << message << "--- ";
-      pose.print("\n pose: \n");
-      LOG(INFO) << "\n velocity: \n" << velocity.transpose();
-      imuBias.print("\n imuBias: \n");
+      pose_.print("\n pose: \n");
+      LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
+      imu_bias_.print("\n imuBias: \n");
     }
   }
 };
@@ -190,7 +202,7 @@ public:
 
   // retrieve absolute pose at timestamp
   inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
-      return getGroundTruthState(timestamp).pose;
+      return getGroundTruthState(timestamp).pose_;
   }
 
   // check if the ground truth is available (i.e., the timestamp is after the first gt state)

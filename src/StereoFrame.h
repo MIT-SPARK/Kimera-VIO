@@ -163,7 +163,7 @@ public:
   gtsam::Cal3_S2 left_undistRectCameraMatrix_, right_undistRectCameraMatrix_; // note: rectification
   // is something that belongs to a stereo camera, and that's why these are stored here!
   double baseline_; // after rectification!
-  gtsam::Pose3 B_Pose_camLrect; // pose of the left camera wrt the body frame - after rectification!
+  gtsam::Pose3 B_Pose_camLrect_; // pose of the left camera wrt the body frame - after rectification!
 
 public:
   /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

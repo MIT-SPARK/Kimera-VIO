@@ -390,18 +390,18 @@ bool ETHDatasetParser::parseGTdata(const std::string &input_dataset_path,
       throw std::runtime_error("parseGTdata: wrong quaternion conversion");
     }
 
-    gt_curr.pose = gtsam::Pose3(rot, position).compose(gtData_.body_Pose_cam_);
-    gt_curr.velocity = gtsam::Vector3(gtDataRaw[7], gtDataRaw[8], gtDataRaw[9]);
+    gt_curr.pose_ = gtsam::Pose3(rot, position).compose(gtData_.body_Pose_cam_);
+    gt_curr.velocity_ = gtsam::Vector3(gtDataRaw[7], gtDataRaw[8], gtDataRaw[9]);
     gtsam::Vector3 gyroBias =
         gtsam::Vector3(gtDataRaw[10], gtDataRaw[11], gtDataRaw[12]);
     gtsam::Vector3 accBias =
         gtsam::Vector3(gtDataRaw[13], gtDataRaw[14], gtDataRaw[15]);
-    gt_curr.imuBias = gtsam::imuBias::ConstantBias(accBias, gyroBias);
+    gt_curr.imu_bias_ = gtsam::imuBias::ConstantBias(accBias, gyroBias);
 
     gtData_.mapToGt_.insert(
           std::pair<Timestamp, gtNavState>(timestamp,gt_curr));
 
-    double normVel = gt_curr.velocity.norm();
+    double normVel = gt_curr.velocity_.norm();
     if (normVel > maxGTvel) maxGTvel = normVel;
   }
   if (deltaCount != gtData_.mapToGt_.size() - 1u) {

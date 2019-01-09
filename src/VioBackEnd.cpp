@@ -1,4 +1,4 @@
-/* ----------------------------------------------------------------------------
+﻿/* ----------------------------------------------------------------------------
  * Copyright 2017, Massachusetts Institute of Technology,
  * Cambridge, MA 02139
  * All Rights Reserved
@@ -29,6 +29,9 @@
 
 #include <glog/logging.h>
 #include <gflags/gflags.h>
+
+#include "ETH_parser.h" // Only for gtNavState ...
+
 DEFINE_bool(debug_graph_before_opt, false,
             "Store factor graph before optimization for later printing if the "
             "optimization fails.");
@@ -47,9 +50,15 @@ namespace VIO {
 /// VioBackEnd Methods.
 /// Public methods.
 /* -------------------------------------------------------------------------- */
+// initial_state_gt is a non-null pointer to a shared_ptr which might be null
+// if there is no ground-truth available, otherwise it contains the initial
+// ground-truth state.
 VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const Cal3_S2& leftCameraCalRectified,
                        const double& baseline,
+                       std::shared_ptr<gtNavState>* initial_state_gt,
+                       const Timestamp& timestamp_k,
+                       const ImuAccGyr& imu_accgyr,
                        const VioBackEndParams& vioParams,
                        const bool log_timing):
   B_Pose_leftCam_(leftCamPose),
@@ -68,6 +77,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   verbosity_(0),
   log_timing_(log_timing),
   landmark_count_(0) {
+    CHECK_NOTNULL(initial_state_gt);
 
   // TODO the parsing of the params should be done inside here out from the
   // path to the params file, otherwise other derived VIO backends will be stuck
@@ -80,16 +90,8 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   // For now we have polymorphic params, with dynamic_cast to derived class, aka
   // suboptimal...
 
-  // Set parameters for all factors.
-  setFactorsParams(vioParams,
-                   &smart_noise_,
-                   &smart_factors_params_,
-                   &imu_params_,
-                   &no_motion_prior_noise_,
-                   &zero_velocity_prior_noise_,
-                   &constant_velocity_prior_noise_);
-
   //////////////////////////////////////////////////////////////////////////////
+  // Initialize smoother.
 #ifdef INCREMENTAL_SMOOTHER
   gtsam::ISAM2Params isam_param;
   setIsam2Params(vioParams, &isam_param);
@@ -103,27 +105,65 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   smoother_ = std::make_shared<Smoother>(vioParams.horizon_,lmParams);
 #endif
 
+  // Set parameters for all factors.
+  setFactorsParams(vioParams,
+                   &smart_noise_,
+                   &smart_factors_params_,
+                   &imu_params_,
+                   &no_motion_prior_noise_,
+                   &zero_velocity_prior_noise_,
+                   &constant_velocity_prior_noise_);
+
+
   // Reset debug info.
   resetDebugInfo(&debug_info_);
+
+  // TODO change VIO initialization logic, because right now if it is not
+  // auto-initialized it still asks for ImuAccGyr data.
+  // Initialize VIO.
+  if (vio_params_.autoInitialize_ || !*initial_state_gt) {
+    // Use initial IMU measurements to guess first pose
+    LOG_IF(WARNING, !vio_params_.autoInitialize_)
+        << "Could not initialize from ground truth, since it is not "
+           "available. Autoinitializing instead.";
+    *initial_state_gt = std::make_shared<gtNavState>();
+    (*initial_state_gt)->pose_ =
+            guessPoseFromIMUmeasurements(imu_accgyr,
+                                         vio_params_.n_gravity_,
+                                         vio_params_.roundOnAutoInitialize_);
+    initStateAndSetPriors(timestamp_k,
+                          (*initial_state_gt)->pose_,
+                          imu_accgyr);
+
+    // Only for display later on.
+    (*initial_state_gt)->velocity_ = W_Vel_Blkf_;
+    (*initial_state_gt)->imu_bias_ = imu_bias_lkf_;
+  } else {
+    // Use ground-truth as first pose.
+    initStateAndSetPriors(timestamp_k,
+                          (*initial_state_gt)->pose_,
+                          (*initial_state_gt)->velocity_,
+                          (*initial_state_gt)->imu_bias_);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
-void VioBackEnd::initializeStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
-                                             const Pose3& initialPose,
-                                             const ImuAccGyr& accGyroRaw) {
+void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
+                                       const Pose3& initialPose,
+                                       const ImuAccGyr& accGyroRaw) {
   Vector3 localGravity = initialPose.rotation().inverse().matrix() *
                          imu_params_->n_gravity;
-  initializeStateAndSetPriors(timestamp_kf_nsec,
-                              initialPose,
-                              Vector3::Zero(),
-                              initializeImuBias(accGyroRaw, localGravity));
+  initStateAndSetPriors(timestamp_kf_nsec,
+                        initialPose,
+                        Vector3::Zero(),
+                        initImuBias(accGyroRaw, localGravity));
 }
 
 /* -------------------------------------------------------------------------- */
-void VioBackEnd::initializeStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
-                                             const Pose3& initialPose,
-                                             const Vector3& initialVel,
-                                             const ImuBias& initialBias) {
+void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
+                                       const Pose3& initialPose,
+                                       const Vector3& initialVel,
+                                       const ImuBias& initialBias) {
   timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
 
   W_Pose_Blkf_ = initialPose;
@@ -131,12 +171,12 @@ void VioBackEnd::initializeStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
   imu_bias_lkf_ = initialBias;
   imu_bias_prev_kf_ = initialBias;
 
-  std::cout << "Initialized state: " << std::endl;
+  LOG(INFO) << "Initialized state: ";
   W_Pose_Blkf_.print("Initial pose");
-  std::cout << "\n Initial vel: " << W_Vel_Blkf_.transpose() << std::endl;
+  LOG(INFO) << "\n Initial vel: " << W_Vel_Blkf_.transpose();
   imu_bias_lkf_.print("Initial bias: \n");
 
-  // Cant add inertial prior factor until we have a state measurement
+  // Can't add inertial prior factor until we have a state measurement.
   addInitialPriorFactors(cur_kf_id_, imu_bias_lkf_.vector());
 
   // TODO encapsulate this in a function, code duplicated in addImuValues.
@@ -145,30 +185,6 @@ void VioBackEnd::initializeStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
   new_values_.insert(gtsam::Symbol('b', cur_kf_id_), imu_bias_lkf_);
 
   optimize(cur_kf_id_, vio_params_.numOptimize_);
-}
-
-/* -------------------------------------------------------------------------- */
-ImuBias VioBackEnd::initializeImuBias(const ImuAccGyr& accGyroRaw,
-                                      const Vector3& n_gravity) {
-  LOG(WARNING) << "imuBiasInitialization: currently assumes that the vehicle is"
-                  " stationary and upright!";
-  Vector3 sumAccMeasurements = Vector3::Zero();
-  Vector3 sumGyroMeasurements = Vector3::Zero();
-  const size_t& nrMeasured = accGyroRaw.cols();
-  for (size_t i = 0; i < nrMeasured; i++){
-    const Vector6& accGyroRaw_i = accGyroRaw.col(i);
-    // std::cout << "accGyroRaw_i: " << accGyroRaw_i.transpose() << std::endl;
-    sumAccMeasurements  += accGyroRaw_i.head(3);
-    sumGyroMeasurements += accGyroRaw_i.tail(3);
-  }
-
-  // Avoid the dark world of Undefined Behaviour...
-  CHECK_NE(nrMeasured, 0) << "About to divide by 0!";
-  gtsam::imuBias::ConstantBias
-      imuInit(sumAccMeasurements/double(nrMeasured) + n_gravity,
-              sumGyroMeasurements/double(nrMeasured));
-
-  return imuInit;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -336,6 +352,30 @@ void VioBackEnd::updateLandmarkInGraph(
   }
   old_smart_factors_it->second.first = new_factor;
   if (verbosity_ >= 8) {std::cout << "updateLandmarkInGraph: added observation to point: " << lm_id << std::endl;}
+}
+
+/* -------------------------------------------------------------------------- */
+ImuBias VioBackEnd::initImuBias(const ImuAccGyr& accGyroRaw,
+                                      const Vector3& n_gravity) {
+  LOG(WARNING) << "imuBiasInitialization: currently assumes that the vehicle is"
+                  " stationary and upright!";
+  Vector3 sumAccMeasurements = Vector3::Zero();
+  Vector3 sumGyroMeasurements = Vector3::Zero();
+  const size_t& nrMeasured = accGyroRaw.cols();
+  for (size_t i = 0; i < nrMeasured; i++){
+    const Vector6& accGyroRaw_i = accGyroRaw.col(i);
+    // std::cout << "accGyroRaw_i: " << accGyroRaw_i.transpose() << std::endl;
+    sumAccMeasurements  += accGyroRaw_i.head(3);
+    sumGyroMeasurements += accGyroRaw_i.tail(3);
+  }
+
+  // Avoid the dark world of Undefined Behaviour...
+  CHECK_NE(nrMeasured, 0) << "About to divide by 0!";
+  gtsam::imuBias::ConstantBias
+      imuInit(sumAccMeasurements/double(nrMeasured) + n_gravity,
+              sumGyroMeasurements/double(nrMeasured));
+
+  return imuInit;
 }
 
 /* -------------------------------------------------------------------------- */

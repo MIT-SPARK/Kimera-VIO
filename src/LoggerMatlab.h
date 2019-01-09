@@ -26,7 +26,10 @@
 
 namespace VIO {
 
+// TODO Make Logger Thread-safe!
 ////////////////////////////////////////////////////////////////////////////////
+/// \brief The LoggerMatlab class
+///
 class LoggerMatlab {
 public:
   LoggerMatlab();
@@ -79,12 +82,14 @@ public:
                const double& timestamp, bool log_accumulated_mesh = false);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void logBackendResults(const ETHDatasetParser& dataset,
-                         const StereoVisionFrontEnd& stereoTracker,
-                         const std::shared_ptr<VioBackEnd>& vio,
-                         const Timestamp timestamp_lkf,
-                         const Timestamp timestamp_k,
-                         const size_t k);
+  void logBackendResults(
+      const ETHDatasetParser& dataset,
+      const StereoVisionFrontEnd& stereoTracker,
+      const std::shared_ptr<VioBackEndOutputPayload>& vio_output,
+      const double& horizon,
+      const Timestamp& timestamp_lkf,
+      const Timestamp& timestamp_k,
+      const size_t& k);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void displayInitialStateVioInfo(const ETHDatasetParser& dataset,

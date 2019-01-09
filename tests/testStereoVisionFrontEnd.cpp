@@ -232,7 +232,7 @@ TEST(testStereoVisionFrontEnd, getRelativePoseBodyMono) {
   st.trackerStatusSummary_.lkf_T_k_mono_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
   Pose3 body_pose_cam =
-      ref_stereo_frame->B_Pose_camLrect;
+      ref_stereo_frame->B_Pose_camLrect_;
 
   // Expected answer
   Pose3 pose_expected = body_pose_cam *
@@ -255,7 +255,7 @@ TEST(testStereoVisionFrontEnd, getRelativePoseBodyStereo) {
   st.trackerStatusSummary_.lkf_T_k_stereo_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
   Pose3 body_pose_cam =
-      ref_stereo_frame->B_Pose_camLrect;
+      ref_stereo_frame->B_Pose_camLrect_;
 
   // Expected answer
   Pose3 pose_expected = body_pose_cam *

@@ -23,6 +23,7 @@
 
 #include <glog/logging.h>
 #include <gflags/gflags.h>
+
 DEFINE_int32(min_num_of_observations, 2,
              "Minimum number of observations for a feature track to be added "
              "in the optimization problem (corresponds to number of "
@@ -80,18 +81,23 @@ DEFINE_double(prior_noise_sigma_distance, 0.1,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-RegularVioBackEnd::RegularVioBackEnd(
-    const Pose3& leftCamPose,
-    const Cal3_S2& leftCameraCalRectified,
-    const double& baseline,
-    const VioBackEndParams& vioParams,
-    const bool& log_timing,
-    const BackendModality& backend_modality) :
+RegularVioBackEnd::RegularVioBackEnd(const Pose3& leftCamPose,
+                                     const Cal3_S2& leftCameraCalRectified,
+                                     const double& baseline,
+                                     std::shared_ptr<gtNavState>* initial_state_gt,
+                                     const Timestamp& timestamp,
+                                     const ImuAccGyr& imu_accgyr,
+                                     const VioBackEndParams& vioParams,
+                                     const bool& log_timing,
+                                     const BackendModality& backend_modality) :
   regular_vio_params_(RegularVioBackEndParams::safeCast(vioParams)),
   backend_modality_(backend_modality),
   VioBackEnd(leftCamPose,
              leftCameraCalRectified,
              baseline,
+             initial_state_gt,
+             timestamp,
+             imu_accgyr,
              vioParams,
              log_timing) {
   LOG(INFO) << "Using Regular VIO backend.\n";

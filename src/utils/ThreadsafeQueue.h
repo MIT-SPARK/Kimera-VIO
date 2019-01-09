@@ -73,7 +73,7 @@ public:
   std::shared_ptr<T> popBlocking() {
     std::unique_lock<std::mutex> lk(mutex_);
     data_cond_.wait(lk,[this]{return !data_queue_.empty() || shutdown_;});
-    if (shutdown_) return std::shared_ptr<T>();
+    if (shutdown_) return std::shared_ptr<T>(nullptr);
     // The shared_ptr allocation might throw an exception.
     // Making the queue hold shared_ptr instead, would avoid this issue.
     // See listing 6.3 in [1]. And we also spare copies.
@@ -98,9 +98,9 @@ public:
   // If the queue is empty or has been shutdown,
   // it returns a null shared_ptr.
   std::shared_ptr<T> pop() {
-    if (shutdown_) return std::shared_ptr<T>();
+    if (shutdown_) return std::shared_ptr<T>(nullptr);
     std::lock_guard<std::mutex> lk(mutex_);
-    if(data_queue_.empty()) return std::shared_ptr<T>();
+    if(data_queue_.empty()) return std::shared_ptr<T>(nullptr);
     // The shared_ptr allocation might throw an exception.
     // Making the queue hold shared_ptr instead, would avoid this issue.
     // See listing 6.3 in [1].

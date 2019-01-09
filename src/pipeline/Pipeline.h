@@ -66,6 +66,37 @@ private:
   void setBackendType(int backend_type,
                       std::shared_ptr<VioBackEndParams>* vioParams) const;
 
+  // Initialize pipeline.
+  bool initialize(size_t k);
+
+  // Initialize frontend.
+  bool initFrontend(const Timestamp& timestamp_lkf,
+                    const Timestamp& timestamp_k,
+                    StereoFrame* stereoFrame_k,
+                    StereoVisionFrontEnd* stereo_vision_frontend,
+                    ImuFrontEnd* imu_buffer,
+                    ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const;
+  bool initStereoFrontend(StereoFrame* stereo_frame_k,
+                          StereoVisionFrontEnd* stereo_vision_frontend) const;
+  bool initImuFrontend(const Timestamp& timestamp_lkf,
+                       const Timestamp& timestamp_k,
+                       ImuFrontEnd* imu_buffer,
+                       ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const;
+  // Initialize backend.
+  /// @param: vio_backend: returns the backend initialized.
+  /// @param: initial_state_gt: serves as input in case there is ground-truth
+  /// available for the initial state and one wants to initialize the backend
+  /// using this information. And also as output by returning the eventually
+  /// used initial state (either grount-truth, or guessed from imu data).
+  bool initBackend(std::shared_ptr<VioBackEnd>* vio_backend,
+                   const gtsam::Pose3& B_Pose_camLrect,
+                   const gtsam::Cal3_S2& left_undist_rect_cam_mat,
+                   const double& baseline,
+                   const VioBackEndParams& vio_params,
+                   std::shared_ptr<gtNavState>* initial_state_gt,
+                   const Timestamp& timestamp_k,
+                   const ImuAccGyr& imu_accgyr);
+
   // Launch different threads with processes.
   void launchThreads();
 
@@ -92,6 +123,10 @@ private:
 
   // Create VIO: class that implements estimation back-end.
   std::shared_ptr<VioBackEnd> vio_backend_;
+
+  // Thread-safe queue for the backend.
+  ThreadsafeQueue<VioBackEndInputPayload> backend_input_queue_;
+  ThreadsafeQueue<VioBackEndOutputPayload> backend_output_queue_;
 
   // Structures to be filled with imu data.
   // TODO wrap in a single class.
@@ -127,6 +162,7 @@ private:
   std::atomic_bool shutdown_ = {false};
 
   // Threads.
+  std::thread backend_thread_;
   std::thread mesher_thread_;
   std::thread visualizer_thread_;
 };

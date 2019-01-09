@@ -141,8 +141,7 @@ ImuFrontEnd::getBetweenValuesInterpolated(
   return std::make_pair(imu_stamps, imu_accgyr);
 }
 /* --------------------------------------------------------------------------------------- */
-typename ImuFrontEnd::ImuData::iterator ImuFrontEnd::iterator_equal_or_before(int64_t stamp)
-{
+typename ImuFrontEnd::ImuData::iterator ImuFrontEnd::iterator_equal_or_before(int64_t stamp) {
   // if (!mutex_.try_lock()) { printf("Call lock() before accessing data.\n"); }
   auto it = buffer_.lower_bound(stamp);
   if(it->first == stamp)
@@ -161,8 +160,7 @@ typename ImuFrontEnd::ImuData::iterator ImuFrontEnd::iterator_equal_or_before(in
   return it;
 }
 /* --------------------------------------------------------------------------------------- */
-typename ImuFrontEnd::ImuData::iterator ImuFrontEnd::iterator_equal_or_after(int64_t stamp)
-{
+typename ImuFrontEnd::ImuData::iterator ImuFrontEnd::iterator_equal_or_after(int64_t stamp) {
   // if (!mutex_.try_lock()) { printf("Call lock() before accessing data.\n"); }
   return buffer_.lower_bound(stamp);
 }
