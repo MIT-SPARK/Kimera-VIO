@@ -12,8 +12,8 @@ WORKDIR $DIRPATH
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
 RUN apt-get update && apt-get install -y git cmake
 
-# Install x11vnc to provide a display to container.
-RUN apt-get update && apt-get install -y x11vnc
+# Install xvfb to provide a display to container for GUI realted testing.
+RUN apt-get update && apt-get install -y xvfb
 
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev
@@ -62,6 +62,3 @@ RUN cd opengv/build && \
 # Install spark_vio_evaluation from PyPI
 RUN apt-get update && apt-get install -y python-pip python-dev
 RUN pip install spark_vio_evaluation
-
-# Install vnc4server to provide a display to container.
-RUN apt-get update && apt-get install -y vnc4server xvfb fluxbox
