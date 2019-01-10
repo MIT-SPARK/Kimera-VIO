@@ -130,142 +130,6 @@ bool Pipeline::spin() {
   return true;
 }
 
-bool Pipeline::initialize(size_t k) {
-  CHECK_EQ(k, initial_k_);
-  LOG(INFO) << "------------------- Initialize Pipeline with frame k = " << k << "--------------------";
-  const std::string& left_img_name (dataset_.getLeftImgName(k));
-  const std::string& right_img_name (dataset_.getRightImgName(k));
-  timestamp_k_ = dataset_.timestampAtFrame(k); // same in both images
-
-  // Load stereo images.
-  start_time_ = UtilsOpenCV::GetTimeInSeconds();
-  StereoFrame stereoFrame_k(
-        k, timestamp_k_,
-        left_img_name, right_img_name,
-        dataset_.getLeftCamInfo(), dataset_.getRightCamInfo(),
-        dataset_.camL_Pose_camR_,
-        tracker_params_.getStereoMatchingParams());
-
-  /////////////////// FRONTEND /////////////////////////////////////////////////
-  // Initialize Frontend.
-  initFrontend(timestamp_lkf_, timestamp_k_,
-               &stereoFrame_k, stereo_vision_frontend_.get(),
-               &(dataset_.imuData_.imu_buffer_), &imu_stamps_, &imu_accgyr_);
-
-  ///////////////////////////// BACKEND ////////////////////////////////////////
-  // Initialize Backend.
-  std::shared_ptr<gtNavState> initialStateGT =
-      dataset_.isGroundTruthAvailable()?
-        std::make_shared<gtNavState>(dataset_.getGroundTruthState(timestamp_k_)) :
-        std::shared_ptr<gtNavState>(nullptr);
-
-  initBackend(&vio_backend_,
-              stereo_vision_frontend_->stereoFrame_km1_->B_Pose_camLrect_,
-              stereo_vision_frontend_->stereoFrame_km1_->left_undistRectCameraMatrix_,
-              stereo_vision_frontend_->stereoFrame_km1_->baseline_,
-              *CHECK_NOTNULL(vio_params_.get()),
-              &initialStateGT,
-              timestamp_k_,
-              imu_accgyr_);
-
-  ////////////////// DEBUG INITIALIZATION //////////////////////////////////
-  if (FLAGS_log_output) {
-    logger_.displayInitialStateVioInfo(dataset_, vio_backend_,
-                                       *CHECK_NOTNULL(initialStateGT.get()),
-                                       imu_accgyr_, timestamp_k_);
-    // Store latest pose estimate
-    logger_.W_Pose_Bprevkf_vio_ = vio_backend_->W_Pose_Blkf_;
-  }
-
-  // Store latest keyframe timestamp
-  timestamp_lkf_ = timestamp_k_;
-  return true;
-}
-
-bool Pipeline::initFrontend(const Timestamp& timestamp_lkf,
-                            const Timestamp& timestamp_k,
-                            StereoFrame* stereoFrame_k,
-                            StereoVisionFrontEnd* stereo_vision_frontend,
-                            ImuFrontEnd* imu_buffer,
-                            ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const {
-  return initStereoFrontend(stereoFrame_k, stereo_vision_frontend) &&
-         initImuFrontend(timestamp_lkf, timestamp_k,
-                         imu_buffer, imu_stamps, imu_accgyr);
-}
-
-bool Pipeline::initStereoFrontend(StereoFrame* stereo_frame_k,
-                        StereoVisionFrontEnd* stereo_vision_frontend) const {
-  CHECK_NOTNULL(stereo_frame_k);
-  CHECK_NOTNULL(stereo_vision_frontend);
-  // Process first stereo frame.
-  stereo_vision_frontend->processFirstStereoFrame(*stereo_frame_k);
-  return true;
-}
-
-
-bool Pipeline::initImuFrontend(const Timestamp & timestamp_lkf,
-                     const Timestamp & timestamp_k,
-                     ImuFrontEnd* imu_buffer,
-                     ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const {
-  CHECK_NOTNULL(imu_buffer);
-  CHECK_NOTNULL(imu_stamps);
-  CHECK_NOTNULL(imu_accgyr);
-  // Get IMU data.
-  std::tie(*imu_stamps, *imu_accgyr) =
-          imu_buffer->getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
-  return true;
-}
-
-bool Pipeline::initBackend(std::shared_ptr<VioBackEnd>* vio_backend,
-                           const gtsam::Pose3& B_Pose_camLrect,
-                           const gtsam::Cal3_S2& left_undist_rect_cam_mat,
-                           const double& baseline,
-                           const VioBackEndParams& vio_params,
-                           std::shared_ptr<gtNavState>* initial_state_gt,
-                           const Timestamp& timestamp_k,
-                           const ImuAccGyr& imu_accgyr) {
-  CHECK_NOTNULL(vio_backend);
-  // Create VIO.
-  switch(FLAGS_backend_type) {
-    case 0: {
-      LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
-      *vio_backend = std::make_shared<VioBackEnd>(B_Pose_camLrect,
-                                                  left_undist_rect_cam_mat,
-                                                  baseline,
-                                                  initial_state_gt,
-                                                  timestamp_k,
-                                                  imu_accgyr,
-                                                  vio_params,
-                                                  FLAGS_log_output);
-      break;
-    }
-    case 1: {
-      LOG(INFO) << "\e[1m Using Regular VIO with modality "
-                << FLAGS_regular_vio_backend_modality << "\e[0m";
-      *vio_backend = std::make_shared<RegularVioBackEnd>(
-            B_Pose_camLrect,
-            left_undist_rect_cam_mat,
-            baseline,
-            initial_state_gt,
-            timestamp_k,
-            imu_accgyr,
-            vio_params, FLAGS_log_output,
-            static_cast<RegularVioBackEnd::BackendModality>(
-              FLAGS_regular_vio_backend_modality));
-      break;
-    }
-    default: {
-      LOG(FATAL) << "Requested backend type is not supported.\n"
-                 << "Currently supported backend types:\n"
-                 << "0: normal VIO\n"
-                 << "1: regular VIO\n"
-                 << " but requested backend: " << FLAGS_backend_type;
-      break;
-    }
-  }
-  return true;
-}
-
 // Spin the pipeline only once.
 void Pipeline::spinOnce(size_t k) {
   LOG(INFO) << "------------------- Processing frame k = " << k << "--------------------";
@@ -592,6 +456,142 @@ void Pipeline::setBackendType(int backend_type,
                           << " 0: normalVio, 1: RegularVio.";
   }
   }
+}
+
+bool Pipeline::initialize(size_t k) {
+  CHECK_EQ(k, initial_k_);
+  LOG(INFO) << "------------------- Initialize Pipeline with frame k = " << k << "--------------------";
+  const std::string& left_img_name (dataset_.getLeftImgName(k));
+  const std::string& right_img_name (dataset_.getRightImgName(k));
+  timestamp_k_ = dataset_.timestampAtFrame(k); // same in both images
+
+  // Load stereo images.
+  start_time_ = UtilsOpenCV::GetTimeInSeconds();
+  StereoFrame stereoFrame_k(
+        k, timestamp_k_,
+        left_img_name, right_img_name,
+        dataset_.getLeftCamInfo(), dataset_.getRightCamInfo(),
+        dataset_.camL_Pose_camR_,
+        tracker_params_.getStereoMatchingParams());
+
+  /////////////////// FRONTEND /////////////////////////////////////////////////
+  // Initialize Frontend.
+  initFrontend(timestamp_lkf_, timestamp_k_,
+               &stereoFrame_k, stereo_vision_frontend_.get(),
+               &(dataset_.imuData_.imu_buffer_), &imu_stamps_, &imu_accgyr_);
+
+  ///////////////////////////// BACKEND ////////////////////////////////////////
+  // Initialize Backend.
+  std::shared_ptr<gtNavState> initialStateGT =
+      dataset_.isGroundTruthAvailable()?
+        std::make_shared<gtNavState>(dataset_.getGroundTruthState(timestamp_k_)) :
+        std::shared_ptr<gtNavState>(nullptr);
+
+  initBackend(&vio_backend_,
+              stereo_vision_frontend_->stereoFrame_km1_->B_Pose_camLrect_,
+              stereo_vision_frontend_->stereoFrame_km1_->left_undistRectCameraMatrix_,
+              stereo_vision_frontend_->stereoFrame_km1_->baseline_,
+              *CHECK_NOTNULL(vio_params_.get()),
+              &initialStateGT,
+              timestamp_k_,
+              imu_accgyr_);
+
+  ////////////////// DEBUG INITIALIZATION //////////////////////////////////
+  if (FLAGS_log_output) {
+    logger_.displayInitialStateVioInfo(dataset_, vio_backend_,
+                                       *CHECK_NOTNULL(initialStateGT.get()),
+                                       imu_accgyr_, timestamp_k_);
+    // Store latest pose estimate
+    logger_.W_Pose_Bprevkf_vio_ = vio_backend_->W_Pose_Blkf_;
+  }
+
+  // Store latest keyframe timestamp
+  timestamp_lkf_ = timestamp_k_;
+  return true;
+}
+
+bool Pipeline::initFrontend(const Timestamp& timestamp_lkf,
+                            const Timestamp& timestamp_k,
+                            StereoFrame* stereoFrame_k,
+                            StereoVisionFrontEnd* stereo_vision_frontend,
+                            ImuFrontEnd* imu_buffer,
+                            ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const {
+  return initStereoFrontend(stereoFrame_k, stereo_vision_frontend) &&
+         initImuFrontend(timestamp_lkf, timestamp_k,
+                         imu_buffer, imu_stamps, imu_accgyr);
+}
+
+bool Pipeline::initStereoFrontend(StereoFrame* stereo_frame_k,
+                        StereoVisionFrontEnd* stereo_vision_frontend) const {
+  CHECK_NOTNULL(stereo_frame_k);
+  CHECK_NOTNULL(stereo_vision_frontend);
+  // Process first stereo frame.
+  stereo_vision_frontend->processFirstStereoFrame(*stereo_frame_k);
+  return true;
+}
+
+
+bool Pipeline::initImuFrontend(const Timestamp & timestamp_lkf,
+                     const Timestamp & timestamp_k,
+                     ImuFrontEnd* imu_buffer,
+                     ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const {
+  CHECK_NOTNULL(imu_buffer);
+  CHECK_NOTNULL(imu_stamps);
+  CHECK_NOTNULL(imu_accgyr);
+  // Get IMU data.
+  std::tie(*imu_stamps, *imu_accgyr) =
+          imu_buffer->getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
+  return true;
+}
+
+bool Pipeline::initBackend(std::shared_ptr<VioBackEnd>* vio_backend,
+                           const gtsam::Pose3& B_Pose_camLrect,
+                           const gtsam::Cal3_S2& left_undist_rect_cam_mat,
+                           const double& baseline,
+                           const VioBackEndParams& vio_params,
+                           std::shared_ptr<gtNavState>* initial_state_gt,
+                           const Timestamp& timestamp_k,
+                           const ImuAccGyr& imu_accgyr) {
+  CHECK_NOTNULL(vio_backend);
+  // Create VIO.
+  switch(FLAGS_backend_type) {
+    case 0: {
+      LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
+      *vio_backend = std::make_shared<VioBackEnd>(B_Pose_camLrect,
+                                                  left_undist_rect_cam_mat,
+                                                  baseline,
+                                                  initial_state_gt,
+                                                  timestamp_k,
+                                                  imu_accgyr,
+                                                  vio_params,
+                                                  FLAGS_log_output);
+      break;
+    }
+    case 1: {
+      LOG(INFO) << "\e[1m Using Regular VIO with modality "
+                << FLAGS_regular_vio_backend_modality << "\e[0m";
+      *vio_backend = std::make_shared<RegularVioBackEnd>(
+            B_Pose_camLrect,
+            left_undist_rect_cam_mat,
+            baseline,
+            initial_state_gt,
+            timestamp_k,
+            imu_accgyr,
+            vio_params, FLAGS_log_output,
+            static_cast<RegularVioBackEnd::BackendModality>(
+              FLAGS_regular_vio_backend_modality));
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Requested backend type is not supported.\n"
+                 << "Currently supported backend types:\n"
+                 << "0: normal VIO\n"
+                 << "1: regular VIO\n"
+                 << " but requested backend: " << FLAGS_backend_type;
+      break;
+    }
+  }
+  return true;
 }
 
 void Pipeline::launchThreads() {
