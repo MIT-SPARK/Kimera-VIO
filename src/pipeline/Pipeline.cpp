@@ -15,12 +15,13 @@
 #include "pipeline/Pipeline.h"
 
 #include <future>
-#include <chrono>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtsam/geometry/Pose3.h>
 
+#include "utils/timer.h"
 #include "RegularVioBackEnd.h"
+
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
 DEFINE_bool(parallel_run, true, "Run parallelized pipeline.");
@@ -115,14 +116,11 @@ bool Pipeline::spin() {
   launchThreads();
 
   // Run main loop.
-  auto start = std::chrono::high_resolution_clock::now();
+  auto tic = vio_utils::Timer::tic();
   for(size_t k = initial_k_ + 1; k < final_k_; k++) { // for each image
     spinOnce(k);
   }
-  auto stop = std::chrono::high_resolution_clock::now();
-  auto duration_ms =
-      std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-  LOG(WARNING) << "Spin took: " << duration_ms.count() << " milliseconds.";
+  LOG(WARNING) << "Spin took: " << vio_utils::Timer::toc(tic).count() << " ms.";
 
   // Shutdown.
   shutdown();
@@ -140,17 +138,16 @@ void Pipeline::spinOnce(size_t k) {
 
   /////////////////// FRONTEND ///////////////////////////////////////////
   // Load stereo images.
-  start_time_ = UtilsOpenCV::GetTimeInSeconds();
+  double start_time = UtilsOpenCV::GetTimeInSeconds();
   StereoFrame stereoFrame_k(
         k, timestamp_k_,
         left_img_name, right_img_name,
         dataset_.getLeftCamInfo(), dataset_.getRightCamInfo(),
         dataset_.camL_Pose_camR_,
         tracker_params_.getStereoMatchingParams());
-
   if (FLAGS_log_output) {
     logger_.timing_loadStereoFrame_ =
-        UtilsOpenCV::GetTimeInSeconds() - start_time_;
+        UtilsOpenCV::GetTimeInSeconds() - start_time;
   }
 
   ////////////////////////////////////////////////////////////////////////////
@@ -165,7 +162,7 @@ void Pipeline::spinOnce(size_t k) {
 
   ////////////////////////////// FRONT-END ///////////////////////////////////
   // Main function for tracking.
-  start_time_ = UtilsOpenCV::GetTimeInSeconds();
+  start_time = UtilsOpenCV::GetTimeInSeconds();
 
   // Rotation used in 1 and 2 point ransac.
   StatusSmartStereoMeasurements statusSmartStereoMeasurements =
@@ -174,11 +171,11 @@ void Pipeline::spinOnce(size_t k) {
 
   if (FLAGS_log_output) {
     logger_.timing_processStereoFrame_ =
-        UtilsOpenCV::GetTimeInSeconds() - start_time_;
+        UtilsOpenCV::GetTimeInSeconds() - start_time;
   }
 
   // Pass info to VIO if it's keyframe.
-  start_time_ = UtilsOpenCV::GetTimeInSeconds();
+  start_time = UtilsOpenCV::GetTimeInSeconds();
   if (stereo_vision_frontend_->stereoFrame_km1_->isKeyframe_) {
     // It's a keyframe!
     LOG(INFO) << "Keyframe " << k << " with: "
@@ -187,7 +184,7 @@ void Pipeline::spinOnce(size_t k) {
 
     ////////////////////////////// FEATURE SELECTOR //////////////////////////
     if (FLAGS_use_feature_selection) {
-      start_time_ = UtilsOpenCV::GetTimeInSeconds();
+      start_time = UtilsOpenCV::GetTimeInSeconds();
       // !! featureSelect is not thread safe !! Do not use when running in
       // parallel mode.
       static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
@@ -210,20 +207,20 @@ void Pipeline::spinOnce(size_t k) {
             << "featureSelectionTime_) "
             << stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_;
         logger_.timing_featureSelection_ =
-            UtilsOpenCV::GetTimeInSeconds() - start_time_;
+            UtilsOpenCV::GetTimeInSeconds() - start_time;
       }
     } else {
       VLOG(100) << "Not using feature selection.";
     }
 
     ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
-    start_time_ = UtilsOpenCV::GetTimeInSeconds();
+    start_time = UtilsOpenCV::GetTimeInSeconds();
 
     if (FLAGS_log_output) {
       logger_.logFrontendResults(dataset_, *stereo_vision_frontend_, timestamp_lkf_, // TODO this copies the whole frontend!!
                                  timestamp_k_);
       logger_.timing_loggerFrontend_ =
-          UtilsOpenCV::GetTimeInSeconds() - start_time_;
+          UtilsOpenCV::GetTimeInSeconds() - start_time;
     }
     ////////////////////////////////////////////////////////////////////////////
 
@@ -250,17 +247,17 @@ void Pipeline::spinOnce(size_t k) {
 
     // Log backend results.
     if (FLAGS_log_output) {
-      logger_.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - start_time_;
+      logger_.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
 
       ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////
-      start_time_ = UtilsOpenCV::GetTimeInSeconds();
+      start_time = UtilsOpenCV::GetTimeInSeconds();
       logger_.logBackendResults(dataset_, *stereo_vision_frontend_,
                                 backend_output_payload,
                                 vio_params_->horizon_,
                                 timestamp_lkf_, timestamp_k_,k);
       logger_.W_Pose_Bprevkf_vio_ = vio_backend_->W_Pose_Blkf_;
       logger_.timing_loggerBackend_ =
-          UtilsOpenCV::GetTimeInSeconds() - start_time_;
+          UtilsOpenCV::GetTimeInSeconds() - start_time;
       logger_.displayOverallTiming();
     }
 
@@ -413,7 +410,6 @@ bool Pipeline::initialize(size_t k) {
   timestamp_k_ = dataset_.timestampAtFrame(k); // same in both images
 
   // Load stereo images.
-  start_time_ = UtilsOpenCV::GetTimeInSeconds();
   StereoFrame stereoFrame_k(
         k, timestamp_k_,
         left_img_name, right_img_name,

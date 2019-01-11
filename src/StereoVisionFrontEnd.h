@@ -93,7 +93,7 @@ public:
 
 public:
   /* ------------------------------------------------------------------------ */
-  virtual void processFirstStereoFrame(StereoFrame& firstFrame);
+  void processFirstStereoFrame(StereoFrame& firstFrame);
   StatusSmartStereoMeasurements processStereoFrame(StereoFrame& cur_Frame,
       boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
 

@@ -150,7 +150,6 @@ private:
 
   // Logger class (stores data for matlab visualization).
   LoggerMatlab logger_;
-  double start_time_; // to log timing results
 
   // Create class to build mesh.
   Mesher mesher_;
