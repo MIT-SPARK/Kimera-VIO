@@ -54,6 +54,7 @@ DEFINE_int32(viz_type, 0,
   "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
   "7: NONE, does not visualize map\n");
 
+DEFINE_bool(use_feature_selection, false, "Enable smart feature selection.");
 
 DEFINE_bool(deterministic_random_number_generator, false,
             "If true the random number generator will consistently output the "
@@ -154,9 +155,6 @@ void Pipeline::spinOnce(size_t k) {
 
   ////////////////////////////////////////////////////////////////////////////
   // For k > 1
-  // For visualization purposes.
-  Frame frame_km1_debug = stereo_vision_frontend_->stereoFrame_lkf_->left_frame_;
-
   // Integrate rotation measurements (rotation is used in RANSAC).
   std::tie(imu_stamps_, imu_accgyr_) = dataset_.imuData_.imu_buffer_.
       getBetweenValuesInterpolated(timestamp_lkf_,
@@ -188,92 +186,34 @@ void Pipeline::spinOnce(size_t k) {
               << " smart measurements";
 
     ////////////////////////////// FEATURE SELECTOR //////////////////////////
-    {
-      // ------------ DATA ABOUT CURRENT AND FUTURE ROBOT STATE ------------- //
-      KeyframeToStampedPose posesAtFutureKeyframes;
-      // Consider using static here.
-      size_t nrKfInHorizon =
-          round(stereo_vision_frontend_->tracker_.trackerParams_
-                .featureSelectionHorizon_ /
-                stereo_vision_frontend_->tracker_.trackerParams_
-                .intra_keyframe_time_);
-      VLOG(100) << "nrKfInHorizon for selector: " << nrKfInHorizon;
-
-      // Future poses are gt and might be far from the vio pose: we have to
-      // attach the *relative* poses from the gt to the latest vio estimate.
-      // W_Pose_Bkf_gt    : ground truth pose at previous keyframe.
-      // vio->W_Pose_Blkf_: vio pose at previous keyframe.
-      // More important than the time, it is important that
-      // it is the same time as vio->W_Pose_Blkf_
-      Pose3 W_Pose_Bkf_gt;
-      if (dataset_.isGroundTruthAvailable()) {
-        W_Pose_Bkf_gt= dataset_.getGroundTruthState(timestamp_lkf_).pose_;
-
-        for (size_t kk = 0; kk < nrKfInHorizon + 1; kk++) {
-          // Including current pose.
-          Timestamp timestamp_kk = timestamp_k_ + UtilsOpenCV::SecToNsec(
-                kk * stereo_vision_frontend_->tracker_.
-                trackerParams_.intra_keyframe_time_);
-
-          // Relative pose wrt ground truth at last kf.
-          Pose3 poseGT_km1_kk = W_Pose_Bkf_gt.between(dataset_.getGroundTruthState(
-                                                        timestamp_kk).pose_);
-          posesAtFutureKeyframes.push_back(
-                StampedPose(vio_backend_->W_Pose_Blkf_.compose(poseGT_km1_kk),
-                            UtilsOpenCV::NsecToSec(timestamp_kk)) );
-        }
-      }
-
+    if (FLAGS_use_feature_selection) {
       start_time_ = UtilsOpenCV::GetTimeInSeconds();
-      SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
-
-      VLOG(100) << "Starting feature selection...";
-      // ToDo init to invalid value.
-      gtsam::Matrix curr_state_cov;
-      if (tracker_params_.featureSelectionCriterion_ !=
-          VioFrontEndParams::FeatureSelectionCriterion::QUALITY) {
-        VLOG(100) << "Using feature selection criterion diff than QUALITY ";
-        try {
-          curr_state_cov = vio_backend_->getCurrentStateCovariance();
-        } catch(const gtsam::IndeterminantLinearSystemException& e) {
-          LOG(ERROR) << "Error when calculating current state covariance.";
-        }
-      } else {
-        VLOG(100) << "Using QUALITY as feature selection criterion";
-      }
-
+      // !! featureSelect is not thread safe !! Do not use when running in
+      // parallel mode.
       static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
-      std::tie(trackedAndSelectedSmartStereoMeasurements,
-               stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_)
-          = feature_selector_.splitTrackedAndNewFeatures_Select_Display(
-            stereo_vision_frontend_->stereoFrame_km1_,
-            statusSmartStereoMeasurements.second,
+      statusSmartStereoMeasurements = featureSelect(
+            tracker_params_,
+            dataset_,
+            timestamp_k_,
+            vio_backend_->W_Pose_Blkf_,
+            &(stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_),
+            *(stereo_vision_frontend_->stereoFrame_km1_),
+            statusSmartStereoMeasurements,
             vio_backend_->cur_kf_id_, (FLAGS_visualize?saveImagesSelector:0),
-            tracker_params_.featureSelectionCriterion_,
-            tracker_params_.featureSelectionNrCornersToSelect_,
-            tracker_params_.maxFeatureAge_,
-            posesAtFutureKeyframes, // TODO Luca: can we make this optional, for the case where we do not have ground truth?
-            curr_state_cov,
-            dataset_.getDatasetName(),
-            frame_km1_debug); // last 2 are for visualization
-      VLOG(100) << "Feature selection completed.";
-
+            vio_backend_->getCurrentStateCovariance(),
+            stereo_vision_frontend_->stereoFrame_lkf_->left_frame_); // last one for visualization only
       if (FLAGS_log_output) {
+        VLOG(100)
+            << "Overall selection time (logger.timing_featureSelection_) "
+            << logger_.timing_featureSelection_ << '\n'
+            << "actual selection time (stereoTracker.tracker_.debugInfo_."
+            << "featureSelectionTime_) "
+            << stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_;
         logger_.timing_featureSelection_ =
             UtilsOpenCV::GetTimeInSeconds() - start_time_;
       }
-
-      TrackerStatusSummary status = statusSmartStereoMeasurements.first;
-      statusSmartStereoMeasurements = std::make_pair(
-            status, // same status as before
-            trackedAndSelectedSmartStereoMeasurements);
-
-      VLOG_IF(100, FLAGS_log_output)
-          << "Overall selection time (logger.timing_featureSelection_) "
-          << logger_.timing_featureSelection_ << '\n'
-          << "actual selection time (stereoTracker.tracker_.debugInfo_."
-          << "featureSelectionTime_) "
-          << stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_;
+    } else {
+      VLOG(100) << "Not using feature selection.";
     }
 
     ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
@@ -411,20 +351,27 @@ void Pipeline::spinOnce(size_t k) {
                                      points_3d, timestamp_k_));
 
       // Get data from visualizer thread.
+      // We use non-blocking pop() because no one depends on the output
+      // of the visualizer. This way the pipeline can keep running, while the
+      // visualization is only done when there is data available.
       std::shared_ptr<VisualizerOutputPayload> visualizer_output_payload =
           visualizer_output_queue_.popBlocking();
+      // Display only if the visualizer has done its work.
+      if (visualizer_output_payload) {
+        // Display 3D window.
+        if (visualization_type != VisualizationType::NONE) {
+          visualizer_output_payload->window_.spinOnce(1, true);
+        }
 
-      // Display 3D window.
-      if (visualization_type != VisualizationType::NONE) {
-        visualizer_output_payload->window_.spinOnce(1, true);
+        // Display 2D images.
+        for (const ImageToDisplay& img_to_display:
+             visualizer_output_payload->images_to_display_) {
+          cv::imshow(img_to_display.name_, img_to_display.image_);
+        }
+        cv::waitKey(1);
+      } else {
+        LOG(WARNING) << "Visualizer is lagging behind pipeline processing.";
       }
-
-      // Display 2D images.
-      for (const ImageToDisplay& img_to_display:
-           visualizer_output_payload->images_to_display_) {
-        cv::imshow(img_to_display.name_, img_to_display.image_);
-      }
-      cv::waitKey(1);
     }
 
     timestamp_lkf_ = timestamp_k_;
@@ -592,6 +539,71 @@ bool Pipeline::initBackend(std::shared_ptr<VioBackEnd>* vio_backend,
     }
   }
   return true;
+}
+
+StatusSmartStereoMeasurements Pipeline::featureSelect(
+    const VioFrontEndParams& tracker_params,
+    const ETHDatasetParser& dataset,
+    const Timestamp& timestamp_k,
+    const gtsam::Pose3& W_Pose_Blkf,
+    double* feature_selection_time,
+    const StereoFrame& stereoFrame_km1,
+    const StatusSmartStereoMeasurements& status_smart_stereo_meas,
+    const double& cur_kf_id,
+    int save_image_selector,
+    const gtsam::Matrix& curr_state_cov,
+    const Frame& left_frame) { // last one for visualization only
+  CHECK_NOTNULL(feature_selection_time);
+
+  // ------------ DATA ABOUT CURRENT AND FUTURE ROBOT STATE ------------- //
+  size_t nrKfInHorizon = round(tracker_params.featureSelectionHorizon_ /
+                               tracker_params.intra_keyframe_time_);
+  VLOG(100) << "nrKfInHorizon for selector: " << nrKfInHorizon;
+
+  // Future poses are gt and might be far from the vio pose: we have to
+  // attach the *relative* poses from the gt to the latest vio estimate.
+  // W_Pose_Bkf_gt    : ground truth pose at previous keyframe.
+  // vio->W_Pose_Blkf_: vio pose at previous keyframe.
+  // More important than the time, it is important that
+  // it is the same time as vio->W_Pose_Blkf_
+  KeyframeToStampedPose posesAtFutureKeyframes;
+  Pose3 W_Pose_Bkf_gt;
+  if (dataset_.isGroundTruthAvailable()) {
+    W_Pose_Bkf_gt= dataset_.getGroundTruthState(timestamp_lkf_).pose_;
+
+    for (size_t kk = 0; kk < nrKfInHorizon + 1; kk++) {
+      // Including current pose.
+      Timestamp timestamp_kk = timestamp_k + UtilsOpenCV::SecToNsec(
+            kk * tracker_params.intra_keyframe_time_);
+
+      // Relative pose wrt ground truth at last kf.
+      Pose3 poseGT_km1_kk = W_Pose_Bkf_gt.between(
+            dataset_.getGroundTruthState(timestamp_kk).pose_);
+      posesAtFutureKeyframes.push_back(
+            StampedPose(W_Pose_Blkf.compose(poseGT_km1_kk),
+                        UtilsOpenCV::NsecToSec(timestamp_kk)) );
+    }
+  }
+
+  VLOG(100) << "Starting feature selection...";
+  SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
+  std::tie(trackedAndSelectedSmartStereoMeasurements, *feature_selection_time)
+      = feature_selector_.splitTrackedAndNewFeatures_Select_Display(
+        stereo_vision_frontend_->stereoFrame_km1_,
+        status_smart_stereo_meas.second,
+        cur_kf_id, save_image_selector,
+        tracker_params.featureSelectionCriterion_,
+        tracker_params.featureSelectionNrCornersToSelect_,
+        tracker_params.maxFeatureAge_,
+        posesAtFutureKeyframes, // TODO Luca: can we make this optional, for the case where we do not have ground truth?
+        vio_backend_->getCurrentStateCovariance(),
+        dataset_.getDatasetName(),
+        stereo_vision_frontend_->stereoFrame_lkf_->left_frame_); // last 2 are for visualization
+  VLOG(100) << "Feature selection completed.";
+
+  // Same status as before.
+  TrackerStatusSummary status = status_smart_stereo_meas.first;
+  return std::make_pair(status, trackedAndSelectedSmartStereoMeasurements);
 }
 
 void Pipeline::launchThreads() {

@@ -97,6 +97,18 @@ private:
                    const Timestamp& timestamp_k,
                    const ImuAccGyr& imu_accgyr);
 
+  StatusSmartStereoMeasurements featureSelect(const VioFrontEndParams& tracker_params,
+      const ETHDatasetParser& dataset,
+      const Timestamp& timestamp_k,
+      const gtsam::Pose3& W_Pose_Blkf,
+      double* feature_selection_time,
+      const StereoFrame& stereoFrame_km1,
+      const StatusSmartStereoMeasurements &smart_stereo_meas,
+      const double& cur_kf_id,
+      int save_image_selector,
+      const gtsam::Matrix& curr_state_cov,
+      const Frame& left_frame);
+
   // Launch different threads with processes.
   void launchThreads();
 

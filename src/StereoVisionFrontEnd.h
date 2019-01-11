@@ -57,20 +57,7 @@ public:
       const VioFrontEndParams trackerParams = VioFrontEndParams(),
       const VioBackEndParams vioParams = VioBackEndParams(),
       int saveImages = 1,
-      const std::string& dataset_name = "") :
-    frame_count_(0), keyframe_count_(0), last_landmark_count_(0),
-    tracker_(trackerParams,saveImages), saveImages_(saveImages),
-    trackerStatusSummary_(TrackerStatusSummary()),
-    outputImagesPath_("./outputImages/") // only for debugging and visualization
-  {
-    if (saveImages > 0) {
-      outputImagesPath_ = "./outputStereoTrackerImages-" +
-          dataset_name;
-      tracker_.outputImagesPath_ = "./outputTrackerImages-" +
-          dataset_name;
-    }
-    tracker_.trackerParams_.print();
-  }
+      const std::string& dataset_name = "");
 
   // verbosity_ explanation (TODO: include this)
   /*
@@ -124,23 +111,17 @@ public:
   void displayMonoTrack(const int& verbosity) const;
 
   /* ------------------------------------------------------------------------ */
-  // return relative pose between last (lkf) and current keyframe (k) - MONO RANSAC
-  gtsam::Pose3 getRelativePoseBodyMono() const {
-    // lkfBody_T_kBody = lkfBody_T_lkfCamera *  lkfCamera_T_kCamera_ * kCamera_T_kBody =
-    // body_Pose_cam_ * lkf_T_k_mono_ * body_Pose_cam_^-1
-    gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect_; // of the left camera!!
-    return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_mono_ * body_Pose_cam_.inverse();
-  }
+  // Return relative pose between last (lkf) and
+  // current keyframe (k) - MONO RANSAC.
+  gtsam::Pose3 getRelativePoseBodyMono() const;
 
   /* ------------------------------------------------------------------------ */
-  // return relative pose between last (lkf) and current keyframe (k) - STEREO RANSAC
-  gtsam::Pose3 getRelativePoseBodyStereo() const {
-    gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect_; // of the left camera!!
-    return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_stereo_ * body_Pose_cam_.inverse();
-  }
+  // Return relative pose between last (lkf) and
+  // current keyframe (k) - STEREO RANSAC
+  gtsam::Pose3 getRelativePoseBodyStereo() const;
 
   /* ------------------------------------------------------------------------ */
-  // static function to display output of stereo tracker
+  // Static function to display output of stereo tracker
   static void PrintStatusStereoMeasurements(
       const StatusSmartStereoMeasurements& statusStereoMeasurements) {
     LOG(INFO) << " SmartStereoMeasurements with status:";
@@ -165,6 +146,7 @@ public:
     case Tracker::TrackingStatus::LOW_DISPARITY : return "LOW_DISPARITY";
     }
   }
+
 private:
   inline static void logTrackingStatus(const Tracker::TrackingStatus& status,
                                        const std::string& type = "mono") {

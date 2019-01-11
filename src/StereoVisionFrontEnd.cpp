@@ -17,6 +17,22 @@
 
 namespace VIO {
 
+StereoVisionFrontEnd::StereoVisionFrontEnd(
+    const VioFrontEndParams trackerParams,
+    const VioBackEndParams vioParams,
+    int saveImages,
+    const std::string& dataset_name) :
+  frame_count_(0), keyframe_count_(0), last_landmark_count_(0),
+  tracker_(trackerParams,saveImages), saveImages_(saveImages),
+  trackerStatusSummary_(TrackerStatusSummary()),
+  outputImagesPath_("./outputImages/") { // Only for debugging and visualization.
+  if (saveImages > 0) {
+    outputImagesPath_ = "./outputStereoTrackerImages-" + dataset_name;
+    tracker_.outputImagesPath_ = "./outputTrackerImages-" + dataset_name;
+  }
+  tracker_.trackerParams_.print();
+}
+
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::processFirstStereoFrame(StereoFrame& firstFrame) {
   VLOG(2) << "Processing first stereo frame \n";
@@ -85,11 +101,11 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   SmartStereoMeasurements smartStereoMeasurements;
   // smartStereoMeasurements.clear();
 
-  bool maxTimeElapsed = UtilsOpenCV::NsecToSec(stereoFrame_k_->timestamp_ -
-                                               last_keyframe_timestamp_) >=
+  const bool maxTimeElapsed = UtilsOpenCV::NsecToSec(
+              stereoFrame_k_->timestamp_ - last_keyframe_timestamp_) >=
                         tracker_.trackerParams_.intra_keyframe_time_;
-  int nrValidFeatures = left_frame_k.getNrValidKeypoints();
-  bool nrFeaturesIsLow = nrValidFeatures <=
+  const int nrValidFeatures = left_frame_k.getNrValidKeypoints();
+  const bool nrFeaturesIsLow = nrValidFeatures <=
                          tracker_.trackerParams_.minNumberFeatures_;
   if (maxTimeElapsed || nrFeaturesIsLow) {
     ++keyframe_count_; // mainly for debugging
@@ -114,13 +130,17 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       ////////////////// MONO geometric outlier rejection ////////////////
       std::pair<Tracker::TrackingStatus,gtsam::Pose3> statusPoseMono;
       Frame& left_frame_lkf = stereoFrame_lkf_->left_frame_;
-      if(tracker_.trackerParams_.ransac_use_2point_mono_ && calLrectLkf_R_camLrectKf_imu){
+      if (tracker_.trackerParams_.ransac_use_2point_mono_ &&
+          calLrectLkf_R_camLrectKf_imu) {
+        // 2-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMonoGivenRotation(
-            left_frame_lkf, left_frame_k,*calLrectLkf_R_camLrectKf_imu); // 2point ransac
-      }else{
-        statusPoseMono = tracker_.geometricOutlierRejectionMono(left_frame_lkf, left_frame_k); // 5point ransac
+            left_frame_lkf, left_frame_k,*calLrectLkf_R_camLrectKf_imu);
+      } else {
+        // 5-point RANSAC.
+        statusPoseMono = tracker_.geometricOutlierRejectionMono(left_frame_lkf, left_frame_k);
       }
-      // set relative pose
+
+      // Set relative pose.
       trackerStatusSummary_.kfTrackingStatus_mono_ = statusPoseMono.first;
 
       if (VLOG_IS_ON(2)) logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_, "mono");
@@ -142,14 +162,16 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       std::pair<Tracker::TrackingStatus,gtsam::Pose3> statusPoseStereo;
       gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
       if (tracker_.trackerParams_.ransac_use_1point_stereo_ &&
-              calLrectLkf_R_camLrectKf_imu) {
+          calLrectLkf_R_camLrectKf_imu) {
+        // 1-point RANSAC.
         std::tie(statusPoseStereo, infoMatStereoTranslation) =
                 tracker_.geometricOutlierRejectionStereoGivenRotation(
                     *stereoFrame_lkf_, *stereoFrame_k_,
-                    *calLrectLkf_R_camLrectKf_imu); // 1point ransac
+                    *calLrectLkf_R_camLrectKf_imu);
       } else {
+        // 3-point RANSAC.
         statusPoseStereo = tracker_.geometricOutlierRejectionStereo(
-                    *stereoFrame_lkf_, *stereoFrame_k_); // 3point ransac
+                    *stereoFrame_lkf_, *stereoFrame_k_);
       }
 
       // Set relative pose.
@@ -166,10 +188,12 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     last_keyframe_timestamp_ = stereoFrame_k_->timestamp_;
     stereoFrame_k_->isKeyframe_ = true;
 
-    // Perform feature detection (note: this must be after RANSAC, since if we discard more features, we need to extract more)
+    // Perform feature detection (note: this must be after RANSAC,
+    // since if we discard more features, we need to extract more)
     tracker_.featureDetection(left_frame_k);
 
-    // get 3D points via stereo, including newly extracted (this might be only for the visualization)
+    // get 3D points via stereo, including newly extracted
+    // (this might be only for the visualization)
     timeBefore = UtilsOpenCV::GetTimeInSeconds();
     stereoFrame_k_->sparseStereoMatching();
     timeSparseStereo += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
@@ -408,6 +432,22 @@ void StereoVisionFrontEnd::displayMonoTrack(const int& verbosity) const {
     std::cout << "writing image: " << img_name << std::endl;
     cv::imwrite(img_name, img_left_lfk_kf_rectified);
   }
+}
+
+/* -------------------------------------------------------------------------- */
+// return relative pose between last (lkf) and current keyframe (k) - MONO RANSAC
+gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyMono() const {
+  // lkfBody_T_kBody = lkfBody_T_lkfCamera *  lkfCamera_T_kCamera_ * kCamera_T_kBody =
+  // body_Pose_cam_ * lkf_T_k_mono_ * body_Pose_cam_^-1
+  gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect_; // of the left camera!!
+  return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_mono_ * body_Pose_cam_.inverse();
+}
+
+/* -------------------------------------------------------------------------- */
+// return relative pose between last (lkf) and current keyframe (k) - STEREO RANSAC
+gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyStereo() const {
+  gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->B_Pose_camLrect_; // of the left camera!!
+  return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_stereo_ * body_Pose_cam_.inverse();
 }
 
 } // End of VIO namespace.

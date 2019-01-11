@@ -34,8 +34,7 @@ void Tracker::featureDetection(Frame& cur_frame)
   debugInfo_.need_n_corners_ = nr_corners_needed;
   ///////////////// FEATURE DETECTION //////////////////////
   // If feature FeatureSelectionCriterion is quality, just extract what you need:
-  double startTime;
-  if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
+  double startTime = UtilsOpenCV::GetTimeInSeconds();
   KeypointsCV corners; std::vector<double> cornerScores;
   std::tie(corners,cornerScores) = Tracker::FeatureDetection(cur_frame, trackerParams_, camMask_, nr_corners_needed);
   if (verbosity_ >= 5) debugInfo_.featureDetectionTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
@@ -104,10 +103,8 @@ std::pair<KeypointsCV, std::vector<double> > Tracker::FeatureDetection(
 }
 
 /* -------------------------------------------------------------------------- */
-void Tracker::featureTracking(Frame& ref_frame, Frame& cur_frame)
-{
-  double startTime;
-  if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
+void Tracker::featureTracking(Frame& ref_frame, Frame& cur_frame) {
+  double startTime = UtilsOpenCV::GetTimeInSeconds();
 
   // Setup termination criteria for optical flow
   std::vector<uchar> status;
@@ -179,8 +176,7 @@ void Tracker::featureTracking(Frame& ref_frame, Frame& cur_frame)
 /* -------------------------------------------------------------------------- */
 std::pair<Tracker::TrackingStatus,gtsam::Pose3>
 Tracker::geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame) {
-  double startTime;
-  if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
+  double startTime = UtilsOpenCV::GetTimeInSeconds();
 
   std::vector<std::pair<size_t, size_t>> matches_ref_cur =
       FindMatchingKeypoints(ref_frame, cur_frame);
@@ -188,8 +184,7 @@ Tracker::geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame) {
   // Vector of bearing vectors
   BearingVectors f_cur; f_cur.reserve(matches_ref_cur.size());
   BearingVectors f_ref; f_ref.reserve(matches_ref_cur.size());
-  for (const std::pair<size_t, size_t>& it : matches_ref_cur)
-  {
+  for (const std::pair<size_t, size_t>& it : matches_ref_cur) {
     f_ref.push_back(ref_frame.versors_.at(it.first)); // TODO (luca): if versors are only needed at keyframe, do not compute every frame
     f_cur.push_back(cur_frame.versors_.at(it.second));
   }
@@ -202,45 +197,29 @@ Tracker::geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame) {
   ransac.max_iterations_ = trackerParams_.ransac_max_iterations_;
   ransac.probability_ = trackerParams_.ransac_probability_;
 
-#ifdef TRACKER_DEBUG_COUT
-  std::cout << "geometricOutlierRejectionMono: starting RANSAC" << std::endl;
-#endif
+  VLOG(2) << "geometricOutlierRejectionMono: starting RANSAC.";
 
   // Solve
-  if (!ransac.computeModel(0))
-  {
-
-#ifdef TRACKER_DEBUG_COUT
-    std::cout << "failure: 5pt RANSAC could not find a solution" << std::endl;
-#endif
-
-    return std::make_pair(Tracker::TrackingStatus::INVALID,gtsam::Pose3());
+  if (!ransac.computeModel(0)) {
+    VLOG(2) << "failure: 5pt RANSAC could not find a solution.";
+    return std::make_pair(Tracker::TrackingStatus::INVALID, gtsam::Pose3());
   }
 
-#ifdef TRACKER_DEBUG_COUT
-  std::cout << "geometricOutlierRejectionMono: RANSAC complete" << std::endl;
-#endif
+  VLOG(2) << "geometricOutlierRejectionMono: RANSAC complete.";
 
   // REMOVE OUTLIERS
-  removeOutliersMono(ref_frame, cur_frame, matches_ref_cur, ransac.inliers_, ransac.iterations_);
+  removeOutliersMono(ref_frame, cur_frame, matches_ref_cur, ransac.inliers_,
+                     ransac.iterations_);
 
   // CHECK QUALITY OF TRACKING
   Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
-  if(ransac.inliers_.size() < trackerParams_.minNrMonoInliers_){
-
-#ifdef TRACKER_DEBUG_COUT
-    std::cout << "FEW_MATCHES: " << ransac.inliers_.size() << std::endl;
-#endif
-
+  if (ransac.inliers_.size() < trackerParams_.minNrMonoInliers_) {
+    VLOG(2) << "FEW_MATCHES: " << ransac.inliers_.size();
     status = Tracker::TrackingStatus::FEW_MATCHES;
   }
+  double disparity = ComputeMedianDisparity(ref_frame, cur_frame);
 
-  double disparity = ComputeMedianDisparity(ref_frame,cur_frame);
-
-#ifdef TRACKER_DEBUG_COUT
-  std::cout << "median disparity " << disparity << std::endl;
-#endif
-
+  VLOG(2) << "Median disparity: " << disparity;
   if(disparity < trackerParams_.disparityThreshold_){
 
 #ifdef TRACKER_DEBUG_COUT
@@ -272,10 +251,8 @@ Tracker::geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame) {
 /* -------------------------------------------------------------------------- */
 std::pair<Tracker::TrackingStatus,gtsam::Pose3>
 Tracker::geometricOutlierRejectionMonoGivenRotation(
-    Frame& ref_frame, Frame& cur_frame, const gtsam::Rot3& R)
-{
-  double startTime;
-  if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
+    Frame& ref_frame, Frame& cur_frame, const gtsam::Rot3& R) {
+  double startTime = UtilsOpenCV::GetTimeInSeconds();
 
   std::vector<std::pair<size_t, size_t>> matches_ref_cur =
       FindMatchingKeypoints(ref_frame, cur_frame);
@@ -432,8 +409,10 @@ std::pair< std::pair<Tracker::TrackingStatus,gtsam::Pose3>, gtsam::Matrix3 >
 Tracker::geometricOutlierRejectionStereoGivenRotation(
     StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame,
     const gtsam::Rot3& R) {
-  double startTime, timeMatchingAndAllocation_p, timeCreatePointsAndCov_p, timeVoting_p, timeTranslationComputation_p;
-  if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
+  double startTime = UtilsOpenCV::GetTimeInSeconds();
+  // TODO missing initialization is prone to undefined behaviour.
+  double timeMatchingAndAllocation_p, timeCreatePointsAndCov_p, timeVoting_p,
+          timeTranslationComputation_p;
 
   std::vector<std::pair<size_t, size_t>> matches_ref_cur =
       FindMatchingStereoKeypoints(ref_stereoFrame, cur_stereoFrame);
@@ -611,8 +590,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
 std::pair<Tracker::TrackingStatus,gtsam::Pose3>
 Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
                                          StereoFrame& cur_stereoFrame) {
-  double startTime;
-  if (verbosity_ >= 5) startTime = UtilsOpenCV::GetTimeInSeconds();
+  double startTime = UtilsOpenCV::GetTimeInSeconds();
 
   std::vector<std::pair<size_t, size_t>> matches_ref_cur =
       FindMatchingStereoKeypoints(ref_stereoFrame, cur_stereoFrame);

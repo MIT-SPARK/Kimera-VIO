@@ -1113,9 +1113,21 @@ public:
       const int& nrFeaturesToSelect,
       const int& maxFeatureAge,
       const KeyframeToStampedPose& posesAtFutureKeyframes,
-      const gtsam::Matrix& currNavStateCovariance,
+      const gtsam::Matrix& curr_state_cov,
       const std::string& dataset_name,
       const Frame& frame_km1) {
+    // ToDo init to invalid value.
+    gtsam::Matrix currNavStateCovariance;
+    if (criterion != VioFrontEndParams::FeatureSelectionCriterion::QUALITY) {
+      VLOG(100) << "Using feature selection criterion diff than QUALITY ";
+      try {
+        currNavStateCovariance = curr_state_cov;
+      } catch(const gtsam::IndeterminantLinearSystemException& e) {
+        LOG(ERROR) << "Error when calculating current state covariance.";
+      }
+    } else {
+      VLOG(100) << "Using QUALITY as feature selection criterion";
+    }
 
     //////////////////////////////////////////////////////////////////
     // 1) split tracked VS new features:
