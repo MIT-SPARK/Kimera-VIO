@@ -24,8 +24,6 @@
 #include <Eigen/Dense>
 #include <gtsam/base/Matrix.h>
 
-#define IMU_BUFFER_DEBUG_COUT
-
 namespace VIO {
 
 // Inertial containers.
@@ -36,7 +34,8 @@ using Vector3 = gtsam::Vector3;
 
 class ImuFrontEnd {
 public:
-  using ImuData = std::map<int64_t, Vector6, std::less<int64_t>, Eigen::aligned_allocator<std::pair<int64_t const, Vector6> > >;
+  using ImuData = std::map<int64_t, Vector6, std::less<int64_t>,
+    Eigen::aligned_allocator<std::pair<int64_t const, Vector6> > >;
 
   explicit ImuFrontEnd(int64_t buffer_size_microseconds = 60 * 120 * 1e9) // 120 minutes of history
   : buffer_size_microsec_(buffer_size_microseconds) {}

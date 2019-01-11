@@ -13,6 +13,8 @@
  */
 #include "ImuFrontEnd.h"
 
+#include <glog/logging.h>
+
 using namespace VIO;
 
 /* --------------------------------------------------------------------------------------- */
@@ -35,52 +37,37 @@ ImuFrontEnd::getBetweenValuesInterpolated(
   ImuAccGyr imu_accgyr;
 
   if (!(stamp_from >= 0 and stamp_from < stamp_to)) {
-#ifdef IMU_BUFFER_DEBUG_COUT
-    printf("WARNING: Timestamps out of order/n");
-#endif
+    VLOG(10) << "WARNING: Timestamps out of order.";
     // Return empty means unsuccessful.
     return std::make_pair(imu_stamps, imu_accgyr);
   }
-#ifdef IMU_BUFFER_DEBUG_COUT
-  if (stamp_from == 0)
-    printf("WARNING: required 0 stamp_from in imuBuffer /n");
-#endif
+  VLOG_IF(10, stamp_from == 0) << "WARNING: required 0 stamp_from in imuBuffer.";
 
   std::lock_guard<std::mutex> lock(mutex_);
   if(buffer_.size() < 2) {
-#ifdef IMU_BUFFER_DEBUG_COUT
-    printf("Buffer has less than 2 entries.\n");
-#endif
+    VLOG(10) << "Buffer has less than 2 entries.";
     return std::make_pair(imu_stamps, imu_accgyr); // return empty means unsuccessful.
   }
 
   const int64_t oldest_stamp = buffer_.begin()->first;
   const int64_t newest_stamp = buffer_.rbegin()->first;
   if (stamp_from < oldest_stamp) {
-#ifdef IMU_BUFFER_DEBUG_COUT
-    printf("Requests older timestamp than in buffer.\n");
-#endif
+    VLOG(10) << "Requests older timestamp than in buffer.";
     return std::make_pair(imu_stamps, imu_accgyr); // return empty means unsuccessful.
   }
   if(stamp_to > newest_stamp) {
-#ifdef IMU_BUFFER_DEBUG_COUT
-    printf("Requests newer timestamp than in buffer.\n");
-#endif
+    VLOG(10) << "Requests newer timestamp than in buffer.";
     return std::make_pair(imu_stamps, imu_accgyr); // return empty means unsuccessful.
   }
 
   auto it_from_before = iterator_equal_or_before(stamp_from);
   auto it_to_after = iterator_equal_or_after(stamp_to);
   if (it_from_before == buffer_.end()) {
-#ifdef IMU_BUFFER_DEBUG_COUT
-    printf("it_from_before == buffer.end. (imu buffer warning) \n");
-#endif
+    VLOG(10) << "it_from_before == buffer.end. (imu buffer warning).";
     std::make_pair(imu_stamps, imu_accgyr); // return empty means unsuccessful. // Why there is no return??
   }
   if (it_to_after == buffer_.end()) {
-#ifdef IMU_BUFFER_DEBUG_COUT
-    printf("it_to_after == buffer.end. (imu buffer warning) \n");
-#endif
+    VLOG(10) << "it_to_after == buffer.end. (imu buffer warning).";
     std::make_pair(imu_stamps, imu_accgyr); // return empty means unsuccessful. // Why there is no return??
   }
   // the following is a mystery
@@ -88,11 +75,8 @@ ImuFrontEnd::getBetweenValuesInterpolated(
   ++it_from_after;
   auto it_to_before = it_to_after;
   --it_to_before;
-  if(it_from_after == it_to_before)
-  {
-#ifdef IMU_BUFFER_DEBUG_COUT
-    printf("Not enough data for interpolation\n");
-#endif
+  if (it_from_after == it_to_before) {
+    VLOG(10) << "Not enough data for interpolation.";
     return std::make_pair(imu_stamps, imu_accgyr); // return empty means unsuccessful.
   }
 
