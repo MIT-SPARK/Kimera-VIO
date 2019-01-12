@@ -274,9 +274,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   ransac.max_iterations_ = trackerParams_.ransac_max_iterations_;
   ransac.probability_ = trackerParams_.ransac_probability_;
 
-#ifdef TRACKER_DEBUG_COUT
-  std::cout << "geometricOutlierRejectionMonoGivenRot: starting RANSAC" << std::endl;
-#endif
+  VLOG(10) << "geometricOutlierRejectionMonoGivenRot: starting RANSAC";
 
   // Solve
 #ifdef sw_frontend
@@ -298,55 +296,38 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
   ransac.inliers_ = inliers;
   ransac.iterations_ = actual_iterations;
 
-#ifdef TRACKER_DEBUG_COUT
-  std::cout << "geometricOutlierRejectionMonoGivenRot: RANSAC complete sw version" << std::endl;
-#endif
+  VLOG(10) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete sw version";
 
   ////////////////////////////////////
 #else
-  if (!ransac.computeModel(0))
-  {
-
-#ifdef TRACKER_DEBUG_COUT
-    std::cout << "failure: 2pt RANSAC could not find a solution" << std::endl;
-#endif
-
+  if (!ransac.computeModel(0)) {
+    VLOG(10) << "failure: 2pt RANSAC could not find a solution";
     return std::make_pair(Tracker::TrackingStatus::INVALID,gtsam::Pose3());
   }
 
-#ifdef TRACKER_DEBUG_COUT
-  std::cout << "geometricOutlierRejectionMonoGivenRot: RANSAC complete" << std::endl;
+  VLOG(10) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete";
 #endif
 
-#endif
   // REMOVE OUTLIERS
-  removeOutliersMono(ref_frame, cur_frame, matches_ref_cur, ransac.inliers_, ransac.iterations_);
+  removeOutliersMono(ref_frame, cur_frame, matches_ref_cur,
+                     ransac.inliers_, ransac.iterations_);
 
   // CHECK QUALITY OF TRACKING
   Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
-  if(ransac.inliers_.size() < trackerParams_.minNrMonoInliers_){
-
-#ifdef TRACKER_DEBUG_COUT
-    std::cout << "FEW_MATCHES: " << ransac.inliers_.size() << std::endl;
-#endif
-
+  if (ransac.inliers_.size() < trackerParams_.minNrMonoInliers_) {
+    VLOG(10) << "FEW_MATCHES: " << ransac.inliers_.size();
     status = Tracker::TrackingStatus::FEW_MATCHES;
   }
 
   double disparity = ComputeMedianDisparity(ref_frame,cur_frame);
 
-#ifdef TRACKER_DEBUG_COUT
-  std::cout << "median disparity " << disparity << std::endl;
-#endif
+  VLOG(10) << "median disparity " << disparity;
 
-  if(disparity < trackerParams_.disparityThreshold_){
-
-#ifdef TRACKER_DEBUG_COUT
-    std::cout << "LOW_DISPARITY: " << disparity << std::endl;
-#endif
-
+  if (disparity < trackerParams_.disparityThreshold_) {
+    VLOG(10) << "LOW_DISPARITY: " << disparity;
     status = Tracker::TrackingStatus::LOW_DISPARITY;
   }
+
   // GET THE RESULTING TRANSFORMATION: a 3x4 matrix [R t]
   opengv::transformation_t best_transformation = ransac.model_coefficients_;
   gtsam::Pose3 camLlkf_P_camLkf = UtilsOpenCV::Gvtrans2pose(best_transformation);
@@ -792,8 +773,7 @@ std::vector<std::pair<size_t, size_t>> Tracker::FindMatchingKeypoints(
 
 /* -------------------------------------------------------------------------- */
 double Tracker::ComputeMedianDisparity(const Frame& ref_frame,
-                                       const Frame& cur_frame)
-{
+                                       const Frame& cur_frame) {
   // Find keypoints that observe the same landmarks in both frames:
   std::vector<std::pair<size_t, size_t>> matches_ref_cur =
       FindMatchingKeypoints(ref_frame, cur_frame);
@@ -801,77 +781,66 @@ double Tracker::ComputeMedianDisparity(const Frame& ref_frame,
   // Compute disparity:
   std::vector<double> disparity;
   disparity.reserve(matches_ref_cur.size());
-  // std::cout << "pxDistance: " << std::endl;
-  for(const std::pair<size_t, size_t>& rc : matches_ref_cur)
-  {
+  for (const std::pair<size_t, size_t>& rc : matches_ref_cur) {
     KeypointCV pxDiff = cur_frame.keypoints_[rc.second] - ref_frame.keypoints_[rc.first];
-    double pxDistance = sqrt( pxDiff.x*pxDiff.x + pxDiff.y*pxDiff.y);
-    // std::cout << " " << pxDistance;
+    double pxDistance = sqrt( pxDiff.x * pxDiff.x + pxDiff.y * pxDiff.y);
     disparity.push_back( pxDistance );
   }
-  // std::cout << std::endl;
 
-  if(disparity.empty())
-  {
-#ifdef TRACKER_DEBUG_COUT
-    std::cout << "WARNING: Have no matches for disparity computation\n" << std::endl;
-#endif
+  if (disparity.empty()) {
+    VLOG(10) << "WARNING: Have no matches for disparity computation.";
     return 0.0;
   }
 
   // Compute median:
   const size_t center = disparity.size() / 2;
-  std::nth_element(disparity.begin(), disparity.begin() + center, disparity.end());
+  std::nth_element(disparity.begin(), disparity.begin() + center,
+                   disparity.end());
   return disparity[center];
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO this won't work in parallel mode, as visualization must be done in
+// main thread.
 cv::Mat Tracker::displayFrame(
-    const Frame& ref_frame, const Frame& cur_frame,
-    const int verbosity,
+    const Frame& ref_frame,
+    const Frame& cur_frame,
+    int verbosity,
     const KeypointsCV& extraCorners1,
     const KeypointsCV& extraCorners2,
-    const std::string& extraString) const
-{
+    const std::string& extraString) const {
   cv::Mat img_rgb = cv::Mat(cur_frame.img_.size(), CV_8U);
   cv::cvtColor(cur_frame.img_, img_rgb, cv::COLOR_GRAY2RGB);
 
-  // add extra corners if desired
+  // Add extra corners if desired.
   for (auto px_cur : extraCorners1) // gray
     cv::circle(img_rgb, px_cur, 4, cv::Scalar(255,255,255), 2);
   for (auto px_cur : extraCorners2) // blue
     cv::circle(img_rgb, px_cur, 4, cv::Scalar(255,0,0), 2);
 
-  // add all keypoints in cur_frame with the tracks
-  for (size_t i = 0; i < cur_frame.keypoints_.size(); ++i)
-  {
+  // Add all keypoints in cur_frame with the tracks.
+  for (size_t i = 0; i < cur_frame.keypoints_.size(); ++i) {
     cv::Point2f px_cur = cur_frame.keypoints_.at(i);
-    if (cur_frame.landmarks_.at(i) == -1) // Untracked landmarks are red.
-    {
+    if (cur_frame.landmarks_.at(i) == -1) {// Untracked landmarks are red.
       cv::circle(img_rgb, px_cur, 4, cv::Scalar(0,0,255), 2);
-    }
-    else
-    {
-      auto it = find(ref_frame.landmarks_.begin(), ref_frame.landmarks_.end(), cur_frame.landmarks_.at(i));
-      if (it != ref_frame.landmarks_.end())
-      {
+    } else {
+      auto it = find(ref_frame.landmarks_.begin(), ref_frame.landmarks_.end(),
+                     cur_frame.landmarks_.at(i));
+      if (it != ref_frame.landmarks_.end()) {
         // If feature was in previous frame, display tracked feature with green circle/line
         cv::circle(img_rgb, px_cur, 6, cv::Scalar(0,255,0), 1);
         int nPos = distance(ref_frame.landmarks_.begin(), it);
         cv::Point2f px_ref = ref_frame.keypoints_.at(nPos);
         cv::line(img_rgb, px_cur, px_ref, cv::Scalar(0,255,0), 1);
-      }
-      else // New feature tracks are blue.
-      {
+      } else {// New feature tracks are blue.
         cv::circle(img_rgb, px_cur, 6, cv::Scalar(255,0,0), 1);
       }
     }
   }
-  if(verbosity==1){ // otherwise just return the image
+  if (verbosity == 1) { // otherwise just return the image
     cv::imshow("img"+ extraString, img_rgb);
     cv::waitKey(trackerParams_.display_time_);
-  }
-  if(verbosity==2){
+  } else if (verbosity == 2) {
     std::string folderName = outputImagesPath_ + extraString + "-" + VioFrontEndParams::FeatureSelectionCriterionStr(trackerParams_.featureSelectionCriterion_) + "/";
     boost::filesystem::path trackerDir(folderName.c_str());
     boost::filesystem::create_directory(trackerDir);
