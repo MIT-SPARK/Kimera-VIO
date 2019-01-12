@@ -219,67 +219,66 @@ public:
   }
 
   /* -------------------------------------------------------------------------- */
-  void print() const
-  {
-    std::cout << "&&&&&&&&&&&&&&&&&&&& TRACKER PARAMETERS &&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
-    std::cout << "** Feature tracking parameters **" << std::endl;
-    std::cout << "klt_win_size_: " << klt_win_size_ << std::endl;
-    std::cout << "klt_max_iter_: " << klt_max_iter_ << std::endl;
-    std::cout << "klt_max_level_: " << klt_max_level_ << std::endl;
-    std::cout << "klt_eps_: " << klt_eps_ << std::endl;
-    std::cout << "maxFeatureAge_: " << maxFeatureAge_ << std::endl;
+  void print() const {
+    LOG(INFO) << "&&&&&&&&&&&&&&&&&&&& TRACKER PARAMETERS &&&&&&&&&&&&&&&&&&&&&&&&&&&\n"
+     << "** Feature tracking parameters **\n"
+     << "klt_win_size_: " << klt_win_size_ << '\n'
+     << "klt_max_iter_: " << klt_max_iter_ << '\n'
+     << "klt_max_level_: " << klt_max_level_ << '\n'
+     << "klt_eps_: " << klt_eps_ << '\n'
+     << "maxFeatureAge_: " << maxFeatureAge_ << '\n'
 
-    std::cout << "** Feature detection parameters **" << std::endl;
-    std::cout << "maxFeaturesPerFrame_: " << maxFeaturesPerFrame_ << std::endl;
-    std::cout << "quality_level_: " << quality_level_ << std::endl;
-    std::cout << "min_distance_: " << min_distance_ << std::endl;
-    std::cout << "block_size_: " << block_size_ << std::endl;
-    std::cout << "use_harris_detector_: " << use_harris_detector_ << std::endl;
-    std::cout << "k_: " << k_ << std::endl;
-    std::cout << "equalizeImage_: " << equalizeImage_ << std::endl;
+     << "** Feature detection parameters **\n"
+     << "maxFeaturesPerFrame_: " << maxFeaturesPerFrame_ << '\n'
+     << "quality_level_: " << quality_level_ << '\n'
+     << "min_distance_: " << min_distance_ << '\n'
+     << "block_size_: " << block_size_ << '\n'
+     << "use_harris_detector_: " << use_harris_detector_ << '\n'
+     << "k_: " << k_ << '\n'
+     << "equalizeImage_: " << equalizeImage_ << '\n'
 
-    std::cout << "** Sparse Stereo Matching parameters **" << std::endl;
-    std::cout << "nominalBaseline_: " << nominalBaseline_ << std::endl;
-    std::cout << "toleranceTemplateMatching_: " << toleranceTemplateMatching_ << std::endl;
-    std::cout << "templ_cols_: " << templ_cols_ << std::endl;
-    std::cout << "templ_rows_: " << templ_rows_ << std::endl;
-    std::cout << "stripe_extra_rows_: " << stripe_extra_rows_ << std::endl;
-    std::cout << "minPointDist_: " << minPointDist_ << std::endl;
-    std::cout << "maxPointDist_: " << maxPointDist_ << std::endl;
-    std::cout << "bidirectionalMatching_: " << bidirectionalMatching_ << std::endl;
-    std::cout << "subpixelRefinementStereo_: " << subpixelRefinementStereo_ << std::endl;
+     << "** Sparse Stereo Matching parameters **\n"
+     << "nominalBaseline_: " << nominalBaseline_ << '\n'
+     << "toleranceTemplateMatching_: " << toleranceTemplateMatching_ << '\n'
+     << "templ_cols_: " << templ_cols_ << '\n'
+     << "templ_rows_: " << templ_rows_ << '\n'
+     << "stripe_extra_rows_: " << stripe_extra_rows_ << '\n'
+     << "minPointDist_: " << minPointDist_ << '\n'
+     << "maxPointDist_: " << maxPointDist_ << '\n'
+     << "bidirectionalMatching_: " << bidirectionalMatching_ << '\n'
+     << "subpixelRefinementStereo_: " << subpixelRefinementStereo_ << '\n'
 
-    std::cout << "** Feature selection parameters **" << std::endl;
-    std::cout << "featureSelectionCriterion_: " << featureSelectionCriterion_ << std::endl;
-    std::cout << "featureSelectionHorizon_: " << featureSelectionHorizon_ << std::endl;
-    std::cout << "featureSelectionNrCornersToSelect_: " << featureSelectionNrCornersToSelect_ << std::endl;
-    std::cout << "featureSelectionImuRate_: " << featureSelectionImuRate_ << std::endl;
-    std::cout << "featureSelectionDefaultDepth_: " << featureSelectionDefaultDepth_ << std::endl;
-    std::cout << "featureSelectionCosineNeighborhood_: " << featureSelectionCosineNeighborhood_ << std::endl;
-    std::cout << "featureSelectionUseLazyEvaluation_: " << featureSelectionUseLazyEvaluation_ << std::endl;
-    std::cout << "useSuccessProbabilities_: " << useSuccessProbabilities_ << std::endl;
+     << "** Feature selection parameters **\n"
+     << "featureSelectionCriterion_: " << featureSelectionCriterion_ << '\n'
+     << "featureSelectionHorizon_: " << featureSelectionHorizon_ << '\n'
+     << "featureSelectionNrCornersToSelect_: " << featureSelectionNrCornersToSelect_ << '\n'
+     << "featureSelectionImuRate_: " << featureSelectionImuRate_ << '\n'
+     << "featureSelectionDefaultDepth_: " << featureSelectionDefaultDepth_ << '\n'
+     << "featureSelectionCosineNeighborhood_: " << featureSelectionCosineNeighborhood_ << '\n'
+     << "featureSelectionUseLazyEvaluation_: " << featureSelectionUseLazyEvaluation_ << '\n'
+     << "useSuccessProbabilities_: " << useSuccessProbabilities_ << '\n'
 
-    std::cout << "** RANSAC parameters **" << std::endl;
-    std::cout << "useRANSAC_: " << useRANSAC_ << std::endl;
-    std::cout << "minNrMonoInliers_: " << minNrMonoInliers_ << std::endl;
-    std::cout << "minNrStereoInliers_: " << minNrStereoInliers_ << std::endl;
-    std::cout << "ransac_threshold_mono_: " << ransac_threshold_mono_ << std::endl;
-    std::cout << "ransac_threshold_stereo_: " << ransac_threshold_stereo_ << std::endl;
-    std::cout << "ransac_use_1point_stereo_: " << ransac_use_1point_stereo_ << std::endl;
-    std::cout << "ransac_use_2point_mono_: " << ransac_use_2point_mono_ << std::endl;
-    std::cout << "ransac_max_iterations_: " << ransac_max_iterations_ << std::endl;
-    std::cout << "ransac_probability_: " << ransac_probability_ << std::endl;
-    std::cout << "ransac_randomize_: " << ransac_randomize_ << std::endl;
+     << "** RANSAC parameters **\n"
+     << "useRANSAC_: " << useRANSAC_ << '\n'
+     << "minNrMonoInliers_: " << minNrMonoInliers_ << '\n'
+     << "minNrStereoInliers_: " << minNrStereoInliers_ << '\n'
+     << "ransac_threshold_mono_: " << ransac_threshold_mono_ << '\n'
+     << "ransac_threshold_stereo_: " << ransac_threshold_stereo_ << '\n'
+     << "ransac_use_1point_stereo_: " << ransac_use_1point_stereo_ << '\n'
+     << "ransac_use_2point_mono_: " << ransac_use_2point_mono_ << '\n'
+     << "ransac_max_iterations_: " << ransac_max_iterations_ << '\n'
+     << "ransac_probability_: " << ransac_probability_ << '\n'
+     << "ransac_randomize_: " << ransac_randomize_ << '\n'
 
-    std::cout << "** STEREO tracker parameters **" << std::endl;
-    std::cout << "intra_keyframe_time_: " << intra_keyframe_time_ << std::endl;
-    std::cout << "minNumberFeatures_: " << minNumberFeatures_ << std::endl;
-    std::cout << "useStereoTracking_: " << useStereoTracking_ << std::endl;
+     << "** STEREO tracker parameters **\n"
+     << "intra_keyframe_time_: " << intra_keyframe_time_ << '\n'
+     << "minNumberFeatures_: " << minNumberFeatures_ << '\n'
+     << "useStereoTracking_: " << useStereoTracking_ << '\n'
 
-    std::cout << "** OTHER parameters **" << std::endl;
-    std::cout << "disparityThreshold_: " << disparityThreshold_ << std::endl;
-    std::cout << "display_time_: " << display_time_ << std::endl;
-    std::cout << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&" << std::endl;
+     << "** OTHER parameters **" << '\n'
+     << "disparityThreshold_: " << disparityThreshold_ << '\n'
+     << "display_time_: " << display_time_ << '\n'
+     << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&";
   }
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   bool parseYAML(std::string filepath){
