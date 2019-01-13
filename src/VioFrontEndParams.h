@@ -128,7 +128,7 @@ public:
 
   // RANSAC parameters
   bool useRANSAC_;
-  int minNrMonoInliers_, minNrStereoInliers_;
+  int minNrMonoInliers_, minNrStereoInliers_; // TODO should be size_t
   double ransac_threshold_mono_, ransac_threshold_stereo_;
   int    ransac_max_iterations_; // TODO (minor) : should we split this in mono and stereo?
   double ransac_probability_; // TODO (minor) : should we split this in mono and stereo?

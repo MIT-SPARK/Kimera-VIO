@@ -43,7 +43,8 @@ public:
   TrackerStatusSummary() :
     kfTrackingStatus_mono_(Tracker::TrackingStatus::INVALID),
     kfTrackingStatus_stereo_(Tracker::TrackingStatus::INVALID),
-    lkf_T_k_mono_(gtsam::Pose3()), lkf_T_k_stereo_(gtsam::Pose3()),
+    lkf_T_k_mono_(gtsam::Pose3()),
+    lkf_T_k_stereo_(gtsam::Pose3()),
     infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
 };
 
@@ -54,8 +55,7 @@ class StereoVisionFrontEnd{
 public:
   // Constructor.
   StereoVisionFrontEnd(
-      const VioFrontEndParams trackerParams = VioFrontEndParams(),
-      const VioBackEndParams vioParams = VioBackEndParams(),
+      const VioFrontEndParams& trackerParams = VioFrontEndParams(),
       int saveImages = 1,
       const std::string& dataset_name = "");
 

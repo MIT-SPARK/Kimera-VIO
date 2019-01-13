@@ -529,11 +529,9 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
       // following are output
       left_camera_info.R_rectify_,right_camera_info.R_rectify_,P1,P2,Q);
 
-#ifdef STEREO_FRAME_DEBUG_COUT
-  std::cout << "RESULTS OF RECTIFICATION: " << std::endl;
-  std::cout << "left_camera_info.R_rectify_\n" << left_camera_info.R_rectify_ << std::endl;
-  std::cout << "right_camera_info.R_rectify_\n" << right_camera_info.R_rectify_ << std::endl;
-#endif
+  VLOG(10) << "RESULTS OF RECTIFICATION: \n"
+           << "left_camera_info.R_rectify_\n" << left_camera_info.R_rectify_
+           << "right_camera_info.R_rectify_\n" << right_camera_info.R_rectify_;
 
   // left camera pose after rectification
   gtsam::Rot3 camL_Rot_camLrect = UtilsOpenCV::Cvmat2rot(left_camera_info.R_rectify_).inverse();
@@ -549,12 +547,12 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   gtsam::Pose3 camLrect_Pose_calRrect = B_Pose_camLrect_.between(B_Pose_camRrect);
   // get baseline
   baseline_ = camLrect_Pose_calRrect.translation().x();
-  if(baseline_ > 1.1 * sparseStereoParams_.nominalBaseline || baseline_ < 0.9 * sparseStereoParams_.nominalBaseline){ // within 10% of the expected baseline
-#ifdef STEREO_FRAME_DEBUG_COUT
-    std::cout << "getRectifiedImages: abnormal baseline: " << baseline_  << ", nominalBaseline: " << sparseStereoParams_.nominalBaseline
-        <<  "(+/-10%) \n\n\n\n" << std::endl;
-#endif
-    // throw std::runtime_error("getRectifiedImages: abnormal baseline");
+  // TODO remove hardcoded values.
+  if (baseline_ > 1.1 * sparseStereoParams_.nominalBaseline ||
+      baseline_ < 0.9 * sparseStereoParams_.nominalBaseline) { // within 10% of the expected baseline
+    LOG(WARNING) << "getRectifiedImages: abnormal baseline: " << baseline_
+                 << ", nominalBaseline: " << sparseStereoParams_.nominalBaseline
+                 <<  "(+/-10%) \n\n\n\n";
   }
 
   // sanity check

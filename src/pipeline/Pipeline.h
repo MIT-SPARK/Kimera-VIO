@@ -100,14 +100,20 @@ private:
   void spinDisplayOnce(
       const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload);
 
-  StatusSmartStereoMeasurements featureSelect(const VioFrontEndParams& tracker_params,
+  void processKeyframe(
+      size_t k,
+      StatusSmartStereoMeasurements* statusSmartStereoMeasurements);
+
+  StatusSmartStereoMeasurements featureSelect(
+      const VioFrontEndParams& tracker_params,
       const ETHDatasetParser& dataset,
       const Timestamp& timestamp_k,
+      const Timestamp& timestamp_lkf,
       const gtsam::Pose3& W_Pose_Blkf,
       double* feature_selection_time,
-      const StereoFrame& stereoFrame_km1,
+      std::shared_ptr<StereoFrame>& stereoFrame_km1,
       const StatusSmartStereoMeasurements &smart_stereo_meas,
-      const double& cur_kf_id,
+      int cur_kf_id,
       int save_image_selector,
       const gtsam::Matrix& curr_state_cov,
       const Frame& left_frame);

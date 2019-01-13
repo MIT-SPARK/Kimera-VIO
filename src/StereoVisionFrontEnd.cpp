@@ -18,13 +18,15 @@
 namespace VIO {
 
 StereoVisionFrontEnd::StereoVisionFrontEnd(
-    const VioFrontEndParams trackerParams,
-    const VioBackEndParams vioParams,
+    const VioFrontEndParams& trackerParams,
     int saveImages,
     const std::string& dataset_name) :
-  frame_count_(0), keyframe_count_(0), last_landmark_count_(0),
-  tracker_(trackerParams,saveImages), saveImages_(saveImages),
-  trackerStatusSummary_(TrackerStatusSummary()),
+  frame_count_(0),
+  keyframe_count_(0),
+  last_landmark_count_(0),
+  tracker_(trackerParams, saveImages),
+  saveImages_(saveImages),
+  trackerStatusSummary_(),
   outputImagesPath_("./outputImages/") { // Only for debugging and visualization.
   if (saveImages > 0) {
     outputImagesPath_ = "./outputStereoTrackerImages-" + dataset_name;
@@ -134,7 +136,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
           calLrectLkf_R_camLrectKf_imu) {
         // 2-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMonoGivenRotation(
-            left_frame_lkf, left_frame_k,*calLrectLkf_R_camLrectKf_imu);
+            left_frame_lkf, left_frame_k, *calLrectLkf_R_camLrectKf_imu);
       } else {
         // 5-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMono(left_frame_lkf, left_frame_k);

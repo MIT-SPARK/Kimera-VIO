@@ -271,11 +271,10 @@ TEST(testVio, robotMovingWithConstantVelocity) {
           all_measurements[k], // vision data
           imu_stamps, imu_accgyr);
 
-    NonlinearFactorGraph nlfg = vio->smoother_->getFactors();
+    const NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
     size_t nrFactorsInSmoother = 0;
-    for(auto f : nlfg){ // count the number of nonempty factors
-      if(f)
-        nrFactorsInSmoother++;
+    for(const auto& f : nlfg) { // count the number of nonempty factors
+      if (f) nrFactorsInSmoother++;
     }
     cout << "at frame " << k << " nr factors: " << nrFactorsInSmoother << endl;
 
@@ -289,7 +288,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
     }
 #endif
     // Check the results!
-    Values& results = vio->state_;
+    const Values& results = vio->getState();
 
     for (int f_id = 0; f_id <= k; f_id++) {
       Pose3 W_Pose_Blkf = results.at<Pose3>(Symbol('x', f_id));

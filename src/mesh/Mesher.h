@@ -107,9 +107,9 @@ public:
   /* ------------------------------------------------------------------------ */
   // update mesh: update structures keeping memory of the map before visualization
   void updateMesh3D(
-      const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO,
-      std::shared_ptr<StereoFrame> stereoFrame,
-      const gtsam::Pose3& leftCameraPose,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
+      std::shared_ptr<StereoFrame> stereo_frame_ptr,
+      const gtsam::Pose3& left_camera_pose,
       std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
       std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
 

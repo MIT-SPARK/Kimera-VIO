@@ -1243,8 +1243,8 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 // Optional parameter is the mesh in 2D for visualization.
 void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
-    std::shared_ptr<StereoFrame> stereoFrame,
-    const gtsam::Pose3& leftCameraPose,
+    std::shared_ptr<StereoFrame> stereo_frame_ptr,
+    const gtsam::Pose3& left_camera_pose,
     std::vector<cv::Vec6f>* mesh_2d_for_viz,
     std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
   VLOG(10) << "Starting updateMesh3D...";
@@ -1259,8 +1259,8 @@ void Mesher::updateMesh3D(
     // first add vio points, then stereo, so that vio points have preference
     // over stereo ones if they are repeated!
     points_with_id_stereo = points_with_id_VIO;
-    appendNonVioStereoPoints(stereoFrame,
-                             leftCameraPose,
+    appendNonVioStereoPoints(stereo_frame_ptr,
+                             left_camera_pose,
                              &points_with_id_stereo);
     VLOG(20) << "Number of stereo landmarks used for the mesh: "
              << points_with_id_stereo.size() << "\n"
@@ -1274,13 +1274,13 @@ void Mesher::updateMesh3D(
 
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
-  stereoFrame->createMesh2dVIO(&mesh_2d,
+  stereo_frame_ptr->createMesh2dVIO(&mesh_2d,
                                *points_with_id_all);
   if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d;
 
   // Filter 2D mesh.
   std::vector<cv::Vec6f> mesh_2d_filtered;
-  stereoFrame->filterTrianglesWithGradients(mesh_2d,
+  stereo_frame_ptr->filterTrianglesWithGradients(mesh_2d,
                                             &mesh_2d_filtered,
                                             FLAGS_max_grad_in_triangle);
   if (mesh_2d_filtered_for_viz) *mesh_2d_filtered_for_viz = mesh_2d_filtered;
@@ -1288,8 +1288,8 @@ void Mesher::updateMesh3D(
   populate3dMeshTimeHorizon(
         mesh_2d_filtered,
         *points_with_id_all,
-        stereoFrame->left_frame_,
-        leftCameraPose,
+        stereo_frame_ptr->left_frame_,
+        left_camera_pose,
         FLAGS_min_ratio_btw_largest_smallest_side,
         FLAGS_min_elongation_ratio,
         FLAGS_max_triangle_side);

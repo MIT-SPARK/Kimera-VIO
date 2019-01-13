@@ -217,7 +217,7 @@ int main(const int argc, const char *argv[])
       initialStateGT->print("initialStateGT\n");
       gtsam::Vector3 rpy_gt = initialStateGT->pose_.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
       std::cout << "yaw= " << rpy_gt(2) << " pitch= " << rpy_gt(1) << " roll= "<< rpy_gt(0) << std::endl;
-      Vector3 localGravity = initialStateGT->pose_.rotation().inverse().matrix() * vio->vio_params_.n_gravity_;
+      Vector3 localGravity = initialStateGT->pose_.rotation().inverse().matrix() * vio->getBackEndParams().n_gravity_;
       std::cout << "gravity in local frame: \n" << localGravity << std::endl;
       std::cout << "expected initial acc measurement: \n" << -localGravity + initialStateGT->imu_bias_.accelerometer()  << std::endl;
       std::cout << "actual initial acc measurement: \n" << imu_accgyr.block<3,1>(0,0) << std::endl;
@@ -228,14 +228,14 @@ int main(const int argc, const char *argv[])
           baseline, &initialStateGT, timestamp_k, imu_accgyr, vioParams);
       vio->print();
 
-      std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(initialStateGT->pose_, vio->W_Pose_Blkf_);
+      std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(initialStateGT->pose_, vio->getWPoseBLkf());
       if(vioRotError > 1e-4 || vioTranError > 1e-4)
         throw std::runtime_error("stereoVIOExample: wrong initialization");
 
       // for comparison: gt bias:
       dataset.gtData_.mapToGt_[timestamp_k].imu_bias_.print("Ground truth initial bias: \n");
 
-      W_Pose_Bprevkf_vio = vio->W_Pose_Blkf_;
+      W_Pose_Bprevkf_vio = vio->getWPoseBLkf();
       timestamp_lkf = timestamp_k;
       continue;
     }
@@ -341,7 +341,7 @@ int main(const int argc, const char *argv[])
         for(size_t kk = 0; kk < nrKfInHorizon+1; kk++){// including current pose
           Timestamp timestamp_kk = timestamp_k + UtilsOpenCV::SecToNsec(kk * trackerParams.intra_keyframe_time_);
           Pose3 poseGT_km1_kk = W_Pose_Bkf_gt.between(dataset.getGroundTruthState(timestamp_kk).pose_); // relative pose wrt ground truth at time k-1
-          posesAtFutureKeyframes.push_back( StampedPose( vio->W_Pose_Blkf_.compose(poseGT_km1_kk) , UtilsOpenCV::NsecToSec(timestamp_kk)) );
+          posesAtFutureKeyframes.push_back( StampedPose( vio->getWPoseBLkf().compose(poseGT_km1_kk) , UtilsOpenCV::NsecToSec(timestamp_kk)) );
         }
         std::cout << "getting covariance" << std::endl;
         featureSelectionData.currentNavStateCovariance = vio->getCurrentStateCovariance(); // covariance of current state
@@ -433,82 +433,92 @@ int main(const int argc, const char *argv[])
 
     ////////////////// DEBUG BACK-END ////////////////////////////////////////////////
     W_Pose_Bkf_gt = (dataset.getGroundTruthState(timestamp_k)).pose_;
-    std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(W_Pose_Bkf_gt, vio->W_Pose_Blkf_);
+    std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(W_Pose_Bkf_gt, vio->getWPoseBLkf());
     std::cout << "vioRotError " << vioRotError << ", vioTranError " << vioTranError << std::endl;
     // Absolute vio errors
-    outputFile << vio->cur_kf_id_ << " " <<  vioRotError << " " << vioTranError << " " << vio->landmark_count_ << " ";
+    outputFile << vio->getCurrKfId() << " "
+               << vioRotError << " "
+               << vioTranError << " "
+               << vio->getLandmarkCount() << " ";
 
     // RPY vio errors
     gtsam::Vector3 rpy_gt = W_Pose_Bkf_gt.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
-    gtsam::Vector3 rpy_vio = vio->W_Pose_Blkf_.rotation().rpy();
+    gtsam::Vector3 rpy_vio = vio->getWPoseBLkf().rotation().rpy();
     outputFile << rpy_gt(0) << " " <<  rpy_gt(1) << " " << rpy_gt(2) << " "
         << rpy_vio(0) << " " <<  rpy_vio(1) << " " << rpy_vio(2)  << " ";
 
     // relative vio errors
-    gtsam::Pose3 Bprevkf_Pose_Bkf_vio = W_Pose_Bprevkf_vio.between(vio->W_Pose_Blkf_);
+    gtsam::Pose3 Bprevkf_Pose_Bkf_vio = W_Pose_Bprevkf_vio.between(vio->getWPoseBLkf());
     boost::tie(relativeRotError,relativeTranError) =
         dataset.computePoseErrors(Bprevkf_Pose_Bkf_vio, true, timestamp_lkf, timestamp_k); // always VALID = TRUE
     outputFile << relativeRotError << " " << relativeTranError << " " << std::endl;
 
     // debug smart factors:
-    outputFile_smartFactors << vio->cur_kf_id_ << " " << k << " " << UtilsOpenCV::NsecToSec(timestamp_k) // keyframe id, frame id, timestamp
-    << " " << vio->debug_info_.numSF_ << " " << vio->debug_info_.numValid_
-    << " " << vio->debug_info_.numDegenerate_ << " " << vio->debug_info_.numFarPoints_
-    << " " << vio->debug_info_.numOutliers_ << " " << vio->debug_info_.numCheirality_
-    << " " << vio->debug_info_.meanPixelError_ << " " << vio->debug_info_.maxPixelError_
-    << " " << vio->debug_info_.meanTrackLength_ << " " << vio->debug_info_.maxTrackLength_ <<  std::endl;
+    DebugVioInfo debug_info = vio->getCurrentDebugVioInfo();
+    outputFile_smartFactors
+        << vio->getCurrKfId() << " "
+        << k << " " << UtilsOpenCV::NsecToSec(timestamp_k) // keyframe id, frame id, timestamp
+        << " " << debug_info.numSF_ << " " << debug_info.numValid_
+        << " " << debug_info.numDegenerate_ << " " << debug_info.numFarPoints_
+        << " " << debug_info.numOutliers_ << " " << debug_info.numCheirality_
+        << " " << debug_info.meanPixelError_ << " " << debug_info.maxPixelError_
+        << " " << debug_info.meanTrackLength_ << " " << debug_info.maxTrackLength_ <<  std::endl;
 
     // we log the camera since we will display camera poses in matlab
-    gtsam::Pose3 W_Pose_camlkf_vio = vio->W_Pose_Blkf_.compose(vio->B_Pose_leftCam_);
-    outputFile_posesVIO << vio->cur_kf_id_ << " " << W_Pose_camlkf_vio.translation().transpose() << " " <<
-        W_Pose_camlkf_vio.rotation().matrix().row(0) << " " <<
-        W_Pose_camlkf_vio.rotation().matrix().row(1) << " " <<
-        W_Pose_camlkf_vio.rotation().matrix().row(2) << " " <<
-        vio->W_Vel_Blkf_.transpose() 				 << " " <<
-        vio->imu_bias_lkf_.accelerometer().transpose() << " " <<
-        vio->imu_bias_lkf_.gyroscope().transpose() << std::endl;
+    gtsam::Pose3 W_Pose_camlkf_vio = vio->getWPoseBLkf().compose(vio->getBPoseLeftCam());
+    outputFile_posesVIO
+        << vio->getCurrKfId() << " "
+        << W_Pose_camlkf_vio.translation().transpose() << " "
+        << W_Pose_camlkf_vio.rotation().matrix().row(0) << " "
+        << W_Pose_camlkf_vio.rotation().matrix().row(1) << " "
+        << W_Pose_camlkf_vio.rotation().matrix().row(2) << " "
+        << vio->getWVelBLkf().transpose() 				        << " "
+        << vio->getImuBiasLkf().accelerometer().transpose() << " "
+        << vio->getImuBiasLkf().gyroscope().transpose() << std::endl;
 
     // we log the camera since we will display camera poses in matlab
-    gtsam::Pose3 W_Pose_camlkf_gt = W_Pose_Bkf_gt.compose(vio->B_Pose_leftCam_);
+    gtsam::Pose3 W_Pose_camlkf_gt = W_Pose_Bkf_gt.compose(vio->getBPoseLeftCam());
     Vector3 W_Vel_camlkf_gt = (dataset.getGroundTruthState(timestamp_k)).velocity_;
     ImuBias imu_bias_lkf_gt = (dataset.getGroundTruthState(timestamp_k)).imu_bias_;
-    outputFile_posesGT << vio->cur_kf_id_ << " " << W_Pose_camlkf_gt.translation().transpose() << " " <<
-        W_Pose_camlkf_gt.rotation().matrix().row(0) << " " <<
-        W_Pose_camlkf_gt.rotation().matrix().row(1) << " " <<
-        W_Pose_camlkf_gt.rotation().matrix().row(2) << " " <<
-        W_Vel_camlkf_gt.transpose() 				<< " " <<
-        imu_bias_lkf_gt.accelerometer().transpose() << " " <<
-        imu_bias_lkf_gt.gyroscope().transpose() << std::endl;
+    outputFile_posesGT
+        << vio->getCurrKfId() << " "
+        << W_Pose_camlkf_gt.translation().transpose() << " "
+        << W_Pose_camlkf_gt.rotation().matrix().row(0) << " "
+        << W_Pose_camlkf_gt.rotation().matrix().row(1) << " "
+        << W_Pose_camlkf_gt.rotation().matrix().row(2) << " "
+        << W_Vel_camlkf_gt.transpose() 				<< " "
+        << imu_bias_lkf_gt.accelerometer().transpose() << " "
+        << imu_bias_lkf_gt.gyroscope().transpose() << std::endl;
 
     // log timing for benchmarking and performance profiling
-    outputFile_timingVIO << vio->cur_kf_id_ << " " <<
-        vio->debug_info_.factorsAndSlotsTime_ << " " <<
-        vio->debug_info_.preUpdateTime_ << " " <<
-        vio->debug_info_.updateTime_ << " " <<
-        vio->debug_info_.updateSlotTime_ << " " <<
-        vio->debug_info_.extraIterationsTime_ << " " <<
-        vio->debug_info_.printTime_ << std::endl;
+    outputFile_timingVIO << vio->getCurrKfId() << " "
+                         << debug_info.factorsAndSlotsTime_ << " "
+                         << debug_info.preUpdateTime_ << " "
+                         << debug_info.updateTime_ << " "
+                         << debug_info.updateSlotTime_ << " "
+                         << debug_info.extraIterationsTime_ << " "
+                         << debug_info.printTime_ << std::endl;
 
     // fake front end info:
-    outputFile_timingTracker << vio->cur_kf_id_ << " " <<
+    outputFile_timingTracker << vio->getCurrKfId() << " " <<
         -1 << " " <<  -1 << " " << -1 << " " <<  -1 << " " << -1 << " " << -1 << " " << featureSelectionTime << " " << std::endl;
 
     // log performance of tracker (currently we only log info at keyframes!!)
-    outputFile_statsTracker << vio->cur_kf_id_ << " " <<
+    outputFile_statsTracker << vio->getCurrKfId() << " " <<
         -1 << " " <<
         -1 << " " << -1 << " " << -1 << " " << -1<< " " << -1<< " " << -1 << " " <<
         -1 << " " << -1 << " " << -1 << " " << -1 << " " << -1 << " " << -1  << std::endl;
 
     // statistics about factors added to the graph
-    outputFile_statsFactors << vio->cur_kf_id_ << " " <<
-        vio->debug_info_.numAddedSmartF_ << " " <<
-        vio->debug_info_.numAddedImuF_ << " " <<
-        vio->debug_info_.numAddedNoMotionF_ << " " <<
-        vio->debug_info_.numAddedConstantVelF_ << std::endl;
+    outputFile_statsFactors << vio->getCurrKfId() << " " <<
+        debug_info.numAddedSmartF_ << " " <<
+        debug_info.numAddedImuF_ << " " <<
+        debug_info.numAddedNoMotionF_ << " " <<
+        debug_info.numAddedConstantVelF_ << std::endl;
 
     std::cout << "data written to file" << std::endl;
     //////////////////////////////////////////////////////////////////////////
-    W_Pose_Bprevkf_vio = vio->W_Pose_Blkf_;
+    W_Pose_Bprevkf_vio = vio->getWPoseBLkf();
     timestamp_lkf = timestamp_k;
   }
   outputFile.close();

@@ -139,7 +139,7 @@ public:
   ImuData imuData_;
 
   // Getters
-  inline std::string getDatasetName() {
+  inline std::string getDatasetName() const {
       return dataset_name_;
   }
   inline std::string getLeftImgName(const size_t& k) const {

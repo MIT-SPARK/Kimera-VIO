@@ -125,7 +125,6 @@ void LoggerMatlab::logFrontendResults(const ETHDatasetParser& dataset,
                                       const Timestamp& timestamp_k) {
   // Log how long it takes to log the frontend.
   double start_time = UtilsOpenCV::GetTimeInSeconds();
-
   // If it's a keyframe, check pose estimate.
   bool isValid =
       (stereoTracker.trackerStatusSummary_.kfTrackingStatus_mono_ !=
@@ -450,8 +449,8 @@ void LoggerMatlab::displayInitialStateVioInfo(
   initialStateGT.print("initialStateGT\n");
   gtsam::Vector3 rpy_gt = initialStateGT.pose_.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
   std::cout << "yaw= " << rpy_gt(2) << " pitch= " << rpy_gt(1) << " roll= "<< rpy_gt(0) << std::endl;
-  Vector3 localGravity = initialStateGT.pose_.rotation().inverse().matrix() * vio->vio_params_.n_gravity_;
-  std::cout << "gravity in global frame: \n" << vio->vio_params_.n_gravity_ << std::endl;
+  Vector3 localGravity = initialStateGT.pose_.rotation().inverse().matrix() * vio->getBackEndParams().n_gravity_;
+  std::cout << "gravity in global frame: \n" << vio->getBackEndParams().n_gravity_ << std::endl;
   std::cout << "gravity in local frame: \n" << localGravity << std::endl;
   std::cout << "expected initial acc measurement (no bias correction): \n" << -localGravity  << std::endl;
   std::cout << "expected initial acc measurement: \n" << -localGravity + initialStateGT.imu_bias_.accelerometer()  << std::endl;
@@ -462,7 +461,7 @@ void LoggerMatlab::displayInitialStateVioInfo(
   vio->print();
 
   double vioRotError,vioTranError;
-  std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(initialStateGT.pose_, vio->W_Pose_Blkf_);
+  std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(initialStateGT.pose_, vio->getWPoseBLkf());
   if(vioRotError > 1e-4 || vioTranError > 1e-4)
     throw std::runtime_error("stereoVIOExample: wrong initialization (we currently initialize to ground truth)");
 

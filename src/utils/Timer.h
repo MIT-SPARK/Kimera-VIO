@@ -4,7 +4,7 @@
 #include <memory>
 
 namespace VIO {
-namespace vio_utils {
+namespace utils {
 
 class Timer{
 public:

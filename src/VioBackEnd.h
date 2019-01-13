@@ -8,7 +8,7 @@
 
 /**
  * @file   VioBackEnd.h
- * @brief  Visual-Inertial Odometry pipeline, as described in this papers:
+ * @brief  Visual-Inertial Odometry pipeline, as described in these papers:
  *
  * C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza.
  * On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation.
@@ -22,7 +22,7 @@
  * Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.
  * In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
  *
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #ifndef VioBackEnd_H_
@@ -199,27 +199,27 @@ public:
 
   /* ------------------------------------------------------------------------ */
   void printTimes() const {
-    std::cout << "Find delete time: " << factorsAndSlotsTime_ << std::endl
-              << "preUpdate time: " << preUpdateTime_ << std::endl
-              << "Update Time time: " << updateTime_ << std::endl
-              << "Update slot time: " << updateSlotTime_ << std::endl
-              << "Extra iterations time: " << extraIterationsTime_ << std::endl
-              << "Print time: " << printTime_ << std::endl;
+    LOG(INFO) << "Find delete time: "      << factorsAndSlotsTime_ << '\n'
+              << "preUpdate time: "        << preUpdateTime_       << '\n'
+              << "Update Time time: "      << updateTime_          << '\n'
+              << "Update slot time: "      << updateSlotTime_      << '\n'
+              << "Extra iterations time: " << extraIterationsTime_ << '\n'
+              << "Print time: "            << printTime_;
   }
 
   /* ------------------------------------------------------------------------ */
   void print() const {
-    std::cout << "----- DebugVioInfo: --------" << std::endl;
-    std::cout << " numSF: " << numSF_
-              << " numValid: " << numValid_
-              << " numDegenerate: " << numDegenerate_
-              << " numOutliers: " << numOutliers_
-              << " numFarPoints: " << numFarPoints_
-              << " numCheirality: " << numCheirality_ << std::endl
-              << " meanPixelError: " << meanPixelError_
-              << " maxPixelError: " << maxPixelError_
-              << " meanTrackLength: " << meanTrackLength_
-              << " maxTrackLength: " << maxTrackLength_ << std::endl;
+    LOG(INFO) << "----- DebugVioInfo: --------\n"
+              << " numSF: "           << numSF_            << '\n'
+              << " numValid: "        << numValid_         << '\n'
+              << " numDegenerate: "   << numDegenerate_    << '\n'
+              << " numOutliers: "     << numOutliers_      << '\n'
+              << " numFarPoints: "    << numFarPoints_     << '\n'
+              << " numCheirality: "   << numCheirality_    << '\n'
+              << " meanPixelError: "  << meanPixelError_   << '\n'
+              << " maxPixelError: "   << maxPixelError_    << '\n'
+              << " meanTrackLength: " << meanTrackLength_  << '\n'
+              << " maxTrackLength: "  << maxTrackLength_;
   }
 };
 
@@ -308,7 +308,8 @@ public:
    * 5: display also timing
    * 6: display also error before and after optimization
    * 7: display also *if* factors are added
-   * 8: display also factor keys and value keys, feature tracks, and landmarks added to graph, added observations to points
+   * 8: display also factor keys and value keys, feature tracks, and landmarks
+   *  added to graph, added observations to points
    * 9: display also factors and values
    */
 
@@ -337,6 +338,7 @@ public:
   bool spin(ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
             ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
     while (!shutdown_) {
+      // TODO log VioBackEnd time... Needs a thread-safe logger.
       spinOnce(input_queue, output_queue);
     }
     return true;
@@ -351,11 +353,11 @@ public:
     if (input) {
       addVisualInertialStateAndOptimize(input);
       output_queue.push(VioBackEndOutputPayload(state_,
-                                                W_Pose_Blkf_,
-                                                W_Vel_Blkf_,
-                                                B_Pose_leftCam_,
+                                                W_Pose_B_lkf_, // Actual output.
+                                                W_Vel_B_lkf_, // Actual output.
+                                                B_Pose_leftCam_, // This is a fixed thing, the first instance of which appears in the StereoFrame...
                                                 imu_bias_lkf_,
-                                                cur_kf_id_,
+                                                curr_kf_id_,
                                                 landmark_count_,
                                                 debug_info_ ));
     } else {
@@ -723,43 +725,48 @@ private:
   void resetDebugInfo(DebugVioInfo* debug_info);
 
 public:
-  // RAW, user-specified params.
+  /// Getters
+  // Thread-safe methods, but also the returns are const, so no problems.
+  inline const VioBackEndParams& getBackEndParams() const {return vio_params_;}
+  inline const Pose3& getBPoseLeftCam() const {return B_Pose_leftCam_;}
+
+  // TODO NOT THREAD-SAFE! Should add critical sections.
+  inline ImuBias getImuBiasLkf() const {return imu_bias_lkf_;}
+  inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
+  inline Pose3 getWPoseBLkf() const {return W_Pose_B_lkf_;}
+  inline int getCurrKfId() const {return curr_kf_id_;}
+  inline gtsam::Values getState() const {return state_;}
+  inline int getLandmarkCount() const {return landmark_count_;}
+  inline DebugVioInfo getCurrentDebugVioInfo() const {return debug_info_;}
+
+  // TODO This call is unsafe, as we are sending a reference to something that
+  // will be modified by the backend thread.
+  inline const gtsam::NonlinearFactorGraph& getFactorsUnsafe() const {
+    return smoother_->getFactors();
+  }
+
+protected:
+  // Raw, user-specified params.
   const VioBackEndParams vio_params_;
 
-  // STATE ESTIMATES.
+  // State estimates.
   ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
+  Vector3 W_Vel_B_lkf_;  		   //!< Velocity of body at k-1 in world coordinates
+  Pose3   W_Pose_B_lkf_;        //!< Body pose at at k-1 in world coordinates.
+
   ImuBias imu_bias_prev_kf_;   //!< bias estimate at previous keyframe
-  Vector3 W_Vel_Blkf_;  		   //!< Velocity of body at k-1 in world coordinates
-  Pose3   W_Pose_Blkf_;        //!< Body pose at at k-1 in world coordinates.
 
-  /// Counters.
-  int last_kf_id_;
-  // Id of current keyframe, increases from 0 to inf.
-  int cur_kf_id_;
-
-  // Current time.
-  double timestamp_kf_; // timestamp in seconds attached to the last keyframe
-
-  // IMU params.
-  boost::shared_ptr<PreintegratedImuMeasurements::Params> imu_params_;
-  PreintegratedImuMeasurementPtr pim_;
-
-  // VISION params.
+  // Vision params.
   gtsam::SmartStereoProjectionParams smart_factors_params_;
   gtsam::SharedNoiseModel smart_noise_;
   const Pose3 B_Pose_leftCam_; // pose of the left camera wrt body
   const gtsam::Cal3_S2Stereo::shared_ptr stereo_cal_; // stores calibration, baseline
 
-  // NO MOTION FACTORS settings.
-  gtsam::SharedNoiseModel zero_velocity_prior_noise_;
-  gtsam::SharedNoiseModel no_motion_prior_noise_;
-  gtsam::SharedNoiseModel constant_velocity_prior_noise_;
+  // State.
+  gtsam::Values state_;                        //!< current state of the system.
 
   // GTSAM:
   std::shared_ptr<Smoother> smoother_;
-
-  // State
-  gtsam::Values state_;                        //!< current state of the system.
 
   // Values
   gtsam::Values new_values_;                   //!< new states to be added
@@ -769,20 +776,40 @@ public:
   LandmarkIdSmartFactorMap new_smart_factors_; //!< landmarkId -> {SmartFactorPtr}
   SmartFactorMap old_smart_factors_;           //!< landmarkId -> {SmartFactorPtr, SlotIndex}
 
+  // Debug info.
+  DebugVioInfo debug_info_;
+
+  // To print smoother info, useful when looking for optimization bugs.
+  bool debug_smoother_ = false;
+
   // Data:
   // TODO grows unbounded currently, but it should be limited to time horizon.
   FeatureTracks feature_tracks_;
+
+  // Current time.
+  double timestamp_kf_; // timestamp in seconds attached to the last keyframe
+
+  /// Counters.
+  int last_kf_id_;
+  // Id of current keyframe, increases from 0 to inf.
+  int curr_kf_id_;
+
+private:
+  // IMU params.
+  boost::shared_ptr<PreintegratedImuMeasurements::Params> imu_params_;
+  PreintegratedImuMeasurementPtr pim_;
+
+  // No motion factors settings.
+  gtsam::SharedNoiseModel zero_velocity_prior_noise_;
+  gtsam::SharedNoiseModel no_motion_prior_noise_;
+  gtsam::SharedNoiseModel constant_velocity_prior_noise_;
+
+  // Landmark count.
   int landmark_count_;
 
   // Flags.
   const int verbosity_;
   const bool log_timing_;
-
-  // Debug info.
-  DebugVioInfo debug_info_;
-
-  // TODO remove this.
-  bool DEBUG_ = false;
 
   // Thread related members.
   std::atomic_bool shutdown_ = {false};
