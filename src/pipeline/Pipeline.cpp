@@ -19,7 +19,7 @@
 #include <glog/logging.h>
 #include <gtsam/geometry/Pose3.h>
 
-#include "utils/timer.h"
+#include "utils/Timer.h"
 #include "RegularVioBackEnd.h"
 
 
