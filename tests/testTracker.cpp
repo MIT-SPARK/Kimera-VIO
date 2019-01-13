@@ -34,6 +34,7 @@ using namespace cv;
 /* ************************************************************************* */
 // Testing data
 static const double tol = 1e-7;
+// TODO initializing null pointers is prone to errors!!
 static Frame *ref_frame, *cur_frame;
 static StereoFrame *ref_stereo_frame, *cur_stereo_frame;
 static const FrameId id_ref = 0, id_cur = 1;
@@ -56,6 +57,7 @@ void InitializeData() {
   string img_name_cur_right = stereo_dataset_path + "right_img_1.png";
 
   // Data for testing "geometricOutlierRejectionMono"
+  // !!! TODO THIS IS ALLOCATING MEMORY BUT THERE IS NO DELETE !!!
   ref_frame = new Frame(id_ref, timestamp_ref, img_name_ref_left, cam_params_left);
   cur_frame = new Frame(id_cur, timestamp_cur, img_name_cur_left, cam_params_left);
 
@@ -859,7 +861,7 @@ TEST(testTracker, GetPoint3AndCovariance) {
   // use function to get actual answer
   Vector3 f_ref_i_expected, f_ref_i_actual;
   Matrix3 cov_ref_i_expected, cov_ref_i_actual;
-  tie(f_ref_i_actual,cov_ref_i_actual) = Tracker::GetPoint3AndCovariance(*ref_stereo_frame, stereoCam, pointId, stereoPtCov);
+  tie(f_ref_i_actual,cov_ref_i_actual) = Tracker::getPoint3AndCovariance(*ref_stereo_frame, stereoCam, pointId, stereoPtCov);
 
   // use monte carlo method to get expected answer
   tie(f_ref_i_expected,cov_ref_i_expected) = monteCarloSampleCovariance(stereoCam,stereoPoint,stereoPtCov);
@@ -874,7 +876,7 @@ TEST(testTracker, GetPoint3AndCovariance) {
 }
 
 /* ************************************************************************* */
-TEST(testTracker, FindOutliers) {
+TEST(testTracker, findOutliers) {
   // Normal case:
   {
     // synthesize the data
@@ -887,7 +889,7 @@ TEST(testTracker, FindOutliers) {
     inliers.reserve(num_inliers);
     outliers_expected.reserve(num_outliers);
 
-    for (int i = 0; i < num_inliers + num_outliers; i++) {
+    for (size_t i = 0; i < num_inliers + num_outliers; i++) {
       if (i % 2 == 0) {
         inliers.push_back(i);
       } else {
@@ -901,7 +903,8 @@ TEST(testTracker, FindOutliers) {
     // randomly shuffle the inliers
     random_shuffle(inliers.begin(), inliers.end());
 
-    vector<int> outliers_actual = Tracker::FindOutliers(matches_ref_cur, inliers);
+    vector<int> outliers_actual;
+    Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
 
     // check that outliers_actual matches outliers_expected
     EXPECT(outliers_expected.size() == outliers_actual.size());
@@ -920,14 +923,15 @@ TEST(testTracker, FindOutliers) {
 
     outliers_expected.reserve(num_outliers);
 
-    for (int i = 0; i < num_outliers; i++) {
+    for (size_t i = 0; i < num_outliers; i++) {
       outliers_expected.push_back(i);
     }
 
     // only size of the matches matters.
     vector<pair<size_t, size_t>> matches_ref_cur(num_outliers);
 
-    vector<int> outliers_actual = Tracker::FindOutliers(matches_ref_cur, inliers);
+    vector<int> outliers_actual;
+    Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
 
     // check that outliers_actual matches outliers_expected
     EXPECT(outliers_expected.size() == outliers_actual.size());
@@ -942,7 +946,7 @@ TEST(testTracker, FindOutliers) {
     const int num_inliers = 100;
     vector<int> inliers;
     inliers.reserve(num_inliers);
-    for (int i = 0; i < num_inliers; i++) {
+    for (size_t i = 0; i < num_inliers; i++) {
       inliers.push_back(i);
     }
 
@@ -952,7 +956,8 @@ TEST(testTracker, FindOutliers) {
     // randomly shuffle the inliers
     random_shuffle(inliers.begin(), inliers.end());
 
-    vector<int> outliers_actual = Tracker::FindOutliers(matches_ref_cur, inliers);
+    vector<int> outliers_actual;
+    Tracker::findOutliers(matches_ref_cur, inliers, &outliers_actual);
 
     // check that outliers_actual matches outliers_expected
     EXPECT(outliers_actual.size() == 0);
@@ -1000,7 +1005,7 @@ TEST(testTracker, FindMatchingKeypoints) {
   random_shuffle(cur_frame->landmarks_.begin(), cur_frame->landmarks_.end());
 
   vector<pair<size_t, size_t>> matches_ref_cur;
-  matches_ref_cur = Tracker::FindMatchingKeypoints(*ref_frame, *cur_frame);
+  Tracker::findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
 
   // Check the correctness of matches_ref_cur
   EXPECT(matches_ref_cur.size() == num_landmarks_common);
@@ -1079,7 +1084,8 @@ TEST(testTracker, FindMatchingStereoKeypoints) {
   }
 
   vector<pair<size_t, size_t>> matches_ref_cur;
-  matches_ref_cur = Tracker::FindMatchingStereoKeypoints(*ref_stereo_frame, *cur_stereo_frame);
+  Tracker::findMatchingStereoKeypoints(*ref_stereo_frame, *cur_stereo_frame,
+                                       &matches_ref_cur);
 
   // Check the correctness!
   EXPECT(matches_ref_cur.size() == (num_landmarks_common + 1) / 2);
