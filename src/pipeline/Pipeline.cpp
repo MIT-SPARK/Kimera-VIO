@@ -215,7 +215,8 @@ void Pipeline::spinOnce(size_t k) {
 
     ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
     if (FLAGS_log_output) {
-      logger_.logFrontendResults(dataset_, *stereo_vision_frontend_, timestamp_lkf_, // TODO this copies the whole frontend!!
+      logger_.logFrontendResults(dataset_, *stereo_vision_frontend_, // TODO this copies the whole frontend!!
+                                 timestamp_lkf_,
                                  timestamp_k_);
     }
     ////////////////////////////////////////////////////////////////////////////
@@ -241,7 +242,7 @@ void Pipeline::spinOnce(size_t k) {
     std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
             backend_output_queue_.popBlocking();
 
-    // Log backend results.
+    ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////
     if (FLAGS_log_output) {
       logger_.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - start_time; // This does not make sense anymore here, as the backend has its own spin.
       logger_.logBackendResults(dataset_, // Should not need the dataset...
@@ -252,12 +253,12 @@ void Pipeline::spinOnce(size_t k) {
       logger_.W_Pose_Bprevkf_vio_ = vio_backend_->W_Pose_Blkf_;
     }
 
-    ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////
+    ////////////////// CREATE AND VISUALIZE MESH ///////////////////////////////
     std::vector<cv::Vec6f> mesh_2d;
     VioBackEnd::PointsWithIdMap points_with_id_VIO;
     VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
     MesherOutputPayload mesher_output_payload;
-    vector<Point3> points_3d;
+    std::vector<Point3> points_3d;
     VioBackEnd::PointsWithIdMap points_with_id;
 
     // Decide mesh computation:
@@ -290,10 +291,9 @@ void Pipeline::spinOnce(size_t k) {
           vio_backend_->W_Pose_Blkf_.compose(vio_backend_->B_Pose_leftCam_);
 
       // Create and fill data packet for mesher.
-
       // Push to queue.
       // In another thread, mesher is running, consuming mesher payloads.
-      CHECK(mesher_input_queue_.push(MesherInputPayload (
+      CHECK(mesher_input_queue_.push(MesherInputPayload(
                                        points_with_id_VIO, //copy, thread safe, read-only. // This should be a popBlocking...
                                        *(stereo_vision_frontend_->stereoFrame_lkf_), // not really thread safe, read only.
                                        W_Pose_camlkf_vio))); // copy, thread safe, read-only. // Same, popBlocking
@@ -342,24 +342,7 @@ void Pipeline::spinOnce(size_t k) {
       // We use non-blocking pop() because no one depends on the output
       // of the visualizer. This way the pipeline can keep running, while the
       // visualization is only done when there is data available.
-      std::shared_ptr<VisualizerOutputPayload> visualizer_output_payload =
-          visualizer_output_queue_.popBlocking();
-      // Display only if the visualizer has done its work.
-      if (visualizer_output_payload) {
-        // Display 3D window.
-        if (visualization_type != VisualizationType::NONE) {
-          visualizer_output_payload->window_.spinOnce(1, true);
-        }
-
-        // Display 2D images.
-        for (const ImageToDisplay& img_to_display:
-             visualizer_output_payload->images_to_display_) {
-          cv::imshow(img_to_display.name_, img_to_display.image_);
-        }
-        cv::waitKey(1);
-      } else {
-        LOG(WARNING) << "Visualizer is lagging behind pipeline processing.";
-      }
+      spinDisplayOnce(visualizer_output_queue_.popBlocking());
     }
 
     timestamp_lkf_ = timestamp_k_;
@@ -526,6 +509,27 @@ bool Pipeline::initBackend(std::shared_ptr<VioBackEnd>* vio_backend,
     }
   }
   return true;
+}
+
+void Pipeline::spinDisplayOnce(
+    const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload) {
+  // Display only if the visualizer has done its work.
+  if (visualizer_output_payload) {
+    // Display 3D window.
+    if (visualizer_output_payload->visualization_type_ !=
+        VisualizationType::NONE) {
+      visualizer_output_payload->window_.spinOnce(1, true);
+    }
+
+    // Display 2D images.
+    for (const ImageToDisplay& img_to_display:
+         visualizer_output_payload->images_to_display_) {
+      cv::imshow(img_to_display.name_, img_to_display.image_);
+    }
+    cv::waitKey(1);
+  } else {
+    LOG(WARNING) << "Visualizer is lagging behind pipeline processing.";
+  }
 }
 
 StatusSmartStereoMeasurements Pipeline::featureSelect(
