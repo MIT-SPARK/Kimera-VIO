@@ -65,8 +65,8 @@ public:
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logFrontendResults(const ETHDatasetParser& dataset,
                           const StereoVisionFrontEnd& stereoTracker,
-                          const Timestamp timestamp_lkf,
-                          const Timestamp timestamp_k);
+                          const Timestamp& timestamp_lkf,
+                          const Timestamp& timestamp_k);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logLandmarks(const VioBackEnd::PointsWithId& lmks);

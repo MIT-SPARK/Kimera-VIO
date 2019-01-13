@@ -214,13 +214,9 @@ void Pipeline::spinOnce(size_t k) {
     }
 
     ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
-    start_time = UtilsOpenCV::GetTimeInSeconds();
-
     if (FLAGS_log_output) {
       logger_.logFrontendResults(dataset_, *stereo_vision_frontend_, timestamp_lkf_, // TODO this copies the whole frontend!!
                                  timestamp_k_);
-      logger_.timing_loggerFrontend_ =
-          UtilsOpenCV::GetTimeInSeconds() - start_time;
     }
     ////////////////////////////////////////////////////////////////////////////
 

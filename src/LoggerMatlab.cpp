@@ -121,25 +121,46 @@ void LoggerMatlab::closeLogFiles(int i) {
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::logFrontendResults(const ETHDatasetParser& dataset,
                                       const StereoVisionFrontEnd& stereoTracker,
-                                      const Timestamp timestamp_lkf,
-                                      const Timestamp timestamp_k) {
+                                      const Timestamp& timestamp_lkf,
+                                      const Timestamp& timestamp_k) {
+  // Log how long it takes to log the frontend.
+  double start_time = UtilsOpenCV::GetTimeInSeconds();
+
   // If it's a keyframe, check pose estimate.
-  bool isValid = stereoTracker.trackerStatusSummary_.kfTrackingStatus_mono_ != Tracker::TrackingStatus::INVALID;
-  double relativeRotError,relativeTranError;
-  // MONO ERROR
-  boost::tie(relativeRotError,relativeTranError) = dataset.computePoseErrors(stereoTracker.getRelativePoseBodyMono(), isValid, timestamp_lkf, timestamp_k, true); // true = comparison up to scale
-  int nrKeypoints = stereoTracker.stereoFrame_km1_->left_frame_.getNrValidKeypoints();
+  bool isValid =
+      (stereoTracker.trackerStatusSummary_.kfTrackingStatus_mono_ !=
+      Tracker::TrackingStatus::INVALID);
+  double relativeRotError, relativeTranError;
+
+  // Mono error.
+  // TODO THIS IS NOT THREAD-SAFE
+  boost::tie(relativeRotError, relativeTranError) = dataset.computePoseErrors(
+        stereoTracker.getRelativePoseBodyMono(), isValid,
+        timestamp_lkf, timestamp_k, true); // true = comparison up to scale.
+  size_t nrKeypoints =
+      stereoTracker.stereoFrame_km1_->left_frame_.getNrValidKeypoints();
   outputFile_ << static_cast<std::underlying_type<Tracker::TrackingStatus>::type>(
                  stereoTracker.trackerStatusSummary_.kfTrackingStatus_mono_)
-              << " " <<  relativeRotError << " " << relativeTranError << " " << nrKeypoints << " ";
-  // STEREO ERROR
-  isValid = stereoTracker.trackerStatusSummary_.kfTrackingStatus_stereo_ != Tracker::TrackingStatus::INVALID;
-  boost::tie(relativeRotError,relativeTranError) = dataset.computePoseErrors(
+              << " " << relativeRotError
+              << " " << relativeTranError
+              << " " << nrKeypoints << " ";
+
+  // Stereo error.
+  // TODO THIS IS NOT THREAD-SAFE
+  isValid =
+      (stereoTracker.trackerStatusSummary_.kfTrackingStatus_stereo_ !=
+      Tracker::TrackingStatus::INVALID);
+  boost::tie(relativeRotError, relativeTranError) = dataset.computePoseErrors(
               stereoTracker.getRelativePoseBodyStereo(), isValid,
               timestamp_lkf, timestamp_k);
   outputFile_ << static_cast<std::underlying_type<Tracker::TrackingStatus>::type>(
                  stereoTracker.trackerStatusSummary_.kfTrackingStatus_stereo_)
-              << " " <<  relativeRotError << " " << relativeTranError << " " << nrKeypoints << " ";
+              << " " << relativeRotError
+              << " " << relativeTranError
+              << " " << nrKeypoints << " ";
+
+  // Log how long it takes to log the frontend.
+  timing_loggerFrontend_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
