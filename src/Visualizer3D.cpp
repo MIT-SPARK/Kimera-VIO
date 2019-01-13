@@ -152,6 +152,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
   // vertices: all leftframe kps with lmkId != -1 and inside the image
   // triangles: all the ones with edges inside images as produced by cv::subdiv
   case VisualizationType::MESH2D: {
+    output->visualization_type_ = VisualizationType::MESH2D;
     output->images_to_display_.push_back(
           ImageToDisplay("Mesh 2D", visualizeMesh2D(
                            input.mesh_2d_,
@@ -163,6 +164,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and inside the image
     // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
   case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
+    output->visualization_type_ = VisualizationType::MESH2Dsparse;
     // Add image to output queue.
     output->images_to_display_.push_back(
           ImageToDisplay("Mesh 2D", visualizeMesh2DStereo(
@@ -177,6 +179,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     // Sparsity comes from filtering out triangles corresponding to non planar obstacles
     // which are assumed to have non-uniform gradient.
   case VisualizationType::MESH2DTo3Dsparse: {
+    output->visualization_type_ = VisualizationType::MESH2DTo3Dsparse;
     // Visualize 2d mesh.
     if (FLAGS_visualize_mesh_2d) {
       output->images_to_display_.push_back(
@@ -338,12 +341,14 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
 
   // Computes and visualizes a 3D point cloud.
   case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
+    output->visualization_type_ = VisualizationType::POINTCLOUD_REPEATEDPOINTS;
     visualizeMap3D(input.points_3d_);
     break;
   }
 
   // Computes and visualizes a 3D point cloud.
   case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
+    output->visualization_type_ = VisualizationType::POINTCLOUD;
     // Do not color the cloud, send empty lmk id to lmk type map
     static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
     visualizePoints3D(input.points_with_id_VIO_, lmk_id_to_lmk_type_map);

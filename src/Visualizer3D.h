@@ -83,6 +83,7 @@ struct ImageToDisplay {
 
 struct VisualizerOutputPayload {
   VisualizerOutputPayload() = default;
+  VisualizationType visualization_type_ = VisualizationType::NONE;
   std::vector<ImageToDisplay> images_to_display_;
   cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
 };
