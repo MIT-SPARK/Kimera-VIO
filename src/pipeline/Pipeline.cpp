@@ -243,18 +243,13 @@ void Pipeline::spinOnce(size_t k) {
 
     // Log backend results.
     if (FLAGS_log_output) {
-      logger_.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
-
-      ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////
-      start_time = UtilsOpenCV::GetTimeInSeconds();
-      logger_.logBackendResults(dataset_, *stereo_vision_frontend_,
+      logger_.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - start_time; // This does not make sense anymore here, as the backend has its own spin.
+      logger_.logBackendResults(dataset_, // Should not need the dataset...
+                                *stereo_vision_frontend_, // Should not need the frontend...
                                 backend_output_payload,
                                 vio_params_->horizon_,
-                                timestamp_lkf_, timestamp_k_,k);
+                                timestamp_lkf_, timestamp_k_, k);
       logger_.W_Pose_Bprevkf_vio_ = vio_backend_->W_Pose_Blkf_;
-      logger_.timing_loggerBackend_ =
-          UtilsOpenCV::GetTimeInSeconds() - start_time;
-      logger_.displayOverallTiming();
     }
 
     ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////

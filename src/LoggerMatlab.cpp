@@ -275,6 +275,8 @@ void LoggerMatlab::logBackendResults(
         const Timestamp& timestamp_lkf,
         const Timestamp& timestamp_k,
         const size_t& k) {
+  // Log how long it takes to log the backend.
+  double start_time = UtilsOpenCV::GetTimeInSeconds();
   CHECK(vio_output);
   double vioRotError,vioTranError;
   gtsam::Pose3 W_Pose_Bkf_gt = (dataset.getGroundTruthState(timestamp_k)).pose_;
@@ -432,7 +434,10 @@ void LoggerMatlab::logBackendResults(
                               3 * std::min(double(vio_output->cur_kf_id_ + 1),
                                             horizon  / (stereoTracker.tracker_.trackerParams_.intra_keyframe_time_)  + 1) << std::endl; // expected nr of states
 
-  LOG(INFO) << "data written to file";
+  LOG(INFO) << "Data written to file.";
+  timing_loggerBackend_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
+  // Display times for all modules.
+  displayOverallTiming();
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -468,13 +473,13 @@ void LoggerMatlab::displayInitialStateVioInfo(
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::displayOverallTiming() const {
-  std::cout << "----------- timing stats: -----------" << std::endl;
-  std::cout << "timing_loadStereoFrame_: " << timing_loadStereoFrame_ << std::endl;
-  std::cout << "timing_processStereoFrame_: " << timing_processStereoFrame_ << std::endl;
-  std::cout << "timing_featureSelection_: " << timing_featureSelection_ << std::endl;
-  std::cout << "timing_vio_: " << timing_vio_ << std::endl;
-  std::cout << "timing_loggerFrontend_: " << timing_loggerFrontend_ << std::endl;
-  std::cout << "timing_loggerBackend_: " << timing_loggerBackend_ << std::endl;
+  LOG(INFO) << "----------- timing stats: -----------\n"
+            << "timing_loadStereoFrame_: "   << timing_loadStereoFrame_   <<'\n'
+            << "timing_processStereoFrame_: "<< timing_processStereoFrame_<<'\n'
+            << "timing_featureSelection_: "  << timing_featureSelection_  <<'\n'
+            << "timing_vio_: "               << timing_vio_               <<'\n'
+            << "timing_loggerFrontend_: "    << timing_loggerFrontend_    <<'\n'
+            << "timing_loggerBackend_: "     << timing_loggerBackend_;
 }
 
 } // namespace VIO
