@@ -702,6 +702,7 @@ void Tracker::removeOutliersMono(
   findOutliers(matches_ref_cur, inliers, &outliers);
 
   // Remove outliers.
+  // outliers cannot be a vector of size_t because opengv uses a vector of int.
   for (const size_t& i: outliers) {
     ref_frame.landmarks_.at(matches_ref_cur[i].first) = -1;
     cur_frame.landmarks_.at(matches_ref_cur[i].second) = -1;
@@ -723,6 +724,7 @@ void Tracker::removeOutliersStereo(
   findOutliers(matches_ref_cur, inliers, &outliers);
 
   // Remove outliers
+  // outliers cannot be a vector of size_t because opengv uses a vector of int.
   for (const size_t& i: outliers) {
     ref_stereoFrame.right_keypoints_status_.at(matches_ref_cur[i].first) = Kstatus::FAILED_ARUN;
     ref_stereoFrame.keypoints_depth_.at(matches_ref_cur[i].first) = 0.0;
