@@ -112,7 +112,7 @@ public:
 public:
   bool parseCamImgList(const std::string& folderpath,
                        const std::string& filename);
-  inline int getNumImages() {
+  inline size_t getNumImages() {
       return img_lists.size();
   }
   void print();
