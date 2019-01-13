@@ -685,8 +685,7 @@ void Tracker::checkStatusRightKeypoints(
     case Kstatus::NO_LEFT_RECT: {debugInfo_.nrNoLeftRectRKP_++; break;}
     case Kstatus::NO_RIGHT_RECT: {debugInfo_.nrNoRightRectRKP_++; break;}
     case Kstatus::NO_DEPTH: {debugInfo_.nrNoDepthRKP_++; break;}
-    case Kstatus::FAILED_ARUN: {LOG(FATAL) << "TODO this case was not originally"
-                                              "handled. @Luca?";}
+    case Kstatus::FAILED_ARUN: {debugInfo_.nrFailedArunRKP_++; break;}
     }
   }
 }
