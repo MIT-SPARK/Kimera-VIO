@@ -211,13 +211,14 @@ public:
   // Get if the dataset has ground truth.
   bool isGroundTruthAvailable() const;
 
-  // compute error on the relative pose between two time stamps, compared with the relative pose from ground trutu
+  // Compute error on the relative pose between two time stamps,
+  // compared with the relative pose from ground truth.
   std::pair<double,double> computePoseErrors(
-          const gtsam::Pose3 lkf_T_k_body,
-          const bool isTrackingValid,
-          const Timestamp& previousTimestamp,
-          const Timestamp& currentTimestamp,
-          const bool upToScale = false) const;
+      const gtsam::Pose3& lkf_T_k_body,
+      const bool isTrackingValid,
+      const Timestamp& previousTimestamp,
+      const Timestamp& currentTimestamp,
+      const bool upToScale = false) const;
 
   // get number of images
   size_t nrImages(){

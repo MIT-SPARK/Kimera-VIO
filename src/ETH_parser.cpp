@@ -583,24 +583,23 @@ gtNavState ETHDatasetParser::getGroundTruthState(const Timestamp& timestamp) con
 }
 
 /* --------------------------------------------------------------------------------------- */
-std::pair<double,double> ETHDatasetParser::computePoseErrors(const gtsam::Pose3 lkf_T_k_body,
-        const bool isTrackingValid,
-        const Timestamp &previousTimestamp,
-        const Timestamp &currentTimestamp,
-        const bool upToScale) const
-{
+std::pair<double, double> ETHDatasetParser::computePoseErrors(
+    const gtsam::Pose3& lkf_T_k_body,
+    const bool isTrackingValid,
+    const Timestamp& previousTimestamp,
+    const Timestamp& currentTimestamp,
+    const bool upToScale) const {
   double relativeRotError = -1.0;
   double relativeTranError = -1.0;
-  if(isTrackingValid && isGroundTruthAvailable(previousTimestamp)){
-    // lkf_T_k_body.print("\n lkf_T_k_body \n");
-    gtsam::Pose3 lkf_T_k_gt = getGroundTruthRelativePose(previousTimestamp,currentTimestamp);
-    // lkf_T_k_gt.print("\n lkf_T_k_gt \n");
-
-    // compute errors
-    std::tie(relativeRotError,relativeTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-        lkf_T_k_gt, lkf_T_k_body, upToScale); // true = translation comparison is up to scale
+  if (isTrackingValid && isGroundTruthAvailable(previousTimestamp)) {
+    gtsam::Pose3 lkf_T_k_gt = getGroundTruthRelativePose(previousTimestamp,
+                                                         currentTimestamp);
+    // Compute errors.
+    std::tie(relativeRotError, relativeTranError) =
+        UtilsOpenCV::ComputeRotationAndTranslationErrors(
+        lkf_T_k_gt, lkf_T_k_body, upToScale);
   }
-  return std::make_pair(relativeRotError,relativeTranError);
+  return std::make_pair(relativeRotError, relativeTranError);
 }
 
 /* -------------------------------------------------------------------------- */
