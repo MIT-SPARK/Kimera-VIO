@@ -9,7 +9,7 @@
 /**
  * @file   Frame.h
  * @brief  Class describing a pair of stereo images
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #ifndef StereoFrame_H_
@@ -45,7 +45,8 @@ namespace VIO {
 using SmartStereoMeasurement = std::pair<LandmarkId,gtsam::StereoPoint2>;
 using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
 
-enum Mesh2Dtype {VALIDKEYPOINTS,DENSE};
+// TODO make enum class.
+enum Mesh2Dtype {VALIDKEYPOINTS, DENSE};
 
 //////////////////////////////////////////////////////////////////////
 class StereoMatchingParams{
@@ -107,30 +108,14 @@ using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 //////////////////////////////////////////////////////////////////////
 class StereoFrame {
 public:
-  StereoFrame(
-      const FrameId& id,
-      const int64_t& timestamp,
-      const std::string& left_image_name,
-      const std::string& right_image_name,
-      const CameraParams& cam_param_left,
-      const CameraParams& cam_param_right,
-      const gtsam::Pose3& L_Pose_R,
-      const StereoMatchingParams& stereo_matching_params) :
-    id_(id), timestamp_(timestamp),
-    left_frame_(id,
-                timestamp,
-                left_image_name,
-                cam_param_left,
-                stereo_matching_params.equalizeImage_),
-    right_frame_(id,
-                 timestamp,
-                 right_image_name,
-                 cam_param_right,
-                 stereo_matching_params.equalizeImage_),
-    is_rectified_(false),
-    is_keyframe_(false),
-    camL_Pose_camR(L_Pose_R),
-    sparse_stereo_params_(stereo_matching_params) {}
+  StereoFrame(const FrameId& id,
+              const int64_t& timestamp,
+              const std::string& left_image_name,
+              const std::string& right_image_name,
+              const CameraParams& cam_param_left,
+              const CameraParams& cam_param_right,
+              const gtsam::Pose3& L_Pose_R,
+              const StereoMatchingParams& stereo_matching_params);
 
 public:
   struct LandmarkInfo{
@@ -158,27 +143,23 @@ public:
 
 public:
   /* ------------------------------------------------------------------------ */
-  void setIsKeyframe(bool is_kf) {
-    is_keyframe_ = is_kf;
-    left_frame_.isKeyframe_ = is_kf;
-    right_frame_.isKeyframe_ = is_kf;
-  }
-  void setIsRectified(bool is_rectified) {
-    is_rectified_ = is_rectified;
-  }
+  void setIsKeyframe(bool is_kf);
 
+  /* ------------------------------------------------------------------------ */
+  void setIsRectified(bool is_rectified);
+
+  /* ------------------------------------------------------------------------ */
   // Create a 2D mesh only including triangles corresponding to obstables (planar surfaces)
   // min_elongation_ratio = 0.5 (max 1): check on the elongation of the triangle (TODO: this check is conservative)
   // if mesh2Dtype = VALIDKEYPOINTS: 2D triangulation is computed form keypoints with VALID right match and valid lmk id (!=-1)
   // if mesh2Dtype = DENSE: to the keypoints mentioned in the sparse case, we add other points without lmk id (but with valid stereo)
   // pointsWithIdStereo is optional, and represents the landmarks corresponding
   // to the keypoints used to create the 2d mesh.
-  void createMesh2dStereo(
-      std::vector<cv::Vec6f>* triangulation_2D,
-      std::vector<std::pair<LandmarkId, gtsam::Point3>>*
-        pointsWithIdStereo = nullptr,
-      const Mesh2Dtype& mesh2Dtype = VALIDKEYPOINTS,
-      const bool& useCanny = true) const;
+  void createMesh2dStereo(std::vector<cv::Vec6f>* triangulation_2D,
+                          std::vector<std::pair<LandmarkId, gtsam::Point3>>*
+                          pointsWithIdStereo = nullptr,
+                          const Mesh2Dtype& mesh2Dtype = VALIDKEYPOINTS,
+                          const bool& useCanny = true) const;
 
   /* ------------------------------------------------------------------------ */
   void createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
@@ -199,19 +180,23 @@ public:
       const float& gradient_bound = 50.0,
       const size_t& max_keypoints_with_gradient = 0) const;
 
+  /* ------------------------------------------------------------------------ */
   // Copy rectification parameters from another stereo camera.
   void cloneRectificationParameters(const StereoFrame& sf);
 
+  /* ------------------------------------------------------------------------ */
   // Returns left and right rectified images and left and right rectified camera
   // calibration
   void getRectifiedImages();
 
+  /* ------------------------------------------------------------------------ */
   // For each keypoint in the left frame, get
   // (i) keypoint in right frame,
   // (ii) depth,
   // (iii) corresponding 3D point.
   void sparseStereoMatching(const int verbosity = 0);
 
+  /* ------------------------------------------------------------------------ */
   void checkStereoFrame() const;
 
   /* ------------------------------------------------------------------------ */
@@ -307,6 +292,7 @@ private:
   // Given an image img, computes its gradients in img_grads.
   void computeImgGradients(const cv::Mat& img, cv::Mat* img_grads) const;
 
+  /* ------------------------------------------------------------------------ */
   // Use optical flow to get right frame correspondences.
   // deprecated
   void getRightKeypointsLKunrectified();
@@ -314,135 +300,40 @@ private:
   /* ------------------------------------------------------------------------ */
   // Get disparity image:
   // https://github.com/opencv/opencv/blob/master/samples/cpp/tutorial_code/calib3d/stereoBM/SBM_Sample.cpp
-  cv::Mat getDisparityImage(const int verbosity = 0) const;
+  // TODO imshow has to be called in the main thread.
+  cv::Mat getDisparityImage() const;
 
   /* ------------------------------------------------------------------------ */
-  void print() const {
-    LOG(INFO) << "=====================\n"
-              << "id_ " << id_ << '\n'
-              << "timestamp_ " << timestamp_ << '\n'
-              << "isRectified_ " << is_rectified_ << '\n'
-              << "isKeyframe_ " << is_keyframe_ << '\n'
-              << "nr keypoints in left " << left_frame_.keypoints_.size() << '\n'
-              << "nr keypoints in right " << right_frame_.keypoints_.size() << '\n'
-              << "nr keypoints_depth_ " << keypoints_depth_.size() << '\n'
-              << "nr keypoints_3d_ " << keypoints_3d_.size();
-    camL_Pose_camR.print("camL_Pose_camR \n");
-    LOG(INFO) << "\n left_frame_.cam_param_.body_Pose_cam_ "
-              << left_frame_.cam_param_.body_Pose_cam_
-              << "right_frame_.cam_param_.body_Pose_cam_ "
-              << right_frame_.cam_param_.body_Pose_cam_;
-  }
+  void print() const;
 
   /* ------------------------------------------------------------------------ */
-  void showOriginal(const int verbosity) const {
-    CHECK(!is_rectified_) << "showOriginal: but images are already rectified";
-    showImagesSideBySide(left_frame_.img_,
-                         right_frame_.img_,
-                         "original: left-right",
-                         verbosity);
-  }
+  void showOriginal(const int verbosity) const;
 
   /* ------------------------------------------------------------------------ */
   // TODO visualization (aka imshow/waitKey) must be done in the main thread...
-  void showRectified(const int verbosity) const {
-    CHECK(is_rectified_) << "showRectified: please perform rectification before "
-                           "asking to visualize rectified images";
-    // showImagesSideBySide(left_frame_.img_,right_frame_.img_,"rectified: left-right");
-    cv::Mat canvas_undistort = drawEpipolarLines(left_frame_.img_,right_frame_.img_, 15);
-    if(verbosity>1){
-      std::string img_name = "./outputImages/rectified_" + std::to_string(id_) + ".png";
-      cv::imwrite(img_name, canvas_undistort);
-    }
-    cv::imshow("Rectified!", canvas_undistort);
-    cv::waitKey(50);
-  }
+  void showRectified(const int verbosity) const;
 
   /* ------------------------------------------------------------------------ */
   // TODO visualization (aka imshow/waitKey) must be done in the main thread...
   void showImagesSideBySide(const cv::Mat imL,
                             const cv::Mat imR,
                             const std::string& title,
-                            const int& verbosity = 0) const {
-    if (verbosity == 0) return;
-
-    cv::Mat originalLR = UtilsOpenCV::ConcatenateTwoImages(imL,imR);
-    cv::namedWindow(title, cv::WINDOW_AUTOSIZE);
-    if (verbosity == 1) {
-      cv::imshow("originalLR", originalLR);
-      cv::waitKey(200);
-    } else if(verbosity == 2) {
-      std::string img_name = "./outputImages/" + title + std::to_string(id_) +
-          ".png";
-      cv::imwrite(img_name, originalLR);
-    }
-  }
+                            const int& verbosity = 0) const;
 
   /* ------------------------------------------------------------------------ */
   cv::Mat drawEpipolarLines(const cv::Mat img1,
                             const cv::Mat img2,
                             const int& numLines = 20,
-                            const int& verbosity = 0) const {
-    cv::Mat canvas = UtilsOpenCV::ConcatenateTwoImages(img1, img2);
-    int lineGap = canvas.rows / (numLines + 1);
-    for (int l = 0; l < numLines; l++) {
-      float yPos = (l + 1) * lineGap;
-      cv::line(canvas, cv::Point2f(0, yPos), cv::Point2f(canvas.cols - 1, yPos),
-               cv::Scalar(0, 255, 0));
-    }
-    if (verbosity > 1) {
-      std::string img_name = "./outputImages/drawEpipolarLines_" +
-          std::to_string(id_) + ".png";
-      cv::imwrite(img_name, canvas);
-    }
-    return canvas;
-  }
+                            const int& verbosity = 0) const;
 
   /* ------------------------------------------------------------------------ */
   // TODO visualization (aka imshow/waitKey) must be done in the main thread...
-  void displayLeftRightMatches() const {
-    CHECK_EQ(left_frame_.keypoints_.size(), right_frame_.keypoints_.size())
-      << "displayLeftRightMatches: error -  nr of corners in left and right "
-         "cameras must be the same";
-
-    // Draw the matchings: assumes that keypoints in the left and right keyframe
-    // are ordered in the same way
-    std::vector<cv::DMatch> matches;
-    for (size_t i = 0; i < left_frame_.keypoints_.size(); i++) {
-      matches.push_back(cv::DMatch(i, i, 0));
-    }
-    cv::Mat match_vis = UtilsOpenCV::DrawCornersMatches(
-        left_frame_.img_, left_frame_.keypoints_,
-        right_frame_.img_, right_frame_.keypoints_, matches);
-    cv::imshow("match_visualization", match_vis);
-    cv::waitKey(1);
-  }
+  void displayLeftRightMatches() const;
 
   /* ------------------------------------------------------------------------ */
   // Visualize statistics on the performance of the sparse stereo matching
   void displayKeypointStats(
-      const StatusKeypointsCV& right_keypoints_rectified) const {
-    int nrValid = 0, nrNoLeftRect = 0, nrNoRightRect = 0, nrNoDepth = 0;
-    for (const StatusKeypointCV& right_keypoint_rectified:
-         right_keypoints_rectified) {
-      switch(right_keypoint_rectified.first) {
-      case Kstatus::VALID: {nrValid++; break;}
-      case Kstatus::NO_LEFT_RECT: {nrNoLeftRect++; break;}
-      case Kstatus::NO_RIGHT_RECT: {nrNoRightRect++; break;}
-      case Kstatus::NO_DEPTH: {nrNoDepth++; break;}
-      case Kstatus::FAILED_ARUN: {
-        LOG(FATAL) << "Luca? this wasn't handled";
-        break;
-      }
-      }
-    }
-    LOG(INFO) << "Nr of right keypoints: " << right_keypoints_rectified.size()
-              << " of which:\n"
-              << "nrValid: "       << nrValid       << "\n"
-              << "nrNoLeftRect: "  << nrNoLeftRect  << "\n"
-              << "nrNoRightRect: " << nrNoRightRect << "\n"
-              << "nrNoDepth: "     << nrNoDepth;
-  }
+      const StatusKeypointsCV& right_keypoints_rectified) const;
 };
 
 } // namespace VIO
