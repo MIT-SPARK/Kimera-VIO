@@ -93,12 +93,18 @@ public:
 
 public:
   /* ------------------------------------------------------------------------ */
+  // Frontend initialization.
   void processFirstStereoFrame(StereoFrame& firstFrame);
-  StatusSmartStereoMeasurements processStereoFrame(StereoFrame& cur_Frame,
+
+  /* ------------------------------------------------------------------------ */
+  // Frontend main function.
+  StatusSmartStereoMeasurements processStereoFrame(
+      StereoFrame cur_frame, // Pass by value and use move semantics!
       boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
 
   /* ------------------------------------------------------------------------ */
-  // returns extracted left and right rectified features in a suitable format for VIO
+  // Returns extracted left and right rectified features in a suitable format
+  // for VIO.
   SmartStereoMeasurements getSmartStereoMeasurements(
       const StereoFrame& stereoFrame_kf) const;
 

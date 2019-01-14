@@ -17,6 +17,7 @@
 namespace VIO {
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+// TODO Optimize this function.
 void Tracker::featureDetection(Frame& cur_frame) {
   // Check how many new features we need: maxFeaturesPerFrame_ - n_existing features
   // If ref_frame has zero features this simply detects maxFeaturesPerFrame_ new features for cur_frame
@@ -36,37 +37,37 @@ void Tracker::featureDetection(Frame& cur_frame) {
   ///////////////// FEATURE DETECTION //////////////////////
   // If feature FeatureSelectionCriterion is quality, just extract what you need:
   double start_time = UtilsOpenCV::GetTimeInSeconds();
-  KeypointsCV corners;
-  std::vector<double> cornerScores;
-  std::tie(corners, cornerScores) =
+  auto corners_with_scores =
       Tracker::featureDetection(cur_frame, trackerParams_, camMask_,
                                 nr_corners_needed);
   if (verbosity_ >= 5) {
     debugInfo_.featureDetectionTime_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
   }
-  debugInfo_.extracted_corners_ = corners.size();
+  debugInfo_.extracted_corners_ = corners_with_scores.first.size();
 
   ///////////////// STORE NEW KEYPOINTS  //////////////////////
   // Store features in our Frame
   size_t nrExistingKeypoints = cur_frame.keypoints_.size(); // for debug, these are the ones tracked from the previous frame
-  cur_frame.landmarks_.reserve(cur_frame.keypoints_.size() + corners.size());
-  cur_frame.landmarksAge_.reserve(cur_frame.keypoints_.size() + corners.size());
-  cur_frame.keypoints_.reserve(cur_frame.keypoints_.size() + corners.size());
-  cur_frame.scores_.reserve(cur_frame.scores_.size() + cornerScores.size());
-  cur_frame.versors_.reserve(cur_frame.keypoints_.size() + corners.size());
+  cur_frame.landmarks_.reserve(cur_frame.keypoints_.size() + corners_with_scores.first.size());
+  cur_frame.landmarksAge_.reserve(cur_frame.keypoints_.size() + corners_with_scores.first.size());
+  cur_frame.keypoints_.reserve(cur_frame.keypoints_.size() + corners_with_scores.first.size());
+  cur_frame.scores_.reserve(cur_frame.scores_.size() + corners_with_scores.second.size());
+  cur_frame.versors_.reserve(cur_frame.keypoints_.size() + corners_with_scores.first.size());
 
-  for (size_t i = 0; i < corners.size(); i++) {
+  // TODO Fix this loop, very unefficient. Use std::move over keypoints with scores.
+  for (size_t i = 0; i < corners_with_scores.first.size(); i++) {
     cur_frame.landmarks_.push_back(landmark_count_);
     cur_frame.landmarksAge_.push_back(1); // seen in a single (key)frame
-    cur_frame.keypoints_.push_back(corners.at(i));
-    cur_frame.scores_.push_back(cornerScores.at(i));
-    cur_frame.versors_.push_back(Frame::CalibratePixel(corners.at(i),
-                                                       cur_frame.cam_param_));
+    cur_frame.keypoints_.push_back(corners_with_scores.first.at(i));
+    cur_frame.scores_.push_back(corners_with_scores.second.at(i));
+    cur_frame.versors_.push_back(Frame::CalibratePixel(
+                                   corners_with_scores.first.at(i),
+                                   cur_frame.cam_param_));
     ++landmark_count_;
   }
   VLOG(10) << "featureExtraction: frame " << cur_frame.id_
            << ",  Nr tracked keypoints: " << nrExistingKeypoints
-           << ",  Nr extracted keypoints: " << corners.size()
+           << ",  Nr extracted keypoints: " << corners_with_scores.first.size()
            << ",  total: " << cur_frame.keypoints_.size()
            << "  (max: " << trackerParams_.maxFeaturesPerFrame_ << ")";
 }
@@ -89,19 +90,20 @@ std::pair<KeypointsCV, std::vector<double>> Tracker::featureDetection(
   }
 
   // Find new features and corresponding scores
-  KeypointsCV corners; std::vector<double> cornerScores;
+  std::pair<KeypointsCV, std::vector<double>> corners_with_scores;
   if (need_n_corners > 0) {
-    std::tie(corners,cornerScores) = UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
+    UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
           cur_frame.img_, need_n_corners,
           tracker_params.quality_level_,
           tracker_params.min_distance_,
           mask,
           tracker_params.block_size_,
           tracker_params.use_harris_detector_,
-          tracker_params.k_);
+          tracker_params.k_,
+          &corners_with_scores);
   }
 
-  return std::make_pair(corners,cornerScores);
+  return corners_with_scores;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -410,13 +412,15 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   Matrix3 stereoPtCov = Matrix3::Identity(); // 3 px std in each direction
 
   // Create stereo camera.
+  const gtsam::Cal3_S2& left_undist_rect_cam_mat =
+      ref_stereoFrame.getLeftUndistRectCamMat();
   gtsam::Cal3_S2Stereo::shared_ptr K(new gtsam::Cal3_S2Stereo(
-                           ref_stereoFrame.left_undistRectCameraMatrix_.fx(),
-                           ref_stereoFrame.left_undistRectCameraMatrix_.fy(),
-                           ref_stereoFrame.left_undistRectCameraMatrix_.skew(),
-                           ref_stereoFrame.left_undistRectCameraMatrix_.px(),
-                           ref_stereoFrame.left_undistRectCameraMatrix_.py(),
-                           ref_stereoFrame.baseline_));
+                                       left_undist_rect_cam_mat.fx(),
+                                       left_undist_rect_cam_mat.fy(),
+                                       left_undist_rect_cam_mat.skew(),
+                                       left_undist_rect_cam_mat.px(),
+                                       left_undist_rect_cam_mat.py(),
+                                       ref_stereoFrame.getBaseline()));
   // In the ref frame of the left camera.
   gtsam::StereoCamera stereoCam = gtsam::StereoCamera(gtsam::Pose3(), K);
 

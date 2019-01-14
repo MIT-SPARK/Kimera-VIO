@@ -9,7 +9,7 @@
 /**
  * @file   stereoVIOEuroc.cpp
  * @brief  example of VIO pipeline running on the Euroc dataset
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #include <gflags/gflags.h>

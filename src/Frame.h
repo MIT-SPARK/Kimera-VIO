@@ -24,20 +24,20 @@
 #include <numeric>
 #include <boost/foreach.hpp>
 
-// Including opencv
+#include <glog/logging.h>
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
-#include "opencv2/features2d/features2d.hpp"
+#include <opencv2/features2d/features2d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include "CameraParams.h"
-#include "UtilsOpenCV.h"
 
 #include <gtsam/base/Matrix.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/PinholeCamera.h>
 
-#include <glog/logging.h>
+#include "CameraParams.h"
+#include "UtilsOpenCV.h"
 
 namespace VIO {
 
@@ -91,15 +91,18 @@ public:
 public:
   /* ++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++ */
   // ExtractCorners using goodFeaturesToTrack
+  // TODO REMOVE No one is using this... :(
   void extractCorners(const double qualityLevel = 0.01,
                       const double minDistance = 10,
                       const int blockSize = 3,
                       const bool useHarrisDetector = false,
-                      const double k = 0.04,
-                      const int maxCorners = 100) {
-    keypoints_ = UtilsOpenCV::ExtractCorners(img_, qualityLevel, minDistance,
-                                             blockSize, k, maxCorners,
-                                             useHarrisDetector);
+                      const double k = 0.04) {
+    UtilsOpenCV::ExtractCorners(img_,
+                                &keypoints_,
+                                qualityLevel,
+                                minDistance,
+                                blockSize, k,
+                                useHarrisDetector);
   }
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -295,13 +298,13 @@ public:
 
   /* ------------------------------------------------------------------------ */
   void print() const {
-    std::cout << "Frame id: " << id_ <<  " at timestamp: " << timestamp_ << "\n"
+    LOG(INFO) << "Frame id: " << id_ <<  " at timestamp: " << timestamp_ << "\n"
               << "isKeyframe_: " << isKeyframe_ << "\n"
               << "nr keypoints_: " << keypoints_.size() << "\n"
               << "nr valid keypoints_: " << getNrValidKeypoints() << "\n"
               << "nr landmarks_: " << landmarks_.size() << "\n"
               << "nr versors_: " << versors_.size() << "\n"
-              << "size descriptors_: " << descriptors_.size() << std::endl;
+              << "size descriptors_: " << descriptors_.size();
     cam_param_.print();
   }
 
@@ -315,12 +318,14 @@ public:
 
     // TODO optimize this in just one call, the s in Points is there for
     // something I hope.
-    cv::undistortPoints(uncalibrated_px, calibrated_px,
-                        cam_param.camera_matrix_, cam_param.distortion_coeff_);
+    cv::undistortPoints(uncalibrated_px,
+                        calibrated_px,
+                        cam_param.camera_matrix_,
+                        cam_param.distortion_coeff_);
 
     // Transform to unit vector.
-    Vector3 versor = Vector3(calibrated_px.at<float>(0, 0),
-                             calibrated_px.at<float>(0, 1), 1.0);
+    Vector3 versor (calibrated_px.at<float>(0, 0),
+                    calibrated_px.at<float>(0, 1), 1.0);
 
     // sanity check, try to distort point using gtsam and make sure you get original pixel
     //gtsam::Point2 uncalibrated_px_gtsam = cam_param.calibration_.uncalibrate(gtsam::Point2(versor(0),versor(1)));
@@ -333,7 +338,7 @@ public:
     //  std::cout << "px_mismatch: \n" << px_mismatch << std::endl;
     //  throw std::runtime_error("CalibratePixel: possible calibration mismatch");
     //}
-    return versor/versor.norm(); // return unit norm vector
+    return versor / versor.norm(); // return unit norm vector
   }
 };
 

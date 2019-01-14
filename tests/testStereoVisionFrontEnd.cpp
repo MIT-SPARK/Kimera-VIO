@@ -231,8 +231,7 @@ TEST(testStereoVisionFrontEnd, getRelativePoseBodyMono) {
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_mono_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
-  Pose3 body_pose_cam =
-      ref_stereo_frame->B_Pose_camLrect_;
+  Pose3 body_pose_cam = ref_stereo_frame->getBPoseCamLRect();
 
   // Expected answer
   Pose3 pose_expected = body_pose_cam *
@@ -254,8 +253,7 @@ TEST(testStereoVisionFrontEnd, getRelativePoseBodyStereo) {
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_stereo_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
-  Pose3 body_pose_cam =
-      ref_stereo_frame->B_Pose_camLrect_;
+  Pose3 body_pose_cam = ref_stereo_frame->getBPoseCamLRect();
 
   // Expected answer
   Pose3 pose_expected = body_pose_cam *
@@ -272,7 +270,7 @@ TEST(testStereoVisionFrontEnd, getRelativePoseBodyStereo) {
 TEST(testStereoVisionFrontEnd, getSmartStereoMeasurements) {
   ClearStereoFrame(ref_stereo_frame);
   ref_stereo_frame->setIsKeyframe(true);
-  ref_stereo_frame->isRectified_ = true;
+  ref_stereo_frame->setIsRectified(true);
 
   StereoVisionFrontEnd st;
 
@@ -466,15 +464,16 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
   // The test data is simple enough so that all left corners have unique and
   // valid corresponding corner!
   shared_ptr<StereoFrame> sf = st.stereoFrame_km1_;
-  EXPECT(sf->isKeyframe_);
-  EXPECT(sf->isRectified_);
+  EXPECT(sf->isKeyframe());
+  EXPECT(sf->isRectified());
 
   // left_keypoints_rectified!
   vector<Point2> left_undistort_corners = LoadCorners(
       matlab_syn_path + "/corners_undistort_left.txt");
   vector<Point2> left_rect_corners = ConvertCornersAcrossCameras(
-      left_undistort_corners, sf->left_frame_.cam_param_.calibration_,
-      sf->left_undistRectCameraMatrix_);
+      left_undistort_corners,
+      sf->left_frame_.cam_param_.calibration_,
+      sf->getLeftUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     Point2 pt_expect = left_rect_corners[idx_gt];
@@ -488,8 +487,9 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
   vector<Point2> right_undistort_corners = LoadCorners(
       matlab_syn_path + "/corners_undistort_right.txt");
   vector<Point2> right_rect_corners = ConvertCornersAcrossCameras(
-      right_undistort_corners, sf->right_frame_.cam_param_.calibration_,
-      sf->right_undistRectCameraMatrix_);
+      right_undistort_corners,
+      sf->right_frame_.cam_param_.calibration_,
+      sf->getRightUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     Point2 pt_expect = right_rect_corners[idx_gt];

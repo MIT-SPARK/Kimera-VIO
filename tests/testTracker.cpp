@@ -250,13 +250,14 @@ void AddVersorsToStereoFrames(StereoFrame* sf_ref, StereoFrame* sf_cur,
 
   // create ref stereo camera
   Rot3 camLrect_R_camL = UtilsOpenCV::Cvmat2rot(sf_ref->left_frame_.cam_param_.R_rectify_);
+  Cal3_S2 ref_left_undist_rect_cam_mat = sf_ref->getLeftUndistRectCamMat();
   Cal3_S2Stereo::shared_ptr K_ref(new Cal3_S2Stereo(
-      sf_ref->left_undistRectCameraMatrix_.fx(),
-      sf_ref->left_undistRectCameraMatrix_.fy(),
-      sf_ref->left_undistRectCameraMatrix_.skew(),
-      sf_ref->left_undistRectCameraMatrix_.px(),
-      sf_ref->left_undistRectCameraMatrix_.py(),
-      sf_ref->baseline_));
+      ref_left_undist_rect_cam_mat.fx(),
+      ref_left_undist_rect_cam_mat.fy(),
+      ref_left_undist_rect_cam_mat.skew(),
+      ref_left_undist_rect_cam_mat.px(),
+      ref_left_undist_rect_cam_mat.py(),
+      sf_ref->getBaseline()));
   StereoCamera stereoCam = StereoCamera(Pose3(),K_ref);
 
   StereoPoint2 sp2 = stereoCam.project( camLrect_R_camL.rotate( Point3(v_ref) ) );
@@ -265,13 +266,14 @@ void AddVersorsToStereoFrames(StereoFrame* sf_ref, StereoFrame* sf_cur,
 
   // create cur stereo camera
   camLrect_R_camL = UtilsOpenCV::Cvmat2rot(sf_cur->left_frame_.cam_param_.R_rectify_);
+  Cal3_S2 cur_left_undist_rect_cam_mat = sf_cur->getLeftUndistRectCamMat();
   Cal3_S2Stereo::shared_ptr K_cur(new Cal3_S2Stereo(
-      sf_cur->left_undistRectCameraMatrix_.fx(),
-      sf_cur->left_undistRectCameraMatrix_.fy(),
-      sf_cur->left_undistRectCameraMatrix_.skew(),
-      sf_cur->left_undistRectCameraMatrix_.px(),
-      sf_cur->left_undistRectCameraMatrix_.py(),
-      sf_cur->baseline_));
+      cur_left_undist_rect_cam_mat.fx(),
+      cur_left_undist_rect_cam_mat.fy(),
+      cur_left_undist_rect_cam_mat.skew(),
+      cur_left_undist_rect_cam_mat.px(),
+      cur_left_undist_rect_cam_mat.py(),
+      sf_cur->getBaseline()));
   stereoCam = StereoCamera(Pose3(),K_cur);
 
   sp2 = stereoCam.project( camLrect_R_camL.rotate( Point3(v_cur) ) );
@@ -580,7 +582,7 @@ TEST(testTracker, geometricOutlierRejectionStereo) {
   // Must call getRectifiedImages() to get the baseline!
   ref_stereo_frame->getRectifiedImages();
   Rot3 R = Rot3::Expmap(Vector3(0.1, 0.1, 0.1));
-  Vector3 T(ref_stereo_frame->baseline(), 0, 0);
+  Vector3 T(ref_stereo_frame->getBaseline(), 0, 0);
   Pose3 camLeftRef_pose_camLeftCur(R, T);
 
   // Factor 1: Noise level
@@ -696,7 +698,7 @@ TEST(testTracker, geometricOutlierRejectionStereoGivenRotation) {
   // Must call getRectifiedImages() to get the baseline!
   ref_stereo_frame->getRectifiedImages();
   Rot3 R = Rot3::Expmap(Vector3(0.1, 0.1, 0.1));
-  Vector3 T(ref_stereo_frame->baseline(), 0, 0);
+  Vector3 T(ref_stereo_frame->getBaseline(), 0, 0);
   Pose3 camLeftRef_pose_camLeftCur(R, T);
 
   // Factor 1: Noise level
@@ -835,10 +837,14 @@ TEST(testTracker, GetPoint3AndCovariance) {
 
   ClearStereoFrame(ref_stereo_frame);
   // create stereo cam
-  Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(ref_stereo_frame->left_undistRectCameraMatrix_.fx(),
-      ref_stereo_frame->left_undistRectCameraMatrix_.fy(), ref_stereo_frame->left_undistRectCameraMatrix_.skew(),
-      ref_stereo_frame->left_undistRectCameraMatrix_.px(), ref_stereo_frame->left_undistRectCameraMatrix_.py(),
-      ref_stereo_frame->baseline_));
+  Cal3_S2 ref_left_undist_rect_cam_mat = ref_stereo_frame->getLeftUndistRectCamMat();
+  Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(
+                                ref_left_undist_rect_cam_mat.fx(),
+                                ref_left_undist_rect_cam_mat.fy(),
+                                ref_left_undist_rect_cam_mat.skew(),
+                                ref_left_undist_rect_cam_mat.px(),
+                                ref_left_undist_rect_cam_mat.py(),
+                                ref_stereo_frame->getBaseline()));
   StereoCamera stereoCam = StereoCamera(Pose3(),K); // in the ref frame of the left camera
 
   // create a stereo point:

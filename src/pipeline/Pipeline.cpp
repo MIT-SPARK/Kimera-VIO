@@ -172,7 +172,7 @@ void Pipeline::spinOnce(size_t k) {
 
   // Pass info to VIO if it's keyframe.
   start_time = UtilsOpenCV::GetTimeInSeconds();
-  if (stereo_vision_frontend_->stereoFrame_km1_->isKeyframe_) {
+  if (stereo_vision_frontend_->stereoFrame_km1_->isKeyframe()) {
     // It's a keyframe!
     LOG(INFO) << "Keyframe " << k << " with: "
               << statusSmartStereoMeasurements.second.size()
@@ -337,7 +337,7 @@ void Pipeline::processKeyframe(
     // Push data for visualizer thread.
     visualizer_input_queue_.push(VisualizerInputPayload(
                                    visualization_type, FLAGS_backend_type,
-                                   vio_backend_->getWPoseBLkf() * stereo_vision_frontend_->stereoFrame_km1_->B_Pose_camLrect_, // pose for trajectory viz.
+                                   vio_backend_->getWPoseBLkf() * stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(), // pose for trajectory viz.
                                    mesh_2d, // for visualizeMesh2D and visualizeMesh2DStereo
                                    stereo_vision_frontend_->stereoFrame_lkf_->left_frame_, // for visualizeMesh2D and visualizeMesh2DStereo
                                    mesher_output_payload, // visualizeConvexHull & visualizeMesh3DWithColoredClusters
@@ -414,9 +414,9 @@ bool Pipeline::initialize(size_t k) {
         std::shared_ptr<gtNavState>(nullptr);
 
   initBackend(&vio_backend_,
-              stereo_vision_frontend_->stereoFrame_km1_->B_Pose_camLrect_,
-              stereo_vision_frontend_->stereoFrame_km1_->left_undistRectCameraMatrix_,
-              stereo_vision_frontend_->stereoFrame_km1_->baseline_,
+              stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(),
+              stereo_vision_frontend_->stereoFrame_km1_->getLeftUndistRectCamMat(),
+              stereo_vision_frontend_->stereoFrame_km1_->getBaseline(),
               *CHECK_NOTNULL(vio_params_.get()),
               &initialStateGT,
               timestamp_k_,

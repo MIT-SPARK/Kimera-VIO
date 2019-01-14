@@ -9,7 +9,7 @@
 /**
  * @file   testStereoFrame.h
  * @brief  test StereoFrame
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #include <iostream>
@@ -68,6 +68,7 @@ void initializeData() {
   P1 = sf->left_frame_.cam_param_.P_;
   P2 = sf->right_frame_.cam_param_.P_;
 }
+
 /* ------------------------------------------------------------------------ */
 static cv::Mat cvTranslateImageX(cv::Mat img, double dist) {
   cv::Mat result = cv::Mat(img.rows, img.cols, img.type());
@@ -80,10 +81,14 @@ static cv::Mat cvTranslateImageX(cv::Mat img, double dist) {
 /* ************************************************************************* */
 TEST(testStereoFrame, setIsKeyframe) {
   // all false by default
-  EXPECT(!sf->isKeyframe_ && !sf->left_frame_.isKeyframe_ && !sf->right_frame_.isKeyframe_);
+  EXPECT(!sf->isKeyframe() &&
+         !sf->left_frame_.isKeyframe_ &&
+         !sf->right_frame_.isKeyframe_);
   // check that are correctly changed to true
   sf->setIsKeyframe(true);
-  EXPECT(sf->isKeyframe_ && sf->left_frame_.isKeyframe_ && sf->right_frame_.isKeyframe_);
+  EXPECT(sf->isKeyframe() &&
+         sf->left_frame_.isKeyframe_ &&
+         sf->right_frame_.isKeyframe_);
 }
 
 /* ************************************************************************* */
@@ -104,7 +109,7 @@ TEST(testStereoFrame, rectification) {
 
   // B_Pose_camLrect
   Pose3 B_Pose_camLrect_expect = (left_camera_info.body_Pose_cam_).compose(camL_Pose_camLrect);
-  EXPECT(sf->B_Pose_camLrect_.equals(B_Pose_camLrect_expect));
+  EXPECT(sf->getBPoseCamLRect().equals(B_Pose_camLrect_expect));
 
   // Right camera pose after rectification
   Rot3 camR_Rot_camRrect = UtilsOpenCV::Cvmat2rot(right_camera_info.R_rectify_).inverse();
@@ -113,14 +118,14 @@ TEST(testStereoFrame, rectification) {
   // B_Pose_camRrect
   Pose3 B_Pose_camRrect = right_camera_info.body_Pose_cam_.compose(camR_Pose_camRrect);
   // Relative pose
-  Pose3 camLrect_Pose_camRrect = sf->B_Pose_camLrect_.between(B_Pose_camRrect);
+  Pose3 camLrect_Pose_camRrect = sf->getBPoseCamLRect().between(B_Pose_camRrect);
 
   // Verify the quality of the rectification!
   // Baseline
   double baseline_expect = camL_Pose_camR.translation().vector().norm();
   // Make sure that it is compatible with the baseline used in the test data
   EXPECT(baseline_expect >= 0.10 && baseline_expect <= 0.12);
-  EXPECT_DOUBLES_EQUAL(baseline_expect, sf->baseline_, tol);
+  EXPECT_DOUBLES_EQUAL(baseline_expect, sf->getBaseline(), tol);
   // check condition 1) on Rotation
   double rotation_deviation = Rot3::Logmap(camLrect_Pose_camRrect.rotation()).norm();
   EXPECT(rotation_deviation < tol);
@@ -329,7 +334,7 @@ TEST(testStereoFrame, DistortUnrectifyPoints) {
   KeypointsCV keypoints_unrectified;
   vector<Kstatus> keypoints_status;
 
-  tie(keypoints_unrectified, keypoints_status) = StereoFrame::DistortUnrectifyPoints(
+  tie(keypoints_unrectified, keypoints_status) = StereoFrame::distortUnrectifyPoints(
       keypoints_rectified, sf->left_frame_.cam_param_.undistRect_map_x_,
       sf->left_frame_.cam_param_.undistRect_map_y_);
 
@@ -381,16 +386,20 @@ TEST(testStereoFrame, undistortRectifyPoints) {
   }
 
   // Actual value
-  StatusKeypointsCV keypoints_rectified = sf->undistortRectifyPoints(keypoints_unrectified_gt,
-      sf->left_frame_.cam_param_, sf->left_undistRectCameraMatrix_);
+  StatusKeypointsCV keypoints_rectified;
+  sf->undistortRectifyPoints(keypoints_unrectified_gt,
+                             sf->left_frame_.cam_param_,
+                             sf->getLeftUndistRectCamMat(),
+                             &keypoints_rectified);
 
   // Map back!
   KeypointsCV keypoints_unrectified_actual;
   vector<Kstatus> status_unrectified;
   tie(keypoints_unrectified_actual, status_unrectified) =
-      StereoFrame::DistortUnrectifyPoints(keypoints_rectified,
-          sf->left_frame_.cam_param_.undistRect_map_x_,
-          sf->left_frame_.cam_param_.undistRect_map_y_);
+      StereoFrame::distortUnrectifyPoints(
+        keypoints_rectified,
+        sf->left_frame_.cam_param_.undistRect_map_x_,
+        sf->left_frame_.cam_param_.undistRect_map_y_);
 
   // Comparision
   for(int i = 0; i < keypoints_unrectified_actual.size(); i++) {
@@ -440,7 +449,7 @@ TEST(testStereoFrame, getDepthFromRectifiedMatches) {
   for (auto depth2baseline_ratio : depth2baseline_ratio_set) {
     for (auto x2depth : x2depth_set) {
       for (auto y2depth : y2depth_set) {
-        double depth = depth2baseline_ratio * sf->baseline();
+        double depth = depth2baseline_ratio * sf->getBaseline();
         double x_loc = x2depth * depth;
         double y_loc = y2depth * depth;
 
@@ -477,10 +486,11 @@ TEST(testStereoFrame, getDepthFromRectifiedMatches) {
 
   // Call StereoFrame::getDepthFromRectifiedMatches to get the actual depth!
   vector<double> depth_actual = sf->getDepthFromRectifiedMatches(
-      left_keypoints_rectified, right_keypoints_rectified, P1.at<double>(0, 0), sf->baseline());
+      left_keypoints_rectified, right_keypoints_rectified, P1.at<double>(0, 0), sf->getBaseline());
   for (int i = 0; i < depth_actual.size(); i++) {
     // if depth is outside the valid range, it is conventionally set to zero
-    if (depth_expected[i] < sf->sparseStereoParams_.minPointDist || depth_expected[i] > sf->sparseStereoParams_.maxPointDist) {
+    if (depth_expected[i] < sf->getSparseStereoParams().minPointDist ||
+        depth_expected[i] > sf->getSparseStereoParams().maxPointDist) {
       EXPECT_DOUBLES_EQUAL(depth_actual[i], 0, 1e-3);
     } else { // check value
       EXPECT_DOUBLES_EQUAL(depth_expected[i], depth_actual[i], 1e-3);
@@ -532,7 +542,7 @@ TEST(testStereoFrame, getRightKeypointsRectified) {
 
       // get actual matches
       StatusKeypointsCV right_keypoints_rectified = sf->getRightKeypointsRectified(left_img, right_img,
-          left_keypoints_rectified, 458.654, sf->baseline());
+          left_keypoints_rectified, 458.654, sf->getBaseline());
 
       for (size_t i=0; i<left_keypoints_rectified.size(); i++) { // for each right status keypoint
 
@@ -622,7 +632,7 @@ TEST(testStereoFrame, sparseStereoMatching) {
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that data is correctly populated:
-  EXPECT_DOUBLES_EQUAL(0.110078, sfnew->baseline(), 1e-5);
+  EXPECT_DOUBLES_EQUAL(0.110078, sfnew->getBaseline(), 1e-5);
   EXPECT_DOUBLES_EQUAL(100, sfnew->right_frame_.keypoints_.size(), 1e-5);
   EXPECT_DOUBLES_EQUAL(0, sfnew->right_frame_.scores_.size(), 1e-5); // scores do not get populated
   EXPECT_DOUBLES_EQUAL(0, sfnew->right_frame_.landmarks_.size(), 1e-5); // landmarks_ do not get populated
@@ -636,7 +646,7 @@ TEST(testStereoFrame, sparseStereoMatching) {
   // check that 3d point is consistent with the left versor and the depth
   // IMPORTANT: versors and keypoints3D are in different ref frames (former in camL, latter in camLrect)
   // TEST: check rotation due to rectification (important when projecting points later on)
-  Rot3 expected_camL_R_camLrect = sfnew->left_frame_.cam_param_.body_Pose_cam_.rotation().between(sfnew->B_Pose_camLrect_.rotation()); // camL_R_camLrect
+  Rot3 expected_camL_R_camLrect = sfnew->left_frame_.cam_param_.body_Pose_cam_.rotation().between(sfnew->getBPoseCamLRect().rotation()); // camL_R_camLrect
   Rot3 actual_camL_R_camLrect = UtilsOpenCV::Cvmat2rot(sfnew->left_frame_.cam_param_.R_rectify_).inverse();
   EXPECT(assert_equal(expected_camL_R_camLrect, actual_camL_R_camLrect,1e-4));
 
@@ -674,11 +684,13 @@ TEST(testStereoFrame, sparseStereoMatching) {
 
       // TEST: uncalibrateUndistRect(versor) = original distorted unrectified point (CHECK UNDIST RECT CALIBRATION WORKS)
       KeypointCV kp_i_undistRect = sfnew->left_keypoints_rectified_.at(i);
-      Cal3_S2 KundistRect(sfnew->left_undistRectCameraMatrix_.fx(),
-          sfnew->left_undistRectCameraMatrix_.fy(),
-          sfnew->left_undistRectCameraMatrix_.skew(),
-          sfnew->left_undistRectCameraMatrix_.px(),
-          sfnew->left_undistRectCameraMatrix_.py());
+      Cal3_S2 sfnew_left_undist_rect_cam_mat = sfnew->getLeftUndistRectCamMat();
+      Cal3_S2 KundistRect(
+          sfnew_left_undist_rect_cam_mat.fx(),
+          sfnew_left_undist_rect_cam_mat.fy(),
+          sfnew_left_undist_rect_cam_mat.skew(),
+          sfnew_left_undist_rect_cam_mat.px(),
+          sfnew_left_undist_rect_cam_mat.py());
       versor_i = actual_camL_R_camLrect.inverse().matrix() * versor_i; // compensate for rotation due to rectification
       versor_i = versor_i / versor_i(2); // set last element to 1, instead of norm 1
       Point2 kp_i_undistRect_gtsam = KundistRect.uncalibrate(Point2(versor_i(0),versor_i(1)));
@@ -687,7 +699,7 @@ TEST(testStereoFrame, sparseStereoMatching) {
       // TEST: distortUnrectify(undistRectified) = original distorted unrectified point (CHECK UNDISTORTION WORKS)
       KeypointsCV dup; vector<Kstatus> statuses;
       StatusKeypointsCV urp; urp.push_back(make_pair(Kstatus::VALID,kp_i_undistRect));
-      tie(dup, statuses) = StereoFrame::DistortUnrectifyPoints(
+      tie(dup, statuses) = StereoFrame::distortUnrectifyPoints(
           urp, sfnew->left_frame_.cam_param_.undistRect_map_x_, sfnew->left_frame_.cam_param_.undistRect_map_y_);
       EXPECT(assert_equal(Point2(kp_i_distUnrect.x,kp_i_distUnrect.y), Point2(dup.at(0).x,dup.at(0).y),1));
 
@@ -706,13 +718,15 @@ TEST(testStereoFrame, sparseStereoMatching) {
 
       // TEST: projecting 3d point to stereo camera
       // reproject to camera and check that matches corresponding rectified pixels
-      Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(sfnew->left_undistRectCameraMatrix_.fx(),
-          sfnew->left_undistRectCameraMatrix_.fy(),
-          sfnew->left_undistRectCameraMatrix_.skew(),
-          sfnew->left_undistRectCameraMatrix_.px(),
-          sfnew->left_undistRectCameraMatrix_.py(),
-          sfnew->baseline_));
-      // Note: camera pose is the identity (instead of sfnew->B_Pose_camLrect) since the 3D point is in the left camera frame
+      Cal3_S2 sfnew_left_undist_rect_cam_mat_2 = sfnew->getLeftUndistRectCamMat();
+      Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(
+          sfnew_left_undist_rect_cam_mat_2.fx(),
+          sfnew_left_undist_rect_cam_mat_2.fy(),
+          sfnew_left_undist_rect_cam_mat_2.skew(),
+          sfnew_left_undist_rect_cam_mat_2.px(),
+          sfnew_left_undist_rect_cam_mat_2.py(),
+          sfnew->getBaseline()));
+      // Note: camera pose is the identity (instead of sfnew->getBPoseCamLRect()) since the 3D point is in the left camera frame
       StereoCamera stereoCam = StereoCamera(Pose3(),K);
       StereoPoint2 sp2 = stereoCam.project(point3d);
       EXPECT_DOUBLES_EQUAL(sp2.uL(), sfnew->left_keypoints_rectified_.at(i).x, 1);
@@ -773,7 +787,7 @@ TEST(testStereoFrame, sparseStereoMatching) {
 //      versor_i_rect = versor_i_rect / versor_i_rect(2); // set last element to 1, instead of norm 1
 //
 //      // TEST: check rotation due to rectification (important when projecting points later on)
-//      Rot3 expected_camL_R_camLrect = sfnew->left_frame_.cam_param_.body_Pose_cam_.rotation().between(sfnew->B_Pose_camLrect.rotation()); // camL_R_camLrect
+//      Rot3 expected_camL_R_camLrect = sfnew->left_frame_.cam_param_.body_Pose_cam_.rotation().between(sfnew->getBPoseCamLRect().rotation()); // camL_R_camLrect
 //      Rot3 actual_camL_R_camLrect = UtilsOpenCV::Cvmat2rot(sfnew->left_frame_.cam_param_.R_rectify_).inverse();
 //      EXPECT(assert_equal(expected_camL_R_camLrect, actual_camL_R_camLrect,1e-6));
 //
@@ -823,7 +837,7 @@ TEST(testStereoFrame, sparseStereoMatching) {
 //          sfnew->left_undistRectCameraMatrix_.px(),
 //          sfnew->left_undistRectCameraMatrix_.py(),
 //          sfnew->baseline_));
-//      // Note: camera pose is the identity (instead of sfnew->B_Pose_camLrect) since the 3D point is in the left camera frame
+//      // Note: camera pose is the identity (instead of sfnew->getBPoseCamLRect()) since the 3D point is in the left camera frame
 //      StereoCamera stereoCam = StereoCamera(Pose3(),K);
 //      StereoPoint2 sp2 = stereoCam.project(point3d_rect);
 //      EXPECT_DOUBLES_EQUAL(sp2.uL(), sfnew->left_keypoints_rectified_.at(i).x, 1);

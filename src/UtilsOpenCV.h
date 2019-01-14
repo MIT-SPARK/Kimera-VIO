@@ -16,13 +16,15 @@
 #define UtilsOpenCV_H_
 
 #include <iostream>
+
+#include <glog/logging.h>
+
 #include <Eigen/Core>
+
 #include <opencv2/core/core.hpp>
 
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/geometry/Unit3.h>
-
-#include <glog/logging.h>
 
 // Forward declare classes.
 namespace gtsam {
@@ -30,7 +32,6 @@ class Point2;
 class Point3;
 class Pose3;
 class Symbol;
-class Unit3;
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::Vector3d Vector3;
 typedef Eigen::Matrix<double, 6, 1> Vector6; \
@@ -193,14 +194,15 @@ public:
   static cv::Point2f RoundAndCropToSize(cv::Point2f px, cv::Size size);
 
   /* ------------------------------------------------------------------------ */
-  // get good features to track from image (wrapper for opencv goodFeaturesToTrack)
-  static std::vector<cv::Point2f> ExtractCorners(
-      cv::Mat img,
-      const double qualityLevel = 0.01,
-      const double minDistance = 10,
+  // Get good features to track from image (wrapper for opencv
+  // goodFeaturesToTrack)
+  static void ExtractCorners(
+      const cv::Mat& img,
+      std::vector<cv::Point2f>* corners,
+      const double& qualityLevel = 0.01,
+      const double& minDistance = 10,
       const int blockSize = 3,
-      const double k = 0.04,
-      const int maxCorners = 100,
+      const double& k = 0.04,
       const bool useHarrisDetector = false);
 
   /* -------------------------------------------------------------------------- */
@@ -210,13 +212,19 @@ public:
   };
 
   /* ------------------------------------------------------------------------ */
-  // get good features to track from image (wrapper for opencv goodFeaturesToTrack)
-  static std::pair< std::vector<cv::Point2f> , std::vector<double> >
-  MyGoodFeaturesToTrackSubPix(cv::Mat image,
-                              int maxCorners, double qualityLevel,
-                              double minDistance,
-                              cv::Mat mask, int blockSize,
-                              bool useHarrisDetector, double harrisK);
+  // Get good features to track from image
+  // (wrapper for opencv goodFeaturesToTrack)
+  static void MyGoodFeaturesToTrackSubPix(
+      const cv::Mat& image,
+      const int& maxCorners,
+      const double& qualityLevel,
+      double minDistance,
+      const cv::Mat& mask,
+      const int& blockSize,
+      const bool& useHarrisDetector,
+      const double& harrisK,
+      std::pair<std::vector<cv::Point2f>, std::vector<double>>*
+        corners_with_scores);
 
   /* ------------------------------------------------------------------------ */
   // rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0

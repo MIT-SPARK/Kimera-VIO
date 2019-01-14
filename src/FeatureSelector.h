@@ -1264,12 +1264,12 @@ public:
 
         if(featureSelectionData.keypoints_3d.size() != featureSelectionData.keypointLife.size())
           throw std::runtime_error("stereoVioExample: keypoint age inconsistent with keypoint 3D");
-        featureSelectionData.body_P_leftCam = stereoFrame_km1->B_Pose_camLrect_;
+        featureSelectionData.body_P_leftCam = stereoFrame_km1->getBPoseCamLRect();
         featureSelectionData.body_P_rightCam = // rectified right camera only has a translation along x = baseline
-            stereoFrame_km1->B_Pose_camLrect_.compose(
-                gtsam::Pose3(gtsam::Rot3(),gtsam::Point3(stereoFrame_km1->baseline(),0.0,0.0)));
-        featureSelectionData.left_undistRectCameraMatrix = stereoFrame_km1->left_undistRectCameraMatrix_;
-        featureSelectionData.right_undistRectCameraMatrix = stereoFrame_km1->right_undistRectCameraMatrix_;
+            stereoFrame_km1->getBPoseCamLRect().compose(
+                gtsam::Pose3(gtsam::Rot3(),gtsam::Point3(stereoFrame_km1->getBaseline(),0.0,0.0)));
+        featureSelectionData.left_undistRectCameraMatrix = stereoFrame_km1->getLeftUndistRectCamMat();
+        featureSelectionData.right_undistRectCameraMatrix = stereoFrame_km1->getRightUndistRectCamMat();
         // ------------------ DATA ABOUT NEW FEATURES: ----------------- //
         std::cout << "selector: populating data about new feature tracks" << std::endl;
         KeypointsCV corners; std::vector<double> successProbabilities;
@@ -1285,7 +1285,7 @@ public:
         UtilsOpenCV::PrintVector<double>(successProbabilities,"successProbabilities");
 
         // featureSelectionData.print();
-        gtsam::Cal3_S2& K = stereoFrame_km1->left_undistRectCameraMatrix_;
+        const gtsam::Cal3_S2& K = stereoFrame_km1->getLeftUndistRectCamMat();
         CameraParams cam_param;
         cam_param.calibration_ = gtsam::Cal3DS2(K.fx(), K.fy(), 0.0, K.px(), K.py(), 0.0,0.0);
         cam_param.camera_matrix_ = cv::Mat::eye(3, 3, CV_64F);
