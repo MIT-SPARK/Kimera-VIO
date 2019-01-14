@@ -27,5 +27,5 @@ int main(int argc, char *argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   VIO::Pipeline vio_pipeline;
-  return vio_pipeline.spin();
+  return vio_pipeline.spin()? EXIT_SUCCESS : EXIT_FAILURE;
 }
