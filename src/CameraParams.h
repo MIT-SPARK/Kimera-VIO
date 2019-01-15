@@ -55,7 +55,8 @@ public:
   // parse YAML file describing camera parameters
   bool parseYAML(std::string filepath){
     // make sure that each YAML file has %YAML:1.0 as first line
-    cv::FileStorage fs(filepath, cv::FileStorage::READ);
+    cv::FileStorage fs;
+    UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
     if (!fs.isOpened()) {
       std::cout << "Cannot open file in parseYAML: " << filepath << std::endl;
       throw std::runtime_error("parseYAML (CameraParams): cannot open file (remember first line: %YAML:1.0)");

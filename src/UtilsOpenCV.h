@@ -117,6 +117,8 @@ struct TriangleCluster {
 };
 
 
+// TODO this should not be a class, should a bunch of functions
+// under the appropriate namespace
 class UtilsOpenCV {
 
 public:
@@ -383,13 +385,18 @@ public:
   static std::vector<std::pair<KeypointCV, double>> FindHighIntensityInTriangle(
       const cv::Mat img, const cv::Vec6f& px_vertices,
       const float intensityThreshold) ;
+
+  /* ------------------------------------------------------------------------ */
+  // Returns a OpenCV file storage in a safely manner, warning about potential
+  // exceptions thrown.
+  static void safeOpenCVFileStorage(cv::FileStorage* fs,
+                                    const std::string& filename_sensor);
 };
 
-
-// TODO define Plane in a Plane.cpp/.h not in utilsOpenCV
 /* -------------------------------------------------------------------------- */
 // A Plane defined by a gtsam::Symbol, a normal, a distance, and the set
 // of lmk ids that are part of the plane.
+// TODO define Plane in a Plane.cpp/.h not in utilsOpenCV
 struct Plane {
 public:
   typedef cv::Point3d Normal;

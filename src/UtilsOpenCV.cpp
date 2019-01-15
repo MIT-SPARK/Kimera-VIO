@@ -930,4 +930,18 @@ UtilsOpenCV::FindHighIntensityInTriangle(
   return keypointsWithIntensities;
 }
 
+/* ------------------------------------------------------------------------ */
+// Returns a OpenCV file storage in a safely manner, warning about potential
+// exceptions thrown.
+void UtilsOpenCV::safeOpenCVFileStorage(cv::FileStorage* fs,
+                                        const std::string& filename_sensor) {
+  CHECK_NOTNULL(fs);
+  try {
+    *fs = cv::FileStorage(filename_sensor, cv::FileStorage::READ);
+  } catch (cv::Exception& e) {
+    LOG(FATAL) << "Cannot open file in parseImuData: " << filename_sensor << '\n'
+               << "OpenCV error code: " << e.msg;
+  }
+}
+
 } // namespace VIO

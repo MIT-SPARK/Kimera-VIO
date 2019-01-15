@@ -188,7 +188,8 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
   std::string filename_sensor = input_dataset_path + "/mav0/" + imuName + "/sensor.yaml";
   // parse sensor parameters
   // make sure that each YAML file has %YAML:1.0 as first line
-  cv::FileStorage fs(filename_sensor, cv::FileStorage::READ);
+  cv::FileStorage fs;
+  UtilsOpenCV::safeOpenCVFileStorage(&fs, filename_sensor);
   if (!fs.isOpened()) {
     std::cout << "Cannot open file in parseImuData: " << filename_sensor << std::endl;
     throw std::runtime_error("parseImuData: cannot open file");
@@ -285,7 +286,6 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
   return true;
 }
 
-
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseGTdata(const std::string &input_dataset_path,
                                    const std::string &gtSensorName) {
@@ -294,7 +294,8 @@ bool ETHDatasetParser::parseGTdata(const std::string &input_dataset_path,
       input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
 
   // Make sure that each YAML file has %YAML:1.0 as first line.
-  cv::FileStorage fs (filename_sensor, cv::FileStorage::READ);
+  cv::FileStorage fs;
+  UtilsOpenCV::safeOpenCVFileStorage(&fs, filename_sensor);
   if (!fs.isOpened()) {
     std::cout << "Cannot open file in parseGTYAML: "
               << filename_sensor << std::endl;
