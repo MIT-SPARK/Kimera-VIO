@@ -22,7 +22,9 @@ pipeline {
     stage('Performance') {
       steps {
         wrap([$class: 'Xvfb']) {
+          sh 'ls /Datasets/euroc/mav0/cam0'
           sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a --save_plots --save_boxplots --save_results /root/spark_vio_evaluation/experiments/euroc.yaml'
+          sh 'ls /Datasets/euroc/mav0/cam0/data'
         }
       }
     }
