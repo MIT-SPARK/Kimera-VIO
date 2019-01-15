@@ -1,7 +1,7 @@
 pipeline {
   agent { dockerfile {
       filename 'Dockerfile'
-      args '-v /home/sparklab/Datasets/euroc:/Datasets/euroc -e WORKDIR=$WORKDIR'
+      args '-v /home/sparklab/Datasets/euroc:/Datasets/euroc -e WORKSPACE=$WORKSPACE'
     }
   }
   stages {
