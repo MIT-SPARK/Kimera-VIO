@@ -60,6 +60,6 @@ RUN cd opengv/build && \
       make -j$(nproc) install
 
 # Install spark_vio_evaluation from PyPI
-RUN apt-get update && apt-get install -y python-pip python-dev
+RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 RUN cd spark_vio_evaluation && git checkout spark/jenkins && pip install .
