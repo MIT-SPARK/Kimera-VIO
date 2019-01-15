@@ -1,7 +1,7 @@
 pipeline {
   agent { dockerfile {
       filename 'Dockerfile'
-      args '--mount source=/home/sparklab/Datasets/euroc,destination=/Datasets/euroc,readonly'
+      args '-v /home/sparklab/Datasets/euroc:/Datasets/euroc'
     }
   }
   stages {
@@ -22,7 +22,7 @@ pipeline {
     stage('Performance') {
       steps {
         wrap([$class: 'Xvfb']) {
-          sh './spark_vio_evaluation/evaluation/main_evaluation.py -r -a --save_plots --save_boxplots --save_results spark_vio_evaluation/experiments/euroc.yaml'
+          sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a --save_plots --save_boxplots --save_results spark_vio_evaluation/experiments/euroc.yaml'
         }
       }
     }
