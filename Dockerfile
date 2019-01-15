@@ -4,7 +4,7 @@ FROM ubuntu:18.04
 # To avoid tzdata asking for geographic location...
 ENV DEBIAN_FRONTEND noninteractive
 
-# Set the working directory to /app
+# Set the working directory to /root
 ENV DIRPATH /root/
 WORKDIR $DIRPATH
 
@@ -61,4 +61,5 @@ RUN cd opengv/build && \
 
 # Install spark_vio_evaluation from PyPI
 RUN apt-get update && apt-get install -y python-pip python-dev
-RUN pip install spark_vio_evaluation
+RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
+RUN cd spark_vio_evaluation && git checkout spark/jenkins && pip install .

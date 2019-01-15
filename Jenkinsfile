@@ -1,5 +1,9 @@
 pipeline {
-  agent { dockerfile true }
+  agent { dockerfile {
+      filename 'Dockerfile'
+      args '--mount source=/home/sparklab/Datasets/euroc,destination=/Datasets/euroc,readonly'
+    }
+  }
   stages {
     stage('Build') {
       steps {
@@ -15,13 +19,20 @@ pipeline {
         }
       }
     }
+    stage('Performance') {
+      steps {
+        wrap([$class: 'Xvfb']) {
+          sh './spark_vio_evaluation/evaluation/main_evaluation.py -r -a --save_plots --save_boxplots --save_results spark_vio_evaluation/experiments/euroc.yaml'
+        }
+      }
+    }
   }
   post {
     always {
       echo 'Jenkins Finished'
       // Archive the CTest xml output
       archiveArtifacts (
-          artifacts: 'build/tests/Testing/**/*.xml',
+          artifacts: 'build/tests/Testing/**/*.xml, spark_vio_evaluation/results/**/*.*',
           fingerprint: true
           )
 
