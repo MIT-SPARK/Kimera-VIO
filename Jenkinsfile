@@ -1,7 +1,7 @@
 pipeline {
   agent { dockerfile {
       filename 'Dockerfile'
-      args '--mount source=/home/sparklab/Datasets/euroc,target=/euroc,readonly -e WORKSPACE=$WORKSPACE'
+      args '-v /home/sparklab/Datasets/euroc:/euroc -e WORKSPACE=$WORKSPACE'
     }
   }
   stages {
@@ -22,6 +22,7 @@ pipeline {
     stage('Performance') {
       steps {
         wrap([$class: 'Xvfb']) {
+          sh 'pwd'
           sh 'ls /'
           sh 'ls /euroc'
           sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a --save_plots --save_boxplots --save_results /root/spark_vio_evaluation/experiments/euroc.yaml'
