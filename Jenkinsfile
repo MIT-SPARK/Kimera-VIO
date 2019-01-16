@@ -32,7 +32,7 @@ pipeline {
       echo 'Jenkins Finished'
       // Archive the CTest xml output
       archiveArtifacts (
-          artifacts: 'build/tests/Testing/**/*.xml, /root/spark_vio_evaluation/results/**/*.*',
+          artifacts: 'build/tests/Testing/**/*.xml, spark_vio_evaluation/results/**/*.*',
           fingerprint: true
           )
 
