@@ -131,50 +131,48 @@ public:
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   // It considers all valid keypoints for the mesh.
   // Optionally, it returns a 2D mesh via its argument.
-  void createMesh2D(std::vector<cv::Vec6f>* triangulation2D = nullptr) {
+  std::vector<cv::Vec6f> createMesh2D() {
     std::vector<size_t> selectedIndices (keypoints_.size());
     // Fills selectedIndices with the indices of ALL keypoints: 0, 1, 2...
     std::iota(selectedIndices.begin(), selectedIndices.end(), 0);
-    triangulation2D_ = createMesh2D(*this, selectedIndices);
-    if (triangulation2D != nullptr) {
-        *triangulation2D = triangulation2D_;
-    }
-  }
-
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static std::vector<cv::Vec6f> createMesh2D(const Frame& frame,
-                                      const std::vector<size_t>& selectedIndices) {
-
-    if(frame.landmarks_.size() != frame.keypoints_.size()) // sanity check
-      throw std::runtime_error("Frame: wrong dimension for the landmarks");
-
-    cv::Size size = frame.img_.size();
-    cv::Rect2f rect(0, 0, size.width, size.height);
-
-    // add points from Frame
-    std::vector<cv::Point2f> keypointsToTriangulate;
-    BOOST_FOREACH(int i, selectedIndices){
-      cv::Point2f kp_i = cv::Point2f(float(frame.keypoints_.at(i).x),
-                                     float(frame.keypoints_.at(i).y));
-      if (frame.landmarks_.at(i) != -1 && rect.contains(kp_i)) { // only for valid keypoints (some keypoints may
-        // end up outside image after tracking which causes subdiv to crash)
-        keypointsToTriangulate.push_back(kp_i);
-      }
-    }
-    return createMesh2D(frame.img_.size(), keypointsToTriangulate);
+    return createMesh2D(*this, selectedIndices);
   }
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   static std::vector<cv::Vec6f> createMesh2D(
-                       const cv::Size& img_size,
-                       std::vector<cv::Point2f>& keypoints_to_triangulate) {
+      const Frame& frame,
+      const std::vector<size_t>& selectedIndices) {
+    // Sanity check.
+    CHECK_EQ(frame.landmarks_.size(), frame.keypoints_.size())
+        << "Frame: wrong dimension for the landmarks";
 
-    // Define output (+ a temporary variable).
-    std::vector<cv::Vec6f> triangulation2D, triangulation2DwithExtraTriangles;
-    if (keypoints_to_triangulate.size() == 0)
-      return triangulation2D; //nothing to triangulate
+    cv::Size size = frame.img_.size();
+    cv::Rect2f rect(0, 0, size.width, size.height);
+
+    // Add points from Frame.
+    std::vector<cv::Point2f> keypointsToTriangulate;
+    for (const auto& i: selectedIndices) {
+      cv::Point2f kp_i (float(frame.keypoints_.at(i).x),
+                        float(frame.keypoints_.at(i).y));
+      if (frame.landmarks_.at(i) != -1 && rect.contains(kp_i)) {
+        // Only for valid keypoints (some keypoints may
+        // end up outside image after tracking which causes subdiv to crash).
+        keypointsToTriangulate.push_back(kp_i);
+      }
+    }
+    return createMesh2D(frame.img_.size(), &keypointsToTriangulate);
+  }
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  // Returns the actual keypoints used to perform the triangulation.
+  static std::vector<cv::Vec6f> createMesh2D(
+                       const cv::Size& img_size,
+                       std::vector<cv::Point2f>* keypoints_to_triangulate) {
+    CHECK_NOTNULL(keypoints_to_triangulate);
+    // Nothing to triangulate.
+    if (keypoints_to_triangulate->size() == 0) return std::vector<cv::Vec6f>();
 
     // Rectangle to be used with Subdiv2D.
     cv::Rect2f rect (0, 0, img_size.width, img_size.height);
@@ -183,42 +181,44 @@ public:
     // TODO Luca: there are kpts outside image, probably from tracker. This check
     // should be in the tracker.
     // -> Make sure we only pass keypoints inside the image!
-    for (auto it = keypoints_to_triangulate.begin();
-         it != keypoints_to_triangulate.end();) {
+    for (auto it = keypoints_to_triangulate->begin();
+         it != keypoints_to_triangulate->end();) {
       if (!rect.contains(*it)) {
         LOG(ERROR) << "createMesh2D - error, keypoint out of image frame.";
-        it = keypoints_to_triangulate.erase(it);
+        it = keypoints_to_triangulate->erase(it);
         // Go backwards, otherwise it++ will jump one keypoint...
       } else {
         it++;
       }
     }
 
-    // perform triangulation
+    // Perform triangulation.
     try {
-      subdiv.insert(keypoints_to_triangulate);
-    } catch(...) {
-      std::cout << keypoints_to_triangulate.size() << std::endl;
-      std::runtime_error("CreateMesh2D: subdiv.insert error (2)");
+      subdiv.insert(*keypoints_to_triangulate);
+    } catch (...) {
+      LOG(FATAL) << "CreateMesh2D: subdiv.insert error (2).\n Keypoints to "
+                    "triangulate: " << keypoints_to_triangulate->size();
     }
 
     // getTriangleList returns some spurious triangle with vertices outside image
     // TODO I think that the spurious triangles are due to ourselves sending keypoints
     // out of the image...
-    subdiv.getTriangleList(triangulation2DwithExtraTriangles); // do triangulation
+    // Compute actual triangulation.
+    std::vector<cv::Vec6f> triangulation2D;
+    subdiv.getTriangleList(triangulation2D);
 
-    // retrieve "good triangles" (all vertices are inside image)
-    std::vector<cv::Point2f> pt(3);
-    for(size_t i = 0; i < triangulation2DwithExtraTriangles.size(); i++) {
-      cv::Vec6f t = triangulation2DwithExtraTriangles[i];
-      pt[0] = cv::Point2f(t[0], t[1]);
-      pt[1] = cv::Point2f(t[2], t[3]);
-      pt[2] = cv::Point2f(t[4], t[5]);
-      if(rect.contains(pt[0]) && rect.contains(pt[1]) && rect.contains(pt[2])){
-        triangulation2D.push_back(t);
+    // Retrieve "good triangles" (all vertices are inside image).
+    for (auto it = triangulation2D.begin();
+         it != triangulation2D.end();) {
+      if (!rect.contains(cv::Point2f((*it)[0], (*it)[1])) ||
+          !rect.contains(cv::Point2f((*it)[2], (*it)[3])) ||
+          !rect.contains(cv::Point2f((*it)[4], (*it)[5]))) {
+        it = triangulation2D.erase(it);
+        // Go backwards, otherwise it++ will jump one keypoint...
+      } else {
+        it++;
       }
     }
-
     return triangulation2D;
   }
 

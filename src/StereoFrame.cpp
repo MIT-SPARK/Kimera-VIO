@@ -479,7 +479,7 @@ void StereoFrame::createMesh2dStereo(
 
   // Get a triangulation for all valid keypoints.
   *triangulation_2D = Frame::createMesh2D(ref_frame.img_.size(),
-                                          keypoints_for_mesh);
+                                          &keypoints_for_mesh);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -512,7 +512,7 @@ void StereoFrame::createMesh2dVIO(
 
   // Get a triangulation for all valid keypoints.
   *triangulation_2D = Frame::createMesh2D(ref_frame.img_.size(),
-                                          keypoints_for_mesh);
+                                          &keypoints_for_mesh);
 }
 
 

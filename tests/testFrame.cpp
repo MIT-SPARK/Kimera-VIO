@@ -140,9 +140,8 @@ TEST(testFrame, createMesh2D) {
     f.landmarks_.push_back(i);
   }
 
-  // compute mesh
-  f.createMesh2D();
-  vector<Vec6f> triangulation2D = f.triangulation2D_;
+  // Compute mesh.
+  const std::vector<Vec6f>& triangulation2D = f.createMesh2D();
 
   // Expected triangulation
   //  3 -- 2
@@ -189,9 +188,8 @@ TEST(testFrame, createMesh2D_noKeypoints) {
   const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
   Frame f(id, tmp, imgName, CameraParams());
 
-  // compute mesh without points
-  f.createMesh2D();
-  vector<Vec6f> triangulation2D = f.triangulation2D_;
+  // Compute mesh without points.
+  const vector<Vec6f>& triangulation2D = f.createMesh2D();
 
   EXPECT(triangulation2D.size() == 0);
 }

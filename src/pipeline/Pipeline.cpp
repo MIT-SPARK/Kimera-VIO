@@ -275,8 +275,8 @@ void Pipeline::processKeyframe(
       static_cast<VisualizationType>(FLAGS_viz_type);
   switch (visualization_type) {
   case VisualizationType::MESH2D: {
-    stereo_vision_frontend_->stereoFrame_lkf_->left_frame_.createMesh2D( // TODO pass the visualization flag inside the while loop of frontend and call this.
-                                                                         &mesh_2d);
+    mesh_2d = stereo_vision_frontend_->stereoFrame_lkf_->left_frame_.
+        createMesh2D(); // TODO pass the visualization flag inside the while loop of frontend and call this.
     break;
   }
     // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles

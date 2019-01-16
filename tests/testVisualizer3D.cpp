@@ -44,8 +44,7 @@ TEST(testFrame, visualizeMesh2D) {
   }
 
   // Compute mesh.
-  std::vector<cv::Vec6f> mesh_2d;
-  f.createMesh2D(&mesh_2d);
+  const std::vector<cv::Vec6f>& mesh_2d = f.createMesh2D();
 
   // Visualize mesh.
   Visualizer3D visualizer;
