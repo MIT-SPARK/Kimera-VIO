@@ -125,13 +125,13 @@ public:
 
 public:
   /* +++++++++++++++++++++ NONCONST FUNCTIONS +++++++++++++++++++++++++++++++ */
-  void featureTracking(Frame& ref_frame,
-                       Frame& cur_frame);
-  void featureDetection(Frame& cur_frame);
+  void featureTracking(Frame* ref_frame,
+                       Frame* cur_frame);
+  void featureDetection(Frame* cur_frame);
 
   std::pair<Tracker::TrackingStatus, gtsam::Pose3>
-  geometricOutlierRejectionMono(Frame& ref_frame,
-                                Frame& cur_frame);
+  geometricOutlierRejectionMono(Frame* ref_frame,
+                                Frame* cur_frame);
 
   std::pair<Tracker::TrackingStatus, gtsam::Pose3>
   geometricOutlierRejectionStereo(StereoFrame& ref_frame,
@@ -141,8 +141,8 @@ public:
   // translation estimate.
   std::pair<Tracker::TrackingStatus, gtsam::Pose3>
   geometricOutlierRejectionMonoGivenRotation(
-      Frame& ref_frame,
-      Frame& cur_frame,
+      Frame* ref_frame,
+      Frame* cur_frame,
       const gtsam::Rot3& R);
 
   std::pair< std::pair<Tracker::TrackingStatus,gtsam::Pose3> , gtsam::Matrix3 >
@@ -152,8 +152,8 @@ public:
       const gtsam::Rot3& R);
 
   void removeOutliersMono(
-      Frame& ref_frame,
-      Frame& cur_frame,
+      Frame* ref_frame,
+      Frame* cur_frame,
       const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
       const std::vector<int>& inliers,
       const int iterations);
@@ -202,11 +202,13 @@ public:
   static double computeMedianDisparity(const Frame& ref_frame,
                                        const Frame& cur_frame);
 
-  // returns landmark_count (updated from the new keypoints), and nr or extracted corners
-  static std::pair<KeypointsCV, std::vector<double> >
-  featureDetection(Frame& cur_frame,
+  // Returns landmark_count (updated from the new keypoints),
+  // and nr or extracted corners.
+  static std::pair<KeypointsCV, std::vector<double>>
+  featureDetection(const Frame& cur_frame,
                    const VioFrontEndParams& trackerParams,
-                   const cv::Mat cam_mask, const int need_n_corners);
+                   const cv::Mat& cam_mask,
+                   const int need_n_corners);
 
   static std::pair< Vector3, Matrix3 > getPoint3AndCovariance(
       const StereoFrame& stereoFrame,

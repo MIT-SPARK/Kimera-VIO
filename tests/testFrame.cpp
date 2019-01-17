@@ -36,7 +36,9 @@ TEST(testFrame, constructor) {
   FrameId id = 0;
   Timestamp tmp = 123;
   const string imgName = string(DATASET_PATH) + "/chessboard.png";
-  Frame f(id, tmp, imgName, CameraParams());
+  Frame f(id, tmp,
+          CameraParams(),
+          UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   EXPECT(f.id_ == id);
   EXPECT(f.timestamp_ == tmp);
   // check image:
@@ -48,7 +50,9 @@ TEST(testFrame, constructor) {
 
 /* ************************************************************************* */
 TEST(testFrame, ExtractCornersChessboard) {
-  Frame f(0, 0, chessboardImgName, CameraParams());
+  Frame f(0, 0,
+          CameraParams(),
+          UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
   f.extractCorners();
   int numCorners_expected = 7 * 9;
   int numCorners_actual = f.keypoints_.size();
@@ -58,7 +62,9 @@ TEST(testFrame, ExtractCornersChessboard) {
 
 /* ************************************************************************* */
 TEST(testFrame, ExtractCornersWhiteBoard) {
-  Frame f(0, 0, whitewallImgName, CameraParams());
+  Frame f(0, 0,
+          CameraParams(),
+          UtilsOpenCV::ReadAndConvertToGrayScale(whitewallImgName));
   f.extractCorners();
   int numCorners_expected = 0;
   int numCorners_actual = f.keypoints_.size();
@@ -68,7 +74,9 @@ TEST(testFrame, ExtractCornersWhiteBoard) {
 
 /* ------------------------------------------------------------------------- */
 TEST(testFrame, getNrValidKeypoints) {
-  Frame f(0, 0, chessboardImgName, CameraParams());
+  Frame f(0, 0,
+          CameraParams(),
+          UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
   const int nrValidExpected = 200;
   const int outlier_rate = 5; // Insert one outlier every 5 valid landmark ids.
   for (int i = 0; i < nrValidExpected; i++) {
@@ -117,7 +125,9 @@ TEST(testFrame, CalibratePixel) {
 
 /* ************************************************************************* */
 TEST(testFrame, findLmkIdFromPixel) {
-  Frame f(0, 0, chessboardImgName, CameraParams());
+  Frame f(0, 0,
+          CameraParams(),
+          UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
   f.extractCorners();
   for (int i = 0; i < f.keypoints_.size(); i++) {
     f.landmarks_.push_back(i+5); // always push a valid and sometimes also an outlier
@@ -129,12 +139,13 @@ TEST(testFrame, findLmkIdFromPixel) {
 }
 /* ************************************************************************* */
 TEST(testFrame, createMesh2D) {
-
   // Construct a frame from image name.
   FrameId id = 0;
   Timestamp tmp = 123;
   const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
-  Frame f(id, tmp, imgName, CameraParams());
+  Frame f(id, tmp,
+          CameraParams(),
+          UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   f.extractCorners();
   for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
     f.landmarks_.push_back(i);
@@ -186,7 +197,9 @@ TEST(testFrame, createMesh2D_noKeypoints) {
   FrameId id = 0;
   Timestamp tmp = 123;
   const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
-  Frame f(id, tmp, imgName, CameraParams());
+  Frame f(id, tmp,
+          CameraParams(),
+          UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
 
   // Compute mesh without points.
   const vector<Vec6f>& triangulation2D = f.createMesh2D();

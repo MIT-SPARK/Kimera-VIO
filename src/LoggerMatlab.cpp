@@ -137,7 +137,7 @@ void LoggerMatlab::logFrontendResults(const ETHDatasetParser& dataset,
         stereoTracker.getRelativePoseBodyMono(), isValid,
         timestamp_lkf, timestamp_k, true); // true = comparison up to scale.
   size_t nrKeypoints =
-      stereoTracker.stereoFrame_km1_->left_frame_.getNrValidKeypoints();
+      stereoTracker.stereoFrame_km1_->getLeftFrame().getNrValidKeypoints();
   outputFile_ << static_cast<std::underlying_type<Tracker::TrackingStatus>::type>(
                  stereoTracker.trackerStatusSummary_.kfTrackingStatus_mono_)
               << " " << relativeRotError

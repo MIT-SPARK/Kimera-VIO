@@ -1342,7 +1342,7 @@ public:
       //UtilsOpenCV::PrintVector<size_t>(nonSelectedIndices,"nonSelectedIndices");
       //UtilsOpenCV::PrintVector<LandmarkId>(discardedLmks,"discardedLmks");
 
-      stereoFrame_km1->left_frame_.setLandmarksToMinus1(discardedLmks);
+      stereoFrame_km1->getLeftFrameMutable()->setLandmarksToMinus1(discardedLmks);
 
       // Sanity check:
       if (discardedLmks.size() + newSmartStereoMeasurements.size() !=
@@ -1374,7 +1374,7 @@ public:
     static constexpr bool visualize_selection_results = false;
     if (visualize_selection_results) {
       static constexpr int remId = 1000; // landmark ids are visualized modulo this number to improve visualization
-      cv::Mat img = stereoFrame_km1->left_frame_.img_.clone();
+      cv::Mat img = stereoFrame_km1->getLeftFrame().img_.clone();
       //UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints, cv::Scalar(0, 0, 255),0.4,newlyAvailableLmks,remId);
       //UtilsOpenCV::DrawCirclesInPlace(img, selectedKeypoints, cv::Scalar(0, 255, 255), 4,selectedLmks,remId);
       //UtilsOpenCV::DrawSquaresInPlace(img, trackedKeypoints, cv::Scalar(0, 255, 0),10,trackedLmks,remId);
@@ -1437,7 +1437,7 @@ public:
 
         // Write image.
         img_name = folderName + "img_" + std::to_string(vio_cur_id) + ".png";
-        cv::imwrite(img_name, stereoFrame_km1->left_frame_.img_);
+        cv::imwrite(img_name, stereoFrame_km1->getLeftFrame().img_);
       }
     }
 

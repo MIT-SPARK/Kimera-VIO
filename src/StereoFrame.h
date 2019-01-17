@@ -1,4 +1,4 @@
-/* ----------------------------------------------------------------------------
+/* -----------------------------------------------------------------------------
  * Copyright 2017, Massachusetts Institute of Technology,
  * Cambridge, MA 02139
  * All Rights Reserved
@@ -48,48 +48,104 @@ using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
 // TODO make enum class.
 enum Mesh2Dtype {VALIDKEYPOINTS, DENSE};
 
-//////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// TODO put these parameters in its own .h/.cpp and add tests as in frontend
+// params
 class StereoMatchingParams{
 public:
-  const double toleranceTemplateMatching;
-  const double nominalBaseline;
-  const int templ_cols; // must be odd
-  const int templ_rows; // must be odd
-  const int stripe_extra_rows; // must be even
-  const double minPointDist; // stereo points triangulated below this distance are discarded
-  const double maxPointDist; // stereo points triangulated beyond this distance are discarded=
-  const bool bidirectionalMatching; // check best match left->right and right->left
-  const bool subpixelRefinement; // refine stereo matches with subpixel accuracy
-  const bool equalizeImage_; // do equalize image before processing
+  double tolerance_template_matching_;
+  double nominal_baseline_;
+  int templ_cols_; // must be odd
+  int templ_rows_; // must be odd
+  int stripe_extra_rows_; // must be even
+  double min_point_dist_; // stereo points triangulated below this distance are discarded
+  double max_point_dist_; // stereo points triangulated beyond this distance are discarded=
+  bool bidirectional_matching_; // check best match left->right and right->left
+  bool subpixel_refinement_; // refine stereo matches with subpixel accuracy
+  bool equalize_image_; // do equalize image before processing
 
 public:
   StereoMatchingParams(
-      const double in_tolTemplateMatching,
-      const int in_templ_cols,
-      const int in_templ_rows,
-      const int in_stripe_extra_rows,
-      const double in_minPointDist, const double in_maxPointDist,
-      const bool in_bidirectionalMatching,
-      const double in_nominalBaseline,
-      const bool in_subpixelRefinement,
-      const bool equalizeImage) :
-        toleranceTemplateMatching(in_tolTemplateMatching),
-        templ_cols(in_templ_cols), templ_rows(in_templ_rows),
-        stripe_extra_rows(in_stripe_extra_rows),
-        minPointDist(std::max(in_minPointDist,1e-3)),
-        maxPointDist(in_maxPointDist),
-        bidirectionalMatching(in_bidirectionalMatching),
-        nominalBaseline(in_nominalBaseline),
-        subpixelRefinement(in_subpixelRefinement),
-        equalizeImage_(equalizeImage) {
-    CHECK(!(templ_cols % 2 != 1 || templ_rows % 2 != 1)) // check that they are odd
+      double tol_template_matching = 0.15,
+      int templ_cols = 101,
+      int templ_rows = 11,
+      int stripe_extra_rows = 0,
+      double min_point_dist = 0.1,
+      double max_point_dist = 15,
+      bool bidirectional_matching = false,
+      double nominal_baseline = 0.11,
+      bool subpixel_refinement = false,
+      bool equalize_image = false) :
+        tolerance_template_matching_(std::move(tol_template_matching)),
+        templ_cols_(std::move(templ_cols)),
+        templ_rows_(std::move(templ_rows)),
+        stripe_extra_rows_(std::move(stripe_extra_rows)),
+        min_point_dist_(std::max(min_point_dist, 1e-3)),
+        max_point_dist_(std::move(max_point_dist)),
+        bidirectional_matching_(std::move(bidirectional_matching)),
+        nominal_baseline_(std::move(nominal_baseline)),
+        subpixel_refinement_(std::move(subpixel_refinement)),
+        equalize_image_(std::move(equalize_image)) {
+    CHECK(!(templ_cols_ % 2 != 1 || templ_rows_ % 2 != 1)) // check that they are odd
         << "StereoMatchingParams: template size must be odd!";
-    CHECK(!(stripe_extra_rows % 2 != 0)) // check that they are even
+    CHECK(!(stripe_extra_rows_ % 2 != 0)) // check that they are even
         << "StereoMatchingParams: stripe_extra_rows size must be even!";
+  }
+
+  /* ------------------------------------------------------------------------ */
+  bool equals(const StereoMatchingParams& tp2, double tol = 1e-10) const {
+    return (fabs(nominal_baseline_ - tp2.nominal_baseline_) <= tol) &&
+        (equalize_image_ == tp2.equalize_image_) &&
+        (fabs(tolerance_template_matching_ - tp2.tolerance_template_matching_) <= tol) &&
+        (templ_cols_ == tp2.templ_cols_) &&
+        (templ_rows_ == tp2.templ_rows_) &&
+        (stripe_extra_rows_ == tp2.stripe_extra_rows_) &&
+        (fabs(min_point_dist_ - tp2.min_point_dist_) <= tol) &&
+        (fabs(max_point_dist_ - tp2.max_point_dist_) <= tol) &&
+        (bidirectional_matching_ == tp2.bidirectional_matching_) &&
+        (subpixel_refinement_== tp2.subpixel_refinement_);
+  }
+
+  void print () const {
+     LOG(INFO) << "** Sparse Stereo Matching parameters **\n"
+         << "equalize_image_: " << equalize_image_ << '\n'
+         << "nominalBaseline_: " << nominal_baseline_ << '\n'
+         << "toleranceTemplateMatching_: " << tolerance_template_matching_ << '\n'
+         << "templ_cols_: " << templ_cols_ << '\n'
+         << "templ_rows_: " << templ_rows_ << '\n'
+         << "stripe_extra_rows_: " << stripe_extra_rows_ << '\n'
+         << "minPointDist_: " << min_point_dist_ << '\n'
+         << "maxPointDist_: " << max_point_dist_ << '\n'
+         << "bidirectionalMatching_: " << bidirectional_matching_ << '\n'
+         << "subpixelRefinementStereo_: " << subpixel_refinement_;
+  }
+
+  // TODO do abstract class for parameters structure, they all look very similar.
+  bool parseYaml(const std::string& filepath) {
+    cv::FileStorage fs;
+    UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
+    CHECK(fs.isOpened()) << "parseYAML (Tracker): cannot open file "
+                            "(remember first line: %YAML:1.0): " << filepath;
+    return parseYamlFromOpenFileStorage(fs);
+  }
+
+  bool parseYamlFromOpenFileStorage(cv::FileStorage& fs) {
+    CHECK(fs.isOpened()) << "File storage is not open!";
+    fs["equalizeImage"] >> equalize_image_;
+    fs["nominalBaseline"] >> nominal_baseline_;
+    fs["toleranceTemplateMatching"] >> tolerance_template_matching_;
+    fs["templ_cols"] >> templ_cols_;
+    fs["templ_rows"] >> templ_rows_;
+    fs["stripe_extra_rows"] >> stripe_extra_rows_;
+    fs["minPointDist"] >> min_point_dist_;
+    fs["maxPointDist"] >> max_point_dist_;
+    fs["bidirectionalMatching"] >> bidirectional_matching_;
+    fs["subpixelRefinementStereo"] >> subpixel_refinement_;
+    return true;
   }
 };
 
-//////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 struct KeypointWithDepth{
   KeypointWithDepth() = default;
   KeypointWithDepth(const KeypointCV& p,
@@ -105,14 +161,14 @@ using KeypointsWithDepth = std::vector<KeypointWithDepth>;
 // Definitions relevant to StereoFrame type
 using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
-//////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 class StereoFrame {
 public:
   StereoFrame(const FrameId& id,
               const int64_t& timestamp,
-              const std::string& left_image_name,
-              const std::string& right_image_name,
+              const cv::Mat& left_image,
               const CameraParams& cam_param_left,
+              const cv::Mat& right_image,
               const CameraParams& cam_param_right,
               const gtsam::Pose3& L_Pose_R,
               const StereoMatchingParams& stereo_matching_params);
@@ -125,10 +181,8 @@ public:
     gtsam::Vector3 keypoint_3d;
   };
 
-  Frame left_frame_;
-  Frame right_frame_;
-
-  cv::Mat left_img_rectified_, right_img_rectified_;
+  cv::Mat left_img_rectified_;
+  cv::Mat right_img_rectified_;
 
   // TODO these guys are flying around the code, as they are publicly accessible
   // by anyone... To make this self-contained and thread-safe, there should be
@@ -266,9 +320,20 @@ public:
     return right_undistRectCameraMatrix_;
   }
 
+  // NON-THREAD SAFE.
+  inline const Frame& getLeftFrame() const {return left_frame_;}
+  inline const Frame& getRightFrame() const {return right_frame_;}
+  // NON-THREAD SAFE, and potentially very hazardous, giving away rights to
+  // modify class members is evil.
+  inline Frame* getLeftFrameMutable() {return &left_frame_;}
+  inline Frame* getRightFrameMutable() {return &right_frame_;}
+
 private:
   const FrameId id_;
   const Timestamp timestamp_;
+
+  Frame left_frame_;
+  Frame right_frame_;
 
   bool is_rectified_; // make sure to do that on each captured image
   bool is_keyframe_;

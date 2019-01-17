@@ -58,23 +58,35 @@ void InitializeData() {
 
   // Data for testing "geometricOutlierRejectionMono"
   // !!! TODO THIS IS ALLOCATING MEMORY BUT THERE IS NO DELETE !!!
-  ref_frame = new Frame(id_ref, timestamp_ref, img_name_ref_left, cam_params_left);
-  cur_frame = new Frame(id_cur, timestamp_cur, img_name_cur_left, cam_params_left);
+  ref_frame = new Frame(id_ref, timestamp_ref,
+                        cam_params_left,
+                        UtilsOpenCV::ReadAndConvertToGrayScale(img_name_ref_left));
+  cur_frame = new Frame(id_cur, timestamp_cur,
+                        cam_params_left,
+                        UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
   // Data for testing "geometricOutlilerRejectionStereo"
   Pose3 camL_Pose_camR = cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
 
   VioFrontEndParams tp;
 
-  ref_stereo_frame = new StereoFrame(id_ref, timestamp_ref,
-      img_name_ref_left, img_name_ref_right, cam_params_left,
-      cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+  ref_stereo_frame = new StereoFrame(
+        id_ref, timestamp_ref,
+        UtilsOpenCV::ReadAndConvertToGrayScale(img_name_ref_left, tp.getStereoMatchingParams().equalize_image_),
+        cam_params_left,
+        UtilsOpenCV::ReadAndConvertToGrayScale(img_name_ref_right, tp.getStereoMatchingParams().equalize_image_),
+        cam_params_right,
+        camL_Pose_camR, tp.getStereoMatchingParams());
 
   ref_stereo_frame->sparseStereoMatching(); // only initialize rectification
 
-  cur_stereo_frame = new StereoFrame(id_cur, timestamp_cur,
-      img_name_cur_left, img_name_cur_right, cam_params_left,
-      cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+  cur_stereo_frame = new StereoFrame(
+        id_cur, timestamp_cur,
+        UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left, tp.getStereoMatchingParams().equalize_image_),
+        cam_params_left,
+        UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_right, tp.getStereoMatchingParams().equalize_image_),
+        cam_params_right,
+        camL_Pose_camR, tp.getStereoMatchingParams());
 
   cur_stereo_frame->sparseStereoMatching(); // only initialize rectification
 }
@@ -231,16 +243,16 @@ void AddVersorsToStereoFrames(StereoFrame* sf_ref, StereoFrame* sf_cur,
     Vector3& v_ref, Vector3& v_cur) {
   // Decide the largest landmark IDs for each frame!
   int max_id;
-  if (sf_ref->left_frame_.landmarks_.size() == 0 &&
-      sf_cur->left_frame_.landmarks_.size() == 0) {
+  if (sf_ref->getLeftFrame().landmarks_.size() == 0 &&
+      sf_cur->getLeftFrame().landmarks_.size() == 0) {
     max_id = 0;
   } else {
-    vector<LandmarkId>::iterator max_id_ref =
-        max_element(sf_ref->left_frame_.landmarks_.begin(),
-            sf_ref->left_frame_.landmarks_.end());
-    vector<LandmarkId>::iterator max_id_cur =
-        max_element(sf_cur->left_frame_.landmarks_.begin(),
-            sf_cur->left_frame_.landmarks_.end());
+    vector<LandmarkId>::const_iterator max_id_ref =
+        max_element(sf_ref->getLeftFrame().landmarks_.begin(),
+            sf_ref->getLeftFrame().landmarks_.end());
+    vector<LandmarkId>::const_iterator max_id_cur =
+        max_element(sf_cur->getLeftFrame().landmarks_.begin(),
+            sf_cur->getLeftFrame().landmarks_.end());
     max_id = max(*max_id_ref, *max_id_cur);
   }
 
@@ -249,7 +261,7 @@ void AddVersorsToStereoFrames(StereoFrame* sf_ref, StereoFrame* sf_cur,
   sf_cur->keypoints_3d_.push_back(v_cur);
 
   // create ref stereo camera
-  Rot3 camLrect_R_camL = UtilsOpenCV::Cvmat2rot(sf_ref->left_frame_.cam_param_.R_rectify_);
+  Rot3 camLrect_R_camL = UtilsOpenCV::Cvmat2rot(sf_ref->getLeftFrame().cam_param_.R_rectify_);
   Cal3_S2 ref_left_undist_rect_cam_mat = sf_ref->getLeftUndistRectCamMat();
   Cal3_S2Stereo::shared_ptr K_ref(new Cal3_S2Stereo(
       ref_left_undist_rect_cam_mat.fx(),
@@ -265,7 +277,7 @@ void AddVersorsToStereoFrames(StereoFrame* sf_ref, StereoFrame* sf_cur,
   sf_ref->right_keypoints_rectified_.push_back( KeypointCV( sp2.uR(), sp2.v() ) );
 
   // create cur stereo camera
-  camLrect_R_camL = UtilsOpenCV::Cvmat2rot(sf_cur->left_frame_.cam_param_.R_rectify_);
+  camLrect_R_camL = UtilsOpenCV::Cvmat2rot(sf_cur->getLeftFrame().cam_param_.R_rectify_);
   Cal3_S2 cur_left_undist_rect_cam_mat = sf_cur->getLeftUndistRectCamMat();
   Cal3_S2Stereo::shared_ptr K_cur(new Cal3_S2Stereo(
       cur_left_undist_rect_cam_mat.fx(),
@@ -285,11 +297,11 @@ void AddVersorsToStereoFrames(StereoFrame* sf_ref, StereoFrame* sf_cur,
   sf_cur->keypoints_depth_.push_back(v_cur.norm());
 
   // Assign landmark ids to them!
-  sf_ref->left_frame_.landmarks_.push_back(max_id + 1);
-  sf_cur->left_frame_.landmarks_.push_back(max_id + 1);
+  sf_ref->getLeftFrameMutable()->landmarks_.push_back(max_id + 1);
+  sf_cur->getLeftFrameMutable()->landmarks_.push_back(max_id + 1);
 
-  sf_ref->left_frame_.landmarksAge_.push_back(0);
-  sf_cur->left_frame_.landmarksAge_.push_back(1);
+  sf_ref->getLeftFrameMutable()->landmarksAge_.push_back(0);
+  sf_cur->getLeftFrameMutable()->landmarksAge_.push_back(1);
 
   // Set sf->right_keypoints_status_
   sf_ref->right_keypoints_status_.push_back(Kstatus::VALID);
@@ -302,11 +314,11 @@ void AddNonPlanarInliersToStereoFrame(StereoFrame* sf_ref, StereoFrame* sf_cur,
     const int inlierNum) {
   for (int i = 0; i < inlierNum; i++) {
     // Randomly synthesize left keypoint!
-    KeypointCV pt_ref(rand() % sf_ref->left_frame_.img_.cols,
-        rand() % sf_ref->left_frame_.img_.rows);
+    KeypointCV pt_ref(rand() % sf_ref->getLeftFrame().img_.cols,
+        rand() % sf_ref->getLeftFrame().img_.rows);
 
     // Calibrate the point
-    Vector3 versor_ref = Frame::CalibratePixel(pt_ref, sf_ref->left_frame_.cam_param_);
+    Vector3 versor_ref = Frame::CalibratePixel(pt_ref, sf_ref->getLeftFrame().cam_param_);
     // Randomly generate the depth
     double depth = depth_range[0] + (depth_range[1] - depth_range[0]) * ((double) rand() / RAND_MAX);
 
@@ -323,8 +335,8 @@ void AddNonPlanarInliersToStereoFrame(StereoFrame* sf_ref, StereoFrame* sf_cur,
 
 /* ------------------------------------------------------------------------- */
 void ClearStereoFrame(StereoFrame* sf) {
-  ClearFrame(&sf->left_frame_);
-  ClearFrame(&sf->right_frame_);
+  ClearFrame(sf->getLeftFrameMutable());
+  ClearFrame(sf->getRightFrameMutable());
   sf->keypoints_3d_.clear();
   sf->keypoints_depth_.clear(); // Might not be needed for this test?
   sf->right_keypoints_status_.clear();
@@ -338,16 +350,16 @@ void AddOutliersToStereoFrame(StereoFrame* sf_ref, StereoFrame* sf_cur,
   for (int i = 0; i < outlierNum; i++) {
     while(true) {
       // Keypoints
-      KeypointCV pt_ref(rand() % sf_ref->left_frame_.img_.cols,
-          rand() % sf_ref->left_frame_.img_.rows);
-      KeypointCV pt_cur(rand() % sf_cur->left_frame_.img_.cols,
-          rand() % sf_cur->left_frame_.img_.rows);
+      KeypointCV pt_ref(rand() % sf_ref->getLeftFrame().img_.cols,
+          rand() % sf_ref->getLeftFrame().img_.rows);
+      KeypointCV pt_cur(rand() % sf_cur->getLeftFrame().img_.cols,
+          rand() % sf_cur->getLeftFrame().img_.rows);
 
       // Calibrate keypoints
       Vector3 versor_ref = Frame::CalibratePixel(pt_ref,
-          sf_ref->left_frame_.cam_param_);
+          sf_ref->getLeftFrame().cam_param_);
       Vector3 versor_cur = Frame::CalibratePixel(pt_cur,
-          sf_cur->left_frame_.cam_param_);
+          sf_cur->getLeftFrame().cam_param_);
 
       // Check that they are indeed outliers!
       double depth_ref = depth_range[0] + (depth_range[1] - depth_range[0]) * (((double) rand()) / ((double) RAND_MAX));
@@ -379,10 +391,10 @@ void AddPlanarInliersToStereoFrame(StereoFrame* sf_ref, StereoFrame* sf_cur,
   // All points are on the plane: PlaneN * x = d
   for (int i = 0; i < inlierNum; i++) {
     // Randomly synthesize the point!
-    KeypointCV pt_ref(rand() % sf_ref->left_frame_.img_.cols,
-        rand() % sf_ref->left_frame_.img_.rows);
+    KeypointCV pt_ref(rand() % sf_ref->getLeftFrame().img_.cols,
+        rand() % sf_ref->getLeftFrame().img_.rows);
     // Calibrate the point
-    Vector3 versor_ref = Frame::CalibratePixel(pt_ref, sf_ref->left_frame_.cam_param_);
+    Vector3 versor_ref = Frame::CalibratePixel(pt_ref, sf_ref->getLeftFrame().cam_param_);
 
     // Compute the intersection between the versor and the plane.
     Vector3 versor_plane = IntersectVersorPlane(versor_ref, PlaneN, PlaneD);
@@ -474,7 +486,7 @@ TEST(testTracker, geometricOutlierRejectionMono) {
       Tracker::TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
-          tracker.geometricOutlierRejectionMono(*ref_frame, *cur_frame);
+          tracker.geometricOutlierRejectionMono(ref_frame, cur_frame);
 
       EXPECT(tracking_status == Tracker::TrackingStatus::VALID);
 
@@ -554,7 +566,8 @@ TEST(testTracker, geometricOutlierRejectionMonoGivenRotation) {
       Tracker::TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
-          tracker.geometricOutlierRejectionMonoGivenRotation(*ref_frame, *cur_frame, R);
+          tracker.geometricOutlierRejectionMonoGivenRotation(ref_frame,
+                                                             cur_frame, R);
 
       EXPECT(tracking_status == Tracker::TrackingStatus::VALID);
 
@@ -1038,40 +1051,42 @@ TEST(testTracker, FindMatchingStereoKeypoints) {
   const int num_landmarks_cur = 80;
   const int num_landmarks_invalid = 70;
 
-  ref_stereo_frame->left_frame_.landmarks_.reserve(
+  ref_stereo_frame->getLeftFrameMutable()->landmarks_.reserve(
       num_landmarks_common + num_landmarks_ref + num_landmarks_invalid);
-  cur_stereo_frame->left_frame_.landmarks_.reserve(
+  cur_stereo_frame->getLeftFrameMutable()->landmarks_.reserve(
       num_landmarks_common + num_landmarks_cur + num_landmarks_invalid);
 
   // landmark ids in common!
   for (int i = 0; i < num_landmarks_common; i++) {
-    ref_stereo_frame->left_frame_.landmarks_.push_back(3 * i);
-    cur_stereo_frame->left_frame_.landmarks_.push_back(3 * i);
+    ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(3 * i);
+    cur_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(3 * i);
   }
 
   // landmark ids unique to ref_stereo_frame
   for (int i = 0; i < num_landmarks_ref; i++) {
-    ref_stereo_frame->left_frame_.landmarks_.push_back(3 * i + 1);
+    ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(3 * i + 1);
   }
 
   // landmark ids unique to ref_stereo_frame
   for (int i = 0; i < num_landmarks_cur; i++) {
-    cur_stereo_frame->left_frame_.landmarks_.push_back(3 * i + 2);
+    cur_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(3 * i + 2);
   }
 
   // add a bunch of invalid landmarks to both frames
   for (int i = 0; i < num_landmarks_invalid; i++) {
-    ref_stereo_frame->left_frame_.landmarks_.push_back(-1);
-    cur_stereo_frame->left_frame_.landmarks_.push_back(-1);
+    ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(-1);
+    cur_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(-1);
   }
 
   // shuffle landmarks in both frames
-  random_shuffle(ref_stereo_frame->left_frame_.landmarks_.begin(), ref_stereo_frame->left_frame_.landmarks_.end());
-  random_shuffle(cur_stereo_frame->left_frame_.landmarks_.begin(), cur_stereo_frame->left_frame_.landmarks_.end());
+  random_shuffle(ref_stereo_frame->getLeftFrameMutable()->landmarks_.begin(),
+                 ref_stereo_frame->getLeftFrameMutable()->landmarks_.end());
+  random_shuffle(cur_stereo_frame->getLeftFrameMutable()->landmarks_.begin(),
+                 cur_stereo_frame->getLeftFrameMutable()->landmarks_.end());
 
   //   Set right_keypoints_status!
-  for (int i = 0; i < ref_stereo_frame->left_frame_.landmarks_.size(); i++) {
-    int l_id = ref_stereo_frame->left_frame_.landmarks_[i];
+  for (int i = 0; i < ref_stereo_frame->getLeftFrame().landmarks_.size(); i++) {
+    int l_id = ref_stereo_frame->getLeftFrameMutable()->landmarks_[i];
     if (l_id % 6 == 0) {
       ref_stereo_frame->right_keypoints_status_.push_back(Kstatus::VALID);
     } else {
@@ -1080,8 +1095,8 @@ TEST(testTracker, FindMatchingStereoKeypoints) {
   }
 
   //   Set right_keypoints_status!
-  for (int i = 0; i < cur_stereo_frame->left_frame_.landmarks_.size(); i++) {
-    int l_id = cur_stereo_frame->left_frame_.landmarks_[i];
+  for (int i = 0; i < cur_stereo_frame->getLeftFrame().landmarks_.size(); i++) {
+    int l_id = cur_stereo_frame->getLeftFrameMutable()->landmarks_[i];
     if (l_id % 6 == 0) {
       cur_stereo_frame->right_keypoints_status_.push_back(Kstatus::VALID);
     } else {
@@ -1097,8 +1112,8 @@ TEST(testTracker, FindMatchingStereoKeypoints) {
   EXPECT(matches_ref_cur.size() == (num_landmarks_common + 1) / 2);
   set<int> landmarks_found;
   for(auto match_ref_cur : matches_ref_cur) {
-    int l_ref = ref_stereo_frame->left_frame_.landmarks_[match_ref_cur.first];
-    int l_cur = cur_stereo_frame->left_frame_.landmarks_[match_ref_cur.second];
+    int l_ref = ref_stereo_frame->getLeftFrameMutable()->landmarks_[match_ref_cur.first];
+    int l_cur = cur_stereo_frame->getLeftFrameMutable()->landmarks_[match_ref_cur.second];
 
     EXPECT(l_ref == l_cur);
     EXPECT(l_ref % 6 == 0);

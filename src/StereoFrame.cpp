@@ -18,30 +18,28 @@
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-StereoFrame::StereoFrame(
-      const FrameId& id,
-      const int64_t& timestamp,
-      const std::string& left_image_name,
-      const std::string& right_image_name,
-      const CameraParams& cam_param_left,
-      const CameraParams& cam_param_right,
-      const gtsam::Pose3& L_Pose_R,
-      const StereoMatchingParams& stereo_matching_params) :
-    id_(id), timestamp_(timestamp),
+StereoFrame::StereoFrame(const FrameId& id,
+                         const int64_t& timestamp,
+                         const cv::Mat& left_image,
+                         const CameraParams& cam_param_left,
+                         const cv::Mat& right_image,
+                         const CameraParams& cam_param_right,
+                         const gtsam::Pose3& L_Pose_R,
+                         const StereoMatchingParams& stereo_matching_params) :
+    id_(id),
+    timestamp_(timestamp),
     left_frame_(id,
                 timestamp,
-                left_image_name,
                 cam_param_left,
-                stereo_matching_params.equalizeImage_),
+                left_image),
     right_frame_(id,
                  timestamp,
-                 right_image_name,
                  cam_param_right,
-                 stereo_matching_params.equalizeImage_),
+                 right_image),
     is_rectified_(false),
     is_keyframe_(false),
-    camL_Pose_camR(L_Pose_R),
-    sparse_stereo_params_(stereo_matching_params) {}
+    sparse_stereo_params_(stereo_matching_params),
+    camL_Pose_camR(L_Pose_R) {}
 
 /* -------------------------------------------------------------------------- */
 void StereoFrame::sparseStereoMatching(const int verbosity) {
@@ -459,8 +457,8 @@ void StereoFrame::createMesh2dStereo(
         double fx_b = fx * getBaseline();
         double depth = fx_b / disparity_i;
         // if point is valid, store it
-        if (depth >= sparse_stereo_params_.minPointDist ||
-            depth <= sparse_stereo_params_.maxPointDist) {
+        if (depth >= sparse_stereo_params_.min_point_dist_ ||
+            depth <= sparse_stereo_params_.max_point_dist_) {
           Vector3 versor_rect_i = Frame::CalibratePixel(kptsWithGradient.at(i),
                                                         left_frame_.cam_param_); // get 3D point
           Vector3 versor_i = camLrect_R_camL.rotate(versor_rect_i);
@@ -635,10 +633,10 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   // get baseline
   baseline_ = camLrect_Pose_calRrect.translation().x();
   // TODO remove hardcoded values.
-  if (baseline_ > 1.1 * sparse_stereo_params_.nominalBaseline ||
-      baseline_ < 0.9 * sparse_stereo_params_.nominalBaseline) { // within 10% of the expected baseline
+  if (baseline_ > 1.1 * sparse_stereo_params_.nominal_baseline_ ||
+      baseline_ < 0.9 * sparse_stereo_params_.nominal_baseline_) { // within 10% of the expected baseline
     LOG(WARNING) << "getRectifiedImages: abnormal baseline: " << baseline_
-                 << ", nominalBaseline: " << sparse_stereo_params_.nominalBaseline
+                 << ", nominalBaseline: " << sparse_stereo_params_.nominal_baseline_
                  <<  "(+/-10%) \n\n\n\n";
   }
 
@@ -795,10 +793,10 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
   // The stripe has to be places in the right image, on the left-hand-side wrt the x of the left feature, since:
   // disparity = left_px.x - right_px.x, hence we check: right_px.x < left_px.x
   // a stripe to select in the right image (this must contain match as epipolar lines are horizontal)
-  int stripe_rows = sparse_stereo_params_.templ_rows + sparse_stereo_params_.stripe_extra_rows; // must be odd; p/m stripe_extra_rows/2 pixels to deal with rectification error
+  int stripe_rows = sparse_stereo_params_.templ_rows_ + sparse_stereo_params_.stripe_extra_rows_; // must be odd; p/m stripe_extra_rows/2 pixels to deal with rectification error
   // dimension of the search space in right camera is defined by min depth:
   // depth = fx * b / disparity => max disparity = fx * b / minDepth;
-  int stripe_cols = round(fx * baseline / sparse_stereo_params_.minPointDist) + sparse_stereo_params_.templ_cols + 4; // 4 is a tolerance
+  int stripe_cols = round(fx * baseline / sparse_stereo_params_.min_point_dist_) + sparse_stereo_params_.templ_cols_ + 4; // 4 is a tolerance
   //std::cout << "stripe_cols " << stripe_cols << " stripe_rows " << stripe_rows << " right_rectified.cols "<< right_rectified.cols
   //    << " minPointDist " << sparseStereoParams_.minPointDist << std::endl;
   if(stripe_cols % 2 != 1) {stripe_cols +=1;} // make it odd, if it is not
@@ -870,11 +868,11 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
         findMatchingKeypointRectified(left_rectified,
                                       left_rectified_i,
                                       right_rectified,
-                                      sparse_stereo_params_.templ_cols,
-                                      sparse_stereo_params_.templ_rows,
+                                      sparse_stereo_params_.templ_cols_,
+                                      sparse_stereo_params_.templ_rows_,
                                       stripe_cols,
                                       stripe_rows,
-                                      sparse_stereo_params_.toleranceTemplateMatching,
+                                      sparse_stereo_params_.tolerance_template_matching_,
                                       writeImageLeftRightMatching);
 
     // perform bidirectional check: disabled!
@@ -1013,7 +1011,7 @@ std::pair<StatusKeypointCV,double> StereoFrame::findMatchingKeypointRectified(
   //  }
 
   // Refine keypoint with subpixel accuracy.
-  if (sparse_stereo_params_.subpixelRefinement) {
+  if (sparse_stereo_params_.subpixel_refinement_) {
     cv::TermCriteria criteria (CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
     cv::Size winSize (10, 10);
     cv::Size zeroZone (-1, -1);
@@ -1081,8 +1079,8 @@ std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
         // Valid.
         nrValidDepths += 1;
         double depth = fx_b / disparity;
-        if (depth < sparse_stereo_params_.minPointDist ||
-            depth > sparse_stereo_params_.maxPointDist) {
+        if (depth < sparse_stereo_params_.min_point_dist_ ||
+            depth > sparse_stereo_params_.max_point_dist_) {
           right_keypoints_rectified[i].first = Kstatus::NO_DEPTH;
           depths.push_back(0.0);
         } else {

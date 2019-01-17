@@ -37,7 +37,9 @@ TEST(testFrame, visualizeMesh2D) {
   Timestamp tmp = 123;
   const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
 
-  Frame f(id, tmp, imgName, CameraParams());
+  Frame f(id, tmp,
+          CameraParams(),
+          UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   f.extractCorners();
   for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
     f.landmarks_.push_back(i);

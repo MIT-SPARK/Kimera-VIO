@@ -44,39 +44,40 @@ namespace VIO {
 ////////////////////////////////////////////////////////////////////////////
 // Class for storing/processing a single image
 class Frame {
-
 public:
-  // constructors
+  // Constructors.
+  /// @param img: does a shallow copy of the image by defaults,
+  ///  if Frame should have ownership of the image, clone it.
   Frame(const FrameId& id,
         const int64_t& timestamp,
-        const std::string& img_name,
         const CameraParams& cam_param,
-        const bool equalizeImage = false):
+        const cv::Mat& img):
     id_(id),
     timestamp_(timestamp),
-    img_(UtilsOpenCV::ReadAndConvertToGrayScale(img_name, equalizeImage)),
     cam_param_(cam_param),
+    img_(img),
     isKeyframe_(false) {}
 
-  // copy constructor
+  // TODO delete Frame copy constructor
+  // Copy constructor.
+  // Also does a shallow copy of the image!
   Frame(const Frame& f) :
-    id_(f.id_), timestamp_(f.timestamp_), img_(f.img_),
-    cam_param_(f.cam_param_), isKeyframe_(f.isKeyframe_),
+    id_(f.id_), timestamp_(f.timestamp_), cam_param_(f.cam_param_),
+    img_(f.img_), isKeyframe_(f.isKeyframe_),
     keypoints_(f.keypoints_), scores_(f.scores_),
     landmarks_(f.landmarks_), landmarksAge_(f.landmarksAge_),
     versors_(f.versors_) {}
 
-  // @ TODO: add constructor which takes images as input (relevant for real tests)
   const FrameId id_;
   const Timestamp timestamp_;
 
-  // These are nonconst since they will be changed during rectification
+  // These are non-const since they will be changed during rectification.
   CameraParams cam_param_;
 
-  // image cv::Mat
+  // Actual image stored by the class frame.
   const cv::Mat img_;
 
-  // results of image processing
+  // Results of image processing.
   bool isKeyframe_ = false;
 
   // These containers must have same size.
@@ -91,7 +92,9 @@ public:
 public:
   /* ++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++ */
   // ExtractCorners using goodFeaturesToTrack
-  // TODO REMOVE No one is using this... :(
+  // This is only used for testing purposes.
+  // TODO, define it in the tests, rather than here, as it distracts coders,
+  // since it is not actually used by the VIO pipeline.
   void extractCorners(const double qualityLevel = 0.01,
                       const double minDistance = 10,
                       const int blockSize = 3,
@@ -121,9 +124,7 @@ public:
           break;
         }
       }
-      if (!found) {
-        throw std::runtime_error("setLandmarksToMinus1: lmk not found");
-      }
+      CHECK(found) << "setLandmarksToMinus1: lmk not found";
     }
   }
 
@@ -131,7 +132,7 @@ public:
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   // It considers all valid keypoints for the mesh.
   // Optionally, it returns a 2D mesh via its argument.
-  std::vector<cv::Vec6f> createMesh2D() {
+  std::vector<cv::Vec6f> createMesh2D() const {
     std::vector<size_t> selectedIndices (keypoints_.size());
     // Fills selectedIndices with the indices of ALL keypoints: 0, 1, 2...
     std::iota(selectedIndices.begin(), selectedIndices.end(), 0);

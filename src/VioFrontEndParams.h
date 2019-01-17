@@ -9,7 +9,7 @@
 /**
  * @file   VioFrontEndParams.h
  * @brief  Class collecting the parameters used for stereo feature tracking
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #ifndef VioFrontEndParams_H_
@@ -30,9 +30,10 @@
 
 namespace VIO {
 
-///////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 class VioFrontEndParams{
 public:
+  // TODO make an enum class.
   enum FeatureSelectionCriterion {
     QUALITY, MIN_EIG, LOGDET, RANDOM
   };
@@ -51,18 +52,9 @@ public:
     block_size_(3),
     use_harris_detector_(false),
     k_(0.04),
-    equalizeImage_(false),
-    // stereo matching
-    nominalBaseline_(0.11),
-    toleranceTemplateMatching_(0.15),
-    templ_cols_(101), // must be odd
-    templ_rows_(11),
-    stripe_extra_rows_(0),
-    minPointDist_(0.1), // stereo points triangulated below this distance are discarded
-    maxPointDist_(15), // stereo points triangulated beyond this distance are discarded
-    bidirectionalMatching_(false),
-    subpixelRefinementStereo_(false),
-    // selector params
+    // Stereo matching.
+    stereo_matching_params_(),
+    // Selector params.
     featureSelectionCriterion_(FeatureSelectionCriterion::QUALITY),
     featureSelectionHorizon_(3), // in seconds
     featureSelectionNrCornersToSelect_(1000), // detect larger number of keypoints, and then select maxFeaturesPerFrame_
@@ -105,18 +97,9 @@ public:
   int block_size_;
   bool use_harris_detector_;
   double k_;
-  bool equalizeImage_;
 
-  // stereo matching
-  double nominalBaseline_;
-  double toleranceTemplateMatching_;
-  int templ_cols_;
-  int templ_rows_;
-  int stripe_extra_rows_;
-  double minPointDist_;
-  double maxPointDist_;
-  bool bidirectionalMatching_;
-  bool subpixelRefinementStereo_;
+  // Encapsulate StereoMatchingParams.
+  StereoMatchingParams stereo_matching_params_;
 
   // Selection params
   int featureSelectionNrCornersToSelect_;
@@ -130,7 +113,7 @@ public:
   bool useRANSAC_;
   int minNrMonoInliers_, minNrStereoInliers_; // TODO should be size_t
   double ransac_threshold_mono_, ransac_threshold_stereo_;
-  int    ransac_max_iterations_; // TODO (minor) : should we split this in mono and stereo?
+  int ransac_max_iterations_; // TODO (minor) : should we split this in mono and stereo?
   double ransac_probability_; // TODO (minor) : should we split this in mono and stereo?
   bool ransac_randomize_;
   bool ransac_use_1point_stereo_, ransac_use_2point_mono_;
@@ -144,21 +127,23 @@ public:
   double disparityThreshold_; // max disparity under which we consider the vehicle steady
   double display_time_; // time for imshow
 
-  /* -------------------------------------------------------------------------- */
-  static std::string FeatureSelectionCriterionStr(const int i){
+
+  /* ------------------------------------------------------------------------ */
+  static std::string FeatureSelectionCriterionStr(const int i) {
     std::string featSelCriterionStr;
-    switch(i){
+    switch(i) {
     case 0 : featSelCriterionStr = "QUALITY"; break;
     case 1 : featSelCriterionStr = "MIN_EIG"; break;
     case 2 : featSelCriterionStr = "LOGDET"; break;
     case 3 : featSelCriterionStr = "RANDOM"; break;
     default :
-      throw std::runtime_error("FeatureSelectionCriterionStr: invalid feature selection criterion");
-      break;
+      LOG(FATAL) << "FeatureSelectionCriterionStr: invalid feature selection "
+                    "criterion";
     }
     return featSelCriterionStr;
   }
-  /* -------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   bool equals(const VioFrontEndParams& tp2, double tol = 1e-10) const {
     return (klt_win_size_ == tp2.klt_win_size_) &&
         (klt_max_iter_ == tp2.klt_max_iter_) &&
@@ -172,17 +157,8 @@ public:
         (block_size_ == tp2.block_size_) &&
         (use_harris_detector_ == tp2.use_harris_detector_) &&
         (fabs(k_ - tp2.k_) <= tol) &&
-        (equalizeImage_ == tp2.equalizeImage_) &&
         // stereo matching
-        (fabs(nominalBaseline_ - tp2.nominalBaseline_) <= tol) &&
-        (fabs(toleranceTemplateMatching_ - tp2.toleranceTemplateMatching_) <= tol) &&
-        (templ_cols_ == tp2.templ_cols_) &&
-        (templ_rows_ == tp2.templ_rows_) &&
-        (stripe_extra_rows_ == tp2.stripe_extra_rows_) &&
-        (fabs(minPointDist_ - tp2.minPointDist_) <= tol) &&
-        (fabs(maxPointDist_ - tp2.maxPointDist_) <= tol) &&
-        (bidirectionalMatching_ == tp2.bidirectionalMatching_) &&
-        (subpixelRefinementStereo_ == tp2.subpixelRefinementStereo_) &&
+        stereo_matching_params_.equals(tp2.stereo_matching_params_, tol) &&
         // Selection params
         (featureSelectionNrCornersToSelect_ == tp2.featureSelectionNrCornersToSelect_) &&
         (featureSelectionCriterion_ == tp2.featureSelectionCriterion_) &&
@@ -212,13 +188,13 @@ public:
         (fabs(display_time_ - tp2.display_time_) <= tol);
   }
 
-  /* -------------------------------------------------------------------------- */
-  StereoMatchingParams getStereoMatchingParams(){
-    return StereoMatchingParams(toleranceTemplateMatching_, templ_cols_,templ_rows_,stripe_extra_rows_,minPointDist_,
-        maxPointDist_,bidirectionalMatching_,nominalBaseline_,subpixelRefinementStereo_,equalizeImage_);
+  /* ------------------------------------------------------------------------ */
+  // Thread-safe as long as StereoMatchingParams does not hold pointers.
+  inline const StereoMatchingParams& getStereoMatchingParams() const {
+    return stereo_matching_params_;
   }
 
-  /* -------------------------------------------------------------------------- */
+  /* ------------------------------------------------------------------------ */
   void print() const {
     LOG(INFO) << "&&&&&&&&&&&&&&&&&&&& TRACKER PARAMETERS &&&&&&&&&&&&&&&&&&&&&&&&&&&\n"
      << "** Feature tracking parameters **\n"
@@ -234,21 +210,11 @@ public:
      << "min_distance_: " << min_distance_ << '\n'
      << "block_size_: " << block_size_ << '\n'
      << "use_harris_detector_: " << use_harris_detector_ << '\n'
-     << "k_: " << k_ << '\n'
-     << "equalizeImage_: " << equalizeImage_ << '\n'
+     << "k_: " << k_;
 
-     << "** Sparse Stereo Matching parameters **\n"
-     << "nominalBaseline_: " << nominalBaseline_ << '\n'
-     << "toleranceTemplateMatching_: " << toleranceTemplateMatching_ << '\n'
-     << "templ_cols_: " << templ_cols_ << '\n'
-     << "templ_rows_: " << templ_rows_ << '\n'
-     << "stripe_extra_rows_: " << stripe_extra_rows_ << '\n'
-     << "minPointDist_: " << minPointDist_ << '\n'
-     << "maxPointDist_: " << maxPointDist_ << '\n'
-     << "bidirectionalMatching_: " << bidirectionalMatching_ << '\n'
-     << "subpixelRefinementStereo_: " << subpixelRefinementStereo_ << '\n'
+    stereo_matching_params_.print();
 
-     << "** Feature selection parameters **\n"
+     LOG(INFO) << "** Feature selection parameters **\n"
      << "featureSelectionCriterion_: " << featureSelectionCriterion_ << '\n'
      << "featureSelectionHorizon_: " << featureSelectionHorizon_ << '\n'
      << "featureSelectionNrCornersToSelect_: " << featureSelectionNrCornersToSelect_ << '\n'
@@ -280,14 +246,14 @@ public:
      << "display_time_: " << display_time_ << '\n'
      << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&";
   }
+
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  bool parseYAML(std::string filepath){
+  bool parseYAML(std::string filepath) {
     // make sure that each YAML file has %YAML:1.0 as first line
-    cv::FileStorage fs(filepath, cv::FileStorage::READ);
-    if (!fs.isOpened()) {
-      std::cout << "Cannot open file in parseYAML: " << filepath << std::endl;
-      throw std::runtime_error("parseYAML (Tracker): cannot open file (remember first line: %YAML:1.0)");
-    }
+    cv::FileStorage fs;
+    UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
+    CHECK(fs.isOpened()) << "parseYAML (Tracker): cannot open file "
+                            "(remember first line: %YAML:1.0): " << filepath;
 
     fs["klt_win_size"] >> klt_win_size_;
     fs["klt_max_iter"] >> klt_max_iter_;
@@ -301,26 +267,17 @@ public:
     fs["block_size"] >> block_size_;
     fs["use_harris_detector"] >> use_harris_detector_;
     fs["k"] >> k_;
-    fs["equalizeImage"] >> equalizeImage_;
 
-    fs["nominalBaseline"] >> nominalBaseline_;
-    fs["toleranceTemplateMatching"] >> toleranceTemplateMatching_;
-    fs["templ_cols"] >> templ_cols_;
-    fs["templ_rows"] >> templ_rows_;
-    fs["stripe_extra_rows"] >> stripe_extra_rows_;
-    fs["minPointDist"] >> minPointDist_;
-    fs["maxPointDist"] >> maxPointDist_;
-    fs["bidirectionalMatching"] >> bidirectionalMatching_;
-    fs["subpixelRefinementStereo"] >> subpixelRefinementStereo_;
+    stereo_matching_params_.parseYamlFromOpenFileStorage(fs);
 
     int featureSelectionCriterionNr;
     fs["featureSelectionCriterion"] >> featureSelectionCriterionNr;
-    switch(featureSelectionCriterionNr){
+    switch(featureSelectionCriterionNr) {
     case 0 : featureSelectionCriterion_ = FeatureSelectionCriterion::QUALITY; break;
     case 1 : featureSelectionCriterion_ = FeatureSelectionCriterion::MIN_EIG; break;
     case 2 : featureSelectionCriterion_ = FeatureSelectionCriterion::LOGDET; break;
     case 3 : featureSelectionCriterion_ = FeatureSelectionCriterion::RANDOM; break;
-    default: throw std::runtime_error("parseYAML: wrong choice of featureSelectionCriterion"); break;
+    default: LOG(FATAL) << "parseYAML: wrong choice of featureSelectionCriterion";
     }
     fs["featureSelectionHorizon"] >> featureSelectionHorizon_;
     fs["featureSelectionNrCornersToSelect"] >> featureSelectionNrCornersToSelect_;
@@ -352,6 +309,8 @@ public:
     fs.release();
     return true;
   }
+
+
 };
 
 } // namespace VIO

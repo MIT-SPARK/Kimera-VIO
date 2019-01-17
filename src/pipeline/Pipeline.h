@@ -63,25 +63,30 @@ private:
 
   // Decides backend parameters depending on the backend chosen.
   // 0: Vanilla VIO 1: regularVIO
-  void setBackendType(int backend_type,
-                      std::shared_ptr<VioBackEndParams>* vioParams) const;
+  void setBackendParamsType(const int backend_type,
+                            std::shared_ptr<VioBackEndParams>* vioParams) const;
 
   // Initialize pipeline.
   bool initialize(size_t k);
 
-  // Initialize frontend.
+  // Initialize IMU and Stereo frontend.
   bool initFrontend(const Timestamp& timestamp_lkf,
                     const Timestamp& timestamp_k,
                     StereoFrame* stereoFrame_k,
                     StereoVisionFrontEnd* stereo_vision_frontend,
                     ImuFrontEnd* imu_buffer,
                     ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const;
+
+  // Stereo frontend: processes first stereo frame.
   bool initStereoFrontend(StereoFrame* stereo_frame_k,
                           StereoVisionFrontEnd* stereo_vision_frontend) const;
+
+  // IMU frontend: retrieves imu stamps and values between provided timestamps.
   bool initImuFrontend(const Timestamp& timestamp_lkf,
                        const Timestamp& timestamp_k,
                        ImuFrontEnd* imu_buffer,
-                       ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const;
+                       ImuStamps* imu_stamps,
+                       ImuAccGyr* imu_accgyr) const;
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.
   /// @param: initial_state_gt: serves as input in case there is ground-truth
@@ -134,8 +139,8 @@ private:
   Timestamp timestamp_k_;
 
   // Init Vio parameters (should be done inside VIO).
-  VioBackEndParamsPtr vio_params_;
-  VioFrontEndParams tracker_params_;
+  VioBackEndParamsPtr backend_params_;
+  VioFrontEndParams frontend_params_;
 
   // TODO this should go to another class to avoid not having copy-ctor...
   // Frontend.

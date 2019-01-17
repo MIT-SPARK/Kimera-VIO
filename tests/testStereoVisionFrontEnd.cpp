@@ -59,21 +59,41 @@ void InitializeData() {
   string img_name_cur_right = stereo_dataset_path + "right_img_1.png";
 
   // Data for testing "geometricOutlierRejectionMono"
-  ref_frame = new Frame(id_ref, timestamp_ref, img_name_ref_left, cam_params_left);
-  cur_frame = new Frame(id_cur, timestamp_cur, img_name_cur_left, cam_params_left);
+  ref_frame = new Frame(id_ref, timestamp_ref,
+                        cam_params_left,
+                        UtilsOpenCV::ReadAndConvertToGrayScale(img_name_ref_left));
+  cur_frame = new Frame(id_cur, timestamp_cur,
+                        cam_params_left,
+                        UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
   // Data for testing "geometricOutlilerRejectionStereo"
   Pose3 camL_Pose_camR = cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
 
   VioFrontEndParams tp;
 
-  ref_stereo_frame = new StereoFrame(id_ref, timestamp_ref,
-      img_name_ref_left, img_name_ref_right, cam_params_left,
-      cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+  ref_stereo_frame = new StereoFrame(
+        id_ref, timestamp_ref,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+          img_name_ref_left,
+          tp.getStereoMatchingParams().equalize_image_),
+        cam_params_left,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+          img_name_ref_right,
+          tp.getStereoMatchingParams().equalize_image_),
+        cam_params_right,
+        camL_Pose_camR, tp.getStereoMatchingParams());
 
-  cur_stereo_frame = new StereoFrame(id_cur, timestamp_cur,
-      img_name_cur_left, img_name_cur_right, cam_params_left,
-      cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+  cur_stereo_frame = new StereoFrame(
+        id_cur, timestamp_cur,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+          img_name_cur_left,
+          tp.getStereoMatchingParams().equalize_image_),
+        cam_params_left,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+          img_name_cur_right,
+          tp.getStereoMatchingParams().equalize_image_),
+        cam_params_right,
+        camL_Pose_camR, tp.getStereoMatchingParams());
 
   // Set randomness!
   srand(0);
@@ -87,8 +107,8 @@ void ClearFrame(Frame* f) {
 }
 /* ------------------------------------------------------------------------- */
 void ClearStereoFrame(StereoFrame* sf) {
-  ClearFrame(&sf->left_frame_);
-  ClearFrame(&sf->right_frame_);
+  ClearFrame(sf->getLeftFrameMutable());
+  ClearFrame(sf->getRightFrameMutable());
   sf->keypoints_3d_.clear();
   sf->keypoints_depth_.clear();
   sf->right_keypoints_status_.clear();
@@ -97,7 +117,7 @@ void ClearStereoFrame(StereoFrame* sf) {
 void FillStereoFrame(StereoFrame* sf) {
   // Fill the fields in a StereoFrame to pass the sanity check
   // StereoFrame::checkStereoFrame
-  const int num_keypoints = sf->left_frame_.landmarks_.size();
+  const int num_keypoints = sf->getLeftFrame().landmarks_.size();
 
   // left.y == right.y
   // keypoints_3d[i](2) == keypoints_depth_[i]
@@ -113,21 +133,21 @@ void FillStereoFrame(StereoFrame* sf) {
   }
 
   // left_frame_.keypoints_.size
-  if (sf->left_frame_.keypoints_.size() != num_keypoints) {
-    sf->left_frame_.keypoints_ = KeypointsCV(num_keypoints);
+  if (sf->getLeftFrame().keypoints_.size() != num_keypoints) {
+    sf->getLeftFrameMutable()->keypoints_ = KeypointsCV(num_keypoints);
     for (int i = 0; i < num_keypoints; i++) {
-      sf->left_frame_.keypoints_[i] = KeypointCV(i, i);
+      sf->getLeftFrameMutable()->keypoints_[i] = KeypointCV(i, i);
     }
   }
 
   // right_frame_.keypoints_.size
-  if (sf->right_frame_.keypoints_.size() != num_keypoints) {
-    sf->right_frame_.keypoints_ = KeypointsCV(num_keypoints);
+  if (sf->getRightFrame().keypoints_.size() != num_keypoints) {
+    sf->getRightFrameMutable()->keypoints_ = KeypointsCV(num_keypoints);
     for (int i = 0; i < num_keypoints; i++) {
       if (sf->right_keypoints_status_[i] == Kstatus::VALID) {
-        sf->right_frame_.keypoints_[i] = KeypointCV(i + 20, i + (i % 3 - 1));
+        sf->getRightFrameMutable()->keypoints_[i] = KeypointCV(i + 20, i + (i % 3 - 1));
       } else {
-        sf->right_frame_.keypoints_[i] = KeypointCV(0, 0);
+        sf->getRightFrameMutable()->keypoints_[i] = KeypointCV(0, 0);
       }
 
     }
@@ -289,8 +309,8 @@ TEST(testStereoVisionFrontEnd, getSmartStereoMeasurements) {
     double uL = rand() % 800;
     double uR = uL + (rand() % 80 - 40);
     double v = rand() % 600;
-    ref_stereo_frame->left_frame_.landmarks_.push_back(i);
-    ref_stereo_frame->left_frame_.scores_.push_back(1.0);
+    ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(i);
+    ref_stereo_frame->getLeftFrameMutable()->scores_.push_back(1.0);
     ref_stereo_frame->left_keypoints_rectified_.push_back(cv::Point2f(uL, v));
     ref_stereo_frame->right_keypoints_rectified_.push_back(cv::Point2f(uL, v));
     ref_stereo_frame->right_keypoints_status_.push_back(Kstatus::VALID);
@@ -301,8 +321,8 @@ TEST(testStereoVisionFrontEnd, getSmartStereoMeasurements) {
     double uL = rand() % 800;
     double uR = uL + (rand() % 80 - 40);
     double v = rand() % 600;
-    ref_stereo_frame->left_frame_.landmarks_.push_back(i + num_valid);
-    ref_stereo_frame->left_frame_.scores_.push_back(1.0);
+    ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(i + num_valid);
+    ref_stereo_frame->getLeftFrameMutable()->scores_.push_back(1.0);
     ref_stereo_frame->left_keypoints_rectified_.push_back(cv::Point2f(uL, v));
     ref_stereo_frame->right_keypoints_rectified_.push_back(cv::Point2f(uL, v));
     ref_stereo_frame->right_keypoints_status_.push_back(Kstatus::NO_RIGHT_RECT);
@@ -313,8 +333,8 @@ TEST(testStereoVisionFrontEnd, getSmartStereoMeasurements) {
     double uL = rand() % 800;
     double uR = uL + (rand() % 80 - 40);
     double v = rand() % 600;
-    ref_stereo_frame->left_frame_.landmarks_.push_back(-1);
-    ref_stereo_frame->left_frame_.scores_.push_back(1.0);
+    ref_stereo_frame->getLeftFrameMutable()->landmarks_.push_back(-1);
+    ref_stereo_frame->getLeftFrameMutable()->scores_.push_back(1.0);
     ref_stereo_frame->left_keypoints_rectified_.push_back(cv::Point2f(uL, v));
     ref_stereo_frame->right_keypoints_rectified_.push_back(cv::Point2f(uL, v));
     ref_stereo_frame->right_keypoints_status_.push_back(Kstatus::VALID);
@@ -393,20 +413,29 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
       camL_Pose_camR.translation() / scale);
 
   VioFrontEndParams p = VioFrontEndParams(); // default
-  p.minPointDist_ = 0.05;
+  p.min_distance_ = 0.05;
   p.quality_level_ = 0.1;
 
-  StereoFrame first_stereo_frame(0, 0, img_name_left, img_name_right,
-      cam_params_left, cam_params_right, camL_Pose_camR, p.getStereoMatchingParams());
+  StereoFrame first_stereo_frame(0, 0,
+                                 UtilsOpenCV::ReadAndConvertToGrayScale(
+                                   img_name_left,
+                                   p.getStereoMatchingParams().equalize_image_),
+                                 cam_params_left,
+                                 UtilsOpenCV::ReadAndConvertToGrayScale(
+                                   img_name_right,
+                                   p.getStereoMatchingParams().equalize_image_),
+                                 cam_params_right,
+                                 camL_Pose_camR,
+                                 p.getStereoMatchingParams());
 
-  first_stereo_frame.left_frame_.cam_param_.body_Pose_cam_ = Pose3(
-      first_stereo_frame.left_frame_.cam_param_.body_Pose_cam_.rotation(),
-      first_stereo_frame.left_frame_.cam_param_.body_Pose_cam_.translation()
+  first_stereo_frame.getLeftFrameMutable()->cam_param_.body_Pose_cam_ = Pose3(
+      first_stereo_frame.getLeftFrame().cam_param_.body_Pose_cam_.rotation(),
+      first_stereo_frame.getLeftFrame().cam_param_.body_Pose_cam_.translation()
       / scale);
 
-  first_stereo_frame.right_frame_.cam_param_.body_Pose_cam_ = Pose3(
-      first_stereo_frame.right_frame_.cam_param_.body_Pose_cam_.rotation(),
-      first_stereo_frame.right_frame_.cam_param_.body_Pose_cam_.translation()
+  first_stereo_frame.getRightFrameMutable()->cam_param_.body_Pose_cam_ = Pose3(
+      first_stereo_frame.getRightFrame().cam_param_.body_Pose_cam_.rotation(),
+      first_stereo_frame.getRightFrame().cam_param_.body_Pose_cam_.translation()
       / scale);
 
   // Load the expected corners
@@ -423,7 +452,7 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
 
   // Check feature detection results!
   // landmarks_, landmarksAge_, keypoints_, versors_
-  Frame& left_frame = st.stereoFrame_km1_->left_frame_;
+  const Frame& left_frame = st.stereoFrame_km1_->getLeftFrame();
   const int num_corners = left_frame.landmarks_.size();
   EXPECT(num_corners == left_frame.landmarksAge_.size());
   EXPECT(num_corners == left_frame.keypoints_.size());
@@ -472,7 +501,7 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
       matlab_syn_path + "/corners_undistort_left.txt");
   vector<Point2> left_rect_corners = ConvertCornersAcrossCameras(
       left_undistort_corners,
-      sf->left_frame_.cam_param_.calibration_,
+      sf->getLeftFrame().cam_param_.calibration_,
       sf->getLeftUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
@@ -488,7 +517,7 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
       matlab_syn_path + "/corners_undistort_right.txt");
   vector<Point2> right_rect_corners = ConvertCornersAcrossCameras(
       right_undistort_corners,
-      sf->right_frame_.cam_param_.calibration_,
+      sf->getRightFrame().cam_param_.calibration_,
       sf->getRightUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];

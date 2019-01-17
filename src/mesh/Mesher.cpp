@@ -1288,7 +1288,7 @@ void Mesher::updateMesh3D(
   populate3dMeshTimeHorizon(
         mesh_2d_filtered,
         *points_with_id_all,
-        stereo_frame_ptr->left_frame_,
+        stereo_frame_ptr->getLeftFrame(),
         left_camera_pose,
         FLAGS_min_ratio_btw_largest_smallest_side,
         FLAGS_min_elongation_ratio,
@@ -1320,7 +1320,7 @@ void Mesher::appendNonVioStereoPoints(
     const gtsam::Pose3& leftCameraPose,
     std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo) const {
   CHECK_NOTNULL(points_with_id_stereo);
-  const Frame& leftFrame = stereoFrame->left_frame_;
+  const Frame& leftFrame = stereoFrame->getLeftFrame();
   for (size_t i = 0; i < leftFrame.landmarks_.size(); i++) {
     if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID &&
         leftFrame.landmarks_.at(i) != -1) {

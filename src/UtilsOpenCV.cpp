@@ -473,7 +473,7 @@ std::pair<double,double> UtilsOpenCV::ComputeRotationAndTranslationErrors(
 /* -------------------------------------------------------------------------- */
 // reads image and converts to 1 channel image
 cv::Mat UtilsOpenCV::ReadAndConvertToGrayScale(const std::string& img_name,
-                                               bool const equalize) {
+                                               bool equalize) {
   cv::Mat img = cv::imread(img_name, cv::IMREAD_ANYCOLOR);
   if (img.channels() > 1)
     cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
@@ -611,15 +611,16 @@ void UtilsOpenCV::DrawTextInPlace(cv::Mat& img,
   }
 }
 /* -------------------------------------------------------------------------- */
-// concatenate two images and return results as a new mat
-cv::Mat UtilsOpenCV::ConcatenateTwoImages(const cv::Mat imL_in,
-                                          const cv::Mat imR_in) {
+// Concatenate two images and return results as a new mat.
+// Clones the two images.
+cv::Mat UtilsOpenCV::ConcatenateTwoImages(const cv::Mat& imL_in,
+                                          const cv::Mat& imR_in) {
   cv::Mat imL = imL_in.clone();
-  if (imL.channels() == 1){
+  if (imL.channels() == 1) {
     cv::cvtColor(imL, imL, cv::COLOR_GRAY2BGR);
   }
   cv::Mat imR = imR_in.clone();
-  if (imR.channels() == 1){
+  if (imR.channels() == 1) {
     cv::cvtColor(imR, imR, cv::COLOR_GRAY2BGR);
   }
   cv::Size szL = imL.size();
@@ -631,15 +632,15 @@ cv::Mat UtilsOpenCV::ConcatenateTwoImages(const cv::Mat imL_in,
   imR.copyTo(right);
   return originalLR;
 }
+
 /* -------------------------------------------------------------------------- */
-// draw corner matches and return results as a new mat
-cv::Mat UtilsOpenCV::DrawCornersMatches(const cv::Mat img1,
+// Draw corner matches and return results as a new mat.
+cv::Mat UtilsOpenCV::DrawCornersMatches(const cv::Mat& img1,
                                         const std::vector<cv::Point2f> &corners1,
-                                        const cv::Mat img2,
+                                        const cv::Mat& img2,
                                         const std::vector<cv::Point2f> &corners2,
                                         const std::vector<cv::DMatch> &matches,
-                                        const bool randomColor)
-{
+                                        const bool randomColor) {
   cv::Mat canvas = UtilsOpenCV::ConcatenateTwoImages(img1, img2);
   cv::Point2f ptOffset = cv::Point2f(img1.cols, 0);
   cv::RNG rng(12345);

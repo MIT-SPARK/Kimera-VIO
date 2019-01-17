@@ -43,14 +43,14 @@ void StereoVisionFrontEnd::processFirstStereoFrame(StereoFrame& firstFrame) {
   last_keyframe_timestamp_ = stereoFrame_k_->getTimestamp();
 
   // Tracking is based on left frame.
-  Frame& left_frame = stereoFrame_k_->left_frame_;
-  CHECK_EQ(left_frame.keypoints_.size(), 0)
+  Frame* left_frame = stereoFrame_k_->getLeftFrameMutable();
+  CHECK_EQ(left_frame->keypoints_.size(), 0)
     << "Keypoints already present in first frame: please do not extract"
        " keypoints manually";
 
   // Initialize mask: this is allocated but it does not play a role
   // in this function.
-  cv::Size imgSize = left_frame.img_.size();
+  cv::Size imgSize = left_frame->img_.size();
   tracker_.camMask_ = cv::Mat(imgSize, CV_8UC1, cv::Scalar(255));
 
   // Perform feature detection.
@@ -97,11 +97,12 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   double timeGetMeasurements = 0;
 
   // Track features from the previous frame
-  Frame& left_frame_km1 = stereoFrame_km1_->left_frame_;
-  Frame& left_frame_k = stereoFrame_k_->left_frame_;
-  tracker_.featureTracking(left_frame_km1, left_frame_k);
+  Frame* left_frame_km1 = stereoFrame_km1_->getLeftFrameMutable();
+  Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
+  tracker_.featureTracking(left_frame_km1,
+                           left_frame_k);
   if (verbosityFrames > 0) {
-    tracker_.displayFrame(left_frame_km1, left_frame_k, verbosityFrames);
+    tracker_.displayFrame(*left_frame_km1, *left_frame_k, verbosityFrames);
   }
 
   // Not tracking at all in this phase.
@@ -115,7 +116,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   const bool maxTimeElapsed = UtilsOpenCV::NsecToSec(
               stereoFrame_k_->getTimestamp() - last_keyframe_timestamp_) >=
                         tracker_.trackerParams_.intra_keyframe_time_;
-  const int nrValidFeatures = left_frame_k.getNrValidKeypoints();
+  const int nrValidFeatures = left_frame_k->getNrValidKeypoints();
   const bool nrFeaturesIsLow = nrValidFeatures <=
                          tracker_.trackerParams_.minNumberFeatures_;
   if (maxTimeElapsed || nrFeaturesIsLow) {
@@ -140,7 +141,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     } else {
       ////////////////// MONO geometric outlier rejection ////////////////
       std::pair<Tracker::TrackingStatus,gtsam::Pose3> statusPoseMono;
-      Frame& left_frame_lkf = stereoFrame_lkf_->left_frame_;
+      Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
       if (tracker_.trackerParams_.ransac_use_2point_mono_ &&
           calLrectLkf_R_camLrectKf_imu) {
         // 2-point RANSAC.
@@ -148,7 +149,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
             left_frame_lkf, left_frame_k, *calLrectLkf_R_camLrectKf_imu);
       } else {
         // 5-point RANSAC.
-        statusPoseMono = tracker_.geometricOutlierRejectionMono(left_frame_lkf, left_frame_k);
+        statusPoseMono = tracker_.geometricOutlierRejectionMono(
+              left_frame_lkf, left_frame_k);
       }
 
       // Set relative pose.
@@ -161,7 +163,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       }
 
       if (verbosityFrames > 0) {
-          tracker_.displayFrame(left_frame_km1, left_frame_k, verbosityFrames);
+          tracker_.displayFrame(*left_frame_km1, *left_frame_k, verbosityFrames);
       }
 
       ////////////////// STEREO geometric outlier rejection ////////////////
@@ -252,7 +254,7 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
 
   // Extract relevant info from the stereo frame:
   // essentially the landmark if and the left/right pixel measurements
-  LandmarkIds landmarkId_kf = stereoFrame_kf.left_frame_.landmarks_;
+  LandmarkIds landmarkId_kf = stereoFrame_kf.getLeftFrame().landmarks_;
   KeypointsCV leftKeypoints = stereoFrame_kf.left_keypoints_rectified_;
   KeypointsCV rightKeypoints = stereoFrame_kf.right_keypoints_rectified_;
   std::vector<Kstatus> rightKeypoints_status = stereoFrame_kf.right_keypoints_status_;
@@ -286,32 +288,24 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
 
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::displayStereoTrack(const int& verbosity) const {
-  Frame& left_frame_k = stereoFrame_k_->left_frame_;
+  const Frame& left_frame_k = stereoFrame_k_->getLeftFrame();
 
   // Show current frame with tracking results
   // The output of the following is already a color image
-  cv::Mat img_left = tracker_.displayFrame(stereoFrame_lkf_->left_frame_, left_frame_k, 0); // 0 verbosity
+  cv::Mat img_left = tracker_.displayFrame(stereoFrame_lkf_->getLeftFrame(),
+                                           left_frame_k, 0); // 0 verbosity
 
-  if(verbosity==1){ // otherwise just return the image
-    cv::imshow("mono tracking visualization (1 frame)", img_left);
-    cv::waitKey(tracker_.trackerParams_.display_time_);
-  } else if (verbosity == 2) {
-    // Create output folders:
-    std::string folderName = outputImagesPath_ + "-" +
-        VioFrontEndParams::FeatureSelectionCriterionStr(
-          tracker_.trackerParams_.featureSelectionCriterion_)
-        + "-monoMatching1frame/";
-    boost::filesystem::path monoTrackerDir(folderName.c_str());
-    boost::filesystem::create_directory(monoTrackerDir);
-    // Write image.
-    std::string img_name = folderName + "monoTrackerDisplay1Keyframe_"  +
-        std::to_string(stereoFrame_lkf_->left_frame_.id_) + ".png";
-    std::cout << "writing image: " << img_name << std::endl;
-    cv::imwrite(img_name, img_left);
-  }
+  //############################################################################
+  displaySaveImage(img_left,
+                   "",
+                   "mono tracking visualization (1 frame)",
+                   "-monoMatching1frame",
+                   "monoTrackerDisplay1Keyframe_",
+                   verbosity);
+  //############################################################################
 
   // Draw the matchings: assumes that keypoints in the left and right keyframe are ordered in the same way
-  Frame& right_frame_k = stereoFrame_k_->right_frame_;
+  const Frame& right_frame_k (stereoFrame_k_->getRightFrame());
 
   if ((left_frame_k.img_.cols != right_frame_k.img_.cols) ||
       (left_frame_k.img_.rows != right_frame_k.img_.rows))
@@ -322,136 +316,105 @@ void StereoVisionFrontEnd::displayStereoTrack(const int& verbosity) const {
   // stereoFrame_k_->keypoints_depth_
 
   std::vector<cv::DMatch> matches;
-  if(left_frame_k.keypoints_.size() == right_frame_k.keypoints_.size()){
-    for (int i = 0; i < left_frame_k.keypoints_.size(); i++) {
-      if(left_frame_k.landmarks_[i] != -1 && stereoFrame_k_->right_keypoints_status_[i] == Kstatus::VALID)
+  if (left_frame_k.keypoints_.size() == right_frame_k.keypoints_.size()) {
+    for (size_t i = 0; i < left_frame_k.keypoints_.size(); i++) {
+      if (left_frame_k.landmarks_[i] != -1 &&
+          stereoFrame_k_->right_keypoints_status_[i] == Kstatus::VALID) {
         matches.push_back(cv::DMatch(i, i, 0));
+      }
     }
   } else {
-    VLOG(10) << "no matches to show, since we did not compute keypoints "
+    VLOG(10) << "No matches to show, since we did not compute keypoints "
                 "in right frame.";
   }
 
-  // plot matches
+  //############################################################################
+  // Plot matches.
   cv::Mat img_left_right = UtilsOpenCV::DrawCornersMatches(
-      img_left, left_frame_k.keypoints_, img_right, right_frame_k.keypoints_, matches, true); // true: random color
+    img_left, left_frame_k.keypoints_,
+    img_right, right_frame_k.keypoints_, matches, true); // true: random color
 
-  // plot text with keyframe id
-  cv::putText(img_left_right, "S:" + std::to_string(keyframe_count_),
-          KeypointCV(10,15), CV_FONT_HERSHEY_COMPLEX, 0.6, cv::Scalar(0, 255, 0));
-
-  if(verbosity==1){ // otherwise just return the image
-    cv::imshow("stereo tracking visualization", img_left_right);
-    cv::waitKey(tracker_.trackerParams_.display_time_);
-  }
-  if(verbosity==2){
-    // create output folders:
-    std::string folderName = outputImagesPath_ + "-" + VioFrontEndParams::FeatureSelectionCriterionStr(tracker_.trackerParams_.featureSelectionCriterion_) + + "-stereoMatchingUnrectified/";
-    boost::filesystem::path stereoTrackerDir(folderName.c_str());
-    boost::filesystem::create_directory(stereoTrackerDir);
-    // write image
-    std::string img_name = folderName + "StereoTrackerDisplayKeyframe_"  + std::to_string(stereoFrame_lkf_->left_frame_.id_) + ".png";
-    std::cout << "writing image: " << img_name << std::endl;
-    cv::imwrite(img_name, img_left_right);
-  }
-
-  //////////////////////////////////////////////////////////////////////////////////
-  // display rectified
-  // plot matches
-
+  displaySaveImage(img_left_right,
+                   "S:" + std::to_string(keyframe_count_),
+                   "stereo tracking visualization",
+                   "-stereoMatchingUnrectified",
+                   "StereoTrackerDisplayKeyframe_",
+                   verbosity);
+  //############################################################################
+  //////////////////////////////////////////////////////////////////////////////
+  //############################################################################
+  // Display rectified, plot matches.
   cv::Mat img_left_right_rectified = UtilsOpenCV::DrawCornersMatches(
       stereoFrame_k_->left_img_rectified_, stereoFrame_k_->left_keypoints_rectified_,
       stereoFrame_k_->right_img_rectified_, stereoFrame_k_->right_keypoints_rectified_, matches, true); // true: random color
 
-  // plot text with keyframe id
-  cv::putText(img_left_right_rectified, "S(Rect):" + std::to_string(keyframe_count_),
-      KeypointCV(10,15), CV_FONT_HERSHEY_COMPLEX, 0.6, cv::Scalar(0, 255, 0));
-
-  if(verbosity==1){ // otherwise just return the image
-    cv::imshow("stereo tracking visualization (rectified)", img_left_right_rectified);
-    cv::waitKey(tracker_.trackerParams_.display_time_);
-  }
-  if(verbosity==2){
-    // create output folders:
-    std::string folderName = outputImagesPath_ + "-" + VioFrontEndParams::FeatureSelectionCriterionStr(tracker_.trackerParams_.featureSelectionCriterion_) + "-stereoMatchingRectified/";
-    boost::filesystem::path monoTrackerDir(folderName.c_str());
-    boost::filesystem::create_directory(monoTrackerDir);
-    // write image
-    std::string img_name = folderName + "stereoTrackerDisplayKeyframe_"  + std::to_string(stereoFrame_lkf_->left_frame_.id_) + ".png";
-    std::cout << "writing image: " << img_name << std::endl;
-    cv::imwrite(img_name, img_left_right_rectified);
-  }
+  displaySaveImage(img_left_right_rectified,
+                   "S(Rect):" + std::to_string(keyframe_count_),
+                   "stereo tracking visualization (rectified)",
+                   "-stereoMatchingRectified",
+                   "stereoTrackerDisplayKeyframe_",
+                   verbosity);
+  //############################################################################
 }
 
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::displayMonoTrack(const int& verbosity) const {
-  Frame& cur_left_frame = stereoFrame_k_->left_frame_;
-  Frame& ref_left_frame = stereoFrame_lkf_->left_frame_;
+  const Frame& cur_left_frame = stereoFrame_k_->getLeftFrame();
+  const Frame& ref_left_frame = stereoFrame_lkf_->getLeftFrame();
 
-  // find keypoint matches
+  // Find keypoint matches.
   std::vector<cv::DMatch> matches;
-  for (size_t i = 0; i < cur_left_frame.keypoints_.size(); ++i)
-  {
-    if (cur_left_frame.landmarks_.at(i) != -1) // if landmark is valid
-    {
-      auto it = find(ref_left_frame.landmarks_.begin(), ref_left_frame.landmarks_.end(), cur_left_frame.landmarks_.at(i));
-      if (it != ref_left_frame.landmarks_.end()) // if landmark was found
-      {
+  for (size_t i = 0; i < cur_left_frame.keypoints_.size(); ++i) {
+    if (cur_left_frame.landmarks_.at(i) != -1) {// if landmark is valid
+      auto it = find(ref_left_frame.landmarks_.begin(),
+                     ref_left_frame.landmarks_.end(),
+                     cur_left_frame.landmarks_.at(i));
+      if (it != ref_left_frame.landmarks_.end()) {// if landmark was found
         int nPos = distance(ref_left_frame.landmarks_.begin(), it);
         matches.push_back(cv::DMatch(nPos, i, 0));
       }
     }
   }
 
-  // plot matches
-  cv::Mat img_left_lfk_kf = UtilsOpenCV::DrawCornersMatches(
-      ref_left_frame.img_, ref_left_frame.keypoints_, cur_left_frame.img_, cur_left_frame.keypoints_, matches, true); // true: random color
+  //############################################################################
+  // Plot matches.
+  cv::Mat img_left_lkf_kf = UtilsOpenCV::DrawCornersMatches(
+        ref_left_frame.img_,
+        ref_left_frame.keypoints_,
+        cur_left_frame.img_,
+        cur_left_frame.keypoints_,
+        matches, true); // true: random color
 
-  // plot text with keyframe id
-  cv::putText(img_left_lfk_kf, "M:" + std::to_string(keyframe_count_-1) + "-" + std::to_string(keyframe_count_),
-          KeypointCV(10,15), CV_FONT_HERSHEY_COMPLEX, 0.6, cv::Scalar(0, 255, 0));
+  // TODO Visualization must be done in the main thread.
+  displaySaveImage(img_left_lkf_kf,
+                   "M:" + std::to_string(keyframe_count_ - 1) + "-" +
+                   std::to_string(keyframe_count_),
+                   "mono tracking visualization",
+                   "-monoMatchingUnrectified",
+                   "monoTrackerDispalyKeyframe_",
+                   verbosity);
+  //############################################################################
 
-  if(verbosity==1){ // otherwise just return the image
-    cv::imshow("mono tracking visualization", img_left_lfk_kf);
-    cv::waitKey(tracker_.trackerParams_.display_time_);
-  }
-  if(verbosity==2){
-    // create output folders:
-    std::string folderName = outputImagesPath_ + "-" + VioFrontEndParams::FeatureSelectionCriterionStr(tracker_.trackerParams_.featureSelectionCriterion_) + "-monoMatchingUnrectified/";
-    boost::filesystem::path monoTrackerDir(folderName.c_str());
-    boost::filesystem::create_directory(monoTrackerDir);
-    // write image
-    std::string img_name = folderName + "monoTrackerDisplayKeyframe_"  + std::to_string(stereoFrame_lkf_->left_frame_.id_) + ".png";
-    std::cout << "writing image: " << img_name << std::endl;
-    cv::imwrite(img_name, img_left_lfk_kf);
-  }
+  //############################################################################
+  //////////////////////////////////////////////////////////////////////////////
+  //############################################################################
+  // Display rectified, plot matches.
+  cv::Mat img_left_lkf_kf_rectified = UtilsOpenCV::DrawCornersMatches(
+        stereoFrame_lkf_->left_img_rectified_,
+        stereoFrame_lkf_->left_keypoints_rectified_,
+        stereoFrame_k_->left_img_rectified_,
+        stereoFrame_k_->left_keypoints_rectified_,
+        matches, true); // true: random color
 
-  //////////////////////////////////////////////////////////////////////////////////
-  // display rectified
-  // plot matches
-
-  cv::Mat img_left_lfk_kf_rectified = UtilsOpenCV::DrawCornersMatches(
-      stereoFrame_lkf_->left_img_rectified_, stereoFrame_lkf_->left_keypoints_rectified_,
-      stereoFrame_k_->left_img_rectified_, stereoFrame_k_->left_keypoints_rectified_, matches, true); // true: random color
-
-  // plot text with keyframe id
-  cv::putText(img_left_lfk_kf_rectified, "M(Rect):" + std::to_string(keyframe_count_-1) + "-" + std::to_string(keyframe_count_),
-      KeypointCV(10,15), CV_FONT_HERSHEY_COMPLEX, 0.6, cv::Scalar(0, 255, 0));
-
-  if(verbosity==1){ // otherwise just return the image
-    cv::imshow("mono tracking visualization (rectified)", img_left_lfk_kf_rectified);
-    cv::waitKey(tracker_.trackerParams_.display_time_);
-  }
-  if(verbosity==2){
-    // create output folders:
-    std::string folderName = outputImagesPath_ + "-" + VioFrontEndParams::FeatureSelectionCriterionStr(tracker_.trackerParams_.featureSelectionCriterion_) + "-monoMatchingRectified/";
-    boost::filesystem::path monoTrackerDir(folderName.c_str());
-    boost::filesystem::create_directory(monoTrackerDir);
-    // write image
-    std::string img_name = folderName + "monoTrackerDisplayKeyframe_"  + std::to_string(stereoFrame_lkf_->left_frame_.id_) + ".png";
-    std::cout << "writing image: " << img_name << std::endl;
-    cv::imwrite(img_name, img_left_lfk_kf_rectified);
-  }
+  // TODO Visualization must be done in the main thread.
+  displaySaveImage(img_left_lkf_kf_rectified,
+                   "M(Rect):" + std::to_string(keyframe_count_ - 1) + "-" +
+                   std::to_string(keyframe_count_),
+                   "mono tracking visualization (rectified)",
+                   "-monoMatchingRectified",
+                   "monoTrackerDispalyKeyframe_",
+                   verbosity);
+  //############################################################################
 }
 
 /* -------------------------------------------------------------------------- */
@@ -468,6 +431,43 @@ gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyMono() const {
 gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyStereo() const {
   gtsam::Pose3 body_Pose_cam_ = stereoFrame_lkf_->getBPoseCamLRect(); // of the left camera!!
   return body_Pose_cam_ * trackerStatusSummary_.lkf_T_k_stereo_ * body_Pose_cam_.inverse();
+}
+
+/* -------------------------------------------------------------------------- */
+// TODO imshow/waitKey can only be called in main thread.
+// This function is just to wrap a lot of duplicated code that was
+// floating around.
+void StereoVisionFrontEnd::displaySaveImage(
+    const cv::Mat& img_left,
+    const std::string& text_on_img,
+    const std::string& imshow_name,
+    const std::string& folder_name_append,
+    const std::string& img_name_prepend,
+    const int verbosity) const {
+  // Plot text with keyframe id.
+  if (!text_on_img.empty()) {
+    cv::putText(img_left,
+                text_on_img,
+                KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.6,
+                cv::Scalar(0, 255, 0));
+  }
+  if (verbosity == 1) { // otherwise just return the image
+    cv::imshow(imshow_name, img_left);
+    cv::waitKey(tracker_.trackerParams_.display_time_);
+  } else if (verbosity == 2) {
+    // Create output folders:
+    std::string folderName = outputImagesPath_ + "-" +
+        VioFrontEndParams::FeatureSelectionCriterionStr(
+          tracker_.trackerParams_.featureSelectionCriterion_)
+        + folder_name_append + "/";
+    boost::filesystem::path tracker_dir(folderName.c_str());
+    boost::filesystem::create_directory(tracker_dir);
+    // Write image.
+    std::string img_name = folderName + img_name_prepend  +
+        std::to_string(stereoFrame_lkf_->getLeftFrame().id_) + ".png";
+    LOG(INFO) << "Writing image: " << img_name;
+    cv::imwrite(img_name, img_left);
+  }
 }
 
 } // End of VIO namespace.

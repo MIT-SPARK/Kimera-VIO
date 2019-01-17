@@ -311,16 +311,18 @@ public:
                               const std::vector<double>& textDoubles = std::vector<double>());
 
   /* ------------------------------------------------------------------------ */
-  // concatenate two images and return results as a new mat
-  static cv::Mat ConcatenateTwoImages(const cv::Mat imL_in, const cv::Mat imR_in) ;
+  // Concatenate two images and return results as a new mat.
+  // Clones the two images.
+  static cv::Mat ConcatenateTwoImages(const cv::Mat& imL_in,
+                                      const cv::Mat& imR_in) ;
 
   /* ------------------------------------------------------------------------ */
-  // draw corner matches and return results as a new mat
-  static cv::Mat DrawCornersMatches(const cv::Mat img1,
-                                    const std::vector<cv::Point2f> &corners1,
-                                    const cv::Mat img2,
-                                    const std::vector<cv::Point2f> &corners2,
-                                    const std::vector<cv::DMatch> &matches,
+  // Draw corner matches and return results as a new mat.
+  static cv::Mat DrawCornersMatches(const cv::Mat& img1,
+                                    const std::vector<cv::Point2f>& corners1,
+                                    const cv::Mat& img2,
+                                    const std::vector<cv::Point2f>& corners2,
+                                    const std::vector<cv::DMatch>& matches,
                                     const bool randomColor = false);
 
   /* ------------------------------------------------------------------------ */

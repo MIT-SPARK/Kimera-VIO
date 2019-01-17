@@ -158,6 +158,14 @@ private:
                                        const std::string& type = "mono") {
     LOG(INFO) << "Status " << type << ": " << asString(status);
   }
+
+  void displaySaveImage(
+      const cv::Mat& img_left,
+      const std::string& text_on_img = "",
+      const std::string& imshow_name = "mono tracking visualization (1 frame)",
+      const std::string& folder_name_append = "-monoMatching1frame",
+      const std::string& img_name_prepend = "monoTrackerDisplay1Keyframe_",
+      const int verbosity = 0) const;
 };
 
 } // namespace VIO
