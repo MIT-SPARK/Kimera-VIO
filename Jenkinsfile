@@ -58,6 +58,14 @@ pipeline {
            style: 'line',
            title: 'VIO Performance',
            yaxis: 'Metrics'
+      // Plot VIO timing.
+      plot csvFileName: 'plot-vio-timing-per-build.csv',
+           csvSeries: [[file: 'output_timingOverall.csv']],
+           group: 'Performance',
+           numBuilds: '4',
+           style: 'line',
+           title: 'VIO Timing',
+           yaxis: 'Time [ms]'
 
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
