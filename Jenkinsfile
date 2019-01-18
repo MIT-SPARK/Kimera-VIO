@@ -45,7 +45,22 @@ pipeline {
             stopProcessingIfError: true)
       ])
 
+      // Compile summary results
+      sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py
+      spark_vio_evaluation/results/V1_01_easy/S/results.yaml
+      spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv'
+
+      // Plot VIO performance.
+      plot csvFileName: 'plot-vio-performance-per-build.csv',
+           csvSeries: [[file: 'spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv']],
+           group: 'Performance',
+           numBuilds: '4',
+           style: 'line',
+           title: 'VIO Performance',
+           yaxis: 'Metrics'
+
       // Clear the source and build dirs before next run
+      // TODO this might delete the .csv file for plots?
       deleteDir()
     }
     success {
