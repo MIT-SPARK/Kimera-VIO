@@ -45,7 +45,7 @@ public:
   std::ofstream outputFile_smartFactors_;
   std::ofstream outputFile_timingVIO_;
   std::ofstream outputFile_timingTracker_;
-  std::ofstream outputFile_timingPipelineOverall_;
+  std::ofstream outputFile_timingOverall_;
   std::ofstream outputFile_statsTracker_;
   std::ofstream outputFile_statsFactors_;
   std::ofstream outputFile_mesh_;
