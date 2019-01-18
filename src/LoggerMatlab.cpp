@@ -88,6 +88,11 @@ void LoggerMatlab::openLogFiles(int i, const std::string& output_file_name,
                           (output_file_name.empty()?
                             "/output_mesh.ply" : output_file_name),
                           outputFile_mesh_, open_file_in_append_mode);
+  if (i == 11 || i == -1)
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                             "/output_timingOverall.csv" : output_file_name),
+                          outputFile_timingOverall_, false);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -116,6 +121,8 @@ void LoggerMatlab::closeLogFiles(int i) {
     outputFile_statsFactors_.close();
   if (i == 10 || i == -1)
     outputFile_mesh_.close();
+  if (i == 11 || i == -1)
+    outputFile_timingOverall_.close();
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -440,6 +447,16 @@ void LoggerMatlab::logBackendResults(
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void LoggerMatlab::logPipelineOverallTiming(
+      const std::chrono::milliseconds& duration) {
+    CHECK(outputFile_timingOverall_.is_open());
+    CHECK(outputFile_timingOverall_.good());
+    // Add header.
+    outputFile_timingOverall_ << "vio_overall_time [ms]" << std::endl;
+    outputFile_timingOverall_ << duration.count();
+  }
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::displayInitialStateVioInfo(
     const ETHDatasetParser& dataset,
     const std::shared_ptr<VIO::VioBackEnd>& vio,
@@ -448,25 +465,30 @@ void LoggerMatlab::displayInitialStateVioInfo(
     const Timestamp timestamp_k) const {
   initialStateGT.print("initialStateGT\n");
   gtsam::Vector3 rpy_gt = initialStateGT.pose_.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)
-  std::cout << "yaw= " << rpy_gt(2) << " pitch= " << rpy_gt(1) << " roll= "<< rpy_gt(0) << std::endl;
-  Vector3 localGravity = initialStateGT.pose_.rotation().inverse().matrix() * vio->getBackEndParams().n_gravity_;
-  std::cout << "gravity in global frame: \n" << vio->getBackEndParams().n_gravity_ << std::endl;
-  std::cout << "gravity in local frame: \n" << localGravity << std::endl;
-  std::cout << "expected initial acc measurement (no bias correction): \n" << -localGravity  << std::endl;
-  std::cout << "expected initial acc measurement: \n" << -localGravity + initialStateGT.imu_bias_.accelerometer()  << std::endl;
-  std::cout << "actual initial acc measurement: \n" << imu_accgyr.block<3,1>(0,0) << std::endl;
-  std::cout << "expected initial gyro measurement: \n" << initialStateGT.imu_bias_.gyroscope()  << std::endl;
-  std::cout << "actual initial gyro measurement: \n" << imu_accgyr.block<3,1>(3,0) << std::endl;
-
+  LOG(INFO) << "yaw= " << rpy_gt(2) << ' '
+            << "pitch= " << rpy_gt(1) << ' '
+            << "roll= "<< rpy_gt(0);
+  Vector3 localGravity = initialStateGT.pose_.rotation().inverse().matrix() *
+      vio->getBackEndParams().n_gravity_;
+  LOG(INFO) << "gravity in global frame: \n" << vio->getBackEndParams().n_gravity_ << '\n'
+            << "gravity in local frame: \n" << localGravity << '\n'
+            << "expected initial acc measurement (no bias correction): \n" << -localGravity  << '\n'
+            << "expected initial acc measurement: \n" << -localGravity + initialStateGT.imu_bias_.accelerometer()  << '\n'
+            << "actual initial acc measurement: \n" << imu_accgyr.block<3,1>(0,0) << '\n'
+            << "expected initial gyro measurement: \n" << initialStateGT.imu_bias_.gyroscope()  << '\n'
+            << "actual initial gyro measurement: \n" << imu_accgyr.block<3,1>(3,0);
   vio->print();
 
-  double vioRotError,vioTranError;
-  std::tie(vioRotError,vioTranError) = UtilsOpenCV::ComputeRotationAndTranslationErrors(initialStateGT.pose_, vio->getWPoseBLkf());
-  if(vioRotError > 1e-4 || vioTranError > 1e-4)
-    throw std::runtime_error("stereoVIOExample: wrong initialization (we currently initialize to ground truth)");
+  double vioRotError, vioTranError;
+  std::tie(vioRotError, vioTranError) =
+      UtilsOpenCV::ComputeRotationAndTranslationErrors(initialStateGT.pose_,
+                                                       vio->getWPoseBLkf());
+  CHECK(vioRotError <= 1e-4 && vioTranError <= 1e-4)
+    << "stereoVIOExample: wrong initialization (we currently initialize to "
+       "ground truth)";
 
-  // for comparison: gt bias:
-  std::cout << " dataset.getGroundTruthState(timestamp_k): " << std::endl;
+  // For comparison: gt bias.
+  LOG(INFO) << " dataset.getGroundTruthState(timestamp_k): ";
   dataset.getGroundTruthState(timestamp_k).print();
 }
 
