@@ -120,7 +120,9 @@ bool Pipeline::spin() {
   for(size_t k = initial_k_ + 1; k < final_k_; k++) { // for each image
     spinOnce(k);
   }
-  LOG(WARNING) << "Spin took: " << utils::Timer::toc(tic).count() << " ms.";
+  auto spin_duration = utils::Timer::toc(tic);
+  LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
+  if (FLAGS_log_output) logger_.logPipelineOverallTiming(spin_duration);
 
   // Shutdown.
   shutdown();
