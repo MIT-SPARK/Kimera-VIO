@@ -22,7 +22,12 @@ pipeline {
     stage('Performance') {
       steps {
         wrap([$class: 'Xvfb']) {
+          // Run performance tests.
           sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a --save_plots --save_boxplots --save_results /root/spark_vio_evaluation/experiments/euroc.yaml'
+          // Compile summary results.
+          sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
+            spark_vio_evaluation/results/V1_01_easy/S/results.yaml \
+            spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv'
         }
       }
     }
@@ -44,11 +49,6 @@ pipeline {
             skipNoTestFiles: false,
             stopProcessingIfError: true)
       ])
-
-      // Compile summary results
-      sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
-      spark_vio_evaluation/results/V1_01_easy/S/results.yaml \
-      spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv'
 
       // Plot VIO performance.
       plot csvFileName: 'plot-vio-performance-per-build.csv',
