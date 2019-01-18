@@ -318,7 +318,7 @@ protected:
   }
 
   /* ------------------------------------------------------------------------------------- */
-  void printVioBackEndParams() const{
+  void printVioBackEndParams() const {
     LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
               << "** IMU parameters **\n"
               << "gyroNoiseDensity_: " << gyroNoiseDensity_ << '\n'

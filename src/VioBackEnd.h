@@ -430,6 +430,7 @@ public:
 
 
   /* ------------------------------------------------------------------------ */
+  // NOT THREAD-SAFE
   gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamps& imu_stamps,
                                            const ImuAccGyr& imu_accgyr) const;
 

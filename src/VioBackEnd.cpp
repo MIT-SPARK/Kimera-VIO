@@ -377,9 +377,11 @@ ImuBias VioBackEnd::initImuBias(const ImuAccGyr& accGyroRaw,
 }
 
 /* -------------------------------------------------------------------------- */
+// NOT THREAD-SAFE
 gtsam::Rot3 VioBackEnd::preintegrateGyroMeasurements(
     const ImuStamps& imu_stamps,
     const ImuAccGyr& imu_accgyr) const {
+  // Ahrs: attitude reference system. attitude only
   gtsam::PreintegratedAhrsMeasurements pimRot(imu_bias_prev_kf_.gyroscope(), // This is not thread-safe!
                                               gtsam::Matrix3::Identity());
   for (int i = 0; i < imu_stamps.size() - 1; ++i) {
@@ -1601,22 +1603,23 @@ void VioBackEnd::setImuFactorsParams(
 
 /// Printers.
 /* -------------------------------------------------------------------------- */
+// THIS IS NOT THREAD-SAFE !!
 void VioBackEnd::print() const {
-  std::cout << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
-            << ")))))))))))))))))))))))))))))))) " <<std::endl;
+  LOG(INFO) << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
+            << ")))))))))))))))))))))))))))))))) ";
   B_Pose_leftCam_.print("\n B_Pose_leftCam_\n");
   stereo_cal_->print("\n stereoCal_\n");
   vio_params_.print();
   W_Pose_B_lkf_.print("\n W_Pose_Blkf_ \n");
-  std::cout << "\n W_Vel_Blkf_ " << W_Vel_B_lkf_.transpose() <<std::endl;
+  LOG(INFO) << "\n W_Vel_Blkf_ " << W_Vel_B_lkf_.transpose();
   imu_bias_lkf_.print("\n imu_bias_lkf_ \n");
   imu_bias_prev_kf_.print("\n imu_bias_prev_kf_ \n");
-  std::cout << "last_id_ " << last_kf_id_ <<std::endl;
-  std::cout << "cur_id_ " << curr_kf_id_ <<std::endl;
-  std::cout << "verbosity_ " << verbosity_ <<std::endl;
-  std::cout << "landmark_count_ " << landmark_count_ <<std::endl;
-  std::cout << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
-            << "))))))))))))))))))))))))))))))))) " <<std::endl;
+  LOG(INFO) << "last_id_ " << last_kf_id_ <<'\n'
+            << "cur_id_ " << curr_kf_id_ <<'\n'
+            << "verbosity_ " << verbosity_ <<'\n'
+            << "landmark_count_ " << landmark_count_ <<'\n'
+            << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
+            << "))))))))))))))))))))))))))))))))) ";
 }
 
 /* -------------------------------------------------------------------------- */
