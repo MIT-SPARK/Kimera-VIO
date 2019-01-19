@@ -74,7 +74,9 @@ pipeline {
     }
     success {
       echo 'Success!'
-      slackSend color: 'good', message: "Successful Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch ${env.GIT_BRANCH} finished in ${currentBuild.durationString}."
+      slackSend color: 'good',
+                message: "Successful Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch ${env.GIT_BRANCH} finished in ${currentBuild.durationString}.",
+                attachments: 'spark_vio_evaluation/results/V1_01_easy/traj_relative_errors_boxplots.eps'
     }
     failure {
       echo 'Fail!'
