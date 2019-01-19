@@ -398,22 +398,21 @@ gtsam::Pose3 VioBackEnd::guessPoseFromIMUmeasurements(
     const ImuAccGyr& accGyroRaw,
     const Vector3& n_gravity,
     const bool& round) {
-  // compute average of initial measurements
-  std::cout << "GuessPoseFromIMUmeasurements: currently assumes that the vehicle is stationary and upright along some axis,"
-               "and gravity vector is along a single axis!" << std::endl;
+  // Compute average of initial measurements.
+  LOG(INFO) << "GuessPoseFromIMUmeasurements: currently assumes that the "
+               "vehicle is stationary and upright along some axis,"
+               "and gravity vector is along a single axis!";
   Vector3 sumAccMeasurements = Vector3::Zero();
   size_t nrMeasured = accGyroRaw.cols();
-  for(size_t i=0; i < nrMeasured; i++){
-    Vector6 accGyroRaw_i = accGyroRaw.col(i);
-    // std::cout << "accGyroRaw_i: " << accGyroRaw_i.transpose() << std::endl;
-    sumAccMeasurements  += accGyroRaw_i.head(3);
+  for (size_t i = 0; i < nrMeasured; i++) {
+    sumAccMeasurements += accGyroRaw.col(i).head(3);
   }
-  sumAccMeasurements = sumAccMeasurements/double(nrMeasured);
+  sumAccMeasurements = sumAccMeasurements / double(nrMeasured);
 
-  gtsam::Unit3 localGravityDir(-sumAccMeasurements); // a = localGravity (we measure the opposite of gravity)
-  gtsam::Unit3 globalGravityDir(n_gravity); // b
+  gtsam::Unit3 localGravityDir (-sumAccMeasurements); // a = localGravity (we measure the opposite of gravity)
+  gtsam::Unit3 globalGravityDir (n_gravity); // b
 
-  if(round){ // align vectors to dominant axis: e.g., [0.01 0.1 1] becomes [0 0 1]
+  if (round) { // align vectors to dominant axis: e.g., [0.01 0.1 1] becomes [0 0 1]
     localGravityDir = UtilsOpenCV::RoundUnit3(localGravityDir);
     globalGravityDir = UtilsOpenCV::RoundUnit3(globalGravityDir);
   }
@@ -423,18 +422,19 @@ gtsam::Pose3 VioBackEnd::guessPoseFromIMUmeasurements(
   // compute rotation such that R * a = b
   // http://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d/476311#476311
   gtsam::Rot3 R;
-
-  if( fabs(1-c)<1e-3 ){ // already aligned
+  if (fabs(1 - c) < 1e-3) { // already aligned
     R = gtsam::Rot3();
-  }else if( fabs(1+c)<1e-3 ){ // degenerate condition a =-b
-    gtsam::Unit3 perturbedGravity = gtsam::Unit3(localGravityDir.unitVector() + gtsam::Vector3(1,2,3)); // compute cross product with any nonparallel vector
+  } else if (fabs(1 + c) < 1e-3) { // degenerate condition a =-b
+    gtsam::Unit3 perturbedGravity = gtsam::Unit3(localGravityDir.unitVector() +
+                                                 gtsam::Vector3(1, 2, 3)); // compute cross product with any nonparallel vector
     v = localGravityDir.cross(perturbedGravity);
-    if(std::isnan(v.unitVector()(0))){ // if the resulting vector is still not a number (i.e., perturbedGravity // localGravityDir)
-      perturbedGravity = gtsam::Unit3(localGravityDir.unitVector() + gtsam::Vector3(3,2,1)); // compute cross product with any nonparallel vector
+    if (std::isnan(v.unitVector()(0))) { // if the resulting vector is still not a number (i.e., perturbedGravity // localGravityDir)
+      perturbedGravity = gtsam::Unit3(localGravityDir.unitVector() +
+                                      gtsam::Vector3(3, 2, 1)); // compute cross product with any nonparallel vector
       v = localGravityDir.cross(perturbedGravity);
     }
     R = gtsam::Rot3::Expmap(v.unitVector() * M_PI); // 180 rotation around an axis perpendicular to both vectors
-  }else{
+  } else {
     R = gtsam::Rot3::AlignPair(v, globalGravityDir, localGravityDir);
   }
   return gtsam::Pose3(R, gtsam::Point3());// absolute position is not observable anyway
