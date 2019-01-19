@@ -107,7 +107,9 @@ private:
 
   void processKeyframe(
       size_t k,
-      StatusSmartStereoMeasurements* statusSmartStereoMeasurements);
+      StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
+      const ImuStamps& imu_stamps,
+      const ImuAccGyr& imu_accgyr);
 
   StatusSmartStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
@@ -153,11 +155,6 @@ private:
   // Thread-safe queue for the backend.
   ThreadsafeQueue<VioBackEndInputPayload> backend_input_queue_;
   ThreadsafeQueue<VioBackEndOutputPayload> backend_output_queue_;
-
-  // Structures to be filled with imu data.
-  // TODO wrap in a single class.
-  ImuStamps imu_stamps_;
-  ImuAccGyr imu_accgyr_;
 
   // Set of planes in the scene.
   std::vector<Plane> planes_;

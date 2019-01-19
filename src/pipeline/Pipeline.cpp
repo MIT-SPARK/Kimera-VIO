@@ -161,10 +161,12 @@ void Pipeline::spinOnce(size_t k) {
   ////////////////////////////////////////////////////////////////////////////
   // For k > 1
   // Integrate rotation measurements (rotation is used in RANSAC).
-  std::tie(imu_stamps_, imu_accgyr_) = dataset_.imuData_.imu_buffer_.
+  ImuStamps imu_stamps;
+  ImuAccGyr imu_accgyr;
+  std::tie(imu_stamps, imu_accgyr) = dataset_.imuData_.imu_buffer_.
       getBetweenValuesInterpolated(timestamp_lkf_, timestamp_k_);
   gtsam::Rot3 calLrectLkf_R_camLrectKf_imu = vio_backend_->
-      preintegrateGyroMeasurements(imu_stamps_, imu_accgyr_);
+      preintegrateGyroMeasurements(imu_stamps, imu_accgyr); // This should be done in frontend
 
   ////////////////////////////// FRONT-END ///////////////////////////////////
   // Main function for tracking.
@@ -185,12 +187,15 @@ void Pipeline::spinOnce(size_t k) {
     LOG(INFO) << "Keyframe " << k << " with: "
               << statusSmartStereoMeasurements.second.size()
               << " smart measurements";
-    processKeyframe(k, &statusSmartStereoMeasurements);
+    processKeyframe(k, &statusSmartStereoMeasurements, imu_stamps, imu_accgyr);
   }
 }
 
 void Pipeline::processKeyframe(
-    size_t k, StatusSmartStereoMeasurements* statusSmartStereoMeasurements) {
+    size_t k,
+    StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
+    const ImuStamps& imu_stamps,
+    const ImuAccGyr& imu_accgyr) {
   CHECK_NOTNULL(statusSmartStereoMeasurements);
   ////////////////////////////// FEATURE SELECTOR //////////////////////////////
   if (FLAGS_use_feature_selection) {
@@ -239,8 +244,6 @@ void Pipeline::processKeyframe(
 
   // Get IMU data.
   // TODO isn't this done before already???
-  std::tie(imu_stamps_, imu_accgyr_) = dataset_.imuData_.imu_buffer_
-      .getBetweenValuesInterpolated(timestamp_lkf_, timestamp_k_);
 
   //////////////////// BACK-END ////////////////////////////////////////////////
   // Push to backend input.
@@ -250,8 +253,8 @@ void Pipeline::processKeyframe(
           timestamp_k_,
           *statusSmartStereoMeasurements,
           stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_,
-          imu_stamps_,
-          imu_accgyr_,
+          imu_stamps,
+          imu_accgyr,
           &planes_,
           stereo_vision_frontend_->getRelativePoseBodyStereo()));
 
@@ -415,9 +418,11 @@ bool Pipeline::initialize(size_t k) {
 
   /////////////////// FRONTEND /////////////////////////////////////////////////
   // Initialize IMU and Stereo Frontend.
+  ImuStamps imu_stamps;
+  ImuAccGyr imu_accgyr;
   initFrontend(timestamp_lkf_, timestamp_k_,
                &stereoFrame_k, stereo_vision_frontend_.get(),
-               &(dataset_.imuData_.imu_buffer_), &imu_stamps_, &imu_accgyr_);
+               &(dataset_.imuData_.imu_buffer_), &imu_stamps, &imu_accgyr);
 
   ///////////////////////////// BACKEND ////////////////////////////////////////
   // Initialize Backend.
@@ -433,13 +438,13 @@ bool Pipeline::initialize(size_t k) {
               *CHECK_NOTNULL(backend_params_.get()),
               &initialStateGT,
               timestamp_k_,
-              imu_accgyr_);
+              imu_accgyr); // No timestamps needed for IMU?
 
   ////////////////// DEBUG INITIALIZATION //////////////////////////////////
   if (FLAGS_log_output) {
     logger_.displayInitialStateVioInfo(dataset_, vio_backend_,
                                        *CHECK_NOTNULL(initialStateGT.get()),
-                                       imu_accgyr_, timestamp_k_);
+                                       imu_accgyr, timestamp_k_);
     // Store latest pose estimate
     logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
   }
@@ -527,7 +532,6 @@ bool Pipeline::initBackend(std::shared_ptr<VioBackEnd>* vio_backend,
                  << "0: normal VIO\n"
                  << "1: regular VIO\n"
                  << " but requested backend: " << FLAGS_backend_type;
-      break;
     }
   }
   return true;
