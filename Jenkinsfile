@@ -36,20 +36,6 @@ pipeline {
   post {
     always {
       echo 'Jenkins Finished'
-      // Archive the CTest xml output
-      archiveArtifacts (
-          artifacts: 'build/tests/Testing/**/*.xml, spark_vio_evaluation/results/**/*.*',
-          fingerprint: true
-          )
-
-      // Process the CTest xml output with the xUnit plugin
-      xunit([CTest(
-            deleteOutputFiles: true,
-            failIfNotNew: true,
-            pattern: 'build/tests/Testing/**/*.xml',
-            skipNoTestFiles: false,
-            stopProcessingIfError: true)
-      ])
 
       // Plot VIO performance.
       plot csvFileName: 'plot-vio-performance-per-build.csv',
@@ -67,6 +53,22 @@ pipeline {
            style: 'line',
            title: 'VIO Timing',
            yaxis: 'Time [ms]'
+
+      // Archive the CTest xml output
+      archiveArtifacts (
+          artifacts: 'build/tests/Testing/**/*.xml, spark_vio_evaluation/results/**/*.*',
+          fingerprint: true
+          )
+
+      // Process the CTest xml output with the xUnit plugin
+      xunit([CTest(
+            deleteOutputFiles: true,
+            failIfNotNew: true,
+            pattern: 'build/tests/Testing/**/*.xml',
+            skipNoTestFiles: false,
+            stopProcessingIfError: true)
+      ])
+
 
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
