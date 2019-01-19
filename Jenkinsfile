@@ -23,7 +23,8 @@ pipeline {
       steps {
         wrap([$class: 'Xvfb']) {
           // Run performance tests.
-          sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a --save_plots --save_boxplots --save_results /root/spark_vio_evaluation/experiments/euroc.yaml'
+          sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a --save_plots --save_boxplots --save_results \
+            /root/spark_vio_evaluation/experiments/jenkins_euroc.yaml'
           // Compile summary results.
           sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
             spark_vio_evaluation/results/V1_01_easy/S/results.yaml \

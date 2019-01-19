@@ -64,4 +64,4 @@ RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 # Hack to avoid Docker's cache when spark_vio_evaluation spark/jenkins branch is updated.
 ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/spark/jenkins version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
-RUN cd spark_vio_evaluation && git checkout spark/jenkins && pip install .
+RUN cd spark_vio_evaluation && pip install .
