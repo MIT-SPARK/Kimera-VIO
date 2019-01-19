@@ -61,7 +61,7 @@ RUN cd opengv/build && \
 
 # Install spark_vio_evaluation from PyPI
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
-# Hack to avoid Docker's cache when spark_vio_evaluation spark/jenkins branch is updated.
-ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/spark/jenkins version.json
+# Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
+ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 RUN cd spark_vio_evaluation && pip install .
