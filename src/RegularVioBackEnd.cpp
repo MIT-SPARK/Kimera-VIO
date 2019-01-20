@@ -10,7 +10,7 @@
  * @file   RegularVioBackEnd.h
  * @brief  Derived class from VioBackEnd which enforces regularity constraints
  * on the factor graph.
- * @author Toni Rosinol
+ * @author Antoni Rosinol
  */
 
 #include "RegularVioBackEnd.h"
@@ -138,7 +138,6 @@ RegularVioBackEnd::RegularVioBackEnd(const Pose3& leftCamPose,
 void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-    const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
     std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   CHECK(planes != nullptr)
@@ -163,7 +162,6 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Predict next step, add initial guess.
-  integrateImuMeasurements(imu_stamps, imu_accgyr);
   addImuValues(curr_kf_id_);
 
   // Add imu factors between consecutive keyframe states.

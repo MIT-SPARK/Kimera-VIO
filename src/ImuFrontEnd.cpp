@@ -148,3 +148,24 @@ typename ImuFrontEnd::ImuData::iterator ImuFrontEnd::iterator_equal_or_after(int
   // if (!mutex_.try_lock()) { printf("Call lock() before accessing data.\n"); }
   return buffer_.lower_bound(stamp);
 }
+
+/* -------------------------------------------------------------------------- */
+ImuBias ImuFrontEnd::initImuBias(const ImuAccGyr& accGyroRaw,
+                                 const Vector3& n_gravity) {
+  LOG(WARNING) << "imuBiasInitialization: currently assumes that the vehicle is"
+                  " stationary and upright!";
+  Vector3 sumAccMeasurements = Vector3::Zero();
+  Vector3 sumGyroMeasurements = Vector3::Zero();
+  const size_t& nrMeasured = accGyroRaw.cols();
+  for (size_t i = 0; i < nrMeasured; i++) {
+    const Vector6& accGyroRaw_i = accGyroRaw.col(i);
+    sumAccMeasurements  += accGyroRaw_i.head(3);
+    sumGyroMeasurements += accGyroRaw_i.tail(3);
+  }
+
+  // Avoid the dark world of Undefined Behaviour...
+  CHECK_NE(nrMeasured, 0) << "About to divide by 0!";
+
+  return ImuBias(sumAccMeasurements / double(nrMeasured) + n_gravity,
+                 sumGyroMeasurements / double(nrMeasured));
+}

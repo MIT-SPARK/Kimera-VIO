@@ -23,6 +23,7 @@
 #include <mutex>
 #include <Eigen/Dense>
 #include <gtsam/base/Matrix.h>
+#include <gtsam/navigation/ImuBias.h>
 
 namespace VIO {
 
@@ -31,6 +32,7 @@ using ImuStamps = Eigen::Matrix<int64_t, Eigen::Dynamic, 1>;
 using ImuAccGyr = Eigen::Matrix<double, 6, Eigen::Dynamic>;
 using Vector6 = gtsam::Vector6;
 using Vector3 = gtsam::Vector3;
+using ImuBias = gtsam::imuBias::ConstantBias;
 
 class ImuFrontEnd {
 public:
@@ -107,7 +109,10 @@ public:
     /* CHECK(!mutex_.try_lock()) << "Call lock() before accessing data."; */  /* @TODO: shouldn't comment out */
     return buffer_;
   }
-  /* --------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
+  static ImuBias initImuBias(const ImuAccGyr& accGyroRaw,
+                             const Vector3& n_gravity);
 protected:
   mutable std::mutex mutex_;
   ImuData buffer_;
