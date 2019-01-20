@@ -488,7 +488,7 @@ bool Pipeline::initImuFrontend(
   return true;
 }
 
-bool Pipeline::initBackend(std::shared_ptr<VioBackEnd>* vio_backend,
+bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                            const gtsam::Pose3& B_Pose_camLrect,
                            const gtsam::Cal3_S2& left_undist_rect_cam_mat,
                            const double& baseline,
@@ -501,29 +501,29 @@ bool Pipeline::initBackend(std::shared_ptr<VioBackEnd>* vio_backend,
   switch(FLAGS_backend_type) {
     case 0: {
       LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
-      *vio_backend = std::make_shared<VioBackEnd>(B_Pose_camLrect,
-                                                  left_undist_rect_cam_mat,
-                                                  baseline,
-                                                  initial_state_gt,
-                                                  timestamp_k,
-                                                  imu_accgyr,
-                                                  vio_params,
-                                                  FLAGS_log_output);
+      *vio_backend = make_unique<VioBackEnd>(B_Pose_camLrect,
+                                             left_undist_rect_cam_mat,
+                                             baseline,
+                                             initial_state_gt,
+                                             timestamp_k,
+                                             imu_accgyr,
+                                             vio_params,
+                                             FLAGS_log_output);
       break;
-    }
-    case 1: {
-      LOG(INFO) << "\e[1m Using Regular VIO with modality "
-                << FLAGS_regular_vio_backend_modality << "\e[0m";
-      *vio_backend = std::make_shared<RegularVioBackEnd>(
-            B_Pose_camLrect,
-            left_undist_rect_cam_mat,
-            baseline,
-            initial_state_gt,
-            timestamp_k,
-            imu_accgyr,
-            vio_params, FLAGS_log_output,
-            static_cast<RegularVioBackEnd::BackendModality>(
-              FLAGS_regular_vio_backend_modality));
+  }
+  case 1: {
+    LOG(INFO) << "\e[1m Using Regular VIO with modality "
+              << FLAGS_regular_vio_backend_modality << "\e[0m";
+    *vio_backend = make_unique<RegularVioBackEnd>(
+          B_Pose_camLrect,
+          left_undist_rect_cam_mat,
+          baseline,
+          initial_state_gt,
+          timestamp_k,
+          imu_accgyr,
+          vio_params, FLAGS_log_output,
+          static_cast<RegularVioBackEnd::BackendModality>(
+            FLAGS_regular_vio_backend_modality));
       break;
     }
     default: {

@@ -93,7 +93,7 @@ private:
   /// available for the initial state and one wants to initialize the backend
   /// using this information. And also as output by returning the eventually
   /// used initial state (either grount-truth, or guessed from imu data).
-  bool initBackend(std::shared_ptr<VioBackEnd>* vio_backend,
+  bool initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                    const gtsam::Pose3& B_Pose_camLrect,
                    const gtsam::Cal3_S2& left_undist_rect_cam_mat,
                    const double& baseline,
@@ -150,7 +150,7 @@ private:
   FeatureSelector feature_selector_;
 
   // Create VIO: class that implements estimation back-end.
-  std::shared_ptr<VioBackEnd> vio_backend_;
+  std::unique_ptr<VioBackEnd> vio_backend_;
 
   // Thread-safe queue for the backend.
   ThreadsafeQueue<VioBackEndInputPayload> backend_input_queue_;

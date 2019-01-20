@@ -459,7 +459,7 @@ void LoggerMatlab::logBackendResults(
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::displayInitialStateVioInfo(
     const ETHDatasetParser& dataset,
-    const std::shared_ptr<VIO::VioBackEnd>& vio,
+    const std::unique_ptr<VIO::VioBackEnd>& vio,
     gtNavState initialStateGT,
     const ImuAccGyr& imu_accgyr,
     const Timestamp timestamp_k) const {
