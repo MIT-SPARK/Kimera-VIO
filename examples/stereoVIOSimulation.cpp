@@ -223,8 +223,8 @@ int main(const int argc, const char *argv[])
       std::cout << "actual initial acc measurement: \n" << imu_accgyr.block<3,1>(0,0) << std::endl;
       std::cout << "expected initial gyro measurement: \n" << initialStateGT->imu_bias_.gyroscope()  << std::endl;
       std::cout << "actual initial gyro measurement: \n" << imu_accgyr.block<3,1>(3,0) << std::endl;
-      vio = boost::make_shared<VioBackEnd>(dataset.camera_info_[leftCameraName].body_Pose_cam_,
-          UtilsOpenCV::Cvmat2Cal3_S2(dataset.camera_info_[leftCameraName].camera_matrix_), // no distortion nor rectification needed
+      vio = boost::make_shared<VioBackEnd>(dataset.getLeftCamInfo().body_Pose_cam_,
+          UtilsOpenCV::Cvmat2Cal3_S2(dataset.getLeftCamInfo().camera_matrix_), // no distortion nor rectification needed
           baseline, &initialStateGT, timestamp_k, imu_accgyr, vioParams);
       vio->print();
 
@@ -283,9 +283,9 @@ int main(const int argc, const char *argv[])
 
       gtsam::Point3 lposition = landmarkPositions[lid];
       // ground truth left camera
-      gtsam::Pose3 camLPose = dataset.getGroundTruthState(timestamp_k).pose_.compose(dataset.camera_info_[leftCameraName].body_Pose_cam_);
+      gtsam::Pose3 camLPose = dataset.getGroundTruthState(timestamp_k).pose_.compose(dataset.getLeftCamInfo().body_Pose_cam_);
       gtsam::PinholeCamera<gtsam::Cal3_S2> camL(camLPose,
-          UtilsOpenCV::Cvmat2Cal3_S2(dataset.camera_info_[leftCameraName].camera_matrix_));
+          UtilsOpenCV::Cvmat2Cal3_S2(dataset.getLeftCamInfo().camera_matrix_));
       gtsam::Point2 expected_px = camL.project(lposition);
       // actual
       gtsam::Point2 actual_px = fobs_t_i.px;
@@ -354,10 +354,10 @@ int main(const int argc, const char *argv[])
           featureSelectionData.keypointLife.push_back(trackerParams.maxFeatureAge_-age); // this is life
         if(featureSelectionData.keypoints_3d.size() != featureSelectionData.keypointLife.size())
           throw std::runtime_error("processStereoFrame: keypoint age inconsistent with keypoint 3D");
-        featureSelectionData.body_P_leftCam = dataset.camera_info_[leftCameraName].body_Pose_cam_;
-        featureSelectionData.body_P_rightCam = dataset.camera_info_[rightCameraName].body_Pose_cam_;
-        featureSelectionData.left_undistRectCameraMatrix = UtilsOpenCV::Cvmat2Cal3_S2(dataset.camera_info_[leftCameraName].camera_matrix_);
-        featureSelectionData.right_undistRectCameraMatrix = UtilsOpenCV::Cvmat2Cal3_S2(dataset.camera_info_[leftCameraName].camera_matrix_);
+        featureSelectionData.body_P_leftCam = dataset.getLeftCamInfo().body_Pose_cam_;
+        featureSelectionData.body_P_rightCam = dataset.getRightCamInfo().body_Pose_cam_;
+        featureSelectionData.left_undistRectCameraMatrix = UtilsOpenCV::Cvmat2Cal3_S2(dataset.getLeftCamInfo().camera_matrix_);
+        featureSelectionData.right_undistRectCameraMatrix = UtilsOpenCV::Cvmat2Cal3_S2(dataset.getRightCamInfo().camera_matrix_);
         // DATA ABOUT NEW FEATURES:
         std::cout << "selector: populating data about new feature tracks" << std::endl;
         KeypointsCV corners; std::vector<double> successProbabilities, availableCornerDistances;
@@ -375,7 +375,7 @@ int main(const int argc, const char *argv[])
             corners,
             successProbabilities,// for each corner, in [0,1]
             availableCornerDistances, // 0 if not available
-            dataset.camera_info_[leftCameraName],
+            dataset.getLeftCamInfo(),
             need_nr_features,featureSelectionData,criterion);
         featureSelectionTime = UtilsOpenCV::GetTimeInSeconds() - startTime;
         std::cout << "selector: done, featureSelectionTime " << featureSelectionTime << std::endl;

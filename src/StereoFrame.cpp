@@ -19,7 +19,7 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 StereoFrame::StereoFrame(const FrameId& id,
-                         const int64_t& timestamp,
+                         const Timestamp& timestamp,
                          const cv::Mat& left_image,
                          const CameraParams& cam_param_left,
                          const cv::Mat& right_image,
@@ -365,6 +365,7 @@ void StereoFrame::setIsRectified(bool is_rectified) {
 
 /* -------------------------------------------------------------------------- */
 // TODO visualization has to be done in the main thread (aka calls to imshow/waitKey).
+// THIS IS NOT THREAD-SAFE
 void StereoFrame::createMesh2dStereo(
           std::vector<cv::Vec6f>* triangulation_2D,
           std::vector<std::pair<LandmarkId, gtsam::Point3>>* pointsWithIdStereo,
@@ -481,6 +482,7 @@ void StereoFrame::createMesh2dStereo(
 }
 
 /* -------------------------------------------------------------------------- */
+// THIS IS NOT THREAD-SAFE
 void StereoFrame::createMesh2dVIO(
     std::vector<cv::Vec6f>* triangulation_2D,
     const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO) const {

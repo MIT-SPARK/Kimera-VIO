@@ -48,7 +48,8 @@ public:
     infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
 };
 
-using StatusSmartStereoMeasurements = std::pair<TrackerStatusSummary,SmartStereoMeasurements>;
+using StatusSmartStereoMeasurements =
+std::pair<TrackerStatusSummary, SmartStereoMeasurements>;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 class StereoVisionFrontEnd{

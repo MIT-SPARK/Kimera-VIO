@@ -75,13 +75,13 @@ std::unique_ptr<T> make_unique( Args&& ...args ) {
 namespace VIO {
 Pipeline::Pipeline() {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
+  if (FLAGS_log_output) logger_.openLogFiles();
+
   // Set backend params.
   setBackendParamsType(FLAGS_backend_type, &backend_params_);
 
   // Parse dataset.
-  dataset_.parse(&initial_k_, &final_k_);
-  // Parse parameters.
-  dataset_.parseParams(backend_params_, dataset_.imuData_, &frontend_params_);
+  dataset_.parse(&initial_k_, &final_k_, backend_params_, &frontend_params_);
 
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.
@@ -92,25 +92,11 @@ Pipeline::Pipeline() {
 
   // Instantiate feature selector: not used in vanilla implementation.
   feature_selector_ = FeatureSelector(frontend_params_, *backend_params_);
-
-  // Open log files.
-  if (FLAGS_log_output) {
-    logger_.openLogFiles();
-  }
-
-  // Timestamp 10 frames before the first (for imu calibration)
-  // TODO: remove hardcoded 10
-  static constexpr size_t frame_offset_for_imu_calib = 10;
-  CHECK_GE(initial_k_, frame_offset_for_imu_calib)
-      << "Initial frame " << initial_k_ << " has to be larger than "
-      << frame_offset_for_imu_calib << " (needed for IMU calibration)";
-  timestamp_lkf_ = dataset_.timestampAtFrame(
-        initial_k_ - frame_offset_for_imu_calib);
 }
 
 bool Pipeline::spin() {
   // Initialize pipeline.
-  initialize(initial_k_);
+  initialize(initial_k_); // This should ask for first stereo frame and that;s it
 
   // Launch threads.
   launchThreads();
@@ -134,39 +120,39 @@ bool Pipeline::spin() {
 // Spin the pipeline only once.
 void Pipeline::spinOnce(size_t k) {
   LOG(INFO) << "------------------- Processing frame k = " << k << "--------------------";
-  const std::string& left_img_name (dataset_.getLeftImgName(k));
-  const std::string& right_img_name (dataset_.getRightImgName(k));
-  timestamp_k_ = dataset_.timestampAtFrame(k); // same in both images
-
-  /////////////////// FRONTEND ///////////////////////////////////////////
+  /////////////////// SHOULD BE THE PARAMS ///////////////////////////////////////////
   // Load stereo images.
   double start_time = UtilsOpenCV::GetTimeInSeconds();
   const StereoMatchingParams& stereo_matching_params =
       frontend_params_.getStereoMatchingParams();
   StereoFrame stereoFrame_k(
-        k, timestamp_k_,
+        k, dataset_.timestampAtFrame(k),
         UtilsOpenCV::ReadAndConvertToGrayScale(
-          left_img_name, stereo_matching_params.equalize_image_),
+          dataset_.getLeftImgName(k),
+          stereo_matching_params.equalize_image_),
         dataset_.getLeftCamInfo(),
         UtilsOpenCV::ReadAndConvertToGrayScale(
-          right_img_name, stereo_matching_params.equalize_image_),
+          dataset_.getRightImgName(k),
+          stereo_matching_params.equalize_image_),
         dataset_.getRightCamInfo(),
-        dataset_.camL_Pose_camR_,
+        dataset_.getCamLPoseCamR(),
         stereo_matching_params);
   if (FLAGS_log_output) {
     logger_.timing_loadStereoFrame_ =
         UtilsOpenCV::GetTimeInSeconds() - start_time;
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  // For k > 1
-  // Integrate rotation measurements (rotation is used in RANSAC).
   ImuStamps imu_stamps;
   ImuAccGyr imu_accgyr;
   std::tie(imu_stamps, imu_accgyr) = dataset_.imuData_.imu_buffer_.
-      getBetweenValuesInterpolated(timestamp_lkf_, timestamp_k_);
-  gtsam::Rot3 calLrectLkf_R_camLrectKf_imu = vio_backend_->
-      preintegrateGyroMeasurements(imu_stamps, imu_accgyr); // This should be done in frontend
+      getBetweenValuesInterpolated(timestamp_lkf_,
+                                   stereoFrame_k.getTimestamp());
+
+  ////////////////////////////////////////////////////////////////////////////
+  // For k > 1
+  // Integrate rotation measurements (rotation is used in RANSAC).
+  gtsam::Rot3 calLrectLkf_R_camLrectKf_imu =
+      vio_backend_->preintegrateGyroMeasurements(imu_stamps, imu_accgyr); // This should be done in frontend
 
   ////////////////////////////// FRONT-END ///////////////////////////////////
   // Main function for tracking.
@@ -180,6 +166,7 @@ void Pipeline::spinOnce(size_t k) {
         UtilsOpenCV::GetTimeInSeconds() - start_time;
   }
 
+  ////////////////////////////// BACK-END //////////////////////////////////////
   // Pass info to VIO if it's keyframe.
   start_time = UtilsOpenCV::GetTimeInSeconds();
   if (stereo_vision_frontend_->stereoFrame_km1_->isKeyframe()) {
@@ -187,13 +174,18 @@ void Pipeline::spinOnce(size_t k) {
     LOG(INFO) << "Keyframe " << k << " with: "
               << statusSmartStereoMeasurements.second.size()
               << " smart measurements";
-    processKeyframe(k, &statusSmartStereoMeasurements, imu_stamps, imu_accgyr);
+    processKeyframe(k, &statusSmartStereoMeasurements,
+                    stereoFrame_k.getTimestamp(), timestamp_lkf_,
+                    imu_stamps, imu_accgyr);
+    timestamp_lkf_ = stereoFrame_k.getTimestamp();
   }
 }
 
 void Pipeline::processKeyframe(
     size_t k,
     StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
+    const Timestamp& timestamp_k,
+    const Timestamp& timestamp_lkf,
     const ImuStamps& imu_stamps,
     const ImuAccGyr& imu_accgyr) {
   CHECK_NOTNULL(statusSmartStereoMeasurements);
@@ -206,8 +198,8 @@ void Pipeline::processKeyframe(
     *statusSmartStereoMeasurements = featureSelect(
           frontend_params_,
           dataset_,
-          timestamp_k_,
-          timestamp_lkf_,
+          timestamp_k,
+          timestamp_lkf,
           vio_backend_->getWPoseBLkf(),
           &(stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_),
           stereo_vision_frontend_->stereoFrame_km1_,
@@ -237,20 +229,17 @@ void Pipeline::processKeyframe(
   if (FLAGS_log_output) {
     logger_.logFrontendResults(dataset_,
                                *stereo_vision_frontend_, // TODO this copies the whole frontend!!
-                               timestamp_lkf_,
-                               timestamp_k_);
+                               timestamp_lkf,
+                               timestamp_k);
   }
   //////////////////////////////////////////////////////////////////////////////
-
-  // Get IMU data.
-  // TODO isn't this done before already???
 
   //////////////////// BACK-END ////////////////////////////////////////////////
   // Push to backend input.
   double start_time = UtilsOpenCV::GetTimeInSeconds();
   backend_input_queue_.push(
         VioBackEndInputPayload(
-          timestamp_k_,
+          timestamp_k,
           *statusSmartStereoMeasurements,
           stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_,
           imu_stamps,
@@ -269,7 +258,7 @@ void Pipeline::processKeyframe(
                               *stereo_vision_frontend_, // Should not need the frontend...
                               backend_output_payload,
                               backend_params_->horizon_,
-                              timestamp_lkf_, timestamp_k_, k);
+                              timestamp_lkf, timestamp_k, k);
     logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
   }
 
@@ -357,7 +346,7 @@ void Pipeline::processKeyframe(
                                    planes_,  // visualizeMesh3DWithColoredClusters
                                    vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
                                    vio_backend_->getState(), // For planes and plane constraints viz.
-                                   points_3d, timestamp_k_));
+                                   points_3d, timestamp_k));
 
       // Get data from visualizer thread.
       // We use non-blocking pop() because no one depends on the output
@@ -366,7 +355,6 @@ void Pipeline::processKeyframe(
       spinDisplayOnce(visualizer_output_queue_.popBlocking());
   }
 
-  timestamp_lkf_ = timestamp_k_;
 }
 
 bool Pipeline::spinSequential() {
@@ -400,35 +388,49 @@ void Pipeline::setBackendParamsType(
 bool Pipeline::initialize(size_t k) {
   CHECK_EQ(k, initial_k_);
   LOG(INFO) << "------------------- Initialize Pipeline with frame k = " << k << "--------------------";
-  const std::string& left_img_name (dataset_.getLeftImgName(k));
-  const std::string& right_img_name (dataset_.getRightImgName(k));
-  timestamp_k_ = dataset_.timestampAtFrame(k); // same in both images
+
+  /////////////////// SHOULD BE THE PARAMS /////////////////////////////////////
+  // Timestamp 10 frames before the first (for imu calibration)
+  // TODO: remove hardcoded 10
+  static constexpr size_t frame_offset_for_imu_calib = 10;
+  CHECK_GE(initial_k_, frame_offset_for_imu_calib)
+      << "Initial frame " << initial_k_ << " has to be larger than "
+      << frame_offset_for_imu_calib << " (needed for IMU calibration)";
+  timestamp_lkf_ = dataset_.timestampAtFrame(
+        initial_k_ - frame_offset_for_imu_calib);
 
   // Load stereo images.
-  StereoFrame stereoFrame_k(
-        k, timestamp_k_,
+  StereoFrame stereo_frame_k(
+        k, dataset_.timestampAtFrame(k),
         UtilsOpenCV::ReadAndConvertToGrayScale(
-          left_img_name, frontend_params_.getStereoMatchingParams().equalize_image_),
+          dataset_.getLeftImgName(k),
+          frontend_params_.getStereoMatchingParams().equalize_image_),
         dataset_.getLeftCamInfo(),
         UtilsOpenCV::ReadAndConvertToGrayScale(
-          right_img_name, frontend_params_.getStereoMatchingParams().equalize_image_),
+          dataset_.getRightImgName(k),
+          frontend_params_.getStereoMatchingParams().equalize_image_),
         dataset_.getRightCamInfo(),
-        dataset_.camL_Pose_camR_,
-        frontend_params_.getStereoMatchingParams()); // This is creating Stereo Matchin Params each time!!!
+        dataset_.getCamLPoseCamR(),
+        frontend_params_.getStereoMatchingParams());
+
+  ImuAccGyr imu_accgyr;
+  std::tie(std::ignore, imu_accgyr) =
+      dataset_.imuData_.imu_buffer_.getBetweenValuesInterpolated(
+        timestamp_lkf_, stereo_frame_k.getTimestamp());
+
+  // Store latest keyframe timestamp.
+  timestamp_lkf_ = stereo_frame_k.getTimestamp();
 
   /////////////////// FRONTEND /////////////////////////////////////////////////
-  // Initialize IMU and Stereo Frontend.
-  ImuStamps imu_stamps;
-  ImuAccGyr imu_accgyr;
-  initFrontend(timestamp_lkf_, timestamp_k_,
-               &stereoFrame_k, stereo_vision_frontend_.get(),
-               &(dataset_.imuData_.imu_buffer_), &imu_stamps, &imu_accgyr);
+  // Initialize Stereo Frontend.
+  stereo_vision_frontend_->processFirstStereoFrame(stereo_frame_k);
 
   ///////////////////////////// BACKEND ////////////////////////////////////////
   // Initialize Backend.
   std::shared_ptr<gtNavState> initialStateGT =
       dataset_.isGroundTruthAvailable()?
-        std::make_shared<gtNavState>(dataset_.getGroundTruthState(timestamp_k_)) :
+        std::make_shared<gtNavState>(dataset_.getGroundTruthState(
+                                       stereo_frame_k.getTimestamp())) :
         std::shared_ptr<gtNavState>(nullptr);
 
   initBackend(&vio_backend_,
@@ -437,54 +439,20 @@ bool Pipeline::initialize(size_t k) {
               stereo_vision_frontend_->stereoFrame_km1_->getBaseline(),
               *CHECK_NOTNULL(backend_params_.get()),
               &initialStateGT,
-              timestamp_k_,
+              stereo_frame_k.getTimestamp(),
               imu_accgyr); // No timestamps needed for IMU?
 
   ////////////////// DEBUG INITIALIZATION //////////////////////////////////
   if (FLAGS_log_output) {
-    logger_.displayInitialStateVioInfo(dataset_, vio_backend_,
+    logger_.displayInitialStateVioInfo(dataset_,
+                                       vio_backend_,
                                        *CHECK_NOTNULL(initialStateGT.get()),
-                                       imu_accgyr, timestamp_k_);
-    // Store latest pose estimate
+                                       imu_accgyr,
+                                       stereo_frame_k.getTimestamp());
+    // Store latest pose estimate.
     logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
   }
 
-  // Store latest keyframe timestamp
-  timestamp_lkf_ = timestamp_k_;
-  return true;
-}
-
-bool Pipeline::initFrontend(const Timestamp& timestamp_lkf,
-                            const Timestamp& timestamp_k,
-                            StereoFrame* stereoFrame_k,
-                            StereoVisionFrontEnd* stereo_vision_frontend,
-                            ImuFrontEnd* imu_buffer,
-                            ImuStamps* imu_stamps,
-                            ImuAccGyr* imu_accgyr) const {
-  return initStereoFrontend(stereoFrame_k, stereo_vision_frontend) &&
-         initImuFrontend(timestamp_lkf, timestamp_k,
-                         imu_buffer, imu_stamps, imu_accgyr);
-}
-
-bool Pipeline::initStereoFrontend(StereoFrame* stereo_frame_k,
-                        StereoVisionFrontEnd* stereo_vision_frontend) const {
-  CHECK_NOTNULL(stereo_frame_k);
-  CHECK_NOTNULL(stereo_vision_frontend);
-  stereo_vision_frontend->processFirstStereoFrame(*stereo_frame_k);
-  return true;
-}
-
-
-bool Pipeline::initImuFrontend(
-    const Timestamp& timestamp_lkf,
-    const Timestamp& timestamp_k,
-    ImuFrontEnd* imu_buffer,
-    ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const {
-  CHECK_NOTNULL(imu_buffer);
-  CHECK_NOTNULL(imu_stamps);
-  CHECK_NOTNULL(imu_accgyr);
-  std::tie(*imu_stamps, *imu_accgyr) =
-          imu_buffer->getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
   return true;
 }
 

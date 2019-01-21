@@ -9,7 +9,7 @@
 /**
  * @file   ETH_parser.h
  * @brief  Reads ETH's Euroc dataset
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #ifndef ETH_parser_H_
@@ -36,11 +36,12 @@
 namespace VIO {
 
 /*
- * Class describing the imu parameters, to be read from the ETH dataset
+ * Class describing the imu parameters, to be read from the ETH dataset.
  */
 class ImuData {
 public:
-  ImuData() : imu_buffer_(INT64_MAX) {} // imu buffer with virtually infinite memory!
+  // Imu buffer with virtually infinite memory!
+  ImuData() : imu_buffer_(INT64_MAX) {}
 
   gtsam::Pose3 body_Pose_cam_;
   double imu_rate_;
@@ -54,7 +55,7 @@ public:
 
   ImuFrontEnd imu_buffer_;
 public:
-  void print();
+  void print() const;
 };
 
 // TODO make new file for Ground Truth Data and the like,
@@ -97,25 +98,24 @@ public:
   double gt_rate_; // data rate in seconds, for debug
   std::map<long long, gtNavState> mapToGt_; // map from timestamp to gtNavState
 public:
-  // display all params
-  void print();
+  // Display all params.
+  void print() const;
 };
 
 /*
  * Store a list of image names and provide functionalities to parse them
  */
-class CameraImageLists {
-public:
+class CameraImageLists { public:
   std::string image_folder_path_;
   typedef std::vector<std::pair<long long, std::string>> ImgLists;
   ImgLists img_lists;
 public:
   bool parseCamImgList(const std::string& folderpath,
                        const std::string& filename);
-  inline size_t getNumImages() {
+  inline size_t getNumImages() const {
       return img_lists.size();
   }
-  void print();
+  void print() const;
 };
 
 /*
@@ -125,20 +125,13 @@ class ETHDatasetParser {
 public:
   ETHDatasetParser() : imuData_() {}
 
-  // images data
-  std::vector<std::string> camera_names_; // this matches the names of the folders in the dataset
-  std::map<std::string, CameraParams> camera_info_; // map from camera name to its parameters
-  std::map<std::string, CameraImageLists> camera_image_lists_; // map from camera name to its images
-
-  gtsam::Pose3 camL_Pose_camR_;
-
-  // gt data
+  // Gt data.
   GroundTruthData gtData_;
 
-  // imu data
+  // IMU data.
   ImuData imuData_;
 
-  // Getters
+  /// Getters
   inline std::string getDatasetName() const {
       return dataset_name_;
   }
@@ -148,6 +141,10 @@ public:
   inline std::string getRightImgName(const size_t& k) const {
       return getImgName("cam1", k);
   }
+  // A bit risky to send refs to members... Can lead to dangling references.
+  inline const gtsam::Pose3& getCamLPoseCamR() const {
+    return camL_Pose_camR_;
+  }
   inline const CameraParams& getLeftCamInfo() const {
       return camera_info_.at("cam0");
   }
@@ -155,22 +152,13 @@ public:
       return camera_info_.at("cam1");
   }
 
-private:
-  bool is_gt_available_;
-  std::string dataset_path_;
-  std::string dataset_name_;
-
 public:
-  // Helper function to parse dataset
-  void parse(size_t* initial_k, size_t* final_k);
+  // Helper function to parse Euroc dataset.
+  void parse(size_t* initial_k, size_t* final_k,
+             VioBackEndParamsPtr vioParams,
+             VioFrontEndParams* trackerParams);
 
-  // Helper function to parse user-specified parameters.
-  void parseParams(
-      VioBackEndParamsPtr vioParams,
-      const ImuData& imu_data,
-      VioFrontEndParams* trackerParams);
-
-  // parse camera, gt, and imu
+  // Parse camera, gt, and imu data if using different Euroc format.
   bool parseDataset(const std::string& input_dataset_path,
                     const std::string& leftCameraName,
                     const std::string& rightCameraName,
@@ -178,34 +166,16 @@ public:
                     const std::string& gtSensorName,
                     bool doParseImages = true);
 
-  // Parse cam0, cam1 of a given dataset
-  bool parseCameraData(const std::string& input_dataset_path,
-                       const std::string& leftCameraName,
-                       const std::string& rightCameraName,
-                       const bool doParseImages = true);
-
-  // Parse imu data of a given dataset
-  bool parseImuData(const std::string& input_dataset_path,
-                    const std::string& imuName);
-
-  // Parse ground truth data
-  bool parseGTdata(const std::string& input_dataset_path,
-                   const std::string& gtSensorName);
-
-  // Retrieve relative pose between timestamps
+  // Retrieve relative pose between timestamps.
   gtsam::Pose3 getGroundTruthRelativePose(
       const Timestamp& previousTimestamp,
       const Timestamp& currentTimestamp) const;
 
-  // retrieve absolute pose at timestamp
+  // Retrieve absolute pose at timestamp.
   gtNavState getGroundTruthState(const Timestamp& timestamp) const;
 
-  // retrieve absolute pose at timestamp
-  inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
-      return getGroundTruthState(timestamp).pose_;
-  }
-
-  // check if the ground truth is available (i.e., the timestamp is after the first gt state)
+  // Check if the ground truth is available.
+  // (i.e., the timestamp is after the first gt state)
   bool isGroundTruthAvailable(const Timestamp& timestamp) const;
 
   // Get if the dataset has ground truth.
@@ -220,21 +190,46 @@ public:
       const Timestamp& currentTimestamp,
       const bool upToScale = false) const;
 
-  // get number of images
-  size_t nrImages(){
-    std::string leftCameraName = camera_names_[0];
-    return camera_image_lists_[leftCameraName].getNumImages();
+  // Get timestamp of a given pair of stereo images (synchronized).
+  Timestamp timestampAtFrame(const long long frame_number) {
+    std::string left_cam_name = camera_names_[0];
+    return camera_image_lists_[left_cam_name].img_lists[frame_number].first;
   }
 
-  // get timestamp of a given pair of stereo images (synchronized)
-  Timestamp timestampAtFrame(const long long frame_number){
-    std::string leftCameraName = camera_names_[0];
-    return camera_image_lists_[leftCameraName].img_lists[frame_number].first;
-  }
+  // Print info about dataset.
+  void print() const;
 
 private:
+  // Helper function to parse user-specified parameters.
+  void parseParams(VioBackEndParamsPtr vioParams,
+                   VioFrontEndParams* trackerParams);
+
+
+  // Parse cam0, cam1 of a given dataset.
+  bool parseCameraData(const std::string& input_dataset_path,
+                       const std::string& leftCameraName,
+                       const std::string& rightCameraName,
+                       const bool doParseImages = true);
+
+  // Parse IMU data of a given dataset.
+  bool parseImuData(const std::string& input_dataset_path,
+                    const std::string& imuName);
+
+  // Parse ground truth data.
+  bool parseGTdata(const std::string& input_dataset_path,
+                   const std::string& gtSensorName);
+
+  /// Getters.
+  inline size_t getNumImages() const {
+    return camera_image_lists_.at(camera_names_.at(0)).getNumImages();
+  }
   inline std::string getImgName(const std::string& id, const size_t& k) const {
       return camera_image_lists_.at(id).img_lists.at(k).second;
+  }
+
+  // Retrieve absolute pose at timestamp.
+  inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
+      return getGroundTruthState(timestamp).pose_;
   }
 
   bool sanityCheckCameraData(
@@ -255,9 +250,19 @@ private:
       const CameraImageLists::ImgLists& right_img_lists,
       const CameraParams& left_cam_info) const;
 
-public:
-  // print info about dataset
-  void print();
+  /// Images data.
+  // This matches the names of the folders in the dataset
+  std::vector<std::string> camera_names_;
+  // Map from camera name to its parameters
+  std::map<std::string, CameraParams> camera_info_;
+  // Map from camera name to its images
+  std::map<std::string, CameraImageLists> camera_image_lists_;
+
+  gtsam::Pose3 camL_Pose_camR_;
+
+  bool is_gt_available_;
+  std::string dataset_path_;
+  std::string dataset_name_;
 };
 
 } // namespace VIO

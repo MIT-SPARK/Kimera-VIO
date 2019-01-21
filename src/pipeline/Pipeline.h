@@ -69,24 +69,6 @@ private:
   // Initialize pipeline.
   bool initialize(size_t k);
 
-  // Initialize IMU and Stereo frontend.
-  bool initFrontend(const Timestamp& timestamp_lkf,
-                    const Timestamp& timestamp_k,
-                    StereoFrame* stereoFrame_k,
-                    StereoVisionFrontEnd* stereo_vision_frontend,
-                    ImuFrontEnd* imu_buffer,
-                    ImuStamps* imu_stamps, ImuAccGyr* imu_accgyr) const;
-
-  // Stereo frontend: processes first stereo frame.
-  bool initStereoFrontend(StereoFrame* stereo_frame_k,
-                          StereoVisionFrontEnd* stereo_vision_frontend) const;
-
-  // IMU frontend: retrieves imu stamps and values between provided timestamps.
-  bool initImuFrontend(const Timestamp& timestamp_lkf,
-                       const Timestamp& timestamp_k,
-                       ImuFrontEnd* imu_buffer,
-                       ImuStamps* imu_stamps,
-                       ImuAccGyr* imu_accgyr) const;
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.
   /// @param: initial_state_gt: serves as input in case there is ground-truth
@@ -108,6 +90,8 @@ private:
   void processKeyframe(
       size_t k,
       StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
+      const Timestamp& timestamp_k,
+      const Timestamp& timestamp_lkf,
       const ImuStamps& imu_stamps,
       const ImuAccGyr& imu_accgyr);
 
@@ -138,7 +122,6 @@ private:
   ETHDatasetParser dataset_;
   size_t initial_k_, final_k_; // initial and final frame: useful to skip a bunch of images at the beginning (imu calibration)
   Timestamp timestamp_lkf_;
-  Timestamp timestamp_k_;
 
   // Init Vio parameters (should be done inside VIO).
   VioBackEndParamsPtr backend_params_;

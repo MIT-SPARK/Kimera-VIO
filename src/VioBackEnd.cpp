@@ -254,7 +254,10 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
 
-  if (verbosity_ >= 7) { StereoVisionFrontEnd::PrintStatusStereoMeasurements(status_smart_stereo_measurements_kf); }
+  if (verbosity_ >= 7) {
+    StereoVisionFrontEnd::PrintStatusStereoMeasurements(
+          status_smart_stereo_measurements_kf);
+  }
 
   // Features and IMU line up --> do iSAM update
   last_kf_id_ = curr_kf_id_;
@@ -262,7 +265,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
 
   timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
 
-  std::cout << "VIO: adding keyframe " << curr_kf_id_ << " at timestamp:" << timestamp_kf_ << " (sec)" << std::endl;
+   LOG(INFO) << "VIO: adding keyframe " << curr_kf_id_
+             << " at timestamp:" << timestamp_kf_ << " (sec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
@@ -272,8 +276,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   addImuFactor(last_kf_id_, curr_kf_id_);
 
   // add between factor from RANSAC
-  if(stereo_ransac_body_pose){
-    std::cout << "VIO: adding between " << std::endl;
+  if (stereo_ransac_body_pose) {
+    LOG(INFO) << "VIO: adding between ";
     (*stereo_ransac_body_pose).print();
     addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
   }
@@ -294,7 +298,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
                                        smartStereoMeasurements_kf,
                                        &landmarks_kf);
 
-  if (verbosity_ >= 8) { printFeatureTracks(); }
+  if (verbosity_ >= 8) {printFeatureTracks();}
 
   // decide which factors to add
   Tracker::TrackingStatus kfTrackingStatus_mono = status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
@@ -433,8 +437,9 @@ gtsam::Rot3 VioBackEnd::preintegrateGyroMeasurements(
   gtsam::PreintegratedAhrsMeasurements pimRot(imu_bias_prev_kf_.gyroscope(), // This is not thread-safe!
                                               gtsam::Matrix3::Identity());
   for (int i = 0; i < imu_stamps.size() - 1; ++i) {
-    Vector3 measured_omega = imu_accgyr.block<3, 1>(3, i);
-    double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
+    const Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
+    const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
+                                                   imu_stamps(i));
     pimRot.integrateMeasurement(measured_omega, delta_t);
   }
   gtsam::Rot3 body_Rot_cam_ = B_Pose_leftCam_.rotation(); // of the left camera!!
@@ -473,8 +478,8 @@ gtsam::Pose3 VioBackEnd::guessPoseFromIMUmeasurements(
   if (fabs(1 - c) < 1e-3) { // already aligned
     R = gtsam::Rot3();
   } else if (fabs(1 + c) < 1e-3) { // degenerate condition a =-b
-    gtsam::Unit3 perturbedGravity = gtsam::Unit3(localGravityDir.unitVector() +
-                                                 gtsam::Vector3(1, 2, 3)); // compute cross product with any nonparallel vector
+    gtsam::Unit3 perturbedGravity (localGravityDir.unitVector() +
+                                   gtsam::Vector3(1, 2, 3)); // compute cross product with any nonparallel vector
     v = localGravityDir.cross(perturbedGravity);
     if (std::isnan(v.unitVector()(0))) { // if the resulting vector is still not a number (i.e., perturbedGravity // localGravityDir)
       perturbedGravity = gtsam::Unit3(localGravityDir.unitVector() +
@@ -769,6 +774,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
 }
 
 /* -------------------------------------------------------------------------- */
+// NOT THREAD-SAFE, imu_bias_prev_kf_ might change.
 void VioBackEnd::integrateImuMeasurements(const ImuStamps& imu_stamps,
                                           const ImuAccGyr& imu_accgyr) {
   CHECK(imu_stamps.size() >= 2) << "No Imu data found.";
@@ -781,8 +787,8 @@ void VioBackEnd::integrateImuMeasurements(const ImuStamps& imu_stamps,
   }
 
   for (int i = 0; i < imu_stamps.size() - 1; ++i) {
-    const Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
     const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
+    const Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
     const double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
                                                   imu_stamps(i));
     pim_->integrateMeasurement(measured_acc, measured_omega, delta_t);

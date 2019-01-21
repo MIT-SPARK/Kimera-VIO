@@ -42,7 +42,7 @@
 
 namespace VIO {
 
-using SmartStereoMeasurement = std::pair<LandmarkId,gtsam::StereoPoint2>;
+using SmartStereoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
 using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
 
 // TODO make enum class.
@@ -165,7 +165,7 @@ using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 class StereoFrame {
 public:
   StereoFrame(const FrameId& id,
-              const int64_t& timestamp,
+              const Timestamp& timestamp,
               const cv::Mat& left_image,
               const CameraParams& cam_param_left,
               const cv::Mat& right_image,
@@ -203,6 +203,7 @@ public:
   void setIsRectified(bool is_rectified);
 
   /* ------------------------------------------------------------------------ */
+  // THIS IS NOT THREAD-SAFE
   // Create a 2D mesh only including triangles corresponding to obstables (planar surfaces)
   // min_elongation_ratio = 0.5 (max 1): check on the elongation of the triangle (TODO: this check is conservative)
   // if mesh2Dtype = VALIDKEYPOINTS: 2D triangulation is computed form keypoints with VALID right match and valid lmk id (!=-1)
@@ -216,6 +217,7 @@ public:
                           const bool& useCanny = true) const;
 
   /* ------------------------------------------------------------------------ */
+  // THIS IS NOT THREAD-SAFE
   void createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
                        const std::unordered_map<LandmarkId,
                        gtsam::Point3>& pointsWithIdVIO) const;
