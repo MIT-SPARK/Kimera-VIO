@@ -1274,20 +1274,23 @@ void Mesher::updateMesh3D(
 
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
+  // THIS CALL IS NOT THREAD-SAFE
   stereo_frame_ptr->createMesh2dVIO(&mesh_2d,
-                               *points_with_id_all);
+                                    *points_with_id_all);
   if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d;
 
   // Filter 2D mesh.
   std::vector<cv::Vec6f> mesh_2d_filtered;
+  // THIS CALL IS NOT THREAD-SAFE
   stereo_frame_ptr->filterTrianglesWithGradients(mesh_2d,
-                                            &mesh_2d_filtered,
-                                            FLAGS_max_grad_in_triangle);
+                                                 &mesh_2d_filtered,
+                                                 FLAGS_max_grad_in_triangle);
   if (mesh_2d_filtered_for_viz) *mesh_2d_filtered_for_viz = mesh_2d_filtered;
 
   populate3dMeshTimeHorizon(
         mesh_2d_filtered,
         *points_with_id_all,
+        // THIS CALL IS NOT THREAD-SAFE
         stereo_frame_ptr->getLeftFrame(),
         left_camera_pose,
         FLAGS_min_ratio_btw_largest_smallest_side,
@@ -1313,15 +1316,17 @@ void Mesher::updateMesh3D(const std::shared_ptr<const MesherInputPayload>& meshe
 }
 
 /* -------------------------------------------------------------------------- */
+// THIS IS NOT THREAD-SAFE
 // Attempts to insert new points in the map, but does not override if there
 // is already a point with the same lmk id.
 void Mesher::appendNonVioStereoPoints(
-    std::shared_ptr<StereoFrame> stereoFrame,
+    std::shared_ptr<StereoFrame> stereoFrame,  // THIS IS NOT THREAD-SAFE
     const gtsam::Pose3& leftCameraPose,
     std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo) const {
   CHECK_NOTNULL(points_with_id_stereo);
-  const Frame& leftFrame = stereoFrame->getLeftFrame();
+  const Frame& leftFrame = stereoFrame->getLeftFrame();  // THIS IS NOT THREAD-SAFE
   for (size_t i = 0; i < leftFrame.landmarks_.size(); i++) {
+    // THIS IS NOT THREAD-SAFE
     if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID &&
         leftFrame.landmarks_.at(i) != -1) {
       const gtsam::Point3& p_i_global =
