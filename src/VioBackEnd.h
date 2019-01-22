@@ -243,6 +243,8 @@ struct VioBackEndInputPayload {
   const Timestamp timestamp_kf_nsec_;
   const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf_;
   const Tracker::TrackingStatus stereo_tracking_status_; // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
+  // I believe we do not need EIGEN_MAKE_ALIGNED_OPERATOR_NEW for these members
+  // as they are dynamic eigen, not "fixed-size vectorizable matrices and vectors."
   const ImuStamps imu_stamps_;
   const ImuAccGyr imu_accgyr_;
   std::vector<Plane>* planes_;

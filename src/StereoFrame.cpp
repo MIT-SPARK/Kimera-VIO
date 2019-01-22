@@ -1215,7 +1215,8 @@ void StereoFrame::displayLeftRightMatches() const {
 /* -------------------------------------------------------------------------- */
 void StereoFrame::displayKeypointStats(
     const StatusKeypointsCV& right_keypoints_rectified) const {
-  int nrValid = 0, nrNoLeftRect = 0, nrNoRightRect = 0, nrNoDepth = 0;
+  int nrValid = 0; int nrNoLeftRect = 0; int nrNoRightRect = 0;
+  int nrNoDepth = 0; int nrFailedArunRKP = 0;
   for (const StatusKeypointCV& right_keypoint_rectified:
        right_keypoints_rectified) {
     switch(right_keypoint_rectified.first) {
@@ -1223,10 +1224,7 @@ void StereoFrame::displayKeypointStats(
     case Kstatus::NO_LEFT_RECT: {nrNoLeftRect++; break;}
     case Kstatus::NO_RIGHT_RECT: {nrNoRightRect++; break;}
     case Kstatus::NO_DEPTH: {nrNoDepth++; break;}
-    case Kstatus::FAILED_ARUN: {
-      LOG(FATAL) << "Luca? this wasn't handled";
-      break;
-    }
+    case Kstatus::FAILED_ARUN: {nrFailedArunRKP++; break;}
     }
   }
   LOG(INFO) << "Nr of right keypoints: " << right_keypoints_rectified.size()

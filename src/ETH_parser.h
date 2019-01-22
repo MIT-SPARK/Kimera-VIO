@@ -32,6 +32,8 @@
 #include "ImuFrontEnd.h"
 #include "VioFrontEndParams.h"
 #include "VioBackEndParams.h"
+#include "RegularVioBackEndParams.h"
+#include "StereoImuSyncPacket.h"
 
 namespace VIO {
 
@@ -123,7 +125,19 @@ public:
  */
 class ETHDatasetParser {
 public:
-  ETHDatasetParser() : imuData_() {}
+  ETHDatasetParser();
+
+  // Decides backend parameters depending on the backend chosen.
+  // 0: Vanilla VIO 1: regularVIO
+  void setBackendParamsType(const int backend_type,
+                            std::shared_ptr<VioBackEndParams>* vioParams) const;
+
+  // Main function, register callback.
+  void registerVioCallback(
+      std::function<bool(const StereoImuSyncPacket&)> callback);
+
+  // Vio callback.
+  std::function<bool(const StereoImuSyncPacket&)> vio_callback_;
 
   // Gt data.
   GroundTruthData gtData_;
@@ -153,6 +167,9 @@ public:
   }
 
 public:
+  // Spin dataset.
+  bool spin();
+
   // Helper function to parse Euroc dataset.
   void parse(size_t* initial_k, size_t* final_k,
              VioBackEndParamsPtr vioParams,
@@ -191,18 +208,26 @@ public:
       const bool upToScale = false) const;
 
   // Get timestamp of a given pair of stereo images (synchronized).
-  Timestamp timestampAtFrame(const long long frame_number) {
-    std::string left_cam_name = camera_names_[0];
-    return camera_image_lists_[left_cam_name].img_lists[frame_number].first;
-  }
+  Timestamp timestampAtFrame(const FrameId& frame_number);
+
+  // Getters for params. Right now just returns a copy, should be optimized?
+  inline VioBackEndParams getBackendParams() const {return *backend_params_;}
+  inline VioFrontEndParams getFrontendParams() const {return frontend_params_;}
+  // TODO This info should be in backend_params_ itself...
+  int getBackendType() const;
 
   // Print info about dataset.
   void print() const;
 
+  // THIS IS ONLY HERE BECAUSE the pipeline needs to know what is this value.
+  // But it should not need to!!
+  // Put it as a static variable in the spin function.
+  Timestamp timestamp_first_lkf_;
+
 private:
   // Helper function to parse user-specified parameters.
-  void parseParams(VioBackEndParamsPtr vioParams,
-                   VioFrontEndParams* trackerParams);
+  void parseParams(VioBackEndParamsPtr backend_params,
+                   VioFrontEndParams* tracker_params);
 
 
   // Parse cam0, cam1 of a given dataset.
@@ -249,6 +274,13 @@ private:
       const CameraImageLists::ImgLists& left_img_lists,
       const CameraImageLists::ImgLists& right_img_lists,
       const CameraParams& left_cam_info) const;
+
+private:
+  size_t initial_k_, final_k_; // initial and final frame: useful to skip a bunch of images at the
+
+  // Init Vio parameters.
+  VioBackEndParamsPtr backend_params_;
+  VioFrontEndParams frontend_params_;
 
   /// Images data.
   // This matches the names of the folders in the dataset

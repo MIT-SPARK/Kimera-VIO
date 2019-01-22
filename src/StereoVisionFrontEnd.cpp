@@ -36,9 +36,12 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 }
 
 /* -------------------------------------------------------------------------- */
-void StereoVisionFrontEnd::processFirstStereoFrame(StereoFrame& firstFrame) {
+// TODO this can be greatly improved, but we need to get rid of global variables
+// stereoFrame_km1_, stereoFrame_lkf_, stereoFrame_k_, etc...
+void StereoVisionFrontEnd::processFirstStereoFrame(
+    const StereoFrame& firstFrame) {
   VLOG(2) << "Processing first stereo frame \n";
-  stereoFrame_k_ = std::make_shared<StereoFrame>(firstFrame);
+  stereoFrame_k_ = std::make_shared<StereoFrame>(firstFrame); // TODO this can be optimized!
   stereoFrame_k_->setIsKeyframe(true);
   last_keyframe_timestamp_ = stereoFrame_k_->getTimestamp();
 
@@ -96,6 +99,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   double timeSparseStereo = 0;
   double timeGetMeasurements = 0;
 
+  /////////////////////// TRACKING /////////////////////////////////////////////
   // Track features from the previous frame
   Frame* left_frame_km1 = stereoFrame_km1_->getLeftFrameMutable();
   Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
@@ -104,6 +108,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   if (verbosityFrames > 0) {
     tracker_.displayFrame(*left_frame_km1, *left_frame_k, verbosityFrames);
   }
+  /////////////////////// TRACKING /////////////////////////////////////////////
 
   // Not tracking at all in this phase.
   trackerStatusSummary_.kfTrackingStatus_mono_ = Tracker::TrackingStatus::INVALID;
@@ -133,14 +138,18 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     if (!tracker_.trackerParams_.useRANSAC_) {
       trackerStatusSummary_.kfTrackingStatus_mono_ = Tracker::TrackingStatus::DISABLED;
 
-      if (VLOG_IS_ON(2)) logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_mono_, "mono");
+      if (VLOG_IS_ON(2)) {
+        logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_mono_, "mono");
+      }
 
       trackerStatusSummary_.kfTrackingStatus_stereo_ = Tracker::TrackingStatus::DISABLED;
 
-      if (VLOG_IS_ON(2)) logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_, "stereo");
+      if (VLOG_IS_ON(2)) {
+        logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_, "stereo");
+      }
     } else {
       ////////////////// MONO geometric outlier rejection ////////////////
-      std::pair<Tracker::TrackingStatus,gtsam::Pose3> statusPoseMono;
+      std::pair<Tracker::TrackingStatus, gtsam::Pose3> statusPoseMono;
       Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
       if (tracker_.trackerParams_.ransac_use_2point_mono_ &&
           calLrectLkf_R_camLrectKf_imu) {

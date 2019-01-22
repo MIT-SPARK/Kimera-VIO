@@ -26,6 +26,7 @@
 #include "mesh/Mesher.h"
 #include "Visualizer3D.h"
 #include "utils/ThreadsafeQueue.h"
+#include "StereoImuSyncPacket.h"
 #include "pipeline/ProcessControl.h"
 #include "pipeline/BufferControl.h"
 
@@ -39,13 +40,13 @@ class StereoVisionFrontEnd;
 namespace VIO {
 class Pipeline {
 public:
-  Pipeline();
+  Pipeline(ETHDatasetParser* dataset);
 
   // Main spin, runs the pipeline.
-  bool spin();
+  bool spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Spin the pipeline only once.
-  void spinOnce(size_t k);
+  void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // TODO a parallel pipeline should always be able to run sequentially...
   bool spinSequential();
@@ -61,13 +62,8 @@ private:
     srand(0);
   }
 
-  // Decides backend parameters depending on the backend chosen.
-  // 0: Vanilla VIO 1: regularVIO
-  void setBackendParamsType(const int backend_type,
-                            std::shared_ptr<VioBackEndParams>* vioParams) const;
-
   // Initialize pipeline.
-  bool initialize(size_t k);
+  bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.
@@ -119,12 +115,13 @@ private:
   void joinThreads();
 
   // Data provider.
-  ETHDatasetParser dataset_;
-  size_t initial_k_, final_k_; // initial and final frame: useful to skip a bunch of images at the beginning (imu calibration)
+  // TODO remove dataset_ from vio pipeline altogether!
+  ETHDatasetParser* dataset_;
+
   Timestamp timestamp_lkf_;
 
-  // Init Vio parameters (should be done inside VIO).
-  VioBackEndParamsPtr backend_params_;
+  // Init Vio parameter
+  VioBackEndParams backend_params_;
   VioFrontEndParams frontend_params_;
 
   // TODO this should go to another class to avoid not having copy-ctor...

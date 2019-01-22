@@ -95,7 +95,7 @@ public:
 public:
   /* ------------------------------------------------------------------------ */
   // Frontend initialization.
-  void processFirstStereoFrame(StereoFrame& firstFrame);
+  void processFirstStereoFrame(const StereoFrame& firstFrame);
 
   /* ------------------------------------------------------------------------ */
   // Frontend main function.

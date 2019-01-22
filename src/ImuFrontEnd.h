@@ -8,12 +8,11 @@
 
 /**
  * @file   ImuFrontEnd.h
- * @brief  Class managing sequences of IMU measurements
- * @author Luca Carlone
+ * @brief  Class managing sequences of IMU measurements.
+ * @author Antoni Rosinol, Luca Carlone
  */
 
-#ifndef ImuFrontEnd_H_
-#define ImuFrontEnd_H_
+#pragma once
 
 #include <map>
 #include <string>
@@ -21,18 +20,15 @@
 #include <thread>
 #include <utility>
 #include <mutex>
+
 #include <Eigen/Dense>
+
 #include <gtsam/base/Matrix.h>
 #include <gtsam/navigation/ImuBias.h>
 
-namespace VIO {
+#include "ImuFrontEnd-definitions.h"
 
-// Inertial containers.
-using ImuStamps = Eigen::Matrix<int64_t, Eigen::Dynamic, 1>;
-using ImuAccGyr = Eigen::Matrix<double, 6, Eigen::Dynamic>;
-using Vector6 = gtsam::Vector6;
-using Vector3 = gtsam::Vector3;
-using ImuBias = gtsam::imuBias::ConstantBias;
+namespace VIO {
 
 class ImuFrontEnd {
 public:
@@ -43,7 +39,7 @@ public:
   : buffer_size_microsec_(buffer_size_microseconds) {}
 
 public:
-  /* +++++++++++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++++++++ */
+  /* +++++++++++++++++++++++++++++++ NONCONST FUNCTIONS +++++++++++++++++++++ */
   // Insert data according to ordering of timestamp
   inline void insert(int64_t stamp, const Vector6& acc_gyr) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -54,9 +50,9 @@ public:
           buffer_.rbegin()->first - buffer_size_microsec_);
     }
   }
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   /*! @brief Get Values between timestamps.
-   *
    * If timestamps are not matched, the values are interpolated. Returns a vector
    * of timestamps and a block matrix with values as columns. Returns empty matrices if not successful.
    */
@@ -64,45 +60,58 @@ public:
   getBetweenValuesInterpolated(const int64_t& stamp_from,
                                const int64_t& stamp_to,
                                bool doInterpolate = true);
+
   typename ImuData::iterator iterator_equal_or_before(int64_t stamp);
   typename ImuData::iterator iterator_equal_or_after(int64_t stamp);
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   inline void clear(){
     std::lock_guard<std::mutex> lock(mutex_);
     buffer_.clear();
   }
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  bool isDataAtTimestampPresent(const int64_t& query_timestamp) const;
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   inline void removeDataBeforeTimestamp(int64_t stamp){
     std::lock_guard<std::mutex> lock(mutex_);
     removeDataBeforeTimestamp_impl(stamp);
   }
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   inline void removeDataBeforeTimestamp_impl(int64_t stamp){
     auto it = buffer_.lower_bound(stamp);
     buffer_.erase(buffer_.begin(), it);
   }
-  /* ---------------------------- CONST FUNCTIONS ------------------------------------------- */
+
+  /* ---------------------------- CONST FUNCTIONS --------------------------- */
   //! Get timestamps of newest and oldest entry.
   std::tuple<int64_t, int64_t, bool> getOldestAndNewestStamp() const;
-  /* --------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   inline size_t size() const{
     std::lock_guard<std::mutex> lock(mutex_);
     return buffer_.size();
   }
-  /* --------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   inline bool empty() const{
     std::lock_guard<std::mutex> lock(mutex_);
     return buffer_.empty();
   }
-  /* --------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   inline void lock() const{
     mutex_.lock();
   }
-  /* --------------------------------------------------------------------------------------- */
-  inline void unlock() const {
+
+  /* ------------------------------------------------------------------------ */
+  inline void unlock() const  {
     mutex_.unlock();
   }
-  /* --------------------------------------------------------------------------------------- */
+
+  /* ------------------------------------------------------------------------ */
   const ImuData& data() const{
     std::lock_guard<std::mutex> lock(mutex_);
     // if (!mutex_.try_lock()) { printf("Call lock() before accessing data\n");}
@@ -120,6 +129,4 @@ protected:
   // int64_t buffer_size_microsec_ = 2.0 * pow(10,9);
 };
 
-} // namespace VIO
-
-#endif /* ImuFrontEnd_H_ */
+} // End of VIO namespace.

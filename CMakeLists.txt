@@ -86,8 +86,10 @@ include_directories("./src")
 
 add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Tracker.cpp ./src/StereoFrame.cpp
+                      ./src/StereoImuSyncPacket.cpp
                       ./src/UtilsGeometry.cpp ./src/UtilsOpenCV.cpp
-                      ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
+                      ./src/ImuFrontEnd.cpp
+                      ./src/VioBackEnd.cpp
                       ./src/RegularVioBackEnd.cpp
                       ./src/Histogram.cpp ./src/LoggerMatlab.cpp
                       ./src/FeatureSelector.h
@@ -98,6 +100,8 @@ add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Histogram.h
                       "")
 
+### Add source code for data provider.
+include(src/datasource/CMakeLists.txt)
 ### Add source code for factors
 include(src/factors/CMakeLists.txt)
 ### Add source code for mesh
