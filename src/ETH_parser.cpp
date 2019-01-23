@@ -136,8 +136,6 @@ bool ETHDatasetParser::spin() {
                           " registerVioCallback before spinning the dataset.";
   // Check also that the dataset has been correctly parsed.
 
-
-  ////// FIRST FRAME ///////////////////////////////////////////////////////////
   // Timestamp 10 frames before the first (for imu calibration)
   // TODO: remove hardcoded 10
   static constexpr size_t frame_offset_for_imu_calib = 10;
@@ -148,44 +146,8 @@ bool ETHDatasetParser::spin() {
   static Timestamp timestamp_last_frame =
       timestampAtFrame(initial_k_ - frame_offset_for_imu_calib);
 
-  auto k = initial_k_;
-  // Load stereo images.
-  StereoFrame stereo_frame_init(
-        k, timestampAtFrame(k),
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-          getLeftImgName(k),
-          frontend_params_.getStereoMatchingParams().equalize_image_),
-        getLeftCamInfo(),
-        UtilsOpenCV::ReadAndConvertToGrayScale(
-          getRightImgName(k),
-          frontend_params_.getStereoMatchingParams().equalize_image_),
-        getRightCamInfo(),
-        getCamLPoseCamR(),
-        frontend_params_.getStereoMatchingParams());
-
-  ImuStamps imu_stamps_init;
-  ImuAccGyr imu_accgyr_init;
-  std::tie(imu_stamps_init, imu_accgyr_init) =
-      imuData_.imu_buffer_.getBetweenValuesInterpolated(
-        timestamp_last_frame, stereo_frame_init.getTimestamp());
-
-  // Update latest keyframe timestamp.
-  timestamp_last_frame = stereo_frame_init.getTimestamp();
-
-  // TODO this is here only because the vio pipeline needs to know this value
-  // for now, but it should not!
-  timestamp_first_lkf_ = timestamp_last_frame;
-
-  StereoImuSyncPacket stereo_imu_sync_packet_init (stereo_frame_init,
-                                                   imu_stamps_init,
-                                                   imu_accgyr_init);
-  // Call VIO Pipeline.
-  VLOG(10) << "Call VIO processing.";
-  vio_callback_(stereo_imu_sync_packet_init);
-  ////////////////////////////////////////////////////////////////////////////
-
   // Spin.
-  for (FrameId k = initial_k_ + 1; k < final_k_; k++) {
+  for (FrameId k = initial_k_; k < final_k_; k++) {
       //double start_time = UtilsOpenCV::GetTimeInSeconds();
       const StereoMatchingParams& stereo_matching_params =
           frontend_params_.getStereoMatchingParams();
@@ -221,30 +183,39 @@ bool ETHDatasetParser::spin() {
                << "ACCGYR IMU: \n" << imu_accgyr;
 
       //// DELETE.
-      ImuStamps imu_stamps_interp;
-      ImuAccGyr imu_accgyr_interp;
-      std::tie(imu_stamps_interp, imu_accgyr_interp) = imuData_.imu_buffer_.
-          getBetweenValuesInterpolated(timestamp_last_frame,
-                                       stereo_frame_k.getTimestamp(),
-                                       false);
-      VLOG(10) << "////////////////////////////////////////// Creating NON INTERPOLATED packet!";
-      VLOG(10) << "STAMPS IMU rows : \n" << imu_stamps_interp.rows() << '\n'
-               << "STAMPS IMU cols : \n" << imu_stamps_interp.cols() << '\n'
-               << "STAMPS IMU: \n" << imu_stamps_interp << '\n'
-               << "ACCGYR IMU rows : \n" << imu_accgyr_interp.rows() << '\n'
-               << "ACCGYR IMU cols : \n" << imu_accgyr_interp.cols() << '\n'
-               << "ACCGYR IMU: \n" << imu_accgyr_interp;
+      if (VLOG_IS_ON(10)) {
+        ImuStamps imu_stamps_interp;
+        ImuAccGyr imu_accgyr_interp;
+        std::tie(imu_stamps_interp, imu_accgyr_interp) = imuData_.imu_buffer_.
+            getBetweenValuesInterpolated(timestamp_last_frame,
+                                         stereo_frame_k.getTimestamp(),
+                                         false);
+        VLOG(10) << "////////////////////////////////////////// Creating NON INTERPOLATED packet!";
+        VLOG(10) << "STAMPS IMU rows : \n" << imu_stamps_interp.rows() << '\n'
+                 << "STAMPS IMU cols : \n" << imu_stamps_interp.cols() << '\n'
+                 << "STAMPS IMU: \n" << imu_stamps_interp << '\n'
+                 << "ACCGYR IMU rows : \n" << imu_accgyr_interp.rows() << '\n'
+                 << "ACCGYR IMU cols : \n" << imu_accgyr_interp.cols() << '\n'
+                 << "ACCGYR IMU: \n" << imu_accgyr_interp;
+      }
 
       timestamp_last_frame = stereo_frame_k.getTimestamp();
 
-      StereoImuSyncPacket stereo_imu_sync_packet (stereo_frame_k,
-                                                  imu_stamps, imu_accgyr);
+      // TODO remove this, it's just because the logging in the pipeline needs
+      // it, but totally useless...
+      static bool do_once = true;
+      if (do_once) {
+        timestamp_first_lkf_ = timestamp_last_frame;
+        do_once = false;
+      }
+
       // TODO alternatively push here to a queue, and give that queue to the
       // VIO pipeline so it can pull from it.
-
       // Call VIO Pipeline.
       VLOG(10) << "Call VIO processing.";
-      vio_callback_(stereo_imu_sync_packet);
+      vio_callback_(StereoImuSyncPacket(stereo_frame_k,
+                                        imu_stamps,
+                                        imu_accgyr));
   }
 
   return true;
