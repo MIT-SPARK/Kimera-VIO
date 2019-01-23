@@ -18,6 +18,7 @@
 #include "ETH_parser.h"
 #include "pipeline/Pipeline.h"
 #include "utils/Timer.h"
+#include "LoggerMatlab.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
@@ -41,10 +42,15 @@ int main(int argc, char *argv[]) {
   const bool is_pipeline_successful = eth_dataset_parser.spin();
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-  //if (FLAGS_log_output) logger_.logPipelineOverallTiming(spin_duration);
 
   // Dataset spin has finished, shutdown VIO.
   vio_pipeline.shutdown();
+
+  // Log overall time of pipeline run.
+  VIO::LoggerMatlab logger;
+  logger.openLogFiles(11);
+  logger.logPipelineOverallTiming(spin_duration);
+  logger.closeLogFiles();
 
   return is_pipeline_successful? EXIT_SUCCESS : EXIT_FAILURE;
 }
