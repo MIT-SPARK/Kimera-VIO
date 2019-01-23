@@ -365,6 +365,7 @@ protected:
   }
 };
 typedef std::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
+typedef std::shared_ptr<const VioBackEndParams> VioBackEndParamsConstPtr;
 
 } // namespace VIO
 #endif /* VioBackEndParams_H_ */

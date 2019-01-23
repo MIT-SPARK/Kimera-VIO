@@ -90,7 +90,7 @@ Pipeline::Pipeline(ETHDatasetParser* dataset)
 
   // Instantiate feature selector: not used in vanilla implementation.
   feature_selector_ = FeatureSelector(dataset_->getFrontendParams(),
-                                      backend_params_);
+                                      *backend_params_);
 }
 
 bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
@@ -299,7 +299,7 @@ void Pipeline::processKeyframe(
     logger_.logBackendResults(*dataset_, // Should not need the dataset...
                               *stereo_vision_frontend_, // Should not need the frontend...
                               backend_output_payload,
-                              backend_params_.horizon_,
+                              backend_params_->horizon_,
                               timestamp_lkf, timestamp_k, k);
     logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
   }
@@ -435,7 +435,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
               stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(),
               stereo_vision_frontend_->stereoFrame_km1_->getLeftUndistRectCamMat(),
               stereo_vision_frontend_->stereoFrame_km1_->getBaseline(),
-              backend_params_,
+              *backend_params_,
               &initialStateGT,
               stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
               stereo_imu_sync_packet.getImuAccGyr()); // No timestamps needed for IMU?

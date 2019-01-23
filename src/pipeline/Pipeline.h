@@ -121,7 +121,7 @@ private:
   Timestamp timestamp_lkf_;
 
   // Init Vio parameter
-  VioBackEndParams backend_params_;
+  VioBackEndParamsConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
 
   // TODO this should go to another class to avoid not having copy-ctor...

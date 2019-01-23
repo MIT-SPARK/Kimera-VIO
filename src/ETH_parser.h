@@ -211,7 +211,7 @@ public:
   Timestamp timestampAtFrame(const FrameId& frame_number);
 
   // Getters for params. Right now just returns a copy, should be optimized?
-  inline VioBackEndParams getBackendParams() const {return *backend_params_;}
+  inline VioBackEndParamsConstPtr getBackendParams() const {return backend_params_;}
   inline VioFrontEndParams getFrontendParams() const {return frontend_params_;}
   // TODO This info should be in backend_params_ itself...
   int getBackendType() const;
