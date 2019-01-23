@@ -142,37 +142,23 @@ bool ETHDatasetParser::spin() {
   CHECK_GE(initial_k_, frame_offset_for_imu_calib)
       << "Initial frame " << initial_k_ << " has to be larger than "
       << frame_offset_for_imu_calib << " (needed for IMU calibration)";
-
-  static Timestamp timestamp_last_frame =
+  Timestamp timestamp_last_frame =
       timestampAtFrame(initial_k_ - frame_offset_for_imu_calib);
 
   // Spin.
+  const StereoMatchingParams& stereo_matching_params =
+      frontend_params_.getStereoMatchingParams();
+  const bool equalize_image          = stereo_matching_params.equalize_image_;
+  const CameraParams& left_cam_info  = getLeftCamInfo();
+  const CameraParams& right_cam_info = getRightCamInfo();
+  const gtsam::Pose3& camL_pose_camR = getCamLPoseCamR();
   for (FrameId k = initial_k_; k < final_k_; k++) {
-      //double start_time = UtilsOpenCV::GetTimeInSeconds();
-      const StereoMatchingParams& stereo_matching_params =
-          frontend_params_.getStereoMatchingParams();
-      StereoFrame stereo_frame_k(
-            k, timestampAtFrame(k),
-            UtilsOpenCV::ReadAndConvertToGrayScale(
-              getLeftImgName(k),
-              stereo_matching_params.equalize_image_),
-            getLeftCamInfo(),
-            UtilsOpenCV::ReadAndConvertToGrayScale(
-              getRightImgName(k),
-              stereo_matching_params.equalize_image_),
-            getRightCamInfo(),
-            getCamLPoseCamR(),
-            stereo_matching_params);
-      //if (FLAGS_log_output) {
-      //  logger_.timing_loadStereoFrame_ =
-      //      UtilsOpenCV::GetTimeInSeconds() - start_time;
-      //}
-
+      Timestamp timestamp_frame_k = timestampAtFrame(k);
       ImuStamps imu_stamps;
       ImuAccGyr imu_accgyr;
       std::tie(imu_stamps, imu_accgyr) = imuData_.imu_buffer_.
           getBetweenValuesInterpolated(timestamp_last_frame,
-                                       stereo_frame_k.getTimestamp());
+                                       timestamp_frame_k);
 
       VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
                << "STAMPS IMU rows : \n" << imu_stamps.rows() << '\n'
@@ -188,7 +174,7 @@ bool ETHDatasetParser::spin() {
         ImuAccGyr imu_accgyr_interp;
         std::tie(imu_stamps_interp, imu_accgyr_interp) = imuData_.imu_buffer_.
             getBetweenValuesInterpolated(timestamp_last_frame,
-                                         stereo_frame_k.getTimestamp(),
+                                         timestamp_frame_k,
                                          false);
         VLOG(10) << "////////////////////////////////////////// Creating NON INTERPOLATED packet!";
         VLOG(10) << "STAMPS IMU rows : \n" << imu_stamps_interp.rows() << '\n'
@@ -199,7 +185,7 @@ bool ETHDatasetParser::spin() {
                  << "ACCGYR IMU: \n" << imu_accgyr_interp;
       }
 
-      timestamp_last_frame = stereo_frame_k.getTimestamp();
+      timestamp_last_frame = timestamp_frame_k;
 
       // TODO remove this, it's just because the logging in the pipeline needs
       // it, but totally useless...
@@ -212,12 +198,21 @@ bool ETHDatasetParser::spin() {
       // TODO alternatively push here to a queue, and give that queue to the
       // VIO pipeline so it can pull from it.
       // Call VIO Pipeline.
-      VLOG(10) << "Call VIO processing.";
-      vio_callback_(StereoImuSyncPacket(stereo_frame_k,
-                                        imu_stamps,
-                                        imu_accgyr));
-  }
-
+      VLOG(10) << "Call VIO processing for frame k: " << k;
+      vio_callback_(StereoImuSyncPacket(
+                      StereoFrame(k, timestamp_frame_k,
+                                  UtilsOpenCV::ReadAndConvertToGrayScale(
+                                    getLeftImgName(k), equalize_image),
+                                  left_cam_info,
+                                  UtilsOpenCV::ReadAndConvertToGrayScale(
+                                    getRightImgName(k), equalize_image),
+                                  right_cam_info,
+                                  camL_pose_camR,
+                                  stereo_matching_params),
+                      imu_stamps,
+                      imu_accgyr));
+      VLOG(10) << "Finished VIO processing for frame k = " << k;
+  } // End of for loop.
   return true;
 }
 
@@ -725,8 +720,7 @@ std::pair<double, double> ETHDatasetParser::computePoseErrors(
 
 /* -------------------------------------------------------------------------- */
 Timestamp ETHDatasetParser::timestampAtFrame(const FrameId& frame_number) {
-  std::string left_cam_name = camera_names_[0];
-  return camera_image_lists_[left_cam_name].img_lists[frame_number].first;
+  return camera_image_lists_[camera_names_[0]].img_lists[frame_number].first;
 }
 
 /* -------------------------------------------------------------------------- */
