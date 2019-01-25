@@ -139,24 +139,23 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   } else {
     // TODO we are repeating IMU data due to the implicit interpolation.
     // Decouple interpolation from IMU querying.
-    ImuStamps tmp_stamps (
-          // The -1 is there to avoid duplicated IMU measurement.
-          // The one being interpolated in the middle! It is interpolated twice,
-          // but since for Euroc timestamps of stereo frames and IMU coincide,
-          // there is only need for 1 removal, to avoid removing an actual
-          // measurement.
-          imu_stamps_lkf_to_curr_f.rows() - 1 + imu_stamps.rows(), 1);
+    //      // The -1 is there to avoid duplicated IMU measurement.
+    //      // The one being interpolated in the middle! It is interpolated twice,
+    //      // but since for Euroc timestamps of stereo frames and IMU coincide,
+    //      // there is only need for 1 removal, to avoid removing an actual
+    //      // measurement.
+    //      imu_stamps_lkf_to_curr_f.rows() - 1 + imu_stamps.rows(), 1);
+    CHECK_GT(imu_stamps.rows(), 0);
+    imu_stamps_lkf_to_curr_f.conservativeResize(
+          imu_stamps_lkf_to_curr_f.rows() - 1 + imu_stamps.rows(),
+          Eigen::NoChange);
+    imu_stamps_lkf_to_curr_f.bottomRows(imu_stamps.rows()) << imu_stamps;
 
-    tmp_stamps
-        << imu_stamps_lkf_to_curr_f.topRows(imu_stamps_lkf_to_curr_f.rows() - 1)
-           , imu_stamps;
-
-    imu_stamps_lkf_to_curr_f.swap(tmp_stamps);
-    ImuAccGyr tmp_accgyr (
-          6, imu_accgyr_lkf_to_curr_f.cols() -1 + imu_accgyr.cols());
-    tmp_accgyr << imu_accgyr_lkf_to_curr_f.leftCols(imu_accgyr_lkf_to_curr_f.cols() - 1)
-                  , imu_accgyr;
-    imu_accgyr_lkf_to_curr_f.swap(tmp_accgyr);
+    CHECK_GT(imu_accgyr.cols(), 0);
+    imu_accgyr_lkf_to_curr_f.conservativeResize(
+          Eigen::NoChange,
+          imu_accgyr_lkf_to_curr_f.cols() - 1 + imu_accgyr.cols());
+    imu_accgyr_lkf_to_curr_f.rightCols(imu_accgyr.cols()) << imu_accgyr;
   }
   VLOG(10) << "STAMPS IMU rows : \n" << imu_stamps_lkf_to_curr_f.rows()  << '\n'
            << "STAMPS IMU cols : \n" << imu_stamps_lkf_to_curr_f.cols() << '\n'
