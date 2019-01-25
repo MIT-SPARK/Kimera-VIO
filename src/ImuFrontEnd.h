@@ -41,11 +41,10 @@ public:
 public:
   /* +++++++++++++++++++++++++++++++ NONCONST FUNCTIONS +++++++++++++++++++++ */
   // Insert data according to ordering of timestamp
-  inline void insert(int64_t stamp, const Vector6& acc_gyr) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    buffer_[stamp] = acc_gyr;
-    if(buffer_size_microsec_ > 0)
-    {
+  inline void insert(int64_t stamp, Vector6 acc_gyr) {
+    std::lock_guard<std::mutex> lock (mutex_);
+    buffer_[std::move(stamp)] = std::move(acc_gyr);
+    if (buffer_size_microsec_ > 0) {
       removeDataBeforeTimestamp_impl(
           buffer_.rbegin()->first - buffer_size_microsec_);
     }
@@ -102,17 +101,17 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  inline void lock() const{
+  inline void lock() const {
     mutex_.lock();
   }
 
   /* ------------------------------------------------------------------------ */
-  inline void unlock() const  {
+  inline void unlock() const {
     mutex_.unlock();
   }
 
   /* ------------------------------------------------------------------------ */
-  const ImuData& data() const{
+  const ImuData& data() const {
     std::lock_guard<std::mutex> lock(mutex_);
     // if (!mutex_.try_lock()) { printf("Call lock() before accessing data\n");}
     /* CHECK(!mutex_.try_lock()) << "Call lock() before accessing data."; */  /* @TODO: shouldn't comment out */

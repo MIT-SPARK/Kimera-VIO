@@ -105,8 +105,6 @@ ImuFrontEnd::getBetweenValuesInterpolated(
       if (doInterpolate) {
         w = static_cast<double>(stamp_from - it_from_before->first) /
             static_cast<double>(it_from_after->first - it_from_before->first);
-        CHECK_LE(w, 1.0);
-        CHECK_GE(w, 0.0);
       }
       imu_accgyr.col(i) =
           (1.0 - w) * it_from_before->second +
@@ -117,8 +115,6 @@ ImuFrontEnd::getBetweenValuesInterpolated(
       if (doInterpolate) {
         w = static_cast<double>(stamp_to - it_to_before->first) /
             static_cast<double>(it_to_after->first - it_to_before->first);
-        CHECK_LE(w, 1.0);
-        CHECK_GE(w, 0.0);
       }
       imu_accgyr.col(i) =
           (1.0 - w) * it_to_before->second +
