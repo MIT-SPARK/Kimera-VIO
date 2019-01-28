@@ -85,7 +85,7 @@ TEST(testTracker, TrackerParamParseYAML) {
   EXPECT(tp.ransac_randomize_ == false);
 
   EXPECT(tp.intra_keyframe_time_ == 0.5);
-  EXPECT(tp.minNumberFeatures_ == 100);
+  EXPECT(tp.min_number_features_ == 100);
   EXPECT(tp.useStereoTracking_ == 1);
   EXPECT(tp.display_time_ == 100);
   EXPECT(tp.disparityThreshold_ == 1);

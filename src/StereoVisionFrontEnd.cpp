@@ -129,7 +129,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   const size_t nr_valid_features =
       left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
-      nr_valid_features <= tracker_.trackerParams_.minNumberFeatures_;
+      nr_valid_features <= tracker_.trackerParams_.min_number_features_;
   if (max_time_elapsed || nr_features_low) {
     ++keyframe_count_; // mainly for debugging
 
@@ -139,7 +139,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
     VLOG_IF(2, nr_features_low) << "Keyframe reason: low nr of features ("
                                 << nr_valid_features << " < "
-                                << tracker_.trackerParams_.minNumberFeatures_ <<").";
+                                << tracker_.trackerParams_.min_number_features_ <<").";
 
     if (!tracker_.trackerParams_.useRANSAC_) {
       trackerStatusSummary_.kfTrackingStatus_mono_ = Tracker::TrackingStatus::DISABLED;

@@ -76,7 +76,7 @@ public:
     ransac_randomize_(true),
     // StereoTracker params (kept here for simplicity)
     intra_keyframe_time_(0.2),  // in seconds
-    minNumberFeatures_(0),
+    min_number_features_(0),
     useStereoTracking_(true),
     // other params
     display_time_(100),
@@ -120,7 +120,7 @@ public:
 
   // STEREO parameters:
   double intra_keyframe_time_;
-  int minNumberFeatures_;
+  size_t min_number_features_;
   bool useStereoTracking_; // if set to false pipeline reduces to monocular tracking
 
   // others:
@@ -181,7 +181,7 @@ public:
         (ransac_randomize_ == tp2.ransac_randomize_) &&
         // STEREO parameters:
         (fabs(intra_keyframe_time_ - tp2.intra_keyframe_time_) <= tol) &&
-        (minNumberFeatures_ == tp2.minNumberFeatures_) &&
+        (min_number_features_ == tp2.min_number_features_) &&
         (useStereoTracking_ == tp2.useStereoTracking_) &&
         // others:
         (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol) &&
@@ -238,7 +238,7 @@ public:
 
      << "** STEREO tracker parameters **\n"
      << "intra_keyframe_time_: " << intra_keyframe_time_ << '\n'
-     << "minNumberFeatures_: " << minNumberFeatures_ << '\n'
+     << "minNumberFeatures_: " << min_number_features_ << '\n'
      << "useStereoTracking_: " << useStereoTracking_ << '\n'
 
      << "** OTHER parameters **" << '\n'
@@ -300,7 +300,7 @@ public:
     fs["ransac_randomize"] >> ransac_randomize_;
 
     fs["intra_keyframe_time"] >> intra_keyframe_time_;
-    fs["minNumberFeatures"] >> minNumberFeatures_;
+    fs["minNumberFeatures"] >> min_number_features_;
     fs["useStereoTracking"] >> useStereoTracking_;
 
     fs["display_time"] >> display_time_;
