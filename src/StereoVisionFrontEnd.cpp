@@ -75,24 +75,27 @@ void StereoVisionFrontEnd::processFirstStereoFrame(
 StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     StereoFrame cur_frame, // Pass by value and use move semantics!
     boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu) {
-  VLOG(2)
-      << "===================================================\n"
-      << "Frame number: " << frame_count_ << " at time "
-      << cur_frame.getTimestamp() << " empirical framerate (sec): "
-      << UtilsOpenCV::NsecToSec(cur_frame.getTimestamp() -
-                                stereoFrame_km1_->getTimestamp())
-      << " (timestamp diff: "
-      << cur_frame.getTimestamp() - stereoFrame_km1_->getTimestamp() << ")";
+  VLOG(2) << "===================================================\n"
+          << "Frame number: " << frame_count_ << " at time "
+          << cur_frame.getTimestamp() << " empirical framerate (sec): "
+          << UtilsOpenCV::NsecToSec(cur_frame.getTimestamp() -
+                                    stereoFrame_km1_->getTimestamp())
+          << " (timestamp diff: "
+          << cur_frame.getTimestamp() - stereoFrame_km1_->getTimestamp() << ")";
 
   double start_time = UtilsOpenCV::GetTimeInSeconds();
   double time_to_clone_rect_params = 0;
+
   // ! Using move semantics for efficiency.
   stereoFrame_k_ = std::make_shared<StereoFrame>(std::move(cur_frame));
+
   // Copy rectification from previous frame to avoid recomputing it.
+  // TODO avoid copying altogether...
   stereoFrame_k_->cloneRectificationParameters(*stereoFrame_km1_);
   time_to_clone_rect_params = UtilsOpenCV::GetTimeInSeconds() - start_time;
 
   // Only for visualization.
+  // TODO remove these. Use gflags.
   int verbosityFrames = saveImages_; // default: 0
   int verbosityKeyframes = saveImages_; // default: 1
 
@@ -106,33 +109,36 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   tracker_.featureTracking(left_frame_km1,
                            left_frame_k);
   if (verbosityFrames > 0) {
+    // TODO this won't work in parallel mode...
     tracker_.displayFrame(*left_frame_km1, *left_frame_k, verbosityFrames);
   }
-  /////////////////////// TRACKING /////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
 
   // Not tracking at all in this phase.
-  trackerStatusSummary_.kfTrackingStatus_mono_ = Tracker::TrackingStatus::INVALID;
-  trackerStatusSummary_.kfTrackingStatus_stereo_ = Tracker::TrackingStatus::INVALID;
+  trackerStatusSummary_.kfTrackingStatus_mono_ =
+      Tracker::TrackingStatus::INVALID;
+  trackerStatusSummary_.kfTrackingStatus_stereo_ =
+      Tracker::TrackingStatus::INVALID;
 
   // This will be the info we actually care about
   SmartStereoMeasurements smartStereoMeasurements;
-  // smartStereoMeasurements.clear();
 
-  const bool maxTimeElapsed = UtilsOpenCV::NsecToSec(
-              stereoFrame_k_->getTimestamp() - last_keyframe_timestamp_) >=
-                        tracker_.trackerParams_.intra_keyframe_time_;
-  const int nrValidFeatures = left_frame_k->getNrValidKeypoints();
-  const bool nrFeaturesIsLow = nrValidFeatures <=
-                         tracker_.trackerParams_.minNumberFeatures_;
-  if (maxTimeElapsed || nrFeaturesIsLow) {
+  const bool max_time_elapsed = UtilsOpenCV::NsecToSec(
+        stereoFrame_k_->getTimestamp() - last_keyframe_timestamp_) >=
+                                  tracker_.trackerParams_.intra_keyframe_time_;
+  const size_t nr_valid_features =
+      left_frame_k->getNrValidKeypoints();
+  const bool nr_features_low =
+      nr_valid_features <= tracker_.trackerParams_.minNumberFeatures_;
+  if (max_time_elapsed || nr_features_low) {
     ++keyframe_count_; // mainly for debugging
 
     VLOG(2) << "+++++++++++++++++++++++++++++++++++++++++++++++++++" << "Keyframe after: "
             << UtilsOpenCV::NsecToSec(stereoFrame_k_->getTimestamp() - last_keyframe_timestamp_) << " sec.";
 
-    VLOG_IF(2, maxTimeElapsed) << "Keyframe reason: max time elapsed.";
-    VLOG_IF(2, nrFeaturesIsLow) << "Keyframe reason: low nr of features ("
-                                << nrValidFeatures << " < "
+    VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
+    VLOG_IF(2, nr_features_low) << "Keyframe reason: low nr of features ("
+                                << nr_valid_features << " < "
                                 << tracker_.trackerParams_.minNumberFeatures_ <<").";
 
     if (!tracker_.trackerParams_.useRANSAC_) {
@@ -214,26 +220,26 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     // since if we discard more features, we need to extract more)
     tracker_.featureDetection(left_frame_k);
 
-    // get 3D points via stereo, including newly extracted
-    // (this might be only for the visualization)
+    // Get 3D points via stereo, including newly extracted
+    // (this might be only for the visualization).
     start_time = UtilsOpenCV::GetTimeInSeconds();
     stereoFrame_k_->sparseStereoMatching();
     timeSparseStereo += UtilsOpenCV::GetTimeInSeconds() - start_time;
 
-    // show results
+    // Show results.
     if (verbosityKeyframes > 0) {
       displayStereoTrack(verbosityKeyframes);
       displayMonoTrack(verbosityKeyframes);
     }
 
-    // populate statistics
+    // Populate statistics.
     tracker_.checkStatusRightKeypoints(stereoFrame_k_->right_keypoints_status_);
 
-    // move on
+    // Move on.
     last_landmark_count_ = tracker_.landmark_count_;
     stereoFrame_lkf_ = stereoFrame_k_;
 
-    // get relevant info for keyframe
+    // Get relevant info for keyframe.
     start_time = UtilsOpenCV::GetTimeInSeconds();
     smartStereoMeasurements = getSmartStereoMeasurements(*stereoFrame_k_.get());
     timeGetMeasurements = UtilsOpenCV::GetTimeInSeconds() - start_time;
@@ -245,7 +251,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     stereoFrame_k_->setIsKeyframe(false);
   }
 
-  // Reset frames
+  // Reset frames.
   stereoFrame_km1_ = stereoFrame_k_;
   stereoFrame_k_.reset();
   ++frame_count_;
