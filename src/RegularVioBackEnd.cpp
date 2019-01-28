@@ -86,7 +86,7 @@ RegularVioBackEnd::RegularVioBackEnd(const Pose3& leftCamPose,
                                      const double& baseline,
                                      std::shared_ptr<gtNavState>* initial_state_gt,
                                      const Timestamp& timestamp,
-                                     const ImuAccGyr& imu_accgyr,
+                                     const ImuAccGyrS& imu_accgyr,
                                      const VioBackEndParams& vioParams,
                                      const bool& log_timing,
                                      const BackendModality& backend_modality) :

@@ -78,7 +78,7 @@ private:
                    const VioBackEndParams& vio_params,
                    std::shared_ptr<gtNavState>* initial_state_gt,
                    const Timestamp& timestamp_k,
-                   const ImuAccGyr& imu_accgyr);
+                   const ImuAccGyrS& imu_accgyr);
   // Displaying must be done in the main thread.
   void spinDisplayOnce(
       const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload);
@@ -88,8 +88,8 @@ private:
       StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
-      const ImuStamps& imu_stamps,
-      const ImuAccGyr& imu_accgyr);
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_accgyr);
 
   StatusSmartStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,

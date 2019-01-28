@@ -109,6 +109,7 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     return true;
   }
 
+  // TODO Warning: we do not accumulate IMU measurements for the first packet...
   // Spin.
   VLOG(10) << "Spin pipeline once.";
   spinOnce(stereo_imu_sync_packet);
@@ -129,9 +130,11 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   VLOG(10) << "///////////////////////////////////// Trying to accumulate IMU.";
   const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
   const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
-  static ImuStamps imu_stamps_lkf_to_curr_f;
-  static ImuAccGyr imu_accgyr_lkf_to_curr_f;
-  if (imu_stamps_lkf_to_curr_f.rows() == 0u) {
+  static ImuStampS imu_stamps_lkf_to_curr_f = ImuStampS::Zero(1, 0);
+  static ImuAccGyrS imu_accgyr_lkf_to_curr_f = ImuAccGyrS::Zero(6, 0);
+  if (imu_stamps_lkf_to_curr_f.cols() == 0u) {
+    // This is executed for every keyframe, including the first.
+    // Since the accumulated imu msgs get resetted to 0.
     CHECK_GE(imu_accgyr.cols(), 0u);
     // Init accumulation.
     imu_stamps_lkf_to_curr_f = imu_stamps;
@@ -145,13 +148,15 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     //      // there is only need for 1 removal, to avoid removing an actual
     //      // measurement.
     //      imu_stamps_lkf_to_curr_f.rows() - 1 + imu_stamps.rows(), 1);
-    CHECK_GT(imu_stamps.rows(), 0);
+    CHECK_GT(imu_stamps.cols(), 0);
+    CHECK_GT(imu_stamps_lkf_to_curr_f.cols(), 0);
     imu_stamps_lkf_to_curr_f.conservativeResize(
-          imu_stamps_lkf_to_curr_f.rows() - 1 + imu_stamps.rows(),
-          Eigen::NoChange);
-    imu_stamps_lkf_to_curr_f.bottomRows(imu_stamps.rows()) << imu_stamps;
+          Eigen::NoChange,
+          imu_stamps_lkf_to_curr_f.cols() - 1 + imu_stamps.cols());
+    imu_stamps_lkf_to_curr_f.rightCols(imu_stamps.cols()) << imu_stamps;
 
     CHECK_GT(imu_accgyr.cols(), 0);
+    CHECK_GT(imu_accgyr_lkf_to_curr_f.cols(), 0);
     imu_accgyr_lkf_to_curr_f.conservativeResize(
           Eigen::NoChange,
           imu_accgyr_lkf_to_curr_f.cols() - 1 + imu_accgyr.cols());
@@ -163,6 +168,9 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
            << "ACCGYR IMU rows : \n" << imu_accgyr_lkf_to_curr_f.rows() << '\n'
            << "ACCGYR IMU cols : \n" << imu_accgyr_lkf_to_curr_f.cols() << '\n'
            << "ACCGYR IMU: \n" << imu_accgyr_lkf_to_curr_f;
+  //static auto counter = 0u;
+  //CHECK(counter < 4);
+  //counter++;
   //////////////////////////////////////////////////////////////////////////////
 
   // Keep track of last keyframe timestamp. Honestly, I don't know why...
@@ -214,7 +222,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
     // Reset accumulated imu data from keyframe to keyframe.
     VLOG(10) << "Reset IMU and timestamp_lkf.";
-    imu_stamps_lkf_to_curr_f.resize(0, 1);
+    imu_stamps_lkf_to_curr_f.resize(1, 0);
     imu_accgyr_lkf_to_curr_f.resize(6, 0);
 
     // Reset timestamp for preintegration.
@@ -227,8 +235,8 @@ void Pipeline::processKeyframe(
     StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf,
-    const ImuStamps& imu_stamps,
-    const ImuAccGyr& imu_accgyr) {
+    const ImuStampS& imu_stamps,
+    const ImuAccGyrS& imu_accgyr) {
   CHECK_NOTNULL(statusSmartStereoMeasurements);
   ////////////////////////////// FEATURE SELECTOR //////////////////////////////
   if (FLAGS_use_feature_selection) {
@@ -461,7 +469,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                            const VioBackEndParams& vio_params,
                            std::shared_ptr<gtNavState>* initial_state_gt,
                            const Timestamp& timestamp_k,
-                           const ImuAccGyr& imu_accgyr) {
+                           const ImuAccGyrS& imu_accgyr) {
   CHECK_NOTNULL(vio_backend);
   // Create VIO.
   switch(dataset_->getBackendType()) {

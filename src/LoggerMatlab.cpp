@@ -461,7 +461,7 @@ void LoggerMatlab::displayInitialStateVioInfo(
     const ETHDatasetParser& dataset,
     const std::unique_ptr<VIO::VioBackEnd>& vio,
     gtNavState initialStateGT,
-    const ImuAccGyr& imu_accgyr,
+    const ImuAccGyrS& imu_accgyr,
     const Timestamp timestamp_k) const {
   initialStateGT.print("initialStateGT\n");
   gtsam::Vector3 rpy_gt = initialStateGT.pose_.rotation().rpy(); // such that R = Rot3::Ypr(y,p,r)

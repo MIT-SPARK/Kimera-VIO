@@ -44,7 +44,7 @@ public:
       const double& baseline,
       std::shared_ptr<gtNavState>* initial_state_gt,
       const Timestamp& timestamp,
-      const ImuAccGyr& imu_accgyr,
+      const ImuAccGyrS& imu_accgyr,
       const VioBackEndParams& vioParams = VioBackEndParams(),
       const bool& log_timing = false,
       const BackendModality& backend_modality =

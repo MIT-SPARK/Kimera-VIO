@@ -182,8 +182,8 @@ int main(const int argc, const char *argv[])
   FeatureSelector featureSelector = FeatureSelector(trackerParams,vioParams);
 
   // structures to be filled by imu data
-  ImuStamps imu_stamps;
-  ImuAccGyr imu_accgyr;
+  ImuStampS imu_stamps;
+  ImuAccGyrS imu_accgyr;
 
   size_t initial_k = 10; // useful to skip a bunch of images at the beginning
   if(initial_k < 10)
@@ -208,8 +208,6 @@ int main(const int argc, const char *argv[])
     ////////////////////////////////////////////////////////////////
     // for k == 1 (initial frame)
     if(k==initial_k){
-      // get IMU data
-      std::tie(imu_stamps, imu_accgyr) = dataset.imuData_.imu_buffer_.getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
 
       // create and initialize VIO
       std::shared_ptr<gtNavState> initialStateGT =
@@ -405,8 +403,11 @@ int main(const int argc, const char *argv[])
     outputFile << 0 << " " <<  0 << " " << 0 << " " << 0 << " ";
     //////////////////////////////////////////////////////////////////////////////////////
 
-    // get IMU data
-    std::tie(imu_stamps, imu_accgyr) = dataset.imuData_.imu_buffer_.getBetweenValuesInterpolated(timestamp_lkf, timestamp_k);
+    // Get IMU data.
+    dataset.imuData_.imu_buffer_.getImuDataInterpolatedBorders(timestamp_lkf,
+                                                               timestamp_k,
+                                                               &imu_stamps,
+                                                               &imu_accgyr);
 
     // debug:
     // StereoTracker::PrintStatusStereoMeasurements(statusSmartStereoMeasurements);

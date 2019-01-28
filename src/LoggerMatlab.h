@@ -99,7 +99,7 @@ public:
   void displayInitialStateVioInfo(const ETHDatasetParser& dataset,
                                   const std::unique_ptr<VioBackEnd>& vio,
                                   gtNavState initialStateGT,
-                                  const ImuAccGyr& imu_accgyr,
+                                  const ImuAccGyrS& imu_accgyr,
                                   const Timestamp timestamp_k) const;
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

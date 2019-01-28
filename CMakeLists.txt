@@ -110,6 +110,8 @@ include(src/mesh/CMakeLists.txt)
 include(src/utils/CMakeLists.txt)
 ### Add source code for pipeline
 include(src/pipeline/CMakeLists.txt)
+### Add source code for common
+include(src/common/CMakeLists.txt)
 
 if (DEFINED external_project_dependencies)
   add_dependencies(stereoVIO ${external_project_dependencies})

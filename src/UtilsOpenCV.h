@@ -26,6 +26,11 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/geometry/Unit3.h>
 
+// This is only added so that everybody that adds
+// this file to have Timestamp for example does
+// not complain for now.
+#include "common/vio_types.h"
+
 // Forward declare classes.
 namespace gtsam {
 class Point2;
@@ -56,13 +61,8 @@ namespace opengv {
 typedef Eigen::Matrix<double,3,4> transformation_t;
 }
 
+// TODO remove most of these definitions...
 namespace VIO {
-
-// Scalars
-using size_t  = std::size_t;
-using int64_t = std::int64_t;
-using Timestamp = std::int64_t;
-using uint8_t = std::uint8_t;
 
 // Typedefs of commonly used Eigen matrices and vectors.
 using Point2 = gtsam::Point2;

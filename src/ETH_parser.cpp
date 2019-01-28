@@ -83,24 +83,6 @@ void GroundTruthData::print() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS ImuData                       //////////
-////////////////////////////////////////////////////////////////////////////////
-/* -------------------------------------------------------------------------- */
-void ImuData::print() const {
-  LOG(INFO) << "------------ ImuData::print    -------------";
-  body_Pose_cam_.print("body_Pose_cam_: \n");
-  LOG(INFO) << "\n nominal_imu_rate: " << nominal_imu_rate_ << '\n'
-            << "imu_rate: " << imu_rate_ << '\n'
-            << "imu_rate_std: " << imu_rate_std_ << '\n'
-            << "imu_rate_maxMismatch: " << imu_rate_maxMismatch_ << '\n'
-            << "gyroscope_noise_density: " << gyro_noise_ << '\n'
-            << "gyroscope_random_walk: " << gyro_walk_ << '\n'
-            << "accelerometer_noise_density: " << acc_noise_ << '\n'
-            << "accelerometer_random_walk: " << acc_walk_ << '\n'
-            << "nr of imu measurements: " << imu_buffer_.size();
-}
-
-////////////////////////////////////////////////////////////////////////////////
 //////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -154,36 +136,21 @@ bool ETHDatasetParser::spin() {
   const gtsam::Pose3& camL_pose_camR = getCamLPoseCamR();
   for (FrameId k = initial_k_; k < final_k_; k++) {
       Timestamp timestamp_frame_k = timestampAtFrame(k);
-      ImuStamps imu_stamps;
-      ImuAccGyr imu_accgyr;
-      std::tie(imu_stamps, imu_accgyr) = imuData_.imu_buffer_.
-          getBetweenValuesInterpolated(timestamp_last_frame,
-                                       timestamp_frame_k);
+      ImuMeasurements imu_meas;
+      CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
+               imuData_.imu_buffer_.getImuDataInterpolatedBorders(
+                 timestamp_last_frame,
+                 timestamp_frame_k,
+                 &imu_meas.timestamps_,
+                 &imu_meas.measurements_));
 
       VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
-               << "STAMPS IMU rows : \n" << imu_stamps.rows() << '\n'
-               << "STAMPS IMU cols : \n" << imu_stamps.cols() << '\n'
-               << "STAMPS IMU: \n" << imu_stamps << '\n'
-               << "ACCGYR IMU rows : \n" << imu_accgyr.rows() << '\n'
-               << "ACCGYR IMU cols : \n" << imu_accgyr.cols() << '\n'
-               << "ACCGYR IMU: \n" << imu_accgyr;
-
-      //// DELETE.
-      if (VLOG_IS_ON(10)) {
-        ImuStamps imu_stamps_interp;
-        ImuAccGyr imu_accgyr_interp;
-        std::tie(imu_stamps_interp, imu_accgyr_interp) = imuData_.imu_buffer_.
-            getBetweenValuesInterpolated(timestamp_last_frame,
-                                         timestamp_frame_k,
-                                         false);
-        VLOG(10) << "////////////////////////////////////////// Creating NON INTERPOLATED packet!";
-        VLOG(10) << "STAMPS IMU rows : \n" << imu_stamps_interp.rows() << '\n'
-                 << "STAMPS IMU cols : \n" << imu_stamps_interp.cols() << '\n'
-                 << "STAMPS IMU: \n" << imu_stamps_interp << '\n'
-                 << "ACCGYR IMU rows : \n" << imu_accgyr_interp.rows() << '\n'
-                 << "ACCGYR IMU cols : \n" << imu_accgyr_interp.cols() << '\n'
-                 << "ACCGYR IMU: \n" << imu_accgyr_interp;
-      }
+               << "STAMPS IMU rows : \n" << imu_meas.timestamps_.rows() << '\n'
+               << "STAMPS IMU cols : \n" << imu_meas.timestamps_.cols() << '\n'
+               << "STAMPS IMU: \n" << imu_meas.timestamps_ << '\n'
+               << "ACCGYR IMU rows : \n" << imu_meas.measurements_.rows() << '\n'
+               << "ACCGYR IMU cols : \n" << imu_meas.measurements_.cols() << '\n'
+               << "ACCGYR IMU: \n" << imu_meas.measurements_;
 
       timestamp_last_frame = timestamp_frame_k;
 
@@ -209,8 +176,8 @@ bool ETHDatasetParser::spin() {
                                   right_cam_info,
                                   camL_pose_camR,
                                   stereo_matching_params),
-                      imu_stamps,
-                      imu_accgyr));
+                      imu_meas.timestamps_,
+                      imu_meas.measurements_));
       VLOG(10) << "Finished VIO processing for frame k = " << k;
   } // End of for loop.
   return true;
@@ -377,7 +344,7 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
     double normRotRate = gyroAccData.head(3).norm();
     if(normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
 
-    imuData_.imu_buffer_.insert(timestamp, imu_accgyr);
+    imuData_.imu_buffer_.addMeasurement(timestamp, imu_accgyr);
     if (previous_timestamp == -1) {
       // Do nothing.
       previous_timestamp = timestamp;

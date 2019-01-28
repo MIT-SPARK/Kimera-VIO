@@ -229,8 +229,8 @@ struct VioBackEndInputPayload {
       const Timestamp& timestamp_kf_nsec,
       const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
       const Tracker::TrackingStatus& stereo_tracking_status, // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
-      const ImuStamps& imu_stamps,
-      const ImuAccGyr& imu_accgyr,
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_accgyr,
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
     : timestamp_kf_nsec_(timestamp_kf_nsec),
@@ -245,8 +245,8 @@ struct VioBackEndInputPayload {
   const Tracker::TrackingStatus stereo_tracking_status_; // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
   // I believe we do not need EIGEN_MAKE_ALIGNED_OPERATOR_NEW for these members
   // as they are dynamic eigen, not "fixed-size vectorizable matrices and vectors."
-  const ImuStamps imu_stamps_;
-  const ImuAccGyr imu_accgyr_;
+  const ImuStampS imu_stamps_;
+  const ImuAccGyrS imu_accgyr_;
   std::vector<Plane>* planes_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
 };
@@ -328,7 +328,7 @@ public:
              const double& baseline,
              std::shared_ptr<gtNavState>* initial_state_gt,
              const Timestamp& timestamp,
-             const ImuAccGyr& imu_accgyr,
+             const ImuAccGyrS& imu_accgyr,
              const VioBackEndParams& vioParams,
              const bool log_timing = false);
 
@@ -356,18 +356,18 @@ public:
   void addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-      const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
+      const ImuStampS& imu_stamps, const ImuAccGyrS& imu_accgyr,
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   /* ------------------------------------------------------------------------ */
   // NOT THREAD-SAFE
-  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamps& imu_stamps,
-                                           const ImuAccGyr& imu_accgyr) const;
+  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,
+                                           const ImuAccGyrS& imu_accgyr) const;
 
   /* ------------------------------------------------------------------------ */
   // TODO only public because it is used for testing...
-  static gtsam::Pose3 guessPoseFromIMUmeasurements(const ImuAccGyr& accGyroRaw,
+  static gtsam::Pose3 guessPoseFromIMUmeasurements(const ImuAccGyrS& accGyroRaw,
                                                    const Vector3& n_gravity,
                                                    const bool& round = true);
 
@@ -479,15 +479,15 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Integrate imu measurements into pim_.
-  void integrateImuMeasurements(const ImuStamps& imu_stamps,
-                                const ImuAccGyr& imu_accgyr);
+  void integrateImuMeasurements(const ImuStampS& imu_stamps,
+                                const ImuAccGyrS& imu_accgyr);
 
   /* ------------------------------------------------------------------------ */
   // Sets initial state at given pose, zero velociy and with imu bias obtained
   // by assuming steady upright platform.
   void initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
                              const Pose3& initialPose,
-                             const ImuAccGyr& accGyroRaw);
+                             const ImuAccGyrS& accGyroRaw);
 
   /* ------------------------------------------------------------------------ */
   // Set initial state at given pose, velocity and bias.
@@ -499,7 +499,7 @@ private:
   /* ------------------------------------------------------------------------ */
   // Add initial prior factors.
   void addInitialPriorFactors(const FrameId& frame_id,
-                              const ImuAccGyr& imu_accgyr);
+                              const ImuAccGyrS& imu_accgyr);
 
   /* ------------------------------------------------------------------------ */
   void addConstantVelocityFactor(const FrameId& from_id,
@@ -697,6 +697,10 @@ public:
     return smoother_->getFactors();
   }
 
+  /* ------------------------------------------------------------------------ */
+  static ImuBias initImuBias(const ImuAccGyrS& accGyroRaw,
+                             const Vector3& n_gravity);
+
 protected:
   // Raw, user-specified params.
   const VioBackEndParams vio_params_;
@@ -778,7 +782,6 @@ bool VioBackEnd::getEstimateOfKey(const gtsam::Key& key, T* estimate) const {
   }
   return false;
 }
-
 
 } // namespace VIO
 #endif /* VioBackEnd_H_ */

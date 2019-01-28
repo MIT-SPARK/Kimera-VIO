@@ -19,8 +19,8 @@
 
 namespace VIO {
 StereoImuSyncPacket::StereoImuSyncPacket(StereoFrame stereo_frame,
-                                         ImuStamps imu_stamps,
-                                         ImuAccGyr imu_accgyr)
+                                         ImuStampS imu_stamps,
+                                         ImuAccGyrS imu_accgyr)
   : stereo_frame_(std::move(stereo_frame)),
     imu_stamps_(std::move(imu_stamps)),
     imu_accgyr_(std::move(imu_accgyr)) {}

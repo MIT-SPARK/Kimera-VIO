@@ -37,29 +37,6 @@
 
 namespace VIO {
 
-/*
- * Class describing the imu parameters, to be read from the ETH dataset.
- */
-class ImuData {
-public:
-  // Imu buffer with virtually infinite memory!
-  ImuData() : imu_buffer_(INT64_MAX) {}
-
-  gtsam::Pose3 body_Pose_cam_;
-  double imu_rate_;
-  double nominal_imu_rate_;
-  double imu_rate_std_;
-  double imu_rate_maxMismatch_;
-  double gyro_noise_;
-  double gyro_walk_;
-  double acc_noise_;
-  double acc_walk_;
-
-  ImuFrontEnd imu_buffer_;
-public:
-  void print() const;
-};
-
 // TODO make new file for Ground Truth Data and the like,
 // because it is used by the backend and the feature selector.
 // Leaving it in the parser forces these modules to include a parser which is

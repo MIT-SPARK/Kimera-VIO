@@ -56,7 +56,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const double& baseline,
                        std::shared_ptr<gtNavState>* initial_state_gt,
                        const Timestamp& timestamp_k,
-                       const ImuAccGyr& imu_accgyr,
+                       const ImuAccGyrS& imu_accgyr,
                        const VioBackEndParams& vioParams,
                        const bool log_timing):
   B_Pose_leftCam_(leftCamPose),
@@ -185,13 +185,13 @@ bool VioBackEnd::spinOnce(
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
                                        const Pose3& initialPose,
-                                       const ImuAccGyr& accGyroRaw) {
+                                       const ImuAccGyrS& accGyroRaw) {
   Vector3 localGravity = initialPose.rotation().inverse().matrix() *
                          imu_params_->n_gravity;
   initStateAndSetPriors(timestamp_kf_nsec,
                         initialPose,
                         Vector3::Zero(),
-                        ImuFrontEnd::initImuBias(accGyroRaw, localGravity));
+                        initImuBias(accGyroRaw, localGravity));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -231,7 +231,7 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
 void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-    const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
+    const ImuStampS& imu_stamps, const ImuAccGyrS& imu_accgyr,
     std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   // Do preintegration (batch on all measurements)
@@ -431,12 +431,15 @@ void VioBackEnd::updateLandmarkInGraph(
 // And this function is called outside VioBackEnd thread... for the
 // frontend to have a rotation prior for feature tracking.
 gtsam::Rot3 VioBackEnd::preintegrateGyroMeasurements(
-    const ImuStamps& imu_stamps,
-    const ImuAccGyr& imu_accgyr) const {
+    const ImuStampS& imu_stamps,
+    const ImuAccGyrS& imu_accgyr) const {
+  CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
+  CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
+
   // Ahrs: attitude reference system. attitude only
   gtsam::PreintegratedAhrsMeasurements pimRot(imu_bias_prev_kf_.gyroscope(), // This is not thread-safe!
                                               gtsam::Matrix3::Identity());
-  for (int i = 0; i < imu_stamps.size() - 1; ++i) {
+  for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
     const Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
     const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
                                                    imu_stamps(i));
@@ -448,7 +451,7 @@ gtsam::Rot3 VioBackEnd::preintegrateGyroMeasurements(
 
 /* -------------------------------------------------------------------------- */
 gtsam::Pose3 VioBackEnd::guessPoseFromIMUmeasurements(
-    const ImuAccGyr& accGyroRaw,
+    const ImuAccGyrS& accGyroRaw,
     const Vector3& n_gravity,
     const bool& round) {
   // Compute average of initial measurements.
@@ -775,9 +778,10 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
 
 /* -------------------------------------------------------------------------- */
 // NOT THREAD-SAFE, imu_bias_prev_kf_ might change.
-void VioBackEnd::integrateImuMeasurements(const ImuStamps& imu_stamps,
-                                          const ImuAccGyr& imu_accgyr) {
-  CHECK(imu_stamps.size() >= 2) << "No Imu data found.";
+void VioBackEnd::integrateImuMeasurements(const ImuStampS& imu_stamps,
+                                          const ImuAccGyrS& imu_accgyr) {
+  CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
+  CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
 
   if (!pim_) {
     pim_ = std::make_shared<PreintegratedImuMeasurements>(imu_params_,
@@ -786,7 +790,7 @@ void VioBackEnd::integrateImuMeasurements(const ImuStamps& imu_stamps,
     pim_->resetIntegrationAndSetBias(imu_bias_prev_kf_);
   }
 
-  for (int i = 0; i < imu_stamps.size() - 1; ++i) {
+  for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
     const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
     const Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
     const double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
@@ -1078,7 +1082,7 @@ void VioBackEnd::optimize(
 /// Private methods.
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id,
-                                        const ImuAccGyr& imu_accgyr) {
+                                        const ImuAccGyrS& imu_accgyr) {
   // Set initial covariance for inertial factors
   // W_Pose_Blkf_ set by motion capture to start with
   Matrix3 B_Rot_W = W_Pose_B_lkf_.rotation().matrix().transpose();
@@ -2225,6 +2229,28 @@ bool VioBackEnd::deleteLmkFromFeatureTracks(const LandmarkId& lmk_id) {
     return true;
   }
   return false;
+}
+
+
+/* -------------------------------------------------------------------------- */
+ImuBias VioBackEnd::initImuBias(const ImuAccGyrS& accGyroRaw,
+                                const Vector3& n_gravity) {
+  LOG(WARNING) << "imuBiasInitialization: currently assumes that the vehicle is"
+                  " stationary and upright!";
+  Vector3 sumAccMeasurements = Vector3::Zero();
+  Vector3 sumGyroMeasurements = Vector3::Zero();
+  const size_t& nrMeasured = accGyroRaw.cols();
+  for (size_t i = 0; i < nrMeasured; i++) {
+    const Vector6& accGyroRaw_i = accGyroRaw.col(i);
+    sumAccMeasurements  += accGyroRaw_i.head(3);
+    sumGyroMeasurements += accGyroRaw_i.tail(3);
+  }
+
+  // Avoid the dark world of Undefined Behaviour...
+  CHECK_NE(nrMeasured, 0) << "About to divide by 0!";
+
+  return ImuBias(sumAccMeasurements / double(nrMeasured) + n_gravity,
+                 sumGyroMeasurements / double(nrMeasured));
 }
 
 } // namespace VIO.

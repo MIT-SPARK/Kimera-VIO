@@ -19,6 +19,7 @@
 #include "VioBackEnd.h"
 #include "ETH_parser.h" // only for gtNavState...
 #include "test_config.h"
+#include "utils/ThreadsafeImuBuffer.h"
 
 // Add last, since it redefines CHECK, which is first defined by glog.
 #include <CppUnitLite/TestHarness.h>
@@ -83,19 +84,20 @@ StereoPoses CreateCameraPoses(const int num_keyframes,
 }
 
 /* ------------------------------------------------------------------------- */
-void CreateImuBuffer(ImuFrontEnd& imu_buf, const int num_frames, const Vector3 v,
+void CreateImuBuffer(VIO::utils::ThreadsafeImuBuffer& imu_buf, const int num_frames, const Vector3 v,
     const ImuBias imu_bias, const Vector3 n_gravity,
     const Timestamp time_step, const Timestamp t_start) {
   // Synthesize IMU measurements
   for (int f_id = 0; f_id < num_frames; f_id++) {
-
     Vector6 acc_gyr;
     // constant speed, no acceleration
     acc_gyr.head(3) = -n_gravity + imu_bias.accelerometer();
     // Camera axis aligned with the world axis in this example
     acc_gyr.tail(3) = imu_bias.gyroscope();
-    Timestamp t = ((int64_t) f_id) * time_step + t_start;
-    imu_buf.insert(t, acc_gyr);
+    Timestamp t = int64_t(f_id) * time_step + t_start;
+    imu_buf.addMeasurement(t, acc_gyr);
+    LOG(INFO) << "Timestamp: " << t;
+    LOG(INFO) << "Accgyr: " << acc_gyr;
   }
 }
 
@@ -130,7 +132,7 @@ TEST(testVio, GuessPoseFromIMUmeasurements) {
     }
 
     size_t n = 10;
-    ImuAccGyr accGyroRaw;
+    ImuAccGyrS accGyroRaw;
     accGyroRaw.resize(6, n); // n identical measurements
     for(size_t i=0; i<n; i++)
       accGyroRaw.col(i) << -a , Vector3::Zero(); // we measure the opposite of gravity
@@ -163,7 +165,7 @@ TEST(testVio, GuessPoseFromIMUmeasurements) {
 TEST(testVio, InitializeImuBias) {
   // Synthesize the data
   const int num_measurements = 100;
-  ImuAccGyr imu_accgyr;
+  ImuAccGyrS imu_accgyr;
   imu_accgyr.resize(6, num_measurements);
   Vector3 n_gravity(1.1, 2.2, 3.3); // random numbers, just for the test
   srand(0);
@@ -176,7 +178,7 @@ TEST(testVio, InitializeImuBias) {
   }
 
   // Compute the actual bias!
-  ImuBias imu_bias_actual = ImuFrontEnd::initImuBias(imu_accgyr, n_gravity);
+  ImuBias imu_bias_actual = VioBackEnd::initImuBias(imu_accgyr, n_gravity);
 
   // Compute the expected value!
   Vector6 imu_mean = Vector6::Zero();
@@ -218,7 +220,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
   // Create camera poses and IMU data
   StereoPoses poses;
-  ImuFrontEnd imu_buf;
+  VIO::utils::ThreadsafeImuBuffer imu_buf (-1);
   poses = CreateCameraPoses(num_key_frames, baseline, p0, v);
   CreateImuBuffer(imu_buf, num_key_frames, v, imu_bias,
       vioParams.n_gravity_, time_step, t_start);
@@ -250,20 +252,25 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   Pose3 B_pose_camLrect(Rot3::identity(), Vector3::Zero());
   std::shared_ptr<gtNavState> initial_state = std::make_shared<gtNavState>(
         poses[0].first, v, imu_bias);
-  boost::shared_ptr<VioBackEnd> vio = boost::make_shared<VioBackEnd>(B_pose_camLrect,
-      cam_params, baseline, &initial_state, t_start, ImuAccGyr(), vioParams);
+  boost::shared_ptr<VioBackEnd> vio = boost::make_shared<VioBackEnd>(
+        B_pose_camLrect, cam_params,
+        baseline, &initial_state,
+        t_start, ImuAccGyrS(), vioParams);
 
-  // For each frame, add landmarks and optimize
+  // For each frame, add landmarks and optimize.
   for(int64_t k = 1; k < num_key_frames; k++) {
-    // Time stamp for the current keyframe and the next frame
+    // Time stamp for the current keyframe and the next frame.
     Timestamp timestamp_lkf = (k - 1) * time_step + t_start;
     Timestamp timestamp_k = k * time_step + t_start;
 
     // Get the IMU data
-    ImuStamps imu_stamps;
-    ImuAccGyr imu_accgyr;
-    tie(imu_stamps, imu_accgyr) = imu_buf.getBetweenValuesInterpolated(
-        timestamp_lkf, timestamp_k);
+    ImuStampS imu_stamps;
+    ImuAccGyrS imu_accgyr;
+    CHECK(imu_buf.getImuDataInterpolatedUpperBorder(timestamp_lkf,
+                                                    timestamp_k,
+                                                    &imu_stamps,
+                                                    &imu_accgyr) ==
+          VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
 
     // process data with VIO
     vio->addVisualInertialStateAndOptimize(
@@ -303,9 +310,13 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 }
 
 /* ************************************************************************* */
-int main() {
-  // Initialize the data!
-  // initializeData();
+int main(int argc, char *argv[]) {
+  // Initialize Google's flags library.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  // Initialize Google's logging library.
+  google::InitGoogleLogging(argv[0]);
+  // google::SetStderrLogging(google::INFO); // Used to debug.
 
-  TestResult tr; return TestRegistry::runAllTests(tr); }
+  TestResult tr; return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************* */

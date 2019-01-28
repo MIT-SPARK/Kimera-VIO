@@ -25,19 +25,19 @@ class StereoImuSyncPacket {
 public:
   StereoImuSyncPacket() = delete;
   StereoImuSyncPacket(StereoFrame stereo_frame,
-                      ImuStamps imu_stamps,
-                      ImuAccGyr imu_accgyr);
+                      ImuStampS imu_stamps,
+                      ImuAccGyrS imu_accgyr);
   ~StereoImuSyncPacket() = default;
 
   // Careful, returning references to members can lead to dangling refs.
   inline const StereoFrame& getStereoFrame() const {return stereo_frame_;}
-  inline const ImuStamps& getImuStamps() const {return imu_stamps_;}
-  inline const ImuAccGyr& getImuAccGyr() const {return imu_accgyr_;}
+  inline const ImuStampS& getImuStamps() const {return imu_stamps_;}
+  inline const ImuAccGyrS& getImuAccGyr() const {return imu_accgyr_;}
 
 private:
   StereoFrame stereo_frame_;
-  ImuStamps imu_stamps_;
-  ImuAccGyr imu_accgyr_;
+  ImuStampS imu_stamps_;
+  ImuAccGyrS imu_accgyr_;
 };
 
 } // End of VIO namespace.
