@@ -140,18 +140,11 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     imu_stamps_lkf_to_curr_f = imu_stamps;
     imu_accgyr_lkf_to_curr_f = imu_accgyr;
   } else {
-    // TODO we are repeating IMU data due to the implicit interpolation.
-    // Decouple interpolation from IMU querying.
-    //      // The -1 is there to avoid duplicated IMU measurement.
-    //      // The one being interpolated in the middle! It is interpolated twice,
-    //      // but since for Euroc timestamps of stereo frames and IMU coincide,
-    //      // there is only need for 1 removal, to avoid removing an actual
-    //      // measurement.
-    //      imu_stamps_lkf_to_curr_f.rows() - 1 + imu_stamps.rows(), 1);
     CHECK_GT(imu_stamps.cols(), 0);
     CHECK_GT(imu_stamps_lkf_to_curr_f.cols(), 0);
     imu_stamps_lkf_to_curr_f.conservativeResize(
           Eigen::NoChange,
+          // The -1 is here to remove the interpolated "fake" upper bound.
           imu_stamps_lkf_to_curr_f.cols() - 1 + imu_stamps.cols());
     imu_stamps_lkf_to_curr_f.rightCols(imu_stamps.cols()) << imu_stamps;
 
@@ -159,6 +152,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     CHECK_GT(imu_accgyr_lkf_to_curr_f.cols(), 0);
     imu_accgyr_lkf_to_curr_f.conservativeResize(
           Eigen::NoChange,
+          // The -1 is here to remove the interpolated "fake" upper bound.
           imu_accgyr_lkf_to_curr_f.cols() - 1 + imu_accgyr.cols());
     imu_accgyr_lkf_to_curr_f.rightCols(imu_accgyr.cols()) << imu_accgyr;
   }
@@ -168,9 +162,6 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
            << "ACCGYR IMU rows : \n" << imu_accgyr_lkf_to_curr_f.rows() << '\n'
            << "ACCGYR IMU cols : \n" << imu_accgyr_lkf_to_curr_f.cols() << '\n'
            << "ACCGYR IMU: \n" << imu_accgyr_lkf_to_curr_f;
-  //static auto counter = 0u;
-  //CHECK(counter < 4);
-  //counter++;
   //////////////////////////////////////////////////////////////////////////////
 
   // Keep track of last keyframe timestamp. Honestly, I don't know why...

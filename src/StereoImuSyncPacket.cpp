@@ -23,6 +23,15 @@ StereoImuSyncPacket::StereoImuSyncPacket(StereoFrame stereo_frame,
                                          ImuAccGyrS imu_accgyr)
   : stereo_frame_(std::move(stereo_frame)),
     imu_stamps_(std::move(imu_stamps)),
-    imu_accgyr_(std::move(imu_accgyr)) {}
+    imu_accgyr_(std::move(imu_accgyr)) {
+  CHECK_GT(imu_stamps_.cols(), 0u);
+  CHECK_GT(imu_accgyr_.cols(), 0u);
+  CHECK_EQ(imu_stamps_.cols(), imu_accgyr_.cols());
+  // The timestamp of the last IMU measurement must correspond to the timestamp
+  // of the stereo frame. In case there is no IMU measurement with exactly
+  // the same timestamp as the stereo frame, the user should interpolate
+  // IMU measurements to get a value at the time of the stereo_frame.
+  CHECK_EQ(stereo_frame_.getTimestamp(), imu_stamps_(imu_stamps_.cols() - 1));
+}
 
 } // End of VIO namespace.

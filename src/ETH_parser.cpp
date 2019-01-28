@@ -138,7 +138,7 @@ bool ETHDatasetParser::spin() {
       Timestamp timestamp_frame_k = timestampAtFrame(k);
       ImuMeasurements imu_meas;
       CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
-               imuData_.imu_buffer_.getImuDataInterpolatedBorders(
+               imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
                  timestamp_last_frame,
                  timestamp_frame_k,
                  &imu_meas.timestamps_,
@@ -165,7 +165,8 @@ bool ETHDatasetParser::spin() {
       // TODO alternatively push here to a queue, and give that queue to the
       // VIO pipeline so it can pull from it.
       // Call VIO Pipeline.
-      VLOG(10) << "Call VIO processing for frame k: " << k;
+      VLOG(10) << "Call VIO processing for frame k: " << k
+               << " with timestamp: " << timestamp_frame_k;
       vio_callback_(StereoImuSyncPacket(
                       StereoFrame(k, timestamp_frame_k,
                                   UtilsOpenCV::ReadAndConvertToGrayScale(
