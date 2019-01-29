@@ -300,7 +300,7 @@ public:
     fs["ransac_randomize"] >> ransac_randomize_;
 
     fs["intra_keyframe_time"] >> intra_keyframe_time_;
-    fs["minNumberFeatures"] >> min_number_features_;
+    min_number_features_ = static_cast<size_t>(int(fs["minNumberFeatures"]));
     fs["useStereoTracking"] >> useStereoTracking_;
 
     fs["display_time"] >> display_time_;

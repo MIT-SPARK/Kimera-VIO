@@ -85,12 +85,14 @@ void GroundTruthData::print() const {
 ////////////////////////////////////////////////////////////////////////////////
 //////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
 ////////////////////////////////////////////////////////////////////////////////
-
-ETHDatasetParser::ETHDatasetParser()
-  : imuData_() {
+ ETHDatasetParser::ETHDatasetParser()
+  : DataProvider(),
+    imuData_() {
   setBackendParamsType(FLAGS_backend_type, &backend_params_);
   parse(&initial_k_, &final_k_, backend_params_, &frontend_params_);
 }
+
+ETHDatasetParser::~ETHDatasetParser() {}
 
 void ETHDatasetParser::setBackendParamsType(
     const int backend_type,
@@ -104,11 +106,6 @@ void ETHDatasetParser::setBackendParamsType(
                          << " 0: normalVio, 1: RegularVio.";
   }
   }
-}
-
-void ETHDatasetParser::registerVioCallback(
-    std::function<bool(const StereoImuSyncPacket&)> callback) {
-  vio_callback_ = std::move(callback);
 }
 
 bool ETHDatasetParser::spin() {

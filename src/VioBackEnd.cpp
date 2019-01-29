@@ -429,7 +429,7 @@ void VioBackEnd::updateLandmarkInGraph(
 /* -------------------------------------------------------------------------- */
 // NOT THREAD-SAFE
 // And this function is called outside VioBackEnd thread... for the
-// frontend to have a rotation prior for feature tracking.
+// frontend to have a rotation prior for RANSAC.
 gtsam::Rot3 VioBackEnd::preintegrateGyroMeasurements(
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_accgyr) const {

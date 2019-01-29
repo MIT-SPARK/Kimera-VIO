@@ -34,6 +34,7 @@
 #include "VioBackEndParams.h"
 #include "RegularVioBackEndParams.h"
 #include "StereoImuSyncPacket.h"
+#include "datasource/DataSource.h"
 
 namespace VIO {
 
@@ -100,21 +101,15 @@ public:
 /*
  * Parse all images and camera calibration for an ETH dataset
  */
-class ETHDatasetParser {
+class ETHDatasetParser : public DataProvider {
 public:
   ETHDatasetParser();
+  virtual ~ETHDatasetParser();
 
   // Decides backend parameters depending on the backend chosen.
   // 0: Vanilla VIO 1: regularVIO
   void setBackendParamsType(const int backend_type,
                             std::shared_ptr<VioBackEndParams>* vioParams) const;
-
-  // Main function, register callback.
-  void registerVioCallback(
-      std::function<bool(const StereoImuSyncPacket&)> callback);
-
-  // Vio callback.
-  std::function<bool(const StereoImuSyncPacket&)> vio_callback_;
 
   // Gt data.
   GroundTruthData gtData_;
@@ -145,7 +140,7 @@ public:
 
 public:
   // Spin dataset.
-  bool spin();
+  virtual bool spin();
 
   // Helper function to parse Euroc dataset.
   void parse(size_t* initial_k, size_t* final_k,
