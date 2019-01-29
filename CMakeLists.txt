@@ -125,9 +125,6 @@ target_link_libraries (stereoVIOEuroc stereoVIO)
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
 target_link_libraries (stereoVIOSimulation stereoVIO)
 
-add_executable(regularFactorGraph ./examples/regularFactorGraphExample.cpp)
-target_link_libraries(regularFactorGraph stereoVIO)
-
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
 
