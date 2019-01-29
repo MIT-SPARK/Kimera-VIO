@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.1)
-project (VIO CXX C)
+project (spark_vio)
 # set(CMAKE_CXX_FLAGS "-std=c++11") #  -stdlib=libc++
 # set(CMAKE_CXX_FLAGS "-stdlib=libc++")
 
