@@ -210,7 +210,7 @@ TEST(testFrame, visualizeMesh2D) {
 
   // compute mesh
   f.createMesh2D();
-  f.visualizeMesh2D(100);
+  //f.visualizeMesh2D(100);
 }
 
 /* ************************************************************************* */
