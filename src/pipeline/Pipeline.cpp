@@ -34,6 +34,9 @@ DEFINE_int32(regular_vio_backend_modality, 4,
              "3: Projection and regularity, sets all structureless factors to"
              "projection factors and adds regularity factors to a subset.\n"
              "4: structureless, projection and regularity factors used.");
+DEFINE_bool(extract_planes_from_the_scene, false,
+             "Whether to use structural regularities in the scene,"
+             "currently only planes");
 
 DEFINE_bool(visualize, true, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
@@ -350,10 +353,11 @@ void Pipeline::processKeyframe(
 
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
-    //if (dataset_->getBackendType() == 1) {
-    //  mesher_.clusterPlanesFromMesh(&planes_,
-    //                                points_with_id_VIO);
-    //}
+    if (dataset_->getBackendType() == 1 &&
+        FLAGS_extract_planes_from_the_scene) {
+      mesher_.clusterPlanesFromMesh(&planes_,
+                                    points_with_id_VIO);
+    }
 
     // In the mesher thread push queue with meshes for visualization.
     if (!mesher_output_queue_.popBlocking(mesher_output_payload)) { //Use blocking to avoid skipping frames.

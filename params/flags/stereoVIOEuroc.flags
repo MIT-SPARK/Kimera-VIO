@@ -16,3 +16,4 @@
 #--visualize_load_mesh_filename=/home/tonirv/datasets/euroc/V1_01_easy/mav0/pointcloud0/data.ply
 --viz_type=4
 --min_num_obs_for_mesher_points=4
+--extract_planes_from_the_scene=false
