@@ -29,14 +29,16 @@ public:
   Mesh(const size_t& polygon_dimension = 3);
 
   // Delete copy constructor.
-  Mesh(const Mesh& rhs_mesh) = delete;
+  // Performs a deep copy (clones) the data members.
+  Mesh(const Mesh& rhs_mesh);
 
   // Copy assignement operator.
   // Performs a deep copy (clones) the data members.
   Mesh& operator=(const Mesh& mesh);
 
-  // Delete move constructor.
-  Mesh(Mesh&& mesh) = delete;
+  // Use default move constructor.
+  // TODO define explicitly what the move ctor shall look like.
+  Mesh(Mesh&& mesh) = default;
 
   // Delete move assignement operator.
   Mesh& operator=(Mesh&& mesh) = delete;
@@ -130,6 +132,18 @@ public:
   bool getVertex(const LandmarkId& lmk_id, VertexPositionType* vertex) const;
 
 private:
+  /// Functions
+  // Updates internal structures to add a vertex.
+  // Used by addPolygonToMesh, it is not supposed to be used by the end user.
+  void updateMeshDataStructures(
+      const LandmarkId& lmk_id,
+      const VertexPositionType& lmk_position,
+      std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
+      std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
+      cv::Mat* vertices_mesh,
+      cv::Mat* polygon_mesh) const;
+
+private:
   /// TODO change internal structures for the mesh with std::vector<Polygon>.
 
   /// Members
@@ -155,17 +169,6 @@ private:
 
   // Number of vertices per polygon.
   const size_t polygon_dimension_;
-
-  /// Functions
-  // Updates internal structures to add a vertex.
-  // Used by addPolygonToMesh, it is not supposed to be used by the end user.
-  void updateMeshDataStructures(
-      const LandmarkId& lmk_id,
-      const VertexPositionType& lmk_position,
-      std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
-      std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
-      cv::Mat* vertices_mesh,
-      cv::Mat* polygon_mesh) const;
 };
 
 // For example, pixels.

@@ -127,8 +127,8 @@ public:
   bool useSuccessProbabilities_;
 
   // Constructor.
-  FeatureSelector(const VioFrontEndParams trackerParams,
-                  const VioBackEndParams vioParams) {
+  FeatureSelector(const VioFrontEndParams& trackerParams = VioFrontEndParams(),
+                  const VioBackEndParams& vioParams = VioBackEndParams()) {
     imuDeltaT_ = trackerParams.featureSelectionImuRate_;
     // Variance, converted to discrete time, see ImuFactor.cpp
     accVarianceDiscTime_ = pow(vioParams.accNoiseDensity_,2) / imuDeltaT_;
@@ -498,7 +498,7 @@ public:
   static boost::tuple<int, double, gtsam::Vector>
   SmallestEigsPowerIter(const gtsam::Matrix& M){
 
-    double minEig = 0; int maxIter=1e7; double tol=1e-4;
+    int maxIter=1e7; double tol=1e-4;
 
     // initialize vector
     gtsam::Vector xold = gtsam::Vector::Zero(M.cols());
@@ -1113,9 +1113,21 @@ public:
       const int& nrFeaturesToSelect,
       const int& maxFeatureAge,
       const KeyframeToStampedPose& posesAtFutureKeyframes,
-      const gtsam::Matrix& currNavStateCovariance,
+      const gtsam::Matrix& curr_state_cov,
       const std::string& dataset_name,
       const Frame& frame_km1) {
+    // ToDo init to invalid value.
+    gtsam::Matrix currNavStateCovariance;
+    if (criterion != VioFrontEndParams::FeatureSelectionCriterion::QUALITY) {
+      VLOG(100) << "Using feature selection criterion diff than QUALITY ";
+      try {
+        currNavStateCovariance = curr_state_cov;
+      } catch(const gtsam::IndeterminantLinearSystemException& e) {
+        LOG(ERROR) << "Error when calculating current state covariance.";
+      }
+    } else {
+      VLOG(100) << "Using QUALITY as feature selection criterion";
+    }
 
     //////////////////////////////////////////////////////////////////
     // 1) split tracked VS new features:
@@ -1252,12 +1264,12 @@ public:
 
         if(featureSelectionData.keypoints_3d.size() != featureSelectionData.keypointLife.size())
           throw std::runtime_error("stereoVioExample: keypoint age inconsistent with keypoint 3D");
-        featureSelectionData.body_P_leftCam = stereoFrame_km1->B_Pose_camLrect;
+        featureSelectionData.body_P_leftCam = stereoFrame_km1->getBPoseCamLRect();
         featureSelectionData.body_P_rightCam = // rectified right camera only has a translation along x = baseline
-            stereoFrame_km1->B_Pose_camLrect.compose(
-                gtsam::Pose3(gtsam::Rot3(),gtsam::Point3(stereoFrame_km1->baseline(),0.0,0.0)));
-        featureSelectionData.left_undistRectCameraMatrix = stereoFrame_km1->left_undistRectCameraMatrix_;
-        featureSelectionData.right_undistRectCameraMatrix = stereoFrame_km1->right_undistRectCameraMatrix_;
+            stereoFrame_km1->getBPoseCamLRect().compose(
+                gtsam::Pose3(gtsam::Rot3(),gtsam::Point3(stereoFrame_km1->getBaseline(),0.0,0.0)));
+        featureSelectionData.left_undistRectCameraMatrix = stereoFrame_km1->getLeftUndistRectCamMat();
+        featureSelectionData.right_undistRectCameraMatrix = stereoFrame_km1->getRightUndistRectCamMat();
         // ------------------ DATA ABOUT NEW FEATURES: ----------------- //
         std::cout << "selector: populating data about new feature tracks" << std::endl;
         KeypointsCV corners; std::vector<double> successProbabilities;
@@ -1273,7 +1285,7 @@ public:
         UtilsOpenCV::PrintVector<double>(successProbabilities,"successProbabilities");
 
         // featureSelectionData.print();
-        gtsam::Cal3_S2& K = stereoFrame_km1->left_undistRectCameraMatrix_;
+        const gtsam::Cal3_S2& K = stereoFrame_km1->getLeftUndistRectCamMat();
         CameraParams cam_param;
         cam_param.calibration_ = gtsam::Cal3DS2(K.fx(), K.fy(), 0.0, K.px(), K.py(), 0.0,0.0);
         cam_param.camera_matrix_ = cv::Mat::eye(3, 3, CV_64F);
@@ -1330,7 +1342,7 @@ public:
       //UtilsOpenCV::PrintVector<size_t>(nonSelectedIndices,"nonSelectedIndices");
       //UtilsOpenCV::PrintVector<LandmarkId>(discardedLmks,"discardedLmks");
 
-      stereoFrame_km1->left_frame_.setLandmarksToMinus1(discardedLmks);
+      stereoFrame_km1->getLeftFrameMutable()->setLandmarksToMinus1(discardedLmks);
 
       // Sanity check:
       if (discardedLmks.size() + newSmartStereoMeasurements.size() !=
@@ -1362,7 +1374,7 @@ public:
     static constexpr bool visualize_selection_results = false;
     if (visualize_selection_results) {
       static constexpr int remId = 1000; // landmark ids are visualized modulo this number to improve visualization
-      cv::Mat img = stereoFrame_km1->left_frame_.img_.clone();
+      cv::Mat img = stereoFrame_km1->getLeftFrame().img_.clone();
       //UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints, cv::Scalar(0, 0, 255),0.4,newlyAvailableLmks,remId);
       //UtilsOpenCV::DrawCirclesInPlace(img, selectedKeypoints, cv::Scalar(0, 255, 255), 4,selectedLmks,remId);
       //UtilsOpenCV::DrawSquaresInPlace(img, trackedKeypoints, cv::Scalar(0, 255, 0),10,trackedLmks,remId);
@@ -1425,7 +1437,7 @@ public:
 
         // Write image.
         img_name = folderName + "img_" + std::to_string(vio_cur_id) + ".png";
-        cv::imwrite(img_name, stereoFrame_km1->left_frame_.img_);
+        cv::imwrite(img_name, stereoFrame_km1->getLeftFrame().img_);
       }
     }
 

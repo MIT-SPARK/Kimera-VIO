@@ -10,7 +10,7 @@
  * @file   RegularVioBackEnd.h
  * @brief  Derived class from VioBackEnd which enforces regularity constraints
  * on the factor graph.
- * @author Toni Rosinol
+ * @author Antoni Rosinol
  */
 
 #include "RegularVioBackEnd.h"
@@ -23,6 +23,7 @@
 
 #include <glog/logging.h>
 #include <gflags/gflags.h>
+
 DEFINE_int32(min_num_of_observations, 2,
              "Minimum number of observations for a feature track to be added "
              "in the optimization problem (corresponds to number of "
@@ -80,18 +81,23 @@ DEFINE_double(prior_noise_sigma_distance, 0.1,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-RegularVioBackEnd::RegularVioBackEnd(
-    const Pose3& leftCamPose,
-    const Cal3_S2& leftCameraCalRectified,
-    const double& baseline,
-    const VioBackEndParams& vioParams,
-    const bool& log_timing,
-    const BackendModality& backend_modality) :
+RegularVioBackEnd::RegularVioBackEnd(const Pose3& leftCamPose,
+                                     const Cal3_S2& leftCameraCalRectified,
+                                     const double& baseline,
+                                     std::shared_ptr<gtNavState>* initial_state_gt,
+                                     const Timestamp& timestamp,
+                                     const ImuAccGyrS& imu_accgyr,
+                                     const VioBackEndParams& vioParams,
+                                     const bool& log_timing,
+                                     const BackendModality& backend_modality) :
   regular_vio_params_(RegularVioBackEndParams::safeCast(vioParams)),
   backend_modality_(backend_modality),
   VioBackEnd(leftCamPose,
              leftCameraCalRectified,
              baseline,
+             initial_state_gt,
+             timestamp,
+             imu_accgyr,
              vioParams,
              log_timing) {
   LOG(INFO) << "Using Regular VIO backend.\n";
@@ -132,7 +138,6 @@ RegularVioBackEnd::RegularVioBackEnd(
 void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-    const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
     std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   CHECK(planes != nullptr)
@@ -147,33 +152,32 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   // Features and IMU line up --> do iSAM update.
-  last_kf_id_ = cur_kf_id_;
-  ++cur_kf_id_;
+  last_kf_id_ = curr_kf_id_;
+  ++curr_kf_id_;
 
   timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
 
-  VLOG(7) << "Processing keyframe " << cur_kf_id_
+  VLOG(7) << "Processing keyframe " << curr_kf_id_
           << " at timestamp: " << timestamp_kf_ << " (sec)\n";
 
   /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Predict next step, add initial guess.
-  integrateImuMeasurements(imu_stamps, imu_accgyr);
-  addImuValues(cur_kf_id_);
+  addImuValues(curr_kf_id_);
 
   // Add imu factors between consecutive keyframe states.
   VLOG(10) << "Adding IMU factor between pose id: " << last_kf_id_
-          << " and pose id: " << cur_kf_id_;
-  addImuFactor(last_kf_id_, cur_kf_id_);
+          << " and pose id: " << curr_kf_id_;
+  addImuFactor(last_kf_id_, curr_kf_id_);
 
   /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
   // Add between factor from RANSAC.
   if (stereo_ransac_body_pose) {
     VLOG(10) << "Adding RANSAC factor between pose id: " << last_kf_id_
-            << " and pose id: " << cur_kf_id_;
+            << " and pose id: " << curr_kf_id_;
     if (VLOG_IS_ON(20)) {
       stereo_ransac_body_pose->print();
     }
-    addBetweenFactor(last_kf_id_, cur_kf_id_, *stereo_ransac_body_pose);
+    addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
   }
 
   /////////////////// VISION MEASUREMENTS //////////////////////////////////////
@@ -185,7 +189,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   // in time horizon used for the optimization!)
   LandmarkIds lmks_kf;
   addStereoMeasurementsToFeatureTracks(
-        cur_kf_id_,
+        curr_kf_id_,
         smart_stereo_measurements_kf,
         &lmks_kf);
 
@@ -203,8 +207,8 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
       // Vehicle is not moving.
       VLOG(0) << "Tracker has a LOW_DISPARITY status.";
       VLOG(10) << "Add zero velocity and no motion factors.";
-      addZeroVelocityPrior(cur_kf_id_);
-      addNoMotionFactor(last_kf_id_, cur_kf_id_);
+      addZeroVelocityPrior(curr_kf_id_);
+      addNoMotionFactor(last_kf_id_, curr_kf_id_);
       // TODO why are we not adding the regularities here as well...?
       break;
     }
@@ -338,7 +342,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   VLOG(10) << "Starting optimize...";
-  optimize(cur_kf_id_, vio_params_.numOptimize_,
+  optimize(curr_kf_id_, vio_params_.numOptimize_,
            delete_slots);
   VLOG(10) << "Finished optimize.";
 
@@ -392,7 +396,7 @@ void RegularVioBackEnd::addLandmarksToGraph(
             feature_track.obs_.back();
 
         // Sanity check.
-        CHECK_EQ(obs_kf.first, cur_kf_id_) << "Last obs is not from the current"
+        CHECK_EQ(obs_kf.first, curr_kf_id_) << "Last obs is not from the current"
                                               " keyframe!";
 
         // For each landmark we decide if it's going to be a smart factor or not.
@@ -1421,7 +1425,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
           // from the optimization.
           LOG(ERROR) << "Plane has no prior, trying to forcefully"
                         " remove the PLANE!";
-          DEBUG_ = true;
+          debug_smoother_ = true;
           fillDeleteSlots(point_plane_factor_slots_bad,
                           &lmk_id_to_regularity_type_map,
                           delete_slots);

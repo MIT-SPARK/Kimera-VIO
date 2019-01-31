@@ -19,8 +19,10 @@
 
 #include "Histogram.h"
 #include "mesh/Mesh.h"
+#include "utils/ThreadsafeQueue.h"
 
 #include <stdlib.h>
+#include <atomic>
 
 #include <opengv/point_cloud/methods.hpp>
 
@@ -32,20 +34,101 @@
 #include <opencv2/viz/vizcore.hpp>
 
 namespace VIO {
+
+struct MesherInputPayload {
+  MesherInputPayload (
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      const StereoFrame& stereo_frame,
+      const gtsam::Pose3& left_camera_pose)
+    : points_with_id_vio_(points_with_id_vio),
+      stereo_frame_(stereo_frame),
+      left_camera_pose_(left_camera_pose) {}
+
+  const std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_vio_;
+  const StereoFrame stereo_frame_;
+  const gtsam::Pose3 left_camera_pose_;
+};
+
+struct MesherOutputPayload {
+  MesherOutputPayload(
+      Mesh2D&& mesh_2d, // Use move semantics for the actual 2d mesh.
+      const std::vector<cv::Vec6f>& mesh_2d_for_viz,
+      const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
+    : mesh_2d_(std::move(mesh_2d)),
+      mesh_2d_for_viz_(mesh_2d_for_viz),
+      mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
+
+  MesherOutputPayload(const std::shared_ptr<MesherOutputPayload>& in)
+    : mesh_2d_for_viz_(
+          in? in->mesh_2d_for_viz_ : std::vector<cv::Vec6f>()), // yet another copy...
+      mesh_2d_filtered_for_viz_(
+          in? in->mesh_2d_filtered_for_viz_ : std::vector<cv::Vec6f>()) {}
+
+  MesherOutputPayload() = default;
+
+  // Default copy ctor.
+  MesherOutputPayload(const MesherOutputPayload& rhs) = default;
+  // Default copy assignment operator.
+  MesherOutputPayload& operator=(const MesherOutputPayload& rhs) = default;
+
+  // Use default move ctor and move assignment operator.
+  MesherOutputPayload(MesherOutputPayload&&) = default;
+  MesherOutputPayload& operator=(MesherOutputPayload&&) = default;
+
+  // 2D Mesh.
+  Mesh2D mesh_2d_;
+
+  // 2D Mesh visualization.
+  std::vector<cv::Vec6f> mesh_2d_for_viz_;
+  std::vector<cv::Vec6f> mesh_2d_filtered_for_viz_;
+
+  // 3D Mesh.
+  cv::Mat vertices_mesh_;
+  cv::Mat polygons_mesh_;
+};
+
+
 class Mesher {
 public:
   /* ------------------------------------------------------------------------ */
   Mesher();
 
   /* ------------------------------------------------------------------------ */
-  // Update mesh: update structures keeping memory of the map before visualization
+  // Method for the mesher to run on a thread.
+  void run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
+           ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue);
+
+  /* ------------------------------------------------------------------------ */
+  // Method for the mesher to request thread stop.
+  inline void shutdown() {
+    LOG(INFO) << "Shutting down Mesher.";
+    request_stop_ = true;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Update mesh: update structures keeping memory of the map before visualization.
   // It also returns a mesh_2d which represents the triangulation in the 2d image.
+  //
+  // Also provides an image of the 2d triangulation,
+  // as well as a mesh2D that is linked to the mesh3D via the
+  // landmark ids. Note that the mesh2D only contains those triangles
+  // that have a corresponding polygon face in 3D.
+  // Iterate over the mesh 2D, and use mesh3D getVertex to get the
+  // 3D face from the 2D triangle.
+  void updateMesh3D(const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
+      std::shared_ptr<StereoFrame> stereo_frame_ptr,
+      const gtsam::Pose3& left_camera_pose,
+      Mesh2D* mesh_2d = nullptr,
+      std::vector<cv::Vec6f> *mesh_2d_for_viz = nullptr,
+      std::vector<cv::Vec6f> *mesh_2d_filtered_for_viz = nullptr);
+
+  /* ------------------------------------------------------------------------ */
+  // Update mesh, but in a thread-safe way.
   void updateMesh3D(
-      const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO,
-      std::shared_ptr<StereoFrame> stereoFrame,
-      const gtsam::Pose3& leftCameraPose,
-      cv::Mat* mesh_2d_img_ptr = nullptr,
-      Mesh2D* mesh_2d = nullptr);
+      const std::shared_ptr<const MesherInputPayload>& mesher_payload,
+      Mesh2D* mesh_2d = nullptr,
+      std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
+      std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Cluster planes from the mesh.
@@ -66,10 +149,8 @@ public:
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
-  /* ------------------------------------------------------------------------ */
-  // Clones underlying data structures encoding the mesh.
-  void getVerticesMesh(cv::Mat* vertices_mesh) const;
-  void getPolygonsMesh(cv::Mat* polygons_mesh) const;
+  // Signaler for stop.
+  std::atomic_bool request_stop_ = {false};
 
   // Provide Mesh 3D in read-only mode.
   // Not the nicest to send a const &, should maybe use shared_ptr
@@ -321,6 +402,11 @@ private:
       LandmarkIds* lmk_ids,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
   const;
+
+  /* ------------------------------------------------------------------------ */
+  // Clones underlying data structures encoding the mesh.
+  void getVerticesMesh(cv::Mat* vertices_mesh) const;
+  void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 };
 
 } // namespace VIO

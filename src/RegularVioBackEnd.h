@@ -17,9 +17,9 @@
 #ifndef RegularVioBackEnd_H_
 #define RegularVioBackEnd_H_
 
-#include <VioBackEnd.h>
 #include <gtsam/slam/StereoFactor.h>
 
+#include "VioBackEnd.h"
 #include "RegularVioBackEndParams.h"
 
 namespace VIO {
@@ -42,6 +42,9 @@ public:
       const Pose3& leftCamPose,
       const Cal3_S2& leftCameraCalRectified,
       const double& baseline,
+      std::shared_ptr<gtNavState>* initial_state_gt,
+      const Timestamp& timestamp,
+      const ImuAccGyrS& imu_accgyr,
       const VioBackEndParams& vioParams = VioBackEndParams(),
       const bool& log_timing = false,
       const BackendModality& backend_modality =
@@ -56,7 +59,6 @@ public:
       const Timestamp& timestamp_kf_nsec, // Keyframe timestamp.
       const StatusSmartStereoMeasurements&
                             status_smart_stereo_measurements_kf, // Vision data.
-      const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,  // Inertial data.
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 

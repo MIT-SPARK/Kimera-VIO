@@ -31,7 +31,19 @@ Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
 
 /* -------------------------------------------------------------------------- */
 template<typename VertexPositionType>
-Mesh<VertexPositionType>& Mesh<VertexPositionType>::operator=(const Mesh<VertexPositionType>& rhs_mesh) {
+Mesh<VertexPositionType>::Mesh(const Mesh<VertexPositionType>& rhs_mesh)
+  : vertex_to_lmk_id_map_(rhs_mesh.vertex_to_lmk_id_map_),
+    lmk_id_to_vertex_map_(rhs_mesh.lmk_id_to_vertex_map_),
+    vertices_mesh_(rhs_mesh.vertices_mesh_.clone()), // CLONING!
+    polygons_mesh_(rhs_mesh.vertices_mesh_.clone()), // CLONING!
+    polygon_dimension_(rhs_mesh.polygon_dimension_) {
+  VLOG(2) << "You are calling the copy ctor for a mesh... Cloning data.";
+}
+
+/* -------------------------------------------------------------------------- */
+template<typename VertexPositionType>
+Mesh<VertexPositionType>& Mesh<VertexPositionType>::operator=(
+    const Mesh<VertexPositionType>& rhs_mesh) {
   // Check for self-assignment.
   if(&rhs_mesh == this)
     return *this;

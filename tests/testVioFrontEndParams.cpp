@@ -1,4 +1,4 @@
-/* ----------------------------------------------------------------------------
+/* -----------------------------------------------------------------------------
  * Copyright 2017, Massachusetts Institute of Technology,
  * Cambridge, MA 02139
  * All Rights Reserved
@@ -9,7 +9,7 @@
 /**
  * @file   testVioFrontEndParams.h
  * @brief  test VioFrontEndParams
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #include <cstdlib>
@@ -52,17 +52,17 @@ TEST(testTracker, TrackerParamParseYAML) {
   EXPECT(tp.block_size_ == 3);
   EXPECT(tp.use_harris_detector_ == 0);
   EXPECT(tp.k_ == 0.04);
-  EXPECT(tp.equalizeImage_ == true);
 
-  EXPECT(tp.nominalBaseline_ == 110);
-  EXPECT(tp.toleranceTemplateMatching_ == 0.17);
-  EXPECT(tp.templ_cols_ == 103);
-  EXPECT(tp.templ_rows_ == 5);
-  EXPECT(tp.stripe_extra_rows_ == 2);
-  EXPECT(tp.minPointDist_ == 0.1);
-  EXPECT(tp.maxPointDist_ == 150);
-  EXPECT(tp.bidirectionalMatching_ == true);
-  EXPECT(tp.subpixelRefinementStereo_ == true);
+  EXPECT(tp.stereo_matching_params_.equalize_image_ == true);
+  EXPECT(tp.stereo_matching_params_.nominal_baseline_ == 110);
+  EXPECT(tp.stereo_matching_params_.tolerance_template_matching_ == 0.17);
+  EXPECT(tp.stereo_matching_params_.templ_cols_ == 103);
+  EXPECT(tp.stereo_matching_params_.templ_rows_ == 5);
+  EXPECT(tp.stereo_matching_params_.stripe_extra_rows_ == 2);
+  EXPECT(tp.stereo_matching_params_.min_point_dist_ == 0.1);
+  EXPECT(tp.stereo_matching_params_.max_point_dist_ == 150);
+  EXPECT(tp.stereo_matching_params_.bidirectional_matching_ == true);
+  EXPECT(tp.stereo_matching_params_.subpixel_refinement_ == true);
 
   EXPECT(tp.featureSelectionCriterion_ == 2);
   EXPECT(tp.featureSelectionHorizon_ == 1);
@@ -85,13 +85,13 @@ TEST(testTracker, TrackerParamParseYAML) {
   EXPECT(tp.ransac_randomize_ == false);
 
   EXPECT(tp.intra_keyframe_time_ == 0.5);
-  EXPECT(tp.minNumberFeatures_ == 100);
+  EXPECT(tp.min_number_features_ == 100);
   EXPECT(tp.useStereoTracking_ == 1);
   EXPECT(tp.display_time_ == 100);
   EXPECT(tp.disparityThreshold_ == 1);
 }
 
-/* ************************************************************************* */
+/* ************************************************************************** */
 TEST(testTracker, equals) {
   VioFrontEndParams tp = VioFrontEndParams();
   EXPECT(tp.equals(tp));
@@ -102,7 +102,7 @@ TEST(testTracker, equals) {
   EXPECT(!tp.equals(tp2));
 }
 
-/* ************************************************************************* *
+/* ************************************************************************** *
 TEST(testTracker, cppVSmatlabVioFrontEndParams) {
   // check that the cpp default params match the matlab ones.
   // before running, make sure that you run "writeDefaultParams" in matlab
@@ -119,7 +119,7 @@ TEST(testTracker, cppVSmatlabVioFrontEndParams) {
   }
 }
 
-/* ************************************************************************* */
+/* ************************************************************************** */
 int main() {
   TestResult tr; return TestRegistry::runAllTests(tr); }
-/* ************************************************************************* */
+/* ************************************************************************** */

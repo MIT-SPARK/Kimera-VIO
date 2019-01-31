@@ -12,6 +12,9 @@
 % Ignore logged mesh ply
 *.ply
 
+% Ignore Mac stuff
+.DS_Store
+
 % Remove recovery files from matlab.
 *~
 % Ignore media files
