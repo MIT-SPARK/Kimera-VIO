@@ -99,13 +99,15 @@ public:
 
   // Contains internal data for Visualizer3D window.
   struct WindowData {
-    cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
-    cv::viz::Color cloud_color_ = cv::viz::Color::white();
-    cv::viz::Color background_color_ = cv::viz::Color::black();
-    // Defines whether the user pressed a key to switch the mesh representation.
-    bool user_updated_mesh_representation_ = false;
+    WindowData();
+    cv::viz::Viz3d window_;
+    cv::viz::Color cloud_color_;
+    cv::viz::Color background_color_;
     // Stores the user set mesh representation.
-    int mesh_representation_ = 0u;
+    int mesh_representation_;
+    int mesh_shading_;
+    bool mesh_ambient_;
+    bool mesh_lighting_;
   };
 
   /* ------------------------------------------------------------------------ */
@@ -330,31 +332,33 @@ private:
   // Keyboard callback.
   static void keyboardCallback(const viz::KeyboardEvent &event, void *t) {
     Visualizer3D::WindowData* window_data = (Visualizer3D::WindowData*)t;
-    toggleFreezeScreenKeyboardCallback(event.action, event.code, *window_data);
-    setMeshRepresentation(event.action, event.code, *window_data);
-    getViewerPoseKeyboardCallback(event.action, event.code, *window_data);
-    getCurrentWindowSizeKeyboardCallback(event.action, event.code, *window_data);
-    getScreenshotCallback(event.action, event.code, *window_data);
+    if (event.action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
+      toggleFreezeScreenKeyboardCallback(event.code, *window_data);
+      setMeshRepresentation(event.code, *window_data);
+      setMeshShadingCallback(event.code, *window_data);
+      setMeshAmbientCallback(event.code, *window_data);
+      setMeshLightingCallback(event.code, *window_data);
+      getViewerPoseKeyboardCallback(event.code, *window_data);
+      getCurrentWindowSizeKeyboardCallback(event.code, *window_data);
+      getScreenshotCallback(event.code, *window_data);
+    }
   }
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to toggle freezing screen.
   static void toggleFreezeScreenKeyboardCallback(
-      const viz::KeyboardEvent::Action& action,
       const uchar code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == 't') {
-        LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
-        static bool freeze = false;
-        freeze = !freeze; // Toggle.
-        window_data.window_.spinOnce(1, true);
-        while(!window_data.window_.wasStopped()) {
-          if (freeze) {
-            window_data.window_.spinOnce(1, true);
-          } else {
-            break;
-          }
+    if (code == 't') {
+      LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
+      static bool freeze = false;
+      freeze = !freeze; // Toggle.
+      window_data.window_.spinOnce(1, true);
+      while(!window_data.window_.wasStopped()) {
+        if (freeze) {
+          window_data.window_.spinOnce(1, true);
+        } else {
+          break;
         }
       }
     }
@@ -363,73 +367,102 @@ private:
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to set mesh representation.
   static void setMeshRepresentation(
-      const viz::KeyboardEvent::Action& action,
       const uchar code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == '0') {
-        LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                               "a point cloud.";
-        window_data.user_updated_mesh_representation_ = true;
-        window_data.mesh_representation_ = 0u;
-      } else if (code == '1') {
-        LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                               "a mesh.";
-        window_data.user_updated_mesh_representation_ = true;
-        window_data.mesh_representation_ = 1u;
-      } else if (code == '2') {
-        LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                               "a wireframe.";
-        window_data.user_updated_mesh_representation_ = true;
-        window_data.mesh_representation_ = 2u;
-      }
+    if (code == '0') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                             "a point cloud.";
+      window_data.mesh_representation_ = 0u;
+    } else if (code == '1') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                             "a mesh.";
+      window_data.mesh_representation_ = 1u;
+    } else if (code == '2') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                             "a wireframe.";
+      window_data.mesh_representation_ = 2u;
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to set mesh shading.
+  static void setMeshShadingCallback(
+      const uchar code,
+      Visualizer3D::WindowData& window_data) {
+    if (code == '4') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
+                                             "flat.";
+      window_data.mesh_shading_ = 0u;
+    } else if (code == '5') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
+                                             "Gouraud.";
+      window_data.mesh_shading_ = 1u;
+    } else if (code == '6') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
+                                             "Phong.";
+      window_data.mesh_shading_ = 2u;
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to set mesh ambient.
+  static void setMeshAmbientCallback(
+      const uchar code,
+      Visualizer3D::WindowData& window_data) {
+    if (code == 'a') {
+      window_data.mesh_ambient_ = !window_data.mesh_ambient_;
+      LOG(WARNING) << "Pressing " << code << " toggles mesh ambient."
+                   << " Now set to " << window_data.mesh_ambient_;
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to set mesh lighting.
+  static void setMeshLightingCallback(
+      const uchar code,
+      Visualizer3D::WindowData& window_data) {
+    if (code == 'l') {
+      window_data.mesh_lighting_ = !window_data.mesh_lighting_;
+      LOG(WARNING) << "Pressing " << code << " toggles mesh lighting."
+                   << " Now set to " << window_data.mesh_lighting_;
     }
   }
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to get current viewer pose.
   static void getViewerPoseKeyboardCallback(
-      const viz::KeyboardEvent::Action& action,
       const uchar& code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == 'v') {
-        LOG(INFO) << "Current viewer pose:\n"
-                  << "\tRodriguez vector: " << window_data.window_.getViewerPose().rvec()
-                  << "\n\tAffine matrix: " << window_data.window_.getViewerPose().matrix;
-      }
+    if (code == 'v') {
+      LOG(INFO) << "Current viewer pose:\n"
+                << "\tRodriguez vector: " << window_data.window_.getViewerPose().rvec()
+                << "\n\tAffine matrix: " << window_data.window_.getViewerPose().matrix;
     }
   }
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to get current screen size.
   static void getCurrentWindowSizeKeyboardCallback(
-      const viz::KeyboardEvent::Action& action,
       const uchar code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == 'w') {
-        LOG(WARNING) << "Pressing " << code << " displays current window size:\n"
-                     << "\theight: " << window_data.window_.getWindowSize().height
-                     << "\twidth: " << window_data.window_.getWindowSize().width;
-      }
+    if (code == 'w') {
+      LOG(WARNING) << "Pressing " << code << " displays current window size:\n"
+                   << "\theight: " << window_data.window_.getWindowSize().height
+                   << "\twidth: " << window_data.window_.getWindowSize().width;
     }
   }
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to get screenshot of current windodw.
   static void getScreenshotCallback(
-      const viz::KeyboardEvent::Action& action,
       const uchar code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == 's') {
-        static int i = 0;
-        std::string filename = "screenshot_3d_window" + std::to_string(i);
-        LOG(WARNING) << "Pressing " << code << " takes a screenshot of the "
-                                               "window, saved in: " + filename;
-        window_data.window_.saveScreenshot(filename);
-      }
+    if (code == 's') {
+      static int i = 0;
+      std::string filename = "screenshot_3d_window" + std::to_string(i);
+      LOG(WARNING) << "Pressing " << code << " takes a screenshot of the "
+                                             "window, saved in: " + filename;
+      window_data.window_.saveScreenshot(filename);
     }
   }
 };

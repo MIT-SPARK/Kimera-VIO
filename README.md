@@ -136,6 +136,8 @@ Tips for usage
      These last two shortcuts are useful if you want to programmatically set the initial viewpoint and size of the screen when launching the 3D visualization window (this is done at the constructor of the 3DVisualizer class).
     - Press 's': to get a screenshot of the 3D visualization window.
     - Press '0', '1', or '2': to toggle the 3D mesh representation (only visible if the gflag 'visualize_mesh' is set to true).
+    - Press 'a': to toggle ambient light for the 3D mesh ('visualize_mesh' has to be set to true).
+    - Press 'l': to toggle lighting for the 3D mesh ('visualize_mesh' has to be set to true).
 
 > For these shortcuts to take effect you need to have the window in focus. Note also that there might be a big delay between your keypress and the actual processing of the information as this is purely sequential with the VIO pipeline itself; this might change after parallelizing the pipeline).
 

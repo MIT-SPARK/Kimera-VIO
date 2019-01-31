@@ -70,6 +70,16 @@ static bool getEstimateOfKey(const gtsam::Values& state,
   }
 }
 
+// Contains internal data for Visualizer3D window.
+Visualizer3D::WindowData::WindowData()
+  : window_(cv::viz::Viz3d("3D Visualizer")),
+    cloud_color_(cv::viz::Color::white()),
+    background_color_(cv::viz::Color::black()),
+    mesh_representation_(FLAGS_mesh_representation),
+    mesh_shading_(FLAGS_mesh_shading),
+    mesh_ambient_(FLAGS_set_mesh_ambient),
+    mesh_lighting_(FLAGS_set_mesh_lighting) {}
+
 /* -------------------------------------------------------------------------- */
 VisualizerInputPayload::VisualizerInputPayload(
     const VisualizationType& visualization_type,
@@ -105,6 +115,11 @@ ImageToDisplay::ImageToDisplay (const std::string& name, const cv::Mat& image)
 
 /* -------------------------------------------------------------------------- */
 Visualizer3D::Visualizer3D() {
+  if(VLOG_IS_ON(2)) {
+    window_data_.window_.setGlobalWarnings(true);
+  } else {
+    window_data_.window_.setGlobalWarnings(false);
+  }
   window_data_.window_.registerKeyboardCallback(keyboardCallback, &window_data_);
   window_data_.window_.setBackgroundColor(window_data_.background_color_);
   window_data_.window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
@@ -636,7 +651,7 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                        color_mesh? colors.t():cv::Mat());
 
   // Decide mesh shading style.
-  switch (FLAGS_mesh_shading) {
+  switch (window_data_.mesh_shading_) {
   case 0: {
     mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_FLAT);
     break;
@@ -655,8 +670,7 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   }
 
   // Decide mesh representation style.
-  switch (window_data_.user_updated_mesh_representation_?
-          window_data_.mesh_representation_:FLAGS_mesh_representation) {
+  switch (window_data_.mesh_representation_) {
   case 0: {
     mesh.setRenderingProperty(cv::viz::REPRESENTATION,
                               cv::viz::REPRESENTATION_POINTS);
@@ -677,8 +691,8 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
     break;
   }
   }
-  mesh.setRenderingProperty(cv::viz::AMBIENT, FLAGS_set_mesh_ambient);
-  mesh.setRenderingProperty(cv::viz::LIGHTING, FLAGS_set_mesh_lighting);
+  mesh.setRenderingProperty(cv::viz::AMBIENT, window_data_.mesh_ambient_);
+  mesh.setRenderingProperty(cv::viz::LIGHTING, window_data_.mesh_lighting_);
 
   // Plot mesh.
   window_data_.window_.showWidget("Mesh", mesh);
