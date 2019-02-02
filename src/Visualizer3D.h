@@ -48,6 +48,7 @@ struct VisualizerInputPayload {
       int backend_type,
       const gtsam::Pose3& pose,
       const std::vector<cv::Vec6f>& mesh_2d,
+      Mesher::Mesh3DColors&& colors_mesh_3d,
       const Frame& left_stero_keyframe,
       MesherOutputPayload&& mesher_output_payload,
       const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
@@ -55,13 +56,14 @@ struct VisualizerInputPayload {
       const std::vector<Plane>& planes,
       const gtsam::NonlinearFactorGraph& graph,
       const gtsam::Values& values,
-      const vector<Point3>& points_3d,
+      const std::vector<Point3>& points_3d,
       const Timestamp& timestamp_k);
 
   const VisualizationType visualization_type_;
   const int backend_type_;
   const gtsam::Pose3 pose_;
   const std::vector<cv::Vec6f> mesh_2d_;
+  const Mesher::Mesh3DColors colors_mesh_3d_;
   const Frame left_stereo_keyframe_;
   const MesherOutputPayload mesher_output_payload_;
   const VioBackEnd::PointsWithIdMap points_with_id_VIO_;
@@ -212,7 +214,7 @@ public:
       const std::vector<Plane>& planes,
       const cv::Mat& map_points_3d,
       const cv::Mat& polygons_mesh,
-      const bool& color_mesh = false,
+      const bool visualize_mesh_with_colored_polygon_clusters = false,
       const Timestamp& timestamp = 0.0);
 
   /* ------------------------------------------------------------------------ */

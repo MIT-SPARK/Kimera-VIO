@@ -206,6 +206,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
     // Actual keyframe processing. Call to backend.
     processKeyframe(k, &statusSmartStereoMeasurements,
+                    stereoFrame_k.getLeftFrame(), // Only used for semantic segmentation.
                     stereoFrame_k.getTimestamp(),
                     timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
                     imu_stamps_lkf_to_curr_f, // aka from keyframe to keyframe,
@@ -224,6 +225,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 void Pipeline::processKeyframe(
     size_t k,
     StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
+    const Frame& left_frame_for_semantic_segmentation,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf,
     const ImuStampS& imu_stamps,
@@ -375,18 +377,34 @@ void Pipeline::processKeyframe(
 
   if (FLAGS_visualize) {
     // Push data for visualizer thread.
-    visualizer_input_queue_.push(VisualizerInputPayload(
-                                   visualization_type, dataset_->getBackendType(),
-                                   vio_backend_->getWPoseBLkf() * stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(), // pose for trajectory viz.
-                                   mesh_2d, // for visualizeMesh2D and visualizeMesh2DStereo
-                                   stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame(), // for visualizeMesh2D and visualizeMesh2DStereo
-                                   std::move(mesher_output_payload), // visualizeConvexHull & visualizeMesh3DWithColoredClusters
-                                   points_with_id_VIO, // visualizeMesh3DWithColoredClusters & visualizePoints3D
-                                   lmk_id_to_lmk_type_map, // visualizeMesh3DWithColoredClusters & visualizePoints3D
-                                   planes_,  // visualizeMesh3DWithColoredClusters
-                                   vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
-                                   vio_backend_->getState(), // For planes and plane constraints viz.
-                                   points_3d, timestamp_k));
+    visualizer_input_queue_.push(
+          VisualizerInputPayload(
+            visualization_type, dataset_->getBackendType(),
+            vio_backend_->getWPoseBLkf() *
+            // Pose for trajectory viz.
+            stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(),
+            // For visualizeMesh2D and visualizeMesh2DStereo
+            mesh_2d,
+            // Call semantic mesh segmentation if someone registered a callback.
+            semantic_mesh_segmentation_callback_?
+              semantic_mesh_segmentation_callback_(
+                left_frame_for_semantic_segmentation.img_,
+                mesher_output_payload.mesh_2d_,
+                mesher_output_payload.mesh_3d_):
+              Mesher::Mesh3DColors(),
+            // For visualizeMesh2D and visualizeMesh2DStereo.
+            stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame(),
+            // visualizeConvexHull & visualizeMesh3DWithColoredClusters
+            // WARNING using move explicitly!
+            std::move(mesher_output_payload),
+            // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            points_with_id_VIO,
+            // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            lmk_id_to_lmk_type_map,
+            planes_,  // visualizeMesh3DWithColoredClusters
+            vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
+            vio_backend_->getState(), // For planes and plane constraints viz.
+            points_3d, timestamp_k));
 
       // Get data from visualizer thread.
       // We use non-blocking pop() because no one depends on the output

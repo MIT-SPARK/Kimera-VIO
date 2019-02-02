@@ -169,6 +169,7 @@ void Mesher::run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
     getVerticesMesh(&(mesher_output_payload.vertices_mesh_));
     getPolygonsMesh(&(mesher_output_payload.polygons_mesh_));
     LOG(INFO) << "Inside loop before push";
+    mesher_output_payload.mesh_3d_ = mesh_3d_;
     mesher_output_queue.push(mesher_output_payload);
   }
   LOG(INFO) << "Stop requested";
