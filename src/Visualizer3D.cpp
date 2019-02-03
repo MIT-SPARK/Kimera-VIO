@@ -229,10 +229,15 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     if (FLAGS_visualize_mesh) {
       if (FLAGS_visualize_semantic_mesh) {
         LOG_IF(WARNING, FLAGS_visualize_mesh_with_colored_polygon_clusters)
-            << "Visualization of the semantic mesh has priority over "
-            << "visualization of the polygon clusters.";
+            << "Both gflags visualize_semantic_mesh and "
+               "visualize_mesh_with_colored_polygon_cluster are set to True,"
+               " but visualization of the semantic mesh has priority over "
+               "visualization of the polygon clusters.";
         visualizeMesh3D(vertices_mesh_prev, colors_prev, polygons_mesh_prev);
       } else {
+        LOG_IF(ERROR, colors_prev.rows > 0u)
+            << "The 3D mesh is being colored with semantic information, but"
+               " gflag visualize_semantic_mesh is set to false...";
         visualizeMesh3DWithColoredClusters(
               planes_prev,
               vertices_mesh_prev,

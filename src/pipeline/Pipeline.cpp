@@ -376,6 +376,8 @@ void Pipeline::processKeyframe(
   }
 
   if (FLAGS_visualize) {
+    LOG_IF(WARNING, semantic_mesh_segmentation_callback_)
+        << "Coloring the mesh using semantic segmentation colors.";
     // Push data for visualizer thread.
     visualizer_input_queue_.push(
           VisualizerInputPayload(
@@ -390,8 +392,7 @@ void Pipeline::processKeyframe(
               semantic_mesh_segmentation_callback_(
                 left_frame_for_semantic_segmentation.img_,
                 mesher_output_payload.mesh_2d_,
-                mesher_output_payload.mesh_3d_):
-              Mesher::Mesh3DColors(),
+                mesher_output_payload.mesh_3d_) : Mesher::Mesh3DColors(),
             // For visualizeMesh2D and visualizeMesh2DStereo.
             stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame(),
             // visualizeConvexHull & visualizeMesh3DWithColoredClusters

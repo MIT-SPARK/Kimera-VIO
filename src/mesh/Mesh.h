@@ -111,6 +111,9 @@ public:
   inline size_t getNumberOfPolygons() const {
     return static_cast<size_t>(polygons_mesh_.rows / (polygon_dimension_ + 1));
   }
+  inline size_t getNumberOfUniqueVertices() const {
+    return vertices_mesh_.rows;
+  }
   // TODO needs to be generalized to aleatory polygonal meshes.
   // Currently it only allows polygons of same size.
   inline size_t getMeshPolygonDimension() const {
