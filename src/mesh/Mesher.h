@@ -52,9 +52,11 @@ struct MesherInputPayload {
 struct MesherOutputPayload {
   MesherOutputPayload(
       Mesh2D&& mesh_2d, // Use move semantics for the actual 2d mesh.
+      Mesh3D&& mesh_3d, // Use move semantics for the actual 2d mesh.
       const std::vector<cv::Vec6f>& mesh_2d_for_viz,
       const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
     : mesh_2d_(std::move(mesh_2d)),
+      mesh_3d_(std::move(mesh_3d)),
       mesh_2d_for_viz_(mesh_2d_for_viz),
       mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
 
@@ -83,12 +85,30 @@ struct MesherOutputPayload {
   std::vector<cv::Vec6f> mesh_2d_filtered_for_viz_;
 
   // 3D Mesh.
+  Mesh3D mesh_3d_;
+
+  // 3D Mesh using underlying storage type, aka a list of vertices, together
+  // with a list of polygons represented as vertices ids pointing to the list
+  // of vertices. (see OpenCV way of storing a Mesh)
+  // https://docs.opencv.org/3.4/dc/d4f/classcv_1_1viz_1_1Mesh.html#ac4482e5c832f2bd24bb697c340eaf853
   cv::Mat vertices_mesh_;
   cv::Mat polygons_mesh_;
 };
 
-
 class Mesher {
+public:
+  // Public definitions.
+
+  // List of RGB colors, one color (three entries R G B) for each vertex in the
+  // Mesh3D. Therefore, colors must have same number of rows than the number of
+  // vertices in the 3D mesh and three cols for each RGB entry.
+  typedef cv::Mat Mesh3DColors;
+  // Given the following:
+  // Left image in colors, Mesh in 2D, Mesh in 3D.
+  // Returns Colors of the Mesh3D. Each color representing a semantic class.
+  typedef std::function<Mesh3DColors(cv::Mat, const Mesh2D&, const Mesh3D&)>
+    SemanticMeshSegmentationCallback;
+
 public:
   /* ------------------------------------------------------------------------ */
   Mesher();

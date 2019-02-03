@@ -122,6 +122,9 @@ target_include_directories(stereoVIO ${VIO_INCLUDE_DIRS})
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
 target_link_libraries (stereoVIOEuroc stereoVIO)
 
+add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
+target_link_libraries (semanticVIOEuroc stereoVIO)
+
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
 target_link_libraries (stereoVIOSimulation stereoVIO)
 

@@ -55,6 +55,17 @@ public:
   // And closes logfiles.
   void shutdown();
 
+  // Return the mesher output queue for FUSES to process the mesh_2d and
+  // mesh_3d to extract semantic information.
+  ThreadsafeQueue<MesherOutputPayload>& getMesherOutputQueue() {
+    return mesher_output_queue_;
+  }
+
+  inline void registerSemanticMeshSegmentationCallback(
+      Mesher::SemanticMeshSegmentationCallback cb) {
+    semantic_mesh_segmentation_callback_ = cb;
+  }
+
 private:
   // Initialize random seed for repeatability (only on the same machine).
   // TODO Still does not make RANSAC REPEATABLE across different machines.
@@ -86,6 +97,7 @@ private:
   void processKeyframe(
       size_t k,
       StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
+      const Frame& left_frame_for_semantic_segmentation,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
       const ImuStampS& imu_stamps,
@@ -167,5 +179,8 @@ private:
   std::thread backend_thread_;
   std::thread mesher_thread_;
   std::thread visualizer_thread_;
+
+  // Callbacks.
+  Mesher::SemanticMeshSegmentationCallback semantic_mesh_segmentation_callback_;
 };
 } // End of VIO namespace
