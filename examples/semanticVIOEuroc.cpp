@@ -25,13 +25,15 @@ namespace VIO {
 Mesher::Mesh3DColors dummySemanticSegmentation(cv::Mat left_image,
                                                const Mesh2D& mesh_2d,
                                                const Mesh3D& mesh_3d) {
-  size_t num_of_vertices = mesh_3d.getNumberOfUniqueVertices();
-  size_t num_of_polygons = mesh_3d.getNumberOfPolygons();
-  LOG(INFO) << "NUM OF VERTICES IS " << num_of_vertices;
-  LOG(INFO) << "NUM OF POLYGONS IS " << num_of_polygons;
-  // Color all vertices in yellow. Each polygon will be colored according
+  // Dummy checks for valid data.
+  CHECK(!left_image.empty());
+  CHECK_GE(mesh_2d.getNumberOfUniqueVertices(), 0);
+  CHECK_GE(mesh_3d.getNumberOfUniqueVertices(), 0);
+
+  // Color all vertices in red. Each polygon will be colored according
   // to a mix of the three vertices colors I think...
-  cv::Mat colors (num_of_vertices, 1, CV_8UC3, cv::viz::Color::red());
+  cv::Mat colors (mesh_3d.getNumberOfUniqueVertices(), 1,
+                  CV_8UC3, cv::viz::Color::red());
   return colors;
 }
 } // End of VIO namespace.
