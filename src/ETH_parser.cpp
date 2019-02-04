@@ -1,4 +1,4 @@
-/* ----------------------------------------------------------------------------
+﻿/* ----------------------------------------------------------------------------
  * Copyright 2017, Massachusetts Institute of Technology,
  * Cambridge, MA 02139
  * All Rights Reserved
@@ -88,6 +88,7 @@ void GroundTruthData::print() const {
  ETHDatasetParser::ETHDatasetParser()
   : DataProvider(),
     imuData_() {
+  // TODO this should be done in the backend.
   setBackendParamsType(FLAGS_backend_type, &backend_params_);
   parse(&initial_k_, &final_k_, backend_params_, &frontend_params_);
 }
@@ -277,8 +278,6 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
   // make sure that each YAML file has %YAML:1.0 as first line
   cv::FileStorage fs;
   UtilsOpenCV::safeOpenCVFileStorage(&fs, filename_sensor);
-  LOG_IF(FATAL, !fs.isOpened()) << "Cannot open file in parseImuData: "
-                                << filename_sensor;
 
   // body_Pose_cam_: sensor to body transformation
   int n_rows (fs["T_BS"]["rows"]);
@@ -382,11 +381,10 @@ bool ETHDatasetParser::parseGTdata(const std::string &input_dataset_path,
 
   // Make sure that each YAML file has %YAML:1.0 as first line.
   cv::FileStorage fs;
-  UtilsOpenCV::safeOpenCVFileStorage(&fs, filename_sensor);
+  UtilsOpenCV::safeOpenCVFileStorage(&fs, filename_sensor, false);
   if (!fs.isOpened()) {
-    std::cout << "Cannot open file in parseGTYAML: "
-              << filename_sensor << std::endl;
-    std::cout << "Assuming dataset has no ground truth...";
+    LOG(WARNING) << "Cannot open file in parseGTYAML: " << filename_sensor
+                 << "\nAssuming dataset has no ground truth...";
     return false;
   }
 
