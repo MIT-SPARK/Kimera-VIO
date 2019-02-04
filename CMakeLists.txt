@@ -95,7 +95,7 @@ add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/FeatureSelector.h
                       ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
                       ./src/RegularVioBackEndParams.h
-                      ./src/CameraParams.h ./src/Frame.h
+                      ./src/CameraParams.cpp src/Frame.h
                       ./src/Visualizer3D.cpp
                       ./src/Histogram.h
                       "")

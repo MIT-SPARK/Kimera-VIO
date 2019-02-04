@@ -252,8 +252,6 @@ public:
     // make sure that each YAML file has %YAML:1.0 as first line
     cv::FileStorage fs;
     UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
-    CHECK(fs.isOpened()) << "parseYAML (Tracker): cannot open file "
-                            "(remember first line: %YAML:1.0): " << filepath;
 
     fs["klt_win_size"] >> klt_win_size_;
     fs["klt_max_iter"] >> klt_max_iter_;

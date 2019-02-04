@@ -124,8 +124,6 @@ public:
   bool parseYaml(const std::string& filepath) {
     cv::FileStorage fs;
     UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
-    CHECK(fs.isOpened()) << "parseYAML (Tracker): cannot open file "
-                            "(remember first line: %YAML:1.0): " << filepath;
     return parseYamlFromOpenFileStorage(fs);
   }
 

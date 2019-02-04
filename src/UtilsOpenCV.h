@@ -391,8 +391,10 @@ public:
   /* ------------------------------------------------------------------------ */
   // Returns a OpenCV file storage in a safely manner, warning about potential
   // exceptions thrown.
+  // Param: check_opened, throws if the file cannot be opened.
   static void safeOpenCVFileStorage(cv::FileStorage* fs,
-                                    const std::string& filename_sensor);
+                                    const std::string& filename,
+                                    const bool check_opened = true);
 };
 
 /* -------------------------------------------------------------------------- */

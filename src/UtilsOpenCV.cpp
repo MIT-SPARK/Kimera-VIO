@@ -471,18 +471,18 @@ std::pair<double,double> UtilsOpenCV::ComputeRotationAndTranslationErrors(
   return std::make_pair(rotError,tranError);
 }
 /* -------------------------------------------------------------------------- */
-// reads image and converts to 1 channel image
+// Reads image and converts to 1 channel image.
 cv::Mat UtilsOpenCV::ReadAndConvertToGrayScale(const std::string& img_name,
                                                bool equalize) {
   cv::Mat img = cv::imread(img_name, cv::IMREAD_ANYCOLOR);
-  if (img.channels() > 1)
-    cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
-  if(equalize){ // Apply Histogram Equalization
-    std::cout << "- Histogram Equalization for image: " << img_name << std::endl;
+  if (img.channels() > 1) cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
+  if (equalize) { // Apply Histogram Equalization
+    LOG(INFO) << "- Histogram Equalization for image: " << img_name;
     cv::equalizeHist(img, img);
   }
   return img;
 }
+
 /* -------------------------------------------------------------------------- */
 // reorder block entries of covariance from state: [bias, vel, pose] to [pose vel bias]
 gtsam::Matrix UtilsOpenCV::Covariance_bvx2xvb(const gtsam::Matrix& COV_bvx)
@@ -935,13 +935,19 @@ UtilsOpenCV::FindHighIntensityInTriangle(
 // Returns a OpenCV file storage in a safely manner, warning about potential
 // exceptions thrown.
 void UtilsOpenCV::safeOpenCVFileStorage(cv::FileStorage* fs,
-                                        const std::string& filename_sensor) {
+                                        const std::string& file_path,
+                                        const bool check_opened) {
   CHECK_NOTNULL(fs);
   try {
-    *fs = cv::FileStorage(filename_sensor, cv::FileStorage::READ);
+    *fs = cv::FileStorage(file_path, cv::FileStorage::READ);
   } catch (cv::Exception& e) {
-    LOG(FATAL) << "Cannot open file in parseImuData: " << filename_sensor << '\n'
+    LOG(FATAL) << "Cannot open file: " << file_path << '\n'
                << "OpenCV error code: " << e.msg;
+  }
+
+  if (check_opened) {
+    CHECK(fs->isOpened()) << "Cannot open file: " << file_path  << " (remember "
+                          << "that first line of yaml file must be: %YAML:1.0)";
   }
 }
 
