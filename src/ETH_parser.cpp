@@ -8,7 +8,7 @@
 
 /**
  * @file   ETH_parser.h
- * @brief  Reads ETH's Euroc dataset
+ * @brief  Reads ETH's Euroc dataset.
  * @author Antoni Rosinol, Luca Carlone
  */
 
@@ -23,12 +23,12 @@ DEFINE_string(vio_params_path, "",
 DEFINE_string(tracker_params_path, "",
               "Path to tracker user-defined parameters.");
 DEFINE_int32(backend_type, 0, "Type of vioBackEnd to use:\n"
-                                 "0: VioBackEnd\n"
-                                 "1: RegularVioBackEnd");
+                              "0: VioBackEnd\n"
+                              "1: RegularVioBackEnd");
 DEFINE_int32(initial_k, 50, "Initial frame to start processing dataset, "
                             "previous frames will not be used.");
 DEFINE_int32(final_k, 10000, "Final frame to finish processing dataset, "
-                            "subsequent frames will not be used.");
+                             "subsequent frames will not be used.");
 
 #include "StereoFrame.h"
 #include "ImuFrontEnd-definitions.h"
@@ -72,7 +72,7 @@ void CameraImageLists::print() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
+//////////////// FUNCTIONS OF THE CLASS GroundTruthData              ///////////
 ////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
 void GroundTruthData::print() const {
@@ -85,7 +85,8 @@ void GroundTruthData::print() const {
 ////////////////////////////////////////////////////////////////////////////////
 //////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
 ////////////////////////////////////////////////////////////////////////////////
- ETHDatasetParser::ETHDatasetParser()
+/* -------------------------------------------------------------------------- */
+ETHDatasetParser::ETHDatasetParser()
   : DataProvider(),
     imuData_() {
   // TODO this should be done in the backend.
@@ -93,22 +94,25 @@ void GroundTruthData::print() const {
   parse(&initial_k_, &final_k_, backend_params_, &frontend_params_);
 }
 
+/* -------------------------------------------------------------------------- */
 ETHDatasetParser::~ETHDatasetParser() {}
 
+/* -------------------------------------------------------------------------- */
 void ETHDatasetParser::setBackendParamsType(
     const int backend_type,
     std::shared_ptr<VioBackEndParams>* vioParams) const {
   CHECK_NOTNULL(vioParams);
   switch(backend_type) {
-  case 0: {*vioParams = std::make_shared<VioBackEndParams>(); break;}
-  case 1: {*vioParams = std::make_shared<RegularVioBackEndParams>(); break;}
-  default: {CHECK(false) << "Unrecognized backend type: "
-                         << backend_type << "."
-                         << " 0: normalVio, 1: RegularVio.";
-  }
+    case 0: {*vioParams = std::make_shared<VioBackEndParams>(); break;}
+    case 1: {*vioParams = std::make_shared<RegularVioBackEndParams>(); break;}
+    default: {CHECK(false) << "Unrecognized backend type: "
+                           << backend_type << "."
+                           << " 0: normalVio, 1: RegularVio.";
+    }
   }
 }
 
+/* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::spin() {
   // Check that the user correctly registered a callback function for the
   // pipeline.
@@ -133,51 +137,51 @@ bool ETHDatasetParser::spin() {
   const CameraParams& right_cam_info = getRightCamInfo();
   const gtsam::Pose3& camL_pose_camR = getCamLPoseCamR();
   for (FrameId k = initial_k_; k < final_k_; k++) {
-      Timestamp timestamp_frame_k = timestampAtFrame(k);
-      ImuMeasurements imu_meas;
-      CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
-               imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-                 timestamp_last_frame,
-                 timestamp_frame_k,
-                 &imu_meas.timestamps_,
-                 &imu_meas.measurements_));
+    Timestamp timestamp_frame_k = timestampAtFrame(k);
+    ImuMeasurements imu_meas;
+    CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
+          imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+            timestamp_last_frame,
+            timestamp_frame_k,
+            &imu_meas.timestamps_,
+            &imu_meas.measurements_));
 
-      VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
-               << "STAMPS IMU rows : \n" << imu_meas.timestamps_.rows() << '\n'
-               << "STAMPS IMU cols : \n" << imu_meas.timestamps_.cols() << '\n'
-               << "STAMPS IMU: \n" << imu_meas.timestamps_ << '\n'
-               << "ACCGYR IMU rows : \n" << imu_meas.measurements_.rows() << '\n'
-               << "ACCGYR IMU cols : \n" << imu_meas.measurements_.cols() << '\n'
-               << "ACCGYR IMU: \n" << imu_meas.measurements_;
+    VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
+             << "STAMPS IMU rows : \n" << imu_meas.timestamps_.rows() << '\n'
+             << "STAMPS IMU cols : \n" << imu_meas.timestamps_.cols() << '\n'
+             << "STAMPS IMU: \n" << imu_meas.timestamps_ << '\n'
+             << "ACCGYR IMU rows : \n" << imu_meas.measurements_.rows() << '\n'
+             << "ACCGYR IMU cols : \n" << imu_meas.measurements_.cols() << '\n'
+             << "ACCGYR IMU: \n" << imu_meas.measurements_;
 
-      timestamp_last_frame = timestamp_frame_k;
+    timestamp_last_frame = timestamp_frame_k;
 
-      // TODO remove this, it's just because the logging in the pipeline needs
-      // it, but totally useless...
-      static bool do_once = true;
-      if (do_once) {
-        timestamp_first_lkf_ = timestamp_last_frame;
-        do_once = false;
-      }
+    // TODO remove this, it's just because the logging in the pipeline needs
+    // it, but totally useless...
+    static bool do_once = true;
+    if (do_once) {
+      timestamp_first_lkf_ = timestamp_last_frame;
+      do_once = false;
+    }
 
-      // TODO alternatively push here to a queue, and give that queue to the
-      // VIO pipeline so it can pull from it.
-      // Call VIO Pipeline.
-      VLOG(10) << "Call VIO processing for frame k: " << k
-               << " with timestamp: " << timestamp_frame_k;
-      vio_callback_(StereoImuSyncPacket(
-                      StereoFrame(k, timestamp_frame_k,
-                                  UtilsOpenCV::ReadAndConvertToGrayScale(
-                                    getLeftImgName(k), equalize_image),
-                                  left_cam_info,
-                                  UtilsOpenCV::ReadAndConvertToGrayScale(
-                                    getRightImgName(k), equalize_image),
-                                  right_cam_info,
-                                  camL_pose_camR,
-                                  stereo_matching_params),
-                      imu_meas.timestamps_,
-                      imu_meas.measurements_));
-      VLOG(10) << "Finished VIO processing for frame k = " << k;
+    // TODO alternatively push here to a queue, and give that queue to the
+    // VIO pipeline so it can pull from it.
+    // Call VIO Pipeline.
+    VLOG(10) << "Call VIO processing for frame k: " << k
+             << " with timestamp: " << timestamp_frame_k;
+    vio_callback_(StereoImuSyncPacket(
+                    StereoFrame(k, timestamp_frame_k,
+                                UtilsOpenCV::ReadAndConvertToGrayScale(
+                                  getLeftImgName(k), equalize_image),
+                                left_cam_info,
+                                UtilsOpenCV::ReadAndConvertToGrayScale(
+                                  getRightImgName(k), equalize_image),
+                                right_cam_info,
+                                camL_pose_camR,
+                                stereo_matching_params),
+                    imu_meas.timestamps_,
+                    imu_meas.measurements_));
+    VLOG(10) << "Finished VIO processing for frame k = " << k;
   } // End of for loop.
   return true;
 }
@@ -238,9 +242,10 @@ void ETHDatasetParser::parse(size_t* initial_k, size_t* final_k,
   parseParams(backend_params, frontend_params);
 }
 
+/* -------------------------------------------------------------------------- */
 void ETHDatasetParser::parseParams(
-        VioBackEndParamsPtr backend_params,
-        VioFrontEndParams* trackerParams) {
+    VioBackEndParamsPtr backend_params,
+    VioFrontEndParams* trackerParams) {
   CHECK(backend_params);
   CHECK_NOTNULL(trackerParams);
 
@@ -289,7 +294,7 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
   // sanity check: IMU is usually chosen as the body frame
   gtsam::Pose3 identityPose;
   LOG_IF(FATAL, !imuData_.body_Pose_cam_.equals(gtData_.body_Pose_cam_))
-    << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
+      << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
 
   int rate = fs["rate_hz"];
   imuData_.nominal_imu_rate_ = 1 / double(rate);
@@ -402,7 +407,7 @@ bool ETHDatasetParser::parseGTdata(const std::string &input_dataset_path,
   gtsam::Pose3 identityPose;
 
   LOG_IF(FATAL, !gtData_.body_Pose_cam_.equals(identityPose))
-    << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
+      << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
 
   fs.release();
 
@@ -462,9 +467,9 @@ bool ETHDatasetParser::parseGTdata(const std::string &input_dataset_path,
     }
 
     LOG_IF(FATAL, (fabs(q(0) - gtDataRaw[3]) > 1e-3) ||
-                  (fabs(q(1) - gtDataRaw[4]) > 1e-3) ||
-                  (fabs(q(2) - gtDataRaw[5]) > 1e-3) ||
-                  (fabs(q(3) - gtDataRaw[6]) > 1e-3))
+        (fabs(q(1) - gtDataRaw[4]) > 1e-3) ||
+        (fabs(q(2) - gtDataRaw[5]) > 1e-3) ||
+        (fabs(q(3) - gtDataRaw[6]) > 1e-3))
         << "parseGTdata: wrong quaternion conversion"
         << "(" << q(0) << "," << gtDataRaw[3] << ") "
         << "(" << q(1) << "," << gtDataRaw[4] << ") "
@@ -524,73 +529,12 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
   return true;
 }
 
-bool ETHDatasetParser::sanityCheckCameraData(
-    const std::vector<std::string>& camera_names,
-    const std::map<std::string, CameraParams>& camera_info,
-    std::map<std::string, CameraImageLists>* camera_image_lists) const {
-  CHECK_NOTNULL(camera_image_lists);
-  const auto& left_cam_info = camera_info.at(camera_names.at(0));
-  auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists;
-  auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists;
-  return sanityCheckCamSize(&left_img_lists, &right_img_lists) &&
-      sanityCheckCamTimestamps(left_img_lists, right_img_lists, left_cam_info);
-}
-
-bool ETHDatasetParser::sanityCheckCamSize(
-    CameraImageLists::ImgLists* left_img_lists,
-    CameraImageLists::ImgLists* right_img_lists) const {
-  CHECK_NOTNULL(left_img_lists);
-  CHECK_NOTNULL(right_img_lists);
-  size_t nr_left_cam_imgs = left_img_lists->size();
-  size_t nr_right_cam_imgs = right_img_lists->size();
-  if (nr_left_cam_imgs!= nr_right_cam_imgs) {
-    LOG(WARNING) << "Different number of images in left and right camera!\n"
-                 << "Left: " << nr_left_cam_imgs << "\n"
-                 << "Right: " << nr_right_cam_imgs;
-    size_t nrCommonImages = std::min(nr_left_cam_imgs, nr_right_cam_imgs);
-    left_img_lists->resize(nrCommonImages);
-    right_img_lists->resize(nrCommonImages);
-  }
-  return true;
-}
-
-bool ETHDatasetParser::sanityCheckCamTimestamps(
-  const CameraImageLists::ImgLists& left_img_lists,
-  const CameraImageLists::ImgLists& right_img_lists,
-  const CameraParams& left_cam_info) const {
-  double stdDelta = 0;
-  double frame_rate_maxMismatch = 0;
-  size_t deltaCount = 0u;
-  for (size_t i = 0; i < left_img_lists.size(); i++) {
-    if (i > 0) {
-      deltaCount++;
-      const Timestamp& timestamp = left_img_lists.at(i).first;
-      const Timestamp& previous_timestamp = left_img_lists.at(i-1).first;
-      double deltaMismatch = fabs(double(timestamp - previous_timestamp - left_cam_info.frame_rate_) * 1e-9 );
-      stdDelta += pow( deltaMismatch , 2);
-      frame_rate_maxMismatch = std::max(frame_rate_maxMismatch, deltaMismatch);
-    }
-
-    LOG_IF(FATAL, left_img_lists.at(i).first != right_img_lists.at(i).first)
-        << "Different timestamp for left and right image!\n"
-        << "left: " <<  left_img_lists.at(i).first << '\n'
-        << "right: " << right_img_lists.at(i).first << '\n'
-        << " for image " << i << " of " << left_img_lists.size();
-  }
-
-  LOG(INFO) << "nominal frame rate: " << left_cam_info.frame_rate_ << '\n'
-            << "frame rate std: " << std::sqrt(stdDelta /
-                                               double(deltaCount - 1u)) << '\n'
-            << "frame rate maxMismatch: " << frame_rate_maxMismatch;
-  return true;
-}
-
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseCameraData(
-        const std::string& input_dataset_path,
-        const std::string& left_cam_name,
-        const std::string& right_cam_name,
-        const bool parse_imgs) {
+    const std::string& input_dataset_path,
+    const std::string& left_cam_name,
+    const std::string& right_cam_name,
+    const bool parse_imgs) {
   // Default names: match names of the corresponding folders.
   camera_names_.resize(2);
   camera_names_[0] = left_cam_name;
@@ -622,7 +566,71 @@ bool ETHDatasetParser::parseCameraData(
   // Extrinsics of the stereo (not rectified)
   // relative pose between cameras
   camL_Pose_camR_ = (left_camera_info.body_Pose_cam_).between(
-        right_camera_info.body_Pose_cam_);
+                      right_camera_info.body_Pose_cam_);
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+bool ETHDatasetParser::sanityCheckCameraData(
+    const std::vector<std::string>& camera_names,
+    const std::map<std::string, CameraParams>& camera_info,
+    std::map<std::string, CameraImageLists>* camera_image_lists) const {
+  CHECK_NOTNULL(camera_image_lists);
+  const auto& left_cam_info = camera_info.at(camera_names.at(0));
+  auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists;
+  auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists;
+  return sanityCheckCamSize(&left_img_lists, &right_img_lists) &&
+      sanityCheckCamTimestamps(left_img_lists, right_img_lists, left_cam_info);
+}
+
+/* -------------------------------------------------------------------------- */
+bool ETHDatasetParser::sanityCheckCamSize(
+    CameraImageLists::ImgLists* left_img_lists,
+    CameraImageLists::ImgLists* right_img_lists) const {
+  CHECK_NOTNULL(left_img_lists);
+  CHECK_NOTNULL(right_img_lists);
+  size_t nr_left_cam_imgs = left_img_lists->size();
+  size_t nr_right_cam_imgs = right_img_lists->size();
+  if (nr_left_cam_imgs!= nr_right_cam_imgs) {
+    LOG(WARNING) << "Different number of images in left and right camera!\n"
+                 << "Left: " << nr_left_cam_imgs << "\n"
+                 << "Right: " << nr_right_cam_imgs;
+    size_t nrCommonImages = std::min(nr_left_cam_imgs, nr_right_cam_imgs);
+    left_img_lists->resize(nrCommonImages);
+    right_img_lists->resize(nrCommonImages);
+  }
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+bool ETHDatasetParser::sanityCheckCamTimestamps(
+    const CameraImageLists::ImgLists& left_img_lists,
+    const CameraImageLists::ImgLists& right_img_lists,
+    const CameraParams& left_cam_info) const {
+  double stdDelta = 0;
+  double frame_rate_maxMismatch = 0;
+  size_t deltaCount = 0u;
+  for (size_t i = 0; i < left_img_lists.size(); i++) {
+    if (i > 0) {
+      deltaCount++;
+      const Timestamp& timestamp = left_img_lists.at(i).first;
+      const Timestamp& previous_timestamp = left_img_lists.at(i-1).first;
+      double deltaMismatch = fabs(double(timestamp - previous_timestamp - left_cam_info.frame_rate_) * 1e-9 );
+      stdDelta += pow( deltaMismatch , 2);
+      frame_rate_maxMismatch = std::max(frame_rate_maxMismatch, deltaMismatch);
+    }
+
+    LOG_IF(FATAL, left_img_lists.at(i).first != right_img_lists.at(i).first)
+        << "Different timestamp for left and right image!\n"
+        << "left: " <<  left_img_lists.at(i).first << '\n'
+        << "right: " << right_img_lists.at(i).first << '\n'
+        << " for image " << i << " of " << left_img_lists.size();
+  }
+
+  LOG(INFO) << "nominal frame rate: " << left_cam_info.frame_rate_ << '\n'
+            << "frame rate std: " << std::sqrt(stdDelta /
+                                               double(deltaCount - 1u)) << '\n'
+            << "frame rate maxMismatch: " << frame_rate_maxMismatch;
   return true;
 }
 
@@ -657,7 +665,7 @@ ETHDatasetParser::getGroundTruthState(const Timestamp& timestamp) const {
   double delta_low = double(it_low->first - timestamp) * 1e-9;
   auto it_begin = gtData_.mapToGt_.begin();
   LOG_IF(FATAL, timestamp > it_begin->first && delta_low > 0.01)
-    << "\n getGroundTruthState: something wrong " << delta_low;
+      << "\n getGroundTruthState: something wrong " << delta_low;
   return it_low->second;
 }
 
@@ -676,7 +684,7 @@ std::pair<double, double> ETHDatasetParser::computePoseErrors(
     // Compute errors.
     std::tie(relativeRotError, relativeTranError) =
         UtilsOpenCV::ComputeRotationAndTranslationErrors(
-        lkf_T_k_gt, lkf_T_k_body, upToScale);
+          lkf_T_k_gt, lkf_T_k_body, upToScale);
   }
   return std::make_pair(relativeRotError, relativeTranError);
 }

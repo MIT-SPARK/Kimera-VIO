@@ -8,7 +8,7 @@
 
 /**
  * @file   ETH_parser.h
- * @brief  Reads ETH's Euroc dataset
+ * @brief  Reads ETH's Euroc dataset.
  * @author Antoni Rosinol, Luca Carlone
  */
 
@@ -42,8 +42,9 @@ namespace VIO {
 // because it is used by the backend and the feature selector.
 // Leaving it in the parser forces these modules to include a parser which is
 // at the very least weird.
+
 /*
- * compact storage of state
+ * Compact storage of state.
  */
 class gtNavState {
 public:
@@ -70,36 +71,42 @@ public:
 };
 
 /*
- * Store GT poses and GT info
+ * Store GT poses and GT info.
  */
 class GroundTruthData {
 public:
-  gtsam::Pose3 body_Pose_cam_;  // Sensor extrinsics wrt. the body-frame
-  double gt_rate_; // data rate in seconds, for debug
-  std::map<long long, gtNavState> mapToGt_; // map from timestamp to gtNavState
-public:
   // Display all params.
   void print() const;
+
+public:
+  // Sensor extrinsics wrt. the body-frame
+  gtsam::Pose3 body_Pose_cam_;
+
+  // Data rate in seconds, for debug.
+  double gt_rate_;
+
+  // Map from timestamp to gtNavState.
+  std::map<long long, gtNavState> mapToGt_;
 };
 
 /*
- * Store a list of image names and provide functionalities to parse them
+ * Store a list of image names and provide functionalities to parse them.
  */
-class CameraImageLists { public:
-  std::string image_folder_path_;
-  typedef std::vector<std::pair<long long, std::string>> ImgLists;
-  ImgLists img_lists;
+class CameraImageLists {
 public:
   bool parseCamImgList(const std::string& folderpath,
                        const std::string& filename);
-  inline size_t getNumImages() const {
-      return img_lists.size();
-  }
+  inline size_t getNumImages() const {return img_lists.size();}
   void print() const;
+
+public:
+  std::string image_folder_path_;
+  typedef std::vector<std::pair<long long, std::string> > ImgLists;
+  ImgLists img_lists;
 };
 
 /*
- * Parse all images and camera calibration for an ETH dataset
+ * Parse all images and camera calibration for an ETH dataset.
  */
 class ETHDatasetParser : public DataProvider {
 public:
@@ -119,23 +126,23 @@ public:
 
   /// Getters
   inline std::string getDatasetName() const {
-      return dataset_name_;
+    return dataset_name_;
   }
   inline std::string getLeftImgName(const size_t& k) const {
-      return getImgName("cam0", k);
+    return getImgName("cam0", k);
   }
   inline std::string getRightImgName(const size_t& k) const {
-      return getImgName("cam1", k);
+    return getImgName("cam1", k);
   }
   // A bit risky to send refs to members... Can lead to dangling references.
   inline const gtsam::Pose3& getCamLPoseCamR() const {
     return camL_Pose_camR_;
   }
   inline const CameraParams& getLeftCamInfo() const {
-      return camera_info_.at("cam0");
+    return camera_info_.at("cam0");
   }
   inline const CameraParams& getRightCamInfo() const {
-      return camera_info_.at("cam1");
+    return camera_info_.at("cam1");
   }
 
 public:
@@ -191,6 +198,7 @@ public:
   // Print info about dataset.
   void print() const;
 
+public:
   // THIS IS ONLY HERE BECAUSE the pipeline needs to know what is this value.
   // But it should not need to!!
   // Put it as a static variable in the spin function.
@@ -221,12 +229,12 @@ private:
     return camera_image_lists_.at(camera_names_.at(0)).getNumImages();
   }
   inline std::string getImgName(const std::string& id, const size_t& k) const {
-      return camera_image_lists_.at(id).img_lists.at(k).second;
+    return camera_image_lists_.at(id).img_lists.at(k).second;
   }
 
   // Retrieve absolute pose at timestamp.
   inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
-      return getGroundTruthState(timestamp).pose_;
+    return getGroundTruthState(timestamp).pose_;
   }
 
   bool sanityCheckCameraData(
@@ -237,9 +245,8 @@ private:
   // Sanity check: nr images is the same for left and right camera
   // Resizes left/right img lists to the minimum number of frames in case of
   // different list sizes.
-  bool sanityCheckCamSize(
-    CameraImageLists::ImgLists* left_img_lists,
-    CameraImageLists::ImgLists* right_img_lists) const;
+  bool sanityCheckCamSize(CameraImageLists::ImgLists* left_img_lists,
+                          CameraImageLists::ImgLists* right_img_lists) const;
 
   // Sanity check: time stamps are the same for left and right camera
   bool sanityCheckCamTimestamps(
