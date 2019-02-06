@@ -90,29 +90,19 @@ if (DEFINED external_project_dependencies)
 endif()
 target_link_libraries(stereoVIO PUBLIC ${LIBS})
 target_include_directories(stereoVIO
-  PRIVATE
+  PUBLIC
   ${GFLAGS_INCLUDE_DIRS}
   ${GLOG_INCLUDE_DIRS}
-  PUBLIC
   "src")
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
 target_link_libraries(stereoVIOEuroc PRIVATE stereoVIO)
-target_include_directories(stereoVIOEuroc PRIVATE
-  ${GFLAGS_INCLUDE_DIRS}
-  ${GLOG_INCLUDE_DIRS})
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
 target_link_libraries(semanticVIOEuroc PRIVATE stereoVIO)
-target_include_directories(semanticVIOEuroc PRIVATE
-  ${GFLAGS_INCLUDE_DIRS}
-  ${GLOG_INCLUDE_DIRS})
 
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
 target_link_libraries(stereoVIOSimulation PRIVATE stereoVIO)
-target_include_directories(stereoVIOSimulation PRIVATE
-  ${GFLAGS_INCLUDE_DIRS}
-  ${GLOG_INCLUDE_DIRS})
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
