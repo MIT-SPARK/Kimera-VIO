@@ -243,9 +243,12 @@ add_subdirectory(tests)
 #    DESTINATION ${INSTALL_CONFIGDIR}
 #)
 
-
 export(TARGETS sparkvio
        NAMESPACE SparkVio::
        FILE SparkVioTargets.cmake
        )
 export(PACKAGE SparkVio)
+
+### SIYI's way of exporting.
+##target_include_directories(stereoVIO PUBLIC "./src" ${Boost_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} "/usr/local/include/opengv/" ${OpenCV_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS} ${GLOG_INCLUDE_DIRS})
+##export(TARGETS stereoVIO FILE stereoVIO.cmake)
