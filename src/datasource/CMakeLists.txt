@@ -7,3 +7,4 @@ target_sources(stereoVIO
     "${CMAKE_CURRENT_LIST_DIR}/DataSource.h"
     "${CMAKE_CURRENT_LIST_DIR}/KittiDataSource.h"
 )
+target_include_directories(stereoVIO PRIVATE ${CMAKE_CURRENT_LIST_DIR})

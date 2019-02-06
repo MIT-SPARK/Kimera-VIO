@@ -41,35 +41,36 @@ include(ExternalProject)
 
 ### Include the gflags directory
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
-list(APPEND VIO_INCLUDE_DIRS PUBLIC ${GFLAGS_INCLUDE_DIRS})
 set(LIBS "${LIBS}" ${GFLAGS_LIBRARIES})
 
 ### Include the glog directory
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
-list(APPEND VIO_INCLUDE_DIRS PUBLIC ${GLOG_INCLUDE_DIRS})
 set(LIBS "${LIBS}" ${GLOG_LIBRARIES})
 
 ### Display all libs
 message(STATUS "ALL LIBS: ${LIBS}")
 
 ### Compile the code
-include_directories("./src")
-
-add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
-                      ./src/Tracker.cpp ./src/StereoFrame.cpp
-                      ./src/StereoImuSyncPacket.cpp
-                      ./src/UtilsGeometry.cpp ./src/UtilsOpenCV.cpp
-                      ./src/ImuFrontEnd.cpp
-                      ./src/VioBackEnd.cpp
-                      ./src/RegularVioBackEnd.cpp
-                      ./src/Histogram.cpp ./src/LoggerMatlab.cpp
-                      ./src/FeatureSelector.h
-                      ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
-                      ./src/RegularVioBackEndParams.h
-                      ./src/CameraParams.cpp src/Frame.h
-                      ./src/Visualizer3D.cpp
-                      ./src/Histogram.h
-                      "")
+add_library(stereoVIO SHARED
+  src/ETH_parser.cpp
+  src/StereoVisionFrontEnd.cpp
+  src/Tracker.cpp
+  src/StereoFrame.cpp
+  src/StereoImuSyncPacket.cpp
+  src/UtilsGeometry.cpp
+  src/UtilsOpenCV.cpp
+  src/ImuFrontEnd.cpp
+  src/VioBackEnd.cpp
+  src/RegularVioBackEnd.cpp
+  src/Histogram.cpp
+  src/LoggerMatlab.cpp
+  src/FeatureSelector.h
+  src/VioBackEndParams.h
+  src/VioFrontEndParams.h
+  src/RegularVioBackEndParams.h
+  src/CameraParams.cpp
+  src/Frame.h
+  src/Visualizer3D.cpp "")
 
 ### Add source code for data provider.
 include(src/datasource/CMakeLists.txt)
@@ -87,17 +88,31 @@ include(src/common/CMakeLists.txt)
 if (DEFINED external_project_dependencies)
   add_dependencies(stereoVIO ${external_project_dependencies})
 endif()
-target_link_libraries(stereoVIO ${LIBS})
-target_include_directories(stereoVIO ${VIO_INCLUDE_DIRS})
+target_link_libraries(stereoVIO PUBLIC ${LIBS})
+target_include_directories(stereoVIO
+  PRIVATE
+  ${GFLAGS_INCLUDE_DIRS}
+  ${GLOG_INCLUDE_DIRS}
+  PUBLIC
+  "src")
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
-target_link_libraries (stereoVIOEuroc stereoVIO)
+target_link_libraries(stereoVIOEuroc PRIVATE stereoVIO)
+target_include_directories(stereoVIOEuroc PRIVATE
+  ${GFLAGS_INCLUDE_DIRS}
+  ${GLOG_INCLUDE_DIRS})
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
-target_link_libraries (semanticVIOEuroc stereoVIO)
+target_link_libraries(semanticVIOEuroc PRIVATE stereoVIO)
+target_include_directories(semanticVIOEuroc PRIVATE
+  ${GFLAGS_INCLUDE_DIRS}
+  ${GLOG_INCLUDE_DIRS})
 
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-target_link_libraries (stereoVIOSimulation stereoVIO)
+target_link_libraries(stereoVIOSimulation PRIVATE stereoVIO)
+target_include_directories(stereoVIOSimulation PRIVATE
+  ${GFLAGS_INCLUDE_DIRS}
+  ${GLOG_INCLUDE_DIRS})
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
