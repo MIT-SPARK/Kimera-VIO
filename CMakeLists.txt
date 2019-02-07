@@ -64,7 +64,7 @@ add_library(stereoVIO SHARED
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
   src/LoggerMatlab.cpp
-  src/FeatureSelector.h
+  src/FeatureSelector.cpp
   src/VioBackEndParams.h
   src/VioFrontEndParams.h
   src/RegularVioBackEndParams.h

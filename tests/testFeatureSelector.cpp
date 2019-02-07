@@ -636,6 +636,9 @@ TEST(FeatureSelector, evaluateGain_det ) {
 
 /* ************************************************************************* */
 TEST(FeatureSelector, lowerBound ) {
+  double numericalUpperBound = std::numeric_limits<double>::max();
+  // min instead will return a tiny positive number.
+  double numericalLowerBound = -numericalUpperBound;
   EXPECT(numericalLowerBound == numericalLowerBound); // same as itself
   EXPECT(numericalLowerBound != -1); // different from a negative number
   EXPECT(numericalLowerBound != +1); // different from a positive number
@@ -646,6 +649,9 @@ TEST(FeatureSelector, lowerBound ) {
 
 /* ************************************************************************* */
 TEST(FeatureSelector, upperBound ) {
+  double numericalUpperBound = std::numeric_limits<double>::max();
+  // min instead will return a tiny positive number.
+  double numericalLowerBound = -numericalUpperBound;
   EXPECT(numericalUpperBound == numericalUpperBound); // same as itself
   EXPECT(numericalUpperBound != -1); // different from a negative number
   EXPECT(numericalUpperBound != +1); // different from a positive number
