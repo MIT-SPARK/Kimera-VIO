@@ -36,7 +36,7 @@ if (NOT __GLOG_INCLUDED)
       GIT_REPOSITORY "https://github.com/google/glog"
       GIT_TAG "v0.3.4"
       UPDATE_COMMAND ""
-      INSTALL_DIR ${gflags_INSTALL}
+      INSTALL_DIR ${glog_INSTALL}
       PATCH_COMMAND autoreconf -i ${glog_PREFIX}/src/glog
       CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${glog_PREFIX}/src/glog/configure --prefix=${glog_INSTALL} --enable-shared=no --enable-static=yes --with-gflags=${GFLAGS_LIBRARY_DIRS}/..
       LOG_DOWNLOAD 1
