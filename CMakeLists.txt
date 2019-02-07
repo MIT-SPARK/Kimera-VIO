@@ -1,28 +1,34 @@
-cmake_minimum_required (VERSION 3.1)
-project (spark_vio)
-# set(CMAKE_CXX_FLAGS "-std=c++11") #  -stdlib=libc++
-# set(CMAKE_CXX_FLAGS "-stdlib=libc++")
+cmake_minimum_required (VERSION 3.8)
+project(SparkVio VERSION 1.0 LANGUAGES CXX)
+
+# Make sure that custom modules like FindXXXX are found
+# Currently we do not have any custom find module...
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pipe")
-
 ### Include the boost directory
-find_package(Boost COMPONENTS filesystem REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
+find_package(Boost REQUIRED COMPONENTS filesystem)
 message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
+
+### Eigen
+if(NOT TARGET eigen3)
+  find_package(Eigen3 REQUIRED)
+  add_library(eigen3 INTERFACE IMPORTED)
+  set_target_properties(eigen3 PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${EIGEN3_INCLUDE_DIR}")
+endif()
 
 ### Find the GTSAM package
 find_package(GTSAM REQUIRED)
-include_directories(BEFORE "${GTSAM_INCLUDE_DIR}")
 set (LIBS "${LIBS}" gtsam gtsam_unstable)
 
 ### Find the OpenGV package
 message(STATUS "Setting OpenGV on Luca's machine")
-include_directories(/usr/local/include//opengv/)
+# TODO REMOVE HARDCODED
 set (LIBS "${LIBS}" /usr/local/lib/libopengv.a)
 
 ### Find opencv
@@ -33,7 +39,6 @@ if (OpenCV_FOUND)
 else (OpenCV_FOUND)
   message(STATUS "CANNOT FOUND OpenCV!")
 endif (OpenCV_FOUND)
-include_directories(${OpenCV_INCLUDE_DIRS})
 set (LIBS "${LIBS}" ${OpenCV_LIBS})
 
 ### External Dependencies
@@ -51,7 +56,7 @@ set(LIBS "${LIBS}" ${GLOG_LIBRARIES})
 message(STATUS "ALL LIBS: ${LIBS}")
 
 ### Compile the code
-add_library(stereoVIO SHARED
+add_library(sparkvio SHARED
   src/ETH_parser.cpp
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
@@ -72,6 +77,9 @@ add_library(stereoVIO SHARED
   src/Frame.h
   src/Visualizer3D.cpp "")
 
+#Add an alias so that library can be used inside the build tree, e.g. when testing
+add_library(SparkVio::sparkvio ALIAS sparkvio)
+
 ### Add source code for data provider.
 include(src/datasource/CMakeLists.txt)
 ### Add source code for factors
@@ -86,23 +94,23 @@ include(src/pipeline/CMakeLists.txt)
 include(src/common/CMakeLists.txt)
 
 if (DEFINED external_project_dependencies)
-  add_dependencies(stereoVIO ${external_project_dependencies})
+  add_dependencies(sparkvio ${external_project_dependencies})
 endif()
-target_link_libraries(stereoVIO PUBLIC ${LIBS})
-target_include_directories(stereoVIO
+
+target_link_libraries(sparkvio
   PUBLIC
   ${GFLAGS_INCLUDE_DIRS}
   ${GLOG_INCLUDE_DIRS}
   "src")
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
-target_link_libraries(stereoVIOEuroc PRIVATE stereoVIO)
+target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio)
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
-target_link_libraries(semanticVIOEuroc PRIVATE stereoVIO)
+target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::sparkvio)
 
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-target_link_libraries(stereoVIOSimulation PRIVATE stereoVIO)
+target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)

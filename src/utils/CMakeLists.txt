@@ -1,5 +1,5 @@
 ### Add source code for stereoVIO
-target_sources(stereoVIO
+target_sources(sparkvio
   PRIVATE
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeTemporalBuffer.h"
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeQueue.h"
@@ -7,5 +7,5 @@ target_sources(stereoVIO
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeImuBuffer.h"
     "${CMAKE_CURRENT_LIST_DIR}/Timer.h"
 )
-target_include_directories(stereoVIO PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(sparkvio PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
