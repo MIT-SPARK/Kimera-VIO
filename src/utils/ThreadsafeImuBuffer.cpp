@@ -32,14 +32,9 @@
 #include <chrono>
 
 #include <algorithm>
-#include <condition_variable>
-#include <memory>
-#include <mutex>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
-#include <Eigen/Dense>
 
 #include "Timer.h"
 #include "utils/ThreadsafeImuBuffer.h"
