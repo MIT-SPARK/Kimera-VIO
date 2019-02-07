@@ -65,13 +65,14 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
 
+namespace VIO {
+
 // Add compatibility for c++11's lack of make_unique.
 template<typename T, typename ...Args>
 std::unique_ptr<T> make_unique( Args&& ...args ) {
   return std::unique_ptr<T>( new T( std::forward<Args>(args)... ) );
 }
 
-namespace VIO {
 // TODO VERY BAD TO SEND THE DATASET PARSER AS A POINTER (at least for thread
 // safety!), but this is done now because the logger heavily relies on the
 // dataset parser, especially the grount-truth! Feature selector also has some
@@ -88,7 +89,7 @@ Pipeline::Pipeline(ETHDatasetParser* dataset)
   // front-end) and print parameters.
   // TODO remove hardcoded saveImages, use gflag.
   static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
-  stereo_vision_frontend_ = make_unique<StereoVisionFrontEnd>(
+  stereo_vision_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
         frontend_params_, saveImages, dataset_->getDatasetName());
 
   // Instantiate feature selector: not used in vanilla implementation.
@@ -489,7 +490,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
   switch(dataset_->getBackendType()) {
   case 0: {
     LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
-    *vio_backend = make_unique<VioBackEnd>(B_Pose_camLrect,
+    *vio_backend = VIO::make_unique<VioBackEnd>(B_Pose_camLrect,
                                            left_undist_rect_cam_mat,
                                            baseline,
                                            initial_state_gt,
@@ -502,7 +503,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
   case 1: {
     LOG(INFO) << "\e[1m Using Regular VIO with modality "
               << FLAGS_regular_vio_backend_modality << "\e[0m";
-    *vio_backend = make_unique<RegularVioBackEnd>(
+    *vio_backend = VIO::make_unique<RegularVioBackEnd>(
           B_Pose_camLrect,
           left_undist_rect_cam_mat,
           baseline,
