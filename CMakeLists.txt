@@ -120,6 +120,87 @@ message(STATUS "src_cpp_files = ${src_cpp_files}")
 
 ### Add testing
 add_subdirectory(tests)
+#####################################################################################
 
 ### Add examples
 # add_subdirectory(examples)
+
+## Export stereoVIO library for others to use. Should fix the PUBLIC PRIVATE PARTS.
+#target_include_directories(stereoVIO PUBLIC
+#  "./src"
+#  ${Boost_INCLUDE_DIRS}
+#  ${GTSAM_INCLUDE_DIR}
+#  "/usr/local/include/opengv/"
+#  ${OpenCV_INCLUDE_DIRS}
+#  ${GFLAGS_INCLUDE_DIRS}
+#  ${GLOG_INCLUDE_DIRS})
+
+#export(TARGETS SparkVio FILE SparkVio.cmake)
+#
+#
+#install(TARGETS SparkVio EXPORT stereoVioTargets
+#  LIBRARY DESTINATION lib
+#  ARCHIVE DESTINATION lib
+#  RUNTIME DESTINATION bin
+#  INCLUDES DESTINATION include
+#  )
+#install(EXPORT SparkVioTargets
+#  FILE SparkVioTargets.cmake
+#  NAMESPACE stereoVio::
+#  DESTINATION lib/cmake/SparkVio
+#  )
+
+#include(CMakePackageConfigHelpers)
+#write_basic_package_version_file("SparkVioConfigVersion.cmake"
+#  VERSION ${SparkVio_VERSION}
+#  COMPATIBILITY SameMajorVersion
+#)
+
+##############################################
+## Installation instructions
+#include(GNUInstallDirs)
+#set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SparkVio)
+#
+## First of all, we need to install the library itself.
+#install(TARGETS sparkvio
+#    EXPORT sparkvio-export
+#    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#    #   INCLUDES DESTINATION include # We need this right?
+#)
+## This is required so that the exported target has the name SparkVio and not sparkvio
+#set_target_properties(sparkvio PROPERTIES EXPORT_NAME SparkVio)
+#
+#install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+#
+## We install the export that we defined above
+## Export the targets to a script
+## This will install the import script SparkVioTargets.cmake
+## When findpackaged by other scripts, it will load the targets defined
+## in the export sparkvio-export.
+#install(EXPORT sparkvio-export
+#  FILE SparkVioTargets.cmake
+#  NAMESPACE SparkVio::
+#  DESTINATION ${INSTALL_CONFIGDIR}
+#)
+#
+## Create a ConfigVersion.cmake file
+#include(CMakePackageConfigHelpers)
+#write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfigVersion.cmake
+#    VERSION ${PROJECT_VERSION}
+#    COMPATIBILITY AnyNewerVersion
+#)
+#
+## Update SparkVioConfig.cmake with extra info from SparkVioConfig.cmake.in
+#configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/SparkVioConfig.cmake.in
+#    ${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfig.cmake
+#    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
+#)
+#
+## Install the config and configversion
+## Here you could also install custom cmake find modules
+#install(FILES
+#    ${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfig.cmake
+#    ${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfigVersion.cmake
+#    DESTINATION ${INSTALL_CONFIGDIR}
+#)
