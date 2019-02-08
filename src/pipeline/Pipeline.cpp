@@ -616,17 +616,20 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
 void Pipeline::launchThreads() {
   // Start backend_thread.
   backend_thread_ = std::thread(&VioBackEnd::spin,
-                                std::ref(*vio_backend_),
+                                // Returns the pointer to vio_backend_.
+                                CHECK_NOTNULL(vio_backend_.get()),
                                 std::ref(backend_input_queue_),
                                 std::ref(backend_output_queue_));
 
   // Start mesher_thread.
-  mesher_thread_ = std::thread(&Mesher::run, std::ref(mesher_),
+  mesher_thread_ = std::thread(&Mesher::run,
+                               &mesher_,
                                std::ref(mesher_input_queue_),
                                std::ref(mesher_output_queue_));
 
   // Start visualizer_thread.
-  visualizer_thread_ = std::thread(&Visualizer3D::spin, std::ref(visualizer_),
+  visualizer_thread_ = std::thread(&Visualizer3D::spin,
+                                   &visualizer_,
                                    std::ref(visualizer_input_queue_),
                                    std::ref(visualizer_output_queue_));
 }
