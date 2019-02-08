@@ -16,6 +16,10 @@ set (LIBS "${LIBS}" Boost::boost Boost::filesystem)
 message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 
 ### Eigen
+# Although we are using eigen ourselves, if we link against
+# one that is different from GTSAM's one, we end up with
+# issue described in :
+# https://bitbucket.org/gtborg/gtsam/issues/295
 #if(NOT TARGET eigen3)
 #  find_package(Eigen3 REQUIRED)
 #  add_library(eigen3 INTERFACE IMPORTED)
@@ -104,14 +108,18 @@ target_link_libraries(sparkvio
   )
 target_include_directories(sparkvio
     PUBLIC
-    $<BUILD_INTERFACE:${GTSAM_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
-    $<BUILD_INTERFACE:${GLOG_INCLUDE_DIRS}>
+      ${GTSAM_INCLUDE_DIR}
 
-    $<INSTALL_INTERFACE:include> # SHOULD COPY GFfLAGS tehre!
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<INSTALL_INTERFACE:src>
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+      $<BUILD_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
+      $<BUILD_INTERFACE:${GLOG_INCLUDE_DIRS}>
+
+      $<INSTALL_INTERFACE:src>
+      $<INSTALL_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
+      $<INSTALL_INTERFACE:${GLOG_INCLUDE_DIRS}>
     )
+target_compile_options(sparkvio PRIVATE -Wall -pipe) # Remove these
+target_compile_features(sparkvio PUBLIC cxx_std_11)
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio)
@@ -235,5 +243,9 @@ add_subdirectory(tests)
 #    DESTINATION ${INSTALL_CONFIGDIR}
 #)
 
-export(TARGETS sparkvio NAMESPACE SparkVio:: FILE SparkVioTargets.cmake)
-export(PACKAGE sparkvio)
+
+export(TARGETS sparkvio
+       NAMESPACE SparkVio::
+       FILE SparkVioTargets.cmake
+       )
+export(PACKAGE SparkVio)

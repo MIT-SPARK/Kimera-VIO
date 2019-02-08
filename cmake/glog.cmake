@@ -50,6 +50,16 @@ if (NOT __GLOG_INCLUDED)
     set(GLOG_LIBRARY_DIRS ${glog_INSTALL}/lib)
     set(GLOG_EXTERNAL TRUE)
 
+    add_library(gflags_imported STATIC IMPORTED GLOBAL)
+    set_target_properties(gflags_imported
+      PROPERTIES IMPORTED_LOCATION "${gflags_INSTALL}/lib/libgflags.a")
+    add_dependencies(gflags_imported gflags)
+
+    add_library(glog_imported STATIC IMPORTED GLOBAL)
+    set_target_properties(glog_imported
+      PROPERTIES IMPORTED_LOCATION "${glog_INSTALL}/lib/libglog.a")
+    add_dependencies(glog_imported glog)
+
     list(APPEND external_project_dependencies glog)
   endif()
 
