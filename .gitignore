@@ -3,7 +3,7 @@
 /.settings/
 /matlab/result-*
 /scripts/*/*.txt
-/scripts/*/*.csv
+/*/*.csv
 
 
 % Ignore VS code settings
