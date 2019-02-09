@@ -533,6 +533,7 @@ void Pipeline::spinDisplayOnce(
     // Display 3D window.
     if (visualizer_output_payload->visualization_type_ !=
         VisualizationType::NONE) {
+      VLOG(10) << "Spin Visualize 3D output.";
       visualizer_output_payload->window_.spinOnce(1, true);
     }
 
@@ -541,6 +542,7 @@ void Pipeline::spinDisplayOnce(
          visualizer_output_payload->images_to_display_) {
       cv::imshow(img_to_display.name_, img_to_display.image_);
     }
+    VLOG(10) << "Spin Visualize 2D output.";
     cv::waitKey(1);
   } else {
     LOG(WARNING) << "Visualizer is lagging behind pipeline processing.";

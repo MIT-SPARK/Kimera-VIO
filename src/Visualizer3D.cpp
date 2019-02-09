@@ -227,7 +227,9 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     static Mesher::Mesh3DColors colors_prev;
 
     if (FLAGS_visualize_mesh) {
+      VLOG(10) << "Visualize mesh.";
       if (FLAGS_visualize_semantic_mesh) {
+        VLOG(10) << "Visualize Semantic mesh.";
         LOG_IF(WARNING, FLAGS_visualize_mesh_with_colored_polygon_clusters)
             << "Both gflags visualize_semantic_mesh and "
                "visualize_mesh_with_colored_polygon_cluster are set to True,"
@@ -235,6 +237,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
                "visualization of the polygon clusters.";
         visualizeMesh3D(vertices_mesh_prev, colors_prev, polygons_mesh_prev);
       } else {
+        VLOG(10) << "Visualize mesh with colored clusters.";
         LOG_IF(ERROR, colors_prev.rows > 0u)
             << "The 3D mesh is being colored with semantic information, but"
                " gflag visualize_semantic_mesh is set to false...";
