@@ -7,7 +7,7 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   stereoVIOEuroc.cpp
+ * @file   semanticVIOEuroc.cpp
  * @brief  Example of semantic VIO pipeline running on the Euroc dataset.
  * @author Antoni Rosinol
  */
@@ -39,7 +39,7 @@ Mesher::Mesh3DColors dummySemanticSegmentation(cv::Mat left_image,
 } // End of VIO namespace.
 
 ////////////////////////////////////////////////////////////////////////////////
-// stereoVIOexample
+// semanticVIOexample
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
   // Initialize Google's flags library.
