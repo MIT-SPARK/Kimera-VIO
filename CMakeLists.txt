@@ -20,12 +20,12 @@ message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 # one that is different from GTSAM's one, we end up with
 # issue described in :
 # https://bitbucket.org/gtborg/gtsam/issues/295
-#if(NOT TARGET eigen3)
-#  find_package(Eigen3 REQUIRED)
-#  add_library(eigen3 INTERFACE IMPORTED)
-#  set_target_properties(eigen3 PROPERTIES
-#  INTERFACE_INCLUDE_DIRECTORIES "${EIGEN3_INCLUDE_DIR}")
-#endif()
+if(NOT TARGET eigen3)
+  find_package(Eigen3 REQUIRED)
+  add_library(eigen3 INTERFACE IMPORTED)
+  set_target_properties(eigen3 PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${EIGEN3_INCLUDE_DIR}")
+endif()
 
 ### Find the GTSAM package
 find_package(GTSAM REQUIRED)
@@ -107,30 +107,30 @@ target_link_libraries(sparkvio
     ${LIBS}
   )
 target_include_directories(sparkvio
-    PUBLIC
-      ${GTSAM_INCLUDE_DIR}
+  PRIVATE
+    ${GTSAM_INCLUDE_DIR}
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
+    $<BUILD_INTERFACE:${GLOG_INCLUDE_DIRS}>
 
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-      $<BUILD_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
-      $<BUILD_INTERFACE:${GLOG_INCLUDE_DIRS}>
-
-      $<INSTALL_INTERFACE:src>
-      $<INSTALL_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
-      $<INSTALL_INTERFACE:${GLOG_INCLUDE_DIRS}>
-    )
+    $<INSTALL_INTERFACE:src>
+    $<INSTALL_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
+    $<INSTALL_INTERFACE:${GLOG_INCLUDE_DIRS}>
+  )
 target_compile_options(sparkvio PRIVATE -Wall -pipe) # Remove these
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(sparkvio PUBLIC
-		cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
+        cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio)
+target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio PRIVATE eigen3)
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
-target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::sparkvio)
+target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::sparkvio PRIVATE eigen3)
 
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio)
+target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio PRIVATE eigen3)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
@@ -192,13 +192,14 @@ add_subdirectory(tests)
 ## First of all, we need to install the library itself.
 #install(TARGETS sparkvio
 #    EXPORT sparkvio-export
-#    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#    LIBRARY DESTINATION lib
+#    ARCHIVE DESTINATION lib
 #    INCLUDES DESTINATION include # We need this right?
 #)
+
 ## This is required so that the exported target has the name SparkVio and not sparkvio
 #set_target_properties(sparkvio PROPERTIES EXPORT_NAME SparkVio)
-#
+
 ## TODO THIS SHOULD BE only the headers... aka include/
 ##install(DIRECTORY src/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 #
@@ -208,8 +209,8 @@ add_subdirectory(tests)
 #install(DIRECTORY ${GLOG_INCLUDE_DIRS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 #
 ## CMAKE_INSTALL_LIBDIR is lib usually
-#set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SparkVio)
-#
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SparkVio)
+
 ## We install the export that we defined above
 ## Export the targets to a script
 ## This will install the import script SparkVioTargets.cmake
@@ -218,24 +219,24 @@ add_subdirectory(tests)
 #install(EXPORT sparkvio-export
 #  FILE SparkVioTargets.cmake
 #  NAMESPACE SparkVio::
-#  DESTINATION ${INSTALL_CONFIGDIR}
-#)
-#
-
 ## It's usually a good idea to give CMake access to the version,
 ## so that find_package can have a version specified.
 ## Create a ConfigVersion.cmake file
-#include(CMakePackageConfigHelpers)
-#write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfigVersion.cmake
-#    VERSION ${PROJECT_VERSION}
-#    COMPATIBILITY AnyNewerVersion
-#)
-#
-## Update SparkVioConfig.cmake with extra info from SparkVioConfig.cmake.in
-#configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/SparkVioConfig.cmake.in
-#    ${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfig.cmake
-#    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
-#)
+## It's usually a good idea to give CMake access to the version,
+## so that find_package can have a version specified.
+## Create a ConfigVersion.cmake file
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+# Create SparkVioConfig.cmake with extra info from SparkVioConfig.cmake.in
+# This file is necessary to find_package the library sparkvio.
+configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/SparkVioConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfig.cmake
+    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
+)
 #
 ## Install the config and configversion
 ## Here you could also install custom cmake find modules
@@ -247,8 +248,7 @@ add_subdirectory(tests)
 
 export(TARGETS sparkvio
        NAMESPACE SparkVio::
-       FILE SparkVioTargets.cmake
-       )
+       FILE SparkVioTargets.cmake)
 export(PACKAGE SparkVio)
 
 ### SIYI's way of exporting.
