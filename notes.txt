@@ -1,0 +1,4 @@
+- Datasource 
+	Kitti (focus on the spin and imu packets part)
+- Might have to use eth for ground truth (generalize later)
+- Look at  VIO/examples/stereoVIOEuroc.cpp
