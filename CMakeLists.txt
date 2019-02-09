@@ -19,7 +19,11 @@ message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 # one that is different from GTSAM's one, we end up with
 # issue described in :
 # https://bitbucket.org/gtborg/gtsam/issues/295
-# If you have multiple installed version of Eigen, you can pick your favorite one by setting the Eigen3_DIR cmake's variable to the respective path containing the Eigen3*.cmake files. For instance:
+# If you have multiple installed version of Eigen,
+#  you can pick your favorite one by setting the Eigen3_DIR
+#  cmake's variable to the respective path containing
+#  the Eigen3*.cmake files.
+# Recommended to use GTSAM's one, others should work as well.
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 ### Find the GTSAM package
