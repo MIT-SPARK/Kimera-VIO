@@ -12,7 +12,6 @@ message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
 ### Include the boost directory
 find_package(Boost REQUIRED COMPONENTS filesystem)
-set (LIBS "${LIBS}" Boost::boost Boost::filesystem)
 message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 
 ### Eigen
@@ -29,12 +28,10 @@ endif()
 
 ### Find the GTSAM package
 find_package(GTSAM REQUIRED)
-set (LIBS "${LIBS}" gtsam gtsam_unstable)
 
 ### Find the OpenGV package
 message(STATUS "Setting OpenGV on Luca's machine")
 # TODO REMOVE HARDCODED
-set (LIBS "${LIBS}" /usr/local/lib/libopengv.a)
 
 ### Find opencv
 find_package(OpenCV 3.3.1 REQUIRED)
@@ -44,18 +41,15 @@ if (OpenCV_FOUND)
 else (OpenCV_FOUND)
   message(STATUS "CANNOT FOUND OpenCV!")
 endif (OpenCV_FOUND)
-set (LIBS "${LIBS}" ${OpenCV_LIBS})
 
 ### External Dependencies
 include(ExternalProject)
 
 ### Include the gflags directory
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
-set(LIBS "${LIBS}" ${GFLAGS_LIBRARIES})
 
 ### Include the glog directory
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
-set(LIBS "${LIBS}" ${GLOG_LIBRARIES})
 
 ### Display all libs
 message(STATUS "ALL LIBS: ${LIBS}")
@@ -104,7 +98,14 @@ endif()
 
 target_link_libraries(sparkvio
   PUBLIC
-    ${LIBS}
+  /usr/local/lib/libopengv.a
+  Boost::boost
+  Boost::filesystem
+  ${OpenCV_LIBS}
+  ${GFLAGS_LIBRARIES}
+  ${GLOG_LIBRARIES}
+  gtsam
+  gtsam_unstable
   )
 target_include_directories(sparkvio
   PRIVATE
