@@ -8,7 +8,7 @@ pipeline {
     stage('Build') {
       steps {
         slackSend color: 'good', message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
-          cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: '-j 8']]
+          cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: '-j 8 -DEigen3_DIR=/usr/local/include/gtsam/3rdparty/Eigen']]
       }
     }
     stage('Test') {
