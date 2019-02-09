@@ -36,7 +36,7 @@ if (NOT __GLOG_INCLUDED)
       GIT_REPOSITORY "https://github.com/google/glog"
       GIT_TAG "v0.3.4"
       UPDATE_COMMAND ""
-      INSTALL_DIR ${gflags_INSTALL}
+      INSTALL_DIR ${glog_INSTALL}
       PATCH_COMMAND autoreconf -i ${glog_PREFIX}/src/glog
       CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${glog_PREFIX}/src/glog/configure --prefix=${glog_INSTALL} --enable-shared=no --enable-static=yes --with-gflags=${GFLAGS_LIBRARY_DIRS}/..
       LOG_DOWNLOAD 1
@@ -46,9 +46,19 @@ if (NOT __GLOG_INCLUDED)
 
     set(GLOG_FOUND TRUE)
     set(GLOG_INCLUDE_DIRS ${glog_INSTALL}/include)
-    set(GLOG_LIBRARIES ${GFLAGS_LIBRARIES} ${glog_INSTALL}/lib/libglog.a)
+    set(GLOG_LIBRARIES ${glog_INSTALL}/lib/libglog.a)
     set(GLOG_LIBRARY_DIRS ${glog_INSTALL}/lib)
     set(GLOG_EXTERNAL TRUE)
+
+    add_library(gflags_imported STATIC IMPORTED GLOBAL)
+    set_target_properties(gflags_imported
+      PROPERTIES IMPORTED_LOCATION "${gflags_INSTALL}/lib/libgflags.a")
+    add_dependencies(gflags_imported gflags)
+
+    add_library(glog_imported STATIC IMPORTED GLOBAL)
+    set_target_properties(glog_imported
+      PROPERTIES IMPORTED_LOCATION "${glog_INSTALL}/lib/libglog.a")
+    add_dependencies(glog_imported glog)
 
     list(APPEND external_project_dependencies glog)
   endif()

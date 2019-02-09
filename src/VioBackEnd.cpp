@@ -219,6 +219,7 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
   new_values_.insert(gtsam::Symbol('v', curr_kf_id_), W_Vel_B_lkf_);
   new_values_.insert(gtsam::Symbol('b', curr_kf_id_), imu_bias_lkf_);
 
+  VLOG(2) << "Start optimize with initial state and priors!";
   optimize(curr_kf_id_, vio_params_.numOptimize_);
 }
 
