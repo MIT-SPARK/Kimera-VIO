@@ -1,0 +1,21 @@
+get_filename_component(SparkVio_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+include(CMakeFindDependencyMacro)
+
+list(APPEND CMAKE_MODULE_PATH ${SparkVio_CMAKE_DIR})
+
+find_dependency(Boost REQUIRED COMPONENTS filesystem)
+find_dependency(GTSAM REQUIRED)
+find_dependency(OpenCV 3.3.1 REQUIRED)
+
+# We should set those right?
+#find_dependency(glog REQUIRED)
+#find_dependency(gflags REQUIRED)
+#find_dependency(Thread REQUIRED)
+
+list(REMOVE_AT CMAKE_MODULE_PATH -1)
+
+if(NOT TARGET SparkVio::sparkvio)
+  include("${SparkVio_CMAKE_DIR}/SparkVioTargets.cmake")
+endif()
+
+set(SparkVio_LIBRARIES SparkVio::sparkvio)
