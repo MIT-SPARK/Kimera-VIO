@@ -83,35 +83,73 @@ bool KittiDataProvider::spin() {
 
 void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
                                   KittiData* kitti_data) const {
+  // TODO: start here with example kitti data 
+  // Images in Kitti dataset: datapath/image_02/data gives all (left?) images in order 
+  // datapath/image_02/timestamps.txt gives the timestamps in order 
+  // same for image_3 (right? images)
   CHECK_NOTNULL(kitti_data);
-  std::ifstream times_stream;
-  std::string times_path = kitti_sequence_path + "/times.txt";
-  times_stream.open(times_path.c_str());
-  CHECK(times_stream.is_open());
-  while(!times_stream.eof()) {
-    std::string line;
-    getline(times_stream, line);
-    if(!line.empty()) {
+
+  std::string left_prefix = kitti_sequence_path + "/image_02";
+  std::string right_prefix = kitti_sequence_path + "/image_03";
+
+  // parse timestamps (left /image_02)
+  // NOTE the timestamps for left and right cam not sychronized
+  // TODO investigate of error accumulates 
+  std::ifstream left_cam_times_stream, right_cam_times_stream; 
+  std::string left_cam_times_path = left_prefix + "/timestamps.txt";
+  std::string right_cam_times_path = right_prefix + "/timestamps.txt";
+
+  left_cam_times_stream.open(left_cam_times_path.c_str());
+  right_cam_times_stream.open(right_cam_times_path.c_str());
+  CHECK(left_cam_times_stream.is_open());
+  CHECK(right_cam_times_stream.is_open());
+  while(!left_cam_times_stream.eof() && !right_cam_times_stream.eof()) {
+    std::string line_lft, line_rht;
+    getline(left_cam_times_stream, line_lft);
+    getline(right_cam_times_stream, line_rht);
+    // (for now take the later timestamp)
+    // left timestamp
+    double left_timestamp = -1;
+    double right_timestamp = -1;
+    if(!line_lft.empty()) {
       std::stringstream ss;
-      ss << line;
-      double timestamp;
-      ss >> timestamp;
-      kitti_data->timestamps_.push_back(timestamp);
+      std::replace(line_lft.begin(), line_lft.end(), ':', ' ');
+      ss << line_lft;
+      std::string date; 
+      double hr, min, sec; 
+      ss >> date >> hr >> min >> sec; 
+      // formate time into double (nano seconds)
+      double left_timestamp = (hr*3600 + min*60 + sec)*10E9;
+    }
+    // right timestamp
+    if(!line_rht.empty()) {
+      std::stringstream ss;
+      std::replace(line_rht.begin(), line_rht.end(), ':', ' ');
+      ss << line_rht;
+      std::string date; 
+      double hr, min, sec; 
+      ss >> date >> hr >> min >> sec; 
+      // formate time into double (nano seconds)
+      double right_timestamp = (hr*3600 + min*60 + sec)*10E9;
+    }
+    if (left_timestamp != -1 || right_timestamp != -1){
+      if (left_timestamp > right_timestamp){
+        kitti_data->timestamps_.push_back(left_timestamp)
+      }else{
+        kitti_data->timestamps_.push_back(right_timestamp);
+      }
     }
   }
-
-  std::string left_prefix = kitti_sequence_path + "/image_0/";
-  std::string right_prefix = kitti_sequence_path + "/image_1/";
-
+  
   const size_t timestamps_size = kitti_data->timestamps_.size();
   kitti_data->left_img_names_.resize(timestamps_size);
   kitti_data->right_img_names_.resize(timestamps_size);
 
   for(size_t i = 0; i < timestamps_size; i++) {
     std::stringstream ss;
-    ss << std::setfill('0') << std::setw(6) << i;
-    kitti_data->left_img_names_[i] = left_prefix + ss.str() + ".png";
-    kitti_data->right_img_names_[i] = right_prefix + ss.str() + ".png";
+    ss << std::setfill('0') << std::setw(10) << i;
+    kitti_data->left_img_names_[i] = left_prefix + "/data/" + ss.str() + ".png";
+    kitti_data->right_img_names_[i] = right_prefix + "/data/" + ss.str() + ".png";
   }
 
   // Check data is parsed correctly.
