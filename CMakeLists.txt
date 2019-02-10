@@ -26,7 +26,7 @@ message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 # Recommended to use GTSAM's one, others should work as well.
 set(EIGEN3_INCLUDE_DIR "" CACHE PATH
   "User settable path to eigen's include directory. (e.g. /usr/local/eigen3)")
-if(${EIGEN3_INCLUDE_DIR} EQUAL "") # User did not specify eigen, using system wide one.
+if(NOT EIGEN3_INCLUDE_DIR) # User did not specify eigen, using system wide one.
   message(STATUS "Using system-wide Eigen.")
   find_package(Eigen3 3.2.5 REQUIRED NO_MODULE) # 3.2.5 for MKL for gtsam apparently
 else() # ALLOW the user to specify EIGEN3_INCLUDE_DIR directly
