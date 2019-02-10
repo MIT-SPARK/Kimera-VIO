@@ -24,7 +24,18 @@ message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 #  cmake's variable to the respective path containing
 #  the Eigen3*.cmake files.
 # Recommended to use GTSAM's one, others should work as well.
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+set(EIGEN3_INCLUDE_DIR "" CACHE PATH
+  "User settable path to eigen's include directory. (e.g. /usr/local/eigen3)")
+if(${EIGEN3_INCLUDE_DIR} EQUAL "") # User did not specify eigen, using system wide one.
+  message(STATUS "Using system-wide Eigen.")
+  find_package(Eigen3 3.2.5 REQUIRED NO_MODULE) # 3.2.5 for MKL for gtsam apparently
+else() # ALLOW the user to specify EIGEN3_INCLUDE_DIR directly
+  message(STATUS "Using user-specified Eigen.")
+  add_library(Eigen3::Eigen INTERFACE IMPORTED)
+  set_target_properties(Eigen3::Eigen PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${EIGEN3_INCLUDE_DIR}")
+endif()
+message(STATUS "EIGEN3_INCLUDE_DIR = ${EIGEN3_INCLUDE_DIR}")
 
 ### Find the GTSAM package
 find_package(GTSAM REQUIRED)
@@ -125,13 +136,13 @@ target_compile_features(sparkvio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio PRIVATE eigen3)
+target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio PRIVATE Eigen3::Eigen)
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
-target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::sparkvio PRIVATE eigen3)
+target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::sparkvio PRIVATE Eigen3::Eigen)
 
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio PRIVATE eigen3)
+target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio PRIVATE Eigen3::Eigen)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
