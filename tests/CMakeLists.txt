@@ -9,8 +9,5 @@ set(TEST_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/data")
 configure_file(test_config.h.in test_config.h)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-add_library(group_test_libs INTERFACE)
-target_link_libraries(group_test_libs INTERFACE Eigen3::Eigen SparkVio::sparkvio)
-
 # Build tests
-gtsamAddTestsGlob(VIOTests "test*.cpp" "${tests_exclude}" group_test_libs)
+gtsamAddTestsGlob(VIOTests "test*.cpp" "${tests_exclude}" SparkVio::sparkvio)

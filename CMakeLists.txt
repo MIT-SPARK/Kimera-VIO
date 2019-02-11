@@ -21,29 +21,6 @@ endif()
 
 message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 
-### Eigen
-# Although we are using eigen ourselves, if we link against
-# one that is different from GTSAM's one, we end up with
-# issue described in :
-# https://bitbucket.org/gtborg/gtsam/issues/295
-# If you have multiple installed version of Eigen,
-#  you can pick your favorite one by setting the Eigen3_DIR
-#  cmake's variable to the respective path containing
-#  the Eigen3*.cmake files.
-# Recommended to use GTSAM's one, others should work as well.
-set(EIGEN3_INCLUDE_DIR "" CACHE PATH
-  "User settable path to eigen's include directory. (e.g. /usr/local/eigen3)")
-if(NOT EIGEN3_INCLUDE_DIR) # User did not specify eigen, using system wide one.
-  message(STATUS "Using system-wide Eigen.")
-  find_package(Eigen3 3.2.5 REQUIRED NO_MODULE) # 3.2.5 for MKL for gtsam apparently
-else() # ALLOW the user to specify EIGEN3_INCLUDE_DIR directly
-  message(STATUS "Using user-specified Eigen.")
-  add_library(Eigen3::Eigen INTERFACE IMPORTED)
-  set_target_properties(Eigen3::Eigen PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "${EIGEN3_INCLUDE_DIR}")
-endif()
-message(STATUS "EIGEN3_INCLUDE_DIR = ${EIGEN3_INCLUDE_DIR}")
-
 ### Find the GTSAM package
 find_package(GTSAM REQUIRED)
 
@@ -125,9 +102,8 @@ target_link_libraries(sparkvio
   gtsam_unstable
   )
 target_include_directories(sparkvio
-  PRIVATE
-    ${GTSAM_INCLUDE_DIR}
   PUBLIC
+    ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
     $<BUILD_INTERFACE:${GLOG_INCLUDE_DIRS}>
@@ -142,13 +118,13 @@ target_compile_features(sparkvio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio PRIVATE Eigen3::Eigen)
+target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio)
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
-target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::sparkvio PRIVATE Eigen3::Eigen)
+target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::sparkvio)
 
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio PRIVATE Eigen3::Eigen)
+target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
