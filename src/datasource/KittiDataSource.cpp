@@ -142,7 +142,7 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
     }
     if (left_timestamp != -1 || right_timestamp != -1){
       if (left_timestamp > right_timestamp){
-        kitti_data->timestamps_.push_back(left_timestamp)
+        kitti_data->timestamps_.push_back(left_timestamp);
       }else{
         kitti_data->timestamps_.push_back(right_timestamp);
       }

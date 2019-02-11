@@ -36,6 +36,10 @@ public:
   bool parseYAML(const std::string& filepath);
 
   /* ------------------------------------------------------------------------ */
+  // Parse KITTI calib file describing camera parameters. 
+  bool parseKITTICalib(const std::string& filepath, const std::string& cam_id); 
+
+  /* ------------------------------------------------------------------------ */
   // Display all params.
   void print() const;
 
