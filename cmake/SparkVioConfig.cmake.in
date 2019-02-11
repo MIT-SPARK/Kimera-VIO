@@ -3,7 +3,13 @@ include(CMakeFindDependencyMacro)
 
 list(APPEND CMAKE_MODULE_PATH ${SparkVio_CMAKE_DIR})
 
-find_dependency(Boost REQUIRED COMPONENTS filesystem)
+find_dependency(Boost REQUIRED)
+if(NOT TARGET Boost::boost)
+  add_library(Boost::boost INTERFACE IMPORTED)
+  set_target_properties(Boost::boost PROPERTIES
+  INTERFACE_LINK_LIBRARIES "${Boost_LIBRARIES}"
+  INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
+endif()
 find_dependency(GTSAM REQUIRED)
 find_dependency(OpenCV 3.3.1 REQUIRED)
 

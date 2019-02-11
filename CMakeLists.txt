@@ -12,6 +12,13 @@ message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
 ### Include the boost directory
 find_package(Boost REQUIRED COMPONENTS filesystem)
+if(NOT TARGET Boost::boost)
+  add_library(Boost::boost INTERFACE IMPORTED)
+  set_target_properties(Boost::boost PROPERTIES
+  INTERFACE_LINK_LIBRARIES "${Boost_LIBRARIES}"
+  INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
+endif()
+
 message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 
 ### Eigen
@@ -111,7 +118,6 @@ target_link_libraries(sparkvio
   PUBLIC
   /usr/local/lib/libopengv.a
   Boost::boost
-  Boost::filesystem
   ${OpenCV_LIBS}
   ${GFLAGS_LIBRARIES}
   ${GLOG_LIBRARIES}
