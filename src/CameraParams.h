@@ -17,6 +17,8 @@
 
 #include <opencv2/core/core.hpp>
 #include <stdlib.h>
+#include <iostream>
+#include <fstream>
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>

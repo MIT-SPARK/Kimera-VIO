@@ -91,6 +91,8 @@ bool CameraParams::parseKITTICalib(const std::string& filepath, const std::strin
   std::ifstream calib_file; 
   calib_file.open(filepath.c_str());
   bool read_all_cam_info = false;
+  std::vector<double> distortion_coeff5_; 
+
 
   // read loop
   while(!calib_file.eof() && !read_all_cam_info) {
@@ -127,11 +129,10 @@ bool CameraParams::parseKITTICalib(const std::string& filepath, const std::strin
       }else if (label == "D_" + cam_id + ":") {
         // this entry gives the distortion coeffs 
         distortion_coeff_ = cv::Mat::zeros(1, 5, CV_64F);
-        std::vector<double> D_vector; 
         double value; 
-        while (ss >> value) D_vector.push_back(value); 
+        while (ss >> value) distortion_coeff5_.push_back(value); 
         for (int k = 0; k < 5; k++) {
-          distortion_coeff_.at<double>(0,k) = D_vector[k]; 
+          distortion_coeff_.at<double>(0,k) = distortion_coeff5_[k]; 
         }
 
       }else if (label == "R_" + cam_id + ":") {
@@ -162,17 +163,18 @@ bool CameraParams::parseKITTICalib(const std::string& filepath, const std::strin
   }
 
   // Cam pose wrt to body.
-  body_Pose_cam_ = UtilsOpenCV::Vec2pose(cvR, cvT);
+  body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(cvR, cvT);
 
   calibration_ = gtsam::Cal3DS2(intrinsics_[0], // fx
       intrinsics_[1], // fy
       0.0,           // skew
       intrinsics_[2], // u0
       intrinsics_[3], // v0
-      distortion_coeff_[0],  //  k1
-      distortion_coeff_[1],  //  k2
-      distortion_coeff_[2],  //  p1
-      distortion_coeff_[3]); //  p2
+      distortion_coeff5_[0],  //  k1
+      distortion_coeff5_[1],  //  k2
+      distortion_coeff5_[2],  //  p1
+      distortion_coeff5_[3]); //  p2
+      // NOTE check if ignorting the 3rd distortion coeff is correct 
 
   return true;
 }
