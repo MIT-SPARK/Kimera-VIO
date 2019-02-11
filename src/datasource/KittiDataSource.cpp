@@ -75,6 +75,14 @@ bool KittiDataProvider::spin() {
     //                            stereo_matching_params),
     //                imu_meas.timestamps_,
     //                imu_meas.measurements_));
+    /*
+    TODO:
+    https://github.com/yanii/kitti-pcl/blob/master/KITTI_README.TXT
+      - Check the ETHDatasetParser::parseCameraData (prob next step)
+      - need stereo_matching_params whatever that is 
+      - How does the imu data come in? (check)
+      - getImuDataInterpolatedUpperBorder
+    */
     VLOG(10) << "Finished VIO processing for frame k = " << k;
   }
 

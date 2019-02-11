@@ -78,6 +78,106 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 }
 
 /* -------------------------------------------------------------------------- */
+// Parse KITTI calibration txt file describing camera parameters.
+bool CameraParams::parseKITTICalib(const std::string& filepath, const std::string& cam_id) {
+  // rate is approx 10 hz as given by the README 
+  frame_rate_ = 1 / 10.0; 
+
+  // set up R and T matrices 
+  cv::Mat cvR = cv::Mat::zeros(3, 3, CV_64F);
+  cv::Mat cvT = cv::Mat::zeros(3, 1, CV_64F);
+
+  // Set up to read the text file 
+  std::ifstream calib_file; 
+  calib_file.open(filepath.c_str());
+  bool read_all_cam_info = false;
+
+  // read loop
+  while(!calib_file.eof() && !read_all_cam_info) {
+    std::string line; 
+    getline(calib_file, line);
+    if (!line.empty()) {
+      std::stringstream ss; 
+      ss << line; 
+      std::string label; 
+      ss >> label; 
+      std::cout << "label: " << label << std::endl; 
+      if (label == "S_" + cam_id + ":") {
+        // this entry gives image size 
+        double width, height; 
+        ss >> width >> height; 
+        std::cout << "w: " << width << " h: " << height << std::endl; 
+        image_size_ = cv::Size(width, height);
+      }else if (label == "K_" + cam_id + ":") {
+        // this entry gives the camera matrix 
+        std::vector<double> K_vector; 
+        double value; // store values in Kvector 
+        while (ss >> value) K_vector.push_back(value);
+        intrinsics_.clear(); 
+        intrinsics_.push_back(K_vector[0]); 
+        intrinsics_.push_back(K_vector[4]);
+        intrinsics_.push_back(K_vector[2]);
+        intrinsics_.push_back(K_vector[5]);
+        // Convert intrinsics to OpenCV Format.
+        camera_matrix_ = cv::Mat::eye(3, 3, CV_64F);
+        camera_matrix_.at<double>(0, 0) = intrinsics_[0];
+        camera_matrix_.at<double>(1, 1) = intrinsics_[1];
+        camera_matrix_.at<double>(0, 2) = intrinsics_[2];
+        camera_matrix_.at<double>(1, 2) = intrinsics_[3];
+      }else if (label == "D_" + cam_id + ":") {
+        // this entry gives the distortion coeffs 
+        distortion_coeff_ = cv::Mat::zeros(1, 5, CV_64F);
+        std::vector<double> D_vector; 
+        double value; 
+        while (ss >> value) D_vector.push_back(value); 
+        for (int k = 0; k < 5; k++) {
+          distortion_coeff_.at<double>(0,k) = D_vector[k]; 
+        }
+
+      }else if (label == "R_" + cam_id + ":") {
+        // this entry gives the rotation matrix 
+        std::vector<double> Rvect; 
+        double value; 
+        while (ss >> value) Rvect.push_back(value); 
+        cvR.at<double>(0, 0) = Rvect[0];
+        cvR.at<double>(0, 1) = Rvect[1];
+        cvR.at<double>(0, 2) = Rvect[2];
+        cvR.at<double>(1, 0) = Rvect[3];
+        cvR.at<double>(1, 1) = Rvect[4];
+        cvR.at<double>(1, 2) = Rvect[5];
+        cvR.at<double>(2, 0) = Rvect[6];
+        cvR.at<double>(2, 1) = Rvect[7];
+        cvR.at<double>(2, 2) = Rvect[8];
+
+      }else if (label == "T_" + cam_id + ":") {
+        // this entry gives the translation 
+        std::vector<double> Tvect; 
+        double value; 
+        while (ss >> value) Tvect.push_back(value); 
+        cvT.at<double>(0, 0) = Tvect[0];
+        cvT.at<double>(1, 0) = Tvect[1];
+        cvT.at<double>(2, 0) = Tvect[2];
+      }
+    }
+  }
+
+  // Cam pose wrt to body.
+  body_Pose_cam_ = UtilsOpenCV::Vec2pose(cvR, cvT);
+
+  calibration_ = gtsam::Cal3DS2(intrinsics_[0], // fx
+      intrinsics_[1], // fy
+      0.0,           // skew
+      intrinsics_[2], // u0
+      intrinsics_[3], // v0
+      distortion_coeff_[0],  //  k1
+      distortion_coeff_[1],  //  k2
+      distortion_coeff_[2],  //  p1
+      distortion_coeff_[3]); //  p2
+
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
 // Display all params.
 void CameraParams::print() const {
   LOG(INFO) << "------------ CameraParams::print -------------\n"
