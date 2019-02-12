@@ -104,7 +104,9 @@ public:
   // Given the following:
   // Left image in colors, Mesh in 2D, Mesh in 3D.
   // Returns Colors of the Mesh3D. Each color representing a semantic class.
-  typedef std::function<Mesh3DColors(cv::Mat, const Mesh2D&, const Mesh3D&)>
+  typedef std::function<Mesh3DColors(const cv::Mat& img_left,
+                                     const Mesh2D&,
+                                     const Mesh3D&)>
     SemanticMeshSegmentationCallback;
 
 public:

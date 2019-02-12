@@ -17,13 +17,20 @@
 #include <map>
 #include <vector>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/viz/types.hpp> // Just for color type.
 
 #include "UtilsOpenCV.h"
 
 namespace VIO {
+
+// TODO this class is NOT THREADSAFE...
 // Class defining the concept of a polygonal mesh.
 template<typename VertexPositionType = cv::Point3f>
 class Mesh {
+public:
+  // Color for a vertex
+  typedef cv::Vec3b VertexColorRGB;
+
 public:
   // Default constructor.
   Mesh(const size_t& polygon_dimension = 3);
@@ -59,12 +66,15 @@ public:
   public:
     Vertex()
       : lmk_id_(-1),
-        vertex_position_() {}
+        vertex_position_(),
+        vertex_color_(cv::viz::Color::white()) {}
 
     Vertex(const LandmarkId& lmk_id,
-           const VertexPositionType& vertex_position)
+           const VertexPositionType& vertex_position,
+           const VertexColorRGB& vertex_color = cv::viz::Color::white())
       : lmk_id_(lmk_id),
-        vertex_position_(vertex_position) {}
+        vertex_position_(vertex_position),
+        vertex_color_(vertex_color) {}
 
     // Make explicit that we are using the default copy constructor and
     // copy assignement operator.
@@ -95,6 +105,7 @@ public:
     /// Members
     LandmarkId lmk_id_;
     VertexPositionType vertex_position_;
+    VertexColorRGB vertex_color_;
   };
   // We define a polygon of the mesh as a set of mesh vertices.
   typedef Vertex<VertexPositionType> VertexType;
@@ -129,10 +140,23 @@ public:
   // to retrieve one polygon at a time.
   bool getPolygon(const size_t& polygon_idx, Polygon* polygon) const;
 
-  // Retrieve a vertex of the mesh given a LandmarkId.
+  // Retrieve a vertex 3D position from the mesh given a LandmarkId.
   // Returns true if we could find the vertex with the given landmark id
   // false otherwise.
-  bool getVertex(const LandmarkId& lmk_id, VertexPositionType* vertex) const;
+  // Optionally returns the internal vertex id used to store the vertex in
+  // a cv::Mat (TODO this is only done to be able to create a color mask of
+  // the mesh, but this should be also done internally by storing a set of
+  // properties for each vertex, instead of using cv::Mat).
+  bool getVertex(const LandmarkId& lmk_id,
+                 VertexPositionType* vertex,
+                 VertexId* vertex_id = nullptr) const;
+
+  // Colors a vertex of the mesh given a LandmarkId.
+  // Returns true if we could find the vertex with the given landmark id
+  // false otherwise.
+  // NOT THREADSAFE.
+  bool setVertexColor(const LandmarkId& lmk_id,
+                      const VertexColorRGB& vertex);
 
 private:
   /// Functions
@@ -144,7 +168,9 @@ private:
       std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
       std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
       cv::Mat* vertices_mesh,
-      cv::Mat* polygon_mesh) const;
+      cv::Mat* vertices_mesh_color,
+      cv::Mat* polygon_mesh,
+      const VertexColorRGB& vertex_color = cv::viz::Color::white()) const;
 
 private:
   /// TODO change internal structures for the mesh with std::vector<Polygon>.
@@ -161,6 +187,12 @@ private:
   // Set of (non-repeated) 3d points.
   // Format: n rows (one for each point), with each row being a cv::Point3f.
   cv::Mat vertices_mesh_;
+
+  // Color for each vertex.
+  // Format: n rows (one for each point), with each row being a CV_8UC3.
+  // where n should be the same number as rows for vertices_mesh_.
+  // One color per vertex. (This is how it is done for OpenCV...
+  cv::Mat vertices_mesh_color_;
 
   // Connectivity of the mesh.
   // Set of polygons.
