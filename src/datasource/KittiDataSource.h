@@ -18,6 +18,7 @@
 #include <functional>
 #include "datasource/DataSource.h"
 #include "StereoImuSyncPacket.h"
+#include "ImuFrontEnd.h"
 
 namespace VIO {
 
@@ -35,9 +36,14 @@ private:
     std::vector<std::string> camera_names_;
     // Map from camera name to its parameters
     std::map<std::string, CameraParams> camera_info_;
+    // The image names of the images from left camera 
     std::vector<std::string> left_img_names_;
+    // The image names of the images from right camera
     std::vector<std::string> right_img_names_;
+    // Vector of timestamps see issue in .cpp file 
     std::vector<double> timestamps_;
+    //IMU data 
+    ImuData imuData_;
     // Dummy check to ensure data is correctly parsed.
     explicit operator bool() const;
   };
@@ -47,11 +53,25 @@ private:
   void parseData(const std::string& kitti_sequence_path,
                  KittiData* kitti_data) const;
 
+  // Parse the timestamps of a particular device of given dataset 
+  bool parseTimestamps(const std::string& input_dataset_path, 
+                       const std::string& timestamps_file,
+                       std::vector<Timestamp>& timestamps_list);
+
+  // Parse camera info of given dataset 
   bool parseCameraData(const std::string& input_dataset_path,
                        const std::string& left_cam_name,
                        const std::string& right_cam_name,
                        KittiData* kitti_data);
 
+  // Parse IMU data of a given dataset 
+  bool parseImuData(const std::string& input_dataset_path, 
+                    KittiData* kitti_data_);
+
+  // Get R and T matrix from calibration file 
+  bool parseRT(const std::string& input_dataset_path, 
+               const std::string& calibration_filename, 
+               cv::Mat& R, cv::Mat& T);
 private:
   KittiData kitti_data_;
 };

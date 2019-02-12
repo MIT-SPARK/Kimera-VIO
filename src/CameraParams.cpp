@@ -103,12 +103,10 @@ bool CameraParams::parseKITTICalib(const std::string& filepath, const std::strin
       ss << line; 
       std::string label; 
       ss >> label; 
-      std::cout << "label: " << label << std::endl; 
       if (label == "S_" + cam_id + ":") {
         // this entry gives image size 
         double width, height; 
         ss >> width >> height; 
-        std::cout << "w: " << width << " h: " << height << std::endl; 
         image_size_ = cv::Size(width, height);
       }else if (label == "K_" + cam_id + ":") {
         // this entry gives the camera matrix 
@@ -137,27 +135,21 @@ bool CameraParams::parseKITTICalib(const std::string& filepath, const std::strin
 
       }else if (label == "R_" + cam_id + ":") {
         // this entry gives the rotation matrix 
-        std::vector<double> Rvect; 
         double value; 
-        while (ss >> value) Rvect.push_back(value); 
-        cvR.at<double>(0, 0) = Rvect[0];
-        cvR.at<double>(0, 1) = Rvect[1];
-        cvR.at<double>(0, 2) = Rvect[2];
-        cvR.at<double>(1, 0) = Rvect[3];
-        cvR.at<double>(1, 1) = Rvect[4];
-        cvR.at<double>(1, 2) = Rvect[5];
-        cvR.at<double>(2, 0) = Rvect[6];
-        cvR.at<double>(2, 1) = Rvect[7];
-        cvR.at<double>(2, 2) = Rvect[8];
+        for (int i = 0; i < 9; i++){
+          ss >> value; 
+          int row = i/3; int col = i%3; 
+          cvR.at<double>(row, col) = value; 
+        }
 
       }else if (label == "T_" + cam_id + ":") {
         // this entry gives the translation 
-        std::vector<double> Tvect; 
         double value; 
-        while (ss >> value) Tvect.push_back(value); 
-        cvT.at<double>(0, 0) = Tvect[0];
-        cvT.at<double>(1, 0) = Tvect[1];
-        cvT.at<double>(2, 0) = Tvect[2];
+        for (int i = 0; i < 3; i++){
+          ss >> value;  
+          cvT.at<double>(i, 0) = value; 
+        }
+        
       }
     }
   }
