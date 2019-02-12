@@ -185,14 +185,8 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   for (const std::string& cam_name: camera_names_) {
     LOG(INFO) << "reading camera: " << cam_name;
     CameraParams cam_info_i;
-    cam_info_i.parseYAML(input_dataset_path + "/mav0/" + cam_name + "/sensor.yaml");
+    cam_info_i.parseKITTICalib(input_dataset_path + "calib_cam_to_cam.txt", cam_name);
     camera_info_[cam_name] = cam_info_i;
-
-    CameraImageLists cam_list_i;
-    if (parse_imgs) {
-      cam_list_i.parseCamImgList(input_dataset_path + "/mav0/" + cam_name, "data.csv");
-    }
-    camera_image_lists_[cam_name] = cam_list_i;
   }
 
   return true;
