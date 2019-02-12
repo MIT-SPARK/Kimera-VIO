@@ -90,7 +90,7 @@ bool KittiDataProvider::spin() {
 }
 
 void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
-                                  KittiData* kitti_data) const {
+                                  KittiData* kitti_data) {
   // Images in Kitti dataset: datapath/image_02/data gives all (left) images in order 
   // datapath/image_02/timestamps.txt gives the timestamps in order 
   // same for image_3 (right images)
@@ -102,58 +102,23 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   // parse timestamps (left /image_02)
   // NOTE the timestamps for left and right cam not sychronized
   // TODO investigate if error accumulates 
-  std::ifstream left_cam_times_stream, right_cam_times_stream; 
-  std::string left_cam_times_path = left_prefix + "/timestamps.txt";
-  std::string right_cam_times_path = right_prefix + "/timestamps.txt";
+  // Parse time stamps
+  std::string left_timestamp_file = left_prefix + "/timestamps.txt"; 
+  std::string right_timestamp_file = right_prefix + "/timestamps.txt";
+  std::vector<Timestamp> left_timestamps; 
+  std::vector<Timestamp> right_timestamps; 
 
-  left_cam_times_stream.open(left_cam_times_path.c_str());
-  right_cam_times_stream.open(right_cam_times_path.c_str());
-  CHECK(left_cam_times_stream.is_open());
-  CHECK(right_cam_times_stream.is_open());
-  while(!left_cam_times_stream.eof() && !right_cam_times_stream.eof()) {
-    std::string line_lft, line_rht;
-    getline(left_cam_times_stream, line_lft);
-    getline(right_cam_times_stream, line_rht);
-    // (for now take the later timestamp)
-    Timestamp left_timestamp = 0;
-    Timestamp right_timestamp = 0;
-    static constexpr int seconds_per_hour = 3600u; 
-    static constexpr int seconds_per_minute = 60u; 
-    static constexpr long int seconds_to_nanoseconds = 10e9; // overflow 
+  parseTimestamps(left_timestamp_file, left_timestamps);
+  parseTimestamps(right_timestamp_file, right_timestamps);
 
-    // left timestamp
-    if(!line_lft.empty()) {
-      std::stringstream ss;
-      std::replace(line_lft.begin(), line_lft.end(), ':', ' ');
-      ss << line_lft;
-      std::string date; 
-      double hr, min, sec; 
-      ss >> date >> hr >> min >> sec; 
-      // formate time into double (nano seconds)
-      left_timestamp = (hr * seconds_per_hour 
-                        + min * seconds_per_minute 
-                        + sec) * seconds_to_nanoseconds; 
-    }
-    // right timestamp
-    if(!line_rht.empty()) {
-      std::stringstream ss;
-      std::replace(line_rht.begin(), line_rht.end(), ':', ' ');
-      ss << line_rht;
-      std::string date; 
-      double hr, min, sec; 
-      ss >> date >> hr >> min >> sec; 
-      // formate time into double (nano seconds)
-      right_timestamp = (hr * seconds_per_hour 
-                         + min * seconds_per_minute 
-                         + sec) * seconds_to_nanoseconds; 
-    }
-    if (left_timestamp != 0 || right_timestamp != 0){
-      if (left_timestamp > right_timestamp){
-        kitti_data->timestamps_.push_back(left_timestamp);
-      }else{
-        kitti_data->timestamps_.push_back(right_timestamp);
-      }
-    }
+  LOG_IF(FATAL, left_timestamps.size() < 1 || right_timestamps.size() < 1)
+      << "ParseTimestamps: zero timestamps parsed for image data...";
+
+  // for now take the later one 
+  if (left_timestamps[0] > right_timestamps[0]) {
+    kitti_data->timestamps_ = left_timestamps;
+  }else{
+    kitti_data->timestamps_ = right_timestamps;
   }
   
   const size_t timestamps_size = kitti_data->timestamps_.size();
@@ -171,11 +136,10 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   CHECK(*kitti_data);
 }
 
-bool KittiDataProvider::parseTimestamps(const std::string& input_dataset_path, 
-                                        const std::string& timestamps_file, 
-                                        std::vector<Timestamp>& timestamps_list) {
+bool KittiDataProvider::parseTimestamps(const std::string& timestamps_file, 
+                                        std::vector<Timestamp>& timestamps_list) const {
   std::ifstream times_stream; 
-  times_stream.open((input_dataset_path + timestamps_file).c_str());
+  times_stream.open(timestamps_file.c_str());
   CHECK(times_stream.is_open());
   timestamps_list.clear(); 
   static constexpr int seconds_per_hour = 3600u; 
@@ -229,7 +193,7 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
 bool KittiDataProvider::parseRT(
                 const std::string& input_dataset_path, 
                 const std::string& calibration_filename, 
-                cv::Mat& R, cv::Mat& T) {
+                cv::Mat& R, cv::Mat& T) const {
   std::ifstream calib_file; 
   calib_file.open((input_dataset_path + calibration_filename).c_str());
   // Read calibratio file

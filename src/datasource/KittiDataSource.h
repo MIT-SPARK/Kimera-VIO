@@ -41,7 +41,7 @@ private:
     // The image names of the images from right camera
     std::vector<std::string> right_img_names_;
     // Vector of timestamps see issue in .cpp file 
-    std::vector<double> timestamps_;
+    std::vector<Timestamp> timestamps_;
     //IMU data 
     ImuData imuData_;
     // Dummy check to ensure data is correctly parsed.
@@ -51,12 +51,11 @@ private:
 private:
   cv::Mat readKittiImage(const std::string& img_name);
   void parseData(const std::string& kitti_sequence_path,
-                 KittiData* kitti_data) const;
+                 KittiData* kitti_data);
 
   // Parse the timestamps of a particular device of given dataset 
-  bool parseTimestamps(const std::string& input_dataset_path, 
-                       const std::string& timestamps_file,
-                       std::vector<Timestamp>& timestamps_list);
+  bool parseTimestamps(const std::string& timestamps_file,
+                       std::vector<Timestamp>& timestamps_list) const;
 
   // Parse camera info of given dataset 
   bool parseCameraData(const std::string& input_dataset_path,
@@ -71,7 +70,7 @@ private:
   // Get R and T matrix from calibration file 
   bool parseRT(const std::string& input_dataset_path, 
                const std::string& calibration_filename, 
-               cv::Mat& R, cv::Mat& T);
+               cv::Mat& R, cv::Mat& T) const;
 private:
   KittiData kitti_data_;
 };
