@@ -236,13 +236,10 @@ bool KittiDataProvider::parseRT(
 
 bool KittiDataProvider::parseImuData(
                     const std::string& input_dataset_path, 
-                    KittiData* kitti_data_) {
+                    KittiData* kitti_data) {
   ///////////////// PARSE IMU PARAMETERS ///////////////////////////////////////
-  std::string filename_sensor = input_dataset_path + "/oxts/data/";
-  // measurement at each timestep is in a text file starting from 
-  // dataset_path/oxts/data/0000000000.txt
 
-  // body_Pose_cam_: sensor to body transformation
+  // body_Pose_cam_: sensor pose w respect to body 
   // calib_velo_to_cam R|T transform velodyne coords to left vid cam frame 
   // calib_imu_to_velo R|T transform imu coord to velodyne frame 
 
@@ -261,84 +258,96 @@ bool KittiDataProvider::parseImuData(
   R_imu2cam = R_velo2cam * R_imu2velo;
   T_imu2cam = T_velo2cam + T_imu2velo;
 
-  kitti_data_->imuData_.body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(R_imu2cam, T_imu2cam);
+  kitti_data->imuData_.body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(R_imu2cam, T_imu2cam);
 
-  // Note that in this case left grayscale stereo camera is chosen as body frame 
+  // NOTE that in this case left grayscale stereo camera is chosen as body frame (ok?) 
 
   int rate = 100; // According to KITTI Readme 
-  kitti_data_->imuData_.nominal_imu_rate_ = 1 / double(rate);
+  kitti_data->imuData_.nominal_imu_rate_ = 1 / double(rate);
   // NOTE gyro noise/walk and acc noise/walk not given in KITTI data 
 
-  // ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
-  // //#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],
-  // // a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]
-  // std::string filename_data = input_dataset_path + "/mav0/" + imuName + "/data.csv";
-  // std::ifstream fin (filename_data.c_str());
-  // LOG_IF(FATAL, !fin.is_open()) << "Cannot open file: " << filename_data;
+  ///////////////// GET TIMESTAMP //////////////////////////////////////////////
+  std::string oxts_timestamps_filename = input_dataset_path + "/oxts/timestamps.txt";
+  std::vector<Timestamp> oxts_timestamps; 
+  parseTimestamps(oxts_timestamps_filename, oxts_timestamps);
+  LOG_IF(FATAL, oxts_timestamps.size() < 1) 
+              << "ParseTimestamps: zero timestamps parsed for imu data...";
 
-  // // Skip the first line, containing the header.
-  // std::string line;
-  // std::getline(fin, line);
+  ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
+  std::string oxtsdata_filename = input_dataset_path + "/oxts/data/";
+  // measurement at each timestep is in a text file starting from 
+  // dataset_path/oxts/data/0000000000.txt extract imu data according to kitti readme
+  
+  size_t deltaCount = 0u;
+  Timestamp sumOfDelta = 0;
+  double stdDelta = 0;
+  double imu_rate_maxMismatch = 0;
+  double maxNormAcc = 0, maxNormRotRate = 0; // only for debugging
+  Timestamp previous_timestamp = -1;
 
-  // size_t deltaCount = 0u;
-  // Timestamp sumOfDelta = 0;
-  // double stdDelta = 0;
-  // double imu_rate_maxMismatch = 0;
-  // double maxNormAcc = 0, maxNormRotRate = 0; // only for debugging
-  // Timestamp previous_timestamp = -1;
+  for (size_t i = 0; i < oxts_timestamps.size(); i++) {
+    std::stringstream ss;
+    ss << std::setfill('0') << std::setw(10) << i;
+    std::string oxts_file_i = oxtsdata_filename + ss.str() + ".txt";
+    std::ifstream oxts_data_i; 
+    oxts_data_i.open(oxts_file_i.c_str());
+    LOG_IF(FATAL, !oxts_data_i.is_open()) << "Cannot open oxts file: " << oxts_file_i;
 
-  // // Read/store imu measurements, line by line.
-  // while (std::getline(fin, line)) {
-  //   Timestamp timestamp = 0;
-  //   gtsam::Vector6 gyroAccData;
-  //   for (size_t i = 0; i < 7; i++) {
-  //     int idx = line.find_first_of(',');
-  //     if (i == 0) {
-  //       timestamp = std::stoll(line.substr(0, idx));
-  //     } else {
-  //       gyroAccData(i-1) = std::stod(line.substr(0, idx));
-  //     }
-  //     line = line.substr(idx+1);
-  //   }
-  //   Vector6 imu_accgyr;
-  //   // Acceleration first!
-  //   imu_accgyr << gyroAccData.tail(3), gyroAccData.head(3);
+    // All information should be on one line (according example file)
+    // Store words in vector for easy access by index 
+    std::vector<std::string> oxts_data_str; 
+    std::string item; 
+    while (getline(oxts_data_i, item, ' ')){
+      oxts_data_str.push_back(item);
+    }
+    
+    // Read/store imu measurements 
+    gtsam::Vector6 gyroAccData; 
+    // terms 17~19 (starting from 0) are wx, wy, wz
+    for (int k = 0; k < 3; k++) {
+      gyroAccData(k) = std::stod(oxts_data_str[k + 17]);
+    }
+    // terms 11~13 (starting from 0) are ax, ay, az
+    for (int k = 3; k < 6; k++) {
+      gyroAccData(k) = std::stod(oxts_data_str[k + 8]);
+    }
 
-  //   double normAcc = gyroAccData.tail(3).norm();
-  //   if(normAcc > maxNormAcc) maxNormAcc = normAcc;
+    Vector6 imu_accgyr;
+    // Acceleration first! 
+    imu_accgyr << gyroAccData.tail(3), gyroAccData.head(3);
 
-  //   double normRotRate = gyroAccData.head(3).norm();
-  //   if(normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
+    double normAcc = gyroAccData.tail(3).norm();
+    if(normAcc > maxNormAcc) maxNormAcc = normAcc;
 
-  //   imuData_.imu_buffer_.addMeasurement(timestamp, imu_accgyr);
-  //   if (previous_timestamp == -1) {
-  //     // Do nothing.
-  //     previous_timestamp = timestamp;
-  //   } else {
-  //     sumOfDelta += (timestamp - previous_timestamp);
-  //     double deltaMismatch = std::fabs(double(timestamp - previous_timestamp -
-  //                                             imuData_.nominal_imu_rate_) * 1e-9);
-  //     stdDelta += std::pow(deltaMismatch, 2);
-  //     imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
-  //     deltaCount += 1u;
-  //     previous_timestamp = timestamp;
-  //   }
-  // }
+    double normRotRate = gyroAccData.head(3).norm();
+    if(normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
 
-  // LOG_IF(FATAL, deltaCount != imuData_.imu_buffer_.size() - 1u)
-  //     << "parseImuData: wrong nr of deltaCount: deltaCount "
-  //     << deltaCount << " nr lines "
-  //     << imuData_.imu_buffer_.size();
+    kitti_data->imuData_.imu_buffer_.addMeasurement(oxts_timestamps[i], imu_accgyr);
+    if (i != 0){
+      sumOfDelta += (oxts_timestamps[i] - oxts_timestamps[i-1]);
+      double deltaMismatch = std::fabs(double(oxts_timestamps[i] - 
+                                              oxts_timestamps[i-1] -
+                                              kitti_data->imuData_.nominal_imu_rate_) * 1e-9);
+      stdDelta += std::pow(deltaMismatch, 2);
+      imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
+      deltaCount += 1u;
+    }
+    oxts_data_i.close(); 
+  }
 
-  // // Converted to seconds.
-  // imuData_.imu_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
-  // imuData_.imu_rate_std_ = std::sqrt(stdDelta / double(deltaCount-1u));
-  // imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
-  // fin.close();
+  LOG_IF(FATAL, deltaCount != kitti_data->imuData_.imu_buffer_.size() - 1u)
+      << "parseImuData: wrong nr of deltaCount: deltaCount "
+      << deltaCount << " nr lines "
+      << kitti_data->imuData_.imu_buffer_.size();
 
-  // LOG(INFO) << "Maximum measured rotation rate (norm):" << maxNormRotRate << '-'
-  //           << "Maximum measured acceleration (norm): " << maxNormAcc;
-  // return true;
+  // Converted to seconds.
+  kitti_data->imuData_.imu_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
+  kitti_data->imuData_.imu_rate_std_ = std::sqrt(stdDelta / double(deltaCount-1u));
+  kitti_data->imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
+
+  LOG(INFO) << "Maximum measured rotation rate (norm):" << maxNormRotRate << '-'
+            << "Maximum measured acceleration (norm): " << maxNormAcc;
+  return true;
 }
 
 } // End of VIO namespace.
