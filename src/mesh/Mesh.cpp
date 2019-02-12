@@ -159,7 +159,8 @@ bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx, Polygon* po
 // false otherwise.
 template<typename VertexPositionType>
 bool Mesh<VertexPositionType>::getVertex(const LandmarkId& lmk_id,
-                                         VertexPositionType* vertex) const {
+                                         VertexPositionType* vertex,
+                                         VertexId* vertex_id) const {
   CHECK_NOTNULL(vertex);
   const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map_.end();
   const auto& vertex_it = lmk_id_to_vertex_map_.find(lmk_id);
@@ -170,6 +171,7 @@ bool Mesh<VertexPositionType>::getVertex(const LandmarkId& lmk_id,
   } else {
     // Return the vertex.
     *vertex = vertices_mesh_.at<VertexPositionType>(vertex_it->second);
+    if (vertex_id != nullptr) *vertex_id = vertex_it->second;
     return true; // Meaning we found the vertex.
   }
 }

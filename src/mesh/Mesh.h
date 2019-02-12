@@ -129,10 +129,16 @@ public:
   // to retrieve one polygon at a time.
   bool getPolygon(const size_t& polygon_idx, Polygon* polygon) const;
 
-  // Retrieve a vertex of the mesh given a LandmarkId.
+  // Retrieve a vertex 3D position from the mesh given a LandmarkId.
   // Returns true if we could find the vertex with the given landmark id
   // false otherwise.
-  bool getVertex(const LandmarkId& lmk_id, VertexPositionType* vertex) const;
+  // Optionally returns the internal vertex id used to store the vertex in
+  // a cv::Mat (TODO this is only done to be able to create a color mask of
+  // the mesh, but this should be also done internally by storing a set of
+  // properties for each vertex, instead of using cv::Mat).
+  bool getVertex(const LandmarkId& lmk_id,
+                 VertexPositionType* vertex,
+                 VertexId* vertex_id = nullptr) const;
 
 private:
   /// Functions
@@ -144,7 +150,9 @@ private:
       std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
       std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
       cv::Mat* vertices_mesh,
-      cv::Mat* polygon_mesh) const;
+      cv::Mat* vertices_mesh_color,
+      cv::Mat* polygon_mesh,
+      const VertexColorRGB& vertex_color = cv::viz::Color::white()) const;
 
 private:
   /// TODO change internal structures for the mesh with std::vector<Polygon>.
