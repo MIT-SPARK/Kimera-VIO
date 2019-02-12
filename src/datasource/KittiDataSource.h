@@ -30,6 +30,10 @@ public:
 private:
   struct KittiData {
     inline size_t getNumberOfImages() const {return left_img_names_.size();}
+    // This matches the names of the folders in the dataset
+    std::vector<std::string> camera_names_;
+    // Map from camera name to its parameters
+    std::map<std::string, CameraParams> camera_info_;
     std::vector<std::string> left_img_names_;
     std::vector<std::string> right_img_names_;
     std::vector<double> timestamps_;

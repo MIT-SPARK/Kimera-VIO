@@ -116,9 +116,13 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
     getline(left_cam_times_stream, line_lft);
     getline(right_cam_times_stream, line_rht);
     // (for now take the later timestamp)
+    Timestamp left_timestamp = 0;
+    Timestamp right_timestamp = 0;
+    static constexpr int seconds_per_hour = 3600u; 
+    static constexpr int seconds_per_minute = 60u; 
+    static constexpr int seconds_to_nanoseconds = 10e9u; 
+
     // left timestamp
-    double left_timestamp = -1;
-    double right_timestamp = -1;
     if(!line_lft.empty()) {
       std::stringstream ss;
       std::replace(line_lft.begin(), line_lft.end(), ':', ' ');
@@ -127,7 +131,7 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
       double hr, min, sec; 
       ss >> date >> hr >> min >> sec; 
       // formate time into double (nano seconds)
-      double left_timestamp = (hr*3600 + min*60 + sec)*10E9;
+      left_timestamp = (hr * seconds_per_hour + min * seconds_per_minute + sec) * seconds_to_nanoseconds; 
     }
     // right timestamp
     if(!line_rht.empty()) {
@@ -138,9 +142,9 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
       double hr, min, sec; 
       ss >> date >> hr >> min >> sec; 
       // formate time into double (nano seconds)
-      double right_timestamp = (hr*3600 + min*60 + sec)*10E9;
+      right_timestamp = (hr * seconds_per_hour + min * seconds_per_minute + sec) * seconds_to_nanoseconds; 
     }
-    if (left_timestamp != -1 || right_timestamp != -1){
+    if (left_timestamp != 0 || right_timestamp != 0){
       if (left_timestamp > right_timestamp){
         kitti_data->timestamps_.push_back(left_timestamp);
       }else{
@@ -164,10 +168,33 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   CHECK(*kitti_data);
 }
 
-bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
-                                        const std::string& left_cam_name,
-                                        const std::string& right_cam_name) {
+bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path, 
+                                        const std::string& left_cam_id,
+                                        const std::string& right_cam_id) {
+  // note that the stamps and images were parsed in parseData method 
+  // perhaps move all that into this method? 
+  // for now write parse camera info here 
+  // Default names: match names of the corresponding folders.
+  camera_names_.resize(2);
+  camera_names_[0] = left_cam_id;
+  camera_names_[1] = right_cam_id;
+
+  // Read camera info and list of images.
+  camera_info_.clear();
+  camera_image_lists_.clear();
+  for (const std::string& cam_name: camera_names_) {
+    LOG(INFO) << "reading camera: " << cam_name;
+    CameraParams cam_info_i;
+    cam_info_i.parseYAML(input_dataset_path + "/mav0/" + cam_name + "/sensor.yaml");
+    camera_info_[cam_name] = cam_info_i;
+
+    CameraImageLists cam_list_i;
+    if (parse_imgs) {
+      cam_list_i.parseCamImgList(input_dataset_path + "/mav0/" + cam_name, "data.csv");
+    }
+    camera_image_lists_[cam_name] = cam_list_i;
+  }
+
   return true;
-}
 
 } // End of VIO namespace.
