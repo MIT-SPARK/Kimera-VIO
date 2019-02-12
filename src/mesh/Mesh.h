@@ -17,10 +17,13 @@
 #include <map>
 #include <vector>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/viz/types.hpp> // Just for color type.
 
 #include "UtilsOpenCV.h"
 
 namespace VIO {
+
+// TODO this class is NOT THREADSAFE...
 // Class defining the concept of a polygonal mesh.
 template<typename VertexPositionType = cv::Point3f>
 class Mesh {
@@ -57,14 +60,20 @@ public:
   template<typename PositionType = cv::Point3f>
   struct Vertex {
   public:
+    // Color for a vertex
+    typedef cv::Vec3b VertexColorRGB;
+  public:
     Vertex()
       : lmk_id_(-1),
-        vertex_position_() {}
+        vertex_position_(),
+        vertex_color_(cv::viz::Color::white()) {}
 
     Vertex(const LandmarkId& lmk_id,
-           const VertexPositionType& vertex_position)
+           const VertexPositionType& vertex_position,
+           const VertexColorRGB& vertex_color = cv::viz::Color::white())
       : lmk_id_(lmk_id),
-        vertex_position_(vertex_position) {}
+        vertex_position_(vertex_position),
+        vertex_color_(vertex_color) {}
 
     // Make explicit that we are using the default copy constructor and
     // copy assignement operator.
@@ -95,6 +104,7 @@ public:
     /// Members
     LandmarkId lmk_id_;
     VertexPositionType vertex_position_;
+    VertexColorRGB vertex_color_;
   };
   // We define a polygon of the mesh as a set of mesh vertices.
   typedef Vertex<VertexPositionType> VertexType;
@@ -140,6 +150,13 @@ public:
                  VertexPositionType* vertex,
                  VertexId* vertex_id = nullptr) const;
 
+  // Colors a vertex of the mesh given a LandmarkId.
+  // Returns true if we could find the vertex with the given landmark id
+  // false otherwise.
+  // NOT THREADSAFE.
+  bool setVertexColor(const LandmarkId& lmk_id,
+                      const VertexColorRGB& vertex);
+
 private:
   /// Functions
   // Updates internal structures to add a vertex.
@@ -169,6 +186,12 @@ private:
   // Set of (non-repeated) 3d points.
   // Format: n rows (one for each point), with each row being a cv::Point3f.
   cv::Mat vertices_mesh_;
+
+  // Color for each vertex.
+  // Format: n rows (one for each point), with each row being a CV_8UC3.
+  // where n should be the same number as rows for vertices_mesh_.
+  // One color per vertex. (This is how it is done for OpenCV...
+  cv::Mat vertices_mesh_color_;
 
   // Connectivity of the mesh.
   // Set of polygons.

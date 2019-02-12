@@ -23,6 +23,7 @@ Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
   : vertex_to_lmk_id_map_(),
     lmk_id_to_vertex_map_(),
     vertices_mesh_(0, 1, CV_32FC3),
+    vertices_mesh_color_(0, 1, CV_8UC3),
     polygons_mesh_(0, 1, CV_32SC1),
     polygon_dimension_(polygon_dimension) {
   CHECK_GE(polygon_dimension, 3) << "A polygon must have more than 2"
@@ -35,7 +36,8 @@ Mesh<VertexPositionType>::Mesh(const Mesh<VertexPositionType>& rhs_mesh)
   : vertex_to_lmk_id_map_(rhs_mesh.vertex_to_lmk_id_map_),
     lmk_id_to_vertex_map_(rhs_mesh.lmk_id_to_vertex_map_),
     vertices_mesh_(rhs_mesh.vertices_mesh_.clone()), // CLONING!
-    polygons_mesh_(rhs_mesh.vertices_mesh_.clone()), // CLONING!
+    vertices_mesh_color_(rhs_mesh.vertices_mesh_color_.clone()), // CLONING!
+    polygons_mesh_(rhs_mesh.polygons_mesh_.clone()), // CLONING!
     polygon_dimension_(rhs_mesh.polygon_dimension_) {
   VLOG(2) << "You are calling the copy ctor for a mesh... Cloning data.";
 }
@@ -54,6 +56,7 @@ Mesh<VertexPositionType>& Mesh<VertexPositionType>::operator=(
   lmk_id_to_vertex_map_ = rhs_mesh.lmk_id_to_vertex_map_;
   vertex_to_lmk_id_map_ = rhs_mesh.vertex_to_lmk_id_map_;
   vertices_mesh_ = rhs_mesh.vertices_mesh_.clone();
+  vertices_mesh_color_ = rhs_mesh.vertices_mesh_color_.clone();
   polygons_mesh_ = rhs_mesh.polygons_mesh_.clone();
   return *this;
 }
@@ -81,6 +84,7 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
                              &vertex_to_lmk_id_map_,
                              &lmk_id_to_vertex_map_,
                              &vertices_mesh_,
+                             &vertices_mesh_color_,
                              &polygons_mesh_);
   }
 }
@@ -97,10 +101,13 @@ void Mesh<VertexPositionType>::updateMeshDataStructures(
     std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
     std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
     cv::Mat* vertices_mesh,
-    cv::Mat* polygon_mesh) const {
+    cv::Mat* vertices_mesh_color,
+    cv::Mat* polygon_mesh,
+    const VertexColorRGB& vertex_color) const {
   CHECK_NOTNULL(vertex_to_lmk_id_map);
   CHECK_NOTNULL(lmk_id_to_vertex_map);
   CHECK_NOTNULL(vertices_mesh);
+  CHECK_NOTNULL(vertices_mesh_color);
   CHECK_NOTNULL(polygon_mesh);
 
   const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map->end();
@@ -113,6 +120,7 @@ void Mesh<VertexPositionType>::updateMeshDataStructures(
     // New landmark, create a new entrance in the set of vertices.
     // Store 3D points in map_points_3d.
     vertices_mesh->push_back(lmk_position);
+    vertices_mesh_color->push_back(vertex_color);
     row_id_vertex = vertices_mesh->rows - 1;
     // Book-keeping.
     // Store the row in the vertices structure of this new landmark id.
@@ -120,6 +128,7 @@ void Mesh<VertexPositionType>::updateMeshDataStructures(
     (*vertex_to_lmk_id_map)[row_id_vertex] = lmk_id;
   } else {
     // Update old landmark with new position.
+    // But don't update the color information... Or should we?
     vertices_mesh->at<VertexPositionType>(vertex_it->second) = lmk_position;
     row_id_vertex = vertex_it->second;
   }
@@ -132,7 +141,8 @@ void Mesh<VertexPositionType>::updateMeshDataStructures(
 // Get a polygon in the mesh.
 // Returns false if there is no polygon.
 template<typename VertexPositionType>
-bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx, Polygon* polygon) const {
+bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx,
+                                          Polygon* polygon) const {
   CHECK_NOTNULL(polygon);
   if (polygon_idx >= getNumberOfPolygons()) {
     VLOG(10) << "Requested polygon number: " << polygon_idx
@@ -146,8 +156,8 @@ bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx, Polygon* po
   for (size_t j = 0; j < polygon_dimension_; j++) {
     const int32_t& row_id_pt_j =
         polygons_mesh_.at<int32_t>(idx_in_polygon_mesh + j + 1);
-    const LandmarkId& lmk_id_j  = vertex_to_lmk_id_map_.at(row_id_pt_j);
-    const VertexPositionType& point_j  = vertices_mesh_.at<VertexPositionType>(row_id_pt_j);
+    const LandmarkId& lmk_id_j = vertex_to_lmk_id_map_.at(row_id_pt_j);
+    const VertexPositionType& point_j = vertices_mesh_.at<VertexPositionType>(row_id_pt_j);
     polygon->at(j) = Vertex<VertexPositionType>(lmk_id_j, point_j);
   }
   return true;
@@ -177,6 +187,29 @@ bool Mesh<VertexPositionType>::getVertex(const LandmarkId& lmk_id,
 }
 
 /* -------------------------------------------------------------------------- */
+// Retrieve a vertex of the mesh given a LandmarkId.
+// Returns true if we could find the vertex with the given landmark id
+// false otherwise.
+// NOT THREADSAFE.
+template<typename VertexPositionType>
+bool Mesh<VertexPositionType>::setVertexColor(
+    const LandmarkId& lmk_id,
+    const VertexColorRGB& vertex_color) {
+  const auto& lmk_id_to_vertex_map_end = lmk_id_to_vertex_map_.end();
+  const auto& vertex_it = lmk_id_to_vertex_map_.find(lmk_id);
+  if (vertex_it == lmk_id_to_vertex_map_end) {
+    // We didn't find the lmk id!
+    VLOG(100) << "Lmk id: " << lmk_id << " not found in mesh.";
+    return false;
+  } else {
+    // Color the vertex.
+    vertices_mesh_color_.at<VertexColorRGB>(vertex_it->second) =
+        vertex_color;
+    return true; // Meaning we found the vertex.
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 template<typename VertexPositionType>
 void Mesh<VertexPositionType>::convertVerticesMeshToMat(cv::Mat* vertices_mesh) const {
   CHECK_NOTNULL(vertices_mesh);
@@ -195,6 +228,7 @@ void Mesh<VertexPositionType>::convertPolygonsMeshToMat(cv::Mat* polygons_mesh) 
 template<typename VertexPositionType>
 void Mesh<VertexPositionType>::clearMesh() {
   vertices_mesh_ = cv::Mat(0, 1, CV_32FC3);
+  vertices_mesh_color_ = cv::Mat(0, 1, CV_8UC3);
   polygons_mesh_ = cv::Mat(0, 1, CV_32SC1);
   vertex_to_lmk_id_map_.clear();
   lmk_id_to_vertex_map_.clear();
