@@ -28,6 +28,10 @@ namespace VIO {
 template<typename VertexPositionType = cv::Point3f>
 class Mesh {
 public:
+  // Color for a vertex
+  typedef cv::Vec3b VertexColorRGB;
+
+public:
   // Default constructor.
   Mesh(const size_t& polygon_dimension = 3);
 
@@ -59,9 +63,6 @@ private:
 public:
   template<typename PositionType = cv::Point3f>
   struct Vertex {
-  public:
-    // Color for a vertex
-    typedef cv::Vec3b VertexColorRGB;
   public:
     Vertex()
       : lmk_id_(-1),
