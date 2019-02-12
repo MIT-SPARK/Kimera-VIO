@@ -28,6 +28,7 @@ public:
   virtual bool spin();
 
 private:
+  // NOTE TO ASK: why this struct?
   struct KittiData {
     inline size_t getNumberOfImages() const {return left_img_names_.size();}
     // This matches the names of the folders in the dataset
@@ -48,7 +49,8 @@ private:
 
   bool parseCameraData(const std::string& input_dataset_path,
                        const std::string& left_cam_name,
-                       const std::string& right_cam_name);
+                       const std::string& right_cam_name,
+                       KittiData* kitti_data);
 
 private:
   KittiData kitti_data_;

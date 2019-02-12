@@ -91,10 +91,9 @@ bool KittiDataProvider::spin() {
 
 void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
                                   KittiData* kitti_data) const {
-  // TODO: start here with example kitti data 
-  // Images in Kitti dataset: datapath/image_02/data gives all (left?) images in order 
+  // Images in Kitti dataset: datapath/image_02/data gives all (left) images in order 
   // datapath/image_02/timestamps.txt gives the timestamps in order 
-  // same for image_3 (right? images)
+  // same for image_3 (right images)
   CHECK_NOTNULL(kitti_data);
 
   std::string left_prefix = kitti_sequence_path + "/image_02";
@@ -102,7 +101,7 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
 
   // parse timestamps (left /image_02)
   // NOTE the timestamps for left and right cam not sychronized
-  // TODO investigate of error accumulates 
+  // TODO investigate if error accumulates 
   std::ifstream left_cam_times_stream, right_cam_times_stream; 
   std::string left_cam_times_path = left_prefix + "/timestamps.txt";
   std::string right_cam_times_path = right_prefix + "/timestamps.txt";
@@ -120,7 +119,7 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
     Timestamp right_timestamp = 0;
     static constexpr int seconds_per_hour = 3600u; 
     static constexpr int seconds_per_minute = 60u; 
-    static constexpr int seconds_to_nanoseconds = 10e9u; 
+    static constexpr long int seconds_to_nanoseconds = 10e9; // overflow 
 
     // left timestamp
     if(!line_lft.empty()) {
@@ -131,7 +130,9 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
       double hr, min, sec; 
       ss >> date >> hr >> min >> sec; 
       // formate time into double (nano seconds)
-      left_timestamp = (hr * seconds_per_hour + min * seconds_per_minute + sec) * seconds_to_nanoseconds; 
+      left_timestamp = (hr * seconds_per_hour 
+                        + min * seconds_per_minute 
+                        + sec) * seconds_to_nanoseconds; 
     }
     // right timestamp
     if(!line_rht.empty()) {
@@ -142,7 +143,9 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
       double hr, min, sec; 
       ss >> date >> hr >> min >> sec; 
       // formate time into double (nano seconds)
-      right_timestamp = (hr * seconds_per_hour + min * seconds_per_minute + sec) * seconds_to_nanoseconds; 
+      right_timestamp = (hr * seconds_per_hour 
+                         + min * seconds_per_minute 
+                         + sec) * seconds_to_nanoseconds; 
     }
     if (left_timestamp != 0 || right_timestamp != 0){
       if (left_timestamp > right_timestamp){
@@ -170,25 +173,26 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
 
 bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path, 
                                         const std::string& left_cam_id,
-                                        const std::string& right_cam_id) {
+                                        const std::string& right_cam_id, 
+                                        KittiData* kitti_data) {
   // note that the stamps and images were parsed in parseData method 
   // perhaps move all that into this method? 
   // for now write parse camera info here 
   // Default names: match names of the corresponding folders.
-  camera_names_.resize(2);
-  camera_names_[0] = left_cam_id;
-  camera_names_[1] = right_cam_id;
+  kitti_data->camera_names_.resize(2);
+  kitti_data->camera_names_[0] = left_cam_id;
+  kitti_data->camera_names_[1] = right_cam_id;
 
   // Read camera info and list of images.
-  camera_info_.clear();
-  camera_image_lists_.clear();
-  for (const std::string& cam_name: camera_names_) {
+  kitti_data->camera_info_.clear();
+  for (const std::string& cam_name: kitti_data->camera_names_) {
     LOG(INFO) << "reading camera: " << cam_name;
     CameraParams cam_info_i;
     cam_info_i.parseKITTICalib(input_dataset_path + "calib_cam_to_cam.txt", cam_name);
-    camera_info_[cam_name] = cam_info_i;
+    kitti_data->camera_info_[cam_name] = cam_info_i;
   }
 
   return true;
+}
 
 } // End of VIO namespace.
