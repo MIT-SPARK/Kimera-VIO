@@ -60,7 +60,8 @@ bool KittiDataProvider::spin() {
   Timestamp timestamp_frame_k;
   const size_t number_of_images = kitti_data_.getNumberOfImages();
 
-  const StereoMatchingParams& stereo_matching_params;
+  const StereoMatchingParams& stereo_matching_params = 
+      frontend_params_.getStereoMatchingParams();
 
   // Store camera info 
   const CameraParams& left_cam_info = 
@@ -144,6 +145,12 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
     kitti_data->left_img_names_[i] = left_prefix + "/data/" + ss.str() + ".png";
     kitti_data->right_img_names_[i] = right_prefix + "/data/" + ss.str() + ".png";
   }
+
+  // Parse camera info and imu data 
+  std::string left_cam = "02"; 
+  std::string right_cam = "03";
+  parseCameraData(kitti_sequence_path, left_cam, right_cam, kitti_data);
+  parseImuData(kitti_sequence_path, kitti_data);
 
   // Check data is parsed correctly.
   CHECK(*kitti_data);

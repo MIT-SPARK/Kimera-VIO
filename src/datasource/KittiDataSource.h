@@ -19,6 +19,7 @@
 #include <functional>
 #include "datasource/DataSource.h"
 #include "StereoImuSyncPacket.h"
+#include "VioFrontEndParams.h"
 #include "ImuFrontEnd.h"
 
 namespace VIO {
@@ -29,7 +30,7 @@ public:
   virtual ~KittiDataProvider();
   virtual bool spin();
 
-private:
+private:  
   // NOTE TO ASK: why this struct?
   struct KittiData {
     inline size_t getNumberOfImages() const {return left_img_names_.size();}
@@ -77,8 +78,8 @@ private:
                const std::string& calibration_filename, 
                cv::Mat& R, cv::Mat& T) const;
 private:
-  KittiData kitti_data_;
   VioFrontEndParams frontend_params_; // NOTE what to do with this?
+  KittiData kitti_data_;
 };
 
 } // End of VIO namespace.
