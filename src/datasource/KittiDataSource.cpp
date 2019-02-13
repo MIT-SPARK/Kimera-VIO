@@ -53,38 +53,51 @@ cv::Mat KittiDataProvider::readKittiImage(const std::string& img_name) {
 
 bool KittiDataProvider::spin() {
   // Loop over the messages and call vio callback.
-  // while(!end_of_dataset) {
-  //  vio_callback_(your_stereo_imu_sync_packet);
+  // Timestamp 10 frames before the first (for imu calibration)
 
-  // Main loop
+  // NOTE: add back the initial/final frame things later 
+  Timestamp timestamp_last_frame = kitti_data_.timestamps_.at(0);
   Timestamp timestamp_frame_k;
   const size_t number_of_images = kitti_data_.getNumberOfImages();
+
+  const StereoMatchingParams& stereo_matching_params;
+
+  // Store camera info 
+  const CameraParams& left_cam_info = 
+          kitti_data_.camera_info_.at(kitti_data_.left_camera_name_);
+  const CameraParams& right_cam_info = 
+          kitti_data_.camera_info_.at(kitti_data_.right_camera_name_);
+  const gtsam::Pose3& camL_pose_camR = 
+          kitti_data_.camL_Pose_camR_; 
+
+  // Main loop
   for(size_t k = 0; k < number_of_images; k++) {
     timestamp_frame_k = kitti_data_.timestamps_.at(k);
-
+    ImuMeasurements imu_meas; 
+    CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
+          kitti_data_.imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+          timestamp_last_frame,
+          timestamp_frame_k,
+          &imu_meas.timestamps_,
+          &imu_meas.measurements_));
     // Call VIO Pipeline.
     VLOG(10) << "Call VIO processing for frame k: " << k
              << " with timestamp: " << timestamp_frame_k;
-    //vio_callback_(StereoImuSyncPacket(
-    //                StereoFrame(k, timestamp_frame_k,
-    //                            readKittiImage(kitti_data_.left_img_names_.at(k));
-    //                            left_cam_info,
-    //                            readKittiImage(kitti_data_.right_img_names_.at(k));
-    //                            right_cam_info,
-    //                            camL_pose_camR,
-    //                            stereo_matching_params),
-    //                imu_meas.timestamps_,
-    //                imu_meas.measurements_));
-    /*
-    TODO:
-    https://github.com/yanii/kitti-pcl/blob/master/KITTI_README.TXT
-      - Check the ETHDatasetParser::parseCameraData (prob next step)
-      - need stereo_matching_params whatever that is 
-      - How does the imu data come in? (check)
-      - getImuDataInterpolatedUpperBorder
-    */
+    vio_callback_(StereoImuSyncPacket(
+                   StereoFrame(k, timestamp_frame_k,
+                               readKittiImage(kitti_data_.left_img_names_.at(k)),
+                               left_cam_info,
+                               readKittiImage(kitti_data_.right_img_names_.at(k)),
+                               right_cam_info,
+                               camL_pose_camR,
+                               stereo_matching_params),
+                               imu_meas.timestamps_,
+                               imu_meas.measurements_));
+
     VLOG(10) << "Finished VIO processing for frame k = " << k;
   }
+
+  timestamp_last_frame = timestamp_frame_k; 
 
   return true;
 }
@@ -174,18 +187,29 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   // perhaps move all that into this method? 
   // for now write parse camera info here 
   // Default names: match names of the corresponding folders.
-  kitti_data->camera_names_.resize(2);
-  kitti_data->camera_names_[0] = left_cam_id;
-  kitti_data->camera_names_[1] = right_cam_id;
+  kitti_data->left_camera_name_ = left_cam_id;
+  kitti_data->right_camera_name_ = right_cam_id;
 
   // Read camera info and list of images.
+  std::vector<std::string> camera_names;
+  camera_names.push_back(left_cam_id);
+  camera_names.push_back(right_cam_id);
   kitti_data->camera_info_.clear();
-  for (const std::string& cam_name: kitti_data->camera_names_) {
+  for (const std::string& cam_name: camera_names) {
     LOG(INFO) << "reading camera: " << cam_name;
     CameraParams cam_info_i;
     cam_info_i.parseKITTICalib(input_dataset_path + "calib_cam_to_cam.txt", cam_name);
     kitti_data->camera_info_[cam_name] = cam_info_i;
   }
+
+  // Set extrinsic for the stereo.
+  const CameraParams& left_camera_info = kitti_data->camera_info_.at(left_cam_id);
+  const CameraParams& right_camera_info = kitti_data->camera_info_.at(right_cam_id);
+
+  // Extrinsics of the stereo (not rectified)
+  // relative pose between cameras
+  kitti_data->camL_Pose_camR_ = (left_camera_info.body_Pose_cam_).between(
+                      right_camera_info.body_Pose_cam_);
 
   return true;
 }
@@ -283,7 +307,6 @@ bool KittiDataProvider::parseImuData(
   double stdDelta = 0;
   double imu_rate_maxMismatch = 0;
   double maxNormAcc = 0, maxNormRotRate = 0; // only for debugging
-  Timestamp previous_timestamp = -1;
 
   for (size_t i = 0; i < oxts_timestamps.size(); i++) {
     std::stringstream ss;

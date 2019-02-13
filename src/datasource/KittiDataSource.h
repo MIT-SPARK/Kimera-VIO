@@ -11,6 +11,7 @@
  * @brief  Kitti dataset parser.
  * @author Antoni Rosinol
  */
+// Note https://github.com/yanii/kitti-pcl/blob/master/KITTI_README.TXT -Yun
 
 #pragma once
 
@@ -33,9 +34,13 @@ private:
   struct KittiData {
     inline size_t getNumberOfImages() const {return left_img_names_.size();}
     // This matches the names of the folders in the dataset
-    std::vector<std::string> camera_names_;
+    std::string left_camera_name_;
+    std::string right_camera_name_;
     // Map from camera name to its parameters
     std::map<std::string, CameraParams> camera_info_;
+
+    gtsam::Pose3 camL_Pose_camR_; 
+
     // The image names of the images from left camera 
     std::vector<std::string> left_img_names_;
     // The image names of the images from right camera
@@ -65,7 +70,7 @@ private:
 
   // Parse IMU data of a given dataset 
   bool parseImuData(const std::string& input_dataset_path, 
-                    KittiData* kitti_data_);
+                    KittiData* kitti_data);
 
   // Get R and T matrix from calibration file 
   bool parseRT(const std::string& input_dataset_path, 
@@ -73,6 +78,7 @@ private:
                cv::Mat& R, cv::Mat& T) const;
 private:
   KittiData kitti_data_;
+  VioFrontEndParams frontend_params_; // NOTE what to do with this?
 };
 
 } // End of VIO namespace.
