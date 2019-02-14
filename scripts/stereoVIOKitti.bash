@@ -78,14 +78,13 @@ echo """ Launching:
   --vio_params_path="$VIO_PARAMS_PATH" \
   --initial_k=10 \
   --final_k=3000 \
-  --initial_frame=20 \
-  --final_frame=3000 \
+  --initial_frame=12 \
+  --final_frame=77 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
   --flagfile="../params/flags/stereoVIOEuroc.flags" \
   --flagfile="../params/flags/Mesher.flags" \
   --flagfile="../params/flags/VioBackEnd.flags" \
   --flagfile="../params/flags/RegularVioBackEnd.flags" \
   --flagfile="../params/flags/Visualizer3D.flags" \
-  --v=0 \
-  --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
+  --v=1000 \
   --backend_type="$BACKEND_TYPE"

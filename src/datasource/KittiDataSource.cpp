@@ -124,8 +124,11 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   // same for image_3 (right images)
   CHECK_NOTNULL(kitti_data);
 
-  std::string left_prefix = kitti_sequence_path + "/image_02";
-  std::string right_prefix = kitti_sequence_path + "/image_03";
+  std::string left_cam = "00"; 
+  std::string right_cam = "01";
+
+  std::string left_prefix = kitti_sequence_path + "/image_" + left_cam;
+  std::string right_prefix = kitti_sequence_path + "/image_" + right_cam;
 
   // parse timestamps (left /image_02)
   // NOTE the timestamps for left and right cam not sychronized
@@ -161,8 +164,6 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   }
 
   // Parse camera info and imu data 
-  std::string left_cam = "02"; 
-  std::string right_cam = "03";
   parseCameraData(kitti_sequence_path, left_cam, right_cam, kitti_data);
   parseImuData(kitti_sequence_path, kitti_data);
 
