@@ -34,6 +34,9 @@ private:
   // NOTE TO ASK: why this struct?
   struct KittiData {
     inline size_t getNumberOfImages() const {return left_img_names_.size();}
+
+    size_t initial_k_, final_k_; // useful for skipping image frames 
+    // also since sometimes don't have enough imu measurements for first few frames 
     // This matches the names of the folders in the dataset
     std::string left_camera_name_;
     std::string right_camera_name_;
@@ -50,7 +53,8 @@ private:
     std::vector<Timestamp> timestamps_;
     //IMU data 
     ImuData imuData_;
-    // Dummy check to ensure data is correctly parsed.
+    // Sanity check to ensure data is correctly parsed
+    // (returns true if data is correct, false otherwise)
     explicit operator bool() const;
   };
 

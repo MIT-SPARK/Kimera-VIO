@@ -2,8 +2,10 @@
 ###################################################################
 # Fill the variables DATASET_PATH and USE_REGULAR_VIO.
 
-# Specify path of the EuRoC dataset.
-DATASET_PATH="/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync"
+# Specify path of the KITTI dataset.
+KITTI_DATASET_PATH="/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync"
+DATASET_PATH="/home/yunchang/data/MH_01"
+# TODO remove so this is not hard coded 
 
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
@@ -12,7 +14,7 @@ USE_REGULAR_VIO=0
 # Parse Options.
 if [ $# -eq 0 ]; then
   # If there is no options tell user what are the values we are using.
-  echo "Using dataset at path: $DATASET_PATH"
+  echo "Using dataset at path: $KITTI_DATASET_PATH"
   if [ $USE_REGULAR_VIO == 1 ]; then
     echo "Using REGULAR VIO."
   fi
@@ -21,8 +23,8 @@ else
   while [ -n "$1" ]; do # while loop starts
       case "$1" in
         # Option -p, provides path to dataset.
-      -p) DATASET_PATH=$2
-          echo "Using dataset at path: $DATASET_PATH"
+      -p) KITTI_DATASET_PATH=$2
+          echo "Using dataset at path: $KITTI_DATASET_PATH"
           shift ;;
         # Option -r, specifies that we want to use regular vio.
       -r) USE_REGULAR_VIO=1
@@ -70,11 +72,14 @@ echo """ Launching:
 ../build/stereoVIOKitti \
   --logtostderr=1 \
   --colorlogtostderr=1 \
-  --log_prefix=0 \
+  --log_prefix=1 \
   --dataset_path="$DATASET_PATH" \
+  --kitti_dataset_path="$KITTI_DATASET_PATH" \
   --vio_params_path="$VIO_PARAMS_PATH" \
   --initial_k=10 \
   --final_k=3000 \
+  --initial_frame=20 \
+  --final_frame=3000 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
   --flagfile="../params/flags/stereoVIOEuroc.flags" \
   --flagfile="../params/flags/Mesher.flags" \

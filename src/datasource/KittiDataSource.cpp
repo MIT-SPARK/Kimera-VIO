@@ -18,6 +18,11 @@
 #include "StereoImuSyncPacket.h"
 #include "StereoFrame.h"
 
+DEFINE_int32(initial_frame, 50, "Initial frame to start processing dataset, "
+                            "previous frames will not be used.");
+DEFINE_int32(final_frame, 10000, "Final frame to finish processing dataset, "
+                             "subsequent frames will not be used.");
+
 namespace VIO {
 
 KittiDataProvider::KittiData::operator bool() const {
@@ -33,7 +38,7 @@ KittiDataProvider::KittiData::operator bool() const {
       << "# of timestamps: " << timestamps_.size() << '\n'
       << "# of left img names: " << left_img_names_.size() << '\n'
       << "# of right img names: " << right_img_names_.size();
-  return empty_data || missing_data;
+  return !empty_data && !missing_data;
 }
 
 KittiDataProvider::KittiDataProvider(const std::string& kitti_dataset_path)
@@ -54,10 +59,11 @@ cv::Mat KittiDataProvider::readKittiImage(const std::string& img_name) {
 bool KittiDataProvider::spin() {
   // Loop over the messages and call vio callback.
   // Timestamp 10 frames before the first (for imu calibration)
-
-  // NOTE: add back the initial/final frame things later 
-  Timestamp timestamp_last_frame = kitti_data_.timestamps_.at(0);
+  static constexpr size_t frame_offset_for_imu_calib = 10;
+  Timestamp timestamp_last_frame = 
+      kitti_data_.timestamps_.at(kitti_data_.initial_k_ - frame_offset_for_imu_calib);
   Timestamp timestamp_frame_k;
+
   const size_t number_of_images = kitti_data_.getNumberOfImages();
 
   const StereoMatchingParams& stereo_matching_params = 
@@ -72,7 +78,7 @@ bool KittiDataProvider::spin() {
           kitti_data_.camL_Pose_camR_; 
 
   // Main loop
-  for(size_t k = 0; k < number_of_images; k++) {
+  for(size_t k = kitti_data_.initial_k_; k < kitti_data_.final_k_; k++) {
     timestamp_frame_k = kitti_data_.timestamps_.at(k);
     ImuMeasurements imu_meas; 
     CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
@@ -80,10 +86,18 @@ bool KittiDataProvider::spin() {
           timestamp_last_frame,
           timestamp_frame_k,
           &imu_meas.timestamps_,
-          &imu_meas.measurements_));
+          &imu_meas.measurements_)) 
+          << "Make sure queried timestamp lies before the first IMU sample in the buffer";
     // Call VIO Pipeline.
     VLOG(10) << "Call VIO processing for frame k: " << k
-             << " with timestamp: " << timestamp_frame_k;
+             << " with timestamp: " << timestamp_frame_k
+             << "////////////////////////////////////////// Creating packet!\n"
+             << "STAMPS IMU rows : \n" << imu_meas.timestamps_.rows() << '\n'
+             << "STAMPS IMU cols : \n" << imu_meas.timestamps_.cols() << '\n'
+             << "STAMPS IMU: \n" << imu_meas.timestamps_ << '\n'
+             << "ACCGYR IMU rows : \n" << imu_meas.measurements_.rows() << '\n'
+             << "ACCGYR IMU cols : \n" << imu_meas.measurements_.cols() << '\n'
+             << "ACCGYR IMU: \n" << imu_meas.measurements_;
     vio_callback_(StereoImuSyncPacket(
                    StereoFrame(k, timestamp_frame_k,
                                readKittiImage(kitti_data_.left_img_names_.at(k)),
@@ -151,6 +165,28 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   std::string right_cam = "03";
   parseCameraData(kitti_sequence_path, left_cam, right_cam, kitti_data);
   parseImuData(kitti_sequence_path, kitti_data);
+
+  // Start processing dataset from frame initial_k (neccessary on convinient)
+  kitti_data->initial_k_ = FLAGS_initial_frame; 
+  CHECK_GE(kitti_data->initial_k_, 10) << "initial_k should be >= 10 for imu bias initialization";
+  kitti_data->final_k_ = FLAGS_final_frame; 
+  const size_t& nr_images = kitti_data->getNumberOfImages();
+  if (kitti_data->final_k_ > nr_images) {
+    LOG(WARNING) << "Value for final_k, " << kitti_data->final_k_ << " is larger than total"
+                 << " number of frames in dataset " << nr_images;
+    // Skip last frames which are typically problematic
+    // (IMU bumps, FOV occluded)...
+    static constexpr size_t skip_n_end_frames = 100;
+    kitti_data->final_k_ = nr_images - skip_n_end_frames;
+    LOG(WARNING) << "Using final_k = " << kitti_data->final_k_ << ", where we removed "
+                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
+  }
+  CHECK(kitti_data->final_k_ > kitti_data->initial_k_)
+      << "Value for final_k (" << kitti_data->final_k_ << ") is smaller than value for"
+      << " initial_k (" << kitti_data->initial_k_ << ").";
+
+  LOG(INFO) << "Running dataset between frame " << kitti_data->initial_k_
+            << " and frame " <<  kitti_data->final_k_;
 
   // Check data is parsed correctly.
   CHECK(*kitti_data);

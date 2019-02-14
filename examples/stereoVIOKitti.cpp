@@ -13,7 +13,7 @@
 #include "LoggerMatlab.h"
 
 // clean up later (dataset_path definition in ETH_parser.cpp)
-DEFINE_string(dataset_path, "/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync",
+DEFINE_string(kitti_dataset_path, "/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync",
     "Path of dataset (i.e. Kitti, /home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync.");
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,13 +30,15 @@ int main(int argc, char *argv[]) {
   VIO::Pipeline vio_pipeline (&eth_dataset_parser); 
 
   // Register callback to vio_pipeline.
-  VIO::DataProvider kitti_dataset_parser = VIO::KittiDataProvider(FLAGS_dataset_path);
+  // VIO::DataProvider kitti_dataset_parser = VIO::KittiDataProvider(FLAGS_kitti_dataset_path);
+  VIO::KittiDataProvider kitti_dataset_parser(FLAGS_kitti_dataset_path);
   kitti_dataset_parser.registerVioCallback(
         std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   const bool is_pipeline_successful = kitti_dataset_parser.spin();
+
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
 
