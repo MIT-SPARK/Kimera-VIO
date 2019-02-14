@@ -1,6 +1,8 @@
 README - VIO: Visual-Inertial Odometry
 ======================================
 
+[![Build Status](http://18.47.7.162:8080/buildStatus/icon?job=VIO/master)](http://18.47.7.162:8080/job/VIO/job/master/)
+
 What is VIO?
 ------------
 
