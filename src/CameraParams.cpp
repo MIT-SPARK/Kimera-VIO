@@ -79,7 +79,10 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 
 /* -------------------------------------------------------------------------- */
 // Parse KITTI calibration txt file describing camera parameters.
-bool CameraParams::parseKITTICalib(const std::string& filepath, const std::string& cam_id) {
+bool CameraParams::parseKITTICalib(const std::string& filepath, 
+                                   cv::Mat R_cam_to_imu, 
+                                   cv::Mat T_cam_to_imu,
+                                   const std::string& cam_id) {
   // rate is approx 10 hz as given by the README 
   frame_rate_ = 1 / 10.0; 
 
@@ -90,19 +93,19 @@ bool CameraParams::parseKITTICalib(const std::string& filepath, const std::strin
   // Set up to read the text file 
   std::ifstream calib_file; 
   calib_file.open(filepath.c_str());
-  bool read_all_cam_info = false;
+  CHECK(calib_file.is_open());
   std::vector<double> distortion_coeff5_; 
-
-
   // read loop
-  while(!calib_file.eof() && !read_all_cam_info) {
+  while(!calib_file.eof()) {
     std::string line; 
     getline(calib_file, line);
+
     if (!line.empty()) {
       std::stringstream ss; 
       ss << line; 
       std::string label; 
       ss >> label; 
+      LOG(INFO) << "label: " << label;
       if (label == "S_" + cam_id + ":") {
         // this entry gives image size 
         double width, height; 
@@ -153,8 +156,11 @@ bool CameraParams::parseKITTICalib(const std::string& filepath, const std::strin
       }
     }
   }
-
+  
   // Cam pose wrt to body.
+  cvR = R_cam_to_imu * cvR; 
+  cvT = T_cam_to_imu + cvT; 
+
   body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(cvR, cvT);
 
   calibration_ = gtsam::Cal3DS2(intrinsics_[0], // fx

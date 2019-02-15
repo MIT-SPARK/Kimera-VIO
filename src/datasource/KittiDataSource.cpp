@@ -53,6 +53,8 @@ KittiDataProvider::~KittiDataProvider() {}
 cv::Mat KittiDataProvider::readKittiImage(const std::string& img_name) {
     cv::Mat img = cv::imread(img_name, CV_LOAD_IMAGE_UNCHANGED);
     LOG_IF(FATAL, img.empty()) << "Failed to load image: " << img_name;
+    // cv::imshow("check", img); 
+    // cv::waitKey(0);
     return img;
 }
 
@@ -239,10 +241,27 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   camera_names.push_back(left_cam_id);
   camera_names.push_back(right_cam_id);
   kitti_data->camera_info_.clear();
+
+  // First get R_imu2velo and T_imu2velo 
+  cv::Mat R_imu2velo, T_imu2velo;
+  std::string imu_to_velo_filename = "calib_imu_to_velo.txt"; 
+  parseRT(input_dataset_path, imu_to_velo_filename, R_imu2velo, T_imu2velo);
+  
+  // Then get R_velo2cam and T_velo2cam
+  cv::Mat R_velo2cam, T_velo2cam;
+  std::string velo_to_cam_filename = "calib_velo_to_cam.txt";
+  parseRT(input_dataset_path, velo_to_cam_filename, R_velo2cam, T_velo2cam);
+
+  // The find transformation from camera to imu frame (since that will be body frame)
+  cv::Mat R_cam2imu, T_cam2imu; 
+  R_cam2imu = R_velo2cam.t()*R_imu2velo.t(); 
+  T_cam2imu = -T_velo2cam - T_imu2velo; 
+
   for (const std::string& cam_name: camera_names) {
     LOG(INFO) << "reading camera: " << cam_name;
     CameraParams cam_info_i;
-    cam_info_i.parseKITTICalib(input_dataset_path + "calib_cam_to_cam.txt", cam_name);
+    cam_info_i.parseKITTICalib(input_dataset_path + "calib_cam_to_cam.txt", 
+                               R_cam2imu, T_cam2imu, cam_name);
     kitti_data->camera_info_[cam_name] = cam_info_i;
   }
 
@@ -265,8 +284,7 @@ bool KittiDataProvider::parseRT(
   std::ifstream calib_file; 
   calib_file.open((input_dataset_path + calibration_filename).c_str());
   // Read calibratio file
-  std::ifstream calib_velo_to_cam; 
-  calib_velo_to_cam.open((input_dataset_path + "/calib_velo_to_cam.txt").c_str());
+  CHECK(calib_file.is_open());
   // Read loop 
   while (!calib_file.eof()) {
     std::string line;
@@ -308,25 +326,12 @@ bool KittiDataProvider::parseImuData(
   ///////////////// PARSE IMU PARAMETERS ///////////////////////////////////////
 
   // body_Pose_cam_: sensor pose w respect to body 
-  // calib_velo_to_cam R|T transform velodyne coords to left vid cam frame 
-  // calib_imu_to_velo R|T transform imu coord to velodyne frame 
+  // IMU chosen as body frame 
+  cv::Mat R_body, T_body; 
+  R_body = cv::Mat::eye(3, 3, CV_64F);
+  T_body = cv::Mat::zeros(3, 1, CV_64F);
 
-  // First get R_imu2velo and T_imu2velo 
-  cv::Mat R_imu2velo, T_imu2velo;
-  std::string imu_to_velo_filename = "/calib_imu_to_velo.txt"; 
-  parseRT(input_dataset_path, imu_to_velo_filename, R_imu2velo, T_imu2velo);
-  
-  // Then get R_velo2cam and T_velo2cam
-  cv::Mat R_velo2cam, T_velo2cam;
-  std::string velo_to_cam_filename = "/calib_velo_to_cam.txt";
-  parseRT(input_dataset_path, velo_to_cam_filename, R_velo2cam, T_velo2cam);
-  
-  // Calculate R_imu2cam and T_imu2cam
-  cv::Mat R_imu2cam, T_imu2cam; 
-  R_imu2cam = R_velo2cam * R_imu2velo;
-  T_imu2cam = T_velo2cam + T_imu2velo;
-
-  kitti_data->imuData_.body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(R_imu2cam, T_imu2cam);
+  kitti_data->imuData_.body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(R_body, T_body);
 
   // NOTE that in this case left grayscale stereo camera is chosen as body frame (ok?) 
 
