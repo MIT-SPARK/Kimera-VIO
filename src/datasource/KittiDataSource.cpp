@@ -44,6 +44,7 @@ KittiDataProvider::KittiData::operator bool() const {
 KittiDataProvider::KittiDataProvider(const std::string& kitti_dataset_path)
   : kitti_data_(),
     DataProvider() {
+  dataset_path_ = kitti_dataset_path;
   // Parse Kitti dataset.
   parseData(kitti_dataset_path, &kitti_data_);
 }
@@ -193,6 +194,7 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
 
   // Check data is parsed correctly.
   CHECK(*kitti_data);
+  print(); 
 }
 
 bool KittiDataProvider::parseTimestamps(const std::string& timestamps_file, 
@@ -252,16 +254,24 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   std::string velo_to_cam_filename = "calib_velo_to_cam.txt";
   parseRT(input_dataset_path, velo_to_cam_filename, R_velo2cam, T_velo2cam);
 
+  // Then form the rotation matrix R_imu2body
+  cv::Mat R_imu2body;  // In case the convention is different
+  // R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
+  // R_imu2body.at<double>(0,2) = -1; 
+  // R_imu2body.at<double>(1,1) = 1;
+  // R_imu2body.at<double>(2,0) = 1; 
+  R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
+
   // The find transformation from camera to imu frame (since that will be body frame)
-  cv::Mat R_cam2imu, T_cam2imu; 
-  R_cam2imu = R_velo2cam.t()*R_imu2velo.t(); 
-  T_cam2imu = -T_velo2cam - T_imu2velo; 
+  cv::Mat R_cam2body, T_cam2body; 
+  R_cam2body = R_imu2body * R_imu2velo.t() * R_velo2cam.t();
+  T_cam2body = -R_imu2body * T_imu2velo - R_imu2body * R_imu2velo.t() * T_velo2cam; 
 
   for (const std::string& cam_name: camera_names) {
     LOG(INFO) << "reading camera: " << cam_name;
     CameraParams cam_info_i;
     cam_info_i.parseKITTICalib(input_dataset_path + "calib_cam_to_cam.txt", 
-                               R_cam2imu, T_cam2imu, cam_name);
+                               R_cam2body, T_cam2body, cam_name);
     kitti_data->camera_info_[cam_name] = cam_info_i;
   }
 
@@ -328,7 +338,16 @@ bool KittiDataProvider::parseImuData(
   // body_Pose_cam_: sensor pose w respect to body 
   // IMU chosen as body frame 
   cv::Mat R_body, T_body; 
-  R_body = cv::Mat::eye(3, 3, CV_64F);
+
+  // Then form the rotation matrix R_imu2body
+  cv::Mat R_imu2body; 
+  // R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
+  // R_imu2body.at<double>(0,2) = -1; 
+  // R_imu2body.at<double>(1,1) = 1;
+  // R_imu2body.at<double>(2,0) = 1; 
+  R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
+
+  R_body = R_imu2body;
   T_body = cv::Mat::zeros(3, 1, CV_64F);
 
   kitti_data->imuData_.body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(R_body, T_body);
@@ -421,5 +440,24 @@ bool KittiDataProvider::parseImuData(
             << "Maximum measured acceleration (norm): " << maxNormAcc;
   return true;
 }
+
+/* -------------------------------------------------------------------------- */
+void KittiDataProvider::print() const {
+  LOG(INFO) << "-------------------------------------------------------------\n"
+            << "------------------ KittiDataProvider::print ------------------\n"
+            << "-------------------------------------------------------------\n"
+            << "Displaying info for dataset: " << dataset_path_;
+  kitti_data_.camL_Pose_camR_.print("camL_Pose_calR \n");
+  // For each of the 2 cameras.
+  LOG(INFO) << "Left camera name: " << kitti_data_.left_camera_name_ << ", with params:\n";
+  kitti_data_.camera_info_.at(kitti_data_.left_camera_name_).print();
+  LOG(INFO) << "Left camera name: " << kitti_data_.left_camera_name_ << ", with params:\n";
+  kitti_data_.camera_info_.at(kitti_data_.left_camera_name_).print();
+  kitti_data_.imuData_.print();
+  LOG(INFO) << "-------------------------------------------------------------\n"
+            << "-------------------------------------------------------------\n"
+            << "-------------------------------------------------------------";
+}
+
 
 } // End of VIO namespace.

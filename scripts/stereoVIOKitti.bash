@@ -4,7 +4,7 @@
 
 # Specify path of the KITTI dataset.
 KITTI_DATASET_PATH="/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync"
-DATASET_PATH="/home/yunchang/data/MH_01"
+DATASET_PATH="/home/yunchang/data/MH_03"
 # TODO remove so this is not hard coded 
 
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.

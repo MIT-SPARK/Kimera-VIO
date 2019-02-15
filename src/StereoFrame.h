@@ -73,7 +73,7 @@ public:
       double min_point_dist = 0.1,
       double max_point_dist = 15,
       bool bidirectional_matching = false,
-      double nominal_baseline = 0.11,
+      double nominal_baseline = 0.11, // NOTE that this is hard coded (for EuRoC)
       bool subpixel_refinement = false,
       bool equalize_image = false) :
         tolerance_template_matching_(std::move(tol_template_matching)),

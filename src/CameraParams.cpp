@@ -74,14 +74,16 @@ bool CameraParams::parseYAML(const std::string& filepath) {
       distortion_coeff4_[2],  //  p1
       distortion_coeff4_[3]); //  p2
 
+  // P_ = R_rectify_ * camera_matrix_;
+
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
 // Parse KITTI calibration txt file describing camera parameters.
 bool CameraParams::parseKITTICalib(const std::string& filepath, 
-                                   cv::Mat R_cam_to_imu, 
-                                   cv::Mat T_cam_to_imu,
+                                   cv::Mat R_cam_to_body, 
+                                   cv::Mat T_cam_to_body,
                                    const std::string& cam_id) {
   // rate is approx 10 hz as given by the README 
   frame_rate_ = 1 / 10.0; 
@@ -105,7 +107,6 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
       ss << line; 
       std::string label; 
       ss >> label; 
-      LOG(INFO) << "label: " << label;
       if (label == "S_" + cam_id + ":") {
         // this entry gives image size 
         double width, height; 
@@ -152,14 +153,26 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
           ss >> value;  
           cvT.at<double>(i, 0) = value; 
         }
-        
+      
+      }else if (label == "R_rect_" + cam_id + ":") {
+        // this entry gives the rotation resulting from rectification. 
+        R_rectify_ = cv::Mat::zeros(3, 3, CV_64F);
+        double value; 
+        for (int i = 0; i < 9; i++){
+          ss >> value; 
+          int row = i/3; int col = i%3; 
+          R_rectify_.at<double>(row, col) = value; 
+        }
       }
+
+
+
     }
   }
   
   // Cam pose wrt to body.
-  cvR = R_cam_to_imu * cvR; 
-  cvT = T_cam_to_imu + cvT; 
+  cvR = R_cam_to_body * cvR; 
+  cvT = T_cam_to_body + cvT; 
 
   body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(cvR, cvT);
 

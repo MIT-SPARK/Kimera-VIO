@@ -43,7 +43,7 @@ private:
     // Map from camera name to its parameters
     std::map<std::string, CameraParams> camera_info_;
 
-    gtsam::Pose3 camL_Pose_camR_; 
+    gtsam::Pose3 camL_Pose_camR_; // relative pose between cameras
 
     // The image names of the images from left camera 
     std::vector<std::string> left_img_names_;
@@ -81,7 +81,10 @@ private:
   bool parseRT(const std::string& input_dataset_path, 
                const std::string& calibration_filename, 
                cv::Mat& R, cv::Mat& T) const;
+
+  void print() const;
 private:
+  std::string dataset_path_;
   VioFrontEndParams frontend_params_; // NOTE what to do with this?
   KittiData kitti_data_;
 };
