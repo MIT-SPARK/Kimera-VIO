@@ -48,7 +48,7 @@ struct VisualizerInputPayload {
       int backend_type,
       const gtsam::Pose3& pose,
       const std::vector<cv::Vec6f>& mesh_2d,
-      Mesher::Mesh3DColors&& colors_mesh_3d,
+      Mesher::Mesh3DVizProperties&& mesh_3d_viz_props,
       const Frame& left_stero_keyframe,
       MesherOutputPayload&& mesher_output_payload,
       const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
@@ -63,7 +63,7 @@ struct VisualizerInputPayload {
   const int backend_type_;
   const gtsam::Pose3 pose_;
   const std::vector<cv::Vec6f> mesh_2d_;
-  const Mesher::Mesh3DColors colors_mesh_3d_;
+  const Mesher::Mesh3DVizProperties mesh_3d_viz_props_;
   const Frame left_stereo_keyframe_;
   const MesherOutputPayload mesher_output_payload_;
   const VioBackEnd::PointsWithIdMap points_with_id_VIO_;

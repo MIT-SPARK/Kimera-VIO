@@ -397,7 +397,7 @@ void Pipeline::processKeyframe(
               semantic_mesh_segmentation_callback_(
                 left_frame_for_semantic_segmentation.img_,
                 mesher_output_payload.mesh_2d_,
-                mesher_output_payload.mesh_3d_) : Mesher::Mesh3DColors(),
+                mesher_output_payload.mesh_3d_) : Mesher::Mesh3DVizProperties(),
             // For visualizeMesh2D and visualizeMesh2DStereo.
             stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame(),
             // visualizeConvexHull & visualizeMesh3DWithColoredClusters
