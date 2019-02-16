@@ -557,7 +557,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   double timeVoting_p = 0;
   if (verbosity_ >= 5) timeVoting_p = UtilsOpenCV::GetTimeInSeconds();
 
-  VLOG(10) << "geometricOutlierRejectionMonoStereoRot: voting complete.";
+  VLOG(10) << "geometricOutlierRejectionStereoGivenRot: voting complete.";
 
   //============================================================================
   // OUTLIER REJECTION AND TRANSLATION COMPUTATION

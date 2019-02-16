@@ -19,6 +19,9 @@ namespace VIO {
 /* -------------------------------------------------------------------------- */
 // Parse YAML file describing camera parameters.
 bool CameraParams::parseYAML(const std::string& filepath) {
+
+  rectified_ = false; // Based on Euroc dataset
+
   // Make sure that each YAML file has %YAML:1.0 as first line.
   cv::FileStorage fs;
   UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
@@ -85,6 +88,9 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
                                    cv::Mat R_cam_to_body, 
                                    cv::Mat T_cam_to_body,
                                    const std::string& cam_id) {
+
+  rectified_ = false; // KITTI images rectified 
+
   // rate is approx 10 hz as given by the README 
   frame_rate_ = 1 / 10.0; 
 
@@ -164,15 +170,13 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
           R_rectify_.at<double>(row, col) = value; 
         }
       }
-
-
-
     }
   }
   
-  // Cam pose wrt to body.
-  cvR = R_cam_to_body * cvR; 
-  cvT = T_cam_to_body + cvT; 
+  // Cam pose wrt to body
+
+  cvR = R_cam_to_body * cvR.t(); 
+  cvT = T_cam_to_body - R_cam_to_body * cvT; 
 
   body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(cvR, cvT);
 
@@ -183,8 +187,8 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
       intrinsics_[3], // v0
       distortion_coeff5_[0],  //  k1
       distortion_coeff5_[1],  //  k2
-      distortion_coeff5_[2],  //  p1
-      distortion_coeff5_[3]); //  p2
+      distortion_coeff5_[3],  //  p1
+      distortion_coeff5_[4]); //  p2
       // NOTE check if ignorting the 3rd distortion coeff is correct 
 
   return true;

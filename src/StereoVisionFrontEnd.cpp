@@ -130,6 +130,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
       nr_valid_features <= tracker_.trackerParams_.min_number_features_;
+
+  // If max time elaspsed and not able to track feature -> create new keyframe
   if (max_time_elapsed || nr_features_low) {
     ++keyframe_count_; // mainly for debugging
 
@@ -171,7 +173,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       // Set relative pose.
       trackerStatusSummary_.kfTrackingStatus_mono_ = statusPoseMono.first;
 
-      if (VLOG_IS_ON(2)) logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_, "mono");
+      if (VLOG_IS_ON(2)) logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_mono_, "mono");
 
       if (statusPoseMono.first == Tracker::TrackingStatus::VALID) {
           trackerStatusSummary_.lkf_T_k_mono_ = statusPoseMono.second;

@@ -52,6 +52,7 @@ KittiDataProvider::KittiDataProvider(const std::string& kitti_dataset_path)
 KittiDataProvider::~KittiDataProvider() {}
 
 cv::Mat KittiDataProvider::readKittiImage(const std::string& img_name) {
+    LOG(INFO) << "!!!!!!!!!! Image name: " << img_name; 
     cv::Mat img = cv::imread(img_name, CV_LOAD_IMAGE_UNCHANGED);
     LOG_IF(FATAL, img.empty()) << "Failed to load image: " << img_name;
     // cv::imshow("check", img); 
@@ -100,7 +101,8 @@ bool KittiDataProvider::spin() {
              << "STAMPS IMU: \n" << imu_meas.timestamps_ << '\n'
              << "ACCGYR IMU rows : \n" << imu_meas.measurements_.rows() << '\n'
              << "ACCGYR IMU cols : \n" << imu_meas.measurements_.cols() << '\n'
-             << "ACCGYR IMU: \n" << imu_meas.measurements_;
+             << "ACCGYR IMU: \n" << imu_meas.measurements_ << '\n'
+             << "IMAGE NAME: \n" << kitti_data_.right_img_names_.at(k);
     vio_callback_(StereoImuSyncPacket(
                    StereoFrame(k, timestamp_frame_k,
                                readKittiImage(kitti_data_.left_img_names_.at(k)),
@@ -120,6 +122,11 @@ bool KittiDataProvider::spin() {
   return true;
 }
 
+bool Earlier_time(std::pair<Timestamp, std::string> &a, std::pair<Timestamp, std::string> &b) {
+  // for sorting below
+  return a.first < b.first;
+}
+
 void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
                                   KittiData* kitti_data) {
   // Images in Kitti dataset: datapath/image_02/data gives all (left) images in order 
@@ -130,8 +137,8 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   std::string left_cam = "00"; 
   std::string right_cam = "01";
 
-  std::string left_prefix = kitti_sequence_path + "/image_" + left_cam;
-  std::string right_prefix = kitti_sequence_path + "/image_" + right_cam;
+  std::string left_prefix = kitti_sequence_path + "image_" + left_cam;
+  std::string right_prefix = kitti_sequence_path + "image_" + right_cam;
 
   // parse timestamps (left /image_02)
   // NOTE the timestamps for left and right cam not sychronized
@@ -147,23 +154,46 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
 
   LOG_IF(FATAL, left_timestamps.size() < 1 || right_timestamps.size() < 1)
       << "ParseTimestamps: zero timestamps parsed for image data...";
-
-  // for now take the later one 
-  if (left_timestamps[0] > right_timestamps[0]) {
-    kitti_data->timestamps_ = left_timestamps;
-  }else{
-    kitti_data->timestamps_ = right_timestamps;
-  }
   
-  const size_t timestamps_size = kitti_data->timestamps_.size();
-  kitti_data->left_img_names_.resize(timestamps_size);
-  kitti_data->right_img_names_.resize(timestamps_size);
+  const size_t timestamps_size = left_timestamps.size();
+
+  // create vector pair to sort the left right images according to the timestamps
+  std::vector<std::pair<Timestamp, std::string> > left_time_img_pairs; 
+  std::vector<std::pair<Timestamp, std::string> > right_time_img_pairs; 
+
+  left_time_img_pairs.resize(timestamps_size);
+  right_time_img_pairs.resize(timestamps_size);
 
   for(size_t i = 0; i < timestamps_size; i++) {
     std::stringstream ss;
     ss << std::setfill('0') << std::setw(10) << i;
-    kitti_data->left_img_names_[i] = left_prefix + "/data/" + ss.str() + ".png";
-    kitti_data->right_img_names_[i] = right_prefix + "/data/" + ss.str() + ".png";
+    left_time_img_pairs[i].second = left_prefix + "/data/" + ss.str() + ".png";
+    right_time_img_pairs[i].second = right_prefix + "/data/" + ss.str() + ".png";
+    left_time_img_pairs[i].first = left_timestamps[i];
+    right_time_img_pairs[i].first = right_timestamps[i];
+  }
+
+  // sort 
+  std::sort(left_time_img_pairs.begin(), left_time_img_pairs.end(), Earlier_time);
+  std::sort(right_time_img_pairs.begin(), right_time_img_pairs.end(), Earlier_time);
+
+  kitti_data->timestamps_.resize(timestamps_size);
+  kitti_data->left_img_names_.resize(timestamps_size);
+  kitti_data->right_img_names_.resize(timestamps_size);
+
+  // store the images 
+  for (size_t i = 0; i < timestamps_size; i++) {
+    Timestamp timestamp_i; 
+    // for now take the later timestamp since they don't exactly match
+    if (left_timestamps[i] > right_timestamps[i]) {
+      timestamp_i = left_timestamps[i];
+    } else {
+      timestamp_i = right_timestamps[i];
+    }
+    kitti_data->timestamps_[i] = timestamp_i;
+    LOG(INFO) << left_time_img_pairs[i].second; 
+    kitti_data->left_img_names_[i] = left_time_img_pairs[i].second; 
+    kitti_data->right_img_names_[i] = right_time_img_pairs[i].second; 
   }
 
   // Parse camera info and imu data 
@@ -201,7 +231,7 @@ bool KittiDataProvider::parseTimestamps(const std::string& timestamps_file,
                                         std::vector<Timestamp>& timestamps_list) const {
   std::ifstream times_stream; 
   times_stream.open(timestamps_file.c_str());
-  CHECK(times_stream.is_open());
+  CHECK(times_stream.is_open()) << "file: " << timestamps_file; 
   timestamps_list.clear(); 
   static constexpr int seconds_per_hour = 3600u; 
   static constexpr int seconds_per_minute = 60u; 
@@ -273,6 +303,7 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
     cam_info_i.parseKITTICalib(input_dataset_path + "calib_cam_to_cam.txt", 
                                R_cam2body, T_cam2body, cam_name);
     kitti_data->camera_info_[cam_name] = cam_info_i;
+    LOG(INFO) << "parsed camera: " << cam_name;
   }
 
   // Set extrinsic for the stereo.
@@ -330,6 +361,11 @@ bool KittiDataProvider::parseRT(
   return true; 
 }
 
+bool Earlier_time_imu(std::pair<Timestamp, int> &a, std::pair<Timestamp, int> &b) {
+  // for sorting below
+  return a.first < b.first;
+}
+
 bool KittiDataProvider::parseImuData(
                     const std::string& input_dataset_path, 
                     KittiData* kitti_data) {
@@ -375,67 +411,88 @@ bool KittiDataProvider::parseImuData(
   double stdDelta = 0;
   double imu_rate_maxMismatch = 0;
   double maxNormAcc = 0, maxNormRotRate = 0; // only for debugging
+  size_t oxts_timestamp_size = oxts_timestamps.size(); 
 
+  std::vector<std::pair<Timestamp, int> > timestamp_ind_pairs; 
   for (size_t i = 0; i < oxts_timestamps.size(); i++) {
+    std::pair<Timestamp, int> tip;
+    tip.first = oxts_timestamps[i]; 
+    tip.second = i; 
+    timestamp_ind_pairs.push_back(tip);
+  }
+  std::sort(timestamp_ind_pairs.begin(), timestamp_ind_pairs.end(), Earlier_time_imu);
+  oxts_timestamps.clear(); 
+
+  int count = 0; 
+  for (size_t i = 0; i < oxts_timestamp_size; i++) {
     std::stringstream ss;
-    ss << std::setfill('0') << std::setw(10) << i;
-    std::string oxts_file_i = oxtsdata_filename + ss.str() + ".txt";
-    std::ifstream oxts_data_i; 
-    oxts_data_i.open(oxts_file_i.c_str());
-    LOG_IF(FATAL, !oxts_data_i.is_open()) << "Cannot open oxts file: " << oxts_file_i;
+    if (timestamp_ind_pairs[i].first != oxts_timestamps[i-1]) {
+      oxts_timestamps.push_back(timestamp_ind_pairs[i].first);
+      ss << std::setfill('0') << std::setw(10) << timestamp_ind_pairs[i].second;
+      std::string oxts_file_i = oxtsdata_filename + ss.str() + ".txt";
+      std::ifstream oxts_data_i; 
+      oxts_data_i.open(oxts_file_i.c_str());
+      LOG_IF(FATAL, !oxts_data_i.is_open()) << "Cannot open oxts file: " << oxts_file_i;
 
-    // All information should be on one line (according example file)
-    // Store words in vector for easy access by index 
-    std::vector<std::string> oxts_data_str; 
-    std::string item; 
-    while (getline(oxts_data_i, item, ' ')){
-      oxts_data_str.push_back(item);
+      // All information should be on one line (according example file)
+      // Store words in vector for easy access by index 
+      std::vector<std::string> oxts_data_str; 
+      std::string item; 
+      while (getline(oxts_data_i, item, ' ')){
+        oxts_data_str.push_back(item);
+      }
+      
+      // Read/store imu measurements 
+      gtsam::Vector6 gyroAccData; 
+      // terms 17~19 (starting from 0) are wx, wy, wz
+      for (int k = 0; k < 3; k++) {
+        gyroAccData(k) = std::stod(oxts_data_str[k + 17]);
+      }
+      // terms 11~13 (starting from 0) are ax, ay, az
+      for (int k = 3; k < 6; k++) {
+        gyroAccData(k) = std::stod(oxts_data_str[k + 8]);
+      }
+
+      Vector6 imu_accgyr;
+      // Acceleration first! 
+      imu_accgyr << gyroAccData.tail(3), gyroAccData.head(3);
+
+      double normAcc = gyroAccData.tail(3).norm();
+      if(normAcc > maxNormAcc) maxNormAcc = normAcc;
+
+      double normRotRate = gyroAccData.head(3).norm();
+      if(normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
+
+      kitti_data->imuData_.imu_buffer_.addMeasurement(oxts_timestamps[count], imu_accgyr);
+
+      if (count != 0){
+        sumOfDelta += (oxts_timestamps[i] - oxts_timestamps[count-1]);
+        double deltaMismatch = std::fabs(double(oxts_timestamps[count] - 
+                                                oxts_timestamps[count-1] -
+                                                kitti_data->imuData_.nominal_imu_rate_) * 1e-9);
+        stdDelta += std::pow(deltaMismatch, 2);
+        imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
+        deltaCount += 1u;
+      }
+      count++;
+      oxts_data_i.close(); 
     }
-    
-    // Read/store imu measurements 
-    gtsam::Vector6 gyroAccData; 
-    // terms 17~19 (starting from 0) are wx, wy, wz
-    for (int k = 0; k < 3; k++) {
-      gyroAccData(k) = std::stod(oxts_data_str[k + 17]);
-    }
-    // terms 11~13 (starting from 0) are ax, ay, az
-    for (int k = 3; k < 6; k++) {
-      gyroAccData(k) = std::stod(oxts_data_str[k + 8]);
-    }
-
-    Vector6 imu_accgyr;
-    // Acceleration first! 
-    imu_accgyr << gyroAccData.tail(3), gyroAccData.head(3);
-
-    double normAcc = gyroAccData.tail(3).norm();
-    if(normAcc > maxNormAcc) maxNormAcc = normAcc;
-
-    double normRotRate = gyroAccData.head(3).norm();
-    if(normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
-
-    kitti_data->imuData_.imu_buffer_.addMeasurement(oxts_timestamps[i], imu_accgyr);
-    if (i != 0){
-      sumOfDelta += (oxts_timestamps[i] - oxts_timestamps[i-1]);
-      double deltaMismatch = std::fabs(double(oxts_timestamps[i] - 
-                                              oxts_timestamps[i-1] -
-                                              kitti_data->imuData_.nominal_imu_rate_) * 1e-9);
-      stdDelta += std::pow(deltaMismatch, 2);
-      imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
-      deltaCount += 1u;
-    }
-    oxts_data_i.close(); 
   }
 
-  LOG_IF(FATAL, deltaCount != kitti_data->imuData_.imu_buffer_.size() - 1u)
-      << "parseImuData: wrong nr of deltaCount: deltaCount "
-      << deltaCount << " nr lines "
-      << kitti_data->imuData_.imu_buffer_.size();
+  // LOG_IF(FATAL, deltaCount != kitti_data->imuData_.imu_buffer_.size() - 1u)
+  //     << "parseImuData: wrong nr of deltaCount: deltaCount "
+  //     << deltaCount << " nr lines "
+  //     << kitti_data->imuData_.imu_buffer_.size();
 
   // Converted to seconds.
   kitti_data->imuData_.imu_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
   kitti_data->imuData_.imu_rate_std_ = std::sqrt(stdDelta / double(deltaCount-1u));
   kitti_data->imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
 
+  kitti_data->imuData_.gyro_noise_ = 1.6968e-04;
+  kitti_data->imuData_.gyro_walk_  = 1.9393e-05;
+  kitti_data->imuData_.acc_noise_  = 2.0000e-3;
+  kitti_data->imuData_.acc_walk_   = 3.0000e-3;
   LOG(INFO) << "Maximum measured rotation rate (norm):" << maxNormRotRate << '-'
             << "Maximum measured acceleration (norm): " << maxNormAcc;
   return true;
@@ -451,8 +508,8 @@ void KittiDataProvider::print() const {
   // For each of the 2 cameras.
   LOG(INFO) << "Left camera name: " << kitti_data_.left_camera_name_ << ", with params:\n";
   kitti_data_.camera_info_.at(kitti_data_.left_camera_name_).print();
-  LOG(INFO) << "Left camera name: " << kitti_data_.left_camera_name_ << ", with params:\n";
-  kitti_data_.camera_info_.at(kitti_data_.left_camera_name_).print();
+  LOG(INFO) << "Right camera name: " << kitti_data_.right_camera_name_ << ", with params:\n";
+  kitti_data_.camera_info_.at(kitti_data_.right_camera_name_).print();
   kitti_data_.imuData_.print();
   LOG(INFO) << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------\n"

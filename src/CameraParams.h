@@ -76,8 +76,12 @@ public:
 
   // Rotation resulting from rectification.
   cv::Mat R_rectify_;
+
   // Camera matrix after rectification.
   cv::Mat P_;
+
+  // Are camera images already rectified?
+  bool rectified_; 
 };
 
 } // End of VIO namespace.
