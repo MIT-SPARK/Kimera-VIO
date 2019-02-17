@@ -1,0 +1,127 @@
+Using dataset at path: /home/yunchang/data/2011_09_26/2011_09_26_drive_0048_extract/
+Using Regular VIO!
+ Launching:
+
+         ███████╗██████╗  █████╗ ██████╗ ██╗  ██╗    ██╗   ██╗██╗ ██████╗
+         ██╔════╝██╔══██╗██╔══██╗██╔══██╗██║ ██╔╝    ██║   ██║██║██╔═══██╗
+         ███████╗██████╔╝███████║██████╔╝█████╔╝     ██║   ██║██║██║   ██║
+         ╚════██║██╔═══╝ ██╔══██║██╔══██╗██╔═██╗     ╚██╗ ██╔╝██║██║   ██║
+         ███████║██║     ██║  ██║██║  ██║██║  ██╗     ╚████╔╝ ██║╚██████╔╝
+         ╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝      ╚═══╝  ╚═╝ ╚═════╝
+
+ 
+camL_Pose_calR 
+R:
+[
+ 	    0.999997  -0.00231714 -0.000343393;
+    	  0.00231207     0.999898   -0.0140907;
+    	 0.000376008    0.0140898     0.999901
+  ]
+[0.110074, -0.000156612, 0.000889383]';458.654 , 457.296 , 367.215 , 248.375 , 
+gtsam calibration:
+.K[
+ 	458.654       0 367.215;
+    	      0 457.296 248.375;
+    	      0       0       1
+  ]
+gtsam calibration:
+.k[-0.28340811; 0.07395907; 0.00019359; 1.76187114e-05];
+457.587 , 456.134 , 379.999 , 255.238 , 
+gtsam calibration:
+.K[
+ 	457.587       0 379.999;
+    	      0 456.134 255.238;
+    	      0       0       1
+  ]
+gtsam calibration:
+.k[-0.28368365; 0.07451284; -0.00010473; -3.555907e-05];
+body_Pose_cam_: 
+R:
+[
+ 	1 0 0;
+    	0 1 0;
+    	0 0 1
+  ]
+[0, 0, 0]';body_Pose_cam_: 
+R:
+[
+ 	1 0 0;
+    	0 1 0;
+    	0 0 1
+  ]
+[0, 0, 0]';=============== FEATURE SELECTOR =============
+imuDeltaT_: 0.005
+accVarianceDiscTime_: 0.0008
+biasAccVarianceDiscTime_: 4.5e-08
+sqrtInfoVision_: 0.333333333
+integrationVar_: 5e-19
+useStereo_: 1
+featureSelectionDefaultDepth_: 5
+featureSelectionCosineNeighborhood_: 0.984807753
+landmarkDistanceThreshold_: 20
+useLazyEvaluation_: 1
+useSuccessProbabilities_: 1
+=============== FEATURE SELECTOR =============
+imuDeltaT_: 0.005
+accVarianceDiscTime_: 0.0008
+biasAccVarianceDiscTime_: 4.5e-08
+sqrtInfoVision_: 0.307692308
+integrationVar_: 5e-19
+useStereo_: 1
+featureSelectionDefaultDepth_: 2
+featureSelectionCosineNeighborhood_: 0.984807753
+landmarkDistanceThreshold_: 15
+useLazyEvaluation_: 1
+useSuccessProbabilities_: 1
+camL_Pose_calR 
+R:
+[
+ 	   0.999351188  -0.0188766228   0.0306715572;
+    	  0.0186086576    0.999786434  0.00899846813;
+    	 -0.0308348695 -0.00842187298    0.999489005
+  ]
+[0.53699994, -0.00482206426, 0.0125248804]';984.2439 , 980.8141 , 690 , 233.1966 , 
+gtsam calibration:
+.K[
+ 	984.2439        0      690;
+    	       0 980.8141 233.1966;
+    	       0        0        1
+  ]
+gtsam calibration:
+.k[-0.3728755; 0.2037299; 0.001383707; -0.07233722];
+989.5267 , 987.8386 , 702 , 245.559 , 
+gtsam calibration:
+.K[
+ 	989.5267        0      702;
+    	       0 987.8386  245.559;
+    	       0        0        1
+  ]
+gtsam calibration:
+.k[-0.3644661; 0.1790019; -0.0006298563; -0.05314062];
+body_Pose_cam_: 
+R:
+[
+ 	1 0 0;
+    	0 1 0;
+    	0 0 1
+  ]
+[0, 0, 0]';isam_param
+optimizationParams:                type:              ISAM2GaussNewtonParams
+optimizationParams:                wildfireThreshold: -1
+relinearizeThreshold:              0.01
+relinearizeSkip:                   1
+enableRelinearization:             1
+evaluateNonlinearError:            0
+factorization:                     CHOLESKY
+cacheLinearizedFactors:            1
+enableDetailedResults:             0
+enablePartialRelinearizationCheck: 0
+findUnusedFactorSlots:             1
+Initial poseR:
+[
+ 	 -0.215857175   0.330376818  -0.918833879;
+    	  0.155202136   0.940664666   0.301765187;
+    	  0.964010807 -0.0774666947  -0.254324395
+  ]
+[4.631117, -1.786812, 0.577113]';Initial bias: 
+acc = [-0.022996, 0.125896, 0.057076]' gyro = [-0.002571, 0.021269, 0.076861]'

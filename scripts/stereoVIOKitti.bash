@@ -66,7 +66,7 @@ echo """ Launching:
 
  """
 
-# Execute stereoVIOEuroc with given flags.
+# Execute stereoVIOKitti with given flags.
 # The flag --help will provide you with information about what each flag
 # does.
 ../build/stereoVIOKitti \
@@ -86,5 +86,5 @@ echo """ Launching:
   --flagfile="../params/flags/VioBackEnd.flags" \
   --flagfile="../params/flags/RegularVioBackEnd.flags" \
   --flagfile="../params/flags/Visualizer3D.flags" \
-  --v=1000 \
+  --v=10 \
   --backend_type="$BACKEND_TYPE"

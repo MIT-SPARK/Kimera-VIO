@@ -93,8 +93,8 @@ bool KittiDataProvider::spin() {
           << "Make sure queried timestamp lies before the first IMU sample in the buffer";
     // Call VIO Pipeline.
     VLOG(10) << "Call VIO processing for frame k: " << k
-             << " with timestamp: " << timestamp_frame_k
-             << "////////////////////////////////////////// Creating packet!\n"
+             << " with timestamp: " << timestamp_frame_k << '\n'
+             << "////////////////////////////////// Creating packet!\n"
              << "STAMPS IMU rows : \n" << imu_meas.timestamps_.rows() << '\n'
              << "STAMPS IMU cols : \n" << imu_meas.timestamps_.cols() << '\n'
              << "STAMPS IMU: \n" << imu_meas.timestamps_ << '\n'
@@ -102,6 +102,9 @@ bool KittiDataProvider::spin() {
              << "ACCGYR IMU cols : \n" << imu_meas.measurements_.cols() << '\n'
              << "ACCGYR IMU: \n" << imu_meas.measurements_ << '\n'
              << "IMAGE NAME: \n" << kitti_data_.right_img_names_.at(k);
+
+    timestamp_last_frame = timestamp_frame_k;
+
     vio_callback_(StereoImuSyncPacket(
                    StereoFrame(k, timestamp_frame_k,
                                readKittiImage(kitti_data_.left_img_names_.at(k)),
@@ -113,10 +116,8 @@ bool KittiDataProvider::spin() {
                                imu_meas.timestamps_,
                                imu_meas.measurements_));
 
-    VLOG(10) << "Finished VIO processing for frame k = " << k;
+    VLOG(10) << "Finished VIO processing for frame k = " << k; 
   }
-
-  timestamp_last_frame = timestamp_frame_k; 
 
   return true;
 }
@@ -284,11 +285,11 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
 
   // Then form the rotation matrix R_imu2body
   cv::Mat R_imu2body;  // In case the convention is different
-  // R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
-  // R_imu2body.at<double>(0,2) = -1; 
-  // R_imu2body.at<double>(1,1) = 1;
-  // R_imu2body.at<double>(2,0) = 1; 
-  R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
+  R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
+  R_imu2body.at<double>(0,2) = -1; 
+  R_imu2body.at<double>(1,1) = 1;
+  R_imu2body.at<double>(2,0) = 1; 
+  // R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
 
   // The find transformation from camera to imu frame (since that will be body frame)
   cv::Mat R_cam2body, T_cam2body; 
@@ -375,11 +376,11 @@ bool KittiDataProvider::parseImuData(
 
   // Then form the rotation matrix R_imu2body
   cv::Mat R_imu2body; 
-  // R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
-  // R_imu2body.at<double>(0,2) = -1; 
-  // R_imu2body.at<double>(1,1) = 1;
-  // R_imu2body.at<double>(2,0) = 1; 
-  R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
+  R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
+  R_imu2body.at<double>(0,2) = -1; 
+  R_imu2body.at<double>(1,1) = 1;
+  R_imu2body.at<double>(2,0) = 1; 
+  // R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
 
   R_body = R_imu2body;
   T_body = cv::Mat::zeros(3, 1, CV_64F);
@@ -485,7 +486,7 @@ bool KittiDataProvider::parseImuData(
   kitti_data->imuData_.imu_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
   kitti_data->imuData_.imu_rate_std_ = std::sqrt(stdDelta / double(deltaCount-1u));
   kitti_data->imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
-
+  // KITTI does not give these so using values from EuRoC
   kitti_data->imuData_.gyro_noise_ = 1.6968e-04;
   kitti_data->imuData_.gyro_walk_  = 1.9393e-05;
   kitti_data->imuData_.acc_noise_  = 2.0000e-3;
