@@ -123,6 +123,10 @@ class UtilsOpenCV {
 
 public:
   /* ------------------------------------------------------------------------ */
+  // Returns the type of an OpenCV matrix in string format.
+  static std::string typeToString(int type);
+
+  /* ------------------------------------------------------------------------ */
   // Open files with name output_filename, and checks that it is valid
   static void OpenFile(const std::string& output_filename,
                        std::ofstream& outputFile, bool append_mode = false);
