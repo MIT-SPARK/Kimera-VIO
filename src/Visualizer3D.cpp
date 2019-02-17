@@ -88,7 +88,7 @@ VisualizerInputPayload::VisualizerInputPayload(
     int backend_type,
     const gtsam::Pose3& pose,
     const std::vector<cv::Vec6f>& mesh_2d,
-    Mesher::Mesh3DColors&& colors_mesh_3d,
+    Mesher::Mesh3DVizProperties&& mesh_3d_viz_props,
     const Frame& left_stero_keyframe,
     MesherOutputPayload&& mesher_output_payload,
     const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
@@ -102,7 +102,7 @@ VisualizerInputPayload::VisualizerInputPayload(
     backend_type_(backend_type),
     pose_(pose),
     mesh_2d_(mesh_2d),
-    colors_mesh_3d_(std::move(colors_mesh_3d)),
+    mesh_3d_viz_props_(std::move(mesh_3d_viz_props)),
     left_stereo_keyframe_(left_stero_keyframe),
     mesher_output_payload_(std::move(mesher_output_payload)),
     points_with_id_VIO_(points_with_id_VIO),
@@ -224,7 +224,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
     static cv::Mat vertices_mesh_prev;
     static cv::Mat polygons_mesh_prev;
-    static Mesher::Mesh3DColors colors_prev;
+    static Mesher::Mesh3DVizProperties mesh_3d_viz_props_prev;
 
     if (FLAGS_visualize_mesh) {
       VLOG(10) << "Visualize mesh.";
@@ -235,10 +235,14 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
                "visualize_mesh_with_colored_polygon_cluster are set to True,"
                " but visualization of the semantic mesh has priority over "
                "visualization of the polygon clusters.";
-        visualizeMesh3D(vertices_mesh_prev, colors_prev, polygons_mesh_prev);
+        visualizeMesh3D(vertices_mesh_prev,
+                        mesh_3d_viz_props_prev.colors_,
+                        polygons_mesh_prev,
+                        mesh_3d_viz_props_prev.tcoords_,
+                        mesh_3d_viz_props_prev.texture_);
       } else {
         VLOG(10) << "Visualize mesh with colored clusters.";
-        LOG_IF(ERROR, colors_prev.rows > 0u)
+        LOG_IF(ERROR, mesh_3d_viz_props_prev.colors_.rows > 0u)
             << "The 3D mesh is being colored with semantic information, but"
                " gflag visualize_semantic_mesh is set to false...";
         visualizeMesh3DWithColoredClusters(
@@ -370,7 +374,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     polygons_mesh_prev = input.mesher_output_payload_.polygons_mesh_;
     points_with_id_VIO_prev = input.points_with_id_VIO_;
     lmk_id_to_lmk_type_map_prev = input.lmk_id_to_lmk_type_map_;
-    colors_prev = input.colors_mesh_3d_;
+    mesh_3d_viz_props_prev = input.mesh_3d_viz_props_;
     VLOG(10) << "Finished mesh visualization.";
 
     break;
@@ -651,15 +655,24 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& mapPoints3d,
 // and provide color for each polygon.
 void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                    const cv::Mat& colors,
-                                   const cv::Mat& polygons_mesh) {
+                                   const cv::Mat& polygons_mesh,
+                                   const cv::Mat& tcoords,
+                                   const cv::Mat& texture) {
   // Check data
   bool color_mesh = false;
   if (colors.rows != 0) {
-    CHECK_EQ(map_points_3d.rows, colors.rows) << "Map points and Colors should "
-                                                 "have same number of rows. One"
-                                                 " color per map point.";
+    CHECK_EQ(map_points_3d.rows, colors.rows)
+        << "Map points and Colors should have same number of rows. One"
+           " color per map point.";
     LOG(ERROR) << "Coloring mesh!";
     color_mesh = true;
+  }
+
+  if (tcoords.rows != 0) {
+    CHECK_EQ(map_points_3d.rows, tcoords.rows)
+        << "Map points and tcoords should have same number of rows. One"
+           "tcoord per map point.";
+    CHECK(!texture.empty());
   }
 
   // No points/mesh to visualize.
@@ -668,9 +681,15 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
     return;
   }
 
+  cv::viz::Mesh cv_mesh;
+  cv_mesh.cloud =  map_points_3d.t();
+  cv_mesh.polygons = polygons_mesh;
+  cv_mesh.colors = color_mesh? colors.t():cv::Mat();
+  cv_mesh.tcoords = tcoords.t();
+  cv_mesh.texture = texture;
+
   // Create a mesh widget.
-  cv::viz::WMesh mesh (map_points_3d.t(), polygons_mesh,
-                       color_mesh? colors.t():cv::Mat());
+  cv::viz::WMesh mesh (cv_mesh);
 
   // Decide mesh shading style.
   switch (window_data_.mesh_shading_) {
@@ -729,6 +748,7 @@ void Visualizer3D::visualizePlyMesh(const std::string& filename) {
   // "Cannot read geometry" error.
   cv::viz::Mesh mesh(cv::viz::Mesh::load(filename));
   if (mesh.polygons.size[1] == 0) {
+    LOG(WARNING) << "No polygons available for mesh, showing point cloud only.";
     // If there are no polygons, convert to point cloud, otw there will be
     // nothing displayed...
     cv::viz::WCloud cloud (mesh.cloud, cv::viz::Color::lime());

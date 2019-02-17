@@ -97,16 +97,25 @@ class Mesher {
 public:
   // Public definitions.
 
-  // List of RGB colors, one color (three entries R G B) for each vertex in the
-  // Mesh3D. Therefore, colors must have same number of rows than the number of
-  // vertices in the 3D mesh and three cols for each RGB entry.
-  typedef cv::Mat Mesh3DColors;
+  // Structure storing mesh 3d visualization properties.
+  struct Mesh3DVizProperties {
+  public:
+    // List of RGB colors, one color (three entries R G B) for each vertex in the
+    // Mesh3D. Therefore, colors must have same number of rows than the number of
+    // vertices in the 3D mesh and three cols for each RGB entry.
+    cv::Mat colors_;
+    // Texture coordinates.
+    cv::Mat tcoords_;
+    // Texture image.
+    cv::Mat texture_;
+  };
+
   // Given the following:
   // Left image in colors, Mesh in 2D, Mesh in 3D.
   // Returns Colors of the Mesh3D. Each color representing a semantic class.
-  typedef std::function<Mesh3DColors(const cv::Mat& img_left,
-                                     const Mesh2D&,
-                                     const Mesh3D&)>
+  typedef std::function<Mesh3DVizProperties(const cv::Mat& img_left,
+                                            const Mesh2D&,
+                                            const Mesh3D&)>
     SemanticMeshSegmentationCallback;
 
 public:

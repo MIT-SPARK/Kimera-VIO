@@ -31,6 +31,7 @@ DEFINE_bool(reduce_mesh_to_time_horizon, true, "Reduce mesh vertices to the "
             "landmarks available in current optimization's time horizon.");
 
 // Mesh 2D return, for semantic segmentation.
+// TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
 DEFINE_bool(return_mesh_2d, false, "Return mesh 2d with pixel positions, i.e."
                                    " for semantic segmentation");
 
@@ -161,9 +162,11 @@ void Mesher::run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
   LOG(INFO) << "Launch";
   MesherOutputPayload mesher_output_payload;
   while(!request_stop_) {
+    // If you put mesher_output_payload outside the loop, don't forget to clean
+    // the mesh_2d or everything
     LOG(INFO) << "Inside loop before pop";
     updateMesh3D(mesher_input_queue.popBlocking(),
-                 FLAGS_return_mesh_2d? &(mesher_output_payload.mesh_2d_):nullptr,
+                 FLAGS_return_mesh_2d? &(mesher_output_payload.mesh_2d_):nullptr, // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
                  &(mesher_output_payload.mesh_2d_for_viz_), // These are more or less the same info as mesh_2d_
                  &(mesher_output_payload.mesh_2d_filtered_for_viz_));
     getVerticesMesh(&(mesher_output_payload.vertices_mesh_));
@@ -366,6 +369,9 @@ void Mesher::populate3dMesh(
   // Create face and add it to the 2d mesh.
   Mesh2D::Polygon face;
   face.resize(3);
+
+  // Clean output 2d mesh.
+  if (mesh_2d != nullptr) mesh_2d->clearMesh();
 
   // Create polygon and add it to the 3d mesh.
   Mesh3D::Polygon polygon;

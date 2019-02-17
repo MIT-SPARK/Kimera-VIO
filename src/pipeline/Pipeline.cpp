@@ -189,11 +189,12 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
   double start_time = UtilsOpenCV::GetTimeInSeconds();
-  VLOG(10) << "Call to processStereoFrame.";
+  VLOG(10) << "Starting processStereoFrame...";
   StatusSmartStereoMeasurements statusSmartStereoMeasurements =
       stereo_vision_frontend_->processStereoFrame(
         stereoFrame_k,
         calLrectLkf_R_camLrectKf_imu);
+  VLOG(10) << "Finished processStereoFrame.";
   if (FLAGS_log_output) {
     logger_.timing_processStereoFrame_ =
         UtilsOpenCV::GetTimeInSeconds() - start_time;
@@ -397,7 +398,7 @@ void Pipeline::processKeyframe(
               semantic_mesh_segmentation_callback_(
                 left_frame_for_semantic_segmentation.img_,
                 mesher_output_payload.mesh_2d_,
-                mesher_output_payload.mesh_3d_) : Mesher::Mesh3DColors(),
+                mesher_output_payload.mesh_3d_) : Mesher::Mesh3DVizProperties(),
             // For visualizeMesh2D and visualizeMesh2DStereo.
             stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame(),
             // visualizeConvexHull & visualizeMesh3DWithColoredClusters
@@ -418,7 +419,6 @@ void Pipeline::processKeyframe(
       // visualization is only done when there is data available.
       spinDisplayOnce(visualizer_output_queue_.popBlocking());
   }
-
 }
 
 bool Pipeline::spinSequential() {
@@ -534,6 +534,7 @@ void Pipeline::spinDisplayOnce(
     if (visualizer_output_payload->visualization_type_ !=
         VisualizationType::NONE) {
       VLOG(10) << "Spin Visualize 3D output.";
+      //visualizer_output_payload->window_.spin();
       visualizer_output_payload->window_.spinOnce(1, true);
     }
 

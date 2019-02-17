@@ -138,12 +138,14 @@ void Tracker::featureTracking(Frame* ref_frame,
   KeypointsCV px_cur = px_ref;
   if (px_cur.size() > 0) {
     // Do the actual tracking, so px_cur becomes the new pixel locations.
+    VLOG(2) << "Sarting Optical Flow Pyr LK tracking...";
     cv::calcOpticalFlowPyrLK(
           ref_frame->img_, cur_frame->img_,
           px_ref, px_cur,
           status, error,
           cv::Size2i(trackerParams_.klt_win_size_, trackerParams_.klt_win_size_),
           trackerParams_.klt_max_level_, termcrit, cv::OPTFLOW_USE_INITIAL_FLOW);
+    VLOG(2) << "Finished Optical Flow Pyr LK tracking.";
 
     if (cur_frame->keypoints_.empty()) {// Do we really need this check?
       cur_frame->landmarks_.reserve(px_ref.size());

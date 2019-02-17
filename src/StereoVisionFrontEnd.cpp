@@ -87,6 +87,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   double time_to_clone_rect_params = 0;
 
   // ! Using move semantics for efficiency.
+  VLOG(10) << "Using move semantics to copy cur_frame.";
   stereoFrame_k_ = std::make_shared<StereoFrame>(std::move(cur_frame));
 
   // Copy rectification from previous frame to avoid recomputing it.
@@ -103,6 +104,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   double timeGetMeasurements = 0;
 
   /////////////////////// TRACKING /////////////////////////////////////////////
+  VLOG(2) << "Starting feature tracking...";
   // Track features from the previous frame
   Frame* left_frame_km1 = stereoFrame_km1_->getLeftFrameMutable();
   Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
@@ -259,6 +261,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   stereoFrame_km1_ = stereoFrame_k_;
   stereoFrame_k_.reset();
   ++frame_count_;
+  VLOG(2) << "Finished feature tracking.";
   return std::make_pair(trackerStatusSummary_, smartStereoMeasurements);
 }
 
