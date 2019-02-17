@@ -444,19 +444,18 @@ bool KittiDataProvider::parseImuData(
       
       // Read/store imu measurements 
       gtsam::Vector6 gyroAccData; 
+      gtsam::Vector6 imu_accgyr;
       // terms 17~19 (starting from 0) are wx, wy, wz
       for (int k = 0; k < 3; k++) {
         gyroAccData(k) = std::stod(oxts_data_str[k + 17]);
+        imu_accgyr(k + 3) = std::stod(oxts_data_str[k + 17]);
       }
       // terms 11~13 (starting from 0) are ax, ay, az
       for (int k = 3; k < 6; k++) {
         gyroAccData(k) = std::stod(oxts_data_str[k + 8]);
-      }
-
-      Vector6 imu_accgyr;
+        imu_accgyr(k - 3) = std::stod(oxts_data_str[k + 8]);
+      }  
       // Acceleration first! 
-      imu_accgyr << gyroAccData.tail(3), gyroAccData.head(3);
-
       double normAcc = gyroAccData.tail(3).norm();
       if(normAcc > maxNormAcc) maxNormAcc = normAcc;
 
@@ -479,10 +478,10 @@ bool KittiDataProvider::parseImuData(
     }
   }
 
-  // LOG_IF(FATAL, deltaCount != kitti_data->imuData_.imu_buffer_.size() - 1u)
-  //     << "parseImuData: wrong nr of deltaCount: deltaCount "
-  //     << deltaCount << " nr lines "
-  //     << kitti_data->imuData_.imu_buffer_.size();
+  LOG_IF(FATAL, deltaCount != kitti_data->imuData_.imu_buffer_.size() - 1u)
+      << "parseImuData: wrong nr of deltaCount: deltaCount "
+      << deltaCount << " nr lines "
+      << kitti_data->imuData_.imu_buffer_.size();
 
   // Converted to seconds.
   kitti_data->imuData_.imu_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;

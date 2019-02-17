@@ -229,9 +229,11 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     timeSparseStereo += UtilsOpenCV::GetTimeInSeconds() - start_time;
 
     // Show results.
+    // verbosityKeyframes = 1; 
     if (verbosityKeyframes > 0) {
       displayStereoTrack(verbosityKeyframes);
       displayMonoTrack(verbosityKeyframes);
+      // cv::waitKey(0);
     }
 
     // Populate statistics.
