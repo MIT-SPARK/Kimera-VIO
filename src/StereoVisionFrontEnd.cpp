@@ -103,6 +103,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   double timeGetMeasurements = 0;
 
   /////////////////////// TRACKING /////////////////////////////////////////////
+  VLOG(2) << "Starting feature tracking...";
   // Track features from the previous frame
   Frame* left_frame_km1 = stereoFrame_km1_->getLeftFrameMutable();
   Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
@@ -255,6 +256,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   stereoFrame_km1_ = stereoFrame_k_;
   stereoFrame_k_.reset();
   ++frame_count_;
+  VLOG(2) << "Finished feature tracking.";
   return std::make_pair(trackerStatusSummary_, smartStereoMeasurements);
 }
 
