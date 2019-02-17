@@ -52,7 +52,6 @@ KittiDataProvider::KittiDataProvider(const std::string& kitti_dataset_path)
 KittiDataProvider::~KittiDataProvider() {}
 
 cv::Mat KittiDataProvider::readKittiImage(const std::string& img_name) {
-    LOG(INFO) << "!!!!!!!!!! Image name: " << img_name; 
     cv::Mat img = cv::imread(img_name, CV_LOAD_IMAGE_UNCHANGED);
     LOG_IF(FATAL, img.empty()) << "Failed to load image: " << img_name;
     // cv::imshow("check", img); 
@@ -191,7 +190,6 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
       timestamp_i = right_timestamps[i];
     }
     kitti_data->timestamps_[i] = timestamp_i;
-    LOG(INFO) << left_time_img_pairs[i].second; 
     kitti_data->left_img_names_[i] = left_time_img_pairs[i].second; 
     kitti_data->right_img_names_[i] = right_time_img_pairs[i].second; 
   }
@@ -235,7 +233,7 @@ bool KittiDataProvider::parseTimestamps(const std::string& timestamps_file,
   timestamps_list.clear(); 
   static constexpr int seconds_per_hour = 3600u; 
   static constexpr int seconds_per_minute = 60u; 
-  static constexpr long int seconds_to_nanoseconds = 10e9;
+  static constexpr long int seconds_to_nanoseconds = 1e9;
   // Loop through timestamps text file
   while(!times_stream.eof()){
     std::string line; 
@@ -426,7 +424,7 @@ bool KittiDataProvider::parseImuData(
   int count = 0; 
   for (size_t i = 0; i < oxts_timestamp_size; i++) {
     std::stringstream ss;
-    if (timestamp_ind_pairs[i].first != oxts_timestamps[i-1]) {
+    if (timestamp_ind_pairs[i].first != oxts_timestamps[count-1]) {
       oxts_timestamps.push_back(timestamp_ind_pairs[i].first);
       ss << std::setfill('0') << std::setw(10) << timestamp_ind_pairs[i].second;
       std::string oxts_file_i = oxtsdata_filename + ss.str() + ".txt";
@@ -465,7 +463,7 @@ bool KittiDataProvider::parseImuData(
       kitti_data->imuData_.imu_buffer_.addMeasurement(oxts_timestamps[count], imu_accgyr);
 
       if (count != 0){
-        sumOfDelta += (oxts_timestamps[i] - oxts_timestamps[count-1]);
+        sumOfDelta += (oxts_timestamps[count] - oxts_timestamps[count-1]);
         double deltaMismatch = std::fabs(double(oxts_timestamps[count] - 
                                                 oxts_timestamps[count-1] -
                                                 kitti_data->imuData_.nominal_imu_rate_) * 1e-9);
