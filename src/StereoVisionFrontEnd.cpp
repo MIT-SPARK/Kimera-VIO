@@ -87,6 +87,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   double time_to_clone_rect_params = 0;
 
   // ! Using move semantics for efficiency.
+  VLOG(10) << "Using move semantics to copy cur_frame.";
   stereoFrame_k_ = std::make_shared<StereoFrame>(std::move(cur_frame));
 
   // Copy rectification from previous frame to avoid recomputing it.

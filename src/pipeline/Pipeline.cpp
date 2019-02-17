@@ -189,11 +189,12 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
   double start_time = UtilsOpenCV::GetTimeInSeconds();
-  VLOG(10) << "Call to processStereoFrame.";
+  VLOG(10) << "Starting processStereoFrame...";
   StatusSmartStereoMeasurements statusSmartStereoMeasurements =
       stereo_vision_frontend_->processStereoFrame(
         stereoFrame_k,
         calLrectLkf_R_camLrectKf_imu);
+  VLOG(10) << "Finished processStereoFrame.";
   if (FLAGS_log_output) {
     logger_.timing_processStereoFrame_ =
         UtilsOpenCV::GetTimeInSeconds() - start_time;
