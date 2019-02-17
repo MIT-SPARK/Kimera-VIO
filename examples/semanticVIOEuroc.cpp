@@ -36,7 +36,7 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(cv::Mat left_image,
   // Color all vertices in red. Each polygon will be colored according
   // to a mix of the three vertices colors I think...
   mesh_3d_viz_props.colors_ = cv::Mat (mesh_3d.getNumberOfUniqueVertices(), 1,
-                                       CV_8UC3, cv::viz::Color::white());
+                                       CV_8UC3, cv::viz::Color::red());
 
   // Add texture to the mesh using the given image.
   Mesh2D::Polygon polygon;
@@ -71,6 +71,9 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(cv::Mat left_image,
       tcoords.at(p0_id) = Vec2d(px0.x/left_image.cols, px0.y/left_image.rows);
       tcoords.at(p1_id) = Vec2d(px1.x/left_image.cols, px1.y/left_image.rows);
       tcoords.at(p2_id) = Vec2d(px2.x/left_image.cols, px2.y/left_image.rows);
+      mesh_3d_viz_props.colors_.row(p0_id) = cv::viz::Color::white();
+      mesh_3d_viz_props.colors_.row(p1_id) = cv::viz::Color::white();
+      mesh_3d_viz_props.colors_.row(p2_id) = cv::viz::Color::white();
     } else {
       //LOG_EVERY_N(ERROR, 1000) << "Polygon in 2d mesh did not have a corresponding polygon in"
       //                          " 3d mesh!";
