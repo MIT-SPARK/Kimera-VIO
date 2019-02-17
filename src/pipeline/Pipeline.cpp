@@ -418,7 +418,6 @@ void Pipeline::processKeyframe(
       // visualization is only done when there is data available.
       spinDisplayOnce(visualizer_output_queue_.popBlocking());
   }
-
 }
 
 bool Pipeline::spinSequential() {
@@ -534,6 +533,7 @@ void Pipeline::spinDisplayOnce(
     if (visualizer_output_payload->visualization_type_ !=
         VisualizationType::NONE) {
       VLOG(10) << "Spin Visualize 3D output.";
+      //visualizer_output_payload->window_.spin();
       visualizer_output_payload->window_.spinOnce(1, true);
     }
 

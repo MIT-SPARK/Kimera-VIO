@@ -191,7 +191,9 @@ public:
   // and provide color for each polygon.
   void visualizeMesh3D(const cv::Mat& map_points_3d,
                        const cv::Mat& colors,
-                       const cv::Mat& polygons_mesh);
+                       const cv::Mat& polygons_mesh,
+                       const cv::Mat& tcoords = cv::Mat(),
+                       const cv::Mat& texture = cv::Mat());
 
   /* ------------------------------------------------------------------------ */
   ///Visualize a PLY from filename (absolute path).

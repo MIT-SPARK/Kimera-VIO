@@ -196,10 +196,6 @@ private:
   // One color per vertex. (This is how it is done for OpenCV...
   cv::Mat vertices_mesh_color_;
 
-  // Texture coordinates for mesh.
-  cv::Mat tcoords_;
-  cv::Mat texture_;
-
   // Connectivity of the mesh.
   // Set of polygons.
   // Raw integer list of the form: (n,id1_a,id2_a,...,idn_a,

@@ -36,44 +36,62 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(cv::Mat left_image,
   // Color all vertices in red. Each polygon will be colored according
   // to a mix of the three vertices colors I think...
   mesh_3d_viz_props.colors_ = cv::Mat (mesh_3d.getNumberOfUniqueVertices(), 1,
-                                       CV_8UC3, cv::viz::Color::red());
+                                       CV_8UC3, cv::viz::Color::white());
 
   // Add texture to the mesh using the given image.
   Mesh2D::Polygon polygon;
-  std::vector<Vec2d> tcoords (mesh_3d.getNumberOfPolygons());
+  std::vector<Vec2d> tcoords (mesh_3d.getNumberOfUniqueVertices(), Vec2d(0,0));
   for (size_t i = 0; i < mesh_2d.getNumberOfPolygons(); i++) {
     CHECK(mesh_2d.getPolygon(i, &polygon)) << "Could not retrieve 2d polygon.";
 
-    LandmarkId lmk0 = polygon.at(0).getLmkId();
-    LandmarkId lmk1 = polygon.at(1).getLmkId();
-    LandmarkId lmk2 = polygon.at(2).getLmkId();
+    const LandmarkId& lmk0 = polygon.at(0).getLmkId();
+    const LandmarkId& lmk1 = polygon.at(1).getLmkId();
+    const LandmarkId& lmk2 = polygon.at(2).getLmkId();
 
     // Returns indices of points in the 3D mesh corresponding to the vertices
     // in the 2D mesh.
     int p0_id, p1_id, p2_id;
-    CHECK(mesh_3d.getVertex(lmk0, nullptr, &p0_id)) << "Could not retrive 3d vertex";
-    CHECK(mesh_3d.getVertex(lmk1, nullptr, &p1_id)) << "Could not retrive 3d vertex";
-    CHECK(mesh_3d.getVertex(lmk2, nullptr, &p2_id)) << "Could not retrive 3d vertex";
+    if (mesh_3d.getVertex(lmk0, nullptr, &p0_id) &&
+        mesh_3d.getVertex(lmk1, nullptr, &p1_id) &&
+        mesh_3d.getVertex(lmk2, nullptr, &p2_id)) {
+      // Sanity check.
+      CHECK_LE(p0_id, tcoords.size());
+      CHECK_LE(p1_id, tcoords.size());
+      CHECK_LE(p2_id, tcoords.size());
 
-    // Sanity check.
-    CHECK_LE(p0_id, tcoords.size());
-    CHECK_LE(p1_id, tcoords.size());
-    CHECK_LE(p2_id, tcoords.size());
+      // Get pixel coordinates of the vertices of the 2D mesh.
+      const auto& px0 = polygon.at(0).getVertexPosition();
+      const auto& px1 = polygon.at(1).getVertexPosition();
+      const auto& px2 = polygon.at(2).getVertexPosition();
 
-    // Get pixel coordinates of the vertices of the 2D mesh.
-    const auto& px0 = polygon.at(0).getVertexPosition();
-    const auto& px1 = polygon.at(1).getVertexPosition();
-    const auto& px2 = polygon.at(2).getVertexPosition();
-
-    // These pixels correspond to the tcoords in the image for the 3d mesh
-    // vertices.
-    tcoords.at(p0_id) = Vec2d(px0.x, px0.y);
-    tcoords.at(p1_id) = Vec2d(px1.x, px1.y);
-    tcoords.at(p2_id) = Vec2d(px2.x, px2.y);
+      // These pixels correspond to the tcoords in the image for the 3d mesh
+      // vertices.
+      VLOG(100) << "Pixel: with id: " << p0_id
+                << ", x: " << px0.x << ", y: " << px0.y;
+      tcoords.at(p0_id) = Vec2d(px0.x/left_image.cols, px0.y/left_image.rows);
+      tcoords.at(p1_id) = Vec2d(px1.x/left_image.cols, px1.y/left_image.rows);
+      tcoords.at(p2_id) = Vec2d(px2.x/left_image.cols, px2.y/left_image.rows);
+    } else {
+      //LOG_EVERY_N(ERROR, 1000) << "Polygon in 2d mesh did not have a corresponding polygon in"
+      //                          " 3d mesh!";
+    }
   }
 
+  // Add a column with a fixed color at the end so that we can specify an
+  // "invalid" or "default" texture for those points which we do not want to
+  // texturize.
+  //static cv::Mat white_texture (left_image.rows, 1, left_image.type(),
+  //                              Scalar(0));
+  //cv::Mat texture_image;
+  //CHECK_EQ(left_image.dims, white_texture.dims);
+  //CHECK_EQ(left_image.rows, white_texture.rows);
+  //CHECK_EQ(left_image.type(), white_texture.type());
+  //cv::hconcat(left_image, white_texture, texture_image);
+  //mesh_3d_viz_props.texture_ = texture_image;
   mesh_3d_viz_props.texture_ = left_image;
-  mesh_3d_viz_props.tcoords_ = cv::Mat(tcoords, true).reshape(2, 1);
+  mesh_3d_viz_props.tcoords_ = cv::Mat(tcoords, true).reshape(2);
+  CHECK_EQ(mesh_3d_viz_props.tcoords_.size().height,
+           mesh_3d.getNumberOfUniqueVertices());
 
   return mesh_3d_viz_props;
 }

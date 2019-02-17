@@ -53,3 +53,6 @@
 --z_histogram_min_separation=0.1
 --z_histogram_gaussian_kernel_size=5
 --z_histogram_max_number_of_peaks_to_select=3
+
+# Extras
+--return_mesh_2d=true
