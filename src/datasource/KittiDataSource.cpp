@@ -285,11 +285,11 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
 
   // Then form the rotation matrix R_imu2body
   cv::Mat R_imu2body;  // In case the convention is different
-  R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
-  R_imu2body.at<double>(0,2) = -1; 
-  R_imu2body.at<double>(1,1) = 1;
-  R_imu2body.at<double>(2,0) = 1; 
-  // R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
+  // R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
+  // R_imu2body.at<double>(0,2) = -1; 
+  // R_imu2body.at<double>(1,1) = 1;
+  // R_imu2body.at<double>(2,0) = 1; 
+  R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
 
   // The find transformation from camera to imu frame (since that will be body frame)
   cv::Mat R_cam2body, T_cam2body; 
@@ -376,11 +376,11 @@ bool KittiDataProvider::parseImuData(
 
   // Then form the rotation matrix R_imu2body
   cv::Mat R_imu2body; 
-  R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
-  R_imu2body.at<double>(0,2) = -1; 
-  R_imu2body.at<double>(1,1) = 1;
-  R_imu2body.at<double>(2,0) = 1; 
-  // R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
+  // R_imu2body = cv::Mat::zeros(3, 3, CV_64F);
+  // R_imu2body.at<double>(0,2) = -1; 
+  // R_imu2body.at<double>(1,1) = 1;
+  // R_imu2body.at<double>(2,0) = 1; 
+  R_imu2body = cv::Mat::eye(3, 3, CV_64F); 
 
   R_body = R_imu2body;
   T_body = cv::Mat::zeros(3, 1, CV_64F);
