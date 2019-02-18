@@ -209,7 +209,7 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
                  << " number of frames in dataset " << nr_images;
     // Skip last frames which are typically problematic
     // (IMU bumps, FOV occluded)...
-    static constexpr size_t skip_n_end_frames = 100;
+    static constexpr size_t skip_n_end_frames = 2;
     kitti_data->final_k_ = nr_images - skip_n_end_frames;
     LOG(WARNING) << "Using final_k = " << kitti_data->final_k_ << ", where we removed "
                  << skip_n_end_frames << " frames to avoid bad IMU readings.";
