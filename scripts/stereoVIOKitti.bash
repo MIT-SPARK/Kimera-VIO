@@ -79,7 +79,7 @@ echo """ Launching:
   --initial_k=10 \
   --final_k=3000 \
   --initial_frame=12 \
-  --final_frame=77 \
+  --final_frame=230 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
   --flagfile="../params/flags/stereoVIOEuroc.flags" \
   --flagfile="../params/flags/Mesher.flags" \

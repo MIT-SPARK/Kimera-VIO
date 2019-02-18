@@ -487,10 +487,10 @@ bool KittiDataProvider::parseImuData(
   kitti_data->imuData_.imu_rate_std_ = std::sqrt(stdDelta / double(deltaCount-1u));
   kitti_data->imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
   // KITTI does not give these so using values from EuRoC
-  kitti_data->imuData_.gyro_noise_ = 1.6968e-04;
-  kitti_data->imuData_.gyro_walk_  = 1.9393e-05;
-  kitti_data->imuData_.acc_noise_  = 2.0000e-3;
-  kitti_data->imuData_.acc_walk_   = 3.0000e-3;
+  kitti_data->imuData_.gyro_noise_ = 1.6968e-3;
+  kitti_data->imuData_.gyro_walk_  = 1.9393e-4;
+  kitti_data->imuData_.acc_noise_  = 2.0000e-2;
+  kitti_data->imuData_.acc_walk_   = 3.0000e-2;
   LOG(INFO) << "Maximum measured rotation rate (norm):" << maxNormRotRate << '-'
             << "Maximum measured acceleration (norm): " << maxNormAcc;
   return true;
