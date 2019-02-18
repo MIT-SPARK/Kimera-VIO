@@ -22,7 +22,8 @@
 
 #include "mesh/Mesher.h"
 namespace VIO {
-Mesher::Mesh3DVizProperties dummySemanticSegmentation(cv::Mat left_image,
+Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_image_timestamp,
+                                                      const cv::Mat& left_image,
                                                       const Mesh2D& mesh_2d,
                                                       const Mesh3D& mesh_3d) {
   // Dummy checks for valid data.
@@ -91,7 +92,15 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(cv::Mat left_image,
   //CHECK_EQ(left_image.type(), white_texture.type());
   //cv::hconcat(left_image, white_texture, texture_image);
   //mesh_3d_viz_props.texture_ = texture_image;
-  mesh_3d_viz_props.texture_ = left_image;
+  //
+  std::string img_name =
+      "/home/tonirv/datasets/euroc/V1_01_easy/mav0/cam0/overlays/" +
+      std::to_string(left_image_timestamp) + ".png";
+  LOG(ERROR) << img_name;
+  cv::Mat left_image_overlay = cv::imread(img_name, cv::IMREAD_ANYCOLOR);
+  cv::imshow("Bonnet", left_image_overlay);
+
+  mesh_3d_viz_props.texture_ = left_image_overlay;
   mesh_3d_viz_props.tcoords_ = cv::Mat(tcoords, true).reshape(2);
   CHECK_EQ(mesh_3d_viz_props.tcoords_.size().height,
            mesh_3d.getNumberOfUniqueVertices());
