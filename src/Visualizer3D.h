@@ -275,6 +275,10 @@ public:
   // Useful for when testing on servers without display screen.
   void setOffScreenRendering();
 
+  /* ------------------------------------------------------------------------ */
+  // Record video sequence at a hardcoded directory relative to executable.
+  void recordVideo();
+
 private:
   // Shutdown flag to stop the visualization spin.
   std::atomic_bool shutdown_ = {false};
@@ -334,19 +338,7 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback.
-  static void keyboardCallback(const viz::KeyboardEvent &event, void *t) {
-    Visualizer3D::WindowData* window_data = (Visualizer3D::WindowData*)t;
-    if (event.action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      toggleFreezeScreenKeyboardCallback(event.code, *window_data);
-      setMeshRepresentation(event.code, *window_data);
-      setMeshShadingCallback(event.code, *window_data);
-      setMeshAmbientCallback(event.code, *window_data);
-      setMeshLightingCallback(event.code, *window_data);
-      getViewerPoseKeyboardCallback(event.code, *window_data);
-      getCurrentWindowSizeKeyboardCallback(event.code, *window_data);
-      getScreenshotCallback(event.code, *window_data);
-    }
-  }
+  static void keyboardCallback(const viz::KeyboardEvent& event, void *t);
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to toggle freezing screen.

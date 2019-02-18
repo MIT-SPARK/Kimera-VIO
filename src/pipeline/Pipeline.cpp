@@ -53,6 +53,8 @@ DEFINE_int32(viz_type, 0,
     "corresponding to non planar obstacles\n"
   "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
   "7: NONE, does not visualize map\n");
+DEFINE_bool(record_video_for_viz_3d, false, "Record a video as a sequence of "
+                                            "screenshots of the 3d viz window");
 
 DEFINE_bool(use_feature_selection, false, "Enable smart feature selection.");
 
@@ -537,6 +539,11 @@ void Pipeline::spinDisplayOnce(
       VLOG(10) << "Spin Visualize 3D output.";
       //visualizer_output_payload->window_.spin();
       visualizer_output_payload->window_.spinOnce(1, true);
+      // TODO this is not very thread-safe!!! Since recordVideo might modify
+      // window_ in this thread, while it might also be called in viz thread.
+      if (FLAGS_record_video_for_viz_3d) {
+        visualizer_.recordVideo();
+      }
     }
 
     // Display 2D images.
