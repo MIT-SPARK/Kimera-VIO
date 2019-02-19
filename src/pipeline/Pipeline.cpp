@@ -99,6 +99,7 @@ Pipeline::Pipeline(ETHDatasetParser* dataset)
                                       *backend_params_);
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   static bool is_initialized = false;
   if (!is_initialized) {
@@ -123,6 +124,7 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 // Spin the pipeline only once.
 void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   const auto& k = stereo_imu_sync_packet.getStereoFrame().getFrameId();
@@ -213,7 +215,6 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
     // Actual keyframe processing. Call to backend.
     processKeyframe(k, &statusSmartStereoMeasurements,
-                    stereoFrame_k.getLeftFrame(), // Only used for semantic segmentation.
                     stereoFrame_k.getTimestamp(),
                     timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
                     imu_stamps_lkf_to_curr_f, // aka from keyframe to keyframe,
@@ -229,10 +230,10 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::processKeyframe(
     size_t k,
     StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
-    const Frame& left_frame_for_semantic_segmentation,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf,
     const ImuStampS& imu_stamps,
@@ -389,19 +390,25 @@ void Pipeline::processKeyframe(
     // Push data for visualizer thread.
     visualizer_input_queue_.push(
           VisualizerInputPayload(
-            visualization_type, dataset_->getBackendType(),
-            vio_backend_->getWPoseBLkf() *
+            visualization_type,
+            dataset_->getBackendType(),
             // Pose for trajectory viz.
+            vio_backend_->getWPoseBLkf() *
             stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(),
             // For visualizeMesh2D and visualizeMesh2DStereo
             mesh_2d,
             // Call semantic mesh segmentation if someone registered a callback.
             semantic_mesh_segmentation_callback_?
               semantic_mesh_segmentation_callback_(
-                left_frame_for_semantic_segmentation.timestamp_,
-                left_frame_for_semantic_segmentation.img_,
+                stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().timestamp_,
+                stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().img_,
                 mesher_output_payload.mesh_2d_,
-                mesher_output_payload.mesh_3d_) : Mesher::Mesh3DVizProperties(),
+                mesher_output_payload.mesh_3d_) :
+              Visualizer3D::texturizeMesh3D(
+                stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().timestamp_,
+                stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().img_,
+                mesher_output_payload.mesh_2d_,
+                mesher_output_payload.mesh_3d_),
             // For visualizeMesh2D and visualizeMesh2DStereo.
             stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame(),
             // visualizeConvexHull & visualizeMesh3DWithColoredClusters
@@ -424,10 +431,12 @@ void Pipeline::processKeyframe(
   }
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::spinSequential() {
   LOG(FATAL) << "Spin sequential is not yet available.";
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::shutdown() {
   LOG(INFO) << "Shutting down VIO pipeline.";
   shutdown_ = true;
@@ -438,6 +447,7 @@ void Pipeline::shutdown() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   LOG(INFO) << "------------------- Initialize Pipeline with frame k = "
             << stereo_imu_sync_packet.getStereoFrame().getFrameId()
@@ -480,6 +490,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                            const gtsam::Pose3& B_Pose_camLrect,
                            const gtsam::Cal3_S2& left_undist_rect_cam_mat,
@@ -529,6 +540,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::spinDisplayOnce(
     const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload) {
   // Display only if the visualizer has done its work.
@@ -558,6 +570,7 @@ void Pipeline::spinDisplayOnce(
   }
 }
 
+/* -------------------------------------------------------------------------- */
 StatusSmartStereoMeasurements Pipeline::featureSelect(
     const VioFrontEndParams& tracker_params,
     const ETHDatasetParser& dataset,
@@ -624,6 +637,7 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   return std::make_pair(status, trackedAndSelectedSmartStereoMeasurements);
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::launchThreads() {
   // Start backend_thread.
   backend_thread_ = std::thread(&VioBackEnd::spin,
@@ -645,6 +659,7 @@ void Pipeline::launchThreads() {
                                    std::ref(visualizer_output_queue_));
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::stopThreads() {
   // Shutdown workers and queues.
   backend_input_queue_.shutdown();
@@ -660,6 +675,7 @@ void Pipeline::stopThreads() {
   visualizer_.shutdown();
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::joinThreads() {
   backend_thread_.join();
   mesher_thread_.join();

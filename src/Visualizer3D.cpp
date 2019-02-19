@@ -252,7 +252,6 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
               polygons_mesh_prev,
               FLAGS_visualize_mesh_with_colored_polygon_clusters,
               input.timestamp_k_);
-
       }
     }
 
@@ -786,7 +785,7 @@ void Visualizer3D::visualizeMesh3DWithColoredClusters(
     const bool visualize_mesh_with_colored_polygon_clusters,
     const Timestamp& timestamp) {
   if (visualize_mesh_with_colored_polygon_clusters) {
-    // Colour the mesh.
+    // Color the mesh.
     cv::Mat colors;
     colorMeshByClusters(planes, map_points_3d, polygons_mesh, &colors);
     // Visualize the colored mesh.

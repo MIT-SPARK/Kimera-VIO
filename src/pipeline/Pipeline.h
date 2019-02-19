@@ -62,7 +62,7 @@ public:
   }
 
   inline void registerSemanticMeshSegmentationCallback(
-      Mesher::SemanticMeshSegmentationCallback cb) {
+      Mesher::Mesh3dVizPropertiesSetterCallback cb) {
     semantic_mesh_segmentation_callback_ = cb;
   }
 
@@ -97,7 +97,6 @@ private:
   void processKeyframe(
       size_t k,
       StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
-      const Frame& left_frame_for_semantic_segmentation,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
       const ImuStampS& imu_stamps,
@@ -181,6 +180,6 @@ private:
   std::thread visualizer_thread_;
 
   // Callbacks.
-  Mesher::SemanticMeshSegmentationCallback semantic_mesh_segmentation_callback_;
+  Mesher::Mesh3dVizPropertiesSetterCallback semantic_mesh_segmentation_callback_;
 };
 } // End of VIO namespace

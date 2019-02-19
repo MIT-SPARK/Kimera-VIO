@@ -117,7 +117,7 @@ public:
                                             const cv::Mat& img_left,
                                             const Mesh2D&,
                                             const Mesh3D&)>
-  SemanticMeshSegmentationCallback;
+  Mesh3dVizPropertiesSetterCallback;
 
 public:
   /* ------------------------------------------------------------------------ */
