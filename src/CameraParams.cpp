@@ -20,8 +20,6 @@ namespace VIO {
 // Parse YAML file describing camera parameters.
 bool CameraParams::parseYAML(const std::string& filepath) {
 
-  rectified_ = false; // Based on Euroc dataset
-
   // Make sure that each YAML file has %YAML:1.0 as first line.
   cv::FileStorage fs;
   UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
@@ -88,8 +86,6 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
                                    cv::Mat R_cam_to_body, 
                                    cv::Mat T_cam_to_body,
                                    const std::string& cam_id) {
-
-  rectified_ = false; // KITTI images rectified 
 
   // rate is approx 10 hz as given by the README 
   frame_rate_ = 1 / 10.0; 

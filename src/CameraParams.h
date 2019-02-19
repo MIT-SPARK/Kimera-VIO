@@ -79,9 +79,6 @@ public:
 
   // Camera matrix after rectification.
   cv::Mat P_;
-
-  // Are camera images already rectified?
-  bool rectified_; 
 };
 
 } // End of VIO namespace.

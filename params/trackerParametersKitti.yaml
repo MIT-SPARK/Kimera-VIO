@@ -5,7 +5,7 @@ klt_max_iter: 30
 klt_max_level: 4
 klt_eps: 0.1
 maxFeatureAge: 25
-maxFeaturesPerFrame: 600
+maxFeaturesPerFrame: 800
 quality_level: 0.001
 min_distance: 20
 block_size: 3
@@ -18,13 +18,13 @@ templ_cols: 101 #must be odd
 templ_rows: 11
 stripe_extra_rows: 0
 minPointDist: 0.5
-maxPointDist: 20
+maxPointDist: 50
 bidirectionalMatching: 0
 subpixelRefinementStereo: 0
 featureSelectionCriterion: 0
 featureSelectionHorizon: 3
 featureSelectionNrCornersToSelect: 600
-featureSelectionImuRate: 0.005
+featureSelectionImuRate: 0.01
 featureSelectionDefaultDepth: 2
 featureSelectionCosineNeighborhood: 0.984807753012208 # Rad
 featureSelectionUseLazyEvaluation: 1

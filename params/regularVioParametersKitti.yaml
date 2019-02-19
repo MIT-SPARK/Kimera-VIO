@@ -6,7 +6,7 @@ gyroBiasSigma: 1.9393e-05
 accBiasSigma: 0.003
 imuIntegrationSigma: 1.0e-8
 n_gravity: [0.0, 0.0, -9.81]
-nominalImuRate: 0.005
+nominalImuRate: 0.01
 #INITIALIZATION PARAMETERS
 autoInitialize: 1
 roundOnAutoInitialize: 0

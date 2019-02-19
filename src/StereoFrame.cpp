@@ -51,9 +51,7 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
                          "unrectifiedLeftWithKeypoints_",
                          verbosity);
   }
-  if (left_frame_.cam_param_.rectified_ && right_frame_.cam_param_.rectified_){
-    is_rectified_ = true;
-  }
+
   // Rectify images.
   getRectifiedImages();
 
@@ -693,16 +691,9 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
 /* -------------------------------------------------------------------------- */
 void StereoFrame::getRectifiedImages() {
 
-  if(!is_rectified_) {// if we haven't computed rectification parameters yet
+  if(!is_rectified_)// if we haven't computed rectification parameters yet
     computeRectificationParameters();
-  } else {
-    left_img_rectified_ = left_frame_.img_; 
-    right_img_rectified_ = right_frame_.img_;
-    // this cuts the last column
-    left_undistRectCameraMatrix_ = UtilsOpenCV::Cvmat2Cal3_S2(left_frame_.cam_param_.P_);
-    // this cuts the last column
-    right_undistRectCameraMatrix_ = UtilsOpenCV::Cvmat2Cal3_S2(right_frame_.cam_param_.P_);
-  }
+
   if(left_frame_.img_.rows != left_img_rectified_.rows || left_frame_.img_.cols != left_img_rectified_.cols ||
       right_frame_.img_.rows != right_img_rectified_.rows || right_frame_.img_.cols != right_img_rectified_.cols ){ // if we haven't rectified images yet
     // rectify and undistort images
