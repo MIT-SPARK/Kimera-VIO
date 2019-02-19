@@ -100,5 +100,52 @@ TEST(testFrame, Cal3_S2ToCvmat) {
 }
 
 /* ************************************************************************* */
+TEST(testFrame, parseKITTICalib) {
+  CameraParams camParams;
+  camParams.parseKITTICalib(string(DATASET_PATH) + "/ForKittiData/calib_cam_to_cam.txt", 
+                            cv::Mat::eye(3, 3, CV_64F), 
+                            cv::Mat::zeros(3, 1, CV_64F), 
+                            "00");
+
+  // Frame rate
+  const double frame_rate_expected = 1.0 / 10.0;
+  EXPECT_DOUBLES_EQUAL(frame_rate_expected, camParams.frame_rate_, tol);
+
+  // image size
+  const Size size_expected(1392, 512);
+  EXPECT(size_expected.width == camParams.image_size_.width &&
+      size_expected.height == camParams.image_size_.height);
+
+  // intrinsics
+  const double intrinsics_expected[] = {984.2439, 980.8141, 690.0, 233.1966};
+  for (int c = 0; c < 4; c++) {
+    EXPECT_DOUBLES_EQUAL(intrinsics_expected[c], camParams.intrinsics_[c], tol);
+  }
+
+  EXPECT_DOUBLES_EQUAL(intrinsics_expected[0], camParams.calibration_.fx(), tol);
+  EXPECT_DOUBLES_EQUAL(intrinsics_expected[1], camParams.calibration_.fy(), tol);
+  EXPECT_DOUBLES_EQUAL(0, camParams.calibration_.skew(), tol);
+  EXPECT_DOUBLES_EQUAL(intrinsics_expected[2], camParams.calibration_.px(), tol);
+  EXPECT_DOUBLES_EQUAL(intrinsics_expected[3], camParams.calibration_.py(), tol);
+
+  // Sensor extrinsics wrt. the body-frame
+  Rot3 R_expected(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
+  Point3 T_expected(2.573699e-16, -1.059758e-16, 1.614870e-16);
+  Pose3 pose_expected(R_expected, T_expected);
+  EXPECT(assert_equal(pose_expected,camParams.body_Pose_cam_));
+
+  // distortion coefficients
+  const double distortion_expected[] = {-3.728755e-01, 2.037299e-01, 2.219027e-03, 1.383707e-03, -7.233722e-02};
+  for (int c = 0; c < 5; c++) {
+    EXPECT_DOUBLES_EQUAL(distortion_expected[c], camParams.distortion_coeff_.at<double>(c), tol);
+  }
+  EXPECT_DOUBLES_EQUAL(distortion_expected[2], camParams.distortion_coeff_.at<double>(2), tol);
+  EXPECT_DOUBLES_EQUAL(distortion_expected[0], camParams.calibration_.k1(), tol);
+  EXPECT_DOUBLES_EQUAL(distortion_expected[1], camParams.calibration_.k2(), tol);
+  EXPECT_DOUBLES_EQUAL(distortion_expected[3], camParams.calibration_.p1(), tol);
+  EXPECT_DOUBLES_EQUAL(distortion_expected[4], camParams.calibration_.p2(), tol);
+}
+
+/* ************************************************************************* */
 int main() { TestResult tr; return TestRegistry::runAllTests(tr); }
 /* ************************************************************************* */

@@ -86,5 +86,5 @@ echo """ Launching:
   --flagfile="../params/flags/VioBackEnd.flags" \
   --flagfile="../params/flags/RegularVioBackEnd.flags" \
   --flagfile="../params/flags/Visualizer3D.flags" \
-  --v=10 \
+  --v=0 \
   --backend_type="$BACKEND_TYPE"
