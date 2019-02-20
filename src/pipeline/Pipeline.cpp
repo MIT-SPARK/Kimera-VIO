@@ -185,6 +185,9 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // !!! We actually really only need from keyframe to keyframe!!!!
   // Apparently there is no gyro aided tracker.
   // The preint btw keyframes is needed for RANSAC.
+  // NEEDS THE IMU BIAS, but otw use it in the frontend!!!!
+  // Use something like frontend.setImuBias() // Which must be thread-safe
+  // and any use of the bias must be thread-safe...
   gtsam::Rot3 calLrectLkf_R_camLrectKf_imu =
       vio_backend_->preintegrateGyroMeasurements(imu_stamps_lkf_to_curr_f,
                                                  imu_accgyr_lkf_to_curr_f); // This should be done in frontend
@@ -299,8 +302,9 @@ void Pipeline::processKeyframe(
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////// BACK-END ////////////////////////////////////////////////
-  // Push to backend input.
   double start_time = UtilsOpenCV::GetTimeInSeconds();
+  // Push to backend input.
+  // This should be done inside the frontend!!!!
   backend_input_queue_.push(
         VioBackEndInputPayload(
           timestamp_k,
@@ -311,6 +315,9 @@ void Pipeline::processKeyframe(
           &planes_,
           stereo_vision_frontend_->getRelativePoseBodyStereo()));
 
+  // This should be done inside those who need the backend results
+  // IN this case the logger!!!!!
+  // But there are many more people that want backend results...
   // Pull from backend.
   std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
       backend_output_queue_.popBlocking();
@@ -401,21 +408,24 @@ void Pipeline::processKeyframe(
     LOG_IF(WARNING, semantic_mesh_segmentation_callback_)
         << "Coloring the mesh using semantic segmentation colors.";
     // Push data for visualizer thread.
+    // WHO Should be pushing to the visualizer input queue????????
+    // This cannot happen at all from a single module, because visualizer
+    // takes input from mesher and backend right now...
     visualizer_input_queue_.push(
           VisualizerInputPayload(
-            visualization_type,
-            dataset_->getBackendType(),
+            visualization_type, // This should be passed at ctor level....
+            dataset_->getBackendType(),// This should be passed at ctor level....
             // Pose for trajectory viz.
-            vio_backend_->getWPoseBLkf() *
-            stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(),
+            vio_backend_->getWPoseBLkf() * // The visualizer needs backend results
+            stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(), // This should be pass at ctor level....
             // For visualizeMesh2D and visualizeMesh2DStereo
-            mesh_2d,
+            mesh_2d, // The visualizer needs mesher results
             // Call semantic mesh segmentation if someone registered a callback.
-            semantic_mesh_segmentation_callback_?
+            semantic_mesh_segmentation_callback_? // This callback should be given to the visualizer at ctor level....
               semantic_mesh_segmentation_callback_(
                 last_left_keyframe.timestamp_,
                 last_left_keyframe.img_,
-                mesher_output_payload.mesh_2d_,
+                mesher_output_payload.mesh_2d_, // The visualizer needs mesher results, but we are already passing mesher_output_payload, visualizer should popBlocking that...
                 mesher_output_payload.mesh_3d_) :
               Visualizer3D::texturizeMesh3D(
                 last_left_keyframe.timestamp_,
