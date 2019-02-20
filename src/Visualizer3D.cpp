@@ -133,12 +133,14 @@ Visualizer3D::Visualizer3D() {
 /* -------------------------------------------------------------------------- */
 void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
                         ThreadsafeQueue<VisualizerOutputPayload>& output_queue) {
+  LOG(INFO) << "Spinning Visualizer.";
   VisualizerOutputPayload output_payload;
   while(!shutdown_) {
     visualize(input_queue.popBlocking(), &output_payload);
     output_queue.push(output_payload);
     output_payload.images_to_display_.clear();
   }
+  LOG(INFO) << "Visualizer successfully shutdown.";
 }
 
 /* -------------------------------------------------------------------------- */

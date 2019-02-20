@@ -198,6 +198,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
       stereo_vision_frontend_->processStereoFrame(
         stereoFrame_k,
         calLrectLkf_R_camLrectKf_imu);
+  CHECK(!stereo_vision_frontend_->stereoFrame_k_); // processStereoFrame is setting this to nullptr!!!
   VLOG(10) << "Finished processStereoFrame.";
   if (FLAGS_log_output) {
     logger_.timing_processStereoFrame_ =
@@ -208,13 +209,59 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Pass info to VIO if it's keyframe.
   start_time = UtilsOpenCV::GetTimeInSeconds();
   if (stereo_vision_frontend_->stereoFrame_km1_->isKeyframe()) {
+    CHECK_EQ(stereo_vision_frontend_->stereoFrame_lkf_->getTimestamp(),
+             stereo_vision_frontend_->stereoFrame_km1_->getTimestamp());
+    CHECK_EQ(stereo_vision_frontend_->stereoFrame_lkf_->getFrameId(),
+             stereo_vision_frontend_->stereoFrame_km1_->getFrameId());
+    CHECK(!stereo_vision_frontend_->stereoFrame_k_);
+    CHECK(stereo_vision_frontend_->stereoFrame_lkf_->isKeyframe());
     // It's a keyframe!
+    // TODO???? IT's actually km1 (k minus 1) the keyframe!!
+    // No... it's just km1 is k at this point...
     LOG(INFO) << "Keyframe " << k
               << " with: " << statusSmartStereoMeasurements.second.size()
               << " smart measurements";
 
+    ////////////////////////////// FEATURE SELECTOR //////////////////////////////
+    if (FLAGS_use_feature_selection) {
+      double start_time = UtilsOpenCV::GetTimeInSeconds();
+      // !! featureSelect is not thread safe !! Do not use when running in
+      // parallel mode.
+      static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
+      statusSmartStereoMeasurements = featureSelect(
+                                        frontend_params_,
+                                        *dataset_,
+                                        stereoFrame_k.getTimestamp(),
+                                        timestamp_lkf,
+                                        vio_backend_->getWPoseBLkf(),
+                                        &(stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_),
+                                        stereo_vision_frontend_->stereoFrame_lkf_,
+                                        statusSmartStereoMeasurements,
+                                        vio_backend_->getCurrKfId(),
+                                        (FLAGS_visualize? saveImagesSelector : 0),
+                                        vio_backend_->getCurrentStateCovariance(),
+                                        // last one for visualization only
+                                        // TODO this info is already in last_stereo_keyframe param...
+                                        stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame());
+      if (FLAGS_log_output) {
+        VLOG(100)
+            << "Overall selection time (logger.timing_featureSelection_) "
+            << logger_.timing_featureSelection_ << '\n'
+            << "actual selection time (stereoTracker.tracker_.debugInfo_."
+            << "featureSelectionTime_) "
+            << stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_;
+        logger_.timing_featureSelection_ =
+            UtilsOpenCV::GetTimeInSeconds() - start_time;
+      }
+      LOG(FATAL) << "Do not use feature selection in parallel mode.";
+    } else {
+      VLOG(100) << "Not using feature selection.";
+    }
+    //////////////////////////////////////////////////////////////////////////////
+
     // Actual keyframe processing. Call to backend.
-    processKeyframe(k, &statusSmartStereoMeasurements,
+    processKeyframe(k, statusSmartStereoMeasurements,
+                    stereo_vision_frontend_->stereoFrame_lkf_,
                     stereoFrame_k.getTimestamp(),
                     timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
                     imu_stamps_lkf_to_curr_f, // aka from keyframe to keyframe,
@@ -233,47 +280,14 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 /* -------------------------------------------------------------------------- */
 void Pipeline::processKeyframe(
     size_t k,
-    StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
+    const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
+    std::shared_ptr<StereoFrame> last_stereo_keyframe,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf,
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_accgyr) {
-  CHECK_NOTNULL(statusSmartStereoMeasurements);
-  ////////////////////////////// FEATURE SELECTOR //////////////////////////////
-  if (FLAGS_use_feature_selection) {
-    double start_time = UtilsOpenCV::GetTimeInSeconds();
-    // !! featureSelect is not thread safe !! Do not use when running in
-    // parallel mode.
-    static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
-    *statusSmartStereoMeasurements = featureSelect(
-          frontend_params_,
-          *dataset_,
-          timestamp_k,
-          timestamp_lkf,
-          vio_backend_->getWPoseBLkf(),
-          &(stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_),
-          stereo_vision_frontend_->stereoFrame_km1_,
-          *statusSmartStereoMeasurements,
-          vio_backend_->getCurrKfId(),
-          (FLAGS_visualize? saveImagesSelector : 0),
-          vio_backend_->getCurrentStateCovariance(),
-          stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame()); // last one for visualization only
-    if (FLAGS_log_output) {
-      VLOG(100)
-          << "Overall selection time (logger.timing_featureSelection_) "
-          << logger_.timing_featureSelection_ << '\n'
-          << "actual selection time (stereoTracker.tracker_.debugInfo_."
-          << "featureSelectionTime_) "
-          << stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_;
-      logger_.timing_featureSelection_ =
-          UtilsOpenCV::GetTimeInSeconds() - start_time;
-    }
-    LOG(FATAL) << "Do not use feature selection in parallel mode.";
-  } else {
-    VLOG(100) << "Not using feature selection.";
-  }
-  //////////////////////////////////////////////////////////////////////////////
-
+  // At this point stereoFrame_km1 == stereoFrame_lkf_ !
+  const Frame& last_left_keyframe = last_stereo_keyframe->getLeftFrame();
 
   ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
   if (FLAGS_log_output) {
@@ -290,7 +304,7 @@ void Pipeline::processKeyframe(
   backend_input_queue_.push(
         VioBackEndInputPayload(
           timestamp_k,
-          *statusSmartStereoMeasurements,
+          statusSmartStereoMeasurements,
           stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_,
           imu_stamps,
           imu_accgyr,
@@ -325,13 +339,12 @@ void Pipeline::processKeyframe(
       static_cast<VisualizationType>(FLAGS_viz_type);
   switch (visualization_type) {
   case VisualizationType::MESH2D: {
-    mesh_2d = stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().
-        createMesh2D(); // TODO pass the visualization flag inside the while loop of frontend and call this.
+    mesh_2d = last_left_keyframe.createMesh2D(); // TODO pass the visualization flag inside the while loop of frontend and call this.
     break;
   }
     // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
   case VisualizationType::MESH2Dsparse: {
-    stereo_vision_frontend_->stereoFrame_lkf_->createMesh2dStereo(&mesh_2d); // TODO same as above.
+    last_stereo_keyframe->createMesh2dStereo(&mesh_2d); // TODO same as above.
     break;
   }
   case VisualizationType::MESH2DTo3Dsparse: {
@@ -400,17 +413,17 @@ void Pipeline::processKeyframe(
             // Call semantic mesh segmentation if someone registered a callback.
             semantic_mesh_segmentation_callback_?
               semantic_mesh_segmentation_callback_(
-                stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().timestamp_,
-                stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().img_,
+                last_left_keyframe.timestamp_,
+                last_left_keyframe.img_,
                 mesher_output_payload.mesh_2d_,
                 mesher_output_payload.mesh_3d_) :
               Visualizer3D::texturizeMesh3D(
-                stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().timestamp_,
-                stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().img_,
+                last_left_keyframe.timestamp_,
+                last_left_keyframe.img_,
                 mesher_output_payload.mesh_2d_,
                 mesher_output_payload.mesh_3d_),
             // For visualizeMesh2D and visualizeMesh2DStereo.
-            stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame(),
+            last_left_keyframe,
             // visualizeConvexHull & visualizeMesh3DWithColoredClusters
             // WARNING using move explicitly!
             std::move(mesher_output_payload),
@@ -421,7 +434,8 @@ void Pipeline::processKeyframe(
             planes_,  // visualizeMesh3DWithColoredClusters
             vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
             vio_backend_->getState(), // For planes and plane constraints viz.
-            points_3d, timestamp_k));
+            points_3d,
+            timestamp_k));
 
       // Get data from visualizer thread.
       // We use non-blocking pop() because no one depends on the output
@@ -442,6 +456,7 @@ void Pipeline::shutdown() {
   shutdown_ = true;
   stopThreads();
   joinThreads();
+  LOG(INFO) << "All threads joined, successful VIO pipeline shutdown.";
   if (FLAGS_log_output) {
     logger_.closeLogFiles();
   }

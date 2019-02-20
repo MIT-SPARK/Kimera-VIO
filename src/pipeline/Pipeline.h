@@ -96,7 +96,8 @@ private:
 
   void processKeyframe(
       size_t k,
-      StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
+      const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
+      std::shared_ptr<StereoFrame> last_stereo_keyframe,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
       const ImuStampS& imu_stamps,

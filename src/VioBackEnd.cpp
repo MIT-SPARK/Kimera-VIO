@@ -150,10 +150,12 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
 bool VioBackEnd::spin(
     ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
     ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
+  LOG(INFO) << "Spinning VioBackEnd.";
   while (!shutdown_) {
     // TODO log VioBackEnd time... Needs a thread-safe logger.
     spinOnce(input_queue, output_queue);
   }
+  LOG(INFO) << "VioBackEnd successfully shutdown.";
   return true;
 }
 
