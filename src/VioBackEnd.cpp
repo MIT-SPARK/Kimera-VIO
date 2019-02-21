@@ -30,6 +30,7 @@
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 
+#include "utils/Timer.h"
 #include "ETH_parser.h" // Only for gtNavState ...
 
 DEFINE_bool(debug_graph_before_opt, false,
@@ -152,8 +153,10 @@ bool VioBackEnd::spin(
     ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
   LOG(INFO) << "Spinning VioBackEnd.";
   while (!shutdown_) {
-    // TODO log VioBackEnd time... Needs a thread-safe logger.
+    auto tic = utils::Timer::tic();
     spinOnce(input_queue, output_queue);
+    LOG(WARNING) << "Backend frequency: "
+                 << 1000.0 / utils::Timer::toc(tic).count() << " Hz.";
   }
   LOG(INFO) << "VioBackEnd successfully shutdown.";
   return true;

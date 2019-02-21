@@ -12,17 +12,18 @@
  * @author Luca Carlone, AJ Haeffner, Antoni Rosinol
  */
 
-#include <math.h>
 
 #include "mesh/Mesher.h"
 
+#include <math.h>
 #include <algorithm>
-
-#include "LoggerMatlab.h"
 #include <opencv2/imgproc.hpp>
-
 #include <glog/logging.h>
 #include <gflags/gflags.h>
+
+#include "utils/Timer.h"
+#include "LoggerMatlab.h"
+
 // General functionality for the mesher.
 DEFINE_bool(add_extra_lmks_from_stereo, false,
             "Add extra landmarks that are stereo triangulated to the mesh. "
@@ -162,18 +163,19 @@ void Mesher::run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
   LOG(INFO) << "Launch";
   MesherOutputPayload mesher_output_payload;
   while(!request_stop_) {
+    auto tic = utils::Timer::tic();
     // If you put mesher_output_payload outside the loop, don't forget to clean
     // the mesh_2d or everything
-    LOG(INFO) << "Inside loop before pop";
     updateMesh3D(mesher_input_queue.popBlocking(),
                  FLAGS_return_mesh_2d? &(mesher_output_payload.mesh_2d_):nullptr, // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
                  &(mesher_output_payload.mesh_2d_for_viz_), // These are more or less the same info as mesh_2d_
                  &(mesher_output_payload.mesh_2d_filtered_for_viz_));
     getVerticesMesh(&(mesher_output_payload.vertices_mesh_));
     getPolygonsMesh(&(mesher_output_payload.polygons_mesh_));
-    LOG(INFO) << "Inside loop before push";
     mesher_output_payload.mesh_3d_ = mesh_3d_;
     mesher_output_queue.push(mesher_output_payload);
+    LOG(WARNING) << "Current Mesher frequency: "
+                 << 1000.0 / utils::Timer::toc(tic).count() << " Hz.";
   }
   LOG(INFO) << "Stop requested";
 }

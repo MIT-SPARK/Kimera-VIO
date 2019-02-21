@@ -16,6 +16,7 @@
 
 #include <gflags/gflags.h>
 
+#include "utils/Timer.h"
 #include "common/FilesystemUtils.h"
 #include "UtilsOpenCV.h"
 #include "LoggerMatlab.h"
@@ -136,9 +137,12 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
   LOG(INFO) << "Spinning Visualizer.";
   VisualizerOutputPayload output_payload;
   while(!shutdown_) {
+    auto tic = utils::Timer::tic();
     visualize(input_queue.popBlocking(), &output_payload);
     output_queue.push(output_payload);
     output_payload.images_to_display_.clear();
+    LOG(WARNING) << "Current Visualizer frequency: "
+                 << 1000.0 / utils::Timer::toc(tic).count() << " Hz.";
   }
   LOG(INFO) << "Visualizer successfully shutdown.";
 }
