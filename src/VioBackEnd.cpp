@@ -31,6 +31,7 @@
 #include <gflags/gflags.h>
 
 #include "utils/Timer.h"
+#include "utils/Statistics.h"
 #include "ETH_parser.h" // Only for gtNavState ...
 
 DEFINE_bool(debug_graph_before_opt, false,
@@ -152,6 +153,7 @@ bool VioBackEnd::spin(
     ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
     ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
   LOG(INFO) << "Spinning VioBackEnd.";
+  utils::StatsCollector stat_backend_timing("Backend Timing [ms]");
   while (!shutdown_) {
     // Get input data from queue. Wait for Backend payload.
     std::shared_ptr<VioBackEndInputPayload> input = input_queue.popBlocking();
@@ -161,6 +163,7 @@ bool VioBackEnd::spin(
     LOG(WARNING) << "Current Backend frequency: "
                  << 1000.0 / spin_duration << " Hz. ("
                  << spin_duration << " ms).";
+    stat_backend_timing.AddSample(spin_duration);
   }
   LOG(INFO) << "VioBackEnd successfully shutdown.";
   return true;

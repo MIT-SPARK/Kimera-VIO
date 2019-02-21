@@ -17,6 +17,7 @@
 #include <gflags/gflags.h>
 
 #include "utils/Timer.h"
+#include "utils/Statistics.h"
 #include "common/FilesystemUtils.h"
 #include "UtilsOpenCV.h"
 #include "LoggerMatlab.h"
@@ -136,6 +137,7 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
                         ThreadsafeQueue<VisualizerOutputPayload>& output_queue) {
   LOG(INFO) << "Spinning Visualizer.";
   VisualizerOutputPayload output_payload;
+  utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
   while(!shutdown_) {
     // Wait for mesher payload.
     const std::shared_ptr<VisualizerInputPayload>& visualizer_payload =
@@ -148,6 +150,7 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
     LOG(WARNING) << "Current Visualizer frequency: "
                  << 1000.0 / spin_duration << " Hz. ("
                  << spin_duration << " ms).";
+    stats_visualizer.AddSample(spin_duration);
   }
   LOG(INFO) << "Visualizer successfully shutdown.";
 }

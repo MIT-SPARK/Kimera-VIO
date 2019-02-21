@@ -20,6 +20,7 @@
 #include <gtsam/geometry/Pose3.h>
 
 #include "utils/Timer.h"
+#include "utils/Statistics.h"
 #include "RegularVioBackEnd.h"
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
@@ -125,12 +126,17 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   LOG(WARNING) << "Current overall Pipeline frequency: "
                << 1000.0 / spin_duration << " Hz. ("
                << spin_duration << " ms).";
+  utils::StatsCollector stats_pipeline("Pipeline overall Timing [ms]");
+  stats_pipeline.AddSample(spin_duration);
+  LOG(INFO) << "Writting stats to yaml file.";
+  utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
 // Spin the pipeline only once.
 void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+  auto tic = utils::Timer::tic();
   const auto& k = stereo_imu_sync_packet.getStereoFrame().getFrameId();
   const StereoFrame& stereoFrame_k = stereo_imu_sync_packet.getStereoFrame();
 
@@ -211,6 +217,13 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     logger_.timing_processStereoFrame_ =
         UtilsOpenCV::GetTimeInSeconds() - start_time;
   }
+  // This is a rough estimate of what it takes the frontend to run.
+  auto frontend_duration = utils::Timer::toc(tic).count();
+  utils::StatsCollector stats_frontend("Frontend Timing [ms]");
+  stats_frontend.AddSample(frontend_duration);
+  LOG(WARNING) << "Current Frontend frequency: "
+               << 1000.0 / frontend_duration << " Hz. ("
+               << frontend_duration << " ms).";
 
   ////////////////////////////// BACK-END //////////////////////////////////////
   // Pass info to VIO if it's keyframe.

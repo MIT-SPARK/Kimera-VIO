@@ -22,6 +22,7 @@
 #include <gflags/gflags.h>
 
 #include "utils/Timer.h"
+#include "utils/Statistics.h"
 #include "LoggerMatlab.h"
 
 // General functionality for the mesher.
@@ -162,6 +163,7 @@ void Mesher::run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
                  ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue) {
   LOG(INFO) << "Launch";
   MesherOutputPayload mesher_output_payload;
+  utils::StatsCollector stats_mesher("Mesher Timing [ms]");
   while(!request_stop_) {
     // Wait for mesher payload.
     const std::shared_ptr<const MesherInputPayload>& mesher_payload =
@@ -181,6 +183,7 @@ void Mesher::run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
     LOG(WARNING) << "Current Mesher frequency: "
                  << 1000.0 / spin_duration << " Hz. ("
                  << spin_duration << " ms).";
+    stats_mesher.AddSample(spin_duration);
   }
   LOG(INFO) << "Mesher successfully shutdown.";
 }
