@@ -119,7 +119,10 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // TODO Warning: we do not accumulate IMU measurements for the first packet...
   // Spin.
   VLOG(10) << "Spin pipeline once.";
+  auto tic = VIO::utils::Timer::tic();
   spinOnce(stereo_imu_sync_packet);
+  auto spin_duration = VIO::utils::Timer::toc(tic);
+  LOG(WARNING) << "Current pipeline frequency: " << 1000/spin_duration.count() << " Hz.";
 
   return true;
 }
