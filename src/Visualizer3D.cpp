@@ -137,12 +137,17 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
   LOG(INFO) << "Spinning Visualizer.";
   VisualizerOutputPayload output_payload;
   while(!shutdown_) {
+    // Wait for mesher payload.
+    const std::shared_ptr<VisualizerInputPayload>& visualizer_payload =
+        input_queue.popBlocking();
     auto tic = utils::Timer::tic();
-    visualize(input_queue.popBlocking(), &output_payload);
+    visualize(visualizer_payload, &output_payload);
     output_queue.push(output_payload);
     output_payload.images_to_display_.clear();
+    auto spin_duration = utils::Timer::toc(tic).count();
     LOG(WARNING) << "Current Visualizer frequency: "
-                 << 1000.0 / utils::Timer::toc(tic).count() << " Hz.";
+                 << 1000.0 / spin_duration << " Hz. ("
+                 << spin_duration << " ms).";
   }
   LOG(INFO) << "Visualizer successfully shutdown.";
 }

@@ -214,13 +214,13 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     }
     default: {
       kfTrackingStatus_mono == Tracker::TrackingStatus::VALID?
-          VLOG(0) << "Tracker has a VALID status.":
+          VLOG(1) << "Tracker has a VALID status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::FEW_MATCHES?
-          VLOG(0) << "Tracker has a FEW_MATCHES status.":
+          VLOG(1) << "Tracker has a FEW_MATCHES status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::INVALID?
-          VLOG(0) << "Tracker has a INVALID status.":
+          VLOG(1) << "Tracker has a INVALID status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::DISABLED?
-          VLOG(0) << "Tracker has a DISABLED status.": VLOG(10) << "";
+          VLOG(1) << "Tracker has a DISABLED status.": VLOG(10) << "";
 
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
 

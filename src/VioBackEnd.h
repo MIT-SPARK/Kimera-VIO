@@ -341,7 +341,7 @@ public:
             ThreadsafeQueue<VioBackEndOutputPayload>& output_queue);
 
   /* ------------------------------------------------------------------------ */
-  bool spinOnce(ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
+  bool spinOnce(const std::shared_ptr<VioBackEndInputPayload>& input,
                 ThreadsafeQueue<VioBackEndOutputPayload>& output_queue);
 
   /* ------------------------------------------------------------------------ */

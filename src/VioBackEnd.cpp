@@ -153,10 +153,14 @@ bool VioBackEnd::spin(
     ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
   LOG(INFO) << "Spinning VioBackEnd.";
   while (!shutdown_) {
+    // Get input data from queue. Wait for Backend payload.
+    std::shared_ptr<VioBackEndInputPayload> input = input_queue.popBlocking();
     auto tic = utils::Timer::tic();
-    spinOnce(input_queue, output_queue);
-    LOG(WARNING) << "Backend frequency: "
-                 << 1000.0 / utils::Timer::toc(tic).count() << " Hz.";
+    spinOnce(input, output_queue);
+    auto spin_duration = utils::Timer::toc(tic).count();
+    LOG(WARNING) << "Current Backend frequency: "
+                 << 1000.0 / spin_duration << " Hz. ("
+                 << spin_duration << " ms).";
   }
   LOG(INFO) << "VioBackEnd successfully shutdown.";
   return true;
@@ -164,10 +168,8 @@ bool VioBackEnd::spin(
 
 /* -------------------------------------------------------------------------- */
 bool VioBackEnd::spinOnce(
-    ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
+    const std::shared_ptr<VioBackEndInputPayload>& input,
     ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
-  // Get input data from queue.
-  std::shared_ptr<VioBackEndInputPayload> input = input_queue.popBlocking();
   // Process data with VIO.
   if (input) {
     addVisualInertialStateAndOptimize(input);

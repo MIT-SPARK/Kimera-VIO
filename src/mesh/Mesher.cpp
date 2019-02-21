@@ -163,10 +163,13 @@ void Mesher::run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
   LOG(INFO) << "Launch";
   MesherOutputPayload mesher_output_payload;
   while(!request_stop_) {
-    auto tic = utils::Timer::tic();
+    // Wait for mesher payload.
+    const std::shared_ptr<const MesherInputPayload>& mesher_payload =
+        mesher_input_queue.popBlocking();
     // If you put mesher_output_payload outside the loop, don't forget to clean
     // the mesh_2d or everything
-    updateMesh3D(mesher_input_queue.popBlocking(),
+    auto tic = utils::Timer::tic();
+    updateMesh3D(mesher_payload,
                  FLAGS_return_mesh_2d? &(mesher_output_payload.mesh_2d_):nullptr, // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
                  &(mesher_output_payload.mesh_2d_for_viz_), // These are more or less the same info as mesh_2d_
                  &(mesher_output_payload.mesh_2d_filtered_for_viz_));
@@ -174,10 +177,12 @@ void Mesher::run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
     getPolygonsMesh(&(mesher_output_payload.polygons_mesh_));
     mesher_output_payload.mesh_3d_ = mesh_3d_;
     mesher_output_queue.push(mesher_output_payload);
+    auto spin_duration = utils::Timer::toc(tic).count();
     LOG(WARNING) << "Current Mesher frequency: "
-                 << 1000.0 / utils::Timer::toc(tic).count() << " Hz.";
+                 << 1000.0 / spin_duration << " Hz. ("
+                 << spin_duration << " ms).";
   }
-  LOG(INFO) << "Stop requested";
+  LOG(INFO) << "Mesher successfully shutdown.";
 }
 
 /* -------------------------------------------------------------------------- */

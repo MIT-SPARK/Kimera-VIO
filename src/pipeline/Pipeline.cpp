@@ -121,9 +121,10 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   VLOG(10) << "Spin pipeline once.";
   auto tic = utils::Timer::tic();
   spinOnce(stereo_imu_sync_packet);
-  LOG(WARNING) << "Current pipeline frequency: "
-               << 1000.0 / utils::Timer::toc(tic).count() << " Hz.";
-
+  auto spin_duration = utils::Timer::toc(tic).count();
+  LOG(WARNING) << "Current overall Pipeline frequency: "
+               << 1000.0 / spin_duration << " Hz. ("
+               << spin_duration << " ms).";
   return true;
 }
 
