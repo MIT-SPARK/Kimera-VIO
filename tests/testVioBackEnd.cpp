@@ -292,7 +292,8 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
     // process data with VIO
     vio->spinOnce(std::make_shared<VioBackEndInputPayload>(input));
-    imu_frontend.resetIntegrationAndSetBias(vio->getImuBiasLkf());
+    imu_frontend.updateBias(vio->getLatestImuBias());
+    imu_frontend.resetIntegration();
 
     const NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
     size_t nrFactorsInSmoother = 0;

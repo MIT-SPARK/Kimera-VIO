@@ -99,22 +99,36 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  // NOT THREAD-SAFE
-  // DO the actual preint inside,
   PreintegratedImuMeasurements preintegrateImuMeasurements(
       const ImuStampS& imu_stamps,
       const ImuAccGyrS& imu_accgyr);
 
   /* ------------------------------------------------------------------------ */
-  inline void resetIntegrationAndSetBias(
-      const ImuBias& imu_bias_prev_kf) {
-    pim_->resetIntegrationAndSetBias(imu_bias_prev_kf);
+  // This should be called by the backend, whenever there
+  // is a new imu bias estimate. Note that we only store the new
+  // bias but we do not attempt to reset pre-integration as we
+  // might have already started preintegrating measurements from
+  // latest keyframe to the current frame using the previous bias.
+  inline void updateBias(const ImuBias& imu_bias_prev_kf) {
+    std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+    latest_imu_bias_ = imu_bias_prev_kf;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // This should be called by the stereo frontend, whenever there
+  // is a new keyframe and we want to reset the integration to
+  // use the latest imu bias.
+  inline void resetIntegration() {
+    std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+    pim_->resetIntegrationAndSetBias(latest_imu_bias_);
   }
 
 private:
   // boost::shared_ptr because IMU preintegration needs it....
   boost::shared_ptr<PreintegratedImuMeasurements::Params> imu_params_;
   std::unique_ptr<PreintegratedImuMeasurements> pim_ = nullptr;
+  ImuBias latest_imu_bias_;
+  std::mutex imu_bias_mutex_;
 
   /* ------------------------------------------------------------------------ */
   // Set parameters for imu preintegration from the given ImuParams.
