@@ -70,17 +70,12 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
 
 namespace VIO {
 
-// Add compatibility for c++11's lack of make_unique.
-template<typename T, typename ...Args>
-std::unique_ptr<T> make_unique( Args&& ...args ) {
-  return std::unique_ptr<T>( new T( std::forward<Args>(args)... ) );
-}
-
 // TODO VERY BAD TO SEND THE DATASET PARSER AS A POINTER (at least for thread
 // safety!), but this is done now because the logger heavily relies on the
 // dataset parser, especially the grount-truth! Feature selector also has some
 // dependency with this...
-Pipeline::Pipeline(ETHDatasetParser* dataset)
+Pipeline::Pipeline(ETHDatasetParser* dataset,
+                   const ImuParams& imu_params)
   : dataset_(CHECK_NOTNULL(dataset)) {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
@@ -98,6 +93,8 @@ Pipeline::Pipeline(ETHDatasetParser* dataset)
   // Instantiate feature selector: not used in vanilla implementation.
   feature_selector_ = FeatureSelector(dataset_->getFrontendParams(),
                                       *backend_params_);
+  // Instantiate IMU frontend.
+  imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -143,49 +140,9 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   LOG(INFO) << "------------------- Processing frame k = "
             << k << "--------------------";
 
-  ////////////////////////////// ACCUMULATE IMU DATA ///////////////////////////
-  // Accumulate IMU measurements from last Keyframe to current frame.
-  VLOG(10) << "///////////////////////////////////// Trying to accumulate IMU.";
+  ////////////////////////////// GET IMU DATA //////////////////////////////////
   const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
   const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
-  static ImuStampS imu_stamps_lkf_to_curr_f = ImuStampS::Zero(1, 0);
-  static ImuAccGyrS imu_accgyr_lkf_to_curr_f = ImuAccGyrS::Zero(6, 0);
-  if (imu_stamps_lkf_to_curr_f.cols() == 0u) {
-    // This is executed for every keyframe, including the first.
-    // Since the accumulated imu msgs get resetted to 0.
-    CHECK_GE(imu_accgyr.cols(), 0u);
-    // Init accumulation.
-    imu_stamps_lkf_to_curr_f = imu_stamps;
-    imu_accgyr_lkf_to_curr_f = imu_accgyr;
-  } else {
-    CHECK_GT(imu_stamps.cols(), 0);
-    CHECK_GT(imu_stamps_lkf_to_curr_f.cols(), 0);
-    imu_stamps_lkf_to_curr_f.conservativeResize(
-          Eigen::NoChange,
-          // The -1 is here to remove the interpolated "fake" upper bound.
-          imu_stamps_lkf_to_curr_f.cols() - 1 + imu_stamps.cols());
-    imu_stamps_lkf_to_curr_f.rightCols(imu_stamps.cols()) << imu_stamps;
-
-    CHECK_GT(imu_accgyr.cols(), 0);
-    CHECK_GT(imu_accgyr_lkf_to_curr_f.cols(), 0);
-    imu_accgyr_lkf_to_curr_f.conservativeResize(
-          Eigen::NoChange,
-          // The -1 is here to remove the interpolated "fake" upper bound.
-          imu_accgyr_lkf_to_curr_f.cols() - 1 + imu_accgyr.cols());
-    imu_accgyr_lkf_to_curr_f.rightCols(imu_accgyr.cols()) << imu_accgyr;
-  }
-  VLOG(10) << "STAMPS IMU rows : \n" << imu_stamps_lkf_to_curr_f.rows()  << '\n'
-           << "STAMPS IMU cols : \n" << imu_stamps_lkf_to_curr_f.cols() << '\n'
-           << "STAMPS IMU: \n" << imu_stamps_lkf_to_curr_f << '\n'
-           << "ACCGYR IMU rows : \n" << imu_accgyr_lkf_to_curr_f.rows() << '\n'
-           << "ACCGYR IMU cols : \n" << imu_accgyr_lkf_to_curr_f.cols() << '\n'
-           << "ACCGYR IMU: \n" << imu_accgyr_lkf_to_curr_f;
-  //////////////////////////////////////////////////////////////////////////////
-
-  // Keep track of last keyframe timestamp. Honestly, I don't know why...
-  // TODO we have made timestamp_first_lkf_ global variable in dataset_
-  // only to be able to init this value... SHOULD NOT NEED TO.
-  static Timestamp timestamp_lkf = dataset_->timestamp_first_lkf_;
 
   // For k > 1
   // Integrate rotation measurements (rotation is used in RANSAC).
@@ -198,9 +155,19 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // NEEDS THE IMU BIAS, but otw use it in the frontend!!!!
   // Use something like frontend.setImuBias() // Which must be thread-safe
   // and any use of the bias must be thread-safe...
-  gtsam::Rot3 calLrectLkf_R_camLrectKf_imu =
-      vio_backend_->preintegrateGyroMeasurements(imu_stamps_lkf_to_curr_f,
-                                                 imu_accgyr_lkf_to_curr_f); // This should be done in frontend
+  // Implicitly Accumulates IMU measurements from last Keyframe to current frame.
+  // But note that we are using interpolated "fake" values when doing the preint
+  // egration!! Should we remove them??
+  const auto& pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
+                                                               imu_accgyr);
+  // This is the relative rotation of the body from the last keyframe to the
+  // current frame.
+  gtsam::Rot3 bodyLkf_R_bodyK_imu = pim.deltaRij();
+  gtsam::Rot3 body_Rot_cam_ =
+      stereoFrame_k.getBPoseCamLRect().rotation(); // on the left camera rectified!!
+  // Relative rotation of the left cam rectified from the last keyframe to the curr frame.
+  gtsam::Rot3 calLrectLkf_R_camLrectK_imu  =
+      body_Rot_cam_.inverse() * bodyLkf_R_bodyK_imu * body_Rot_cam_;
 
   ////////////////////////////// FRONT-END ///////////////////////////////////
   // Main function for tracking.
@@ -210,7 +177,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   StatusSmartStereoMeasurements statusSmartStereoMeasurements =
       stereo_vision_frontend_->processStereoFrame(
         stereoFrame_k,
-        calLrectLkf_R_camLrectKf_imu);
+        calLrectLkf_R_camLrectK_imu);
   CHECK(!stereo_vision_frontend_->stereoFrame_k_); // processStereoFrame is setting this to nullptr!!!
   VLOG(10) << "Finished processStereoFrame.";
   if (FLAGS_log_output) {
@@ -241,6 +208,11 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     LOG(INFO) << "Keyframe " << k
               << " with: " << statusSmartStereoMeasurements.second.size()
               << " smart measurements";
+
+    // Keep track of last keyframe timestamp. Honestly, I don't know why...
+    // TODO we have made timestamp_first_lkf_ global variable in dataset_
+    // only to be able to init this value... SHOULD NOT NEED TO.
+    static Timestamp timestamp_lkf = dataset_->timestamp_first_lkf_;
 
     ////////////////////////////// FEATURE SELECTOR //////////////////////////////
     if (FLAGS_use_feature_selection) {
@@ -278,21 +250,19 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
       VLOG(100) << "Not using feature selection.";
     }
     //////////////////////////////////////////////////////////////////////////////
-
     // Actual keyframe processing. Call to backend.
     processKeyframe(k, statusSmartStereoMeasurements,
                     stereo_vision_frontend_->stereoFrame_lkf_,
                     stereoFrame_k.getTimestamp(),
                     timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
-                    imu_stamps_lkf_to_curr_f, // aka from keyframe to keyframe,
-                    imu_accgyr_lkf_to_curr_f);  // since we are at a keyframe.
+                    pim); // IMU preintegration from keyframe to keyframe.
 
     // Reset accumulated imu data from keyframe to keyframe.
-    VLOG(10) << "Reset IMU and timestamp_lkf.";
-    imu_stamps_lkf_to_curr_f.resize(1, 0);
-    imu_accgyr_lkf_to_curr_f.resize(6, 0);
+    // Reset preintegration.
+    VLOG(10) << "Reset IMU preintegration with latest IMU bias";
+    imu_frontend_->resetIntegrationAndSetBias(vio_backend_->getLatestImuBias());
 
-    // Reset timestamp for preintegration.
+    VLOG(10) << "Reset timestamp_lkf.";
     timestamp_lkf = stereoFrame_k.getTimestamp();
   }
 }
@@ -304,8 +274,7 @@ void Pipeline::processKeyframe(
     std::shared_ptr<StereoFrame> last_stereo_keyframe,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf,
-    const ImuStampS& imu_stamps,
-    const ImuAccGyrS& imu_accgyr) {
+    const gtsam::PreintegratedImuMeasurements& pim) {
   // At this point stereoFrame_km1 == stereoFrame_lkf_ !
   const Frame& last_left_keyframe = last_stereo_keyframe->getLeftFrame();
 
@@ -327,8 +296,7 @@ void Pipeline::processKeyframe(
           timestamp_k,
           statusSmartStereoMeasurements,
           stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_,
-          imu_stamps,
-          imu_accgyr,
+          pim,
           &planes_,
           stereo_vision_frontend_->getRelativePoseBodyStereo()));
 

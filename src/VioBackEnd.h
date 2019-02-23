@@ -14,10 +14,6 @@
  * On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation.
  * IEEE Trans. Robotics, 33(1):1-21, 2016.
  *
- * C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza.
- * On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation.
- * IEEE Trans. Robotics, 33(1):1-21, 2016.
- *
  * L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert.
  * Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.
  * In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
@@ -51,7 +47,6 @@
 #include <gtsam/geometry/StereoPoint2.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
-#include <gtsam/navigation/AHRSFactor.h>
 
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 #include <gtsam/nonlinear/LinearContainerFactor.h>
@@ -229,15 +224,13 @@ struct VioBackEndInputPayload {
       const Timestamp& timestamp_kf_nsec,
       const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
       const Tracker::TrackingStatus& stereo_tracking_status, // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
-      const ImuStampS& imu_stamps,
-      const ImuAccGyrS& imu_accgyr,
+      const gtsam::PreintegratedImuMeasurements& pim,
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
     : timestamp_kf_nsec_(timestamp_kf_nsec),
       status_smart_stereo_measurements_kf_(status_smart_stereo_measurements_kf),
       stereo_tracking_status_(stereo_tracking_status),
-      imu_stamps_(imu_stamps),
-      imu_accgyr_(imu_accgyr),
+      pim_(pim),
       planes_(planes),
       stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
   const Timestamp timestamp_kf_nsec_;
@@ -245,8 +238,7 @@ struct VioBackEndInputPayload {
   const Tracker::TrackingStatus stereo_tracking_status_; // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
   // I believe we do not need EIGEN_MAKE_ALIGNED_OPERATOR_NEW for these members
   // as they are dynamic eigen, not "fixed-size vectorizable matrices and vectors."
-  const ImuStampS imu_stamps_;
-  const ImuAccGyrS imu_accgyr_;
+  const gtsam::PreintegratedImuMeasurements pim_;
   std::vector<Plane>* planes_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
 };
@@ -341,29 +333,11 @@ public:
             ThreadsafeQueue<VioBackEndOutputPayload>& output_queue);
 
   /* ------------------------------------------------------------------------ */
-  bool spinOnce(const std::shared_ptr<VioBackEndInputPayload>& input,
-                ThreadsafeQueue<VioBackEndOutputPayload>& output_queue);
+  VioBackEndOutputPayload spinOnce(
+      const std::shared_ptr<VioBackEndInputPayload>& input);
 
   /* ------------------------------------------------------------------------ */
   inline void shutdown() {shutdown_ = true;}
-
-  /* ------------------------------------------------------------------------ */
-  // Workhorse that stores data and optimizes at each keyframe.
-  // [in] timestamp_kf_nsec, keyframe timestamp.
-  // [in] status_smart_stereo_measurements_kf, vision data.
-  // [in] imu_stamps, [in] imu_accgyr.
-  // [in] stereo_ransac_body_pose, inertial data.
-  void addVisualInertialStateAndOptimize(
-      const Timestamp& timestamp_kf_nsec,
-      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-      const ImuStampS& imu_stamps, const ImuAccGyrS& imu_accgyr,
-      std::vector<Plane>* planes = nullptr,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
-
-  /* ------------------------------------------------------------------------ */
-  // NOT THREAD-SAFE
-  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,
-                                           const ImuAccGyrS& imu_accgyr) const;
 
   /* ------------------------------------------------------------------------ */
   // TODO only public because it is used for testing...
@@ -391,6 +365,11 @@ public:
   // NOT TESTED
   gtsam::Matrix getCurrentStateInformation() const;
 
+  /* ------------------------------------------------------------------------ */
+  inline ImuBias getLatestImuBias() const {
+    return imu_bias_lkf_;
+  }
+
   /// Printers
   /* ------------------------------------------------------------------------ */
   void print() const;
@@ -412,6 +391,7 @@ protected:
   virtual void addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+      const gtsam::PreintegratedImuMeasurements& pim,
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
@@ -431,12 +411,14 @@ protected:
 
   /* ------------------------------------------------------------------------ */
   // Set initial guess at current state.
-  void addImuValues(const FrameId& cur_id);
+  void addImuValues(const FrameId& cur_id,
+                    const gtsam::PreintegratedImuMeasurements& pim);
 
   /* ------------------------------------------------------------------------ */
   // Add imu factors:
   void addImuFactor(const FrameId& from_id,
-                    const FrameId& to_id);
+                    const FrameId& to_id,
+                    const gtsam::PreintegratedImuMeasurements& pim);
 
   /* ------------------------------------------------------------------------ */
   // Add no motion factors in case of low disparity.
@@ -478,11 +460,6 @@ private:
           const std::shared_ptr<VioBackEndInputPayload>& input);
 
   /* ------------------------------------------------------------------------ */
-  // Integrate imu measurements into pim_.
-  void integrateImuMeasurements(const ImuStampS& imu_stamps,
-                                const ImuAccGyrS& imu_accgyr);
-
-  /* ------------------------------------------------------------------------ */
   // Sets initial state at given pose, zero velociy and with imu bias obtained
   // by assuming steady upright platform.
   void initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
@@ -498,8 +475,7 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Add initial prior factors.
-  void addInitialPriorFactors(const FrameId& frame_id,
-                              const ImuAccGyrS& imu_accgyr);
+  void addInitialPriorFactors(const FrameId& frame_id);
 
   /* ------------------------------------------------------------------------ */
   void addConstantVelocityFactor(const FrameId& from_id,
@@ -603,14 +579,14 @@ private:
       const double& retriangulation_threshold,
       const double& outlier_rejection);
 
-  /* ------------------------------------------------------------------------ */
-  // Set parameters for imu factors.
-  void setImuFactorsParams(
-      boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
-      const gtsam::Vector3& n_gravity,
-      const double& gyro_noise_density,
-      const double& acc_noise_density,
-      const double& imu_integration_sigma);
+ /* ------------------------------------------------------------------------ */
+ // Set parameters for imu factors.
+ void setImuFactorsParams(
+     boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
+     const gtsam::Vector3& n_gravity,
+     const double& gyro_noise_density,
+     const double& acc_noise_density,
+     const double& imu_integration_sigma);
 
   /// Private printers.
   /* ------------------------------------------------------------------------ */
@@ -753,7 +729,6 @@ protected:
 private:
   // IMU params.
   boost::shared_ptr<PreintegratedImuMeasurements::Params> imu_params_;
-  PreintegratedImuMeasurementPtr pim_;
 
   // No motion factors settings.
   gtsam::SharedNoiseModel zero_velocity_prior_noise_;

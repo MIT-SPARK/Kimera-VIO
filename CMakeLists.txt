@@ -123,8 +123,8 @@ target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio)
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
 target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::sparkvio)
 
-add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio)
+#add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
+#target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)

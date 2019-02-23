@@ -253,15 +253,17 @@ void ETHDatasetParser::parseParams(
   if (FLAGS_vio_params_path.empty()) {
     VLOG(100) << "No vio parameters specified, using default.";
     // Default params with IMU stats from dataset.
-    backend_params->gyroNoiseDensity_ = imuData_.gyro_noise_;
-    backend_params->accNoiseDensity_ = imuData_.acc_noise_;
-    backend_params->gyroBiasSigma_ = imuData_.acc_noise_;
-    backend_params->accBiasSigma_ = imuData_.acc_walk_;
+    backend_params->gyroNoiseDensity_ = imu_params_.gyro_noise_;
+    backend_params->accNoiseDensity_ = imu_params_.acc_noise_;
+    backend_params->gyroBiasSigma_ = imu_params_.acc_noise_;
+    backend_params->accBiasSigma_ = imu_params_.acc_walk_;
   } else {
     VLOG(100) << "Using user-specified VIO parameters: "
               << FLAGS_vio_params_path;
     backend_params->parseYAML(FLAGS_vio_params_path);
   }
+  // TODO make this cleaner! imu_params_ are parsed all around, it's a mess!!
+  imu_params_.imu_integration_sigma_ = backend_params->imuIntegrationSigma_;
 
   // Read/define tracker params.
   if (FLAGS_tracker_params_path.empty()) {
@@ -275,9 +277,8 @@ void ETHDatasetParser::parseParams(
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
-                                    const std::string& imuName) {
-  ///////////////// PARSE IMU PARAMETERS ///////////////////////////////////////
+bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
+                                      const std::string& imuName) {
   std::string filename_sensor = input_dataset_path + "/mav0/" + imuName + "/sensor.yaml";
   // parse sensor parameters
   // make sure that each YAML file has %YAML:1.0 as first line
@@ -289,21 +290,31 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
   int n_cols (fs["T_BS"]["cols"]);
   std::vector<double> vec;
   fs["T_BS"]["data"] >> vec;
-  imuData_.body_Pose_cam_ = UtilsOpenCV::Vec2pose(vec,n_rows,n_cols);
+  auto body_Pose_cam = UtilsOpenCV::Vec2pose(vec,n_rows,n_cols);
 
   // sanity check: IMU is usually chosen as the body frame
   gtsam::Pose3 identityPose;
-  LOG_IF(FATAL, !imuData_.body_Pose_cam_.equals(gtData_.body_Pose_cam_))
+  LOG_IF(FATAL, !body_Pose_cam.equals(gtData_.body_Pose_cam_))
       << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
 
+  // TODO REMOVE THIS PARSING.
   int rate = fs["rate_hz"];
   imuData_.nominal_imu_rate_ = 1 / double(rate);
-  imuData_.gyro_noise_ = fs["gyroscope_noise_density"];
-  imuData_.gyro_walk_  = fs["gyroscope_random_walk"];
-  imuData_.acc_noise_  = fs["accelerometer_noise_density"];
-  imuData_.acc_walk_   = fs["accelerometer_random_walk"];
+
+  imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
+  imu_params_.gyro_walk_  = fs["gyroscope_random_walk"];
+  imu_params_.acc_noise_  = fs["accelerometer_noise_density"];
+  imu_params_.acc_walk_   = fs["accelerometer_random_walk"];
 
   fs.release();
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
+                                    const std::string& imuName) {
+  ///////////////// PARSE IMU PARAMETERS ///////////////////////////////////////
+  parseImuParams(input_dataset_path, imuName);
 
   ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
   //#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],
@@ -513,6 +524,7 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
                                     bool doParseImages) {
   dataset_path_ = input_dataset_path;
   parseCameraData(dataset_path_, leftCameraName, rightCameraName, doParseImages);
+  parseImuParams(dataset_path_, imuName);
   parseImuData(dataset_path_, imuName);
   is_gt_available_ = parseGTdata(dataset_path_, gtSensorName);
 
