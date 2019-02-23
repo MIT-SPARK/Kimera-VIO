@@ -263,7 +263,10 @@ void ETHDatasetParser::parseParams(
     backend_params->parseYAML(FLAGS_vio_params_path);
   }
   // TODO make this cleaner! imu_params_ are parsed all around, it's a mess!!
+  // They are basically parsed from backend params... but they should be on
+  // their own mostly.
   imu_params_.imu_integration_sigma_ = backend_params->imuIntegrationSigma_;
+  imu_params_.n_gravity_ = backend_params->n_gravity_;
 
   // Read/define tracker params.
   if (FLAGS_tracker_params_path.empty()) {

@@ -40,7 +40,9 @@ void ImuParams::print() const {
   LOG(INFO) << "\ngyroscope_noise_density: " << gyro_noise_ << '\n'
             << "gyroscope_random_walk: " << gyro_walk_ << '\n'
             << "accelerometer_noise_density: " << acc_noise_ << '\n'
-            << "accelerometer_random_walk: " << acc_walk_;
+            << "accelerometer_random_walk: " << acc_walk_ << '\n'
+            << "n_gravity: " << n_gravity_ << '\n'
+            << "imu_integration_sigma: " << imu_integration_sigma_;
 }
 
 /* -------------------------------------------------------------------------- */

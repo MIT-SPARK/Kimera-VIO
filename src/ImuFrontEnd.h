@@ -96,6 +96,7 @@ public:
     : imu_params_(setImuParams(imu_params)) {
     pim_ = VIO::make_unique<PreintegratedImuMeasurements>(imu_params_,
                                                           imu_bias_prev_kf);
+    imu_params.print();
   }
 
   /* ------------------------------------------------------------------------ */
