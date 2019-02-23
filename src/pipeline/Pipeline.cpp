@@ -125,8 +125,6 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
                << spin_duration << " ms).";
   utils::StatsCollector stats_pipeline("Pipeline overall Timing [ms]");
   stats_pipeline.AddSample(spin_duration);
-  LOG(INFO) << "Writting stats to yaml file.";
-  utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
   return true;
 }
 
