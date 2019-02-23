@@ -310,6 +310,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
 
   // Why do we do this??
   // This lags 1 step behind to mimic hw.
+  // imu_bias_lkf_ gets updated in the optimize call.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   optimize(curr_kf_id_, vio_params_.numOptimize_);
