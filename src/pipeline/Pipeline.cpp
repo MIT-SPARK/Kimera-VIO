@@ -156,10 +156,21 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Implicitly Accumulates IMU measurements from last Keyframe to current frame.
   // But note that we are using interpolated "fake" values when doing the preint
   // egration!! Should we remove them??
-  const auto& pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
-                                                               imu_accgyr);
+  // Actually, currently does not integrate fake interpolated meas as it does
+  // not take the last measurement into account (although it takes its stamp
+  // into account!!!).
+  auto pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
+                                                        imu_accgyr);
   // This is the relative rotation of the body from the last keyframe to the
   // current frame.
+  const Vector3& measured_acc = imu_accgyr.block<3,1>(0, imu_accgyr.cols() - 1);
+  const Vector3& measured_omega = imu_accgyr.block<3,1>(3, imu_accgyr.cols() - 1);
+  const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(imu_accgyr.cols() - 1) -
+                                                 imu_stamps(imu_accgyr.cols() - 2));
+  CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
+  // TODO Shouldn't we use pim_->integrateMeasurements(); for less code
+  // and efficiency??
+  pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
   gtsam::Rot3 bodyLkf_R_bodyK_imu = pim.deltaRij();
   // on the left camera rectified!!
   static gtsam::Rot3 body_Rot_cam = stereoFrame_k.getBPoseCamLRect().rotation();
