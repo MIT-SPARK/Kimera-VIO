@@ -191,11 +191,6 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
         calLrectLkf_R_camLrectK_imu);
   CHECK(!stereo_vision_frontend_->stereoFrame_k_); // processStereoFrame is setting this to nullptr!!!
   VLOG(10) << "Finished processStereoFrame.";
-  if (FLAGS_log_output) {
-    logger_.timing_processStereoFrame_ =
-        UtilsOpenCV::GetTimeInSeconds() - start_time;
-  }
-  // This is a rough estimate of what it takes the frontend to run.
   auto frontend_duration = utils::Timer::toc(tic).count();
   utils::StatsCollector stats_frontend("Frontend Timing [ms]");
   stats_frontend.AddSample(frontend_duration);
