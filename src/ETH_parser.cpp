@@ -255,7 +255,7 @@ void ETHDatasetParser::parseParams(
     // Default params with IMU stats from dataset.
     backend_params->gyroNoiseDensity_ = imu_params_.gyro_noise_;
     backend_params->accNoiseDensity_ = imu_params_.acc_noise_;
-    backend_params->gyroBiasSigma_ = imu_params_.acc_noise_;
+    backend_params->gyroBiasSigma_ = imu_params_.gyro_walk_;
     backend_params->accBiasSigma_ = imu_params_.acc_walk_;
   } else {
     VLOG(100) << "Using user-specified VIO parameters: "
