@@ -77,6 +77,14 @@ ImuFrontEnd::setImuParams(const ImuParams& imu_params) {
   preint_imu_params->integrationCovariance =
       std::pow(imu_params.imu_integration_sigma_, 2.0) * Eigen::Matrix3d::Identity();
   preint_imu_params->use2ndOrderCoriolis = false; // TODO: expose this parameter
+
+  #ifdef USE_COMBINED_IMU_FACTOR
+    preint_imu_params->biasAccCovariance =
+        std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
+    preint_imu_params->biasOmegaCovariance =
+        std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
+  #endif
+
   return preint_imu_params;
 }
 
