@@ -58,6 +58,7 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
     const Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
     const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
                                                    imu_stamps(i));
+    CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
     pim_->integrateMeasurement(measured_acc, measured_omega, delta_t);
   }
   return *pim_;
