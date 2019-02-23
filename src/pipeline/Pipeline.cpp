@@ -486,6 +486,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
               stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
               stereo_imu_sync_packet.getImuAccGyr()); // No timestamps needed for IMU?
 
+  ///////////////////////////// IMU FRONTEND ////////////////////////////
   // Initialize IMU frontend.
   imu_frontend_->updateBias(vio_backend_->getLatestImuBias());
   imu_frontend_->resetIntegration();

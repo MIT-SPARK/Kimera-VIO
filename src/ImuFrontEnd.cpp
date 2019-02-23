@@ -59,6 +59,8 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
     const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
                                                    imu_stamps(i));
     CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
+    // TODO Shouldn't we use pim_->integrateMeasurements(); for less code
+    // and efficiency??
     pim_->integrateMeasurement(measured_acc, measured_omega, delta_t);
   }
   return *pim_;
