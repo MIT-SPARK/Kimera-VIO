@@ -161,11 +161,13 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // This is the relative rotation of the body from the last keyframe to the
   // current frame.
   gtsam::Rot3 bodyLkf_R_bodyK_imu = pim.deltaRij();
-  gtsam::Rot3 body_Rot_cam_ =
-      stereoFrame_k.getBPoseCamLRect().rotation(); // on the left camera rectified!!
+  // on the left camera rectified!!
+  static gtsam::Rot3 body_Rot_cam = stereoFrame_k.getBPoseCamLRect().rotation();
+  static gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
+
   // Relative rotation of the left cam rectified from the last keyframe to the curr frame.
   gtsam::Rot3 calLrectLkf_R_camLrectK_imu  =
-      body_Rot_cam_.inverse() * bodyLkf_R_bodyK_imu * body_Rot_cam_;
+      cam_Rot_body * bodyLkf_R_bodyK_imu * body_Rot_cam;
 
   ////////////////////////////// FRONT-END ///////////////////////////////////
   // Main function for tracking.
