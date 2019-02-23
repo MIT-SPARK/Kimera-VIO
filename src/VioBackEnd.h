@@ -365,10 +365,6 @@ public:
   // NOT TESTED
   gtsam::Matrix getCurrentStateInformation() const;
 
-  /* ------------------------------------------------------------------------ */
-  inline ImuBias getLatestImuBias() const {
-    return imu_bias_lkf_;
-  }
 
   /// Printers
   /* ------------------------------------------------------------------------ */
@@ -649,7 +645,7 @@ public:
   inline const Pose3& getBPoseLeftCam() const {return B_Pose_leftCam_;}
 
   // TODO NOT THREAD-SAFE! Should add critical sections.
-  inline ImuBias getImuBiasLkf() const {return imu_bias_lkf_;}
+  inline ImuBias getLatestImuBias() const {return imu_bias_lkf_;}
   inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
   inline Pose3 getWPoseBLkf() const {return W_Pose_B_lkf_;}
   inline int getCurrKfId() const {return curr_kf_id_;}

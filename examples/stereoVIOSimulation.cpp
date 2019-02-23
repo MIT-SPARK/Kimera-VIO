@@ -474,8 +474,8 @@ int main(const int argc, const char *argv[])
         << W_Pose_camlkf_vio.rotation().matrix().row(1) << " "
         << W_Pose_camlkf_vio.rotation().matrix().row(2) << " "
         << vio->getWVelBLkf().transpose() 				        << " "
-        << vio->getImuBiasLkf().accelerometer().transpose() << " "
-        << vio->getImuBiasLkf().gyroscope().transpose() << std::endl;
+        << vio->getLatestImuBias().accelerometer().transpose() << " "
+        << vio->getLatestImuBias().gyroscope().transpose() << std::endl;
 
     // we log the camera since we will display camera poses in matlab
     gtsam::Pose3 W_Pose_camlkf_gt = W_Pose_Bkf_gt.compose(vio->getBPoseLeftCam());
