@@ -563,7 +563,6 @@ private:
       const VioBackEndParams& vio_params,
       gtsam::SharedNoiseModel* smart_noise,
       gtsam::SmartStereoProjectionParams* smart_factors_params,
-      boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
       gtsam::SharedNoiseModel* no_motion_prior_noise,
       gtsam::SharedNoiseModel* zero_velocity_prior_noise,
       gtsam::SharedNoiseModel* constant_velocity_prior_noise);
@@ -578,15 +577,6 @@ private:
       const double& landmark_distance_threshold,
       const double& retriangulation_threshold,
       const double& outlier_rejection);
-
- /* ------------------------------------------------------------------------ */
- // Set parameters for imu factors.
- void setImuFactorsParams(
-     boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
-     const gtsam::Vector3& n_gravity,
-     const double& gyro_noise_density,
-     const double& acc_noise_density,
-     const double& imu_integration_sigma);
 
   /// Private printers.
   /* ------------------------------------------------------------------------ */
@@ -727,9 +717,6 @@ protected:
   int curr_kf_id_;
 
 private:
-  // IMU params.
-  boost::shared_ptr<PreintegratedImuMeasurements::Params> imu_params_;
-
   // No motion factors settings.
   gtsam::SharedNoiseModel zero_velocity_prior_noise_;
   gtsam::SharedNoiseModel no_motion_prior_noise_;

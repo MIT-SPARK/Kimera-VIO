@@ -109,7 +109,6 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   setFactorsParams(vioParams,
                    &smart_noise_,
                    &smart_factors_params_,
-                   &imu_params_,
                    &no_motion_prior_noise_,
                    &zero_velocity_prior_noise_,
                    &constant_velocity_prior_noise_);
@@ -194,7 +193,7 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
                                        const Pose3& initialPose,
                                        const ImuAccGyrS& accGyroRaw) {
   Vector3 localGravity = initialPose.rotation().inverse().matrix() *
-                         imu_params_->n_gravity;
+                         vio_params_.n_gravity_;
   initStateAndSetPriors(timestamp_kf_nsec,
                         initialPose,
                         Vector3::Zero(),
@@ -1505,13 +1504,11 @@ void VioBackEnd::setFactorsParams(
     const VioBackEndParams& vio_params,
     gtsam::SharedNoiseModel* smart_noise,
     gtsam::SmartStereoProjectionParams* smart_factors_params,
-    boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
     gtsam::SharedNoiseModel* no_motion_prior_noise,
     gtsam::SharedNoiseModel* zero_velocity_prior_noise,
     gtsam::SharedNoiseModel* constant_velocity_prior_noise) {
   CHECK_NOTNULL(smart_noise);
   CHECK_NOTNULL(smart_factors_params);
-  CHECK_NOTNULL(imu_params);
   CHECK_NOTNULL(no_motion_prior_noise);
   CHECK_NOTNULL(zero_velocity_prior_noise);
   CHECK_NOTNULL(constant_velocity_prior_noise);
@@ -1524,19 +1521,6 @@ void VioBackEnd::setFactorsParams(
                         vio_params.landmarkDistanceThreshold_,
                         vio_params.retriangulationThreshold_,
                         vio_params.outlierRejection_);
-
-  //////////////////////// IMU FACTORS SETTINGS ////////////////////////////////
-  setImuFactorsParams(imu_params,
-                      vio_params.n_gravity_,
-                      vio_params.gyroNoiseDensity_,
-                      vio_params.accNoiseDensity_,
-                      vio_params.imuIntegrationSigma_);
-#ifdef USE_COMBINED_IMU_FACTOR
-  imuParams_->biasAccCovariance =
-      std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-  imuParams_->biasOmegaCovariance =
-      std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-#endif
 
   //////////////////////// NO MOTION FACTORS SETTINGS //////////////////////////
   Vector6 sigmas;
@@ -1584,26 +1568,6 @@ void VioBackEnd::setSmartFactorsParams(
         retriangulation_threshold);
   smart_factors_params->setDynamicOutlierRejectionThreshold(
         outlier_rejection);
-}
-
-/* -------------------------------------------------------------------------- */
-// Set parameters for imu factors.
-void VioBackEnd::setImuFactorsParams(
-    boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
-    const gtsam::Vector3& n_gravity,
-    const double& gyro_noise_density,
-    const double& acc_noise_density,
-    const double& imu_integration_sigma) {
-  CHECK_NOTNULL(imu_params);
-  *imu_params = boost::make_shared<PreintegratedImuMeasurements::Params>(
-                  n_gravity);
-  (*imu_params)->gyroscopeCovariance =
-      std::pow(gyro_noise_density, 2.0) * Eigen::Matrix3d::Identity();
-  (*imu_params)->accelerometerCovariance =
-      std::pow(acc_noise_density, 2.0) * Eigen::Matrix3d::Identity();
-  (*imu_params)->integrationCovariance =
-      std::pow(imu_integration_sigma, 2.0) * Eigen::Matrix3d::Identity();
-  (*imu_params)->use2ndOrderCoriolis = false; // TODO: expose this parameter
 }
 
 /// Printers.
