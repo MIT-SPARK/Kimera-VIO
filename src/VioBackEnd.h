@@ -646,6 +646,7 @@ public:
 
   // TODO NOT THREAD-SAFE! Should add critical sections.
   inline ImuBias getLatestImuBias() const {return imu_bias_lkf_;}
+  inline ImuBias getImuBiasPrevKf() const {return imu_bias_prev_kf_;}
   inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
   inline Pose3 getWPoseBLkf() const {return W_Pose_B_lkf_;}
   inline int getCurrKfId() const {return curr_kf_id_;}

@@ -141,6 +141,42 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   ////////////////////////////// GET IMU DATA //////////////////////////////////
   const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
   const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
+    ////////////////////////////// ACCUMULATE IMU DATA ///////////////////////////
+  // Accumulate IMU measurements from last Keyframe to current frame.
+  VLOG(10) << "///////////////////////////////////// Trying to accumulate IMU.";
+  static ImuStampS imu_stamps_lkf_to_curr_f = ImuStampS::Zero(1, 0);
+  static ImuAccGyrS imu_accgyr_lkf_to_curr_f = ImuAccGyrS::Zero(6, 0);
+  if (imu_stamps_lkf_to_curr_f.cols() == 0u) {
+    // This is executed for every keyframe, including the first.
+    // Since the accumulated imu msgs get resetted to 0.
+    CHECK_GE(imu_accgyr.cols(), 0u);
+    // Init accumulation.
+    imu_stamps_lkf_to_curr_f = imu_stamps;
+    imu_accgyr_lkf_to_curr_f = imu_accgyr;
+  } else {
+    CHECK_GT(imu_stamps.cols(), 0);
+    CHECK_GT(imu_stamps_lkf_to_curr_f.cols(), 0);
+    imu_stamps_lkf_to_curr_f.conservativeResize(
+          Eigen::NoChange,
+          // The -1 is here to remove the interpolated "fake" upper bound.
+          imu_stamps_lkf_to_curr_f.cols() - 1 + imu_stamps.cols());
+    imu_stamps_lkf_to_curr_f.rightCols(imu_stamps.cols()) << imu_stamps;
+
+    CHECK_GT(imu_accgyr.cols(), 0);
+    CHECK_GT(imu_accgyr_lkf_to_curr_f.cols(), 0);
+    imu_accgyr_lkf_to_curr_f.conservativeResize(
+          Eigen::NoChange,
+          // The -1 is here to remove the interpolated "fake" upper bound.
+          imu_accgyr_lkf_to_curr_f.cols() - 1 + imu_accgyr.cols());
+    imu_accgyr_lkf_to_curr_f.rightCols(imu_accgyr.cols()) << imu_accgyr;
+  }
+  VLOG(10) << "STAMPS IMU rows : \n" << imu_stamps_lkf_to_curr_f.rows()  << '\n'
+           << "STAMPS IMU cols : \n" << imu_stamps_lkf_to_curr_f.cols() << '\n'
+           << "STAMPS IMU: \n" << imu_stamps_lkf_to_curr_f << '\n'
+           << "ACCGYR IMU rows : \n" << imu_accgyr_lkf_to_curr_f.rows() << '\n'
+           << "ACCGYR IMU cols : \n" << imu_accgyr_lkf_to_curr_f.cols() << '\n'
+           << "ACCGYR IMU: \n" << imu_accgyr_lkf_to_curr_f;
+  //////////////////////////////////////////////////////////////////////////////
 
   // For k > 1
   // Integrate rotation measurements (rotation is used in RANSAC).
@@ -159,18 +195,9 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Actually, currently does not integrate fake interpolated meas as it does
   // not take the last measurement into account (although it takes its stamp
   // into account!!!).
-  auto pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
-                                                        imu_accgyr);
-  // This is the relative rotation of the body from the last keyframe to the
-  // current frame.
-  const Vector3& measured_acc = imu_accgyr.block<3,1>(0, imu_accgyr.cols() - 1);
-  const Vector3& measured_omega = imu_accgyr.block<3,1>(3, imu_accgyr.cols() - 1);
-  const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(imu_accgyr.cols() - 1) -
-                                                 imu_stamps(imu_accgyr.cols() - 2));
-  CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
-  // TODO Shouldn't we use pim_->integrateMeasurements(); for less code
-  // and efficiency??
-  pim.integrateMeasurement(measured_acc, measured_omega, delta_t);
+  auto pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps_lkf_to_curr_f,
+                                                        imu_accgyr_lkf_to_curr_f);
+  imu_frontend_->resetIntegration();
 
   // on the left camera rectified!!
   static const gtsam::Rot3 body_Rot_cam =
@@ -269,6 +296,10 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     VLOG(10) << "Reset IMU preintegration with latest IMU bias";
     imu_frontend_->updateBias(vio_backend_->getLatestImuBias());
     imu_frontend_->resetIntegration();
+    // Reset accumulated imu data from keyframe to keyframe.
+    VLOG(10) << "Reset IMU and timestamp_lkf.";
+    imu_stamps_lkf_to_curr_f.resize(1, 0);
+    imu_accgyr_lkf_to_curr_f.resize(6, 0);
 
     VLOG(10) << "Reset timestamp_lkf.";
     timestamp_lkf = stereoFrame_k.getTimestamp();
