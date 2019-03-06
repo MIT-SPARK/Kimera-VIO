@@ -119,7 +119,7 @@ public:
   // This should be called by the stereo frontend, whenever there
   // is a new keyframe and we want to reset the integration to
   // use the latest imu bias.
-  inline void resetIntegration() {
+  inline void resetIntegrationWithCachedBias() {
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
     pim_->resetIntegrationAndSetBias(latest_imu_bias_);
   }

@@ -295,7 +295,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     // Reset preintegration.
     VLOG(10) << "Reset IMU preintegration with latest IMU bias";
     imu_frontend_->updateBias(vio_backend_->getLatestImuBias());
-    imu_frontend_->resetIntegration();
+    imu_frontend_->resetIntegrationWithCachedBias();
     // Reset accumulated imu data from keyframe to keyframe.
     VLOG(10) << "Reset IMU and timestamp_lkf.";
     imu_stamps_lkf_to_curr_f.resize(1, 0);
@@ -527,7 +527,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   ///////////////////////////// IMU FRONTEND ////////////////////////////
   // Initialize IMU frontend.
   imu_frontend_->updateBias(vio_backend_->getLatestImuBias());
-  imu_frontend_->resetIntegration();
+  imu_frontend_->resetIntegrationWithCachedBias();
 
   ////////////////// DEBUG INITIALIZATION //////////////////////////////////
   if (FLAGS_log_output) {
