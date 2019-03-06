@@ -155,9 +155,8 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Actually, currently does not integrate fake interpolated meas as it does
   // not take the last measurement into account (although it takes its stamp
   // into account!!!).
-  auto pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
-                                                        imu_accgyr);
-
+  const auto& pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
+                                                               imu_accgyr);
 
   // on the left camera rectified!!
   static const gtsam::Rot3 body_Rot_cam = vio_backend_->getBPoseLeftCam().rotation();
