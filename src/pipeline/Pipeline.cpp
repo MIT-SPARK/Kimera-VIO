@@ -324,7 +324,7 @@ void Pipeline::processKeyframe(
   std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
       backend_output_queue_.popBlocking();
 
-  // vio_backend_output_ = *backend_output_payload; 
+  vio_backend_output_ = backend_output_payload; 
 
   ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////
   if (FLAGS_log_output) {

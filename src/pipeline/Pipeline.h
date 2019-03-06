@@ -62,9 +62,9 @@ public:
     return mesher_output_queue_;
   }
 
-  // VioBackEndOutputPayload getVioOutput() {
-  //   return vio_backend_output_; 
-  // }
+  VioBackEndOutputPayload getVioOutput() const {
+    return *vio_backend_output_; 
+  }
 
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
@@ -155,7 +155,7 @@ private:
   ThreadsafeQueue<VioBackEndInputPayload> backend_input_queue_;
   ThreadsafeQueue<VioBackEndOutputPayload> backend_output_queue_;
 
-  // VioBackEndOutputPayload vio_backend_output_; // latest outputs
+  std::shared_ptr<VioBackEndOutputPayload> vio_backend_output_; // latest outputs
 
   // Set of planes in the scene.
   std::vector<Plane> planes_;
