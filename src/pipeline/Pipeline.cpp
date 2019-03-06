@@ -168,8 +168,8 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
       << full_preint_duration << " ns).";
 
   // on the left camera rectified!!
-  static const gtsam::Rot3 body_Rot_cam = vio_backend_->getBPoseLeftCam().rotation();
-      // stereoFrame_k.getBPoseCamLRect().rotation();
+  static const gtsam::Rot3 body_Rot_cam =
+      stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect().rotation();
   static const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
   // Relative rotation of the left cam rectified from the last keyframe to the curr frame.
   // pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
