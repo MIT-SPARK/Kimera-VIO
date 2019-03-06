@@ -16,6 +16,9 @@
 
 #include <gflags/gflags.h>
 
+#include "utils/Timer.h"
+#include "utils/Statistics.h"
+#include "common/FilesystemUtils.h"
 #include "UtilsOpenCV.h"
 #include "LoggerMatlab.h"
 
@@ -132,12 +135,24 @@ Visualizer3D::Visualizer3D() {
 /* -------------------------------------------------------------------------- */
 void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
                         ThreadsafeQueue<VisualizerOutputPayload>& output_queue) {
+  LOG(INFO) << "Spinning Visualizer.";
   VisualizerOutputPayload output_payload;
+  utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
   while(!shutdown_) {
-    visualize(input_queue.popBlocking(), &output_payload);
+    // Wait for mesher payload.
+    const std::shared_ptr<VisualizerInputPayload>& visualizer_payload =
+        input_queue.popBlocking();
+    auto tic = utils::Timer::tic();
+    visualize(visualizer_payload, &output_payload);
     output_queue.push(output_payload);
     output_payload.images_to_display_.clear();
+    auto spin_duration = utils::Timer::toc(tic).count();
+    LOG(WARNING) << "Current Visualizer frequency: "
+                 << 1000.0 / spin_duration << " Hz. ("
+                 << spin_duration << " ms).";
+    stats_visualizer.AddSample(spin_duration);
   }
+  LOG(INFO) << "Visualizer successfully shutdown.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -251,7 +266,6 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
               polygons_mesh_prev,
               FLAGS_visualize_mesh_with_colored_polygon_clusters,
               input.timestamp_k_);
-
       }
     }
 
@@ -785,7 +799,7 @@ void Visualizer3D::visualizeMesh3DWithColoredClusters(
     const bool visualize_mesh_with_colored_polygon_clusters,
     const Timestamp& timestamp) {
   if (visualize_mesh_with_colored_polygon_clusters) {
-    // Colour the mesh.
+    // Color the mesh.
     cv::Mat colors;
     colorMeshByClusters(planes, map_points_3d, polygons_mesh, &colors);
     // Visualize the colored mesh.
@@ -1307,6 +1321,39 @@ void Visualizer3D::updateLineFromPlaneToPoint(
   drawLineFromPlaneToPoint(line_id, plane_n_x, plane_n_y, plane_n_z,
                            plane_d, point_x, point_y, point_z);
 }
+
+/* -------------------------------------------------------------------------- */
+void Visualizer3D::keyboardCallback(const viz::KeyboardEvent &event, void *t) {
+  WindowData* window_data = (Visualizer3D::WindowData*)t;
+  if (event.action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
+    toggleFreezeScreenKeyboardCallback(event.code, *window_data);
+    setMeshRepresentation(event.code, *window_data);
+    setMeshShadingCallback(event.code, *window_data);
+    setMeshAmbientCallback(event.code, *window_data);
+    setMeshLightingCallback(event.code, *window_data);
+    getViewerPoseKeyboardCallback(event.code, *window_data);
+    getCurrentWindowSizeKeyboardCallback(event.code, *window_data);
+    getScreenshotCallback(event.code, *window_data);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void Visualizer3D::recordVideo() {
+  static int i = 0u;
+  static const std::string dir_path = ".";
+  static const std::string dir_name = "3d_viz_video";
+  static const std::string dir_full_path = common::pathAppend(dir_path,
+                                                              dir_name);
+  if (i == 0u) CHECK(common::createDirectory(dir_path, dir_name));
+  std::string screenshot_path = common::pathAppend(dir_full_path,
+                                                   std::to_string(i));
+  i++;
+  LOG(WARNING) << "Recording video sequence for 3d Viz, "
+               << "current frame saved in: " + screenshot_path;
+  window_data_.window_.saveScreenshot(screenshot_path);
+  LOG(ERROR) << "WTF";
+}
+
 } // namespace VIO
 
 

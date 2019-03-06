@@ -1,4 +1,4 @@
-﻿/* ----------------------------------------------------------------------------
+/* ----------------------------------------------------------------------------
  * Copyright 2017, Massachusetts Institute of Technology,
  * Cambridge, MA 02139
  * All Rights Reserved
@@ -30,6 +30,8 @@
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 
+#include "utils/Timer.h"
+#include "utils/Statistics.h"
 #include "ETH_parser.h" // Only for gtNavState ...
 
 DEFINE_bool(debug_graph_before_opt, false,
@@ -107,7 +109,6 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   setFactorsParams(vioParams,
                    &smart_noise_,
                    &smart_factors_params_,
-                   &imu_params_,
                    &no_motion_prior_noise_,
                    &zero_velocity_prior_noise_,
                    &constant_velocity_prior_noise_);
@@ -118,6 +119,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
 
   // TODO change VIO initialization logic, because right now if it is not
   // auto-initialized it still asks for ImuAccGyr data.
+  // USE imu frontend to send pim data instead of raw ImuAccGyr data.
   // Initialize VIO.
   if (vio_params_.autoInitialize_ || !*initial_state_gt) {
     // Use initial IMU measurements to guess first pose
@@ -150,44 +152,49 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
 bool VioBackEnd::spin(
     ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
     ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
+  LOG(INFO) << "Spinning VioBackEnd.";
+  utils::StatsCollector stat_backend_timing("Backend Timing [ms]");
   while (!shutdown_) {
-    // TODO log VioBackEnd time... Needs a thread-safe logger.
-    spinOnce(input_queue, output_queue);
+    // Get input data from queue. Wait for Backend payload.
+    std::shared_ptr<VioBackEndInputPayload> input = input_queue.popBlocking();
+    if (input) {
+      auto tic = utils::Timer::tic();
+      output_queue.push(spinOnce(input));
+      auto spin_duration = utils::Timer::toc(tic).count();
+      LOG(WARNING) << "Current Backend frequency: "
+                   << 1000.0 / spin_duration << " Hz. ("
+                   << spin_duration << " ms).";
+      stat_backend_timing.AddSample(spin_duration);
+    } else {
+      LOG(WARNING) << "No VioBackEnd Input Payload received.";
+    }
   }
+  LOG(INFO) << "VioBackEnd successfully shutdown.";
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
-bool VioBackEnd::spinOnce(
-    ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
-    ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
-  // Get input data from queue.
-  std::shared_ptr<VioBackEndInputPayload> input = input_queue.popBlocking();
+VioBackEndOutputPayload VioBackEnd::spinOnce(
+    const std::shared_ptr<VioBackEndInputPayload>& input) {
+  CHECK(input) << "No VioBackEnd Input Payload received.";
   // Process data with VIO.
-  if (input) {
-    addVisualInertialStateAndOptimize(input);
-    output_queue.push(VioBackEndOutputPayload(state_,
-                                              W_Pose_B_lkf_, // Actual output.
-                                              W_Vel_B_lkf_, // Actual output.
-                                              B_Pose_leftCam_, // This is a fixed thing, the first instance of which appears in the StereoFrame...
-                                              imu_bias_lkf_,
-                                              curr_kf_id_,
-                                              landmark_count_,
-                                              debug_info_ ));
-  } else {
-    LOG(WARNING) << "No VioBackEnd Input Payload received";
-    return false;
-  }
-  return true;
+  addVisualInertialStateAndOptimize(input);
+  return VioBackEndOutputPayload(state_,
+                                 W_Pose_B_lkf_, // Actual output.
+                                 W_Vel_B_lkf_, // Actual output.
+                                 B_Pose_leftCam_, // This is a fixed thing, the first instance of which appears in the StereoFrame...
+                                 imu_bias_lkf_,
+                                 curr_kf_id_,
+                                 landmark_count_,
+                                 debug_info_);
 }
-
 
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
                                        const Pose3& initialPose,
                                        const ImuAccGyrS& accGyroRaw) {
   Vector3 localGravity = initialPose.rotation().inverse().matrix() *
-                         imu_params_->n_gravity;
+                         vio_params_.n_gravity_;
   initStateAndSetPriors(timestamp_kf_nsec,
                         initialPose,
                         Vector3::Zero(),
@@ -212,7 +219,7 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
   imu_bias_lkf_.print("Initial bias: \n");
 
   // Can't add inertial prior factor until we have a state measurement.
-  addInitialPriorFactors(curr_kf_id_, imu_bias_lkf_.vector());
+  addInitialPriorFactors(curr_kf_id_);
 
   // TODO encapsulate this in a function, code duplicated in addImuValues.
   new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
@@ -227,30 +234,11 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
 // Workhorse that stores data and optimizes at each keyframe.
 // [in] timestamp_kf_nsec, keyframe timestamp.
 // [in] status_smart_stereo_measurements_kf, vision data.
-// [in] imu_stamps, [in] imu_accgyr.
 // [in] stereo_ransac_body_pose, inertial data.
 void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-    const ImuStampS& imu_stamps, const ImuAccGyrS& imu_accgyr,
-    std::vector<Plane>* planes,
-    boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
-  // Do preintegration (batch on all measurements)
-  integrateImuMeasurements(imu_stamps, imu_accgyr);
-  addVisualInertialStateAndOptimize(timestamp_kf_nsec,
-                                    status_smart_stereo_measurements_kf,
-                                    planes,
-                                    stereo_ransac_body_pose);
-}
-
-/* -------------------------------------------------------------------------- */
-// Workhorse that stores data and optimizes at each keyframe.
-// [in] timestamp_kf_nsec, keyframe timestamp.
-// [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
-void VioBackEnd::addVisualInertialStateAndOptimize(
-    const Timestamp& timestamp_kf_nsec,
-    const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+    const gtsam::PreintegratedImuMeasurements& pim,
     std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
@@ -271,10 +259,10 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
-  addImuValues(curr_kf_id_);
+  addImuValues(curr_kf_id_, pim);
 
   // add imu factors between consecutive keyframe states
-  addImuFactor(last_kf_id_, curr_kf_id_);
+  addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
   // add between factor from RANSAC
   if (stereo_ransac_body_pose) {
@@ -323,6 +311,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
 
   // Why do we do this??
   // This lags 1 step behind to mimic hw.
+  // imu_bias_lkf_ gets updated in the optimize call.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   optimize(curr_kf_id_, vio_params_.numOptimize_);
@@ -339,7 +328,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   addVisualInertialStateAndOptimize(
         input->timestamp_kf_nsec_, // Current time for fixed lag smoother.
         input->status_smart_stereo_measurements_kf_, // Vision data.
-        input->imu_stamps_, input->imu_accgyr_, // Inertial data.
+        input->pim_, // Imu preintegrated data.
         input->planes_,
         use_stereo_btw_factor? input->stereo_ransac_body_pose_ : boost::none); // optional: pose estimate from stereo ransac
 }
@@ -425,29 +414,6 @@ void VioBackEnd::updateLandmarkInGraph(
   }
   old_smart_factors_it->second.first = new_factor;
   if (verbosity_ >= 8) {std::cout << "updateLandmarkInGraph: added observation to point: " << lm_id << std::endl;}
-}
-
-/* -------------------------------------------------------------------------- */
-// NOT THREAD-SAFE
-// And this function is called outside VioBackEnd thread... for the
-// frontend to have a rotation prior for RANSAC.
-gtsam::Rot3 VioBackEnd::preintegrateGyroMeasurements(
-    const ImuStampS& imu_stamps,
-    const ImuAccGyrS& imu_accgyr) const {
-  CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
-  CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
-
-  // Ahrs: attitude reference system. attitude only
-  gtsam::PreintegratedAhrsMeasurements pimRot(imu_bias_prev_kf_.gyroscope(), // This is not thread-safe!
-                                              gtsam::Matrix3::Identity());
-  for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
-    const Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
-    const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
-                                                   imu_stamps(i));
-    pimRot.integrateMeasurement(measured_omega, delta_t);
-  }
-  gtsam::Rot3 body_Rot_cam_ = B_Pose_leftCam_.rotation(); // of the left camera!!
-  return body_Rot_cam_.inverse() * pimRot.deltaRij() * body_Rot_cam_;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -777,34 +743,12 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
   }
 }
 
-/* -------------------------------------------------------------------------- */
-// NOT THREAD-SAFE, imu_bias_prev_kf_ might change.
-void VioBackEnd::integrateImuMeasurements(const ImuStampS& imu_stamps,
-                                          const ImuAccGyrS& imu_accgyr) {
-  CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
-  CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
-
-  if (!pim_) {
-    pim_ = std::make_shared<PreintegratedImuMeasurements>(imu_params_,
-                                                          imu_bias_prev_kf_);
-  } else {
-    pim_->resetIntegrationAndSetBias(imu_bias_prev_kf_);
-  }
-
-  for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
-    const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
-    const Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
-    const double delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
-                                                  imu_stamps(i));
-    pim_->integrateMeasurement(measured_acc, measured_omega, delta_t);
-  }
-}
-
 /// Value adders.
 /* -------------------------------------------------------------------------- */
-void VioBackEnd::addImuValues(const FrameId& cur_id) {
+void VioBackEnd::addImuValues(const FrameId& cur_id,
+                              const gtsam::PreintegratedImuMeasurements& pim) {
   gtsam::NavState navstate_lkf (W_Pose_B_lkf_, W_Vel_B_lkf_);
-  gtsam::NavState navstate_k = pim_->predict(navstate_lkf, imu_bias_lkf_);
+  gtsam::NavState navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
 
   debug_info_.navstate_k_ = navstate_k;
 
@@ -817,7 +761,8 @@ void VioBackEnd::addImuValues(const FrameId& cur_id) {
 /// Factor adders.
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::addImuFactor(const FrameId& from_id,
-                              const FrameId& to_id) {
+                              const FrameId& to_id,
+                              const gtsam::PreintegratedImuMeasurements& pim) {
 #ifdef USE_COMBINED_IMU_FACTOR
   new_imu_and_prior_factors_.push_back(
         boost::make_shared<gtsam::CombinedImuFactor>(
@@ -825,23 +770,23 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
           gtsam::Symbol('x', to_id), gtsam::Symbol('v', to_id),
           gtsam::Symbol('b', from_id),
           gtsam::Symbol('b', to_id),
-          *pim_));
+          pim));
 #else
   new_imu_prior_and_other_factors_.push_back(
         boost::make_shared<gtsam::ImuFactor>(
           gtsam::Symbol('x', from_id), gtsam::Symbol('v', from_id),
           gtsam::Symbol('x', to_id), gtsam::Symbol('v', to_id),
-          gtsam::Symbol('b', from_id), *pim_));
+          gtsam::Symbol('b', from_id), pim));
 
   static const gtsam::imuBias::ConstantBias zero_bias(Vector3(0, 0, 0),
                                                       Vector3(0, 0, 0));
 
   // Factor to discretize and move normalize by the interval between measurements:
-  CHECK_NE(vio_params_.nominalImuRate_, 0)
+  CHECK_NE(vio_params_.nominalImuRate_, 0.0)
       << "Nominal IMU rate param cannot be 0.";
   // 1/sqrt(nominalImuRate_) to discretize, then
   // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
-  const double d = sqrt(pim_->deltaTij()) / vio_params_.nominalImuRate_;
+  const double d = sqrt(pim.deltaTij()) / vio_params_.nominalImuRate_;
   Vector6 biasSigmas;
   biasSigmas.head<3>().setConstant(d * vio_params_.accBiasSigma_);
   biasSigmas.tail<3>().setConstant(d * vio_params_.gyroBiasSigma_);
@@ -855,11 +800,14 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
           zero_bias, bias_noise_model));
 #endif
 
-  debug_info_.imuR_lkf_kf = pim_->deltaRij();
+  debug_info_.imuR_lkf_kf = pim.deltaRij();
   debug_info_.numAddedImuF_++;
 
-  // reset preintegration
-  pim_.reset();
+  // TODO reset preintegration should be done by the preintegrator itself!
+  // Right now we are working with a pim which is a copy of the one used
+  // by the ImuFrontend so resetting this copy won't do much!
+
+  // pim_.reset();
 }
 
 
@@ -922,7 +870,7 @@ void VioBackEnd::optimize(
 
   // Only for statistics and debugging.
   // Store start time.
-  double startTime;
+  double startTime = 0.0;
   // Reset all timing info.
   debug_info_.resetTimes();
   if (verbosity_ >= 5 || log_timing_) {
@@ -1082,8 +1030,7 @@ void VioBackEnd::optimize(
 
 /// Private methods.
 /* -------------------------------------------------------------------------- */
-void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id,
-                                        const ImuAccGyrS& imu_accgyr) {
+void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
   // Set initial covariance for inertial factors
   // W_Pose_Blkf_ set by motion capture to start with
   Matrix3 B_Rot_W = W_Pose_B_lkf_.rotation().matrix().transpose();
@@ -1122,6 +1069,10 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id,
   prior_biasSigmas.tail<3>().setConstant(vio_params_.initialGyroBiasSigma_);
   gtsam::SharedNoiseModel imu_bias_prior_noise =
       gtsam::noiseModel::Diagonal::Sigmas(prior_biasSigmas);
+  if (VLOG_IS_ON(10)) {
+    LOG(INFO) << "Imu bias for backend prior:";
+    imu_bias_lkf_.print();
+  }
   new_imu_prior_and_other_factors_.push_back(
         boost::make_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
           gtsam::Symbol('b', frame_id), imu_bias_lkf_, imu_bias_prior_noise));
@@ -1559,13 +1510,11 @@ void VioBackEnd::setFactorsParams(
     const VioBackEndParams& vio_params,
     gtsam::SharedNoiseModel* smart_noise,
     gtsam::SmartStereoProjectionParams* smart_factors_params,
-    boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
     gtsam::SharedNoiseModel* no_motion_prior_noise,
     gtsam::SharedNoiseModel* zero_velocity_prior_noise,
     gtsam::SharedNoiseModel* constant_velocity_prior_noise) {
   CHECK_NOTNULL(smart_noise);
   CHECK_NOTNULL(smart_factors_params);
-  CHECK_NOTNULL(imu_params);
   CHECK_NOTNULL(no_motion_prior_noise);
   CHECK_NOTNULL(zero_velocity_prior_noise);
   CHECK_NOTNULL(constant_velocity_prior_noise);
@@ -1578,19 +1527,6 @@ void VioBackEnd::setFactorsParams(
                         vio_params.landmarkDistanceThreshold_,
                         vio_params.retriangulationThreshold_,
                         vio_params.outlierRejection_);
-
-  //////////////////////// IMU FACTORS SETTINGS ////////////////////////////////
-  setImuFactorsParams(imu_params,
-                      vio_params.n_gravity_,
-                      vio_params.gyroNoiseDensity_,
-                      vio_params.accNoiseDensity_,
-                      vio_params.imuIntegrationSigma_);
-#ifdef USE_COMBINED_IMU_FACTOR
-  imuParams_->biasAccCovariance =
-      std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-  imuParams_->biasOmegaCovariance =
-      std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-#endif
 
   //////////////////////// NO MOTION FACTORS SETTINGS //////////////////////////
   Vector6 sigmas;
@@ -1638,26 +1574,6 @@ void VioBackEnd::setSmartFactorsParams(
         retriangulation_threshold);
   smart_factors_params->setDynamicOutlierRejectionThreshold(
         outlier_rejection);
-}
-
-/* -------------------------------------------------------------------------- */
-// Set parameters for imu factors.
-void VioBackEnd::setImuFactorsParams(
-    boost::shared_ptr<PreintegratedImuMeasurements::Params>* imu_params,
-    const gtsam::Vector3& n_gravity,
-    const double& gyro_noise_density,
-    const double& acc_noise_density,
-    const double& imu_integration_sigma) {
-  CHECK_NOTNULL(imu_params);
-  *imu_params = boost::make_shared<PreintegratedImuMeasurements::Params>(
-                  n_gravity);
-  (*imu_params)->gyroscopeCovariance =
-      std::pow(gyro_noise_density, 2.0) * Eigen::Matrix3d::Identity();
-  (*imu_params)->accelerometerCovariance =
-      std::pow(acc_noise_density, 2.0) * Eigen::Matrix3d::Identity();
-  (*imu_params)->integrationCovariance =
-      std::pow(imu_integration_sigma, 2.0) * Eigen::Matrix3d::Identity();
-  (*imu_params)->use2ndOrderCoriolis = false; // TODO: expose this parameter
 }
 
 /// Printers.

@@ -20,3 +20,5 @@
 % Ignore media files
 *.png
 *.mp4
+
+/scripts/*.yaml

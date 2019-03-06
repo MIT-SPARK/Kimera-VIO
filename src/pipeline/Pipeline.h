@@ -40,7 +40,8 @@ class StereoVisionFrontEnd;
 namespace VIO {
 class Pipeline {
 public:
-  Pipeline(ETHDatasetParser* dataset);
+  Pipeline(ETHDatasetParser* dataset,
+           const ImuParams& imu_params);
 
   // Main spin, runs the pipeline.
   bool spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
@@ -62,7 +63,7 @@ public:
   }
 
   inline void registerSemanticMeshSegmentationCallback(
-      Mesher::SemanticMeshSegmentationCallback cb) {
+      Mesher::Mesh3dVizPropertiesSetterCallback cb) {
     semantic_mesh_segmentation_callback_ = cb;
   }
 
@@ -96,12 +97,11 @@ private:
 
   void processKeyframe(
       size_t k,
-      StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
-      const Frame& left_frame_for_semantic_segmentation,
+      const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
+      std::shared_ptr<StereoFrame> last_stereo_keyframe,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
-      const ImuStampS& imu_stamps,
-      const ImuAccGyrS& imu_accgyr);
+      const gtsam::PreintegratedImuMeasurements& pim);
 
   StatusSmartStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
@@ -140,6 +140,9 @@ private:
   // Frontend.
   std::unique_ptr<StereoVisionFrontEnd> stereo_vision_frontend_;
   FeatureSelector feature_selector_;
+
+  // IMU frontend.
+  std::unique_ptr<ImuFrontEnd> imu_frontend_;
 
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;
@@ -181,6 +184,6 @@ private:
   std::thread visualizer_thread_;
 
   // Callbacks.
-  Mesher::SemanticMeshSegmentationCallback semantic_mesh_segmentation_callback_;
+  Mesher::Mesh3dVizPropertiesSetterCallback semantic_mesh_segmentation_callback_;
 };
 } // End of VIO namespace

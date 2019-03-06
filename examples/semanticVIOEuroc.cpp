@@ -22,7 +22,8 @@
 
 #include "mesh/Mesher.h"
 namespace VIO {
-Mesher::Mesh3DVizProperties dummySemanticSegmentation(cv::Mat left_image,
+Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_image_timestamp,
+                                                      const cv::Mat& left_image,
                                                       const Mesh2D& mesh_2d,
                                                       const Mesh3D& mesh_3d) {
   // Dummy checks for valid data.
@@ -39,8 +40,17 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(cv::Mat left_image,
                                        CV_8UC3, cv::viz::Color::red());
 
   // Add texture to the mesh using the given image.
+  // README: tcoords specify the texture coordinates of the 3d mesh wrt 2d image.
+  // As a small hack, we not only use the left_image as texture but we also
+  // horizontally concatenate a white image so we can set a white texture to
+  // those 3d mesh faces which should not have a texture.
+  // Below we init all tcoords to 0.99 (1.0) gives a weird texture...
+  // Meaning that all faces start with a default white texture, and then we
+  // change that texture to the right texture for each 2d triangle that has
+  // a corresponding 3d face.
   Mesh2D::Polygon polygon;
-  std::vector<Vec2d> tcoords (mesh_3d.getNumberOfUniqueVertices(), Vec2d(0,0));
+  std::vector<Vec2d> tcoords (mesh_3d.getNumberOfUniqueVertices(),
+                              Vec2d(0.9, 0.9));
   for (size_t i = 0; i < mesh_2d.getNumberOfPolygons(); i++) {
     CHECK(mesh_2d.getPolygon(i, &polygon)) << "Could not retrieve 2d polygon.";
 
@@ -68,9 +78,9 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(cv::Mat left_image,
       // vertices.
       VLOG(100) << "Pixel: with id: " << p0_id
                 << ", x: " << px0.x << ", y: " << px0.y;
-      tcoords.at(p0_id) = Vec2d(px0.x/left_image.cols, px0.y/left_image.rows);
-      tcoords.at(p1_id) = Vec2d(px1.x/left_image.cols, px1.y/left_image.rows);
-      tcoords.at(p2_id) = Vec2d(px2.x/left_image.cols, px2.y/left_image.rows);
+      tcoords.at(p0_id) = Vec2d(px0.x/left_image.cols/2.0, px0.y/left_image.rows);
+      tcoords.at(p1_id) = Vec2d(px1.x/left_image.cols/2.0, px1.y/left_image.rows);
+      tcoords.at(p2_id) = Vec2d(px2.x/left_image.cols/2.0, px2.y/left_image.rows);
       mesh_3d_viz_props.colors_.row(p0_id) = cv::viz::Color::white();
       mesh_3d_viz_props.colors_.row(p1_id) = cv::viz::Color::white();
       mesh_3d_viz_props.colors_.row(p2_id) = cv::viz::Color::white();
@@ -80,18 +90,30 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(cv::Mat left_image,
     }
   }
 
+
+  std::string img_name =
+      "/home/tonirv/datasets/euroc/V1_01_easy/mav0/cam0/overlays/" +
+      std::to_string(left_image_timestamp) + ".png";
+  LOG(ERROR) << img_name;
+  cv::Mat left_image_overlay = cv::imread(img_name, cv::IMREAD_ANYCOLOR);
+  cv::imshow("Bonnet", left_image_overlay);
+
   // Add a column with a fixed color at the end so that we can specify an
   // "invalid" or "default" texture for those points which we do not want to
   // texturize.
-  //static cv::Mat white_texture (left_image.rows, 1, left_image.type(),
-  //                              Scalar(0));
-  //cv::Mat texture_image;
-  //CHECK_EQ(left_image.dims, white_texture.dims);
-  //CHECK_EQ(left_image.rows, white_texture.rows);
-  //CHECK_EQ(left_image.type(), white_texture.type());
-  //cv::hconcat(left_image, white_texture, texture_image);
-  //mesh_3d_viz_props.texture_ = texture_image;
-  mesh_3d_viz_props.texture_ = left_image;
+  static cv::Mat default_texture (left_image_overlay.rows,
+                                left_image_overlay.cols,
+                                left_image_overlay.type(),
+                                cv::viz::Color::white());
+  cv::Mat texture_image;
+  CHECK_EQ(left_image_overlay.dims, default_texture.dims);
+  CHECK_EQ(left_image_overlay.rows, default_texture.rows);
+  CHECK_EQ(left_image_overlay.type(), default_texture.type());
+  // Padding actual texture with default texture, a bit hacky, but works.
+  cv::hconcat(left_image_overlay, default_texture, texture_image);
+  mesh_3d_viz_props.texture_ = texture_image;
+
+  //mesh_3d_viz_props.texture_ = left_image_overlay;
   mesh_3d_viz_props.tcoords_ = cv::Mat(tcoords, true).reshape(2);
   CHECK_EQ(mesh_3d_viz_props.tcoords_.size().height,
            mesh_3d.getNumberOfUniqueVertices());
@@ -112,7 +134,8 @@ int main(int argc, char *argv[]) {
 
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
-  VIO::Pipeline vio_pipeline (&eth_dataset_parser);
+  VIO::Pipeline vio_pipeline (&eth_dataset_parser,
+                              eth_dataset_parser.getImuParams());
 
   // Register callback to semantic segmentation.
   vio_pipeline.registerSemanticMeshSegmentationCallback(

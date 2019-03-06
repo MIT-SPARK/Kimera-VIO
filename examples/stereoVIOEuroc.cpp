@@ -18,6 +18,7 @@
 #include "ETH_parser.h"
 #include "pipeline/Pipeline.h"
 #include "utils/Timer.h"
+#include "utils/Statistics.h"
 #include "LoggerMatlab.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,7 +32,8 @@ int main(int argc, char *argv[]) {
 
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
-  VIO::Pipeline vio_pipeline (&eth_dataset_parser);
+  VIO::Pipeline vio_pipeline (&eth_dataset_parser,
+                              eth_dataset_parser.getImuParams());
 
   // Register callback to vio_pipeline.
   eth_dataset_parser.registerVioCallback(
@@ -42,6 +44,8 @@ int main(int argc, char *argv[]) {
   const bool is_pipeline_successful = eth_dataset_parser.spin();
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
+  LOG(INFO) << "Writting stats to yaml file.";
+  VIO::utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
 
   // Dataset spin has finished, shutdown VIO.
   vio_pipeline.shutdown();

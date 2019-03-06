@@ -123,6 +123,7 @@ public:
 
   // IMU data.
   ImuData imuData_;
+  ImuParams imu_params_;
 
   /// Getters
   inline std::string getDatasetName() const {
@@ -143,6 +144,9 @@ public:
   }
   inline const CameraParams& getRightCamInfo() const {
     return camera_info_.at("cam1");
+  }
+  inline ImuParams getImuParams() const {
+    return imu_params_;
   }
 
 public:
@@ -215,6 +219,10 @@ private:
                        const std::string& leftCameraName,
                        const std::string& rightCameraName,
                        const bool doParseImages = true);
+
+  // Parse IMU parameters.
+  bool parseImuParams(const std::string& input_dataset_path,
+                      const std::string& imuName);
 
   // Parse IMU data of a given dataset.
   bool parseImuData(const std::string& input_dataset_path,

@@ -20,6 +20,7 @@
 #include <gtsam/geometry/Pose3.h>
 
 #include "utils/Timer.h"
+#include "utils/Statistics.h"
 #include "RegularVioBackEnd.h"
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
@@ -53,6 +54,8 @@ DEFINE_int32(viz_type, 0,
     "corresponding to non planar obstacles\n"
   "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
   "7: NONE, does not visualize map\n");
+DEFINE_bool(record_video_for_viz_3d, false, "Record a video as a sequence of "
+                                            "screenshots of the 3d viz window");
 
 DEFINE_bool(use_feature_selection, false, "Enable smart feature selection.");
 
@@ -67,17 +70,12 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
 
 namespace VIO {
 
-// Add compatibility for c++11's lack of make_unique.
-template<typename T, typename ...Args>
-std::unique_ptr<T> make_unique( Args&& ...args ) {
-  return std::unique_ptr<T>( new T( std::forward<Args>(args)... ) );
-}
-
 // TODO VERY BAD TO SEND THE DATASET PARSER AS A POINTER (at least for thread
 // safety!), but this is done now because the logger heavily relies on the
 // dataset parser, especially the grount-truth! Feature selector also has some
 // dependency with this...
-Pipeline::Pipeline(ETHDatasetParser* dataset)
+Pipeline::Pipeline(ETHDatasetParser* dataset,
+                   const ImuParams& imu_params)
   : dataset_(CHECK_NOTNULL(dataset)) {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
@@ -95,8 +93,14 @@ Pipeline::Pipeline(ETHDatasetParser* dataset)
   // Instantiate feature selector: not used in vanilla implementation.
   feature_selector_ = FeatureSelector(dataset_->getFrontendParams(),
                                       *backend_params_);
+  // Instantiate IMU frontend.
+  imu_frontend_ = VIO::make_unique<ImuFrontEnd>(
+        imu_params,
+        // This should not be asked!
+        dataset->getGroundTruthState(dataset_->timestamp_first_lkf_).imu_bias_);
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   static bool is_initialized = false;
   if (!is_initialized) {
@@ -116,76 +120,67 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // TODO Warning: we do not accumulate IMU measurements for the first packet...
   // Spin.
   VLOG(10) << "Spin pipeline once.";
+  auto tic = utils::Timer::tic();
   spinOnce(stereo_imu_sync_packet);
-
+  auto spin_duration = utils::Timer::toc(tic).count();
+  LOG(WARNING) << "Current overall Pipeline frequency: "
+               << 1000.0 / spin_duration << " Hz. ("
+               << spin_duration << " ms).";
+  utils::StatsCollector stats_pipeline("Pipeline overall Timing [ms]");
+  stats_pipeline.AddSample(spin_duration);
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 // Spin the pipeline only once.
 void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+  auto tic = utils::Timer::tic();
   const auto& k = stereo_imu_sync_packet.getStereoFrame().getFrameId();
   const StereoFrame& stereoFrame_k = stereo_imu_sync_packet.getStereoFrame();
 
   LOG(INFO) << "------------------- Processing frame k = "
             << k << "--------------------";
 
-  ////////////////////////////// ACCUMULATE IMU DATA ///////////////////////////
-  // Accumulate IMU measurements from last Keyframe to current frame.
-  VLOG(10) << "///////////////////////////////////// Trying to accumulate IMU.";
+  ////////////////////////////// GET IMU DATA //////////////////////////////////
   const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
   const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
-  static ImuStampS imu_stamps_lkf_to_curr_f = ImuStampS::Zero(1, 0);
-  static ImuAccGyrS imu_accgyr_lkf_to_curr_f = ImuAccGyrS::Zero(6, 0);
-  if (imu_stamps_lkf_to_curr_f.cols() == 0u) {
-    // This is executed for every keyframe, including the first.
-    // Since the accumulated imu msgs get resetted to 0.
-    CHECK_GE(imu_accgyr.cols(), 0u);
-    // Init accumulation.
-    imu_stamps_lkf_to_curr_f = imu_stamps;
-    imu_accgyr_lkf_to_curr_f = imu_accgyr;
-  } else {
-    CHECK_GT(imu_stamps.cols(), 0);
-    CHECK_GT(imu_stamps_lkf_to_curr_f.cols(), 0);
-    imu_stamps_lkf_to_curr_f.conservativeResize(
-          Eigen::NoChange,
-          // The -1 is here to remove the interpolated "fake" upper bound.
-          imu_stamps_lkf_to_curr_f.cols() - 1 + imu_stamps.cols());
-    imu_stamps_lkf_to_curr_f.rightCols(imu_stamps.cols()) << imu_stamps;
 
-    CHECK_GT(imu_accgyr.cols(), 0);
-    CHECK_GT(imu_accgyr_lkf_to_curr_f.cols(), 0);
-    imu_accgyr_lkf_to_curr_f.conservativeResize(
-          Eigen::NoChange,
-          // The -1 is here to remove the interpolated "fake" upper bound.
-          imu_accgyr_lkf_to_curr_f.cols() - 1 + imu_accgyr.cols());
-    imu_accgyr_lkf_to_curr_f.rightCols(imu_accgyr.cols()) << imu_accgyr;
-  }
-  VLOG(10) << "STAMPS IMU rows : \n" << imu_stamps_lkf_to_curr_f.rows()  << '\n'
-           << "STAMPS IMU cols : \n" << imu_stamps_lkf_to_curr_f.cols() << '\n'
-           << "STAMPS IMU: \n" << imu_stamps_lkf_to_curr_f << '\n'
-           << "ACCGYR IMU rows : \n" << imu_accgyr_lkf_to_curr_f.rows() << '\n'
-           << "ACCGYR IMU cols : \n" << imu_accgyr_lkf_to_curr_f.cols() << '\n'
-           << "ACCGYR IMU: \n" << imu_accgyr_lkf_to_curr_f;
-  //////////////////////////////////////////////////////////////////////////////
-
-  // Keep track of last keyframe timestamp. Honestly, I don't know why...
-  // TODO we have made timestamp_first_lkf_ global variable in dataset_
-  // only to be able to init this value... SHOULD NOT NEED TO.
-  static Timestamp timestamp_lkf = dataset_->timestamp_first_lkf_;
+  // Print IMU data.
+  if (VLOG_IS_ON(10)) stereo_imu_sync_packet.print();
 
   // For k > 1
-  // Integrate rotation measurements (rotation is used in RANSAC).
-  // TODO are we just tracking features from keyframe to current frame?
-  // How is it that we always need the R from lkf to current frame?
-  // And not from frame to frame??
-  // !!! We actually really only need from keyframe to keyframe!!!!
-  // Apparently there is no gyro aided tracker.
-  // The preint btw keyframes is needed for RANSAC.
-  gtsam::Rot3 calLrectLkf_R_camLrectKf_imu =
-      vio_backend_->preintegrateGyroMeasurements(imu_stamps_lkf_to_curr_f,
-                                                 imu_accgyr_lkf_to_curr_f); // This should be done in frontend
+  // The preintegration btw frames is needed for RANSAC.
+  // But note that we are using interpolated "fake" values when doing the preint
+  // egration!! Should we remove them??
+  // Actually, currently does not integrate fake interpolated meas as it does
+  // not take the last measurement into account (although it takes its stamp
+  // into account!!!).
+  auto tic_full_preint = utils::Timer::tic();
+  const auto& pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
+                                                               imu_accgyr);
+  auto full_preint_duration = utils::Timer::toc<std::chrono::nanoseconds>(
+        tic_full_preint).count();
+  utils::StatsCollector stats_full_preint("Full Preint Timing [ns]");
+  stats_full_preint.AddSample(full_preint_duration);
+  LOG_IF(WARNING, full_preint_duration != 0.0)
+      << "Current IMU Preintegration frequency: "
+      << 1000.0 / full_preint_duration<< " Hz. ("
+      << full_preint_duration << " ns).";
 
-  ////////////////////////////// FRONT-END ///////////////////////////////////
+  // on the left camera rectified!!
+  static const gtsam::Rot3 body_Rot_cam = vio_backend_->getBPoseLeftCam().rotation();
+      // stereoFrame_k.getBPoseCamLRect().rotation();
+  static const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
+  // Relative rotation of the left cam rectified from the last keyframe to the curr frame.
+  // pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
+  gtsam::Rot3 calLrectLkf_R_camLrectK_imu  =
+      cam_Rot_body * pim.deltaRij() * body_Rot_cam;
+  if (VLOG_IS_ON(10)) {
+    body_Rot_cam.print("Body_Rot_cam");
+    calLrectLkf_R_camLrectK_imu.print("calLrectLkf_R_camLrectK_imu");
+  }
+
+  ////////////////////////////// FRONT-END /////////////////////////////////////
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
   double start_time = UtilsOpenCV::GetTimeInSeconds();
@@ -193,84 +188,112 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   StatusSmartStereoMeasurements statusSmartStereoMeasurements =
       stereo_vision_frontend_->processStereoFrame(
         stereoFrame_k,
-        calLrectLkf_R_camLrectKf_imu);
+        calLrectLkf_R_camLrectK_imu);
+  CHECK(!stereo_vision_frontend_->stereoFrame_k_); // processStereoFrame is setting this to nullptr!!!
   VLOG(10) << "Finished processStereoFrame.";
-  if (FLAGS_log_output) {
-    logger_.timing_processStereoFrame_ =
-        UtilsOpenCV::GetTimeInSeconds() - start_time;
-  }
+  auto frontend_duration = utils::Timer::toc(tic).count();
+  utils::StatsCollector stats_frontend("Frontend Timing [ms]");
+  stats_frontend.AddSample(frontend_duration);
+  LOG(WARNING) << "Current Frontend frequency: "
+               << 1000.0 / frontend_duration << " Hz. ("
+               << frontend_duration << " ms).";
 
   ////////////////////////////// BACK-END //////////////////////////////////////
   // Pass info to VIO if it's keyframe.
   start_time = UtilsOpenCV::GetTimeInSeconds();
   if (stereo_vision_frontend_->stereoFrame_km1_->isKeyframe()) {
-    // It's a keyframe!
+    CHECK_EQ(stereo_vision_frontend_->stereoFrame_lkf_->getTimestamp(),
+             stereo_vision_frontend_->stereoFrame_km1_->getTimestamp());
+    CHECK_EQ(stereo_vision_frontend_->stereoFrame_lkf_->getFrameId(),
+             stereo_vision_frontend_->stereoFrame_km1_->getFrameId());
+    CHECK(!stereo_vision_frontend_->stereoFrame_k_);
+    CHECK(stereo_vision_frontend_->stereoFrame_lkf_->isKeyframe());
     LOG(INFO) << "Keyframe " << k
               << " with: " << statusSmartStereoMeasurements.second.size()
               << " smart measurements";
 
+    // Keep track of last keyframe timestamp. Honestly, I don't know why...
+    // TODO we have made timestamp_first_lkf_ global variable in dataset_
+    // only to be able to init this value... SHOULD NOT NEED TO.
+    // Seems like it is only used for debugging at least for processKeyframe
+    static Timestamp timestamp_lkf = dataset_->timestamp_first_lkf_;
+
+    ////////////////////////////// FEATURE SELECTOR //////////////////////////////
+    if (FLAGS_use_feature_selection) {
+      double start_time = UtilsOpenCV::GetTimeInSeconds();
+      // !! featureSelect is not thread safe !! Do not use when running in
+      // parallel mode.
+      static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
+      statusSmartStereoMeasurements = featureSelect(
+                                        frontend_params_,
+                                        *dataset_,
+                                        stereoFrame_k.getTimestamp(),
+                                        timestamp_lkf,
+                                        vio_backend_->getWPoseBLkf(),
+                                        &(stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_),
+                                        stereo_vision_frontend_->stereoFrame_lkf_,
+                                        statusSmartStereoMeasurements,
+                                        vio_backend_->getCurrKfId(),
+                                        (FLAGS_visualize? saveImagesSelector : 0),
+                                        vio_backend_->getCurrentStateCovariance(),
+                                        // last one for visualization only
+                                        // TODO this info is already in last_stereo_keyframe param...
+                                        stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame());
+      if (FLAGS_log_output) {
+        VLOG(100)
+            << "Overall selection time (logger.timing_featureSelection_) "
+            << logger_.timing_featureSelection_ << '\n'
+            << "actual selection time (stereoTracker.tracker_.debugInfo_."
+            << "featureSelectionTime_) "
+            << stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_;
+        logger_.timing_featureSelection_ =
+            UtilsOpenCV::GetTimeInSeconds() - start_time;
+      }
+      LOG(FATAL) << "Do not use feature selection in parallel mode.";
+    } else {
+      VLOG(100) << "Not using feature selection.";
+    }
+    //////////////////////////////////////////////////////////////////////////////
     // Actual keyframe processing. Call to backend.
-    processKeyframe(k, &statusSmartStereoMeasurements,
-                    stereoFrame_k.getLeftFrame(), // Only used for semantic segmentation.
+    processKeyframe(k, statusSmartStereoMeasurements,
+                    stereo_vision_frontend_->stereoFrame_lkf_,
                     stereoFrame_k.getTimestamp(),
                     timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
-                    imu_stamps_lkf_to_curr_f, // aka from keyframe to keyframe,
-                    imu_accgyr_lkf_to_curr_f);  // since we are at a keyframe.
+                    pim); // IMU preintegration from keyframe to keyframe.
 
-    // Reset accumulated imu data from keyframe to keyframe.
-    VLOG(10) << "Reset IMU and timestamp_lkf.";
-    imu_stamps_lkf_to_curr_f.resize(1, 0);
-    imu_accgyr_lkf_to_curr_f.resize(6, 0);
+    // TODO getLatestImuBias is not thread safe yet! Right now it is ok,
+    // because this is not called until backend finishes.
+    if (VLOG_IS_ON(10)) {
+      const auto& latest_bias = vio_backend_->getLatestImuBias();
+      const auto& bias_prev_kf = vio_backend_->getImuBiasPrevKf();
+      LOG(INFO) << "Latest backend IMU bias is: ";
+      latest_bias.print();
+      LOG(INFO) << "Prev kf backend IMU bias is: ";
+      bias_prev_kf.print();
+    }
 
-    // Reset timestamp for preintegration.
+    // Update bias and reset preintegration everytime the backend finishes.
+    VLOG(10) << "Update IMU Bias";
+    imu_frontend_->updateBias(vio_backend_->getLatestImuBias());
+
+    VLOG(10) << "Reset IMU preintegration with latest IMU bias";
+    imu_frontend_->resetIntegrationWithCachedBias();
+
+    VLOG(10) << "Reset timestamp_lkf.";
     timestamp_lkf = stereoFrame_k.getTimestamp();
   }
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::processKeyframe(
     size_t k,
-    StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
-    const Frame& left_frame_for_semantic_segmentation,
+    const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
+    std::shared_ptr<StereoFrame> last_stereo_keyframe,
     const Timestamp& timestamp_k,
-    const Timestamp& timestamp_lkf,
-    const ImuStampS& imu_stamps,
-    const ImuAccGyrS& imu_accgyr) {
-  CHECK_NOTNULL(statusSmartStereoMeasurements);
-  ////////////////////////////// FEATURE SELECTOR //////////////////////////////
-  if (FLAGS_use_feature_selection) {
-    double start_time = UtilsOpenCV::GetTimeInSeconds();
-    // !! featureSelect is not thread safe !! Do not use when running in
-    // parallel mode.
-    static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
-    *statusSmartStereoMeasurements = featureSelect(
-          frontend_params_,
-          *dataset_,
-          timestamp_k,
-          timestamp_lkf,
-          vio_backend_->getWPoseBLkf(),
-          &(stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_),
-          stereo_vision_frontend_->stereoFrame_km1_,
-          *statusSmartStereoMeasurements,
-          vio_backend_->getCurrKfId(),
-          (FLAGS_visualize? saveImagesSelector : 0),
-          vio_backend_->getCurrentStateCovariance(),
-          stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame()); // last one for visualization only
-    if (FLAGS_log_output) {
-      VLOG(100)
-          << "Overall selection time (logger.timing_featureSelection_) "
-          << logger_.timing_featureSelection_ << '\n'
-          << "actual selection time (stereoTracker.tracker_.debugInfo_."
-          << "featureSelectionTime_) "
-          << stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_;
-      logger_.timing_featureSelection_ =
-          UtilsOpenCV::GetTimeInSeconds() - start_time;
-    }
-    LOG(FATAL) << "Do not use feature selection in parallel mode.";
-  } else {
-    VLOG(100) << "Not using feature selection.";
-  }
-  //////////////////////////////////////////////////////////////////////////////
-
+    const Timestamp& timestamp_lkf, // Seems like it is only used for debug
+    const gtsam::PreintegratedImuMeasurements& pim) {
+  // At this point stereoFrame_km1 == stereoFrame_lkf_ !
+  const Frame& last_left_keyframe = last_stereo_keyframe->getLeftFrame();
 
   ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
   if (FLAGS_log_output) {
@@ -282,18 +305,21 @@ void Pipeline::processKeyframe(
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////// BACK-END ////////////////////////////////////////////////
-  // Push to backend input.
   double start_time = UtilsOpenCV::GetTimeInSeconds();
+  // Push to backend input.
+  // This should be done inside the frontend!!!!
   backend_input_queue_.push(
         VioBackEndInputPayload(
           timestamp_k,
-          *statusSmartStereoMeasurements,
+          statusSmartStereoMeasurements,
           stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_,
-          imu_stamps,
-          imu_accgyr,
+          pim,
           &planes_,
           stereo_vision_frontend_->getRelativePoseBodyStereo()));
 
+  // This should be done inside those who need the backend results
+  // IN this case the logger!!!!!
+  // But there are many more people that want backend results...
   // Pull from backend.
   std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
       backend_output_queue_.popBlocking();
@@ -322,13 +348,12 @@ void Pipeline::processKeyframe(
       static_cast<VisualizationType>(FLAGS_viz_type);
   switch (visualization_type) {
   case VisualizationType::MESH2D: {
-    mesh_2d = stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().
-        createMesh2D(); // TODO pass the visualization flag inside the while loop of frontend and call this.
+    mesh_2d = last_left_keyframe.createMesh2D(); // TODO pass the visualization flag inside the while loop of frontend and call this.
     break;
   }
     // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
   case VisualizationType::MESH2Dsparse: {
-    stereo_vision_frontend_->stereoFrame_lkf_->createMesh2dStereo(&mesh_2d); // TODO same as above.
+    last_stereo_keyframe->createMesh2dStereo(&mesh_2d); // TODO same as above.
     break;
   }
   case VisualizationType::MESH2DTo3Dsparse: {
@@ -385,22 +410,32 @@ void Pipeline::processKeyframe(
     LOG_IF(WARNING, semantic_mesh_segmentation_callback_)
         << "Coloring the mesh using semantic segmentation colors.";
     // Push data for visualizer thread.
+    // WHO Should be pushing to the visualizer input queue????????
+    // This cannot happen at all from a single module, because visualizer
+    // takes input from mesher and backend right now...
     visualizer_input_queue_.push(
           VisualizerInputPayload(
-            visualization_type, dataset_->getBackendType(),
-            vio_backend_->getWPoseBLkf() *
+            visualization_type, // This should be passed at ctor level....
+            dataset_->getBackendType(),// This should be passed at ctor level....
             // Pose for trajectory viz.
-            stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(),
+            vio_backend_->getWPoseBLkf() * // The visualizer needs backend results
+            stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(), // This should be pass at ctor level....
             // For visualizeMesh2D and visualizeMesh2DStereo
-            mesh_2d,
+            mesh_2d, // The visualizer needs mesher results
             // Call semantic mesh segmentation if someone registered a callback.
-            semantic_mesh_segmentation_callback_?
+            semantic_mesh_segmentation_callback_? // This callback should be given to the visualizer at ctor level....
               semantic_mesh_segmentation_callback_(
-                left_frame_for_semantic_segmentation.img_,
+                last_left_keyframe.timestamp_,
+                last_left_keyframe.img_,
+                mesher_output_payload.mesh_2d_, // The visualizer needs mesher results, but we are already passing mesher_output_payload, visualizer should popBlocking that...
+                mesher_output_payload.mesh_3d_) :
+              Visualizer3D::texturizeMesh3D(
+                last_left_keyframe.timestamp_,
+                last_left_keyframe.img_,
                 mesher_output_payload.mesh_2d_,
-                mesher_output_payload.mesh_3d_) : Mesher::Mesh3DVizProperties(),
+                mesher_output_payload.mesh_3d_),
             // For visualizeMesh2D and visualizeMesh2DStereo.
-            stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame(),
+            last_left_keyframe,
             // visualizeConvexHull & visualizeMesh3DWithColoredClusters
             // WARNING using move explicitly!
             std::move(mesher_output_payload),
@@ -411,7 +446,8 @@ void Pipeline::processKeyframe(
             planes_,  // visualizeMesh3DWithColoredClusters
             vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
             vio_backend_->getState(), // For planes and plane constraints viz.
-            points_3d, timestamp_k));
+            points_3d,
+            timestamp_k));
 
       // Get data from visualizer thread.
       // We use non-blocking pop() because no one depends on the output
@@ -421,20 +457,24 @@ void Pipeline::processKeyframe(
   }
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::spinSequential() {
   LOG(FATAL) << "Spin sequential is not yet available.";
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::shutdown() {
   LOG(INFO) << "Shutting down VIO pipeline.";
   shutdown_ = true;
   stopThreads();
   joinThreads();
+  LOG(INFO) << "All threads joined, successful VIO pipeline shutdown.";
   if (FLAGS_log_output) {
     logger_.closeLogFiles();
   }
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   LOG(INFO) << "------------------- Initialize Pipeline with frame k = "
             << stereo_imu_sync_packet.getStereoFrame().getFrameId()
@@ -462,6 +502,11 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
               stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
               stereo_imu_sync_packet.getImuAccGyr()); // No timestamps needed for IMU?
 
+  ///////////////////////////// IMU FRONTEND ////////////////////////////
+  // Initialize IMU frontend.
+  imu_frontend_->updateBias(vio_backend_->getLatestImuBias());
+  imu_frontend_->resetIntegrationWithCachedBias();
+
   ////////////////// DEBUG INITIALIZATION //////////////////////////////////
   if (FLAGS_log_output) {
     logger_.displayInitialStateVioInfo(
@@ -477,6 +522,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                            const gtsam::Pose3& B_Pose_camLrect,
                            const gtsam::Cal3_S2& left_undist_rect_cam_mat,
@@ -526,6 +572,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::spinDisplayOnce(
     const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload) {
   // Display only if the visualizer has done its work.
@@ -536,6 +583,11 @@ void Pipeline::spinDisplayOnce(
       VLOG(10) << "Spin Visualize 3D output.";
       //visualizer_output_payload->window_.spin();
       visualizer_output_payload->window_.spinOnce(1, true);
+      // TODO this is not very thread-safe!!! Since recordVideo might modify
+      // window_ in this thread, while it might also be called in viz thread.
+      if (FLAGS_record_video_for_viz_3d) {
+        visualizer_.recordVideo();
+      }
     }
 
     // Display 2D images.
@@ -550,6 +602,7 @@ void Pipeline::spinDisplayOnce(
   }
 }
 
+/* -------------------------------------------------------------------------- */
 StatusSmartStereoMeasurements Pipeline::featureSelect(
     const VioFrontEndParams& tracker_params,
     const ETHDatasetParser& dataset,
@@ -616,6 +669,7 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   return std::make_pair(status, trackedAndSelectedSmartStereoMeasurements);
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::launchThreads() {
   // Start backend_thread.
   backend_thread_ = std::thread(&VioBackEnd::spin,
@@ -637,6 +691,7 @@ void Pipeline::launchThreads() {
                                    std::ref(visualizer_output_queue_));
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::stopThreads() {
   // Shutdown workers and queues.
   backend_input_queue_.shutdown();
@@ -652,6 +707,7 @@ void Pipeline::stopThreads() {
   visualizer_.shutdown();
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::joinThreads() {
   backend_thread_.join();
   mesher_thread_.join();

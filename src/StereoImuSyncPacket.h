@@ -34,6 +34,17 @@ public:
   inline const ImuStampS& getImuStamps() const {return imu_stamps_;}
   inline const ImuAccGyrS& getImuAccGyr() const {return imu_accgyr_;}
 
+  void print() const {
+    LOG(INFO)
+        << "Stereo Frame timestamp: " << stereo_frame_.getTimestamp() << '\n'
+        << "STAMPS IMU rows : \n" << imu_stamps_.rows()  << '\n'
+        << "STAMPS IMU cols : \n" << imu_stamps_.cols() << '\n'
+        << "STAMPS IMU: \n" << imu_stamps_ << '\n'
+        << "ACCGYR IMU rows : \n" << imu_accgyr_.rows() << '\n'
+        << "ACCGYR IMU cols : \n" << imu_accgyr_.cols() << '\n'
+        << "ACCGYR IMU: \n" << imu_accgyr_;
+  }
+
 private:
   StereoFrame stereo_frame_;
   ImuStampS imu_stamps_;

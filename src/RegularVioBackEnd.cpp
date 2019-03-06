@@ -138,6 +138,7 @@ RegularVioBackEnd::RegularVioBackEnd(const Pose3& leftCamPose,
 void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+    const gtsam::PreintegratedImuMeasurements& pim,
     std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   CHECK(planes != nullptr)
@@ -162,12 +163,12 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Predict next step, add initial guess.
-  addImuValues(curr_kf_id_);
+  addImuValues(curr_kf_id_, pim);
 
   // Add imu factors between consecutive keyframe states.
   VLOG(10) << "Adding IMU factor between pose id: " << last_kf_id_
           << " and pose id: " << curr_kf_id_;
-  addImuFactor(last_kf_id_, curr_kf_id_);
+  addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
   /////////////////// STEREO RANSAC FACTORS ////////////////////////////////////
   // Add between factor from RANSAC.
@@ -214,13 +215,13 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     }
     default: {
       kfTrackingStatus_mono == Tracker::TrackingStatus::VALID?
-          VLOG(0) << "Tracker has a VALID status.":
+          VLOG(1) << "Tracker has a VALID status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::FEW_MATCHES?
-          VLOG(0) << "Tracker has a FEW_MATCHES status.":
+          VLOG(1) << "Tracker has a FEW_MATCHES status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::INVALID?
-          VLOG(0) << "Tracker has a INVALID status.":
+          VLOG(1) << "Tracker has a INVALID status.":
             kfTrackingStatus_mono == Tracker::TrackingStatus::DISABLED?
-          VLOG(0) << "Tracker has a DISABLED status.": VLOG(10) << "";
+          VLOG(1) << "Tracker has a DISABLED status.": VLOG(10) << "";
 
       if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
 

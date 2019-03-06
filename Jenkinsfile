@@ -45,7 +45,7 @@ pipeline {
       plot csvFileName: 'plot-vio-performance-per-build.csv',
            csvSeries: [[file: 'spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv']],
            group: 'Performance',
-           numBuilds: '8',
+           numBuilds: '30',
            style: 'line',
            title: 'VIO Performance',
            yaxis: 'Metrics'
@@ -53,7 +53,7 @@ pipeline {
       plot csvFileName: 'plot-vio-timing-per-build.csv',
            csvSeries: [[file: 'spark_vio_evaluation/results/V1_01_easy/S/output/output_timingOverall.csv']],
            group: 'Performance',
-           numBuilds: '8',
+           numBuilds: '30',
            style: 'line',
            title: 'VIO Timing',
            yaxis: 'Time [ms]'

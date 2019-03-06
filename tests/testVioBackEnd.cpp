@@ -257,6 +257,15 @@ TEST(testVio, robotMovingWithConstantVelocity) {
         baseline, &initial_state,
         t_start, ImuAccGyrS(), vioParams);
 
+  ImuParams imu_params;
+  imu_params.n_gravity_ = vioParams.n_gravity_;
+  imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
+  imu_params.acc_walk_ = vioParams.accBiasSigma_;
+  imu_params.acc_noise_ = vioParams.accNoiseDensity_;
+  imu_params.gyro_walk_ = vioParams.gyroBiasSigma_;
+  imu_params.gyro_noise_ = vioParams.gyroNoiseDensity_;
+  ImuFrontEnd imu_frontend(imu_params, imu_bias);
+
   // For each frame, add landmarks and optimize.
   for(int64_t k = 1; k < num_key_frames; k++) {
     // Time stamp for the current keyframe and the next frame.
@@ -272,11 +281,19 @@ TEST(testVio, robotMovingWithConstantVelocity) {
                                                     &imu_accgyr) ==
           VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
 
+    const auto& pim = imu_frontend.preintegrateImuMeasurements(imu_stamps,
+                                                               imu_accgyr);
+
+    const VioBackEndInputPayload input (
+          timestamp_k,
+          all_measurements[k],
+          tracker_status_valid.kfTrackingStatus_stereo_,
+          pim);
+
     // process data with VIO
-    vio->addVisualInertialStateAndOptimize(
-          timestamp_k, // current time for fixed lag smoother
-          all_measurements[k], // vision data
-          imu_stamps, imu_accgyr);
+    vio->spinOnce(std::make_shared<VioBackEndInputPayload>(input));
+    imu_frontend.updateBias(vio->getLatestImuBias());
+    imu_frontend.resetIntegrationWithCachedBias();
 
     const NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
     size_t nrFactorsInSmoother = 0;

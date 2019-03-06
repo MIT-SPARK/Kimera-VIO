@@ -55,10 +55,10 @@ public:
 
 public:
   /* ------------------------------------------------------------------------ */
-  void addVisualInertialStateAndOptimize(
-      const Timestamp& timestamp_kf_nsec, // Keyframe timestamp.
-      const StatusSmartStereoMeasurements&
-                            status_smart_stereo_measurements_kf, // Vision data.
+  virtual void addVisualInertialStateAndOptimize(
+      const Timestamp& timestamp_kf_nsec,
+      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+      const gtsam::PreintegratedImuMeasurements& pim,
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
