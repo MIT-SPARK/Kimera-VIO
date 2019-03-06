@@ -264,7 +264,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   imu_params.acc_noise_ = vioParams.accNoiseDensity_;
   imu_params.gyro_walk_ = vioParams.gyroBiasSigma_;
   imu_params.gyro_noise_ = vioParams.gyroNoiseDensity_;
-  ImuFrontEnd imu_frontend(imu_params);
+  ImuFrontEnd imu_frontend(imu_params, imu_bias);
 
   // For each frame, add landmarks and optimize.
   for(int64_t k = 1; k < num_key_frames; k++) {
