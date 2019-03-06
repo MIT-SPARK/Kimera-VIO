@@ -155,8 +155,17 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Actually, currently does not integrate fake interpolated meas as it does
   // not take the last measurement into account (although it takes its stamp
   // into account!!!).
+  auto tic_full_preint = utils::Timer::tic();
   const auto& pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
                                                                imu_accgyr);
+  auto full_preint_duration = utils::Timer::toc<std::chrono::nanoseconds>(
+        tic_full_preint).count();
+  utils::StatsCollector stats_full_preint("Full Preint Timing [ns]");
+  stats_full_preint.AddSample(full_preint_duration);
+  LOG_IF(WARNING, full_preint_duration != 0.0)
+      << "Current IMU Preintegration frequency: "
+      << 1000.0 / full_preint_duration<< " Hz. ("
+      << full_preint_duration << " ns).";
 
   // on the left camera rectified!!
   static const gtsam::Rot3 body_Rot_cam = vio_backend_->getBPoseLeftCam().rotation();
