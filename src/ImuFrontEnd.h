@@ -90,13 +90,32 @@ public:
     using PreintegratedImuMeasurements = gtsam::PreintegratedImuMeasurements;
   #endif
 public:
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------
+   * Class to do IMU preintegration.
+   * [in] imu_params: IMU parameters used for the preintegration.
+   * [in] imu_bias: IMU bias used to initialize PreintegratedImuMeasurements
+   * !! The user of this class must update the bias and reset the integration
+   * manually in order to preintegrate the IMU with the latest IMU bias coming
+   * from the backend optimization.
+   */
   ImuFrontEnd(const ImuParams& imu_params,
-              const ImuBias& imu_bias_prev_kf)
+              const ImuBias& imu_bias)
     : imu_params_(setImuParams(imu_params)) {
-    pim_ = VIO::make_unique<PreintegratedImuMeasurements>(imu_params_,
-                                                          imu_bias_prev_kf);
-    imu_params.print();
+    pim_ = VIO::make_unique<PreintegratedImuMeasurements>(
+          boost::make_shared<PreintegratedImuMeasurements::Params>(imu_params_),
+          imu_bias);
+    {
+      std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+      latest_imu_bias_ = imu_bias;
+    }
+    if (VLOG_IS_ON(10)) {
+      LOG(ERROR) << "IMU PREINTEGRATION PARAMS GIVEN TO IMU FRONTEND.";
+      imu_params_.print("");
+      LOG(ERROR) << "IMU BIAS GIVEN TO IMU FRONTEND AT CONSTRUCTION:\n "
+                 << getCurrentImuBias();
+      LOG(ERROR) << "IMU PREINTEGRATION COVARIANCE: ";
+      pim_->print();
+    }
   }
 
   /* ------------------------------------------------------------------------ */
@@ -125,15 +144,14 @@ public:
   }
 
 private:
-  // boost::shared_ptr because IMU preintegration needs it....
-  boost::shared_ptr<PreintegratedImuMeasurements::Params> imu_params_;
+  const PreintegratedImuMeasurements::Params imu_params_;
   std::unique_ptr<PreintegratedImuMeasurements> pim_ = nullptr;
   ImuBias latest_imu_bias_;
   std::mutex imu_bias_mutex_;
 
   /* ------------------------------------------------------------------------ */
   // Set parameters for imu preintegration from the given ImuParams.
-  boost::shared_ptr<PreintegratedImuMeasurements::Params> setImuParams(
+  PreintegratedImuMeasurements::Params setImuParams(
       const ImuParams& imu_params);
 };
 

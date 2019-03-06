@@ -75,22 +75,21 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
 
 /* -------------------------------------------------------------------------- */
 // Set parameters for imu factors.
-boost::shared_ptr<ImuFrontEnd::PreintegratedImuMeasurements::Params>
-ImuFrontEnd::setImuParams(const ImuParams& imu_params) {
-  boost::shared_ptr<PreintegratedImuMeasurements::Params> preint_imu_params =
-      boost::make_shared<PreintegratedImuMeasurements::Params>(imu_params.n_gravity_);
-  preint_imu_params->gyroscopeCovariance =
+gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(const ImuParams& imu_params) {
+  PreintegratedImuMeasurements::Params preint_imu_params =
+      PreintegratedImuMeasurements::Params(imu_params.n_gravity_);
+  preint_imu_params.gyroscopeCovariance =
       std::pow(imu_params.gyro_noise_, 2.0) * Eigen::Matrix3d::Identity();
-  preint_imu_params->accelerometerCovariance =
+  preint_imu_params.accelerometerCovariance =
       std::pow(imu_params.acc_noise_, 2.0) * Eigen::Matrix3d::Identity();
-  preint_imu_params->integrationCovariance =
+  preint_imu_params.integrationCovariance =
       std::pow(imu_params.imu_integration_sigma_, 2.0) * Eigen::Matrix3d::Identity();
-  preint_imu_params->use2ndOrderCoriolis = false; // TODO: expose this parameter
+  preint_imu_params.use2ndOrderCoriolis = false; // TODO: expose this parameter
 
   #ifdef USE_COMBINED_IMU_FACTOR
-    preint_imu_params->biasAccCovariance =
+    preint_imu_params.biasAccCovariance =
         std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-    preint_imu_params->biasOmegaCovariance =
+    preint_imu_params.biasOmegaCovariance =
         std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
   #endif
 
