@@ -316,9 +316,6 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
                                     const std::string& imuName) {
-  ///////////////// PARSE IMU PARAMETERS ///////////////////////////////////////
-  parseImuParams(input_dataset_path, imuName);
-
   ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
   //#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],
   // a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]
@@ -527,7 +524,7 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
                                     bool doParseImages) {
   dataset_path_ = input_dataset_path;
   parseCameraData(dataset_path_, leftCameraName, rightCameraName, doParseImages);
-  parseImuParams(dataset_path_, imuName);
+  CHECK(parseImuParams(dataset_path_, imuName));
   parseImuData(dataset_path_, imuName);
   is_gt_available_ = parseGTdata(dataset_path_, gtSensorName);
 
