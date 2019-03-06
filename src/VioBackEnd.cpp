@@ -1,4 +1,4 @@
-﻿/* ----------------------------------------------------------------------------
+/* ----------------------------------------------------------------------------
  * Copyright 2017, Massachusetts Institute of Technology,
  * Cambridge, MA 02139
  * All Rights Reserved
@@ -781,7 +781,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
                                                       Vector3(0, 0, 0));
 
   // Factor to discretize and move normalize by the interval between measurements:
-  CHECK_NE(vio_params_.nominalImuRate_, 0)
+  CHECK_NE(vio_params_.nominalImuRate_, 0.0)
       << "Nominal IMU rate param cannot be 0.";
   // 1/sqrt(nominalImuRate_) to discretize, then
   // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
