@@ -11,7 +11,6 @@
  * @brief  Kitti dataset parser.
  * @author Antoni Rosinol
  */
-// Note https://github.com/yanii/kitti-pcl/blob/master/KITTI_README.TXT -Yun
 
 #pragma once
 
@@ -31,7 +30,6 @@ public:
   virtual bool spin();
 
 private:  
-  // NOTE TO ASK: why this struct?
   struct KittiData {
     inline size_t getNumberOfImages() const {return left_img_names_.size();}
 
