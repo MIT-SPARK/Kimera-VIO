@@ -81,22 +81,24 @@ def plot_statistics_vio(statistics, output_boxplot_path):
     stddevs = []
     for key, value in statistics.items():
         print('Reading statistic: %s' % str(key))
-        assert 'Timing [ms]' in str(key), "Is this timing information in ms? Otw you are mixing potatoes with apples."
-        names.append(str(key[:-11]))
-        for key, value in value.items():
-            if key == 'max':
-                maxes.append(value)
-            if key == 'min':
-                mins.append(value)
-            if key == 'samples':
-                samples.append(value)
-            if key == 'mean':
-                means.append(value)
-            if key == 'stddev':
-                stddevs.append(value)
+        if 'Timing [ms]' in str(key):
+            names.append(str(key[:-11]))
+            for key, value in value.items():
+                if key == 'max':
+                    maxes.append(value)
+                if key == 'min':
+                    mins.append(value)
+                if key == 'samples':
+                    samples.append(value)
+                if key == 'mean':
+                    means.append(value)
+                if key == 'stddev':
+                    stddevs.append(value)
+        else:
+            print("Skipping this statistic, as it is not a Timing or is not in [ms].")
     # Create stacked errorbars:
     #plt.errorbar(np.arange(len_statistics), np.asarray(means), np.asarray(stddevs), fmt='ok', lw=3)
-    plt.errorbar(np.arange(len_statistics), np.asarray(means), [np.asarray(means) - np.asarray(mins), np.asarray(maxes) - np.asarray(means)],
+    plt.errorbar(np.arange(len(names)), np.asarray(means), [np.asarray(means) - np.asarray(mins), np.asarray(maxes) - np.asarray(means)],
                  fmt='xk', ecolor='blue', lw=2, capsize=5, capthick=3, mfc='red', mec='green', ms=10, mew=4)
 
     # Formatting
