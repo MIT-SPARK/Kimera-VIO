@@ -1069,6 +1069,10 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
   prior_biasSigmas.tail<3>().setConstant(vio_params_.initialGyroBiasSigma_);
   gtsam::SharedNoiseModel imu_bias_prior_noise =
       gtsam::noiseModel::Diagonal::Sigmas(prior_biasSigmas);
+  if (VLOG_IS_ON(10)) {
+    LOG(INFO) << "Imu bias for backend prior:";
+    imu_bias_lkf_.print();
+  }
   new_imu_prior_and_other_factors_.push_back(
         boost::make_shared<gtsam::PriorFactor<gtsam::imuBias::ConstantBias>>(
           gtsam::Symbol('b', frame_id), imu_bias_lkf_, imu_bias_prior_noise));
