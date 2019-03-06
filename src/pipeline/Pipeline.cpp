@@ -164,7 +164,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   stats_full_preint.AddSample(full_preint_duration);
   LOG_IF(WARNING, full_preint_duration != 0.0)
       << "Current IMU Preintegration frequency: "
-      << 1000.0 / full_preint_duration<< " Hz. ("
+      << 10e9 / full_preint_duration<< " Hz. ("
       << full_preint_duration << " ns).";
 
   // on the left camera rectified!!
