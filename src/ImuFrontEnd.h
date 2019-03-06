@@ -132,15 +132,28 @@ public:
   inline void updateBias(const ImuBias& imu_bias_prev_kf) {
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
     latest_imu_bias_ = imu_bias_prev_kf;
+    // Debug output.
+    if (VLOG_IS_ON(10)) {
+      LOG(INFO) << "Updating Preintegration imu bias (needs to reset "
+                   "integration for the bias to have effect):";
+      latest_imu_bias_.print();
+    }
+  }
   }
 
   /* ------------------------------------------------------------------------ */
   // This should be called by the stereo frontend, whenever there
   // is a new keyframe and we want to reset the integration to
   // use the latest imu bias.
+  // THIS IS NOT THREAD-SAFE: pim_ is not protected.
   inline void resetIntegrationWithCachedBias() {
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
     pim_->resetIntegrationAndSetBias(latest_imu_bias_);
+    // For debugging.
+    if (VLOG_IS_ON(10)) {
+      LOG(ERROR) << "Reset preintegration with new bias:";
+      latest_imu_bias_.print();
+    }
   }
 
 private:

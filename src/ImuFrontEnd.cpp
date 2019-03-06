@@ -70,6 +70,11 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
     // and efficiency??
     pim_->integrateMeasurement(measured_acc, measured_omega, delta_t);
   }
+  if (VLOG_IS_ON(10)) {
+    LOG(INFO) << "Finished preintegration: ";
+    pim_->print();
+  }
+
   return *pim_;
 }
 
