@@ -47,8 +47,7 @@ void ImuParams::print() const {
 
 /* -------------------------------------------------------------------------- */
 // NOT THREAD-SAFE
-// And this function is called outside VioBackEnd thread... for the
-// frontend to have a rotation prior for RANSAC.
+// What happens if someone updates the bias in the middle of the preintegration??
 gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_accgyr) {
@@ -62,8 +61,8 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
   // measurement. Nevertheless the imu_stamps, should be shifted one step back
   // I would say.
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
-    const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
     const Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
+    const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
     const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
                                                    imu_stamps(i));
     CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
