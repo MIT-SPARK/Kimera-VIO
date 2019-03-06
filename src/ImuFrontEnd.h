@@ -139,7 +139,6 @@ public:
       latest_imu_bias_.print();
     }
   }
-  }
 
   /* ------------------------------------------------------------------------ */
   // This should be called by the stereo frontend, whenever there
@@ -156,11 +155,29 @@ public:
     }
   }
 
+  /* ------------------------------------------------------------------------ */
+  // THREAD-SAFE.
+  inline ImuBias getCurrentImuBias() const {
+    std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+    return latest_imu_bias_;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // THIS IS NOT THREAD-SAFE.
+  inline PreintegratedImuMeasurements getCurrentPIM() const {
+    return *pim_;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  inline PreintegratedImuMeasurements::Params getImuParams() const {
+    return imu_params_;
+  }
+
 private:
   const PreintegratedImuMeasurements::Params imu_params_;
   std::unique_ptr<PreintegratedImuMeasurements> pim_ = nullptr;
   ImuBias latest_imu_bias_;
-  std::mutex imu_bias_mutex_;
+  mutable std::mutex imu_bias_mutex_;
 
   /* ------------------------------------------------------------------------ */
   // Set parameters for imu preintegration from the given ImuParams.
