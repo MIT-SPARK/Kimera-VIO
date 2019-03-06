@@ -308,7 +308,10 @@ public:
   // NOT THREAD-SAFE, needs critical section.
   inline bool isRectified() const {return is_rectified_;}
   inline bool isKeyframe() const {return is_keyframe_;}
-  inline gtsam::Pose3 getBPoseCamLRect() const {return B_Pose_camLrect_;}
+  inline gtsam::Pose3 getBPoseCamLRect() const {
+    CHECK(is_rectified_);
+    return B_Pose_camLrect_;
+  }
   inline double getBaseline() const {return baseline_;}
   inline StereoMatchingParams getSparseStereoParams() const {
     return sparse_stereo_params_;
