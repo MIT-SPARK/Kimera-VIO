@@ -94,7 +94,10 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
   feature_selector_ = FeatureSelector(dataset_->getFrontendParams(),
                                       *backend_params_);
   // Instantiate IMU frontend.
-  imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params);
+  imu_frontend_ = VIO::make_unique<ImuFrontEnd>(
+        imu_params,
+        // This should not be asked!
+        dataset->getGroundTruthState(dataset_->timestamp_first_lkf_).imu_bias_);
 }
 
 /* -------------------------------------------------------------------------- */
