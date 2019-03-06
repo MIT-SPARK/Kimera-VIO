@@ -119,6 +119,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
 
   // TODO change VIO initialization logic, because right now if it is not
   // auto-initialized it still asks for ImuAccGyr data.
+  // USE imu frontend to send pim data instead of raw ImuAccGyr data.
   // Initialize VIO.
   if (vio_params_.autoInitialize_ || !*initial_state_gt) {
     // Use initial IMU measurements to guess first pose
