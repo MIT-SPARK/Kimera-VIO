@@ -29,6 +29,10 @@ public:
   virtual ~KittiDataProvider();
   virtual bool spin();
 
+  inline ImuParams getImuParams() const {
+    return kitti_data_.imuParams_;
+  }
+
 private:  
   struct KittiData {
     inline size_t getNumberOfImages() const {return left_img_names_.size();}
@@ -49,6 +53,8 @@ private:
     std::vector<std::string> right_img_names_;
     // Vector of timestamps see issue in .cpp file 
     std::vector<Timestamp> timestamps_;
+    // IMU params
+    ImuParams imuParams_;
     //IMU data 
     ImuData imuData_;
     // Sanity check to ensure data is correctly parsed

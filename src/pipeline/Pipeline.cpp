@@ -324,6 +324,8 @@ void Pipeline::processKeyframe(
   std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
       backend_output_queue_.popBlocking();
 
+  // vio_backend_output_ = *backend_output_payload; 
+
   ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////
   if (FLAGS_log_output) {
     logger_.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - start_time; // This does not make sense anymore here, as the backend has its own spin.

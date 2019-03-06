@@ -27,11 +27,11 @@ int main(int argc, char *argv[]) {
 
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
-  VIO::Pipeline vio_pipeline (&eth_dataset_parser); 
+  VIO::KittiDataProvider kitti_dataset_parser(FLAGS_kitti_dataset_path);
+
+  VIO::Pipeline vio_pipeline (&eth_dataset_parser, kitti_dataset_parser.getImuParams()); 
 
   // Register callback to vio_pipeline.
-  // VIO::DataProvider kitti_dataset_parser = VIO::KittiDataProvider(FLAGS_kitti_dataset_path);
-  VIO::KittiDataProvider kitti_dataset_parser(FLAGS_kitti_dataset_path);
   kitti_dataset_parser.registerVioCallback(
         std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
 
