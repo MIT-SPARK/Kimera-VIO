@@ -79,6 +79,29 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
 }
 
 /* -------------------------------------------------------------------------- */
+gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
+    const ImuStampS& imu_stamps,
+    const ImuAccGyrS& imu_accgyr) {
+  CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
+  CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
+  std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+  gtsam::PreintegratedAhrsMeasurements pimRot(latest_imu_bias_.gyroscope(),
+                                              gtsam::Matrix3::Identity());
+  for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
+    const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
+    const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
+                                                   imu_stamps(i));
+    CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
+    pimRot.integrateMeasurement(measured_omega, delta_t);
+  }
+  if (VLOG_IS_ON(10)) {
+    LOG(INFO) << "Finished preintegration for gyro aided: ";
+    pimRot.print();
+  }
+  return pimRot.deltaRij();
+}
+
+/* -------------------------------------------------------------------------- */
 // Set parameters for imu factors.
 gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(const ImuParams& imu_params) {
   PreintegratedImuMeasurements::Params preint_imu_params =

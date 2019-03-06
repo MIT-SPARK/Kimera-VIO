@@ -28,6 +28,7 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/CombinedImuFactor.h> // Used if IMU combined is off.
 #include <gtsam/navigation/ImuFactor.h>
+#include <gtsam/navigation/AHRSFactor.h>
 
 #include "ImuFrontEnd-definitions.h"
 
@@ -122,6 +123,29 @@ public:
   PreintegratedImuMeasurements preintegrateImuMeasurements(
       const ImuStampS& imu_stamps,
       const ImuAccGyrS& imu_accgyr);
+  PreintegratedImuMeasurements preintegrateImuMeasurements(
+      const ImuStampS& imu_stamps,
+      const ImuAccGyr& imu_accgyr) = delete;
+  PreintegratedImuMeasurements preintegrateImuMeasurements(
+      const ImuStamp& imu_stamps,
+      const ImuAccGyrS& imu_accgyr) = delete;
+  PreintegratedImuMeasurements preintegrateImuMeasurements(
+      const ImuStamp& imu_stamps,
+      const ImuAccGyr& imu_accgyr) = delete;
+
+  /* -------------------------------------------------------------------------- */
+  gtsam::Rot3 preintegrateGyroMeasurements(
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_accgyr);
+  gtsam::Rot3 preintegrateGyroMeasurements(
+      const ImuStampS& imu_stamps,
+      const ImuAccGyr& imu_accgyr) = delete;
+  gtsam::Rot3 preintegrateGyroMeasurements(
+      const ImuStamp& imu_stamps,
+      const ImuAccGyrS& imu_accgyr) = delete;
+  gtsam::Rot3 preintegrateGyroMeasurements(
+      const ImuStamp& imu_stamps,
+      const ImuAccGyr& imu_accgyr) = delete;
 
   /* ------------------------------------------------------------------------ */
   // This should be called by the backend, whenever there
