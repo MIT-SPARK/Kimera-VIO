@@ -145,21 +145,11 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
   const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
 
-    CHECK_GT(imu_accgyr.cols(), 0);
-  //stereo_imu_sync_packet.print();
+  // Print IMU data.
+  if (VLOG_IS_ON(10)) stereo_imu_sync_packet.print();
 
   // For k > 1
-  // Integrate rotation measurements (rotation is used in RANSAC).
-  // TODO are we just tracking features from keyframe to current frame?
-  // How is it that we always need the R from lkf to current frame?
-  // And not from frame to frame??
-  // !!! We actually really only need from keyframe to keyframe!!!!
-  // Apparently there is no gyro aided tracker.
-  // The preint btw keyframes is needed for RANSAC.
-  // NEEDS THE IMU BIAS, but otw use it in the frontend!!!!
-  // Use something like frontend.setImuBias() // Which must be thread-safe
-  // and any use of the bias must be thread-safe...
-  // Implicitly Accumulates IMU measurements from last Keyframe to current frame.
+  // The preintegration btw frames is needed for RANSAC.
   // But note that we are using interpolated "fake" values when doing the preint
   // egration!! Should we remove them??
   // Actually, currently does not integrate fake interpolated meas as it does
@@ -177,8 +167,12 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
   gtsam::Rot3 calLrectLkf_R_camLrectK_imu  =
       cam_Rot_body * pim.deltaRij() * body_Rot_cam;
+  if (VLOG_IS_ON(10)) {
+    body_Rot_cam.print("Body_Rot_cam");
+    calLrectLkf_R_camLrectK_imu.print("calLrectLkf_R_camLrectK_imu");
+  }
 
-  ////////////////////////////// FRONT-END ///////////////////////////////////
+  ////////////////////////////// FRONT-END /////////////////////////////////////
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
   double start_time = UtilsOpenCV::GetTimeInSeconds();
@@ -206,9 +200,6 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
              stereo_vision_frontend_->stereoFrame_km1_->getFrameId());
     CHECK(!stereo_vision_frontend_->stereoFrame_k_);
     CHECK(stereo_vision_frontend_->stereoFrame_lkf_->isKeyframe());
-    // It's a keyframe!
-    // TODO???? IT's actually km1 (k minus 1) the keyframe!!
-    // No... it's just km1 is k at this point...
     LOG(INFO) << "Keyframe " << k
               << " with: " << statusSmartStereoMeasurements.second.size()
               << " smart measurements";
@@ -216,6 +207,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     // Keep track of last keyframe timestamp. Honestly, I don't know why...
     // TODO we have made timestamp_first_lkf_ global variable in dataset_
     // only to be able to init this value... SHOULD NOT NEED TO.
+    // Seems like it is only used for debugging at least for processKeyframe
     static Timestamp timestamp_lkf = dataset_->timestamp_first_lkf_;
 
     ////////////////////////////// FEATURE SELECTOR //////////////////////////////
@@ -263,7 +255,17 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
     // TODO getLatestImuBias is not thread safe yet! Right now it is ok,
     // because this is not called until backend finishes.
+    if (VLOG_IS_ON(10)) {
+      const auto& latest_bias = vio_backend_->getLatestImuBias();
+      const auto& bias_prev_kf = vio_backend_->getImuBiasPrevKf();
+      LOG(INFO) << "Latest backend IMU bias is: ";
+      latest_bias.print();
+      LOG(INFO) << "Prev kf backend IMU bias is: ";
+      bias_prev_kf.print();
+    }
+
     // Update bias and reset preintegration everytime the backend finishes.
+    VLOG(10) << "Update IMU Bias";
     imu_frontend_->updateBias(vio_backend_->getLatestImuBias());
 
     VLOG(10) << "Reset IMU preintegration with latest IMU bias";
@@ -280,7 +282,7 @@ void Pipeline::processKeyframe(
     const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
     std::shared_ptr<StereoFrame> last_stereo_keyframe,
     const Timestamp& timestamp_k,
-    const Timestamp& timestamp_lkf,
+    const Timestamp& timestamp_lkf, // Seems like it is only used for debug
     const gtsam::PreintegratedImuMeasurements& pim) {
   // At this point stereoFrame_km1 == stereoFrame_lkf_ !
   const Frame& last_left_keyframe = last_stereo_keyframe->getLeftFrame();
