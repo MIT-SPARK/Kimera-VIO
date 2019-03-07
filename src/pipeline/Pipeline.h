@@ -62,8 +62,12 @@ public:
     return mesher_output_queue_;
   }
 
-  VioBackEndOutputPayload getVioOutput() const {
-    return *vio_backend_output_; 
+  gtsam::Vector3 get_estimated_velocity() {
+    return vio_backend_->getWVelBLkf();
+  }
+
+  gtsam::Pose3 get_estimated_pose() {
+    return vio_backend_->getWPoseBLkf();
   }
 
   inline void registerSemanticMeshSegmentationCallback(
@@ -154,8 +158,6 @@ private:
   // Thread-safe queue for the backend.
   ThreadsafeQueue<VioBackEndInputPayload> backend_input_queue_;
   ThreadsafeQueue<VioBackEndOutputPayload> backend_output_queue_;
-
-  std::shared_ptr<VioBackEndOutputPayload> vio_backend_output_; // latest outputs
 
   // Set of planes in the scene.
   std::vector<Plane> planes_;

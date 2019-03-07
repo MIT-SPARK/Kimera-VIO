@@ -3,7 +3,7 @@
 --backend_type=1
 --regular_vio_backend_modality=4
 --deterministic_random_number_generator=true
---visualize=false
+--visualize=true
 --visualize_lmk_type=false
 --visualize_mesh=true
 --visualize_mesh_with_colored_polygon_clusters=false
