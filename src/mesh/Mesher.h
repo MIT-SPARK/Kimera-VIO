@@ -48,6 +48,7 @@ struct MesherInputPayload {
 };
 
 struct MesherOutputPayload {
+public:
   MesherOutputPayload(
       Mesh2D&& mesh_2d, // Use move semantics for the actual 2d mesh.
       Mesh3D&& mesh_3d, // Use move semantics for the actual 2d mesh.
@@ -75,15 +76,16 @@ struct MesherOutputPayload {
   MesherOutputPayload(MesherOutputPayload&&) = default;
   MesherOutputPayload& operator=(MesherOutputPayload&&) = default;
 
+ public:
   // 2D Mesh.
   Mesh2D mesh_2d_;
+
+  // 3D Mesh.
+  Mesh3D mesh_3d_;
 
   // 2D Mesh visualization.
   std::vector<cv::Vec6f> mesh_2d_for_viz_;
   std::vector<cv::Vec6f> mesh_2d_filtered_for_viz_;
-
-  // 3D Mesh.
-  Mesh3D mesh_3d_;
 
   // 3D Mesh using underlying storage type, aka a list of vertices, together
   // with a list of polygons represented as vertices ids pointing to the list
