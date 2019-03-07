@@ -159,9 +159,9 @@ Mesher::Mesher()
 
 /* -------------------------------------------------------------------------- */
 // Method for the mesher to run on a thread.
-void Mesher::run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
-                 ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue) {
-  LOG(INFO) << "Launch";
+void Mesher::spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
+                  ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue) {
+  LOG(INFO) << "Spinning Mesher.";
   MesherOutputPayload mesher_output_payload;
   utils::StatsCollector stats_mesher("Mesher Timing [ms]");
   while(!request_stop_) {

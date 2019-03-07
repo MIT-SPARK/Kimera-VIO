@@ -57,7 +57,7 @@ public:
   timing_loggerFrontend_;
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void openLogFiles(int i = -1, const string &output_file_name = "",
+  void openLogFiles(int i = -1, const std::string &output_file_name = "",
                     bool open_file_in_append_mode = false);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -65,7 +65,9 @@ public:
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logFrontendResults(const ETHDatasetParser& dataset,
-                          const StereoVisionFrontEnd& stereoTracker,
+                          const TrackerStatusSummary& tracker_summary,
+                          const StereoFrame& stereoFrame_km1,
+                          const gtsam::Pose3& relative_pose_body_mono,
                           const Timestamp& timestamp_lkf,
                           const Timestamp& timestamp_k);
 
@@ -85,7 +87,10 @@ public:
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(
       const ETHDatasetParser& dataset,
-      const StereoVisionFrontEnd& stereoTracker,
+      const TrackerStatusSummary& tracker_status_summary,
+      const gtsam::Pose3& relative_pose_body_mono,
+      const Tracker& tracker,
+      const gtsam::Pose3& relative_pose_body_stereo,
       const std::shared_ptr<VioBackEndOutputPayload>& vio_output,
       const double& horizon,
       const Timestamp& timestamp_lkf,

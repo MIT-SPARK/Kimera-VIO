@@ -18,27 +18,159 @@
 namespace VIO {
 
 StereoVisionFrontEnd::StereoVisionFrontEnd(
+    const ImuParams& imu_params,
+    const ImuBias& imu_initial_bias,
     const VioFrontEndParams& trackerParams,
-    int saveImages,
+    int save_images_option,
     const std::string& dataset_name) :
   frame_count_(0),
   keyframe_count_(0),
   last_landmark_count_(0),
-  tracker_(trackerParams, saveImages),
-  saveImages_(saveImages),
+  tracker_(trackerParams, save_images_option),
+  save_images_option_(save_images_option),
   trackerStatusSummary_(),
-  outputImagesPath_("./outputImages/") { // Only for debugging and visualization.
-  if (saveImages > 0) {
-    outputImagesPath_ = "./outputStereoTrackerImages-" + dataset_name;
+  output_images_path_("./outputImages/") { // Only for debugging and visualization.
+
+  // Instantiate IMU frontend.
+  imu_frontend_ = VIO::make_unique<ImuFrontEnd>(
+        imu_params,
+        imu_initial_bias);
+
+  if (save_images_option > 0) {
+    output_images_path_ = "./outputStereoTrackerImages-" + dataset_name;
     tracker_.outputImagesPath_ = "./outputTrackerImages-" + dataset_name;
   }
   tracker_.trackerParams_.print();
+
+}
+
+/* -------------------------------------------------------------------------- */
+bool StereoVisionFrontEnd::spin(
+    ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
+    ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue) {
+  LOG(INFO) << "Spinning StereoFrontEnd.";
+  utils::StatsCollector stat_stereo_frontend_timing("StereoFrontEnd Timing [ms]");
+  while (!shutdown_) {
+    // Get input data from queue. Wait for Backend payload.
+    std::shared_ptr<StereoFrontEndInputPayload> input = input_queue.popBlocking();
+    if (input) {
+      auto tic = utils::Timer::tic();
+      const auto& output = spinOnce(input);
+      if (output) output_queue.push(*output);
+      auto spin_duration = utils::Timer::toc(tic).count();
+      LOG(WARNING) << "Current Stereo FrontEnd frequency: "
+                   << 1000.0 / spin_duration << " Hz. ("
+                   << spin_duration << " ms).";
+      stat_stereo_frontend_timing.AddSample(spin_duration);
+    } else {
+      LOG(WARNING) << "No StereoFrontEnd Input Payload received.";
+    }
+  }
+  LOG(INFO) << "StereoFrontEnd successfully shutdown.";
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+std::unique_ptr<StereoFrontEndOutputPayload>
+StereoVisionFrontEnd::spinOnce(
+    const std::shared_ptr<StereoFrontEndInputPayload>& input) {
+  const StereoFrame& stereoFrame_k = input->sync_packet_.getStereoFrame();
+  const auto& k = stereoFrame_k.getFrameId();
+  LOG(INFO) << "------------------- Processing frame k = "
+            << k << "--------------------";
+
+  ////////////////////////////// GET IMU DATA //////////////////////////////////
+  const auto& imu_stamps = input->sync_packet_.getImuStamps();
+  const auto& imu_accgyr = input->sync_packet_.getImuAccGyr();
+
+  // Print IMU data.
+  if (VLOG_IS_ON(10)) input->sync_packet_.print();
+
+  // For k > 1
+  // The preintegration btw frames is needed for RANSAC.
+  // But note that we are using interpolated "fake" values when doing the preint
+  // egration!! Should we remove them??
+  // Actually, currently does not integrate fake interpolated meas as it does
+  // not take the last measurement into account (although it takes its stamp
+  // into account!!!).
+  auto tic_full_preint = utils::Timer::tic();
+  const auto& pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
+                                                               imu_accgyr);
+  auto full_preint_duration = utils::Timer::toc<std::chrono::nanoseconds>(
+        tic_full_preint).count();
+  utils::StatsCollector stats_full_preint("Full Preint Timing [ns]");
+  stats_full_preint.AddSample(full_preint_duration);
+  LOG_IF(WARNING, full_preint_duration != 0.0)
+      << "Current IMU Preintegration frequency: "
+      << 10e9 / full_preint_duration<< " Hz. ("
+      << full_preint_duration << " ns).";
+
+  // On the left camera rectified!!
+  static const gtsam::Rot3 body_Rot_cam =
+      stereoFrame_km1_->getBPoseCamLRect().rotation();
+  static const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
+
+  // Relative rotation of the left cam rectified from the last keyframe to the
+  // curr frame. pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
+  gtsam::Rot3 calLrectLkf_R_camLrectK_imu  =
+      cam_Rot_body * pim.deltaRij() * body_Rot_cam;
+
+  if (VLOG_IS_ON(10)) {
+    body_Rot_cam.print("Body_Rot_cam");
+    calLrectLkf_R_camLrectK_imu.print("calLrectLkf_R_camLrectK_imu");
+  }
+  //////////////////////////////////////////////////////////////////////////////
+
+  // Main function for tracking.
+  // Rotation used in 1 and 2 point ransac.
+  double start_time = UtilsOpenCV::GetTimeInSeconds();
+  VLOG(10) << "Starting processStereoFrame...";
+  StatusSmartStereoMeasurements statusSmartStereoMeasurements =
+      processStereoFrame(stereoFrame_k,
+                         calLrectLkf_R_camLrectK_imu);
+
+  CHECK(!stereoFrame_k_); // processStereoFrame is setting this to nullptr!!!
+  VLOG(10) << "Finished processStereoFrame.";
+
+  if (stereoFrame_km1_->isKeyframe()) {
+    CHECK_EQ(stereoFrame_lkf_->getTimestamp(),
+             stereoFrame_km1_->getTimestamp());
+    CHECK_EQ(stereoFrame_lkf_->getFrameId(),
+             stereoFrame_km1_->getFrameId());
+    CHECK(!stereoFrame_k_);
+    CHECK(stereoFrame_lkf_->isKeyframe());
+    LOG(INFO) << "Keyframe " << k
+              << " with: " << statusSmartStereoMeasurements.second.size()
+              << " smart measurements";
+
+    //processKeyframe();
+    //output->statusSmartStereoMeasurements_ = statusSmartStereoMeasurements;
+    //output->tracker_status_ = trackerStatusSummary_.kfTrackingStatus_stereo_;
+    //output->relative_pose_body_stereo_ = getRelativePoseBodyStereo();
+    //output->stereo_frame_lkf_ = *stereoFrame_lkf_;
+
+    // Reset integration the later the better so that we give to the backend
+    // the most time possible to update the IMU bias.
+    VLOG(10) << "Reset IMU preintegration with latest IMU bias";
+    imu_frontend_->resetIntegrationWithCachedBias();
+
+    // Return the output of the frontend for the others.
+    return VIO::make_unique<StereoFrontEndOutputPayload>(
+          StereoFrontEndOutputPayload(statusSmartStereoMeasurements,
+                                      trackerStatusSummary_.kfTrackingStatus_stereo_,
+                                      getRelativePoseBodyStereo(),
+                                      *stereoFrame_lkf_,
+                                      pim));
+  } else {
+    // We don't have a keyframe.
+    return nullptr;
+  }
 }
 
 /* -------------------------------------------------------------------------- */
 // TODO this can be greatly improved, but we need to get rid of global variables
 // stereoFrame_km1_, stereoFrame_lkf_, stereoFrame_k_, etc...
-void StereoVisionFrontEnd::processFirstStereoFrame(
+StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
     const StereoFrame& firstFrame) {
   VLOG(2) << "Processing first stereo frame \n";
   stereoFrame_k_ = std::make_shared<StereoFrame>(firstFrame); // TODO this can be optimized!
@@ -67,6 +199,12 @@ void StereoVisionFrontEnd::processFirstStereoFrame(
   stereoFrame_lkf_ = stereoFrame_k_;
   stereoFrame_k_.reset();
   ++frame_count_;
+
+  ///////////////////////////// IMU FRONTEND ///////////////////////////////////
+  // Initialize IMU frontend.
+  imu_frontend_->resetIntegrationWithCachedBias();
+
+  return *stereoFrame_lkf_;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -97,8 +235,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
 
   // Only for visualization.
   // TODO remove these. Use gflags.
-  int verbosityFrames = saveImages_; // default: 0
-  int verbosityKeyframes = saveImages_; // default: 1
+  int verbosityFrames = save_images_option_; // default: 0
+  int verbosityKeyframes = save_images_option_; // default: 1
 
   double timeSparseStereo = 0;
   double timeGetMeasurements = 0;
@@ -271,35 +409,37 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
   stereoFrame_kf.checkStereoFrame();
 
   // Extract relevant info from the stereo frame:
-  // essentially the landmark if and the left/right pixel measurements
-  LandmarkIds landmarkId_kf = stereoFrame_kf.getLeftFrame().landmarks_;
-  KeypointsCV leftKeypoints = stereoFrame_kf.left_keypoints_rectified_;
-  KeypointsCV rightKeypoints = stereoFrame_kf.right_keypoints_rectified_;
-  std::vector<Kstatus> rightKeypoints_status = stereoFrame_kf.right_keypoints_status_;
+  // essentially the landmark if and the left/right pixel measurements.
+  const LandmarkIds& landmarkId_kf = stereoFrame_kf.getLeftFrame().landmarks_;
+  const KeypointsCV& leftKeypoints = stereoFrame_kf.left_keypoints_rectified_;
+  const KeypointsCV& rightKeypoints = stereoFrame_kf.right_keypoints_rectified_;
+  const std::vector<Kstatus>& rightKeypoints_status =
+      stereoFrame_kf.right_keypoints_status_;
 
-  // Pack information in landmark structure structure
+  // Pack information in landmark structure.
   SmartStereoMeasurements smartStereoMeasurements;
   for (size_t i = 0; i < landmarkId_kf.size(); ++i) {
     if (landmarkId_kf.at(i) == -1) {
       continue; // skip invalid points
     }
 
-    double uL = leftKeypoints.at(i).x; // TODO implicit conversion float to double increases floating-point precision!
-    double v = leftKeypoints.at(i).y; // TODO implicit conversion float to double increases floating-point precision!
-    double uR; // TODO Initialize...
+    // TODO implicit conversion float to double increases floating-point precision!
+    const double& uL = leftKeypoints.at(i).x;
+    const double& v = leftKeypoints.at(i).y;
+    // Initialize to missing pixel information.
+    double uR = std::numeric_limits<double>::quiet_NaN();
     if (!tracker_.trackerParams_.useStereoTracking_) {
       LOG(WARNING) << "getSmartStereoMeasurements: dropping stereo information!"
                       " (set useStereoTracking_ = true to use it)";
     }
     if (tracker_.trackerParams_.useStereoTracking_ &&
         rightKeypoints_status.at(i) == Kstatus::VALID) {
-      uR = rightKeypoints.at(i).x; // TODO implicit conversion float to double increases floating-point precision!
-    } else {
-      uR = std::numeric_limits<double>::quiet_NaN(); // missing pixel information
+      // TODO implicit conversion float to double increases floating-point precision!
+      uR = rightKeypoints.at(i).x;
     }
-    gtsam::StereoPoint2 stereo_px(uL,uR,v);
-
-    smartStereoMeasurements.push_back(std::make_pair(landmarkId_kf[i],stereo_px));
+    gtsam::StereoPoint2 stereo_px(uL, uR, v);
+    smartStereoMeasurements.push_back(std::make_pair(landmarkId_kf[i],
+                                                     stereo_px));
   }
   return smartStereoMeasurements;
 }
@@ -474,7 +614,7 @@ void StereoVisionFrontEnd::displaySaveImage(
     cv::waitKey(tracker_.trackerParams_.display_time_);
   } else if (verbosity == 2) {
     // Create output folders:
-    std::string folderName = outputImagesPath_ + "-" +
+    std::string folderName = output_images_path_ + "-" +
         VioFrontEndParams::FeatureSelectionCriterionStr(
           tracker_.trackerParams_.featureSelectionCriterion_)
         + folder_name_append + "/";
@@ -486,6 +626,36 @@ void StereoVisionFrontEnd::displaySaveImage(
     LOG(INFO) << "Writing image: " << img_name;
     cv::imwrite(img_name, img_left);
   }
+}
+
+/* ------------------------------------------------------------------------ */
+// Static function to display output of stereo tracker
+void StereoVisionFrontEnd::printStatusStereoMeasurements(
+    const StatusSmartStereoMeasurements& statusStereoMeasurements) {
+  LOG(INFO) << " SmartStereoMeasurements with status:";
+  logTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_mono_,
+                    "mono");
+  logTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_stereo_,
+                    "stereo");
+  LOG(INFO) << " observing landmarks:";
+  const SmartStereoMeasurements& smartStereoMeas = statusStereoMeasurements.second;
+  for(const auto& smart_stereo_meas: smartStereoMeas) {
+    std::cout << " " << smart_stereo_meas.first << " ";
+  }
+  std::cout << std::endl;
+}
+
+std::string StereoVisionFrontEnd::asString(
+    const Tracker::TrackingStatus& status) {
+  std::string status_str = "";
+  switch(status) {
+    case Tracker::TrackingStatus::VALID : status_str = "VALID";
+    case Tracker::TrackingStatus::INVALID : status_str = "INVALID";
+    case Tracker::TrackingStatus::DISABLED : status_str = "DISABLED";
+    case Tracker::TrackingStatus::FEW_MATCHES : status_str = "FEW_MATCHES";
+    case Tracker::TrackingStatus::LOW_DISPARITY : status_str = "LOW_DISPARITY";
+  }
+  return status_str;
 }
 
 } // End of VIO namespace.

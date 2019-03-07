@@ -179,6 +179,15 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
   CHECK(input) << "No VioBackEnd Input Payload received.";
   // Process data with VIO.
   addVisualInertialStateAndOptimize(input);
+  // Update imu bias for the frontend! Note that this should be done asap
+  // ideally just when the optimization finishes, so that the frontend might
+  // start preintegrating the imu data using the newest bias!
+  CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
+                                      "update callback for at least the "
+                                      "frontend? Do so by using "
+                                      "registerImuBiasUpdateCallback function";
+  LOG(INFO) << "Backend: Update IMU Bias.";
+  imu_bias_update_callback_(imu_bias_lkf_);
   return VioBackEndOutputPayload(state_,
                                  W_Pose_B_lkf_, // Actual output.
                                  W_Vel_B_lkf_, // Actual output.
@@ -188,6 +197,18 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
                                  landmark_count_,
                                  debug_info_);
 }
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::registerImuBiasUpdateCallback(
+    std::function<void(const ImuBias& imu_bias)> imu_bias_update_callback) {
+  // Register callback.
+  imu_bias_update_callback_ = imu_bias_update_callback;
+  // Update imu bias just in case. This is useful specially because the
+  // backend initializes the imu bias to some value. So whoever is asking
+  // to register this callback should have the newest imu bias.
+  imu_bias_update_callback(imu_bias_lkf_);
+}
+
 
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
@@ -243,10 +264,10 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
 
-  if (verbosity_ >= 7) {
-    StereoVisionFrontEnd::PrintStatusStereoMeasurements(
-          status_smart_stereo_measurements_kf);
-  }
+  //if (verbosity_ >= 7) {
+  //  StereoVisionFrontEnd::PrintStatusStereoMeasurements(
+  //        status_smart_stereo_measurements_kf);
+  //}
 
   // Features and IMU line up --> do iSAM update
   last_kf_id_ = curr_kf_id_;

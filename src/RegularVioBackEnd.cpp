@@ -147,10 +147,10 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   debug_info_.resetAddedFactorsStatistics();
 
-  if (VLOG_IS_ON(20)) {
-    StereoVisionFrontEnd::PrintStatusStereoMeasurements(
-                                          status_smart_stereo_measurements_kf);
-  }
+  //if (VLOG_IS_ON(20)) {
+  //  StereoVisionFrontEnd::PrintStatusStereoMeasurements(
+  //                                        status_smart_stereo_measurements_kf);
+  //}
 
   // Features and IMU line up --> do iSAM update.
   last_kf_id_ = curr_kf_id_;

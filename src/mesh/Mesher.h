@@ -125,7 +125,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to run on a thread.
-  void run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
+  void spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
            ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue);
 
   /* ------------------------------------------------------------------------ */

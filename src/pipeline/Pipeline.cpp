@@ -87,31 +87,30 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
   // front-end) and print parameters.
   // TODO remove hardcoded saveImages, use gflag.
   static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
-  stereo_vision_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
-        frontend_params_, saveImages, dataset_->getDatasetName());
+  vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
+                              imu_params,
+                              // This should not be asked!
+                              dataset->getGroundTruthState(dataset_->timestamp_first_lkf_).imu_bias_,
+                              frontend_params_,
+                              saveImages,
+                              dataset_->getDatasetName());
 
   // Instantiate feature selector: not used in vanilla implementation.
   feature_selector_ = FeatureSelector(dataset_->getFrontendParams(),
                                       *backend_params_);
-  // Instantiate IMU frontend.
-  imu_frontend_ = VIO::make_unique<ImuFrontEnd>(
-        imu_params,
-        // This should not be asked!
-        dataset->getGroundTruthState(dataset_->timestamp_first_lkf_).imu_bias_);
 }
 
 /* -------------------------------------------------------------------------- */
 bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   static bool is_initialized = false;
   if (!is_initialized) {
-    VLOG(10) << "Initialize VIO pipeline.";
+    LOG(INFO) << "Initialize VIO pipeline.";
     // Initialize pipeline.
     // TODO this is very brittle, because we are accumulating IMU data, but
     // not using it for initialization, because accumulated and actual IMU data
     // at init is the same...
     initialize(stereo_imu_sync_packet);
     // Launch threads.
-    VLOG(10) << "Launching threads.";
     launchThreads();
     is_initialized = true;
     return true;
@@ -134,154 +133,112 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 /* -------------------------------------------------------------------------- */
 // Spin the pipeline only once.
 void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
-  auto tic = utils::Timer::tic();
-  const auto& k = stereo_imu_sync_packet.getStereoFrame().getFrameId();
   const StereoFrame& stereoFrame_k = stereo_imu_sync_packet.getStereoFrame();
 
-  LOG(INFO) << "------------------- Processing frame k = "
-            << k << "--------------------";
-
-  ////////////////////////////// GET IMU DATA //////////////////////////////////
-  const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
-  const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
-
-  // Print IMU data.
-  if (VLOG_IS_ON(10)) stereo_imu_sync_packet.print();
-
-  // For k > 1
-  // The preintegration btw frames is needed for RANSAC.
-  // But note that we are using interpolated "fake" values when doing the preint
-  // egration!! Should we remove them??
-  // Actually, currently does not integrate fake interpolated meas as it does
-  // not take the last measurement into account (although it takes its stamp
-  // into account!!!).
-  auto tic_full_preint = utils::Timer::tic();
-  const auto& pim = imu_frontend_->preintegrateImuMeasurements(imu_stamps,
-                                                               imu_accgyr);
-  auto full_preint_duration = utils::Timer::toc<std::chrono::nanoseconds>(
-        tic_full_preint).count();
-  utils::StatsCollector stats_full_preint("Full Preint Timing [ns]");
-  stats_full_preint.AddSample(full_preint_duration);
-  LOG_IF(WARNING, full_preint_duration != 0.0)
-      << "Current IMU Preintegration frequency: "
-      << 10e9 / full_preint_duration<< " Hz. ("
-      << full_preint_duration << " ns).";
-
-  // on the left camera rectified!!
-  static const gtsam::Rot3 body_Rot_cam =
-      stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect().rotation();
-  static const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
-  // Relative rotation of the left cam rectified from the last keyframe to the curr frame.
-  // pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
-  gtsam::Rot3 calLrectLkf_R_camLrectK_imu  =
-      cam_Rot_body * pim.deltaRij() * body_Rot_cam;
-  if (VLOG_IS_ON(10)) {
-    body_Rot_cam.print("Body_Rot_cam");
-    calLrectLkf_R_camLrectK_imu.print("calLrectLkf_R_camLrectK_imu");
-  }
-
   ////////////////////////////// FRONT-END /////////////////////////////////////
-  // Main function for tracking.
-  // Rotation used in 1 and 2 point ransac.
-  double start_time = UtilsOpenCV::GetTimeInSeconds();
-  VLOG(10) << "Starting processStereoFrame...";
-  StatusSmartStereoMeasurements statusSmartStereoMeasurements =
-      stereo_vision_frontend_->processStereoFrame(
-        stereoFrame_k,
-        calLrectLkf_R_camLrectK_imu);
-  CHECK(!stereo_vision_frontend_->stereoFrame_k_); // processStereoFrame is setting this to nullptr!!!
-  VLOG(10) << "Finished processStereoFrame.";
-  auto frontend_duration = utils::Timer::toc(tic).count();
-  utils::StatsCollector stats_frontend("Frontend Timing [ms]");
-  stats_frontend.AddSample(frontend_duration);
-  LOG(WARNING) << "Current Frontend frequency: "
-               << 1000.0 / frontend_duration << " Hz. ("
-               << frontend_duration << " ms).";
+  // Push to stereo frontend input queue.
+  stereo_frontend_input_queue_.push(
+        StereoFrontEndInputPayload(stereo_imu_sync_packet));
+  // Pull from stereo frontend output queue.
+  std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload =
+      stereo_frontend_output_queue_.pop();
 
-  ////////////////////////////// BACK-END //////////////////////////////////////
-  // Pass info to VIO if it's keyframe.
-  start_time = UtilsOpenCV::GetTimeInSeconds();
-  if (stereo_vision_frontend_->stereoFrame_km1_->isKeyframe()) {
-    CHECK_EQ(stereo_vision_frontend_->stereoFrame_lkf_->getTimestamp(),
-             stereo_vision_frontend_->stereoFrame_km1_->getTimestamp());
-    CHECK_EQ(stereo_vision_frontend_->stereoFrame_lkf_->getFrameId(),
-             stereo_vision_frontend_->stereoFrame_km1_->getFrameId());
-    CHECK(!stereo_vision_frontend_->stereoFrame_k_);
-    CHECK(stereo_vision_frontend_->stereoFrame_lkf_->isKeyframe());
-    LOG(INFO) << "Keyframe " << k
-              << " with: " << statusSmartStereoMeasurements.second.size()
-              << " smart measurements";
-
-    // Keep track of last keyframe timestamp. Honestly, I don't know why...
-    // TODO we have made timestamp_first_lkf_ global variable in dataset_
-    // only to be able to init this value... SHOULD NOT NEED TO.
-    // Seems like it is only used for debugging at least for processKeyframe
-    static Timestamp timestamp_lkf = dataset_->timestamp_first_lkf_;
-
-    ////////////////////////////// FEATURE SELECTOR //////////////////////////////
-    if (FLAGS_use_feature_selection) {
-      double start_time = UtilsOpenCV::GetTimeInSeconds();
-      // !! featureSelect is not thread safe !! Do not use when running in
-      // parallel mode.
-      static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
-      statusSmartStereoMeasurements = featureSelect(
-                                        frontend_params_,
-                                        *dataset_,
-                                        stereoFrame_k.getTimestamp(),
-                                        timestamp_lkf,
-                                        vio_backend_->getWPoseBLkf(),
-                                        &(stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_),
-                                        stereo_vision_frontend_->stereoFrame_lkf_,
-                                        statusSmartStereoMeasurements,
-                                        vio_backend_->getCurrKfId(),
-                                        (FLAGS_visualize? saveImagesSelector : 0),
-                                        vio_backend_->getCurrentStateCovariance(),
-                                        // last one for visualization only
-                                        // TODO this info is already in last_stereo_keyframe param...
-                                        stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame());
-      if (FLAGS_log_output) {
-        VLOG(100)
-            << "Overall selection time (logger.timing_featureSelection_) "
-            << logger_.timing_featureSelection_ << '\n'
-            << "actual selection time (stereoTracker.tracker_.debugInfo_."
-            << "featureSelectionTime_) "
-            << stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_;
-        logger_.timing_featureSelection_ =
-            UtilsOpenCV::GetTimeInSeconds() - start_time;
-      }
-      LOG(FATAL) << "Do not use feature selection in parallel mode.";
-    } else {
-      VLOG(100) << "Not using feature selection.";
-    }
-    //////////////////////////////////////////////////////////////////////////////
-    // Actual keyframe processing. Call to backend.
-    processKeyframe(k, statusSmartStereoMeasurements,
-                    stereo_vision_frontend_->stereoFrame_lkf_,
-                    stereoFrame_k.getTimestamp(),
-                    timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
-                    pim); // IMU preintegration from keyframe to keyframe.
-
-    // TODO getLatestImuBias is not thread safe yet! Right now it is ok,
-    // because this is not called until backend finishes.
-    if (VLOG_IS_ON(10)) {
-      const auto& latest_bias = vio_backend_->getLatestImuBias();
-      const auto& bias_prev_kf = vio_backend_->getImuBiasPrevKf();
-      LOG(INFO) << "Latest backend IMU bias is: ";
-      latest_bias.print();
-      LOG(INFO) << "Prev kf backend IMU bias is: ";
-      bias_prev_kf.print();
-    }
-
-    // Update bias and reset preintegration everytime the backend finishes.
-    VLOG(10) << "Update IMU Bias";
-    imu_frontend_->updateBias(vio_backend_->getLatestImuBias());
-
-    VLOG(10) << "Reset IMU preintegration with latest IMU bias";
-    imu_frontend_->resetIntegrationWithCachedBias();
-
-    VLOG(10) << "Reset timestamp_lkf.";
-    timestamp_lkf = stereoFrame_k.getTimestamp();
+  if (!stereo_frontend_output_payload) {
+    return;
   }
+  // Stereo frontend only pushes to the queue if we have a keyframe!
+  // So from this point on, we have a keyframe.
+  // Pass info to VIO
+
+  StatusSmartStereoMeasurements statusSmartStereoMeasurements =
+      stereo_frontend_output_payload->statusSmartStereoMeasurements_;
+
+  std::shared_ptr<StereoFrame> stereoFrame_lkf = std::make_shared<StereoFrame>(
+      stereo_frontend_output_payload->stereo_frame_lkf_);
+
+  const auto& pim = stereo_frontend_output_payload->pim_;
+
+  // Keep track of last keyframe timestamp. Honestly, I don't know why...
+  // TODO we have made timestamp_first_lkf_ global variable in dataset_
+  // only to be able to init this value... SHOULD NOT NEED TO.
+  // Seems like it is only used for debugging at least for processKeyframe
+  static Timestamp timestamp_lkf = dataset_->timestamp_first_lkf_;
+
+  ////////////////////////////// FEATURE SELECTOR //////////////////////////////
+  if (FLAGS_use_feature_selection) {
+    double start_time = UtilsOpenCV::GetTimeInSeconds();
+    // !! featureSelect is not thread safe !! Do not use when running in
+    // parallel mode.
+    static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
+    // Ignore the feature selection time logging because it is done through
+    // the stereo frontend idkw.
+    double dummy_timing = 0.0;
+    statusSmartStereoMeasurements = featureSelect(
+                                      frontend_params_,
+                                      *dataset_,
+                                      stereoFrame_k.getTimestamp(),
+                                      timestamp_lkf,
+                                      vio_backend_->getWPoseBLkf(),
+                                      &dummy_timing,
+                                      stereoFrame_lkf,
+                                      statusSmartStereoMeasurements,
+                                      vio_backend_->getCurrKfId(),
+                                      (FLAGS_visualize? saveImagesSelector : 0),
+                                      vio_backend_->getCurrentStateCovariance(),
+                                      // last one for visualization only
+                                      // TODO this info is already in last_stereo_keyframe param...
+                                      stereoFrame_lkf->getLeftFrame());
+    if (FLAGS_log_output) {
+      VLOG(100)
+          << "Overall selection time (logger.timing_featureSelection_) "
+          << logger_.timing_featureSelection_ << '\n'
+          << "actual selection time (stereoTracker.tracker_.debugInfo_."
+          << "featureSelectionTime_) " << dummy_timing;
+      logger_.timing_featureSelection_ =
+          UtilsOpenCV::GetTimeInSeconds() - start_time;
+    }
+    LOG(FATAL) << "Do not use feature selection in parallel mode.";
+  } else {
+    VLOG(100) << "Not using feature selection.";
+  }
+
+  ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
+  if (FLAGS_log_output) {
+    logger_.logFrontendResults(
+          *dataset_,
+          vio_frontend_->getTrackerStatusSummary(),
+          *stereoFrame_lkf,
+          stereo_frontend_output_payload->relative_pose_body_stereo_,
+          timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
+          stereoFrame_k.getTimestamp());
+  }
+  //////////////////////////////////////////////////////////////////////////////
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Actual keyframe processing. Call to backend.
+  ////////////////////////////// BACK-END //////////////////////////////////////
+  processKeyframe(stereoFrame_k.getFrameId(),
+                  statusSmartStereoMeasurements,
+                  stereoFrame_lkf,
+                  stereoFrame_k.getTimestamp(),
+                  timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
+                  pim,
+                  stereo_frontend_output_payload->tracker_status_,
+                  stereo_frontend_output_payload->relative_pose_body_stereo_);
+
+  // TODO getLatestImuBias is not thread safe yet! Right now it is ok,
+  // because this is not called until backend finishes.
+  if (VLOG_IS_ON(10)) {
+    const auto& latest_bias = vio_backend_->getLatestImuBias();
+    const auto& bias_prev_kf = vio_backend_->getImuBiasPrevKf();
+    LOG(INFO) << "Latest backend IMU bias is: ";
+    latest_bias.print();
+    LOG(INFO) << "Prev kf backend IMU bias is: ";
+    bias_prev_kf.print();
+  }
+
+  VLOG(10) << "Reset timestamp_lkf.";
+  timestamp_lkf = stereoFrame_k.getTimestamp();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -291,18 +248,11 @@ void Pipeline::processKeyframe(
     std::shared_ptr<StereoFrame> last_stereo_keyframe,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf, // Seems like it is only used for debug
-    const gtsam::PreintegratedImuMeasurements& pim) {
+    const gtsam::PreintegratedImuMeasurements& pim,
+    const Tracker::TrackingStatus& kf_tracking_status_stereo,
+    const gtsam::Pose3& relative_pose_body_stereo) {
   // At this point stereoFrame_km1 == stereoFrame_lkf_ !
   const Frame& last_left_keyframe = last_stereo_keyframe->getLeftFrame();
-
-  ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
-  if (FLAGS_log_output) {
-    logger_.logFrontendResults(*dataset_,
-                               *stereo_vision_frontend_, // TODO this copies the whole frontend!!
-                               timestamp_lkf,
-                               timestamp_k);
-  }
-  //////////////////////////////////////////////////////////////////////////////
 
   //////////////////// BACK-END ////////////////////////////////////////////////
   double start_time = UtilsOpenCV::GetTimeInSeconds();
@@ -312,10 +262,10 @@ void Pipeline::processKeyframe(
         VioBackEndInputPayload(
           timestamp_k,
           statusSmartStereoMeasurements,
-          stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_,
+          kf_tracking_status_stereo,
           pim,
           &planes_,
-          stereo_vision_frontend_->getRelativePoseBodyStereo()));
+          relative_pose_body_stereo));
 
   // This should be done inside those who need the backend results
   // IN this case the logger!!!!!
@@ -328,7 +278,11 @@ void Pipeline::processKeyframe(
   if (FLAGS_log_output) {
     logger_.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - start_time; // This does not make sense anymore here, as the backend has its own spin.
     logger_.logBackendResults(*dataset_, // Should not need the dataset...
-                              *stereo_vision_frontend_, // Should not need the frontend...
+                              //NOT THREADSAFEEEEEE!!!!!!!!!!!!!!
+                              vio_frontend_->getTrackerStatusSummary(),
+                              vio_frontend_->getRelativePoseBodyMono(),
+                              vio_frontend_->getTracker(),
+                              vio_frontend_->getRelativePoseBodyStereo(),
                               backend_output_payload,
                               backend_params_->horizon_,
                               timestamp_lkf, timestamp_k, k);
@@ -377,7 +331,7 @@ void Pipeline::processKeyframe(
     // In another thread, mesher is running, consuming mesher payloads.
     CHECK(mesher_input_queue_.push(MesherInputPayload (
                                      points_with_id_VIO, //copy, thread safe, read-only. // This should be a popBlocking...
-                                     *(stereo_vision_frontend_->stereoFrame_lkf_), // not really thread safe, read only.
+                                     *last_stereo_keyframe, // not really thread safe, read only.
                                      W_Pose_camlkf_vio))); // copy, thread safe, read-only. // Same, popBlocking
 
     // Find regularities in the mesh if we are using RegularVIO backend.
@@ -419,7 +373,7 @@ void Pipeline::processKeyframe(
             dataset_->getBackendType(),// This should be passed at ctor level....
             // Pose for trajectory viz.
             vio_backend_->getWPoseBLkf() * // The visualizer needs backend results
-            stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(), // This should be pass at ctor level....
+            last_stereo_keyframe->getBPoseCamLRect(), // This should be pass at ctor level....
             // For visualizeMesh2D and visualizeMesh2DStereo
             mesh_2d, // The visualizer needs mesher results
             // Call semantic mesh segmentation if someone registered a callback.
@@ -482,7 +436,8 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
   /////////////////// FRONTEND /////////////////////////////////////////////////
   // Initialize Stereo Frontend.
-  stereo_vision_frontend_->processFirstStereoFrame(
+  const StereoFrame& stereo_frame_lkf =
+      vio_frontend_->processFirstStereoFrame(
         stereo_imu_sync_packet.getStereoFrame());
 
   ///////////////////////////// BACKEND ////////////////////////////////////////
@@ -494,18 +449,18 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
                      std::shared_ptr<gtNavState>(nullptr);
 
   initBackend(&vio_backend_,
-              stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(),
-              stereo_vision_frontend_->stereoFrame_km1_->getLeftUndistRectCamMat(),
-              stereo_vision_frontend_->stereoFrame_km1_->getBaseline(),
+              stereo_frame_lkf.getBPoseCamLRect(),
+              stereo_frame_lkf.getLeftUndistRectCamMat(),
+              stereo_frame_lkf.getBaseline(),
               *backend_params_,
               &initialStateGT,
               stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
               stereo_imu_sync_packet.getImuAccGyr()); // No timestamps needed for IMU?
-
-  ///////////////////////////// IMU FRONTEND ////////////////////////////
-  // Initialize IMU frontend.
-  imu_frontend_->updateBias(vio_backend_->getLatestImuBias());
-  imu_frontend_->resetIntegrationWithCachedBias();
+  vio_backend_->registerImuBiasUpdateCallback(
+        std::bind(&StereoVisionFrontEnd::updateImuBias,
+                  // Send a cref: constant reference because vio_frontend_ is
+                  // not copyable.
+                  std::cref(*vio_frontend_), std::placeholders::_1));
 
   ////////////////// DEBUG INITIALIZATION //////////////////////////////////
   if (FLAGS_log_output) {
@@ -671,6 +626,15 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::launchThreads() {
+  LOG(INFO) << "Launching threads...";
+
+  // Start frontend_thread.
+  stereo_frontend_thread_ = std::thread(
+                              &StereoVisionFrontEnd::spin,
+                              CHECK_NOTNULL(vio_frontend_.get()),
+                              std::ref(stereo_frontend_input_queue_),
+                              std::ref(stereo_frontend_output_queue_));
+
   // Start backend_thread.
   backend_thread_ = std::thread(&VioBackEnd::spin,
                                 // Returns the pointer to vio_backend_.
@@ -679,7 +643,7 @@ void Pipeline::launchThreads() {
                                 std::ref(backend_output_queue_));
 
   // Start mesher_thread.
-  mesher_thread_ = std::thread(&Mesher::run,
+  mesher_thread_ = std::thread(&Mesher::spin,
                                &mesher_,
                                std::ref(mesher_input_queue_),
                                std::ref(mesher_output_queue_));
@@ -694,6 +658,10 @@ void Pipeline::launchThreads() {
 /* -------------------------------------------------------------------------- */
 void Pipeline::stopThreads() {
   // Shutdown workers and queues.
+  stereo_frontend_input_queue_.shutdown();
+  stereo_frontend_output_queue_.shutdown();
+  vio_frontend_->shutdown();
+
   backend_input_queue_.shutdown();
   backend_output_queue_.shutdown();
   vio_backend_->shutdown();
@@ -709,6 +677,7 @@ void Pipeline::stopThreads() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::joinThreads() {
+  stereo_frontend_thread_.join();
   backend_thread_.join();
   mesher_thread_.join();
   visualizer_thread_.join();

@@ -340,6 +340,14 @@ public:
   inline void shutdown() {shutdown_ = true;}
 
   /* ------------------------------------------------------------------------ */
+  // Register (and trigger!) callback that will be called as soon as the backend
+  // comes up with a new IMU bias update.
+  // The callback is also triggered in this function to update the imu bias for
+  // the callee of this function.
+  void registerImuBiasUpdateCallback(
+      std::function<void(const ImuBias& imu_bias)> imu_bias_update_callback);
+
+  /* ------------------------------------------------------------------------ */
   // TODO only public because it is used for testing...
   static gtsam::Pose3 guessPoseFromIMUmeasurements(const ImuAccGyrS& accGyroRaw,
                                                    const Vector3& n_gravity,
@@ -364,7 +372,6 @@ public:
   /* ------------------------------------------------------------------------ */
   // NOT TESTED
   gtsam::Matrix getCurrentStateInformation() const;
-
 
   /// Printers
   /* ------------------------------------------------------------------------ */
@@ -694,6 +701,10 @@ protected:
   gtsam::NonlinearFactorGraph new_imu_prior_and_other_factors_;    //!< new factors to be added
   LandmarkIdSmartFactorMap new_smart_factors_; //!< landmarkId -> {SmartFactorPtr}
   SmartFactorMap old_smart_factors_;           //!< landmarkId -> {SmartFactorPtr, SlotIndex}
+
+  // Imu Bias update callback. To be called as soon as we have a new IMU bias
+  // update so that the frontend performs preintegration with the newest bias.
+  std::function<void(const ImuBias& imu_bias)> imu_bias_update_callback_;
 
   // Debug info.
   DebugVioInfo debug_info_;
