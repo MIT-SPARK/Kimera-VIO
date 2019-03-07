@@ -118,6 +118,7 @@ TEST(testStereoFrame, rectification) {
 
   // B_Pose_camLrect
   Pose3 B_Pose_camLrect_expect = (left_camera_info.body_Pose_cam_).compose(camL_Pose_camLrect);
+  sf->setIsRectified(true); // Fake that the camera is rectified.
   EXPECT(sf->getBPoseCamLRect().equals(B_Pose_camLrect_expect));
 
   // Right camera pose after rectification
@@ -127,6 +128,7 @@ TEST(testStereoFrame, rectification) {
   // B_Pose_camRrect
   Pose3 B_Pose_camRrect = right_camera_info.body_Pose_cam_.compose(camR_Pose_camRrect);
   // Relative pose
+  sf->setIsRectified(true); // Fake that the camera is rectified.
   Pose3 camLrect_Pose_camRrect = sf->getBPoseCamLRect().between(B_Pose_camRrect);
 
   // Verify the quality of the rectification!
@@ -669,6 +671,7 @@ TEST(testStereoFrame, sparseStereoMatching) {
   // check that 3d point is consistent with the left versor and the depth
   // IMPORTANT: versors and keypoints3D are in different ref frames (former in camL, latter in camLrect)
   // TEST: check rotation due to rectification (important when projecting points later on)
+  sfnew->setIsRectified(true); // Fake that the camera is rectified.
   Rot3 expected_camL_R_camLrect = sfnew->getLeftFrame().cam_param_.body_Pose_cam_.rotation().between(sfnew->getBPoseCamLRect().rotation()); // camL_R_camLrect
   Rot3 actual_camL_R_camLrect = UtilsOpenCV::Cvmat2rot(sfnew->getLeftFrame().cam_param_.R_rectify_).inverse();
   EXPECT(assert_equal(expected_camL_R_camLrect, actual_camL_R_camLrect,1e-4));
