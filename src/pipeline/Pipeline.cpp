@@ -141,9 +141,9 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
         StereoFrontEndInputPayload(stereo_imu_sync_packet));
   // Pull from stereo frontend output queue.
   std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload =
-      stereo_frontend_output_queue_.pop();
+      stereo_frontend_output_queue_.popBlocking();
 
-  if (!stereo_frontend_output_payload) {
+  if (!stereo_frontend_output_payload->is_keyframe_) {
     return;
   }
   // Stereo frontend only pushes to the queue if we have a keyframe!

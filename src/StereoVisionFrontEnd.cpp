@@ -55,8 +55,7 @@ bool StereoVisionFrontEnd::spin(
     std::shared_ptr<StereoFrontEndInputPayload> input = input_queue.popBlocking();
     if (input) {
       auto tic = utils::Timer::tic();
-      const auto& output = spinOnce(input);
-      if (output) output_queue.push(*output);
+      output_queue.push(spinOnce(input));
       auto spin_duration = utils::Timer::toc(tic).count();
       LOG(WARNING) << "Current Stereo FrontEnd frequency: "
                    << 1000.0 / spin_duration << " Hz. ("
@@ -71,7 +70,7 @@ bool StereoVisionFrontEnd::spin(
 }
 
 /* -------------------------------------------------------------------------- */
-std::unique_ptr<StereoFrontEndOutputPayload>
+StereoFrontEndOutputPayload
 StereoVisionFrontEnd::spinOnce(
     const std::shared_ptr<StereoFrontEndInputPayload>& input) {
   const StereoFrame& stereoFrame_k = input->sync_packet_.getStereoFrame();
@@ -155,15 +154,20 @@ StereoVisionFrontEnd::spinOnce(
     imu_frontend_->resetIntegrationWithCachedBias();
 
     // Return the output of the frontend for the others.
-    return VIO::make_unique<StereoFrontEndOutputPayload>(
-          StereoFrontEndOutputPayload(statusSmartStereoMeasurements,
-                                      trackerStatusSummary_.kfTrackingStatus_stereo_,
-                                      getRelativePoseBodyStereo(),
-                                      *stereoFrame_lkf_,
-                                      pim));
+    return StereoFrontEndOutputPayload(true,
+                                       statusSmartStereoMeasurements,
+                                       trackerStatusSummary_.kfTrackingStatus_stereo_,
+                                       getRelativePoseBodyStereo(),
+                                       *stereoFrame_lkf_,
+                                       pim);
   } else {
     // We don't have a keyframe.
-    return nullptr;
+    return StereoFrontEndOutputPayload(false,
+                                       statusSmartStereoMeasurements,
+                                       Tracker::TrackingStatus::INVALID,
+                                       getRelativePoseBodyStereo(),
+                                       *stereoFrame_lkf_,
+                                       pim);
   }
 }
 
@@ -649,11 +653,11 @@ std::string StereoVisionFrontEnd::asString(
     const Tracker::TrackingStatus& status) {
   std::string status_str = "";
   switch(status) {
-    case Tracker::TrackingStatus::VALID : status_str = "VALID";
-    case Tracker::TrackingStatus::INVALID : status_str = "INVALID";
-    case Tracker::TrackingStatus::DISABLED : status_str = "DISABLED";
-    case Tracker::TrackingStatus::FEW_MATCHES : status_str = "FEW_MATCHES";
-    case Tracker::TrackingStatus::LOW_DISPARITY : status_str = "LOW_DISPARITY";
+  case Tracker::TrackingStatus::VALID: {status_str = "VALID"; break;}
+  case Tracker::TrackingStatus::INVALID: {status_str = "INVALID"; break;}
+  case Tracker::TrackingStatus::DISABLED: {status_str = "DISABLED"; break;}
+  case Tracker::TrackingStatus::FEW_MATCHES: {status_str = "FEW_MATCHES"; break;}
+  case Tracker::TrackingStatus::LOW_DISPARITY: {status_str = "LOW_DISPARITY"; break;}
   }
   return status_str;
 }
