@@ -465,8 +465,8 @@ gtsam::Pose3 VioBackEnd::guessPoseFromIMUmeasurements(
 
 /* -------------------------------------------------------------------------- */
 // Get valid 3D points - TODO: this copies the graph.
-vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
-  vector<gtsam::Point3> points3D;
+std::vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
+  std::vector<gtsam::Point3> points3D;
   gtsam::NonlinearFactorGraph graph = smoother_->getFactors(); // TODO: this copies the graph
   for (auto& g : graph){
     if(g){
@@ -1371,7 +1371,7 @@ void VioBackEnd::findSmartFactorsSlotsSlow(
   // OLD INEFFICIENT VERSION:
   const gtsam::NonlinearFactorGraph& graphFactors = smoother_->getFactors();
 
-  vector<LandmarkId> landmarksToRemove;
+  std::vector<LandmarkId> landmarksToRemove;
   for (auto& it : old_smart_factors_) {
     bool found = false;
     for (size_t slot = 0; slot < graphFactors.size(); ++slot) {
@@ -1610,7 +1610,7 @@ void VioBackEnd::printFeatureTracks() const {
 void VioBackEnd::printSmootherInfo(
     const gtsam::NonlinearFactorGraph& new_factors_tmp,
     const std::vector<size_t>& delete_slots,
-    const string& message,
+    const std::string& message,
     const bool& showDetails) const {
   LOG(INFO) << " =============== START:" <<  message << " =============== "
             << std::endl;
