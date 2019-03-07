@@ -245,13 +245,14 @@ TEST(testStereoVisionFrontEnd, getRelativePoseBodyMono) {
   // How to test this in the simplest possible way?
   // Compute everything twice?
   ref_stereo_frame->setIsKeyframe(true);
+  ref_stereo_frame->setIsRectified(true);
   cur_stereo_frame->setIsKeyframe(true);
+  cur_stereo_frame->setIsRectified(true);
 
   StereoVisionFrontEnd st;
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_mono_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
-  ref_stereo_frame->setIsRectified(true);
   Pose3 body_pose_cam = ref_stereo_frame->getBPoseCamLRect();
 
   // Expected answer
@@ -269,12 +270,12 @@ TEST(testStereoVisionFrontEnd, getRelativePoseBodyStereo) {
   // How to test this in the simplest possible way?
   // Compute everything twice?
   ref_stereo_frame->setIsKeyframe(true);
+  ref_stereo_frame->setIsRectified(true);
 
   StereoVisionFrontEnd st;
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_stereo_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
-  ref_stereo_frame->setIsRectified(true);
   Pose3 body_pose_cam = ref_stereo_frame->getBPoseCamLRect();
 
   // Expected answer
