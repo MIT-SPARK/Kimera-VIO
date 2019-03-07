@@ -137,12 +137,17 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
   ////////////////////////////// FRONT-END /////////////////////////////////////
   // Push to stereo frontend input queue.
-  stereo_frontend_input_queue_.push(
-        StereoFrontEndInputPayload(stereo_imu_sync_packet));
+  stereo_frontend_input_queue_.push(StereoFrontEndInputPayload(
+                                      stereo_imu_sync_packet));
+
   // Pull from stereo frontend output queue.
   std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload =
       stereo_frontend_output_queue_.popBlocking();
-
+  if (!stereo_frontend_output_payload) {
+    LOG(WARNING) << "Missing frontend output payload.";
+    return;
+  }
+  CHECK(stereo_frontend_output_payload);
   if (!stereo_frontend_output_payload->is_keyframe_) {
     return;
   }
@@ -273,6 +278,7 @@ void Pipeline::processKeyframe(
   // Pull from backend.
   std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
       backend_output_queue_.popBlocking();
+  LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
 
   ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////
   if (FLAGS_log_output) {
