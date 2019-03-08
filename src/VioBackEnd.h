@@ -241,6 +241,25 @@ struct VioBackEndInputPayload {
   const gtsam::PreintegratedImuMeasurements pim_;
   std::vector<Plane>* planes_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
+public:
+  void print() const {
+    LOG(INFO) << "VioBackEnd Input Payload print:\n"
+              << "Timestamp: " << timestamp_kf_nsec_ << '\n'
+              << "Status smart stereo measurements: "
+              << "\n\t Meas size: " << status_smart_stereo_measurements_kf_.second.size();
+
+    LOG(INFO) << "Mono Tracking Status: " << StereoVisionFrontEnd::asString(
+    status_smart_stereo_measurements_kf_.first.kfTrackingStatus_mono_);
+    status_smart_stereo_measurements_kf_.first.lkf_T_k_mono_.print("\n\t Tracker Pose (mono): ");
+    LOG(INFO) << "Stereo Tracking Status: " << StereoVisionFrontEnd::asString(
+    status_smart_stereo_measurements_kf_.first.kfTrackingStatus_stereo_);
+    status_smart_stereo_measurements_kf_.first.lkf_T_k_stereo_.print("\n\t Tracker Pose (stereo): ");
+
+    LOG(INFO) << "Stereo Tracking Status: " << StereoVisionFrontEnd::asString(stereo_tracking_status_);
+    pim_.print("PIM : ");
+    LOG_IF(INFO, planes_ != nullptr) << "Number of planes: " << planes_->size();
+    LOG_IF(INFO, stereo_ransac_body_pose_) << "Stereo Ransac Body Pose: " << *stereo_ransac_body_pose_;
+  }
 };
 
 struct VioBackEndOutputPayload {

@@ -177,6 +177,7 @@ bool VioBackEnd::spin(
 VioBackEndOutputPayload VioBackEnd::spinOnce(
     const std::shared_ptr<VioBackEndInputPayload>& input) {
   CHECK(input) << "No VioBackEnd Input Payload received.";
+  if (VLOG_IS_ON(10)) input->print();
   // Process data with VIO.
   addVisualInertialStateAndOptimize(input);
   // Update imu bias for the frontend! Note that this should be done asap
