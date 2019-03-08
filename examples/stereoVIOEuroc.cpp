@@ -45,9 +45,8 @@ int main(int argc, char *argv[]) {
   vio_pipeline.shutdownWhenFinished();
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-  LOG(INFO) << "Writting stats to yaml file.";
+  LOG(INFO) << "Writing stats to yaml file.";
   VIO::utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
-
 
   if (is_pipeline_successful) {
     // Log overall time of pipeline run.

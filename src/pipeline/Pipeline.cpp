@@ -174,44 +174,6 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Seems like it is only used for debugging at least for processKeyframe
   static Timestamp timestamp_previous_keyframe = dataset_->timestamp_first_lkf_;
 
-  ////////////////////////////// FEATURE SELECTOR //////////////////////////////
-  if (FLAGS_use_feature_selection) {
-    double start_time = UtilsOpenCV::GetTimeInSeconds();
-    // !! featureSelect is not thread safe !! Do not use when running in
-    // parallel mode.
-    static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
-    // Ignore the feature selection time logging because it is done through
-    // the stereo frontend idkw.
-    double dummy_timing = 0.0;
-    statusSmartStereoMeasurements = featureSelect(
-                                      frontend_params_,
-                                      *dataset_,
-                                      stereoFrame_lkf->getTimestamp(),
-                                      timestamp_previous_keyframe,
-                                      vio_backend_->getWPoseBLkf(),
-                                      &dummy_timing,
-                                      stereoFrame_lkf,
-                                      statusSmartStereoMeasurements,
-                                      vio_backend_->getCurrKfId(),
-                                      (FLAGS_visualize? saveImagesSelector : 0),
-                                      vio_backend_->getCurrentStateCovariance(),
-                                      // last one for visualization only
-                                      // TODO this info is already in last_stereo_keyframe param...
-                                      stereoFrame_lkf->getLeftFrame());
-    if (FLAGS_log_output) {
-      VLOG(100)
-          << "Overall selection time (logger.timing_featureSelection_) "
-          << logger_.timing_featureSelection_ << '\n'
-          << "actual selection time (stereoTracker.tracker_.debugInfo_."
-          << "featureSelectionTime_) " << dummy_timing;
-      logger_.timing_featureSelection_ =
-          UtilsOpenCV::GetTimeInSeconds() - start_time;
-    }
-    LOG(FATAL) << "Do not use feature selection in parallel mode.";
-  } else {
-    VLOG(100) << "Not using feature selection.";
-  }
-
   ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
   if (FLAGS_log_output) {
     logger_.logFrontendResults(
