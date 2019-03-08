@@ -7,6 +7,9 @@ DATASET_PATH="/home/luca/data/euroc/V1_01_easy"
 
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
+
+# Specify: 1 to run pipeline in parallel mode, 0 to run sequentially.
+PARALLEL_RUN=0
 ###################################################################
 
 # Parse Options.
@@ -27,6 +30,8 @@ else
         # Option -r, specifies that we want to use regular vio.
       -r) USE_REGULAR_VIO=1
           echo "Using Regular VIO!" ;;
+      -parallel) PARALLEL_RUN=1
+          echo "Run VIO in PARALLEL mode!" ;;
       --)
           shift # The double dash which separates options from parameters
           break
@@ -83,4 +88,5 @@ echo """ Launching:
   --flagfile="../params/flags/Visualizer3D.flags" \
   --v=0 \
   --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
-  --backend_type="$BACKEND_TYPE"
+  --backend_type="$BACKEND_TYPE" \
+  --parallel_run="$PARALLEL_RUN"
