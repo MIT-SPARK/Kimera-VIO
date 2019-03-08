@@ -133,16 +133,18 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 /* -------------------------------------------------------------------------- */
 // Spin the pipeline only once.
 void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
-  const StereoFrame& stereoFrame_k = stereo_imu_sync_packet.getStereoFrame();
-
   ////////////////////////////// FRONT-END /////////////////////////////////////
   // Push to stereo frontend input queue.
   stereo_frontend_input_queue_.push(StereoFrontEndInputPayload(
                                       stereo_imu_sync_packet));
 
   // Pull from stereo frontend output queue.
-  std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload =
-      stereo_frontend_output_queue_.popBlocking();
+  std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload;
+  if (FLAGS_parallel_run) {
+     stereo_frontend_output_payload = stereo_frontend_output_queue_.pop();
+  } else {
+     stereo_frontend_output_payload = stereo_frontend_output_queue_.popBlocking();
+  }
   if (!stereo_frontend_output_payload) {
     LOG(WARNING) << "Missing frontend output payload.";
     return;
@@ -151,9 +153,12 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   if (!stereo_frontend_output_payload->is_keyframe_) {
     return;
   }
-  // Stereo frontend only pushes to the queue if we have a keyframe!
+  //////////////////////////////////////////////////////////////////////////////
   // So from this point on, we have a keyframe.
   // Pass info to VIO
+  // !!!!! Don't use stereo_imu_sync_packet passed this point because it is a
+  // packet that is way further ahead in time than the keyframe packer since
+  // the pipeline keeps spinning while the frontend works   !!!!!!!
 
   StatusSmartStereoMeasurements statusSmartStereoMeasurements =
       stereo_frontend_output_payload->statusSmartStereoMeasurements_;
@@ -161,13 +166,13 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   std::shared_ptr<StereoFrame> stereoFrame_lkf = std::make_shared<StereoFrame>(
       stereo_frontend_output_payload->stereo_frame_lkf_);
 
-  const auto& pim = stereo_frontend_output_payload->pim_;
+  auto pim = stereo_frontend_output_payload->pim_;
 
   // Keep track of last keyframe timestamp. Honestly, I don't know why...
   // TODO we have made timestamp_first_lkf_ global variable in dataset_
   // only to be able to init this value... SHOULD NOT NEED TO.
   // Seems like it is only used for debugging at least for processKeyframe
-  static Timestamp timestamp_lkf = dataset_->timestamp_first_lkf_;
+  static Timestamp timestamp_previous_keyframe = dataset_->timestamp_first_lkf_;
 
   ////////////////////////////// FEATURE SELECTOR //////////////////////////////
   if (FLAGS_use_feature_selection) {
@@ -181,8 +186,8 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     statusSmartStereoMeasurements = featureSelect(
                                       frontend_params_,
                                       *dataset_,
-                                      stereoFrame_k.getTimestamp(),
-                                      timestamp_lkf,
+                                      stereoFrame_lkf->getTimestamp(),
+                                      timestamp_previous_keyframe,
                                       vio_backend_->getWPoseBLkf(),
                                       &dummy_timing,
                                       stereoFrame_lkf,
@@ -214,19 +219,19 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
           vio_frontend_->getTrackerStatusSummary(),
           *stereoFrame_lkf,
           stereo_frontend_output_payload->relative_pose_body_stereo_,
-          timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
-          stereoFrame_k.getTimestamp());
+          timestamp_previous_keyframe, // TODO it seems this variable is already in the stereo_vision_frontend_
+          stereoFrame_lkf->getTimestamp());
   }
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////////
   // Actual keyframe processing. Call to backend.
   ////////////////////////////// BACK-END //////////////////////////////////////
-  processKeyframe(stereoFrame_k.getFrameId(),
+  processKeyframe(stereoFrame_lkf->getFrameId(),
                   statusSmartStereoMeasurements,
                   stereoFrame_lkf,
-                  stereoFrame_k.getTimestamp(),
-                  timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
+                  stereoFrame_lkf->getTimestamp(),
+                  timestamp_previous_keyframe, // TODO it seems this variable is already in the stereo_vision_frontend_ // This is timestamp of the previous lkf!
                   pim,
                   stereo_frontend_output_payload->tracker_status_,
                   stereo_frontend_output_payload->relative_pose_body_stereo_);
@@ -242,8 +247,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     bias_prev_kf.print();
   }
 
-  VLOG(10) << "Reset timestamp_lkf.";
-  timestamp_lkf = stereoFrame_k.getTimestamp();
+  timestamp_previous_keyframe = stereoFrame_lkf->getTimestamp();
 }
 
 /* -------------------------------------------------------------------------- */
