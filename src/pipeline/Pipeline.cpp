@@ -253,7 +253,7 @@ void Pipeline::processKeyframe(
     std::shared_ptr<StereoFrame> last_stereo_keyframe,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf, // Seems like it is only used for debug
-    const gtsam::PreintegratedImuMeasurements& pim,
+    const ImuFrontEnd::PreintegratedImuMeasurements& pim,
     const Tracker::TrackingStatus& kf_tracking_status_stereo,
     const gtsam::Pose3& relative_pose_body_stereo) {
   // At this point stereoFrame_km1 == stereoFrame_lkf_ !

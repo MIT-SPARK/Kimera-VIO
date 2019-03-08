@@ -101,7 +101,7 @@ private:
       std::shared_ptr<StereoFrame> last_stereo_keyframe,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
-      const gtsam::PreintegratedImuMeasurements& pim,
+      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       const Tracker::TrackingStatus& kf_tracking_status_stereo,
       const gtsam::Pose3& relative_pose_body_stereo);
 
