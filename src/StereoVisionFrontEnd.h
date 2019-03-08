@@ -158,6 +158,11 @@ public:
     return tracker_;
   }
 
+  /* ------------------------------------------------------------------------ */
+  // Returns the tracking status as a string for debugging
+  static std::string asString(const Tracker::TrackingStatus& status);
+
+
 private:
   /* ------------------------------------------------------------------------ */
   StereoFrontEndOutputPayload spinOnce(
@@ -174,10 +179,6 @@ private:
                                        const std::string& type = "mono") {
     LOG(INFO) << "Status " << type << ": " << asString(status);
   }
-
-  /* ------------------------------------------------------------------------ */
-  // Returns the tracking status as a string for debugging
-  static std::string asString(const Tracker::TrackingStatus& status);
 
   /* ------------------------------------------------------------------------ */
   // Static function to display output of stereo tracker
