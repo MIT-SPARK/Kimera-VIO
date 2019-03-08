@@ -42,13 +42,12 @@ int main(int argc, char *argv[]) {
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   const bool is_pipeline_successful = eth_dataset_parser.spin();
+  vio_pipeline.shutdownWhenFinished();
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
   LOG(INFO) << "Writting stats to yaml file.";
   VIO::utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
 
-  // Dataset spin has finished, shutdown VIO.
-  vio_pipeline.shutdown();
 
   if (is_pipeline_successful) {
     // Log overall time of pipeline run.

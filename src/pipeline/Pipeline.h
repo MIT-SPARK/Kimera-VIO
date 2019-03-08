@@ -43,6 +43,10 @@ public:
   Pipeline(ETHDatasetParser* dataset,
            const ImuParams& imu_params);
 
+  ~Pipeline() {
+    shutdown();
+  }
+
   // Main spin, runs the pipeline.
   bool spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
@@ -51,6 +55,9 @@ public:
 
   // TODO a parallel pipeline should always be able to run sequentially...
   bool spinSequential();
+
+  // Shutdown the pipeline once all data has been consumed.
+  void shutdownWhenFinished();
 
   // Shutdown processing pipeline: stops and joins threads, stops queues.
   // And closes logfiles.

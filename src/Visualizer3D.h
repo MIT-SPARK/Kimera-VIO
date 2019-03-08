@@ -122,6 +122,10 @@ public:
   void shutdown();
 
   /* ------------------------------------------------------------------------ */
+  // Checks if the thread is working or if it is waiting for input queue.
+  inline bool isWorking() const {return is_thread_working_;}
+
+  /* ------------------------------------------------------------------------ */
   // Returns true if visualization is ready, false otherwise.
   // The actual visualization must be done in the main thread, and as such,
   // it is not done here to separate visualization preparation from display.
@@ -382,6 +386,8 @@ public:
 private:
   // Shutdown flag to stop the visualization spin.
   std::atomic_bool shutdown_ = {false};
+  // Signals if the thread is working or waiting for input queue.
+  std::atomic_bool is_thread_working_ = {false};
 
   std::deque<cv::Affine3f> trajectoryPoses3d_;
 

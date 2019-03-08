@@ -359,6 +359,10 @@ public:
   inline void shutdown() {shutdown_ = true;}
 
   /* ------------------------------------------------------------------------ */
+  // Checks if the thread is waiting for the input_queue or working.
+  inline bool isWorking() const {return is_thread_working_;}
+
+  /* ------------------------------------------------------------------------ */
   // Register (and trigger!) callback that will be called as soon as the backend
   // comes up with a new IMU bias update.
   // The callback is also triggered in this function to update the imu bias for
@@ -758,6 +762,7 @@ private:
 
   // Thread related members.
   std::atomic_bool shutdown_ = {false};
+  std::atomic_bool is_thread_working_ = {false};
 };
 
 // Template implementations.

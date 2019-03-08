@@ -166,7 +166,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   std::shared_ptr<StereoFrame> stereoFrame_lkf = std::make_shared<StereoFrame>(
       stereo_frontend_output_payload->stereo_frame_lkf_);
 
-  auto pim = stereo_frontend_output_payload->pim_;
+  const auto& pim = stereo_frontend_output_payload->pim_;
 
   // Keep track of last keyframe timestamp. Honestly, I don't know why...
   // TODO we have made timestamp_first_lkf_ global variable in dataset_
@@ -424,6 +424,31 @@ void Pipeline::processKeyframe(
 /* -------------------------------------------------------------------------- */
 bool Pipeline::spinSequential() {
   LOG(FATAL) << "Spin sequential is not yet available.";
+}
+
+/* -------------------------------------------------------------------------- */
+void Pipeline::shutdownWhenFinished() {
+  // This is a very rough way of knowing if we have finished...
+  // Since threads might be in the middle of processing data while we
+  // query if the queues are empty.
+  // Check every second if all queues are empty.
+  // Time to sleep between queries to the queues [in seconds].
+  static constexpr int sleep_time = 1;
+  while(!(stereo_frontend_input_queue_.empty() &&
+          stereo_frontend_output_queue_.empty() &&
+          vio_frontend_->isWorking() &&
+          backend_input_queue_.empty() &&
+          backend_output_queue_.empty() &&
+          vio_backend_->isWorking() &&
+          mesher_input_queue_.empty() &&
+          mesher_output_queue_.empty() &&
+          mesher_.isWorking() &&
+          visualizer_input_queue_.empty() &&
+          visualizer_output_queue_.empty() &&
+          visualizer_.isWorking())) {
+        std::this_thread::sleep_for (std::chrono::seconds(sleep_time));
+  }
+  shutdown();
 }
 
 /* -------------------------------------------------------------------------- */

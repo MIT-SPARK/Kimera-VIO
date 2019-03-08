@@ -110,6 +110,10 @@ public:
   // Shutdown spin.
   inline void shutdown() {shutdown_ = true;}
 
+  /* ------------------------------------------------------------------------ */
+  // Query if thread is working and not waiting on input queue to be filled.
+  inline bool isWorking() const {return is_thread_working_;}
+
 public:
   /* ------------------------------------------------------------------------ */
   // Update Imu Bias. This is thread-safe as imu_frontend_->updateBias is
@@ -251,6 +255,7 @@ private:
 
   // Thread related members.
   std::atomic_bool shutdown_ = {false};
+  std::atomic_bool is_thread_working_ = {false};
 };
 
 } // namespace VIO

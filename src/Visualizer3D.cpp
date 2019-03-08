@@ -140,8 +140,10 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
   utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
   while(!shutdown_) {
     // Wait for mesher payload.
+    is_thread_working_ = false;
     const std::shared_ptr<VisualizerInputPayload>& visualizer_payload =
         input_queue.popBlocking();
+    is_thread_working_ = true;
     auto tic = utils::Timer::tic();
     visualize(visualizer_payload, &output_payload);
     output_queue.push(output_payload);

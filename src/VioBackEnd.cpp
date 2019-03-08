@@ -156,7 +156,9 @@ bool VioBackEnd::spin(
   utils::StatsCollector stat_backend_timing("Backend Timing [ms]");
   while (!shutdown_) {
     // Get input data from queue. Wait for Backend payload.
+    is_thread_working_ = false;
     std::shared_ptr<VioBackEndInputPayload> input = input_queue.popBlocking();
+    is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();
       output_queue.push(spinOnce(input));

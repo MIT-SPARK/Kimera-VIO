@@ -52,7 +52,9 @@ bool StereoVisionFrontEnd::spin(
   utils::StatsCollector stat_stereo_frontend_timing("StereoFrontEnd Timing [ms]");
   while (!shutdown_) {
     // Get input data from queue. Wait for Backend payload.
+    is_thread_working_ = false;
     std::shared_ptr<StereoFrontEndInputPayload> input = input_queue.popBlocking();
+    is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();
       output_queue.push(spinOnce(input));
