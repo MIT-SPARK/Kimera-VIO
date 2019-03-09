@@ -163,7 +163,7 @@ StereoVisionFrontEnd::spinOnce(
       // write mode to append (sending true).
       logger.openLogFiles(12, "", true);
       logger.logFrontendResults(
-            getTrackerStatusSummary(),
+            trackerStatusSummary_,
             stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
       logger.closeLogFiles(12);
     }

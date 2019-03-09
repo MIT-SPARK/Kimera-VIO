@@ -151,25 +151,8 @@ public:
   gtsam::Pose3 getRelativePoseBodyStereo() const;
 
   /* ------------------------------------------------------------------------ */
-  // TODO delete this! Only used by the logger.
-  // Get current tracker status summary.
-  inline TrackerStatusSummary getTrackerStatusSummary() const {
-    return trackerStatusSummary_;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // TODO DELETE THIS INMEDIATELY: whoever is calling this is a savage.
-  // Only the stereo frontend should know about the existence of the tracker...
-  // Get the whole tracker!! DON'T PLS!
-  // Currently used by the logger.
-  inline Tracker getTracker() const {
-    return tracker_;
-  }
-
-  /* ------------------------------------------------------------------------ */
   // Returns the tracking status as a string for debugging
   static std::string asString(const Tracker::TrackingStatus& status);
-
 
 private:
   /* ------------------------------------------------------------------------ */
