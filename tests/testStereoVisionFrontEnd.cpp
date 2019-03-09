@@ -249,7 +249,7 @@ TEST(testStereoVisionFrontEnd, getRelativePoseBodyMono) {
   cur_stereo_frame->setIsKeyframe(true);
   cur_stereo_frame->setIsRectified(true);
 
-  StereoVisionFrontEnd st;
+  // Avoid the Most Vexing Parse compilation error with bracket initialization.
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_mono_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
@@ -272,7 +272,7 @@ TEST(testStereoVisionFrontEnd, getRelativePoseBodyStereo) {
   ref_stereo_frame->setIsKeyframe(true);
   ref_stereo_frame->setIsRectified(true);
 
-  StereoVisionFrontEnd st;
+  StereoVisionFrontEnd st(ImuParams{}, ImuBias{});
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_stereo_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
@@ -295,7 +295,7 @@ TEST(testStereoVisionFrontEnd, getSmartStereoMeasurements) {
   ref_stereo_frame->setIsKeyframe(true);
   ref_stereo_frame->setIsRectified(true);
 
-  StereoVisionFrontEnd st;
+  StereoVisionFrontEnd st(ImuParams{}, ImuBias{});
 
   // Landmarks_, left_keypoints_rectified_, right_keypoints_rectified_,
   // rightKeypoints_status
@@ -446,7 +446,7 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
         matlab_syn_path + "/corners_normal_left.txt");
 
   // Call StereoVisionFrontEnd::Process first frame!
-  StereoVisionFrontEnd st(p);
+  StereoVisionFrontEnd st(ImuParams(), ImuBias(), p);
   st.processFirstStereoFrame(first_stereo_frame);
 
   // Check the following results:
@@ -455,7 +455,7 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
 
   // Check feature detection results!
   // landmarks_, landmarksAge_, keypoints_, versors_
-  const Frame& left_frame = st.stereoFrame_km1_->getLeftFrame();
+  const Frame& left_frame = sf->getLeftFrame();
   const int num_corners = left_frame.landmarks_.size();
   EXPECT(num_corners == left_frame.landmarksAge_.size());
   EXPECT(num_corners == left_frame.keypoints_.size());
@@ -495,7 +495,6 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
 
   // The test data is simple enough so that all left corners have unique and
   // valid corresponding corner!
-  shared_ptr<StereoFrame> sf = st.stereoFrame_km1_;
   EXPECT(sf->isKeyframe());
   EXPECT(sf->isRectified());
 
