@@ -44,7 +44,8 @@ public:
            const ImuParams& imu_params);
 
   ~Pipeline() {
-    shutdown();
+    // Shutdown pipeline if it is not already down.
+    if (!shutdown_) shutdown();
   }
 
   // Main spin, runs the pipeline.
