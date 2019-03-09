@@ -43,10 +43,7 @@ public:
   Pipeline(ETHDatasetParser* dataset,
            const ImuParams& imu_params);
 
-  ~Pipeline() {
-    // Shutdown pipeline if it is not already down.
-    if (!shutdown_) shutdown();
-  }
+  ~Pipeline();
 
   // Main spin, runs the pipeline.
   bool spin(const StereoImuSyncPacket& stereo_imu_sync_packet);

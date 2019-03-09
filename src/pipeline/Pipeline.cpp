@@ -104,6 +104,12 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
 }
 
 /* -------------------------------------------------------------------------- */
+Pipeline::~Pipeline() {
+  // Shutdown pipeline if it is not already down.
+  if (!shutdown_) shutdown();
+}
+
+/* -------------------------------------------------------------------------- */
 bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   static bool is_initialized = false;
   if (!is_initialized) {
