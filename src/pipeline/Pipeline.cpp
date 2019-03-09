@@ -96,8 +96,10 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
                               dataset_->getDatasetName());
 
   // Instantiate feature selector: not used in vanilla implementation.
-  feature_selector_ = FeatureSelector(dataset_->getFrontendParams(),
-                                      *backend_params_);
+  if (FLAGS_use_feature_selection) {
+    feature_selector_ = FeatureSelector(dataset_->getFrontendParams(),
+                                        *backend_params_);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
