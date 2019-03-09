@@ -913,8 +913,10 @@ void VioBackEnd::optimize(
   CHECK(smoother_.get()) << "Incremental smoother is a null pointer.";
 
   // Only for statistics and debugging.
-  // Store start time.
-  double startTime = UtilsOpenCV::GetTimeInSeconds();
+  // Store start time to calculate absolute total time taken.
+  const auto& total_start_time = utils::Timer::tic();
+  // Store start time to calculate per module total time.
+  auto start_time = total_start_time;
   // Reset all timing info.
   debug_info_.resetTimes();
 
@@ -959,8 +961,9 @@ void VioBackEnd::optimize(
   //////////////////////////////////////////////////////////////////////////////
 
   if (verbosity_ >= 5 || log_output_) {
-    debug_info_.factorsAndSlotsTime_ = UtilsOpenCV::GetTimeInSeconds() -
-                                      startTime;
+    debug_info_.factorsAndSlotsTime_ =
+        utils::Timer::toc<std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   if (verbosity_ >= 5) {
@@ -1004,7 +1007,9 @@ void VioBackEnd::optimize(
 
   // Store time before iSAM update.
   if (verbosity_ >= 5 || log_output_) {
-    debug_info_.preUpdateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    debug_info_.preUpdateTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   // Compute iSAM update.
@@ -1022,7 +1027,9 @@ void VioBackEnd::optimize(
 
   // Store time after iSAM update.
   if (verbosity_ >= 5 || log_output_) {
-    debug_info_.updateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    debug_info_.updateTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   /////////////////////////// BOOKKEEPING //////////////////////////////////////
@@ -1050,7 +1057,9 @@ void VioBackEnd::optimize(
   VLOG(10) << "Finished to find smart factors slots.";
 
   if (verbosity_ >= 5 || log_output_) {
-    debug_info_.updateSlotTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+    debug_info_.updateSlotTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -1062,15 +1071,16 @@ void VioBackEnd::optimize(
   }
 
   if (verbosity_ >= 5 || log_output_) {
-    debug_info_.extraIterationsTime_ = UtilsOpenCV::GetTimeInSeconds() -
-                                      startTime;
+    debug_info_.extraIterationsTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   // Update states we need for next iteration.
   updateStates(cur_id);
 
   // Debug.
-  postDebug(startTime);
+  postDebug(total_start_time, start_time);
 }
 
 /// Private methods.
@@ -1996,7 +2006,9 @@ void VioBackEnd::computeSparsityStatistics() {
 
 /* -------------------------------------------------------------------------- */
 // Debugging post optimization and estimate calculation.
-void VioBackEnd::postDebug(const double& start_time) {
+void VioBackEnd::postDebug(
+    const std::chrono::high_resolution_clock::time_point& total_start_time,
+    std::chrono::high_resolution_clock::time_point start_time) {
   if (verbosity_ >= 9) {
     computeSparsityStatistics();
   }
@@ -2017,29 +2029,26 @@ void VioBackEnd::postDebug(const double& start_time) {
               << "Error after: " << graph.error(state_) << std::endl;
   }
   if (verbosity_ >= 5 || log_output_) {
-    debug_info_.printTime_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
+    debug_info_.printTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
   }
 
   if (verbosity_ >= 5 || log_output_) {
-    // order of the following is important:
-    debug_info_.printTime_ -= debug_info_.extraIterationsTime_;
-    debug_info_.extraIterationsTime_ -= debug_info_.updateSlotTime_;
-    debug_info_.updateSlotTime_ -= debug_info_.updateTime_;
-    debug_info_.updateTime_ -= debug_info_.preUpdateTime_;
-    debug_info_.preUpdateTime_ -= debug_info_.factorsAndSlotsTime_;
     debug_info_.printTimes();
   }
 
   if (verbosity_ >= 5 || log_output_) {
-    double endTime = UtilsOpenCV::GetTimeInSeconds() - start_time;
+    auto endTime = utils::Timer::toc
+        <std::chrono::nanoseconds>(total_start_time).count() * 1e-9;
     // sanity check:
-    double endTimeFromSum = debug_info_.factorsAndSlotsTime_ +
-                            debug_info_.preUpdateTime_ +
-                            debug_info_.updateTime_ +
-                            debug_info_.updateSlotTime_ +
-                            debug_info_.extraIterationsTime_ +
-                            debug_info_.printTime_;
-    CHECK_LT(fabs(endTimeFromSum - endTime), 1e-1)
+    auto endTimeFromSum =
+        debug_info_.factorsAndSlotsTime_ +
+        debug_info_.preUpdateTime_ +
+        debug_info_.updateTime_ +
+        debug_info_.updateSlotTime_ +
+        debug_info_.extraIterationsTime_ +
+        debug_info_.printTime_;
+    LOG_IF(ERROR, fabs(endTimeFromSum - endTime) >= 1e-1)
         << "optimize: time measurement mismatch (this check on timing might be "
            "too strict)\n"
         << " - endTime: " << endTime << '\n'

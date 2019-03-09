@@ -427,7 +427,9 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Debugging post optimization and estimate calculation.
-  void postDebug(const double& start_time);
+  void postDebug(
+      const std::chrono::high_resolution_clock::time_point& total_start_time,
+      std::chrono::high_resolution_clock::time_point start_time);
 
   /* ------------------------------------------------------------------------ */
   // Reset state of debug info.
