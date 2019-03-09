@@ -198,6 +198,7 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
     LOG(INFO) << "Prev kf backend IMU bias is: ";
     getImuBiasPrevKf().print();
   }
+
   // Create Backend Output Payload.
   VioBackEndOutputPayload output_payload (
         input->timestamp_kf_nsec_,

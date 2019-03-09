@@ -109,7 +109,10 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Shutdown spin.
-  inline void shutdown() {shutdown_ = true;}
+  inline void shutdown() {
+    LOG(INFO) << "Shutting down Frontend.";
+    shutdown_ = true;
+  }
 
   /* ------------------------------------------------------------------------ */
   // Query if thread is working and not waiting on input queue to be filled.

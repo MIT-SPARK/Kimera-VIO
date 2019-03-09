@@ -356,7 +356,10 @@ public:
       const std::shared_ptr<VioBackEndInputPayload>& input);
 
   /* ------------------------------------------------------------------------ */
-  inline void shutdown() {shutdown_ = true;}
+  inline void shutdown() {
+    LOG(INFO) << "Shutting down Backend.";
+    shutdown_ = true;
+  }
 
   /* ------------------------------------------------------------------------ */
   // Checks if the thread is waiting for the input_queue or working.
