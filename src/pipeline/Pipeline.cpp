@@ -88,12 +88,13 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
   // TODO remove hardcoded saveImages, use gflag.
   static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
   vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
-                              imu_params,
-                              // This should not be asked!
-                              dataset->getGroundTruthState(dataset_->timestamp_first_lkf_).imu_bias_,
-                              frontend_params_,
-                              saveImages,
-                              dataset_->getDatasetName());
+        imu_params,
+        // This should not be asked!
+        dataset->getGroundTruthState(dataset_->timestamp_first_lkf_).imu_bias_,
+        frontend_params_,
+        saveImages,
+        dataset_->getDatasetName(),
+        FLAGS_log_output);
 
   // Instantiate feature selector: not used in vanilla implementation.
   if (FLAGS_use_feature_selection) {
