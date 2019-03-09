@@ -256,7 +256,6 @@ TEST(testVio, robotMovingWithConstantVelocity) {
         B_pose_camLrect, cam_params,
         baseline, &initial_state,
         t_start, ImuAccGyrS(), vioParams);
-
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
   imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
@@ -265,6 +264,10 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   imu_params.gyro_walk_ = vioParams.gyroBiasSigma_;
   imu_params.gyro_noise_ = vioParams.gyroNoiseDensity_;
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
+
+  vio->registerImuBiasUpdateCallback(
+        std::bind(&ImuFrontEnd::updateBias, std::ref(imu_frontend),
+                  std::placeholders::_1));
 
   // For each frame, add landmarks and optimize.
   for(int64_t k = 1; k < num_key_frames; k++) {
@@ -292,7 +295,8 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
     // process data with VIO
     vio->spinOnce(std::make_shared<VioBackEndInputPayload>(input));
-    imu_frontend.updateBias(vio->getLatestImuBias());
+    // At this point the update imu bias callback should be triggered which
+    // will update the imu_frontend imu bias.
     imu_frontend.resetIntegrationWithCachedBias();
 
     const NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
