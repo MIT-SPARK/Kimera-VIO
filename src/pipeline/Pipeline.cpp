@@ -359,19 +359,33 @@ void Pipeline::shutdownWhenFinished() {
   // query if the queues are empty.
   // Check every second if all queues are empty.
   // Time to sleep between queries to the queues [in seconds].
+  LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
   static constexpr int sleep_time = 1;
   while(!(stereo_frontend_input_queue_.empty() &&
           stereo_frontend_output_queue_.empty() &&
-          vio_frontend_->isWorking() &&
+          !vio_frontend_->isWorking() &&
           backend_input_queue_.empty() &&
           backend_output_queue_.empty() &&
-          vio_backend_->isWorking() &&
+          !vio_backend_->isWorking() &&
           mesher_input_queue_.empty() &&
           mesher_output_queue_.empty() &&
-          mesher_.isWorking() &&
+          !mesher_.isWorking() &&
           visualizer_input_queue_.empty() &&
           visualizer_output_queue_.empty() &&
-          visualizer_.isWorking())) {
+          !visualizer_.isWorking())) {
+    VLOG_EVERY_N(10, 100)
+        << "VIO pipeline status: \n"
+        << "Frontend input queue empty?" << stereo_frontend_input_queue_.empty() << '\n'
+        << "Frontend output queue empty?" << stereo_frontend_output_queue_.empty()<< '\n'
+        << "Frontend is working? " <<  vio_frontend_->isWorking()<< '\n'
+        << "Backend Input queue empty?" <<  backend_input_queue_.empty()<< '\n'
+        << "Backend Output queue empty?" <<  backend_output_queue_.empty()<< '\n'
+        << "Backend is working? " <<  vio_backend_->isWorking()<< '\n'
+        << "Mesher input queue empty?" <<  mesher_input_queue_.empty()<< '\n'
+        << "Mesher output queue empty?" <<  mesher_output_queue_.empty()<< '\n'
+        << "Mesher is working? " <<  mesher_.isWorking()<< '\n'
+        << "Visualizer input queue empty?" << visualizer_input_queue_.empty()<< '\n'
+        << "Visualizer is working? " << visualizer_.isWorking();
         std::this_thread::sleep_for (std::chrono::seconds(sleep_time));
   }
   shutdown();
