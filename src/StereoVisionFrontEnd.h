@@ -100,7 +100,8 @@ public:
       const ImuBias& imu_initial_bias,
       const VioFrontEndParams& trackerParams = VioFrontEndParams(),
       int saveImages = 1,
-      const std::string& dataset_name = "");
+      const std::string& dataset_name = "",
+      bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
   bool spin(ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
@@ -256,6 +257,9 @@ private:
   // Thread related members.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_thread_working_ = {false};
+
+  // Frontend logger.
+  const bool log_output_ = {false};
 };
 
 } // namespace VIO

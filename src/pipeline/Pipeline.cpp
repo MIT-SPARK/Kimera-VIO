@@ -174,18 +174,6 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Seems like it is only used for debugging at least for processKeyframe
   static Timestamp timestamp_previous_keyframe = dataset_->timestamp_first_lkf_;
 
-  ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
-  if (FLAGS_log_output) {
-    logger_.logFrontendResults(
-          *dataset_,
-          vio_frontend_->getTrackerStatusSummary(),
-          *stereoFrame_lkf,
-          stereo_frontend_output_payload->relative_pose_body_stereo_,
-          timestamp_previous_keyframe, // TODO it seems this variable is already in the stereo_vision_frontend_
-          stereoFrame_lkf->getTimestamp());
-  }
-  //////////////////////////////////////////////////////////////////////////////
-
   //////////////////////////////////////////////////////////////////////////////
   // Actual keyframe processing. Call to backend.
   ////////////////////////////// BACK-END //////////////////////////////////////
@@ -198,16 +186,7 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
                   stereo_frontend_output_payload->tracker_status_,
                   stereo_frontend_output_payload->relative_pose_body_stereo_);
 
-  // TODO getLatestImuBias is not thread safe yet! Right now it is ok,
-  // because this is not called until backend finishes.
-  if (VLOG_IS_ON(10)) {
-    const auto& latest_bias = vio_backend_->getLatestImuBias();
-    const auto& bias_prev_kf = vio_backend_->getImuBiasPrevKf();
-    LOG(INFO) << "Latest backend IMU bias is: ";
-    latest_bias.print();
-    LOG(INFO) << "Prev kf backend IMU bias is: ";
-    bias_prev_kf.print();
-  }
+}
 
   timestamp_previous_keyframe = stereoFrame_lkf->getTimestamp();
 }
@@ -246,22 +225,7 @@ void Pipeline::processKeyframe(
       backend_output_queue_.popBlocking();
   LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
 
-  ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////
-  if (FLAGS_log_output) {
-    logger_.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - start_time; // This does not make sense anymore here, as the backend has its own spin.
-    logger_.logBackendResults(*dataset_, // Should not need the dataset...
-                              //NOT THREADSAFEEEEEE!!!!!!!!!!!!!!
-                              vio_frontend_->getTrackerStatusSummary(),
-                              vio_frontend_->getRelativePoseBodyMono(),
-                              vio_frontend_->getTracker(),
-                              vio_frontend_->getRelativePoseBodyStereo(),
-                              backend_output_payload,
-                              backend_params_->horizon_,
-                              timestamp_lkf, timestamp_k, k);
-    logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
-  }
-
-  ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////
+  ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
   std::vector<cv::Vec6f> mesh_2d;
   VioBackEnd::PointsWithIdMap points_with_id_VIO;
   VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;

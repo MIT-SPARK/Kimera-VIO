@@ -49,12 +49,12 @@ public:
   std::ofstream outputFile_statsTracker_;
   std::ofstream outputFile_statsFactors_;
   std::ofstream outputFile_mesh_;
+  std::ofstream outputFile_frontend_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
 
   double timing_loadStereoFrame_, timing_processStereoFrame_,
-  timing_featureSelection_, timing_vio_, timing_loggerBackend_,
-  timing_loggerFrontend_;
+  timing_featureSelection_, timing_loggerBackend_;
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void openLogFiles(int i = -1, const std::string &output_file_name = "",
@@ -64,12 +64,8 @@ public:
   void closeLogFiles(int i = -1);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void logFrontendResults(const ETHDatasetParser& dataset,
-                          const TrackerStatusSummary& tracker_summary,
-                          const StereoFrame& stereoFrame_km1,
-                          const gtsam::Pose3& relative_pose_body_mono,
-                          const Timestamp& timestamp_lkf,
-                          const Timestamp& timestamp_k);
+  void logFrontendResults(const TrackerStatusSummary& tracker_summary,
+                          const size_t& nrKeypoints);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logLandmarks(const VioBackEnd::PointsWithId& lmks);
@@ -83,6 +79,9 @@ public:
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logMesh(const cv::Mat& lmks, const cv::Mat& colors, const cv::Mat& mesh,
                const double& timestamp, bool log_accumulated_mesh = false);
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logBackendResultsCSV(const VioBackEndOutputPayload vio_output);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(

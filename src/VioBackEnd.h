@@ -341,7 +341,7 @@ public:
              const Timestamp& timestamp,
              const ImuAccGyrS& imu_accgyr,
              const VioBackEndParams& vioParams,
-             const bool log_timing = false);
+             const bool log_output = false);
 
   // Virtual destructor needed for derived class (i.e. RegularVioBackEnd).
   virtual ~VioBackEnd() = default;
@@ -758,7 +758,7 @@ private:
 
   // Flags.
   const int verbosity_;
-  const bool log_timing_;
+  const bool log_output_ = {false};
 
   // Thread related members.
   std::atomic_bool shutdown_ = {false};

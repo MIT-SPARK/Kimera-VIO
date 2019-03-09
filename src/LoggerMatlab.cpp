@@ -15,6 +15,7 @@
 #include <LoggerMatlab.h>
 #include <memory>
 #include <boost/foreach.hpp>
+#include <Statistics.h>
 
 DEFINE_string(output_path, "./", "Path where to store VIO's log output.");
 
@@ -25,7 +26,8 @@ LoggerMatlab::LoggerMatlab()
   : output_path_(FLAGS_output_path) {}
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void LoggerMatlab::openLogFiles(int i, const std::string& output_file_name,
+void LoggerMatlab::openLogFiles(int i,
+                                const std::string& output_file_name,
                                 bool open_file_in_append_mode) {
   // Store output data and debug info:
   if (i == 0 || i == -1)
@@ -38,11 +40,6 @@ void LoggerMatlab::openLogFiles(int i, const std::string& output_file_name,
                           (output_file_name.empty()?
                             "/output_posesVIO.txt":output_file_name),
                           outputFile_posesVIO_, open_file_in_append_mode);
-  if (i == 1 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ +
-                          (output_file_name.empty()?
-                            "/output_posesVIO.csv" : output_file_name),
-                          outputFile_posesVIO_csv_, open_file_in_append_mode);
   if (i == 2 || i == -1)
     UtilsOpenCV::OpenFile(output_path_ +
                           (output_file_name.empty()?
@@ -92,7 +89,17 @@ void LoggerMatlab::openLogFiles(int i, const std::string& output_file_name,
     UtilsOpenCV::OpenFile(output_path_ +
                           (output_file_name.empty()?
                              "/output_timingOverall.csv" : output_file_name),
-                          outputFile_timingOverall_, false);
+                          outputFile_timingOverall_, open_file_in_append_mode);
+  if (i == 12 || i == -1)
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                             "/output_frontend.csv" : output_file_name),
+                          outputFile_frontend_, open_file_in_append_mode);
+  if (i == 13 || i == -1)
+    UtilsOpenCV::OpenFile(output_path_ +
+                          (output_file_name.empty()?
+                            "/output_posesVIO.csv" : output_file_name),
+                          outputFile_posesVIO_csv_, open_file_in_append_mode);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -101,8 +108,6 @@ void LoggerMatlab::closeLogFiles(int i) {
     outputFile_.close();
   if (i == 1 || i == -1)
     outputFile_posesVIO_.close();
-  if (i == 1 || i == -1)
-    outputFile_posesVIO_csv_.close();
   if (i == 2 || i == -1)
     outputFile_posesGT_.close();
   if (i == 3 || i == -1)
@@ -123,55 +128,38 @@ void LoggerMatlab::closeLogFiles(int i) {
     outputFile_mesh_.close();
   if (i == 11 || i == -1)
     outputFile_timingOverall_.close();
+  if (i == 12 || i == -1)
+    outputFile_frontend_.close();
+  if (i == 13 || i == -1)
+    outputFile_posesVIO_csv_.close();
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void LoggerMatlab::logFrontendResults(const ETHDatasetParser& dataset,
-                                      const TrackerStatusSummary& tracker_summary,
-                                      const StereoFrame& stereoFrame_km1,
-                                      const gtsam::Pose3& relative_pose_body_mono,
-                                      const Timestamp& timestamp_lkf,
-                                      const Timestamp& timestamp_k) {
+void LoggerMatlab::logFrontendResults(const TrackerStatusSummary& tracker_summary,
+                                      const size_t& nrKeypoints) {
   // Log how long it takes to log the frontend.
-  double start_time = UtilsOpenCV::GetTimeInSeconds();
-  // If it's a keyframe, check pose estimate.
-  bool isValid = (tracker_summary.kfTrackingStatus_mono_ !=
-      Tracker::TrackingStatus::INVALID);
-  double relativeRotError, relativeTranError;
+  utils::StatsCollector stats_visualizer("Logging Frontend Timing [ms]");
+  auto tic = VIO::utils::Timer::tic();
 
-  // Mono error.
-  // TODO THIS IS NOT THREAD-SAFE
-  boost::tie(relativeRotError, relativeTranError) =
-      dataset.computePoseErrors(relative_pose_body_mono,
-                                isValid,
-                                timestamp_lkf,
-                                timestamp_k,
-                                true); // true = comparison up to scale.
-  size_t nrKeypoints =
-      stereoFrame_km1.getLeftFrame().getNrValidKeypoints();
-  outputFile_ << static_cast<std::underlying_type<Tracker::TrackingStatus>::type>(
-                 tracker_summary.kfTrackingStatus_mono_)
-              << " " << relativeRotError
-              << " " << relativeTranError
-              << " " << nrKeypoints << " ";
+  // We log frontend results in csv format.
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    outputFile_frontend_ << "mono_status, stereo_status, nr_keypoints"
+                         << std::endl;
+    is_header_written = true;
+  }
 
-  // Stereo error.
-  // TODO THIS IS NOT THREAD-SAFE
-  isValid = (tracker_summary.kfTrackingStatus_stereo_ !=
-      Tracker::TrackingStatus::INVALID);
-  boost::tie(relativeRotError, relativeTranError) =
-      dataset.computePoseErrors(relative_pose_body_mono,
-                                isValid,
-                                timestamp_lkf,
-                                timestamp_k);
-  outputFile_ << static_cast<std::underlying_type<Tracker::TrackingStatus>::type>(
-                 tracker_summary.kfTrackingStatus_stereo_)
-              << " " << relativeRotError
-              << " " << relativeTranError
-              << " " << nrKeypoints << " ";
+  // Mono status.
+  outputFile_frontend_ << StereoVisionFrontEnd::asString(
+                   tracker_summary.kfTrackingStatus_mono_) << ", ";
+  // Stereo status.
+  outputFile_frontend_ << StereoVisionFrontEnd::asString(
+                   tracker_summary.kfTrackingStatus_stereo_) << ", ";
+  // Nr of keypoints
+  outputFile_frontend_ << nrKeypoints << ", ";
 
-  // Log how long it takes to log the frontend.
-  timing_loggerFrontend_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
+  auto logging_frontend_duration = VIO::utils::Timer::toc(tic).count();
+  stats_visualizer.AddSample(logging_frontend_duration);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -278,6 +266,44 @@ void LoggerMatlab::logMesh(const cv::Mat& lmks,
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+void LoggerMatlab::logBackendResultsCSV(
+    const VioBackEndOutputPayload vio_output) {
+  // We log the poses in csv format for later alignement and analysis.
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    outputFile_posesVIO_csv_
+        << "timestamp, x, y, z, qx, qy, qz, qw, vx, vy, vz,"
+           " bgx, bgy, bgz, bax, bay, baz" << std::endl;
+    is_header_written = true;
+  }
+  const auto& w_pose_blkf_trans = vio_output.W_Pose_Blkf_.translation().transpose();
+  const auto& w_pose_blkf_rot = vio_output.W_Pose_Blkf_.rotation().quaternion();
+  const auto& w_vel_blkf = vio_output.W_Vel_Blkf_.transpose();
+  const auto& imu_bias_gyro = vio_output.imu_bias_lkf_.gyroscope().transpose();
+  const auto& imu_bias_acc = vio_output.imu_bias_lkf_.accelerometer().transpose();
+  outputFile_posesVIO_csv_
+      //TODO Luca: is W_Vel_Blkf_ at timestamp_lkf or timestamp_kf?
+      // I just want to log latest vio estimate and correct timestamp...
+      << vio_output.timestamp_kf_ << ", "
+      << w_pose_blkf_trans.x()     << ", "
+      << w_pose_blkf_trans.y()     << ", "
+      << w_pose_blkf_trans.z()     << ", "
+      << w_pose_blkf_rot(1)        << ", " // q_x
+      << w_pose_blkf_rot(2)        << ", " // q_y
+      << w_pose_blkf_rot(3)        << ", " // q_z
+      << w_pose_blkf_rot(0)        << ", " // q_w
+      << w_vel_blkf(0)             << ", "
+      << w_vel_blkf(1)             << ", "
+      << w_vel_blkf(2)             << ", "
+      << imu_bias_gyro(0)          << ", "
+      << imu_bias_gyro(1)          << ", "
+      << imu_bias_gyro(2)          << ", "
+      << imu_bias_acc(0)           << ", "
+      << imu_bias_acc(1)           << ", "
+      << imu_bias_acc(2) << std::endl;
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::logBackendResults(
     const ETHDatasetParser& dataset,
     const TrackerStatusSummary& tracker_status_summary,
@@ -359,35 +385,6 @@ void LoggerMatlab::logBackendResults(
                           vio_output->W_Vel_Blkf_.transpose()               << " " <<
                           vio_output->imu_bias_lkf_.accelerometer().transpose() << " " <<
                           vio_output->imu_bias_lkf_.gyroscope().transpose() << std::endl;
-  // We log the poses in csv format for later alignement and analysis.
-  static bool is_header_written = false;
-  if (!is_header_written) {
-    outputFile_posesVIO_csv_
-        << "timestamp, x, y, z, qx, qy, qz, qw, vx, vy, vz,"
-           " bgx, bgy, bgz, bax, bay, baz" << std::endl;
-    is_header_written = true;
-  }
-  outputFile_posesVIO_csv_
-      //TODO Luca: is W_Vel_Blkf_ at timestamp_lkf or timestamp_kf?
-      // I just want to log latest vio estimate and correct timestamp...
-      << timestamp_lkf                                     << ", "
-      << vio_output->W_Pose_Blkf_.translation().transpose().x()   << ", "
-      << vio_output->W_Pose_Blkf_.translation().transpose().y()   << ", "
-      << vio_output->W_Pose_Blkf_.translation().transpose().z()   << ", "
-      << vio_output->W_Pose_Blkf_.rotation().quaternion()(1)      << ", " // q_x
-      << vio_output->W_Pose_Blkf_.rotation().quaternion()(2)      << ", " // q_y
-      << vio_output->W_Pose_Blkf_.rotation().quaternion()(3)      << ", " // q_z
-      << vio_output->W_Pose_Blkf_.rotation().quaternion()(0)      << ", " // q_w
-      << vio_output->W_Vel_Blkf_.transpose()(0)                   << ", "
-      << vio_output->W_Vel_Blkf_.transpose()(1)                   << ", "
-      << vio_output->W_Vel_Blkf_.transpose()(2)                   << ", "
-      << vio_output->imu_bias_lkf_.gyroscope().transpose()(0)     << ", "
-      << vio_output->imu_bias_lkf_.gyroscope().transpose()(1)     << ", "
-      << vio_output->imu_bias_lkf_.gyroscope().transpose()(2)     << ", "
-      << vio_output->imu_bias_lkf_.accelerometer().transpose()(0) << ", "
-      << vio_output->imu_bias_lkf_.accelerometer().transpose()(1) << ", "
-      << vio_output->imu_bias_lkf_.accelerometer().transpose()(2) << std::endl;
-
   // we log the camera since we will display camera poses in matlab
   gtsam::Pose3 W_Pose_camlkf_gt = W_Pose_Bkf_gt.compose(vio_output->B_Pose_leftCam_);
   Vector3 W_Vel_camlkf_gt = (dataset.getGroundTruthState(timestamp_k)).velocity_;
@@ -411,7 +408,6 @@ void LoggerMatlab::logBackendResults(
                            timing_loadStereoFrame_ << " " <<
                            timing_processStereoFrame_ << " " <<
                            timing_featureSelection_ << " " <<
-                           timing_vio_ << " " <<
                            vio_output->debug_info_.linearizeTime_ << " " <<
                            vio_output->debug_info_.linearSolveTime_ << " " <<
                            vio_output->debug_info_.retractTime_ << " " <<
@@ -514,8 +510,6 @@ void LoggerMatlab::displayOverallTiming() const {
             << "timing_loadStereoFrame_: "   << timing_loadStereoFrame_   <<'\n'
             << "timing_processStereoFrame_: "<< timing_processStereoFrame_<<'\n'
             << "timing_featureSelection_: "  << timing_featureSelection_  <<'\n'
-            << "timing_vio_: "               << timing_vio_               <<'\n'
-            << "timing_loggerFrontend_: "    << timing_loggerFrontend_    <<'\n'
             << "timing_loggerBackend_: "     << timing_loggerBackend_;
 }
 

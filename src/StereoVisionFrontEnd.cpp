@@ -14,6 +14,7 @@
 
 #include "StereoVisionFrontEnd.h"
 #include <glog/logging.h>
+#include "LoggerMatlab.h"
 
 namespace VIO {
 
@@ -22,14 +23,16 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuBias& imu_initial_bias,
     const VioFrontEndParams& trackerParams,
     int save_images_option,
-    const std::string& dataset_name) :
+    const std::string& dataset_name,
+    bool log_output) :
   frame_count_(0),
   keyframe_count_(0),
   last_landmark_count_(0),
   tracker_(trackerParams, save_images_option),
   save_images_option_(save_images_option),
   trackerStatusSummary_(),
-  output_images_path_("./outputImages/") { // Only for debugging and visualization.
+  output_images_path_("./outputImages/"),
+  log_output_(log_output) { // Only for debugging and visualization.
 
   // Instantiate IMU frontend.
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(
@@ -41,7 +44,6 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     tracker_.outputImagesPath_ = "./outputTrackerImages-" + dataset_name;
   }
   tracker_.trackerParams_.print();
-
 }
 
 /* -------------------------------------------------------------------------- */
@@ -124,7 +126,6 @@ StereoVisionFrontEnd::spinOnce(
 
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
-  double start_time = UtilsOpenCV::GetTimeInSeconds();
   VLOG(10) << "Starting processStereoFrame...";
   StatusSmartStereoMeasurements statusSmartStereoMeasurements =
       processStereoFrame(stereoFrame_k,
@@ -154,6 +155,19 @@ StereoVisionFrontEnd::spinOnce(
     // the most time possible to update the IMU bias.
     VLOG(10) << "Reset IMU preintegration with latest IMU bias";
     imu_frontend_->resetIntegrationWithCachedBias();
+
+    ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
+    if (log_output_) {
+      LoggerMatlab logger;
+      // Use default filename (sending empty "" uses default name), and set
+      // write mode to append (sending true).
+      logger.openLogFiles(12, "", true);
+      logger.logFrontendResults(
+            getTrackerStatusSummary(),
+            stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
+      logger.closeLogFiles(12);
+    }
+    ////////////////////////////////////////////////////////////////////////////
 
     // Return the output of the frontend for the others.
     return StereoFrontEndOutputPayload(true,
