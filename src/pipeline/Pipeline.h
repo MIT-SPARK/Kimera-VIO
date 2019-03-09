@@ -104,15 +104,11 @@ private:
       const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload);
 
   void processKeyframe(
-      size_t k,
       const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
-      std::shared_ptr<StereoFrame> last_stereo_keyframe,
-      const Timestamp& timestamp_k,
-      const Timestamp& timestamp_lkf,
+      const StereoFrame &last_stereo_keyframe,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       const Tracker::TrackingStatus& kf_tracking_status_stereo,
       const gtsam::Pose3& relative_pose_body_stereo);
-
 
   StatusSmartStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,

@@ -163,57 +163,35 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // packet that is way further ahead in time than the keyframe packer since
   // the pipeline keeps spinning while the frontend works   !!!!!!!
 
-  StatusSmartStereoMeasurements statusSmartStereoMeasurements =
-      stereo_frontend_output_payload->statusSmartStereoMeasurements_;
-
-  std::shared_ptr<StereoFrame> stereoFrame_lkf = std::make_shared<StereoFrame>(
-      stereo_frontend_output_payload->stereo_frame_lkf_);
-
-  const auto& pim = stereo_frontend_output_payload->pim_;
-
-  // Keep track of last keyframe timestamp. Honestly, I don't know why...
-  // TODO we have made timestamp_first_lkf_ global variable in dataset_
-  // only to be able to init this value... SHOULD NOT NEED TO.
-  // Seems like it is only used for debugging at least for processKeyframe
-  static Timestamp timestamp_previous_keyframe = dataset_->timestamp_first_lkf_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Actual keyframe processing. Call to backend.
   ////////////////////////////// BACK-END //////////////////////////////////////
-  processKeyframe(stereoFrame_lkf->getFrameId(),
-                  statusSmartStereoMeasurements,
-                  stereoFrame_lkf,
-                  stereoFrame_lkf->getTimestamp(),
-                  timestamp_previous_keyframe, // TODO it seems this variable is already in the stereo_vision_frontend_ // This is timestamp of the previous lkf!
-                  pim,
-                  stereo_frontend_output_payload->tracker_status_,
-                  stereo_frontend_output_payload->relative_pose_body_stereo_);
-
-}
-
-  timestamp_previous_keyframe = stereoFrame_lkf->getTimestamp();
+  processKeyframe(
+        stereo_frontend_output_payload->statusSmartStereoMeasurements_,
+        stereo_frontend_output_payload->stereo_frame_lkf_,
+        stereo_frontend_output_payload->pim_,
+        stereo_frontend_output_payload->tracker_status_,
+        stereo_frontend_output_payload->relative_pose_body_stereo_);
 }
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::processKeyframe(
-    size_t k,
     const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
-    std::shared_ptr<StereoFrame> last_stereo_keyframe,
-    const Timestamp& timestamp_k,
-    const Timestamp& timestamp_lkf, // Seems like it is only used for debug
+    const StereoFrame& last_stereo_keyframe,
     const ImuFrontEnd::PreintegratedImuMeasurements& pim,
     const Tracker::TrackingStatus& kf_tracking_status_stereo,
     const gtsam::Pose3& relative_pose_body_stereo) {
   // At this point stereoFrame_km1 == stereoFrame_lkf_ !
-  const Frame& last_left_keyframe = last_stereo_keyframe->getLeftFrame();
+  const Frame& last_left_keyframe = last_stereo_keyframe.getLeftFrame();
 
   //////////////////// BACK-END ////////////////////////////////////////////////
-  double start_time = UtilsOpenCV::GetTimeInSeconds();
   // Push to backend input.
   // This should be done inside the frontend!!!!
+  // Or the backend should pull from the frontend!!!!
   backend_input_queue_.push(
         VioBackEndInputPayload(
-          timestamp_k,
+          last_stereo_keyframe.getTimestamp(),
           statusSmartStereoMeasurements,
           kf_tracking_status_stereo,
           pim,
@@ -246,7 +224,7 @@ void Pipeline::processKeyframe(
   }
     // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
   case VisualizationType::MESH2Dsparse: {
-    last_stereo_keyframe->createMesh2dStereo(&mesh_2d); // TODO same as above.
+    last_stereo_keyframe.createMesh2dStereo(&mesh_2d); // TODO same as above.
     break;
   }
   case VisualizationType::MESH2DTo3Dsparse: {
@@ -270,7 +248,7 @@ void Pipeline::processKeyframe(
     // In another thread, mesher is running, consuming mesher payloads.
     CHECK(mesher_input_queue_.push(MesherInputPayload (
                                      points_with_id_VIO, //copy, thread safe, read-only. // This should be a popBlocking...
-                                     *last_stereo_keyframe, // not really thread safe, read only.
+                                     last_stereo_keyframe, // not really thread safe, read only.
                                      W_Pose_camlkf_vio))); // copy, thread safe, read-only. // Same, popBlocking
 
     // Find regularities in the mesh if we are using RegularVIO backend.
@@ -312,7 +290,7 @@ void Pipeline::processKeyframe(
             dataset_->getBackendType(),// This should be passed at ctor level....
             // Pose for trajectory viz.
             vio_backend_->getWPoseBLkf() * // The visualizer needs backend results
-            last_stereo_keyframe->getBPoseCamLRect(), // This should be pass at ctor level....
+            last_stereo_keyframe.getBPoseCamLRect(), // This should be pass at ctor level....
             // For visualizeMesh2D and visualizeMesh2DStereo
             mesh_2d, // The visualizer needs mesher results
             // Call semantic mesh segmentation if someone registered a callback.
@@ -340,7 +318,8 @@ void Pipeline::processKeyframe(
             vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
             vio_backend_->getState(), // For planes and plane constraints viz.
             points_3d,
-            timestamp_k));
+            last_stereo_keyframe.getTimestamp()
+            ));
 
       // Get data from visualizer thread.
       // We use non-blocking pop() because no one depends on the output
