@@ -71,19 +71,19 @@ public:
       int templ_rows = 11,
       int stripe_extra_rows = 0,
       double min_point_dist = 0.1,
-      double max_point_dist = 15,
+      double max_point_dist = 15.0,
       bool bidirectional_matching = false,
       double nominal_baseline = 0.11,
       bool subpixel_refinement = false,
       bool equalize_image = false) :
         tolerance_template_matching_(std::move(tol_template_matching)),
+        nominal_baseline_(std::move(nominal_baseline)),
         templ_cols_(std::move(templ_cols)),
         templ_rows_(std::move(templ_rows)),
         stripe_extra_rows_(std::move(stripe_extra_rows)),
         min_point_dist_(std::max(min_point_dist, 1e-3)),
         max_point_dist_(std::move(max_point_dist)),
         bidirectional_matching_(std::move(bidirectional_matching)),
-        nominal_baseline_(std::move(nominal_baseline)),
         subpixel_refinement_(std::move(subpixel_refinement)),
         equalize_image_(std::move(equalize_image)) {
     CHECK(!(templ_cols_ % 2 != 1 || templ_rows_ % 2 != 1)) // check that they are odd
