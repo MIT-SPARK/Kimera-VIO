@@ -24,7 +24,7 @@
 #include "RegularVioBackEnd.h"
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
-DEFINE_bool(parallel_run, true, "Run parallelized pipeline.");
+DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
 DEFINE_int32(regular_vio_backend_modality, 4,
              "Modality for regular Vio backend, currently supported:\n"
              "0: Structureless (equiv to normal VIO)\n"
