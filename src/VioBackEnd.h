@@ -263,7 +263,8 @@ public:
 };
 
 struct VioBackEndOutputPayload {
-  VioBackEndOutputPayload(const gtsam::Values state,
+  VioBackEndOutputPayload(const Timestamp& timestamp_kf,
+                          const gtsam::Values state,
                           const gtsam::Pose3& W_Pose_Blkf,
                           const Vector3& W_Vel_Blkf,
                           const gtsam::Pose3& B_Pose_leftCam,
@@ -271,7 +272,8 @@ struct VioBackEndOutputPayload {
                           const int& cur_kf_id,
                           const int& landmark_count,
                           const DebugVioInfo& debug_info)
-    : state_(state),
+    : timestamp_kf_(timestamp_kf),
+      state_(state),
       W_Pose_Blkf_(W_Pose_Blkf),
       W_Vel_Blkf_(W_Vel_Blkf),
       B_Pose_leftCam_(B_Pose_leftCam),
@@ -280,6 +282,7 @@ struct VioBackEndOutputPayload {
       landmark_count_(landmark_count),
       debug_info_(debug_info) {}
 
+  const Timestamp timestamp_kf_;
   const gtsam::Values state_;
   const gtsam::Pose3 W_Pose_Blkf_;
   const Vector3 W_Vel_Blkf_;
@@ -463,7 +466,8 @@ protected:
                         const gtsam::Pose3& from_id_POSE_to_id);
 
   /* ------------------------------------------------------------------------ */
-  void optimize(const FrameId& cur_id,
+  void optimize(const Timestamp &timestamp_kf_nsec,
+                const FrameId& cur_id,
                 const size_t& max_iterations,
                 const std::vector<size_t>& extra_factor_slots_to_delete =
                                                         std::vector<size_t>());
@@ -741,9 +745,6 @@ protected:
   // Data:
   // TODO grows unbounded currently, but it should be limited to time horizon.
   FeatureTracks feature_tracks_;
-
-  // Current time.
-  double timestamp_kf_; // timestamp in seconds attached to the last keyframe
 
   /// Counters.
   int last_kf_id_;

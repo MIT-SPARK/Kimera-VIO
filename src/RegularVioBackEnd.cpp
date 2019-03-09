@@ -156,10 +156,8 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   last_kf_id_ = curr_kf_id_;
   ++curr_kf_id_;
 
-  timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
-
   VLOG(7) << "Processing keyframe " << curr_kf_id_
-          << " at timestamp: " << timestamp_kf_ << " (sec)\n";
+          << " at timestamp: " << UtilsOpenCV::NsecToSec(timestamp_kf_nsec) << " (nsec)\n";
 
   /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Predict next step, add initial guess.
@@ -343,7 +341,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   VLOG(10) << "Starting optimize...";
-  optimize(curr_kf_id_, vio_params_.numOptimize_,
+  optimize(timestamp_kf_nsec,
+           curr_kf_id_,
+           vio_params_.numOptimize_,
            delete_slots);
   VLOG(10) << "Finished optimize.";
 

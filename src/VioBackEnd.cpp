@@ -252,8 +252,6 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
                                        const Pose3& initialPose,
                                        const Vector3& initialVel,
                                        const ImuBias& initialBias) {
-  timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
-
   W_Pose_B_lkf_ = initialPose;
   W_Vel_B_lkf_ = initialVel;
   imu_bias_lkf_ = initialBias;
@@ -273,7 +271,7 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
   new_values_.insert(gtsam::Symbol('b', curr_kf_id_), imu_bias_lkf_);
 
   VLOG(2) << "Start optimize with initial state and priors!";
-  optimize(curr_kf_id_, vio_params_.numOptimize_);
+  optimize(timestamp_kf_nsec, curr_kf_id_, vio_params_.numOptimize_);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -298,10 +296,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   last_kf_id_ = curr_kf_id_;
   ++curr_kf_id_;
 
-  timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
-
    LOG(INFO) << "VIO: adding keyframe " << curr_kf_id_
-             << " at timestamp:" << timestamp_kf_ << " (sec).";
+             << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec) << " (nsec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
@@ -360,7 +356,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   // imu_bias_lkf_ gets updated in the optimize call.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
-  optimize(curr_kf_id_, vio_params_.numOptimize_);
+  optimize(timestamp_kf_nsec, curr_kf_id_, vio_params_.numOptimize_);
 }
 
 void VioBackEnd::addVisualInertialStateAndOptimize(
@@ -908,7 +904,9 @@ void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id) {
 /* -------------------------------------------------------------------------- */
 // TODO remove global variables from optimize, pass them as local parameters...
 // TODO make changes to global variables to the addVisualInertial blah blah.
+// TODO remove timing logging and use Statistics.h instead.
 void VioBackEnd::optimize(
+    const Timestamp& timestamp_kf_nsec,
     const FrameId& cur_id,
     const size_t& max_extra_iterations,
     const std::vector<size_t>& extra_factor_slots_to_delete) {
@@ -997,9 +995,13 @@ void VioBackEnd::optimize(
 
   // Use current timestamp for each new value. This timestamp will be used
   // to determine if the variable should be marginalized.
+  // Needs to use DOUBLE because gtsam works with that, but we are working with
+  // int64_t (nsecs).
   std::map<Key, double> timestamps;
-  for(const auto& keyValue : new_values_) {
-    timestamps[keyValue.key] = timestamp_kf_; // for the latest pose, velocity, and bias
+  // Also needs to convert to seconds...
+  double timestamp_kf = static_cast<double>(timestamp_kf_nsec) * 1e-9;
+  BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
+    timestamps[key_value.key] = timestamp_kf ; // for the latest pose, velocity, and bias
   }
   CHECK_EQ(timestamps.size(), new_values_.size());
 
