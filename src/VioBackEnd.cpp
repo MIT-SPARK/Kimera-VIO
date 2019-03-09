@@ -62,22 +62,22 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const ImuAccGyrS& imu_accgyr,
                        const VioBackEndParams& vioParams,
                        const bool log_output) :
+  vio_params_(vioParams),
+  imu_bias_lkf_(ImuBias()),
+  W_Vel_B_lkf_(Vector3::Zero()),
+  W_Pose_B_lkf_(Pose3()),
+  imu_bias_prev_kf_(ImuBias()),
   B_Pose_leftCam_(leftCamPose),
   stereo_cal_(boost::make_shared<gtsam::Cal3_S2Stereo>(
                leftCameraCalRectified.fx(),
                leftCameraCalRectified.fy(), leftCameraCalRectified.skew(),
                leftCameraCalRectified.px(), leftCameraCalRectified.py(),
                baseline)),
-  vio_params_(vioParams),
-  imu_bias_lkf_(ImuBias()),
-  imu_bias_prev_kf_(ImuBias()),
-  W_Vel_B_lkf_(Vector3::Zero()),
-  W_Pose_B_lkf_(Pose3()),
   last_kf_id_(-1),
   curr_kf_id_(0),
+  landmark_count_(0),
   verbosity_(0),
   log_output_(log_output) {
-  landmark_count_(0) {
     CHECK_NOTNULL(initial_state_gt);
 
   // TODO the parsing of the params should be done inside here out from the
