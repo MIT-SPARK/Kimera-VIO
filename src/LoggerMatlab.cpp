@@ -267,7 +267,7 @@ void LoggerMatlab::logMesh(const cv::Mat& lmks,
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::logBackendResultsCSV(
-    const VioBackEndOutputPayload vio_output) {
+    const VioBackEndOutputPayload& vio_output) {
   // We log the poses in csv format for later alignement and analysis.
   static bool is_header_written = false;
   if (!is_header_written) {

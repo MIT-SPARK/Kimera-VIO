@@ -81,7 +81,7 @@ public:
                const double& timestamp, bool log_accumulated_mesh = false);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void logBackendResultsCSV(const VioBackEndOutputPayload vio_output);
+  void logBackendResultsCSV(const VioBackEndOutputPayload& vio_output);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(
