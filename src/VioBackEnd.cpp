@@ -317,8 +317,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   SmartStereoMeasurements smartStereoMeasurements_kf = status_smart_stereo_measurements_kf.second;
 
   // if stereo ransac failed, remove all right pixels:
-  Tracker::TrackingStatus kfTrackingStatus_stereo = status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
-  // if(kfTrackingStatus_stereo == Tracker::TrackingStatus::INVALID){
+  TrackingStatus kfTrackingStatus_stereo = status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
+  // if(kfTrackingStatus_stereo == TrackingStatus::INVALID){
   //   for(size_t i = 0; i < smartStereoMeasurements_kf.size(); i++)
   //     smartStereoMeasurements_kf[i].uR = std::numeric_limits<double>::quiet_NaN();;
   //}
@@ -332,21 +332,21 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   if (verbosity_ >= 8) {printFeatureTracks();}
 
   // decide which factors to add
-  Tracker::TrackingStatus kfTrackingStatus_mono = status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
+  TrackingStatus kfTrackingStatus_mono = status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch(kfTrackingStatus_mono){
-    case Tracker::TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
+    case TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
       if (verbosity_ >= 7) {printf("Add zero velocity and no motion factors\n");}
       addZeroVelocityPrior(curr_kf_id_);
       addNoMotionFactor(last_kf_id_, curr_kf_id_);
       break;
 
       // This did not improve in any case
-      //  case Tracker::TrackingStatus::INVALID :// ransac failed hence we cannot trust features
+      //  case TrackingStatus::INVALID :// ransac failed hence we cannot trust features
       //    if (verbosity_ >= 7) {printf("Add constant velocity factor (monoRansac is INVALID)\n");}
       //    addConstantVelocityFactor(last_id_, cur_id_);
       //    break;
 
-    default: // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : // we add features in VIO
+    default: // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : // we add features in VIO
       addLandmarksToGraph(landmarks_kf);
       break;
   }
@@ -364,7 +364,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   CHECK(input);
   bool use_stereo_btw_factor =
       vio_params_.addBetweenStereoFactors_ == true &&
-      input->stereo_tracking_status_ == Tracker::TrackingStatus::VALID;
+      input->stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(use_stereo_btw_factor, 10) <<  "Using stereo between factor.";
   addVisualInertialStateAndOptimize(
@@ -914,12 +914,9 @@ void VioBackEnd::optimize(
 
   // Only for statistics and debugging.
   // Store start time.
-  double startTime = 0.0;
+  double startTime = UtilsOpenCV::GetTimeInSeconds();
   // Reset all timing info.
   debug_info_.resetTimes();
-  if (verbosity_ >= 5 || log_output_) {
-    startTime = UtilsOpenCV::GetTimeInSeconds();
-  }
 
   /////////////////////// BOOKKEEPING //////////////////////////////////////////
   // We need to remove all smart factors that have new observations.
@@ -2042,14 +2039,12 @@ void VioBackEnd::postDebug(const double& start_time) {
                             debug_info_.updateSlotTime_ +
                             debug_info_.extraIterationsTime_ +
                             debug_info_.printTime_;
-    if (fabs(endTimeFromSum - endTime) > 1e-1) {
-      std::cout << "endTime: " << endTime
-                << " endTimeFromSum: " << endTimeFromSum;
-      throw std::runtime_error("optimize: time measurement mismatch"
-                               " (this check on timing might be too strict)");
-    }
+    CHECK_LT(fabs(endTimeFromSum - endTime), 1e-1)
+        << "optimize: time measurement mismatch (this check on timing might be "
+           "too strict)\n"
+        << " - endTime: " << endTime << '\n'
+        << " - endTimeFromSum: " << endTimeFromSum;
   }
-
 }
 
 /* -------------------------------------------------------------------------- */

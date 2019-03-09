@@ -39,14 +39,9 @@
 
 #include "Frame.h"
 #include "UtilsGeometry.h"
+#include "StereoFrame-definitions.h"
 
 namespace VIO {
-
-using SmartStereoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
-using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
-
-// TODO make enum class.
-enum Mesh2Dtype {VALIDKEYPOINTS, DENSE};
 
 ////////////////////////////////////////////////////////////////////////////////
 // TODO put these parameters in its own .h/.cpp and add tests as in frontend
@@ -142,22 +137,6 @@ public:
     return true;
   }
 };
-
-////////////////////////////////////////////////////////////////////////////////
-struct KeypointWithDepth{
-  KeypointWithDepth() = default;
-  KeypointWithDepth(const KeypointCV& p,
-                    const double& d)
-    : px(p),
-      depth(d) {}
-
-  KeypointCV px;
-  double depth;
-};
-using KeypointsWithDepth = std::vector<KeypointWithDepth>;
-
-// Definitions relevant to StereoFrame type
-using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
 ////////////////////////////////////////////////////////////////////////////////
 class StereoFrame {

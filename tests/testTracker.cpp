@@ -16,12 +16,14 @@
 #include <iostream>
 #include <random>
 #include <algorithm>
+
+#include "test_config.h"
+
+#include "CameraParams.h"
 #include "Frame.h"
 #include "StereoFrame.h"
+#include "Tracker-definitions.h"
 #include "Tracker.h"
-#include "CameraParams.h"
-#include "test_config.h"
-#include <algorithm>
 
 // Add last, since it redefines CHECK, which is first defined by glog.
 #include <CppUnitLite/TestHarness.h>
@@ -483,12 +485,12 @@ TEST(testTracker, geometricOutlierRejectionMono) {
       //trackerParams.ransac_probability_ = 0.8;
       trackerParams.ransac_randomize_ = false;
       Tracker tracker(trackerParams);
-      Tracker::TrackingStatus tracking_status;
+      TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
           tracker.geometricOutlierRejectionMono(ref_frame, cur_frame);
 
-      EXPECT(tracking_status == Tracker::TrackingStatus::VALID);
+      EXPECT(tracking_status == TrackingStatus::VALID);
 
       // Check the correctness of the outlier rejection!
       for(int i = 0; i <inlier_num; i++) {
@@ -563,13 +565,13 @@ TEST(testTracker, geometricOutlierRejectionMonoGivenRotation) {
 
       // Perform Ransac
       Tracker tracker;
-      Tracker::TrackingStatus tracking_status;
+      TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
           tracker.geometricOutlierRejectionMonoGivenRotation(ref_frame,
                                                              cur_frame, R);
 
-      EXPECT(tracking_status == Tracker::TrackingStatus::VALID);
+      EXPECT(tracking_status == TrackingStatus::VALID);
 
       // Check the correctness of the outlier rejection!
       for(int i = 0; i <inlier_num; i++) {
@@ -656,7 +658,7 @@ TEST(testTracker, geometricOutlierRejectionStereo) {
       VioFrontEndParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
       Tracker tracker(trackerParams);
-      Tracker::TrackingStatus tracking_status;
+      TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
           tracker.geometricOutlierRejectionStereo(*ref_stereo_frame, *cur_stereo_frame);
@@ -769,12 +771,12 @@ TEST(testTracker, geometricOutlierRejectionStereoGivenRotation) {
 
       // Perform Ransac
       Tracker tracker;
-      pair<Tracker::TrackingStatus , Pose3> poseStatus;
+      pair<TrackingStatus , Pose3> poseStatus;
       Matrix3 infoMat;
       tie(poseStatus, infoMat) =
           tracker.geometricOutlierRejectionStereoGivenRotation(*ref_stereo_frame, *cur_stereo_frame, R);
 
-      Tracker::TrackingStatus tracking_status = poseStatus.first;
+      TrackingStatus tracking_status = poseStatus.first;
       Pose3 estimated_pose = poseStatus.second;
       // Check the correctness of the outlier rejection!
       for (int i = 0; i <inlier_num; i++) {

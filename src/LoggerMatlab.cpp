@@ -15,7 +15,11 @@
 #include <LoggerMatlab.h>
 #include <memory>
 #include <boost/foreach.hpp>
-#include <Statistics.h>
+
+#include "UtilsOpenCV.h"
+#include "utils/Statistics.h"
+#include "utils/Timer.h"
+#include "StereoVisionFrontEnd-definitions.h"
 
 DEFINE_string(output_path, "./", "Path where to store VIO's log output.");
 
@@ -150,10 +154,10 @@ void LoggerMatlab::logFrontendResults(const TrackerStatusSummary& tracker_summar
   }
 
   // Mono status.
-  outputFile_frontend_ << StereoVisionFrontEnd::asString(
+  outputFile_frontend_ << TrackerStatusSummary::asString(
                    tracker_summary.kfTrackingStatus_mono_) << ", ";
   // Stereo status.
-  outputFile_frontend_ << StereoVisionFrontEnd::asString(
+  outputFile_frontend_ << TrackerStatusSummary::asString(
                    tracker_summary.kfTrackingStatus_stereo_) << ", ";
   // Nr of keypoints
   outputFile_frontend_ << nrKeypoints << ", ";

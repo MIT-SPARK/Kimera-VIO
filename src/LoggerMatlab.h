@@ -19,10 +19,9 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
-#include <VioBackEnd.h>
-#include "UtilsOpenCV.h"
+
 #include "ETH_parser.h"
-#include "StereoVisionFrontEnd.h"
+#include "VioBackEnd.h"
 
 namespace VIO {
 

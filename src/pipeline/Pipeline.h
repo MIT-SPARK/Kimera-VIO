@@ -104,7 +104,7 @@ private:
       const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
       const StereoFrame &last_stereo_keyframe,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
-      const Tracker::TrackingStatus& kf_tracking_status_stereo,
+      const TrackingStatus& kf_tracking_status_stereo,
       const gtsam::Pose3& relative_pose_body_stereo);
 
   StatusSmartStereoMeasurements featureSelect(
@@ -146,7 +146,7 @@ private:
   FeatureSelector feature_selector_;
 
   // Stereo vision frontend payloads.
-  ThreadsafeQueue<StereoFrontEndInputPayload> stereo_frontend_input_queue_;
+  ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
   ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.

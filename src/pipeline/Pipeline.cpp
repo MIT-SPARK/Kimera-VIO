@@ -22,6 +22,7 @@
 #include "utils/Timer.h"
 #include "utils/Statistics.h"
 #include "RegularVioBackEnd.h"
+#include "StereoVisionFrontEnd.h"
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
 DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
@@ -144,8 +145,7 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   ////////////////////////////// FRONT-END /////////////////////////////////////
   // Push to stereo frontend input queue.
-  stereo_frontend_input_queue_.push(StereoFrontEndInputPayload(
-                                      stereo_imu_sync_packet));
+  stereo_frontend_input_queue_.push(stereo_imu_sync_packet);
 
   // Pull from stereo frontend output queue.
   std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload;
@@ -169,7 +169,6 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // packet that is way further ahead in time than the keyframe packer since
   // the pipeline keeps spinning while the frontend works   !!!!!!!
 
-
   //////////////////////////////////////////////////////////////////////////////
   // Actual keyframe processing. Call to backend.
   ////////////////////////////// BACK-END //////////////////////////////////////
@@ -186,7 +185,7 @@ void Pipeline::processKeyframe(
     const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
     const StereoFrame& last_stereo_keyframe,
     const ImuFrontEnd::PreintegratedImuMeasurements& pim,
-    const Tracker::TrackingStatus& kf_tracking_status_stereo,
+    const TrackingStatus& kf_tracking_status_stereo,
     const gtsam::Pose3& relative_pose_body_stereo) {
   // At this point stereoFrame_km1 == stereoFrame_lkf_ !
   const Frame& last_left_keyframe = last_stereo_keyframe.getLeftFrame();

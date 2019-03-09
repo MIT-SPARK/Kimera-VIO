@@ -30,70 +30,17 @@
 #include "utils/ThreadsafeQueue.h"
 #include "ImuFrontEnd-definitions.h"
 #include "ImuFrontEnd.h"
+#include "Tracker-definitions.h"
+#include "StereoVisionFrontEnd-definitions.h"
+#include "VioBackEnd-definitions.h"
 
 namespace VIO {
 
-////////////////////////////////////////////////////////////////////////////////
-class TrackerStatusSummary {
-public:
-  TrackerStatusSummary() :
-    kfTrackingStatus_mono_(Tracker::TrackingStatus::INVALID),
-    kfTrackingStatus_stereo_(Tracker::TrackingStatus::INVALID),
-    lkf_T_k_mono_(gtsam::Pose3()),
-    lkf_T_k_stereo_(gtsam::Pose3()),
-    infoMatStereoTranslation_(gtsam::Matrix3::Zero()) {}
-
-public:
-  Tracker::TrackingStatus kfTrackingStatus_mono_;
-  Tracker::TrackingStatus kfTrackingStatus_stereo_;
-  gtsam::Pose3 lkf_T_k_mono_;
-  gtsam::Pose3 lkf_T_k_stereo_;
-  gtsam::Matrix3 infoMatStereoTranslation_;
-};
-
-using StatusSmartStereoMeasurements =
-std::pair<TrackerStatusSummary, SmartStereoMeasurements>;
-
-////////////////////////////////////////////////////////////////////////////////
-struct StereoFrontEndInputPayload {
-public:
-  StereoFrontEndInputPayload(const StereoImuSyncPacket& sync_packet)
-    : sync_packet_(sync_packet) {}
-
-public:
-  const StereoImuSyncPacket sync_packet_;
-};
-
-struct StereoFrontEndOutputPayload {
-public:
-  // Default ctor sets everything to default and it is used to define an
-  // invalid output: meaning we still don't have a keyframe.
-  // Note that this should be done with a unique_ptr and only push to the output
-  // queue once we have a keyframe.
-  StereoFrontEndOutputPayload(
-      const bool is_keyframe,
-      const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
-      const Tracker::TrackingStatus& tracker_status,
-      const gtsam::Pose3& relative_pose_body_stereo,
-      const StereoFrame& stereo_frame_lkf,
-      const ImuFrontEnd::PreintegratedImuMeasurements& pim)
-    : is_keyframe_(is_keyframe),
-      statusSmartStereoMeasurements_(statusSmartStereoMeasurements),
-      tracker_status_(tracker_status),
-      relative_pose_body_stereo_(relative_pose_body_stereo),
-      stereo_frame_lkf_(stereo_frame_lkf),
-      pim_(pim) {}
-
-public:
-  const bool is_keyframe_;
-  const StatusSmartStereoMeasurements statusSmartStereoMeasurements_;
-  const Tracker::TrackingStatus tracker_status_;
-  const gtsam::Pose3 relative_pose_body_stereo_;
-  const StereoFrame stereo_frame_lkf_;
-  const ImuFrontEnd::PreintegratedImuMeasurements pim_;
-};
-
 class StereoVisionFrontEnd {
+public:
+  using StereoFrontEndInputPayload = StereoImuSyncPacket;
+  //using StereoFrontEndOutputPayload = VioBackEndInputPayload;
+
 public:
   StereoVisionFrontEnd(
       const ImuParams& imu_params,
@@ -150,10 +97,6 @@ public:
   // current keyframe (k) - STEREO RANSAC
   gtsam::Pose3 getRelativePoseBodyStereo() const;
 
-  /* ------------------------------------------------------------------------ */
-  // Returns the tracking status as a string for debugging
-  static std::string asString(const Tracker::TrackingStatus& status);
-
 private:
   /* ------------------------------------------------------------------------ */
   StereoFrontEndOutputPayload spinOnce(
@@ -166,9 +109,10 @@ private:
       boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
 
   /* ------------------------------------------------------------------------ */
-  inline static void logTrackingStatus(const Tracker::TrackingStatus& status,
+  inline static void logTrackingStatus(const TrackingStatus& status,
                                        const std::string& type = "mono") {
-    LOG(INFO) << "Status " << type << ": " << asString(status);
+    LOG(INFO) << "Status " << type << ": "
+              << TrackerStatusSummary::asString(status);
   }
 
   /* ------------------------------------------------------------------------ */
