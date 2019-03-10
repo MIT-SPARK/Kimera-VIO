@@ -339,7 +339,8 @@ void Pipeline::shutdownWhenFinished() {
   // Time to sleep between queries to the queues [in seconds].
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
   static constexpr int sleep_time = 1;
-  while(!(stereo_frontend_input_queue_.empty() &&
+  while(!is_initialized_ || // Loop while not initialized
+        !(stereo_frontend_input_queue_.empty() && // Or, once init, data is not yet consumed.
           stereo_frontend_output_queue_.empty() &&
           !vio_frontend_->isWorking() &&
           backend_input_queue_.empty() &&
@@ -353,6 +354,7 @@ void Pipeline::shutdownWhenFinished() {
           !visualizer_.isWorking())) {
     VLOG_EVERY_N(10, 100)
         << "VIO pipeline status: \n"
+        << "Initialized? " << is_initialized_ << '\n'
         << "Frontend input queue empty?" << stereo_frontend_input_queue_.empty() << '\n'
         << "Frontend output queue empty?" << stereo_frontend_output_queue_.empty()<< '\n'
         << "Frontend is working? " <<  vio_frontend_->isWorking()<< '\n'
