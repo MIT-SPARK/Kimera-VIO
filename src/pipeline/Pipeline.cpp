@@ -191,8 +191,8 @@ void Pipeline::processKeyframe(
           statusSmartStereoMeasurements,
           kf_tracking_status_stereo,
           pim,
-          &planes_,
-          relative_pose_body_stereo));
+          relative_pose_body_stereo,
+          &planes_));
 
   // This should be done inside those who need the backend results
   // IN this case the logger!!!!!

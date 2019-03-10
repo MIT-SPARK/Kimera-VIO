@@ -194,8 +194,8 @@ struct VioBackEndInputPayload {
       const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
       const TrackingStatus& stereo_tracking_status, // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
-      std::vector<Plane>* planes = nullptr,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
+      std::vector<Plane>* planes = nullptr)
     : timestamp_kf_nsec_(timestamp_kf_nsec),
       status_smart_stereo_measurements_kf_(status_smart_stereo_measurements_kf),
       stereo_tracking_status_(stereo_tracking_status),
