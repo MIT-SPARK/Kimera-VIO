@@ -127,15 +127,7 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
   // TODO Warning: we do not accumulate IMU measurements for the first packet...
   // Spin.
-  VLOG(10) << "Spin pipeline once.";
-  auto tic = utils::Timer::tic();
   spinOnce(stereo_imu_sync_packet);
-  auto spin_duration = utils::Timer::toc(tic).count();
-  LOG(WARNING) << "Current overall Pipeline frequency: "
-               << 1000.0 / spin_duration << " Hz. ("
-               << spin_duration << " ms).";
-  utils::StatsCollector stats_pipeline("Pipeline overall Timing [ms]");
-  stats_pipeline.AddSample(spin_duration);
   return true;
 }
 
