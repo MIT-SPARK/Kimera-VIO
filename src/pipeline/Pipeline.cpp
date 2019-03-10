@@ -112,8 +112,7 @@ Pipeline::~Pipeline() {
 
 /* -------------------------------------------------------------------------- */
 bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
-  static bool is_initialized = false;
-  if (!is_initialized) {
+  if (!is_initialized_) {
     LOG(INFO) << "Initialize VIO pipeline.";
     // Initialize pipeline.
     // TODO this is very brittle, because we are accumulating IMU data, but
@@ -122,7 +121,7 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     initialize(stereo_imu_sync_packet);
     // Launch threads.
     launchThreads();
-    is_initialized = true;
+    is_initialized_ = true;
     return true;
   }
 

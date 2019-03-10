@@ -182,6 +182,7 @@ private:
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
+  std::atomic_bool is_initialized_ = {false};
 
   // Threads.
   std::thread stereo_frontend_thread_;
