@@ -248,3 +248,17 @@ export(PACKAGE SparkVio)
 ### SIYI's way of exporting.
 ##target_include_directories(stereoVIO PUBLIC "./src" ${Boost_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} "/usr/local/include/opengv/" ${OpenCV_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS} ${GLOG_INCLUDE_DIRS})
 ##export(TARGETS stereoVIO FILE stereoVIO.cmake)
+
+###############################################################################
+# Print configuration variables
+message(STATUS "===============================================================")
+message(STATUS "================  Configuration Options  ======================")
+message(STATUS "  CMAKE_CXX_COMPILER_ID type     : ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "  CMAKE_CXX_COMPILER_VERSION     : ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "Build flags                                               ")
+if(NOT MSVC AND NOT XCODE_VERSION)
+    message(STATUS "  Build type                     : ${CMAKE_BUILD_TYPE}")
+    message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
+    message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS_RELEASE}")
+endif()
+
