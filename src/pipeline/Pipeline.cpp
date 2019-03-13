@@ -68,6 +68,9 @@ DEFINE_bool(deterministic_random_number_generator, false,
 DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
+DEFINE_bool(texturize_3d_mesh, false, "Whether you want to add texture to the 3d"
+                                      "mesh. The texture is taken from the image"
+                                      " frame.");
 
 namespace VIO {
 
@@ -296,11 +299,12 @@ void Pipeline::processKeyframe(
                 last_left_keyframe.img_,
                 mesher_output_payload.mesh_2d_, // The visualizer needs mesher results, but we are already passing mesher_output_payload, visualizer should popBlocking that...
                 mesher_output_payload.mesh_3d_) :
-              Visualizer3D::texturizeMesh3D(
-                last_left_keyframe.timestamp_,
-                last_left_keyframe.img_,
-                mesher_output_payload.mesh_2d_,
-                mesher_output_payload.mesh_3d_),
+                  (FLAGS_texturize_3d_mesh?
+                     Visualizer3D::texturizeMesh3D(
+                       last_left_keyframe.timestamp_,
+                       last_left_keyframe.img_,
+                       mesher_output_payload.mesh_2d_,
+                       mesher_output_payload.mesh_3d_) : Mesher::Mesh3DVizProperties()),
             // For visualizeMesh2D and visualizeMesh2DStereo.
             last_left_keyframe,
             // visualizeConvexHull & visualizeMesh3DWithColoredClusters
