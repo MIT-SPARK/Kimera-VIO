@@ -68,7 +68,7 @@ download opencv3.3.1 from https://opencv.org/releases.html
 unzip and go to opencv3.3.1
 $ mkdir build
 $ cd build
-$ cmake -DWITH_VTK=On ..
+$ cmake -DWITH_VTK=On -DWITH_TBB=On ..
 $ sudo make -j8 install
 $ sudo make -j8 test (optional - quite slow)
 ```
