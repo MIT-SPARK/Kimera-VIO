@@ -57,6 +57,8 @@ public:
   /* ------------------------------------------------------------------------ */
   // Shutdown spin.
   inline void shutdown() {
+    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Frontend was already "
+                                  "shutdown.";
     LOG(INFO) << "Shutting down Frontend.";
     shutdown_ = true;
   }

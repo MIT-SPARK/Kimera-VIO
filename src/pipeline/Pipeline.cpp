@@ -377,6 +377,8 @@ void Pipeline::shutdownWhenFinished() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::shutdown() {
+  LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Pipeline was already "
+                                "shutdown.";
   LOG(INFO) << "Shutting down VIO pipeline.";
   shutdown_ = true;
   stopThreads();

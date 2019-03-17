@@ -133,6 +133,8 @@ public:
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to request thread stop.
   inline void shutdown() {
+    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Mesher was already "
+                                  "shutdown.";
     LOG(INFO) << "Shutting down Mesher.";
     shutdown_ = true;
   }
