@@ -154,10 +154,12 @@ bool VioBackEnd::spin(
     ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
     ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
   LOG(INFO) << "Spinning VioBackEnd.";
+  utils::StatsCollector stat_pipeline_timing("Pipeline Overall Timing [ms]");
   utils::StatsCollector stat_backend_timing("Backend Timing [ms]");
   while (!shutdown_) {
     // Get input data from queue. Wait for Backend payload.
     is_thread_working_ = false;
+    auto tic_pipeline_overall = utils::Timer::tic();
     std::shared_ptr<VioBackEndInputPayload> input = input_queue.popBlocking();
     is_thread_working_ = true;
     if (input) {
@@ -168,6 +170,7 @@ bool VioBackEnd::spin(
                    << 1000.0 / spin_duration << " Hz. ("
                    << spin_duration << " ms).";
       stat_backend_timing.AddSample(spin_duration);
+      stat_pipeline_timing.AddSample(utils::Timer::toc(tic_pipeline_overall).count());
     } else {
       LOG(WARNING) << "No VioBackEnd Input Payload received.";
     }
