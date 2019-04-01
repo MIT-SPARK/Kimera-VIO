@@ -134,7 +134,8 @@ Visualizer3D::Visualizer3D() {
 
 /* -------------------------------------------------------------------------- */
 void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
-                        ThreadsafeQueue<VisualizerOutputPayload>& output_queue) {
+                        ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
+                        std::function<void(VisualizerOutputPayload&)> display) {
   LOG(INFO) << "Spinning Visualizer.";
   VisualizerOutputPayload output_payload;
   utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
@@ -146,7 +147,11 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
     is_thread_working_ = true;
     auto tic = utils::Timer::tic();
     visualize(visualizer_payload, &output_payload);
-    output_queue.push(output_payload);
+    if (display) {
+      display(output_payload);
+    } else {
+      output_queue.push(output_payload);
+    }
     output_payload.images_to_display_.clear();
     auto spin_duration = utils::Timer::toc(tic).count();
     LOG(WARNING) << "Current Visualizer frequency: "

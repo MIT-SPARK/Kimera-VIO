@@ -140,38 +140,6 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   ////////////////////////////// FRONT-END /////////////////////////////////////
   // Push to stereo frontend input queue.
   stereo_frontend_input_queue_.push(stereo_imu_sync_packet);
-
-  // Pull from stereo frontend output queue.
-  std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload;
-  if (FLAGS_parallel_run) {
-     stereo_frontend_output_payload = stereo_frontend_output_queue_.pop();
-  } else {
-     stereo_frontend_output_payload = stereo_frontend_output_queue_.popBlocking();
-  }
-  if (!stereo_frontend_output_payload) {
-    LOG(WARNING) << "Missing frontend output payload.";
-    return;
-  }
-  CHECK(stereo_frontend_output_payload);
-  if (!stereo_frontend_output_payload->is_keyframe_) {
-    return;
-  }
-  //////////////////////////////////////////////////////////////////////////////
-  // So from this point on, we have a keyframe.
-  // Pass info to VIO
-  // !!!!! Don't use stereo_imu_sync_packet passed this point because it is a
-  // packet that is way further ahead in time than the keyframe packer since
-  // the pipeline keeps spinning while the frontend works   !!!!!!!
-
-  //////////////////////////////////////////////////////////////////////////////
-  // Actual keyframe processing. Call to backend.
-  ////////////////////////////// BACK-END //////////////////////////////////////
-  processKeyframe(
-        stereo_frontend_output_payload->statusSmartStereoMeasurements_,
-        stereo_frontend_output_payload->stereo_frame_lkf_,
-        stereo_frontend_output_payload->pim_,
-        stereo_frontend_output_payload->tracker_status_,
-        stereo_frontend_output_payload->relative_pose_body_stereo_);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -320,12 +288,14 @@ void Pipeline::processKeyframe(
             points_3d,
             last_stereo_keyframe.getTimestamp()
             ));
+  }
+}
 
-      // Get data from visualizer thread.
-      // We use non-blocking pop() because no one depends on the output
-      // of the visualizer. This way the pipeline can keep running, while the
-      // visualization is only done when there is data available.
-      spinDisplayOnce(visualizer_output_queue_.popBlocking());
+void Pipeline::spinViz() {
+  if (FLAGS_visualize) {
+    visualizer_.spin(visualizer_input_queue_, visualizer_output_queue_,
+                     std::bind(&Pipeline::spinDisplayOnce,
+                               this, std::placeholders::_1));
   }
 }
 
@@ -488,32 +458,27 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinDisplayOnce(
-    const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload) {
-  // Display only if the visualizer has done its work.
-  if (visualizer_output_payload) {
-    // Display 3D window.
-    if (visualizer_output_payload->visualization_type_ !=
-        VisualizationType::NONE) {
-      VLOG(10) << "Spin Visualize 3D output.";
-      //visualizer_output_payload->window_.spin();
-      visualizer_output_payload->window_.spinOnce(1, true);
-      // TODO this is not very thread-safe!!! Since recordVideo might modify
-      // window_ in this thread, while it might also be called in viz thread.
-      if (FLAGS_record_video_for_viz_3d) {
-        visualizer_.recordVideo();
-      }
+    VisualizerOutputPayload& visualizer_output_payload) {
+  // Display 3D window.
+  if (visualizer_output_payload.visualization_type_ !=
+      VisualizationType::NONE) {
+    VLOG(10) << "Spin Visualize 3D output.";
+    //visualizer_output_payload->window_.spin();
+    visualizer_output_payload.window_.spinOnce(1, true);
+    // TODO this is not very thread-safe!!! Since recordVideo might modify
+    // window_ in this thread, while it might also be called in viz thread.
+    if (FLAGS_record_video_for_viz_3d) {
+      visualizer_.recordVideo();
     }
-
-    // Display 2D images.
-    for (const ImageToDisplay& img_to_display:
-         visualizer_output_payload->images_to_display_) {
-      cv::imshow(img_to_display.name_, img_to_display.image_);
-    }
-    VLOG(10) << "Spin Visualize 2D output.";
-    cv::waitKey(1);
-  } else {
-    LOG(WARNING) << "Visualizer is lagging behind pipeline processing.";
   }
+
+  // Display 2D images.
+  for (const ImageToDisplay& img_to_display:
+       visualizer_output_payload.images_to_display_) {
+    cv::imshow(img_to_display.name_, img_to_display.image_);
+  }
+  VLOG(10) << "Spin Visualize 2D output.";
+  cv::waitKey(1);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -583,6 +548,40 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   return std::make_pair(status, trackedAndSelectedSmartStereoMeasurements);
 }
 
+
+void Pipeline::processKeyframePop() {
+  // Pull from stereo frontend output queue.
+  LOG(INFO) << "Spinning wrapped thread.";
+  while(!shutdown_) {
+    std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload;
+    if (FLAGS_parallel_run) {
+       stereo_frontend_output_payload = stereo_frontend_output_queue_.pop();
+    } else {
+       stereo_frontend_output_payload = stereo_frontend_output_queue_.popBlocking();
+    }
+    if (!stereo_frontend_output_payload) {
+      VLOG(100) << "Missing frontend output payload.";
+      continue;
+    }
+    CHECK(stereo_frontend_output_payload);
+    if (!stereo_frontend_output_payload->is_keyframe_) {
+      continue;
+    }
+    //////////////////////////////////////////////////////////////////////////////
+    // So from this point on, we have a keyframe.
+    // Pass info to VIO
+    // Actual keyframe processing. Call to backend.
+    ////////////////////////////// BACK-END //////////////////////////////////////
+    processKeyframe(
+          stereo_frontend_output_payload->statusSmartStereoMeasurements_,
+          stereo_frontend_output_payload->stereo_frame_lkf_,
+          stereo_frontend_output_payload->pim_,
+          stereo_frontend_output_payload->tracker_status_,
+          stereo_frontend_output_payload->relative_pose_body_stereo_);
+  }
+  LOG(INFO) << "Shutdown wrapped thread.";
+}
+
 /* -------------------------------------------------------------------------- */
 void Pipeline::launchThreads() {
   LOG(INFO) << "Launching threads...";
@@ -593,6 +592,8 @@ void Pipeline::launchThreads() {
                               CHECK_NOTNULL(vio_frontend_.get()),
                               std::ref(stereo_frontend_input_queue_),
                               std::ref(stereo_frontend_output_queue_));
+
+  wrapped_thread_ = std::thread(&Pipeline::processKeyframePop, this);
 
   // Start backend_thread.
   backend_thread_ = std::thread(&VioBackEnd::spin,
@@ -608,10 +609,10 @@ void Pipeline::launchThreads() {
                                std::ref(mesher_output_queue_));
 
   // Start visualizer_thread.
-  visualizer_thread_ = std::thread(&Visualizer3D::spin,
-                                   &visualizer_,
-                                   std::ref(visualizer_input_queue_),
-                                   std::ref(visualizer_output_queue_));
+  //visualizer_thread_ = std::thread(&Visualizer3D::spin,
+  //                                 &visualizer_,
+  //                                 std::ref(visualizer_input_queue_),
+  //                                 std::ref(visualizer_output_queue_));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -637,9 +638,10 @@ void Pipeline::stopThreads() {
 /* -------------------------------------------------------------------------- */
 void Pipeline::joinThreads() {
   stereo_frontend_thread_.join();
+  wrapped_thread_.join();
   backend_thread_.join();
   mesher_thread_.join();
-  visualizer_thread_.join();
+  //visualizer_thread_.join();
 }
 
 } // End of VIO namespace

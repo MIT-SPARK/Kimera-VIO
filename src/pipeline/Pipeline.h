@@ -48,6 +48,9 @@ public:
   // Main spin, runs the pipeline.
   bool spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
+  // Run an endless loop until shutdown to visualize.
+  void spinViz();
+
   // Spin the pipeline only once.
   void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
@@ -97,8 +100,7 @@ private:
                    const Timestamp& timestamp_k,
                    const ImuAccGyrS& imu_accgyr);
   // Displaying must be done in the main thread.
-  void spinDisplayOnce(
-      const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload);
+  void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
 
   void processKeyframe(
       const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
@@ -106,6 +108,8 @@ private:
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       const TrackingStatus& kf_tracking_status_stereo,
       const gtsam::Pose3& relative_pose_body_stereo);
+
+  void processKeyframePop();
 
   StatusSmartStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
@@ -186,6 +190,7 @@ private:
 
   // Threads.
   std::thread stereo_frontend_thread_;
+  std::thread wrapped_thread_;
   std::thread backend_thread_;
   std::thread mesher_thread_;
   std::thread visualizer_thread_;
