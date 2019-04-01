@@ -164,6 +164,8 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
 
 /* -------------------------------------------------------------------------- */
 void Visualizer3D::shutdown() {
+  LOG_IF(WARNING, shutdown_) << "Shutdown for Visualizer requested, but it was "
+                               "already shutdown.";
   LOG(INFO) << "Shutting down Visualizer.";
   shutdown_ = true;
 }

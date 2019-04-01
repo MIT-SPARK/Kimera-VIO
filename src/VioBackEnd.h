@@ -118,6 +118,8 @@ public:
 
   /* ------------------------------------------------------------------------ */
   inline void shutdown() {
+    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Backend was already "
+                                  "shutdown.";
     LOG(INFO) << "Shutting down Backend.";
     shutdown_ = true;
   }
