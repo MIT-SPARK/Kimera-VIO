@@ -87,17 +87,13 @@ include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
 
-if (DEFINED external_project_dependencies)
-  add_dependencies(sparkvio ${external_project_dependencies})
-endif()
-
 target_link_libraries(sparkvio
   PUBLIC
   /usr/local/lib/libopengv.a
   Boost::boost
   ${OpenCV_LIBS}
-  ${GFLAGS_LIBRARIES}
-  ${GLOG_LIBRARIES}
+  gflags
+  glog::glog
   gtsam
   gtsam_unstable
   )

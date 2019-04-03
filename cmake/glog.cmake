@@ -5,10 +5,12 @@ if (NOT __GLOG_INCLUDED)
   set(__GLOG_INCLUDED TRUE)
 
   # try the system-wide glog first
-  find_package(Glog QUIET)
+  find_package(glog QUIET)
   if (GLOG_FOUND)
+      message("FOUND glog!")
       set(GLOG_EXTERNAL FALSE)
   else()
+    message("Did not find glog! Building from github.")
     # fetch and build glog from github
 
     # build directory
@@ -49,18 +51,21 @@ if (NOT __GLOG_INCLUDED)
     set(GLOG_LIBRARIES ${glog_INSTALL}/lib/libglog.a)
     set(GLOG_LIBRARY_DIRS ${glog_INSTALL}/lib)
     set(GLOG_EXTERNAL TRUE)
-
-    add_library(gflags_imported STATIC IMPORTED GLOBAL)
-    set_target_properties(gflags_imported
-      PROPERTIES IMPORTED_LOCATION "${gflags_INSTALL}/lib/libgflags.a")
-    add_dependencies(gflags_imported gflags)
-
-    add_library(glog_imported STATIC IMPORTED GLOBAL)
-    set_target_properties(glog_imported
-      PROPERTIES IMPORTED_LOCATION "${glog_INSTALL}/lib/libglog.a")
-    add_dependencies(glog_imported glog)
-
-    list(APPEND external_project_dependencies glog)
   endif()
+
+
+  if (NOT GLOG_FOUND)
+    message("Error: glog not found.")
+  else()
+    # Create interface library to link against glog.
+    if(NOT TARGET glog::glog)
+      message("Creating glog::glog!")
+      add_library(glog::glog INTERFACE IMPORTED GLOBAL)
+      set_target_properties(glog::glog PROPERTIES
+        INTERFACE_LINK_LIBRARIES "${GLOG_LIBRARIES}"
+        INTERFACE_INCLUDE_DIRECTORIES "${GLOG_INCLUDE_DIRS}")
+    endif()
+  endif()
+
 
 endif()
