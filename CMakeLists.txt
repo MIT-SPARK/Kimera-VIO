@@ -86,7 +86,7 @@ include(src/common/CMakeLists.txt)
 
 target_link_libraries(sparkvio
   PUBLIC
-  /usr/local/lib/libopengv.a
+  opengv
   Boost::boost
   ${OpenCV_LIBS}
   gflags::gflags
