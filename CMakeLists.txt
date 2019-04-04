@@ -89,7 +89,7 @@ target_link_libraries(sparkvio
   /usr/local/lib/libopengv.a
   Boost::boost
   ${OpenCV_LIBS}
-  gflags
+  gflags::gflags
   glog::glog
   gtsam
   gtsam_unstable
