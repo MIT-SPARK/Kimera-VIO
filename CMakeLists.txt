@@ -18,23 +18,20 @@ if(NOT TARGET Boost::boost)
   INTERFACE_LINK_LIBRARIES "${Boost_LIBRARIES}"
   INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
 endif()
-
-message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
+#message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 
 ### Find the GTSAM package
 find_package(GTSAM REQUIRED)
 
 ### Find the OpenGV package
-message(STATUS "Setting OpenGV on Luca's machine")
+find_package(opengv REQUIRED)
 # TODO REMOVE HARDCODED
 
 ### Find opencv
 find_package(OpenCV 3.3.1 REQUIRED)
 if (OpenCV_FOUND)
   message(STATUS "FOUND OpenCV! ${OpenCV_INCLUDE_DIRS}")
-  message(STATUS "LIB_PATH = ${OpenCV_LIBS}")
-else (OpenCV_FOUND)
-  message(STATUS "CANNOT FOUND OpenCV!")
+  #message(STATUS "LIB_PATH = ${OpenCV_LIBS}")
 endif (OpenCV_FOUND)
 
 ### External Dependencies
@@ -47,7 +44,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Display all libs
-message(STATUS "ALL LIBS: ${LIBS}")
+#message(STATUS "ALL LIBS: ${LIBS}")
 
 ### Compile the code
 add_library(sparkvio SHARED
@@ -135,7 +132,7 @@ file(GLOB src_cpp_files ${cpp_file_pattern})
 #set(main_file_pattern "${VIO_SRC_DIR}/stereoVIOExample.cpp" "${VIO_SRC_DIR}/#stereoVIOExampleSimulation.cpp" "${VIO_SRC_DIR}/stereoVIOPlainBackend.cpp")
 #file(GLOB main_files ${main_file_pattern})
 #list(REMOVE_ITEM src_cpp_files ${main_files})
-message(STATUS "src_cpp_files = ${src_cpp_files}")
+#message(STATUS "src_cpp_files = ${src_cpp_files}")
 
 ### Add testing
 add_subdirectory(tests)

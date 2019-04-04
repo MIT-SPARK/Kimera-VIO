@@ -7,11 +7,12 @@ if (NOT __GLOG_INCLUDED)
   # try the system-wide glog first
   find_package(glog QUIET)
   if (GLOG_FOUND)
-      message("FOUND glog!")
-      set(GLOG_EXTERNAL FALSE)
+    message(STATUS "FOUND glog!")
+    message(STATUS "GLOG libs: ${GLOG_LIBRARIES}")
+    message(STATUS "GLOG includes: ${GLOG_INCLUDE_DIR}")
   else()
-    message("Did not find glog! Building from github.")
-    # fetch and build glog from github
+    # Fetch and build glog from github
+    message(STATUS "NOT FOUND glog! Will be downloaded from github.")
 
     # build directory
     set(glog_PREFIX ${CMAKE_BINARY_DIR}/external/glog-prefix)
@@ -55,11 +56,10 @@ if (NOT __GLOG_INCLUDED)
 
 
   if (NOT GLOG_FOUND)
-    message("Error: glog not found.")
+    message(FATAL_ERROR "Error: glog not found.")
   else()
     # Create interface library to link against glog.
     if(NOT TARGET glog::glog)
-      message("Creating glog::glog!")
       add_library(glog::glog INTERFACE IMPORTED GLOBAL)
       set_target_properties(glog::glog PROPERTIES
         INTERFACE_LINK_LIBRARIES "${GLOG_LIBRARIES}"

@@ -61,7 +61,6 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
   else()
     # Create interface library to link against gflags.
     if(NOT TARGET gflags::gflags)
-      message("Creating gflags::gflags!")
       add_library(gflags::gflags INTERFACE IMPORTED GLOBAL)
       set_target_properties(gflags::gflags PROPERTIES
         INTERFACE_LINK_LIBRARIES "${GFLAGS_LIBRARIES}"
