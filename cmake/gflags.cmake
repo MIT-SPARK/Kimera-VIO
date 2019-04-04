@@ -2,14 +2,14 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
   set(__GFLAGS_INCLUDED TRUE)
 
   # use the system-wide gflags if present
-  find_package(gflags QUIET)
+  #find_package(gflags QUIET)
   if (gflags_FOUND)
     message(STATUS "FOUND gflags!")
     #message(STATUS "GFLAGS libs: ${GFLAGS_LIBRARIES}")
     #message(STATUS "GFLAGS includes: ${GFLAGS_INCLUDE_DIR}")
-    find_path(GFLAGS_PATH gflags)
-    set(GFLAGS_DIR ${GFLAGS_PATH}/gflags)
   else()
+    message(STATUS "NOT FOUND gflags! Will be downloaded from github.")
+
     # gflags will use pthreads if it's available in the system, so we must link with it
     find_package(Threads)
 
@@ -50,7 +50,6 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
     set(gflags_FOUND TRUE)
     set(GFLAGS_INCLUDE_DIR ${gflags_INSTALL}/include)
     set(GFLAGS_LIBRARIES ${gflags_INSTALL}/lib/libgflags.a ${CMAKE_THREAD_LIBS_INIT})
-    set(GFLAGS_DIR ${gflags_INSTALL}/include/gflags)
     # HACK to avoid interface library gflags::gflags to complain that
     # INTERFACE_INCLUDE_DIRECTORIES does not exist the first time we run cmake before build.
     file(MAKE_DIRECTORY ${GFLAGS_INCLUDE_DIR})

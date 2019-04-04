@@ -42,7 +42,7 @@ if (NOT __GLOG_INCLUDED)
       UPDATE_COMMAND ""
       INSTALL_DIR ${glog_INSTALL}
       PATCH_COMMAND autoreconf -i ${glog_PREFIX}/src/glog
-      CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${glog_PREFIX}/src/glog/configure --prefix=${glog_INSTALL} --enable-shared=no --enable-static=yes  --with-gflags=${GFLAGS_DIR}
+      CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${glog_PREFIX}/src/glog/configure --prefix=${glog_INSTALL} --enable-shared=no --enable-static=yes  --with-gflags=${gflags_INSTALL}
       LOG_DOWNLOAD 1
       LOG_CONFIGURE 1
       LOG_INSTALL 1
