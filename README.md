@@ -11,6 +11,9 @@ VIO is a library of C++ classes that implement the visual-inertial odometry pipe
  - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
  - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors. In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
+The Regular VIO backend is described in this paper:
+- A. Rosinol and T. Sattler and M. Pollefeys and L. Carlone. Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities. IEEE Int. Conf. Robot. Autom. (ICRA) 2019
+
 Quickstart
 ----------
 
