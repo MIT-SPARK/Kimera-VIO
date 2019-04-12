@@ -8,7 +8,9 @@ list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
-message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
+
+message(STATUS "===============================================================")
+message(STATUS "====================  Dependencies ============================")
 
 ### Include the boost directory
 find_package(Boost REQUIRED COMPONENTS filesystem)
@@ -18,21 +20,24 @@ if(NOT TARGET Boost::boost)
   INTERFACE_LINK_LIBRARIES "${Boost_LIBRARIES}"
   INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
 endif()
-#message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
 
 ### Find the GTSAM package
 find_package(GTSAM REQUIRED)
+if(GTSAM_FOUND)
+  message(STATUS "FOUND GTSAM! ${OpenCV_INCLUDE_DIRS}")
+endif(GTSAM_FOUND)
 
 ### Find the OpenGV package
 find_package(opengv REQUIRED)
-# TODO REMOVE HARDCODED
+if(opengv_FOUND)
+  message(STATUS "FOUND OpenGV!")
+endif(opengv_FOUND)
 
 ### Find opencv
 find_package(OpenCV 3.3.1 REQUIRED)
-if (OpenCV_FOUND)
-  message(STATUS "FOUND OpenCV! ${OpenCV_INCLUDE_DIRS}")
-  #message(STATUS "LIB_PATH = ${OpenCV_LIBS}")
-endif (OpenCV_FOUND)
+if(OpenCV_FOUND)
+  message(STATUS "FOUND OpenCV!")
+endif(OpenCV_FOUND)
 
 ### External Dependencies
 include(ExternalProject)
@@ -42,9 +47,6 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 
 ### Include the glog directory
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
-
-### Display all libs
-#message(STATUS "ALL LIBS: ${LIBS}")
 
 ### Compile the code
 add_library(sparkvio SHARED
@@ -246,11 +248,11 @@ export(PACKAGE SparkVio)
 # Print configuration variables
 message(STATUS "===============================================================")
 message(STATUS "================  Configuration Options  ======================")
-message(STATUS "  CMAKE_CXX_COMPILER_ID type     : ${CMAKE_CXX_COMPILER_ID}")
-message(STATUS "  CMAKE_CXX_COMPILER_VERSION     : ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "CMAKE_CXX_COMPILER_ID type                : ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "CMAKE_CXX_COMPILER_VERSION                : ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "Build flags                                               ")
 if(NOT MSVC AND NOT XCODE_VERSION)
-    message(STATUS "  Build type                     : ${CMAKE_BUILD_TYPE}")
+    message(STATUS "  Build type                              : ${CMAKE_BUILD_TYPE}")
     if (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
       message(WARNING "  Build type is not in RELEASE, this will slow down the code.")
     endif()
