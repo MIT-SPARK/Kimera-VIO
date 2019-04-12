@@ -33,7 +33,6 @@ if (NOT __GLOG_INCLUDED)
       set(GLOG_DEPENDS gflags::gflags)
     endif()
 
-    message(WARNING "GFLAGS LIBRARY DIRS: " ${GFLAGS_DIR})
     ExternalProject_Add(glog
       DEPENDS ${GLOG_DEPENDS}
       PREFIX ${glog_PREFIX}
