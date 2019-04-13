@@ -9,6 +9,9 @@ DATASET_PATH="/home/yunchang/data/MH_03"
 
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
+
+# Specify: 1 to run pipeline in parallel mode, 0 to run sequentially.
+PARALLEL_RUN=0
 ###################################################################
 
 # Parse Options.
@@ -87,4 +90,6 @@ echo """ Launching:
   --flagfile="../params/flags/RegularVioBackEnd.flags" \
   --flagfile="../params/flags/Visualizer3D.flags" \
   --v=0 \
-  --backend_type="$BACKEND_TYPE"
+  --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
+  --backend_type="$BACKEND_TYPE" \
+  --parallel_run="$PARALLEL_RUN"

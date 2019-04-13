@@ -12,6 +12,8 @@
 #include "utils/Timer.h"
 #include "LoggerMatlab.h"
 
+#include <future>
+
 // clean up later (dataset_path definition in ETH_parser.cpp)
 DEFINE_string(kitti_dataset_path, "/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync",
     "Path of dataset (i.e. Kitti, /home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync");
@@ -37,13 +39,16 @@ int main(int argc, char *argv[]) {
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
-  const bool is_pipeline_successful = kitti_dataset_parser.spin();
+  auto handle = std::async(std::launch::async,
+                           &VIO::KittiDataProvider::spin, &kitti_dataset_parser);
+  auto handle_pipeline = std::async(std::launch::async,
+             &VIO::Pipeline::shutdownWhenFinished, &vio_pipeline);
+  vio_pipeline.spinViz();
+  const bool is_pipeline_successful = handle.get();
+  handle_pipeline.get();
 
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-
-  // Dataset spin has finished, shutdown VIO.
-  vio_pipeline.shutdown();
 
   if (is_pipeline_successful) {
     // Log overall time of pipeline run.
