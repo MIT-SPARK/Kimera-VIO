@@ -39,14 +39,9 @@
 
 #include "Frame.h"
 #include "UtilsGeometry.h"
+#include "StereoFrame-definitions.h"
 
 namespace VIO {
-
-using SmartStereoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
-using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
-
-// TODO make enum class.
-enum Mesh2Dtype {VALIDKEYPOINTS, DENSE};
 
 ////////////////////////////////////////////////////////////////////////////////
 // TODO put these parameters in its own .h/.cpp and add tests as in frontend
@@ -71,19 +66,19 @@ public:
       int templ_rows = 11,
       int stripe_extra_rows = 0,
       double min_point_dist = 0.1,
-      double max_point_dist = 15,
+      double max_point_dist = 15.0,
       bool bidirectional_matching = false,
       double nominal_baseline = 0.11, // NOTE that this is hard coded (for EuRoC)
       bool subpixel_refinement = false,
       bool equalize_image = false) :
         tolerance_template_matching_(std::move(tol_template_matching)),
+        nominal_baseline_(std::move(nominal_baseline)),
         templ_cols_(std::move(templ_cols)),
         templ_rows_(std::move(templ_rows)),
         stripe_extra_rows_(std::move(stripe_extra_rows)),
         min_point_dist_(std::max(min_point_dist, 1e-3)),
         max_point_dist_(std::move(max_point_dist)),
         bidirectional_matching_(std::move(bidirectional_matching)),
-        nominal_baseline_(std::move(nominal_baseline)),
         subpixel_refinement_(std::move(subpixel_refinement)),
         equalize_image_(std::move(equalize_image)) {
     CHECK(!(templ_cols_ % 2 != 1 || templ_rows_ % 2 != 1)) // check that they are odd
@@ -142,22 +137,6 @@ public:
     return true;
   }
 };
-
-////////////////////////////////////////////////////////////////////////////////
-struct KeypointWithDepth{
-  KeypointWithDepth() = default;
-  KeypointWithDepth(const KeypointCV& p,
-                    const double& d)
-    : px(p),
-      depth(d) {}
-
-  KeypointCV px;
-  double depth;
-};
-using KeypointsWithDepth = std::vector<KeypointWithDepth>;
-
-// Definitions relevant to StereoFrame type
-using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
 ////////////////////////////////////////////////////////////////////////////////
 class StereoFrame {
@@ -308,7 +287,10 @@ public:
   // NOT THREAD-SAFE, needs critical section.
   inline bool isRectified() const {return is_rectified_;}
   inline bool isKeyframe() const {return is_keyframe_;}
-  inline gtsam::Pose3 getBPoseCamLRect() const {return B_Pose_camLrect_;}
+  inline gtsam::Pose3 getBPoseCamLRect() const {
+    CHECK(is_rectified_);
+    return B_Pose_camLrect_;
+  }
   inline double getBaseline() const {return baseline_;}
   inline StereoMatchingParams getSparseStereoParams() const {
     return sparse_stereo_params_;

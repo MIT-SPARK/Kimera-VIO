@@ -21,6 +21,8 @@
 #include "utils/Statistics.h"
 #include "LoggerMatlab.h"
 
+#include <future>
+
 ////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
 ////////////////////////////////////////////////////////////////////////////////
@@ -41,14 +43,17 @@ int main(int argc, char *argv[]) {
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
-  const bool is_pipeline_successful = eth_dataset_parser.spin();
+  auto handle = std::async(std::launch::async,
+                           &VIO::ETHDatasetParser::spin, &eth_dataset_parser);
+  auto handle_pipeline = std::async(std::launch::async,
+             &VIO::Pipeline::shutdownWhenFinished, &vio_pipeline);
+  vio_pipeline.spinViz();
+  const bool is_pipeline_successful = handle.get();
+  handle_pipeline.get();
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-  LOG(INFO) << "Writting stats to yaml file.";
+  LOG(INFO) << "Writing stats to yaml file.";
   VIO::utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
-
-  // Dataset spin has finished, shutdown VIO.
-  vio_pipeline.shutdown();
 
   if (is_pipeline_successful) {
     // Log overall time of pipeline run.

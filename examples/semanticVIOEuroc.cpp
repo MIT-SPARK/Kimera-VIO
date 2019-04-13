@@ -49,8 +49,8 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_imag
   // change that texture to the right texture for each 2d triangle that has
   // a corresponding 3d face.
   Mesh2D::Polygon polygon;
-  std::vector<Vec2d> tcoords (mesh_3d.getNumberOfUniqueVertices(),
-                              Vec2d(0.9, 0.9));
+  std::vector<cv::Vec2d> tcoords (mesh_3d.getNumberOfUniqueVertices(),
+                              cv::Vec2d(0.9, 0.9));
   for (size_t i = 0; i < mesh_2d.getNumberOfPolygons(); i++) {
     CHECK(mesh_2d.getPolygon(i, &polygon)) << "Could not retrieve 2d polygon.";
 
@@ -78,9 +78,9 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_imag
       // vertices.
       VLOG(100) << "Pixel: with id: " << p0_id
                 << ", x: " << px0.x << ", y: " << px0.y;
-      tcoords.at(p0_id) = Vec2d(px0.x/left_image.cols/2.0, px0.y/left_image.rows);
-      tcoords.at(p1_id) = Vec2d(px1.x/left_image.cols/2.0, px1.y/left_image.rows);
-      tcoords.at(p2_id) = Vec2d(px2.x/left_image.cols/2.0, px2.y/left_image.rows);
+      tcoords.at(p0_id) = cv::Vec2d(px0.x/left_image.cols/2.0, px0.y/left_image.rows);
+      tcoords.at(p1_id) = cv::Vec2d(px1.x/left_image.cols/2.0, px1.y/left_image.rows);
+      tcoords.at(p2_id) = cv::Vec2d(px2.x/left_image.cols/2.0, px2.y/left_image.rows);
       mesh_3d_viz_props.colors_.row(p0_id) = cv::viz::Color::white();
       mesh_3d_viz_props.colors_.row(p1_id) = cv::viz::Color::white();
       mesh_3d_viz_props.colors_.row(p2_id) = cv::viz::Color::white();
@@ -148,11 +148,9 @@ int main(int argc, char *argv[]) {
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   const bool is_pipeline_successful = eth_dataset_parser.spin();
+  vio_pipeline.shutdownWhenFinished();
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-
-  // Dataset spin has finished, shutdown VIO.
-  vio_pipeline.shutdown();
 
   if (is_pipeline_successful) {
     // Log overall time of pipeline run.

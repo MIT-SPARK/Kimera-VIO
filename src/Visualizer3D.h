@@ -71,7 +71,7 @@ struct VisualizerInputPayload {
   const std::vector<Plane> planes_;
   const gtsam::NonlinearFactorGraph graph_;
   const gtsam::Values values_;
-  const vector<Point3> points_3d_;
+  const std::vector<Point3> points_3d_;
   const Timestamp timestamp_k_;
 };
 
@@ -115,11 +115,16 @@ public:
   /* ------------------------------------------------------------------------ */
   // Spin for Visualizer3D. Calling shutdown stops the visualizer.
   void spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
-            ThreadsafeQueue<VisualizerOutputPayload>& output_queue);
+            ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
+            std::function<void(VisualizerOutputPayload&)> display);
 
   /* ------------------------------------------------------------------------ */
   // Stops the visualization spin.
   void shutdown();
+
+  /* ------------------------------------------------------------------------ */
+  // Checks if the thread is working or if it is waiting for input queue.
+  inline bool isWorking() const {return is_thread_working_;}
 
   /* ------------------------------------------------------------------------ */
   // Returns true if visualization is ready, false otherwise.
@@ -308,8 +313,8 @@ public:
     // change that texture to the right texture for each 2d triangle that has
     // a corresponding 3d face.
     Mesh2D::Polygon polygon;
-    std::vector<Vec2d> tcoords (mesh_3d.getNumberOfUniqueVertices(),
-                                Vec2d(0.9, 0.9));
+    std::vector<cv::Vec2d> tcoords (mesh_3d.getNumberOfUniqueVertices(),
+                                cv::Vec2d(0.9, 0.9));
     for (size_t i = 0; i < mesh_2d.getNumberOfPolygons(); i++) {
       CHECK(mesh_2d.getPolygon(i, &polygon)) << "Could not retrieve 2d polygon.";
 
@@ -339,9 +344,12 @@ public:
                   << ", x: " << px0.x << ", y: " << px0.y;
         // We divide by 2.0 to account for fake default texture padded to the
         // right of the texture_image.
-        tcoords.at(p0_id) = Vec2d(px0.x/texture_image.cols/2.0, px0.y/texture_image.rows);
-        tcoords.at(p1_id) = Vec2d(px1.x/texture_image.cols/2.0, px1.y/texture_image.rows);
-        tcoords.at(p2_id) = Vec2d(px2.x/texture_image.cols/2.0, px2.y/texture_image.rows);
+        tcoords.at(p0_id) = cv::Vec2d(px0.x/texture_image.cols/2.0,
+                                      px0.y/texture_image.rows);
+        tcoords.at(p1_id) = cv::Vec2d(px1.x/texture_image.cols/2.0,
+                                      px1.y/texture_image.rows);
+        tcoords.at(p2_id) = cv::Vec2d(px2.x/texture_image.cols/2.0,
+                                      px2.y/texture_image.rows);
         mesh_3d_viz_props.colors_.row(p0_id) = cv::viz::Color::white();
         mesh_3d_viz_props.colors_.row(p1_id) = cv::viz::Color::white();
         mesh_3d_viz_props.colors_.row(p2_id) = cv::viz::Color::white();
@@ -379,6 +387,8 @@ public:
 private:
   // Shutdown flag to stop the visualization spin.
   std::atomic_bool shutdown_ = {false};
+  // Signals if the thread is working or waiting for input queue.
+  std::atomic_bool is_thread_working_ = {false};
 
   std::deque<cv::Affine3f> trajectoryPoses3d_;
 
@@ -435,7 +445,7 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback.
-  static void keyboardCallback(const viz::KeyboardEvent& event, void *t);
+  static void keyboardCallback(const cv::viz::KeyboardEvent& event, void *t);
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to toggle freezing screen.

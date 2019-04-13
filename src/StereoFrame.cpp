@@ -1077,7 +1077,7 @@ std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
       KeypointCV left_px = left_keypoints_rectified[i].second;
       KeypointCV right_px = right_keypoints_rectified[i].second;
       double disparity = left_px.x - right_px.x;
-      if (disparity >= 0) {
+      if (disparity >= 0.0) {
         // Valid.
         nrValidDepths += 1;
         double depth = fx_b / disparity;

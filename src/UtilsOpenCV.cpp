@@ -448,7 +448,7 @@ std::string UtilsOpenCV::To_string_with_precision(const double a_value,
 }
 /* -------------------------------------------------------------------------- */
 // converts time from nanoseconds to seconds
-double UtilsOpenCV::NsecToSec(const std::int64_t& timestamp)
+double UtilsOpenCV::NsecToSec(const Timestamp& timestamp)
 {
   return double(timestamp) * 1e-9;
 }

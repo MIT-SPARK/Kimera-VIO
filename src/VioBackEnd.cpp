@@ -32,6 +32,7 @@
 
 #include "utils/Timer.h"
 #include "utils/Statistics.h"
+#include "LoggerMatlab.h"
 #include "ETH_parser.h" // Only for gtNavState ...
 
 DEFINE_bool(debug_graph_before_opt, false,
@@ -60,23 +61,23 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const Timestamp& timestamp_k,
                        const ImuAccGyrS& imu_accgyr,
                        const VioBackEndParams& vioParams,
-                       const bool log_timing):
+                       const bool log_output) :
+  vio_params_(vioParams),
+  imu_bias_lkf_(ImuBias()),
+  W_Vel_B_lkf_(Vector3::Zero()),
+  W_Pose_B_lkf_(Pose3()),
+  imu_bias_prev_kf_(ImuBias()),
   B_Pose_leftCam_(leftCamPose),
   stereo_cal_(boost::make_shared<gtsam::Cal3_S2Stereo>(
                leftCameraCalRectified.fx(),
                leftCameraCalRectified.fy(), leftCameraCalRectified.skew(),
                leftCameraCalRectified.px(), leftCameraCalRectified.py(),
                baseline)),
-  vio_params_(vioParams),
-  imu_bias_lkf_(ImuBias()),
-  imu_bias_prev_kf_(ImuBias()),
-  W_Vel_B_lkf_(Vector3::Zero()),
-  W_Pose_B_lkf_(Pose3()),
   last_kf_id_(-1),
   curr_kf_id_(0),
+  landmark_count_(0),
   verbosity_(0),
-  log_timing_(log_timing),
-  landmark_count_(0) {
+  log_output_(log_output) {
     CHECK_NOTNULL(initial_state_gt);
 
   // TODO the parsing of the params should be done inside here out from the
@@ -153,10 +154,14 @@ bool VioBackEnd::spin(
     ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
     ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
   LOG(INFO) << "Spinning VioBackEnd.";
+  utils::StatsCollector stat_pipeline_timing("Pipeline Overall Timing [ms]");
   utils::StatsCollector stat_backend_timing("Backend Timing [ms]");
   while (!shutdown_) {
     // Get input data from queue. Wait for Backend payload.
+    is_thread_working_ = false;
+    auto tic_pipeline_overall = utils::Timer::tic();
     std::shared_ptr<VioBackEndInputPayload> input = input_queue.popBlocking();
+    is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();
       output_queue.push(spinOnce(input));
@@ -165,6 +170,7 @@ bool VioBackEnd::spin(
                    << 1000.0 / spin_duration << " Hz. ("
                    << spin_duration << " ms).";
       stat_backend_timing.AddSample(spin_duration);
+      stat_pipeline_timing.AddSample(utils::Timer::toc(tic_pipeline_overall).count());
     } else {
       LOG(WARNING) << "No VioBackEnd Input Payload received.";
     }
@@ -177,17 +183,60 @@ bool VioBackEnd::spin(
 VioBackEndOutputPayload VioBackEnd::spinOnce(
     const std::shared_ptr<VioBackEndInputPayload>& input) {
   CHECK(input) << "No VioBackEnd Input Payload received.";
+  if (VLOG_IS_ON(10)) input->print();
   // Process data with VIO.
   addVisualInertialStateAndOptimize(input);
-  return VioBackEndOutputPayload(state_,
-                                 W_Pose_B_lkf_, // Actual output.
-                                 W_Vel_B_lkf_, // Actual output.
-                                 B_Pose_leftCam_, // This is a fixed thing, the first instance of which appears in the StereoFrame...
-                                 imu_bias_lkf_,
-                                 curr_kf_id_,
-                                 landmark_count_,
-                                 debug_info_);
+  // Update imu bias for the frontend! Note that this should be done asap
+  // ideally just when the optimization finishes, so that the frontend might
+  // start preintegrating the imu data using the newest bias!
+  CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
+                                      "update callback for at least the "
+                                      "frontend? Do so by using "
+                                      "registerImuBiasUpdateCallback function";
+  LOG(INFO) << "Backend: Update IMU Bias.";
+  imu_bias_update_callback_(imu_bias_lkf_);
+  if (VLOG_IS_ON(10)) {
+    LOG(INFO) << "Latest backend IMU bias is: ";
+    getLatestImuBias().print();
+    LOG(INFO) << "Prev kf backend IMU bias is: ";
+    getImuBiasPrevKf().print();
+  }
+
+  // Create Backend Output Payload.
+  VioBackEndOutputPayload output_payload (
+        input->timestamp_kf_nsec_,
+        state_,
+        W_Pose_B_lkf_, // Actual output.
+        W_Vel_B_lkf_, // Actual output.
+        B_Pose_leftCam_, // This is a fixed thing, the first instance of which appears in the StereoFrame...
+        imu_bias_lkf_,
+        curr_kf_id_,
+        landmark_count_,
+        debug_info_);
+
+  ////////////////// DEBUG INFO FOR BACK-END ///////////////////////////////////
+  if (log_output_) {
+    LoggerMatlab logger;
+    // Use default filename (sending empty "" uses default name), and set
+    // write mode to append (sending true).
+    logger.openLogFiles(13, "", true);
+    logger.logBackendResultsCSV(output_payload);
+    logger.closeLogFiles(13);
+  }
+  return output_payload;
 }
+
+/* -------------------------------------------------------------------------- */
+void VioBackEnd::registerImuBiasUpdateCallback(
+    std::function<void(const ImuBias& imu_bias)> imu_bias_update_callback) {
+  // Register callback.
+  imu_bias_update_callback_ = imu_bias_update_callback;
+  // Update imu bias just in case. This is useful specially because the
+  // backend initializes the imu bias to some value. So whoever is asking
+  // to register this callback should have the newest imu bias.
+  imu_bias_update_callback(imu_bias_lkf_);
+}
+
 
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
@@ -206,8 +255,6 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
                                        const Pose3& initialPose,
                                        const Vector3& initialVel,
                                        const ImuBias& initialBias) {
-  timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
-
   W_Pose_B_lkf_ = initialPose;
   W_Vel_B_lkf_ = initialVel;
   imu_bias_lkf_ = initialBias;
@@ -227,7 +274,7 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
   new_values_.insert(gtsam::Symbol('b', curr_kf_id_), imu_bias_lkf_);
 
   VLOG(2) << "Start optimize with initial state and priors!";
-  optimize(curr_kf_id_, vio_params_.numOptimize_);
+  optimize(timestamp_kf_nsec, curr_kf_id_, vio_params_.numOptimize_);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -243,19 +290,17 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
 
-  if (verbosity_ >= 7) {
-    StereoVisionFrontEnd::PrintStatusStereoMeasurements(
-          status_smart_stereo_measurements_kf);
-  }
+  //if (verbosity_ >= 7) {
+  //  StereoVisionFrontEnd::PrintStatusStereoMeasurements(
+  //        status_smart_stereo_measurements_kf);
+  //}
 
   // Features and IMU line up --> do iSAM update
   last_kf_id_ = curr_kf_id_;
   ++curr_kf_id_;
 
-  timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
-
    LOG(INFO) << "VIO: adding keyframe " << curr_kf_id_
-             << " at timestamp:" << timestamp_kf_ << " (sec).";
+             << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec) << " (nsec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
@@ -275,8 +320,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   SmartStereoMeasurements smartStereoMeasurements_kf = status_smart_stereo_measurements_kf.second;
 
   // if stereo ransac failed, remove all right pixels:
-  Tracker::TrackingStatus kfTrackingStatus_stereo = status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
-  // if(kfTrackingStatus_stereo == Tracker::TrackingStatus::INVALID){
+  TrackingStatus kfTrackingStatus_stereo = status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
+  // if(kfTrackingStatus_stereo == TrackingStatus::INVALID){
   //   for(size_t i = 0; i < smartStereoMeasurements_kf.size(); i++)
   //     smartStereoMeasurements_kf[i].uR = std::numeric_limits<double>::quiet_NaN();;
   //}
@@ -290,21 +335,21 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   if (verbosity_ >= 8) {printFeatureTracks();}
 
   // decide which factors to add
-  Tracker::TrackingStatus kfTrackingStatus_mono = status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
+  TrackingStatus kfTrackingStatus_mono = status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch(kfTrackingStatus_mono){
-    case Tracker::TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
+    case TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
       if (verbosity_ >= 7) {printf("Add zero velocity and no motion factors\n");}
       addZeroVelocityPrior(curr_kf_id_);
       addNoMotionFactor(last_kf_id_, curr_kf_id_);
       break;
 
       // This did not improve in any case
-      //  case Tracker::TrackingStatus::INVALID :// ransac failed hence we cannot trust features
+      //  case TrackingStatus::INVALID :// ransac failed hence we cannot trust features
       //    if (verbosity_ >= 7) {printf("Add constant velocity factor (monoRansac is INVALID)\n");}
       //    addConstantVelocityFactor(last_id_, cur_id_);
       //    break;
 
-    default: // Tracker::TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : // we add features in VIO
+    default: // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : // we add features in VIO
       addLandmarksToGraph(landmarks_kf);
       break;
   }
@@ -314,7 +359,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   // imu_bias_lkf_ gets updated in the optimize call.
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
-  optimize(curr_kf_id_, vio_params_.numOptimize_);
+  optimize(timestamp_kf_nsec, curr_kf_id_, vio_params_.numOptimize_);
 }
 
 void VioBackEnd::addVisualInertialStateAndOptimize(
@@ -322,7 +367,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   CHECK(input);
   bool use_stereo_btw_factor =
       vio_params_.addBetweenStereoFactors_ == true &&
-      input->stereo_tracking_status_ == Tracker::TrackingStatus::VALID;
+      input->stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(use_stereo_btw_factor, 10) <<  "Using stereo between factor.";
   addVisualInertialStateAndOptimize(
@@ -465,8 +510,8 @@ gtsam::Pose3 VioBackEnd::guessPoseFromIMUmeasurements(
 
 /* -------------------------------------------------------------------------- */
 // Get valid 3D points - TODO: this copies the graph.
-vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
-  vector<gtsam::Point3> points3D;
+std::vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
+  std::vector<gtsam::Point3> points3D;
   gtsam::NonlinearFactorGraph graph = smoother_->getFactors(); // TODO: this copies the graph
   for (auto& g : graph){
     if(g){
@@ -862,20 +907,21 @@ void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id) {
 /* -------------------------------------------------------------------------- */
 // TODO remove global variables from optimize, pass them as local parameters...
 // TODO make changes to global variables to the addVisualInertial blah blah.
+// TODO remove timing logging and use Statistics.h instead.
 void VioBackEnd::optimize(
+    const Timestamp& timestamp_kf_nsec,
     const FrameId& cur_id,
     const size_t& max_extra_iterations,
     const std::vector<size_t>& extra_factor_slots_to_delete) {
   CHECK(smoother_.get()) << "Incremental smoother is a null pointer.";
 
   // Only for statistics and debugging.
-  // Store start time.
-  double startTime = 0.0;
+  // Store start time to calculate absolute total time taken.
+  const auto& total_start_time = utils::Timer::tic();
+  // Store start time to calculate per module total time.
+  auto start_time = total_start_time;
   // Reset all timing info.
   debug_info_.resetTimes();
-  if (verbosity_ >= 5 || log_timing_) {
-    startTime = UtilsOpenCV::GetTimeInSeconds();
-  }
 
   /////////////////////// BOOKKEEPING //////////////////////////////////////////
   // We need to remove all smart factors that have new observations.
@@ -917,9 +963,10 @@ void VioBackEnd::optimize(
 
   //////////////////////////////////////////////////////////////////////////////
 
-  if (verbosity_ >= 5 || log_timing_) {
-    debug_info_.factorsAndSlotsTime_ = UtilsOpenCV::GetTimeInSeconds() -
-                                      startTime;
+  if (verbosity_ >= 5 || log_output_) {
+    debug_info_.factorsAndSlotsTime_ =
+        utils::Timer::toc<std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   if (verbosity_ >= 5) {
@@ -951,15 +998,21 @@ void VioBackEnd::optimize(
 
   // Use current timestamp for each new value. This timestamp will be used
   // to determine if the variable should be marginalized.
+  // Needs to use DOUBLE because gtsam works with that, but we are working with
+  // int64_t (nsecs).
   std::map<Key, double> timestamps;
-  for(const auto& keyValue : new_values_) {
-    timestamps[keyValue.key] = timestamp_kf_; // for the latest pose, velocity, and bias
+  // Also needs to convert to seconds...
+  double timestamp_kf = static_cast<double>(timestamp_kf_nsec) * 1e-9;
+  BOOST_FOREACH(const gtsam::Values::ConstKeyValuePair& key_value, new_values_) {
+    timestamps[key_value.key] = timestamp_kf ; // for the latest pose, velocity, and bias
   }
   CHECK_EQ(timestamps.size(), new_values_.size());
 
   // Store time before iSAM update.
-  if (verbosity_ >= 5 || log_timing_) {
-    debug_info_.preUpdateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+  if (verbosity_ >= 5 || log_output_) {
+    debug_info_.preUpdateTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   // Compute iSAM update.
@@ -976,8 +1029,10 @@ void VioBackEnd::optimize(
   VLOG(10) << "Finished first update.";
 
   // Store time after iSAM update.
-  if (verbosity_ >= 5 || log_timing_) {
-    debug_info_.updateTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+  if (verbosity_ >= 5 || log_output_) {
+    debug_info_.updateTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   /////////////////////////// BOOKKEEPING //////////////////////////////////////
@@ -1004,8 +1059,10 @@ void VioBackEnd::optimize(
 #endif
   VLOG(10) << "Finished to find smart factors slots.";
 
-  if (verbosity_ >= 5 || log_timing_) {
-    debug_info_.updateSlotTime_ = UtilsOpenCV::GetTimeInSeconds() - startTime;
+  if (verbosity_ >= 5 || log_output_) {
+    debug_info_.updateSlotTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -1016,16 +1073,17 @@ void VioBackEnd::optimize(
     updateSmoother(&result);
   }
 
-  if (verbosity_ >= 5 || log_timing_) {
-    debug_info_.extraIterationsTime_ = UtilsOpenCV::GetTimeInSeconds() -
-                                      startTime;
+  if (verbosity_ >= 5 || log_output_) {
+    debug_info_.extraIterationsTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
+    start_time = utils::Timer::tic();
   }
 
   // Update states we need for next iteration.
   updateStates(cur_id);
 
   // Debug.
-  postDebug(startTime);
+  postDebug(total_start_time, start_time);
 }
 
 /// Private methods.
@@ -1371,7 +1429,7 @@ void VioBackEnd::findSmartFactorsSlotsSlow(
   // OLD INEFFICIENT VERSION:
   const gtsam::NonlinearFactorGraph& graphFactors = smoother_->getFactors();
 
-  vector<LandmarkId> landmarksToRemove;
+  std::vector<LandmarkId> landmarksToRemove;
   for (auto& it : old_smart_factors_) {
     bool found = false;
     for (size_t slot = 0; slot < graphFactors.size(); ++slot) {
@@ -1610,7 +1668,7 @@ void VioBackEnd::printFeatureTracks() const {
 void VioBackEnd::printSmootherInfo(
     const gtsam::NonlinearFactorGraph& new_factors_tmp,
     const std::vector<size_t>& delete_slots,
-    const string& message,
+    const std::string& message,
     const bool& showDetails) const {
   LOG(INFO) << " =============== START:" <<  message << " =============== "
             << std::endl;
@@ -1951,7 +2009,9 @@ void VioBackEnd::computeSparsityStatistics() {
 
 /* -------------------------------------------------------------------------- */
 // Debugging post optimization and estimate calculation.
-void VioBackEnd::postDebug(const double& start_time) {
+void VioBackEnd::postDebug(
+    const std::chrono::high_resolution_clock::time_point& total_start_time,
+    std::chrono::high_resolution_clock::time_point start_time) {
   if (verbosity_ >= 9) {
     computeSparsityStatistics();
   }
@@ -1971,37 +2031,32 @@ void VioBackEnd::postDebug(const double& start_time) {
     std::cout << "Error before: " << graph.error(debug_info_.stateBeforeOpt)
               << "Error after: " << graph.error(state_) << std::endl;
   }
-  if (verbosity_ >= 5 || log_timing_) {
-    debug_info_.printTime_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
+  if (verbosity_ >= 5 || log_output_) {
+    debug_info_.printTime_ = utils::Timer::toc
+        <std::chrono::nanoseconds>(start_time).count() * 1e-9;
   }
 
-  if (verbosity_ >= 5 || log_timing_) {
-    // order of the following is important:
-    debug_info_.printTime_ -= debug_info_.extraIterationsTime_;
-    debug_info_.extraIterationsTime_ -= debug_info_.updateSlotTime_;
-    debug_info_.updateSlotTime_ -= debug_info_.updateTime_;
-    debug_info_.updateTime_ -= debug_info_.preUpdateTime_;
-    debug_info_.preUpdateTime_ -= debug_info_.factorsAndSlotsTime_;
+  if (verbosity_ >= 5 || log_output_) {
     debug_info_.printTimes();
   }
 
-  if (verbosity_ >= 5 || log_timing_) {
-    double endTime = UtilsOpenCV::GetTimeInSeconds() - start_time;
+  if (verbosity_ >= 5 || log_output_) {
+    auto endTime = utils::Timer::toc
+        <std::chrono::nanoseconds>(total_start_time).count() * 1e-9;
     // sanity check:
-    double endTimeFromSum = debug_info_.factorsAndSlotsTime_ +
-                            debug_info_.preUpdateTime_ +
-                            debug_info_.updateTime_ +
-                            debug_info_.updateSlotTime_ +
-                            debug_info_.extraIterationsTime_ +
-                            debug_info_.printTime_;
-    if (fabs(endTimeFromSum - endTime) > 1e-1) {
-      std::cout << "endTime: " << endTime
-                << " endTimeFromSum: " << endTimeFromSum;
-      throw std::runtime_error("optimize: time measurement mismatch"
-                               " (this check on timing might be too strict)");
-    }
+    auto endTimeFromSum =
+        debug_info_.factorsAndSlotsTime_ +
+        debug_info_.preUpdateTime_ +
+        debug_info_.updateTime_ +
+        debug_info_.updateSlotTime_ +
+        debug_info_.extraIterationsTime_ +
+        debug_info_.printTime_;
+    LOG_IF(ERROR, fabs(endTimeFromSum - endTime) >= 1e-1)
+        << "optimize: time measurement mismatch (this check on timing might be "
+           "too strict)\n"
+        << " - endTime: " << endTime << '\n'
+        << " - endTimeFromSum: " << endTimeFromSum;
   }
-
 }
 
 /* -------------------------------------------------------------------------- */

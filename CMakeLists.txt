@@ -8,7 +8,9 @@ list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
-message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
+
+message(STATUS "===============================================================")
+message(STATUS "====================  Dependencies ============================")
 
 ### Include the boost directory
 find_package(Boost REQUIRED COMPONENTS filesystem)
@@ -19,23 +21,23 @@ if(NOT TARGET Boost::boost)
   INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
 endif()
 
-message(STATUS "Boost_INCLUDE_DIRS = ${Boost_INCLUDE_DIRS}")
-
 ### Find the GTSAM package
 find_package(GTSAM REQUIRED)
+if(GTSAM_FOUND)
+  message(STATUS "FOUND GTSAM! ${OpenCV_INCLUDE_DIRS}")
+endif(GTSAM_FOUND)
 
 ### Find the OpenGV package
-message(STATUS "Setting OpenGV on Luca's machine")
-# TODO REMOVE HARDCODED
+find_package(opengv REQUIRED)
+if(opengv_FOUND)
+  message(STATUS "FOUND OpenGV!")
+endif(opengv_FOUND)
 
 ### Find opencv
 find_package(OpenCV 3.3.1 REQUIRED)
-if (OpenCV_FOUND)
-  message(STATUS "FOUND OpenCV! ${OpenCV_INCLUDE_DIRS}")
-  message(STATUS "LIB_PATH = ${OpenCV_LIBS}")
-else (OpenCV_FOUND)
-  message(STATUS "CANNOT FOUND OpenCV!")
-endif (OpenCV_FOUND)
+if(OpenCV_FOUND)
+  message(STATUS "FOUND OpenCV!")
+endif(OpenCV_FOUND)
 
 ### External Dependencies
 include(ExternalProject)
@@ -45,9 +47,6 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 
 ### Include the glog directory
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
-
-### Display all libs
-message(STATUS "ALL LIBS: ${LIBS}")
 
 ### Compile the code
 add_library(sparkvio SHARED
@@ -87,17 +86,13 @@ include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
 
-if (DEFINED external_project_dependencies)
-  add_dependencies(sparkvio ${external_project_dependencies})
-endif()
-
 target_link_libraries(sparkvio
   PUBLIC
-  /usr/local/lib/libopengv.a
+  opengv
   Boost::boost
   ${OpenCV_LIBS}
-  ${GFLAGS_LIBRARIES}
-  ${GLOG_LIBRARIES}
+  gflags::gflags
+  glog::glog
   gtsam
   gtsam_unstable
   )
@@ -142,7 +137,7 @@ file(GLOB src_cpp_files ${cpp_file_pattern})
 #set(main_file_pattern "${VIO_SRC_DIR}/stereoVIOExample.cpp" "${VIO_SRC_DIR}/#stereoVIOExampleSimulation.cpp" "${VIO_SRC_DIR}/stereoVIOPlainBackend.cpp")
 #file(GLOB main_files ${main_file_pattern})
 #list(REMOVE_ITEM src_cpp_files ${main_files})
-message(STATUS "src_cpp_files = ${src_cpp_files}")
+#message(STATUS "src_cpp_files = ${src_cpp_files}")
 
 ### Add testing
 add_subdirectory(tests)
@@ -251,3 +246,20 @@ export(PACKAGE SparkVio)
 ### SIYI's way of exporting.
 ##target_include_directories(stereoVIO PUBLIC "./src" ${Boost_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} "/usr/local/include/opengv/" ${OpenCV_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS} ${GLOG_INCLUDE_DIRS})
 ##export(TARGETS stereoVIO FILE stereoVIO.cmake)
+
+###############################################################################
+# Print configuration variables
+message(STATUS "===============================================================")
+message(STATUS "================  Configuration Options  ======================")
+message(STATUS "CMAKE_CXX_COMPILER_ID type                : ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "CMAKE_CXX_COMPILER_VERSION                : ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "Build flags                                               ")
+if(NOT MSVC AND NOT XCODE_VERSION)
+    message(STATUS "  Build type                              : ${CMAKE_BUILD_TYPE}")
+    if (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
+      message(WARNING "  Build type is not in RELEASE, this will slow down the code.")
+    endif()
+    message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
+    message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS_RELEASE}")
+endif()
+

@@ -183,7 +183,7 @@ void Tracker::featureTracking(Frame* ref_frame,
 }
 
 /* -------------------------------------------------------------------------- */
-std::pair<Tracker::TrackingStatus, gtsam::Pose3>
+std::pair<TrackingStatus, gtsam::Pose3>
 Tracker::geometricOutlierRejectionMono(Frame* ref_frame,
                                        Frame* cur_frame) {
   CHECK_NOTNULL(ref_frame);
@@ -219,7 +219,7 @@ Tracker::geometricOutlierRejectionMono(Frame* ref_frame,
   // Solve.
   if (!ransac.computeModel(0)) {
     VLOG(10) << "failure: 5pt RANSAC could not find a solution.";
-    return std::make_pair(Tracker::TrackingStatus::INVALID, gtsam::Pose3());
+    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
 
   VLOG(10) << "geometricOutlierRejectionMono: RANSAC complete.";
@@ -231,17 +231,17 @@ Tracker::geometricOutlierRejectionMono(Frame* ref_frame,
                      ransac.iterations_);
 
   // Check quality of tracking.
-  Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
+  TrackingStatus status = TrackingStatus::VALID;
   if (ransac.inliers_.size() < trackerParams_.minNrMonoInliers_) {
     VLOG(10) << "FEW_MATCHES: " << ransac.inliers_.size();
-    status = Tracker::TrackingStatus::FEW_MATCHES;
+    status = TrackingStatus::FEW_MATCHES;
   }
 
   double disparity = computeMedianDisparity(*ref_frame, *cur_frame);
   VLOG(10) << "Median disparity: " << disparity;
   if (disparity < trackerParams_.disparityThreshold_) {
     VLOG(10) << "LOW_DISPARITY: " << disparity;
-    status = Tracker::TrackingStatus::LOW_DISPARITY;
+    status = TrackingStatus::LOW_DISPARITY;
   }
 
   // Get the resulting transformation: a 3x4 matrix [R t].
@@ -266,7 +266,7 @@ Tracker::geometricOutlierRejectionMono(Frame* ref_frame,
 }
 
 /* -------------------------------------------------------------------------- */
-std::pair<Tracker::TrackingStatus,gtsam::Pose3>
+std::pair<TrackingStatus,gtsam::Pose3>
 Tracker::geometricOutlierRejectionMonoGivenRotation(
     Frame* ref_frame,
     Frame* cur_frame,
@@ -328,7 +328,7 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
 #else
   if (!ransac.computeModel(0)) {
     VLOG(10) << "failure: 2pt RANSAC could not find a solution";
-    return std::make_pair(Tracker::TrackingStatus::INVALID, gtsam::Pose3());
+    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
 
   VLOG(10) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete";
@@ -340,17 +340,17 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
                      ransac.iterations_);
 
   // CHECK QUALITY OF TRACKING
-  Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
+  TrackingStatus status = TrackingStatus::VALID;
   if (ransac.inliers_.size() < trackerParams_.minNrMonoInliers_) {
     VLOG(10) << "FEW_MATCHES: " << ransac.inliers_.size();
-    status = Tracker::TrackingStatus::FEW_MATCHES;
+    status = TrackingStatus::FEW_MATCHES;
   }
   double disparity = computeMedianDisparity(*ref_frame, *cur_frame);
 
   VLOG(10) << "median disparity " << disparity;
   if (disparity < trackerParams_.disparityThreshold_) {
     VLOG(10) << "LOW_DISPARITY: " << disparity;
-    status = Tracker::TrackingStatus::LOW_DISPARITY;
+    status = TrackingStatus::LOW_DISPARITY;
   }
 
   // Get the resulting transformation: a 3x4 matrix [R t].
@@ -417,7 +417,7 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
 
 /* -------------------------------------------------------------------------- */
 // TODO break down this gargantuan function...
-std::pair<std::pair<Tracker::TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
+std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
 Tracker::geometricOutlierRejectionStereoGivenRotation(
     StereoFrame& ref_stereoFrame,
     StereoFrame& cur_stereoFrame,
@@ -567,7 +567,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   if (maxCoherentSetSize < 2) {
     VLOG(10) << "failure: 1point RANSAC (voting) could not find a solution.";
     return std::make_pair(
-          std::make_pair(Tracker::TrackingStatus::INVALID, gtsam::Pose3()),
+          std::make_pair(TrackingStatus::INVALID, gtsam::Pose3()),
           gtsam::Matrix3::Zero());
   }
 
@@ -587,10 +587,10 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
                        inliers, iterations);
 
   // Check quality of tracking.
-  Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
+  TrackingStatus status = TrackingStatus::VALID;
   if (inliers.size() < trackerParams_.minNrStereoInliers_) {
     VLOG(10) << "FEW_MATCHES: " << inliers.size();
-    status = Tracker::TrackingStatus::FEW_MATCHES;
+    status = TrackingStatus::FEW_MATCHES;
   }
 
   // Get the resulting translation.
@@ -622,7 +622,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
 }
 
 /* -------------------------------------------------------------------------- */
-std::pair<Tracker::TrackingStatus, gtsam::Pose3>
+std::pair<TrackingStatus, gtsam::Pose3>
 Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
                                          StereoFrame& cur_stereoFrame) {
   double start_time = UtilsOpenCV::GetTimeInSeconds();
@@ -651,7 +651,7 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   // Solve.
   if (!ransac.computeModel(0)) {
     VLOG(10) << "failure: (Arun) RANSAC could not find a solution.";
-    return std::make_pair(Tracker::TrackingStatus::INVALID, gtsam::Pose3());
+    return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
 
   // Remove outliers.
@@ -659,10 +659,10 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
                        ransac.inliers_, ransac.iterations_);
 
   // Check quality of tracking.
-  Tracker::TrackingStatus status = Tracker::TrackingStatus::VALID;
+  TrackingStatus status = TrackingStatus::VALID;
   if (ransac.inliers_.size() < trackerParams_.minNrStereoInliers_) {
     VLOG(10) << "FEW_MATCHES: " << ransac.inliers_.size();
-    status = Tracker::TrackingStatus::FEW_MATCHES;
+    status = TrackingStatus::FEW_MATCHES;
   }
 
   // Get the resulting transformation: a 3x4 matrix [R t].

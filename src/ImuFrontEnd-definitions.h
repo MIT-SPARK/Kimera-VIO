@@ -29,8 +29,6 @@ using ImuStampS = Eigen::Matrix<ImuStamp, 1, Eigen::Dynamic>;
 // while the 3 last correspond to angular velocities [rad/s].
 using ImuAccGyr = Eigen::Matrix<double, 6, 1>;
 using ImuAccGyrS = Eigen::Matrix<double, 6, Eigen::Dynamic>;
-using Vector6 = gtsam::Vector6;
-using Vector3 = gtsam::Vector3;
 using ImuBias = gtsam::imuBias::ConstantBias;
 
 struct ImuMeasurement {

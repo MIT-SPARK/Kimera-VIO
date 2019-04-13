@@ -43,14 +43,22 @@ public:
   Pipeline(ETHDatasetParser* dataset,
            const ImuParams& imu_params);
 
+  ~Pipeline();
+
   // Main spin, runs the pipeline.
   bool spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Run an endless loop until shutdown to visualize.
+  void spinViz();
 
   // Spin the pipeline only once.
   void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // TODO a parallel pipeline should always be able to run sequentially...
   bool spinSequential();
+
+  // Shutdown the pipeline once all data has been consumed.
+  void shutdownWhenFinished();
 
   // Shutdown processing pipeline: stops and joins threads, stops queues.
   // And closes logfiles.
@@ -100,16 +108,16 @@ private:
                    const Timestamp& timestamp_k,
                    const ImuAccGyrS& imu_accgyr);
   // Displaying must be done in the main thread.
-  void spinDisplayOnce(
-      const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload);
+  void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
 
   void processKeyframe(
-      size_t k,
       const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
-      std::shared_ptr<StereoFrame> last_stereo_keyframe,
-      const Timestamp& timestamp_k,
-      const Timestamp& timestamp_lkf,
-      const gtsam::PreintegratedImuMeasurements& pim);
+      const StereoFrame &last_stereo_keyframe,
+      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
+      const TrackingStatus& kf_tracking_status_stereo,
+      const gtsam::Pose3& relative_pose_body_stereo);
+
+  void processKeyframePop();
 
   StatusSmartStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
@@ -146,11 +154,12 @@ private:
 
   // TODO this should go to another class to avoid not having copy-ctor...
   // Frontend.
-  std::unique_ptr<StereoVisionFrontEnd> stereo_vision_frontend_;
+  std::unique_ptr<StereoVisionFrontEnd> vio_frontend_;
   FeatureSelector feature_selector_;
 
-  // IMU frontend.
-  std::unique_ptr<ImuFrontEnd> imu_frontend_;
+  // Stereo vision frontend payloads.
+  ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
+  ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;
@@ -185,8 +194,11 @@ private:
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
+  std::atomic_bool is_initialized_ = {false};
 
   // Threads.
+  std::thread stereo_frontend_thread_;
+  std::thread wrapped_thread_;
   std::thread backend_thread_;
   std::thread mesher_thread_;
   std::thread visualizer_thread_;

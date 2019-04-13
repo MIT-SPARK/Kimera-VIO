@@ -159,15 +159,17 @@ Mesher::Mesher()
 
 /* -------------------------------------------------------------------------- */
 // Method for the mesher to run on a thread.
-void Mesher::run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
-                 ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue) {
-  LOG(INFO) << "Launch";
+void Mesher::spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
+                  ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue) {
+  LOG(INFO) << "Spinning Mesher.";
   MesherOutputPayload mesher_output_payload;
   utils::StatsCollector stats_mesher("Mesher Timing [ms]");
-  while(!request_stop_) {
+  while(!shutdown_) {
     // Wait for mesher payload.
+    is_thread_working_ = false;
     const std::shared_ptr<const MesherInputPayload>& mesher_payload =
         mesher_input_queue.popBlocking();
+    is_thread_working_ = true;
     // If you put mesher_output_payload outside the loop, don't forget to clean
     // the mesh_2d or everything
     auto tic = utils::Timer::tic();

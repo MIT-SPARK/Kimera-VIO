@@ -61,8 +61,8 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
   // measurement. Nevertheless the imu_stamps, should be shifted one step back
   // I would say.
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
-    const Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
-    const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
+    const gtsam::Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
+    const gtsam::Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
     const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
                                                    imu_stamps(i));
     CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
@@ -88,7 +88,7 @@ gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
   gtsam::PreintegratedAhrsMeasurements pimRot(latest_imu_bias_.gyroscope(),
                                               gtsam::Matrix3::Identity());
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
-    const Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
+    const gtsam::Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
     const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
                                                    imu_stamps(i));
     CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";

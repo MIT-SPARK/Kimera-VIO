@@ -48,6 +48,7 @@ struct MesherInputPayload {
 };
 
 struct MesherOutputPayload {
+public:
   MesherOutputPayload(
       Mesh2D&& mesh_2d, // Use move semantics for the actual 2d mesh.
       Mesh3D&& mesh_3d, // Use move semantics for the actual 2d mesh.
@@ -75,15 +76,16 @@ struct MesherOutputPayload {
   MesherOutputPayload(MesherOutputPayload&&) = default;
   MesherOutputPayload& operator=(MesherOutputPayload&&) = default;
 
+ public:
   // 2D Mesh.
   Mesh2D mesh_2d_;
+
+  // 3D Mesh.
+  Mesh3D mesh_3d_;
 
   // 2D Mesh visualization.
   std::vector<cv::Vec6f> mesh_2d_for_viz_;
   std::vector<cv::Vec6f> mesh_2d_filtered_for_viz_;
-
-  // 3D Mesh.
-  Mesh3D mesh_3d_;
 
   // 3D Mesh using underlying storage type, aka a list of vertices, together
   // with a list of polygons represented as vertices ids pointing to the list
@@ -125,15 +127,21 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to run on a thread.
-  void run(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
+  void spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
            ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue);
 
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to request thread stop.
   inline void shutdown() {
+    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Mesher was already "
+                                  "shutdown.";
     LOG(INFO) << "Shutting down Mesher.";
-    request_stop_ = true;
+    shutdown_ = true;
   }
+
+  /* ------------------------------------------------------------------------ */
+  // Check whether the mesher is waiting for input queue or if it is working.
+  inline bool isWorking() const {return is_thread_working_;}
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before visualization.
@@ -179,9 +187,6 @@ public:
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
-  // Signaler for stop.
-  std::atomic_bool request_stop_ = {false};
-
   // Provide Mesh 3D in read-only mode.
   // Not the nicest to send a const &, should maybe use shared_ptr
   inline const Mesh3D& get3DMesh() const {
@@ -196,6 +201,11 @@ private:
   // The 2d histogram of theta angle (latitude) and distance of polygons
   // perpendicular to the vertical (aka parallel to walls).
   Histogram hist_2d_;
+
+  // Signaler for stop.
+  std::atomic_bool shutdown_ = {false};
+  // Signaler for thread working vs waiting for input queue.
+  std::atomic_bool is_thread_working_ = {false};
 
 private:
   /* ------------------------------------------------------------------------ */

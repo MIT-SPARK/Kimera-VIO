@@ -30,17 +30,12 @@
 #include <fstream>
 #include <boost/foreach.hpp>
 
-#include "ImuFrontEnd.h"
-#include "StereoVisionFrontEnd.h"
-#include "VioBackEndParams.h"
-
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
 #include <gtsam/navigation/ImuFactor.h>
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/Marginals.h>
-#include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 #include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/geometry/StereoCamera.h>
@@ -54,236 +49,21 @@
 
 #include "utils/ThreadsafeQueue.h"
 #include "UtilsOpenCV.h"
+#include "ImuFrontEnd.h"
+#include "StereoVisionFrontEnd-definitions.h"
+#include "VioBackEndParams.h"
+#include "VioBackEnd-definitions.h"
 
 namespace VIO {
 
 // Forward-declarations
 class gtNavState;
 
-// Gtsam types.
-using gtsam::Pose3;
-using gtsam::Rot3;
-using gtsam::Point3;
-using gtsam::Point2;
-using gtsam::Key;
-using gtsam::Cal3_S2;
-using gtsam::StereoPoint2;
-using ImuBias = gtsam::imuBias::ConstantBias;
-
-#define INCREMENTAL_SMOOTHER
-//#define USE_COMBINED_IMU_FACTOR
-
-#ifdef INCREMENTAL_SMOOTHER
-typedef gtsam::IncrementalFixedLagSmoother Smoother;
-#else
-typedef gtsam::BatchFixedLagSmoother Smoother;
-#endif
-
-////////////////////////////////////////////////////////////////////////////////
-// FeatureTrack
-class FeatureTrack {
-public:
-  //! Observation: {FrameId, Px-Measurement}
-  std::vector<std::pair<FrameId, StereoPoint2>> obs_;
-
-  // Is the lmk in the graph?
-  bool in_ba_graph_ = false;
-
-  FeatureTrack(FrameId frame_id, const StereoPoint2& px) {
-    obs_.push_back(std::make_pair(frame_id, px));
-  }
-
-  void print() const {
-    std::cout << "feature track with cameras: ";
-    for (size_t i = 0; i < obs_.size() ; i++) {
-      std::cout << " " <<  obs_[i].first << " ";
-    }
-    std::cout << std::endl;
-  }
-};
-
-// Landmark id to measurements.
-// Key is the lmk_id and feature track the collection of pairs of
-// frame id and pixel location.
-using FeatureTracks = std::unordered_map<Key, FeatureTrack>;
-
-////////////////////////////////////////////////////////////////////////////////
-class DebugVioInfo {
-public:
-  int numSF_;
-  int numValid_;
-  int numDegenerate_;
-  int numFarPoints_;
-  int numOutliers_;
-  int numCheirality_;
-
-  gtsam::Rot3 imuR_lkf_kf = gtsam::Rot3();
-
-  gtsam::Values stateBeforeOpt;
-  gtsam::NonlinearFactorGraph graphBeforeOpt;
-  gtsam::NonlinearFactorGraph graphToBeDeleted;
-
-  double factorsAndSlotsTime_;
-  double preUpdateTime_;
-  double updateTime_;
-  double updateSlotTime_;
-  double extraIterationsTime_;
-  double printTime_;
-
-  double meanPixelError_;
-  double maxPixelError_;
-  double meanTrackLength_;
-  size_t maxTrackLength_;
-
-  int numAddedSmartF_;
-  int numAddedImuF_;
-  int numAddedNoMotionF_;
-  int numAddedConstantVelF_;
-  int numAddedBetweenStereoF_;
-
-  int nrElementsInMatrix_;
-  int nrZeroElementsInMatrix_;
-
-  gtsam::NavState navstate_k_;
-
-  double linearizeTime_;
-  double linearSolveTime_;
-  double retractTime_;
-  double linearizeMarginalizeTime_;
-  double marginalizeTime_;
-  double imuPreintegrateTime_;
-
-  /* ------------------------------------------------------------------------ */
-  void resetSmartFactorsStatistics() {
-    numSF_ = 0;
-    numValid_ = 0;
-    numDegenerate_ = 0;
-    numFarPoints_ = 0;
-    numOutliers_ = 0;
-    numCheirality_ = 0;
-
-    meanPixelError_ = 0;
-    maxPixelError_ = 0;
-    meanTrackLength_ = 0;
-    maxTrackLength_ = 0;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  void resetTimes() {
-    factorsAndSlotsTime_= 0;
-    preUpdateTime_= 0;
-    updateTime_= 0;
-    updateSlotTime_= 0;
-    extraIterationsTime_= 0;
-    printTime_= 0;
-    linearizeTime_= 0;
-    linearSolveTime_= 0;
-    retractTime_= 0;
-    linearizeMarginalizeTime_= 0;
-    marginalizeTime_= 0;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  void resetAddedFactorsStatistics() {
-    numAddedSmartF_ = 0;
-    numAddedImuF_ = 0;
-    numAddedNoMotionF_ = 0;
-    numAddedConstantVelF_ = 0;
-    numAddedBetweenStereoF_ = 0;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  void printTimes() const {
-    LOG(INFO) << "Find delete time: "      << factorsAndSlotsTime_ << '\n'
-              << "preUpdate time: "        << preUpdateTime_       << '\n'
-              << "Update Time time: "      << updateTime_          << '\n'
-              << "Update slot time: "      << updateSlotTime_      << '\n'
-              << "Extra iterations time: " << extraIterationsTime_ << '\n'
-              << "Print time: "            << printTime_;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  void print() const {
-    LOG(INFO) << "----- DebugVioInfo: --------\n"
-              << " numSF: "           << numSF_            << '\n'
-              << " numValid: "        << numValid_         << '\n'
-              << " numDegenerate: "   << numDegenerate_    << '\n'
-              << " numOutliers: "     << numOutliers_      << '\n'
-              << " numFarPoints: "    << numFarPoints_     << '\n'
-              << " numCheirality: "   << numCheirality_    << '\n'
-              << " meanPixelError: "  << meanPixelError_   << '\n'
-              << " maxPixelError: "   << maxPixelError_    << '\n'
-              << " meanTrackLength: " << meanTrackLength_  << '\n'
-              << " maxTrackLength: "  << maxTrackLength_;
-  }
-};
-
-////////////////////////////////////////////////////////////////////////////////
-struct VioBackEndInputPayload {
-  VioBackEndInputPayload (
-      const Timestamp& timestamp_kf_nsec,
-      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-      const Tracker::TrackingStatus& stereo_tracking_status, // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
-      const gtsam::PreintegratedImuMeasurements& pim,
-      std::vector<Plane>* planes = nullptr,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
-    : timestamp_kf_nsec_(timestamp_kf_nsec),
-      status_smart_stereo_measurements_kf_(status_smart_stereo_measurements_kf),
-      stereo_tracking_status_(stereo_tracking_status),
-      pim_(pim),
-      planes_(planes),
-      stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
-  const Timestamp timestamp_kf_nsec_;
-  const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf_;
-  const Tracker::TrackingStatus stereo_tracking_status_; // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
-  // I believe we do not need EIGEN_MAKE_ALIGNED_OPERATOR_NEW for these members
-  // as they are dynamic eigen, not "fixed-size vectorizable matrices and vectors."
-  const gtsam::PreintegratedImuMeasurements pim_;
-  std::vector<Plane>* planes_;
-  boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
-};
-
-struct VioBackEndOutputPayload {
-  VioBackEndOutputPayload(const gtsam::Values state,
-                          const gtsam::Pose3& W_Pose_Blkf,
-                          const Vector3& W_Vel_Blkf,
-                          const gtsam::Pose3& B_Pose_leftCam,
-                          const ImuBias& imu_bias_lkf,
-                          const int& cur_kf_id,
-                          const int& landmark_count,
-                          const DebugVioInfo& debug_info)
-    : state_(state),
-      W_Pose_Blkf_(W_Pose_Blkf),
-      W_Vel_Blkf_(W_Vel_Blkf),
-      B_Pose_leftCam_(B_Pose_leftCam),
-      imu_bias_lkf_(imu_bias_lkf),
-      cur_kf_id_(cur_kf_id),
-      landmark_count_(landmark_count),
-      debug_info_(debug_info) {}
-
-  const gtsam::Values state_;
-  const gtsam::Pose3 W_Pose_Blkf_;
-  const Vector3 W_Vel_Blkf_;
-  const gtsam::Pose3 B_Pose_leftCam_;
-  const ImuBias imu_bias_lkf_;
-  const int cur_kf_id_;
-  const int landmark_count_;
-  const DebugVioInfo debug_info_;
-};
-
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class VioBackEnd {
 public:
   using SmartStereoFactor = gtsam::SmartStereoProjectionPoseFactor;
   using SmartFactorParams = gtsam::SmartStereoProjectionParams;
-#ifdef USE_COMBINED_IMU_FACTOR
-  using PreintegratedImuMeasurements = gtsam::PreintegratedCombinedMeasurements;
-  using PreintegratedImuMeasurementPtr = std::shared_ptr<PreintegratedImuMeasurements>;
-#else
-  using PreintegratedImuMeasurements   = gtsam::PreintegratedImuMeasurements;
-  using PreintegratedImuMeasurementPtr = std::shared_ptr<
-                                                  PreintegratedImuMeasurements>;
-#endif
   using LandmarkIdSmartFactorMap = std::unordered_map<
                                                 LandmarkId,
                                                 SmartStereoFactor::shared_ptr>;
@@ -322,7 +102,7 @@ public:
              const Timestamp& timestamp,
              const ImuAccGyrS& imu_accgyr,
              const VioBackEndParams& vioParams,
-             const bool log_timing = false);
+             const bool log_output = false);
 
   // Virtual destructor needed for derived class (i.e. RegularVioBackEnd).
   virtual ~VioBackEnd() = default;
@@ -337,7 +117,24 @@ public:
       const std::shared_ptr<VioBackEndInputPayload>& input);
 
   /* ------------------------------------------------------------------------ */
-  inline void shutdown() {shutdown_ = true;}
+  inline void shutdown() {
+    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Backend was already "
+                                  "shutdown.";
+    LOG(INFO) << "Shutting down Backend.";
+    shutdown_ = true;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Checks if the thread is waiting for the input_queue or working.
+  inline bool isWorking() const {return is_thread_working_;}
+
+  /* ------------------------------------------------------------------------ */
+  // Register (and trigger!) callback that will be called as soon as the backend
+  // comes up with a new IMU bias update.
+  // The callback is also triggered in this function to update the imu bias for
+  // the callee of this function.
+  void registerImuBiasUpdateCallback(
+      std::function<void(const ImuBias& imu_bias)> imu_bias_update_callback);
 
   /* ------------------------------------------------------------------------ */
   // TODO only public because it is used for testing...
@@ -364,7 +161,6 @@ public:
   /* ------------------------------------------------------------------------ */
   // NOT TESTED
   gtsam::Matrix getCurrentStateInformation() const;
-
 
   /// Printers
   /* ------------------------------------------------------------------------ */
@@ -430,7 +226,8 @@ protected:
                         const gtsam::Pose3& from_id_POSE_to_id);
 
   /* ------------------------------------------------------------------------ */
-  void optimize(const FrameId& cur_id,
+  void optimize(const Timestamp &timestamp_kf_nsec,
+                const FrameId& cur_id,
                 const size_t& max_iterations,
                 const std::vector<size_t>& extra_factor_slots_to_delete =
                                                         std::vector<size_t>());
@@ -632,7 +429,9 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Debugging post optimization and estimate calculation.
-  void postDebug(const double& start_time);
+  void postDebug(
+      const std::chrono::high_resolution_clock::time_point& total_start_time,
+      std::chrono::high_resolution_clock::time_point start_time);
 
   /* ------------------------------------------------------------------------ */
   // Reset state of debug info.
@@ -695,6 +494,10 @@ protected:
   LandmarkIdSmartFactorMap new_smart_factors_; //!< landmarkId -> {SmartFactorPtr}
   SmartFactorMap old_smart_factors_;           //!< landmarkId -> {SmartFactorPtr, SlotIndex}
 
+  // Imu Bias update callback. To be called as soon as we have a new IMU bias
+  // update so that the frontend performs preintegration with the newest bias.
+  std::function<void(const ImuBias& imu_bias)> imu_bias_update_callback_;
+
   // Debug info.
   DebugVioInfo debug_info_;
 
@@ -704,9 +507,6 @@ protected:
   // Data:
   // TODO grows unbounded currently, but it should be limited to time horizon.
   FeatureTracks feature_tracks_;
-
-  // Current time.
-  double timestamp_kf_; // timestamp in seconds attached to the last keyframe
 
   /// Counters.
   int last_kf_id_;
@@ -724,10 +524,11 @@ private:
 
   // Flags.
   const int verbosity_;
-  const bool log_timing_;
+  const bool log_output_ = {false};
 
   // Thread related members.
   std::atomic_bool shutdown_ = {false};
+  std::atomic_bool is_thread_working_ = {false};
 };
 
 // Template implementations.

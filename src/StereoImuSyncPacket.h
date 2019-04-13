@@ -45,10 +45,16 @@ public:
         << "ACCGYR IMU: \n" << imu_accgyr_;
   }
 
+  // Use only unique ptr since this class should be moved around,
+  // not copied!
+  typedef std::unique_ptr<StereoImuSyncPacket> UniquePtr;
+  typedef std::unique_ptr<const StereoImuSyncPacket> ConstUniquePtr;
+
 private:
   StereoFrame stereo_frame_;
   ImuStampS imu_stamps_;
   ImuAccGyrS imu_accgyr_;
 };
+
 
 } // End of VIO namespace.

@@ -81,7 +81,7 @@ def plot_statistics_vio(statistics, output_boxplot_path):
     stddevs = []
     for key, value in statistics.items():
         print('Reading statistic: %s' % str(key))
-        if 'Timing [ms]' in str(key):
+        if key == 'Pipeline Overall Timing [ms]':
             names.append(str(key[:-11]))
             for key, value in value.items():
                 if key == 'max':
@@ -94,6 +94,19 @@ def plot_statistics_vio(statistics, output_boxplot_path):
                     means.append(value)
                 if key == 'stddev':
                     stddevs.append(value)
+        elif 'Timing [ms]' in str(key):
+            names = [str(key[:-11])] + names;
+            for key, value in value.items():
+                if key == 'max':
+                    maxes = [value] + maxes
+                if key == 'min':
+                    mins = [value] + mins
+                if key == 'samples':
+                    samples = [value] + samples
+                if key == 'mean':
+                    means = [value] + means
+                if key == 'stddev':
+                    stddevs = [value] + stddevs
         else:
             print("Skipping this statistic, as it is not a Timing or is not in [ms].")
     # Create stacked errorbars:

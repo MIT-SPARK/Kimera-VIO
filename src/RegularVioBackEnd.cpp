@@ -147,19 +147,17 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   debug_info_.resetAddedFactorsStatistics();
 
-  if (VLOG_IS_ON(20)) {
-    StereoVisionFrontEnd::PrintStatusStereoMeasurements(
-                                          status_smart_stereo_measurements_kf);
-  }
+  //if (VLOG_IS_ON(20)) {
+  //  StereoVisionFrontEnd::PrintStatusStereoMeasurements(
+  //                                        status_smart_stereo_measurements_kf);
+  //}
 
   // Features and IMU line up --> do iSAM update.
   last_kf_id_ = curr_kf_id_;
   ++curr_kf_id_;
 
-  timestamp_kf_ = UtilsOpenCV::NsecToSec(timestamp_kf_nsec);
-
   VLOG(7) << "Processing keyframe " << curr_kf_id_
-          << " at timestamp: " << timestamp_kf_ << " (sec)\n";
+          << " at timestamp: " << UtilsOpenCV::NsecToSec(timestamp_kf_nsec) << " (nsec)\n";
 
   /////////////////// IMU FACTORS //////////////////////////////////////////////
   // Predict next step, add initial guess.
@@ -199,12 +197,12 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   // Decide which factors to add.
-  Tracker::TrackingStatus kfTrackingStatus_mono =
+  TrackingStatus kfTrackingStatus_mono =
                 status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
 
   std::vector<size_t> delete_slots (delete_slots_of_converted_smart_factors_);
   switch(kfTrackingStatus_mono) {
-    case Tracker::TrackingStatus::LOW_DISPARITY : {
+    case TrackingStatus::LOW_DISPARITY : {
       // Vehicle is not moving.
       VLOG(0) << "Tracker has a LOW_DISPARITY status.";
       VLOG(10) << "Add zero velocity and no motion factors.";
@@ -214,16 +212,16 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
       break;
     }
     default: {
-      kfTrackingStatus_mono == Tracker::TrackingStatus::VALID?
+      kfTrackingStatus_mono == TrackingStatus::VALID?
           VLOG(1) << "Tracker has a VALID status.":
-            kfTrackingStatus_mono == Tracker::TrackingStatus::FEW_MATCHES?
+            kfTrackingStatus_mono == TrackingStatus::FEW_MATCHES?
           VLOG(1) << "Tracker has a FEW_MATCHES status.":
-            kfTrackingStatus_mono == Tracker::TrackingStatus::INVALID?
+            kfTrackingStatus_mono == TrackingStatus::INVALID?
           VLOG(1) << "Tracker has a INVALID status.":
-            kfTrackingStatus_mono == Tracker::TrackingStatus::DISABLED?
+            kfTrackingStatus_mono == TrackingStatus::DISABLED?
           VLOG(1) << "Tracker has a DISABLED status.": VLOG(10) << "";
 
-      if (kfTrackingStatus_mono == Tracker::TrackingStatus::VALID) {
+      if (kfTrackingStatus_mono == TrackingStatus::VALID) {
 
         // Extract lmk ids that are involved in a regularity.
         VLOG(10) << "Starting extracting lmk ids from set of planes...";
@@ -343,7 +341,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   VLOG(10) << "Starting optimize...";
-  optimize(curr_kf_id_, vio_params_.numOptimize_,
+  optimize(timestamp_kf_nsec,
+           curr_kf_id_,
+           vio_params_.numOptimize_,
            delete_slots);
   VLOG(10) << "Finished optimize.";
 

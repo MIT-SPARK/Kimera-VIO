@@ -99,7 +99,7 @@ VisualizerInputPayload::VisualizerInputPayload(
     const std::vector<Plane>& planes,
     const gtsam::NonlinearFactorGraph& graph,
     const gtsam::Values& values,
-    const vector<Point3>& points_3d,
+    const std::vector<Point3>& points_3d,
     const Timestamp& timestamp_k)
   : visualization_type_(visualization_type),
     backend_type_(backend_type),
@@ -134,17 +134,24 @@ Visualizer3D::Visualizer3D() {
 
 /* -------------------------------------------------------------------------- */
 void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
-                        ThreadsafeQueue<VisualizerOutputPayload>& output_queue) {
+                        ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
+                        std::function<void(VisualizerOutputPayload&)> display) {
   LOG(INFO) << "Spinning Visualizer.";
   VisualizerOutputPayload output_payload;
   utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
   while(!shutdown_) {
     // Wait for mesher payload.
+    is_thread_working_ = false;
     const std::shared_ptr<VisualizerInputPayload>& visualizer_payload =
         input_queue.popBlocking();
+    is_thread_working_ = true;
     auto tic = utils::Timer::tic();
     visualize(visualizer_payload, &output_payload);
-    output_queue.push(output_payload);
+    if (display) {
+      display(output_payload);
+    } else {
+      output_queue.push(output_payload);
+    }
     output_payload.images_to_display_.clear();
     auto spin_duration = utils::Timer::toc(tic).count();
     LOG(WARNING) << "Current Visualizer frequency: "
@@ -157,6 +164,8 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
 
 /* -------------------------------------------------------------------------- */
 void Visualizer3D::shutdown() {
+  LOG_IF(WARNING, shutdown_) << "Shutdown for Visualizer requested, but it was "
+                               "already shutdown.";
   LOG(INFO) << "Shutting down Visualizer.";
   shutdown_ = true;
 }
@@ -611,10 +620,10 @@ void Visualizer3D::visualizePlane(
   const std::string& plane_id_for_viz =
       "Plane " + std::to_string(plane_index);
   // Create a plane widget.
-  const Vec3d normal (n_x, n_y, n_z);
-  const Point3d center (d * n_x, d * n_y, d * n_z);
-  static const Vec3d new_yaxis (0, 1, 0);
-  static const Size2d size (1.0, 1.0);
+  const cv::Vec3d normal (n_x, n_y, n_z);
+  const cv::Point3d center (d * n_x, d * n_y, d * n_z);
+  static const cv::Vec3d new_yaxis (0, 1, 0);
+  static const cv::Size2d size (1.0, 1.0);
 
   cv::viz::Color plane_color;
   getColorById(cluster_id, &plane_color);
@@ -622,7 +631,7 @@ void Visualizer3D::visualizePlane(
 
   if (visualize_plane_label) {
     static double increase = 0.0;
-    const Point3d text_position (d * n_x, d * n_y,
+    const cv::Point3d text_position (d * n_x, d * n_y,
                                  d * n_z + std::fmod(increase, 1));
     increase += 0.1;
     window_data_.window_.showWidget(plane_id_for_viz + "_label",
@@ -890,7 +899,7 @@ void Visualizer3D::visualizeConvexHull (const TriangleCluster& cluster,
   // Create convex hull.
   if (points_2d.size() != 0) {
     std::vector<int> hull_idx;
-    convexHull(Mat(points_2d), hull_idx, false);
+    convexHull(cv::Mat(points_2d), hull_idx, false);
 
     // Add the z component.
     std::vector<cv::Point3f> hull_3d;
@@ -976,12 +985,12 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image) {
 
     // Option C: use "look-at" camera parametrization.
     // Works, but motion is non-smooth as well.
-    Vec3d cam_pos (-6.0, 0.0, 6.0);
-    Vec3d cam_focal_point (camera_in_world_coord.translation());
-    Vec3d cam_y_dir (0.0, 0.0, -1.0);
-    Affine3f cam_pose = viz::makeCameraPose(cam_pos,
-                                            cam_focal_point,
-                                            cam_y_dir);
+    cv::Vec3d cam_pos (-6.0, 0.0, 6.0);
+    cv::Vec3d cam_focal_point (camera_in_world_coord.translation());
+    cv::Vec3d cam_y_dir (0.0, 0.0, -1.0);
+    cv::Affine3f cam_pose = cv::viz::makeCameraPose(cam_pos,
+                                                    cam_focal_point,
+                                                    cam_y_dir);
     window_data_.window_.setViewerPose(cam_pose);
     //window_data_.window_.setViewerPose(viewer_in_world_coord);
   }
@@ -1323,7 +1332,8 @@ void Visualizer3D::updateLineFromPlaneToPoint(
 }
 
 /* -------------------------------------------------------------------------- */
-void Visualizer3D::keyboardCallback(const viz::KeyboardEvent &event, void *t) {
+void Visualizer3D::keyboardCallback(const cv::viz::KeyboardEvent &event,
+                                    void *t) {
   WindowData* window_data = (Visualizer3D::WindowData*)t;
   if (event.action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
     toggleFreezeScreenKeyboardCallback(event.code, *window_data);
