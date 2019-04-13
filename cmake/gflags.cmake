@@ -2,14 +2,10 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
   set(__GFLAGS_INCLUDED TRUE)
 
   # use the system-wide gflags if present
-  #find_package(gflags QUIET)
-  if (gflags_FOUND)
-    message(STATUS "FOUND gflags!")
-    #message(STATUS "GFLAGS libs: ${GFLAGS_LIBRARIES}")
-    #message(STATUS "GFLAGS includes: ${GFLAGS_INCLUDE_DIR}")
+  find_package(GFlags QUIET)
+  if (GFLAGS_FOUND)
+    set(GFLAGS_EXTERNAL FALSE)
   else()
-    message(STATUS "NOT FOUND gflags! Will be downloaded from github.")
-
     # gflags will use pthreads if it's available in the system, so we must link with it
     find_package(Threads)
 
@@ -39,7 +35,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
                  -DBUILD_PACKAGING=OFF
                  -DBUILD_TESTING=OFF
                  -DBUILD_NC_TESTS=OFF
-                 -DBUILD_CONFIG_TESTS=OFF
+                 -BUILD_CONFIG_TESTS=OFF
                  -DINSTALL_HEADERS=ON
                  -DCMAKE_C_FLAGS=${GFLAGS_C_FLAGS}
                  -DCMAKE_CXX_FLAGS=${GFLAGS_CXX_FLAGS}
@@ -47,28 +43,12 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
       LOG_INSTALL 1
       )
 
-    set(gflags_FOUND TRUE)
-    set(GFLAGS_INCLUDE_DIR ${gflags_INSTALL}/include)
+    set(GFLAGS_FOUND TRUE)
+    set(GFLAGS_INCLUDE_DIRS ${gflags_INSTALL}/include)
     set(GFLAGS_LIBRARIES ${gflags_INSTALL}/lib/libgflags.a ${CMAKE_THREAD_LIBS_INIT})
-    # HACK to avoid interface library gflags::gflags to complain that
-    # INTERFACE_INCLUDE_DIRECTORIES does not exist the first time we run cmake before build.
-    file(MAKE_DIRECTORY ${GFLAGS_INCLUDE_DIR})
-  endif()
+    set(GFLAGS_LIBRARY_DIRS ${gflags_INSTALL}/lib)
+    set(GFLAGS_EXTERNAL TRUE)
 
-  if (NOT gflags_FOUND)
-    message(FATAL_ERROR "Error: gflags not found.")
-  else()
-    # Create interface library to link against gflags.
-    if(NOT TARGET gflags::gflags)
-      add_library(gflags::gflags INTERFACE IMPORTED GLOBAL)
-      set_target_properties(gflags::gflags PROPERTIES
-        INTERFACE_LINK_LIBRARIES "${GFLAGS_LIBRARIES}"
-        INTERFACE_INCLUDE_DIRECTORIES "${GFLAGS_INCLUDE_DIR}")
-      if(TARGET gflags)
-        # This is to avoid sparkvio library to build before gflags
-        add_dependencies(gflags::gflags gflags)
-      endif()
-    endif()
+    list(APPEND external_project_dependencies gflags)
   endif()
-
 endif()

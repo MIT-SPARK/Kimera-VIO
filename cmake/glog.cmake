@@ -5,14 +5,11 @@ if (NOT __GLOG_INCLUDED)
   set(__GLOG_INCLUDED TRUE)
 
   # try the system-wide glog first
-  find_package(glog QUIET)
+  find_package(Glog QUIET)
   if (GLOG_FOUND)
-    message(STATUS "FOUND glog!")
-    message(STATUS "GLOG libs: ${GLOG_LIBRARIES}")
-    message(STATUS "GLOG includes: ${GLOG_INCLUDE_DIR}")
+      set(GLOG_EXTERNAL FALSE)
   else()
-    # Fetch and build glog from github
-    message(STATUS "NOT FOUND glog! Will be downloaded from github.")
+    # fetch and build glog from github
 
     # build directory
     set(glog_PREFIX ${CMAKE_BINARY_DIR}/external/glog-prefix)
@@ -29,8 +26,8 @@ if (NOT __GLOG_INCLUDED)
     set(GLOG_C_FLAGS "${CMAKE_C_FLAGS} ${GLOG_EXTRA_COMPILER_FLAGS}")
 
     # depend on gflags if we're also building it
-    if (gflags_FOUND)
-      set(GLOG_DEPENDS gflags::gflags)
+    if (GFLAGS_EXTERNAL)
+      set(GLOG_DEPENDS gflags)
     endif()
 
     ExternalProject_Add(glog
@@ -41,37 +38,29 @@ if (NOT __GLOG_INCLUDED)
       UPDATE_COMMAND ""
       INSTALL_DIR ${glog_INSTALL}
       PATCH_COMMAND autoreconf -i ${glog_PREFIX}/src/glog
-      CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${glog_PREFIX}/src/glog/configure --prefix=${glog_INSTALL} --enable-shared=no --enable-static=yes  --with-gflags=${gflags_INSTALL}
+      CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${glog_PREFIX}/src/glog/configure --prefix=${glog_INSTALL} --enable-shared=no --enable-static=yes --with-gflags=${GFLAGS_LIBRARY_DIRS}/..
       LOG_DOWNLOAD 1
       LOG_CONFIGURE 1
       LOG_INSTALL 1
       )
 
     set(GLOG_FOUND TRUE)
-    set(GLOG_INCLUDE_DIR ${glog_INSTALL}/include)
+    set(GLOG_INCLUDE_DIRS ${glog_INSTALL}/include)
     set(GLOG_LIBRARIES ${glog_INSTALL}/lib/libglog.a)
     set(GLOG_LIBRARY_DIRS ${glog_INSTALL}/lib)
     set(GLOG_EXTERNAL TRUE)
-    # HACK to avoid interface library glog::glog to complain that
-    # INTERFACE_INCLUDE_DIRECTORIES does not exist the first time we run cmake before build.
-    file(MAKE_DIRECTORY ${GLOG_INCLUDE_DIR})
+
+    add_library(gflags_imported STATIC IMPORTED GLOBAL)
+    set_target_properties(gflags_imported
+      PROPERTIES IMPORTED_LOCATION "${gflags_INSTALL}/lib/libgflags.a")
+    add_dependencies(gflags_imported gflags)
+
+    add_library(glog_imported STATIC IMPORTED GLOBAL)
+    set_target_properties(glog_imported
+      PROPERTIES IMPORTED_LOCATION "${glog_INSTALL}/lib/libglog.a")
+    add_dependencies(glog_imported glog)
+
+    list(APPEND external_project_dependencies glog)
   endif()
-
-
-  if (NOT GLOG_FOUND)
-    message(FATAL_ERROR "Error: glog not found.")
-  else()
-    # Create interface library to link against glog.
-    if(NOT TARGET glog::glog)
-      add_library(glog::glog INTERFACE IMPORTED GLOBAL)
-      set_target_properties(glog::glog PROPERTIES
-        INTERFACE_LINK_LIBRARIES "${GLOG_LIBRARIES}"
-        INTERFACE_INCLUDE_DIRECTORIES "${GLOG_INCLUDE_DIR}")
-      if(TARGET glog)
-        add_dependencies(glog::glog glog)
-      endif()
-    endif()
-  endif()
-
 
 endif()
