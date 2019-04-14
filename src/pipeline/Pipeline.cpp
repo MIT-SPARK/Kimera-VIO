@@ -593,7 +593,8 @@ void Pipeline::launchThreads() {
                               &StereoVisionFrontEnd::spin,
                               CHECK_NOTNULL(vio_frontend_.get()),
                               std::ref(stereo_frontend_input_queue_),
-                              std::ref(stereo_frontend_output_queue_));
+                              std::ref(stereo_frontend_output_queue_),
+                              true);
 
   wrapped_thread_ = std::thread(&Pipeline::processKeyframePop, this);
 
@@ -602,7 +603,8 @@ void Pipeline::launchThreads() {
                                 // Returns the pointer to vio_backend_.
                                 CHECK_NOTNULL(vio_backend_.get()),
                                 std::ref(backend_input_queue_),
-                                std::ref(backend_output_queue_));
+                                std::ref(backend_output_queue_),
+                                true);
 
   // Start mesher_thread.
   mesher_thread_ = std::thread(&Mesher::spin,

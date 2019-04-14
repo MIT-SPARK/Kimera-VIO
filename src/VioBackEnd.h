@@ -110,7 +110,8 @@ public:
 public:
   /* ------------------------------------------------------------------------ */
   bool spin(ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
-            ThreadsafeQueue<VioBackEndOutputPayload>& output_queue);
+            ThreadsafeQueue<VioBackEndOutputPayload>& output_queue,
+            bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
   VioBackEndOutputPayload spinOnce(
@@ -149,8 +150,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
   // Warning! it modifies old_smart_factors_!!
-  void getMapLmkIdsTo3dPointsInTimeHorizon(
-      PointsWithIdMap* points_with_id,
+  PointsWithIdMap getMapLmkIdsTo3dPointsInTimeHorizon(
       LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map = nullptr,
       const size_t& min_age = 2);
 

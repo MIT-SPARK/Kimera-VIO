@@ -152,7 +152,8 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
 /* -------------------------------------------------------------------------- */
 bool VioBackEnd::spin(
     ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
-    ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
+    ThreadsafeQueue<VioBackEndOutputPayload>& output_queue,
+    bool parallel_run) {
   LOG(INFO) << "Spinning VioBackEnd.";
   utils::StatsCollector stat_pipeline_timing("Pipeline Overall Timing [ms]");
   utils::StatsCollector stat_backend_timing("Backend Timing [ms]");
@@ -174,6 +175,9 @@ bool VioBackEnd::spin(
     } else {
       LOG(WARNING) << "No VioBackEnd Input Payload received.";
     }
+
+    // Break the while loop if we are in sequential mode.
+    if (!parallel_run) return true;
   }
   LOG(INFO) << "VioBackEnd successfully shutdown.";
   return true;
