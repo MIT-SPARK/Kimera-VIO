@@ -47,21 +47,4 @@ bool DataProvider::spin() {
   return true;
 }
 
-RosbagDataProvider::RosbagDataProvider(const std::string& rosbag_path)
-  : DataProvider() {
-  // Parse rosbag.
-}
-
-RosbagDataProvider::~RosbagDataProvider() {}
-
-bool RosbagDataProvider::spin() {
-  // Loop over the messages and call vio callback.
-  // while(!end_of_dataset) {
-  //  vio_callback_(your_stereo_imu_sync_packet);
-  // }
-
-
-  return true;
-}
-
 } // End of VIO namespace.
