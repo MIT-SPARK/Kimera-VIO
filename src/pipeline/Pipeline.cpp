@@ -149,9 +149,6 @@ void Pipeline::processKeyframe(
     const ImuFrontEnd::PreintegratedImuMeasurements& pim,
     const TrackingStatus& kf_tracking_status_stereo,
     const gtsam::Pose3& relative_pose_body_stereo) {
-  // At this point stereoFrame_km1 == stereoFrame_lkf_ !
-  const Frame& last_left_keyframe = last_stereo_keyframe.getLeftFrame();
-
   //////////////////// BACK-END ////////////////////////////////////////////////
   // Push to backend input.
   // This should be done inside the frontend!!!!
@@ -174,33 +171,20 @@ void Pipeline::processKeyframe(
   LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
-  std::vector<cv::Vec6f> mesh_2d;
   VioBackEnd::PointsWithIdMap points_with_id_VIO;
   VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
   MesherOutputPayload mesher_output_payload;
-  std::vector<Point3> points_3d;
   VioBackEnd::PointsWithIdMap points_with_id;
 
   // Decide mesh computation:
   VisualizationType visualization_type =
       static_cast<VisualizationType>(FLAGS_viz_type);
-  switch (visualization_type) {
-  case VisualizationType::MESH2D: {
-    mesh_2d = last_left_keyframe.createMesh2D(); // TODO pass the visualization flag inside the while loop of frontend and call this.
-    break;
-  }
-    // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
-  case VisualizationType::MESH2Dsparse: {
-    last_stereo_keyframe.createMesh2dStereo(&mesh_2d); // TODO same as above.
-    break;
-  }
-  case VisualizationType::MESH2DTo3Dsparse: {
+  if (visualization_type == VisualizationType::MESH2DTo3Dsparse ) {
     // Points_with_id_VIO contains all the points in the optimization,
     // (encoded as either smart factors or explicit values), potentially
     // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
     // (TODO restriction is not enforced for projection factors).
-    vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(
-          &points_with_id_VIO,
+    points_with_id_VIO = vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(
           FLAGS_visualize_lmk_type?
             &lmk_id_to_lmk_type_map:nullptr,
           FLAGS_min_num_obs_for_mesher_points);
@@ -230,21 +214,12 @@ void Pipeline::processKeyframe(
     if (!mesher_output_queue_.popBlocking(mesher_output_payload)) { //Use blocking to avoid skipping frames.
       LOG(WARNING) << "Mesher output queue did not pop a payload.";
     }
-    break;
-  }
-  case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
-    points_3d = vio_backend_->get3DPoints();
-    break;
-  }
-    // Computes and visualizes a 3D point cloud.
-  case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
-    vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(&points_with_id_VIO);
-    break;
-  }
-  case VisualizationType::NONE: {break;}
   }
 
   if (FLAGS_visualize) {
+    // At this point stereoFrame_km1 == stereoFrame_lkf_ !
+    const Frame& last_left_keyframe = last_stereo_keyframe.getLeftFrame();
+
     LOG_IF(WARNING, semantic_mesh_segmentation_callback_)
         << "Coloring the mesh using semantic segmentation colors.";
     // Push data for visualizer thread.
@@ -258,8 +233,6 @@ void Pipeline::processKeyframe(
             // Pose for trajectory viz.
             vio_backend_->getWPoseBLkf() * // The visualizer needs backend results
             last_stereo_keyframe.getBPoseCamLRect(), // This should be pass at ctor level....
-            // For visualizeMesh2D and visualizeMesh2DStereo
-            mesh_2d, // The visualizer needs mesher results
             // Call semantic mesh segmentation if someone registered a callback.
             semantic_mesh_segmentation_callback_? // This callback should be given to the visualizer at ctor level....
               semantic_mesh_segmentation_callback_(
@@ -274,19 +247,21 @@ void Pipeline::processKeyframe(
                        mesher_output_payload.mesh_2d_,
                        mesher_output_payload.mesh_3d_) : Mesher::Mesh3DVizProperties()),
             // For visualizeMesh2D and visualizeMesh2DStereo.
-            last_left_keyframe,
+            last_stereo_keyframe,
             // visualizeConvexHull & visualizeMesh3DWithColoredClusters
             // WARNING using move explicitly!
             std::move(mesher_output_payload),
             // visualizeMesh3DWithColoredClusters & visualizePoints3D
-            points_with_id_VIO,
+            visualization_type == VisualizationType::POINTCLOUD?
+              vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon() :
+              points_with_id_VIO,
             // visualizeMesh3DWithColoredClusters & visualizePoints3D
             lmk_id_to_lmk_type_map,
             planes_,  // visualizeMesh3DWithColoredClusters
             vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
             vio_backend_->getState(), // For planes and plane constraints viz.
-            points_3d,
-            last_stereo_keyframe.getTimestamp()
+            visualization_type == VisualizationType::POINTCLOUD_REPEATEDPOINTS?
+              vio_backend_->get3DPoints() : std::vector<Point3>()
             ));
   }
 }
@@ -550,7 +525,7 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   return std::make_pair(status, trackedAndSelectedSmartStereoMeasurements);
 }
 
-
+/* -------------------------------------------------------------------------- */
 void Pipeline::processKeyframePop() {
   // Pull from stereo frontend output queue.
   LOG(INFO) << "Spinning wrapped thread.";

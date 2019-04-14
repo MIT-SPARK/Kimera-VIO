@@ -90,31 +90,27 @@ VisualizerInputPayload::VisualizerInputPayload(
     const VisualizationType& visualization_type,
     int backend_type,
     const gtsam::Pose3& pose,
-    const std::vector<cv::Vec6f>& mesh_2d,
     Mesher::Mesh3DVizProperties&& mesh_3d_viz_props,
-    const Frame& left_stero_keyframe,
+    const StereoFrame& last_stero_keyframe,
     MesherOutputPayload&& mesher_output_payload,
     const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
     const VioBackEnd::LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
     const std::vector<Plane>& planes,
     const gtsam::NonlinearFactorGraph& graph,
     const gtsam::Values& values,
-    const std::vector<Point3>& points_3d,
-    const Timestamp& timestamp_k)
+    const std::vector<Point3>& points_3d)
   : visualization_type_(visualization_type),
     backend_type_(backend_type),
     pose_(pose),
-    mesh_2d_(mesh_2d),
     mesh_3d_viz_props_(std::move(mesh_3d_viz_props)),
-    left_stereo_keyframe_(left_stero_keyframe),
+    stereo_keyframe_(last_stero_keyframe),
     mesher_output_payload_(std::move(mesher_output_payload)),
     points_with_id_VIO_(points_with_id_VIO),
     lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
     planes_(planes),
     graph_(graph),
     values_(values),
-    points_3d_(points_3d),
-    timestamp_k_(timestamp_k) {}
+    points_3d_(points_3d) {}
 
 /* -------------------------------------------------------------------------- */
 ImageToDisplay::ImageToDisplay (const std::string& name, const cv::Mat& image)
@@ -190,6 +186,8 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
   CHECK_NOTNULL(output);
   cv::Mat mesh_2d_img; // Only for visualization.
 
+  const Frame& left_stereo_keyframe = input.stereo_keyframe_.getLeftFrame();
+
   switch (input.visualization_type_) {
   // Computes and visualizes 2D mesh.
   // vertices: all leftframe kps with lmkId != -1 and inside the image
@@ -198,8 +196,8 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     output->visualization_type_ = VisualizationType::MESH2D;
     output->images_to_display_.push_back(
           ImageToDisplay("Mesh 2D", visualizeMesh2D(
-                           input.mesh_2d_,
-                           input.left_stereo_keyframe_.img_)));
+                           left_stereo_keyframe.createMesh2D(),
+                           left_stereo_keyframe.img_)));
     break;
   }
 
@@ -208,10 +206,14 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
   case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
     output->visualization_type_ = VisualizationType::MESH2Dsparse;
+
+    std::vector<cv::Vec6f> mesh_2d;
+    input.stereo_keyframe_.createMesh2dStereo(&mesh_2d);
+
     // Add image to output queue.
     output->images_to_display_.push_back(
           ImageToDisplay("Mesh 2D", visualizeMesh2DStereo(
-                           input.mesh_2d_, input.left_stereo_keyframe_)));
+                           mesh_2d, left_stereo_keyframe)));
     break;
   }
 
@@ -228,7 +230,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       output->images_to_display_.push_back(
             ImageToDisplay("Mesh 2D", visualizeMesh2DStereo(
                              input.mesher_output_payload_.mesh_2d_for_viz_,
-                             input.left_stereo_keyframe_)));
+                             left_stereo_keyframe)));
     }
 
     // Visualize filtered 2d mesh.
@@ -236,7 +238,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       output->images_to_display_.push_back(ImageToDisplay(
                                              "Mesh 2D Filtered", visualizeMesh2DStereo(
                                                input.mesher_output_payload_.mesh_2d_filtered_for_viz_,
-                                               input.left_stereo_keyframe_)));
+                                               left_stereo_keyframe)));
       mesh_2d_img = output->images_to_display_.back().image_;
     }
 
@@ -274,7 +276,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
               vertices_mesh_prev,
               polygons_mesh_prev,
               FLAGS_visualize_mesh_with_colored_polygon_clusters,
-              input.timestamp_k_);
+              input.stereo_keyframe_.getTimestamp());
       }
     }
 
@@ -427,7 +429,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
   addPoseToTrajectory(input.pose_);
   visualizeTrajectory3D(
         FLAGS_visualize_mesh_in_frustum?
-          mesh_2d_img : input.left_stereo_keyframe_.img_);
+          mesh_2d_img : left_stereo_keyframe.img_);
   VLOG(10) << "Finished trajectory visualization.";
 
   // TODO avoid copying and use a std::unique_ptr! You need to pass window_data_

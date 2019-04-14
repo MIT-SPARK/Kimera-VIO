@@ -538,12 +538,10 @@ std::vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
 /* -------------------------------------------------------------------------- */
 // Get valid 3D points and corresponding lmk id.
 // Warning! it modifies old_smart_factors_!!
-void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
-    PointsWithIdMap* points_with_id,
+VioBackEnd::PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
     const size_t& min_age) {
-  CHECK_NOTNULL(points_with_id);
-  points_with_id->clear();
+  PointsWithIdMap points_with_id;
 
   if (lmk_id_to_lmk_type_map) {
     lmk_id_to_lmk_type_map->clear();
@@ -633,8 +631,8 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
           VLOG(20) << "Adding lmk with id: " << lmk_id
                    << " to list of lmks in time horizon";
           // Check that we have not added this lmk already...
-          CHECK(points_with_id->find(lmk_id) == points_with_id->end());
-          (*points_with_id)[lmk_id] = *result;
+          CHECK(points_with_id.find(lmk_id) == points_with_id.end());
+          points_with_id[lmk_id] = *result;
           if (lmk_id_to_lmk_type_map) {
             (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::SMART;
           }
@@ -665,8 +663,8 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       state_.filter(gtsam::Symbol::ChrTest('l'))) {
     DCHECK(gtsam::Symbol(key_value.key).chr() == 'l');
     const LandmarkId& lmk_id = gtsam::Symbol(key_value.key).index();
-    DCHECK(points_with_id->find(lmk_id) == points_with_id->end());
-    (*points_with_id)[lmk_id] = key_value.value.cast<gtsam::Point3>();
+    DCHECK(points_with_id.find(lmk_id) == points_with_id.end());
+    points_with_id[lmk_id] = key_value.value.cast<gtsam::Point3>();
     if (lmk_id_to_lmk_type_map) {
       (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::PROJECTION;
     }
@@ -688,6 +686,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
            << "Number of landmarks (not involved in a smart factor) "
            << nr_proj_lmks << ".\n Total number of landmarks: "
            << (nr_valid_smart_lmks + nr_proj_lmks);
+  return points_with_id;
 }
 
 /* -------------------------------------------------------------------------- */
