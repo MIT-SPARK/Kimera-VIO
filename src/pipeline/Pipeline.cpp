@@ -174,42 +174,15 @@ void Pipeline::processKeyframe(
   VioBackEnd::PointsWithIdMap points_with_id_VIO;
   VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
   MesherOutputPayload mesher_output_payload;
-  VioBackEnd::PointsWithIdMap points_with_id;
 
-  // Decide mesh computation:
   VisualizationType visualization_type =
       static_cast<VisualizationType>(FLAGS_viz_type);
-  if (visualization_type == VisualizationType::MESH2DTo3Dsparse ) {
-    // Points_with_id_VIO contains all the points in the optimization,
-    // (encoded as either smart factors or explicit values), potentially
-    // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
-    // (TODO restriction is not enforced for projection factors).
-    points_with_id_VIO = vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(
-          FLAGS_visualize_lmk_type?
-            &lmk_id_to_lmk_type_map:nullptr,
-          FLAGS_min_num_obs_for_mesher_points);
-
-    // Get camera pose.
-    gtsam::Pose3 W_Pose_camlkf_vio =
-        vio_backend_->getWPoseBLkf().compose(vio_backend_->getBPoseLeftCam());
-
-    // Create and fill data packet for mesher.
-
-    // Push to queue.
-    // In another thread, mesher is running, consuming mesher payloads.
-    CHECK(mesher_input_queue_.push(MesherInputPayload (
-                                     points_with_id_VIO, //copy, thread safe, read-only. // This should be a popBlocking...
-                                     last_stereo_keyframe, // not really thread safe, read only.
-                                     W_Pose_camlkf_vio))); // copy, thread safe, read-only. // Same, popBlocking
-
-    // Find regularities in the mesh if we are using RegularVIO backend.
-    // TODO create a new class that is mesh segmenter or plane extractor.
-    if (dataset_->getBackendType() == 1 &&
-        FLAGS_extract_planes_from_the_scene) {
-      mesher_.clusterPlanesFromMesh(&planes_,
-                                    points_with_id_VIO);
-    }
-
+  // Compute 3D mesh
+  if (visualization_type == VisualizationType::MESH2DTo3Dsparse) {
+    run3dMesher(&points_with_id_VIO,
+                &lmk_id_to_lmk_type_map,
+                &mesher_output_payload,
+                last_stereo_keyframe);
     // In the mesher thread push queue with meshes for visualization.
     if (!mesher_output_queue_.popBlocking(mesher_output_payload)) { //Use blocking to avoid skipping frames.
       LOG(WARNING) << "Mesher output queue did not pop a payload.";
@@ -263,6 +236,41 @@ void Pipeline::processKeyframe(
             visualization_type == VisualizationType::POINTCLOUD_REPEATEDPOINTS?
               vio_backend_->get3DPoints() : std::vector<Point3>()
             ));
+  }
+}
+
+void Pipeline::run3dMesher(VioBackEnd::PointsWithIdMap* points_with_id_VIO,
+                           VioBackEnd::LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
+                           MesherOutputPayload* mesher_output_payload,
+                           const StereoFrame& last_stereo_keyframe) {
+  CHECK_NOTNULL(points_with_id_VIO);
+  CHECK_NOTNULL(lmk_id_to_lmk_type_map);
+  CHECK_NOTNULL(mesher_output_payload);
+  // Points_with_id_VIO contains all the points in the optimization,
+  // (encoded as either smart factors or explicit values), potentially
+  // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
+  // (TODO restriction is not enforced for projection factors).
+  *points_with_id_VIO = vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(
+                          FLAGS_visualize_lmk_type?
+                            lmk_id_to_lmk_type_map:nullptr,
+                          FLAGS_min_num_obs_for_mesher_points);
+
+  // Create and fill data packet for mesher.
+  // Push to queue.
+  // In another thread, mesher is running, consuming mesher payloads.
+  CHECK(mesher_input_queue_.push(
+          MesherInputPayload(
+            *points_with_id_VIO, //copy, thread safe, read-only. // This should be a popBlocking...
+            last_stereo_keyframe, // not really thread safe, read only.
+            vio_backend_->getWPoseBLkf().compose(
+              vio_backend_->getBPoseLeftCam())))); // Get camera pose.
+
+  // Find regularities in the mesh if we are using RegularVIO backend.
+  // TODO create a new class that is mesh segmenter or plane extractor.
+  if (dataset_->getBackendType() == 1 &&
+      FLAGS_extract_planes_from_the_scene) {
+    mesher_.clusterPlanesFromMesh(&planes_,
+                                  *points_with_id_VIO);
   }
 }
 

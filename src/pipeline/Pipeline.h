@@ -111,6 +111,11 @@ private:
 
   void processKeyframePop();
 
+  void run3dMesher(VioBackEnd::PointsWithIdMap* points_with_id_VIO,
+                   VioBackEnd::LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
+                   MesherOutputPayload* mesher_output_payload,
+                   const StereoFrame& last_stereo_keyframe);
+
   StatusSmartStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
       const ETHDatasetParser& dataset,
