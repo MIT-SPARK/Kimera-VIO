@@ -131,7 +131,8 @@ Visualizer3D::Visualizer3D(VisualizationType viz_type,
 /* -------------------------------------------------------------------------- */
 void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
                         ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
-                        std::function<void(VisualizerOutputPayload&)> display) {
+                        std::function<void(VisualizerOutputPayload&)> display,
+                        bool parallel_run) {
   LOG(INFO) << "Spinning Visualizer.";
   VisualizerOutputPayload output_payload;
   utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
@@ -154,6 +155,9 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
                  << 1000.0 / spin_duration << " Hz. ("
                  << spin_duration << " ms).";
     stats_visualizer.AddSample(spin_duration);
+
+    // Break the while loop if we are in sequential mode.
+    if (!parallel_run) return;
   }
   LOG(INFO) << "Visualizer successfully shutdown.";
 }

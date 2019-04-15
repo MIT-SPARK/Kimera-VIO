@@ -25,7 +25,6 @@
 #include "StereoVisionFrontEnd.h"
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
-DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
 DEFINE_int32(regular_vio_backend_modality, 4,
              "Modality for regular Vio backend, currently supported:\n"
              "0: Structureless (equiv to normal VIO)\n"
@@ -76,13 +75,15 @@ namespace VIO {
 // dataset parser, especially the grount-truth! Feature selector also has some
 // dependency with this...
 Pipeline::Pipeline(ETHDatasetParser* dataset,
-                   const ImuParams& imu_params)
+                   const ImuParams& imu_params,
+                   bool parallel_run)
   : dataset_(CHECK_NOTNULL(dataset)),
     vio_frontend_(),
     vio_backend_(),
     mesher_(),
     visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
-                dataset->getBackendType()) {
+                dataset->getBackendType()),
+    parallel_run_(parallel_run) {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
 
@@ -124,11 +125,11 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     // not using it for initialization, because accumulated and actual IMU data
     // at init is the same...
     initialize(stereo_imu_sync_packet);
-    if (FLAGS_parallel_run) {
+    if (parallel_run_) {
       launchThreads();
     } else {
       LOG(INFO) << "Running in sequential mode (parallel_run set to "
-                << FLAGS_parallel_run << ").";
+                << parallel_run_<< ").";
     }
     is_initialized_ = true;
     return true;
@@ -147,57 +148,8 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Push to stereo frontend input queue.
   stereo_frontend_input_queue_.push(stereo_imu_sync_packet);
 
-  if (!FLAGS_parallel_run) {
-    // Spin once frontend.
-    vio_frontend_->spin(stereo_frontend_input_queue_,
-                        stereo_frontend_output_queue_,
-                        false); // Do not run in parallel.
-
-    // Pop blocking from frontend.
-    auto stereo_frontend_output_payload =
-        stereo_frontend_output_queue_.popBlocking();
-    CHECK(stereo_frontend_output_payload);
-    if (!stereo_frontend_output_payload->is_keyframe_) {
-      return;
-    }
-
-    // We have a keyframe.
-    // Push to backend.
-    backend_input_queue_.push(
-          VioBackEndInputPayload(
-            stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
-            stereo_frontend_output_payload->statusSmartStereoMeasurements_,
-            stereo_frontend_output_payload->tracker_status_,
-            stereo_frontend_output_payload->pim_,
-            stereo_frontend_output_payload->relative_pose_body_stereo_,
-            &planes_));
-
-    // Spin once backend.
-    vio_backend_->spin(backend_input_queue_,
-                       backend_output_queue_,
-                       false); // Do not run in parallel.
-
-    // Pop blocking from backend.
-    auto backend_output_payload = backend_output_queue_.popBlocking();
-    CHECK(backend_output_payload);
-
-    // Push to mesher.
-
-    // Spin once mesher.
-
-    // Pop from mesher.
-    auto mesher_output_payload = mesher_output_queue_.popBlocking();
-    CHECK(mesher_output_payload);
-
-    // Push to Visualizer.
-
-    // Spin once Visualizer.
-
-    // Pop from Visualizer.
-
-    // Visualize.
-
-  }
+  // Run the pipeline sequentially.
+  if (!parallel_run_) spinSequential();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -232,25 +184,28 @@ void Pipeline::processKeyframe(
   VioBackEnd::PointsWithIdMap points_with_id_VIO;
   VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
   MesherOutputPayload mesher_output_payload;
-
   VisualizationType visualization_type =
       static_cast<VisualizationType>(FLAGS_viz_type);
   // Compute 3D mesh
   if (visualization_type == VisualizationType::MESH2DTo3Dsparse) {
-    run3dMesher(&points_with_id_VIO,
-                &lmk_id_to_lmk_type_map,
-                &mesher_output_payload,
-                last_stereo_keyframe);
-    // In the mesher thread push queue with meshes for visualization.
-    if (!mesher_output_queue_.popBlocking(mesher_output_payload)) { //Use blocking to avoid skipping frames.
-      LOG(WARNING) << "Mesher output queue did not pop a payload.";
+    pushToMesherInputQueue(&points_with_id_VIO,
+                           &lmk_id_to_lmk_type_map,
+                           last_stereo_keyframe);
+
+    // Find regularities in the mesh if we are using RegularVIO backend.
+    // TODO create a new class that is mesh segmenter or plane extractor.
+    if (FLAGS_extract_planes_from_the_scene) {
+      CHECK_EQ(dataset_->getBackendType(), 1); // Use Regular VIO
+      mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     }
+
+    // In the mesher thread push queue with meshes for visualization.
+    // Use blocking to avoid skipping frames.
+    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
+        << "Mesher output queue did not pop a payload.";
   }
 
   if (FLAGS_visualize) {
-    // At this point stereoFrame_km1 == stereoFrame_lkf_ !
-    const Frame& last_left_keyframe = last_stereo_keyframe.getLeftFrame();
-
     // Push data for visualizer thread.
     // WHO Should be pushing to the visualizer input queue????????
     // This cannot happen at all from a single module, because visualizer
@@ -280,13 +235,12 @@ void Pipeline::processKeyframe(
   }
 }
 
-void Pipeline::run3dMesher(VioBackEnd::PointsWithIdMap* points_with_id_VIO,
-                           VioBackEnd::LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
-                           MesherOutputPayload* mesher_output_payload,
-                           const StereoFrame& last_stereo_keyframe) {
+void Pipeline::pushToMesherInputQueue(
+    VioBackEnd::PointsWithIdMap* points_with_id_VIO,
+    VioBackEnd::LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
+    const StereoFrame& last_stereo_keyframe) {
   CHECK_NOTNULL(points_with_id_VIO);
   CHECK_NOTNULL(lmk_id_to_lmk_type_map);
-  CHECK_NOTNULL(mesher_output_payload);
   // Points_with_id_VIO contains all the points in the optimization,
   // (encoded as either smart factors or explicit values), potentially
   // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
@@ -305,27 +259,115 @@ void Pipeline::run3dMesher(VioBackEnd::PointsWithIdMap* points_with_id_VIO,
             last_stereo_keyframe, // not really thread safe, read only.
             vio_backend_->getWPoseBLkf().compose(
               vio_backend_->getBPoseLeftCam())))); // Get camera pose.
-
-  // Find regularities in the mesh if we are using RegularVIO backend.
-  // TODO create a new class that is mesh segmenter or plane extractor.
-  if (dataset_->getBackendType() == 1 &&
-      FLAGS_extract_planes_from_the_scene) {
-    mesher_.clusterPlanesFromMesh(&planes_,
-                                  *points_with_id_VIO);
-  }
 }
 
-void Pipeline::spinViz() {
+void Pipeline::spinViz(bool parallel_run) {
   if (FLAGS_visualize) {
-    visualizer_.spin(visualizer_input_queue_, visualizer_output_queue_,
+    visualizer_.spin(visualizer_input_queue_,
+                     visualizer_output_queue_,
                      std::bind(&Pipeline::spinDisplayOnce,
-                               this, std::placeholders::_1));
+                               this, std::placeholders::_1),
+                     parallel_run);
   }
 }
 
 /* -------------------------------------------------------------------------- */
-bool Pipeline::spinSequential() {
-  LOG(FATAL) << "Spin sequential is not yet available.";
+void Pipeline::spinSequential() {
+  // Spin once frontend.
+  vio_frontend_->spin(stereo_frontend_input_queue_,
+                      stereo_frontend_output_queue_,
+                      false); // Do not run in parallel.
+
+  // Pop blocking from frontend.
+  const auto& stereo_frontend_output_payload =
+      stereo_frontend_output_queue_.popBlocking();
+  CHECK(stereo_frontend_output_payload);
+  if (!stereo_frontend_output_payload->is_keyframe_) {
+    return;
+  }
+
+  // We have a keyframe. Push to backend.
+  backend_input_queue_.push(
+        VioBackEndInputPayload(
+          stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
+          stereo_frontend_output_payload->statusSmartStereoMeasurements_,
+          stereo_frontend_output_payload->tracker_status_,
+          stereo_frontend_output_payload->pim_,
+          stereo_frontend_output_payload->relative_pose_body_stereo_,
+          &planes_));
+
+  // Spin once backend. Do not run in parallel.
+  vio_backend_->spin(backend_input_queue_, backend_output_queue_, false);
+
+  // Pop blocking from backend.
+  const auto& backend_output_payload = backend_output_queue_.popBlocking();
+  CHECK(backend_output_payload);
+
+  const auto& stereo_keyframe =
+      stereo_frontend_output_payload->stereo_frame_lkf_;
+  ////////////////// CREATE 3D MESH //////////////////////////////////////////
+  VioBackEnd::PointsWithIdMap points_with_id_VIO;
+  VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+  MesherOutputPayload mesher_output_payload;
+  VisualizationType visualization_type =
+      static_cast<VisualizationType>(FLAGS_viz_type);
+  if (visualization_type == VisualizationType::MESH2DTo3Dsparse) {
+    // Push to mesher.
+    pushToMesherInputQueue(&points_with_id_VIO,
+                           &lmk_id_to_lmk_type_map,
+                           stereo_keyframe);
+
+    // Spin once mesher.
+    mesher_.spin(mesher_input_queue_, mesher_output_queue_, false);
+
+    // Find regularities in the mesh if we are using RegularVIO backend.
+    // TODO create a new class that is mesh segmenter or plane extractor.
+    if (FLAGS_extract_planes_from_the_scene) {
+      CHECK_EQ(dataset_->getBackendType(), 1); // Use Regular VIO
+      mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
+    }
+
+    // Pop from mesher.
+    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
+        << "Mesher output queue did not pop a payload.";
+  }
+  ////////////////////////////////////////////////////////////////////////////
+
+  if (FLAGS_visualize) {
+    // Push data for visualizer thread.
+    // WHO Should be pushing to the visualizer input queue????????
+    // This cannot happen at all from a single module, because visualizer
+    // takes input from mesher and backend right now...
+    visualizer_input_queue_.push(
+          VisualizerInputPayload(
+            // Pose for trajectory viz.
+            vio_backend_->getWPoseBLkf() * // The visualizer needs backend results
+            stereo_keyframe.getBPoseCamLRect(), // This should be pass at ctor level....
+            // For visualizeMesh2D and visualizeMesh2DStereo.
+            stereo_keyframe,
+            // visualizeConvexHull & visualizeMesh3DWithColoredClusters
+            // WARNING using move explicitly!
+            std::move(mesher_output_payload),
+            // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            visualization_type == VisualizationType::POINTCLOUD?
+              vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon() :
+              points_with_id_VIO,
+            // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            lmk_id_to_lmk_type_map,
+            planes_,  // visualizeMesh3DWithColoredClusters
+            vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
+            vio_backend_->getState(), // For planes and plane constraints viz.
+            visualization_type == VisualizationType::POINTCLOUD_REPEATEDPOINTS?
+              vio_backend_->get3DPoints() : std::vector<Point3>()
+              ));
+
+    // Spin visualizer.
+    visualizer_.spin(visualizer_input_queue_,
+                     visualizer_output_queue_,
+                     std::bind(&Pipeline::spinDisplayOnce,
+                               this, std::placeholders::_1),
+                     false);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -580,7 +622,7 @@ void Pipeline::processKeyframePop() {
   LOG(INFO) << "Spinning wrapped thread.";
   while(!shutdown_) {
     std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload;
-    if (FLAGS_parallel_run) {
+    if (parallel_run_) {
        stereo_frontend_output_payload = stereo_frontend_output_queue_.pop();
     } else {
        stereo_frontend_output_payload = stereo_frontend_output_queue_.popBlocking();
@@ -634,7 +676,8 @@ void Pipeline::launchThreads() {
   mesher_thread_ = std::thread(&Mesher::spin,
                                &mesher_,
                                std::ref(mesher_input_queue_),
-                               std::ref(mesher_output_queue_));
+                               std::ref(mesher_output_queue_),
+                               true);
 
   // Start visualizer_thread.
   //visualizer_thread_ = std::thread(&Visualizer3D::spin,

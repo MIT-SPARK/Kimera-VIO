@@ -160,7 +160,8 @@ Mesher::Mesher()
 /* -------------------------------------------------------------------------- */
 // Method for the mesher to run on a thread.
 void Mesher::spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
-                  ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue) {
+                  ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue,
+                  bool parallel_run) {
   LOG(INFO) << "Spinning Mesher.";
   MesherOutputPayload mesher_output_payload;
   utils::StatsCollector stats_mesher("Mesher Timing [ms]");
@@ -186,6 +187,9 @@ void Mesher::spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
                  << 1000.0 / spin_duration << " Hz. ("
                  << spin_duration << " ms).";
     stats_mesher.AddSample(spin_duration);
+
+    // Break the while loop if we are in sequential mode.
+    if (!parallel_run) return;
   }
   LOG(INFO) << "Mesher successfully shutdown.";
 }
