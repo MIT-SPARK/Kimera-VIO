@@ -153,6 +153,7 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 /* -------------------------------------------------------------------------- */
 // Spin the pipeline only once.
 void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+  CHECK(is_initialized_);
   ////////////////////////////// FRONT-END /////////////////////////////////////
   // Push to stereo frontend input queue.
   stereo_frontend_input_queue_.push(stereo_imu_sync_packet);
@@ -411,7 +412,7 @@ void Pipeline::shutdownWhenFinished() {
         << "Frontend is working? " <<  vio_frontend_->isWorking() << '\n'
         << "Backend Input queue empty?" <<  backend_input_queue_.empty() << '\n'
         << "Backend Output queue empty?" <<  backend_output_queue_.empty() << '\n'
-        << "Backend is working? " <<  vio_backend_->isWorking() << '\n'
+        << "Backend is working? " <<  (is_initialized_?vio_backend_->isWorking():false) << '\n'
         << "Mesher input queue empty?" <<  mesher_input_queue_.empty() << '\n'
         << "Mesher output queue empty?" <<  mesher_output_queue_.empty() << '\n'
         << "Mesher is working? " <<  mesher_.isWorking() << '\n'
