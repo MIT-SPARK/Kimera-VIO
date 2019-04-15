@@ -139,7 +139,6 @@ bool ETHDatasetParser::spin() {
   const CameraParams& right_cam_info = getRightCamInfo();
   const gtsam::Pose3& camL_pose_camR = getCamLPoseCamR();
   for (FrameId k = initial_k_; k < final_k_; k++) {
-    LOG(INFO) << "ETHDatasetParser Spinning!";
     spinOnce(k,
              timestamp_last_frame,
              stereo_matching_params,
