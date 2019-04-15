@@ -78,8 +78,8 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
                    const ImuParams& imu_params,
                    bool parallel_run)
   : dataset_(CHECK_NOTNULL(dataset)),
-    vio_frontend_(),
-    vio_backend_(),
+    vio_frontend_(nullptr),
+    vio_backend_(nullptr),
     mesher_(),
     visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
                 dataset->getBackendType()),
@@ -449,6 +449,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
   /////////////////// FRONTEND /////////////////////////////////////////////////
   // Initialize Stereo Frontend.
+  CHECK(vio_frontend_);
   const StereoFrame& stereo_frame_lkf =
       vio_frontend_->processFirstStereoFrame(
         stereo_imu_sync_packet.getStereoFrame());
