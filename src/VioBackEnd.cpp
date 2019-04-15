@@ -423,8 +423,10 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
                                     const FeatureTrack& ft) {
 
   // We use a unit pinhole projection camera for the smart factors to be more efficient.
-  SmartStereoFactor::shared_ptr new_factor(
-        new SmartStereoFactor(smart_noise_, smart_factors_params_, B_Pose_leftCam_));
+  SmartStereoFactor::shared_ptr new_factor =
+      boost::make_shared<SmartStereoFactor>(smart_noise_,
+                                            smart_factors_params_,
+                                            B_Pose_leftCam_);
 
   if (verbosity_ >= 9) {std::cout << "Adding landmark with: " << ft.obs_.size() << " landmarks to graph, with keys: ";}
   if (verbosity_ >= 9){new_factor->print();}
@@ -452,7 +454,9 @@ void VioBackEnd::updateLandmarkInGraph(
     throw std::runtime_error("updateLandmarkInGraph: landmark not found in old_smart_factors_\n");
 
   SmartStereoFactor::shared_ptr old_factor = old_smart_factors_it->second.first;
-  SmartStereoFactor::shared_ptr new_factor = boost::make_shared<SmartStereoFactor>(*old_factor); // clone old factor
+  // TODO this looks super sketchy!
+  SmartStereoFactor::shared_ptr new_factor =
+      boost::make_shared<SmartStereoFactor>(*old_factor); // clone old factor
   new_factor->add(newObs.second, gtsam::Symbol('x', newObs.first), stereo_cal_);
 
   // update the factor
