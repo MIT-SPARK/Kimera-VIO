@@ -23,6 +23,8 @@
 
 #include <future>
 
+#include "StereoImuSyncPacket.h"
+
 DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -44,7 +46,7 @@ int main(int argc, char *argv[]) {
   eth_dataset_parser.registerVioCallback(
         std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
 
-  // Spin dataset.
+  //// Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
   if (FLAGS_parallel_run) {
@@ -60,7 +62,7 @@ int main(int argc, char *argv[]) {
   }
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-  LOG(INFO) << "Writing stats to yaml file.";
+  LOG(INFO) << "Pipeline successful? " << (is_pipeline_successful? "Yes!":"No!");
   VIO::utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
 
   if (is_pipeline_successful) {

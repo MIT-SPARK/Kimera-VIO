@@ -83,6 +83,10 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
     mesher_(),
     visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
                 dataset->getBackendType()),
+    stereo_frontend_thread_(nullptr),
+    wrapped_thread_(nullptr),
+    backend_thread_(nullptr),
+    mesher_thread_(nullptr),
     parallel_run_(parallel_run) {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
@@ -112,8 +116,13 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
 
 /* -------------------------------------------------------------------------- */
 Pipeline::~Pipeline() {
+  LOG(INFO) << "Pipeline destructor called.";
   // Shutdown pipeline if it is not already down.
-  if (!shutdown_) shutdown();
+  if (!shutdown_) {
+    shutdown();
+  } else {
+    LOG(INFO) << "Manual shutdown was requested.";
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -274,6 +283,7 @@ void Pipeline::spinViz(bool parallel_run) {
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinSequential() {
   // Spin once frontend.
+  CHECK(vio_frontend_);
   vio_frontend_->spin(stereo_frontend_input_queue_,
                       stereo_frontend_output_queue_,
                       false); // Do not run in parallel.
@@ -297,6 +307,7 @@ void Pipeline::spinSequential() {
           &planes_));
 
   // Spin once backend. Do not run in parallel.
+  CHECK(vio_backend_);
   vio_backend_->spin(backend_input_queue_, backend_output_queue_, false);
 
   // Pop blocking from backend.
@@ -396,15 +407,16 @@ void Pipeline::shutdownWhenFinished() {
         << "VIO pipeline status: \n"
         << "Initialized? " << is_initialized_ << '\n'
         << "Frontend input queue empty?" << stereo_frontend_input_queue_.empty() << '\n'
-        << "Frontend output queue empty?" << stereo_frontend_output_queue_.empty()<< '\n'
-        << "Frontend is working? " <<  vio_frontend_->isWorking()<< '\n'
-        << "Backend Input queue empty?" <<  backend_input_queue_.empty()<< '\n'
-        << "Backend Output queue empty?" <<  backend_output_queue_.empty()<< '\n'
-        << "Backend is working? " <<  vio_backend_->isWorking()<< '\n'
-        << "Mesher input queue empty?" <<  mesher_input_queue_.empty()<< '\n'
-        << "Mesher output queue empty?" <<  mesher_output_queue_.empty()<< '\n'
-        << "Mesher is working? " <<  mesher_.isWorking()<< '\n'
-        << "Visualizer input queue empty?" << visualizer_input_queue_.empty()<< '\n'
+        << "Frontend output queue empty?" << stereo_frontend_output_queue_.empty() << '\n'
+        << "Frontend is working? " <<  vio_frontend_->isWorking() << '\n'
+        << "Backend Input queue empty?" <<  backend_input_queue_.empty() << '\n'
+        << "Backend Output queue empty?" <<  backend_output_queue_.empty() << '\n'
+        << "Backend is working? " <<  vio_backend_->isWorking() << '\n'
+        << "Mesher input queue empty?" <<  mesher_input_queue_.empty() << '\n'
+        << "Mesher output queue empty?" <<  mesher_output_queue_.empty() << '\n'
+        << "Mesher is working? " <<  mesher_.isWorking() << '\n'
+        << "Visualizer input queue empty?" << visualizer_input_queue_.empty() << '\n'
+        << "Visualizer output queue empty?" << visualizer_output_queue_.empty() << '\n'
         << "Visualizer is working? " << visualizer_.isWorking();
         std::this_thread::sleep_for (std::chrono::seconds(sleep_time));
   }
@@ -413,16 +425,19 @@ void Pipeline::shutdownWhenFinished() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::shutdown() {
-  LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Pipeline was already "
+  LOG_IF(ERROR, shutdown_) << "Shutdown requested, but Pipeline was already "
                                 "shutdown.";
   LOG(INFO) << "Shutting down VIO pipeline.";
   shutdown_ = true;
   stopThreads();
-  joinThreads();
-  LOG(INFO) << "All threads joined, successful VIO pipeline shutdown.";
+  //if (parallel_run_) {
+    joinThreads();
+  //}
   if (FLAGS_log_output) {
+    LOG(INFO) << "Closing log files";
     logger_.closeLogFiles();
   }
+  LOG(INFO) << "Pipeline destructor finished.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -622,11 +637,7 @@ void Pipeline::processKeyframePop() {
   LOG(INFO) << "Spinning wrapped thread.";
   while(!shutdown_) {
     std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload;
-    if (parallel_run_) {
-       stereo_frontend_output_payload = stereo_frontend_output_queue_.pop();
-    } else {
-       stereo_frontend_output_payload = stereo_frontend_output_queue_.popBlocking();
-    }
+    stereo_frontend_output_payload = stereo_frontend_output_queue_.pop();
     if (!stereo_frontend_output_payload) {
       VLOG(100) << "Missing frontend output payload.";
       continue;
@@ -652,20 +663,20 @@ void Pipeline::processKeyframePop() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::launchThreads() {
-  LOG(INFO) << "Launching threads...";
+  LOG(INFO) << "Launching threads.";
 
   // Start frontend_thread.
-  stereo_frontend_thread_ = std::thread(
+  stereo_frontend_thread_ = VIO::make_unique<std::thread>(
                               &StereoVisionFrontEnd::spin,
                               CHECK_NOTNULL(vio_frontend_.get()),
                               std::ref(stereo_frontend_input_queue_),
                               std::ref(stereo_frontend_output_queue_),
                               true);
 
-  wrapped_thread_ = std::thread(&Pipeline::processKeyframePop, this);
+  wrapped_thread_ = VIO::make_unique<std::thread>(&Pipeline::processKeyframePop, this);
 
   // Start backend_thread.
-  backend_thread_ = std::thread(&VioBackEnd::spin,
+  backend_thread_ = VIO::make_unique<std::thread>(&VioBackEnd::spin,
                                 // Returns the pointer to vio_backend_.
                                 CHECK_NOTNULL(vio_backend_.get()),
                                 std::ref(backend_input_queue_),
@@ -673,7 +684,7 @@ void Pipeline::launchThreads() {
                                 true);
 
   // Start mesher_thread.
-  mesher_thread_ = std::thread(&Mesher::spin,
+  mesher_thread_ = VIO::make_unique<std::thread>(&Mesher::spin,
                                &mesher_,
                                std::ref(mesher_input_queue_),
                                std::ref(mesher_output_queue_),
@@ -688,31 +699,72 @@ void Pipeline::launchThreads() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::stopThreads() {
-  // Shutdown workers and queues.
-  stereo_frontend_input_queue_.shutdown();
-  stereo_frontend_output_queue_.shutdown();
-  vio_frontend_->shutdown();
+  LOG(INFO) << "Stopping workers and queues...";
 
+  LOG(INFO) << "Stopping backend workers and queues...";
   backend_input_queue_.shutdown();
   backend_output_queue_.shutdown();
+  CHECK(vio_backend_);
   vio_backend_->shutdown();
 
+  // Shutdown workers and queues.
+  LOG(INFO) << "Stopping frontend workers and queues...";
+  stereo_frontend_input_queue_.shutdown();
+  stereo_frontend_output_queue_.shutdown();
+  CHECK(vio_frontend_);
+  vio_frontend_->shutdown();
+
+  LOG(INFO) << "Stopping mesher workers and queues...";
   mesher_input_queue_.shutdown();
   mesher_output_queue_.shutdown();
   mesher_.shutdown();
 
+  LOG(INFO) << "Stopping visualizer workers and queues...";
   visualizer_input_queue_.shutdown();
   visualizer_output_queue_.shutdown();
   visualizer_.shutdown();
+
+  LOG(INFO) << "Sent stop flag to all workers and queues...";
 }
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::joinThreads() {
-  stereo_frontend_thread_.join();
-  wrapped_thread_.join();
-  backend_thread_.join();
-  mesher_thread_.join();
+  LOG(INFO) << "Joining threads...";
+
+  LOG(INFO) << "Joining frontend thread...";
+  if (stereo_frontend_thread_ && stereo_frontend_thread_->joinable()) {
+    stereo_frontend_thread_->join();
+    LOG(INFO) << "Joined frontend thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Frontend thread is not joinable...";
+  }
+
+  LOG(INFO) << "Joining wrapped thread...";
+  if (wrapped_thread_ && wrapped_thread_->joinable()) {
+    wrapped_thread_->join();
+    LOG(INFO) << "Joined wrapped thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Wrapped thread is not joinable...";
+  }
+
+  LOG(INFO) << "Joining backend thread...";
+  if (backend_thread_ && backend_thread_->joinable()) {
+    backend_thread_->join();
+    LOG(INFO) << "Joined backend thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Backend thread is not joinable...";
+  }
+
+  LOG(INFO) << "Joining mesher thread...";
+  if (mesher_thread_ && mesher_thread_->joinable()){
+    mesher_thread_->join();
+    LOG(INFO) << "Joined mesher thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Mesher thread is not joinable...";
+  }
   //visualizer_thread_.join();
+
+  LOG(INFO) << "All threads joined.";
 }
 
 } // End of VIO namespace

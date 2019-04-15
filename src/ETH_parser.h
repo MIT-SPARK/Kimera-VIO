@@ -153,6 +153,14 @@ public:
   // Spin dataset.
   virtual bool spin();
 
+  void spinOnce(const FrameId& k,
+                Timestamp& timestamp_last_frame,
+                const StereoMatchingParams& stereo_matchiong_params,
+                const bool equalize_image,
+                const CameraParams& left_cam_info,
+                const CameraParams& right_cam_info,
+                const gtsam::Pose3& camL_pose_camR);
+
   // Helper function to parse Euroc dataset.
   void parse(size_t* initial_k, size_t* final_k,
              VioBackEndParamsPtr vioParams,

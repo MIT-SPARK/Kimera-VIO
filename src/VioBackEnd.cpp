@@ -193,11 +193,11 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
   // Update imu bias for the frontend! Note that this should be done asap
   // ideally just when the optimization finishes, so that the frontend might
   // start preintegrating the imu data using the newest bias!
+  LOG(INFO) << "Backend: Update IMU Bias.";
   CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
                                       "update callback for at least the "
                                       "frontend? Do so by using "
                                       "registerImuBiasUpdateCallback function";
-  LOG(INFO) << "Backend: Update IMU Bias.";
   imu_bias_update_callback_(imu_bias_lkf_);
   if (VLOG_IS_ON(10)) {
     LOG(INFO) << "Latest backend IMU bias is: ";

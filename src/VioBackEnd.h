@@ -105,7 +105,7 @@ public:
              const bool log_output = false);
 
   // Virtual destructor needed for derived class (i.e. RegularVioBackEnd).
-  virtual ~VioBackEnd() = default;
+  virtual ~VioBackEnd() {LOG(INFO) << "Backend destructor called.";};
 
 public:
   /* ------------------------------------------------------------------------ */

@@ -15,7 +15,7 @@
 
 namespace VIO {
 
-DataProvider::~DataProvider() {}
+DataProvider::~DataProvider() {LOG(INFO) << "Data provider destructor called.";}
 
 void DataProvider::registerVioCallback(
     std::function<bool(const StereoImuSyncPacket&)> callback) {
