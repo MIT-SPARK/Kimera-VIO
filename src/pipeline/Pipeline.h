@@ -72,7 +72,7 @@ public:
 
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
-    semantic_mesh_segmentation_callback_ = cb;
+    visualizer_.registerMesh3dVizProperties(cb);
   }
 
 private:
@@ -199,8 +199,6 @@ private:
   std::thread backend_thread_;
   std::thread mesher_thread_;
   std::thread visualizer_thread_;
-
-  // Callbacks.
-  Mesher::Mesh3dVizPropertiesSetterCallback semantic_mesh_segmentation_callback_;
 };
+
 } // End of VIO namespace

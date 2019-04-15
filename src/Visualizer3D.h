@@ -44,10 +44,7 @@ static bool getEstimateOfKey(const gtsam::Values& state,
 
 struct VisualizerInputPayload {
   VisualizerInputPayload(
-      const VisualizationType& visualization_type,
-      int backend_type,
       const gtsam::Pose3& pose,
-      Mesher::Mesh3DVizProperties&& mesh_3d_viz_props,
       const StereoFrame& last_stereo_keyframe,
       MesherOutputPayload&& mesher_output_payload,
       const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
@@ -57,10 +54,7 @@ struct VisualizerInputPayload {
       const gtsam::Values& values,
       const std::vector<Point3>& points_3d);
 
-  const VisualizationType visualization_type_;
-  const int backend_type_;
   const gtsam::Pose3 pose_;
-  const Mesher::Mesh3DVizProperties mesh_3d_viz_props_;
   const StereoFrame stereo_keyframe_;
   const MesherOutputPayload mesher_output_payload_;
   const VioBackEnd::PointsWithIdMap points_with_id_VIO_;
@@ -88,7 +82,7 @@ struct VisualizerOutputPayload {
 
 class Visualizer3D {
 public:
-  Visualizer3D();
+  Visualizer3D(VisualizationType viz_type, int backend_type);
 
   typedef size_t LineNr;
   typedef std::uint64_t PlaneId;
@@ -121,6 +115,13 @@ public:
   /* ------------------------------------------------------------------------ */
   // Checks if the thread is working or if it is waiting for input queue.
   inline bool isWorking() const {return is_thread_working_;}
+
+
+  /* ------------------------------------------------------------------------ */
+  inline void registerMesh3dVizProperties(
+      Mesher::Mesh3dVizPropertiesSetterCallback cb) {
+    mesh3d_viz_properties_callback_ = cb;
+  }
 
   /* ------------------------------------------------------------------------ */
   // Returns true if visualization is ready, false otherwise.
@@ -381,6 +382,14 @@ public:
   }
 
 private:
+  // Flags for visualization behaviour.
+  const VisualizationType visualization_type_;
+  const int backend_type_;
+
+  // Callbacks.
+  // Mesh 3d visualization properties setter callback.
+  Mesher::Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
+
   // Shutdown flag to stop the visualization spin.
   std::atomic_bool shutdown_ = {false};
   // Signals if the thread is working or waiting for input queue.

@@ -68,9 +68,6 @@ DEFINE_bool(deterministic_random_number_generator, false,
 DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
-DEFINE_bool(texturize_3d_mesh, false, "Whether you want to add texture to the 3d"
-                                      "mesh. The texture is taken from the image"
-                                      " frame.");
 
 namespace VIO {
 
@@ -80,7 +77,12 @@ namespace VIO {
 // dependency with this...
 Pipeline::Pipeline(ETHDatasetParser* dataset,
                    const ImuParams& imu_params)
-  : dataset_(CHECK_NOTNULL(dataset)) {
+  : dataset_(CHECK_NOTNULL(dataset)),
+    vio_frontend_(),
+    vio_backend_(),
+    mesher_(),
+    visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
+                dataset->getBackendType()) {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
 
@@ -122,8 +124,12 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     // not using it for initialization, because accumulated and actual IMU data
     // at init is the same...
     initialize(stereo_imu_sync_packet);
-    // Launch threads.
-    launchThreads();
+    if (FLAGS_parallel_run) {
+      launchThreads();
+    } else {
+      LOG(INFO) << "Running in sequential mode (parallel_run set to "
+                << FLAGS_parallel_run << ").";
+    }
     is_initialized_ = true;
     return true;
   }
@@ -140,6 +146,58 @@ void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   ////////////////////////////// FRONT-END /////////////////////////////////////
   // Push to stereo frontend input queue.
   stereo_frontend_input_queue_.push(stereo_imu_sync_packet);
+
+  if (!FLAGS_parallel_run) {
+    // Spin once frontend.
+    vio_frontend_->spin(stereo_frontend_input_queue_,
+                        stereo_frontend_output_queue_,
+                        false); // Do not run in parallel.
+
+    // Pop blocking from frontend.
+    auto stereo_frontend_output_payload =
+        stereo_frontend_output_queue_.popBlocking();
+    CHECK(stereo_frontend_output_payload);
+    if (!stereo_frontend_output_payload->is_keyframe_) {
+      return;
+    }
+
+    // We have a keyframe.
+    // Push to backend.
+    backend_input_queue_.push(
+          VioBackEndInputPayload(
+            stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
+            stereo_frontend_output_payload->statusSmartStereoMeasurements_,
+            stereo_frontend_output_payload->tracker_status_,
+            stereo_frontend_output_payload->pim_,
+            stereo_frontend_output_payload->relative_pose_body_stereo_,
+            &planes_));
+
+    // Spin once backend.
+    vio_backend_->spin(backend_input_queue_,
+                       backend_output_queue_,
+                       false); // Do not run in parallel.
+
+    // Pop blocking from backend.
+    auto backend_output_payload = backend_output_queue_.popBlocking();
+    CHECK(backend_output_payload);
+
+    // Push to mesher.
+
+    // Spin once mesher.
+
+    // Pop from mesher.
+    auto mesher_output_payload = mesher_output_queue_.popBlocking();
+    CHECK(mesher_output_payload);
+
+    // Push to Visualizer.
+
+    // Spin once Visualizer.
+
+    // Pop from Visualizer.
+
+    // Visualize.
+
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -193,32 +251,15 @@ void Pipeline::processKeyframe(
     // At this point stereoFrame_km1 == stereoFrame_lkf_ !
     const Frame& last_left_keyframe = last_stereo_keyframe.getLeftFrame();
 
-    LOG_IF(WARNING, semantic_mesh_segmentation_callback_)
-        << "Coloring the mesh using semantic segmentation colors.";
     // Push data for visualizer thread.
     // WHO Should be pushing to the visualizer input queue????????
     // This cannot happen at all from a single module, because visualizer
     // takes input from mesher and backend right now...
     visualizer_input_queue_.push(
           VisualizerInputPayload(
-            visualization_type, // This should be passed at ctor level....
-            dataset_->getBackendType(),// This should be passed at ctor level....
             // Pose for trajectory viz.
             vio_backend_->getWPoseBLkf() * // The visualizer needs backend results
             last_stereo_keyframe.getBPoseCamLRect(), // This should be pass at ctor level....
-            // Call semantic mesh segmentation if someone registered a callback.
-            semantic_mesh_segmentation_callback_? // This callback should be given to the visualizer at ctor level....
-              semantic_mesh_segmentation_callback_(
-                last_left_keyframe.timestamp_,
-                last_left_keyframe.img_,
-                mesher_output_payload.mesh_2d_, // The visualizer needs mesher results, but we are already passing mesher_output_payload, visualizer should popBlocking that...
-                mesher_output_payload.mesh_3d_) :
-                  (FLAGS_texturize_3d_mesh?
-                     Visualizer3D::texturizeMesh3D(
-                       last_left_keyframe.timestamp_,
-                       last_left_keyframe.img_,
-                       mesher_output_payload.mesh_2d_,
-                       mesher_output_payload.mesh_3d_) : Mesher::Mesh3DVizProperties()),
             // For visualizeMesh2D and visualizeMesh2DStereo.
             last_stereo_keyframe,
             // visualizeConvexHull & visualizeMesh3DWithColoredClusters

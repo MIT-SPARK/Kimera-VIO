@@ -50,6 +50,9 @@ DEFINE_int32(mesh_shading, 0,
              "Mesh shading:\n 0: Flat, 1: Gouraud, 2: Phong");
 DEFINE_int32(mesh_representation, 1,
              "Mesh representation:\n 0: Points, 1: Surface, 2: Wireframe");
+DEFINE_bool(texturize_3d_mesh, false, "Whether you want to add texture to the 3d"
+                                      "mesh. The texture is taken from the image"
+                                      " frame.");
 DEFINE_bool(set_mesh_ambient, false, "Whether to use ambient light for the "
                                      "mesh.");
 DEFINE_bool(set_mesh_lighting, false, "Whether to use lighting for the mesh.");
@@ -87,10 +90,7 @@ Visualizer3D::WindowData::WindowData()
 
 /* -------------------------------------------------------------------------- */
 VisualizerInputPayload::VisualizerInputPayload(
-    const VisualizationType& visualization_type,
-    int backend_type,
     const gtsam::Pose3& pose,
-    Mesher::Mesh3DVizProperties&& mesh_3d_viz_props,
     const StereoFrame& last_stero_keyframe,
     MesherOutputPayload&& mesher_output_payload,
     const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
@@ -99,10 +99,7 @@ VisualizerInputPayload::VisualizerInputPayload(
     const gtsam::NonlinearFactorGraph& graph,
     const gtsam::Values& values,
     const std::vector<Point3>& points_3d)
-  : visualization_type_(visualization_type),
-    backend_type_(backend_type),
-    pose_(pose),
-    mesh_3d_viz_props_(std::move(mesh_3d_viz_props)),
+  : pose_(pose),
     stereo_keyframe_(last_stero_keyframe),
     mesher_output_payload_(std::move(mesher_output_payload)),
     points_with_id_VIO_(points_with_id_VIO),
@@ -117,7 +114,10 @@ ImageToDisplay::ImageToDisplay (const std::string& name, const cv::Mat& image)
   : name_(name), image_(image) {}
 
 /* -------------------------------------------------------------------------- */
-Visualizer3D::Visualizer3D() {
+Visualizer3D::Visualizer3D(VisualizationType viz_type,
+                           int backend_type)
+  : visualization_type_(viz_type),
+    backend_type_(backend_type) {
   if(VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {
@@ -188,7 +188,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
 
   const Frame& left_stereo_keyframe = input.stereo_keyframe_.getLeftFrame();
 
-  switch (input.visualization_type_) {
+  switch (visualization_type_) {
   // Computes and visualizes 2D mesh.
   // vertices: all leftframe kps with lmkId != -1 and inside the image
   // triangles: all the ones with edges inside images as produced by cv::subdiv
@@ -301,7 +301,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       }
     }
 
-    if (input.backend_type_ == 1 && FLAGS_visualize_plane_constraints) {
+    if (backend_type_ == 1 && FLAGS_visualize_plane_constraints) {
       LandmarkIds lmk_ids_in_current_pp_factors;
       for (const auto& g : input.graph_) {
         const auto& ppf =
@@ -399,7 +399,23 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     polygons_mesh_prev = input.mesher_output_payload_.polygons_mesh_;
     points_with_id_VIO_prev = input.points_with_id_VIO_;
     lmk_id_to_lmk_type_map_prev = input.lmk_id_to_lmk_type_map_;
-    mesh_3d_viz_props_prev = input.mesh_3d_viz_props_;
+    LOG_IF(WARNING, mesh3d_viz_properties_callback_)
+        << "Coloring the mesh using semantic segmentation colors.";
+    mesh_3d_viz_props_prev =
+        // Call semantic mesh segmentation if someone registered a callback.
+        mesh3d_viz_properties_callback_?
+         mesh3d_viz_properties_callback_(
+           left_stereo_keyframe.timestamp_,
+           left_stereo_keyframe.img_,
+           input.mesher_output_payload_.mesh_2d_,
+           input.mesher_output_payload_.mesh_3d_) :
+         (FLAGS_texturize_3d_mesh?
+            Visualizer3D::texturizeMesh3D(
+              left_stereo_keyframe.timestamp_,
+              left_stereo_keyframe.img_,
+              input.mesher_output_payload_.mesh_2d_,
+              input.mesher_output_payload_.mesh_3d_) :
+            Mesher::Mesh3DVizProperties()),
     VLOG(10) << "Finished mesh visualization.";
 
     break;
