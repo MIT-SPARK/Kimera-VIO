@@ -87,25 +87,21 @@ include(src/pipeline/CMakeLists.txt)
 include(src/common/CMakeLists.txt)
 
 target_link_libraries(sparkvio
+  PRIVATE
+    opengv
   PUBLIC
-  opengv
-  Boost::boost
-  ${OpenCV_LIBS}
-  gflags::gflags
-  glog::glog
-  gtsam
-  gtsam_unstable
-  )
+    Boost::boost
+    ${OpenCV_LIBS}
+    gflags::gflags
+    glog::glog
+    gtsam
+    gtsam_unstable
+)
 target_include_directories(sparkvio
   PUBLIC
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
-    $<BUILD_INTERFACE:${GLOG_INCLUDE_DIRS}>
-
     $<INSTALL_INTERFACE:src>
-    $<INSTALL_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
-    $<INSTALL_INTERFACE:${GLOG_INCLUDE_DIRS}>
   )
 target_compile_options(sparkvio PRIVATE -Wall -pipe) # Remove these
 # We would just need to say cxx_std_11 if we were using cmake 3.8
