@@ -127,27 +127,8 @@ set(cpp_file_pattern
   "${VIO_SRC_DIR}/*/*.cpp")
 file(GLOB src_cpp_files ${cpp_file_pattern})
 
-#set(main_file_pattern "${VIO_SRC_DIR}/stereoVIOExample.cpp" "${VIO_SRC_DIR}/#stereoVIOExampleSimulation.cpp" "${VIO_SRC_DIR}/stereoVIOPlainBackend.cpp")
-#file(GLOB main_files ${main_file_pattern})
-#list(REMOVE_ITEM src_cpp_files ${main_files})
-#message(STATUS "src_cpp_files = ${src_cpp_files}")
-
 ### Add testing
 add_subdirectory(tests)
-#####################################################################################
-
-### Add examples
-# add_subdirectory(examples)
-
-## Export stereoVIO library for others to use. Should fix the PUBLIC PRIVATE PARTS.
-#target_include_directories(stereoVIO PUBLIC
-#  "./src"
-#  ${Boost_INCLUDE_DIRS}
-#  ${GTSAM_INCLUDE_DIR}
-#  "/usr/local/include/opengv/"
-#  ${OpenCV_INCLUDE_DIRS}
-#  ${GFLAGS_INCLUDE_DIRS}
-#  ${GLOG_INCLUDE_DIRS})
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)
 #
