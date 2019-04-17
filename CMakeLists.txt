@@ -212,8 +212,7 @@ configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/SparkVioConfig.cma
 #    DESTINATION ${INSTALL_CONFIGDIR}
 #)
 
-export(TARGETS sparkvio
-       NAMESPACE SparkVio::
+export(TARGETS sparkvio gflags::gflags glog::glog
        FILE SparkVioTargets.cmake)
 export(PACKAGE SparkVio)
 
