@@ -38,7 +38,6 @@
 #include <map>
 #include <utility>
 
-#include <glog/logging.h>
 
 #include "common/vio_types.h"
 
