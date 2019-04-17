@@ -15,6 +15,8 @@
 #include "StereoFrame.h"
 #include "glog/logging.h"
 
+DEFINE_bool(images_rectified, false, "Input image data already rectified.");
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
@@ -36,10 +38,19 @@ StereoFrame::StereoFrame(const FrameId& id,
                  timestamp,
                  cam_param_right,
                  right_image),
-    is_rectified_(false),
+    is_rectified_(FLAGS_images_rectified),
     is_keyframe_(false),
     sparse_stereo_params_(stereo_matching_params),
-    camL_Pose_camR(L_Pose_R) {}
+    camL_Pose_camR(L_Pose_R) {
+
+      // If input is rectified already 
+      if (is_rectified_) {
+        left_img_rectified_ = left_frame_.img_;
+        right_img_rectified_ = right_frame_.img_;
+        left_undistRectCameraMatrix_ = UtilsOpenCV::Cvmat2Cal3_S2(left_frame_.cam_param_.P_);
+        right_undistRectCameraMatrix_ = UtilsOpenCV::Cvmat2Cal3_S2(right_frame_.cam_param_.P_);
+      }
+    }
 
 /* -------------------------------------------------------------------------- */
 void StereoFrame::sparseStereoMatching(const int verbosity) {
@@ -61,7 +72,6 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
                          left_frame_.cam_param_,
                          left_undistRectCameraMatrix_,
                          &left_keypoints_rectified);
-
   // TODO (actually this is compensated later on in the pipeline): This should be correct but largely hinders the performance of RANSAC compensate versors for rectification
   //  gtsam::Rot3 camLrect_R_camL = UtilsOpenCV::Cvmat2rot(left_frame_.cam_param_.R_rectify_);
   //  std::cout << "left_frame_.cam_param_.R_rectify_ << " << camLrect_R_camL.matrix().determinant() << std::endl;
@@ -95,12 +105,10 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
                                  right_img_rectified_,
                                  left_keypoints_rectified,
                                  fx, getBaseline());
-
   // Compute the depth for each keypoints.
   keypoints_depth_ = getDepthFromRectifiedMatches(left_keypoints_rectified,
                                                   right_keypoints_rectified,
                                                   fx, getBaseline());
-
   // Display.
   if (verbosity > 0) {
     cv::Mat left_rectifiedWithKeypoints =
@@ -281,11 +289,17 @@ void StereoFrame::undistortRectifyPoints(
     px_undistRect = UtilsOpenCV::CropToSize(px_undistRect,
                                             cam_param.undistRect_map_x_.size());
 
-    // sanity check: you can go back to the original image accurately
-    auto x_check = cam_param.undistRect_map_x_.at<float>(round(px_undistRect.y),
-                                                         round(px_undistRect.x));
-    auto y_check = cam_param.undistRect_map_y_.at<float>(round(px_undistRect.y),
-                                                         round(px_undistRect.x));
+    float x_check, y_check;
+    if (!FLAGS_images_rectified) {
+      // sanity check: you can go back to the original image accurately (if original not rectified)
+      x_check = cam_param.undistRect_map_x_.at<float>(round(px_undistRect.y),
+                                                           round(px_undistRect.x));
+      y_check = cam_param.undistRect_map_y_.at<float>(round(px_undistRect.y),
+                                                           round(px_undistRect.x));
+    } else {
+      x_check = px.x; 
+      y_check = px.y;
+    }
 
     float tol = 2.0; // pixels
     if (fabs(px.x - x_check) > tol || fabs(px.y - y_check) > tol) {

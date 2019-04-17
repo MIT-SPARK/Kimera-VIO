@@ -92,4 +92,5 @@ echo """ Launching:
   --v=0 \
   --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
   --backend_type="$BACKEND_TYPE" \
-  --parallel_run="$PARALLEL_RUN"
+  --parallel_run="$PARALLEL_RUN" \
+  --images_rectified="false"

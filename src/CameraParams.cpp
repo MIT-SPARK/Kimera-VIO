@@ -165,6 +165,15 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
           int row = i/3; int col = i%3; 
           R_rectify_.at<double>(row, col) = value; 
         }
+      }else if (label == "P_rect_" + cam_id + ":") {
+        // this entry gives the camera matric from rectification 
+        P_ = cv::Mat::zeros(3, 4, CV_64F);
+        double value; 
+        for (int i = 0; i < 12; i++) {
+          ss >> value; 
+          int row = i/4; int col = i%4; 
+          P_.at<double>(row, col) = value; 
+        }
       }
     }
   }
