@@ -18,10 +18,6 @@
 #include <functional>
 #include "StereoImuSyncPacket.h"
 
-//######################### This is an example of main ##################
-// SparkVio vio = VIO()
-// DataProvider* dat_prov = RosDataProvider()
-
 //########### SPARK_VIO_ROS ############################################
 namespace VIO {
 
