@@ -230,7 +230,7 @@ bool KittiDataProvider::parseTimestamps(const std::string& timestamps_file,
                                         std::vector<Timestamp>& timestamps_list) const {
   std::ifstream times_stream; 
   times_stream.open(timestamps_file.c_str());
-  CHECK(times_stream.is_open()) << "file: " << timestamps_file; 
+  CHECK(times_stream.is_open()) << "Could not open timestamps file: " << timestamps_file; 
   timestamps_list.clear(); 
   static constexpr int seconds_per_hour = 3600u; 
   static constexpr int seconds_per_minute = 60u; 
@@ -322,9 +322,11 @@ bool KittiDataProvider::parseRT(
                 const std::string& calibration_filename, 
                 cv::Mat& R, cv::Mat& T) const {
   std::ifstream calib_file; 
-  calib_file.open((input_dataset_path + calibration_filename).c_str());
-  // Read calibratio file
-  CHECK(calib_file.is_open());
+  std::string calibration_file_path = input_dataset_path + calibration_filename;
+  calib_file.open(calibration_file_path.c_str());
+  // Read calibration file
+  CHECK(calib_file.is_open()) << "Could not open calibration files located at: "
+    << calibration_file_path;
   // Read loop 
   while (!calib_file.eof()) {
     std::string line;
