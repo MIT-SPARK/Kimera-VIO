@@ -91,8 +91,8 @@ target_link_libraries(sparkvio
   opengv
   Boost::boost
   ${OpenCV_LIBS}
-  ${GFLAGS_LIBRARIES}
-  ${GLOG_LIBRARIES}
+  gflags::gflags
+  glog::glog
   gtsam
   gtsam_unstable
   )
