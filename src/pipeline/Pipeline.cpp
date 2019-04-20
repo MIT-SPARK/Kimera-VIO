@@ -25,7 +25,7 @@
 #include "StereoVisionFrontEnd.h"
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
-DEFINE_int32(regular_vio_backend_modality, 4,
+DEFINE_int32(regular_vio_backend_modality, 4u,
              "Modality for regular Vio backend, currently supported:\n"
              "0: Structureless (equiv to normal VIO)\n"
              "1: Projection (as if it was a typical VIO backend with projection"
@@ -205,8 +205,16 @@ void Pipeline::processKeyframe(
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
     if (FLAGS_extract_planes_from_the_scene) {
-      CHECK_EQ(dataset_->getBackendType(), 1); // Use Regular VIO
+      CHECK_EQ(dataset_->getBackendType(), 1u); // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
+    } else {
+      LOG_IF_EVERY_N(WARNING, dataset_->getBackendType() == 1u &&
+                     (FLAGS_regular_vio_backend_modality == 2u ||
+                      FLAGS_regular_vio_backend_modality == 3u ||
+                      FLAGS_regular_vio_backend_modality == 4u), 10)
+          << "Using Regular VIO without extracting planes from the scene. "
+             "Set flag extract_planes_from_the_scene to true to enforce "
+             "regularities.";
     }
 
     // In the mesher thread push queue with meshes for visualization.
@@ -337,6 +345,14 @@ void Pipeline::spinSequential() {
     if (FLAGS_extract_planes_from_the_scene) {
       CHECK_EQ(dataset_->getBackendType(), 1); // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
+    } else {
+      LOG_IF_EVERY_N(WARNING, dataset_->getBackendType() == 1u &&
+                     (FLAGS_regular_vio_backend_modality == 2u ||
+                      FLAGS_regular_vio_backend_modality == 3u ||
+                      FLAGS_regular_vio_backend_modality == 4u), 10)
+          << "Using Regular VIO without extracting planes from the scene. "
+             "Set flag extract_planes_from_the_scene to true to enforce "
+             "regularities.";
     }
 
     // Pop from mesher.
