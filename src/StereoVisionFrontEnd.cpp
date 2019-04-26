@@ -12,8 +12,9 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "StereoVisionFrontEnd.h"
 #include <glog/logging.h>
+
+#include "StereoVisionFrontEnd.h"
 #include "LoggerMatlab.h"
 
 namespace VIO {
@@ -235,7 +236,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 // FRONTEND WORKHORSE
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
 StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
-    StereoFrame cur_frame, // Pass by value and use move semantics!
+    const StereoFrame& cur_frame,
     boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu) {
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
@@ -248,9 +249,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   double start_time = UtilsOpenCV::GetTimeInSeconds();
   double time_to_clone_rect_params = 0;
 
-  // ! Using move semantics for efficiency.
-  VLOG(10) << "Using move semantics to copy cur_frame.";
-  stereoFrame_k_ = std::make_shared<StereoFrame>(std::move(cur_frame));
+  // TODO this copies the stereo frame!!
+  stereoFrame_k_ = std::make_shared<StereoFrame>(cur_frame);
 
   // Copy rectification from previous frame to avoid recomputing it.
   // TODO avoid copying altogether...
