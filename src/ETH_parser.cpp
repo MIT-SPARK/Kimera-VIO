@@ -95,7 +95,9 @@ ETHDatasetParser::ETHDatasetParser()
 }
 
 /* -------------------------------------------------------------------------- */
-ETHDatasetParser::~ETHDatasetParser() {}
+ETHDatasetParser::~ETHDatasetParser() {
+  LOG(INFO) << "ETHDatasetParser destructor called.";
+}
 
 /* -------------------------------------------------------------------------- */
 void ETHDatasetParser::setBackendParamsType(
@@ -137,54 +139,71 @@ bool ETHDatasetParser::spin() {
   const CameraParams& right_cam_info = getRightCamInfo();
   const gtsam::Pose3& camL_pose_camR = getCamLPoseCamR();
   for (FrameId k = initial_k_; k < final_k_; k++) {
-    Timestamp timestamp_frame_k = timestampAtFrame(k);
-    ImuMeasurements imu_meas;
-    CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
-          imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-            timestamp_last_frame,
-            timestamp_frame_k,
-            &imu_meas.timestamps_,
-            &imu_meas.measurements_));
-
-    VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
-             << "STAMPS IMU rows : \n" << imu_meas.timestamps_.rows() << '\n'
-             << "STAMPS IMU cols : \n" << imu_meas.timestamps_.cols() << '\n'
-             << "STAMPS IMU: \n" << imu_meas.timestamps_ << '\n'
-             << "ACCGYR IMU rows : \n" << imu_meas.measurements_.rows() << '\n'
-             << "ACCGYR IMU cols : \n" << imu_meas.measurements_.cols() << '\n'
-             << "ACCGYR IMU: \n" << imu_meas.measurements_;
-
-    timestamp_last_frame = timestamp_frame_k;
-
-    // TODO remove this, it's just because the logging in the pipeline needs
-    // it, but totally useless...
-    static bool do_once = true;
-    if (do_once) {
-      timestamp_first_lkf_ = timestamp_last_frame;
-      do_once = false;
-    }
-
-    // TODO alternatively push here to a queue, and give that queue to the
-    // VIO pipeline so it can pull from it.
-    // Call VIO Pipeline.
-    VLOG(10) << "Call VIO processing for frame k: " << k
-             << " with timestamp: " << timestamp_frame_k;
-    vio_callback_(StereoImuSyncPacket(
-                    StereoFrame(k, timestamp_frame_k,
-                                UtilsOpenCV::ReadAndConvertToGrayScale(
-                                  getLeftImgName(k), equalize_image),
-                                left_cam_info,
-                                UtilsOpenCV::ReadAndConvertToGrayScale(
-                                  getRightImgName(k), equalize_image),
-                                right_cam_info,
-                                camL_pose_camR,
-                                stereo_matching_params),
-                    imu_meas.timestamps_,
-                    imu_meas.measurements_));
-    VLOG(10) << "Finished VIO processing for frame k = " << k;
-  } // End of for loop.
+    spinOnce(k,
+             timestamp_last_frame,
+             stereo_matching_params,
+             equalize_image,
+             left_cam_info,
+             right_cam_info,
+             camL_pose_camR);
+  }
   return true;
 }
+
+void ETHDatasetParser::spinOnce(const FrameId& k,
+                                Timestamp& timestamp_last_frame,
+                                const StereoMatchingParams& stereo_matching_params,
+                                const bool equalize_image,
+                                const CameraParams& left_cam_info,
+                                const CameraParams& right_cam_info,
+                                const gtsam::Pose3& camL_pose_camR) {
+  Timestamp timestamp_frame_k = timestampAtFrame(k);
+  ImuMeasurements imu_meas;
+  CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
+        imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+          timestamp_last_frame,
+          timestamp_frame_k,
+          &imu_meas.timestamps_,
+          &imu_meas.measurements_));
+
+  VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
+           << "STAMPS IMU rows : \n" << imu_meas.timestamps_.rows() << '\n'
+           << "STAMPS IMU cols : \n" << imu_meas.timestamps_.cols() << '\n'
+           << "STAMPS IMU: \n" << imu_meas.timestamps_ << '\n'
+           << "ACCGYR IMU rows : \n" << imu_meas.measurements_.rows() << '\n'
+           << "ACCGYR IMU cols : \n" << imu_meas.measurements_.cols() << '\n'
+           << "ACCGYR IMU: \n" << imu_meas.measurements_;
+
+  timestamp_last_frame = timestamp_frame_k;
+
+  // TODO remove this, it's just because the logging in the pipeline needs
+  // it, but totally useless...
+  static bool do_once = true;
+  if (do_once) {
+    timestamp_first_lkf_ = timestamp_last_frame;
+    do_once = false;
+  }
+
+  // TODO alternatively push here to a queue, and give that queue to the
+  // VIO pipeline so it can pull from it.
+  // Call VIO Pipeline.
+  VLOG(10) << "Call VIO processing for frame k: " << k
+           << " with timestamp: " << timestamp_frame_k;
+  vio_callback_(StereoImuSyncPacket(
+                  StereoFrame(k, timestamp_frame_k,
+                              UtilsOpenCV::ReadAndConvertToGrayScale(
+                                getLeftImgName(k), equalize_image),
+                              left_cam_info,
+                              UtilsOpenCV::ReadAndConvertToGrayScale(
+                                getRightImgName(k), equalize_image),
+                              right_cam_info,
+                              camL_pose_camR,
+                              stereo_matching_params),
+                  imu_meas.timestamps_,
+                  imu_meas.measurements_));
+  VLOG(10) << "Finished VIO processing for frame k = " << k;
+}
+
 
 /* -------------------------------------------------------------------------- */
 void ETHDatasetParser::parse(size_t* initial_k, size_t* final_k,

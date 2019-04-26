@@ -20,6 +20,6 @@ find_dependency(OpenCV REQUIRED)
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
-if(NOT TARGET SparkVio::sparkvio)
+if(NOT TARGET sparkvio)
   include("${SparkVio_CMAKE_DIR}/SparkVioTargets.cmake")
 endif()

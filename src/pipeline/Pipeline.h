@@ -41,7 +41,8 @@ namespace VIO {
 class Pipeline {
 public:
   Pipeline(ETHDatasetParser* dataset,
-           const ImuParams& imu_params);
+           const ImuParams& imu_params,
+           bool parallel_run = true);
 
   ~Pipeline();
 
@@ -49,13 +50,13 @@ public:
   bool spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
-  void spinViz();
+  void spinViz(bool parallel_run = true);
 
   // Spin the pipeline only once.
   void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // TODO a parallel pipeline should always be able to run sequentially...
-  bool spinSequential();
+  void spinSequential();
 
   // Shutdown the pipeline once all data has been consumed.
   void shutdownWhenFinished();
@@ -80,7 +81,7 @@ public:
 
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
-    semantic_mesh_segmentation_callback_ = cb;
+    visualizer_.registerMesh3dVizProperties(cb);
   }
 
 private:
@@ -118,6 +119,11 @@ private:
       const gtsam::Pose3& relative_pose_body_stereo);
 
   void processKeyframePop();
+
+  void pushToMesherInputQueue(
+      VioBackEnd::PointsWithIdMap* points_with_id_VIO,
+      VioBackEnd::LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
+      const StereoFrame& last_stereo_keyframe);
 
   StatusSmartStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
@@ -197,13 +203,13 @@ private:
   std::atomic_bool is_initialized_ = {false};
 
   // Threads.
-  std::thread stereo_frontend_thread_;
-  std::thread wrapped_thread_;
-  std::thread backend_thread_;
-  std::thread mesher_thread_;
-  std::thread visualizer_thread_;
+  std::unique_ptr<std::thread> stereo_frontend_thread_;
+  std::unique_ptr<std::thread> wrapped_thread_;
+  std::unique_ptr<std::thread> backend_thread_;
+  std::unique_ptr<std::thread> mesher_thread_;
+  //std::thread visualizer_thread_;
 
-  // Callbacks.
-  Mesher::Mesh3dVizPropertiesSetterCallback semantic_mesh_segmentation_callback_;
+  bool parallel_run_;
 };
+
 } // End of VIO namespace

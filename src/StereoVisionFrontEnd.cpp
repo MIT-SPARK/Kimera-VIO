@@ -49,7 +49,8 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 /* -------------------------------------------------------------------------- */
 bool StereoVisionFrontEnd::spin(
     ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
-    ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue) {
+    ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue,
+    bool parallel_run) {
   LOG(INFO) << "Spinning StereoFrontEnd.";
   utils::StatsCollector stat_stereo_frontend_timing("StereoFrontEnd Timing [ms]");
   while (!shutdown_) {
@@ -68,6 +69,9 @@ bool StereoVisionFrontEnd::spin(
     } else {
       LOG(WARNING) << "No StereoFrontEnd Input Payload received.";
     }
+
+    // Break the while loop if we are in sequential mode.
+    if (!parallel_run) return true;
   }
   LOG(INFO) << "StereoFrontEnd successfully shutdown.";
   return true;

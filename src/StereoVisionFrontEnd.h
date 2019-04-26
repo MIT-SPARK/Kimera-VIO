@@ -52,7 +52,8 @@ public:
 
   /* ------------------------------------------------------------------------ */
   bool spin(ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
-            ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue);
+            ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue,
+            bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
   // Shutdown spin.

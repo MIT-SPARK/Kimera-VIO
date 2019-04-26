@@ -23,6 +23,10 @@
 
 #include <future>
 
+#include "StereoImuSyncPacket.h"
+
+DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
+
 ////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
 ////////////////////////////////////////////////////////////////////////////////
@@ -35,24 +39,30 @@ int main(int argc, char *argv[]) {
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
   VIO::Pipeline vio_pipeline (&eth_dataset_parser,
-                              eth_dataset_parser.getImuParams());
+                              eth_dataset_parser.getImuParams(),
+                              FLAGS_parallel_run);
 
   // Register callback to vio_pipeline.
   eth_dataset_parser.registerVioCallback(
         std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
 
-  // Spin dataset.
+  //// Spin dataset.
   auto tic = VIO::utils::Timer::tic();
-  auto handle = std::async(std::launch::async,
-                           &VIO::ETHDatasetParser::spin, &eth_dataset_parser);
-  auto handle_pipeline = std::async(std::launch::async,
-             &VIO::Pipeline::shutdownWhenFinished, &vio_pipeline);
-  vio_pipeline.spinViz();
-  const bool is_pipeline_successful = handle.get();
-  handle_pipeline.get();
+  bool is_pipeline_successful = false;
+  if (FLAGS_parallel_run) {
+    auto handle = std::async(std::launch::async,
+                             &VIO::ETHDatasetParser::spin, &eth_dataset_parser);
+    auto handle_pipeline = std::async(std::launch::async,
+               &VIO::Pipeline::shutdownWhenFinished, &vio_pipeline);
+    vio_pipeline.spinViz();
+    is_pipeline_successful = handle.get();
+    handle_pipeline.get();
+  } else {
+    is_pipeline_successful = eth_dataset_parser.spin();
+  }
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-  LOG(INFO) << "Writing stats to yaml file.";
+  LOG(INFO) << "Pipeline successful? " << (is_pipeline_successful? "Yes!":"No!");
   VIO::utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
 
   if (is_pipeline_successful) {

@@ -44,27 +44,18 @@ static bool getEstimateOfKey(const gtsam::Values& state,
 
 struct VisualizerInputPayload {
   VisualizerInputPayload(
-      const VisualizationType& visualization_type,
-      int backend_type,
       const gtsam::Pose3& pose,
-      const std::vector<cv::Vec6f>& mesh_2d,
-      Mesher::Mesh3DVizProperties&& mesh_3d_viz_props,
-      const Frame& left_stero_keyframe,
+      const StereoFrame& last_stereo_keyframe,
       MesherOutputPayload&& mesher_output_payload,
       const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
       const VioBackEnd::LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
       const std::vector<Plane>& planes,
       const gtsam::NonlinearFactorGraph& graph,
       const gtsam::Values& values,
-      const std::vector<Point3>& points_3d,
-      const Timestamp& timestamp_k);
+      const std::vector<Point3>& points_3d);
 
-  const VisualizationType visualization_type_;
-  const int backend_type_;
   const gtsam::Pose3 pose_;
-  const std::vector<cv::Vec6f> mesh_2d_;
-  const Mesher::Mesh3DVizProperties mesh_3d_viz_props_;
-  const Frame left_stereo_keyframe_;
+  const StereoFrame stereo_keyframe_;
   const MesherOutputPayload mesher_output_payload_;
   const VioBackEnd::PointsWithIdMap points_with_id_VIO_;
   const VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
@@ -72,7 +63,6 @@ struct VisualizerInputPayload {
   const gtsam::NonlinearFactorGraph graph_;
   const gtsam::Values values_;
   const std::vector<Point3> points_3d_;
-  const Timestamp timestamp_k_;
 };
 
 struct ImageToDisplay {
@@ -92,7 +82,7 @@ struct VisualizerOutputPayload {
 
 class Visualizer3D {
 public:
-  Visualizer3D();
+  Visualizer3D(VisualizationType viz_type, int backend_type);
 
   typedef size_t LineNr;
   typedef std::uint64_t PlaneId;
@@ -116,7 +106,8 @@ public:
   // Spin for Visualizer3D. Calling shutdown stops the visualizer.
   void spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
             ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
-            std::function<void(VisualizerOutputPayload&)> display);
+            std::function<void(VisualizerOutputPayload&)> display,
+            bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
   // Stops the visualization spin.
@@ -125,6 +116,13 @@ public:
   /* ------------------------------------------------------------------------ */
   // Checks if the thread is working or if it is waiting for input queue.
   inline bool isWorking() const {return is_thread_working_;}
+
+
+  /* ------------------------------------------------------------------------ */
+  inline void registerMesh3dVizProperties(
+      Mesher::Mesh3dVizPropertiesSetterCallback cb) {
+    mesh3d_viz_properties_callback_ = cb;
+  }
 
   /* ------------------------------------------------------------------------ */
   // Returns true if visualization is ready, false otherwise.
@@ -385,6 +383,14 @@ public:
   }
 
 private:
+  // Flags for visualization behaviour.
+  const VisualizationType visualization_type_;
+  const int backend_type_;
+
+  // Callbacks.
+  // Mesh 3d visualization properties setter callback.
+  Mesher::Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
+
   // Shutdown flag to stop the visualization spin.
   std::atomic_bool shutdown_ = {false};
   // Signals if the thread is working or waiting for input queue.

@@ -205,9 +205,11 @@ Tracker::geometricOutlierRejectionMono(Frame* ref_frame,
 
   // Setup problem.
   AdapterMono adapter(f_ref, f_cur);
-  std::shared_ptr<ProblemMono> problem(
-        new ProblemMono(adapter, ProblemMono::NISTER,
-                        trackerParams_.ransac_randomize_)); // last argument kills randomization
+  std::shared_ptr<ProblemMono> problem = std::make_shared<ProblemMono>
+                                         (adapter,
+                                          ProblemMono::NISTER,
+                                          // last argument kills randomization
+                                          trackerParams_.ransac_randomize_);
   opengv::sac::Ransac<ProblemMono> ransac;
   ransac.sac_model_ = problem;
   ransac.threshold_ = trackerParams_.ransac_threshold_mono_;
@@ -290,8 +292,9 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(
 
   // Setup problem.
   AdapterMonoGivenRot adapter(f_ref, f_cur);
-  std::shared_ptr<ProblemMonoGivenRot> problem(
-        new ProblemMonoGivenRot(adapter, trackerParams_.ransac_randomize_));
+  std::shared_ptr<ProblemMonoGivenRot> problem =
+        std::make_shared<ProblemMonoGivenRot>(adapter,
+                                              trackerParams_.ransac_randomize_);
   opengv::sac::Ransac<ProblemMonoGivenRot> ransac;
   ransac.sac_model_ = problem;
   ransac.threshold_ = trackerParams_.ransac_threshold_mono_;
@@ -436,13 +439,13 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   // Create stereo camera.
   const gtsam::Cal3_S2& left_undist_rect_cam_mat =
       ref_stereoFrame.getLeftUndistRectCamMat();
-  gtsam::Cal3_S2Stereo::shared_ptr K(new gtsam::Cal3_S2Stereo(
+  gtsam::Cal3_S2Stereo::shared_ptr K = boost::make_shared<gtsam::Cal3_S2Stereo>(
                                        left_undist_rect_cam_mat.fx(),
                                        left_undist_rect_cam_mat.fy(),
                                        left_undist_rect_cam_mat.skew(),
                                        left_undist_rect_cam_mat.px(),
                                        left_undist_rect_cam_mat.py(),
-                                       ref_stereoFrame.getBaseline()));
+                                       ref_stereoFrame.getBaseline());
   // In the ref frame of the left camera.
   gtsam::StereoCamera stereoCam = gtsam::StereoCamera(gtsam::Pose3(), K);
 
@@ -640,8 +643,9 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
 
   // Setup problem (3D-3D adapter) - http://laurentkneip.github.io/opengv/page_how_to_use.html
   AdapterStereo adapter(f_ref, f_cur);
-  std::shared_ptr<ProblemStereo> problem(
-        new ProblemStereo(adapter, trackerParams_.ransac_randomize_));
+  std::shared_ptr<ProblemStereo> problem = std::make_shared<ProblemStereo>
+                                           (adapter,
+                                            trackerParams_.ransac_randomize_);
   opengv::sac::Ransac<ProblemStereo> ransac;
   ransac.sac_model_ = problem;
   ransac.threshold_ = trackerParams_.ransac_threshold_stereo_;

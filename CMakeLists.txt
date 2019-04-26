@@ -87,25 +87,21 @@ include(src/pipeline/CMakeLists.txt)
 include(src/common/CMakeLists.txt)
 
 target_link_libraries(sparkvio
+  PRIVATE
+    opengv
   PUBLIC
-  opengv
-  Boost::boost
-  ${OpenCV_LIBS}
-  gflags::gflags
-  glog::glog
-  gtsam
-  gtsam_unstable
-  )
+    Boost::boost
+    ${OpenCV_LIBS}
+    gflags::gflags
+    glog::glog
+    gtsam
+    gtsam_unstable
+)
 target_include_directories(sparkvio
   PUBLIC
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
-    $<BUILD_INTERFACE:${GLOG_INCLUDE_DIRS}>
-
     $<INSTALL_INTERFACE:src>
-    $<INSTALL_INTERFACE:${GFLAGS_INCLUDE_DIRS}>
-    $<INSTALL_INTERFACE:${GLOG_INCLUDE_DIRS}>
   )
 target_compile_options(sparkvio PRIVATE -Wall -pipe) # Remove these
 # We would just need to say cxx_std_11 if we were using cmake 3.8
@@ -134,27 +130,8 @@ set(cpp_file_pattern
   "${VIO_SRC_DIR}/*/*.cpp")
 file(GLOB src_cpp_files ${cpp_file_pattern})
 
-#set(main_file_pattern "${VIO_SRC_DIR}/stereoVIOExample.cpp" "${VIO_SRC_DIR}/#stereoVIOExampleSimulation.cpp" "${VIO_SRC_DIR}/stereoVIOPlainBackend.cpp")
-#file(GLOB main_files ${main_file_pattern})
-#list(REMOVE_ITEM src_cpp_files ${main_files})
-#message(STATUS "src_cpp_files = ${src_cpp_files}")
-
 ### Add testing
 add_subdirectory(tests)
-#####################################################################################
-
-### Add examples
-# add_subdirectory(examples)
-
-## Export stereoVIO library for others to use. Should fix the PUBLIC PRIVATE PARTS.
-#target_include_directories(stereoVIO PUBLIC
-#  "./src"
-#  ${Boost_INCLUDE_DIRS}
-#  ${GTSAM_INCLUDE_DIR}
-#  "/usr/local/include/opengv/"
-#  ${OpenCV_INCLUDE_DIRS}
-#  ${GFLAGS_INCLUDE_DIRS}
-#  ${GLOG_INCLUDE_DIRS})
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)
 #
@@ -238,8 +215,7 @@ configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/SparkVioConfig.cma
 #    DESTINATION ${INSTALL_CONFIGDIR}
 #)
 
-export(TARGETS sparkvio
-       NAMESPACE SparkVio::
+export(TARGETS sparkvio gflags::gflags glog::glog
        FILE SparkVioTargets.cmake)
 export(PACKAGE SparkVio)
 

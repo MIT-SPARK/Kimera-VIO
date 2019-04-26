@@ -128,7 +128,8 @@ public:
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to run on a thread.
   void spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
-           ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue);
+            ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue,
+            bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to request thread stop.

@@ -328,8 +328,11 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           // are no planes anymore? shouldn't we delete them or something?
           // Not really because the mesher will only add planes, it won't delete
           // an existing plane from planes structure...
-          LOG(WARNING) << "We are not receiving planes for the backend, but we "
-                          "are not cleaning planes in the optimization.";
+          // Log warning only if we are not using a structureless approach
+          // (since it does not require planes).
+          LOG_IF(WARNING, backend_modality_ != BackendModality::STRUCTURELESS)
+              << "We are not receiving planes for the backend. If planes have been"
+                 "added to the optimization, we are not removing them.";
         }
       }
       break;

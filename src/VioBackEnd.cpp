@@ -152,7 +152,8 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
 /* -------------------------------------------------------------------------- */
 bool VioBackEnd::spin(
     ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
-    ThreadsafeQueue<VioBackEndOutputPayload>& output_queue) {
+    ThreadsafeQueue<VioBackEndOutputPayload>& output_queue,
+    bool parallel_run) {
   LOG(INFO) << "Spinning VioBackEnd.";
   utils::StatsCollector stat_pipeline_timing("Pipeline Overall Timing [ms]");
   utils::StatsCollector stat_backend_timing("Backend Timing [ms]");
@@ -174,6 +175,9 @@ bool VioBackEnd::spin(
     } else {
       LOG(WARNING) << "No VioBackEnd Input Payload received.";
     }
+
+    // Break the while loop if we are in sequential mode.
+    if (!parallel_run) return true;
   }
   LOG(INFO) << "VioBackEnd successfully shutdown.";
   return true;
@@ -189,11 +193,11 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
   // Update imu bias for the frontend! Note that this should be done asap
   // ideally just when the optimization finishes, so that the frontend might
   // start preintegrating the imu data using the newest bias!
+  LOG(INFO) << "Backend: Update IMU Bias.";
   CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
                                       "update callback for at least the "
                                       "frontend? Do so by using "
                                       "registerImuBiasUpdateCallback function";
-  LOG(INFO) << "Backend: Update IMU Bias.";
   imu_bias_update_callback_(imu_bias_lkf_);
   if (VLOG_IS_ON(10)) {
     LOG(INFO) << "Latest backend IMU bias is: ";
@@ -419,8 +423,10 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
                                     const FeatureTrack& ft) {
 
   // We use a unit pinhole projection camera for the smart factors to be more efficient.
-  SmartStereoFactor::shared_ptr new_factor(
-        new SmartStereoFactor(smart_noise_, smart_factors_params_, B_Pose_leftCam_));
+  SmartStereoFactor::shared_ptr new_factor =
+      boost::make_shared<SmartStereoFactor>(smart_noise_,
+                                            smart_factors_params_,
+                                            B_Pose_leftCam_);
 
   if (verbosity_ >= 9) {std::cout << "Adding landmark with: " << ft.obs_.size() << " landmarks to graph, with keys: ";}
   if (verbosity_ >= 9){new_factor->print();}
@@ -448,7 +454,9 @@ void VioBackEnd::updateLandmarkInGraph(
     throw std::runtime_error("updateLandmarkInGraph: landmark not found in old_smart_factors_\n");
 
   SmartStereoFactor::shared_ptr old_factor = old_smart_factors_it->second.first;
-  SmartStereoFactor::shared_ptr new_factor = boost::make_shared<SmartStereoFactor>(*old_factor); // clone old factor
+  // TODO this looks super sketchy!
+  SmartStereoFactor::shared_ptr new_factor =
+      boost::make_shared<SmartStereoFactor>(*old_factor); // clone old factor
   new_factor->add(newObs.second, gtsam::Symbol('x', newObs.first), stereo_cal_);
 
   // update the factor
@@ -534,12 +542,10 @@ std::vector<gtsam::Point3> VioBackEnd::get3DPoints() const {
 /* -------------------------------------------------------------------------- */
 // Get valid 3D points and corresponding lmk id.
 // Warning! it modifies old_smart_factors_!!
-void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
-    PointsWithIdMap* points_with_id,
+VioBackEnd::PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
     const size_t& min_age) {
-  CHECK_NOTNULL(points_with_id);
-  points_with_id->clear();
+  PointsWithIdMap points_with_id;
 
   if (lmk_id_to_lmk_type_map) {
     lmk_id_to_lmk_type_map->clear();
@@ -629,8 +635,8 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
           VLOG(20) << "Adding lmk with id: " << lmk_id
                    << " to list of lmks in time horizon";
           // Check that we have not added this lmk already...
-          CHECK(points_with_id->find(lmk_id) == points_with_id->end());
-          (*points_with_id)[lmk_id] = *result;
+          CHECK(points_with_id.find(lmk_id) == points_with_id.end());
+          points_with_id[lmk_id] = *result;
           if (lmk_id_to_lmk_type_map) {
             (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::SMART;
           }
@@ -661,8 +667,8 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
       state_.filter(gtsam::Symbol::ChrTest('l'))) {
     DCHECK(gtsam::Symbol(key_value.key).chr() == 'l');
     const LandmarkId& lmk_id = gtsam::Symbol(key_value.key).index();
-    DCHECK(points_with_id->find(lmk_id) == points_with_id->end());
-    (*points_with_id)[lmk_id] = key_value.value.cast<gtsam::Point3>();
+    DCHECK(points_with_id.find(lmk_id) == points_with_id.end());
+    points_with_id[lmk_id] = key_value.value.cast<gtsam::Point3>();
     if (lmk_id_to_lmk_type_map) {
       (*lmk_id_to_lmk_type_map)[lmk_id] = LandmarkType::PROJECTION;
     }
@@ -684,6 +690,7 @@ void VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
            << "Number of landmarks (not involved in a smart factor) "
            << nr_proj_lmks << ".\n Total number of landmarks: "
            << (nr_valid_smart_lmks + nr_proj_lmks);
+  return points_with_id;
 }
 
 /* -------------------------------------------------------------------------- */
