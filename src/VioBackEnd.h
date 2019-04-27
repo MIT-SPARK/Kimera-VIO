@@ -8,7 +8,7 @@
 
 /**
  * @file   VioBackEnd.h
- * @brief  Visual-Inertial Odometry pipeline, as described in this papers:
+ * @brief  Visual-Inertial Odometry pipeline, as described in these papers:
  *
  * C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza.
  * On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation.
@@ -22,7 +22,7 @@
  * Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.
  * In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
  *
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #ifndef VioBackEnd_H_
@@ -57,8 +57,13 @@
 #include <gtsam/nonlinear/LinearContainerFactor.h>
 #include "factors/PointPlaneFactor.h"
 
+#include "utils/ThreadsafeQueue.h"
+#include "UtilsOpenCV.h"
 
 namespace VIO {
+
+// Forward-declarations
+class gtNavState;
 
 // Gtsam types.
 using gtsam::Pose3;
@@ -194,28 +199,84 @@ public:
 
   /* ------------------------------------------------------------------------ */
   void printTimes() const {
-    std::cout << "Find delete time: " << factorsAndSlotsTime_ << std::endl
-              << "preUpdate time: " << preUpdateTime_ << std::endl
-              << "Update Time time: " << updateTime_ << std::endl
-              << "Update slot time: " << updateSlotTime_ << std::endl
-              << "Extra iterations time: " << extraIterationsTime_ << std::endl
-              << "Print time: " << printTime_ << std::endl;
+    LOG(INFO) << "Find delete time: "      << factorsAndSlotsTime_ << '\n'
+              << "preUpdate time: "        << preUpdateTime_       << '\n'
+              << "Update Time time: "      << updateTime_          << '\n'
+              << "Update slot time: "      << updateSlotTime_      << '\n'
+              << "Extra iterations time: " << extraIterationsTime_ << '\n'
+              << "Print time: "            << printTime_;
   }
 
   /* ------------------------------------------------------------------------ */
   void print() const {
-    std::cout << "----- DebugVioInfo: --------" << std::endl;
-    std::cout << " numSF: " << numSF_
-              << " numValid: " << numValid_
-              << " numDegenerate: " << numDegenerate_
-              << " numOutliers: " << numOutliers_
-              << " numFarPoints: " << numFarPoints_
-              << " numCheirality: " << numCheirality_ << std::endl
-              << " meanPixelError: " << meanPixelError_
-              << " maxPixelError: " << maxPixelError_
-              << " meanTrackLength: " << meanTrackLength_
-              << " maxTrackLength: " << maxTrackLength_ << std::endl;
+    LOG(INFO) << "----- DebugVioInfo: --------\n"
+              << " numSF: "           << numSF_            << '\n'
+              << " numValid: "        << numValid_         << '\n'
+              << " numDegenerate: "   << numDegenerate_    << '\n'
+              << " numOutliers: "     << numOutliers_      << '\n'
+              << " numFarPoints: "    << numFarPoints_     << '\n'
+              << " numCheirality: "   << numCheirality_    << '\n'
+              << " meanPixelError: "  << meanPixelError_   << '\n'
+              << " maxPixelError: "   << maxPixelError_    << '\n'
+              << " meanTrackLength: " << meanTrackLength_  << '\n'
+              << " maxTrackLength: "  << maxTrackLength_;
   }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+struct VioBackEndInputPayload {
+  VioBackEndInputPayload (
+      const Timestamp& timestamp_kf_nsec,
+      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+      const Tracker::TrackingStatus& stereo_tracking_status, // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
+      const ImuStampS& imu_stamps,
+      const ImuAccGyrS& imu_accgyr,
+      std::vector<Plane>* planes = nullptr,
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
+    : timestamp_kf_nsec_(timestamp_kf_nsec),
+      status_smart_stereo_measurements_kf_(status_smart_stereo_measurements_kf),
+      stereo_tracking_status_(stereo_tracking_status),
+      imu_stamps_(imu_stamps),
+      imu_accgyr_(imu_accgyr),
+      planes_(planes),
+      stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
+  const Timestamp timestamp_kf_nsec_;
+  const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf_;
+  const Tracker::TrackingStatus stereo_tracking_status_; // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
+  // I believe we do not need EIGEN_MAKE_ALIGNED_OPERATOR_NEW for these members
+  // as they are dynamic eigen, not "fixed-size vectorizable matrices and vectors."
+  const ImuStampS imu_stamps_;
+  const ImuAccGyrS imu_accgyr_;
+  std::vector<Plane>* planes_;
+  boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
+};
+
+struct VioBackEndOutputPayload {
+  VioBackEndOutputPayload(const gtsam::Values state,
+                          const gtsam::Pose3& W_Pose_Blkf,
+                          const Vector3& W_Vel_Blkf,
+                          const gtsam::Pose3& B_Pose_leftCam,
+                          const ImuBias& imu_bias_lkf,
+                          const int& cur_kf_id,
+                          const int& landmark_count,
+                          const DebugVioInfo& debug_info)
+    : state_(state),
+      W_Pose_Blkf_(W_Pose_Blkf),
+      W_Vel_Blkf_(W_Vel_Blkf),
+      B_Pose_leftCam_(B_Pose_leftCam),
+      imu_bias_lkf_(imu_bias_lkf),
+      cur_kf_id_(cur_kf_id),
+      landmark_count_(landmark_count),
+      debug_info_(debug_info) {}
+
+  const gtsam::Values state_;
+  const gtsam::Pose3 W_Pose_Blkf_;
+  const Vector3 W_Vel_Blkf_;
+  const gtsam::Pose3 B_Pose_leftCam_;
+  const ImuBias imu_bias_lkf_;
+  const int cur_kf_id_;
+  const int landmark_count_;
+  const DebugVioInfo debug_info_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -249,102 +310,42 @@ public:
    * 5: display also timing
    * 6: display also error before and after optimization
    * 7: display also *if* factors are added
-   * 8: display also factor keys and value keys, feature tracks, and landmarks added to graph, added observations to points
+   * 8: display also factor keys and value keys, feature tracks, and landmarks
+   *  added to graph, added observations to points
    * 9: display also factors and values
    */
 
   /* ------------------------------------------------------------------------ */
+  // Create and initialize VioBackEnd.
+  /// @param: [in,out] initial_state_gt: information about the initial pose.
+  /// non-null pointer to a shared_ptr which might be null if there is no
+  /// ground-truth available, otw it contains the initial ground-truth state.
+  /// @param: timestamp: timestamp of the initial state.
+  /// @param: imu_accgyr: used for auto-initialization of VIO pipeline if no
+  /// ground-truth is provided. Ignored if not auto-initialized.
   VioBackEnd(const Pose3& leftCamPose,
              const Cal3_S2& leftCameraCalRectified,
              const double& baseline,
-             const VioBackEndParams& vioParams = VioBackEndParams(),
+             std::shared_ptr<gtNavState>* initial_state_gt,
+             const Timestamp& timestamp,
+             const ImuAccGyrS& imu_accgyr,
+             const VioBackEndParams& vioParams,
              const bool log_timing = false);
 
   // Virtual destructor needed for derived class (i.e. RegularVioBackEnd).
   virtual ~VioBackEnd() = default;
 
-  // RAW, user-specified params.
-  const VioBackEndParams vio_params_;
-
-  // STATE ESTIMATES.
-  ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
-  ImuBias imu_bias_prev_kf_;   //!< bias estimate at previous keyframe
-  Vector3 W_Vel_Blkf_;  		   //!< Velocity of body at k-1 in world coordinates
-  Pose3   W_Pose_Blkf_;        //!< Body pose at at k-1 in world coordinates.
-
-  /// Counters.
-  int last_kf_id_;
-  // Id of current keyframe, increases from 0 to inf.
-  int cur_kf_id_;
-
-
-  // Current time.
-  double timestamp_kf_; // timestamp in seconds attached to the last keyframe
-
-  // IMU params.
-  boost::shared_ptr<PreintegratedImuMeasurements::Params> imu_params_;
-  PreintegratedImuMeasurementPtr pim_;
-
-  // VISION params.
-  gtsam::SmartStereoProjectionParams smart_factors_params_;
-  gtsam::SharedNoiseModel smart_noise_;
-  const Pose3 B_Pose_leftCam_; // pose of the left camera wrt body
-  const gtsam::Cal3_S2Stereo::shared_ptr stereo_cal_; // stores calibration, baseline
-
-  // NO MOTION FACTORS settings.
-  gtsam::SharedNoiseModel zero_velocity_prior_noise_;
-  gtsam::SharedNoiseModel no_motion_prior_noise_;
-  gtsam::SharedNoiseModel constant_velocity_prior_noise_;
-
-  // GTSAM:
-  std::shared_ptr<Smoother> smoother_;
-
-  // State
-  gtsam::Values state_;                        //!< current state of the system.
-
-  // Values
-  gtsam::Values new_values_;                   //!< new states to be added
-
-  // Factors.
-  gtsam::NonlinearFactorGraph new_imu_prior_and_other_factors_;    //!< new factors to be added
-  LandmarkIdSmartFactorMap new_smart_factors_; //!< landmarkId -> {SmartFactorPtr}
-  SmartFactorMap old_smart_factors_;           //!< landmarkId -> {SmartFactorPtr, SlotIndex}
-
-  // Data:
-  // TODO grows unbounded currently, but it should be limited to time horizon.
-  FeatureTracks feature_tracks_;
-  int landmark_count_;
-
-  // Flags.
-  const int verbosity_;
-  const bool log_timing_;
-
-  // Debug info.
-  DebugVioInfo debug_info_;
-
-  // TODO remove this.
-  bool DEBUG_ = false;
-
 public:
-  /// Methods
+  /* ------------------------------------------------------------------------ */
+  bool spin(ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
+            ThreadsafeQueue<VioBackEndOutputPayload>& output_queue);
 
   /* ------------------------------------------------------------------------ */
-  // Sets initial state at given pose, zero velociy and with imu bias obtained
-  // by assuming steady upright platform.
-  void initializeStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
-                                   const Pose3& initialPose,
-                                   const ImuAccGyr& accGyroRaw);
+  bool spinOnce(ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
+                ThreadsafeQueue<VioBackEndOutputPayload>& output_queue);
 
   /* ------------------------------------------------------------------------ */
-  // Set initial state at given pose, velocity and bias.
-  void initializeStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
-                                   const Pose3& initialPose,
-                                   const Vector3& initialVel,
-                                   const ImuBias& initialBias);
-
-  /* ------------------------------------------------------------------------ */
-  static ImuBias initializeImuBias(const ImuAccGyr& accGyroRaw,
-                                   const Vector3& n_gravity);
+  inline void shutdown() {shutdown_ = true;}
 
   /* ------------------------------------------------------------------------ */
   // Workhorse that stores data and optimizes at each keyframe.
@@ -352,55 +353,27 @@ public:
   // [in] status_smart_stereo_measurements_kf, vision data.
   // [in] imu_stamps, [in] imu_accgyr.
   // [in] stereo_ransac_body_pose, inertial data.
-  virtual void addVisualInertialStateAndOptimize(
+  void addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-      const ImuStamps& imu_stamps, const ImuAccGyr& imu_accgyr,
+      const ImuStampS& imu_stamps, const ImuAccGyrS& imu_accgyr,
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   /* ------------------------------------------------------------------------ */
-  // Uses landmark table to add factors in graph.
-  void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
+  // NOT THREAD-SAFE
+  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,
+                                           const ImuAccGyrS& imu_accgyr) const;
 
   /* ------------------------------------------------------------------------ */
-  // Adds a landmark to the graph for the first time.
-  void addLandmarkToGraph(const LandmarkId& lm_id,
-                          const FeatureTrack& lm);
-
-  /* ------------------------------------------------------------------------ */
-  void updateLandmarkInGraph(
-      const LandmarkId& lm_id,
-      const std::pair<FrameId, StereoPoint2>& newObs);
-
-  /* ------------------------------------------------------------------------ */
-  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamps& imu_stamps,
-                                           const ImuAccGyr& imu_accgyr) const;
-
-  /* ------------------------------------------------------------------------ */
-  static gtsam::Pose3 guessPoseFromIMUmeasurements(const ImuAccGyr& accGyroRaw,
+  // TODO only public because it is used for testing...
+  static gtsam::Pose3 guessPoseFromIMUmeasurements(const ImuAccGyrS& accGyroRaw,
                                                    const Vector3& n_gravity,
                                                    const bool& round = true);
 
-  /// Getters
-  /* ------------------------------------------------------------------------ */
-  // Get the most recent estimate of the given gtsam key.
-  // Mind that to have the most up to date key, you should call this after
-  // optimize (or addVisualInertialStateandOptimize)
-  template<class T>
-  bool getEstimateOfKey(const gtsam::Key& key, T* estimate) const {
-    CHECK_NOTNULL(estimate);
-    if (state_.exists(key)) {
-      *estimate = state_.at<T>(key);
-      return true;
-    } else {
-      return false;
-    }
-  }
-
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points - TODO: this copies the graph.
-  vector<gtsam::Point3> get3DPoints() const;
+  std::vector<gtsam::Point3> get3DPoints() const;
 
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points and corresponding lmk id.
@@ -432,9 +405,29 @@ protected:
       LandmarkIds* landmarks_kf);
 
   /* ------------------------------------------------------------------------ */
-  // Integrate imu measurements into pim_.
-  void integrateImuMeasurements(const ImuStamps& imu_stamps,
-                                const ImuAccGyr& imu_accgyr);
+  // Workhorse that stores data and optimizes at each keyframe.
+  // [in] timestamp_kf_nsec, keyframe timestamp.
+  // [in] status_smart_stereo_measurements_kf, vision data.
+  // [in] stereo_ransac_body_pose, inertial data.
+  virtual void addVisualInertialStateAndOptimize(
+      const Timestamp& timestamp_kf_nsec,
+      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+      std::vector<Plane>* planes = nullptr,
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
+
+  /* ------------------------------------------------------------------------ */
+  // Uses landmark table to add factors in graph.
+  void addLandmarksToGraph(const LandmarkIds& landmarks_kf);
+
+  /* ------------------------------------------------------------------------ */
+  // Adds a landmark to the graph for the first time.
+  void addLandmarkToGraph(const LandmarkId& lm_id,
+                          const FeatureTrack& lm);
+
+  /* ------------------------------------------------------------------------ */
+  void updateLandmarkInGraph(
+      const LandmarkId& lm_id,
+      const std::pair<FrameId, StereoPoint2>& newObs);
 
   /* ------------------------------------------------------------------------ */
   // Set initial guess at current state.
@@ -471,12 +464,42 @@ protected:
   void cleanNullPtrsFromGraph(
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors);
 
+  /// Getters
+  /* ------------------------------------------------------------------------ */
+  // Get the most recent estimate of the given gtsam key.
+  // Mind that to have the most up to date key, you should call this after
+  // optimize (or addVisualInertialStateandOptimize)
+  template<class T>
+  bool getEstimateOfKey(const gtsam::Key& key, T* estimate) const;
+
 private:
-  /// Private Methods.
+  /* ------------------------------------------------------------------------ */
+  void addVisualInertialStateAndOptimize(
+          const std::shared_ptr<VioBackEndInputPayload>& input);
+
+  /* ------------------------------------------------------------------------ */
+  // Integrate imu measurements into pim_.
+  void integrateImuMeasurements(const ImuStampS& imu_stamps,
+                                const ImuAccGyrS& imu_accgyr);
+
+  /* ------------------------------------------------------------------------ */
+  // Sets initial state at given pose, zero velociy and with imu bias obtained
+  // by assuming steady upright platform.
+  void initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
+                             const Pose3& initialPose,
+                             const ImuAccGyrS& accGyroRaw);
+
+  /* ------------------------------------------------------------------------ */
+  // Set initial state at given pose, velocity and bias.
+  void initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
+                             const Pose3& initialPose,
+                             const Vector3& initialVel,
+                             const ImuBias& initialBias);
+
   /* ------------------------------------------------------------------------ */
   // Add initial prior factors.
   void addInitialPriorFactors(const FrameId& frame_id,
-                              const ImuAccGyr& imu_accgyr);
+                              const ImuAccGyrS& imu_accgyr);
 
   /* ------------------------------------------------------------------------ */
   void addConstantVelocityFactor(const FrameId& from_id,
@@ -652,7 +675,113 @@ private:
   /* ------------------------------------------------------------------------ */
   // Reset state of debug info.
   void resetDebugInfo(DebugVioInfo* debug_info);
+
+public:
+  /// Getters
+  // Thread-safe methods, but also the returns are const, so no problems.
+  inline const VioBackEndParams& getBackEndParams() const {return vio_params_;}
+  inline const Pose3& getBPoseLeftCam() const {return B_Pose_leftCam_;}
+
+  // TODO NOT THREAD-SAFE! Should add critical sections.
+  inline ImuBias getImuBiasLkf() const {return imu_bias_lkf_;}
+  inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
+  inline Pose3 getWPoseBLkf() const {return W_Pose_B_lkf_;}
+  inline int getCurrKfId() const {return curr_kf_id_;}
+  inline gtsam::Values getState() const {return state_;}
+  inline int getLandmarkCount() const {return landmark_count_;}
+  inline DebugVioInfo getCurrentDebugVioInfo() const {return debug_info_;}
+
+  // TODO This call is unsafe, as we are sending a reference to something that
+  // will be modified by the backend thread.
+  inline const gtsam::NonlinearFactorGraph& getFactorsUnsafe() const {
+    return smoother_->getFactors();
+  }
+
+  /* ------------------------------------------------------------------------ */
+  static ImuBias initImuBias(const ImuAccGyrS& accGyroRaw,
+                             const Vector3& n_gravity);
+
+protected:
+  // Raw, user-specified params.
+  const VioBackEndParams vio_params_;
+
+  // State estimates.
+  ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
+  Vector3 W_Vel_B_lkf_;  		   //!< Velocity of body at k-1 in world coordinates
+  Pose3   W_Pose_B_lkf_;        //!< Body pose at at k-1 in world coordinates.
+
+  ImuBias imu_bias_prev_kf_;   //!< bias estimate at previous keyframe
+
+  // Vision params.
+  gtsam::SmartStereoProjectionParams smart_factors_params_;
+  gtsam::SharedNoiseModel smart_noise_;
+  const Pose3 B_Pose_leftCam_; // pose of the left camera wrt body
+  const gtsam::Cal3_S2Stereo::shared_ptr stereo_cal_; // stores calibration, baseline
+
+  // State.
+  gtsam::Values state_;                        //!< current state of the system.
+
+  // GTSAM:
+  std::shared_ptr<Smoother> smoother_;
+
+  // Values
+  gtsam::Values new_values_;                   //!< new states to be added
+
+  // Factors.
+  gtsam::NonlinearFactorGraph new_imu_prior_and_other_factors_;    //!< new factors to be added
+  LandmarkIdSmartFactorMap new_smart_factors_; //!< landmarkId -> {SmartFactorPtr}
+  SmartFactorMap old_smart_factors_;           //!< landmarkId -> {SmartFactorPtr, SlotIndex}
+
+  // Debug info.
+  DebugVioInfo debug_info_;
+
+  // To print smoother info, useful when looking for optimization bugs.
+  bool debug_smoother_ = false;
+
+  // Data:
+  // TODO grows unbounded currently, but it should be limited to time horizon.
+  FeatureTracks feature_tracks_;
+
+  // Current time.
+  double timestamp_kf_; // timestamp in seconds attached to the last keyframe
+
+  /// Counters.
+  int last_kf_id_;
+  // Id of current keyframe, increases from 0 to inf.
+  int curr_kf_id_;
+
+private:
+  // IMU params.
+  boost::shared_ptr<PreintegratedImuMeasurements::Params> imu_params_;
+  PreintegratedImuMeasurementPtr pim_;
+
+  // No motion factors settings.
+  gtsam::SharedNoiseModel zero_velocity_prior_noise_;
+  gtsam::SharedNoiseModel no_motion_prior_noise_;
+  gtsam::SharedNoiseModel constant_velocity_prior_noise_;
+
+  // Landmark count.
+  int landmark_count_;
+
+  // Flags.
+  const int verbosity_;
+  const bool log_timing_;
+
+  // Thread related members.
+  std::atomic_bool shutdown_ = {false};
 };
+
+// Template implementations.
+// TODO, should add in VioBackEnd_impl.h
+/* -------------------------------------------------------------------------- */
+template<class T>
+bool VioBackEnd::getEstimateOfKey(const gtsam::Key& key, T* estimate) const {
+  if (state_.exists(key)) {
+    *CHECK_NOTNULL(estimate) = state_.at<T>(key);
+    return true;
+  }
+  return false;
+}
 
 } // namespace VIO
 #endif /* VioBackEnd_H_ */

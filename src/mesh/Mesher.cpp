@@ -12,6 +12,8 @@
  * @author Luca Carlone, AJ Haeffner, Antoni Rosinol
  */
 
+#include <math.h>
+
 #include "mesh/Mesher.h"
 
 #include <algorithm>
@@ -35,8 +37,6 @@ DEFINE_bool(log_histogram_1D, false, "Log 1D histogram to file."
 DEFINE_bool(visualize_histogram_2D, false, "Visualize 2D histogram.");
 DEFINE_bool(log_histogram_2D, false, "Log 2D histogram to file."
                                      " It logs the raw and smoothed histogram.");
-DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");
-DEFINE_bool(visualize_mesh_2d_filtered, false, "Visualize mesh 2D filtered.");
 
 // Mesh filters.
 DEFINE_double(max_grad_in_triangle, -1,
@@ -96,7 +96,7 @@ DEFINE_int32(hist_2d_min_dist_btw_local_max, 5,
 DEFINE_int32(hist_2d_theta_bins, 40, ".");
 DEFINE_int32(hist_2d_distance_bins, 40, ".");
 DEFINE_double(hist_2d_theta_range_min, 0, ".");
-DEFINE_double(hist_2d_theta_range_max, PI, ".");
+DEFINE_double(hist_2d_theta_range_max, M_PI, ".");
 DEFINE_double(hist_2d_distance_range_min, -6.0, ".");
 DEFINE_double(hist_2d_distance_range_max, 6.0, ".");
 
@@ -771,7 +771,7 @@ void Mesher::segmentPlanesInMesh(
           VLOG(10) << "Normalize theta: " << theta
                    << " and distance: " << distance;
           // Say theta is -pi/2, then normalized theta is pi/2.
-          theta = theta + PI;
+          theta = theta + M_PI;
           // Change distance accordingly.
           distance = -distance;
           VLOG(10) << "New normalized theta: " << theta
@@ -1240,11 +1240,13 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 
 /* -------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
+// Optional parameter is the mesh in 2D for visualization.
 void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
-    std::shared_ptr<StereoFrame> stereoFrame,
-    const gtsam::Pose3& leftCameraPose,
-    cv::Mat* mesh_2d_img_ptr) {
+    std::shared_ptr<StereoFrame> stereo_frame_ptr,
+    const gtsam::Pose3& left_camera_pose,
+    std::vector<cv::Vec6f>* mesh_2d_for_viz,
+    std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
   VLOG(10) << "Starting updateMesh3D...";
   const std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_all =
       &points_with_id_VIO;
@@ -1257,8 +1259,8 @@ void Mesher::updateMesh3D(
     // first add vio points, then stereo, so that vio points have preference
     // over stereo ones if they are repeated!
     points_with_id_stereo = points_with_id_VIO;
-    appendNonVioStereoPoints(stereoFrame,
-                             leftCameraPose,
+    appendNonVioStereoPoints(stereo_frame_ptr,
+                             left_camera_pose,
                              &points_with_id_stereo);
     VLOG(20) << "Number of stereo landmarks used for the mesh: "
              << points_with_id_stereo.size() << "\n"
@@ -1272,28 +1274,25 @@ void Mesher::updateMesh3D(
 
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
-  stereoFrame->createMesh2dVIO(&mesh_2d,
-                               *points_with_id_all);
-  std::vector<cv::Vec6f> mesh_2d_filtered;
-  stereoFrame->filterTrianglesWithGradients(mesh_2d,
-                                            &mesh_2d_filtered,
-                                            FLAGS_max_grad_in_triangle);
+  // THIS CALL IS NOT THREAD-SAFE
+  stereo_frame_ptr->createMesh2dVIO(&mesh_2d,
+                                    *points_with_id_all);
+  if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d;
 
-  // Debug.
-  if (FLAGS_visualize_mesh_2d) {
-    stereoFrame->drawMesh2DStereo(mesh_2d, nullptr);
-  }
-  if (FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr) {
-    stereoFrame->drawMesh2DStereo(mesh_2d_filtered, mesh_2d_img_ptr,
-                                       "2D Mesh Filtered",
-                                  FLAGS_visualize_mesh_2d_filtered);
-  }
+  // Filter 2D mesh.
+  std::vector<cv::Vec6f> mesh_2d_filtered;
+  // THIS CALL IS NOT THREAD-SAFE
+  stereo_frame_ptr->filterTrianglesWithGradients(mesh_2d,
+                                                 &mesh_2d_filtered,
+                                                 FLAGS_max_grad_in_triangle);
+  if (mesh_2d_filtered_for_viz) *mesh_2d_filtered_for_viz = mesh_2d_filtered;
 
   populate3dMeshTimeHorizon(
         mesh_2d_filtered,
         *points_with_id_all,
-        stereoFrame->left_frame_,
-        leftCameraPose,
+        // THIS CALL IS NOT THREAD-SAFE
+        stereo_frame_ptr->getLeftFrame(),
+        left_camera_pose,
         FLAGS_min_ratio_btw_largest_smallest_side,
         FLAGS_min_elongation_ratio,
         FLAGS_max_triangle_side);
@@ -1301,17 +1300,33 @@ void Mesher::updateMesh3D(
   VLOG(10) << "Finished updateMesh3D.";
 }
 
+/* -------------------------------------------------------------------------- */
+// Update mesh, but in a thread-safe way.
+void Mesher::updateMesh3D(const std::shared_ptr<const MesherInputPayload>& mesher_payload,
+                          std::vector<cv::Vec6f>* mesh_2d_for_viz,
+                          std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
+    if (!mesher_payload) {
+      LOG(INFO) << "Empty payload skipping mesh update";
+    } else {
+      updateMesh3D(mesher_payload->points_with_id_vio_,
+                   std::make_shared<StereoFrame>(mesher_payload->stereo_frame_),
+                   mesher_payload->left_camera_pose_,
+                   mesh_2d_for_viz, mesh_2d_filtered_for_viz);
+    }
+}
 
 /* -------------------------------------------------------------------------- */
+// THIS IS NOT THREAD-SAFE
 // Attempts to insert new points in the map, but does not override if there
 // is already a point with the same lmk id.
 void Mesher::appendNonVioStereoPoints(
-    std::shared_ptr<StereoFrame> stereoFrame,
+    std::shared_ptr<StereoFrame> stereoFrame,  // THIS IS NOT THREAD-SAFE
     const gtsam::Pose3& leftCameraPose,
     std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo) const {
   CHECK_NOTNULL(points_with_id_stereo);
-  const Frame& leftFrame = stereoFrame->left_frame_;
+  const Frame& leftFrame = stereoFrame->getLeftFrame();  // THIS IS NOT THREAD-SAFE
   for (size_t i = 0; i < leftFrame.landmarks_.size(); i++) {
+    // THIS IS NOT THREAD-SAFE
     if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID &&
         leftFrame.landmarks_.at(i) != -1) {
       const gtsam::Point3& p_i_global =

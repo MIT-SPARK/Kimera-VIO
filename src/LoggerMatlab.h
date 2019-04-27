@@ -26,7 +26,10 @@
 
 namespace VIO {
 
+// TODO Make Logger Thread-safe!
 ////////////////////////////////////////////////////////////////////////////////
+/// \brief The LoggerMatlab class
+///
 class LoggerMatlab {
 public:
   LoggerMatlab();
@@ -42,6 +45,7 @@ public:
   std::ofstream outputFile_smartFactors_;
   std::ofstream outputFile_timingVIO_;
   std::ofstream outputFile_timingTracker_;
+  std::ofstream outputFile_timingOverall_;
   std::ofstream outputFile_statsTracker_;
   std::ofstream outputFile_statsFactors_;
   std::ofstream outputFile_mesh_;
@@ -62,8 +66,8 @@ public:
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logFrontendResults(const ETHDatasetParser& dataset,
                           const StereoVisionFrontEnd& stereoTracker,
-                          const Timestamp timestamp_lkf,
-                          const Timestamp timestamp_k);
+                          const Timestamp& timestamp_lkf,
+                          const Timestamp& timestamp_k);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logLandmarks(const VioBackEnd::PointsWithId& lmks);
@@ -79,18 +83,23 @@ public:
                const double& timestamp, bool log_accumulated_mesh = false);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void logBackendResults(const ETHDatasetParser& dataset,
-                         const StereoVisionFrontEnd& stereoTracker,
-                         const boost::shared_ptr<VioBackEnd>& vio,
-                         const Timestamp timestamp_lkf,
-                         const Timestamp timestamp_k,
-                         const size_t k);
+  void logBackendResults(
+      const ETHDatasetParser& dataset,
+      const StereoVisionFrontEnd& stereoTracker,
+      const std::shared_ptr<VioBackEndOutputPayload>& vio_output,
+      const double& horizon,
+      const Timestamp& timestamp_lkf,
+      const Timestamp& timestamp_k,
+      const size_t& k);
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logPipelineOverallTiming(const std::chrono::milliseconds& duration);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void displayInitialStateVioInfo(const ETHDatasetParser& dataset,
-                                  const boost::shared_ptr<VIO::VioBackEnd>& vio,
+                                  const std::unique_ptr<VioBackEnd>& vio,
                                   gtNavState initialStateGT,
-                                  const ImuAccGyr& imu_accgyr,
+                                  const ImuAccGyrS& imu_accgyr,
                                   const Timestamp timestamp_k) const;
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

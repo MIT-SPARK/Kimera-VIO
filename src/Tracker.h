@@ -9,7 +9,7 @@
 /**
  * @file   Tracker.h
  * @brief  Class describing temporal tracking
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #ifndef Tracker_H_
@@ -26,6 +26,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "UtilsOpenCV.h"
 #include <boost/filesystem.hpp> // to create folders
+
 // OpenGV for Ransac
 #include <opengv/sac/Ransac.hpp>
 #include <opengv/sac_problems/relative_pose/TranslationOnlySacProblem.hpp>
@@ -41,7 +42,6 @@
 #include <gtsam/nonlinear/Marginals.h>
 #include "FeatureSelector.h"
 
-// #define TRACKER_DEBUG_COUT
 #define TRACKER_VERBOSITY 0 // Should be 1
 
 namespace VIO {
@@ -57,159 +57,175 @@ using ProblemStereo = opengv::sac_problems::point_cloud::PointCloudSacProblem; /
 using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
 
 ///////////////////////////////////////////////////////////////////////////////////////
-class DebugTrackerInfo
-{
+class DebugTrackerInfo {
 public:
-  // info about feature detection, tracking and ransac
-  int nrDetectedFeatures_=0, nrTrackerFeatures_=0, nrMonoInliers_=0, nrMonoPutatives_=0, nrStereoInliers_=0, nrStereoPutatives_=0;
-  int monoRansacIters_ = 0, stereoRansacIters_ = 0;
+  // Info about feature detection, tracking and ransac.
+  size_t nrDetectedFeatures_ = 0, nrTrackerFeatures_ = 0, nrMonoInliers_ = 0;
+  size_t nrMonoPutatives_ = 0, nrStereoInliers_ = 0, nrStereoPutatives_ = 0;
+  size_t monoRansacIters_ = 0, stereoRansacIters_ = 0;
 
-  // info about performance of sparse stereo matching (and ransac): RPK = right keypoints
-  int nrValidRKP_ = 0, nrNoLeftRectRKP_ = 0, nrNoRightRectRKP_ = 0, nrNoDepthRKP_ = 0, nrFailedArunRKP_ = 0;
+  // Info about performance of sparse stereo matching (and ransac):
+  // RPK = right keypoints
+  size_t nrValidRKP_ = 0, nrNoLeftRectRKP_ = 0, nrNoRightRectRKP_ = 0;
+  size_t nrNoDepthRKP_ = 0, nrFailedArunRKP_ = 0;
 
-  // info about timing
-  double featureDetectionTime_ = 0, featureTrackingTime_ = 0, monoRansacTime_ = 0, stereoRansacTime_ = 0;
+  // Info about timing.
+  double featureDetectionTime_ = 0, featureTrackingTime_ = 0;
+  double monoRansacTime_ = 0, stereoRansacTime_ = 0;
 
-  // info about feature selector
+  // Info about feature selector.
   double featureSelectionTime_ = 0;
-  int extracted_corners_ = 0, need_n_corners_ = 0;
+  size_t extracted_corners_ = 0, need_n_corners_ = 0;
 
-  void printTimes() const
-  {
-    std::cout << "featureDetectionTime_: " << featureDetectionTime_ << " s" << std::endl;
-    std::cout << "featureSelectionTime_: " << featureSelectionTime_ << " s" << std::endl;
-    std::cout << "featureTrackingTime_: " << featureTrackingTime_ << " s" << std::endl;
-    std::cout << "monoRansacTime_: " << monoRansacTime_ << " s" << std::endl;
-    std::cout << "stereoRansacTime_: " << stereoRansacTime_ << " s" << std::endl;
+  void printTimes() const {
+    LOG(INFO) << "featureDetectionTime_: " << featureDetectionTime_ << " s\n"
+              << "featureSelectionTime_: " << featureSelectionTime_ << " s\n"
+              << "featureTrackingTime_: " << featureTrackingTime_ << " s\n"
+              << "monoRansacTime_: " << monoRansacTime_ << " s\n"
+              << "stereoRansacTime_: " << stereoRansacTime_ << " s";
   }
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////
 class Tracker{
 public:
-  enum TrackingStatus {
-    VALID, LOW_DISPARITY, FEW_MATCHES, INVALID, DISABLED
+  enum class TrackingStatus {
+      VALID,
+      LOW_DISPARITY,
+      FEW_MATCHES,
+      INVALID,
+      DISABLED
   };
 
   // Constructor
-  Tracker(
-      const VioFrontEndParams& trackerParams = VioFrontEndParams(),
-      const VioBackEndParams& vioParams = VioBackEndParams(),
-      const int saveImages = 1):
+  Tracker(const VioFrontEndParams& trackerParams = VioFrontEndParams(),
+          const int saveImages = 1):
     trackerParams_(trackerParams),
+    outputImagesPath_("./outputImages/"), // only for debugging and visualization
+    landmark_count_(0),
+    pixelOffset_(),
     saveImages_(saveImages),
-    pixelOffset_(cv::Point2f(0.0, 0.0)),
-    landmark_count_(0), verbosity_(TRACKER_VERBOSITY),
-    outputImagesPath_("./outputImages/") // only for debugging and visualization
-  {}
+    verbosity_(TRACKER_VERBOSITY) {}
 
-  // Tracker parameters
+  // Tracker parameters.
   const VioFrontEndParams trackerParams_;
 
-  // this is not const as for debugging we want to redirect the image save path where we like
+  // This is not const as for debugging we want to redirect the image save path
+  // where we like.
   std::string outputImagesPath_;
 
-  // Mask for features
+  // Mask for features.
   cv::Mat camMask_;
 
-  // Pixel offset for using center of image
-  cv::Point2f pixelOffset_;
-
-  // Counters
+  // Counters.
   int landmark_count_; // incremental id assigned to new landmarks
 
-  // debug info
+  // Debug info.
   DebugTrackerInfo debugInfo_;
-  const int saveImages_; // 0: don't show, 1: show, 2: write & save
-
-  // Flags
-  const int verbosity_;
 
 public:
-  /* +++++++++++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++++++++ */
-  void featureTracking(Frame& ref_frame, Frame& cur_frame);
-  void featureDetection(Frame& cur_frame);
+  /* +++++++++++++++++++++ NONCONST FUNCTIONS +++++++++++++++++++++++++++++++ */
+  void featureTracking(Frame* ref_frame,
+                       Frame* cur_frame);
+  void featureDetection(Frame* cur_frame);
 
-  std::pair<Tracker::TrackingStatus,gtsam::Pose3>
-  geometricOutlierRejectionMono(Frame& ref_frame, Frame& cur_frame);
+  std::pair<Tracker::TrackingStatus, gtsam::Pose3>
+  geometricOutlierRejectionMono(Frame* ref_frame,
+                                Frame* cur_frame);
 
-  std::pair<Tracker::TrackingStatus,gtsam::Pose3>
-  geometricOutlierRejectionStereo(StereoFrame& ref_frame, StereoFrame& cur_frame);
+  std::pair<Tracker::TrackingStatus, gtsam::Pose3>
+  geometricOutlierRejectionStereo(StereoFrame& ref_frame,
+                                  StereoFrame& cur_frame);
 
-  // contrarily to the previous 2 this also returns a 3x3 covariance for the translation estimate
-  std::pair<Tracker::TrackingStatus,gtsam::Pose3>
+  // Contrarily to the previous 2 this also returns a 3x3 covariance for the
+  // translation estimate.
+  std::pair<Tracker::TrackingStatus, gtsam::Pose3>
   geometricOutlierRejectionMonoGivenRotation(
-      Frame& ref_frame, Frame& cur_frame, const gtsam::Rot3& R);
+      Frame* ref_frame,
+      Frame* cur_frame,
+      const gtsam::Rot3& R);
 
   std::pair< std::pair<Tracker::TrackingStatus,gtsam::Pose3> , gtsam::Matrix3 >
   geometricOutlierRejectionStereoGivenRotation(
-      StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame, const gtsam::Rot3& R);
+      StereoFrame& ref_stereoFrame,
+      StereoFrame& cur_stereoFrame,
+      const gtsam::Rot3& R);
 
   void removeOutliersMono(
-      Frame& ref_frame, Frame& cur_frame,
+      Frame* ref_frame,
+      Frame* cur_frame,
       const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-      std::vector<int> inliers, const int iterations);
+      const std::vector<int>& inliers,
+      const int iterations);
 
   void removeOutliersStereo(
-      StereoFrame& ref_stereoFrame, StereoFrame& cur_stereoFrame,
+      StereoFrame& ref_stereoFrame,
+      StereoFrame& cur_stereoFrame,
       const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-      std::vector<int> inliers, const int iterations);
+      const std::vector<int>& inliers,
+      const int iterations);
 
   void checkStatusRightKeypoints(
-      const std::vector<Kstatus>& right_keypoints_status) {
-    debugInfo_.nrValidRKP_ = 0; debugInfo_.nrNoLeftRectRKP_ = 0; debugInfo_.nrNoRightRectRKP_ = 0;
-    debugInfo_.nrNoDepthRKP_ = 0; debugInfo_.nrFailedArunRKP_ = 0;
-    for(size_t i=0; i<right_keypoints_status.size(); i++){
-      if(right_keypoints_status.at(i) == Kstatus::VALID)
-        debugInfo_.nrValidRKP_++;
-      if(right_keypoints_status.at(i) == Kstatus::NO_LEFT_RECT)
-        debugInfo_.nrNoLeftRectRKP_++;
-      if(right_keypoints_status.at(i) == Kstatus::NO_RIGHT_RECT)
-        debugInfo_.nrNoRightRectRKP_++;
-      if(right_keypoints_status.at(i) == Kstatus::NO_DEPTH)
-        debugInfo_.nrNoDepthRKP_++;
-    }
-  }
+      const std::vector<Kstatus>& right_keypoints_status);
 
   /* ---------------------------- CONST FUNCTIONS ------------------------------------------- */
   // returns frame with markers
   cv::Mat displayFrame(
-      const Frame& ref_frame, const Frame& cur_frame,
-      const int verbosity=0,
+      const Frame& ref_frame,
+      const Frame& cur_frame,
+      int verbosity = 0,
       const KeypointsCV& extraCorners1 = KeypointsCV(),
       const KeypointsCV& extraCorners2 = KeypointsCV(),
       const std::string& extraString = "") const;
 
   /* ---------------------------- STATIC FUNCTIONS ------------------------------------------ */
-  static std::vector<int> FindOutliers(
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
-      std::vector<int> inliers);
+  static void findOutliers(const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
+      std::vector<int> inliers,
+      std::vector<int> *outliers);
 
-  static std::vector<std::pair<size_t, size_t>> FindMatchingKeypoints(
-      const Frame& ref_frame, const Frame& cur_frame);
+  static void findMatchingKeypoints(
+      const Frame& ref_frame,
+      const Frame& cur_frame,
+      std::vector<std::pair<size_t, size_t>>* matches_ref_cur);
 
-  static std::vector<std::pair<size_t, size_t>> FindMatchingStereoKeypoints(
-      const StereoFrame& ref_stereoFrame, const StereoFrame& cur_stereoFrame);
+  static void findMatchingStereoKeypoints(
+      const StereoFrame& ref_stereoFrame,
+      const StereoFrame& cur_stereoFrame,
+      std::vector<std::pair<size_t, size_t>>* matches_ref_cur_stereo);
 
-  static std::vector<std::pair<size_t, size_t>> FindMatchingStereoKeypoints(
-      const StereoFrame& ref_stereoFrame, const StereoFrame& cur_stereoFrame,
-      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur_mono);
+  static void findMatchingStereoKeypoints(
+      const StereoFrame& ref_stereoFrame,
+      const StereoFrame& cur_stereoFrame,
+      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur_mono,
+      std::vector<std::pair<size_t, size_t>>* matches_ref_cur_stereo);
 
-  static double ComputeMedianDisparity(const Frame& ref_frame,
+  static double computeMedianDisparity(const Frame& ref_frame,
                                        const Frame& cur_frame);
 
-  // returns landmark_count (updated from the new keypoints), and nr or extracted corners
-  static std::pair<KeypointsCV, std::vector<double> >
-  FeatureDetection(Frame& cur_frame,
+  // Returns landmark_count (updated from the new keypoints),
+  // and nr or extracted corners.
+  static std::pair<KeypointsCV, std::vector<double>>
+  featureDetection(const Frame& cur_frame,
                    const VioFrontEndParams& trackerParams,
-                   const cv::Mat camMask, const int need_n_corners);
+                   const cv::Mat& cam_mask,
+                   const int need_n_corners);
 
-  static std::pair< Vector3, Matrix3 > GetPoint3AndCovariance(
+  static std::pair< Vector3, Matrix3 > getPoint3AndCovariance(
       const StereoFrame& stereoFrame,
       const gtsam::StereoCamera& stereoCam,
-      const int pointId,
+      const size_t pointId,
       const gtsam::Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
+
+private:
+  // Pixel offset for using center of image
+  cv::Point2f pixelOffset_;
+
+  const int saveImages_; // 0: don't show, 1: show, 2: write & save
+
+  // Flags
+  const int verbosity_;
+
 };
 
 } // namespace VIO

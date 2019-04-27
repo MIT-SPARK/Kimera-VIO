@@ -104,7 +104,7 @@ public:
       return dynamic_cast<const RegularVioBackEndParams&>(params);
     } catch(const std::bad_cast& e) {
       LOG(ERROR) << "Seems that you are casting VioBackEndParams to "
-                    "RegularVioBackEndParams, but this objest is not "
+                    "RegularVioBackEndParams, but this object is not "
                     "a RegularVioBackEndParams!";
       CHECK(false) << e.what();
     }

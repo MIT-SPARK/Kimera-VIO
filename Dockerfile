@@ -4,15 +4,16 @@ FROM ubuntu:18.04
 # To avoid tzdata asking for geographic location...
 ENV DEBIAN_FRONTEND noninteractive
 
-# Set the working directory to /app
+# Set the working directory to /root
 ENV DIRPATH /root/
 WORKDIR $DIRPATH
 
 #Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
-RUN apt-get update && apt-get install -y \
-      git \
-      cmake
+RUN apt-get update && apt-get install -y git cmake
+
+# Install xvfb to provide a display to container for GUI realted testing.
+RUN apt-get update && apt-get install -y xvfb
 
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev
@@ -59,5 +60,8 @@ RUN cd opengv/build && \
       make -j$(nproc) install
 
 # Install spark_vio_evaluation from PyPI
-RUN apt-get update && apt-get install -y python-pip python-dev
-RUN pip install spark_vio_evaluation
+RUN apt-get update && apt-get install -y python-pip python-dev python-tk
+# Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
+ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
+RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
+RUN cd spark_vio_evaluation && pip install .
