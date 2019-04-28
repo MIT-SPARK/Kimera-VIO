@@ -49,7 +49,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(sparkvio SHARED
+add_library(SparkVio SHARED
   src/ETH_parser.cpp
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
@@ -71,7 +71,7 @@ add_library(sparkvio SHARED
   src/Visualizer3D.cpp "")
 
 #Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(SparkVio::sparkvio ALIAS sparkvio)
+add_library(SparkVio::SparkVio ALIAS SparkVio)
 
 ### Add source code for data provider.
 include(src/datasource/CMakeLists.txt)
@@ -86,7 +86,7 @@ include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
 
-target_link_libraries(sparkvio
+target_link_libraries(SparkVio
   PRIVATE
     opengv
   PUBLIC
@@ -97,28 +97,28 @@ target_link_libraries(sparkvio
     gtsam
     gtsam_unstable
 )
-target_include_directories(sparkvio
+target_include_directories(SparkVio
   PUBLIC
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
-target_compile_options(sparkvio PRIVATE -Wall -pipe) # Remove these
+target_compile_options(SparkVio PRIVATE -Wall -pipe) # Remove these
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(sparkvio PUBLIC
+target_compile_features(SparkVio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::sparkvio)
+target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::SparkVio)
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
-target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::sparkvio)
+target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
 
 #add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-#target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::sparkvio)
+#target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::SparkVio)
 
 add_executable(stereoVIOKitti ./examples/stereoVIOKitti.cpp)
-target_link_libraries(stereoVIOKitti PUBLIC SparkVio::sparkvio)
+target_link_libraries(stereoVIOKitti PUBLIC SparkVio::SparkVio)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
@@ -159,15 +159,15 @@ add_subdirectory(tests)
 #include(GNUInstallDirs)
 #
 ## First of all, we need to install the library itself.
-#install(TARGETS sparkvio
-#    EXPORT sparkvio-export
+#install(TARGETS SparkVio
+#    EXPORT SparkVio-export
 #    LIBRARY DESTINATION lib
 #    ARCHIVE DESTINATION lib
 #    INCLUDES DESTINATION include # We need this right?
 #)
 
-## This is required so that the exported target has the name SparkVio and not sparkvio
-#set_target_properties(sparkvio PROPERTIES EXPORT_NAME SparkVio)
+## This is required so that the exported target has the name SparkVio and not SparkVio
+#set_target_properties(SparkVio PROPERTIES EXPORT_NAME SparkVio)
 
 ## TODO THIS SHOULD BE only the headers... aka include/
 ##install(DIRECTORY src/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -184,8 +184,8 @@ set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SparkVio)
 ## Export the targets to a script
 ## This will install the import script SparkVioTargets.cmake
 ## When findpackaged by other scripts, it will load the targets defined
-## in the export sparkvio-export.
-#install(EXPORT sparkvio-export
+## in the export SparkVio-export.
+#install(EXPORT SparkVio-export
 #  FILE SparkVioTargets.cmake
 #  NAMESPACE SparkVio::
 ## It's usually a good idea to give CMake access to the version,
@@ -201,7 +201,7 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfigVersi
 )
 
 # Create SparkVioConfig.cmake with extra info from SparkVioConfig.cmake.in
-# This file is necessary to find_package the library sparkvio.
+# This file is necessary to find_package the library SparkVio.
 configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/SparkVioConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfig.cmake
     INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
@@ -215,7 +215,7 @@ configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/SparkVioConfig.cma
 #    DESTINATION ${INSTALL_CONFIGDIR}
 #)
 
-export(TARGETS sparkvio gflags::gflags glog::glog
+export(TARGETS SparkVio gflags::gflags glog::glog
        FILE SparkVioTargets.cmake)
 export(PACKAGE SparkVio)
 
