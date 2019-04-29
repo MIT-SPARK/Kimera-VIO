@@ -53,6 +53,7 @@ StereoFrame::StereoFrame(const FrameId& id,
     }
 
 /* -------------------------------------------------------------------------- */
+// TODO: Clean up RGBD and create directly StereoFrame::sparseStereoMatchingRGBD() 
 void StereoFrame::sparseStereoMatching(const int verbosity) {
   if (verbosity > 0) {
     cv::Mat leftImgWithKeypoints = UtilsOpenCV::DrawCircles(left_frame_.img_,
@@ -100,11 +101,28 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   // (horizontal epipolar lines)
   double fx = left_undistRectCameraMatrix_.fx();
   // std::cout << "nr of template matching calls: " << left_frame_.getNrValidKeypoints() << std::endl;
-  StatusKeypointsCV right_keypoints_rectified =
-      getRightKeypointsRectified(left_img_rectified_,
+
+  // Options for stereo and RGB-D
+  StatusKeypointsCV right_keypoints_rectified;
+  switch(sparse_stereo_params_.vision_sensor_type_){
+    case VisionSensorType::STEREO :
+      right_keypoints_rectified = getRightKeypointsRectified(left_img_rectified_,
                                  right_img_rectified_,
                                  left_keypoints_rectified,
                                  fx, getBaseline());
+      break;
+    case VisionSensorType::RGBD : // just use depth to "fake right pixel matches"
+      right_keypoints_rectified = getRightKeypointsRectifiedRGBD(left_img_rectified_,
+                                 right_img_rectified_,
+                                 left_keypoints_rectified,
+                                 fx, getBaseline(),
+                                 getMinDepthFactor(), getMapDepthFactor());
+      break;
+    default: 
+      throw std::runtime_error("sparseStereoMatching: only works when VisionSensorType::STEREO or RGBD"); 
+      break;
+  }
+
   // Compute the depth for each keypoints.
   keypoints_depth_ = getDepthFromRectifiedMatches(left_keypoints_rectified,
                                                   right_keypoints_rectified,
@@ -916,6 +934,71 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
     //    }
     //  }
     //}
+    right_keypoints_rectified.push_back(right_rectified_i_candidate);
+  }
+
+  if(verbosity>0)
+  {
+    cv::Mat imgL_withKeypoints = UtilsOpenCV::DrawCircles(left_rectified, left_keypoints_rectified);
+    cv::Mat imgR_withKeypoints = UtilsOpenCV::DrawCircles(right_rectified, right_keypoints_rectified);
+    showImagesSideBySide(imgL_withKeypoints,imgR_withKeypoints,"result_getRightKeypointsRectified",verbosity);
+  }
+  return right_keypoints_rectified;
+}
+
+/* --------------------------------------------------------------------------------------- */
+StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
+    const cv::Mat left_rectified,
+    const cv::Mat right_rectified,
+    const StatusKeypointsCV& left_keypoints_rectified,
+    const double &fx, const double &baseline, 
+    const double &depth_map_factor, const double &min_depth) const {
+  int verbosity = 0;
+  bool writeImageLeftRightMatching = false;
+
+  StatusKeypointsCV right_keypoints_rectified; 
+  right_keypoints_rectified.reserve(left_keypoints_rectified.size());
+
+  // Serial version
+  for (size_t i = 0; i < left_keypoints_rectified.size(); ++i)
+  {
+    // check if we already have computed the right kpt, in which case we avoid recomputing
+    if(left_keypoints_rectified_.size() > i+1 &&
+        right_keypoints_rectified_.size() > i+1 &&
+        right_keypoints_status_.size() > i+1 &&  // if we stored enough points
+        left_keypoints_rectified[i].second.x == left_keypoints_rectified_[i].x && // the query point matches the one we stored
+        left_keypoints_rectified[i].second.y == left_keypoints_rectified_[i].y){
+      // we already stored the rectified pixel in the stereo frame
+      right_keypoints_rectified.push_back(std::make_pair(right_keypoints_status_[i],right_keypoints_rectified_[i]));
+      continue;
+    }
+
+    // if the left point is invalid, we also set the right point to be invalid and we move on
+    if(left_keypoints_rectified[i].first != Kstatus::VALID){ // skip invalid points (fill in with placeholders in right)
+      right_keypoints_rectified.push_back(std::make_pair(left_keypoints_rectified[i].first, KeypointCV(0.0,0.0)));
+      continue;
+    }
+
+    // fake left->right matching using depth image
+    KeypointCV left_rectified_i = left_keypoints_rectified[i].second;
+
+    // get depth from RGBD
+    float depth_from_RGBD = depth_map_factor*float( right_img_rectified_.at<unsigned char>( round(left_rectified_i.y),round(left_rectified_i.x) ) );
+    
+    // compute disparity from the rgbd depth
+    auto disparityFromRGBD = fx*baseline/depth_from_RGBD;
+
+    StatusKeypointCV right_rectified_i_candidate;
+
+    // Adapted the conditions for a valid disparity
+    if((disparityFromRGBD >= 0.5) && (depth_from_RGBD >= min_depth) && 
+      ((left_rectified_i.x - disparityFromRGBD) > 0 ) ) { // valid disparity (> 0 pixels), depth > min_depth, in the right image
+         // Use correct definition of disparity in VIO code
+      right_rectified_i_candidate = std::make_pair(Kstatus::VALID,
+         KeypointCV(left_rectified_i.x - disparityFromRGBD, left_rectified_i.y));
+    }else{ // invalid disparity
+      right_rectified_i_candidate = std::make_pair(Kstatus::NO_DEPTH, KeypointCV(0.0,0.0));
+    }
     right_keypoints_rectified.push_back(right_rectified_i_candidate);
   }
 

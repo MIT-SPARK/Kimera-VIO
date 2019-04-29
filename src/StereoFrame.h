@@ -46,6 +46,8 @@ namespace VIO {
 ////////////////////////////////////////////////////////////////////////////////
 // TODO put these parameters in its own .h/.cpp and add tests as in frontend
 // params
+enum VisionSensorType {STEREO, RGBD}; // 0 for stereo and 1 for RGBD
+
 class StereoMatchingParams{
 public:
   double tolerance_template_matching_;
@@ -58,6 +60,9 @@ public:
   bool bidirectional_matching_; // check best match left->right and right->left
   bool subpixel_refinement_; // refine stereo matches with subpixel accuracy
   bool equalize_image_; // do equalize image before processing
+  int vision_sensor_type_; // options to use RGB-D vs. stereo
+  double min_depth_factor_; // min-depth to be used with RGB-D
+  double map_depth_factor_; // depth-map to be used with RGB-D
 
 public:
   StereoMatchingParams(
@@ -70,7 +75,10 @@ public:
       bool bidirectional_matching = false,
       double nominal_baseline = 0.11, // NOTE that this is hard coded (for EuRoC)
       bool subpixel_refinement = false,
-      bool equalize_image = false) :
+      bool equalize_image = false,
+      int vision_sensor_type = VisionSensorType::STEREO,
+      double min_depth_factor = 0.3, // NOTE that this is hard coded (for RealSense)
+      double map_depth_factor = 1000.0) : // NOTE that this is hard coded (for RealSense)
         tolerance_template_matching_(std::move(tol_template_matching)),
         nominal_baseline_(std::move(nominal_baseline)),
         templ_cols_(std::move(templ_cols)),
@@ -80,7 +88,10 @@ public:
         max_point_dist_(std::move(max_point_dist)),
         bidirectional_matching_(std::move(bidirectional_matching)),
         subpixel_refinement_(std::move(subpixel_refinement)),
-        equalize_image_(std::move(equalize_image)) {
+        equalize_image_(std::move(equalize_image)),
+        vision_sensor_type_(std::move(vision_sensor_type)),
+        min_depth_factor_(std::move(min_depth_factor)),
+        map_depth_factor_(std::move(map_depth_factor)) {
     CHECK(!(templ_cols_ % 2 != 1 || templ_rows_ % 2 != 1)) // check that they are odd
         << "StereoMatchingParams: template size must be odd!";
     CHECK(!(stripe_extra_rows_ % 2 != 0)) // check that they are even
@@ -98,13 +109,15 @@ public:
         (fabs(min_point_dist_ - tp2.min_point_dist_) <= tol) &&
         (fabs(max_point_dist_ - tp2.max_point_dist_) <= tol) &&
         (bidirectional_matching_ == tp2.bidirectional_matching_) &&
-        (subpixel_refinement_== tp2.subpixel_refinement_);
+        (subpixel_refinement_== tp2.subpixel_refinement_) &&
+        (vision_sensor_type_ == tp2.vision_sensor_type_);
   }
 
   void print () const {
      LOG(INFO) << "** Sparse Stereo Matching parameters **\n"
          << "equalize_image_: " << equalize_image_ << '\n'
          << "nominalBaseline_: " << nominal_baseline_ << '\n'
+         << "vision_sensor_type_: " << vision_sensor_type_ << '\n'
          << "toleranceTemplateMatching_: " << tolerance_template_matching_ << '\n'
          << "templ_cols_: " << templ_cols_ << '\n'
          << "templ_rows_: " << templ_rows_ << '\n'
@@ -113,6 +126,10 @@ public:
          << "maxPointDist_: " << max_point_dist_ << '\n'
          << "bidirectionalMatching_: " << bidirectional_matching_ << '\n'
          << "subpixelRefinementStereo_: " << subpixel_refinement_;
+         if (vision_sensor_type_ == VisionSensorType::RGBD) {
+           LOG(INFO) << "minDepthFactor_: " << min_depth_factor_ << '\n'
+            << "mapDepthFactor_: " << map_depth_factor_;
+         }
   }
 
   // TODO do abstract class for parameters structure, they all look very similar.
@@ -126,6 +143,7 @@ public:
     CHECK(fs.isOpened()) << "File storage is not open!";
     fs["equalizeImage"] >> equalize_image_;
     fs["nominalBaseline"] >> nominal_baseline_;
+    fs["visionSensorType"] >> vision_sensor_type_;
     fs["toleranceTemplateMatching"] >> tolerance_template_matching_;
     fs["templ_cols"] >> templ_cols_;
     fs["templ_rows"] >> templ_rows_;
@@ -134,6 +152,10 @@ public:
     fs["maxPointDist"] >> max_point_dist_;
     fs["bidirectionalMatching"] >> bidirectional_matching_;
     fs["subpixelRefinementStereo"] >> subpixel_refinement_;
+    if (vision_sensor_type_ == VisionSensorType::RGBD) {
+      fs["minDepthFactor"] >> min_depth_factor_;
+      fs["mapDepthFactor"] >> map_depth_factor_;
+    }
     return true;
   }
 };
@@ -256,6 +278,15 @@ public:
       const double& fx,
       const double& getBaseline) const;
 
+  StatusKeypointsCV getRightKeypointsRectifiedRGBD(
+      const cv::Mat left_rectified,
+      const cv::Mat right_rectified,
+      const StatusKeypointsCV& left_keypoints_rectified,
+      const double& fx, 
+      const double& getBaseline,
+      const double& getDepthMapFactor, 
+      const double& getMinDepth) const;
+
   /* ------------------------------------------------------------------------ */
   std::vector<double> getDepthFromRectifiedMatches(
       StatusKeypointsCV& left_keypoints_rectified,
@@ -295,6 +326,8 @@ public:
   inline StereoMatchingParams getSparseStereoParams() const {
     return sparse_stereo_params_;
   }
+  inline double getMinDepthFactor() const {return getSparseStereoParams().min_depth_factor_; }
+  inline double getMapDepthFactor() const {return getSparseStereoParams().map_depth_factor_; }
   inline gtsam::Cal3_S2 getLeftUndistRectCamMat() const {
     return left_undistRectCameraMatrix_;
   }
