@@ -35,6 +35,7 @@ namespace VIO {
 class VioBackEndParams;
 class VioBackEnd;
 class StereoVisionFrontEnd;
+
 }
 
 namespace VIO {
@@ -47,7 +48,7 @@ public:
   ~Pipeline();
 
   // Main spin, runs the pipeline.
-  bool spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  SpinOutputContainer spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
   void spinViz(bool parallel_run = true);
@@ -71,12 +72,20 @@ public:
     return mesher_output_queue_;
   }
 
-  gtsam::Vector3 get_estimated_velocity() {
+  gtsam::Vector3 getEstimatedVelocity() {
     return vio_backend_->getWVelBLkf();
   }
 
-  gtsam::Pose3 get_estimated_pose() {
+  gtsam::Pose3 getEstimatedPose() {
     return vio_backend_->getWPoseBLkf();
+  }
+
+  ImuBias getEstimatedBias() {
+    return vio_backend_->getLatestImuBias();
+  }
+
+  Timestamp getTimestamp() {
+    return timestamp_lkf_;
   }
 
   inline void registerSemanticMeshSegmentationCallback(

@@ -21,6 +21,33 @@
 //########### SPARK_VIO_ROS ############################################
 namespace VIO {
 
+// Struct to deal with getting values out of the spin
+struct SpinOutputContainer {
+  SpinOutputContainer(const Timestamp& timestamp_kf,
+                      const gtsam::Pose3& W_Pose_Blkf,
+                      const Vector3& W_Vel_Blkf,
+                      const ImuBias& imu_bias_lkf)
+    : timestamp_kf_(timestamp_kf),
+      W_Pose_Blkf_(W_Pose_Blkf),
+      W_Vel_Blkf_(W_Vel_Blkf),
+      imu_bias_lkf_(imu_bias_lkf) {}
+
+  Timestamp timestamp_kf_;
+  gtsam::Pose3 W_Pose_Blkf_;
+  Vector3 W_Vel_Blkf_;
+  ImuBias imu_bias_lkf_;
+
+  SpinOutputContainer& operator=(SpinOutputContainer other)
+    {
+        timestamp_kf_ = other.timestamp_kf_;
+        W_Pose_Blkf_ = other.W_Pose_Blkf_;
+        W_Vel_Blkf_ = other.W_Vel_Blkf_;
+        imu_bias_lkf_ = other.imu_bias_lkf_;
+        return *this;
+    }
+
+};
+
 class DataProvider {
 public:
   DataProvider() = default;
@@ -36,12 +63,12 @@ public:
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.
   void
-  registerVioCallback(std::function<bool(const StereoImuSyncPacket&)> callback);
+  registerVioCallback(std::function<SpinOutputContainer(const StereoImuSyncPacket&)> callback);
 
 protected:
   // Vio callback. This function should be called once a StereoImuSyncPacket
   // is available for processing.
-  std::function<bool(const StereoImuSyncPacket&)> vio_callback_;
+  std::function<SpinOutputContainer(const StereoImuSyncPacket&)> vio_callback_;
 };
 
 } // End of VIO namespace.

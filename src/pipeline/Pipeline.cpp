@@ -126,7 +126,7 @@ Pipeline::~Pipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   if (!is_initialized_) {
     LOG(INFO) << "Initialize VIO pipeline.";
     // Initialize pipeline.
@@ -141,13 +141,27 @@ bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
                 << parallel_run_<< ").";
     }
     is_initialized_ = true;
-    return true;
+
+    // Container to Output Results of Spin
+    SpinOutputContainer spin_output_(getTimestamp(),
+                                getEstimatedPose(),
+                                getEstimatedVelocity(),
+                                getEstimatedBias());
+
+    return spin_output_;
   }
 
   // TODO Warning: we do not accumulate IMU measurements for the first packet...
   // Spin.
   spinOnce(stereo_imu_sync_packet);
-  return true;
+
+  // Container to Output Results of Spin
+  SpinOutputContainer spin_output_(getTimestamp(),
+                                getEstimatedPose(),
+                                getEstimatedVelocity(),
+                                getEstimatedBias());
+
+  return spin_output_;
 }
 
 /* -------------------------------------------------------------------------- */

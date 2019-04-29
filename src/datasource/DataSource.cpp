@@ -18,8 +18,8 @@ namespace VIO {
 DataProvider::~DataProvider() {LOG(INFO) << "Data provider destructor called.";}
 
 void DataProvider::registerVioCallback(
-    std::function<bool(const StereoImuSyncPacket&)> callback) {
-  vio_callback_ = std::move(callback);
+    std::function<SpinOutputContainer(const StereoImuSyncPacket&)> callback) {
+    vio_callback_ = std::move(callback);
 }
 
 bool DataProvider::spin() {
