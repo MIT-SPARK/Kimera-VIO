@@ -142,26 +142,38 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
     }
     is_initialized_ = true;
 
-    // Container to Output Results of Spin
-    SpinOutputContainer spin_output_(getTimestamp(),
-                                getEstimatedPose(),
-                                getEstimatedVelocity(),
-                                getEstimatedBias());
+    return getSpinOutputContainer();
 
-    return spin_output_;
+  } 
+  else if(stereo_imu_sync_packet.getReinitPacket().getReinitFlag()) {
+    
+    // TODO: Clarify with Toni best option to reinitialize pipeline
+    // Shutdown pipeline first
+    shutdown(); // --> Does this require a new constructor afterwards?
+    //stopThreads();
+
+    reInitialize(stereo_imu_sync_packet);
+    if (parallel_run_) {
+      launchThreads();
+    } else {
+      LOG(INFO) << "Running in sequential mode (parallel_run set to "
+                << parallel_run_<< ").";
+    }
+    is_initialized_ = true;
+    ///////////////////////////////////////////
+
+    return getSpinOutputContainer();
+
   }
+  else {
 
-  // TODO Warning: we do not accumulate IMU measurements for the first packet...
-  // Spin.
-  spinOnce(stereo_imu_sync_packet);
+    // TODO Warning: we do not accumulate IMU measurements for the first packet...
+    // Spin.
+    spinOnce(stereo_imu_sync_packet);
 
-  // Container to Output Results of Spin
-  SpinOutputContainer spin_output_(getTimestamp(),
-                                getEstimatedPose(),
-                                getEstimatedVelocity(),
-                                getEstimatedBias());
-
-  return spin_output_;
+    return getSpinOutputContainer();
+    
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -519,6 +531,21 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   }
 
   return true;
+}
+
+/* -------------------------------------------------------------------------- */
+// TODO: Adapt and create better re-initialization function
+bool Pipeline::reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+  LOG(INFO) << "------------------- Re-Initialize Pipeline with frame k = "
+          << stereo_imu_sync_packet.getStereoFrame().getFrameId()
+          << "--------------------";
+
+  // Log reinitialization
+  stereo_imu_sync_packet.getReinitPacket().print();
+
+  // Use default initialization function
+  // TODO: Create a better initialization (live) function
+  return initialize(stereo_imu_sync_packet);
 }
 
 /* -------------------------------------------------------------------------- */

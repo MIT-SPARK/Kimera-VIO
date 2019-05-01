@@ -93,6 +93,15 @@ public:
     visualizer_.registerMesh3dVizProperties(cb);
   }
 
+  // Get spin output container
+  inline SpinOutputContainer getSpinOutputContainer() {
+    SpinOutputContainer spin_output_(getTimestamp(),
+                                getEstimatedPose(),
+                                getEstimatedVelocity(),
+                                getEstimatedBias());
+    return spin_output_;
+  }
+
 private:
   // Initialize random seed for repeatability (only on the same machine).
   // TODO Still does not make RANSAC REPEATABLE across different machines.
@@ -102,6 +111,9 @@ private:
 
   // Initialize pipeline.
   bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Re-initialize pipeline.
+  bool reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.

@@ -37,14 +37,13 @@ struct SpinOutputContainer {
   Vector3 W_Vel_Blkf_;
   ImuBias imu_bias_lkf_;
 
-  SpinOutputContainer& operator=(SpinOutputContainer other)
-    {
+  SpinOutputContainer& operator=(SpinOutputContainer other) {
         timestamp_kf_ = other.timestamp_kf_;
         W_Pose_Blkf_ = other.W_Pose_Blkf_;
         W_Vel_Blkf_ = other.W_Vel_Blkf_;
         imu_bias_lkf_ = other.imu_bias_lkf_;
         return *this;
-    }
+  }
 
 };
 
