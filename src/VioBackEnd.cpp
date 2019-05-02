@@ -694,7 +694,7 @@ VioBackEnd::PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
 }
 
 /* -------------------------------------------------------------------------- */
-// NOT TESTED
+// NOT TESTED (--> There is a UnitTest function in UtilsOpenCV)
 gtsam::Matrix VioBackEnd::getCurrentStateCovariance() const {
   gtsam::Marginals marginals(smoother_->getFactors(),
                              state_,

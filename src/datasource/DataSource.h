@@ -26,23 +26,59 @@ struct SpinOutputContainer {
   SpinOutputContainer(const Timestamp& timestamp_kf,
                       const gtsam::Pose3& W_Pose_Blkf,
                       const Vector3& W_Vel_Blkf,
-                      const ImuBias& imu_bias_lkf)
+                      const ImuBias& imu_bias_lkf,
+                      const gtsam::Matrix State_Covariance_lkf = gtsam::zeros(15,15))
     : timestamp_kf_(timestamp_kf),
       W_Pose_Blkf_(W_Pose_Blkf),
       W_Vel_Blkf_(W_Vel_Blkf),
-      imu_bias_lkf_(imu_bias_lkf) {}
+      imu_bias_lkf_(imu_bias_lkf) {
+        // TODO: Create a better assert for this covariance matrix
+        if(State_Covariance_lkf.rows()!=0) {
+          State_Covariance_lkf_ = State_Covariance_lkf;
+        } else {
+          State_Covariance_lkf_ = gtsam::zeros(15,15);
+        }
+      }
 
   Timestamp timestamp_kf_;
   gtsam::Pose3 W_Pose_Blkf_;
   Vector3 W_Vel_Blkf_;
   ImuBias imu_bias_lkf_;
+  gtsam::Matrix State_Covariance_lkf_;
 
   SpinOutputContainer& operator=(SpinOutputContainer other) {
         timestamp_kf_ = other.timestamp_kf_;
         W_Pose_Blkf_ = other.W_Pose_Blkf_;
         W_Vel_Blkf_ = other.W_Vel_Blkf_;
         imu_bias_lkf_ = other.imu_bias_lkf_;
+        State_Covariance_lkf_ = other.State_Covariance_lkf_;
         return *this;
+  }
+
+  // Define getters for output values
+  
+  inline const Timestamp getTimestamp() {
+    return timestamp_kf_;
+  }
+
+  inline const gtsam::Pose3 getEstimatedPose() {
+    return W_Pose_Blkf_;
+  }
+
+  inline const Vector3 getEstimatedVelocity() {
+    return W_Vel_Blkf_;
+  }
+
+  inline const gtsam::Matrix6 getEstimatedPoseCov() {
+    return gtsam::sub(State_Covariance_lkf_,0,6,0,6);
+  }
+
+  inline const gtsam::Matrix3 getEstimatedVelCov() {
+    return gtsam::sub(State_Covariance_lkf_,6,9,6,9);
+  }
+
+  inline const gtsam::Matrix6 getEstimatedBiasCov() {
+    return gtsam::sub(State_Covariance_lkf_,9,15,9,15);
   }
 
 };

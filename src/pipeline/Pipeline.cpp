@@ -67,6 +67,8 @@ DEFINE_bool(deterministic_random_number_generator, false,
 DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
+DEFINE_bool(compute_state_covariance, false,
+            "Flag to compute state covariance from optimization backend");
 
 namespace VIO {
 
@@ -173,6 +175,25 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
 
     return getSpinOutputContainer();
     
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Get spin output container
+SpinOutputContainer Pipeline::getSpinOutputContainer() {
+  if (FLAGS_compute_state_covariance) {
+    return SpinOutputContainer(getTimestamp(),
+                              getEstimatedPose(),
+                              getEstimatedVelocity(),
+                              getEstimatedBias(),
+                              getEstimatedStateCovariance());
+                              // TODO: Make sure the covariance computation is multi-thread safe (Check with Toni) 
+  }
+  else {
+    return SpinOutputContainer(getTimestamp(),
+                              getEstimatedPose(),
+                              getEstimatedVelocity(),
+                              getEstimatedBias());
   }
 }
 

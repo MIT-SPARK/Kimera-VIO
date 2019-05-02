@@ -88,19 +88,16 @@ public:
     return timestamp_lkf_;
   }
 
+  gtsam::Matrix getEstimatedStateCovariance() {
+    return vio_backend_->getCurrentStateCovariance();
+  }
+
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
     visualizer_.registerMesh3dVizProperties(cb);
   }
 
-  // Get spin output container
-  inline SpinOutputContainer getSpinOutputContainer() {
-    SpinOutputContainer spin_output_(getTimestamp(),
-                                getEstimatedPose(),
-                                getEstimatedVelocity(),
-                                getEstimatedBias());
-    return spin_output_;
-  }
+  SpinOutputContainer getSpinOutputContainer();
 
 private:
   // Initialize random seed for repeatability (only on the same machine).
