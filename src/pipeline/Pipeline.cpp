@@ -85,6 +85,14 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
     mesher_(),
     visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
                 dataset->getBackendType()),
+    stereo_frontend_input_queue_(),
+    stereo_frontend_output_queue_(),
+    backend_input_queue_(),
+    backend_output_queue_(),
+    mesher_input_queue_(),
+    mesher_output_queue_(),
+    visualizer_input_queue_(),
+    visualizer_output_queue_(),
     stereo_frontend_thread_(nullptr),
     wrapped_thread_(nullptr),
     backend_thread_(nullptr),
@@ -149,19 +157,16 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
   } 
   else if(stereo_imu_sync_packet.getReinitPacket().getReinitFlag()) {
     
-    // TODO: Clarify with Toni best option to reinitialize pipeline
+    // TODO: Fix issue with re-initialization
     // Shutdown pipeline first
-    shutdown(); // --> Does this require a new constructor afterwards?
-    //stopThreads();
+    shutdown();
 
+    // Resume pipeline
+    resume();
+
+    // Re-initialize tracking
     reInitialize(stereo_imu_sync_packet);
-    if (parallel_run_) {
-      launchThreads();
-    } else {
-      LOG(INFO) << "Running in sequential mode (parallel_run set to "
-                << parallel_run_<< ").";
-    }
-    is_initialized_ = true;
+
     ///////////////////////////////////////////
 
     return getSpinOutputContainer();
@@ -505,6 +510,30 @@ void Pipeline::shutdown() {
 }
 
 /* -------------------------------------------------------------------------- */
+void Pipeline::resume() {
+
+    // Re-launch threads
+    if (parallel_run_) {
+      launchThreads();
+    } else {
+      LOG(INFO) << "Running in sequential mode (parallel_run set to "
+                << parallel_run_<< ").";
+    }
+    is_initialized_ = true;
+
+    // Resume all queues
+    stereo_frontend_input_queue_.resume();
+    stereo_frontend_output_queue_.resume();
+    backend_input_queue_.resume();
+    backend_output_queue_.resume();
+    mesher_input_queue_.resume();
+    mesher_output_queue_.resume();
+    visualizer_input_queue_.resume();
+    visualizer_output_queue_.resume();
+
+}
+
+/* -------------------------------------------------------------------------- */
 bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   LOG(INFO) << "------------------- Initialize Pipeline with frame k = "
             << stereo_imu_sync_packet.getStereoFrame().getFrameId()
@@ -565,7 +594,7 @@ bool Pipeline::reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   stereo_imu_sync_packet.getReinitPacket().print();
 
   // Use default initialization function
-  // TODO: Create a better initialization (live) function
+  // TODO: Create a better initialization (online) function
   return initialize(stereo_imu_sync_packet);
 }
 

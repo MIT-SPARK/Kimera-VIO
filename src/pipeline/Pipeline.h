@@ -66,6 +66,9 @@ public:
   // And closes logfiles.
   void shutdown();
 
+  // Resumes all queues
+  void resume();
+
   // Return the mesher output queue for FUSES to process the mesh_2d and
   // mesh_3d to extract semantic information.
   ThreadsafeQueue<MesherOutputPayload>& getMesherOutputQueue() {
