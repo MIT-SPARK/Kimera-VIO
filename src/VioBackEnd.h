@@ -126,6 +126,12 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
+  inline void restart() {
+    LOG(INFO) << "Resetting shutdown backend flag to false.";
+    shutdown_ = false;
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Checks if the thread is waiting for the input_queue or working.
   inline bool isWorking() const {return is_thread_working_;}
 

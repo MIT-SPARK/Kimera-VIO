@@ -65,6 +65,13 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
+  // Avoid shutdown of spin.
+  inline void restart() {
+    LOG(INFO) << "Resetting shutdown frontend flag to false.";
+    shutdown_ = false;
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Query if thread is working and not waiting on input queue to be filled.
   inline bool isWorking() const {return is_thread_working_;}
 

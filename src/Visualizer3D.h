@@ -114,6 +114,10 @@ public:
   void shutdown();
 
   /* ------------------------------------------------------------------------ */
+  // Resets the shutdown flag for visualization spin
+  void restart();
+
+  /* ------------------------------------------------------------------------ */
   // Checks if the thread is working or if it is waiting for input queue.
   inline bool isWorking() const {return is_thread_working_;}
 

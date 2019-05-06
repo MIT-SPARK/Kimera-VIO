@@ -171,6 +171,12 @@ void Visualizer3D::shutdown() {
 }
 
 /* -------------------------------------------------------------------------- */
+void Visualizer3D::restart() {
+  LOG(INFO) << "Resetting shutdown visualizer flag to false.";
+  shutdown_ = false;
+}
+
+/* -------------------------------------------------------------------------- */
 // Returns true if visualization is ready, false otherwise.
 bool Visualizer3D::visualize(const std::shared_ptr<VisualizerInputPayload>& input,
                              VisualizerOutputPayload* output) {

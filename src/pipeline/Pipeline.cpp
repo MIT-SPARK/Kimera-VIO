@@ -161,11 +161,11 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
     // Shutdown pipeline first
     shutdown();
 
+    // Re-initialize pipeline
+    reInitialize(stereo_imu_sync_packet);
+
     // Resume pipeline
     resume();
-
-    // Re-initialize tracking
-    reInitialize(stereo_imu_sync_packet);
 
     ///////////////////////////////////////////
 
@@ -510,30 +510,6 @@ void Pipeline::shutdown() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::resume() {
-
-    // Re-launch threads
-    if (parallel_run_) {
-      launchThreads();
-    } else {
-      LOG(INFO) << "Running in sequential mode (parallel_run set to "
-                << parallel_run_<< ").";
-    }
-    is_initialized_ = true;
-
-    // Resume all queues
-    stereo_frontend_input_queue_.resume();
-    stereo_frontend_output_queue_.resume();
-    backend_input_queue_.resume();
-    backend_output_queue_.resume();
-    mesher_input_queue_.resume();
-    mesher_output_queue_.resume();
-    visualizer_input_queue_.resume();
-    visualizer_output_queue_.resume();
-
-}
-
-/* -------------------------------------------------------------------------- */
 bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   LOG(INFO) << "------------------- Initialize Pipeline with frame k = "
             << stereo_imu_sync_packet.getStereoFrame().getFrameId()
@@ -547,12 +523,21 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
         stereo_imu_sync_packet.getStereoFrame());
 
   ///////////////////////////// BACKEND ////////////////////////////////////////
-  // Initialize Backend.
+  // Initialize Backend using GT if available.
   std::shared_ptr<gtNavState> initialStateGT =
-      dataset_->isGroundTruthAvailable()?
+    dataset_->isGroundTruthAvailable()?
         std::make_shared<gtNavState>(dataset_->getGroundTruthState(
                      stereo_imu_sync_packet.getStereoFrame().getTimestamp())) :
                      std::shared_ptr<gtNavState>(nullptr);
+  // Initialize Backend using External Pose Estimate if available.
+  /*if (stereo_imu_sync_packet.getReinitPacket().getReinitFlag()) {
+      LOG(INFO) << "Reinitialized with external navstate estimate.";
+      std::shared_ptr<gtNavState> initialStateGT = stereo_imu_sync_packet.getReinitPacket().getReinitFlag()?
+          std::make_shared<gtNavState>(gtNavState(
+            stereo_imu_sync_packet.getReinitPacket().getReinitPose(),
+            stereo_imu_sync_packet.getReinitPacket().getReinitVel(),
+            stereo_imu_sync_packet.getReinitPacket().getReinitBias())) :
+                     std::shared_ptr<gtNavState>(nullptr); */
 
   initBackend(&vio_backend_,
               stereo_frame_lkf.getBPoseCamLRect(),
@@ -584,17 +569,23 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO: Adapt and create better re-initialization function
+// TODO: Adapt and create better re-initialization (online) function
 bool Pipeline::reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
-  LOG(INFO) << "------------------- Re-Initialize Pipeline with frame k = "
-          << stereo_imu_sync_packet.getStereoFrame().getFrameId()
-          << "--------------------";
 
-  // Log reinitialization
-  stereo_imu_sync_packet.getReinitPacket().print();
+  // Reset shutdown flags
+  shutdown_ = false;
+
+  CHECK(vio_frontend_);
+  vio_frontend_->restart();
+
+  CHECK(vio_backend_);
+  vio_backend_->restart();
+
+  mesher_.restart();
+  
+  visualizer_.restart();
 
   // Use default initialization function
-  // TODO: Create a better initialization (online) function
   return initialize(stereo_imu_sync_packet);
 }
 
@@ -804,6 +795,37 @@ void Pipeline::launchThreads() {
   //                                 &visualizer_,
   //                                 std::ref(visualizer_input_queue_),
   //                                 std::ref(visualizer_output_queue_));
+}
+
+/* -------------------------------------------------------------------------- */
+// Resume all workers and queues
+void Pipeline::resume() {
+
+    LOG(INFO) << "Restarting frontend workers and queues...";
+    stereo_frontend_input_queue_.resume();
+    stereo_frontend_output_queue_.resume();
+
+    LOG(INFO) << "Restarting backend workers and queues...";
+    backend_input_queue_.resume();
+    backend_output_queue_.resume();
+
+    LOG(INFO) << "Restarting mesher workers and queues...";
+    mesher_input_queue_.resume();
+    mesher_output_queue_.resume();
+
+    LOG(INFO) << "Restarting visualizer workers and queues...";
+    visualizer_input_queue_.resume();
+    visualizer_output_queue_.resume();
+
+    // Re-launch threads
+    if (parallel_run_) {
+      launchThreads();
+    } else {
+      LOG(INFO) << "Running in sequential mode (parallel_run set to "
+                << parallel_run_<< ").";
+    }
+    is_initialized_ = true;
+
 }
 
 /* -------------------------------------------------------------------------- */
