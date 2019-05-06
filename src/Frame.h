@@ -317,12 +317,25 @@ public:
     uncalibrated_px(0) = cv_px;
     cv::Mat calibrated_px;
 
-    // TODO optimize this in just one call, the s in Points is there for
-    // something I hope.
-    cv::undistortPoints(uncalibrated_px,
+    if (cam_param.distortion_model_ == "radtan" ||
+      cam_param.distortion_model_ == "radial-tangential") {
+      // TODO optimize this in just one call, the s in Points is there for
+      // something I hope.
+      cv::undistortPoints(uncalibrated_px,
                         calibrated_px,
                         cam_param.camera_matrix_,
                         cam_param.distortion_coeff_);
+    }
+    else if ((cam_param.distortion_model_ == "fov")) {
+      // TODO: Add different undistortPoints function for stereo matching with FOV
+      UtilsOpenCV::undistortPointsFov(uncalibrated_px,
+                        calibrated_px,
+                        cam_param.camera_matrix_,
+                        cam_param.distortion_coeff_);
+    } 
+    else {
+      LOG(ERROR) << "Camera distortion model not found in CalibratePixel()!";
+    }
 
     // Transform to unit vector.
     Vector3 versor (calibrated_px.at<float>(0, 0),

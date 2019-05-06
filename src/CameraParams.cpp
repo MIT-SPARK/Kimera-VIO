@@ -36,7 +36,9 @@ bool CameraParams::parseYAML(const std::string& filepath) {
   // Convert distortion coefficients to OpenCV Format
   distortion_coeff_ = cv::Mat::zeros(1, 5, CV_64F);
   for (int k = 0; k < 4; k++) {
-    distortion_coeff_.at<double>(0, k) = distortion_coeff4_[k];
+    if (k < distortion_coeff4_.size()) {
+      distortion_coeff_.at<double>(0, k) = distortion_coeff4_[k];
+    }
   }
 
   // Camera resolution.
