@@ -157,7 +157,7 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
   } 
   else if(stereo_imu_sync_packet.getReinitPacket().getReinitFlag()) {
     
-    // TODO: Fix issue with re-initialization
+    // TODO: Add option to autoinitialize, but re-initialize from ext. pose (flag)
     // Shutdown pipeline first
     shutdown();
 
@@ -166,8 +166,6 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
 
     // Resume pipeline
     resume();
-
-    ///////////////////////////////////////////
 
     return getSpinOutputContainer();
 
