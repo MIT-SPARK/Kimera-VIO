@@ -10,7 +10,7 @@
 #	-cam_rate		--> camera rate in hz, default=20	
 #
 # Example:
-# 	python kalibr2sparkvio_stereo.py -input_cam /home/sb/ETH/example/camchain.yaml -input_imu /home/sb/ETH/example/imu.yaml -output /home/sb/ETH/example -responsible 'Sandro Berchier' -date '19.02.2019' -stereo 'MyntEye S' -IMU 'MyntEye S'
+# 	python kalibr2sparkvio_stereo_pinhole-radtan.py -input_cam /home/sb/ETH/example/camchain.yaml -input_imu /home/sb/ETH/example/imu.yaml -output /home/sb/ETH/example -responsible 'Sandro Berchier' -date '19.02.2019' -stereo 'MyntEye S' -IMU 'MyntEye S'
 ##################################################################################################
 ##################################################################################################
 
