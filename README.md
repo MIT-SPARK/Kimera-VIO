@@ -34,7 +34,7 @@ Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PRE
 
 Prerequisites:
 
-- [GTSAM](https://bitbucket.org/gtborg/gtsam/overview/) >= 4.0 (Branch: `feature/ImprovementsIncrementalFilter`)
+- [GTSAM](https://bitbucket.org/gtborg/gtsam/overview/) >= 4.0 (Branch: `feature/ImprovementsIncrementalFilter`, commit: `c827d4cd6b11f78f3d2d9d52b335ac562a2757fc`)
 - [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0 (Installation instructions below)
 - [OpenGV] Installation instructions below 
 - [CGAL] Installation instructions below
