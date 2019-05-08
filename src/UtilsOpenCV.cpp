@@ -9,7 +9,7 @@
 /**
  * @file   UtilsOpenCV.cpp
  * @brief  Utilities to interface GTSAM with OpenCV
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #include <UtilsOpenCV.h>
@@ -31,8 +31,8 @@
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/navigation/ImuBias.h>
 
-#include "opencv2/features2d/features2d.hpp"
-#include "opencv2/opencv.hpp"
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -41,8 +41,11 @@ namespace VIO {
 /* -------------------------------------------------------------------------- */
 // Open files with name output_filename, and checks that it is valid
 void UtilsOpenCV::OpenFile(const std::string& output_filename,
-                           std::ofstream& outputFile) {
-  outputFile.open(output_filename.c_str()); outputFile.precision(20);
+                           std::ofstream& outputFile,
+                           bool append_mode) {
+  outputFile.open(output_filename.c_str(), append_mode?std::ios_base::app:
+                                                       std::ios_base::out);
+  outputFile.precision(20);
   if (!outputFile.is_open()){
     std::cout << "Cannot open file: " << output_filename << std::endl;
     throw std::runtime_error("OpenFile: cannot open the file!!!");
@@ -199,33 +202,29 @@ cv::Point2f UtilsOpenCV::RoundAndCropToSize(cv::Point2f px, cv::Size size){
   px_cropped.y = round(px_cropped.y);
   return CropToSize(px_cropped,size);
 }
+
 /* -------------------------------------------------------------------------- */
-// get good features to track from image (wrapper for opencv goodFeaturesToTrack)
-std::vector<cv::Point2f> UtilsOpenCV::ExtractCorners(
-    cv::Mat img,
-    const double qualityLevel,
-    const double minDistance,
+void UtilsOpenCV::ExtractCorners(
+    const cv::Mat& img,
+    std::vector<cv::Point2f>* corners,
+    const double& qualityLevel,
+    const double& minDistance,
     const int blockSize,
-    const double k,
-    const int maxCorners,
+    const double& k,
     const bool useHarrisDetector) {
-
-  cv::TermCriteria criteria = cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
-  // Extract the corners
-  std::vector<cv::Point2f> corners;
-
-  try{
-    cv::goodFeaturesToTrack(img, corners, 100, qualityLevel,
-                            minDistance, cv::noArray(), blockSize, useHarrisDetector, k);
-
-    cv::Size winSize = cv::Size(10, 10);
-    cv::Size zeroZone = cv::Size(-1, -1);
-    cv::cornerSubPix(img, corners, winSize, zeroZone, criteria);
-  }catch(...){
-    std::cout << "ExtractCorners: no corner found in image" << std::endl;
-    // corners remains empty
+  CHECK_NOTNULL(corners)->clear();
+  cv::TermCriteria criteria (CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+  try {
+    // Extract the corners
+    cv::goodFeaturesToTrack(img, *corners, 100, qualityLevel,
+                            minDistance, cv::noArray(), blockSize,
+                            useHarrisDetector, k);
+    cv::Size winSize (10, 10);
+    cv::Size zeroZone (-1, -1);
+    cv::cornerSubPix(img, *corners, winSize, zeroZone, criteria);
+  } catch(...) {
+    LOG(ERROR) << "ExtractCorners: no corner found in image.";
   }
-  return corners;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -235,59 +234,72 @@ bool UtilsOpenCV::myGreaterThanPtr<T>::operator() (const std::pair<const T* , T>
   return *(a.first) > *(b.first);
 }
 /* -------------------------------------------------------------------------- */
-// get good features to track from image (wrapper for opencv goodFeaturesToTrack)
-std::pair< std::vector<cv::Point2f> , std::vector<double> >
-UtilsOpenCV::MyGoodFeaturesToTrackSubPix(cv::Mat image,
-                                         int maxCorners, double qualityLevel, double minDistance,
-                                         cv::Mat mask, int blockSize,
-                                         bool useHarrisDetector, double harrisK ){
-
-  // outputs:
-  std::vector<double> scores;
-  std::vector<cv::Point2f> corners;
-
-  try{
+// TODO this function should be optimized and cleaned.
+// Refactor corners_with_scores using typedef.
+// Use std::vector<std::pair<cv::Point2f, double>>
+// Or  std::vector<std::pair<KeypointCV, Score>> but not a pair of vectors.
+void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
+    const cv::Mat& image,
+    const int& maxCorners,
+    const double& qualityLevel,
+    double minDistance,
+    const cv::Mat& mask,
+    const int& blockSize,
+    const bool& useHarrisDetector,
+    const double& harrisK,
+    std::pair<std::vector<cv::Point2f>, std::vector<double>>*
+      corners_with_scores) {
+  CHECK_NOTNULL(corners_with_scores);
+  try {
     cv::Mat eig, tmp;
-    double maxVal = 0; double minVal; cv::Point minLoc; cv::Point maxLoc;
+    double maxVal = 0;
+    double minVal;
+    cv::Point minLoc;
+    cv::Point maxLoc;
     // get eigenvalue image & get peak
-    if( useHarrisDetector )
-      cv::cornerHarris( image, eig, blockSize, 3, harrisK );
-    else
-      cv::cornerMinEigenVal( image, eig, blockSize, 3 );
+    if (useHarrisDetector) {
+      cv::cornerHarris(image, eig, blockSize, 3, harrisK);
+    } else {
+      cv::cornerMinEigenVal(image, eig, blockSize, 3);
+    }
 
-    // cut off corners below quality level
-    cv::minMaxLoc( eig, &minVal, &maxVal, &minLoc, &maxLoc, mask );
-    cv::threshold( eig, eig, maxVal*qualityLevel, 0, CV_THRESH_TOZERO ); // cut stuff below quality
-    cv::dilate( eig, tmp, cv::Mat());
+    // Cut off corners below quality level.
+    cv::minMaxLoc(eig, &minVal, &maxVal, &minLoc, &maxLoc, mask);
+    // Cut stuff below quality.
+    cv::threshold(eig, eig, maxVal*qualityLevel, 0, CV_THRESH_TOZERO);
+    cv::dilate(eig, tmp, cv::Mat());
 
     cv::Size imgsize = image.size();
 
-    // create corners
-    std::vector< std::pair< const float* , float > > tmpCornersScores;
+    // Create corners.
+    std::vector<std::pair<const float*, float>> tmpCornersScores;
 
     // collect list of pointers to features - put them into temporary image
-    for( int y = 1; y < imgsize.height - 1; y++ )
-    {
+    for (int y = 1; y < imgsize.height - 1; y++) {
       const float* eig_data = (const float*)eig.ptr(y);
       const float* tmp_data = (const float*)tmp.ptr(y);
-      const uchar* mask_data = mask.data ? mask.ptr(y) : 0;
+      const uchar* mask_data = mask.data? mask.ptr(y) : nullptr;
 
-      for( int x = 1; x < imgsize.width - 1; x++ )
-      {
+      for (int x = 1; x < imgsize.width - 1; x++) {
         float val = eig_data[x];
-        if( val != 0 && val == tmp_data[x] && (!mask_data || mask_data[x]) ){
-          tmpCornersScores.push_back( std::make_pair( eig_data + x, val) );
+        if (val != 0 &&
+            val == tmp_data[x] &&
+            (!mask_data || mask_data[x])) {
+          tmpCornersScores.push_back(std::make_pair(eig_data + x, val));
         }
       }
     }
 
-    std::sort( tmpCornersScores.begin(), tmpCornersScores.end(), myGreaterThanPtr<float>() );
+    std::sort(tmpCornersScores.begin(),
+              tmpCornersScores.end(),
+              myGreaterThanPtr<float>());
 
-    // put sorted corner in other struct
-    size_t i, j, total = tmpCornersScores.size(), ncorners = 0;
+    // Put sorted corner in other struct.
+    size_t i, j;
+    size_t total = tmpCornersScores.size();
+    size_t ncorners = 0;
 
-    if(minDistance >= 1)
-    {
+    if (minDistance >= 1) {
       // Partition the image into larger grids
       int w = image.cols;
       int h = image.rows;
@@ -296,12 +308,11 @@ UtilsOpenCV::MyGoodFeaturesToTrackSubPix(cv::Mat image,
       const int grid_width = (w + cell_size - 1) / cell_size;
       const int grid_height = (h + cell_size - 1) / cell_size;
 
-      std::vector<std::vector<cv::Point2f> > grid(grid_width*grid_height);
+      std::vector<std::vector<cv::Point2f>> grid (grid_width * grid_height);
 
       minDistance *= minDistance;
 
-      for( i = 0; i < total; i++ )
-      {
+      for (i = 0; i < total; i++) {
         int ofs = (int)((const uchar*)tmpCornersScores[i].first - eig.data);
         int y = (int)(ofs / eig.step);
         int x = (int)((ofs - y*eig.step)/sizeof(float));
@@ -323,21 +334,16 @@ UtilsOpenCV::MyGoodFeaturesToTrackSubPix(cv::Mat image,
         x2 = std::min(grid_width-1, x2);
         y2 = std::min(grid_height-1, y2);
 
-        for( int yy = y1; yy <= y2; yy++ )
-        {
-          for( int xx = x1; xx <= x2; xx++ )
-          {
+        for( int yy = y1; yy <= y2; yy++ ) {
+          for( int xx = x1; xx <= x2; xx++ ) {
             std::vector <cv::Point2f> &m = grid[yy*grid_width + xx];
 
-            if( m.size() )
-            {
-              for(j = 0; j < m.size(); j++)
-              {
+            if( m.size() ) {
+              for(j = 0; j < m.size(); j++) {
                 float dx = x - m[j].x;
                 float dy = y - m[j].y;
 
-                if( dx*dx + dy*dy < minDistance )
-                {
+                if( dx*dx + dy*dy < minDistance ) {
                   good = false;
                   goto break_out;
                 }
@@ -348,29 +354,28 @@ UtilsOpenCV::MyGoodFeaturesToTrackSubPix(cv::Mat image,
 
 break_out:
 
-        if(good)
-        {
+        if (good) {
           // printf("%d: %d %d -> %d %d, %d, %d -- %d %d %d %d, %d %d, c=%d\n",
           //    i,x, y, x_cell, y_cell, (int)minDistance, cell_size,x1,y1,x2,y2, grid_width,grid_height,c);
           grid[y_cell*grid_width + x_cell].push_back(cv::Point2f((float)x, (float)y));
-          corners.push_back(cv::Point2f((float)x, (float)y));
-          scores.push_back(eigVal);
+          corners_with_scores->first.push_back(cv::Point2f((float)x,
+                                                           (float)y));
+          corners_with_scores->second.push_back(eigVal);
           ++ncorners;
-          if( maxCorners > 0 && (int)ncorners == maxCorners )
+          if (maxCorners > 0 &&
+              (int)ncorners == maxCorners)
             break;
         }
       }
-    }
-    else
-    {
-      for( i = 0; i < total; i++ )
-      {
+    } else {
+      for (i = 0; i < total; i++) {
         int ofs = (int)((const uchar*)tmpCornersScores[i].first - eig.data);
         int y = (int)(ofs / eig.step);
         int x = (int)((ofs - y*eig.step)/sizeof(float));
         double eigVal = double( tmpCornersScores[i].second );
-        corners.push_back(cv::Point2f((float)x, (float)y));
-        scores.push_back(eigVal);
+        corners_with_scores->first.push_back(cv::Point2f((float)x,
+                                                         (float)y));
+        corners_with_scores->second.push_back(eigVal);
         ++ncorners;
         if( maxCorners > 0 && (int)ncorners == maxCorners )
           break;
@@ -378,17 +383,17 @@ break_out:
     }
 
     // subpixel accuracy: TODO: create function for the next 4 lines
-    cv::TermCriteria criteria = cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
-    cv::Size winSize = cv::Size(10, 10);
-    cv::Size zeroZone = cv::Size(-1, -1);
+    cv::TermCriteria criteria (CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+    cv::Size winSize (10, 10);
+    cv::Size zeroZone (-1, -1);
 
-    cv::cornerSubPix(image, corners, winSize, zeroZone, criteria);
-  }catch(...){
-    std::cout << "ExtractCorners: no corner found in image" << std::endl;
-    // corners remains empty
+    cv::cornerSubPix(image, corners_with_scores->first, winSize, zeroZone, criteria);
+  } catch (...) {
+    // Corners remains empty.
+    LOG(WARNING) << "ExtractCorners: no corner found in image.";
   }
-  return std::make_pair(corners, scores);
 }
+
 /* -------------------------------------------------------------------------- */
 // rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0
 gtsam::Unit3 UtilsOpenCV::RoundUnit3(const gtsam::Unit3& x){
@@ -468,7 +473,7 @@ std::pair<double,double> UtilsOpenCV::ComputeRotationAndTranslationErrors(
 /* -------------------------------------------------------------------------- */
 // reads image and converts to 1 channel image
 cv::Mat UtilsOpenCV::ReadAndConvertToGrayScale(const std::string& img_name,
-                                               bool const equalize) {
+                                               bool equalize) {
   cv::Mat img = cv::imread(img_name, cv::IMREAD_ANYCOLOR);
   if (img.channels() > 1)
     cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
@@ -606,15 +611,16 @@ void UtilsOpenCV::DrawTextInPlace(cv::Mat& img,
   }
 }
 /* -------------------------------------------------------------------------- */
-// concatenate two images and return results as a new mat
-cv::Mat UtilsOpenCV::ConcatenateTwoImages(const cv::Mat imL_in,
-                                          const cv::Mat imR_in) {
+// Concatenate two images and return results as a new mat.
+// Clones the two images.
+cv::Mat UtilsOpenCV::ConcatenateTwoImages(const cv::Mat& imL_in,
+                                          const cv::Mat& imR_in) {
   cv::Mat imL = imL_in.clone();
-  if (imL.channels() == 1){
+  if (imL.channels() == 1) {
     cv::cvtColor(imL, imL, cv::COLOR_GRAY2BGR);
   }
   cv::Mat imR = imR_in.clone();
-  if (imR.channels() == 1){
+  if (imR.channels() == 1) {
     cv::cvtColor(imR, imR, cv::COLOR_GRAY2BGR);
   }
   cv::Size szL = imL.size();
@@ -626,15 +632,15 @@ cv::Mat UtilsOpenCV::ConcatenateTwoImages(const cv::Mat imL_in,
   imR.copyTo(right);
   return originalLR;
 }
+
 /* -------------------------------------------------------------------------- */
-// draw corner matches and return results as a new mat
-cv::Mat UtilsOpenCV::DrawCornersMatches(const cv::Mat img1,
+// Draw corner matches and return results as a new mat.
+cv::Mat UtilsOpenCV::DrawCornersMatches(const cv::Mat& img1,
                                         const std::vector<cv::Point2f> &corners1,
-                                        const cv::Mat img2,
+                                        const cv::Mat& img2,
                                         const std::vector<cv::Point2f> &corners2,
                                         const std::vector<cv::DMatch> &matches,
-                                        const bool randomColor)
-{
+                                        const bool randomColor) {
   cv::Mat canvas = UtilsOpenCV::ConcatenateTwoImages(img1, img2);
   cv::Point2f ptOffset = cv::Point2f(img1.cols, 0);
   cv::RNG rng(12345);
@@ -653,8 +659,7 @@ cv::Mat UtilsOpenCV::DrawCornersMatches(const cv::Mat img1,
 /* -------------------------------------------------------------------------- */
 cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
                                  const StatusKeypointsCV& imagePoints,
-                                 const std::vector<double>& circleSizes)
-{
+                                 const std::vector<double>& circleSizes) {
   KeypointsCV valid_imagePoints;
   std::vector<cv::Scalar> circleColors;
   for(size_t i=0; i<imagePoints.size(); i++){
@@ -680,13 +685,12 @@ cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
                                  const std::vector<double>& circleSizes) {
   bool displayWithSize = false; // if true size of circles is proportional to depth
   bool displayWithText = true; // if true display text with depth
-  KeypointCV textOffset = KeypointCV(-10,-5); // text offset
+  KeypointCV textOffset (-10,-5); // text offset
   cv::Mat img_color = img.clone();
   if (img_color.channels() < 3) {
     cv::cvtColor(img_color, img_color, cv::COLOR_GRAY2BGR);
   }
-  for (size_t i = 0; i < imagePoints.size(); i++)
-  {
+  for (size_t i = 0; i < imagePoints.size(); i++) {
     double circleSize = 3;
     cv::Scalar circleColor = cv::Scalar(0, 255, 0);
 
@@ -698,9 +702,13 @@ cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
 
     cv::circle(img_color, imagePoints[i], circleSize, circleColor, 2);
 
-    if(displayWithText && circleSizes.size() == imagePoints.size() && circleSizes[i] != -1){
-      cv::putText(img_color, UtilsOpenCV::To_string_with_precision(circleSizes[i]),
-                  imagePoints[i] + textOffset, CV_FONT_HERSHEY_COMPLEX, 0.4, circleColor);
+    if (displayWithText &&
+        circleSizes.size() == imagePoints.size() &&
+        circleSizes[i] != -1) {
+      cv::putText(img_color,
+                  UtilsOpenCV::To_string_with_precision(circleSizes[i]),
+                  imagePoints[i] + textOffset,
+                  CV_FONT_HERSHEY_COMPLEX, 0.4, circleColor);
     }
   }
   return img_color;
@@ -921,6 +929,20 @@ UtilsOpenCV::FindHighIntensityInTriangle(
   }
 
   return keypointsWithIntensities;
+}
+
+/* ------------------------------------------------------------------------ */
+// Returns a OpenCV file storage in a safely manner, warning about potential
+// exceptions thrown.
+void UtilsOpenCV::safeOpenCVFileStorage(cv::FileStorage* fs,
+                                        const std::string& filename_sensor) {
+  CHECK_NOTNULL(fs);
+  try {
+    *fs = cv::FileStorage(filename_sensor, cv::FileStorage::READ);
+  } catch (cv::Exception& e) {
+    LOG(FATAL) << "Cannot open file in parseImuData: " << filename_sensor << '\n'
+               << "OpenCV error code: " << e.msg;
+  }
 }
 
 } // namespace VIO

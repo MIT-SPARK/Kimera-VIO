@@ -61,14 +61,6 @@ TEST(testVioBackEndParams, VioParseYAML) {
   EXPECT(vp.linearizationMode_ == 3);
   EXPECT(vp.degeneracyMode_ == 2);
   EXPECT_DOUBLES_EQUAL(5, vp.smartNoiseSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(6, vp.monoNoiseSigma_, tol);
-  EXPECT(0 == vp.monoNormType_);
-  EXPECT_DOUBLES_EQUAL(3, vp.stereoNoiseSigma_, tol);
-  EXPECT(0 == vp.stereoNormType_);
-  EXPECT_DOUBLES_EQUAL(0.3, vp.regularityNoiseSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(2.2, vp.huberParam_, tol);
-  EXPECT_DOUBLES_EQUAL(5.1, vp.tukeyParam_, tol);
-  EXPECT(1 == vp.regularityNormType_);
   EXPECT_DOUBLES_EQUAL(2.1, vp.rankTolerance_, tol);
   EXPECT_DOUBLES_EQUAL(10.2, vp.landmarkDistanceThreshold_, tol);
   EXPECT_DOUBLES_EQUAL(3.2, vp.outlierRejection_, tol);

@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.1)
-project (VIO CXX C)
+project (spark_vio)
 # set(CMAKE_CXX_FLAGS "-std=c++11") #  -stdlib=libc++
 # set(CMAKE_CXX_FLAGS "-stdlib=libc++")
 
@@ -8,10 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -pipe")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native -DNDEBUG")
-set(CMAKE_C_FLAGS_RELEASE "-O2 -march=native -DNDEBUG")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pipe")
 
 ### Include the boost directory
 find_package(Boost COMPONENTS filesystem REQUIRED)
@@ -89,22 +86,32 @@ include_directories("./src")
 
 add_library(stereoVIO SHARED ./src/ETH_parser.cpp ./src/StereoVisionFrontEnd.cpp
                       ./src/Tracker.cpp ./src/StereoFrame.cpp
+                      ./src/StereoImuSyncPacket.cpp
                       ./src/UtilsGeometry.cpp ./src/UtilsOpenCV.cpp
-                      ./src/ImuFrontEnd.cpp ./src/VioBackEnd.cpp
+                      ./src/ImuFrontEnd.cpp
+                      ./src/VioBackEnd.cpp
                       ./src/RegularVioBackEnd.cpp
-                      ./src/Histogram.cpp
-                      ./src/FeatureSelector.h ./src/LoggerMatlab.h
+                      ./src/Histogram.cpp ./src/LoggerMatlab.cpp
+                      ./src/FeatureSelector.h
                       ./src/VioBackEndParams.h ./src/VioFrontEndParams.h
                       ./src/RegularVioBackEndParams.h
                       ./src/CameraParams.h ./src/Frame.h
-                      ./src/Visualizer3D.h
+                      ./src/Visualizer3D.cpp
                       ./src/Histogram.h
                       "")
 
+### Add source code for data provider.
+include(src/datasource/CMakeLists.txt)
 ### Add source code for factors
 include(src/factors/CMakeLists.txt)
 ### Add source code for mesh
 include(src/mesh/CMakeLists.txt)
+### Add source code for utils
+include(src/utils/CMakeLists.txt)
+### Add source code for pipeline
+include(src/pipeline/CMakeLists.txt)
+### Add source code for common
+include(src/common/CMakeLists.txt)
 
 if (DEFINED external_project_dependencies)
   add_dependencies(stereoVIO ${external_project_dependencies})
@@ -117,9 +124,6 @@ target_link_libraries (stereoVIOEuroc stereoVIO)
 
 add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
 target_link_libraries (stereoVIOSimulation stereoVIO)
-
-add_executable(regularFactorGraph ./examples/regularFactorGraphExample.cpp)
-target_link_libraries(regularFactorGraph stereoVIO)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)

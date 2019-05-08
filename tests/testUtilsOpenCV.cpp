@@ -343,7 +343,8 @@ TEST(testUtils, ExtractCornersChessboard) {
   tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
 
   // Extract the corners!
-  vector<cv::Point2f> keypoints_actual = UtilsOpenCV::ExtractCorners(chessboardImg);
+  vector<cv::Point2f> keypoints_actual;
+  UtilsOpenCV::ExtractCorners(chessboardImg, &keypoints_actual);
 
   EXPECT(keypoints_actual.size() <= 100);
   EXPECT(keypoints_actual.size() >= keypoints_expected.size());
@@ -370,7 +371,8 @@ TEST(testUtils, ExtractCornersWhiteWall) {
   // Given an image of white wall, no corners should be extracted!!
   Mat whitewallImg = Mat::zeros(800, 600, CV_8U);
 
-  vector<cv::Point2f> keypoints_actual = UtilsOpenCV::ExtractCorners(whitewallImg);
+  vector<cv::Point2f> keypoints_actual;
+  UtilsOpenCV::ExtractCorners(whitewallImg, &keypoints_actual);
 
   // Assert that no corners are extracted!
   EXPECT(keypoints_actual.size() == 0);
@@ -601,10 +603,11 @@ TEST(UtilsOpenCV, ExtractCornersChessboard) {
   Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName);
   vector<cv::Point2f> actualCorners,actualCorners2;
   vector<double> actualScores;
-  tie(actualCorners,actualScores) =
-      UtilsOpenCV::MyGoodFeaturesToTrackSubPix(img, 100, 0.01, 10, Mat(), 3, false, 0.04 );
+  std::pair<std::vector<cv::Point2f>, std::vector<double>> corners_with_scores;
+  UtilsOpenCV::MyGoodFeaturesToTrackSubPix(img, 100, 0.01, 10, Mat(), 3, false,
+ 0.04, &corners_with_scores);
 
-  actualCorners2 = UtilsOpenCV::ExtractCorners(img);
+  UtilsOpenCV::extractCorners(img, &actualCorners2);
 
   int numCorners_expected = 7 * 9;
   EXPECT_DOUBLES_EQUAL(numCorners_expected, actualCorners.size(), 1e-3);
@@ -619,28 +622,36 @@ TEST(UtilsOpenCV, ExtractCornersChessboard) {
 }
 /* ************************************************************************* */
 TEST(UtilsOpenCV, ExtractCornersImage) {
-
   Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(realImgName);
-  vector<cv::Point2f> actualCorners,actualCorners2;
-  vector<double> actualScores;
 
-  tie(actualCorners,actualScores) =
-      UtilsOpenCV::MyGoodFeaturesToTrackSubPix(img, 100, 0.01, 10, Mat(), 3, false, 0.04 );
+  std::pair<std::vector<cv::Point2f>, std::vector<double>> corners_with_scores;
+  UtilsOpenCV::MyGoodFeaturesToTrackSubPix(img, 100, 0.01, 10, Mat(), 3,
+                                           false, 0.04,
+                                           &corners_with_scores);
 
-  actualCorners2 = UtilsOpenCV::ExtractCorners(img);
+  vector<cv::Point2f> actualCorners2;
+  UtilsOpenCV::ExtractCorners(img, &actualCorners2);
 
-  EXPECT_DOUBLES_EQUAL(actualCorners.size(), actualCorners2.size(), 1e-3);
-  EXPECT_DOUBLES_EQUAL(actualCorners.size(), actualScores.size(), 1e-3);
+  EXPECT_DOUBLES_EQUAL(corners_with_scores.first.size(),
+                       actualCorners2.size(), 1e-3);
+  EXPECT_DOUBLES_EQUAL(corners_with_scores.first.size(),
+                       corners_with_scores.second.size(), 1e-3);
 
-  for(size_t i=0; i<actualCorners2.size(); ++i){
-    EXPECT_DOUBLES_EQUAL(actualCorners.at(i).x,actualCorners2.at(i).x, 1e-3);
-    EXPECT_DOUBLES_EQUAL(actualCorners.at(i).y,actualCorners2.at(i).y, 1e-3);
-    if(i<actualCorners2.size()-1)
-      EXPECT(actualScores.at(i+1) <= actualScores.at(i)); // check that they are sorted
+  for (size_t i = 0; i < actualCorners2.size(); ++i) {
+    EXPECT_DOUBLES_EQUAL(corners_with_scores.first.at(i).x,
+                         actualCorners2.at(i).x, 1e-3);
+    EXPECT_DOUBLES_EQUAL(corners_with_scores.first.at(i).y,
+                         actualCorners2.at(i).y, 1e-3);
+    if (i < actualCorners2.size() - 1) {
+      EXPECT(corners_with_scores.second.at(i+1) <=
+             corners_with_scores.second.at(i)); // check that they are sorted
+    }
   }
   // check that smallest (last) score is greater than 0.01 (quality level) times the largest (first)
-  EXPECT(actualScores.at(actualCorners2.size()-1) >= 0.01 * actualScores.at(0));
+  EXPECT(corners_with_scores.second.at(actualCorners2.size()-1) >=
+         0.01 * corners_with_scores.second.at(0));
 }
+
 /* ************************************************************************* */
 TEST(UtilsOpenCV, VectorUnique){
   vector<int> vactual{1,2,3,1,2,3,3,4,5,4,5,6,7};
@@ -661,8 +672,8 @@ Mat chessboardImg;
   vector<cv::Point2f> notUsed;
   tie(chessboardImg, notUsed) = cvCreateChessboard(30, 10, 8);
   Mat actual = UtilsOpenCV::ImageLaplacian(chessboardImg);
-  cv::imshow("actual",actual);
-  cv::waitKey(100);
+  //cv::imshow("actual",actual);
+  //cv::waitKey(100);
 }
 /* ************************************************************************* */
 int main() {

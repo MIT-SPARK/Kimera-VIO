@@ -17,7 +17,7 @@ The Regular VIO backend is described in this paper:
 Quickstart
 ----------
 
-Clone this repository: `git clone git@github.mit.edu:lcarlone/VIO.git`
+Clone this repository: `git clone git@github.mit.edu:SPARK/VIO.git`
 
 In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly,you may need to change the folder for CGAL and OpenGV):
 
@@ -133,6 +133,42 @@ You have two ways to start the example:
   - Run: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy"```
   - Optionally, you can try the VIO using structural regularities, as in [Toni's thesis](https://www.research-collection.ethz.ch/handle/20.500.11850/297645), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy" -r```
 - Alternatively, have a look inside the script to see how to change extra parameters that control the pipeline itself.
+
+
+Tips for usage
+----------------------
+- The 3D Visualization window implements the following keyboard shortcuts:
+    - Press 't': toggle freezing visualization (as of know, this blocks the whole pipeline, it might change once the visualization is threaded).
+    - Press 'v': prints to the terminal the pose of the current viewpoint of the 3D visualization window.
+    - Press 'w': prints to the terminal the size of the 3D visualization window.
+
+     These last two shortcuts are useful if you want to programmatically set the initial viewpoint and size of the screen when launching the 3D visualization window (this is done at the constructor of the 3DVisualizer class).
+    - Press 's': to get a screenshot of the 3D visualization window.
+    - Press '0', '1', or '2': to toggle the 3D mesh representation (only visible if the gflag 'visualize_mesh' is set to true).
+
+> For these shortcuts to take effect you need to have the window in focus. Note also that there might be a big delay between your keypress and the actual processing of the information as this is purely sequential with the VIO pipeline itself; this might change after parallelizing the pipeline).
+
+- The 3D Visualization allows to load an initial `.ply` file.
+This is useful for example for the Euroc dataset `V1_01_*` where we are given a point-cloud of the scene. Note that the `.ply` file must have the following properties in the header, and its corresponding entries:
+  - A vertex element: `element vertex 3199068` (actual number depends on how many vertices has the ply file).
+  - A face element: `element face 0`(actual number depends on how many faces has the ply file)
+  - Properties may vary, as for now, any given `.ply` file will be displayed as a point-cloud, not a mesh (due to some weirdness in opencv).
+  - For example, the ground-truth point-cloud provided in `V1_01_easy` dataset must be modified to have the following header:
+      ```
+      ply
+      format ascii 1.0
+      element vertex 3199068
+      property float x
+      property float y
+      property float z
+      property float intensity
+      property uchar diffuse_red
+      property uchar diffuse_green
+      property uchar diffuse_blue
+      element face 0
+      property list uint8 int32 vertex_indices
+      end_header
+      ```
 
 Tips for development
 ----------------------

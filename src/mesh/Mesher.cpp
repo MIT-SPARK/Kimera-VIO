@@ -12,6 +12,8 @@
  * @author Luca Carlone, AJ Haeffner, Antoni Rosinol
  */
 
+#include <math.h>
+
 #include "mesh/Mesher.h"
 
 #include <algorithm>
@@ -30,9 +32,11 @@ DEFINE_bool(reduce_mesh_to_time_horizon, true, "Reduce mesh vertices to the "
 
 // Visualization.
 DEFINE_bool(visualize_histogram_1D, false, "Visualize 1D histogram.");
+DEFINE_bool(log_histogram_1D, false, "Log 1D histogram to file."
+                                     " It logs the raw and smoothed histogram.");
 DEFINE_bool(visualize_histogram_2D, false, "Visualize 2D histogram.");
-DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");
-DEFINE_bool(visualize_mesh_2d_filtered, false, "Visualize mesh 2D filtered.");
+DEFINE_bool(log_histogram_2D, false, "Log 2D histogram to file."
+                                     " It logs the raw and smoothed histogram.");
 
 // Mesh filters.
 DEFINE_double(max_grad_in_triangle, -1,
@@ -62,6 +66,11 @@ DEFINE_bool(do_double_association, true,
             "Do double plane association of backend plane with multiple "
             "segmented planes. Otherwise search for another possible "
             "backend plane for the segmented plane.");
+DEFINE_bool(only_associate_a_polygon_to_a_single_plane, true,
+            "Limit association of a particular polygon to a single plane. "
+            "Otherwise, a polygon can be associated to different planes "
+            " depending on the tolerance given by the thresholds set for "
+            "association.");
 
 // Segmentation.
 DEFINE_double(normal_tolerance_horizontal_surface, 0.011,
@@ -87,7 +96,7 @@ DEFINE_int32(hist_2d_min_dist_btw_local_max, 5,
 DEFINE_int32(hist_2d_theta_bins, 40, ".");
 DEFINE_int32(hist_2d_distance_bins, 40, ".");
 DEFINE_double(hist_2d_theta_range_min, 0, ".");
-DEFINE_double(hist_2d_theta_range_max, PI, ".");
+DEFINE_double(hist_2d_theta_range_max, M_PI, ".");
 DEFINE_double(hist_2d_distance_range_min, -6.0, ".");
 DEFINE_double(hist_2d_distance_range_max, 6.0, ".");
 
@@ -120,8 +129,10 @@ Mesher::Mesher()
   : mesh_() {
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
-  std::array<float, 2> z_range = {FLAGS_z_histogram_min_range,
-                                  FLAGS_z_histogram_max_range};
+  // We cannot use an array of doubles here bcs the function cv::calcHist asks
+  // for floats ... It is not templated.
+  std::array<float, 2> z_range = {static_cast<float>(FLAGS_z_histogram_min_range),
+                                  static_cast<float>(FLAGS_z_histogram_max_range)};
   std::vector<std::array<float, 2>> ranges = {z_range};
   std::vector<int> channels = {0};
   z_hist_ = Histogram(1, channels, cv::Mat(), 1, hist_size, ranges, true, false);
@@ -129,10 +140,10 @@ Mesher::Mesher()
   // Create 2d histogram.
   std::vector<int> hist_2d_size = {FLAGS_hist_2d_theta_bins,
                                    FLAGS_hist_2d_distance_bins};
-  std::array<float, 2> theta_range = {FLAGS_hist_2d_theta_range_min,
-                                      FLAGS_hist_2d_theta_range_max};
-  std::array<float, 2> distance_range = {FLAGS_hist_2d_distance_range_min,
-                                         FLAGS_hist_2d_distance_range_max};
+  std::array<float, 2> theta_range = {static_cast<float>(FLAGS_hist_2d_theta_range_min),
+                                      static_cast<float>(FLAGS_hist_2d_theta_range_max)};
+  std::array<float, 2> distance_range = {static_cast<float>(FLAGS_hist_2d_distance_range_min),
+                                         static_cast<float>(FLAGS_hist_2d_distance_range_max)};
   std::vector<std::array<float, 2>> ranges_2d = {theta_range, distance_range};
   std::vector<int> channels_2d = {0, 1};
   hist_2d_ = Histogram(1, channels_2d, cv::Mat(), 2, hist_2d_size, ranges_2d,
@@ -717,12 +728,14 @@ void Mesher::segmentPlanesInMesh(
       ////////////////////////// Update seed planes ////////////////////////////
       // Update seed_planes lmk_ids field with ids of vertices of polygon if the
       // polygon is on the plane.
-      bool is_polygon_on_a_plane = updatePlanesLmkIdsFromPolygon(
-                                     seed_planes, polygon,
-                                     i, triangle_normal,
-                                     normal_tolerance_polygon_plane_association,
-                                     distance_tolerance_polygon_plane_association,
-                                     points_with_id_vio);
+      bool is_polygon_on_a_plane =
+          updatePlanesLmkIdsFromPolygon(
+            seed_planes, polygon,
+            i, triangle_normal,
+            normal_tolerance_polygon_plane_association,
+            distance_tolerance_polygon_plane_association,
+            points_with_id_vio,
+            FLAGS_only_associate_a_polygon_to_a_single_plane);
 
       ////////////////// Build Histogram for new planes ////////////////////////
       /// Values for Z Histogram.///////////////////////////////////////////////
@@ -741,13 +754,11 @@ void Mesher::segmentPlanesInMesh(
         z_components.push_back(p1.z);
         z_components.push_back(p2.z);
         z_components.push_back(p3.z);
-      }
-
-      /// Values for walls Histogram.///////////////////////////////////////////
-      if ((FLAGS_only_use_non_clustered_points?
-           !is_polygon_on_a_plane : true) &&
-          isNormalPerpendicularToAxis(vertical, triangle_normal,
-                                      normal_tolerance_walls)) {
+      } else if ((FLAGS_only_use_non_clustered_points?
+                  !is_polygon_on_a_plane : true) &&
+                 isNormalPerpendicularToAxis(vertical, triangle_normal,
+                                             normal_tolerance_walls)) {
+        /// Values for walls Histogram./////////////////////////////////////////
         // WARNING if we do not normalize, we'll have two peaks for the same
         // plane, no?
         // Store theta.
@@ -760,7 +771,7 @@ void Mesher::segmentPlanesInMesh(
           VLOG(10) << "Normalize theta: " << theta
                    << " and distance: " << distance;
           // Say theta is -pi/2, then normalized theta is pi/2.
-          theta = theta + PI;
+          theta = theta + M_PI;
           // Change distance accordingly.
           distance = -distance;
           VLOG(10) << "New normalized theta: " << theta
@@ -826,12 +837,14 @@ const {
     if (calculateNormal(p1, p2, p3, &triangle_normal)) {
       // Loop over newly segmented planes, and update lmk ids field if
       // the current polygon is on the plane.
-      updatePlanesLmkIdsFromPolygon(planes,
-                                    polygon,
-                                    i, triangle_normal,
-                                    normal_tolerance,
-                                    distance_tolerance,
-                                    points_with_id_vio);
+      updatePlanesLmkIdsFromPolygon(
+            planes,
+            polygon,
+            i, triangle_normal,
+            normal_tolerance,
+            distance_tolerance,
+            points_with_id_vio,
+            FLAGS_only_associate_a_polygon_to_a_single_plane);
     }
   }
 }
@@ -846,7 +859,8 @@ bool Mesher::updatePlanesLmkIdsFromPolygon(
     const size_t& triangle_id,
     const cv::Point3f& triangle_normal,
     double normal_tolerance, double distance_tolerance,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+    bool only_associate_a_polygon_to_a_single_plane)
 const {
   CHECK_NOTNULL(seed_planes);
   bool is_polygon_on_a_plane = false;
@@ -879,6 +893,9 @@ const {
       // sending this polygon to segmentation and segment the same plane
       // again.
       is_polygon_on_a_plane = true;
+      if (only_associate_a_polygon_to_a_single_plane) {
+        break;
+      }
     }
   }
   return is_polygon_on_a_plane;
@@ -924,7 +941,8 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
   CHECK_NOTNULL(plane_id);
   ////////////////////////////// 2D Histogram //////////////////////////////////
   VLOG(10) << "Starting to calculate 2D histogram...";
-  hist_2d_.calculateHistogram(walls);
+  hist_2d_.calculateHistogram(walls,
+                              FLAGS_log_histogram_2D);
   VLOG(10) << "Finished to calculate 2D histogram.";
 
   /// Added by me
@@ -938,7 +956,8 @@ void Mesher::segmentWalls(std::vector<Plane>* wall_planes,
                             FLAGS_hist_2d_nr_of_local_max,
                             FLAGS_hist_2d_min_support,
                             FLAGS_hist_2d_min_dist_btw_local_max,
-                            FLAGS_visualize_histogram_2D);
+                            FLAGS_visualize_histogram_2D,
+                            FLAGS_log_histogram_2D);
   VLOG(10) << "Finished get local maximum for 2D histogram.";
 
   VLOG(0) << "# of peaks in 2D histogram = " << peaks2.size();
@@ -989,17 +1008,19 @@ void Mesher::segmentHorizontalPlanes(
   CHECK_NOTNULL(plane_id);
   ////////////////////////////// 1D Histogram //////////////////////////////////
   VLOG(10) << "Starting calculate 1D histogram.";
-  z_hist_.calculateHistogram(z_components);
+  z_hist_.calculateHistogram(z_components,
+                             FLAGS_log_histogram_1D);
   VLOG(10) << "Finished calculate 1D histogram.";
 
   VLOG(10) << "Starting get local maximum for 1D.";
   static const cv::Size kernel_size (1, FLAGS_z_histogram_gaussian_kernel_size);
   std::vector<Histogram::PeakInfo> peaks =
       z_hist_.getLocalMaximum1D(kernel_size,
-                             FLAGS_z_histogram_window_size,
-                             FLAGS_z_histogram_peak_per,
-                             FLAGS_z_histogram_min_support,
-                             FLAGS_visualize_histogram_1D);
+                                FLAGS_z_histogram_window_size,
+                                FLAGS_z_histogram_peak_per,
+                                FLAGS_z_histogram_min_support,
+                                FLAGS_visualize_histogram_1D,
+                                FLAGS_log_histogram_1D);
   VLOG(10) << "Finished get local maximum for 1D.";
 
   LOG(WARNING) << "# of peaks in 1D histogram = " << peaks.size();
@@ -1219,11 +1240,13 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 
 /* -------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
+// Optional parameter is the mesh in 2D for visualization.
 void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
-    std::shared_ptr<StereoFrame> stereoFrame,
-    const gtsam::Pose3& leftCameraPose,
-    cv::Mat* mesh_2d_img_ptr) {
+    std::shared_ptr<StereoFrame> stereo_frame_ptr,
+    const gtsam::Pose3& left_camera_pose,
+    std::vector<cv::Vec6f>* mesh_2d_for_viz,
+    std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
   VLOG(10) << "Starting updateMesh3D...";
   const std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_all =
       &points_with_id_VIO;
@@ -1236,8 +1259,8 @@ void Mesher::updateMesh3D(
     // first add vio points, then stereo, so that vio points have preference
     // over stereo ones if they are repeated!
     points_with_id_stereo = points_with_id_VIO;
-    appendNonVioStereoPoints(stereoFrame,
-                             leftCameraPose,
+    appendNonVioStereoPoints(stereo_frame_ptr,
+                             left_camera_pose,
                              &points_with_id_stereo);
     VLOG(20) << "Number of stereo landmarks used for the mesh: "
              << points_with_id_stereo.size() << "\n"
@@ -1251,28 +1274,25 @@ void Mesher::updateMesh3D(
 
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d;
-  stereoFrame->createMesh2dVIO(&mesh_2d,
-                               *points_with_id_all);
-  std::vector<cv::Vec6f> mesh_2d_filtered;
-  stereoFrame->filterTrianglesWithGradients(mesh_2d,
-                                            &mesh_2d_filtered,
-                                            FLAGS_max_grad_in_triangle);
+  // THIS CALL IS NOT THREAD-SAFE
+  stereo_frame_ptr->createMesh2dVIO(&mesh_2d,
+                                    *points_with_id_all);
+  if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d;
 
-  // Debug.
-  if (FLAGS_visualize_mesh_2d) {
-    stereoFrame->drawMesh2DStereo(mesh_2d, nullptr);
-  }
-  if (FLAGS_visualize_mesh_2d_filtered || mesh_2d_img_ptr != nullptr) {
-    stereoFrame->drawMesh2DStereo(mesh_2d_filtered, mesh_2d_img_ptr,
-                                       "2D Mesh Filtered",
-                                  FLAGS_visualize_mesh_2d_filtered);
-  }
+  // Filter 2D mesh.
+  std::vector<cv::Vec6f> mesh_2d_filtered;
+  // THIS CALL IS NOT THREAD-SAFE
+  stereo_frame_ptr->filterTrianglesWithGradients(mesh_2d,
+                                                 &mesh_2d_filtered,
+                                                 FLAGS_max_grad_in_triangle);
+  if (mesh_2d_filtered_for_viz) *mesh_2d_filtered_for_viz = mesh_2d_filtered;
 
   populate3dMeshTimeHorizon(
         mesh_2d_filtered,
         *points_with_id_all,
-        stereoFrame->left_frame_,
-        leftCameraPose,
+        // THIS CALL IS NOT THREAD-SAFE
+        stereo_frame_ptr->getLeftFrame(),
+        left_camera_pose,
         FLAGS_min_ratio_btw_largest_smallest_side,
         FLAGS_min_elongation_ratio,
         FLAGS_max_triangle_side);
@@ -1280,17 +1300,33 @@ void Mesher::updateMesh3D(
   VLOG(10) << "Finished updateMesh3D.";
 }
 
+/* -------------------------------------------------------------------------- */
+// Update mesh, but in a thread-safe way.
+void Mesher::updateMesh3D(const std::shared_ptr<const MesherInputPayload>& mesher_payload,
+                          std::vector<cv::Vec6f>* mesh_2d_for_viz,
+                          std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
+    if (!mesher_payload) {
+      LOG(INFO) << "Empty payload skipping mesh update";
+    } else {
+      updateMesh3D(mesher_payload->points_with_id_vio_,
+                   std::make_shared<StereoFrame>(mesher_payload->stereo_frame_),
+                   mesher_payload->left_camera_pose_,
+                   mesh_2d_for_viz, mesh_2d_filtered_for_viz);
+    }
+}
 
 /* -------------------------------------------------------------------------- */
+// THIS IS NOT THREAD-SAFE
 // Attempts to insert new points in the map, but does not override if there
 // is already a point with the same lmk id.
 void Mesher::appendNonVioStereoPoints(
-    std::shared_ptr<StereoFrame> stereoFrame,
+    std::shared_ptr<StereoFrame> stereoFrame,  // THIS IS NOT THREAD-SAFE
     const gtsam::Pose3& leftCameraPose,
     std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo) const {
   CHECK_NOTNULL(points_with_id_stereo);
-  const Frame& leftFrame = stereoFrame->left_frame_;
+  const Frame& leftFrame = stereoFrame->getLeftFrame();  // THIS IS NOT THREAD-SAFE
   for (size_t i = 0; i < leftFrame.landmarks_.size(); i++) {
+    // THIS IS NOT THREAD-SAFE
     if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID &&
         leftFrame.landmarks_.at(i) != -1) {
       const gtsam::Point3& p_i_global =

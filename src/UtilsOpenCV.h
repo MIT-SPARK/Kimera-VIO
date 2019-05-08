@@ -16,13 +16,20 @@
 #define UtilsOpenCV_H_
 
 #include <iostream>
+
+#include <glog/logging.h>
+
 #include <Eigen/Core>
+
 #include <opencv2/core/core.hpp>
 
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/geometry/Unit3.h>
 
-#include <glog/logging.h>
+// This is only added so that everybody that adds
+// this file to have Timestamp for example does
+// not complain for now.
+#include "common/vio_types.h"
 
 // Forward declare classes.
 namespace gtsam {
@@ -30,7 +37,6 @@ class Point2;
 class Point3;
 class Pose3;
 class Symbol;
-class Unit3;
 typedef Eigen::MatrixXd Matrix;
 typedef Eigen::Vector3d Vector3;
 typedef Eigen::Matrix<double, 6, 1> Vector6; \
@@ -55,13 +61,8 @@ namespace opengv {
 typedef Eigen::Matrix<double,3,4> transformation_t;
 }
 
+// TODO remove most of these definitions...
 namespace VIO {
-
-// Scalars
-using size_t  = std::size_t;
-using int64_t = std::int64_t;
-using Timestamp = std::int64_t;
-using uint8_t = std::uint8_t;
 
 // Typedefs of commonly used Eigen matrices and vectors.
 using Point2 = gtsam::Point2;
@@ -116,13 +117,15 @@ struct TriangleCluster {
 };
 
 
+// TODO this should not be a class, should a bunch of functions
+// under the appropriate namespace
 class UtilsOpenCV {
 
 public:
   /* ------------------------------------------------------------------------ */
   // Open files with name output_filename, and checks that it is valid
   static void OpenFile(const std::string& output_filename,
-                       std::ofstream& outputFile);
+                       std::ofstream& outputFile, bool append_mode = false);
 
   /* ------------------------------------------------------------------------ */
   // compares 2 cv::Mat
@@ -193,14 +196,15 @@ public:
   static cv::Point2f RoundAndCropToSize(cv::Point2f px, cv::Size size);
 
   /* ------------------------------------------------------------------------ */
-  // get good features to track from image (wrapper for opencv goodFeaturesToTrack)
-  static std::vector<cv::Point2f> ExtractCorners(
-      cv::Mat img,
-      const double qualityLevel = 0.01,
-      const double minDistance = 10,
+  // Get good features to track from image (wrapper for opencv
+  // goodFeaturesToTrack)
+  static void ExtractCorners(
+      const cv::Mat& img,
+      std::vector<cv::Point2f>* corners,
+      const double& qualityLevel = 0.01,
+      const double& minDistance = 10,
       const int blockSize = 3,
-      const double k = 0.04,
-      const int maxCorners = 100,
+      const double& k = 0.04,
       const bool useHarrisDetector = false);
 
   /* -------------------------------------------------------------------------- */
@@ -210,13 +214,19 @@ public:
   };
 
   /* ------------------------------------------------------------------------ */
-  // get good features to track from image (wrapper for opencv goodFeaturesToTrack)
-  static std::pair< std::vector<cv::Point2f> , std::vector<double> >
-  MyGoodFeaturesToTrackSubPix(cv::Mat image,
-                              int maxCorners, double qualityLevel,
-                              double minDistance,
-                              cv::Mat mask, int blockSize,
-                              bool useHarrisDetector, double harrisK);
+  // Get good features to track from image
+  // (wrapper for opencv goodFeaturesToTrack)
+  static void MyGoodFeaturesToTrackSubPix(
+      const cv::Mat& image,
+      const int& maxCorners,
+      const double& qualityLevel,
+      double minDistance,
+      const cv::Mat& mask,
+      const int& blockSize,
+      const bool& useHarrisDetector,
+      const double& harrisK,
+      std::pair<std::vector<cv::Point2f>, std::vector<double>>*
+        corners_with_scores);
 
   /* ------------------------------------------------------------------------ */
   // rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0
@@ -301,16 +311,18 @@ public:
                               const std::vector<double>& textDoubles = std::vector<double>());
 
   /* ------------------------------------------------------------------------ */
-  // concatenate two images and return results as a new mat
-  static cv::Mat ConcatenateTwoImages(const cv::Mat imL_in, const cv::Mat imR_in) ;
+  // Concatenate two images and return results as a new mat.
+  // Clones the two images.
+  static cv::Mat ConcatenateTwoImages(const cv::Mat& imL_in,
+                                      const cv::Mat& imR_in) ;
 
   /* ------------------------------------------------------------------------ */
-  // draw corner matches and return results as a new mat
-  static cv::Mat DrawCornersMatches(const cv::Mat img1,
-                                    const std::vector<cv::Point2f> &corners1,
-                                    const cv::Mat img2,
-                                    const std::vector<cv::Point2f> &corners2,
-                                    const std::vector<cv::DMatch> &matches,
+  // Draw corner matches and return results as a new mat.
+  static cv::Mat DrawCornersMatches(const cv::Mat& img1,
+                                    const std::vector<cv::Point2f>& corners1,
+                                    const cv::Mat& img2,
+                                    const std::vector<cv::Point2f>& corners2,
+                                    const std::vector<cv::DMatch>& matches,
                                     const bool randomColor = false);
 
   /* ------------------------------------------------------------------------ */
@@ -375,12 +387,18 @@ public:
   static std::vector<std::pair<KeypointCV, double>> FindHighIntensityInTriangle(
       const cv::Mat img, const cv::Vec6f& px_vertices,
       const float intensityThreshold) ;
-};
 
+  /* ------------------------------------------------------------------------ */
+  // Returns a OpenCV file storage in a safely manner, warning about potential
+  // exceptions thrown.
+  static void safeOpenCVFileStorage(cv::FileStorage* fs,
+                                    const std::string& filename_sensor);
+};
 
 /* -------------------------------------------------------------------------- */
 // A Plane defined by a gtsam::Symbol, a normal, a distance, and the set
 // of lmk ids that are part of the plane.
+// TODO define Plane in a Plane.cpp/.h not in utilsOpenCV
 struct Plane {
 public:
   typedef cv::Point3d Normal;

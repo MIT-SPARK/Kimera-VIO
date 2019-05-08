@@ -14,13 +14,16 @@
 
 #ifndef VioBackEndParams_H_
 #define VioBackEndParams_H_
- #include <memory>
+
+#include <stdlib.h>
+#include <memory>
 #include <unordered_map>
 #include <boost/foreach.hpp>
 #include <iostream>
 #include <fstream>
+
 #include <opencv2/core/core.hpp>
-#include <stdlib.h>
+
 #include <gtsam/slam/SmartFactorParams.h>
 
 #include <glog/logging.h>
@@ -72,12 +75,12 @@ public:
       const size_t numOptimize = 2,
       const double horizon = 6, // in seconds
       const bool useDogLeg = false
-  ) : gyroNoiseDensity_(gyroNoiseDensity), accNoiseDensity_(accNoiseDensity),
-  imuIntegrationSigma_(imuIntegrationSigma), gyroBiasSigma_(gyroBiasSigma), accBiasSigma_(accBiasSigma),
-  nominalImuRate_(nominalImuRate), n_gravity_(n_gravity), autoInitialize_(autoInitialize), roundOnAutoInitialize_(roundOnAutoInitialize),
-  initialPositionSigma_(initialPositionSigma), initialRollPitchSigma_(initialRollPitchSigma),
+  ) : initialPositionSigma_(initialPositionSigma), initialRollPitchSigma_(initialRollPitchSigma),
   initialYawSigma_(initialYawSigma), initialVelocitySigma_(initialVelocitySigma),
   initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
+  gyroNoiseDensity_(gyroNoiseDensity), accNoiseDensity_(accNoiseDensity),
+  imuIntegrationSigma_(imuIntegrationSigma), gyroBiasSigma_(gyroBiasSigma), accBiasSigma_(accBiasSigma),
+  nominalImuRate_(nominalImuRate), n_gravity_(n_gravity), autoInitialize_(autoInitialize), roundOnAutoInitialize_(roundOnAutoInitialize),
   linearizationMode_(linMode), degeneracyMode_(degMode),
   smartNoiseSigma_(smartNoiseSigma),
   rankTolerance_(rankTolerance),
@@ -315,49 +318,55 @@ protected:
   }
 
   /* ------------------------------------------------------------------------------------- */
-  void printVioBackEndParams() const{
-    std::cout << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$" << std::endl;
-    std::cout << "** IMU parameters **" << std::endl;
-    std::cout << "gyroNoiseDensity_: " << gyroNoiseDensity_ << std::endl
-        << "accNoiseDensity_: " << accNoiseDensity_ << std::endl
-        << "imuIntegrationSigma_: " << imuIntegrationSigma_ << std::endl
-        << "gyroBiasSigma_: " << gyroBiasSigma_ << std::endl
-        << "accBiasSigma_: " << accBiasSigma_ << std::endl
-        << "n_gravity_: " << n_gravity_.transpose() << std::endl
-        << "nominalImuRate_: " << nominalImuRate_ << std::endl;
-    std::cout << "** INITIALIZATION parameters **" << std::endl
-        << "autoInitialize_: " << autoInitialize_ << std::endl
-        << "roundOnAutoInitialize_: " << roundOnAutoInitialize_ << std::endl
-        << "initialPositionSigma: " << initialPositionSigma_ << std::endl
-        << "initialRollPitchSigma: " << initialRollPitchSigma_ << std::endl
-        << "initialYawSigma: " << initialYawSigma_ << std::endl
-        << "initialVelocitySigma: " << initialVelocitySigma_ << std::endl
-        << "initialAccBiasSigma: " << initialAccBiasSigma_ << std::endl
-        << "initialGyroBiasSigma: " << initialGyroBiasSigma_ << std::endl;
-    std::cout << "** VISION parameters **" << std::endl;
-    std::cout << "linearizationMode_: " << linearizationMode_ << " HESSIAN, IMPLICIT_SCHUR, JACOBIAN_Q, JACOBIAN_SVD " << std::endl
-        << "degeneracyMode_: " << degeneracyMode_ << " IGNORE_DEGENERACY, ZERO_ON_DEGENERACY, HANDLE_INFINITY " << std::endl
-        << "rankTolerance_: " << rankTolerance_ << std::endl
-        << "landmarkDistanceThreshold_: " << landmarkDistanceThreshold_ << std::endl
-        << "outlierRejection_: " << outlierRejection_ << std::endl
-        << "retriangulationThreshold_: " << retriangulationThreshold_ << std::endl
-        << "addBetweenStereoFactors_: " << addBetweenStereoFactors_ << std::endl
-        << "betweenRotationPrecision_: " << betweenRotationPrecision_ << std::endl
-        << "betweenTranslationPrecision_: " << betweenTranslationPrecision_ << std::endl;
-    std::cout << "** OPTIMIZATION parameters **" << std::endl;
-    std::cout << "relinearizeThreshold_: " << relinearizeThreshold_ << std::endl
-        << "relinearizeSkip_: " << relinearizeSkip_ << std::endl
-        << "zeroVelocitySigma_: " << zeroVelocitySigma_ << std::endl
-        << "noMotionPositionSigma_: " << noMotionPositionSigma_ << std::endl
-        << "noMotionRotationSigma_: " << noMotionRotationSigma_ << std::endl
-        << "constantVelSigma_: " << constantVelSigma_ << std::endl
-        << "numOptimize_: " << numOptimize_ << std::endl
-        << "horizon_: " << horizon_ << std::endl
-        << "useDogLeg_: " << useDogLeg_ << std::endl;
+  void printVioBackEndParams() const {
+    LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
+              << "** IMU parameters **\n"
+              << "gyroNoiseDensity_: " << gyroNoiseDensity_ << '\n'
+              << "accNoiseDensity_: " << accNoiseDensity_ << '\n'
+              << "imuIntegrationSigma_: " << imuIntegrationSigma_ << '\n'
+              << "gyroBiasSigma_: " << gyroBiasSigma_ << '\n'
+              << "accBiasSigma_: " << accBiasSigma_ << '\n'
+              << "n_gravity_: " << n_gravity_.transpose() << '\n'
+              << "nominalImuRate_: " << nominalImuRate_ << '\n'
+
+              << "** INITIALIZATION parameters **\n"
+              << "autoInitialize_: " << autoInitialize_ << '\n'
+              << "roundOnAutoInitialize_: " << roundOnAutoInitialize_ << '\n'
+              << "initialPositionSigma: " << initialPositionSigma_ << '\n'
+              << "initialRollPitchSigma: " << initialRollPitchSigma_ << '\n'
+              << "initialYawSigma: " << initialYawSigma_ << '\n'
+              << "initialVelocitySigma: " << initialVelocitySigma_ << '\n'
+              << "initialAccBiasSigma: " << initialAccBiasSigma_ << '\n'
+              << "initialGyroBiasSigma: " << initialGyroBiasSigma_ << '\n'
+
+              << "** VISION parameters **\n"
+              << "linearizationMode_: " << linearizationMode_
+              << " HESSIAN, IMPLICIT_SCHUR, JACOBIAN_Q, JACOBIAN_SVD \n"
+              << "degeneracyMode_: " << degeneracyMode_
+              << " IGNORE_DEGENERACY, ZERO_ON_DEGENERACY, HANDLE_INFINITY \n"
+              << "rankTolerance_: " << rankTolerance_ << '\n'
+              << "landmarkDistanceThreshold_: " << landmarkDistanceThreshold_ << '\n'
+              << "outlierRejection_: " << outlierRejection_ << '\n'
+              << "retriangulationThreshold_: " << retriangulationThreshold_ << '\n'
+              << "addBetweenStereoFactors_: " << addBetweenStereoFactors_ << '\n'
+              << "betweenRotationPrecision_: " << betweenRotationPrecision_ << '\n'
+              << "betweenTranslationPrecision_: " << betweenTranslationPrecision_ << '\n'
+
+              << "** OPTIMIZATION parameters **\n"
+              << "relinearizeThreshold_: " << relinearizeThreshold_ << '\n'
+              << "relinearizeSkip_: " << relinearizeSkip_ << '\n'
+              << "zeroVelocitySigma_: " << zeroVelocitySigma_ << '\n'
+              << "noMotionPositionSigma_: " << noMotionPositionSigma_ << '\n'
+              << "noMotionRotationSigma_: " << noMotionRotationSigma_ << '\n'
+              << "constantVelSigma_: " << constantVelSigma_ << '\n'
+              << "numOptimize_: " << numOptimize_ << '\n'
+              << "horizon_: " << horizon_ << '\n'
+              << "useDogLeg_: " << useDogLeg_;
   }
 };
+typedef std::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
+typedef std::shared_ptr<const VioBackEndParams> VioBackEndParamsConstPtr;
 
-typedef boost::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
 } // namespace VIO
 #endif /* VioBackEndParams_H_ */
 
