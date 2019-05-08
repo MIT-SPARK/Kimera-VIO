@@ -92,7 +92,7 @@ public:
   }
 
   gtsam::Matrix getEstimatedStateCovariance() {
-    return vio_backend_->getCurrentStateCovariance();
+    return vio_backend_->getStateCovarianceLkf();
   }
 
   inline void registerSemanticMeshSegmentationCallback(

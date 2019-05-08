@@ -165,6 +165,12 @@ public:
   gtsam::Matrix getCurrentStateCovariance() const;
 
   /* ------------------------------------------------------------------------ */
+  // Update covariance matrix using getCurrentStateCovariance()
+  void computeStateCovariance() {
+        state_covariance_lkf_ = getCurrentStateCovariance();
+  }
+
+  /* ------------------------------------------------------------------------ */
   // NOT TESTED
   gtsam::Matrix getCurrentStateInformation() const;
 
@@ -454,6 +460,7 @@ public:
   inline ImuBias getImuBiasPrevKf() const {return imu_bias_prev_kf_;}
   inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
   inline Pose3 getWPoseBLkf() const {return W_Pose_B_lkf_;}
+  inline gtsam::Matrix getStateCovarianceLkf() const {return state_covariance_lkf_;}
   inline int getCurrKfId() const {return curr_kf_id_;}
   inline gtsam::Values getState() const {return state_;}
   inline int getLandmarkCount() const {return landmark_count_;}
@@ -479,6 +486,9 @@ protected:
   Pose3   W_Pose_B_lkf_;        //!< Body pose at at k-1 in world coordinates.
 
   ImuBias imu_bias_prev_kf_;   //!< bias estimate at previous keyframe
+
+  // State covariance. (initialize to zero)
+  gtsam::Matrix state_covariance_lkf_ = gtsam::zeros(15,15);
 
   // Vision params.
   gtsam::SmartStereoProjectionParams smart_factors_params_;

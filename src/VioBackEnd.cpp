@@ -45,6 +45,8 @@ DEFINE_int32(max_number_of_cheirality_exceptions, 5,
              "Sets the maximum number of times we process a cheirality "
              "exception for a given optimization problem. This is to avoid too "
              "many recursive calls to update the smoother");
+DEFINE_bool(compute_state_covariance, false,
+            "Flag to compute state covariance from optimization backend");
 
 namespace VIO {
 
@@ -1088,6 +1090,11 @@ void VioBackEnd::optimize(
 
   // Update states we need for next iteration.
   updateStates(cur_id);
+
+  // TODO: Add Update latest covariance --> move flag
+  if (FLAGS_compute_state_covariance) {
+      computeStateCovariance();
+  }
 
   // Debug.
   postDebug(total_start_time, start_time);
