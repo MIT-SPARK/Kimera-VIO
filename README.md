@@ -80,7 +80,7 @@ Installation of OpenGV
 ----------------------
 - git clone https://github.com/laurentkneip/opengv (I did this in my "home/code/" folder)
 - (not needed in latest version) open CMakeLists.txt and set INSTALL_OPENGV to ON (this can be also done using cmake-gui)
-- using cmake-gui, set: the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen). if you don't do so, very weird error appear (may be due to GTSAM and OpenGV using different versions of eigen!)
+- using cmake-gui, set: the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen). if you don't do so, very weird error (TODO document) appear (may be due to GTSAM and OpenGV using different versions of eigen!)
 - in the opengv folder do:
 
 ```
@@ -92,10 +92,10 @@ $ sudo make -j8 install
 $ sudo make -j8 check
 ```
 
-Installation of CGAL
+Installation of CGAL (Optional)
 ----------------------
-- download CGAL `https://www.cgal.org/download.html` (I tried CGAL-4.11 on Ubuntu 17.10)
-- go to CGAL downloaded folder and execute the following:
+- Download CGAL `https://www.cgal.org/download.html` (I tried CGAL-4.11 on Ubuntu 17.10)
+- Go to CGAL downloaded folder and execute the following:
 
 ```
 #!bash
@@ -137,10 +137,11 @@ You have two ways to start the example:
 
 Tips for usage
 ----------------------
-- The 3D Visualization window implements the following keyboard shortcuts:
+- The 3D Visualization window implements the following keyboard shortcuts (you need to have the window in focus, click on it):
     - Press 't': toggle freezing visualization (as of know, this blocks the whole pipeline, it might change once the visualization is threaded).
     - Press 'v': prints to the terminal the pose of the current viewpoint of the 3D visualization window.
     - Press 'w': prints to the terminal the size of the 3D visualization window.
+    - Do not press 'q': unless you want to terminate the pipeline in an abrupt way, see #74.
 
      These last two shortcuts are useful if you want to programmatically set the initial viewpoint and size of the screen when launching the 3D visualization window (this is done at the constructor of the 3DVisualizer class).
     - Press 's': to get a screenshot of the 3D visualization window.
