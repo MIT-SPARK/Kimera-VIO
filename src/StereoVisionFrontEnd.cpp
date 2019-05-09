@@ -179,7 +179,8 @@ StereoVisionFrontEnd::spinOnce(
                                        trackerStatusSummary_.kfTrackingStatus_stereo_,
                                        getRelativePoseBodyStereo(),
                                        *stereoFrame_lkf_,
-                                       pim);
+                                       pim,
+                                       getTrackerInfo());
   } else {
     // We don't have a keyframe.
     return StereoFrontEndOutputPayload(false,
@@ -187,7 +188,8 @@ StereoVisionFrontEnd::spinOnce(
                                        TrackingStatus::INVALID,
                                        getRelativePoseBodyStereo(),
                                        *stereoFrame_lkf_,
-                                       pim);
+                                       pim,
+                                       getTrackerInfo());
   }
 }
 

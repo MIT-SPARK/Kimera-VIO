@@ -37,13 +37,15 @@ public:
       const TrackingStatus& tracker_status,
       const gtsam::Pose3& relative_pose_body_stereo,
       const StereoFrame& stereo_frame_lkf,
-      const ImuFrontEnd::PreintegratedImuMeasurements& pim)
+      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
+      const DebugTrackerInfo& debug_tracker_info)
     : is_keyframe_(is_keyframe),
       statusSmartStereoMeasurements_(statusSmartStereoMeasurements),
       tracker_status_(tracker_status),
       relative_pose_body_stereo_(relative_pose_body_stereo),
       stereo_frame_lkf_(stereo_frame_lkf),
-      pim_(pim) {}
+      pim_(pim),
+      debug_tracker_info_(debug_tracker_info) {}
 
 public:
   const bool is_keyframe_;
@@ -52,6 +54,12 @@ public:
   const gtsam::Pose3 relative_pose_body_stereo_;
   const StereoFrame stereo_frame_lkf_;
   const ImuFrontEnd::PreintegratedImuMeasurements pim_;
+  const DebugTrackerInfo debug_tracker_info_; 
+
+  inline DebugTrackerInfo getTrackerInfo() {
+    return debug_tracker_info_;
+  }
+  
 };
 
 

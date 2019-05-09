@@ -186,7 +186,8 @@ SpinOutputContainer Pipeline::getSpinOutputContainer() {
                               getEstimatedPose(),
                               getEstimatedVelocity(),
                               getEstimatedBias(),
-                              getEstimatedStateCovariance());
+                              getEstimatedStateCovariance(),
+                              getTrackerInfo());
 }
 
 /* -------------------------------------------------------------------------- */
@@ -343,6 +344,9 @@ void Pipeline::spinSequential() {
   if (!stereo_frontend_output_payload->is_keyframe_) {
     return;
   }
+
+  // Pass info for resiliency
+  debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
 
   // We have a keyframe. Push to backend.
   backend_input_queue_.push(
@@ -733,6 +737,10 @@ void Pipeline::processKeyframePop() {
     if (!stereo_frontend_output_payload->is_keyframe_) {
       continue;
     }
+
+    // Pass info for resiliency
+    debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
+
     //////////////////////////////////////////////////////////////////////////////
     // So from this point on, we have a keyframe.
     // Pass info to VIO

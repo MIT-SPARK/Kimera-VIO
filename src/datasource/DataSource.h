@@ -17,34 +17,46 @@
 #include <string>
 #include <functional>
 #include "StereoImuSyncPacket.h"
+#include "Tracker.h"
 
 //########### SPARK_VIO_ROS ############################################
 namespace VIO {
 
 // Struct to deal with getting values out of the spin
 struct SpinOutputContainer {
+  // Default constructor
   SpinOutputContainer(const Timestamp& timestamp_kf,
                       const gtsam::Pose3& W_Pose_Blkf,
                       const Vector3& W_Vel_Blkf,
                       const ImuBias& imu_bias_lkf,
-                      const gtsam::Matrix State_Covariance_lkf = gtsam::zeros(15,15))
+                      const gtsam::Matrix State_Covariance_lkf = gtsam::zeros(15,15),
+                      const DebugTrackerInfo debug_tracker_info = DebugTrackerInfo())
     : timestamp_kf_(timestamp_kf),
       W_Pose_Blkf_(W_Pose_Blkf),
       W_Vel_Blkf_(W_Vel_Blkf),
-      imu_bias_lkf_(imu_bias_lkf) {
+      imu_bias_lkf_(imu_bias_lkf),
+      debug_tracker_info_(debug_tracker_info) {
         // TODO: Create a better assert for this covariance matrix
-        if(State_Covariance_lkf.rows()!=0) {
-          State_Covariance_lkf_ = State_Covariance_lkf;
-        } else {
-          State_Covariance_lkf_ = gtsam::zeros(15,15);
-        }
+        CHECK_EQ(State_Covariance_lkf.rows(),15);
+        CHECK_EQ(State_Covariance_lkf.cols(),15);
+        State_Covariance_lkf_ = State_Covariance_lkf;
       }
+
+  // Trivial constructor
+  SpinOutputContainer()
+    : timestamp_kf_(0),
+      W_Pose_Blkf_(gtsam::Pose3()),
+      W_Vel_Blkf_(gtsam::Vector3()),
+      imu_bias_lkf_(gtsam::imuBias::ConstantBias()),
+      State_Covariance_lkf_(gtsam::zeros(15,15)),
+      debug_tracker_info_(DebugTrackerInfo()) {}
 
   Timestamp timestamp_kf_;
   gtsam::Pose3 W_Pose_Blkf_;
   Vector3 W_Vel_Blkf_;
   ImuBias imu_bias_lkf_;
   gtsam::Matrix State_Covariance_lkf_;
+  DebugTrackerInfo debug_tracker_info_;
 
   SpinOutputContainer& operator=(SpinOutputContainer other) {
         timestamp_kf_ = other.timestamp_kf_;
@@ -52,6 +64,7 @@ struct SpinOutputContainer {
         W_Vel_Blkf_ = other.W_Vel_Blkf_;
         imu_bias_lkf_ = other.imu_bias_lkf_;
         State_Covariance_lkf_ = other.State_Covariance_lkf_;
+        debug_tracker_info_ = other.debug_tracker_info_;
         return *this;
   }
 
@@ -79,6 +92,10 @@ struct SpinOutputContainer {
 
   inline const gtsam::Matrix6 getEstimatedBiasCov() {
     return gtsam::sub(State_Covariance_lkf_,9,15,9,15);
+  }
+
+  inline const DebugTrackerInfo getTrackerInfo() {
+    return debug_tracker_info_;
   }
 
 };

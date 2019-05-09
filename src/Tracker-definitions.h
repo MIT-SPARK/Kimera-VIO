@@ -80,6 +80,23 @@ public:
               << "monoRansacTime_: " << monoRansacTime_ << " s\n"
               << "stereoRansacTime_: " << stereoRansacTime_ << " s";
   }
+
+  void print() const {
+    LOG(INFO) << "nrDetectedFeatures_: " << nrDetectedFeatures_ << "\n"
+              << "nrTrackerFeatures_: " << nrTrackerFeatures_ << "\n"
+              << "nrMonoInliers_: " << nrMonoInliers_ << "\n"
+              << "nrMonoPutatives_: " << nrMonoPutatives_ << "\n"
+              << "nrStereoInliers_: " << nrStereoInliers_ << "\n"
+              << "nrStereoPutatives_: " << nrStereoPutatives_ << "\n"
+              << "monoRansacIters_: " << monoRansacIters_ << "\n"
+              << "stereoRansacIters_: " << stereoRansacIters_ << "\n"
+              << "nrValidRKP_: " << nrValidRKP_ << "\n"
+              << "nrNoLeftRectRKP_: " << nrNoLeftRectRKP_ << "\n"
+              << "nrNoRightRectRKP_: " << nrNoRightRectRKP_ << "\n"
+              << "nrNoDepthRKP_: " << nrNoDepthRKP_ << "\n"
+              << "nrFailedArunRKP_: " << nrFailedArunRKP_;
+  }
+
 };
 
 enum class TrackingStatus {

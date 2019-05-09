@@ -75,6 +75,10 @@ public:
   // Query if thread is working and not waiting on input queue to be filled.
   inline bool isWorking() const {return is_thread_working_;}
 
+  /* ------------------------------------------------------------------------ */
+  // Get tracker info
+  inline DebugTrackerInfo getTrackerInfo() { return tracker_.getTrackerDebugInfo();}
+
 public:
   /* ------------------------------------------------------------------------ */
   // Update Imu Bias. This is thread-safe as imu_frontend_->updateBias is

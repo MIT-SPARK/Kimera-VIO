@@ -95,6 +95,10 @@ public:
     return vio_backend_->getStateCovarianceLkf();
   }
 
+  DebugTrackerInfo getTrackerInfo() {
+    return debug_tracker_info_;
+  }
+
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
     visualizer_.registerMesh3dVizProperties(cb);
@@ -183,6 +187,9 @@ private:
   // Frontend.
   std::unique_ptr<StereoVisionFrontEnd> vio_frontend_;
   FeatureSelector feature_selector_;
+
+  // Debug information from frontend (this is the only going out)
+  DebugTrackerInfo debug_tracker_info_;
 
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
