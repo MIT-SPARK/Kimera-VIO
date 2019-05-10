@@ -97,50 +97,6 @@ bool UtilsOpenCV::CvPointCmp(const cv::Point2f &p1,
   return std::abs(p1.x - p2.x) <= tol && std::abs(p1.y - p2.y) <= tol;
 }
 /* -------------------------------------------------------------------------- */
-// compute undistorted pixels for pinhole fov model
-// TODO: Check again if there is a need to compute the distortion matrix?
-void UtilsOpenCV::undistortPointsFov(const cv::Mat_<KeypointCV> uncalibrated_px,
-                        cv::Mat calibrated_px,
-                        const cv::Mat camera_matrix,
-                        const cv::Mat distortion_coeff) {
-    // initial checks
-    // TODO: do we need this checks??
-    //CHECK_GT(uncalibrated_px.size(),0);
-    //CHECK_EQ(uncalibrated_px(0).size(),2);
-    //CHECK_EQ(cam_param.intrinsics.size(),4);
-    //CHECK_EQ(cam_param.distortion_coeff.size[0],1);
-
-    // normalization
-    // TODO: Check again OpenCV (x,y) vs. (y,z) convention
-    double x_dist_norm = (uncalibrated_px(0).y - camera_matrix.at<double>(0, 2)) / 
-                                    camera_matrix.at<double>(0, 0);
-    double y_dist_norm = (uncalibrated_px(0).x - camera_matrix.at<double>(1, 2)) / 
-                                    camera_matrix.at<double>(1, 1);
-
-    // distortion model
-    double r_dist_norm = std::sqrt(x_dist_norm*x_dist_norm + y_dist_norm*y_dist_norm);
-    double distortion_factor = 1.0;
-    if (r_dist_norm > 0.01) {// TODO: remove hardcoded value
-      //if (r_dist_norm == 0.0) { --> Not needed (see JPL's implementation...)
-      //  distortion_factor = r_dist_norm / r_dist_norm;
-      //}
-      //else {
-        distortion_factor = std::tan(r_dist_norm*distortion_coeff.at<double>(0,0)) / 
-                  (r_dist_norm * 2 * std::tan(distortion_coeff.at<double>(0,0) * 0.5));
-      //}
-    }
-
-    // undistort
-    double x_undist_norm = distortion_factor * x_dist_norm;
-    double y_undist_norm = distortion_factor * y_dist_norm;
-
-    // un-normalize for output
-    calibrated_px = cv::Mat(1, 2, CV_32F);
-    calibrated_px.at<double>(0, 0) = x_undist_norm*camera_matrix.at<double>(0, 0) + camera_matrix.at<double>(0, 2);
-    calibrated_px.at<double>(0, 1) = y_undist_norm*camera_matrix.at<double>(1, 1) + camera_matrix.at<double>(1, 2);
-
-}
-/* -------------------------------------------------------------------------- */
 // converts a vector of 16 elements listing the elements of a 4x4 3D pose matrix by rows
 // into a pose3 in gtsam
 gtsam::Pose3 UtilsOpenCV::Vec2pose(

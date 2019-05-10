@@ -686,8 +686,13 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   }
 
   //////////////////////////////////////////////////////////////////////////////
-  // Get rectification & undistortion maps.
-  cv::initUndistortRectifyMap(left_camera_info.camera_matrix_,
+  // TODO: Unit tests for this sections!!!!!
+
+  // Left camera
+  if (left_camera_info.distortion_model_ == "radtan" ||
+      left_camera_info.distortion_model_ == "radial-tangential") {
+      // Get rectification & undistortion maps. (radtan dist. model)
+      cv::initUndistortRectifyMap(left_camera_info.camera_matrix_,
                               left_camera_info.distortion_coeff_,
                               left_camera_info.R_rectify_,
                               P1,
@@ -696,8 +701,29 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
                               // output:
                               left_camera_info.undistRect_map_x_,
                               left_camera_info.undistRect_map_y_);
+  }
+  else if (left_camera_info.distortion_model_ == "equidistant") {
+      // Get rectification & undistortion maps. (equi dist. model)
+      LOG(INFO) << "Left camera";
+      cv::fisheye::initUndistortRectifyMap(left_camera_info.camera_matrix_,
+                              left_camera_info.distortion_coeff_,
+                              left_camera_info.R_rectify_,
+                              P1,
+                              left_camera_info.image_size_,
+                              CV_32F,
+                              // output:
+                              left_camera_info.undistRect_map_x_,
+                              left_camera_info.undistRect_map_y_);
+  } 
+  else {
+      LOG(ERROR) << "Camera distortion model not found for left camera!";
+  }
 
-  cv::initUndistortRectifyMap(right_camera_info.camera_matrix_,
+  // Right camera
+  if (right_camera_info.distortion_model_ == "radtan" ||
+      right_camera_info.distortion_model_ == "radial-tangential") {
+      // Get rectification & undistortion maps. (radtan dist. model)
+      cv::initUndistortRectifyMap(right_camera_info.camera_matrix_,
                               right_camera_info.distortion_coeff_,
                               right_camera_info.R_rectify_,
                               P2,
@@ -706,6 +732,23 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
                               // output:
                               right_camera_info.undistRect_map_x_,
                               right_camera_info.undistRect_map_y_);
+  }
+  else if (right_camera_info.distortion_model_ == "equidistant") {
+      // Get rectification & undistortion maps. (equi dist. model)
+      LOG(INFO) << "Right camera";
+      cv::fisheye::initUndistortRectifyMap(right_camera_info.camera_matrix_,
+                              right_camera_info.distortion_coeff_,
+                              right_camera_info.R_rectify_,
+                              P2,
+                              right_camera_info.image_size_,
+                              CV_32F,
+                              // output:
+                              right_camera_info.undistRect_map_x_,
+                              right_camera_info.undistRect_map_y_);
+  } 
+  else {
+      LOG(ERROR) << "Camera distortion model not found for right camera!";
+  }
 
   // Store intermediate results from rectification.
   // contains an extra column to project in homogeneous coordinates

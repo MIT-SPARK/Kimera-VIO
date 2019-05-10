@@ -104,13 +104,6 @@ public:
                          const double tol = 1e-7);
 
   /* ------------------------------------------------------------------------ */
-  // compute undistorted pixels for pinhole fov model
-  static void undistortPointsFov(const cv::Mat_<KeypointCV> uncalibrated_px,
-                        cv::Mat calibrated_px,
-                        const cv::Mat camera_matrix,
-                        const cv::Mat distortion_coeff);
-
-  /* ------------------------------------------------------------------------ */
   // Converts a gtsam::Unit3 to a cv::Point3d.
 
   /* ------------------------------------------------------------------------ */

@@ -67,6 +67,7 @@ TEST(testFrame, parseYAML) {
   EXPECT(assert_equal(pose_expected,camParams.body_Pose_cam_));
 
   // distortion coefficients
+  // TODO: Adapt this unit test!!
   const double distortion_expected[] = {-0.28340811, 0.07395907, 0.00019359, 1.76187114e-05};
   for (int c = 0; c < 4; c++) {
     EXPECT_DOUBLES_EQUAL(distortion_expected[c], camParams.distortion_coeff_.at<double>(c), tol);
