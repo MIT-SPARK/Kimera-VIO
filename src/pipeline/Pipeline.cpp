@@ -348,6 +348,9 @@ void Pipeline::spinSequential() {
   // Pass info for resiliency
   debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
 
+  // Get timestamp of key-frame
+  timestamp_lkf_ = stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp();
+
   // We have a keyframe. Push to backend.
   backend_input_queue_.push(
         VioBackEndInputPayload(
@@ -740,6 +743,9 @@ void Pipeline::processKeyframePop() {
 
     // Pass info for resiliency
     debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
+
+    // Get timestamp of key-frame
+    timestamp_lkf_ = stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp();
 
     //////////////////////////////////////////////////////////////////////////////
     // So from this point on, we have a keyframe.
