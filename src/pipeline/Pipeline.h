@@ -203,10 +203,10 @@ private:
   std::atomic_bool is_initialized_ = {false};
 
   // Threads.
-  std::unique_ptr<std::thread> stereo_frontend_thread_;
-  std::unique_ptr<std::thread> wrapped_thread_;
-  std::unique_ptr<std::thread> backend_thread_;
-  std::unique_ptr<std::thread> mesher_thread_;
+  std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};
+  std::unique_ptr<std::thread> wrapped_thread_ = {nullptr};
+  std::unique_ptr<std::thread> backend_thread_ = {nullptr};
+  std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
   //std::thread visualizer_thread_;
 
   bool parallel_run_;

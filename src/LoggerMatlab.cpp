@@ -445,7 +445,7 @@ void LoggerMatlab::logBackendResults(
                               tracker.debugInfo_.need_n_corners_  << " " <<
                               tracker.debugInfo_.extracted_corners_  << std::endl;
 
-  // statistics about factors added to the graph
+  // Statistics about factors added to the graph.
   outputFile_statsFactors_ << vio_output->cur_kf_id_ << " " <<
                               vio_output->debug_info_.numAddedSmartF_ << " " <<
                               vio_output->debug_info_.numAddedImuF_ << " " <<
