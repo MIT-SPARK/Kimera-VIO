@@ -1005,22 +1005,31 @@ TEST(testStereoFrame, undistortFisheyeStereoFrame) {
                                  left_undistRectCameraMatrix_fisheye.fx(), sf->getBaseline());
 
   // Check corresponding features are on epipolar lines (visually and store)
-   //cv::Mat imgL_dist_withKeypoints = UtilsOpenCV::DrawCircles(left_fisheye_image_dist, left_frame_fish.keypoints_);
-  //cv::imwrite(stereo_dataset_path + 
-  //            "/test_undist.png", imgL_dist_withKeypoints);
-  cv::Mat imgL_withKeypoints = UtilsOpenCV::DrawCircles(left_image_rectified, left_keypoints_rectified);
-  cv::Mat imgR_withKeypoints = UtilsOpenCV::DrawCircles(right_image_rectified, right_keypoints_rectified);
-  cv::Mat undist_LR_keypoints = UtilsOpenCV::ConcatenateTwoImages(imgL_withKeypoints, imgR_withKeypoints);
-  //cv::imwrite(stereo_dataset_path + 
-  //            "/undist_keypoints_sidebyside.png", undist_LR_keypoints); */
+  cv::Mat undist_sidebyside = UtilsOpenCV::ConcatenateTwoImages(left_image_rectified, right_image_rectified);
+
 
   // Parse reference image
-  cv::Mat undist_keypoints_ref = cv::imread(stereo_dataset_path + 
-                    "undist_keypoints_ref_img_0.png", cv::IMREAD_ANYCOLOR);
+  cv::Mat undist_sidebyside_ref = cv::imread(stereo_dataset_path + 
+                      "sidebyside_ref_img_0.png", cv::IMREAD_ANYCOLOR);
+
+  //cv::Mat imgL_dist_withKeypoints = UtilsOpenCV::DrawCircles(left_fisheye_image_dist, left_frame_fish.keypoints_);
+  //cv::imwrite(stereo_dataset_path + 
+  //            "/test_undist.png", imgL_dist_withKeypoints);
+  //cv::Mat imgL_withKeypoints = UtilsOpenCV::DrawCircles(left_image_rectified, left_keypoints_rectified);
+  //cv::Mat imgR_withKeypoints = UtilsOpenCV::DrawCircles(right_image_rectified, right_keypoints_rectified);
+  //cv::Mat undist_LR_keypoints = UtilsOpenCV::ConcatenateTwoImages(imgL_withKeypoints, imgR_withKeypoints);
+  //cv::imwrite(stereo_dataset_path + 
+  //            "sidebyside_ref_img_0.png", undist_sidebyside);
+  //cv::imwrite(stereo_dataset_path + 
+  //            "/undist_keypoints_sidebyside.png", undist_LR_keypoints); */
+  //cv::Mat undist_keypoints_ref = cv::imread(stereo_dataset_path + 
+  //                  "undist_keypoints_ref_img_0.png", cv::IMREAD_ANYCOLOR);
   
   // Test distortion with image comparison
-  EXPECT(UtilsOpenCV::CvMatCmp(undist_LR_keypoints, undist_keypoints_ref, 1e-3));
+  EXPECT(UtilsOpenCV::CvMatCmp(undist_sidebyside, undist_sidebyside_ref, 1e-3));
+  //EXPECT(UtilsOpenCV::CvMatCmp(undist_LR_keypoints, undist_keypoints_ref, 1e-3));
 
+  // TODO: Check depth from disparity
   // compute sparse depth for stereo frame
   // --> most of the point should have depth
 
