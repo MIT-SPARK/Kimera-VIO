@@ -270,7 +270,6 @@ std::pair<KeypointsCV, std::vector<Kstatus>> StereoFrame::distortUnrectifyPoints
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO: Create undistort Rectify Points also for pinhole equidistant
 void StereoFrame::undistortRectifyPoints(
     const KeypointsCV& left_keypoints_unrectified,
     const CameraParams& cam_param,
@@ -662,8 +661,8 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
         left_camera_info.image_size_, L_Rot_R, L_Tran_R,
         // following are output
         left_camera_info.R_rectify_,right_camera_info.R_rectify_,P1,P2,Q,
-        // flags
-        cv::fisheye::CALIB_FIX_INTRINSIC);
+        // TODO: Flag to maximise area???
+        cv::CALIB_ZERO_DISPARITY); 
   } 
   else {
       LOG(ERROR) << "Stereo camera distortion model not found for stereo rectification!";

@@ -1,0 +1,22 @@
+%YAML:1.0
+# General sensor definitions.
+sensor_type: MyntEye S - JPL
+comment: Mynteye S - JPL
+
+# Sensor extrinsics wrt. the body-frame.
+T_BS:
+  cols: 4
+  rows: 4
+  data: [0.000468892, -0.999992519, 0.003839613, -0.004419063,
+         0.999987552, 0.000487955, 0.004965573, 0.122004189,
+         -0.004967410, 0.003837237, 0.999980300, -0.000145419, 
+         0.000000000, 0.000000000, 0.000000000, 1.000000000]
+
+# Camera specific definitions.
+rate_hz: 25
+resolution: [752, 480]
+camera_model: pinhole
+intrinsics: [367.032,366.632,379.304,236.659] #fu, fv, cu, cv
+distortion_model: equidistant
+distortion_coefficients: [-0.019659843,-0.005079736,-0.001357391,0.000419038]
+

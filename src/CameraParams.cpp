@@ -32,13 +32,25 @@ bool CameraParams::parseYAML(const std::string& filepath) {
   // TODO allow for different distortion models, at least equidistant as well!
   std::vector<double> distortion_coeff4_;
   distortion_coeff4_.clear();
+  fs["distortion_model"] >> distortion_model_;
   fs["distortion_coefficients"] >> distortion_coeff4_;
   // Convert distortion coefficients to OpenCV Format
-  distortion_coeff_ = cv::Mat::zeros(1, 5, CV_64F);
+  if (distortion_model_ == "radtan" ||
+      distortion_model_ == "radial-tangential") {
+    distortion_coeff_ = cv::Mat::zeros(1, 5, CV_64F);
+    CHECK_GT(distortion_coeff_.cols, distortion_coeff4_.size());
+    CHECK_EQ(distortion_coeff4_.size(),4);
+  }
+  else if (distortion_model_ == "equidistant") {
+    distortion_coeff_ = cv::Mat::zeros(1, 4, CV_64F);
+    CHECK_EQ(distortion_coeff_.cols, distortion_coeff4_.size());
+    CHECK_EQ(distortion_coeff4_.size(),4);
+  }
+  else {
+    LOG(ERROR) << "Distortion model in YAML not known.";
+  }
   for (int k = 0; k < 4; k++) {
-    if (k < distortion_coeff4_.size()) {
-      distortion_coeff_.at<double>(0, k) = distortion_coeff4_[k];
-    }
+    distortion_coeff_.at<double>(0, k) = distortion_coeff4_[k];
   }
 
   // Camera resolution.
@@ -74,8 +86,9 @@ bool CameraParams::parseYAML(const std::string& filepath) {
       intrinsics_[3], // v0
       distortion_coeff4_[0],  //  k1
       distortion_coeff4_[1],  //  k2
-      distortion_coeff4_[2],  //  p1
-      distortion_coeff4_[3]); //  p2
+      distortion_coeff4_[2],  //  p1 / k3
+      distortion_coeff4_[3]); //  p2 / k4
+  // TODO: Check if pinhole equi is supported as well
 
   // P_ = R_rectify_ * camera_matrix_;
 

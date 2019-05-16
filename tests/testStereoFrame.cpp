@@ -891,6 +891,142 @@ TEST(testStereoFrame, getLandmarkInfo) {
 }
 
 /* ************************************************************************* */
+// Test undistortion of fisheye / pinhole equidistant model
+TEST(testStereoFrame, undistortFisheye) {
+
+  // Parse camera params
+  static CameraParams cam_params_left_fisheye;
+  cam_params_left_fisheye.parseYAML(stereo_dataset_path + 
+                          "/left_sensor_fisheye.yaml");
+
+  // Parse single image
+  cv::Mat left_fisheye_image_dist = UtilsOpenCV::ReadAndConvertToGrayScale(
+                      stereo_dataset_path + "left_fisheye_img_0.png", false);
+
+  // Declare empty variables
+  cv::Mat left_fisheye_image_undist, map_x_fisheye_undist, map_y_fisheye_undist;
+  
+  // Undistort image using pinhole equidistant (fisheye) model
+  if (cam_params_left_fisheye.distortion_model_ == "equidistant") {
+      cv::fisheye::initUndistortRectifyMap(cam_params_left_fisheye.camera_matrix_, 
+                cam_params_left_fisheye.distortion_coeff_,
+                // not relevant here 
+                cv::Mat::eye(3,3,CV_32F),
+                // don't to use default identity! 
+                cam_params_left_fisheye.camera_matrix_,
+                cam_params_left_fisheye.image_size_, 
+                CV_32FC1,
+                // output 
+                map_x_fisheye_undist, 
+                map_y_fisheye_undist);
+      cv::remap(left_fisheye_image_dist, 
+                left_fisheye_image_undist, 
+                map_x_fisheye_undist, 
+                map_y_fisheye_undist, 
+                cv::INTER_LINEAR);
+  }
+  else {
+    LOG(ERROR) << "Distortion model is not pinhole equidistant.";
+  }
+
+  // Parse reference image
+  cv::Mat left_fisheye_image_ref = UtilsOpenCV::ReadAndConvertToGrayScale(
+                         stereo_dataset_path + "left_ref_img_0.png",
+                         false);
+  
+  // Test distortion with image comparison
+  EXPECT(UtilsOpenCV::CvMatCmp(left_fisheye_image_undist, left_fisheye_image_ref, 1e-3));
+
+}
+
+/* ************************************************************************* */
+TEST(testStereoFrame, undistortFisheyeStereoFrame) {
+
+  // Parse camera params for left and right cameras
+  static CameraParams cam_params_left_fisheye;
+  cam_params_left_fisheye.parseYAML(stereo_dataset_path + 
+                          "/left_sensor_fisheye.yaml");
+  static CameraParams cam_params_right_fisheye;
+  cam_params_right_fisheye.parseYAML(stereo_dataset_path + 
+                          "/right_sensor_fisheye.yaml");
+
+  // Get images
+  cv::Mat left_fisheye_image_dist = UtilsOpenCV::ReadAndConvertToGrayScale(
+                stereo_dataset_path + "left_fisheye_img_0.png", false);
+  cv::Mat right_fisheye_image_dist = UtilsOpenCV::ReadAndConvertToGrayScale(
+                stereo_dataset_path + "right_fisheye_img_0.png", false);
+
+  // Get relative pose of cameras
+  gtsam::Pose3 camL_pose_camR_fisheye = (cam_params_left_fisheye.body_Pose_cam_).between(
+                      cam_params_right_fisheye.body_Pose_cam_);
+
+  sf = new StereoFrame(0, 0, // Default, not used here
+              // Left frame
+              left_fisheye_image_dist,
+              cam_params_left_fisheye,
+              // Right frame
+              right_fisheye_image_dist,
+              cam_params_right_fisheye,
+              // Relative pose
+              camL_pose_camR_fisheye,
+              // Default, not used here
+              StereoMatchingParams());
+
+  // Compute rectification parameters
+  sf->computeRectificationParameters();
+
+  // Get rectified images
+  sf->getRectifiedImages();
+
+  // Define rectified images
+  cv::Mat left_image_rectified, right_image_rectified;
+  sf->left_img_rectified_.copyTo(left_image_rectified);
+  sf->right_img_rectified_.copyTo(right_image_rectified);
+
+  // Get camera matrix for new rectified stereo
+  P1 = sf->getLeftFrame().cam_param_.P_;
+  P2 = sf->getRightFrame().cam_param_.P_;
+
+  // Get rectified left keypoints.
+  gtsam::Cal3_S2 left_undistRectCameraMatrix_fisheye = UtilsOpenCV::Cvmat2Cal3_S2(P1);
+  StatusKeypointsCV left_keypoints_rectified;
+  Frame left_frame_fish = sf->getLeftFrame();
+  left_frame_fish.extractCorners();
+  sf->undistortRectifyPoints(left_frame_fish.keypoints_,
+                         left_frame_fish.cam_param_,
+                         left_undistRectCameraMatrix_fisheye,
+                         &left_keypoints_rectified);
+
+  // Get rectified right keypoints
+  StatusKeypointsCV right_keypoints_rectified;
+  right_keypoints_rectified = sf->getRightKeypointsRectified(left_image_rectified,
+                                 right_image_rectified,
+                                 left_keypoints_rectified,
+                                 left_undistRectCameraMatrix_fisheye.fx(), sf->getBaseline());
+
+  // Check corresponding features are on epipolar lines (visually and store)
+   //cv::Mat imgL_dist_withKeypoints = UtilsOpenCV::DrawCircles(left_fisheye_image_dist, left_frame_fish.keypoints_);
+  //cv::imwrite(stereo_dataset_path + 
+  //            "/test_undist.png", imgL_dist_withKeypoints);
+  cv::Mat imgL_withKeypoints = UtilsOpenCV::DrawCircles(left_image_rectified, left_keypoints_rectified);
+  cv::Mat imgR_withKeypoints = UtilsOpenCV::DrawCircles(right_image_rectified, right_keypoints_rectified);
+  cv::Mat undist_LR_keypoints = UtilsOpenCV::ConcatenateTwoImages(imgL_withKeypoints, imgR_withKeypoints);
+  //cv::imwrite(stereo_dataset_path + 
+  //            "/undist_keypoints_sidebyside.png", undist_LR_keypoints); */
+
+  // Parse reference image
+  cv::Mat undist_keypoints_ref = cv::imread(stereo_dataset_path + 
+                    "undist_keypoints_ref_img_0.png", cv::IMREAD_ANYCOLOR);
+  
+  // Test distortion with image comparison
+  EXPECT(UtilsOpenCV::CvMatCmp(undist_LR_keypoints, undist_keypoints_ref, 1e-3));
+
+  // compute sparse depth for stereo frame
+  // --> most of the point should have depth
+
+}
+
+/* ************************************************************************* */
 int main() {
   // Initialize the data!
   initializeData();
