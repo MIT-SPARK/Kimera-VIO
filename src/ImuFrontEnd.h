@@ -68,7 +68,8 @@ public:
   double acc_noise_;
   double acc_walk_;
 
-  gtsam::Vector3 n_gravity_;
+  // TODO: n_gravity_ should not be in ImuParams!!!
+  gtsam::Vector3 n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81); // Added default value
   double imu_integration_sigma_;
 
 public:
