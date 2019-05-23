@@ -1,7 +1,7 @@
 README - VIO: Visual-Inertial Odometry
 ======================================
 
-[![Build Status](http://18.47.7.162:8080/buildStatus/icon?job=VIO/master)](http://18.47.7.162:8080/job/VIO/job/master/)
+[![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/)
 
 What is VIO?
 ------------
@@ -9,6 +9,7 @@ What is VIO?
 VIO is a library of C++ classes that implement the visual-inertial odometry pipeline described in these papers:
 
  - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
+ 
  - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors. In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
 The Regular VIO backend is described in this paper:
@@ -19,7 +20,7 @@ Quickstart
 
 Clone this repository: `git clone git@github.mit.edu:SPARK/VIO.git`
 
-In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly,you may need to change the folder for CGAL and OpenGV):
+In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for CGAL and OpenGV):
 
 ```
 #!bash
@@ -47,6 +48,39 @@ Prerequisites:
 - [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0 (Installation instructions below)
 - [OpenGV] Installation instructions below
 - [CGAL] Installation instructions below
+
+Installation of GTSAM
+----------
+Install GTSAM's dependencies Boost:
+```
+sudo apt-get update && sudo apt-get install -y libboost-all-dev
+```
+
+and [Intel Threaded Building Blocks (TBB)](http://www.threadingbuildingblocks.org/) (optional, but highly recommended for speed):
+
+```
+sudo apt-get install libtbb-dev
+```
+
+Clone GTSAM wherever you want, and checkout commit below:
+```
+git clone https://github.com/borglab/gtsam.git
+git checkout c827d4cd6b11f78f3d2d9d52b335ac562a2757fc
+```
+
+Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details.
+```bash
+cd gtsam
+mkdir build
+cd build
+cmake ..
+```
+
+Compile GTSAM:
+```
+make check (optional, runs unit tests)
+make install
+```
 
 Installation of OpenCV
 ----------------------
