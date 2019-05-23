@@ -406,7 +406,7 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
       const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
 
       if(obs_kf.first != curr_kf_id_) // sanity check
-        throw std::runtime_error("addLandmarksToGraph: last obs is not from the current keyframe!\n");
+        LOG(FATAL) << "addLandmarksToGraph: last obs is not from the current keyframe!\n";
 
       updateLandmarkInGraph(lm_id, obs_kf);
       ++n_updated_landmarks;
@@ -453,7 +453,7 @@ void VioBackEnd::updateLandmarkInGraph(
   // Update existing smart-factor
   auto old_smart_factors_it = old_smart_factors_.find(lm_id);
   if (old_smart_factors_it == old_smart_factors_.end())
-    throw std::runtime_error("updateLandmarkInGraph: landmark not found in old_smart_factors_\n");
+    LOG(FATAL) << "updateLandmarkInGraph: landmark not found in old_smart_factors_\n";
 
   SmartStereoFactor::shared_ptr old_factor = old_smart_factors_it->second.first;
   // TODO this looks super sketchy!
@@ -465,7 +465,7 @@ void VioBackEnd::updateLandmarkInGraph(
   if (old_smart_factors_it->second.second != -1){// if slot is still -1, it means that the factor has not been inserted yet in the graph
     new_smart_factors_.insert(std::make_pair(lm_id, new_factor));
   }else{
-    throw std::runtime_error("updateLandmarkInGraph: when calling update the slot should be already != -1! \n");
+    LOG(FATAL) << "updateLandmarkInGraph: when calling update the slot should be already != -1! \n";
   }
   old_smart_factors_it->second.first = new_factor;
   if (verbosity_ >= 8) {std::cout << "updateLandmarkInGraph: added observation to point: " << lm_id << std::endl;}
@@ -2013,7 +2013,7 @@ void VioBackEnd::computeSparsityStatistics() {
   }
   // sanity check
   if(Hessian.rows() != Hessian.cols()) // matrix is not square
-    throw std::runtime_error("computeSparsityStatistics: hessian is not a square matrix?");
+    LOG(FATAL) << "computeSparsityStatistics: hessian is not a square matrix?";
 
   std::cout << "Hessian stats: =========== " << std::endl;
   std::cout << "rows: " << Hessian.rows() << std::endl;

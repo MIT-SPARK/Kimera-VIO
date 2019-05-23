@@ -119,7 +119,7 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
                                  getMinDepthFactor(), getMapDepthFactor());
       break;
     default: 
-      throw std::runtime_error("sparseStereoMatching: only works when VisionSensorType::STEREO or RGBD"); 
+      LOG(FATAL) << "sparseStereoMatching: only works when VisionSensorType::STEREO or RGBD"; 
       break;
   }
 
@@ -466,7 +466,7 @@ void StereoFrame::createMesh2dStereo(
                      pxRadiusSubsample, cv::Scalar(0), CV_FILLED);
         }
         if (useCanny && (intensity_rc != 0 && intensity_rc != 255))
-          throw std::runtime_error("createMesh2Dplanes: wrong Canny");
+          LOG(FATAL) << "createMesh2Dplanes: wrong Canny";
       }
     }
 
@@ -495,8 +495,8 @@ void StereoFrame::createMesh2dStereo(
           Vector3 versor_rect_i = Frame::CalibratePixel(kptsWithGradient.at(i),
                                                         left_frame_.cam_param_); // get 3D point
           Vector3 versor_i = camLrect_R_camL.rotate(versor_rect_i);
-          if (versor_i(2) < 1e-3) throw std::runtime_error(
-               "sparseStereoMatching: found point with nonpositive depth! (2)");
+          if (versor_i(2) < 1e-3) LOG(FATAL) <<
+               "sparseStereoMatching: found point with nonpositive depth! (2)";
           gtsam::Point3 p = versor_i * depth / versor_i(2); // in the camera frame
           // p.print("point from versor");
           // store point
@@ -698,11 +698,11 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   if(gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() > 1e-5 ){
     std::cout << "camL_Pose_camR log: " << gtsam::Rot3::Logmap(camL_Pose_camR.rotation()).norm() << std::endl;
     std::cout << "camLrect_Pose_calRrect log: " << gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() << std::endl;
-    throw std::runtime_error("Vio constructor: camera poses do not seem to be rectified (rot)");
+    LOG(FATAL) << "Vio constructor: camera poses do not seem to be rectified (rot)";
   }
   if(fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 || fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3){
     camLrect_Pose_calRrect.print("camLrect_Pose_calRrect\n");
-    throw std::runtime_error("Vio constructor: camera poses do not seem to be rectified (tran)");
+    LOG(FATAL) << "Vio constructor: camera poses do not seem to be rectified (tran)";
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -827,7 +827,7 @@ void StereoFrame::getRightKeypointsLKunrectified() {
   Frame& cur_frame = right_frame_;
 
   if(left_frame_.keypoints_.size() == 0)
-    throw std::runtime_error("computeStereo: no keypoints found");
+    LOG(FATAL) << "computeStereo: no keypoints found";
 
   // get correspondences on right image by using Lucas Kanade
   // Parameters
@@ -857,7 +857,7 @@ void StereoFrame::getRightKeypointsLKunrectified() {
         cv::Size2i(klt_win_size, klt_win_size),
         4, termcrit, cv::OPTFLOW_USE_INITIAL_FLOW);
   }else{
-    throw std::runtime_error("computeStereo: no available keypoints for stereo computation");
+    LOG(FATAL) << "computeStereo: no available keypoints for stereo computation";
   }
 
   cur_frame.keypoints_.clear();
@@ -874,7 +874,7 @@ void StereoFrame::getRightKeypointsLKunrectified() {
   }
 
   if(cur_frame.keypoints_.size() != ref_frame.keypoints_.size())
-    throw std::runtime_error("computeStereo: error -  length of computeStereo is incorrect");
+    LOG(FATAL) << "computeStereo: error -  length of computeStereo is incorrect";
 
   std::cout << "stereo matching: matched  " << nrValidDepths <<
       " out of " << ref_frame.keypoints_.size() << " keypoints" << std::endl;
@@ -1106,7 +1106,7 @@ std::pair<StatusKeypointCV,double> StereoFrame::findMatchingKeypointRectified(
   }
   if(temp_corner_x + templ_cols > left_rectified.cols-1){ // template exceeds on the right-hand-side of the image
     if(offset_temp != 0)
-      throw std::runtime_error("findMatchingKeypointRectified: offset_temp cannot exceed in both directions!");
+      LOG(FATAL) << "findMatchingKeypointRectified: offset_temp cannot exceed in both directions!";
     offset_temp = (temp_corner_x + templ_cols) - ( left_rectified.cols - 1 ); // amount that exceeds
     temp_corner_x -= offset_temp; // corner has to be offset_temp to the left by the amount that exceeds
   }

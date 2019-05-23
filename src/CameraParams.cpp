@@ -40,15 +40,14 @@ bool CameraParams::parseYAML(const std::string& filepath) {
     distortion_coeff_ = cv::Mat::zeros(1, 5, CV_64F);
     CHECK_GT(distortion_coeff_.cols, distortion_coeff4_.size());
     CHECK_EQ(distortion_coeff4_.size(),4);
-  }
-  else if (distortion_model_ == "equidistant") {
+  } else if (distortion_model_ == "equidistant") {
     distortion_coeff_ = cv::Mat::zeros(1, 4, CV_64F);
     CHECK_EQ(distortion_coeff_.cols, distortion_coeff4_.size());
     CHECK_EQ(distortion_coeff4_.size(),4);
-  }
-  else {
+  } else {
     LOG(ERROR) << "Distortion model in YAML not known.";
   }
+  
   for (int k = 0; k < 4; k++) {
     distortion_coeff_.at<double>(0, k) = distortion_coeff4_[k];
   }

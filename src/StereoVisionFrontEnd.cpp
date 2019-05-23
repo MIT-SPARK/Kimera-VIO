@@ -497,7 +497,7 @@ void StereoVisionFrontEnd::displayStereoTrack(const int& verbosity) const {
 
   if ((left_frame_k.img_.cols != right_frame_k.img_.cols) ||
       (left_frame_k.img_.rows != right_frame_k.img_.rows))
-    throw std::runtime_error("displayStereoTrack: image dimension mismatch!");
+    LOG(FATAL) << "displayStereoTrack: image dimension mismatch!";
 
   cv::Mat img_right;
   (right_frame_k.img_).copyTo(img_right);
