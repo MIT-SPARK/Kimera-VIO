@@ -1018,7 +1018,7 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     const StatusKeypointsCV& left_keypoints_rectified,
     const double &fx, const double &baseline, 
     const double &depth_map_factor, const double &min_depth) const {
-  int verbosity = 2;
+  int verbosity = 0;
   bool writeImageLeftRightMatching = false;
 
   StatusKeypointsCV right_keypoints_rectified; 
@@ -1338,11 +1338,8 @@ void StereoFrame::showImagesSideBySide(const cv::Mat imL,
     cv::imshow("originalLR", originalLR);
     cv::waitKey(200);
   } else if(verbosity == 2) {
-    //std::string img_name = "./outputImages/" + title + std::to_string(id_) +
-    //    ".png";
-    std::string img_name = "/home/sb/Desktop/debugging/pinhole_rgbd/" + title + std::to_string(id_) +
-        ".png"; // TODO: Remove after testing
-    LOG(INFO) << "Saving images for debugging!";
+    std::string img_name = "./outputImages/" + title + std::to_string(id_) +
+        ".png";
     cv::imwrite(img_name, originalLR);
   }
 }
