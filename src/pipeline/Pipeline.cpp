@@ -523,15 +523,19 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
         std::make_shared<gtNavState>(dataset_->getGroundTruthState(
                      stereo_imu_sync_packet.getStereoFrame().getTimestamp())) :
                      std::shared_ptr<gtNavState>(nullptr);
-  // Initialize Backend using External Pose Estimate if available.
-  /*if (stereo_imu_sync_packet.getReinitPacket().getReinitFlag()) {
-      LOG(INFO) << "Reinitialized with external navstate estimate.";
-      std::shared_ptr<gtNavState> initialStateGT = stereo_imu_sync_packet.getReinitPacket().getReinitFlag()?
-          std::make_shared<gtNavState>(gtNavState(
-            stereo_imu_sync_packet.getReinitPacket().getReinitPose(),
-            stereo_imu_sync_packet.getReinitPacket().getReinitVel(),
-            stereo_imu_sync_packet.getReinitPacket().getReinitBias())) :
-                     std::shared_ptr<gtNavState>(nullptr); */
+  
+  // TODO: Include flag to start from external pose estimate (ROS)
+  //if (flag_init_gt = 0) {
+  //    LOG(INFO) << "Initialize pipeline with possible GT.";
+  //
+  //} else {
+  //    // Initialize Backend using External Pose Estimate if available.
+  //    LOG(INFO) << "Initialize pipeline with external navstate estimate.";
+  //    initialStateGT = std::make_shared<gtNavState>(gtNavState(
+  //          stereo_imu_sync_packet.getReinitPacket().getReinitPose(),
+  //          stereo_imu_sync_packet.getReinitPacket().getReinitVel(),
+  //          stereo_imu_sync_packet.getReinitPacket().getReinitBias()))
+  //}
 
   initBackend(&vio_backend_,
               stereo_frame_lkf.getBPoseCamLRect(),

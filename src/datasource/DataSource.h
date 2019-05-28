@@ -90,6 +90,10 @@ struct SpinOutputContainer {
     return gtsam::sub(State_Covariance_lkf_,6,9,6,9);
   }
 
+  inline const ImuBias getEstimatedBias() {
+    return imu_bias_lkf_;
+  }
+
   inline const gtsam::Matrix6 getEstimatedBiasCov() {
     return gtsam::sub(State_Covariance_lkf_,9,15,9,15);
   }

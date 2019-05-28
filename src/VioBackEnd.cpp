@@ -142,7 +142,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
     (*initial_state_gt)->velocity_ = W_Vel_B_lkf_;
     (*initial_state_gt)->imu_bias_ = imu_bias_lkf_;
   } else {
-    // Use ground-truth as first pose.
+    // Use ground-truth or external pose estimate as first pose.
     initStateAndSetPriors(timestamp_k,
                           (*initial_state_gt)->pose_,
                           (*initial_state_gt)->velocity_,

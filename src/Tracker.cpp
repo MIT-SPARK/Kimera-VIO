@@ -403,11 +403,12 @@ std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
   Matrix3 Jac_point3_sp2; // jacobian of the back projection
   Vector3 point3_i_gtsam = stereoCam.backproject2(stereoPoint,boost::none,Jac_point3_sp2).vector();
   Vector3 point3_i = stereoFrame.keypoints_3d_.at(pointId);
+  // TODO: Adapt value of this threshold for different calibration models! (1e-1)
   if ((point3_i_gtsam - point3_i).norm() > 1e-1) {
     VLOG(10) << "\n point3_i_gtsam \n " << point3_i_gtsam
              << "\n point3_i \n" << point3_i;
-    throw std::runtime_error("GetPoint3AndCovariance: inconsistent "
-                             "backprojection results (ref)");
+    LOG(FATAL) << "GetPoint3AndCovariance: inconsistent " <<
+        "backprojection results (ref): " << (point3_i_gtsam - point3_i).norm();
   }
   if (Rmat) {
     point3_i = (*Rmat) * point3_i; // optionally rotated to another ref frame

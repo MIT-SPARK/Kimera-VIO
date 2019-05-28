@@ -116,7 +116,7 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
                                  right_img_rectified_,
                                  left_keypoints_rectified,
                                  fx, getBaseline(),
-                                 getMinDepthFactor(), getMapDepthFactor());
+                                 getMapDepthFactor(), getMinDepthFactor());
       break;
     default: 
       LOG(FATAL) << "sparseStereoMatching: only works when VisionSensorType::STEREO or RGBD"; 
@@ -886,7 +886,7 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
     const cv::Mat right_rectified,
     const StatusKeypointsCV& left_keypoints_rectified,
     const double &fx, const double &baseline) const {
-  int verbosity = 0;
+  int verbosity = 0; // Change back to 0
   bool writeImageLeftRightMatching = false;
 
   // The stripe has to be places in the right image, on the left-hand-side wrt the x of the left feature, since:
@@ -1018,7 +1018,7 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     const StatusKeypointsCV& left_keypoints_rectified,
     const double &fx, const double &baseline, 
     const double &depth_map_factor, const double &min_depth) const {
-  int verbosity = 0;
+  int verbosity = 2;
   bool writeImageLeftRightMatching = false;
 
   StatusKeypointsCV right_keypoints_rectified; 
@@ -1048,10 +1048,16 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     KeypointCV left_rectified_i = left_keypoints_rectified[i].second;
 
     // get depth from RGBD
-    float depth_from_RGBD = depth_map_factor*float( right_img_rectified_.at<unsigned char>( round(left_rectified_i.y),round(left_rectified_i.x) ) );
-    
-    // compute disparity from the rgbd depth
-    auto disparityFromRGBD = fx*baseline/depth_from_RGBD;
+    float depth_from_RGBD = depth_map_factor*float( right_img_rectified_.at<u_int16_t>( round(left_rectified_i.y),round(left_rectified_i.x) ) );
+
+    // get disparity from RGBD
+    float disparityFromRGBD;
+    if (depth_from_RGBD > 0.0) {
+      // compute disparity from the rgbd depth
+      disparityFromRGBD = fx*baseline/depth_from_RGBD;
+    } else {
+      disparityFromRGBD = 0.0; // This will get discarded anyway
+    }
 
     StatusKeypointCV right_rectified_i_candidate;
 
@@ -1069,8 +1075,11 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
 
   if(verbosity>0)
   {
+    cv::Mat right_rectified_adapted;
+    right_rectified.copyTo(right_rectified_adapted);
+    right_rectified_adapted.convertTo(right_rectified_adapted,CV_8UC1);
     cv::Mat imgL_withKeypoints = UtilsOpenCV::DrawCircles(left_rectified, left_keypoints_rectified);
-    cv::Mat imgR_withKeypoints = UtilsOpenCV::DrawCircles(right_rectified, right_keypoints_rectified);
+    cv::Mat imgR_withKeypoints = UtilsOpenCV::DrawCircles(right_rectified_adapted, right_keypoints_rectified);
     showImagesSideBySide(imgL_withKeypoints,imgR_withKeypoints,"result_getRightKeypointsRectified",verbosity);
   }
   return right_keypoints_rectified;
@@ -1324,13 +1333,16 @@ void StereoFrame::showImagesSideBySide(const cv::Mat imL,
   if (verbosity == 0) return;
 
   cv::Mat originalLR = UtilsOpenCV::ConcatenateTwoImages(imL,imR);
-  cv::namedWindow(title, cv::WINDOW_AUTOSIZE);
   if (verbosity == 1) {
+    cv::namedWindow(title, cv::WINDOW_AUTOSIZE); // moved in here to allow saving images
     cv::imshow("originalLR", originalLR);
     cv::waitKey(200);
   } else if(verbosity == 2) {
-    std::string img_name = "./outputImages/" + title + std::to_string(id_) +
-        ".png";
+    //std::string img_name = "./outputImages/" + title + std::to_string(id_) +
+    //    ".png";
+    std::string img_name = "/home/sb/Desktop/debugging/pinhole_rgbd/" + title + std::to_string(id_) +
+        ".png"; // TODO: Remove after testing
+    LOG(INFO) << "Saving images for debugging!";
     cv::imwrite(img_name, originalLR);
   }
 }

@@ -78,7 +78,7 @@ public:
       bool equalize_image = false,
       int vision_sensor_type = VisionSensorType::STEREO,
       double min_depth_factor = 0.3, // NOTE that this is hard coded (for RealSense)
-      double map_depth_factor = 1000.0) : // NOTE that this is hard coded (for RealSense)
+      double map_depth_factor = 0.001) : // NOTE that this is hard coded (for RealSense)
         tolerance_template_matching_(std::move(tol_template_matching)),
         nominal_baseline_(std::move(nominal_baseline)),
         templ_cols_(std::move(templ_cols)),

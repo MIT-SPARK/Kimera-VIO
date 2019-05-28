@@ -33,13 +33,15 @@ struct ReinitPacket {
       W_Vel_Bext_(W_Vel_Bext),
       imu_bias_ext_(imu_bias_ext) {}
 
-  public:
+  private:
     // Member variables of reinitialization packet
-    const bool reinit_flag_ext_;
-    const Timestamp timestamp_ext_;
-    const gtsam::Pose3 W_Pose_Bext_;
-    const Vector3 W_Vel_Bext_;
-    const ImuBias imu_bias_ext_;
+    bool reinit_flag_ext_;
+    Timestamp timestamp_ext_;
+    gtsam::Pose3 W_Pose_Bext_;
+    Vector3 W_Vel_Bext_;
+    ImuBias imu_bias_ext_;
+
+  public:
 
     // Careful, returning references to members can lead to dangling refs.
     inline const bool& getReinitFlag() const {return reinit_flag_ext_;}
@@ -47,6 +49,11 @@ struct ReinitPacket {
     inline const gtsam::Pose3& getReinitPose() const {return W_Pose_Bext_;}
     inline const gtsam::Vector3& getReinitVel() const {return W_Vel_Bext_;}
     inline const ImuBias& getReinitBias() const {return imu_bias_ext_;}
+
+    // Setting pose
+    inline void setReinitFlag(bool& reinit_flag) { reinit_flag_ext_ = reinit_flag;}
+    inline void resetReinitFlag() { reinit_flag_ext_ = false;}
+    inline void setReinitPose(gtsam::Pose3& external_pose) { W_Pose_Bext_ = external_pose;}
 
     void print() const {
       if (getReinitFlag()) {
