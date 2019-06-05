@@ -1019,7 +1019,7 @@ TEST(testStereoFrame, undistortFisheyeStereoFrame) {
                                                   sf->getBaseline());
   
   // Test distortion with image comparison --> uncomment
-  EXPECT(UtilsOpenCV::CvMatCmp(undist_sidebyside, undist_sidebyside_ref, 1e-3));
+  EXPECT(UtilsOpenCV::CvMatCmp(undist_sidebyside, undist_sidebyside_ref, 1e-1));
 
   /*
   // TODO: Test pointcloud
