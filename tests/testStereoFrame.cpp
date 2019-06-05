@@ -939,7 +939,8 @@ TEST(testStereoFrame, undistortFisheye) {
 
 }
 
-/* ************************************************************************* */
+/* *************************************************************************
+// TODO: Figure out why this compiles on PC, but not on Jenkins
 TEST(testStereoFrame, undistortFisheyeStereoFrame) {
 
   // Parse camera params for left and right cameras
@@ -1021,95 +1022,10 @@ TEST(testStereoFrame, undistortFisheyeStereoFrame) {
   // Test distortion with image comparison --> uncomment
   EXPECT(UtilsOpenCV::CvMatCmp(undist_sidebyside, undist_sidebyside_ref, 1e-1));
 
-  /*
-  // TODO: Test pointcloud
-  std::tie(right_frame_fish.keypoints_, sf->right_keypoints_status_) =
-      sf->distortUnrectifyPoints(right_keypoints_rectified,
-                             right_frame_fish.cam_param_.undistRect_map_x_,
-                             right_frame_fish.cam_param_.undistRect_map_y_);
-
-  // Sanity check.
-  CHECK_EQ(keypoints_depth.size(), left_frame_fish.versors_.size())
-    << "sparseStereoMatching: keypoints_depth_ & versors_ sizes are wrong!";
-  */
-
-  /*
-  // Get 3D points and populate structures.
-  keypoints_3d_.clear();
-  keypoints_3d_.reserve(right_keypoints_rectified.size());
-  left_keypoints_rectified_.clear();
-  left_keypoints_rectified_.reserve(right_keypoints_rectified.size());
-  right_keypoints_rectified_.clear();
-  right_keypoints_rectified_.reserve(right_keypoints_rectified.size());
-
-  // IMPORTANT: keypoints_3d_ are expressed in the rectified left frame, so we have
-  // to compensate for rectification. We do not do this for the versors to avoid adding
-  // numerical errors (we are using very tight thresholds on 5-point RANSAC)
-  gtsam::Rot3 camLrect_R_camL =
-      UtilsOpenCV::Cvmat2rot(left_frame_.cam_param_.R_rectify_);
-  for (size_t i = 0; i < right_keypoints_rectified.size(); i++) {
-    left_keypoints_rectified_.push_back(
-          left_keypoints_rectified.at(i).second);
-    right_keypoints_rectified_.push_back(
-          right_keypoints_rectified.at(i).second);
-    if (right_keypoints_rectified[i].first == Kstatus::VALID) {
-      Vector3 versor = camLrect_R_camL.rotate(left_frame_.versors_[i]);
-      CHECK_GE(versor(2), 1e-3)
-          << "sparseStereoMatching: found point with nonpositive depth!";
-      // keypoints_depth_ is not the norm of the vector, it is the z component.
-      keypoints_3d_.push_back(versor * keypoints_depth_[i] / versor(2));
-    } else {
-      keypoints_3d_.push_back(Vector3::Zero());
-    }
-  }
-
-  */
-
-  // TODO: Check depth from disparity
-  //cv::Mat disparity = sf->getDisparityImage();
-  //cv::imwrite(stereo_dataset_path + 
-  //            "disparity.png", disparity);
-  // compute sparse depth for stereo frame
-  // --> most of the point should have depth
-
-    // Draw epipolar lines and keypoints
-  /*
-  cv::Mat imgL_withKeypoints = UtilsOpenCV::DrawCircles(left_image_rectified, 
-                      left_keypoints_rectified);
-  cv::Mat imgR_withKeypoints = UtilsOpenCV::DrawCircles(right_image_rectified, 
-                      right_keypoints_rectified, keypoints_depth);
-
-  // Draw epipolar lines
-  int numLines = 20;
-  cv::Mat undist_LR_epipolar = UtilsOpenCV::ConcatenateTwoImages(imgL_withKeypoints, imgR_withKeypoints);
-  int lineGap = undist_LR_epipolar.rows / (numLines + 1);
-  for (int l = 0; l < numLines; l++) {
-    float yPos = (l + 1) * lineGap;
-    cv::line(undist_LR_epipolar, cv::Point2f(0, yPos), cv::Point2f(undist_LR_epipolar.cols - 1, yPos),
-             cv::Scalar(0, 255, 0));
-  }
-
-  cv::imwrite(stereo_dataset_path + 
-              "/undist_epipolar_sidebyside_eagle_img_0.png", undist_LR_epipolar);
-
-  //cv::Mat undist_LR_keypoints = UtilsOpenCV::ConcatenateTwoImages(imgL_withKeypoints, imgR_withKeypoints);
-
-  ofstream myfile;
-  myfile.open (stereo_dataset_path + "keypoints_depth.txt");
-  for (int j=0; j < keypoints_depth.size(); j++) {
-    myfile << keypoints_depth[j] << "\n";
-  }
-  myfile.close();
-
-  //cv::imwrite(stereo_dataset_path + 
-  //            "/undist_keypoints_sidebyside_img_0.png", undist_LR_keypoints);
-
-
-  //cv::Mat undist_keypoints_ref = cv::imread(stereo_dataset_path + 
-  //                  "undist_keypoints_ref_img_0.png", cv::IMREAD_ANYCOLOR);
-  */
 
 }
+
+*/
 
 /* ************************************************************************* */
 int main() {
