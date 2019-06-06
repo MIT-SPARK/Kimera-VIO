@@ -67,6 +67,7 @@ public:
   double gyro_walk_;
   double acc_noise_;
   double acc_walk_;
+  double imu_shift_;
 
   // TODO: n_gravity_ should not be in ImuParams!!!
   gtsam::Vector3 n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81); // Added default value
