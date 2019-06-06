@@ -61,9 +61,18 @@ bool StereoVisionFrontEnd::spin(
     is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();
-      output_queue.push(spinOnce(input));
+      const StereoFrontEndOutputPayload& output = spinOnce(input);
+      if (output.is_keyframe_) {
+        VLOG(2) << "Frontend output is a keyframe.";
+        output_queue.push(output);
+      } else {
+        VLOG(2) << "Frontend output is not a keyframe."
+                    " Skipping output queue push";
+      }
       auto spin_duration = utils::Timer::toc(tic).count();
-      LOG(WARNING) << "Current Stereo FrontEnd frequency: "
+      LOG(WARNING) << "Current Stereo FrontEnd "
+                   << (output.is_keyframe_? "(keyframe) ":"")
+                   << "frequency: "
                    << 1000.0 / spin_duration << " Hz. ("
                    << spin_duration << " ms).";
       stat_stereo_frontend_timing.AddSample(spin_duration);
@@ -393,7 +402,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     timeSparseStereo += UtilsOpenCV::GetTimeInSeconds() - start_time;
 
     // Show results.
-    // verbosityKeyframes = 1; 
+    // verbosityKeyframes = 1;
     if (verbosityKeyframes > 0) {
       displayStereoTrack(verbosityKeyframes);
       displayMonoTrack(verbosityKeyframes);
