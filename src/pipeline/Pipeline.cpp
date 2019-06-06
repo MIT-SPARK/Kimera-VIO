@@ -87,7 +87,15 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
     wrapped_thread_(nullptr),
     backend_thread_(nullptr),
     mesher_thread_(nullptr),
-    parallel_run_(parallel_run) {
+    parallel_run_(parallel_run),
+    stereo_frontend_input_queue_("stereo_frontend_input_queue"),
+    stereo_frontend_output_queue_("stereo_frontend_output_queue"),
+    backend_input_queue_("backend_input_queue"),
+    backend_output_queue_("backend_output_queue"),
+    mesher_input_queue_("mesher_input_queue"),
+    mesher_output_queue_("mesher_output_queue"),
+    visualizer_input_queue_("visualizer_input_queue"),
+    visualizer_output_queue_("visualizer_output_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
 
@@ -301,9 +309,7 @@ void Pipeline::spinSequential() {
   const auto& stereo_frontend_output_payload =
       stereo_frontend_output_queue_.popBlocking();
   CHECK(stereo_frontend_output_payload);
-  if (!stereo_frontend_output_payload->is_keyframe_) {
-    return;
-  }
+  CHECK(stereo_frontend_output_payload->is_keyframe_);
 
   // We have a keyframe. Push to backend.
   backend_input_queue_.push(
@@ -654,21 +660,16 @@ void Pipeline::processKeyframePop() {
   // Pull from stereo frontend output queue.
   LOG(INFO) << "Spinning wrapped thread.";
   while(!shutdown_) {
-    std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload;
-    stereo_frontend_output_payload = stereo_frontend_output_queue_.pop();
-    if (!stereo_frontend_output_payload) {
-      VLOG(100) << "Missing frontend output payload.";
-      continue;
-    }
+    std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload
+        = stereo_frontend_output_queue_.popBlocking();
     CHECK(stereo_frontend_output_payload);
-    if (!stereo_frontend_output_payload->is_keyframe_) {
-      continue;
-    }
-    //////////////////////////////////////////////////////////////////////////////
+    CHECK(stereo_frontend_output_payload->is_keyframe_);
+
+    ////////////////////////////////////////////////////////////////////////////
     // So from this point on, we have a keyframe.
     // Pass info to VIO
     // Actual keyframe processing. Call to backend.
-    ////////////////////////////// BACK-END //////////////////////////////////////
+    ////////////////////////////// BACK-END ////////////////////////////////////
     processKeyframe(
           stereo_frontend_output_payload->statusSmartStereoMeasurements_,
           stereo_frontend_output_payload->stereo_frame_lkf_,
