@@ -706,7 +706,7 @@ void StereoFrame::computeRectificationParameters() {
   if(fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 ||
      fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3){
     camLrect_Pose_calRrect.print("camLrect_Pose_calRrect\n");
-    LOF(FATAL) << "Vio constructor: camera poses do not seem to be rectified (tran)";
+    LOG(FATAL) << "Vio constructor: camera poses do not seem to be rectified (tran)";
 
   }
 
