@@ -44,7 +44,7 @@ void producer(ThreadsafeQueue<std::string>& q,
 
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, popBlocking_by_reference) {
-  ThreadsafeQueue<std::string> q;
+  ThreadsafeQueue<std::string> q("test_queue");
   std::thread p ([&] {
     q.push("Hello World!");
     q.push("Hello World 2!");
@@ -66,7 +66,7 @@ TEST(testThreadsafeQueue, popBlocking_by_reference) {
 
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, popBlocking_by_shared_ptr) {
-  ThreadsafeQueue<std::string> q;
+  ThreadsafeQueue<std::string> q("test_queue");
   std::thread p ([&] {
     q.push("Hello World!");
     q.push("Hello World 2!");
@@ -86,7 +86,7 @@ TEST(testThreadsafeQueue, popBlocking_by_shared_ptr) {
 
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, push) {
-  ThreadsafeQueue<std::string> q;
+  ThreadsafeQueue<std::string> q("test_queue");
   std::thread p ([&] {
     q.push(std::string("Hello World!"));
     std::string s = "Hello World 2!";
@@ -107,7 +107,7 @@ TEST(testThreadsafeQueue, push) {
 
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, producer_consumer) {
-  ThreadsafeQueue<std::string> q;
+  ThreadsafeQueue<std::string> q("test_queue");
   std::atomic_bool kill_switch (false);
   std::thread c (consumer, std::ref(q), std::ref(kill_switch));
   std::thread p (producer, std::ref(q), std::ref(kill_switch));
@@ -133,7 +133,7 @@ TEST(testThreadsafeQueue, producer_consumer) {
 
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, stress_test) {
-  ThreadsafeQueue<std::string> q;
+  ThreadsafeQueue<std::string> q("test_queue");
   std::atomic_bool kill_switch (false);
   std::vector<std::thread> cs;
   for (size_t i = 0; i < 10; i++){
