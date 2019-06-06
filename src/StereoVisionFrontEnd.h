@@ -119,7 +119,7 @@ private:
   /* ------------------------------------------------------------------------ */
   // Frontend main function.
   StatusSmartStereoMeasurements processStereoFrame(
-      StereoFrame cur_frame, // Pass by value and use move semantics!
+      const StereoFrame& cur_frame,
       boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
 
   /* ------------------------------------------------------------------------ */

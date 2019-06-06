@@ -628,15 +628,16 @@ void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
 }
 
 /* -------------------------------------------------------------------------- */
-void StereoFrame::computeRectificationParameters() { // note also computes the rectification maps
-
-  // get extrinsics in open CV format
+// note also computes the rectification maps
+void StereoFrame::computeRectificationParameters() {
+  // Get extrinsics in open CV format.
   cv::Mat L_Rot_R, L_Tran_R;
+
   // NOTE: openCV pose convention is the opposite, that's why we have to invert
   boost::tie(L_Rot_R, L_Tran_R) =
       UtilsOpenCV::Pose2cvmats(camL_Pose_camR.inverse()); // set L_Rot_R,L_Tran_R
 
-  //////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
   // get rectification matrices
   CameraParams& left_camera_info = left_frame_.cam_param_;
   CameraParams& right_camera_info = right_frame_.cam_param_;
@@ -669,7 +670,7 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   }
 
   VLOG(10) << "RESULTS OF RECTIFICATION: \n"
-           << "left_camera_info.R_rectify_\n" << left_camera_info.R_rectify_
+           << "left_camera_info.R_rectify_\n" << left_camera_info.R_rectify_ << '\n'
            << "right_camera_info.R_rectify_\n" << right_camera_info.R_rectify_;
 
   // left camera pose after rectification
@@ -687,22 +688,26 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   // get baseline
   baseline_ = camLrect_Pose_calRrect.translation().x();
   // TODO remove hardcoded values.
-  if (baseline_ > 1.1 * sparse_stereo_params_.nominal_baseline_ ||
-      baseline_ < 0.9 * sparse_stereo_params_.nominal_baseline_) { // within 10% of the expected baseline
+  // within 10% of the expected baseline
+  static constexpr double baseline_tolerance = 0.10;
+  if (baseline_ > (1.0 + baseline_tolerance) * sparse_stereo_params_.nominal_baseline_ ||
+      baseline_ < (1.0 - baseline_tolerance) * sparse_stereo_params_.nominal_baseline_) {
     LOG(WARNING) << "getRectifiedImages: abnormal baseline: " << baseline_
                  << ", nominalBaseline: " << sparse_stereo_params_.nominal_baseline_
                  <<  "(+/-10%) \n\n\n\n";
   }
 
-  // sanity check
-  if(gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() > 1e-5 ){
-    std::cout << "camL_Pose_camR log: " << gtsam::Rot3::Logmap(camL_Pose_camR.rotation()).norm() << std::endl;
-    std::cout << "camLrect_Pose_calRrect log: " << gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() << std::endl;
-    LOG(FATAL) << "Vio constructor: camera poses do not seem to be rectified (rot)";
-  }
-  if(fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 || fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3){
+  // Sanity check.
+  CHECK(gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() < 1e-5 )
+      << "Vio constructor: camera poses do not seem to be rectified (rot)\n"
+      << "camL_Pose_camR log: " << gtsam::Rot3::Logmap(camL_Pose_camR.rotation()).norm() << '\n'
+      << "camLrect_Pose_calRrect log: " << gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm();
+
+  if(fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 ||
+     fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3){
     camLrect_Pose_calRrect.print("camLrect_Pose_calRrect\n");
-    LOG(FATAL) << "Vio constructor: camera poses do not seem to be rectified (tran)";
+    LOF(FATAL) << "Vio constructor: camera poses do not seem to be rectified (tran)";
+
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -782,7 +787,7 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   // this cuts the last column
   right_undistRectCameraMatrix_ = UtilsOpenCV::Cvmat2Cal3_S2(P2);
   is_rectified_ = true;
-  VLOG(10) << "storing undistRect maps and other rectification parameters!";
+  VLOG(10) << "Storing undistRect maps and other rectification parameters!";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -791,19 +796,21 @@ void StereoFrame::getRectifiedImages() {
   if(!is_rectified_)// if we haven't computed rectification parameters yet
     computeRectificationParameters();
 
-  if(left_frame_.img_.rows != left_img_rectified_.rows || left_frame_.img_.cols != left_img_rectified_.cols ||
-      right_frame_.img_.rows != right_img_rectified_.rows || right_frame_.img_.cols != right_img_rectified_.cols ){ // if we haven't rectified images yet
+  if(left_frame_.img_.rows != left_img_rectified_.rows ||
+     left_frame_.img_.cols != left_img_rectified_.cols ||
+     right_frame_.img_.rows != right_img_rectified_.rows ||
+     right_frame_.img_.cols != right_img_rectified_.cols ) {
+    // if we haven't rectified images yet
     // rectify and undistort images
-    cv::remap(left_frame_.img_, left_img_rectified_, left_frame_.cam_param_.undistRect_map_x_, left_frame_.cam_param_.undistRect_map_y_, cv::INTER_LINEAR);
-    cv::remap(right_frame_.img_, right_img_rectified_, right_frame_.cam_param_.undistRect_map_x_, right_frame_.cam_param_.undistRect_map_y_, cv::INTER_LINEAR);
+    cv::remap(left_frame_.img_, left_img_rectified_,
+              left_frame_.cam_param_.undistRect_map_x_,
+              left_frame_.cam_param_.undistRect_map_y_, cv::INTER_LINEAR);
+    cv::remap(right_frame_.img_, right_img_rectified_,
+              right_frame_.cam_param_.undistRect_map_x_,
+              right_frame_.cam_param_.undistRect_map_y_, cv::INTER_LINEAR);
   }
 
   // // rectification check:
-  //  std::cout << "size before (left): " << left_frame_.img_.rows << " x " << left_frame_.img_.cols << std::endl;
-  //  std::cout << "size after  (left): " << left_img_rectified_.rows << " x " << left_img_rectified_.cols << std::endl;
-  
-  //  std::cout << "size before (right): " << right_frame_.img_.rows << " x " << right_frame_.img_.cols << std::endl;
-  //  std::cout << "size after  (right): " << right_img_rectified_.rows << " x " << right_img_rectified_.cols << std::endl;
   
   //  cv::namedWindow("left_frame_img_", cv::WINDOW_NORMAL);
   //  cv::imshow("left_frame_img_", left_frame_.img_);
@@ -818,6 +825,14 @@ void StereoFrame::getRectifiedImages() {
   //  cv::namedWindow("right_img_rectified_", cv::WINDOW_NORMAL);
   //  cv::imshow("right_img_rectified_", right_img_rectified_);
   //  cv::waitKey(0);
+  VLOG(10) << "size before (left): " << left_frame_.img_.rows << " x "
+           << left_frame_.img_.cols << '\n'
+           << "size after  (left): " << left_img_rectified_.rows << " x "
+           << left_img_rectified_.cols << '\n'
+           << "size before (right): " << right_frame_.img_.rows << " x "
+           << right_frame_.img_.cols << '\n'
+           << "size after  (right): " << right_img_rectified_.rows << " x "
+           << right_img_rectified_.cols;
 }
 
 /* -------------------------------------------------------------------------- */

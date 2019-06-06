@@ -12,8 +12,9 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "StereoVisionFrontEnd.h"
 #include <glog/logging.h>
+
+#include "StereoVisionFrontEnd.h"
 #include "LoggerMatlab.h"
 
 namespace VIO {
@@ -60,9 +61,18 @@ bool StereoVisionFrontEnd::spin(
     is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();
-      output_queue.push(spinOnce(input));
+      const StereoFrontEndOutputPayload& output = spinOnce(input);
+      if (output.is_keyframe_) {
+        VLOG(2) << "Frontend output is a keyframe.";
+        output_queue.push(output);
+      } else {
+        VLOG(2) << "Frontend output is not a keyframe."
+                    " Skipping output queue push";
+      }
       auto spin_duration = utils::Timer::toc(tic).count();
-      LOG(WARNING) << "Current Stereo FrontEnd frequency: "
+      LOG(WARNING) << "Current Stereo FrontEnd "
+                   << (output.is_keyframe_? "(keyframe) ":"")
+                   << "frequency: "
                    << 1000.0 / spin_duration << " Hz. ("
                    << spin_duration << " ms).";
       stat_stereo_frontend_timing.AddSample(spin_duration);
@@ -237,7 +247,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 // FRONTEND WORKHORSE
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
 StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
-    StereoFrame cur_frame, // Pass by value and use move semantics!
+    const StereoFrame& cur_frame,
     boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu) {
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
@@ -250,9 +260,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   double start_time = UtilsOpenCV::GetTimeInSeconds();
   double time_to_clone_rect_params = 0;
 
-  // ! Using move semantics for efficiency.
-  VLOG(10) << "Using move semantics to copy cur_frame.";
-  stereoFrame_k_ = std::make_shared<StereoFrame>(std::move(cur_frame));
+  // TODO this copies the stereo frame!!
+  stereoFrame_k_ = std::make_shared<StereoFrame>(cur_frame);
 
   // Copy rectification from previous frame to avoid recomputing it.
   // TODO avoid copying altogether...
@@ -395,7 +404,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     timeSparseStereo += UtilsOpenCV::GetTimeInSeconds() - start_time;
 
     // Show results.
-    // verbosityKeyframes = 1; 
+    // verbosityKeyframes = 1;
     if (verbosityKeyframes > 0) {
       displayStereoTrack(verbosityKeyframes);
       displayMonoTrack(verbosityKeyframes);

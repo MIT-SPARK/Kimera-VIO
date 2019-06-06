@@ -14,6 +14,7 @@
 
 #include <future>
 
+DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
 // clean up later (dataset_path definition in ETH_parser.cpp)
 DEFINE_string(kitti_dataset_path, "/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync",
     "Path of dataset (i.e. Kitti, /home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync");
