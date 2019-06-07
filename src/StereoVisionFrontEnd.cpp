@@ -138,6 +138,7 @@ StereoVisionFrontEnd::spinOnce(
   }
   //////////////////////////////////////////////////////////////////////////////
 
+  /////////////////////////////// TRACKING /////////////////////////////////////
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
   VLOG(10) << "Starting processStereoFrame...";
@@ -147,8 +148,10 @@ StereoVisionFrontEnd::spinOnce(
 
   CHECK(!stereoFrame_k_); // processStereoFrame is setting this to nullptr!!!
   VLOG(10) << "Finished processStereoFrame.";
+  //////////////////////////////////////////////////////////////////////////////
 
   if (stereoFrame_km1_->isKeyframe()) {
+    // We got a keyframe!
     CHECK_EQ(stereoFrame_lkf_->getTimestamp(),
              stereoFrame_km1_->getTimestamp());
     CHECK_EQ(stereoFrame_lkf_->getFrameId(),
@@ -158,17 +161,6 @@ StereoVisionFrontEnd::spinOnce(
     LOG(INFO) << "Keyframe " << k
               << " with: " << statusSmartStereoMeasurements.second.size()
               << " smart measurements";
-
-    //processKeyframe();
-    //output->statusSmartStereoMeasurements_ = statusSmartStereoMeasurements;
-    //output->tracker_status_ = trackerStatusSummary_.kfTrackingStatus_stereo_;
-    //output->relative_pose_body_stereo_ = getRelativePoseBodyStereo();
-    //output->stereo_frame_lkf_ = *stereoFrame_lkf_;
-
-    // Reset integration the later the better so that we give to the backend
-    // the most time possible to update the IMU bias.
-    VLOG(10) << "Reset IMU preintegration with latest IMU bias";
-    imu_frontend_->resetIntegrationWithCachedBias();
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
     if (log_output_) {
@@ -182,6 +174,11 @@ StereoVisionFrontEnd::spinOnce(
       logger.closeLogFiles(12);
     }
     ////////////////////////////////////////////////////////////////////////////
+
+    // Reset integration the later the better so that we give to the backend
+    // the most time possible to update the IMU bias.
+    VLOG(10) << "Reset IMU preintegration with latest IMU bias.";
+    imu_frontend_->resetIntegrationWithCachedBias();
 
     // Return the output of the frontend for the others.
     return StereoFrontEndOutputPayload(true,
