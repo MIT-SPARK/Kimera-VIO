@@ -285,10 +285,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   //////////////////////////////////////////////////////////////////////////////
 
   // Not tracking at all in this phase.
-  trackerStatusSummary_.kfTrackingStatus_mono_ =
-      TrackingStatus::INVALID;
-  trackerStatusSummary_.kfTrackingStatus_stereo_ =
-      TrackingStatus::INVALID;
+  trackerStatusSummary_.kfTrackingStatus_mono_   = TrackingStatus::INVALID;
+  trackerStatusSummary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
 
   // This will be the info we actually care about
   SmartStereoMeasurements smartStereoMeasurements;
