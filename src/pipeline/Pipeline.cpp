@@ -663,10 +663,13 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
 void Pipeline::processKeyframePop() {
   // Pull from stereo frontend output queue.
   LOG(INFO) << "Spinning wrapped thread.";
-  while(!shutdown_) {
+  while (!shutdown_) {
     std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload
         = stereo_frontend_output_queue_.popBlocking();
-    CHECK(stereo_frontend_output_payload);
+    if (!stereo_frontend_output_payload) {
+      LOG(WARNING) << "No StereoFrontEnd Output Payload received.";
+      return;
+    }
     CHECK(stereo_frontend_output_payload->is_keyframe_);
 
     ////////////////////////////////////////////////////////////////////////////
