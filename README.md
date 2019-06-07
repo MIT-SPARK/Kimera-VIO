@@ -213,4 +213,11 @@ Tips for development
 
 > Note: these changes are not sufficient to make the output repeatable between different machines.
 
-> Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
+Tips for speed
+----------------------
+
+- Use ```-march=native``` compiler flag. It will be a problem if you ever want to distribute binaries of this code.
+- GTSAM speed depends on: TBB, OpenMP. In principle, TBB speeds-up things, OpenMP not so sure. Verify that on your own computer.
+- Make sure OpenCV does not have the `CV_TRACE` cmake flag set-up. This is for profiling. Also use `TBB` as well.
+- OpenCV could potentially be used with GPU: stereo visual odometry achieves a 7x speed-up.
+- Make sure all libraries are compiled with the maximum optimization. Set `CMAKE_BUILD_TYPE` to `Release` and ensure you get a level of optimization at `-O3` for best results.
