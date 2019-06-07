@@ -302,6 +302,7 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
 
       for (int x = 1; x < imgsize.width - 1; x++) {
         float val = eig_data[x];
+        // TODO this takes a ton of time 12ms each time...
         if (val != 0 &&
             val == tmp_data[x] &&
             (!mask_data || mask_data[x])) {
@@ -407,6 +408,7 @@ break_out:
     cv::Size winSize (10, 10);
     cv::Size zeroZone (-1, -1);
 
+    // TODO this takes a ton of time 27ms each time...
     cv::cornerSubPix(image, corners_with_scores->first, winSize, zeroZone, criteria);
   } catch (...) {
     // Corners remains empty.
