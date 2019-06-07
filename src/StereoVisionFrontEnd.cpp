@@ -67,7 +67,7 @@ bool StereoVisionFrontEnd::spin(
         output_queue.push(output);
       } else {
         VLOG(2) << "Frontend output is not a keyframe."
-                    " Skipping output queue push";
+                    " Skipping output queue push.";
       }
       auto spin_duration = utils::Timer::toc(tic).count();
       LOG(WARNING) << "Current Stereo FrontEnd "

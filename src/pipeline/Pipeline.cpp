@@ -305,10 +305,14 @@ void Pipeline::spinSequential() {
                       stereo_frontend_output_queue_,
                       false); // Do not run in parallel.
 
-  // Pop blocking from frontend.
+  // Pop from frontend.
   const auto& stereo_frontend_output_payload =
-      stereo_frontend_output_queue_.popBlocking();
-  CHECK(stereo_frontend_output_payload);
+      stereo_frontend_output_queue_.pop();
+  if (!stereo_frontend_output_payload) {
+    // Frontend hasn't reach a keyframe, return and wait frontend to create a
+    // keyframe.
+    return;
+  }
   CHECK(stereo_frontend_output_payload->is_keyframe_);
 
   // We have a keyframe. Push to backend.
