@@ -32,7 +32,7 @@ DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
   // Initialize Google's flags library.
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
