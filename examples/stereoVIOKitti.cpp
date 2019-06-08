@@ -24,7 +24,7 @@ DEFINE_string(kitti_dataset_path, "/home/yunchang/data/2011_09_26/2011_09_26_dri
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
   // Initialize Google's flags library.
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
