@@ -152,9 +152,9 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
 
     return getSpinOutputContainer();
 
-  } 
+  }
   else if(stereo_imu_sync_packet.getReinitPacket().getReinitFlag()) {
-    
+
     // TODO: Add option to autoinitialize, but re-initialize from ext. pose (flag)
     // Shutdown pipeline first
     shutdown();
@@ -175,7 +175,7 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
     spinOnce(stereo_imu_sync_packet);
 
     return getSpinOutputContainer();
-    
+
   }
 }
 
@@ -525,7 +525,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
         std::make_shared<gtNavState>(dataset_->getGroundTruthState(
                      stereo_imu_sync_packet.getStereoFrame().getTimestamp())) :
                      std::shared_ptr<gtNavState>(nullptr);
-  
+
   // TODO: Include flag to start from external pose estimate (ROS)
   //if (flag_init_gt = 0) {
   //    LOG(INFO) << "Initialize pipeline with possible GT.";
@@ -582,7 +582,7 @@ bool Pipeline::reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   vio_backend_->restart();
 
   mesher_.restart();
-  
+
   visualizer_.restart();
 
   // Use default initialization function
@@ -735,13 +735,15 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
 void Pipeline::processKeyframePop() {
   // Pull from stereo frontend output queue.
   LOG(INFO) << "Spinning wrapped thread.";
-  while(!shutdown_) {
+  while (!shutdown_) {
     std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload
         = stereo_frontend_output_queue_.popBlocking();
-    CHECK(stereo_frontend_output_payload);
-    
+    if (!stereo_frontend_output_payload) {
+      LOG(WARNING) << "No StereoFrontEnd Output Payload received.";
+      return;
+    }
     CHECK(stereo_frontend_output_payload->is_keyframe_);
-    
+
     // Pass info for resiliency
     debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
 

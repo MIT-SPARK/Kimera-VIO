@@ -2,7 +2,8 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
   set(__GFLAGS_INCLUDED TRUE)
 
   # use the system-wide gflags if present
-  #find_package(gflags QUIET)
+  set(GFLAGS_PREFER_EXPORTED_GFLAGS_CMAKE_CONFIGURATION TRUE)
+  find_package(Gflags QUIET)
   if (gflags_FOUND)
     message(STATUS "FOUND gflags!")
     #message(STATUS "GFLAGS libs: ${GFLAGS_LIBRARIES}")
@@ -36,6 +37,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
       CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                  -DCMAKE_INSTALL_PREFIX=${gflags_INSTALL}
                  -DBUILD_STATIC_LIBS=ON
+                 -DGFLAGS_NAMESPACE=google
                  -DBUILD_PACKAGING=OFF
                  -DBUILD_TESTING=OFF
                  -DBUILD_NC_TESTS=OFF
@@ -68,6 +70,9 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
         # This is to avoid sparkvio library to build before gflags
         add_dependencies(gflags::gflags gflags)
       endif()
+    else()
+      message(STATUS "Using system-wide gflags.")
+      set(GFLAGS_SYSTEM_WIDE TRUE)
     endif()
   endif()
 
