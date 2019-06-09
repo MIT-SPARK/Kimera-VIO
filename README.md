@@ -184,3 +184,37 @@ Tips for development
 > Note: these changes are not sufficient to make the output repeatable between different machines.
 
 > Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
+>
+
+# Use Linter!
+
+This repo contains a (C++, python) linter and auto formatter package that can be conveniently installed into your repositories using git hooks. It provides the following git hooks:
+ * **General**
+   * Prevent commits to master.
+ * **C++** files:
+ *
+   * **clang-format** Formats your code based on your `.clang-format` preferences.
+   * **cpplint** Checks your C++ code for style errors and warnings.
+
+ * **Python** files:
+
+      * **yapf** Formats your python code.
+      * **pylint** Checks your Python code for style errors and warnings.
+
+
+## Dependencies
+
+ * **pylint**
+   * macOS:
+     ```
+     pip install pylint
+     ```
+ * **yapf**
+   * Ubuntu / macOS: `pip install yapf`
+ * **clang-format**
+   * Compatible with `clang-format-3.8 - 6.0`
+   * Ubuntu: `sudo apt install clang-format-${VERSION}`
+   * macOS:
+     ```
+     brew install clang-format
+     ln -s /usr/local/share/clang/clang-format-diff.py /usr/local/bin/clang-format-diff
