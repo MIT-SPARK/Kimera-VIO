@@ -1,0 +1,3 @@
+[submodule "dev_tools/linter"]
+	path = dev_tools/linter
+	url = git@github.com:ethz-asl/linter.git
