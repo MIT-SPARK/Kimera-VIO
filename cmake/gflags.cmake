@@ -3,7 +3,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
 
   # use the system-wide gflags if present
   set(GFLAGS_PREFER_EXPORTED_GFLAGS_CMAKE_CONFIGURATION TRUE)
-  find_package(Gflags QUIET)
+  #find_package(Gflags QUIET)
   if (gflags_FOUND)
     message(STATUS "FOUND gflags!")
     #message(STATUS "GFLAGS libs: ${GFLAGS_LIBRARIES}")
