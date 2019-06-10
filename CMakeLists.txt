@@ -13,7 +13,7 @@ message(STATUS "==============================================================="
 message(STATUS "====================  Dependencies ============================")
 
 ### Include the boost directory
-find_package(Boost REQUIRED COMPONENTS filesystem)
+find_package(Boost REQUIRED COMPONENTS filesystem serialization regex timer date_time thread)
 if(NOT TARGET Boost::boost)
   add_library(Boost::boost INTERFACE IMPORTED)
   set_target_properties(Boost::boost PROPERTIES
