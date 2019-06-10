@@ -219,10 +219,13 @@ Tips for development
 > Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
 >
 
-# Use Linter!
+# Use code linter
 
+To contribute to this repo, ensure your commits pass the linter pre-commit checks.
 
 ## Dependencies
+
+Install the following dependencies to run the linter:
 
  * **pylint**
    * macOS:
@@ -240,12 +243,12 @@ Tips for development
      ln -s /usr/local/share/clang/clang-format-diff.py /usr/local/bin/clang-format-diff
      ```
 
-
 ## Installation
 
 ```bash
-git clone git@github.com:ethz-asl/linter.git
-cd linter
+cd $THIS_REPO
+git submodule update --init
+cd dev_tools/linter
 echo ". $(realpath setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
                                                    # your shell.
 bash
