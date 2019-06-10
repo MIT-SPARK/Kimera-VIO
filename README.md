@@ -188,19 +188,6 @@ Tips for development
 
 # Use Linter!
 
-This repo contains a (C++, python) linter and auto formatter package that can be conveniently installed into your repositories using git hooks. It provides the following git hooks:
- * **General**
-   * Prevent commits to master.
- * **C++** files:
- *
-   * **clang-format** Formats your code based on your `.clang-format` preferences.
-   * **cpplint** Checks your C++ code for style errors and warnings.
-
- * **Python** files:
-
-      * **yapf** Formats your python code.
-      * **pylint** Checks your Python code for style errors and warnings.
-
 
 ## Dependencies
 
@@ -218,3 +205,15 @@ This repo contains a (C++, python) linter and auto formatter package that can be
      ```
      brew install clang-format
      ln -s /usr/local/share/clang/clang-format-diff.py /usr/local/bin/clang-format-diff
+     ```
+
+
+## Installation
+
+```bash
+git clone git@github.com:ethz-asl/linter.git
+cd linter
+echo ". $(realpath setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
+                                                   # your shell.
+bash
+```
