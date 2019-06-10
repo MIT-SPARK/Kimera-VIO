@@ -21,16 +21,12 @@
 static const double tol = 1e-7;
 
 struct functor {
-	int state;
-	functor(int state) : state(state) {}
-	void operator()() const {
-		std::cout << "In functor run for ";
-	}
+  int state;
+  functor(int state) : state(state) {}
+  void operator()() const { std::cout << "In functor run for "; }
 };
 
-void func() {
-	std::cout << "In function, run for ";
-}
+void func() { std::cout << "In function, run for "; }
 
 /* ************************************************************************** */
 TEST(testTimer, testManualTimerEmptyFunction) {
@@ -51,23 +47,26 @@ TEST(testTimer, testManualTimerAlmostEmptyFunction) {
 /* ************************************************************************** */
 TEST(testTimer, testFunctionMeasurer) {
   int dummy = 3;
-  auto delta_lambda = VIO::utils::Measure<std::chrono::nanoseconds>::execution(
-        [&dummy]() {
-    dummy *= 2;
-    std::cout << "In lambda";
-  });
+  auto delta_lambda =
+      VIO::utils::Measure<std::chrono::nanoseconds>::execution([&dummy]() {
+        dummy *= 2;
+        std::cout << "In lambda";
+      });
   // Expect that any of these would take less than 1 milliseconds.
   EXPECT(delta_lambda < 1e6);
-  auto delta_functor = VIO::utils::Measure<std::chrono::nanoseconds>::execution(
-        functor(dummy));
+  auto delta_functor =
+      VIO::utils::Measure<std::chrono::nanoseconds>::execution(functor(dummy));
   // Expect that any of these would take less than 1 milliseconds.
   EXPECT(delta_functor < 1e6);
-  auto delta_func = VIO::utils::Measure<std::chrono::nanoseconds>::execution(
-        func);
+  auto delta_func =
+      VIO::utils::Measure<std::chrono::nanoseconds>::execution(func);
   // Expect that any of these would take less than 1 milliseconds.
   EXPECT(delta_func < 1e6);
 }
 
 /* ************************************************************************* */
-int main() { TestResult tr; return TestRegistry::runAllTests(tr); }
+int main() {
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************* */

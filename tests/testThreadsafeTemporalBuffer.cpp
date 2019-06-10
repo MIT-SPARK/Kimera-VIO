@@ -10,8 +10,8 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ *all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -20,7 +20,7 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
-*******************************************************************************/
+ *******************************************************************************/
 
 /********************************************************************************
  Copyright 2017 Autonomous Systems Lab, ETH Zurich, Switzerland
@@ -173,7 +173,8 @@ TEST(ThreadsafeTemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
   EXPECT(fixture.buffer_.getNearestValueToTime(32, kMaxDelta, &retrieved_item));
   EXPECT(retrieved_item.timestamp == 30);
 
-  EXPECT(!fixture.buffer_.getNearestValueToTime(36, kMaxDelta, &retrieved_item));
+  EXPECT(
+      !fixture.buffer_.getNearestValueToTime(36, kMaxDelta, &retrieved_item));
 
   fixture.buffer_.clear();
   fixture.addValue(TestData(10));
@@ -200,7 +201,8 @@ TEST(ThreadsafeTemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
   EXPECT(fixture.buffer_.getNearestValueToTime(14, kMaxDelta, &retrieved_item));
   EXPECT(retrieved_item.timestamp == 10);
 
-  EXPECT(!fixture.buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
+  EXPECT(
+      !fixture.buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
 }
 
 TEST(ThreadsafeTemporalBufferFixture, GetValueAtOrBeforeTimeWorks) {
@@ -213,23 +215,28 @@ TEST(ThreadsafeTemporalBufferFixture, GetValueAtOrBeforeTimeWorks) {
   TestData retrieved_item;
   int64_t timestamp;
 
-  EXPECT(fixture.buffer_.getValueAtOrBeforeTime(40, &timestamp, &retrieved_item));
+  EXPECT(
+      fixture.buffer_.getValueAtOrBeforeTime(40, &timestamp, &retrieved_item));
   EXPECT(retrieved_item.timestamp == 40);
   EXPECT(timestamp == 40);
 
-  EXPECT(fixture.buffer_.getValueAtOrBeforeTime(50, &timestamp, &retrieved_item));
+  EXPECT(
+      fixture.buffer_.getValueAtOrBeforeTime(50, &timestamp, &retrieved_item));
   EXPECT(retrieved_item.timestamp == 40);
   EXPECT(timestamp == 40);
 
-  EXPECT(fixture.buffer_.getValueAtOrBeforeTime(15, &timestamp, &retrieved_item));
+  EXPECT(
+      fixture.buffer_.getValueAtOrBeforeTime(15, &timestamp, &retrieved_item));
   EXPECT(retrieved_item.timestamp == 10);
   EXPECT(timestamp == 10);
 
-  EXPECT(fixture.buffer_.getValueAtOrBeforeTime(10, &timestamp, &retrieved_item));
+  EXPECT(
+      fixture.buffer_.getValueAtOrBeforeTime(10, &timestamp, &retrieved_item));
   EXPECT(retrieved_item.timestamp == 10);
   EXPECT(timestamp == 10);
 
-  EXPECT(!fixture.buffer_.getValueAtOrBeforeTime(5, &timestamp, &retrieved_item));
+  EXPECT(
+      !fixture.buffer_.getValueAtOrBeforeTime(5, &timestamp, &retrieved_item));
 }
 
 TEST(ThreadsafeTemporalBufferFixture, GetValueAtOrAfterTimeWorks) {
@@ -242,7 +249,8 @@ TEST(ThreadsafeTemporalBufferFixture, GetValueAtOrAfterTimeWorks) {
   TestData retrieved_item;
   int64_t timestamp;
 
-  EXPECT(fixture.buffer_.getValueAtOrAfterTime(10, &timestamp, &retrieved_item));
+  EXPECT(
+      fixture.buffer_.getValueAtOrAfterTime(10, &timestamp, &retrieved_item));
   EXPECT(retrieved_item.timestamp == 10);
   EXPECT(timestamp == 10);
 
@@ -250,15 +258,18 @@ TEST(ThreadsafeTemporalBufferFixture, GetValueAtOrAfterTimeWorks) {
   EXPECT(retrieved_item.timestamp == 10);
   EXPECT(timestamp == 10);
 
-  EXPECT(fixture.buffer_.getValueAtOrAfterTime(35, &timestamp, &retrieved_item));
+  EXPECT(
+      fixture.buffer_.getValueAtOrAfterTime(35, &timestamp, &retrieved_item));
   EXPECT(retrieved_item.timestamp == 40);
   EXPECT(timestamp == 40);
 
-  EXPECT(fixture.buffer_.getValueAtOrAfterTime(40, &timestamp, &retrieved_item));
+  EXPECT(
+      fixture.buffer_.getValueAtOrAfterTime(40, &timestamp, &retrieved_item));
   EXPECT(retrieved_item.timestamp == 40);
   EXPECT(timestamp == 40);
 
-  EXPECT(!fixture.buffer_.getValueAtOrAfterTime(45, &timestamp, &retrieved_item));
+  EXPECT(
+      !fixture.buffer_.getValueAtOrAfterTime(45, &timestamp, &retrieved_item));
 }
 
 TEST(ThreadsafeTemporalBufferFixture, GetOldestNewestValueWork) {
@@ -357,18 +368,19 @@ TEST(ThreadsafeTemporalBufferFixture, MaintaingBufferLengthWorks) {
   EXPECT(retrieved_item.timestamp == 150);
 }
 
-}  // End of utils namespace.
+}  // namespace utils
 
-}  // End of VIO namespace.
+}  // namespace VIO
 
 /* ************************************************************************* */
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
   google::SetStderrLogging(google::INFO);
 
-  TestResult tr; return TestRegistry::runAllTests(tr);
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
 }
 /* ************************************************************************* */

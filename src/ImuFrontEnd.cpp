@@ -11,12 +11,11 @@
  * @brief  Class managing sequences of IMU measurements.
  * @author Antoni Rosinol, Luca Carlone
  */
-#include "ImuFrontEnd.h"
 
 #include <glog/logging.h>
 
+#include "ImuFrontEnd.h"
 #include "UtilsOpenCV.h"
-
 #include "common/vio_types.h"
 
 namespace VIO {
@@ -47,10 +46,10 @@ void ImuParams::print() const {
 
 /* -------------------------------------------------------------------------- */
 // NOT THREAD-SAFE
-// What happens if someone updates the bias in the middle of the preintegration??
+// What happens if someone updates the bias in the middle of the
+// preintegration??
 gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
-    const ImuStampS& imu_stamps,
-    const ImuAccGyrS& imu_accgyr) {
+    const ImuStampS& imu_stamps, const ImuAccGyrS& imu_accgyr) {
   CHECK(pim_) << "Pim not initialized.";
   CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
   CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
@@ -61,10 +60,10 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
   // measurement. Nevertheless the imu_stamps, should be shifted one step back
   // I would say.
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
-    const gtsam::Vector3& measured_acc = imu_accgyr.block<3,1>(0, i);
-    const gtsam::Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
-    const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
-                                                   imu_stamps(i));
+    const gtsam::Vector3& measured_acc = imu_accgyr.block<3, 1>(0, i);
+    const gtsam::Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
+    const double& delta_t =
+        UtilsOpenCV::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
     CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
     // TODO Shouldn't we use pim_->integrateMeasurements(); for less code
     // and efficiency??
@@ -80,17 +79,16 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
 
 /* -------------------------------------------------------------------------- */
 gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
-    const ImuStampS& imu_stamps,
-    const ImuAccGyrS& imu_accgyr) {
+    const ImuStampS& imu_stamps, const ImuAccGyrS& imu_accgyr) {
   CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
   CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
   std::lock_guard<std::mutex> lock(imu_bias_mutex_);
   gtsam::PreintegratedAhrsMeasurements pimRot(latest_imu_bias_.gyroscope(),
                                               gtsam::Matrix3::Identity());
   for (int i = 0; i < imu_stamps.cols() - 1; ++i) {
-    const gtsam::Vector3& measured_omega = imu_accgyr.block<3,1>(3, i);
-    const double& delta_t = UtilsOpenCV::NsecToSec(imu_stamps(i + 1) -
-                                                   imu_stamps(i));
+    const gtsam::Vector3& measured_omega = imu_accgyr.block<3, 1>(3, i);
+    const double& delta_t =
+        UtilsOpenCV::NsecToSec(imu_stamps(i + 1) - imu_stamps(i));
     CHECK_GT(delta_t, 0.0) << "Imu delta is 0!";
     pimRot.integrateMeasurement(measured_omega, delta_t);
   }
@@ -103,7 +101,8 @@ gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
 
 /* -------------------------------------------------------------------------- */
 // Set parameters for imu factors.
-gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(const ImuParams& imu_params) {
+gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(
+    const ImuParams& imu_params) {
   PreintegratedImuMeasurements::Params preint_imu_params =
       PreintegratedImuMeasurements::Params(imu_params.n_gravity_);
   preint_imu_params.gyroscopeCovariance =
@@ -111,17 +110,18 @@ gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(const ImuParams& imu
   preint_imu_params.accelerometerCovariance =
       std::pow(imu_params.acc_noise_, 2.0) * Eigen::Matrix3d::Identity();
   preint_imu_params.integrationCovariance =
-      std::pow(imu_params.imu_integration_sigma_, 2.0) * Eigen::Matrix3d::Identity();
-  preint_imu_params.use2ndOrderCoriolis = false; // TODO: expose this parameter
+      std::pow(imu_params.imu_integration_sigma_, 2.0) *
+      Eigen::Matrix3d::Identity();
+  preint_imu_params.use2ndOrderCoriolis = false;  // TODO: expose this parameter
 
-  #ifdef USE_COMBINED_IMU_FACTOR
-    preint_imu_params.biasAccCovariance =
-        std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-    preint_imu_params.biasOmegaCovariance =
-        std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-  #endif
+#ifdef USE_COMBINED_IMU_FACTOR
+  preint_imu_params.biasAccCovariance =
+      std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
+  preint_imu_params.biasOmegaCovariance =
+      std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
+#endif
 
   return preint_imu_params;
 }
 
-} // End of VIO namespace.
+}  // namespace VIO

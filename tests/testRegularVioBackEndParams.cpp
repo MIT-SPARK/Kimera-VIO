@@ -12,10 +12,10 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <random>
-#include <algorithm>
 #include "RegularVioBackEndParams.h"
 #include "test_config.h"
 
@@ -52,7 +52,7 @@ TEST(testRegularVioBackEndParams, VioParseYAML) {
   EXPECT(vp.roundOnAutoInitialize_ == true);
   EXPECT_DOUBLES_EQUAL(1e-01, vp.initialPositionSigma_, tol);
   EXPECT_DOUBLES_EQUAL(0.11, vp.initialRollPitchSigma_, tol);
-  EXPECT_DOUBLES_EQUAL( 0.13, vp.initialYawSigma_, tol);
+  EXPECT_DOUBLES_EQUAL(0.13, vp.initialYawSigma_, tol);
   EXPECT_DOUBLES_EQUAL(0.15, vp.initialVelocitySigma_, tol);
   EXPECT_DOUBLES_EQUAL(0.17, vp.initialAccBiasSigma_, tol);
   EXPECT_DOUBLES_EQUAL(11, vp.initialGyroBiasSigma_, tol);
@@ -96,7 +96,7 @@ TEST(testRegularVioBackEndParams, equals) {
   EXPECT(vp.equals(vp));
 
   RegularVioBackEndParams vp2 = RegularVioBackEndParams();
-  vp2.smartNoiseSigma_ += 1e-5; // small perturbation
+  vp2.smartNoiseSigma_ += 1e-5;  // small perturbation
 
   EXPECT(!vp.equals(vp2));
 }
@@ -108,6 +108,7 @@ int main(int argc, char *argv[]) {
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
-  TestResult tr; return TestRegistry::runAllTests(tr);
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
 }
 /* ************************************************************************* */

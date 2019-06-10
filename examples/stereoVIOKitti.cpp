@@ -7,17 +7,19 @@
 #include <glog/logging.h>
 
 #include "ETH_parser.h"
+#include "LoggerMatlab.h"
 #include "datasource/KittiDataSource.h"
 #include "pipeline/Pipeline.h"
 #include "utils/Timer.h"
-#include "LoggerMatlab.h"
 
 #include <future>
 
 DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
 // clean up later (dataset_path definition in ETH_parser.cpp)
-DEFINE_string(kitti_dataset_path, "/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync",
-    "Path of dataset (i.e. Kitti, /home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync");
+DEFINE_string(kitti_dataset_path,
+              "/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync",
+              "Path of dataset (i.e. Kitti, "
+              "/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync");
 
 ////////////////////////////////////////////////////////////////////////////////
 // stereoVIOexample
@@ -32,18 +34,19 @@ int main(int argc, char *argv[]) {
   VIO::ETHDatasetParser eth_dataset_parser;
   VIO::KittiDataProvider kitti_dataset_parser(FLAGS_kitti_dataset_path);
 
-  VIO::Pipeline vio_pipeline (&eth_dataset_parser, kitti_dataset_parser.getImuParams()); 
+  VIO::Pipeline vio_pipeline(&eth_dataset_parser,
+                             kitti_dataset_parser.getImuParams());
 
   // Register callback to vio_pipeline.
   kitti_dataset_parser.registerVioCallback(
-        std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
+      std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
-  auto handle = std::async(std::launch::async,
-                           &VIO::KittiDataProvider::spin, &kitti_dataset_parser);
-  auto handle_pipeline = std::async(std::launch::async,
-             &VIO::Pipeline::shutdownWhenFinished, &vio_pipeline);
+  auto handle = std::async(std::launch::async, &VIO::KittiDataProvider::spin,
+                           &kitti_dataset_parser);
+  auto handle_pipeline = std::async(
+      std::launch::async, &VIO::Pipeline::shutdownWhenFinished, &vio_pipeline);
   vio_pipeline.spinViz();
   const bool is_pipeline_successful = handle.get();
   handle_pipeline.get();
@@ -59,5 +62,5 @@ int main(int argc, char *argv[]) {
     logger.closeLogFiles();
   }
 
-  return is_pipeline_successful? EXIT_SUCCESS : EXIT_FAILURE;
+  return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;
 }

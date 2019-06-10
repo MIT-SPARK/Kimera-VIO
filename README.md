@@ -269,3 +269,8 @@ echo ". $(realpath setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
                                                    # your shell.
 bash
 ```
+
+## Usage
+
+Just commit. The linter will stop any commit that looks suspicious and will let you know what is wrong.
+You can either fix the issues manually, or try a more brute force approach by running `clang-format`.

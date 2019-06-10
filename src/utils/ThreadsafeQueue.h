@@ -14,18 +14,17 @@
 
 #pragma once
 
-#include <queue>
-#include <memory>
-#include <mutex>
+#include <glog/logging.h>
 #include <atomic>
 #include <condition_variable>
-#include <glog/logging.h>
+#include <memory>
+#include <mutex>
+#include <queue>
 
 template <typename T>
 class ThreadsafeQueue {
-public:
-  ThreadsafeQueue(const std::string& queue_id)
-    : queue_id_(queue_id) {}
+ public:
+  ThreadsafeQueue(const std::string& queue_id) : queue_id_(queue_id) {}
   ThreadsafeQueue(const ThreadsafeQueue& other) {
     std::unique_lock<std::mutex> lk(other.mutex_);
     data_queue_ = other.data_queue_;
@@ -37,13 +36,13 @@ public:
   // Push an lvalue to the queue.
   // Returns false if the queue has been shutdown.
   bool push(const T& new_value) {
-    if (shutdown_) return false; // atomic, no lock needed.
+    if (shutdown_) return false;  // atomic, no lock needed.
     std::unique_lock<std::mutex> lk(mutex_);
     size_t queue_size = data_queue_.size();
     VLOG_IF(1, queue_size != 0) << "Queue with id: " << queue_id_
                                 << " is getting full, size: " << queue_size;
     data_queue_.push(new_value);
-    lk.unlock(); // Unlock before notify.
+    lk.unlock();  // Unlock before notify.
     data_cond_.notify_one();
     return true;
   }
@@ -53,13 +52,13 @@ public:
   // Since there is no type deduction, T&& is an rvalue, not a universal
   // reference.
   bool push(T&& new_value) {
-    if (shutdown_) return false; // atomic, no lock needed.
+    if (shutdown_) return false;  // atomic, no lock needed.
     std::unique_lock<std::mutex> lk(mutex_);
     size_t queue_size = data_queue_.size();
     VLOG_IF(1, queue_size != 0) << "Queue with id: " << queue_id_
                                 << " is getting full, size: " << queue_size;
     data_queue_.push(std::move(new_value));
-    lk.unlock(); // Unlock before notify.
+    lk.unlock();  // Unlock before notify.
     data_cond_.notify_one();
     return true;
   }
@@ -69,7 +68,7 @@ public:
   bool popBlocking(T& value) {
     std::unique_lock<std::mutex> lk(mutex_);
     // Wait until there is data in the queue or shutdown requested.
-    data_cond_.wait(lk, [this]{return !data_queue_.empty() || shutdown_;});
+    data_cond_.wait(lk, [this] { return !data_queue_.empty() || shutdown_; });
     // Return false in case shutdown is requested.
     if (shutdown_) return false;
     value = data_queue_.front();
@@ -81,7 +80,7 @@ public:
   // If the queue has been shutdown, it returns a null shared_ptr.
   std::shared_ptr<T> popBlocking() {
     std::unique_lock<std::mutex> lk(mutex_);
-    data_cond_.wait(lk, [this]{return !data_queue_.empty() || shutdown_;});
+    data_cond_.wait(lk, [this] { return !data_queue_.empty() || shutdown_; });
     if (shutdown_) return std::shared_ptr<T>(nullptr);
     // The shared_ptr allocation might throw an exception.
     // Making the queue hold shared_ptr instead, would avoid this issue.
@@ -109,7 +108,7 @@ public:
   std::shared_ptr<T> pop() {
     if (shutdown_) return std::shared_ptr<T>(nullptr);
     std::lock_guard<std::mutex> lk(mutex_);
-    if(data_queue_.empty()) return std::shared_ptr<T>(nullptr);
+    if (data_queue_.empty()) return std::shared_ptr<T>(nullptr);
     // The shared_ptr allocation might throw an exception.
     // Making the queue hold shared_ptr instead, would avoid this issue.
     // See listing 6.3 in [1].
@@ -145,10 +144,10 @@ public:
     return data_queue_.empty();
   }
 
-private:
-  mutable std::mutex mutex_; // mutable for empty() and copy-constructor.
+ private:
+  mutable std::mutex mutex_;  // mutable for empty() and copy-constructor.
   std::string queue_id_;
   std::queue<T> data_queue_;
   std::condition_variable data_cond_;
-  std::atomic_bool shutdown_ = {false}; // flag for signaling queue shutdown.
+  std::atomic_bool shutdown_ = {false};  // flag for signaling queue shutdown.
 };
