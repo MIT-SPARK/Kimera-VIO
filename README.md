@@ -1,21 +1,26 @@
 README - VIO: Visual-Inertial Odometry
 ======================================
 
+[![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/)
+
 What is VIO?
 ------------
 
 VIO is a library of C++ classes that implement the visual-inertial odometry pipeline described in these papers:
+
+ - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
  
- - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
- - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
  - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors. In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
+
+The Regular VIO backend is described in this paper:
+- A. Rosinol and T. Sattler and M. Pollefeys and L. Carlone. Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities. IEEE Int. Conf. Robot. Autom. (ICRA) 2019
 
 Quickstart
 ----------
 
 Clone this repository: `git clone git@github.mit.edu:SPARK/VIO.git`
 
-In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly,you may need to change the folder for CGAL and OpenGV):
+In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for CGAL and OpenGV):
 
 ```
 #!bash
@@ -26,19 +31,57 @@ $ make
 $ make check
 ```
 
-Note 1a: if you use MKL in gtsam, you may need to add to .bashrc a line similar to: source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64
-(Alternatively, type `locate compilervars.sh` and then `source $output file.sh that you got from locate$`, add to your .bashrc to automate).
-Note 1b: sometimes you may need to add /usr/local/lib to LD_LIBRARY_PATH in ~/.bashrc (if you get lib not found errors at run or test time)
-Note 2: you may have to add %YAML:1.0 as first line in all YAML files :-(
-Note 3: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
-Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag) 
+> Note 1a: if you use MKL in gtsam, you may need to add to `~/.bashrc` a line similar to:
+>  ```source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64```
+> (Alternatively, type `locate compilervars.sh` and then `source $output file.sh that you got from locate$`, add to your .bashrc to automate).
+
+> Note 1b: sometimes you may need to add `/usr/local/lib` to `LD_LIBRARY_PATH` in `~/.bashrc` (if you get lib not found errors at run or test time).
+
+> Note 2: you may have to add `%YAML:1.0` as first line in all YAML files that are in the datasets. You can use the script provided, as detailed (here)[#yaml_script].
+
+> Note 3: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
+
+> Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag)
 
 Prerequisites:
 
 - [GTSAM](https://bitbucket.org/gtborg/gtsam/overview/) >= 4.0 (Branch: `feature/ImprovementsIncrementalFilter`, commit: `c827d4cd6b11f78f3d2d9d52b335ac562a2757fc`)
 - [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0 (Installation instructions below)
-- [OpenGV] Installation instructions below 
+- [OpenGV] Installation instructions below
 - [CGAL] Installation instructions below
+
+Installation of GTSAM
+----------
+Install GTSAM's dependencies Boost:
+```
+sudo apt-get update && sudo apt-get install -y libboost-all-dev
+```
+
+and [Intel Threaded Building Blocks (TBB)](http://www.threadingbuildingblocks.org/) (optional, but highly recommended for speed):
+
+```
+sudo apt-get install libtbb-dev
+```
+
+Clone GTSAM wherever you want, and checkout commit below:
+```
+git clone https://github.com/borglab/gtsam.git
+git checkout c827d4cd6b11f78f3d2d9d52b335ac562a2757fc # Should be develop branch at some point
+```
+
+Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details.
+```bash
+cd gtsam
+mkdir build
+cd build
+cmake ..
+```
+
+Compile GTSAM:
+```
+make check (optional, runs unit tests)
+make install
+```
 
 Installation of OpenCV
 ----------------------
@@ -57,13 +100,13 @@ $ sudo make install
 ```
 #!bash
 $ sudo apt-get install libvtk5-dev   (libvtk6-dev in ubuntu 17.10)
-$ sudo apt-get install libgtk2.0-dev 
+$ sudo apt-get install libgtk2.0-dev
 $ sudo apt-get install pkg-config
 download opencv3.3.1 from https://opencv.org/releases.html
 unzip and go to opencv3.3.1
 $ mkdir build
 $ cd build
-$ cmake -DWITH_VTK=On ..
+$ cmake -DWITH_VTK=On -DWITH_TBB=On ..
 $ sudo make -j8 install
 $ sudo make -j8 test (optional - quite slow)
 ```
@@ -72,7 +115,7 @@ Installation of OpenGV
 ----------------------
 - git clone https://github.com/laurentkneip/opengv (I did this in my "home/code/" folder)
 - (not needed in latest version) open CMakeLists.txt and set INSTALL_OPENGV to ON (this can be also done using cmake-gui)
-- using cmake-gui, set: the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen). if you don't do so, very weird error appear (may be due to GTSAM and OpenGV using different versions of eigen!)
+- using cmake-gui, set: the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen). if you don't do so, very weird error (TODO document) appear (may be due to GTSAM and OpenGV using different versions of eigen!)
 - in the opengv folder do:
 
 ```
@@ -84,10 +127,10 @@ $ sudo make -j8 install
 $ sudo make -j8 check
 ```
 
-Installation of CGAL
+Installation of CGAL (Optional: Not used for now)
 ----------------------
-- download CGAL `https://www.cgal.org/download.html` (I tried CGAL-4.11 on Ubuntu 17.10)
-- go to CGAL downloaded folder and execute the following:
+- Download CGAL `https://www.cgal.org/download.html` (I tried CGAL-4.11 on Ubuntu 17.10)
+- Go to CGAL downloaded folder and execute the following:
 
 ```
 #!bash
@@ -96,12 +139,12 @@ $ cd build
 $ cmake ../
 ```
 - using cmake-gui enable WithEigen3, click configure, and set the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen)
-- using cmake-gui check that CMAKE_BUILD_TYPE is set to 'Release" 
+- using cmake-gui check that CMAKE_BUILD_TYPE is set to 'Release"
 - go back to the build folder and execute the following:
-
+<a name="yaml_script"></a>
 ```
 #!bash
-$ make -j8 
+$ make -j8
 $ sudo make install
 ```
 
@@ -139,10 +182,11 @@ You have two ways to start the example:
 
 Tips for usage
 ----------------------
-- The 3D Visualization window implements the following keyboard shortcuts:
+- The 3D Visualization window implements the following keyboard shortcuts (you need to have the window in focus, click on it):
     - Press 't': toggle freezing visualization (as of know, this blocks the whole pipeline, it might change once the visualization is threaded).
     - Press 'v': prints to the terminal the pose of the current viewpoint of the 3D visualization window.
     - Press 'w': prints to the terminal the size of the 3D visualization window.
+    - Do not press 'q': unless you want to terminate the pipeline in an abrupt way, see #74.
 
      These last two shortcuts are useful if you want to programmatically set the initial viewpoint and size of the screen when launching the 3D visualization window (this is done at the constructor of the 3DVisualizer class).
     - Press 's': to get a screenshot of the 3D visualization window.
@@ -178,13 +222,18 @@ Tips for development
 ----------------------
 - To make the pipeline deterministic:
     - Disable TBB in GTSAM (go to build folder in gtsam, use cmake-gui to unset ```GTSAM_WITH_TBB```).
-    - Specify ```srand(0)``` in main function, to make randomized algorithms deterministic.
     - Change ```ransac_randomize``` flag in ```params/trackerParameters.yaml``` to 0, to disable ransac randomization.
 
 > Note: these changes are not sufficient to make the output repeatable between different machines.
 
-> Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
->
+Tips for speed
+----------------------
+
+- Use ```-march=native``` compiler flag. It will be a problem if you ever want to distribute binaries of this code.
+- GTSAM speed depends on: TBB, OpenMP. In principle, TBB speeds-up things, OpenMP not so sure. Verify that on your own computer.
+- Make sure OpenCV does not have the `CV_TRACE` cmake flag set-up. This is for profiling. Also use `TBB` as well. Compile with `Lapack`, it seems that operations such as SVD are faster.
+- OpenCV could potentially be used with GPU: stereo visual odometry achieves a 7x speed-up.
+- Make sure all libraries are compiled with the maximum optimization. Set `CMAKE_BUILD_TYPE` to `Release` and ensure you get a level of optimization at `-O3` for best results.
 
 # Use code linter
 
