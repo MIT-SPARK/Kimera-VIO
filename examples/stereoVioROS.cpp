@@ -22,13 +22,13 @@
 
 int main(int argc, char *argv[]) {
   // Initialize Google's flags library.
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
-  VIO::Pipeline vio_pipeline (&eth_dataset_parser);
+  VIO::Pipeline vio_pipeline(&eth_dataset_parser);
 
   // Register callback to vio_pipeline.
   VIO::DataProvider ros_dataprovider = RostopicDataProvider();
