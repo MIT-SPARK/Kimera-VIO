@@ -65,7 +65,7 @@ sudo apt-get install libtbb-dev
 Clone GTSAM wherever you want, and checkout commit below:
 ```
 git clone https://github.com/borglab/gtsam.git
-git checkout c827d4cd6b11f78f3d2d9d52b335ac562a2757fc
+git checkout c827d4cd6b11f78f3d2d9d52b335ac562a2757fc # Should be develop branch at some point
 ```
 
 Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details.
@@ -126,7 +126,7 @@ $ sudo make -j8 install
 $ sudo make -j8 check
 ```
 
-Installation of CGAL (Optional)
+Installation of CGAL (Optional: Not used for now)
 ----------------------
 - Download CGAL `https://www.cgal.org/download.html` (I tried CGAL-4.11 on Ubuntu 17.10)
 - Go to CGAL downloaded folder and execute the following:
