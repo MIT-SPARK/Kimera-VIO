@@ -15,7 +15,7 @@
 
 namespace VIO {
 
-DataProvider::~DataProvider() {}
+DataProvider::~DataProvider() {LOG(INFO) << "Data provider destructor called.";}
 
 void DataProvider::registerVioCallback(
     std::function<bool(const StereoImuSyncPacket&)> callback) {
@@ -44,23 +44,6 @@ bool DataProvider::spin() {
 
   // 3) Once the dataset spin has finished, exit.
   // You can return false if something went wrong.
-  return true;
-}
-
-RosbagDataProvider::RosbagDataProvider(const std::string& rosbag_path)
-  : DataProvider() {
-  // Parse rosbag.
-}
-
-RosbagDataProvider::~RosbagDataProvider() {}
-
-bool RosbagDataProvider::spin() {
-  // Loop over the messages and call vio callback.
-  // while(!end_of_dataset) {
-  //  vio_callback_(your_stereo_imu_sync_packet);
-  // }
-
-
   return true;
 }
 

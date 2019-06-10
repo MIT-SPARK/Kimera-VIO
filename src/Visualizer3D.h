@@ -44,33 +44,25 @@ static bool getEstimateOfKey(const gtsam::Values& state,
 
 struct VisualizerInputPayload {
   VisualizerInputPayload(
-      const VisualizationType& visualization_type,
-      int backend_type,
       const gtsam::Pose3& pose,
-      const std::vector<cv::Vec6f>& mesh_2d,
-      const Frame& left_stero_keyframe,
-      const MesherOutputPayload& mesher_output_payload,
+      const StereoFrame& last_stereo_keyframe,
+      MesherOutputPayload&& mesher_output_payload,
       const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
       const VioBackEnd::LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
       const std::vector<Plane>& planes,
       const gtsam::NonlinearFactorGraph& graph,
       const gtsam::Values& values,
-      const vector<Point3>& points_3d,
-      const Timestamp& timestamp_k);
+      const std::vector<Point3>& points_3d);
 
-  const VisualizationType visualization_type_;
-  const int backend_type_;
   const gtsam::Pose3 pose_;
-  const std::vector<cv::Vec6f> mesh_2d_;
-  const Frame left_stereo_keyframe_;
+  const StereoFrame stereo_keyframe_;
   const MesherOutputPayload mesher_output_payload_;
   const VioBackEnd::PointsWithIdMap points_with_id_VIO_;
   const VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
   const std::vector<Plane> planes_;
   const gtsam::NonlinearFactorGraph graph_;
   const gtsam::Values values_;
-  const vector<Point3> points_3d_;
-  const Timestamp timestamp_k_;
+  const std::vector<Point3> points_3d_;
 };
 
 struct ImageToDisplay {
@@ -90,7 +82,7 @@ struct VisualizerOutputPayload {
 
 class Visualizer3D {
 public:
-  Visualizer3D();
+  Visualizer3D(VisualizationType viz_type, int backend_type);
 
   typedef size_t LineNr;
   typedef std::uint64_t PlaneId;
@@ -99,23 +91,38 @@ public:
 
   // Contains internal data for Visualizer3D window.
   struct WindowData {
-    cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
-    cv::viz::Color cloud_color_ = cv::viz::Color::white();
-    cv::viz::Color background_color_ = cv::viz::Color::black();
-    // Defines whether the user pressed a key to switch the mesh representation.
-    bool user_updated_mesh_representation_ = false;
+    WindowData();
+    cv::viz::Viz3d window_;
+    cv::viz::Color cloud_color_;
+    cv::viz::Color background_color_;
     // Stores the user set mesh representation.
-    int mesh_representation_ = 0u;
+    int mesh_representation_;
+    int mesh_shading_;
+    bool mesh_ambient_;
+    bool mesh_lighting_;
   };
 
   /* ------------------------------------------------------------------------ */
   // Spin for Visualizer3D. Calling shutdown stops the visualizer.
   void spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
-            ThreadsafeQueue<VisualizerOutputPayload>& output_queue);
+            ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
+            std::function<void(VisualizerOutputPayload&)> display,
+            bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
   // Stops the visualization spin.
   void shutdown();
+
+  /* ------------------------------------------------------------------------ */
+  // Checks if the thread is working or if it is waiting for input queue.
+  inline bool isWorking() const {return is_thread_working_;}
+
+
+  /* ------------------------------------------------------------------------ */
+  inline void registerMesh3dVizProperties(
+      Mesher::Mesh3dVizPropertiesSetterCallback cb) {
+    mesh3d_viz_properties_callback_ = cb;
+  }
 
   /* ------------------------------------------------------------------------ */
   // Returns true if visualization is ready, false otherwise.
@@ -187,7 +194,9 @@ public:
   // and provide color for each polygon.
   void visualizeMesh3D(const cv::Mat& map_points_3d,
                        const cv::Mat& colors,
-                       const cv::Mat& polygons_mesh);
+                       const cv::Mat& polygons_mesh,
+                       const cv::Mat& tcoords = cv::Mat(),
+                       const cv::Mat& texture = cv::Mat());
 
   /* ------------------------------------------------------------------------ */
   ///Visualize a PLY from filename (absolute path).
@@ -210,7 +219,7 @@ public:
       const std::vector<Plane>& planes,
       const cv::Mat& map_points_3d,
       const cv::Mat& polygons_mesh,
-      const bool& color_mesh = false,
+      const bool visualize_mesh_with_colored_polygon_clusters = false,
       const Timestamp& timestamp = 0.0);
 
   /* ------------------------------------------------------------------------ */
@@ -269,9 +278,123 @@ public:
   // Useful for when testing on servers without display screen.
   void setOffScreenRendering();
 
+  /* ------------------------------------------------------------------------ */
+  // Record video sequence at a hardcoded directory relative to executable.
+  void recordVideo();
+
+  /* ------------------------------------------------------------------------ */
+  static Mesher::Mesh3DVizProperties texturizeMesh3D(
+      const Timestamp& image_timestamp,
+      const cv::Mat& texture_image,
+      const Mesh2D& mesh_2d,
+      const Mesh3D& mesh_3d) {
+    // Dummy checks for valid data.
+    CHECK(!texture_image.empty());
+    CHECK_GE(mesh_2d.getNumberOfUniqueVertices(), 0);
+    CHECK_GE(mesh_3d.getNumberOfUniqueVertices(), 0);
+
+    // Let us fill the mesh 3d viz properties structure.
+    Mesher::Mesh3DVizProperties mesh_3d_viz_props;
+
+    // Color all vertices in red. Each polygon will be colored according
+    // to a mix of the three vertices colors I think...
+    mesh_3d_viz_props.colors_ = cv::Mat (mesh_3d.getNumberOfUniqueVertices(), 1,
+                                         CV_8UC3, cv::viz::Color::red());
+
+    // Add texture to the mesh using the given image.
+    // README: tcoords specify the texture coordinates of the 3d mesh wrt 2d image.
+    // As a small hack, we not only use the left_image as texture but we also
+    // horizontally concatenate a white image so we can set a white texture to
+    // those 3d mesh faces which should not have a texture.
+    // Below we init all tcoords to 0.99 (1.0) gives a weird texture...
+    // Meaning that all faces start with a default white texture, and then we
+    // change that texture to the right texture for each 2d triangle that has
+    // a corresponding 3d face.
+    Mesh2D::Polygon polygon;
+    std::vector<cv::Vec2d> tcoords (mesh_3d.getNumberOfUniqueVertices(),
+                                cv::Vec2d(0.9, 0.9));
+    for (size_t i = 0; i < mesh_2d.getNumberOfPolygons(); i++) {
+      CHECK(mesh_2d.getPolygon(i, &polygon)) << "Could not retrieve 2d polygon.";
+
+      const LandmarkId& lmk0 = polygon.at(0).getLmkId();
+      const LandmarkId& lmk1 = polygon.at(1).getLmkId();
+      const LandmarkId& lmk2 = polygon.at(2).getLmkId();
+
+      // Returns indices of points in the 3D mesh corresponding to the vertices
+      // in the 2D mesh.
+      int p0_id, p1_id, p2_id;
+      if (mesh_3d.getVertex(lmk0, nullptr, &p0_id) &&
+          mesh_3d.getVertex(lmk1, nullptr, &p1_id) &&
+          mesh_3d.getVertex(lmk2, nullptr, &p2_id)) {
+        // Sanity check.
+        CHECK_LE(p0_id, tcoords.size());
+        CHECK_LE(p1_id, tcoords.size());
+        CHECK_LE(p2_id, tcoords.size());
+
+        // Get pixel coordinates of the vertices of the 2D mesh.
+        const auto& px0 = polygon.at(0).getVertexPosition();
+        const auto& px1 = polygon.at(1).getVertexPosition();
+        const auto& px2 = polygon.at(2).getVertexPosition();
+
+        // These pixels correspond to the tcoords in the image for the 3d mesh
+        // vertices.
+        VLOG(100) << "Pixel: with id: " << p0_id
+                  << ", x: " << px0.x << ", y: " << px0.y;
+        // We divide by 2.0 to account for fake default texture padded to the
+        // right of the texture_image.
+        tcoords.at(p0_id) = cv::Vec2d(px0.x/texture_image.cols/2.0,
+                                      px0.y/texture_image.rows);
+        tcoords.at(p1_id) = cv::Vec2d(px1.x/texture_image.cols/2.0,
+                                      px1.y/texture_image.rows);
+        tcoords.at(p2_id) = cv::Vec2d(px2.x/texture_image.cols/2.0,
+                                      px2.y/texture_image.rows);
+        mesh_3d_viz_props.colors_.row(p0_id) = cv::viz::Color::white();
+        mesh_3d_viz_props.colors_.row(p1_id) = cv::viz::Color::white();
+        mesh_3d_viz_props.colors_.row(p2_id) = cv::viz::Color::white();
+      } else {
+        // If we did not find a corresponding 3D triangle for the 2D triangle
+        // leave tcoords and colors to the default values.
+        LOG_EVERY_N(ERROR, 1000) << "Polygon in 2d mesh did not have a "
+                                    "corresponding polygon in 3d mesh!";
+      }
+    }
+
+    // Add a column with a fixed color at the end so that we can specify an
+    // "invalid" or "default" texture for those points which we do not want to
+    // texturize.
+    static cv::Mat default_texture (texture_image.rows,
+                                    texture_image.cols,
+                                    texture_image.type(),
+                                    cv::viz::Color::white());
+    CHECK_EQ(texture_image.dims, default_texture.dims);
+    CHECK_EQ(texture_image.rows, default_texture.rows);
+    CHECK_EQ(texture_image.type(), default_texture.type());
+
+    cv::Mat texture;
+    // Padding actual texture with default texture, a bit hacky, but works.
+    cv::hconcat(texture_image, default_texture, texture);
+    mesh_3d_viz_props.texture_ = texture;
+
+    mesh_3d_viz_props.tcoords_ = cv::Mat(tcoords, true).reshape(2);
+    CHECK_EQ(mesh_3d_viz_props.tcoords_.size().height,
+             mesh_3d.getNumberOfUniqueVertices());
+
+    return mesh_3d_viz_props;
+  }
+
 private:
+  // Flags for visualization behaviour.
+  const VisualizationType visualization_type_;
+  const int backend_type_;
+
+  // Callbacks.
+  // Mesh 3d visualization properties setter callback.
+  Mesher::Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
+
   // Shutdown flag to stop the visualization spin.
   std::atomic_bool shutdown_ = {false};
+  // Signals if the thread is working or waiting for input queue.
+  std::atomic_bool is_thread_working_ = {false};
 
   std::deque<cv::Affine3f> trajectoryPoses3d_;
 
@@ -328,33 +451,23 @@ private:
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback.
-  static void keyboardCallback(const viz::KeyboardEvent &event, void *t) {
-    Visualizer3D::WindowData* window_data = (Visualizer3D::WindowData*)t;
-    toggleFreezeScreenKeyboardCallback(event.action, event.code, *window_data);
-    setMeshRepresentation(event.action, event.code, *window_data);
-    getViewerPoseKeyboardCallback(event.action, event.code, *window_data);
-    getCurrentWindowSizeKeyboardCallback(event.action, event.code, *window_data);
-    getScreenshotCallback(event.action, event.code, *window_data);
-  }
+  static void keyboardCallback(const cv::viz::KeyboardEvent& event, void *t);
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to toggle freezing screen.
   static void toggleFreezeScreenKeyboardCallback(
-      const viz::KeyboardEvent::Action& action,
       const uchar code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == 't') {
-        LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
-        static bool freeze = false;
-        freeze = !freeze; // Toggle.
-        window_data.window_.spinOnce(1, true);
-        while(!window_data.window_.wasStopped()) {
-          if (freeze) {
-            window_data.window_.spinOnce(1, true);
-          } else {
-            break;
-          }
+    if (code == 't') {
+      LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
+      static bool freeze = false;
+      freeze = !freeze; // Toggle.
+      window_data.window_.spinOnce(1, true);
+      while(!window_data.window_.wasStopped()) {
+        if (freeze) {
+          window_data.window_.spinOnce(1, true);
+        } else {
+          break;
         }
       }
     }
@@ -363,76 +476,105 @@ private:
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to set mesh representation.
   static void setMeshRepresentation(
-      const viz::KeyboardEvent::Action& action,
       const uchar code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == '0') {
-        LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                               "a point cloud.";
-        window_data.user_updated_mesh_representation_ = true;
-        window_data.mesh_representation_ = 0u;
-      } else if (code == '1') {
-        LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                               "a mesh.";
-        window_data.user_updated_mesh_representation_ = true;
-        window_data.mesh_representation_ = 1u;
-      } else if (code == '2') {
-        LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
-                                               "a wireframe.";
-        window_data.user_updated_mesh_representation_ = true;
-        window_data.mesh_representation_ = 2u;
-      }
+    if (code == '0') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                             "a point cloud.";
+      window_data.mesh_representation_ = 0u;
+    } else if (code == '1') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                             "a mesh.";
+      window_data.mesh_representation_ = 1u;
+    } else if (code == '2') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh representation to "
+                                             "a wireframe.";
+      window_data.mesh_representation_ = 2u;
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to set mesh shading.
+  static void setMeshShadingCallback(
+      const uchar code,
+      Visualizer3D::WindowData& window_data) {
+    if (code == '4') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
+                                             "flat.";
+      window_data.mesh_shading_ = 0u;
+    } else if (code == '5') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
+                                             "Gouraud.";
+      window_data.mesh_shading_ = 1u;
+    } else if (code == '6') {
+      LOG(WARNING) << "Pressing " << code << " sets mesh shading to "
+                                             "Phong.";
+      window_data.mesh_shading_ = 2u;
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to set mesh ambient.
+  static void setMeshAmbientCallback(
+      const uchar code,
+      Visualizer3D::WindowData& window_data) {
+    if (code == 'a') {
+      window_data.mesh_ambient_ = !window_data.mesh_ambient_;
+      LOG(WARNING) << "Pressing " << code << " toggles mesh ambient."
+                   << " Now set to " << window_data.mesh_ambient_;
+    }
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Keyboard callback to set mesh lighting.
+  static void setMeshLightingCallback(
+      const uchar code,
+      Visualizer3D::WindowData& window_data) {
+    if (code == 'l') {
+      window_data.mesh_lighting_ = !window_data.mesh_lighting_;
+      LOG(WARNING) << "Pressing " << code << " toggles mesh lighting."
+                   << " Now set to " << window_data.mesh_lighting_;
     }
   }
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to get current viewer pose.
   static void getViewerPoseKeyboardCallback(
-      const viz::KeyboardEvent::Action& action,
       const uchar& code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == 'v') {
-        LOG(INFO) << "Current viewer pose:\n"
-                  << "\tRodriguez vector: " << window_data.window_.getViewerPose().rvec()
-                  << "\n\tAffine matrix: " << window_data.window_.getViewerPose().matrix;
-      }
+    if (code == 'v') {
+      LOG(INFO) << "Current viewer pose:\n"
+                << "\tRodriguez vector: " << window_data.window_.getViewerPose().rvec()
+                << "\n\tAffine matrix: " << window_data.window_.getViewerPose().matrix;
     }
   }
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to get current screen size.
   static void getCurrentWindowSizeKeyboardCallback(
-      const viz::KeyboardEvent::Action& action,
       const uchar code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == 'w') {
-        LOG(WARNING) << "Pressing " << code << " displays current window size:\n"
-                     << "\theight: " << window_data.window_.getWindowSize().height
-                     << "\twidth: " << window_data.window_.getWindowSize().width;
-      }
+    if (code == 'w') {
+      LOG(WARNING) << "Pressing " << code << " displays current window size:\n"
+                   << "\theight: " << window_data.window_.getWindowSize().height
+                   << "\twidth: " << window_data.window_.getWindowSize().width;
     }
   }
 
   /* ------------------------------------------------------------------------ */
   // Keyboard callback to get screenshot of current windodw.
   static void getScreenshotCallback(
-      const viz::KeyboardEvent::Action& action,
       const uchar code,
       Visualizer3D::WindowData& window_data) {
-    if (action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-      if (code == 's') {
-        static int i = 0;
-        std::string filename = "screenshot_3d_window" + std::to_string(i);
-        LOG(WARNING) << "Pressing " << code << " takes a screenshot of the "
-                                               "window, saved in: " + filename;
-        window_data.window_.saveScreenshot(filename);
-      }
+    if (code == 's') {
+      static int i = 0;
+      std::string filename = "screenshot_3d_window" + std::to_string(i);
+      LOG(WARNING) << "Pressing " << code << " takes a screenshot of the "
+                                             "window, saved in: " + filename;
+      window_data.window_.saveScreenshot(filename);
     }
   }
-};
+  };
 
 } // namespace VIO
 

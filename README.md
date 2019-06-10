@@ -33,6 +33,7 @@ $ make check
 
 > Note 1a: if you use MKL in gtsam, you may need to add to `~/.bashrc` a line similar to:
 >  ```source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64```
+> (Alternatively, type `locate compilervars.sh` and then `source $output file.sh that you got from locate$`, add to your .bashrc to automate).
 
 > Note 1b: sometimes you may need to add `/usr/local/lib` to `LD_LIBRARY_PATH` in `~/.bashrc` (if you get lib not found errors at run or test time).
 
@@ -180,6 +181,8 @@ Tips for usage
      These last two shortcuts are useful if you want to programmatically set the initial viewpoint and size of the screen when launching the 3D visualization window (this is done at the constructor of the 3DVisualizer class).
     - Press 's': to get a screenshot of the 3D visualization window.
     - Press '0', '1', or '2': to toggle the 3D mesh representation (only visible if the gflag 'visualize_mesh' is set to true).
+    - Press 'a': to toggle ambient light for the 3D mesh ('visualize_mesh' has to be set to true).
+    - Press 'l': to toggle lighting for the 3D mesh ('visualize_mesh' has to be set to true).
 
 > For these shortcuts to take effect you need to have the window in focus. Note also that there might be a big delay between your keypress and the actual processing of the information as this is purely sequential with the VIO pipeline itself; this might change after parallelizing the pipeline).
 

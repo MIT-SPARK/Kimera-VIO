@@ -1,7 +1,7 @@
 #!/bin/bash
 # Mesher parameters.
 # General functionality for the mesher.
---add_extra_lmks_from_stereo=false
+--add_extra_lmks_from_stereo=true
 --reduce_mesh_to_time_horizon=true
 
 # Visualization.
@@ -53,3 +53,6 @@
 --z_histogram_min_separation=0.1
 --z_histogram_gaussian_kernel_size=5
 --z_histogram_max_number_of_peaks_to_select=3
+
+# Extras
+--return_mesh_2d=true

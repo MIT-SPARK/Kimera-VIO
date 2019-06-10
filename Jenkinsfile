@@ -1,3 +1,7 @@
+/* Jenkinsfile for Jenkins running in a server using docker.
+ * Run the following command to mount EUROC dataset and be able to run VIO evaluation on it:
+ * sudo docker run -u root --rm -d -p 8080:8080 -p 50000:50000 -v /home/sparklab/Datasets/euroc:/Datasets/euroc -v jenkins-data:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock jenkinsci/blueocean
+ */
 pipeline {
   agent { dockerfile {
       filename 'Dockerfile'
@@ -7,8 +11,12 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-        slackSend color: 'good', message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
-          cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false, generator: 'Unix Makefiles', installation: 'InSearchPath', sourceDir: '.', steps: [[args: '-j 8']]
+        slackSend color: 'good',
+                  message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
+        cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
+                   cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
+                   generator: 'Unix Makefiles', installation: 'InSearchPath',
+                   sourceDir: '.', steps: [[args: '-j 8']]
       }
     }
     stage('Test') {
@@ -41,7 +49,7 @@ pipeline {
       plot csvFileName: 'plot-vio-performance-per-build.csv',
            csvSeries: [[file: 'spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv']],
            group: 'Performance',
-           numBuilds: '8',
+           numBuilds: '30',
            style: 'line',
            title: 'VIO Performance',
            yaxis: 'Metrics'
@@ -49,7 +57,7 @@ pipeline {
       plot csvFileName: 'plot-vio-timing-per-build.csv',
            csvSeries: [[file: 'spark_vio_evaluation/results/V1_01_easy/S/output/output_timingOverall.csv']],
            group: 'Performance',
-           numBuilds: '8',
+           numBuilds: '30',
            style: 'line',
            title: 'VIO Timing',
            yaxis: 'Time [ms]'

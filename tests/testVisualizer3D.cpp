@@ -49,7 +49,7 @@ TEST(testFrame, visualizeMesh2D) {
   const std::vector<cv::Vec6f>& mesh_2d = f.createMesh2D();
 
   // Visualize mesh.
-  Visualizer3D visualizer;
+  Visualizer3D visualizer (VisualizationType::NONE, 0);
   visualizer.visualizeMesh2D(mesh_2d, f.img_);
 }
 

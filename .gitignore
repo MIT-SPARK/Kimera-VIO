@@ -3,7 +3,7 @@
 /.settings/
 /matlab/result-*
 /scripts/*/*.txt
-/scripts/*/*.csv
+/*/*.csv
 
 
 % Ignore VS code settings
@@ -20,3 +20,5 @@
 % Ignore media files
 *.png
 *.mp4
+
+/scripts/*.yaml

@@ -230,8 +230,8 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   //    using SmartStereoMeasurements = vector<SmartStereoMeasurement>;
   //    using StatusSmartStereoMeasurements = pair<TrackerStatusSummary,SmartStereoMeasurements>;
   TrackerStatusSummary tracker_status_valid;
-  tracker_status_valid.kfTrackingStatus_mono_ = Tracker::TrackingStatus::VALID;
-  tracker_status_valid.kfTrackingStatus_stereo_ = Tracker::TrackingStatus::VALID;
+  tracker_status_valid.kfTrackingStatus_mono_ = TrackingStatus::VALID;
+  tracker_status_valid.kfTrackingStatus_stereo_ = TrackingStatus::VALID;
 
   vector<StatusSmartStereoMeasurements> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
@@ -256,6 +256,18 @@ TEST(testVio, robotMovingWithConstantVelocity) {
         B_pose_camLrect, cam_params,
         baseline, &initial_state,
         t_start, ImuAccGyrS(), vioParams);
+  ImuParams imu_params;
+  imu_params.n_gravity_ = vioParams.n_gravity_;
+  imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
+  imu_params.acc_walk_ = vioParams.accBiasSigma_;
+  imu_params.acc_noise_ = vioParams.accNoiseDensity_;
+  imu_params.gyro_walk_ = vioParams.gyroBiasSigma_;
+  imu_params.gyro_noise_ = vioParams.gyroNoiseDensity_;
+  ImuFrontEnd imu_frontend(imu_params, imu_bias);
+
+  vio->registerImuBiasUpdateCallback(
+        std::bind(&ImuFrontEnd::updateBias, std::ref(imu_frontend),
+                  std::placeholders::_1));
 
   // For each frame, add landmarks and optimize.
   for(int64_t k = 1; k < num_key_frames; k++) {
@@ -272,11 +284,20 @@ TEST(testVio, robotMovingWithConstantVelocity) {
                                                     &imu_accgyr) ==
           VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
 
+    const auto& pim = imu_frontend.preintegrateImuMeasurements(imu_stamps,
+                                                               imu_accgyr);
+
+    const VioBackEndInputPayload input (
+          timestamp_k,
+          all_measurements[k],
+          tracker_status_valid.kfTrackingStatus_stereo_,
+          pim);
+
     // process data with VIO
-    vio->addVisualInertialStateAndOptimize(
-          timestamp_k, // current time for fixed lag smoother
-          all_measurements[k], // vision data
-          imu_stamps, imu_accgyr);
+    vio->spinOnce(std::make_shared<VioBackEndInputPayload>(input));
+    // At this point the update imu bias callback should be triggered which
+    // will update the imu_frontend imu bias.
+    imu_frontend.resetIntegrationWithCachedBias();
 
     const NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
     size_t nrFactorsInSmoother = 0;

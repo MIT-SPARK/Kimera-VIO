@@ -12,23 +12,30 @@
  * @author Luca Carlone, AJ Haeffner, Antoni Rosinol
  */
 
-#include <math.h>
 
 #include "mesh/Mesher.h"
 
+#include <math.h>
 #include <algorithm>
-
-#include "LoggerMatlab.h"
 #include <opencv2/imgproc.hpp>
-
 #include <glog/logging.h>
 #include <gflags/gflags.h>
+
+#include "utils/Timer.h"
+#include "utils/Statistics.h"
+#include "LoggerMatlab.h"
+
 // General functionality for the mesher.
 DEFINE_bool(add_extra_lmks_from_stereo, false,
             "Add extra landmarks that are stereo triangulated to the mesh. "
             "WARNING this is computationally expensive.");
 DEFINE_bool(reduce_mesh_to_time_horizon, true, "Reduce mesh vertices to the "
             "landmarks available in current optimization's time horizon.");
+
+// Mesh 2D return, for semantic segmentation.
+// TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
+DEFINE_bool(return_mesh_2d, false, "Return mesh 2d with pixel positions, i.e."
+                                   " for semantic segmentation");
 
 // Visualization.
 DEFINE_bool(visualize_histogram_1D, false, "Visualize 1D histogram.");
@@ -126,7 +133,7 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 Mesher::Mesher()
-  : mesh_() {
+  : mesh_3d_() {
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
   // We cannot use an array of doubles here bcs the function cv::calcHist asks
@@ -150,6 +157,42 @@ Mesher::Mesher()
                        true, false);
 }
 
+/* -------------------------------------------------------------------------- */
+// Method for the mesher to run on a thread.
+void Mesher::spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
+                  ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue,
+                  bool parallel_run) {
+  LOG(INFO) << "Spinning Mesher.";
+  MesherOutputPayload mesher_output_payload;
+  utils::StatsCollector stats_mesher("Mesher Timing [ms]");
+  while(!shutdown_) {
+    // Wait for mesher payload.
+    is_thread_working_ = false;
+    const std::shared_ptr<const MesherInputPayload>& mesher_payload =
+        mesher_input_queue.popBlocking();
+    is_thread_working_ = true;
+    // If you put mesher_output_payload outside the loop, don't forget to clean
+    // the mesh_2d or everything
+    auto tic = utils::Timer::tic();
+    updateMesh3D(mesher_payload,
+                 FLAGS_return_mesh_2d? &(mesher_output_payload.mesh_2d_):nullptr, // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
+                 &(mesher_output_payload.mesh_2d_for_viz_), // These are more or less the same info as mesh_2d_
+                 &(mesher_output_payload.mesh_2d_filtered_for_viz_));
+    getVerticesMesh(&(mesher_output_payload.vertices_mesh_));
+    getPolygonsMesh(&(mesher_output_payload.polygons_mesh_));
+    mesher_output_payload.mesh_3d_ = mesh_3d_;
+    mesher_output_queue.push(mesher_output_payload);
+    auto spin_duration = utils::Timer::toc(tic).count();
+    LOG(WARNING) << "Current Mesher frequency: "
+                 << 1000.0 / spin_duration << " Hz. ("
+                 << spin_duration << " ms).";
+    stats_mesher.AddSample(spin_duration);
+
+    // Break the while loop if we are in sequential mode.
+    if (!parallel_run) return;
+  }
+  LOG(INFO) << "Mesher successfully shutdown.";
+}
 
 /* -------------------------------------------------------------------------- */
 // For a triangle defined by the 3d points p1, p2, and p3
@@ -180,9 +223,9 @@ double Mesher::getRatioBetweenSmallestAndLargestSide(
 // for a triangle defined by the 3d points mapPoints3d_.at(rowId_pt1), mapPoints3d_.at(rowId_pt2),
 // mapPoints3d_.at(rowId_pt3), compute ratio between largest side and smallest side (how elongated it is)
 double Mesher::getRatioBetweenTangentialAndRadialDisplacement(
-    const Mesh3D::VertexPosition3D& p1,
-    const Mesh3D::VertexPosition3D& p2,
-    const Mesh3D::VertexPosition3D& p3,
+    const Vertex3DType& p1,
+    const Vertex3DType& p2,
+    const Vertex3DType& p3,
     const gtsam::Pose3& leftCameraPose) const {
   std::vector<gtsam::Point3> points;
 
@@ -219,8 +262,8 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
   // Loop over each face in the mesh.
   Mesh3D::Polygon polygon;
 
-  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
-    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+  for (size_t i = 0; i < mesh_3d_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), 3) << "Expecting 3 vertices in triangle";
    // Check if triangle is good.
     if (!isBadTriangle(polygon, leftCameraPose,
@@ -231,7 +274,7 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
     }
   }
 
-  mesh_ = mesh_output;
+  mesh_3d_ = mesh_output;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -243,9 +286,9 @@ bool Mesher::isBadTriangle(
                        const double& min_elongation_ratio,
                        const double& max_triangle_side) const {
     CHECK_EQ(polygon.size(), 3) << "Expecting 3 vertices in triangle";
-    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
+    const Vertex3DType& p1 = polygon.at(0).getVertexPosition();
+    const Vertex3DType& p2 = polygon.at(1).getVertexPosition();
+    const Vertex3DType& p3 = polygon.at(2).getVertexPosition();
 
     double ratioSides_i = 0;
     double ratioTangentialRadial_i = 0;
@@ -293,20 +336,24 @@ bool Mesher::isBadTriangle(
 
 /* -------------------------------------------------------------------------- */
 // Create a 3D mesh from 2D corners in an image, keeps the mesh in time horizon.
+// Optionally returns the 2D mesh that links with the 3D mesh via the
+// landmarks ids.
 void Mesher::populate3dMeshTimeHorizon(
-    const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
+    const std::vector<cv::Vec6f>& mesh_2d_pixels, // cv::Vec6f assumes triangular mesh.
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
     const Frame& frame,
     const gtsam::Pose3& leftCameraPose,
     double min_ratio_largest_smallest_side,
     double min_elongation_ratio,
-    double max_triangle_side) {
+    double max_triangle_side,
+    Mesh2D* mesh_2d) {
   VLOG(10) << "Starting populate3dMeshTimeHorizon...";
   VLOG(10) << "Starting populate3dMesh...";
-  populate3dMesh(mesh_2d, points_with_id_map, frame, leftCameraPose,
+  populate3dMesh(mesh_2d_pixels, points_with_id_map, frame, leftCameraPose,
                  min_ratio_largest_smallest_side,
                  min_elongation_ratio,
-                 max_triangle_side);
+                 max_triangle_side,
+                 mesh_2d);
   VLOG(10) << "Finished populate3dMesh.";
 
   // Remove faces in the mesh that have vertices which are not in
@@ -324,21 +371,32 @@ void Mesher::populate3dMeshTimeHorizon(
 /* -------------------------------------------------------------------------- */
 // Create a 3D mesh from 2D corners in an image.
 void Mesher::populate3dMesh(
-    const std::vector<cv::Vec6f>& mesh_2d, // cv::Vec6f assumes triangular mesh.
+    const std::vector<cv::Vec6f>& mesh_2d_pixels, // cv::Vec6f assumes triangular mesh.
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
     const Frame& frame,
     const gtsam::Pose3& leftCameraPose,
     double min_ratio_largest_smallest_side,
     double min_elongation_ratio,
-    double max_triangle_side) {
+    double max_triangle_side,
+    Mesh2D* mesh_2d) {
   // Iterate over each face in the 2d mesh, and generate the 3d mesh.
   // TODO to retrieve lmk id from pixels, do it in the stereo frame! not here.
-  // Create polygon and add it to the mesh.
+
+  // Create face and add it to the 2d mesh.
+  Mesh2D::Polygon face;
+  face.resize(3);
+
+  // Clean output 2d mesh.
+  if (mesh_2d != nullptr) mesh_2d->clearMesh();
+
+  // Create polygon and add it to the 3d mesh.
   Mesh3D::Polygon polygon;
   polygon.resize(3);
+
   // Iterate over the 2d mesh triangles.
-  for (size_t i = 0; i < mesh_2d.size(); i++) {
-    const cv::Vec6f& triangle_2d = mesh_2d.at(i);
+  for (size_t i = 0; i < mesh_2d_pixels.size(); i++) {
+    size_t triangle_2d_id = i;
+    const cv::Vec6f& triangle_2d = mesh_2d_pixels.at(i);
 
     // Iterate over each vertex (pixel) of the triangle.
     // Triangle_2d.rows = 3.
@@ -348,7 +406,7 @@ void Mesher::populate3dMesh(
                                triangle_2d[j * 2 + 1]);
 
       // Extract landmark id corresponding to this pixel.
-      const LandmarkId lmk_id (frame.findLmkIdFromPixel(pixel));
+      const LandmarkId& lmk_id (frame.findLmkIdFromPixel(pixel));
       CHECK_NE(lmk_id, -1);
 
       // Try to find this landmark id in points_with_id_map.
@@ -362,7 +420,10 @@ void Mesher::populate3dMesh(
                         float(point.z()));
         // Add landmark as one of the vertices of the current polygon in 3D.
         DCHECK_LT(j, polygon.size());
-        polygon.at(j) = Mesh3D::Vertex(lmk_id, lmk);
+        polygon.at(j) = Mesh3D::VertexType(lmk_id, lmk);
+        if(mesh_2d != nullptr) {
+          face.at(j) = Mesh2D::VertexType(lmk_id, pixel);
+        }
         static const size_t loop_end = triangle_2d.rows / 2 - 1;
         if (j == loop_end) {
           // Last iteration.
@@ -373,7 +434,10 @@ void Mesher::populate3dMesh(
                              max_triangle_side)) {
             // Save the valid triangular polygon, since it has all vertices in
             // points_with_id_map.
-            mesh_.addPolygonToMesh(polygon);
+            mesh_3d_.addPolygonToMesh(polygon);
+            if(mesh_2d != nullptr) {
+              mesh_2d->addPolygonToMesh(face);
+            }
           }
         }
       } else {
@@ -404,10 +468,10 @@ void Mesher::updatePolygonMeshToTimeHorizon(
   // Loop over each face in the mesh.
   Mesh3D::Polygon polygon;
 
-  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
-    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+  for (size_t i = 0; i < mesh_3d_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     bool save_polygon = true;
-    for (Mesh3D::Vertex& vertex: polygon) {
+    for (Mesh3D::VertexType& vertex: polygon) {
       const auto& point_with_id_it = points_with_id_map.find(vertex.getLmkId());
       if (point_with_id_it == end) {
         // Vertex of current polygon is not in points_with_id_map
@@ -424,7 +488,7 @@ void Mesher::updatePolygonMeshToTimeHorizon(
         // Update the vertex with newest landmark position.
         // This is to ensure we have latest update, the previous addPolygonToMesh
         // only updates the positions of the vertices in the visible frame.
-        vertex.setVertexPosition(Mesh3D::VertexPosition3D(
+        vertex.setVertexPosition(Vertex3DType(
                                    point_with_id_it->second.x(),
                                    point_with_id_it->second.y(),
                                    point_with_id_it->second.z()));
@@ -444,7 +508,7 @@ void Mesher::updatePolygonMeshToTimeHorizon(
     }
   }
 
-  mesh_ = mesh_output;
+  mesh_3d_ = mesh_output;
   VLOG(10) << "Finished updatePolygonMeshToTimeHorizon.";
 }
 
@@ -452,23 +516,23 @@ void Mesher::updatePolygonMeshToTimeHorizon(
 // Calculate normals of polygonMesh.
 void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
   CHECK_NOTNULL(normals);
-  CHECK_EQ(mesh_.getMeshPolygonDimension(), 3)
+  CHECK_EQ(mesh_3d_.getMeshPolygonDimension(), 3)
       << "Expecting 3 vertices in triangle.";
 
   // Brute force, ideally only call when a new triangle appears...
   normals->clear();
-  normals->resize(mesh_.getNumberOfPolygons()); // TODO Assumes we have triangles...
+  normals->resize(mesh_3d_.getNumberOfPolygons()); // TODO Assumes we have triangles...
 
   // Loop over each polygon face in the mesh.
   // TODO there are far too many loops over the total number of Polygon faces...
   // Should put them all in the same loop!
   Mesh3D::Polygon polygon;
-  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
-    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+  for (size_t i = 0; i < mesh_3d_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), 3);
-    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
+    const Vertex3DType& p1 = polygon.at(0).getVertexPosition();
+    const Vertex3DType& p2 = polygon.at(1).getVertexPosition();
+    const Vertex3DType& p3 = polygon.at(2).getVertexPosition();
 
     cv::Point3f normal;
     CHECK(calculateNormal(p1, p2, p3, &normal));
@@ -484,9 +548,9 @@ void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
 /* -------------------------------------------------------------------------- */
 // Calculate normal of a triangle, and return whether it was possible or not.
 // Calculating the normal of aligned points in 3D is not possible...
-bool Mesher::calculateNormal(const Mesh3D::VertexPosition3D& p1,
-                             const Mesh3D::VertexPosition3D& p2,
-                             const Mesh3D::VertexPosition3D& p3,
+bool Mesher::calculateNormal(const Vertex3DType& p1,
+                             const Vertex3DType& p2,
+                             const Vertex3DType& p3,
                              cv::Point3f* normal) const {
   CHECK_NOTNULL(normal);
   // TODO what if p2 = p1 or p3 = p1?
@@ -609,7 +673,7 @@ bool Mesher::isPolygonAtDistanceFromPlane(const Mesh3D::Polygon& polygon,
 const {
   CHECK_NEAR(cv::norm(plane_normal), 1.0, 1e-05); // Expect unit norm.
   CHECK_GE(distance_tolerance, 0.0);
-  for (const Mesh3D::Vertex& vertex: polygon) {
+  for (const Mesh3D::VertexType& vertex: polygon) {
     if (!isPointAtDistanceFromPlane(vertex.getVertexPosition(),
                                     plane_distance, plane_normal,
                                     distance_tolerance)) {
@@ -623,7 +687,7 @@ const {
 /* -------------------------------------------------------------------------- */
 // Checks whether the point is closer than tolerance to the plane.
 bool Mesher::isPointAtDistanceFromPlane(
-    const Mesh3D::VertexPosition3D& point,
+    const Vertex3DType& point,
     const double& plane_distance,
     const cv::Point3f& plane_normal,
     const double& distance_tolerance) const {
@@ -706,7 +770,7 @@ void Mesher::segmentPlanesInMesh(
   }
 
   static constexpr size_t mesh_polygon_dim = 3;
-  CHECK_EQ(mesh_.getMeshPolygonDimension(), mesh_polygon_dim)
+  CHECK_EQ(mesh_3d_.getMeshPolygonDimension(), mesh_polygon_dim)
       << "Expecting 3 vertices in triangle.";
 
   // Cluster new lmk ids for seed planes.
@@ -714,12 +778,12 @@ void Mesher::segmentPlanesInMesh(
   Mesh3D::Polygon polygon;
   cv::Mat z_components (1, 0, CV_32F);
   cv::Mat walls (0, 0, CV_32FC2);
-  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
-    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+  for (size_t i = 0; i < mesh_3d_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), mesh_polygon_dim);
-    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
+    const Vertex3DType& p1 = polygon.at(0).getVertexPosition();
+    const Vertex3DType& p2 = polygon.at(1).getVertexPosition();
+    const Vertex3DType& p3 = polygon.at(2).getVertexPosition();
 
     // Calculate normal of the triangle in the mesh.
     // The normals are in the world frame of reference.
@@ -821,15 +885,15 @@ void Mesher::updatePlanesLmkIdsFromMesh(
 const {
   CHECK_NOTNULL(planes);
   static constexpr size_t mesh_polygon_dim = 3;
-  CHECK_EQ(mesh_.getMeshPolygonDimension(), mesh_polygon_dim)
+  CHECK_EQ(mesh_3d_.getMeshPolygonDimension(), mesh_polygon_dim)
       << "Expecting 3 vertices in triangle.";
   Mesh3D::Polygon polygon;
-  for (size_t i = 0; i < mesh_.getNumberOfPolygons(); i++) {
-    CHECK(mesh_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
+  for (size_t i = 0; i < mesh_3d_.getNumberOfPolygons(); i++) {
+    CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), mesh_polygon_dim);
-    const Mesh3D::VertexPosition3D& p1 = polygon.at(0).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p2 = polygon.at(1).getVertexPosition();
-    const Mesh3D::VertexPosition3D& p3 = polygon.at(2).getVertexPosition();
+    const Vertex3DType& p1 = polygon.at(0).getVertexPosition();
+    const Vertex3DType& p2 = polygon.at(1).getVertexPosition();
+    const Vertex3DType& p3 = polygon.at(2).getVertexPosition();
 
     // Calculate normal of the triangle in the mesh.
     // The normals are in the world frame of reference.
@@ -1245,6 +1309,7 @@ void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
     std::shared_ptr<StereoFrame> stereo_frame_ptr,
     const gtsam::Pose3& left_camera_pose,
+    Mesh2D* mesh_2d,
     std::vector<cv::Vec6f>* mesh_2d_for_viz,
     std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
   VLOG(10) << "Starting updateMesh3D...";
@@ -1273,16 +1338,16 @@ void Mesher::updateMesh3D(
            << points_with_id_all->size();
 
   // Build 2D mesh.
-  std::vector<cv::Vec6f> mesh_2d;
+  std::vector<cv::Vec6f> mesh_2d_pixels;
   // THIS CALL IS NOT THREAD-SAFE
-  stereo_frame_ptr->createMesh2dVIO(&mesh_2d,
+  stereo_frame_ptr->createMesh2dVIO(&mesh_2d_pixels,
                                     *points_with_id_all);
-  if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d;
+  if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d_pixels;
 
   // Filter 2D mesh.
   std::vector<cv::Vec6f> mesh_2d_filtered;
   // THIS CALL IS NOT THREAD-SAFE
-  stereo_frame_ptr->filterTrianglesWithGradients(mesh_2d,
+  stereo_frame_ptr->filterTrianglesWithGradients(mesh_2d_pixels,
                                                  &mesh_2d_filtered,
                                                  FLAGS_max_grad_in_triangle);
   if (mesh_2d_filtered_for_viz) *mesh_2d_filtered_for_viz = mesh_2d_filtered;
@@ -1295,7 +1360,8 @@ void Mesher::updateMesh3D(
         left_camera_pose,
         FLAGS_min_ratio_btw_largest_smallest_side,
         FLAGS_min_elongation_ratio,
-        FLAGS_max_triangle_side);
+        FLAGS_max_triangle_side,
+        mesh_2d);
 
   VLOG(10) << "Finished updateMesh3D.";
 }
@@ -1303,6 +1369,7 @@ void Mesher::updateMesh3D(
 /* -------------------------------------------------------------------------- */
 // Update mesh, but in a thread-safe way.
 void Mesher::updateMesh3D(const std::shared_ptr<const MesherInputPayload>& mesher_payload,
+                          Mesh2D* mesh_2d,
                           std::vector<cv::Vec6f>* mesh_2d_for_viz,
                           std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
     if (!mesher_payload) {
@@ -1311,7 +1378,9 @@ void Mesher::updateMesh3D(const std::shared_ptr<const MesherInputPayload>& meshe
       updateMesh3D(mesher_payload->points_with_id_vio_,
                    std::make_shared<StereoFrame>(mesher_payload->stereo_frame_),
                    mesher_payload->left_camera_pose_,
-                   mesh_2d_for_viz, mesh_2d_filtered_for_viz);
+                   mesh_2d,
+                   mesh_2d_for_viz,
+                   mesh_2d_filtered_for_viz);
     }
 }
 
@@ -1378,7 +1447,7 @@ void Mesher::extractLmkIdsFromTriangleCluster(
 
   Mesh3D::Polygon polygon;
     for (const size_t& polygon_idx: triangle_cluster.triangle_ids_) {
-      CHECK(mesh_.getPolygon(polygon_idx, &polygon))
+      CHECK(mesh_3d_.getPolygon(polygon_idx, &polygon))
           << "Polygon, with idx " << polygon_idx << ", is not in the mesh.";
       appendLmkIdsOfPolygon(polygon, lmk_ids, points_with_id_vio);
     }
@@ -1398,7 +1467,7 @@ void Mesher::appendLmkIdsOfPolygon(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
 const {
   CHECK_NOTNULL(lmk_ids);
-  for (const Mesh3D::Vertex& vertex: polygon) {
+  for (const Mesh3D::VertexType& vertex: polygon) {
     // Ensure we are not adding more than once the same lmk_id.
     const auto& it = std::find(lmk_ids->begin(),
                                lmk_ids->end(),
@@ -1428,11 +1497,11 @@ const {
 /* -------------------------------------------------------------------------- */
 void Mesher::getVerticesMesh(cv::Mat* vertices_mesh) const {
   CHECK_NOTNULL(vertices_mesh);
-  mesh_.convertVerticesMeshToMat(vertices_mesh);
+  mesh_3d_.convertVerticesMeshToMat(vertices_mesh);
 }
 void Mesher::getPolygonsMesh(cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
-  mesh_.convertPolygonsMeshToMat(polygons_mesh);
+  mesh_3d_.convertPolygonsMeshToMat(polygons_mesh);
 }
 
 } // namespace VIO

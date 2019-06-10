@@ -64,43 +64,6 @@ typedef Eigen::Matrix<double,3,4> transformation_t;
 // TODO remove most of these definitions...
 namespace VIO {
 
-// Typedefs of commonly used Eigen matrices and vectors.
-using Point2 = gtsam::Point2;
-using Point3 = gtsam::Point3;
-using Vector3 = gtsam::Vector3;
-using Vector6 = gtsam::Vector6;
-using Matrix3 = gtsam::Matrix33;
-using Matrix6 = gtsam::Matrix66;
-using Matrices3 = std::vector<gtsam::Matrix3,
-                              Eigen::aligned_allocator<gtsam::Matrix3>>;
-using Vectors3 = std::vector<Vector3,
-                             Eigen::aligned_allocator<Vector3>>;
-
-// float version
-using Vector3f = Eigen::Matrix<float, 3, 1>;
-using Vector6f = Eigen::Matrix<float, 6, 1>;
-using Matrix3f = Eigen::Matrix<float, 3, 3>;
-using Matrix6f = Eigen::Matrix<float, 6, 6>;
-using Matrixf = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>;
-using Matrices3f = std::vector<Matrix3f, Eigen::aligned_allocator<Matrix3f>>;
-using Vectors3f = std::vector<Vector3f, Eigen::aligned_allocator<Vector3f>>;
-
-enum Kstatus {
-  VALID, NO_LEFT_RECT, NO_RIGHT_RECT, NO_DEPTH, FAILED_ARUN
-};
-
-// Definitions relevant to frame types
-using FrameId = uint64_t; // Frame id is used as the index of gtsam symbol (not as a gtsam key).
-using PlaneId = uint64_t;
-using LandmarkId = long int; // -1 for invalid landmarks. // int would be too small if it is 16 bits!
-using LandmarkIds = std::vector<LandmarkId>;
-enum class LandmarkType {SMART, PROJECTION};
-using KeypointCV = cv::Point2f;
-using KeypointsCV = std::vector<KeypointCV>;
-using StatusKeypointCV = std::pair<Kstatus,KeypointCV>;
-using StatusKeypointsCV = std::vector<StatusKeypointCV>;
-using BearingVectors = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
-
 // Holds the ids of the mesh triangles that should be clustered together.
 struct TriangleCluster {
   // Ids of the triangles in the cluster.
@@ -116,12 +79,15 @@ struct TriangleCluster {
   cv::Point3f cluster_direction_;
 };
 
-
 // TODO this should not be a class, should a bunch of functions
 // under the appropriate namespace
 class UtilsOpenCV {
 
 public:
+  /* ------------------------------------------------------------------------ */
+  // Returns the type of an OpenCV matrix in string format.
+  static std::string typeToString(int type);
+
   /* ------------------------------------------------------------------------ */
   // Open files with name output_filename, and checks that it is valid
   static void OpenFile(const std::string& output_filename,
@@ -391,8 +357,10 @@ public:
   /* ------------------------------------------------------------------------ */
   // Returns a OpenCV file storage in a safely manner, warning about potential
   // exceptions thrown.
+  // Param: check_opened, throws if the file cannot be opened.
   static void safeOpenCVFileStorage(cv::FileStorage* fs,
-                                    const std::string& filename_sensor);
+                                    const std::string& filename,
+                                    const bool check_opened = true);
 };
 
 /* -------------------------------------------------------------------------- */

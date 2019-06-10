@@ -31,9 +31,9 @@ public:
   // Defines the behaviour of this backend.
   enum class BackendModality {
     STRUCTURELESS = 0, // Only use structureless factors, equiv to normal Vio.
-    PROJECTION = 1, // Use only projection factors, equiv to a typical Vio.
-    STRUCTURELESS_AND_PROJECTION = 2, // Both above.
-    PROJECTION_AND_REGULARITY = 3, // Like typical Vio + regularity factors.
+    PROJECTION = 1, // Converts all structureless factors to projection factors.
+    STRUCTURELESS_AND_PROJECTION = 2, // Projection factors used for regularities.
+    PROJECTION_AND_REGULARITY = 3, // Projection Vio + regularity factors.
     STRUCTURELESS_PROJECTION_AND_REGULARITY = 4 // All types of factors used.
   };
 
@@ -55,10 +55,10 @@ public:
 
 public:
   /* ------------------------------------------------------------------------ */
-  void addVisualInertialStateAndOptimize(
-      const Timestamp& timestamp_kf_nsec, // Keyframe timestamp.
-      const StatusSmartStereoMeasurements&
-                            status_smart_stereo_measurements_kf, // Vision data.
+  virtual void addVisualInertialStateAndOptimize(
+      const Timestamp& timestamp_kf_nsec,
+      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+      const gtsam::PreintegratedImuMeasurements& pim,
       std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 

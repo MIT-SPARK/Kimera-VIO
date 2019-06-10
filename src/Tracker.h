@@ -15,28 +15,22 @@
 #ifndef Tracker_H_
 #define Tracker_H_
 
-#include <boost/shared_ptr.hpp>     // used for opengv
 #include <time.h>
-#include "opencv2/opencv.hpp"
-#include "Frame.h"
-#include "StereoFrame.h"
-#include <gtsam/geometry/StereoCamera.h>
+
+#include <boost/shared_ptr.hpp> // used for opengv
+#include <boost/filesystem.hpp> // to create folders
+
+#include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include "UtilsOpenCV.h"
-#include <boost/filesystem.hpp> // to create folders
 
-// OpenGV for Ransac
-#include <opengv/sac/Ransac.hpp>
-#include <opengv/sac_problems/relative_pose/TranslationOnlySacProblem.hpp>
-#include <opengv/sac_problems/relative_pose/CentralRelativePoseSacProblem.hpp>
-#include <opengv/relative_pose/methods.hpp>
-#include <opengv/relative_pose/CentralRelativeAdapter.hpp>
-#include <opengv/triangulation/methods.hpp>
-#include <opengv/sac_problems/point_cloud/PointCloudSacProblem.hpp>
-#include <opengv/point_cloud/methods.hpp>
-#include <opengv/point_cloud/PointCloudAdapter.hpp>
+#include <gtsam/geometry/StereoCamera.h>
+
+#include "UtilsOpenCV.h"
+#include "Frame.h"
+#include "StereoFrame.h"
+#include "Tracker-definitions.h"
 
 // implementation of feature selector, still within the tracker class
 #include <gtsam/nonlinear/Marginals.h>
@@ -46,57 +40,9 @@
 
 namespace VIO {
 
-// Mono
-using ProblemMono = opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem; // 5-point ransac
-using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
-// MonoTranslationOnly: TranslationOnlySacProblem
-using ProblemMonoGivenRot = opengv::sac_problems::relative_pose::TranslationOnlySacProblem; // 2-point ransac
-using AdapterMonoGivenRot = opengv::relative_pose::CentralRelativeAdapter;
-// Stereo
-using ProblemStereo = opengv::sac_problems::point_cloud::PointCloudSacProblem; // Arun's problem (3-point ransac)
-using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
-
-///////////////////////////////////////////////////////////////////////////////////////
-class DebugTrackerInfo {
+////////////////////////////////////////////////////////////////////////////////
+class Tracker {
 public:
-  // Info about feature detection, tracking and ransac.
-  size_t nrDetectedFeatures_ = 0, nrTrackerFeatures_ = 0, nrMonoInliers_ = 0;
-  size_t nrMonoPutatives_ = 0, nrStereoInliers_ = 0, nrStereoPutatives_ = 0;
-  size_t monoRansacIters_ = 0, stereoRansacIters_ = 0;
-
-  // Info about performance of sparse stereo matching (and ransac):
-  // RPK = right keypoints
-  size_t nrValidRKP_ = 0, nrNoLeftRectRKP_ = 0, nrNoRightRectRKP_ = 0;
-  size_t nrNoDepthRKP_ = 0, nrFailedArunRKP_ = 0;
-
-  // Info about timing.
-  double featureDetectionTime_ = 0, featureTrackingTime_ = 0;
-  double monoRansacTime_ = 0, stereoRansacTime_ = 0;
-
-  // Info about feature selector.
-  double featureSelectionTime_ = 0;
-  size_t extracted_corners_ = 0, need_n_corners_ = 0;
-
-  void printTimes() const {
-    LOG(INFO) << "featureDetectionTime_: " << featureDetectionTime_ << " s\n"
-              << "featureSelectionTime_: " << featureSelectionTime_ << " s\n"
-              << "featureTrackingTime_: " << featureTrackingTime_ << " s\n"
-              << "monoRansacTime_: " << monoRansacTime_ << " s\n"
-              << "stereoRansacTime_: " << stereoRansacTime_ << " s";
-  }
-};
-
-///////////////////////////////////////////////////////////////////////////////////////
-class Tracker{
-public:
-  enum class TrackingStatus {
-      VALID,
-      LOW_DISPARITY,
-      FEW_MATCHES,
-      INVALID,
-      DISABLED
-  };
-
   // Constructor
   Tracker(const VioFrontEndParams& trackerParams = VioFrontEndParams(),
           const int saveImages = 1):
@@ -129,23 +75,23 @@ public:
                        Frame* cur_frame);
   void featureDetection(Frame* cur_frame);
 
-  std::pair<Tracker::TrackingStatus, gtsam::Pose3>
+  std::pair<TrackingStatus, gtsam::Pose3>
   geometricOutlierRejectionMono(Frame* ref_frame,
                                 Frame* cur_frame);
 
-  std::pair<Tracker::TrackingStatus, gtsam::Pose3>
+  std::pair<TrackingStatus, gtsam::Pose3>
   geometricOutlierRejectionStereo(StereoFrame& ref_frame,
                                   StereoFrame& cur_frame);
 
   // Contrarily to the previous 2 this also returns a 3x3 covariance for the
   // translation estimate.
-  std::pair<Tracker::TrackingStatus, gtsam::Pose3>
+  std::pair<TrackingStatus, gtsam::Pose3>
   geometricOutlierRejectionMonoGivenRotation(
       Frame* ref_frame,
       Frame* cur_frame,
       const gtsam::Rot3& R);
 
-  std::pair< std::pair<Tracker::TrackingStatus,gtsam::Pose3> , gtsam::Matrix3 >
+  std::pair< std::pair<TrackingStatus,gtsam::Pose3> , gtsam::Matrix3 >
   geometricOutlierRejectionStereoGivenRotation(
       StereoFrame& ref_stereoFrame,
       StereoFrame& cur_stereoFrame,
@@ -168,7 +114,7 @@ public:
   void checkStatusRightKeypoints(
       const std::vector<Kstatus>& right_keypoints_status);
 
-  /* ---------------------------- CONST FUNCTIONS ------------------------------------------- */
+  /* ---------------------------- CONST FUNCTIONS --------------------------- */
   // returns frame with markers
   cv::Mat displayFrame(
       const Frame& ref_frame,
@@ -178,8 +124,9 @@ public:
       const KeypointsCV& extraCorners2 = KeypointsCV(),
       const std::string& extraString = "") const;
 
-  /* ---------------------------- STATIC FUNCTIONS ------------------------------------------ */
-  static void findOutliers(const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
+  /* ---------------------------- STATIC FUNCTIONS -------------------------- */
+  static void findOutliers(
+      const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
       std::vector<int> inliers,
       std::vector<int> *outliers);
 
@@ -225,8 +172,8 @@ private:
 
   // Flags
   const int verbosity_;
-
 };
 
 } // namespace VIO
+
 #endif /* Tracker_H_ */

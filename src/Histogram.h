@@ -15,6 +15,7 @@
 #pragma once
 
 #include <vector>
+#include <array>
 #include <opencv2/core.hpp>
 
 // TODO move these to .cpp when removing static functions...

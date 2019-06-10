@@ -16,6 +16,9 @@
 
 #include <gflags/gflags.h>
 
+#include "utils/Timer.h"
+#include "utils/Statistics.h"
+#include "common/FilesystemUtils.h"
 #include "UtilsOpenCV.h"
 #include "LoggerMatlab.h"
 
@@ -26,6 +29,8 @@ DEFINE_bool(visualize_mesh, false, "Enable 3D mesh visualization.");
 DEFINE_bool(visualize_mesh_2d, false, "Visualize mesh 2D.");
 DEFINE_bool(visualize_mesh_2d_filtered, false, "Visualize mesh 2D filtered.");
 
+DEFINE_bool(visualize_semantic_mesh, false,
+            "Color the 3d mesh according to their semantic labels.");
 DEFINE_bool(visualize_mesh_with_colored_polygon_clusters, false,
             "Color the polygon clusters according to their cluster id.");
 DEFINE_bool(visualize_point_cloud, true, "Enable point cloud visualization.");
@@ -45,6 +50,9 @@ DEFINE_int32(mesh_shading, 0,
              "Mesh shading:\n 0: Flat, 1: Gouraud, 2: Phong");
 DEFINE_int32(mesh_representation, 1,
              "Mesh representation:\n 0: Points, 1: Surface, 2: Wireframe");
+DEFINE_bool(texturize_3d_mesh, false, "Whether you want to add texture to the 3d"
+                                      "mesh. The texture is taken from the image"
+                                      " frame.");
 DEFINE_bool(set_mesh_ambient, false, "Whether to use ambient light for the "
                                      "mesh.");
 DEFINE_bool(set_mesh_lighting, false, "Whether to use lighting for the mesh.");
@@ -70,41 +78,51 @@ static bool getEstimateOfKey(const gtsam::Values& state,
   }
 }
 
+// Contains internal data for Visualizer3D window.
+Visualizer3D::WindowData::WindowData()
+  : window_(cv::viz::Viz3d("3D Visualizer")),
+    cloud_color_(cv::viz::Color::white()),
+    background_color_(cv::viz::Color::black()),
+    mesh_representation_(FLAGS_mesh_representation),
+    mesh_shading_(FLAGS_mesh_shading),
+    mesh_ambient_(FLAGS_set_mesh_ambient),
+    mesh_lighting_(FLAGS_set_mesh_lighting) {}
+
 /* -------------------------------------------------------------------------- */
 VisualizerInputPayload::VisualizerInputPayload(
-    const VisualizationType& visualization_type,
-    int backend_type,
     const gtsam::Pose3& pose,
-    const std::vector<cv::Vec6f>& mesh_2d,
-    const Frame& left_stero_keyframe,
-    const MesherOutputPayload& mesher_output_payload,
+    const StereoFrame& last_stero_keyframe,
+    MesherOutputPayload&& mesher_output_payload,
     const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
     const VioBackEnd::LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
     const std::vector<Plane>& planes,
     const gtsam::NonlinearFactorGraph& graph,
     const gtsam::Values& values,
-    const vector<Point3>& points_3d,
-    const Timestamp& timestamp_k)
-  : visualization_type_(visualization_type),
-    backend_type_(backend_type),
-    pose_(pose),
-    mesh_2d_(mesh_2d),
-    left_stereo_keyframe_(left_stero_keyframe),
-    mesher_output_payload_(mesher_output_payload),
+    const std::vector<Point3>& points_3d)
+  : pose_(pose),
+    stereo_keyframe_(last_stero_keyframe),
+    mesher_output_payload_(std::move(mesher_output_payload)),
     points_with_id_VIO_(points_with_id_VIO),
     lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
     planes_(planes),
     graph_(graph),
     values_(values),
-    points_3d_(points_3d),
-    timestamp_k_(timestamp_k) {}
+    points_3d_(points_3d) {}
 
 /* -------------------------------------------------------------------------- */
 ImageToDisplay::ImageToDisplay (const std::string& name, const cv::Mat& image)
   : name_(name), image_(image) {}
 
 /* -------------------------------------------------------------------------- */
-Visualizer3D::Visualizer3D() {
+Visualizer3D::Visualizer3D(VisualizationType viz_type,
+                           int backend_type)
+  : visualization_type_(viz_type),
+    backend_type_(backend_type) {
+  if(VLOG_IS_ON(2)) {
+    window_data_.window_.setGlobalWarnings(true);
+  } else {
+    window_data_.window_.setGlobalWarnings(false);
+  }
   window_data_.window_.registerKeyboardCallback(keyboardCallback, &window_data_);
   window_data_.window_.setBackgroundColor(window_data_.background_color_);
   window_data_.window_.showWidget("Coordinate Widget", cv::viz::WCoordinateSystem());
@@ -112,17 +130,42 @@ Visualizer3D::Visualizer3D() {
 
 /* -------------------------------------------------------------------------- */
 void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
-                        ThreadsafeQueue<VisualizerOutputPayload>& output_queue) {
+                        ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
+                        std::function<void(VisualizerOutputPayload&)> display,
+                        bool parallel_run) {
+  LOG(INFO) << "Spinning Visualizer.";
   VisualizerOutputPayload output_payload;
+  utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
   while(!shutdown_) {
-    visualize(input_queue.popBlocking(), &output_payload);
-    output_queue.push(output_payload);
+    // Wait for mesher payload.
+    is_thread_working_ = false;
+    const std::shared_ptr<VisualizerInputPayload>& visualizer_payload =
+        input_queue.popBlocking();
+    is_thread_working_ = true;
+    auto tic = utils::Timer::tic();
+    visualize(visualizer_payload, &output_payload);
+    if (display) {
+      display(output_payload);
+    } else {
+      output_queue.push(output_payload);
+    }
     output_payload.images_to_display_.clear();
+    auto spin_duration = utils::Timer::toc(tic).count();
+    LOG(WARNING) << "Current Visualizer frequency: "
+                 << 1000.0 / spin_duration << " Hz. ("
+                 << spin_duration << " ms).";
+    stats_visualizer.AddSample(spin_duration);
+
+    // Break the while loop if we are in sequential mode.
+    if (!parallel_run) return;
   }
+  LOG(INFO) << "Visualizer successfully shutdown.";
 }
 
 /* -------------------------------------------------------------------------- */
 void Visualizer3D::shutdown() {
+  LOG_IF(WARNING, shutdown_) << "Shutdown for Visualizer requested, but it was "
+                               "already shutdown.";
   LOG(INFO) << "Shutting down Visualizer.";
   shutdown_ = true;
 }
@@ -147,7 +190,9 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
   CHECK_NOTNULL(output);
   cv::Mat mesh_2d_img; // Only for visualization.
 
-  switch (input.visualization_type_) {
+  const Frame& left_stereo_keyframe = input.stereo_keyframe_.getLeftFrame();
+
+  switch (visualization_type_) {
   // Computes and visualizes 2D mesh.
   // vertices: all leftframe kps with lmkId != -1 and inside the image
   // triangles: all the ones with edges inside images as produced by cv::subdiv
@@ -155,8 +200,8 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     output->visualization_type_ = VisualizationType::MESH2D;
     output->images_to_display_.push_back(
           ImageToDisplay("Mesh 2D", visualizeMesh2D(
-                           input.mesh_2d_,
-                           input.left_stereo_keyframe_.img_)));
+                           left_stereo_keyframe.createMesh2D(),
+                           left_stereo_keyframe.img_)));
     break;
   }
 
@@ -165,10 +210,14 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     // triangles: all the ones with edges inside images as produced by cv::subdiv, which have uniform gradient
   case VisualizationType::MESH2Dsparse: {// visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
     output->visualization_type_ = VisualizationType::MESH2Dsparse;
+
+    std::vector<cv::Vec6f> mesh_2d;
+    input.stereo_keyframe_.createMesh2dStereo(&mesh_2d);
+
     // Add image to output queue.
     output->images_to_display_.push_back(
           ImageToDisplay("Mesh 2D", visualizeMesh2DStereo(
-                           input.mesh_2d_, input.left_stereo_keyframe_)));
+                           mesh_2d, left_stereo_keyframe)));
     break;
   }
 
@@ -185,7 +234,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       output->images_to_display_.push_back(
             ImageToDisplay("Mesh 2D", visualizeMesh2DStereo(
                              input.mesher_output_payload_.mesh_2d_for_viz_,
-                             input.left_stereo_keyframe_)));
+                             left_stereo_keyframe)));
     }
 
     // Visualize filtered 2d mesh.
@@ -193,7 +242,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       output->images_to_display_.push_back(ImageToDisplay(
                                              "Mesh 2D Filtered", visualizeMesh2DStereo(
                                                input.mesher_output_payload_.mesh_2d_filtered_for_viz_,
-                                               input.left_stereo_keyframe_)));
+                                               left_stereo_keyframe)));
       mesh_2d_img = output->images_to_display_.back().image_;
     }
 
@@ -205,14 +254,34 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
     static cv::Mat vertices_mesh_prev;
     static cv::Mat polygons_mesh_prev;
+    static Mesher::Mesh3DVizProperties mesh_3d_viz_props_prev;
 
     if (FLAGS_visualize_mesh) {
-      visualizeMesh3DWithColoredClusters(
-            planes_prev,
-            vertices_mesh_prev,
-            polygons_mesh_prev,
-            FLAGS_visualize_mesh_with_colored_polygon_clusters,
-            input.timestamp_k_);
+      VLOG(10) << "Visualize mesh.";
+      if (FLAGS_visualize_semantic_mesh) {
+        VLOG(10) << "Visualize Semantic mesh.";
+        LOG_IF(WARNING, FLAGS_visualize_mesh_with_colored_polygon_clusters)
+            << "Both gflags visualize_semantic_mesh and "
+               "visualize_mesh_with_colored_polygon_cluster are set to True,"
+               " but visualization of the semantic mesh has priority over "
+               "visualization of the polygon clusters.";
+        visualizeMesh3D(vertices_mesh_prev,
+                        mesh_3d_viz_props_prev.colors_,
+                        polygons_mesh_prev,
+                        mesh_3d_viz_props_prev.tcoords_,
+                        mesh_3d_viz_props_prev.texture_);
+      } else {
+        VLOG(10) << "Visualize mesh with colored clusters.";
+        LOG_IF(ERROR, mesh_3d_viz_props_prev.colors_.rows > 0u)
+            << "The 3D mesh is being colored with semantic information, but"
+               " gflag visualize_semantic_mesh is set to false...";
+        visualizeMesh3DWithColoredClusters(
+              planes_prev,
+              vertices_mesh_prev,
+              polygons_mesh_prev,
+              FLAGS_visualize_mesh_with_colored_polygon_clusters,
+              input.stereo_keyframe_.getTimestamp());
+      }
     }
 
     if (FLAGS_visualize_point_cloud) {
@@ -236,7 +305,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       }
     }
 
-    if (input.backend_type_ == 1 && FLAGS_visualize_plane_constraints) {
+    if (backend_type_ == 1 && FLAGS_visualize_plane_constraints) {
       LandmarkIds lmk_ids_in_current_pp_factors;
       for (const auto& g : input.graph_) {
         const auto& ppf =
@@ -334,6 +403,23 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     polygons_mesh_prev = input.mesher_output_payload_.polygons_mesh_;
     points_with_id_VIO_prev = input.points_with_id_VIO_;
     lmk_id_to_lmk_type_map_prev = input.lmk_id_to_lmk_type_map_;
+    LOG_IF(WARNING, mesh3d_viz_properties_callback_)
+        << "Coloring the mesh using semantic segmentation colors.";
+    mesh_3d_viz_props_prev =
+        // Call semantic mesh segmentation if someone registered a callback.
+        mesh3d_viz_properties_callback_?
+         mesh3d_viz_properties_callback_(
+           left_stereo_keyframe.timestamp_,
+           left_stereo_keyframe.img_,
+           input.mesher_output_payload_.mesh_2d_,
+           input.mesher_output_payload_.mesh_3d_) :
+         (FLAGS_texturize_3d_mesh?
+            Visualizer3D::texturizeMesh3D(
+              left_stereo_keyframe.timestamp_,
+              left_stereo_keyframe.img_,
+              input.mesher_output_payload_.mesh_2d_,
+              input.mesher_output_payload_.mesh_3d_) :
+            Mesher::Mesh3DVizProperties()),
     VLOG(10) << "Finished mesh visualization.";
 
     break;
@@ -363,7 +449,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
   addPoseToTrajectory(input.pose_);
   visualizeTrajectory3D(
         FLAGS_visualize_mesh_in_frustum?
-          mesh_2d_img : input.left_stereo_keyframe_.img_);
+          mesh_2d_img : left_stereo_keyframe.img_);
   VLOG(10) << "Finished trajectory visualization.";
 
   // TODO avoid copying and use a std::unique_ptr! You need to pass window_data_
@@ -556,10 +642,10 @@ void Visualizer3D::visualizePlane(
   const std::string& plane_id_for_viz =
       "Plane " + std::to_string(plane_index);
   // Create a plane widget.
-  const Vec3d normal (n_x, n_y, n_z);
-  const Point3d center (d * n_x, d * n_y, d * n_z);
-  static const Vec3d new_yaxis (0, 1, 0);
-  static const Size2d size (1.0, 1.0);
+  const cv::Vec3d normal (n_x, n_y, n_z);
+  const cv::Point3d center (d * n_x, d * n_y, d * n_z);
+  static const cv::Vec3d new_yaxis (0, 1, 0);
+  static const cv::Size2d size (1.0, 1.0);
 
   cv::viz::Color plane_color;
   getColorById(cluster_id, &plane_color);
@@ -567,7 +653,7 @@ void Visualizer3D::visualizePlane(
 
   if (visualize_plane_label) {
     static double increase = 0.0;
-    const Point3d text_position (d * n_x, d * n_y,
+    const cv::Point3d text_position (d * n_x, d * n_y,
                                  d * n_z + std::fmod(increase, 1));
     increase += 0.1;
     window_data_.window_.showWidget(plane_id_for_viz + "_label",
@@ -614,15 +700,24 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& mapPoints3d,
 // and provide color for each polygon.
 void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                    const cv::Mat& colors,
-                                   const cv::Mat& polygons_mesh) {
+                                   const cv::Mat& polygons_mesh,
+                                   const cv::Mat& tcoords,
+                                   const cv::Mat& texture) {
   // Check data
   bool color_mesh = false;
   if (colors.rows != 0) {
-    CHECK_EQ(map_points_3d.rows, colors.rows) << "Map points and Colors should "
-                                                 "have same number of rows. One"
-                                                 " color per map point.";
+    CHECK_EQ(map_points_3d.rows, colors.rows)
+        << "Map points and Colors should have same number of rows. One"
+           " color per map point.";
     LOG(ERROR) << "Coloring mesh!";
     color_mesh = true;
+  }
+
+  if (tcoords.rows != 0) {
+    CHECK_EQ(map_points_3d.rows, tcoords.rows)
+        << "Map points and tcoords should have same number of rows. One"
+           "tcoord per map point.";
+    CHECK(!texture.empty());
   }
 
   // No points/mesh to visualize.
@@ -631,12 +726,18 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
     return;
   }
 
+  cv::viz::Mesh cv_mesh;
+  cv_mesh.cloud =  map_points_3d.t();
+  cv_mesh.polygons = polygons_mesh;
+  cv_mesh.colors = color_mesh? colors.t():cv::Mat();
+  cv_mesh.tcoords = tcoords.t();
+  cv_mesh.texture = texture;
+
   // Create a mesh widget.
-  cv::viz::WMesh mesh (map_points_3d.t(), polygons_mesh,
-                       color_mesh? colors.t():cv::Mat());
+  cv::viz::WMesh mesh (cv_mesh);
 
   // Decide mesh shading style.
-  switch (FLAGS_mesh_shading) {
+  switch (window_data_.mesh_shading_) {
   case 0: {
     mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_FLAT);
     break;
@@ -655,8 +756,7 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   }
 
   // Decide mesh representation style.
-  switch (window_data_.user_updated_mesh_representation_?
-          window_data_.mesh_representation_:FLAGS_mesh_representation) {
+  switch (window_data_.mesh_representation_) {
   case 0: {
     mesh.setRenderingProperty(cv::viz::REPRESENTATION,
                               cv::viz::REPRESENTATION_POINTS);
@@ -677,8 +777,8 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
     break;
   }
   }
-  mesh.setRenderingProperty(cv::viz::AMBIENT, FLAGS_set_mesh_ambient);
-  mesh.setRenderingProperty(cv::viz::LIGHTING, FLAGS_set_mesh_lighting);
+  mesh.setRenderingProperty(cv::viz::AMBIENT, window_data_.mesh_ambient_);
+  mesh.setRenderingProperty(cv::viz::LIGHTING, window_data_.mesh_lighting_);
 
   // Plot mesh.
   window_data_.window_.showWidget("Mesh", mesh);
@@ -693,6 +793,7 @@ void Visualizer3D::visualizePlyMesh(const std::string& filename) {
   // "Cannot read geometry" error.
   cv::viz::Mesh mesh(cv::viz::Mesh::load(filename));
   if (mesh.polygons.size[1] == 0) {
+    LOG(WARNING) << "No polygons available for mesh, showing point cloud only.";
     // If there are no polygons, convert to point cloud, otw there will be
     // nothing displayed...
     cv::viz::WCloud cloud (mesh.cloud, cv::viz::Color::lime());
@@ -726,10 +827,10 @@ void Visualizer3D::visualizeMesh3DWithColoredClusters(
     const std::vector<Plane>& planes,
     const cv::Mat& map_points_3d,
     const cv::Mat& polygons_mesh,
-    const bool& color_mesh,
+    const bool visualize_mesh_with_colored_polygon_clusters,
     const Timestamp& timestamp) {
-  if (color_mesh) {
-    // Colour the mesh.
+  if (visualize_mesh_with_colored_polygon_clusters) {
+    // Color the mesh.
     cv::Mat colors;
     colorMeshByClusters(planes, map_points_3d, polygons_mesh, &colors);
     // Visualize the colored mesh.
@@ -820,7 +921,7 @@ void Visualizer3D::visualizeConvexHull (const TriangleCluster& cluster,
   // Create convex hull.
   if (points_2d.size() != 0) {
     std::vector<int> hull_idx;
-    convexHull(Mat(points_2d), hull_idx, false);
+    convexHull(cv::Mat(points_2d), hull_idx, false);
 
     // Add the z component.
     std::vector<cv::Point3f> hull_3d;
@@ -906,12 +1007,12 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image) {
 
     // Option C: use "look-at" camera parametrization.
     // Works, but motion is non-smooth as well.
-    Vec3d cam_pos (-6.0, 0.0, 6.0);
-    Vec3d cam_focal_point (camera_in_world_coord.translation());
-    Vec3d cam_y_dir (0.0, 0.0, -1.0);
-    Affine3f cam_pose = viz::makeCameraPose(cam_pos,
-                                            cam_focal_point,
-                                            cam_y_dir);
+    cv::Vec3d cam_pos (-6.0, 0.0, 6.0);
+    cv::Vec3d cam_focal_point (camera_in_world_coord.translation());
+    cv::Vec3d cam_y_dir (0.0, 0.0, -1.0);
+    cv::Affine3f cam_pose = cv::viz::makeCameraPose(cam_pos,
+                                                    cam_focal_point,
+                                                    cam_y_dir);
     window_data_.window_.setViewerPose(cam_pose);
     //window_data_.window_.setViewerPose(viewer_in_world_coord);
   }
@@ -1176,10 +1277,8 @@ void Visualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
 
     for (const size_t& triangle_id: cluster.triangle_ids_) {
       size_t triangle_idx = std::round(triangle_id * 4);
-      if (triangle_idx + 3 >= polygons_mesh.rows) {
-        throw std::runtime_error("Visualizer3D: an id in triangle_ids_ is"
-                                 " too large.");
-      }
+      CHECK_GE(triangle_idx + 3, polygons_mesh.rows)
+          << "Visualizer3D: an id in triangle_ids_ is too large.";
       int32_t idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
       int32_t idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
       int32_t idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
@@ -1253,6 +1352,40 @@ void Visualizer3D::updateLineFromPlaneToPoint(
   drawLineFromPlaneToPoint(line_id, plane_n_x, plane_n_y, plane_n_z,
                            plane_d, point_x, point_y, point_z);
 }
+
+/* -------------------------------------------------------------------------- */
+void Visualizer3D::keyboardCallback(const cv::viz::KeyboardEvent &event,
+                                    void *t) {
+  WindowData* window_data = (Visualizer3D::WindowData*)t;
+  if (event.action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
+    toggleFreezeScreenKeyboardCallback(event.code, *window_data);
+    setMeshRepresentation(event.code, *window_data);
+    setMeshShadingCallback(event.code, *window_data);
+    setMeshAmbientCallback(event.code, *window_data);
+    setMeshLightingCallback(event.code, *window_data);
+    getViewerPoseKeyboardCallback(event.code, *window_data);
+    getCurrentWindowSizeKeyboardCallback(event.code, *window_data);
+    getScreenshotCallback(event.code, *window_data);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void Visualizer3D::recordVideo() {
+  static int i = 0u;
+  static const std::string dir_path = ".";
+  static const std::string dir_name = "3d_viz_video";
+  static const std::string dir_full_path = common::pathAppend(dir_path,
+                                                              dir_name);
+  if (i == 0u) CHECK(common::createDirectory(dir_path, dir_name));
+  std::string screenshot_path = common::pathAppend(dir_full_path,
+                                                   std::to_string(i));
+  i++;
+  LOG(WARNING) << "Recording video sequence for 3d Viz, "
+               << "current frame saved in: " + screenshot_path;
+  window_data_.window_.saveScreenshot(screenshot_path);
+  LOG(ERROR) << "WTF";
+}
+
 } // namespace VIO
 
 

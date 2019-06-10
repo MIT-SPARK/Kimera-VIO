@@ -17,34 +17,41 @@
 #include <map>
 #include <vector>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/viz/types.hpp> // Just for color type.
 
 #include "UtilsOpenCV.h"
 
 namespace VIO {
+
+// TODO this class is NOT THREADSAFE...
 // Class defining the concept of a polygonal mesh.
-class Mesh3D {
+template<typename VertexPositionType = cv::Point3f>
+class Mesh {
+public:
+  // Color for a vertex
+  typedef cv::Vec3b VertexColorRGB;
+
 public:
   // Default constructor.
-  Mesh3D(const size_t& polygon_dimension = 3);
+  Mesh(const size_t& polygon_dimension = 3);
 
   // Delete copy constructor.
-  Mesh3D(const Mesh3D& rhs_mesh) = delete;
+  // Performs a deep copy (clones) the data members.
+  Mesh(const Mesh& rhs_mesh);
 
   // Copy assignement operator.
   // Performs a deep copy (clones) the data members.
-  Mesh3D& operator=(const Mesh3D& mesh);
+  Mesh& operator=(const Mesh& mesh);
 
-  // Delete move constructor.
-  Mesh3D(Mesh3D&& mesh) = delete;
+  // Use default move constructor.
+  // TODO define explicitly what the move ctor shall look like.
+  Mesh(Mesh&& mesh) = default;
 
   // Delete move assignement operator.
-  Mesh3D& operator=(Mesh3D&& mesh) = delete;
+  Mesh& operator=(Mesh&& mesh) = delete;
 
   // Destructor.
-  ~Mesh3D() = default;
-
-public:
-  typedef cv::Point3f VertexPosition3D;
+  ~Mesh() = default;
 
 private:
   // Vertex id (for internal processing).
@@ -54,16 +61,20 @@ private:
   typedef std::map<LandmarkId, VertexId> LmkIdToVertexMap;
 
 public:
+  template<typename PositionType = cv::Point3f>
   struct Vertex {
   public:
     Vertex()
       : lmk_id_(-1),
-        vertex_position_() {}
+        vertex_position_(),
+        vertex_color_(cv::viz::Color::white()) {}
 
     Vertex(const LandmarkId& lmk_id,
-           const VertexPosition3D& vertex_position)
+           const VertexPositionType& vertex_position,
+           const VertexColorRGB& vertex_color = cv::viz::Color::white())
       : lmk_id_(lmk_id),
-        vertex_position_(vertex_position) {}
+        vertex_position_(vertex_position),
+        vertex_color_(vertex_color) {}
 
     // Make explicit that we are using the default copy constructor and
     // copy assignement operator.
@@ -79,24 +90,26 @@ public:
     ~Vertex() = default;
 
     /// Getters.
-    inline const VertexPosition3D& getVertexPosition() const {
+    inline const VertexPositionType& getVertexPosition() const {
       return vertex_position_;
     }
     inline const LandmarkId& getLmkId() const {
       return lmk_id_;
     }
     /// Setters.
-    void setVertexPosition(const Mesh3D::VertexPosition3D& position) {
+    void setVertexPosition(const VertexPositionType& position) {
       vertex_position_ = position;
     }
 
   private:
     /// Members
     LandmarkId lmk_id_;
-    VertexPosition3D vertex_position_;
+    VertexPositionType vertex_position_;
+    VertexColorRGB vertex_color_;
   };
   // We define a polygon of the mesh as a set of mesh vertices.
-  typedef std::vector<Vertex> Polygon;
+  typedef Vertex<VertexPositionType> VertexType;
+  typedef std::vector<VertexType> Polygon;
 
 public:
   // Adds a new polygon into the mesh, updates the internal data structures.
@@ -108,6 +121,9 @@ public:
   /// Getters
   inline size_t getNumberOfPolygons() const {
     return static_cast<size_t>(polygons_mesh_.rows / (polygon_dimension_ + 1));
+  }
+  inline size_t getNumberOfUniqueVertices() const {
+    return vertices_mesh_.rows;
   }
   // TODO needs to be generalized to aleatory polygonal meshes.
   // Currently it only allows polygons of same size.
@@ -123,6 +139,40 @@ public:
   // Iterate over the total number of polygons (given by getNumberOfPolygons)
   // to retrieve one polygon at a time.
   bool getPolygon(const size_t& polygon_idx, Polygon* polygon) const;
+
+  // Retrieve a vertex 3D position or internal vertex_id
+  // (optionally, call with nullptr if you don't want the info) from the mesh
+  // given a LandmarkId.
+  // Returns true if we could find the vertex with the given landmark id
+  // false otherwise.
+  // The internal vertex id used to store the vertex in
+  // a cv::Mat (TODO this is only done to be able to create a color mask of
+  // the mesh, but this should be also done internally by storing a set of
+  // properties for each vertex, instead of using cv::Mat).
+  bool getVertex(const LandmarkId& lmk_id,
+                 VertexPositionType* vertex = nullptr,
+                 VertexId* vertex_id = nullptr) const;
+
+  // Colors a vertex of the mesh given a LandmarkId.
+  // Returns true if we could find the vertex with the given landmark id
+  // false otherwise.
+  // NOT THREADSAFE.
+  bool setVertexColor(const LandmarkId& lmk_id,
+                      const VertexColorRGB& vertex);
+
+private:
+  /// Functions
+  // Updates internal structures to add a vertex.
+  // Used by addPolygonToMesh, it is not supposed to be used by the end user.
+  void updateMeshDataStructures(
+      const LandmarkId& lmk_id,
+      const VertexPositionType& lmk_position,
+      std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
+      std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
+      cv::Mat* vertices_mesh,
+      cv::Mat* vertices_mesh_color,
+      cv::Mat* polygon_mesh,
+      const VertexColorRGB& vertex_color = cv::viz::Color::white()) const;
 
 private:
   /// TODO change internal structures for the mesh with std::vector<Polygon>.
@@ -140,6 +190,12 @@ private:
   // Format: n rows (one for each point), with each row being a cv::Point3f.
   cv::Mat vertices_mesh_;
 
+  // Color for each vertex.
+  // Format: n rows (one for each point), with each row being a CV_8UC3.
+  // where n should be the same number as rows for vertices_mesh_.
+  // One color per vertex. (This is how it is done for OpenCV...
+  cv::Mat vertices_mesh_color_;
+
   // Connectivity of the mesh.
   // Set of polygons.
   // Raw integer list of the form: (n,id1_a,id2_a,...,idn_a,
@@ -150,17 +206,16 @@ private:
 
   // Number of vertices per polygon.
   const size_t polygon_dimension_;
-
-  /// Functions
-  // Updates internal structures to add a vertex.
-  // Used by addPolygonToMesh, it is not supposed to be used by the end user.
-  void updateMeshDataStructures(
-      const LandmarkId& lmk_id,
-      const VertexPosition3D& lmk_position,
-      std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
-      std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
-      cv::Mat* vertices_mesh,
-      cv::Mat* polygon_mesh) const;
 };
+
+// For example, pixels.
+typedef cv::Point2f Vertex2DType;
+// A 2D Mesh of pixels.
+typedef Mesh<Vertex2DType> Mesh2D;
+
+// For example, landmark positions.
+typedef cv::Point3f Vertex3DType;
+// A 3D Mesh of landmarks.
+typedef Mesh<Vertex3DType> Mesh3D;
 
 } // End of VIO namespace.

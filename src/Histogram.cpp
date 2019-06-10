@@ -14,6 +14,8 @@
 
 #include "Histogram.h"
 
+#include <cstddef> // for nullptr
+
 #include <glog/logging.h>
 
 

@@ -19,10 +19,9 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
-#include <VioBackEnd.h>
-#include "UtilsOpenCV.h"
+
 #include "ETH_parser.h"
-#include "StereoVisionFrontEnd.h"
+#include "VioBackEnd.h"
 
 namespace VIO {
 
@@ -49,25 +48,23 @@ public:
   std::ofstream outputFile_statsTracker_;
   std::ofstream outputFile_statsFactors_;
   std::ofstream outputFile_mesh_;
+  std::ofstream outputFile_frontend_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
 
   double timing_loadStereoFrame_, timing_processStereoFrame_,
-  timing_featureSelection_, timing_vio_, timing_loggerBackend_,
-  timing_loggerFrontend_;
+  timing_featureSelection_, timing_loggerBackend_;
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void openLogFiles(int i = -1, const string &output_file_name = "",
+  void openLogFiles(int i = -1, const std::string &output_file_name = "",
                     bool open_file_in_append_mode = false);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void closeLogFiles(int i = -1);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void logFrontendResults(const ETHDatasetParser& dataset,
-                          const StereoVisionFrontEnd& stereoTracker,
-                          const Timestamp& timestamp_lkf,
-                          const Timestamp& timestamp_k);
+  void logFrontendResults(const TrackerStatusSummary& tracker_summary,
+                          const size_t& nrKeypoints);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logLandmarks(const VioBackEnd::PointsWithId& lmks);
@@ -83,9 +80,15 @@ public:
                const double& timestamp, bool log_accumulated_mesh = false);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logBackendResultsCSV(const VioBackEndOutputPayload& vio_output);
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(
       const ETHDatasetParser& dataset,
-      const StereoVisionFrontEnd& stereoTracker,
+      const TrackerStatusSummary& tracker_status_summary,
+      const gtsam::Pose3& relative_pose_body_mono,
+      const Tracker& tracker,
+      const gtsam::Pose3& relative_pose_body_stereo,
       const std::shared_ptr<VioBackEndOutputPayload>& vio_output,
       const double& horizon,
       const Timestamp& timestamp_lkf,

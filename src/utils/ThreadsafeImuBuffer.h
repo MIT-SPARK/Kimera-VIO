@@ -42,8 +42,6 @@
 
 #include <Eigen/Dense>
 
-#include <glog/logging.h>
-
 #include "utils/ThreadsafeTemporalBuffer.h"
 #include "common/vio_types.h"
 #include "ImuFrontEnd-definitions.h"

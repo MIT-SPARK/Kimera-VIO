@@ -130,10 +130,8 @@ public:
     data_cond_.notify_all();
   }
 
-private:
   // Checks if the queue is empty.
-  // Kept private because it might be misused by the user,
-  // since the state of the queue might change right after this query.
+  // !! the state of the queue might change right after this query.
   bool empty() const {
     std::lock_guard<std::mutex> lk(mutex_);
     return data_queue_.empty();

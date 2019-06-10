@@ -20,11 +20,12 @@
 #include <gtsam/geometry/Pose3.h>
 
 #include "utils/Timer.h"
+#include "utils/Statistics.h"
 #include "RegularVioBackEnd.h"
+#include "StereoVisionFrontEnd.h"
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
-DEFINE_bool(parallel_run, true, "Run parallelized pipeline.");
-DEFINE_int32(regular_vio_backend_modality, 4,
+DEFINE_int32(regular_vio_backend_modality, 4u,
              "Modality for regular Vio backend, currently supported:\n"
              "0: Structureless (equiv to normal VIO)\n"
              "1: Projection (as if it was a typical VIO backend with projection"
@@ -53,6 +54,8 @@ DEFINE_int32(viz_type, 0,
     "corresponding to non planar obstacles\n"
   "6: MESH3D, 3D mesh from CGAL using VIO points (requires #define USE_CGAL!)\n"
   "7: NONE, does not visualize map\n");
+DEFINE_bool(record_video_for_viz_3d, false, "Record a video as a sequence of "
+                                            "screenshots of the 3d viz window");
 
 DEFINE_bool(use_feature_selection, false, "Enable smart feature selection.");
 
@@ -65,19 +68,26 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
 
-// Add compatibility for c++11's lack of make_unique.
-template<typename T, typename ...Args>
-std::unique_ptr<T> make_unique( Args&& ...args ) {
-  return std::unique_ptr<T>( new T( std::forward<Args>(args)... ) );
-}
-
 namespace VIO {
+
 // TODO VERY BAD TO SEND THE DATASET PARSER AS A POINTER (at least for thread
 // safety!), but this is done now because the logger heavily relies on the
 // dataset parser, especially the grount-truth! Feature selector also has some
 // dependency with this...
-Pipeline::Pipeline(ETHDatasetParser* dataset)
-  : dataset_(CHECK_NOTNULL(dataset)) {
+Pipeline::Pipeline(ETHDatasetParser* dataset,
+                   const ImuParams& imu_params,
+                   bool parallel_run)
+  : dataset_(CHECK_NOTNULL(dataset)),
+    vio_frontend_(nullptr),
+    vio_backend_(nullptr),
+    mesher_(),
+    visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
+                dataset->getBackendType()),
+    stereo_frontend_thread_(nullptr),
+    wrapped_thread_(nullptr),
+    backend_thread_(nullptr),
+    mesher_thread_(nullptr),
+    parallel_run_(parallel_run) {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
 
@@ -88,333 +98,366 @@ Pipeline::Pipeline(ETHDatasetParser* dataset)
   // front-end) and print parameters.
   // TODO remove hardcoded saveImages, use gflag.
   static constexpr int saveImages = 0; // 0: don't show, 1: show, 2: write & save
-  stereo_vision_frontend_ = make_unique<StereoVisionFrontEnd>(
-        frontend_params_, saveImages, dataset_->getDatasetName());
+  vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
+        imu_params,
+        // This should not be asked!
+        dataset->getGroundTruthState(dataset_->timestamp_first_lkf_).imu_bias_,
+        frontend_params_,
+        saveImages,
+        dataset_->getDatasetName(),
+        FLAGS_log_output);
 
   // Instantiate feature selector: not used in vanilla implementation.
-  feature_selector_ = FeatureSelector(dataset_->getFrontendParams(),
-                                      *backend_params_);
+  if (FLAGS_use_feature_selection) {
+    feature_selector_ = FeatureSelector(dataset_->getFrontendParams(),
+                                        *backend_params_);
+  }
 }
 
+/* -------------------------------------------------------------------------- */
+Pipeline::~Pipeline() {
+  LOG(INFO) << "Pipeline destructor called.";
+  // Shutdown pipeline if it is not already down.
+  if (!shutdown_) {
+    shutdown();
+  } else {
+    LOG(INFO) << "Manual shutdown was requested.";
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 bool Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
-  static bool is_initialized = false;
-  if (!is_initialized) {
-    VLOG(10) << "Initialize VIO pipeline.";
+  if (!is_initialized_) {
+    LOG(INFO) << "Initialize VIO pipeline.";
     // Initialize pipeline.
     // TODO this is very brittle, because we are accumulating IMU data, but
     // not using it for initialization, because accumulated and actual IMU data
     // at init is the same...
     initialize(stereo_imu_sync_packet);
-    // Launch threads.
-    VLOG(10) << "Launching threads.";
-    launchThreads();
-    is_initialized = true;
+    if (parallel_run_) {
+      launchThreads();
+    } else {
+      LOG(INFO) << "Running in sequential mode (parallel_run set to "
+                << parallel_run_<< ").";
+    }
+    is_initialized_ = true;
     return true;
   }
 
   // TODO Warning: we do not accumulate IMU measurements for the first packet...
   // Spin.
-  VLOG(10) << "Spin pipeline once.";
   spinOnce(stereo_imu_sync_packet);
-
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 // Spin the pipeline only once.
 void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
-  const auto& k = stereo_imu_sync_packet.getStereoFrame().getFrameId();
-  const StereoFrame& stereoFrame_k = stereo_imu_sync_packet.getStereoFrame();
+  CHECK(is_initialized_);
+  ////////////////////////////// FRONT-END /////////////////////////////////////
+  // Push to stereo frontend input queue.
+  stereo_frontend_input_queue_.push(stereo_imu_sync_packet);
 
-  LOG(INFO) << "------------------- Processing frame k = "
-            << k << "--------------------";
-
-  ////////////////////////////// ACCUMULATE IMU DATA ///////////////////////////
-  // Accumulate IMU measurements from last Keyframe to current frame.
-  VLOG(10) << "///////////////////////////////////// Trying to accumulate IMU.";
-  const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
-  const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
-  static ImuStampS imu_stamps_lkf_to_curr_f = ImuStampS::Zero(1, 0);
-  static ImuAccGyrS imu_accgyr_lkf_to_curr_f = ImuAccGyrS::Zero(6, 0);
-  if (imu_stamps_lkf_to_curr_f.cols() == 0u) {
-    // This is executed for every keyframe, including the first.
-    // Since the accumulated imu msgs get resetted to 0.
-    CHECK_GE(imu_accgyr.cols(), 0u);
-    // Init accumulation.
-    imu_stamps_lkf_to_curr_f = imu_stamps;
-    imu_accgyr_lkf_to_curr_f = imu_accgyr;
-  } else {
-    CHECK_GT(imu_stamps.cols(), 0);
-    CHECK_GT(imu_stamps_lkf_to_curr_f.cols(), 0);
-    imu_stamps_lkf_to_curr_f.conservativeResize(
-          Eigen::NoChange,
-          // The -1 is here to remove the interpolated "fake" upper bound.
-          imu_stamps_lkf_to_curr_f.cols() - 1 + imu_stamps.cols());
-    imu_stamps_lkf_to_curr_f.rightCols(imu_stamps.cols()) << imu_stamps;
-
-    CHECK_GT(imu_accgyr.cols(), 0);
-    CHECK_GT(imu_accgyr_lkf_to_curr_f.cols(), 0);
-    imu_accgyr_lkf_to_curr_f.conservativeResize(
-          Eigen::NoChange,
-          // The -1 is here to remove the interpolated "fake" upper bound.
-          imu_accgyr_lkf_to_curr_f.cols() - 1 + imu_accgyr.cols());
-    imu_accgyr_lkf_to_curr_f.rightCols(imu_accgyr.cols()) << imu_accgyr;
-  }
-  VLOG(10) << "STAMPS IMU rows : \n" << imu_stamps_lkf_to_curr_f.rows()  << '\n'
-           << "STAMPS IMU cols : \n" << imu_stamps_lkf_to_curr_f.cols() << '\n'
-           << "STAMPS IMU: \n" << imu_stamps_lkf_to_curr_f << '\n'
-           << "ACCGYR IMU rows : \n" << imu_accgyr_lkf_to_curr_f.rows() << '\n'
-           << "ACCGYR IMU cols : \n" << imu_accgyr_lkf_to_curr_f.cols() << '\n'
-           << "ACCGYR IMU: \n" << imu_accgyr_lkf_to_curr_f;
-  //////////////////////////////////////////////////////////////////////////////
-
-  // Keep track of last keyframe timestamp. Honestly, I don't know why...
-  // TODO we have made timestamp_first_lkf_ global variable in dataset_
-  // only to be able to init this value... SHOULD NOT NEED TO.
-  static Timestamp timestamp_lkf = dataset_->timestamp_first_lkf_;
-
-  // For k > 1
-  // Integrate rotation measurements (rotation is used in RANSAC).
-  // TODO are we just tracking features from keyframe to current frame?
-  // How is it that we always need the R from lkf to current frame?
-  // And not from frame to frame??
-  // !!! We actually really only need from keyframe to keyframe!!!!
-  // Apparently there is no gyro aided tracker.
-  // The preint btw keyframes is needed for RANSAC.
-  gtsam::Rot3 calLrectLkf_R_camLrectKf_imu =
-      vio_backend_->preintegrateGyroMeasurements(imu_stamps_lkf_to_curr_f,
-                                                 imu_accgyr_lkf_to_curr_f); // This should be done in frontend
-
-  ////////////////////////////// FRONT-END ///////////////////////////////////
-  // Main function for tracking.
-  // Rotation used in 1 and 2 point ransac.
-  double start_time = UtilsOpenCV::GetTimeInSeconds();
-  VLOG(10) << "Call to processStereoFrame.";
-  StatusSmartStereoMeasurements statusSmartStereoMeasurements =
-      stereo_vision_frontend_->processStereoFrame(
-        stereoFrame_k,
-        calLrectLkf_R_camLrectKf_imu);
-  if (FLAGS_log_output) {
-    logger_.timing_processStereoFrame_ =
-        UtilsOpenCV::GetTimeInSeconds() - start_time;
-  }
-
-  ////////////////////////////// BACK-END //////////////////////////////////////
-  // Pass info to VIO if it's keyframe.
-  start_time = UtilsOpenCV::GetTimeInSeconds();
-  if (stereo_vision_frontend_->stereoFrame_km1_->isKeyframe()) {
-    // It's a keyframe!
-    LOG(INFO) << "Keyframe " << k
-              << " with: " << statusSmartStereoMeasurements.second.size()
-              << " smart measurements";
-
-    // Actual keyframe processing. Call to backend.
-    processKeyframe(k, &statusSmartStereoMeasurements,
-                    stereoFrame_k.getTimestamp(),
-                    timestamp_lkf, // TODO it seems this variable is already in the stereo_vision_frontend_
-                    imu_stamps_lkf_to_curr_f, // aka from keyframe to keyframe,
-                    imu_accgyr_lkf_to_curr_f);  // since we are at a keyframe.
-
-    // Reset accumulated imu data from keyframe to keyframe.
-    VLOG(10) << "Reset IMU and timestamp_lkf.";
-    imu_stamps_lkf_to_curr_f.resize(1, 0);
-    imu_accgyr_lkf_to_curr_f.resize(6, 0);
-
-    // Reset timestamp for preintegration.
-    timestamp_lkf = stereoFrame_k.getTimestamp();
-  }
+  // Run the pipeline sequentially.
+  if (!parallel_run_) spinSequential();
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::processKeyframe(
-    size_t k,
-    StatusSmartStereoMeasurements* statusSmartStereoMeasurements,
-    const Timestamp& timestamp_k,
-    const Timestamp& timestamp_lkf,
-    const ImuStampS& imu_stamps,
-    const ImuAccGyrS& imu_accgyr) {
-  CHECK_NOTNULL(statusSmartStereoMeasurements);
-  ////////////////////////////// FEATURE SELECTOR //////////////////////////////
-  if (FLAGS_use_feature_selection) {
-    double start_time = UtilsOpenCV::GetTimeInSeconds();
-    // !! featureSelect is not thread safe !! Do not use when running in
-    // parallel mode.
-    static constexpr int saveImagesSelector = 1; // 0: don't show, 2: write & save
-    *statusSmartStereoMeasurements = featureSelect(
-          frontend_params_,
-          *dataset_,
-          timestamp_k,
-          timestamp_lkf,
-          vio_backend_->getWPoseBLkf(),
-          &(stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_),
-          stereo_vision_frontend_->stereoFrame_km1_,
-          *statusSmartStereoMeasurements,
-          vio_backend_->getCurrKfId(),
-          (FLAGS_visualize? saveImagesSelector : 0),
-          vio_backend_->getCurrentStateCovariance(),
-          stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame()); // last one for visualization only
-    if (FLAGS_log_output) {
-      VLOG(100)
-          << "Overall selection time (logger.timing_featureSelection_) "
-          << logger_.timing_featureSelection_ << '\n'
-          << "actual selection time (stereoTracker.tracker_.debugInfo_."
-          << "featureSelectionTime_) "
-          << stereo_vision_frontend_->tracker_.debugInfo_.featureSelectionTime_;
-      logger_.timing_featureSelection_ =
-          UtilsOpenCV::GetTimeInSeconds() - start_time;
-    }
-    LOG(FATAL) << "Do not use feature selection in parallel mode.";
-  } else {
-    VLOG(100) << "Not using feature selection.";
-  }
-  //////////////////////////////////////////////////////////////////////////////
-
-
-  ////////////////// DEBUG INFO FOR FRONT-END //////////////////////////////
-  if (FLAGS_log_output) {
-    logger_.logFrontendResults(*dataset_,
-                               *stereo_vision_frontend_, // TODO this copies the whole frontend!!
-                               timestamp_lkf,
-                               timestamp_k);
-  }
-  //////////////////////////////////////////////////////////////////////////////
-
+    const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
+    const StereoFrame& last_stereo_keyframe,
+    const ImuFrontEnd::PreintegratedImuMeasurements& pim,
+    const TrackingStatus& kf_tracking_status_stereo,
+    const gtsam::Pose3& relative_pose_body_stereo) {
   //////////////////// BACK-END ////////////////////////////////////////////////
   // Push to backend input.
-  double start_time = UtilsOpenCV::GetTimeInSeconds();
+  // This should be done inside the frontend!!!!
+  // Or the backend should pull from the frontend!!!!
   backend_input_queue_.push(
         VioBackEndInputPayload(
-          timestamp_k,
-          *statusSmartStereoMeasurements,
-          stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_,
-          imu_stamps,
-          imu_accgyr,
-          &planes_,
-          stereo_vision_frontend_->getRelativePoseBodyStereo()));
+          last_stereo_keyframe.getTimestamp(),
+          statusSmartStereoMeasurements,
+          kf_tracking_status_stereo,
+          pim,
+          relative_pose_body_stereo,
+          &planes_));
 
+  // This should be done inside those who need the backend results
+  // IN this case the logger!!!!!
+  // But there are many more people that want backend results...
   // Pull from backend.
   std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
       backend_output_queue_.popBlocking();
+  LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
 
-  ////////////////// DEBUG INFO FOR BACK-END /////////////////////////////////
-  if (FLAGS_log_output) {
-    logger_.timing_vio_ = UtilsOpenCV::GetTimeInSeconds() - start_time; // This does not make sense anymore here, as the backend has its own spin.
-    logger_.logBackendResults(*dataset_, // Should not need the dataset...
-                              *stereo_vision_frontend_, // Should not need the frontend...
-                              backend_output_payload,
-                              backend_params_->horizon_,
-                              timestamp_lkf, timestamp_k, k);
-    logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
-  }
-
-  ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////
-  std::vector<cv::Vec6f> mesh_2d;
+  ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
   VioBackEnd::PointsWithIdMap points_with_id_VIO;
   VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
   MesherOutputPayload mesher_output_payload;
-  std::vector<Point3> points_3d;
-  VioBackEnd::PointsWithIdMap points_with_id;
-
-  // Decide mesh computation:
   VisualizationType visualization_type =
       static_cast<VisualizationType>(FLAGS_viz_type);
-  switch (visualization_type) {
-  case VisualizationType::MESH2D: {
-    mesh_2d = stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame().
-        createMesh2D(); // TODO pass the visualization flag inside the while loop of frontend and call this.
-    break;
-  }
-    // visualize a 2D mesh of (right-valid) keypoints discarding triangles corresponding to non planar obstacles
-  case VisualizationType::MESH2Dsparse: {
-    stereo_vision_frontend_->stereoFrame_lkf_->createMesh2dStereo(&mesh_2d); // TODO same as above.
-    break;
-  }
-  case VisualizationType::MESH2DTo3Dsparse: {
-    // Points_with_id_VIO contains all the points in the optimization,
-    // (encoded as either smart factors or explicit values), potentially
-    // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
-    // (TODO restriction is not enforced for projection factors).
-    vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(
-          &points_with_id_VIO,
-          FLAGS_visualize_lmk_type?
-            &lmk_id_to_lmk_type_map:nullptr,
-          FLAGS_min_num_obs_for_mesher_points);
-
-    // Get camera pose.
-    gtsam::Pose3 W_Pose_camlkf_vio =
-        vio_backend_->getWPoseBLkf().compose(vio_backend_->getBPoseLeftCam());
-
-    // Create and fill data packet for mesher.
-
-    // Push to queue.
-    // In another thread, mesher is running, consuming mesher payloads.
-    CHECK(mesher_input_queue_.push(MesherInputPayload (
-                                     points_with_id_VIO, //copy, thread safe, read-only. // This should be a popBlocking...
-                                     *(stereo_vision_frontend_->stereoFrame_lkf_), // not really thread safe, read only.
-                                     W_Pose_camlkf_vio))); // copy, thread safe, read-only. // Same, popBlocking
+  // Compute 3D mesh
+  if (visualization_type == VisualizationType::MESH2DTo3Dsparse) {
+    pushToMesherInputQueue(&points_with_id_VIO,
+                           &lmk_id_to_lmk_type_map,
+                           last_stereo_keyframe);
 
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
-    if (dataset_->getBackendType() == 1 &&
-        FLAGS_extract_planes_from_the_scene) {
-      mesher_.clusterPlanesFromMesh(&planes_,
-                                    points_with_id_VIO);
+    if (FLAGS_extract_planes_from_the_scene) {
+      CHECK_EQ(dataset_->getBackendType(), 1u); // Use Regular VIO
+      mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
+    } else {
+      LOG_IF_EVERY_N(WARNING, dataset_->getBackendType() == 1u &&
+                     (FLAGS_regular_vio_backend_modality == 2u ||
+                      FLAGS_regular_vio_backend_modality == 3u ||
+                      FLAGS_regular_vio_backend_modality == 4u), 10)
+          << "Using Regular VIO without extracting planes from the scene. "
+             "Set flag extract_planes_from_the_scene to true to enforce "
+             "regularities.";
     }
 
     // In the mesher thread push queue with meshes for visualization.
-    if (!mesher_output_queue_.popBlocking(mesher_output_payload)) { //Use blocking to avoid skipping frames.
-      LOG(WARNING) << "Mesher output queue did not pop a payload.";
-    }
-    break;
-  }
-  case VisualizationType::POINTCLOUD_REPEATEDPOINTS: {// visualize VIO points as point clouds (points are replotted at every frame)
-    points_3d = vio_backend_->get3DPoints();
-    break;
-  }
-    // Computes and visualizes a 3D point cloud.
-  case VisualizationType::POINTCLOUD: {// visualize VIO points  (no repeated point)
-    vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(&points_with_id_VIO);
-    break;
-  }
-  case VisualizationType::NONE: {break;}
+    // Use blocking to avoid skipping frames.
+    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
+        << "Mesher output queue did not pop a payload.";
   }
 
   if (FLAGS_visualize) {
     // Push data for visualizer thread.
-    visualizer_input_queue_.push(VisualizerInputPayload(
-                                   visualization_type, dataset_->getBackendType(),
-                                   vio_backend_->getWPoseBLkf() * stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(), // pose for trajectory viz.
-                                   mesh_2d, // for visualizeMesh2D and visualizeMesh2DStereo
-                                   stereo_vision_frontend_->stereoFrame_lkf_->getLeftFrame(), // for visualizeMesh2D and visualizeMesh2DStereo
-                                   mesher_output_payload, // visualizeConvexHull & visualizeMesh3DWithColoredClusters
-                                   points_with_id_VIO, // visualizeMesh3DWithColoredClusters & visualizePoints3D
-                                   lmk_id_to_lmk_type_map, // visualizeMesh3DWithColoredClusters & visualizePoints3D
-                                   planes_,  // visualizeMesh3DWithColoredClusters
-                                   vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
-                                   vio_backend_->getState(), // For planes and plane constraints viz.
-                                   points_3d, timestamp_k));
+    // WHO Should be pushing to the visualizer input queue????????
+    // This cannot happen at all from a single module, because visualizer
+    // takes input from mesher and backend right now...
+    visualizer_input_queue_.push(
+          VisualizerInputPayload(
+            // Pose for trajectory viz.
+            vio_backend_->getWPoseBLkf() * // The visualizer needs backend results
+            last_stereo_keyframe.getBPoseCamLRect(), // This should be pass at ctor level....
+            // For visualizeMesh2D and visualizeMesh2DStereo.
+            last_stereo_keyframe,
+            // visualizeConvexHull & visualizeMesh3DWithColoredClusters
+            // WARNING using move explicitly!
+            std::move(mesher_output_payload),
+            // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            visualization_type == VisualizationType::POINTCLOUD?
+              vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon() :
+              points_with_id_VIO,
+            // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            lmk_id_to_lmk_type_map,
+            planes_,  // visualizeMesh3DWithColoredClusters
+            vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
+            vio_backend_->getState(), // For planes and plane constraints viz.
+            visualization_type == VisualizationType::POINTCLOUD_REPEATEDPOINTS?
+              vio_backend_->get3DPoints() : std::vector<Point3>()
+            ));
+  }
+}
 
-      // Get data from visualizer thread.
-      // We use non-blocking pop() because no one depends on the output
-      // of the visualizer. This way the pipeline can keep running, while the
-      // visualization is only done when there is data available.
-      spinDisplayOnce(visualizer_output_queue_.popBlocking());
+void Pipeline::pushToMesherInputQueue(
+    VioBackEnd::PointsWithIdMap* points_with_id_VIO,
+    VioBackEnd::LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
+    const StereoFrame& last_stereo_keyframe) {
+  CHECK_NOTNULL(points_with_id_VIO);
+  CHECK_NOTNULL(lmk_id_to_lmk_type_map);
+  // Points_with_id_VIO contains all the points in the optimization,
+  // (encoded as either smart factors or explicit values), potentially
+  // restricting to points seen in at least min_num_obs_fro_mesher_points keyframes
+  // (TODO restriction is not enforced for projection factors).
+  *points_with_id_VIO = vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(
+                          FLAGS_visualize_lmk_type?
+                            lmk_id_to_lmk_type_map:nullptr,
+                          FLAGS_min_num_obs_for_mesher_points);
+
+  // Create and fill data packet for mesher.
+  // Push to queue.
+  // In another thread, mesher is running, consuming mesher payloads.
+  CHECK(mesher_input_queue_.push(
+          MesherInputPayload(
+            *points_with_id_VIO, //copy, thread safe, read-only. // This should be a popBlocking...
+            last_stereo_keyframe, // not really thread safe, read only.
+            vio_backend_->getWPoseBLkf().compose(
+              vio_backend_->getBPoseLeftCam())))); // Get camera pose.
+}
+
+void Pipeline::spinViz(bool parallel_run) {
+  if (FLAGS_visualize) {
+    visualizer_.spin(visualizer_input_queue_,
+                     visualizer_output_queue_,
+                     std::bind(&Pipeline::spinDisplayOnce,
+                               this, std::placeholders::_1),
+                     parallel_run);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+void Pipeline::spinSequential() {
+  // Spin once frontend.
+  CHECK(vio_frontend_);
+  vio_frontend_->spin(stereo_frontend_input_queue_,
+                      stereo_frontend_output_queue_,
+                      false); // Do not run in parallel.
+
+  // Pop blocking from frontend.
+  const auto& stereo_frontend_output_payload =
+      stereo_frontend_output_queue_.popBlocking();
+  CHECK(stereo_frontend_output_payload);
+  if (!stereo_frontend_output_payload->is_keyframe_) {
+    return;
   }
 
+  // We have a keyframe. Push to backend.
+  backend_input_queue_.push(
+        VioBackEndInputPayload(
+          stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
+          stereo_frontend_output_payload->statusSmartStereoMeasurements_,
+          stereo_frontend_output_payload->tracker_status_,
+          stereo_frontend_output_payload->pim_,
+          stereo_frontend_output_payload->relative_pose_body_stereo_,
+          &planes_));
+
+  // Spin once backend. Do not run in parallel.
+  CHECK(vio_backend_);
+  vio_backend_->spin(backend_input_queue_, backend_output_queue_, false);
+
+  // Pop blocking from backend.
+  const auto& backend_output_payload = backend_output_queue_.popBlocking();
+  CHECK(backend_output_payload);
+
+  const auto& stereo_keyframe =
+      stereo_frontend_output_payload->stereo_frame_lkf_;
+  ////////////////// CREATE 3D MESH //////////////////////////////////////////
+  VioBackEnd::PointsWithIdMap points_with_id_VIO;
+  VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+  MesherOutputPayload mesher_output_payload;
+  VisualizationType visualization_type =
+      static_cast<VisualizationType>(FLAGS_viz_type);
+  if (visualization_type == VisualizationType::MESH2DTo3Dsparse) {
+    // Push to mesher.
+    pushToMesherInputQueue(&points_with_id_VIO,
+                           &lmk_id_to_lmk_type_map,
+                           stereo_keyframe);
+
+    // Spin once mesher.
+    mesher_.spin(mesher_input_queue_, mesher_output_queue_, false);
+
+    // Find regularities in the mesh if we are using RegularVIO backend.
+    // TODO create a new class that is mesh segmenter or plane extractor.
+    if (FLAGS_extract_planes_from_the_scene) {
+      CHECK_EQ(dataset_->getBackendType(), 1); // Use Regular VIO
+      mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
+    } else {
+      LOG_IF_EVERY_N(WARNING, dataset_->getBackendType() == 1u &&
+                     (FLAGS_regular_vio_backend_modality == 2u ||
+                      FLAGS_regular_vio_backend_modality == 3u ||
+                      FLAGS_regular_vio_backend_modality == 4u), 10)
+          << "Using Regular VIO without extracting planes from the scene. "
+             "Set flag extract_planes_from_the_scene to true to enforce "
+             "regularities.";
+    }
+
+    // Pop from mesher.
+    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
+        << "Mesher output queue did not pop a payload.";
+  }
+  ////////////////////////////////////////////////////////////////////////////
+
+  if (FLAGS_visualize) {
+    // Push data for visualizer thread.
+    // WHO Should be pushing to the visualizer input queue????????
+    // This cannot happen at all from a single module, because visualizer
+    // takes input from mesher and backend right now...
+    visualizer_input_queue_.push(
+          VisualizerInputPayload(
+            // Pose for trajectory viz.
+            vio_backend_->getWPoseBLkf() * // The visualizer needs backend results
+            stereo_keyframe.getBPoseCamLRect(), // This should be pass at ctor level....
+            // For visualizeMesh2D and visualizeMesh2DStereo.
+            stereo_keyframe,
+            // visualizeConvexHull & visualizeMesh3DWithColoredClusters
+            // WARNING using move explicitly!
+            std::move(mesher_output_payload),
+            // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            visualization_type == VisualizationType::POINTCLOUD?
+              vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon() :
+              points_with_id_VIO,
+            // visualizeMesh3DWithColoredClusters & visualizePoints3D
+            lmk_id_to_lmk_type_map,
+            planes_,  // visualizeMesh3DWithColoredClusters
+            vio_backend_->getFactorsUnsafe(), // For plane constraints viz.
+            vio_backend_->getState(), // For planes and plane constraints viz.
+            visualization_type == VisualizationType::POINTCLOUD_REPEATEDPOINTS?
+              vio_backend_->get3DPoints() : std::vector<Point3>()
+              ));
+
+    // Spin visualizer.
+    visualizer_.spin(visualizer_input_queue_,
+                     visualizer_output_queue_,
+                     std::bind(&Pipeline::spinDisplayOnce,
+                               this, std::placeholders::_1),
+                     false);
+  }
 }
 
-bool Pipeline::spinSequential() {
-  LOG(FATAL) << "Spin sequential is not yet available.";
+/* -------------------------------------------------------------------------- */
+void Pipeline::shutdownWhenFinished() {
+  // This is a very rough way of knowing if we have finished...
+  // Since threads might be in the middle of processing data while we
+  // query if the queues are empty.
+  // Check every second if all queues are empty.
+  // Time to sleep between queries to the queues [in seconds].
+  LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
+  static constexpr int sleep_time = 1;
+  while(!is_initialized_ || // Loop while not initialized
+        !(stereo_frontend_input_queue_.empty() && // Or, once init, data is not yet consumed.
+          stereo_frontend_output_queue_.empty() &&
+          !vio_frontend_->isWorking() &&
+          backend_input_queue_.empty() &&
+          backend_output_queue_.empty() &&
+          !vio_backend_->isWorking() &&
+          mesher_input_queue_.empty() &&
+          mesher_output_queue_.empty() &&
+          !mesher_.isWorking() &&
+          visualizer_input_queue_.empty() &&
+          visualizer_output_queue_.empty() &&
+          !visualizer_.isWorking())) {
+    VLOG_EVERY_N(10, 100)
+        << "VIO pipeline status: \n"
+        << "Initialized? " << is_initialized_ << '\n'
+        << "Frontend input queue empty?" << stereo_frontend_input_queue_.empty() << '\n'
+        << "Frontend output queue empty?" << stereo_frontend_output_queue_.empty() << '\n'
+        << "Frontend is working? " <<  vio_frontend_->isWorking() << '\n'
+        << "Backend Input queue empty?" <<  backend_input_queue_.empty() << '\n'
+        << "Backend Output queue empty?" <<  backend_output_queue_.empty() << '\n'
+        << "Backend is working? " <<  (is_initialized_?vio_backend_->isWorking():false) << '\n'
+        << "Mesher input queue empty?" <<  mesher_input_queue_.empty() << '\n'
+        << "Mesher output queue empty?" <<  mesher_output_queue_.empty() << '\n'
+        << "Mesher is working? " <<  mesher_.isWorking() << '\n'
+        << "Visualizer input queue empty?" << visualizer_input_queue_.empty() << '\n'
+        << "Visualizer output queue empty?" << visualizer_output_queue_.empty() << '\n'
+        << "Visualizer is working? " << visualizer_.isWorking();
+        std::this_thread::sleep_for (std::chrono::seconds(sleep_time));
+  }
+  shutdown();
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::shutdown() {
+  LOG_IF(ERROR, shutdown_) << "Shutdown requested, but Pipeline was already "
+                                "shutdown.";
   LOG(INFO) << "Shutting down VIO pipeline.";
   shutdown_ = true;
   stopThreads();
-  joinThreads();
+  //if (parallel_run_) {
+    joinThreads();
+  //}
   if (FLAGS_log_output) {
+    LOG(INFO) << "Closing log files";
     logger_.closeLogFiles();
   }
+  LOG(INFO) << "Pipeline destructor finished.";
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   LOG(INFO) << "------------------- Initialize Pipeline with frame k = "
             << stereo_imu_sync_packet.getStereoFrame().getFrameId()
@@ -422,7 +465,9 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
   /////////////////// FRONTEND /////////////////////////////////////////////////
   // Initialize Stereo Frontend.
-  stereo_vision_frontend_->processFirstStereoFrame(
+  CHECK(vio_frontend_);
+  const StereoFrame& stereo_frame_lkf =
+      vio_frontend_->processFirstStereoFrame(
         stereo_imu_sync_packet.getStereoFrame());
 
   ///////////////////////////// BACKEND ////////////////////////////////////////
@@ -434,13 +479,18 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
                      std::shared_ptr<gtNavState>(nullptr);
 
   initBackend(&vio_backend_,
-              stereo_vision_frontend_->stereoFrame_km1_->getBPoseCamLRect(),
-              stereo_vision_frontend_->stereoFrame_km1_->getLeftUndistRectCamMat(),
-              stereo_vision_frontend_->stereoFrame_km1_->getBaseline(),
+              stereo_frame_lkf.getBPoseCamLRect(),
+              stereo_frame_lkf.getLeftUndistRectCamMat(),
+              stereo_frame_lkf.getBaseline(),
               *backend_params_,
               &initialStateGT,
               stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
               stereo_imu_sync_packet.getImuAccGyr()); // No timestamps needed for IMU?
+  vio_backend_->registerImuBiasUpdateCallback(
+        std::bind(&StereoVisionFrontEnd::updateImuBias,
+                  // Send a cref: constant reference because vio_frontend_ is
+                  // not copyable.
+                  std::cref(*vio_frontend_), std::placeholders::_1));
 
   ////////////////// DEBUG INITIALIZATION //////////////////////////////////
   if (FLAGS_log_output) {
@@ -457,6 +507,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                            const gtsam::Pose3& B_Pose_camLrect,
                            const gtsam::Cal3_S2& left_undist_rect_cam_mat,
@@ -470,7 +521,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
   switch(dataset_->getBackendType()) {
   case 0: {
     LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
-    *vio_backend = make_unique<VioBackEnd>(B_Pose_camLrect,
+    *vio_backend = VIO::make_unique<VioBackEnd>(B_Pose_camLrect,
                                            left_undist_rect_cam_mat,
                                            baseline,
                                            initial_state_gt,
@@ -483,7 +534,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
   case 1: {
     LOG(INFO) << "\e[1m Using Regular VIO with modality "
               << FLAGS_regular_vio_backend_modality << "\e[0m";
-    *vio_backend = make_unique<RegularVioBackEnd>(
+    *vio_backend = VIO::make_unique<RegularVioBackEnd>(
           B_Pose_camLrect,
           left_undist_rect_cam_mat,
           baseline,
@@ -506,27 +557,32 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::spinDisplayOnce(
-    const std::shared_ptr<VisualizerOutputPayload>& visualizer_output_payload) {
-  // Display only if the visualizer has done its work.
-  if (visualizer_output_payload) {
-    // Display 3D window.
-    if (visualizer_output_payload->visualization_type_ !=
-        VisualizationType::NONE) {
-      visualizer_output_payload->window_.spinOnce(1, true);
+    VisualizerOutputPayload& visualizer_output_payload) {
+  // Display 3D window.
+  if (visualizer_output_payload.visualization_type_ !=
+      VisualizationType::NONE) {
+    VLOG(10) << "Spin Visualize 3D output.";
+    //visualizer_output_payload->window_.spin();
+    visualizer_output_payload.window_.spinOnce(1, true);
+    // TODO this is not very thread-safe!!! Since recordVideo might modify
+    // window_ in this thread, while it might also be called in viz thread.
+    if (FLAGS_record_video_for_viz_3d) {
+      visualizer_.recordVideo();
     }
-
-    // Display 2D images.
-    for (const ImageToDisplay& img_to_display:
-         visualizer_output_payload->images_to_display_) {
-      cv::imshow(img_to_display.name_, img_to_display.image_);
-    }
-    cv::waitKey(1);
-  } else {
-    LOG(WARNING) << "Visualizer is lagging behind pipeline processing.";
   }
+
+  // Display 2D images.
+  for (const ImageToDisplay& img_to_display:
+       visualizer_output_payload.images_to_display_) {
+    cv::imshow(img_to_display.name_, img_to_display.image_);
+  }
+  VLOG(10) << "Spin Visualize 2D output.";
+  cv::waitKey(1);
 }
 
+/* -------------------------------------------------------------------------- */
 StatusSmartStereoMeasurements Pipeline::featureSelect(
     const VioFrontEndParams& tracker_params,
     const ETHDatasetParser& dataset,
@@ -593,43 +649,140 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   return std::make_pair(status, trackedAndSelectedSmartStereoMeasurements);
 }
 
-void Pipeline::launchThreads() {
-  // Start backend_thread.
-  backend_thread_ = std::thread(&VioBackEnd::spin,
-                                std::ref(*vio_backend_),
-                                std::ref(backend_input_queue_),
-                                std::ref(backend_output_queue_));
-
-  // Start mesher_thread.
-  mesher_thread_ = std::thread(&Mesher::run, std::ref(mesher_),
-                               std::ref(mesher_input_queue_),
-                               std::ref(mesher_output_queue_));
-
-  // Start visualizer_thread.
-  visualizer_thread_ = std::thread(&Visualizer3D::spin, std::ref(visualizer_),
-                                   std::ref(visualizer_input_queue_),
-                                   std::ref(visualizer_output_queue_));
+/* -------------------------------------------------------------------------- */
+void Pipeline::processKeyframePop() {
+  // Pull from stereo frontend output queue.
+  LOG(INFO) << "Spinning wrapped thread.";
+  while(!shutdown_) {
+    std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload;
+    stereo_frontend_output_payload = stereo_frontend_output_queue_.pop();
+    if (!stereo_frontend_output_payload) {
+      VLOG(100) << "Missing frontend output payload.";
+      continue;
+    }
+    CHECK(stereo_frontend_output_payload);
+    if (!stereo_frontend_output_payload->is_keyframe_) {
+      continue;
+    }
+    //////////////////////////////////////////////////////////////////////////////
+    // So from this point on, we have a keyframe.
+    // Pass info to VIO
+    // Actual keyframe processing. Call to backend.
+    ////////////////////////////// BACK-END //////////////////////////////////////
+    processKeyframe(
+          stereo_frontend_output_payload->statusSmartStereoMeasurements_,
+          stereo_frontend_output_payload->stereo_frame_lkf_,
+          stereo_frontend_output_payload->pim_,
+          stereo_frontend_output_payload->tracker_status_,
+          stereo_frontend_output_payload->relative_pose_body_stereo_);
+  }
+  LOG(INFO) << "Shutdown wrapped thread.";
 }
 
+/* -------------------------------------------------------------------------- */
+void Pipeline::launchThreads() {
+  LOG(INFO) << "Launching threads.";
+
+  // Start frontend_thread.
+  stereo_frontend_thread_ = VIO::make_unique<std::thread>(
+                              &StereoVisionFrontEnd::spin,
+                              CHECK_NOTNULL(vio_frontend_.get()),
+                              std::ref(stereo_frontend_input_queue_),
+                              std::ref(stereo_frontend_output_queue_),
+                              true);
+
+  wrapped_thread_ = VIO::make_unique<std::thread>(&Pipeline::processKeyframePop, this);
+
+  // Start backend_thread.
+  backend_thread_ = VIO::make_unique<std::thread>(&VioBackEnd::spin,
+                                // Returns the pointer to vio_backend_.
+                                CHECK_NOTNULL(vio_backend_.get()),
+                                std::ref(backend_input_queue_),
+                                std::ref(backend_output_queue_),
+                                true);
+
+  // Start mesher_thread.
+  mesher_thread_ = VIO::make_unique<std::thread>(&Mesher::spin,
+                               &mesher_,
+                               std::ref(mesher_input_queue_),
+                               std::ref(mesher_output_queue_),
+                               true);
+
+  // Start visualizer_thread.
+  //visualizer_thread_ = std::thread(&Visualizer3D::spin,
+  //                                 &visualizer_,
+  //                                 std::ref(visualizer_input_queue_),
+  //                                 std::ref(visualizer_output_queue_));
+}
+
+/* -------------------------------------------------------------------------- */
 void Pipeline::stopThreads() {
-  // Shutdown workers and queues.
+  LOG(INFO) << "Stopping workers and queues...";
+
+  LOG(INFO) << "Stopping backend workers and queues...";
   backend_input_queue_.shutdown();
   backend_output_queue_.shutdown();
+  CHECK(vio_backend_);
   vio_backend_->shutdown();
 
+  // Shutdown workers and queues.
+  LOG(INFO) << "Stopping frontend workers and queues...";
+  stereo_frontend_input_queue_.shutdown();
+  stereo_frontend_output_queue_.shutdown();
+  CHECK(vio_frontend_);
+  vio_frontend_->shutdown();
+
+  LOG(INFO) << "Stopping mesher workers and queues...";
   mesher_input_queue_.shutdown();
   mesher_output_queue_.shutdown();
   mesher_.shutdown();
 
+  LOG(INFO) << "Stopping visualizer workers and queues...";
   visualizer_input_queue_.shutdown();
   visualizer_output_queue_.shutdown();
   visualizer_.shutdown();
+
+  LOG(INFO) << "Sent stop flag to all workers and queues...";
 }
 
+/* -------------------------------------------------------------------------- */
 void Pipeline::joinThreads() {
-  backend_thread_.join();
-  mesher_thread_.join();
-  visualizer_thread_.join();
+  LOG(INFO) << "Joining threads...";
+
+  LOG(INFO) << "Joining frontend thread...";
+  if (stereo_frontend_thread_ && stereo_frontend_thread_->joinable()) {
+    stereo_frontend_thread_->join();
+    LOG(INFO) << "Joined frontend thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Frontend thread is not joinable...";
+  }
+
+  LOG(INFO) << "Joining wrapped thread...";
+  if (wrapped_thread_ && wrapped_thread_->joinable()) {
+    wrapped_thread_->join();
+    LOG(INFO) << "Joined wrapped thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Wrapped thread is not joinable...";
+  }
+
+  LOG(INFO) << "Joining backend thread...";
+  if (backend_thread_ && backend_thread_->joinable()) {
+    backend_thread_->join();
+    LOG(INFO) << "Joined backend thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Backend thread is not joinable...";
+  }
+
+  LOG(INFO) << "Joining mesher thread...";
+  if (mesher_thread_ && mesher_thread_->joinable()){
+    mesher_thread_->join();
+    LOG(INFO) << "Joined mesher thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Mesher thread is not joinable...";
+  }
+  //visualizer_thread_.join();
+
+  LOG(INFO) << "All threads joined.";
 }
 
 } // End of VIO namespace

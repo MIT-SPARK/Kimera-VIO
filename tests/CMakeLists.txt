@@ -7,4 +7,4 @@ configure_file(test_config.h.in test_config.h)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # Build tests
-gtsamAddTestsGlob(VIOTests "test*.cpp" "${tests_exclude}" "stereoVIO")
+gtsamAddTestsGlob(VIOTests "test*.cpp" "${tests_exclude}" SparkVio::sparkvio)
