@@ -103,7 +103,9 @@ target_include_directories(sparkvio
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
-target_compile_options(sparkvio PRIVATE -Wall -pipe) # Remove these
+target_compile_options(sparkvio
+  PRIVATE -Wall -pipe
+  PUBLIC -march=native) # Remove these
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(sparkvio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
