@@ -1,4 +1,3 @@
-:wq
 /**
  * @file   Tracker.cpp
  * @brief  Class describing temporal tracking
@@ -7,11 +6,19 @@
 
 #include "Tracker.h"
 
+#include <string>
+#include <algorithm>   // for sort
+#include <map>         // for map<>
+#include <memory>      // for shared_ptr<>
+#include <utility>     // for pair<>
+#include <vector>      // for vector<>
+#include <functional>  // for less<>
+
 namespace VIO {
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    */
-  // TODO Optimize this function.
+  // TODO(Toni) Optimize this function.
   void Tracker::featureDetection(Frame * cur_frame) {
     CHECK_NOTNULL(cur_frame);
     // Check how many new features we need: maxFeaturesPerFrame_ - n_existing
@@ -59,7 +66,7 @@ namespace VIO {
     cur_frame->versors_.reserve(cur_frame->keypoints_.size() +
                                 corners_with_scores.first.size());
 
-    // TODO Fix this loop, very unefficient. Use std::move over keypoints with
+    // TODO(Toni) Fix this loop, very unefficient. Use std::move over keypoints with
     // scores.
     for (size_t i = 0; i < corners_with_scores.first.size(); i++) {
       cur_frame->landmarks_.push_back(landmark_count_);
@@ -108,7 +115,7 @@ namespace VIO {
 
   /* --------------------------------------------------------------------------
    */
-  // TODO a pity that this function is not const just because
+  // TODO(Toni) a pity that this function is not const just because
   // it modifies debuginfo_...
   void Tracker::featureTracking(Frame * ref_frame, Frame * cur_frame) {
     CHECK_NOTNULL(ref_frame);
@@ -209,7 +216,7 @@ namespace VIO {
     BearingVectors f_ref;
     f_ref.reserve(matches_ref_cur.size());
     for (const std::pair<size_t, size_t>& it : matches_ref_cur) {
-      // TODO (luca): if versors are only needed at keyframe,
+      // TODO(Toni) (luca): if versors are only needed at keyframe,
       // do not compute every frame
       f_ref.push_back(ref_frame->versors_.at(it.first));
       f_cur.push_back(cur_frame->versors_.at(it.second));
@@ -261,7 +268,7 @@ namespace VIO {
     gtsam::Pose3 camLrectlkf_P_camLrectkf =
         UtilsOpenCV::Gvtrans2pose(best_transformation);
 
-    // TODO @Luca?
+    // TODO(Toni) @Luca?
     // check if we have to compensate for rectification (if we have a valid
     // R_rectify_ )
     // if(ref_frame.cam_param_.R_rectify_.rows == 3 &&
@@ -322,7 +329,7 @@ namespace VIO {
 
     // Solve.
 #ifdef sw_frontend
-    // TODO this function has rotten because of the ifdef :(
+    // TODO(Toni) this function has rotten because of the ifdef :(
     // @Luca can we remove this ifdef and use a flag instead?
     ////////////////////////////////////
     // AMR: 2-point RANSAC
@@ -397,7 +404,7 @@ namespace VIO {
     }
 
     if (verbosity_ >= 5) {
-      // TODO remove verbosity parameters, use gflags instead.
+      // TODO(Toni) remove verbosity parameters, use gflags instead.
       debugInfo_.monoRansacTime_ = UtilsOpenCV::GetTimeInSeconds() - start_time;
     }
     debugInfo_.nrMonoInliers_ = ransac.inliers_.size();
@@ -414,9 +421,9 @@ namespace VIO {
       const size_t pointId, const Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat) {
     gtsam::StereoPoint2 stereoPoint = gtsam::StereoPoint2(
-        double(stereoFrame.left_keypoints_rectified_[pointId].x),
-        double(stereoFrame.right_keypoints_rectified_[pointId].x),
-        double(stereoFrame.left_keypoints_rectified_[pointId]
+        static_cast<double>(stereoFrame.left_keypoints_rectified_[pointId].x),
+        static_cast<double>(stereoFrame.right_keypoints_rectified_[pointId].x),
+        static_cast<double>(stereoFrame.left_keypoints_rectified_[pointId]
                    .y));  // uL_, uR_, v_;
 
     Matrix3 Jac_point3_sp2;  // jacobian of the back projection
@@ -424,7 +431,7 @@ namespace VIO {
         stereoCam.backproject2(stereoPoint, boost::none, Jac_point3_sp2)
             .vector();
     Vector3 point3_i = stereoFrame.keypoints_3d_.at(pointId);
-    // TODO: Adapt value of this threshold for different calibration models!
+    // TODO(Toni): Adapt value of this threshold for different calibration models!
     // (1e-1)
     if ((point3_i_gtsam - point3_i).norm() > 1e-1) {
       VLOG(10) << "\n point3_i_gtsam \n " << point3_i_gtsam << "\n point3_i \n"
@@ -445,7 +452,7 @@ namespace VIO {
 
   /* --------------------------------------------------------------------------
    */
-  // TODO break down this gargantuan function...
+  // TODO(Toni) break down this gargantuan function...
   std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
   Tracker::geometricOutlierRejectionStereoGivenRotation(
       StereoFrame & ref_stereoFrame, StereoFrame & cur_stereoFrame,
@@ -537,8 +544,8 @@ namespace VIO {
     // double timeMahalanobis = 0, timeAllocate = 0, timePushBack = 0,
     // timeMaxSet = 0;
     float threshold =
-        float(trackerParams_
-                  .ransac_threshold_stereo_);  // residual should be distributed
+      static_cast<float>(trackerParams_
+          .ransac_threshold_stereo_);  // residual should be distributed
                                                // according to chi-square
                                                // distribution with 3 dofs,
     // considering a tail probability of 0.1, we get this value (x =
@@ -625,7 +632,7 @@ namespace VIO {
     // UtilsOpenCV::PrintVector<int>(inliers,"inliers");
     // std::cout << "maxCoherentSetId: " << maxCoherentSetId << std::endl;
 
-    // TODO remove hardcoded value...
+    // TODO(Toni) remove hardcoded value...
     int iterations = 1;  // to preserve RANSAC api
 
     // Remove outliers.
@@ -736,7 +743,7 @@ namespace VIO {
 
   /* --------------------------------------------------------------------------
    */
-  // TODO do not use return for vector, pass by pointer.
+  // TODO(Toni) do not use return for vector, pass by pointer.
   void Tracker::findOutliers(
       const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
       std::vector<int> inliers, std::vector<int>* outliers) {
@@ -941,7 +948,7 @@ namespace VIO {
 
   /* --------------------------------------------------------------------------
    */
-  // TODO this won't work in parallel mode, as visualization must be done in
+  // TODO(Toni) this won't work in parallel mode, as visualization must be done in
   // main thread.
   cv::Mat Tracker::displayFrame(const Frame& ref_frame, const Frame& cur_frame,
                                 int verbosity, const KeypointsCV& extraCorners1,
