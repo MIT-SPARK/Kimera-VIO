@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.10)
 project(SparkVio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
@@ -150,8 +150,15 @@ if(CMAKE_VERSION VERSION_LESS 2.8.11)
                         "${gmock_SOURCE_DIR}/include")
 endif()
 
-# Link your own targets against gtest, gmock,
+# Link your own targets against gtest, gmock, gtest_main
 # etc. as appropriate
+include(CTest)
+include(GoogleTest)
+add_executable(testSparkVio
+  tests/testTimer.cpp
+  tests/testThreadsafeQueue.cpp)
+target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
+gtest_discover_tests(testSparkVio)
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)
 #
