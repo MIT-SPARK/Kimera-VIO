@@ -21,6 +21,7 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
 #include "utils/ThreadsafeQueue.h"
 
 void consumer(ThreadsafeQueue<std::string>& q,  // NOLINT

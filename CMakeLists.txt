@@ -150,14 +150,39 @@ if(CMAKE_VERSION VERSION_LESS 2.8.11)
                         "${gmock_SOURCE_DIR}/include")
 endif()
 
-# Link your own targets against gtest, gmock, gtest_main
-# etc. as appropriate
+# Generate gtests.
 include(CTest)
-include(GoogleTest)
 add_executable(testSparkVio
+  tests/testSparkVio.cpp
+  #tests/testCameraParams.cpp
+  #tests/testCodesignIdeas.cpp
+  #tests/testFeatureSelector.cpp
+  #tests/testFrame.cpp
+  #tests/testGeneralParallelPlaneRegularBasicFactor.cpp
+  #tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
+  #tests/testImuFrontEnd.cpp
+  #tests/testKittiDataProvider.cpp
+  #tests/testMesher.cpp
+  #tests/testParallelPlaneRegularBasicFactor.cpp
+  #tests/testParallelPlaneRegularTangentSpaceFactor.cpp
+  #tests/testPointPlaneFactor.cpp
+  #tests/testRegularVioBackEnd.cpp
+  #tests/testRegularVioBackEndParams.cpp
+  #tests/testStereoFrame.cpp
+  #tests/testStereoVisionFrontEnd.cpp
+  #tests/testThreadsafeImuBuffer.cpp
+  tests/testThreadsafeQueue.cpp
+  #tests/testThreadsafeTemporalBuffer.cpp
   tests/testTimer.cpp
-  tests/testThreadsafeQueue.cpp)
+  tests/testTracker.cpp
+  #tests/testUtilsOpenCV.cpp
+  #tests/testVioBackEnd.cpp
+  #tests/testVioBackEndParams.cpp
+  #tests/testVioFrontEndParams.cpp
+  #tests/testVisualizer3D.cpp
+  )
 target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
+include(GoogleTest)
 gtest_discover_tests(testSparkVio)
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)

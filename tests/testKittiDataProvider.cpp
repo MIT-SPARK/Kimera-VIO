@@ -7,24 +7,23 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   testVisualizer3D.cpp
- * @brief  test Visualizer3D
- * @author Antoni Rosinol
+ * @file   testKittiDataProvider.cpp
+ * @brief  test Kitti data parser
+ * @author Yun Chang
  */
 
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <random>
 #include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <random>
 
 #include "Visualizer3D.h"
+DECLARE_string(test_data_path);
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
-
-DECLARE_string(test_data_path);
 
 using namespace std;
 using namespace VIO;
@@ -33,29 +32,15 @@ using namespace cv;
 static const double tol = 1e-1;
 
 /* ************************************************************************* */
-TEST(testFrame, visualizeMesh2D) {
+// TODO
+TEST(testFrame, KittiDataProvider) {
+  // TODO: test kitti data provider Check image lists and also imu data parsing
   // Construct a frame from image name.
-  FrameId id = 0;
-  Timestamp tmp = 123;
-  const string imgName = string(FLAGS_test_data_path) + "/chessboard_small.png";
-
-  Frame f(id, tmp,
-          CameraParams(),
-          UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
-  f.extractCorners();
-  for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
-    f.landmarks_.push_back(i);
-  }
-
-  // Compute mesh.
-  const std::vector<cv::Vec6f>& mesh_2d = f.createMesh2D();
-
-  // Visualize mesh.
-  Visualizer3D visualizer (VisualizationType::NONE, 0);
-  visualizer.visualizeMesh2D(mesh_2d, f.img_);
 }
 
 /* ************************************************************************* */
 int main() {
-  TestResult tr; return TestRegistry::runAllTests(tr); }
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************* */
