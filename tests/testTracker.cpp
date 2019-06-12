@@ -508,10 +508,11 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       ClearFrame(ref_frame);
       ClearFrame(cur_frame);
 
-      cout << "========================== \n"
-           << "is_planar: " << is_planar << " inlier_num: " << inlier_num
-           << " outlier_num: " << outlier_num << " noise_sigma: " << noise_sigma
-           << endl;
+      VLOG(1) << "========================== \n"
+              << "is_planar: " << is_planar << '\n'
+              << " inlier_num: " << inlier_num << '\n'
+              << " outlier_num: " << outlier_num << '\n'
+              << " noise_sigma: " << noise_sigma;
       // add inliers
       if (is_planar) {
         Vector3 PlaneN(0.1, -0.1, 1);
@@ -553,7 +554,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
         EXPECT_NE(cur_frame->landmarks_[i], -1);
       }
 
-      cout << "outlier_num: " << outlier_num << endl;
+      VLOG(1) << "outlier_num: " << outlier_num;
       for (int i = inlier_num; i < inlier_num + outlier_num; i++) {
         EXPECT_EQ(ref_frame->landmarks_[i], -1);
         EXPECT_EQ(cur_frame->landmarks_[i], -1);
