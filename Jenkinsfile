@@ -68,7 +68,7 @@ pipeline {
           )
 
       // Process the CTest xml output
-      junit 'testresults.xml'
+      junit 'build/testresults.xml'
 
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
