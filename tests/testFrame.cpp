@@ -13,10 +13,11 @@
  */
 
 #include "Frame.h"
-#include "test_config.h"
+DECLARE_string(test_data_path);
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 using namespace gtsam;
 using namespace std;
@@ -24,9 +25,10 @@ using namespace VIO;
 using namespace cv;
 
 static const string chessboardImgName =
-    string(DATASET_PATH) + "/chessboard.png";
-static const string whitewallImgName = string(DATASET_PATH) + "/whitewall.png";
-static const string sensorPath = string(DATASET_PATH) + "/sensor.yaml";
+    string(FLAGS_test_data_path) + "/chessboard.png";
+static const string whitewallImgName =
+    string(FLAGS_test_data_path) + "/whitewall.png";
+static const string sensorPath = string(FLAGS_test_data_path) + "/sensor.yaml";
 static const int imgWidth = 752;
 static const int imgHeight = 480;
 static const double tol = 1e-7;
@@ -36,7 +38,7 @@ TEST(testFrame, constructor) {
   // Construct a frame from image name.
   FrameId id = 0;
   Timestamp tmp = 123;
-  const string imgName = string(DATASET_PATH) + "/chessboard.png";
+  const string imgName = string(FLAGS_test_data_path) + "/chessboard.png";
   Frame f(id, tmp, CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   EXPECT(f.id_ == id);
@@ -179,7 +181,7 @@ TEST(testFrame, createMesh2D) {
   // Construct a frame from image name.
   FrameId id = 0;
   Timestamp tmp = 123;
-  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
+  const string imgName = string(FLAGS_test_data_path) + "/chessboard_small.png";
   Frame f(id, tmp, CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   f.extractCorners();
@@ -232,7 +234,7 @@ TEST(testFrame, createMesh2D_noKeypoints) {
   // Construct a frame from image name.
   FrameId id = 0;
   Timestamp tmp = 123;
-  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
+  const string imgName = string(FLAGS_test_data_path) + "/chessboard_small.png";
   Frame f(id, tmp, CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
 

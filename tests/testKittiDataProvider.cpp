@@ -19,10 +19,11 @@
 #include <random>
 
 #include "Visualizer3D.h"
-#include "test_config.h"
+DECLARE_string(test_data_path);
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace VIO;

@@ -19,10 +19,12 @@
 #include "CameraParams.h"
 #include "Frame.h"
 #include "VioFrontEndParams.h"
-#include "test_config.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;
@@ -36,7 +38,8 @@ TEST(testTracker, TrackerParamParseYAML) {
 
   // Test parseYAML
   VioFrontEndParams tp;
-  tp.parseYAML(string(DATASET_PATH) + "/ForTracker/trackerParameters.yaml");
+  tp.parseYAML(string(FLAGS_test_data_path) +
+               "/ForTracker/trackerParameters.yaml");
 
   // Compare results!
   EXPECT(tp.klt_win_size_ == 24);
@@ -108,7 +111,7 @@ TEST(testTracker, cppVSmatlabVioFrontEndParams) {
   VioFrontEndParams cppDefault_tp = VioFrontEndParams();
 
   VioFrontEndParams matlabDefault_tp;
-  matlabDefault_tp.parseYAML(string(DATASET_PATH) +
+  matlabDefault_tp.parseYAML(string(FLAGS_test_data_path) +
 "/../../matlab/myLib/defaultTrackerParams.yaml");
 
   EXPECT(matlabDefault_tp.equals(cppDefault_tp));

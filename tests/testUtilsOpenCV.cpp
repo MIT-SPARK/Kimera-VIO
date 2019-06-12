@@ -31,10 +31,11 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "test_config.h"
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;
@@ -564,7 +565,7 @@ TEST(testUtils, ReadAndConvertToGrayScale) {
   // original image is in color and it is converted to gray
   {
     Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
-        string(DATASET_PATH) + "lena.png");
+        string(FLAGS_test_data_path) + "lena.png");
     imwrite("lenaGrayScale.png", imageGray);
     EXPECT(imageGray.channels() == 1);
     // we read gray image we just wrote and make sure it is ok
@@ -573,9 +574,10 @@ TEST(testUtils, ReadAndConvertToGrayScale) {
   }
   // original image is already gray, hence it remains the same
   {
-    Mat img = imread(string(DATASET_PATH) + "testImage.png", IMREAD_ANYCOLOR);
+    Mat img =
+        imread(string(FLAGS_test_data_path) + "testImage.png", IMREAD_ANYCOLOR);
     Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
-        string(DATASET_PATH) + "testImage.png");
+        string(FLAGS_test_data_path) + "testImage.png");
     EXPECT(imageGray.channels() == 1);
     EXPECT(UtilsOpenCV::CvMatCmp(img, imageGray));
   }
@@ -621,8 +623,9 @@ TEST(testUtils, covariance_bvx2xvb) {
 }
 
 static const string chessboardImgName =
-    string(DATASET_PATH) + "/chessboard.png";
-static const string realImgName = string(DATASET_PATH) + "/realImage.png";
+    string(FLAGS_test_data_path) + "/chessboard.png";
+static const string realImgName =
+    string(FLAGS_test_data_path) + "/realImage.png";
 
 /* ************************************************************************* *
 TEST(UtilsOpenCV, ExtractCornersChessboard) {

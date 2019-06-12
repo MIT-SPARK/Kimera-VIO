@@ -9,7 +9,7 @@
 /**
  * @file   testCameraParams.h
  * @brief  test CameraParams
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #include <cmath>
@@ -17,13 +17,15 @@
 #include <iostream>
 #include <utility>
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
 #include "CameraParams.h"
 #include "UtilsOpenCV.h"
 #include "gtsam/geometry/Cal3_S2.h"
-#include "test_config.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+DECLARE_string(test_data_path);
 
 using namespace std;
 using namespace gtsam;
@@ -35,7 +37,7 @@ static const double tol = 1e-7;
 /* ************************************************************************* */
 TEST(testFrame, parseYAML) {
   CameraParams camParams;
-  camParams.parseYAML(string(DATASET_PATH) + "/sensor.yaml");
+  camParams.parseYAML(FLAGS_test_data_path + "/sensor.yaml");
 
   // Frame rate
   const double frame_rate_expected = 1.0 / 20.0;
@@ -92,7 +94,7 @@ TEST(testFrame, parseYAML) {
 /* ************************************************************************* */
 TEST(testFrame, equals) {
   CameraParams camParams;
-  camParams.parseYAML(string(DATASET_PATH) + "/sensor.yaml");
+  camParams.parseYAML(FLAGS_test_data_path + "/sensor.yaml");
   // camParams must be equal to itself
   EXPECT(camParams.equals(camParams));
   // and might be different if we perturb something
@@ -111,7 +113,7 @@ TEST(testFrame, Cal3_S2ToCvmat) { Cal3_S2 K(500, 500, 0.0, 640 / 2, 480 / 2); }
 TEST(testFrame, parseKITTICalib) {
   CameraParams camParams;
   camParams.parseKITTICalib(
-      string(DATASET_PATH) + "/ForKittiData/calib_cam_to_cam.txt",
+      FLAGS_test_data_path + "/ForKittiData/calib_cam_to_cam.txt",
       cv::Mat::eye(3, 3, CV_64F), cv::Mat::zeros(3, 1, CV_64F), "00");
 
   // Frame rate

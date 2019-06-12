@@ -18,11 +18,13 @@
 #include <random>
 #include "ETH_parser.h"  // only for gtNavState...
 #include "VioBackEnd.h"
-#include "test_config.h"
 #include "utils/ThreadsafeImuBuffer.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;

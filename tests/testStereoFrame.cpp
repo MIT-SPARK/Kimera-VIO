@@ -12,15 +12,19 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include <gtsam/geometry/StereoCamera.h>
 #include <iostream>
+
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+#include <gtsam/geometry/StereoCamera.h>
+
 #include "Frame.h"
 #include "StereoFrame.h"
 #include "VioFrontEndParams.h"
-#include "test_config.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;
@@ -32,8 +36,8 @@ using namespace cv;
 static const double tol = 1e-7;
 static const FrameId id = 0;
 static const int64_t timestamp = 1;
-static const string stereo_dataset_path(DATASET_PATH +
-                                        string("/ForStereoFrame/"));
+static const string stereo_FLAGS_test_data_path(FLAGS_test_data_path +
+                                                string("/ForStereoFrame/"));
 static const string left_image_name = "left_img_0.png";
 static const string right_image_name = "right_img_0.png";
 
@@ -47,10 +51,11 @@ cv::Mat left_image_rectified, right_image_rectified;
 cv::Mat P1, P2;
 
 /* ************************************************************************* */
+// TODO use a TEST FIXTURE!
 // Helper function
 void initializeData() {
-  cam_params_left.parseYAML(stereo_dataset_path + "/sensorLeft.yaml");
-  cam_params_right.parseYAML(stereo_dataset_path + "/sensorRight.yaml");
+  cam_params_left.parseYAML(stereo_FLAGS_test_data_path + "/sensorLeft.yaml");
+  cam_params_right.parseYAML(stereo_FLAGS_test_data_path + "/sensorRight.yaml");
 
   // Relative pose before rectification
   camL_Pose_camR =
@@ -60,11 +65,11 @@ void initializeData() {
   VioFrontEndParams tp;  // only to get default stereo matching params
   sf = new StereoFrame(id, timestamp,
                        UtilsOpenCV::ReadAndConvertToGrayScale(
-                           stereo_dataset_path + left_image_name,
+                           stereo_FLAGS_test_data_path + left_image_name,
                            tp.getStereoMatchingParams().equalize_image_),
                        cam_params_left,
                        UtilsOpenCV::ReadAndConvertToGrayScale(
-                           stereo_dataset_path + right_image_name,
+                           stereo_FLAGS_test_data_path + right_image_name,
                            tp.getStereoMatchingParams().equalize_image_),
                        cam_params_right, camL_Pose_camR,
                        tp.getStereoMatchingParams());
@@ -169,11 +174,11 @@ TEST(testStereoFrame, cloneRectificationParameters) {
   StereoFrame* sf2 = new StereoFrame(
       id, timestamp,
       UtilsOpenCV::ReadAndConvertToGrayScale(
-          stereo_dataset_path + left_image_name,
+          stereo_FLAGS_test_data_path + left_image_name,
           tp.getStereoMatchingParams().equalize_image_),
       cam_params_left,
       UtilsOpenCV::ReadAndConvertToGrayScale(
-          stereo_dataset_path + right_image_name,
+          stereo_FLAGS_test_data_path + right_image_name,
           tp.getStereoMatchingParams().equalize_image_),
       cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
   // clone
@@ -678,8 +683,8 @@ TEST(testStereoFrame, getRightKeypointsRectified) {
 /* ************************************************************************* */
 // Helper function
 void initializeDataStereo() {
-  cam_params_left.parseYAML(stereo_dataset_path + "/sensorLeft.yaml");
-  cam_params_right.parseYAML(stereo_dataset_path + "/sensorRight.yaml");
+  cam_params_left.parseYAML(stereo_FLAGS_test_data_path + "/sensorLeft.yaml");
+  cam_params_right.parseYAML(stereo_FLAGS_test_data_path + "/sensorRight.yaml");
 
   // Relative pose before rectification
   camL_Pose_camR =
@@ -689,11 +694,11 @@ void initializeDataStereo() {
   VioFrontEndParams tp;
   sfnew = new StereoFrame(id, timestamp,
                           UtilsOpenCV::ReadAndConvertToGrayScale(
-                              stereo_dataset_path + left_image_name,
+                              stereo_FLAGS_test_data_path + left_image_name,
                               tp.getStereoMatchingParams().equalize_image_),
                           cam_params_left,
                           UtilsOpenCV::ReadAndConvertToGrayScale(
-                              stereo_dataset_path + right_image_name,
+                              stereo_FLAGS_test_data_path + right_image_name,
                               tp.getStereoMatchingParams().equalize_image_),
                           cam_params_right, camL_Pose_camR,
                           tp.getStereoMatchingParams());
@@ -1024,12 +1029,12 @@ TEST(testStereoFrame, getLandmarkInfo) {
 TEST(testStereoFrame, undistortFisheye) {
   // Parse camera params
   static CameraParams cam_params_left_fisheye;
-  cam_params_left_fisheye.parseYAML(stereo_dataset_path +
+  cam_params_left_fisheye.parseYAML(stereo_FLAGS_test_data_path +
                                     "/left_sensor_fisheye.yaml");
 
   // Parse single image
   cv::Mat left_fisheye_image_dist = UtilsOpenCV::ReadAndConvertToGrayScale(
-      stereo_dataset_path + "left_fisheye_img_0.png", false);
+      stereo_FLAGS_test_data_path + "left_fisheye_img_0.png", false);
 
   // Declare empty variables
   cv::Mat left_fisheye_image_undist, map_x_fisheye_undist, map_y_fisheye_undist;
@@ -1054,7 +1059,7 @@ TEST(testStereoFrame, undistortFisheye) {
 
   // Parse reference image
   cv::Mat left_fisheye_image_ref = UtilsOpenCV::ReadAndConvertToGrayScale(
-      stereo_dataset_path + "left_ref_img_0.png", false);
+      stereo_FLAGS_test_data_path + "left_ref_img_0.png", false);
 
   // Test distortion with image comparison
   EXPECT(UtilsOpenCV::CvMatCmp(left_fisheye_image_undist,
@@ -1067,17 +1072,17 @@ TEST(testStereoFrame, undistortFisheyeStereoFrame) {
 
   // Parse camera params for left and right cameras
   static CameraParams cam_params_left_fisheye;
-  cam_params_left_fisheye.parseYAML(stereo_dataset_path +
+  cam_params_left_fisheye.parseYAML(stereo_FLAGS_test_data_path +
                           "/left_sensor_fisheye.yaml");
   static CameraParams cam_params_right_fisheye;
-  cam_params_right_fisheye.parseYAML(stereo_dataset_path +
+  cam_params_right_fisheye.parseYAML(stereo_FLAGS_test_data_path +
                           "/right_sensor_fisheye.yaml");
 
   // Get images
   cv::Mat left_fisheye_image_dist = UtilsOpenCV::ReadAndConvertToGrayScale(
-                stereo_dataset_path + "left_fisheye_img_0.png", false);
+                stereo_FLAGS_test_data_path + "left_fisheye_img_0.png", false);
   cv::Mat right_fisheye_image_dist = UtilsOpenCV::ReadAndConvertToGrayScale(
-                stereo_dataset_path + "right_fisheye_img_0.png", false);
+                stereo_FLAGS_test_data_path + "right_fisheye_img_0.png", false);
 
   // Get relative pose of cameras
   gtsam::Pose3 camL_pose_camR_fisheye =
@@ -1135,7 +1140,7 @@ sf->getBaseline());
 UtilsOpenCV::ConcatenateTwoImages(left_image_rectified, right_image_rectified);
 
   // Parse reference image -> Remove comments
-  cv::Mat undist_sidebyside_ref = cv::imread(stereo_dataset_path +
+  cv::Mat undist_sidebyside_ref = cv::imread(stereo_FLAGS_test_data_path +
                       "sidebyside_ref_img_0.png", cv::IMREAD_ANYCOLOR);
 
   // Get keypoints depth

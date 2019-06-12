@@ -19,8 +19,9 @@
 #include "ImuFrontEnd.h"
 #include "utils/ThreadsafeImuBuffer.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 namespace VIO {
 
