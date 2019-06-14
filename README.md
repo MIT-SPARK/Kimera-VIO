@@ -264,8 +264,7 @@ Install the following dependencies to run the linter:
 ```bash
 cd $THIS_REPO
 git submodule update --init
-cd dev_tools/linter
-echo "source $(realpath ./setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
+echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
                                                    # your shell.
 bash
 ```
