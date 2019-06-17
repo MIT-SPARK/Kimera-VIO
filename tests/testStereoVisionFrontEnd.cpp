@@ -23,10 +23,12 @@
 #include "StereoFrame.h"
 #include "StereoVisionFrontEnd.h"
 #include "Tracker.h"
-#include "test_config.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;
@@ -40,7 +42,8 @@ static Frame *ref_frame, *cur_frame;
 static StereoFrame *ref_stereo_frame, *cur_stereo_frame;
 static const FrameId id_ref = 0, id_cur = 1;
 static const int64_t timestamp_ref = 1000, timestamp_cur = 2000;
-static string stereo_dataset_path(DATASET_PATH + string("/ForStereoFrame/"));
+static string stereo_FLAGS_test_data_path(FLAGS_test_data_path +
+                                          string("/ForStereoFrame/"));
 static const int repeat_times = 1;
 static const VioFrontEndParams trackerParams;
 
@@ -48,14 +51,14 @@ static const VioFrontEndParams trackerParams;
 // Helper function
 void InitializeData() {
   CameraParams cam_params_left, cam_params_right;
-  cam_params_left.parseYAML(stereo_dataset_path + "/sensorLeft.yaml");
-  cam_params_right.parseYAML(stereo_dataset_path + "/sensorRight.yaml");
+  cam_params_left.parseYAML(stereo_FLAGS_test_data_path + "/sensorLeft.yaml");
+  cam_params_right.parseYAML(stereo_FLAGS_test_data_path + "/sensorRight.yaml");
 
-  string img_name_ref_left = stereo_dataset_path + "left_img_0.png";
-  string img_name_ref_right = stereo_dataset_path + "right_img_0.png";
+  string img_name_ref_left = stereo_FLAGS_test_data_path + "left_img_0.png";
+  string img_name_ref_right = stereo_FLAGS_test_data_path + "right_img_0.png";
 
-  string img_name_cur_left = stereo_dataset_path + "left_img_1.png";
-  string img_name_cur_right = stereo_dataset_path + "right_img_1.png";
+  string img_name_cur_left = stereo_FLAGS_test_data_path + "left_img_1.png";
+  string img_name_cur_right = stereo_FLAGS_test_data_path + "right_img_1.png";
 
   // Data for testing "geometricOutlierRejectionMono"
   ref_frame =
@@ -396,7 +399,7 @@ TEST(testStereoVisionFrontEnd, processFirstFrame) {
 
   // Load a synthetic stereo pair from MATLAB with known ground-truth
   CameraParams cam_params_left, cam_params_right;
-  string matlab_syn_path(DATASET_PATH + string("/ForStereoTracker"));
+  string matlab_syn_path(FLAGS_test_data_path + string("/ForStereoTracker"));
   cam_params_left.parseYAML(matlab_syn_path + "/camLeft.yaml");
   cam_params_right.parseYAML(matlab_syn_path + "/camRight.yaml");
 

@@ -19,10 +19,12 @@
 #include <random>
 
 #include "Visualizer3D.h"
-#include "test_config.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+DECLARE_string(test_data_path);
 
 using namespace std;
 using namespace VIO;
@@ -35,7 +37,7 @@ TEST(testFrame, visualizeMesh2D) {
   // Construct a frame from image name.
   FrameId id = 0;
   Timestamp tmp = 123;
-  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
+  const string imgName = string(FLAGS_test_data_path) + "/chessboard_small.png";
 
   Frame f(id, tmp, CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(imgName));

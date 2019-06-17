@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.10)
 project(SparkVio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
@@ -126,11 +126,11 @@ target_link_libraries(stereoVIOKitti PUBLIC SparkVio::SparkVio)
 # Download and unpack googletest at configure time
 # TODO Consider doing the same for glog, gflags, although it might
 # make the command `cmake ..` a bit slow.
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake googletest-download/CMakeLists.txt)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake external/googletest-download/CMakeLists.txt)
 execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/googletest-download" )
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download" )
 execute_process(COMMAND "${CMAKE_COMMAND}" --build .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/googletest-download" )
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download" )
 
 # Prevent GoogleTest from overriding our compiler/linker options
 # when building with Visual Studio
@@ -139,8 +139,8 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 # Add googletest directly to our build. This adds
 # the following targets: gtest, gtest_main, gmock
 # and gmock_main
-add_subdirectory("${CMAKE_BINARY_DIR}/googletest-src"
-                 "${CMAKE_BINARY_DIR}/googletest-build")
+add_subdirectory("${CMAKE_BINARY_DIR}/external/googletest-src"
+                 "${CMAKE_BINARY_DIR}/external/googletest-build")
 
 # The gtest/gmock targets carry header search path
 # dependencies automatically when using CMake 2.8.11 or
@@ -150,8 +150,40 @@ if(CMAKE_VERSION VERSION_LESS 2.8.11)
                         "${gmock_SOURCE_DIR}/include")
 endif()
 
-# Link your own targets against gtest, gmock,
-# etc. as appropriate
+# Generate gtests.
+include(CTest)
+add_executable(testSparkVio
+  tests/testSparkVio.cpp
+  #tests/testCameraParams.cpp
+  #tests/testCodesignIdeas.cpp
+  #tests/testFeatureSelector.cpp
+  #tests/testFrame.cpp
+  #tests/testGeneralParallelPlaneRegularBasicFactor.cpp
+  #tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
+  #tests/testImuFrontEnd.cpp
+  #tests/testKittiDataProvider.cpp
+  #tests/testMesher.cpp
+  #tests/testParallelPlaneRegularBasicFactor.cpp
+  #tests/testParallelPlaneRegularTangentSpaceFactor.cpp
+  #tests/testPointPlaneFactor.cpp
+  #tests/testRegularVioBackEnd.cpp
+  #tests/testRegularVioBackEndParams.cpp
+  #tests/testStereoFrame.cpp
+  #tests/testStereoVisionFrontEnd.cpp
+  #tests/testThreadsafeImuBuffer.cpp
+  tests/testThreadsafeQueue.cpp
+  #tests/testThreadsafeTemporalBuffer.cpp
+  tests/testTimer.cpp
+  tests/testTracker.cpp
+  #tests/testUtilsOpenCV.cpp
+  #tests/testVioBackEnd.cpp
+  #tests/testVioBackEndParams.cpp
+  #tests/testVioFrontEndParams.cpp
+  #tests/testVisualizer3D.cpp
+  )
+target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
+include(GoogleTest)
+gtest_discover_tests(testSparkVio)
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)
 #

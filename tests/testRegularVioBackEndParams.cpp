@@ -17,12 +17,13 @@
 #include <iostream>
 #include <random>
 #include "RegularVioBackEndParams.h"
-#include "test_config.h"
+DECLARE_string(test_data_path);
 
 #include <glog/logging.h>
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 using namespace gtsam;
 using namespace std;
@@ -35,7 +36,8 @@ static const double tol = 1e-7;
 TEST(testRegularVioBackEndParams, VioParseYAML) {
   // Test parseYAML
   RegularVioBackEndParams vp;
-  vp.parseYAML(string(DATASET_PATH) + "/ForVIO/regularVioParameters.yaml");
+  vp.parseYAML(string(FLAGS_test_data_path) +
+               "/ForVIO/regularVioParameters.yaml");
 
   // Check the parsed values!
   // IMU params
