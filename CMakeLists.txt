@@ -59,6 +59,7 @@ add_library(SparkVio SHARED
   src/UtilsOpenCV.cpp
   src/ImuFrontEnd.cpp
   src/VioBackEnd.cpp
+  src/OnlineGravityAlignment.cpp
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
   src/LoggerMatlab.cpp
