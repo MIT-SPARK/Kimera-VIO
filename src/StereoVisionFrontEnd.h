@@ -43,11 +43,9 @@ public:
 
 public:
   StereoVisionFrontEnd(
-      const ImuParams& imu_params,
-      const ImuBias& imu_initial_bias,
-      const VioFrontEndParams& trackerParams = VioFrontEndParams(),
-      int saveImages = 1,
-      const std::string& dataset_name = "",
+      const ImuParams &imu_params, const ImuBias &imu_initial_bias,
+      const VioFrontEndParams &trackerParams = VioFrontEndParams(),
+      int saveImages = 0, const std::string &dataset_name = "",
       bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
@@ -87,6 +85,23 @@ public:
     imu_frontend_->updateBias(imu_bias);
   }
 
+  /* ------------------------------------------------------------------------ */
+  // Update Imu Bias and reset pre-integration during initialization.
+  // This is not thread-safe! (no multi-thread during initialization)
+  inline void updateAndResetImuBias(const ImuBias &imu_bias) const {
+    imu_frontend_->updateBias(imu_bias);
+    imu_frontend_->resetIntegrationWithCachedBias();
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Force use of 3/5 point methods in initialization phase.
+  // This despite the parameter specified in the tracker
+  inline void forceFiveThreePointMethod(const bool force_flag) {
+    force_53point_ransac_ = force_flag;
+    LOG(WARNING) << "Forcing of 5/3 point method has been turned "
+                 << (force_53point_ransac_ ? "ON!!" : "OFF");
+  }
+
   /* ************************************************************************ */
   // NOT THREAD-SAFE METHODS
   /* ************************************************************************ */
@@ -111,11 +126,12 @@ public:
   // current keyframe (k) - STEREO RANSAC
   gtsam::Pose3 getRelativePoseBodyStereo() const;
 
-private:
+  // private: // TODO: Fix access to this function. Is this thread safe???
   /* ------------------------------------------------------------------------ */
   StereoFrontEndOutputPayload spinOnce(
       const std::shared_ptr<StereoFrontEndInputPayload>& input);
 
+private:
   /* ------------------------------------------------------------------------ */
   // Frontend main function.
   StatusSmartStereoMeasurements processStereoFrame(
@@ -186,6 +202,9 @@ private:
 
   // IMU frontend.
   std::unique_ptr<ImuFrontEnd> imu_frontend_;
+
+  // Used to force the use of 5/3 point ransac, despite parameters
+  std::atomic_bool force_53point_ransac_ = {false};
 
   // Debug flag.
   const int save_images_option_; // 0: don't show, 1: show, 2: write & save
