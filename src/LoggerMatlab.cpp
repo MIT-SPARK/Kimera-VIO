@@ -500,7 +500,6 @@ void LoggerMatlab::logPipelineOverallTiming(
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::displayInitialStateVioInfo(
-    const ETHDatasetParser& dataset,
     const std::unique_ptr<VIO::VioBackEnd>& vio, gtNavState initialStateGT,
     const ImuAccGyrS& imu_accgyr, const Timestamp timestamp_k) const {
   initialStateGT.print("initialStateGT\n");
@@ -533,10 +532,6 @@ void LoggerMatlab::displayInitialStateVioInfo(
   CHECK(vioRotError <= 1e-4 && vioTranError <= 1e-4)
       << "stereoVIOExample: wrong initialization (we currently initialize to "
          "ground truth)";
-
-  // For comparison: gt bias.
-  LOG(INFO) << " dataset.getGroundTruthState(timestamp_k): ";
-  dataset.getGroundTruthState(timestamp_k).print();
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

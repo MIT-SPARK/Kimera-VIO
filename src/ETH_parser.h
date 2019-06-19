@@ -9,7 +9,7 @@
 /**
  * @file   ETH_parser.h
  * @brief  Reads ETH's Euroc dataset.
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone, Chang
  */
 
 #ifndef ETH_parser_H_
@@ -26,85 +26,12 @@
 
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
-#include <gtsam/navigation/ImuBias.h>
 
 #include "Frame.h"
-#include "ImuFrontEnd.h"
-#include "VioFrontEndParams.h"
-#include "VioBackEndParams.h"
-#include "RegularVioBackEndParams.h"
 #include "StereoImuSyncPacket.h"
 #include "datasource/DataSource.h"
 
 namespace VIO {
-
-// TODO make new file for Ground Truth Data and the like,
-// because it is used by the backend and the feature selector.
-// Leaving it in the parser forces these modules to include a parser which is
-// at the very least weird.
-
-/*
- * Compact storage of state.
- */
-class gtNavState {
-public:
-  gtNavState() = default;
-  gtNavState(const gtsam::Pose3& pose,
-             const gtsam::Vector3& velocity,
-             const gtsam::imuBias::ConstantBias& imu_bias)
-    : pose_(pose),
-      velocity_(velocity),
-      imu_bias_(imu_bias) {}
-
-  gtsam::Pose3 pose_;
-  gtsam::Vector3 velocity_;
-  gtsam::imuBias::ConstantBias imu_bias_;
-
-  void print(const std::string message = " ") const {
-    if (VLOG_IS_ON(10)) {
-      LOG(INFO) << "--- " << message << "--- ";
-      pose_.print("\n pose: \n");
-      LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
-      imu_bias_.print("\n imuBias: \n");
-    }
-  }
-};
-
-/*
- * Store GT poses and GT info.
- */
-class GroundTruthData {
-public:
-  // Display all params.
-  void print() const;
-
-public:
-  // Sensor extrinsics wrt. the body-frame
-  gtsam::Pose3 body_Pose_cam_;
-
-  // Data rate in seconds, for debug.
-  double gt_rate_;
-
-  // Map from timestamp to gtNavState.
-  std::map<long long, gtNavState> mapToGt_;
-};
-
-/*
- * Store a list of image names and provide functionalities to parse them.
- */
-class CameraImageLists {
-public:
-  bool parseCamImgList(const std::string& folderpath,
-                       const std::string& filename);
-  inline size_t getNumImages() const {return img_lists.size();}
-  void print() const;
-
-public:
-  std::string image_folder_path_;
-  typedef std::vector<std::pair<long long, std::string> > ImgLists;
-  ImgLists img_lists;
-};
-
 /*
  * Parse all images and camera calibration for an ETH dataset.
  */
@@ -123,7 +50,6 @@ public:
 
   // IMU data.
   ImuData imuData_;
-  ImuParams imu_params_;
 
   /// Getters
   inline std::string getDatasetName() const {
@@ -150,8 +76,8 @@ public:
   }
 
 public:
-  // Spin dataset.
-  virtual bool spin();
+
+  bool spin();
 
   void spinOnce(const FrameId& k,
                 Timestamp& timestamp_last_frame,
@@ -162,9 +88,7 @@ public:
                 const gtsam::Pose3& camL_pose_camR);
 
   // Helper function to parse Euroc dataset.
-  void parse(size_t* initial_k, size_t* final_k,
-             VioBackEndParamsPtr vioParams,
-             VioFrontEndParams* trackerParams);
+  void parse(size_t initial_k, size_t final_k);
 
   // Parse camera, gt, and imu data if using different Euroc format.
   bool parseDataset(const std::string& input_dataset_path,
@@ -201,12 +125,6 @@ public:
   // Get timestamp of a given pair of stereo images (synchronized).
   Timestamp timestampAtFrame(const FrameId& frame_number);
 
-  // Getters for params. Right now just returns a copy, should be optimized?
-  inline VioBackEndParamsConstPtr getBackendParams() const {return backend_params_;}
-  inline VioFrontEndParams getFrontendParams() const {return frontend_params_;}
-  // TODO This info should be in backend_params_ itself...
-  int getBackendType() const;
-
   // Print info about dataset.
   void print() const;
 
@@ -217,11 +135,6 @@ public:
   Timestamp timestamp_first_lkf_;
 
 private:
-  // Helper function to parse user-specified parameters.
-  void parseParams(VioBackEndParamsPtr backend_params,
-                   VioFrontEndParams* tracker_params);
-
-
   // Parse cam0, cam1 of a given dataset.
   bool parseCameraData(const std::string& input_dataset_path,
                        const std::string& leftCameraName,
@@ -272,10 +185,6 @@ private:
 
 private:
   size_t initial_k_, final_k_; // initial and final frame: useful to skip a bunch of images at the
-
-  // Init Vio parameters.
-  VioBackEndParamsPtr backend_params_;
-  VioFrontEndParams frontend_params_;
 
   /// Images data.
   // This matches the names of the folders in the dataset

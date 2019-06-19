@@ -9,116 +9,24 @@
 /**
  * @file   ETH_parser.h
  * @brief  Reads ETH's Euroc dataset.
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone, Yun Chang
  */
 
 #include "ETH_parser.h"
-
-#include <gflags/gflags.h>
-
-DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
-              "Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).");
-DEFINE_string(vio_params_path, "", "Path to vio user-defined parameters.");
-DEFINE_string(tracker_params_path, "",
-              "Path to tracker user-defined parameters.");
-DEFINE_int32(backend_type, 0,
-             "Type of vioBackEnd to use:\n"
-             "0: VioBackEnd\n"
-             "1: RegularVioBackEnd");
-DEFINE_int32(initial_k, 50,
-             "Initial frame to start processing dataset, "
-             "previous frames will not be used.");
-DEFINE_int32(final_k, 10000,
-             "Final frame to finish processing dataset, "
-             "subsequent frames will not be used.");
 
 #include "ImuFrontEnd-definitions.h"
 #include "StereoFrame.h"
 
 namespace VIO {
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS CameraImageLists              //////////
-////////////////////////////////////////////////////////////////////////////////
-/* -------------------------------------------------------------------------- */
-bool CameraImageLists::parseCamImgList(const std::string& folderpath,
-                                       const std::string& filename) {
-  image_folder_path_ = folderpath;  // stored, only for debug
-  const std::string fullname = folderpath + "/" + filename;
-  std::ifstream fin(fullname.c_str());
-  LOG_IF(FATAL, !fin.is_open()) << "Cannot open file: " << fullname;
-
-  // Skip the first line, containing the header.
-  std::string item;
-  std::getline(fin, item);
-
-  // Read/store list of image names.
-  while (std::getline(fin, item)) {
-    // Print the item!
-    int idx = item.find_first_of(',');
-    Timestamp timestamp = std::stoll(item.substr(0, idx));
-    std::string imageFilename =
-        folderpath + "/data/" + item.substr(0, idx) + ".png";
-    // Strangely, on mac, it does not work if we use: item.substr(idx + 1);
-    // maybe different string termination characters???
-    img_lists.push_back(make_pair(timestamp, imageFilename));
-  }
-  fin.close();
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
-void CameraImageLists::print() const {
-  LOG(INFO) << "------------ CameraImageLists::print -------------\n"
-            << "image_folder_path: " << image_folder_path_ << '\n'
-            << "img_lists size: " << img_lists.size();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS GroundTruthData              ///////////
-////////////////////////////////////////////////////////////////////////////////
-/* -------------------------------------------------------------------------- */
-void GroundTruthData::print() const {
-  LOG(INFO) << "------------ GroundTruthData::print -------------";
-  body_Pose_cam_.print("body_Pose_cam_: \n");
-  LOG(INFO) << "\n gt_rate: " << gt_rate_ << '\n'
-            << "nr of gtStates: " << mapToGt_.size();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
-////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::ETHDatasetParser() : DataProvider(), imuData_() {
-  // TODO(Toni) this should be done in the backend.
-  setBackendParamsType(FLAGS_backend_type, &backend_params_);
-  parse(&initial_k_, &final_k_, backend_params_, &frontend_params_);
+  parse(initial_k_, final_k_);
 }
 
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::~ETHDatasetParser() {
   LOG(INFO) << "ETHDatasetParser destructor called.";
-}
-
-/* -------------------------------------------------------------------------- */
-void ETHDatasetParser::setBackendParamsType(
-    const int backend_type,
-    std::shared_ptr<VioBackEndParams>* vioParams) const {
-  CHECK_NOTNULL(vioParams);
-  switch (backend_type) {
-    case 0: {
-      *vioParams = std::make_shared<VioBackEndParams>();
-      break;
-    }
-    case 1: {
-      *vioParams = std::make_shared<RegularVioBackEndParams>();
-      break;
-    }
-    default: {
-      CHECK(false) << "Unrecognized backend type: " << backend_type << "."
-                   << " 0: normalVio, 1: RegularVio.";
-    }
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -206,94 +114,50 @@ void ETHDatasetParser::spinOnce(
 }
 
 /* -------------------------------------------------------------------------- */
-void ETHDatasetParser::parse(size_t* initial_k, size_t* final_k,
-                             VioBackEndParamsPtr backend_params,
-                             VioFrontEndParams* frontend_params) {
-  CHECK_NOTNULL(initial_k);
-  CHECK_NOTNULL(final_k);
-  CHECK(backend_params);
-  CHECK_NOTNULL(frontend_params);
+void ETHDatasetParser::parse(size_t initial_k, size_t final_k) {
+  CHECK_NOTNULL(&initial_k);
+  CHECK_NOTNULL(&final_k);
 
-  VLOG(100) << "Using dataset path: " << FLAGS_dataset_path;
+  VLOG(100) << "Using dataset path: " << dataset_path_;
   // Parse the dataset (ETH format).
   static const std::string leftCameraName = "cam0";
   static const std::string rightCameraName = "cam1";
   static const std::string imuName = "imu0";
   static const std::string gtSensorName = "state_groundtruth_estimate0";
-  parseDataset(FLAGS_dataset_path, leftCameraName, rightCameraName, imuName,
+  parseDataset(dataset_path_, leftCameraName, rightCameraName, imuName,
                gtSensorName);
   print();
 
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
-  *initial_k = FLAGS_initial_k;
-  CHECK_GE(*initial_k, 0);
-  CHECK_GE(*initial_k, 10)
+  CHECK_GE(initial_k, 0);
+  CHECK_GE(initial_k, 10)
       << "initial_k should be >= 10 for IMU bias initialization";
 
   // Finish processing dataset at frame final_k.
   // Last frame to process (to avoid processing the entire dataset),
   // skip last frames.
-  *final_k = FLAGS_final_k;
-  CHECK_GT(*final_k, 0);
+  CHECK_GT(final_k, 0);
 
   const size_t& nr_images = getNumImages();
-  if (*final_k > nr_images) {
-    LOG(WARNING) << "Value for final_k, " << *final_k << " is larger than total"
+  if (final_k > nr_images) {
+    LOG(WARNING) << "Value for final_k, " << final_k << " is larger than total"
                  << " number of frames in dataset " << nr_images;
     // Skip last frames which are typically problematic
     // (IMU bumps, FOV occluded)...
     static constexpr size_t skip_n_end_frames = 100;
-    *final_k = nr_images - skip_n_end_frames;
-    LOG(WARNING) << "Using final_k = " << *final_k << ", where we removed "
+    final_k = nr_images - skip_n_end_frames;
+    LOG(WARNING) << "Using final_k = " << final_k << ", where we removed "
                  << skip_n_end_frames << " frames to avoid bad IMU readings.";
   }
-  CHECK(*final_k > *initial_k)
-      << "Value for final_k (" << *final_k << ") is smaller than value for"
-      << " initial_k (" << *initial_k << ").";
+  CHECK(final_k > initial_k)
+      << "Value for final_k (" << final_k << ") is smaller than value for"
+      << " initial_k (" << initial_k << ").";
 
-  LOG(INFO) << "Running dataset between frame " << *initial_k << " and frame "
-            << *final_k;
+  LOG(INFO) << "Running dataset between frame " << initial_k << " and frame "
+            << final_k;
 
-  // Parse parameters. TODO(Toni) the parameters parser should be separate from
-  // the actual dataset provider!!
-  parseParams(backend_params, frontend_params);
-}
-
-/* -------------------------------------------------------------------------- */
-void ETHDatasetParser::parseParams(VioBackEndParamsPtr backend_params,
-                                   VioFrontEndParams* trackerParams) {
-  CHECK(backend_params);
-  CHECK_NOTNULL(trackerParams);
-
-  // Read/define vio params.
-  if (FLAGS_vio_params_path.empty()) {
-    VLOG(100) << "No vio parameters specified, using default.";
-    // Default params with IMU stats from dataset.
-    backend_params->gyroNoiseDensity_ = imu_params_.gyro_noise_;
-    backend_params->accNoiseDensity_ = imu_params_.acc_noise_;
-    backend_params->gyroBiasSigma_ = imu_params_.gyro_walk_;
-    backend_params->accBiasSigma_ = imu_params_.acc_walk_;
-  } else {
-    VLOG(100) << "Using user-specified VIO parameters: "
-              << FLAGS_vio_params_path;
-    backend_params->parseYAML(FLAGS_vio_params_path);
-  }
-  // TODO(Toni) make this cleaner! imu_params_ are parsed all around, it's a
-  // mess!! They are basically parsed from backend params... but they should be
-  // on their own mostly.
-  imu_params_.imu_integration_sigma_ = backend_params->imuIntegrationSigma_;
-  imu_params_.n_gravity_ = backend_params->n_gravity_;
-
-  // Read/define tracker params.
-  if (FLAGS_tracker_params_path.empty()) {
-    VLOG(100) << "No tracker parameters specified, using default";
-    *trackerParams = VioFrontEndParams();  // default params
-  } else {
-    VLOG(100) << "Using user-specified tracker parameters: "
-              << FLAGS_tracker_params_path;
-    trackerParams->parseYAML(FLAGS_tracker_params_path);
-  }
+  parseParams();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -737,9 +601,6 @@ std::pair<double, double> ETHDatasetParser::computePoseErrors(
 Timestamp ETHDatasetParser::timestampAtFrame(const FrameId& frame_number) {
   return camera_image_lists_[camera_names_[0]].img_lists[frame_number].first;
 }
-
-/* -------------------------------------------------------------------------- */
-int ETHDatasetParser::getBackendType() const { return FLAGS_backend_type; }
 
 /* -------------------------------------------------------------------------- */
 void ETHDatasetParser::print() const {

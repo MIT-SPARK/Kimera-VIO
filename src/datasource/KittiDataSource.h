@@ -9,7 +9,7 @@
 /**
  * @file   KittiDataSource.h
  * @brief  Kitti dataset parser.
- * @author Antoni Rosinol
+ * @author Antoni Rosinol, Yun Chang
  */
 
 #pragma once
@@ -17,26 +17,22 @@
 #include <functional>
 #include <string>
 
-#include "ImuFrontEnd.h"
 #include "StereoImuSyncPacket.h"
-#include "VioFrontEndParams.h"
 #include "datasource/DataSource.h"
 
 namespace VIO {
 
 class KittiDataProvider : public DataProvider {
  public:
-  KittiDataProvider(const std::string& kitti_dataset_path);
+  KittiDataProvider();
   virtual ~KittiDataProvider();
-  virtual bool spin();
 
-  inline ImuParams getImuParams() const { return kitti_data_.imuParams_; }
+  bool spin();
 
  private:
   struct KittiData {
     inline size_t getNumberOfImages() const { return left_img_names_.size(); }
 
-    size_t initial_k_, final_k_;  // useful for skipping image frames
     // also since sometimes don't have enough imu measurements for first few
     // frames This matches the names of the folders in the dataset
     std::string left_camera_name_;
@@ -52,8 +48,6 @@ class KittiDataProvider : public DataProvider {
     std::vector<std::string> right_img_names_;
     // Vector of timestamps see issue in .cpp file
     std::vector<Timestamp> timestamps_;
-    // IMU params
-    ImuParams imuParams_;
     // IMU data
     ImuData imuData_;
     // Sanity check to ensure data is correctly parsed
@@ -88,7 +82,6 @@ class KittiDataProvider : public DataProvider {
 
  private:
   std::string dataset_path_;
-  VioFrontEndParams frontend_params_;  // NOTE what to do with this?
   KittiData kitti_data_;
 };
 

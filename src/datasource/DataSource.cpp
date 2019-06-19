@@ -13,7 +13,80 @@
  */
 #include "datasource/DataSource.h"
 
+DEFINE_string(vio_params_path, "", "Path to vio user-defined parameters.");
+DEFINE_string(tracker_params_path, "",
+              "Path to tracker user-defined parameters.");
+DEFINE_int32(backend_type, 0,
+             "Type of vioBackEnd to use:\n"
+             "0: VioBackEnd\n"
+             "1: RegularVioBackEnd");
+
+DEFINE_int32(initial_k, 50,
+             "Initial frame to start processing dataset, "
+             "previous frames will not be used.");
+DEFINE_int32(final_k, 10000,
+             "Final frame to finish processing dataset, "
+             "subsequent frames will not be used.");
+DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
+              "Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).");
+
 namespace VIO {
+
+////////////////////////////////////////////////////////////////////////////////
+//////////////// FUNCTIONS OF THE CLASS CameraImageLists              //////////
+////////////////////////////////////////////////////////////////////////////////
+/* -------------------------------------------------------------------------- */
+bool CameraImageLists::parseCamImgList(const std::string& folderpath,
+                                       const std::string& filename) {
+  image_folder_path_ = folderpath;  // stored, only for debug
+  const std::string fullname = folderpath + "/" + filename;
+  std::ifstream fin(fullname.c_str());
+  LOG_IF(FATAL, !fin.is_open()) << "Cannot open file: " << fullname;
+
+  // Skip the first line, containing the header.
+  std::string item;
+  std::getline(fin, item);
+
+  // Read/store list of image names.
+  while (std::getline(fin, item)) {
+    // Print the item!
+    int idx = item.find_first_of(',');
+    Timestamp timestamp = std::stoll(item.substr(0, idx));
+    std::string imageFilename =
+        folderpath + "/data/" + item.substr(0, idx) + ".png";
+    // Strangely, on mac, it does not work if we use: item.substr(idx + 1);
+    // maybe different string termination characters???
+    img_lists.push_back(make_pair(timestamp, imageFilename));
+  }
+  fin.close();
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+void CameraImageLists::print() const {
+  LOG(INFO) << "------------ CameraImageLists::print -------------\n"
+            << "image_folder_path: " << image_folder_path_ << '\n'
+            << "img_lists size: " << img_lists.size();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//////////////// FUNCTIONS OF THE CLASS GroundTruthData              ///////////
+////////////////////////////////////////////////////////////////////////////////
+/* -------------------------------------------------------------------------- */
+void GroundTruthData::print() const {
+  LOG(INFO) << "------------ GroundTruthData::print -------------";
+  body_Pose_cam_.print("body_Pose_cam_: \n");
+  LOG(INFO) << "\n gt_rate: " << gt_rate_ << '\n'
+            << "nr of gtStates: " << mapToGt_.size();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//////////////// FUNCTIONS OF THE CLASS DataProvider                  //////////
+////////////////////////////////////////////////////////////////////////////////
+DataProvider::DataProvider() :
+    initial_k_(FLAGS_initial_k),
+    final_k_(FLAGS_final_k),
+    dataset_path_(FLAGS_dataset_path) {}
 
 DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";
@@ -45,6 +118,64 @@ bool DataProvider::spin() {
   // 3) Once the dataset spin has finished, exit.
   // You can return false if something went wrong.
   return true;
+}
+
+/* -------------------------------------------------------------------------- */
+void DataProvider::parseParams() {
+
+  CHECK(backend_params_);
+  CHECK_NOTNULL(&frontend_params_);
+
+  switch (FLAGS_backend_type) {
+    case 0: {
+      backend_params_ = std::make_shared<VioBackEndParams>();
+      break;
+    }
+    case 1: {
+      backend_params_ = std::make_shared<RegularVioBackEndParams>();
+      break;
+    }
+    default: {
+      CHECK(false) << "Unrecognized backend type: " << FLAGS_backend_type << "."
+                   << " 0: normalVio, 1: RegularVio.";
+    }
+  }
+  // Read/define vio params.
+  if (FLAGS_vio_params_path.empty()) {
+    VLOG(100) << "No vio parameters specified, using default.";
+    // Default params with IMU stats from dataset.
+    backend_params_->gyroNoiseDensity_ = imu_params_.gyro_noise_;
+    backend_params_->accNoiseDensity_ = imu_params_.acc_noise_;
+    backend_params_->gyroBiasSigma_ = imu_params_.gyro_walk_;
+    backend_params_->accBiasSigma_ = imu_params_.acc_walk_;
+  } else {
+    VLOG(100) << "Using user-specified VIO parameters: "
+              << FLAGS_vio_params_path;
+    backend_params_->parseYAML(FLAGS_vio_params_path);
+  }
+  // TODO(Toni) make this cleaner! imu_params_ are parsed all around, it's a
+  // mess!! They are basically parsed from backend params... but they should be
+  // on their own mostly.
+  imu_params_.imu_integration_sigma_ = backend_params_->imuIntegrationSigma_;
+  imu_params_.n_gravity_ = backend_params_->n_gravity_;
+
+  // Read/define tracker params.
+  if (FLAGS_tracker_params_path.empty()) {
+    VLOG(100) << "No tracker parameters specified, using default";
+    frontend_params_ = VioFrontEndParams();  // default params
+  } else {
+    VLOG(100) << "Using user-specified tracker parameters: "
+              << FLAGS_tracker_params_path;
+    frontend_params_.parseYAML(FLAGS_tracker_params_path);
+  }
+}
+
+PipelineParams DataProvider::getParams() {
+  PipelineParams pp; 
+  pp.backend_params_ = getBackendParams();
+  pp.frontend_params_ = getFrontendParams();
+  pp.imu_params_ = getImuParams();
+  pp.backend_type_ = FLAGS_backend_type;
 }
 
 }  // namespace VIO

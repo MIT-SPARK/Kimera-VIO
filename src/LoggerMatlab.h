@@ -99,8 +99,7 @@ public:
   void logPipelineOverallTiming(const std::chrono::milliseconds& duration);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void displayInitialStateVioInfo(const ETHDatasetParser& dataset,
-                                  const std::unique_ptr<VioBackEnd>& vio,
+  void displayInitialStateVioInfo(const std::unique_ptr<VioBackEnd>& vio,
                                   gtNavState initialStateGT,
                                   const ImuAccGyrS& imu_accgyr,
                                   const Timestamp timestamp_k) const;
