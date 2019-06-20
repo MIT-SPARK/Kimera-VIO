@@ -16,7 +16,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <random>
-#include "ETH_parser.h"  // only for gtNavState...
+#include "datasource/DataSource.h"  // only for gtNavState...
 #include "VioBackEnd.h"
 #include "test_config.h"
 #include "utils/ThreadsafeImuBuffer.h"
