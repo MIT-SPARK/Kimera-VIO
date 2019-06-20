@@ -70,7 +70,7 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
 
-DEFINE_int32(numb_frames_oga, 30,
+DEFINE_int32(numb_frames_oga, 15,
              "Minimum number of frames for the online "
              "gravity-aligned initialization");
 DEFINE_int32(initialization_mode, 1,
@@ -627,6 +627,9 @@ bool Pipeline::initializeOnline(
         vio_frontend_->processFirstStereoFrame(
             stereo_imu_sync_init.getStereoFrame());
 
+    // Get timestamp for bookkeeping
+    timestamp_lkf_ = stereo_imu_sync_init.getStereoFrame().getTimestamp();
+
     return false;
 
     /////////////////// FRONTEND
@@ -657,7 +660,9 @@ bool Pipeline::initializeOnline(
       inputs_backend.clear();
       // Inputs for online gravity alignment
       std::vector<gtsam::PreintegratedImuMeasurements> pims;
+      std::vector<double> delta_t_camera;
       pims.clear();
+      delta_t_camera.clear();
       for (int i = 0; i < output_frontend.size(); i++) {
         VLOG(10) << "Frame "
                  << output_frontend.at(i)->stereo_frame_lkf_.getFrameId()
@@ -674,6 +679,11 @@ bool Pipeline::initializeOnline(
                 output_frontend.at(i)->relative_pose_body_stereo_, &planes_));
         inputs_backend.push_back(input_backend);
         pims.push_back(output_frontend.at(i)->pim_);
+        Timestamp timestamp_kf = 
+                output_frontend.at(i)->stereo_frame_lkf_.getTimestamp();
+        delta_t_camera.push_back(UtilsOpenCV::NsecToSec(
+                        timestamp_kf - timestamp_lkf_));
+        timestamp_lkf_ = timestamp_kf;
       }
       VLOG(10) << "Online gravity alignment vector size: "
                << output_frontend.size();
@@ -705,8 +715,10 @@ bool Pipeline::initializeOnline(
       // TODO: This is where the actual initialization takes place
       gtsam::Vector3 g_world(0, 0, 9.81);
       GyroBias gyro_bias = gtsam::Vector3(0, 0, 0);
-      OnlineGravityAlignment initial_alignment(estimated_poses, pims, g_world,
-                                               &gyro_bias);
+      OnlineGravityAlignment initial_alignment(estimated_poses, 
+                                              delta_t_camera,
+                                              pims, g_world,
+                                              &gyro_bias);
       initial_alignment.alignVisualInertialEstimates();
       // TODO: Careful, this is just a dummy to test the implementation
 
@@ -922,7 +934,8 @@ void Pipeline::processKeyframePop() {
   while(!shutdown_) {
     const auto &stereo_frontend_output_payload_vector =
         stereo_frontend_output_queue_.batchPopBlocking();
-    // TODO(Sandro): Adapt this!!
+    // TODO(Sandro): Adapt this!! 
+    // We should also be able to batch process for the backend
     // Either just popBlocking or adapt processKeyframe for multiple
     if (stereo_frontend_output_payload_vector.size() != 1) {
       LOG(INFO) << "Queue output vector size: 1";

@@ -18,19 +18,9 @@
 
 #include "utils/Timer.h"
 
-#include "src/OnlineGravityAlignment.h"
+#include "OnlineGravityAlignment.h"
 
 namespace VIO {
-
-/* -------------------------------------------------------------------------- */
-OnlineGravityAlignment::OnlineGravityAlignment(
-    const AlignmentPoses &estimated_body_poses, const AlignmentPims &pims,
-    const gtsam::Vector3 &g_world, GyroBias *gyro_bias)
-    : estimated_body_poses_(estimated_body_poses), pims_(pims),
-      g_world_(g_world), gyro_bias_(*gyro_bias) {
-  // Initial log
-  LOG(INFO) << "Online Gravity Alignment constructed.\n";
-}
 
 /* -------------------------------------------------------------------------- */
 // TODO(Sandro): Adapt description
@@ -38,12 +28,27 @@ OnlineGravityAlignment::OnlineGravityAlignment(
 // [in] timestamp_kf_nsec, keyframe timestamp.
 // [in] status_smart_stereo_measurements_kf, vision data.
 // [in] stereo_ransac_body_pose, inertial data.
+OnlineGravityAlignment::OnlineGravityAlignment(
+    const AlignmentPoses &estimated_body_poses, 
+    const std::vector<double> &delta_t_camera,
+    const AlignmentPims &pims,
+    const gtsam::Vector3 &g_world, GyroBias *gyro_bias)
+    : estimated_body_poses_(estimated_body_poses),
+      delta_t_camera_(delta_t_camera), pims_(pims),
+      g_world_(g_world), gyro_bias_(*gyro_bias) {
+  // Initial log
+  LOG(INFO) << "Online Gravity Alignment constructor called.\n";
+}
+
+/* -------------------------------------------------------------------------- */
+// TODO(Sandro): Adapt description
+// Adding of states for bundle adjustment used in initialization.
 bool OnlineGravityAlignment::alignVisualInertialEstimates() {
   VLOG(5) << "Online gravity alignment called.";
 
   // TODO(Sandro): Need to get pre-integration without gravity!!!!!!
   AlignmentFrames frames;
-  constructFrames(estimated_body_poses_, pims_, &frames);
+  constructFrames(estimated_body_poses_, delta_t_camera_, pims_, &frames);
 
   // Estimate gyroscope bias
   CHECK(estimateGyroscopeBias(frames, pims_, &gyro_bias_));
@@ -63,11 +68,51 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates() {
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO(Sandro): Adapt description
-// Adding of states for bundle adjustment used in initialization.
-// [in] timestamp_kf_nsec, keyframe timestamp.
-// [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
+// This function creates the frame objects used in the alignment.
+// It populates the camera poses and delta pre-integrations.
+// [in] vector of estimated camera poses from Bundle-Adjustment.
+// [in] vector of delta_t in camera frames.
+// [in] vector of pre-integrations from visual-frontend.
+// [out] vector of frames used for initial alignment.
+void OnlineGravityAlignment::constructFrames(
+    const AlignmentPoses &estimated_body_poses, 
+    const std::vector<double> &delta_t_camera,
+    const AlignmentPims &pims, AlignmentFrames *frames) {
+
+  CHECK_EQ(estimated_body_poses.size()-1, delta_t_camera.size());
+  CHECK_EQ(delta_t_camera.size(), pims.size());
+  frames->clear();
+
+  // Create initialization frames
+  for (int i = 0; i < pims.size(); i++) {
+    // Get bk_gamma_bkp1, bk_alpha_bkp1, bk_beta_bkp1
+    // pim.deltaXij() corresponds to bodyLkf_X_bodyK_imu
+    gtsam::NavState delta_state(pims.at(i).deltaXij());
+    // Get delta_time = t_kp1-t_k
+    const double delta_t_pim = pims.at(i).deltaTij();
+
+    VLOG(5) << "Delta t pim:\n"
+            << delta_t_pim
+            << "Delta R pim:\n"
+            << delta_state.pose().rotation();
+
+    // Create frame with current pose: v0_T_bkp1
+    // and previous frame pose: v0_T_bk
+    AlignmentFrame frame_i(estimated_body_poses.at(i + 1),
+                           estimated_body_poses.at(i),
+                           delta_t_camera.at(i),
+                           delta_state, delta_t_pim);
+    frames->push_back(frame_i);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+// Estimate gyroscope bias by minimizing square of rotation error
+// between the pre-integrated rotation constraint between frames
+// and the estimated rotation between frames from Bundle-Adjustment
+// [in] frames containing pim constraints and body poses
+// [in] pre-integrations for all frames
+// [out] estimated delta for gyroscope bias
 bool OnlineGravityAlignment::estimateGyroscopeBias(
     const AlignmentFrames &frames, const AlignmentPims &pims,
     GyroBias *gyro_bias) {
@@ -82,50 +127,42 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
 
   // Loop through all initialization frames
   for (int i = 0; i < frames.size(); i++) {
-    // Compute relative quaternion rotation from visual
-    gtsam::Matrix v_R_bkm1 = frames.at(i).prev_R_mat();
-    gtsam::Matrix v_R_bk = frames.at(i).R_mat();
-    gtsam::Rot3 bkm1_R_bk(v_R_bkm1.transpose() * v_R_bk);
-    gtsam::Quaternion bkm1_q_bk(bkm1_R_bk.matrix());
+    // Compute relative rotation matrix from visual estimate
+    gtsam::Matrix v_R_bk = frames.at(i).prev_R_mat();
+    gtsam::Matrix v_R_bkp1 = frames.at(i).curr_R_mat();
+    gtsam::Rot3 bk_R_bkp1(v_R_bk.transpose() * v_R_bkp1);
 
-    // Compute relative quaternion rotation from pim
-    // pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
-    // gtsam::Rot3 bkm1_gamma_bk(frames.at(i).delta_R_mat());
     // TODO(Sandro): Fix issue with frames accessing
-    gtsam::Rot3 bkm1_gamma_bk(pims.at(i).deltaXij().pose().rotation());
-    gtsam::Quaternion bkm1_delta_q_bk(bkm1_gamma_bk.matrix());
+    // Get relative rotation matrix from pre-integrated estimate
+    gtsam::Rot3 bk_gamma_bkp1(pims.at(i).deltaRij());
 
-    // Get pre-integration Jacobian wrt. gyro_bias
-    gtsam::Matrix pims_jacobian = pims.at(i).preintegrated_H_biasOmega();
+    // Compute rotation error between pre-integrated and visual estimates
+    gtsam::Rot3 bkp1_error_bkp1(bk_gamma_bkp1.transpose()*bk_R_bkp1.matrix());
 
-    // Setup linear equation system for one observation of delta_bg
-    // tmp_A*delta_bg = tmp_b for all measurements
-    gtsam::Matrix3 tmp_A = gtsam::sub(pims_jacobian, 0, 3, 0, 3);
-    gtsam::Quaternion rot_error(bkm1_delta_q_bk.inverse() * bkm1_q_bk);
-    // TODO(Sandro): Do we need this?
-    rot_error.normalized();
-    // TODO(Sandro): Is vec() correct? Check with Luca
-    // Option 1:
-    // gtsam::Vector3 tmp_b = 2 * rot_error.vec();
-    // Option 2:
-    gtsam::Vector3 tmp_b =
-        gtsam::Rot3::Logmap(gtsam::Rot3(rot_error.toRotationMatrix()));
+    // Compute rotation error in canonical coordinates (dR_bkp1)
+    gtsam::Vector3 dR = gtsam::Rot3::Logmap(bkp1_error_bkp1);
 
-    // Average through all measurements
-    A += tmp_A.transpose() * tmp_A;
-    b += tmp_A.transpose() * tmp_b;
+    // Get pre-integration Jacobian wrt. gyro_bias (dPIM = J * dbg)
+    gtsam::Matrix dbg_J_dPIM = pims.at(i).preintegrated_H_biasOmega();
+
+    // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
+    gtsam::Matrix3 dbg_J_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
 
     // Logging of variables
     VLOG(5) << "Gyro bias estimation: frame " << (i + 1)
-            << "\ncamera delta_R_ij: \n"
-            << bkm1_R_bk << "\npim delta_R_ij: \n"
-            << bkm1_gamma_bk << "\nrelative rotation error: \n"
-            << rot_error.toRotationMatrix() << "\ndR rotatio error: \n"
-            << tmp_b << "\nsub-jacobian (tmp_A): \n"
-            << tmp_A << "\nrotation error (temp_b): \n"
-            << tmp_b;
-
-    VLOG(5) << "NavState: frame " << (i + 1) << frames.at(i).navstate();
+            << "\ndelta t camera: (s)\n" << frames.at(i).camera_dt()
+            << "\ndelta t pim: (s)\n" << frames.at(i).pim_dt()
+            << "\ndelta t pim: (s)\n" << pims.at(i).deltaTij()
+            << "\ncamera bk_R_bkp1:\n"
+            << bk_R_bkp1 << "\npim bk_gamma_bkp1:\n"
+            << bk_gamma_bkp1 << "\nbk_error_bk (rotation):\n"
+            << bkp1_error_bkp1 << "\ndR_bkp1:\n"
+            << dR << "\ndR_bkp1/dbg_bkp1 Jacobian (tmp_A):\n"
+            << dbg_J_dR;
+    
+    // Formulate Least Squares problem for all measurements
+    A += dbg_J_dR.transpose() * dbg_J_dR;
+    b += dbg_J_dR.transpose() * dR;
   }
 
   /////////////////// SOLVE EQUATION SYSTEM /////////////////////////////
@@ -180,12 +217,12 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
 
     // Variables from pre-integration and bundle-adjustment
     // TODO(Sandro): Check conventions!!!
-    double dt = frames.at(i).dt();
+    double dt = frames.at(i).pim_dt();
     gtsam::Matrix bk_R_v = frames.at(i).prev_R_mat().transpose();
     gtsam::Vector bk_alpha_bkp1 =
         frames.at(i).delta_p();                   // TODO(Sandro): Inverse???
     gtsam::Vector v_p_bk = frames.at(i).prev_p(); // TODO(Sandro): Inverse???
-    gtsam::Vector v_p_bkp1 = frames.at(i).p();    // TODO(Sandro): Inverse???
+    gtsam::Vector v_p_bkp1 = frames.at(i).curr_p();    // TODO(Sandro): Inverse???
     gtsam::Vector bk_beta_bkp1 =
         frames.at(i).delta_v(); // TODO(Sandro): Inverse???
 
@@ -264,28 +301,6 @@ void OnlineGravityAlignment::refineGravity(const AlignmentFrames &frames,
 
   // gtsam::Matrix tangent_basis = createTangentBasis(g_iter);
   VLOG(5) << "Gravity vector refined.";
-}
-
-/* -------------------------------------------------------------------------- */
-// TODO(Sandro): Adapt description
-// Adding of states for bundle adjustment used in initialization.
-// [in] timestamp_kf_nsec, keyframe timestamp.
-// [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
-void OnlineGravityAlignment::constructFrames(
-    const AlignmentPoses &estimated_body_poses, const AlignmentPims &pims,
-    AlignmentFrames *frames) {
-
-  frames->clear();
-
-  // Create initialization frames
-  for (int i = 0; i < pims.size(); i++) {
-    gtsam::NavState delta_state(pims.at(i).deltaXij());
-    const double delta_time = pims.at(i).deltaTij();
-    AlignmentFrame frame_i(estimated_body_poses.at(i + 1),
-                           estimated_body_poses.at(i), delta_state, delta_time);
-    frames->push_back(frame_i);
-  }
 }
 
 /* -------------------------------------------------------------------------- */

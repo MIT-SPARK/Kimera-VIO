@@ -34,23 +34,29 @@ class AlignmentFrame {
 public:
   AlignmentFrame(const gtsam::Pose3 &current_body_pose,
                  const gtsam::Pose3 &previous_body_pose,
-                 gtsam::NavState &delta_state, const double &delta_time)
+                 const double &delta_time_camera,
+                 gtsam::NavState &delta_state, 
+                 const double &delta_time_pim)
       : current_body_pose_(current_body_pose),
-        previous_body_pose_(previous_body_pose), delta_state_(delta_state),
-        delta_time_(delta_time){};
+        previous_body_pose_(previous_body_pose),
+        delta_time_camera_(delta_time_camera), 
+        delta_state_(delta_state),
+        delta_time_pim_(delta_time_pim){};
 
   ~AlignmentFrame() = default;
 
 public:
   /* ------------------------------------------------------------------------ */
-  inline double dt() const { return delta_time_; }
+  inline double camera_dt() const { return delta_time_camera_; }
   /* ------------------------------------------------------------------------ */
-  inline gtsam::Matrix R_mat() const {
+  inline double pim_dt() const { return delta_time_pim_; }
+  /* ------------------------------------------------------------------------ */
+  inline gtsam::Matrix curr_R_mat() const {
     return current_body_pose_.rotation().matrix();
   }
 
   /* ------------------------------------------------------------------------ */
-  inline gtsam::Vector p() const { return current_body_pose_.translation(); }
+  inline gtsam::Vector curr_p() const { return current_body_pose_.translation(); }
 
   /* ------------------------------------------------------------------------ */
   inline gtsam::Matrix prev_R_mat() const {
@@ -87,7 +93,8 @@ private:
   const gtsam::Pose3 &current_body_pose_;
   const gtsam::Pose3 &previous_body_pose_;
   gtsam::NavState &delta_state_;
-  const double &delta_time_;
+  const double &delta_time_camera_;
+  const double &delta_time_pim_;
 };
 
 typedef std::vector<gtsam::Pose3> AlignmentPoses;
@@ -100,6 +107,7 @@ class OnlineGravityAlignment {
 public:
   /* ------------------------------------------------------------------------ */
   OnlineGravityAlignment(const AlignmentPoses &estimated_body_poses,
+                         const std::vector<double> &delta_t_camera,
                          const AlignmentPims &pims,
                          const gtsam::Vector3 &g_world, GyroBias *gyro_bias);
 
@@ -113,6 +121,7 @@ public:
 private:
   /* ------------------------------------------------------------------------ */
   void constructFrames(const AlignmentPoses &estimated_body_poses,
+                       const std::vector<double> &delta_t_camera,
                        const AlignmentPims &pims, AlignmentFrames *frames);
 
   /* ------------------------------------------------------------------------ */
@@ -138,6 +147,7 @@ private:
 private:
   const AlignmentPims &pims_;
   const AlignmentPoses &estimated_body_poses_;
+  const std::vector<double> &delta_t_camera_;
   const gtsam::Vector3 &g_world_;
   GyroBias &gyro_bias_;
 };
