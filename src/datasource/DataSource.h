@@ -167,6 +167,14 @@ struct PipelineParams {
   VioBackEndParamsConstPtr backend_params_;
   ImuParams imu_params_;
   int backend_type_;
+  PipelineParams(VioFrontEndParams frontend_params, 
+                 VioBackEndParamsConstPtr backend_params,
+                 ImuParams imu_params, 
+                 int backend_type) : 
+    frontend_params_(frontend_params),
+    backend_params_(backend_params),
+    imu_params_(imu_params),
+    backend_type_(backend_type) {}
 };
 
 class DataProvider {
@@ -180,7 +188,7 @@ class DataProvider {
   // for the VIO pipeline to do one processing iteration.
   // A Dummy example is provided as an implementation.
   virtual bool spin();
-  PipelineParams getParams();
+  const PipelineParams getParams();
 
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.

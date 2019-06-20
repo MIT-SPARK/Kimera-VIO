@@ -411,16 +411,15 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
                                     const std::string& imuName,
                                     const std::string& gtSensorName,
                                     bool doParseImages) {
-  dataset_path_ = input_dataset_path;
-  parseCameraData(dataset_path_, leftCameraName, rightCameraName,
+  parseCameraData(input_dataset_path, leftCameraName, rightCameraName,
                   doParseImages);
-  CHECK(parseImuParams(dataset_path_, imuName));
-  parseImuData(dataset_path_, imuName);
-  is_gt_available_ = parseGTdata(dataset_path_, gtSensorName);
+  CHECK(parseImuParams(input_dataset_path, imuName));
+  parseImuData(input_dataset_path, imuName);
+  is_gt_available_ = parseGTdata(input_dataset_path, gtSensorName);
 
   // Find and store actual name (rather than path) of the dataset.
-  std::size_t foundLastSlash = dataset_path_.find_last_of("/\\");
-  std::string dataset_path_tmp = dataset_path_;
+  std::size_t foundLastSlash = input_dataset_path.find_last_of("/\\");
+  std::string dataset_path_tmp = input_dataset_path;
   dataset_name_ = dataset_path_tmp.substr(foundLastSlash + 1);
   if (foundLastSlash >=
       dataset_path_tmp.size() -

@@ -115,6 +115,8 @@ Pipeline::Pipeline(const PipelineParams& params,
     feature_selector_ =
         FeatureSelector(frontend_params_, *backend_params_);
   }
+  std::cout << "PARAMS BACKEDN TYPE: " << params.backend_type_ << std::endl; 
+  std::cout << "BACKEND TYPE: " << backend_type_ << std::endl; 
 }
 
 /* -------------------------------------------------------------------------- */

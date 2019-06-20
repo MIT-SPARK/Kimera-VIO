@@ -40,11 +40,6 @@ public:
   ETHDatasetParser();
   virtual ~ETHDatasetParser();
 
-  // Decides backend parameters depending on the backend chosen.
-  // 0: Vanilla VIO 1: regularVIO
-  void setBackendParamsType(const int backend_type,
-                            std::shared_ptr<VioBackEndParams>* vioParams) const;
-
   // Gt data.
   GroundTruthData gtData_;
 
@@ -184,8 +179,6 @@ private:
       const CameraParams& left_cam_info) const;
 
 private:
-  size_t initial_k_, final_k_; // initial and final frame: useful to skip a bunch of images at the
-
   /// Images data.
   // This matches the names of the folders in the dataset
   std::vector<std::string> camera_names_;
@@ -197,7 +190,6 @@ private:
   gtsam::Pose3 camL_Pose_camR_;
 
   bool is_gt_available_;
-  std::string dataset_path_;
   std::string dataset_name_;
 };
 

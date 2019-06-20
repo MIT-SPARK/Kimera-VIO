@@ -122,10 +122,6 @@ bool DataProvider::spin() {
 
 /* -------------------------------------------------------------------------- */
 void DataProvider::parseParams() {
-
-  CHECK(backend_params_);
-  CHECK_NOTNULL(&frontend_params_);
-
   switch (FLAGS_backend_type) {
     case 0: {
       backend_params_ = std::make_shared<VioBackEndParams>();
@@ -168,14 +164,17 @@ void DataProvider::parseParams() {
               << FLAGS_tracker_params_path;
     frontend_params_.parseYAML(FLAGS_tracker_params_path);
   }
+
+  CHECK(backend_params_);
+  CHECK_NOTNULL(&frontend_params_);
 }
 
-PipelineParams DataProvider::getParams() {
-  PipelineParams pp; 
-  pp.backend_params_ = getBackendParams();
-  pp.frontend_params_ = getFrontendParams();
-  pp.imu_params_ = getImuParams();
-  pp.backend_type_ = FLAGS_backend_type;
+const PipelineParams DataProvider::getParams() {
+  PipelineParams pp(getFrontendParams(),
+                    getBackendParams(),
+                    getImuParams(),
+                    FLAGS_backend_type);
+  return pp; 
 }
 
 }  // namespace VIO

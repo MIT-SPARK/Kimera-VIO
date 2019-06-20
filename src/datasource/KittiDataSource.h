@@ -81,7 +81,6 @@ class KittiDataProvider : public DataProvider {
   void print() const;
 
  private:
-  std::string dataset_path_;
   KittiData kitti_data_;
 };
 

@@ -27,7 +27,6 @@
 #include "StereoImuSyncPacket.h"
 
 DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
-DEFINE_string(data_provider, "EuRoC", "dataset type.");
 DEFINE_int32(dataset_type, 0,
              "Type of parser to use:\n"
              "0: EuRoC\n"
