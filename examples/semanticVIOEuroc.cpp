@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "ETH_parser.h"
+#include "datasource/ETH_parser.h"
 #include "LoggerMatlab.h"
 #include "pipeline/Pipeline.h"
 #include "utils/Timer.h"

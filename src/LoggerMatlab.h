@@ -20,7 +20,7 @@
 #include <fstream>
 #include <stdlib.h>
 
-#include "ETH_parser.h"
+#include "datasource/ETH_parser.h"
 #include "VioBackEnd.h"
 
 namespace VIO {

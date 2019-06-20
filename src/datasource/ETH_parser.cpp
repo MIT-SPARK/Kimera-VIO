@@ -12,7 +12,7 @@
  * @author Antoni Rosinol, Luca Carlone, Yun Chang
  */
 
-#include "ETH_parser.h"
+#include "datasource/ETH_parser.h"
 
 #include "ImuFrontEnd-definitions.h"
 #include "StereoFrame.h"

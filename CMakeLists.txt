@@ -50,7 +50,6 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
 add_library(SparkVio SHARED
-  src/ETH_parser.cpp
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
   src/StereoFrame.cpp
@@ -108,17 +107,14 @@ target_compile_options(SparkVio PRIVATE -Wall -pipe) # Remove these
 target_compile_features(SparkVio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
-add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::SparkVio)
+add_executable(stereoVIO ./examples/stereoVIO.cpp)
+target_link_libraries(stereoVIO PUBLIC SparkVio::SparkVio)
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
 target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
 
 #add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
 #target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::SparkVio)
-
-add_executable(stereoVIOKitti ./examples/stereoVIOKitti.cpp)
-target_link_libraries(stereoVIOKitti PUBLIC SparkVio::SparkVio)
 
 ### Include the micro for adding test
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)

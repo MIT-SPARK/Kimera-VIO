@@ -15,7 +15,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "ETH_parser.h"
+#include "datasource/ETH_parser.h"
 #include "datasource/KittiDataSource.h"
 #include "LoggerMatlab.h"
 #include "pipeline/Pipeline.h"
