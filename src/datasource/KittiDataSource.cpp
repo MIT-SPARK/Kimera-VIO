@@ -278,12 +278,12 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
 
   // First get R_imu2velo and T_imu2velo
   cv::Mat R_imu2velo, T_imu2velo;
-  std::string imu_to_velo_filename = "calib_imu_to_velo.txt";
+  std::string imu_to_velo_filename = "/../calib_imu_to_velo.txt";
   parseRT(input_dataset_path, imu_to_velo_filename, R_imu2velo, T_imu2velo);
 
   // Then get R_velo2cam and T_velo2cam
   cv::Mat R_velo2cam, T_velo2cam;
-  std::string velo_to_cam_filename = "calib_velo_to_cam.txt";
+  std::string velo_to_cam_filename = "/../calib_velo_to_cam.txt";
   parseRT(input_dataset_path, velo_to_cam_filename, R_velo2cam, T_velo2cam);
 
   // Then form the rotation matrix R_imu2body
@@ -304,7 +304,7 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   for (const std::string& cam_name : camera_names) {
     LOG(INFO) << "reading camera: " << cam_name;
     CameraParams cam_info_i;
-    cam_info_i.parseKITTICalib(input_dataset_path + "calib_cam_to_cam.txt",
+    cam_info_i.parseKITTICalib(input_dataset_path + "/../calib_cam_to_cam.txt",
                                R_cam2body, T_cam2body, cam_name);
     kitti_data->camera_info_[cam_name] = cam_info_i;
     LOG(INFO) << "parsed camera: " << cam_name;
