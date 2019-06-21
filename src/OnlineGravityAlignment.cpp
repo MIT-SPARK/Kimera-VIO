@@ -54,7 +54,7 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates() {
   CHECK(estimateGyroscopeBias(vi_frames, &gyro_bias_));
 
   // Update delta states with corrected bias
-  CHECK(updateDeltaStates(pims_, gyro_bias_, &vi_frames));
+  //CHECK(updateDeltaStates(pims_, gyro_bias_, &vi_frames));
 
   // Align visual and inertial estimates
   gtsam::Vector3 g_iter(1, 0, 0);

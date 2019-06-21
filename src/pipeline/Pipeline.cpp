@@ -639,7 +639,7 @@ bool Pipeline::initializeOnline(
   /////////////////// FRONTEND //////////////////////////////////////////////////
   } else {
 
-    CHECK_DOUBLE_EQ(vio_frontend_->getCurrentImuBias().gyroscope().norm(),0.0);
+    CHECK_DOUBLE_EQ(vio_frontend_->getCurrentImuBias().gyroscope().norm(), 0.0);
 
     // Spin frontend once with enforced keyframe and 53-point method
     auto frontend_output = vio_frontend_->spinOnce(
