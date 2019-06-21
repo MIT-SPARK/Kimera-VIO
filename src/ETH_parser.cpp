@@ -95,6 +95,12 @@ ETHDatasetParser::ETHDatasetParser()
 }
 
 /* -------------------------------------------------------------------------- */
+ETHDatasetParser::ETHDatasetParser(std::string& input_string) {
+    LOG(INFO) << "Dummy ETHDatasetParser constructor called. Purpose: "
+              << input_string;
+}
+
+/* -------------------------------------------------------------------------- */
 ETHDatasetParser::~ETHDatasetParser() {
   LOG(INFO) << "ETHDatasetParser destructor called.";
 }

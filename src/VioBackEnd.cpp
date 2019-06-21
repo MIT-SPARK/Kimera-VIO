@@ -2310,15 +2310,15 @@ std::vector<gtsam::Pose3> VioBackEnd::addInitialVisualStatesAndOptimize(
 
   VLOG(10) << "Initial bundle adjustment completed.";
 
-  // Convert poses into body frame (v0_T_vk --> v0_T_bk)
+  // Convert poses into body frame (b_T_cam*cam0_T_camk*cam_T_b --> b0_T_bk)
   for (int j = 0; j < estimated_poses.size(); j++) {
-    estimated_poses.at(j) = estimated_poses.at(j) * B_Pose_leftCam_.inverse();
+    estimated_poses.at(j) = B_Pose_leftCam_ * estimated_poses.at(j) * B_Pose_leftCam_.inverse();
     VLOG(10) << "ID: " << j << " with pose: ";
     if (VLOG_IS_ON(10))
       estimated_poses.at(j).print();
   }
 
-  // Return poses (v0_T_bk, for k in 1:N)
+  // Return poses (b0_T_bk, for k in 1:N)
   return estimated_poses;
 }
 
@@ -2416,7 +2416,7 @@ std::vector<gtsam::Pose3> VioBackEnd::optimizeInitialVisualStates(
 
   VLOG(5) << "New smart factors added in initial optimization.";
 
-  new_factors_tmp.keys().print(); // TODO: Why is the factor graph empty????
+  new_factors_tmp.keys().print();
 
   // Levenberg-Marquardt optimization
   gtsam::LevenbergMarquardtParams lmParams;

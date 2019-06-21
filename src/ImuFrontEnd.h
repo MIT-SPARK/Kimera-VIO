@@ -69,7 +69,7 @@ public:
   double acc_walk_;
   double imu_shift_; // Defined as t_imu = t_cam + imu_shift
 
-  // TODO: n_gravity_ should not be in ImuParams!!!
+  // TODO(Sandro): n_gravity_ should not be in ImuParams (and not initialized here!!!)
   gtsam::Vector3 n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81); // Added default value
   double imu_integration_sigma_;
 
@@ -193,6 +193,24 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
+  // Reset gravity value in pre-integration.
+  // This is needed for the online initialization.
+  // THREAD-SAFE.
+  inline void resetPreintegrationGravity(gtsam::Vector3 reset_value) {
+    std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+    imu_params_.n_gravity = reset_value;
+    LOG(WARNING) << "Resetting value of gravity in ImuFrontEnd to: "
+                 << imu_params_.n_gravity;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // THREAD-SAFE.
+  inline gtsam::Vector3 getPreintegrationGravity() const {
+    std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+    return imu_params_.n_gravity;
+  }
+
+  /* ------------------------------------------------------------------------ */
   // THIS IS NOT THREAD-SAFE.
   inline PreintegratedImuMeasurements getCurrentPIM() const {
     return *pim_;
@@ -204,7 +222,7 @@ public:
   }
 
 private:
-  const PreintegratedImuMeasurements::Params imu_params_;
+  PreintegratedImuMeasurements::Params imu_params_;
   std::unique_ptr<PreintegratedImuMeasurements> pim_ = nullptr;
   ImuBias latest_imu_bias_;
   mutable std::mutex imu_bias_mutex_;
