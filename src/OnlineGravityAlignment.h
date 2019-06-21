@@ -25,15 +25,21 @@
 #include <gtsam/base/Matrix.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/linear/VectorValues.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/linear/JacobianFactor.h>
+#include <gtsam/nonlinear/GaussNewtonOptimizer.h>
+#include <gtsam/nonlinear/Values.h>
 
 #include "ImuFrontEnd.h"
 
 namespace VIO {
 
 // Class that deals with single frames in initialization
-class AlignmentFrame {
+class VisualInertialFrame {
 public:
-  AlignmentFrame(const gtsam::Pose3 &curr_body_pose,
+  VisualInertialFrame(const gtsam::Pose3 &curr_body_pose,
                  const gtsam::Pose3 &prev_body_pose,
                  const double &delta_time_camera,
                  gtsam::NavState &delta_state,
@@ -46,7 +52,7 @@ public:
         dbg_Jacobian_dR_(dbg_Jacobian_dR),
         delta_time_pim_(delta_time_pim){};
 
-  ~AlignmentFrame() = default;
+  ~VisualInertialFrame() = default;
 
 public:
   /* ------------------------------------------------------------------------------- */
@@ -54,9 +60,9 @@ public:
   /* ------------------------------------------------------------------------------- */
   inline double pim_dt() const { return delta_time_pim_; }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Matrix v_R_bkp1() const { return curr_body_pose_.rotation().matrix(); }
+  inline gtsam::Matrix b0_R_bkp1() const { return curr_body_pose_.rotation().matrix(); }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Matrix v_R_bk() const { return prev_body_pose_.rotation().matrix(); }
+  inline gtsam::Matrix b0_R_bk() const { return prev_body_pose_.rotation().matrix(); }
   /* ------------------------------------------------------------------------------- */
   inline gtsam::Vector curr_p() const { return curr_body_pose_.translation(); }
   /* ------------------------------------------------------------------------------- */
@@ -71,7 +77,7 @@ public:
   inline gtsam::Matrix3 dbg_jacobian_dR() const { return dbg_Jacobian_dR_; }
   /* ------------------------------------------------------------------------------- */
   inline gtsam::Rot3 bk_R_bkp1() const {
-    return gtsam::Rot3(v_R_bk().transpose() * v_R_bkp1());
+    return gtsam::Rot3(b0_R_bk().transpose() * b0_R_bkp1());
   }
   /* ------------------------------------------------------------------------------- */
   inline void updateDeltaState(const gtsam::NavState &delta_state) {
@@ -90,7 +96,7 @@ private:
 // Typedefs for online initialization
 typedef std::vector<gtsam::Pose3> AlignmentPoses;
 typedef std::vector<gtsam::PreintegratedImuMeasurements> AlignmentPims;
-typedef std::vector<AlignmentFrame> AlignmentFrames;
+typedef std::vector<VisualInertialFrame> VisualInertialFrames;
 
 // Class with functions for online initialization
 class OnlineGravityAlignment {
@@ -111,22 +117,22 @@ public:
 
 private:
   /* ------------------------------------------------------------------------ */
-  void constructFrames(const AlignmentPoses &estimated_body_poses,
+  void constructVisualInertialFrames(const AlignmentPoses &estimated_body_poses,
                               const std::vector<double> &delta_t_camera,
                               const AlignmentPims &pims,
-                              AlignmentFrames *frames);
+                              VisualInertialFrames *vi_frames);
 
   /* ------------------------------------------------------------------------ */
-  bool estimateGyroscopeBias(const AlignmentFrames &frames,
+  bool estimateGyroscopeBias(const VisualInertialFrames &vi_frames,
                               gtsam::Vector3 *gyro_bias);
 
   /* ------------------------------------------------------------------------ */
   bool updateDeltaStates(const AlignmentPims &pims,
                          const gtsam::Vector3 &delta_bg,
-                         AlignmentFrames *frames);
+                         VisualInertialFrames *vi_frames);
 
   /* ------------------------------------------------------------------------ */
-  bool alignEstimatesLinearly(const AlignmentFrames &frames,
+  bool alignEstimatesLinearly(const VisualInertialFrames &vi_frames,
                               const gtsam::Vector3 &g_world,
                               gtsam::Vector3 *g_iter);
 
@@ -134,7 +140,7 @@ private:
   gtsam::Matrix createTangentBasis(const gtsam::Vector3 &g0);
 
   /* ------------------------------------------------------------------------ */
-  void refineGravity(const AlignmentFrames &frames,
+  void refineGravity(const VisualInertialFrames &vi_frames,
                      const gtsam::Vector3 &g_world, gtsam::Vector3 *g_iter);
 
 private:
