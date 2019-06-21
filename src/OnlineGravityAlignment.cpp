@@ -32,13 +32,12 @@ OnlineGravityAlignment::OnlineGravityAlignment(
     const AlignmentPoses &estimated_body_poses, 
     const std::vector<double> &delta_t_camera,
     const AlignmentPims &pims,
-    const gtsam::Vector3 &g_world, GyroBias *gyro_bias)
+    const gtsam::Vector3 &g_world, gtsam::Vector3 *gyro_bias)
     : estimated_body_poses_(estimated_body_poses),
       delta_t_camera_(delta_t_camera), pims_(pims),
       g_world_(g_world), gyro_bias_(*gyro_bias) {
-  // Initial log
-  LOG(INFO) << "Online Gravity Alignment constructor called.\n";
-}
+        CHECK_DOUBLE_EQ(gyro_bias->norm(),0.0);
+      }
 
 /* -------------------------------------------------------------------------- */
 // TODO(Sandro): Adapt description
@@ -46,12 +45,12 @@ OnlineGravityAlignment::OnlineGravityAlignment(
 bool OnlineGravityAlignment::alignVisualInertialEstimates() {
   VLOG(5) << "Online gravity alignment called.";
 
-  // TODO(Sandro): Need to get pre-integration without gravity!!!!!!
+  // Construct set of frames for linear alignment
   AlignmentFrames frames;
   constructFrames(estimated_body_poses_, delta_t_camera_, pims_, &frames);
 
   // Estimate gyroscope bias
-  CHECK(estimateGyroscopeBias(frames, pims_, &gyro_bias_));
+  CHECK(estimateGyroscopeBias(frames, &gyro_bias_));
 
   // Update delta states with corrected bias
   CHECK(updateDeltaStates(pims_, gyro_bias_, &frames));
@@ -69,7 +68,7 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates() {
 
 /* -------------------------------------------------------------------------- */
 // This function creates the frame objects used in the alignment.
-// It populates the camera poses and delta pre-integrations.
+// It populates the camera poses, delta pre-integrations and jacobian.
 // [in] vector of estimated camera poses from Bundle-Adjustment.
 // [in] vector of delta_t in camera frames.
 // [in] vector of pre-integrations from visual-frontend.
@@ -77,8 +76,8 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates() {
 void OnlineGravityAlignment::constructFrames(
     const AlignmentPoses &estimated_body_poses, 
     const std::vector<double> &delta_t_camera,
-    const AlignmentPims &pims, AlignmentFrames *frames) {
-
+    const AlignmentPims &pims,
+    AlignmentFrames *frames) {
   CHECK_EQ(estimated_body_poses.size()-1, delta_t_camera.size());
   CHECK_EQ(delta_t_camera.size(), pims.size());
   frames->clear();
@@ -88,20 +87,21 @@ void OnlineGravityAlignment::constructFrames(
     // Get bk_gamma_bkp1, bk_alpha_bkp1, bk_beta_bkp1
     // pim.deltaXij() corresponds to bodyLkf_X_bodyK_imu
     gtsam::NavState delta_state(pims.at(i).deltaXij());
-    // Get delta_time = t_kp1-t_k
+    // Get delta_time_pim = t_kp1-t_k
     const double delta_t_pim = pims.at(i).deltaTij();
+    // Get pre-integration Jacobian wrt. gyro_bias (dPIM = J * dbg)
+    gtsam::Matrix dbg_J_dPIM = pims.at(i).preintegrated_H_biasOmega();
+    // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
+    gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
 
-    VLOG(5) << "Delta t pim:\n"
-            << delta_t_pim
-            << "Delta R pim:\n"
-            << delta_state.pose().rotation();
-
-    // Create frame with current pose: v0_T_bkp1
-    // and previous frame pose: v0_T_bk
+    // Create frame with v0_T_bkp1, v0_T_bk, dt_bk_cam,
+    // dbg_Jacobian_dR_bk, dt_bk_imu
     AlignmentFrame frame_i(estimated_body_poses.at(i + 1),
                            estimated_body_poses.at(i),
                            delta_t_camera.at(i),
-                           delta_state, delta_t_pim);
+                           delta_state, 
+                           dbg_Jacobian_dR,
+                           delta_t_pim);
     frames->push_back(frame_i);
   }
 }
@@ -109,17 +109,14 @@ void OnlineGravityAlignment::constructFrames(
 /* -------------------------------------------------------------------------- */
 // Estimate gyroscope bias by minimizing square of rotation error
 // between the pre-integrated rotation constraint between frames
-// and the estimated rotation between frames from Bundle-Adjustment
-// [in] frames containing pim constraints and body poses
-// [in] pre-integrations for all frames
-// [out] estimated delta for gyroscope bias
+// and the estimated rotation between frames from Bundle-Adjustment.
+// [in] frames containing pim constraints and body poses.
+// [out] new estimated value for gyroscope bias.
 bool OnlineGravityAlignment::estimateGyroscopeBias(
-    const AlignmentFrames &frames, const AlignmentPims &pims,
-    GyroBias *gyro_bias) {
+          const AlignmentFrames &frames,
+          gtsam::Vector3 *gyro_bias) {
 
-  CHECK_EQ(frames.size(), pims.size());
-
-  /////////////////// LINEAR EQUATION SYSTEM ////////////////////////////
+  /////////////////// SETUP EQUATION SYSTEM /////////////////////////////
 
   // Matrices for linear equation system
   gtsam::Matrix3 A = gtsam::Matrix::Zero(3, 3);
@@ -128,63 +125,68 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
   // Loop through all initialization frames
   for (int i = 0; i < frames.size(); i++) {
     // Compute relative rotation matrix from visual estimate
-    gtsam::Matrix v_R_bk = frames.at(i).prev_R_mat();
-    gtsam::Matrix v_R_bkp1 = frames.at(i).curr_R_mat();
-    gtsam::Rot3 bk_R_bkp1(v_R_bk.transpose() * v_R_bkp1);
-
-    // TODO(Sandro): Fix issue with frames accessing
+    gtsam::Rot3 bk_R_bkp1(frames.at(i).bk_R_bkp1());
     // Get relative rotation matrix from pre-integrated estimate
-    gtsam::Rot3 bk_gamma_bkp1(pims.at(i).deltaRij());
-
+    gtsam::Rot3 bk_gamma_bkp1(frames.at(i).bk_gamma_bkp1());
     // Compute rotation error between pre-integrated and visual estimates
     gtsam::Rot3 bkp1_error_bkp1(bk_gamma_bkp1.transpose()*bk_R_bkp1.matrix());
-
     // Compute rotation error in canonical coordinates (dR_bkp1)
     gtsam::Vector3 dR = gtsam::Rot3::Logmap(bkp1_error_bkp1);
 
-    // Get pre-integration Jacobian wrt. gyro_bias (dPIM = J * dbg)
-    gtsam::Matrix dbg_J_dPIM = pims.at(i).preintegrated_H_biasOmega();
-
     // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
-    gtsam::Matrix3 dbg_J_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
-
-    // Logging of variables
-    VLOG(5) << "Gyro bias estimation: frame " << (i + 1)
-            << "\ndelta t camera: (s)\n" << frames.at(i).camera_dt()
-            << "\ndelta t pim: (s)\n" << frames.at(i).pim_dt()
-            << "\ndelta t pim: (s)\n" << pims.at(i).deltaTij()
-            << "\ncamera bk_R_bkp1:\n"
-            << bk_R_bkp1 << "\npim bk_gamma_bkp1:\n"
-            << bk_gamma_bkp1 << "\nbk_error_bk (rotation):\n"
-            << bkp1_error_bkp1 << "\ndR_bkp1:\n"
-            << dR << "\ndR_bkp1/dbg_bkp1 Jacobian (tmp_A):\n"
-            << dbg_J_dR;
+    gtsam::Matrix3 dbg_J_dR = frames.at(i).dbg_jacobian_dR();
     
-    // Formulate Least Squares problem for all measurements
+    // Add Gauss-Newton step
     A += dbg_J_dR.transpose() * dbg_J_dR;
     b += dbg_J_dR.transpose() * dR;
+
+    // Logging of variables in linear equation system
+    VLOG(5) << "Frame: " << (i + 1) << "\ndt_cam: (s)\n" << frames.at(i).cam_dt()
+            << "\ndt_pim: (s)\n" << frames.at(i).pim_dt() << "\ncam bk_R_bkp1:\n"
+            << bk_R_bkp1 << "\npim bk_gamma_bkp1:\n" << bk_gamma_bkp1 
+            << "\nbk_error_bk:\n" << bkp1_error_bkp1 << "\ndR_bkp1:\n" << dR
+            << "\ndR_bkp1/dbg_bkp1 Jacobian (tmp_A):\n" << dbg_J_dR;
   }
 
   /////////////////// SOLVE EQUATION SYSTEM /////////////////////////////
 
   // Increase numerical stability
-  A = A * 1000;
-  b = b * 1000;
-
-  // Solve linear equation system for gyro bias
+  A = A * 1000; b = b * 1000;
+  // Solve Gauss-Newton for gyro bias
   gtsam::Vector3 delta_bg = A.ldlt().solve(b);
-
-  // Logging of linear equation system
-  LOG(INFO) << "Linear equation for gyro bias: "
-            << "\nmatrix A: \n"
-            << A << "\nmatrix b: \n"
-            << b << "\nGyroscope bias initial calibration: \n"
-            << delta_bg;
-
   // Adapt gyroscope bias
   *gyro_bias += delta_bg;
 
-  // Return if successful
+  // Logging of overall least squares equation
+  LOG(INFO) << "Gyro bias estimation: " << "\nmatrix A: \n" << A
+            << "\nmatrix b: \n" << b << "\ndelta_bg: \n" << delta_bg;
+
+  // TODO(Sandro): Implement check on quality of estimate
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
+// Corrects pre-integrated delta states with the gyro bias estimate.
+// [in] vector of pre-integrations from visual-frontend.
+// [in] new estimated value for gyroscope bias.
+// [out] updated vector of frames used for initial alignment.
+bool OnlineGravityAlignment::updateDeltaStates(const AlignmentPims &pims,
+                                               const gtsam::Vector3 &gyro_bias,
+                                               AlignmentFrames *frames) {
+  CHECK_EQ(frames->size(), pims.size());
+
+  // Instead of repropagating, update the measurements
+  // with a first-order approximation around the gyro bias estimate.
+  for (int i = 0; i < frames->size(); i++) {
+    // Update pre-integration with first-order approximation
+    gtsam::Vector9 correct_preintegrated = pims.at(i).biasCorrectedDelta(
+        gtsam::imuBias::ConstantBias(Vector3::Zero(), gyro_bias));
+    // Retract delta state
+    const gtsam::NavState bk_delta_state_bkp1 =
+        gtsam::NavState().retract(correct_preintegrated);
+    // Update value for delta_state in frames
+    frames->at(i).updateDeltaState(bk_delta_state_bkp1);
+  }
   // TODO(Sandro): Implement check on quality of estimate
   return true;
 }
@@ -218,7 +220,7 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
     // Variables from pre-integration and bundle-adjustment
     // TODO(Sandro): Check conventions!!!
     double dt = frames.at(i).pim_dt();
-    gtsam::Matrix bk_R_v = frames.at(i).prev_R_mat().transpose();
+    gtsam::Matrix bk_R_v = frames.at(i).v_R_bk().transpose();
     gtsam::Vector bk_alpha_bkp1 =
         frames.at(i).delta_p();                   // TODO(Sandro): Inverse???
     gtsam::Vector v_p_bk = frames.at(i).prev_p(); // TODO(Sandro): Inverse???
@@ -301,33 +303,6 @@ void OnlineGravityAlignment::refineGravity(const AlignmentFrames &frames,
 
   // gtsam::Matrix tangent_basis = createTangentBasis(g_iter);
   VLOG(5) << "Gravity vector refined.";
-}
-
-/* -------------------------------------------------------------------------- */
-// TODO(Sandro): Adapt description
-// Adding of states for bundle adjustment used in initialization.
-// [in] timestamp_kf_nsec, keyframe timestamp.
-// [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
-bool OnlineGravityAlignment::updateDeltaStates(const AlignmentPims &pims,
-                                               const GyroBias &gyro_bias,
-                                               AlignmentFrames *frames) {
-  CHECK_EQ(frames->size(), pims.size());
-
-  // Instead of repropagating, update the measurements
-  // with a first-order approximation
-  for (int i = 0; i < frames->size(); i++) {
-    // Update pre-integration with first-order approximation
-    gtsam::Vector9 updated_preintegrated = pims.at(i).biasCorrectedDelta(
-        gtsam::imuBias::ConstantBias(Vector3::Zero(), gyro_bias));
-    // Retract delta state
-    const gtsam::NavState delta_state =
-        gtsam::NavState().retract(updated_preintegrated);
-    frames->at(i).updateDeltaState(delta_state);
-  }
-
-  // Return true if successful
-  return true;
 }
 
 } // namespace VIO

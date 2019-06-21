@@ -30,86 +30,77 @@
 
 namespace VIO {
 
+// Class that deals with single frames in initialization
 class AlignmentFrame {
 public:
-  AlignmentFrame(const gtsam::Pose3 &current_body_pose,
-                 const gtsam::Pose3 &previous_body_pose,
+  AlignmentFrame(const gtsam::Pose3 &curr_body_pose,
+                 const gtsam::Pose3 &prev_body_pose,
                  const double &delta_time_camera,
-                 gtsam::NavState &delta_state, 
+                 gtsam::NavState &delta_state,
+                 const gtsam::Matrix3& dbg_Jacobian_dR,
                  const double &delta_time_pim)
-      : current_body_pose_(current_body_pose),
-        previous_body_pose_(previous_body_pose),
+      : curr_body_pose_(curr_body_pose),
+        prev_body_pose_(prev_body_pose),
         delta_time_camera_(delta_time_camera), 
         delta_state_(delta_state),
+        dbg_Jacobian_dR_(dbg_Jacobian_dR),
         delta_time_pim_(delta_time_pim){};
 
   ~AlignmentFrame() = default;
 
 public:
-  /* ------------------------------------------------------------------------ */
-  inline double camera_dt() const { return delta_time_camera_; }
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------------- */
+  inline double cam_dt() const { return delta_time_camera_; }
+  /* ------------------------------------------------------------------------------- */
   inline double pim_dt() const { return delta_time_pim_; }
-  /* ------------------------------------------------------------------------ */
-  inline gtsam::Matrix curr_R_mat() const {
-    return current_body_pose_.rotation().matrix();
-  }
-
-  /* ------------------------------------------------------------------------ */
-  inline gtsam::Vector curr_p() const { return current_body_pose_.translation(); }
-
-  /* ------------------------------------------------------------------------ */
-  inline gtsam::Matrix prev_R_mat() const {
-    return previous_body_pose_.rotation().matrix();
-  }
-
-  /* ------------------------------------------------------------------------ */
-  inline gtsam::Vector prev_p() const {
-    return previous_body_pose_.translation();
-  }
-
-  /* ------------------------------------------------------------------------ */
-  inline gtsam::Matrix delta_R_mat() const {
-    return delta_state_.pose().rotation().matrix();
-  }
-
-  /* ------------------------------------------------------------------------ */
-  inline gtsam::Vector delta_p() const {
-    return delta_state_.pose().translation();
-  }
-
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------------- */
+  inline gtsam::Matrix v_R_bkp1() const { return curr_body_pose_.rotation().matrix(); }
+  /* ------------------------------------------------------------------------------- */
+  inline gtsam::Matrix v_R_bk() const { return prev_body_pose_.rotation().matrix(); }
+  /* ------------------------------------------------------------------------------- */
+  inline gtsam::Vector curr_p() const { return curr_body_pose_.translation(); }
+  /* ------------------------------------------------------------------------------- */
+  inline gtsam::Vector prev_p() const { return prev_body_pose_.translation(); }
+  /* ------------------------------------------------------------------------------- */
+  inline gtsam::Rot3 bk_gamma_bkp1() const { return delta_state_.pose().rotation(); }
+  /* ------------------------------------------------------------------------------- */
+  inline gtsam::Vector delta_p() const { return delta_state_.pose().translation(); }
+  /* ------------------------------------------------------------------------------- */
   inline gtsam::Vector delta_v() const { return delta_state_.velocity(); }
-
-  /* ------------------------------------------------------------------------ */
-  inline gtsam::NavState navstate() const { return delta_state_; }
-
-  /* ------------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------------------- */
+  inline gtsam::Matrix3 dbg_jacobian_dR() const { return dbg_Jacobian_dR_; }
+  /* ------------------------------------------------------------------------------- */
+  inline gtsam::Rot3 bk_R_bkp1() const {
+    return gtsam::Rot3(v_R_bk().transpose() * v_R_bkp1());
+  }
+  /* ------------------------------------------------------------------------------- */
   inline void updateDeltaState(const gtsam::NavState &delta_state) {
     delta_state_ = delta_state;
   }
 
 private:
-  const gtsam::Pose3 &current_body_pose_;
-  const gtsam::Pose3 &previous_body_pose_;
-  gtsam::NavState &delta_state_;
-  const double &delta_time_camera_;
-  const double &delta_time_pim_;
+  const gtsam::Pose3 curr_body_pose_;
+  const gtsam::Pose3 prev_body_pose_;
+  const gtsam::Matrix3 dbg_Jacobian_dR_;
+  gtsam::NavState delta_state_;
+  const double delta_time_camera_;
+  const double delta_time_pim_;
 };
 
+// Typedefs for online initialization
 typedef std::vector<gtsam::Pose3> AlignmentPoses;
-typedef std::vector<gtsam::NavState> AlignmentDeltaStates;
 typedef std::vector<gtsam::PreintegratedImuMeasurements> AlignmentPims;
 typedef std::vector<AlignmentFrame> AlignmentFrames;
-typedef Vector3 GyroBias;
 
+// Class with functions for online initialization
 class OnlineGravityAlignment {
 public:
   /* ------------------------------------------------------------------------ */
   OnlineGravityAlignment(const AlignmentPoses &estimated_body_poses,
                          const std::vector<double> &delta_t_camera,
                          const AlignmentPims &pims,
-                         const gtsam::Vector3 &g_world, GyroBias *gyro_bias);
+                         const gtsam::Vector3 &g_world,
+                         gtsam::Vector3 *gyro_bias);
 
   /* ------------------------------------------------------------------------ */
   ~OnlineGravityAlignment() = default;
@@ -121,15 +112,17 @@ public:
 private:
   /* ------------------------------------------------------------------------ */
   void constructFrames(const AlignmentPoses &estimated_body_poses,
-                       const std::vector<double> &delta_t_camera,
-                       const AlignmentPims &pims, AlignmentFrames *frames);
+                              const std::vector<double> &delta_t_camera,
+                              const AlignmentPims &pims,
+                              AlignmentFrames *frames);
 
   /* ------------------------------------------------------------------------ */
   bool estimateGyroscopeBias(const AlignmentFrames &frames,
-                             const AlignmentPims &pims, GyroBias *gyro_bias);
+                              gtsam::Vector3 *gyro_bias);
 
   /* ------------------------------------------------------------------------ */
-  bool updateDeltaStates(const AlignmentPims &pims, const GyroBias &delta_bg,
+  bool updateDeltaStates(const AlignmentPims &pims,
+                         const gtsam::Vector3 &delta_bg,
                          AlignmentFrames *frames);
 
   /* ------------------------------------------------------------------------ */
@@ -149,7 +142,7 @@ private:
   const AlignmentPoses &estimated_body_poses_;
   const std::vector<double> &delta_t_camera_;
   const gtsam::Vector3 &g_world_;
-  GyroBias &gyro_bias_;
+  gtsam::Vector3 &gyro_bias_;
 };
 
 } // namespace VIO

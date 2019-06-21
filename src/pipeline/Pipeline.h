@@ -122,6 +122,11 @@ private:
   // Initialize pipeline from online gravity alignment.
   bool initializeOnline(const StereoImuSyncPacket &stereo_imu_sync_packet);
 
+  // Perform Bundle-Adjustment and initial gravity alignment
+  bool bundleAdjustmentAndGravityAlignment(StereoImuSyncPacket &stereo_imu_sync_init,
+                      StereoFrame &stereo_frame_lkf,
+                      gtsam::Vector3 *gyro_bias);
+
   // Re-initialize pipeline.
   bool reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
