@@ -76,7 +76,7 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
 DEFINE_int32(numb_frames_oga, 15,
              "Minimum number of frames for the online "
              "gravity-aligned initialization");
-DEFINE_int32(initialization_mode, 1,
+DEFINE_int32(initialization_mode, 0,
              "Initialization mode to be choosen "
              "0: default (GT/IMU), 1: online initialisation");
 
