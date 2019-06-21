@@ -152,7 +152,7 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
   *gyro_bias += delta_bg;
 
   // Logging of solution
-  if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussia Factor graph:\n"); }
+  if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
   LOG(INFO) << "\nGyro bias estimation:\n" << delta_bg;
 
   // TODO(Sandro): Implement check on quality of estimate
@@ -302,7 +302,7 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
   gtsam::Vector3 g_b0  = solution.at(gtsam::Symbol('g_b0', 0));
 
   // Logging of solution
-  if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussia Factor graph:\n"); }
+  if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
   LOG(INFO) << "Initial gravity estimate:\n" << g_b0
             << " with norm: " << g_b0.norm();
 
