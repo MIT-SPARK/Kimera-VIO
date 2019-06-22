@@ -2,13 +2,14 @@
 ###################################################################
 # Fill the variables DATASET_PATH and USE_REGULAR_VIO.
 
-# Specify path of the KITTI dataset.
-KITTI_DATASET_PATH="/home/yunchang/data/2011_09_26/2011_09_26_drive_0113_sync"
-DATASET_PATH="/home/yunchang/data/V1_01"
-# TODO remove so this is not hard coded 
+# Specify path of the EuRoC dataset.
+DATASET_PATH=""
 
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
+
+# Specify: 0 to run on EuRoC data, 1 to run on Kitti 
+DATASET_TYPE=1
 
 # Specify: 1 to run pipeline in parallel mode, 0 to run sequentially.
 PARALLEL_RUN=0
@@ -17,7 +18,7 @@ PARALLEL_RUN=0
 # Parse Options.
 if [ $# -eq 0 ]; then
   # If there is no options tell user what are the values we are using.
-  echo "Using dataset at path: $KITTI_DATASET_PATH"
+  echo "Using dataset at path: $DATASET_PATH"
   if [ $USE_REGULAR_VIO == 1 ]; then
     echo "Using REGULAR VIO."
   fi
@@ -26,12 +27,19 @@ else
   while [ -n "$1" ]; do # while loop starts
       case "$1" in
         # Option -p, provides path to dataset.
-      -p) KITTI_DATASET_PATH=$2
-          echo "Using dataset at path: $KITTI_DATASET_PATH"
+      -p) DATASET_PATH=$2
+          echo "Using dataset at path: $DATASET_PATH"
+          shift ;;
+        # Option -d, set dataset type 
+      -d) DATASET_TYPE=$2
+          echo "Using dataset type: $DATASET_TYPE"
+          echo "0 is for euroc and 1 is for kitti"
           shift ;;
         # Option -r, specifies that we want to use regular vio.
       -r) USE_REGULAR_VIO=1
           echo "Using Regular VIO!" ;;
+      -parallel) PARALLEL_RUN=1
+          echo "Run VIO in PARALLEL mode!" ;;
       --)
           shift # The double dash which separates options from parameters
           break
@@ -49,8 +57,8 @@ VIO_PARAMS_PATH=""
 TRACKER_PARAMS_PATH=""
 if [ $USE_REGULAR_VIO == 1 ]; then
   BACKEND_TYPE=1
-  VIO_PARAMS_PATH="../params/regularVioParametersKitti.yaml"
-  TRACKER_PARAMS_PATH="../params/trackerParametersKitti.yaml"
+  VIO_PARAMS_PATH="../params/regularVioParameters.yaml"
+  TRACKER_PARAMS_PATH="../params/trackerParameters.yaml"
 fi
 
 # Change directory to parent path, in order to make this script
@@ -69,20 +77,17 @@ echo """ Launching:
 
  """
 
-# Execute stereoVIOKitti with given flags.
+# Execute stereoVIOEuroc with given flags.
 # The flag --help will provide you with information about what each flag
 # does.
-../build/stereoVIOKitti \
+../build/stereoVIO \
   --logtostderr=1 \
   --colorlogtostderr=1 \
-  --log_prefix=1 \
+  --log_prefix=0 \
   --dataset_path="$DATASET_PATH" \
-  --kitti_dataset_path="$KITTI_DATASET_PATH" \
   --vio_params_path="$VIO_PARAMS_PATH" \
-  --initial_k=10 \
-  --final_k=3000 \
-  --initial_frame=12 \
-  --final_frame=230 \
+  --initial_k=15 \
+  --final_k=2000 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
   --flagfile="../params/flags/stereoVIOEuroc.flags" \
   --flagfile="../params/flags/Mesher.flags" \
@@ -93,4 +98,4 @@ echo """ Launching:
   --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
   --backend_type="$BACKEND_TYPE" \
   --parallel_run="$PARALLEL_RUN" \
-  --images_rectified="false"
+  --dataset_type="$DATASET_TYPE"
