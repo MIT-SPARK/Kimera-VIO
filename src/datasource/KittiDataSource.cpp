@@ -37,7 +37,6 @@ KittiDataProvider::KittiData::operator bool() const {
 KittiDataProvider::KittiDataProvider() : DataProvider(), kitti_data_() {
   // Parse Kitti dataset.
   parseData(dataset_path_, &kitti_data_);
-  parseParams();
 }
 
 KittiDataProvider::~KittiDataProvider() {}

@@ -343,6 +343,8 @@ public:
   inline Frame* getLeftFrameMutable() {return &left_frame_;}
   inline Frame* getRightFrameMutable() {return &right_frame_;}
 
+  void print() const;
+
 private:
   const FrameId id_;
   const Timestamp timestamp_;
@@ -382,9 +384,6 @@ private:
   // https://github.com/opencv/opencv/blob/master/samples/cpp/tutorial_code/calib3d/stereoBM/SBM_Sample.cpp
   // TODO imshow has to be called in the main thread.
   cv::Mat getDisparityImage() const;
-
-  /* ------------------------------------------------------------------------ */
-  void print() const;
 
   /* ------------------------------------------------------------------------ */
   void showOriginal(const int verbosity) const;

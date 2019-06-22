@@ -86,7 +86,9 @@ void GroundTruthData::print() const {
 DataProvider::DataProvider() :
     initial_k_(FLAGS_initial_k),
     final_k_(FLAGS_final_k),
-    dataset_path_(FLAGS_dataset_path) {}
+    dataset_path_(FLAGS_dataset_path) {
+  parseParams(); // parse backend/frontend parameters
+}
 
 DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";
