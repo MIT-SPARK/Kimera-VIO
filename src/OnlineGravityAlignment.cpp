@@ -102,7 +102,8 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
     // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
     gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
 
-    CHECK_GE(1e-3, abs(delta_t_pim - delta_t_camera.at(i)));
+    if(abs(delta_t_pim - delta_t_camera.at(i)) > 1e-3)
+      LOG(ERROR) << "Large discrepancy in dt at frame: " << i;
 
     // Create frame with b0_T_bkp1, b0_T_bk, dt_bk_cam,
     // dbg_Jacobian_dR_bk, dt_bk_imu
