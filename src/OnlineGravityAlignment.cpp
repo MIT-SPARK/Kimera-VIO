@@ -35,7 +35,7 @@ namespace VIO {
 // [in] pre-integrations performed in visual frontend.
 // [in] global gravity vector in world frame.
 OnlineGravityAlignment::OnlineGravityAlignment(
-    const AlignmentPoses &estimated_body_poses, 
+    const AlignmentPoses &estimated_body_poses,
     const std::vector<double> &delta_t_camera,
     const AlignmentPims &pims,
     const gtsam::Vector3 &g_world)
@@ -48,14 +48,14 @@ OnlineGravityAlignment::OnlineGravityAlignment(
 // [out] initial gyro bias estimate
 // [out] estimate of gravity vector in initial body pose (g_b0).
 bool OnlineGravityAlignment::alignVisualInertialEstimates(
-            gtsam::Vector3 *gyro_bias, 
+            gtsam::Vector3 *gyro_bias,
             gtsam::Vector3 *g_iter) {
   VLOG(5) << "Online gravity alignment called.";
   VisualInertialFrames vi_frames;
   CHECK_DOUBLE_EQ(gyro_bias->norm(), 0.0);
 
   // Construct set of frames for linear alignment
-  constructVisualInertialFrames(estimated_body_poses_, delta_t_camera_, 
+  constructVisualInertialFrames(estimated_body_poses_, delta_t_camera_,
                                 pims_, &vi_frames);
 
   // Estimate gyroscope bias
@@ -82,7 +82,7 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
 // [in] vector of pre-integrations from visual-frontend.
 // [out] vector of frames used for initial alignment.
 void OnlineGravityAlignment::constructVisualInertialFrames(
-    const AlignmentPoses &estimated_body_poses, 
+    const AlignmentPoses &estimated_body_poses,
     const std::vector<double> &delta_t_camera,
     const AlignmentPims &pims,
     VisualInertialFrames *vi_frames) {
@@ -103,13 +103,12 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
     gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
 
     CHECK_GE(1e-3, abs(delta_t_pim - delta_t_camera.at(i)));
-
     // Create frame with b0_T_bkp1, b0_T_bk, dt_bk_cam,
     // dbg_Jacobian_dR_bk, dt_bk_imu
     VisualInertialFrame frame_i(estimated_body_poses.at(i + 1),
                            estimated_body_poses.at(i),
                            delta_t_camera.at(i),
-                           delta_state, 
+                           delta_state,
                            dbg_Jacobian_dR,
                            delta_t_pim);
     vi_frames->push_back(frame_i);
@@ -129,26 +128,24 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
   // Create Gaussian Graph with unit noise
   gtsam::GaussianFactorGraph gaussian_graph;
   auto noise = gtsam::noiseModel::Unit::Create(3);
-  
+
   // Loop through all initialization frame
   for (int i = 0; i < vi_frames.size(); i++) {
     auto frame_i = std::next(vi_frames.begin(), i);
-
     // Compute rotation error between pre-integrated and visual estimates
-    gtsam::Rot3 bkp1_error_bkp1(frame_i->bk_gamma_bkp1().transpose() * 
+    gtsam::Rot3 bkp1_error_bkp1(frame_i->bk_gamma_bkp1().transpose() *
                                 frame_i->bk_R_bkp1());
     // Compute rotation error in canonical coordinates (dR_bkp1)
     gtsam::Vector3 dR = gtsam::Rot3::Logmap(bkp1_error_bkp1);
     // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
     gtsam::Matrix3 dbg_J_dR = frame_i->dbg_jacobian_dR();
-    
     // Insert Jacobian Factor in Gaussian Graph
     gaussian_graph.add(gtsam::Symbol('dbg', 0), dbg_J_dR, dR, noise);
 
     // Logging of variables inserted in the graph
     VLOG(10) << "Frame: " << (i + 1) << "\ndt_cam: (s)\n" << frame_i->cam_dt()
             << "\ndt_pim: (s)\n" << frame_i->pim_dt() << "\ncam bk_R_bkp1:\n"
-            << frame_i->bk_R_bkp1() << "\npim bk_gamma_bkp1:\n" 
+            << frame_i->bk_R_bkp1() << "\npim bk_gamma_bkp1:\n"
             << frame_i->bk_gamma_bkp1() << "\nbk_error_bk:\n" << bkp1_error_bkp1;
   }
 
@@ -204,18 +201,17 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
   // Create Gaussian Graph with unit noise
   gtsam::GaussianFactorGraph gaussian_graph;
   auto noise = gtsam::noiseModel::Unit::Create(3);
-
   // Loop through all frames
   for (int i = 0; i < vi_frames.size(); i++) {
     auto frame_i = std::next(vi_frames.begin(), i);
 
     // Add binary factor for position constraint
-    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(), 
+    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(),
                       gtsam::Symbol('g_b0', 0), frame_i->A_13(),
-                      frame_i->b_1(), noise);  
+                      frame_i->b_1(), noise);
 
     // Add ternary factor for velocity constraint
-    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_21(), 
+    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_21(),
                       gtsam::Symbol('b0_V_bk', i+1), frame_i->A_22(),
                       gtsam::Symbol('g_b0', 0), frame_i->A_23(),
                       frame_i->b_2(), noise);
@@ -241,7 +237,7 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
 /* -------------------------------------------------------------------------- */
 // Creates tangent basis to input vector.
 // [in] Vector for which tangent basis is desired.
-// [return] Tangent basis spanned by orthogonal basis to input vector. 
+// [return] Tangent basis spanned by orthogonal basis to input vector.
 gtsam::Matrix OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g0) {
 
   // Vectors b, c
@@ -298,16 +294,16 @@ void OnlineGravityAlignment::refineGravity(const VisualInertialFrames &vi_frames
       gtsam::Vector3 b_1_tangent = frame_i->b_1() - frame_i->A_13()*g0;
 
       // Add binary factor for position constraint
-      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(), 
+      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(),
                         gtsam::Symbol('dxdy', 0), A_13_tangent,
-                        b_1_tangent, noise);  
+                        b_1_tangent, noise);
 
       // Apply tangent basis to g (g = g0 + txty*dxdy)
       gtsam::Matrix A_23_tangent = frame_i->A_23()*txty;
       gtsam::Vector3 b_2_tangent = frame_i->b_2() - frame_i->A_23()*g0;
 
       // Add ternary factor for velocity constraint
-      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_21(), 
+      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_21(),
                         gtsam::Symbol('b0_V_bk', i+1), frame_i->A_22(),
                         gtsam::Symbol('dxdy', 0), A_23_tangent,
                         b_2_tangent, noise);

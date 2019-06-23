@@ -6,34 +6,34 @@
 namespace VIO {
 namespace utils {
 
-class Timer{
-public:
-   static std::chrono::high_resolution_clock::time_point tic() {
+class Timer {
+ public:
+  static std::chrono::high_resolution_clock::time_point tic() {
     return std::chrono::high_resolution_clock::now();
-   }
+  }
 
-   // Stop timer and report duration in given time.
-   // Returns duration in milliseconds by default.
-   // call .count() on returned duration to have number of ticks.
-   template<typename T = std::chrono::milliseconds>
-   static T toc(const std::chrono::high_resolution_clock::time_point& start) {
-     return std::chrono::duration_cast<T>(
-           std::chrono::high_resolution_clock::now() - start);
-   }
+  // Stop timer and report duration in given time.
+  // Returns duration in milliseconds by default.
+  // call .count() on returned duration to have number of ticks.
+  template <typename T = std::chrono::milliseconds>
+  static T toc(const std::chrono::high_resolution_clock::time_point& start) {
+    return std::chrono::duration_cast<T>(
+        std::chrono::high_resolution_clock::now() - start);
+  }
 };
 
 // Usage: measure<>::execution(functor(dummy))
-template<typename T = std::chrono::milliseconds>
+template <typename T = std::chrono::milliseconds>
 struct Measure {
-  template<typename F, typename ...Args>
+  template <typename F, typename... Args>
   static typename T::rep execution(F&& func, Args&&... args) {
     auto start = std::chrono::steady_clock::now();
     std::forward<decltype(func)>(func)(std::forward<Args>(args)...);
-    auto duration = std::chrono::duration_cast< T>
-        (std::chrono::steady_clock::now() - start);
+    auto duration =
+        std::chrono::duration_cast<T>(std::chrono::steady_clock::now() - start);
     return duration.count();
   }
 };
 
-} // End of utils namespace.
-} // End of VIO namespace.
+}  // namespace utils
+}  // namespace VIO

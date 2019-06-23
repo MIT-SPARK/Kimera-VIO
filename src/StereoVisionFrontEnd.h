@@ -86,6 +86,28 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
+  // Get Imu Bias. This is thread-safe as imu_frontend_->getCurrentImuBias is
+  // thread-safe.
+  inline ImuBias getCurrentImuBias() const {
+    return imu_frontend_->getCurrentImuBias();
+  }
+  
+  /* ------------------------------------------------------------------------ */
+  // Reset ImuFrontEnd gravity. Trivial gravity is needed for initial alignment.
+  // This is thread-safe as imu_frontend_->resetPreintegrationGravity is thread-safe.
+  inline void resetGravity(gtsam::Vector3 reset_value) const {
+    imu_frontend_->resetPreintegrationGravity(reset_value);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Get ImuFrontEnd gravity. 
+  // This is thread-safe as imu_frontend_->getPreintegrationGravity is
+  // thread-safe.
+  inline gtsam::Vector3 getGravity() const {
+    return imu_frontend_->getPreintegrationGravity();
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Update Imu Bias and reset pre-integration during initialization.
   // This is not thread-safe! (no multi-thread during initialization)
   inline void updateAndResetImuBias(const ImuBias &imu_bias) const {

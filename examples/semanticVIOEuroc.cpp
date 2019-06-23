@@ -14,18 +14,19 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <string>
+#include <vector>
 
 #include "ETH_parser.h"
+#include "LoggerMatlab.h"
 #include "pipeline/Pipeline.h"
 #include "utils/Timer.h"
-#include "LoggerMatlab.h"
 
 #include "mesh/Mesher.h"
 namespace VIO {
-Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_image_timestamp,
-                                                      const cv::Mat& left_image,
-                                                      const Mesh2D& mesh_2d,
-                                                      const Mesh3D& mesh_3d) {
+Mesher::Mesh3DVizProperties dummySemanticSegmentation(
+    const Timestamp& left_image_timestamp, const cv::Mat& left_image,
+    const Mesh2D& mesh_2d, const Mesh3D& mesh_3d) {
   // Dummy checks for valid data.
   CHECK(!left_image.empty());
   CHECK_GE(mesh_2d.getNumberOfUniqueVertices(), 0);
@@ -36,21 +37,20 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_imag
 
   // Color all vertices in red. Each polygon will be colored according
   // to a mix of the three vertices colors I think...
-  mesh_3d_viz_props.colors_ = cv::Mat (mesh_3d.getNumberOfUniqueVertices(), 1,
-                                       CV_8UC3, cv::viz::Color::red());
+  mesh_3d_viz_props.colors_ = cv::Mat(mesh_3d.getNumberOfUniqueVertices(), 1,
+                                      CV_8UC3, cv::viz::Color::red());
 
   // Add texture to the mesh using the given image.
-  // README: tcoords specify the texture coordinates of the 3d mesh wrt 2d image.
-  // As a small hack, we not only use the left_image as texture but we also
-  // horizontally concatenate a white image so we can set a white texture to
-  // those 3d mesh faces which should not have a texture.
-  // Below we init all tcoords to 0.99 (1.0) gives a weird texture...
-  // Meaning that all faces start with a default white texture, and then we
-  // change that texture to the right texture for each 2d triangle that has
-  // a corresponding 3d face.
+  // README: tcoords specify the texture coordinates of the 3d mesh wrt 2d
+  // image. As a small hack, we not only use the left_image as texture but we
+  // also horizontally concatenate a white image so we can set a white texture
+  // to those 3d mesh faces which should not have a texture. Below we init all
+  // tcoords to 0.99 (1.0) gives a weird texture... Meaning that all faces start
+  // with a default white texture, and then we change that texture to the right
+  // texture for each 2d triangle that has a corresponding 3d face.
   Mesh2D::Polygon polygon;
-  std::vector<cv::Vec2d> tcoords (mesh_3d.getNumberOfUniqueVertices(),
-                              cv::Vec2d(0.9, 0.9));
+  std::vector<cv::Vec2d> tcoords(mesh_3d.getNumberOfUniqueVertices(),
+                                 cv::Vec2d(0.9, 0.9));
   for (size_t i = 0; i < mesh_2d.getNumberOfPolygons(); i++) {
     CHECK(mesh_2d.getPolygon(i, &polygon)) << "Could not retrieve 2d polygon.";
 
@@ -76,20 +76,23 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_imag
 
       // These pixels correspond to the tcoords in the image for the 3d mesh
       // vertices.
-      VLOG(100) << "Pixel: with id: " << p0_id
-                << ", x: " << px0.x << ", y: " << px0.y;
-      tcoords.at(p0_id) = cv::Vec2d(px0.x/left_image.cols/2.0, px0.y/left_image.rows);
-      tcoords.at(p1_id) = cv::Vec2d(px1.x/left_image.cols/2.0, px1.y/left_image.rows);
-      tcoords.at(p2_id) = cv::Vec2d(px2.x/left_image.cols/2.0, px2.y/left_image.rows);
+      VLOG(100) << "Pixel: with id: " << p0_id << ", x: " << px0.x
+                << ", y: " << px0.y;
+      tcoords.at(p0_id) =
+          cv::Vec2d(px0.x / left_image.cols / 2.0, px0.y / left_image.rows);
+      tcoords.at(p1_id) =
+          cv::Vec2d(px1.x / left_image.cols / 2.0, px1.y / left_image.rows);
+      tcoords.at(p2_id) =
+          cv::Vec2d(px2.x / left_image.cols / 2.0, px2.y / left_image.rows);
       mesh_3d_viz_props.colors_.row(p0_id) = cv::viz::Color::white();
       mesh_3d_viz_props.colors_.row(p1_id) = cv::viz::Color::white();
       mesh_3d_viz_props.colors_.row(p2_id) = cv::viz::Color::white();
     } else {
-      //LOG_EVERY_N(ERROR, 1000) << "Polygon in 2d mesh did not have a corresponding polygon in"
+      // LOG_EVERY_N(ERROR, 1000) << "Polygon in 2d mesh did not have a
+      // corresponding polygon in"
       //                          " 3d mesh!";
     }
   }
-
 
   std::string img_name =
       "/home/tonirv/datasets/euroc/V1_01_easy/mav0/cam0/overlays/" +
@@ -101,10 +104,9 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_imag
   // Add a column with a fixed color at the end so that we can specify an
   // "invalid" or "default" texture for those points which we do not want to
   // texturize.
-  static cv::Mat default_texture (left_image_overlay.rows,
-                                left_image_overlay.cols,
-                                left_image_overlay.type(),
-                                cv::viz::Color::white());
+  static cv::Mat default_texture(
+      left_image_overlay.rows, left_image_overlay.cols,
+      left_image_overlay.type(), cv::viz::Color::white());
   cv::Mat texture_image;
   CHECK_EQ(left_image_overlay.dims, default_texture.dims);
   CHECK_EQ(left_image_overlay.rows, default_texture.rows);
@@ -113,7 +115,7 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_imag
   cv::hconcat(left_image_overlay, default_texture, texture_image);
   mesh_3d_viz_props.texture_ = texture_image;
 
-  //mesh_3d_viz_props.texture_ = left_image_overlay;
+  // mesh_3d_viz_props.texture_ = left_image_overlay;
   mesh_3d_viz_props.tcoords_ = cv::Mat(tcoords, true).reshape(2);
   CHECK_EQ(mesh_3d_viz_props.tcoords_.size().height,
            mesh_3d.getNumberOfUniqueVertices());
@@ -121,12 +123,12 @@ Mesher::Mesh3DVizProperties dummySemanticSegmentation(const Timestamp& left_imag
   return mesh_3d_viz_props;
 }
 
-} // End of VIO namespace.
+}  // namespace VIO
 
 ////////////////////////////////////////////////////////////////////////////////
 // semanticVIOexample
 ////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
@@ -134,16 +136,16 @@ int main(int argc, char *argv[]) {
 
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
-  VIO::Pipeline vio_pipeline (&eth_dataset_parser,
-                              eth_dataset_parser.getImuParams());
+  VIO::Pipeline vio_pipeline(&eth_dataset_parser,
+                             eth_dataset_parser.getImuParams());
 
   // Register callback to semantic segmentation.
   vio_pipeline.registerSemanticMeshSegmentationCallback(
-        &VIO::dummySemanticSegmentation);
+      &VIO::dummySemanticSegmentation);
 
   // Register callback to vio_pipeline.
   eth_dataset_parser.registerVioCallback(
-        std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
+      std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
@@ -160,5 +162,5 @@ int main(int argc, char *argv[]) {
     logger.closeLogFiles();
   }
 
-  return is_pipeline_successful? EXIT_SUCCESS : EXIT_FAILURE;
+  return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;
 }

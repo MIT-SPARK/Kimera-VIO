@@ -49,7 +49,6 @@
 //
 // std::cout << utils::Statistics::Print();
 
-
 namespace VIO {
 
 namespace utils {
@@ -67,10 +66,10 @@ struct StatisticsMapValue {
     std::chrono::time_point<std::chrono::system_clock> now =
         std::chrono::system_clock::now();
     double dt = static_cast<double>(
-          std::chrono::duration_cast<std::chrono::nanoseconds>(
-            now - time_last_called_)
-          .count()) *
-        kNumSecondsPerNanosecond;
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        now - time_last_called_)
+                        .count()) *
+                kNumSecondsPerNanosecond;
     time_last_called_ = now;
 
     values_.Add(sample);
@@ -90,27 +89,13 @@ struct StatisticsMapValue {
       return 0;
     }
   }
-  inline double Sum() const {
-    return values_.sum();
-  }
-  int TotalSamples() const {
-    return values_.total_samples();
-  }
-  double Mean() const {
-    return values_.Mean();
-  }
-  double RollingMean() const {
-    return values_.RollingMean();
-  }
-  double Max() const {
-    return values_.max();
-  }
-  double Min() const {
-    return values_.min();
-  }
-  double LazyVariance() const {
-    return values_.LazyVariance();
-  }
+  inline double Sum() const { return values_.sum(); }
+  int TotalSamples() const { return values_.total_samples(); }
+  double Mean() const { return values_.Mean(); }
+  double RollingMean() const { return values_.RollingMean(); }
+  double Max() const { return values_.max(); }
+  double Min() const { return values_.min(); }
+  double LazyVariance() const { return values_.LazyVariance(); }
   double MeanCallsPerSec() const {
     double mean_dt = time_deltas_.Mean();
     if (mean_dt != 0) {
@@ -120,23 +105,13 @@ struct StatisticsMapValue {
     }
   }
 
-  double MeanDeltaTime() const {
-    return time_deltas_.Mean();
-  }
-  double RollingMeanDeltaTime() const {
-    return time_deltas_.RollingMean();
-  }
-  double MaxDeltaTime() const {
-    return time_deltas_.max();
-  }
-  double MinDeltaTime() const {
-    return time_deltas_.min();
-  }
-  double LazyVarianceDeltaTime() const {
-    return time_deltas_.LazyVariance();
-  }
+  double MeanDeltaTime() const { return time_deltas_.Mean(); }
+  double RollingMeanDeltaTime() const { return time_deltas_.RollingMean(); }
+  double MaxDeltaTime() const { return time_deltas_.max(); }
+  double MinDeltaTime() const { return time_deltas_.min(); }
+  double LazyVarianceDeltaTime() const { return time_deltas_.LazyVariance(); }
 
-private:
+ private:
   // Create an accumulator with specified window size.
   Accumulator<double, double, kWindowSize> values_;
   Accumulator<double, double, kWindowSize> time_deltas_;
@@ -147,18 +122,16 @@ private:
 // in place of the Statistics class (say with a typedef) eliminates the function
 // calls.
 class DummyStatsCollector {
-public:
+ public:
   explicit DummyStatsCollector(size_t /*handle*/) {}
   explicit DummyStatsCollector(std::string const& /*tag*/) {}
   void AddSample(double /*sample*/) const {}
   void IncrementOne() const {}
-  size_t GetHandle() const {
-    return 0u;
-  }
+  size_t GetHandle() const { return 0u; }
 };
 
 class StatsCollectorImpl {
-public:
+ public:
   explicit StatsCollectorImpl(size_t handle);
   explicit StatsCollectorImpl(std::string const& tag);
   ~StatsCollectorImpl() = default;
@@ -167,12 +140,12 @@ public:
   void IncrementOne() const;
   size_t GetHandle() const;
 
-private:
+ private:
   size_t handle_;
 };
 
 class Statistics {
-public:
+ public:
   typedef std::map<std::string, size_t> map_t;
   friend class StatsCollectorImpl;
   // Definition of static functions to query the stats.
@@ -212,11 +185,9 @@ public:
   static std::string Print();
   static std::string SecondsToTimeString(double seconds);
   static void Reset();
-  static const map_t& GetStatsCollectors() {
-    return Instance().tag_map_;
-  }
+  static const map_t& GetStatsCollectors() { return Instance().tag_map_; }
 
-private:
+ private:
   void AddSample(size_t handle, double sample);
 
   static Statistics& Instance();
@@ -240,6 +211,6 @@ typedef StatsCollectorImpl StatsCollector;
 typedef DummyStatsCollector StatsCollector;
 #endif
 
-}  // End of utils namespace.
+}  // namespace utils
 
-}  // End of VIO namespace.
+}  // namespace VIO

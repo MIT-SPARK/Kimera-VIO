@@ -12,11 +12,11 @@
  * @author Yun Chang
  */
 
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <random>
 #include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <random>
 
 #include "Visualizer3D.h"
 #include "test_config.h"
@@ -31,13 +31,15 @@ using namespace cv;
 static const double tol = 1e-1;
 
 /* ************************************************************************* */
-// TODO 
+// TODO
 TEST(testFrame, KittiDataProvider) {
-  // TODO: test kitti data provider Check image lists and also imu data parsing 
+  // TODO: test kitti data provider Check image lists and also imu data parsing
   // Construct a frame from image name.
 }
 
 /* ************************************************************************* */
 int main() {
-  TestResult tr; return TestRegistry::runAllTests(tr); }
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************* */

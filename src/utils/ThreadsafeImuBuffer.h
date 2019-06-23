@@ -32,9 +32,9 @@
 
 #include <algorithm>
 #include <atomic>
-#include <mutex>
 #include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <utility>
 
 #include <functional>
@@ -42,9 +42,9 @@
 
 #include <Eigen/Dense>
 
-#include "utils/ThreadsafeTemporalBuffer.h"
-#include "common/vio_types.h"
 #include "ImuFrontEnd-definitions.h"
+#include "common/vio_types.h"
+#include "utils/ThreadsafeTemporalBuffer.h"
 
 namespace VIO {
 
@@ -76,12 +76,9 @@ class ThreadsafeImuBuffer {
   };
 
   explicit ThreadsafeImuBuffer(Timestamp buffer_length_ns)
-      : buffer_(buffer_length_ns),
-        shutdown_(false) {}
+      : buffer_(buffer_length_ns), shutdown_(false) {}
 
-  ~ThreadsafeImuBuffer() {
-    shutdown();
-  }
+  ~ThreadsafeImuBuffer() { shutdown(); }
 
   /// Shutdown the queue and release all blocked waiters.
   inline void shutdown();
@@ -92,9 +89,8 @@ class ThreadsafeImuBuffer {
   /// (Ordering: accelerations [m/s^2], angular velocities [rad/s])
   inline void addMeasurement(Timestamp timestamp_nanoseconds,
                              const ImuAccGyr& imu_measurement);
-  inline void addMeasurements(
-      const ImuStampS& timestamps_nanoseconds,
-      const ImuAccGyrS& imu_measurements);
+  inline void addMeasurements(const ImuStampS& timestamps_nanoseconds,
+                              const ImuAccGyrS& imu_measurements);
 
   // Get IMU data strictly between Timestamps.
   // Example: content: 2 3 4 5
@@ -146,7 +142,6 @@ class ThreadsafeImuBuffer {
                                                 ImuStampS* imu_timestamps,
                                                 ImuAccGyrS* imu_measurements);
 
-
   // Interpolates an IMU measurement at timestamp by taking previous and
   // posterior measurements to the given timestamp.
   // WARNING: the user must make sure the buffer has enough elements.
@@ -161,14 +156,12 @@ class ThreadsafeImuBuffer {
   /// will return false and no data will be removed from the buffer.
   QueryResult getImuDataInterpolatedBordersBlocking(
       Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
-      Timestamp wait_timeout_nanoseconds,
-      ImuStampS* imu_timestamps,
+      Timestamp wait_timeout_nanoseconds, ImuStampS* imu_timestamps,
       ImuAccGyrS* imu_measurements);
 
   /// Linear interpolation between two imu measurements.
-  static void linearInterpolate(
-      Timestamp x0, const ImuAccGyr& y0, Timestamp x1, const ImuAccGyr& y1,
-      Timestamp x, ImuAccGyr* y);
+  static void linearInterpolate(Timestamp x0, const ImuAccGyr& y0, Timestamp x1,
+                                const ImuAccGyr& y1, Timestamp x, ImuAccGyr* y);
 
  private:
   /// TODO I think this comment is deprecated:
@@ -185,8 +178,8 @@ class ThreadsafeImuBuffer {
   ///       iii) Query from timestamp 3 to 4, returns kDataAvailable.
   /// And I don't think there is a need to lock any mutex, as buffer_ is already
   /// threadsafe...
-  QueryResult isDataAvailableUpToImpl(
-      Timestamp timestamp_ns_from, Timestamp timestamp_ns_to) const;
+  QueryResult isDataAvailableUpToImpl(Timestamp timestamp_ns_from,
+                                      Timestamp timestamp_ns_to) const;
 
   typedef std::pair<const Timestamp, ImuMeasurement> BufferElement;
   typedef Eigen::aligned_allocator<BufferElement> BufferAllocator;
@@ -198,8 +191,8 @@ class ThreadsafeImuBuffer {
   std::atomic<bool> shutdown_;
 };
 
-}  // End of utils utils namespace.
+}  // namespace utils
 
-} // End of VIO namespace.
+}  // namespace VIO
 
 #include "./ThreadsafeImuBuffer-inl.h"
