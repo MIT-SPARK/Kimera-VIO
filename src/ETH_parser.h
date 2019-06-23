@@ -68,6 +68,8 @@ public:
       imu_bias_.print("\n imuBias: \n");
     }
   }
+
+  gtsam::Pose3 pose() const { return pose_; };
 };
 
 /*
@@ -111,6 +113,7 @@ public:
 class ETHDatasetParser : public DataProvider {
 public:
   ETHDatasetParser();
+  ETHDatasetParser(std::string& input_string);
   virtual ~ETHDatasetParser();
 
   // Decides backend parameters depending on the backend chosen.
@@ -210,6 +213,14 @@ public:
   // Print info about dataset.
   void print() const;
 
+  // Parse IMU data of a given dataset.
+  bool parseImuData(const std::string& input_dataset_path,
+                    const std::string& imuName);
+
+  // Parse ground truth data.
+  bool parseGTdata(const std::string& input_dataset_path,
+                   const std::string& gtSensorName);
+
 public:
   // THIS IS ONLY HERE BECAUSE the pipeline needs to know what is this value.
   // But it should not need to!!
@@ -231,14 +242,6 @@ private:
   // Parse IMU parameters.
   bool parseImuParams(const std::string& input_dataset_path,
                       const std::string& imuName);
-
-  // Parse IMU data of a given dataset.
-  bool parseImuData(const std::string& input_dataset_path,
-                    const std::string& imuName);
-
-  // Parse ground truth data.
-  bool parseGTdata(const std::string& input_dataset_path,
-                   const std::string& gtSensorName);
 
   /// Getters.
   inline size_t getNumImages() const {

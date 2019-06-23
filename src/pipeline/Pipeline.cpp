@@ -24,6 +24,8 @@
 #include "RegularVioBackEnd.h"
 #include "StereoVisionFrontEnd.h"
 
+#include "OnlineGravityAlignment.h"
+
 DEFINE_bool(log_output, false, "Log output to matlab.");
 DEFINE_int32(regular_vio_backend_modality, 4u,
              "Modality for regular Vio backend, currently supported:\n"
@@ -68,6 +70,13 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
 
+DEFINE_int32(numb_frames_oga, 15,
+             "Minimum number of frames for the online "
+             "gravity-aligned initialization");
+DEFINE_int32(initialization_mode, 1,
+             "Initialization mode to be choosen "
+             "0: default (GT/IMU), 1: online initialisation");
+
 namespace VIO {
 
 // TODO VERY BAD TO SEND THE DATASET PARSER AS A POINTER (at least for thread
@@ -102,6 +111,8 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
   frontend_params_ = dataset_->getFrontendParams();
   backend_params_ = dataset_->getBackendParams();
 
+  // initialization_packet_.clear();
+
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.
   // TODO remove hardcoded saveImages, use gflag.
@@ -135,47 +146,46 @@ Pipeline::~Pipeline() {
 
 /* -------------------------------------------------------------------------- */
 SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+  // Initialize pipeline if not initialized
   if (!is_initialized_) {
-    LOG(INFO) << "Initialize VIO pipeline.";
+
+    // Launch frontend thread
+    if (!is_launched_) {
+      launchFrontendThread();
+      is_launched_ = true;
+    }
+    CHECK(is_launched_);
+
     // Initialize pipeline.
     // TODO this is very brittle, because we are accumulating IMU data, but
     // not using it for initialization, because accumulated and actual IMU data
     // at init is the same...
-    initialize(stereo_imu_sync_packet);
-    if (parallel_run_) {
-      launchThreads();
+    if (initialize(stereo_imu_sync_packet)) {
+      launchRemainingThreads();
+      is_initialized_ = true;
+      return getSpinOutputContainer();
     } else {
-      LOG(INFO) << "Running in sequential mode (parallel_run set to "
-                << parallel_run_<< ").";
+      LOG(INFO) << "Not yet initialized...";
+      // TODO: Don't publish if it is the trivial output
+      return SpinOutputContainer();
     }
-    is_initialized_ = true;
 
-    return getSpinOutputContainer();
-
-  }
-  else if(stereo_imu_sync_packet.getReinitPacket().getReinitFlag()) {
-
+    // Re-Initialize pipeline if requested
+  } else if (stereo_imu_sync_packet.getReinitPacket().getReinitFlag()) {
     // TODO: Add option to autoinitialize, but re-initialize from ext. pose (flag)
     // Shutdown pipeline first
     shutdown();
-
     // Re-initialize pipeline
     reInitialize(stereo_imu_sync_packet);
-
     // Resume pipeline
     resume();
-
     return getSpinOutputContainer();
-
   }
   else {
-
     // TODO Warning: we do not accumulate IMU measurements for the first packet...
     // Spin.
     spinOnce(stereo_imu_sync_packet);
-
     return getSpinOutputContainer();
-
   }
 }
 
@@ -446,6 +456,7 @@ void Pipeline::spinSequential() {
   }
 }
 
+// TODO: Adapt this function to be able to cope with new initialization
 /* -------------------------------------------------------------------------- */
 void Pipeline::shutdownWhenFinished() {
   // This is a very rough way of knowing if we have finished...
@@ -506,7 +517,25 @@ void Pipeline::shutdown() {
 }
 
 /* -------------------------------------------------------------------------- */
-bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+bool Pipeline::initialize(const StereoImuSyncPacket &stereo_imu_sync_packet) {
+  // Switch initialization mode
+  switch (FLAGS_initialization_mode) {
+  case 0: // Initialization using IMU or GT only
+    return initializeFromIMUorGT(stereo_imu_sync_packet);
+    break;
+  case 1: // Initialization using online gravity alignment
+    return initializeOnline(stereo_imu_sync_packet);
+    break;
+  default:
+    LOG(ERROR) << "Initialization mode doesn't exist.";
+    return false;
+    break;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+bool Pipeline::initializeFromIMUorGT(
+    const StereoImuSyncPacket &stereo_imu_sync_packet) {
   LOG(INFO) << "------------------- Initialize Pipeline with frame k = "
             << stereo_imu_sync_packet.getStereoFrame().getFrameId()
             << "--------------------";
@@ -518,7 +547,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
       vio_frontend_->processFirstStereoFrame(
         stereo_imu_sync_packet.getStereoFrame());
 
-  ///////////////////////////// BACKEND ////////////////////////////////////////
+  ///////////////////////////// GT ////////////////////////////////////////////
   // Initialize Backend using GT if available.
   std::shared_ptr<gtNavState> initialStateGT =
     dataset_->isGroundTruthAvailable()?
@@ -526,46 +555,221 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
                      stereo_imu_sync_packet.getStereoFrame().getTimestamp())) :
                      std::shared_ptr<gtNavState>(nullptr);
 
-  // TODO: Include flag to start from external pose estimate (ROS)
-  //if (flag_init_gt = 0) {
-  //    LOG(INFO) << "Initialize pipeline with possible GT.";
-  //
-  //} else {
-  //    // Initialize Backend using External Pose Estimate if available.
-  //    LOG(INFO) << "Initialize pipeline with external navstate estimate.";
-  //    initialStateGT = std::make_shared<gtNavState>(gtNavState(
-  //          stereo_imu_sync_packet.getReinitPacket().getReinitPose(),
-  //          stereo_imu_sync_packet.getReinitPacket().getReinitVel(),
-  //          stereo_imu_sync_packet.getReinitPacket().getReinitBias()))
-  //}
+  ///////////////////////////// BACKEND //////////////////////////////////////
+  // Initialize backend with pose estimate from gravity alignment
+  initializeBackend(stereo_imu_sync_packet, initialStateGT,
+                        stereo_frame_lkf);
 
-  initBackend(&vio_backend_,
-              stereo_frame_lkf.getBPoseCamLRect(),
-              stereo_frame_lkf.getLeftUndistRectCamMat(),
-              stereo_frame_lkf.getBaseline(),
-              *backend_params_,
-              &initialStateGT,
-              stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
-              stereo_imu_sync_packet.getImuAccGyr()); // No timestamps needed for IMU?
-  vio_backend_->registerImuBiasUpdateCallback(
+  return true;
+}
+
+// TODO: Include flag to start from external pose estimate (ROS)
+// TODO(Sandro): Need to get pre-integration without gravity!!!!!!
+// TODO(Sandro): Set gravity in pre-integration to zero
+// TODO(Sandro): Reset values at end of this function
+// TODO(Sandro): Reset spinOnce (frontend) as private function
+// TODO(Sandro): Fix issues with autoinitialize flag
+  // Change flag to be int and not bool
+  // Change BackEnd constructor depending on 1 or 2
+// TODO(Sandro): Use only one backend for initialization??
+// TODO(Sandro): Find way to destruct initBackend?
+// TODO(Sandro): Create function for initial bundle adjustment in pipeline
+  // Skips from batchpop to initial alignment --> directly in backend initialization
+  // Adapt initializeIMUorGT to use same code base for backend initialization
+// TODO(Sandro): Insert poses from initialization and optimize for kf (batch
+// insert and optimize once)
+// TODO(Sandro): Adapt numb_OGA as additive and not absolute
+/* -------------------------------------------------------------------------- */
+bool Pipeline::initializeOnline(
+    const StereoImuSyncPacket &stereo_imu_sync_packet) {
+  int frame_id = stereo_imu_sync_packet.getStereoFrame().getFrameId();
+  LOG(INFO) << "------------------- Initializing Pipeline with frame k = "
+            << frame_id << "--------------------";
+
+  CHECK(vio_frontend_);
+  CHECK_GE(frame_id, 1);
+  CHECK_GE(FLAGS_numb_frames_oga, frame_id);
+
+  // Enforce stereo frame as keyframe for initialization
+  StereoImuSyncPacket stereo_imu_sync_init = stereo_imu_sync_packet;
+  stereo_imu_sync_init.setAsKeyframe();
+
+  /////////////////// FIRST FRAME //////////////////////////////////////////////
+  if (frame_id == 1) {
+
+    // Set trivial bias and gravity vector for online initialization
+    vio_frontend_->prepareFrontendForOnlineAlignment();
+    // Initialize Stereo Frontend.
+    StereoFrame stereo_frame_lkf =
+        vio_frontend_->processFirstStereoFrame(
+            stereo_imu_sync_init.getStereoFrame());
+    // Get timestamp for bookkeeping
+    timestamp_lkf_ = stereo_imu_sync_init.getStereoFrame().getTimestamp();
+
+    return false;
+
+  /////////////////// FRONTEND //////////////////////////////////////////////////
+  } else {
+
+    // Check trivial bias and gravity vector for online initialization
+    vio_frontend_->checkFrontendForOnlineAlignment();
+    // Spin frontend once with enforced keyframe and 53-point method
+    auto frontend_output = vio_frontend_->spinOnce(
+        std::make_shared<StereoImuSyncPacket>(stereo_imu_sync_init));
+    stereo_frontend_output_queue_.push(frontend_output);
+    const StereoFrame stereo_frame_lkf = frontend_output.stereo_frame_lkf_;
+
+    // Only process set of frontend outputs after specific number of frames
+    if (frame_id < FLAGS_numb_frames_oga) {
+      return false;
+    } else {
+      ///////////////////////////// ONLINE INITIALIZER //////////////////////
+
+      // Run Bundle-Adjustment and initial gravity alignment
+      // TODO(Sandro): Clean up this interface
+      gtsam::Vector3 gyro_bias;
+      gtsam::Vector3 g_iter_b0;
+      CHECK(bundleAdjustmentAndGravityAlignment(
+                      stereo_imu_sync_init,
+                      stereo_frame_lkf,
+                      &gyro_bias,
+                      &g_iter_b0));
+      // Reset frontend with non-trivial gravity and remove 53-enforcement.
+      // Update frontend with initial gyro bias estimate.
+      const gtsam::Vector3 gravity = backend_params_->n_gravity_;
+      vio_frontend_->resetFrontendAfterOnlineAlignment(gravity,
+                                                    gyro_bias);
+
+      // TODO(Sandro): Adapt this to be computed from gravity vector!!
+      // (not trivial value)
+      // Create initial state for initialization
+      std::shared_ptr<gtNavState> initialStateOGA =
+          std::make_shared<gtNavState>(gtNavState());
+
+      ///////////////////////////// BACKEND ///////////////////////////////////
+      // Initialize backend with pose estimate from gravity alignment
+      initializeBackend(stereo_imu_sync_packet, initialStateOGA,
+                        stereo_frame_lkf);
+
+      // TODO(Sandro): Create check-return for function
+      return true;
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+bool Pipeline::initializeBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
+                                std::shared_ptr<gtNavState> initial_state,
+                                const StereoFrame &stereo_frame_lkf) {
+    ///////////////////////////// BACKEND ///////////////////////////////////
+    initBackend(
+        &vio_backend_, stereo_frame_lkf.getBPoseCamLRect(),
+        stereo_frame_lkf.getLeftUndistRectCamMat(),
+        stereo_frame_lkf.getBaseline(), *backend_params_, &initial_state,
+        stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
+        stereo_imu_sync_packet.getImuAccGyr()); // No timestamps needed for IMU?
+    vio_backend_->registerImuBiasUpdateCallback(
         std::bind(&StereoVisionFrontEnd::updateImuBias,
                   // Send a cref: constant reference because vio_frontend_ is
                   // not copyable.
                   std::cref(*vio_frontend_), std::placeholders::_1));
 
-  ////////////////// DEBUG INITIALIZATION //////////////////////////////////
-  if (FLAGS_log_output) {
-    logger_.displayInitialStateVioInfo(
-          *dataset_,
-          vio_backend_,
-          *CHECK_NOTNULL(initialStateGT.get()),
+    ////////////////// DEBUG INITIALIZATION //////////////////////////////////
+    if (FLAGS_log_output) {
+      logger_.displayInitialStateVioInfo(
+          *dataset_, vio_backend_, *CHECK_NOTNULL(initial_state.get()),
           stereo_imu_sync_packet.getImuAccGyr(),
           stereo_imu_sync_packet.getStereoFrame().getTimestamp());
-    // Store latest pose estimate.
-    logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
-  }
+      // Store latest pose estimate.
+      logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
+    }
+}
 
-  return true;
+/* -------------------------------------------------------------------------- */
+// Perform Bundle-Adjustment and initial gravity alignment.
+// [out]: Initial navState and imu bias estimates for backend.
+// TODO(Sandro): Modify this to have
+bool Pipeline::bundleAdjustmentAndGravityAlignment(
+                      const StereoImuSyncPacket &stereo_imu_sync_init,
+                      const StereoFrame &stereo_frame_lkf,
+                      gtsam::Vector3 *gyro_bias,
+                      gtsam::Vector3 *g_iter_b0) {
+
+    // Get frontend output to backend input for online initialization
+    auto output_frontend = stereo_frontend_output_queue_.batchPop();
+    const StereoFrame &stereo_frame_fkf =
+        output_frontend.back()->stereo_frame_lkf_;
+    std::vector<std::shared_ptr<VioBackEndInputPayload>> inputs_backend;
+    inputs_backend.clear();
+
+    // Create inputs for online gravity alignment
+    std::vector<gtsam::PreintegratedImuMeasurements> pims;
+    pims.clear();
+    std::vector<double> delta_t_camera;
+    delta_t_camera.clear();
+    for (int i = 0; i < output_frontend.size(); i++) {
+      // Create input for backend
+      std::shared_ptr<VioBackEndInputPayload> input_backend =
+          std::make_shared<VioBackEndInputPayload>(VioBackEndInputPayload(
+              output_frontend.at(i)->stereo_frame_lkf_.getTimestamp(),
+              output_frontend.at(i)->statusSmartStereoMeasurements_,
+              output_frontend.at(i)->tracker_status_,
+              output_frontend.at(i)->pim_,
+              output_frontend.at(i)->relative_pose_body_stereo_, &planes_));
+      inputs_backend.push_back(input_backend);
+      pims.push_back(output_frontend.at(i)->pim_);
+      // Bookkeeping for timestamps
+      Timestamp timestamp_kf =
+              output_frontend.at(i)->stereo_frame_lkf_.getTimestamp();
+      delta_t_camera.push_back(UtilsOpenCV::NsecToSec(
+                      timestamp_kf - timestamp_lkf_));
+      timestamp_lkf_ = timestamp_kf;
+      // Logging
+      VLOG(10) << "Frame: "
+                << output_frontend.at(i)->stereo_frame_lkf_.getFrameId()
+                << " for initialization is "
+                << (output_frontend.at(i)->is_keyframe_ ? "a keyframe."
+                                                        : "not a keyframe.");
+    }
+    // Logging
+    VLOG(10) << "N frames for initial alignment: " << output_frontend.size();
+
+    // Run initial Bundle Adjustment and retrieve body poses
+    // wrt. to initial camera frame (v0_T_bk, for k in 0:N)
+    std::shared_ptr<gtNavState> trivial_state =
+        std::make_shared<gtNavState>(gtNavState(
+            gtsam::Pose3(),
+            gtsam::Vector3::Zero(),
+            gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero())));
+    VioBackEnd initial_backend(
+        stereo_frame_lkf.getBPoseCamLRect(),
+        stereo_frame_lkf.getLeftUndistRectCamMat(),
+        stereo_frame_lkf.getBaseline(), &trivial_state,
+        stereo_imu_sync_init.getStereoFrame().getTimestamp(),
+        stereo_imu_sync_init.getImuAccGyr(), *backend_params_,
+        FLAGS_log_output);
+    std::vector<gtsam::Pose3> estimated_poses =
+        initial_backend.addInitialVisualStatesAndOptimize(inputs_backend);
+    // Logging
+    LOG(INFO) << "Initial bundle adjustment terminated.";
+
+    // Destruct initial backend
+    // initial_backend.~VioBackEnd();
+
+    // Enforce zero bias in initial propagation
+    vio_frontend_->updateAndResetImuBias(
+        gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
+    // Run initial visual-inertial alignment(OGA)
+    *gyro_bias = vio_frontend_->getCurrentImuBias().gyroscope();
+    OnlineGravityAlignment initial_alignment(
+                              estimated_poses,
+                              delta_t_camera,
+                              pims,
+                              backend_params_->n_gravity_);
+    initial_alignment.alignVisualInertialEstimates(gyro_bias, g_iter_b0);
+
+    // TODO(Sandro): Create check-return for function
+    return true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -735,13 +939,25 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
 void Pipeline::processKeyframePop() {
   // Pull from stereo frontend output queue.
   LOG(INFO) << "Spinning wrapped thread.";
-  while (!shutdown_) {
-    std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload
-        = stereo_frontend_output_queue_.popBlocking();
-    if (!stereo_frontend_output_payload) {
-      LOG(WARNING) << "No StereoFrontEnd Output Payload received.";
-      return;
+  while(!shutdown_) {
+    const auto &stereo_frontend_output_payload_vector =
+        stereo_frontend_output_queue_.batchPopBlocking();
+    // TODO(Sandro): Adapt this!!
+    // We should also be able to batch process for the backend
+    // Either just popBlocking or adapt processKeyframe for multiple
+    if (stereo_frontend_output_payload_vector.size() != 1) {
+      LOG(INFO) << "Queue output vector size: 1";
+    } else {
+      LOG(WARNING) << "Queue output vector size: "
+                   << stereo_frontend_output_payload_vector.size();
     }
+    // TODO: Adapt to be able to push in blocks into backend
+    const auto &stereo_frontend_output_payload =
+        stereo_frontend_output_payload_vector.front();
+    // std::shared_ptr<StereoFrontEndOutputPayload>
+    // stereo_frontend_output_payload
+    //    = stereo_frontend_output_queue_.popBlocking();
+    CHECK(stereo_frontend_output_payload);
     CHECK(stereo_frontend_output_payload->is_keyframe_);
 
     // Pass info for resiliency
@@ -769,36 +985,57 @@ void Pipeline::processKeyframePop() {
 void Pipeline::launchThreads() {
   LOG(INFO) << "Launching threads.";
 
-  // Start frontend_thread.
-  stereo_frontend_thread_ = VIO::make_unique<std::thread>(
-                              &StereoVisionFrontEnd::spin,
-                              CHECK_NOTNULL(vio_frontend_.get()),
-                              std::ref(stereo_frontend_input_queue_),
-                              std::ref(stereo_frontend_output_queue_),
-                              true);
+  launchFrontendThread();
+  launchRemainingThreads();
+}
 
-  wrapped_thread_ = VIO::make_unique<std::thread>(&Pipeline::processKeyframePop, this);
+/* -------------------------------------------------------------------------- */
+void Pipeline::launchFrontendThread() {
 
-  // Start backend_thread.
-  backend_thread_ = VIO::make_unique<std::thread>(&VioBackEnd::spin,
-                                // Returns the pointer to vio_backend_.
-                                CHECK_NOTNULL(vio_backend_.get()),
-                                std::ref(backend_input_queue_),
-                                std::ref(backend_output_queue_),
-                                true);
+  if (parallel_run_) {
+    // Start frontend_thread.
+    stereo_frontend_thread_ = VIO::make_unique<std::thread>(
+        &StereoVisionFrontEnd::spin, CHECK_NOTNULL(vio_frontend_.get()),
+        std::ref(stereo_frontend_input_queue_),
+        std::ref(stereo_frontend_output_queue_), true);
+    LOG(INFO) << "Frontend launched (parallel_run set to " << parallel_run_
+              << ").";
+  } else {
+    LOG(INFO) << "Frontend running in sequential mode (parallel_run set to "
+              << parallel_run_ << ").";
+  }
+}
 
-  // Start mesher_thread.
-  mesher_thread_ = VIO::make_unique<std::thread>(&Mesher::spin,
-                               &mesher_,
-                               std::ref(mesher_input_queue_),
-                               std::ref(mesher_output_queue_),
-                               true);
+/* -------------------------------------------------------------------------- */
+void Pipeline::launchRemainingThreads() {
 
-  // Start visualizer_thread.
-  //visualizer_thread_ = std::thread(&Visualizer3D::spin,
-  //                                 &visualizer_,
-  //                                 std::ref(visualizer_input_queue_),
-  //                                 std::ref(visualizer_output_queue_));
+  if (parallel_run_) {
+    wrapped_thread_ =
+        VIO::make_unique<std::thread>(&Pipeline::processKeyframePop, this);
+
+    // Start backend_thread.
+    backend_thread_ = VIO::make_unique<std::thread>(
+        &VioBackEnd::spin,
+        // Returns the pointer to vio_backend_.
+        CHECK_NOTNULL(vio_backend_.get()), std::ref(backend_input_queue_),
+        std::ref(backend_output_queue_), true);
+
+    // Start mesher_thread.
+    mesher_thread_ = VIO::make_unique<std::thread>(
+        &Mesher::spin, &mesher_, std::ref(mesher_input_queue_),
+        std::ref(mesher_output_queue_), true);
+
+    // Start visualizer_thread.
+    // visualizer_thread_ = std::thread(&Visualizer3D::spin,
+    //                                 &visualizer_,
+    //                                 std::ref(visualizer_input_queue_),
+    //                                 std::ref(visualizer_output_queue_));
+    LOG(INFO) << "Backend, mesher and visualizer launched (parallel_run set to "
+              << parallel_run_ << ").";
+  } else {
+    LOG(INFO) << "Backend, mesher and visualizer running in sequential mode"
+              << " (parallel_run set to " << parallel_run_ << ").";
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -828,8 +1065,7 @@ void Pipeline::resume() {
       LOG(INFO) << "Running in sequential mode (parallel_run set to "
                 << parallel_run_<< ").";
     }
-    is_initialized_ = true;
-
+    is_launched_ = true;
 }
 
 /* -------------------------------------------------------------------------- */

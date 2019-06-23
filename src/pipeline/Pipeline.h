@@ -113,8 +113,26 @@ private:
     srand(0);
   }
 
-  // Initialize pipeline.
+  // Initialize pipeline with desired option (flag).
   bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Initialize pipeline from IMU or GT.
+  bool initializeFromIMUorGT(const StereoImuSyncPacket &stereo_imu_sync_packet);
+
+  // Initialize pipeline from online gravity alignment.
+  bool initializeOnline(const StereoImuSyncPacket &stereo_imu_sync_packet);
+
+  // Perform Bundle-Adjustment and initial gravity alignment
+  bool bundleAdjustmentAndGravityAlignment(
+                      const StereoImuSyncPacket &stereo_imu_sync_init,
+                      const StereoFrame &stereo_frame_lkf,
+                      gtsam::Vector3 *gyro_bias,
+                      gtsam::Vector3 *g_iter_b0);
+
+  // Initialize backend given external pose estimate (GT or OGA)
+  bool initializeBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
+                      std::shared_ptr<gtNavState> initial_state,
+                      const StereoFrame &stereo_frame_lkf);
 
   // Re-initialize pipeline.
   bool reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
@@ -166,6 +184,12 @@ private:
 
   // Launch different threads with processes.
   void launchThreads();
+
+  // Launch frontend thread with process.
+  void launchFrontendThread();
+
+  // Launch remaining threads with processes.
+  void launchRemainingThreads();
 
   // Shutdown processes and queues.
   void stopThreads();
@@ -229,6 +253,7 @@ private:
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
+  std::atomic_bool is_launched_ = {false};
 
   // Threads.
   std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};

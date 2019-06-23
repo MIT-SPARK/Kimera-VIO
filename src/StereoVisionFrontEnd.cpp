@@ -270,6 +270,9 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   int verbosityFrames = save_images_option_; // default: 0
   int verbosityKeyframes = save_images_option_; // default: 1
 
+  // Get flag to enforce keyframe if required
+  bool enforce_keyframe = stereoFrame_k_->isKeyframe();
+
   double timeSparseStereo = 0;
   double timeGetMeasurements = 0;
 
@@ -302,7 +305,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       nr_valid_features <= tracker_.trackerParams_.min_number_features_;
 
   // If max time elaspsed and not able to track feature -> create new keyframe
-  if (max_time_elapsed || nr_features_low) {
+  if (max_time_elapsed || nr_features_low || enforce_keyframe) {
     ++keyframe_count_; // mainly for debugging
 
     VLOG(2) << "+++++++++++++++++++++++++++++++++++++++++++++++++++" << "Keyframe after: "
@@ -330,7 +333,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       std::pair<TrackingStatus, gtsam::Pose3> statusPoseMono;
       Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
       if (tracker_.trackerParams_.ransac_use_2point_mono_ &&
-          calLrectLkf_R_camLrectKf_imu) {
+          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
         // 2-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMonoGivenRotation(
             left_frame_lkf, left_frame_k, *calLrectLkf_R_camLrectKf_imu);
@@ -362,7 +365,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       std::pair<TrackingStatus,gtsam::Pose3> statusPoseStereo;
       gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
       if (tracker_.trackerParams_.ransac_use_1point_stereo_ &&
-          calLrectLkf_R_camLrectKf_imu) {
+          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
         // 1-point RANSAC.
         std::tie(statusPoseStereo, infoMatStereoTranslation) =
                 tracker_.geometricOutlierRejectionStereoGivenRotation(
