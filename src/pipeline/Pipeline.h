@@ -123,9 +123,16 @@ private:
   bool initializeOnline(const StereoImuSyncPacket &stereo_imu_sync_packet);
 
   // Perform Bundle-Adjustment and initial gravity alignment
-  bool bundleAdjustmentAndGravityAlignment(StereoImuSyncPacket &stereo_imu_sync_init,
-                      StereoFrame &stereo_frame_lkf,
-                      gtsam::Vector3 *gyro_bias);
+  bool bundleAdjustmentAndGravityAlignment(
+                      const StereoImuSyncPacket &stereo_imu_sync_init,
+                      const StereoFrame &stereo_frame_lkf,
+                      gtsam::Vector3 *gyro_bias,
+                      gtsam::Vector3 *g_iter_b0);
+
+  // Initialize backend given external pose estimate (GT or OGA)
+  bool initializeBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
+                      std::shared_ptr<gtNavState> initial_state,
+                      const StereoFrame &stereo_frame_lkf);
 
   // Re-initialize pipeline.
   bool reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);

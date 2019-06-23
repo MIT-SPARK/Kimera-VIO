@@ -22,43 +22,50 @@
 
 namespace VIO {
 
+// TODO(Sandro): Retract velocities and poses from last optimization
+// TODO(Sandro): Check conventions
+// TODO(Sandro): Setup unit test
+// TODO(Sandro): Why are we not iterating also the tangent basis??
+// TODO(Sandro): Insert check before gravity refinement
+
 /* -------------------------------------------------------------------------- */
-// TODO(Sandro): Adapt description
-// Adding of states for bundle adjustment used in initialization.
-// [in] timestamp_kf_nsec, keyframe timestamp.
-// [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
+// Constructor for visual inertial alignment.
+// [in] estimated camera poses in initial body frame.
+// [in] delta timestamps of camera frames.
+// [in] pre-integrations performed in visual frontend.
+// [in] global gravity vector in world frame.
 OnlineGravityAlignment::OnlineGravityAlignment(
     const AlignmentPoses &estimated_body_poses, 
     const std::vector<double> &delta_t_camera,
     const AlignmentPims &pims,
-    const gtsam::Vector3 &g_world, gtsam::Vector3 *gyro_bias)
+    const gtsam::Vector3 &g_world)
     : estimated_body_poses_(estimated_body_poses),
       delta_t_camera_(delta_t_camera), pims_(pims),
-      g_world_(g_world), gyro_bias_(*gyro_bias) {
-        CHECK_DOUBLE_EQ(gyro_bias->norm(),0.0);
-      }
+      g_world_(g_world) {}
 
 /* -------------------------------------------------------------------------- */
-// TODO(Sandro): Adapt description
-// Adding of states for bundle adjustment used in initialization.
-bool OnlineGravityAlignment::alignVisualInertialEstimates() {
+// Performs visual-inertial alignment and gravity estimate.
+// [out] initial gyro bias estimate
+// [out] estimate of gravity vector in initial body pose (g_b0).
+bool OnlineGravityAlignment::alignVisualInertialEstimates(
+            gtsam::Vector3 *gyro_bias, 
+            gtsam::Vector3 *g_iter) {
   VLOG(5) << "Online gravity alignment called.";
+  VisualInertialFrames vi_frames;
+  CHECK_DOUBLE_EQ(gyro_bias->norm(), 0.0);
 
   // Construct set of frames for linear alignment
-  VisualInertialFrames vi_frames;
   constructVisualInertialFrames(estimated_body_poses_, delta_t_camera_, 
                                 pims_, &vi_frames);
 
   // Estimate gyroscope bias
-  CHECK(estimateGyroscopeBias(vi_frames, &gyro_bias_));
+  CHECK(estimateGyroscopeBias(vi_frames, gyro_bias));
 
   // Update delta states with corrected bias
-  CHECK(updateDeltaStates(pims_, gyro_bias_, &vi_frames));
+  updateDeltaStates(pims_, *gyro_bias, &vi_frames);
 
   // Align visual and inertial estimates
-  gtsam::Vector3 g_iter(1, 0, 0);
-  if (alignEstimatesLinearly(vi_frames, g_world_, &g_iter)) {
+  if (alignEstimatesLinearly(vi_frames, g_world_, g_iter)) {
     LOG(INFO) << "Online gravity alignment successful.";
     return true;
   } else {
@@ -125,25 +132,24 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
   
   // Loop through all initialization frame
   for (int i = 0; i < vi_frames.size(); i++) {
-    // Compute relative rotation matrix from visual estimate
-    gtsam::Rot3 bk_R_bkp1(vi_frames.at(i).bk_R_bkp1());
-    // Get relative rotation matrix from pre-integrated estimate
-    gtsam::Rot3 bk_gamma_bkp1(vi_frames.at(i).bk_gamma_bkp1());
+    auto frame_i = std::next(vi_frames.begin(), i);
+
     // Compute rotation error between pre-integrated and visual estimates
-    gtsam::Rot3 bkp1_error_bkp1(bk_gamma_bkp1.transpose()*bk_R_bkp1.matrix());
+    gtsam::Rot3 bkp1_error_bkp1(frame_i->bk_gamma_bkp1().transpose() * 
+                                frame_i->bk_R_bkp1());
     // Compute rotation error in canonical coordinates (dR_bkp1)
     gtsam::Vector3 dR = gtsam::Rot3::Logmap(bkp1_error_bkp1);
     // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
-    gtsam::Matrix3 dbg_J_dR = vi_frames.at(i).dbg_jacobian_dR();
+    gtsam::Matrix3 dbg_J_dR = frame_i->dbg_jacobian_dR();
     
     // Insert Jacobian Factor in Gaussian Graph
     gaussian_graph.add(gtsam::Symbol('dbg', 0), dbg_J_dR, dR, noise);
 
     // Logging of variables inserted in the graph
-    VLOG(10) << "Frame: " << (i + 1) << "\ndt_cam: (s)\n" << vi_frames.at(i).cam_dt()
-            << "\ndt_pim: (s)\n" << vi_frames.at(i).pim_dt() << "\ncam bk_R_bkp1:\n"
-            << bk_R_bkp1 << "\npim bk_gamma_bkp1:\n" << bk_gamma_bkp1 
-            << "\nbk_error_bk:\n" << bkp1_error_bkp1;
+    VLOG(10) << "Frame: " << (i + 1) << "\ndt_cam: (s)\n" << frame_i->cam_dt()
+            << "\ndt_pim: (s)\n" << frame_i->pim_dt() << "\ncam bk_R_bkp1:\n"
+            << frame_i->bk_R_bkp1() << "\npim bk_gamma_bkp1:\n" 
+            << frame_i->bk_gamma_bkp1() << "\nbk_error_bk:\n" << bkp1_error_bkp1;
   }
 
   // Optimize Gaussian Graph and get solution
@@ -163,16 +169,16 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
 
 /* -------------------------------------------------------------------------- */
 // Corrects pre-integrated delta states with the gyro bias estimate.
+// It uses a first-order approximation around the gyro bias estimate.
 // [in] vector of pre-integrations from visual-frontend.
 // [in] new estimated value for gyroscope bias.
 // [out] updated vector of frames used for initial alignment.
-bool OnlineGravityAlignment::updateDeltaStates(const AlignmentPims &pims,
+void OnlineGravityAlignment::updateDeltaStates(const AlignmentPims &pims,
                                                const gtsam::Vector3 &gyro_bias,
                                                VisualInertialFrames *vi_frames) {
   CHECK_EQ(vi_frames->size(), pims.size());
 
-  // Instead of repropagating, update the measurements
-  // with a first-order approximation around the gyro bias estimate.
+  // Repropagate measurements with first order approximation
   for (int i = 0; i < vi_frames->size(); i++) {
     // Update pre-integration with first-order approximation
     gtsam::Vector9 correct_preintegrated = pims.at(i).biasCorrectedDelta(
@@ -183,16 +189,14 @@ bool OnlineGravityAlignment::updateDeltaStates(const AlignmentPims &pims,
     // Update value for delta_state in frames
     vi_frames->at(i).updateDeltaState(bk_delta_state_bkp1);
   }
-  // TODO(Sandro): Implement check on quality of estimate
-  return true;
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO(Sandro): Adapt description
-// Adding of states for bundle adjustment used in initialization.
-// [in] timestamp_kf_nsec, keyframe timestamp.
-// [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
+// Align visual-inertial estimates and compute gravity vector
+// in initial body frame.
+// [in] set of visual inertial frames for alignment.
+// [in] global gravity value for alignment.
+// [out] gravity vector expressed in initial body frame.
 bool OnlineGravityAlignment::alignEstimatesLinearly(
     const VisualInertialFrames &vi_frames, const gtsam::Vector3 &g_world,
     gtsam::Vector3 *g_iter) {
@@ -203,170 +207,36 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
 
   // Loop through all frames
   for (int i = 0; i < vi_frames.size(); i++) {
-    // TODO(Sandro): Check conventions!!!
-    
-    // Relative position constraint
-    double dt_bk(vi_frames.at(i).pim_dt());
-    gtsam::Matrix b0_R_bk(vi_frames.at(i).b0_R_bk());
-    gtsam::Vector bk_alpha_bkp1(vi_frames.at(i).bk_alpha_bkp1());
-    gtsam::Vector b0_p_bk(vi_frames.at(i).b0_p_bk());
-    gtsam::Vector b0_p_bkp1(vi_frames.at(i).b0_p_bkp1());
-
-    // Matrix factors
-    auto A_11 = -dt_bk * b0_R_bk;
-    auto A_13 = 0.5 * dt_bk * dt_bk * b0_R_bk;
-    auto b_1 = bk_alpha_bkp1 - (b0_R_bk * (b0_p_bkp1 - b0_p_bk));
+    auto frame_i = std::next(vi_frames.begin(), i);
 
     // Add binary factor for position constraint
-    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), A_11, 
-                      gtsam::Symbol('g_b0', 0), A_13,
-                      b_1, noise);  
-
-    // Relative velocity constraint
-    gtsam::Vector bk_beta_bkp1(vi_frames.at(i).bk_beta_bkp1());
-
-    // Matrix factors
-    auto A_21 = -b0_R_bk;
-    auto A_22 = b0_R_bk;
-    auto A_23 = dt_bk * b0_R_bk;
-    auto b_2 = bk_beta_bkp1;
+    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(), 
+                      gtsam::Symbol('g_b0', 0), frame_i->A_13(),
+                      frame_i->b_1(), noise);  
 
     // Add ternary factor for velocity constraint
-    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), A_21, 
-                      gtsam::Symbol('b0_V_bk', i+1), A_22,
-                      gtsam::Symbol('g_b0', 0), A_23,
-                      b_2, noise);
+    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_21(), 
+                      gtsam::Symbol('b0_V_bk', i+1), frame_i->A_22(),
+                      gtsam::Symbol('g_b0', 0), frame_i->A_23(),
+                      frame_i->b_2(), noise);
   }
 
   // Optimize Gaussian Graph and get solution
   gtsam::VectorValues solution = gaussian_graph.optimize();
   gtsam::Vector3 g_b0  = solution.at(gtsam::Symbol('g_b0', 0));
 
-  // Retract velocities
-  std::vector<gtsam::Vector3> velocities;
-  velocities.clear();
-  for (int i=0; i < vi_frames.size(); i++) {
-    velocities.push_back(solution.at(gtsam::Symbol('b0_V_bk', i)));
-    LOG(INFO) << "\nVelocity at: " << i << " :\n" << velocities.back();
-  }
-
   // Logging of solution
   if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
   LOG(INFO) << "Initial gravity estimate:\n" << g_b0
             << " with norm: " << g_b0.norm();
 
-  // TODO(Sandro): Insert check before gravity refinement
+  // Refine gravity alignment
   refineGravity(vi_frames, g_world, &g_b0);
+
   // Return true if successful
   *g_iter = g_b0;
   return true;
 }
-
-/* -------------------------------------------------------------------------- */
-// TODO(Sandro): Adapt description
-// Adding of states for bundle adjustment used in initialization.
-// [in] timestamp_kf_nsec, keyframe timestamp.
-// [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
-/*
-bool OnlineGravityAlignment::alignEstimatesLinearly(
-    const VisualInertialFrames &vi_frames, const gtsam::Vector3 &g_world,
-    gtsam::Vector3 *g_iter) {
-
-  // Total states in Linear Equation System
-  // n_frames*3 for velocities v_x, v_y, v_z
-  // + 3 for gravity vector in visual frame
-  int n_states = vi_frames.size() * 3 + 3;
-
-  // Linear Equation System: A*x = b
-  gtsam::Matrix A = gtsam::Matrix::Zero(n_states, n_states);
-  gtsam::Vector b = gtsam::Vector::Zero(n_states);
-  gtsam::Matrix inv_cov = gtsam::Matrix::Identity(6, 6);
-
-  // Loop through all frames
-  for (int i = 0; i < vi_frames.size(); i++) {
-    // Bookkeeping variables
-    gtsam::Matrix tmp_A = gtsam::Matrix::Zero(6, 9);
-    gtsam::Vector tmp_b = gtsam::Vector::Zero(6);
-
-    // TODO(Sandro): Check conventions!!!
-
-    ///////////// RELATIVE POSITION CONSTRAINT /////////////
-    
-    // Relative position constraint
-    double dt_bk = vi_frames.at(i).pim_dt();
-    gtsam::Matrix b0_R_bk = vi_frames.at(i).b0_R_bk();
-    gtsam::Vector bk_alpha_bkp1 = vi_frames.at(i).delta_p();
-    gtsam::Vector b0_p_bk = vi_frames.at(i).prev_p();
-    gtsam::Vector b0_p_bkp1 = vi_frames.at(i).curr_p();
-
-    // Matrix factors
-    auto A_11 = -dt_bk * b0_R_bk;
-    auto A_13 = 0.5 * dt_bk * dt_bk * b0_R_bk;
-    auto b_1 = bk_alpha_bkp1 - (b0_R_bk * (b0_p_bkp1 - b0_p_bk));
-
-    ///////////// RELATIVE VELOCITY CONSTRAINT /////////////    
-
-    // Relative velocity constraint
-    gtsam::Vector bk_beta_bkp1 = vi_frames.at(i).delta_v();
-
-    // Matrix factors
-    auto A_21 = -b0_R_bk;
-    auto A_22 = b0_R_bk;
-    auto A_23 = dt_bk * b0_R_bk;
-    auto b_2 = bk_beta_bkp1;
-
-    ///////////// LINEAR EQUATION SYSTEM /////////////
-
-    // Relative position constraint
-    tmp_A.block<3, 3>(0, 0) = A_11;
-    tmp_A.block<3, 3>(0, 6) = A_13;
-    tmp_b.block<3, 1>(0, 0) = b_1;
-
-    // Relative velocity constraint
-    tmp_A.block<3, 3>(3, 0) = A_21;
-    tmp_A.block<3, 3>(3, 3) = A_22;
-    tmp_A.block<3, 3>(3, 6) = A_23;
-    tmp_b.block<3, 1>(3, 0) = b_2;
-    
-    // Unweighted Least Squares
-    gtsam::Matrix r_A = tmp_A.transpose() * inv_cov * tmp_A;
-    gtsam::Vector r_b = tmp_A.transpose() * inv_cov * tmp_b;
-
-    // Velocities block
-    A.block<6, 6>(3 * i, 3 * i) += r_A.topLeftCorner<6, 6>();
-    b.segment<6>(3 * i) += r_b.head<6>();
-
-    // Gravity block
-    A.bottomRightCorner<3, 3>() += r_A.bottomRightCorner<3, 3>();
-    b.tail<3>() += r_b.tail<3>();
-
-    // Cross-term block
-    A.block<6, 3>(3 * i, n_states - 3) += r_A.topRightCorner<6, 3>();
-    A.block<3, 6>(n_states - 3, 3 * i) += r_A.bottomLeftCorner<3, 6>();
-  }
-
-  // Increase numerical stability
-  A = A * 1000;
-  b = b * 1000;
-
-  // Solve linear equation
-  gtsam::Vector x = A.ldlt().solve(b);
-  *g_iter = x.tail<3>();
-
-  // Log initial gravity guess
-  LOG(INFO) << "Initial gravity estimate:\n" << *g_iter
-            << " with norm: " << g_iter->norm();
-
-  // TODO(Sandro): Insert check before gravity refinement
-  // Return false in visual-inertial alignment if not successful
-
-  // Refine gravity alignment
-  refineGravity(vi_frames, g_world, g_iter);
-
-  // Return true if successful
-  return true;
-} */
 
 /* -------------------------------------------------------------------------- */
 // Creates tangent basis to input vector.
@@ -398,26 +268,18 @@ gtsam::Matrix OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g
   return bc;
 }
 
-// TODO(Sandro): Retract velocities from last optimization
-// TODO(Sandro): Check conventions
-// TODO(Sandro): Setup unit test
-// TODO(Sandro): Unify creation function of A_11 to A_23..
-// TODO(Sandro): Unify creation function of b_1 to b_2..
-// TODO(Sandro): Why are we not iterating also the tangent basis??
-
 /* -------------------------------------------------------------------------- */
-// TODO(Sandro): Adapt description
-// Adding of states for bundle adjustment used in initialization.
-// [in] timestamp_kf_nsec, keyframe timestamp.
-// [in] status_smart_stereo_measurements_kf, vision data.
-// [in] stereo_ransac_body_pose, inertial data.
+// Refines gravity alignment by imposing norm of gravity vector iteratively.
+// [in] set of visual inertial frames for alignment.
+// [in] global gravity value for alignment.
+// [out] gravity vector expressed in initial body frame.
 void OnlineGravityAlignment::refineGravity(const VisualInertialFrames &vi_frames,
                                            const gtsam::Vector3 &g_world,
                                            gtsam::Vector3 *g_iter) {
   // Define current gravity estimate (normalized)
   gtsam::Vector3 g0 = g_iter->normalized() * g_world.norm();
 
-  // Create tangent basis
+  // Create tangent basis to g (g = g0 + txty*dxdy)
   gtsam::Matrix txty = createTangentBasis(g0);
 
   // Multiple iterations till convergence
@@ -429,45 +291,24 @@ void OnlineGravityAlignment::refineGravity(const VisualInertialFrames &vi_frames
 
     // Loop through all frames
     for (int i = 0; i < vi_frames.size(); i++) {
-      // TODO(Sandro): Check conventions!!!
-      
-      // Relative position constraint
-      double dt_bk(vi_frames.at(i).pim_dt());
-      gtsam::Matrix b0_R_bk(vi_frames.at(i).b0_R_bk());
-      gtsam::Vector bk_alpha_bkp1(vi_frames.at(i).bk_alpha_bkp1());
-      gtsam::Vector b0_p_bk(vi_frames.at(i).b0_p_bk());
-      gtsam::Vector b0_p_bkp1(vi_frames.at(i).b0_p_bkp1());
+      auto frame_i = std::next(vi_frames.begin(), i);
 
-      // Matrix factors
-      auto A_11 = -dt_bk * b0_R_bk;
-      auto A_13 = 0.5 * dt_bk * dt_bk * b0_R_bk;
-      auto b_1 = bk_alpha_bkp1 - (b0_R_bk * (b0_p_bkp1 - b0_p_bk));
-
-      // Apply tangent basis to g
-      auto A_13_tangent = A_13*txty;
-      auto b_1_tangent = b_1 - A_13*g0;
+      // Apply tangent basis to g (g = g0 + txty*dxdy)
+      gtsam::Matrix A_13_tangent = frame_i->A_13()*txty;
+      gtsam::Vector3 b_1_tangent = frame_i->b_1() - frame_i->A_13()*g0;
 
       // Add binary factor for position constraint
-      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), A_11, 
+      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(), 
                         gtsam::Symbol('dxdy', 0), A_13_tangent,
                         b_1_tangent, noise);  
 
-      // Relative velocity constraint
-      gtsam::Vector bk_beta_bkp1(vi_frames.at(i).bk_beta_bkp1());
-
-      // Matrix factors
-      auto A_21 = -b0_R_bk;
-      auto A_22 = b0_R_bk;
-      auto A_23 = dt_bk * b0_R_bk;
-      auto b_2 = bk_beta_bkp1;
-
-      // Apply tangent basis to g
-      auto A_23_tangent = A_23*txty;
-      auto b_2_tangent = b_2 - A_23*g0;
+      // Apply tangent basis to g (g = g0 + txty*dxdy)
+      gtsam::Matrix A_23_tangent = frame_i->A_23()*txty;
+      gtsam::Vector3 b_2_tangent = frame_i->b_2() - frame_i->A_23()*g0;
 
       // Add ternary factor for velocity constraint
-      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), A_21, 
-                        gtsam::Symbol('b0_V_bk', i+1), A_22,
+      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_21(), 
+                        gtsam::Symbol('b0_V_bk', i+1), frame_i->A_22(),
                         gtsam::Symbol('dxdy', 0), A_23_tangent,
                         b_2_tangent, noise);
     }
@@ -491,9 +332,6 @@ void OnlineGravityAlignment::refineGravity(const VisualInertialFrames &vi_frames
   // Logging of solution
   LOG(INFO) << "Final gravity estimate:\n" << g0
             << " with norm: " << g0.norm();
-
-  // Return true if successful
-  //return true;
 }
 
 } // namespace VIO
