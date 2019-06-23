@@ -415,6 +415,40 @@ break_out:
 }
 
 /* -------------------------------------------------------------------------- */
+// creates pose by aligning initial gravity vector estimates
+gtsam::Pose3 UtilsOpenCV::AlignGravityVectors(gtsam::Unit3& localGravityDir,
+                                              gtsam::Unit3& globalGravityDir,
+                                              bool round) {
+
+  if (round) { // align vectors to dominant axis: e.g., [0.01 0.1 1] becomes [0 0 1]
+    localGravityDir = UtilsOpenCV::RoundUnit3(localGravityDir);
+    globalGravityDir = UtilsOpenCV::RoundUnit3(globalGravityDir);
+  }
+
+  gtsam::Unit3 v = localGravityDir.cross(globalGravityDir); // a x b
+  double c = localGravityDir.dot(globalGravityDir);
+  // compute rotation such that R * a = b
+  // http://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d/476311#476311
+  gtsam::Rot3 R;
+  if (fabs(1 - c) < 1e-3) { // already aligned
+    R = gtsam::Rot3();
+  } else if (fabs(1 + c) < 1e-3) { // degenerate condition a =-b
+    gtsam::Unit3 perturbedGravity (localGravityDir.unitVector() +
+                                   gtsam::Vector3(1, 2, 3)); // compute cross product with any nonparallel vector
+    v = localGravityDir.cross(perturbedGravity);
+    if (std::isnan(v.unitVector()(0))) { // if the resulting vector is still not a number (i.e., perturbedGravity // localGravityDir)
+      perturbedGravity = gtsam::Unit3(localGravityDir.unitVector() +
+                                      gtsam::Vector3(3, 2, 1)); // compute cross product with any nonparallel vector
+      v = localGravityDir.cross(perturbedGravity);
+    }
+    R = gtsam::Rot3::Expmap(v.unitVector() * M_PI); // 180 rotation around an axis perpendicular to both vectors
+  } else {
+    R = gtsam::Rot3::AlignPair(v, globalGravityDir, localGravityDir);
+  }
+  return gtsam::Pose3(R, gtsam::Point3());// absolute position is not observable anyway
+}
+
+/* -------------------------------------------------------------------------- */
 // rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0
 gtsam::Unit3 UtilsOpenCV::RoundUnit3(const gtsam::Unit3& x){
 

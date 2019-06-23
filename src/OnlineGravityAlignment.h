@@ -31,6 +31,7 @@
 #include <gtsam/linear/JacobianFactor.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/Values.h>
+#include "UtilsOpenCV.h"
 
 #include "ImuFrontEnd.h"
 #include "OnlineGravityAlignment-definitions.h"

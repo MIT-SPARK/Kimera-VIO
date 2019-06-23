@@ -197,6 +197,12 @@ public:
       std::pair<std::vector<cv::Point2f>, std::vector<double>>*
         corners_with_scores);
 
+  /* -------------------------------------------------------------------------- */
+  // creates pose by aligning initial gravity vector estimates
+  static gtsam::Pose3 AlignGravityVectors(gtsam::Unit3& localGravityDir,
+                                  gtsam::Unit3& globalGravityDir,
+                                  bool round);
+
   /* ------------------------------------------------------------------------ */
   // rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0
   static gtsam::Unit3 RoundUnit3(const gtsam::Unit3& x);

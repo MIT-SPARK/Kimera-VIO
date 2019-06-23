@@ -78,19 +78,19 @@ public:
   /* ------------------------------------------------------------------------------- */
   inline gtsam::Matrix3 dbg_jacobian_dR() const { return dbg_Jacobian_dR_; }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_11() const { return (-dt_bk_*b0_R_bk_); }
+  gtsam::Matrix3 A_11() const { return (-dt_bk_*b0_R_bk_.transpose()); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_13() const { return (0.5 * dt_bk_ * dt_bk_ * b0_R_bk_); }
+  gtsam::Matrix3 A_13() const { return (0.5 * dt_bk_ * dt_bk_ * b0_R_bk_.transpose()); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Vector3 b_1() const { return (bk_alpha_bkp1_ - (b0_R_bk_ * bk_p_bkp1())); }
+  gtsam::Vector3 b_1() const { return (-bk_alpha_bkp1_ - (b0_R_bk_.transpose() * bk_p_bkp1())); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_21() const { return (-b0_R_bk_); }
+  gtsam::Matrix3 A_21() const { return (-b0_R_bk_.transpose()); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_22() const { return b0_R_bk_; }
+  gtsam::Matrix3 A_22() const { return b0_R_bk_.transpose(); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_23() const { return (dt_bk_ * b0_R_bk_); }
+  gtsam::Matrix3 A_23() const { return (dt_bk_ * b0_R_bk_.transpose()); }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Vector3 b_2() const { return bk_beta_bkp1_; }
+  inline gtsam::Vector3 b_2() const { return -bk_beta_bkp1_; }
   /* ------------------------------------------------------------------------------- */
   void updateDeltaState(const gtsam::NavState &delta_state) {
     bk_alpha_bkp1_ = gtsam::Vector3(delta_state.pose().translation());

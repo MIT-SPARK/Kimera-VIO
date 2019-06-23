@@ -67,6 +67,14 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
   // Align visual and inertial estimates
   if (alignEstimatesLinearly(vi_frames, g_world_, g_iter)) {
     LOG(INFO) << "Online gravity alignment successful.";
+    
+    gtsam::Unit3 g_unit_iter(*g_iter/g_iter->norm());
+    gtsam::Unit3 g_unit_world(g_world_/g_world_.norm());
+    
+    // TODO(Sandro): Output of alignVisualInertialEstimate
+    // Use initial pose, velocity and bias as gtNavState
+    LOG(ERROR) << "Initial Pose: " <<
+      UtilsOpenCV::AlignGravityVectors(g_unit_iter, g_unit_world, false);
     return true;
   } else {
     LOG(WARNING) << "Online gravity alignment successful.";
@@ -102,8 +110,11 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
     // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
     gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
 
-    if(abs(delta_t_pim - delta_t_camera.at(i)) > 1e-3)
-      LOG(ERROR) << "Large discrepancy in dt at frame: " << i;
+    if(abs(delta_t_pim - delta_t_camera.at(i)) > 1e-3) {
+      LOG(ERROR) << "Large discrepancy in dt at frame: " << i
+                 << "\ndelta_pim: " << delta_t_pim
+                 << "\ndelta_cam: " << delta_t_camera.at(i);
+    }
 
     // Create frame with b0_T_bkp1, b0_T_bk, dt_bk_cam,
     // dbg_Jacobian_dR_bk, dt_bk_imu
@@ -162,7 +173,7 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
 
   // Logging of solution
   if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
-  LOG(INFO) << "\nGyro bias estimation:\n" << delta_bg;
+  LOG(ERROR) << "\nGyro bias estimation:\n" << delta_bg;
 
   // TODO(Sandro): Implement check on quality of estimate
   return true;
@@ -220,6 +231,11 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
                       gtsam::Symbol('b0_V_bk', i+1), frame_i->A_22(),
                       gtsam::Symbol('g_b0', 0), frame_i->A_23(),
                       frame_i->b_2(), noise);
+
+    LOG(ERROR) << "\nA11:\n" << frame_i->A_11()
+      << "\nA13:\n" << frame_i->A_13() << "\nb1:\n" << frame_i->b_1()
+      << "\nA21:\n" << frame_i->A_21() << "\nA22:\n" << frame_i->A_22()
+      << "\nA23:\n" << frame_i->A_23() << "\nb2:\n" << frame_i->b_2();
   }
 
   // Optimize Gaussian Graph and get solution
@@ -228,8 +244,17 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
 
   // Logging of solution
   if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
-  LOG(INFO) << "Initial gravity estimate:\n" << g_b0
+  LOG(ERROR) << "Initial gravity estimate:\n" << g_b0
             << " with norm: " << g_b0.norm();
+
+  // TODO(Sandro): Remove this
+  // Retract velocities
+  std::vector<gtsam::Vector3> velocities;
+  velocities.clear();
+  for (int i=0; i < vi_frames.size(); i++) {
+    velocities.push_back(solution.at(gtsam::Symbol('b0_V_bk', i)));
+    LOG(ERROR) << "\nVelocity at: " << i << " :\n" << velocities.back();
+  }
 
   // Refine gravity alignment
   refineGravity(vi_frames, g_world, &g_b0);

@@ -27,8 +27,11 @@
 #include <CppUnitLite/TestHarness.h>
 
 static const std::string data_path(DATASET_PATH + std::string("/ForOnlineAlignment/"));
+//int n_begin_dataset = 1185;
+//int n_frames = 30;
+
 int n_begin_dataset = 1;
-int n_frames = 15;
+int n_frames = 9;
 
 namespace VIO {
 
@@ -57,7 +60,7 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   ImuBias imu_bias (bias_acc, bias_gyr);
 
   // Create ImuFrontEnd
-  ImuFrontEnd imu_frontend(imu_params, imu_bias);
+  //ImuFrontEnd imu_frontend(imu_params, imu_bias);
 
   // Load ground-truth poses
   std::string gt_name = "gt0";
@@ -101,6 +104,7 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
           timestamp_frame_k,
           &imu_meas.timestamps_,
           &imu_meas.measurements_);
+    ImuFrontEnd imu_frontend(imu_params, imu_bias);
     const auto& pim = imu_frontend.preintegrateImuMeasurements(
                 imu_meas.timestamps_, imu_meas.measurements_);
 
@@ -114,11 +118,13 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
     }
 
     // Move to next element in map
+    timestamp_last_frame = timestamp_frame_k;
     it++;
   }
 
   // Initialize OnlineAlignment
-  gtsam::Vector3 gyro_bias = imu_frontend.getCurrentImuBias().gyroscope();
+  gtsam::Vector3 gyro_bias = imu_bias.gyroscope();
+  //gtsam::Vector3 gyro_bias = imu_frontend.getCurrentImuBias().gyroscope();
   gtsam::Vector3 g_iter;
   CHECK_DOUBLE_EQ(gyro_bias.norm(), 0.0);
   OnlineGravityAlignment initial_alignment(
@@ -138,6 +144,10 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
 
 /* ************************************************************************* */
 int main(int argc, char *argv[]) {
+  // Initialize Google's flags library.
+  google::ParseCommandLineFlags(&argc, &argv, true);
+  // Initialize Google's logging library.
+  google::InitGoogleLogging(argv[0]);
   TestResult tr; 
   return TestRegistry::runAllTests(tr);
 }
