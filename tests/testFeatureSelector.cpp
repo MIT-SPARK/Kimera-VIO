@@ -67,22 +67,24 @@ TEST(FeatureSelector, cameras) {
   featureSelectionData.right_undistRectCameraMatrix = Kright;
   featureSelectionData.posesAtFutureKeyframes = poses;
 
+  vioParams.smartNoiseSigma_ =
+      1;  // parameter include after the test were written
   FeatureSelector f(trackerParams, vioParams);
   Cameras left_cameras, right_cameras;
   tie(left_cameras, right_cameras) = f.getCameras(featureSelectionData);
 
   // check nr of left and right cameras:
-  EXPECT(left_cameras.size() == 2);
-  EXPECT(right_cameras.size() == 2);
+  EXPECT_EQ(left_cameras.size(), 2);
+  EXPECT_EQ(right_cameras.size(), 2);
 
   for (size_t i = 0; i < 2; i++) {
     Camera expectedLeft((poses.at(i).pose).compose(body_P_leftCam), Kleft);
     Camera actualLeft = left_cameras.at(i);
-    EXPECT(assert_equal(expectedLeft, actualLeft));
+    EXPECT_TRUE(assert_equal(expectedLeft, actualLeft));
 
     Camera expectedRight((poses.at(i).pose).compose(body_P_rightCam), Kright);
     Camera actualRight = right_cameras.at(i);
-    EXPECT(assert_equal(expectedRight, actualRight));
+    EXPECT_TRUE(assert_equal(expectedRight, actualRight));
   }
 }
 
@@ -177,7 +179,7 @@ TEST(FeatureSelector, createPrior1) {
 
   // NOTE:
   // if pose1 = pose0 the following is true
-  // NOTE: EXPECT(assert_equal(cov0,cov1,0.01));
+  // NOTE: EXPECT_TRUE(assert_equal(cov0,cov1,0.01));
 
   /////////////////////////////////////////////////////////////////////////////////
   // 1) compare covariances after transforming them to global frame
@@ -196,7 +198,7 @@ TEST(FeatureSelector, createPrior1) {
 
   // large tolerance since covariances differ by smallSigma noise anyway
   // NOTE: the following is true only if the noise on the
-  EXPECT(assert_equal(cov0_global, cov1_global, 0.1));
+  EXPECT_TRUE(assert_equal(cov0_global, cov1_global, 0.1));
 
   /////////////////////////////////////////////////////////////////////////////////
   // 2) understand WhitenInPlace
@@ -207,7 +209,7 @@ TEST(FeatureSelector, createPrior1) {
   Matrix actualHessianMatrix =
       A.transpose() * A;  // information = inverse-covariance
   Matrix expectedHessianMatrix = cov1_global.inverse();
-  EXPECT(assert_equal(expectedHessianMatrix, actualHessianMatrix, 0.1));
+  EXPECT_TRUE(assert_equal(expectedHessianMatrix, actualHessianMatrix, 0.1));
 
   /////////////////////////////////////////////////////////////////////////////////
   // 3) check output of createPrior
@@ -215,11 +217,13 @@ TEST(FeatureSelector, createPrior1) {
   featureSelectionData.posesAtFutureKeyframes.push_back(StampedPose(pose1, 1));
   featureSelectionData.currentNavStateCovariance = cov1;
 
+  vioParams.smartNoiseSigma_ =
+      1;  // parameter include after the test were written
   FeatureSelector f(trackerParams, vioParams);
   JacobianFactor J = f.createPrior(featureSelectionData);
   actualHessianMatrix = J.information();  // information = inverse-covariance
   expectedHessianMatrix = (cov1_global.block<9, 9>(3, 3)).inverse();
-  EXPECT(assert_equal(expectedHessianMatrix, actualHessianMatrix, 0.1));
+  EXPECT_TRUE(assert_equal(expectedHessianMatrix, actualHessianMatrix, 0.1));
 }
 
 /* ************************************************************************* */
@@ -288,10 +292,10 @@ TEST(FeatureSelector, createMatricesLinearImuFactor) {
 
   // check that rotations are subdivided correctly: after integrating 10 times,
   // we get Rj
-  EXPECT(assert_equal(Rk, spose1.pose.rotation().matrix(), 1e-8));
+  EXPECT_TRUE(assert_equal(Rk, spose1.pose.rotation().matrix(), 1e-8));
 
   // check that building A incrementally gives the same result as batch creation
-  EXPECT(assert_equal(Ai_expected, Ai_actual, 1e-8));
+  EXPECT_TRUE(assert_equal(Ai_expected, Ai_actual, 1e-8));
 
   // check that building covariance incrementally gives the same result as batch
   // creation NOTE: we do not capture correlation with bias evolution hence we
@@ -299,11 +303,11 @@ TEST(FeatureSelector, createMatricesLinearImuFactor) {
   // combined Imu factor
   imuCov_expected.block<6, 3>(0, 6) = Matrix::Zero(6, 3);
   imuCov_expected.block<3, 6>(6, 0) = Matrix::Zero(3, 6);
-  EXPECT(assert_equal(imuCov_expected, imuCov, 1e-1));
+  EXPECT_TRUE(assert_equal(imuCov_expected, imuCov, 1e-1));
 }
 
 /* ************************************************************************* */
-TEST_UNSAFE(FeatureSelector, createOmegaBarImu) {
+TEST(FeatureSelector, DISABLED_createOmegaBarImu) {
   // create 3 stamped pose
   StampedPose spose0 =
       StampedPose(Pose3(Rot3::Ypr(0.2, 0.4, 0.5), Point3(0, 0, 1)), 0);
@@ -320,23 +324,25 @@ TEST_UNSAFE(FeatureSelector, createOmegaBarImu) {
   featureSelectionData.currentNavStateCovariance = Matrix::Identity(15, 15);
 
   // create OmegaBar
+  vioParams.smartNoiseSigma_ =
+      1;  // parameter include after the test were written
   FeatureSelector f(trackerParams, vioParams);
   GaussianFactorGraph gfg = f.createOmegaBarImuAndPrior(featureSelectionData);
 
   // check size
-  EXPECT(gfg.size() == 3);  //  1 prior and 2 linear imu factors
+  EXPECT_EQ(gfg.size(), 3);  //  1 prior and 2 linear imu factors
 
   // check keys:
   FastVector<Key> keys0 = gfg.at(0)->keys();
-  EXPECT(keys0.size() == 1);  // first factor is a prior
+  EXPECT_EQ(keys0.size(), 1);  // first factor is a prior
 
   FastVector<Key> keys1 = gfg.at(1)->keys();
-  EXPECT(keys1.size() == 2);  // linear imu factor
-  EXPECT(keys1[0] == 0 && keys1[1] == 1);
+  EXPECT_EQ(keys1.size(), 2);  // linear imu factor
+  EXPECT_EQ(keys1[0] == 0 && keys1[1], 1);
 
   FastVector<Key> keys2 = gfg.at(2)->keys();
-  EXPECT(keys2.size() == 2);  // linear imu factor
-  EXPECT(keys2[0] == 1 && keys2[1] == 2);
+  EXPECT_EQ(keys2.size(), 2);  // linear imu factor
+  EXPECT_EQ(keys2[0] == 1 && keys2[1], 2);
 }
 
 typedef PinholeCamera<Cal3_S2> Camera;
@@ -368,11 +374,11 @@ TEST(FeatureSelector, GetVersorIfInFOV) {
         break;
     }
     // check that points in FOV are calibrated correctly
-    EXPECT(assert_equal(Unit3((cam.pose().transform_to(p)).vector()),
-                        *FeatureSelector::GetVersorIfInFOV(cam, p)));
+    EXPECT_TRUE(assert_equal(Unit3((cam.pose().transform_to(p)).vector()),
+                             *FeatureSelector::GetVersorIfInFOV(cam, p)));
 
     // check that point far away does not pass check (set max distance = 1m)
-    EXPECT(!FeatureSelector::GetVersorIfInFOV(cam, p, 1.0));
+    EXPECT_TRUE(!FeatureSelector::GetVersorIfInFOV(cam, p, 1.0));
   }
   // CHECK points outside fov
   for (size_t i = 0; i < 4; i++) {
@@ -391,7 +397,7 @@ TEST(FeatureSelector, GetVersorIfInFOV) {
         break;
     }
     // check that points in FOV are calibrated correctly
-    EXPECT(!FeatureSelector::GetVersorIfInFOV(cam, p));
+    EXPECT_TRUE(!FeatureSelector::GetVersorIfInFOV(cam, p));
   }
 }
 
@@ -410,6 +416,8 @@ TEST(FeatureSelector, createLinearVisionFactor_no_parallax) {
   featureSelectionData.left_undistRectCameraMatrix = K;
   featureSelectionData.right_undistRectCameraMatrix = K;
 
+  vioParams.smartNoiseSigma_ =
+      1;  // parameter include after the test were written
   FeatureSelector f(trackerParams, vioParams);
   Cameras left_cameras, right_cameras;
   tie(left_cameras, right_cameras) = f.getCameras(featureSelectionData);
@@ -421,7 +429,8 @@ TEST(FeatureSelector, createLinearVisionFactor_no_parallax) {
       cam.backproject(Point2(320, 200), 2.0);  // backprojected 2 meters away
 
   // check that points in FOV are calibrated correctly
-  EXPECT(FeatureSelector::GetVersorIfInFOV(Camera(spose1.pose, K), pworld_l));
+  EXPECT_TRUE(
+      FeatureSelector::GetVersorIfInFOV(Camera(spose1.pose, K), pworld_l));
 
   // get actual factor
   double time1 = 0, time2 = 0, time3 = 0;
@@ -429,7 +438,7 @@ TEST(FeatureSelector, createLinearVisionFactor_no_parallax) {
       pworld_l, left_cameras, right_cameras, time1, time2, time3);
 
   // check that we got an empty factor
-  EXPECT(assert_equal(HessianFactor(), *hFactor.get()));
+  EXPECT_TRUE(assert_equal(HessianFactor(), *hFactor.get()));
 }
 
 /* ************************************************************************* */
@@ -450,6 +459,8 @@ TEST(FeatureSelector, createLinearVisionFactor_And_SchurComplement) {
   featureSelectionData.left_undistRectCameraMatrix = K;
   featureSelectionData.right_undistRectCameraMatrix = K;
 
+  vioParams.smartNoiseSigma_ =
+      1;  // parameter include after the test were written
   FeatureSelector f(trackerParams, vioParams);
   Cameras left_cameras, right_cameras;
   tie(left_cameras, right_cameras) = f.getCameras(featureSelectionData);
@@ -461,8 +472,10 @@ TEST(FeatureSelector, createLinearVisionFactor_And_SchurComplement) {
       cam.backproject(Point2(320, 200), 2.0);  // backprojected 2 meters away
 
   // check that points in FOV are calibrated correctly
-  EXPECT(FeatureSelector::GetVersorIfInFOV(Camera(spose1.pose, K), pworld_l));
-  EXPECT(FeatureSelector::GetVersorIfInFOV(Camera(spose2.pose, K), pworld_l));
+  EXPECT_TRUE(
+      FeatureSelector::GetVersorIfInFOV(Camera(spose1.pose, K), pworld_l));
+  EXPECT_TRUE(
+      FeatureSelector::GetVersorIfInFOV(Camera(spose2.pose, K), pworld_l));
 
   double time1 = 0, time2 = 0, time3 = 0;
   HessianFactor::shared_ptr hFactor = f.createLinearVisionFactor(
@@ -496,7 +509,7 @@ TEST(FeatureSelector, createLinearVisionFactor_And_SchurComplement) {
       F.transpose() * E * (E.transpose() * E).inverse() * E.transpose() * F;
 
   // check
-  EXPECT(assert_equal(expectedHessian, actualHessian));
+  EXPECT_TRUE(assert_equal(expectedHessian, actualHessian));
 }
 
 /* ************************************************************************* */
@@ -562,6 +575,8 @@ TEST(FeatureSelector, createLinearVisionFactor_body_P_cam) {
   featureSelectionData.left_undistRectCameraMatrix = K;
   featureSelectionData.right_undistRectCameraMatrix = K;
 
+  vioParams.smartNoiseSigma_ =
+      1;  // parameter include after the test were written
   FeatureSelector f(trackerParams, vioParams);
   Cameras left_cameras, right_cameras;
   tie(left_cameras, right_cameras) = f.getCameras(featureSelectionData);
@@ -573,13 +588,13 @@ TEST(FeatureSelector, createLinearVisionFactor_body_P_cam) {
       cam.backproject(Point2(320, 200), 2.0);  // backprojected 2 meters away
 
   // check that points in FOV are calibrated correctly
-  EXPECT(FeatureSelector::GetVersorIfInFOV(
+  EXPECT_TRUE(FeatureSelector::GetVersorIfInFOV(
       Camera(spose1.pose.compose(b_P_LCam), K), pworld_l));
-  EXPECT(FeatureSelector::GetVersorIfInFOV(
+  EXPECT_TRUE(FeatureSelector::GetVersorIfInFOV(
       Camera(spose2.pose.compose(b_P_LCam), K), pworld_l));
-  EXPECT(FeatureSelector::GetVersorIfInFOV(
+  EXPECT_TRUE(FeatureSelector::GetVersorIfInFOV(
       Camera(spose1.pose.compose(b_P_RCam), K), pworld_l));
-  EXPECT(FeatureSelector::GetVersorIfInFOV(
+  EXPECT_TRUE(FeatureSelector::GetVersorIfInFOV(
       Camera(spose2.pose.compose(b_P_RCam), K), pworld_l));
 
   double time1 = 0, time2 = 0, time3 = 0;
@@ -593,7 +608,7 @@ TEST(FeatureSelector, createLinearVisionFactor_body_P_cam) {
                           b_P_LCam, b_P_RCam);
 
   // check
-  EXPECT(assert_equal(expectedHessian, actualHessian));
+  EXPECT_TRUE(assert_equal(expectedHessian, actualHessian));
 }
 
 /* ************************************************************************* */
@@ -642,9 +657,10 @@ TEST(FeatureSelector, createOmegaBar) {
 
   // check keys:
   FastVector<Key> keys0 = gfg->at(0)->keys();
-  EXPECT(keys0.size() == 2);
-  EXPECT(keys0[0] == 0 &&
-         keys0[1] == 1);  // single factor, including imu, prior, and vision
+  EXPECT_EQ(keys0.size(), 2);
+  EXPECT_EQ(
+      keys0[0],
+      0 && keys0[1] == 1);  // single factor, including imu, prior, and vision
 }
 
 /* ************************************************************************* */
@@ -674,23 +690,21 @@ TEST(FeatureSelector, evaluateGain_det) {
       double actualDet = FeatureSelector::EvaluateGain(
           gfg, H, VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
           useDenseMatrices);
-      EXPECT_DOUBLES_EQUAL(expectedLogDet, actualDet,
-                           expectedLogDet * 1e-3);  // relative tolerance
+      EXPECT_NEAR(expectedLogDet, actualDet,
+                  expectedLogDet * 1e-3);  // relative tolerance
       // compare against matlab determinant:
-      EXPECT_DOUBLES_EQUAL(
-          log(5.591685310658876e+79), actualDet,
-          expectedLogDet * 1e-3);  // determinant should be large
+      EXPECT_NEAR(log(5.591685310658876e+79), actualDet,
+                  expectedLogDet * 1e-3);  // determinant should be large
 
       // actual2: call it again and make sure we did not mess up gfg inside the
       // function
       actualDet = FeatureSelector::EvaluateGain(
           gfg, H, VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
           useDenseMatrices);
-      EXPECT_DOUBLES_EQUAL(expectedLogDet, actualDet,
-                           expectedLogDet * 1e-3);  // relative tolerance
-      EXPECT_DOUBLES_EQUAL(
-          log(5.591685310658876e+79), actualDet,
-          expectedLogDet * 1e-3);  // determinant should be large
+      EXPECT_NEAR(expectedLogDet, actualDet,
+                  expectedLogDet * 1e-3);  // relative tolerance
+      EXPECT_NEAR(log(5.591685310658876e+79), actualDet,
+                  expectedLogDet * 1e-3);  // determinant should be large
     }
   }
   // test with empty hessian factor
@@ -708,8 +722,8 @@ TEST(FeatureSelector, evaluateGain_det) {
           gfg, boost::make_shared<HessianFactor>(),
           VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
           useDenseMatrices);
-      EXPECT_DOUBLES_EQUAL(expectedLogDet, actualDet,
-                           expectedLogDet * 1e-3);  // relative tolerance
+      EXPECT_NEAR(expectedLogDet, actualDet,
+                  expectedLogDet * 1e-3);  // relative tolerance
     }
   }
 }
@@ -719,11 +733,11 @@ TEST(FeatureSelector, lowerBound) {
   double numericalUpperBound = std::numeric_limits<double>::max();
   // min instead will return a tiny positive number.
   double numericalLowerBound = -numericalUpperBound;
-  EXPECT(numericalLowerBound == numericalLowerBound);  // same as itself
-  EXPECT(numericalLowerBound != -1);    // different from a negative number
-  EXPECT(numericalLowerBound != +1);    // different from a positive number
-  EXPECT(numericalLowerBound < -1000);  // smaller than a negative number
-  EXPECT(numericalLowerBound < 0.1);    // smaller than a positive number
+  EXPECT_EQ(numericalLowerBound, numericalLowerBound);  // same as itself
+  EXPECT_TRUE(numericalLowerBound != -1);  // different from a negative number
+  EXPECT_TRUE(numericalLowerBound != +1);  // different from a positive number
+  EXPECT_LT(numericalLowerBound, -1000);   // smaller than a negative number
+  EXPECT_LT(numericalLowerBound, 0.1);     // smaller than a positive number
   cout << "numericalLowerBound " << numericalLowerBound << endl;
 }
 
@@ -732,11 +746,11 @@ TEST(FeatureSelector, upperBound) {
   double numericalUpperBound = std::numeric_limits<double>::max();
   // min instead will return a tiny positive number.
   double numericalLowerBound = -numericalUpperBound;
-  EXPECT(numericalUpperBound == numericalUpperBound);  // same as itself
-  EXPECT(numericalUpperBound != -1);    // different from a negative number
-  EXPECT(numericalUpperBound != +1);    // different from a positive number
-  EXPECT(numericalUpperBound > -1000);  // larger than a negative number
-  EXPECT(numericalUpperBound > 1000);   // larger than a positive number
+  EXPECT_EQ(numericalUpperBound, numericalUpperBound);  // same as itself
+  EXPECT_TRUE(numericalUpperBound != -1);    // different from a negative number
+  EXPECT_TRUE(numericalUpperBound != +1);    // different from a positive number
+  EXPECT_TRUE(numericalUpperBound > -1000);  // larger than a negative number
+  EXPECT_TRUE(numericalUpperBound > 1000);   // larger than a positive number
   cout << "numericalUpperBound " << numericalUpperBound << endl;
 }
 
@@ -751,7 +765,7 @@ TEST(FeatureSelector, logget) {
 
   double expected = log(M.determinant());
   double actual = FeatureSelector::Logdet(M);
-  EXPECT_DOUBLES_EQUAL(expected, actual, fabs(expected) * 1e-3);
+  EXPECT_NEAR(expected, actual, fabs(expected) * 1e-3);
 }
 
 /* ************************************************************************* */
@@ -773,8 +787,8 @@ TEST(FeatureSelector, smallestEig) {
   boost::tie(actualRank, actualEig, actualVect) =
       FeatureSelector::SmallestEigsPowerIter(M);
 
-  EXPECT_DOUBLES_EQUAL(expectedEig, actualEig, fabs(expectedEig) * 1e-3);
-  EXPECT(assert_equal(expectedVect, actualVect, 1e-2));
+  EXPECT_NEAR(expectedEig, actualEig, fabs(expectedEig) * 1e-3);
+  EXPECT_TRUE(assert_equal(expectedVect, actualVect, 1e-2));
   // cout << "expectedVect " << expectedVect.transpose() << endl;
   // cout << "actualVect " << actualVect.transpose() << endl;
 }
@@ -801,8 +815,8 @@ TEST(FeatureSelector, evaluateGain_minEig) {
     double expectedMinEig;
     Vector eigVector;
     boost::tie(rank, expectedMinEig, eigVector) = DLT(expectedHessian);
-    EXPECT_DOUBLES_EQUAL(2.990918403930777e+03, expectedMinEig,
-                         expectedMinEig * 1e-4);  // relative tolerance
+    EXPECT_NEAR(2.990918403930777e+03, expectedMinEig,
+                expectedMinEig * 1e-4);  // relative tolerance
 
     bool useDenseMatrices = true;
     for (size_t denseOrNot = 0; denseOrNot < 2; denseOrNot++) {
@@ -812,16 +826,16 @@ TEST(FeatureSelector, evaluateGain_minEig) {
       double actualMinEig = FeatureSelector::EvaluateGain(
           gfg, H, VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
           useDenseMatrices);
-      EXPECT_DOUBLES_EQUAL(expectedMinEig, actualMinEig,
-                           expectedMinEig * 1e-4);  // relative tolerance
+      EXPECT_NEAR(expectedMinEig, actualMinEig,
+                  expectedMinEig * 1e-4);  // relative tolerance
 
       // actual2: call it again and make sure we did not mess up gfg inside the
       // function
       actualMinEig = FeatureSelector::EvaluateGain(
           gfg, H, VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
           useDenseMatrices);
-      EXPECT_DOUBLES_EQUAL(expectedMinEig, actualMinEig,
-                           expectedMinEig * 1e-4);  // relative tolerance
+      EXPECT_NEAR(expectedMinEig, actualMinEig,
+                  expectedMinEig * 1e-4);  // relative tolerance
     }
   }
   // test with empty hessian factor
@@ -841,8 +855,8 @@ TEST(FeatureSelector, evaluateGain_minEig) {
           gfg, boost::make_shared<HessianFactor>(),
           VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
           useDenseMatrices);
-      EXPECT_DOUBLES_EQUAL(expectedMinEig, actualMinEig,
-                           expectedMinEig * 1e-4);  // relative tolerance
+      EXPECT_NEAR(expectedMinEig, actualMinEig,
+                  expectedMinEig * 1e-4);  // relative tolerance
     }
   }
 }
@@ -892,12 +906,12 @@ TEST(FeatureSelector, greedyAlgorithm) {
       VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG);
   // check
   sort(actualEig.begin(), actualEig.end());  // to facilitate comparison
-  EXPECT_DOUBLES_EQUAL(actualEig[0], 3, 1e-3);
-  EXPECT_DOUBLES_EQUAL(actualEig[1], 5, 1e-3);
-  EXPECT_DOUBLES_EQUAL(actualEig[2], 7, 1e-3);
-  EXPECT_DOUBLES_EQUAL(actualEig[3], 8, 1e-3);
-  EXPECT_DOUBLES_EQUAL(actualEig[4], 9, 1e-3);
-  EXPECT(actualEig.size() == 5);
+  EXPECT_NEAR(actualEig[0], 3, 1e-3);
+  EXPECT_NEAR(actualEig[1], 5, 1e-3);
+  EXPECT_NEAR(actualEig[2], 7, 1e-3);
+  EXPECT_NEAR(actualEig[3], 8, 1e-3);
+  EXPECT_NEAR(actualEig[4], 9, 1e-3);
+  EXPECT_EQ(actualEig.size(), 5);
 
   // check max det selection
   vector<size_t> actualDet;
@@ -907,12 +921,12 @@ TEST(FeatureSelector, greedyAlgorithm) {
       VioFrontEndParams::FeatureSelectionCriterion::LOGDET);
   // check
   sort(actualDet.begin(), actualDet.end());  // to facilitate comparison
-  EXPECT_DOUBLES_EQUAL(actualDet[0], 3, 1e-3);
-  EXPECT_DOUBLES_EQUAL(actualDet[1], 5, 1e-3);
-  EXPECT_DOUBLES_EQUAL(actualDet[2], 7, 1e-3);
-  EXPECT_DOUBLES_EQUAL(actualDet[3], 8, 1e-3);
-  EXPECT_DOUBLES_EQUAL(actualDet[4], 9, 1e-3);
-  EXPECT(actualDet.size() == 5);
+  EXPECT_NEAR(actualDet[0], 3, 1e-3);
+  EXPECT_NEAR(actualDet[1], 5, 1e-3);
+  EXPECT_NEAR(actualDet[2], 7, 1e-3);
+  EXPECT_NEAR(actualDet[3], 8, 1e-3);
+  EXPECT_NEAR(actualDet[4], 9, 1e-3);
+  EXPECT_EQ(actualDet.size(), 5);
 }
 
 /* ************************************************************************* */
@@ -942,6 +956,8 @@ TEST(FeatureSelector, createDeltas) {
   featureSelectionData.keypointLife.push_back(3);
 
   // instantiate selector
+  vioParams.smartNoiseSigma_ =
+      1;  // parameter include after the test were written
   FeatureSelector f(trackerParams, vioParams);
   Cameras left_cameras, right_cameras;
   tie(left_cameras, right_cameras) = f.getCameras(featureSelectionData);
@@ -962,7 +978,7 @@ TEST(FeatureSelector, createDeltas) {
       f.createDeltas(availableVersors, cornerDistances, featureSelectionData,
                      left_cameras, right_cameras);
 
-  EXPECT(Deltas.size() == 2);  // 2 factors, 1 for each point
+  EXPECT_EQ(Deltas.size(), 2);  // 2 factors, 1 for each point
 
   // NOTE: WE ARE ASSUMING DISTANCE, NOT DEPTH: see the following to understand
   // difference first point is close to existing keypoint, hence the depth
@@ -972,8 +988,8 @@ TEST(FeatureSelector, createDeltas) {
   Point3 p1depth_check =
       left_cameras.at(0).pose() *
       Point3(availableVersors[0] * 2.0 / availableVersors[0](2));
-  EXPECT(assert_equal(p1depth, p1depth_check,
-                      1e-2));  // strangely we need some tolerance here
+  EXPECT_TRUE(assert_equal(p1depth, p1depth_check,
+                           1e-2));  // strangely we need some tolerance here
 
   // however we assume norm, rather than depth:
   Point3 p1 = left_cameras.at(0).pose() * Point3(availableVersors[0] * 2.0);
@@ -983,13 +999,13 @@ TEST(FeatureSelector, createDeltas) {
 
   // THIS FAILS NOW SINCE WE INCLUDED !hasRightPixel in FeatureSelector.h
   /*
-  EXPECT(assert_equal(expectedHessian1,Deltas[0]->information(),1e-2));
+  EXPECT_TRUE(assert_equal(expectedHessian1,Deltas[0]->information(),1e-2));
 
   // second point is far from existing keypoint, hence the distance should be
   the default = 5 Point3 p2 = left_cameras.at(0).pose() *
   Point3(availableVersors[1] * 5.0); Matrix expectedHessian2 =
   schurComplementTest(p2,featureSelectionData.posesAtFutureKeyframes,Pose3(),Pose3());
-  EXPECT(assert_equal(expectedHessian2,Deltas[1]->information(),1e-3));
+  EXPECT_TRUE(assert_equal(expectedHessian2,Deltas[1]->information(),1e-3));
   */
 }
 
@@ -1014,8 +1030,8 @@ TEST(FeatureSelector, featureSelection) {
   const Pose3 b_P_RCam = b_P_LCam;  // some baseline
   // check: point at 0 1 0 should be projected at the center of the camera
   Camera cam0 = Camera(pose0.compose(b_P_LCam), Kreal);
-  EXPECT(assert_equal(Point2(Kreal.px(), Kreal.py()),
-                      cam0.project(Point3(0, 1, 0))));
+  EXPECT_TRUE(assert_equal(Point2(Kreal.px(), Kreal.py()),
+                           cam0.project(Point3(0, 1, 0))));
 
   // create featureSelectionData
   FeatureSelectorData featureSelectionData;
@@ -1063,22 +1079,22 @@ TEST(FeatureSelector, featureSelection) {
     Point3 pworld_l = Point3(1, 0.05, 0);
     Point2 px = cam0.project(pworld_l);
     availableCorners.push_back(KeypointCV(px.x(), px.y()));
-    EXPECT(FeatureSelector::GetVersorIfInFOV(cam0, pworld_l));
+    EXPECT_TRUE(FeatureSelector::GetVersorIfInFOV(cam0, pworld_l));
     // 1) point to the right at 45 deg, visible in all cameras
     pworld_l = Point3(5, 5, 0);
     px = cam0.project(pworld_l);
     availableCorners.push_back(KeypointCV(px.x(), px.y()));
-    EXPECT(FeatureSelector::GetVersorIfInFOV(cam0, pworld_l));
+    EXPECT_TRUE(FeatureSelector::GetVersorIfInFOV(cam0, pworld_l));
     // 2) point exactly at the front, visible in all the cameras
     pworld_l = Point3(0, 5, 0);
     px = cam0.project(pworld_l);
     availableCorners.push_back(KeypointCV(px.x(), px.y()));
-    EXPECT(FeatureSelector::GetVersorIfInFOV(cam0, pworld_l));
+    EXPECT_TRUE(FeatureSelector::GetVersorIfInFOV(cam0, pworld_l));
     // 3) point at the front with slight parallax, visible in all the cameras
     pworld_l = Point3(0.1, 50, 0);
     px = cam0.project(pworld_l);
     availableCorners.push_back(KeypointCV(px.x(), px.y()));
-    EXPECT(FeatureSelector::GetVersorIfInFOV(cam0, pworld_l));
+    EXPECT_TRUE(FeatureSelector::GetVersorIfInFOV(cam0, pworld_l));
 
     // check eigMin
     int need_n_corners = 1;
@@ -1095,9 +1111,9 @@ TEST(FeatureSelector, featureSelection) {
             availableCorners, successProbability, cornerDistances, cam_param,
             need_n_corners, featureSelectionData,
             VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG);
-    EXPECT_DOUBLES_EQUAL(1, selectedIndices[0], 1e-3);
-    EXPECT(selectedIndices.size() == 1);
-    EXPECT(selected.size() == 1);
+    EXPECT_NEAR(1, selectedIndices[0], 1e-3);
+    EXPECT_EQ(selectedIndices.size(), 1);
+    EXPECT_EQ(selected.size(), 1);
 
     // check det
     tie(selected, selectedIndices, selectedGains) =
@@ -1105,9 +1121,9 @@ TEST(FeatureSelector, featureSelection) {
             availableCorners, successProbability, cornerDistances, cam_param,
             need_n_corners, featureSelectionData,
             VioFrontEndParams::FeatureSelectionCriterion::LOGDET);
-    EXPECT_DOUBLES_EQUAL(1, selectedIndices[0], 1e-3);
-    EXPECT(selectedIndices.size() == 1);
-    EXPECT(selected.size() == 1);
+    EXPECT_NEAR(1, selectedIndices[0], 1e-3);
+    EXPECT_EQ(selectedIndices.size(), 1);
+    EXPECT_EQ(selected.size(), 1);
   }
 }
 
@@ -1126,17 +1142,17 @@ TEST(FeatureSelector, sorting) {
   tie(ordering, sortedUpperBounds_actual) =
       FeatureSelector::SortDescending(upperBounds);
 
-  EXPECT_DOUBLES_EQUAL(11, sortedUpperBounds_actual[0], 1e-5);
-  EXPECT_DOUBLES_EQUAL(1, sortedUpperBounds_actual[1], 1e-5);
-  EXPECT_DOUBLES_EQUAL(0.5, sortedUpperBounds_actual[2], 1e-5);
-  EXPECT_DOUBLES_EQUAL(0.11, sortedUpperBounds_actual[3], 1e-5);
-  EXPECT_DOUBLES_EQUAL(0.1, sortedUpperBounds_actual[4], 1e-5);
+  EXPECT_NEAR(11, sortedUpperBounds_actual[0], 1e-5);
+  EXPECT_NEAR(1, sortedUpperBounds_actual[1], 1e-5);
+  EXPECT_NEAR(0.5, sortedUpperBounds_actual[2], 1e-5);
+  EXPECT_NEAR(0.11, sortedUpperBounds_actual[3], 1e-5);
+  EXPECT_NEAR(0.1, sortedUpperBounds_actual[4], 1e-5);
 
-  EXPECT_DOUBLES_EQUAL(4, ordering[0], 1e-5);
-  EXPECT_DOUBLES_EQUAL(1, ordering[1], 1e-5);
-  EXPECT_DOUBLES_EQUAL(2, ordering[2], 1e-5);
-  EXPECT_DOUBLES_EQUAL(3, ordering[3], 1e-5);
-  EXPECT_DOUBLES_EQUAL(0, ordering[4], 1e-5);
+  EXPECT_NEAR(4, ordering[0], 1e-5);
+  EXPECT_NEAR(1, ordering[1], 1e-5);
+  EXPECT_NEAR(2, ordering[2], 1e-5);
+  EXPECT_NEAR(3, ordering[3], 1e-5);
+  EXPECT_NEAR(0, ordering[4], 1e-5);
 }
 
 /* ************************************************************************* */
@@ -1166,7 +1182,7 @@ TEST(FeatureSelector, MultiplyHessianInPlace) {
     HessianFactor::shared_ptr expected = boost::make_shared<HessianFactor>(
         keys, SymmetricBlockMatrix(dims, 2 * M));
     // the following fails since we are not multiplying the vector
-    EXPECT(assert_equal(*expected.get(), *h.get(), 1e-4));
+    EXPECT_TRUE(assert_equal(*expected.get(), *h.get(), 1e-4));
   }
   // multiply by 0:
   {
@@ -1176,7 +1192,7 @@ TEST(FeatureSelector, MultiplyHessianInPlace) {
     HessianFactor::shared_ptr expected = boost::make_shared<HessianFactor>(
         keys, SymmetricBlockMatrix(dims, Matrix::Zero(7, 7)));
     // the following fails since we are not multiplying the vector
-    EXPECT(assert_equal(*expected.get(), *h.get(), 1e-4));
+    EXPECT_TRUE(assert_equal(*expected.get(), *h.get(), 1e-4));
   }
   // multiply by 100.01 :-)
   {
@@ -1186,7 +1202,7 @@ TEST(FeatureSelector, MultiplyHessianInPlace) {
     HessianFactor::shared_ptr expected = boost::make_shared<HessianFactor>(
         keys, SymmetricBlockMatrix(dims, 100.01 * M));
     // the following fails since we are not multiplying the vector
-    EXPECT(assert_equal(*expected.get(), *h.get(), 1e-4));
+    EXPECT_TRUE(assert_equal(*expected.get(), *h.get(), 1e-4));
   }
 }
 
@@ -1211,9 +1227,9 @@ TEST(FeatureSelector, smallestEigSpectra) {
   boost::tie(actualRank, actualEig, actualVect) =
       FeatureSelector::SmallestEigsSpectra(M);
 
-  EXPECT_DOUBLES_EQUAL(expectedEig, actualEig,
-                       fabs(expectedEig) * 1e-3);  // relative tolerance
-  EXPECT(assert_equal(expectedVect, actualVect, 1e-2));
+  EXPECT_NEAR(expectedEig, actualEig,
+              fabs(expectedEig) * 1e-3);  // relative tolerance
+  EXPECT_TRUE(assert_equal(expectedVect, actualVect, 1e-2));
 }
 
 /* ************************************************************************* */
@@ -1237,21 +1253,7 @@ TEST(FeatureSelector, smallestEigSpectraShift) {
   boost::tie(actualRank, actualEig, actualVect) =
       FeatureSelector::SmallestEigsSpectraShift(M);
 
-  EXPECT_DOUBLES_EQUAL(expectedEig, actualEig,
-                       fabs(expectedEig) * 1e-3);  // relative tolerance
-  EXPECT(assert_equal(expectedVect, actualVect, 1e-2));
+  EXPECT_NEAR(expectedEig, actualEig,
+              fabs(expectedEig) * 1e-3);  // relative tolerance
+  EXPECT_TRUE(assert_equal(expectedVect, actualVect, 1e-2));
 }
-
-/* ************************************************************************* */
-int main(int argc, char *argv[]) {
-  // Initialize Google's flags library.
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  // Initialize Google's logging library.
-  google::InitGoogleLogging(argv[0]);
-
-  vioParams.smartNoiseSigma_ =
-      1;  // parameter include after the test were written
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */

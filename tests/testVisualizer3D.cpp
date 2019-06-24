@@ -30,9 +30,6 @@ using namespace std;
 using namespace VIO;
 using namespace cv;
 
-static const double tol = 1e-1;
-
-/* ************************************************************************* */
 TEST(testFrame, visualizeMesh2D) {
   // Construct a frame from image name.
   FrameId id = 0;
@@ -52,12 +49,5 @@ TEST(testFrame, visualizeMesh2D) {
 
   // Visualize mesh.
   Visualizer3D visualizer(VisualizationType::NONE, 0);
-  visualizer.visualizeMesh2D(mesh_2d, f.img_);
+  EXPECT_NO_THROW(visualizer.visualizeMesh2D(mesh_2d, f.img_));
 }
-
-/* ************************************************************************* */
-int main() {
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */

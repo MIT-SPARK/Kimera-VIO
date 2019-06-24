@@ -28,9 +28,6 @@ using namespace gtsam;
 using namespace VIO;
 using namespace cv;
 
-static const double tol = 1e-7;
-
-/* ************************************************************************* */
 TEST(testCodesignIdeas, pixelDisplacementLinearVelocity) {
   // create 3D point
   Point3 point3d = Point3(0, 0, 0);  // (0,0,0)
@@ -90,10 +87,3 @@ TEST(testCodesignIdeas, pixelDisplacementLinearVelocity) {
     // sp1.print("sp1: \n"); sp2.print("sp2: \n");
   }
 }
-
-/* ************************************************************************* */
-int main() {
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */

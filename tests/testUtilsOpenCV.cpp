@@ -181,11 +181,11 @@ TEST(testUtils, Pose2Affine3d) {
 
   // Comparison
   for (int r = 0; r < 3; r++) {
-    EXPECT_DOUBLE_EQ(T_expected.at<double>(r, 0),
-                     double(affineActual.translation()(r)));
+    EXPECT_NEAR(T_expected.at<double>(r, 0),
+                double(affineActual.translation()(r)), tol);
     for (int c = 0; c < 3; c++) {
-      EXPECT_DOUBLE_EQ(R_expected.at<double>(r, c),
-                       double(affineActual.rotation()(r, c)));
+      EXPECT_NEAR(R_expected.at<double>(r, c),
+                  double(affineActual.rotation()(r, c)), tol);
     }
   }
 }
@@ -389,7 +389,7 @@ TEST(testUtils, ExtractCornersWhiteWall) {
   Mat whitewallImg = Mat::zeros(800, 600, CV_8U);
 
   vector<cv::Point2f> keypoints_actual;
-  UtilsOpenCV::ExtractCorners(whitewallImg, &keypoints_actual);
+  EXPECT_NO_THROW(UtilsOpenCV::ExtractCorners(whitewallImg, &keypoints_actual));
 
   // Assert that no corners are extracted!
   EXPECT_EQ(keypoints_actual.size(), 0);
@@ -399,7 +399,7 @@ TEST(testUtils, ExtractCornersWhiteWall) {
 TEST(testUtils, RoundToDigit_2digits) {
   double x_expected = 1.14;  // rounded to the 2nd decimal digit
   double x_actual = UtilsOpenCV::RoundToDigit(x);
-  EXPECT_DOUBLE_EQ(x_expected, x_actual);
+  EXPECT_NEAR(x_expected, x_actual, tol);
 }
 
 /* ************************************************************************* */
@@ -428,21 +428,21 @@ TEST(testUtils, RoundUnit3) {
 TEST(testUtils, RoundToDigit_3digits) {
   double x_expected = 1.142;  // rounded to the 3rd decimal digit
   double x_actual = UtilsOpenCV::RoundToDigit(x, 3);
-  EXPECT_DOUBLE_EQ(x_expected, x_actual);
+  EXPECT_NEAR(x_expected, x_actual, tol);
 }
 
 /* ************************************************************************* */
 TEST(testUtils, RoundToDigit_neg2digits) {
   double x_expected = -1.14;  // rounded to the 2nd decimal digit
   double x_actual = UtilsOpenCV::RoundToDigit(-x, 2);
-  EXPECT_DOUBLE_EQ(x_expected, x_actual);
+  EXPECT_NEAR(x_expected, x_actual, tol);
 }
 
 /* ************************************************************************* */
 TEST(testUtils, RoundToDigit_neg3digits) {
   double x_expected = -1.142;  // rounded to the 3rd decimal digit!
   double x_actual = UtilsOpenCV::RoundToDigit(-x, 3);
-  EXPECT_DOUBLE_EQ(x_expected, x_actual);
+  EXPECT_NEAR(x_expected, x_actual, tol);
 }
 
 /* ************************************************************************* */
@@ -464,7 +464,7 @@ TEST(testUtils, NsecToSec) {
   int64_t timestamp = 12345678;
   double sec_expected = 0.012345678;
   double sec_actual = UtilsOpenCV::NsecToSec(timestamp);
-  EXPECT_DOUBLE_EQ(sec_expected, sec_actual);
+  EXPECT_NEAR(sec_expected, sec_actual, tol);
 }
 
 /* ************************************************************************* */
@@ -481,8 +481,8 @@ TEST(testUtils, computeRTErrors_identical) {
   tie(rot_error_actual, tran_error_actual) =
       UtilsOpenCV::ComputeRotationAndTranslationErrors(pose_gtsam, pose_gtsam);
 
-  EXPECT_DOUBLE_EQ(rot_error_expected, rot_error_actual);
-  EXPECT_DOUBLE_EQ(tran_error_expected, tran_error_actual);
+  EXPECT_NEAR(rot_error_expected, rot_error_actual, tol);
+  EXPECT_NEAR(tran_error_expected, tran_error_actual, tol);
 }
 
 /* ************************************************************************* */
@@ -501,8 +501,8 @@ TEST(testUtils, computeRTErrors) {
   tie(rot_error_actual, tran_error_actual) =
       UtilsOpenCV::ComputeRotationAndTranslationErrors(pose_gtsam, pose_new);
 
-  EXPECT_DOUBLE_EQ(rot_error_expected, rot_error_actual);
-  EXPECT_DOUBLE_EQ(tran_error_expected, tran_error_actual);
+  EXPECT_NEAR(rot_error_expected, rot_error_actual, tol);
+  EXPECT_NEAR(tran_error_expected, tran_error_actual, tol);
 }
 
 /* ************************************************************************* */
@@ -526,8 +526,8 @@ TEST(testUtils, computeRTErrors_upToScale) {
         UtilsOpenCV::ComputeRotationAndTranslationErrors(pose_gtsam, pose_new,
                                                          upToScale);
 
-    EXPECT_DOUBLE_EQ(rot_error_expected, rot_error_actual);
-    EXPECT_DOUBLE_EQ(tran_error_expected, tran_error_actual);
+    EXPECT_NEAR(rot_error_expected, rot_error_actual, tol);
+    EXPECT_NEAR(tran_error_expected, tran_error_actual, tol);
   }
 
   {
@@ -545,8 +545,8 @@ TEST(testUtils, computeRTErrors_upToScale) {
         UtilsOpenCV::ComputeRotationAndTranslationErrors(pose_gtsam, pose_new,
                                                          upToScale);
 
-    EXPECT_DOUBLE_EQ(rot_error_expected, rot_error_actual);
-    EXPECT_DOUBLE_EQ(tran_error_expected, tran_error_actual);
+    EXPECT_NEAR(rot_error_expected, rot_error_actual, tol);
+    EXPECT_NEAR(tran_error_expected, tran_error_actual, tol);
   }
 }
 

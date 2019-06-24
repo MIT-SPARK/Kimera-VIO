@@ -155,31 +155,31 @@ include(CTest)
 add_executable(testSparkVio
   tests/testSparkVio.cpp
   tests/testCameraParams.cpp
- # tests/testCodesignIdeas.cpp
- # tests/testFeatureSelector.cpp
- tests/testFrame.cpp
- tests/testGeneralParallelPlaneRegularBasicFactor.cpp
- tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
- tests/testImuFrontEnd.cpp
- tests/testKittiDataProvider.cpp # TODO
- # tests/testMesher.cpp # rotten
- tests/testParallelPlaneRegularBasicFactor.cpp
- tests/testParallelPlaneRegularTangentSpaceFactor.cpp
- tests/testPointPlaneFactor.cpp
- # tests/testRegularVioBackEnd.cpp # rotten
- # tests/testRegularVioBackEndParams.cpp
- tests/testStereoFrame.cpp
- # tests/testStereoVisionFrontEnd.cpp
+  tests/testCodesignIdeas.cpp
+  tests/testFeatureSelector.cpp
+  tests/testFrame.cpp
+  tests/testGeneralParallelPlaneRegularBasicFactor.cpp
+  tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
+  tests/testImuFrontEnd.cpp
+  tests/testKittiDataProvider.cpp # TODO
+  # tests/testMesher.cpp # rotten
+  tests/testParallelPlaneRegularBasicFactor.cpp
+  tests/testParallelPlaneRegularTangentSpaceFactor.cpp
+  tests/testPointPlaneFactor.cpp
+  #tests/testRegularVioBackEnd.cpp # rotten
+  tests/testRegularVioBackEndParams.cpp
+  tests/testStereoFrame.cpp
+  tests/testStereoVisionFrontEnd.cpp
   tests/testThreadsafeImuBuffer.cpp
   tests/testThreadsafeQueue.cpp
   tests/testThreadsafeTemporalBuffer.cpp
   tests/testTimer.cpp
   tests/testTracker.cpp
   tests/testUtilsOpenCV.cpp
- # tests/testVioBackEnd.cpp
- # tests/testVioBackEndParams.cpp
- # tests/testVioFrontEndParams.cpp
- # tests/testVisualizer3D.cpp
+  tests/testVioBackEnd.cpp
+  tests/testVioBackEndParams.cpp
+  tests/testVioFrontEndParams.cpp
+  tests/testVisualizer3D.cpp
   )
 target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
 include(GoogleTest)
