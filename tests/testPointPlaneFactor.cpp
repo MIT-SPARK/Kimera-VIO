@@ -45,8 +45,6 @@ static constexpr double tol = 1e-5;
 /// Delta increment for numerical derivative
 static constexpr double delta_value = 1e-5;
 
-VioBackEndParams vioParams = VioBackEndParams();
-
 /* -------------------------------------------------------------------------- */
 // Set parameters for ISAM 2 incremental smoother.
 void setIsam2Params(const VioBackEndParams& vio_params,
@@ -413,6 +411,7 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
   }
 
   gtsam::ISAM2Params isam_param;
+  VioBackEndParams vioParams = VioBackEndParams();
   setIsam2Params(vioParams, &isam_param);
   gtsam::IncrementalFixedLagSmoother smoother(vioParams.horizon_, isam_param);
   try {

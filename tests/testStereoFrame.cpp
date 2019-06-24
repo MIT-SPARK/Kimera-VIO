@@ -55,16 +55,16 @@ class StereoFrameFixture : public ::testing::Test {
 
     // construct stereo camera
     VioFrontEndParams tp;  // only to get default stereo matching params
-    sf = new StereoFrame(id, timestamp,
-                         UtilsOpenCV::ReadAndConvertToGrayScale(
-                             stereo_FLAGS_test_data_path + left_image_name,
-                             tp.getStereoMatchingParams().equalize_image_),
-                         cam_params_left,
-                         UtilsOpenCV::ReadAndConvertToGrayScale(
-                             stereo_FLAGS_test_data_path + right_image_name,
-                             tp.getStereoMatchingParams().equalize_image_),
-                         cam_params_right, camL_Pose_camR,
-                         tp.getStereoMatchingParams());
+    sf = std::make_shared<StereoFrame>(
+        id, timestamp,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+            stereo_FLAGS_test_data_path + left_image_name,
+            tp.getStereoMatchingParams().equalize_image_),
+        cam_params_left,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+            stereo_FLAGS_test_data_path + right_image_name,
+            tp.getStereoMatchingParams().equalize_image_),
+        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
 
     sf->computeRectificationParameters();
     sf->getRectifiedImages();
@@ -73,6 +73,8 @@ class StereoFrameFixture : public ::testing::Test {
     sf->right_img_rectified_.copyTo(right_image_rectified);
     P1 = sf->getLeftFrame().cam_param_.P_;
     P2 = sf->getRightFrame().cam_param_.P_;
+
+    initializeDataStereo();
   }
 
  protected:
@@ -91,16 +93,16 @@ class StereoFrameFixture : public ::testing::Test {
 
     // construct stereo camera
     VioFrontEndParams tp;
-    sfnew = new StereoFrame(id, timestamp,
-                            UtilsOpenCV::ReadAndConvertToGrayScale(
-                                stereo_FLAGS_test_data_path + left_image_name,
-                                tp.getStereoMatchingParams().equalize_image_),
-                            cam_params_left,
-                            UtilsOpenCV::ReadAndConvertToGrayScale(
-                                stereo_FLAGS_test_data_path + right_image_name,
-                                tp.getStereoMatchingParams().equalize_image_),
-                            cam_params_right, camL_Pose_camR,
-                            tp.getStereoMatchingParams());
+    sfnew = std::make_shared<StereoFrame>(
+        id, timestamp,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+            stereo_FLAGS_test_data_path + left_image_name,
+            tp.getStereoMatchingParams().equalize_image_),
+        cam_params_left,
+        UtilsOpenCV::ReadAndConvertToGrayScale(
+            stereo_FLAGS_test_data_path + right_image_name,
+            tp.getStereoMatchingParams().equalize_image_),
+        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
 
     sfnew->getLeftFrameMutable()->extractCorners();
     sfnew->getLeftFrameMutable()->versors_.reserve(
@@ -124,8 +126,8 @@ class StereoFrameFixture : public ::testing::Test {
   CameraParams cam_params_left;
   CameraParams cam_params_right;
   Pose3 camL_Pose_camR;
-  StereoFrame* sf;
-  StereoFrame* sfnew;
+  std::shared_ptr<StereoFrame> sf;
+  std::shared_ptr<StereoFrame> sfnew;
   cv::Mat left_image_rectified, right_image_rectified;
   cv::Mat P1, P2;
 };
@@ -1017,13 +1019,12 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
 /* ************************************************************************* */
 
 TEST_F(StereoFrameFixture, getLandmarkInfo) {
-  // try to retrieve every single landmark and compare against ground truth
-  for (size_t i = 0; i < sfnew->getLeftFrame().keypoints_.size(); i++) {
+  // Try to retrieve every single landmark and compare against ground truth.
+  const auto& left_frame = sfnew->getLeftFrame();
+  for (size_t i = 0; i < left_frame.keypoints_.size(); i++) {
     StereoFrame::LandmarkInfo lmInfo = sfnew->getLandmarkInfo(i);
-    EXPECT_DOUBLE_EQ(sfnew->getLeftFrame().keypoints_.at(i).x,
-                     lmInfo.keypoint.x);
-    EXPECT_DOUBLE_EQ(sfnew->getLeftFrame().keypoints_.at(i).y,
-                     lmInfo.keypoint.y);
+    EXPECT_DOUBLE_EQ(left_frame.keypoints_.at(i).x, lmInfo.keypoint.x);
+    EXPECT_DOUBLE_EQ(left_frame.keypoints_.at(i).y, lmInfo.keypoint.y);
     EXPECT_DOUBLE_EQ(10 * i, lmInfo.score);
     EXPECT_DOUBLE_EQ(5 * i, lmInfo.age);
     Vector3 actual = lmInfo.keypoint_3d;
@@ -1094,15 +1095,16 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
       (cam_params_left_fisheye.body_Pose_cam_)
           .between(cam_params_right_fisheye.body_Pose_cam_);
 
-  sf = new StereoFrame(0, 0,  // Default, not used here
-                              // Left frame
-                       left_fisheye_image_dist, cam_params_left_fisheye,
-                       // Right frame
-                       right_fisheye_image_dist, cam_params_right_fisheye,
-                       // Relative pose
-                       camL_pose_camR_fisheye,
-                       // Default, not used here
-                       StereoMatchingParams());
+  sf = std::make_shared<StereoFrame>(
+      0, 0,  // Default, not used here
+             // Left frame
+      left_fisheye_image_dist, cam_params_left_fisheye,
+      // Right frame
+      right_fisheye_image_dist, cam_params_right_fisheye,
+      // Relative pose
+      camL_pose_camR_fisheye,
+      // Default, not used here
+      StereoMatchingParams());
 
   // Compute rectification parameters
   sf->computeRectificationParameters();
