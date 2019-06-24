@@ -12,7 +12,6 @@
  * @author Antoni Rosinol
  */
 
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -36,17 +35,16 @@ TEST(ImuFrontEnd, ImuFrontEndInitialization) {
   imu_params.gyro_noise_ = 1.0;
   imu_params.n_gravity_ << 1.0, 1.0, 1.0;
   imu_params.imu_integration_sigma_ = 1.0;
-  Vector3 bias_acc (1.0, 1.0, 1.0);
-  Vector3 bias_gyr (1.0, 1.0, 1.0);
-  ImuBias imu_bias (bias_acc, bias_gyr);
-  ImuFrontEnd imu_frontend (imu_params, imu_bias);
-  EXPECT(imu_frontend.getCurrentImuBias().equals(imu_bias));
-  EXPECT(imu_frontend.getCurrentPIM().equals(
-           ImuFrontEnd::PreintegratedImuMeasurements(
-             boost::make_shared<
-             ImuFrontEnd::PreintegratedImuMeasurements::Params>(
-               imu_frontend.getImuParams()),
-             imu_bias)));
+  Vector3 bias_acc(1.0, 1.0, 1.0);
+  Vector3 bias_gyr(1.0, 1.0, 1.0);
+  ImuBias imu_bias(bias_acc, bias_gyr);
+  ImuFrontEnd imu_frontend(imu_params, imu_bias);
+  EXPECT_TRUE(imu_frontend.getCurrentImuBias().equals(imu_bias));
+  EXPECT_TRUE(imu_frontend.getCurrentPIM().equals(
+      ImuFrontEnd::PreintegratedImuMeasurements(
+          boost::make_shared<ImuFrontEnd::PreintegratedImuMeasurements::Params>(
+              imu_frontend.getImuParams()),
+          imu_bias)));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -59,22 +57,22 @@ TEST(ImuFrontEnd, UpdateBias) {
   imu_params.gyro_noise_ = 1.0;
   imu_params.n_gravity_ << 1.0, 1.0, 1.0;
   imu_params.imu_integration_sigma_ = 1.0;
-  Vector3 bias_acc (1.0, 1.0, 1.0);
-  Vector3 bias_gyr (1.0, 1.0, 1.0);
-  ImuBias imu_bias (bias_acc, bias_gyr);
-  ImuFrontEnd imu_frontend (imu_params, imu_bias);
+  Vector3 bias_acc(1.0, 1.0, 1.0);
+  Vector3 bias_gyr(1.0, 1.0, 1.0);
+  ImuBias imu_bias(bias_acc, bias_gyr);
+  ImuFrontEnd imu_frontend(imu_params, imu_bias);
   // Do some random change to the bias.
   ImuBias updated_imu_bias = -imu_bias;
   imu_frontend.updateBias(updated_imu_bias);
-  EXPECT(imu_frontend.getCurrentImuBias().equals(updated_imu_bias));
+  EXPECT_TRUE(imu_frontend.getCurrentImuBias().equals(updated_imu_bias));
   // Do some random composition with itself.
   updated_imu_bias = imu_bias.compose(imu_bias);
   imu_frontend.updateBias(updated_imu_bias);
-  EXPECT(imu_frontend.getCurrentImuBias().equals(updated_imu_bias));
+  EXPECT_TRUE(imu_frontend.getCurrentImuBias().equals(updated_imu_bias));
   // Check that the updated bias does not reset pim!
   auto pim = imu_frontend.getCurrentPIM();
-  EXPECT(pim.biasHat().equals(imu_bias));
-  EXPECT(!pim.biasHat().equals(updated_imu_bias));
+  EXPECT_TRUE(pim.biasHat().equals(imu_bias));
+  EXPECT_TRUE(!pim.biasHat().equals(updated_imu_bias));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -87,27 +85,27 @@ TEST(ImuFrontEnd, UpdateBiasThreadSafe) {
   imu_params.gyro_noise_ = 1.0;
   imu_params.n_gravity_ << 1.0, 1.0, 1.0;
   imu_params.imu_integration_sigma_ = 1.0;
-  Vector3 bias_acc (1.0, 1.0, 1.0);
-  Vector3 bias_gyr (1.0, 1.0, 1.0);
-  ImuBias imu_bias (bias_acc, bias_gyr);
-  ImuFrontEnd imu_frontend (imu_params, imu_bias);
+  Vector3 bias_acc(1.0, 1.0, 1.0);
+  Vector3 bias_gyr(1.0, 1.0, 1.0);
+  ImuBias imu_bias(bias_acc, bias_gyr);
+  ImuFrontEnd imu_frontend(imu_params, imu_bias);
   // Change and log imu_bias by a pool of threads.
   // vector container stores threads
   std::vector<std::thread> workers;
   static constexpr int number_of_threads = 5;
   for (int i = 0; i < number_of_threads; i++) {
     workers.push_back(std::thread([&imu_frontend, i]() {
-      Vector3 bias_acc (1.0 + i, 1.0, 1.0 * i);
-      Vector3 bias_gyr (0.0 + i, 0.0, 1.0 * i);
+      Vector3 bias_acc(1.0 + i, 1.0, 1.0 * i);
+      Vector3 bias_gyr(0.0 + i, 0.0, 1.0 * i);
       imu_frontend.updateBias(ImuBias(bias_acc, bias_gyr));
       auto curr_imu_bias = imu_frontend.getCurrentImuBias();
       // If there is a race condition, this might not hold.
-      CHECK_NEAR(curr_imu_bias.gyroscope().x(),
-                 curr_imu_bias.accelerometer().x() - 1.0, 0.1);
-      CHECK_NEAR(curr_imu_bias.gyroscope().y(),
-             curr_imu_bias.accelerometer().y() - 1.0, 0.1);
-      CHECK_NEAR(curr_imu_bias.gyroscope().z(),
-             curr_imu_bias.accelerometer().z(), 0.1);
+      ASSERT_NEAR(curr_imu_bias.gyroscope().x(),
+                  curr_imu_bias.accelerometer().x() - 1.0, 0.1);
+      ASSERT_NEAR(curr_imu_bias.gyroscope().y(),
+                  curr_imu_bias.accelerometer().y() - 1.0, 0.1);
+      ASSERT_NEAR(curr_imu_bias.gyroscope().z(),
+                  curr_imu_bias.accelerometer().z(), 0.1);
       // Do random things that lock the bias as well.
       imu_frontend.resetIntegrationWithCachedBias();
     }));
@@ -118,11 +116,8 @@ TEST(ImuFrontEnd, UpdateBiasThreadSafe) {
   // It tells the compiler we're using lambda ([])
   // The lambda function takes its argument as a reference to a thread, t
   // Then, joins one by one, and this works like barrier
-  std::for_each(workers.begin(), workers.end(), [](std::thread &t) {
-    t.join();
-  });
-  // Check that there was no race-condition.
-  EXPECT(true);
+  EXPECT_NO_THROW(std::for_each(workers.begin(), workers.end(),
+                                [](std::thread &t) { t.join(); }););
 }
 
 /* -------------------------------------------------------------------------- */
@@ -135,26 +130,26 @@ TEST(ImuFrontEnd, ResetPreintegration) {
   imu_params.gyro_noise_ = 1.0;
   imu_params.n_gravity_ << 1.0, 1.0, 1.0;
   imu_params.imu_integration_sigma_ = 1.0;
-  Vector3 bias_acc (1.0, 1.0, 1.0);
-  Vector3 bias_gyr (1.0, 1.0, 1.0);
-  ImuBias imu_bias (bias_acc, bias_gyr);
-  ImuFrontEnd imu_frontend (imu_params, imu_bias);
+  Vector3 bias_acc(1.0, 1.0, 1.0);
+  Vector3 bias_gyr(1.0, 1.0, 1.0);
+  ImuBias imu_bias(bias_acc, bias_gyr);
+  ImuFrontEnd imu_frontend(imu_params, imu_bias);
   // If we do not update the bias, both PIMs should be the same.
   auto curr_pim = imu_frontend.getCurrentPIM();
   imu_frontend.resetIntegrationWithCachedBias();
   auto reseted_pim = imu_frontend.getCurrentPIM();
-  EXPECT(reseted_pim.equals(curr_pim));
+  EXPECT_TRUE(reseted_pim.equals(curr_pim));
   // If we update the biases, the new PIM should reflect that.
-  ImuBias updated_imu_bias = imu_bias.compose(imu_bias); // Random composition.
+  ImuBias updated_imu_bias = imu_bias.compose(imu_bias);  // Random composition.
   imu_frontend.updateBias(updated_imu_bias);
   imu_frontend.resetIntegrationWithCachedBias();
   reseted_pim = imu_frontend.getCurrentPIM();
-  EXPECT(reseted_pim.biasHat().equals(updated_imu_bias));
+  EXPECT_TRUE(reseted_pim.biasHat().equals(updated_imu_bias));
   // Also expect that it is not the same as the previous pim.
-  EXPECT(!reseted_pim.equals(curr_pim));
+  EXPECT_TRUE(!reseted_pim.equals(curr_pim));
 }
 
-/*
+/* TODO(Toni): tests left:
 TEST(ImuFrontEnd, PreintegrateEmptyImuData) {
 }
 
@@ -174,15 +169,4 @@ TEST(ImuFrontEnd, BackwardPreintegration) {
 }
 */
 
-} // End of VIO namespace.
-
-/* ************************************************************************* */
-int main(int argc, char *argv[]) {
-  // Initialize Google's flags library.
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
-  // Initialize Google's logging library.
-  google::InitGoogleLogging(argv[0]);
-
-  TestResult tr; return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */
+}  // namespace VIO

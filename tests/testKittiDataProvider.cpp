@@ -29,18 +29,8 @@ using namespace std;
 using namespace VIO;
 using namespace cv;
 
-static const double tol = 1e-1;
-
-/* ************************************************************************* */
-// TODO
+// TODO(Yun)
 TEST(testFrame, KittiDataProvider) {
   // TODO: test kitti data provider Check image lists and also imu data parsing
   // Construct a frame from image name.
 }
-
-/* ************************************************************************* */
-int main() {
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */
