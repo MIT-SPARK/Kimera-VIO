@@ -163,7 +163,7 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
       Point2 px_left = cam_left.project(lmk_pts.at(lmk_id));
       Point2 px_right = cam_right.project(lmk_pts.at(lmk_id));
       StereoPoint2 px_lr(px_left.x(), px_right.x(), px_left.y());
-      EXPECT_DOUBLES_EQUAL(px_left.y(), px_right.y(), tol);
+      EXPECT_DOUBLE_EQ(px_left.y(), px_right.y());
       measurement_frame.push_back(make_pair(lmk_id, px_lr));
     }
     all_measurements.push_back(
@@ -217,26 +217,26 @@ TEST(testRegularVio, robotMovingWithConstantVelocity) {
     if (k == 1) {
       // 3 priors, 1 imu + 1 between per time stamp:
       // we do not include smart factors of length 1.
-      EXPECT(nrFactorsInSmoother == 3 + 2 * k);
+      EXPECT_EQ(nrFactorsInSmoother, 3 + 2 * k);
     } else if (k == 2) {
       // 3 priors, 1 imu + 1 between per time stamp, 8 smart factors.
-      EXPECT(nrFactorsInSmoother == 3 + 2 * k + 8);
+      EXPECT_EQ(nrFactorsInSmoother, 3 + 2 * k + 8);
     } else {
       // 3 priors, 1 imu + 1 between per time stamp, 8 * k projection factors.
-      EXPECT(nrFactorsInSmoother == 3 + 2 * k + 8 * k);
+      EXPECT_EQ(nrFactorsInSmoother, 3 + 2 * k + 8 * k);
     }
 #endif
     // Check the results!
-    const Values& results = regular_vio->state_;
+    const Values& results = regular_vio->getState();
 
     for (size_t frame_id = 0; frame_id <= k; frame_id++) {
       Pose3 W_Pose_Blkf = results.at<Pose3>(Symbol('x', frame_id));
       Vector3 W_Vel_Blkf = results.at<Vector3>(Symbol('v', frame_id));
       ImuBias imu_bias_lkf = results.at<ImuBias>(Symbol('b', frame_id));
 
-      EXPECT(assert_equal(poses.at(frame_id).first, W_Pose_Blkf, tol));
-      EXPECT((W_Vel_Blkf - v).norm() < tol);
-      EXPECT((imu_bias_lkf - imu_bias).vector().norm() < tol);
+      EXPECT_TRUE(assert_equal(poses.at(frame_id).first, W_Pose_Blkf, tol));
+      EXPECT_LT((W_Vel_Blkf - v).norm(), tol);
+      EXPECT_LT((imu_bias_lkf - imu_bias).vector().norm(), tol);
     }
   }
 }
@@ -292,7 +292,7 @@ TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
       Point2 px_left = cam_left.project(lmk_pts.at(lmk_id));
       Point2 px_right = cam_right.project(lmk_pts.at(lmk_id));
       StereoPoint2 px_lr(px_left.x(), px_right.x(), px_left.y());
-      EXPECT_DOUBLES_EQUAL(px_left.y(), px_right.y(), tol);
+      EXPECT_DOUBLE_EQ(px_left.y(), px_right.y());
       measurement_frame.push_back(make_pair(lmk_id, px_lr));
     }
     all_measurements.push_back(
@@ -351,44 +351,33 @@ TEST(testRegularVio, robotMovingWithConstantVelocitySmartAndProjFactor) {
     if (k == 1) {
       // 3 priors, 1 imu + 1 between per time stamp:
       // we do not include smart factors of length 1.
-      EXPECT(nrFactorsInSmoother == 3 + 2 * k);
+      EXPECT_EQ(nrFactorsInSmoother, 3 + 2 * k);
     } else if (k == 2) {
       // 3 priors, 1 imu + 1 between per time stamp,  smart factors.
-      EXPECT(nrFactorsInSmoother == 3 + 2 * k + 8);
+      EXPECT_EQ(nrFactorsInSmoother, 3 + 2 * k + 8);
     } else {
       // 3 priors, 1 imu + 1 between per time stamp,
       // Smart Factors: max (0, 8 - k). such that when k > 8 smart factors = 0.
       // Projection Factors: min ( , ). such that when k > 8 proj factors = 8*k.
-      EXPECT(nrFactorsInSmoother ==
-             3 + 2 * k +
-                 std::max(static_cast<int64_t>(0),
-                          (8 - k)) +  // TODO get it right!
-                 std::min((k * k), (8 * k)));
+      EXPECT_EQ(nrFactorsInSmoother,
+                3 + 2 * k +
+                    std::max(static_cast<int64_t>(0),
+                             (8 - k)) +  // TODO get it right!
+                    std::min((k * k), (8 * k)));
     }
 #endif
     // Check the results!
-    Values& results = regular_vio->state_;
+    Values results = regular_vio->getState();
 
     for (int frame_id = 0; frame_id <= k; frame_id++) {
       Pose3 W_Pose_Blkf = results.at<Pose3>(Symbol('x', frame_id));
       Vector3 W_Vel_Blkf = results.at<Vector3>(Symbol('v', frame_id));
       ImuBias imu_bias_lkf = results.at<ImuBias>(Symbol('b', frame_id));
 
-      EXPECT(assert_equal(poses.at(frame_id).first, W_Pose_Blkf, tol));
-      EXPECT((W_Vel_Blkf - v).norm() < tol);
-      EXPECT((imu_bias_lkf - imu_bias).vector().norm() < tol);
+      ASSERT_TRUE(
+          gtsam::assert_equal(poses.at(frame_id).first, W_Pose_Blkf, tol));
+      ASSERT_LT((W_Vel_Blkf - v).norm(), tol);
+      ASSERT_LT((imu_bias_lkf - imu_bias).vector().norm(), tol);
     }
   }
 }
-
-/* ************************************************************************** */
-int main(int argc, char* argv[]) {
-  // Initialize Google's flags library.
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  // Initialize Google's logging library.
-  google::InitGoogleLogging(argv[0]);
-
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************** */

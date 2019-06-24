@@ -59,26 +59,13 @@ struct TestData {
   int64_t timestamp;
 };
 
-// Test fixture gtest style.
-// class ThreadsafeTemporalBufferFixture : public ::testing::Test {
-//  public:
-//   ThreadsafeTemporalBufferFixture() : buffer_(kBufferLengthNs) {}
-//
-//  protected:
-//   virtual void SetUp() {}
-//   virtual void TearDown() {}
-//
-//   void addValue(const TestData& data) {
-//     buffer_.addValue(data.timestamp, data);
-//   }
-//
-//   static constexpr int64_t kBufferLengthNs = 100;
-//   ThreadsafeTemporalBuffer<TestData> buffer_;
-// };
-class ThreadsafeTemporalBufferFixture {
+class ThreadsafeTemporalBufferFixture : public ::testing::Test {
  public:
   ThreadsafeTemporalBufferFixture() : buffer_(kBufferLengthNs) {}
 
+ protected:
+  virtual void SetUp() {}
+  virtual void TearDown() {}  //
   void addValue(const TestData& data) {
     buffer_.addValue(data.timestamp, data);
   }
@@ -87,301 +74,268 @@ class ThreadsafeTemporalBufferFixture {
   ThreadsafeTemporalBuffer<TestData> buffer_;
 };
 
-TEST(ThreadsafeTemporalBufferFixture, SizeEmptyClearWork) {
-  ThreadsafeTemporalBufferFixture fixture;
-  EXPECT(fixture.buffer_.empty());
-  EXPECT(fixture.buffer_.size() == 0u);
+TEST_F(ThreadsafeTemporalBufferFixture, SizeEmptyClearWork) {
+  EXPECT_TRUE(buffer_.empty());
+  EXPECT_EQ(buffer_.size(), 0u);
 
-  fixture.addValue(TestData(10));
-  fixture.addValue(TestData(20));
-  EXPECT(!fixture.buffer_.empty());
-  EXPECT(fixture.buffer_.size() == 2u);
+  addValue(TestData(10));
+  addValue(TestData(20));
+  EXPECT_TRUE(!buffer_.empty());
+  EXPECT_EQ(buffer_.size(), 2u);
 
-  fixture.buffer_.clear();
-  EXPECT(fixture.buffer_.empty());
-  EXPECT(fixture.buffer_.size() == 0u);
+  buffer_.clear();
+  EXPECT_TRUE(buffer_.empty());
+  EXPECT_EQ(buffer_.size(), 0u);
 }
 
-TEST(ThreadsafeTemporalBufferFixture, GetValueAtTimeWorks) {
-  ThreadsafeTemporalBufferFixture fixture;
-  fixture.addValue(TestData(30));
-  fixture.addValue(TestData(10));
-  fixture.addValue(TestData(20));
-  fixture.addValue(TestData(40));
+TEST_F(ThreadsafeTemporalBufferFixture, GetValueAtTimeWorks) {
+  addValue(TestData(30));
+  addValue(TestData(10));
+  addValue(TestData(20));
+  addValue(TestData(40));
 
   TestData retrieved_item;
-  EXPECT(fixture.buffer_.getValueAtTime(10, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getValueAtTime(10, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(fixture.buffer_.getValueAtTime(20, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 20);
+  EXPECT_TRUE(buffer_.getValueAtTime(20, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 20);
 
-  EXPECT(!fixture.buffer_.getValueAtTime(15, &retrieved_item));
+  EXPECT_TRUE(!buffer_.getValueAtTime(15, &retrieved_item));
 
-  EXPECT(fixture.buffer_.getValueAtTime(30, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 30);
+  EXPECT_TRUE(buffer_.getValueAtTime(30, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 30);
 }
 
-TEST(ThreadsafeTemporalBufferFixture, GetNearestValueToTimeWorks) {
-  ThreadsafeTemporalBufferFixture fixture;
-  fixture.addValue(TestData(30));
-  fixture.addValue(TestData(10));
-  fixture.addValue(TestData(20));
+TEST_F(ThreadsafeTemporalBufferFixture, GetNearestValueToTimeWorks) {
+  addValue(TestData(30));
+  addValue(TestData(10));
+  addValue(TestData(20));
 
   TestData retrieved_item;
-  EXPECT(fixture.buffer_.getNearestValueToTime(10, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(10, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(0, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(0, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(16, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 20);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(16, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 20);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(26, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 30);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(26, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 30);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(32, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 30);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(32, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 30);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(1232, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 30);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(1232, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 30);
 }
 
-TEST(ThreadsafeTemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
-  ThreadsafeTemporalBufferFixture fixture;
-  fixture.addValue(TestData(30));
-  fixture.addValue(TestData(10));
-  fixture.addValue(TestData(20));
+TEST_F(ThreadsafeTemporalBufferFixture, GetNearestValueToTimeMaxDeltaWorks) {
+  addValue(TestData(30));
+  addValue(TestData(10));
+  addValue(TestData(20));
 
   const int kMaxDelta = 5;
 
   TestData retrieved_item;
-  EXPECT(fixture.buffer_.getNearestValueToTime(10, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(10, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(!fixture.buffer_.getNearestValueToTime(0, kMaxDelta, &retrieved_item));
+  EXPECT_TRUE(!buffer_.getNearestValueToTime(0, kMaxDelta, &retrieved_item));
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(9, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(9, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 20);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 20);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(26, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 30);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(26, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 30);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(32, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 30);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(32, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 30);
 
-  EXPECT(
-      !fixture.buffer_.getNearestValueToTime(36, kMaxDelta, &retrieved_item));
+  EXPECT_TRUE(!buffer_.getNearestValueToTime(36, kMaxDelta, &retrieved_item));
 
-  fixture.buffer_.clear();
-  fixture.addValue(TestData(10));
-  fixture.addValue(TestData(20));
+  buffer_.clear();
+  addValue(TestData(10));
+  addValue(TestData(20));
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(9, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(9, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(12, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(12, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 20);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 20);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(22, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 20);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(22, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 20);
 
-  fixture.buffer_.clear();
-  fixture.addValue(TestData(10));
+  buffer_.clear();
+  addValue(TestData(10));
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(6, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(6, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(fixture.buffer_.getNearestValueToTime(14, kMaxDelta, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getNearestValueToTime(14, kMaxDelta, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(
-      !fixture.buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
+  EXPECT_TRUE(!buffer_.getNearestValueToTime(16, kMaxDelta, &retrieved_item));
 }
 
-TEST(ThreadsafeTemporalBufferFixture, GetValueAtOrBeforeTimeWorks) {
-  ThreadsafeTemporalBufferFixture fixture;
-  fixture.addValue(TestData(30));
-  fixture.addValue(TestData(10));
-  fixture.addValue(TestData(20));
-  fixture.addValue(TestData(40));
+TEST_F(ThreadsafeTemporalBufferFixture, GetValueAtOrBeforeTimeWorks) {
+  addValue(TestData(30));
+  addValue(TestData(10));
+  addValue(TestData(20));
+  addValue(TestData(40));
 
   TestData retrieved_item;
   int64_t timestamp;
 
-  EXPECT(
-      fixture.buffer_.getValueAtOrBeforeTime(40, &timestamp, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 40);
-  EXPECT(timestamp == 40);
+  EXPECT_TRUE(buffer_.getValueAtOrBeforeTime(40, &timestamp, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 40);
+  EXPECT_EQ(timestamp, 40);
 
-  EXPECT(
-      fixture.buffer_.getValueAtOrBeforeTime(50, &timestamp, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 40);
-  EXPECT(timestamp == 40);
+  EXPECT_TRUE(buffer_.getValueAtOrBeforeTime(50, &timestamp, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 40);
+  EXPECT_EQ(timestamp, 40);
 
-  EXPECT(
-      fixture.buffer_.getValueAtOrBeforeTime(15, &timestamp, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
-  EXPECT(timestamp == 10);
+  EXPECT_TRUE(buffer_.getValueAtOrBeforeTime(15, &timestamp, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
+  EXPECT_EQ(timestamp, 10);
 
-  EXPECT(
-      fixture.buffer_.getValueAtOrBeforeTime(10, &timestamp, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
-  EXPECT(timestamp == 10);
+  EXPECT_TRUE(buffer_.getValueAtOrBeforeTime(10, &timestamp, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
+  EXPECT_EQ(timestamp, 10);
 
-  EXPECT(
-      !fixture.buffer_.getValueAtOrBeforeTime(5, &timestamp, &retrieved_item));
+  EXPECT_TRUE(!buffer_.getValueAtOrBeforeTime(5, &timestamp, &retrieved_item));
 }
 
-TEST(ThreadsafeTemporalBufferFixture, GetValueAtOrAfterTimeWorks) {
-  ThreadsafeTemporalBufferFixture fixture;
-  fixture.addValue(TestData(30));
-  fixture.addValue(TestData(10));
-  fixture.addValue(TestData(20));
-  fixture.addValue(TestData(40));
+TEST_F(ThreadsafeTemporalBufferFixture, GetValueAtOrAfterTimeWorks) {
+  addValue(TestData(30));
+  addValue(TestData(10));
+  addValue(TestData(20));
+  addValue(TestData(40));
 
   TestData retrieved_item;
   int64_t timestamp;
 
-  EXPECT(
-      fixture.buffer_.getValueAtOrAfterTime(10, &timestamp, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
-  EXPECT(timestamp == 10);
+  EXPECT_TRUE(buffer_.getValueAtOrAfterTime(10, &timestamp, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
+  EXPECT_EQ(timestamp, 10);
 
-  EXPECT(fixture.buffer_.getValueAtOrAfterTime(5, &timestamp, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
-  EXPECT(timestamp == 10);
+  EXPECT_TRUE(buffer_.getValueAtOrAfterTime(5, &timestamp, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
+  EXPECT_EQ(timestamp, 10);
 
-  EXPECT(
-      fixture.buffer_.getValueAtOrAfterTime(35, &timestamp, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 40);
-  EXPECT(timestamp == 40);
+  EXPECT_TRUE(buffer_.getValueAtOrAfterTime(35, &timestamp, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 40);
+  EXPECT_EQ(timestamp, 40);
 
-  EXPECT(
-      fixture.buffer_.getValueAtOrAfterTime(40, &timestamp, &retrieved_item));
-  EXPECT(retrieved_item.timestamp == 40);
-  EXPECT(timestamp == 40);
+  EXPECT_TRUE(buffer_.getValueAtOrAfterTime(40, &timestamp, &retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 40);
+  EXPECT_EQ(timestamp, 40);
 
-  EXPECT(
-      !fixture.buffer_.getValueAtOrAfterTime(45, &timestamp, &retrieved_item));
+  EXPECT_TRUE(!buffer_.getValueAtOrAfterTime(45, &timestamp, &retrieved_item));
 }
 
-TEST(ThreadsafeTemporalBufferFixture, GetOldestNewestValueWork) {
-  ThreadsafeTemporalBufferFixture fixture;
+TEST_F(ThreadsafeTemporalBufferFixture, GetOldestNewestValueWork) {
   TestData retrieved_item;
-  EXPECT(!fixture.buffer_.getOldestValue(&retrieved_item));
-  EXPECT(!fixture.buffer_.getNewestValue(&retrieved_item));
+  EXPECT_TRUE(!buffer_.getOldestValue(&retrieved_item));
+  EXPECT_TRUE(!buffer_.getNewestValue(&retrieved_item));
 
-  fixture.addValue(TestData(30));
-  fixture.addValue(TestData(10));
-  fixture.addValue(TestData(20));
-  fixture.addValue(TestData(40));
+  addValue(TestData(30));
+  addValue(TestData(10));
+  addValue(TestData(20));
+  addValue(TestData(40));
 
-  EXPECT(fixture.buffer_.getOldestValue(&retrieved_item));
-  EXPECT(retrieved_item.timestamp == 10);
+  EXPECT_TRUE(buffer_.getOldestValue(&retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 10);
 
-  EXPECT(fixture.buffer_.getNewestValue(&retrieved_item));
-  EXPECT(retrieved_item.timestamp == 40);
+  EXPECT_TRUE(buffer_.getNewestValue(&retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 40);
 }
 
-TEST(ThreadsafeTemporalBufferFixture, GetValuesBetweenTimesWorks) {
-  ThreadsafeTemporalBufferFixture fixture;
-  fixture.addValue(TestData(10));
-  fixture.addValue(TestData(20));
-  fixture.addValue(TestData(30));
-  fixture.addValue(TestData(40));
-  fixture.addValue(TestData(50));
+TEST_F(ThreadsafeTemporalBufferFixture, GetValuesBetweenTimesWorks) {
+  addValue(TestData(10));
+  addValue(TestData(20));
+  addValue(TestData(30));
+  addValue(TestData(40));
+  addValue(TestData(50));
 
   // Test aligned borders.
   /// When the user does not ask for the lower bound.
   /// Implicitly also checks that it is default behaviour.
   std::vector<TestData> values;
-  EXPECT(fixture.buffer_.getValuesBetweenTimes(10, 50, &values));
-  EXPECT(values.size() == 3u);
-  EXPECT(values[0].timestamp == 20);
-  EXPECT(values[1].timestamp == 30);
-  EXPECT(values[2].timestamp == 40);
+  EXPECT_TRUE(buffer_.getValuesBetweenTimes(10, 50, &values));
+  EXPECT_EQ(values.size(), 3u);
+  EXPECT_EQ(values[0].timestamp, 20);
+  EXPECT_EQ(values[1].timestamp, 30);
+  EXPECT_EQ(values[2].timestamp, 40);
 
   // Test aligned borders.
   /// When the user does ask for the lower bound.
-  EXPECT(fixture.buffer_.getValuesBetweenTimes(10, 50, &values, true));
-  EXPECT(values.size() == 4u);
-  EXPECT(values[0].timestamp == 10);
-  EXPECT(values[1].timestamp == 20);
-  EXPECT(values[2].timestamp == 30);
-  EXPECT(values[3].timestamp == 40);
+  EXPECT_TRUE(buffer_.getValuesBetweenTimes(10, 50, &values, true));
+  EXPECT_EQ(values.size(), 4u);
+  EXPECT_EQ(values[0].timestamp, 10);
+  EXPECT_EQ(values[1].timestamp, 20);
+  EXPECT_EQ(values[2].timestamp, 30);
+  EXPECT_EQ(values[3].timestamp, 40);
 
   // Test unaligned borders.
   /// When the user does not ask for the lower bound.
   /// Implicitly also checks that it is default behaviour.
-  EXPECT(fixture.buffer_.getValuesBetweenTimes(15, 45, &values));
-  EXPECT(values.size() == 3u);
-  EXPECT(values[0].timestamp == 20);
-  EXPECT(values[1].timestamp == 30);
-  EXPECT(values[2].timestamp == 40);
+  EXPECT_TRUE(buffer_.getValuesBetweenTimes(15, 45, &values));
+  EXPECT_EQ(values.size(), 3u);
+  EXPECT_EQ(values[0].timestamp, 20);
+  EXPECT_EQ(values[1].timestamp, 30);
+  EXPECT_EQ(values[2].timestamp, 40);
 
   // Test unaligned borders.
   /// When the user does ask for the lower bound.
-  EXPECT(fixture.buffer_.getValuesBetweenTimes(15, 45, &values));
-  EXPECT(values.size() == 3u);
-  EXPECT(values[0].timestamp == 20);
-  EXPECT(values[1].timestamp == 30);
-  EXPECT(values[2].timestamp == 40);
+  EXPECT_TRUE(buffer_.getValuesBetweenTimes(15, 45, &values));
+  EXPECT_EQ(values.size(), 3u);
+  EXPECT_EQ(values[0].timestamp, 20);
+  EXPECT_EQ(values[1].timestamp, 30);
+  EXPECT_EQ(values[2].timestamp, 40);
 
   // Test unsuccessful queries.
   // Lower border oob.
-  EXPECT(!fixture.buffer_.getValuesBetweenTimes(5, 45, &values));
-  EXPECT(!fixture.buffer_.getValuesBetweenTimes(5, 45, &values, true));
+  EXPECT_TRUE(!buffer_.getValuesBetweenTimes(5, 45, &values));
+  EXPECT_TRUE(!buffer_.getValuesBetweenTimes(5, 45, &values, true));
   // Higher border oob.
-  EXPECT(!fixture.buffer_.getValuesBetweenTimes(30, 55, &values));
-  EXPECT(!fixture.buffer_.getValuesBetweenTimes(30, 55, &values, true));
-  EXPECT(values.empty());
+  EXPECT_TRUE(!buffer_.getValuesBetweenTimes(30, 55, &values));
+  EXPECT_TRUE(!buffer_.getValuesBetweenTimes(30, 55, &values, true));
+  EXPECT_TRUE(values.empty());
 
   // The method should check-fail when the buffer is empty.
-  fixture.buffer_.clear();
-  EXPECT(!fixture.buffer_.getValuesBetweenTimes(10, 50, &values));
-  EXPECT(!fixture.buffer_.getValuesBetweenTimes(10, 50, &values, true));
-  // EXPECT_DEATH(fixture.buffer_.getValuesBetweenTimes(40, 30, &values), "^");
+  buffer_.clear();
+  EXPECT_TRUE(!buffer_.getValuesBetweenTimes(10, 50, &values));
+  EXPECT_TRUE(!buffer_.getValuesBetweenTimes(10, 50, &values, true));
+  // EXPECT_DEATH(buffer_.getValuesBetweenTimes(40, 30, &values), "^");
 }
 
-TEST(ThreadsafeTemporalBufferFixture, MaintaingBufferLengthWorks) {
-  ThreadsafeTemporalBufferFixture fixture;
-  fixture.addValue(TestData(0));
-  fixture.addValue(TestData(50));
-  fixture.addValue(TestData(100));
-  EXPECT(fixture.buffer_.size() == 3u);
+TEST_F(ThreadsafeTemporalBufferFixture, MaintaingBufferLengthWorks) {
+  addValue(TestData(0));
+  addValue(TestData(50));
+  addValue(TestData(100));
+  EXPECT_EQ(buffer_.size(), 3u);
 
-  fixture.addValue(TestData(150));
-  EXPECT(fixture.buffer_.size() == 3u);
+  addValue(TestData(150));
+  EXPECT_EQ(buffer_.size(), 3u);
 
   TestData retrieved_item;
-  EXPECT(fixture.buffer_.getOldestValue(&retrieved_item));
-  EXPECT(retrieved_item.timestamp == 50);
+  EXPECT_TRUE(buffer_.getOldestValue(&retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 50);
 
-  EXPECT(fixture.buffer_.getNewestValue(&retrieved_item));
-  EXPECT(retrieved_item.timestamp == 150);
+  EXPECT_TRUE(buffer_.getNewestValue(&retrieved_item));
+  EXPECT_EQ(retrieved_item.timestamp, 150);
 }
 
 }  // namespace utils
 
 }  // namespace VIO
-
-/* ************************************************************************* */
-int main(int argc, char* argv[]) {
-  // Initialize Google's flags library.
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  // Initialize Google's logging library.
-  google::InitGoogleLogging(argv[0]);
-  google::SetStderrLogging(google::INFO);
-
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */

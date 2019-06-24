@@ -59,37 +59,37 @@ TEST(ThreadsafeImuBuffer, PopFromEmptyBuffer) {
     VIO::utils::ThreadsafeImuBuffer::QueryResult success =
         buffer.getImuDataBtwTimestamps(50, 100, &imu_timestamps,
                                        &imu_measurements);
-    EXPECT(success ==
-           utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
-    EXPECT(0u == imu_timestamps.size());
-    EXPECT(0u == imu_measurements.size());
+    EXPECT_EQ(success,
+              utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+    EXPECT_EQ(0u, imu_timestamps.size());
+    EXPECT_EQ(0u, imu_measurements.size());
   }
   {
     VIO::utils::ThreadsafeImuBuffer::QueryResult success =
         buffer.getImuDataBtwTimestamps(50, 100, &imu_timestamps,
                                        &imu_measurements, true);
-    EXPECT(success ==
-           utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
-    EXPECT(0u == imu_timestamps.size());
-    EXPECT(0u == imu_measurements.size());
+    EXPECT_EQ(success,
+              utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+    EXPECT_EQ(0u, imu_timestamps.size());
+    EXPECT_EQ(0u, imu_measurements.size());
   }
   {
     VIO::utils::ThreadsafeImuBuffer::QueryResult success =
         buffer.getImuDataInterpolatedUpperBorder(50, 100, &imu_timestamps,
                                                  &imu_measurements);
-    EXPECT(success ==
-           utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
-    EXPECT(0u == imu_timestamps.size());
-    EXPECT(0u == imu_measurements.size());
+    EXPECT_EQ(success,
+              utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+    EXPECT_EQ(0u, imu_timestamps.size());
+    EXPECT_EQ(0u, imu_measurements.size());
   }
   {
     VIO::utils::ThreadsafeImuBuffer::QueryResult success =
         buffer.getImuDataInterpolatedBorders(50, 100, &imu_timestamps,
                                              &imu_measurements);
-    EXPECT(success ==
-           utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
-    EXPECT(0u == imu_timestamps.size());
-    EXPECT(0u == imu_measurements.size());
+    EXPECT_EQ(success,
+              utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+    EXPECT_EQ(0u, imu_timestamps.size());
+    EXPECT_EQ(0u, imu_measurements.size());
   }
 }
 
@@ -97,7 +97,7 @@ TEST(ThreadsafeImuBuffer, LinearInterpolate) {
   ImuAccGyr y;
   VIO::utils::ThreadsafeImuBuffer::linearInterpolate(
       10, ImuAccGyr::Constant(10.0), 20, ImuAccGyr::Constant(50.0), 15, &y);
-  EXPECT(y == ImuAccGyr::Constant(30.0));
+  EXPECT_EQ(y, ImuAccGyr::Constant(30.0));
 }
 
 TEST(ThreadsafeImuBuffer, getImuDataBtwTimestamps) {
@@ -117,104 +117,104 @@ TEST(ThreadsafeImuBuffer, getImuDataBtwTimestamps) {
   // Test aligned getter.
   result = buffer.getImuDataBtwTimestamps(20, 30, &imu_timestamps,
                                           &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 1);
-  EXPECT(imu_measurements.cols() == 1);
-  EXPECT(imu_timestamps(0) == 25);
-  EXPECT(imu_measurements.col(0)(0) == 25.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 1);
+  EXPECT_EQ(imu_measurements.cols(), 1);
+  EXPECT_EQ(imu_timestamps(0), 25);
+  EXPECT_EQ(imu_measurements.col(0)(0), 25.0);
 
   // Test aligned getter, but asking for lower bound
   result = buffer.getImuDataBtwTimestamps(20, 30, &imu_timestamps,
                                           &imu_measurements, true);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 2);
-  EXPECT(imu_measurements.cols() == 2);
-  EXPECT(imu_timestamps(0) == 20);
-  EXPECT(imu_timestamps(1) == 25);
-  EXPECT(imu_measurements.col(0)(0) == 20.0);
-  EXPECT(imu_measurements.col(1)(0) == 25.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 2);
+  EXPECT_EQ(imu_measurements.cols(), 2);
+  EXPECT_EQ(imu_timestamps(0), 20);
+  EXPECT_EQ(imu_timestamps(1), 25);
+  EXPECT_EQ(imu_measurements.col(0)(0), 20.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 25.0);
 
   // Test unaligned getter (no lower/upper-interpolation).
   result = buffer.getImuDataBtwTimestamps(19, 31, &imu_timestamps,
                                           &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 3);
-  EXPECT(imu_measurements.cols() == 3);
-  EXPECT(imu_timestamps(0) == 20);
-  EXPECT(imu_timestamps(1) == 25);
-  EXPECT(imu_timestamps(2) == 30);
-  EXPECT(imu_measurements.col(0)(0) == 20.0);
-  EXPECT(imu_measurements.col(1)(0) == 25.0);
-  EXPECT(imu_measurements.col(2)(0) == 30.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 3);
+  EXPECT_EQ(imu_measurements.cols(), 3);
+  EXPECT_EQ(imu_timestamps(0), 20);
+  EXPECT_EQ(imu_timestamps(1), 25);
+  EXPECT_EQ(imu_timestamps(2), 30);
+  EXPECT_EQ(imu_measurements.col(0)(0), 20.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 25.0);
+  EXPECT_EQ(imu_measurements.col(2)(0), 30.0);
 
   // Test unaligned getter but asking for lower bound.
   result = buffer.getImuDataBtwTimestamps(19, 31, &imu_timestamps,
                                           &imu_measurements, true);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 3);
-  EXPECT(imu_measurements.cols() == 3);
-  EXPECT(imu_timestamps(0) == 20);
-  EXPECT(imu_timestamps(1) == 25);
-  EXPECT(imu_timestamps(2) == 30);
-  EXPECT(imu_measurements.col(0)(0) == 20.0);
-  EXPECT(imu_measurements.col(1)(0) == 25.0);
-  EXPECT(imu_measurements.col(2)(0) == 30.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 3);
+  EXPECT_EQ(imu_measurements.cols(), 3);
+  EXPECT_EQ(imu_timestamps(0), 20);
+  EXPECT_EQ(imu_timestamps(1), 25);
+  EXPECT_EQ(imu_timestamps(2), 30);
+  EXPECT_EQ(imu_measurements.col(0)(0), 20.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 25.0);
+  EXPECT_EQ(imu_measurements.col(2)(0), 30.0);
 
   // Fail: query out of upper bound.
   result = buffer.getImuDataBtwTimestamps(40, 51, &imu_timestamps,
                                           &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
   result = buffer.getImuDataBtwTimestamps(60, 61, &imu_timestamps,
                                           &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
 
   // Fail: query out of lower bound.
   result = buffer.getImuDataBtwTimestamps(-1, 20, &imu_timestamps,
                                           &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
   result = buffer.getImuDataBtwTimestamps(-20, -10, &imu_timestamps,
                                           &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
 
   // Query in between two values: return nothing.
   result = buffer.getImuDataBtwTimestamps(21, 24, &imu_timestamps,
                                           &imu_measurements);
-  EXPECT(result == VIO::utils::ThreadsafeImuBuffer::QueryResult::
-                       kTooFewMeasurementsAvailable);
-  EXPECT(imu_timestamps.cols() == 0);
-  EXPECT(imu_measurements.cols() == 0);
+  EXPECT_EQ(result, VIO::utils::ThreadsafeImuBuffer::QueryResult::
+                        kTooFewMeasurementsAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 0);
+  EXPECT_EQ(imu_measurements.cols(), 0);
   result = buffer.getImuDataBtwTimestamps(21, 24, &imu_timestamps,
                                           &imu_measurements, true);
-  EXPECT(result == VIO::utils::ThreadsafeImuBuffer::QueryResult::
-                       kTooFewMeasurementsAvailable);
-  EXPECT(imu_timestamps.cols() == 0);
-  EXPECT(imu_measurements.cols() == 0);
+  EXPECT_EQ(result, VIO::utils::ThreadsafeImuBuffer::QueryResult::
+                        kTooFewMeasurementsAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 0);
+  EXPECT_EQ(imu_measurements.cols(), 0);
 
   // Query right between two values: return nothing.
   result = buffer.getImuDataBtwTimestamps(20, 25, &imu_timestamps,
                                           &imu_measurements);
-  EXPECT(result == VIO::utils::ThreadsafeImuBuffer::QueryResult::
-                       kTooFewMeasurementsAvailable);
-  EXPECT(imu_timestamps.cols() == 0);
-  EXPECT(imu_measurements.cols() == 0);
+  EXPECT_EQ(result, VIO::utils::ThreadsafeImuBuffer::QueryResult::
+                        kTooFewMeasurementsAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 0);
+  EXPECT_EQ(imu_measurements.cols(), 0);
 
   // Query right between two values but ask for lower bound: return lower bound.
   result = buffer.getImuDataBtwTimestamps(20, 25, &imu_timestamps,
                                           &imu_measurements, true);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 1);
-  EXPECT(imu_measurements.cols() == 1);
-  EXPECT(imu_timestamps(0) == 20);
-  EXPECT(imu_measurements.col(0)(0) == 20.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 1);
+  EXPECT_EQ(imu_measurements.cols(), 1);
+  EXPECT_EQ(imu_timestamps(0), 20);
+  EXPECT_EQ(imu_measurements.col(0)(0), 20.0);
 }
 
 TEST(ThreadsafeImuBuffer, getImuDataInterpolatedBorders) {
@@ -234,80 +234,80 @@ TEST(ThreadsafeImuBuffer, getImuDataInterpolatedBorders) {
   // Test aligned getter (no-interpolation, only border values).
   result = buffer.getImuDataInterpolatedBorders(20, 30, &imu_timestamps,
                                                 &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 3);
-  EXPECT(imu_measurements.cols() == 3);
-  EXPECT(imu_timestamps(0) == 20);
-  EXPECT(imu_timestamps(1) == 25);
-  EXPECT(imu_timestamps(2) == 30);
-  EXPECT(imu_measurements.col(0)(0) == 20.0);
-  EXPECT(imu_measurements.col(1)(0) == 25.0);
-  EXPECT(imu_measurements.col(2)(0) == 30.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 3);
+  EXPECT_EQ(imu_measurements.cols(), 3);
+  EXPECT_EQ(imu_timestamps(0), 20);
+  EXPECT_EQ(imu_timestamps(1), 25);
+  EXPECT_EQ(imu_timestamps(2), 30);
+  EXPECT_EQ(imu_measurements.col(0)(0), 20.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 25.0);
+  EXPECT_EQ(imu_measurements.col(2)(0), 30.0);
 
   // Test aligned getter (no-interpolation).
   result = buffer.getImuDataInterpolatedBorders(20, 40, &imu_timestamps,
                                                 &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 4);
-  EXPECT(imu_measurements.cols() == 4);
-  EXPECT(imu_timestamps(0) == 20);
-  EXPECT(imu_timestamps(1) == 25);
-  EXPECT(imu_timestamps(2) == 30);
-  EXPECT(imu_timestamps(3) == 40);
-  EXPECT(imu_measurements.col(0)(0) == 20.0);
-  EXPECT(imu_measurements.col(1)(0) == 25.0);
-  EXPECT(imu_measurements.col(2)(0) == 30.0);
-  EXPECT(imu_measurements.col(3)(0) == 40.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 4);
+  EXPECT_EQ(imu_measurements.cols(), 4);
+  EXPECT_EQ(imu_timestamps(0), 20);
+  EXPECT_EQ(imu_timestamps(1), 25);
+  EXPECT_EQ(imu_timestamps(2), 30);
+  EXPECT_EQ(imu_timestamps(3), 40);
+  EXPECT_EQ(imu_measurements.col(0)(0), 20.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 25.0);
+  EXPECT_EQ(imu_measurements.col(2)(0), 30.0);
+  EXPECT_EQ(imu_measurements.col(3)(0), 40.0);
 
   // Test unaligned getter (lower/upper-interpolation).
   result = buffer.getImuDataInterpolatedBorders(19, 21, &imu_timestamps,
                                                 &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 3);
-  EXPECT(imu_measurements.cols() == 3);
-  EXPECT(imu_timestamps(0) == 19);
-  EXPECT(imu_timestamps(1) == 20);
-  EXPECT(imu_timestamps(2) == 21);
-  EXPECT(imu_measurements.col(0)(0) == 19.0);
-  EXPECT(imu_measurements.col(1)(0) == 20.0);
-  EXPECT(imu_measurements.col(2)(0) == 21.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 3);
+  EXPECT_EQ(imu_measurements.cols(), 3);
+  EXPECT_EQ(imu_timestamps(0), 19);
+  EXPECT_EQ(imu_timestamps(1), 20);
+  EXPECT_EQ(imu_timestamps(2), 21);
+  EXPECT_EQ(imu_measurements.col(0)(0), 19.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 20.0);
+  EXPECT_EQ(imu_measurements.col(2)(0), 21.0);
 
   // Fail: query out of upper bound.
   result = buffer.getImuDataInterpolatedBorders(40, 51, &imu_timestamps,
                                                 &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
   result = buffer.getImuDataInterpolatedBorders(60, 61, &imu_timestamps,
                                                 &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
 
   // Fail: query out of lower bound.
   result = buffer.getImuDataInterpolatedBorders(-1, 20, &imu_timestamps,
                                                 &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
   result = buffer.getImuDataInterpolatedBorders(-20, -10, &imu_timestamps,
                                                 &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
 
   // Query between two values: return the border values.
   result = buffer.getImuDataInterpolatedBorders(21, 29, &imu_timestamps,
                                                 &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 3);
-  EXPECT(imu_measurements.cols() == 3);
-  EXPECT(imu_timestamps(0) == 21);
-  EXPECT(imu_timestamps(1) == 25);
-  EXPECT(imu_timestamps(2) == 29);
-  EXPECT(imu_measurements.col(0)(0) == 21.0);
-  EXPECT(imu_measurements.col(1)(0) == 25.0);
-  EXPECT(imu_measurements.col(2)(0) == 29.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 3);
+  EXPECT_EQ(imu_measurements.cols(), 3);
+  EXPECT_EQ(imu_timestamps(0), 21);
+  EXPECT_EQ(imu_timestamps(1), 25);
+  EXPECT_EQ(imu_timestamps(2), 29);
+  EXPECT_EQ(imu_measurements.col(0)(0), 21.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 25.0);
+  EXPECT_EQ(imu_measurements.col(2)(0), 29.0);
 }
 
 TEST(ThreadsafeImuBuffer, getImuDataInterpolatedUpperBorder) {
@@ -327,74 +327,74 @@ TEST(ThreadsafeImuBuffer, getImuDataInterpolatedUpperBorder) {
   // Test aligned getter (no-interpolation).
   result = buffer.getImuDataInterpolatedUpperBorder(20, 40, &imu_timestamps,
                                                     &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 4);
-  EXPECT(imu_measurements.cols() == 4);
-  EXPECT(imu_timestamps(0) == 20);
-  EXPECT(imu_timestamps(1) == 25);
-  EXPECT(imu_timestamps(2) == 30);
-  EXPECT(imu_timestamps(3) == 40);
-  EXPECT(imu_measurements.col(0)(0) == 20.0);
-  EXPECT(imu_measurements.col(1)(0) == 25.0);
-  EXPECT(imu_measurements.col(2)(0) == 30.0);
-  EXPECT(imu_measurements.col(3)(0) == 40.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 4);
+  EXPECT_EQ(imu_measurements.cols(), 4);
+  EXPECT_EQ(imu_timestamps(0), 20);
+  EXPECT_EQ(imu_timestamps(1), 25);
+  EXPECT_EQ(imu_timestamps(2), 30);
+  EXPECT_EQ(imu_timestamps(3), 40);
+  EXPECT_EQ(imu_measurements.col(0)(0), 20.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 25.0);
+  EXPECT_EQ(imu_measurements.col(2)(0), 30.0);
+  EXPECT_EQ(imu_measurements.col(3)(0), 40.0);
 
   // Test unaligned getter (only upper-interpolation).
   result = buffer.getImuDataInterpolatedUpperBorder(19, 21, &imu_timestamps,
                                                     &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 2);
-  EXPECT(imu_measurements.cols() == 2);
-  EXPECT(imu_timestamps(0) == 20);
-  EXPECT(imu_timestamps(1) == 21);
-  EXPECT(imu_measurements.col(0)(0) == 20.0);
-  EXPECT(imu_measurements.col(1)(0) == 21.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 2);
+  EXPECT_EQ(imu_measurements.cols(), 2);
+  EXPECT_EQ(imu_timestamps(0), 20);
+  EXPECT_EQ(imu_timestamps(1), 21);
+  EXPECT_EQ(imu_measurements.col(0)(0), 20.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 21.0);
 
   // Fail: query out of upper bound.
   result = buffer.getImuDataInterpolatedUpperBorder(40, 51, &imu_timestamps,
                                                     &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
   result = buffer.getImuDataInterpolatedUpperBorder(60, 61, &imu_timestamps,
                                                     &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable);
 
   // Fail: query out of lower bound.
   result = buffer.getImuDataInterpolatedUpperBorder(9, 20, &imu_timestamps,
                                                     &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
   result = buffer.getImuDataInterpolatedUpperBorder(-20, -10, &imu_timestamps,
                                                     &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable);
 
   // Query in between two values: return too few measurements available.
   // even if asked to interpolate, there are no measurements in between
   // given timestamps.
   result = buffer.getImuDataInterpolatedUpperBorder(21, 24, &imu_timestamps,
                                                     &imu_measurements);
-  EXPECT(result == VIO::utils::ThreadsafeImuBuffer::QueryResult::
-                       kTooFewMeasurementsAvailable);
-  EXPECT(imu_timestamps.cols() == 0);
-  EXPECT(imu_measurements.cols() == 0);
+  EXPECT_EQ(result, VIO::utils::ThreadsafeImuBuffer::QueryResult::
+                        kTooFewMeasurementsAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 0);
+  EXPECT_EQ(imu_measurements.cols(), 0);
 
   // Query with only one value inside interval:
   // return the interpolated border value for upper border only,
   // and one measurement
   result = buffer.getImuDataInterpolatedUpperBorder(21, 29, &imu_timestamps,
                                                     &imu_measurements);
-  EXPECT(result ==
-         VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
-  EXPECT(imu_timestamps.cols() == 2);
-  EXPECT(imu_measurements.cols() == 2);
-  EXPECT(imu_timestamps(0) == 25);
-  EXPECT(imu_timestamps(1) == 29);
-  EXPECT(imu_measurements.col(0)(0) == 25.0);
-  EXPECT(imu_measurements.col(1)(0) == 29.0);
+  EXPECT_EQ(result,
+            VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+  EXPECT_EQ(imu_timestamps.cols(), 2);
+  EXPECT_EQ(imu_measurements.cols(), 2);
+  EXPECT_EQ(imu_timestamps(0), 25);
+  EXPECT_EQ(imu_timestamps(1), 29);
+  EXPECT_EQ(imu_measurements.col(0)(0), 25.0);
+  EXPECT_EQ(imu_measurements.col(1)(0), 29.0);
 }
 
 //// Disabled because CppUnitTests does not support Expect DEATH.
@@ -429,15 +429,3 @@ TEST(ThreadsafeImuBuffer, TestAddMeasurements) {
 }
 
 }  // namespace VIO
-
-/* ************************************************************************* */
-int main(int argc, char *argv[]) {
-  // Initialize Google's flags library.
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  // Initialize Google's logging library.
-  google::InitGoogleLogging(argv[0]);
-
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */
