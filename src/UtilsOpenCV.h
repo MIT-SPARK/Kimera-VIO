@@ -105,9 +105,6 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Converts a gtsam::Unit3 to a cv::Point3d.
-
-  /* ------------------------------------------------------------------------ */
-  // Converts a gtsam::Unit3 to a cv::Point3d.
   static inline cv::Point3d unit3ToPoint3d(const gtsam::Unit3& unit3) {
     return cv::Point3d(unit3.point3().x(),
                        unit3.point3().y(),
