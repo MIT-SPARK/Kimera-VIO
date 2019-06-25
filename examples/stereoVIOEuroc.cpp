@@ -41,16 +41,16 @@ int main(int argc, char *argv[]) {
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
-  VIO::DataProvider* dataset_parser;
+  std::unique_ptr<VIO::DataProvider> dataset_parser;
   switch (FLAGS_dataset_type) {
     case 0 :
     {
-      dataset_parser = new VIO::ETHDatasetParser();
+      dataset_parser = VIO::make_unique<VIO::ETHDatasetParser>();
     }
     break; 
     case 1 :
     {
-      dataset_parser = new VIO::KittiDataProvider();
+      dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
     }
     break; 
     default: 
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
   bool is_pipeline_successful = false;
   if (FLAGS_parallel_run) {
     auto handle = std::async(std::launch::async, &VIO::DataProvider::spin,
-                             *dataset_parser);
+                            std::move(dataset_parser));
     auto handle_pipeline =
         std::async(std::launch::async, &VIO::Pipeline::shutdownWhenFinished,
                    &vio_pipeline);
