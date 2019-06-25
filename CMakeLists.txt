@@ -39,6 +39,23 @@ if(OpenCV_FOUND)
   message(STATUS "FOUND OpenCV!")
 endif(OpenCV_FOUND)
 
+# TODO: Install these if not already installed
+### Find the Dlib package # TODO: get rid of this dependency
+find_package(DLib REQUIRED)
+if(DLib_FOUND)
+  message(STATUS "Found DLib!")
+else()
+  message(STATUS "Did not find DLib. Please install.")
+endif(DLib_FOUND)
+
+### Find the DBoW2 package
+find_package(DBoW2)
+if(DBoW2_FOUND)
+  message(STATUS "Found DBoW2!")
+else()
+  message(STATUS "Did not find DBoW2. Please install.")
+endif(DBoW2_FOUND)
+
 ### External Dependencies
 include(ExternalProject)
 
@@ -62,6 +79,9 @@ add_library(SparkVio SHARED
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
   src/LoggerMatlab.cpp
+  src/LoopClosureDetector.cpp
+  src/LoopClosureDetector.h
+  src/LoopClosureDetectorParams.h
   src/FeatureSelector.cpp
   src/VioBackEndParams.h
   src/VioFrontEndParams.h
@@ -96,6 +116,8 @@ target_link_libraries(SparkVio
     glog::glog
     gtsam
     gtsam_unstable
+    DBoW2
+    DLib
 )
 target_include_directories(SparkVio
   PUBLIC
@@ -242,4 +264,3 @@ if(NOT MSVC AND NOT XCODE_VERSION)
     message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
     message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
-

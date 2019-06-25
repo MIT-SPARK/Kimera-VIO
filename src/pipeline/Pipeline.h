@@ -30,11 +30,15 @@
 #include "pipeline/ProcessControl.h"
 #include "utils/ThreadsafeQueue.h"
 
+#include "LoopClosureDetector.h"
+
 namespace VIO {
 // Forward-declare classes.
 class VioBackEndParams;
 class VioBackEnd;
 class StereoVisionFrontEnd;
+// class LoopClosureDetectorParams; // TODO: why?
+// class LoopClosureDetector;
 
 }  // namespace VIO
 
@@ -195,6 +199,14 @@ class Pipeline {
   ThreadsafeQueue<MesherInputPayload> mesher_input_queue_;
   ThreadsafeQueue<MesherOutputPayload> mesher_output_queue_;
 
+  // Create class to detect loop closures.
+  std::unique_ptr<LoopClosureDetector> loop_closure_detector_;
+  LoopClosureDetectorParams lcd_params_;
+
+  // Thread-safe queue for the loop closure detector.
+  ThreadsafeQueue<LoopClosureDetectorInputPayload> lcd_input_queue_;
+  ThreadsafeQueue<LoopClosureDetectorOutputPayload> lcd_output_queue_;
+
   // Visualization process.
   Visualizer3D visualizer_;
 
@@ -215,6 +227,7 @@ class Pipeline {
   std::unique_ptr<std::thread> wrapped_thread_ = {nullptr};
   std::unique_ptr<std::thread> backend_thread_ = {nullptr};
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
+  std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
   // std::thread visualizer_thread_;
 
   bool parallel_run_;
