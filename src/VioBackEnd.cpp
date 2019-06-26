@@ -719,7 +719,7 @@ gtsam::Matrix VioBackEnd::getCurrentStateCovariance() const {
                              gtsam::Marginals::Factorization::CHOLESKY);
 
   // Current state includes pose, velocity and imu biases.
-  std::vector<gtsam::Key> keys;
+  gtsam::KeyVector keys;
   keys.push_back(gtsam::Symbol('x', curr_kf_id_));
   keys.push_back(gtsam::Symbol('v', curr_kf_id_));
   keys.push_back(gtsam::Symbol('b', curr_kf_id_));
@@ -737,7 +737,7 @@ gtsam::Matrix VioBackEnd::getCurrentStateInformation() const {
                              gtsam::Marginals::Factorization::CHOLESKY);
 
   // Current state includes pose, velocity and imu biases.
-  std::vector<gtsam::Key> keys;
+  gtsam::KeyVector keys;
   keys.push_back(gtsam::Symbol('x', curr_kf_id_));
   keys.push_back(gtsam::Symbol('v', curr_kf_id_));
   keys.push_back(gtsam::Symbol('b', curr_kf_id_));
