@@ -287,7 +287,7 @@ private:
       const gtsam::Values& new_values = gtsam::Values(),
       const std::map<Key, double>& timestamps =
       gtsam::FixedLagSmoother::KeyTimestampMap(),
-      const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
+      const std::vector<size_t>& delete_slots = std::vector<size_t>());
 
   /* ------------------------------------------------------------------------ */
   void cleanCheiralityLmk(
