@@ -199,9 +199,9 @@ public:
 
   /* -------------------------------------------------------------------------- */
   // creates pose by aligning initial gravity vector estimates
-  static gtsam::Pose3 AlignGravityVectors(gtsam::Unit3& localGravityDir,
-                                  gtsam::Unit3& globalGravityDir,
-                                  bool round);
+  static gtsam::Pose3
+  AlignGravityVectors(gtsam::Vector3 &local_gravity_dir,
+                      const gtsam::Vector3 &global_gravity_dir, bool round);
 
   /* ------------------------------------------------------------------------ */
   // rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0

@@ -31,7 +31,7 @@ static const std::string data_path(DATASET_PATH + std::string("/ForOnlineAlignme
 //int n_frames = 30;
 
 int n_begin_dataset = 1;
-int n_frames = 9;
+int n_frames = 35;
 
 namespace VIO {
 
@@ -126,7 +126,10 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   gtsam::Vector3 gyro_bias = imu_bias.gyroscope();
   //gtsam::Vector3 gyro_bias = imu_frontend.getCurrentImuBias().gyroscope();
   gtsam::Vector3 g_iter;
+  gtsam::Pose3 init_pose;
   CHECK_DOUBLE_EQ(gyro_bias.norm(), 0.0);
+  // imu_params.n_gravity_ << 0.0, 0.0, -9.81; // This is needed for online
+  // alignment
   OnlineGravityAlignment initial_alignment(
                       estimated_poses, 
                       delta_t_poses,
@@ -134,7 +137,8 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
                       imu_params.n_gravity_);
 
   // Compute Gyroscope Bias
-  initial_alignment.alignVisualInertialEstimates(&gyro_bias, &g_iter);
+  initial_alignment.alignVisualInertialEstimates(&gyro_bias, &g_iter,
+                                                 &init_pose);
 
   // Final test check
   DOUBLES_EQUAL(bias_gyr.norm(), gyro_bias.norm(), 1e-2);

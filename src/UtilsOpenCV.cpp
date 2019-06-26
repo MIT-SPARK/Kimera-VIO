@@ -416,9 +416,14 @@ break_out:
 
 /* -------------------------------------------------------------------------- */
 // creates pose by aligning initial gravity vector estimates
-gtsam::Pose3 UtilsOpenCV::AlignGravityVectors(gtsam::Unit3& localGravityDir,
-                                              gtsam::Unit3& globalGravityDir,
-                                              bool round) {
+gtsam::Pose3
+UtilsOpenCV::AlignGravityVectors(gtsam::Vector3 &local_gravity_dir,
+                                 const gtsam::Vector3 &global_gravity_dir,
+                                 bool round) {
+  gtsam::Unit3 localGravityDir(
+      local_gravity_dir); // a = localGravity (we measure the opposite of
+                          // gravity)
+  gtsam::Unit3 globalGravityDir(global_gravity_dir); // b
 
   if (round) { // align vectors to dominant axis: e.g., [0.01 0.1 1] becomes [0 0 1]
     localGravityDir = UtilsOpenCV::RoundUnit3(localGravityDir);

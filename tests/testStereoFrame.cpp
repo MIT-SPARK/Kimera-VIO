@@ -939,9 +939,9 @@ TEST(testStereoFrame, undistortFisheye) {
 
 }
 
-/* *************************************************************************
+/* ************************************************************************* */
 // TODO: Figure out why this compiles on PC, but not on Jenkins
-TEST(testStereoFrame, undistortFisheyeStereoFrame) {
+TEST(testStereoFrame, DISABLED_undistortFisheyeStereoFrame) {
 
   // Parse camera params for left and right cameras
   static CameraParams cam_params_left_fisheye;
@@ -1024,8 +1024,6 @@ TEST(testStereoFrame, undistortFisheyeStereoFrame) {
 
 
 }
-
-*/
 
 /* ************************************************************************* */
 int main() {

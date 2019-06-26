@@ -48,8 +48,8 @@ OnlineGravityAlignment::OnlineGravityAlignment(
 // [out] initial gyro bias estimate
 // [out] estimate of gravity vector in initial body pose (g_b0).
 bool OnlineGravityAlignment::alignVisualInertialEstimates(
-            gtsam::Vector3 *gyro_bias, 
-            gtsam::Vector3 *g_iter) {
+    gtsam::Vector3 *gyro_bias, gtsam::Vector3 *g_iter,
+    gtsam::Pose3 *init_pose) {
   VLOG(5) << "Online gravity alignment called.";
   VisualInertialFrames vi_frames;
   CHECK_DOUBLE_EQ(gyro_bias->norm(), 0.0);
@@ -66,15 +66,10 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
 
   // Align visual and inertial estimates
   if (alignEstimatesLinearly(vi_frames, g_world_, g_iter)) {
-    LOG(INFO) << "Online gravity alignment successful.";
-    
-    gtsam::Unit3 g_unit_iter(*g_iter/g_iter->norm());
-    gtsam::Unit3 g_unit_world(g_world_/g_world_.norm());
-    
-    // TODO(Sandro): Output of alignVisualInertialEstimate
-    // Use initial pose, velocity and bias as gtNavState
-    LOG(ERROR) << "Initial Pose: " <<
-      UtilsOpenCV::AlignGravityVectors(g_unit_iter, g_unit_world, false);
+    // Align gravity vectors and estimate initial pose
+    *init_pose = UtilsOpenCV::AlignGravityVectors(*g_iter, g_world_, false);
+    // Log and return
+    LOG(ERROR) << "Online gravity alignment successful:\n" << *init_pose;
     return true;
   } else {
     LOG(WARNING) << "Online gravity alignment successful.";
@@ -256,8 +251,9 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
     LOG(ERROR) << "\nVelocity at: " << i << " :\n" << velocities.back();
   }
 
-  // Refine gravity alignment
-  refineGravity(vi_frames, g_world, &g_b0);
+  // Refine gravity alignment if necessary
+  if (abs(g_b0.norm() - g_world.norm()) > 1e-2)
+    refineGravity(vi_frames, g_world, &g_b0);
 
   // Return true if successful
   *g_iter = g_b0;

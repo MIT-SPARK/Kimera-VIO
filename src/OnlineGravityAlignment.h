@@ -57,8 +57,9 @@ public:
 
 public:
   /* ------------------------------------------------------------------------ */
-  bool alignVisualInertialEstimates(gtsam::Vector3 *gyro_bias, 
-                                    gtsam::Vector3 *g_iter);
+  bool alignVisualInertialEstimates(gtsam::Vector3 *gyro_bias,
+                                    gtsam::Vector3 *g_iter,
+                                    gtsam::Pose3 *init_pose);
 
 private:
   /* ------------------------------------------------------------------------ */
