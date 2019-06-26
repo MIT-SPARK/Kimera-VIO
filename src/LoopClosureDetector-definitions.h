@@ -67,21 +67,24 @@ private:
 
 
 class FramesDescriptor {
-  // Computes a global representation for an image by using
-  // the SURF feature descriptor in OpenCV and the bag of
-  // words approach.
 public:
-  FramesDescriptor(const std::string& vocabulary_path) {
-    orb_detector_ = cv::ORB::create(); // TODO: params?
+  FramesDescriptor(const std::string& vocabulary_path,
+                   const int nfeatures, const float scaleFactor,
+                   const int nlevels, const int edgeThreshold,
+                   const int firstLevel, const int WTA_K, const int scoreType,
+                   const int patchSize, const int fastThreshold) {
+    // TODO: test performance with a new orb_detector_ for every extractOrb
+    orb_detector_ = cv::ORB::create(nfeatures, scaleFactor, nlevels,
+                                    edgeThreshold, firstLevel, WTA_K, scoreType,
+                                    patchSize, fastThreshold);
     std::cout << "Loading vocabulary from " << vocabulary_path << std::endl;
-    vocab_.reset(new OrbVocabulary()); // TODO: not super nice, would like to
-            // just go vocab_.reset(new OrbVocabulary(vocabulary_path));
+    vocab_.reset(new OrbVocabulary()); // TODO: not super nice, would like to just go vocab_.reset(new OrbVocabulary(vocabulary_path));
     vocab_->loadFromTextFile(vocabulary_path);
     std::cout << "Loaded vocabulary with " << vocab_->size() << " visual words."
               << std::endl;
   }
 
-  Match computeMatches(double& threshold) {
+  Match computeMatches(const double& threshold) {
     ID match_id = -1;
     double final_score = 0.0;
     double curr_score = 0.0;
@@ -141,7 +144,7 @@ public:
     frame.setDbowVector(bow_vec);
   }
 
-// private: // TODO: this
+private: // TODO: this
   std::unique_ptr<OrbVocabulary> vocab_;
   std::vector<LCDFrame> frames_;
   cv::Ptr<cv::ORB> orb_detector_;

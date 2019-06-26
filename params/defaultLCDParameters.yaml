@@ -1,0 +1,13 @@
+%YAML:1.0
+# LoopClosureDetector parameters:
+vocabulary_path: "vocabulary/ORBvoc.txt"
+match_threshold: 0.5
+nfeatures: 500 # match this with the number in frontent params
+scaleFactor: 1.2f
+nlevels: 8
+edgeThreshold: 31
+firstLevel: 0
+WTA_K: 2
+scoreType: 0
+patchSize: 31
+fastThreshold: 20

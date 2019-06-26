@@ -70,7 +70,7 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   // TODO: Frame.h says img_ is public but it probably shouldn't be.
   described_frames_.addAndDescribeFrame(input->stereo_frame_.getLeftFrame().img_, frame_count_,
                                         input->timestamp_kf_);
-  Match match = described_frames_.computeMatches(match_threshold_);
+  Match match = described_frames_.computeMatches(lcd_params_.match_threshold_);
   if (match.getID() != -1) {
     LOG(ERROR) << "\nLoopClosureDetector detected Loop Closure with score: "
               << match.getScore() << " at frame ID: " << match.getID() << "\n";

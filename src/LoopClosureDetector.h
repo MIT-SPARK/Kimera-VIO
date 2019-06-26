@@ -33,7 +33,7 @@
 #include "utils/ThreadsafeQueue.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
-#include "StereoImuSyncPacket.h"
+#include "StereoFrame.h"
 #include "LoopClosureDetectorParams.h"
 #include "LoopClosureDetector-definitions.h"
 
@@ -48,9 +48,16 @@ public:
         frame_count_(0),
         last_visualized_(-1),
         last_match_(Match(-1,-1,0.0)),
-        match_threshold_(lcd_params.getMatchThreshold()),
-        vocabulary_path_(lcd_params.getVocabPath()),
-        described_frames_(FramesDescriptor(lcd_params.getVocabPath())) {}
+        described_frames_(FramesDescriptor(lcd_params.vocabulary_path_,
+                                           lcd_params.nfeatures_,
+                                           lcd_params.scaleFactor_,
+                                           lcd_params.nlevels_,
+                                           lcd_params.edgeThreshold_,
+                                           lcd_params.firstLevel_,
+                                           lcd_params.WTA_K_,
+                                           lcd_params.scoreType_,
+                                           lcd_params.patchSize_,
+                                           lcd_params.fastThreshold_)) {}
 
   virtual ~LoopClosureDetector() {
     LOG(INFO) << "LoopClosureDetector desctuctor called.";
@@ -81,7 +88,6 @@ public:
 
 private:
   const LoopClosureDetectorParams lcd_params_;
-  const std::string vocabulary_path_;
   const bool log_output_ = {false};
 
   // Thread related members.
@@ -92,8 +98,6 @@ private:
   ID last_visualized_;
   FramesDescriptor described_frames_;
   Match last_match_;
-
-  double match_threshold_;
 
 }; // class LoopClosureDetector
 
