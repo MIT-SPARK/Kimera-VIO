@@ -12,10 +12,11 @@
 * @author Marcus Abate
 */
 
-#include <string>
 
 #ifndef LoopClosureDetectorParams_H_
 #define LoopClosureDetectorParams_H_
+
+#include <string>
 
 namespace VIO {
 
@@ -24,8 +25,11 @@ public:
   LoopClosureDetectorParams()
     : match_threshold_(0.5),
     // TODO: This can't be hardcoded
-      vocabulary_path_("/home/marcus/catkin_ws/src/loop_closure_detector/param/surf64_k10L6.voc.gz")
-  {}
+      vocabulary_path_("/home/marcus/Vocabulary/ORBvoc.txt") {}
+
+  LoopClosureDetectorParams(const double match_threshold)
+    : match_threshold_(match_threshold),
+      vocabulary_path_("/home/marcus/Vocabulary/ORBvoc.txt") {}
 
   LoopClosureDetectorParams(const double match_threshold,
                             const std::string vocabulary_path)
