@@ -29,28 +29,28 @@ class LoopClosureDetectorParams {
 public:
   // TODO: vocabulary path cannot be hardcoded
   LoopClosureDetectorParams(
-        std::string vocabulary_path="/home/marcus/Vocabulary/ORBvoc.txt",
-        double match_threshold=0.5,
-        int nfeatures=500,
-        float scaleFactor=1.2f,
-        int nlevels=8,
-        int edgeThreshold=31,
-        int firstLevel=0,
-        int WTA_K=2,
-        int scoreType=cv::ORB::HARRIS_SCORE,
-        int patchSize=31,
-        int fastThreshold=20)
-    : vocabulary_path_(vocabulary_path),
-      match_threshold_(match_threshold),
-      nfeatures_(nfeatures),
-      scaleFactor_(scaleFactor),
-      nlevels_(nlevels),
-      edgeThreshold_(edgeThreshold),
-      firstLevel_(firstLevel),
-      WTA_K_(WTA_K),
-      scoreType_(scoreType),
-      patchSize_(patchSize),
-      fastThreshold_(fastThreshold_) {
+      std::string vocabulary_path="/home/marcus/code/VIO/vocabulary/ORBvoc.txt",
+      double match_threshold=0.5,
+      int nfeatures=500,
+      float scaleFactor=1.2f,
+      int nlevels=8,
+      int edgeThreshold=31,
+      int firstLevel=0,
+      int WTA_K=2,
+      int scoreType=cv::ORB::HARRIS_SCORE,
+      int patchSize=31,
+      int fastThreshold=20)
+      : vocabulary_path_(vocabulary_path),
+        match_threshold_(match_threshold),
+        nfeatures_(nfeatures),
+        scaleFactor_(scaleFactor),
+        nlevels_(nlevels),
+        edgeThreshold_(edgeThreshold),
+        firstLevel_(firstLevel),
+        WTA_K_(WTA_K),
+        scoreType_(scoreType),
+        patchSize_(patchSize),
+        fastThreshold_(fastThreshold_) {
     CHECK(match_threshold_ > 0);
     CHECK(nfeatures_ >= 100);
   }
