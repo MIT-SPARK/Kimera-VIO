@@ -220,6 +220,9 @@ private:
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
   ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
 
+  // Online initialization frontend queue.
+  ThreadsafeQueue<StereoFrontEndOutputPayload> initialization_frontend_output_queue_;
+
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;
 

@@ -124,9 +124,9 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   // auto-initialized it still asks for ImuAccGyr data.
   // USE imu frontend to send pim data instead of raw ImuAccGyr data.
   // Initialize VIO.
-  if (vio_params_.autoInitialize_ || !*initial_state_gt) {
+  if (vio_params_.autoInitialize_ == InitializationModes::IMU || !*initial_state_gt) {
     // Use initial IMU measurements to guess first pose
-    LOG_IF(WARNING, !vio_params_.autoInitialize_)
+    LOG_IF(WARNING, vio_params_.autoInitialize_ != InitializationModes::IMU)
         << "Could not initialize from ground truth, since it is not "
            "available. Autoinitializing instead.";
     *initial_state_gt = std::make_shared<gtNavState>();

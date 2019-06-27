@@ -73,9 +73,6 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
 DEFINE_int32(numb_frames_oga, 25,
              "Minimum number of frames for the online "
              "gravity-aligned initialization");
-DEFINE_int32(initialization_mode, 1,
-             "Initialization mode to be choosen "
-             "0: default (GT/IMU), 1: online initialisation");
 
 namespace VIO {
 
@@ -99,6 +96,7 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
     parallel_run_(parallel_run),
     stereo_frontend_input_queue_("stereo_frontend_input_queue"),
     stereo_frontend_output_queue_("stereo_frontend_output_queue"),
+    initialization_frontend_output_queue_("initialization_frontend_output_queue"),
     backend_input_queue_("backend_input_queue"),
     backend_output_queue_("backend_output_queue"),
     mesher_input_queue_("mesher_input_queue"),
@@ -519,11 +517,11 @@ void Pipeline::shutdown() {
 /* -------------------------------------------------------------------------- */
 bool Pipeline::initialize(const StereoImuSyncPacket &stereo_imu_sync_packet) {
   // Switch initialization mode
-  switch (FLAGS_initialization_mode) {
-  case 0: // Initialization using IMU or GT only
+  switch (backend_params_->autoInitialize_) {
+  case 0 ... 1: // Initialization using IMU or GT only
     return initializeFromIMUorGT(stereo_imu_sync_packet);
     break;
-  case 1: // Initialization using online gravity alignment
+  case 2: // Initialization using online gravity alignment
     return initializeOnline(stereo_imu_sync_packet);
     break;
   default:
@@ -608,6 +606,9 @@ bool Pipeline::initializeOnline(
     // Spin frontend once with enforced keyframe and 53-point method
     auto frontend_output = vio_frontend_->spinOnce(
         std::make_shared<StereoImuSyncPacket>(stereo_imu_sync_init));
+    // This queue is used for the initialization
+    initialization_frontend_output_queue_.push(frontend_output);
+    // This queue is used for the backend after initialization
     stereo_frontend_output_queue_.push(frontend_output);
     const StereoFrame stereo_frame_lkf = frontend_output.stereo_frame_lkf_;
 
@@ -697,7 +698,9 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
                       gtsam::NavState *init_navstate) {
 
     // Get frontend output to backend input for online initialization
-    auto output_frontend = stereo_frontend_output_queue_.batchPop();
+    auto output_frontend = initialization_frontend_output_queue_.batchPop();
+    // Shutdown the initialization input queue once used
+    initialization_frontend_output_queue_.shutdown();
     const StereoFrame &stereo_frame_fkf =
         output_frontend.back()->stereo_frame_lkf_;
     std::vector<std::shared_ptr<VioBackEndInputPayload>> inputs_backend;
@@ -1004,7 +1007,6 @@ void Pipeline::launchThreads() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::launchFrontendThread() {
-
   if (parallel_run_) {
     // Start frontend_thread.
     stereo_frontend_thread_ = VIO::make_unique<std::thread>(
