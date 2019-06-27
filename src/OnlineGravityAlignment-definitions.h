@@ -94,6 +94,11 @@ public:
   /* ------------------------------------------------------------------------------- */
   inline gtsam::Vector3 b_2() const { return bk_beta_bkp1_; }
   /* ------------------------------------------------------------------------------- */
+  gtsam::Pose3 b0_T_bk() const {
+    return gtsam::Pose3(gtsam::Rot3(b0_R_bk_), b0_p_bk_);
+  }
+  /* -------------------------------------------------------------------------------
+   */
   void updateDeltaState(const gtsam::NavState &delta_state) {
     bk_alpha_bkp1_ = gtsam::Vector3(delta_state.pose().translation());
     bk_beta_bkp1_ = delta_state.velocity();

@@ -32,6 +32,7 @@ using namespace VIO;
 static const double tol_GB = 2e-4;
 static const double tol_TB = 1e-7;
 static const double tol_OGA = 1e-3;
+static const double tol_RD = 2e-1;
 
 /* -------------------------------------------------------------------------- */
 //class OnlineAlignmentTestData : public ::testing::Test {
@@ -44,6 +45,7 @@ class OnlineAlignmentTestData {
   ImuBias imu_bias_;
   Vector3 bias_acc_;
   Vector3 bias_gyr_;
+  gtNavState init_navstate_;
   OnlineAlignmentTestData(ETHDatasetParser &dataset,
                       const std::string data_path,
                       const int n_begin_data,
@@ -89,6 +91,7 @@ class OnlineAlignmentTestData {
       timestamp_last_frame = it->first;
       gtsam::Pose3 gt_pose_k = it->second.pose();
       estimated_poses_.push_back(gt_pose_k);
+      init_navstate_ = it->second;
 
       it++; // Move to the second one
       while (it != dataset.gtData_.mapToGt_.end())
@@ -108,7 +111,7 @@ class OnlineAlignmentTestData {
                     imu_meas.timestamps_, imu_meas.measurements_);
 
         // Buffer for online alignment
-        estimated_poses_.push_back(gt_pose_k);
+        estimated_poses_.push_back(estimated_poses_[0].between(gt_pose_k));
         delta_t_poses_.push_back(UtilsOpenCV::NsecToSec(
                   timestamp_frame_k - timestamp_last_frame));
         pims_.push_back(pim);
@@ -119,6 +122,8 @@ class OnlineAlignmentTestData {
         timestamp_last_frame = timestamp_frame_k;
         it++;
       }
+      // Set initial pose to identity as we compute all relative to it
+      estimated_poses_[0] = gtsam::Pose3();
   };
 };
 
@@ -176,14 +181,12 @@ TEST(testOnlineAlignment, CreateTangentBasis) {
                               tangent_basis(2, 1));
 
     // Check that vector product is zero (orthogonal)
-    DOUBLES_EQUAL(gtsam::dot(basis_vec_y, basis_vec_z), 0.0, tol_TB);
-    DOUBLES_EQUAL(gtsam::dot(basis_vec_y, random_vector), 0.0, tol_TB);
-    DOUBLES_EQUAL(gtsam::dot(basis_vec_z, random_vector), 0.0, tol_TB);
+    DOUBLES_EQUAL(0.0, gtsam::dot(basis_vec_y, basis_vec_z), tol_TB);
+    DOUBLES_EQUAL(0.0, gtsam::dot(basis_vec_y, random_vector), tol_TB);
+    DOUBLES_EQUAL(0.0, gtsam::dot(basis_vec_z, random_vector), tol_TB);
   }
 }
 
-// TODO(Sandro): Push to new branch
-// TODO(Sandro): Terminate this test and implemenation
 /* -------------------------------------------------------------------------- */
 TEST(testOnlineAlignment, OnlineGravityAlignment) {  
   // Construct ETH Parser and get data
@@ -192,7 +195,6 @@ TEST(testOnlineAlignment, OnlineGravityAlignment) {
   static const std::string data_path(DATASET_PATH + std::string("/ForOnlineAlignment/alignment/"));
   int n_begin= 1;
   int n_frames = 40;
-  gtsam::Vector3 real_init_vel(0.1, 0.2, -0.05);
   OnlineAlignmentTestData test_data(dataset, data_path,
                           n_begin, n_frames);
 
@@ -215,11 +217,17 @@ TEST(testOnlineAlignment, OnlineGravityAlignment) {
                                                  &init_navstate));
 
   // Final test checks
-  DOUBLES_EQUAL(g_iter.norm(), n_gravity.norm(), tol_OGA);
-  DOUBLES_EQUAL(g_iter.x(), n_gravity.x(), tol_OGA);
-  DOUBLES_EQUAL(g_iter.y(), n_gravity.y(), tol_OGA);
-  DOUBLES_EQUAL(g_iter.z(), n_gravity.z(), tol_OGA);
-  EXPECT(assert_equal(gtsam::Pose3(), init_navstate.pose(), tol_OGA));
+  gtsam::Vector3 real_init_vel(test_data.init_navstate_.velocity_);
+  gtsam::Vector3 real_body_grav(
+      test_data.init_navstate_.pose().rotation().transpose() * n_gravity);
+  gtsam::Pose3 real_init_pose(test_data.init_navstate_.pose().rotation(),
+                              gtsam::Vector3());
+  LOG(ERROR) << real_body_grav << " vs. " << g_iter;
+  DOUBLES_EQUAL(n_gravity.norm(), g_iter.norm(), tol_OGA);
+  DOUBLES_EQUAL(real_body_grav.x(), g_iter.x(), tol_OGA);
+  DOUBLES_EQUAL(real_body_grav.y(), g_iter.y(), tol_OGA);
+  DOUBLES_EQUAL(real_body_grav.z(), g_iter.z(), tol_OGA);
+  EXPECT(assert_equal(real_init_pose, init_navstate.pose(), tol_OGA));
   DOUBLES_EQUAL(real_init_vel.norm(),
             init_navstate.velocity().norm(), tol_OGA);
   DOUBLES_EQUAL(real_init_vel.x(),
@@ -228,6 +236,66 @@ TEST(testOnlineAlignment, OnlineGravityAlignment) {
             init_navstate.velocity().y(), tol_OGA);
   DOUBLES_EQUAL(real_init_vel.z(),
             init_navstate.velocity().z(), tol_OGA);
+}
+
+/* -------------------------------------------------------------------------- */
+TEST(testOnlineAlignment, GravityAlignmentRealData) {
+  for (int i = 0; i < 30; i++) {
+    // Construct ETH Parser and get data
+    std::string reason = "test of alignment estimation - real data";
+    ETHDatasetParser dataset(reason);
+    static const std::string data_path(
+        DATASET_PATH + std::string("/ForOnlineAlignment/real_data/"));
+    int n_begin = int(UtilsOpenCV::RandomFloatGenerator(3000));
+    int n_frames = 40;
+    OnlineAlignmentTestData test_data(dataset, data_path, n_begin, n_frames);
+
+    // Initialize OnlineAlignment
+    gtsam::Vector3 gyro_bias = test_data.imu_bias_.gyroscope();
+    CHECK_DOUBLE_EQ(gyro_bias.norm(), 0.0);
+    gtsam::Vector3 g_iter;
+    gtsam::NavState init_navstate;
+
+    // Construct online alignment class with world gravity vector
+    gtsam::Vector3 n_gravity(0.0, 0.0, -9.81);
+    OnlineGravityAlignment initial_alignment(test_data.estimated_poses_,
+                                             test_data.delta_t_poses_,
+                                             test_data.pims_, n_gravity);
+
+    // Compute Gyroscope Bias
+    CHECK(initial_alignment.alignVisualInertialEstimates(&gyro_bias, &g_iter,
+                                                         &init_navstate));
+
+    // Final test checks
+    gtsam::Vector3 real_init_vel(test_data.init_navstate_.velocity_);
+    gtsam::Vector3 real_body_grav(
+        test_data.init_navstate_.pose().rotation().transpose() * n_gravity);
+    gtsam::Pose3 real_init_pose(test_data.init_navstate_.pose().rotation(),
+                                gtsam::Vector3());
+    LOG(ERROR) << real_body_grav << " vs. " << g_iter;
+    DOUBLES_EQUAL(n_gravity.norm(), g_iter.norm(), tol_RD);
+    DOUBLES_EQUAL(real_body_grav.x(), g_iter.x(), tol_RD);
+    DOUBLES_EQUAL(real_body_grav.y(), g_iter.y(), tol_RD);
+    DOUBLES_EQUAL(real_body_grav.z(), g_iter.z(), tol_RD);
+
+    // This is a bit more complex as the yaw angle is random in OGA
+    /*gtsam::Pose3 inbetween = init_navstate.pose().inverse().between(
+              real_init_pose.inverse());
+    gtsam::Pose3 rot_inbetween(gtsam::Rot3::Rz(inbetween.rotation().yaw()),
+              gtsam::Vector3());
+
+    // TODO(Sandro): Add velocity and pose test (not so trivial)
+    EXPECT(assert_equal(real_init_pose,
+              rot_inbetween*init_navstate.pose(), tol_RD));
+    DOUBLES_EQUAL(real_init_vel.norm(),
+              init_navstate.velocity().norm(), tol_RD);
+    DOUBLES_EQUAL(real_init_vel.x(),
+              init_navstate.velocity().x(), tol_RD);
+    DOUBLES_EQUAL(real_init_vel.y(),
+              init_navstate.velocity().y(), tol_RD);
+    DOUBLES_EQUAL(real_init_vel.z(),
+              init_navstate.velocity().z(), tol_RD);*/
+  }
 }
 
 /* ************************************************************************* */

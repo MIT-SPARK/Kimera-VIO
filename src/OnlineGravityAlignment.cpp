@@ -15,6 +15,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <vector>
 
 #include "utils/Timer.h"
 
@@ -36,13 +37,11 @@ namespace VIO {
 // [in] pre-integrations performed in visual frontend.
 // [in] global gravity vector in world frame.
 OnlineGravityAlignment::OnlineGravityAlignment(
-    const AlignmentPoses &estimated_body_poses, 
-    const std::vector<double> &delta_t_camera,
-    const AlignmentPims &pims,
+    const AlignmentPoses &estimated_body_poses,
+    const std::vector<double> &delta_t_camera, const AlignmentPims &pims,
     const gtsam::Vector3 &g_world)
     : estimated_body_poses_(estimated_body_poses),
-      delta_t_camera_(delta_t_camera), pims_(pims),
-      g_world_(g_world) {}
+      delta_t_camera_(delta_t_camera), pims_(pims), g_world_(g_world) {}
 
 /* -------------------------------------------------------------------------- */
 // Performs visual-inertial alignment and gravity estimate.
@@ -58,8 +57,8 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
   CHECK_DOUBLE_EQ(gyro_bias->norm(), 0.0);
 
   // Construct set of frames for linear alignment
-  constructVisualInertialFrames(estimated_body_poses_, delta_t_camera_, 
-                                pims_, &vi_frames);
+  constructVisualInertialFrames(estimated_body_poses_, delta_t_camera_, pims_,
+                                &vi_frames);
 
   // Estimate gyroscope bias
   CHECK(estimateGyroscopeBias(vi_frames, gyro_bias));
@@ -69,16 +68,16 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
   // Align visual and inertial estimates
   if (alignEstimatesLinearly(vi_frames, g_world_, g_iter, &init_velocity)) {
     // Align gravity vectors and estimate initial pose
-    gtsam::Pose3 init_pose = 
-          UtilsOpenCV::AlignGravityVectors(*g_iter, g_world_, false);
+    gtsam::Pose3 w0_T_b0 =
+        UtilsOpenCV::AlignGravityVectors(*g_iter, g_world_, false);
     // Create initial navstate and rotate velocity in world frame
-    *init_navstate = gtsam::NavState(init_pose,
-          init_pose.rotation()*init_velocity);
+    *init_navstate = gtsam::NavState(w0_T_b0 * vi_frames.at(0).b0_T_bk(),
+                                     w0_T_b0.rotation() * init_velocity);
     // Log and return
-    LOG(INFO) << "Online gravity alignment successful with:" 
-                << "\npose: " << init_navstate->pose() 
-                << "\nvelocity: " << init_navstate->velocity()
-                << "\ngravity: " << *g_iter << "\n";
+    LOG(INFO) << "Online gravity alignment successful with:"
+              << "\npose: " << init_navstate->pose()
+              << "\nvelocity: " << init_navstate->velocity()
+              << "\ngravity: " << *g_iter << "\n";
     return true;
   } else {
     LOG(ERROR) << "Online gravity alignment failed!\n";
@@ -94,9 +93,8 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
 // [in] vector of pre-integrations from visual-frontend.
 // [out] vector of frames used for initial alignment.
 void OnlineGravityAlignment::constructVisualInertialFrames(
-    const AlignmentPoses &estimated_body_poses, 
-    const std::vector<double> &delta_t_camera,
-    const AlignmentPims &pims,
+    const AlignmentPoses &estimated_body_poses,
+    const std::vector<double> &delta_t_camera, const AlignmentPims &pims,
     VisualInertialFrames *vi_frames) {
   CHECK_EQ(estimated_body_poses.size()-1, delta_t_camera.size());
   CHECK_EQ(delta_t_camera.size(), pims.size());
@@ -118,12 +116,9 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
 
     // Create frame with b0_T_bkp1, b0_T_bk, dt_bk_cam,
     // dbg_Jacobian_dR_bk, dt_bk_imu
-    VisualInertialFrame frame_i(estimated_body_poses.at(i + 1),
-                           estimated_body_poses.at(i),
-                           delta_t_camera.at(i),
-                           delta_state, 
-                           dbg_Jacobian_dR,
-                           delta_t_pim);
+    VisualInertialFrame frame_i(
+        estimated_body_poses.at(i + 1), estimated_body_poses.at(i),
+        delta_t_camera.at(i), delta_state, dbg_Jacobian_dR, delta_t_pim);
     vi_frames->push_back(frame_i);
   }
 }
@@ -138,23 +133,22 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
 bool OnlineGravityAlignment::estimateGyroscopeBias(
           const VisualInertialFrames &vi_frames,
           gtsam::Vector3 *gyro_bias) {
-
   // Create Gaussian Graph with unit noise
   gtsam::GaussianFactorGraph gaussian_graph;
   auto noise = gtsam::noiseModel::Unit::Create(3);
-  
+
   // Loop through all initialization frame
   for (int i = 0; i < vi_frames.size(); i++) {
     auto frame_i = std::next(vi_frames.begin(), i);
 
     // Compute rotation error between pre-integrated and visual estimates
-    gtsam::Rot3 bkp1_error_bkp1(frame_i->bk_gamma_bkp1().transpose() * 
+    gtsam::Rot3 bkp1_error_bkp1(frame_i->bk_gamma_bkp1().transpose() *
                                 frame_i->bk_R_bkp1());
     // Compute rotation error in canonical coordinates (dR_bkp1)
     gtsam::Vector3 dR = gtsam::Rot3::Logmap(bkp1_error_bkp1);
     // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
     gtsam::Matrix3 dbg_J_dR = frame_i->dbg_jacobian_dR();
-    
+
     // Insert Jacobian Factor in Gaussian Graph
     gaussian_graph.add(gtsam::Symbol('dbg', 0), dbg_J_dR, dR, noise);
   }
@@ -180,9 +174,9 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
 // [in] vector of pre-integrations from visual-frontend.
 // [in] new estimated value for gyroscope bias.
 // [out] updated vector of frames used for initial alignment.
-void OnlineGravityAlignment::updateDeltaStates(const AlignmentPims &pims,
-                                               const gtsam::Vector3 &gyro_bias,
-                                               VisualInertialFrames *vi_frames) {
+void OnlineGravityAlignment::updateDeltaStates(
+    const AlignmentPims &pims, const gtsam::Vector3 &gyro_bias,
+    VisualInertialFrames *vi_frames) {
   CHECK_EQ(vi_frames->size(), pims.size());
 
   // Repropagate measurements with first order approximation
@@ -200,13 +194,12 @@ void OnlineGravityAlignment::updateDeltaStates(const AlignmentPims &pims,
 
 /* -------------------------------------------------------------------------- */
 // Align visual-inertial estimates and compute gravity vector
-// in initial body frame. The initial body pose is set to identity (by def). 
-// The gravity estimate returned is wrt. to the initial body frame and not pose!
-// The subtle difference is important for unit testing (e.g., init_pose!=eye(4)). 
-// [in] set of visual inertial frames for alignment.
-// [in] global gravity value for alignment.
-// [out] gravity vector expressed in initial body frame.
-// [out] initial velocity expressed in initial body frame.
+// in initial body frame. The initial body pose is set to identity (by def).
+// The gravity estimate returned wrt. to the initial body frame and not pose!
+// The subtle difference is important for unit testing (e.g.,
+// init_pose!=eye(4)). [in] set of visual inertial frames for alignment. [in]
+// global gravity value for alignment. [out] gravity vector expressed in initial
+// body frame. [out] initial velocity expressed in initial body frame.
 bool OnlineGravityAlignment::alignEstimatesLinearly(
     const VisualInertialFrames &vi_frames, const gtsam::Vector3 &g_world,
     gtsam::Vector3 *g_iter, gtsam::Velocity3 *init_vel) {
@@ -220,15 +213,15 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
     auto frame_i = std::next(vi_frames.begin(), i);
 
     // Add binary factor for position constraint
-    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(), 
-                      gtsam::Symbol('g_b0', 0), frame_i->A_13(),
-                      frame_i->b_1(), noise);  
+    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(),
+                       gtsam::Symbol('g_b0', 0), frame_i->A_13(),
+                       frame_i->b_1(), noise);
 
     // Add ternary factor for velocity constraint
-    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_21(), 
-                      gtsam::Symbol('b0_V_bk', i+1), frame_i->A_22(),
-                      gtsam::Symbol('g_b0', 0), frame_i->A_23(),
-                      frame_i->b_2(), noise);
+    gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_21(),
+                       gtsam::Symbol('b0_V_bk', i + 1), frame_i->A_22(),
+                       gtsam::Symbol('g_b0', 0), frame_i->A_23(),
+                       frame_i->b_2(), noise);
   }
 
   // Optimize Gaussian Graph and get solution
@@ -267,8 +260,9 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
 /* -------------------------------------------------------------------------- */
 // Creates tangent basis to input vector.
 // [in] Vector for which tangent basis is desired.
-// [return] Tangent basis spanned by orthogonal basis to input vector. 
-gtsam::Matrix OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g0) {
+// [return] Tangent basis spanned by orthogonal basis to input vector.
+gtsam::Matrix
+OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g0) {
 
   // Vectors b, c
   gtsam::Vector3 b, c;
@@ -286,7 +280,7 @@ gtsam::Matrix OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g
   c = a.cross(b);
 
   // Tangent basis spanned by b, c
-  gtsam::Matrix bc(3,2);
+  gtsam::Matrix bc(3, 2);
   bc.block<3, 1>(0, 0) = b;
   bc.block<3, 1>(0, 1) = c;
 
@@ -300,10 +294,9 @@ gtsam::Matrix OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g
 // [in] global gravity value for alignment.
 // [out] gravity vector expressed in initial body frame.
 // [out] initial velocity estimate in initial body frame.
-void OnlineGravityAlignment::refineGravity(const VisualInertialFrames &vi_frames,
-                                           const gtsam::Vector3 &g_world,
-                                           gtsam::Vector3 *g_iter,
-                                           gtsam::Velocity3 *init_vel) {
+void OnlineGravityAlignment::refineGravity(
+    const VisualInertialFrames &vi_frames, const gtsam::Vector3 &g_world,
+    gtsam::Vector3 *g_iter, gtsam::Velocity3 *init_vel) {
   // Define current gravity estimate (normalized)
   gtsam::Vector3 g0 = g_iter->normalized() * g_world.norm();
 
@@ -327,9 +320,9 @@ void OnlineGravityAlignment::refineGravity(const VisualInertialFrames &vi_frames
       gtsam::Vector3 b_1_tangent = frame_i->b_1() - frame_i->A_13()*g0;
 
       // Add binary factor for position constraint
-      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(), 
-                        gtsam::Symbol('dxdy', 0), A_13_tangent,
-                        b_1_tangent, noise);  
+      gaussian_graph.add(gtsam::Symbol('b0_V_bk', i), frame_i->A_11(),
+                         gtsam::Symbol('dxdy', 0), A_13_tangent, b_1_tangent,
+                         noise);
 
       // Apply tangent basis to g (g = g0 + txty*dxdy)
       gtsam::Matrix A_23_tangent = frame_i->A_23()*txty;
