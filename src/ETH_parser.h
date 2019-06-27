@@ -55,6 +55,12 @@ public:
     : pose_(pose),
       velocity_(velocity),
       imu_bias_(imu_bias) {}
+  gtNavState(const gtsam::NavState& nav_state,
+             const gtsam::imuBias::ConstantBias& imu_bias)
+    : pose_(nav_state.pose()),
+      velocity_(nav_state.velocity()),
+      imu_bias_(imu_bias) {}
+  
 
   gtsam::Pose3 pose_;
   gtsam::Vector3 velocity_;

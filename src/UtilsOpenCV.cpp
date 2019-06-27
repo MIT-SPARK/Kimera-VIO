@@ -476,6 +476,26 @@ double UtilsOpenCV::RoundToDigit(const double x, const int digits) {
   double y = double( round(x * dec) ) / dec;
   return y;
 }
+/* ------------------------------------------------------------------------ */
+// Generate random float using random number generator between -sigma and sigma
+double UtilsOpenCV::RandomFloatGenerator(const double sigma) {
+  return ((double)rand() / RAND_MAX) * sigma - sigma/2.0;
+}
+/* ------------------------------------------------------------------------ */
+// Generate random vector using random number generator between -sigma and sigma
+gtsam::Vector3 UtilsOpenCV::RandomVectorGenerator(const double sigma) {
+  double x = RandomFloatGenerator(sigma);
+  double y = RandomFloatGenerator(sigma);
+  double z = RandomFloatGenerator(sigma);
+  return gtsam::Vector3(x, y, z);
+}
+/* ------------------------------------------------------------------------ */
+// Generates random noisy pose around identity with rad_sigma and pos_sigma
+gtsam::Pose3 UtilsOpenCV::RandomPose3(const double rad_sigma, const double pos_sigma) {
+  gtsam::Vector3 rot = RandomVectorGenerator(rad_sigma);
+  gtsam::Vector3 pos = RandomVectorGenerator(pos_sigma);
+  return gtsam::Pose3(gtsam::Rot3::RzRyRx(rot.x(), rot.y(), rot.z()), pos);
+}
 /* -------------------------------------------------------------------------- */
 // converts doulbe to sting with desired number of digits (total number of digits)
 std::string UtilsOpenCV::To_string_with_precision(const double a_value,

@@ -38,6 +38,7 @@
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+//#include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/geometry/StereoCamera.h>
 #include <gtsam/geometry/StereoPoint2.h>
 #include <gtsam/slam/PriorFactor.h>
@@ -101,6 +102,14 @@ public:
              std::shared_ptr<gtNavState>* initial_state_gt,
              const Timestamp& timestamp,
              const ImuAccGyrS& imu_accgyr,
+             const VioBackEndParams& vioParams,
+             const bool log_output = false);
+
+  /* ------------------------------------------------------------------------ */
+  // Create and initialize VioBackEnd, without initiaing pose.
+  VioBackEnd(const Pose3& leftCamPose,
+             const Cal3_S2& leftCameraCalRectified,
+             const double& baseline,
              const VioBackEndParams& vioParams,
              const bool log_output = false);
 

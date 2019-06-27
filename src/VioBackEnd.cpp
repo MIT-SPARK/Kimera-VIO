@@ -150,6 +150,39 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   }
 }
 
+/* -------------------------------------------------------------------------- */
+VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
+                       const Cal3_S2& leftCameraCalRectified,
+                       const double& baseline,
+                       const VioBackEndParams& vioParams,
+                       const bool log_output) :
+  vio_params_(vioParams),
+  imu_bias_lkf_(ImuBias()),
+  W_Vel_B_lkf_(Vector3::Zero()),
+  W_Pose_B_lkf_(Pose3()),
+  imu_bias_prev_kf_(ImuBias()),
+  B_Pose_leftCam_(leftCamPose),
+  stereo_cal_(boost::make_shared<gtsam::Cal3_S2Stereo>(
+               leftCameraCalRectified.fx(),
+               leftCameraCalRectified.fy(), leftCameraCalRectified.skew(),
+               leftCameraCalRectified.px(), leftCameraCalRectified.py(),
+               baseline)),
+  last_kf_id_(-1),
+  curr_kf_id_(0),
+  landmark_count_(0),
+  verbosity_(0),
+  log_output_(log_output) {
+
+  setFactorsParams(vioParams,
+                   &smart_noise_,
+                   &smart_factors_params_,
+                   &no_motion_prior_noise_,
+                   &zero_velocity_prior_noise_,
+                   &constant_velocity_prior_noise_);
+
+  // Reset debug info.
+  resetDebugInfo(&debug_info_);
+}
 
 /* -------------------------------------------------------------------------- */
 bool VioBackEnd::spin(
@@ -486,11 +519,8 @@ gtsam::Pose3 VioBackEnd::guessPoseFromIMUmeasurements(
     sumAccMeasurements += accGyroRaw.col(i).head(3);
   }
   sumAccMeasurements = sumAccMeasurements / double(nrMeasured);
-
-  gtsam::Unit3 localGravityDir (-sumAccMeasurements); // a = localGravity (we measure the opposite of gravity)
-  gtsam::Unit3 globalGravityDir (n_gravity); // b
-
-  return UtilsOpenCV::AlignGravityVectors(localGravityDir, globalGravityDir, round);
+  Vector3 local_gravity = -sumAccMeasurements;
+  return UtilsOpenCV::AlignGravityVectors(local_gravity, n_gravity, round);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2222,30 +2252,26 @@ std::vector<gtsam::Pose3> VioBackEnd::addInitialVisualStatesAndOptimize(
   new_values_.clear();
   // Initialize to trivial pose for initial bundle adjustment
   W_Pose_B_lkf_ = gtsam::Pose3();
-  // Add initial value.
-  new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
 
   // Insert relative poses for bundle adjustment
   for (int i = 0; i < input.size(); i++) {
     auto input_iter = input[i];
-    bool use_stereo_btw_factor =
-        vio_params_.addBetweenStereoFactors_ == true &&
+    bool use_stereo_btw_factor = vio_params_.addBetweenStereoFactors_ == true &&
         input_iter->stereo_tracking_status_ == TrackingStatus::VALID;
     VLOG(5) << "Adding initial visual state.";
     VLOG_IF(5, use_stereo_btw_factor) << "Using stereo between factor.";
     // Features and IMU line up --> do iSAM update
-    last_kf_id_ = curr_kf_id_;
-    ++curr_kf_id_;
     addInitialVisualState(
         input_iter->timestamp_kf_nsec_, // Current time for fixed lag smoother.
         input_iter->status_smart_stereo_measurements_kf_, // Vision data.
         input_iter->planes_,
         use_stereo_btw_factor ? input_iter->stereo_ransac_body_pose_
-                              : boost::none,
-        0); // optional: pose estimate from stereo ransac
+                              : boost::none, 0);
+    last_kf_id_ = curr_kf_id_;
+    ++curr_kf_id_;
   }
 
-  VLOG(5) << "Initialisation states added.";
+  VLOG(10) << "Initialisation states added.";
 
   // Add all landmarks to factor graph
   LandmarkIds landmarks_all_keyframes;
@@ -2254,29 +2280,10 @@ std::vector<gtsam::Pose3> VioBackEnd::addInitialVisualStatesAndOptimize(
 
   addLandmarksToGraph(landmarks_all_keyframes);
 
-  VLOG(5) << "Initialisation landmarks added.";
+  VLOG(10) << "Initialisation landmarks added.";
 
-  /*// decide which factors to add
-  TrackingStatus kfTrackingStatus_mono =
-  status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
-  switch(kfTrackingStatus_mono){
-    case TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
-      if (verbosity_ >= 7) {printf("Add zero velocity and no motion
-  factors\n");} addZeroVelocityPrior(curr_kf_id_);
-      addNoMotionFactor(last_kf_id_, curr_kf_id_);
-      break;
-
-      // This did not improve in any case
-      //  case TrackingStatus::INVALID :// ransac failed hence we cannot trust
-  features
-      //    if (verbosity_ >= 7) {printf("Add constant velocity factor
-  (monoRansac is INVALID)\n");}
-      //    addConstantVelocityFactor(last_id_, cur_id_);
-      //    break;
-
-    default: // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : // we
-  add features in VIO addLandmarksToGraph(landmarks_kf); break;
-  }*/
+  // TODO (Sandro): Do we want to add the option to add zero velocity updates?? 
+  // when disparity between frames is zero...
 
   // Perform Bundle Adjustment and retrieve camera poses (v0_T_vk)
   // v0 is the initial camera frame
@@ -2285,15 +2292,24 @@ std::vector<gtsam::Pose3> VioBackEnd::addInitialVisualStatesAndOptimize(
 
   VLOG(10) << "Initial bundle adjustment completed.";
 
-  // Convert poses into body frame (b_T_cam*cam0_T_camk*cam_T_b --> b0_T_bk)
+  // Convert poses into body frame (b_T_cam*cam0_T_camk*cam_T_b --> b0_T_bk).
+  // All relative to initial pose, as we need to fix x0 from the BA.
+  gtsam::Pose3 initial_pose;
   for (int j = 0; j < estimated_poses.size(); j++) {
     estimated_poses.at(j) = B_Pose_leftCam_ * estimated_poses.at(j) * B_Pose_leftCam_.inverse();
-    VLOG(10) << "ID: " << j << " with pose: ";
+    if (j==0) {
+      initial_pose = estimated_poses.at(0);
+      estimated_poses.at(j) = gtsam::Pose3();
+    } else {
+      estimated_poses.at(j) = initial_pose.between(estimated_poses.at(j));
+    }
     if (VLOG_IS_ON(10))
       estimated_poses.at(j).print();
   }
-
-  // Return poses (b0_T_bk, for k in 1:N)
+  // Return poses (b0_T_bk, for k in 1:N).
+  // Since we need to optimize for poses with observed landmarks, the
+  // ransac estimate for the first pose is not used, as there are no observations
+  // for the previous keyframe (which doesn't exist).
   return estimated_poses;
 }
 
@@ -2310,27 +2326,25 @@ void VioBackEnd::addInitialVisualState(
     const int verbosity_ = 0) {
   debug_info_.resetAddedFactorsStatistics();
 
-  VLOG(5) << "Initialization: adding keyframe " << curr_kf_id_
+  VLOG(10) << "Initialization: adding keyframe " << curr_kf_id_
           << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec)
           << " (nsec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
-  // TODO: Remove this?
-  if (stereo_ransac_body_pose) {
-    new_values_.insert(gtsam::Symbol('x', curr_kf_id_),
-                       W_Pose_B_lkf_.compose(*stereo_ransac_body_pose));
+  if (stereo_ransac_body_pose && curr_kf_id_!=0) {
+    // We need to keep adding the relative poses, since we process a 
+    // whole batch. Otherwise we start with wrong initial guesses.
+    W_Pose_B_lkf_ = W_Pose_B_lkf_.compose(*stereo_ransac_body_pose);
+    new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
   } else {
     new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
   }
 
-  // add imu factors between consecutive keyframe states
-  // addImuFactor(last_kf_id_, curr_kf_id_, pim);
-
   // add between factor from RANSAC
-  if (stereo_ransac_body_pose) {
-    VLOG(5) << "Initialization: adding between ";
-    if (VLOG_IS_ON(5))
+  if (stereo_ransac_body_pose && curr_kf_id_!=0) {
+    VLOG(10) << "Initialization: adding between ";
+    if (VLOG_IS_ON(10))
       (*stereo_ransac_body_pose).print();
     addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
   }
@@ -2359,7 +2373,6 @@ std::vector<gtsam::Pose3> VioBackEnd::optimizeInitialVisualStates(
     const size_t &max_extra_iterations,
     const std::vector<size_t> &extra_factor_slots_to_delete,
     const int verbosity_) { // TODO: Remove verbosity and use VLOG
-  CHECK(smoother_.get()) << "Incremental smoother is a null pointer.";
 
   // Only for statistics and debugging.
   // Store start time to calculate absolute total time taken.
@@ -2369,11 +2382,7 @@ std::vector<gtsam::Pose3> VioBackEnd::optimizeInitialVisualStates(
   // Reset all timing info.
   debug_info_.resetTimes();
 
-  VLOG(5) << "Smart factors size for initialization: "
-          << new_smart_factors_.size();
-  if (VLOG_IS_ON(5))
-    new_values_.print();
-
+  // Create and fill non-linear graph
   gtsam::NonlinearFactorGraph new_factors_tmp;
   for (const auto &new_smart_factor : new_smart_factors_) {
     // Push back the smart factor to the list of new factors to add to the
@@ -2389,16 +2398,17 @@ std::vector<gtsam::Pose3> VioBackEnd::optimizeInitialVisualStates(
   new_factors_tmp.push_back(new_imu_prior_and_other_factors_.begin(),
                             new_imu_prior_and_other_factors_.end());
 
-  VLOG(5) << "New smart factors added in initial optimization.";
-
-  new_factors_tmp.keys().print();
+  // Print graph before optimization
+  if (VLOG_IS_ON(10))
+    new_factors_tmp.print();
 
   // Levenberg-Marquardt optimization
   gtsam::LevenbergMarquardtParams lmParams;
-  VLOG(10) << "LM params created.";
   gtsam::LevenbergMarquardtOptimizer initial_bundle_adjustment(
       new_factors_tmp, new_values_, lmParams);
-  VLOG(10) << "LM optimizer created.";
+  VLOG(10) << "LM optimizer created with error: " << initial_bundle_adjustment.error();
+
+  // Optimize and get values
   gtsam::Values initial_values = initial_bundle_adjustment.optimize();
   VLOG(10) << "Levenberg Marquardt optimizer done.";
   std::vector<gtsam::Pose3> initial_states;
@@ -2411,15 +2421,12 @@ std::vector<gtsam::Pose3> VioBackEnd::optimizeInitialVisualStates(
   /////////////////////////// BOOKKEEPING //////////////////////////////////////
 
   // Reset everything for next round.
-  // TODO what about the old_smart_factors_?
   VLOG(10) << "Clearing new_smart_factors_!";
   new_smart_factors_.clear();
   old_smart_factors_.clear();
-
   // Reset list of new imu, prior and other factors to be added.
   // TODO could this be used to check whether we are repeating factors?
   new_imu_prior_and_other_factors_.resize(0);
-
   // Clear values.
   new_values_.clear();
 

@@ -59,7 +59,14 @@ public:
   /* ------------------------------------------------------------------------ */
   bool alignVisualInertialEstimates(gtsam::Vector3 *gyro_bias,
                                     gtsam::Vector3 *g_iter,
-                                    gtsam::Pose3 *init_pose);
+                                    gtsam::NavState *init_navstate);
+
+  /* ------------------------------------------------------------------------ */
+  static gtsam::Matrix createTangentBasis(const gtsam::Vector3 &g0);
+
+  /* -------------------------------------------------------------------------- */
+  bool estimateGyroscopeBiasOnly(
+                                    gtsam::Vector3 *gyro_bias);
 
 private:
   /* ------------------------------------------------------------------------ */
@@ -80,14 +87,14 @@ private:
   /* ------------------------------------------------------------------------ */
   bool alignEstimatesLinearly(const VisualInertialFrames &vi_frames,
                               const gtsam::Vector3 &g_world,
-                              gtsam::Vector3 *g_iter);
-
-  /* ------------------------------------------------------------------------ */
-  gtsam::Matrix createTangentBasis(const gtsam::Vector3 &g0);
+                              gtsam::Vector3 *g_iter,
+                              gtsam::Velocity3 *init_vel);
 
   /* ------------------------------------------------------------------------ */
   void refineGravity(const VisualInertialFrames &vi_frames,
-                     const gtsam::Vector3 &g_world, gtsam::Vector3 *g_iter);
+                     const gtsam::Vector3 &g_world,
+                     gtsam::Vector3 *g_iter,
+                     gtsam::Velocity3 *init_vel);
 
 private:
   const AlignmentPims &pims_;

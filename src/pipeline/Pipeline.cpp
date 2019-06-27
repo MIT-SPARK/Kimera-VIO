@@ -70,7 +70,7 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
 
-DEFINE_int32(numb_frames_oga, 15,
+DEFINE_int32(numb_frames_oga, 25,
              "Minimum number of frames for the online "
              "gravity-aligned initialization");
 DEFINE_int32(initialization_mode, 1,
@@ -564,18 +564,11 @@ bool Pipeline::initializeFromIMUorGT(
 }
 
 // TODO: Include flag to start from external pose estimate (ROS)
-// TODO(Sandro): Need to get pre-integration without gravity!!!!!!
-// TODO(Sandro): Set gravity in pre-integration to zero
-// TODO(Sandro): Reset values at end of this function
 // TODO(Sandro): Reset spinOnce (frontend) as private function
 // TODO(Sandro): Fix issues with autoinitialize flag
   // Change flag to be int and not bool
   // Change BackEnd constructor depending on 1 or 2
-// TODO(Sandro): Use only one backend for initialization??
 // TODO(Sandro): Find way to destruct initBackend?
-// TODO(Sandro): Create function for initial bundle adjustment in pipeline
-  // Skips from batchpop to initial alignment --> directly in backend initialization
-  // Adapt initializeIMUorGT to use same code base for backend initialization
 // TODO(Sandro): Insert poses from initialization and optimize for kf (batch
 // insert and optimize once)
 // TODO(Sandro): Adapt numb_OGA as additive and not absolute
@@ -596,7 +589,6 @@ bool Pipeline::initializeOnline(
 
   /////////////////// FIRST FRAME //////////////////////////////////////////////
   if (frame_id == 1) {
-
     // Set trivial bias and gravity vector for online initialization
     vio_frontend_->prepareFrontendForOnlineAlignment();
     // Initialize Stereo Frontend.
@@ -627,28 +619,36 @@ bool Pipeline::initializeOnline(
 
       // Run Bundle-Adjustment and initial gravity alignment
       // TODO(Sandro): Clean up this interface
-      gtsam::Vector3 gyro_bias;
-      gtsam::Vector3 g_iter_b0;
+      gtsam::Vector3 gyro_bias, g_iter_b0;
+      gtsam::NavState init_navstate;
       CHECK(bundleAdjustmentAndGravityAlignment(
                       stereo_imu_sync_init,
                       stereo_frame_lkf,
                       &gyro_bias,
-                      &g_iter_b0));
+                      &g_iter_b0,
+                      &init_navstate));
+      
+      // Create initial state for initialization from online gravity 
+      // alignment and gyro bias estimate
+      //std::shared_ptr<gtNavState> initial_state_OGA =
+      //    std::make_shared<gtNavState>(init_navstate, 
+      //            ImuBias(gtsam::Vector3(), gyro_bias));
+      // TODO: Talk to Luca about noisy velocity estimate!!!!
+      // Why is this happening?? 
+      // Can we increase the covariance of the velocity link??
+      std::shared_ptr<gtNavState> initial_state_OGA =
+          std::make_shared<gtNavState>(gtsam::NavState(init_navstate.pose(),
+              gtsam::Vector3()), ImuBias(gtsam::Vector3(), gtsam::Vector3()));
+
       // Reset frontend with non-trivial gravity and remove 53-enforcement.
       // Update frontend with initial gyro bias estimate.
       const gtsam::Vector3 gravity = backend_params_->n_gravity_;
       vio_frontend_->resetFrontendAfterOnlineAlignment(gravity, 
                                                     gyro_bias);
 
-      // TODO(Sandro): Adapt this to be computed from gravity vector!! 
-      // (not trivial value)
-      // Create initial state for initialization
-      std::shared_ptr<gtNavState> initialStateOGA =
-          std::make_shared<gtNavState>(gtNavState());
-
       ///////////////////////////// BACKEND ///////////////////////////////////
       // Initialize backend with pose estimate from gravity alignment
-      initializeBackend(stereo_imu_sync_packet, initialStateOGA, 
+      initializeBackend(stereo_imu_sync_packet, initial_state_OGA, 
                         stereo_frame_lkf);
 
       // TODO(Sandro): Create check-return for function
@@ -687,13 +687,14 @@ bool Pipeline::initializeBackend(const StereoImuSyncPacket &stereo_imu_sync_pack
 
 /* -------------------------------------------------------------------------- */
 // Perform Bundle-Adjustment and initial gravity alignment.
-// [out]: Initial navState and imu bias estimates for backend.
-// TODO(Sandro): Modify this to have 
+// [in]: stereo imu sync packet and latest keyframe (this can be cleaned up)
+// [out]: Initial navState, gravity and imu bias estimates for backend. 
 bool Pipeline::bundleAdjustmentAndGravityAlignment(
                       const StereoImuSyncPacket &stereo_imu_sync_init,
                       const StereoFrame &stereo_frame_lkf,
                       gtsam::Vector3 *gyro_bias,
-                      gtsam::Vector3 *g_iter_b0) {
+                      gtsam::Vector3 *g_iter_b0,
+                      gtsam::NavState *init_navstate) {
 
     // Get frontend output to backend input for online initialization
     auto output_frontend = stereo_frontend_output_queue_.batchPop();
@@ -734,22 +735,31 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
     // Logging
     VLOG(10) << "N frames for initial alignment: " << output_frontend.size();
 
-    // Run initial Bundle Adjustment and retrieve body poses 
-    // wrt. to initial camera frame (v0_T_bk, for k in 0:N)
-    std::shared_ptr<gtNavState> trivial_state =
-        std::make_shared<gtNavState>(gtNavState(
-            gtsam::Pose3(),
-            gtsam::Vector3::Zero(),
-            gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero())));
+    // Adjust parameters for Bundle Adjustment
+    // TODO(Sandro): Read these parameters in!!
+    VioBackEndParams backend_params_init(*backend_params_);
+    backend_params_init.smartNoiseSigma_ = 0.1;
+    backend_params_init.outlierRejection_ = 100;
+
+    // Create initial backend
     VioBackEnd initial_backend(
         stereo_frame_lkf.getBPoseCamLRect(),
         stereo_frame_lkf.getLeftUndistRectCamMat(),
-        stereo_frame_lkf.getBaseline(), &trivial_state,
-        stereo_imu_sync_init.getStereoFrame().getTimestamp(),
-        stereo_imu_sync_init.getImuAccGyr(), *backend_params_,
+        stereo_frame_lkf.getBaseline(), 
+        backend_params_init,
         FLAGS_log_output);
+
+    // Run initial Bundle Adjustment and retrieve body poses 
+    // wrt. to initial camera frame (v0_T_bk, for k in 1:N).
+    // The first pim and ransac poses are lost, as in the Bundle
+    // Adjustment we need observations of landmarks intra-frames.
     std::vector<gtsam::Pose3> estimated_poses =
         initial_backend.addInitialVisualStatesAndOptimize(inputs_backend);
+    // Remove initial delta time and pims from input vector to online 
+    // alignment due to the disregarded init values in bundle adjustment
+    delta_t_camera.erase(delta_t_camera.begin());
+    pims.erase(pims.begin());
+
     // Logging
     LOG(INFO) << "Initial bundle adjustment terminated.";
 
@@ -759,14 +769,16 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
     // Enforce zero bias in initial propagation
     vio_frontend_->updateAndResetImuBias(
         gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
-    // Run initial visual-inertial alignment(OGA)
     *gyro_bias = vio_frontend_->getCurrentImuBias().gyroscope();
+
+    // Run initial visual-inertial alignment(OGA)
     OnlineGravityAlignment initial_alignment(
                               estimated_poses, 
                               delta_t_camera,
                               pims, 
-                              backend_params_->n_gravity_); 
-    initial_alignment.alignVisualInertialEstimates(gyro_bias, g_iter_b0);
+                              backend_params_->n_gravity_);
+    initial_alignment.alignVisualInertialEstimates(gyro_bias, g_iter_b0, 
+                                                  init_navstate);
 
     // TODO(Sandro): Create check-return for function
     return true;
