@@ -42,9 +42,9 @@ struct SpinOutputContainer {
         State_Covariance_lkf_ = State_Covariance_lkf;
       }
 
-  // Trivial constructor
+  // Trivial constructor (do not publish)
   SpinOutputContainer()
-    : timestamp_kf_(0),
+    : timestamp_kf_(-1),
       W_Pose_Blkf_(gtsam::Pose3()),
       W_Vel_Blkf_(gtsam::Vector3()),
       imu_bias_lkf_(gtsam::imuBias::ConstantBias()),

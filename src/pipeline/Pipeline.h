@@ -88,7 +88,7 @@ public:
   }
 
   Timestamp getTimestamp() {
-    return timestamp_lkf_;
+    return vio_backend_->getTimestampLkf();
   }
 
   gtsam::Matrix getEstimatedStateCovariance() {
@@ -202,7 +202,9 @@ private:
   // TODO remove dataset_ from vio pipeline altogether!
   ETHDatasetParser* dataset_;
 
+  // For bookkeeping
   Timestamp timestamp_lkf_;
+  Timestamp timestamp_lkf_published_;
 
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;

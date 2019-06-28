@@ -65,6 +65,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const VioBackEndParams& vioParams,
                        const bool log_output) :
   vio_params_(vioParams),
+  timestamp_lkf_(-1),
   imu_bias_lkf_(ImuBias()),
   W_Vel_B_lkf_(Vector3::Zero()),
   W_Pose_B_lkf_(Pose3()),
@@ -157,6 +158,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const VioBackEndParams& vioParams,
                        const bool log_output) :
   vio_params_(vioParams),
+  timestamp_lkf_(-1),
   imu_bias_lkf_(ImuBias()),
   W_Vel_B_lkf_(Vector3::Zero()),
   W_Pose_B_lkf_(Pose3()),
@@ -294,6 +296,7 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
                                        const Pose3& initialPose,
                                        const Vector3& initialVel,
                                        const ImuBias& initialBias) {
+  timestamp_lkf_ = timestamp_kf_nsec;
   W_Pose_B_lkf_ = initialPose;
   W_Vel_B_lkf_ = initialVel;
   imu_bias_lkf_ = initialBias;
@@ -415,6 +418,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
         input->pim_, // Imu preintegrated data.
         input->planes_,
         use_stereo_btw_factor? input->stereo_ransac_body_pose_ : boost::none); // optional: pose estimate from stereo ransac
+  // Bookkeeping
+  timestamp_lkf_ = input->timestamp_kf_nsec_;
 }
 
 /* -------------------------------------------------------------------------- */

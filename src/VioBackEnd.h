@@ -465,6 +465,7 @@ public:
   inline const Pose3& getBPoseLeftCam() const {return B_Pose_leftCam_;}
 
   // TODO NOT THREAD-SAFE! Should add critical sections.
+  inline Timestamp getTimestampLkf() const {return timestamp_lkf_;}
   inline ImuBias getLatestImuBias() const {return imu_bias_lkf_;}
   inline ImuBias getImuBiasPrevKf() const {return imu_bias_prev_kf_;}
   inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
@@ -524,6 +525,7 @@ protected:
   const VioBackEndParams vio_params_;
 
   // State estimates.
+  Timestamp timestamp_lkf_;
   ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
   Vector3 W_Vel_B_lkf_;  		   //!< Velocity of body at k-1 in world coordinates
   Pose3   W_Pose_B_lkf_;        //!< Body pose at at k-1 in world coordinates.

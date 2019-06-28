@@ -102,7 +102,9 @@ Pipeline::Pipeline(ETHDatasetParser* dataset,
     mesher_input_queue_("mesher_input_queue"),
     mesher_output_queue_("mesher_output_queue"),
     visualizer_input_queue_("visualizer_input_queue"),
-    visualizer_output_queue_("visualizer_output_queue") {
+    visualizer_output_queue_("visualizer_output_queue"),
+    timestamp_lkf_(-1),
+    timestamp_lkf_published_(-1) {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
 
@@ -190,12 +192,20 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
 /* -------------------------------------------------------------------------- */
 // Get spin output container
 SpinOutputContainer Pipeline::getSpinOutputContainer() {
-    return SpinOutputContainer(getTimestamp(),
-                              getEstimatedPose(),
-                              getEstimatedVelocity(),
-                              getEstimatedBias(),
-                              getEstimatedStateCovariance(),
-                              getTrackerInfo());
+  Timestamp timestamp_lkf = getTimestamp();
+  // Should not be published
+  if (timestamp_lkf == timestamp_lkf_published_ ||
+      timestamp_lkf == -1) {
+    return SpinOutputContainer();
+  } else {
+    timestamp_lkf_published_ = timestamp_lkf;
+    return SpinOutputContainer(timestamp_lkf,
+                            getEstimatedPose(),
+                            getEstimatedVelocity(),
+                            getEstimatedBias(),
+                            getEstimatedStateCovariance(),
+                            getTrackerInfo());
+  }
 }
 
 /* -------------------------------------------------------------------------- */
