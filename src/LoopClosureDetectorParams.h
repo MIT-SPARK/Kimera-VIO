@@ -21,7 +21,7 @@
 #include <glog/logging.h>
 
 #include <opencv/cv.hpp>
-#include <opencv2/features2d.hpp>
+#include <DLoopDetector/DLoopDetector.h>
 
 namespace VIO {
 
@@ -30,7 +30,25 @@ public:
   // TODO: vocabulary path cannot be hardcoded
   LoopClosureDetectorParams(
       std::string vocabulary_path="/home/marcus/code/VIO/vocabulary/ORBvoc.txt",
-      double match_threshold=0.5,
+      int image_height=480,
+      int image_width=752,
+      bool use_nss=true,
+      float alpha=0.1,
+      int min_temporal_matches=4,
+      DLoopDetector::GeometricalCheck geom_check=DLoopDetector::GEOM_DI,
+      int di_levels=0,
+      int dist_local=20,
+      int max_db_results=50,
+      float min_nss_factor=0.005,
+      int min_matches_per_group=1,
+      int max_intragroup_gap=3,
+      int max_distance_between_groups=3,
+      int max_distance_between_queries=2,
+      int min_Fpoints=12,
+      int max_ransac_iterations=500,
+      double ransac_probability=0.99,
+      double max_reprojection_error=2.0,
+      double max_neighbor_ratio=0.6,
       int nfeatures=500,
       float scaleFactor=1.2f,
       int nlevels=8,
@@ -41,7 +59,25 @@ public:
       int patchSize=31,
       int fastThreshold=20)
       : vocabulary_path_(vocabulary_path),
-        match_threshold_(match_threshold),
+        image_height_(image_height),
+        image_width_(image_width),
+        use_nss_(use_nss),
+        alpha_(alpha),
+        min_temporal_matches_(min_temporal_matches),
+        geom_check_(geom_check),
+        di_levels_(di_levels),
+        dist_local_(dist_local),
+        max_db_results_(max_db_results),
+        min_nss_factor_(min_nss_factor),
+        min_matches_per_group_(min_matches_per_group),
+        max_intragroup_gap_(max_intragroup_gap),
+        max_distance_between_groups_(max_distance_between_groups),
+        max_distance_between_queries_(max_distance_between_queries),
+        min_Fpoints_(min_Fpoints),
+        max_ransac_iterations_(max_ransac_iterations),
+        ransac_probability_(ransac_probability),
+        max_reprojection_error_(max_reprojection_error),
+        max_neighbor_ratio_(max_neighbor_ratio),
         nfeatures_(nfeatures),
         scaleFactor_(scaleFactor),
         nlevels_(nlevels),
@@ -50,17 +86,46 @@ public:
         WTA_K_(WTA_K),
         scoreType_(scoreType),
         patchSize_(patchSize),
-        fastThreshold_(fastThreshold_) {
-    CHECK(match_threshold_ > 0);
+        fastThreshold_(fastThreshold) {
+    // Trivial sanity checks:
+    CHECK(image_width_ > 0);
+    CHECK(image_height_ > 0);
+    CHECK(alpha_ > 0);
     CHECK(nfeatures_ >= 100);
   }
 
 public:
-  // Loop detection and vocabulary params
+  //////////////////// Loop detection and vocabulary params ////////////////////
   std::string vocabulary_path_;
-  double match_threshold_;
+  int image_height_;
+  int image_width_;
 
-  // ORB feature detector params
+  bool use_nss_; // Use normalized similarity score?
+  float alpha_; // Alpha threshold for matches
+  int min_temporal_matches_; // Min consistent matches to pass temporal check
+  DLoopDetector::GeometricalCheck geom_check_; // Geometrical check
+  int di_levels_; // If using DI for geometrical checking, DI levels
+
+  // These are less deciding parameters of the system:
+  int dist_local_; // Distance between entries to be consider a match
+  int max_db_results_; // Max number of results from db queries to consider
+  float min_nss_factor_; // Min raw score between entries to consider a match
+  int min_matches_per_group_; // Min number of close matches in a group
+  int max_intragroup_gap_; // Max separation btwn matches of the same group
+  int max_distance_between_groups_; // Max separation between groups
+  int max_distance_between_queries_; // Max separation between two queries
+
+  // These are for the RANSAC to compute the F:
+  int min_Fpoints_; // Min number of inliers when computing a fundamental matrix
+  int max_ransac_iterations_; // Max number of iterations of RANSAC
+  double ransac_probability_; // Success probability of RANSAC
+  double max_reprojection_error_; // Max reprojection error of fundamental mats
+
+  // This is to compute correspondences:
+  double max_neighbor_ratio_;
+  //////////////////////////////////////////////////////////////////////////////
+
+  ///////////////////////// ORB feature detector params ////////////////////////
   int nfeatures_;
   float scaleFactor_;
   int nlevels_;
@@ -70,6 +135,7 @@ public:
   int scoreType_;
   int patchSize_;
   int fastThreshold_;
+  //////////////////////////////////////////////////////////////////////////////
 
   virtual ~LoopClosureDetectorParams() = default;
 
@@ -100,16 +166,13 @@ protected:
     fs->release();
   }
 
+  // TODO: add all the other params to this and print
   bool parseYAMLLCDParams(const cv::FileStorage& fs) {
     cv::FileNode file_handle;
 
     file_handle = fs["vocabulary_path"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
     file_handle >> vocabulary_path_;
-
-    file_handle = fs["match_threshold"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> match_threshold_;
 
     file_handle = fs["nfeatures"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
@@ -163,7 +226,6 @@ protected:
   void printLCDParams() const {
     LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$ LCD PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
               << "vocabulary_path_: " << vocabulary_path_ << '\n'
-              << "match_threshold_: " << match_threshold_ << '\n'
               << "nfeatures_: " << nfeatures_ << '\n'
               << "scaleFactor_: " << scaleFactor_ << '\n'
               << "nlevels_: " << nlevels_ << '\n'
@@ -177,4 +239,4 @@ protected:
 }; // class LoopClosureDetectorParams
 } // namespace VIO
 
-#endif
+#endif /* LoopClosureDetectorParams_H_ */

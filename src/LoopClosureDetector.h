@@ -25,10 +25,11 @@
 #define LoopClosureDetector_H_
 
 #include <string>
-#include <functional>
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/matx.hpp>
-#include <ctime>
+
+#include <DBoW2/DBoW2.h>
+#include <DLoopDetector/DLoopDetector.h>
+#include <opencv/cv.hpp>
+#include <opencv2/features2d.hpp>
 
 #include "utils/ThreadsafeQueue.h"
 #include "utils/Statistics.h"
@@ -42,22 +43,7 @@ namespace VIO {
 class LoopClosureDetector {
 public:
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-                      const bool log_output = false)
-      : lcd_params_(lcd_params),
-        log_output_(log_output),
-        frame_count_(0),
-        last_visualized_(-1),
-        last_match_(Match(-1,-1,0.0)),
-        described_frames_(FramesDescriptor(lcd_params.vocabulary_path_,
-                                           lcd_params.nfeatures_,
-                                           lcd_params.scaleFactor_,
-                                           lcd_params.nlevels_,
-                                           lcd_params.edgeThreshold_,
-                                           lcd_params.firstLevel_,
-                                           lcd_params.WTA_K_,
-                                           lcd_params.scoreType_,
-                                           lcd_params.patchSize_,
-                                           lcd_params.fastThreshold_)) {}
+                      const bool log_output=false);
 
   virtual ~LoopClosureDetector() {
     LOG(INFO) << "LoopClosureDetector desctuctor called.";
@@ -87,6 +73,18 @@ public:
   void print() const;
 
 private:
+  DLoopDetector::DetectionResult processImage(const cv::Mat& img);
+
+  void extractOrb(const cv::Mat& img,
+                  std::vector<cv::KeyPoint>& keypoints,
+                  std::vector<cv::Mat>& descriptors);
+
+  LoopClosureDetectorOutputPayload processResult(
+      const DLoopDetector::DetectionResult& loop_result,
+      const Timestamp& timestamp_kf);
+
+private:
+  // Parameter members.
   const LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = {false};
 
@@ -94,10 +92,13 @@ private:
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_thread_working_ = {false};
 
-  ID frame_count_;
-  ID last_visualized_;
-  FramesDescriptor described_frames_;
-  Match last_match_;
+  // ORB extraction and loop detection members.
+  OrbVocabulary vocab_;
+  OrbLoopDetector loop_detector_;
+  cv::Ptr<cv::ORB> orb_feature_detector_;
+
+  // Pose recovery members.
+  cv::Mat camera_K_;
 
 }; // class LoopClosureDetector
 
