@@ -65,6 +65,8 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
   // Update delta states with corrected bias
   updateDeltaStates(pims_, *gyro_bias, &vi_frames);
 
+  CHECK_GT(5e-2, estimateGyroscopeResiduals(vi_frames).norm());
+
   // Align visual and inertial estimates
   if (alignEstimatesLinearly(vi_frames, g_world_, g_iter, &init_velocity)) {
     // Align gravity vectors and estimate initial pose
@@ -166,6 +168,29 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
 
   // TODO(Sandro): Implement check on quality of estimate
   return true;
+}
+
+/* -------------------------------------------------------------------------- */
+// Estimate gyroscope bias by minimizing square of rotation error
+// between the pre-integrated rotation constraint between frames
+// and the estimated rotation between frames from Bundle-Adjustment.
+// [in] frames containing pim constraints and body poses.
+// [out] new estimated value for gyroscope bias.
+// Unit tested.
+gtsam::Vector3 OnlineGravityAlignment::estimateGyroscopeResiduals(
+          const VisualInertialFrames &vi_frames) {
+  gtsam::Vector3 dR(0.0, 0.0, 0.0);
+  // Loop through all initialization frame
+  for (int i = 0; i < vi_frames.size(); i++) {
+    auto frame_i = std::next(vi_frames.begin(), i);
+    // Compute rotation error between pre-integrated and visual estimates
+    gtsam::Rot3 bkp1_error_bkp1(frame_i->bk_gamma_bkp1().transpose() *
+                                frame_i->bk_R_bkp1());
+    // Compute rotation error in canonical coordinates (dR_bkp1)
+    dR += gtsam::Rot3::Logmap(bkp1_error_bkp1);
+  }
+  LOG(INFO) << "Residuals after bias correction: \n" << dR;
+  return dR;
 }
 
 /* -------------------------------------------------------------------------- */

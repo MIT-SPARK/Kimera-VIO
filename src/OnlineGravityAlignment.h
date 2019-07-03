@@ -31,6 +31,7 @@
 #include <gtsam/linear/JacobianFactor.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/Values.h>
+#include <gtsam/nonlinear/Marginals.h>
 #include "UtilsOpenCV.h"
 
 #include "ImuFrontEnd.h"
@@ -55,6 +56,8 @@ public:
   /* ------------------------------------------------------------------------ */
   ~OnlineGravityAlignment() = default;
 
+  // TODO(Sandro): Set gyroscope bias
+
 public:
   /* ------------------------------------------------------------------------ */
   bool alignVisualInertialEstimates(gtsam::Vector3 *gyro_bias,
@@ -64,9 +67,12 @@ public:
   /* ------------------------------------------------------------------------ */
   static gtsam::Matrix createTangentBasis(const gtsam::Vector3 &g0);
 
-  /* -------------------------------------------------------------------------- */
-  bool estimateGyroscopeBiasOnly(
-                                    gtsam::Vector3 *gyro_bias);
+  /* ------------------------------------------------------------------------ */
+  bool estimateGyroscopeBiasOnly(gtsam::Vector3 *gyro_bias);
+
+  /* ------------------------------------------------------------------------ */
+  gtsam::Vector3 estimateGyroscopeResiduals(
+                              const VisualInertialFrames &vi_frames);
 
 private:
   /* ------------------------------------------------------------------------ */

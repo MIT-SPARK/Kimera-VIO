@@ -278,7 +278,6 @@ void VioBackEnd::registerImuBiasUpdateCallback(
   imu_bias_update_callback(imu_bias_lkf_);
 }
 
-
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
                                        const Pose3& initialPose,
@@ -2422,6 +2421,15 @@ std::vector<gtsam::Pose3> VioBackEnd::optimizeInitialVisualStates(
     initial_states.push_back(initial_values.at<gtsam::Pose3>(key_value.key));
   }
   VLOG(10) << "Initialization values retrieved.";
+
+  // Quality check on Bundle-Adjustment
+  //gtsam::Marginals marginals(new_factors_tmp, initial_values,
+  //    gtsam::Marginals::Factorization::QR);
+  //gtsam::Matrix initial_covariance =
+  //  marginals.marginalCovariance(initial_values.begin()->key);
+  //gtsam::Matrix final_covariance =
+  //  marginals.marginalCovariance(initial_values.end()->key);
+  //CHECK(gtsam::assert_equal(initial_covariance, final_covariance, 1e-2));
 
   /////////////////////////// BOOKKEEPING //////////////////////////////////////
 
