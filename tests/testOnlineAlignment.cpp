@@ -31,8 +31,6 @@ static const double tol_TB = 1e-7;
 static const double tol_OGA = 1e-3;
 static const double tol_RD = 25e-2;
 
-//#define DATASET_PATH = _TEST_DATA_PATH
-
 /* -------------------------------------------------------------------------- */
 //class OnlineAlignmentTestData : public ::testing::Test {
 class OnlineAlignmentTestData {
@@ -296,14 +294,3 @@ TEST(testOnlineAlignment, GravityAlignmentRealData) {
               init_navstate.velocity().z(), tol_RD);*/
   }
 }
-
-/* ************************************************************************* */
-/*int main(int argc, char *argv[]) {
-  // Initialize Google's flags library.
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  // Initialize Google's logging library.
-  google::InitGoogleLogging(argv[0]);
-  TestResult tr; 
-  return TestRegistry::runAllTests(tr);
-} */
-/* ************************************************************************* */
