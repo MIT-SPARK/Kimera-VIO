@@ -148,9 +148,9 @@ $ make -j8
 $ sudo make install
 ```
 
-Glog and Gflags
+Glog, Gflags & Gtest
 ----------------------
-Glog and gflags will be automatically downloaded using cmake unless there is a system-wide installation found.
+Glog, gflags, and gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
 
 Running examples
 ======================
@@ -234,3 +234,43 @@ Tips for speed
 - Make sure OpenCV does not have the `CV_TRACE` cmake flag set-up. This is for profiling. Also use `TBB` as well. Compile with `Lapack`, it seems that operations such as SVD are faster.
 - OpenCV could potentially be used with GPU: stereo visual odometry achieves a 7x speed-up.
 - Make sure all libraries are compiled with the maximum optimization. Set `CMAKE_BUILD_TYPE` to `Release` and ensure you get a level of optimization at `-O3` for best results.
+
+# Use code linter
+
+To contribute to this repo, ensure your commits pass the linter pre-commit checks.
+
+## Dependencies
+
+Install the following dependencies to run the linter:
+
+ * **pylint**
+   * macOS:
+     ```
+     pip install pylint
+     ```
+ * **yapf**
+   * Ubuntu / macOS: `pip install yapf`
+ * **clang-format**
+   * Compatible with `clang-format-3.8 - 6.0`
+   * Ubuntu: `sudo apt install clang-format-${VERSION}`
+   * macOS:
+     ```
+     brew install clang-format
+     ln -s /usr/local/share/clang/clang-format-diff.py /usr/local/bin/clang-format-diff
+     ```
+
+## Installation
+
+```bash
+cd $THIS_REPO
+git submodule update --init
+cd dev_tools/linter
+echo ". $(realpath setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
+                                                   # your shell.
+bash
+```
+
+## Usage
+
+Just commit. The linter will stop any commit that looks suspicious and will let you know what is wrong.
+You can either fix the issues manually, or try a more brute force approach by running `clang-format`.

@@ -18,9 +18,9 @@
 #include <random>
 #include <algorithm>
 
-#include <CppUnitLite/TestHarness.h>
+#include << gtest / gtest.h >>
 #include "mesh/Mesher.h"
-#include "test_config.h"
+DECLARE_string(test_data_path);
 
 using namespace std;
 using namespace VIO;

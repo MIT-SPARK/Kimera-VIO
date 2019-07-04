@@ -16,10 +16,10 @@
 #include <glog/logging.h>
 
 #include "ETH_parser.h"
-#include "pipeline/Pipeline.h"
-#include "utils/Timer.h"
-#include "utils/Statistics.h"
 #include "LoggerMatlab.h"
+#include "pipeline/Pipeline.h"
+#include "utils/Statistics.h"
+#include "utils/Timer.h"
 
 #include <future>
 
@@ -38,22 +38,23 @@ int main(int argc, char *argv[]) {
 
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
-  VIO::Pipeline vio_pipeline (&eth_dataset_parser,
-                              eth_dataset_parser.getImuParams(),
-                              FLAGS_parallel_run);
+  VIO::Pipeline vio_pipeline(&eth_dataset_parser,
+                             eth_dataset_parser.getImuParams(),
+                             FLAGS_parallel_run);
 
   // Register callback to vio_pipeline.
   eth_dataset_parser.registerVioCallback(
-        std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
+      std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
 
   //// Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
   if (FLAGS_parallel_run) {
-    auto handle = std::async(std::launch::async,
-                             &VIO::ETHDatasetParser::spin, &eth_dataset_parser);
-    auto handle_pipeline = std::async(std::launch::async,
-               &VIO::Pipeline::shutdownWhenFinished, &vio_pipeline);
+    auto handle = std::async(std::launch::async, &VIO::ETHDatasetParser::spin,
+                             &eth_dataset_parser);
+    auto handle_pipeline =
+        std::async(std::launch::async, &VIO::Pipeline::shutdownWhenFinished,
+                   &vio_pipeline);
     vio_pipeline.spinViz();
     is_pipeline_successful = handle.get();
     handle_pipeline.get();
@@ -62,7 +63,8 @@ int main(int argc, char *argv[]) {
   }
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
-  LOG(INFO) << "Pipeline successful? " << (is_pipeline_successful? "Yes!":"No!");
+  LOG(INFO) << "Pipeline successful? "
+            << (is_pipeline_successful ? "Yes!" : "No!");
   VIO::utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
 
   if (is_pipeline_successful) {
@@ -73,5 +75,5 @@ int main(int argc, char *argv[]) {
     logger.closeLogFiles();
   }
 
-  return is_pipeline_successful? EXIT_SUCCESS : EXIT_FAILURE;
+  return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;
 }

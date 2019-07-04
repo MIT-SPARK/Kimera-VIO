@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include <string>
 #include <functional>
+#include <string>
 #include "StereoImuSyncPacket.h"
 #include "Tracker.h"
 
@@ -25,22 +25,21 @@ namespace VIO {
 // Struct to deal with getting values out of the spin
 struct SpinOutputContainer {
   // Default constructor
-  SpinOutputContainer(const Timestamp& timestamp_kf,
-                      const gtsam::Pose3& W_Pose_Blkf,
-                      const Vector3& W_Vel_Blkf,
-                      const ImuBias& imu_bias_lkf,
-                      const gtsam::Matrix State_Covariance_lkf = gtsam::zeros(15,15),
-                      const DebugTrackerInfo debug_tracker_info = DebugTrackerInfo())
-    : timestamp_kf_(timestamp_kf),
-      W_Pose_Blkf_(W_Pose_Blkf),
-      W_Vel_Blkf_(W_Vel_Blkf),
-      imu_bias_lkf_(imu_bias_lkf),
-      debug_tracker_info_(debug_tracker_info) {
-        // TODO: Create a better assert for this covariance matrix
-        CHECK_EQ(State_Covariance_lkf.rows(),15);
-        CHECK_EQ(State_Covariance_lkf.cols(),15);
-        State_Covariance_lkf_ = State_Covariance_lkf;
-      }
+  SpinOutputContainer(
+      const Timestamp& timestamp_kf, const gtsam::Pose3& W_Pose_Blkf,
+      const Vector3& W_Vel_Blkf, const ImuBias& imu_bias_lkf,
+      const gtsam::Matrix State_Covariance_lkf = gtsam::zeros(15, 15),
+      const DebugTrackerInfo debug_tracker_info = DebugTrackerInfo())
+      : timestamp_kf_(timestamp_kf),
+        W_Pose_Blkf_(W_Pose_Blkf),
+        W_Vel_Blkf_(W_Vel_Blkf),
+        imu_bias_lkf_(imu_bias_lkf),
+        debug_tracker_info_(debug_tracker_info) {
+    // TODO: Create a better assert for this covariance matrix
+    CHECK_EQ(State_Covariance_lkf.rows(), 15);
+    CHECK_EQ(State_Covariance_lkf.cols(), 15);
+    State_Covariance_lkf_ = State_Covariance_lkf;
+  }
 
   // Trivial constructor (do not publish)
   SpinOutputContainer()
@@ -59,53 +58,42 @@ struct SpinOutputContainer {
   DebugTrackerInfo debug_tracker_info_;
 
   SpinOutputContainer& operator=(SpinOutputContainer other) {
-        timestamp_kf_ = other.timestamp_kf_;
-        W_Pose_Blkf_ = other.W_Pose_Blkf_;
-        W_Vel_Blkf_ = other.W_Vel_Blkf_;
-        imu_bias_lkf_ = other.imu_bias_lkf_;
-        State_Covariance_lkf_ = other.State_Covariance_lkf_;
-        debug_tracker_info_ = other.debug_tracker_info_;
-        return *this;
+    timestamp_kf_ = other.timestamp_kf_;
+    W_Pose_Blkf_ = other.W_Pose_Blkf_;
+    W_Vel_Blkf_ = other.W_Vel_Blkf_;
+    imu_bias_lkf_ = other.imu_bias_lkf_;
+    State_Covariance_lkf_ = other.State_Covariance_lkf_;
+    debug_tracker_info_ = other.debug_tracker_info_;
+    return *this;
   }
 
   // Define getters for output values
-  
-  inline const Timestamp getTimestamp() {
-    return timestamp_kf_;
-  }
 
-  inline const gtsam::Pose3 getEstimatedPose() {
-    return W_Pose_Blkf_;
-  }
+  inline const Timestamp getTimestamp() { return timestamp_kf_; }
 
-  inline const Vector3 getEstimatedVelocity() {
-    return W_Vel_Blkf_;
-  }
+  inline const gtsam::Pose3 getEstimatedPose() { return W_Pose_Blkf_; }
+
+  inline const Vector3 getEstimatedVelocity() { return W_Vel_Blkf_; }
 
   inline const gtsam::Matrix6 getEstimatedPoseCov() {
-    return gtsam::sub(State_Covariance_lkf_,0,6,0,6);
+    return gtsam::sub(State_Covariance_lkf_, 0, 6, 0, 6);
   }
 
   inline const gtsam::Matrix3 getEstimatedVelCov() {
-    return gtsam::sub(State_Covariance_lkf_,6,9,6,9);
+    return gtsam::sub(State_Covariance_lkf_, 6, 9, 6, 9);
   }
 
-  inline const ImuBias getEstimatedBias() {
-    return imu_bias_lkf_;
-  }
+  inline const ImuBias getEstimatedBias() { return imu_bias_lkf_; }
 
   inline const gtsam::Matrix6 getEstimatedBiasCov() {
-    return gtsam::sub(State_Covariance_lkf_,9,15,9,15);
+    return gtsam::sub(State_Covariance_lkf_, 9, 15, 9, 15);
   }
 
-  inline const DebugTrackerInfo getTrackerInfo() {
-    return debug_tracker_info_;
-  }
-
+  inline const DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
 };
 
 class DataProvider {
-public:
+ public:
   DataProvider() = default;
   virtual ~DataProvider();
 
@@ -118,13 +106,13 @@ public:
 
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.
-  void
-  registerVioCallback(std::function<SpinOutputContainer(const StereoImuSyncPacket&)> callback);
+  void registerVioCallback(
+      std::function<SpinOutputContainer(const StereoImuSyncPacket&)> callback);
 
-protected:
+ protected:
   // Vio callback. This function should be called once a StereoImuSyncPacket
   // is available for processing.
   std::function<SpinOutputContainer(const StereoImuSyncPacket&)> vio_callback_;
 };
 
-} // End of VIO namespace.
+}  // namespace VIO

@@ -12,18 +12,19 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <random>
-#include <algorithm>
+#include "CameraParams.h"
 #include "Frame.h"
 #include "VioFrontEndParams.h"
-#include "CameraParams.h"
-#include "test_config.h"
-#include <algorithm>
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;
@@ -37,7 +38,8 @@ TEST(testTracker, TrackerParamParseYAML) {
 
   // Test parseYAML
   VioFrontEndParams tp;
-  tp.parseYAML(string(DATASET_PATH) + "/ForTracker/trackerParameters.yaml");
+  tp.parseYAML(string(FLAGS_test_data_path) +
+               "/ForTracker/trackerParameters.yaml");
 
   // Compare results!
   EXPECT(tp.klt_win_size_ == 24);
@@ -46,7 +48,7 @@ TEST(testTracker, TrackerParamParseYAML) {
   EXPECT(tp.klt_eps_ == 0.001);
   EXPECT(tp.maxFeatureAge_ == 10);
 
-  EXPECT(tp.maxFeaturesPerFrame_== 200);
+  EXPECT(tp.maxFeaturesPerFrame_ == 200);
   EXPECT(tp.quality_level_ == 0.5);
   EXPECT(tp.min_distance_ == 20);
   EXPECT(tp.block_size_ == 3);
@@ -96,8 +98,8 @@ TEST(testTracker, equals) {
   VioFrontEndParams tp = VioFrontEndParams();
   EXPECT(tp.equals(tp));
 
-  VioFrontEndParams tp2 =VioFrontEndParams();
-  tp2.featureSelectionCosineNeighborhood_ += 1e-7; // small perturbation
+  VioFrontEndParams tp2 = VioFrontEndParams();
+  tp2.featureSelectionCosineNeighborhood_ += 1e-7;  // small perturbation
 
   EXPECT(!tp.equals(tp2));
 }
@@ -109,7 +111,8 @@ TEST(testTracker, cppVSmatlabVioFrontEndParams) {
   VioFrontEndParams cppDefault_tp = VioFrontEndParams();
 
   VioFrontEndParams matlabDefault_tp;
-  matlabDefault_tp.parseYAML(string(DATASET_PATH) + "/../../matlab/myLib/defaultTrackerParams.yaml");
+  matlabDefault_tp.parseYAML(string(FLAGS_test_data_path) +
+"/../../matlab/myLib/defaultTrackerParams.yaml");
 
   EXPECT(matlabDefault_tp.equals(cppDefault_tp));
 
@@ -121,5 +124,7 @@ TEST(testTracker, cppVSmatlabVioFrontEndParams) {
 
 /* ************************************************************************** */
 int main() {
-  TestResult tr; return TestRegistry::runAllTests(tr); }
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************** */

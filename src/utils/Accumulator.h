@@ -47,15 +47,15 @@ static constexpr int kInfiniteWindowSize = std::numeric_limits<int>::max();
 // the vector has a fixed size.
 template <typename SampleType, typename SumType, int WindowSize>
 class Accumulator {
-public:
+ public:
   Accumulator()
-    : sample_index_(0),
-      total_samples_(0),
-      sum_(0),
-      window_sum_(0),
-      min_(std::numeric_limits<SampleType>::max()),
-      max_(std::numeric_limits<SampleType>::lowest()),
-      most_recent_(0) {
+      : sample_index_(0),
+        total_samples_(0),
+        sum_(0),
+        window_sum_(0),
+        min_(std::numeric_limits<SampleType>::max()),
+        max_(std::numeric_limits<SampleType>::lowest()),
+        most_recent_(0) {
     CHECK_GT(WindowSize, 0);
     if (WindowSize < kInfiniteWindowSize) {
       samples_.reserve(WindowSize);
@@ -85,14 +85,10 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  int total_samples() const {
-    return total_samples_;
-  }
+  int total_samples() const { return total_samples_; }
 
   /* ------------------------------------------------------------------------ */
-  SumType sum() const {
-    return sum_;
-  }
+  SumType sum() const { return sum_; }
 
   /* ------------------------------------------------------------------------ */
   SumType Mean() const {
@@ -111,19 +107,13 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  SampleType GetMostRecent() const {
-    return most_recent_;
-  }
+  SampleType GetMostRecent() const { return most_recent_; }
 
   /* ------------------------------------------------------------------------ */
-  SumType max() const {
-    return max_;
-  }
+  SumType max() const { return max_; }
 
   /* ------------------------------------------------------------------------ */
-  SumType min() const {
-    return min_;
-  }
+  SumType min() const { return min_; }
 
   /* ------------------------------------------------------------------------ */
   SumType LazyVariance() const {
@@ -143,16 +133,12 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  SumType StandardDeviation() const {
-    return std::sqrt(LazyVariance());
-  }
+  SumType StandardDeviation() const { return std::sqrt(LazyVariance()); }
 
   /* ------------------------------------------------------------------------ */
-  const std::vector<SampleType>& GetSamples() const {
-    return samples_;
-  }
+  const std::vector<SampleType>& GetSamples() const { return samples_; }
 
-private:
+ private:
   std::vector<SampleType> samples_;
   int sample_index_;
   int total_samples_;
@@ -165,6 +151,6 @@ private:
 
 typedef Accumulator<double, double, kInfiniteWindowSize> Accumulatord;
 
-} // End of utils namespace.
+}  // namespace utils
 
-} // End of VIO namespace.
+}  // namespace VIO

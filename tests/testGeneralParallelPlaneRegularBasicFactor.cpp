@@ -9,29 +9,30 @@
 /**
  * @file   testGeneralParallelPlaneRegularBasicFactor.cpp
  * @brief  test GeneralParallelPlaneRegularBasicFactor
- * @author Antoni Rosinol Vidal
+ * @author Antoni Rosinol
  */
 
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <random>
 #include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <random>
 
 #include <gtsam/base/numericalDerivative.h>
-#include <boost/bind.hpp>
 #include <boost/assign/std/vector.hpp>
+#include <boost/bind.hpp>
 
-#include <gtsam/slam/PriorFactor.h>
+#include <gtsam/geometry/OrientedPlane3.h>
+#include <gtsam/geometry/Point3.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
-#include <gtsam/geometry/Point3.h>
-#include <gtsam/geometry/OrientedPlane3.h>
-#include "factors/PointPlaneFactor.h"
+#include <gtsam/slam/PriorFactor.h>
 #include "factors/ParallelPlaneRegularFactor.h"
+#include "factors/PointPlaneFactor.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace gtsam;
@@ -44,8 +45,8 @@ static const double der_tol = 1e-5;
 /* ************************************************************************* */
 TEST(testGeneralParallelPlaneRegularBasicFactor, ErrorIsZero) {
   /// Plane keys.
-  Key plane_key_1 (1);
-  Key plane_key_2 (2);
+  Key plane_key_1(1);
+  Key plane_key_2(2);
 
   /// Noise model for cosntraint between the two planes.
   noiseModel::Diagonal::shared_ptr parallel_plane_noise =
@@ -55,9 +56,9 @@ TEST(testGeneralParallelPlaneRegularBasicFactor, ErrorIsZero) {
   double measured_distance_from_plane2_to_plane1 = 0.8;
 
   /// GeneralParallelism constraint between Plane 1 and Plane 2.
-  GeneralParallelPlaneRegularBasicFactor factor(plane_key_1, plane_key_2,
-                                      parallel_plane_noise,
-                                      measured_distance_from_plane2_to_plane1);
+  GeneralParallelPlaneRegularBasicFactor factor(
+      plane_key_1, plane_key_2, parallel_plane_noise,
+      measured_distance_from_plane2_to_plane1);
 
   /// Planes.
   OrientedPlane3 plane_1(0.1, 0.1, 0.9, 0.9);
@@ -77,8 +78,8 @@ TEST(testGeneralParallelPlaneRegularBasicFactor, ErrorIsZero) {
 /* ************************************************************************* */
 TEST(testGeneralParallelPlaneRegularBasicFactor, ErrorOtherThanZero) {
   /// Plane keys.
-  Key plane_key_1 (1);
-  Key plane_key_2 (2);
+  Key plane_key_1(1);
+  Key plane_key_2(2);
 
   /// Noise model for cosntraint between the two planes.
   noiseModel::Diagonal::shared_ptr parallel_plane_noise =
@@ -88,9 +89,9 @@ TEST(testGeneralParallelPlaneRegularBasicFactor, ErrorOtherThanZero) {
   double measured_distance_from_plane2_to_plane1 = 0.7;
 
   /// GeneralParallelism constraint between Plane 1 and Plane 2.
-  GeneralParallelPlaneRegularBasicFactor factor(plane_key_1, plane_key_2,
-                                      parallel_plane_noise,
-                                      measured_distance_from_plane2_to_plane1);
+  GeneralParallelPlaneRegularBasicFactor factor(
+      plane_key_1, plane_key_2, parallel_plane_noise,
+      measured_distance_from_plane2_to_plane1);
 
   /// Planes.
   OrientedPlane3 plane_1(0.3, 0.2, 1.9, 0.9);
@@ -112,8 +113,8 @@ TEST(testGeneralParallelPlaneRegularBasicFactor, ErrorOtherThanZero) {
 /* ************************************************************************* */
 TEST(testGeneralParallelPlaneRegularFactor, Jacobians) {
   /// Plane keys.
-  Key plane_key_1 (1);
-  Key plane_key_2 (2);
+  Key plane_key_1(1);
+  Key plane_key_2(2);
 
   /// Noise model for cosntraint between the two planes.
   noiseModel::Diagonal::shared_ptr parallel_plane_noise =
@@ -121,7 +122,7 @@ TEST(testGeneralParallelPlaneRegularFactor, Jacobians) {
 
   /// GeneralParallelism constraint between Plane 1 and Plane 2.
   GeneralParallelPlaneRegularBasicFactor factor(plane_key_1, plane_key_2,
-                                          parallel_plane_noise);
+                                                parallel_plane_noise);
 
   /// Planes.
   OrientedPlane3 plane_1(0.3, 0.2, 1.9, 0.9);
@@ -132,15 +133,17 @@ TEST(testGeneralParallelPlaneRegularFactor, Jacobians) {
   factor.evaluateError(plane_1, plane_2, H1Actual, H2Actual);
 
   /// Calculate numerical derivatives.
-  Matrix H1Expected = numericalDerivative21<Vector,
-                                            OrientedPlane3, OrientedPlane3>(
-      boost::bind(&GeneralParallelPlaneRegularBasicFactor::evaluateError, &factor, _1, _2,
-          boost::none, boost::none), plane_1, plane_2, der_tol);
+  Matrix H1Expected =
+      numericalDerivative21<Vector, OrientedPlane3, OrientedPlane3>(
+          boost::bind(&GeneralParallelPlaneRegularBasicFactor::evaluateError,
+                      &factor, _1, _2, boost::none, boost::none),
+          plane_1, plane_2, der_tol);
 
-  Matrix H2Expected = numericalDerivative22<Vector,
-                                            OrientedPlane3, OrientedPlane3>(
-      boost::bind(&GeneralParallelPlaneRegularBasicFactor::evaluateError, &factor, _1, _2,
-          boost::none, boost::none), plane_1, plane_2, der_tol);
+  Matrix H2Expected =
+      numericalDerivative22<Vector, OrientedPlane3, OrientedPlane3>(
+          boost::bind(&GeneralParallelPlaneRegularBasicFactor::evaluateError,
+                      &factor, _1, _2, boost::none, boost::none),
+          plane_1, plane_2, der_tol);
 
   /// Verify the Jacobians are correct.
   CHECK(assert_equal(H1Expected, H1Actual, tol));
@@ -169,35 +172,37 @@ TEST(testGeneralParallelPlaneRegularBasicFactor, PlaneOptimization) {
 
   /// Noise prior.
   noiseModel::Diagonal::shared_ptr priorNoise =
-          noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
+      noiseModel::Diagonal::Sigmas(Vector3(0.1, 0.1, 0.1));
 
   /// Prior mean for plane 1.
   OrientedPlane3 priorMean1(0.0, 0.0, 1.0, 0.0);
-  graph.emplace_shared<PriorFactor<OrientedPlane3> >(planeKey1, priorMean1, priorNoise);
+  graph.emplace_shared<PriorFactor<OrientedPlane3> >(planeKey1, priorMean1,
+                                                     priorNoise);
 
   /// Shared noise for constraints between planes.
   noiseModel::Diagonal::shared_ptr regularityNoise =
-          noiseModel::Diagonal::Sigmas(Vector4(0.1, 0.1, 0.1, 0.1));
+      noiseModel::Diagonal::Sigmas(Vector4(0.1, 0.1, 0.1, 0.1));
 
   /// Factor between planes for co-planarity.
   const double measured_distance_from_plane2_to_plane1(-2.0);
   graph.emplace_shared<GeneralParallelPlaneRegularBasicFactor>(
-              planeKey1, planeKey2, regularityNoise,
-              measured_distance_from_plane2_to_plane1);
+      planeKey1, planeKey2, regularityNoise,
+      measured_distance_from_plane2_to_plane1);
 
   Values initial;
   initial.insert(planeKey1, OrientedPlane3(0.1, 0.2, 0.9, 0.0));
   initial.insert(planeKey2, OrientedPlane3(0.1, 0.2, 0.3, -1.0));
 
   GaussNewtonParams params;
-  //params.setVerbosity("ERROR");
+  // params.setVerbosity("ERROR");
   params.setMaxIterations(20);
   params.setRelativeErrorTol(-std::numeric_limits<double>::max());
-  //params.setErrorTol(-std::numeric_limits<double>::max());
+  // params.setErrorTol(-std::numeric_limits<double>::max());
   params.setAbsoluteErrorTol(-std::numeric_limits<double>::max());
 
   Values result = GaussNewtonOptimizer(graph, initial, params).optimize();
-  //Values result = LevenbergMarquardtOptimizer(graph, initial, params).optimize();
+  // Values result = LevenbergMarquardtOptimizer(graph, initial,
+  // params).optimize();
 
   Values expected;
   expected.insert(planeKey1, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
@@ -207,8 +212,9 @@ TEST(testGeneralParallelPlaneRegularBasicFactor, PlaneOptimization) {
 }
 /* ************************************************************************* */
 
-
 /* ************************************************************************* */
 int main() {
-  TestResult tr; return TestRegistry::runAllTests(tr); }
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************* */

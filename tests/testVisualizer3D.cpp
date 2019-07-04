@@ -12,17 +12,19 @@
  * @author Antoni Rosinol
  */
 
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <random>
 #include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <random>
 
 #include "Visualizer3D.h"
-#include "test_config.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+DECLARE_string(test_data_path);
 
 using namespace std;
 using namespace VIO;
@@ -35,13 +37,13 @@ TEST(testFrame, visualizeMesh2D) {
   // Construct a frame from image name.
   FrameId id = 0;
   Timestamp tmp = 123;
-  const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
+  const string imgName = string(FLAGS_test_data_path) + "/chessboard_small.png";
 
-  Frame f(id, tmp,
-          CameraParams(),
+  Frame f(id, tmp, CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   f.extractCorners();
-  for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
+  for (int i = 0; i < f.keypoints_.size();
+       i++) {  // populate landmark structure with fake data
     f.landmarks_.push_back(i);
   }
 
@@ -49,11 +51,13 @@ TEST(testFrame, visualizeMesh2D) {
   const std::vector<cv::Vec6f>& mesh_2d = f.createMesh2D();
 
   // Visualize mesh.
-  Visualizer3D visualizer (VisualizationType::NONE, 0);
+  Visualizer3D visualizer(VisualizationType::NONE, 0);
   visualizer.visualizeMesh2D(mesh_2d, f.img_);
 }
 
 /* ************************************************************************* */
 int main() {
-  TestResult tr; return TestRegistry::runAllTests(tr); }
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************* */

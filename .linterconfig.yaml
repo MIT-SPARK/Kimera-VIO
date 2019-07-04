@@ -1,0 +1,13 @@
+# Turn the components of the linter individualy on / off.
+use_clangformat: on
+use_cpplint: on
+use_yapf: on
+use_pylint: on
+
+# If on, the linter blocks commits after detecting an error. Otherwise, the
+# user is asked whether to proceed with the commit.
+block_commits: off
+
+# If this whitelist block is present, the linter only operates on the files and
+# directories listed in this whitelist.
+whitelist:

@@ -15,6 +15,7 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <gtest/gtest.h>
 
 #include "ImuFrontEnd-definitions.h"
 #include "ImuFrontEnd.h"
@@ -23,15 +24,14 @@
 #include "ETH_parser.h"
 #include "test_config.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
-
 using namespace VIO;
 
 static const double tol_GB = 2e-4;
 static const double tol_TB = 1e-7;
 static const double tol_OGA = 1e-3;
 static const double tol_RD = 2e-1;
+
+//#define DATASET_PATH = _TEST_DATA_PATH
 
 /* -------------------------------------------------------------------------- */
 //class OnlineAlignmentTestData : public ::testing::Test {
@@ -132,6 +132,7 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   std::string reason = "test of gyroscope estimation";
   ETHDatasetParser dataset(reason);
   static const std::string data_path(DATASET_PATH + std::string("/ForOnlineAlignment/gyro_bias/"));
+  LOG(ERROR) << data_path;
   int n_begin= 1;
   int n_frames = 5;
   OnlineAlignmentTestData test_data(dataset, data_path,
@@ -154,7 +155,7 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
 
   // Final test check against real bias in data
   gtsam::Vector3 real_gyro_bias(0.0001, 0.0002, 0.0003);
-  DOUBLES_EQUAL(real_gyro_bias.norm(), gyro_bias.norm(), tol_GB);
+  EXPECT_NEAR(real_gyro_bias.norm(), gyro_bias.norm(), tol_GB);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -180,9 +181,9 @@ TEST(testOnlineAlignment, CreateTangentBasis) {
                               tangent_basis(2, 1));
 
     // Check that vector product is zero (orthogonal)
-    DOUBLES_EQUAL(0.0, gtsam::dot(basis_vec_y, basis_vec_z), tol_TB);
-    DOUBLES_EQUAL(0.0, gtsam::dot(basis_vec_y, random_vector), tol_TB);
-    DOUBLES_EQUAL(0.0, gtsam::dot(basis_vec_z, random_vector), tol_TB);
+    EXPECT_NEAR(0.0, gtsam::dot(basis_vec_y, basis_vec_z), tol_TB);
+    EXPECT_NEAR(0.0, gtsam::dot(basis_vec_y, random_vector), tol_TB);
+    EXPECT_NEAR(0.0, gtsam::dot(basis_vec_z, random_vector), tol_TB);
   }
 }
 
@@ -222,18 +223,18 @@ TEST(testOnlineAlignment, OnlineGravityAlignment) {
   gtsam::Pose3 real_init_pose(test_data.init_navstate_.pose().rotation(),
                               gtsam::Vector3());
   LOG(ERROR) << real_body_grav << " vs. " << g_iter;
-  DOUBLES_EQUAL(n_gravity.norm(), g_iter.norm(), tol_OGA);
-  DOUBLES_EQUAL(real_body_grav.x(), g_iter.x(), tol_OGA);
-  DOUBLES_EQUAL(real_body_grav.y(), g_iter.y(), tol_OGA);
-  DOUBLES_EQUAL(real_body_grav.z(), g_iter.z(), tol_OGA);
-  EXPECT(assert_equal(real_init_pose, init_navstate.pose(), tol_OGA));
-  DOUBLES_EQUAL(real_init_vel.norm(),
+  EXPECT_NEAR(n_gravity.norm(), g_iter.norm(), tol_OGA);
+  EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_OGA);
+  EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_OGA);
+  EXPECT_NEAR(real_body_grav.z(), g_iter.z(), tol_OGA);
+  //EXPECT_TRUE(assert_equal(real_init_pose, init_navstate.pose(), tol_OGA));
+  EXPECT_NEAR(real_init_vel.norm(),
             init_navstate.velocity().norm(), tol_OGA);
-  DOUBLES_EQUAL(real_init_vel.x(),
+  EXPECT_NEAR(real_init_vel.x(),
             init_navstate.velocity().x(), tol_OGA);
-  DOUBLES_EQUAL(real_init_vel.y(),
+  EXPECT_NEAR(real_init_vel.y(),
             init_navstate.velocity().y(), tol_OGA);
-  DOUBLES_EQUAL(real_init_vel.z(),
+  EXPECT_NEAR(real_init_vel.z(),
             init_navstate.velocity().z(), tol_OGA);
 }
 
@@ -272,10 +273,10 @@ TEST(testOnlineAlignment, GravityAlignmentRealData) {
     gtsam::Pose3 real_init_pose(test_data.init_navstate_.pose().rotation(),
                                 gtsam::Vector3());
     LOG(ERROR) << real_body_grav << " vs. " << g_iter;
-    DOUBLES_EQUAL(n_gravity.norm(), g_iter.norm(), tol_RD);
-    DOUBLES_EQUAL(real_body_grav.x(), g_iter.x(), tol_RD);
-    DOUBLES_EQUAL(real_body_grav.y(), g_iter.y(), tol_RD);
-    DOUBLES_EQUAL(real_body_grav.z(), g_iter.z(), tol_RD);
+    EXPECT_NEAR(n_gravity.norm(), g_iter.norm(), tol_RD);
+    EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_RD);
+    EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_RD);
+    EXPECT_NEAR(real_body_grav.z(), g_iter.z(), tol_RD);
 
     // This is a bit more complex as the yaw angle is random in OGA
     /*gtsam::Pose3 inbetween = init_navstate.pose().inverse().between(
@@ -298,12 +299,12 @@ TEST(testOnlineAlignment, GravityAlignmentRealData) {
 }
 
 /* ************************************************************************* */
-int main(int argc, char *argv[]) {
+/*int main(int argc, char *argv[]) {
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
   TestResult tr; 
   return TestRegistry::runAllTests(tr);
-}
+} */
 /* ************************************************************************* */
