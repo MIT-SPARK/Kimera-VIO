@@ -29,7 +29,7 @@ using namespace VIO;
 static const double tol_GB = 2e-4;
 static const double tol_TB = 1e-7;
 static const double tol_OGA = 1e-3;
-static const double tol_RD = 2e-1;
+static const double tol_RD = 25e-2;
 
 //#define DATASET_PATH = _TEST_DATA_PATH
 
