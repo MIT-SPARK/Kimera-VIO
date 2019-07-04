@@ -132,7 +132,6 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   std::string reason = "test of gyroscope estimation";
   ETHDatasetParser dataset(reason);
   static const std::string data_path(DATASET_PATH + std::string("/ForOnlineAlignment/gyro_bias/"));
-  LOG(ERROR) << data_path;
   int n_begin= 1;
   int n_frames = 5;
   OnlineAlignmentTestData test_data(dataset, data_path,
@@ -222,7 +221,7 @@ TEST(testOnlineAlignment, OnlineGravityAlignment) {
       test_data.init_navstate_.pose().rotation().transpose() * n_gravity);
   gtsam::Pose3 real_init_pose(test_data.init_navstate_.pose().rotation(),
                               gtsam::Vector3());
-  LOG(ERROR) << real_body_grav << " vs. " << g_iter;
+  LOG(INFO) << real_body_grav << " vs. " << g_iter;
   EXPECT_NEAR(n_gravity.norm(), g_iter.norm(), tol_OGA);
   EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_OGA);
   EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_OGA);
@@ -272,7 +271,7 @@ TEST(testOnlineAlignment, GravityAlignmentRealData) {
         test_data.init_navstate_.pose().rotation().transpose() * n_gravity);
     gtsam::Pose3 real_init_pose(test_data.init_navstate_.pose().rotation(),
                                 gtsam::Vector3());
-    LOG(ERROR) << real_body_grav << " vs. " << g_iter;
+    LOG(INFO) << real_body_grav << " vs. " << g_iter;
     EXPECT_NEAR(n_gravity.norm(), g_iter.norm(), tol_RD);
     EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_RD);
     EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_RD);

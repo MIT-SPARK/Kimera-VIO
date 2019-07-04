@@ -276,7 +276,7 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
 
   // Return true if successful
   // TODO(Sandro): Load tolerance in yaml file
-  if (abs(g_iter->norm() - g_world.norm()) > 1e-5) {
+  if (abs(g_iter->norm() - g_world.norm()) > 1e-1) {
     return false;
   }
   return true;
