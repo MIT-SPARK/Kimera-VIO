@@ -73,6 +73,9 @@ public:
   void print() const;
 
 private:
+  void initLoopDetector();
+
+  // TODO: better name for processImage
   DLoopDetector::DetectionResult processImage(const cv::Mat& img);
 
   void extractOrb(const cv::Mat& img,
@@ -85,7 +88,7 @@ private:
 
 private:
   // Parameter members.
-  const LoopClosureDetectorParams lcd_params_;
+  LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = {false};
 
   // Thread related members.
@@ -98,7 +101,7 @@ private:
   cv::Ptr<cv::ORB> orb_feature_detector_;
 
   // Pose recovery members.
-  cv::Mat camera_K_;
+  bool set_intrinsics_ = {false};
 
 }; // class LoopClosureDetector
 

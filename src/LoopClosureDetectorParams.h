@@ -34,7 +34,7 @@ public:
       int image_width=752,
       bool use_nss=true,
       float alpha=0.1,
-      int min_temporal_matches=4,
+      int min_temporal_matches=3,
       DLoopDetector::GeometricalCheck geom_check=DLoopDetector::GEOM_DI,
       int di_levels=0,
       int dist_local=20,
@@ -49,6 +49,8 @@ public:
       double ransac_probability=0.99,
       double max_reprojection_error=2.0,
       double max_neighbor_ratio=0.6,
+      double focal_length=1.0,
+      cv::Point2d principle_point=cv::Point2d(0.0,0.0),
       int nfeatures=500,
       float scaleFactor=1.2f,
       int nlevels=8,
@@ -78,6 +80,8 @@ public:
         ransac_probability_(ransac_probability),
         max_reprojection_error_(max_reprojection_error),
         max_neighbor_ratio_(max_neighbor_ratio),
+        focal_length_(focal_length),
+        principle_point_(principle_point),
         nfeatures_(nfeatures),
         scaleFactor_(scaleFactor),
         nlevels_(nlevels),
@@ -123,6 +127,10 @@ public:
 
   // This is to compute correspondences:
   double max_neighbor_ratio_;
+
+  // This is for the essential matrix / pose recovery steps:
+  double focal_length_; // Focal length of camera
+  cv::Point2d principle_point_; // Principle point of the camera
   //////////////////////////////////////////////////////////////////////////////
 
   ///////////////////////// ORB feature detector params ////////////////////////

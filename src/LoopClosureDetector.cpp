@@ -33,7 +33,8 @@ LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
     const bool log_output)
     : lcd_params_(lcd_params),
-      log_output_(log_output) {
+      log_output_(log_output),
+      set_intrinsics_(false) {
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
                                           lcd_params_.scaleFactor_,
                                           lcd_params_.nlevels_,
@@ -49,32 +50,6 @@ LoopClosureDetector::LoopClosureDetector(
   vocab_.loadFromTextFile(lcd_params_.vocabulary_path_); // TODO: support .gz files
   std::cout << "Loaded vocabulary with " << vocab_.size() << " visual words."
             << std::endl;
-
-  OrbLoopDetector::Parameters params;
-  params.image_rows = lcd_params_.image_height_;
-  params.image_cols = lcd_params_.image_width_;
-  params.use_nss = lcd_params_.use_nss_;
-  params.alpha = lcd_params_.alpha_;
-  params.k = lcd_params_.min_temporal_matches_;
-  params.geom_check = lcd_params_.geom_check_;
-  params.di_levels = lcd_params_.di_levels_;
-  params.dislocal = lcd_params_.dist_local_;
-  params.max_db_results = lcd_params_.max_db_results_;
-  params.min_nss_factor = lcd_params_.min_nss_factor_;
-  params.min_matches_per_group = lcd_params_.min_matches_per_group_;
-  params.max_intragroup_gap = lcd_params_.max_intragroup_gap_;
-  params.max_distance_between_groups = lcd_params_.max_distance_between_groups_;
-  params.max_distance_between_queries =
-    lcd_params_.max_distance_between_queries_;
-  params.min_Fpoints = lcd_params_.min_Fpoints_;
-  params.max_ransac_iterations = lcd_params_.max_ransac_iterations_;
-  params.ransac_probability = lcd_params_.ransac_probability_;
-  params.max_reprojection_error = lcd_params_.max_reprojection_error_;
-  params.max_neighbor_ratio = lcd_params_.max_neighbor_ratio_;
-
-  // loop_detector_ = OrbLoopDetector(vocab_, params); // TODO: Why doesn't this work?
-  loop_detector_ = OrbLoopDetector(params);
-  loop_detector_.setVocabulary(vocab_);
 }
 
 bool LoopClosureDetector::spin(
@@ -115,15 +90,54 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     const std::shared_ptr<LoopClosureDetectorInputPayload>& input) {
   CHECK(input) << "No LoopClosureDetector Input Payload received.";
 
-  // TODO: Frame.h says img_ is public but it probably shouldn't be.
+  // One time initialization from camera parameters:
+  if (!set_intrinsics_) {
+    lcd_params_.focal_length_ =
+      input->stereo_frame_.getLeftFrame().cam_param_.intrinsics_[0];
+    lcd_params_.principle_point_ = cv::Point2d(
+        input->stereo_frame_.getLeftFrame().cam_param_.intrinsics_[2],
+        input->stereo_frame_.getLeftFrame().cam_param_.intrinsics_[3]);
+
+    initLoopDetector();
+    set_intrinsics_ = true;
+  }
+
   DLoopDetector::DetectionResult loop_result = processImage(
     input->stereo_frame_.getLeftFrame().img_);
-
-  // TODO: calculate transformation between the frames
 
   // TODO: add LoggerMatlab options
 
   return processResult(loop_result, input->stereo_frame_.getTimestamp());
+}
+
+void LoopClosureDetector::initLoopDetector() {
+  OrbLoopDetector::Parameters params;
+  params.image_rows = lcd_params_.image_height_;
+  params.image_cols = lcd_params_.image_width_;
+  params.use_nss = lcd_params_.use_nss_;
+  params.alpha = lcd_params_.alpha_;
+  params.k = lcd_params_.min_temporal_matches_;
+  params.geom_check = lcd_params_.geom_check_;
+  params.di_levels = lcd_params_.di_levels_;
+  params.dislocal = lcd_params_.dist_local_;
+  params.max_db_results = lcd_params_.max_db_results_;
+  params.min_nss_factor = lcd_params_.min_nss_factor_;
+  params.min_matches_per_group = lcd_params_.min_matches_per_group_;
+  params.max_intragroup_gap = lcd_params_.max_intragroup_gap_;
+  params.max_distance_between_groups = lcd_params_.max_distance_between_groups_;
+  params.max_distance_between_queries =
+    lcd_params_.max_distance_between_queries_;
+  params.min_Fpoints = lcd_params_.min_Fpoints_;
+  params.max_ransac_iterations = lcd_params_.max_ransac_iterations_;
+  params.ransac_probability = lcd_params_.ransac_probability_;
+  params.max_reprojection_error = lcd_params_.max_reprojection_error_;
+  params.max_neighbor_ratio = lcd_params_.max_neighbor_ratio_;
+  params.focal_length = lcd_params_.focal_length_;
+  params.principle_point = lcd_params_.principle_point_;
+
+  // loop_detector_ = OrbLoopDetector(vocab_, params); // TODO: Why doesn't this work?
+  loop_detector_ = OrbLoopDetector(params);
+  loop_detector_.setVocabulary(vocab_);
 }
 
 DLoopDetector::DetectionResult LoopClosureDetector::processImage(
@@ -131,11 +145,7 @@ DLoopDetector::DetectionResult LoopClosureDetector::processImage(
   std::vector<cv::KeyPoint> keypoints;
   std::vector<cv::Mat> descriptors;
 
-  // clock_t begin = clock();
   extractOrb(img, keypoints, descriptors);
-  // clock_t end = clock();
-  // double elapsed_ms = (double(end - begin) / CLOCKS_PER_SEC)*1000.0;
-  // std::cout << "extractOrb took " << elapsed_ms << " ms." << std::endl;
 
   DLoopDetector::DetectionResult result;
   loop_detector_.detectLoop(keypoints, descriptors, result);
@@ -167,15 +177,20 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::processResult(
                << loop_result.match << " to image " << loop_result.query
                << std::endl;
 
+    LOG(ERROR) << "LoopClosureDetector: translation matrix:\n"
+               << loop_result.translation << "\nrotation matrix:\n"
+               << loop_result.rotation << "\n" << std::endl;
+
     LoopClosureDetectorOutputPayload output_payload(true, timestamp_kf,
                                                     loop_result.query,
                                                     loop_result.match,
-                                                    loop_result.transformation);
+                                                    loop_result.translation,
+                                                    loop_result.rotation);
     return output_payload;
   }
   else {
     // Can print the status here for when loops are not detected
-    return LoopClosureDetectorOutputPayload(false,-1,0,0,cv::Mat());
+    return LoopClosureDetectorOutputPayload(false,-1,0,0,cv::Mat(), cv::Mat());
   }
 }
 

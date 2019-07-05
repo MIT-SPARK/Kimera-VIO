@@ -35,18 +35,22 @@ struct LoopClosureDetectorOutputPayload {
                                    const Timestamp& timestamp_kf,
                                    const FrameId& id_recent,
                                    const FrameId& id_match,
-                                   const cv::Mat& transformation)
+                                   const cv::Mat& translation,
+                                   const cv::Mat& rotation)
     : is_loop_(is_loop),
       timestamp_kf_(timestamp_kf),
       id_recent_(id_recent),
       id_match_(id_match),
-      transformation_(transformation) {}
+      translation_(translation),
+      rotation_(rotation) {}
 
+  // TODO: inlude score of match
   const bool is_loop_;
   const Timestamp timestamp_kf_;
   const FrameId id_recent_;
   const FrameId id_match_;
-  const cv::Mat transformation_;
+  const cv::Mat translation_; // TODO: should be gtsam::Pose3
+  const cv::Mat rotation_; // TODO: should be packaged into gtsam::Pose3 above
 }; // struct LoopClosureOutputPayload
 
 } // namespace VIO
