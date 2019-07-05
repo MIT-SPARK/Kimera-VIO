@@ -137,10 +137,6 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   OnlineAlignmentTestData test_data(dataset, data_path,
                           n_begin, n_frames);
 
-  // Initialize OnlineAlignment
-  gtsam::Vector3 gyro_bias = test_data.imu_bias_.gyroscope();
-  CHECK_DOUBLE_EQ(gyro_bias.norm(), 0.0);
-
   // Construct online alignment class with dummy gravity vector
   gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
   OnlineGravityAlignment initial_alignment(
@@ -148,6 +144,10 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
                       test_data.delta_t_poses_,
                       test_data.pims_, 
                       n_gravity);
+
+  // Initialize OnlineAlignment
+  gtsam::Vector3 gyro_bias = test_data.imu_bias_.gyroscope();
+  CHECK_DOUBLE_EQ(gyro_bias.norm(), 0.0);
 
   // Compute Gyroscope Bias
   CHECK(initial_alignment.estimateGyroscopeBiasOnly(&gyro_bias));

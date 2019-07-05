@@ -81,7 +81,12 @@ private:
                               VisualInertialFrames *vi_frames);
 
   /* ------------------------------------------------------------------------ */
-  bool estimateGyroscopeBias(const VisualInertialFrames &vi_frames,
+  bool estimateBiasAndUpdateStates(const AlignmentPims &pims,
+                              gtsam::Vector3 *gyro_bias,
+                              VisualInertialFrames *vi_frames);
+
+  /* ------------------------------------------------------------------------ */
+  void estimateGyroscopeBias(const VisualInertialFrames &vi_frames,
                               gtsam::Vector3 *gyro_bias);
 
   /* ------------------------------------------------------------------------ */

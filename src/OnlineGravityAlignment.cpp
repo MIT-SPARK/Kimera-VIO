@@ -63,12 +63,10 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
 
   // Estimate gyroscope bias if requested
   if (estimate_bias) {
-    CHECK_DOUBLE_EQ(gyro_bias->norm(), 0.0);
-    // Estimate gyroscope bias
-    CHECK(estimateGyroscopeBias(vi_frames, gyro_bias));
-    // Update delta states with corrected bias
-    updateDeltaStates(pims_, *gyro_bias, &vi_frames);
-    CHECK_GT(5e-2, estimateGyroscopeResiduals(vi_frames).norm());
+    if (!estimateBiasAndUpdateStates(pims_, gyro_bias, &vi_frames)) {
+      LOG(ERROR) << "Gyroscope bias estimation failed!\n";
+      return false;
+    }
   }
 
   // Align visual and inertial estimates
@@ -130,13 +128,37 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
 }
 
 /* -------------------------------------------------------------------------- */
+// Estimate gyroscope bias and update delta states in VI frames
+// [in] vector of pre-integrations from visual-frontend.
+// [out] new estimated value for gyroscope bias.
+// [out] frames containing pim constraints and body poses.
+bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
+          const AlignmentPims &pims,
+          gtsam::Vector3 *gyro_bias,
+          VisualInertialFrames *vi_frames) {
+  if(gyro_bias->norm() != 0.0) {
+    LOG(ERROR) << "\nNon-zero PIM gyro bias:\n" << *gyro_bias;
+    return false;
+  }
+  // Estimate gyroscope bias
+  estimateGyroscopeBias(*vi_frames, gyro_bias);
+  // Update delta states with corrected bias
+  updateDeltaStates(pims_, *gyro_bias, vi_frames);
+  if(estimateGyroscopeResiduals(*vi_frames).norm() > 5e-2) {
+    LOG(ERROR) << "\nHigh residuals after bias update.\n";
+    return false;
+  }
+  return true;
+}
+
+/* -------------------------------------------------------------------------- */
 // Estimate gyroscope bias by minimizing square of rotation error
 // between the pre-integrated rotation constraint between frames
 // and the estimated rotation between frames from Bundle-Adjustment.
 // [in] frames containing pim constraints and body poses.
 // [out] new estimated value for gyroscope bias.
 // Unit tested.
-bool OnlineGravityAlignment::estimateGyroscopeBias(
+void OnlineGravityAlignment::estimateGyroscopeBias(
           const VisualInertialFrames &vi_frames,
           gtsam::Vector3 *gyro_bias) {
   // Create Gaussian Graph with unit noise
@@ -171,7 +193,7 @@ bool OnlineGravityAlignment::estimateGyroscopeBias(
   LOG(INFO) << "\nGyro bias estimation:\n" << delta_bg;
 
   // TODO(Sandro): Implement check on quality of estimate
-  return true;
+  return;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -383,21 +405,16 @@ bool OnlineGravityAlignment::estimateGyroscopeBiasOnly(
     gtsam::Vector3 *gyro_bias) {
   VLOG(10) << "Gyroscope bias only called.";
   VisualInertialFrames vi_frames;
-  CHECK_DOUBLE_EQ(gyro_bias->norm(), 0.0);
 
   // Construct set of frames for linear alignment
   constructVisualInertialFrames(estimated_body_poses_, delta_t_camera_, 
                                 pims_, &vi_frames);
 
-  // Estimate gyroscope bias
-  if (estimateGyroscopeBias(vi_frames, gyro_bias)) {
-    // Log and return
-    LOG(INFO) << "Gyroscope bias estimate only successful.\n";
-    return true;
-  } else {
-    LOG(ERROR) << "Gyroscope bias estimate only failed!\n";
+  // Estimate gyro bias and check residuals
+  if(!estimateBiasAndUpdateStates(pims_, gyro_bias, &vi_frames)) {
     return false;
   }
+  return true;
 }
 
 } // namespace VIO
