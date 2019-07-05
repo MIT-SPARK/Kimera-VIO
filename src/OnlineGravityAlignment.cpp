@@ -81,7 +81,9 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
     LOG(INFO) << "Online gravity alignment successful with:"
               << "\npose: " << init_navstate->pose()
               << "\nvelocity: " << init_navstate->velocity()
-              << "\ngravity: " << *g_iter << "\n";
+              << "\ngravity: " << *g_iter
+              << "\nwith norm: " << g_iter->norm()
+              << "\ngyroscope bias: " << *gyro_bias;
     return true;
   } else {
     LOG(ERROR) << "Online gravity alignment failed!\n";
@@ -190,7 +192,7 @@ void OnlineGravityAlignment::estimateGyroscopeBias(
 
   // Logging of solution
   if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
-  LOG(INFO) << "\nGyro bias estimation:\n" << delta_bg;
+  VLOG(5) << "Gyro bias estimation:\n" << delta_bg;
 
   // TODO(Sandro): Implement check on quality of estimate
   return;
@@ -215,7 +217,7 @@ gtsam::Vector3 OnlineGravityAlignment::estimateGyroscopeResiduals(
     // Compute rotation error in canonical coordinates (dR_bkp1)
     dR += gtsam::Rot3::Logmap(bkp1_error_bkp1);
   }
-  LOG(INFO) << "Residuals after bias correction: \n" << dR;
+  VLOG(5) << "Residuals after bias correction: \n" << dR;
   return dR;
 }
 
@@ -297,7 +299,7 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
   *g_iter = - g_b0;
 
   // Logging of solution
-  LOG(INFO) << "Final gravity estimate:\n" << *g_iter
+  VLOG(5) << "Final gravity estimate:\n" << *g_iter
             << " with norm: " << g_iter->norm();
 
   // Return true if successful
