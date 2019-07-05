@@ -416,7 +416,7 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
   gtsam::IncrementalFixedLagSmoother smoother(vioParams.horizon_, isam_param);
   try {
     // Update smoother.
-    std::vector<size_t> delete_slots;
+    gtsam::FactorIndices delete_slots;
     smoother.update(graph, initial, timestamps, delete_slots);
     // Another extra iteration.
     for (size_t i = 0; i < 3; i++) {
@@ -488,7 +488,7 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
 
   try {
     // Update smoother.
-    std::vector<size_t> delete_slots;
+    gtsam::FactorIndices delete_slots;
     smoother.update(graph, initial, timestamps, delete_slots);
     // Another extra iteration.
     for (size_t i = 0; i < 3; i++) {
