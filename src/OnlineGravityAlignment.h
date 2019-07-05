@@ -56,13 +56,12 @@ public:
   /* ------------------------------------------------------------------------ */
   ~OnlineGravityAlignment() = default;
 
-  // TODO(Sandro): Set gyroscope bias
-
 public:
   /* ------------------------------------------------------------------------ */
   bool alignVisualInertialEstimates(gtsam::Vector3 *gyro_bias,
                                     gtsam::Vector3 *g_iter,
-                                    gtsam::NavState *init_navstate);
+                                    gtsam::NavState *init_navstate,
+                                    const bool& estimate_bias = true);
 
   /* ------------------------------------------------------------------------ */
   static gtsam::Matrix createTangentBasis(const gtsam::Vector3 &g0);

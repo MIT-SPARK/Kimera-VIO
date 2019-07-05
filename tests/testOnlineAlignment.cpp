@@ -16,6 +16,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <math.h>
 
 #include "ImuFrontEnd-definitions.h"
 #include "ImuFrontEnd.h"
@@ -29,7 +30,8 @@ using namespace VIO;
 static const double tol_GB = 2e-4;
 static const double tol_TB = 1e-7;
 static const double tol_OGA = 1e-3;
-static const double tol_RD = 25e-2;
+static const double tol_RD_gv = 25e-2;
+static const double tol_RD_an = 4/180.0*M_PI;
 
 /* -------------------------------------------------------------------------- */
 //class OnlineAlignmentTestData : public ::testing::Test {
@@ -209,9 +211,9 @@ TEST(testOnlineAlignment, OnlineGravityAlignment) {
                       test_data.pims_, 
                       n_gravity);
 
-  // Compute Gyroscope Bias
+  // Compute online gravity alignment (without gyroscope bias estimation)
   CHECK(initial_alignment.alignVisualInertialEstimates(&gyro_bias, &g_iter,
-                                                 &init_navstate));
+                                                 &init_navstate, false));
 
   // Final test checks
   gtsam::Vector3 real_init_vel(test_data.init_navstate_.velocity_);
@@ -269,28 +271,28 @@ TEST(testOnlineAlignment, GravityAlignmentRealData) {
         test_data.init_navstate_.pose().rotation().transpose() * n_gravity);
     gtsam::Pose3 real_init_pose(test_data.init_navstate_.pose().rotation(),
                                 gtsam::Vector3());
+    
     LOG(INFO) << real_body_grav << " vs. " << g_iter;
-    EXPECT_NEAR(n_gravity.norm(), g_iter.norm(), tol_RD);
-    EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_RD);
-    EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_RD);
-    EXPECT_NEAR(real_body_grav.z(), g_iter.z(), tol_RD);
+    EXPECT_NEAR(n_gravity.norm(), g_iter.norm(), tol_RD_gv);
+    EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_RD_gv);
+    EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_RD_gv);
+    EXPECT_NEAR(real_body_grav.z(), g_iter.z(), tol_RD_gv);
+    
 
-    // This is a bit more complex as the yaw angle is random in OGA
-    /*gtsam::Pose3 inbetween = init_navstate.pose().inverse().between(
-              real_init_pose.inverse());
-    gtsam::Pose3 rot_inbetween(gtsam::Rot3::Rz(inbetween.rotation().yaw()),
-              gtsam::Vector3());
-
-    // TODO(Sandro): Add velocity and pose test (not so trivial)
-    EXPECT(assert_equal(real_init_pose,
-              rot_inbetween*init_navstate.pose(), tol_RD));
-    DOUBLES_EQUAL(real_init_vel.norm(),
+    EXPECT_NEAR(fabs(remainder(real_init_pose.rotation().pitch() -
+      init_navstate.pose().rotation().pitch(), 2*M_PI)), 0.0, tol_RD_an);
+    EXPECT_NEAR(fabs(remainder(real_init_pose.rotation().roll() -
+      init_navstate.pose().rotation().roll(), 2*M_PI)), 0.0, tol_RD_an);
+    // Yaw angle is irrelevant for starting pose 
+    
+    // TODO(Sandro): Add velocity test in same frame
+    /* EXPECT_NEAR(real_init_vel.norm(),
               init_navstate.velocity().norm(), tol_RD);
-    DOUBLES_EQUAL(real_init_vel.x(),
+    EXPECT_NEAR(real_init_vel.x(),
               init_navstate.velocity().x(), tol_RD);
-    DOUBLES_EQUAL(real_init_vel.y(),
+    EXPECT_NEAR(real_init_vel.y(),
               init_navstate.velocity().y(), tol_RD);
-    DOUBLES_EQUAL(real_init_vel.z(),
-              init_navstate.velocity().z(), tol_RD);*/
+    EXPECT_NEAR(real_init_vel.z(),
+              init_navstate.velocity().z(), tol_RD); */
   }
 }

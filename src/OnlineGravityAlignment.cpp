@@ -48,24 +48,28 @@ OnlineGravityAlignment::OnlineGravityAlignment(
 // [out] initial gyro bias estimate.
 // [out] estimate of gravity vector in initial body pose (g_b0).
 // [out] initial nav state for initialization.
+// [optional] flag to estimate gyroscope bias.
 bool OnlineGravityAlignment::alignVisualInertialEstimates(
     gtsam::Vector3 *gyro_bias, gtsam::Vector3 *g_iter,
-    gtsam::NavState *init_navstate) {
+    gtsam::NavState *init_navstate,
+    const bool& estimate_bias) {
   VLOG(10) << "Online gravity alignment called.";
   VisualInertialFrames vi_frames;
   gtsam::Velocity3 init_velocity;
-  CHECK_DOUBLE_EQ(gyro_bias->norm(), 0.0);
 
   // Construct set of frames for linear alignment
   constructVisualInertialFrames(estimated_body_poses_, delta_t_camera_, pims_,
                                 &vi_frames);
 
-  // Estimate gyroscope bias
-  CHECK(estimateGyroscopeBias(vi_frames, gyro_bias));
-  // Update delta states with corrected bias
-  updateDeltaStates(pims_, *gyro_bias, &vi_frames);
-
-  CHECK_GT(5e-2, estimateGyroscopeResiduals(vi_frames).norm());
+  // Estimate gyroscope bias if requested
+  if (estimate_bias) {
+    CHECK_DOUBLE_EQ(gyro_bias->norm(), 0.0);
+    // Estimate gyroscope bias
+    CHECK(estimateGyroscopeBias(vi_frames, gyro_bias));
+    // Update delta states with corrected bias
+    updateDeltaStates(pims_, *gyro_bias, &vi_frames);
+    CHECK_GT(5e-2, estimateGyroscopeResiduals(vi_frames).norm());
+  }
 
   // Align visual and inertial estimates
   if (alignEstimatesLinearly(vi_frames, g_world_, g_iter, &init_velocity)) {
