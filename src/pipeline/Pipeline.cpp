@@ -173,14 +173,9 @@ void Pipeline::processKeyframe(
   // Push to backend input.
   // This should be done inside the frontend!!!!
   // Or the backend should pull from the frontend!!!!
-  backend_input_queue_.push(
-        VioBackEndInputPayload(
-          last_stereo_keyframe.getTimestamp(),
-          statusSmartStereoMeasurements,
-          kf_tracking_status_stereo,
-          pim,
-          relative_pose_body_stereo,
-          &planes_));
+  backend_input_queue_.push(VioBackEndInputPayload(
+      last_stereo_keyframe.getTimestamp(), statusSmartStereoMeasurements,
+      kf_tracking_status_stereo, pim, relative_pose_body_stereo, &planes_));
 
   // This should be done inside those who need the backend results
   // IN this case the logger!!!!!
@@ -202,6 +197,13 @@ void Pipeline::processKeyframe(
                            &lmk_id_to_lmk_type_map,
                            last_stereo_keyframe);
 
+    // In the mesher thread push queue with meshes for visualization.
+    // Use blocking to avoid skipping frames.
+    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
+        << "Mesher output queue did not pop a payload.";
+
+    // Do this after popBlocking from Mesher so we do it sequentially, since
+    // planes_ are not thread-safe.
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
     if (FLAGS_extract_planes_from_the_scene) {
@@ -217,10 +219,6 @@ void Pipeline::processKeyframe(
              "regularities.";
     }
 
-    // In the mesher thread push queue with meshes for visualization.
-    // Use blocking to avoid skipping frames.
-    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
-        << "Mesher output queue did not pop a payload.";
   }
 
   if (FLAGS_visualize) {
@@ -343,7 +341,7 @@ void Pipeline::spinSequential() {
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
     if (FLAGS_extract_planes_from_the_scene) {
-      CHECK_EQ(dataset_->getBackendType(), 1); // Use Regular VIO
+      DCHECK_EQ(dataset_->getBackendType(), 1);  // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
       LOG_IF_EVERY_N(WARNING, dataset_->getBackendType() == 1u &&
