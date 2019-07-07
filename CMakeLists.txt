@@ -49,7 +49,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(SparkVio SHARED
+add_library(SparkVio STATIC
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
   src/StereoFrame.cpp
