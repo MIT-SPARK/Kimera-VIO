@@ -75,16 +75,11 @@ public:
 private:
   void initLoopDetector();
 
-  // TODO: better name for processImage
-  DLoopDetector::DetectionResult processImage(const cv::Mat& img);
+  LoopClosureDetectorOutputPayload checkLoopClosure(StereoFrame& stereo_frame);
 
   void extractOrb(const cv::Mat& img,
                   std::vector<cv::KeyPoint>& keypoints,
                   std::vector<cv::Mat>& descriptors);
-
-  LoopClosureDetectorOutputPayload processResult(
-      const DLoopDetector::DetectionResult& loop_result,
-      const Timestamp& timestamp_kf);
 
 private:
   // Parameter members.

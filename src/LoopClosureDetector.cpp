@@ -102,12 +102,14 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     set_intrinsics_ = true;
   }
 
-  DLoopDetector::DetectionResult loop_result = processImage(
-    input->stereo_frame_.getLeftFrame().img_);
+  StereoFrame working_frame = input->stereo_frame_;
+
+  LoopClosureDetectorOutputPayload output_payload = checkLoopClosure(
+    working_frame);
 
   // TODO: add LoggerMatlab options
 
-  return processResult(loop_result, input->stereo_frame_.getTimestamp());
+  return output_payload;
 }
 
 void LoopClosureDetector::initLoopDetector() {
@@ -140,17 +142,101 @@ void LoopClosureDetector::initLoopDetector() {
   loop_detector_.setVocabulary(vocab_);
 }
 
-DLoopDetector::DetectionResult LoopClosureDetector::processImage(
-    const cv::Mat& img) {
+LoopClosureDetectorOutputPayload LoopClosureDetector::checkLoopClosure(
+    StereoFrame& stereo_frame) {
   std::vector<cv::KeyPoint> keypoints;
   std::vector<cv::Mat> descriptors;
 
-  extractOrb(img, keypoints, descriptors);
+  extractOrb(stereo_frame.getLeftFrame().img_, keypoints, descriptors);
 
-  DLoopDetector::DetectionResult result;
-  loop_detector_.detectLoop(keypoints, descriptors, result);
+  DLoopDetector::DetectionResult loop_result;
+  loop_detector_.detectLoop(keypoints, descriptors, loop_result);
 
-  return result;
+  if (loop_result.detection()) {
+    LOG(ERROR) << "LoopClosureDetector: LOOP CLOSURE detected from image "
+               << loop_result.match << " to image " << loop_result.query
+               << std::endl;
+
+    // Populate frame keypoints with ORB features instead of the normal
+    // VIO features that came with the StereoFrame.
+
+    // TODO: is this thread safe? Should I copy the stereo_frame object first?
+    // Frame* left_frame_mutable = stereo_frame.getLeftFrameMutable();
+    // Frame* right_frame_mutable = stereo_frame.getRightFrameMutable();
+    //
+    // // Clear all relevant fields.
+    // left_frame_mutable->keypoints_.clear();
+    // left_frame_mutable->versors_.clear();
+    // right_frame_mutable->keypoints_.clear();
+    // right_frame_mutable->versors_.clear();
+    // stereo_frame.keypoints_3d_.clear();
+    // stereo_frame.left_keypoints_rectified_.clear();
+    // stereo_frame.right_keypoints_rectified_.clear();
+    //
+    // // Add ORB keypoints.
+    // left_frame_mutable->keypoints_ = KeypointsCV(keypoints.size());
+    // for (unsigned int i; i<keypoints.size(); i++) {
+    //   // TODO: additional requirements for converting cv::KeyPoint to KeypointCV?
+    //   left_frame_mutable->keypoints_[i] = keypoints[i].pt;
+    // }
+    //
+    // // Automatically match keypoints in right image with those in left.
+    // stereo_frame.sparseStereoMatching();
+
+    // Compute the scaling factor for the translation between matched frames.
+    // TODO: does this work as expected to convert cv::Mat into Matrix3?
+    // TODO: may need a transposition on the rotation matrix.
+    // TODO: do you even need to clear the old keypoints? Why not use the old ones?
+    // TODO: Almost certainly you have the pose backwards. It seems like it's pose from ref to curr,
+    // but you don't have access to ref so you need to invert (?)
+    // TODO: opencv seems to calculate movement of points, not of camera. In this case you might have to invert?
+    std::vector<gtsam::Point3> cols(3);
+    for (unsigned int i=0; i<3; i++) {
+      gtsam::Point3 col = gtsam::Point3(loop_result.rotation.at<double>(0,i),
+                                        loop_result.rotation.at<double>(1,i),
+                                        loop_result.rotation.at<double>(2,i));
+      cols[i] = col;
+    }
+
+    gtsam::Rot3 rot = gtsam::Rot3(cols[0], cols[1], cols[2]);
+    gtsam::Vector3 unit_T = gtsam::Vector3(loop_result.translation.at<double>(0),
+      loop_result.translation.at<double>(1),
+      loop_result.translation.at<double>(2));
+    gtsam::Vector3 rotated_unit_T = rot * unit_T;
+    float scaling_factor = 0.0;
+
+    for (unsigned int i; i<stereo_frame.keypoints_3d_.size(); i++) {
+      gtsam::Vector3 curr_keypoint = stereo_frame.keypoints_3d_[i];
+      gtsam::Vector3 rotated_keypoint = rot * curr_keypoint;
+      scaling_factor += rotated_keypoint.dot(rotated_unit_T);
+    }
+    scaling_factor /= stereo_frame.keypoints_3d_.size();
+
+    gtsam::Point3 scaled_T = gtsam::Point3(unit_T[0] * scaling_factor,
+        unit_T[1] * scaling_factor,
+        unit_T[2] * scaling_factor);
+    gtsam::Pose3 match_pose_curr = gtsam::Pose3(rot, scaled_T);
+
+    LoopClosureDetectorOutputPayload output_payload(true,
+        stereo_frame.getTimestamp(), loop_result.query, loop_result.match,
+        match_pose_curr);
+
+    LOG(INFO) << "\nLoopClosureDetector: stats:"
+              << "\n\nloop_result translation:\n" << loop_result.translation
+              << "\n\nloop_result rotation:\n" << loop_result.rotation
+              << "\n\nunit translation:\n" << unit_T
+              << "\n\nrotated unit translation:\n" << rotated_unit_T
+              << "\n\nscaling factor: " << scaling_factor
+              << "\n\nscaled translation:\n" << scaled_T
+              << "\n\nrotation:\n" << rot
+              << "\n";
+
+    return output_payload;
+  }
+  else {
+    // TODO: print the status here for when loops are not detected
+    return LoopClosureDetectorOutputPayload(false,-1,0,0,gtsam::Pose3());
+  }
 }
 
 void LoopClosureDetector::extractOrb(const cv::Mat& img,
@@ -166,31 +252,6 @@ void LoopClosureDetector::extractOrb(const cv::Mat& img,
   for (unsigned int i = 0; i < descriptors.size(); i++) {
     descriptors[i] = cv::Mat(1, L, plain.type()); // one row only
     plain.row(i).copyTo(descriptors[i].row(0));
-  }
-}
-
-LoopClosureDetectorOutputPayload LoopClosureDetector::processResult(
-    const DLoopDetector::DetectionResult& loop_result,
-    const Timestamp& timestamp_kf) {
-  if (loop_result.detection()) {
-    LOG(ERROR) << "LoopClosureDetector: LOOP CLOSURE detected from image "
-               << loop_result.match << " to image " << loop_result.query
-               << std::endl;
-
-    LOG(ERROR) << "LoopClosureDetector: translation matrix:\n"
-               << loop_result.translation << "\nrotation matrix:\n"
-               << loop_result.rotation << "\n" << std::endl;
-
-    LoopClosureDetectorOutputPayload output_payload(true, timestamp_kf,
-                                                    loop_result.query,
-                                                    loop_result.match,
-                                                    loop_result.translation,
-                                                    loop_result.rotation);
-    return output_payload;
-  }
-  else {
-    // Can print the status here for when loops are not detected
-    return LoopClosureDetectorOutputPayload(false,-1,0,0,cv::Mat(), cv::Mat());
   }
 }
 
