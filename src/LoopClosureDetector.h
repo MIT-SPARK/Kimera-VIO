@@ -70,12 +70,34 @@ public:
 
   inline bool isWorking() const { return is_thread_working_; }
 
+  inline LoopClosureDetectorParams& getLCDParams() { return lcd_params_; }
+
+  inline LoopClosureDetectorParams* getLCDParamsMutable() {
+    return &lcd_params_;
+  }
+
+  inline OrbVocabulary& getVocab() { return vocab_; }
+
+  inline OrbLoopDetector& getLoopDetector() { return loop_detector_; }
+
+  inline cv::Ptr<cv::ORB> getFeatureDetector() {
+    return orb_feature_detector_;
+  }
+
+  inline bool getIntrinsicsFlag() const { return set_intrinsics_; }
+
   void print() const;
 
 private:
   void initLoopDetector();
 
   LoopClosureDetectorOutputPayload checkLoopClosure(StereoFrame& stereo_frame);
+
+  void rewriteStereoFrameFeatures(StereoFrame* stereo_frame,
+    const std::vector<cv::KeyPoint> keypoints);
+
+  gtsam::Pose3 calcScaledRelativePose(StereoFrame* stereo_frame,
+    DLoopDetector::DetectionResult* loop_result);
 
   void extractOrb(const cv::Mat& img,
                   std::vector<cv::KeyPoint>& keypoints,
