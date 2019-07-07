@@ -32,8 +32,9 @@
 #include <gtsam/slam/PriorFactor.h>
 #include "factors/PointPlaneFactor.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace gtsam;
@@ -43,8 +44,6 @@ using namespace VIO;
 static constexpr double tol = 1e-5;
 /// Delta increment for numerical derivative
 static constexpr double delta_value = 1e-5;
-
-VioBackEndParams vioParams = VioBackEndParams();
 
 /* -------------------------------------------------------------------------- */
 // Set parameters for ISAM 2 incremental smoother.
@@ -81,8 +80,8 @@ void setIsam2Params(const VioBackEndParams& vio_params,
 }
 
 /**
-  * Test that error does give the right result when it is zero.
-/* ************************************************************************* */
+ * Test that error does give the right result when it is zero.
+ */
 TEST(testPointPlaneFactor, ErrorIsZero) {
   Key pointKey(1);
   Key planeKey(2);
@@ -103,12 +102,12 @@ TEST(testPointPlaneFactor, ErrorIsZero) {
   Vector error = factor.evaluateError(point, plane);
   Vector1 expected_error = Vector1::Constant(0.0);
 
-  CHECK(assert_equal(expected_error, error, tol));
+  ASSERT_TRUE(assert_equal(expected_error, error, tol));
 }
 
 /**
-  * Test that error does give the right result when it is not zero.
-/* ************************************************************************* */
+ * Test that error does give the right result when it is not zero.
+ */
 TEST(testPointPlaneFactor, ErrorOtherThanZero) {
   Key pointKey(1);
   Key planeKey(2);
@@ -127,13 +126,13 @@ TEST(testPointPlaneFactor, ErrorOtherThanZero) {
   Vector error = factor.evaluateError(point, plane);
   Vector1 expected_error = Vector1::Constant(-3.2124498);
 
-  CHECK(assert_equal(expected_error, error, tol));
+  ASSERT_TRUE(assert_equal(expected_error, error, tol));
 }
 
 /**
-  * Test that analytical jacobians equal numerical ones.
-  *
-/* ************************************************************************* */
+ * Test that analytical jacobians equal numerical ones.
+ *
+ */
 TEST(testPointPlaneFactor, Jacobians) {
   // Create the factor with a measurement that is 3 pixels off in x
   Key pointKey(1);
@@ -166,14 +165,14 @@ TEST(testPointPlaneFactor, Jacobians) {
       point, plane, delta_value);
 
   // Verify the Jacobians are correct
-  CHECK(assert_equal(H1Expected, H1Actual, tol));
-  CHECK(assert_equal(H2Expected, H2Actual, tol));
+  ASSERT_TRUE(assert_equal(H1Expected, H1Actual, tol));
+  ASSERT_TRUE(assert_equal(H2Expected, H2Actual, tol));
 }
 
 /**
-  * Test that analytical jacobians equal numerical ones, with negative values.
-  *
-/* ************************************************************************* */
+ * Test that analytical jacobians equal numerical ones, with negative values.
+ *
+ */
 TEST(testPointPlaneFactor, JacobiansNegative) {
   // Create the factor with a measurement that is 3 pixels off in x
   Key pointKey(1);
@@ -206,16 +205,16 @@ TEST(testPointPlaneFactor, JacobiansNegative) {
       point, plane, delta_value);
 
   // Verify the Jacobians are correct
-  CHECK(assert_equal(H1Expected, H1Actual, tol));
-  CHECK(assert_equal(H2Expected, H2Actual, tol));
+  ASSERT_TRUE(assert_equal(H1Expected, H1Actual, tol));
+  ASSERT_TRUE(assert_equal(H2Expected, H2Actual, tol));
 }
 
 /**
-  * Test that optimization works for plane parameters.
-  * Three landmarks, with prior factors, and a plane constrained together
-  * using the landmark-plane factor.
-  *
-/* ************************************************************************* */
+ * Test that optimization works for plane parameters.
+ * Three landmarks, with prior factors, and a plane constrained together
+ * using the landmark-plane factor.
+ *
+ */
 TEST(testPointPlaneFactor, PlaneOptimization) {
   NonlinearFactorGraph graph;
 
@@ -255,16 +254,16 @@ TEST(testPointPlaneFactor, PlaneOptimization) {
   expected.insert(3, priorMean3);
   expected.insert(4, OrientedPlane3(0.0, 0.0, 1.0, 1.0));
 
-  CHECK(assert_equal(expected, result, tol))
+  ASSERT_TRUE(assert_equal(expected, result, tol));
 }
 
 /**
-  * Test that optimization works for landmark parameters.
-  * Three landmarks, with prior factor with high uncertainty in z, and a plane,
-  * with a confident prior factor, constrained together using the
-  * landmark-plane factor.
-  *
-/* ************************************************************************* */
+ * Test that optimization works for landmark parameters.
+ * Three landmarks, with prior factor with high uncertainty in z, and a plane,
+ * with a confident prior factor, constrained together using the
+ * landmark-plane factor.
+ *
+ */
 TEST(testBasicRegularPlane3Factor, LandmarkOptimization) {
   NonlinearFactorGraph graph;
 
@@ -312,10 +311,9 @@ TEST(testBasicRegularPlane3Factor, LandmarkOptimization) {
   expected.insert(3, Point3(0.0, 1.0, 1.0));
   expected.insert(4, OrientedPlane3(0.0, 0.0, 1.0, 1.0));
 
-  CHECK(assert_equal(expected, result, tol))
+  ASSERT_TRUE(assert_equal(expected, result, tol));
 }
 
-/* ************************************************************************* */
 TEST(testPointPlaneFactor, MultiplePlanesOptimization) {
   NonlinearFactorGraph graph;
 
@@ -375,10 +373,9 @@ TEST(testPointPlaneFactor, MultiplePlanesOptimization) {
   expected.insert(7, priorMeanC);
   expected.insert(8, OrientedPlane3(0.0, 0.0, 1.0, 2.0));
 
-  CHECK(assert_equal(expected, result, tol));
+  ASSERT_TRUE(assert_equal(expected, result, tol));
 }
 
-/* ************************************************************************* */
 TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
   NonlinearFactorGraph graph;
 
@@ -414,6 +411,7 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
   }
 
   gtsam::ISAM2Params isam_param;
+  VioBackEndParams vioParams = VioBackEndParams();
   setIsam2Params(vioParams, &isam_param);
   gtsam::IncrementalFixedLagSmoother smoother(vioParams.horizon_, isam_param);
   try {
@@ -451,7 +449,7 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
   expected.insert(3, priorMean3);
   expected.insert(4, OrientedPlane3(0.0, 0.0, 1.0, 1.0));
 
-  CHECK(assert_equal(expected, result, tol));
+  ASSERT_TRUE(assert_equal(expected, result, tol));
 
   // Clean old factors.
   graph.resize(0);
@@ -521,12 +519,5 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
   expected.insert(7, priorMeanC);
   expected.insert(8, OrientedPlane3(0.0, 0.0, 1.0, 2.0));
 
-  CHECK(assert_equal(expected, result, tol));
+  ASSERT_TRUE(assert_equal(expected, result, tol));
 }
-
-/* ************************************************************************* */
-int main() {
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */
