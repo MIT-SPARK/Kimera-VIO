@@ -16,19 +16,18 @@
 #include <iostream>
 #include "Frame.h"
 #include "StereoFrame.h"
-#include "test_config.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+DECLARE_string(test_data_path);
 
 using namespace std;
 using namespace gtsam;
 using namespace VIO;
 using namespace cv;
 
-static const double tol = 1e-7;
-
-/* ************************************************************************* */
 TEST(testCodesignIdeas, pixelDisplacementLinearVelocity) {
   // create 3D point
   Point3 point3d = Point3(0, 0, 0);  // (0,0,0)
@@ -88,10 +87,3 @@ TEST(testCodesignIdeas, pixelDisplacementLinearVelocity) {
     // sp1.print("sp1: \n"); sp2.print("sp2: \n");
   }
 }
-
-/* ************************************************************************* */
-int main() {
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */
