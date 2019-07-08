@@ -130,7 +130,8 @@ Visualizer3D::Visualizer3D(VisualizationType viz_type, int backend_type)
 }
 
 /* -------------------------------------------------------------------------- */
-void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
+// Returns true if pipeline shutdown.
+bool Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
                         ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
                         std::function<void(VisualizerOutputPayload&)> display,
                         bool parallel_run) {
@@ -157,8 +158,9 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
     stats_visualizer.AddSample(spin_duration);
 
     // Break the while loop if we are in sequential mode.
-    if (!parallel_run) return;
+    if (!parallel_run) return false;
   }
+  return true;
   LOG(INFO) << "Visualizer successfully shutdown.";
 }
 

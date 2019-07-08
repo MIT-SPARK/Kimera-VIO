@@ -22,11 +22,11 @@
 
 #include <gtsam/navigation/ImuBias.h>
 
-#include "datasource/DataSource.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
 #include "StereoImuSyncPacket.h"
 #include "Visualizer3D.h"
+#include "datasource/DataSource.h"
 #include "mesh/Mesher.h"
 #include "pipeline/BufferControl.h"
 #include "pipeline/ProcessControl.h"
@@ -51,7 +51,7 @@ class Pipeline {
   SpinOutputContainer spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
-  void spinViz(bool parallel_run = true);
+  bool spinViz(bool parallel_run = true);
 
   // Spin the pipeline only once.
   void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
@@ -137,9 +137,9 @@ class Pipeline {
       const StereoFrame& last_stereo_keyframe);
 
   StatusSmartStereoMeasurements featureSelect(
-      const VioFrontEndParams& tracker_params,
-      const Timestamp& timestamp_k, const Timestamp& timestamp_lkf,
-      const gtsam::Pose3& W_Pose_Blkf, double* feature_selection_time,
+      const VioFrontEndParams& tracker_params, const Timestamp& timestamp_k,
+      const Timestamp& timestamp_lkf, const gtsam::Pose3& W_Pose_Blkf,
+      double* feature_selection_time,
       std::shared_ptr<StereoFrame>& stereoFrame_km1,
       const StatusSmartStereoMeasurements& smart_stereo_meas, int cur_kf_id,
       int save_image_selector, const gtsam::Matrix& curr_state_cov,

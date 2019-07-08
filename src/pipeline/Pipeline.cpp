@@ -73,8 +73,7 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
 
 namespace VIO {
 
-Pipeline::Pipeline(const PipelineParams& params,
-                   bool parallel_run)
+Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
     : backend_type_(params.backend_type_),
       vio_frontend_(nullptr),
       vio_backend_(nullptr),
@@ -105,15 +104,12 @@ Pipeline::Pipeline(const PipelineParams& params,
   static constexpr int saveImages =
       0;  // 0: don't show, 1: show, 2: write & save
   vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
-      params.imu_params_,
-      gtsam::imuBias::ConstantBias(),
-      frontend_params_, saveImages, std::string(),
-      FLAGS_log_output);
+      params.imu_params_, gtsam::imuBias::ConstantBias(), frontend_params_,
+      saveImages, std::string(), FLAGS_log_output);
 
   // Instantiate feature selector: not used in vanilla implementation.
   if (FLAGS_use_feature_selection) {
-    feature_selector_ =
-        FeatureSelector(frontend_params_, *backend_params_);
+    feature_selector_ = FeatureSelector(frontend_params_, *backend_params_);
   }
 }
 
@@ -230,12 +226,12 @@ void Pipeline::processKeyframe(
       CHECK_EQ(backend_type_, 1u);  // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
-      LOG_IF_EVERY_N(WARNING,
-                     backend_type_ == 1u &&
-                         (FLAGS_regular_vio_backend_modality == 2u ||
-                          FLAGS_regular_vio_backend_modality == 3u ||
-                          FLAGS_regular_vio_backend_modality == 4u),
-                     10)
+      LOG_IF_EVERY_N(
+          WARNING,
+          backend_type_ == 1u && (FLAGS_regular_vio_backend_modality == 2u ||
+                                  FLAGS_regular_vio_backend_modality == 3u ||
+                                  FLAGS_regular_vio_backend_modality == 4u),
+          10)
           << "Using Regular VIO without extracting planes from the scene. "
              "Set flag extract_planes_from_the_scene to true to enforce "
              "regularities.";
@@ -302,9 +298,10 @@ void Pipeline::pushToMesherInputQueue(
           vio_backend_->getBPoseLeftCam()))));  // Get camera pose.
 }
 
-void Pipeline::spinViz(bool parallel_run) {
+// Return true if pipeline shutdown.
+bool Pipeline::spinViz(bool parallel_run) {
   if (FLAGS_visualize) {
-    visualizer_.spin(
+    return visualizer_.spin(
         visualizer_input_queue_, visualizer_output_queue_,
         std::bind(&Pipeline::spinDisplayOnce, this, std::placeholders::_1),
         parallel_run);
@@ -374,12 +371,12 @@ void Pipeline::spinSequential() {
       CHECK_EQ(backend_type_, 1);  // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
-      LOG_IF_EVERY_N(WARNING,
-                     backend_type_ == 1u &&
-                         (FLAGS_regular_vio_backend_modality == 2u ||
-                          FLAGS_regular_vio_backend_modality == 3u ||
-                          FLAGS_regular_vio_backend_modality == 4u),
-                     10)
+      LOG_IF_EVERY_N(
+          WARNING,
+          backend_type_ == 1u && (FLAGS_regular_vio_backend_modality == 2u ||
+                                  FLAGS_regular_vio_backend_modality == 3u ||
+                                  FLAGS_regular_vio_backend_modality == 4u),
+          10)
           << "Using Regular VIO without extracting planes from the scene. "
              "Set flag extract_planes_from_the_scene to true to enforce "
              "regularities.";
@@ -436,15 +433,16 @@ void Pipeline::shutdownWhenFinished() {
   // Time to sleep between queries to the queues [in seconds].
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
   static constexpr int sleep_time = 1;
-  while (!is_initialized_ ||  // Loop while not initialized
-         !(stereo_frontend_input_queue_
-               .empty() &&  // Or, once init, data is not yet consumed.
-           stereo_frontend_output_queue_.empty() &&
-           !vio_frontend_->isWorking() && backend_input_queue_.empty() &&
-           backend_output_queue_.empty() && !vio_backend_->isWorking() &&
-           mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
-           !mesher_.isWorking() && visualizer_input_queue_.empty() &&
-           visualizer_output_queue_.empty() && !visualizer_.isWorking())) {
+  while (!shutdown_ &&         // Loop while not explicitly shutdown.
+         (!is_initialized_ ||  // Loop while not initialized
+                               // Or, once init, data is not yet consumed.
+          !(stereo_frontend_input_queue_.empty() &&
+            stereo_frontend_output_queue_.empty() &&
+            !vio_frontend_->isWorking() && backend_input_queue_.empty() &&
+            backend_output_queue_.empty() && !vio_backend_->isWorking() &&
+            mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
+            !mesher_.isWorking() && visualizer_input_queue_.empty() &&
+            visualizer_output_queue_.empty() && !visualizer_.isWorking()))) {
     VLOG_EVERY_N(10, 100)
         << "VIO pipeline status: \n"
         << "Initialized? " << is_initialized_ << '\n'
@@ -468,7 +466,9 @@ void Pipeline::shutdownWhenFinished() {
         << "Visualizer is working? " << visualizer_.isWorking();
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
-  shutdown();
+  LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
+               "idle.";
+  if (!shutdown_) shutdown();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -502,7 +502,8 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 
   ///////////////////////////// BACKEND ////////////////////////////////////////
   // Initialize Backend using GT if available.
-  std::shared_ptr<gtNavState> initialStateGT = std::shared_ptr<gtNavState>(nullptr);
+  std::shared_ptr<gtNavState> initialStateGT =
+      std::shared_ptr<gtNavState>(nullptr);
 
   // TODO: Include flag to start from external pose estimate (ROS)
   // if (flag_init_gt = 0) {
@@ -629,9 +630,9 @@ void Pipeline::spinDisplayOnce(
 
 /* -------------------------------------------------------------------------- */
 StatusSmartStereoMeasurements Pipeline::featureSelect(
-    const VioFrontEndParams& tracker_params,
-    const Timestamp& timestamp_k, const Timestamp& timestamp_lkf,
-    const gtsam::Pose3& W_Pose_Blkf, double* feature_selection_time,
+    const VioFrontEndParams& tracker_params, const Timestamp& timestamp_k,
+    const Timestamp& timestamp_lkf, const gtsam::Pose3& W_Pose_Blkf,
+    double* feature_selection_time,
     std::shared_ptr<StereoFrame>& stereoFrame_km1,
     const StatusSmartStereoMeasurements& status_smart_stereo_meas,
     int cur_kf_id, int save_image_selector, const gtsam::Matrix& curr_state_cov,
@@ -659,9 +660,7 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
           stereoFrame_km1, status_smart_stereo_meas.second, cur_kf_id,
           save_image_selector, tracker_params.featureSelectionCriterion_,
           tracker_params.featureSelectionNrCornersToSelect_,
-          tracker_params.maxFeatureAge_,
-          posesAtFutureKeyframes,
-          curr_state_cov, 
+          tracker_params.maxFeatureAge_, posesAtFutureKeyframes, curr_state_cov,
           std::string(),
           left_frame);  // last 2 are for visualization
   VLOG(100) << "Feature selection completed.";

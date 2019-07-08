@@ -104,7 +104,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Spin for Visualizer3D. Calling shutdown stops the visualizer.
-  void spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
+  bool spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
             ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
             std::function<void(VisualizerOutputPayload&)> display,
             bool parallel_run = true);
