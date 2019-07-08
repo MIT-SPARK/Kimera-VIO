@@ -303,7 +303,8 @@ void Pipeline::pushToMesherInputQueue(
           vio_backend_->getBPoseLeftCam()))));  // Get camera pose.
 }
 
-// Return true if pipeline shutdown.
+// Returns whether the visualizer_ is running or not. While in parallel mode,
+// it does not return unless shutdown.
 bool Pipeline::spinViz(bool parallel_run) {
   if (FLAGS_visualize) {
     return visualizer_.spin(
