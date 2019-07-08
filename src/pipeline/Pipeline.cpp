@@ -14,10 +14,15 @@
 
 #include "pipeline/Pipeline.h"
 
+#include <future>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+
 #include <gtsam/geometry/Pose3.h>
-#include <future>
 
 #include "RegularVioBackEnd.h"
 #include "StereoVisionFrontEnd.h"
