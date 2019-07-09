@@ -17,12 +17,12 @@
 #include <functional>
 #include <string>
 
+#include "ImuFrontEnd.h"
+#include "RegularVioBackEndParams.h"
 #include "StereoImuSyncPacket.h"
 #include "Tracker.h"
-#include "VioFrontEndParams.h"
 #include "VioBackEndParams.h"
-#include "RegularVioBackEndParams.h"
-#include "ImuFrontEnd.h"
+#include "VioFrontEndParams.h"
 
 #include <gtsam/navigation/ImuBias.h>
 
@@ -34,14 +34,11 @@ namespace VIO {
  * Compact storage of state.
  */
 class gtNavState {
-public:
+ public:
   gtNavState() = default;
-  gtNavState(const gtsam::Pose3& pose,
-             const gtsam::Vector3& velocity,
+  gtNavState(const gtsam::Pose3& pose, const gtsam::Vector3& velocity,
              const gtsam::imuBias::ConstantBias& imu_bias)
-    : pose_(pose),
-      velocity_(velocity),
-      imu_bias_(imu_bias) {}
+      : pose_(pose), velocity_(velocity), imu_bias_(imu_bias) {}
 
   gtsam::Pose3 pose_;
   gtsam::Vector3 velocity_;
@@ -61,11 +58,11 @@ public:
  * Store GT poses and GT info.
  */
 class GroundTruthData {
-public:
+ public:
   // Display all params.
   void print() const;
 
-public:
+ public:
   // Sensor extrinsics wrt. the body-frame
   gtsam::Pose3 body_Pose_cam_;
 
@@ -80,13 +77,13 @@ public:
  * Store a list of image names and provide functionalities to parse them.
  */
 class CameraImageLists {
-public:
+ public:
   bool parseCamImgList(const std::string& folderpath,
                        const std::string& filename);
-  inline size_t getNumImages() const {return img_lists.size();}
+  inline size_t getNumImages() const { return img_lists.size(); }
   void print() const;
 
-public:
+ public:
   std::string image_folder_path_;
   typedef std::vector<std::pair<long long, std::string> > ImgLists;
   ImgLists img_lists;
@@ -139,27 +136,27 @@ struct SpinOutputContainer {
 
   // Define getters for output values
 
-  inline const Timestamp getTimestamp() { return timestamp_kf_; }
+  inline Timestamp getTimestamp() { return timestamp_kf_; }
 
-  inline const gtsam::Pose3 getEstimatedPose() { return W_Pose_Blkf_; }
+  inline gtsam::Pose3 getEstimatedPose() { return W_Pose_Blkf_; }
 
-  inline const Vector3 getEstimatedVelocity() { return W_Vel_Blkf_; }
+  inline Vector3 getEstimatedVelocity() { return W_Vel_Blkf_; }
 
-  inline const gtsam::Matrix6 getEstimatedPoseCov() {
+  inline gtsam::Matrix6 getEstimatedPoseCov() {
     return gtsam::sub(State_Covariance_lkf_, 0, 6, 0, 6);
   }
 
-  inline const gtsam::Matrix3 getEstimatedVelCov() {
+  inline gtsam::Matrix3 getEstimatedVelCov() {
     return gtsam::sub(State_Covariance_lkf_, 6, 9, 6, 9);
   }
 
-  inline const ImuBias getEstimatedBias() { return imu_bias_lkf_; }
+  inline ImuBias getEstimatedBias() { return imu_bias_lkf_; }
 
-  inline const gtsam::Matrix6 getEstimatedBiasCov() {
+  inline gtsam::Matrix6 getEstimatedBiasCov() {
     return gtsam::sub(State_Covariance_lkf_, 9, 15, 9, 15);
   }
 
-  inline const DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
+  inline DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
 };
 
 struct PipelineParams {
@@ -167,14 +164,13 @@ struct PipelineParams {
   VioBackEndParamsConstPtr backend_params_;
   ImuParams imu_params_;
   int backend_type_;
-  PipelineParams(VioFrontEndParams frontend_params, 
-                 VioBackEndParamsConstPtr backend_params,
-                 ImuParams imu_params, 
-                 int backend_type) : 
-    frontend_params_(frontend_params),
-    backend_params_(backend_params),
-    imu_params_(imu_params),
-    backend_type_(backend_type) {}
+  PipelineParams(VioFrontEndParams frontend_params,
+                 VioBackEndParamsConstPtr backend_params, ImuParams imu_params,
+                 int backend_type)
+      : frontend_params_(frontend_params),
+        backend_params_(backend_params),
+        imu_params_(imu_params),
+        backend_type_(backend_type) {}
 };
 
 class DataProvider {
@@ -205,18 +201,21 @@ class DataProvider {
   VioFrontEndParams frontend_params_;
   ImuParams imu_params_;
 
-  int initial_k_; // start frame
-  int final_k_; // end frame
+  int initial_k_;  // start frame
+  int final_k_;    // end frame
   std::string dataset_path_;
 
   inline ImuParams getImuParams() const { return imu_params_; }
-  inline VioBackEndParamsConstPtr getBackendParams() const {return backend_params_;}
-  inline VioFrontEndParams getFrontendParams() const {return frontend_params_;}
+  inline VioBackEndParamsConstPtr getBackendParams() const {
+    return backend_params_;
+  }
+  inline VioFrontEndParams getFrontendParams() const {
+    return frontend_params_;
+  }
 
-protected:
+ protected:
   // Helper function to parse user-specified parameters.
   void parseParams();
-
 };
 
 }  // namespace VIO
