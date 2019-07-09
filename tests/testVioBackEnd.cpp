@@ -18,11 +18,13 @@
 #include <random>
 #include "datasource/DataSource.h"  // only for gtNavState...
 #include "VioBackEnd.h"
-#include "test_config.h"
 #include "utils/ThreadsafeImuBuffer.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;
@@ -144,11 +146,11 @@ TEST(testVio, GuessPoseFromIMUmeasurements) {
         VioBackEnd::guessPoseFromIMUmeasurements(accGyroRaw, n_gravity, round);
     Vector3 tExpected = Vector3::Zero();
     Vector3 tActual = poseActual.translation();
-    EXPECT(assert_equal(tExpected, tActual, tol));
+    EXPECT_TRUE(assert_equal(tExpected, tActual, tol));
 
     Unit3 n_gravityDir_actual = poseActual.rotation().rotate(Unit3(a));
     Unit3 n_gravityDir_expected = Unit3(n_gravity);
-    EXPECT(assert_equal(n_gravityDir_expected, n_gravityDir_actual, tol));
+    EXPECT_TRUE(assert_equal(n_gravityDir_expected, n_gravityDir_actual, tol));
 
     if (test > 0 &&
         test < 4) {  // case in which true gravity is along a single axis
@@ -157,13 +159,13 @@ TEST(testVio, GuessPoseFromIMUmeasurements) {
       Pose3 poseActual2 = VioBackEnd::guessPoseFromIMUmeasurements(
           accGyroRaw, n_gravity,
           round);  // by rounding we should filter out perturbation
-      EXPECT(assert_equal(poseActual, poseActual2, tol));
+      EXPECT_TRUE(assert_equal(poseActual, poseActual2, tol));
 
       // check that rounding filter out perturbation
       Vector3 n_gravity_perturbed = n_gravity + Vector3(-0.1, 0.1, 0.3);
       Pose3 poseActualRound = VioBackEnd::guessPoseFromIMUmeasurements(
           accGyroRaw, n_gravity_perturbed, round);
-      EXPECT(assert_equal(poseActual, poseActualRound, tol));
+      EXPECT_TRUE(assert_equal(poseActual, poseActualRound, tol));
     }
   }
 }
@@ -198,7 +200,7 @@ TEST(testVio, InitializeImuBias) {
   ImuBias imu_bias_expected(imu_mean.head(3), imu_mean.tail(3));
 
   // Compare the results!
-  EXPECT(assert_equal(imu_bias_expected, imu_bias_actual, tol));
+  EXPECT_TRUE(assert_equal(imu_bias_expected, imu_bias_actual, tol));
 }
 
 /* ************************************************************************* */
@@ -251,7 +253,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
       Point2 pt_left = cam_left.project(pts[l_id]);
       Point2 pt_right = cam_right.project(pts[l_id]);
       StereoPoint2 pt_lr(pt_left.x(), pt_right.x(), pt_left.y());
-      EXPECT_DOUBLES_EQUAL(pt_left.y(), pt_right.y(), 1e-7);
+      EXPECT_DOUBLE_EQ(pt_left.y(), pt_right.y());
       measurement_frame.push_back(make_pair(l_id, pt_lr));
     }
     all_measurements.push_back(
@@ -308,20 +310,20 @@ TEST(testVio, robotMovingWithConstantVelocity) {
     for (const auto& f : nlfg) {  // count the number of nonempty factors
       if (f) nrFactorsInSmoother++;
     }
-    cout << "at frame " << k << " nr factors: " << nrFactorsInSmoother << endl;
+    LOG(INFO) << "at frame " << k << " nr factors: " << nrFactorsInSmoother;
 
 #ifdef USE_COMBINED_IMU_FACTOR
-    EXPECT(nrFactorsInSmoother ==
-           3 + k + 8);  // 3 priors, 1 imu per time stamp, 8 smart factors
+    EXPECT_EQ(nrFactorsInSmoother,
+              3 + k + 8);  // 3 priors, 1 imu per time stamp, 8 smart factors
 #else
     if (k == 1) {
-      EXPECT(nrFactorsInSmoother ==
-             3 + 2 * k);  // 3 priors, 1 imu + 1 between per time stamp: we do
-                          // not include smart factors of length 1
+      EXPECT_EQ(nrFactorsInSmoother,
+                3 + 2 * k);  // 3 priors, 1 imu + 1 between per time stamp: we
+                             // do not include smart factors of length 1
     } else {
-      EXPECT(nrFactorsInSmoother ==
-             3 + 2 * k + 8);  // 3 priors, 1 imu + 1 between per time stamp, 8
-                              // smart factors
+      EXPECT_EQ(nrFactorsInSmoother,
+                3 + 2 * k + 8);  // 3 priors, 1 imu + 1 between per time stamp,
+                                 // 8 smart factors
     }
 #endif
     // Check the results!
@@ -332,22 +334,9 @@ TEST(testVio, robotMovingWithConstantVelocity) {
       Vector3 W_Vel_Blkf = results.at<Vector3>(Symbol('v', f_id));
       ImuBias imu_bias_lkf = results.at<ImuBias>(Symbol('b', f_id));
 
-      EXPECT(assert_equal(poses[f_id].first, W_Pose_Blkf, tol));
-      EXPECT((W_Vel_Blkf - v).norm() < tol);
-      EXPECT((imu_bias_lkf - imu_bias).vector().norm() < tol);
+      EXPECT_TRUE(assert_equal(poses[f_id].first, W_Pose_Blkf, tol));
+      EXPECT_LT((W_Vel_Blkf - v).norm(), tol);
+      EXPECT_LT((imu_bias_lkf - imu_bias).vector().norm(), tol);
     }
   }
 }
-
-/* ************************************************************************* */
-int main(int argc, char* argv[]) {
-  // Initialize Google's flags library.
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  // Initialize Google's logging library.
-  google::InitGoogleLogging(argv[0]);
-  // google::SetStderrLogging(google::INFO); // Used to debug.
-
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */

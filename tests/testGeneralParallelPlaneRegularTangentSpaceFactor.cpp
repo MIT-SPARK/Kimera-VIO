@@ -9,7 +9,7 @@
 /**
  * @file   testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
  * @brief  test GeneralParallelPlaneRegularTangentSpaceFactor
- * @author Antoni Rosinol Vidal
+ * @author Antoni Rosinol
  */
 
 #include <algorithm>
@@ -30,8 +30,9 @@
 #include "factors/ParallelPlaneRegularFactor.h"
 #include "factors/PointPlaneFactor.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace gtsam;
@@ -40,8 +41,8 @@ static const double tol = 1e-5;
 static const double der_tol = 1e-5;
 
 /**
-  * Test that error does give the right result when it is zero.
-/* ************************************************************************* */
+ * Test that error does give the right result when it is zero.
+ */
 TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, ErrorIsZero) {
   /// Plane keys.
   Key plane_key_1(1);
@@ -69,12 +70,12 @@ TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, ErrorIsZero) {
   /// Expected error.
   Vector3 expected_error = Vector3::Constant(0.0);
 
-  EXPECT(assert_equal(expected_error, error, tol))
+  ASSERT_TRUE(assert_equal(expected_error, error, tol));
 }
 
 /**
-  * Test that error does give the right result when it is not zero.
-/* ************************************************************************* */
+ * Test that error does give the right result when it is not zero.
+ */
 TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, ErrorOtherThanZero) {
   /// Plane keys.
   Key plane_key_1(1);
@@ -103,14 +104,14 @@ TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, ErrorOtherThanZero) {
   Vector3 expected_error;
   expected_error << 0.109764, -0.109764, 0.1;
 
-  EXPECT(assert_equal(expected_error, error, tol))
+  ASSERT_TRUE(gtsam::assert_equal(expected_error, error, tol));
 }
 
 /**
-  * Test that analytical jacobians equal numerical ones.
-  *
-/* ************************************************************************* */
-TEST(testGeneralParallelPlaneRegularFactor, Jacobians) {
+ * Test that analytical jacobians equal numerical ones.
+ *
+ */
+TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, Jacobians) {
   /// Plane keys.
   Key plane_key_1(1);
   Key plane_key_2(2);
@@ -147,25 +148,24 @@ TEST(testGeneralParallelPlaneRegularFactor, Jacobians) {
           plane_1, plane_2, der_tol);
 
   /// Verify the Jacobians are correct.
-  CHECK(assert_equal(H1Expected, H1Actual, tol));
-  CHECK(assert_equal(H2Expected, H2Actual, tol));
+  ASSERT_TRUE(assert_equal(H1Expected, H1Actual, tol));
+  ASSERT_TRUE(assert_equal(H2Expected, H2Actual, tol));
 }
 
 /**
-  * Test that optimization works.
-  * Two planes constrained together, using distance + parallelism factor,
-  *  in tangent space. With one of the planes having a prior.
-  *
-  *                  Prior
-  *                   +-+        Parallelism +
-  *                   +-+        Distance
-  *                    |           factor
-  *                +---+---+        +-+         +-------+
-  *                |Plane 1+--------+ +---------+Plane 2|
-  *                +-------+        +-+         +-------+
-  *
-/* ************************************************************************* */
-/* ************************************************************************* */
+ * Test that optimization works.
+ * Two planes constrained together, using distance + parallelism factor,
+ *  in tangent space. With one of the planes having a prior.
+ *
+ *                  Prior
+ *                   +-+        Parallelism +
+ *                   +-+        Distance
+ *                    |           factor
+ *                +---+---+        +-+         +-------+
+ *                |Plane 1+--------+ +---------+Plane 2|
+ *                +-------+        +-+         +-------+
+ *
+ */
 TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, PlaneOptimization) {
   NonlinearFactorGraph graph;
 
@@ -210,12 +210,5 @@ TEST(testGeneralParallelPlaneRegularTangentSpaceFactor, PlaneOptimization) {
   expected.insert(planeKey1, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
   expected.insert(planeKey2, OrientedPlane3(0.0, 0.0, 1.0, 2.0));
 
-  EXPECT(assert_equal(expected, result, tol))
+  ASSERT_TRUE(assert_equal(expected, result, tol));
 }
-
-/* ************************************************************************* */
-int main() {
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */

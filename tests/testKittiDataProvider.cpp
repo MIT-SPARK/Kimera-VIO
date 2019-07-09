@@ -19,27 +19,18 @@
 #include <random>
 
 #include "Visualizer3D.h"
-#include "test_config.h"
+DECLARE_string(test_data_path);
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace VIO;
 using namespace cv;
 
-static const double tol = 1e-1;
-
-/* ************************************************************************* */
-// TODO
+// TODO(Yun)
 TEST(testFrame, KittiDataProvider) {
   // TODO: test kitti data provider Check image lists and also imu data parsing
   // Construct a frame from image name.
 }
-
-/* ************************************************************************* */
-int main() {
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */
