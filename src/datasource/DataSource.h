@@ -201,8 +201,8 @@ class DataProvider {
   VioFrontEndParams frontend_params_;
   ImuParams imu_params_;
 
-  int initial_k_;  // start frame
-  int final_k_;    // end frame
+  FrameId initial_k_;  // start frame
+  FrameId final_k_;    // end frame
   std::string dataset_path_;
 
   inline ImuParams getImuParams() const { return imu_params_; }

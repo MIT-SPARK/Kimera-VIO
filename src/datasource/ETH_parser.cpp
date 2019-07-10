@@ -17,11 +17,33 @@
 #include "ImuFrontEnd-definitions.h"
 #include "StereoFrame.h"
 
+DEFINE_int32(skip_n_start_frames, 10, "Number of initial frames to skip.");
+DEFINE_int32(skip_n_end_frames, 100, "Number of final frames to skip.");
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::ETHDatasetParser() : DataProvider(), imuData_() {
-  parse(initial_k_, final_k_);
+  parse();
+
+  // Check that final_k_ is smaller than the number of images.
+  // And remove final frames.
+  const size_t& nr_images = getNumImages();
+  if (final_k_ >= nr_images) {
+    LOG(WARNING) << "Value for final_k, " << final_k_
+                 << " is larger or equal to the total"
+                 << " number of frames in dataset " << nr_images;
+    // Skip last frames which are typically problematic
+    // (IMU bumps, FOV occluded)...
+    CHECK_GT(FLAGS_skip_n_end_frames, 0);
+    CHECK_LT(FLAGS_skip_n_end_frames, nr_images);
+    final_k_ = nr_images - FLAGS_skip_n_end_frames;
+    LOG(WARNING) << "Using final_k = " << final_k_ << ", where we removed "
+                 << FLAGS_skip_n_end_frames
+                 << " frames to avoid bad IMU readings.";
+  }
+  CHECK_GT(final_k_, 0);
+  CHECK_LT(final_k_, nr_images);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -38,13 +60,11 @@ bool ETHDatasetParser::spin() {
   // Check also that the dataset has been correctly parsed.
 
   // Timestamp 10 frames before the first (for imu calibration)
-  // TODO(Toni): remove hardcoded 10
-  static constexpr size_t frame_offset_for_imu_calib = 10;
-  CHECK_GE(initial_k_, frame_offset_for_imu_calib)
+  CHECK_GE(initial_k_, FLAGS_skip_n_start_frames)
       << "Initial frame " << initial_k_ << " has to be larger than "
-      << frame_offset_for_imu_calib << " (needed for IMU calibration)";
+      << FLAGS_skip_n_start_frames << " (needed for IMU calibration)";
   Timestamp timestamp_last_frame =
-      timestampAtFrame(initial_k_ - frame_offset_for_imu_calib);
+      timestampAtFrame(initial_k_ - FLAGS_skip_n_start_frames);
 
   // Spin.
   const StereoMatchingParams& stereo_matching_params =
@@ -67,6 +87,7 @@ void ETHDatasetParser::spinOnce(
     const CameraParams& right_cam_info, const gtsam::Pose3& camL_pose_camR) {
   Timestamp timestamp_frame_k = timestampAtFrame(k);
   ImuMeasurements imu_meas;
+  CHECK_LT(timestamp_last_frame, timestamp_frame_k);
   CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
         imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
             timestamp_last_frame, timestamp_frame_k, &imu_meas.timestamps_,
@@ -114,48 +135,16 @@ void ETHDatasetParser::spinOnce(
 }
 
 /* -------------------------------------------------------------------------- */
-void ETHDatasetParser::parse(size_t initial_k, size_t final_k) {
-  CHECK_NOTNULL(&initial_k);
-  CHECK_NOTNULL(&final_k);
-
+void ETHDatasetParser::parse() {
   VLOG(100) << "Using dataset path: " << dataset_path_;
   // Parse the dataset (ETH format).
-  static const std::string leftCameraName = "cam0";
-  static const std::string rightCameraName = "cam1";
-  static const std::string imuName = "imu0";
-  static const std::string gtSensorName = "state_groundtruth_estimate0";
-  parseDataset(dataset_path_, leftCameraName, rightCameraName, imuName,
-               gtSensorName);
+  static const std::string left_cam_name = "cam0";
+  static const std::string right_cam_name = "cam1";
+  static const std::string imu_name = "imu0";
+  static const std::string ground_truth_name = "state_groundtruth_estimate0";
+  parseDataset(dataset_path_, left_cam_name, right_cam_name, imu_name,
+               ground_truth_name);
   print();
-
-  // Start processing dataset from frame initial_k.
-  // Useful to skip a bunch of images at the beginning (imu calibration).
-  CHECK_GE(initial_k, 0);
-  CHECK_GE(initial_k, 10)
-      << "initial_k should be >= 10 for IMU bias initialization";
-
-  // Finish processing dataset at frame final_k.
-  // Last frame to process (to avoid processing the entire dataset),
-  // skip last frames.
-  CHECK_GT(final_k, 0);
-
-  const size_t& nr_images = getNumImages();
-  if (final_k > nr_images) {
-    LOG(WARNING) << "Value for final_k, " << final_k << " is larger than total"
-                 << " number of frames in dataset " << nr_images;
-    // Skip last frames which are typically problematic
-    // (IMU bumps, FOV occluded)...
-    static constexpr size_t skip_n_end_frames = 100;
-    final_k = nr_images - skip_n_end_frames;
-    LOG(WARNING) << "Using final_k = " << final_k << ", where we removed "
-                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
-  }
-  CHECK(final_k > initial_k)
-      << "Value for final_k (" << final_k << ") is smaller than value for"
-      << " initial_k (" << initial_k << ").";
-
-  LOG(INFO) << "Running dataset between frame " << initial_k << " and frame "
-            << final_k;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -596,6 +585,8 @@ std::pair<double, double> ETHDatasetParser::computePoseErrors(
 
 /* -------------------------------------------------------------------------- */
 Timestamp ETHDatasetParser::timestampAtFrame(const FrameId& frame_number) {
+  DCHECK_LT(frame_number,
+            camera_image_lists_[camera_names_[0]].img_lists.size());
   return camera_image_lists_[camera_names_[0]].img_lists[frame_number].first;
 }
 

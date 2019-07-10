@@ -21,10 +21,10 @@ DEFINE_int32(backend_type, 0,
              "0: VioBackEnd\n"
              "1: RegularVioBackEnd");
 
-DEFINE_int32(initial_k, 50,
+DEFINE_int64(initial_k, 50,
              "Initial frame to start processing dataset, "
              "previous frames will not be used.");
-DEFINE_int32(final_k, 10000,
+DEFINE_int64(final_k, 10000,
              "Final frame to finish processing dataset, "
              "subsequent frames will not be used.");
 DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
@@ -83,11 +83,15 @@ void GroundTruthData::print() const {
 ////////////////////////////////////////////////////////////////////////////////
 //////////////// FUNCTIONS OF THE CLASS DataProvider                  //////////
 ////////////////////////////////////////////////////////////////////////////////
-DataProvider::DataProvider() :
-    initial_k_(FLAGS_initial_k),
-    final_k_(FLAGS_final_k),
-    dataset_path_(FLAGS_dataset_path) {
-  parseParams(); // parse backend/frontend parameters
+DataProvider::DataProvider()
+    : initial_k_(static_cast<FrameId>(FLAGS_initial_k)),
+      final_k_(static_cast<FrameId>(FLAGS_final_k)),
+      dataset_path_(FLAGS_dataset_path) {
+  CHECK_GE(initial_k_, 0);
+  CHECK_GT(final_k_, initial_k_)
+      << "Value for final_k (" << final_k_ << ") is smaller than value for"
+      << " initial_k (" << initial_k_ << ").";
+  parseParams();  // parse backend/frontend parameters
 }
 
 DataProvider::~DataProvider() {
@@ -172,11 +176,9 @@ void DataProvider::parseParams() {
 }
 
 const PipelineParams DataProvider::getParams() {
-  PipelineParams pp(getFrontendParams(),
-                    getBackendParams(),
-                    getImuParams(),
+  PipelineParams pp(getFrontendParams(), getBackendParams(), getImuParams(),
                     FLAGS_backend_type);
-  return pp; 
+  return pp;
 }
 
 }  // namespace VIO
