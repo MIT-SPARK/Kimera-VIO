@@ -8,7 +8,7 @@ DATASET_PATH="/home/luca/data/euroc/V1_01_easy"
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
 
-# Specify: 0 to run on EuRoC data, 1 to run on Kitti 
+# Specify: 0 to run on EuRoC data, 1 to run on Kitti
 DATASET_TYPE=0
 
 # Specify: 1 to run pipeline in parallel mode, 0 to run sequentially.
@@ -30,7 +30,7 @@ else
       -p) DATASET_PATH=$2
           echo "Using dataset at path: $DATASET_PATH"
           shift ;;
-        # Option -d, set dataset type 
+        # Option -d, set dataset type
       -d) DATASET_TYPE=$2
           echo "Using dataset type: $DATASET_TYPE"
           echo "0 is for euroc and 1 is for kitti"
@@ -94,6 +94,7 @@ echo """ Launching:
   --flagfile="../params/flags/VioBackEnd.flags" \
   --flagfile="../params/flags/RegularVioBackEnd.flags" \
   --flagfile="../params/flags/Visualizer3D.flags" \
+  --flagfile="../params/flags/EthParser.flags" \
   --v=0 \
   --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
   --backend_type="$BACKEND_TYPE" \
