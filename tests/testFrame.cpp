@@ -127,7 +127,7 @@ TEST(testFrame, CalibratePixel) {
 /* ************************************************************************* */
 // TODO: Create test for Calibrate Pixel with pinhole equidistant model
 /*
-TEST(testFrame, CalibratePixel) {
+TEST(testFrame, DISABLED_CalibratePixel) {
   // Perform a scan on the grid to verify the correctness of pixel calibration!
   const int numTestRows = 8;
   const int numTestCols = 8;
