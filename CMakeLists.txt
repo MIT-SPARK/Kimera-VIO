@@ -109,11 +109,8 @@ target_compile_options(SparkVio
 target_compile_features(SparkVio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
-add_executable(stereoVIO ./examples/stereoVIO.cpp)
-target_link_libraries(stereoVIO PUBLIC SparkVio::SparkVio)
-
-add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::SparkVio)
+add_executable(spark_vio ./examples/SparkVio.cpp)
+target_link_libraries(spark_vio PUBLIC SparkVio::SparkVio)
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
 target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
