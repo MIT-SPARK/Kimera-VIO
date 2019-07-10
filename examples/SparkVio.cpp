@@ -12,6 +12,10 @@
  * @author Antoni Rosinol, Luca Carlone, Yun Chang
  */
 
+#include <future>
+#include <memory>
+#include <utility>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -21,8 +25,6 @@
 #include "pipeline/Pipeline.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
-
-#include <future>
 
 #include "StereoImuSyncPacket.h"
 
