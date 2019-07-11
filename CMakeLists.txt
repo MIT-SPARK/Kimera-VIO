@@ -49,7 +49,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(SparkVio SHARED
+add_library(sparkvio SHARED
   src/ETH_parser.cpp
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
@@ -71,7 +71,7 @@ add_library(SparkVio SHARED
   src/Visualizer3D.cpp "")
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(SparkVio::SparkVio ALIAS SparkVio)
+add_library(SparkVio::SparkVio ALIAS sparkvio)
 
 ### Add source code for data provider.
 include(src/datasource/CMakeLists.txt)
@@ -86,7 +86,7 @@ include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
 
-target_link_libraries(SparkVio
+target_link_libraries(sparkvio
   PRIVATE
     opengv
   PUBLIC
@@ -97,17 +97,17 @@ target_link_libraries(SparkVio
     gtsam
     gtsam_unstable
 )
-target_include_directories(SparkVio
+target_include_directories(sparkvio
   PUBLIC
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
-target_compile_options(SparkVio
+target_compile_options(sparkvio
   PRIVATE -Wall -pipe
   PUBLIC -march=native) # Remove these
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(SparkVio PUBLIC
+target_compile_features(sparkvio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
@@ -118,9 +118,6 @@ target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
 
 #add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
 #target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::SparkVio)
-
-add_executable(stereoVIOKitti ./examples/stereoVIOKitti.cpp)
-target_link_libraries(stereoVIOKitti PUBLIC SparkVio::SparkVio)
 
 ### Add testing
 # Download and unpack googletest at configure time
@@ -161,7 +158,6 @@ add_executable(testSparkVio
   tests/testGeneralParallelPlaneRegularBasicFactor.cpp
   tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testImuFrontEnd.cpp
-  tests/testKittiDataProvider.cpp # TODO
   # tests/testMesher.cpp # rotten
   tests/testParallelPlaneRegularBasicFactor.cpp
   tests/testParallelPlaneRegularTangentSpaceFactor.cpp
@@ -271,7 +267,7 @@ set(EXPORTED_DEPENDENCIES "")
 list(APPEND EXPORTED_DEPENDENCIES "glog::glog")
 list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
 
-export(TARGETS SparkVio ${EXPORTED_DEPENDENCIES}
+export(TARGETS sparkvio ${EXPORTED_DEPENDENCIES}
        FILE SparkVioTargets.cmake)
 export(PACKAGE SparkVio)
 
