@@ -5,7 +5,7 @@ if (NOT __GLOG_INCLUDED)
   set(__GLOG_INCLUDED TRUE)
 
   # try the system-wide glog first
-  find_package(glog QUIET)
+  #find_package(glog QUIET)
   if (GLOG_FOUND)
     message(STATUS "FOUND glog!")
     message(STATUS "GLOG libs: ${GLOG_LIBRARIES}")
