@@ -13,7 +13,7 @@ message(STATUS "==============================================================="
 message(STATUS "====================  Dependencies ============================")
 
 ### Include the boost directory
-find_package(Boost REQUIRED COMPONENTS filesystem)
+find_package(Boost REQUIRED COMPONENTS filesystem serialization regex timer date_time thread)
 if(NOT TARGET Boost::boost)
   add_library(Boost::boost INTERFACE IMPORTED)
   set_target_properties(Boost::boost PROPERTIES
@@ -212,7 +212,11 @@ configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/SparkVioConfig.cma
 #    DESTINATION ${INSTALL_CONFIGDIR}
 #)
 
-export(TARGETS sparkvio gflags::gflags glog::glog
+set(EXPORTED_DEPENDENCIES "")
+list(APPEND EXPORTED_DEPENDENCIES "glog::glog")
+list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
+
+export(TARGETS sparkvio ${EXPORTED_DEPENDENCIES}
        FILE SparkVioTargets.cmake)
 export(PACKAGE SparkVio)
 
