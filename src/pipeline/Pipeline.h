@@ -125,7 +125,7 @@ class Pipeline {
                       const StereoFrame &stereo_frame_lkf);
 
   // Re-initialize pipeline.
-  bool reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.

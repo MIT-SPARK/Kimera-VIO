@@ -122,6 +122,27 @@ public:
     }
   }
 
+  /*ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
+              const ImuBias& imu_bias)
+    : imu_params_(imu_params) {
+    pim_ = VIO::make_unique<PreintegratedImuMeasurements>(
+    boost::make_shared<PreintegratedImuMeasurements::Params>(imu_params_),
+    imu_bias);
+    CHECK(pim_);
+    {
+      std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+      latest_imu_bias_ = imu_bias;
+    }
+    if (VLOG_IS_ON(10)) {
+      LOG(ERROR) << "IMU PREINTEGRATION PARAMS GIVEN TO IMU FRONTEND.";
+      imu_params_.print("");
+      LOG(ERROR) << "IMU BIAS GIVEN TO IMU FRONTEND AT CONSTRUCTION:\n "
+                 << getCurrentImuBias();
+      LOG(ERROR) << "IMU PREINTEGRATION COVARIANCE: ";
+      pim_->print();
+    }
+  } */
+
   /* ------------------------------------------------------------------------ */
   PreintegratedImuMeasurements preintegrateImuMeasurements(
       const ImuStampS& imu_stamps,

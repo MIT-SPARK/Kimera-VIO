@@ -38,6 +38,7 @@ public:
   std::ofstream outputFile_;
   std::ofstream outputFile_posesVIO_;
   std::ofstream outputFile_posesVIO_csv_;
+  std::ofstream outputFile_posesVIO_csv_pipeline_;
   std::ofstream outputFile_posesGT_;
   std::ofstream outputFile_landmarks_;
   std::ofstream outputFile_normals_;
@@ -81,6 +82,9 @@ public:
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResultsCSV(const VioBackEndOutputPayload& vio_output);
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logPipelineResultsCSV(const SpinOutputContainer& vio_output);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(

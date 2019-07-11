@@ -163,7 +163,13 @@ public:
   StereoFrontEndOutputPayload spinOnce(
       const std::shared_ptr<StereoFrontEndInputPayload>& input);
 
-private:
+  /* ------------------------------------------------------------------------ */
+  // Get IMU Params for IMU Frontend.
+  // gtsam::PreintegratedImuMeasurements::Params getImuFrontEndParams() {
+  //  return imu_frontend_->getImuParams();
+  //}
+
+ private:
   /* ------------------------------------------------------------------------ */
   // Frontend main function.
   StatusSmartStereoMeasurements processStereoFrame(

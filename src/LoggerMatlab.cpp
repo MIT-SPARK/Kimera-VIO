@@ -102,6 +102,12 @@ void LoggerMatlab::openLogFiles(int i, const std::string& output_file_name,
         output_path_ + (output_file_name.empty() ? "/output_posesVIO.csv"
                                                  : output_file_name),
         outputFile_posesVIO_csv_, open_file_in_append_mode);
+  if (i == 14 || i == -1)
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_posesVIO_pipeline.csv"
+                                              : output_file_name),
+                          outputFile_posesVIO_csv_pipeline_,
+                          open_file_in_append_mode);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -120,6 +126,7 @@ void LoggerMatlab::closeLogFiles(int i) {
   if (i == 11 || i == -1) outputFile_timingOverall_.close();
   if (i == 12 || i == -1) outputFile_frontend_.close();
   if (i == 13 || i == -1) outputFile_posesVIO_csv_.close();
+  if (i == 14 || i == -1) outputFile_posesVIO_csv_pipeline_.close();
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -298,6 +305,42 @@ void LoggerMatlab::logBackendResultsCSV(
       << imu_bias_gyro(0) << ", " << imu_bias_gyro(1) << ", "
       << imu_bias_gyro(2) << ", " << imu_bias_acc(0) << ", " << imu_bias_acc(1)
       << ", " << imu_bias_acc(2) << std::endl;
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+void LoggerMatlab::logPipelineResultsCSV(
+    const SpinOutputContainer& vio_output) {
+  // We log the poses in csv format for later alignement and analysis.
+  /*static bool is_header_written = false;
+  if (!is_header_written) {
+    outputFile_posesVIO_csv_pipeline_
+        << "timestamp, x, y, z, qx, qy, qz, qw, vx, vy, vz,"
+           " bgx, bgy, bgz, bax, bay, baz"
+        << std::endl;
+    is_header_written = true;
+  }*/
+  const auto& w_pose_blkf_trans =
+      vio_output.W_Pose_Blkf_.translation().transpose();
+  const auto& w_pose_blkf_rot = vio_output.W_Pose_Blkf_.rotation().quaternion();
+  const auto& w_vel_blkf = vio_output.W_Vel_Blkf_.transpose();
+  const auto& imu_bias_gyro = vio_output.imu_bias_lkf_.gyroscope().transpose();
+  const auto& imu_bias_acc =
+      vio_output.imu_bias_lkf_.accelerometer().transpose();
+  if (vio_output.timestamp_kf_ != -1) {
+    outputFile_posesVIO_csv_pipeline_
+        // TODO Luca: is W_Vel_Blkf_ at timestamp_lkf or timestamp_kf?
+        // I just want to log latest vio estimate and correct timestamp...
+        << vio_output.timestamp_kf_ << ", " << w_pose_blkf_trans.x() << ", "
+        << w_pose_blkf_trans.y() << ", " << w_pose_blkf_trans.z() << ", "
+        << w_pose_blkf_rot(1) << ", "  // q_x
+        << w_pose_blkf_rot(2) << ", "  // q_y
+        << w_pose_blkf_rot(3) << ", "  // q_z
+        << w_pose_blkf_rot(0) << ", "  // q_w
+        << w_vel_blkf(0) << ", " << w_vel_blkf(1) << ", " << w_vel_blkf(2)
+        << ", " << imu_bias_gyro(0) << ", " << imu_bias_gyro(1) << ", "
+        << imu_bias_gyro(2) << ", " << imu_bias_acc(0) << ", "
+        << imu_bias_acc(1) << ", " << imu_bias_acc(2) << std::endl;
+  }
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
