@@ -19,6 +19,8 @@
 #include <atomic>
 #include <memory>
 #include <thread>
+#include <utility>  // for make_pair
+#include <vector>
 
 #include "ETH_parser.h"
 #include "LoggerMatlab.h"
