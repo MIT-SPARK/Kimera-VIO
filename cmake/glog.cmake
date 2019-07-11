@@ -6,7 +6,7 @@ if (NOT __GLOG_INCLUDED)
 
   # try the system-wide glog first
   set(GLOG_PREFER_EXPORTED_GLOG_CMAKE_CONFIGURATION TRUE)
-  find_package(Glog QUIET)
+  #find_package(Glog QUIET)
   if (glog_FOUND)
     message(STATUS "FOUND glog!:  ${glog_DIR}")
     # glog wraps the include directories into the exported glog::glog target.
