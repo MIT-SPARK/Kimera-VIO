@@ -47,6 +47,10 @@ public:
       int min_Fpoints=12,
       int max_ransac_iterations=500,
       double ransac_probability=0.99,
+      double ransac_theshold_stereo=0.3,
+      bool ransac_randomize_stereo=true,
+      int max_ransac_iterations_stereo=100,
+      double ransac_probability_stereo=0.995,
       double max_reprojection_error=2.0,
       double max_neighbor_ratio=0.6,
       double focal_length=1.0,
@@ -59,7 +63,8 @@ public:
       int WTA_K=2,
       int scoreType=cv::ORB::HARRIS_SCORE,
       int patchSize=31,
-      int fastThreshold=20)
+      int fastThreshold=20,
+      double lowe_ratio=0.5)
       : vocabulary_path_(vocabulary_path),
         image_height_(image_height),
         image_width_(image_width),
@@ -78,6 +83,10 @@ public:
         min_Fpoints_(min_Fpoints),
         max_ransac_iterations_(max_ransac_iterations),
         ransac_probability_(ransac_probability),
+        ransac_threshold_stereo_(ransac_theshold_stereo),
+        ransac_randomize_stereo_(ransac_randomize_stereo),
+        max_ransac_iterations_stereo_(max_ransac_iterations_stereo),
+        ransac_probability_stereo_(ransac_probability_stereo),
         max_reprojection_error_(max_reprojection_error),
         max_neighbor_ratio_(max_neighbor_ratio),
         focal_length_(focal_length),
@@ -90,7 +99,8 @@ public:
         WTA_K_(WTA_K),
         scoreType_(scoreType),
         patchSize_(patchSize),
-        fastThreshold_(fastThreshold) {
+        fastThreshold_(fastThreshold),
+        lowe_ratio_(lowe_ratio){
     // Trivial sanity checks:
     CHECK(image_width_ > 0);
     CHECK(image_height_ > 0);
@@ -123,6 +133,10 @@ public:
   int min_Fpoints_; // Min number of inliers when computing a fundamental matrix
   int max_ransac_iterations_; // Max number of iterations of RANSAC
   double ransac_probability_; // Success probability of RANSAC
+  double ransac_threshold_stereo_; // 0.3 for 3point method, 3-7 for 1-point
+  bool ransac_randomize_stereo_; // ?? TODO
+  int max_ransac_iterations_stereo_; // TODO
+  double ransac_probability_stereo_;
   double max_reprojection_error_; // Max reprojection error of fundamental mats
 
   // This is to compute correspondences:
@@ -132,7 +146,7 @@ public:
   double focal_length_; // Focal length of camera
   cv::Point2d principle_point_; // Principle point of the camera
   //////////////////////////////////////////////////////////////////////////////
-
+  // TODO: move stereo ransac parameters separately, and reorganize
   ///////////////////////// ORB feature detector params ////////////////////////
   int nfeatures_;
   float scaleFactor_;
@@ -144,6 +158,8 @@ public:
   int patchSize_;
   int fastThreshold_;
   //////////////////////////////////////////////////////////////////////////////
+
+  double lowe_ratio_;
 
   virtual ~LoopClosureDetectorParams() = default;
 

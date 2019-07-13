@@ -1,3 +1,4 @@
+%YAML:1.0
 # General sensor definitions.
 sensor_type: camera
 comment: VI-Sensor cam0 (MT9M034)
@@ -18,4 +19,3 @@ camera_model: pinhole
 intrinsics: [458.654, 457.296, 367.215, 248.375] #fu, fv, cu, cv
 distortion_model: radial-tangential
 distortion_coefficients: [-0.28340811, 0.07395907, 0.00019359, 1.76187114e-05]
-

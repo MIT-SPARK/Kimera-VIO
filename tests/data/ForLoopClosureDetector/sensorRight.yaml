@@ -1,3 +1,4 @@
+%YAML:1.0
 # General sensor definitions.
 sensor_type: camera
 comment: VI-Sensor cam1 (MT9M034)

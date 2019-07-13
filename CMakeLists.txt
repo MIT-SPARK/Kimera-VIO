@@ -192,6 +192,8 @@ add_executable(testSparkVio
   tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testImuFrontEnd.cpp
   tests/testKittiDataProvider.cpp # TODO
+  tests/testLoopClosureDetector.cpp
+  tests/testLoopClosureDetectorParams.cpp
   # tests/testMesher.cpp # rotten
   tests/testParallelPlaneRegularBasicFactor.cpp
   tests/testParallelPlaneRegularTangentSpaceFactor.cpp
