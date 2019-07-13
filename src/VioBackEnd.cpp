@@ -2231,34 +2231,30 @@ std::vector<gtsam::Pose3> VioBackEnd::addInitialVisualStatesAndOptimize(
 
   VLOG(10) << "Initialisation landmarks added.";
 
-  // TODO (Sandro): Do we want to add the option to add zero velocity updates?? 
-  // when disparity between frames is zero...
-
-  // Perform Bundle Adjustment and retrieve camera poses (v0_T_vk)
-  // v0 is the initial camera frame
+  // Perform Bundle Adjustment and retrieve body poses (b0_T_bk)
+  // b0 is the initial body frame
   std::vector<gtsam::Pose3> estimated_poses = optimizeInitialVisualStates(
       input.front()->timestamp_kf_nsec_, curr_kf_id_, vio_params_.numOptimize_);
 
   VLOG(10) << "Initial bundle adjustment completed.";
 
-  // Convert poses into body frame (b_T_cam*cam0_T_camk*cam_T_b --> b0_T_bk).
   // All relative to initial pose, as we need to fix x0 from the BA.
   gtsam::Pose3 initial_pose;
   for (int j = 0; j < estimated_poses.size(); j++) {
-    estimated_poses.at(j) = B_Pose_leftCam_ * estimated_poses.at(j) * B_Pose_leftCam_.inverse();
     if (j==0) {
       initial_pose = estimated_poses.at(0);
-      estimated_poses.at(j) = gtsam::Pose3();
+      estimated_poses.at(0) = gtsam::Pose3();
     } else {
       estimated_poses.at(j) = initial_pose.between(estimated_poses.at(j));
     }
     if (VLOG_IS_ON(10))
       estimated_poses.at(j).print();
   }
-  // Return poses (b0_T_bk, for k in 1:N).
+  // Return poses (b0_T_bk, for k in 0:N).
   // Since we need to optimize for poses with observed landmarks, the
   // ransac estimate for the first pose is not used, as there are no observations
   // for the previous keyframe (which doesn't exist).
+  CHECK_EQ(input.size(), estimated_poses.size());
   return estimated_poses;
 }
 
@@ -2311,6 +2307,16 @@ void VioBackEnd::addInitialVisualState(
   addStereoMeasurementsToFeatureTracks(curr_kf_id_, smartStereoMeasurements_kf,
                                        &landmarks_kf);
 
+  // Add zero velocity update if no-motion detected
+  TrackingStatus kfTrackingStatus_mono =
+      status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
+  if (kfTrackingStatus_mono == TrackingStatus::LOW_DISPARITY
+      && curr_kf_id_!=0) {
+    VLOG(10) << "No-motion factor added in Bundle-Adjustment.\n";
+    LOG(WARNING) << "No-motion factor added in Bundle-Adjustment.\n";
+    addNoMotionFactor(last_kf_id_, curr_kf_id_);
+  }
+
   if (verbosity_ >= 8) {
     printFeatureTracks();
   }
@@ -2348,18 +2354,21 @@ std::vector<gtsam::Pose3> VioBackEnd::optimizeInitialVisualStates(
                             new_imu_prior_and_other_factors_.end());
 
   // Print graph before optimization
-  if (VLOG_IS_ON(10))
+  // TODO(Sandro): Change back verbosity level!
+  if (VLOG_IS_ON(2))
     new_factors_tmp.print();
 
   // Levenberg-Marquardt optimization
   gtsam::LevenbergMarquardtParams lmParams;
   gtsam::LevenbergMarquardtOptimizer initial_bundle_adjustment(
       new_factors_tmp, new_values_, lmParams);
-  VLOG(10) << "LM optimizer created with error: " << initial_bundle_adjustment.error();
+  VLOG(10) << "LM optimizer created with error: " 
+           << initial_bundle_adjustment.error();
 
   // Optimize and get values
   gtsam::Values initial_values = initial_bundle_adjustment.optimize();
   VLOG(10) << "Levenberg Marquardt optimizer done.";
+  // Query optimized poses in body frame (b0_T_bk)
   std::vector<gtsam::Pose3> initial_states;
   BOOST_FOREACH (const gtsam::Values::ConstKeyValuePair &key_value,
                  initial_values) {
@@ -2367,14 +2376,21 @@ std::vector<gtsam::Pose3> VioBackEnd::optimizeInitialVisualStates(
   }
   VLOG(10) << "Initialization values retrieved.";
 
+  // TODO(Sandro): Implement check on initial and final covariance
   // Quality check on Bundle-Adjustment
-  //gtsam::Marginals marginals(new_factors_tmp, initial_values,
-  //    gtsam::Marginals::Factorization::QR);
-  //gtsam::Matrix initial_covariance =
-  //  marginals.marginalCovariance(initial_values.begin()->key);
-  //gtsam::Matrix final_covariance =
-  //  marginals.marginalCovariance(initial_values.end()->key);
+  LOG(INFO) << "Initial states retrieved.\n";
+  /*std::vector<gtsam::Matrix> initial_covariances;
+  gtsam::Marginals marginals(new_factors_tmp, initial_values,
+      gtsam::Marginals::Factorization::QR);
+  //  gtsam::Marginals::Factorization::CHOLESKY);
+  initial_covariances.push_back(
+          marginals.marginalCovariance(gtsam::Symbol('x', 0)));
+  //initial_covariances.push_back(
+  //        marginals.marginalCovariance(gtsam::Symbol('x', curr_kf_id_)));
+  LOG(INFO) << "Initial state covariance: (x, y, z)\n"
+            << gtsam::sub(initial_covariances.at(0), 3, 6, 3, 6);
   //CHECK(gtsam::assert_equal(initial_covariance, final_covariance, 1e-2));
+  */
 
   /////////////////////////// BOOKKEEPING //////////////////////////////////////
 

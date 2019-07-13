@@ -163,6 +163,69 @@ bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
 void OnlineGravityAlignment::estimateGyroscopeBias(
           const VisualInertialFrames &vi_frames,
           gtsam::Vector3 *gyro_bias) {
+
+  /*
+  // TODO(Sandro): Implement AHRS Factor graph for bias estimation
+  gtsam::Values initial;
+  initial.insert(gtsam::Symbol('R', 0), vi_frames.at(0).b0_R_bk());
+
+  // Create non-linear factor graph
+  gtsam::NonlinearFactorGraph nfg;
+
+  // Prior noise model in world frame
+  Matrix3 rot_prior_covariance = Matrix3::Zero();
+  gtsam::SharedNoiseModel noise_init_rot =
+      gtsam::noiseModel::Gaussian::Covariance(rot_prior_covariance);
+  rot_prior_covariance.diagonal() = sigma*sigma*gtsam::Vector3::Ones();
+
+  // Add rotation prior for initial rotation
+  Matrix3 B_Rot_W = vi_frames.at(0).b0_R_bk.transpose();
+  nfg.push_back(boost::make_shared<gtsam::PriorFactor<gtsam::Rot3>>(
+          gtsam::Symbol('R', 0), vi_frames.at(0).b0_R_bk(),
+                B_Rot_W * noise_init_rot * B_Rot_W));
+
+  // Loop through all initialization frame
+  for (int i = 0; i < vi_frames.size(); i++) {
+    auto frame_id = i+1;
+    auto frame_i = std::next(vi_frames.begin(), i);
+
+    // Add initial value for rotation from SfM
+    initial.insert(gtsam::Symbol('R', frame_id), frame_i->b0_R_bkp1());
+
+    // Add rotation prior for rotation from SfM
+    B_Rot_W = frame_i->b0_R_bkp1.transpose();
+    nfg.push_back(boost::make_shared<gtsam::PriorFactor<gtsam::Rot3>>(
+          gtsam::Symbol('R', frame_id), frame_i->b0_R_bkp1(),
+                B_Rot_W * noise_init_rot * B_Rot_W));
+
+    // Add AHRS factor
+    Vector3 kZeroOmegaCoriolis(0,0,0);
+    gtsam::AHRSFactor factor(gtsam::Symbol('R', i), 
+                      gtsam::Symbol('R', frame_id),
+                      gtsam::Symbol('b', 0),
+                      frame_i->pim_, 
+                      kZeroOmegaCoriolis);
+  }
+  initial.insert(gtsam::Symbol('b', 0), gtsam::Vector3());
+
+  // Levenberg-Marquardt optimization
+  gtsam::LevenbergMarquardtParams lmParams;
+  gtsam::LevenbergMarquardtOptimizer bias_estimator(
+                                      nfg, initial, lmParams);
+  VLOG(10) << "LM Bias estimator created with error: " 
+           << bias_estimator.error();
+
+  // Optimize and get values
+  gtsam::Values initial_values = bias_estimator.optimize();
+  VLOG(10) << "LM Bias estimator done.";
+  *gyro_bias = initial_values.at<gtsam::Vector3>(gtsam::Symbol('b', 0));
+
+  // Logging of solution
+  if (VLOG_IS_ON(5)) { nfg.print("\nNon-linear factor graph:\n"); }
+  VLOG(5) << "Gyro bias estimation:\n" << *gyro_bias;
+  */
+  
+  
   // Create Gaussian Graph with unit noise
   gtsam::GaussianFactorGraph gaussian_graph;
   auto noise = gtsam::noiseModel::Unit::Create(3);
@@ -182,7 +245,6 @@ void OnlineGravityAlignment::estimateGyroscopeBias(
     // Insert Jacobian Factor in Gaussian Graph
     gaussian_graph.add(gtsam::Symbol('dbg', 0), dbg_J_dR, dR, noise);
   }
-
   // Optimize Gaussian Graph and get solution
   gtsam::VectorValues solution = gaussian_graph.optimize();
   gtsam::Vector3 delta_bg  = solution.at(gtsam::Symbol('dbg', 0));
@@ -193,6 +255,7 @@ void OnlineGravityAlignment::estimateGyroscopeBias(
   // Logging of solution
   if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
   VLOG(5) << "Gyro bias estimation:\n" << delta_bg;
+  
 
   // TODO(Sandro): Implement check on quality of estimate
   return;
@@ -394,6 +457,11 @@ void OnlineGravityAlignment::refineGravity(
 
     // Retrieve velocity from graph optimization
     *init_vel = solution.at(gtsam::Symbol('b0_V_bk', 0));
+
+    // Query marginals
+    //gtsam::Marginals(gaussian_graph, solution, gtsam::Marginals::Factorization::CHOLESKY,
+    //gtsam::Matrix marginals.marginalCovariance(
+    //              gtsam::Symbol('b0_V_bk', 0));
 
     // Compute new g estimate
     g0 = (g0 + txty*dxdy).normalized()*g_world.norm();

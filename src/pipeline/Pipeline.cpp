@@ -147,6 +147,8 @@ Pipeline::~Pipeline() {
 
 /* -------------------------------------------------------------------------- */
 SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+  LOG(INFO) << "\nTimestamp:\n" 
+            << stereo_imu_sync_packet.getStereoFrame().getTimestamp();
   // Check if we have to re-initialize
   checkReInitialize(stereo_imu_sync_packet);
   // Initialize pipeline if not initialized
@@ -567,14 +569,8 @@ bool Pipeline::initializeFromIMUorGT(
 }
 
 // TODO: Include flag to start from external pose estimate (ROS)
-// TODO(Sandro): Reset spinOnce (frontend) as private function
-// TODO(Sandro): Fix issues with autoinitialize flag
-  // Change flag to be int and not bool
-  // Change BackEnd constructor depending on 1 or 2
-// TODO(Sandro): Find way to destruct initBackend?
 // TODO(Sandro): Insert poses from initialization and optimize for kf (batch
 // insert and optimize once)
-// TODO(Sandro): Adapt numb_OGA as additive and not absolute
 /* -------------------------------------------------------------------------- */
 bool Pipeline::initializeOnline(
     const StereoImuSyncPacket &stereo_imu_sync_packet) {
@@ -586,15 +582,16 @@ bool Pipeline::initializeOnline(
   CHECK_GE(frame_id, init_frame_id_);
   CHECK_GE(init_frame_id_ + FLAGS_num_frames_vio_init, frame_id);
 
-  // Create ImuFrontEnd Class only for Online Alignment.
-  // This has zero bias and zero gravity.
-  /*gtsam::PreintegratedImuMeasurements::Params imu_params =
+  // TODO(Sandro): Find a way to optimize this
+  // Create ImuFrontEnd with non-zero gravity (zero bias)
+  gtsam::PreintegratedImuMeasurements::Params imu_params =
       vio_frontend_->getImuFrontEndParams();
-  imu_params.n_gravity = gtsam::Vector3();
-  ImuFrontEnd imu_frontend_trivial(imu_params,
+  imu_params.n_gravity = backend_params_->n_gravity_;
+  ImuFrontEnd imu_frontend_real(imu_params,
       gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
-  CHECK_DOUBLE_EQ(imu_frontend_trivial.getPreintegrationGravity().norm(),0.0);
-*/
+  CHECK_DOUBLE_EQ(imu_frontend_real.getPreintegrationGravity().norm(),
+        imu_params.n_gravity.norm());
+  ///////
 
   // Enforce stereo frame as keyframe for initialization
   StereoImuSyncPacket stereo_imu_sync_init = stereo_imu_sync_packet;
@@ -621,18 +618,16 @@ bool Pipeline::initializeOnline(
     // Spin frontend once with enforced keyframe and 53-point method
     auto frontend_output = vio_frontend_->spinOnce(
         std::make_shared<StereoImuSyncPacket>(stereo_imu_sync_init));
-    // This queue is used for the backend after initialization
-    // stereo_frontend_output_queue_.push(frontend_output);
     const StereoFrame stereo_frame_lkf = frontend_output.stereo_frame_lkf_;
+    initialization_frontend_output_queue_.push(frontend_output);
 
-    // This queue is used for the initialization
-    // TODO(Sandro): VERY IMPORTANT!! ADD OR REMOVE GRAVITY VECTOR
-    // IN THE PRE-INTEGRATION USED IN THE SMOOTHER
-    /*const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
+    // TODO(Sandro): Find a way to optimize this
+    // This queue is used for the the backend optimization
+    const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
     const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
     const auto& pim =
-      imu_frontend_trivial.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
-    StereoFrontEndOutputPayload frontend_trivial_output(
+      imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
+    StereoFrontEndOutputPayload frontend_real_output(
       frontend_output.is_keyframe_,
       frontend_output.statusSmartStereoMeasurements_,
       frontend_output.tracker_status_,
@@ -640,8 +635,10 @@ bool Pipeline::initializeOnline(
       frontend_output.stereo_frame_lkf_,
       pim,
       frontend_output.debug_tracker_info_);
-    initialization_frontend_output_queue_.push(frontend_trivial_output); */
-    initialization_frontend_output_queue_.push(frontend_output);
+    // This queue is used for the backend after initialization
+    stereo_frontend_output_queue_.push(frontend_real_output);
+    /////////
+    
 
     // Only process set of frontend outputs after specific number of frames
     if (frame_id < (init_frame_id_ + FLAGS_num_frames_vio_init)) {
@@ -662,13 +659,13 @@ bool Pipeline::initializeOnline(
 
         // Create initial state for initialization from online gravity
         // Impose initial zero velocity
+        //std::shared_ptr<gtNavState> initial_state_OGA =
+        //    std::make_shared<gtNavState>(
+        //        gtsam::NavState(init_navstate.pose(), gtsam::Vector3()),
+        //        ImuBias(gtsam::Vector3(), gtsam::Vector3()));
         std::shared_ptr<gtNavState> initial_state_OGA =
-            std::make_shared<gtNavState>(
-                gtsam::NavState(init_navstate.pose(), gtsam::Vector3()),
-                ImuBias(gtsam::Vector3(), gtsam::Vector3()));
-        // std::shared_ptr<gtNavState> initial_state_OGA =
-        //    std::make_shared<gtNavState>(init_navstate,
-        //      ImuBias(gtsam::Vector3(), gyro_bias));
+            std::make_shared<gtNavState>(init_navstate,
+              ImuBias(gtsam::Vector3(), gyro_bias));
         // std::shared_ptr<gtNavState> initial_state_OGA =
         //    std::make_shared<gtNavState>(init_navstate,
         //      ImuBias(gtsam::Vector3(), gtsam::Vector3()));
@@ -754,6 +751,16 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
     std::vector<std::shared_ptr<VioBackEndInputPayload>> inputs_backend;
     inputs_backend.clear();
 
+    // TODO(Sandro): Check against GT
+    bool check_gt_ba = true;
+    std::string reason = "BA performance comparison";
+    ETHDatasetParser gt_dataset(reason);
+    if (check_gt_ba)
+      gt_dataset.parseGTdata("/home/sb/Dataset/EuRoC/V1_01_gt", "gt");
+    std::vector<gtsam::Pose3> gt_relative_poses;
+    gt_relative_poses.clear();
+    ////////////////// (Remove)
+
     // Create inputs for online gravity alignment
     std::vector<gtsam::PreintegratedImuMeasurements> pims;
     pims.clear();
@@ -775,6 +782,15 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
               output_frontend.at(i)->stereo_frame_lkf_.getTimestamp();
       delta_t_camera.push_back(UtilsOpenCV::NsecToSec(
                       timestamp_kf - timestamp_lkf_));
+
+      // TODO(Sandro): Check against GT
+      if (i > 0 && gt_dataset.isGroundTruthAvailable() && check_gt_ba) {
+        gt_relative_poses.push_back(
+            gt_dataset.getGroundTruthRelativePose(timestamp_lkf_,
+                                                timestamp_kf));
+      }
+      ////////////////// (Remove)
+
       timestamp_lkf_ = timestamp_kf;
       // Logging
       VLOG(10) << "Frame: "
@@ -789,8 +805,10 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
     // Adjust parameters for Bundle Adjustment
     // TODO(Sandro): Read these parameters in!!
     VioBackEndParams backend_params_init(*backend_params_);
-    backend_params_init.smartNoiseSigma_ = 0.1;
-    backend_params_init.outlierRejection_ = 100;
+    backend_params_init.smartNoiseSigma_ = 1.5;
+    backend_params_init.outlierRejection_ = 30;
+    backend_params_init.betweenRotationPrecision_ = 0; // Inverse of variance.
+    backend_params_init.betweenTranslationPrecision_ = 0.5; // Inverse of variance.
 
     // Create initial backend
     VioBackEnd initial_backend(
@@ -801,7 +819,7 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
         FLAGS_log_output);
 
     // Run initial Bundle Adjustment and retrieve body poses 
-    // wrt. to initial camera frame (v0_T_bk, for k in 1:N).
+    // wrt. to initial body frame (b0_T_bk, for k in 0:N).
     // The first pim and ransac poses are lost, as in the Bundle
     // Adjustment we need observations of landmarks intra-frames.
     std::vector<gtsam::Pose3> estimated_poses =
@@ -811,6 +829,42 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
     delta_t_camera.erase(delta_t_camera.begin());
     pims.erase(pims.begin());
 
+    // TODO(Sandro): Check against GT
+    if (gt_dataset.isGroundTruthAvailable() && check_gt_ba) {
+      double avg_relativeRotError = 0.0;
+      double avg_relativeTranError = 0.0;
+      double relativeRotError = -1;
+      double relativeTranError = -1;
+      CHECK_EQ(estimated_poses.size() - 1, gt_relative_poses.size());
+      for (int s = 0; s < (estimated_poses.size() - 1); s++) {
+        gtsam::Pose3 ba_relative = 
+            estimated_poses.at(s).between(estimated_poses.at(s+1));
+        LOG(INFO) << "Bundle Adjustment vs. GT (relative poses)\n"
+                  << "Bundle Adjustment:\n"
+                  << ba_relative
+                  << "Ground Truth:\n"
+                  << gt_relative_poses.at(s);
+                  //<< "RANSAC:\n"
+                  //<< output_frontend.at(s+1)->relative_pose_body_stereo_;
+        // Compute errors.
+        std::tie(relativeRotError, relativeTranError) =
+          UtilsOpenCV::ComputeRotationAndTranslationErrors(
+            gt_relative_poses.at(s), ba_relative, false);
+        avg_relativeRotError += fabs(relativeRotError);
+        avg_relativeTranError += fabs(relativeTranError);
+      }
+      int N = gt_relative_poses.size();
+      // Average logmap error and translation error
+      avg_relativeRotError = avg_relativeRotError/double(N);
+      avg_relativeTranError = avg_relativeTranError/double(N);
+      LOG(ERROR) << "Average errors: (BA vs. GT)\n"
+                << "(relative Rot Error)\n"
+                << avg_relativeRotError
+                << "\n(relative Tran Error)\n"
+                << avg_relativeTranError;
+    }
+    ////////////////// (Remove)
+    
     // Logging
     LOG(INFO) << "Initial bundle adjustment terminated.";
 
@@ -828,8 +882,32 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
                               delta_t_camera,
                               pims, 
                               backend_params_->n_gravity_);
-    return initial_alignment.alignVisualInertialEstimates(gyro_bias, g_iter_b0,
-                                                          init_navstate);
+    bool success = initial_alignment.alignVisualInertialEstimates(gyro_bias, g_iter_b0,
+                                                          init_navstate,
+                                                          true);
+    // TODO(Sandro): Why is gyro bias and velocity not performing well?!
+    // TODO(Sandro): Bundle-Adjustment is not super robust and accurate!!!
+    // TODO(Sandro): Check against GT
+    if (gt_dataset.isGroundTruthAvailable() && check_gt_ba) {
+      gtNavState init_GT_state = gt_dataset.getGroundTruthState(
+          output_frontend.at(0)->stereo_frame_lkf_.getTimestamp());
+      LOG(INFO) << "Initialization state:\n"
+                  << "Online gravity alignment:\n"
+                  << "(pitch)\n"
+                  << init_navstate->pose().rotation().pitch()*180.0/M_PI
+                  << "\n(roll)\n"
+                  << init_navstate->pose().rotation().roll()*180.0/M_PI
+                  << "\nGround Truth:\n"
+                  << "(pitch)\n"
+                  << init_GT_state.pose_.rotation().pitch()*180.0/M_PI
+                  << "\n(roll)\n"
+                  << init_GT_state.pose_.rotation().roll()*180.0/M_PI
+                  << "\nInitial Bias:\n"
+                  << init_GT_state.imu_bias_.gyroscope();
+    }
+    ////////////////// (Remove)
+
+    return success;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1149,6 +1227,14 @@ void Pipeline::stopThreads() {
 void Pipeline::joinThreads() {
   LOG(INFO) << "Joining threads...";
 
+  LOG(INFO) << "Joining backend thread...";
+  if (backend_thread_ && backend_thread_->joinable()) {
+    backend_thread_->join();
+    LOG(INFO) << "Joined backend thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Backend thread is not joinable...";
+  }
+
   LOG(INFO) << "Joining frontend thread...";
   if (stereo_frontend_thread_ && stereo_frontend_thread_->joinable()) {
     stereo_frontend_thread_->join();
@@ -1163,14 +1249,6 @@ void Pipeline::joinThreads() {
     LOG(INFO) << "Joined wrapped thread...";
   } else {
     LOG_IF(ERROR, parallel_run_) << "Wrapped thread is not joinable...";
-  }
-
-  LOG(INFO) << "Joining backend thread...";
-  if (backend_thread_ && backend_thread_->joinable()) {
-    backend_thread_->join();
-    LOG(INFO) << "Joined backend thread...";
-  } else {
-    LOG_IF(ERROR, parallel_run_) << "Backend thread is not joinable...";
   }
 
   LOG(INFO) << "Joining mesher thread...";

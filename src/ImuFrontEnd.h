@@ -122,7 +122,7 @@ public:
     }
   }
 
-  /*ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
+  ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
               const ImuBias& imu_bias)
     : imu_params_(imu_params) {
     pim_ = VIO::make_unique<PreintegratedImuMeasurements>(
@@ -141,7 +141,7 @@ public:
       LOG(ERROR) << "IMU PREINTEGRATION COVARIANCE: ";
       pim_->print();
     }
-  } */
+  }
 
   /* ------------------------------------------------------------------------ */
   PreintegratedImuMeasurements preintegrateImuMeasurements(

@@ -165,9 +165,9 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Get IMU Params for IMU Frontend.
-  // gtsam::PreintegratedImuMeasurements::Params getImuFrontEndParams() {
-  //  return imu_frontend_->getImuParams();
-  //}
+  gtsam::PreintegratedImuMeasurements::Params getImuFrontEndParams() {
+    return imu_frontend_->getImuParams();
+  }
 
  private:
   /* ------------------------------------------------------------------------ */
