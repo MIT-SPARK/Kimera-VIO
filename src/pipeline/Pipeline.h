@@ -41,14 +41,21 @@ class StereoVisionFrontEnd;
 }  // namespace VIO
 
 namespace VIO {
+
 class Pipeline {
+ private:
+  // Typedefs
+  typedef std::function<void(const SpinOutputPacket&)>
+      KeyframeRateOutputCallback;
+
  public:
   Pipeline(const PipelineParams& params, bool parallel_run = true);
 
   ~Pipeline();
 
   // Main spin, runs the pipeline.
-  SpinOutputContainer spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  // Outputs results at frame-rate.
+  void spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
   bool spinViz(bool parallel_run = true);
@@ -71,30 +78,26 @@ class Pipeline {
 
   // Return the mesher output queue for FUSES to process the mesh_2d and
   // mesh_3d to extract semantic information.
-  ThreadsafeQueue<MesherOutputPayload>& getMesherOutputQueue() {
+  // TODO(Toni) this should be a callback instead...
+  // right now it works because no one is pulling from this queue in pipeline.
+  inline ThreadsafeQueue<MesherOutputPayload>& getMesherOutputQueue() {
     return mesher_output_queue_;
   }
 
-  gtsam::Vector3 getEstimatedVelocity() { return vio_backend_->getWVelBLkf(); }
-
-  gtsam::Pose3 getEstimatedPose() { return vio_backend_->getWPoseBLkf(); }
-
-  ImuBias getEstimatedBias() { return vio_backend_->getLatestImuBias(); }
-
-  Timestamp getTimestamp() { return timestamp_lkf_; }
-
-  gtsam::Matrix getEstimatedStateCovariance() {
-    return vio_backend_->getStateCovarianceLkf();
-  }
-
-  DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
-
+  // Registration of callbacks.
+  // Callback to modify the mesh visual properties every time the mesher
+  // has a new 3d mesh.
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
     visualizer_.registerMesh3dVizProperties(cb);
   }
 
-  SpinOutputContainer getSpinOutputContainer();
+  // Callback to output the VIO backend results at keyframe rate.
+  // This callback also allows to
+  inline void registerKeyFrameRateOutputCallback(
+      KeyframeRateOutputCallback callback) {
+    keyframe_rate_output_callback_ = callback;
+  }
 
  private:
   // Initialize random seed for repeatability (only on the same machine).
@@ -127,14 +130,10 @@ class Pipeline {
       const StereoFrame& last_stereo_keyframe,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       const TrackingStatus& kf_tracking_status_stereo,
-      const gtsam::Pose3& relative_pose_body_stereo);
+      const gtsam::Pose3& relative_pose_body_stereo,
+      const DebugTrackerInfo& debug_tracker_info);
 
   void processKeyframePop();
-
-  void pushToMesherInputQueue(
-      VioBackEnd::PointsWithIdMap* points_with_id_VIO,
-      VioBackEnd::LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
-      const StereoFrame& last_stereo_keyframe);
 
   StatusSmartStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params, const Timestamp& timestamp_k,
@@ -154,8 +153,10 @@ class Pipeline {
   // Join threads to do a clean shutdown.
   void joinThreads();
 
-  // Data provider.
+  // Callbacks.
+  KeyframeRateOutputCallback keyframe_rate_output_callback_;
 
+  // Timestamp of last keyframe.
   Timestamp timestamp_lkf_;
 
   // Init Vio parameter

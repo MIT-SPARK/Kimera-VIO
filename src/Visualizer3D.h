@@ -29,10 +29,8 @@
 namespace VIO {
 
 enum class VisualizationType {
-  POINTCLOUD,                 // visualize 3D VIO points  (no repeated point)
-  POINTCLOUD_REPEATEDPOINTS,  // visualize VIO points as point clouds (points
-                              // are re-plotted at every frame)
-  MESH2D,                     // only visualizes 2D mesh on image
+  POINTCLOUD,    // visualize 3D VIO points  (no repeated point)
+  MESH2D,        // only visualizes 2D mesh on image
   MESH2Dsparse,  // visualize a 2D mesh of (right-valid) keypoints discarding
                  // triangles corresponding to non planar obstacles
   MESH2DTo3Dsparse,  // same as MESH2DTo3D but filters out triangles
@@ -47,12 +45,11 @@ static bool getEstimateOfKey(const gtsam::Values& state, const gtsam::Key& key,
 struct VisualizerInputPayload {
   VisualizerInputPayload(
       const gtsam::Pose3& pose, const StereoFrame& last_stereo_keyframe,
-      MesherOutputPayload&& mesher_output_payload,
+      const MesherOutputPayload& mesher_output_payload,
       const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
       const VioBackEnd::LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
       const std::vector<Plane>& planes,
-      const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
-      const std::vector<Point3>& points_3d);
+      const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values);
 
   const gtsam::Pose3 pose_;
   const StereoFrame stereo_keyframe_;
@@ -62,7 +59,6 @@ struct VisualizerInputPayload {
   const std::vector<Plane> planes_;
   const gtsam::NonlinearFactorGraph graph_;
   const gtsam::Values values_;
-  const std::vector<Point3> points_3d_;
 };
 
 struct ImageToDisplay {
@@ -75,6 +71,7 @@ struct ImageToDisplay {
 
 struct VisualizerOutputPayload {
   VisualizerOutputPayload() = default;
+  ~VisualizerOutputPayload() = default;
   VisualizationType visualization_type_ = VisualizationType::NONE;
   std::vector<ImageToDisplay> images_to_display_;
   cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
@@ -83,6 +80,7 @@ struct VisualizerOutputPayload {
 class Visualizer3D {
  public:
   Visualizer3D(VisualizationType viz_type, int backend_type);
+  ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; };
 
   typedef size_t LineNr;
   typedef std::uint64_t PlaneId;
@@ -92,6 +90,13 @@ class Visualizer3D {
   // Contains internal data for Visualizer3D window.
   struct WindowData {
     WindowData();
+    ~WindowData() {
+      // OpenCV 3d Viz has an issue that I can't resolve, it throws a segfault
+      // at the end of the program. Probably because of memory not released.
+      // See issues in opencv git:
+      // https://github.com/opencv/opencv/issues/11219 and many more...
+      window_.close();
+    };
     cv::viz::Viz3d window_;
     cv::viz::Color cloud_color_;
     cv::viz::Color background_color_;
@@ -143,22 +148,18 @@ class Visualizer3D {
                  VisualizerOutputPayload* output);
 
   /* ------------------------------------------------------------------------ */
-  // Visualize a 3D point cloud using cloud widget from opencv viz.
-  void visualizeMap3D(const std::vector<gtsam::Point3>& points);
-
-  /* ------------------------------------------------------------------------ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  cv::Mat visualizeMesh2D(
+  static cv::Mat visualizeMesh2D(
       const std::vector<cv::Vec6f>& triangulation2D, const cv::Mat& img,
-      const KeypointsCV& extra_keypoints = KeypointsCV()) const;
+      const KeypointsCV& extra_keypoints = KeypointsCV());
 
   /* ------------------------------------------------------------------------ */
   // Visualize 2d mesh.
-  cv::Mat visualizeMesh2DStereo(const std::vector<cv::Vec6f>& triangulation_2D,
-                                const Frame& ref_frame) const;
+  static cv::Mat visualizeMesh2DStereo(
+      const std::vector<cv::Vec6f>& triangulation_2D, const Frame& ref_frame);
 
   /* ------------------------------------------------------------------------ */
-  // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
+  // Visualize a 3D point cloud of unique 3D landmarks.
   void visualizePoints3D(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id,
       const std::unordered_map<LandmarkId, LandmarkType>&

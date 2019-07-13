@@ -14,29 +14,29 @@
 
 #pragma once
 
-#include <vector>
-#include <boost/optional.hpp>
 #include <glog/logging.h>
+#include <boost/optional.hpp>
+#include <vector>
 
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/StereoPoint2.h>
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 
-#include "common/vio_types.h"
-#include "Tracker-definitions.h"
-#include "StereoVisionFrontEnd-definitions.h"
 #include "ImuFrontEnd.h"
+#include "StereoVisionFrontEnd-definitions.h"
+#include "Tracker-definitions.h"
 #include "UtilsOpenCV.h"
+#include "common/vio_types.h"
 
 namespace VIO {
 
 // Gtsam types. // TODO remove these!!
+using gtsam::Cal3_S2;
+using gtsam::Key;
+using gtsam::Point2;
+using gtsam::Point3;
 using gtsam::Pose3;
 using gtsam::Rot3;
-using gtsam::Point3;
-using gtsam::Point2;
-using gtsam::Key;
-using gtsam::Cal3_S2;
 using gtsam::StereoPoint2;
 
 #define INCREMENTAL_SMOOTHER
@@ -51,7 +51,7 @@ typedef gtsam::BatchFixedLagSmoother Smoother;
 ////////////////////////////////////////////////////////////////////////////////
 // FeatureTrack
 class FeatureTrack {
-public:
+ public:
   //! Observation: {FrameId, Px-Measurement}
   std::vector<std::pair<FrameId, StereoPoint2>> obs_;
 
@@ -64,8 +64,8 @@ public:
 
   void print() const {
     std::cout << "feature track with cameras: ";
-    for (size_t i = 0; i < obs_.size() ; i++) {
-      std::cout << " " <<  obs_[i].first << " ";
+    for (size_t i = 0; i < obs_.size(); i++) {
+      std::cout << " " << obs_[i].first << " ";
     }
     std::cout << std::endl;
   }
@@ -78,7 +78,7 @@ using FeatureTracks = std::unordered_map<Key, FeatureTrack>;
 
 ////////////////////////////////////////////////////////////////////////////////
 class DebugVioInfo {
-public:
+ public:
   int numSF_;
   int numValid_;
   int numDegenerate_;
@@ -139,17 +139,17 @@ public:
 
   /* ------------------------------------------------------------------------ */
   void resetTimes() {
-    factorsAndSlotsTime_= 0;
-    preUpdateTime_= 0;
-    updateTime_= 0;
-    updateSlotTime_= 0;
-    extraIterationsTime_= 0;
-    printTime_= 0;
-    linearizeTime_= 0;
-    linearSolveTime_= 0;
-    retractTime_= 0;
-    linearizeMarginalizeTime_= 0;
-    marginalizeTime_= 0;
+    factorsAndSlotsTime_ = 0;
+    preUpdateTime_ = 0;
+    updateTime_ = 0;
+    updateSlotTime_ = 0;
+    extraIterationsTime_ = 0;
+    printTime_ = 0;
+    linearizeTime_ = 0;
+    linearSolveTime_ = 0;
+    retractTime_ = 0;
+    linearizeMarginalizeTime_ = 0;
+    marginalizeTime_ = 0;
   }
 
   /* ------------------------------------------------------------------------ */
@@ -163,94 +163,107 @@ public:
 
   /* ------------------------------------------------------------------------ */
   void printTimes() const {
-    LOG(INFO) << "Find delete time: "      << factorsAndSlotsTime_ << '\n'
-              << "preUpdate time: "        << preUpdateTime_       << '\n'
-              << "Update Time time: "      << updateTime_          << '\n'
-              << "Update slot time: "      << updateSlotTime_      << '\n'
+    LOG(INFO) << "Find delete time: " << factorsAndSlotsTime_ << '\n'
+              << "preUpdate time: " << preUpdateTime_ << '\n'
+              << "Update Time time: " << updateTime_ << '\n'
+              << "Update slot time: " << updateSlotTime_ << '\n'
               << "Extra iterations time: " << extraIterationsTime_ << '\n'
-              << "Print time: "            << printTime_;
+              << "Print time: " << printTime_;
   }
 
   /* ------------------------------------------------------------------------ */
   void print() const {
     LOG(INFO) << "----- DebugVioInfo: --------\n"
-              << " numSF: "           << numSF_            << '\n'
-              << " numValid: "        << numValid_         << '\n'
-              << " numDegenerate: "   << numDegenerate_    << '\n'
-              << " numOutliers: "     << numOutliers_      << '\n'
-              << " numFarPoints: "    << numFarPoints_     << '\n'
-              << " numCheirality: "   << numCheirality_    << '\n'
-              << " meanPixelError: "  << meanPixelError_   << '\n'
-              << " maxPixelError: "   << maxPixelError_    << '\n'
-              << " meanTrackLength: " << meanTrackLength_  << '\n'
-              << " maxTrackLength: "  << maxTrackLength_;
+              << " numSF: " << numSF_ << '\n'
+              << " numValid: " << numValid_ << '\n'
+              << " numDegenerate: " << numDegenerate_ << '\n'
+              << " numOutliers: " << numOutliers_ << '\n'
+              << " numFarPoints: " << numFarPoints_ << '\n'
+              << " numCheirality: " << numCheirality_ << '\n'
+              << " meanPixelError: " << meanPixelError_ << '\n'
+              << " maxPixelError: " << maxPixelError_ << '\n'
+              << " meanTrackLength: " << meanTrackLength_ << '\n'
+              << " maxTrackLength: " << maxTrackLength_;
   }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 struct VioBackEndInputPayload {
-  VioBackEndInputPayload (
+  VioBackEndInputPayload(
       const Timestamp& timestamp_kf_nsec,
       const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-      const TrackingStatus& stereo_tracking_status, // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
+      const TrackingStatus&
+          stereo_tracking_status,  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
       std::vector<Plane>* planes = nullptr)
-    : timestamp_kf_nsec_(timestamp_kf_nsec),
-      status_smart_stereo_measurements_kf_(status_smart_stereo_measurements_kf),
-      stereo_tracking_status_(stereo_tracking_status),
-      pim_(pim),
-      planes_(planes),
-      stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
+      : timestamp_kf_nsec_(timestamp_kf_nsec),
+        status_smart_stereo_measurements_kf_(
+            status_smart_stereo_measurements_kf),
+        stereo_tracking_status_(stereo_tracking_status),
+        pim_(pim),
+        planes_(planes),
+        stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
   const Timestamp timestamp_kf_nsec_;
   const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf_;
-  const TrackingStatus stereo_tracking_status_; // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
+  const TrackingStatus
+      stereo_tracking_status_;  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
   // I believe we do not need EIGEN_MAKE_ALIGNED_OPERATOR_NEW for these members
-  // as they are dynamic eigen, not "fixed-size vectorizable matrices and vectors."
+  // as they are dynamic eigen, not "fixed-size vectorizable matrices and
+  // vectors."
   const gtsam::PreintegratedImuMeasurements pim_;
   std::vector<Plane>* planes_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
-public:
+
+ public:
   void print() const {
     LOG(INFO) << "VioBackEnd Input Payload print:\n"
               << "Timestamp: " << timestamp_kf_nsec_ << '\n'
               << "Status smart stereo measurements: "
-              << "\n\t Meas size: " << status_smart_stereo_measurements_kf_.second.size();
+              << "\n\t Meas size: "
+              << status_smart_stereo_measurements_kf_.second.size();
 
-    LOG(INFO) << "Mono Tracking Status: " << TrackerStatusSummary::asString(
-    status_smart_stereo_measurements_kf_.first.kfTrackingStatus_mono_);
-    status_smart_stereo_measurements_kf_.first.lkf_T_k_mono_.print("\n\t Tracker Pose (mono): ");
-    LOG(INFO) << "Stereo Tracking Status: " << TrackerStatusSummary::asString(
-    status_smart_stereo_measurements_kf_.first.kfTrackingStatus_stereo_);
-    status_smart_stereo_measurements_kf_.first.lkf_T_k_stereo_.print("\n\t Tracker Pose (stereo): ");
+    LOG(INFO) << "Mono Tracking Status: "
+              << TrackerStatusSummary::asString(
+                     status_smart_stereo_measurements_kf_.first
+                         .kfTrackingStatus_mono_);
+    status_smart_stereo_measurements_kf_.first.lkf_T_k_mono_.print(
+        "\n\t Tracker Pose (mono): ");
+    LOG(INFO) << "Stereo Tracking Status: "
+              << TrackerStatusSummary::asString(
+                     status_smart_stereo_measurements_kf_.first
+                         .kfTrackingStatus_stereo_);
+    status_smart_stereo_measurements_kf_.first.lkf_T_k_stereo_.print(
+        "\n\t Tracker Pose (stereo): ");
 
-    LOG(INFO) << "Stereo Tracking Status: " << TrackerStatusSummary::asString(stereo_tracking_status_);
+    LOG(INFO) << "Stereo Tracking Status: "
+              << TrackerStatusSummary::asString(stereo_tracking_status_);
     pim_.print("PIM : ");
     LOG_IF(INFO, planes_ != nullptr) << "Number of planes: " << planes_->size();
-    LOG_IF(INFO, stereo_ransac_body_pose_) << "Stereo Ransac Body Pose: " << *stereo_ransac_body_pose_;
+    LOG_IF(INFO, stereo_ransac_body_pose_)
+        << "Stereo Ransac Body Pose: " << *stereo_ransac_body_pose_;
   }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 struct VioBackEndOutputPayload {
-  VioBackEndOutputPayload(const Timestamp& timestamp_kf,
-                          const gtsam::Values state,
-                          const gtsam::Pose3& W_Pose_Blkf,
-                          const Vector3& W_Vel_Blkf,
-                          const gtsam::Pose3& B_Pose_leftCam,
-                          const ImuBias& imu_bias_lkf,
-                          const int& cur_kf_id,
-                          const int& landmark_count,
-                          const DebugVioInfo& debug_info)
-    : timestamp_kf_(timestamp_kf),
-      state_(state),
-      W_Pose_Blkf_(W_Pose_Blkf),
-      W_Vel_Blkf_(W_Vel_Blkf),
-      B_Pose_leftCam_(B_Pose_leftCam),
-      imu_bias_lkf_(imu_bias_lkf),
-      cur_kf_id_(cur_kf_id),
-      landmark_count_(landmark_count),
-      debug_info_(debug_info) {}
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  VioBackEndOutputPayload(
+      const Timestamp& timestamp_kf, const gtsam::Values state,
+      const gtsam::Pose3& W_Pose_Blkf, const Vector3& W_Vel_Blkf,
+      const gtsam::Pose3& B_Pose_leftCam, const ImuBias& imu_bias_lkf,
+      const gtsam::Matrix& state_covariance_lkf, const int& cur_kf_id,
+      const int& landmark_count, const DebugVioInfo& debug_info)
+      : timestamp_kf_(timestamp_kf),
+        state_(state),
+        W_Pose_Blkf_(W_Pose_Blkf),
+        W_Vel_Blkf_(W_Vel_Blkf),
+        B_Pose_leftCam_(B_Pose_leftCam),
+        imu_bias_lkf_(imu_bias_lkf),
+        state_covariance_lkf_(state_covariance_lkf),
+        cur_kf_id_(cur_kf_id),
+        landmark_count_(landmark_count),
+        debug_info_(debug_info) {}
 
   const Timestamp timestamp_kf_;
   const gtsam::Values state_;
@@ -258,9 +271,10 @@ struct VioBackEndOutputPayload {
   const Vector3 W_Vel_Blkf_;
   const gtsam::Pose3 B_Pose_leftCam_;
   const ImuBias imu_bias_lkf_;
+  const gtsam::Matrix state_covariance_lkf_;
   const int cur_kf_id_;
   const int landmark_count_;
   const DebugVioInfo debug_info_;
 };
 
-} // End of VIO namespace.
+}  // namespace VIO
