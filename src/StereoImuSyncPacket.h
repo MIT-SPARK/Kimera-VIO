@@ -16,8 +16,10 @@
 
 #pragma once
 
-#include "StereoFrame.h"
 #include "ImuFrontEnd.h"
+#include "StereoFrame.h"
+#include "Tracker-definitions.h"
+#include "mesh/Mesh.h"
 
 namespace VIO {
 
