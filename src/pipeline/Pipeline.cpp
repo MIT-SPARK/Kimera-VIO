@@ -752,7 +752,7 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
     inputs_backend.clear();
 
     // TODO(Sandro): Check against GT
-    bool check_gt_ba = true;
+    bool check_gt_ba = false;
     std::string reason = "BA performance comparison";
     ETHDatasetParser gt_dataset(reason);
     if (check_gt_ba)
