@@ -1217,7 +1217,7 @@ void Visualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
 
     for (const size_t& triangle_id : cluster.triangle_ids_) {
       size_t triangle_idx = std::round(triangle_id * 4);
-      CHECK_GE(triangle_idx + 3, polygons_mesh.rows)
+      CHECK_LE(triangle_idx + 3, polygons_mesh.rows)
           << "Visualizer3D: an id in triangle_ids_ is too large.";
       int32_t idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
       int32_t idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
