@@ -108,6 +108,12 @@ void LoggerMatlab::openLogFiles(int i, const std::string& output_file_name,
                                               : output_file_name),
                           outputFile_posesVIO_csv_pipeline_,
                           open_file_in_append_mode);
+  if (i == 15 || i == -1)
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_initPerformance.csv"
+                                              : output_file_name),
+                          outputFile_initPerformance_,
+                          open_file_in_append_mode);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -127,6 +133,7 @@ void LoggerMatlab::closeLogFiles(int i) {
   if (i == 12 || i == -1) outputFile_frontend_.close();
   if (i == 13 || i == -1) outputFile_posesVIO_csv_.close();
   if (i == 14 || i == -1) outputFile_posesVIO_csv_pipeline_.close();
+  if (i == 15 || i == -1) outputFile_initPerformance_.close();
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -341,6 +348,59 @@ void LoggerMatlab::logPipelineResultsCSV(
         << imu_bias_gyro(2) << ", " << imu_bias_acc(0) << ", "
         << imu_bias_acc(1) << ", " << imu_bias_acc(2) << std::endl;
   }
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+void LoggerMatlab::logInitializationResultsCSV(
+        const InitializationPerformance& perf,
+        const double& ba_duration,
+        const double& alignment_duration) {
+    // We log the poses in csv format for later analysis.
+    static bool is_header_written = false;
+    if (!is_header_written) {
+      outputFile_initPerformance_
+          << "timestamp, N_frames, avg_relRotErrorBA, avg_relTranErrorBA,"
+            " ba_duration(ms), alignment_duration(ms),"
+            " init_roll(deg), init_pitch(deg), init_yaw(deg),"
+            " init_body_vx, init_body_vy, init_body_vz,"
+            " init_gyro_bx, init_gyro_by, init_gyro_bz,"
+            " init_grav_bx, init_grav_by, init_grav_bz,"
+            " gt_roll(deg), gt_pitch(deg), gt_yaw(deg),"
+            " gt_body_vx, gt_body_vy, gt_body_vz,"
+            " gt_gyro_bx, gt_gyro_by, gt_gyro_bz,"
+            " gt_grav_bx, gt_grav_by, gt_grav_bz,"
+          << std::endl;
+      is_header_written = true;
+    }
+    outputFile_initPerformance_
+      << perf.init_timestamp_ << ", " << perf.init_n_frames_ << ", "
+      << perf.avg_rotationErrorBA_ << ", " << perf.avg_tranErrorBA_ << ", "
+      << ba_duration << ", " << alignment_duration << ", "
+      << perf.init_nav_state_.pose().rotation().pitch()*180.0/M_PI << ", "
+      << perf.init_nav_state_.pose().rotation().roll()*180.0/M_PI << ", "
+      << perf.init_nav_state_.pose().rotation().yaw()*180.0/M_PI << ", "
+      << perf.init_nav_state_.velocity_.x() << ", "
+      << perf.init_nav_state_.velocity_.y() << ", "
+      << perf.init_nav_state_.velocity_.z() << ", "
+      << perf.init_nav_state_.imu_bias_.gyroscope().x() << ", "
+      << perf.init_nav_state_.imu_bias_.gyroscope().y() << ", "
+      << perf.init_nav_state_.imu_bias_.gyroscope().z() << ", "
+      << perf.init_gravity_.x() << ", "
+      << perf.init_gravity_.y() << ", "
+      << perf.init_gravity_.z() << ", "
+      << perf.gt_nav_state_.pose().rotation().pitch()*180.0/M_PI << ", "
+      << perf.gt_nav_state_.pose().rotation().roll()*180.0/M_PI << ", "
+      << perf.gt_nav_state_.pose().rotation().yaw()*180.0/M_PI << ", "
+      << perf.gt_nav_state_.velocity_.x() << ", "
+      << perf.gt_nav_state_.velocity_.y() << ", "
+      << perf.gt_nav_state_.velocity_.z() << ", "
+      << perf.gt_nav_state_.imu_bias_.gyroscope().x() << ", "
+      << perf.gt_nav_state_.imu_bias_.gyroscope().y() << ", "
+      << perf.gt_nav_state_.imu_bias_.gyroscope().z() << ", "
+      << perf.gt_gravity_.x() << ", "
+      << perf.gt_gravity_.y() << ", "
+      << perf.gt_gravity_.z() << ", "
+      << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

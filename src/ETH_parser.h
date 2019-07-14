@@ -78,6 +78,41 @@ public:
   gtsam::Pose3 pose() const { return pose_; };
 };
 
+// Struct for performance in initialization
+struct InitializationPerformance {
+  public:
+    // Default constructor
+    InitializationPerformance(
+      const Timestamp init_timestamp,
+      const int init_n_frames,
+      const double avg_rotationErrorBA,
+      const double avg_tranErrorBA,
+      const gtNavState init_nav_state,
+      const gtsam::Vector3 init_gravity,
+      const gtNavState gt_nav_state,
+      const gtsam::Vector3 gt_gravity)
+      : init_timestamp_(init_timestamp),
+        init_n_frames_(init_n_frames),
+        avg_rotationErrorBA_(avg_rotationErrorBA),
+        avg_tranErrorBA_(avg_tranErrorBA),
+        init_nav_state_(init_nav_state),
+        init_gravity_(init_gravity),
+        gt_nav_state_(gt_nav_state),
+        gt_gravity_(gt_gravity) {}
+
+    void print() const;
+  
+  public:
+    const Timestamp init_timestamp_;
+    const int init_n_frames_;
+    const double avg_rotationErrorBA_;
+    const double avg_tranErrorBA_;
+    const gtNavState init_nav_state_;
+    const gtsam::Vector3 init_gravity_;
+    const gtNavState gt_nav_state_;
+    const gtsam::Vector3 gt_gravity_;
+};
+
 /*
  * Store GT poses and GT info.
  */
@@ -190,6 +225,13 @@ public:
 
   // Retrieve absolute pose at timestamp.
   gtNavState getGroundTruthState(const Timestamp& timestamp) const;
+
+  // Compute initialization errors and stats.
+  const InitializationPerformance getInitializationPerformance(
+                    const std::vector<Timestamp>& timestamps,
+                    const std::vector<gtsam::Pose3>& poses_ba,
+                    const gtNavState& init_nav_state,
+                    const gtsam::Vector3& init_gravity);
 
   // Check if the ground truth is available.
   // (i.e., the timestamp is after the first gt state)

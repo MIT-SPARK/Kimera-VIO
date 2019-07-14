@@ -50,6 +50,7 @@ public:
   std::ofstream outputFile_statsFactors_;
   std::ofstream outputFile_mesh_;
   std::ofstream outputFile_frontend_;
+  std::ofstream outputFile_initPerformance_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
 
@@ -85,6 +86,11 @@ public:
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logPipelineResultsCSV(const SpinOutputContainer& vio_output);
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logInitializationResultsCSV(const InitializationPerformance& perf,
+                                  const double& ba_duration,
+                                  const double& alignment_duration);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(

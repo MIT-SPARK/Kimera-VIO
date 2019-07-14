@@ -568,9 +568,6 @@ bool Pipeline::initializeFromIMUorGT(
   return true;
 }
 
-// TODO: Include flag to start from external pose estimate (ROS)
-// TODO(Sandro): Insert poses from initialization and optimize for kf (batch
-// insert and optimize once)
 /* -------------------------------------------------------------------------- */
 bool Pipeline::initializeOnline(
     const StereoImuSyncPacket &stereo_imu_sync_packet) {
@@ -658,17 +655,9 @@ bool Pipeline::initializeOnline(
         LOG(INFO) << "Bundle adjustment and alignment successful!";
 
         // Create initial state for initialization from online gravity
-        // Impose initial zero velocity
-        //std::shared_ptr<gtNavState> initial_state_OGA =
-        //    std::make_shared<gtNavState>(
-        //        gtsam::NavState(init_navstate.pose(), gtsam::Vector3()),
-        //        ImuBias(gtsam::Vector3(), gtsam::Vector3()));
         std::shared_ptr<gtNavState> initial_state_OGA =
             std::make_shared<gtNavState>(init_navstate,
               ImuBias(gtsam::Vector3(), gyro_bias));
-        // std::shared_ptr<gtNavState> initial_state_OGA =
-        //    std::make_shared<gtNavState>(init_navstate,
-        //      ImuBias(gtsam::Vector3(), gtsam::Vector3()));
 
         // Reset frontend with non-trivial gravity and remove 53-enforcement.
         // Update frontend with initial gyro bias estimate.
@@ -680,8 +669,7 @@ bool Pipeline::initializeOnline(
         LOG(INFO) << "Time used for initialization: "
                   << (double(full_init_duration) / double(1e6)) << " (ms).";
 
-        ///////////////////////////// BACKEND
-        //////////////////////////////////////
+        ///////////////////////////// BACKEND ////////////////////////////////
         // Initialize backend with pose estimate from gravity alignment
         initializeBackend(stereo_imu_sync_packet, initial_state_OGA,
                           stereo_frame_lkf);
@@ -749,17 +737,6 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
     const StereoFrame &stereo_frame_fkf =
         output_frontend.back()->stereo_frame_lkf_;
     std::vector<std::shared_ptr<VioBackEndInputPayload>> inputs_backend;
-    inputs_backend.clear();
-
-    // TODO(Sandro): Check against GT
-    bool check_gt_ba = false;
-    std::string reason = "BA performance comparison";
-    ETHDatasetParser gt_dataset(reason);
-    if (check_gt_ba)
-      gt_dataset.parseGTdata("/home/sb/Dataset/EuRoC/V1_01_gt", "gt");
-    std::vector<gtsam::Pose3> gt_relative_poses;
-    gt_relative_poses.clear();
-    ////////////////// (Remove)
 
     // Create inputs for online gravity alignment
     std::vector<gtsam::PreintegratedImuMeasurements> pims;
@@ -782,22 +759,10 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
               output_frontend.at(i)->stereo_frame_lkf_.getTimestamp();
       delta_t_camera.push_back(UtilsOpenCV::NsecToSec(
                       timestamp_kf - timestamp_lkf_));
-
-      // TODO(Sandro): Check against GT
-      if (i > 0 && gt_dataset.isGroundTruthAvailable() && check_gt_ba) {
-        gt_relative_poses.push_back(
-            gt_dataset.getGroundTruthRelativePose(timestamp_lkf_,
-                                                timestamp_kf));
-      }
-      ////////////////// (Remove)
-
       timestamp_lkf_ = timestamp_kf;
-      // Logging
-      VLOG(10) << "Frame: "
-                << output_frontend.at(i)->stereo_frame_lkf_.getFrameId()
-                << " for initialization is "
-                << (output_frontend.at(i)->is_keyframe_ ? "a keyframe."
-                                                        : "not a keyframe.");
+      
+      // Check that all frames are keyframes (required)
+      CHECK(output_frontend.at(i)->is_keyframe_);
     }
     // Logging
     VLOG(10) << "N frames for initial alignment: " << output_frontend.size();
@@ -818,60 +783,27 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
         backend_params_init,
         FLAGS_log_output);
 
+    // TODO(Sandro): Bundle-Adjustment is not super robust and accurate!!!
     // Run initial Bundle Adjustment and retrieve body poses 
     // wrt. to initial body frame (b0_T_bk, for k in 0:N).
     // The first pim and ransac poses are lost, as in the Bundle
     // Adjustment we need observations of landmarks intra-frames.
+    auto tic_ba = utils::Timer::tic();
     std::vector<gtsam::Pose3> estimated_poses =
         initial_backend.addInitialVisualStatesAndOptimize(inputs_backend);
+    auto ba_duration = 
+      utils::Timer::toc<std::chrono::nanoseconds>(tic_ba).count() * 1e-9;
+    LOG(WARNING) << "Current bundle-adjustment duration: (" 
+                 << ba_duration << " s).";
     // Remove initial delta time and pims from input vector to online 
     // alignment due to the disregarded init values in bundle adjustment
     delta_t_camera.erase(delta_t_camera.begin());
     pims.erase(pims.begin());
-
-    // TODO(Sandro): Check against GT
-    if (gt_dataset.isGroundTruthAvailable() && check_gt_ba) {
-      double avg_relativeRotError = 0.0;
-      double avg_relativeTranError = 0.0;
-      double relativeRotError = -1;
-      double relativeTranError = -1;
-      CHECK_EQ(estimated_poses.size() - 1, gt_relative_poses.size());
-      for (int s = 0; s < (estimated_poses.size() - 1); s++) {
-        gtsam::Pose3 ba_relative = 
-            estimated_poses.at(s).between(estimated_poses.at(s+1));
-        LOG(INFO) << "Bundle Adjustment vs. GT (relative poses)\n"
-                  << "Bundle Adjustment:\n"
-                  << ba_relative
-                  << "Ground Truth:\n"
-                  << gt_relative_poses.at(s);
-                  //<< "RANSAC:\n"
-                  //<< output_frontend.at(s+1)->relative_pose_body_stereo_;
-        // Compute errors.
-        std::tie(relativeRotError, relativeTranError) =
-          UtilsOpenCV::ComputeRotationAndTranslationErrors(
-            gt_relative_poses.at(s), ba_relative, false);
-        avg_relativeRotError += fabs(relativeRotError);
-        avg_relativeTranError += fabs(relativeTranError);
-      }
-      int N = gt_relative_poses.size();
-      // Average logmap error and translation error
-      avg_relativeRotError = avg_relativeRotError/double(N);
-      avg_relativeTranError = avg_relativeTranError/double(N);
-      LOG(ERROR) << "Average errors: (BA vs. GT)\n"
-                << "(relative Rot Error)\n"
-                << avg_relativeRotError
-                << "\n(relative Tran Error)\n"
-                << avg_relativeTranError;
-    }
-    ////////////////// (Remove)
-    
     // Logging
     LOG(INFO) << "Initial bundle adjustment terminated.";
 
-    // Destruct initial backend
-    // initial_backend.~VioBackEnd();
-
     // Enforce zero bias in initial propagation
+    // TODO(Sandro): Remove this, once AHRS is implemented
     vio_frontend_->updateAndResetImuBias(
         gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
     *gyro_bias = vio_frontend_->getCurrentImuBias().gyroscope();
@@ -882,32 +814,46 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
                               delta_t_camera,
                               pims, 
                               backend_params_->n_gravity_);
-    bool success = initial_alignment.alignVisualInertialEstimates(gyro_bias, g_iter_b0,
-                                                          init_navstate,
-                                                          true);
-    // TODO(Sandro): Why is gyro bias and velocity not performing well?!
-    // TODO(Sandro): Bundle-Adjustment is not super robust and accurate!!!
-    // TODO(Sandro): Check against GT
-    if (gt_dataset.isGroundTruthAvailable() && check_gt_ba) {
-      gtNavState init_GT_state = gt_dataset.getGroundTruthState(
-          output_frontend.at(0)->stereo_frame_lkf_.getTimestamp());
-      LOG(INFO) << "Initialization state:\n"
-                  << "Online gravity alignment:\n"
-                  << "(pitch)\n"
-                  << init_navstate->pose().rotation().pitch()*180.0/M_PI
-                  << "\n(roll)\n"
-                  << init_navstate->pose().rotation().roll()*180.0/M_PI
-                  << "\nGround Truth:\n"
-                  << "(pitch)\n"
-                  << init_GT_state.pose_.rotation().pitch()*180.0/M_PI
-                  << "\n(roll)\n"
-                  << init_GT_state.pose_.rotation().roll()*180.0/M_PI
-                  << "\nInitial Bias:\n"
-                  << init_GT_state.imu_bias_.gyroscope();
-    }
+    auto tic_oga = utils::Timer::tic();
+    bool is_success = initial_alignment.alignVisualInertialEstimates(
+                                                  gyro_bias, g_iter_b0,
+                                                  init_navstate,
+                                                  true);
+    auto alignment_duration = 
+      utils::Timer::toc<std::chrono::nanoseconds>(tic_oga).count() * 1e-9;
+    LOG(WARNING) << "Current alignment duration: (" 
+                 << alignment_duration << " s).";
+
+    // TODO(Sandro): Check initialization against GT
+    // Compute performance and Log output if requested
+    /*if (FLAGS_log_output && is_success) {
+      std::string reason = "BA performance comparison";
+      ETHDatasetParser gt_dataset(reason);
+      std::vector<Timestamp> timestamps;
+      for (int i = 0; i < output_frontend.size(); i++) {
+        timestamps.push_back(
+            output_frontend.at(i)->stereo_frame_lkf_.getTimestamp());
+      }
+      gt_dataset.parseGTdata("/home/sb/Dataset/EuRoC/V1_01_gt", "gt");
+      const gtsam::NavState init_navstate_pass = *init_navstate;
+      const gtsam::Vector3 gravity_iter_pass = *g_iter_b0;
+      const gtsam::Vector3 gyro_bias_pass = *gyro_bias;
+      logger_.logInitializationResultsCSV( 
+            gt_dataset.getInitializationPerformance(
+              timestamps,
+              estimated_poses,
+              gtNavState(init_navstate_pass.pose(),
+                init_navstate_pass.pose().rotation().transpose() * 
+                  init_navstate_pass.velocity(),
+                gtsam::imuBias::ConstantBias(gtsam::Vector3(),
+                                            gyro_bias_pass)),
+              gravity_iter_pass),
+              ba_duration,
+              alignment_duration);
+    } */
     ////////////////// (Remove)
 
-    return success;
+    return is_success;
 }
 
 /* -------------------------------------------------------------------------- */
