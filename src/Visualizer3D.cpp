@@ -18,6 +18,7 @@
 
 #include "LoggerMatlab.h"
 #include "UtilsOpenCV.h"
+#include "VioBackEnd-definitions.h"
 #include "common/FilesystemUtils.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
@@ -96,8 +97,8 @@ Visualizer3D::WindowData::WindowData()
 VisualizerInputPayload::VisualizerInputPayload(
     const gtsam::Pose3& pose, const StereoFrame& last_stero_keyframe,
     const MesherOutputPayload& mesher_output_payload,
-    const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
-    const VioBackEnd::LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
+    const PointsWithIdMap& points_with_id_VIO,
+    const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
     const std::vector<Plane>& planes, const gtsam::NonlinearFactorGraph& graph,
     const gtsam::Values& values)
     : pose_(pose),
@@ -260,8 +261,8 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       VLOG(10) << "Starting 3D mesh visualization...";
 
       static std::vector<Plane> planes_prev;
-      static VioBackEnd::PointsWithIdMap points_with_id_VIO_prev;
-      static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
+      static PointsWithIdMap points_with_id_VIO_prev;
+      static LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
       static cv::Mat vertices_mesh_prev;
       static cv::Mat polygons_mesh_prev;
       static Mesher::Mesh3DVizProperties mesh_3d_viz_props_prev;
@@ -437,8 +438,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
     case VisualizationType::POINTCLOUD: {
       output->visualization_type_ = VisualizationType::POINTCLOUD;
       // Do not color the cloud, send empty lmk id to lmk type map
-      visualizePoints3D(input.points_with_id_VIO_,
-                        VioBackEnd::LmkIdToLmkTypeMap());
+      visualizePoints3D(input.points_with_id_VIO_, LmkIdToLmkTypeMap());
       break;
     }
     case VisualizationType::NONE: {
@@ -546,9 +546,8 @@ cv::Mat Visualizer3D::visualizeMesh2DStereo(
 /* -------------------------------------------------------------------------- */
 // Visualize a 3D point cloud of unique 3D landmarks.
 void Visualizer3D::visualizePoints3D(
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id,
-    const std::unordered_map<LandmarkId, LandmarkType>&
-        lmk_id_to_lmk_type_map) {
+    const PointsWithIdMap& points_with_id,
+    const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map) {
   bool color_the_cloud = false;
   if (lmk_id_to_lmk_type_map.size() != 0) {
     color_the_cloud = true;

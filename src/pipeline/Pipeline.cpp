@@ -200,8 +200,8 @@ void Pipeline::processKeyframe(
   LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
-  VioBackEnd::PointsWithIdMap points_with_id_VIO;
-  VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+  PointsWithIdMap points_with_id_VIO;
+  LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
   MesherOutputPayload mesher_output_payload;
   VisualizationType visualization_type =
       static_cast<VisualizationType>(FLAGS_viz_type);
@@ -233,8 +233,14 @@ void Pipeline::processKeyframe(
                                          // should not be sent via output
                                          // payload.
 
+    // In the mesher thread push queue with meshes for visualization.
+    // Use blocking to avoid skipping frames.
+    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
+        << "Mesher output queue did not pop a payload.";
+
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
+    // This is NOT THREAD_SAFE, do it after popBlocking the mesher...
     if (FLAGS_extract_planes_from_the_scene) {
       CHECK_EQ(backend_type_, 1u);  // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
@@ -249,11 +255,6 @@ void Pipeline::processKeyframe(
              "Set flag extract_planes_from_the_scene to true to enforce "
              "regularities.";
     }
-
-    // In the mesher thread push queue with meshes for visualization.
-    // Use blocking to avoid skipping frames.
-    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
-        << "Mesher output queue did not pop a payload.";
   }
 
   // TODO(Toni) All these guys have the same info, should simplify.
@@ -304,6 +305,7 @@ void Pipeline::processKeyframe(
         Visualizer3D::visualizeMesh2D(
             mesher_output_payload.mesh_2d_filtered_for_viz_,
             last_stereo_keyframe.getLeftFrame().img_),
+        points_with_id_VIO, lmk_id_to_lmk_type_map,
         backend_output_payload->state_covariance_lkf_, debug_tracker_info));
     auto toc = utils::Timer::toc(tic);
     if (toc.count() > max_time_allowed_for_keyframe_callback) {
@@ -371,8 +373,8 @@ void Pipeline::spinSequential() {
   const auto& stereo_keyframe =
       stereo_frontend_output_payload->stereo_frame_lkf_;
   ////////////////// CREATE 3D MESH //////////////////////////////////////////
-  VioBackEnd::PointsWithIdMap points_with_id_VIO;
-  VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+  PointsWithIdMap points_with_id_VIO;
+  LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
   MesherOutputPayload mesher_output_payload;
   VisualizationType visualization_type =
       static_cast<VisualizationType>(FLAGS_viz_type);

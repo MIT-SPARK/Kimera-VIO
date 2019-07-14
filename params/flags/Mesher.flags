@@ -3,6 +3,7 @@
 # General functionality for the mesher.
 --add_extra_lmks_from_stereo=true
 --reduce_mesh_to_time_horizon=true
+--compute_per_vertex_normals=false
 
 # Visualization.
 --visualize_histogram_1D=false

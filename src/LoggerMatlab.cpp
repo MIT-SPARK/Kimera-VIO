@@ -153,7 +153,7 @@ void LoggerMatlab::logFrontendResults(
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void LoggerMatlab::logLandmarks(const VioBackEnd::PointsWithId& lmks) {
+void LoggerMatlab::logLandmarks(const PointsWithId& lmks) {
   // Absolute vio errors
   if (outputFile_landmarks_) {
     outputFile_landmarks_ << "Id"
@@ -163,7 +163,7 @@ void LoggerMatlab::logLandmarks(const VioBackEnd::PointsWithId& lmks) {
                           << "y"
                           << "\t"
                           << "z\n";
-    for (const VioBackEnd::PointWithId& point : lmks) {
+    for (const PointWithId& point : lmks) {
       outputFile_landmarks_ << point.first << "\t" << point.second.x() << "\t"
                             << point.second.y() << "\t" << point.second.z()
                             << "\n";

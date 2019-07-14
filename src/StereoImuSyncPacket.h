@@ -19,6 +19,7 @@
 #include "ImuFrontEnd.h"
 #include "StereoFrame.h"
 #include "Tracker-definitions.h"
+#include "VioBackEnd-definitions.h"
 #include "mesh/Mesh.h"
 
 namespace VIO {
@@ -136,6 +137,8 @@ struct SpinOutputPacket {
       const Timestamp& timestamp_kf, const gtsam::Pose3& W_Pose_Blkf,
       const Vector3& W_Vel_Blkf, const ImuBias& imu_bias_lkf,
       const Mesh2D& mesh_2d, const Mesh3D& mesh_3d, const cv::Mat& mesh_2d_img,
+      const PointsWithIdMap& points_with_id_VIO,
+      const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
       const gtsam::Matrix state_covariance_lkf = gtsam::zeros(15, 15),
       const DebugTrackerInfo debug_tracker_info = DebugTrackerInfo())
       : timestamp_kf_(timestamp_kf),
@@ -145,6 +148,8 @@ struct SpinOutputPacket {
         mesh_2d_(mesh_2d),
         mesh_3d_(mesh_3d),
         mesh_2d_img_(mesh_2d_img),
+        points_with_id_VIO_(points_with_id_VIO),
+        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
         debug_tracker_info_(debug_tracker_info) {
     // TODO: Create a better assert for this covariance matrix
     CHECK_EQ(state_covariance_lkf.rows(), 15);
@@ -161,6 +166,8 @@ struct SpinOutputPacket {
         mesh_2d_(),
         mesh_3d_(),
         mesh_2d_img_(),
+        points_with_id_VIO_(),
+        lmk_id_to_lmk_type_map_(),
         state_covariance_lkf_(gtsam::zeros(15, 15)),
         debug_tracker_info_(DebugTrackerInfo()) {}
 
@@ -187,6 +194,8 @@ struct SpinOutputPacket {
   Mesh2D mesh_2d_;
   Mesh3D mesh_3d_;
   cv::Mat mesh_2d_img_;
+  PointsWithIdMap points_with_id_VIO_;
+  LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
 
  private:
   Timestamp timestamp_kf_;

@@ -545,7 +545,7 @@ gtsam::Pose3 VioBackEnd::guessPoseFromIMUmeasurements(
  */
 // Get valid 3D points and corresponding lmk id.
 // Warning! it modifies old_smart_factors_!!
-VioBackEnd::PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
+PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
     LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map, const size_t& min_age) {
   PointsWithIdMap points_with_id;
 

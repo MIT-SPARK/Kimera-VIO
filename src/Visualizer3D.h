@@ -22,7 +22,7 @@
 #include <gtsam/nonlinear/Values.h>
 
 #include "UtilsOpenCV.h"
-#include "VioBackEnd.h"
+#include "VioBackEnd-definitions.h"
 #include "mesh/Mesher.h"
 #include "utils/ThreadsafeQueue.h"
 
@@ -43,19 +43,20 @@ static bool getEstimateOfKey(const gtsam::Values& state, const gtsam::Key& key,
                              T* estimate);
 
 struct VisualizerInputPayload {
-  VisualizerInputPayload(
-      const gtsam::Pose3& pose, const StereoFrame& last_stereo_keyframe,
-      const MesherOutputPayload& mesher_output_payload,
-      const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
-      const VioBackEnd::LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
-      const std::vector<Plane>& planes,
-      const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values);
+  VisualizerInputPayload(const gtsam::Pose3& pose,
+                         const StereoFrame& last_stereo_keyframe,
+                         const MesherOutputPayload& mesher_output_payload,
+                         const PointsWithIdMap& points_with_id_VIO,
+                         const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
+                         const std::vector<Plane>& planes,
+                         const gtsam::NonlinearFactorGraph& graph,
+                         const gtsam::Values& values);
 
   const gtsam::Pose3 pose_;
   const StereoFrame stereo_keyframe_;
   const MesherOutputPayload mesher_output_payload_;
-  const VioBackEnd::PointsWithIdMap points_with_id_VIO_;
-  const VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
+  const PointsWithIdMap points_with_id_VIO_;
+  const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
   const std::vector<Plane> planes_;
   const gtsam::NonlinearFactorGraph graph_;
   const gtsam::Values values_;
@@ -160,10 +161,8 @@ class Visualizer3D {
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks.
-  void visualizePoints3D(
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id,
-      const std::unordered_map<LandmarkId, LandmarkType>&
-          lmk_id_to_lmk_type_map);
+  void visualizePoints3D(const PointsWithIdMap& points_with_id,
+                         const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map);
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.

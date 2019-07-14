@@ -233,7 +233,7 @@ class Mesher {
   // For a triangle defined by the 3d points p1, p2, and p3
   // compute ratio between largest side and smallest side (how elongated it is)
   double getRatioBetweenTangentialAndRadialDisplacement(
-      const Vertex3DType& p1, const Vertex3DType& p2, const Vertex3DType& p3,
+      const Vertex3D& p1, const Vertex3D& p2, const Vertex3D& p3,
       const gtsam::Pose3& leftCameraPose) const;
 
   /* ------------------------------------------------------------------------ */
@@ -273,8 +273,8 @@ class Mesher {
   /* ------------------------------------------------------------------------ */
   // Calculate normal of a triangle, and return whether it was possible or not.
   // Calculating the normal of aligned points in 3D is not possible...
-  bool calculateNormal(const Vertex3DType& p1, const Vertex3DType& p2,
-                       const Vertex3DType& p3, cv::Point3f* normal) const;
+  bool calculateNormal(const Vertex3D& p1, const Vertex3D& p2,
+                       const Vertex3D& p3, cv::Point3f* normal) const;
 
   /* ------------------------------------------------------------------------ */
   // Is normal perpendicular to axis?
@@ -314,7 +314,7 @@ class Mesher {
 
   /* ------------------------------------------------------------------------ */
   // Checks whether the point is closer than tolerance to the plane.
-  bool isPointAtDistanceFromPlane(const Vertex3DType& point,
+  bool isPointAtDistanceFromPlane(const Vertex3D& point,
                                   const double& plane_distance,
                                   const cv::Point3f& plane_normal,
                                   const double& distance_tolerance) const;

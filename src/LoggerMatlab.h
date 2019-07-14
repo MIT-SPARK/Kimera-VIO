@@ -15,13 +15,13 @@
 #ifndef LoggerMatlab_H_
 #define LoggerMatlab_H_
 
-#include <unordered_map>
-#include <iostream>
-#include <fstream>
 #include <stdlib.h>
+#include <fstream>
+#include <iostream>
+#include <unordered_map>
 
-#include "datasource/ETH_parser.h"
 #include "VioBackEnd.h"
+#include "datasource/ETH_parser.h"
 
 namespace VIO {
 
@@ -30,7 +30,7 @@ namespace VIO {
 /// \brief The LoggerMatlab class
 ///
 class LoggerMatlab {
-public:
+ public:
   LoggerMatlab();
 
   // Path where to store output files.
@@ -53,10 +53,10 @@ public:
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
 
   double timing_loadStereoFrame_, timing_processStereoFrame_,
-  timing_featureSelection_, timing_loggerBackend_;
+      timing_featureSelection_, timing_loggerBackend_;
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void openLogFiles(int i = -1, const std::string &output_file_name = "",
+  void openLogFiles(int i = -1, const std::string& output_file_name = "",
                     bool open_file_in_append_mode = false);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -67,7 +67,7 @@ public:
                           const size_t& nrKeypoints);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  void logLandmarks(const VioBackEnd::PointsWithId& lmks);
+  void logLandmarks(const PointsWithId& lmks);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logLandmarks(const cv::Mat& lmks);
@@ -86,14 +86,11 @@ public:
   void logBackendResults(
       const ETHDatasetParser& dataset,
       const TrackerStatusSummary& tracker_status_summary,
-      const gtsam::Pose3& relative_pose_body_mono,
-      const Tracker& tracker,
+      const gtsam::Pose3& relative_pose_body_mono, const Tracker& tracker,
       const gtsam::Pose3& relative_pose_body_stereo,
       const std::shared_ptr<VioBackEndOutputPayload>& vio_output,
-      const double& horizon,
-      const Timestamp& timestamp_lkf,
-      const Timestamp& timestamp_k,
-      const size_t& k);
+      const double& horizon, const Timestamp& timestamp_lkf,
+      const Timestamp& timestamp_k, const size_t& k);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logPipelineOverallTiming(const std::chrono::milliseconds& duration);
@@ -108,6 +105,5 @@ public:
   void displayOverallTiming() const;
 };
 
-} // namespace VIO
+}  // namespace VIO
 #endif /* LoggerMatlab_H_ */
-

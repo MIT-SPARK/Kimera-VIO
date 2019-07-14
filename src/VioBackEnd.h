@@ -62,20 +62,6 @@ class gtNavState;
 
 class VioBackEnd {
  public:
-  using SmartStereoFactor = gtsam::SmartStereoProjectionPoseFactor;
-  using SmartFactorParams = gtsam::SmartStereoProjectionParams;
-  using LandmarkIdSmartFactorMap =
-      std::unordered_map<LandmarkId, SmartStereoFactor::shared_ptr>;
-  using Slot = long int;
-  using SmartFactorMap =
-      gtsam::FastMap<LandmarkId,
-                     std::pair<SmartStereoFactor::shared_ptr, Slot>>;
-
-  using PointWithId = std::pair<LandmarkId, gtsam::Point3>;
-  using PointsWithId = std::vector<PointWithId>;
-  using PointsWithIdMap = std::unordered_map<LandmarkId, gtsam::Point3>;
-  using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
-
   // verbosity_ explanation
   /*
    * 4: display smart factors statistics
