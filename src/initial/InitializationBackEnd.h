@@ -19,6 +19,7 @@
 
 #include "utils/Timer.h"
 #include "VioBackEnd.h"
+#include "InitializationBackEnd-definitions.h"
 
 namespace VIO {
 
@@ -40,7 +41,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Perform Bundle-Adjustment and initial gravity alignment
   bool bundleAdjustmentAndGravityAlignment(
-    std::vector<std::shared_ptr<StereoFrontEndOutputPayload>>& output_frontend,
+    std::vector<std::shared_ptr<InitializationInputPayload>>& output_frontend,
       gtsam::Vector3 *gyro_bias,
       gtsam::Vector3 *g_iter_b0,
       gtsam::NavState *init_navstate);

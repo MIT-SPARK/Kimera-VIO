@@ -147,9 +147,8 @@ Pipeline::~Pipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
-  LOG(INFO) << "\nTimestamp:\n" 
-            << stereo_imu_sync_packet.getStereoFrame().getTimestamp();
+SpinOutputContainer 
+    Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Check if we have to re-initialize
   checkReInitialize(stereo_imu_sync_packet);
   // Initialize pipeline if not initialized
@@ -650,7 +649,16 @@ bool Pipeline::initializeOnline(
     auto frontend_output = vio_frontend_->spinOnce(
         std::make_shared<StereoImuSyncPacket>(stereo_imu_sync_init));
     const StereoFrame stereo_frame_lkf = frontend_output.stereo_frame_lkf_;
-    initialization_frontend_output_queue_.push(frontend_output);
+    // TODO(Sandro): Optionally add AHRS PIM
+    InitializationInputPayload frontend_init_output(
+      frontend_output.is_keyframe_,
+      frontend_output.statusSmartStereoMeasurements_,
+      frontend_output.tracker_status_,
+      frontend_output.relative_pose_body_stereo_,
+      frontend_output.stereo_frame_lkf_,
+      frontend_output.pim_,
+      frontend_output.debug_tracker_info_);
+    initialization_frontend_output_queue_.push(frontend_init_output);
 
     // TODO(Sandro): Find a way to optimize this
     // This queue is used for the the backend optimization

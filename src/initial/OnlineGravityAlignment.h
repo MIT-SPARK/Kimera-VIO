@@ -28,7 +28,9 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/linear/VectorValues.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/linear/JacobianFactor.h>
+#include <gtsam/navigation/AHRSFactor.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/nonlinear/Marginals.h>
@@ -88,6 +90,11 @@ private:
   /* ------------------------------------------------------------------------ */
   void estimateGyroscopeBias(const VisualInertialFrames &vi_frames,
                               gtsam::Vector3 *gyro_bias);
+
+  /* ------------------------------------------------------------------------ */
+  //void estimateGyroscopeBiasAHRS(const VisualInertialFrames &vi_frames,
+  //    const std::vector<gtsam::AHRSFactor::PreintegratedMeasurements> &ahrs_pims,
+  //    gtsam::Vector3 *gyro_bias);
 
   /* ------------------------------------------------------------------------ */
   void updateDeltaStates(const AlignmentPims &pims,

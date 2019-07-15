@@ -37,7 +37,7 @@ InitializationBackEnd::InitializationBackEnd(const Pose3& leftCamPose,
 /* ------------------------------------------------------------------------ */
 // Perform Bundle-Adjustment and initial gravity alignment
 bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
-  std::vector<std::shared_ptr<StereoFrontEndOutputPayload>>& output_frontend,
+  std::vector<std::shared_ptr<InitializationInputPayload>>& output_frontend,
     gtsam::Vector3 *gyro_bias,
     gtsam::Vector3 *g_iter_b0,
     gtsam::NavState *init_navstate) {

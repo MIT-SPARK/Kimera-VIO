@@ -163,8 +163,51 @@ bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
 void OnlineGravityAlignment::estimateGyroscopeBias(
           const VisualInertialFrames &vi_frames,
           gtsam::Vector3 *gyro_bias) {
+  // Create Gaussian Graph with unit noise
+  gtsam::GaussianFactorGraph gaussian_graph;
+  auto noise = gtsam::noiseModel::Unit::Create(3);
 
-  /*
+  // Loop through all initialization frame
+  for (int i = 0; i < vi_frames.size(); i++) {
+    auto frame_i = std::next(vi_frames.begin(), i);
+
+    // Compute rotation error between pre-integrated and visual estimates
+    gtsam::Rot3 bkp1_error_bkp1(frame_i->bk_gamma_bkp1().transpose() *
+                                frame_i->bk_R_bkp1());
+    // Compute rotation error in canonical coordinates (dR_bkp1)
+    gtsam::Vector3 dR = gtsam::Rot3::Logmap(bkp1_error_bkp1);
+    // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
+    gtsam::Matrix3 dbg_J_dR = frame_i->dbg_jacobian_dR();
+
+    // Insert Jacobian Factor in Gaussian Graph
+    gaussian_graph.add(gtsam::Symbol('dbg', 0), dbg_J_dR, dR, noise);
+  }
+  // Optimize Gaussian Graph and get solution
+  gtsam::VectorValues solution = gaussian_graph.optimize();
+  gtsam::Vector3 delta_bg  = solution.at(gtsam::Symbol('dbg', 0));
+
+  // Adapt gyroscope bias
+  *gyro_bias += delta_bg;
+
+  // Logging of solution
+  if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
+  VLOG(5) << "Gyro bias estimation:\n" << delta_bg;
+
+  // TODO(Sandro): Implement check on quality of estimate
+  return;
+}
+
+/* -------------------------------------------------------------------------- */
+// Estimate gyroscope bias using AHRS factors.
+// [in] frames containing pim constraints and body poses.
+// [in] frames containing ahrs pim constraints.
+// [out] new estimated value for gyroscope bias.
+// Not yet unit tested!
+/*
+void estimateGyroscopeBiasAHRS(const VisualInertialFrames &vi_frames,
+      const std::vector<gtsam::AHRSFactor::PreintegratedMeasurements> &ahrs_pims,
+      gtsam::Vector3 *gyro_bias) {
+  CHECK_EQ(vi_frames.size(), ahrs_pims.size());
   // TODO(Sandro): Implement AHRS Factor graph for bias estimation
   gtsam::Values initial;
   initial.insert(gtsam::Symbol('R', 0), vi_frames.at(0).b0_R_bk());
@@ -173,6 +216,8 @@ void OnlineGravityAlignment::estimateGyroscopeBias(
   gtsam::NonlinearFactorGraph nfg;
 
   // Prior noise model in world frame
+  // TODO(Sandro): Read in as parameter
+  double sigma = 0.001;
   Matrix3 rot_prior_covariance = Matrix3::Zero();
   gtsam::SharedNoiseModel noise_init_rot =
       gtsam::noiseModel::Gaussian::Covariance(rot_prior_covariance);
@@ -203,7 +248,7 @@ void OnlineGravityAlignment::estimateGyroscopeBias(
     gtsam::AHRSFactor factor(gtsam::Symbol('R', i), 
                       gtsam::Symbol('R', frame_id),
                       gtsam::Symbol('b', 0),
-                      frame_i->pim_, 
+                      ahrs_pims.at(i), 
                       kZeroOmegaCoriolis);
   }
   initial.insert(gtsam::Symbol('b', 0), gtsam::Vector3());
@@ -223,43 +268,10 @@ void OnlineGravityAlignment::estimateGyroscopeBias(
   // Logging of solution
   if (VLOG_IS_ON(5)) { nfg.print("\nNon-linear factor graph:\n"); }
   VLOG(5) << "Gyro bias estimation:\n" << *gyro_bias;
-  */
   
-  
-  // Create Gaussian Graph with unit noise
-  gtsam::GaussianFactorGraph gaussian_graph;
-  auto noise = gtsam::noiseModel::Unit::Create(3);
-
-  // Loop through all initialization frame
-  for (int i = 0; i < vi_frames.size(); i++) {
-    auto frame_i = std::next(vi_frames.begin(), i);
-
-    // Compute rotation error between pre-integrated and visual estimates
-    gtsam::Rot3 bkp1_error_bkp1(frame_i->bk_gamma_bkp1().transpose() *
-                                frame_i->bk_R_bkp1());
-    // Compute rotation error in canonical coordinates (dR_bkp1)
-    gtsam::Vector3 dR = gtsam::Rot3::Logmap(bkp1_error_bkp1);
-    // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
-    gtsam::Matrix3 dbg_J_dR = frame_i->dbg_jacobian_dR();
-
-    // Insert Jacobian Factor in Gaussian Graph
-    gaussian_graph.add(gtsam::Symbol('dbg', 0), dbg_J_dR, dR, noise);
-  }
-  // Optimize Gaussian Graph and get solution
-  gtsam::VectorValues solution = gaussian_graph.optimize();
-  gtsam::Vector3 delta_bg  = solution.at(gtsam::Symbol('dbg', 0));
-
-  // Adapt gyroscope bias
-  *gyro_bias += delta_bg;
-
-  // Logging of solution
-  if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
-  VLOG(5) << "Gyro bias estimation:\n" << delta_bg;
-  
-
   // TODO(Sandro): Implement check on quality of estimate
   return;
-}
+} */
 
 /* -------------------------------------------------------------------------- */
 // Estimate gyroscope bias by minimizing square of rotation error

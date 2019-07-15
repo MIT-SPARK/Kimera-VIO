@@ -29,6 +29,7 @@
 #include "pipeline/BufferControl.h"
 #include "pipeline/ProcessControl.h"
 #include "utils/ThreadsafeQueue.h"
+#include "initial/InitializationBackEnd-definitions.h"
 
 namespace VIO {
 // Forward-declare classes.
@@ -198,7 +199,7 @@ class Pipeline {
   ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
 
   // Online initialization frontend queue.
-  ThreadsafeQueue<StereoFrontEndOutputPayload> initialization_frontend_output_queue_;
+  ThreadsafeQueue<InitializationInputPayload> initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;
