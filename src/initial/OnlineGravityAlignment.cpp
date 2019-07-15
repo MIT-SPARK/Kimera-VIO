@@ -9,6 +9,11 @@
 /**
  * @file   OnlineGravityAlignment.cpp
  * @brief  Contains initial Online Gravity Alignment functions.
+ *
+ * Qin, Tong, and Shaojie Shen. 
+ * Robust initialization of monocular visual-inertial estimation on aerial robots.
+ * International Conference on Intelligent Robots and Systems (IROS). IEEE, 2017.
+ *
  * @author Sandro Berchier
  * @author Luca Carlone
  */
@@ -18,8 +23,20 @@
 #include <vector>
 
 #include "utils/Timer.h"
-
 #include "OnlineGravityAlignment.h"
+
+// TODO(Sandro): Create YAML file for initialization and read in!
+DEFINE_double(gyroscope_residuals, 5e-2,
+              "Maximum allowed gyroscope residual after"
+              " pre-integrationcorrection.");
+DEFINE_double(gravity_tolerance_linear, 1e-6,
+              "Maximum gravity tolerance for linear alignment.");
+DEFINE_int32(num_iterations_gravity_refinement, 4,
+             "Number of iterations for gravity refinement.");
+DEFINE_double(gravity_tolerance_refinement, 1e-1,
+              "Maximum gravity tolerance for refinement.");
+DEFINE_double(camera_pim_delta_difference, 5e-3,
+              "Maximum tolerable difference in time interval.");
 
 namespace VIO {
 
@@ -118,7 +135,8 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
     // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
     gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
 
-    CHECK_GT(5e-3, abs(delta_t_pim - delta_t_camera.at(i)));
+    CHECK_GT(FLAGS_camera_pim_delta_difference,
+              abs(delta_t_pim - delta_t_camera.at(i)));
 
     // Create frame with b0_T_bkp1, b0_T_bk, dt_bk_cam,
     // dbg_Jacobian_dR_bk, dt_bk_imu
@@ -146,7 +164,8 @@ bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
   estimateGyroscopeBias(*vi_frames, gyro_bias);
   // Update delta states with corrected bias
   updateDeltaStates(pims_, *gyro_bias, vi_frames);
-  if(estimateGyroscopeResiduals(*vi_frames).norm() > 5e-2) {
+  if(estimateGyroscopeResiduals(*vi_frames).norm() > 
+                            FLAGS_gyroscope_residuals) {
     LOG(ERROR) << "\nHigh residuals after bias update.\n";
     return false;
   }
@@ -361,7 +380,8 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
 
   // Refine gravity alignment if necessary
   // TODO(Sandro): Load tolerance in yaml file
-  if (abs(g_b0.norm() - g_world.norm()) > 1e-6) {
+  if (abs(g_b0.norm() - g_world.norm()) > 
+            FLAGS_gravity_tolerance_linear) {
     refineGravity(vi_frames, g_world, &g_b0, init_vel);
   } else {
     // Retrieve initial velocity from graph optimization
@@ -379,7 +399,8 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
 
   // Return true if successful
   // TODO(Sandro): Load tolerance in yaml file
-  if (abs(g_iter->norm() - g_world.norm()) > 1e-1) {
+  if (abs(g_iter->norm() - g_world.norm()) > 
+              FLAGS_gravity_tolerance_refinement) {
     return false;
   }
   return true;
@@ -432,9 +453,7 @@ void OnlineGravityAlignment::refineGravity(
   gtsam::Matrix txty = createTangentBasis(g0);
 
   // Multiple iterations till convergence
-  // TODO(Sandro): Read this parameter in from yaml files.
-  int n_iterations = 4;
-  for (int l=0; l < n_iterations; l++) {
+  for (int l=0; l < FLAGS_num_iterations_gravity_refinement; l++) {
     // Create Gaussian Graph with unit noise
     gtsam::GaussianFactorGraph gaussian_graph;
     auto noise = gtsam::noiseModel::Unit::Create(3);
@@ -469,11 +488,6 @@ void OnlineGravityAlignment::refineGravity(
 
     // Retrieve velocity from graph optimization
     *init_vel = solution.at(gtsam::Symbol('b0_V_bk', 0));
-
-    // Query marginals
-    //gtsam::Marginals(gaussian_graph, solution, gtsam::Marginals::Factorization::CHOLESKY,
-    //gtsam::Matrix marginals.marginalCovariance(
-    //              gtsam::Symbol('b0_V_bk', 0));
 
     // Compute new g estimate
     g0 = (g0 + txty*dxdy).normalized()*g_world.norm();

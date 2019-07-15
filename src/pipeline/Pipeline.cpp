@@ -78,6 +78,17 @@ DEFINE_int32(num_frames_vio_init, 25,
              "Minimum number of frames for the online "
              "gravity-aligned initialization");
 
+// TODO(Sandro): Create YAML file for initialization and read in!
+DEFINE_double(smart_noise_sigma_bundle_adjustment, 1.5,
+              "Smart noise sigma for bundle adjustment"
+              " in initialization.");
+DEFINE_double(outlier_rejection_bundle_adjustment, 30,
+              "Outlier rejection for bundle adjustment"
+              " in initialization.");
+DEFINE_double(between_translation_bundle_adjustment, 0.5,
+              "Between factor precision for bundle adjustment"
+              " in initialization.");
+
 namespace VIO {
 
 // TODO VERY BAD TO SEND THE DATASET PARSER AS A POINTER (at least for thread
@@ -697,12 +708,14 @@ bool Pipeline::initializeOnline(
       initialization_frontend_output_queue_.shutdown();
 
       // Adjust parameters for Bundle Adjustment
-      // TODO(Sandro): Read these parameters in!!
+      // TODO(Sandro): Create YAML file for initialization and read in!
       VioBackEndParams backend_params_init(*backend_params_);
-      backend_params_init.smartNoiseSigma_ = 1.5;
-      backend_params_init.outlierRejection_ = 30;
-      backend_params_init.betweenRotationPrecision_ = 0; // Inverse of variance.
-      backend_params_init.betweenTranslationPrecision_ = 0.5; // Inverse of variance.
+      backend_params_init.smartNoiseSigma_ = 
+                FLAGS_smart_noise_sigma_bundle_adjustment;
+      backend_params_init.outlierRejection_ =
+                FLAGS_outlier_rejection_bundle_adjustment;
+      backend_params_init.betweenTranslationPrecision_ =
+                FLAGS_between_translation_bundle_adjustment;
 
       // Create initial backend
       InitializationBackEnd initial_backend(

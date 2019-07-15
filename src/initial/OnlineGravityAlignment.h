@@ -9,6 +9,11 @@
 /**
  * @file   OnlineGravityAlignment.h
  * @brief  Contains initial Online Gravity Alignment functions.
+ *
+ * Qin, Tong, and Shaojie Shen. 
+ * Robust initialization of monocular visual-inertial estimation on aerial robots.
+ * International Conference on Intelligent Robots and Systems (IROS). IEEE, 2017.
+ *
  * @author Sandro Berchier
  * @author Luca Carlone
  */
@@ -114,10 +119,10 @@ private:
                      gtsam::Velocity3 *init_vel);
 
 private:
-  const AlignmentPims &pims_;
-  const AlignmentPoses &estimated_body_poses_;
-  const std::vector<double> &delta_t_camera_;
-  const gtsam::Vector3 &g_world_;
+  const AlignmentPims pims_;
+  const AlignmentPoses estimated_body_poses_;
+  const std::vector<double> delta_t_camera_;
+  const gtsam::Vector3 g_world_;
 };
 
 } // namespace VIO
