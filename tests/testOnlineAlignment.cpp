@@ -20,7 +20,7 @@
 
 #include "ImuFrontEnd-definitions.h"
 #include "ImuFrontEnd.h"
-#include "OnlineGravityAlignment.h"
+#include "initial/OnlineGravityAlignment.h"
 #include "utils/ThreadsafeImuBuffer.h"
 #include "ETH_parser.h"
 #include "test_config.h"

@@ -105,27 +105,20 @@ class Pipeline {
   // Initialize pipeline with desired option (flag).
   bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
+  // Check if necessary to re-initialize pipeline.
+  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
   // Initialize pipeline from IMU or GT.
   bool initializeFromIMUorGT(const StereoImuSyncPacket &stereo_imu_sync_packet);
 
   // Initialize pipeline from online gravity alignment.
   bool initializeOnline(const StereoImuSyncPacket &stereo_imu_sync_packet);
 
-  // Perform Bundle-Adjustment and initial gravity alignment
-  bool bundleAdjustmentAndGravityAlignment(
-                      const StereoImuSyncPacket &stereo_imu_sync_init,
-                      const StereoFrame &stereo_frame_lkf,
-                      gtsam::Vector3 *gyro_bias,
-                      gtsam::Vector3 *g_iter_b0,
-                      gtsam::NavState *init_navstate);
-
   // Initialize backend given external pose estimate (GT or OGA)
-  bool initializeBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
+  // TODO(Sandro): Unify both functions below (init backend)
+  bool initializeVioBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
                       std::shared_ptr<gtNavState> initial_state,
                       const StereoFrame &stereo_frame_lkf);
-
-  // Re-initialize pipeline.
-  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.

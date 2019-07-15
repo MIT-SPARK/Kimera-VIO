@@ -268,7 +268,7 @@ protected:
   template<class T>
   bool getEstimateOfKey(const gtsam::Key& key, T* estimate) const;
 
-private:
+protected:
   /* ------------------------------------------------------------------------ */
   void addVisualInertialStateAndOptimize(
           const std::shared_ptr<VioBackEndInputPayload>& input);
@@ -486,39 +486,11 @@ public:
   static ImuBias initImuBias(const ImuAccGyrS& accGyroRaw,
                              const Vector3& n_gravity);
 
-public:
-  /* ------------------------------------------------------------------------ */
-  std::vector<gtsam::Pose3> addInitialVisualStatesAndOptimize(
-      const std::vector<std::shared_ptr<VioBackEndInputPayload>> &input);
-
-private:
-  /* --------------------------------------------------------------------------
-   */
-  // Adding of states for bundle adjustment used in initialization.
-  // [in] timestamp_kf_nsec, keyframe timestamp.
-  // [in] status_smart_stereo_measurements_kf, vision data.
-  // [in] stereo_ransac_body_pose, inertial data.
-  virtual void addInitialVisualState(
-      const Timestamp &timestamp_kf_nsec,
-      const StatusSmartStereoMeasurements &status_smart_stereo_measurements_kf,
-      std::vector<Plane> *planes,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
-      const int verbosity);
-
-  /* --------------------------------------------------------------------------
-   */
-  std::vector<gtsam::Pose3> optimizeInitialVisualStates(
-      const Timestamp &timestamp_kf_nsec, const FrameId &cur_id,
-      const size_t &max_extra_iterations,
-      const std::vector<size_t> &extra_factor_slots_to_delete =
-          std::vector<size_t>(),
-      const int verbosity = 0);
-
   /* --------------------------------------------------------------------------
    */
   // Update initial visual states.
-  std::vector<gtsam::Pose3>
-  updateInitialVisualStates(const FrameId &last_initial_id);
+  //std::vector<gtsam::Pose3>
+  //updateInitialVisualStates(const FrameId &last_initial_id);
 
 protected:
   // Raw, user-specified params.
@@ -574,7 +546,7 @@ protected:
   // Id of current keyframe, increases from 0 to inf.
   int curr_kf_id_;
 
-private:
+protected:
   // No motion factors settings.
   gtsam::SharedNoiseModel zero_velocity_prior_noise_;
   gtsam::SharedNoiseModel no_motion_prior_noise_;

@@ -59,7 +59,6 @@ add_library(SparkVio SHARED
   src/UtilsOpenCV.cpp
   src/ImuFrontEnd.cpp
   src/VioBackEnd.cpp
-  src/OnlineGravityAlignment.cpp
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
   src/LoggerMatlab.cpp
@@ -82,6 +81,8 @@ include(src/factors/CMakeLists.txt)
 include(src/mesh/CMakeLists.txt)
 ### Add source code for utils
 include(src/utils/CMakeLists.txt)
+### Add source code for initialization
+include(src/initial/CMakeLists.txt)
 ### Add source code for pipeline
 include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
