@@ -82,9 +82,9 @@ private:
                     KittiData* kitti_data);
 
   // Get R and T matrix from calibration file 
-  bool parseRT(const std::string& input_dataset_path, 
+  bool parsePose(const std::string& input_dataset_path, 
                const std::string& calibration_filename, 
-               cv::Mat& R, cv::Mat& T) const;
+               cv::Mat& rotation, cv::Mat& translation) const;
 
   void print() const;
 private:

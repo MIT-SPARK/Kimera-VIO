@@ -321,14 +321,6 @@ void OnlineGravityAlignment::refineGravity(const VisualInertialFrames &vi_frames
     g0 = (g0 + txty*dxdy).normalized()*g_world.norm();
   }
 
-  // Retract velocities
-  /*std::vector<gtsam::Vector3> velocities;
-  velocities.clear();
-  for (int i=0; i < vi_frames.size(); i++) {
-    velocities.push_back(solution.at(gtsam::Symbol('b0_V_bk', i)));
-    LOG(INFO) << "\nVelocity at: " << i << " :\n" << velocities.back();
-  } */
-
   // Logging of solution
   LOG(INFO) << "Final gravity estimate:\n" << g0
             << " with norm: " << g0.norm();

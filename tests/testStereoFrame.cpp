@@ -939,10 +939,9 @@ TEST(testStereoFrame, undistortFisheye) {
 
 }
 
-/* *************************************************************************
+/* ************************************************************************* */
 // TODO: Figure out why this compiles on PC, but not on Jenkins
 TEST(testStereoFrame, undistortFisheyeStereoFrame) {
-
   // Parse camera params for left and right cameras
   static CameraParams cam_params_left_fisheye;
   cam_params_left_fisheye.parseYAML(stereo_dataset_path + 
@@ -958,7 +957,8 @@ TEST(testStereoFrame, undistortFisheyeStereoFrame) {
                 stereo_dataset_path + "right_fisheye_img_0.png", false);
 
   // Get relative pose of cameras
-  gtsam::Pose3 camL_pose_camR_fisheye = (cam_params_left_fisheye.body_Pose_cam_).between(
+  gtsam::Pose3 camL_pose_camR_fisheye = 
+            (cam_params_left_fisheye.body_Pose_cam_).between(
                       cam_params_right_fisheye.body_Pose_cam_);
 
   sf = new StereoFrame(0, 0, // Default, not used here
@@ -989,7 +989,8 @@ TEST(testStereoFrame, undistortFisheyeStereoFrame) {
   P2 = sf->getRightFrame().cam_param_.P_;
 
   // Get rectified left keypoints.
-  gtsam::Cal3_S2 left_undistRectCameraMatrix_fisheye = UtilsOpenCV::Cvmat2Cal3_S2(P1);
+  gtsam::Cal3_S2 left_undistRectCameraMatrix_fisheye = 
+        UtilsOpenCV::Cvmat2Cal3_S2(P1);
   StatusKeypointsCV left_keypoints_rectified;
   Frame left_frame_fish = sf->getLeftFrame();
   Frame right_frame_fish = sf->getRightFrame();
@@ -1001,31 +1002,31 @@ TEST(testStereoFrame, undistortFisheyeStereoFrame) {
 
   // Get rectified right keypoints
   StatusKeypointsCV right_keypoints_rectified;
-  right_keypoints_rectified = sf->getRightKeypointsRectified(left_image_rectified,
+  right_keypoints_rectified = sf->getRightKeypointsRectified(
+                                 left_image_rectified,
                                  right_image_rectified,
                                  left_keypoints_rectified,
-                                 left_undistRectCameraMatrix_fisheye.fx(), sf->getBaseline());
+                                 left_undistRectCameraMatrix_fisheye.fx(), 
+                                 sf->getBaseline());
 
   // Check corresponding features are on epipolar lines (visually and store)
-  cv::Mat undist_sidebyside = UtilsOpenCV::ConcatenateTwoImages(left_image_rectified, right_image_rectified);
+  cv::Mat undist_sidebyside = UtilsOpenCV::ConcatenateTwoImages(
+        left_image_rectified, right_image_rectified);
 
   // Parse reference image -> Remove comments
   cv::Mat undist_sidebyside_ref = cv::imread(stereo_dataset_path + 
                       "sidebyside_ref_img_0.png", cv::IMREAD_ANYCOLOR);
 
   // Get keypoints depth
-  std::vector<double> keypoints_depth = sf->getDepthFromRectifiedMatches(left_keypoints_rectified,
-                                                  right_keypoints_rectified,
-                                                  left_undistRectCameraMatrix_fisheye.fx(), 
-                                                  sf->getBaseline());
+  std::vector<double> keypoints_depth = 
+      sf->getDepthFromRectifiedMatches(left_keypoints_rectified,
+                                  right_keypoints_rectified,
+                                  left_undistRectCameraMatrix_fisheye.fx(), 
+                                  sf->getBaseline());
   
   // Test distortion with image comparison --> uncomment
   EXPECT(UtilsOpenCV::CvMatCmp(undist_sidebyside, undist_sidebyside_ref, 1e-1));
-
-
 }
-
-*/
 
 /* ************************************************************************* */
 int main() {

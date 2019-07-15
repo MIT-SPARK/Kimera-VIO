@@ -273,9 +273,6 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   int verbosityFrames = save_images_option_; // default: 0
   int verbosityKeyframes = save_images_option_; // default: 1
 
-  // Get flag to enforce keyframe if required
-  bool enforce_keyframe = stereoFrame_k_->isKeyframe();
-
   double timeSparseStereo = 0;
   double timeGetMeasurements = 0;
 
@@ -309,8 +306,11 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   const bool nr_features_low =
       nr_valid_features <= tracker_.trackerParams_.min_number_features_;
 
-  // If max time elaspsed and not able to track feature -> create new keyframe
-  if (max_time_elapsed || nr_features_low || enforce_keyframe) {
+  // Also if the user requires the keyframe to be enforced
+  if (stereoFrame_k_->isKeyframe())
+    LOG(WARNING) << "User inforced keyframe!";
+  // If max time elaspsed and not able to track feature -> create new keyframe  
+  if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_; // mainly for debugging
 
     VLOG(2) << "+++++++++++++++++++++++++++++++++++++++++++++++++++" << "Keyframe after: "
@@ -346,6 +346,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
         // 5-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMono(
               left_frame_lkf, left_frame_k);
+        if (force_53point_ransac_)
+          LOG(WARNING) << "5-point RANSAC was enforced!";
       }
 
       // Set relative pose.
@@ -380,6 +382,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
         // 3-point RANSAC.
         statusPoseStereo = tracker_.geometricOutlierRejectionStereo(
                     *stereoFrame_lkf_, *stereoFrame_k_);
+        if (force_53point_ransac_)
+          LOG(WARNING) << "3-point RANSAC was enforced!";
       }
 
       // Set relative pose.

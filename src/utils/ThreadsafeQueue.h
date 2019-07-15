@@ -97,8 +97,8 @@ public:
   // If the queue is empty or has been shutdown,
   // it returns a null shared_ptr.
   std::vector<std::shared_ptr<T>> batchPopBlocking() {
+    std::unique_lock<std::mutex> lk(mutex_);
     std::vector<std::shared_ptr<T>> pointer_vec;
-    pointer_vec.clear();
     pointer_vec.push_back(popBlocking());
     while (!empty()) {
       auto pointer = pop();
@@ -141,8 +141,8 @@ public:
   // If the queue is empty or has been shutdown,
   // it returns a null shared_ptr.
   std::vector<std::shared_ptr<T>> batchPop() {
+    std::unique_lock<std::mutex> lk(mutex_);
     std::vector<std::shared_ptr<T>> pointer_vec;
-    pointer_vec.clear();
     pointer_vec.push_back(pop());
     while (!empty()) {
       auto pointer = pop();

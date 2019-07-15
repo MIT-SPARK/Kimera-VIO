@@ -105,13 +105,13 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
   frame_rate_ = 1 / 10.0; 
 
   // set up R and T matrices 
-  cv::Mat cvR = cv::Mat::zeros(3, 3, CV_64F);
-  cv::Mat cvT = cv::Mat::zeros(3, 1, CV_64F);
+  cv::Mat rotation = cv::Mat::zeros(3, 3, CV_64F);
+  cv::Mat translation = cv::Mat::zeros(3, 1, CV_64F);
 
   // Set up to read the text file 
   std::ifstream calib_file; 
   calib_file.open(filepath.c_str());
-  CHECK(calib_file.is_open());
+  CHECK(calib_file.is_open()) << "Could not open file at: " << filepath.c_str();
   std::vector<double> distortion_coeff5_; 
   // read loop
   while(!calib_file.eof()) {
@@ -159,7 +159,7 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
         for (int i = 0; i < 9; i++){
           ss >> value; 
           int row = i/3; int col = i%3; 
-          cvR.at<double>(row, col) = value; 
+          rotation.at<double>(row, col) = value; 
         }
 
       }else if (label == "T_" + cam_id + ":") {
@@ -167,7 +167,7 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
         double value; 
         for (int i = 0; i < 3; i++){
           ss >> value;  
-          cvT.at<double>(i, 0) = value; 
+          translation.at<double>(i, 0) = value; 
         }
       
       }else if (label == "R_rect_" + cam_id + ":") {
@@ -194,10 +194,10 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
   
   // Cam pose wrt to body
 
-  cvR = R_cam_to_body * cvR.t(); 
-  cvT = T_cam_to_body - R_cam_to_body * cvT; 
+  rotation = R_cam_to_body * rotation.t(); 
+  translation = T_cam_to_body - R_cam_to_body * translation; 
 
-  body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(cvR, cvT);
+  body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(rotation, translation);
 
   calibration_ = gtsam::Cal3DS2(intrinsics_[0], // fx
       intrinsics_[1], // fy

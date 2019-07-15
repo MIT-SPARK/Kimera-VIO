@@ -254,6 +254,7 @@ private:
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
   std::atomic_bool is_launched_ = {false};
+  int init_frame_id_;
 
   // Threads.
   std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};

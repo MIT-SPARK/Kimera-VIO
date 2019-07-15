@@ -69,8 +69,8 @@ public:
   double acc_walk_;
   double imu_shift_; // Defined as t_imu = t_cam + imu_shift
 
-  // TODO(Sandro): n_gravity_ should not be in ImuParams (and not initialized here!!!)
-  gtsam::Vector3 n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81); // Added default value
+  // TODO: n_gravity_ should not be in ImuParams
+  gtsam::Vector3 n_gravity_;
   double imu_integration_sigma_;
 
 public:
@@ -197,10 +197,11 @@ public:
   // This is needed for the online initialization.
   // THREAD-SAFE.
   inline void resetPreintegrationGravity(gtsam::Vector3 reset_value) {
+    LOG(WARNING) << "Resetting value of gravity in ImuFrontEnd to: "
+                 << reset_value;
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
     imu_params_.n_gravity = reset_value;
-    LOG(WARNING) << "Resetting value of gravity in ImuFrontEnd to: "
-                 << imu_params_.n_gravity;
+    
   }
 
   /* ------------------------------------------------------------------------ */

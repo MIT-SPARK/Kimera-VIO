@@ -70,7 +70,7 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
 
-DEFINE_int32(numb_frames_oga, 15,
+DEFINE_int32(num_frames_vio_init, 25,
              "Minimum number of frames for the online "
              "gravity-aligned initialization");
 DEFINE_int32(initialization_mode, 1,
@@ -153,6 +153,7 @@ SpinOutputContainer Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_pa
     if (!is_launched_) {
       launchFrontendThread();
       is_launched_ = true;
+      init_frame_id_ = stereo_imu_sync_packet.getStereoFrame().getFrameId();
     }
     CHECK(is_launched_);
 
@@ -587,15 +588,15 @@ bool Pipeline::initializeOnline(
             << frame_id << "--------------------";
 
   CHECK(vio_frontend_);
-  CHECK_GE(frame_id, 1);
-  CHECK_GE(FLAGS_numb_frames_oga, frame_id);
+  CHECK_GE(frame_id, init_frame_id_);
+  CHECK_GE(init_frame_id_ + FLAGS_num_frames_vio_init, frame_id);
 
   // Enforce stereo frame as keyframe for initialization
   StereoImuSyncPacket stereo_imu_sync_init = stereo_imu_sync_packet;
   stereo_imu_sync_init.setAsKeyframe();
 
   /////////////////// FIRST FRAME //////////////////////////////////////////////
-  if (frame_id == 1) {
+  if (frame_id == init_frame_id_) {
 
     // Set trivial bias and gravity vector for online initialization
     vio_frontend_->prepareFrontendForOnlineAlignment();
@@ -620,7 +621,7 @@ bool Pipeline::initializeOnline(
     const StereoFrame stereo_frame_lkf = frontend_output.stereo_frame_lkf_;
 
     // Only process set of frontend outputs after specific number of frames
-    if (frame_id < FLAGS_numb_frames_oga) {
+    if (frame_id < (init_frame_id_ + FLAGS_num_frames_vio_init)) {
       return false;
     } else {
       ///////////////////////////// ONLINE INITIALIZER //////////////////////
