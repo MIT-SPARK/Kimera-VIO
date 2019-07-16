@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.10)
 project(SparkVio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
@@ -59,7 +59,6 @@ add_library(SparkVio SHARED
   src/UtilsOpenCV.cpp
   src/ImuFrontEnd.cpp
   src/VioBackEnd.cpp
-  src/OnlineGravityAlignment.cpp
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
   src/LoggerMatlab.cpp
@@ -71,7 +70,7 @@ add_library(SparkVio SHARED
   src/Frame.h
   src/Visualizer3D.cpp "")
 
-#Add an alias so that library can be used inside the build tree, e.g. when testing
+# Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(SparkVio::SparkVio ALIAS SparkVio)
 
 ### Add source code for data provider.
@@ -82,6 +81,8 @@ include(src/factors/CMakeLists.txt)
 include(src/mesh/CMakeLists.txt)
 ### Add source code for utils
 include(src/utils/CMakeLists.txt)
+### Add source code for initialization
+include(src/initial/CMakeLists.txt)
 ### Add source code for pipeline
 include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
@@ -104,7 +105,9 @@ target_include_directories(SparkVio
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
-target_compile_options(SparkVio PRIVATE -Wall -pipe) # Remove these
+target_compile_options(SparkVio
+  PRIVATE -Wall -pipe
+  PUBLIC -march=native) # Remove these
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(SparkVio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
@@ -121,18 +124,75 @@ target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
 add_executable(stereoVIOKitti ./examples/stereoVIOKitti.cpp)
 target_link_libraries(stereoVIOKitti PUBLIC SparkVio::SparkVio)
 
-### Include the micro for adding test
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GtsamTesting.cmake)
-
-### Get all the cpp files in ./src except the main file
-set(VIO_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(cpp_file_pattern
-  "${VIO_SRC_DIR}/*.cpp"
-  "${VIO_SRC_DIR}/*/*.cpp")
-file(GLOB src_cpp_files ${cpp_file_pattern})
-
 ### Add testing
-add_subdirectory(tests)
+# Download and unpack googletest at configure time
+# TODO Consider doing the same for glog, gflags, although it might
+# make the command `cmake ..` a bit slow.
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake external/googletest-download/CMakeLists.txt)
+execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download" )
+execute_process(COMMAND "${CMAKE_COMMAND}" --build .
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download" )
+
+# Prevent GoogleTest from overriding our compiler/linker options
+# when building with Visual Studio
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+# Add googletest directly to our build. This adds
+# the following targets: gtest, gtest_main, gmock
+# and gmock_main
+add_subdirectory("${CMAKE_BINARY_DIR}/external/googletest-src"
+                 "${CMAKE_BINARY_DIR}/external/googletest-build")
+
+# The gtest/gmock targets carry header search path
+# dependencies automatically when using CMake 2.8.11 or
+# later. Otherwise we have to add them here ourselves.
+if(CMAKE_VERSION VERSION_LESS 2.8.11)
+    include_directories("${gtest_SOURCE_DIR}/include"
+                        "${gmock_SOURCE_DIR}/include")
+endif()
+
+# Include data directories for gtests.
+set(TEST_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
+configure_file(./tests/test_config.h.in ./tests/test_config.h)
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/tests")
+
+# Generate gtests.
+include(CTest)
+add_executable(testSparkVio
+  tests/testSparkVio.cpp
+  tests/testCameraParams.cpp
+  tests/testCodesignIdeas.cpp
+  tests/testFeatureSelector.cpp
+  tests/testFrame.cpp
+  tests/testGeneralParallelPlaneRegularBasicFactor.cpp
+  tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
+  tests/testImuFrontEnd.cpp
+  tests/testKittiDataProvider.cpp
+  #tests/testMesher.cpp
+  tests/testParallelPlaneRegularBasicFactor.cpp
+  tests/testParallelPlaneRegularTangentSpaceFactor.cpp
+  tests/testPointPlaneFactor.cpp
+  #tests/testRegularVioBackEnd.cpp
+  tests/testRegularVioBackEndParams.cpp
+  tests/testStereoFrame.cpp
+  tests/testStereoVisionFrontEnd.cpp
+  tests/testThreadsafeImuBuffer.cpp
+  tests/testThreadsafeQueue.cpp
+  tests/testThreadsafeTemporalBuffer.cpp
+  tests/testTimer.cpp
+  tests/testTracker.cpp
+  tests/testUtilsOpenCV.cpp
+  tests/testVioBackEnd.cpp
+  tests/testVioBackEndParams.cpp
+  tests/testVioFrontEndParams.cpp
+  tests/testVisualizer3D.cpp
+  #tests/testInitializationBackEnd.cpp
+  tests/testOnlineAlignment.cpp
+  )
+target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
+include(GoogleTest)
+gtest_discover_tests(testSparkVio)
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)
 #

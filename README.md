@@ -148,9 +148,9 @@ $ make -j8
 $ sudo make install
 ```
 
-Glog and Gflags
+Glog, Gflags & Gtest
 ----------------------
-Glog and gflags will be automatically downloaded using cmake unless there is a system-wide installation found.
+Glog, gflags, and gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
 
 Running examples
 ======================

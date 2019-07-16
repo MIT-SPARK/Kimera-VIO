@@ -31,6 +31,7 @@
 #include "pipeline/BufferControl.h"
 #include "pipeline/ProcessControl.h"
 #include "utils/ThreadsafeQueue.h"
+#include "initial/InitializationBackEnd-definitions.h"
 
 namespace VIO {
 // Forward-declare classes.
@@ -82,7 +83,9 @@ class Pipeline {
 
   ImuBias getEstimatedBias() { return vio_backend_->getLatestImuBias(); }
 
-  Timestamp getTimestamp() { return timestamp_lkf_; }
+  Timestamp getTimestamp() {
+    return vio_backend_->getTimestampLkf();
+  }
 
   gtsam::Matrix getEstimatedStateCovariance() {
     return vio_backend_->getStateCovarianceLkf();
@@ -105,27 +108,20 @@ class Pipeline {
   // Initialize pipeline with desired option (flag).
   bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
+  // Check if necessary to re-initialize pipeline.
+  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
   // Initialize pipeline from IMU or GT.
   bool initializeFromIMUorGT(const StereoImuSyncPacket &stereo_imu_sync_packet);
 
   // Initialize pipeline from online gravity alignment.
   bool initializeOnline(const StereoImuSyncPacket &stereo_imu_sync_packet);
 
-  // Perform Bundle-Adjustment and initial gravity alignment
-  bool bundleAdjustmentAndGravityAlignment(
-                      const StereoImuSyncPacket &stereo_imu_sync_init,
-                      const StereoFrame &stereo_frame_lkf,
-                      gtsam::Vector3 *gyro_bias,
-                      gtsam::Vector3 *g_iter_b0,
-                      gtsam::Pose3 *init_pose);
-
   // Initialize backend given external pose estimate (GT or OGA)
-  bool initializeBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
+  // TODO(Sandro): Unify both functions below (init backend)
+  bool initializeVioBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
                       std::shared_ptr<gtNavState> initial_state,
                       const StereoFrame &stereo_frame_lkf);
-
-  // Re-initialize pipeline.
-  bool reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.
@@ -184,7 +180,9 @@ class Pipeline {
   // TODO remove dataset_ from vio pipeline altogether!
   ETHDatasetParser* dataset_;
 
+  // For bookkeeping
   Timestamp timestamp_lkf_;
+  Timestamp timestamp_lkf_published_;
 
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
@@ -201,6 +199,9 @@ class Pipeline {
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
   ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
+
+  // Online initialization frontend queue.
+  ThreadsafeQueue<InitializationInputPayload> initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;

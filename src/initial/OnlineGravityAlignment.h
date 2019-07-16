@@ -9,6 +9,11 @@
 /**
  * @file   OnlineGravityAlignment.h
  * @brief  Contains initial Online Gravity Alignment functions.
+ *
+ * Qin, Tong, and Shaojie Shen. 
+ * Robust initialization of monocular visual-inertial estimation on aerial robots.
+ * International Conference on Intelligent Robots and Systems (IROS). IEEE, 2017.
+ *
  * @author Sandro Berchier
  * @author Luca Carlone
  */
@@ -28,9 +33,12 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/linear/VectorValues.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/linear/JacobianFactor.h>
+#include <gtsam/navigation/AHRSFactor.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/Values.h>
+#include <gtsam/nonlinear/Marginals.h>
 #include "UtilsOpenCV.h"
 
 #include "ImuFrontEnd.h"
@@ -59,7 +67,18 @@ public:
   /* ------------------------------------------------------------------------ */
   bool alignVisualInertialEstimates(gtsam::Vector3 *gyro_bias,
                                     gtsam::Vector3 *g_iter,
-                                    gtsam::Pose3 *init_pose);
+                                    gtsam::NavState *init_navstate,
+                                    const bool& estimate_bias = true);
+
+  /* ------------------------------------------------------------------------ */
+  static gtsam::Matrix createTangentBasis(const gtsam::Vector3 &g0);
+
+  /* ------------------------------------------------------------------------ */
+  bool estimateGyroscopeBiasOnly(gtsam::Vector3 *gyro_bias);
+
+  /* ------------------------------------------------------------------------ */
+  gtsam::Vector3 estimateGyroscopeResiduals(
+                              const VisualInertialFrames &vi_frames);
 
 private:
   /* ------------------------------------------------------------------------ */
@@ -69,8 +88,18 @@ private:
                               VisualInertialFrames *vi_frames);
 
   /* ------------------------------------------------------------------------ */
-  bool estimateGyroscopeBias(const VisualInertialFrames &vi_frames,
+  bool estimateBiasAndUpdateStates(const AlignmentPims &pims,
+                              gtsam::Vector3 *gyro_bias,
+                              VisualInertialFrames *vi_frames);
+
+  /* ------------------------------------------------------------------------ */
+  void estimateGyroscopeBias(const VisualInertialFrames &vi_frames,
                               gtsam::Vector3 *gyro_bias);
+
+  /* ------------------------------------------------------------------------ */
+  //void estimateGyroscopeBiasAHRS(const VisualInertialFrames &vi_frames,
+  //    const std::vector<gtsam::AHRSFactor::PreintegratedMeasurements> &ahrs_pims,
+  //    gtsam::Vector3 *gyro_bias);
 
   /* ------------------------------------------------------------------------ */
   void updateDeltaStates(const AlignmentPims &pims,
@@ -80,14 +109,14 @@ private:
   /* ------------------------------------------------------------------------ */
   bool alignEstimatesLinearly(const VisualInertialFrames &vi_frames,
                               const gtsam::Vector3 &g_world,
-                              gtsam::Vector3 *g_iter);
-
-  /* ------------------------------------------------------------------------ */
-  gtsam::Matrix createTangentBasis(const gtsam::Vector3 &g0);
+                              gtsam::Vector3 *g_iter,
+                              gtsam::Velocity3 *init_vel);
 
   /* ------------------------------------------------------------------------ */
   void refineGravity(const VisualInertialFrames &vi_frames,
-                     const gtsam::Vector3 &g_world, gtsam::Vector3 *g_iter);
+                     const gtsam::Vector3 &g_world,
+                     gtsam::Vector3 *g_iter,
+                     gtsam::Velocity3 *init_vel);
 
 private:
   const AlignmentPims pims_;
