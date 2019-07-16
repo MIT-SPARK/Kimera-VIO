@@ -696,6 +696,7 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
 
     // Get frontend output to backend input for online initialization
     auto output_frontend = stereo_frontend_output_queue_.batchPop();
+    CHECK(!output_frontend.empty());
     const StereoFrame &stereo_frame_fkf =
         output_frontend.back()->stereo_frame_lkf_;
     std::vector<std::shared_ptr<VioBackEndInputPayload>> inputs_backend;
@@ -936,35 +937,28 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::processKeyframePop() {
+  // TODO (Sandro): Adapt to be able to batch pop frames for batch backend
   // Pull from stereo frontend output queue.
   LOG(INFO) << "Spinning wrapped thread.";
   while(!shutdown_) {
-    const auto &stereo_frontend_output_payload_vector =
-        stereo_frontend_output_queue_.batchPopBlocking();
-    // TODO(Sandro): Adapt this!! 
-    // We should also be able to batch process for the backend
-    // Either just popBlocking or adapt processKeyframe for multiple
-    if (stereo_frontend_output_payload_vector.size() != 1) {
-      LOG(INFO) << "Queue output vector size: 1";
-    } else {
-      LOG(WARNING) << "Queue output vector size: "
-                   << stereo_frontend_output_payload_vector.size();
+    std::shared_ptr<StereoFrontEndOutputPayload> stereo_frontend_output_payload;
+    stereo_frontend_output_payload = stereo_frontend_output_queue_.pop();
+    if (!stereo_frontend_output_payload) {
+      VLOG(100) << "Missing frontend output payload.";
+      continue;
     }
-    // TODO: Adapt to be able to push in blocks into backend
-    const auto &stereo_frontend_output_payload =
-        stereo_frontend_output_payload_vector.front();
-    // std::shared_ptr<StereoFrontEndOutputPayload>
-    // stereo_frontend_output_payload
-    //    = stereo_frontend_output_queue_.popBlocking();
     CHECK(stereo_frontend_output_payload);
-    
+    if (!stereo_frontend_output_payload->is_keyframe_) {
+      continue;
+    }
     CHECK(stereo_frontend_output_payload->is_keyframe_);
-    
+
     // Pass info for resiliency
     debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
 
     // Get timestamp of key-frame
-    timestamp_lkf_ = stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp();
+    timestamp_lkf_ =
+        stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp();
 
     ////////////////////////////////////////////////////////////////////////////
     // So from this point on, we have a keyframe.
@@ -972,11 +966,11 @@ void Pipeline::processKeyframePop() {
     // Actual keyframe processing. Call to backend.
     ////////////////////////////// BACK-END ////////////////////////////////////
     processKeyframe(
-          stereo_frontend_output_payload->statusSmartStereoMeasurements_,
-          stereo_frontend_output_payload->stereo_frame_lkf_,
-          stereo_frontend_output_payload->pim_,
-          stereo_frontend_output_payload->tracker_status_,
-          stereo_frontend_output_payload->relative_pose_body_stereo_);
+        stereo_frontend_output_payload->statusSmartStereoMeasurements_,
+        stereo_frontend_output_payload->stereo_frame_lkf_,
+        stereo_frontend_output_payload->pim_,
+        stereo_frontend_output_payload->tracker_status_,
+        stereo_frontend_output_payload->relative_pose_body_stereo_);
   }
   LOG(INFO) << "Shutdown wrapped thread.";
 }
