@@ -943,7 +943,7 @@ TEST(testStereoFrame, undistortFisheye) {
 // TODO: Figure out why this compiles on PC, but not on Jenkins
 // Most likely because the reference image is generated on PC!!
 // CvMatCmp compares the image pixel by pixel!
-TEST(testStereoFrame, DISABLED_undistortFisheyeStereoFrame) {
+TEST_DISABLED(testStereoFrame, undistortFisheyeStereoFrame) {
   // Parse camera params for left and right cameras
   static CameraParams cam_params_left_fisheye;
   cam_params_left_fisheye.parseYAML(stereo_dataset_path + 
