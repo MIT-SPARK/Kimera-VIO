@@ -96,7 +96,7 @@ ETHDatasetParser::ETHDatasetParser() : DataProvider(), imuData_() {
 }
 
 /* -------------------------------------------------------------------------- */
-ETHDatasetParser::ETHDatasetParser(std::string& input_string) {
+ETHDatasetParser::ETHDatasetParser(const std::string& input_string) {
     LOG(INFO) << "Dummy ETHDatasetParser constructor called. Purpose: "
               << input_string;
 }

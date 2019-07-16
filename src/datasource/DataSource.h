@@ -57,18 +57,6 @@ struct SpinOutputContainer {
   gtsam::Matrix State_Covariance_lkf_;
   DebugTrackerInfo debug_tracker_info_;
 
-  SpinOutputContainer& operator=(SpinOutputContainer other) {
-    timestamp_kf_ = other.timestamp_kf_;
-    W_Pose_Blkf_ = other.W_Pose_Blkf_;
-    W_Vel_Blkf_ = other.W_Vel_Blkf_;
-    imu_bias_lkf_ = other.imu_bias_lkf_;
-    State_Covariance_lkf_ = other.State_Covariance_lkf_;
-    debug_tracker_info_ = other.debug_tracker_info_;
-    return *this;
-  }
-
-  // Define getters for output values
-
   inline const Timestamp getTimestamp() { return timestamp_kf_; }
 
   inline const gtsam::Pose3 getEstimatedPose() { return W_Pose_Blkf_; }

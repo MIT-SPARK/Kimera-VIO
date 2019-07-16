@@ -124,41 +124,8 @@ TEST(testFrame, CalibratePixel) {
 }
 
 /* ************************************************************************* */
-// TODO: Create test for Calibrate Pixel with pinhole equidistant model
-/*
-TEST(testFrame, CalibratePixel) {
-  // Perform a scan on the grid to verify the correctness of pixel calibration!
-  const int numTestRows = 8;
-  const int numTestCols = 8;
-
-  // Get the camera parameters
-  CameraParams camParams;
-  camParams.parseYAML(sensorPath);
-
-  // Generate the pixels
-  KeypointsCV testPointsCV;
-  testPointsCV.reserve(numTestRows * numTestCols);
-
-  for (int r = 0; r < numTestRows; r++) {
-    for (int c = 0; c < numTestCols; c++) {
-      testPointsCV.push_back(KeypointCV(c * imgWidth / (numTestCols - 1),
-          r * imgHeight / (numTestRows - 1)));
-    }
-  }
-  // Calibrate, and uncalibrate the point, verify that we get the same point
-  for (KeypointsCV::iterator iter = testPointsCV.begin(); iter !=
-testPointsCV.end(); iter++) { Vector3 versor = Frame::CalibratePixel(*iter,
-camParams); EXPECT_DOUBLES_EQUAL(versor.norm(), 1, tol);
-
-    // distort the pixel again
-    versor = versor / versor(2);
-    Point2 uncalibrated_px_actual =
-camParams.calibration_.uncalibrate(Point2(versor(0), versor(1))); Point2
-uncalibrated_px_expected = Point2(iter->x, iter->y); Point2 px_mismatch =
-uncalibrated_px_actual - uncalibrated_px_expected;
-    EXPECT(px_mismatch.vector().norm() < 0.5);
-  }
-} */
+// TODO: Create test for Calibrate Pixel with pinhole equidistant model 
+// TEST(testFrame, CalibratePixelEquidistant) {}
 
 /* ************************************************************************* */
 TEST(testFrame, findLmkIdFromPixel) {

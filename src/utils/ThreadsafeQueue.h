@@ -90,24 +90,6 @@ class ThreadsafeQueue {
     return result;
   }
 
-  // Pop values. Waits for data to be available in the queue.
-  // Pops until queue is not empty.
-  // Returns a vector of shared_ptr to the value retrieved.
-  // If the queue is empty or has been shutdown,
-  // it returns a null shared_ptr.
-  std::vector<std::shared_ptr<T>> batchPopBlocking() {
-    std::vector<std::shared_ptr<T>> pointer_vec;
-    pointer_vec.clear();
-    pointer_vec.push_back(popBlocking());
-    while (!empty()) {
-      auto pointer = pop();
-      if (pointer != nullptr) {
-        pointer_vec.push_back(pointer);
-      }
-    }
-    return pointer_vec;
-  }
-
   // Pop without blocking, just checks once if the queue is empty.
   // Returns true if the value could be retrieved, false otherwise.
   bool pop(T& value) {
@@ -138,13 +120,17 @@ class ThreadsafeQueue {
   // Pop until queue is not empty.
   // Returns a vector of shared_ptr to the value retrieved.
   // If the queue is empty or has been shutdown,
-  // it returns a null shared_ptr.
+  // it returns an empty vector.
   std::vector<std::shared_ptr<T>> batchPop() {
+    if (shutdown_)
+      return std::vector<std::shared_ptr<T>>();
+    std::lock_guard<std::mutex> lk(mutex_);
+    if (data_queue_.empty())
+      return std::vector<std::shared_ptr<T>>();
     std::vector<std::shared_ptr<T>> pointer_vec;
-    pointer_vec.clear();
-    pointer_vec.push_back(pop());
-    while (!empty()) {
-      auto pointer = pop();
+    while (!data_queue_.empty()) {
+      auto pointer = std::make_shared<T>(data_queue_.front());
+      data_queue_.pop();
       if (pointer != nullptr) {
         pointer_vec.push_back(pointer);
       }

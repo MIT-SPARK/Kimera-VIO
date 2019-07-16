@@ -5,11 +5,11 @@ if (NOT __GLOG_INCLUDED)
   set(__GLOG_INCLUDED TRUE)
 
   # try the system-wide glog first
-  set(GLOG_PREFER_EXPORTED_GLOG_CMAKE_CONFIGURATION TRUE)
-  #find_package(Glog QUIET)
-  if (glog_FOUND)
-    message(STATUS "FOUND glog!:  ${glog_DIR}")
-    # glog wraps the include directories into the exported glog::glog target.
+  #find_package(glog QUIET)
+  if (GLOG_FOUND)
+    message(STATUS "FOUND glog!")
+    message(STATUS "GLOG libs: ${GLOG_LIBRARIES}")
+    message(STATUS "GLOG includes: ${GLOG_INCLUDE_DIR}")
   else()
     # Fetch and build glog from github
     message(STATUS "NOT FOUND glog! Will be downloaded from github.")

@@ -2196,28 +2196,6 @@ std::vector<gtsam::Pose3> VioBackEnd::addInitialVisualStatesAndOptimize(
 
   VLOG(5) << "Initialisation landmarks added.";
 
-  /*// decide which factors to add
-  TrackingStatus kfTrackingStatus_mono =
-  status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
-  switch(kfTrackingStatus_mono){
-    case TrackingStatus::LOW_DISPARITY :  // vehicle is not moving
-      if (verbosity_ >= 7) {printf("Add zero velocity and no motion
-  factors\n");} addZeroVelocityPrior(curr_kf_id_);
-      addNoMotionFactor(last_kf_id_, curr_kf_id_);
-      break;
-
-      // This did not improve in any case
-      //  case TrackingStatus::INVALID :// ransac failed hence we cannot trust
-  features
-      //    if (verbosity_ >= 7) {printf("Add constant velocity factor
-  (monoRansac is INVALID)\n");}
-      //    addConstantVelocityFactor(last_id_, cur_id_);
-      //    break;
-
-    default: // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : // we
-  add features in VIO addLandmarksToGraph(landmarks_kf); break;
-  }*/
-
   // Perform Bundle Adjustment and retrieve camera poses (v0_T_vk)
   // v0 is the initial camera frame
   std::vector<gtsam::Pose3> estimated_poses = optimizeInitialVisualStates(

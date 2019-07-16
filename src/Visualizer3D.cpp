@@ -14,6 +14,13 @@
 
 #include "Visualizer3D.h"
 
+#include <algorithm>      // for min
+#include <memory>         // for shared_ptr<>
+#include <string>         // for string
+#include <unordered_map>  // for unordered_map<>
+#include <utility>        // for pair<>
+#include <vector>         // for vector<>
+
 #include <gflags/gflags.h>
 
 #include "LoggerMatlab.h"
@@ -759,7 +766,9 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
       mesh.setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_PHONG);
       break;
     }
-    default: { break; }
+    default: {
+      break;
+    }
   }
 
   // Decide mesh representation style.
@@ -780,7 +789,9 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
                                 cv::viz::REPRESENTATION_WIREFRAME);
       break;
     }
-    default: { break; }
+    default: {
+      break;
+    }
   }
   mesh.setRenderingProperty(cv::viz::AMBIENT, window_data_.mesh_ambient_);
   mesh.setRenderingProperty(cv::viz::LIGHTING, window_data_.mesh_lighting_);
@@ -1261,7 +1272,7 @@ void Visualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
 
     for (const size_t& triangle_id : cluster.triangle_ids_) {
       size_t triangle_idx = std::round(triangle_id * 4);
-      CHECK_GE(triangle_idx + 3, polygons_mesh.rows)
+      DCHECK_LE(triangle_idx + 3, polygons_mesh.rows)
           << "Visualizer3D: an id in triangle_ids_ is too large.";
       int32_t idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
       int32_t idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);

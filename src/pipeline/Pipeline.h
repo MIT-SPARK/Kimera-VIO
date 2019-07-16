@@ -19,6 +19,8 @@
 #include <cstdlib>  // for srand()
 #include <memory>
 #include <thread>
+#include <utility>  // for make_pair
+#include <vector>
 
 #include "ETH_parser.h"
 #include "FeatureSelector.h"
@@ -235,6 +237,7 @@ class Pipeline {
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
   std::atomic_bool is_launched_ = {false};
+  int init_frame_id_;
 
   // Threads.
   std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};

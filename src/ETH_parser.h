@@ -113,7 +113,7 @@ public:
 class ETHDatasetParser : public DataProvider {
 public:
   ETHDatasetParser();
-  ETHDatasetParser(std::string& input_string);
+  ETHDatasetParser(const std::string& input_string);
   virtual ~ETHDatasetParser();
 
   // Decides backend parameters depending on the backend chosen.

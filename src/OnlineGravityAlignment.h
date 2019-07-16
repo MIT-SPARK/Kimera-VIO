@@ -90,10 +90,10 @@ private:
                      const gtsam::Vector3 &g_world, gtsam::Vector3 *g_iter);
 
 private:
-  const AlignmentPims &pims_;
-  const AlignmentPoses &estimated_body_poses_;
-  const std::vector<double> &delta_t_camera_;
-  const gtsam::Vector3 &g_world_;
+  const AlignmentPims pims_;
+  const AlignmentPoses estimated_body_poses_;
+  const std::vector<double> delta_t_camera_;
+  const gtsam::Vector3 g_world_;
 };
 
 } // namespace VIO

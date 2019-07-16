@@ -73,7 +73,7 @@ DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher");
 
-DEFINE_int32(numb_frames_oga, 15,
+DEFINE_int32(num_frames_vio_init, 25,
              "Minimum number of frames for the online "
              "gravity-aligned initialization");
 DEFINE_int32(initialization_mode, 1,
@@ -155,6 +155,7 @@ SpinOutputContainer Pipeline::spin(
     if (!is_launched_) {
       launchFrontendThread();
       is_launched_ = true;
+      init_frame_id_ = stereo_imu_sync_packet.getStereoFrame().getFrameId();
     }
     CHECK(is_launched_);
 
@@ -245,6 +246,13 @@ void Pipeline::processKeyframe(
     pushToMesherInputQueue(&points_with_id_VIO, &lmk_id_to_lmk_type_map,
                            last_stereo_keyframe);
 
+    // In the mesher thread push queue with meshes for visualization.
+    // Use blocking to avoid skipping frames.
+    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
+        << "Mesher output queue did not pop a payload.";
+
+    // Do this after popBlocking from Mesher so we do it sequentially, since
+    // planes_ are not thread-safe.
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
     if (FLAGS_extract_planes_from_the_scene) {
@@ -262,10 +270,6 @@ void Pipeline::processKeyframe(
              "regularities.";
     }
 
-    // In the mesher thread push queue with meshes for visualization.
-    // Use blocking to avoid skipping frames.
-    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
-        << "Mesher output queue did not pop a payload.";
   }
 
   if (FLAGS_visualize) {
@@ -392,7 +396,7 @@ void Pipeline::spinSequential() {
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
     if (FLAGS_extract_planes_from_the_scene) {
-      CHECK_EQ(dataset_->getBackendType(), 1);  // Use Regular VIO
+      DCHECK_EQ(dataset_->getBackendType(), 1);  // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
       LOG_IF_EVERY_N(WARNING,
@@ -580,15 +584,15 @@ bool Pipeline::initializeOnline(
             << frame_id << "--------------------";
 
   CHECK(vio_frontend_);
-  CHECK_GE(frame_id, 1);
-  CHECK_GE(FLAGS_numb_frames_oga, frame_id);
+  CHECK_GE(frame_id, init_frame_id_);
+  CHECK_GE(init_frame_id_ + FLAGS_num_frames_vio_init, frame_id);
 
   // Enforce stereo frame as keyframe for initialization
   StereoImuSyncPacket stereo_imu_sync_init = stereo_imu_sync_packet;
   stereo_imu_sync_init.setAsKeyframe();
 
   /////////////////// FIRST FRAME //////////////////////////////////////////////
-  if (frame_id == 1) {
+  if (frame_id == init_frame_id_) {
 
     // Set trivial bias and gravity vector for online initialization
     vio_frontend_->prepareFrontendForOnlineAlignment();
@@ -613,7 +617,7 @@ bool Pipeline::initializeOnline(
     const StereoFrame stereo_frame_lkf = frontend_output.stereo_frame_lkf_;
 
     // Only process set of frontend outputs after specific number of frames
-    if (frame_id < FLAGS_numb_frames_oga) {
+    if (frame_id < (init_frame_id_ + FLAGS_num_frames_vio_init)) {
       return false;
     } else {
       ///////////////////////////// ONLINE INITIALIZER //////////////////////
@@ -693,6 +697,7 @@ bool Pipeline::bundleAdjustmentAndGravityAlignment(
 
     // Get frontend output to backend input for online initialization
     auto output_frontend = stereo_frontend_output_queue_.batchPop();
+    CHECK(!output_frontend.empty());
     const StereoFrame &stereo_frame_fkf =
         output_frontend.back()->stereo_frame_lkf_;
     std::vector<std::shared_ptr<VioBackEndInputPayload>> inputs_backend;
