@@ -65,4 +65,4 @@ RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 # TODO remove git checkout, used here to test new things without breaking Jenkins evaluation.
-RUN cd spark_vio_evaluation && git checkout feature/comprehensive_tests && pip install .
+RUN cd spark_vio_evaluation && git checkout devel && pip install .
