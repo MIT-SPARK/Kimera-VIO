@@ -39,6 +39,7 @@ class OnlineAlignmentTestData {
  public:
   AlignmentPoses estimated_poses_;
   AlignmentPims pims_;
+  InitialAHRSPims ahrs_pim_;
   std::vector<double> delta_t_poses_;
   ImuParams imu_params_;
   ImuBias imu_bias_;
@@ -80,6 +81,7 @@ class OnlineAlignmentTestData {
       estimated_poses_.clear();
       pims_.clear();
       delta_t_poses_.clear();
+      ahrs_pim_.clear();
 
       // Extract first element in the map
       std::map<long long, gtNavState>::iterator it;
@@ -109,11 +111,28 @@ class OnlineAlignmentTestData {
         const auto& pim = imu_frontend.preintegrateImuMeasurements(
                     imu_meas.timestamps_, imu_meas.measurements_);
 
+        // AHRS Pre-integration
+        // Define covariance matrices
+        Vector3 biasHat(0, 0, 0);
+        double accNoiseVar = 0.01;
+        const Matrix3 kMeasuredAccCovariance =
+                  accNoiseVar * gtsam::Matrix3::Identity();
+        gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim(biasHat,
+                                            kMeasuredAccCovariance);
+        for (size_t i = 0; i < (imu_meas.measurements_.cols() - 1); ++i) {
+          double delta_t = UtilsOpenCV::NsecToSec(
+                  imu_meas.timestamps_(i+1) - imu_meas.timestamps_(i));
+          gtsam::Vector3 measured_omega =
+              imu_meas.measurements_.block(3, 6, i, i+1);
+          ahrs_pim.integrateMeasurement(measured_omega, delta_t);
+        }
+
         // Buffer for online alignment
         estimated_poses_.push_back(estimated_poses_[0].between(gt_pose_k));
         delta_t_poses_.push_back(UtilsOpenCV::NsecToSec(
                   timestamp_frame_k - timestamp_last_frame));
         pims_.push_back(pim);
+        ahrs_pim_.push_back(ahrs_pim);
         if (pims_.size() > n_frames_data) {
           break;
         }
@@ -131,7 +150,8 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   // Construct ETH Parser and get data
   std::string reason = "test of gyroscope estimation";
   ETHDatasetParser dataset(reason);
-  static const std::string data_path(DATASET_PATH + std::string("/ForOnlineAlignment/gyro_bias/"));
+  static const std::string data_path(DATASET_PATH + std::string(
+                                      "/ForOnlineAlignment/gyro_bias/"));
   int n_begin= 1;
   int n_frames = 5;
   OnlineAlignmentTestData test_data(dataset, data_path,
@@ -150,7 +170,40 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   CHECK_DOUBLE_EQ(gyro_bias.norm(), 0.0);
 
   // Compute Gyroscope Bias
-  CHECK(initial_alignment.estimateGyroscopeBiasOnly(&gyro_bias));
+  CHECK(initial_alignment.estimateGyroscopeBiasOnly(&gyro_bias, false));
+
+  // Final test check against real bias in data
+  gtsam::Vector3 real_gyro_bias(0.0001, 0.0002, 0.0003);
+  EXPECT_NEAR(real_gyro_bias.norm(), gyro_bias.norm(), tol_GB);
+}
+
+/* -------------------------------------------------------------------------- */
+TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimationAHRS) {  
+  // Construct ETH Parser and get data
+  std::string reason = "test of gyroscope estimation AHRS";
+  ETHDatasetParser dataset(reason);
+  static const std::string data_path(DATASET_PATH + std::string(
+                                      "/ForOnlineAlignment/gyro_bias/"));
+  int n_begin= 1;
+  int n_frames = 5;
+  OnlineAlignmentTestData test_data(dataset, data_path,
+                          n_begin, n_frames);
+
+  // Construct online alignment class with dummy gravity vector
+  gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
+  OnlineGravityAlignment initial_alignment(
+                      test_data.estimated_poses_, 
+                      test_data.delta_t_poses_,
+                      test_data.pims_, 
+                      n_gravity,
+                      test_data.ahrs_pim_);
+
+  // Initialize OnlineAlignment
+  gtsam::Vector3 gyro_bias = test_data.imu_bias_.gyroscope();
+  CHECK_DOUBLE_EQ(gyro_bias.norm(), 0.0);
+
+  // Compute Gyroscope Bias
+  CHECK(initial_alignment.estimateGyroscopeBiasOnly(&gyro_bias, true));
 
   // Final test check against real bias in data
   gtsam::Vector3 real_gyro_bias(0.0001, 0.0002, 0.0003);

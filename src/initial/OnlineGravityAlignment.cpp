@@ -20,15 +20,35 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-#include <vector>
+#include <memory>
+#include <unordered_map>
+
+#include <gtsam/base/Matrix.h>
+#include <gtsam/navigation/ImuBias.h>
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/nonlinear/Values.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/linear/JacobianFactor.h>
+#include <gtsam/slam/PriorFactor.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+
+//#include <gtsam/linear/VectorValues.h>
+//#include <gtsam/nonlinear/Marginals.h>
 
 #include "utils/Timer.h"
+#include "UtilsOpenCV.h"
 #include "OnlineGravityAlignment.h"
 
 // TODO(Sandro): Create YAML file for initialization and read in!
 DEFINE_double(gyroscope_residuals, 5e-2,
               "Maximum allowed gyroscope residual after"
               " pre-integrationcorrection.");
+DEFINE_bool(use_ahrs_estimator, false,
+              "Use AHRS gyroscope bias estimator"
+              " instead of linear 1st order approximation.");
+DEFINE_double(rotation_noise_prior, 1e-2,
+              "Rotation noise for Rot3 priors"
+              " in AHRS gyroscope estimation.");
 DEFINE_double(gravity_tolerance_linear, 1e-6,
               "Maximum gravity tolerance for linear alignment.");
 DEFINE_int32(num_iterations_gravity_refinement, 4,
@@ -55,10 +75,15 @@ namespace VIO {
 // [in] global gravity vector in world frame.
 OnlineGravityAlignment::OnlineGravityAlignment(
     const AlignmentPoses &estimated_body_poses,
-    const std::vector<double> &delta_t_camera, const AlignmentPims &pims,
-    const gtsam::Vector3 &g_world)
+    const std::vector<double> &delta_t_camera,
+    const AlignmentPims &pims,
+    const gtsam::Vector3 &g_world,
+    const InitialAHRSPims &ahrs_pims)
     : estimated_body_poses_(estimated_body_poses),
-      delta_t_camera_(delta_t_camera), pims_(pims), g_world_(g_world) {}
+      delta_t_camera_(delta_t_camera),
+      pims_(pims),
+      g_world_(g_world),
+      ahrs_pims_(ahrs_pims) {}
 
 /* -------------------------------------------------------------------------- */
 // Performs visual-inertial alignment and gravity estimate.
@@ -80,10 +105,14 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
 
   // Estimate gyroscope bias if requested
   if (estimate_bias) {
-    if (!estimateBiasAndUpdateStates(pims_, gyro_bias, &vi_frames)) {
+    if (!estimateBiasAndUpdateStates(pims_, ahrs_pims_,
+                                    gyro_bias, &vi_frames,
+                                    FLAGS_use_ahrs_estimator)) {
       LOG(ERROR) << "Gyroscope bias estimation failed!\n";
       return false;
     }
+  } else {
+    LOG(WARNING) << "Gyroscope bias estimation skipped!\n";
   }
 
   // Align visual and inertial estimates
@@ -154,14 +183,24 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
 // [out] frames containing pim constraints and body poses.
 bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
           const AlignmentPims &pims,
+          const InitialAHRSPims &ahrs_pims,
           gtsam::Vector3 *gyro_bias,
-          VisualInertialFrames *vi_frames) {
+          VisualInertialFrames *vi_frames,
+          const bool& use_ahrs_estimator) {
   if(gyro_bias->norm() != 0.0) {
     LOG(ERROR) << "\nNon-zero PIM gyro bias:\n" << *gyro_bias;
     return false;
   }
-  // Estimate gyroscope bias
-  estimateGyroscopeBias(*vi_frames, gyro_bias);
+  // Estimate gyroscope bias using either AHRS estimator
+  // (if available and requested) or linear 1st approximator.
+  if (use_ahrs_estimator && 
+        (vi_frames->size() == ahrs_pims.size())) {
+      estimateGyroscopeBiasAHRS(*vi_frames, ahrs_pims, gyro_bias);
+      LOG(INFO) << "AHRS Bias Estimator used.";
+  } else {
+      estimateGyroscopeBias(*vi_frames, gyro_bias);
+      LOG(INFO) << "Linear Bias Estimator used.";
+  }
   // Update delta states with corrected bias
   updateDeltaStates(pims_, *gyro_bias, vi_frames);
   if(estimateGyroscopeResiduals(*vi_frames).norm() > 
@@ -222,62 +261,54 @@ void OnlineGravityAlignment::estimateGyroscopeBias(
 // [in] frames containing ahrs pim constraints.
 // [out] new estimated value for gyroscope bias.
 // Not yet unit tested!
-/*
-void estimateGyroscopeBiasAHRS(const VisualInertialFrames &vi_frames,
-      const std::vector<gtsam::AHRSFactor::PreintegratedMeasurements> &ahrs_pims,
+void OnlineGravityAlignment::estimateGyroscopeBiasAHRS(
+      const VisualInertialFrames &vi_frames,
+      const InitialAHRSPims &ahrs_pims,
       gtsam::Vector3 *gyro_bias) {
   CHECK_EQ(vi_frames.size(), ahrs_pims.size());
-  // TODO(Sandro): Implement AHRS Factor graph for bias estimation
+
+  // Create initial values and factor graph
   gtsam::Values initial;
-  initial.insert(gtsam::Symbol('R', 0), vi_frames.at(0).b0_R_bk());
-
-  // Create non-linear factor graph
   gtsam::NonlinearFactorGraph nfg;
+  // Add gyroscope bias initial value
+  initial.insert(gtsam::Symbol('b', 0), gtsam::Vector3());
 
-  // Prior noise model in world frame
-  // TODO(Sandro): Read in as parameter
-  double sigma = 0.001;
-  Matrix3 rot_prior_covariance = Matrix3::Zero();
-  gtsam::SharedNoiseModel noise_init_rot =
-      gtsam::noiseModel::Gaussian::Covariance(rot_prior_covariance);
-  rot_prior_covariance.diagonal() = sigma*sigma*gtsam::Vector3::Ones();
+  // Create noise model (Gaussian) in body frame
+  Matrix3 B_Rot_W = vi_frames.at(0).b0_R_bk().transpose();
+  gtsam::SharedNoiseModel noise_init_rot = 
+    gtsam::noiseModel::Gaussian::Covariance(B_Rot_W * (FLAGS_rotation_noise_prior *
+                      gtsam::Matrix3::Identity()) * B_Rot_W.transpose());
+  
+  // Insert initial value with tight rotation prior
+  initial.insert(gtsam::Symbol('R', 0), gtsam::Rot3(vi_frames.at(0).b0_R_bk()));
+  nfg.push_back(gtsam::PriorFactor<gtsam::Rot3>(
+                            gtsam::Symbol('R', 0),
+                            gtsam::Rot3(vi_frames.at(0).b0_R_bk()),
+                            noise_init_rot));
 
-  // Add rotation prior for initial rotation
-  Matrix3 B_Rot_W = vi_frames.at(0).b0_R_bk.transpose();
-  nfg.push_back(boost::make_shared<gtsam::PriorFactor<gtsam::Rot3>>(
-          gtsam::Symbol('R', 0), vi_frames.at(0).b0_R_bk(),
-                B_Rot_W * noise_init_rot * B_Rot_W));
-
-  // Loop through all initialization frame
+  // Loop through all initialization frames
   for (int i = 0; i < vi_frames.size(); i++) {
     auto frame_id = i+1;
     auto frame_i = std::next(vi_frames.begin(), i);
 
-    // Add initial value for rotation from SfM
-    initial.insert(gtsam::Symbol('R', frame_id), frame_i->b0_R_bkp1());
-
-    // Add rotation prior for rotation from SfM
-    B_Rot_W = frame_i->b0_R_bkp1.transpose();
-    nfg.push_back(boost::make_shared<gtsam::PriorFactor<gtsam::Rot3>>(
-          gtsam::Symbol('R', frame_id), frame_i->b0_R_bkp1(),
-                B_Rot_W * noise_init_rot * B_Rot_W));
-
-    // Add AHRS factor
-    Vector3 kZeroOmegaCoriolis(0,0,0);
-    gtsam::AHRSFactor factor(gtsam::Symbol('R', i), 
-                      gtsam::Symbol('R', frame_id),
-                      gtsam::Symbol('b', 0),
-                      ahrs_pims.at(i), 
-                      kZeroOmegaCoriolis);
+    // Insert initial value with tight rotation prior
+    initial.insert(gtsam::Symbol('R', frame_id), gtsam::Rot3(frame_i->b0_R_bkp1()));
+    nfg.push_back(gtsam::PriorFactor<gtsam::Rot3>(
+                            gtsam::Symbol('R', frame_id),
+                            gtsam::Rot3(frame_i->b0_R_bkp1()),
+                            noise_init_rot));
+    // Add AHRS factor between rotations
+    nfg.push_back(gtsam::AHRSFactor(gtsam::Symbol('R', i), 
+                            gtsam::Symbol('R', frame_id),
+                            gtsam::Symbol('b', 0),
+                            ahrs_pims.at(i), 
+                            gtsam::Vector3(0,0,0)));
   }
-  initial.insert(gtsam::Symbol('b', 0), gtsam::Vector3());
 
   // Levenberg-Marquardt optimization
   gtsam::LevenbergMarquardtParams lmParams;
   gtsam::LevenbergMarquardtOptimizer bias_estimator(
                                       nfg, initial, lmParams);
-  VLOG(10) << "LM Bias estimator created with error: " 
-           << bias_estimator.error();
 
   // Optimize and get values
   gtsam::Values initial_values = bias_estimator.optimize();
@@ -285,12 +316,17 @@ void estimateGyroscopeBiasAHRS(const VisualInertialFrames &vi_frames,
   *gyro_bias = initial_values.at<gtsam::Vector3>(gtsam::Symbol('b', 0));
 
   // Logging of solution
+  //std::stringstream ss;
+  //auto old_buf = std::cout.rdbuf(ss.rdbuf()); 
   if (VLOG_IS_ON(5)) { nfg.print("\nNon-linear factor graph:\n"); }
+  //std::cout.rdbuf(old_buf); //reset 
+  //LOG(ERROR) << ss.str();
   VLOG(5) << "Gyro bias estimation:\n" << *gyro_bias;
+  LOG(ERROR) << *gyro_bias;
   
   // TODO(Sandro): Implement check on quality of estimate
   return;
-} */
+}
 
 /* -------------------------------------------------------------------------- */
 // Estimate gyroscope bias by minimizing square of rotation error
@@ -498,7 +534,8 @@ void OnlineGravityAlignment::refineGravity(
 // Performs only the gyro bias estimate.
 // [out] initial gyro bias estimate.
 bool OnlineGravityAlignment::estimateGyroscopeBiasOnly(
-    gtsam::Vector3 *gyro_bias) {
+    gtsam::Vector3 *gyro_bias,
+    const bool& use_ahrs_estimator) {
   VLOG(10) << "Gyroscope bias only called.";
   VisualInertialFrames vi_frames;
 
@@ -507,7 +544,9 @@ bool OnlineGravityAlignment::estimateGyroscopeBiasOnly(
                                 pims_, &vi_frames);
 
   // Estimate gyro bias and check residuals
-  if(!estimateBiasAndUpdateStates(pims_, gyro_bias, &vi_frames)) {
+  if(!estimateBiasAndUpdateStates(pims_, ahrs_pims_,
+                              gyro_bias, &vi_frames,
+                              use_ahrs_estimator)) {
     return false;
   }
   return true;
