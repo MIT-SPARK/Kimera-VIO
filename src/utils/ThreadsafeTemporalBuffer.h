@@ -30,14 +30,13 @@
 
 #pragma once
 
-#include <queue>
-#include <memory>
-#include <mutex>
 #include <condition_variable>
 #include <functional>
 #include <map>
+#include <memory>
+#include <mutex>
+#include <queue>
 #include <utility>
-
 
 #include "common/vio_types.h"
 
@@ -50,7 +49,8 @@ template <typename ValueType,
               std::allocator<std::pair<const Timestamp, ValueType> > >
 class ThreadsafeTemporalBuffer {
  public:
-  typedef std::map<Timestamp, ValueType, std::less<Timestamp>, AllocatorType> BufferType;
+  typedef std::map<Timestamp, ValueType, std::less<Timestamp>, AllocatorType>
+      BufferType;
 
   // Create buffer of infinite length (buffer_length_nanoseconds = -1)
   ThreadsafeTemporalBuffer();
@@ -62,8 +62,7 @@ class ThreadsafeTemporalBuffer {
   ThreadsafeTemporalBuffer(const ThreadsafeTemporalBuffer& other);
 
   void addValue(Timestamp timestamp, const ValueType& value);
-  void addValue(const Timestamp timestamp,
-                const ValueType& value,
+  void addValue(const Timestamp timestamp, const ValueType& value,
                 const bool emit_warning_on_value_overwrite);
   void insert(const ThreadsafeTemporalBuffer& other);
 
@@ -86,22 +85,22 @@ class ThreadsafeTemporalBuffer {
   bool deleteValueAtTime(Timestamp timestamp_ns);
 
   bool getNearestValueToTime(Timestamp timestamp_ns, ValueType* value) const;
-  bool getNearestValueToTime(
-      Timestamp timestamp_ns, Timestamp maximum_delta_ns, ValueType* value) const;
-  bool getNearestValueToTime(
-      Timestamp timestamp, Timestamp maximum_delta_ns, ValueType* value,
-      Timestamp* timestamp_at_value_ns) const;
+  bool getNearestValueToTime(Timestamp timestamp_ns, Timestamp maximum_delta_ns,
+                             ValueType* value) const;
+  bool getNearestValueToTime(Timestamp timestamp, Timestamp maximum_delta_ns,
+                             ValueType* value,
+                             Timestamp* timestamp_at_value_ns) const;
 
   bool getOldestValue(ValueType* value) const;
   bool getNewestValue(ValueType* value) const;
 
   // These functions return False if there is no valid time.
-  bool getValueAtOrBeforeTime(
-      Timestamp timestamp_ns, Timestamp* timestamp_ns_of_value,
-      ValueType* value) const;
-  bool getValueAtOrAfterTime(
-      Timestamp timestamp_ns, Timestamp* timestamp_ns_of_value,
-      ValueType* value) const;
+  bool getValueAtOrBeforeTime(Timestamp timestamp_ns,
+                              Timestamp* timestamp_ns_of_value,
+                              ValueType* value) const;
+  bool getValueAtOrAfterTime(Timestamp timestamp_ns,
+                             Timestamp* timestamp_ns_of_value,
+                             ValueType* value) const;
 
   // Get all values between the two specified timestamps excluding the border
   // values.
@@ -112,23 +111,18 @@ class ThreadsafeTemporalBuffer {
   //          getValuesBetweenTimes(2, 5, ...) returns elements at 2, 3, 4.
   // by setting the parameter get_lower_bound to true.
   template <typename ValueContainerType>
-  bool getValuesBetweenTimes(
-      Timestamp timestamp_lower_ns, Timestamp timestamp_higher_ns,
-      ValueContainerType* values, const bool get_lower_bound = false) const;
+  bool getValuesBetweenTimes(Timestamp timestamp_lower_ns,
+                             Timestamp timestamp_higher_ns,
+                             ValueContainerType* values,
+                             const bool get_lower_bound = false) const;
 
-  inline void lockContainer() const {
-    mutex_.lock();
-  }
-  inline void unlockContainer() const {
-    mutex_.unlock();
-  }
+  inline void lockContainer() const { mutex_.lock(); }
+  inline void unlockContainer() const { mutex_.unlock(); }
 
   // The container is exposed so we can iterate over the values in a linear
   // fashion. The container is not locked inside this method so call
   // lockContainer()/unlockContainer() when accessing this.
-  const BufferType& buffered_values() const {
-    return values_;
-  }
+  const BufferType& buffered_values() const { return values_; }
 
   inline bool operator==(const ThreadsafeTemporalBuffer& other) const {
     return values_ == other.values_ &&
@@ -148,8 +142,8 @@ class ThreadsafeTemporalBuffer {
   mutable std::recursive_mutex mutex_;
 };
 
-}  // End of utils namespace.
+}  // namespace utils
 
-} // End of VIO namespace.
+}  // namespace VIO
 
 #include "./ThreadsafeTemporalBuffer-inl.h"

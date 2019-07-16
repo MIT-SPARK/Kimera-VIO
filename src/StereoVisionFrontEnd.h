@@ -86,18 +86,18 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
+  // Get Imu Bias. This is thread-safe as imu_frontend_->getCurrentImuBias is
+  // thread-safe.
+  inline ImuBias getCurrentImuBias() const {
+    return imu_frontend_->getCurrentImuBias();
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Update Imu Bias and reset pre-integration during initialization.
   // This is not thread-safe! (no multi-thread during initialization)
   inline void updateAndResetImuBias(const ImuBias &imu_bias) const {
     imu_frontend_->updateBias(imu_bias);
     imu_frontend_->resetIntegrationWithCachedBias();
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Get Imu Bias. This is thread-safe as imu_frontend_->getCurrentImuBias is
-  // thread-safe.
-  inline ImuBias getCurrentImuBias() const {
-    return imu_frontend_->getCurrentImuBias();
   }
 
   /* ------------------------------------------------------------------------ */

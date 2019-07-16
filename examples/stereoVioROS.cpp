@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
-  VIO::Pipeline vio_pipeline (&eth_dataset_parser);
+  VIO::Pipeline vio_pipeline(&eth_dataset_parser);
 
   // Register callback to vio_pipeline.
   VIO::DataProvider ros_dataprovider = RostopicDataProvider();

@@ -15,20 +15,20 @@
 #pragma once
 
 #include <stddef.h>
-#include <cstdlib> // for srand()
 #include <atomic>
+#include <cstdlib>  // for srand()
 #include <memory>
 #include <thread>
 
 #include "ETH_parser.h"
-#include "LoggerMatlab.h"
 #include "FeatureSelector.h"
-#include "mesh/Mesher.h"
-#include "Visualizer3D.h"
-#include "utils/ThreadsafeQueue.h"
+#include "LoggerMatlab.h"
 #include "StereoImuSyncPacket.h"
-#include "pipeline/ProcessControl.h"
+#include "Visualizer3D.h"
+#include "mesh/Mesher.h"
 #include "pipeline/BufferControl.h"
+#include "pipeline/ProcessControl.h"
+#include "utils/ThreadsafeQueue.h"
 
 namespace VIO {
 // Forward-declare classes.
@@ -36,13 +36,12 @@ class VioBackEndParams;
 class VioBackEnd;
 class StereoVisionFrontEnd;
 
-}
+}  // namespace VIO
 
 namespace VIO {
 class Pipeline {
-public:
-  Pipeline(ETHDatasetParser* dataset,
-           const ImuParams& imu_params,
+ public:
+  Pipeline(ETHDatasetParser* dataset, const ImuParams& imu_params,
            bool parallel_run = true);
 
   ~Pipeline();
@@ -75,29 +74,19 @@ public:
     return mesher_output_queue_;
   }
 
-  gtsam::Vector3 getEstimatedVelocity() {
-    return vio_backend_->getWVelBLkf();
-  }
+  gtsam::Vector3 getEstimatedVelocity() { return vio_backend_->getWVelBLkf(); }
 
-  gtsam::Pose3 getEstimatedPose() {
-    return vio_backend_->getWPoseBLkf();
-  }
+  gtsam::Pose3 getEstimatedPose() { return vio_backend_->getWPoseBLkf(); }
 
-  ImuBias getEstimatedBias() {
-    return vio_backend_->getLatestImuBias();
-  }
+  ImuBias getEstimatedBias() { return vio_backend_->getLatestImuBias(); }
 
-  Timestamp getTimestamp() {
-    return timestamp_lkf_;
-  }
+  Timestamp getTimestamp() { return timestamp_lkf_; }
 
   gtsam::Matrix getEstimatedStateCovariance() {
     return vio_backend_->getStateCovarianceLkf();
   }
 
-  DebugTrackerInfo getTrackerInfo() {
-    return debug_tracker_info_;
-  }
+  DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
 
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
@@ -106,12 +95,10 @@ public:
 
   SpinOutputContainer getSpinOutputContainer();
 
-private:
+ private:
   // Initialize random seed for repeatability (only on the same machine).
   // TODO Still does not make RANSAC REPEATABLE across different machines.
-  inline void setDeterministicPipeline() const {
-    srand(0);
-  }
+  inline void setDeterministicPipeline() const { srand(0); }
 
   // Initialize pipeline with desired option (flag).
   bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
@@ -127,7 +114,8 @@ private:
                       const StereoImuSyncPacket &stereo_imu_sync_init,
                       const StereoFrame &stereo_frame_lkf,
                       gtsam::Vector3 *gyro_bias,
-                      gtsam::Vector3 *g_iter_b0);
+                      gtsam::Vector3 *g_iter_b0,
+                      gtsam::Pose3 *init_pose);
 
   // Initialize backend given external pose estimate (GT or OGA)
   bool initializeBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
@@ -146,17 +134,15 @@ private:
   bool initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                    const gtsam::Pose3& B_Pose_camLrect,
                    const gtsam::Cal3_S2& left_undist_rect_cam_mat,
-                   const double& baseline,
-                   const VioBackEndParams& vio_params,
+                   const double& baseline, const VioBackEndParams& vio_params,
                    std::shared_ptr<gtNavState>* initial_state_gt,
-                   const Timestamp& timestamp_k,
-                   const ImuAccGyrS& imu_accgyr);
+                   const Timestamp& timestamp_k, const ImuAccGyrS& imu_accgyr);
   // Displaying must be done in the main thread.
   void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
 
   void processKeyframe(
       const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
-      const StereoFrame &last_stereo_keyframe,
+      const StereoFrame& last_stereo_keyframe,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       const TrackingStatus& kf_tracking_status_stereo,
       const gtsam::Pose3& relative_pose_body_stereo);
@@ -169,17 +155,12 @@ private:
       const StereoFrame& last_stereo_keyframe);
 
   StatusSmartStereoMeasurements featureSelect(
-      const VioFrontEndParams& tracker_params,
-      const ETHDatasetParser& dataset,
-      const Timestamp& timestamp_k,
-      const Timestamp& timestamp_lkf,
-      const gtsam::Pose3& W_Pose_Blkf,
-      double* feature_selection_time,
+      const VioFrontEndParams& tracker_params, const ETHDatasetParser& dataset,
+      const Timestamp& timestamp_k, const Timestamp& timestamp_lkf,
+      const gtsam::Pose3& W_Pose_Blkf, double* feature_selection_time,
       std::shared_ptr<StereoFrame>& stereoFrame_km1,
-      const StatusSmartStereoMeasurements &smart_stereo_meas,
-      int cur_kf_id,
-      int save_image_selector,
-      const gtsam::Matrix& curr_state_cov,
+      const StatusSmartStereoMeasurements& smart_stereo_meas, int cur_kf_id,
+      int save_image_selector, const gtsam::Matrix& curr_state_cov,
       const Frame& left_frame);
 
   // Launch different threads with processes.
@@ -260,9 +241,9 @@ private:
   std::unique_ptr<std::thread> wrapped_thread_ = {nullptr};
   std::unique_ptr<std::thread> backend_thread_ = {nullptr};
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
-  //std::thread visualizer_thread_;
+  // std::thread visualizer_thread_;
 
   bool parallel_run_;
 };
 
-} // End of VIO namespace
+}  // namespace VIO

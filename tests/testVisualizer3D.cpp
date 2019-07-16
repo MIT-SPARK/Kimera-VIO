@@ -12,11 +12,11 @@
  * @author Antoni Rosinol
  */
 
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <random>
 #include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <random>
 
 #include "Visualizer3D.h"
 #include "test_config.h"
@@ -37,11 +37,11 @@ TEST(testFrame, visualizeMesh2D) {
   Timestamp tmp = 123;
   const string imgName = string(DATASET_PATH) + "/chessboard_small.png";
 
-  Frame f(id, tmp,
-          CameraParams(),
+  Frame f(id, tmp, CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   f.extractCorners();
-  for (int i = 0; i < f.keypoints_.size(); i++) { // populate landmark structure with fake data
+  for (int i = 0; i < f.keypoints_.size();
+       i++) {  // populate landmark structure with fake data
     f.landmarks_.push_back(i);
   }
 
@@ -49,11 +49,13 @@ TEST(testFrame, visualizeMesh2D) {
   const std::vector<cv::Vec6f>& mesh_2d = f.createMesh2D();
 
   // Visualize mesh.
-  Visualizer3D visualizer (VisualizationType::NONE, 0);
+  Visualizer3D visualizer(VisualizationType::NONE, 0);
   visualizer.visualizeMesh2D(mesh_2d, f.img_);
 }
 
 /* ************************************************************************* */
 int main() {
-  TestResult tr; return TestRegistry::runAllTests(tr); }
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************* */

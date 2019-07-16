@@ -1,22 +1,21 @@
 #pragma once
 
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <glog/logging.h>
 
 namespace VIO {
 namespace common {
 
-static std::string pathAppend(const std::string& p1,
-                              const std::string& p2) {
+static std::string pathAppend(const std::string& p1, const std::string& p2) {
   char sep = '/';
   std::string tmp = p1;
-  if (p1[p1.length()] != sep) { // Need to add a
-     tmp += sep;                // path separator
-     return(tmp + p2);
+  if (p1[p1.length()] != sep) {  // Need to add a
+    tmp += sep;                  // path separator
+    return (tmp + p2);
   } else {
-     return(p1 + p2);
+    return (p1 + p2);
   }
 }
 
@@ -36,5 +35,5 @@ static bool createDirectory(const std::string& dir_path,
   }
 }
 
-} // End of common namespace.
-} // End of VIO namespace.
+}  // namespace common
+}  // namespace VIO

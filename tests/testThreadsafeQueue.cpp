@@ -13,8 +13,8 @@
  */
 
 #include <chrono>
-#include <string>
 #include <iostream>
+#include <string>
 #include <thread>
 
 #include "utils/ThreadsafeQueue.h"
@@ -44,8 +44,8 @@ void producer(ThreadsafeQueue<std::string>& q,
 
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, popBlocking_by_reference) {
-  ThreadsafeQueue<std::string> q ("1");
-  std::thread p ([&] {
+  ThreadsafeQueue<std::string> q("1");
+  std::thread p([&] {
     q.push("Hello World!");
     q.push("Hello World 2!");
   });
@@ -67,7 +67,7 @@ TEST(testThreadsafeQueue, popBlocking_by_reference) {
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, popBlocking_by_shared_ptr) {
   ThreadsafeQueue<std::string> q("1");
-  std::thread p ([&] {
+  std::thread p([&] {
     q.push("Hello World!");
     q.push("Hello World 2!");
   });
@@ -87,7 +87,7 @@ TEST(testThreadsafeQueue, popBlocking_by_shared_ptr) {
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, push) {
   ThreadsafeQueue<std::string> q("1");
-  std::thread p ([&] {
+  std::thread p([&] {
     q.push(std::string("Hello World!"));
     std::string s = "Hello World 2!";
     q.push(s);
@@ -108,9 +108,9 @@ TEST(testThreadsafeQueue, push) {
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, producer_consumer) {
   ThreadsafeQueue<std::string> q("1");
-  std::atomic_bool kill_switch (false);
-  std::thread c (consumer, std::ref(q), std::ref(kill_switch));
-  std::thread p (producer, std::ref(q), std::ref(kill_switch));
+  std::atomic_bool kill_switch(false);
+  std::thread c(consumer, std::ref(q), std::ref(kill_switch));
+  std::thread p(producer, std::ref(q), std::ref(kill_switch));
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
@@ -134,16 +134,16 @@ TEST(testThreadsafeQueue, producer_consumer) {
 /* ************************************************************************* */
 TEST(testThreadsafeQueue, stress_test) {
   ThreadsafeQueue<std::string> q("1");
-  std::atomic_bool kill_switch (false);
+  std::atomic_bool kill_switch(false);
   std::vector<std::thread> cs;
-  for (size_t i = 0; i < 10; i++){
-      // Create 10 consumers.
-      cs.push_back(std::thread(consumer, std::ref(q), std::ref(kill_switch)));
+  for (size_t i = 0; i < 10; i++) {
+    // Create 10 consumers.
+    cs.push_back(std::thread(consumer, std::ref(q), std::ref(kill_switch)));
   }
   std::vector<std::thread> ps;
-  for (size_t i = 0; i < 10; i++){
-      // Create 10 producers.
-      ps.push_back(std::thread(producer, std::ref(q), std::ref(kill_switch)));
+  for (size_t i = 0; i < 10; i++) {
+    // Create 10 producers.
+    ps.push_back(std::thread(producer, std::ref(q), std::ref(kill_switch)));
   }
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -169,8 +169,9 @@ TEST(testThreadsafeQueue, stress_test) {
   std::cout << "Threads joined.\n";
 }
 
-
 /* ************************************************************************* */
 int main() {
-  TestResult tr; return TestRegistry::runAllTests(tr); }
+  TestResult tr;
+  return TestRegistry::runAllTests(tr);
+}
 /* ************************************************************************* */

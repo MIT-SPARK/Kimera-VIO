@@ -13,17 +13,15 @@ namespace gtsam {
 
 //***************************************************************************
 void PointPlaneFactor::print(const string& s,
-    const KeyFormatter& keyFormatter) const {
-  std::cout << s << " Factor on point " <<
-       keyFormatter(pointKey_) << ", and plane " <<
-       keyFormatter(planeKey_)  << "\n";
+                             const KeyFormatter& keyFormatter) const {
+  std::cout << s << " Factor on point " << keyFormatter(pointKey_)
+            << ", and plane " << keyFormatter(planeKey_) << "\n";
   this->noiseModel_->print("  noise model: ");
 }
 
 gtsam::NonlinearFactor::shared_ptr PointPlaneFactor::clone() const {
   return boost::static_pointer_cast<gtsam::NonlinearFactor>(
-        gtsam::NonlinearFactor::shared_ptr(new PointPlaneFactor(*this)));
+      gtsam::NonlinearFactor::shared_ptr(new PointPlaneFactor(*this)));
 }
 
-} // End of gtsam namespace.
-
+}  // namespace gtsam

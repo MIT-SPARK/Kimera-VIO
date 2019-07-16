@@ -36,7 +36,7 @@ int n_frames = 35;
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, GyroscopeBiasEstimation) {  
+TEST_DISABLED(testOnlineAlignment, GyroscopeBiasEstimation) {  
   // Construct ETH Parser
   std::string reason = "test of gyroscope estimation";
   ETHDatasetParser dataset(reason);
@@ -58,9 +58,6 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   Vector3 bias_acc (0.0, 0.0, 0.0);
   Vector3 bias_gyr (0.0, 0.0, 0.0);
   ImuBias imu_bias (bias_acc, bias_gyr);
-
-  // Create ImuFrontEnd
-  //ImuFrontEnd imu_frontend(imu_params, imu_bias);
 
   // Load ground-truth poses
   std::string gt_name = "gt0";
@@ -106,12 +103,10 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
           &imu_meas.measurements_);
     ImuFrontEnd imu_frontend(imu_params, imu_bias);
     const auto& pim = imu_frontend.preintegrateImuMeasurements(
-                imu_meas.timestamps_, imu_meas.measurements_);
-
-    // Buffer for online alignment
+                    imu_meas.timestamps_, imu_meas.measurements_);
     estimated_poses.push_back(gt_pose_k);
     delta_t_poses.push_back(UtilsOpenCV::NsecToSec(
-              timestamp_frame_k - timestamp_last_frame));
+                  timestamp_frame_k - timestamp_last_frame));
     pims.push_back(pim);
     if (pims.size() > n_frames) {
       break;
