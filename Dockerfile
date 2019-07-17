@@ -56,7 +56,10 @@ RUN git clone https://github.com/laurentkneip/opengv
 RUN cd opengv && \
       mkdir build
 RUN cd opengv/build && \
-      cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DEIGEN_INCLUDE_DIRS=/usr/local/include/gtsam/3rdparty/Eigen -DEIGEN_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen .. && \
+      cmake -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_INSTALL_PREFIX=/usr/local \
+      -DEIGEN_INCLUDE_DIRS=$DIRPATH/gtsam/gtsam/3rdparty/Eigen \
+      -DEIGEN_INCLUDE_DIR=$DIRPATH/gtsam/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
 # Install spark_vio_evaluation from PyPI
