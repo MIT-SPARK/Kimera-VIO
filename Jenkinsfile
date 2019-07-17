@@ -36,6 +36,9 @@ pipeline {
           sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
             spark_vio_evaluation/results/V1_01_easy/S/results.yaml \
             spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv'
+
+          // Copy performance website to Workspace
+          sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE'
         }
       }
     }
