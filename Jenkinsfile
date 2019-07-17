@@ -60,9 +60,8 @@ pipeline {
            style: 'line',
            title: 'VIO Timing',
            yaxis: 'Time [ms]'
-
-      // Publish HTML website with Dygraphs and pdfs of VIO performance
-      publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'spark_vio_evaluation/html', reportFiles: 'vio_performance.html', reportName: 'VIO Performance Report', reportTitles: ''])
+// Publish HTML website with Dygraphs and pdfs of VIO performance
+      publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html', reportName: 'VIO Performance Report', reportTitles: ''])
 
       // Archive the CTest xml output
       archiveArtifacts (
@@ -75,7 +74,7 @@ pipeline {
 
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
-      deleteDir()
+      // deleteDir()
     }
     success {
       echo 'Success!'
