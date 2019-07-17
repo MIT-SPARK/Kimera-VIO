@@ -347,7 +347,7 @@ TEST(FeatureSelector, DISABLED_createOmegaBarImu) {
 
 typedef PinholeCamera<Cal3_S2> Camera;
 /* ************************************************************************* */
-TEST(FeatureSelector, GetVersorIfInFOV) {
+TEST(FeatureSelector, DISABLED_GetVersorIfInFOV) {
   // create a camera
   Camera cam(body_P_leftCam, Cal3_S2(500, 500, 0.1, 640 / 2, 480 / 2));
 
