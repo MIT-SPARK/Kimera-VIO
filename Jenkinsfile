@@ -61,6 +61,9 @@ pipeline {
            title: 'VIO Timing',
            yaxis: 'Time [ms]'
 
+      // Publish HTML website with Dygraphs and pdfs of VIO performance
+      publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'spark_vio_evaluation/html', reportFiles: 'vio_performance.html', reportName: 'VIO Performance Report', reportTitles: ''])
+
       // Archive the CTest xml output
       archiveArtifacts (
           artifacts: 'build/tests/Testing/**/*.xml, spark_vio_evaluation/results/**/*.*',
