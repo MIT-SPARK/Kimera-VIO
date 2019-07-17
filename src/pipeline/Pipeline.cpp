@@ -700,13 +700,13 @@ bool Pipeline::initializeOnline(
       ///////////////////////////// ONLINE INITIALIZER //////////////////////
       auto tic_full_init = utils::Timer::tic();
 
-      // Run Bundle-Adjustment and initial gravity alignment
-      // TODO(Sandro): Clean up this interface
+      // Create empty output variables
       gtsam::Vector3 gyro_bias, g_iter_b0;
       gtsam::NavState init_navstate;
 
       // Get frontend output to backend input for online initialization
-      auto output_frontend = initialization_frontend_output_queue_.batchPop();
+      std::queue<InitializationInputPayload> output_frontend;
+      CHECK(initialization_frontend_output_queue_.batchPop(&output_frontend));
       // Shutdown the initialization input queue once used
       initialization_frontend_output_queue_.shutdown();
 
@@ -722,9 +722,9 @@ bool Pipeline::initializeOnline(
 
       // Create initial backend
       InitializationBackEnd initial_backend(
-          output_frontend.at(0)->stereo_frame_lkf_.getBPoseCamLRect(),
-          output_frontend.at(0)->stereo_frame_lkf_.getLeftUndistRectCamMat(),
-          output_frontend.at(0)->stereo_frame_lkf_.getBaseline(), 
+          output_frontend.front().stereo_frame_lkf_.getBPoseCamLRect(),
+          output_frontend.front().stereo_frame_lkf_.getLeftUndistRectCamMat(),
+          output_frontend.front().stereo_frame_lkf_.getBaseline(), 
           backend_params_init,
           FLAGS_log_output);
 

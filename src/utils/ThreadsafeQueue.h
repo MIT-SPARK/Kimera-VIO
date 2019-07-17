@@ -117,27 +117,23 @@ class ThreadsafeQueue {
     return result;
   }
 
-  // Pop until queue is not empty.
-  // Returns a vector of shared_ptr to the value retrieved.
-  // If the queue is empty or has been shutdown,
-  // it returns an empty vector.
-  std::vector<std::shared_ptr<T>> batchPop() {
+  // Swap queue with empty queue if not empty.
+  // Returns true if values were retrieved.
+  // Returns false if values were not retrieved.
+  bool batchPop(std::queue<T> *output_queue) {
     if (shutdown_)
-      return std::vector<std::shared_ptr<T>>();
+      return false;
+    CHECK(output_queue->empty());
+    //*output_queue = std::queue<T>();
     std::lock_guard<std::mutex> lk(mutex_);
-    if (data_queue_.empty())
-      return std::vector<std::shared_ptr<T>>();
-    std::vector<std::shared_ptr<T>> pointer_vec;
-    while (!data_queue_.empty()) {
-      auto pointer = std::make_shared<T>(data_queue_.front());
-      data_queue_.pop();
-      if (pointer != nullptr) {
-        pointer_vec.push_back(pointer);
-      }
+    if (data_queue_.empty()) {
+      return false;
+    } else {
+      data_queue_.swap(*output_queue);
+      return true;
     }
-    return pointer_vec;
   }
-
+  
   void shutdown() {
     std::unique_lock<std::mutex> mlock(mutex_);
     // Even if the shared variable is atomic, it must be modified under the

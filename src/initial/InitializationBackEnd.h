@@ -17,6 +17,8 @@
 #ifndef InitializationBackEnd_H_
 #define InitializationBackEnd_H_
 
+#include <queue>
+
 #include "utils/Timer.h"
 #include "VioBackEnd.h"
 #include "InitializationBackEnd-definitions.h"
@@ -41,7 +43,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Perform Bundle-Adjustment and initial gravity alignment
   bool bundleAdjustmentAndGravityAlignment(
-    std::vector<std::shared_ptr<InitializationInputPayload>>& output_frontend,
+    std::queue<InitializationInputPayload>& output_frontend,
       gtsam::Vector3 *gyro_bias,
       gtsam::Vector3 *g_iter_b0,
       gtsam::NavState *init_navstate);
