@@ -213,13 +213,8 @@ class VioBackEnd {
   /* ------------------------------------------------------------------------ */
   void optimize(const Timestamp& timestamp_kf_nsec, const FrameId& cur_id,
                 const size_t& max_iterations,
-<<<<<<< HEAD
-                const std::vector<size_t>& extra_factor_slots_to_delete =
-                    std::vector<size_t>());
-=======
                 gtsam::FactorIndices extra_factor_slots_to_delete =
                     gtsam::FactorIndices());
->>>>>>> 7efea3f089f988b0f51315cba90f775aca5674bf
   /// Printers.
   /* ------------------------------------------------------------------------ */
   void printFeatureTracks() const;
@@ -274,13 +269,8 @@ class VioBackEnd {
           gtsam::NonlinearFactorGraph(),
       const gtsam::Values& new_values = gtsam::Values(),
       const std::map<Key, double>& timestamps =
-<<<<<<< HEAD
-          gtsam::FixedLagSmoother::KeyTimestampMap(),
-      const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
-=======
       gtsam::FixedLagSmoother::KeyTimestampMap(),
       const gtsam::FactorIndices& delete_slots = gtsam::FactorIndices());
->>>>>>> 7efea3f089f988b0f51315cba90f775aca5674bf
 
   /* ------------------------------------------------------------------------ */
   void cleanCheiralityLmk(
@@ -291,14 +281,9 @@ class VioBackEnd {
       gtsam::FactorIndices* delete_slots_cheirality,
       const gtsam::NonlinearFactorGraph& graph,
       const gtsam::NonlinearFactorGraph& new_factors_tmp,
-<<<<<<< HEAD
-      const gtsam::Values& new_values, const std::map<Key, double>& timestamps,
-      const std::vector<size_t>& delete_slots);
-=======
       const gtsam::Values& new_values,
       const std::map<Key, double>& timestamps,
       const gtsam::FactorIndices& delete_slots);
->>>>>>> 7efea3f089f988b0f51315cba90f775aca5674bf
 
   /* ------------------------------------------------------------------------ */
   void deleteAllFactorsWithKeyFromFactorGraph(
