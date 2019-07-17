@@ -38,7 +38,7 @@ pipeline {
             spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv'
 
           // Copy performance website to Workspace
-          sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE'
+          sh 'cp -r /root/spark_vio_evaluation/html .'
         }
       }
     }
@@ -63,9 +63,11 @@ pipeline {
            style: 'line',
            title: 'VIO Timing',
            yaxis: 'Time [ms]'
+
       // Publish HTML website with Dygraphs and pdfs of VIO performance
       publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html', reportName: 'VIO Performance Report', reportTitles: ''])
-      publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: '', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: ''])
+
+      // publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: '', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: ''])
 
       // Archive the CTest xml output
       archiveArtifacts (
