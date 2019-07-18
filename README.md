@@ -63,13 +63,12 @@ and [Intel Threaded Building Blocks (TBB)](http://www.threadingbuildingblocks.or
 sudo apt-get install libtbb-dev
 ```
 
-Clone GTSAM wherever you want, and checkout commit below:
+Clone GTSAM wherever you want, and checkout the develop branch (last tested with commit `0c3e05f375c03c5ff5218e708db416b38f4113c8`)
 ```
-git clone https://github.com/borglab/gtsam.git
-git checkout c827d4cd6b11f78f3d2d9d52b335ac562a2757fc # Should be develop branch at some point
+git clone git@github.com:borglab/gtsam.git
 ```
 
-Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details.
+Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `-march=native` might cause problems that culminates in the form of segfaults when you run the unittests.  
 ```bash
 cd gtsam
 mkdir build
