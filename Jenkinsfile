@@ -73,7 +73,7 @@ pipeline {
 
       // Archive the CTest xml output.
       archiveArtifacts (
-          artifacts: 'build/tests/Testing/**/*.xml, spark_vio_evaluation/results/**/*.*',
+          artifacts: 'spark_vio_evaluation/results/**/*.*',
           fingerprint: true
           )
 
