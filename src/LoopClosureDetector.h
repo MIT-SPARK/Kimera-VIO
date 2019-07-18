@@ -27,24 +27,22 @@
 #include <string>
 
 #include <boost/shared_ptr.hpp> // used for opengv
-#include "Tracker-definitions.h" // TODO we don't need all of it...
-// #include <opengv/sac/Ransac.hpp>
-// #include <opengv/sac_problems/point_cloud/PointCloudSacProblem.hpp>
-// #include <opengv/point_cloud/PointCloudAdapter.hpp>
+#include <gtsam/base/Matrix.h>
 
+#include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
 
 #include "UtilsOpenCV.h"
 
 #include <DBoW2/DBoW2.h>
-#include <DLoopDetector/DLoopDetector.h>
 #include <opencv/cv.hpp>
 #include <opencv2/features2d.hpp>
+#include <opencv2/core/eigen.hpp>
 
 #include "utils/ThreadsafeQueue.h"
-#include "utils/Statistics.h"
 #include "utils/Timer.h"
+#include "utils/Statistics.h"
 #include "StereoFrame.h"
 #include "LoopClosureDetectorParams.h"
 #include "LoopClosureDetector-definitions.h"
@@ -54,7 +52,8 @@ namespace VIO {
 class LoopClosureDetector {
 public:
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-                      const bool log_output=false);
+                      const bool log_output=false,
+                      const int verbosity=0);
 
   virtual ~LoopClosureDetector() {
     LOG(INFO) << "LoopClosureDetector desctuctor called.";
@@ -66,6 +65,18 @@ public:
 
   LoopClosureDetectorOutputPayload spinOnce(
       const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
+
+  FrameId processAndAddFrame(StereoFrame& stereo_frame);
+
+  LoopClosureDetectorOutputPayload checkLoopClosure(StereoFrame& stereo_frame);
+
+  LoopResult detectLoop(size_t frame_id);
+
+  bool geometricVerificationCheck(const FrameId& query_id,
+      const FrameId& match_id, LoopResult& result);
+
+  gtsam::Pose3 compute3DPose(const FrameId& query_id, const FrameId& match_id,
+      gtsam::Pose3& pose_2d);
 
   inline void shutdown() {
     LOG_IF(WARNING, shutdown_) << "Shutdown requested, but LoopClosureDetector "
@@ -87,79 +98,99 @@ public:
     return &lcd_params_;
   }
 
-  inline OrbVocabulary& getVocab() { return vocab_; }
+  inline const OrbVocabulary& getVocabulary() const { return vocab_; }
 
-  inline OrbLoopDetector& getLoopDetector() { return loop_detector_; }
+  inline const OrbDatabase* getBoWDatabase() const { return &db_BoW_; }
 
-  inline cv::Ptr<cv::ORB> getFeatureDetector() {
-    return orb_feature_detector_;
+  inline const std::vector<LCDFrame>* getFrameDatabse() const {
+    return &db_frames_;
   }
 
   inline bool getIntrinsicsFlag() const { return set_intrinsics_; }
 
-  inline std::vector<cv::KeyPoint> getKeypointsAt(unsigned int id) const {
-    return db_keypoints_[id];
-  }
+  void setDatabase(const OrbDatabase& db);
 
-  inline cv::Mat getDescriptorsAt(unsigned int id) const {
-    return db_descriptors_[id];
-  }
+  void setVocabulary(const OrbVocabulary& vocab);
 
-  inline std::vector<gtsam::Vector3> get3DKeypointsAt(unsigned int id) const {
-    return db_keypoints_3d_[id];
-  }
+  void allocate(size_t n);
+
+  inline void clear();
 
   void print() const;
 
-  // TODO: utils and reorder
-  void computeAndDrawMatchesBetweenFrames(const cv::Mat& query_img,
-    const cv::Mat& match_img, const size_t& query_id, const size_t& match_id);
-
-// private: // TODO: make these private but fix testing to work for them
-  void initLoopDetector();
-
-  LoopClosureDetectorOutputPayload checkLoopClosure(StereoFrame& stereo_frame);
-
-  DLoopDetector::DetectionResult processAndAddFrame(StereoFrame& stereo_frame);
-
+  // TODO: utils and reorder (or just static)
   void rewriteStereoFrameFeatures(StereoFrame& stereo_frame,
     const std::vector<cv::KeyPoint>& keypoints);
 
-  // TODO: This one definitely should be private
-  gtsam::Pose3 computePoseStereoRansac(size_t query, size_t match);
-
-  gtsam::Pose3 computePoseStereoNonlinearOpt(size_t query, size_t match);
-
-  gtsam::Pose3 computePoseMonoRansac(size_t query, size_t match);
-
-  gtsam::Pose3 computePoseStereoGiven2D(size_t query, size_t match,
-      gtsam::Pose3& pose_2d);
+  // TODO: it would be nice if this could be a util
+  // TODO: can this be static even though it changes 
+  cv::Mat computeAndDrawMatchesBetweenFrames(const cv::Mat& query_img,
+    const cv::Mat& match_img, const size_t& query_id, const size_t& match_id);
 
   static gtsam::Pose3 mat2pose(const cv::Mat& R, const cv::Mat& t);
+
+private:
+  bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
+
+  void computeIslands(DBoW2::QueryResults& q,
+      std::vector<MatchIsland>& islands) const;
+
+  double computeIslandScore(const DBoW2::QueryResults& q,
+      const FrameId& start_id, const FrameId& end_id) const;
+
+  void computeMatchedIndices(const FrameId& query_id, const FrameId& match_id,
+      std::vector<unsigned int>& i_query, std::vector<unsigned int>& i_match);
+
+  bool geometricVerification_NISTER_cv(const FrameId& query_id,
+      const FrameId& match_id, LoopResult& result);
+
+  bool geometricVerification_gv(const FrameId& query_id,
+      const FrameId& match_id, LoopResult& result);
+
+  // // TODO: implement this or see if it is even worth it
+  // bool geometricVerification_DI(const FrameId& query_id,
+  //     const FrameId& match_id, const LoopResult& result);
+  //
+  // bool geometricVerification_Exhaustive(const FrameId& query_id,
+  //     const FrameId& match_id, const LoopResult& result);
+
+  gtsam::Pose3 compute3DPose_gv(const FrameId& query_id,
+      const FrameId& match_id);
+
+  gtsam::Pose3 compute3DPoseGiven2D(const FrameId& query_id,
+      const FrameId& match_id, gtsam::Pose3& pose_2d);
+
+  // TODO: implement these:
+  // gtsam::Pose3 compute3DPoseMono(const FrameId& query,
+  //     const FrameId& match);
+  //
+  // gtsam::Pose3 compute3DPoseRGBD(const FrameId& query, const FrameId& match);
 
 private:
   // Parameter members.
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = {false};
+  const int verbosity_ = {0};
+  bool set_intrinsics_ = {false};
 
   // Thread related members.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_thread_working_ = {false};
 
-  // Keypoint and descriptor database for RANSAC 3D.
-  // TODO: loop_detector_ saves these things as well, it's a waste to save both. Refactor so that you aren't dependent on DLoopDetector
-  std::vector<std::vector<cv::KeyPoint>> db_keypoints_;
-  std::vector<cv::Mat> db_descriptors_; // TODO: make sure this is the best way of handling the need for MAT for matcher descriptor.
-  std::vector<std::vector<gtsam::Vector3>> db_keypoints_3d_;
-
-  // ORB extraction, matching and loop detection members.
-  OrbVocabulary vocab_;
-  OrbLoopDetector loop_detector_;
+  // ORB extraction and matching members.
   cv::Ptr<cv::ORB> orb_feature_detector_;
   cv::Ptr<cv::DescriptorMatcher> orb_feature_matcher_;
 
-  // Pose recovery members.
-  bool set_intrinsics_ = {false};
+  // BoW and Loop Detection database and members
+  OrbDatabase db_BoW_;
+  std::vector<LCDFrame> db_frames_;
+  OrbVocabulary vocab_;
+
+  // Store latest computed objects for temporal matching and nss scoring
+  DBoW2::BowVector latest_bowvec_;
+  MatchIsland latest_matched_island_;
+  FrameId latest_query_id_;
+  int temporal_entries_;
 
 }; // class LoopClosureDetector
 
