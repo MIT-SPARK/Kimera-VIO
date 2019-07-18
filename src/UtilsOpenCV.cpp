@@ -236,6 +236,7 @@ cv::Point2f UtilsOpenCV::RoundAndCropToSize(cv::Point2f px, cv::Size size) {
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO(Toni): return a bool that signals if it was successful or not.
 void UtilsOpenCV::ExtractCorners(const cv::Mat& img,
                                  std::vector<cv::Point2f>* corners,
                                  const double& qualityLevel,

@@ -108,6 +108,7 @@ Pipeline::Pipeline(const PipelineParams& params,
       parallel_run_(parallel_run),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       stereo_frontend_output_queue_("stereo_frontend_output_queue"),
+      initialization_frontend_output_queue_("initialization_frontend_output_queue"),
       backend_input_queue_("backend_input_queue"),
       backend_output_queue_("backend_output_queue"),
       mesher_input_queue_("mesher_input_queue"),
@@ -784,14 +785,14 @@ bool Pipeline::initializeVioBackend(
                   std::cref(*vio_frontend_), std::placeholders::_1));
 
     ////////////////// DEBUG INITIALIZATION //////////////////////////////////
-    if (FLAGS_log_output) {
-      logger_.displayInitialStateVioInfo(
-          *dataset_, vio_backend_, *CHECK_NOTNULL(initial_state.get()),
-          stereo_imu_sync_packet.getImuAccGyr(),
-          stereo_imu_sync_packet.getStereoFrame().getTimestamp());
-      // Store latest pose estimate.
-      logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
-    }
+    // if (FLAGS_log_output) {
+    //   logger_.displayInitialStateVioInfo(
+    //       *dataset_, vio_backend_, *CHECK_NOTNULL(initial_state.get()),
+    //       stereo_imu_sync_packet.getImuAccGyr(),
+    //       stereo_imu_sync_packet.getStereoFrame().getTimestamp());
+    //   // Store latest pose estimate.
+    //   logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
+    // } // TODO place elsewhere since dataset no longer in pipeline
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.5)
 project(SparkVio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
@@ -151,11 +151,6 @@ if(CMAKE_VERSION VERSION_LESS 2.8.11)
                         "${gmock_SOURCE_DIR}/include")
 endif()
 
-# Include data directories for gtests.
-set(TEST_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
-configure_file(./tests/test_config.h.in ./tests/test_config.h)
-include_directories("${CMAKE_CURRENT_BINARY_DIR}/tests")
-
 # Generate gtests.
 include(CTest)
 add_executable(testSparkVio
@@ -167,12 +162,11 @@ add_executable(testSparkVio
   tests/testGeneralParallelPlaneRegularBasicFactor.cpp
   tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testImuFrontEnd.cpp
-  tests/testKittiDataProvider.cpp
-  #tests/testMesher.cpp
+  # tests/testMesher.cpp # rotten
   tests/testParallelPlaneRegularBasicFactor.cpp
   tests/testParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testPointPlaneFactor.cpp
-  #tests/testRegularVioBackEnd.cpp
+  #tests/testRegularVioBackEnd.cpp # rotten
   tests/testRegularVioBackEndParams.cpp
   tests/testStereoFrame.cpp
   tests/testStereoVisionFrontEnd.cpp
@@ -186,12 +180,17 @@ add_executable(testSparkVio
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
-  #tests/testInitializationBackEnd.cpp
-  tests/testOnlineAlignment.cpp
   )
 target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
-include(GoogleTest)
-gtest_discover_tests(testSparkVio)
+
+if(CMAKE_VERSION VERSION_LESS 3.10)
+  enable_testing()
+  include(FindGTest)
+  gtest_add_tests(testSparkVio "" AUTO)
+else()
+  include(GoogleTest)
+  gtest_discover_tests(testSparkVio)
+endif()
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)
 #
