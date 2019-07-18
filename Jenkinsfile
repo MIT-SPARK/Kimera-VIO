@@ -4,6 +4,7 @@
  * If you want to enable HTML reports in Jenkins, further call:
  * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
  * in the Script console in Jenkins' administration section.
+ * TODO(Toni): change all spark_vio_evaluation/html/data into a Groovy String.
  */
 pipeline {
   agent { dockerfile {
@@ -37,8 +38,8 @@ pipeline {
             /root/spark_vio_evaluation/experiments/jenkins_euroc.yaml'
           // Compile summary results.
           sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
-            spark_vio_evaluation/results/V1_01_easy/S/results.yaml \
-            spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv'
+            spark_vio_evaluation/html/data/V1_01_easy/S/results.yaml \
+            spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
 
           // Copy performance website to Workspace
           sh 'cp -r /root/spark_vio_evaluation/html spark_vio_evaluation/html'
@@ -52,7 +53,7 @@ pipeline {
 
       // Plot VIO performance.
       plot csvFileName: 'plot-vio-performance-per-build.csv',
-           csvSeries: [[file: 'spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv']],
+           csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv']],
            group: 'Performance',
            numBuilds: '30',
            style: 'line',
@@ -61,7 +62,7 @@ pipeline {
 
       // Plot VIO timing.
       plot csvFileName: 'plot-vio-timing-per-build.csv',
-           csvSeries: [[file: 'spark_vio_evaluation/results/V1_01_easy/S/output/output_timingOverall.csv']],
+           csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/output/output_timingOverall.csv']],
            group: 'Performance',
            numBuilds: '30',
            style: 'line',
