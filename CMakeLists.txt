@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.5)
 project(SparkVio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
@@ -178,8 +178,15 @@ add_executable(testSparkVio
   tests/testVisualizer3D.cpp
   )
 target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
-include(GoogleTest)
-gtest_discover_tests(testSparkVio)
+
+if(CMAKE_VERSION VERSION_LESS 3.10)
+  enable_testing()
+  include(FindGTest)
+  gtest_add_tests(testSparkVio "" AUTO)
+else()
+  include(GoogleTest)
+  gtest_discover_tests(testSparkVio)
+endif()
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)
 #

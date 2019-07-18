@@ -81,7 +81,7 @@ private:
   typedef std::map<LandmarkId, RegularityType> LmkIdToRegularityTypeMap;
   typedef std::map<PlaneId, LmkIdToRegularityTypeMap> PlaneIdToLmkIdRegType;
   PlaneIdToLmkIdRegType plane_id_to_lmk_id_reg_type_;
-  std::vector<size_t> delete_slots_of_converted_smart_factors_;
+  gtsam::FactorIndices delete_slots_of_converted_smart_factors_;
 
   // For Stereo and Projection factors.
   gtsam::SharedNoiseModel stereo_noise_;
@@ -130,7 +130,7 @@ private:
       SmartFactorMap* old_smart_factors,
       gtsam::Values* new_values,
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors,
-      std::vector<size_t>* delete_slots_of_converted_smart_factors);
+      gtsam::FactorIndices* delete_slots_of_converted_smart_factors);
 
   /* ------------------------------------------------------------------------ */
   void convertExtraSmartFactorToProjFactor(
@@ -157,13 +157,13 @@ private:
     const std::map<PlaneId, std::vector<std::pair<Slot, LandmarkId>>>&
     map_idx_of_point_plane_factors_to_add,
     PlaneIdToLmkIdRegType* plane_id_to_lmk_id_to_regularity_type_map,
-    std::vector<size_t>* delete_slots);
+    gtsam::FactorIndices* delete_slots);
 
   /* ------------------------------------------------------------------------ */
   void fillDeleteSlots(
       const std::vector<std::pair<Slot, LandmarkId>>& point_plane_factor_slots,
       LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
-      std::vector<size_t>* delete_slots);
+      gtsam::FactorIndices* delete_slots);
 
   /* ------------------------------------------------------------------------ */
   // Remove as well the factors that are going to be added in this iteration.
