@@ -30,8 +30,9 @@
 #include "factors/ParallelPlaneRegularFactor.h"
 #include "factors/PointPlaneFactor.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace gtsam;
@@ -69,7 +70,7 @@ TEST(testGeneralParallelPlaneRegularBasicFactor, ErrorIsZero) {
   /// Expected error.
   Vector4 expected_error = Vector4::Constant(0.0);
 
-  EXPECT(assert_equal(expected_error, error, tol))
+  EXPECT_TRUE(gtsam::assert_equal(expected_error, error, tol));
 }
 
 /**
@@ -103,7 +104,7 @@ TEST(testGeneralParallelPlaneRegularBasicFactor, ErrorOtherThanZero) {
   Vector4 expected_error;
   expected_error << 0.045362, -0.00634672, -0.00541173, 0.1;
 
-  EXPECT(assert_equal(expected_error, error, tol))
+  EXPECT_TRUE(gtsam::assert_equal(expected_error, error, tol));
 }
 
 /**
@@ -145,8 +146,8 @@ TEST(testGeneralParallelPlaneRegularFactor, Jacobians) {
           plane_1, plane_2, der_tol);
 
   /// Verify the Jacobians are correct.
-  CHECK(assert_equal(H1Expected, H1Actual, tol));
-  CHECK(assert_equal(H2Expected, H2Actual, tol));
+  EXPECT_TRUE(assert_equal(H1Expected, H1Actual, tol));
+  EXPECT_TRUE(assert_equal(H2Expected, H2Actual, tol));
 }
 
 /**
@@ -207,13 +208,5 @@ TEST(testGeneralParallelPlaneRegularBasicFactor, PlaneOptimization) {
   expected.insert(planeKey1, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
   expected.insert(planeKey2, OrientedPlane3(0.0, 0.0, 1.0, 2.0));
 
-  EXPECT(assert_equal(expected, result, tol))
+  EXPECT_TRUE(gtsam::assert_equal(expected, result, tol));
 }
-/* ************************************************************************* */
-
-/* ************************************************************************* */
-int main() {
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */

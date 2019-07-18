@@ -19,9 +19,18 @@
 
 namespace VIO {
 
+////////////////////////////////////////////////////////////////////////////////
+//////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
+////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::ETHDatasetParser() : DataProvider(), imuData_() {
   parse(initial_k_, final_k_);
+}
+
+/* -------------------------------------------------------------------------- */
+ETHDatasetParser::ETHDatasetParser(const std::string& input_string) {
+    LOG(INFO) << "Dummy ETHDatasetParser constructor called. Purpose: "
+              << input_string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -574,6 +583,94 @@ gtNavState ETHDatasetParser::getGroundTruthState(
   LOG_IF(FATAL, timestamp > it_begin->first && delta_low > 0.01)
       << "\n getGroundTruthState: something wrong " << delta_low;
   return it_low->second;
+}
+
+/* -------------------------------------------------------------------------- */
+// Compute initialization errors and stats.
+// [in]: timestamp vector for poses in bundle-adjustment
+// [in]: vector of poses from bundle-adjustment. the initial
+// pose is identity (we are interested in relative poses!)
+// [in]: initial nav state with pose, velocity in body frame,
+// [in]: gravity vector estimate in body frame.
+const InitializationPerformance 
+        ETHDatasetParser::getInitializationPerformance(
+                    const std::vector<Timestamp>& timestamps,
+                    const std::vector<gtsam::Pose3>& poses_ba,
+                    const gtNavState& init_nav_state,
+                    const gtsam::Vector3& init_gravity) {
+  CHECK(isGroundTruthAvailable());
+  CHECK_EQ(timestamps.size(), poses_ba.size());
+  // The first BA pose must be identity and can be discarded
+
+  // GT and performance variables to fill
+  int init_n_frames = timestamps.size() - 1;
+  double avg_relativeRotError = 0.0;
+  double avg_relativeTranError = 0.0;
+  gtsam::Pose3 gt_relative;
+  gtNavState gt_state = getGroundTruthState(timestamps.at(1));
+  gtsam::Vector3 gt_gravity = gtsam::Vector3(0.0, 0.0, -9.81);
+  // Assumes gravity vector is downwards
+
+  // Loop through bundle adjustment poses and get GT
+  for (int i = 1; i < timestamps.size(); i++) {
+    double relativeRotError = -1;
+    double relativeTranError = -1;    
+    // Fill relative poses from GT
+    // Check that GT is available
+    if (!isGroundTruthAvailable(timestamps.at(i-1)) ||
+        !isGroundTruthAvailable(timestamps.at(i))) {
+        LOG(FATAL) << "GT Timestamp not available!";
+    }
+    gt_relative = getGroundTruthRelativePose(timestamps.at(i-1),
+                                            timestamps.at(i));
+    // Get relative pose from BA
+    gtsam::Pose3 ba_relative = 
+        poses_ba.at(i-1).between(poses_ba.at(i));
+    // Compute errors between BA and GT
+    std::tie(relativeRotError, relativeTranError) =
+      UtilsOpenCV::ComputeRotationAndTranslationErrors(
+        gt_relative, ba_relative, false);
+    avg_relativeRotError += fabs(relativeRotError);
+    avg_relativeTranError += fabs(relativeTranError);
+  }
+  // Compute average logmap error and translation error
+  avg_relativeRotError = avg_relativeRotError/double(init_n_frames);
+  avg_relativeTranError = avg_relativeTranError/double(init_n_frames);
+
+  LOG(INFO) << "avg. rot. error\n"
+              << avg_relativeRotError
+              << "\navg. tran. error\n"
+              << avg_relativeTranError;
+
+  // Convert velocities and gravity vector in initial body frame.
+  // This is already the case for the init nav state passed.
+  gt_state.velocity_ = gt_state.pose().rotation().transpose() * 
+                      gt_state.velocity_;
+  gt_gravity = gt_state.pose().rotation().transpose() * gt_gravity;
+
+  LOG(INFO) << "GT: init pose\n"
+              << gt_state.pose().rotation()
+              << "\n init velocity\n"
+              << gt_state.velocity_
+              << "\n init bias\n"
+              << gt_state.imu_bias_.gyroscope()
+              << "\n init gravity\n"
+              << gt_gravity;
+
+  // Create performance overview
+  const InitializationPerformance init_performance(
+                            timestamps.at(1),
+                            init_n_frames,
+                            avg_relativeRotError,
+                            avg_relativeTranError,
+                            init_nav_state,
+                            init_gravity,
+                            gt_state,
+                            gt_gravity);
+  // Log performance
+  init_performance.print();
+  // Return
+  return init_performance;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -38,6 +38,7 @@ namespace VIO {
 class ETHDatasetParser : public DataProvider {
 public:
   ETHDatasetParser();
+  ETHDatasetParser(const std::string& input_string);
   virtual ~ETHDatasetParser();
 
   // Gt data.
@@ -101,6 +102,13 @@ public:
   // Retrieve absolute pose at timestamp.
   gtNavState getGroundTruthState(const Timestamp& timestamp) const;
 
+  // Compute initialization errors and stats.
+  const InitializationPerformance getInitializationPerformance(
+                    const std::vector<Timestamp>& timestamps,
+                    const std::vector<gtsam::Pose3>& poses_ba,
+                    const gtNavState& init_nav_state,
+                    const gtsam::Vector3& init_gravity);
+
   // Check if the ground truth is available.
   // (i.e., the timestamp is after the first gt state)
   bool isGroundTruthAvailable(const Timestamp& timestamp) const;
@@ -123,6 +131,14 @@ public:
   // Print info about dataset.
   void print() const;
 
+  // Parse IMU data of a given dataset.
+  bool parseImuData(const std::string& input_dataset_path,
+                    const std::string& imuName);
+
+  // Parse ground truth data.
+  bool parseGTdata(const std::string& input_dataset_path,
+                   const std::string& gtSensorName);
+
 public:
   // THIS IS ONLY HERE BECAUSE the pipeline needs to know what is this value.
   // But it should not need to!!
@@ -139,14 +155,6 @@ private:
   // Parse IMU parameters.
   bool parseImuParams(const std::string& input_dataset_path,
                       const std::string& imuName);
-
-  // Parse IMU data of a given dataset.
-  bool parseImuData(const std::string& input_dataset_path,
-                    const std::string& imuName);
-
-  // Parse ground truth data.
-  bool parseGTdata(const std::string& input_dataset_path,
-                   const std::string& gtSensorName);
 
   /// Getters.
   inline size_t getNumImages() const {

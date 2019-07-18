@@ -30,6 +30,12 @@
 
 //########### SPARK_VIO_ROS ############################################
 namespace VIO {
+
+// TODO make new file for Ground Truth Data and the like,
+// because it is used by the backend and the feature selector.
+// Leaving it in the parser forces these modules to include a parser which is
+// at the very least weird.
+
 /*
  * Compact storage of state.
  */
@@ -42,6 +48,12 @@ public:
     : pose_(pose),
       velocity_(velocity),
       imu_bias_(imu_bias) {}
+  gtNavState(const gtsam::NavState& nav_state,
+             const gtsam::imuBias::ConstantBias& imu_bias)
+    : pose_(nav_state.pose()),
+      velocity_(nav_state.velocity()),
+      imu_bias_(imu_bias) {}
+  
 
   gtsam::Pose3 pose_;
   gtsam::Vector3 velocity_;
@@ -55,6 +67,43 @@ public:
       imu_bias_.print("\n imuBias: \n");
     }
   }
+
+  gtsam::Pose3 pose() const { return pose_; };
+};
+
+// Struct for performance in initialization
+struct InitializationPerformance {
+  public:
+    // Default constructor
+    InitializationPerformance(
+      const Timestamp init_timestamp,
+      const int init_n_frames,
+      const double avg_rotationErrorBA,
+      const double avg_tranErrorBA,
+      const gtNavState init_nav_state,
+      const gtsam::Vector3 init_gravity,
+      const gtNavState gt_nav_state,
+      const gtsam::Vector3 gt_gravity)
+      : init_timestamp_(init_timestamp),
+        init_n_frames_(init_n_frames),
+        avg_rotationErrorBA_(avg_rotationErrorBA),
+        avg_tranErrorBA_(avg_tranErrorBA),
+        init_nav_state_(init_nav_state),
+        init_gravity_(init_gravity),
+        gt_nav_state_(gt_nav_state),
+        gt_gravity_(gt_gravity) {}
+
+    void print() const;
+  
+  public:
+    const Timestamp init_timestamp_;
+    const int init_n_frames_;
+    const double avg_rotationErrorBA_;
+    const double avg_tranErrorBA_;
+    const gtNavState init_nav_state_;
+    const gtsam::Vector3 init_gravity_;
+    const gtNavState gt_nav_state_;
+    const gtsam::Vector3 gt_gravity_;
 };
 
 /*
@@ -111,14 +160,14 @@ struct SpinOutputContainer {
     State_Covariance_lkf_ = State_Covariance_lkf;
   }
 
-  // Trivial constructor
+  // Trivial constructor (do not publish)
   SpinOutputContainer()
-      : timestamp_kf_(0),
-        W_Pose_Blkf_(gtsam::Pose3()),
-        W_Vel_Blkf_(gtsam::Vector3()),
-        imu_bias_lkf_(gtsam::imuBias::ConstantBias()),
-        State_Covariance_lkf_(gtsam::zeros(15, 15)),
-        debug_tracker_info_(DebugTrackerInfo()) {}
+    : timestamp_kf_(-1),
+      W_Pose_Blkf_(gtsam::Pose3()),
+      W_Vel_Blkf_(gtsam::Vector3()),
+      imu_bias_lkf_(gtsam::imuBias::ConstantBias()),
+      State_Covariance_lkf_(gtsam::zeros(15,15)),
+      debug_tracker_info_(DebugTrackerInfo()) {}
 
   Timestamp timestamp_kf_;
   gtsam::Pose3 W_Pose_Blkf_;
@@ -126,18 +175,6 @@ struct SpinOutputContainer {
   ImuBias imu_bias_lkf_;
   gtsam::Matrix State_Covariance_lkf_;
   DebugTrackerInfo debug_tracker_info_;
-
-  SpinOutputContainer& operator=(SpinOutputContainer other) {
-    timestamp_kf_ = other.timestamp_kf_;
-    W_Pose_Blkf_ = other.W_Pose_Blkf_;
-    W_Vel_Blkf_ = other.W_Vel_Blkf_;
-    imu_bias_lkf_ = other.imu_bias_lkf_;
-    State_Covariance_lkf_ = other.State_Covariance_lkf_;
-    debug_tracker_info_ = other.debug_tracker_info_;
-    return *this;
-  }
-
-  // Define getters for output values
 
   inline const Timestamp getTimestamp() { return timestamp_kf_; }
 

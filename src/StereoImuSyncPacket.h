@@ -83,6 +83,9 @@ public:
   inline const ImuAccGyrS& getImuAccGyr() const {return imu_accgyr_;}
   inline const ReinitPacket& getReinitPacket() const {return reinit_packet_;}
 
+  // This enforces the frame to be a keyframe
+  void setAsKeyframe() { stereo_frame_.setIsKeyframe(true); }
+
   void print() const {
     LOG(INFO)
         << "Stereo Frame timestamp: " << stereo_frame_.getTimestamp() << '\n'

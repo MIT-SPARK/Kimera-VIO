@@ -148,9 +148,9 @@ $ make -j8
 $ sudo make install
 ```
 
-Glog and Gflags
+Glog, Gflags & Gtest
 ----------------------
-Glog and gflags will be automatically downloaded using cmake unless there is a system-wide installation found.
+Glog, gflags, and gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
 
 Running examples
 ======================
@@ -226,14 +226,8 @@ Tips for development
 
 > Note: these changes are not sufficient to make the output repeatable between different machines.
 
-Tips for speed
-----------------------
-
-- Use ```-march=native``` compiler flag. It will be a problem if you ever want to distribute binaries of this code.
-- GTSAM speed depends on: TBB, OpenMP. In principle, TBB speeds-up things, OpenMP not so sure. Verify that on your own computer.
-- Make sure OpenCV does not have the `CV_TRACE` cmake flag set-up. This is for profiling. Also use `TBB` as well. Compile with `Lapack`, it seems that operations such as SVD are faster.
-- OpenCV could potentially be used with GPU: stereo visual odometry achieves a 7x speed-up.
-- Make sure all libraries are compiled with the maximum optimization. Set `CMAKE_BUILD_TYPE` to `Release` and ensure you get a level of optimization at `-O3` for best results.
+> Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
+>
 
 # Use code linter
 
@@ -264,13 +258,7 @@ Install the following dependencies to run the linter:
 ```bash
 cd $THIS_REPO
 git submodule update --init
-cd dev_tools/linter
-echo ". $(realpath setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
+echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
                                                    # your shell.
 bash
 ```
-
-## Usage
-
-Just commit. The linter will stop any commit that looks suspicious and will let you know what is wrong.
-You can either fix the issues manually, or try a more brute force approach by running `clang-format`.

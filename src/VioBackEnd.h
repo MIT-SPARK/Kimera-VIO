@@ -38,6 +38,7 @@
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+//#include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/geometry/StereoCamera.h>
 #include <gtsam/geometry/StereoPoint2.h>
 #include <gtsam/slam/PriorFactor.h>
@@ -101,6 +102,14 @@ public:
              std::shared_ptr<gtNavState>* initial_state_gt,
              const Timestamp& timestamp,
              const ImuAccGyrS& imu_accgyr,
+             const VioBackEndParams& vioParams,
+             const bool log_output = false);
+
+  /* ------------------------------------------------------------------------ */
+  // Create and initialize VioBackEnd, without initiaing pose.
+  VioBackEnd(const Pose3& leftCamPose,
+             const Cal3_S2& leftCameraCalRectified,
+             const double& baseline,
              const VioBackEndParams& vioParams,
              const bool log_output = false);
 
@@ -259,7 +268,7 @@ protected:
   template<class T>
   bool getEstimateOfKey(const gtsam::Key& key, T* estimate) const;
 
-private:
+protected:
   /* ------------------------------------------------------------------------ */
   void addVisualInertialStateAndOptimize(
           const std::shared_ptr<VioBackEndInputPayload>& input);
@@ -456,6 +465,7 @@ public:
   inline const Pose3& getBPoseLeftCam() const {return B_Pose_leftCam_;}
 
   // TODO NOT THREAD-SAFE! Should add critical sections.
+  inline Timestamp getTimestampLkf() const {return timestamp_lkf_;}
   inline ImuBias getLatestImuBias() const {return imu_bias_lkf_;}
   inline ImuBias getImuBiasPrevKf() const {return imu_bias_prev_kf_;}
   inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
@@ -476,11 +486,18 @@ public:
   static ImuBias initImuBias(const ImuAccGyrS& accGyroRaw,
                              const Vector3& n_gravity);
 
+  /* --------------------------------------------------------------------------
+   */
+  // Update initial visual states.
+  //std::vector<gtsam::Pose3>
+  //updateInitialVisualStates(const FrameId &last_initial_id);
+
 protected:
   // Raw, user-specified params.
   const VioBackEndParams vio_params_;
 
   // State estimates.
+  Timestamp timestamp_lkf_;
   ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
   Vector3 W_Vel_B_lkf_;  		   //!< Velocity of body at k-1 in world coordinates
   Pose3   W_Pose_B_lkf_;        //!< Body pose at at k-1 in world coordinates.
@@ -529,7 +546,7 @@ protected:
   // Id of current keyframe, increases from 0 to inf.
   int curr_kf_id_;
 
-private:
+protected:
   // No motion factors settings.
   gtsam::SharedNoiseModel zero_velocity_prior_noise_;
   gtsam::SharedNoiseModel no_motion_prior_noise_;

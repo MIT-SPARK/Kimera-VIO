@@ -278,12 +278,12 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   // First get R_imu2velo and T_imu2velo
   cv::Mat R_imu2velo, T_imu2velo;
   std::string imu_to_velo_filename = "/../calib_imu_to_velo.txt";
-  parseRT(input_dataset_path, imu_to_velo_filename, R_imu2velo, T_imu2velo);
+  parsePose(input_dataset_path, imu_to_velo_filename, R_imu2velo, T_imu2velo);
 
   // Then get R_velo2cam and T_velo2cam
   cv::Mat R_velo2cam, T_velo2cam;
   std::string velo_to_cam_filename = "/../calib_velo_to_cam.txt";
-  parseRT(input_dataset_path, velo_to_cam_filename, R_velo2cam, T_velo2cam);
+  parsePose(input_dataset_path, velo_to_cam_filename, R_velo2cam, T_velo2cam);
 
   // Then form the rotation matrix R_imu2body
   cv::Mat R_imu2body;  // In case the convention is different
@@ -323,10 +323,11 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   return true;
 }
 
-bool KittiDataProvider::parseRT(const std::string& input_dataset_path,
-                                const std::string& calibration_filename,
-                                cv::Mat& R, cv::Mat& T) const {
-  std::ifstream calib_file;
+bool KittiDataProvider::parsePose(
+                const std::string& input_dataset_path, 
+                const std::string& calibration_filename, 
+                cv::Mat& R, cv::Mat& T) const {
+  std::ifstream calib_file; 
   std::string calibration_file_path = input_dataset_path + calibration_filename;
   calib_file.open(calibration_file_path.c_str());
   // Read calibration file

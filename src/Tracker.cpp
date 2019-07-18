@@ -234,7 +234,7 @@ namespace VIO {
     ransac.max_iterations_ = trackerParams_.ransac_max_iterations_;
     ransac.probability_ = trackerParams_.ransac_probability_;
 
-    VLOG(10) << "geometricOutlierRejectionMono: starting RANSAC.";
+    VLOG(10) << "geometricOutlierRejectionMono: starting 5-point RANSAC.";
 
     // Solve.
     if (!ransac.computeModel(0)) {
@@ -325,7 +325,7 @@ namespace VIO {
     ransac.max_iterations_ = trackerParams_.ransac_max_iterations_;
     ransac.probability_ = trackerParams_.ransac_probability_;
 
-    VLOG(10) << "geometricOutlierRejectionMonoGivenRot: starting RANSAC";
+    VLOG(10) << "geometricOutlierRejectionMonoGivenRot: starting 2-point RANSAC";
 
     // Solve.
 #ifdef sw_frontend
@@ -689,6 +689,9 @@ namespace VIO {
     findMatchingStereoKeypoints(ref_stereoFrame, cur_stereoFrame,
                                 &matches_ref_cur);
 
+    VLOG(10) << "geometricOutlierRejectionStereo:"
+                " starting 3-point RANSAC (voting)";
+
     // Vector of 3D vectors
     Points3d f_cur;
     f_cur.reserve(matches_ref_cur.size());
@@ -715,6 +718,8 @@ namespace VIO {
       VLOG(10) << "failure: (Arun) RANSAC could not find a solution.";
       return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
     }
+
+    VLOG(10) << "geometricOutlierRejectionStereo: voting complete.";
 
     // Remove outliers.
     removeOutliersStereo(ref_stereoFrame, cur_stereoFrame, matches_ref_cur,

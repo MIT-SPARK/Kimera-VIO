@@ -30,8 +30,9 @@
 #include "factors/ParallelPlaneRegularFactor.h"
 #include "factors/PointPlaneFactor.h"
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 using namespace std;
 using namespace gtsam;
@@ -40,8 +41,8 @@ static const double tol = 1e-5;
 static const double der_tol = 1e-5;
 
 /**
-  * Test that error does give the right result when it is zero.
-/* ************************************************************************* */
+ * Test that error does give the right result when it is zero.
+ */
 TEST(testParallelPlaneRegularTangentSpaceFactor, ErrorIsZero) {
   /// Plane keys.
   Key plane_key_1(1);
@@ -65,12 +66,12 @@ TEST(testParallelPlaneRegularTangentSpaceFactor, ErrorIsZero) {
   /// Expected error.
   Vector2 expected_error = Vector2::Constant(0.0);
 
-  EXPECT(assert_equal(expected_error, error, tol))
+  ASSERT_TRUE(assert_equal(expected_error, error, tol));
 }
 
 /**
-  * Test that error does give the right result when it is not zero.
-/* ************************************************************************* */
+ * Test that error does give the right result when it is not zero.
+ */
 TEST(testParallelPlaneRegularTangentSpaceFactor, ErrorOtherThanZero) {
   /// Plane keys.
   Key plane_key_1(1);
@@ -95,14 +96,14 @@ TEST(testParallelPlaneRegularTangentSpaceFactor, ErrorOtherThanZero) {
   Vector2 expected_error;
   expected_error << 0.109764, -0.109764;
 
-  EXPECT(assert_equal(expected_error, error, tol))
+  ASSERT_TRUE(assert_equal(expected_error, error, tol));
 }
 
 /**
-  * Test that analytical jacobians equal numerical ones.
-  *
-/* ************************************************************************* */
-TEST(testParallelPlaneRegularFactor, Jacobians) {
+ * Test that analytical jacobians equal numerical ones.
+ *
+ */
+TEST(testParallelPlaneRegularTangentSPaceFactor, Jacobians) {
   /// Plane keys.
   Key plane_key_1(1);
   Key plane_key_2(2);
@@ -137,25 +138,25 @@ TEST(testParallelPlaneRegularFactor, Jacobians) {
           plane_1, plane_2, der_tol);
 
   // Verify the Jacobians are correct
-  CHECK(assert_equal(H1Expected, H1Actual, tol));
-  CHECK(assert_equal(H2Expected, H2Actual, tol));
+  ASSERT_TRUE(assert_equal(H1Expected, H1Actual, tol));
+  ASSERT_TRUE(assert_equal(H2Expected, H2Actual, tol));
 }
 
 /**
-  * Test that optimization works.
-  * A plane and a landmark with prior factors, and a second plane constrained
-  * together with the first plane using the ParallelPlaneRegularTangentSpace
-  * factor.
-  *
-  *              Prior                      +-------+    +-+
-  *               +-+                       | Lmk 1 +----+ | Prior
-  *               +-+        Parallelism    +---+---+    +-+
-  *                |           factor           |
-  *            +---+---+        +-+         +---+---+
-  *            |Plane 1+--------+ +---------+Plane 2|
-  *            +-------+        +-+         +-------+
-  *
-/* ************************************************************************* */
+ * Test that optimization works.
+ * A plane and a landmark with prior factors, and a second plane constrained
+ * together with the first plane using the ParallelPlaneRegularTangentSpace
+ * factor.
+ *
+ *              Prior                      +-------+    +-+
+ *               +-+                       | Lmk 1 +----+ | Prior
+ *               +-+        Parallelism    +---+---+    +-+
+ *                |           factor           |
+ *            +---+---+        +-+         +---+---+
+ *            |Plane 1+--------+ +---------+Plane 2|
+ *            +-------+        +-+         +-------+
+ *
+ */
 TEST(testParallelPlaneRegularTangentSpaceFactor, PlaneOptimization) {
   NonlinearFactorGraph graph;
 
@@ -219,12 +220,5 @@ TEST(testParallelPlaneRegularTangentSpaceFactor, PlaneOptimization) {
   expected.insert(plane_key_1, priorMeanPlane1);
   expected.insert(plane_key_2, OrientedPlane3(0.0, 0.0, 1.0, 0.0));
 
-  EXPECT(assert_equal(expected, result, tol))
+  ASSERT_TRUE(assert_equal(expected, result, tol));
 }
-
-/* ************************************************************************* */
-int main() {
-  TestResult tr;
-  return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */

@@ -19,6 +19,8 @@
 #include <cstdlib>  // for srand()
 #include <memory>
 #include <thread>
+#include <utility>  // for make_pair
+#include <vector>
 
 #include <gtsam/navigation/ImuBias.h>
 
@@ -31,6 +33,7 @@
 #include "pipeline/BufferControl.h"
 #include "pipeline/ProcessControl.h"
 #include "utils/ThreadsafeQueue.h"
+#include "initial/InitializationBackEnd-definitions.h"
 
 namespace VIO {
 // Forward-declare classes.
@@ -81,7 +84,9 @@ class Pipeline {
 
   ImuBias getEstimatedBias() { return vio_backend_->getLatestImuBias(); }
 
-  Timestamp getTimestamp() { return timestamp_lkf_; }
+  Timestamp getTimestamp() {
+    return vio_backend_->getTimestampLkf();
+  }
 
   gtsam::Matrix getEstimatedStateCovariance() {
     return vio_backend_->getStateCovarianceLkf();
@@ -101,11 +106,23 @@ class Pipeline {
   // TODO Still does not make RANSAC REPEATABLE across different machines.
   inline void setDeterministicPipeline() const { srand(0); }
 
-  // Initialize pipeline.
+  // Initialize pipeline with desired option (flag).
   bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // Re-initialize pipeline.
-  bool reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  // Check if necessary to re-initialize pipeline.
+  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Initialize pipeline from IMU or GT.
+  bool initializeFromIMUorGT(const StereoImuSyncPacket &stereo_imu_sync_packet);
+
+  // Initialize pipeline from online gravity alignment.
+  bool initializeOnline(const StereoImuSyncPacket &stereo_imu_sync_packet);
+
+  // Initialize backend given external pose estimate (GT or OGA)
+  // TODO(Sandro): Unify both functions below (init backend)
+  bool initializeVioBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
+                      std::shared_ptr<gtNavState> initial_state,
+                      const StereoFrame &stereo_frame_lkf);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.
@@ -148,6 +165,12 @@ class Pipeline {
   // Launch different threads with processes.
   void launchThreads();
 
+  // Launch frontend thread with process.
+  void launchFrontendThread();
+
+  // Launch remaining threads with processes.
+  void launchRemainingThreads();
+
   // Shutdown processes and queues.
   void stopThreads();
 
@@ -156,7 +179,9 @@ class Pipeline {
 
   // Data provider.
 
+  // For bookkeeping
   Timestamp timestamp_lkf_;
+  Timestamp timestamp_lkf_published_;
 
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
@@ -173,6 +198,9 @@ class Pipeline {
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
   ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
+
+  // Online initialization frontend queue.
+  ThreadsafeQueue<InitializationInputPayload> initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;
@@ -208,6 +236,8 @@ class Pipeline {
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
+  std::atomic_bool is_launched_ = {false};
+  int init_frame_id_;
 
   // Threads.
   std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};
