@@ -1196,11 +1196,11 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
 /* --------------------------------------------------------------------------
  */
 // Update smoother.
-void VioBackEnd::updateSmoother(
-    Smoother::Result* result,
-    const gtsam::NonlinearFactorGraph& new_factors_tmp,
-    const gtsam::Values& new_values, const std::map<Key, double>& timestamps,
-    const gtsam::FactorIndices& delete_slots) {
+void VioBackEnd::updateSmoother(Smoother::Result* result,
+                                const gtsam::NonlinearFactorGraph& new_factors,
+                                const gtsam::Values& new_values,
+                                const std::map<Key, double>& timestamps,
+                                const gtsam::FactorIndices& delete_slots) {
   CHECK_NOTNULL(result);
   // Store smoother as backup.
   CHECK(smoother_);
