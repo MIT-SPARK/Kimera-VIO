@@ -42,7 +42,7 @@ pipeline {
             spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
 
           // Copy performance website to Workspace
-          sh 'cp -r /root/spark_vio_evaluation/html spark_vio_evaluation/html'
+          sh 'cp -r /root/spark_vio_evaluation/html spark_vio_evaluation/'
         }
       }
     }
