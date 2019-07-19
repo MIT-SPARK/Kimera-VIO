@@ -70,6 +70,7 @@ pipeline {
            yaxis: 'Time [ms]'
 
       // Publish HTML website with Dygraphs and pdfs of VIO performance
+
       publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: ''])
 
       // Archive the CTest xml output.
