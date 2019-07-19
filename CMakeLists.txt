@@ -295,6 +295,6 @@ if(NOT MSVC AND NOT XCODE_VERSION)
       message(WARNING "  Build type is not in RELEASE, this will slow down the code.")
     endif()
     message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
-    message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS_RELEASE}")
+    message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
 
