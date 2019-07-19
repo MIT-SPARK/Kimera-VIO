@@ -30,7 +30,7 @@ pipeline {
         }
       }
     }
-    stage('Performance') {
+    stage('Euroc Performance') {
       steps {
         wrap([$class: 'Xvfb']) {
           // Run performance tests.
@@ -54,7 +54,7 @@ pipeline {
       // Plot VIO performance.
       plot csvFileName: 'plot-vio-performance-per-build.csv',
            csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv']],
-           group: 'Performance',
+           group: 'Euroc Performance',
            numBuilds: '30',
            style: 'line',
            title: 'VIO Performance',
@@ -63,14 +63,14 @@ pipeline {
       // Plot VIO timing.
       plot csvFileName: 'plot-vio-timing-per-build.csv',
            csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/output/output_timingOverall.csv']],
-           group: 'Performance',
+           group: 'Euroc Performance',
            numBuilds: '30',
            style: 'line',
            title: 'VIO Timing',
            yaxis: 'Time [ms]'
 
       // Publish HTML website with Dygraphs and pdfs of VIO performance
-      publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Performance Report', reportTitles: ''])
+      publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: ''])
 
       // Archive the CTest xml output.
       archiveArtifacts (
