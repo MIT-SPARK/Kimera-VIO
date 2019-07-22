@@ -326,8 +326,8 @@ public:
   inline StereoMatchingParams getSparseStereoParams() const {
     return sparse_stereo_params_;
   }
-  inline double getMinDepthFactor() const {return getSparseStereoParams().min_depth_factor_; }
-  inline double getMapDepthFactor() const {return getSparseStereoParams().map_depth_factor_; }
+  inline double getMinDepthFactor() const {return sparse_stereo_params_.min_depth_factor_; }
+  inline double getMapDepthFactor() const {return sparse_stereo_params_.map_depth_factor_; }
   inline gtsam::Cal3_S2 getLeftUndistRectCamMat() const {
     return left_undistRectCameraMatrix_;
   }

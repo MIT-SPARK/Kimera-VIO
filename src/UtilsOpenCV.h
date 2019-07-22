@@ -197,7 +197,7 @@ public:
   /* -------------------------------------------------------------------------- */
   // creates pose by aligning initial gravity vector estimates
   static gtsam::Pose3
-  AlignGravityVectors(gtsam::Vector3 &local_gravity_dir,
+  AlignGravityVectors(const gtsam::Vector3 &local_gravity_dir,
                       const gtsam::Vector3 &global_gravity_dir, bool round);
 
   /* ------------------------------------------------------------------------ */

@@ -70,7 +70,7 @@ public:
   // needed to compute the undistorsion map.
   cv::Mat camera_matrix_;
   // 5 parameters (last is zero): distortion_model: radial-tangential.
-  std::string distortion_model_ = "radtan"; // define default
+  std::string distortion_model_; // define default
   cv::Mat distortion_coeff_;
 
   cv::Mat undistRect_map_x_, undistRect_map_y_;

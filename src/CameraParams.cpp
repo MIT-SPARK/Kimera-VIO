@@ -30,8 +30,6 @@ bool CameraParams::parseYAML(const std::string& filepath) {
   fs["intrinsics"] >> intrinsics_;
 
   // 4 parameters (read from file): distortion_model: radial-tangential
-  // TODO (Toni) allow for different distortion models, at least equidistant as
-  // well!
   std::vector<double> distortion_coeff4_;
   distortion_coeff4_.clear();
   fs["distortion_model"] >> distortion_model_;

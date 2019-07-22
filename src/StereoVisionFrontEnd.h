@@ -124,7 +124,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Reset frontend after initial bundle adjustment for online alignment
   void resetFrontendAfterOnlineAlignment(const gtsam::Vector3 &gravity, 
-                                      gtsam::Vector3 gyro_bias) {
+                                      gtsam::Vector3 &gyro_bias) {
     LOG(WARNING) << "Resetting frontend after online alignment!\n";
     forceFiveThreePointMethod(false);
     resetGravity(gravity);
@@ -216,7 +216,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Reset ImuFrontEnd gravity. Trivial gravity is needed for initial alignment.
   // This is thread-safe as imu_frontend_->resetPreintegrationGravity is thread-safe.
-  void resetGravity(gtsam::Vector3 reset_value) const {
+  void resetGravity(const gtsam::Vector3 &reset_value) const {
     imu_frontend_->resetPreintegrationGravity(reset_value);
   }
 

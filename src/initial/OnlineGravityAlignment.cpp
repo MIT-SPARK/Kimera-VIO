@@ -95,6 +95,8 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
     gtsam::Vector3 *gyro_bias, gtsam::Vector3 *g_iter,
     gtsam::NavState *init_navstate,
     const bool& estimate_bias) {
+  CHECK_NOTNULL(gyro_bias);
+  CHECK_NOTNULL(g_iter);
   VLOG(10) << "Online gravity alignment called.";
   VisualInertialFrames vi_frames;
   gtsam::Velocity3 init_velocity;
@@ -148,6 +150,7 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
     const AlignmentPoses &estimated_body_poses,
     const std::vector<double> &delta_t_camera, const AlignmentPims &pims,
     VisualInertialFrames *vi_frames) {
+  CHECK_NOTNULL(vi_frames);
   CHECK_EQ(estimated_body_poses.size()-1, delta_t_camera.size());
   CHECK_EQ(delta_t_camera.size(), pims.size());
   vi_frames->clear();
@@ -159,10 +162,15 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
     gtsam::NavState delta_state(pims.at(i).deltaXij());
     // Get delta_time_pim = t_kp1-t_k
     const double delta_t_pim = pims.at(i).deltaTij();
-    // Get pre-integration Jacobian wrt. gyro_bias (dPIM = J * dbg)
-    gtsam::Matrix dbg_J_dPIM = pims.at(i).preintegrated_H_biasOmega();
-    // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
-    gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
+    #ifdef GTSAM_TANGENT_PREINTEGRATION
+      // Get pre-integration Jacobian wrt. gyro_bias (dPIM = J * dbg)
+      gtsam::Matrix dbg_J_dPIM = pims.at(i).preintegrated_H_biasOmega();
+      // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
+      gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
+    #else
+      // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
+      gtsam::Matrix3 dbg_Jacobian_dR = pims.at(i).delRdelBiasOmega();
+    #endif
 
     CHECK_GT(FLAGS_camera_pim_delta_difference,
               abs(delta_t_pim - delta_t_camera.at(i)));
@@ -187,6 +195,8 @@ bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
           gtsam::Vector3 *gyro_bias,
           VisualInertialFrames *vi_frames,
           const bool& use_ahrs_estimator) {
+  CHECK_NOTNULL(gyro_bias);
+  CHECK_NOTNULL(vi_frames);
   if(gyro_bias->norm() != 0.0) {
     LOG(ERROR) << "\nNon-zero PIM gyro bias:\n" << *gyro_bias;
     return false;
@@ -221,6 +231,7 @@ bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
 void OnlineGravityAlignment::estimateGyroscopeBias(
           const VisualInertialFrames &vi_frames,
           gtsam::Vector3 *gyro_bias) {
+  CHECK_NOTNULL(gyro_bias);
   // Create Gaussian Graph with unit noise
   gtsam::GaussianFactorGraph gaussian_graph;
   auto noise = gtsam::noiseModel::Unit::Create(3);
@@ -265,6 +276,7 @@ void OnlineGravityAlignment::estimateGyroscopeBiasAHRS(
       const VisualInertialFrames &vi_frames,
       const InitialAHRSPims &ahrs_pims,
       gtsam::Vector3 *gyro_bias) {
+  CHECK_NOTNULL(gyro_bias);
   CHECK_EQ(vi_frames.size(), ahrs_pims.size());
 
   // Create initial values and factor graph
@@ -360,6 +372,7 @@ gtsam::Vector3 OnlineGravityAlignment::estimateGyroscopeResiduals(
 void OnlineGravityAlignment::updateDeltaStates(
     const AlignmentPims &pims, const gtsam::Vector3 &gyro_bias,
     VisualInertialFrames *vi_frames) {
+  CHECK_NOTNULL(vi_frames);
   CHECK_EQ(vi_frames->size(), pims.size());
 
   // Repropagate measurements with first order approximation
@@ -386,6 +399,8 @@ void OnlineGravityAlignment::updateDeltaStates(
 bool OnlineGravityAlignment::alignEstimatesLinearly(
     const VisualInertialFrames &vi_frames, const gtsam::Vector3 &g_world,
     gtsam::Vector3 *g_iter, gtsam::Velocity3 *init_vel) {
+  CHECK_NOTNULL(g_iter);
+  CHECK_NOTNULL(init_vel);
 
   // Create Gaussian Graph with unit noise
   gtsam::GaussianFactorGraph gaussian_graph;
@@ -482,6 +497,8 @@ OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g0) {
 void OnlineGravityAlignment::refineGravity(
     const VisualInertialFrames &vi_frames, const gtsam::Vector3 &g_world,
     gtsam::Vector3 *g_iter, gtsam::Velocity3 *init_vel) {
+  CHECK_NOTNULL(g_iter);
+  CHECK_NOTNULL(init_vel);
   // Define current gravity estimate (normalized)
   gtsam::Vector3 g0 = g_iter->normalized() * g_world.norm();
 
@@ -536,6 +553,7 @@ void OnlineGravityAlignment::refineGravity(
 bool OnlineGravityAlignment::estimateGyroscopeBiasOnly(
     gtsam::Vector3 *gyro_bias,
     const bool& use_ahrs_estimator) {
+  CHECK_NOTNULL(gyro_bias);
   VLOG(10) << "Gyroscope bias only called.";
   VisualInertialFrames vi_frames;
 

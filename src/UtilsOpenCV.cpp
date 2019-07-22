@@ -418,7 +418,7 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
 /* -------------------------------------------------------------------------- */
 // creates pose by aligning initial gravity vector estimates
 gtsam::Pose3
-UtilsOpenCV::AlignGravityVectors(gtsam::Vector3 &local_gravity_dir,
+UtilsOpenCV::AlignGravityVectors(const gtsam::Vector3 &local_gravity_dir,
                                  const gtsam::Vector3 &global_gravity_dir,
                                  bool round) {
   gtsam::Unit3 localGravityDir(

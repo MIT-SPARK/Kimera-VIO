@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.5)
 project(SparkVio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
@@ -107,7 +107,7 @@ target_include_directories(SparkVio
   )
 target_compile_options(SparkVio
   PRIVATE -Wall -pipe
-  PUBLIC -march=native) # Remove these
+  PRIVATE -march=native) # Remove these
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(SparkVio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more

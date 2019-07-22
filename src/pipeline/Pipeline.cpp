@@ -117,8 +117,8 @@ Pipeline::Pipeline(ETHDatasetParser* dataset, const ImuParams& imu_params,
     mesher_output_queue_("mesher_output_queue"),
     visualizer_input_queue_("visualizer_input_queue"),
     visualizer_output_queue_("visualizer_output_queue"),
-    timestamp_lkf_(-1),
-    timestamp_lkf_published_(-1) {
+    timestamp_lkf_(0),
+    timestamp_lkf_published_(0) {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
 
@@ -202,7 +202,7 @@ SpinOutputContainer Pipeline::getSpinOutputContainer() {
   Timestamp timestamp_lkf = getTimestamp();
   // Should not be published
   if (timestamp_lkf == timestamp_lkf_published_ ||
-      timestamp_lkf == -1) {
+      timestamp_lkf == 0) {
     output = SpinOutputContainer();
   } else {
     timestamp_lkf_published_ = timestamp_lkf;
