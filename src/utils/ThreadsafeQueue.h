@@ -123,6 +123,7 @@ class ThreadsafeQueue {
   bool batchPop(std::queue<T> *output_queue) {
     if (shutdown_)
       return false;
+    CHECK_NOTNULL(output_queue);
     CHECK(output_queue->empty());
     //*output_queue = std::queue<T>();
     std::lock_guard<std::mutex> lk(mutex_);
