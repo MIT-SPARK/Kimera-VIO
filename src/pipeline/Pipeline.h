@@ -50,7 +50,7 @@ class Pipeline {
   ~Pipeline();
 
   // Main spin, runs the pipeline.
-  SpinOutputContainer spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  void spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
   void spinViz(bool parallel_run = true);
@@ -77,28 +77,10 @@ class Pipeline {
     return mesher_output_queue_;
   }
 
-  gtsam::Vector3 getEstimatedVelocity() { return vio_backend_->getWVelBLkf(); }
-
-  gtsam::Pose3 getEstimatedPose() { return vio_backend_->getWPoseBLkf(); }
-
-  ImuBias getEstimatedBias() { return vio_backend_->getLatestImuBias(); }
-
-  Timestamp getTimestamp() {
-    return vio_backend_->getTimestampLkf();
-  }
-
-  gtsam::Matrix getEstimatedStateCovariance() {
-    return vio_backend_->getStateCovarianceLkf();
-  }
-
-  DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
-
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
     visualizer_.registerMesh3dVizProperties(cb);
   }
-
-  SpinOutputContainer getSpinOutputContainer();
 
  private:
   // Initialize random seed for repeatability (only on the same machine).
@@ -180,10 +162,6 @@ class Pipeline {
   // TODO remove dataset_ from vio pipeline altogether!
   ETHDatasetParser* dataset_;
 
-  // For bookkeeping
-  Timestamp timestamp_lkf_;
-  Timestamp timestamp_lkf_published_;
-
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
@@ -192,9 +170,6 @@ class Pipeline {
   // Frontend.
   std::unique_ptr<StereoVisionFrontEnd> vio_frontend_;
   FeatureSelector feature_selector_;
-
-  // Debug information from frontend (this is the only going out)
-  DebugTrackerInfo debug_tracker_info_;
 
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;

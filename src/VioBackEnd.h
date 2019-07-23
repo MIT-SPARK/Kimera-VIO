@@ -465,12 +465,11 @@ public:
   inline const Pose3& getBPoseLeftCam() const {return B_Pose_leftCam_;}
 
   // TODO NOT THREAD-SAFE! Should add critical sections.
-  inline Timestamp getTimestampLkf() const {return timestamp_lkf_;}
+  // This can only be used in the wrapped backend-mesher thread.
   inline ImuBias getLatestImuBias() const {return imu_bias_lkf_;}
   inline ImuBias getImuBiasPrevKf() const {return imu_bias_prev_kf_;}
   inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
   inline Pose3 getWPoseBLkf() const {return W_Pose_B_lkf_;}
-  inline gtsam::Matrix getStateCovarianceLkf() const {return state_covariance_lkf_;}
   inline int getCurrKfId() const {return curr_kf_id_;}
   inline gtsam::Values getState() const {return state_;}
   inline int getLandmarkCount() const {return landmark_count_;}

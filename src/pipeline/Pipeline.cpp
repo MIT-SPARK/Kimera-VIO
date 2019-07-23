@@ -116,9 +116,7 @@ Pipeline::Pipeline(ETHDatasetParser* dataset, const ImuParams& imu_params,
     mesher_input_queue_("mesher_input_queue"),
     mesher_output_queue_("mesher_output_queue"),
     visualizer_input_queue_("visualizer_input_queue"),
-    visualizer_output_queue_("visualizer_output_queue"),
-    timestamp_lkf_(0),
-    timestamp_lkf_published_(0) {
+    visualizer_output_queue_("visualizer_output_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
 
@@ -158,8 +156,7 @@ Pipeline::~Pipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-SpinOutputContainer 
-    Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+void Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Check if we have to re-initialize
   checkReInitialize(stereo_imu_sync_packet);
   // Initialize pipeline if not initialized
@@ -181,45 +178,18 @@ SpinOutputContainer
       launchRemainingThreads();
       LOG(INFO) << " launching threads.";
       is_initialized_ = true;
-      return getSpinOutputContainer();
+      return;
     } else {
       LOG(INFO) << "Not yet initialized...";
       // TODO: Don't publish if it is the trivial output
-      return SpinOutputContainer();
+      return;
     }
   } else {
     // TODO Warning: we do not accumulate IMU measurements for the first packet...
     // Spin.
     spinOnce(stereo_imu_sync_packet);
-    return getSpinOutputContainer();
+    return;
   }
-}
-
-/* -------------------------------------------------------------------------- */
-// Get spin output container
-SpinOutputContainer Pipeline::getSpinOutputContainer() {
-  SpinOutputContainer output;
-  Timestamp timestamp_lkf = getTimestamp();
-  // Should not be published
-  if (timestamp_lkf == timestamp_lkf_published_ ||
-      timestamp_lkf == 0) {
-    output = SpinOutputContainer();
-  } else {
-    timestamp_lkf_published_ = timestamp_lkf;
-    output = SpinOutputContainer(
-        timestamp_lkf, getEstimatedPose(), getEstimatedVelocity(),
-        getEstimatedBias(), getEstimatedStateCovariance(), getTrackerInfo());
-  }
-  ////////////////// DEBUG INFO FOR PIPELINE /////////////////////////////////
-  if (FLAGS_log_output) {
-    LoggerMatlab logger;
-    // Use default filename (sending empty "" uses default name), and set
-    // write mode to append (sending true).
-    logger.openLogFiles(14, "", true);
-    logger.logPipelineResultsCSV(output);
-    logger.closeLogFiles(14);
-  }
-  return output;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -375,13 +345,6 @@ void Pipeline::spinSequential() {
     return;
   }
   CHECK(stereo_frontend_output_payload->is_keyframe_);
-
-  // Pass info for resiliency
-  debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
-
-  // Get timestamp of key-frame
-  timestamp_lkf_ =
-      stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp();
 
   // We have a keyframe. Push to backend.
   backend_input_queue_.push(VioBackEndInputPayload(
@@ -649,9 +612,6 @@ bool Pipeline::initializeOnline(
     StereoFrame stereo_frame_lkf =
         vio_frontend_->processFirstStereoFrame(
             stereo_imu_sync_init.getStereoFrame());
-    // Get timestamp for bookkeeping
-    timestamp_lkf_ = stereo_imu_sync_init.getStereoFrame().getTimestamp();
-
     return false;
 
   /////////////////// FRONTEND //////////////////////////////////////////////////
@@ -955,13 +915,6 @@ void Pipeline::processKeyframePop() {
       continue;
     }
     CHECK(stereo_frontend_output_payload->is_keyframe_);
-
-    // Pass info for resiliency
-    debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
-
-    // Get timestamp of key-frame
-    timestamp_lkf_ =
-        stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp();
 
     ////////////////////////////////////////////////////////////////////////////
     // So from this point on, we have a keyframe.

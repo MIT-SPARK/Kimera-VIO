@@ -95,12 +95,12 @@ class DataProvider {
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.
   void registerVioCallback(
-      std::function<SpinOutputContainer(const StereoImuSyncPacket&)> callback);
+      std::function<void(const StereoImuSyncPacket&)> callback);
 
  protected:
   // Vio callback. This function should be called once a StereoImuSyncPacket
   // is available for processing.
-  std::function<SpinOutputContainer(const StereoImuSyncPacket&)> vio_callback_;
+  std::function<void(const StereoImuSyncPacket&)> vio_callback_;
 };
 
 }  // namespace VIO
