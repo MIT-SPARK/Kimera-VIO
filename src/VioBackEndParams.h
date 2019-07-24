@@ -182,8 +182,6 @@ protected:
 
   // Parse params YAML file
   bool parseYAMLVioBackEndParams(const cv::FileStorage &fs) {
-    cv::FileNode file_handle;
-
     // IMU PARAMS
     getYamlParam(fs, "gyroNoiseDensity", &gyroNoiseDensity_);
     getYamlParam(fs, "accNoiseDensity", &accNoiseDensity_);
@@ -223,8 +221,7 @@ protected:
       linearizationMode_ = gtsam::JACOBIAN_SVD;
       break;
     default:
-      throw std::runtime_error(
-          "VIOparams parseYAML: wrong linearizationModeId");
+      LOG(FATAL) << "Wrong linearizationMode in VIO backend parameters.";
       break;
     }
 
@@ -241,7 +238,7 @@ protected:
       degeneracyMode_ = gtsam::HANDLE_INFINITY;
       break;
     default:
-      throw std::runtime_error("VIOparams parseYAML: wrong degeneracyMode_");
+      LOG(FATAL) << "Wrong degeneracyMode in VIO backend parameters.";
       break;
     }
 
