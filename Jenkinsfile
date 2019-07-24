@@ -22,8 +22,7 @@ pipeline {
     stage('Test') {
       steps {
         wrap([$class: 'Xvfb']) {
-          sh 'cd build && make check -j 8'
-            ctest arguments: '-T test --no-compress-output --verbose', installation: 'InSearchPath', workingDir: 'build/tests'
+          sh 'cd build && ./testSparkVio --gtest_output="xml:testresults.xml"'
         }
       }
     }
@@ -68,15 +67,8 @@ pipeline {
           fingerprint: true
           )
 
-      // Process the CTest xml output with the xUnit plugin
-      xunit([CTest(
-            deleteOutputFiles: true,
-            failIfNotNew: true,
-            pattern: 'build/tests/Testing/**/*.xml',
-            skipNoTestFiles: false,
-            stopProcessingIfError: true)
-      ])
-
+      // Process the CTest xml output
+      junit 'build/testresults.xml'
 
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
