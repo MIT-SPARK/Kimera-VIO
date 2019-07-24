@@ -71,7 +71,7 @@ add_library(SparkVio SHARED
   src/Visualizer3D.cpp "")
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(SparkVio::SparkVio ALIAS SparkVio)
+add_library(SparkVio::SparkVio ALIAS sparkvio)
 
 ### Add source code for data provider.
 include(src/datasource/CMakeLists.txt)
@@ -105,9 +105,11 @@ target_include_directories(SparkVio
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
-target_compile_options(SparkVio
+
+target_compile_options(sparkVio
   PRIVATE -Wall -pipe
   PRIVATE -march=native) # Remove these
+  
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(SparkVio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
@@ -190,9 +192,16 @@ add_executable(testSparkVio
   #tests/testInitializationBackEnd.cpp
   tests/testOnlineAlignment.cpp
   )
-target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
-include(GoogleTest)
-gtest_discover_tests(testSparkVio)
+target_link_libraries(testSparkVio gtest SparkVio::SparkVio)
+
+if(CMAKE_VERSION VERSION_LESS 3.10)
+  enable_testing()
+  include(FindGTest)
+  gtest_add_tests(testSparkVio "" AUTO)
+else()
+  include(GoogleTest)
+  gtest_discover_tests(testSparkVio)
+endif()
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)
 #

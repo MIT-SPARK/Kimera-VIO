@@ -879,8 +879,10 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
 /* *************************************************************************
 TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
   // this should be enabled if lines after 66 are uncommented
+
   // create a brand new stereo frame
   initializeDataStereo();
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that data is correctly populated:
   EXPECT_NEAR(0.110078, sfnew->baseline(), 1e-5);
@@ -917,6 +919,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
     }
   }
   EXPECT_NEAR(93, nrValid, 1e-5);
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that 3D point reprojects correctly to the two cameras:
   for (size_t i = 0; i < sfnew->keypoints_3d_.size(); i++) {
@@ -925,6 +928,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
       Vector3 versor_i_rect = sfnew->getLeftFrame().versors_.at(i);
       versor_i_rect = versor_i_rect / versor_i_rect(2);  // set last element to
       1, instead of norm 1
+
       // TEST: check rotation due to rectification (important when projecting
       points later on) Rot3 expected_camL_R_camLrect =
       sfnew->getLeftFrame().cam_param_.body_Pose_cam_.rotation().between(sfnew->getBPoseCamLRect().rotation());
@@ -933,6 +937,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
           .inverse();
       EXPECT_TRUE(
           assert_equal(expected_camL_R_camLrect, actual_camL_R_camLrect, 1e-6));
+
       // TEST: uncalibrateDistUnrect(versor) = original distorted unrectified
       point(CHECK DIST UNRECT CALIBRATION WORKS) KeypointCV kp_i_distUnrect =
           sfnew->getLeftFrame().keypoints_.at(i);
@@ -945,6 +950,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
               Point2(versor_i_unRect(0), versor_i_unRect(1)));
       EXPECT_TRUE(assert_equal(Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
                                kp_i_distUnrect_gtsam, 1));
+
       // TEST: uncalibrateUndistRect(versor) = original distorted unrectified
       point(CHECK UNDIST RECT CALIBRATION WORKS) KeypointCV kp_i_undistRect =
           sfnew->left_keypoints_rectified_.at(i);
@@ -957,6 +963,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
           KundistRect.uncalibrate(Point2(versor_i_rect(0), versor_i_rect(1)));
       EXPECT_TRUE(assert_equal(Point2(kp_i_undistRect.x, kp_i_undistRect.y),
                                kp_i_undistRect_gtsam, 1));
+
       // TEST: distortUnrectify(undistRectified) = original distorted
       unrectified point(CHECK UNDISTORTION WORKS) KeypointsCV dup;
       vector<Kstatus> statuses;
@@ -967,6 +974,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
           sfnew->getLeftFrame().cam_param_.undistRect_map_y_);
       EXPECT_TRUE(assert_equal(Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
                                Point2(dup.at(0).x, dup.at(0).y), 1));
+
       // TEST: projecting 3d point to left camera (undist and rectified) =
       original undistorted rectified point(CHECK BACKPROJECTION WORKS)
           PinholeCamera<Cal3_S2>
@@ -975,6 +983,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
       Point2 p2_undistRect = leftCam_undistRect.project(point3d_rect);
       EXPECT_TRUE(assert_equal(Point2(kp_i_undistRect.x, kp_i_undistRect.y),
                                p2_undistRect, 1));
+
       // TEST: projecting 3d point to left camera (distorted and unrectified)
       = original distorted unrectified point(CHECK BACKPROJECTION WORKS)
           Point3 point3d_unRect =
@@ -985,6 +994,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
       Point2 p2_distUnrect = leftCam_distUnrect.project(point3d_unRect);
       EXPECT_TRUE(assert_equal(Point2(kp_i_distUnrect.x, kp_i_distUnrect.y),
                                p2_distUnrect, 1));
+
       // TEST: projecting 3d point to stereo camera
       // reproject to camera and check that matches corresponding rectified
       pixels Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(

@@ -1000,6 +1000,7 @@ TEST(FeatureSelector, createDeltas) {
   // THIS FAILS NOW SINCE WE INCLUDED !hasRightPixel in FeatureSelector.h
   /*
   EXPECT_TRUE(assert_equal(expectedHessian1,Deltas[0]->information(),1e-2));
+  
   // second point is far from existing keypoint, hence the distance should be
   the default = 5 Point3 p2 = left_cameras.at(0).pose() *
   Point3(availableVersors[1] * 5.0); Matrix expectedHessian2 =
