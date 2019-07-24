@@ -9,87 +9,85 @@
 /**
  * @file   testVioBackEndParams.cp
  * @brief  test VioBackEndParams
- * @author Luca Carlone
+ * @author Antoni Rosinol, Luca Carlone
  */
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <random>
-#include <algorithm>
 #include "VioBackEndParams.h"
-#include "test_config.h"
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <gtest/gtest.h>
 
-// Add last, since it redefines CHECK, which is first defined by glog.
-#include <CppUnitLite/TestHarness.h>
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;
 using namespace VIO;
 using namespace cv;
 
-static const double tol = 1e-7;
-
 /* ************************************************************************* */
 TEST(testVioBackEndParams, VioParseYAML) {
   // Test parseYAML
   VioBackEndParams vp;
-  vp.parseYAML(string(DATASET_PATH) + "/ForVIO/vioParameters.yaml");
+  vp.parseYAML(string(FLAGS_test_data_path) + "/ForVIO/vioParameters.yaml");
 
   // Check the parsed values!
   // IMU params
-  EXPECT_DOUBLES_EQUAL(0.00013, vp.gyroNoiseDensity_, tol);
-  EXPECT_DOUBLES_EQUAL(0.001, vp.accNoiseDensity_, tol);
-  EXPECT_DOUBLES_EQUAL(1e-05, vp.imuIntegrationSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(1.92e-05, vp.gyroBiasSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(0.001, vp.accBiasSigma_, tol);
-  EXPECT(assert_equal(Vector3(-10, 2, -7.81), vp.n_gravity_));
-  EXPECT_DOUBLES_EQUAL(1e-04, vp.nominalImuRate_, tol);
+  EXPECT_DOUBLE_EQ(0.00013, vp.gyroNoiseDensity_);
+  EXPECT_DOUBLE_EQ(0.001, vp.accNoiseDensity_);
+  EXPECT_DOUBLE_EQ(1e-05, vp.imuIntegrationSigma_);
+  EXPECT_DOUBLE_EQ(1.92e-05, vp.gyroBiasSigma_);
+  EXPECT_DOUBLE_EQ(0.001, vp.accBiasSigma_);
+  EXPECT_TRUE(assert_equal(Vector3(-10, 2, -7.81), vp.n_gravity_));
+  EXPECT_DOUBLE_EQ(1e-04, vp.nominalImuRate_);
 
   // INITIALIZATION params
-  EXPECT(vp.autoInitialize_ == false);
-  EXPECT(vp.roundOnAutoInitialize_ == true);
-  EXPECT_DOUBLES_EQUAL(1e-01, vp.initialPositionSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(0.11, vp.initialRollPitchSigma_, tol);
-  EXPECT_DOUBLES_EQUAL( 0.13, vp.initialYawSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(0.15, vp.initialVelocitySigma_, tol);
-  EXPECT_DOUBLES_EQUAL(0.17, vp.initialAccBiasSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(11, vp.initialGyroBiasSigma_, tol);
+  EXPECT_EQ(vp.autoInitialize_, false);
+  EXPECT_EQ(vp.roundOnAutoInitialize_, true);
+  EXPECT_DOUBLE_EQ(1e-01, vp.initialPositionSigma_);
+  EXPECT_DOUBLE_EQ(0.11, vp.initialRollPitchSigma_);
+  EXPECT_DOUBLE_EQ(0.13, vp.initialYawSigma_);
+  EXPECT_DOUBLE_EQ(0.15, vp.initialVelocitySigma_);
+  EXPECT_DOUBLE_EQ(0.17, vp.initialAccBiasSigma_);
+  EXPECT_DOUBLE_EQ(11, vp.initialGyroBiasSigma_);
 
   // VISION params
-  EXPECT(vp.linearizationMode_ == 3);
-  EXPECT(vp.degeneracyMode_ == 2);
-  EXPECT_DOUBLES_EQUAL(5, vp.smartNoiseSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(2.1, vp.rankTolerance_, tol);
-  EXPECT_DOUBLES_EQUAL(10.2, vp.landmarkDistanceThreshold_, tol);
-  EXPECT_DOUBLES_EQUAL(3.2, vp.outlierRejection_, tol);
-  EXPECT_DOUBLES_EQUAL(0.1, vp.retriangulationThreshold_, tol);
-  EXPECT(vp.addBetweenStereoFactors_ == true);
-  EXPECT_DOUBLES_EQUAL(1.11, vp.betweenRotationPrecision_, tol);
-  EXPECT_DOUBLES_EQUAL(2.22, vp.betweenTranslationPrecision_, tol);
+  EXPECT_EQ(vp.linearizationMode_, 3);
+  EXPECT_EQ(vp.degeneracyMode_, 2);
+  EXPECT_DOUBLE_EQ(5, vp.smartNoiseSigma_);
+  EXPECT_DOUBLE_EQ(2.1, vp.rankTolerance_);
+  EXPECT_DOUBLE_EQ(10.2, vp.landmarkDistanceThreshold_);
+  EXPECT_DOUBLE_EQ(3.2, vp.outlierRejection_);
+  EXPECT_DOUBLE_EQ(0.1, vp.retriangulationThreshold_);
+  EXPECT_EQ(vp.addBetweenStereoFactors_, true);
+  EXPECT_DOUBLE_EQ(1.11, vp.betweenRotationPrecision_);
+  EXPECT_DOUBLE_EQ(2.22, vp.betweenTranslationPrecision_);
 
   // OPTIMIZATION params
-  EXPECT_DOUBLES_EQUAL(0.0001, vp.relinearizeThreshold_, tol);
-  EXPECT_DOUBLES_EQUAL(12, vp.relinearizeSkip_, tol);
-  EXPECT_DOUBLES_EQUAL(1.1, vp.zeroVelocitySigma_, tol);
-  EXPECT_DOUBLES_EQUAL(1.2, vp.noMotionPositionSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(1.3, vp.noMotionRotationSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(1.4, vp.constantVelSigma_, tol);
-  EXPECT_DOUBLES_EQUAL(0, vp.numOptimize_, tol);
-  EXPECT_DOUBLES_EQUAL(2, vp.horizon_, tol);
-  EXPECT_DOUBLES_EQUAL(1, vp.useDogLeg_, tol);
+  EXPECT_DOUBLE_EQ(0.0001, vp.relinearizeThreshold_);
+  EXPECT_DOUBLE_EQ(12, vp.relinearizeSkip_);
+  EXPECT_DOUBLE_EQ(1.1, vp.zeroVelocitySigma_);
+  EXPECT_DOUBLE_EQ(1.2, vp.noMotionPositionSigma_);
+  EXPECT_DOUBLE_EQ(1.3, vp.noMotionRotationSigma_);
+  EXPECT_DOUBLE_EQ(1.4, vp.constantVelSigma_);
+  EXPECT_DOUBLE_EQ(0, vp.numOptimize_);
+  EXPECT_DOUBLE_EQ(2, vp.horizon_);
+  EXPECT_DOUBLE_EQ(1, vp.useDogLeg_);
 }
 
 /* ************************************************************************* */
 TEST(testVioBackEndParams, equals) {
   VioBackEndParams vp = VioBackEndParams();
-  EXPECT(vp.equals(vp));
+  EXPECT_TRUE(vp.equals(vp));
 
   VioBackEndParams vp2 = VioBackEndParams();
-  vp2.smartNoiseSigma_ += 1e-5; // small perturbation
+  vp2.smartNoiseSigma_ += 1e-5;  // small perturbation
 
-  EXPECT(!vp.equals(vp2));
+  EXPECT_TRUE(!vp.equals(vp2));
 }
 
 /* ************************************************************************* */
@@ -99,23 +97,13 @@ TEST(testVioBackEndParams, cppVSmatlabTrackerParams) {
   VioBackEndParams cppDefault_vp = VioBackEndParams();
 
   VioBackEndParams matlabDefault_vp;
-  matlabDefault_vp.parseYAML(string(DATASET_PATH) + "/../../matlab/myLib/defaultVioParams.yaml");
+  matlabDefault_vp.parseYAML(string(FLAGS_test_data_path) +
+                             "/../../matlab/myLib/defaultVioParams.yaml");
 
-  EXPECT(matlabDefault_vp.equals(cppDefault_vp,1e-5));
+  EXPECT_TRUE(matlabDefault_vp.equals(cppDefault_vp, 1e-5));
 
-  if(!matlabDefault_vp.equals(cppDefault_vp)){
+  if (!matlabDefault_vp.equals(cppDefault_vp)) {
     matlabDefault_vp.print();
     cppDefault_vp.print();
   }
 }
-
-/* ************************************************************************* */
-int main(int argc, char *argv[]) {
-  // Initialize Google's flags library.
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  // Initialize Google's logging library.
-  google::InitGoogleLogging(argv[0]);
-
-  TestResult tr; return TestRegistry::runAllTests(tr);
-}
-/* ************************************************************************* */

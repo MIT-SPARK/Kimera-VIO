@@ -224,14 +224,13 @@ cv::Point2f UtilsOpenCV::RoundAndCropToSize(cv::Point2f px, cv::Size size){
 }
 
 /* -------------------------------------------------------------------------- */
-void UtilsOpenCV::ExtractCorners(
-    const cv::Mat& img,
-    std::vector<cv::Point2f>* corners,
-    const double& qualityLevel,
-    const double& minDistance,
-    const int blockSize,
-    const double& k,
-    const bool useHarrisDetector) {
+// TODO(Toni): return a bool that signals if it was successful or not.
+void UtilsOpenCV::ExtractCorners(const cv::Mat& img,
+                                 std::vector<cv::Point2f>* corners,
+                                 const double& qualityLevel,
+                                 const double& minDistance, const int blockSize,
+                                 const double& k,
+                                 const bool useHarrisDetector) {
   CHECK_NOTNULL(corners)->clear();
   cv::TermCriteria criteria (CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
   try {

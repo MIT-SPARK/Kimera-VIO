@@ -229,8 +229,8 @@ protected:
   void optimize(const Timestamp &timestamp_kf_nsec,
                 const FrameId& cur_id,
                 const size_t& max_iterations,
-                const std::vector<size_t>& extra_factor_slots_to_delete =
-                                                        std::vector<size_t>());
+                gtsam::FactorIndices extra_factor_slots_to_delete =
+                    gtsam::FactorIndices());
   /// Printers.
   /* ------------------------------------------------------------------------ */
   void printFeatureTracks() const;
@@ -287,7 +287,7 @@ private:
       const gtsam::Values& new_values = gtsam::Values(),
       const std::map<Key, double>& timestamps =
       gtsam::FixedLagSmoother::KeyTimestampMap(),
-      const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
+      const gtsam::FactorIndices& delete_slots = gtsam::FactorIndices());
 
   /* ------------------------------------------------------------------------ */
   void cleanCheiralityLmk(
@@ -295,12 +295,12 @@ private:
       gtsam::NonlinearFactorGraph* new_factors_tmp_cheirality,
       gtsam::Values* new_values_cheirality,
       std::map<Key, double>* timestamps_cheirality,
-      std::vector<size_t>* delete_slots_cheirality,
+      gtsam::FactorIndices* delete_slots_cheirality,
       const gtsam::NonlinearFactorGraph& graph,
       const gtsam::NonlinearFactorGraph& new_factors_tmp,
       const gtsam::Values& new_values,
       const std::map<Key, double>& timestamps,
-      const std::vector<size_t>& delete_slots);
+      const gtsam::FactorIndices& delete_slots);
 
   /* ------------------------------------------------------------------------ */
   void deleteAllFactorsWithKeyFromFactorGraph(
@@ -374,7 +374,7 @@ private:
   /// Private printers.
   /* ------------------------------------------------------------------------ */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
-                         const std::vector<size_t>& delete_slots,
+                         const gtsam::FactorIndices& delete_slots,
                          const std::string& message = "CATCHING EXCEPTION",
                          const bool& showDetails = false) const;
 
