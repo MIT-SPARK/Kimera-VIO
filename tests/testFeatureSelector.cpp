@@ -160,7 +160,7 @@ TEST(FeatureSelector, createPrior1) {
   Marginals marginals(graph, state, Marginals::Factorization::CHOLESKY);
 
   // local covariance state 0
-  vector<Key> keys0;
+  KeyVector keys0;
   keys0.push_back(Symbol('x', 0));
   keys0.push_back(Symbol('v', 0));
   keys0.push_back(Symbol('b', 0));
@@ -169,7 +169,7 @@ TEST(FeatureSelector, createPrior1) {
       marginals.jointMarginalCovariance(keys0).fullMatrix());
 
   // local covariance state 1
-  vector<Key> keys1;
+  KeyVector keys1;
   keys1.push_back(Symbol('x', 1));
   keys1.push_back(Symbol('v', 1));
   keys1.push_back(Symbol('b', 1));
@@ -347,7 +347,7 @@ TEST(FeatureSelector, DISABLED_createOmegaBarImu) {
 
 typedef PinholeCamera<Cal3_S2> Camera;
 /* ************************************************************************* */
-TEST(FeatureSelector, GetVersorIfInFOV) {
+TEST(FeatureSelector, DISABLED_GetVersorIfInFOV) {
   // create a camera
   Camera cam(body_P_leftCam, Cal3_S2(500, 500, 0.1, 640 / 2, 480 / 2));
 

@@ -200,9 +200,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   TrackingStatus kfTrackingStatus_mono =
                 status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
 
-  std::vector<size_t> delete_slots (delete_slots_of_converted_smart_factors_);
-  switch(kfTrackingStatus_mono) {
-    case TrackingStatus::LOW_DISPARITY : {
+  gtsam::FactorIndices delete_slots(delete_slots_of_converted_smart_factors_);
+  switch (kfTrackingStatus_mono) {
+    case TrackingStatus::LOW_DISPARITY: {
       // Vehicle is not moving.
       VLOG(0) << "Tracker has a LOW_DISPARITY status.";
       VLOG(10) << "Add zero velocity and no motion factors.";
@@ -310,7 +310,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
           if (FLAGS_remove_old_reg_factors) {
             VLOG(10) << "Removing old regularity factors.";
-            std::vector<size_t> delete_old_regularity_factors;
+            gtsam::FactorIndices delete_old_regularity_factors;
             removeOldRegularityFactors_Slow(
                   *planes,
                   idx_of_point_plane_factors_to_add,
@@ -607,7 +607,7 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
     SmartFactorMap* old_smart_factors,
     gtsam::Values* new_values,
     gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors,
-    std::vector<size_t>* delete_slots_of_converted_smart_factors) {
+    gtsam::FactorIndices* delete_slots_of_converted_smart_factors) {
   CHECK_NOTNULL(new_smart_factors);
   CHECK_NOTNULL(old_smart_factors);
   CHECK_NOTNULL(new_values);
@@ -1194,7 +1194,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
     const std::map<PlaneId, std::vector<std::pair<Slot, LandmarkId>>>&
     map_idx_of_point_plane_factors_to_add,
     PlaneIdToLmkIdRegType* plane_id_to_lmk_id_to_reg_type_map,
-    std::vector<size_t>* delete_slots) {
+    gtsam::FactorIndices* delete_slots) {
   CHECK_NOTNULL(plane_id_to_lmk_id_to_reg_type_map);
   CHECK_NOTNULL(delete_slots);
 
@@ -1516,7 +1516,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
 void RegularVioBackEnd::fillDeleteSlots(
     const std::vector<std::pair<Slot, LandmarkId>>& point_plane_factor_slots_bad,
     LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
-    std::vector<size_t>* delete_slots) {
+    gtsam::FactorIndices* delete_slots) {
   CHECK_NOTNULL(lmk_id_to_regularity_type_map);
   CHECK_NOTNULL(delete_slots);
   VLOG(10) << "Starting fillDeleteSlots...";
