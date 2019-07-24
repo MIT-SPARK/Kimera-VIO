@@ -8,19 +8,19 @@
 
 /**
  * @file   VioBackEndParams.h
- * @brief  Class collecting the parameters of the Visual Inertial odometry pipeline
- * @author Luca Carlone
+ * @brief  Class parsing the parameters for the VIO's Backend from a YAML file.
+ * @author Antoni Rosinol, Luca Carlone
  */
 
-#ifndef VioBackEndParams_H_
-#define VioBackEndParams_H_
+#pragma once
 
-#include <stdlib.h>
-#include <memory>
-#include <unordered_map>
-#include <boost/foreach.hpp>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <memory>
+#include <stdlib.h>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include <opencv2/core/core.hpp>
 
@@ -30,11 +30,8 @@
 
 namespace VIO {
 
-///////////////////////////////////////////////////////////////////////////////////////
-class VioBackEndParams
-{
+class VioBackEndParams {
 public:
-  // TODO this should be a map from a string to a double
   VioBackEndParams(
       // IMU PARAMS
       const double gyroNoiseDensity = 0.00016968,
@@ -42,7 +39,8 @@ public:
       const double gyroBiasSigma = 1.9393e-05,
       const double accBiasSigma = 0.003,
       const double imuIntegrationSigma = 1e-8,
-      const gtsam::Vector3 n_gravity = gtsam::Vector3(0.0,0.0,-9.81), // gravity in navigation frame, according to
+      const gtsam::Vector3 n_gravity = gtsam::Vector3(
+          0.0, 0.0, -9.81), // gravity in navigation frame, according to
       const double nominalImuRate = 0.005,
       // INITIALIZATION SETTINGS
       const bool autoInitialize = false,
@@ -53,64 +51,83 @@ public:
       const double initialVelocitySigma = 1e-3,
       const double initialAccBiasSigma = 0.1,
       const double initialGyroBiasSigma = 0.01,
-      // http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets, the x axis points upwards
-      // VISION PARAMS
+      // http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets,
+      // the x axis points upwards VISION PARAMS
       const gtsam::LinearizationMode linMode = gtsam::HESSIAN,
       const gtsam::DegeneracyMode degMode = gtsam::ZERO_ON_DEGENERACY,
       const double smartNoiseSigma = 3,
       const double rankTolerance = 1, // we might also use 0.1
-      const double landmarkDistanceThreshold = 20, // max distance to triangulate point in meters
-      const double outlierRejection = 8, // max acceptable reprojection error // before tuning: 3
+      const double landmarkDistanceThreshold =
+          20, // max distance to triangulate point in meters
+      const double outlierRejection =
+          8, // max acceptable reprojection error // before tuning: 3
       const double retriangulationThreshold = 1e-3,
       const bool addBetweenStereoFactors = true,
       const double betweenRotationPrecision = 0.0, // inverse of variance
-      const double betweenTranslationPrecision = 1/(0.1*0.1), // inverse of variance
+      const double betweenTranslationPrecision = 1 /
+                                                 (0.1 *
+                                                  0.1), // inverse of variance
       // OPTIMIZATION PARAMS
       const double relinearizeThreshold = 1e-2, // Before tuning: 1e-3
       const double relinearizeSkip = 1,
-      const double zeroVelocitySigma = 1e-3, // zero velocity prior when disparity is low
+      const double zeroVelocitySigma =
+          1e-3, // zero velocity prior when disparity is low
       const double noMotionPositionSigma = 1e-3,
       const double noMotionRotationSigma = 1e-4,
-      const double constantVelSigma = 1e-2,
-      const size_t numOptimize = 2,
+      const double constantVelSigma = 1e-2, const size_t numOptimize = 2,
       const double horizon = 6, // in seconds
-      const bool useDogLeg = false
-  ) : initialPositionSigma_(initialPositionSigma), initialRollPitchSigma_(initialRollPitchSigma),
-  initialYawSigma_(initialYawSigma), initialVelocitySigma_(initialVelocitySigma),
-  initialAccBiasSigma_(initialAccBiasSigma), initialGyroBiasSigma_(initialGyroBiasSigma),
-  gyroNoiseDensity_(gyroNoiseDensity), accNoiseDensity_(accNoiseDensity),
-  imuIntegrationSigma_(imuIntegrationSigma), gyroBiasSigma_(gyroBiasSigma), accBiasSigma_(accBiasSigma),
-  nominalImuRate_(nominalImuRate), n_gravity_(n_gravity), autoInitialize_(autoInitialize), roundOnAutoInitialize_(roundOnAutoInitialize),
-  linearizationMode_(linMode), degeneracyMode_(degMode),
-  smartNoiseSigma_(smartNoiseSigma),
-  rankTolerance_(rankTolerance),
-  landmarkDistanceThreshold_(landmarkDistanceThreshold), outlierRejection_(outlierRejection),
-  retriangulationThreshold_(retriangulationThreshold),
-  addBetweenStereoFactors_(addBetweenStereoFactors),betweenRotationPrecision_(betweenRotationPrecision), betweenTranslationPrecision_(betweenTranslationPrecision),
-  relinearizeThreshold_(relinearizeThreshold), relinearizeSkip_(relinearizeSkip), horizon_(horizon), numOptimize_(numOptimize),useDogLeg_(useDogLeg),
-  zeroVelocitySigma_(zeroVelocitySigma), noMotionPositionSigma_(noMotionPositionSigma),
-  noMotionRotationSigma_(noMotionRotationSigma), constantVelSigma_(constantVelSigma)
-  {
+      const bool useDogLeg = false)
+      : initialPositionSigma_(initialPositionSigma),
+        initialRollPitchSigma_(initialRollPitchSigma),
+        initialYawSigma_(initialYawSigma),
+        initialVelocitySigma_(initialVelocitySigma),
+        initialAccBiasSigma_(initialAccBiasSigma),
+        initialGyroBiasSigma_(initialGyroBiasSigma),
+        gyroNoiseDensity_(gyroNoiseDensity), accNoiseDensity_(accNoiseDensity),
+        imuIntegrationSigma_(imuIntegrationSigma),
+        gyroBiasSigma_(gyroBiasSigma), accBiasSigma_(accBiasSigma),
+        nominalImuRate_(nominalImuRate), n_gravity_(n_gravity),
+        autoInitialize_(autoInitialize),
+        roundOnAutoInitialize_(roundOnAutoInitialize),
+        linearizationMode_(linMode), degeneracyMode_(degMode),
+        smartNoiseSigma_(smartNoiseSigma), rankTolerance_(rankTolerance),
+        landmarkDistanceThreshold_(landmarkDistanceThreshold),
+        outlierRejection_(outlierRejection),
+        retriangulationThreshold_(retriangulationThreshold),
+        addBetweenStereoFactors_(addBetweenStereoFactors),
+        betweenRotationPrecision_(betweenRotationPrecision),
+        betweenTranslationPrecision_(betweenTranslationPrecision),
+        relinearizeThreshold_(relinearizeThreshold),
+        relinearizeSkip_(relinearizeSkip), horizon_(horizon),
+        numOptimize_(numOptimize), useDogLeg_(useDogLeg),
+        zeroVelocitySigma_(zeroVelocitySigma),
+        noMotionPositionSigma_(noMotionPositionSigma),
+        noMotionRotationSigma_(noMotionRotationSigma),
+        constantVelSigma_(constantVelSigma) {
     // Trivial sanity checks.
-    CHECK(horizon >= 0);
+    CHECK_GE(horizon, 0);
+    CHECK_GE(numOptimize, 0);
   }
 
   // Needed for virtual classes.
   virtual ~VioBackEndParams() = default;
 
   // initialization params
-  double initialPositionSigma_, initialRollPitchSigma_, initialYawSigma_, initialVelocitySigma_, initialAccBiasSigma_, initialGyroBiasSigma_;
+  double initialPositionSigma_, initialRollPitchSigma_, initialYawSigma_,
+      initialVelocitySigma_, initialAccBiasSigma_, initialGyroBiasSigma_;
 
   // imu params
-  double gyroNoiseDensity_, accNoiseDensity_, imuIntegrationSigma_, gyroBiasSigma_, accBiasSigma_, nominalImuRate_;
+  double gyroNoiseDensity_, accNoiseDensity_, imuIntegrationSigma_,
+      gyroBiasSigma_, accBiasSigma_, nominalImuRate_;
   gtsam::Vector3 n_gravity_;
-  bool autoInitialize_,roundOnAutoInitialize_;
+  bool autoInitialize_, roundOnAutoInitialize_;
 
   // Smart factor params
   gtsam::LinearizationMode linearizationMode_;
   gtsam::DegeneracyMode degeneracyMode_;
   double smartNoiseSigma_;
-  double rankTolerance_, landmarkDistanceThreshold_, outlierRejection_, retriangulationThreshold_;
+  double rankTolerance_, landmarkDistanceThreshold_, outlierRejection_,
+      retriangulationThreshold_;
   bool addBetweenStereoFactors_;
   double betweenRotationPrecision_, betweenTranslationPrecision_;
 
@@ -120,11 +137,11 @@ public:
   bool useDogLeg_;
 
   // No Motion params
-  double zeroVelocitySigma_, noMotionPositionSigma_, noMotionRotationSigma_, constantVelSigma_;
+  double zeroVelocitySigma_, noMotionPositionSigma_, noMotionRotationSigma_,
+      constantVelSigma_;
 
 public:
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  virtual bool parseYAML(const std::string& filepath) {
+  virtual bool parseYAML(const std::string &filepath) {
     // make sure that each YAML file has %YAML:1.0 as first line
     cv::FileStorage fs;
     openFile(filepath, &fs);
@@ -133,212 +150,127 @@ public:
     return result;
   }
 
-  /* ------------------------------------------------------------------------ */
-  virtual bool equals(const VioBackEndParams& vp2, double tol = 1e-8) const {
+  virtual bool equals(const VioBackEndParams &vp2, double tol = 1e-8) const {
     return equalsVioBackEndParams(vp2, tol);
   }
 
-  /* ------------------------------------------------------------------------ */
-  virtual void print() const {
-    printVioBackEndParams();
-  }
+  virtual void print() const { printVioBackEndParams(); }
 
 protected:
-  void openFile(const std::string& filepath, cv::FileStorage* fs) const {
-    CHECK_NOTNULL(fs);
-    fs->open(filepath, cv::FileStorage::READ);
-    if (!fs->isOpened()) {
-      std::cout << "Cannot open file in parseYAML: " << filepath << std::endl;
-      throw std::runtime_error("parseYAML (Vio): cannot open file (remember first line: %YAML:1.0)");
-    }
+  // TODO(Toni): all these utilities should be in a base class YAML parser,
+  // because they are shared with the other yaml parsers (regularVIO and
+  // frontend)
+  void openFile(const std::string &filepath, cv::FileStorage *fs) const {
+    CHECK_NOTNULL(fs)->open(filepath, cv::FileStorage::READ);
+    LOG_IF(FATAL, !fs->isOpened())
+        << "Cannot open file in parseYAML: " << filepath
+        << " (remember that the first line should be: %YAML:1.0)";
   }
 
-  void closeFile(cv::FileStorage* fs) {
-    CHECK_NOTNULL(fs);
-    fs->release();
+  inline void closeFile(cv::FileStorage *fs) const {
+    CHECK_NOTNULL(fs)->release();
   }
 
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  template <class T>
+  void getYamlParam(const cv::FileStorage &fs, const std::string &id,
+                    T *output) const {
+    const cv::FileNode &file_handle = fs[id];
+    CHECK_NE(file_handle.type(), cv::FileNode::NONE)
+        << "Missing parameter: " << id.c_str();
+    file_handle >> *CHECK_NOTNULL(output);
+  }
+
   // Parse params YAML file
-  bool parseYAMLVioBackEndParams(const cv::FileStorage& fs) {
+  bool parseYAMLVioBackEndParams(const cv::FileStorage &fs) {
     cv::FileNode file_handle;
 
     // IMU PARAMS
-    file_handle = fs["gyroNoiseDensity"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> gyroNoiseDensity_;
-    file_handle = fs["accNoiseDensity"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> accNoiseDensity_;
-    file_handle = fs["imuIntegrationSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> imuIntegrationSigma_;
-    file_handle = fs["gyroBiasSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> gyroBiasSigma_;
-    file_handle = fs["accBiasSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> accBiasSigma_;
-    std::vector<double> n_gravity_stdVect;
-    n_gravity_stdVect.clear();
-    file_handle = fs["n_gravity"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> n_gravity_stdVect;
-    for (int k = 0; k < 3; k++) {
-      n_gravity_(k) = n_gravity_stdVect[k];
-    }
-    file_handle = fs["nominalImuRate"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> nominalImuRate_;
+    getYamlParam(fs, "gyroNoiseDensity", &gyroNoiseDensity_);
+    getYamlParam(fs, "accNoiseDensity", &accNoiseDensity_);
+    getYamlParam(fs, "imuIntegrationSigma", &imuIntegrationSigma_);
+    getYamlParam(fs, "accBiasSigma", &accBiasSigma_);
+    std::vector<double> n_gravity;
+    getYamlParam(fs, "n_gravity", &n_gravity);
+    CHECK_EQ(n_gravity.size(), 3);
+    for (int k = 0; k < 3; k++)
+      n_gravity_(k) = n_gravity[k];
+    getYamlParam(fs, "nominalImuRate", &nominalImuRate_);
+
     // INITIALIZATION
-    file_handle = fs["autoInitialize"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> autoInitialize_;
-    file_handle = fs["roundOnAutoInitialize"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> roundOnAutoInitialize_;
-    file_handle = fs["initialPositionSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> initialPositionSigma_;
-    file_handle = fs["initialRollPitchSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> initialRollPitchSigma_;
-    file_handle = fs["initialYawSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> initialYawSigma_;
-    file_handle = fs["initialVelocitySigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> initialVelocitySigma_;
-    file_handle = fs["initialAccBiasSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> initialAccBiasSigma_;
-    file_handle = fs["initialGyroBiasSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> initialGyroBiasSigma_;
+    getYamlParam(fs, "autoInitialize", &autoInitialize_);
+    getYamlParam(fs, "roundOnAutoInitialize", &roundOnAutoInitialize_);
+    getYamlParam(fs, "initialPositionSigma", &initialPositionSigma_);
+    getYamlParam(fs, "initialRollPitchSigma", &initialRollPitchSigma_);
+    getYamlParam(fs, "initialYawSigma", &initialYawSigma_);
+    getYamlParam(fs, "initialVelocitySigma", &initialVelocitySigma_);
+    getYamlParam(fs, "initialAccBiasSigma", &initialAccBiasSigma_);
+    getYamlParam(fs, "initialGyroBiasSigma", &initialGyroBiasSigma_);
+
     // VISION PARAMS
-    int linearizationModeId;
-    file_handle = fs["linearizationMode"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> linearizationModeId;
-    switch(linearizationModeId){
+    int linearization_mode_id;
+    getYamlParam(fs, "linearizationMode", &linearization_mode_id);
+    switch (linearization_mode_id) {
     case 0:
-      linearizationMode_ = gtsam::HESSIAN; break;
+      linearizationMode_ = gtsam::HESSIAN;
+      break;
     case 1:
-      linearizationMode_ = gtsam::IMPLICIT_SCHUR; break;
+      linearizationMode_ = gtsam::IMPLICIT_SCHUR;
+      break;
     case 2:
-      linearizationMode_ = gtsam::JACOBIAN_Q; break;
+      linearizationMode_ = gtsam::JACOBIAN_Q;
+      break;
     case 3:
-      linearizationMode_ = gtsam::JACOBIAN_SVD; break;
+      linearizationMode_ = gtsam::JACOBIAN_SVD;
+      break;
     default:
-      throw std::runtime_error("VIOparams parseYAML: wrong linearizationModeId"); break;
+      throw std::runtime_error(
+          "VIOparams parseYAML: wrong linearizationModeId");
+      break;
     }
+
     int degeneracyModeId;
-    file_handle = fs["degeneracyMode"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> degeneracyModeId;
-    switch(degeneracyModeId){
+    getYamlParam(fs, "degeneracyMode", &degeneracyModeId);
+    switch (degeneracyModeId) {
     case 0:
-      degeneracyMode_ = gtsam::IGNORE_DEGENERACY; break;
+      degeneracyMode_ = gtsam::IGNORE_DEGENERACY;
+      break;
     case 1:
-      degeneracyMode_ = gtsam::ZERO_ON_DEGENERACY; break;
+      degeneracyMode_ = gtsam::ZERO_ON_DEGENERACY;
+      break;
     case 2:
-      degeneracyMode_ = gtsam::HANDLE_INFINITY; break;
+      degeneracyMode_ = gtsam::HANDLE_INFINITY;
+      break;
     default:
-      throw std::runtime_error("VIOparams parseYAML: wrong degeneracyMode_"); break;
+      throw std::runtime_error("VIOparams parseYAML: wrong degeneracyMode_");
+      break;
     }
-    file_handle = fs["smartNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> smartNoiseSigma_;
-    file_handle = fs["rankTolerance"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> rankTolerance_;
-    file_handle = fs["landmarkDistanceThreshold"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> landmarkDistanceThreshold_;
-    file_handle = fs["outlierRejection"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> outlierRejection_;
-    file_handle = fs["retriangulationThreshold"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> retriangulationThreshold_;
-    file_handle = fs["addBetweenStereoFactors"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> addBetweenStereoFactors_;
-    file_handle = fs["betweenRotationPrecision"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> betweenRotationPrecision_;
-    file_handle = fs["betweenTranslationPrecision"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> betweenTranslationPrecision_;
+
+    getYamlParam(fs, "smartNoiseSigma", &smartNoiseSigma_);
+    getYamlParam(fs, "rankTolerance", &rankTolerance_);
+    getYamlParam(fs, "landmarkDistanceThreshold", &landmarkDistanceThreshold_);
+    getYamlParam(fs, "outlierRejection", &outlierRejection_);
+    getYamlParam(fs, "retriangulationThreshold", &retriangulationThreshold_);
+    getYamlParam(fs, "addBetweenStereoFactors", &addBetweenStereoFactors_);
+    getYamlParam(fs, "betweenRotationPrecision", &betweenRotationPrecision_);
+    getYamlParam(fs, "betweenTranslationPrecision",
+                 &betweenTranslationPrecision_);
 
     // OPTIMIZATION PARAMS
-    file_handle = fs["relinearizeThreshold"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> relinearizeThreshold_;
-    file_handle = fs["relinearizeSkip"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> relinearizeSkip_;
-    file_handle = fs["zeroVelocitySigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> zeroVelocitySigma_;
-    file_handle = fs["noMotionPositionSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> noMotionPositionSigma_;
-    file_handle = fs["noMotionRotationSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> noMotionRotationSigma_;
-    file_handle = fs["constantVelSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> constantVelSigma_;
-    file_handle = fs["numOptimize"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> numOptimize_;
-    file_handle = fs["horizon"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> horizon_;
-    file_handle = fs["useDogLeg"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> useDogLeg_;
+    getYamlParam(fs, "relinearizeThreshold", &relinearizeThreshold_);
+    getYamlParam(fs, "relinearizeSkip", &relinearizeSkip_);
+    getYamlParam(fs, "zeroVelocitySigma", &zeroVelocitySigma_);
+    getYamlParam(fs, "noMotionPositionSigma", &noMotionPositionSigma_);
+    getYamlParam(fs, "noMotionRotationSigma", &noMotionRotationSigma_);
+    getYamlParam(fs, "constantVelSigma", &constantVelSigma_);
+    getYamlParam(fs, "numOptimize", &numOptimize_);
+    getYamlParam(fs, "horizon", &horizon_);
+    getYamlParam(fs, "useDogLeg", &useDogLeg_);
 
     return true;
   }
 
-  /* ------------------------------------------------------------------------------------- */
-  bool equalsVioBackEndParams(const VioBackEndParams& vp2, double tol = 1e-8) const{
+  bool equalsVioBackEndParams(const VioBackEndParams &vp2,
+                              double tol = 1e-8) const {
     return
         // IMU PARAMS
         (fabs(gyroNoiseDensity_ - vp2.gyroNoiseDensity_) <= tol) &&
@@ -364,12 +296,16 @@ protected:
         (degeneracyMode_ == vp2.degeneracyMode_) &&
         (fabs(smartNoiseSigma_ - vp2.smartNoiseSigma_) <= tol) &&
         (fabs(rankTolerance_ - vp2.rankTolerance_) <= tol) &&
-        (fabs(landmarkDistanceThreshold_ - vp2.landmarkDistanceThreshold_) <= tol) &&
+        (fabs(landmarkDistanceThreshold_ - vp2.landmarkDistanceThreshold_) <=
+         tol) &&
         (fabs(outlierRejection_ - vp2.outlierRejection_) <= tol) &&
-        (fabs(retriangulationThreshold_ - vp2.retriangulationThreshold_) <= tol) &&
+        (fabs(retriangulationThreshold_ - vp2.retriangulationThreshold_) <=
+         tol) &&
         (addBetweenStereoFactors_ == vp2.addBetweenStereoFactors_) &&
-        (fabs(betweenRotationPrecision_ - vp2.betweenRotationPrecision_) <= tol) &&
-        (fabs(betweenTranslationPrecision_ - vp2.betweenTranslationPrecision_) <= tol) &&
+        (fabs(betweenRotationPrecision_ - vp2.betweenRotationPrecision_) <=
+         tol) &&
+        (fabs(betweenTranslationPrecision_ -
+              vp2.betweenTranslationPrecision_) <= tol) &&
         // OPTIMIZATION PARAMS
         (fabs(relinearizeThreshold_ - vp2.relinearizeThreshold_) <= tol) &&
         (relinearizeSkip_ == vp2.relinearizeSkip_) &&
@@ -377,12 +313,10 @@ protected:
         (fabs(noMotionPositionSigma_ - vp2.noMotionPositionSigma_) <= tol) &&
         (fabs(noMotionRotationSigma_ - vp2.noMotionRotationSigma_) <= tol) &&
         (fabs(constantVelSigma_ - vp2.constantVelSigma_) <= tol) &&
-        (numOptimize_ == vp2.numOptimize_) &&
-        (horizon_ == vp2.horizon_) &&
+        (numOptimize_ == vp2.numOptimize_) && (horizon_ == vp2.horizon_) &&
         (useDogLeg_ == vp2.useDogLeg_);
   }
 
-  /* ------------------------------------------------------------------------------------- */
   void printVioBackEndParams() const {
     LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
               << "** IMU parameters **\n"
@@ -410,12 +344,17 @@ protected:
               << "degeneracyMode_: " << degeneracyMode_
               << " IGNORE_DEGENERACY, ZERO_ON_DEGENERACY, HANDLE_INFINITY \n"
               << "rankTolerance_: " << rankTolerance_ << '\n'
-              << "landmarkDistanceThreshold_: " << landmarkDistanceThreshold_ << '\n'
+              << "landmarkDistanceThreshold_: " << landmarkDistanceThreshold_
+              << '\n'
               << "outlierRejection_: " << outlierRejection_ << '\n'
-              << "retriangulationThreshold_: " << retriangulationThreshold_ << '\n'
-              << "addBetweenStereoFactors_: " << addBetweenStereoFactors_ << '\n'
-              << "betweenRotationPrecision_: " << betweenRotationPrecision_ << '\n'
-              << "betweenTranslationPrecision_: " << betweenTranslationPrecision_ << '\n'
+              << "retriangulationThreshold_: " << retriangulationThreshold_
+              << '\n'
+              << "addBetweenStereoFactors_: " << addBetweenStereoFactors_
+              << '\n'
+              << "betweenRotationPrecision_: " << betweenRotationPrecision_
+              << '\n'
+              << "betweenTranslationPrecision_: "
+              << betweenTranslationPrecision_ << '\n'
 
               << "** OPTIMIZATION parameters **\n"
               << "relinearizeThreshold_: " << relinearizeThreshold_ << '\n'
@@ -433,5 +372,3 @@ typedef std::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
 typedef std::shared_ptr<const VioBackEndParams> VioBackEndParamsConstPtr;
 
 } // namespace VIO
-#endif /* VioBackEndParams_H_ */
-
