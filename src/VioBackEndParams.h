@@ -30,7 +30,45 @@
 
 namespace VIO {
 
-class VioBackEndParams {
+class YamlParser {
+public:
+  bool parse(const std::string &filepath) {
+    cv::FileStorage fs;
+    openFile(filepath, &fs);
+    bool result = parseYAML(fs);
+    closeFile(&fs);
+    return result;
+  }
+
+  virtual ~YamlParser() = default;
+
+protected:
+  YamlParser() = default;
+  virtual bool parseYAML(const cv::FileStorage &fs) = 0;
+
+  template <class T>
+  void getYamlParam(const cv::FileStorage &fs, const std::string &id,
+                    T *output) const {
+    const cv::FileNode &file_handle = fs[id];
+    CHECK_NE(file_handle.type(), cv::FileNode::NONE)
+        << "Missing parameter: " << id.c_str();
+    file_handle >> *CHECK_NOTNULL(output);
+  }
+
+private:
+  void openFile(const std::string &filepath, cv::FileStorage *fs) const {
+    CHECK_NOTNULL(fs)->open(filepath, cv::FileStorage::READ);
+    LOG_IF(FATAL, !fs->isOpened())
+        << "Cannot open file in parseYAML: " << filepath
+        << " (remember that the first line should be: %YAML:1.0)";
+  }
+
+  inline void closeFile(cv::FileStorage *fs) const {
+    CHECK_NOTNULL(fs)->release();
+  }
+};
+
+class VioBackEndParams : public YamlParser {
 public:
   VioBackEndParams(
       // IMU PARAMS
@@ -39,7 +77,7 @@ public:
       const double gyroBiasSigma = 1.9393e-05,
       const double accBiasSigma = 0.003,
       const double imuIntegrationSigma = 1e-8,
-      const gtsam::Vector3 n_gravity = gtsam::Vector3(
+      const gtsam::Vector3 &n_gravity = gtsam::Vector3(
           0.0, 0.0, -9.81), // gravity in navigation frame, according to
       const double nominalImuRate = 0.005,
       // INITIALIZATION SETTINGS
@@ -77,7 +115,7 @@ public:
       const double constantVelSigma = 1e-2, const size_t numOptimize = 2,
       const double horizon = 6, // in seconds
       const bool useDogLeg = false)
-      : initialPositionSigma_(initialPositionSigma),
+      : YamlParser(), initialPositionSigma_(initialPositionSigma),
         initialRollPitchSigma_(initialRollPitchSigma),
         initialYawSigma_(initialYawSigma),
         initialVelocitySigma_(initialVelocitySigma),
@@ -141,15 +179,6 @@ public:
       constantVelSigma_;
 
 public:
-  virtual bool parseYAML(const std::string &filepath) {
-    // make sure that each YAML file has %YAML:1.0 as first line
-    cv::FileStorage fs;
-    openFile(filepath, &fs);
-    bool result = parseYAMLVioBackEndParams(fs);
-    closeFile(&fs);
-    return result;
-  }
-
   virtual bool equals(const VioBackEndParams &vp2, double tol = 1e-8) const {
     return equalsVioBackEndParams(vp2, tol);
   }
@@ -157,30 +186,11 @@ public:
   virtual void print() const { printVioBackEndParams(); }
 
 protected:
-  // TODO(Toni): all these utilities should be in a base class YAML parser,
-  // because they are shared with the other yaml parsers (regularVIO and
-  // frontend)
-  void openFile(const std::string &filepath, cv::FileStorage *fs) const {
-    CHECK_NOTNULL(fs)->open(filepath, cv::FileStorage::READ);
-    LOG_IF(FATAL, !fs->isOpened())
-        << "Cannot open file in parseYAML: " << filepath
-        << " (remember that the first line should be: %YAML:1.0)";
-  }
-
-  inline void closeFile(cv::FileStorage *fs) const {
-    CHECK_NOTNULL(fs)->release();
-  }
-
-  template <class T>
-  void getYamlParam(const cv::FileStorage &fs, const std::string &id,
-                    T *output) const {
-    const cv::FileNode &file_handle = fs[id];
-    CHECK_NE(file_handle.type(), cv::FileNode::NONE)
-        << "Missing parameter: " << id.c_str();
-    file_handle >> *CHECK_NOTNULL(output);
-  }
-
   // Parse params YAML file
+  virtual bool parseYAML(const cv::FileStorage &fs) {
+    return parseYAMLVioBackEndParams(fs);
+  }
+
   bool parseYAMLVioBackEndParams(const cv::FileStorage &fs) {
     // IMU PARAMS
     getYamlParam(fs, "gyroNoiseDensity", &gyroNoiseDensity_);

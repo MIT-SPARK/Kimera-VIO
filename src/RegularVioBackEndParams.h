@@ -72,15 +72,9 @@ public:
   virtual ~RegularVioBackEndParams() = default;
 
 public:
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  virtual bool parseYAML(const std::string &filepath) {
-    // make sure that each YAML file has %YAML:1.0 as first line
-    cv::FileStorage fs;
-    openFile(filepath, &fs);
-    bool result =
-        parseYAMLVioBackEndParams(fs) && parseYAMLRegularVioBackEndParams(fs);
-    closeFile(&fs);
-    return result;
+  virtual bool parseYAML(const cv::FileStorage &fs) {
+    return parseYAMLVioBackEndParams(fs) &&
+           parseYAMLRegularVioBackEndParams(fs);
   }
 
   /* ------------------------------------------------------------------------ */
