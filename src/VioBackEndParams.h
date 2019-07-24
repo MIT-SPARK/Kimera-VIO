@@ -165,46 +165,76 @@ protected:
 
     // IMU PARAMS
     file_handle = fs["gyroNoiseDensity"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> gyroNoiseDensity_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> gyroNoiseDensity_;
     file_handle = fs["accNoiseDensity"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> accNoiseDensity_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> accNoiseDensity_;
     file_handle = fs["imuIntegrationSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> imuIntegrationSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> imuIntegrationSigma_;
     file_handle = fs["gyroBiasSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> gyroBiasSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> gyroBiasSigma_;
     file_handle = fs["accBiasSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> accBiasSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> accBiasSigma_;
     std::vector<double> n_gravity_stdVect;
     n_gravity_stdVect.clear();
     file_handle = fs["n_gravity"];
-    CHECK(file_handle.type() != cv::FileNode::NONE);
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
     file_handle >> n_gravity_stdVect;
     for (int k = 0; k < 3; k++) {
       n_gravity_(k) = n_gravity_stdVect[k];
     }
     file_handle = fs["nominalImuRate"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> nominalImuRate_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> nominalImuRate_;
     // INITIALIZATION
     file_handle = fs["autoInitialize"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >>autoInitialize_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> autoInitialize_;
     file_handle = fs["roundOnAutoInitialize"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> roundOnAutoInitialize_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> roundOnAutoInitialize_;
     file_handle = fs["initialPositionSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialPositionSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> initialPositionSigma_;
     file_handle = fs["initialRollPitchSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialRollPitchSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> initialRollPitchSigma_;
     file_handle = fs["initialYawSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialYawSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> initialYawSigma_;
     file_handle = fs["initialVelocitySigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialVelocitySigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> initialVelocitySigma_;
     file_handle = fs["initialAccBiasSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialAccBiasSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> initialAccBiasSigma_;
     file_handle = fs["initialGyroBiasSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> initialGyroBiasSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> initialGyroBiasSigma_;
     // VISION PARAMS
     int linearizationModeId;
     file_handle = fs["linearizationMode"];
-    CHECK(file_handle.type() != cv::FileNode::NONE);
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
     file_handle >> linearizationModeId;
     switch(linearizationModeId){
     case 0:
@@ -220,7 +250,8 @@ protected:
     }
     int degeneracyModeId;
     file_handle = fs["degeneracyMode"];
-    CHECK(file_handle.type() != cv::FileNode::NONE);
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
     file_handle >> degeneracyModeId;
     switch(degeneracyModeId){
     case 0:
@@ -233,41 +264,75 @@ protected:
       throw std::runtime_error("VIOparams parseYAML: wrong degeneracyMode_"); break;
     }
     file_handle = fs["smartNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> smartNoiseSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> smartNoiseSigma_;
     file_handle = fs["rankTolerance"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> rankTolerance_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> rankTolerance_;
     file_handle = fs["landmarkDistanceThreshold"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> landmarkDistanceThreshold_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> landmarkDistanceThreshold_;
     file_handle = fs["outlierRejection"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> outlierRejection_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> outlierRejection_;
     file_handle = fs["retriangulationThreshold"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> retriangulationThreshold_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> retriangulationThreshold_;
     file_handle = fs["addBetweenStereoFactors"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> addBetweenStereoFactors_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> addBetweenStereoFactors_;
     file_handle = fs["betweenRotationPrecision"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> betweenRotationPrecision_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> betweenRotationPrecision_;
     file_handle = fs["betweenTranslationPrecision"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> betweenTranslationPrecision_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> betweenTranslationPrecision_;
 
     // OPTIMIZATION PARAMS
     file_handle = fs["relinearizeThreshold"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> relinearizeThreshold_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> relinearizeThreshold_;
     file_handle = fs["relinearizeSkip"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> relinearizeSkip_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> relinearizeSkip_;
     file_handle = fs["zeroVelocitySigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> zeroVelocitySigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> zeroVelocitySigma_;
     file_handle = fs["noMotionPositionSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> noMotionPositionSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> noMotionPositionSigma_;
     file_handle = fs["noMotionRotationSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> noMotionRotationSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> noMotionRotationSigma_;
     file_handle = fs["constantVelSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> constantVelSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> constantVelSigma_;
     file_handle = fs["numOptimize"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> numOptimize_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> numOptimize_;
     file_handle = fs["horizon"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> horizon_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> horizon_;
     file_handle = fs["useDogLeg"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> useDogLeg_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> useDogLeg_;
 
     return true;
   }

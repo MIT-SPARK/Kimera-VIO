@@ -117,23 +117,41 @@ protected:
     cv::FileNode file_handle;
 
     file_handle = fs["monoNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNoiseSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> monoNoiseSigma_;
     file_handle = fs["monoNormType"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNormType_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> monoNormType_;
     file_handle = fs["monoNormParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> monoNormParam_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> monoNormParam_;
     file_handle = fs["stereoNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNoiseSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> stereoNoiseSigma_;
     file_handle = fs["stereoNormType"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNormType_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> stereoNormType_;
     file_handle = fs["stereoNormParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> stereoNormParam_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> stereoNormParam_;
     file_handle = fs["regularityNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNoiseSigma_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> regularityNoiseSigma_;
     file_handle = fs["regularityNormParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNormParam_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> regularityNormParam_;
     file_handle = fs["regularityNormType"];
-    CHECK(file_handle.type() != cv::FileNode::NONE); file_handle >> regularityNormType_;
+    CHECK(file_handle.type() != cv::FileNode::NONE)
+        << "Missing parameter with name: " << file_handle.name().c_str();
+    file_handle >> regularityNormType_;
 
     return true;
   }
