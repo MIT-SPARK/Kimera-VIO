@@ -56,14 +56,6 @@ else()
   message(STATUS "Did not find DBoW2. Please install.")
 endif(DBoW2_FOUND)
 
-### Find the DLoopDetector package
-find_package(DLoopDetector)
-if(DLoopDetector_FOUND)
-  message(STATUS "Found DLoopDetector!")
-else()
-  message(STATUS "Did not find DLoopDetector. Please install.")
-endif(DLoopDetector_FOUND)
-
 ### External Dependencies
 include(ExternalProject)
 
@@ -193,7 +185,6 @@ add_executable(testSparkVio
   tests/testImuFrontEnd.cpp
   tests/testKittiDataProvider.cpp # TODO
   tests/testLoopClosureDetector.cpp
-  tests/testLoopClosureDetectorParams.cpp
   # tests/testMesher.cpp # rotten
   tests/testParallelPlaneRegularBasicFactor.cpp
   tests/testParallelPlaneRegularTangentSpaceFactor.cpp
