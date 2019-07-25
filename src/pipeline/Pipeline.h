@@ -37,8 +37,8 @@ namespace VIO {
 class VioBackEndParams;
 class VioBackEnd;
 class StereoVisionFrontEnd;
-// class LoopClosureDetectorParams; // TODO: why?
-// class LoopClosureDetector;
+class LoopClosureDetectorParams;
+class LoopClosureDetector;
 
 }  // namespace VIO
 
