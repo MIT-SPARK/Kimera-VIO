@@ -284,19 +284,21 @@ protected:
     getYamlParam(fs, "use_harris_detector", &use_harris_detector_);
     getYamlParam(fs, "k", &k_);
 
-    fs["equalizeImage"] >> stereo_matching_params_.equalize_image_;
-    fs["nominalBaseline"] >> stereo_matching_params_.nominal_baseline_;
-    fs["toleranceTemplateMatching"] >>
-        stereo_matching_params_.tolerance_template_matching_;
-    fs["templ_cols"] >> stereo_matching_params_.templ_cols_;
-    fs["templ_rows"] >> stereo_matching_params_.templ_rows_;
-    fs["stripe_extra_rows"] >> stereo_matching_params_.stripe_extra_rows_;
-    fs["minPointDist"] >> stereo_matching_params_.min_point_dist_;
-    fs["maxPointDist"] >> stereo_matching_params_.max_point_dist_;
-    fs["bidirectionalMatching"] >>
-        stereo_matching_params_.bidirectional_matching_;
-    fs["subpixelRefinementStereo"] >>
-        stereo_matching_params_.subpixel_refinement_;
+    getYamlParam(fs, "equalizeImage", &stereo_matching_params_.equalize_image_);
+    getYamlParam(fs, "nominalBaseline",
+                 &stereo_matching_params_.nominal_baseline_);
+    getYamlParam(fs, "toleranceTemplateMatching",
+                 &stereo_matching_params_.tolerance_template_matching_);
+    getYamlParam(fs, "templ_cols", &stereo_matching_params_.templ_cols_);
+    getYamlParam(fs, "templ_rows", &stereo_matching_params_.templ_rows_);
+    getYamlParam(fs, "stripe_extra_rows",
+                 &stereo_matching_params_.stripe_extra_rows_);
+    getYamlParam(fs, "minPointDist", &stereo_matching_params_.min_point_dist_);
+    getYamlParam(fs, "maxPointDist", &stereo_matching_params_.max_point_dist_);
+    getYamlParam(fs, "bidirectionalMatching",
+                 &stereo_matching_params_.bidirectional_matching_);
+    getYamlParam(fs, "subpixelRefinementStereo",
+                 &stereo_matching_params_.subpixel_refinement_);
 
     int featureSelectionCriterionNr;
     getYamlParam(fs, "featureSelectionCriterion", &featureSelectionCriterionNr);
