@@ -643,15 +643,17 @@ void StereoFrame::computeRectificationParameters() { // note also computes the r
   }
 
   // sanity check
-  if(gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() > 1e-5 ){
-    std::cout << "camL_Pose_camR log: " << gtsam::Rot3::Logmap(camL_Pose_camR.rotation()).norm() << std::endl;
-    std::cout << "camLrect_Pose_calRrect log: " << gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() << std::endl;
-    throw std::runtime_error("Vio constructor: camera poses do not seem to be rectified (rot)");
-  }
-  if(fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 || fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3){
-    camLrect_Pose_calRrect.print("camLrect_Pose_calRrect\n");
-    throw std::runtime_error("Vio constructor: camera poses do not seem to be rectified (tran)");
-  }
+  LOG_IF(FATAL,
+         gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() > 1e-5)
+      << "camL_Pose_camR log: "
+      << gtsam::Rot3::Logmap(camL_Pose_camR.rotation()).norm() << '\n'
+      << "camLrect_Pose_calRrect log: "
+      << gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() << '\n'
+      << "Vio constructor: camera poses do not seem to be rectified (rot)";
+  LOG_IF(FATAL, fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 ||
+                    fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3)
+      << "Vio constructor: camera poses do not seem to be rectified (tran) \n"
+      << "camLrect_Poe_calRrect: " << camLrect_Pose_calRrect;
 
   //////////////////////////////////////////////////////////////////////////////
   // Get rectification & undistortion maps.
@@ -1111,18 +1113,19 @@ std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
 /* -------------------------------------------------------------------------- */
 void StereoFrame::print() const {
   LOG(INFO) << "=====================\n"
-            << "id_ " << id_ << '\n'
-            << "timestamp_ " << timestamp_ << '\n'
-            << "isRectified_ " << is_rectified_ << '\n'
-            << "isKeyframe_ " << is_keyframe_ << '\n'
-            << "nr keypoints in left " << left_frame_.keypoints_.size() << '\n'
-            << "nr keypoints in right " << right_frame_.keypoints_.size() << '\n'
-            << "nr keypoints_depth_ " << keypoints_depth_.size() << '\n'
-            << "nr keypoints_3d_ " << keypoints_3d_.size();
-  camL_Pose_camR.print("camL_Pose_camR \n");
-  LOG(INFO) << "\n left_frame_.cam_param_.body_Pose_cam_ "
-            << left_frame_.cam_param_.body_Pose_cam_
-            << "right_frame_.cam_param_.body_Pose_cam_ "
+            << "id_: " << id_ << '\n'
+            << "timestamp_: " << timestamp_ << '\n'
+            << "isRectified_: " << is_rectified_ << '\n'
+            << "isKeyframe_: " << is_keyframe_ << '\n'
+            << "nr keypoints in left: " << left_frame_.keypoints_.size() << '\n'
+            << "nr keypoints in right: " << right_frame_.keypoints_.size()
+            << '\n'
+            << "nr keypoints_depth_: " << keypoints_depth_.size() << '\n'
+            << "nr keypoints_3d_: " << keypoints_3d_.size() << '\n'
+            << "camL_Pose_camR: " << camL_Pose_camR << '\n'
+            << "left_frame_.cam_param_.body_Pose_cam_: "
+            << left_frame_.cam_param_.body_Pose_cam_ << '\n'
+            << "right_frame_.cam_param_.body_Pose_cam_: "
             << right_frame_.cam_param_.body_Pose_cam_;
 }
 
