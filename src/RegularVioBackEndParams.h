@@ -105,45 +105,15 @@ protected:
    */
   // Parse params YAML file
   bool parseYAMLRegularVioBackEndParams(const cv::FileStorage &fs) {
-    cv::FileNode file_handle;
-
-    file_handle = fs["monoNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> monoNoiseSigma_;
-    file_handle = fs["monoNormType"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> monoNormType_;
-    file_handle = fs["monoNormParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> monoNormParam_;
-    file_handle = fs["stereoNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> stereoNoiseSigma_;
-    file_handle = fs["stereoNormType"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> stereoNormType_;
-    file_handle = fs["stereoNormParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> stereoNormParam_;
-    file_handle = fs["regularityNoiseSigma"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> regularityNoiseSigma_;
-    file_handle = fs["regularityNormParam"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> regularityNormParam_;
-    file_handle = fs["regularityNormType"];
-    CHECK(file_handle.type() != cv::FileNode::NONE)
-        << "Missing parameter with name: " << file_handle.name().c_str();
-    file_handle >> regularityNormType_;
-
+    getYamlParam(fs, "monoNoiseSigma", &monoNoiseSigma_);
+    getYamlParam(fs, "monoNormType", &monoNormType_);
+    getYamlParam(fs, "monoNormParam", &monoNormParam_);
+    getYamlParam(fs, "stereoNoiseSigma", &stereoNoiseSigma_);
+    getYamlParam(fs, "stereoNormType", &stereoNormType_);
+    getYamlParam(fs, "stereoNormParam", &stereoNormParam_);
+    getYamlParam(fs, "regularityNoiseSigma", &regularityNoiseSigma_);
+    getYamlParam(fs, "regularityNormParam", &regularityNormParam_);
+    getYamlParam(fs, "regularityNormType", &regularityNormType_);
     return true;
   }
 

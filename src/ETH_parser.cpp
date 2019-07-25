@@ -292,7 +292,7 @@ void ETHDatasetParser::parseParams(VioBackEndParamsPtr backend_params,
   } else {
     VLOG(100) << "Using user-specified tracker parameters: "
               << FLAGS_tracker_params_path;
-    trackerParams->parseYAML(FLAGS_tracker_params_path);
+    trackerParams->parse(FLAGS_tracker_params_path);
   }
 }
 
