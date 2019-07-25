@@ -72,9 +72,9 @@ public:
   virtual ~RegularVioBackEndParams() = default;
 
 public:
-  virtual bool parseYAML(const cv::FileStorage &fs) {
-    return parseYAMLVioBackEndParams(fs) &&
-           parseYAMLRegularVioBackEndParams(fs);
+  virtual bool parseYAML(const std::string &filepath) {
+    yaml_parser_ = std::make_shared<YamlParser>(filepath);
+    return parseYAMLVioBackEndParams() && parseYAMLRegularVioBackEndParams();
   }
 
   /* ------------------------------------------------------------------------ */
@@ -104,16 +104,17 @@ protected:
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
    */
   // Parse params YAML file
-  bool parseYAMLRegularVioBackEndParams(const cv::FileStorage &fs) {
-    getYamlParam(fs, "monoNoiseSigma", &monoNoiseSigma_);
-    getYamlParam(fs, "monoNormType", &monoNormType_);
-    getYamlParam(fs, "monoNormParam", &monoNormParam_);
-    getYamlParam(fs, "stereoNoiseSigma", &stereoNoiseSigma_);
-    getYamlParam(fs, "stereoNormType", &stereoNormType_);
-    getYamlParam(fs, "stereoNormParam", &stereoNormParam_);
-    getYamlParam(fs, "regularityNoiseSigma", &regularityNoiseSigma_);
-    getYamlParam(fs, "regularityNormParam", &regularityNormParam_);
-    getYamlParam(fs, "regularityNormType", &regularityNormType_);
+  bool parseYAMLRegularVioBackEndParams() {
+    CHECK(yaml_parser_ != nullptr);
+    yaml_parser_->getYamlParam("monoNoiseSigma", &monoNoiseSigma_);
+    yaml_parser_->getYamlParam("monoNormType", &monoNormType_);
+    yaml_parser_->getYamlParam("monoNormParam", &monoNormParam_);
+    yaml_parser_->getYamlParam("stereoNoiseSigma", &stereoNoiseSigma_);
+    yaml_parser_->getYamlParam("stereoNormType", &stereoNormType_);
+    yaml_parser_->getYamlParam("stereoNormParam", &stereoNormParam_);
+    yaml_parser_->getYamlParam("regularityNoiseSigma", &regularityNoiseSigma_);
+    yaml_parser_->getYamlParam("regularityNormParam", &regularityNormParam_);
+    yaml_parser_->getYamlParam("regularityNormType", &regularityNormType_);
     return true;
   }
 

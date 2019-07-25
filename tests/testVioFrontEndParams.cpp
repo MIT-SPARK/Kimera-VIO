@@ -38,7 +38,7 @@ TEST(testTracker, TrackerParamParseYAML) {
 
   // Test parseYAML
   VioFrontEndParams tp;
-  tp.parse(FLAGS_test_data_path + "/ForTracker/trackerParameters.yaml");
+  tp.parseYAML(FLAGS_test_data_path + "/ForTracker/trackerParameters.yaml");
 
   // Compare results!
   EXPECT_EQ(tp.klt_win_size_, 24);
@@ -108,8 +108,8 @@ TEST(testTracker, DISABLED_cppVSmatlabVioFrontEndParams) {
   VioFrontEndParams cppDefault_tp = VioFrontEndParams();
 
   VioFrontEndParams matlabDefault_tp;
-  matlabDefault_tp.parse(FLAGS_test_data_path +
-                         "/../../matlab/myLib/defaultTrackerParams.yaml");
+  matlabDefault_tp.parseYAML(FLAGS_test_data_path +
+                             "/../../matlab/myLib/defaultTrackerParams.yaml");
 
   EXPECT_TRUE(matlabDefault_tp.equals(cppDefault_tp));
 

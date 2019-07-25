@@ -33,7 +33,7 @@ using namespace cv;
 TEST(testVioBackEndParams, VioParseYAML) {
   // Test parseYAML
   VioBackEndParams vp;
-  vp.parse(string(FLAGS_test_data_path) + "/ForVIO/vioParameters.yaml");
+  vp.parseYAML(string(FLAGS_test_data_path) + "/ForVIO/vioParameters.yaml");
 
   // Check the parsed values!
   // IMU params
@@ -97,8 +97,8 @@ TEST(testVioBackEndParams, cppVSmatlabTrackerParams) {
   VioBackEndParams cppDefault_vp = VioBackEndParams();
 
   VioBackEndParams matlabDefault_vp;
-  matlabDefault_vp.parse(string(FLAGS_test_data_path) +
-                         "/../../matlab/myLib/defaultVioParams.yaml");
+  matlabDefault_vp.parseYAML(string(FLAGS_test_data_path) +
+                             "/../../matlab/myLib/defaultVioParams.yaml");
 
   EXPECT_TRUE(matlabDefault_vp.equals(cppDefault_vp, 1e-5));
 

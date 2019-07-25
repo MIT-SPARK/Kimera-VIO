@@ -279,7 +279,7 @@ void ETHDatasetParser::parseParams(
   } else {
     VLOG(100) << "Using user-specified VIO parameters: "
               << FLAGS_vio_params_path;
-    backend_params->parse(FLAGS_vio_params_path);
+    backend_params->parseYAML(FLAGS_vio_params_path);
   }
   // TODO make this cleaner! imu_params_ are parsed all around, it's a mess!!
   // They are basically parsed from backend params... but they should be on
@@ -294,7 +294,7 @@ void ETHDatasetParser::parseParams(
   } else {
     VLOG(100) << "Using user-specified tracker parameters: "
               << FLAGS_tracker_params_path;
-    trackerParams->parse(FLAGS_tracker_params_path);
+    trackerParams->parseYAML(FLAGS_tracker_params_path);
   }
 }
 

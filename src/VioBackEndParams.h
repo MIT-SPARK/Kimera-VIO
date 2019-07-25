@@ -32,7 +32,9 @@
 
 namespace VIO {
 
-class VioBackEndParams : public YamlParser {
+// TODO(Toni) Params should not inherit from YamlParser, rather the params
+// should have a parser.
+class VioBackEndParams {
 public:
   VioBackEndParams(
       // IMU PARAMS
@@ -79,7 +81,7 @@ public:
       const double constantVelSigma = 1e-2, const size_t numOptimize = 2,
       const double horizon = 6, // in seconds
       const bool useDogLeg = false)
-      : YamlParser(), initialPositionSigma_(initialPositionSigma),
+      : initialPositionSigma_(initialPositionSigma),
         initialRollPitchSigma_(initialRollPitchSigma),
         initialYawSigma_(initialYawSigma),
         initialVelocitySigma_(initialVelocitySigma),
@@ -105,7 +107,7 @@ public:
         zeroVelocitySigma_(zeroVelocitySigma),
         noMotionPositionSigma_(noMotionPositionSigma),
         noMotionRotationSigma_(noMotionRotationSigma),
-        constantVelSigma_(constantVelSigma) {
+        constantVelSigma_(constantVelSigma), yaml_parser_(nullptr) {
     // Trivial sanity checks.
     CHECK_GE(horizon, 0);
     CHECK_GE(numOptimize, 0);
@@ -149,39 +151,43 @@ public:
 
   virtual void print() const { printVioBackEndParams(); }
 
-protected:
   // Parse params YAML file
-  virtual bool parseYAML(const cv::FileStorage &fs) {
-    return parseYAMLVioBackEndParams(fs);
+  virtual bool parseYAML(const std::string &filepath) {
+    yaml_parser_ = std::make_shared<YamlParser>(filepath);
+    return parseYAMLVioBackEndParams();
   }
 
-  bool parseYAMLVioBackEndParams(const cv::FileStorage &fs) {
+protected:
+  bool parseYAMLVioBackEndParams() {
+    CHECK(yaml_parser_ != nullptr);
     // IMU PARAMS
-    getYamlParam(fs, "gyroNoiseDensity", &gyroNoiseDensity_);
-    getYamlParam(fs, "accNoiseDensity", &accNoiseDensity_);
-    getYamlParam(fs, "imuIntegrationSigma", &imuIntegrationSigma_);
-    getYamlParam(fs, "gyroBiasSigma", &gyroBiasSigma_);
-    getYamlParam(fs, "accBiasSigma", &accBiasSigma_);
+    yaml_parser_->getYamlParam("gyroNoiseDensity", &gyroNoiseDensity_);
+    yaml_parser_->getYamlParam("accNoiseDensity", &accNoiseDensity_);
+    yaml_parser_->getYamlParam("imuIntegrationSigma", &imuIntegrationSigma_);
+    yaml_parser_->getYamlParam("gyroBiasSigma", &gyroBiasSigma_);
+    yaml_parser_->getYamlParam("accBiasSigma", &accBiasSigma_);
     std::vector<double> n_gravity;
-    getYamlParam(fs, "n_gravity", &n_gravity);
+    yaml_parser_->getYamlParam("n_gravity", &n_gravity);
     CHECK_EQ(n_gravity.size(), 3);
     for (int k = 0; k < 3; k++)
       n_gravity_(k) = n_gravity[k];
-    getYamlParam(fs, "nominalImuRate", &nominalImuRate_);
+    yaml_parser_->getYamlParam("nominalImuRate", &nominalImuRate_);
 
     // INITIALIZATION
-    getYamlParam(fs, "autoInitialize", &autoInitialize_);
-    getYamlParam(fs, "roundOnAutoInitialize", &roundOnAutoInitialize_);
-    getYamlParam(fs, "initialPositionSigma", &initialPositionSigma_);
-    getYamlParam(fs, "initialRollPitchSigma", &initialRollPitchSigma_);
-    getYamlParam(fs, "initialYawSigma", &initialYawSigma_);
-    getYamlParam(fs, "initialVelocitySigma", &initialVelocitySigma_);
-    getYamlParam(fs, "initialAccBiasSigma", &initialAccBiasSigma_);
-    getYamlParam(fs, "initialGyroBiasSigma", &initialGyroBiasSigma_);
+    yaml_parser_->getYamlParam("autoInitialize", &autoInitialize_);
+    yaml_parser_->getYamlParam("roundOnAutoInitialize",
+                               &roundOnAutoInitialize_);
+    yaml_parser_->getYamlParam("initialPositionSigma", &initialPositionSigma_);
+    yaml_parser_->getYamlParam("initialRollPitchSigma",
+                               &initialRollPitchSigma_);
+    yaml_parser_->getYamlParam("initialYawSigma", &initialYawSigma_);
+    yaml_parser_->getYamlParam("initialVelocitySigma", &initialVelocitySigma_);
+    yaml_parser_->getYamlParam("initialAccBiasSigma", &initialAccBiasSigma_);
+    yaml_parser_->getYamlParam("initialGyroBiasSigma", &initialGyroBiasSigma_);
 
     // VISION PARAMS
     int linearization_mode_id;
-    getYamlParam(fs, "linearizationMode", &linearization_mode_id);
+    yaml_parser_->getYamlParam("linearizationMode", &linearization_mode_id);
     switch (linearization_mode_id) {
     case 0:
       linearizationMode_ = gtsam::HESSIAN;
@@ -201,7 +207,7 @@ protected:
     }
 
     int degeneracyModeId;
-    getYamlParam(fs, "degeneracyMode", &degeneracyModeId);
+    yaml_parser_->getYamlParam("degeneracyMode", &degeneracyModeId);
     switch (degeneracyModeId) {
     case 0:
       degeneracyMode_ = gtsam::IGNORE_DEGENERACY;
@@ -217,26 +223,32 @@ protected:
       break;
     }
 
-    getYamlParam(fs, "smartNoiseSigma", &smartNoiseSigma_);
-    getYamlParam(fs, "rankTolerance", &rankTolerance_);
-    getYamlParam(fs, "landmarkDistanceThreshold", &landmarkDistanceThreshold_);
-    getYamlParam(fs, "outlierRejection", &outlierRejection_);
-    getYamlParam(fs, "retriangulationThreshold", &retriangulationThreshold_);
-    getYamlParam(fs, "addBetweenStereoFactors", &addBetweenStereoFactors_);
-    getYamlParam(fs, "betweenRotationPrecision", &betweenRotationPrecision_);
-    getYamlParam(fs, "betweenTranslationPrecision",
-                 &betweenTranslationPrecision_);
+    yaml_parser_->getYamlParam("smartNoiseSigma", &smartNoiseSigma_);
+    yaml_parser_->getYamlParam("rankTolerance", &rankTolerance_);
+    yaml_parser_->getYamlParam("landmarkDistanceThreshold",
+                               &landmarkDistanceThreshold_);
+    yaml_parser_->getYamlParam("outlierRejection", &outlierRejection_);
+    yaml_parser_->getYamlParam("retriangulationThreshold",
+                               &retriangulationThreshold_);
+    yaml_parser_->getYamlParam("addBetweenStereoFactors",
+                               &addBetweenStereoFactors_);
+    yaml_parser_->getYamlParam("betweenRotationPrecision",
+                               &betweenRotationPrecision_);
+    yaml_parser_->getYamlParam("betweenTranslationPrecision",
+                               &betweenTranslationPrecision_);
 
     // OPTIMIZATION PARAMS
-    getYamlParam(fs, "relinearizeThreshold", &relinearizeThreshold_);
-    getYamlParam(fs, "relinearizeSkip", &relinearizeSkip_);
-    getYamlParam(fs, "zeroVelocitySigma", &zeroVelocitySigma_);
-    getYamlParam(fs, "noMotionPositionSigma", &noMotionPositionSigma_);
-    getYamlParam(fs, "noMotionRotationSigma", &noMotionRotationSigma_);
-    getYamlParam(fs, "constantVelSigma", &constantVelSigma_);
-    getYamlParam(fs, "numOptimize", &numOptimize_);
-    getYamlParam(fs, "horizon", &horizon_);
-    getYamlParam(fs, "useDogLeg", &useDogLeg_);
+    yaml_parser_->getYamlParam("relinearizeThreshold", &relinearizeThreshold_);
+    yaml_parser_->getYamlParam("relinearizeSkip", &relinearizeSkip_);
+    yaml_parser_->getYamlParam("zeroVelocitySigma", &zeroVelocitySigma_);
+    yaml_parser_->getYamlParam("noMotionPositionSigma",
+                               &noMotionPositionSigma_);
+    yaml_parser_->getYamlParam("noMotionRotationSigma",
+                               &noMotionRotationSigma_);
+    yaml_parser_->getYamlParam("constantVelSigma", &constantVelSigma_);
+    yaml_parser_->getYamlParam("numOptimize", &numOptimize_);
+    yaml_parser_->getYamlParam("horizon", &horizon_);
+    yaml_parser_->getYamlParam("useDogLeg", &useDogLeg_);
 
     return true;
   }
@@ -339,6 +351,9 @@ protected:
               << "horizon_: " << horizon_ << '\n'
               << "useDogLeg_: " << useDogLeg_;
   }
+
+protected:
+  std::shared_ptr<YamlParser> yaml_parser_;
 };
 typedef std::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
 typedef std::shared_ptr<const VioBackEndParams> VioBackEndParamsConstPtr;

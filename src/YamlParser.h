@@ -28,24 +28,11 @@ namespace VIO {
 
 class YamlParser {
 public:
-  bool parse(const std::string &filepath) {
-    cv::FileStorage fs;
-    openFile(filepath, &fs);
-    bool result = parseYAML(fs);
-    closeFile(&fs);
-    return result;
-  }
+  YamlParser(const std::string &filepath) { openFile(filepath, &fs_); }
+  ~YamlParser() { closeFile(&fs_); };
 
-  virtual ~YamlParser() = default;
-
-protected:
-  YamlParser() = default;
-  virtual bool parseYAML(const cv::FileStorage &fs) = 0;
-
-  template <class T>
-  void getYamlParam(const cv::FileStorage &fs, const std::string &id,
-                    T *output) const {
-    const cv::FileNode &file_handle = fs[id];
+  template <class T> void getYamlParam(const std::string &id, T *output) const {
+    const cv::FileNode &file_handle = fs_[id];
     CHECK_NE(file_handle.type(), cv::FileNode::NONE)
         << "Missing parameter: " << id.c_str();
     file_handle >> *CHECK_NOTNULL(output);
@@ -62,6 +49,9 @@ private:
   inline void closeFile(cv::FileStorage *fs) const {
     CHECK_NOTNULL(fs)->release();
   }
+
+private:
+  cv::FileStorage fs_;
 };
 
 } // namespace VIO

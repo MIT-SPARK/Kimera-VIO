@@ -35,7 +35,7 @@ static const double tol = 1e-7;
 TEST(testRegularVioBackEndParams, VioParseYAML) {
   // Test parseYAML
   RegularVioBackEndParams vp;
-  vp.parse(string(FLAGS_test_data_path) + "/ForVIO/regularVioParameters.yaml");
+  vp.parseYAML(FLAGS_test_data_path + "/ForVIO/regularVioParameters.yaml");
 
   // Check the parsed values!
   // IMU params
