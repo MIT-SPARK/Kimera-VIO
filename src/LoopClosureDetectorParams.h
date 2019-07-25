@@ -47,34 +47,30 @@ public:
       int max_distance_between_queries=2,
 
       GeomVerifOption geom_check=GeomVerifOption::NISTER,
-      int di_levels=0,
-      bool ransac_verification=true,
-      double max_neighbor_ratio=0.6,
+      int min_correspondences=12,
+      int max_ransac_iterations_mono=500,
+      double ransac_probability_mono=0.99,
+      double ransac_threshold_mono=1e-6,
+      bool ransac_randomize_mono=false,
 
-      int min_Fpoints=12,
-      int max_ransac_iterations=500,
-      double ransac_probability=0.99,
-      double max_reprojection_error=2.0,
-      double ransac_threshold_2d=1.0,
+      PoseRecoveryOption pose_recovery_option=PoseRecoveryOption::GIVEN_ROT,
+      int max_ransac_iterations_stereo=500,
+      double ransac_probability_stereo=0.995,
+      double ransac_threshold_stereo=0.15,
+      bool ransac_randomize_stereo=false,
+      bool use_mono_rot=true,
 
-      Pose3DRecoveryOption pose_recovery_option=Pose3DRecoveryOption::ARUN_3PT,
-      double ransac_threshold_3d=0.3,
-      bool ransac_randomize_3d=true,
-      int max_ransac_iterations_3d=100,
-      double ransac_probability_3d=0.995,
-      bool use_2d_rot=true,
+      double lowe_ratio=0.7,
 
       int nfeatures=500,
-      float scaleFactor=1.2f,
+      float scale_factor=1.2f,
       int nlevels=8,
-      int edgeThreshold=31,
-      int firstLevel=0,
+      int edge_threshold=31,
+      int first_level=0,
       int WTA_K=2,
-      int scoreType=cv::ORB::HARRIS_SCORE,
-      int patchSize=31,
-      int fastThreshold=20,
-
-      double lowe_ratio=0.5)
+      int score_type=cv::ORB::HARRIS_SCORE,
+      int patch_sze=31,
+      int fast_threshold=20)
       : vocabulary_path_(vocabulary_path),
         image_width_(image_width),
         image_height_(image_height),
@@ -93,34 +89,30 @@ public:
         max_distance_between_queries_(max_distance_between_queries),
 
         geom_check_(geom_check),
-        di_levels_(di_levels),
-        ransac_verification_(ransac_verification),
-        max_neighbor_ratio_(max_neighbor_ratio),
-
-        min_Fpoints_(min_Fpoints),
-        max_ransac_iterations_(max_ransac_iterations),
-        ransac_probability_(ransac_probability),
-        max_reprojection_error_(max_reprojection_error),
-        ransac_threshold_2d_(ransac_threshold_2d),
+        min_correspondences_(min_correspondences),
+        max_ransac_iterations_mono_(max_ransac_iterations_mono),
+        ransac_probability_mono_(ransac_probability_mono),
+        ransac_threshold_mono_(ransac_threshold_mono),
+        ransac_randomize_mono_(ransac_randomize_mono),
 
         pose_recovery_option_(pose_recovery_option),
-        ransac_threshold_3d_(ransac_threshold_3d),
-        ransac_randomize_3d_(ransac_randomize_3d),
-        max_ransac_iterations_3d_(max_ransac_iterations_3d),
-        ransac_probability_3d_(ransac_probability_3d),
-        use_2d_rot_(use_2d_rot),
+        max_ransac_iterations_stereo_(max_ransac_iterations_stereo),
+        ransac_probability_stereo_(ransac_probability_stereo),
+        ransac_threshold_stereo_(ransac_threshold_stereo),
+        ransac_randomize_stereo_(ransac_randomize_stereo),
+        use_mono_rot_(use_mono_rot),
+
+        lowe_ratio_(lowe_ratio),
 
         nfeatures_(nfeatures),
-        scaleFactor_(scaleFactor),
+        scale_factor_(scale_factor),
         nlevels_(nlevels),
-        edgeThreshold_(edgeThreshold),
-        firstLevel_(firstLevel),
+        edge_threshold_(edge_threshold),
+        first_level_(first_level),
         WTA_K_(WTA_K),
-        scoreType_(scoreType),
-        patchSize_(patchSize),
-        fastThreshold_(fastThreshold),
-
-        lowe_ratio_(lowe_ratio){
+        score_type_(score_type),
+        patch_sze_(patch_sze),
+        fast_threshold_(fast_threshold) {
     // Trivial sanity checks:
     CHECK(image_width_ > 0);
     CHECK(image_height_ > 0);
@@ -153,43 +145,36 @@ public:
 
   /////////////////////// Geometrical Verification Params //////////////////////
   GeomVerifOption geom_check_; // Geometrical check
-  int di_levels_; // If using DI for geometrical checking, DI levels
-  bool ransac_verification_;
-  double max_neighbor_ratio_; // TODO: not needed unless we use that method
-
-  // 2D Ransac options:
-  int min_Fpoints_; // Min number of inliers when computing an essential matrix
-  int max_ransac_iterations_; // Max number of iterations of RANSAC
-  double ransac_probability_; // Success probability of RANSAC
-  double max_reprojection_error_; // Max reprojection error of essentials
-  double ransac_threshold_2d_; // Threshold for 5-pt algorithm
+  int min_correspondences_; // Min number of inliers when computing an essential matrix
+  int max_ransac_iterations_mono_; // Max number of iterations of RANSAC
+  double ransac_probability_mono_; // Success probability of RANSAC
+  double ransac_threshold_mono_; // Threshold for 5-pt algorithm
+  bool ransac_randomize_mono_; // Randomize seed for ransac
   //////////////////////////////////////////////////////////////////////////////
 
   /////////////////////////// 3D Pose Recovery Params //////////////////////////
-  Pose3DRecoveryOption pose_recovery_option_;
-  double ransac_threshold_3d_; // 0.3 for 3point method, 3-7 for 1-point
-  bool ransac_randomize_3d_; // ?? TODO
-  int max_ransac_iterations_3d_; // TODO
-  double ransac_probability_3d_;
-  bool use_2d_rot_;
-  //////////////////////////////////////////////////////////////////////////////
-
-  //////////////////////////////////////////////////////////////////////////////
-
-  ///////////////////////// ORB feature detector params ////////////////////////
-  int nfeatures_;
-  float scaleFactor_;
-  int nlevels_;
-  int edgeThreshold_;
-  int firstLevel_;
-  int WTA_K_;
-  int scoreType_;
-  int patchSize_;
-  int fastThreshold_;
+  PoseRecoveryOption pose_recovery_option_;
+  int max_ransac_iterations_stereo_; // TODO
+  double ransac_probability_stereo_;
+  double ransac_threshold_stereo_; // 0.3 for 3point method, 3-7 for 1-point
+  bool ransac_randomize_stereo_; // Randomize seed for ransac
+  bool use_mono_rot_;
   //////////////////////////////////////////////////////////////////////////////
 
   ///////////////////////// ORB feature matching params ////////////////////////
   double lowe_ratio_;
+  //////////////////////////////////////////////////////////////////////////////
+
+  ///////////////////////// ORB feature detector params ////////////////////////
+  int nfeatures_;
+  float scale_factor_;
+  int nlevels_;
+  int edge_threshold_;
+  int first_level_;
+  int WTA_K_;
+  int score_type_;
+  int patch_sze_;
+  int fast_threshold_;
   //////////////////////////////////////////////////////////////////////////////
 
   virtual ~LoopClosureDetectorParams() = default;
@@ -221,7 +206,8 @@ protected:
     fs->release();
   }
 
-  // TODO: add all the other params to this and print
+  // NOTE: we cannot parse principle point and focal length from here.
+  // Those are done via setIntrinsics() in real time in the first StereoFrame.
   bool parseYAMLLCDParams(const cv::FileStorage& fs) {
     cv::FileNode file_handle;
 
@@ -229,67 +215,238 @@ protected:
     CHECK(file_handle.type() != cv::FileNode:: NONE);
     file_handle >> vocabulary_path_;
 
+    file_handle = fs["image_width"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> image_width_;
+
+    file_handle = fs["image_height"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> image_height_;
+
+    file_handle = fs["use_nss"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> use_nss_;
+
+    file_handle = fs["alpha"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> alpha_;
+
+    file_handle = fs["min_temporal_matches"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> min_temporal_matches_;
+
+    file_handle = fs["dist_local"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> dist_local_;
+
+    file_handle = fs["max_db_results"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> max_db_results_;
+
+    file_handle = fs["min_nss_factor"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> min_nss_factor_;
+
+    file_handle = fs["min_matches_per_group"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> min_matches_per_group_;
+
+    file_handle = fs["max_intragroup_gap"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> max_intragroup_gap_;
+
+    file_handle = fs["max_distance_between_groups"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> max_distance_between_groups_;
+
+    file_handle = fs["max_distance_between_queries"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> max_distance_between_queries_;
+
+    int geom_check_id;
+    file_handle = fs["geom_check_id"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> geom_check_id;
+    switch (geom_check_id) {
+      case GeomVerifOption::TEMP_CV:
+        geom_check_ = GeomVerifOption::TEMP_CV;
+        break;
+      case GeomVerifOption::NISTER:
+        geom_check_ = GeomVerifOption::NISTER;
+        break;
+      case GeomVerifOption::NONE:
+        geom_check_ = GeomVerifOption::NONE;
+        break;
+      default:
+        throw std::runtime_error("LCDparams parseYAML: wrong geom_check_id");
+        break;
+    }
+
+    file_handle = fs["min_correspondences"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> min_correspondences_;
+
+    file_handle = fs["max_ransac_iterations_mono"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> max_ransac_iterations_mono_;
+
+    file_handle = fs["ransac_probability_mono"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> ransac_probability_mono_;
+
+    file_handle = fs["ransac_threshold_mono"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> ransac_threshold_mono_;
+
+    file_handle = fs["ransac_randomize_mono"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> ransac_randomize_mono_;
+
+    int pose_recovery_option_id;
+    file_handle = fs["pose_recovery_option_id"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> pose_recovery_option_id;
+    switch (pose_recovery_option_id) {
+      case PoseRecoveryOption::RANSAC_3PT:
+        pose_recovery_option_ = PoseRecoveryOption::RANSAC_3PT;
+        break;
+      case PoseRecoveryOption::GIVEN_ROT:
+        pose_recovery_option_ = PoseRecoveryOption::GIVEN_ROT;
+        break;
+      default:
+        throw std::runtime_error(
+            "LCDparams parseYAML: wrong pose_recovery_option_id");
+        break;
+    }
+
+    file_handle = fs["max_ransac_iterations_stereo"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> max_ransac_iterations_stereo_;
+
+    file_handle = fs["ransac_probability_stereo"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> ransac_probability_stereo_;
+
+    file_handle = fs["ransac_threshold_stereo"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> ransac_threshold_stereo_;
+
+    file_handle = fs["ransac_randomize_stereo"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> ransac_randomize_stereo_;
+
+    file_handle = fs["use_mono_rot"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> use_mono_rot_;
+
+    file_handle = fs["lowe_ratio"];
+    CHECK(file_handle.type() != cv::FileNode:: NONE);
+    file_handle >> lowe_ratio_;
+
     file_handle = fs["nfeatures"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
     file_handle >> nfeatures_;
 
-    file_handle = fs["scaleFactor"];
+    file_handle = fs["scale_factor"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> scaleFactor_;
+    file_handle >> scale_factor_;
 
     file_handle = fs["nlevels"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
     file_handle >> nlevels_;
 
-    file_handle = fs["edgeThreshold"];
+    file_handle = fs["edge_threshold"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> edgeThreshold_;
+    file_handle >> edge_threshold_;
 
-    file_handle = fs["firstLevel"];
+    file_handle = fs["first_level"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> firstLevel_;
+    file_handle >> first_level_;
 
     file_handle = fs["WTA_K"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
     file_handle >> WTA_K_;
 
-    int scoreTypeId;
-    file_handle = fs["scoreType"];
+    int score_type_id;
+    file_handle = fs["score_type_id"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> scoreTypeId;
-    switch (scoreTypeId) {
+    file_handle >> score_type_id;
+    switch (score_type_id) {
       case 0:
-        scoreType_ = cv::ORB::HARRIS_SCORE;
+        score_type_ = cv::ORB::HARRIS_SCORE;
         break;
       // TODO: add the rest of the options here
       default:
-        throw std::runtime_error("LCDparams parseYAML: wrong scoreTypeId");
+        throw std::runtime_error("LCDparams parseYAML: wrong score_type_id");
         break;
     }
 
-    file_handle = fs["patchSize"];
+    file_handle = fs["patch_sze"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> patchSize_;
+    file_handle >> patch_sze_;
 
-    file_handle = fs["fastThreshold"];
+    file_handle = fs["fast_threshold"];
     CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> fastThreshold_;
+    file_handle >> fast_threshold_;
 
     return true;
   }
 
   void printLCDParams() const {
+    // TODO: print all params
     LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$ LCD PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
               << "vocabulary_path_: " << vocabulary_path_ << '\n'
+              << "image_width_: " << image_width_ << '\n'
+              << "image_height_: " << image_height_ << '\n'
+              << "focal_length_: " << focal_length_ << '\n'
+              << "principle_point_: " << principle_point_ << '\n'
+
+              << "use_nss_: " << use_nss_ << '\n'
+              << "alpha_: " << alpha_ << '\n'
+              << "min_temporal_matches_: " << min_temporal_matches_ << '\n'
+              << "dist_local_: " << dist_local_ << '\n'
+              << "max_db_results_: " << max_db_results_ << '\n'
+              << "max_db_results_: " << max_db_results_ << '\n'
+              << "min_nss_factor_: " << min_nss_factor_ << '\n'
+              << "min_matches_per_group_: " << min_matches_per_group_ << '\n'
+              << "max_intragroup_gap_: " << max_intragroup_gap_ << '\n'
+              << "max_distance_between_groups_: "
+                  << max_distance_between_groups_ << '\n'
+              << "max_distance_between_queries_: "
+                  << max_distance_between_queries_ << '\n'
+
+              << "geom_check_: " << geom_check_ << '\n'
+              << "min_correspondences_: " << min_correspondences_
+                  << '\n'
+              << "max_ransac_iterations_mono_: " << max_ransac_iterations_mono_
+                  << '\n'
+              << "ransac_probability_mono_: " << ransac_probability_mono_
+                  << '\n'
+              << "ransac_threshold_mono_: " << ransac_threshold_mono_ << '\n'
+              << "ransac_randomize_mono_: " << ransac_randomize_mono_ << '\n'
+
+              << "pose_recovery_option_: " << pose_recovery_option_ << '\n'
+              << "max_ransac_iterations_stereo_: "
+                  << max_ransac_iterations_stereo_ << '\n'
+              << "ransac_probability_stereo_: " << ransac_probability_stereo_
+                  << '\n'
+              << "ransac_threshold_stereo_: " << ransac_threshold_stereo_
+                  << '\n'
+              << "ransac_randomize_stereo_: " << ransac_randomize_stereo_
+                  << '\n'
+              << "use_mono_rot_: " << use_mono_rot_ << '\n'
+
+              << "lowe_ratio_: " << lowe_ratio_ << '\n'
+
               << "nfeatures_: " << nfeatures_ << '\n'
-              << "scaleFactor_: " << scaleFactor_ << '\n'
+              << "scale_factor_: " << scale_factor_ << '\n'
               << "nlevels_: " << nlevels_ << '\n'
-              << "edgeThreshold_: " << edgeThreshold_ << '\n'
-              << "firstLevel_: " << firstLevel_ << '\n'
+              << "edge_threshold_: " << edge_threshold_ << '\n'
+              << "first_level_: " << first_level_ << '\n'
               << "WTA_K_: " << WTA_K_ << '\n'
-              << "scoreType_: " << scoreType_ << '\n'
-              << "patchSize_: " << patchSize_ << '\n'
-              << "fastThreshold_: " << fastThreshold_;
+              << "score_type_: " << score_type_ << '\n'
+              << "patch_sze_: " << patch_sze_ << '\n'
+              << "fast_threshold_: " << fast_threshold_;
   }
 }; // class LoopClosureDetectorParams
 } // namespace VIO

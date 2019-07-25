@@ -7,18 +7,9 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   LoopClosureDetector.h
- * @brief  Visual-Inertial Odometry pipeline, as described in these papers:
- *
- * C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza.
- * On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation.
- * IEEE Trans. Robotics, 33(1):1-21, 2016.
- *
- * L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert.
- * Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.
- * In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
- *
- * @author Marcus Abate
+ * @file   LoopClosureDetector.cpp
+ * @brief  Pipeline for detection and reporting of Loop Closures between frames
+ * @author Marcus Abate, Luca Carlone
  */
 
 #ifndef LoopClosureDetector_H_
@@ -52,23 +43,22 @@ namespace VIO {
 class LoopClosureDetector {
 public:
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-                      const bool log_output=false,
-                      const int verbosity=0);
+      const bool log_output=false);
 
   virtual ~LoopClosureDetector() {
     LOG(INFO) << "LoopClosureDetector desctuctor called.";
   }
 
   bool spin(ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
-            ThreadsafeQueue<LoopClosureDetectorOutputPayload>& output_queue,
-            bool parallel_run = true);
+      ThreadsafeQueue<LoopClosureDetectorOutputPayload>& output_queue,
+      bool parallel_run = true);
 
   LoopClosureDetectorOutputPayload spinOnce(
       const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
 
-  FrameId processAndAddFrame(StereoFrame& stereo_frame);
-
   LoopClosureDetectorOutputPayload checkLoopClosure(StereoFrame& stereo_frame);
+
+  FrameId processAndAddFrame(StereoFrame& stereo_frame);
 
   LoopResult detectLoop(size_t frame_id);
 
@@ -76,7 +66,7 @@ public:
       const FrameId& match_id, LoopResult& result);
 
   gtsam::Pose3 compute3DPose(const FrameId& query_id, const FrameId& match_id,
-      gtsam::Pose3& pose_2d);
+      gtsam::Pose3& pose_estimate);
 
   inline void shutdown() {
     LOG_IF(WARNING, shutdown_) << "Shutdown requested, but LoopClosureDetector "
@@ -102,11 +92,14 @@ public:
 
   inline const OrbDatabase* getBoWDatabase() const { return &db_BoW_; }
 
-  inline const std::vector<LCDFrame>* getFrameDatabse() const {
+  inline const std::vector<LCDFrame>* getFrameDatabase() const {
     return &db_frames_;
   }
 
   inline bool getIntrinsicsFlag() const { return set_intrinsics_; }
+
+  // TODO: maybe this should be private. But that makes testing harder.
+  void setIntrinsics(const StereoFrame& stereo_frame);
 
   void setDatabase(const OrbDatabase& db);
 
@@ -123,11 +116,19 @@ public:
     const std::vector<cv::KeyPoint>& keypoints);
 
   // TODO: it would be nice if this could be a util
-  // TODO: can this be static even though it changes 
+  // TODO: can this be static even though it requires id? Maybe feed it descriptors instead
   cv::Mat computeAndDrawMatchesBetweenFrames(const cv::Mat& query_img,
-    const cv::Mat& match_img, const size_t& query_id, const size_t& match_id);
+    const cv::Mat& match_img, const size_t& query_id, const size_t& match_id,
+    bool cut_matches=false);
 
   static gtsam::Pose3 mat2pose(const cv::Mat& R, const cv::Mat& t);
+
+  // TODO: maybe these should be private?
+  void transformCameraPose2BodyPose(gtsam::Pose3& camRef_T_camCur,
+      gtsam::Pose3* bodyRef_T_bodyCur) const;
+
+  void transformBodyPose2CameraPose(gtsam::Pose3& bodyRef_T_bodyCur,
+      gtsam::Pose3* camRef_T_camCur) const;
 
 private:
   bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
@@ -139,45 +140,32 @@ private:
       const FrameId& start_id, const FrameId& end_id) const;
 
   void computeMatchedIndices(const FrameId& query_id, const FrameId& match_id,
-      std::vector<unsigned int>& i_query, std::vector<unsigned int>& i_match);
+      std::vector<unsigned int>& i_query, std::vector<unsigned int>& i_match,
+      bool cut_matches=false);
 
-  bool geometricVerification_NISTER_cv(const FrameId& query_id,
+  bool geometricVerification_cv(const FrameId& query_id,
       const FrameId& match_id, LoopResult& result);
 
   bool geometricVerification_gv(const FrameId& query_id,
       const FrameId& match_id, LoopResult& result);
 
-  // // TODO: implement this or see if it is even worth it
-  // bool geometricVerification_DI(const FrameId& query_id,
-  //     const FrameId& match_id, const LoopResult& result);
-  //
-  // bool geometricVerification_Exhaustive(const FrameId& query_id,
-  //     const FrameId& match_id, const LoopResult& result);
-
-  gtsam::Pose3 compute3DPose_gv(const FrameId& query_id,
+  gtsam::Pose3 compute3DPose3pt(const FrameId& query_id,
       const FrameId& match_id);
 
   gtsam::Pose3 compute3DPoseGiven2D(const FrameId& query_id,
       const FrameId& match_id, gtsam::Pose3& pose_2d);
 
-  // TODO: implement these:
-  // gtsam::Pose3 compute3DPoseMono(const FrameId& query,
-  //     const FrameId& match);
-  //
-  // gtsam::Pose3 compute3DPoseRGBD(const FrameId& query, const FrameId& match);
-
 private:
-  // Parameter members.
+  // Parameter members
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = {false};
-  const int verbosity_ = {0};
   bool set_intrinsics_ = {false};
 
-  // Thread related members.
+  // Thread related members
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_thread_working_ = {false};
 
-  // ORB extraction and matching members.
+  // ORB extraction and matching members
   cv::Ptr<cv::ORB> orb_feature_detector_;
   cv::Ptr<cv::DescriptorMatcher> orb_feature_matcher_;
 
@@ -191,6 +179,10 @@ private:
   MatchIsland latest_matched_island_;
   FrameId latest_query_id_;
   int temporal_entries_;
+
+  // Store camera parameters and StereoFrame stuff once
+  gtsam::Pose3 B_Pose_camLrect_;
+
 
 }; // class LoopClosureDetector
 

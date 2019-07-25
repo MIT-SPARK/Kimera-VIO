@@ -32,10 +32,12 @@
 
 namespace VIO {
 
-using Adapter2D = opengv::relative_pose::CentralRelativeAdapter;
-using SacProblem2D = opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
-using Adapter3D = opengv::point_cloud::PointCloudAdapter;
-using SacProblem3D = opengv::sac_problems::point_cloud::PointCloudSacProblem;
+using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
+using SacProblemMono =
+    opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
+using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
+using SacProblemStereo =
+    opengv::sac_problems::point_cloud::PointCloudSacProblem;
 
 enum LCDStatus {
   LOOP_DETECTED,
@@ -50,21 +52,12 @@ enum LCDStatus {
 enum GeomVerifOption {
   TEMP_CV,
   NISTER,
-  STEWENIUS,
-  SEVENPT,
-  EIGHTPT,
-  DIRECT_INDEX,
-  EXHAUSTIVE,
   NONE
 };
 
-enum Pose3DRecoveryOption {
+enum PoseRecoveryOption {
   RANSAC_3PT,
-  ARUN_3PT,
-  NONLINEAR_3PT,
-  GIVEN_ROT,
-  // MONO,
-  // RGBD
+  GIVEN_ROT
 };
 
 struct LCDFrame {
@@ -139,7 +132,7 @@ struct LoopResult {
   LCDStatus status_;
   FrameId query_id_;
   FrameId match_id_;
-  gtsam::Pose3 relative_pose_2d_;
+  gtsam::Pose3 relative_pose_mono_;
 
 }; // struct LoopResult
 

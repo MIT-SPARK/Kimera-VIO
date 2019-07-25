@@ -4,10 +4,10 @@ vocabulary_path: "/home/marcus/code/VIO/vocabulary/ORBvoc.txt"
 image_width: 752
 image_height: 480
 
-use_nss: 1
-alpha: 0.1
-min_temporal_matches: 3
-dist_local: 20
+use_nss: 0
+alpha: 0.0001
+min_temporal_matches: 0
+dist_local: 0
 max_db_results: 50
 min_nss_factor: 0.005
 min_matches_per_group: 1
@@ -16,18 +16,18 @@ max_distance_between_groups: 3
 max_distance_between_queries: 2
 
 geom_check_id: 1
-min_correspondences: 12
+min_correspondences: 5
 max_ransac_iterations_mono: 500
 ransac_probability_mono: 0.99
 ransac_threshold_mono: 1e-6
 ransac_randomize_mono: 0
 
-pose_recovery_option_id: 1
+pose_recovery_option_id: 0
 max_ransac_iterations_stereo: 500
 ransac_probability_stereo: 0.995
 ransac_threshold_stereo: 0.15
 ransac_randomize_stereo: 0
-use_mono_rot: 1
+use_mono_rot: 0
 
 lowe_ratio: 0.7
 
