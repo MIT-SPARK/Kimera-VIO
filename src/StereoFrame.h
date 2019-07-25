@@ -113,33 +113,8 @@ public:
               << "bidirectionalMatching_: " << bidirectional_matching_ << '\n'
               << "subpixelRefinementStereo_: " << subpixel_refinement_;
   }
-
-  // TODO(Toni) do abstract class for parameters structure, they all look very
-  // similar. Done! But this should not be in StereoFrame.h :OOOO
-  bool parseYaml(const std::string& filepath) {
-    cv::FileStorage fs;
-    UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
-    return parseYamlFromOpenFileStorage(fs);
-  }
-
-  // TODO(Toni): this should not be in StereoFrame.h ...............
-  bool parseYamlFromOpenFileStorage(const cv::FileStorage &fs) {
-    CHECK(fs.isOpened()) << "File storage is not open!";
-    fs["equalizeImage"] >> equalize_image_;
-    fs["nominalBaseline"] >> nominal_baseline_;
-    fs["toleranceTemplateMatching"] >> tolerance_template_matching_;
-    fs["templ_cols"] >> templ_cols_;
-    fs["templ_rows"] >> templ_rows_;
-    fs["stripe_extra_rows"] >> stripe_extra_rows_;
-    fs["minPointDist"] >> min_point_dist_;
-    fs["maxPointDist"] >> max_point_dist_;
-    fs["bidirectionalMatching"] >> bidirectional_matching_;
-    fs["subpixelRefinementStereo"] >> subpixel_refinement_;
-    return true;
-  }
 };
 
-////////////////////////////////////////////////////////////////////////////////
 class StereoFrame {
 public:
   StereoFrame(const FrameId &id, const Timestamp &timestamp,
