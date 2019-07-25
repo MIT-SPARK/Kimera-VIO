@@ -160,6 +160,7 @@ protected:
     getYamlParam(fs, "gyroNoiseDensity", &gyroNoiseDensity_);
     getYamlParam(fs, "accNoiseDensity", &accNoiseDensity_);
     getYamlParam(fs, "imuIntegrationSigma", &imuIntegrationSigma_);
+    getYamlParam(fs, "gyroBiasSigma", &gyroBiasSigma_);
     getYamlParam(fs, "accBiasSigma", &accBiasSigma_);
     std::vector<double> n_gravity;
     getYamlParam(fs, "n_gravity", &n_gravity);
