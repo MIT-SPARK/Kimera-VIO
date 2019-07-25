@@ -280,7 +280,7 @@ class Frame {
       const KeypointCV& px,
       boost::optional<int&> idx_in_keypoints = boost::none) const {
     // Iterate over all current keypoints_.
-    for (int i = 0; i < keypoints_.size(); i++) {
+    for (unsigned int i = 0; i < keypoints_.size(); i++) {
       // If we have found the pixel px in the set of keypoints, return the
       // landmark id of the keypoint and return the index of it at keypoints_.
       if (keypoints_.at(i).x == px.x && keypoints_.at(i).y == px.y) {
