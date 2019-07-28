@@ -920,15 +920,86 @@ namespace VIO {
       }
     }
   }
-  if (verbosity == 1) { // otherwise just return the image
-    cv::imshow("img"+ extraString, img_rgb);
-    cv::waitKey(1);
-  } else if (verbosity == 2) {
-    std::string folderName = outputImagesPath_ + extraString + "-" + VioFrontEndParams::FeatureSelectionCriterionStr(trackerParams_.featureSelectionCriterion_) + "/";
-    boost::filesystem::path trackerDir(folderName.c_str());
-    boost::filesystem::create_directory(trackerDir);
-    std::string img_name = folderName + "/trackerDisplay" + extraString + "_" + std::to_string(cur_frame.id_) + ".png";
-    cv::imwrite(img_name, img_rgb);
+
+  /* -------------------------------------------------------------------------- */
+  double Tracker::computeMedianDisparity(const Frame& ref_frame,
+                                        const Frame& cur_frame) {
+    // Find keypoints that observe the same landmarks in both frames:
+    std::vector<std::pair<size_t, size_t>> matches_ref_cur;
+    findMatchingKeypoints(ref_frame, cur_frame, &matches_ref_cur);
+
+    // Compute disparity:
+    std::vector<double> disparity;
+    disparity.reserve(matches_ref_cur.size());
+    for (const std::pair<size_t, size_t>& rc : matches_ref_cur) {
+      KeypointCV pxDiff =
+          cur_frame.keypoints_[rc.second] - ref_frame.keypoints_[rc.first];
+      double pxDistance = sqrt(pxDiff.x * pxDiff.x + pxDiff.y * pxDiff.y);
+      disparity.push_back(pxDistance);
+    }
+
+    if (disparity.empty()) {
+      VLOG(10) << "WARNING: Have no matches for disparity computation.";
+      return 0.0;
+    }
+
+    // Compute median:
+    const size_t center = disparity.size() / 2;
+    std::nth_element(disparity.begin(),
+                    disparity.begin() + center,
+                    disparity.end());
+    return disparity[center];
   }
 
-}  // namespace VIO
+  /* -------------------------------------------------------------------------- */
+  // TODO this won't work in parallel mode, as visualization must be done in
+  // main thread.
+  cv::Mat Tracker::displayFrame(
+      const Frame& ref_frame,
+      const Frame& cur_frame,
+      int verbosity,
+      const KeypointsCV& extraCorners1,
+      const KeypointsCV& extraCorners2,
+      const std::string& extraString) const {
+    cv::Mat img_rgb = cv::Mat(cur_frame.img_.size(), CV_8U);
+    cv::cvtColor(cur_frame.img_, img_rgb, cv::COLOR_GRAY2RGB);
+
+    // Add extra corners if desired.
+    for (auto px_cur : extraCorners1) // gray
+      cv::circle(img_rgb, px_cur, 4, cv::Scalar(255,255,255), 2);
+    for (auto px_cur : extraCorners2) // blue
+      cv::circle(img_rgb, px_cur, 4, cv::Scalar(255,0,0), 2);
+
+    // Add all keypoints in cur_frame with the tracks.
+    for (size_t i = 0; i < cur_frame.keypoints_.size(); ++i) {
+      cv::Point2f px_cur = cur_frame.keypoints_.at(i) ;
+      if (cur_frame.landmarks_.at(i) == -1) {// Untracked landmarks are red.
+        cv::circle(img_rgb, px_cur, 4, cv::Scalar(0,0,255), 2);
+      } else {
+        auto it = find(ref_frame.landmarks_.begin(), ref_frame.landmarks_.end(),
+                      cur_frame.landmarks_.at(i));
+        if (it != ref_frame.landmarks_.end()) {
+          // If feature was in previous frame, display tracked feature with green circle/line
+          cv::circle(img_rgb, px_cur, 6, cv::Scalar(0,255,0), 1);
+          int nPos = distance(ref_frame.landmarks_.begin(), it);
+          cv::Point2f px_ref = ref_frame.keypoints_.at(nPos);
+          cv::line(img_rgb, px_cur, px_ref, cv::Scalar(0,255,0), 1);
+        } else {// New feature tracks are blue.
+          cv::circle(img_rgb, px_cur, 6, cv::Scalar(255,0,0), 1);
+        }
+      }
+    }
+    if (verbosity == 1) { // otherwise just return the image
+      cv::imshow("img"+ extraString, img_rgb);
+      cv::waitKey(1);
+    } else if (verbosity == 2) {
+      std::string folderName = outputImagesPath_ + extraString + "-" + VioFrontEndParams::FeatureSelectionCriterionStr(trackerParams_.featureSelectionCriterion_) + "/";
+      boost::filesystem::path trackerDir(folderName.c_str());
+      boost::filesystem::create_directory(trackerDir);
+      std::string img_name = folderName + "/trackerDisplay" + extraString + "_" + std::to_string(cur_frame.id_) + ".png";
+      cv::imwrite(img_name, img_rgb);
+    }
+    return img_rgb;
+  }
+
+} // End of VIO namespace.

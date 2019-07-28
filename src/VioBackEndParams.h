@@ -32,6 +32,8 @@
 
 namespace VIO {
 
+enum InitializationModes { GT, IMU, ALIGNMENT };
+
 // TODO(Toni) Params should not inherit from YamlParser, rather the params
 // should have a parser.
 class VioBackEndParams {
@@ -124,7 +126,8 @@ public:
   double gyroNoiseDensity_, accNoiseDensity_, imuIntegrationSigma_,
       gyroBiasSigma_, accBiasSigma_, nominalImuRate_;
   gtsam::Vector3 n_gravity_;
-  bool autoInitialize_, roundOnAutoInitialize_;
+  int autoInitialize_; 
+  bool roundOnAutoInitialize_;
 
   // Smart factor params
   gtsam::LinearizationMode linearizationMode_;
