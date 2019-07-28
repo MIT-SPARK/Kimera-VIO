@@ -635,7 +635,7 @@ void StereoVisionFrontEnd::displaySaveImage(
   }
   if (verbosity == 1) { // otherwise just return the image
     cv::imshow(imshow_name, img_left);
-    cv::waitKey(tracker_.trackerParams_.display_time_);
+    cv::waitKey(1);
   } else if (verbosity == 2) {
     // Create output folders:
     std::string folderName = output_images_path_ + "-" +
@@ -670,4 +670,3 @@ void StereoVisionFrontEnd::printStatusStereoMeasurements(
 }
 
 } // End of VIO namespace.
-

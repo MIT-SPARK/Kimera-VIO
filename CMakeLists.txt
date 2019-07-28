@@ -63,6 +63,7 @@ add_library(sparkvio SHARED
   src/Histogram.cpp
   src/LoggerMatlab.cpp
   src/FeatureSelector.cpp
+  src/YamlParser.h
   src/VioBackEndParams.h
   src/VioFrontEndParams.h
   src/RegularVioBackEndParams.h

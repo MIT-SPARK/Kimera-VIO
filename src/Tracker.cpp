@@ -905,7 +905,7 @@ cv::Mat Tracker::displayFrame(
   }
   if (verbosity == 1) { // otherwise just return the image
     cv::imshow("img"+ extraString, img_rgb);
-    cv::waitKey(trackerParams_.display_time_);
+    cv::waitKey(1);
   } else if (verbosity == 2) {
     std::string folderName = outputImagesPath_ + extraString + "-" + VioFrontEndParams::FeatureSelectionCriterionStr(trackerParams_.featureSelectionCriterion_) + "/";
     boost::filesystem::path trackerDir(folderName.c_str());
