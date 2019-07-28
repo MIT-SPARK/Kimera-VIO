@@ -718,7 +718,7 @@ gtsam::Matrix VioBackEnd::getCurrentStateCovariance() const {
                              gtsam::Marginals::Factorization::CHOLESKY);
 
   // Current state includes pose, velocity and imu biases.
-  std::vector<gtsam::Key> keys;
+  gtsam::KeyVector keys;
   keys.push_back(gtsam::Symbol('x', curr_kf_id_));
   keys.push_back(gtsam::Symbol('v', curr_kf_id_));
   keys.push_back(gtsam::Symbol('b', curr_kf_id_));
@@ -736,7 +736,7 @@ gtsam::Matrix VioBackEnd::getCurrentStateInformation() const {
                              gtsam::Marginals::Factorization::CHOLESKY);
 
   // Current state includes pose, velocity and imu biases.
-  std::vector<gtsam::Key> keys;
+  gtsam::KeyVector keys;
   keys.push_back(gtsam::Symbol('x', curr_kf_id_));
   keys.push_back(gtsam::Symbol('v', curr_kf_id_));
   keys.push_back(gtsam::Symbol('b', curr_kf_id_));
@@ -922,7 +922,7 @@ void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id) {
 void VioBackEnd::optimize(
     const Timestamp& timestamp_kf_nsec, const FrameId& cur_id,
     const size_t& max_extra_iterations,
-    const std::vector<size_t>& extra_factor_slots_to_delete) {
+    gtsam::FactorIndices extra_factor_slots_to_delete) {
   CHECK(smoother_.get()) << "Incremental smoother is a null pointer.";
 
   // Only for statistics and debugging.
@@ -938,7 +938,7 @@ void VioBackEnd::optimize(
   // Extra factor slots to delete contains potential factors that we want to
   // delete, it is typically an empty vector. And is only used to give
   // flexibility to subclasses.
-  std::vector<size_t> delete_slots = extra_factor_slots_to_delete;
+  gtsam::FactorIndices delete_slots = extra_factor_slots_to_delete;
   std::vector<LandmarkId> lmk_ids_of_new_smart_factors_tmp;
   gtsam::NonlinearFactorGraph new_factors_tmp;
   for (const auto& new_smart_factor : new_smart_factors_) {
@@ -1199,8 +1199,9 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
 void VioBackEnd::updateSmoother(
     Smoother::Result* result,
     const gtsam::NonlinearFactorGraph& new_factors_tmp,
-    const gtsam::Values& new_values, const std::map<Key, double>& timestamps,
-    const std::vector<size_t>& delete_slots) {
+    const gtsam::Values& new_values,
+    const std::map<Key, double>& timestamps,
+    const gtsam::FactorIndices& delete_slots) {
   CHECK_NOTNULL(result);
   gtsam::NonlinearFactorGraph empty_graph;
 
@@ -1316,7 +1317,7 @@ void VioBackEnd::updateSmoother(
       gtsam::NonlinearFactorGraph new_factors_tmp_cheirality;
       gtsam::Values new_values_cheirality;
       std::map<Key, double> timestamps_cheirality;
-      std::vector<size_t> delete_slots_cheirality;
+      gtsam::FactorIndices delete_slots_cheirality;
       const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
       VLOG(10) << "Starting cleanCheiralityLmk...";
       cleanCheiralityLmk(lmk_symbol_cheirality, &new_factors_tmp_cheirality,
@@ -1361,11 +1362,12 @@ void VioBackEnd::cleanCheiralityLmk(
     gtsam::NonlinearFactorGraph* new_factors_tmp_cheirality,
     gtsam::Values* new_values_cheirality,
     std::map<Key, double>* timestamps_cheirality,
-    std::vector<size_t>* delete_slots_cheirality,
+    gtsam::FactorIndices* delete_slots_cheirality,
     const gtsam::NonlinearFactorGraph& graph,
     const gtsam::NonlinearFactorGraph& new_factors_tmp,
-    const gtsam::Values& new_values, const std::map<Key, double>& timestamps,
-    const std::vector<size_t>& delete_slots) {
+    const gtsam::Values& new_values,
+    const std::map<Key, double>& timestamps,
+    const gtsam::FactorIndices& delete_slots) {
   CHECK_NOTNULL(new_factors_tmp_cheirality);
   CHECK_NOTNULL(new_values_cheirality);
   CHECK_NOTNULL(timestamps_cheirality);
@@ -1667,7 +1669,8 @@ void VioBackEnd::printFeatureTracks() const {
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::printSmootherInfo(
     const gtsam::NonlinearFactorGraph& new_factors_tmp,
-    const std::vector<size_t>& delete_slots, const std::string& message,
+    const gtsam::FactorIndices& delete_slots,
+    const std::string& message,
     const bool& showDetails) const {
   LOG(INFO) << " =============== START:" << message
             << " =============== " << std::endl;
