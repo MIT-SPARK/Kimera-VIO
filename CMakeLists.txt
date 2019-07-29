@@ -43,17 +43,13 @@ endif(OpenCV_FOUND)
 ### Find the Dlib package # TODO: get rid of this dependency
 find_package(DLib REQUIRED)
 if(DLib_FOUND)
-  message(STATUS "Found DLib!")
-else()
-  message(STATUS "Did not find DLib. Please install.")
+  message(STATUS "FOUND DLib!")
 endif(DLib_FOUND)
 
 ### Find the DBoW2 package
 find_package(DBoW2)
 if(DBoW2_FOUND)
-  message(STATUS "Found DBoW2!")
-else()
-  message(STATUS "Did not find DBoW2. Please install.")
+  message(STATUS "FOUND DBoW2!")
 endif(DBoW2_FOUND)
 
 ### External Dependencies

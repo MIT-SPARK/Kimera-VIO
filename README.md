@@ -9,7 +9,7 @@ What is VIO?
 VIO is a library of C++ classes that implement the visual-inertial odometry pipeline described in these papers:
 
  - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
- 
+
  - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors. In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
 The Regular VIO backend is described in this paper:
@@ -125,6 +125,33 @@ $ cd build
 $ cmake ../
 $ sudo make -j8 install
 $ sudo make -j8 check
+```
+
+Installation of DBoW2 and DLib
+----------------------
+Note that DLib will be phased out soon.
+To instal DLib, which is a dependency of DboW2:
+```
+#!bash
+$ git clone https://github.com/marcusabate/DLib.git
+$ cd DLib
+$ mkdir build
+$ cd build
+$ cmake ../
+$ make
+$ sudo make install
+```
+
+To install DBoW2 for Bag-oF-words loop closure:
+```
+#!bash
+$ git clone https://github.com/marcusabate/DBoW2.git
+$ cd DboW2
+$ mkdir build
+$ cd build
+$ cmake ../
+$ make
+$ sudo make install
 ```
 
 Installation of CGAL (Optional: Not used for now)
