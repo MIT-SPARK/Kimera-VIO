@@ -229,17 +229,9 @@ To contribute to this repo, ensure your commits pass the linter pre-commit check
 
 Install the following dependencies to run the linter:
 
- * **requests**
-   ```
-   pip install requests
-   ```
- * **pylint**
-   * macOS:
-     ```
-     pip install pylint
-     ```
- * **yapf**
-   * Ubuntu / macOS: `pip install yapf`
+ * **requests** `pip install requests`
+ * **pylint** `pip install pylint`
+ * **yapf** `pip install yapf`
  * **clang-format**
    * Compatible with `clang-format-3.8 - 6.0`
    * Ubuntu: `sudo apt install clang-format-${VERSION}`
