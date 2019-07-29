@@ -59,23 +59,22 @@ RUN cd opengv/build && \
       cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DEIGEN_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
-# Install DBoW2
-RUN git clone https://github.com/marcusabate/DBoW2.git
-RUN cd DboW2 && \
-      mkdir build && \
-      cd build && \
-      cmake .. && \
-      make && \
-      make install
-
 # Install DLib
 RUN git clone https://github.com/marcusabate/DLib.git
 RUN cd DLib && \
       mkdir build && \
       cd build && \
       cmake .. && \
-      make && \
-      make install
+      make -j$(nproc) install
+
+# Install DBoW2
+RUN git clone https://github.com/marcusabate/DBoW2.git
+RUN cd DBoW2 && \
+      git checkout feature/orbslam2_updates && \
+      mkdir build && \
+      cd build && \
+      cmake .. && \
+      make -j$(nproc) install
 
 # Install spark_vio_evaluation from PyPI
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk

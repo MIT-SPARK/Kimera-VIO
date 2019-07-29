@@ -52,6 +52,12 @@ if(DBoW2_FOUND)
   message(STATUS "FOUND DBoW2!")
 endif(DBoW2_FOUND)
 
+### Unzip the vocabularly file
+execute_process(
+COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/vocabulary/ORBvoc.txt.tar.gz
+WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vocabulary
+)
+
 ### External Dependencies
 include(ExternalProject)
 
