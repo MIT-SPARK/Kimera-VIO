@@ -218,14 +218,21 @@ Tips for development
 > Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
 >
 
-# Use code linter
+For Developers: Pull Requests
+======================
+
+## Use code linter
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
 
-## Dependencies
+### Dependencies
 
 Install the following dependencies to run the linter:
 
+ * **requests**
+   ```
+   pip install requests
+   ```
  * **pylint**
    * macOS:
      ```
@@ -242,7 +249,7 @@ Install the following dependencies to run the linter:
      ln -s /usr/local/share/clang/clang-format-diff.py /usr/local/bin/clang-format-diff
      ```
 
-## Installation
+### Installation
 
 ```bash
 cd $THIS_REPO
