@@ -251,3 +251,10 @@ echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc  # Or 
                                                    # your shell.
 bash
 ```
+
+Then you can install the linter in your repository:
+
+```
+cd $THIS_REPO
+init_linter_git_hooks
+```
