@@ -264,10 +264,10 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
   imu_bias_lkf_ = initialBias;
   imu_bias_prev_kf_ = initialBias;
 
-  LOG(INFO) << "Initialized state: ";
-  W_Pose_B_lkf_.print("Initial pose");
-  LOG(INFO) << "\n Initial vel: " << W_Vel_B_lkf_.transpose();
-  imu_bias_lkf_.print("Initial bias: \n");
+  LOG(INFO) << "Initialized state: \n"
+            << "Initial pose: " << W_Pose_B_lkf_ << '\n'
+            << "Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
+            << "Initial IMU bias: " << imu_bias_lkf_;
 
   // Can't add inertial prior factor until we have a state measurement.
   addInitialPriorFactors(curr_kf_id_);
@@ -1566,7 +1566,8 @@ void VioBackEnd::setIsam2Params(
   isam_param->findUnusedFactorSlots = true;
   isam_param->enableDetailedResults = false;   // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY; // QR
-  isam_param->print("isam_param");
+  if (FLAGS_minloglevel < 1)
+    isam_param->print("isam_param");
   //isam_param.evaluateNonlinearError = true;  // only for debugging.
 }
 
@@ -1648,17 +1649,20 @@ void VioBackEnd::setSmartFactorsParams(
 void VioBackEnd::print() const {
   LOG(INFO) << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
             << ")))))))))))))))))))))))))))))))) ";
-  B_Pose_leftCam_.print("\n B_Pose_leftCam_\n");
-  stereo_cal_->print("\n stereoCal_\n");
+  if (FLAGS_minloglevel < 1) {
+    stereo_cal_->print("\n stereoCal_\n");
+  }
   vio_params_.print();
-  W_Pose_B_lkf_.print("\n W_Pose_Blkf_ \n");
-  LOG(INFO) << "\n W_Vel_Blkf_ " << W_Vel_B_lkf_.transpose();
-  imu_bias_lkf_.print("\n imu_bias_lkf_ \n");
-  imu_bias_prev_kf_.print("\n imu_bias_prev_kf_ \n");
-  LOG(INFO) << "last_id_ " << last_kf_id_ <<'\n'
-            << "cur_id_ " << curr_kf_id_ <<'\n'
-            << "verbosity_ " << verbosity_ <<'\n'
-            << "landmark_count_ " << landmark_count_ <<'\n'
+
+  LOG(INFO) << "\n B_Pose_leftCam_: " << B_Pose_leftCam_ << '\n'
+            << "W_Pose_B_lkf_: " << W_Pose_B_lkf_ << '\n'
+            << "W_Vel_B_lkf_ (transpose): " << W_Vel_B_lkf_.transpose() << '\n'
+            << "imu_bias_lkf_" << imu_bias_lkf_ << '\n'
+            << "imu_bias_prev_kf_" << imu_bias_prev_kf_ << '\n'
+            << "last_id_ " << last_kf_id_ << '\n'
+            << "cur_id_ " << curr_kf_id_ << '\n'
+            << "verbosity_ " << verbosity_ << '\n'
+            << "landmark_count_ " << landmark_count_ << '\n'
             << "(((((((((((((((((((((((((((((((((((((((((((((((()))))))))))))"
             << "))))))))))))))))))))))))))))))))) ";
 }

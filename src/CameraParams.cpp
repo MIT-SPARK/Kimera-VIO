@@ -80,16 +80,17 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 /* -------------------------------------------------------------------------- */
 // Display all params.
 void CameraParams::print() const {
-  LOG(INFO) << "------------ CameraParams::print -------------\n"
-            << "intrinsics_: ";
+  std::string output;
   for(size_t i = 0; i < intrinsics_.size(); i++) {
-    std::cout <<  intrinsics_.at(i) << " , ";
+    output += std::to_string(intrinsics_.at(i)) + " , ";
   }
-  std::cout << std::endl;
+  LOG(INFO) << "------------ CameraParams::print -------------\n"
+            << "intrinsics_: " << output;
 
   LOG(INFO) << "body_Pose_cam_: \n" << body_Pose_cam_ << std::endl;
 
-  calibration_.print("gtsam calibration:\n");
+  if (FLAGS_minloglevel < 1)
+    calibration_.print("\n gtsam calibration:\n");
 
   LOG(INFO) << "frame_rate_: " << frame_rate_ << '\n'
             << "image_size_: width= " << image_size_.width

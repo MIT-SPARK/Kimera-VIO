@@ -1,6 +1,5 @@
 /* ----------------------------------------------------------------------------
- * Copyright 2017, Massachusetts Institute of Technology,
- * Cambridge, MA 02139
+ * Copyright 2017, Massachusetts Institute of Technology, * Cambridge, MA 02139
  * All Rights Reserved
  * Authors: Luca Carlone, et al. (see THANKS for the full author list)
  * See LICENSE for the license information
@@ -16,9 +15,10 @@
  * @author Luca Carlone
  */
 
-#include "FeatureSelector.h"
-
 #include <boost/filesystem.hpp> // to create folders
+#include <glog/logging.h>
+
+#include "FeatureSelector.h"
 
 namespace VIO {
 
@@ -91,18 +91,21 @@ FeatureSelector::FeatureSelector(
 }
 
 void FeatureSelector::print() const {
-  std::cout << "=============== FEATURE SELECTOR =============" << std::endl;
-  std::cout << "imuDeltaT_: " << imuDeltaT_ << std::endl;
-  std::cout << "accVarianceDiscTime_: " << accVarianceDiscTime_ << std::endl;
-  std::cout << "biasAccVarianceDiscTime_: " << biasAccVarianceDiscTime_ << std::endl;
-  std::cout << "sqrtInfoVision_: " << sqrtInfoVision_ << std::endl;
-  std::cout << "integrationVar_: " << integrationVar_ << std::endl;
-  std::cout << "useStereo_: " << useStereo_ << std::endl;
-  std::cout << "featureSelectionDefaultDepth_: " << featureSelectionDefaultDepth_ << std::endl;
-  std::cout << "featureSelectionCosineNeighborhood_: " << featureSelectionCosineNeighborhood_ << std::endl;
-  std::cout << "landmarkDistanceThreshold_: " << landmarkDistanceThreshold_ << std::endl;
-  std::cout << "useLazyEvaluation_: " << useLazyEvaluation_ << std::endl;
-  std::cout << "useSuccessProbabilities_: " << useSuccessProbabilities_ << std::endl;
+  LOG(INFO) << "=============== FEATURE SELECTOR =============" << '\n'
+            << "imuDeltaT_: " << imuDeltaT_ << '\n'
+            << "accVarianceDiscTime_: " << accVarianceDiscTime_ << '\n'
+            << "biasAccVarianceDiscTime_: " << biasAccVarianceDiscTime_ << '\n'
+            << "sqrtInfoVision_: " << sqrtInfoVision_ << '\n'
+            << "integrationVar_: " << integrationVar_ << '\n'
+            << "useStereo_: " << useStereo_ << '\n'
+            << "featureSelectionDefaultDepth_: "
+            << featureSelectionDefaultDepth_ << '\n'
+            << "featureSelectionCosineNeighborhood_: "
+            << featureSelectionCosineNeighborhood_ << '\n'
+            << "landmarkDistanceThreshold_: " << landmarkDistanceThreshold_
+            << '\n'
+            << "useLazyEvaluation_: " << useLazyEvaluation_ << '\n'
+            << "useSuccessProbabilities_: " << useSuccessProbabilities_;
 }
 
 /* ------------------------------------------------------------------------ */
