@@ -80,7 +80,8 @@ void CameraImageLists::print() const {
 /* -------------------------------------------------------------------------- */
 void GroundTruthData::print() const {
   LOG(INFO) << "------------ GroundTruthData::print -------------";
-  body_Pose_cam_.print("body_Pose_cam_: \n");
+  if (FLAGS_minloglevel < 1)
+    body_Pose_cam_.print("body_Pose_cam_: \n");
   LOG(INFO) << "\n gt_rate: " << gt_rate_ << '\n'
             << "nr of gtStates: " << mapToGt_.size();
 }
@@ -879,7 +880,8 @@ void ETHDatasetParser::print() const {
             << "------------------ ETHDatasetParser::print ------------------\n"
             << "-------------------------------------------------------------\n"
             << "Displaying info for dataset: " << dataset_path_;
-  camL_Pose_camR_.print("camL_Pose_calR \n");
+  if (FLAGS_minloglevel < 1)
+    camL_Pose_camR_.print("camL_Pose_calR \n");
   // For each of the 2 cameras.
   for (size_t i = 0; i < camera_names_.size(); i++) {
     LOG(INFO) << "\n"
@@ -888,8 +890,10 @@ void ETHDatasetParser::print() const {
     camera_info_.at(camera_names_[i]).print();
     camera_image_lists_.at(camera_names_[i]).print();
   }
-  gtData_.print();
-  imuData_.print();
+  if (FLAGS_minloglevel < 1) {
+    gtData_.print();
+    imuData_.print();
+  }
   LOG(INFO) << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------";

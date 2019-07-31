@@ -228,21 +228,20 @@ Tips for development
 > Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
 >
 
-# Use code linter
+For Developers: Pull Requests
+======================
+
+## Use code linter
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
 
-## Dependencies
+### Dependencies
 
 Install the following dependencies to run the linter:
 
- * **pylint**
-   * macOS:
-     ```
-     pip install pylint
-     ```
- * **yapf**
-   * Ubuntu / macOS: `pip install yapf`
+ * **requests** `pip install requests`
+ * **pylint** `pip install pylint`
+ * **yapf** `pip install yapf`
  * **clang-format**
    * Compatible with `clang-format-3.8 - 6.0`
    * Ubuntu: `sudo apt install clang-format-${VERSION}`
@@ -252,7 +251,7 @@ Install the following dependencies to run the linter:
      ln -s /usr/local/share/clang/clang-format-diff.py /usr/local/bin/clang-format-diff
      ```
 
-## Installation
+### Installation
 
 ```bash
 cd $THIS_REPO
@@ -261,3 +260,11 @@ echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc  # Or 
                                                    # your shell.
 bash
 ```
+
+Then you can install the linter in your repository:
+
+```
+cd $THIS_REPO
+init_linter_git_hooks
+```
+For more information about the linter, check [here](https://github.com/ToniRV/linter).
