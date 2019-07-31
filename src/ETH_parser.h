@@ -30,10 +30,11 @@
 
 #include "Frame.h"
 #include "ImuFrontEnd.h"
-#include "VioFrontEndParams.h"
-#include "VioBackEndParams.h"
+#include "LoopClosureDetectorParams.h"
 #include "RegularVioBackEndParams.h"
 #include "StereoImuSyncPacket.h"
+#include "VioBackEndParams.h"
+#include "VioFrontEndParams.h"
 #include "datasource/DataSource.h"
 
 namespace VIO {
@@ -162,9 +163,9 @@ public:
                 const gtsam::Pose3& camL_pose_camR);
 
   // Helper function to parse Euroc dataset.
-  void parse(size_t* initial_k, size_t* final_k,
-             VioBackEndParamsPtr vioParams,
-             VioFrontEndParams* trackerParams);
+  void parse(size_t* initial_k, size_t* final_k, VioBackEndParamsPtr vioParams,
+             VioFrontEndParams* trackerParams,
+             LoopClosureDetectorParams* lcdParams);
 
   // Parse camera, gt, and imu data if using different Euroc format.
   bool parseDataset(const std::string& input_dataset_path,
@@ -204,6 +205,7 @@ public:
   // Getters for params. Right now just returns a copy, should be optimized?
   inline VioBackEndParamsConstPtr getBackendParams() const {return backend_params_;}
   inline VioFrontEndParams getFrontendParams() const {return frontend_params_;}
+  inline LoopClosureDetectorParams getLCDParams() const { return lcd_params_; }
   // TODO This info should be in backend_params_ itself...
   int getBackendType() const;
 
@@ -218,31 +220,31 @@ public:
 
 private:
   // Helper function to parse user-specified parameters.
-  void parseParams(VioBackEndParamsPtr backend_params,
-                   VioFrontEndParams* tracker_params);
+ void parseParams(VioBackEndParamsPtr backend_params,
+                  VioFrontEndParams* tracker_params,
+                  LoopClosureDetectorParams* lcd_params);
 
+ // Parse cam0, cam1 of a given dataset.
+ bool parseCameraData(const std::string& input_dataset_path,
+                      const std::string& leftCameraName,
+                      const std::string& rightCameraName,
+                      const bool doParseImages = true);
 
-  // Parse cam0, cam1 of a given dataset.
-  bool parseCameraData(const std::string& input_dataset_path,
-                       const std::string& leftCameraName,
-                       const std::string& rightCameraName,
-                       const bool doParseImages = true);
+ // Parse IMU parameters.
+ bool parseImuParams(const std::string& input_dataset_path,
+                     const std::string& imuName);
 
-  // Parse IMU parameters.
-  bool parseImuParams(const std::string& input_dataset_path,
-                      const std::string& imuName);
+ // Parse IMU data of a given dataset.
+ bool parseImuData(const std::string& input_dataset_path,
+                   const std::string& imuName);
 
-  // Parse IMU data of a given dataset.
-  bool parseImuData(const std::string& input_dataset_path,
-                    const std::string& imuName);
+ // Parse ground truth data.
+ bool parseGTdata(const std::string& input_dataset_path,
+                  const std::string& gtSensorName);
 
-  // Parse ground truth data.
-  bool parseGTdata(const std::string& input_dataset_path,
-                   const std::string& gtSensorName);
-
-  /// Getters.
-  inline size_t getNumImages() const {
-    return camera_image_lists_.at(camera_names_.at(0)).getNumImages();
+ /// Getters.
+ inline size_t getNumImages() const {
+   return camera_image_lists_.at(camera_names_.at(0)).getNumImages();
   }
   inline std::string getImgName(const std::string& id, const size_t& k) const {
     return camera_image_lists_.at(id).img_lists.at(k).second;
@@ -276,6 +278,7 @@ private:
   // Init Vio parameters.
   VioBackEndParamsPtr backend_params_;
   VioFrontEndParams frontend_params_;
+  LoopClosureDetectorParams lcd_params_;
 
   /// Images data.
   // This matches the names of the folders in the dataset

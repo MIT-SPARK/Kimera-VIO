@@ -15,10 +15,13 @@
 #ifndef LoopClosureDetector_H_
 #define LoopClosureDetector_H_
 
+#include <algorithm>
+#include <memory>
 #include <string>
+#include <vector>
 
-#include <boost/shared_ptr.hpp> // used for opengv
 #include <gtsam/base/Matrix.h>
+#include <boost/shared_ptr.hpp>
 
 #include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/Point3.h>
@@ -41,9 +44,9 @@
 namespace VIO {
 
 class LoopClosureDetector {
-public:
+ public:
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-      const bool log_output=false);
+                      const bool log_output = false);
 
   virtual ~LoopClosureDetector() {
     LOG(INFO) << "LoopClosureDetector desctuctor called.";
@@ -56,17 +59,20 @@ public:
   LoopClosureDetectorOutputPayload spinOnce(
       const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
 
-  LoopClosureDetectorOutputPayload checkLoopClosure(StereoFrame& stereo_frame);
+  LoopClosureDetectorOutputPayload checkLoopClosure(
+      const StereoFrame& stereo_frame);
 
-  FrameId processAndAddFrame(StereoFrame& stereo_frame);
+  FrameId processAndAddFrame(const StereoFrame& stereo_frame);
 
-  LoopResult detectLoop(size_t frame_id);
+  bool detectLoop(const FrameId& frame_id, LoopResult* result);
 
   bool geometricVerificationCheck(const FrameId& query_id,
-      const FrameId& match_id, LoopResult& result);
+                                  const FrameId& match_id,
+                                  gtsam::Pose3* camRef_T_camCur_mono) const;
 
-  gtsam::Pose3 compute3DPose(const FrameId& query_id, const FrameId& match_id,
-      gtsam::Pose3& pose_estimate);
+  bool recoverPose(const FrameId& query_id, const FrameId& match_id,
+                   const gtsam::Pose3& camRef_T_camCur_mono,
+                   gtsam::Pose3* bodyRef_T_bodyCur_stereo) const;
 
   inline void shutdown() {
     LOG_IF(WARNING, shutdown_) << "Shutdown requested, but LoopClosureDetector "
@@ -82,7 +88,9 @@ public:
 
   inline bool isWorking() const { return is_thread_working_; }
 
-  inline LoopClosureDetectorParams& getLCDParams() { return lcd_params_; }
+  inline const LoopClosureDetectorParams& getLCDParams() const {
+    return lcd_params_;
+  }
 
   inline LoopClosureDetectorParams* getLCDParamsMutable() {
     return &lcd_params_;
@@ -92,13 +100,13 @@ public:
 
   inline const OrbDatabase* getBoWDatabase() const { return &db_BoW_; }
 
-  inline const std::vector<LCDFrame>* getFrameDatabase() const {
+  inline const std::vector<LCDFrame>* getFrameDatabasePtr() const {
     return &db_frames_;
   }
 
-  inline bool getIntrinsicsFlag() const { return set_intrinsics_; }
+  inline const bool getIntrinsicsFlag() const { return set_intrinsics_; }
 
-  // TODO: maybe this should be private. But that makes testing harder.
+  // TODO(marcus): maybe this should be private. But that makes testing harder.
   void setIntrinsics(const StereoFrame& stereo_frame);
 
   void setDatabase(const OrbDatabase& db);
@@ -111,28 +119,31 @@ public:
 
   void print() const;
 
-  // TODO: utils and reorder (or just static)
-  void rewriteStereoFrameFeatures(StereoFrame& stereo_frame,
-    const std::vector<cv::KeyPoint>& keypoints);
+  // TODO(marcus): utils and reorder (or just static)
+  void rewriteStereoFrameFeatures(const std::vector<cv::KeyPoint>& keypoints,
+                                  StereoFrame* stereo_frame) const;
 
-  // TODO: it would be nice if this could be a util
-  // TODO: can this be static even though it requires id? Maybe feed it descriptors instead
+  // TODO(marcus): it would be nice if this could be a util
+  // TODO(marcus): can this be static even though it requires id? Maybe feed it
+  // descriptors instead
   cv::Mat computeAndDrawMatchesBetweenFrames(const cv::Mat& query_img,
-    const cv::Mat& match_img, const size_t& query_id, const size_t& match_id,
-    bool cut_matches=false);
+                                             const cv::Mat& match_img,
+                                             const FrameId& query_id,
+                                             const FrameId& match_id,
+                                             bool cut_matches = false) const;
 
-  static gtsam::Pose3 mat2pose(const cv::Mat& R, const cv::Mat& t);
+  // TODO(marcus): maybe these should be private?
+  void transformCameraPose2BodyPose(const gtsam::Pose3& camRef_T_camCur,
+                                    gtsam::Pose3* bodyRef_T_bodyCur) const;
 
-  // TODO: maybe these should be private?
-  void transformCameraPose2BodyPose(gtsam::Pose3& camRef_T_camCur,
-      gtsam::Pose3* bodyRef_T_bodyCur) const;
+  void transformBodyPose2CameraPose(const gtsam::Pose3& bodyRef_T_bodyCur,
+                                    gtsam::Pose3* camRef_T_camCur) const;
 
-  void transformBodyPose2CameraPose(gtsam::Pose3& bodyRef_T_bodyCur,
-      gtsam::Pose3* camRef_T_camCur) const;
-
-private:
+ private:
+  // TODO(marcus): review this one
   bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
 
+  // TODO(marcus): review these
   void computeIslands(DBoW2::QueryResults& q,
       std::vector<MatchIsland>& islands) const;
 
@@ -140,22 +151,22 @@ private:
       const FrameId& start_id, const FrameId& end_id) const;
 
   void computeMatchedIndices(const FrameId& query_id, const FrameId& match_id,
-      std::vector<unsigned int>& i_query, std::vector<unsigned int>& i_match,
-      bool cut_matches=false);
+                             std::vector<unsigned int>& i_query,
+                             std::vector<unsigned int>& i_match,
+                             bool cut_matches = false) const;
 
-  bool geometricVerification_cv(const FrameId& query_id,
-      const FrameId& match_id, LoopResult& result);
+  bool geometricVerification_nister(const FrameId& query_id,
+                                    const FrameId& match_id,
+                                    gtsam::Pose3* camRef_T_camCur_mono) const;
 
-  bool geometricVerification_gv(const FrameId& query_id,
-      const FrameId& match_id, LoopResult& result);
+  bool recoverPose_arun(const FrameId& query_id, const FrameId& match_id,
+                        gtsam::Pose3* bodyRef_T_bodyCur) const;
 
-  gtsam::Pose3 compute3DPose3pt(const FrameId& query_id,
-      const FrameId& match_id);
+  bool recoverPose_givenRot(const FrameId& query_id, const FrameId& match_id,
+                            const gtsam::Pose3& camRef_T_camCur_mono,
+                            gtsam::Pose3* bodyRef_T_bodyCur) const;
 
-  gtsam::Pose3 compute3DPoseGiven2D(const FrameId& query_id,
-      const FrameId& match_id, gtsam::Pose3& pose_2d);
-
-private:
+ private:
   // Parameter members
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = {false};
@@ -182,9 +193,7 @@ private:
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
+};  // class LoopClosureDetector
 
-
-}; // class LoopClosureDetector
-
-} // namespace VIO
-#endif /* LoopClosureDetector_H_ */
+}  // namespace VIO
+#endif  // LoopClosureDetector_H_

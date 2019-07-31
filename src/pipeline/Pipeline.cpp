@@ -106,8 +106,7 @@ Pipeline::Pipeline(ETHDatasetParser* dataset, const ImuParams& imu_params,
 
   frontend_params_ = dataset_->getFrontendParams();
   backend_params_ = dataset_->getBackendParams();
-  // lcd_params_ = dataset_->getLCDParams(); // TODO Marcus: add this/flags
-  lcd_params_ = LoopClosureDetectorParams();
+  lcd_params_ = dataset_->getLCDParams();
 
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.

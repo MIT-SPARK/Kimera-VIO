@@ -1,9 +1,5 @@
 %YAML:1.0
 # LoopClosureDetector parameters:
-vocabulary_path: "/home/marcus/code/VIO/vocabulary/ORBvoc.txt"
-image_width: 752
-image_height: 480
-
 use_nss: 1
 alpha: 0.1
 min_temporal_matches: 3
@@ -15,18 +11,20 @@ max_intragroup_gap: 3
 max_distance_between_groups: 3
 max_distance_between_queries: 2
 
-geom_check_id: 1
+geom_check_id: 0
 min_correspondences: 12
 max_ransac_iterations_mono: 500
 ransac_probability_mono: 0.99
 ransac_threshold_mono: 1e-6
 ransac_randomize_mono: 0
+ransac_inlier_threshold_mono: 0.5
 
 pose_recovery_option_id: 1
 max_ransac_iterations_stereo: 500
 ransac_probability_stereo: 0.995
 ransac_threshold_stereo: 0.15
 ransac_randomize_stereo: 0
+ransac_inlier_threshold_stereo: 0.5
 use_mono_rot: 1
 
 lowe_ratio: 0.7
@@ -42,10 +40,9 @@ patch_sze: 31
 fast_threshold: 20
 
 # geom_check_id options:
-#   0: TEMP_CV
-#   1: NISTER
-#   2: NONE
+#   0: NISTER
+#   1: NONE
 
 # pose_recovery_option_id options:
-#   0: RANSAC_3PT
+#   0: RANSAC_ARUN
 #   1: GIVEN_ROT

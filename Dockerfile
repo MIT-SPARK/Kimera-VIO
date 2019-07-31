@@ -62,6 +62,7 @@ RUN cd opengv/build && \
 # Install DLib
 RUN git clone https://github.com/marcusabate/DLib.git
 RUN cd DLib && \
+      git fetch && git checkout feature/spark_vio_compatibility && \
       mkdir build && \
       cd build && \
       cmake .. && \
@@ -70,7 +71,7 @@ RUN cd DLib && \
 # Install DBoW2
 RUN git clone https://github.com/marcusabate/DBoW2.git
 RUN cd DBoW2 && \
-      git checkout feature/orbslam2_updates && \
+      git fetch && git checkout feature/orbslam2_updates && \
       mkdir build && \
       cd build && \
       cmake .. && \

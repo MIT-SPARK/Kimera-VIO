@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "common/vio_types.h"
 #include "StereoFrame.h"
 
@@ -46,19 +48,16 @@ enum LCDStatus {
   LOW_SCORE,
   NO_GROUPS,
   FAILED_TEMPORAL_CONSTRAINT,
-  FAILED_GEOM_VERIFICATION
+  FAILED_GEOM_VERIFICATION,
+  FAILED_POSE_RECOVERY
 };
 
 enum GeomVerifOption {
-  TEMP_CV,
   NISTER,
   NONE
 };
 
-enum PoseRecoveryOption {
-  RANSAC_3PT,
-  GIVEN_ROT
-};
+enum PoseRecoveryOption { RANSAC_ARUN, GIVEN_ROT };
 
 struct LCDFrame {
   LCDFrame() {}
@@ -86,10 +85,8 @@ struct LCDFrame {
   std::vector<gtsam::Vector3> keypoints_3d_;
   std::vector<cv::Mat> descriptors_vec_;
   cv::Mat descriptors_mat_;
-  DBoW2::FeatureVector feat_vec_; // Only used if using DIRECT_INDEX
   BearingVectors versors_;
-
-}; // struct LCDFrame
+};  // struct LCDFrame
 
 struct MatchIsland {
   MatchIsland() {}
@@ -123,8 +120,7 @@ struct MatchIsland {
   double island_score_;
   FrameId best_id_;
   double best_score_;
-
-}; // struct MatchIsland
+};  // struct MatchIsland
 
 struct LoopResult {
   inline bool isLoop() const { return status_ == LCDStatus::LOOP_DETECTED; }
@@ -132,9 +128,8 @@ struct LoopResult {
   LCDStatus status_;
   FrameId query_id_;
   FrameId match_id_;
-  gtsam::Pose3 relative_pose_mono_;
-
-}; // struct LoopResult
+  gtsam::Pose3 relative_pose_;
+};  // struct LoopResult
 
 struct LoopClosureDetectorInputPayload {
   LoopClosureDetectorInputPayload(const Timestamp& timestamp_kf,
@@ -144,8 +139,7 @@ struct LoopClosureDetectorInputPayload {
 
   const Timestamp timestamp_kf_;
   const StereoFrame stereo_frame_;
-
-}; // struct LoopClosureDetectorInputPayload
+};  // struct LoopClosureDetectorInputPayload
 
 struct LoopClosureDetectorOutputPayload {
   LoopClosureDetectorOutputPayload(bool is_loop,
@@ -159,12 +153,12 @@ struct LoopClosureDetectorOutputPayload {
       id_recent_(id_recent),
       relative_pose_(relative_pose) {}
 
-  // TODO: inlude stats/score of match
+  // TODO(marcus): inlude stats/score of match
   const bool is_loop_;
   const Timestamp timestamp_kf_;
   const FrameId id_match_;
   const FrameId id_recent_;
   const gtsam::Pose3 relative_pose_;
-}; // struct LoopClosureDetectorOutputPayload
+};  // struct LoopClosureDetectorOutputPayload
 
-} // namespace VIO
+}  // namespace VIO

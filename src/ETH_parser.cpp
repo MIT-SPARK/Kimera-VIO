@@ -21,6 +21,8 @@ DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
 DEFINE_string(vio_params_path, "", "Path to vio user-defined parameters.");
 DEFINE_string(tracker_params_path, "",
               "Path to tracker user-defined parameters.");
+DEFINE_string(lcd_params_path, "",
+              "Path to loop-closure-detector user-defined parameters.");
 DEFINE_int32(backend_type, 0,
              "Type of vioBackEnd to use:\n"
              "0: VioBackEnd\n"
@@ -92,7 +94,8 @@ void GroundTruthData::print() const {
 ETHDatasetParser::ETHDatasetParser() : DataProvider(), imuData_() {
   // TODO(Toni) this should be done in the backend.
   setBackendParamsType(FLAGS_backend_type, &backend_params_);
-  parse(&initial_k_, &final_k_, backend_params_, &frontend_params_);
+  parse(&initial_k_, &final_k_, backend_params_, &frontend_params_,
+        &lcd_params_);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -208,11 +211,13 @@ void ETHDatasetParser::spinOnce(
 /* -------------------------------------------------------------------------- */
 void ETHDatasetParser::parse(size_t* initial_k, size_t* final_k,
                              VioBackEndParamsPtr backend_params,
-                             VioFrontEndParams* frontend_params) {
+                             VioFrontEndParams* frontend_params,
+                             LoopClosureDetectorParams* lcd_params) {
   CHECK_NOTNULL(initial_k);
   CHECK_NOTNULL(final_k);
   CHECK(backend_params);
   CHECK_NOTNULL(frontend_params);
+  CHECK_NOTNULL(lcd_params);
 
   VLOG(100) << "Using dataset path: " << FLAGS_dataset_path;
   // Parse the dataset (ETH format).
@@ -257,14 +262,16 @@ void ETHDatasetParser::parse(size_t* initial_k, size_t* final_k,
 
   // Parse parameters. TODO(Toni) the parameters parser should be separate from
   // the actual dataset provider!!
-  parseParams(backend_params, frontend_params);
+  parseParams(backend_params, frontend_params, lcd_params);
 }
 
 /* -------------------------------------------------------------------------- */
 void ETHDatasetParser::parseParams(VioBackEndParamsPtr backend_params,
-                                   VioFrontEndParams* trackerParams) {
+                                   VioFrontEndParams* trackerParams,
+                                   LoopClosureDetectorParams* lcdParams) {
   CHECK(backend_params);
   CHECK_NOTNULL(trackerParams);
+  CHECK_NOTNULL(lcdParams);
 
   // Read/define vio params.
   if (FLAGS_vio_params_path.empty()) {
@@ -293,6 +300,16 @@ void ETHDatasetParser::parseParams(VioBackEndParamsPtr backend_params,
     VLOG(100) << "Using user-specified tracker parameters: "
               << FLAGS_tracker_params_path;
     trackerParams->parseYAML(FLAGS_tracker_params_path);
+  }
+
+  // Read/define lcd params.
+  if (FLAGS_lcd_params_path.empty()) {
+    VLOG(100) << "No LoopClosureDetector parameters specified, using default";
+    *lcdParams = LoopClosureDetectorParams();  // default params
+  } else {
+    VLOG(100) << "Using user-specified tracker parameters: "
+              << FLAGS_lcd_params_path;
+    lcdParams->parseYAML(FLAGS_lcd_params_path);
   }
 }
 

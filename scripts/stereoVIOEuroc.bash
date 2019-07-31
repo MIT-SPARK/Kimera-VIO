@@ -47,10 +47,12 @@ fi
 BACKEND_TYPE=0
 VIO_PARAMS_PATH=""
 TRACKER_PARAMS_PATH=""
+LCD_PARAMS_PATH=""
 if [ $USE_REGULAR_VIO == 1 ]; then
   BACKEND_TYPE=1
   VIO_PARAMS_PATH="../params/regularVioParameters.yaml"
   TRACKER_PARAMS_PATH="../params/trackerParameters.yaml"
+  LCD_PARAMS_PATH="../params/tLCDParameters.yaml"
 fi
 
 # Change directory to parent path, in order to make this script
@@ -81,6 +83,8 @@ echo """ Launching:
   --initial_k=150 \
   --final_k=2000 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
+  --lcd_params_path="$LCD_PARAMS_PATH" \
+  --vocabulary_path="../vocabulary/ORBvoc.txt" \
   --flagfile="../params/flags/stereoVIOEuroc.flags" \
   --flagfile="../params/flags/Mesher.flags" \
   --flagfile="../params/flags/VioBackEnd.flags" \
