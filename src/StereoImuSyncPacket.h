@@ -51,12 +51,12 @@ struct ReinitPacket {
     inline const ImuBias& getReinitBias() const {return imu_bias_ext_;}
 
     // Setting pose
-    inline void setReinitFlag(bool& reinit_flag) { reinit_flag_ext_ = reinit_flag;}
+    inline void setReinitFlag(bool reinit_flag) { reinit_flag_ext_ = reinit_flag;}
     inline void resetReinitFlag() { reinit_flag_ext_ = false;}
     inline void setReinitPose(gtsam::Pose3& external_pose) { W_Pose_Bext_ = external_pose;}
 
     void print() const {
-      if (getReinitFlag()) {
+      if (reinit_flag_ext_) {
         LOG(INFO) 
           << "VIO to be reinitialised with:\n"
           << "TIMESTAMP : \n"<< getReinitTime() << '\n'
@@ -70,6 +70,8 @@ struct ReinitPacket {
 
 class StereoImuSyncPacket {
 public:
+  // WARNING do not use constructor params after being moved with 
+  // std::move as they are left in an invalid state!!
   StereoImuSyncPacket() = delete;
   StereoImuSyncPacket(StereoFrame stereo_frame,
                       ImuStampS imu_stamps,
@@ -82,6 +84,10 @@ public:
   inline const ImuStampS& getImuStamps() const {return imu_stamps_;}
   inline const ImuAccGyrS& getImuAccGyr() const {return imu_accgyr_;}
   inline const ReinitPacket& getReinitPacket() const {return reinit_packet_;}
+  inline const bool getReinitFlag() const {return reinit_packet_.getReinitFlag();}
+
+  // This enforces the frame to be a keyframe
+  void setAsKeyframe() { stereo_frame_.setIsKeyframe(true); }
 
   void print() const {
     LOG(INFO)

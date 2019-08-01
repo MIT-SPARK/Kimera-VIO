@@ -56,6 +56,12 @@ public:
     : pose_(pose),
       velocity_(velocity),
       imu_bias_(imu_bias) {}
+  gtNavState(const gtsam::NavState& nav_state,
+             const gtsam::imuBias::ConstantBias& imu_bias)
+    : pose_(nav_state.pose()),
+      velocity_(nav_state.velocity()),
+      imu_bias_(imu_bias) {}
+
 
   gtsam::Pose3 pose_;
   gtsam::Vector3 velocity_;
@@ -69,6 +75,43 @@ public:
       imu_bias_.print("\n imuBias: \n");
     }
   }
+
+  gtsam::Pose3 pose() const { return pose_; };
+};
+
+// Struct for performance in initialization
+struct InitializationPerformance {
+  public:
+    // Default constructor
+    InitializationPerformance(
+      const Timestamp init_timestamp,
+      const int init_n_frames,
+      const double avg_rotationErrorBA,
+      const double avg_tranErrorBA,
+      const gtNavState init_nav_state,
+      const gtsam::Vector3 init_gravity,
+      const gtNavState gt_nav_state,
+      const gtsam::Vector3 gt_gravity)
+      : init_timestamp_(init_timestamp),
+        init_n_frames_(init_n_frames),
+        avg_rotationErrorBA_(avg_rotationErrorBA),
+        avg_tranErrorBA_(avg_tranErrorBA),
+        init_nav_state_(init_nav_state),
+        init_gravity_(init_gravity),
+        gt_nav_state_(gt_nav_state),
+        gt_gravity_(gt_gravity) {}
+
+    void print() const;
+
+  public:
+    const Timestamp init_timestamp_;
+    const int init_n_frames_;
+    const double avg_rotationErrorBA_;
+    const double avg_tranErrorBA_;
+    const gtNavState init_nav_state_;
+    const gtsam::Vector3 init_gravity_;
+    const gtNavState gt_nav_state_;
+    const gtsam::Vector3 gt_gravity_;
 };
 
 /*
@@ -112,6 +155,7 @@ public:
 class ETHDatasetParser : public DataProvider {
 public:
   ETHDatasetParser();
+  ETHDatasetParser(const std::string& input_string);
   virtual ~ETHDatasetParser();
 
   // Decides backend parameters depending on the backend chosen.
@@ -183,6 +227,13 @@ public:
   // Retrieve absolute pose at timestamp.
   gtNavState getGroundTruthState(const Timestamp& timestamp) const;
 
+  // Compute initialization errors and stats.
+  const InitializationPerformance getInitializationPerformance(
+                    const std::vector<Timestamp>& timestamps,
+                    const std::vector<gtsam::Pose3>& poses_ba,
+                    const gtNavState& init_nav_state,
+                    const gtsam::Vector3& init_gravity);
+
   // Check if the ground truth is available.
   // (i.e., the timestamp is after the first gt state)
   bool isGroundTruthAvailable(const Timestamp& timestamp) const;
@@ -212,6 +263,14 @@ public:
   // Print info about dataset.
   void print() const;
 
+  // Parse IMU data of a given dataset.
+  bool parseImuData(const std::string& input_dataset_path,
+                    const std::string& imuName);
+
+  // Parse ground truth data.
+  bool parseGTdata(const std::string& input_dataset_path,
+                   const std::string& gtSensorName);
+
 public:
   // THIS IS ONLY HERE BECAUSE the pipeline needs to know what is this value.
   // But it should not need to!!
@@ -220,31 +279,23 @@ public:
 
 private:
   // Helper function to parse user-specified parameters.
- void parseParams(VioBackEndParamsPtr backend_params,
-                  VioFrontEndParams* tracker_params,
-                  LoopClosureDetectorParams* lcd_params);
+  void parseParams(VioBackEndParamsPtr backend_params,
+                   VioFrontEndParams* tracker_params,
+                   LoopClosureDetectorParams* lcd_params);
 
- // Parse cam0, cam1 of a given dataset.
- bool parseCameraData(const std::string& input_dataset_path,
-                      const std::string& leftCameraName,
-                      const std::string& rightCameraName,
-                      const bool doParseImages = true);
+  // Parse cam0, cam1 of a given dataset.
+  bool parseCameraData(const std::string& input_dataset_path,
+                       const std::string& leftCameraName,
+                       const std::string& rightCameraName,
+                       const bool doParseImages = true);
 
- // Parse IMU parameters.
- bool parseImuParams(const std::string& input_dataset_path,
-                     const std::string& imuName);
+  // Parse IMU parameters.
+  bool parseImuParams(const std::string& input_dataset_path,
+                      const std::string& imuName);
 
- // Parse IMU data of a given dataset.
- bool parseImuData(const std::string& input_dataset_path,
-                   const std::string& imuName);
-
- // Parse ground truth data.
- bool parseGTdata(const std::string& input_dataset_path,
-                  const std::string& gtSensorName);
-
- /// Getters.
- inline size_t getNumImages() const {
-   return camera_image_lists_.at(camera_names_.at(0)).getNumImages();
+  /// Getters.
+  inline size_t getNumImages() const {
+    return camera_image_lists_.at(camera_names_.at(0)).getNumImages();
   }
   inline std::string getImgName(const std::string& id, const size_t& k) const {
     return camera_image_lists_.at(id).img_lists.at(k).second;

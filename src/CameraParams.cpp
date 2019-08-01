@@ -30,8 +30,6 @@ bool CameraParams::parseYAML(const std::string& filepath) {
   fs["intrinsics"] >> intrinsics_;
 
   // 4 parameters (read from file): distortion_model: radial-tangential
-  // TODO (Toni) allow for different distortion models, at least equidistant as
-  // well!
   std::vector<double> distortion_coeff4_;
   distortion_coeff4_.clear();
   fs["distortion_model"] >> distortion_model_;
@@ -104,14 +102,17 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
   // rate is approx 10 hz as given by the README
   frame_rate_ = 1 / 10.0;
 
+  // rate is approx 10 hz as given by the README
+  frame_rate_ = 1 / 10.0;
+
   // set up R and T matrices
-  cv::Mat cvR = cv::Mat::zeros(3, 3, CV_64F);
-  cv::Mat cvT = cv::Mat::zeros(3, 1, CV_64F);
+  cv::Mat rotation = cv::Mat::zeros(3, 3, CV_64F);
+  cv::Mat translation = cv::Mat::zeros(3, 1, CV_64F);
 
   // Set up to read the text file
   std::ifstream calib_file;
   calib_file.open(filepath.c_str());
-  CHECK(calib_file.is_open());
+  CHECK(calib_file.is_open()) << "Could not open file at: " << filepath.c_str();
   std::vector<double> distortion_coeff5_;
   // read loop
   while (!calib_file.eof()) {
@@ -153,22 +154,21 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
           distortion_coeff_.at<double>(0, k) = distortion_coeff5_[k];
         }
 
-      } else if (label == "R_" + cam_id + ":") {
+      }else if (label == "R_" + cam_id + ":") {
         // this entry gives the rotation matrix
         double value;
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 9; i++){
           ss >> value;
-          int row = i / 3;
-          int col = i % 3;
-          cvR.at<double>(row, col) = value;
+          int row = i/3; int col = i%3;
+          rotation.at<double>(row, col) = value;
         }
 
-      } else if (label == "T_" + cam_id + ":") {
+      }else if (label == "T_" + cam_id + ":") {
         // this entry gives the translation
         double value;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 3; i++){
           ss >> value;
-          cvT.at<double>(i, 0) = value;
+          translation.at<double>(i, 0) = value;
         }
 
       } else if (label == "R_rect_" + cam_id + ":") {
@@ -196,11 +196,10 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
   }
 
   // Cam pose wrt to body
+  rotation = R_cam_to_body * rotation.t();
+  translation = T_cam_to_body - R_cam_to_body * translation;
 
-  cvR = R_cam_to_body * cvR.t();
-  cvT = T_cam_to_body - R_cam_to_body * cvT;
-
-  body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(cvR, cvT);
+  body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(rotation, translation);
 
   calibration_ = gtsam::Cal3DS2(intrinsics_[0],          // fx
                                 intrinsics_[1],          // fy
@@ -219,16 +218,17 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
 /* -------------------------------------------------------------------------- */
 // Display all params.
 void CameraParams::print() const {
-  LOG(INFO) << "------------ CameraParams::print -------------\n"
-            << "intrinsics_: ";
-  for (size_t i = 0; i < intrinsics_.size(); i++) {
-    std::cout << intrinsics_.at(i) << " , ";
+  std::string output;
+  for(size_t i = 0; i < intrinsics_.size(); i++) {
+    output += std::to_string(intrinsics_.at(i)) + " , ";
   }
-  std::cout << std::endl;
+  LOG(INFO) << "------------ CameraParams::print -------------\n"
+            << "intrinsics_: " << output;
 
   LOG(INFO) << "body_Pose_cam_: \n" << body_Pose_cam_ << std::endl;
 
-  calibration_.print("gtsam calibration:\n");
+  if (FLAGS_minloglevel < 1)
+    calibration_.print("\n gtsam calibration:\n");
 
   LOG(INFO) << "frame_rate_: " << frame_rate_ << '\n'
             << "image_size_: width= " << image_size_.width

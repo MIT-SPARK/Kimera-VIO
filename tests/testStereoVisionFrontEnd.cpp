@@ -256,21 +256,17 @@ TEST_F(StereoVisionFrontEndFixture, getRelativePoseBodyMono) {
   ref_stereo_frame->setIsRectified(true);
   cur_stereo_frame->setIsKeyframe(true);
   cur_stereo_frame->setIsRectified(true);
-
   // Avoid the Most Vexing Parse compilation error with bracket initialization.
   StereoVisionFrontEnd st(ImuParams{}, ImuBias{});
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_mono_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
   Pose3 body_pose_cam = ref_stereo_frame->getBPoseCamLRect();
-
   // Expected answer
   Pose3 pose_expected = body_pose_cam *
       st.trackerStatusSummary_.lkf_T_k_mono_ * body_pose_cam.inverse();
-
   // Actual answer
   Pose3 pose_actual = st.getRelativePoseBodyMono();
-
   // Comparison
   EXPECT(assert_equal(pose_actual, pose_expected));
 }
@@ -289,24 +285,19 @@ TEST_F(StereoVisionFrontEndFixture, getRelativePoseBodyStereo) {
   // Compute everything twice?
   ref_stereo_frame->setIsKeyframe(true);
   ref_stereo_frame->setIsRectified(true);
-
   StereoVisionFrontEnd st(ImuParams{}, ImuBias{});
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_stereo_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
   Pose3 body_pose_cam = ref_stereo_frame->getBPoseCamLRect();
-
   // Expected answer
   Pose3 pose_expected = body_pose_cam *
       st.trackerStatusSummary_.lkf_T_k_stereo_ * body_pose_cam.inverse();
-
   // Actual answer
   Pose3 pose_actual = st.getRelativePoseBodyStereo();
-
   // Comparison
   EXPECT(assert_equal(pose_actual, pose_expected));
 }
-
 /* ************************************************************************* */
 TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   ClearStereoFrame(ref_stereo_frame);

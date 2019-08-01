@@ -19,6 +19,7 @@
 #include "ETH_parser.h"  // only for gtNavState...
 #include "VioBackEnd.h"
 #include "utils/ThreadsafeImuBuffer.h"
+#include "initial/InitializationBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -338,5 +339,133 @@ TEST(testVio, robotMovingWithConstantVelocity) {
       EXPECT_LT((W_Vel_Blkf - v).norm(), tol);
       EXPECT_LT((imu_bias_lkf - imu_bias).vector().norm(), tol);
     }
+  }
+}
+
+/* ************************************************************************* */
+// TODO(Sandro): Move this test to separate file!
+TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
+  // Additional parameters
+  VioBackEndParams vioParams;
+  vioParams.landmarkDistanceThreshold_ = 100; // we simulate points 30-40m away
+  vioParams.imuIntegrationSigma_ = 1e-4;
+  vioParams.horizon_ = 100;
+  vioParams.smartNoiseSigma_ = 0.001;
+  vioParams.outlierRejection_ = 100;
+  vioParams.betweenTranslationPrecision_ = 1;
+
+  // Create 3D points
+  vector<Point3> pts = CreateScene();
+  const int num_pts = pts.size();
+
+  // Create cameras
+  double fov = M_PI / 3 * 2;
+  // Create image size to initiate meaningful intrinsic camera matrix
+  double img_height = 600;
+  double img_width = 800;
+  double fx = img_width / 2 / tan(fov / 2);
+  double fy = fx;
+  double s = 0;
+  double u0 = img_width / 2;
+  double v0 = img_height / 2;
+
+  // Random noise generator for ransac pose (concatenated!)
+  double rad_sigma = 0.005;
+  double pos_sigma = 0.01;
+
+  Cal3_S2 cam_params(fx, fy, s, u0, v0);
+
+  // Create camera poses and IMU data
+  StereoPoses poses;
+  VIO::utils::ThreadsafeImuBuffer imu_buf (-1);
+  poses = CreateCameraPoses(num_key_frames, baseline, p0, v);
+  CreateImuBuffer(imu_buf, num_key_frames, v, imu_bias,
+      vioParams.n_gravity_, time_step, t_start);
+
+  // Create measurements
+  TrackerStatusSummary tracker_status_valid;
+  tracker_status_valid.kfTrackingStatus_mono_ = TrackingStatus::VALID;
+  tracker_status_valid.kfTrackingStatus_stereo_ = TrackingStatus::VALID;
+
+  vector<StatusSmartStereoMeasurements> all_measurements;
+  for (int i = 0; i < num_key_frames; i++) {
+    PinholeCamera<Cal3_S2> cam_left(poses[i].first, cam_params);
+    PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
+    SmartStereoMeasurements measurement_frame;
+    for (int l_id = 0; l_id < num_pts; l_id++) {
+      Point2 pt_left = cam_left.project(pts[l_id]);
+      Point2 pt_right = cam_right.project(pts[l_id]);
+      StereoPoint2 pt_lr(pt_left.x(), pt_right.x(), pt_left.y());
+      EXPECT_DOUBLE_EQ(pt_left.y(), pt_right.y());
+      measurement_frame.push_back(make_pair(l_id, pt_lr));
+    }
+    all_measurements.push_back(make_pair(tracker_status_valid,measurement_frame));
+  }
+
+  // create vio
+  Pose3 B_pose_camLrect(Rot3::identity(), Vector3::Zero());
+  boost::shared_ptr<InitializationBackEnd> vio =
+    boost::make_shared<InitializationBackEnd>(
+        B_pose_camLrect, cam_params,
+        baseline, vioParams);
+  ImuParams imu_params;
+  imu_params.n_gravity_ = vioParams.n_gravity_;
+  imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
+  imu_params.acc_walk_ = vioParams.accBiasSigma_;
+  imu_params.acc_noise_ = vioParams.accNoiseDensity_;
+  imu_params.gyro_walk_ = vioParams.gyroBiasSigma_;
+  imu_params.gyro_noise_ = vioParams.gyroNoiseDensity_;
+  ImuFrontEnd imu_frontend(imu_params, imu_bias);
+
+  // Create vector of input payloads
+  std::vector<std::shared_ptr<VioBackEndInputPayload>> input_vector;
+  input_vector.clear();
+
+  // For each frame, add landmarks.
+  for(int64_t k = 1; k < num_key_frames; k++) {
+    // Time stamp for the current keyframe and the next frame.
+    Timestamp timestamp_lkf = (k - 1) * time_step + t_start;
+    Timestamp timestamp_k = k * time_step + t_start;
+
+    // Get the IMU data
+    ImuStampS imu_stamps;
+    ImuAccGyrS imu_accgyr;
+    CHECK(imu_buf.getImuDataInterpolatedUpperBorder(timestamp_lkf,
+                                                    timestamp_k,
+                                                    &imu_stamps,
+                                                    &imu_accgyr) ==
+          VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
+
+    const auto& pim = imu_frontend.preintegrateImuMeasurements(imu_stamps,
+                                                               imu_accgyr);
+
+    // Push input payload into queue
+    VioBackEndInputPayload input (
+          timestamp_k,
+          all_measurements[k],
+          tracker_status_valid.kfTrackingStatus_stereo_,
+          pim);
+
+    // Create artificially noisy "RANSAC" pose measurements
+    gtsam::Pose3 random_pose = (poses[k-1].first).between(poses[k].first) *
+                UtilsOpenCV::RandomPose3(rad_sigma, pos_sigma);
+    input.stereo_ransac_body_pose_ = random_pose;
+
+    // Create input vector for backend
+    input_vector.push_back(std::make_shared<VioBackEndInputPayload>(input));
+  }
+
+  // Perform Bundle Adjustment
+  std::vector<gtsam::Pose3> results =
+        vio->addInitialVisualStatesAndOptimize(input_vector);
+
+  CHECK_EQ(results.size(), num_key_frames -1);
+
+  // Check error (BA results start at origin, as convention)
+  // The tolerance is on compounded error!! Not relative.
+  for (int f_id = 0; f_id < (num_key_frames-1); f_id++) {
+    Pose3 W_Pose_Blkf = poses[1].first.compose(results.at(f_id));
+    EXPECT_TRUE(assert_equal(poses[f_id+1].first, W_Pose_Blkf,
+                          vioParams.smartNoiseSigma_));
   }
 }

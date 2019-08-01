@@ -19,6 +19,8 @@
 #include <cstdlib>  // for srand()
 #include <memory>
 #include <thread>
+#include <utility>  // for make_pair
+#include <vector>
 
 #include "ETH_parser.h"
 #include "FeatureSelector.h"
@@ -29,6 +31,7 @@
 #include "pipeline/BufferControl.h"
 #include "pipeline/ProcessControl.h"
 #include "utils/ThreadsafeQueue.h"
+#include "initial/InitializationBackEnd-definitions.h"
 
 #include "LoopClosureDetector.h"
 
@@ -51,7 +54,7 @@ class Pipeline {
   ~Pipeline();
 
   // Main spin, runs the pipeline.
-  SpinOutputContainer spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  void spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
   void spinViz(bool parallel_run = true);
@@ -78,37 +81,33 @@ class Pipeline {
     return mesher_output_queue_;
   }
 
-  gtsam::Vector3 getEstimatedVelocity() { return vio_backend_->getWVelBLkf(); }
-
-  gtsam::Pose3 getEstimatedPose() { return vio_backend_->getWPoseBLkf(); }
-
-  ImuBias getEstimatedBias() { return vio_backend_->getLatestImuBias(); }
-
-  Timestamp getTimestamp() { return timestamp_lkf_; }
-
-  gtsam::Matrix getEstimatedStateCovariance() {
-    return vio_backend_->getStateCovarianceLkf();
-  }
-
-  DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
-
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
     visualizer_.registerMesh3dVizProperties(cb);
   }
-
-  SpinOutputContainer getSpinOutputContainer();
 
  private:
   // Initialize random seed for repeatability (only on the same machine).
   // TODO Still does not make RANSAC REPEATABLE across different machines.
   inline void setDeterministicPipeline() const { srand(0); }
 
-  // Initialize pipeline.
+  // Initialize pipeline with desired option (flag).
   bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // Re-initialize pipeline.
-  bool reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  // Check if necessary to re-initialize pipeline.
+  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Initialize pipeline from IMU or GT.
+  bool initializeFromIMUorGT(const StereoImuSyncPacket &stereo_imu_sync_packet);
+
+  // Initialize pipeline from online gravity alignment.
+  bool initializeOnline(const StereoImuSyncPacket &stereo_imu_sync_packet);
+
+  // Initialize backend given external pose estimate (GT or OGA)
+  // TODO(Sandro): Unify both functions below (init backend)
+  bool initializeVioBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
+                      std::shared_ptr<gtNavState> initial_state,
+                      const StereoFrame &stereo_frame_lkf);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.
@@ -151,6 +150,12 @@ class Pipeline {
   // Launch different threads with processes.
   void launchThreads();
 
+  // Launch frontend thread with process.
+  void launchFrontendThread();
+
+  // Launch remaining threads with processes.
+  void launchRemainingThreads();
+
   // Shutdown processes and queues.
   void stopThreads();
 
@@ -161,8 +166,6 @@ class Pipeline {
   // TODO remove dataset_ from vio pipeline altogether!
   ETHDatasetParser* dataset_;
 
-  Timestamp timestamp_lkf_;
-
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
@@ -172,12 +175,12 @@ class Pipeline {
   std::unique_ptr<StereoVisionFrontEnd> vio_frontend_;
   FeatureSelector feature_selector_;
 
-  // Debug information from frontend (this is the only going out)
-  DebugTrackerInfo debug_tracker_info_;
-
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
   ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
+
+  // Online initialization frontend queue.
+  ThreadsafeQueue<InitializationInputPayload> initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;
@@ -221,6 +224,8 @@ class Pipeline {
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
+  std::atomic_bool is_launched_ = {false};
+  int init_frame_id_;
 
   // Threads.
   std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};

@@ -82,9 +82,48 @@ void CameraImageLists::print() const {
 /* -------------------------------------------------------------------------- */
 void GroundTruthData::print() const {
   LOG(INFO) << "------------ GroundTruthData::print -------------";
-  body_Pose_cam_.print("body_Pose_cam_: \n");
+  if (FLAGS_minloglevel < 1)
+    body_Pose_cam_.print("body_Pose_cam_: \n");
   LOG(INFO) << "\n gt_rate: " << gt_rate_ << '\n'
             << "nr of gtStates: " << mapToGt_.size();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//////////////// FUNCTIONS OF THE CLASS Initialization Performance   ///////////
+////////////////////////////////////////////////////////////////////////////////
+/* -------------------------------------------------------------------------- */
+void InitializationPerformance::print() const {
+      // Log everything
+      LOG(INFO) << "BUNDLE ADJUSTMENT\n"
+              << "Average relative errors: (BA vs. GT)\n"
+              << "(avg. relative rot error)\n"
+              << avg_rotationErrorBA_
+              << "\n(avg. relative tran error)\n"
+              << avg_tranErrorBA_
+              << "\nONLINE GRAVITY ALIGNMENT\n"
+              << "Initialization state:\n"
+              << "(timestamp)\n"
+              << init_timestamp_
+              << "\n(pitch estimate)\n"
+              << init_nav_state_.pose().rotation().pitch()*180.0/M_PI
+              << "\n(pitch GT)\n"
+              << gt_nav_state_.pose().rotation().pitch()*180.0/M_PI
+              << "\n(roll estimate)\n"
+              << init_nav_state_.pose().rotation().roll()*180.0/M_PI
+              << "\n(roll GT)\n"
+              << gt_nav_state_.pose().rotation().roll()*180.0/M_PI
+              << "\n(gyroscope bias estimate)\n"
+              << init_nav_state_.imu_bias_.gyroscope()
+              << "\n(gyroscope bias GT)\n"
+              << gt_nav_state_.imu_bias_.gyroscope()
+              << "\n(initial body frame velocity estimate)\n"
+              << init_nav_state_.velocity_
+              << "\n(initial body frame velocity GT)\n"
+              << gt_nav_state_.velocity_
+              << "\n(initial body frame gravity estimate)\n"
+              << init_gravity_
+              << "\n(initial body frame gravity GT)\n"
+              << gt_gravity_;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -96,6 +135,12 @@ ETHDatasetParser::ETHDatasetParser() : DataProvider(), imuData_() {
   setBackendParamsType(FLAGS_backend_type, &backend_params_);
   parse(&initial_k_, &final_k_, backend_params_, &frontend_params_,
         &lcd_params_);
+}
+
+/* -------------------------------------------------------------------------- */
+ETHDatasetParser::ETHDatasetParser(const std::string& input_string) {
+    LOG(INFO) << "Dummy ETHDatasetParser constructor called. Purpose: "
+              << input_string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -733,6 +778,94 @@ gtNavState ETHDatasetParser::getGroundTruthState(
 }
 
 /* -------------------------------------------------------------------------- */
+// Compute initialization errors and stats.
+// [in]: timestamp vector for poses in bundle-adjustment
+// [in]: vector of poses from bundle-adjustment. the initial
+// pose is identity (we are interested in relative poses!)
+// [in]: initial nav state with pose, velocity in body frame,
+// [in]: gravity vector estimate in body frame.
+const InitializationPerformance 
+        ETHDatasetParser::getInitializationPerformance(
+                    const std::vector<Timestamp>& timestamps,
+                    const std::vector<gtsam::Pose3>& poses_ba,
+                    const gtNavState& init_nav_state,
+                    const gtsam::Vector3& init_gravity) {
+  CHECK(isGroundTruthAvailable());
+  CHECK_EQ(timestamps.size(), poses_ba.size());
+  // The first BA pose must be identity and can be discarded
+
+  // GT and performance variables to fill
+  int init_n_frames = timestamps.size() - 1;
+  double avg_relativeRotError = 0.0;
+  double avg_relativeTranError = 0.0;
+  gtsam::Pose3 gt_relative;
+  gtNavState gt_state = getGroundTruthState(timestamps.at(1));
+  gtsam::Vector3 gt_gravity = gtsam::Vector3(0.0, 0.0, -9.81);
+  // Assumes gravity vector is downwards
+
+  // Loop through bundle adjustment poses and get GT
+  for (int i = 1; i < timestamps.size(); i++) {
+    double relativeRotError = -1;
+    double relativeTranError = -1;    
+    // Fill relative poses from GT
+    // Check that GT is available
+    if (!isGroundTruthAvailable(timestamps.at(i-1)) ||
+        !isGroundTruthAvailable(timestamps.at(i))) {
+        LOG(FATAL) << "GT Timestamp not available!";
+    }
+    gt_relative = getGroundTruthRelativePose(timestamps.at(i-1),
+                                            timestamps.at(i));
+    // Get relative pose from BA
+    gtsam::Pose3 ba_relative = 
+        poses_ba.at(i-1).between(poses_ba.at(i));
+    // Compute errors between BA and GT
+    std::tie(relativeRotError, relativeTranError) =
+      UtilsOpenCV::ComputeRotationAndTranslationErrors(
+        gt_relative, ba_relative, false);
+    avg_relativeRotError += fabs(relativeRotError);
+    avg_relativeTranError += fabs(relativeTranError);
+  }
+  // Compute average logmap error and translation error
+  avg_relativeRotError = avg_relativeRotError/double(init_n_frames);
+  avg_relativeTranError = avg_relativeTranError/double(init_n_frames);
+
+  LOG(INFO) << "avg. rot. error\n"
+              << avg_relativeRotError
+              << "\navg. tran. error\n"
+              << avg_relativeTranError;
+
+  // Convert velocities and gravity vector in initial body frame.
+  // This is already the case for the init nav state passed.
+  gt_state.velocity_ = gt_state.pose().rotation().transpose() * 
+                      gt_state.velocity_;
+  gt_gravity = gt_state.pose().rotation().transpose() * gt_gravity;
+
+  LOG(INFO) << "GT: init pose\n"
+              << gt_state.pose().rotation()
+              << "\n init velocity\n"
+              << gt_state.velocity_
+              << "\n init bias\n"
+              << gt_state.imu_bias_.gyroscope()
+              << "\n init gravity\n"
+              << gt_gravity;
+
+  // Create performance overview
+  const InitializationPerformance init_performance(
+                            timestamps.at(1),
+                            init_n_frames,
+                            avg_relativeRotError,
+                            avg_relativeTranError,
+                            init_nav_state,
+                            init_gravity,
+                            gt_state,
+                            gt_gravity);
+  // Log performance
+  init_performance.print();
+  // Return
+  return init_performance;
+}
+
+/* -------------------------------------------------------------------------- */
 std::pair<double, double> ETHDatasetParser::computePoseErrors(
     const gtsam::Pose3& lkf_T_k_body, const bool isTrackingValid,
     const Timestamp& previousTimestamp, const Timestamp& currentTimestamp,
@@ -764,7 +897,8 @@ void ETHDatasetParser::print() const {
             << "------------------ ETHDatasetParser::print ------------------\n"
             << "-------------------------------------------------------------\n"
             << "Displaying info for dataset: " << dataset_path_;
-  camL_Pose_camR_.print("camL_Pose_calR \n");
+  if (FLAGS_minloglevel < 1)
+    camL_Pose_camR_.print("camL_Pose_calR \n");
   // For each of the 2 cameras.
   for (size_t i = 0; i < camera_names_.size(); i++) {
     LOG(INFO) << "\n"
@@ -773,8 +907,10 @@ void ETHDatasetParser::print() const {
     camera_info_.at(camera_names_[i]).print();
     camera_image_lists_.at(camera_names_[i]).print();
   }
-  gtData_.print();
-  imuData_.print();
+  if (FLAGS_minloglevel < 1) {
+    gtData_.print();
+    imuData_.print();
+  }
   LOG(INFO) << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------";

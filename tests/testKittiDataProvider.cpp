@@ -29,7 +29,8 @@ using namespace std;
 using namespace VIO;
 using namespace cv;
 
-// TODO(Yun)
+/* ************************************************************************* */
+// TODO
 TEST(testFrame, KittiDataProvider) {
   // TODO: test kitti data provider Check image lists and also imu data parsing
   // Construct a frame from image name.

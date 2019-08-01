@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.5)
 project(SparkVio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
@@ -13,7 +13,7 @@ message(STATUS "==============================================================="
 message(STATUS "====================  Dependencies ============================")
 
 ### Include the boost directory
-find_package(Boost REQUIRED COMPONENTS filesystem)
+find_package(Boost REQUIRED COMPONENTS filesystem serialization regex timer date_time thread)
 if(NOT TARGET Boost::boost)
   add_library(Boost::boost INTERFACE IMPORTED)
   set_target_properties(Boost::boost PROPERTIES
@@ -68,7 +68,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(SparkVio SHARED
+add_library(sparkvio SHARED
   src/ETH_parser.cpp
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
@@ -85,6 +85,7 @@ add_library(SparkVio SHARED
   src/LoopClosureDetector.h
   src/LoopClosureDetectorParams.h
   src/FeatureSelector.cpp
+  src/YamlParser.h
   src/VioBackEndParams.h
   src/VioFrontEndParams.h
   src/RegularVioBackEndParams.h
@@ -93,7 +94,7 @@ add_library(SparkVio SHARED
   src/Visualizer3D.cpp "")
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(SparkVio::SparkVio ALIAS SparkVio)
+add_library(SparkVio::SparkVio ALIAS sparkvio)
 
 ### Add source code for data provider.
 include(src/datasource/CMakeLists.txt)
@@ -103,12 +104,14 @@ include(src/factors/CMakeLists.txt)
 include(src/mesh/CMakeLists.txt)
 ### Add source code for utils
 include(src/utils/CMakeLists.txt)
+### Add source code for initialization
+include(src/initial/CMakeLists.txt)
 ### Add source code for pipeline
 include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
 
-target_link_libraries(SparkVio
+target_link_libraries(sparkvio
   PRIVATE
     opengv
   PUBLIC
@@ -121,17 +124,19 @@ target_link_libraries(SparkVio
     DBoW2
     DLib
 )
-target_include_directories(SparkVio
+target_include_directories(sparkvio
   PUBLIC
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
-target_compile_options(SparkVio
+
+target_compile_options(sparkvio
   PRIVATE -Wall -pipe
-  PUBLIC -march=native) # Remove these
+  PRIVATE -march=native) # Remove these
+
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(SparkVio PUBLIC
+target_compile_features(sparkvio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
@@ -174,6 +179,11 @@ if(CMAKE_VERSION VERSION_LESS 2.8.11)
                         "${gmock_SOURCE_DIR}/include")
 endif()
 
+# Include data directories for gtests.
+set(TEST_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
+configure_file(./tests/test_config.h.in ./tests/test_config.h)
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/tests")
+
 # Generate gtests.
 include(CTest)
 add_executable(testSparkVio
@@ -205,10 +215,19 @@ add_executable(testSparkVio
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
+  #tests/testInitializationBackEnd.cpp
+  tests/testOnlineAlignment.cpp
   )
-target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
-include(GoogleTest)
-gtest_discover_tests(testSparkVio)
+target_link_libraries(testSparkVio gtest SparkVio::SparkVio)
+
+if(CMAKE_VERSION VERSION_LESS 3.10)
+  enable_testing()
+  include(FindGTest)
+  gtest_add_tests(testSparkVio "" AUTO)
+else()
+  include(GoogleTest)
+  gtest_discover_tests(testSparkVio)
+endif()
 
 #export(TARGETS SparkVio FILE SparkVio.cmake)
 #
@@ -296,7 +315,7 @@ set(EXPORTED_DEPENDENCIES "")
 list(APPEND EXPORTED_DEPENDENCIES "glog::glog")
 list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
 
-export(TARGETS SparkVio ${EXPORTED_DEPENDENCIES}
+export(TARGETS sparkvio ${EXPORTED_DEPENDENCIES}
        FILE SparkVioTargets.cmake)
 export(PACKAGE SparkVio)
 

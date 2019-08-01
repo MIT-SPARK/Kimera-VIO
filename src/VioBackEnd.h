@@ -38,6 +38,7 @@
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+//#include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/geometry/StereoCamera.h>
 #include <gtsam/geometry/StereoPoint2.h>
 #include <gtsam/slam/PriorFactor.h>
@@ -101,6 +102,14 @@ public:
              std::shared_ptr<gtNavState>* initial_state_gt,
              const Timestamp& timestamp,
              const ImuAccGyrS& imu_accgyr,
+             const VioBackEndParams& vioParams,
+             const bool log_output = false);
+
+  /* ------------------------------------------------------------------------ */
+  // Create and initialize VioBackEnd, without initiaing pose.
+  VioBackEnd(const Pose3& leftCamPose,
+             const Cal3_S2& leftCameraCalRectified,
+             const double& baseline,
              const VioBackEndParams& vioParams,
              const bool log_output = false);
 
@@ -241,8 +250,8 @@ protected:
   void optimize(const Timestamp &timestamp_kf_nsec,
                 const FrameId& cur_id,
                 const size_t& max_iterations,
-                const std::vector<size_t>& extra_factor_slots_to_delete =
-                                                        std::vector<size_t>());
+                gtsam::FactorIndices extra_factor_slots_to_delete =
+                    gtsam::FactorIndices());
   /// Printers.
   /* ------------------------------------------------------------------------ */
   void printFeatureTracks() const;
@@ -259,7 +268,7 @@ protected:
   template<class T>
   bool getEstimateOfKey(const gtsam::Key& key, T* estimate) const;
 
-private:
+protected:
   /* ------------------------------------------------------------------------ */
   void addVisualInertialStateAndOptimize(
           const std::shared_ptr<VioBackEndInputPayload>& input);
@@ -299,7 +308,7 @@ private:
       const gtsam::Values& new_values = gtsam::Values(),
       const std::map<Key, double>& timestamps =
       gtsam::FixedLagSmoother::KeyTimestampMap(),
-      const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
+      const gtsam::FactorIndices& delete_slots = gtsam::FactorIndices());
 
   /* ------------------------------------------------------------------------ */
   void cleanCheiralityLmk(
@@ -307,12 +316,12 @@ private:
       gtsam::NonlinearFactorGraph* new_factors_tmp_cheirality,
       gtsam::Values* new_values_cheirality,
       std::map<Key, double>* timestamps_cheirality,
-      std::vector<size_t>* delete_slots_cheirality,
+      gtsam::FactorIndices* delete_slots_cheirality,
       const gtsam::NonlinearFactorGraph& graph,
       const gtsam::NonlinearFactorGraph& new_factors_tmp,
       const gtsam::Values& new_values,
       const std::map<Key, double>& timestamps,
-      const std::vector<size_t>& delete_slots);
+      const gtsam::FactorIndices& delete_slots);
 
   /* ------------------------------------------------------------------------ */
   void deleteAllFactorsWithKeyFromFactorGraph(
@@ -386,7 +395,7 @@ private:
   /// Private printers.
   /* ------------------------------------------------------------------------ */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
-                         const std::vector<size_t>& delete_slots,
+                         const gtsam::FactorIndices& delete_slots,
                          const std::string& message = "CATCHING EXCEPTION",
                          const bool& showDetails = false) const;
 
@@ -456,11 +465,11 @@ public:
   inline const Pose3& getBPoseLeftCam() const {return B_Pose_leftCam_;}
 
   // TODO NOT THREAD-SAFE! Should add critical sections.
+  // This can only be used in the wrapped backend-mesher thread.
   inline ImuBias getLatestImuBias() const {return imu_bias_lkf_;}
   inline ImuBias getImuBiasPrevKf() const {return imu_bias_prev_kf_;}
   inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
   inline Pose3 getWPoseBLkf() const {return W_Pose_B_lkf_;}
-  inline gtsam::Matrix getStateCovarianceLkf() const {return state_covariance_lkf_;}
   inline int getCurrKfId() const {return curr_kf_id_;}
   inline gtsam::Values getState() const {return state_;}
   inline int getLandmarkCount() const {return landmark_count_;}
@@ -476,11 +485,18 @@ public:
   static ImuBias initImuBias(const ImuAccGyrS& accGyroRaw,
                              const Vector3& n_gravity);
 
+  /* --------------------------------------------------------------------------
+   */
+  // Update initial visual states.
+  //std::vector<gtsam::Pose3>
+  //updateInitialVisualStates(const FrameId &last_initial_id);
+
 protected:
   // Raw, user-specified params.
   const VioBackEndParams vio_params_;
 
   // State estimates.
+  Timestamp timestamp_lkf_;
   ImuBias imu_bias_lkf_;       //!< Most recent bias estimate..
   Vector3 W_Vel_B_lkf_;  		   //!< Velocity of body at k-1 in world coordinates
   Pose3   W_Pose_B_lkf_;        //!< Body pose at at k-1 in world coordinates.
@@ -529,7 +545,7 @@ protected:
   // Id of current keyframe, increases from 0 to inf.
   int curr_kf_id_;
 
-private:
+protected:
   // No motion factors settings.
   gtsam::SharedNoiseModel zero_velocity_prior_noise_;
   gtsam::SharedNoiseModel no_motion_prior_noise_;

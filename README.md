@@ -63,13 +63,12 @@ and [Intel Threaded Building Blocks (TBB)](http://www.threadingbuildingblocks.or
 sudo apt-get install libtbb-dev
 ```
 
-Clone GTSAM wherever you want, and checkout commit below:
+Clone GTSAM wherever you want, and checkout the develop branch (last tested with commit `0c3e05f375c03c5ff5218e708db416b38f4113c8`)
 ```
-git clone https://github.com/borglab/gtsam.git
-git checkout c827d4cd6b11f78f3d2d9d52b335ac562a2757fc # Should be develop branch at some point
+git clone git@github.com:borglab/gtsam.git
 ```
 
-Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details.
+Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `-march=native` might cause problems that culminates in the form of segfaults when you run the unittests.  
 ```bash
 cd gtsam
 mkdir build
@@ -253,30 +252,23 @@ Tips for development
 
 > Note: these changes are not sufficient to make the output repeatable between different machines.
 
-Tips for speed
-----------------------
+> Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
+>
 
-- Use ```-march=native``` compiler flag. It will be a problem if you ever want to distribute binaries of this code.
-- GTSAM speed depends on: TBB, OpenMP. In principle, TBB speeds-up things, OpenMP not so sure. Verify that on your own computer.
-- Make sure OpenCV does not have the `CV_TRACE` cmake flag set-up. This is for profiling. Also use `TBB` as well. Compile with `Lapack`, it seems that operations such as SVD are faster.
-- OpenCV could potentially be used with GPU: stereo visual odometry achieves a 7x speed-up.
-- Make sure all libraries are compiled with the maximum optimization. Set `CMAKE_BUILD_TYPE` to `Release` and ensure you get a level of optimization at `-O3` for best results.
+For Developers: Pull Requests
+======================
 
-# Use code linter
+## Use code linter
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
 
-## Dependencies
+### Dependencies
 
 Install the following dependencies to run the linter:
 
- * **pylint**
-   * macOS:
-     ```
-     pip install pylint
-     ```
- * **yapf**
-   * Ubuntu / macOS: `pip install yapf`
+ * **requests** `pip install requests`
+ * **pylint** `pip install pylint`
+ * **yapf** `pip install yapf`
  * **clang-format**
    * Compatible with `clang-format-3.8 - 6.0`
    * Ubuntu: `sudo apt install clang-format-${VERSION}`
@@ -286,18 +278,20 @@ Install the following dependencies to run the linter:
      ln -s /usr/local/share/clang/clang-format-diff.py /usr/local/bin/clang-format-diff
      ```
 
-## Installation
+### Installation
 
 ```bash
 cd $THIS_REPO
 git submodule update --init
-cd dev_tools/linter
-echo ". $(realpath setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
+echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
                                                    # your shell.
 bash
 ```
 
-## Usage
+Then you can install the linter in your repository:
 
-Just commit. The linter will stop any commit that looks suspicious and will let you know what is wrong.
-You can either fix the issues manually, or try a more brute force approach by running `clang-format`.
+```
+cd $THIS_REPO
+init_linter_git_hooks
+```
+For more information about the linter, check [here](https://github.com/ToniRV/linter).

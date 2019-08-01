@@ -11,7 +11,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-
 def _set_boxplot_colors(boxplot_object, color):
     setp(boxplot_object['boxes'][0], color=color)
     setp(boxplot_object['caps'][0], color=color)
@@ -20,7 +19,6 @@ def _set_boxplot_colors(boxplot_object, color):
     setp(boxplot_object['whiskers'][1], color=color)
     #setp(boxplot_object['fliers'], color=color)
     setp(boxplot_object['medians'][0], color=color)
-
 
 def draw_boxplot(axis, stats, position, idx_experiment):
     """
@@ -67,17 +65,11 @@ def draw_boxplot(axis, stats, position, idx_experiment):
     bxpstats_a['whislo'] = stats['min']
     bxpstats_a['whishi'] = stats['max']
     bxpstats.append(bxpstats_a)
-    pb = axis.bxp(
-        bxpstats,
-        positions=position,
-        widths=0.8,
-        vert=True,
-        showcaps=True,
-        showbox=True,
-        showfliers=False,
-    )
+    pb = axis.bxp(bxpstats,
+                  positions=position,
+                  widths=0.8, vert=True,
+                  showcaps=True, showbox=True, showfliers=False, )
     _set_boxplot_colors(pb, colors[idx_experiment])
-
 
 def plot_statistics_vio(statistics, output_boxplot_path):
     len_statistics = len(statistics.items())
@@ -103,7 +95,7 @@ def plot_statistics_vio(statistics, output_boxplot_path):
                 if key == 'stddev':
                     stddevs.append(value)
         elif 'Timing [ms]' in str(key):
-            names = [str(key[:-11])] + names
+            names = [str(key[:-11])] + names;
             for key, value in value.items():
                 if key == 'max':
                     maxes = [value] + maxes
@@ -116,25 +108,11 @@ def plot_statistics_vio(statistics, output_boxplot_path):
                 if key == 'stddev':
                     stddevs = [value] + stddevs
         else:
-            print(
-                "Skipping this statistic, as it is not a Timing or is not in [ms]."
-            )
+            print("Skipping this statistic, as it is not a Timing or is not in [ms].")
     # Create stacked errorbars:
     #plt.errorbar(np.arange(len_statistics), np.asarray(means), np.asarray(stddevs), fmt='ok', lw=3)
-    plt.errorbar(np.arange(len(names)),
-                 np.asarray(means), [
-                     np.asarray(means) - np.asarray(mins),
-                     np.asarray(maxes) - np.asarray(means)
-                 ],
-                 fmt='xk',
-                 ecolor='blue',
-                 lw=2,
-                 capsize=5,
-                 capthick=3,
-                 mfc='red',
-                 mec='green',
-                 ms=10,
-                 mew=4)
+    plt.errorbar(np.arange(len(names)), np.asarray(means), [np.asarray(means) - np.asarray(mins), np.asarray(maxes) - np.asarray(means)],
+                 fmt='xk', ecolor='blue', lw=2, capsize=5, capthick=3, mfc='red', mec='green', ms=10, mew=4)
 
     # Formatting
     bar_width = 0.35
@@ -144,34 +122,28 @@ def plot_statistics_vio(statistics, output_boxplot_path):
     plt.xticks(range(len_statistics), names)  # Set locations and labels
     plt.title("Mean VIO timing per module (& max/min).")
     plt.ylabel('Time [ms]')
-    plt.ylim(bottom=0)
     plt.xlabel('VIO Module', labelpad=10)
     plt.show()
-
 
 def parser():
     basic_desc = "Plot timing statistics for VIO pipeline."
     main_parser = argparse.ArgumentParser(description="{}".format(basic_desc))
     input_options = main_parser.add_argument_group("input options")
     input_options.add_argument(
-        "statistics_vio_path",
-        help="Path to the **YAML** file containing the VIO statistics.",
+        "statistics_vio_path", help="Path to the **YAML** file containing the VIO statistics.",
         default="./results/V1_01_easy/S/StatisticsVIO.yaml")
     input_options.add_argument(
-        "output_boxplot_path",
-        help="Path where to save boxplot file containing the VIO statistics.",
+        "output_boxplot_path", help="Path where to save boxplot file containing the VIO statistics.",
         default="./results/V1_01_easy/S/StatisitcsVIOboxplots.eps")
     return main_parser
-
 
 def main(statistics_vio_path, output_boxplot_path):
     # Read vio statistics yaml file.
     print("Reading VIO statistics from: %s" % statistics_vio_path)
     if os.path.exists(statistics_vio_path):
-        with open(statistics_vio_path, 'r') as input:
+        with open(statistics_vio_path,'r') as input:
             statistics = yaml.load(input)
             plot_statistics_vio(statistics, output_boxplot_path)
-
 
 if __name__ == "__main__":
     parser = parser()

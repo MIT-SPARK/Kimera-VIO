@@ -62,5 +62,4 @@ public:
   
 };
 
-
 } // End of VIO namespace.
