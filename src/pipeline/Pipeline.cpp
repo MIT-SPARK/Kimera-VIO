@@ -943,7 +943,7 @@ void Pipeline::processKeyframePop() {
     // Actual keyframe processing. Call to backend.
     ////////////////////////////// BACK-END
     ///////////////////////////////////////
-    LOG(ERROR) << "Process Keyframe in BackEnd";
+    VLOG(2) << "Process Keyframe in BackEnd";
     processKeyframe(
         stereo_frontend_output_payload->statusSmartStereoMeasurements_,
         stereo_frontend_output_payload->stereo_frame_lkf_,
