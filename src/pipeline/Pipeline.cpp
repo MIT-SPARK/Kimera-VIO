@@ -217,7 +217,6 @@ void Pipeline::processKeyframe(
   std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
       backend_output_queue_.popBlocking();
   LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
-  LOG(ERROR) << "GOING FOR MESHER.";
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
   PointsWithIdMap points_with_id_VIO;
