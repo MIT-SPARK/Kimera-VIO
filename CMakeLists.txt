@@ -54,8 +54,8 @@ endif(DBoW2_FOUND)
 
 ### Unzip the vocabularly file
 execute_process(
-COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/vocabulary/ORBvoc.txt.tar.gz
-WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vocabulary
+  COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/vocabulary/ORBvoc.txt.tar.gz
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vocabulary
 )
 
 ### External Dependencies
@@ -121,8 +121,8 @@ target_link_libraries(sparkvio
     glog::glog
     gtsam
     gtsam_unstable
-    DBoW2
-    DLib
+    DBoW2 # TODO(marcus): should be private
+    DLib  # TODO(marcus): should be private
 )
 target_include_directories(sparkvio
   PUBLIC
