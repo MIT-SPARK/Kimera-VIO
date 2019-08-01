@@ -18,6 +18,7 @@
 #include <random>
 
 #include <gtest/gtest.h>
+
 #include "mesh/Mesher.h"
 DECLARE_string(test_data_path);
 

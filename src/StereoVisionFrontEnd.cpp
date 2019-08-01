@@ -60,7 +60,7 @@ bool StereoVisionFrontEnd::spin(
       auto tic = utils::Timer::tic();
       const StereoFrontEndOutputPayload& output = spinOnce(input);
       if (output.is_keyframe_) {
-        VLOG(2) << "Frontend output is a keyframe.";
+        VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
         output_queue.push(output);
       } else {
         VLOG(2) << "Frontend output is not a keyframe."
@@ -286,9 +286,12 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   const bool nr_features_low =
       nr_valid_features <= tracker_.trackerParams_.min_number_features_;
 
+  // Also if the user requires the keyframe to be enforced
+  if (stereoFrame_k_->isKeyframe())
+    LOG(WARNING) << "User inforced keyframe!";
   // If max time elaspsed and not able to track feature -> create new keyframe
-  if (max_time_elapsed || nr_features_low) {
-    ++keyframe_count_;  // mainly for debugging
+  if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
+    ++keyframe_count_; // mainly for debugging
 
     VLOG(2) << "+++++++++++++++++++++++++++++++++++++++++++++++++++"
             << "Keyframe after: "
@@ -319,14 +322,16 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       std::pair<TrackingStatus, gtsam::Pose3> statusPoseMono;
       Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
       if (tracker_.trackerParams_.ransac_use_2point_mono_ &&
-          calLrectLkf_R_camLrectKf_imu) {
+          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
         // 2-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMonoGivenRotation(
             left_frame_lkf, left_frame_k, *calLrectLkf_R_camLrectKf_imu);
       } else {
         // 5-point RANSAC.
-        statusPoseMono = tracker_.geometricOutlierRejectionMono(left_frame_lkf,
-                                                                left_frame_k);
+        statusPoseMono = tracker_.geometricOutlierRejectionMono(
+              left_frame_lkf, left_frame_k);
+        if (force_53point_ransac_)
+          LOG(WARNING) << "5-point RANSAC was enforced!";
       }
 
       // Set relative pose.
@@ -352,7 +357,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       std::pair<TrackingStatus, gtsam::Pose3> statusPoseStereo;
       gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
       if (tracker_.trackerParams_.ransac_use_1point_stereo_ &&
-          calLrectLkf_R_camLrectKf_imu) {
+          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
         // 1-point RANSAC.
         std::tie(statusPoseStereo, infoMatStereoTranslation) =
             tracker_.geometricOutlierRejectionStereoGivenRotation(
@@ -361,7 +366,9 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       } else {
         // 3-point RANSAC.
         statusPoseStereo = tracker_.geometricOutlierRejectionStereo(
-            *stereoFrame_lkf_, *stereoFrame_k_);
+                    *stereoFrame_lkf_, *stereoFrame_k_);
+        if (force_53point_ransac_)
+          LOG(WARNING) << "3-point RANSAC was enforced!";
       }
 
       // Set relative pose.

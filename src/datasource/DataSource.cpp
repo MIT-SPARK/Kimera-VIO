@@ -81,6 +81,44 @@ void GroundTruthData::print() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//////////////// FUNCTIONS OF THE CLASS Initialization Performance   ///////////
+////////////////////////////////////////////////////////////////////////////////
+/* -------------------------------------------------------------------------- */
+void InitializationPerformance::print() const {
+      // Log everything
+      LOG(INFO) << "BUNDLE ADJUSTMENT\n"
+              << "Average relative errors: (BA vs. GT)\n"
+              << "(avg. relative rot error)\n"
+              << avg_rotationErrorBA_
+              << "\n(avg. relative tran error)\n"
+              << avg_tranErrorBA_
+              << "\nONLINE GRAVITY ALIGNMENT\n"
+              << "Initialization state:\n"
+              << "(timestamp)\n"
+              << init_timestamp_
+              << "\n(pitch estimate)\n"
+              << init_nav_state_.pose().rotation().pitch()*180.0/M_PI
+              << "\n(pitch GT)\n"
+              << gt_nav_state_.pose().rotation().pitch()*180.0/M_PI
+              << "\n(roll estimate)\n"
+              << init_nav_state_.pose().rotation().roll()*180.0/M_PI
+              << "\n(roll GT)\n"
+              << gt_nav_state_.pose().rotation().roll()*180.0/M_PI
+              << "\n(gyroscope bias estimate)\n"
+              << init_nav_state_.imu_bias_.gyroscope()
+              << "\n(gyroscope bias GT)\n"
+              << gt_nav_state_.imu_bias_.gyroscope()
+              << "\n(initial body frame velocity estimate)\n"
+              << init_nav_state_.velocity_
+              << "\n(initial body frame velocity GT)\n"
+              << gt_nav_state_.velocity_
+              << "\n(initial body frame gravity estimate)\n"
+              << init_gravity_
+              << "\n(initial body frame gravity GT)\n"
+              << gt_gravity_;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 //////////////// FUNCTIONS OF THE CLASS DataProvider                  //////////
 ////////////////////////////////////////////////////////////////////////////////
 DataProvider::DataProvider()

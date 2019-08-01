@@ -152,19 +152,14 @@ TEST(ImuFrontEnd, ResetPreintegration) {
 /* TODO(Toni): tests left:
 TEST(ImuFrontEnd, PreintegrateEmptyImuData) {
 }
-
 TEST(ImuFrontEnd, PreintegrateMinimalImuData) {
 }
-
 TEST(ImuFrontEnd, PreintegrateTypicalImuData) {
 }
-
 TEST(ImuFrontEnd, PreintegrateIncrementally) {
 }
-
 TEST(ImuFrontEnd, ForwardPreintegration) {
 }
-
 TEST(ImuFrontEnd, BackwardPreintegration) {
 }
 */

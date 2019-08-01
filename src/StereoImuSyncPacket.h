@@ -84,11 +84,16 @@ class StereoImuSyncPacket {
                       ReinitPacket reinit_packet = ReinitPacket());
   ~StereoImuSyncPacket() = default;
 
+  // TODO delete copy-constructor because it is used in some places!
+
   // Careful, returning references to members can lead to dangling refs.
   inline const StereoFrame& getStereoFrame() const { return stereo_frame_; }
   inline const ImuStampS& getImuStamps() const { return imu_stamps_; }
   inline const ImuAccGyrS& getImuAccGyr() const { return imu_accgyr_; }
   inline const ReinitPacket& getReinitPacket() const { return reinit_packet_; }
+
+  // This enforces the frame to be a keyframe
+  void setAsKeyframe() { stereo_frame_.setIsKeyframe(true); }
 
   void print() const {
     LOG(INFO) << "Stereo Frame timestamp: " << stereo_frame_.getTimestamp()
@@ -123,7 +128,9 @@ class StereoImuSyncPacket {
   typedef std::unique_ptr<const StereoImuSyncPacket> ConstUniquePtr;
 
  private:
-  const StereoFrame stereo_frame_;
+  // TODO(Toni): this should be const as well, but the initialization is
+  // modifying it and setting as keyframe....
+  StereoFrame stereo_frame_;
   const ImuStampS imu_stamps_;
   const ImuAccGyrS imu_accgyr_;
   const ReinitPacket reinit_packet_;

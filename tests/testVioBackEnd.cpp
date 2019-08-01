@@ -19,6 +19,7 @@
 #include "datasource/DataSource.h"  // only for gtNavState...
 #include "VioBackEnd.h"
 #include "utils/ThreadsafeImuBuffer.h"
+#include "initial/InitializationBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>

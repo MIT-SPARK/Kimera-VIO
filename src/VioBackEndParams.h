@@ -31,6 +31,8 @@
 
 namespace VIO {
 
+enum InitializationModes { GT, IMU, ALIGNMENT };
+
 ///////////////////////////////////////////////////////////////////////////////////////
 class VioBackEndParams {
  public:
@@ -46,7 +48,7 @@ class VioBackEndParams {
           0.0, 0.0, -9.81),  // gravity in navigation frame, according to
       const double nominalImuRate = 0.005,
       // INITIALIZATION SETTINGS
-      const bool autoInitialize = false,
+      const int autoInitialize = 0,
       const bool roundOnAutoInitialize = false,
       const double initialPositionSigma = 0.00001,
       const double initialRollPitchSigma = 10.0 / 180.0 * M_PI,
@@ -129,7 +131,8 @@ class VioBackEndParams {
   double gyroNoiseDensity_, accNoiseDensity_, imuIntegrationSigma_,
       gyroBiasSigma_, accBiasSigma_, nominalImuRate_;
   gtsam::Vector3 n_gravity_;
-  bool autoInitialize_, roundOnAutoInitialize_;
+  int autoInitialize_;
+  bool roundOnAutoInitialize_;
 
   // Smart factor params
   gtsam::LinearizationMode linearizationMode_;

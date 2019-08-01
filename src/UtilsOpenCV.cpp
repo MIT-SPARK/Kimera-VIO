@@ -417,9 +417,48 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
 }
 
 /* -------------------------------------------------------------------------- */
-// rounds entries in a unit3, such that largest entry is saturated to +/-1 and
-// the other become 0
-gtsam::Unit3 UtilsOpenCV::RoundUnit3(const gtsam::Unit3& x) {
+// creates pose by aligning initial gravity vector estimates
+gtsam::Pose3
+UtilsOpenCV::AlignGravityVectors(gtsam::Vector3 &local_gravity_dir,
+                                 const gtsam::Vector3 &global_gravity_dir,
+                                 bool round) {
+  gtsam::Unit3 localGravityDir(
+      local_gravity_dir); // a = localGravity (we measure the opposite of
+                          // gravity)
+  gtsam::Unit3 globalGravityDir(global_gravity_dir); // b
+
+  if (round) { // align vectors to dominant axis: e.g., [0.01 0.1 1] becomes [0 0 1]
+    localGravityDir = UtilsOpenCV::RoundUnit3(localGravityDir);
+    globalGravityDir = UtilsOpenCV::RoundUnit3(globalGravityDir);
+  }
+
+  gtsam::Unit3 v = localGravityDir.cross(globalGravityDir); // a x b
+  double c = localGravityDir.dot(globalGravityDir);
+  // compute rotation such that R * a = b
+  // http://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d/476311#476311
+  gtsam::Rot3 R;
+  if (fabs(1 - c) < 1e-3) { // already aligned
+    R = gtsam::Rot3();
+  } else if (fabs(1 + c) < 1e-3) { // degenerate condition a =-b
+    gtsam::Unit3 perturbedGravity (localGravityDir.unitVector() +
+                                   gtsam::Vector3(1, 2, 3)); // compute cross product with any nonparallel vector
+    v = localGravityDir.cross(perturbedGravity);
+    if (std::isnan(v.unitVector()(0))) { // if the resulting vector is still not a number (i.e., perturbedGravity // localGravityDir)
+      perturbedGravity = gtsam::Unit3(localGravityDir.unitVector() +
+                                      gtsam::Vector3(3, 2, 1)); // compute cross product with any nonparallel vector
+      v = localGravityDir.cross(perturbedGravity);
+    }
+    R = gtsam::Rot3::Expmap(v.unitVector() * M_PI); // 180 rotation around an axis perpendicular to both vectors
+  } else {
+    R = gtsam::Rot3::AlignPair(v, globalGravityDir, localGravityDir);
+  }
+  return gtsam::Pose3(R, gtsam::Point3());// absolute position is not observable anyway
+}
+
+/* -------------------------------------------------------------------------- */
+// rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0
+gtsam::Unit3 UtilsOpenCV::RoundUnit3(const gtsam::Unit3& x){
+
   gtsam::Vector3 x_vect_round = gtsam::Vector3::Zero();
   gtsam::Vector3 x_vect = x.unitVector();
   double max_x = (x_vect.cwiseAbs()).maxCoeff();  // max absolute value
@@ -439,6 +478,26 @@ double UtilsOpenCV::RoundToDigit(const double x, const int digits) {
   double dec = pow(10, digits);  // 10^digits
   double y = double(round(x * dec)) / dec;
   return y;
+}
+/* ------------------------------------------------------------------------ */
+// Generate random float using random number generator between -sigma and sigma
+double UtilsOpenCV::RandomFloatGenerator(const double sigma) {
+  return ((double)rand() / RAND_MAX) * sigma - sigma/2.0;
+}
+/* ------------------------------------------------------------------------ */
+// Generate random vector using random number generator between -sigma and sigma
+gtsam::Vector3 UtilsOpenCV::RandomVectorGenerator(const double sigma) {
+  double x = RandomFloatGenerator(sigma);
+  double y = RandomFloatGenerator(sigma);
+  double z = RandomFloatGenerator(sigma);
+  return gtsam::Vector3(x, y, z);
+}
+/* ------------------------------------------------------------------------ */
+// Generates random noisy pose around identity with rad_sigma and pos_sigma
+gtsam::Pose3 UtilsOpenCV::RandomPose3(const double rad_sigma, const double pos_sigma) {
+  gtsam::Vector3 rot = RandomVectorGenerator(rad_sigma);
+  gtsam::Vector3 pos = RandomVectorGenerator(pos_sigma);
+  return gtsam::Pose3(gtsam::Rot3::RzRyRx(rot.x(), rot.y(), rot.z()), pos);
 }
 /* -------------------------------------------------------------------------- */
 // converts doulbe to sting with desired number of digits (total number of
