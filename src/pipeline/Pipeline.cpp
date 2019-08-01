@@ -114,9 +114,11 @@ Pipeline::Pipeline(const PipelineParams& params,
       mesher_input_queue_("mesher_input_queue"),
       mesher_output_queue_("mesher_output_queue"),
       visualizer_input_queue_("visualizer_input_queue"),
-      visualizer_output_queue_("visualizer_output_queue"),
-      timestamp_lkf_(-1),
-      timestamp_lkf_published_(-1) {
+      visualizer_output_queue_("visualizer_output_queue") {
+
+  if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
+  if (FLAGS_log_output) logger_.openLogFiles();
+
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.
   // TODO remove hardcoded saveImages, use gflag.
@@ -147,8 +149,7 @@ Pipeline::~Pipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-SpinOutputContainer 
-    Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+void Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Check if we have to re-initialize
   checkReInitialize(stereo_imu_sync_packet);
   // Initialize pipeline if not initialized
@@ -170,45 +171,18 @@ SpinOutputContainer
       launchRemainingThreads();
       LOG(INFO) << " launching threads.";
       is_initialized_ = true;
-      return getSpinOutputContainer();
+      return;
     } else {
       LOG(INFO) << "Not yet initialized...";
       // TODO: Don't publish if it is the trivial output
-      return SpinOutputContainer();
+      return;
     }
   } else {
     // TODO Warning: we do not accumulate IMU measurements for the first packet...
     // Spin.
     spinOnce(stereo_imu_sync_packet);
-    return getSpinOutputContainer();
+    return;
   }
-}
-
-/* -------------------------------------------------------------------------- */
-// Get spin output container
-SpinOutputContainer Pipeline::getSpinOutputContainer() {
-  SpinOutputContainer output;
-  Timestamp timestamp_lkf = getTimestamp();
-  // Should not be published
-  if (timestamp_lkf == timestamp_lkf_published_ ||
-      timestamp_lkf == -1) {
-    output = SpinOutputContainer();
-  } else {
-    timestamp_lkf_published_ = timestamp_lkf;
-    output = SpinOutputContainer(
-        timestamp_lkf, getEstimatedPose(), getEstimatedVelocity(),
-        getEstimatedBias(), getEstimatedStateCovariance(), getTrackerInfo());
-  }
-  ////////////////// DEBUG INFO FOR PIPELINE /////////////////////////////////
-  if (FLAGS_log_output) {
-    LoggerMatlab logger;
-    // Use default filename (sending empty "" uses default name), and set
-    // write mode to append (sending true).
-    logger.openLogFiles(14, "", true);
-    logger.logPipelineResultsCSV(output);
-    logger.closeLogFiles(14);
-  }
-  return output;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -364,13 +338,6 @@ void Pipeline::spinSequential() {
     return;
   }
   CHECK(stereo_frontend_output_payload->is_keyframe_);
-
-  // Pass info for resiliency
-  debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
-
-  // Get timestamp of key-frame
-  timestamp_lkf_ =
-      stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp();
 
   // We have a keyframe. Push to backend.
   backend_input_queue_.push(VioBackEndInputPayload(
@@ -594,7 +561,7 @@ bool Pipeline::initializeFromIMUorGT(
 
   ///////////////////////////// BACKEND //////////////////////////////////////
   // Initialize backend with pose estimate from gravity alignment
-  initializeVioBackend(stereo_imu_sync_packet, initialStateGT, 
+  initializeVioBackend(stereo_imu_sync_packet, initialStateGT,
                         stereo_frame_lkf);
 
   return true;
@@ -634,9 +601,6 @@ bool Pipeline::initializeOnline(
     StereoFrame stereo_frame_lkf =
         vio_frontend_->processFirstStereoFrame(
             stereo_imu_sync_init.getStereoFrame());
-    // Get timestamp for bookkeeping
-    timestamp_lkf_ = stereo_imu_sync_init.getStereoFrame().getTimestamp();
-
     return false;
 
   /////////////////// FRONTEND //////////////////////////////////////////////////
@@ -676,7 +640,7 @@ bool Pipeline::initializeOnline(
     // This queue is used for the backend after initialization
     stereo_frontend_output_queue_.push(frontend_real_output);
     /////////
-    
+
 
     // Only process set of frontend outputs after specific number of frames
     if (frame_id < (init_frame_id_ + FLAGS_num_frames_vio_init)) {
@@ -698,7 +662,7 @@ bool Pipeline::initializeOnline(
       // Adjust parameters for Bundle Adjustment
       // TODO(Sandro): Create YAML file for initialization and read in!
       VioBackEndParams backend_params_init(*backend_params_);
-      backend_params_init.smartNoiseSigma_ = 
+      backend_params_init.smartNoiseSigma_ =
                 FLAGS_smart_noise_sigma_bundle_adjustment;
       backend_params_init.outlierRejection_ =
                 FLAGS_outlier_rejection_bundle_adjustment;
@@ -709,7 +673,7 @@ bool Pipeline::initializeOnline(
       InitializationBackEnd initial_backend(
           output_frontend.front().stereo_frame_lkf_.getBPoseCamLRect(),
           output_frontend.front().stereo_frame_lkf_.getLeftUndistRectCamMat(),
-          output_frontend.front().stereo_frame_lkf_.getBaseline(), 
+          output_frontend.front().stereo_frame_lkf_.getBaseline(),
           backend_params_init,
           FLAGS_log_output);
 
@@ -718,7 +682,7 @@ bool Pipeline::initializeOnline(
       vio_frontend_->updateAndResetImuBias(
           gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
       gyro_bias = vio_frontend_->getCurrentImuBias().gyroscope();
-      
+
       // Initialize if successful
       if (initial_backend.bundleAdjustmentAndGravityAlignment(
                                     output_frontend,
@@ -895,7 +859,7 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
           tracker_params.featureSelectionNrCornersToSelect_,
           tracker_params.maxFeatureAge_,
           posesAtFutureKeyframes,
-          curr_state_cov, 
+          curr_state_cov,
           std::string(),
           left_frame);  // last 2 are for visualization
   VLOG(100) << "Feature selection completed.";
@@ -922,13 +886,6 @@ void Pipeline::processKeyframePop() {
       continue;
     }
     CHECK(stereo_frontend_output_payload->is_keyframe_);
-
-    // Pass info for resiliency
-    debug_tracker_info_ = stereo_frontend_output_payload->getTrackerInfo();
-
-    // Get timestamp of key-frame
-    timestamp_lkf_ =
-        stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp();
 
     ////////////////////////////////////////////////////////////////////////////
     // So from this point on, we have a keyframe.

@@ -133,7 +133,7 @@ DataProvider::~DataProvider() {
 }
 
 void DataProvider::registerVioCallback(
-    std::function<SpinOutputContainer(const StereoImuSyncPacket&)> callback) {
+    std::function<void(const StereoImuSyncPacket&)> callback) {
   vio_callback_ = std::move(callback);
 }
 
@@ -214,7 +214,7 @@ const PipelineParams DataProvider::getParams() {
                     getBackendParams(),
                     getImuParams(),
                     FLAGS_backend_type);
-  return pp; 
+  return pp;
 }
 
 }  // namespace VIO

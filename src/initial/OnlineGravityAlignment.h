@@ -79,7 +79,7 @@ private:
                               const InitialAHRSPims &ahrs_pims,
                               gtsam::Vector3 *gyro_bias,
                               VisualInertialFrames *vi_frames,
-                              const bool& use_ahrs_estimator = false);
+                              const bool& use_ahrs_estimator);
 
   /* ------------------------------------------------------------------------ */
   void estimateGyroscopeBias(const VisualInertialFrames &vi_frames,

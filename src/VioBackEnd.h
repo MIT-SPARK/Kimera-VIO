@@ -250,8 +250,8 @@ protected:
   void optimize(const Timestamp &timestamp_kf_nsec,
                 const FrameId& cur_id,
                 const size_t& max_iterations,
-                const std::vector<size_t>& extra_factor_slots_to_delete =
-                                                        std::vector<size_t>());
+                gtsam::FactorIndices extra_factor_slots_to_delete =
+                    gtsam::FactorIndices());
   /// Printers.
   /* ------------------------------------------------------------------------ */
   void printFeatureTracks() const;
@@ -308,7 +308,7 @@ protected:
       const gtsam::Values& new_values = gtsam::Values(),
       const std::map<Key, double>& timestamps =
       gtsam::FixedLagSmoother::KeyTimestampMap(),
-      const std::vector<size_t>& delete_slots = gtsam::FastVector<size_t>());
+      const gtsam::FactorIndices& delete_slots = gtsam::FactorIndices());
 
   /* ------------------------------------------------------------------------ */
   void cleanCheiralityLmk(
@@ -316,12 +316,12 @@ protected:
       gtsam::NonlinearFactorGraph* new_factors_tmp_cheirality,
       gtsam::Values* new_values_cheirality,
       std::map<Key, double>* timestamps_cheirality,
-      std::vector<size_t>* delete_slots_cheirality,
+      gtsam::FactorIndices* delete_slots_cheirality,
       const gtsam::NonlinearFactorGraph& graph,
       const gtsam::NonlinearFactorGraph& new_factors_tmp,
       const gtsam::Values& new_values,
       const std::map<Key, double>& timestamps,
-      const std::vector<size_t>& delete_slots);
+      const gtsam::FactorIndices& delete_slots);
 
   /* ------------------------------------------------------------------------ */
   void deleteAllFactorsWithKeyFromFactorGraph(
@@ -395,7 +395,7 @@ protected:
   /// Private printers.
   /* ------------------------------------------------------------------------ */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
-                         const std::vector<size_t>& delete_slots,
+                         const gtsam::FactorIndices& delete_slots,
                          const std::string& message = "CATCHING EXCEPTION",
                          const bool& showDetails = false) const;
 
@@ -465,12 +465,11 @@ public:
   inline const Pose3& getBPoseLeftCam() const {return B_Pose_leftCam_;}
 
   // TODO NOT THREAD-SAFE! Should add critical sections.
-  inline Timestamp getTimestampLkf() const {return timestamp_lkf_;}
+  // This can only be used in the wrapped backend-mesher thread.
   inline ImuBias getLatestImuBias() const {return imu_bias_lkf_;}
   inline ImuBias getImuBiasPrevKf() const {return imu_bias_prev_kf_;}
   inline Vector3 getWVelBLkf() const {return W_Vel_B_lkf_;}
   inline Pose3 getWPoseBLkf() const {return W_Pose_B_lkf_;}
-  inline gtsam::Matrix getStateCovarianceLkf() const {return state_covariance_lkf_;}
   inline int getCurrKfId() const {return curr_kf_id_;}
   inline gtsam::Values getState() const {return state_;}
   inline int getLandmarkCount() const {return landmark_count_;}

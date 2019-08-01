@@ -53,7 +53,7 @@ public:
     : pose_(nav_state.pose()),
       velocity_(nav_state.velocity()),
       imu_bias_(imu_bias) {}
-  
+
 
   gtsam::Pose3 pose_;
   gtsam::Vector3 velocity_;
@@ -94,7 +94,7 @@ struct InitializationPerformance {
         gt_gravity_(gt_gravity) {}
 
     void print() const;
-  
+
   public:
     const Timestamp init_timestamp_;
     const int init_n_frames_;
@@ -147,7 +147,7 @@ struct SpinOutputContainer {
   SpinOutputContainer(
       const Timestamp& timestamp_kf, const gtsam::Pose3& W_Pose_Blkf,
       const Vector3& W_Vel_Blkf, const ImuBias& imu_bias_lkf,
-      const gtsam::Matrix State_Covariance_lkf = gtsam::zeros(15, 15),
+      const gtsam::Matrix state_covariance_lkf = gtsam::zeros(15, 15),
       const DebugTrackerInfo debug_tracker_info = DebugTrackerInfo())
       : timestamp_kf_(timestamp_kf),
         W_Pose_Blkf_(W_Pose_Blkf),
@@ -155,48 +155,48 @@ struct SpinOutputContainer {
         imu_bias_lkf_(imu_bias_lkf),
         debug_tracker_info_(debug_tracker_info) {
     // TODO: Create a better assert for this covariance matrix
-    CHECK_EQ(State_Covariance_lkf.rows(), 15);
-    CHECK_EQ(State_Covariance_lkf.cols(), 15);
-    State_Covariance_lkf_ = State_Covariance_lkf;
+    CHECK_EQ(state_covariance_lkf.rows(), 15);
+    CHECK_EQ(state_covariance_lkf.cols(), 15);
+    state_covariance_lkf_ = state_covariance_lkf;
   }
 
   // Trivial constructor (do not publish)
   SpinOutputContainer()
-    : timestamp_kf_(-1),
+    : timestamp_kf_(0),
       W_Pose_Blkf_(gtsam::Pose3()),
       W_Vel_Blkf_(gtsam::Vector3()),
       imu_bias_lkf_(gtsam::imuBias::ConstantBias()),
-      State_Covariance_lkf_(gtsam::zeros(15,15)),
+      state_covariance_lkf_(gtsam::zeros(15,15)),
       debug_tracker_info_(DebugTrackerInfo()) {}
 
   Timestamp timestamp_kf_;
   gtsam::Pose3 W_Pose_Blkf_;
   Vector3 W_Vel_Blkf_;
   ImuBias imu_bias_lkf_;
-  gtsam::Matrix State_Covariance_lkf_;
+  gtsam::Matrix state_covariance_lkf_;
   DebugTrackerInfo debug_tracker_info_;
 
-  inline const Timestamp getTimestamp() { return timestamp_kf_; }
+  inline const Timestamp getTimestamp() const { return timestamp_kf_; }
 
-  inline const gtsam::Pose3 getEstimatedPose() { return W_Pose_Blkf_; }
+  inline const gtsam::Pose3 getEstimatedPose() const { return W_Pose_Blkf_; }
 
-  inline const Vector3 getEstimatedVelocity() { return W_Vel_Blkf_; }
+  inline const Vector3 getEstimatedVelocity() const { return W_Vel_Blkf_; }
 
-  inline const gtsam::Matrix6 getEstimatedPoseCov() {
-    return gtsam::sub(State_Covariance_lkf_, 0, 6, 0, 6);
+  inline const gtsam::Matrix6 getEstimatedPoseCov() const {
+    return gtsam::sub(state_covariance_lkf_, 0, 6, 0, 6);
   }
 
-  inline const gtsam::Matrix3 getEstimatedVelCov() {
-    return gtsam::sub(State_Covariance_lkf_, 6, 9, 6, 9);
+  inline const gtsam::Matrix3 getEstimatedVelCov() const {
+    return gtsam::sub(state_covariance_lkf_, 6, 9, 6, 9);
   }
 
-  inline const ImuBias getEstimatedBias() { return imu_bias_lkf_; }
+  inline const ImuBias getEstimatedBias() const { return imu_bias_lkf_; }
 
-  inline const gtsam::Matrix6 getEstimatedBiasCov() {
-    return gtsam::sub(State_Covariance_lkf_, 9, 15, 9, 15);
+  inline const gtsam::Matrix6 getEstimatedBiasCov() const {
+    return gtsam::sub(state_covariance_lkf_, 9, 15, 9, 15);
   }
 
-  inline const DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
+  inline const DebugTrackerInfo getTrackerInfo() const { return debug_tracker_info_; }
 };
 
 struct PipelineParams {
@@ -204,10 +204,10 @@ struct PipelineParams {
   VioBackEndParamsConstPtr backend_params_;
   ImuParams imu_params_;
   int backend_type_;
-  PipelineParams(VioFrontEndParams frontend_params, 
+  PipelineParams(VioFrontEndParams frontend_params,
                  VioBackEndParamsConstPtr backend_params,
-                 ImuParams imu_params, 
-                 int backend_type) : 
+                 ImuParams imu_params,
+                 int backend_type) :
     frontend_params_(frontend_params),
     backend_params_(backend_params),
     imu_params_(imu_params),
@@ -230,12 +230,12 @@ class DataProvider {
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.
   void registerVioCallback(
-      std::function<SpinOutputContainer(const StereoImuSyncPacket&)> callback);
+      std::function<void(const StereoImuSyncPacket&)> callback);
 
  protected:
   // Vio callback. This function should be called once a StereoImuSyncPacket
   // is available for processing.
-  std::function<SpinOutputContainer(const StereoImuSyncPacket&)> vio_callback_;
+  std::function<void(const StereoImuSyncPacket&)> vio_callback_;
 
   // Init Vio parameters.
   VioBackEndParamsPtr backend_params_;
@@ -253,7 +253,6 @@ class DataProvider {
 protected:
   // Helper function to parse user-specified parameters.
   void parseParams();
-
 };
 
 }  // namespace VIO

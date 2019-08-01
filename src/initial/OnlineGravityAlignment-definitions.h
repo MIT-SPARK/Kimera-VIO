@@ -33,7 +33,7 @@ public:
   VisualInertialFrame(const gtsam::Pose3 &curr_body_pose,
                  const gtsam::Pose3 &prev_body_pose,
                  const double &cam_dt,
-                 gtsam::NavState &delta_state,
+                 const gtsam::NavState &delta_state,
                  const gtsam::Matrix3& dbg_Jacobian_dR,
                  const double &pim_dt)
       : cam_dt_(cam_dt),
@@ -52,58 +52,55 @@ public:
 
 public:
   /* ------------------------------------------------------------------------------- */
-  inline double cam_dt() const { return cam_dt_; }
+  inline double camDt() const { return cam_dt_; }
   /* ------------------------------------------------------------------------------- */
-  inline double pim_dt() const { return pim_dt_; }
+  inline double pimDt() const { return pim_dt_; }
   /* ------------------------------------------------------------------------------- */
-  inline double dt_bk() const { return dt_bk_; }
+  inline double dtBk() const { return dt_bk_; }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Matrix3 b0_R_bkp1() const { return b0_R_bkp1_; }
+  inline gtsam::Matrix3 b0Rbkp1() const { return b0_R_bkp1_; }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Matrix3 b0_R_bk() const { return b0_R_bk_; }
+  inline gtsam::Matrix3 b0Rbk() const { return b0_R_bk_; }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Vector3 b0_p_bkp1() const { return b0_p_bkp1_; }
+  inline gtsam::Vector3 b0Pbkp1() const { return b0_p_bkp1_; }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Vector3 b0_p_bk() const { return b0_p_bk_; }
+  inline gtsam::Vector3 b0Pbk() const { return b0_p_bk_; }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 bk_R_bkp1() const { return (b0_R_bk_.transpose() * b0_R_bkp1_); }
+  gtsam::Matrix3 bkRbkp1() const { return (b0_R_bk_.transpose() * b0_R_bkp1_); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Vector3 bk_p_bkp1() const { return (b0_p_bkp1_ - b0_p_bk_); }
+  gtsam::Vector3 bkPbkp1() const { return (b0_p_bkp1_ - b0_p_bk_); }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Matrix3 bk_gamma_bkp1() const { return bk_gamma_bkp1_; }
+  inline gtsam::Matrix3 bkGammaBkp1() const { return bk_gamma_bkp1_; }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Vector3 bk_alpha_bkp1() const { return bk_alpha_bkp1_; }
+  inline gtsam::Vector3 bkAlphaBkp1() const { return bk_alpha_bkp1_; }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Vector3 bk_beta_bkp1() const { return bk_beta_bkp1_; }
+  inline gtsam::Vector3 bkBetaBkp1() const { return bk_beta_bkp1_; }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Matrix3 dbg_jacobian_dR() const { return dbg_Jacobian_dR_; }
+  inline gtsam::Matrix3 dbgJacobianDr() const { return dbg_Jacobian_dR_; }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_11() const { return (-dt_bk_*b0_R_bk_.transpose()); }
+  gtsam::Matrix3 A11() const { return (-dt_bk_*b0_R_bk_.transpose()); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_13() const { return (0.5 * dt_bk_ * dt_bk_ * b0_R_bk_.transpose()); }
+  gtsam::Matrix3 A13() const { return (0.5 * dt_bk_ * dt_bk_ * b0_R_bk_.transpose()); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Vector3 b_1() const {
-    return (bk_alpha_bkp1_ - (b0_R_bk_.transpose() * bk_p_bkp1()));
+  gtsam::Vector3 b1() const {
+    return (bk_alpha_bkp1_ - (b0_R_bk_.transpose() * bkPbkp1()));
   }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_21() const { return (-b0_R_bk_.transpose()); }
+  gtsam::Matrix3 A21() const { return (-b0_R_bk_.transpose()); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_22() const { return b0_R_bk_.transpose(); }
+  gtsam::Matrix3 A22() const { return b0_R_bk_.transpose(); }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Matrix3 A_23() const { return (dt_bk_ * b0_R_bk_.transpose()); }
+  gtsam::Matrix3 A23() const { return (dt_bk_ * b0_R_bk_.transpose()); }
   /* ------------------------------------------------------------------------------- */
-  inline gtsam::Vector3 b_2() const { return bk_beta_bkp1_; }
+  inline gtsam::Vector3 b2() const { return bk_beta_bkp1_; }
   /* ------------------------------------------------------------------------------- */
-  gtsam::Pose3 b0_T_bk() const {
+  gtsam::Pose3 b0Tbk() const {
     return gtsam::Pose3(gtsam::Rot3(b0_R_bk_), b0_p_bk_);
   }
-  /* -------------------------------------------------------------------------------
-   */
-  void updateDeltaState(const gtsam::NavState &delta_state) {
-    bk_alpha_bkp1_ = gtsam::Vector3(delta_state.pose().translation());
-    bk_beta_bkp1_ = delta_state.velocity();
-    bk_gamma_bkp1_ = delta_state.pose().rotation().matrix();
-  }
+  /* ------------------------------------------------------------------------------- */
+  // Updates delta state with new delta state in visual inertial frame.
+  // [in]: New pim delta state to be inserted in visual inertial frame.
+  void updateDeltaState(const gtsam::NavState &delta_state);
 
 private:
   const gtsam::Matrix3 b0_R_bk_;

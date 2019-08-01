@@ -284,10 +284,10 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
   imu_bias_lkf_ = initialBias;
   imu_bias_prev_kf_ = initialBias;
 
-  LOG(INFO) << "Initialized state: ";
-  W_Pose_B_lkf_.print("Initial pose");
-  LOG(INFO) << "\n Initial vel: " << W_Vel_B_lkf_.transpose();
-  imu_bias_lkf_.print("Initial bias: \n");
+  LOG(INFO) << "Initialized state: \n"
+            << "Initial pose: " << W_Pose_B_lkf_ << '\n'
+            << "Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
+            << "Initial IMU bias: " << imu_bias_lkf_;
 
   // Can't add inertial prior factor until we have a state measurement.
   addInitialPriorFactors(curr_kf_id_);
@@ -718,7 +718,7 @@ gtsam::Matrix VioBackEnd::getCurrentStateCovariance() const {
                              gtsam::Marginals::Factorization::CHOLESKY);
 
   // Current state includes pose, velocity and imu biases.
-  std::vector<gtsam::Key> keys;
+  gtsam::KeyVector keys;
   keys.push_back(gtsam::Symbol('x', curr_kf_id_));
   keys.push_back(gtsam::Symbol('v', curr_kf_id_));
   keys.push_back(gtsam::Symbol('b', curr_kf_id_));
@@ -736,7 +736,7 @@ gtsam::Matrix VioBackEnd::getCurrentStateInformation() const {
                              gtsam::Marginals::Factorization::CHOLESKY);
 
   // Current state includes pose, velocity and imu biases.
-  std::vector<gtsam::Key> keys;
+  gtsam::KeyVector keys;
   keys.push_back(gtsam::Symbol('x', curr_kf_id_));
   keys.push_back(gtsam::Symbol('v', curr_kf_id_));
   keys.push_back(gtsam::Symbol('b', curr_kf_id_));
@@ -922,7 +922,7 @@ void VioBackEnd::addZeroVelocityPrior(const FrameId& frame_id) {
 void VioBackEnd::optimize(
     const Timestamp& timestamp_kf_nsec, const FrameId& cur_id,
     const size_t& max_extra_iterations,
-    const std::vector<size_t>& extra_factor_slots_to_delete) {
+    gtsam::FactorIndices extra_factor_slots_to_delete) {
   CHECK(smoother_.get()) << "Incremental smoother is a null pointer.";
 
   // Only for statistics and debugging.
@@ -938,7 +938,7 @@ void VioBackEnd::optimize(
   // Extra factor slots to delete contains potential factors that we want to
   // delete, it is typically an empty vector. And is only used to give
   // flexibility to subclasses.
-  std::vector<size_t> delete_slots = extra_factor_slots_to_delete;
+  gtsam::FactorIndices delete_slots = extra_factor_slots_to_delete;
   std::vector<LandmarkId> lmk_ids_of_new_smart_factors_tmp;
   gtsam::NonlinearFactorGraph new_factors_tmp;
   for (const auto& new_smart_factor : new_smart_factors_) {
@@ -1199,8 +1199,9 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
 void VioBackEnd::updateSmoother(
     Smoother::Result* result,
     const gtsam::NonlinearFactorGraph& new_factors_tmp,
-    const gtsam::Values& new_values, const std::map<Key, double>& timestamps,
-    const std::vector<size_t>& delete_slots) {
+    const gtsam::Values& new_values,
+    const std::map<Key, double>& timestamps,
+    const gtsam::FactorIndices& delete_slots) {
   CHECK_NOTNULL(result);
   gtsam::NonlinearFactorGraph empty_graph;
 
@@ -1316,7 +1317,7 @@ void VioBackEnd::updateSmoother(
       gtsam::NonlinearFactorGraph new_factors_tmp_cheirality;
       gtsam::Values new_values_cheirality;
       std::map<Key, double> timestamps_cheirality;
-      std::vector<size_t> delete_slots_cheirality;
+      gtsam::FactorIndices delete_slots_cheirality;
       const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
       VLOG(10) << "Starting cleanCheiralityLmk...";
       cleanCheiralityLmk(lmk_symbol_cheirality, &new_factors_tmp_cheirality,
@@ -1361,11 +1362,12 @@ void VioBackEnd::cleanCheiralityLmk(
     gtsam::NonlinearFactorGraph* new_factors_tmp_cheirality,
     gtsam::Values* new_values_cheirality,
     std::map<Key, double>* timestamps_cheirality,
-    std::vector<size_t>* delete_slots_cheirality,
+    gtsam::FactorIndices* delete_slots_cheirality,
     const gtsam::NonlinearFactorGraph& graph,
     const gtsam::NonlinearFactorGraph& new_factors_tmp,
-    const gtsam::Values& new_values, const std::map<Key, double>& timestamps,
-    const std::vector<size_t>& delete_slots) {
+    const gtsam::Values& new_values,
+    const std::map<Key, double>& timestamps,
+    const gtsam::FactorIndices& delete_slots) {
   CHECK_NOTNULL(new_factors_tmp_cheirality);
   CHECK_NOTNULL(new_values_cheirality);
   CHECK_NOTNULL(timestamps_cheirality);
@@ -1557,17 +1559,17 @@ void VioBackEnd::setIsam2Params(const VioBackEndParams& vio_params,
   // vThresh; thresholds['b'] = bThresh;
   // isam_param.setRelinearizeThreshold(thresholds);
 
+  // TODO (Toni): remove hardcoded
   // Cache Linearized Factors seems to improve performance.
   isam_param->setCacheLinearizedFactors(true);
-  isam_param->setEvaluateNonlinearError(false);
   isam_param->relinearizeThreshold = vio_params.relinearizeThreshold_;
   isam_param->relinearizeSkip = vio_params.relinearizeSkip_;
-  // isam_param->enablePartialRelinearizationCheck = true;
   isam_param->findUnusedFactorSlots = true;
+  // isam_param->enablePartialRelinearizationCheck = true;
+  isam_param->setEvaluateNonlinearError(false);  // only for debugging
   isam_param->enableDetailedResults = false;  // only for debugging.
-  isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
-  isam_param->print("isam_param");
-  // isam_param.evaluateNonlinearError = true;  // only for debugging.
+  isam_param->factorization = gtsam::ISAM2Params::CHOLESKY; // QR
+  if (FLAGS_minloglevel < 1) isam_param->print("isam_param");
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1640,14 +1642,17 @@ void VioBackEnd::setSmartFactorsParams(
 void VioBackEnd::print() const {
   LOG(INFO) << "((((((((((((((((((((((((((((((((((((((((( VIO PRINT )))))))))"
             << ")))))))))))))))))))))))))))))))) ";
-  B_Pose_leftCam_.print("\n B_Pose_leftCam_\n");
-  stereo_cal_->print("\n stereoCal_\n");
+  if (FLAGS_minloglevel < 1) {
+    stereo_cal_->print("\n stereoCal_\n");
+  }
   vio_params_.print();
-  W_Pose_B_lkf_.print("\n W_Pose_Blkf_ \n");
-  LOG(INFO) << "\n W_Vel_Blkf_ " << W_Vel_B_lkf_.transpose();
-  imu_bias_lkf_.print("\n imu_bias_lkf_ \n");
-  imu_bias_prev_kf_.print("\n imu_bias_prev_kf_ \n");
-  LOG(INFO) << "last_id_ " << last_kf_id_ << '\n'
+
+  LOG(INFO) << "\n B_Pose_leftCam_: " << B_Pose_leftCam_ << '\n'
+            << "W_Pose_B_lkf_: " << W_Pose_B_lkf_ << '\n'
+            << "W_Vel_B_lkf_ (transpose): " << W_Vel_B_lkf_.transpose() << '\n'
+            << "imu_bias_lkf_" << imu_bias_lkf_ << '\n'
+            << "imu_bias_prev_kf_" << imu_bias_prev_kf_ << '\n'
+            << "last_id_ " << last_kf_id_ << '\n'
             << "cur_id_ " << curr_kf_id_ << '\n'
             << "verbosity_ " << verbosity_ << '\n'
             << "landmark_count_ " << landmark_count_ << '\n'
@@ -1667,7 +1672,8 @@ void VioBackEnd::printFeatureTracks() const {
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::printSmootherInfo(
     const gtsam::NonlinearFactorGraph& new_factors_tmp,
-    const std::vector<size_t>& delete_slots, const std::string& message,
+    const gtsam::FactorIndices& delete_slots,
+    const std::string& message,
     const bool& showDetails) const {
   LOG(INFO) << " =============== START:" << message
             << " =============== " << std::endl;

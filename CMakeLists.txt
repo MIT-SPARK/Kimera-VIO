@@ -49,7 +49,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(SparkVio SHARED
+add_library(sparkvio SHARED
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
   src/StereoFrame.cpp
@@ -62,6 +62,7 @@ add_library(SparkVio SHARED
   src/Histogram.cpp
   src/LoggerMatlab.cpp
   src/FeatureSelector.cpp
+  src/YamlParser.h
   src/VioBackEndParams.h
   src/VioFrontEndParams.h
   src/RegularVioBackEndParams.h
@@ -70,7 +71,7 @@ add_library(SparkVio SHARED
   src/Visualizer3D.cpp "")
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(SparkVio::SparkVio ALIAS SparkVio)
+add_library(SparkVio::SparkVio ALIAS sparkvio)
 
 ### Add source code for data provider.
 include(src/datasource/CMakeLists.txt)
@@ -87,7 +88,7 @@ include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
 
-target_link_libraries(SparkVio
+target_link_libraries(sparkvio
   PRIVATE
     opengv
   PUBLIC
@@ -98,17 +99,19 @@ target_link_libraries(SparkVio
     gtsam
     gtsam_unstable
 )
-target_include_directories(SparkVio
+target_include_directories(sparkvio
   PUBLIC
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
-target_compile_options(SparkVio
+
+target_compile_options(sparkvio
   PRIVATE -Wall -pipe
-  PUBLIC -march=native) # Remove these
+  PRIVATE -march=native) # Remove these
+
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(SparkVio PUBLIC
+target_compile_features(sparkvio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
 add_executable(stereoVIO ./examples/stereoVIO.cpp)
@@ -181,6 +184,7 @@ add_executable(testSparkVio
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
   )
+
 target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
 
 if(CMAKE_VERSION VERSION_LESS 3.10)
@@ -278,7 +282,7 @@ set(EXPORTED_DEPENDENCIES "")
 list(APPEND EXPORTED_DEPENDENCIES "glog::glog")
 list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
 
-export(TARGETS SparkVio ${EXPORTED_DEPENDENCIES}
+export(TARGETS sparkvio ${EXPORTED_DEPENDENCIES}
        FILE SparkVioTargets.cmake)
 export(PACKAGE SparkVio)
 

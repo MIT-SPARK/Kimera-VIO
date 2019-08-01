@@ -12,9 +12,9 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#ifndef VioFrontEndParams_H_
-#define VioFrontEndParams_H_
+#pragma once
 
+#include <boost/shared_ptr.hpp> // used for opengv
 #include <time.h>
 #include <boost/shared_ptr.hpp>  // used for opengv
 
@@ -27,80 +27,71 @@
 
 #include "StereoFrame.h"
 #include "UtilsOpenCV.h"
+#include "YamlParser.h"
 
 namespace VIO {
 
-////////////////////////////////////////////////////////////////////////////////
 class VioFrontEndParams {
- public:
+public:
   // TODO make an enum class.
   enum FeatureSelectionCriterion { QUALITY, MIN_EIG, LOGDET, RANDOM };
 
   VioFrontEndParams()
-      :  // tracking params
-        klt_win_size_(24),
-        klt_max_iter_(30),
-        klt_max_level_(4),
-        klt_eps_(0.1),  // Before tuning: 0.001
+      : // tracking params
+        klt_win_size_(24), klt_max_iter_(30), klt_max_level_(4),
+        klt_eps_(0.1), // Before tuning: 0.001
         maxFeatureAge_(
-            25),  // upper bounded by horizon / min intra_keyframe_time_
+            25), // upper bounded by horizon / min intra_keyframe_time_
         // detection params
-        maxFeaturesPerFrame_(1000),  // Max nr of features to track per frame
-        quality_level_(0.001),  // Quality of feature from 0-1 (mono: 0.995) //
-                                // before tuning: 0.5
-        min_distance_(10.0),  // Minimum allowable distance (in pixels) between
-                              // feature detections // Before tuning: 20
-        block_size_(3),
-        use_harris_detector_(false),
-        k_(0.04),
+        maxFeaturesPerFrame_(1000), // Max nr of features to track per frame
+        quality_level_(0.001), // Quality of feature from 0-1 (mono: 0.995) //
+                               // before tuning: 0.5
+        min_distance_(10.0),   // Minimum allowable distance (in pixels) between
+                               // feature detections // Before tuning: 20
+        block_size_(3), use_harris_detector_(false), k_(0.04),
         // Stereo matching.
         stereo_matching_params_(),
         // Selector params.
         featureSelectionCriterion_(FeatureSelectionCriterion::QUALITY),
-        featureSelectionHorizon_(3),  // in seconds
+        featureSelectionHorizon_(3), // in seconds
         featureSelectionNrCornersToSelect_(
-            1000),  // detect larger number of keypoints, and then select
-                    // maxFeaturesPerFrame_
-        featureSelectionImuRate_(0.005),     // for feature selector
-        featureSelectionDefaultDepth_(5.0),  // for feature selector
+            1000), // detect larger number of keypoints, and then select
+                   // maxFeaturesPerFrame_
+        featureSelectionImuRate_(0.005),    // for feature selector
+        featureSelectionDefaultDepth_(5.0), // for feature selector
         featureSelectionCosineNeighborhood_(
-            cos((10 * M_PI) / (180.0))),  // 10 degrees
+            cos((10 * M_PI) / (180.0))), // 10 degrees
         featureSelectionUseLazyEvaluation_(true),
         useSuccessProbabilities_(true),
         // RANSAC params:
-        useRANSAC_(true),  // if false RANSAC is completely disabled
-        minNrMonoInliers_(10),
-        minNrStereoInliers_(5),
+        useRANSAC_(true), // if false RANSAC is completely disabled
+        minNrMonoInliers_(10), minNrStereoInliers_(5),
         ransac_threshold_mono_(
-            1e-6),  // threshold Some threshold value for classifying samples as
-                    // an inlier or an outlier
-        ransac_threshold_stereo_(1),  // 0.3 for 3point method, 3-7 for 1-point
-        ransac_use_1point_stereo_(true),
-        ransac_use_2point_mono_(true),
+            1e-6), // threshold Some threshold value for classifying samples as
+                   // an inlier or an outlier
+        ransac_threshold_stereo_(1), // 0.3 for 3point method, 3-7 for 1-point
+        ransac_use_1point_stereo_(true), ransac_use_2point_mono_(true),
         ransac_max_iterations_(100),
-        ransac_probability_(
-            0.995),  // The probability of being able to draw at least one
-                     // sample that is free of outliers
+        ransac_probability_(0.995), // The probability of being able to draw at
+                                    // least one sample that is free of outliers
         ransac_randomize_(true),
         // StereoTracker params (kept here for simplicity)
-        intra_keyframe_time_(0.2),  // in seconds
-        min_number_features_(0),
-        useStereoTracking_(true),
+        intra_keyframe_time_(0.2), // in seconds
+        min_number_features_(0), useStereoTracking_(true),
         // other params
-        display_time_(100),
-        disparityThreshold_(0.5)  // in pixels
-  {}
+        disparityThreshold_(0.5), // in pixels
+        yaml_parser_(nullptr) {}
 
   // tracking (Optical flow) params
   int klt_win_size_;  // size of the window
   int klt_max_iter_;  // max iterations
   int klt_max_level_;
-  double klt_eps_;     // @TODO: add comments on each parameter
-  int maxFeatureAge_;  // we cut feature tracks longer than that
+  double klt_eps_;    // @TODO: add comments on each parameter
+  int maxFeatureAge_; // we cut feature tracks longer than that
 
   // Detection parameters
   int maxFeaturesPerFrame_;
-  double quality_level_;  // @TODO: add comments on each parameter
+  double quality_level_; // @TODO: add comments on each parameter
   double min_distance_;  // min distance to create mask around old keypoints for
                          // detector
   int block_size_;
@@ -122,43 +113,42 @@ class VioFrontEndParams {
   bool useRANSAC_;
   int minNrMonoInliers_, minNrStereoInliers_;  // TODO should be size_t
   double ransac_threshold_mono_, ransac_threshold_stereo_;
-  int ransac_max_iterations_;  // TODO (minor) : should we split this in mono
-                               // and stereo?
-  double ransac_probability_;  // TODO (minor) : should we split this in mono
-                               // and stereo?
+  int ransac_max_iterations_; // TODO (minor) : should we split this in mono
+                              // and stereo?
+  double ransac_probability_; // TODO (minor) : should we split this in mono
+                              // and stereo?
   bool ransac_randomize_;
   bool ransac_use_1point_stereo_, ransac_use_2point_mono_;
 
   // STEREO parameters:
   double intra_keyframe_time_;
   size_t min_number_features_;
-  bool useStereoTracking_;  // if set to false pipeline reduces to monocular
-                            // tracking
+  bool useStereoTracking_; // if set to false pipeline reduces to monocular
+                           // tracking
 
   // others:
-  double disparityThreshold_;  // max disparity under which we consider the
-                               // vehicle steady
-  double display_time_;        // time for imshow
+  double disparityThreshold_; // max disparity under which we consider the
+                              // vehicle steady
 
   /* ------------------------------------------------------------------------ */
   static std::string FeatureSelectionCriterionStr(const int i) {
     std::string featSelCriterionStr;
     switch (i) {
-      case 0:
-        featSelCriterionStr = "QUALITY";
-        break;
-      case 1:
-        featSelCriterionStr = "MIN_EIG";
-        break;
-      case 2:
-        featSelCriterionStr = "LOGDET";
-        break;
-      case 3:
-        featSelCriterionStr = "RANDOM";
-        break;
-      default:
-        LOG(FATAL) << "FeatureSelectionCriterionStr: invalid feature selection "
-                      "criterion";
+    case 0:
+      featSelCriterionStr = "QUALITY";
+      break;
+    case 1:
+      featSelCriterionStr = "MIN_EIG";
+      break;
+    case 2:
+      featSelCriterionStr = "LOGDET";
+      break;
+    case 3:
+      featSelCriterionStr = "RANDOM";
+      break;
+    default:
+      LOG(FATAL) << "FeatureSelectionCriterionStr: invalid feature selection "
+                    "criterion";
     }
     return featSelCriterionStr;
   }
@@ -211,8 +201,7 @@ class VioFrontEndParams {
            (min_number_features_ == tp2.min_number_features_) &&
            (useStereoTracking_ == tp2.useStereoTracking_) &&
            // others:
-           (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol) &&
-           (fabs(display_time_ - tp2.display_time_) <= tol);
+           (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -276,85 +265,113 @@ class VioFrontEndParams {
 
         << "** OTHER parameters **" << '\n'
         << "disparityThreshold_: " << disparityThreshold_ << '\n'
-        << "display_time_: " << display_time_ << '\n'
-        << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"
-           "&";
+        << "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&";
   }
 
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   */
-  bool parseYAML(std::string filepath) {
-    // make sure that each YAML file has %YAML:1.0 as first line
-    cv::FileStorage fs;
-    UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
+  bool parseYAML(const std::string &filepath) {
+    yaml_parser_ = std::make_shared<YamlParser>(filepath);
+    yaml_parser_->getYamlParam("klt_win_size", &klt_win_size_);
+    yaml_parser_->getYamlParam("klt_max_iter", &klt_max_iter_);
+    yaml_parser_->getYamlParam("klt_max_level", &klt_max_level_);
+    yaml_parser_->getYamlParam("klt_eps", &klt_eps_);
+    yaml_parser_->getYamlParam("maxFeatureAge", &maxFeatureAge_);
 
-    fs["klt_win_size"] >> klt_win_size_;
-    fs["klt_max_iter"] >> klt_max_iter_;
-    fs["klt_max_level"] >> klt_max_level_;
-    fs["klt_eps"] >> klt_eps_;
-    fs["maxFeatureAge"] >> maxFeatureAge_;
+    yaml_parser_->getYamlParam("maxFeaturesPerFrame", &maxFeaturesPerFrame_);
+    yaml_parser_->getYamlParam("quality_level", &quality_level_);
+    yaml_parser_->getYamlParam("min_distance", &min_distance_);
+    yaml_parser_->getYamlParam("block_size", &block_size_);
+    yaml_parser_->getYamlParam("use_harris_detector", &use_harris_detector_);
+    yaml_parser_->getYamlParam("k", &k_);
 
-    fs["maxFeaturesPerFrame"] >> maxFeaturesPerFrame_;
-    fs["quality_level"] >> quality_level_;
-    fs["min_distance"] >> min_distance_;
-    fs["block_size"] >> block_size_;
-    fs["use_harris_detector"] >> use_harris_detector_;
-    fs["k"] >> k_;
-
-    stereo_matching_params_.parseYamlFromOpenFileStorage(fs);
+    yaml_parser_->getYamlParam("equalizeImage",
+                               &stereo_matching_params_.equalize_image_);
+    yaml_parser_->getYamlParam("nominalBaseline",
+                               &stereo_matching_params_.nominal_baseline_);
+    yaml_parser_->getYamlParam(
+        "toleranceTemplateMatching",
+        &stereo_matching_params_.tolerance_template_matching_);
+    yaml_parser_->getYamlParam("templ_cols",
+                               &stereo_matching_params_.templ_cols_);
+    yaml_parser_->getYamlParam("templ_rows",
+                               &stereo_matching_params_.templ_rows_);
+    yaml_parser_->getYamlParam("stripe_extra_rows",
+                               &stereo_matching_params_.stripe_extra_rows_);
+    yaml_parser_->getYamlParam("minPointDist",
+                               &stereo_matching_params_.min_point_dist_);
+    yaml_parser_->getYamlParam("maxPointDist",
+                               &stereo_matching_params_.max_point_dist_);
+    yaml_parser_->getYamlParam(
+        "bidirectionalMatching",
+        &stereo_matching_params_.bidirectional_matching_);
+    yaml_parser_->getYamlParam("subpixelRefinementStereo",
+                               &stereo_matching_params_.subpixel_refinement_);
 
     int featureSelectionCriterionNr;
-    fs["featureSelectionCriterion"] >> featureSelectionCriterionNr;
+    yaml_parser_->getYamlParam("featureSelectionCriterion",
+                               &featureSelectionCriterionNr);
     switch (featureSelectionCriterionNr) {
-      case 0:
-        featureSelectionCriterion_ = FeatureSelectionCriterion::QUALITY;
-        break;
-      case 1:
-        featureSelectionCriterion_ = FeatureSelectionCriterion::MIN_EIG;
-        break;
-      case 2:
-        featureSelectionCriterion_ = FeatureSelectionCriterion::LOGDET;
-        break;
-      case 3:
-        featureSelectionCriterion_ = FeatureSelectionCriterion::RANDOM;
-        break;
-      default:
-        LOG(FATAL) << "parseYAML: wrong choice of featureSelectionCriterion";
+    case 0:
+      featureSelectionCriterion_ = FeatureSelectionCriterion::QUALITY;
+      break;
+    case 1:
+      featureSelectionCriterion_ = FeatureSelectionCriterion::MIN_EIG;
+      break;
+    case 2:
+      featureSelectionCriterion_ = FeatureSelectionCriterion::LOGDET;
+      break;
+    case 3:
+      featureSelectionCriterion_ = FeatureSelectionCriterion::RANDOM;
+      break;
+    default:
+      LOG(FATAL) << "Wrong choice of featureSelectionCriterion parameter.";
+      break;
     }
-    fs["featureSelectionHorizon"] >> featureSelectionHorizon_;
-    fs["featureSelectionNrCornersToSelect"] >>
-        featureSelectionNrCornersToSelect_;
-    fs["featureSelectionImuRate"] >> featureSelectionImuRate_;
-    fs["featureSelectionDefaultDepth"] >> featureSelectionDefaultDepth_;
-    fs["featureSelectionCosineNeighborhood"] >>
-        featureSelectionCosineNeighborhood_;
-    fs["featureSelectionUseLazyEvaluation"] >>
-        featureSelectionUseLazyEvaluation_;
-    fs["useSuccessProbabilities"] >> useSuccessProbabilities_;
 
-    fs["useRANSAC"] >> useRANSAC_;
-    fs["minNrMonoInliers"] >> minNrMonoInliers_;
-    fs["minNrStereoInliers"] >> minNrStereoInliers_;
-    fs["ransac_threshold_mono"] >> ransac_threshold_mono_;
-    fs["ransac_threshold_stereo"] >> ransac_threshold_stereo_;
-    fs["ransac_use_1point_stereo"] >> ransac_use_1point_stereo_;
-    fs["ransac_use_2point_mono"] >> ransac_use_2point_mono_;
+    yaml_parser_->getYamlParam("featureSelectionHorizon",
+                               &featureSelectionHorizon_);
+    yaml_parser_->getYamlParam("featureSelectionNrCornersToSelect",
+                               &featureSelectionNrCornersToSelect_);
+    yaml_parser_->getYamlParam("featureSelectionImuRate",
+                               &featureSelectionImuRate_);
+    yaml_parser_->getYamlParam("featureSelectionDefaultDepth",
+                               &featureSelectionDefaultDepth_);
+    yaml_parser_->getYamlParam("featureSelectionCosineNeighborhood",
+                               &featureSelectionCosineNeighborhood_);
+    yaml_parser_->getYamlParam("featureSelectionUseLazyEvaluation",
+                               &featureSelectionUseLazyEvaluation_);
 
-    fs["ransac_max_iterations"] >> ransac_max_iterations_;
-    fs["ransac_probability"] >> ransac_probability_;
-    fs["ransac_randomize"] >> ransac_randomize_;
+    yaml_parser_->getYamlParam("useSuccessProbabilities",
+                               &useSuccessProbabilities_);
+    yaml_parser_->getYamlParam("useRANSAC", &useRANSAC_);
+    yaml_parser_->getYamlParam("minNrMonoInliers", &minNrMonoInliers_);
+    yaml_parser_->getYamlParam("minNrStereoInliers", &minNrStereoInliers_);
+    yaml_parser_->getYamlParam("ransac_threshold_mono",
+                               &ransac_threshold_mono_);
+    yaml_parser_->getYamlParam("ransac_threshold_stereo",
+                               &ransac_threshold_stereo_);
+    yaml_parser_->getYamlParam("ransac_use_1point_stereo",
+                               &ransac_use_1point_stereo_);
+    yaml_parser_->getYamlParam("ransac_use_2point_mono",
+                               &ransac_use_2point_mono_);
+    yaml_parser_->getYamlParam("ransac_max_iterations",
+                               &ransac_max_iterations_);
+    yaml_parser_->getYamlParam("ransac_probability", &ransac_probability_);
+    yaml_parser_->getYamlParam("ransac_randomize", &ransac_randomize_);
 
-    fs["intra_keyframe_time"] >> intra_keyframe_time_;
-    min_number_features_ = static_cast<size_t>(int(fs["minNumberFeatures"]));
-    fs["useStereoTracking"] >> useStereoTracking_;
-
-    fs["display_time"] >> display_time_;
-    fs["disparityThreshold"] >> disparityThreshold_;
-
-    fs.release();
+    yaml_parser_->getYamlParam("intra_keyframe_time", &intra_keyframe_time_);
+    int min_number_features;
+    yaml_parser_->getYamlParam("minNumberFeatures", &min_number_features);
+    min_number_features_ = static_cast<size_t>(min_number_features);
+    yaml_parser_->getYamlParam("useStereoTracking", &useStereoTracking_);
+    yaml_parser_->getYamlParam("disparityThreshold", &disparityThreshold_);
     return true;
   }
+
+private:
+  // TODO(Toni) Needs to be shared because we are copying params around, if
+  // parsing was separated from actual params struct we would not have this
+  // issue.
+  std::shared_ptr<YamlParser> yaml_parser_;
 };
 
-}  // namespace VIO
-#endif /* VioFrontEndParams_H_ */
+} // namespace VIO

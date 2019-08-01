@@ -19,7 +19,6 @@
 
 namespace VIO {
 
-////////////////////////////////////////////////////////////////////////////////
 //////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
 ////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
@@ -592,7 +591,7 @@ gtNavState ETHDatasetParser::getGroundTruthState(
 // pose is identity (we are interested in relative poses!)
 // [in]: initial nav state with pose, velocity in body frame,
 // [in]: gravity vector estimate in body frame.
-const InitializationPerformance 
+const InitializationPerformance
         ETHDatasetParser::getInitializationPerformance(
                     const std::vector<Timestamp>& timestamps,
                     const std::vector<gtsam::Pose3>& poses_ba,
@@ -614,7 +613,7 @@ const InitializationPerformance
   // Loop through bundle adjustment poses and get GT
   for (int i = 1; i < timestamps.size(); i++) {
     double relativeRotError = -1;
-    double relativeTranError = -1;    
+    double relativeTranError = -1;
     // Fill relative poses from GT
     // Check that GT is available
     if (!isGroundTruthAvailable(timestamps.at(i-1)) ||
@@ -624,7 +623,7 @@ const InitializationPerformance
     gt_relative = getGroundTruthRelativePose(timestamps.at(i-1),
                                             timestamps.at(i));
     // Get relative pose from BA
-    gtsam::Pose3 ba_relative = 
+    gtsam::Pose3 ba_relative =
         poses_ba.at(i-1).between(poses_ba.at(i));
     // Compute errors between BA and GT
     std::tie(relativeRotError, relativeTranError) =
@@ -644,7 +643,7 @@ const InitializationPerformance
 
   // Convert velocities and gravity vector in initial body frame.
   // This is already the case for the init nav state passed.
-  gt_state.velocity_ = gt_state.pose().rotation().transpose() * 
+  gt_state.velocity_ = gt_state.pose().rotation().transpose() *
                       gt_state.velocity_;
   gt_gravity = gt_state.pose().rotation().transpose() * gt_gravity;
 
@@ -702,7 +701,8 @@ void ETHDatasetParser::print() const {
             << "------------------ ETHDatasetParser::print ------------------\n"
             << "-------------------------------------------------------------\n"
             << "Displaying info for dataset: " << dataset_path_;
-  camL_Pose_camR_.print("camL_Pose_calR \n");
+  if (FLAGS_minloglevel < 1)
+    camL_Pose_camR_.print("camL_Pose_calR \n");
   // For each of the 2 cameras.
   for (size_t i = 0; i < camera_names_.size(); i++) {
     LOG(INFO) << "\n"
@@ -711,8 +711,10 @@ void ETHDatasetParser::print() const {
     camera_info_.at(camera_names_[i]).print();
     camera_image_lists_.at(camera_names_[i]).print();
   }
-  gtData_.print();
-  imuData_.print();
+  if (FLAGS_minloglevel < 1) {
+    gtData_.print();
+    imuData_.print();
+  }
   LOG(INFO) << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------";

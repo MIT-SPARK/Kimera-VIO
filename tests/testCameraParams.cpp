@@ -100,4 +100,3 @@ TEST(testCameraParams, equals) {
 TEST(testCameraParams, Cal3_S2ToCvmat) {
   Cal3_S2 K(500, 500, 0.0, 640 / 2, 480 / 2);
 }
-
