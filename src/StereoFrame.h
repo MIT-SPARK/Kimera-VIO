@@ -131,36 +131,8 @@ public:
             << "mapDepthFactor_: " << map_depth_factor_;
          }
   }
-
-  // TODO do abstract class for parameters structure, they all look very similar.
-  bool parseYaml(const std::string& filepath) {
-    cv::FileStorage fs;
-    UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
-    return parseYamlFromOpenFileStorage(fs);
-  }
-
-  bool parseYamlFromOpenFileStorage(cv::FileStorage& fs) {
-    CHECK(fs.isOpened()) << "File storage is not open!";
-    fs["equalizeImage"] >> equalize_image_;
-    fs["nominalBaseline"] >> nominal_baseline_;
-    fs["visionSensorType"] >> vision_sensor_type_;
-    fs["toleranceTemplateMatching"] >> tolerance_template_matching_;
-    fs["templ_cols"] >> templ_cols_;
-    fs["templ_rows"] >> templ_rows_;
-    fs["stripe_extra_rows"] >> stripe_extra_rows_;
-    fs["minPointDist"] >> min_point_dist_;
-    fs["maxPointDist"] >> max_point_dist_;
-    fs["bidirectionalMatching"] >> bidirectional_matching_;
-    fs["subpixelRefinementStereo"] >> subpixel_refinement_;
-    if (vision_sensor_type_ == VisionSensorType::RGBD) {
-      fs["minDepthFactor"] >> min_depth_factor_;
-      fs["mapDepthFactor"] >> map_depth_factor_;
-    }
-    return true;
-  }
 };
 
-////////////////////////////////////////////////////////////////////////////////
 class StereoFrame {
 public:
   StereoFrame(const FrameId& id,
@@ -282,9 +254,9 @@ public:
       const cv::Mat left_rectified,
       const cv::Mat right_rectified,
       const StatusKeypointsCV& left_keypoints_rectified,
-      const double& fx, 
+      const double& fx,
       const double& getBaseline,
-      const double& getDepthMapFactor, 
+      const double& getDepthMapFactor,
       const double& getMinDepth) const;
 
   /* ------------------------------------------------------------------------ */
@@ -326,8 +298,8 @@ public:
   inline StereoMatchingParams getSparseStereoParams() const {
     return sparse_stereo_params_;
   }
-  inline double getMinDepthFactor() const {return getSparseStereoParams().min_depth_factor_; }
-  inline double getMapDepthFactor() const {return getSparseStereoParams().map_depth_factor_; }
+  inline double getMinDepthFactor() const {return sparse_stereo_params_.min_depth_factor_; }
+  inline double getMapDepthFactor() const {return sparse_stereo_params_.map_depth_factor_; }
   inline gtsam::Cal3_S2 getLeftUndistRectCamMat() const {
     return left_undistRectCameraMatrix_;
   }
@@ -342,8 +314,6 @@ public:
   // modify class members is evil.
   inline Frame* getLeftFrameMutable() {return &left_frame_;}
   inline Frame* getRightFrameMutable() {return &right_frame_;}
-
-  void print() const;
 
 private:
   const FrameId id_;
@@ -384,6 +354,9 @@ private:
   // https://github.com/opencv/opencv/blob/master/samples/cpp/tutorial_code/calib3d/stereoBM/SBM_Sample.cpp
   // TODO imshow has to be called in the main thread.
   cv::Mat getDisparityImage() const;
+
+  /* ------------------------------------------------------------------------ */
+  void print() const;
 
   /* ------------------------------------------------------------------------ */
   void showOriginal(const int verbosity) const;

@@ -1062,6 +1062,7 @@ TEST(FeatureSelector, featureSelection) {
   cam_param.camera_matrix_.at<double>(0, 2) = Kreal.px();
   cam_param.camera_matrix_.at<double>(1, 2) = Kreal.py();
   cam_param.distortion_coeff_ = Mat::zeros(1, 5, CV_64F);
+  cam_param.distortion_model_ = "radtan";
 
   // create feature selector
   VioBackEndParams vp = VioBackEndParams();

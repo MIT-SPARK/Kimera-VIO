@@ -78,6 +78,8 @@ struct ReinitPacket {
 
 class StereoImuSyncPacket {
  public:
+  // WARNING do not use constructor params after being moved with
+  // std::move as they are left in an invalid state!!
   StereoImuSyncPacket() = delete;
   StereoImuSyncPacket(StereoFrame stereo_frame, ImuStampS imu_stamps,
                       ImuAccGyrS imu_accgyr,
@@ -91,6 +93,7 @@ class StereoImuSyncPacket {
   inline const ImuStampS& getImuStamps() const { return imu_stamps_; }
   inline const ImuAccGyrS& getImuAccGyr() const { return imu_accgyr_; }
   inline const ReinitPacket& getReinitPacket() const { return reinit_packet_; }
+  inline const bool getReinitFlag() const { return reinit_packet_.getReinitFlag(); }
 
   // This enforces the frame to be a keyframe
   void setAsKeyframe() { stereo_frame_.setIsKeyframe(true); }

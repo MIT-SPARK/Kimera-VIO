@@ -89,7 +89,7 @@ struct InitializationPerformance {
         gt_gravity_(gt_gravity) {}
 
     void print() const;
-  
+
   public:
     const Timestamp init_timestamp_;
     const int init_n_frames_;

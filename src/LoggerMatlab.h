@@ -90,7 +90,8 @@ class LoggerMatlab {
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logInitializationResultsCSV(const InitializationPerformance& perf,
                                   const double& ba_duration,
-                                  const double& alignment_duration);
+                                  const double& alignment_duration,
+                                  const bool& is_successful);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(

@@ -136,7 +136,8 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
                                           gyro_bias_pass)),
             gravity_iter_pass),
             ba_duration,
-            alignment_duration);
+            alignment_duration,
+            is_success);
   } */
   ////////////////// (Remove)
 

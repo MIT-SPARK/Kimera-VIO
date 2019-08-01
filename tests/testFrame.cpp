@@ -160,6 +160,8 @@ uncalibrated_px_actual - uncalibrated_px_expected;
   }
 }
 
+// TEST(testFrame, CalibratePixelEquidistant) {}
+
 /* ************************************************************************* */
 TEST(testFrame, findLmkIdFromPixel) {
   Frame f(0, 0, CameraParams(),

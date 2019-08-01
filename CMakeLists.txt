@@ -62,6 +62,7 @@ add_library(SparkVio STATIC
   src/Histogram.cpp
   src/LoggerMatlab.cpp
   src/FeatureSelector.cpp
+  src/YamlParser.h
   src/VioBackEndParams.h
   src/VioFrontEndParams.h
   src/RegularVioBackEndParams.h
@@ -104,6 +105,7 @@ target_include_directories(SparkVio
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
+
 target_compile_options(SparkVio
   PRIVATE -Wall -pipe
   PRIVATE -march=native) # Remove these
@@ -179,6 +181,7 @@ add_executable(testSparkVio
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
   )
+
 target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
 
 if(CMAKE_VERSION VERSION_LESS 3.10)

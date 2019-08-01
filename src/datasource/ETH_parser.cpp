@@ -22,7 +22,6 @@ DEFINE_int32(skip_n_end_frames, 100, "Number of final frames to skip.");
 
 namespace VIO {
 
-////////////////////////////////////////////////////////////////////////////////
 //////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
 ////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
@@ -693,7 +692,8 @@ void ETHDatasetParser::print() const {
             << "------------------ ETHDatasetParser::print ------------------\n"
             << "-------------------------------------------------------------\n"
             << "Displaying info for dataset: " << dataset_path_;
-  camL_Pose_camR_.print("camL_Pose_calR \n");
+  if (FLAGS_minloglevel < 1)
+    camL_Pose_camR_.print("camL_Pose_calR \n");
   // For each of the 2 cameras.
   for (size_t i = 0; i < camera_names_.size(); i++) {
     LOG(INFO) << "\n"
@@ -702,8 +702,10 @@ void ETHDatasetParser::print() const {
     camera_info_.at(camera_names_[i]).print();
     camera_image_lists_.at(camera_names_[i]).print();
   }
-  gtData_.print();
-  imuData_.print();
+  if (FLAGS_minloglevel < 1) {
+    gtData_.print();
+    imuData_.print();
+  }
   LOG(INFO) << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------";

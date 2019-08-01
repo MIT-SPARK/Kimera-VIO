@@ -1033,6 +1033,48 @@ TEST_F(StereoFrameFixture, getLandmarkInfo) {
   }
 }
 
+/* ************************************************************************* */
+// Test undistortion of fisheye / pinhole equidistant model
+TEST(testStereoFrame, undistortFisheye) {
+  // Parse camera params
+  static CameraParams cam_params_left_fisheye;
+  cam_params_left_fisheye.parseYAML(stereo_FLAGS_test_data_path +
+                                    "/left_sensor_fisheye.yaml");
+
+  // Parse single image
+  cv::Mat left_fisheye_image_dist = UtilsOpenCV::ReadAndConvertToGrayScale(
+      stereo_FLAGS_test_data_path + "left_fisheye_img_0.png", false);
+
+  // Declare empty variables
+  cv::Mat left_fisheye_image_undist, map_x_fisheye_undist, map_y_fisheye_undist;
+
+  // Undistort image using pinhole equidistant (fisheye) model
+  if (cam_params_left_fisheye.distortion_model_ == "equidistant") {
+    cv::fisheye::initUndistortRectifyMap(
+        cam_params_left_fisheye.camera_matrix_,
+        cam_params_left_fisheye.distortion_coeff_,
+        // not relevant here
+        cv::Mat::eye(3, 3, CV_32F),
+        // don't to use default identity!
+        cam_params_left_fisheye.camera_matrix_,
+        cam_params_left_fisheye.image_size_, CV_32FC1,
+        // output
+        map_x_fisheye_undist, map_y_fisheye_undist);
+    cv::remap(left_fisheye_image_dist, left_fisheye_image_undist,
+              map_x_fisheye_undist, map_y_fisheye_undist, cv::INTER_LINEAR);
+  } else {
+    LOG(ERROR) << "Distortion model is not pinhole equidistant.";
+  }
+
+  // Parse reference image
+  cv::Mat left_fisheye_image_ref = UtilsOpenCV::ReadAndConvertToGrayScale(
+      stereo_FLAGS_test_data_path + "left_ref_img_0.png", false);
+
+  // Test distortion with image comparison
+  EXPECT_TRUE(UtilsOpenCV::CvMatCmp(left_fisheye_image_undist,
+                               left_fisheye_image_ref, 1e-3));
+}
+
 // TODO: Figure out why this compiles on PC, but not on Jenkins
 TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
   // Parse camera params for left and right cameras

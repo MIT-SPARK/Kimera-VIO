@@ -354,21 +354,23 @@ void LoggerMatlab::logPipelineResultsCSV(
 void LoggerMatlab::logInitializationResultsCSV(
         const InitializationPerformance& perf,
         const double& ba_duration,
-        const double& alignment_duration) {
+        const double& alignment_duration,
+        const bool& is_successful) {
     // We log the poses in csv format for later analysis.
     static bool is_header_written = false;
     if (!is_header_written) {
       outputFile_initPerformance_
-          << "timestamp, N_frames, avg_relRotErrorBA, avg_relTranErrorBA,"
-            " ba_duration(ms), alignment_duration(ms),"
-            " init_roll(deg), init_pitch(deg), init_yaw(deg),"
-            " init_body_vx, init_body_vy, init_body_vz,"
-            " init_gyro_bx, init_gyro_by, init_gyro_bz,"
-            " init_grav_bx, init_grav_by, init_grav_bz,"
-            " gt_roll(deg), gt_pitch(deg), gt_yaw(deg),"
-            " gt_body_vx, gt_body_vy, gt_body_vz,"
-            " gt_gyro_bx, gt_gyro_by, gt_gyro_bz,"
-            " gt_grav_bx, gt_grav_by, gt_grav_bz,"
+          << "timestamp,N_frames,avg_relRotErrorBA,avg_relTranErrorBA,"
+            "ba_duration(ms),alignment_duration(ms),"
+            "init_roll(deg),init_pitch(deg),init_yaw(deg),"
+            "init_body_vx,init_body_vy,init_body_vz,"
+            "init_gyro_bx,init_gyro_by,init_gyro_bz,"
+            "init_grav_bx,init_grav_by,init_grav_bz,"
+            "gt_roll(deg),gt_pitch(deg),gt_yaw(deg),"
+            "gt_body_vx,gt_body_vy,gt_body_vz,"
+            "gt_gyro_bx,gt_gyro_by,gt_gyro_bz,"
+            "gt_grav_bx,gt_grav_by,gt_grav_bz,"
+            "is_successful,"
           << std::endl;
       is_header_written = true;
     }
@@ -400,6 +402,7 @@ void LoggerMatlab::logInitializationResultsCSV(
       << perf.gt_gravity_.x() << ", "
       << perf.gt_gravity_.y() << ", "
       << perf.gt_gravity_.z() << ", "
+      << is_successful << ", "
       << std::endl;
 }
 
