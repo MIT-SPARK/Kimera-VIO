@@ -9,7 +9,7 @@ What is VIO?
 VIO is a library of C++ classes that implement the visual-inertial odometry pipeline described in these papers:
 
  - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
- 
+
  - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors. In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
 The Regular VIO backend is described in this paper:
@@ -20,7 +20,7 @@ Quickstart
 
 Clone this repository: `git clone git@github.mit.edu:SPARK/VIO.git`
 
-In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for CGAL and OpenGV):
+In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for OpenGV):
 
 ```
 #!bash
@@ -43,12 +43,11 @@ $ make check
 
 > Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag)
 
-Prerequisites:
+Prerequisites (installation instructions below):
 
-- [GTSAM](https://bitbucket.org/gtborg/gtsam/overview/) >= 4.0 (Branch: `feature/ImprovementsIncrementalFilter`, commit: `c827d4cd6b11f78f3d2d9d52b335ac562a2757fc`)
-- [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0 (Installation instructions below)
-- [OpenGV] Installation instructions below
-- [CGAL] Installation instructions below
+- [GTSAM](https://github.com/borglab/gtsam) >= 4.0
+- [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0
+- [OpenGV](https://github.com/laurentkneip/opengv) 
 
 Installation of GTSAM
 ----------
@@ -124,27 +123,6 @@ $ cd build
 $ cmake ../
 $ sudo make -j8 install
 $ sudo make -j8 check
-```
-
-Installation of CGAL (Optional: Not used for now)
-----------------------
-- Download CGAL `https://www.cgal.org/download.html` (I tried CGAL-4.11 on Ubuntu 17.10)
-- Go to CGAL downloaded folder and execute the following:
-
-```
-#!bash
-$ mkdir build
-$ cd build
-$ cmake ../
-```
-- using cmake-gui enable WithEigen3, click configure, and set the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen)
-- using cmake-gui check that CMAKE_BUILD_TYPE is set to 'Release"
-- go back to the build folder and execute the following:
-<a name="yaml_script"></a>
-```
-#!bash
-$ make -j8
-$ sudo make install
 ```
 
 Glog, Gflags & Gtest
