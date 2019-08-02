@@ -35,17 +35,17 @@
 DEFINE_bool(log_output, false, "Log output to matlab.");
 DEFINE_int32(regular_vio_backend_modality, 4u,
              "Modality for regular Vio backend, currently supported:\n"
-             "0: Structureless (equiv to normal VIO)\n"
+             "0: Structureless (equivalent to normal VIO)\n"
              "1: Projection (as if it was a typical VIO backend with projection"
-             "factors\n"
-             "2: Structureless and projection, sets to projection factors the "
+             "factors)\n"
+             "2: Structureless and Projection, sets to projection factors the "
              "structureless factors that are supposed to be in a regularity.\n"
-             "3: Projection and regularity, sets all structureless factors to"
+             "3: Projection and Regularity, sets all structureless factors to"
              "projection factors and adds regularity factors to a subset.\n"
-             "4: structureless, projection and regularity factors used.");
+             "4: Structureless, Projection and Regularity factors used.");
 DEFINE_bool(extract_planes_from_the_scene, false,
             "Whether to use structural regularities in the scene,"
-            "currently only planes");
+            "currently only planes.");
 
 DEFINE_bool(visualize, true, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
@@ -59,7 +59,7 @@ DEFINE_int32(viz_type, 0,
              "3: MESH2DTo3Dsparse, get a 3D mesh from a 2D triangulation of "
              "the (right-VALID) "
              "keypoints in the left frame and filters out triangles \n"
-             "5: NONE, does not visualize map\n");
+             "4: NONE, does not visualize map\n");
 DEFINE_bool(record_video_for_viz_3d, false,
             "Record a video as a sequence of "
             "screenshots of the 3d viz window");
@@ -73,11 +73,11 @@ DEFINE_bool(deterministic_random_number_generator, false,
             "will output a different sequence for each run.");
 DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
-             "to be used as a 3d point to consider for the mesher");
+             "to be used as a 3d point to consider for the mesher.");
 
 DEFINE_int32(num_frames_vio_init, 25,
              "Minimum number of frames for the online "
-             "gravity-aligned initialization");
+             "gravity-aligned initialization.");
 
 // TODO(Sandro): Create YAML file for initialization and read in!
 DEFINE_double(smart_noise_sigma_bundle_adjustment, 1.5,

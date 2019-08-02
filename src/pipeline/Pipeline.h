@@ -65,7 +65,7 @@ class Pipeline {
   // Spin the pipeline only once.
   void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // TODO a parallel pipeline should always be able to run sequentially...
+  // A parallel pipeline should always be able to run sequentially...
   void spinSequential();
 
   // Shutdown the pipeline once all data has been consumed.
