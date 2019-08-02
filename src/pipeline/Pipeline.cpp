@@ -374,7 +374,7 @@ void Pipeline::spinSequential() {
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
     if (FLAGS_extract_planes_from_the_scene) {
-      CHECK_EQ(backend_type_, 1);  // Use Regular VIO
+      DCHECK_EQ(backend_type_, 1);  // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
       LOG_IF_EVERY_N(WARNING,
