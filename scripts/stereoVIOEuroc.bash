@@ -8,6 +8,9 @@ DATASET_PATH="/home/luca/data/euroc/V1_01_easy"
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
 
+# Specify: 0 to run on EuRoC data, 1 to run on Kitti
+DATASET_TYPE=0
+
 # Specify: 1 to run pipeline in parallel mode, 0 to run sequentially.
 PARALLEL_RUN=0
 ###################################################################
@@ -26,6 +29,11 @@ else
         # Option -p, provides path to dataset.
       -p) DATASET_PATH=$2
           echo "Using dataset at path: $DATASET_PATH"
+          shift ;;
+        # Option -d, set dataset type
+      -d) DATASET_TYPE=$2
+          echo "Using dataset type: $DATASET_TYPE"
+          echo "0 is for euroc and 1 is for kitti"
           shift ;;
         # Option -r, specifies that we want to use regular vio.
       -r) USE_REGULAR_VIO=1
@@ -52,7 +60,7 @@ if [ $USE_REGULAR_VIO == 1 ]; then
   BACKEND_TYPE=1
   VIO_PARAMS_PATH="../params/regularVioParameters.yaml"
   TRACKER_PARAMS_PATH="../params/trackerParameters.yaml"
-  LCD_PARAMS_PATH="../params/tLCDParameters.yaml"
+  LCD_PARAMS_PATH="../params/LCDParameters.yaml"
 fi
 
 # Change directory to parent path, in order to make this script
@@ -90,7 +98,9 @@ echo """ Launching:
   --flagfile="../params/flags/VioBackEnd.flags" \
   --flagfile="../params/flags/RegularVioBackEnd.flags" \
   --flagfile="../params/flags/Visualizer3D.flags" \
+  --flagfile="../params/flags/EthParser.flags" \
   --v=0 \
-  --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0 \
+  --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 \
   --backend_type="$BACKEND_TYPE" \
-  --parallel_run="$PARALLEL_RUN"
+  --parallel_run="$PARALLEL_RUN" \
+  --dataset_type="$DATASET_TYPE"

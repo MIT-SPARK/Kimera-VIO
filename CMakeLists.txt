@@ -68,8 +68,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(sparkvio SHARED
-  src/ETH_parser.cpp
+add_library(SparkVio STATIC
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
   src/StereoFrame.cpp
@@ -94,7 +93,7 @@ add_library(sparkvio SHARED
   src/Visualizer3D.cpp "")
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(SparkVio::SparkVio ALIAS sparkvio)
+add_library(SparkVio::SparkVio ALIAS SparkVio)
 
 ### Add source code for data provider.
 include(src/datasource/CMakeLists.txt)
@@ -111,7 +110,7 @@ include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
 
-target_link_libraries(sparkvio
+target_link_libraries(SparkVio
   PRIVATE
     opengv
   PUBLIC
@@ -124,22 +123,21 @@ target_link_libraries(sparkvio
     DBoW2 # TODO(marcus): should be private
     DLib  # TODO(marcus): should be private
 )
-target_include_directories(sparkvio
+target_include_directories(SparkVio
   PUBLIC
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
 
-target_compile_options(sparkvio
+target_compile_options(SparkVio
   PRIVATE -Wall -pipe
   PRIVATE -march=native) # Remove these
-
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(sparkvio PUBLIC
+target_compile_features(SparkVio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
-add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
+add_executable(stereoVIOEuroc ./examples/SparkVio.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::SparkVio)
 
 add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
@@ -147,9 +145,6 @@ target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
 
 #add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
 #target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::SparkVio)
-
-add_executable(stereoVIOKitti ./examples/stereoVIOKitti.cpp)
-target_link_libraries(stereoVIOKitti PUBLIC SparkVio::SparkVio)
 
 ### Add testing
 # Download and unpack googletest at configure time
@@ -178,11 +173,6 @@ if(CMAKE_VERSION VERSION_LESS 2.8.11)
     include_directories("${gtest_SOURCE_DIR}/include"
                         "${gmock_SOURCE_DIR}/include")
 endif()
-
-# Include data directories for gtests.
-set(TEST_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
-configure_file(./tests/test_config.h.in ./tests/test_config.h)
-include_directories("${CMAKE_CURRENT_BINARY_DIR}/tests")
 
 # Generate gtests.
 include(CTest)
@@ -218,7 +208,8 @@ add_executable(testSparkVio
   #tests/testInitializationBackEnd.cpp
   tests/testOnlineAlignment.cpp
   )
-target_link_libraries(testSparkVio gtest SparkVio::SparkVio)
+
+target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
 
 if(CMAKE_VERSION VERSION_LESS 3.10)
   enable_testing()
@@ -315,7 +306,7 @@ set(EXPORTED_DEPENDENCIES "")
 list(APPEND EXPORTED_DEPENDENCIES "glog::glog")
 list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
 
-export(TARGETS sparkvio ${EXPORTED_DEPENDENCIES}
+export(TARGETS SparkVio ${EXPORTED_DEPENDENCIES}
        FILE SparkVioTargets.cmake)
 export(PACKAGE SparkVio)
 

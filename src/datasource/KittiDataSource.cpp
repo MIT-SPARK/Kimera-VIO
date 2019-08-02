@@ -9,7 +9,7 @@
 /**
  * @file   KittiDataSource.cpp
  * @brief  Kitti dataset parser.
- * @author Antoni Rosinol
+ * @author Antoni Rosinol, Yun Chang
  */
 #include "datasource/KittiDataSource.h"
 
@@ -17,13 +17,6 @@
 
 #include "StereoFrame.h"
 #include "StereoImuSyncPacket.h"
-
-DEFINE_int32(initial_frame, 50,
-             "Initial frame to start processing dataset, "
-             "previous frames will not be used.");
-DEFINE_int32(final_frame, 10000,
-             "Final frame to finish processing dataset, "
-             "subsequent frames will not be used.");
 
 namespace VIO {
 
@@ -41,11 +34,9 @@ KittiDataProvider::KittiData::operator bool() const {
   return !empty_data && !missing_data;
 }
 
-KittiDataProvider::KittiDataProvider(const std::string& kitti_dataset_path)
-    : kitti_data_(), DataProvider() {
-  dataset_path_ = kitti_dataset_path;
+KittiDataProvider::KittiDataProvider() : DataProvider(), kitti_data_() {
   // Parse Kitti dataset.
-  parseData(kitti_dataset_path, &kitti_data_);
+  parseData(dataset_path_, &kitti_data_);
 }
 
 KittiDataProvider::~KittiDataProvider() {}
@@ -62,8 +53,8 @@ bool KittiDataProvider::spin() {
   // Loop over the messages and call vio callback.
   // Timestamp 10 frames before the first (for imu calibration)
   static constexpr size_t frame_offset_for_imu_calib = 10;
-  Timestamp timestamp_last_frame = kitti_data_.timestamps_.at(
-      kitti_data_.initial_k_ - frame_offset_for_imu_calib);
+  Timestamp timestamp_last_frame =
+      kitti_data_.timestamps_.at(initial_k_ - frame_offset_for_imu_calib);
   Timestamp timestamp_frame_k;
 
   const size_t number_of_images = kitti_data_.getNumberOfImages();
@@ -79,7 +70,7 @@ bool KittiDataProvider::spin() {
   const gtsam::Pose3& camL_pose_camR = kitti_data_.camL_Pose_camR_;
 
   // Main loop
-  for (size_t k = kitti_data_.initial_k_; k < kitti_data_.final_k_; k++) {
+  for (size_t k = initial_k_; k < final_k_; k++) {
     timestamp_frame_k = kitti_data_.timestamps_.at(k);
     ImuMeasurements imu_meas;
     CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
@@ -206,30 +197,22 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   parseImuData(kitti_sequence_path, kitti_data);
 
   // Start processing dataset from frame initial_k (neccessary on convinient)
-  kitti_data->initial_k_ = FLAGS_initial_frame;
-  CHECK_GE(kitti_data->initial_k_, 10)
+  CHECK_GE(initial_k_, 10)
       << "initial_k should be >= 10 for imu bias initialization";
-  kitti_data->final_k_ = FLAGS_final_frame;
+
   const size_t& nr_images = kitti_data->getNumberOfImages();
-  if (kitti_data->final_k_ > nr_images) {
-    LOG(WARNING) << "Value for final_k, " << kitti_data->final_k_
-                 << " is larger than total"
+  if (final_k_ > nr_images) {
+    LOG(WARNING) << "Value for final_k, " << final_k_ << " is larger than total"
                  << " number of frames in dataset " << nr_images;
     // Skip last frames which are typically problematic
     // (IMU bumps, FOV occluded)...
     static constexpr size_t skip_n_end_frames = 2;
-    kitti_data->final_k_ = nr_images - skip_n_end_frames;
-    LOG(WARNING) << "Using final_k = " << kitti_data->final_k_
-                 << ", where we removed " << skip_n_end_frames
-                 << " frames to avoid bad IMU readings.";
+    final_k_ = nr_images - skip_n_end_frames;
+    LOG(WARNING) << "Using final_k = " << final_k_ << ", where we removed "
+                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
   }
-  CHECK(kitti_data->final_k_ > kitti_data->initial_k_)
-      << "Value for final_k (" << kitti_data->final_k_
-      << ") is smaller than value for"
-      << " initial_k (" << kitti_data->initial_k_ << ").";
-
-  LOG(INFO) << "Running dataset between frame " << kitti_data->initial_k_
-            << " and frame " << kitti_data->final_k_;
+  LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
+            << final_k_;
 
   // Check data is parsed correctly.
   CHECK(*kitti_data);
@@ -287,12 +270,12 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
 
   // First get R_imu2velo and T_imu2velo
   cv::Mat R_imu2velo, T_imu2velo;
-  std::string imu_to_velo_filename = "calib_imu_to_velo.txt"; 
+  std::string imu_to_velo_filename = "/../calib_imu_to_velo.txt";
   parsePose(input_dataset_path, imu_to_velo_filename, R_imu2velo, T_imu2velo);
-  
+
   // Then get R_velo2cam and T_velo2cam
   cv::Mat R_velo2cam, T_velo2cam;
-  std::string velo_to_cam_filename = "calib_velo_to_cam.txt";
+  std::string velo_to_cam_filename = "/../calib_velo_to_cam.txt";
   parsePose(input_dataset_path, velo_to_cam_filename, R_velo2cam, T_velo2cam);
 
   // Then form the rotation matrix R_imu2body
@@ -313,7 +296,7 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   for (const std::string& cam_name : camera_names) {
     LOG(INFO) << "reading camera: " << cam_name;
     CameraParams cam_info_i;
-    cam_info_i.parseKITTICalib(input_dataset_path + "calib_cam_to_cam.txt",
+    cam_info_i.parseKITTICalib(input_dataset_path + "/../calib_cam_to_cam.txt",
                                R_cam2body, T_cam2body, cam_name);
     kitti_data->camera_info_[cam_name] = cam_info_i;
     LOG(INFO) << "parsed camera: " << cam_name;
@@ -514,10 +497,10 @@ bool KittiDataProvider::parseImuData(const std::string& input_dataset_path,
       std::sqrt(stdDelta / double(deltaCount - 1u));
   kitti_data->imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
   // KITTI does not give these so using values from EuRoC
-  kitti_data->imuParams_.gyro_noise_ = 1.6968e-3;
-  kitti_data->imuParams_.gyro_walk_ = 1.9393e-4;
-  kitti_data->imuParams_.acc_noise_ = 2.0000e-2;
-  kitti_data->imuParams_.acc_walk_ = 3.0000e-2;
+  imu_params_.gyro_noise_ = 1.6968e-3;
+  imu_params_.gyro_walk_ = 1.9393e-4;
+  imu_params_.acc_noise_ = 2.0000e-2;
+  imu_params_.acc_walk_ = 3.0000e-2;
   LOG(INFO) << "Maximum measured rotation rate (norm):" << maxNormRotRate << '-'
             << "Maximum measured acceleration (norm): " << maxNormAcc;
   return true;

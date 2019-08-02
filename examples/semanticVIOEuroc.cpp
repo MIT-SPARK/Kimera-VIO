@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "ETH_parser.h"
+#include "datasource/ETH_parser.h"
 #include "LoggerMatlab.h"
 #include "pipeline/Pipeline.h"
 #include "utils/Timer.h"
@@ -136,8 +136,7 @@ int main(int argc, char* argv[]) {
 
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
-  VIO::Pipeline vio_pipeline(&eth_dataset_parser,
-                             eth_dataset_parser.getImuParams());
+  VIO::Pipeline vio_pipeline(eth_dataset_parser.getParams());
 
   // Register callback to semantic segmentation.
   vio_pipeline.registerSemanticMeshSegmentationCallback(

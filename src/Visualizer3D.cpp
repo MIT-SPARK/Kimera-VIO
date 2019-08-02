@@ -25,6 +25,7 @@
 
 #include "LoggerMatlab.h"
 #include "UtilsOpenCV.h"
+#include "VioBackEnd-definitions.h"
 #include "common/FilesystemUtils.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
@@ -102,20 +103,19 @@ Visualizer3D::WindowData::WindowData()
 /* -------------------------------------------------------------------------- */
 VisualizerInputPayload::VisualizerInputPayload(
     const gtsam::Pose3& pose, const StereoFrame& last_stero_keyframe,
-    MesherOutputPayload&& mesher_output_payload,
-    const VioBackEnd::PointsWithIdMap& points_with_id_VIO,
-    const VioBackEnd::LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
+    const MesherOutputPayload& mesher_output_payload,
+    const PointsWithIdMap& points_with_id_VIO,
+    const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
     const std::vector<Plane>& planes, const gtsam::NonlinearFactorGraph& graph,
-    const gtsam::Values& values, const std::vector<Point3>& points_3d)
+    const gtsam::Values& values)
     : pose_(pose),
       stereo_keyframe_(last_stero_keyframe),
-      mesher_output_payload_(std::move(mesher_output_payload)),
+      mesher_output_payload_(mesher_output_payload),  // TODO expensive...
       points_with_id_VIO_(points_with_id_VIO),
       lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
       planes_(planes),
       graph_(graph),
-      values_(values),
-      points_3d_(points_3d) {}
+      values_(values) {}
 
 /* -------------------------------------------------------------------------- */
 ImageToDisplay::ImageToDisplay(const std::string& name, const cv::Mat& image)
@@ -137,7 +137,8 @@ Visualizer3D::Visualizer3D(VisualizationType viz_type, int backend_type)
 }
 
 /* -------------------------------------------------------------------------- */
-void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
+// Returns false if visualizer has shutdown.
+bool Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
                         ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
                         std::function<void(VisualizerOutputPayload&)> display,
                         bool parallel_run) {
@@ -164,9 +165,10 @@ void Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
     stats_visualizer.AddSample(spin_duration);
 
     // Break the while loop if we are in sequential mode.
-    if (!parallel_run) return;
+    if (!parallel_run) return true;
   }
-  LOG(INFO) << "Visualizer successfully shutdown.";
+  LOG(INFO) << "Visualizer has shutdown.";
+  return false;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -203,9 +205,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
                              VisualizerOutputPayload* output) {
   CHECK_NOTNULL(output);
   cv::Mat mesh_2d_img;  // Only for visualization.
-
   const Frame& left_stereo_keyframe = input.stereo_keyframe_.getLeftFrame();
-
   switch (visualization_type_) {
     // Computes and visualizes 2D mesh.
     // vertices: all leftframe kps with lmkId != -1 and inside the image
@@ -228,11 +228,9 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
                          // discarding triangles corresponding to non planar
                          // obstacles
       output->visualization_type_ = VisualizationType::MESH2Dsparse;
-
       std::vector<cv::Vec6f> mesh_2d;
       input.stereo_keyframe_.createMesh2dStereo(&mesh_2d, nullptr,
                                                 Mesh2Dtype::DENSE, true);
-
       // Add image to output queue.
       output->images_to_display_.push_back(ImageToDisplay(
           "Mesh 2D", visualizeMesh2DStereo(mesh_2d, left_stereo_keyframe)));
@@ -270,8 +268,8 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       VLOG(10) << "Starting 3D mesh visualization...";
 
       static std::vector<Plane> planes_prev;
-      static VioBackEnd::PointsWithIdMap points_with_id_VIO_prev;
-      static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
+      static PointsWithIdMap points_with_id_VIO_prev;
+      static LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
       static cv::Mat vertices_mesh_prev;
       static cv::Mat polygons_mesh_prev;
       static Mesher::Mesh3DVizProperties mesh_3d_viz_props_prev;
@@ -442,26 +440,14 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       break;
     }
 
-    // Computes and visualizes a 3D point cloud.
-    case VisualizationType::
-        POINTCLOUD_REPEATEDPOINTS: {  // visualize VIO points as point clouds
-                                      // (points are replotted at every frame)
-      output->visualization_type_ =
-          VisualizationType::POINTCLOUD_REPEATEDPOINTS;
-      visualizeMap3D(input.points_3d_);
-      break;
-    }
-
-    // Computes and visualizes a 3D point cloud.
-    case VisualizationType::POINTCLOUD: {  // visualize VIO points  (no repeated
-                                           // point)
+    // Computes and visualizes a 3D point cloud with VIO points in current time
+    // horizon of the optimization.
+    case VisualizationType::POINTCLOUD: {
       output->visualization_type_ = VisualizationType::POINTCLOUD;
       // Do not color the cloud, send empty lmk id to lmk type map
-      static VioBackEnd::LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-      visualizePoints3D(input.points_with_id_VIO_, lmk_id_to_lmk_type_map);
+      visualizePoints3D(input.points_with_id_VIO_, LmkIdToLmkTypeMap());
       break;
     }
-
     case VisualizationType::NONE: {
       break;
     }
@@ -482,41 +468,11 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
 }
 
 /* -------------------------------------------------------------------------- */
-// Visualize a 3D point cloud using cloud widget from opencv viz.
-void Visualizer3D::visualizeMap3D(const std::vector<gtsam::Point3>& points) {
-  // based on longer example:
-  // https://docs.opencv.org/2.4/doc/tutorials/viz/transformations/transformations.html#transformations
-
-  // No points to visualize.
-  if (points.size() == 0) {
-    return;
-  }
-
-  // Populate cloud structure with 3D points.
-  cv::Mat pointCloud(1, points.size(), CV_32FC3);
-  cv::Point3f* data = pointCloud.ptr<cv::Point3f>();
-  size_t i = 0;
-  for (const gtsam::Point3& point : points) {
-    data[i].x = float(point.x());
-    data[i].y = float(point.y());
-    data[i].z = float(point.z());
-    i++;
-  }
-
-  // Add to the existing map.
-  cv::viz::WCloudCollection map_with_repeated_points;
-  map_with_repeated_points.addCloud(pointCloud, window_data_.cloud_color_);
-  map_with_repeated_points.setRenderingProperty(cv::viz::POINT_SIZE, 2);
-
-  // Plot points.
-  window_data_.window_.showWidget("Point cloud map", map_with_repeated_points);
-}
-
-/* -------------------------------------------------------------------------- */
 // Create a 2D mesh from 2D corners in an image, coded as a Frame class
 cv::Mat Visualizer3D::visualizeMesh2D(
     const std::vector<cv::Vec6f>& triangulation2D, const cv::Mat& img,
-    const KeypointsCV& extra_keypoints) const {
+    const KeypointsCV& extra_keypoints) {
+  // TODO(Toni) make these const members instead.
   cv::Scalar delaunay_color(0, 255, 0), points_color(255, 0, 0);
 
   // Duplicate image for annotation and visualization.
@@ -550,16 +506,15 @@ cv::Mat Visualizer3D::visualizeMesh2D(
 /* -------------------------------------------------------------------------- */
 // Visualize 2d mesh.
 cv::Mat Visualizer3D::visualizeMesh2DStereo(
-    const std::vector<cv::Vec6f>& triangulation_2D,
-    const Frame& ref_frame) const {
+    const std::vector<cv::Vec6f>& triangulation_2D, const Frame& ref_frame) {
+  // TODO(Toni) make these const members instead.
   static const cv::Scalar delaunay_color(0, 255, 0),  // Green
       mesh_vertex_color(255, 0, 0),                   // Blue
-      valid_keypoints_color(0, 0, 255);               // Red
+      invalid_keypoints_color(0, 0, 255);             // Red
 
   // Sanity check.
-  if (ref_frame.landmarks_.size() != ref_frame.keypoints_.size()) {
-    throw std::runtime_error("Frame: wrong dimension for the landmarks");
-  }
+  DCHECK(ref_frame.landmarks_.size() == ref_frame.keypoints_.size())
+      << "Frame: wrong dimension for the landmarks.";
 
   // Duplicate image for annotation and visualization.
   cv::Mat img = ref_frame.img_.clone();
@@ -571,7 +526,7 @@ cv::Mat Visualizer3D::visualizeMesh2DStereo(
     // Kpts that are both valid and have a right pixel are currently the ones
     // passed to the mesh.
     if (ref_frame.landmarks_[i] != -1) {
-      cv::circle(img, ref_frame.keypoints_[i], 2, valid_keypoints_color,
+      cv::circle(img, ref_frame.keypoints_[i], 2, invalid_keypoints_color,
                  CV_FILLED, CV_AA, 0);
     }
   }
@@ -596,11 +551,10 @@ cv::Mat Visualizer3D::visualizeMesh2DStereo(
 }
 
 /* -------------------------------------------------------------------------- */
-// Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
+// Visualize a 3D point cloud of unique 3D landmarks.
 void Visualizer3D::visualizePoints3D(
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id,
-    const std::unordered_map<LandmarkId, LandmarkType>&
-        lmk_id_to_lmk_type_map) {
+    const PointsWithIdMap& points_with_id,
+    const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map) {
   bool color_the_cloud = false;
   if (lmk_id_to_lmk_type_map.size() != 0) {
     color_the_cloud = true;
@@ -620,12 +574,13 @@ void Visualizer3D::visualizePoints3D(
   cv::Point3f* data = point_cloud.ptr<cv::Point3f>();
   size_t i = 0;
   for (const std::pair<LandmarkId, gtsam::Point3>& id_point : points_with_id) {
-    data[i].x = float(id_point.second.x());
-    data[i].y = float(id_point.second.y());
-    data[i].z = float(id_point.second.z());
+    const gtsam::Point3 point_3d = id_point.second;
+    data[i].x = static_cast<float>(point_3d.x());
+    data[i].y = static_cast<float>(point_3d.y());
+    data[i].z = static_cast<float>(point_3d.z());
     if (color_the_cloud) {
-      CHECK(lmk_id_to_lmk_type_map.find(id_point.first) !=
-            lmk_id_to_lmk_type_map.end());
+      DCHECK(lmk_id_to_lmk_type_map.find(id_point.first) !=
+             lmk_id_to_lmk_type_map.end());
       switch (lmk_id_to_lmk_type_map.at(id_point.first)) {
         case LandmarkType::SMART: {
           point_cloud_color.col(i) = cv::viz::Color::white();

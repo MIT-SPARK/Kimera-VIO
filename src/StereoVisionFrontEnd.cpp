@@ -60,7 +60,7 @@ bool StereoVisionFrontEnd::spin(
       auto tic = utils::Timer::tic();
       const StereoFrontEndOutputPayload& output = spinOnce(input);
       if (output.is_keyframe_) {
-        VLOG(2) << "Frontend output is a keyframe.";
+        VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
         output_queue.push(output);
       } else {
         VLOG(2) << "Frontend output is not a keyframe."
@@ -289,7 +289,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   // Also if the user requires the keyframe to be enforced
   if (stereoFrame_k_->isKeyframe())
     LOG(WARNING) << "User inforced keyframe!";
-  // If max time elaspsed and not able to track feature -> create new keyframe  
+  // If max time elaspsed and not able to track feature -> create new keyframe
   if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_; // mainly for debugging
 

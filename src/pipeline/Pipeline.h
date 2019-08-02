@@ -22,16 +22,18 @@
 #include <utility>  // for make_pair
 #include <vector>
 
-#include "ETH_parser.h"
+#include <gtsam/navigation/ImuBias.h>
+
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
 #include "StereoImuSyncPacket.h"
 #include "Visualizer3D.h"
+#include "datasource/DataSource.h"
+#include "initial/InitializationBackEnd-definitions.h"
 #include "mesh/Mesher.h"
 #include "pipeline/BufferControl.h"
 #include "pipeline/ProcessControl.h"
 #include "utils/ThreadsafeQueue.h"
-#include "initial/InitializationBackEnd-definitions.h"
 
 #include "LoopClosureDetector.h"
 
@@ -46,10 +48,15 @@ class LoopClosureDetector;
 }  // namespace VIO
 
 namespace VIO {
+
 class Pipeline {
+ private:
+  // Typedefs
+  typedef std::function<void(const SpinOutputPacket&)>
+      KeyframeRateOutputCallback;
+
  public:
-  Pipeline(ETHDatasetParser* dataset, const ImuParams& imu_params,
-           bool parallel_run = true);
+  Pipeline(const PipelineParams& params, bool parallel_run = true);
 
   ~Pipeline();
 
@@ -57,7 +64,7 @@ class Pipeline {
   void spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
-  void spinViz(bool parallel_run = true);
+  bool spinViz(bool parallel_run = true);
 
   // Spin the pipeline only once.
   void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
@@ -77,13 +84,25 @@ class Pipeline {
 
   // Return the mesher output queue for FUSES to process the mesh_2d and
   // mesh_3d to extract semantic information.
-  ThreadsafeQueue<MesherOutputPayload>& getMesherOutputQueue() {
+  // TODO(Toni) this should be a callback instead...
+  // right now it works because no one is pulling from this queue in pipeline.
+  inline ThreadsafeQueue<MesherOutputPayload>& getMesherOutputQueue() {
     return mesher_output_queue_;
   }
 
+  // Registration of callbacks.
+  // Callback to modify the mesh visual properties every time the mesher
+  // has a new 3d mesh.
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
     visualizer_.registerMesh3dVizProperties(cb);
+  }
+
+  // Callback to output the VIO backend results at keyframe rate.
+  // This callback also allows to
+  inline void registerKeyFrameRateOutputCallback(
+      KeyframeRateOutputCallback callback) {
+    keyframe_rate_output_callback_ = callback;
   }
 
  private:
@@ -98,16 +117,16 @@ class Pipeline {
   void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Initialize pipeline from IMU or GT.
-  bool initializeFromIMUorGT(const StereoImuSyncPacket &stereo_imu_sync_packet);
+  bool initializeFromIMUorGT(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Initialize pipeline from online gravity alignment.
-  bool initializeOnline(const StereoImuSyncPacket &stereo_imu_sync_packet);
+  bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Initialize backend given external pose estimate (GT or OGA)
   // TODO(Sandro): Unify both functions below (init backend)
-  bool initializeVioBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
-                      std::shared_ptr<gtNavState> initial_state,
-                      const StereoFrame &stereo_frame_lkf);
+  bool initializeVioBackend(const StereoImuSyncPacket& stereo_imu_sync_packet,
+                            std::shared_ptr<gtNavState> initial_state,
+                            const StereoFrame& stereo_frame_lkf);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.
@@ -129,19 +148,15 @@ class Pipeline {
       const StereoFrame& last_stereo_keyframe,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       const TrackingStatus& kf_tracking_status_stereo,
-      const gtsam::Pose3& relative_pose_body_stereo);
+      const gtsam::Pose3& relative_pose_body_stereo,
+      const DebugTrackerInfo& debug_tracker_info);
 
   void processKeyframePop();
 
-  void pushToMesherInputQueue(
-      VioBackEnd::PointsWithIdMap* points_with_id_VIO,
-      VioBackEnd::LmkIdToLmkTypeMap* lmk_id_to_lmk_type_map,
-      const StereoFrame& last_stereo_keyframe);
-
   StatusSmartStereoMeasurements featureSelect(
-      const VioFrontEndParams& tracker_params, const ETHDatasetParser& dataset,
-      const Timestamp& timestamp_k, const Timestamp& timestamp_lkf,
-      const gtsam::Pose3& W_Pose_Blkf, double* feature_selection_time,
+      const VioFrontEndParams& tracker_params, const Timestamp& timestamp_k,
+      const Timestamp& timestamp_lkf, const gtsam::Pose3& W_Pose_Blkf,
+      double* feature_selection_time,
       std::shared_ptr<StereoFrame>& stereoFrame_km1,
       const StatusSmartStereoMeasurements& smart_stereo_meas, int cur_kf_id,
       int save_image_selector, const gtsam::Matrix& curr_state_cov,
@@ -162,9 +177,8 @@ class Pipeline {
   // Join threads to do a clean shutdown.
   void joinThreads();
 
-  // Data provider.
-  // TODO remove dataset_ from vio pipeline altogether!
-  ETHDatasetParser* dataset_;
+  // Callbacks.
+  KeyframeRateOutputCallback keyframe_rate_output_callback_;
 
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
@@ -180,7 +194,8 @@ class Pipeline {
   ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
 
   // Online initialization frontend queue.
-  ThreadsafeQueue<InitializationInputPayload> initialization_frontend_output_queue_;
+  ThreadsafeQueue<InitializationInputPayload>
+      initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;
@@ -235,6 +250,7 @@ class Pipeline {
   std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
   // std::thread visualizer_thread_;
 
+  int backend_type_;
   bool parallel_run_;
 };
 

@@ -879,7 +879,6 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
 /* *************************************************************************
 TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
   // this should be enabled if lines after 66 are uncommented
-
   // create a brand new stereo frame
   initializeDataStereo();
 
@@ -898,6 +897,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
   EXPECT_NEAR(100, sfnew->keypoints_depth_.size(), 1e-5);
   EXPECT_NEAR(100, sfnew->keypoints_3d_.size(), 1e-5);
   EXPECT_NEAR(100, sfnew->right_keypoints_status_.size(), 1e-5);
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that 3d point is consistent with the left versor and the depth
   int nrValid = 0;
@@ -997,6 +997,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
 
       // TEST: projecting 3d point to stereo camera
       // reproject to camera and check that matches corresponding rectified
+      // TODO: don't explicitly call new, use make_shared
       pixels Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(
           sfnew->left_undistRectCameraMatrix_.fx(),
           sfnew->left_undistRectCameraMatrix_.fy(),
@@ -1032,8 +1033,9 @@ TEST_F(StereoFrameFixture, getLandmarkInfo) {
   }
 }
 
+/* ************************************************************************* */
 // Test undistortion of fisheye / pinhole equidistant model
-TEST_F(StereoFrameFixture, undistortFisheye) {
+TEST(testStereoFrame, undistortFisheye) {
   // Parse camera params
   static CameraParams cam_params_left_fisheye;
   cam_params_left_fisheye.parseYAML(stereo_FLAGS_test_data_path +

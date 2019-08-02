@@ -77,6 +77,8 @@ class Frame {
   CameraParams cam_param_;
 
   // Actual image stored by the class frame.
+  // This must be const otw, we have to reimplement the copy ctor to allow
+  // for deep copies.
   const cv::Mat img_;
 
   // Results of image processing.

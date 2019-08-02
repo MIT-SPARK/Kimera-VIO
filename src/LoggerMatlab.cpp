@@ -167,7 +167,7 @@ void LoggerMatlab::logFrontendResults(
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void LoggerMatlab::logLandmarks(const VioBackEnd::PointsWithId& lmks) {
+void LoggerMatlab::logLandmarks(const PointsWithId& lmks) {
   // Absolute vio errors
   if (outputFile_landmarks_) {
     outputFile_landmarks_ << "Id"
@@ -177,7 +177,7 @@ void LoggerMatlab::logLandmarks(const VioBackEnd::PointsWithId& lmks) {
                           << "y"
                           << "\t"
                           << "z\n";
-    for (const VioBackEnd::PointWithId& point : lmks) {
+    for (const PointWithId& point : lmks) {
       outputFile_landmarks_ << point.first << "\t" << point.second.x() << "\t"
                             << point.second.y() << "\t" << point.second.z()
                             << "\n";
@@ -316,7 +316,7 @@ void LoggerMatlab::logBackendResultsCSV(
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::logPipelineResultsCSV(
-    const SpinOutputContainer& vio_output) {
+    const SpinOutputPacket& vio_output) {
   // We log the poses in csv format for later alignement and analysis.
   /*static bool is_header_written = false;
   if (!is_header_written) {
@@ -327,17 +327,17 @@ void LoggerMatlab::logPipelineResultsCSV(
     is_header_written = true;
   }*/
   const auto& w_pose_blkf_trans =
-      vio_output.W_Pose_Blkf_.translation().transpose();
-  const auto& w_pose_blkf_rot = vio_output.W_Pose_Blkf_.rotation().quaternion();
-  const auto& w_vel_blkf = vio_output.W_Vel_Blkf_.transpose();
-  const auto& imu_bias_gyro = vio_output.imu_bias_lkf_.gyroscope().transpose();
+      vio_output.getEstimatedPose().translation().transpose();
+  const auto& w_pose_blkf_rot = vio_output.getEstimatedPose().rotation().quaternion();
+  const auto& w_vel_blkf = vio_output.getEstimatedVelocity().transpose();
+  const auto& imu_bias_gyro = vio_output.getEstimatedBias().gyroscope().transpose();
   const auto& imu_bias_acc =
-      vio_output.imu_bias_lkf_.accelerometer().transpose();
-  if (vio_output.timestamp_kf_ != -1) {
+      vio_output.getEstimatedBias().accelerometer().transpose();
+  if (vio_output.getTimestamp() != -1) {
     outputFile_posesVIO_csv_pipeline_
         // TODO Luca: is W_Vel_Blkf_ at timestamp_lkf or timestamp_kf?
         // I just want to log latest vio estimate and correct timestamp...
-        << vio_output.timestamp_kf_ << ", " << w_pose_blkf_trans.x() << ", "
+        << vio_output.getTimestamp() << ", " << w_pose_blkf_trans.x() << ", "
         << w_pose_blkf_trans.y() << ", " << w_pose_blkf_trans.z() << ", "
         << w_pose_blkf_rot(1) << ", "  // q_x
         << w_pose_blkf_rot(2) << ", "  // q_y
@@ -606,7 +606,6 @@ void LoggerMatlab::logPipelineOverallTiming(
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::displayInitialStateVioInfo(
-    const ETHDatasetParser& dataset,
     const std::unique_ptr<VIO::VioBackEnd>& vio, gtNavState initialStateGT,
     const ImuAccGyrS& imu_accgyr, const Timestamp timestamp_k) const {
   initialStateGT.print("initialStateGT\n");
@@ -639,10 +638,6 @@ void LoggerMatlab::displayInitialStateVioInfo(
   CHECK(vioRotError <= 1e-4 && vioTranError <= 1e-4)
       << "stereoVIOExample: wrong initialization (we currently initialize to "
          "ground truth)";
-
-  // For comparison: gt bias.
-  LOG(INFO) << " dataset.getGroundTruthState(timestamp_k): ";
-  dataset.getGroundTruthState(timestamp_k).print();
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

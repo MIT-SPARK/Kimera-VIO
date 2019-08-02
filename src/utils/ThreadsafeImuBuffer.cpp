@@ -90,6 +90,7 @@ ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::getImuDataBtwTimestamps(
     bool get_lower_bound) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
+  DCHECK_LT(timestamp_ns_from, timestamp_ns_to);
   QueryResult query_result =
       isDataAvailableUpToImpl(timestamp_ns_from, timestamp_ns_to);
   if (query_result != QueryResult::kDataAvailable) {
@@ -132,6 +133,7 @@ ThreadsafeImuBuffer::getImuDataInterpolatedUpperBorder(
     ImuStampS* imu_timestamps, ImuAccGyrS* imu_measurements) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
+  DCHECK_LT(timestamp_ns_from, timestamp_ns_to);
   // Get data.
   QueryResult query_result = getImuDataBtwTimestamps(
       timestamp_ns_from, timestamp_ns_to, imu_timestamps, imu_measurements,
