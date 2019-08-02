@@ -127,7 +127,7 @@ Pipeline::Pipeline(const PipelineParams& params,
   vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
       params.imu_params_,
       gtsam::imuBias::ConstantBias(),
-      frontend_params_, saveImages, std::string(),
+      frontend_params_, saveImages,
       FLAGS_log_output);
 
   // Instantiate feature selector: not used in vanilla implementation.
