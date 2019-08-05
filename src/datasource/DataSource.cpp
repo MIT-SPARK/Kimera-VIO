@@ -124,9 +124,7 @@ void InitializationPerformance::print() const {
 DataProvider::DataProvider() :
     initial_k_(FLAGS_initial_k),
     final_k_(FLAGS_final_k),
-    dataset_path_(FLAGS_dataset_path) {
-  parseParams(); // parse backend/frontend parameters
-}
+    dataset_path_(FLAGS_dataset_path) {}
 
 DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";

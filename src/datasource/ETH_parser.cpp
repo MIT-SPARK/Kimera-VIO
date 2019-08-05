@@ -164,6 +164,8 @@ void ETHDatasetParser::parse(size_t initial_k, size_t final_k) {
 
   LOG(INFO) << "Running dataset between frame " << initial_k << " and frame "
             << final_k;
+
+  parseParams(); // parse backend/frontend parameters
 }
 
 /* -------------------------------------------------------------------------- */

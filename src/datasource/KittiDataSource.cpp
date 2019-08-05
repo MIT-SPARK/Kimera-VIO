@@ -221,6 +221,8 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   LOG(INFO) << "Running dataset between frame " << initial_k_
             << " and frame " << final_k_;
 
+  parseParams(); // parse backend/frontend parameters
+
   // Check data is parsed correctly.
   CHECK(*kitti_data);
   print();
@@ -324,10 +326,10 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
 }
 
 bool KittiDataProvider::parsePose(
-                const std::string& input_dataset_path, 
-                const std::string& calibration_filename, 
+                const std::string& input_dataset_path,
+                const std::string& calibration_filename,
                 cv::Mat& R, cv::Mat& T) const {
-  std::ifstream calib_file; 
+  std::ifstream calib_file;
   std::string calibration_file_path = input_dataset_path + calibration_filename;
   calib_file.open(calibration_file_path.c_str());
   // Read calibration file
