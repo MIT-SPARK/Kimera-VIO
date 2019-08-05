@@ -121,16 +121,10 @@ void InitializationPerformance::print() const {
 ////////////////////////////////////////////////////////////////////////////////
 //////////////// FUNCTIONS OF THE CLASS DataProvider                  //////////
 ////////////////////////////////////////////////////////////////////////////////
-DataProvider::DataProvider()
-    : initial_k_(static_cast<FrameId>(FLAGS_initial_k)),
-      final_k_(static_cast<FrameId>(FLAGS_final_k)),
-      dataset_path_(FLAGS_dataset_path) {
-  CHECK_GE(initial_k_, 0);
-  CHECK_GT(final_k_, initial_k_)
-      << "Value for final_k (" << final_k_ << ") is smaller than value for"
-      << " initial_k (" << initial_k_ << ").";
-  parseParams();  // parse backend/frontend parameters
-}
+DataProvider::DataProvider() :
+    initial_k_(FLAGS_initial_k),
+    final_k_(FLAGS_final_k),
+    dataset_path_(FLAGS_dataset_path) {}
 
 DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";
@@ -168,11 +162,11 @@ bool DataProvider::spin() {
 void DataProvider::parseParams() {
   switch (FLAGS_backend_type) {
     case 0: {
-      backend_params_ = std::make_shared<VioBackEndParams>();
+      pipeline_params_.backend_params_ = std::make_shared<VioBackEndParams>();
       break;
     }
     case 1: {
-      backend_params_ = std::make_shared<RegularVioBackEndParams>();
+      pipeline_params_.backend_params_ = std::make_shared<RegularVioBackEndParams>();
       break;
     }
     default: {
@@ -180,43 +174,40 @@ void DataProvider::parseParams() {
                    << " 0: normalVio, 1: RegularVio.";
     }
   }
+
+  pipeline_params_.backend_type_ = FLAGS_backend_type;
+
   // Read/define vio params.
   if (FLAGS_vio_params_path.empty()) {
     VLOG(100) << "No vio parameters specified, using default.";
     // Default params with IMU stats from dataset.
-    backend_params_->gyroNoiseDensity_ = imu_params_.gyro_noise_;
-    backend_params_->accNoiseDensity_ = imu_params_.acc_noise_;
-    backend_params_->gyroBiasSigma_ = imu_params_.gyro_walk_;
-    backend_params_->accBiasSigma_ = imu_params_.acc_walk_;
+    pipeline_params_.backend_params_->gyroNoiseDensity_ = pipeline_params_.imu_params_.gyro_noise_;
+    pipeline_params_.backend_params_->accNoiseDensity_ = pipeline_params_.imu_params_.acc_noise_;
+    pipeline_params_.backend_params_->gyroBiasSigma_ = pipeline_params_.imu_params_.gyro_walk_;
+    pipeline_params_.backend_params_->accBiasSigma_ = pipeline_params_.imu_params_.acc_walk_;
   } else {
     VLOG(100) << "Using user-specified VIO parameters: "
               << FLAGS_vio_params_path;
-    backend_params_->parseYAML(FLAGS_vio_params_path);
+    pipeline_params_.backend_params_->parseYAML(FLAGS_vio_params_path);
   }
-  // TODO(Toni) make this cleaner! imu_params_ are parsed all around, it's a
+  // TODO(Toni) make this cleaner! pipeline_params_.imu_params_ are parsed all around, it's a
   // mess!! They are basically parsed from backend params... but they should be
   // on their own mostly.
-  imu_params_.imu_integration_sigma_ = backend_params_->imuIntegrationSigma_;
-  imu_params_.n_gravity_ = backend_params_->n_gravity_;
+  pipeline_params_.imu_params_.imu_integration_sigma_ = pipeline_params_.backend_params_->imuIntegrationSigma_;
+  pipeline_params_.imu_params_.n_gravity_ = pipeline_params_.backend_params_->n_gravity_;
 
   // Read/define tracker params.
   if (FLAGS_tracker_params_path.empty()) {
     VLOG(100) << "No tracker parameters specified, using default";
-    frontend_params_ = VioFrontEndParams();  // default params
+    pipeline_params_.frontend_params_ = VioFrontEndParams();  // default params
   } else {
     VLOG(100) << "Using user-specified tracker parameters: "
               << FLAGS_tracker_params_path;
-    frontend_params_.parseYAML(FLAGS_tracker_params_path);
+    pipeline_params_.frontend_params_.parseYAML(FLAGS_tracker_params_path);
   }
 
-  CHECK(backend_params_);
-  CHECK_NOTNULL(&frontend_params_);
-}
-
-const PipelineParams DataProvider::getParams() {
-  PipelineParams pp(getFrontendParams(), getBackendParams(), getImuParams(),
-                    FLAGS_backend_type);
-  return pp;
+  CHECK(pipeline_params_.backend_params_);
+  CHECK_NOTNULL(&pipeline_params_.frontend_params_);
 }
 
 }  // namespace VIO

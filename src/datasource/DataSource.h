@@ -138,16 +138,9 @@ class CameraImageLists {
 
 struct PipelineParams {
   VioFrontEndParams frontend_params_;
-  VioBackEndParamsConstPtr backend_params_;
+  VioBackEndParamsPtr backend_params_;
   ImuParams imu_params_;
   int backend_type_;
-  PipelineParams(VioFrontEndParams frontend_params,
-                 VioBackEndParamsConstPtr backend_params, ImuParams imu_params,
-                 int backend_type)
-      : frontend_params_(frontend_params),
-        backend_params_(backend_params),
-        imu_params_(imu_params),
-        backend_type_(backend_type) {}
 };
 
 class DataProvider {
@@ -161,7 +154,8 @@ class DataProvider {
   // for the VIO pipeline to do one processing iteration.
   // A Dummy example is provided as an implementation.
   virtual bool spin();
-  const PipelineParams getParams();
+  // Init Vio parameters.
+  PipelineParams pipeline_params_;
 
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.
@@ -173,24 +167,11 @@ class DataProvider {
   // is available for processing.
   std::function<void(const StereoImuSyncPacket&)> vio_callback_;
 
-  // Init Vio parameters.
-  VioBackEndParamsPtr backend_params_;
-  VioFrontEndParams frontend_params_;
-  ImuParams imu_params_;
-
-  FrameId initial_k_;  // start frame
-  FrameId final_k_;    // end frame
+  int initial_k_; // start frame
+  int final_k_; // end frame
   std::string dataset_path_;
 
-  inline ImuParams getImuParams() const { return imu_params_; }
-  inline VioBackEndParamsConstPtr getBackendParams() const {
-    return backend_params_;
-  }
-  inline VioFrontEndParams getFrontendParams() const {
-    return frontend_params_;
-  }
-
- protected:
+protected:
   // Helper function to parse user-specified parameters.
   void parseParams();
 };

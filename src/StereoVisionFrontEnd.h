@@ -45,8 +45,7 @@ public:
   StereoVisionFrontEnd(
       const ImuParams &imu_params, const ImuBias &imu_initial_bias,
       const VioFrontEndParams &trackerParams = VioFrontEndParams(),
-      int saveImages = 0, const std::string &dataset_name = "",
-      bool log_output = false);
+      int saveImages = 0, bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
   bool spin(ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
@@ -119,7 +118,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Reset frontend after initial bundle adjustment for online alignment
-  void resetFrontendAfterOnlineAlignment(const gtsam::Vector3 &gravity, 
+  void resetFrontendAfterOnlineAlignment(const gtsam::Vector3 &gravity,
                                       gtsam::Vector3 &gyro_bias) {
     LOG(WARNING) << "Resetting frontend after online alignment!\n";
     forceFiveThreePointMethod(false);
@@ -208,7 +207,7 @@ public:
       const std::string& folder_name_append = "-monoMatching1frame",
       const std::string& img_name_prepend = "monoTrackerDisplay1Keyframe_",
       const int verbosity = 0) const;
-  
+
   /* ------------------------------------------------------------------------ */
   // Reset ImuFrontEnd gravity. Trivial gravity is needed for initial alignment.
   // This is thread-safe as imu_frontend_->resetPreintegrationGravity is thread-safe.
@@ -217,7 +216,7 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  // Get ImuFrontEnd gravity. 
+  // Get ImuFrontEnd gravity.
   // This is thread-safe as imu_frontend_->getPreintegrationGravity is
   // thread-safe.
   inline gtsam::Vector3 getGravity() const {
@@ -235,7 +234,7 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Get tracker info.
-  inline DebugTrackerInfo getTrackerInfo() { 
+  inline DebugTrackerInfo getTrackerInfo() {
     return tracker_.getTrackerDebugInfo();
   }
 

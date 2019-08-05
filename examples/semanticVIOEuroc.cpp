@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
 
   // Ctor ETHDatasetParser, and parse dataset.
   VIO::ETHDatasetParser eth_dataset_parser;
-  VIO::Pipeline vio_pipeline(eth_dataset_parser.getParams());
+  VIO::Pipeline vio_pipeline(eth_dataset_parser.pipeline_params_);
 
   // Register callback to semantic segmentation.
   vio_pipeline.registerSemanticMeshSegmentationCallback(

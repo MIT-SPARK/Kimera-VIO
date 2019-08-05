@@ -60,7 +60,7 @@ bool KittiDataProvider::spin() {
   const size_t number_of_images = kitti_data_.getNumberOfImages();
 
   const StereoMatchingParams& stereo_matching_params =
-      frontend_params_.getStereoMatchingParams();
+      pipeline_params_.frontend_params_.getStereoMatchingParams();
 
   // Store camera info
   const CameraParams& left_cam_info =
@@ -214,6 +214,8 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
   LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
             << final_k_;
 
+  parseParams(); // parse backend/frontend parameters
+
   // Check data is parsed correctly.
   CHECK(*kitti_data);
   print();
@@ -317,10 +319,10 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
 }
 
 bool KittiDataProvider::parsePose(
-                const std::string& input_dataset_path, 
-                const std::string& calibration_filename, 
+                const std::string& input_dataset_path,
+                const std::string& calibration_filename,
                 cv::Mat& R, cv::Mat& T) const {
-  std::ifstream calib_file; 
+  std::ifstream calib_file;
   std::string calibration_file_path = input_dataset_path + calibration_filename;
   calib_file.open(calibration_file_path.c_str());
   // Read calibration file
@@ -497,10 +499,10 @@ bool KittiDataProvider::parseImuData(const std::string& input_dataset_path,
       std::sqrt(stdDelta / double(deltaCount - 1u));
   kitti_data->imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
   // KITTI does not give these so using values from EuRoC
-  imu_params_.gyro_noise_ = 1.6968e-3;
-  imu_params_.gyro_walk_ = 1.9393e-4;
-  imu_params_.acc_noise_ = 2.0000e-2;
-  imu_params_.acc_walk_ = 3.0000e-2;
+  pipeline_params_.imu_params_.gyro_noise_ = 1.6968e-3;
+  pipeline_params_.imu_params_.gyro_walk_ = 1.9393e-4;
+  pipeline_params_.imu_params_.acc_noise_ = 2.0000e-2;
+  pipeline_params_.imu_params_.acc_walk_ = 3.0000e-2;
   LOG(INFO) << "Maximum measured rotation rate (norm):" << maxNormRotRate << '-'
             << "Maximum measured acceleration (norm): " << maxNormAcc;
   return true;
