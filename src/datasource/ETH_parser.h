@@ -68,7 +68,7 @@ public:
     return camera_info_.at("cam1");
   }
   inline ImuParams getImuParams() const {
-    return imu_params_;
+    return pipeline_params_.imu_params_;
   }
 
 public:

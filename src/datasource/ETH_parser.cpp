@@ -56,7 +56,7 @@ bool ETHDatasetParser::spin() {
 
   // Spin.
   const StereoMatchingParams& stereo_matching_params =
-      frontend_params_.getStereoMatchingParams();
+      pipeline_params_.frontend_params_.getStereoMatchingParams();
   const bool equalize_image = stereo_matching_params.equalize_image_;
   const CameraParams& left_cam_info = getLeftCamInfo();
   const CameraParams& right_cam_info = getRightCamInfo();
@@ -195,10 +195,10 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
   CHECK_NE(rate, 0);
   imuData_.nominal_imu_rate_ = 1 / static_cast<double>(rate);
 
-  imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
-  imu_params_.gyro_walk_ = fs["gyroscope_random_walk"];
-  imu_params_.acc_noise_ = fs["accelerometer_noise_density"];
-  imu_params_.acc_walk_ = fs["accelerometer_random_walk"];
+  pipeline_params_.imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
+  pipeline_params_.imu_params_.gyro_walk_ = fs["gyroscope_random_walk"];
+  pipeline_params_.imu_params_.acc_noise_ = fs["accelerometer_noise_density"];
+  pipeline_params_.imu_params_.acc_walk_ = fs["accelerometer_random_walk"];
 
   fs.release();
   return true;

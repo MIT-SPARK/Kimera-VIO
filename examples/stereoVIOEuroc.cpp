@@ -47,20 +47,20 @@ int main(int argc, char *argv[]) {
     {
       dataset_parser = VIO::make_unique<VIO::ETHDatasetParser>();
     }
-    break; 
+    break;
     case 1 :
     {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
     }
-    break; 
-    default: 
+    break;
+    default:
     {
       CHECK(false) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
                    << " 0: EuRoC, 1: Kitti.";
     }
   }
 
-  VIO::Pipeline vio_pipeline(dataset_parser->getParams(),
+  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_,
                              FLAGS_parallel_run);
 
   // Register callback to vio_pipeline.
