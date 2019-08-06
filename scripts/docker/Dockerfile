@@ -14,7 +14,7 @@ WORKDIR $DIRPATH
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
 RUN apt-get update && apt-get install -y git cmake
 
-# Install xvfb to provide a display to container for GUI realted testing.
+# Install xvfb to provide a display to container for GUI related testing.
 RUN apt-get update && apt-get install -y xvfb
 
 # Install GTSAM
@@ -64,9 +64,18 @@ RUN cd opengv/build && \
       -DEIGEN_INCLUDE_DIR=$DIRPATH/gtsam/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
-# Install spark_vio_evaluation from PyPI
+# [Optional] Install spark_vio_evaluation from PyPI
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 RUN cd spark_vio_evaluation && pip install .
+
+# Install Spark VIO
+RUN git clone https://github.mit.edu/SPARK/VIO
+RUN cd VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
+
+# Download and extract EuRoC dataset.
+RUN wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip
+RUN mkdir data && cd data && unzip ../V1_01_easy.zip
+RUN cd data && bash ../VIO/scripts/yamelize.bash
