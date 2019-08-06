@@ -87,8 +87,9 @@ Installation of OpenCV
 ```
 #!bash
 $ homebrew install vtk (to check)
-download opencv3.3.1 from https://opencv.org/releases.html
-unzip and go to opencv3.3.1
+$ git clone https://github.com/opencv/opencv.git
+$ cd opencv
+$ git checkout tags/3.3.1
 $ mkdir build
 $ cd build
 $ cmake ../
@@ -100,8 +101,9 @@ $ sudo make install
 $ sudo apt-get install libvtk5-dev   (libvtk6-dev in ubuntu 17.10)
 $ sudo apt-get install libgtk2.0-dev
 $ sudo apt-get install pkg-config
-download opencv3.3.1 from https://opencv.org/releases.html
-unzip and go to opencv3.3.1
+$ git clone https://github.com/opencv/opencv.git
+$ cd opencv
+$ git checkout tags/3.3.1
 $ mkdir build
 $ cd build
 $ cmake -DWITH_VTK=On -DWITH_TBB=On ..
