@@ -160,7 +160,7 @@ Once installed, clone this repo, build the image and run it.
 ```
 # Build the image
 cd VIO
-docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile .
+docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . --build-arg SSH_PRIVATE_KEY="$(cat /home/tonirv/.ssh/id_rsa)"
 
 # Run an example dataset
 ./scripts/docker/spark_vio_docker.bash

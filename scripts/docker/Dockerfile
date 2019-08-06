@@ -71,11 +71,27 @@ ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/mast
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 RUN cd spark_vio_evaluation && pip install .
 
-# Install Spark VIO
-RUN git clone https://github.mit.edu/SPARK/VIO
-RUN cd VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
-
 # Download and extract EuRoC dataset.
+RUN apt-get update && apt-get install -y wget
 RUN wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip
 RUN mkdir data && cd data && unzip ../V1_01_easy.zip
-RUN cd data && bash ../VIO/scripts/yamelize.bash
+
+# Add credentials on build
+ARG SSH_PRIVATE_KEY
+RUN mkdir /root/.ssh/
+RUN echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa
+RUN chmod 600 ~/.ssh/id_rsa
+
+# Make sure your domain is accepted
+RUN touch /root/.ssh/known_hosts
+RUN ssh-keyscan -t rsa github.mit.edu >> /root/.ssh/known_hosts
+
+# Install Spark VIO
+RUN git config --global user.name "arosinol"
+RUN git config --global user.email "arosinol@mit.edu"
+RUN git clone git@github.mit.edu:SPARK/VIO.git
+RUN cd VIO && git checkout feature/full_docker_install && mkdir build && cd build && cmake .. && make -j$(nproc)
+
+# Yamelize euroc dataset
+RUN cd data && bash $DIRPATH/VIO/scripts/yamelize.bash
+
