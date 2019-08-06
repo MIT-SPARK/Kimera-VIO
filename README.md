@@ -151,6 +151,21 @@ Glog, Gflags & Gtest
 ----------------------
 Glog, gflags, and gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
 
+### Dockerfile Installation
+
+If you want to avoid building all these dependencies yourself, we provide a docker image that will install all dependencies for you.
+For that, you will need to install [Docker](https://docs.docker.com/install/).
+Once installed, clone this repo, build the image and run it.
+
+```
+# Build the image
+cd VIO
+docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile .
+
+# Run an example dataset
+./scripts/docker/spark_vio_docker.bash
+```
+
 Running examples
 ======================
 
