@@ -46,7 +46,7 @@ $ make check
 Prerequisites (installation instructions below):
 
 - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
-- [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0
+- [OpenCV](https://github.com/opencv/opencv) >= 3.0
 - [OpenGV](https://github.com/laurentkneip/opengv) 
 
 Installation of GTSAM
