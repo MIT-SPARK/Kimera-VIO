@@ -87,11 +87,13 @@ RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan -t rsa github.mit.edu >> /root/.ssh/known_hosts
 
 # Install Spark VIO
-RUN git config --global user.name "arosinol"
-RUN git config --global user.email "arosinol@mit.edu"
+#RUN git config --global user.name "arosinol"
+#RUN git config --global user.email "arosinol@mit.edu"
 RUN git clone git@github.mit.edu:SPARK/VIO.git
 RUN cd VIO && git checkout feature/full_docker_install && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 # Yamelize euroc dataset
 RUN cd data && bash $DIRPATH/VIO/scripts/yamelize.bash
 
+#CMD xvfb-run $DIRPATH/VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/data -r -parallel
+CMD $DIRPATH/VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/data -r -parallel
