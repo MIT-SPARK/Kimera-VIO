@@ -184,10 +184,13 @@ struct LoopClosureDetectorOutputPayload {
                                    const Timestamp &timestamp_kf,
                                    const FrameId &id_match,
                                    const FrameId &id_recent,
+                                   const gtsam::Pose3& relative_pose,
                                    const gtsam::Pose3 &W_Pose_Map)
       : is_loop_closure_(is_loop_closure),
         timestamp_kf_(timestamp_kf),
-        id_match_(id_match), id_recent_(id_recent),
+        id_match_(id_match),
+        id_recent_(id_recent),
+        relative_pose_(relative_pose),
         W_Pose_Map_(W_Pose_Map) {}
 
   // TODO(marcus): inlude stats/score of match
@@ -195,6 +198,7 @@ struct LoopClosureDetectorOutputPayload {
   const Timestamp timestamp_kf_;
   const FrameId id_match_;
   const FrameId id_recent_;
+  const gtsam::Pose3 relative_pose_;
   const gtsam::Pose3 W_Pose_Map_;
 };  // struct LoopClosureDetectorOutputPayload
 

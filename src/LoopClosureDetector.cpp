@@ -129,6 +129,7 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   }
 
   // Update the PGO with the backend VIO estimate
+  // TODO(marcus): only add factor if it's a set distance away from previous
   W_Pose_Bkf_estimates_.push_back(input->W_Pose_Blkf_);
   VioFactor vio_factor(input->cur_kf_id_, input->W_Pose_Blkf_,
       shared_noise_model_);
@@ -147,8 +148,8 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
 
   gtsam::Pose3 w_Pose_map = getWPoseMap();
   LoopClosureDetectorOutputPayload output_payload(loop_result.isLoop(),
-      input->timestamp_kf_, loop_result.match_id_,
-      loop_result.query_id_, w_Pose_map);
+      input->timestamp_kf_, loop_result.match_id_, loop_result.query_id_,
+      loop_result.relative_pose_, w_Pose_map);
 
   return output_payload;
 }
@@ -893,6 +894,8 @@ void LoopClosureDetector::initializePGO() {
 
 // TODO(marcus): only add nodes if they're x dist away from previous node
 // TOOD(marcus): vio factors have LAST KEYFRAME not current
+// TODO(marcus): failure happening due to a super high index, past the size
+// of the vector of poses
 void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor &factor) {
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
