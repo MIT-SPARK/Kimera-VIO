@@ -22,7 +22,7 @@ RUN cd gtsam && \
     git fetch && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON .. && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON .. && \
     make -j$(nproc) install
 
 # Install OpenCV for Ubuntu 18.04
@@ -83,6 +83,7 @@ RUN cd DBoW2 && \
   # Install RobustPGO
   RUN git clone https://github.com/MIT-SPARK/RobustPGO.git
   RUN cd RobustPGO && \
+        git checkout fix/unique_ptr_issue && \
         mkdir build && \
         cd build && \
         cmake .. && \

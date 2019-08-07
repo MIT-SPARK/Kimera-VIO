@@ -129,11 +129,12 @@ $ sudo make -j8 check
 Installation of DBoW2 and DLib
 ----------------------
 Note that DLib will be phased out soon.
-To instal DLib, which is a dependency of DboW2:
+To install DLib, which is a dependency of DboW2:
 ```
 #!bash
 $ git clone https://github.com/marcusabate/DLib.git
 $ cd DLib
+$ git checkout feature/spark_vio_compatibility
 $ mkdir build
 $ cd build
 $ cmake ../
@@ -146,12 +147,24 @@ To install DBoW2 for Bag-oF-words loop closure:
 #!bash
 $ git clone https://github.com/marcusabate/DBoW2.git
 $ cd DboW2
+$ git checkout feature/orbslam2_updates
 $ mkdir build
 $ cd build
 $ cmake ../
 $ make
 $ sudo make install
 ```
+
+Installation of RobustPGO
+----------------------
+#!bash
+$ git clone https://github.com/MIT-SPARK/RobustPGO.git
+$ cd RobustPGO
+$ mkdir build
+$ cd build
+$ cmake ../
+$ make
+$ make check # optionally run tests
 
 Installation of CGAL (Optional: Not used for now)
 ----------------------
