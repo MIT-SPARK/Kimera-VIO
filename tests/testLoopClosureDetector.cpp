@@ -48,6 +48,7 @@ class LCDFixture :public ::testing::Test {
 
     LoopClosureDetectorParams params;
     params.parseYAML(lcd_FLAGS_test_data_path_+"/testLCDParameters.yaml");
+
     lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
 
     gtsam::Pose3 ref1_pose = gtsam::Pose3(
@@ -58,15 +59,13 @@ class LCDFixture :public ::testing::Test {
         gtsam::Rot3(gtsam::Quaternion(0.478634, 0.415595, -0.700197, 0.328505)),
         gtsam::Point3(1.872115, 1.786064, 1.586159));
 
-    gtsam::Pose3 ref2_pose =
-        gtsam::Pose3(gtsam::Rot3(gtsam::Quaternion(0.339410, -0.672895,
-                                                   -0.492724, -0.435018)),
-                     gtsam::Point3(-0.662997, -0.495046, 1.347300));
+    gtsam::Pose3 ref2_pose = gtsam::Pose3(
+        gtsam::Rot3(gtsam::Quaternion(0.3394, -0.672895, -0.492724, -0.435018)),
+        gtsam::Point3(-0.662997, -0.495046, 1.347300));
 
-    gtsam::Pose3 cur2_pose =
-        gtsam::Pose3(gtsam::Rot3(gtsam::Quaternion(0.392664, -0.590667,
-                                                   -0.580231, -0.400326)),
-                     gtsam::Point3(-0.345638, -0.501712, 1.320441));
+    gtsam::Pose3 cur2_pose = gtsam::Pose3(
+        gtsam::Rot3(gtsam::Quaternion(0.39266, -0.590667, -0.58023, -0.400326)),
+        gtsam::Point3(-0.345638, -0.501712, 1.320441));
 
     ref1_to_cur1_pose_ = ref1_pose.between(cur1_pose);
     ref2_to_cur2_pose_ = ref2_pose.between(cur2_pose);
@@ -101,8 +100,8 @@ class LCDFixture :public ::testing::Test {
     VioFrontEndParams tp;
     Tracker tracker(tp, 0);
 
-    ref1_stereo_frame_ = std::make_shared<StereoFrame>(
-        id_ref_, timestamp_ref1_,
+    ref1_stereo_frame_ = VIO::make_unique<StereoFrame>(
+        id_ref1_, timestamp_ref1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref1_left, tp.getStereoMatchingParams().equalize_image_),
         cam_params_left,
@@ -114,7 +113,7 @@ class LCDFixture :public ::testing::Test {
     ref1_stereo_frame_->setIsKeyframe(true);
     ref1_stereo_frame_->sparseStereoMatching();
 
-    cur1_stereo_frame_ = std::make_shared<StereoFrame>(
+    cur1_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_cur1_, timestamp_cur1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur1_left, tp.getStereoMatchingParams().equalize_image_),
@@ -127,7 +126,7 @@ class LCDFixture :public ::testing::Test {
     cur1_stereo_frame_->setIsKeyframe(true);
     cur1_stereo_frame_->sparseStereoMatching();
 
-    ref2_stereo_frame_ = std::make_shared<StereoFrame>(
+    ref2_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_ref2_, timestamp_ref2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref2_left, tp.getStereoMatchingParams().equalize_image_),
@@ -140,7 +139,7 @@ class LCDFixture :public ::testing::Test {
     ref2_stereo_frame_->setIsKeyframe(true);
     ref2_stereo_frame_->sparseStereoMatching();
 
-    cur2_stereo_frame_ = std::make_shared<StereoFrame>(
+    cur2_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_cur2_, timestamp_cur2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur2_left, tp.getStereoMatchingParams().equalize_image_),
@@ -158,10 +157,10 @@ class LCDFixture :public ::testing::Test {
   }
 
   // Standard gtest methods, unnecessary for now
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+  // virtual void SetUp() {}
+  // virtual void TearDown() {}
 
- protected:
+protected:
   // Data-related members
   std::string lcd_FLAGS_test_data_path_;
 
@@ -170,9 +169,9 @@ class LCDFixture :public ::testing::Test {
 
   // Stored frame members
   gtsam::Pose3 ref1_to_cur1_pose_, ref2_to_cur2_pose_;
-  std::shared_ptr<StereoFrame> ref1_stereo_frame_, cur1_stereo_frame_;
-  std::shared_ptr<StereoFrame> ref2_stereo_frame_, cur2_stereo_frame_;
-  const FrameId id_ref_ = 0;
+  std::unique_ptr<StereoFrame> ref1_stereo_frame_, cur1_stereo_frame_;
+  std::unique_ptr<StereoFrame> ref2_stereo_frame_, cur2_stereo_frame_;
+  const FrameId id_ref1_ = 0;
   const FrameId id_cur1_ = 1;
   const FrameId id_ref2_ = 2;
   const FrameId id_cur2_ = 3;
@@ -233,7 +232,7 @@ TEST_F(LCDFixture, processAndAddFrame) {
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->size(), 1);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).timestamp_,
             timestamp_ref1_);
-  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).id_kf_, id_ref_);
+  EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).id_kf_, id_ref1_);
   EXPECT_EQ(lcd_detector_->getFrameDatabasePtr()->at(0).keypoints_.size(),
             lcd_detector_->getLCDParams().nfeatures_);
 
@@ -368,36 +367,47 @@ TEST_F(LCDFixture, checkLoopClosure) {
   lcd_detector_->getLCDParamsMutable()->use_mono_rot_ = true;
 
   /* Test the checkLoopClosure method against two images without closure */
-  LoopClosureDetectorOutputPayload output_payload_0 =
+  LoopResult loop_result_0 =
       lcd_detector_->checkLoopClosure(*ref2_stereo_frame_.get());
-  EXPECT_EQ(output_payload_0.is_loop_, false);
+  EXPECT_EQ(loop_result_0.isLoop(), false);
 
-  LoopClosureDetectorOutputPayload output_payload_1 =
+  LoopResult loop_result_1 =
       lcd_detector_->checkLoopClosure(*ref1_stereo_frame_.get());
-  EXPECT_EQ(output_payload_1.is_loop_, false);
+  EXPECT_EQ(loop_result_1.isLoop(), false);
 
   /* Test the checkLoopClosure method against two images that are identical */
   // TODO(marcus): why isn't geom_check working for two identical images?
-  LoopClosureDetectorOutputPayload output_payload_2 =
+  LoopResult loop_result_2 =
       lcd_detector_->checkLoopClosure(*ref1_stereo_frame_.get());
   // EXPECT_EQ(output_payload_2.is_loop_, true);
   // EXPECT_EQ(output_payload_2.timestamp_kf_, timestamp_ref1_);
-  // EXPECT_EQ(output_payload_2.id_recent_, id_ref_);
-  // EXPECT_EQ(output_payload_2.id_match_, id_ref_);
+  // EXPECT_EQ(output_payload_2.id_recent_, id_ref1_);
+  // EXPECT_EQ(output_payload_2.id_match_, id_ref1_);
   // EXPECT_TRUE(output_payload_2.relative_pose_.equals(gtsam::Pose3(
   //     gtsam::Rot3::identity(), gtsam::Point3(0,0,0)), tol));
 
   /* Test the checkLoopClosure method against two unidentical, similar images */
-  LoopClosureDetectorOutputPayload output_payload_3 =
+  LoopResult loop_result_3 =
       lcd_detector_->checkLoopClosure(*cur1_stereo_frame_.get());
-  EXPECT_EQ(output_payload_3.is_loop_, true);
-  EXPECT_EQ(output_payload_3.timestamp_kf_, timestamp_cur1_);
-  EXPECT_EQ(output_payload_3.id_match_, id_ref_);
-  EXPECT_EQ(output_payload_3.id_recent_, id_cur1_);
+  EXPECT_EQ(loop_result_3.isLoop(), true);
+  EXPECT_EQ(loop_result_3.match_id_, 1);
+  EXPECT_EQ(loop_result_3.query_id_, 3);
 
   error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
-      ref1_to_cur1_pose_, output_payload_3.relative_pose_, true);
+      ref1_to_cur1_pose_, loop_result_3.relative_pose_, true);
 
   EXPECT_LT(error.first, rot_tol);
   EXPECT_LT(error.second, tran_tol);
+}
+
+TEST_F(LCDFixture, DISABLED_addVioFactorAndOptimize) {
+  // TODO(marcus): implement
+}
+
+TEST_F(LCDFixture, DISABLED_addLoopClosureFactorAndOptimize) {
+  // TODO(marcus): implement
+}
+
+TEST_F(LCDFixture, DISABLED_spinOnce) {
+  // TODO(marcus): implement
 }

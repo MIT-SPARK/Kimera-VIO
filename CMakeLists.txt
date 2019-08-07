@@ -52,6 +52,12 @@ if(DBoW2_FOUND)
   message(STATUS "FOUND DBoW2!")
 endif(DBoW2_FOUND)
 
+### Find the RobustPGO package
+find_package(RobustPGO)
+if(RobustPGO_FOUND)
+  message(STATUS "FOUND RobustPGO!")
+endif(RobustPGO_FOUND)
+
 ### Unzip the vocabularly file
 execute_process(
   COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/vocabulary/ORBvoc.txt.tar.gz
@@ -122,6 +128,7 @@ target_link_libraries(SparkVio
     gtsam_unstable
     DBoW2 # TODO(marcus): should be private
     DLib  # TODO(marcus): should be private
+    RobustPGO # TODO(marcus): should be private
 )
 target_include_directories(SparkVio
   PUBLIC

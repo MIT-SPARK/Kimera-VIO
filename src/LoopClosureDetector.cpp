@@ -37,10 +37,18 @@ LoopClosureDetector::LoopClosureDetector(
     : lcd_params_(lcd_params),
       log_output_(log_output),
       set_intrinsics_(false),
-      latest_bowvec_(DBoW2::BowVector()),
-      latest_matched_island_(MatchIsland()),
+      orb_feature_detector_(),
+      orb_feature_matcher_(),
+      db_BoW_(),
+      db_frames_(),
+      latest_bowvec_(),
+      latest_matched_island_(),
       latest_query_id_(FrameId(0)),
-      temporal_entries_(0) {
+      temporal_entries_(0),
+      B_Pose_camLrect_(),
+      pgo_(nullptr),
+      W_Pose_Bkf_estimates_(),
+      shared_noise_model_(gtsam::noiseModel::Isotropic::Variance(6, 0.1)) {
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
       lcd_params_.scale_factor_, lcd_params_.nlevels_,
@@ -52,16 +60,22 @@ LoopClosureDetector::LoopClosureDetector(
   orb_feature_matcher_ = cv::DescriptorMatcher::create("BruteForce-Hamming");
 
   // Load ORB vocabulary:
-  std::cout << "Loading vocabulary from " << FLAGS_vocabulary_path << std::endl;
-  vocab_.loadFromTextFile(
-      FLAGS_vocabulary_path);  // TODO(marcus): support .gz files
-  std::cout << "Loaded vocabulary with "
-            << vocab_.size() << " visual words."
-            << std::endl;
+  LOG(INFO) << "Loading vocabulary from " << FLAGS_vocabulary_path;
+  vocab_.loadFromTextFile(FLAGS_vocabulary_path);  // TODO(marcus): support .gz files
+  LOG(INFO) << "Loaded vocabulary with " << vocab_.size() << " visual words.";
 
-  // Initialize db_BoW_ and db_frames_:
+  // Initialize db_BoW_:
   setVocabulary(vocab_);
-  db_frames_.clear();
+
+  // Initialize pgo_:
+  // TODO(marcus): parametrize the verbosity of PGO params
+  // shared_noise_model_ = gtsam::noiseModel::Isotropic::Variance(6, 0.1);
+  RobustPGO::RobustSolverParams pgo_params;
+  pgo_params.setPcmSimple3DParams(lcd_params_.pgo_trans_threshold_,
+      lcd_params_.pgo_rot_threshold_, RobustPGO::Verbosity::VERBOSE);
+
+  pgo_ = VIO::make_unique<RobustPGO::RobustSolver>(pgo_params);
+  initializePGO();
 }
 
 bool LoopClosureDetector::spin(
@@ -83,9 +97,10 @@ bool LoopClosureDetector::spin(
       LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
 
       // Only push output if it's a detected loop.
-      if (output_payload.is_loop_) {
-        output_queue.push(output_payload);
-      }
+      // TODO(marcus): decide if we want to only push for loop closures
+      // if (output_payload.is_loop_closure_) {
+      output_queue.push(output_payload);
+      // }
 
       auto spin_duration = utils::Timer::toc(tic).count();
       stat_lcd_timing.AddSample(spin_duration);
@@ -113,34 +128,43 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     setIntrinsics(input->stereo_frame_);
   }
 
+  // Update the PGO with the backend VIO estimate
+  W_Pose_Bkf_estimates_.push_back(input->W_Pose_Blkf_);
+  VioFactor vio_factor(input->cur_kf_id_, input->W_Pose_Blkf_,
+      shared_noise_model_);
+  addVioFactorAndOptimize(vio_factor);
+
   // Process the StereoFrame and check for a loop closure with previous ones.
   StereoFrame working_frame = input->stereo_frame_;
-  LoopClosureDetectorOutputPayload output_payload = checkLoopClosure(
-      working_frame);
+  LoopResult loop_result = checkLoopClosure(working_frame);
+
+  // Update the PGO with the loop closure result if available
+  if (loop_result.isLoop()) {
+    LoopClosureFactor lc_factor(loop_result.match_id_, loop_result.query_id_,
+        loop_result.relative_pose_, shared_noise_model_);
+    addLoopClosureFactorAndOptimize(lc_factor);
+  }
+
+  gtsam::Pose3 w_Pose_map = getWPoseMap();
+  LoopClosureDetectorOutputPayload output_payload(loop_result.isLoop(),
+      input->timestamp_kf_, loop_result.match_id_,
+      loop_result.query_id_, w_Pose_map);
 
   return output_payload;
 }
 
-LoopClosureDetectorOutputPayload LoopClosureDetector::checkLoopClosure(
-    const StereoFrame& stereo_frame) {
+LoopResult
+LoopClosureDetector::checkLoopClosure(const StereoFrame &stereo_frame) {
   FrameId frame_id = processAndAddFrame(stereo_frame);
   LoopResult loop_result;
   detectLoop(frame_id, &loop_result);
 
   if (loop_result.isLoop()) {
     if (VERBOSITY >= 1) {
-      LOG(ERROR) << "LoopClosureDetector: LOOP CLOSURE detected from image "
-                 << loop_result.match_id_ << " to image "
-                 << loop_result.query_id_;
+      LOG(WARNING) << "LoopClosureDetector: LOOP CLOSURE detected from image "
+                   << loop_result.match_id_ << " to image "
+                   << loop_result.query_id_;
     }
-
-    LoopClosureDetectorOutputPayload output_payload(
-        true, stereo_frame.getTimestamp(),
-        db_frames_[loop_result.match_id_].id_kf_,
-        db_frames_[loop_result.query_id_].id_kf_, loop_result.relative_pose_);
-
-    return output_payload;
-
   } else {
     if (VERBOSITY >= 2) {
       std::string erhdr = "LoopClosureDetector Failure Reason: ";
@@ -165,7 +189,7 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::checkLoopClosure(
     }
   }
 
-  return LoopClosureDetectorOutputPayload(false, -1, 0, 0, gtsam::Pose3());
+  return loop_result;
 }
 
 FrameId LoopClosureDetector::processAndAddFrame(
@@ -395,6 +419,7 @@ void LoopClosureDetector::allocate(size_t n) {
   }
 
   db_BoW_.allocate(n, lcd_params_.nfeatures_);
+  W_Pose_Bkf_estimates_.reserve(n);
 }
 
 void LoopClosureDetector::clear() {
@@ -402,6 +427,7 @@ void LoopClosureDetector::clear() {
   db_frames_.clear();
   latest_bowvec_.clear();
   latest_matched_island_.clear();
+  W_Pose_Bkf_estimates_.clear();
   latest_query_id_ = 0;
   temporal_entries_ = 0;
 }
@@ -709,6 +735,19 @@ void LoopClosureDetector::transformBodyPose2CameraPose(
     B_Pose_camLrect_;
 }
 
+inline const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
+  if (W_Pose_Bkf_estimates_.size() > 2) {
+    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Bkf_estimates_.back();
+    gtsam::Pose3 w_Pose_Bkf_truth =
+        pgo_->calculateBestEstimate().at<gtsam::Pose3>(
+            W_Pose_Bkf_estimates_.size() - 1);
+
+    return w_Pose_Bkf_truth.between(w_Pose_Bkf_estim);
+  }
+
+  return gtsam::Pose3();
+}
+
 bool LoopClosureDetector::recoverPose_arun(
     const FrameId& query_id, const FrameId& match_id,
     gtsam::Pose3* bodyRef_T_bodyCur) const {
@@ -842,6 +881,46 @@ bool LoopClosureDetector::recoverPose_givenRot(
   // TODO(marcus): add some sort of check for returning failure
 
   return false;
+}
+
+void LoopClosureDetector::initializePGO() {
+  gtsam::NonlinearFactorGraph init_nfg;
+  gtsam::Values init_val;
+  init_val.insert(0, gtsam::Pose3());
+
+  pgo_->update(init_nfg, init_val);
+}
+
+// TODO(marcus): only add nodes if they're x dist away from previous node
+// TOOD(marcus): vio factors have LAST KEYFRAME not current
+void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor &factor) {
+  gtsam::NonlinearFactorGraph nfg;
+  gtsam::Values value;
+
+  if (factor.cur_key_ <= W_Pose_Bkf_estimates_.size() && factor.cur_key_ > 2) {
+    value.insert(factor.cur_key_-1, factor.W_Pose_Blkf_);
+
+    gtsam::Pose3 B_llkf_Pose_lkf =
+        W_Pose_Bkf_estimates_.at(factor.cur_key_-2).between(
+            factor.W_Pose_Blkf_);
+
+    nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(
+        factor.cur_key_-1, factor.cur_key_, B_llkf_Pose_lkf, factor.noise_));
+
+    pgo_->update(nfg, value);
+  } else {
+    LOG(WARNING) << "LoopClosureDetector: Not enough factors for optimization.";
+  }
+}
+
+void LoopClosureDetector::addLoopClosureFactorAndOptimize(
+    const LoopClosureFactor &factor) {
+  gtsam::NonlinearFactorGraph nfg;
+
+  nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(
+      factor.ref_key_, factor.cur_key_, factor.ref_Pose_cur_, factor.noise_));
+
+  pgo_->update(nfg);
 }
 
 }  // namespace VIO

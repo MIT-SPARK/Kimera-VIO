@@ -39,6 +39,13 @@ pipeline {
         }
       }
     }
+    stage('Delete Vocabulary File') {
+      steps {
+        wrap([$class: 'Xvfb']) {
+          sh 'cd vocabulary && rm ORBvoc.txt && rm ORBvoc.txt.tar.gz'
+        }
+      }
+    }
   }
   post {
     always {

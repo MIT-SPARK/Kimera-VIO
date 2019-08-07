@@ -34,6 +34,8 @@
 #include <opencv2/features2d.hpp>
 #include <opencv2/core/eigen.hpp>
 
+#include "RobustPGO/RobustSolver.h"
+
 #include "utils/ThreadsafeQueue.h"
 #include "utils/Timer.h"
 #include "utils/Statistics.h"
@@ -59,8 +61,7 @@ class LoopClosureDetector {
   LoopClosureDetectorOutputPayload spinOnce(
       const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
 
-  LoopClosureDetectorOutputPayload checkLoopClosure(
-      const StereoFrame& stereo_frame);
+  LoopResult checkLoopClosure(const StereoFrame &stereo_frame);
 
   FrameId processAndAddFrame(const StereoFrame& stereo_frame);
 
@@ -139,6 +140,8 @@ class LoopClosureDetector {
   void transformBodyPose2CameraPose(const gtsam::Pose3& bodyRef_T_bodyCur,
                                     gtsam::Pose3* camRef_T_camCur) const;
 
+  inline const gtsam::Pose3 getWPoseMap() const;
+
  private:
   // TODO(marcus): review this one
   bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
@@ -165,6 +168,12 @@ class LoopClosureDetector {
   bool recoverPose_givenRot(const FrameId& query_id, const FrameId& match_id,
                             const gtsam::Pose3& camRef_T_camCur_mono,
                             gtsam::Pose3* bodyRef_T_bodyCur) const;
+
+  void initializePGO();
+
+  void addVioFactorAndOptimize(const VioFactor &factor);
+
+  void addLoopClosureFactorAndOptimize(const LoopClosureFactor &factor);
 
  private:
   // Parameter members
@@ -193,6 +202,14 @@ class LoopClosureDetector {
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
+
+  // Robust PGO members
+  // RobustPGO::RobustSolverParams pgo_params_;
+  // TODO(marcus): use GenericSolver here and then make_unique the RobustSolver?
+  std::unique_ptr<RobustPGO::RobustSolver> pgo_;
+  std::vector<gtsam::Pose3> W_Pose_Bkf_estimates_;
+  gtsam::SharedNoiseModel shared_noise_model_; // TODO(marcus): make accurate
+                                               // should also come in with input
 };  // class LoopClosureDetector
 
 }  // namespace VIO

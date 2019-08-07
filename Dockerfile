@@ -80,6 +80,14 @@ RUN cd DBoW2 && \
       cmake .. && \
       make -j$(nproc) install
 
+  # Install RobustPGO
+  RUN git clone https://github.com/MIT-SPARK/RobustPGO.git
+  RUN cd RobustPGO && \
+        mkdir build && \
+        cd build && \
+        cmake .. && \
+        make -j$(nproc)
+
 # Install spark_vio_evaluation from PyPI
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.

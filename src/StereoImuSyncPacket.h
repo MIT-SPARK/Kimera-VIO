@@ -144,16 +144,22 @@ struct SpinOutputPacket {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Default constructor
   SpinOutputPacket(
-      const Timestamp& timestamp_kf, const gtsam::Pose3& W_Pose_Blkf,
-      const Vector3& W_Vel_Blkf, const ImuBias& imu_bias_lkf,
-      const Mesh2D& mesh_2d, const Mesh3D& mesh_3d, const cv::Mat& mesh_2d_img,
-      const PointsWithIdMap& points_with_id_VIO,
-      const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
+      const Timestamp &timestamp_kf,
+      const gtsam::Pose3 &W_Pose_Blkf,
+      const Vector3 &W_Vel_Blkf,
+      const gtsam::Pose3 &W_Pose_Map,
+      const ImuBias &imu_bias_lkf,
+      const Mesh2D &mesh_2d,
+      const Mesh3D &mesh_3d,
+      const cv::Mat &mesh_2d_img,
+      const PointsWithIdMap &points_with_id_VIO,
+      const LmkIdToLmkTypeMap &lmk_id_to_lmk_type_map,
       const gtsam::Matrix state_covariance_lkf = gtsam::zeros(15, 15),
       const DebugTrackerInfo debug_tracker_info = DebugTrackerInfo())
       : timestamp_kf_(timestamp_kf),
         W_Pose_Blkf_(W_Pose_Blkf),
         W_Vel_Blkf_(W_Vel_Blkf),
+        W_Pose_Map_(W_Pose_Map),
         imu_bias_lkf_(imu_bias_lkf),
         mesh_2d_(mesh_2d),
         mesh_3d_(mesh_3d),
@@ -188,6 +194,7 @@ struct SpinOutputPacket {
   inline Timestamp getTimestamp() const { return timestamp_kf_; }
   inline gtsam::Pose3 getEstimatedPose() const { return W_Pose_Blkf_; }
   inline Vector3 getEstimatedVelocity() const { return W_Vel_Blkf_; }
+  inline gtsam::Pose3 getEstimatedMapPose() const { return W_Pose_Map_; }
   inline gtsam::Matrix6 getEstimatedPoseCov() const {
     return gtsam::sub(state_covariance_lkf_, 0, 6, 0, 6);
   }
@@ -211,6 +218,7 @@ struct SpinOutputPacket {
   Timestamp timestamp_kf_;
   gtsam::Pose3 W_Pose_Blkf_;
   Vector3 W_Vel_Blkf_;
+  gtsam::Pose3 W_Pose_Map_;
   ImuBias imu_bias_lkf_;
   gtsam::Matrix state_covariance_lkf_;
   DebugTrackerInfo debug_tracker_info_;

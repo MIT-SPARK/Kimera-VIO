@@ -220,12 +220,6 @@ void Pipeline::processKeyframe(
       last_stereo_keyframe.getTimestamp(), statusSmartStereoMeasurements,
       kf_tracking_status_stereo, pim, relative_pose_body_stereo, &planes_));
 
-  // Push to lcd. Also should be done inside frontend!!!
-  // TODO: Need to make this robust to slow backend.
-  lcd_input_queue_.push(LoopClosureDetectorInputPayload(
-      last_stereo_keyframe.getTimestamp(), // TODO: This should be different?
-      last_stereo_keyframe));
-
   // This should be done inside those who need the backend results
   // IN this case the logger!!!!!
   // But there are many more people that want backend results...
@@ -234,6 +228,20 @@ void Pipeline::processKeyframe(
   std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
       backend_output_queue_.popBlocking();
   LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
+
+  // Push to lcd.
+  // TODO(marcus): not robust to cases where frontend and backend processing
+  // happen in different methods. This only works if they're done one after
+  // another. Mixing input from two different outputs is bad form.
+  VLOG(2) << "Push input payload to LoopClosureDetector.";
+  lcd_input_queue_.push(LoopClosureDetectorInputPayload(
+      last_stereo_keyframe.getTimestamp(), backend_output_payload->cur_kf_id_,
+      last_stereo_keyframe, backend_output_payload->W_Pose_Blkf_));
+
+  VLOG(2) << "Waiting payload from LoopClosureDetector.";
+  std::shared_ptr<LoopClosureDetectorOutputPayload> lcd_output_payload =
+      lcd_output_queue_.popBlocking();
+  LOG_IF(WARNING, !lcd_output_payload) << "Missing LCD output payload.";
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
   PointsWithIdMap points_with_id_VIO;
@@ -342,7 +350,9 @@ void Pipeline::processKeyframe(
         backend_output_payload->timestamp_kf_,
         backend_output_payload->W_Pose_Blkf_,
         backend_output_payload->W_Vel_Blkf_,
-        backend_output_payload->imu_bias_lkf_, mesher_output_payload.mesh_2d_,
+        lcd_output_payload->W_Pose_Map_,
+        backend_output_payload->imu_bias_lkf_,
+        mesher_output_payload.mesh_2d_,
         mesher_output_payload.mesh_3d_,
         Visualizer3D::visualizeMesh2D(
             mesher_output_payload.mesh_2d_filtered_for_viz_,
@@ -403,17 +413,23 @@ void Pipeline::spinSequential() {
   CHECK(vio_backend_);
   vio_backend_->spin(backend_input_queue_, backend_output_queue_, false);
 
+  // Pop blocking from backend.
+  const auto& backend_output_payload = backend_output_queue_.popBlocking();
+  CHECK(backend_output_payload);
+
   // Push keyframe to LCD.
   lcd_input_queue_.push(LoopClosureDetectorInputPayload(
       stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
-      stereo_frontend_output_payload->stereo_frame_lkf_));
+      backend_output_payload->cur_kf_id_,
+      stereo_frontend_output_payload->stereo_frame_lkf_,
+      backend_output_payload->W_Pose_Blkf_));
 
   // Spin once LCD. Do not run in parallel.
   loop_closure_detector_->spin(lcd_input_queue_, lcd_output_queue_, false);
 
-  // Pop blocking from backend.
-  const auto& backend_output_payload = backend_output_queue_.popBlocking();
-  CHECK(backend_output_payload);
+  // Pop blocking from LoopClosureDetector.
+  const auto &lcd_output_payload = lcd_output_queue_.popBlocking();
+  CHECK(lcd_output_payload);
 
   const auto& stereo_keyframe =
       stereo_frontend_output_payload->stereo_frame_lkf_;
