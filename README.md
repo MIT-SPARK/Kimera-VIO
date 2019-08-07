@@ -155,7 +155,8 @@ Glog, gflags, and gtest will be automatically downloaded using cmake unless ther
 
 If you want to avoid building all these dependencies yourself, we provide a docker image that will install all dependencies for you.
 For that, you will need to install [Docker](https://docs.docker.com/install/).
-Once installed, clone this repo, build the image (you need to **specify your ssh keys**: replace `<username>` below) and run it:
+Once installed, clone this repo, build the image and run it:
+> Note: while this repo remains private, you'll need to **specify your ssh keys**: replace `<username>` below, with an ssh key that has read access to the repo in github.mit.edu (check your profile settings for such ssh key). Also, since docker build doesn't handle user input, ensure your ssh key does **not** have a passphrase.
 
 ```
 # Build the image
