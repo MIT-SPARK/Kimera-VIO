@@ -76,7 +76,7 @@ bool ETHDatasetParser::spin() {
 
   // Spin.
   const StereoMatchingParams& stereo_matching_params =
-      frontend_params_.getStereoMatchingParams();
+      pipeline_params_.frontend_params_.getStereoMatchingParams();
   const bool equalize_image = stereo_matching_params.equalize_image_;
   const CameraParams& left_cam_info = getLeftCamInfo();
   const CameraParams& right_cam_info = getRightCamInfo();
@@ -153,6 +153,33 @@ void ETHDatasetParser::parse() {
   parseDataset(dataset_path_, left_cam_name, right_cam_name, imu_name,
                ground_truth_name);
   print();
+
+  // Start processing dataset from frame initial_k.
+  // Useful to skip a bunch of images at the beginning (imu calibration).
+  CHECK_GE(initial_k_, 0);
+  CHECK_GE(initial_k_, 10)
+      << "initial_k should be >= 10 for IMU bias initialization";
+
+  // Finish processing dataset at frame final_k.
+  // Last frame to process (to avoid processing the entire dataset),
+  // skip last frames.
+  CHECK_GT(final_k_, 0);
+
+  const size_t& nr_images = getNumImages();
+  if (final_k_ > nr_images) {
+    LOG(WARNING) << "Value for final_k, " << final_k_ << " is larger than total"
+                 << " number of frames in dataset " << nr_images;
+    final_k_ = nr_images;
+    LOG(WARNING) << "Using final_k = " << final_k_;
+  }
+  CHECK(final_k_ > initial_k_)
+      << "Value for final_k (" << final_k_ << ") is smaller than value for"
+      << " initial_k (" << initial_k_ << ").";
+
+  LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
+            << final_k_;
+
+  parseParams(); // parse backend/frontend parameters
 }
 
 /* -------------------------------------------------------------------------- */
@@ -182,10 +209,10 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
   CHECK_NE(rate, 0);
   imuData_.nominal_imu_rate_ = 1 / static_cast<double>(rate);
 
-  imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
-  imu_params_.gyro_walk_ = fs["gyroscope_random_walk"];
-  imu_params_.acc_noise_ = fs["accelerometer_noise_density"];
-  imu_params_.acc_walk_ = fs["accelerometer_random_walk"];
+  pipeline_params_.imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
+  pipeline_params_.imu_params_.gyro_walk_ = fs["gyroscope_random_walk"];
+  pipeline_params_.imu_params_.acc_noise_ = fs["accelerometer_noise_density"];
+  pipeline_params_.imu_params_.acc_walk_ = fs["accelerometer_random_walk"];
 
   fs.release();
   return true;

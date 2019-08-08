@@ -65,7 +65,9 @@ class ETHDatasetParser : public DataProvider {
   inline const CameraParams& getRightCamInfo() const {
     return camera_info_.at("cam1");
   }
-  inline ImuParams getImuParams() const { return imu_params_; }
+  inline ImuParams getImuParams() const {
+    return pipeline_params_.imu_params_;
+  }
 
  public:
   bool spin();

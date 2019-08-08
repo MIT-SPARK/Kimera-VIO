@@ -69,7 +69,7 @@ class Pipeline {
   // Spin the pipeline only once.
   void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // TODO a parallel pipeline should always be able to run sequentially...
+  // A parallel pipeline should always be able to run sequentially...
   void spinSequential();
 
   // Shutdown the pipeline once all data has been consumed.
@@ -187,7 +187,7 @@ class Pipeline {
   // TODO this should go to another class to avoid not having copy-ctor...
   // Frontend.
   std::unique_ptr<StereoVisionFrontEnd> vio_frontend_;
-  FeatureSelector feature_selector_;
+  std::unique_ptr<FeatureSelector> feature_selector_;
 
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;

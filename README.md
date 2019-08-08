@@ -67,7 +67,7 @@ Clone GTSAM wherever you want, and checkout the develop branch (last tested with
 git clone git@github.com:borglab/gtsam.git
 ```
 
-Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `-march=native` might cause problems that culminates in the form of segfaults when you run the unittests.  
+Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `-march=native` might cause problems that culminates in the form of segfaults when you run the unittests.
 ```bash
 cd gtsam
 mkdir build
@@ -213,11 +213,11 @@ You have two ways to start the example:
 
 ### Kitti dataset
 
-- Download raw data from [Kitti ](http://www.cvlibs.net/datasets/kitti/raw_data.php?type=residential) (in order to have IMU messages). In particular:
-  - Download unsynced + unrectified raw dataset (e.g. [2011\_09\_26\_drive\_0039\_extract](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0039/2011_09_26_drive_0039_extract.zip)).
-  - Download as well the calibration data (three files) from raw dataset (e.g. [2011\_09\_26\_calib](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip)), and save them inside the folder `2011_09_26_drive_0039_extract`.
+- Download raw data from [Kitti ](http://www.cvlibs.net/datasets/kitti/raw_data.php?type=residential) (in order to have IMU messages). For example:
+  - Download unsynced + unrectified raw dataset (e.g. [2011\_09\_26\_drive\_0005\_extract](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0005/2011_09_26_drive_0005_extract.zip)).
+  - Download as well the calibration data (three files) from raw dataset (e.g. [2011\_09\_26\_calib](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip)), and save them inside the folder `2011_09_26`.
 
-- Run: `./scripts/stereoVIOKitti.bash -p PATH_TO_DATASET` where you specify the path to the dataset (e.g. path to '2011_09_26_drive_0039_extract' folder).
+- Run: `./scripts/stereoVIOEuroc.bash -p PATH_TO_DATASET -d 1 -r -parallel` where you specify the path to the dataset (e.g. path to '2011_09_26_drive_0005_extract' folder). (Again, the `-r` is enabling using the structural regularities and the `-parallel` is for using VIO in parallel mode)
 
 
 Tips for usage

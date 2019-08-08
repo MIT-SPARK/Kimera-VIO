@@ -35,17 +35,17 @@
 DEFINE_bool(log_output, false, "Log output to matlab.");
 DEFINE_int32(regular_vio_backend_modality, 4u,
              "Modality for regular Vio backend, currently supported:\n"
-             "0: Structureless (equiv to normal VIO)\n"
+             "0: Structureless (equivalent to normal VIO)\n"
              "1: Projection (as if it was a typical VIO backend with projection"
-             "factors\n"
-             "2: Structureless and projection, sets to projection factors the "
+             "factors)\n"
+             "2: Structureless and Projection, sets to projection factors the "
              "structureless factors that are supposed to be in a regularity.\n"
-             "3: Projection and regularity, sets all structureless factors to"
+             "3: Projection and Regularity, sets all structureless factors to"
              "projection factors and adds regularity factors to a subset.\n"
-             "4: structureless, projection and regularity factors used.");
+             "4: Structureless, Projection and Regularity factors used.");
 DEFINE_bool(extract_planes_from_the_scene, false,
             "Whether to use structural regularities in the scene,"
-            "currently only planes");
+            "currently only planes.");
 
 DEFINE_bool(visualize, true, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
@@ -59,7 +59,7 @@ DEFINE_int32(viz_type, 0,
              "3: MESH2DTo3Dsparse, get a 3D mesh from a 2D triangulation of "
              "the (right-VALID) "
              "keypoints in the left frame and filters out triangles \n"
-             "5: NONE, does not visualize map\n");
+             "4: NONE, does not visualize map\n");
 DEFINE_bool(record_video_for_viz_3d, false,
             "Record a video as a sequence of "
             "screenshots of the 3d viz window");
@@ -73,11 +73,11 @@ DEFINE_bool(deterministic_random_number_generator, false,
             "will output a different sequence for each run.");
 DEFINE_int32(min_num_obs_for_mesher_points, 4,
              "Minimum number of observations for a smart factor's landmark to "
-             "to be used as a 3d point to consider for the mesher");
+             "to be used as a 3d point to consider for the mesher.");
 
 DEFINE_int32(num_frames_vio_init, 25,
              "Minimum number of frames for the online "
-             "gravity-aligned initialization");
+             "gravity-aligned initialization.");
 
 // TODO(Sandro): Create YAML file for initialization and read in!
 DEFINE_double(smart_noise_sigma_bundle_adjustment, 1.5,
@@ -92,9 +92,10 @@ DEFINE_double(between_translation_bundle_adjustment, 0.5,
 
 namespace VIO {
 
-Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
+Pipeline::Pipeline(const PipelineParams &params, bool parallel_run)
     : backend_type_(params.backend_type_),
       vio_frontend_(nullptr),
+      feature_selector_(nullptr),
       vio_backend_(nullptr),
       backend_params_(params.backend_params_),
       frontend_params_(params.frontend_params_),
@@ -104,8 +105,7 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
                   params.backend_type_),
       stereo_frontend_thread_(nullptr),
       wrapped_thread_(nullptr),
-      backend_thread_(nullptr),
-      mesher_thread_(nullptr),
+      backend_thread_(nullptr), mesher_thread_(nullptr),
       parallel_run_(parallel_run),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       stereo_frontend_output_queue_("stereo_frontend_output_queue"),
@@ -128,8 +128,10 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
   static constexpr int saveImages =
       0;  // 0: don't show, 1: show, 2: write & save
   vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
-      params.imu_params_, gtsam::imuBias::ConstantBias(), frontend_params_,
-      saveImages, std::string(), FLAGS_log_output);
+      params.imu_params_,
+      gtsam::imuBias::ConstantBias(),
+      frontend_params_, saveImages,
+      FLAGS_log_output);
 
   loop_closure_detector_ = VIO::make_unique<LoopClosureDetector>(
       lcd_params_,
@@ -137,7 +139,8 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
 
   // Instantiate feature selector: not used in vanilla implementation.
   if (FLAGS_use_feature_selection) {
-    feature_selector_ = FeatureSelector(frontend_params_, *backend_params_);
+    feature_selector_ =
+        VIO::make_unique<FeatureSelector>(frontend_params_, *backend_params_);
   }
 }
 
@@ -796,23 +799,19 @@ bool Pipeline::initializeOnline(
               output_frontend, &gyro_bias, &g_iter_b0, &init_navstate)) {
         LOG(INFO) << "Bundle adjustment and alignment successful!";
 
+        // Reset frontend with non-trivial gravity and remove 53-enforcement.
+        // Update frontend with initial gyro bias estimate.
+        vio_frontend_->resetFrontendAfterOnlineAlignment(
+            backend_params_->n_gravity_, gyro_bias);
+        LOG(WARNING) << "Time used for initialization: "
+                     << utils::Timer::toc(tic_full_init).count() << " (ms).";
+
+        ///////////////////////////// BACKEND ////////////////////////////////
+        // Initialize backend with pose estimate from gravity alignment
         // Create initial state for initialization from online gravity
         std::shared_ptr<gtNavState> initial_state_OGA =
             std::make_shared<gtNavState>(init_navstate,
                                          ImuBias(gtsam::Vector3(), gyro_bias));
-
-        // Reset frontend with non-trivial gravity and remove 53-enforcement.
-        // Update frontend with initial gyro bias estimate.
-        const gtsam::Vector3 gravity = backend_params_->n_gravity_;
-        vio_frontend_->resetFrontendAfterOnlineAlignment(gravity, gyro_bias);
-
-        auto full_init_duration =
-            utils::Timer::toc<std::chrono::nanoseconds>(tic_full_init).count();
-        LOG(INFO) << "Time used for initialization: "
-                  << (double(full_init_duration) / double(1e6)) << " (ms).";
-
-        ///////////////////////////// BACKEND ////////////////////////////////
-        // Initialize backend with pose estimate from gravity alignment
         initializeVioBackend(stereo_imu_sync_packet, initial_state_OGA,
                              stereo_frame_lkf);
         LOG(INFO) << "Initialization finalized.";
@@ -821,7 +820,7 @@ bool Pipeline::initializeOnline(
         return true;
       } else {
         // Reset initialization
-        LOG(WARNING) << "Bundle adjustment or alignment failed!";
+        LOG(ERROR) << "Bundle adjustment or alignment failed!";
         init_frame_id_ = stereo_imu_sync_packet.getStereoFrame().getFrameId();
         stereo_frontend_output_queue_.shutdown();
         initialization_frontend_output_queue_.shutdown();
@@ -963,13 +962,13 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   VLOG(100) << "Starting feature selection...";
   SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
   std::tie(trackedAndSelectedSmartStereoMeasurements, *feature_selection_time) =
-      feature_selector_.splitTrackedAndNewFeatures_Select_Display(
+      feature_selector_->splitTrackedAndNewFeatures_Select_Display(
           stereoFrame_km1, status_smart_stereo_meas.second, cur_kf_id,
           save_image_selector, tracker_params.featureSelectionCriterion_,
           tracker_params.featureSelectionNrCornersToSelect_,
           tracker_params.maxFeatureAge_, posesAtFutureKeyframes, curr_state_cov,
           std::string(),
-          left_frame);  // last 2 are for visualization
+          left_frame); // last 2 are for visualization
   VLOG(100) << "Feature selection completed.";
 
   // Same status as before.
@@ -1002,7 +1001,7 @@ void Pipeline::processKeyframePop() {
     // Actual keyframe processing. Call to backend.
     ////////////////////////////// BACK-END
     ///////////////////////////////////////
-    LOG(ERROR) << "Process Keyframe in BackEnd";
+    VLOG(2) << "Process Keyframe in BackEnd";
     processKeyframe(
         stereo_frontend_output_payload->statusSmartStereoMeasurements_,
         stereo_frontend_output_payload->stereo_frame_lkf_,

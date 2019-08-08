@@ -114,7 +114,7 @@ static pair<cv::Mat, vector<cv::Point2f>> cvCreateChessboard(
 /* ************************************************************************* */
 TEST(testUtils, OpenFile) {
   ofstream outputFile;
-  UtilsOpenCV::OpenFile("tmp.txt", outputFile);
+  UtilsOpenCV::OpenFile("tmp.txt", &outputFile);
   EXPECT_TRUE(outputFile.is_open());
   outputFile.close();
   EXPECT_TRUE(!outputFile.is_open());
