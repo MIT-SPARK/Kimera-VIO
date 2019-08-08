@@ -20,7 +20,7 @@ Quickstart
 
 Clone this repository: `git clone git@github.mit.edu:SPARK/VIO.git`
 
-In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for CGAL and OpenGV):
+In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for OpenGV):
 
 ```
 #!bash
@@ -43,12 +43,11 @@ $ make check
 
 > Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag)
 
-Prerequisites:
+Prerequisites (installation instructions below):
 
-- [GTSAM](https://bitbucket.org/gtborg/gtsam/overview/) >= 4.0 (Branch: `feature/ImprovementsIncrementalFilter`, commit: `c827d4cd6b11f78f3d2d9d52b335ac562a2757fc`)
-- [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0 (Installation instructions below)
-- [OpenGV] Installation instructions below
-- [CGAL] Installation instructions below
+- [GTSAM](https://github.com/borglab/gtsam) >= 4.0
+- [OpenCV](https://github.com/opencv/opencv) >= 3.0
+- [OpenGV](https://github.com/laurentkneip/opengv)
 
 Installation of GTSAM
 ----------
@@ -88,8 +87,9 @@ Installation of OpenCV
 ```
 #!bash
 $ homebrew install vtk (to check)
-download opencv3.3.1 from https://opencv.org/releases.html
-unzip and go to opencv3.3.1
+$ git clone https://github.com/opencv/opencv.git
+$ cd opencv
+$ git checkout tags/3.3.1
 $ mkdir build
 $ cd build
 $ cmake ../
@@ -101,8 +101,9 @@ $ sudo make install
 $ sudo apt-get install libvtk5-dev   (libvtk6-dev in ubuntu 17.10)
 $ sudo apt-get install libgtk2.0-dev
 $ sudo apt-get install pkg-config
-download opencv3.3.1 from https://opencv.org/releases.html
-unzip and go to opencv3.3.1
+$ git clone https://github.com/opencv/opencv.git
+$ cd opencv
+$ git checkout tags/3.3.1
 $ mkdir build
 $ cd build
 $ cmake -DWITH_VTK=On -DWITH_TBB=On ..
