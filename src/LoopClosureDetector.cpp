@@ -154,8 +154,8 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   return output_payload;
 }
 
-LoopResult
-LoopClosureDetector::checkLoopClosure(const StereoFrame &stereo_frame) {
+LoopResult LoopClosureDetector::checkLoopClosure(
+    const StereoFrame &stereo_frame) {
   FrameId frame_id = processAndAddFrame(stereo_frame);
   LoopResult loop_result;
   detectLoop(frame_id, &loop_result);
@@ -900,7 +900,7 @@ void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor &factor) {
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
 
-  if (factor.cur_key_ <= W_Pose_Bkf_estimates_.size() && factor.cur_key_ > 2) {
+  if (factor.cur_key_ <= W_Pose_Bkf_estimates_.size() && factor.cur_key_ > 1) {
     value.insert(factor.cur_key_-1, factor.W_Pose_Blkf_);
 
     gtsam::Pose3 B_llkf_Pose_lkf =
@@ -908,7 +908,7 @@ void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor &factor) {
             factor.W_Pose_Blkf_);
 
     nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(
-        factor.cur_key_-1, factor.cur_key_, B_llkf_Pose_lkf, factor.noise_));
+        factor.cur_key_-2, factor.cur_key_-1, B_llkf_Pose_lkf, factor.noise_));
 
     pgo_->update(nfg, value);
   } else {
