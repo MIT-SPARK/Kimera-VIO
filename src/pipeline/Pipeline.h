@@ -183,7 +183,7 @@ class Pipeline {
   // TODO this should go to another class to avoid not having copy-ctor...
   // Frontend.
   std::unique_ptr<StereoVisionFrontEnd> vio_frontend_;
-  FeatureSelector feature_selector_;
+  std::unique_ptr<FeatureSelector> feature_selector_;
 
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;

@@ -92,19 +92,15 @@ DEFINE_double(between_translation_bundle_adjustment, 0.5,
 
 namespace VIO {
 
-Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
-    : backend_type_(params.backend_type_),
-      vio_frontend_(nullptr),
-      vio_backend_(nullptr),
+Pipeline::Pipeline(const PipelineParams &params, bool parallel_run)
+    : backend_type_(params.backend_type_), vio_frontend_(nullptr),
+      feature_selector_(nullptr), vio_backend_(nullptr),
       backend_params_(params.backend_params_),
-      frontend_params_(params.frontend_params_),
-      mesher_(),
+      frontend_params_(params.frontend_params_), mesher_(),
       visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
                   params.backend_type_),
-      stereo_frontend_thread_(nullptr),
-      wrapped_thread_(nullptr),
-      backend_thread_(nullptr),
-      mesher_thread_(nullptr),
+      stereo_frontend_thread_(nullptr), wrapped_thread_(nullptr),
+      backend_thread_(nullptr), mesher_thread_(nullptr),
       parallel_run_(parallel_run),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       stereo_frontend_output_queue_("stereo_frontend_output_queue"),
@@ -132,7 +128,8 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
 
   // Instantiate feature selector: not used in vanilla implementation.
   if (FLAGS_use_feature_selection) {
-    feature_selector_ = FeatureSelector(frontend_params_, *backend_params_);
+    feature_selector_ =
+        VIO::make_unique<FeatureSelector>(frontend_params_, *backend_params_);
   }
 }
 
@@ -740,23 +737,19 @@ bool Pipeline::initializeOnline(
               output_frontend, &gyro_bias, &g_iter_b0, &init_navstate)) {
         LOG(INFO) << "Bundle adjustment and alignment successful!";
 
+        // Reset frontend with non-trivial gravity and remove 53-enforcement.
+        // Update frontend with initial gyro bias estimate.
+        vio_frontend_->resetFrontendAfterOnlineAlignment(
+            backend_params_->n_gravity_, gyro_bias);
+        LOG(WARNING) << "Time used for initialization: "
+                     << utils::Timer::toc(tic_full_init).count() << " (ms).";
+
+        ///////////////////////////// BACKEND ////////////////////////////////
+        // Initialize backend with pose estimate from gravity alignment
         // Create initial state for initialization from online gravity
         std::shared_ptr<gtNavState> initial_state_OGA =
             std::make_shared<gtNavState>(init_navstate,
                                          ImuBias(gtsam::Vector3(), gyro_bias));
-
-        // Reset frontend with non-trivial gravity and remove 53-enforcement.
-        // Update frontend with initial gyro bias estimate.
-        const gtsam::Vector3 gravity = backend_params_->n_gravity_;
-        vio_frontend_->resetFrontendAfterOnlineAlignment(gravity, gyro_bias);
-
-        auto full_init_duration =
-            utils::Timer::toc<std::chrono::nanoseconds>(tic_full_init).count();
-        LOG(INFO) << "Time used for initialization: "
-                  << (double(full_init_duration) / double(1e6)) << " (ms).";
-
-        ///////////////////////////// BACKEND ////////////////////////////////
-        // Initialize backend with pose estimate from gravity alignment
         initializeVioBackend(stereo_imu_sync_packet, initial_state_OGA,
                              stereo_frame_lkf);
         LOG(INFO) << "Initialization finalized.";
@@ -765,7 +758,7 @@ bool Pipeline::initializeOnline(
         return true;
       } else {
         // Reset initialization
-        LOG(WARNING) << "Bundle adjustment or alignment failed!";
+        LOG(ERROR) << "Bundle adjustment or alignment failed!";
         init_frame_id_ = stereo_imu_sync_packet.getStereoFrame().getFrameId();
         stereo_frontend_output_queue_.shutdown();
         initialization_frontend_output_queue_.shutdown();
@@ -907,13 +900,13 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   VLOG(100) << "Starting feature selection...";
   SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
   std::tie(trackedAndSelectedSmartStereoMeasurements, *feature_selection_time) =
-      feature_selector_.splitTrackedAndNewFeatures_Select_Display(
+      feature_selector_->splitTrackedAndNewFeatures_Select_Display(
           stereoFrame_km1, status_smart_stereo_meas.second, cur_kf_id,
           save_image_selector, tracker_params.featureSelectionCriterion_,
           tracker_params.featureSelectionNrCornersToSelect_,
           tracker_params.maxFeatureAge_, posesAtFutureKeyframes, curr_state_cov,
           std::string(),
-          left_frame);  // last 2 are for visualization
+          left_frame); // last 2 are for visualization
   VLOG(100) << "Feature selection completed.";
 
   // Same status as before.
