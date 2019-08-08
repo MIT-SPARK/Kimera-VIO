@@ -169,12 +169,8 @@ void ETHDatasetParser::parse() {
   if (final_k_ > nr_images) {
     LOG(WARNING) << "Value for final_k, " << final_k_ << " is larger than total"
                  << " number of frames in dataset " << nr_images;
-    // Skip last frames which are typically problematic
-    // (IMU bumps, FOV occluded)...
-    static constexpr size_t skip_n_end_frames = 100;
-    final_k_ = nr_images - skip_n_end_frames;
-    LOG(WARNING) << "Using final_k = " << final_k_ << ", where we removed "
-                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
+    final_k_ = nr_images;
+    LOG(WARNING) << "Using final_k = " << final_k_;
   }
   CHECK(final_k_ > initial_k_)
       << "Value for final_k (" << final_k_ << ") is smaller than value for"
