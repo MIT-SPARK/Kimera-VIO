@@ -238,10 +238,16 @@ void Pipeline::processKeyframe(
       last_stereo_keyframe.getTimestamp(), backend_output_payload->cur_kf_id_,
       last_stereo_keyframe, backend_output_payload->W_Pose_Blkf_));
 
-  VLOG(2) << "Waiting payload from LoopClosureDetector.";
+  VLOG(2) << "Checking for payload from LoopClosureDetector (not blocking).";
   std::shared_ptr<LoopClosureDetectorOutputPayload> lcd_output_payload =
-      lcd_output_queue_.popBlocking();
+      lcd_output_queue_.pop();
   LOG_IF(WARNING, !lcd_output_payload) << "Missing LCD output payload.";
+  // This is done to prevent undefined initialization in the SpinOutputPacket
+  // and to prevent segfaults once spinOutputPacket is returned:
+  if (!lcd_output_payload) {
+    lcd_output_payload = std::make_shared<LoopClosureDetectorOutputPayload>(
+        false, 0, 0, 0, gtsam::Pose3(), gtsam::Pose3());
+  }
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
   PointsWithIdMap points_with_id_VIO;
@@ -428,6 +434,8 @@ void Pipeline::spinSequential() {
   loop_closure_detector_->spin(lcd_input_queue_, lcd_output_queue_, false);
 
   // Pop blocking from LoopClosureDetector.
+  // TODO(marcus): consider making this a pop() to speed up performance
+  // You'll have to check with Toni if that's the intention for spinSequential
   const auto &lcd_output_payload = lcd_output_queue_.popBlocking();
   CHECK(lcd_output_payload);
 
