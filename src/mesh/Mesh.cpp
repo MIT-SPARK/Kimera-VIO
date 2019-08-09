@@ -251,7 +251,7 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
 
     // Sanity check
     static constexpr double epsilon = 1e-3;  // 2.5 degrees aperture.
-    DCHECK_GE(std::fabs(v21.ddot(v31)), 1.0 - epsilon)
+    DCHECK_LE(std::fabs(v21.ddot(v31)), 1.0 - epsilon)
         << "Cross product of aligned vectors.";
 
     // Compute per vertex averaged normals.
