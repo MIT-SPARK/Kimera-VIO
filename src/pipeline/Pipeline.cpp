@@ -439,7 +439,7 @@ void Pipeline::spinSequential() {
   // Pop blocking from LoopClosureDetector.
   // TODO(marcus): consider making this a pop() to speed up performance
   // You'll have to check with Toni if that's the intention for spinSequential
-  const auto &lcd_output_payload = lcd_output_queue_.popBlocking();
+  const auto &lcd_output_payload = lcd_output_queue_.pop();
   CHECK(lcd_output_payload);
 
   const auto& stereo_keyframe =
