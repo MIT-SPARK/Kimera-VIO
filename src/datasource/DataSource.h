@@ -54,12 +54,12 @@ public:
       velocity_(nav_state.velocity()),
       imu_bias_(imu_bias) {}
 
-
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   gtsam::Pose3 pose_;
   gtsam::Vector3 velocity_;
   gtsam::imuBias::ConstantBias imu_bias_;
 
-  void print(const std::string message = " ") const {
+  void print(const std::string& message = " ") const {
     if (VLOG_IS_ON(10)) {
       LOG(INFO) << "--- " << message << "--- ";
       pose_.print("\n pose: \n");
@@ -115,6 +115,7 @@ public:
   void print() const;
 
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Sensor extrinsics wrt. the body-frame
   gtsam::Pose3 body_Pose_cam_;
 

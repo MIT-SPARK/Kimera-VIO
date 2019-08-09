@@ -170,7 +170,7 @@ void DataProvider::parseParams() {
       break;
     }
     default: {
-      CHECK(false) << "Unrecognized backend type: " << FLAGS_backend_type << "."
+      LOG(FATAL) << "Unrecognized backend type: " << FLAGS_backend_type << "."
                    << " 0: normalVio, 1: RegularVio.";
     }
   }
@@ -179,7 +179,7 @@ void DataProvider::parseParams() {
 
   // Read/define vio params.
   if (FLAGS_vio_params_path.empty()) {
-    VLOG(100) << "No vio parameters specified, using default.";
+    LOG(WARNING) << "No vio parameters specified, using default.";
     // Default params with IMU stats from dataset.
     pipeline_params_.backend_params_->gyroNoiseDensity_ = pipeline_params_.imu_params_.gyro_noise_;
     pipeline_params_.backend_params_->accNoiseDensity_ = pipeline_params_.imu_params_.acc_noise_;
@@ -198,7 +198,7 @@ void DataProvider::parseParams() {
 
   // Read/define tracker params.
   if (FLAGS_tracker_params_path.empty()) {
-    VLOG(100) << "No tracker parameters specified, using default";
+    LOG(WARNING) << "No tracker parameters specified, using default";
     pipeline_params_.frontend_params_ = VioFrontEndParams();  // default params
   } else {
     VLOG(100) << "Using user-specified tracker parameters: "
