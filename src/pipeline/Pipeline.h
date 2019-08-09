@@ -35,8 +35,6 @@
 #include "pipeline/ProcessControl.h"
 #include "utils/ThreadsafeQueue.h"
 
-#include "LoopClosureDetector.h"
-
 namespace VIO {
 // Forward-declare classes.
 class VioBackEndParams;

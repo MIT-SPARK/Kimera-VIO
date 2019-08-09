@@ -12,12 +12,32 @@
  * @author Marcus Abate, Luca Carlone
  */
 
+#include <string>
+#include <algorithm>
+
 #include "LoopClosureDetector.h"
+
+#include <DBoW2/DBoW2.h>
+#include <RobustPGO/RobustSolver.h>
+#include "StereoFrame.h"
+
+#include <gtsam/base/Matrix.h>
+
+#include <opengv/sac/Ransac.hpp>
+#include <opengv/sac_problems/relative_pose/CentralRelativePoseSacProblem.hpp>
+#include <opengv/relative_pose/CentralRelativeAdapter.hpp>
+#include <opengv/sac_problems/point_cloud/PointCloudSacProblem.hpp>
+#include <opengv/point_cloud/PointCloudAdapter.hpp>
+
+#include "utils/Timer.h"
+#include "utils/Statistics.h"
+#include "UtilsOpenCV.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-DEFINE_string(vocabulary_path, "",
+// TODO(marcus): check with crowd whether this relative default is okay
+DEFINE_string(vocabulary_path, "../vocabulary/ORBvoc.txt",
               "Path to BoW vocabulary file for LoopClosureDetector module.");
 
 // TODO(marcus): add statistics reporting for verbosity_>=3
@@ -29,6 +49,14 @@ DEFINE_string(vocabulary_path, "",
 **/
 static const int VERBOSITY = 0;
 
+using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
+using SacProblemMono =
+    opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
+using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
+using SacProblemStereo =
+    opengv::sac_problems::point_cloud::PointCloudSacProblem;
+
+
 namespace VIO {
 
 LoopClosureDetector::LoopClosureDetector(
@@ -39,7 +67,7 @@ LoopClosureDetector::LoopClosureDetector(
       set_intrinsics_(false),
       orb_feature_detector_(),
       orb_feature_matcher_(),
-      db_BoW_(),
+      db_BoW_(nullptr),
       db_frames_(),
       latest_bowvec_(),
       latest_matched_island_(),
@@ -60,12 +88,14 @@ LoopClosureDetector::LoopClosureDetector(
   orb_feature_matcher_ = cv::DescriptorMatcher::create("BruteForce-Hamming");
 
   // Load ORB vocabulary:
+  OrbVocabulary vocab;
   LOG(INFO) << "Loading vocabulary from " << FLAGS_vocabulary_path;
-  vocab_.loadFromTextFile(FLAGS_vocabulary_path);  // TODO(marcus): support .gz files
-  LOG(INFO) << "Loaded vocabulary with " << vocab_.size() << " visual words.";
+  vocab.loadFromTextFile(FLAGS_vocabulary_path);  // TODO(marcus): support .gz files
+  LOG(INFO) << "Loaded vocabulary with " << vocab.size() << " visual words.";
 
   // Initialize db_BoW_:
-  setVocabulary(vocab_);
+  // TODO(marcus): can pass direct indexing bool and levels here.
+  db_BoW_ = VIO::make_unique<OrbDatabase>(vocab);
 
   // Initialize pgo_:
   // TODO(marcus): parametrize the verbosity of PGO params
@@ -76,6 +106,10 @@ LoopClosureDetector::LoopClosureDetector(
 
   pgo_ = VIO::make_unique<RobustPGO::RobustSolver>(pgo_params);
   initializePGO();
+}
+
+LoopClosureDetector::~LoopClosureDetector() {
+  LOG(INFO) << "LoopClosureDetector desctuctor called.";
 }
 
 bool LoopClosureDetector::spin(
@@ -128,7 +162,7 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     setIntrinsics(input->stereo_frame_);
   }
 
-  // Update the PGO with the backend VIO estimate
+  // Update the PGO with the backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
   W_Pose_Bkf_estimates_.push_back(input->W_Pose_Blkf_);
   VioFactor vio_factor(input->cur_kf_id_, input->W_Pose_Blkf_,
@@ -139,13 +173,14 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   StereoFrame working_frame = input->stereo_frame_;
   LoopResult loop_result = checkLoopClosure(working_frame);
 
-  // Update the PGO with the loop closure result if available
+  // Update the PGO with the loop closure result if available.
   if (loop_result.isLoop()) {
     LoopClosureFactor lc_factor(loop_result.match_id_, loop_result.query_id_,
         loop_result.relative_pose_, shared_noise_model_);
     addLoopClosureFactorAndOptimize(lc_factor);
   }
-
+  // Construct output payload.
+  // TODO(marcus): include the nfg values as optimized path.
   gtsam::Pose3 w_Pose_map = getWPoseMap();
   LoopClosureDetectorOutputPayload output_payload(loop_result.isLoop(),
       input->timestamp_kf_, loop_result.match_id_, loop_result.query_id_,
@@ -235,7 +270,7 @@ bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
 
   // Create BOW representation of descriptors.
   // TODO(marcus): implement direct indexing, if needed
-  db_BoW_.getVocabulary()->transform(db_frames_[frame_id].descriptors_vec_,
+  db_BoW_->getVocabulary()->transform(db_frames_[frame_id].descriptors_vec_,
       bow_vec);
 
   int max_possible_match_id = frame_id - lcd_params_.dist_local_;
@@ -243,18 +278,18 @@ bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
 
   // Query for BoW vector matches in database.
   DBoW2::QueryResults query_result;
-  db_BoW_.query(bow_vec, query_result, lcd_params_.max_db_results_,
+  db_BoW_->query(bow_vec, query_result, lcd_params_.max_db_results_,
       max_possible_match_id);
 
   // Add current BoW vector to database.
-  db_BoW_.add(bow_vec);
+  db_BoW_->add(bow_vec);
 
   if (query_result.empty()) {
     result->status_ = LCDStatus::NO_MATCHES;
   } else {
     double nss_factor = 1.0;
     if (lcd_params_.use_nss_) {
-      nss_factor = db_BoW_.getVocabulary()->score(bow_vec, latest_bowvec_);
+      nss_factor = db_BoW_->getVocabulary()->score(bow_vec, latest_bowvec_);
     }
 
     if (lcd_params_.use_nss_ && nss_factor < lcd_params_.min_nss_factor_) {
@@ -396,13 +431,8 @@ void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
 }
 
 void LoopClosureDetector::setDatabase(const OrbDatabase& db) {
-  db_BoW_ = OrbDatabase(db);
+  db_BoW_ = VIO::make_unique<OrbDatabase>(db);
   clear();
-}
-
-// TODO(marcus): can pass direct indexing bool and levels here.
-void LoopClosureDetector::setVocabulary(const OrbVocabulary& vocab) {
-  db_BoW_ = OrbDatabase(vocab);
 }
 
 void LoopClosureDetector::allocate(size_t n) {
@@ -419,12 +449,12 @@ void LoopClosureDetector::allocate(size_t n) {
     db_frames_[i].versors_.reserve(lcd_params_.nfeatures_);
   }
 
-  db_BoW_.allocate(n, lcd_params_.nfeatures_);
+  db_BoW_->allocate(n, lcd_params_.nfeatures_);
   W_Pose_Bkf_estimates_.reserve(n);
 }
 
 void LoopClosureDetector::clear() {
-  db_BoW_.clear();
+  db_BoW_->clear();
   db_frames_.clear();
   latest_bowvec_.clear();
   latest_matched_island_.clear();
@@ -737,13 +767,13 @@ void LoopClosureDetector::transformBodyPose2CameraPose(
 }
 
 inline const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
-  if (W_Pose_Bkf_estimates_.size() > 2) {
+  if (W_Pose_Bkf_estimates_.size() > 1) {
     gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Bkf_estimates_.back();
-    gtsam::Pose3 w_Pose_Bkf_truth =
+    gtsam::Pose3 w_Pose_Bkf_optimal =
         pgo_->calculateBestEstimate().at<gtsam::Pose3>(
             W_Pose_Bkf_estimates_.size() - 1);
 
-    return w_Pose_Bkf_truth.between(w_Pose_Bkf_estim);
+    return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
   }
 
   return gtsam::Pose3();

@@ -23,23 +23,9 @@
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/base/Matrix.h>
-
-#include <opengv/sac/Ransac.hpp>
-#include <opengv/sac_problems/relative_pose/CentralRelativePoseSacProblem.hpp>
-#include <opengv/relative_pose/methods.hpp>
-#include <opengv/relative_pose/CentralRelativeAdapter.hpp>
-#include <opengv/sac_problems/point_cloud/PointCloudSacProblem.hpp>
-#include <opengv/point_cloud/methods.hpp>
-#include <opengv/point_cloud/PointCloudAdapter.hpp>
+#include <gtsam/linear/NoiseModel.h>
 
 namespace VIO {
-
-using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
-using SacProblemMono =
-    opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
-using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
-using SacProblemStereo =
-    opengv::sac_problems::point_cloud::PointCloudSacProblem;
 
 enum LCDStatus {
   LOOP_DETECTED,

@@ -15,33 +15,33 @@
 #ifndef LoopClosureDetector_H_
 #define LoopClosureDetector_H_
 
-#include <algorithm>
+// TODO(marcus): forward declare EVERYTHING
+
 #include <memory>
-#include <string>
 #include <vector>
 
-#include <gtsam/base/Matrix.h>
-#include <boost/shared_ptr.hpp>
-
-#include <gtsam/geometry/Rot3.h>
-#include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
+#include <gtsam/linear/NoiseModel.h>
 
-#include "UtilsOpenCV.h"
-
-#include <DBoW2/DBoW2.h>
 #include <opencv/cv.hpp>
 #include <opencv2/features2d.hpp>
-#include <opencv2/core/eigen.hpp>
-
-#include "RobustPGO/RobustSolver.h"
 
 #include "utils/ThreadsafeQueue.h"
-#include "utils/Timer.h"
-#include "utils/Statistics.h"
-#include "StereoFrame.h"
-#include "LoopClosureDetectorParams.h"
+
 #include "LoopClosureDetector-definitions.h"
+#include "LoopClosureDetectorParams.h"
+
+// Forward-declare classes.
+namespace RobustPGO {
+  class RobustSolver;
+}
+namespace DBoW2 {
+  class BowVector;
+  class OrbDatabase;
+}
+namespace VIO {
+  class StereoFrame;
+}
 
 namespace VIO {
 
@@ -50,9 +50,7 @@ class LoopClosureDetector {
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
                       const bool log_output = false);
 
-  virtual ~LoopClosureDetector() {
-    LOG(INFO) << "LoopClosureDetector desctuctor called.";
-  }
+  virtual ~LoopClosureDetector();
 
   bool spin(ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
       ThreadsafeQueue<LoopClosureDetectorOutputPayload>& output_queue,
@@ -97,9 +95,7 @@ class LoopClosureDetector {
     return &lcd_params_;
   }
 
-  inline const OrbVocabulary& getVocabulary() const { return vocab_; }
-
-  inline const OrbDatabase* getBoWDatabase() const { return &db_BoW_; }
+  inline const OrbDatabase* getBoWDatabase() const { return db_BoW_.get(); }
 
   inline const std::vector<LCDFrame>* getFrameDatabasePtr() const {
     return &db_frames_;
@@ -111,8 +107,6 @@ class LoopClosureDetector {
   void setIntrinsics(const StereoFrame& stereo_frame);
 
   void setDatabase(const OrbDatabase& db);
-
-  void setVocabulary(const OrbVocabulary& vocab);
 
   void allocate(size_t n);
 
@@ -190,9 +184,8 @@ class LoopClosureDetector {
   cv::Ptr<cv::DescriptorMatcher> orb_feature_matcher_;
 
   // BoW and Loop Detection database and members
-  OrbDatabase db_BoW_;
+  std::unique_ptr<OrbDatabase> db_BoW_;
   std::vector<LCDFrame> db_frames_;
-  OrbVocabulary vocab_;
 
   // Store latest computed objects for temporal matching and nss scoring
   DBoW2::BowVector latest_bowvec_;
@@ -204,8 +197,6 @@ class LoopClosureDetector {
   gtsam::Pose3 B_Pose_camLrect_;
 
   // Robust PGO members
-  // RobustPGO::RobustSolverParams pgo_params_;
-  // TODO(marcus): use GenericSolver here and then make_unique the RobustSolver?
   std::unique_ptr<RobustPGO::RobustSolver> pgo_;
   std::vector<gtsam::Pose3> W_Pose_Bkf_estimates_;
   gtsam::SharedNoiseModel shared_noise_model_; // TODO(marcus): make accurate

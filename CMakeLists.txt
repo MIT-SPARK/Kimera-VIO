@@ -74,7 +74,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(SparkVio STATIC
+add_library(SparkVio SHARED
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
   src/StereoFrame.cpp
@@ -119,6 +119,9 @@ include(src/common/CMakeLists.txt)
 target_link_libraries(SparkVio
   PRIVATE
     opengv
+    DBoW2
+    DLib
+    RobustPGO
   PUBLIC
     Boost::boost
     ${OpenCV_LIBS}
@@ -126,9 +129,6 @@ target_link_libraries(SparkVio
     glog::glog
     gtsam
     gtsam_unstable
-    DBoW2 # TODO(marcus): should be private
-    DLib  # TODO(marcus): should be private
-    RobustPGO # TODO(marcus): should be private
 )
 target_include_directories(SparkVio
   PUBLIC

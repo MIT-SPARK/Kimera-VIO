@@ -183,7 +183,7 @@ protected:
 
 TEST_F(LCDFixture, defaultConstructor) {
   /* Test default constructor to ensure that vocabulary is loaded correctly. */
-  EXPECT_GT(lcd_detector_->getVocabulary().size(), 0);
+  EXPECT_GT(lcd_detector_->getBoWDatabase()->getVocabulary()->size(), 0);
 }
 
 TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
