@@ -150,6 +150,8 @@ docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . --build-arg SSH_
 Running examples
 ======================
 
+### Euroc Dataset
+
 stereoVIOEuroc:
 - Download [EuRoC](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) dataset. You can just download this [file](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip) to do a first test, which corresponds to the ```MH_01_easy``` EuRoC dataset.
 - Add the comment ```%YAML:1.0``` at the top of each .yaml file in the dataset (each folder has one sensor.yaml). You can do this manually or alternatively paste and run the following bash script from within the dataset folder:
@@ -163,6 +165,14 @@ You have two ways to start the example:
   - Run: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy"```
   - Optionally, you can try the VIO using structural regularities, as in [Toni's thesis](https://www.research-collection.ethz.ch/handle/20.500.11850/297645), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy" -r```
 - Alternatively, have a look inside the script to see how to change extra parameters that control the pipeline itself.
+
+### Kitti dataset
+
+- Download raw data from [Kitti ](http://www.cvlibs.net/datasets/kitti/raw_data.php?type=residential) (in order to have IMU messages). In particular:
+  - Download unsynced + unrectified raw dataset (e.g. [2011\_09\_26\_drive\_0039\_extract](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0039/2011_09_26_drive_0039_extract.zip)).
+  - Download as well the calibration data (three files) from raw dataset (e.g. [2011\_09\_26\_calib](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip)), and save them inside the folder `2011_09_26_drive_0039_extract`.
+
+- Run: `./scripts/stereoVIOKitti.bash -p PATH_TO_DATASET` where you specify the path to the dataset (e.g. path to '2011_09_26_drive_0039_extract' folder).
 
 
 Tips for usage

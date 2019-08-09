@@ -28,8 +28,8 @@
  * @author Antoni Rosinol
  */
 
-#include <iostream>
 #include <chrono>
+#include <iostream>
 
 #include <algorithm>
 
@@ -71,28 +71,27 @@ ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::isDataAvailableUpToImpl(
   return QueryResult::kDataAvailable;
 }
 
-void ThreadsafeImuBuffer::linearInterpolate(
-    const Timestamp t0, const ImuAccGyr& y0, const Timestamp t1,
-    const ImuAccGyr& y1, const Timestamp t, ImuAccGyr* y) {
+void ThreadsafeImuBuffer::linearInterpolate(const Timestamp t0,
+                                            const ImuAccGyr& y0,
+                                            const Timestamp t1,
+                                            const ImuAccGyr& y1,
+                                            const Timestamp t, ImuAccGyr* y) {
   CHECK_NOTNULL(y);
   CHECK_LE(t0, t);
   CHECK_LE(t, t1);
-  *y = t0 == t1 ? y0 : // y0 if t0 == t1, interpolate otherwise:
-                  y0 + (y1 - y0) * static_cast<double>(t - t0) /
-                                   static_cast<double>(t1 - t0);
+  *y = t0 == t1 ? y0 :  // y0 if t0 == t1, interpolate otherwise:
+           y0 + (y1 - y0) * static_cast<double>(t - t0) /
+                    static_cast<double>(t1 - t0);
 }
 
-ThreadsafeImuBuffer::QueryResult
-ThreadsafeImuBuffer::getImuDataBtwTimestamps(
-    Timestamp timestamp_ns_from,
-    Timestamp timestamp_ns_to,
-    ImuStampS* imu_timestamps,
-    ImuAccGyrS* imu_measurements,
+ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::getImuDataBtwTimestamps(
+    Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
+    ImuStampS* imu_timestamps, ImuAccGyrS* imu_measurements,
     bool get_lower_bound) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
-  QueryResult query_result = isDataAvailableUpToImpl(timestamp_ns_from,
-                                                     timestamp_ns_to);
+  QueryResult query_result =
+      isDataAvailableUpToImpl(timestamp_ns_from, timestamp_ns_to);
   if (query_result != QueryResult::kDataAvailable) {
     imu_timestamps->resize(Eigen::NoChange, 0);
     imu_measurements->resize(Eigen::NoChange, 0);
@@ -103,15 +102,13 @@ ThreadsafeImuBuffer::getImuDataBtwTimestamps(
   // timestamps/accgyr data?
   // Copy the data with timestamp_up_to <= timestamps_buffer from the buffer.
   Aligned<std::vector, ImuMeasurement> between_values;
-  CHECK(buffer_.getValuesBetweenTimes(timestamp_ns_from,
-                                      timestamp_ns_to,
-                                      &between_values,
-                                      get_lower_bound));
+  CHECK(buffer_.getValuesBetweenTimes(timestamp_ns_from, timestamp_ns_to,
+                                      &between_values, get_lower_bound));
 
   if (between_values.empty()) {
     LOG(WARNING) << "No IMU measurements available strictly between time "
-                 << timestamp_ns_from << "[ns] and "
-                 << timestamp_ns_to << "[ns].";
+                 << timestamp_ns_from << "[ns] and " << timestamp_ns_to
+                 << "[ns].";
     imu_timestamps->resize(Eigen::NoChange, 0);
     imu_measurements->resize(Eigen::NoChange, 0);
     return QueryResult::kTooFewMeasurementsAvailable;
@@ -131,18 +128,14 @@ ThreadsafeImuBuffer::getImuDataBtwTimestamps(
 
 ThreadsafeImuBuffer::QueryResult
 ThreadsafeImuBuffer::getImuDataInterpolatedUpperBorder(
-    Timestamp timestamp_ns_from,
-    Timestamp timestamp_ns_to,
-    ImuStampS* imu_timestamps,
-    ImuAccGyrS* imu_measurements) {
+    Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
+    ImuStampS* imu_timestamps, ImuAccGyrS* imu_measurements) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
   // Get data.
-  QueryResult query_result = getImuDataBtwTimestamps(timestamp_ns_from,
-                                                     timestamp_ns_to,
-                                                     imu_timestamps,
-                                                     imu_measurements,
-                                                     true); // Get lower bound.
+  QueryResult query_result = getImuDataBtwTimestamps(
+      timestamp_ns_from, timestamp_ns_to, imu_timestamps, imu_measurements,
+      true);  // Get lower bound.
   // Early exit if there is no data.
   if (query_result != QueryResult::kDataAvailable) {
     imu_timestamps->resize(Eigen::NoChange, 0);
@@ -153,7 +146,6 @@ ThreadsafeImuBuffer::getImuDataInterpolatedUpperBorder(
   // Interpolate upper border.
   ImuAccGyr interpolated_upper_border;
   interpolateValueAtTimestamp(timestamp_ns_to, &interpolated_upper_border);
-
 
   DCHECK_EQ(imu_timestamps->rows(), 1);
   DCHECK_EQ(imu_measurements->rows(), 6);
@@ -170,19 +162,16 @@ ThreadsafeImuBuffer::getImuDataInterpolatedUpperBorder(
 
 ThreadsafeImuBuffer::QueryResult
 ThreadsafeImuBuffer::getImuDataInterpolatedBorders(
-    Timestamp timestamp_ns_from,
-    Timestamp timestamp_ns_to,
-    ImuStampS* imu_timestamps,
-    ImuAccGyrS* imu_measurements) {
+    Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
+    ImuStampS* imu_timestamps, ImuAccGyrS* imu_measurements) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
   // Get data.
   ImuStampS imu_timestamps_tmp;
   ImuAccGyrS imu_measurements_tmp;
-  QueryResult query_result = getImuDataBtwTimestamps(timestamp_ns_from,
-                                                     timestamp_ns_to,
-                                                     &imu_timestamps_tmp,
-                                                     &imu_measurements_tmp);
+  QueryResult query_result =
+      getImuDataBtwTimestamps(timestamp_ns_from, timestamp_ns_to,
+                              &imu_timestamps_tmp, &imu_measurements_tmp);
 
   // Early exit if there is no data.
   if (query_result != QueryResult::kDataAvailable) {
@@ -209,7 +198,8 @@ ThreadsafeImuBuffer::getImuDataInterpolatedBorders(
   imu_measurements->leftCols<1>() = interpolated_lower_border;
   // Add measurements.
   imu_timestamps->middleCols(1, imu_timestamps_tmp.cols()) = imu_timestamps_tmp;
-  imu_measurements->middleCols(1, imu_measurements_tmp.cols()) = imu_measurements_tmp;
+  imu_measurements->middleCols(1, imu_measurements_tmp.cols()) =
+      imu_measurements_tmp;
   // Append upper border.
   imu_timestamps->rightCols<1>()(0) = timestamp_ns_to;
   imu_measurements->rightCols<1>() = interpolated_upper_border;
@@ -218,19 +208,16 @@ ThreadsafeImuBuffer::getImuDataInterpolatedBorders(
 }
 
 void ThreadsafeImuBuffer::interpolateValueAtTimestamp(
-    Timestamp timestamp_ns,
-    ImuAccGyr* interpolated_imu_measurement) {
+    Timestamp timestamp_ns, ImuAccGyr* interpolated_imu_measurement) {
   CHECK_NOTNULL(interpolated_imu_measurement);
   Timestamp pre_border_timestamp, post_border_timestamp;
   ImuMeasurement pre_border_value, post_border_value;
-  CHECK(buffer_.getValueAtOrBeforeTime(timestamp_ns,
-                                       &pre_border_timestamp,
+  CHECK(buffer_.getValueAtOrBeforeTime(timestamp_ns, &pre_border_timestamp,
                                        &pre_border_value))
       << "The IMU buffer seems not to contain measurements at or before time: "
       << timestamp_ns;
   CHECK_EQ(pre_border_timestamp, pre_border_value.timestamp_);
-  CHECK(buffer_.getValueAtOrAfterTime(timestamp_ns,
-                                      &post_border_timestamp,
+  CHECK(buffer_.getValueAtOrAfterTime(timestamp_ns, &post_border_timestamp,
                                       &post_border_value))
       << "The IMU buffer seems not to contain measurements at or after time: "
       << timestamp_ns;
@@ -243,8 +230,7 @@ void ThreadsafeImuBuffer::interpolateValueAtTimestamp(
 ThreadsafeImuBuffer::QueryResult
 ThreadsafeImuBuffer::getImuDataInterpolatedBordersBlocking(
     Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
-    Timestamp wait_timeout_nanoseconds,
-    ImuStampS* imu_timestamps,
+    Timestamp wait_timeout_nanoseconds, ImuStampS* imu_timestamps,
     ImuAccGyrS* imu_measurements) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
@@ -288,10 +274,10 @@ ThreadsafeImuBuffer::getImuDataInterpolatedBordersBlocking(
       }
     }
   }
-  return getImuDataInterpolatedBorders(
-      timestamp_ns_from, timestamp_ns_to, imu_timestamps, imu_measurements);
+  return getImuDataInterpolatedBorders(timestamp_ns_from, timestamp_ns_to,
+                                       imu_timestamps, imu_measurements);
 }
 
-}  // End of utils namespace.
+}  // namespace utils
 
-}  // End of VIO namespace.
+}  // namespace VIO

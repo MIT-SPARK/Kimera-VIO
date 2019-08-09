@@ -141,6 +141,13 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
+  // Method for the mesher to avoid shutdown during thread re-start.
+  inline void restart() {
+    LOG(INFO) << "Resetting shutdown mesher flag to false.";
+    shutdown_ = false;
+  }
+
+  /* ------------------------------------------------------------------------ */
   // Check whether the mesher is waiting for input queue or if it is working.
   inline bool isWorking() const {return is_thread_working_;}
 

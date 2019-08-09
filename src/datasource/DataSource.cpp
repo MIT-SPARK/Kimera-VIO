@@ -15,10 +15,12 @@
 
 namespace VIO {
 
-DataProvider::~DataProvider() {LOG(INFO) << "Data provider destructor called.";}
+DataProvider::~DataProvider() {
+  LOG(INFO) << "Data provider destructor called.";
+}
 
 void DataProvider::registerVioCallback(
-    std::function<bool(const StereoImuSyncPacket&)> callback) {
+    std::function<void(const StereoImuSyncPacket&)> callback) {
   vio_callback_ = std::move(callback);
 }
 
@@ -33,12 +35,10 @@ bool DataProvider::spin() {
   //  a) Create StereoImuSyncPacket packets out of the data.
   //  This one is dummy since it is filled with empty images, parameters,
   //  imu data, etc.
-  StereoImuSyncPacket vio_packet(StereoFrame(1,1,cv::Mat(),CameraParams(),
-                                             cv::Mat(),CameraParams(),
-                                             gtsam::Pose3(),
-                                             StereoMatchingParams()),
-                                 ImuStampS(),
-                                 ImuAccGyrS());
+  StereoImuSyncPacket vio_packet(
+      StereoFrame(1, 1, cv::Mat(), CameraParams(), cv::Mat(), CameraParams(),
+                  gtsam::Pose3(), StereoMatchingParams()),
+      ImuStampS(), ImuAccGyrS());
   //  b) Call the vio callback in order to start processing the packet.
   vio_callback_(vio_packet);
 
@@ -47,4 +47,4 @@ bool DataProvider::spin() {
   return true;
 }
 
-} // End of VIO namespace.
+}  // namespace VIO

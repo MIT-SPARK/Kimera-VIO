@@ -139,4 +139,4 @@ protected:
   void printRegularVioBackEndParams() const {}
 };
 
-} // namespace VIO
+}  // namespace VIO

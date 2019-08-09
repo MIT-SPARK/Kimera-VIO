@@ -15,41 +15,42 @@
 #pragma once
 
 #include <stddef.h>
-#include <cstdlib> // for srand()
 #include <atomic>
+#include <cstdlib>  // for srand()
 #include <memory>
 #include <thread>
 #include <utility>  // for make_pair
 #include <vector>
 
 #include "ETH_parser.h"
-#include "LoggerMatlab.h"
 #include "FeatureSelector.h"
-#include "mesh/Mesher.h"
-#include "Visualizer3D.h"
-#include "utils/ThreadsafeQueue.h"
+#include "LoggerMatlab.h"
 #include "StereoImuSyncPacket.h"
-#include "pipeline/ProcessControl.h"
+#include "Visualizer3D.h"
+#include "mesh/Mesher.h"
 #include "pipeline/BufferControl.h"
+#include "pipeline/ProcessControl.h"
+#include "utils/ThreadsafeQueue.h"
+#include "initial/InitializationBackEnd-definitions.h"
 
 namespace VIO {
 // Forward-declare classes.
 class VioBackEndParams;
 class VioBackEnd;
 class StereoVisionFrontEnd;
-}
+
+}  // namespace VIO
 
 namespace VIO {
 class Pipeline {
-public:
-  Pipeline(ETHDatasetParser* dataset,
-           const ImuParams& imu_params,
+ public:
+  Pipeline(ETHDatasetParser* dataset, const ImuParams& imu_params,
            bool parallel_run = true);
 
   ~Pipeline();
 
   // Main spin, runs the pipeline.
-  bool spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  void spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
   void spinViz(bool parallel_run = true);
@@ -67,6 +68,9 @@ public:
   // And closes logfiles.
   void shutdown();
 
+  // Resumes all queues
+  void resume();
+
   // Return the mesher output queue for FUSES to process the mesh_2d and
   // mesh_3d to extract semantic information.
   ThreadsafeQueue<MesherOutputPayload>& getMesherOutputQueue() {
@@ -78,15 +82,28 @@ public:
     visualizer_.registerMesh3dVizProperties(cb);
   }
 
-private:
+ private:
   // Initialize random seed for repeatability (only on the same machine).
   // TODO Still does not make RANSAC REPEATABLE across different machines.
-  inline void setDeterministicPipeline() const {
-    srand(0);
-  }
+  inline void setDeterministicPipeline() const { srand(0); }
 
-  // Initialize pipeline.
+  // Initialize pipeline with desired option (flag).
   bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Check if necessary to re-initialize pipeline.
+  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Initialize pipeline from IMU or GT.
+  bool initializeFromIMUorGT(const StereoImuSyncPacket &stereo_imu_sync_packet);
+
+  // Initialize pipeline from online gravity alignment.
+  bool initializeOnline(const StereoImuSyncPacket &stereo_imu_sync_packet);
+
+  // Initialize backend given external pose estimate (GT or OGA)
+  // TODO(Sandro): Unify both functions below (init backend)
+  bool initializeVioBackend(const StereoImuSyncPacket &stereo_imu_sync_packet,
+                      std::shared_ptr<gtNavState> initial_state,
+                      const StereoFrame &stereo_frame_lkf);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.
@@ -97,17 +114,15 @@ private:
   bool initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                    const gtsam::Pose3& B_Pose_camLrect,
                    const gtsam::Cal3_S2& left_undist_rect_cam_mat,
-                   const double& baseline,
-                   const VioBackEndParams& vio_params,
+                   const double& baseline, const VioBackEndParams& vio_params,
                    std::shared_ptr<gtNavState>* initial_state_gt,
-                   const Timestamp& timestamp_k,
-                   const ImuAccGyrS& imu_accgyr);
+                   const Timestamp& timestamp_k, const ImuAccGyrS& imu_accgyr);
   // Displaying must be done in the main thread.
   void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
 
   void processKeyframe(
       const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
-      const StereoFrame &last_stereo_keyframe,
+      const StereoFrame& last_stereo_keyframe,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       const TrackingStatus& kf_tracking_status_stereo,
       const gtsam::Pose3& relative_pose_body_stereo);
@@ -120,21 +135,22 @@ private:
       const StereoFrame& last_stereo_keyframe);
 
   StatusSmartStereoMeasurements featureSelect(
-      const VioFrontEndParams& tracker_params,
-      const ETHDatasetParser& dataset,
-      const Timestamp& timestamp_k,
-      const Timestamp& timestamp_lkf,
-      const gtsam::Pose3& W_Pose_Blkf,
-      double* feature_selection_time,
+      const VioFrontEndParams& tracker_params, const ETHDatasetParser& dataset,
+      const Timestamp& timestamp_k, const Timestamp& timestamp_lkf,
+      const gtsam::Pose3& W_Pose_Blkf, double* feature_selection_time,
       std::shared_ptr<StereoFrame>& stereoFrame_km1,
-      const StatusSmartStereoMeasurements &smart_stereo_meas,
-      int cur_kf_id,
-      int save_image_selector,
-      const gtsam::Matrix& curr_state_cov,
+      const StatusSmartStereoMeasurements& smart_stereo_meas, int cur_kf_id,
+      int save_image_selector, const gtsam::Matrix& curr_state_cov,
       const Frame& left_frame);
 
   // Launch different threads with processes.
   void launchThreads();
+
+  // Launch frontend thread with process.
+  void launchFrontendThread();
+
+  // Launch remaining threads with processes.
+  void launchRemainingThreads();
 
   // Shutdown processes and queues.
   void stopThreads();
@@ -145,8 +161,6 @@ private:
   // Data provider.
   // TODO remove dataset_ from vio pipeline altogether!
   ETHDatasetParser* dataset_;
-
-  Timestamp timestamp_lkf_;
 
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
@@ -160,6 +174,9 @@ private:
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
   ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
+
+  // Online initialization frontend queue.
+  ThreadsafeQueue<InitializationInputPayload> initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;
@@ -195,15 +212,17 @@ private:
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
+  std::atomic_bool is_launched_ = {false};
+  int init_frame_id_;
 
   // Threads.
   std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};
   std::unique_ptr<std::thread> wrapped_thread_ = {nullptr};
   std::unique_ptr<std::thread> backend_thread_ = {nullptr};
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
-  //std::thread visualizer_thread_;
+  // std::thread visualizer_thread_;
 
   bool parallel_run_;
 };
 
-} // End of VIO namespace
+}  // namespace VIO

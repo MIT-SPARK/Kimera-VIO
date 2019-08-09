@@ -1000,7 +1000,7 @@ TEST(FeatureSelector, createDeltas) {
   // THIS FAILS NOW SINCE WE INCLUDED !hasRightPixel in FeatureSelector.h
   /*
   EXPECT_TRUE(assert_equal(expectedHessian1,Deltas[0]->information(),1e-2));
-
+  
   // second point is far from existing keypoint, hence the distance should be
   the default = 5 Point3 p2 = left_cameras.at(0).pose() *
   Point3(availableVersors[1] * 5.0); Matrix expectedHessian2 =
@@ -1062,6 +1062,7 @@ TEST(FeatureSelector, featureSelection) {
   cam_param.camera_matrix_.at<double>(0, 2) = Kreal.px();
   cam_param.camera_matrix_.at<double>(1, 2) = Kreal.py();
   cam_param.distortion_coeff_ = Mat::zeros(1, 5, CV_64F);
+  cam_param.distortion_model_ = "radtan";
 
   // create feature selector
   VioBackEndParams vp = VioBackEndParams();

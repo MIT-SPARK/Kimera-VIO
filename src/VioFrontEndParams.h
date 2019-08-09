@@ -16,6 +16,7 @@
 
 #include <boost/shared_ptr.hpp> // used for opengv
 #include <time.h>
+#include <boost/shared_ptr.hpp>  // used for opengv
 
 #include <math.h>
 
@@ -82,8 +83,8 @@ public:
         yaml_parser_(nullptr) {}
 
   // tracking (Optical flow) params
-  int klt_win_size_; // size of the window
-  int klt_max_iter_; // max iterations
+  int klt_win_size_;  // size of the window
+  int klt_max_iter_;  // max iterations
   int klt_max_level_;
   double klt_eps_;    // @TODO: add comments on each parameter
   int maxFeatureAge_; // we cut feature tracks longer than that
@@ -110,7 +111,7 @@ public:
 
   // RANSAC parameters
   bool useRANSAC_;
-  int minNrMonoInliers_, minNrStereoInliers_; // TODO should be size_t
+  int minNrMonoInliers_, minNrStereoInliers_;  // TODO should be size_t
   double ransac_threshold_mono_, ransac_threshold_stereo_;
   int ransac_max_iterations_; // TODO (minor) : should we split this in mono
                               // and stereo?

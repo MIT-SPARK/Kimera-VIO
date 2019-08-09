@@ -17,6 +17,8 @@
 
 #include <opencv2/core/core.hpp>
 #include <stdlib.h>
+#include <iostream>
+#include <fstream>
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
@@ -34,6 +36,13 @@ public:
   /* ------------------------------------------------------------------------ */
   // Parse YAML file describing camera parameters.
   bool parseYAML(const std::string& filepath);
+
+  /* ------------------------------------------------------------------------ */
+  // Parse KITTI calib file describing camera parameters. 
+  bool parseKITTICalib(const std::string& filepath, 
+                       cv::Mat R_cam_to_imu, 
+                       cv::Mat T_cam_to_imu,
+                       const std::string& cam_id); 
 
   /* ------------------------------------------------------------------------ */
   // Display all params.
@@ -61,12 +70,14 @@ public:
   // needed to compute the undistorsion map.
   cv::Mat camera_matrix_;
   // 5 parameters (last is zero): distortion_model: radial-tangential.
+  std::string distortion_model_; // define default
   cv::Mat distortion_coeff_;
 
   cv::Mat undistRect_map_x_, undistRect_map_y_;
 
   // Rotation resulting from rectification.
   cv::Mat R_rectify_;
+
   // Camera matrix after rectification.
   cv::Mat P_;
 };

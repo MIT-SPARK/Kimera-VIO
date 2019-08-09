@@ -194,6 +194,12 @@ public:
       std::pair<std::vector<cv::Point2f>, std::vector<double>>*
         corners_with_scores);
 
+  /* -------------------------------------------------------------------------- */
+  // creates pose by aligning initial gravity vector estimates
+  static gtsam::Pose3
+  AlignGravityVectors(const gtsam::Vector3 &local_gravity_dir,
+                      const gtsam::Vector3 &global_gravity_dir, bool round);
+
   /* ------------------------------------------------------------------------ */
   // rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0
   static gtsam::Unit3 RoundUnit3(const gtsam::Unit3& x);
@@ -202,6 +208,18 @@ public:
   // rounds number to a specified number of decimal digits
   // (digits specifies the number of digits to keep AFTER the decimal point)
   static double RoundToDigit(const double x, const int digits = 2);
+
+  /* ------------------------------------------------------------------------ */
+  // Generate random float using random number generator between -sigma and sigma
+  static double RandomFloatGenerator(const double sigma);
+
+  /* ------------------------------------------------------------------------ */
+  // Generate random vector using random number generator between -sigma and sigma
+  static gtsam::Vector3 RandomVectorGenerator(const double sigma);
+  
+  /* ------------------------------------------------------------------------ */
+  // Generates random noisy pose around identity with rad_sigma and pos_sigma
+  static gtsam::Pose3 RandomPose3(const double rad_sigma, const double pos_sigma);
 
   /* ------------------------------------------------------------------------ */
   // converts doulbe to sting with desired number of digits (total number of digits)

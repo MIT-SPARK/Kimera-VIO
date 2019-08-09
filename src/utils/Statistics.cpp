@@ -91,11 +91,9 @@ std::string Statistics::GetTag(size_t handle) {
 StatsCollectorImpl::StatsCollectorImpl(size_t handle) : handle_(handle) {}
 
 StatsCollectorImpl::StatsCollectorImpl(std::string const& tag)
-  : handle_(Statistics::GetHandle(tag)) {}
+    : handle_(Statistics::GetHandle(tag)) {}
 
-size_t StatsCollectorImpl::GetHandle() const {
-  return handle_;
-}
+size_t StatsCollectorImpl::GetHandle() const { return handle_; }
 void StatsCollectorImpl::AddSample(double sample) const {
   Statistics::Instance().AddSample(handle_, sample);
 }
@@ -207,22 +205,21 @@ std::string Statistics::SecondsToTimeString(double seconds) {
   minutes = minutes - (hours * 60);
 
   char buffer[256];
-  snprintf(
-        buffer, sizeof(buffer),
-      #ifdef SM_TIMING_SHOW_HOURS
-        "%02d:"
-      #endif
-      #ifdef SM_TIMING_SHOW_MINUTES
-        "%02d:"
-      #endif
-        "%09.6f",
-      #ifdef SM_TIMING_SHOW_HOURS
-        hours,
-      #endif
-      #ifdef SM_TIMING_SHOW_MINUTES
-        minutes,
-      #endif
-        secs);
+  snprintf(buffer, sizeof(buffer),
+#ifdef SM_TIMING_SHOW_HOURS
+           "%02d:"
+#endif
+#ifdef SM_TIMING_SHOW_MINUTES
+           "%02d:"
+#endif
+           "%09.6f",
+#ifdef SM_TIMING_SHOW_HOURS
+           hours,
+#endif
+#ifdef SM_TIMING_SHOW_MINUTES
+           minutes,
+#endif
+           secs);
   return buffer;
 }
 
@@ -296,7 +293,8 @@ void Statistics::WriteToYamlFile(const std::string& path) {
       std::replace(label.begin(), label.end(), ':', '_');
       std::replace(label.begin(), label.end(), '#', '_');
 
-      output_file << label << ":" << "\n";
+      output_file << label << ":"
+                  << "\n";
       output_file << "  samples: " << GetNumSamples(index) << "\n";
       output_file << "  mean: " << GetMean(index) << "\n";
       output_file << "  stddev: " << sqrt(GetVariance(index)) << "\n";
@@ -318,6 +316,6 @@ void Statistics::Reset() {
   Instance().tag_map_.clear();
 }
 
-} // End of utils namespace.
+}  // namespace utils
 
-} // End of VIO namespace.
+}  // namespace VIO

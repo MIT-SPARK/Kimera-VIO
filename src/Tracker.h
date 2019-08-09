@@ -164,6 +164,9 @@ public:
       const gtsam::Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
+  // Get tracker info
+  inline DebugTrackerInfo getTrackerDebugInfo() {return debugInfo_;} 
+
 private:
   // Pixel offset for using center of image
   cv::Point2f pixelOffset_;
