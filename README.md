@@ -9,7 +9,7 @@ What is VIO?
 VIO is a library of C++ classes that implement the visual-inertial odometry pipeline described in these papers:
 
  - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
- 
+
  - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors. In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
 The Regular VIO backend is described in this paper:
@@ -20,7 +20,7 @@ Quickstart
 
 Clone this repository: `git clone git@github.mit.edu:SPARK/VIO.git`
 
-In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for CGAL and OpenGV):
+In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for OpenGV):
 
 ```
 #!bash
@@ -43,12 +43,11 @@ $ make check
 
 > Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag)
 
-Prerequisites:
+Prerequisites (installation instructions below):
 
-- [GTSAM](https://bitbucket.org/gtborg/gtsam/overview/) >= 4.0 (Branch: `feature/ImprovementsIncrementalFilter`, commit: `c827d4cd6b11f78f3d2d9d52b335ac562a2757fc`)
-- [OpenCV](https://opencv.org/opencv-3-0.html) >= 3.0 (Installation instructions below)
-- [OpenGV] Installation instructions below
-- [CGAL] Installation instructions below
+- [GTSAM](https://github.com/borglab/gtsam) >= 4.0
+- [OpenCV](https://github.com/opencv/opencv) >= 3.0
+- [OpenGV](https://github.com/laurentkneip/opengv) 
 
 Installation of GTSAM
 ----------
@@ -88,8 +87,9 @@ Installation of OpenCV
 ```
 #!bash
 $ homebrew install vtk (to check)
-download opencv3.3.1 from https://opencv.org/releases.html
-unzip and go to opencv3.3.1
+$ git clone https://github.com/opencv/opencv.git
+$ cd opencv
+$ git checkout tags/3.3.1
 $ mkdir build
 $ cd build
 $ cmake ../
@@ -101,8 +101,9 @@ $ sudo make install
 $ sudo apt-get install libvtk5-dev   (libvtk6-dev in ubuntu 17.10)
 $ sudo apt-get install libgtk2.0-dev
 $ sudo apt-get install pkg-config
-download opencv3.3.1 from https://opencv.org/releases.html
-unzip and go to opencv3.3.1
+$ git clone https://github.com/opencv/opencv.git
+$ cd opencv
+$ git checkout tags/3.3.1
 $ mkdir build
 $ cd build
 $ cmake -DWITH_VTK=On -DWITH_TBB=On ..
@@ -126,30 +127,25 @@ $ sudo make -j8 install
 $ sudo make -j8 check
 ```
 
-Installation of CGAL (Optional: Not used for now)
-----------------------
-- Download CGAL `https://www.cgal.org/download.html` (I tried CGAL-4.11 on Ubuntu 17.10)
-- Go to CGAL downloaded folder and execute the following:
-
-```
-#!bash
-$ mkdir build
-$ cd build
-$ cmake ../
-```
-- using cmake-gui enable WithEigen3, click configure, and set the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen)
-- using cmake-gui check that CMAKE_BUILD_TYPE is set to 'Release"
-- go back to the build folder and execute the following:
-<a name="yaml_script"></a>
-```
-#!bash
-$ make -j8
-$ sudo make install
-```
-
 Glog, Gflags & Gtest
 ----------------------
 Glog, gflags, and gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
+
+### Dockerfile Installation
+
+If you want to avoid building all these dependencies yourself, we provide a docker image that will install all dependencies for you.
+For that, you will need to install [Docker](https://docs.docker.com/install/).
+Once installed, clone this repo, build the image and run it:
+> Note: while this repo remains private, you'll need to **specify your ssh keys**: replace `<username>` below, with an ssh key that has read access to the repo in github.mit.edu (check your profile settings for such ssh key). Also, since docker build doesn't handle user input, ensure your ssh key does **not** have a passphrase.
+
+```
+# Build the image
+cd VIO
+docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . --build-arg SSH_PRIVATE_KEY="$(cat /home/<username>/.ssh/id_rsa)"
+
+# Run an example dataset
+./scripts/docker/spark_vio_docker.bash
+```
 
 Running examples
 ======================
