@@ -185,7 +185,7 @@ add_executable(testSparkVio
   tests/testVisualizer3D.cpp
   )
 
-target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
+target_link_libraries(testSparkVio gtest SparkVio::SparkVio)
 
 if(CMAKE_VERSION VERSION_LESS 3.10)
   enable_testing()
