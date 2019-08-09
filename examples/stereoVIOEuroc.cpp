@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     break;
     default:
     {
-      CHECK(false) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
+      LOG(FATAL) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
                    << " 0: EuRoC, 1: Kitti.";
     }
   }
