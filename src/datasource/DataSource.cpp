@@ -32,10 +32,28 @@ DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
 
 namespace VIO {
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS CameraImageLists              //////////
-////////////////////////////////////////////////////////////////////////////////
-/* -------------------------------------------------------------------------- */
+gtNavState::gtNavState(const gtsam::Pose3& pose,
+    const gtsam::Vector3& velocity,
+    const gtsam::imuBias::ConstantBias& imu_bias)
+  : pose_(pose),
+    velocity_(velocity),
+    imu_bias_(imu_bias) {}
+
+gtNavState::gtNavState(const gtsam::NavState& nav_state,
+    const gtsam::imuBias::ConstantBias& imu_bias)
+  : pose_(nav_state.pose()),
+    velocity_(nav_state.velocity()),
+    imu_bias_(imu_bias) {}
+
+void gtNavState::print(const std::string& message) const {
+  if (VLOG_IS_ON(10)) {
+    LOG(INFO) << "--- " << message << "--- ";
+    pose_.print("\n pose: \n");
+    LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
+    imu_bias_.print("\n imuBias: \n");
+  }
+}
+
 bool CameraImageLists::parseCamImgList(const std::string& folderpath,
                                        const std::string& filename) {
   image_folder_path_ = folderpath;  // stored, only for debug
@@ -69,10 +87,6 @@ void CameraImageLists::print() const {
             << "img_lists size: " << img_lists.size();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS GroundTruthData              ///////////
-////////////////////////////////////////////////////////////////////////////////
-/* -------------------------------------------------------------------------- */
 void GroundTruthData::print() const {
   LOG(INFO) << "------------ GroundTruthData::print -------------";
   body_Pose_cam_.print("body_Pose_cam_: \n");
@@ -80,10 +94,24 @@ void GroundTruthData::print() const {
             << "nr of gtStates: " << mapToGt_.size();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS Initialization Performance   ///////////
-////////////////////////////////////////////////////////////////////////////////
-/* -------------------------------------------------------------------------- */
+InitializationPerformance::InitializationPerformance(
+    const Timestamp init_timestamp,
+    const int init_n_frames,
+    const double avg_rotationErrorBA,
+    const double avg_tranErrorBA,
+    const gtNavState init_nav_state,
+    const gtsam::Vector3 init_gravity,
+    const gtNavState gt_nav_state,
+    const gtsam::Vector3 gt_gravity)
+  : init_timestamp_(init_timestamp),
+    init_n_frames_(init_n_frames),
+    avg_rotationErrorBA_(avg_rotationErrorBA),
+    avg_tranErrorBA_(avg_tranErrorBA),
+    init_nav_state_(init_nav_state),
+    init_gravity_(init_gravity),
+    gt_nav_state_(gt_nav_state),
+    gt_gravity_(gt_gravity) {}
+
 void InitializationPerformance::print() const {
       // Log everything
       LOG(INFO) << "BUNDLE ADJUSTMENT\n"
@@ -118,9 +146,6 @@ void InitializationPerformance::print() const {
               << gt_gravity_;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS DataProvider                  //////////
-////////////////////////////////////////////////////////////////////////////////
 DataProvider::DataProvider() :
     initial_k_(FLAGS_initial_k),
     final_k_(FLAGS_final_k),
