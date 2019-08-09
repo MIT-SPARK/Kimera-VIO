@@ -746,9 +746,7 @@ namespace VIO {
                           UtilsOpenCV::Gvtrans2pose(best_transformation));
   }
 
-  /* --------------------------------------------------------------------------
-   */
-  // TODO(Toni) do not use return for vector, pass by pointer.
+  /* ------------------------------------------------------------------------ */
   void Tracker::findOutliers(
       const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
       std::vector<int> inliers, std::vector<int>* outliers) {
