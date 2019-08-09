@@ -1,6 +1,6 @@
 #!/bin/bash
 ###################################################################
-# Fill the variables DATASET_PATH and USE_REGULAR_VIO.
+# Fill the variables DATASET_PATH, USE_REGULAR_VIO and PARALLEL_RUN.
 
 # Specify path of the EuRoC dataset.
 DATASET_PATH="/home/luca/data/euroc/V1_01_easy"

@@ -14,7 +14,7 @@ WORKDIR $DIRPATH
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
 RUN apt-get update && apt-get install -y git cmake
 
-# Install xvfb to provide a display to container for GUI realted testing.
+# Install xvfb to provide a display to container for GUI related testing.
 RUN apt-get update && apt-get install -y xvfb
 
 # Install GTSAM
@@ -64,9 +64,36 @@ RUN cd opengv/build && \
       -DEIGEN_INCLUDE_DIR=$DIRPATH/gtsam/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
-# Install spark_vio_evaluation from PyPI
+# [Optional] Install spark_vio_evaluation from PyPI
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 RUN cd spark_vio_evaluation && pip install .
+
+# Download and extract EuRoC dataset.
+RUN apt-get update && apt-get install -y wget
+RUN wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip
+RUN mkdir data && cd data && unzip ../V1_01_easy.zip
+
+# Add credentials on build
+ARG SSH_PRIVATE_KEY
+RUN mkdir /root/.ssh/
+RUN echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa
+RUN chmod 600 ~/.ssh/id_rsa
+
+# Make sure your domain is accepted
+RUN touch /root/.ssh/known_hosts
+RUN ssh-keyscan -t rsa github.mit.edu >> /root/.ssh/known_hosts
+
+# Install Spark VIO
+#RUN git config --global user.name "arosinol"
+#RUN git config --global user.email "arosinol@mit.edu"
+RUN git clone git@github.mit.edu:SPARK/VIO.git
+RUN cd VIO && git checkout feature/full_docker_install && mkdir build && cd build && cmake .. && make -j$(nproc)
+
+# Yamelize euroc dataset
+RUN cd data && bash $DIRPATH/VIO/scripts/yamelize.bash
+
+#CMD xvfb-run $DIRPATH/VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/data -r -parallel
+CMD $DIRPATH/VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/data -r -parallel
