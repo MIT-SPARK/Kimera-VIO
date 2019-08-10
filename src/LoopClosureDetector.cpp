@@ -17,10 +17,6 @@
 
 #include "LoopClosureDetector.h"
 
-#include <DBoW2/DBoW2.h>
-#include <RobustPGO/RobustSolver.h>
-#include "StereoFrame.h"
-
 #include <gtsam/base/Matrix.h>
 
 #include <opengv/sac/Ransac.hpp>

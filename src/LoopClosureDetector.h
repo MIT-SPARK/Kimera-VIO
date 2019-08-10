@@ -26,22 +26,14 @@
 #include <opencv/cv.hpp>
 #include <opencv2/features2d.hpp>
 
+#include <DBoW2/DBoW2.h>
+#include <RobustPGO/RobustSolver.h>
+
 #include "utils/ThreadsafeQueue.h"
 
+#include "StereoFrame.h"
 #include "LoopClosureDetector-definitions.h"
 #include "LoopClosureDetectorParams.h"
-
-// Forward-declare classes.
-namespace RobustPGO {
-  class RobustSolver;
-}
-namespace DBoW2 {
-  class BowVector;
-  class OrbDatabase;
-}
-namespace VIO {
-  class StereoFrame;
-}
 
 namespace VIO {
 
