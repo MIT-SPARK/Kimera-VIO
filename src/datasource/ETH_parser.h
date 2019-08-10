@@ -73,7 +73,7 @@ public:
 
 public:
 
-  bool spin();
+  bool spin() override;
 
   void spinOnce(const FrameId& k,
                 Timestamp& timestamp_last_frame,

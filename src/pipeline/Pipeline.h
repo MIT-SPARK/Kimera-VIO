@@ -22,8 +22,6 @@
 #include <utility>  // for make_pair
 #include <vector>
 
-#include <gtsam/navigation/ImuBias.h>
-
 #include "datasource/DataSource.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"

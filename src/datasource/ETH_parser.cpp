@@ -100,7 +100,7 @@ void ETHDatasetParser::spinOnce(
   // it, but totally useless...
   static bool do_once = true;
   if (do_once) {
-    timestamp_first_lkf_ = timestamp_last_frame;
+    timestamp_first_lkf_ = timestamp_frame_k;
     do_once = false;
   }
 

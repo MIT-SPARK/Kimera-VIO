@@ -27,7 +27,7 @@ class KittiDataProvider : public DataProvider {
   KittiDataProvider();
   virtual ~KittiDataProvider();
 
-  bool spin();
+  bool spin() override;
 
  private:
   struct KittiData {

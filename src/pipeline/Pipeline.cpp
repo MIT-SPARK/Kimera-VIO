@@ -860,7 +860,7 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
           tracker_params.maxFeatureAge_,
           posesAtFutureKeyframes,
           curr_state_cov,
-          std::string(),
+          "",
           left_frame);  // last 2 are for visualization
   VLOG(100) << "Feature selection completed.";
 
