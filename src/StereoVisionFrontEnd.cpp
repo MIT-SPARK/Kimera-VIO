@@ -14,7 +14,6 @@
 
 #include <glog/logging.h>
 
-#include "LoggerMatlab.h"
 #include "StereoVisionFrontEnd.h"
 
 namespace VIO {
@@ -152,14 +151,11 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
     if (log_output_) {
-      LoggerMatlab logger;
       // Use default filename (sending empty "" uses default name), and set
       // write mode to append (sending true).
-      logger.openLogFiles(12, "", true);
-      logger.logFrontendResults(
+      logger_.logFrontendResults(
           trackerStatusSummary_,
           stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
-      logger.closeLogFiles(12);
     }
     ////////////////////////////////////////////////////////////////////////////
 

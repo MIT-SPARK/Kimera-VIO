@@ -23,7 +23,6 @@
 
 #include <gflags/gflags.h>
 
-#include "LoggerMatlab.h"
 #include "UtilsOpenCV.h"
 #include "VioBackEnd-definitions.h"
 #include "common/FilesystemUtils.h"
@@ -1187,20 +1186,14 @@ void Visualizer3D::logMesh(const cv::Mat& map_points_3d, const cv::Mat& colors,
                            const Timestamp& timestamp,
                            bool log_accumulated_mesh) {
   /// Log the mesh in a ply file.
-  LoggerMatlab logger;
   static Timestamp last_timestamp = timestamp;
   static const Timestamp first_timestamp = timestamp;
   if ((timestamp - last_timestamp) >
       6500000000) {  // Log every 6 seconds approx. (a little bit more than
                      // time-horizon)
     LOG(WARNING) << "Logging mesh every (ns) = " << timestamp - last_timestamp;
-    logger.openLogFiles(
-        10,
-        "\output_mesh_" + std::to_string(timestamp - first_timestamp) + ".ply",
-        log_accumulated_mesh);
-    logger.logMesh(map_points_3d, colors, polygons_mesh, timestamp,
-                   log_accumulated_mesh);
-    logger.closeLogFiles(10);
+    logger_.logMesh(
+        map_points_3d, colors, polygons_mesh, timestamp, log_accumulated_mesh);
     last_timestamp = timestamp;
   }
 }
@@ -1218,7 +1211,6 @@ void Visualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
 
   // The code below assumes triangles as polygons.
   static constexpr bool log_landmarks = false;
-  cv::Mat points;
   for (const Plane& plane : planes) {
     const TriangleCluster& cluster = plane.triangle_cluster_;
     // Decide color for cluster.
@@ -1236,23 +1228,7 @@ void Visualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
       colors->row(idx_1) = cluster_color;
       colors->row(idx_2) = cluster_color;
       colors->row(idx_3) = cluster_color;
-      // Debug TODO remove: logging triangles perpendicular to z_axis.
-      if (cluster.cluster_id_ == 2 && log_landmarks) {
-        // Do not use push back, or you'll be having repeated points I guess.
-        // points.push_back(map_points_3d.row(idx_1));
-        // points.push_back(map_points_3d.row(idx_2));
-        // points.push_back(map_points_3d.row(idx_3));
-      }
     }
-  }
-
-  // Debug TODO remove
-  /// Store in file
-  if (log_landmarks) {
-    LoggerMatlab logger;
-    logger.openLogFiles(3);
-    logger.logLandmarks(points);
-    logger.closeLogFiles(3);
   }
 }
 

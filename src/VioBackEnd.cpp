@@ -28,7 +28,6 @@
 #include <glog/logging.h>
 
 #include "ETH_parser.h"  // Only for gtNavState ...
-#include "LoggerMatlab.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
 
@@ -58,25 +57,28 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const Timestamp& timestamp_k,
                        const ImuAccGyrS& imu_accgyr,
                        const VioBackEndParams& vioParams,
-                       const bool log_output) :
-  vio_params_(vioParams),
-  timestamp_lkf_(-1),
-  imu_bias_lkf_(ImuBias()),
-  W_Vel_B_lkf_(Vector3::Zero()),
-  W_Pose_B_lkf_(Pose3()),
-  imu_bias_prev_kf_(ImuBias()),
-  B_Pose_leftCam_(leftCamPose),
-  stereo_cal_(boost::make_shared<gtsam::Cal3_S2Stereo>(
-               leftCameraCalRectified.fx(),
-               leftCameraCalRectified.fy(), leftCameraCalRectified.skew(),
-               leftCameraCalRectified.px(), leftCameraCalRectified.py(),
-               baseline)),
-  last_kf_id_(-1),
-  curr_kf_id_(0),
-  landmark_count_(0),
-  verbosity_(0),
-  log_output_(log_output) {
-    CHECK_NOTNULL(initial_state_gt);
+                       const bool log_output)
+    : vio_params_(vioParams),
+      timestamp_lkf_(-1),
+      imu_bias_lkf_(ImuBias()),
+      W_Vel_B_lkf_(Vector3::Zero()),
+      W_Pose_B_lkf_(Pose3()),
+      imu_bias_prev_kf_(ImuBias()),
+      B_Pose_leftCam_(leftCamPose),
+      stereo_cal_(boost::make_shared<gtsam::Cal3_S2Stereo>(
+          leftCameraCalRectified.fx(),
+          leftCameraCalRectified.fy(),
+          leftCameraCalRectified.skew(),
+          leftCameraCalRectified.px(),
+          leftCameraCalRectified.py(),
+          baseline)),
+      last_kf_id_(-1),
+      curr_kf_id_(0),
+      landmark_count_(0),
+      log_output_(log_output),
+      logger_(),
+      verbosity_(0) {
+  CHECK_NOTNULL(initial_state_gt);
 
   // TODO the parsing of the params should be done inside here out from the
   // path to the params file, otherwise other derived VIO backends will be stuck
@@ -240,15 +242,10 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
       imu_bias_lkf_, getCurrentStateCovariance(), curr_kf_id_, landmark_count_,
       debug_info_);
 
-  ////////////////// DEBUG INFO FOR BACK-END ///////////////////////////////////
   if (log_output_) {
-    LoggerMatlab logger;
-    // Use default filename (sending empty "" uses default name), and set
-    // write mode to append (sending true).
-    logger.openLogFiles(13, "", true);
-    logger.logBackendResultsCSV(output_payload);
-    logger.closeLogFiles(13);
+    logger_.logBackendResultsCSV(output_payload);
   }
+
   return output_payload;
 }
 

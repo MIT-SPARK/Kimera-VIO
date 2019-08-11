@@ -9,11 +9,10 @@
 /**
  * @file   Mesher.h
  * @brief  Build and visualize 2D mesh from Frame
- * @author Luca Carlone, AJ Haeffner, Antoni Rosinol
+ * @author Antoni Rosinol, Luca Carlone
  */
 
-#ifndef Mesher_H_
-#define Mesher_H_
+#pragma once
 
 #include "StereoFrame.h"
 
@@ -439,5 +438,3 @@ class Mesher {
 };
 
 }  // namespace VIO
-
-#endif /* Mesher_H_ */

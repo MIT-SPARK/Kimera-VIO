@@ -26,6 +26,8 @@
 #include "mesh/Mesher.h"
 #include "utils/ThreadsafeQueue.h"
 
+#include "LoggerMatlab.h"
+
 namespace VIO {
 
 enum class VisualizationType {
@@ -397,6 +399,8 @@ class Visualizer3D {
   // Holds all visualization data including the window which contains 3D
   // widgets.
   WindowData window_data_;
+
+  VisualizerLogger logger_;
 
   /* ------------------------------------------------------------------------ */
   // Log mesh to ply file.

@@ -34,6 +34,8 @@
 #include "StereoVisionFrontEnd-definitions.h"
 #include "VioBackEnd-definitions.h"
 
+#include "LoggerMatlab.h"
+
 namespace VIO {
 
 class StereoVisionFrontEnd {
@@ -286,6 +288,7 @@ private:
 
   // Frontend logger.
   const bool log_output_ = {false};
+  FrontendLogger logger_;
 };
 
 } // namespace VIO

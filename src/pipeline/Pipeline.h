@@ -25,7 +25,6 @@
 #include <gtsam/navigation/ImuBias.h>
 
 #include "FeatureSelector.h"
-#include "LoggerMatlab.h"
 #include "StereoImuSyncPacket.h"
 #include "Visualizer3D.h"
 #include "datasource/DataSource.h"
@@ -202,9 +201,6 @@ class Pipeline {
 
   // Set of planes in the scene.
   std::vector<Plane> planes_;
-
-  // Logger class (stores data for matlab visualization).
-  LoggerMatlab logger_;
 
   // Create class to build mesh.
   Mesher mesher_;

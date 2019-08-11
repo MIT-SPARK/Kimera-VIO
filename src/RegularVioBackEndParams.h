@@ -35,32 +35,39 @@ namespace VIO {
 ///////////////////////////////////////////////////////////////////////////////////////
 class RegularVioBackEndParams : public VioBackEndParams {
 public:
-  RegularVioBackEndParams(
-      const double monoNoiseSigma = 3.0, const double stereoNoiseSigma = 3.0,
-      const double regularityNoiseSigma = 0.1, const double monoNormParam = 0.0,
-      const double stereoNormParam = 0.0,
-      const double regularityNormParam = 4.6851,
-      // NomrType -> 0: L2 norm, 1: Huber, 2: Tukey.
-      const size_t monoNormType = 0, const size_t stereoNormType = 0,
-      const size_t regularityNormType = 2, const double huberParam = 1.345,
-      const double tukeyParam = 4.6851)
-      : VioBackEndParams(), // Use the default vio parameters.
-        monoNoiseSigma_(monoNoiseSigma), stereoNoiseSigma_(stereoNoiseSigma),
-        regularityNoiseSigma_(regularityNoiseSigma),
-        monoNormParam_(monoNormParam), stereoNormParam_(stereoNormParam),
-        regularityNormParam_(regularityNormParam), monoNormType_(monoNormType),
-        stereoNormType_(stereoNormType),
-        regularityNormType_(regularityNormType), huberParam_(huberParam),
-        tukeyParam_(tukeyParam) {
-    // Trivial sanity checks.
-    CHECK_GE(monoNoiseSigma_, 0.0);
-    CHECK_GE(stereoNoiseSigma_, 0.0);
-    CHECK_GE(regularityNoiseSigma_, 0.0);
-    CHECK_GE(monoNormType_, 0);
-    CHECK_GE(stereoNormType_, 0);
-    CHECK_GE(regularityNormType_, 0);
-    CHECK_GE(huberParam_, 0.0);
-    CHECK_GE(tukeyParam_, 0.0);
+ RegularVioBackEndParams(const double monoNoiseSigma = 3.0,
+                         const double stereoNoiseSigma = 3.0,
+                         const double regularityNoiseSigma = 0.1,
+                         const double monoNormParam = 0.0,
+                         const double stereoNormParam = 0.0,
+                         const double regularityNormParam = 4.6851,
+                         // NomrType -> 0: L2 norm, 1: Huber, 2: Tukey.
+                         const size_t monoNormType = 0,
+                         const size_t stereoNormType = 0,
+                         const size_t regularityNormType = 2,
+                         const double huberParam = 1.345,
+                         const double tukeyParam = 4.6851)
+     : VioBackEndParams(),  // Use the default vio parameters.
+       monoNoiseSigma_(monoNoiseSigma),
+       stereoNoiseSigma_(stereoNoiseSigma),
+       regularityNoiseSigma_(regularityNoiseSigma),
+       monoNormParam_(monoNormParam),
+       stereoNormParam_(stereoNormParam),
+       regularityNormParam_(regularityNormParam),
+       monoNormType_(monoNormType),
+       stereoNormType_(stereoNormType),
+       regularityNormType_(regularityNormType),
+       huberParam_(huberParam),
+       tukeyParam_(tukeyParam) {
+   // Trivial sanity checks.
+   CHECK_GE(monoNoiseSigma_, 0.0);
+   CHECK_GE(stereoNoiseSigma_, 0.0);
+   CHECK_GE(regularityNoiseSigma_, 0.0);
+   CHECK_GE(monoNormType_, 0);
+   CHECK_GE(stereoNormType_, 0);
+   CHECK_GE(regularityNormType_, 0);
+   CHECK_GE(huberParam_, 0.0);
+   CHECK_GE(tukeyParam_, 0.0);
   }
 
   double monoNoiseSigma_, stereoNoiseSigma_, regularityNoiseSigma_;
