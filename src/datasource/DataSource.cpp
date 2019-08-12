@@ -149,7 +149,16 @@ void InitializationPerformance::print() const {
 DataProvider::DataProvider() :
     initial_k_(FLAGS_initial_k),
     final_k_(FLAGS_final_k),
-    dataset_path_(FLAGS_dataset_path) {}
+    dataset_path_(FLAGS_dataset_path) {
+
+  CHECK(final_k_ > initial_k_)
+      << "Value for final_k (" << final_k_
+      << ") is smaller than value for"
+      << " initial_k (" << initial_k_ << ").";
+
+  LOG(INFO) << "Running dataset between frame " << initial_k_
+          << " and frame " << final_k_;
+}
 
 DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";

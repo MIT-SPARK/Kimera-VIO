@@ -213,13 +213,6 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
                  << ", where we removed " << skip_n_end_frames
                  << " frames to avoid bad IMU readings.";
   }
-  CHECK(final_k_ > initial_k_)
-      << "Value for final_k (" << final_k_
-      << ") is smaller than value for"
-      << " initial_k (" << initial_k_ << ").";
-
-  LOG(INFO) << "Running dataset between frame " << initial_k_
-            << " and frame " << final_k_;
 
   parseParams(); // parse backend/frontend parameters
 

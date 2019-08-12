@@ -119,7 +119,7 @@ public:
 
 public:
   std::string image_folder_path_;
-  typedef std::vector<std::pair<Timestamp, std::string> > ImgLists;
+  typedef std::vector<std::pair<long long, std::string> > ImgLists;
   ImgLists img_lists;
 };
 
