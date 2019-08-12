@@ -250,7 +250,7 @@ void Pipeline::processKeyframe(
   // and to prevent segfaults once spinOutputPacket is returned:
   if (!lcd_output_payload) {
     lcd_output_payload = std::make_shared<LoopClosureDetectorOutputPayload>(
-        false, 0, 0, 0, gtsam::Pose3(), gtsam::Pose3());
+        false, 0, 0, 0, gtsam::Pose3(), gtsam::Pose3(), gtsam::Values());
   }
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
@@ -361,6 +361,7 @@ void Pipeline::processKeyframe(
         backend_output_payload->W_Pose_Blkf_,
         backend_output_payload->W_Vel_Blkf_,
         lcd_output_payload->W_Pose_Map_,
+        lcd_output_payload->states_,
         backend_output_payload->imu_bias_lkf_,
         mesher_output_payload.mesh_2d_,
         mesher_output_payload.mesh_3d_,

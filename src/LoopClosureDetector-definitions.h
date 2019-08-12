@@ -75,16 +75,26 @@ struct LCDFrame {
 };  // struct LCDFrame
 
 struct MatchIsland {
-  MatchIsland() {}
+  MatchIsland()
+    : start_id_(0),
+      end_id_(0),
+      island_score_(0),
+      best_id_(0),
+      best_score_(0) {}
 
   MatchIsland(FrameId start, FrameId end)
     : start_id_(start),
-      end_id_(end) {}
+      end_id_(end),
+      island_score_(0),
+      best_id_(0),
+      best_score_(0) {}
 
   MatchIsland(FrameId start, FrameId end, double score)
     : start_id_(start),
       end_id_(end),
-      island_score_(score) {}
+      island_score_(score),
+      best_id_(0),
+      best_score_(0) {}
 
   inline bool operator < (const MatchIsland& other) const {
     return this->island_score_ < other.island_score_;
@@ -121,9 +131,9 @@ struct LoopResult {
 };  // struct LoopResult
 
 struct VioFactor {
-  VioFactor(const FrameId &cur_key,
-            const gtsam::Pose3 &W_Pose_Blkf,
-            const gtsam::SharedNoiseModel &noise)
+  VioFactor(const FrameId& cur_key,
+            const gtsam::Pose3& W_Pose_Blkf,
+            const gtsam::SharedNoiseModel& noise)
       : cur_key_(cur_key),
       W_Pose_Blkf_(W_Pose_Blkf),
       noise_(noise) {}
@@ -134,10 +144,10 @@ struct VioFactor {
 }; // struct VioFactor
 
 struct LoopClosureFactor {
-  LoopClosureFactor(const FrameId &ref_key,
-                    const FrameId &cur_key,
-                    const gtsam::Pose3 &ref_Pose_cur,
-                    const gtsam::SharedNoiseModel &noise)
+  LoopClosureFactor(const FrameId& ref_key,
+                    const FrameId& cur_key,
+                    const gtsam::Pose3& ref_Pose_cur,
+                    const gtsam::SharedNoiseModel& noise)
       : ref_key_(ref_key),
         cur_key_(cur_key),
         ref_Pose_cur_(ref_Pose_cur),
@@ -150,10 +160,10 @@ struct LoopClosureFactor {
 }; // struct LoopClosureFactor
 
 struct LoopClosureDetectorInputPayload {
-  LoopClosureDetectorInputPayload(const Timestamp &timestamp_kf,
-                                  const FrameId &cur_kf_id,
-                                  const StereoFrame &stereo_frame,
-                                  const gtsam::Pose3 &W_Pose_Blkf)
+  LoopClosureDetectorInputPayload(const Timestamp& timestamp_kf,
+                                  const FrameId& cur_kf_id,
+                                  const StereoFrame& stereo_frame,
+                                  const gtsam::Pose3& W_Pose_Blkf)
       : timestamp_kf_(timestamp_kf),
         cur_kf_id_(cur_kf_id),
         stereo_frame_(stereo_frame),
@@ -167,17 +177,19 @@ struct LoopClosureDetectorInputPayload {
 
 struct LoopClosureDetectorOutputPayload {
   LoopClosureDetectorOutputPayload(bool is_loop_closure,
-                                   const Timestamp &timestamp_kf,
-                                   const FrameId &id_match,
-                                   const FrameId &id_recent,
+                                   const Timestamp& timestamp_kf,
+                                   const FrameId& id_match,
+                                   const FrameId& id_recent,
                                    const gtsam::Pose3& relative_pose,
-                                   const gtsam::Pose3 &W_Pose_Map)
+                                   const gtsam::Pose3& W_Pose_Map,
+                                   const gtsam::Values& states)
       : is_loop_closure_(is_loop_closure),
         timestamp_kf_(timestamp_kf),
         id_match_(id_match),
         id_recent_(id_recent),
         relative_pose_(relative_pose),
-        W_Pose_Map_(W_Pose_Map) {}
+        W_Pose_Map_(W_Pose_Map),
+        states_(states) {}
 
   // TODO(marcus): inlude stats/score of match
   const bool is_loop_closure_;
@@ -186,6 +198,7 @@ struct LoopClosureDetectorOutputPayload {
   const FrameId id_recent_;
   const gtsam::Pose3 relative_pose_;
   const gtsam::Pose3 W_Pose_Map_;
+  const gtsam::Values states_;
 };  // struct LoopClosureDetectorOutputPayload
 
 }  // namespace VIO

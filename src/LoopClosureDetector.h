@@ -51,7 +51,7 @@ class LoopClosureDetector {
   LoopClosureDetectorOutputPayload spinOnce(
       const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
 
-  LoopResult checkLoopClosure(const StereoFrame &stereo_frame);
+  LoopResult checkLoopClosure(const StereoFrame& stereo_frame);
 
   FrameId processAndAddFrame(const StereoFrame& stereo_frame);
 
@@ -84,13 +84,13 @@ class LoopClosureDetector {
   }
 
   inline LoopClosureDetectorParams* getLCDParamsMutable() {
-    return &lcd_params_;
+    return& lcd_params_;
   }
 
   inline const OrbDatabase* getBoWDatabase() const { return db_BoW_.get(); }
 
   inline const std::vector<LCDFrame>* getFrameDatabasePtr() const {
-    return &db_frames_;
+    return& db_frames_;
   }
 
   inline const bool getIntrinsicsFlag() const { return set_intrinsics_; }
@@ -157,9 +157,9 @@ class LoopClosureDetector {
 
   void initializePGO();
 
-  void addVioFactorAndOptimize(const VioFactor &factor);
+  void addVioFactorAndOptimize(const VioFactor& factor);
 
-  void addLoopClosureFactorAndOptimize(const LoopClosureFactor &factor);
+  void addLoopClosureFactorAndOptimize(const LoopClosureFactor& factor);
 
  private:
   // Parameter members

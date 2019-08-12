@@ -101,7 +101,8 @@ LoopClosureDetector::LoopClosureDetector(
       lcd_params_.pgo_rot_threshold_, RobustPGO::Verbosity::VERBOSE);
 
   pgo_ = VIO::make_unique<RobustPGO::RobustSolver>(pgo_params);
-  initializePGO();
+  // TODO(marcus): decide on initialization.
+  // initializePGO();
 }
 
 LoopClosureDetector::~LoopClosureDetector() {
@@ -127,10 +128,9 @@ bool LoopClosureDetector::spin(
       LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
 
       // Only push output if it's a detected loop.
-      // TODO(marcus): decide if we want to only push for loop closures
-      // if (output_payload.is_loop_closure_) {
-      output_queue.push(output_payload);
-      // }
+      if (output_payload.is_loop_closure_) {
+        output_queue.push(output_payload);
+      }
 
       auto spin_duration = utils::Timer::toc(tic).count();
       stat_lcd_timing.AddSample(spin_duration);
@@ -175,18 +175,23 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
         loop_result.relative_pose_, shared_noise_model_);
     addLoopClosureFactorAndOptimize(lc_factor);
   }
-  // Construct output payload.
-  // TODO(marcus): include the nfg values as optimized path.
-  gtsam::Pose3 w_Pose_map = getWPoseMap();
-  LoopClosureDetectorOutputPayload output_payload(loop_result.isLoop(),
-      input->timestamp_kf_, loop_result.match_id_, loop_result.query_id_,
-      loop_result.relative_pose_, w_Pose_map);
 
-  return output_payload;
+  // Construct output payload, fill only if loop closure.
+  if (loop_result.isLoop()) {
+    gtsam::Pose3 w_Pose_map = getWPoseMap();
+    LoopClosureDetectorOutputPayload output_payload(loop_result.isLoop(),
+        input->timestamp_kf_, loop_result.match_id_, loop_result.query_id_,
+        loop_result.relative_pose_, w_Pose_map, pgo_->calculateEstimate());
+
+    return output_payload;
+  }
+
+  return LoopClosureDetectorOutputPayload(false, 0, 0, 0, gtsam::Pose3(),
+      gtsam::Pose3(), gtsam::Values());
 }
 
 LoopResult LoopClosureDetector::checkLoopClosure(
-    const StereoFrame &stereo_frame) {
+    const StereoFrame& stereo_frame) {
   FrameId frame_id = processAndAddFrame(stereo_frame);
   LoopResult loop_result;
   detectLoop(frame_id, &loop_result);
@@ -922,11 +927,21 @@ void LoopClosureDetector::initializePGO() {
 // TOOD(marcus): vio factors have LAST KEYFRAME not current
 // TODO(marcus): failure happening due to a super high index, past the size
 // of the vector of poses
-void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor &factor) {
+void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor& factor) {
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
 
-  if (factor.cur_key_ <= W_Pose_Bkf_estimates_.size() && factor.cur_key_ > 1) {
+  if (factor.cur_key_ == 1) {
+
+    value.insert(factor.cur_key_-1, factor.W_Pose_Blkf_);
+
+    nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
+        factor.cur_key_-1, factor.W_Pose_Blkf_, factor.noise_));
+
+    pgo_->update(nfg, value);
+
+  } else if (factor.cur_key_ <= W_Pose_Bkf_estimates_.size() &&
+        factor.cur_key_ > 1) {
     value.insert(factor.cur_key_-1, factor.W_Pose_Blkf_);
 
     gtsam::Pose3 B_llkf_Pose_lkf =
@@ -943,7 +958,7 @@ void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor &factor) {
 }
 
 void LoopClosureDetector::addLoopClosureFactorAndOptimize(
-    const LoopClosureFactor &factor) {
+    const LoopClosureFactor& factor) {
   gtsam::NonlinearFactorGraph nfg;
 
   nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(

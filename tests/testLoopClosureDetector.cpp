@@ -408,6 +408,50 @@ TEST_F(LCDFixture, DISABLED_addLoopClosureFactorAndOptimize) {
   // TODO(marcus): implement
 }
 
-TEST_F(LCDFixture, DISABLED_spinOnce) {
-  // TODO(marcus): implement
+TEST_F(LCDFixture, spinOnce) {
+  /* Test the full pipeline with one loop closure and full PGO optimization */
+  std::pair<double, double> error;
+
+  const std::shared_ptr<LoopClosureDetectorInputPayload> input_0 =
+    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_ref1_,
+      FrameId(0), *ref1_stereo_frame_.get(), gtsam::Pose3());
+  auto output_0 = lcd_detector_->spinOnce(input_0);
+
+  const std::shared_ptr<LoopClosureDetectorInputPayload> input_1 =
+    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_ref2_,
+      FrameId(1), *ref2_stereo_frame_.get(), gtsam::Pose3());
+  auto output_1 = lcd_detector_->spinOnce(input_0);
+
+  const std::shared_ptr<LoopClosureDetectorInputPayload> input_2 =
+    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_cur1_,
+      FrameId(2), *cur1_stereo_frame_.get(), gtsam::Pose3());
+  auto output_2 = lcd_detector_->spinOnce(input_0);
+
+  const std::shared_ptr<LoopClosureDetectorInputPayload> input_3 =
+    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_cur2_,
+      FrameId(3), *cur2_stereo_frame_.get(), gtsam::Pose3());
+  auto output_3 = lcd_detector_->spinOnce(input_0);
+
+  EXPECT_EQ(output_0.is_loop_closure_, false);
+  EXPECT_EQ(output_1.is_loop_closure_, false);
+
+  EXPECT_EQ(output_2.is_loop_closure_, true);
+  EXPECT_EQ(output_2.timestamp_kf_, timestamp_cur1_);
+  EXPECT_EQ(output_2.id_match_, 0);
+  EXPECT_EQ(output_2.id_recent_, 2);
+  error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
+      ref1_to_cur1_pose_, output_2.relative_pose_, true);
+  EXPECT_LT(error.first, rot_tol);
+  EXPECT_LT(error.second, tran_tol);
+  EXPECT_EQ(output_2.states_.size(), 3);
+
+  EXPECT_EQ(output_3.is_loop_closure_, true);
+  EXPECT_EQ(output_3.timestamp_kf_, timestamp_cur2_);
+  EXPECT_EQ(output_3.id_match_, 1);
+  EXPECT_EQ(output_3.id_recent_, 3);
+  error = UtilsOpenCV::ComputeRotationAndTranslationErrors(
+      ref2_to_cur2_pose_, output_3.relative_pose_, true);
+  EXPECT_LT(error.first, rot_tol);
+  EXPECT_LT(error.second, tran_tol);
+  EXPECT_EQ(output_3.states_.size(), 4);
 }
