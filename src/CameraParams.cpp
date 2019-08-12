@@ -108,7 +108,7 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
   // set up R and T matrices
   cv::Mat rotation = cv::Mat::zeros(3, 3, CV_64F);
   cv::Mat translation = cv::Mat::zeros(3, 1, CV_64F);
-
+  distortion_model_ = "radial-tangential";
   // Set up to read the text file
   std::ifstream calib_file;
   calib_file.open(filepath.c_str());
