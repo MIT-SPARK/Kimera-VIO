@@ -36,7 +36,7 @@ KittiDataProvider::KittiData::operator bool() const {
 
 KittiDataProvider::KittiDataProvider() : DataProvider(), kitti_data_() {
   // Parse Kitti dataset.
-  parseData(dataset_path_, &kitti_data_);
+  parseKittiData(dataset_path_, &kitti_data_);
 }
 
 KittiDataProvider::~KittiDataProvider() {}
@@ -120,7 +120,7 @@ bool Earlier_time(std::pair<Timestamp, std::string>& a,
   return a.first < b.first;
 }
 
-void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
+void KittiDataProvider::parseKittiData(const std::string& kitti_sequence_path,
                                   KittiData* kitti_data) {
   // Images in Kitti dataset: datapath/image_02/data gives all (left) images in
   // order datapath/image_02/timestamps.txt gives the timestamps in order same
@@ -257,7 +257,7 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
                                         const std::string& left_cam_id,
                                         const std::string& right_cam_id,
                                         KittiData* kitti_data) {
-  // note that the stamps and images were parsed in parseData method
+  // note that the stamps and images were parsed in parseKittiData method
   // perhaps move all that into this method?
   // for now write parse camera info here
   // Default names: match names of the corresponding folders.
