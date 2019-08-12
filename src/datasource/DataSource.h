@@ -218,7 +218,8 @@ class DataProvider {
 
 protected:
   // Helper function to parse user-specified parameters.
-  void parseParams();
+  void parseBackendParams();
+  void parseFrontendParams();
 };
 
 }  // namespace VIO

@@ -214,7 +214,9 @@ void KittiDataProvider::parseKittiData(const std::string& kitti_sequence_path,
                  << " frames to avoid bad IMU readings.";
   }
 
-  parseParams(); // parse backend/frontend parameters
+  // parse backend/frontend parameters
+  parseBackendParams();
+  parseFrontendParams();
 
   // Check data is parsed correctly.
   CHECK(*kitti_data);

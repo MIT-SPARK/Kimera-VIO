@@ -193,7 +193,7 @@ bool DataProvider::spin() {
 }
 
 /* -------------------------------------------------------------------------- */
-void DataProvider::parseParams() {
+void DataProvider::parseBackendParams() {
   switch (FLAGS_backend_type) {
     case 0: {
       pipeline_params_.backend_params_ = std::make_shared<VioBackEndParams>();
@@ -229,6 +229,10 @@ void DataProvider::parseParams() {
   // on their own mostly.
   pipeline_params_.imu_params_.imu_integration_sigma_ = pipeline_params_.backend_params_->imuIntegrationSigma_;
   pipeline_params_.imu_params_.n_gravity_ = pipeline_params_.backend_params_->n_gravity_;
+}
+
+/* -------------------------------------------------------------------------- */
+void DataProvider::parseFrontendParams() {
 
   // Read/define tracker params.
   if (FLAGS_tracker_params_path.empty()) {

@@ -158,8 +158,9 @@ void ETHDatasetParser::parse(size_t initial_k, size_t final_k) {
     LOG(WARNING) << "Using final_k = " << final_k << ", where we removed "
                  << skip_n_end_frames << " frames to avoid bad IMU readings.";
   }
-
-  parseParams(); // parse backend/frontend parameters
+  // parse backend/frontend parameters
+  parseBackendParams();
+  parseFrontendParams();
 }
 
 /* -------------------------------------------------------------------------- */
