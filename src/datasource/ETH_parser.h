@@ -83,7 +83,7 @@ public:
                 const CameraParams& right_cam_info,
                 const gtsam::Pose3& camL_pose_camR);
 
-  // Helper function to parse Euroc dataset.
+  // Parses EuRoC dataand the frontend, backend parameters
   void parse(size_t initial_k, size_t final_k);
 
   // Parse camera, gt, and imu data if using different Euroc format.
