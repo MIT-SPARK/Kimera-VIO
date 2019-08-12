@@ -96,5 +96,5 @@ int main(int argc, char *argv[]) {
     logger.closeLogFiles();
   }
 
-  return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;
+  return is_pipeline_successful;
 }
