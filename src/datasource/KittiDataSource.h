@@ -9,7 +9,7 @@
 /**
  * @file   KittiDataSource.h
  * @brief  Kitti dataset parser.
- * @author Antoni Rosinol
+ * @author Antoni Rosinol, Yun Chang
  */
 
 #pragma once
@@ -17,26 +17,22 @@
 #include <functional>
 #include <string>
 
-#include "ImuFrontEnd.h"
 #include "StereoImuSyncPacket.h"
-#include "VioFrontEndParams.h"
 #include "datasource/DataSource.h"
 
 namespace VIO {
 
 class KittiDataProvider : public DataProvider {
  public:
-  KittiDataProvider(const std::string& kitti_dataset_path);
+  KittiDataProvider();
   virtual ~KittiDataProvider();
-  virtual bool spin();
 
-  inline ImuParams getImuParams() const { return kitti_data_.imuParams_; }
+  bool spin() override;
 
  private:
   struct KittiData {
     inline size_t getNumberOfImages() const { return left_img_names_.size(); }
 
-    size_t initial_k_, final_k_;  // useful for skipping image frames
     // also since sometimes don't have enough imu measurements for first few
     // frames This matches the names of the folders in the dataset
     std::string left_camera_name_;
@@ -52,8 +48,6 @@ class KittiDataProvider : public DataProvider {
     std::vector<std::string> right_img_names_;
     // Vector of timestamps see issue in .cpp file
     std::vector<Timestamp> timestamps_;
-    // IMU params
-    ImuParams imuParams_;
     // IMU data
     ImuData imuData_;
     // Sanity check to ensure data is correctly parsed
@@ -63,7 +57,7 @@ class KittiDataProvider : public DataProvider {
 
  private:
   cv::Mat readKittiImage(const std::string& img_name);
-  void parseData(const std::string& kitti_sequence_path, KittiData* kitti_data);
+  void parseKittiData(const std::string& kitti_sequence_path, KittiData* kitti_data);
 
   // Parse the timestamps of a particular device of given dataset
   bool parseTimestamps(const std::string& timestamps_file,
@@ -79,16 +73,14 @@ class KittiDataProvider : public DataProvider {
   bool parseImuData(const std::string& input_dataset_path,
                     KittiData* kitti_data);
 
-  // Get R and T matrix from calibration file 
-  bool parsePose(const std::string& input_dataset_path, 
-               const std::string& calibration_filename, 
+  // Get R and T matrix from calibration file
+  bool parsePose(const std::string& input_dataset_path,
+               const std::string& calibration_filename,
                cv::Mat& rotation, cv::Mat& translation) const;
 
   void print() const;
 
  private:
-  std::string dataset_path_;
-  VioFrontEndParams frontend_params_;  // NOTE what to do with this?
   KittiData kitti_data_;
 };
 

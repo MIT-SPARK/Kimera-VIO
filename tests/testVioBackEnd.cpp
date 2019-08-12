@@ -16,7 +16,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <random>
-#include "ETH_parser.h"  // only for gtNavState...
+#include "datasource/DataSource.h"  // only for gtNavState...
 #include "VioBackEnd.h"
 #include "utils/ThreadsafeImuBuffer.h"
 #include "initial/InitializationBackEnd.h"
@@ -445,7 +445,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
           all_measurements[k],
           tracker_status_valid.kfTrackingStatus_stereo_,
           pim);
-    
+
     // Create artificially noisy "RANSAC" pose measurements
     gtsam::Pose3 random_pose = (poses[k-1].first).between(poses[k].first) *
                 UtilsOpenCV::RandomPose3(rad_sigma, pos_sigma);
@@ -456,7 +456,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   }
 
   // Perform Bundle Adjustment
-  std::vector<gtsam::Pose3> results = 
+  std::vector<gtsam::Pose3> results =
         vio->addInitialVisualStatesAndOptimize(input_vector);
 
   CHECK_EQ(results.size(), num_key_frames -1);

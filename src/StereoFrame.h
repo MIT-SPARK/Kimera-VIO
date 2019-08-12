@@ -254,9 +254,9 @@ public:
       const cv::Mat left_rectified,
       const cv::Mat right_rectified,
       const StatusKeypointsCV& left_keypoints_rectified,
-      const double& fx, 
+      const double& fx,
       const double& getBaseline,
-      const double& getDepthMapFactor, 
+      const double& getDepthMapFactor,
       const double& getMinDepth) const;
 
   /* ------------------------------------------------------------------------ */

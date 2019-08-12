@@ -22,7 +22,7 @@ namespace VIO {
 StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuParams& imu_params, const ImuBias& imu_initial_bias,
     const VioFrontEndParams& trackerParams, int save_images_option,
-    const std::string& dataset_name, bool log_output)
+    bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
       last_landmark_count_(0),
@@ -35,10 +35,6 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
   // Instantiate IMU frontend.
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
 
-  if (save_images_option > 0) {
-    output_images_path_ = "./outputStereoTrackerImages-" + dataset_name;
-    tracker_.outputImagesPath_ = "./outputTrackerImages-" + dataset_name;
-  }
   tracker_.trackerParams_.print();
 }
 
@@ -289,7 +285,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   // Also if the user requires the keyframe to be enforced
   if (stereoFrame_k_->isKeyframe())
     LOG(WARNING) << "User inforced keyframe!";
-  // If max time elaspsed and not able to track feature -> create new keyframe  
+  // If max time elaspsed and not able to track feature -> create new keyframe
   if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_; // mainly for debugging
 

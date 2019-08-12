@@ -22,7 +22,7 @@
 #include <utility>  // for make_pair
 #include <vector>
 
-#include "ETH_parser.h"
+#include "datasource/DataSource.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
 #include "StereoImuSyncPacket.h"
@@ -44,8 +44,7 @@ class StereoVisionFrontEnd;
 namespace VIO {
 class Pipeline {
  public:
-  Pipeline(ETHDatasetParser* dataset, const ImuParams& imu_params,
-           bool parallel_run = true);
+  Pipeline(const PipelineParams& params, bool parallel_run = true);
 
   ~Pipeline();
 
@@ -135,7 +134,7 @@ class Pipeline {
       const StereoFrame& last_stereo_keyframe);
 
   StatusSmartStereoMeasurements featureSelect(
-      const VioFrontEndParams& tracker_params, const ETHDatasetParser& dataset,
+      const VioFrontEndParams& tracker_params,
       const Timestamp& timestamp_k, const Timestamp& timestamp_lkf,
       const gtsam::Pose3& W_Pose_Blkf, double* feature_selection_time,
       std::shared_ptr<StereoFrame>& stereoFrame_km1,
@@ -159,8 +158,6 @@ class Pipeline {
   void joinThreads();
 
   // Data provider.
-  // TODO remove dataset_ from vio pipeline altogether!
-  ETHDatasetParser* dataset_;
 
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
@@ -222,6 +219,7 @@ class Pipeline {
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
   // std::thread visualizer_thread_;
 
+  int backend_type_;
   bool parallel_run_;
 };
 

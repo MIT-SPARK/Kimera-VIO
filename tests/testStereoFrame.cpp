@@ -898,6 +898,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
   EXPECT_NEAR(100, sfnew->keypoints_depth_.size(), 1e-5);
   EXPECT_NEAR(100, sfnew->keypoints_3d_.size(), 1e-5);
   EXPECT_NEAR(100, sfnew->right_keypoints_status_.size(), 1e-5);
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that 3d point is consistent with the left versor and the depth
   int nrValid = 0;

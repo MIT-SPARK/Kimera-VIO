@@ -50,7 +50,6 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
 add_library(sparkvio SHARED
-  src/ETH_parser.cpp
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
   src/StereoFrame.cpp
@@ -107,13 +106,16 @@ target_include_directories(sparkvio
     $<INSTALL_INTERFACE:src>
   )
 
-target_compile_options(sparkvio
-  PRIVATE -Wall -pipe
-  PRIVATE -march=native) # Remove these
-  
+# target_compile_options(sparkvio
+#   PRIVATE -Wall -pipe
+#   PRIVATE -march=native) # Remove these
+
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(sparkvio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
+
+add_executable(stereoVIO ./examples/stereoVIO.cpp)
+target_link_libraries(stereoVIO PUBLIC SparkVio::SparkVio)
 
 add_executable(stereoVIOEuroc ./examples/stereoVIOEuroc.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::SparkVio)
@@ -123,9 +125,6 @@ target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
 
 #add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
 #target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::SparkVio)
-
-add_executable(stereoVIOKitti ./examples/stereoVIOKitti.cpp)
-target_link_libraries(stereoVIOKitti PUBLIC SparkVio::SparkVio)
 
 ### Add testing
 # Download and unpack googletest at configure time
@@ -155,11 +154,6 @@ if(CMAKE_VERSION VERSION_LESS 2.8.11)
                         "${gmock_SOURCE_DIR}/include")
 endif()
 
-# Include data directories for gtests.
-set(TEST_DATA_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
-configure_file(./tests/test_config.h.in ./tests/test_config.h)
-include_directories("${CMAKE_CURRENT_BINARY_DIR}/tests")
-
 # Generate gtests.
 include(CTest)
 add_executable(testSparkVio
@@ -171,12 +165,11 @@ add_executable(testSparkVio
   tests/testGeneralParallelPlaneRegularBasicFactor.cpp
   tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testImuFrontEnd.cpp
-  tests/testKittiDataProvider.cpp
-  #tests/testMesher.cpp
+  # tests/testMesher.cpp # rotten
   tests/testParallelPlaneRegularBasicFactor.cpp
   tests/testParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testPointPlaneFactor.cpp
-  #tests/testRegularVioBackEnd.cpp
+  #tests/testRegularVioBackEnd.cpp # rotten
   tests/testRegularVioBackEndParams.cpp
   tests/testStereoFrame.cpp
   tests/testStereoVisionFrontEnd.cpp
@@ -190,9 +183,8 @@ add_executable(testSparkVio
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
-  #tests/testInitializationBackEnd.cpp
-  tests/testOnlineAlignment.cpp
   )
+
 target_link_libraries(testSparkVio gtest SparkVio::SparkVio)
 
 if(CMAKE_VERSION VERSION_LESS 3.10)

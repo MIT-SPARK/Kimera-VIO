@@ -125,7 +125,7 @@ TEST(testFrame, CalibratePixel) {
 }
 
 /* ************************************************************************* */
-// TODO: Create test for Calibrate Pixel with pinhole equidistant model 
+// TODO: Create test for Calibrate Pixel with pinhole equidistant model
 // TEST(testFrame, CalibratePixelEquidistant) {}
 
 /* ************************************************************************* */

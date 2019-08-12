@@ -91,39 +91,33 @@ DEFINE_double(between_translation_bundle_adjustment, 0.5,
 
 namespace VIO {
 
-// TODO VERY BAD TO SEND THE DATASET PARSER AS A POINTER (at least for thread
-// safety!), but this is done now because the logger heavily relies on the
-// dataset parser, especially the grount-truth! Feature selector also has some
-// dependency with this...
-Pipeline::Pipeline(ETHDatasetParser* dataset, const ImuParams& imu_params,
+Pipeline::Pipeline(const PipelineParams& params,
                    bool parallel_run)
-  : dataset_(CHECK_NOTNULL(dataset)),
-    vio_frontend_(nullptr),
-    vio_backend_(nullptr),
-    mesher_(),
-    visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
-                dataset->getBackendType()),
-    stereo_frontend_thread_(nullptr),
-    wrapped_thread_(nullptr),
-    backend_thread_(nullptr),
-    mesher_thread_(nullptr),
-    parallel_run_(parallel_run),
-    stereo_frontend_input_queue_("stereo_frontend_input_queue"),
-    stereo_frontend_output_queue_("stereo_frontend_output_queue"),
-    initialization_frontend_output_queue_("initialization_frontend_output_queue"),
-    backend_input_queue_("backend_input_queue"),
-    backend_output_queue_("backend_output_queue"),
-    mesher_input_queue_("mesher_input_queue"),
-    mesher_output_queue_("mesher_output_queue"),
-    visualizer_input_queue_("visualizer_input_queue"),
-    visualizer_output_queue_("visualizer_output_queue") {
+    : backend_type_(params.backend_type_),
+      vio_frontend_(nullptr),
+      vio_backend_(nullptr),
+      backend_params_(params.backend_params_),
+      frontend_params_(params.frontend_params_),
+      mesher_(),
+      visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
+                  params.backend_type_),
+      stereo_frontend_thread_(nullptr),
+      wrapped_thread_(nullptr),
+      backend_thread_(nullptr),
+      mesher_thread_(nullptr),
+      parallel_run_(parallel_run),
+      stereo_frontend_input_queue_("stereo_frontend_input_queue"),
+      stereo_frontend_output_queue_("stereo_frontend_output_queue"),
+      initialization_frontend_output_queue_("initialization_frontend_output_queue"),
+      backend_input_queue_("backend_input_queue"),
+      backend_output_queue_("backend_output_queue"),
+      mesher_input_queue_("mesher_input_queue"),
+      mesher_output_queue_("mesher_output_queue"),
+      visualizer_input_queue_("visualizer_input_queue"),
+      visualizer_output_queue_("visualizer_output_queue") {
+
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
   if (FLAGS_log_output) logger_.openLogFiles();
-
-  frontend_params_ = dataset_->getFrontendParams();
-  backend_params_ = dataset_->getBackendParams();
-
-  // initialization_packet_.clear();
 
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.
@@ -131,16 +125,15 @@ Pipeline::Pipeline(ETHDatasetParser* dataset, const ImuParams& imu_params,
   static constexpr int saveImages =
       0;  // 0: don't show, 1: show, 2: write & save
   vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
-      imu_params,
-      // This should not be asked!
-      dataset->getGroundTruthState(dataset_->timestamp_first_lkf_).imu_bias_,
-      frontend_params_, saveImages, dataset_->getDatasetName(),
+      params.imu_params_,
+      gtsam::imuBias::ConstantBias(),
+      frontend_params_, saveImages,
       FLAGS_log_output);
 
   // Instantiate feature selector: not used in vanilla implementation.
   if (FLAGS_use_feature_selection) {
     feature_selector_ =
-        FeatureSelector(dataset_->getFrontendParams(), *backend_params_);
+        FeatureSelector(frontend_params_, *backend_params_);
   }
 }
 
@@ -248,11 +241,11 @@ void Pipeline::processKeyframe(
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
     if (FLAGS_extract_planes_from_the_scene) {
-      CHECK_EQ(dataset_->getBackendType(), 1u);  // Use Regular VIO
+      CHECK_EQ(backend_type_, 1u);  // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
       LOG_IF_EVERY_N(WARNING,
-                     dataset_->getBackendType() == 1u &&
+                     backend_type_ == 1u &&
                          (FLAGS_regular_vio_backend_modality == 2u ||
                           FLAGS_regular_vio_backend_modality == 3u ||
                           FLAGS_regular_vio_backend_modality == 4u),
@@ -381,11 +374,11 @@ void Pipeline::spinSequential() {
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
     if (FLAGS_extract_planes_from_the_scene) {
-      DCHECK_EQ(dataset_->getBackendType(), 1);  // Use Regular VIO
+      CHECK_EQ(backend_type_, 1);  // Use Regular VIO
       mesher_.clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
       LOG_IF_EVERY_N(WARNING,
-                     dataset_->getBackendType() == 1u &&
+                     backend_type_ == 1u &&
                          (FLAGS_regular_vio_backend_modality == 2u ||
                           FLAGS_regular_vio_backend_modality == 3u ||
                           FLAGS_regular_vio_backend_modality == 4u),
@@ -564,15 +557,11 @@ bool Pipeline::initializeFromIMUorGT(
 
   ///////////////////////////// GT ////////////////////////////////////////////
   // Initialize Backend using GT if available.
-  std::shared_ptr<gtNavState> initialStateGT =
-      dataset_->isGroundTruthAvailable()?
-        std::make_shared<gtNavState>(dataset_->getGroundTruthState(
-                     stereo_imu_sync_packet.getStereoFrame().getTimestamp())) :
-                     std::shared_ptr<gtNavState>(nullptr);
+  std::shared_ptr<gtNavState> initialStateGT = std::shared_ptr<gtNavState>(nullptr);
 
   ///////////////////////////// BACKEND //////////////////////////////////////
   // Initialize backend with pose estimate from gravity alignment
-  initializeVioBackend(stereo_imu_sync_packet, initialStateGT, 
+  initializeVioBackend(stereo_imu_sync_packet, initialStateGT,
                         stereo_frame_lkf);
 
   return true;
@@ -651,7 +640,7 @@ bool Pipeline::initializeOnline(
     // This queue is used for the backend after initialization
     stereo_frontend_output_queue_.push(frontend_real_output);
     /////////
-    
+
 
     // Only process set of frontend outputs after specific number of frames
     if (frame_id < (init_frame_id_ + FLAGS_num_frames_vio_init)) {
@@ -673,7 +662,7 @@ bool Pipeline::initializeOnline(
       // Adjust parameters for Bundle Adjustment
       // TODO(Sandro): Create YAML file for initialization and read in!
       VioBackEndParams backend_params_init(*backend_params_);
-      backend_params_init.smartNoiseSigma_ = 
+      backend_params_init.smartNoiseSigma_ =
                 FLAGS_smart_noise_sigma_bundle_adjustment;
       backend_params_init.outlierRejection_ =
                 FLAGS_outlier_rejection_bundle_adjustment;
@@ -684,7 +673,7 @@ bool Pipeline::initializeOnline(
       InitializationBackEnd initial_backend(
           output_frontend.front().stereo_frame_lkf_.getBPoseCamLRect(),
           output_frontend.front().stereo_frame_lkf_.getLeftUndistRectCamMat(),
-          output_frontend.front().stereo_frame_lkf_.getBaseline(), 
+          output_frontend.front().stereo_frame_lkf_.getBaseline(),
           backend_params_init,
           FLAGS_log_output);
 
@@ -693,7 +682,7 @@ bool Pipeline::initializeOnline(
       vio_frontend_->updateAndResetImuBias(
           gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
       gyro_bias = vio_frontend_->getCurrentImuBias().gyroscope();
-      
+
       // Initialize if successful
       if (initial_backend.bundleAdjustmentAndGravityAlignment(
                                     output_frontend,
@@ -760,14 +749,14 @@ bool Pipeline::initializeVioBackend(
                   std::cref(*vio_frontend_), std::placeholders::_1));
 
     ////////////////// DEBUG INITIALIZATION //////////////////////////////////
-    if (FLAGS_log_output) {
-      logger_.displayInitialStateVioInfo(
-          *dataset_, vio_backend_, *CHECK_NOTNULL(initial_state.get()),
-          stereo_imu_sync_packet.getImuAccGyr(),
-          stereo_imu_sync_packet.getStereoFrame().getTimestamp());
-      // Store latest pose estimate.
-      logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
-    }
+    // if (FLAGS_log_output) {
+    //   logger_.displayInitialStateVioInfo(
+    //       *dataset_, vio_backend_, *CHECK_NOTNULL(initial_state.get()),
+    //       stereo_imu_sync_packet.getImuAccGyr(),
+    //       stereo_imu_sync_packet.getStereoFrame().getTimestamp());
+    //   // Store latest pose estimate.
+    //   logger_.W_Pose_Bprevkf_vio_ = vio_backend_->getWPoseBLkf();
+    // } // TODO place elsewhere since dataset no longer in pipeline
 }
 
 /* -------------------------------------------------------------------------- */
@@ -781,7 +770,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                            const ImuAccGyrS& imu_accgyr) {
   CHECK_NOTNULL(vio_backend);
   // Create VIO.
-  switch (dataset_->getBackendType()) {
+  switch (backend_type_) {
     case 0: {
       LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
       *vio_backend = VIO::make_unique<VioBackEnd>(
@@ -804,7 +793,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                  << "Currently supported backend types:\n"
                  << "0: normal VIO\n"
                  << "1: regular VIO\n"
-                 << " but requested backend: " << dataset_->getBackendType();
+                 << " but requested backend: " << backend_type_;
     }
   }
   return true;
@@ -838,7 +827,7 @@ void Pipeline::spinDisplayOnce(
 
 /* -------------------------------------------------------------------------- */
 StatusSmartStereoMeasurements Pipeline::featureSelect(
-    const VioFrontEndParams& tracker_params, const ETHDatasetParser& dataset,
+    const VioFrontEndParams& tracker_params,
     const Timestamp& timestamp_k, const Timestamp& timestamp_lkf,
     const gtsam::Pose3& W_Pose_Blkf, double* feature_selection_time,
     std::shared_ptr<StereoFrame>& stereoFrame_km1,
@@ -860,23 +849,6 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   // it is the same time as vio->W_Pose_Blkf_
   KeyframeToStampedPose posesAtFutureKeyframes;
   Pose3 W_Pose_Bkf_gt;
-  if (dataset.isGroundTruthAvailable()) {
-    W_Pose_Bkf_gt = dataset.getGroundTruthState(timestamp_lkf).pose_;
-
-    for (size_t kk = 0; kk < nrKfInHorizon + 1; kk++) {
-      // Including current pose.
-      Timestamp timestamp_kk =
-          timestamp_k +
-          UtilsOpenCV::SecToNsec(kk * tracker_params.intra_keyframe_time_);
-
-      // Relative pose wrt ground truth at last kf.
-      Pose3 poseGT_km1_kk = W_Pose_Bkf_gt.between(
-          dataset.getGroundTruthState(timestamp_kk).pose_);
-      posesAtFutureKeyframes.push_back(
-          StampedPose(W_Pose_Blkf.compose(poseGT_km1_kk),
-                      UtilsOpenCV::NsecToSec(timestamp_kk)));
-    }
-  }
 
   VLOG(100) << "Starting feature selection...";
   SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
@@ -886,10 +858,9 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
           save_image_selector, tracker_params.featureSelectionCriterion_,
           tracker_params.featureSelectionNrCornersToSelect_,
           tracker_params.maxFeatureAge_,
-          posesAtFutureKeyframes,  // TODO Luca: can we make this optional, for
-                                   // the case where we do not have ground
-                                   // truth?
-          curr_state_cov, dataset.getDatasetName(),
+          posesAtFutureKeyframes,
+          curr_state_cov,
+          "",
           left_frame);  // last 2 are for visualization
   VLOG(100) << "Feature selection completed.";
 
