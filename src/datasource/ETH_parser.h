@@ -78,7 +78,7 @@ public:
                 const gtsam::Pose3& camL_pose_camR);
 
   // Parses EuRoC data, as well as the frontend and backend parameters
-  void parse(size_t initial_k, size_t final_k);
+  void parse();
 
   // Parse camera, gt, and imu data if using different Euroc format.
   bool parseDataset(const std::string& input_dataset_path,
