@@ -132,6 +132,13 @@ size_t Statistics::GetNumSamples(size_t handle) {
 size_t Statistics::GetNumSamples(std::string const& tag) {
   return GetNumSamples(GetHandle(tag));
 }
+std::vector<double> Statistics::GetAllSamples(size_t handle) {
+  std::lock_guard<std::mutex> lock(Instance().mutex_);
+  return Instance().stats_collectors_[handle].GetAllValues();
+}
+std::vector<double> Statistics::GetAllSamples(std::string const &tag) {
+  return GetAllSamples(GetHandle(tag));
+}
 double Statistics::GetVariance(size_t handle) {
   std::lock_guard<std::mutex> lock(Instance().mutex_);
   return Instance().stats_collectors_[handle].LazyVariance();
@@ -152,6 +159,27 @@ double Statistics::GetMax(size_t handle) {
 }
 double Statistics::GetMax(std::string const& tag) {
   return GetMax(GetHandle(tag));
+}
+double Statistics::GetMedian(size_t handle) {
+  std::lock_guard<std::mutex> lock(Instance().mutex_);
+  return Instance().stats_collectors_[handle].Median();
+}
+double Statistics::GetMedian(std::string const &tag) {
+  return GetMedian(GetHandle(tag));
+}
+double Statistics::GetQ1(size_t handle) {
+  std::lock_guard<std::mutex> lock(Instance().mutex_);
+  return Instance().stats_collectors_[handle].Q1();
+}
+double Statistics::GetQ1(std::string const &tag) {
+  return GetQ1(GetHandle(tag));
+}
+double Statistics::GetQ3(size_t handle) {
+  std::lock_guard<std::mutex> lock(Instance().mutex_);
+  return Instance().stats_collectors_[handle].Q1();
+}
+double Statistics::GetQ3(std::string const &tag) {
+  return GetQ3(GetHandle(tag));
 }
 double Statistics::GetHz(size_t handle) {
   std::lock_guard<std::mutex> lock(Instance().mutex_);
@@ -267,17 +295,48 @@ void Statistics::Print(std::ostream& out) {  // NOLINT
   }
 }
 
-void Statistics::WriteToYamlFile(const std::string& path) {
+void Statistics::WriteAllSamplesToCsvFile(const std::string &path) {
   const map_t& tag_map = Instance().tag_map_;
-
   if (tag_map.empty()) {
     return;
   }
 
+  VLOG(1) << "Writing statistics to file: " << path;
+  for (const map_t::value_type &tag : tag_map) {
+    const size_t &index = tag.second;
+    if (GetNumSamples(index) > 0) {
+      const std::string &label = tag.first;
+
+      std::string filepath = path + '-' + label;
+      std::ofstream output_file(filepath);
+      if (!output_file) {
+        LOG(ERROR) << "Could not write samples: Unable to open file: "
+                   << filepath;
+        return;
+      }
+
+      // Add header to csv file. tag.first is the stats label.
+      output_file << "# " << label << ":\n";
+
+      // Each row is a sample.
+      const std::vector<double> &samples = GetAllSamples(index);
+      for (const auto &sample : samples) {
+        output_file << sample << '\n';
+      }
+    }
+  }
+}
+
+void Statistics::WriteToYamlFile(const std::string &path) {
   std::ofstream output_file(path);
 
   if (!output_file) {
     LOG(ERROR) << "Could not write statistics: Unable to open file: " << path;
+    return;
+  }
+
+  const map_t &tag_map = Instance().tag_map_;
+  if (tag_map.empty()) {
     return;
   }
 
@@ -293,13 +352,15 @@ void Statistics::WriteToYamlFile(const std::string& path) {
       std::replace(label.begin(), label.end(), ':', '_');
       std::replace(label.begin(), label.end(), '#', '_');
 
-      output_file << label << ":"
-                  << "\n";
+      output_file << label << ":\n";
       output_file << "  samples: " << GetNumSamples(index) << "\n";
       output_file << "  mean: " << GetMean(index) << "\n";
       output_file << "  stddev: " << sqrt(GetVariance(index)) << "\n";
       output_file << "  min: " << GetMin(index) << "\n";
       output_file << "  max: " << GetMax(index) << "\n";
+      output_file << "  median: " << GetMedian(index) << "\n";
+      output_file << "  q1: " << GetQ1(index) << "\n";
+      output_file << "  q3: " << GetQ3(index) << "\n";
     }
     output_file << "\n";
   }
