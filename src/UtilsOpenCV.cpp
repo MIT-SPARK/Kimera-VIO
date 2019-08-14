@@ -76,15 +76,14 @@ std::string UtilsOpenCV::typeToString(int type) {
 
 /* -------------------------------------------------------------------------- */
 // Open files with name output_filename, and checks that it is valid
-void UtilsOpenCV::OpenFile(const std::string& output_filename,
-                           std::ofstream& outputFile, bool append_mode) {
-  outputFile.open(output_filename.c_str(),
-                  append_mode ? std::ios_base::app : std::ios_base::out);
-  outputFile.precision(20);
-  if (!outputFile.is_open()) {
-    std::cout << "Cannot open file: " << output_filename << std::endl;
-    throw std::runtime_error("OpenFile: cannot open the file!!!");
-  }
+void UtilsOpenCV::OpenFile(const std::string &output_filename,
+                           std::ofstream *output_file, bool append_mode) {
+  CHECK_NOTNULL(output_file);
+  output_file->open(output_filename.c_str(),
+                    append_mode ? std::ios_base::app : std::ios_base::out);
+  output_file->precision(20);
+  CHECK(output_file->is_open()) << "Cannot open file: " << output_filename;
+  CHECK(output_file->good()) << "File in bad state: " << output_filename;
 }
 /* -------------------------------------------------------------------------- */
 // compares 2 cv::Mat
@@ -92,7 +91,7 @@ bool UtilsOpenCV::CvMatCmp(const cv::Mat mat1, const cv::Mat mat2,
                            const double tol) {
   // treat two empty mat as identical as well
   if (mat1.empty() && mat2.empty()) {
-    std::cout << "CvMatCmp: asked comparison of 2 empty matrices" << std::endl;
+    LOG(WARNING) << "CvMatCmp: asked comparison of 2 empty matrices.";
     return true;
   }
   // if dimensionality of two mats are not identical, these two mats are not
@@ -967,20 +966,18 @@ UtilsOpenCV::FindHighIntensityInTriangle(const cv::Mat img,
     }
 
     // sanity check
-    if (min_x < topLeft_x || max_x > botRight_x) {
-      std::cout << min_x << " " << topLeft_x << " " << max_x << " "
-                << botRight_x << std::endl;
-      throw std::runtime_error(
-          "FindHighIntensityInTriangle: inconsistent extrema");
-    }
+    CHECK(min_x >= topLeft_x && max_x <= botRight_x)
+        << min_x << " " << topLeft_x << " " << max_x << " " << botRight_x
+        << '\n'
+        << "FindHighIntensityInTriangle: inconsistent extrema.";
 
     for (int c = min_x + margin; c < max_x - margin; c++) {
       float intensity_rc = float(img.at<uint8_t>(r, c));
 
       if (isDebug) {
-        std::cout << "intensity_rc (r,c): " << intensity_rc << " (" << r << ","
-                  << c << ")" << std::endl;
-        std::cout << "min: " << min << " max " << max << std::endl;
+        LOG(INFO) << "intensity_rc (r,c): " << intensity_rc << " (" << r << ","
+                  << c << ")";
+        LOG(INFO) << "min: " << min << " max " << max;
         cv::circle(imgCopy, cv::Point(c, r), 1, cv::Scalar(255, 0, 0),
                    CV_FILLED, CV_AA, 0);
       }
@@ -1002,7 +999,7 @@ UtilsOpenCV::FindHighIntensityInTriangle(const cv::Mat img,
   }
 
   return keypointsWithIntensities;
-}
+} // namespace VIO
 
 /* ------------------------------------------------------------------------ */
 // Returns a OpenCV file storage in a safely manner, warning about potential

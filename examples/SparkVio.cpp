@@ -7,22 +7,24 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   stereoVIOEuroc.cpp
- * @brief  example of VIO pipeline running on the Euroc dataset
+ * @file   SparkVio.cpp
+ * @brief  Example of VIO pipeline.
  * @author Antoni Rosinol, Luca Carlone, Yun Chang
  */
+
+#include <future>
+#include <memory>
+#include <utility>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "LoggerMatlab.h"
 #include "datasource/ETH_parser.h"
 #include "datasource/KittiDataSource.h"
-#include "LoggerMatlab.h"
 #include "pipeline/Pipeline.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
-
-#include <future>
 
 #include "StereoImuSyncPacket.h"
 
@@ -32,27 +34,21 @@ DEFINE_int32(dataset_type, 0,
              "0: EuRoC\n"
              "1: Kitti");
 
-////////////////////////////////////////////////////////////////////////////////
-// stereoVIOexample
-////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[]) {
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
+  // Build dataset parser.
   std::unique_ptr<VIO::DataProvider> dataset_parser;
   switch (FLAGS_dataset_type) {
-    case 0 :
-    {
+    case 0: {
       dataset_parser = VIO::make_unique<VIO::ETHDatasetParser>();
-    }
-    break;
-    case 1 :
-    {
+    } break;
+    case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
-    }
-    break;
+    } break;
     default:
     {
       LOG(FATAL) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
@@ -63,16 +59,16 @@ int main(int argc, char *argv[]) {
   VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_,
                              FLAGS_parallel_run);
 
-  // Register callback to vio_pipeline.
+  // Register callback to vio pipeline.
   dataset_parser->registerVioCallback(
       std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
 
-  //// Spin dataset.
+  // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
   if (FLAGS_parallel_run) {
     auto handle = std::async(std::launch::async, &VIO::DataProvider::spin,
-                            std::move(dataset_parser));
+                             std::move(dataset_parser));
     auto handle_pipeline =
         std::async(std::launch::async, &VIO::Pipeline::shutdownWhenFinished,
                    &vio_pipeline);
@@ -82,6 +78,8 @@ int main(int argc, char *argv[]) {
   } else {
     is_pipeline_successful = dataset_parser->spin();
   }
+
+  // Output stats.
   auto spin_duration = VIO::utils::Timer::toc(tic);
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
   LOG(INFO) << "Pipeline successful? "
@@ -96,5 +94,5 @@ int main(int argc, char *argv[]) {
     logger.closeLogFiles();
   }
 
-  return is_pipeline_successful;
+  return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;
 }

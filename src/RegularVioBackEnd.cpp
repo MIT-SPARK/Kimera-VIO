@@ -416,6 +416,8 @@ void RegularVioBackEnd::addLandmarksToGraph(
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO reuse base class backend addLandmarkToGraph because this one is
+// too similar!
 void RegularVioBackEnd::addLandmarkToGraph(const LandmarkId& lmk_id,
                                            const FeatureTrack& ft,
                                            LmkIdIsSmart* lmk_id_is_smart) {
@@ -473,8 +475,7 @@ void RegularVioBackEnd::updateLandmarkInGraph(
              << " is set to be a projection factor.\n";
 
     // Update lmk_id as a projection factor.
-    gtsam::Key lmk_key = gtsam::Symbol('l', lmk_id).key();
-    if (state_.find(lmk_key) == state_.end()) {
+    if (state_.find(gtsam::Symbol('l', lmk_id).key()) == state_.end()) {
       VLOG(20) << "Lmk with id: " << lmk_id << " is not found in state.\n";
       // We did not find the lmk in the state.
       // It was a smart factor before.
@@ -528,9 +529,9 @@ void RegularVioBackEnd::updateExistingSmartFactor(
 
   // Get old factor.
   SmartStereoFactor::shared_ptr old_factor = old_smart_factors_it->second.first;
+  CHECK(old_factor);
 
   // Clone old factor as a new factor.
-  CHECK_NOTNULL(old_factor.get());
   SmartStereoFactor::shared_ptr new_factor =
       boost::make_shared<SmartStereoFactor>(*old_factor);
 

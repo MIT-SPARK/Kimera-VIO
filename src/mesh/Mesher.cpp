@@ -31,6 +31,9 @@ DEFINE_bool(add_extra_lmks_from_stereo, false,
 DEFINE_bool(reduce_mesh_to_time_horizon, true,
             "Reduce mesh vertices to the "
             "landmarks available in current optimization's time horizon.");
+DEFINE_bool(compute_per_vertex_normals, false,
+            "Compute per-vertex normals,"
+            "this is for visualization in RVIZ, it is costly!");
 
 // Mesh 2D return, for semantic segmentation.
 // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
@@ -234,7 +237,7 @@ double Mesher::getRatioBetweenSmallestAndLargestSide(
 // mapPoints3d_.at(rowId_pt2), mapPoints3d_.at(rowId_pt3), compute ratio between
 // largest side and smallest side (how elongated it is)
 double Mesher::getRatioBetweenTangentialAndRadialDisplacement(
-    const Vertex3DType& p1, const Vertex3DType& p2, const Vertex3DType& p3,
+    const Vertex3D& p1, const Vertex3D& p2, const Vertex3D& p3,
     const gtsam::Pose3& leftCameraPose) const {
   std::vector<gtsam::Point3> points;
 
@@ -289,9 +292,9 @@ bool Mesher::isBadTriangle(
     const double& min_ratio_between_largest_an_smallest_side,
     const double& min_elongation_ratio, const double& max_triangle_side) const {
   CHECK_EQ(polygon.size(), 3) << "Expecting 3 vertices in triangle";
-  const Vertex3DType& p1 = polygon.at(0).getVertexPosition();
-  const Vertex3DType& p2 = polygon.at(1).getVertexPosition();
-  const Vertex3DType& p3 = polygon.at(2).getVertexPosition();
+  const Vertex3D& p1 = polygon.at(0).getVertexPosition();
+  const Vertex3D& p2 = polygon.at(1).getVertexPosition();
+  const Vertex3D& p3 = polygon.at(2).getVertexPosition();
 
   double ratioSides_i = 0;
   double ratioTangentialRadial_i = 0;
@@ -388,7 +391,6 @@ void Mesher::populate3dMesh(
 
   // Iterate over the 2d mesh triangles.
   for (size_t i = 0; i < mesh_2d_pixels.size(); i++) {
-    size_t triangle_2d_id = i;
     const cv::Vec6f& triangle_2d = mesh_2d_pixels.at(i);
 
     // Iterate over each vertex (pixel) of the triangle.
@@ -476,9 +478,9 @@ void Mesher::updatePolygonMeshToTimeHorizon(
         // This is to ensure we have latest update, the previous
         // addPolygonToMesh only updates the positions of the vertices in the
         // visible frame.
-        vertex.setVertexPosition(Vertex3DType(point_with_id_it->second.x(),
-                                              point_with_id_it->second.y(),
-                                              point_with_id_it->second.z()));
+        vertex.setVertexPosition(Vertex3D(point_with_id_it->second.x(),
+                                          point_with_id_it->second.y(),
+                                          point_with_id_it->second.z()));
       }
     }
 
@@ -500,6 +502,9 @@ void Mesher::updatePolygonMeshToTimeHorizon(
 
 /* -------------------------------------------------------------------------- */
 // Calculate normals of polygonMesh.
+// TODO(Toni): put this inside the mesh itself...
+// TODO(Toni): the mesh has already a computePerVertexNormals.
+// although here we are interested instead on a per-face normal.
 void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
   CHECK_NOTNULL(normals);
   CHECK_EQ(mesh_3d_.getMeshPolygonDimension(), 3)
@@ -516,10 +521,10 @@ void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
   Mesh3D::Polygon polygon;
   for (size_t i = 0; i < mesh_3d_.getNumberOfPolygons(); i++) {
     CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
-    CHECK_EQ(polygon.size(), 3);
-    const Vertex3DType& p1 = polygon.at(0).getVertexPosition();
-    const Vertex3DType& p2 = polygon.at(1).getVertexPosition();
-    const Vertex3DType& p3 = polygon.at(2).getVertexPosition();
+    DCHECK_EQ(polygon.size(), 3);
+    const Vertex3D& p1 = polygon.at(0).getVertexPosition();
+    const Vertex3D& p2 = polygon.at(1).getVertexPosition();
+    const Vertex3D& p3 = polygon.at(2).getVertexPosition();
 
     cv::Point3f normal;
     CHECK(calculateNormal(p1, p2, p3, &normal));
@@ -535,8 +540,9 @@ void Mesher::calculateNormals(std::vector<cv::Point3f>* normals) {
 /* -------------------------------------------------------------------------- */
 // Calculate normal of a triangle, and return whether it was possible or not.
 // Calculating the normal of aligned points in 3D is not possible...
-bool Mesher::calculateNormal(const Vertex3DType& p1, const Vertex3DType& p2,
-                             const Vertex3DType& p3,
+bool Mesher::calculateNormal(const Vertex3D& p1, const Vertex3D& p2,
+                             const Vertex3D& p3,
+                             // Make this a cv::vector3f
                              cv::Point3f* normal) const {
   CHECK_NOTNULL(normal);
   // TODO what if p2 = p1 or p3 = p1?
@@ -599,8 +605,8 @@ bool Mesher::isNormalAroundAxis(const cv::Point3f& axis,
   // TODO typedef normals and axis to Normal, and use cv::Point3d instead.
   CHECK_NEAR(cv::norm(axis), 1.0, 1e-5);    // Expect unit norm.
   CHECK_NEAR(cv::norm(normal), 1.0, 1e-5);  // Expect unit norm.
-  CHECK_GT(tolerance, 0.0);                 // Tolerance is positive.
-  CHECK_LT(tolerance, 1.0);  // Tolerance is lower than maximum dot product.
+  DCHECK_GT(tolerance, 0.0);                // Tolerance is positive.
+  DCHECK_LT(tolerance, 1.0);  // Tolerance is lower than maximum dot product.
   // Dot product should be close to 1 or -1 if axis is aligned with normal.
   return (std::fabs(normal.ddot(axis)) > 1.0 - tolerance);
 }
@@ -643,8 +649,8 @@ bool Mesher::isNormalPerpendicularToAxis(const cv::Point3f& axis,
                                          const double& tolerance) const {
   CHECK_NEAR(cv::norm(axis), 1.0, 1e-5);    // Expect unit norm.
   CHECK_NEAR(cv::norm(normal), 1.0, 1e-5);  // Expect unit norm.
-  CHECK_GT(tolerance, 0.0);                 // Tolerance is positive.
-  CHECK_LT(tolerance, 1.0);  // Tolerance is lower than maximum dot product.
+  DCHECK_GT(tolerance, 0.0);                // Tolerance is positive.
+  DCHECK_LT(tolerance, 1.0);  // Tolerance is lower than maximum dot product.
   // Dot product should be close to 0 if axis is perpendicular to normal.
   return (cv::norm(normal.ddot(axis)) < tolerance);
 }
@@ -655,7 +661,7 @@ bool Mesher::isPolygonAtDistanceFromPlane(
     const Mesh3D::Polygon& polygon, const double& plane_distance,
     const cv::Point3f& plane_normal, const double& distance_tolerance) const {
   CHECK_NEAR(cv::norm(plane_normal), 1.0, 1e-05);  // Expect unit norm.
-  CHECK_GE(distance_tolerance, 0.0);
+  DCHECK_GE(distance_tolerance, 0.0);
   for (const Mesh3D::VertexType& vertex : polygon) {
     if (!isPointAtDistanceFromPlane(vertex.getVertexPosition(), plane_distance,
                                     plane_normal, distance_tolerance)) {
@@ -669,10 +675,10 @@ bool Mesher::isPolygonAtDistanceFromPlane(
 /* -------------------------------------------------------------------------- */
 // Checks whether the point is closer than tolerance to the plane.
 bool Mesher::isPointAtDistanceFromPlane(
-    const Vertex3DType& point, const double& plane_distance,
+    const Vertex3D& point, const double& plane_distance,
     const cv::Point3f& plane_normal, const double& distance_tolerance) const {
   CHECK_NEAR(cv::norm(plane_normal), 1.0, 1e-05);  // Expect unit norm.
-  CHECK_GE(distance_tolerance, 0.0);
+  DCHECK_GE(distance_tolerance, 0.0);
   // The lmk is closer to the plane than given tolerance.
   return (std::fabs(plane_distance - point.ddot(plane_normal)) <=
           distance_tolerance);
@@ -759,9 +765,9 @@ void Mesher::segmentPlanesInMesh(
   for (size_t i = 0; i < mesh_3d_.getNumberOfPolygons(); i++) {
     CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), mesh_polygon_dim);
-    const Vertex3DType& p1 = polygon.at(0).getVertexPosition();
-    const Vertex3DType& p2 = polygon.at(1).getVertexPosition();
-    const Vertex3DType& p3 = polygon.at(2).getVertexPosition();
+    const Vertex3D& p1 = polygon.at(0).getVertexPosition();
+    const Vertex3D& p2 = polygon.at(1).getVertexPosition();
+    const Vertex3D& p3 = polygon.at(2).getVertexPosition();
 
     // Calculate normal of the triangle in the mesh.
     // The normals are in the world frame of reference.
@@ -868,9 +874,9 @@ void Mesher::updatePlanesLmkIdsFromMesh(
   for (size_t i = 0; i < mesh_3d_.getNumberOfPolygons(); i++) {
     CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     CHECK_EQ(polygon.size(), mesh_polygon_dim);
-    const Vertex3DType& p1 = polygon.at(0).getVertexPosition();
-    const Vertex3DType& p2 = polygon.at(1).getVertexPosition();
-    const Vertex3DType& p3 = polygon.at(2).getVertexPosition();
+    const Vertex3D& p1 = polygon.at(0).getVertexPosition();
+    const Vertex3D& p2 = polygon.at(1).getVertexPosition();
+    const Vertex3D& p3 = polygon.at(2).getVertexPosition();
 
     // Calculate normal of the triangle in the mesh.
     // The normals are in the world frame of reference.
@@ -1261,6 +1267,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 /* -------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
 // Optional parameter is the mesh in 2D for visualization.
+// THIS CALL IS NOT THREAD-SAFE
 void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
     std::shared_ptr<StereoFrame> stereo_frame_ptr,
@@ -1310,6 +1317,9 @@ void Mesher::updateMesh3D(
                             FLAGS_min_ratio_btw_largest_smallest_side,
                             FLAGS_min_elongation_ratio, FLAGS_max_triangle_side,
                             mesh_2d);
+
+  // Calculate 3d mesh normals.
+  if (FLAGS_compute_per_vertex_normals) mesh_3d_.computePerVertexNormals();
 
   VLOG(10) << "Finished updateMesh3D.";
 }

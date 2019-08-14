@@ -33,87 +33,86 @@ void LoggerMatlab::openLogFiles(int i, const std::string& output_file_name,
                                 bool open_file_in_append_mode) {
   // Store output data and debug info:
   if (i == 0 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ +
-            (output_file_name.empty() ? "/output.txt" : output_file_name),
-        outputFile_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output.txt"
+                                              : output_file_name),
+                          &outputFile_, open_file_in_append_mode);
   if (i == 1 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_posesVIO.txt"
-                                                 : output_file_name),
-        outputFile_posesVIO_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_posesVIO.txt"
+                                              : output_file_name),
+                          &outputFile_posesVIO_, open_file_in_append_mode);
   if (i == 2 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_posesGT.txt"
-                                                 : output_file_name),
-        outputFile_posesGT_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_posesGT.txt"
+                                              : output_file_name),
+                          &outputFile_posesGT_, open_file_in_append_mode);
   if (i == 3 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_landmarks.txt"
-                                                 : output_file_name),
-        outputFile_landmarks_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_landmarks.txt"
+                                              : output_file_name),
+                          &outputFile_landmarks_, open_file_in_append_mode);
   if (i == 4 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_normals.txt"
-                                                 : output_file_name),
-        outputFile_normals_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_normals.txt"
+                                              : output_file_name),
+                          &outputFile_normals_, open_file_in_append_mode);
   if (i == 5 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_smartFactors.txt"
-                                                 : output_file_name),
-        outputFile_smartFactors_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_smartFactors.txt"
+                                              : output_file_name),
+                          &outputFile_smartFactors_, open_file_in_append_mode);
   if (i == 6 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_timingVIO.txt"
-                                                 : output_file_name),
-        outputFile_timingVIO_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_timingVIO.txt"
+                                              : output_file_name),
+                          &outputFile_timingVIO_, open_file_in_append_mode);
   if (i == 7 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_timingTracker.txt"
-                                                 : output_file_name),
-        outputFile_timingTracker_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_timingTracker.txt"
+                                              : output_file_name),
+                          &outputFile_timingTracker_, open_file_in_append_mode);
   if (i == 8 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_statsTracker.txt"
-                                                 : output_file_name),
-        outputFile_statsTracker_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_statsTracker.txt"
+                                              : output_file_name),
+                          &outputFile_statsTracker_, open_file_in_append_mode);
   if (i == 9 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_statsFactors.txt"
-                                                 : output_file_name),
-        outputFile_statsFactors_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_statsFactors.txt"
+                                              : output_file_name),
+                          &outputFile_statsFactors_, open_file_in_append_mode);
   if (i == 10 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ +
-            (output_file_name.empty() ? "/output_mesh.ply" : output_file_name),
-        outputFile_mesh_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_mesh.ply"
+                                              : output_file_name),
+                          &outputFile_mesh_, open_file_in_append_mode);
   if (i == 11 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_timingOverall.csv"
-                                                 : output_file_name),
-        outputFile_timingOverall_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_timingOverall.csv"
+                                              : output_file_name),
+                          &outputFile_timingOverall_, open_file_in_append_mode);
   if (i == 12 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_frontend.csv"
-                                                 : output_file_name),
-        outputFile_frontend_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_frontend.csv"
+                                              : output_file_name),
+                          &outputFile_frontend_, open_file_in_append_mode);
   if (i == 13 || i == -1)
-    UtilsOpenCV::OpenFile(
-        output_path_ + (output_file_name.empty() ? "/output_posesVIO.csv"
-                                                 : output_file_name),
-        outputFile_posesVIO_csv_, open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
+                                              ? "/output_posesVIO.csv"
+                                              : output_file_name),
+                          &outputFile_posesVIO_csv_, open_file_in_append_mode);
   if (i == 14 || i == -1)
     UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
                                               ? "/output_posesVIO_pipeline.csv"
                                               : output_file_name),
-                          outputFile_posesVIO_csv_pipeline_,
+                          &outputFile_posesVIO_csv_pipeline_,
                           open_file_in_append_mode);
   if (i == 15 || i == -1)
-    UtilsOpenCV::OpenFile(output_path_ + (output_file_name.empty()
-                                              ? "/output_initPerformance.csv"
-                                              : output_file_name),
-                          outputFile_initPerformance_,
-                          open_file_in_append_mode);
+    UtilsOpenCV::OpenFile(
+        output_path_ + (output_file_name.empty() ? "/output_initPerformance.csv"
+                                                 : output_file_name),
+        &outputFile_initPerformance_, open_file_in_append_mode);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -167,7 +166,7 @@ void LoggerMatlab::logFrontendResults(
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void LoggerMatlab::logLandmarks(const VioBackEnd::PointsWithId& lmks) {
+void LoggerMatlab::logLandmarks(const PointsWithId& lmks) {
   // Absolute vio errors
   if (outputFile_landmarks_) {
     outputFile_landmarks_ << "Id"
@@ -177,7 +176,7 @@ void LoggerMatlab::logLandmarks(const VioBackEnd::PointsWithId& lmks) {
                           << "y"
                           << "\t"
                           << "z\n";
-    for (const VioBackEnd::PointWithId& point : lmks) {
+    for (const PointWithId& point : lmks) {
       outputFile_landmarks_ << point.first << "\t" << point.second.x() << "\t"
                             << point.second.y() << "\t" << point.second.z()
                             << "\n";
@@ -315,8 +314,7 @@ void LoggerMatlab::logBackendResultsCSV(
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-void LoggerMatlab::logPipelineResultsCSV(
-    const SpinOutputContainer& vio_output) {
+void LoggerMatlab::logPipelineResultsCSV(const SpinOutputPacket &vio_output) {
   // We log the poses in csv format for later alignement and analysis.
   /*static bool is_header_written = false;
   if (!is_header_written) {
@@ -327,17 +325,19 @@ void LoggerMatlab::logPipelineResultsCSV(
     is_header_written = true;
   }*/
   const auto& w_pose_blkf_trans =
-      vio_output.W_Pose_Blkf_.translation().transpose();
-  const auto& w_pose_blkf_rot = vio_output.W_Pose_Blkf_.rotation().quaternion();
-  const auto& w_vel_blkf = vio_output.W_Vel_Blkf_.transpose();
-  const auto& imu_bias_gyro = vio_output.imu_bias_lkf_.gyroscope().transpose();
+      vio_output.getEstimatedPose().translation().transpose();
+  const auto &w_pose_blkf_rot =
+      vio_output.getEstimatedPose().rotation().quaternion();
+  const auto& w_vel_blkf = vio_output.getEstimatedVelocity().transpose();
+  const auto &imu_bias_gyro =
+      vio_output.getEstimatedBias().gyroscope().transpose();
   const auto& imu_bias_acc =
-      vio_output.imu_bias_lkf_.accelerometer().transpose();
-  if (vio_output.timestamp_kf_ != -1) {
+      vio_output.getEstimatedBias().accelerometer().transpose();
+  if (vio_output.getTimestamp() != -1) {
     outputFile_posesVIO_csv_pipeline_
         // TODO Luca: is W_Vel_Blkf_ at timestamp_lkf or timestamp_kf?
         // I just want to log latest vio estimate and correct timestamp...
-        << vio_output.timestamp_kf_ << ", " << w_pose_blkf_trans.x() << ", "
+        << vio_output.getTimestamp() << ", " << w_pose_blkf_trans.x() << ", "
         << w_pose_blkf_trans.y() << ", " << w_pose_blkf_trans.z() << ", "
         << w_pose_blkf_rot(1) << ", "  // q_x
         << w_pose_blkf_rot(2) << ", "  // q_y
@@ -352,58 +352,52 @@ void LoggerMatlab::logPipelineResultsCSV(
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void LoggerMatlab::logInitializationResultsCSV(
-        const InitializationPerformance& perf,
-        const double& ba_duration,
-        const double& alignment_duration,
-        const bool& is_successful) {
-    // We log the poses in csv format for later analysis.
-    static bool is_header_written = false;
-    if (!is_header_written) {
-      outputFile_initPerformance_
-          << "timestamp,N_frames,avg_relRotErrorBA,avg_relTranErrorBA,"
-            "ba_duration(ms),alignment_duration(ms),"
-            "init_roll(deg),init_pitch(deg),init_yaw(deg),"
-            "init_body_vx,init_body_vy,init_body_vz,"
-            "init_gyro_bx,init_gyro_by,init_gyro_bz,"
-            "init_grav_bx,init_grav_by,init_grav_bz,"
-            "gt_roll(deg),gt_pitch(deg),gt_yaw(deg),"
-            "gt_body_vx,gt_body_vy,gt_body_vz,"
-            "gt_gyro_bx,gt_gyro_by,gt_gyro_bz,"
-            "gt_grav_bx,gt_grav_by,gt_grav_bz,"
-            "is_successful,"
-          << std::endl;
-      is_header_written = true;
-    }
+    const InitializationPerformance &perf, const double &ba_duration,
+    const double &alignment_duration, const bool &is_successful) {
+  // We log the poses in csv format for later analysis.
+  static bool is_header_written = false;
+  if (!is_header_written) {
     outputFile_initPerformance_
+        << "timestamp,N_frames,avg_relRotErrorBA,avg_relTranErrorBA,"
+           "ba_duration(ms),alignment_duration(ms),"
+           "init_roll(deg),init_pitch(deg),init_yaw(deg),"
+           "init_body_vx,init_body_vy,init_body_vz,"
+           "init_gyro_bx,init_gyro_by,init_gyro_bz,"
+           "init_grav_bx,init_grav_by,init_grav_bz,"
+           "gt_roll(deg),gt_pitch(deg),gt_yaw(deg),"
+           "gt_body_vx,gt_body_vy,gt_body_vz,"
+           "gt_gyro_bx,gt_gyro_by,gt_gyro_bz,"
+           "gt_grav_bx,gt_grav_by,gt_grav_bz,"
+           "is_successful,"
+        << std::endl;
+    is_header_written = true;
+  }
+  outputFile_initPerformance_
       << perf.init_timestamp_ << ", " << perf.init_n_frames_ << ", "
       << perf.avg_rotationErrorBA_ << ", " << perf.avg_tranErrorBA_ << ", "
       << ba_duration << ", " << alignment_duration << ", "
-      << perf.init_nav_state_.pose().rotation().pitch()*180.0/M_PI << ", "
-      << perf.init_nav_state_.pose().rotation().roll()*180.0/M_PI << ", "
-      << perf.init_nav_state_.pose().rotation().yaw()*180.0/M_PI << ", "
+      << perf.init_nav_state_.pose().rotation().pitch() * 180.0 / M_PI << ", "
+      << perf.init_nav_state_.pose().rotation().roll() * 180.0 / M_PI << ", "
+      << perf.init_nav_state_.pose().rotation().yaw() * 180.0 / M_PI << ", "
       << perf.init_nav_state_.velocity_.x() << ", "
       << perf.init_nav_state_.velocity_.y() << ", "
       << perf.init_nav_state_.velocity_.z() << ", "
       << perf.init_nav_state_.imu_bias_.gyroscope().x() << ", "
       << perf.init_nav_state_.imu_bias_.gyroscope().y() << ", "
       << perf.init_nav_state_.imu_bias_.gyroscope().z() << ", "
-      << perf.init_gravity_.x() << ", "
-      << perf.init_gravity_.y() << ", "
+      << perf.init_gravity_.x() << ", " << perf.init_gravity_.y() << ", "
       << perf.init_gravity_.z() << ", "
-      << perf.gt_nav_state_.pose().rotation().pitch()*180.0/M_PI << ", "
-      << perf.gt_nav_state_.pose().rotation().roll()*180.0/M_PI << ", "
-      << perf.gt_nav_state_.pose().rotation().yaw()*180.0/M_PI << ", "
+      << perf.gt_nav_state_.pose().rotation().pitch() * 180.0 / M_PI << ", "
+      << perf.gt_nav_state_.pose().rotation().roll() * 180.0 / M_PI << ", "
+      << perf.gt_nav_state_.pose().rotation().yaw() * 180.0 / M_PI << ", "
       << perf.gt_nav_state_.velocity_.x() << ", "
       << perf.gt_nav_state_.velocity_.y() << ", "
       << perf.gt_nav_state_.velocity_.z() << ", "
       << perf.gt_nav_state_.imu_bias_.gyroscope().x() << ", "
       << perf.gt_nav_state_.imu_bias_.gyroscope().y() << ", "
       << perf.gt_nav_state_.imu_bias_.gyroscope().z() << ", "
-      << perf.gt_gravity_.x() << ", "
-      << perf.gt_gravity_.y() << ", "
-      << perf.gt_gravity_.z() << ", "
-      << is_successful << ", "
-      << std::endl;
+      << perf.gt_gravity_.x() << ", " << perf.gt_gravity_.y() << ", "
+      << perf.gt_gravity_.z() << ", " << is_successful << ", " << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

@@ -53,8 +53,8 @@ bool KittiDataProvider::spin() {
   // Loop over the messages and call vio callback.
   // Timestamp 10 frames before the first (for imu calibration)
   static constexpr size_t frame_offset_for_imu_calib = 10;
-  Timestamp timestamp_last_frame = kitti_data_.timestamps_.at(
-      initial_k_ - frame_offset_for_imu_calib);
+  Timestamp timestamp_last_frame =
+      kitti_data_.timestamps_.at(initial_k_ - frame_offset_for_imu_calib);
   Timestamp timestamp_frame_k;
 
   const size_t number_of_images = kitti_data_.getNumberOfImages();
@@ -202,16 +202,14 @@ void KittiDataProvider::parseKittiData(const std::string& kitti_sequence_path,
 
   const size_t& nr_images = kitti_data->getNumberOfImages();
   if (final_k_ > nr_images) {
-    LOG(WARNING) << "Value for final_k, " << final_k_
-                 << " is larger than total"
+    LOG(WARNING) << "Value for final_k, " << final_k_ << " is larger than total"
                  << " number of frames in dataset " << nr_images;
     // Skip last frames which are typically problematic
     // (IMU bumps, FOV occluded)...
     static constexpr size_t skip_n_end_frames = 2;
     final_k_ = nr_images - skip_n_end_frames;
-    LOG(WARNING) << "Using final_k = " << final_k_
-                 << ", where we removed " << skip_n_end_frames
-                 << " frames to avoid bad IMU readings.";
+    LOG(WARNING) << "Using final_k = " << final_k_ << ", where we removed "
+                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
   }
 
   // parse backend/frontend parameters

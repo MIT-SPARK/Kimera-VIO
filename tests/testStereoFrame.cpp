@@ -879,7 +879,6 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
 /* *************************************************************************
 TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
   // this should be enabled if lines after 66 are uncommented
-
   // create a brand new stereo frame
   initializeDataStereo();
 
@@ -998,6 +997,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
 
       // TEST: projecting 3d point to stereo camera
       // reproject to camera and check that matches corresponding rectified
+      // TODO: don't explicitly call new, use make_shared
       pixels Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(
           sfnew->left_undistRectCameraMatrix_.fx(),
           sfnew->left_undistRectCameraMatrix_.fy(),

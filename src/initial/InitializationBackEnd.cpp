@@ -30,8 +30,8 @@ InitializationBackEnd::InitializationBackEnd(const Pose3& leftCamPose,
                        const bool log_output) :
   VioBackEnd(leftCamPose,
         leftCameraCalRectified,
-        baseline, 
-        vioParams, 
+        baseline,
+        vioParams,
         log_output) {}
 
 /* ------------------------------------------------------------------------ */
@@ -64,12 +64,12 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
     inputs_backend.push_back(input_backend);
     pims.push_back(output_frontend.front().pim_);
     // Bookkeeping for timestamps
-    Timestamp timestamp_kf = 
+    Timestamp timestamp_kf =
             output_frontend.front().stereo_frame_lkf_.getTimestamp();
     delta_t_camera.push_back(UtilsOpenCV::NsecToSec(
                     timestamp_kf - timestamp_lkf_));
     timestamp_lkf_ = timestamp_kf;
-    
+
     // Check that all frames are keyframes (required)
     CHECK(output_frontend.front().is_keyframe_);
     // Pop from queue
@@ -77,18 +77,18 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   }
 
   // TODO(Sandro): Bundle-Adjustment is not super robust and accurate!!!
-  // Run initial Bundle Adjustment and retrieve body poses 
+  // Run initial Bundle Adjustment and retrieve body poses
   // wrt. to initial body frame (b0_T_bk, for k in 0:N).
   // The first pim and ransac poses are lost, as in the Bundle
   // Adjustment we need observations of landmarks intra-frames.
   auto tic_ba = utils::Timer::tic();
   std::vector<gtsam::Pose3> estimated_poses =
       addInitialVisualStatesAndOptimize(inputs_backend);
-  auto ba_duration = 
+  auto ba_duration =
     utils::Timer::toc<std::chrono::nanoseconds>(tic_ba).count() * 1e-9;
-  LOG(WARNING) << "Current bundle-adjustment duration: (" 
+  LOG(WARNING) << "Current bundle-adjustment duration: ("
                 << ba_duration << " s).";
-  // Remove initial delta time and pims from input vector to online 
+  // Remove initial delta time and pims from input vector to online
   // alignment due to the disregarded init values in bundle adjustment
   delta_t_camera.erase(delta_t_camera.begin());
   pims.erase(pims.begin());
@@ -97,18 +97,18 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 
   // Run initial visual-inertial alignment(OGA)
   OnlineGravityAlignment initial_alignment(
-                            estimated_poses, 
+                            estimated_poses,
                             delta_t_camera,
-                            pims, 
+                            pims,
                             vio_params_.n_gravity_);
   auto tic_oga = utils::Timer::tic();
   bool is_success = initial_alignment.alignVisualInertialEstimates(
                                                 gyro_bias, g_iter_b0,
                                                 init_navstate,
                                                 true);
-  auto alignment_duration = 
+  auto alignment_duration =
     utils::Timer::toc<std::chrono::nanoseconds>(tic_oga).count() * 1e-9;
-  LOG(WARNING) << "Current alignment duration: (" 
+  LOG(WARNING) << "Current alignment duration: ("
                 << alignment_duration << " s).";
 
   // TODO(Sandro): Check initialization against GT
@@ -125,12 +125,12 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
     const gtsam::NavState init_navstate_pass = *init_navstate;
     const gtsam::Vector3 gravity_iter_pass = *g_iter_b0;
     const gtsam::Vector3 gyro_bias_pass = *gyro_bias;
-    logger_.logInitializationResultsCSV( 
+    logger_.logInitializationResultsCSV(
           gt_dataset.getInitializationPerformance(
             timestamps,
             estimated_poses,
             gtNavState(init_navstate_pass.pose(),
-              init_navstate_pass.pose().rotation().transpose() * 
+              init_navstate_pass.pose().rotation().transpose() *
                 init_navstate_pass.velocity(),
               gtsam::imuBias::ConstantBias(gtsam::Vector3(),
                                           gyro_bias_pass)),
@@ -145,7 +145,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 }
 
 /* -------------------------------------------------------------------------- */
-std::vector<gtsam::Pose3> 
+std::vector<gtsam::Pose3>
     InitializationBackEnd::addInitialVisualStatesAndOptimize(
         const std::vector<std::shared_ptr<VioBackEndInputPayload>> &input) {
   CHECK(input.front());
@@ -231,7 +231,7 @@ void InitializationBackEnd::addInitialVisualState(
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
   if (stereo_ransac_body_pose && curr_kf_id_!=0) {
-    // We need to keep adding the relative poses, since we process a 
+    // We need to keep adding the relative poses, since we process a
     // whole batch. Otherwise we start with wrong initial guesses.
     W_Pose_B_lkf_ = W_Pose_B_lkf_.compose(*stereo_ransac_body_pose);
     new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
@@ -315,7 +315,7 @@ std::vector<gtsam::Pose3> InitializationBackEnd::optimizeInitialVisualStates(
   gtsam::LevenbergMarquardtParams lmParams;
   gtsam::LevenbergMarquardtOptimizer initial_bundle_adjustment(
       new_factors_tmp, new_values_, lmParams);
-  VLOG(10) << "LM optimizer created with error: " 
+  VLOG(10) << "LM optimizer created with error: "
            << initial_bundle_adjustment.error();
 
   // Optimize and get values

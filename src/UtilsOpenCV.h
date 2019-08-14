@@ -90,8 +90,8 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // Open files with name output_filename, and checks that it is valid
-  static void OpenFile(const std::string& output_filename,
-                       std::ofstream& outputFile, bool append_mode = false);
+  static void OpenFile(const std::string &output_filename,
+                       std::ofstream *output_file, bool append_mode = false);
 
   /* ------------------------------------------------------------------------ */
   // compares 2 cv::Mat
@@ -216,7 +216,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Generate random vector using random number generator between -sigma and sigma
   static gtsam::Vector3 RandomVectorGenerator(const double sigma);
-  
+
   /* ------------------------------------------------------------------------ */
   // Generates random noisy pose around identity with rad_sigma and pos_sigma
   static gtsam::Pose3 RandomPose3(const double rad_sigma, const double pos_sigma);
@@ -487,5 +487,3 @@ private:
 
 } // namespace VIO
 #endif /* UtilsOpenCV_H_ */
-
-

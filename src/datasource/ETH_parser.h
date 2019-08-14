@@ -19,10 +19,10 @@
 #include <fstream>
 #include <string>
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/ml/ml.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/ml/ml.hpp>
 
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
@@ -36,7 +36,7 @@ namespace VIO {
  * Parse all images and camera calibration for an ETH dataset.
  */
 class ETHDatasetParser : public DataProvider {
-public:
+ public:
   ETHDatasetParser();
   ETHDatasetParser(const std::string& input_string);
   virtual ~ETHDatasetParser();
@@ -48,9 +48,7 @@ public:
   ImuData imuData_;
 
   /// Getters
-  inline std::string getDatasetName() const {
-    return dataset_name_;
-  }
+  inline std::string getDatasetName() const { return dataset_name_; }
   inline std::string getLeftImgName(const size_t& k) const {
     return getImgName("cam0", k);
   }
@@ -58,9 +56,7 @@ public:
     return getImgName("cam1", k);
   }
   // A bit risky to send refs to members... Can lead to dangling references.
-  inline const gtsam::Pose3& getCamLPoseCamR() const {
-    return camL_Pose_camR_;
-  }
+  inline const gtsam::Pose3& getCamLPoseCamR() const { return camL_Pose_camR_; }
   inline const CameraParams& getLeftCamInfo() const {
     return camera_info_.at("cam0");
   }
@@ -75,23 +71,20 @@ public:
 
   bool spin() override;
 
-  void spinOnce(const FrameId& k,
-                Timestamp& timestamp_last_frame,
+  void spinOnce(const FrameId& k, Timestamp& timestamp_last_frame,
                 const StereoMatchingParams& stereo_matchiong_params,
-                const bool equalize_image,
-                const CameraParams& left_cam_info,
+                const bool equalize_image, const CameraParams& left_cam_info,
                 const CameraParams& right_cam_info,
                 const gtsam::Pose3& camL_pose_camR);
 
-  // Parses EuRoC dataand the frontend, backend parameters
-  void parse(size_t initial_k, size_t final_k);
+  // Parses EuRoC data, as well as the frontend and backend parameters
+  void parse();
 
   // Parse camera, gt, and imu data if using different Euroc format.
   bool parseDataset(const std::string& input_dataset_path,
                     const std::string& leftCameraName,
                     const std::string& rightCameraName,
-                    const std::string& imuName,
-                    const std::string& gtSensorName,
+                    const std::string& imuName, const std::string& gtSensorName,
                     bool doParseImages = true);
 
   // Retrieve relative pose between timestamps.
@@ -118,11 +111,9 @@ public:
 
   // Compute error on the relative pose between two time stamps,
   // compared with the relative pose from ground truth.
-  std::pair<double,double> computePoseErrors(
-      const gtsam::Pose3& lkf_T_k_body,
-      const bool isTrackingValid,
-      const Timestamp& previousTimestamp,
-      const Timestamp& currentTimestamp,
+  std::pair<double, double> computePoseErrors(
+      const gtsam::Pose3& lkf_T_k_body, const bool isTrackingValid,
+      const Timestamp& previousTimestamp, const Timestamp& currentTimestamp,
       const bool upToScale = false) const;
 
   // Get timestamp of a given pair of stereo images (synchronized).
@@ -131,21 +122,19 @@ public:
   // Print info about dataset.
   void print() const;
 
-  // Parse IMU data of a given dataset.
-  bool parseImuData(const std::string& input_dataset_path,
-                    const std::string& imuName);
-
-  // Parse ground truth data.
-  bool parseGTdata(const std::string& input_dataset_path,
-                   const std::string& gtSensorName);
-
-public:
+ public:
   // THIS IS ONLY HERE BECAUSE the pipeline needs to know what is this value.
   // But it should not need to!!
   // Put it as a static variable in the spin function.
   Timestamp timestamp_first_lkf_;
 
-private:
+ private:
+  bool parseImuData(const std::string& input_dataset_path,
+                    const std::string& imuName);
+
+  bool parseGTdata(const std::string& input_dataset_path,
+                   const std::string& gtSensorName);
+
   // Parse cam0, cam1 of a given dataset.
   bool parseCameraData(const std::string& input_dataset_path,
                        const std::string& leftCameraName,
@@ -186,7 +175,7 @@ private:
       const CameraImageLists::ImgLists& right_img_lists,
       const CameraParams& left_cam_info) const;
 
-private:
+ private:
   /// Images data.
   // This matches the names of the folders in the dataset
   std::vector<std::string> camera_names_;
@@ -201,6 +190,6 @@ private:
   std::string dataset_name_;
 };
 
-} // namespace VIO
+}  // namespace VIO
 
 #endif /* ETH_parser_H_ */

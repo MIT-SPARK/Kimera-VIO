@@ -146,7 +146,7 @@ class OnlineAlignmentTestData {
 };
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, GyroscopeBiasEstimation) {  
+TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   // Construct ETH Parser and get data
   std::string reason = "test of gyroscope estimation";
   ETHDatasetParser dataset(reason);
@@ -160,9 +160,9 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   // Construct online alignment class with dummy gravity vector
   gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
   OnlineGravityAlignment initial_alignment(
-                      test_data.estimated_poses_, 
+                      test_data.estimated_poses_,
                       test_data.delta_t_poses_,
-                      test_data.pims_, 
+                      test_data.pims_,
                       n_gravity);
 
   // Initialize OnlineAlignment
@@ -178,7 +178,7 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimationAHRS) {  
+TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimationAHRS) {
   // Construct ETH Parser and get data
   std::string reason = "test of gyroscope estimation AHRS";
   ETHDatasetParser dataset(reason);
@@ -192,9 +192,9 @@ TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimationAHRS) {
   // Construct online alignment class with dummy gravity vector
   gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
   OnlineGravityAlignment initial_alignment(
-                      test_data.estimated_poses_, 
+                      test_data.estimated_poses_,
                       test_data.delta_t_poses_,
-                      test_data.pims_, 
+                      test_data.pims_,
                       n_gravity,
                       test_data.ahrs_pim_);
 
@@ -217,7 +217,7 @@ TEST(testOnlineAlignment, CreateTangentBasis) {
     gtsam::Vector3 random_vector = UtilsOpenCV::RandomVectorGenerator(1.0);
 
     // Create tangent basis to random vector
-    gtsam::Matrix tangent_basis = 
+    gtsam::Matrix tangent_basis =
             OnlineGravityAlignment::createTangentBasis(random_vector);
 
     // Check size is corrrect
@@ -240,7 +240,7 @@ TEST(testOnlineAlignment, CreateTangentBasis) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, OnlineGravityAlignment) {  
+TEST(testOnlineAlignment, OnlineGravityAlignment) {
   // Construct ETH Parser and get data
   std::string reason = "test of alignment estimation";
   ETHDatasetParser dataset(reason);
@@ -259,9 +259,9 @@ TEST(testOnlineAlignment, OnlineGravityAlignment) {
   // Construct online alignment class with world gravity vector
   gtsam::Vector3 n_gravity(0.0, 0.0, -9.81);
   OnlineGravityAlignment initial_alignment(
-                      test_data.estimated_poses_, 
+                      test_data.estimated_poses_,
                       test_data.delta_t_poses_,
-                      test_data.pims_, 
+                      test_data.pims_,
                       n_gravity);
 
   // Compute online gravity alignment (without gyroscope bias estimation)
@@ -324,20 +324,20 @@ TEST(testOnlineAlignment, GravityAlignmentRealData) {
         test_data.init_navstate_.pose().rotation().transpose() * n_gravity);
     gtsam::Pose3 real_init_pose(test_data.init_navstate_.pose().rotation(),
                                 gtsam::Vector3());
-    
+
     LOG(INFO) << real_body_grav << " vs. " << g_iter;
     EXPECT_NEAR(n_gravity.norm(), g_iter.norm(), tol_RD_gv);
     EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_RD_gv);
     EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_RD_gv);
     EXPECT_NEAR(real_body_grav.z(), g_iter.z(), tol_RD_gv);
-    
+
 
     EXPECT_NEAR(fabs(remainder(real_init_pose.rotation().pitch() -
       init_navstate.pose().rotation().pitch(), 2*M_PI)), 0.0, tol_RD_an);
     EXPECT_NEAR(fabs(remainder(real_init_pose.rotation().roll() -
       init_navstate.pose().rotation().roll(), 2*M_PI)), 0.0, tol_RD_an);
-    // Yaw angle is irrelevant for starting pose 
-    
+    // Yaw angle is irrelevant for starting pose
+
     // TODO(Sandro): Add velocity test in same frame
     /* EXPECT_NEAR(real_init_vel.norm(),
               init_navstate.velocity().norm(), tol_RD);

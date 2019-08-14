@@ -56,7 +56,7 @@ bool StereoVisionFrontEnd::spin(
       auto tic = utils::Timer::tic();
       const StereoFrontEndOutputPayload& output = spinOnce(input);
       if (output.is_keyframe_) {
-        VLOG(2) << "Frontend output is a keyframe.";
+        VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
         output_queue.push(output);
       } else {
         VLOG(2) << "Frontend output is not a keyframe."
