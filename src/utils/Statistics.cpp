@@ -301,28 +301,27 @@ void Statistics::WriteAllSamplesToCsvFile(const std::string &path) {
     return;
   }
 
+  std::ofstream output_file(path);
+  if (!output_file) {
+    LOG(ERROR) << "Could not write samples: Unable to open file: " << path;
+    return;
+  }
+
   VLOG(1) << "Writing statistics to file: " << path;
   for (const map_t::value_type &tag : tag_map) {
     const size_t &index = tag.second;
     if (GetNumSamples(index) > 0) {
       const std::string &label = tag.first;
 
-      std::string filepath = path + '-' + label;
-      std::ofstream output_file(filepath);
-      if (!output_file) {
-        LOG(ERROR) << "Could not write samples: Unable to open file: "
-                   << filepath;
-        return;
-      }
-
       // Add header to csv file. tag.first is the stats label.
-      output_file << "# " << label << ":\n";
+      output_file << label;
 
-      // Each row is a sample.
+      // Each row has all samples.
       const std::vector<double> &samples = GetAllSamples(index);
       for (const auto &sample : samples) {
-        output_file << sample << '\n';
+        output_file << ',' << sample;
       }
+      output_file << '\n';
     }
   }
 }

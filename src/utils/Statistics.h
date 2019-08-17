@@ -192,6 +192,8 @@ class Statistics {
   static double GetVarianceDeltaTime(std::string const& tag);
   static double GetVarianceDeltaTime(size_t handle);
 
+  // Writes a csv file, but transposed, each row first element represents the
+  // columns headers, and the subsequent values are the data.
   static void WriteAllSamplesToCsvFile(const std::string &path);
   static void WriteToYamlFile(const std::string& path);
   static void Print(std::ostream& out);  // NOLINT
