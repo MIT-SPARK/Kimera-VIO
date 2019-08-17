@@ -22,9 +22,15 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 
 ## Demo
 
+<div style="text-align:center">
+<img src="media/spark_vio_release.gif"/>
+</div>
+
 ## Installation
 
 Tested on Mac, Ubuntu 14.04 & 16.04.
+
+> Note: if you want to avoid building all these dependencies yourself, we provide a docker image [below](#From-Dockerfile) that will install them for you.
 
 ### Prerequisites:
 
@@ -145,13 +151,13 @@ Glog, Gflags, and Gtest will be automatically downloaded using cmake unless ther
 ### From Source:
 
 Clone this repository: 
-```
-git clone git@github.mit.edu:SPARK/VIO.git
-```
-
-In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for OpenGV):
-
 ```bash
+git clone git@github.mit.edu:SPARK/VIO.git SparkVIO
+```
+
+Build SparkVIO:
+```bash
+cd SparkVIO
 mkdir build
 cd build
 cmake ..
@@ -164,11 +170,14 @@ make -j $(nproc)
 
 If you want to avoid building all these dependencies yourself, we provide a docker image that will install all dependencies for you.
 For that, you will need to install [Docker](https://docs.docker.com/install/).
+
 Once installed, clone this repo, build the image and run it:
 > Note: while this repo remains private, you'll need to **specify your ssh keys**: replace `<username>` below, with an ssh key that has read access to the repo in github.mit.edu (check your profile settings for such ssh key). Also, since docker build doesn't handle user input, ensure your ssh key does **not** have a passphrase.
 
 ```bash
-cd VIO
+# Clone the repo
+git clone git@github.mit.edu:SPARK/VIO.git SparkVIO
+cd SparkVIO
 
 # Build the image
 docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
@@ -178,8 +187,7 @@ docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
 ./scripts/docker/spark_vio_docker.bash
 ```
 
-Running examples
-======================
+## Running examples
 
 ### Euroc Dataset
 
