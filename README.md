@@ -1,4 +1,4 @@
-# SparkVIO: Visual Inertial Odometry
+# SparkVIO: Open-Source Visual Inertial Odometry
 
 [![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/)
 
@@ -189,17 +189,25 @@ docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
 
 ## Running examples
 
-### Euroc Dataset
+### [Euroc](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) Dataset
 
-stereoVIOEuroc:
-- Download [EuRoC](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) dataset. You can just download this [file](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip) to do a first test, which corresponds to the ```MH_01_easy``` EuRoC dataset.
-- Add the comment ```%YAML:1.0``` at the top of each .yaml file in the dataset (each folder has one sensor.yaml).
-You can do this manually or alternatively paste and run the following bash script from within the dataset folder:
+#### Download Euroc's dataset
+
+- Download one of Euroc's datasets, for example [V1_01_easy.zip](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip).
+- Unzip the dataset to your preferred directory, for example, in `~/Euroc/V1_01_easy`: 
+```bash
+mkdir -p ~/Euroc/V1_01_easy
+unzip -o ~/Downloads/V1_01_easy.zip -d ~/Euroc/V1_01_easy
+```
+- Add `%YAML:1.0` at the top of each `.yaml` file inside the dataset's `sensor.yaml`.
+You can do this manually or alternatively run the following bash script from within the dataset folder:
 
 ```bash
 sed -i '1 i\%YAML:1.0' body.yaml
 sed -i '1 i\%YAML:1.0' */sensor.yaml
 ```
+
+#### Run SparkVIO in Euroc's dataset
 
 You have two ways to start the example:
 - Using the script ```stereoVIOEuroc.bash``` inside the ```scripts``` folder:
