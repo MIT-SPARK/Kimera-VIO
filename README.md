@@ -1,35 +1,77 @@
-README - VIO: Visual-Inertial Odometry
-======================================
+# SparkVIO: Visual Inertial Odometry
 
 [![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/)
 
-What is VIO?
-------------
+## What is SparkVIO?
 
-VIO is a library of C++ classes that implement the visual-inertial odometry pipeline described in these papers:
+SparkVIO is a Visual Inertial Odometry pipeline for accurate State Estimation from **Stereo** + **IMU** data. (Mono-only capabilities soon to be released).
 
- - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation. IEEE Trans. Robotics, 33(1):1-21, 2016.
+We kindly ask to cite the papers below if you find this library useful:
 
- - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors. In IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
+ - **TODO:** add our latest paper.
 
-The Regular VIO backend is described in this paper:
-- A. Rosinol and T. Sattler and M. Pollefeys and L. Carlone. Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities. IEEE Int. Conf. Robot. Autom. (ICRA) 2019
+Backend optimization is based on:
 
-Quickstart
-----------
+ - C. Forster, L. Carlone, F. Dellaert, and D. Scaramuzza. **On-Manifold Preintegration Theory for Fast and Accurate Visual-Inertial Navigation**. IEEE Trans. Robotics, 33(1):1-21, 2016.
 
-Clone this repository: `git clone git@github.mit.edu:SPARK/VIO.git`
+ - L. Carlone, Z. Kira, C. Beall, V. Indelman, and F. Dellaert. **Eliminating Conditionally Independent Sets in Factor Graphs: A Unifying Perspective based on Smart Factors.** IEEE Intl. Conf. on Robotics and Automation (ICRA), 2014.
 
-In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for OpenGV):
+Alternatively, the `Regular VIO` backend, using structural regularities, is described in this paper:
 
+- A. Rosinol, T. Sattler, M. Pollefeys, and L. Carlone. **Incremental Visual-Inertial 3D Mesh Generation with Structural Regularities**. IEEE Int. Conf. on Robotics and Automation (ICRA), 2019.
+
+## Demo
+
+## Installation
+
+Tested on Mac, Ubuntu 14.04 & 16.04.
+
+### Prerequisites:
+
+- [GTSAM](https://github.com/borglab/gtsam) >= 4.0
+- [OpenCV](https://github.com/opencv/opencv) >= 3.0
+- [OpenGV](https://github.com/laurentkneip/opengv) 
+- [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
+
+> Installation instructions below.
+
+### Install GTSAM
+
+#### GTSAM's dependencies:
+
+Install Boost: `sudo apt-get update && sudo apt-get install -y libboost-all-dev`
+
+#### GTSAM's Optional dependencies (highly recommended for speed)
+
+Install [Intel Threaded Building Blocks (TBB)](http://www.threadingbuildingblocks.org/): `sudo apt-get install libtbb-dev`
+
+#### GTSAM Source Install
+
+Clone GTSAM: `git clone git@github.com:borglab/gtsam.git`
+
+> (last tested with commit `0c3e05f375c03c5ff5218e708db416b38f4113c8`)
+
+Make build dir, and run `cmake`:
+
+```bash
+cd gtsam
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=OFF .. 
 ```
-#!bash
-$ mkdir build
-$ cd build
-$ cmake ../
-$ make
-$ make check
+
+Ensure that:
+- TBB is enabled: check for `--   Use Intel TBB                  : Yes` after running `cmake`.
+- Compilation is in Release mode: check for `--   Build type                     : Release` after running `cmake`.
+- Use GTSAM's Eigen, **not** the system-wide one (OpenGV and GTSAM must use same Eigen, see OpenGV install instructions below).
+
+Compile and install GTSAM:
+```bash
+make $(nproc) check # (optional, runs unit tests)
+sudo make $(nproc) install
 ```
+
+> Alternatively, replace `$(nproc)` by the number of available cores in your computer.
 
 > Note 1a: if you use MKL in gtsam, you may need to add to `~/.bashrc` a line similar to:
 >  ```source /opt/intel/parallel_studio_xe_2018/compilers_and_libraries_2018/linux/mkl/bin/mklvars.sh intel64```
@@ -37,111 +79,100 @@ $ make check
 
 > Note 1b: sometimes you may need to add `/usr/local/lib` to `LD_LIBRARY_PATH` in `~/.bashrc` (if you get lib not found errors at run or test time).
 
-> Note 2: you may have to add `%YAML:1.0` as first line in all YAML files that are in the datasets. You can use the script provided, as detailed (here)[#yaml_script].
+> Note: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
 
-> Note 3: we are considering to enable EPI in GTSAM, which will require to set the GTSAM_THROW_CHEIRALITY_EXCEPTION to false (cmake flag).
+> Note: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to 'false' (cmake flag)
 
-> Note 4: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to false (cmake flag)
+> Note: also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `-march=native` might cause problems that culminates in the form of segfaults when you run the unittests.
 
-Prerequisites (installation instructions below):
+### Install OpenCV
 
-- [GTSAM](https://github.com/borglab/gtsam) >= 4.0
-- [OpenCV](https://github.com/opencv/opencv) >= 3.0
-- [OpenGV](https://github.com/laurentkneip/opengv) 
-
-Installation of GTSAM
-----------
-Install GTSAM's dependencies Boost:
-```
-sudo apt-get update && sudo apt-get install -y libboost-all-dev
-```
-
-and [Intel Threaded Building Blocks (TBB)](http://www.threadingbuildingblocks.org/) (optional, but highly recommended for speed):
-
-```
-sudo apt-get install libtbb-dev
-```
-
-Clone GTSAM wherever you want, and checkout the develop branch (last tested with commit `0c3e05f375c03c5ff5218e708db416b38f4113c8`)
-```
-git clone git@github.com:borglab/gtsam.git
-```
-
-Run cmake and make sure (i) you enable TBB, that you are (ii) compiling in Release mode, and that you are (iii) using GTSAM's Eigen and not the system-wide one, also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `-march=native` might cause problems that culminates in the form of segfaults when you run the unittests.
+#### OpenCV's dependencies:
+- on Mac:
 ```bash
-cd gtsam
+homebrew install vtk # (to check)
+```
+
+- on Linux:
+```bash
+sudo apt-get install -y libvtk5-dev   # (libvtk6-dev in ubuntu 17.10)
+sudo apt-get install -y pkg-config libgtk2.0-dev
+```
+
+#### OpenCV Source Install
+
+Download OpenCV and run cmake:
+```bash
+git clone https://github.com/opencv/opencv.git
+cd opencv
+git checkout tags/3.3.1
 mkdir build
 cd build
-cmake ..
+cmake -DWITH_VTK=On .. # Use -DWITH_TBB=On if you have TBB
 ```
 
-Compile GTSAM:
-```
-make check (optional, runs unit tests)
-make install
-```
-
-Installation of OpenCV
-----------------------
-- on Mac:
-```
-#!bash
-$ homebrew install vtk (to check)
-$ git clone https://github.com/opencv/opencv.git
-$ cd opencv
-$ git checkout tags/3.3.1
-$ mkdir build
-$ cd build
-$ cmake ../
-$ sudo make install
-```
-- on Linux:
-```
-#!bash
-$ sudo apt-get install libvtk5-dev   (libvtk6-dev in ubuntu 17.10)
-$ sudo apt-get install libgtk2.0-dev
-$ sudo apt-get install pkg-config
-$ git clone https://github.com/opencv/opencv.git
-$ cd opencv
-$ git checkout tags/3.3.1
-$ mkdir build
-$ cd build
-$ cmake -DWITH_VTK=On -DWITH_TBB=On ..
-$ sudo make -j8 install
-$ sudo make -j8 test (optional - quite slow)
+Finally, build and install OpenCV:
+```bash
+sudo make -j $(nproc) install
 ```
 
-Installation of OpenGV
-----------------------
-- git clone https://github.com/laurentkneip/opengv (I did this in my "home/code/" folder)
-- (not needed in latest version) open CMakeLists.txt and set INSTALL_OPENGV to ON (this can be also done using cmake-gui)
+> Alternatively, replace `$(nproc)` by the number of available cores in your computer.
+
+### Install OpenGV
+Clone the repo:
+```bash
+git clone https://github.com/laurentkneip/opengv 
+```
+
 - using cmake-gui, set: the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen). if you don't do so, very weird error (TODO document) appear (may be due to GTSAM and OpenGV using different versions of eigen!)
 - in the opengv folder do:
 
-```
-#!bash
-$ mkdir build
-$ cd build
-$ cmake ../
-$ sudo make -j8 install
-$ sudo make -j8 check
+```bash
+cd opengv
+mkdir build
+cd build
+cmake ..
+sudo make -j $(nproc) install
 ```
 
-Glog, Gflags & Gtest
-----------------------
-Glog, gflags, and gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
+> Alternatively, replace `$(nproc)` by the number of available cores in your computer.
 
-### Dockerfile Installation
+### Glog, Gflags & Gtest
+Glog, Gflags, and Gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
+
+## Install SparkVIO
+
+### From Source:
+
+Clone this repository: 
+```
+git clone git@github.mit.edu:SPARK/VIO.git
+```
+
+In the root library folder execute (using cmake-gui: if you changed the GTSAM install folder, you may need to redirect VIO to your-gtsam-install-folder/lib/cmake/GTSAM. Similarly, you may need to change the folder for OpenGV):
+
+```bash
+mkdir build
+cd build
+cmake ..
+make -j $(nproc)
+```
+
+> Alternatively, replace '$(nproc)' by the number of available cores in your computer.
+
+### From Dockerfile:
 
 If you want to avoid building all these dependencies yourself, we provide a docker image that will install all dependencies for you.
 For that, you will need to install [Docker](https://docs.docker.com/install/).
 Once installed, clone this repo, build the image and run it:
 > Note: while this repo remains private, you'll need to **specify your ssh keys**: replace `<username>` below, with an ssh key that has read access to the repo in github.mit.edu (check your profile settings for such ssh key). Also, since docker build doesn't handle user input, ensure your ssh key does **not** have a passphrase.
 
-```
-# Build the image
+```bash
 cd VIO
-docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . --build-arg SSH_PRIVATE_KEY="$(cat /home/<username>/.ssh/id_rsa)"
+
+# Build the image
+docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
+--build-arg SSH_PRIVATE_KEY="$(cat /home/<username>/.ssh/id_rsa)"
 
 # Run an example dataset
 ./scripts/docker/spark_vio_docker.bash
@@ -154,12 +185,14 @@ Running examples
 
 stereoVIOEuroc:
 - Download [EuRoC](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) dataset. You can just download this [file](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.zip) to do a first test, which corresponds to the ```MH_01_easy``` EuRoC dataset.
-- Add the comment ```%YAML:1.0``` at the top of each .yaml file in the dataset (each folder has one sensor.yaml). You can do this manually or alternatively paste and run the following bash script from within the dataset folder:
-```
-#!bash
+- Add the comment ```%YAML:1.0``` at the top of each .yaml file in the dataset (each folder has one sensor.yaml).
+You can do this manually or alternatively paste and run the following bash script from within the dataset folder:
+
+```bash
 sed -i '1 i\%YAML:1.0' body.yaml
 sed -i '1 i\%YAML:1.0' */sensor.yaml
 ```
+
 You have two ways to start the example:
 - Using the script ```stereoVIOEuroc.bash``` inside the ```scripts``` folder:
   - Run: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy"```
