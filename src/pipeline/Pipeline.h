@@ -22,12 +22,10 @@
 #include <utility>  // for make_pair
 #include <vector>
 
-#include <gtsam/navigation/ImuBias.h>
-
+#include "datasource/DataSource.h"
 #include "FeatureSelector.h"
 #include "StereoImuSyncPacket.h"
 #include "Visualizer3D.h"
-#include "datasource/DataSource.h"
 #include "initial/InitializationBackEnd-definitions.h"
 #include "mesh/Mesher.h"
 #include "pipeline/BufferControl.h"

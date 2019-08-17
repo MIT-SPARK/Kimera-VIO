@@ -67,8 +67,9 @@ class ETHDatasetParser : public DataProvider {
     return pipeline_params_.imu_params_;
   }
 
- public:
-  bool spin();
+public:
+
+  bool spin() override;
 
   void spinOnce(const FrameId& k, Timestamp& timestamp_last_frame,
                 const StereoMatchingParams& stereo_matchiong_params,
@@ -76,7 +77,7 @@ class ETHDatasetParser : public DataProvider {
                 const CameraParams& right_cam_info,
                 const gtsam::Pose3& camL_pose_camR);
 
-  // Helper function to parse Euroc dataset.
+  // Parses EuRoC data, as well as the frontend and backend parameters
   void parse();
 
   // Parse camera, gt, and imu data if using different Euroc format.

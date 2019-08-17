@@ -49,8 +49,9 @@ int main(int argc, char *argv[]) {
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
     } break;
-    default: {
-      CHECK(false) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
+    default:
+    {
+      LOG(FATAL) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
                    << " 0: EuRoC, 1: Kitti.";
     }
   }
