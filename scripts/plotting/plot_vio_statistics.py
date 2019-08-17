@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import rc
-rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+#rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
 ## for Palatino and other serif fonts use:
 #rc('font',**{'family':'serif','serif':['Palatino']})
 #rc('text', usetex=True)
@@ -27,7 +27,7 @@ def _set_boxplot_colors(boxplot_object, color):
     setp(boxplot_object['medians'][0], color=color)
 
 
-def draw_boxplot(axis, stats):
+def draw_boxplot(axis, bxpstats):
     """
         bxpstats : list of dicts
           A list of dictionaries containing stats for each boxplot.
@@ -63,21 +63,12 @@ def draw_boxplot(axis, stats):
           Sets the positions of the boxes. The ticks and limits
           are automatically set to match the positions.
     """
-    bxpstats = []
-    bxpstats_a = dict()
-    print stats
-    bxpstats_a['med'] = stats['median']
-    bxpstats_a['q1'] = stats['q1']
-    bxpstats_a['q3'] = stats['q3']
-    bxpstats_a['whislo'] = stats['min']
-    bxpstats_a['whishi'] = stats['max']
-    bxpstats.append(bxpstats_a)
     pb = axis.bxp(bxpstats,
                   widths=0.8,
                   vert=True,
                   showcaps=True,
                   showbox=True,
-                  showfliers=True)
+                  showfliers=False)
 
 
 def plot_statistics_vio(statistics, output_boxplot_path):
@@ -104,6 +95,10 @@ def plot_statistics_vio(statistics, output_boxplot_path):
                     mins.append(value)
                 if key == 'median':
                     stats[name]['median'] = value
+                if key == 'q1':
+                    stats[name]['q1'] = value
+                if key == 'q3':
+                    stats[name]['q3'] = value
                 if key == 'samples':
                     stats[name]['samples'] = value
                     samples.append(value)
@@ -126,6 +121,10 @@ def plot_statistics_vio(statistics, output_boxplot_path):
                 if key == 'median':
                     stats[name]['median'] = value
                     mins = [value] + mins
+                if key == 'q1':
+                    stats[name]['q1'] = value
+                if key == 'q3':
+                    stats[name]['q3'] = value
                 if key == 'samples':
                     stats[name]['samples'] = value
                     samples = [value] + samples
@@ -145,9 +144,18 @@ def plot_statistics_vio(statistics, output_boxplot_path):
     #plt.errorbar(np.arange(len(names)), np.asarray(means), [np.asarray(means) - np.asarray(mins), np.asarray(maxes) - np.asarray(means)],
     #             fmt='xk', ecolor='blue', lw=2, capsize=5, capthick=3, mfc='red', mec='green', ms=10, mew=4)
 
-    fig = plt.figure(figsize=(6, 6))
+    fig, axes = plt.subplots()
+    bxpstats = []
     for name, value in stats.items():
-        draw_boxplot(fig.axes, value)
+        bxpstats_a = dict()
+        bxpstats_a['mean'] = value['mean']
+        bxpstats_a['med'] = value['median']
+        bxpstats_a['q1'] = value['q1']
+        bxpstats_a['q3'] = value['q3']
+        bxpstats_a['whislo'] = value['min']
+        bxpstats_a['whishi'] = value['max']
+        bxpstats.append(bxpstats_a)
+    draw_boxplot(axes, bxpstats)
 
     # Formatting
     bar_width = 0.35
