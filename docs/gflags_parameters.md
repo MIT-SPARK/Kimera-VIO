@@ -1,3 +1,5 @@
+## SparkVIO GFLAGS
+
 The following are the gflags accepted by SparkVIO, this has been generated using the SparkVIO executable with the `--help` flag: `./build/stereoVIOEuroc --help`
 
 [...] Skipping gflags and glog related flags...
