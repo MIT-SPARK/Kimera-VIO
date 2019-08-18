@@ -2,7 +2,7 @@
 
 Tested on Mac, Ubuntu 14.04 & 16.04.
 
-> Note: if you want to avoid building all these dependencies yourself, we provide a [docker image](#From-Dockerfile) that will install them for you.
+> Note: if you want to avoid building all these dependencies yourself, we provide a docker image that will install them for you. See section `From Dockerfile` below.
 
 ## Prerequisites:
 
