@@ -36,7 +36,7 @@ Tested on Mac, Ubuntu 14.04 & 16.04.
 
 - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
 - [OpenCV](https://github.com/opencv/opencv) >= 3.0
-- [OpenGV](https://github.com/laurentkneip/opengv) 
+- [OpenGV](https://github.com/laurentkneip/opengv)
 - [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
 
 > Installation instructions below.
@@ -63,7 +63,7 @@ Make build dir, and run `cmake`:
 cd gtsam
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=OFF .. 
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=OFF ..
 ```
 
 Ensure that:
@@ -127,7 +127,7 @@ sudo make -j $(nproc) install
 ## Install OpenGV
 Clone the repo:
 ```bash
-git clone https://github.com/laurentkneip/opengv 
+git clone https://github.com/laurentkneip/opengv
 ```
 
 - using cmake-gui, set: the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen). if you don't do so, very weird error (TODO document) appear (may be due to GTSAM and OpenGV using different versions of eigen!)
@@ -150,7 +150,7 @@ Glog, Gflags, and Gtest will be automatically downloaded using cmake unless ther
 
 ### From Source:
 
-Clone this repository: 
+Clone this repository:
 ```bash
 git clone git@github.mit.edu:SPARK/VIO.git SparkVIO
 ```
@@ -189,12 +189,12 @@ docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
 
 # Running examples
 
-## [Euroc](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) Dataset
+## Get [Euroc](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) Dataset
 
 #### Download Euroc's dataset
 
 - Download one of Euroc's datasets, for example [V1_01_easy.zip](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip).
-- Unzip the dataset to your preferred directory, for example, in `~/Euroc/V1_01_easy`: 
+- Unzip the dataset to your preferred directory, for example, in `~/Euroc/V1_01_easy`:
 ```bash
 mkdir -p ~/Euroc/V1_01_easy
 unzip -o ~/Downloads/V1_01_easy.zip -d ~/Euroc/V1_01_easy
@@ -217,7 +217,7 @@ cd SparkVIO
 ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
 ```
 
-> Alternatively, one may directly use the executable in the build folder: 
+> Alternatively, one may directly use the executable in the build folder:
 `./build/stereoVIOEuroc`. Nevertheless, check the script `./scripts/stereoVIOEuroc.bash` to understand what parameters are expected, or check the [parameters](#Parameters) section.
 
 ### Kitti dataset
@@ -229,7 +229,7 @@ cd SparkVIO
 - Run: `./scripts/stereoVIOEuroc.bash -p PATH_TO_DATASET -d 1` where you specify the path to the dataset (e.g. path to '2011_09_26_drive_0005_extract' folder).
 
 # Parameters
-SparkVIO accepts two sources of parameters: 
+SparkVIO accepts two sources of parameters:
 - YAML files: contains parameters for Backend and Frontend.
 - [gflags](https://gflags.github.io/gflags/) contains parameters for all the rest.
 
@@ -296,7 +296,7 @@ To contribute to this repo, ensure your commits pass the linter pre-commit check
 
  * `pip install requests pyline yapf`
  * **clang-format**: Compatible with `clang-format-3.8 - 6.0`
-   * Ubuntu: 
+   * Ubuntu:
     ```bash
     sudo apt install clang-format-${VERSION}
     ```
@@ -312,7 +312,7 @@ To contribute to this repo, ensure your commits pass the linter pre-commit check
 ```bash
 cd SparkVIO
 git submodule update --init
-echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc  
+echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc
 # Or the matching file for your shell
 bash
 ```
