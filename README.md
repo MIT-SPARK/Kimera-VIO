@@ -2,9 +2,13 @@
 
 [![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/)
 
+**Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
+
 ## What is SparkVIO?
 
 SparkVIO is a Visual Inertial Odometry pipeline for accurate State Estimation from **Stereo** + **IMU** data. (Mono-only capabilities soon to be released).
+
+## Related Publications
 
 We kindly ask to cite the papers below if you find this library useful:
 
@@ -26,7 +30,7 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 <img src="docs/media/spark_vio_release.gif"/>
 </div>
 
-# Installation
+# 1. Installation
 
 Tested on Mac, Ubuntu 14.04 & 16.04.
 
@@ -44,7 +48,7 @@ Tested on Mac, Ubuntu 14.04 & 16.04.
 
 Find how to install SparkVIO and its dependencies here: [docs/sparkvio_installation.md](./docs/sparkvio_installation.md).
 
-# Running examples
+# 2. Running examples
 
 ## [Euroc](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) Dataset
 
@@ -94,7 +98,7 @@ cd SparkVIO
   ```
    where you specify the path to the dataset (e.g. path to `2011_09_26_drive_0005_extract` folder).
 
-# Parameters
+# 3. Parameters
 SparkVIO accepts two sources of parameters:
 - YAML files: contains parameters for Backend and Frontend.
 - [gflags](https://gflags.github.io/gflags/) contains parameters for all the rest.
@@ -102,6 +106,8 @@ SparkVIO accepts two sources of parameters:
 To get help on what each gflag parameter does, just run the executable with the `--help` flag: `./build/stereoVIOEuroc --help`. You should get a list of gflags similar to the ones [here](./docs/gflags_parameters.md).
 
   - Optionally, you can try the VIO using structural regularities, as in [Toni's thesis](https://www.research-collection.ethz.ch/handle/20.500.11850/297645), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
+
+Also, check [tips for usage](./docs/tips_usage.md) for interacting with OpenCV's 3D visualizer.
 
 Tips for usage
 ----------------------
@@ -156,6 +162,8 @@ We follow the branch, open PR, review, and merge workflow.
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
  To enable these checks you will need to [install linter](./docs/linter_installation.md).
+
+Also, check [tips for development](./docs/tips_development.md).
 
 # BSD License
 
