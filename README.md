@@ -75,7 +75,7 @@ cd SparkVIO
 ```
 
 > Alternatively, one may directly use the executable in the build folder:
-`./build/stereoVIOEuroc`. Nevertheless, check the script `./scripts/stereoVIOEuroc.bash` to understand what parameters are expected, or check the [parameters](#Parameters) section.
+`./build/stereoVIOEuroc`. Nevertheless, check the script `./scripts/stereoVIOEuroc.bash` to understand what parameters are expected, or check the [parameters](#Parameters) section below.
 
 ## [Kitti](http://www.cvlibs.net/datasets/kitti/raw_data.php) Dataset
 
