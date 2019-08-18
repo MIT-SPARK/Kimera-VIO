@@ -23,7 +23,7 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 ## Demo
 
 <div style="text-align:center">
-<img src="media/spark_vio_release.gif"/>
+<img src="docs/media/spark_vio_release.gif"/>
 </div>
 
 # Installation
