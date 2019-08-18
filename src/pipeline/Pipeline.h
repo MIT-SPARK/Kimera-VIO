@@ -29,8 +29,6 @@
 #include "Visualizer3D.h"
 #include "initial/InitializationBackEnd-definitions.h"
 #include "mesh/Mesher.h"
-#include "pipeline/BufferControl.h"
-#include "pipeline/ProcessControl.h"
 #include "utils/ThreadsafeQueue.h"
 
 namespace VIO {
@@ -217,10 +215,6 @@ class Pipeline {
   // Thread-safe queue for the visualizer.
   ThreadsafeQueue<VisualizerInputPayload> visualizer_input_queue_;
   ThreadsafeQueue<VisualizerOutputPayload> visualizer_output_queue_;
-
-  // High-level abstractions for workflow control.
-  ProcessControl process_control_;
-  BufferControl buffer_control_;
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};

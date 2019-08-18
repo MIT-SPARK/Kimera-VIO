@@ -12,7 +12,7 @@ USE_REGULAR_VIO=0
 DATASET_TYPE=0
 
 # Specify: 1 to run pipeline in parallel mode, 0 to run sequentially.
-PARALLEL_RUN=0
+PARALLEL_RUN=1
 ###################################################################
 
 # Parse Options.
@@ -38,8 +38,8 @@ else
         # Option -r, specifies that we want to use regular vio.
       -r) USE_REGULAR_VIO=1
           echo "Using Regular VIO!" ;;
-      -parallel) PARALLEL_RUN=1
-          echo "Run VIO in PARALLEL mode!" ;;
+      -s) PARALLEL_RUN=0
+          echo "Run VIO in SEQUENTIAL mode!" ;;
       --)
           shift # The double dash which separates options from parameters
           break
