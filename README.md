@@ -248,7 +248,7 @@ Tips for usage
 
     - Do not press `q` unless you want to terminate the pipeline in an abrupt way (see #74).
     - Press `s`: to get a screenshot of the 3D visualization window.
-    - Press `0`, `1`, or `2`: to toggle the 3D mesh representation (only visible if the gflag 'visualize_mesh' is set to true).
+    - Press `0`, `1`, or `2`: to toggle the 3D mesh representation (only visible if the gflag `visualize_mesh` is set to true).
     - Press `a`: to toggle ambient light for the 3D mesh (gflag `visualize_mesh` has to be set to true).
     - Press `l`: to toggle lighting for the 3D mesh (gflag `visualize_mesh` has to be set to true).
 
