@@ -226,7 +226,7 @@ cd SparkVIO
   - Download unsynced + unrectified raw dataset (e.g. [2011\_09\_26\_drive\_0005\_extract](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0005/2011_09_26_drive_0005_extract.zip)).
   - Download as well the calibration data (three files) from raw dataset (e.g. [2011\_09\_26\_calib](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip)), and save them inside the folder `2011_09_26`.
 
-- Run: `./scripts/stereoVIOEuroc.bash -p PATH_TO_DATASET -d 1 -r -parallel` where you specify the path to the dataset (e.g. path to '2011_09_26_drive_0005_extract' folder). (Again, the `-r` is enabling using the structural regularities and the `-parallel` is for using VIO in parallel mode)
+- Run: `./scripts/stereoVIOEuroc.bash -p PATH_TO_DATASET -d 1` where you specify the path to the dataset (e.g. path to '2011_09_26_drive_0005_extract' folder).
 
 # Parameters
 SparkVIO accepts two sources of parameters: 
@@ -286,27 +286,28 @@ Tips for development
 
 # Contributing:
 
-We stick to the branch, open PR, review, merge workflow.
-
-### Use code linter
+We follow the branch, open PR, review, and merge workflow.
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
 
-### Dependencies
+### Linter Installation
 
-Install the following dependencies to run the linter:
+#### Linter Dependencies
 
  * `pip install requests pyline yapf`
- * **clang-format**
-   * Compatible with `clang-format-3.8 - 6.0`
-   * Ubuntu: `sudo apt install clang-format-${VERSION}`
-   * macOS:
-     ```
-     brew install clang-format
-     ln -s /usr/local/share/clang/clang-format-diff.py /usr/local/bin/clang-format-diff
-     ```
+ * **clang-format**: Compatible with `clang-format-3.8 - 6.0`
+   * Ubuntu: 
+    ```bash
+    sudo apt install clang-format-${VERSION}
+    ```
 
-### Installation
+   * macOS:
+    ```bash
+    brew install clang-format
+    ln -s /usr/local/share/clang/clang-format-diff.py /usr/local/bin/clang-format-diff
+    ```
+
+#### Install Linter
 
 ```bash
 cd SparkVIO
@@ -316,14 +317,13 @@ echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc
 bash
 ```
 
-Then you can install the linter in your repository:
-
+Finally, initialize linter:
 ```bash
 cd SparkVIO
 init_linter_git_hooks
 ```
 
-For more information about the linter, check [here](https://github.com/ToniRV/linter).
+> For more information about the linter, check [here](https://github.com/ToniRV/linter).
 
 # Additional Information
 
