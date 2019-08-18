@@ -8,7 +8,7 @@ SparkVIO is a Visual Inertial Odometry pipeline for accurate State Estimation fr
 
 We kindly ask to cite the papers below if you find this library useful:
 
- - **TODO:** add our latest paper.
+ - **TODO:** add latest paper.
 
 Backend optimization is based on:
 
@@ -87,7 +87,12 @@ cd SparkVIO
 
 ### Run SparkVIO in Kitti's dataset
 
-- Run: `./scripts/stereoVIOEuroc.bash -p PATH_TO_DATASET -d 1` where you specify the path to the dataset (e.g. path to '2011_09_26_drive_0005_extract' folder).
+- Run: 
+  ```bash
+  cd SparkVIO
+  ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/2011_09_26_drive_0005_extract" -d 1
+  ```
+   where you specify the path to the dataset (e.g. path to `2011_09_26_drive_0005_extract` folder).
 
 # Parameters
 SparkVIO accepts two sources of parameters:
