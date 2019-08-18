@@ -918,7 +918,7 @@ bool LoopClosureDetector::recoverPose_givenRot(
 void LoopClosureDetector::initializePGO() {
   gtsam::NonlinearFactorGraph init_nfg;
   gtsam::Values init_val;
-  init_val.insert(0, gtsam::Pose3());
+  init_val.insert(gtsam::Symbol(0), gtsam::Pose3());
 
   pgo_->update(init_nfg, init_val);
 }
@@ -931,9 +931,10 @@ void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor& factor) {
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
 
+  // TODO(marcus): move this to initializePGO, use pgo_->size() to determine.
   if (factor.cur_key_ == 1) {
 
-    value.insert(factor.cur_key_-1, factor.W_Pose_Blkf_);
+    value.insert(gtsam::Symbol(factor.cur_key_-1), factor.W_Pose_Blkf_);
 
     nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
         factor.cur_key_-1, factor.W_Pose_Blkf_, factor.noise_));
@@ -942,14 +943,15 @@ void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor& factor) {
 
   } else if (factor.cur_key_ <= W_Pose_Bkf_estimates_.size() &&
         factor.cur_key_ > 1) {
-    value.insert(factor.cur_key_-1, factor.W_Pose_Blkf_);
+    value.insert(gtsam::Symbol(factor.cur_key_-1), factor.W_Pose_Blkf_);
 
     gtsam::Pose3 B_llkf_Pose_lkf =
         W_Pose_Bkf_estimates_.at(factor.cur_key_-2).between(
             factor.W_Pose_Blkf_);
 
     nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(
-        factor.cur_key_-2, factor.cur_key_-1, B_llkf_Pose_lkf, factor.noise_));
+        gtsam::Symbol(factor.cur_key_-2), gtsam::Symbol(factor.cur_key_-1),
+        B_llkf_Pose_lkf, factor.noise_));
 
     pgo_->update(nfg, value);
   } else {
@@ -962,7 +964,8 @@ void LoopClosureDetector::addLoopClosureFactorAndOptimize(
   gtsam::NonlinearFactorGraph nfg;
 
   nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(
-      factor.ref_key_, factor.cur_key_, factor.ref_Pose_cur_, factor.noise_));
+      gtsam::Symbol(factor.ref_key_), gtsam::Symbol(factor.cur_key_),
+      factor.ref_Pose_cur_, factor.noise_));
 
   pgo_->update(nfg);
 }
