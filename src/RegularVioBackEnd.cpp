@@ -10,6 +10,11 @@
  * @file   RegularVioBackEnd.h
  * @brief  Derived class from VioBackEnd which enforces regularity constraints
  * on the factor graph.
+ *
+ * A. Rosinol, T. Sattler, M. Pollefeys, and L. Carlone. Incremental
+ * Visual-Inertial 3D Mesh Generation with Structural Regularities. IEEE Intl.
+ * Conf. on Robotics and Automation (ICRA), 2019
+ *
  * @author Antoni Rosinol
  */
 
