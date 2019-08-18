@@ -1,7 +1,5 @@
 # SparkVIO: Open-Source Visual Inertial Odometry
 
-SparkVIO is open-source under the BSD license, see the `LICENSE.BSD` file.
-
 [![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/)
 
 ## What is SparkVIO?
@@ -315,3 +313,7 @@ cd $THIS_REPO
 init_linter_git_hooks
 ```
 For more information about the linter, check [here](https://github.com/ToniRV/linter).
+
+# Additional Information
+
+SparkVIO is open source under the BSD license, see the `LICENSE.BSD` file.
