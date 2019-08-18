@@ -26,13 +26,13 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 <img src="media/spark_vio_release.gif"/>
 </div>
 
-## Installation
+# Installation
 
 Tested on Mac, Ubuntu 14.04 & 16.04.
 
 > Note: if you want to avoid building all these dependencies yourself, we provide a docker image [below](#From-Dockerfile) that will install them for you.
 
-### Prerequisites:
+## Prerequisites:
 
 - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
 - [OpenCV](https://github.com/opencv/opencv) >= 3.0
@@ -41,7 +41,7 @@ Tested on Mac, Ubuntu 14.04 & 16.04.
 
 > Installation instructions below.
 
-### Install GTSAM
+## Install GTSAM
 
 #### GTSAM's dependencies:
 
@@ -91,7 +91,7 @@ sudo make $(nproc) install
 
 > Note: also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `-march=native` might cause problems that culminates in the form of segfaults when you run the unittests.
 
-### Install OpenCV
+## Install OpenCV
 
 #### OpenCV's dependencies:
 - on Mac:
@@ -124,7 +124,7 @@ sudo make -j $(nproc) install
 
 > Alternatively, replace `$(nproc)` by the number of available cores in your computer.
 
-### Install OpenGV
+## Install OpenGV
 Clone the repo:
 ```bash
 git clone https://github.com/laurentkneip/opengv 
@@ -143,7 +143,7 @@ sudo make -j $(nproc) install
 
 > Alternatively, replace `$(nproc)` by the number of available cores in your computer.
 
-### Glog, Gflags & Gtest
+## Glog, Gflags & Gtest
 Glog, Gflags, and Gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
 
 ## Install SparkVIO
@@ -187,9 +187,9 @@ docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
 ./scripts/docker/spark_vio_docker.bash
 ```
 
-## Running examples
+# Running examples
 
-### [Euroc](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) Dataset
+## [Euroc](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) Dataset
 
 #### Download Euroc's dataset
 
@@ -199,21 +199,26 @@ docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
 mkdir -p ~/Euroc/V1_01_easy
 unzip -o ~/Downloads/V1_01_easy.zip -d ~/Euroc/V1_01_easy
 ```
-- Add `%YAML:1.0` at the top of each `.yaml` file inside the dataset's `sensor.yaml`.
-You can do this manually or alternatively run the following bash script from within the dataset folder:
 
+#### Yamelize Euroc's dataset
+Add `%YAML:1.0` at the top of each `.yaml` file inside Euroc.
+You can do this manually or run the `yamelize.bash` script by indicating where the dataset is (it is assumed below to be in `~/Euroc`):
 ```bash
-sed -i '1 i\%YAML:1.0' body.yaml
-sed -i '1 i\%YAML:1.0' */sensor.yaml
+cd SparkVIO
+bash ./scripts/euroc/yamelize.bash ~/Euroc
 ```
 
-#### Run SparkVIO in Euroc's dataset
+## Run SparkVIO in Euroc's dataset
 
-You have two ways to start the example:
-- Using the script ```stereoVIOEuroc.bash``` inside the ```scripts``` folder:
-  - Run: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy"```
-  - Optionally, you can try the VIO using structural regularities, as in [Toni's thesis](https://www.research-collection.ethz.ch/handle/20.500.11850/297645), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/MH_01_easy" -r```
-- Alternatively, have a look inside the script to see how to change extra parameters that control the pipeline itself.
+Using a bash script bundling all command-line options and gflags:
+
+```bash
+cd SparkVIO
+./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
+```
+
+> Alternatively, one may directly use the executable in the build folder: 
+`./build/stereoVIOEuroc`. Nevertheless, check the script `./scripts/stereoVIOEuroc.bash` to understand what parameters are expected, or check the [parameters](#Parameters) section.
 
 ### Kitti dataset
 
@@ -223,22 +228,29 @@ You have two ways to start the example:
 
 - Run: `./scripts/stereoVIOEuroc.bash -p PATH_TO_DATASET -d 1 -r -parallel` where you specify the path to the dataset (e.g. path to '2011_09_26_drive_0005_extract' folder). (Again, the `-r` is enabling using the structural regularities and the `-parallel` is for using VIO in parallel mode)
 
+# Parameters
+SparkVIO accepts two sources of parameters: 
+- YAML files: contains parameters for Backend and Frontend.
+- [gflags](https://gflags.github.io/gflags/) contains parameters for all the rest.
+
+To get help on what each gflag parameter does, just run the executable with the `--help` flag: `./build/stereoVIOEuroc --help`.
+
+  - Optionally, you can try the VIO using structural regularities, as in [Toni's thesis](https://www.research-collection.ethz.ch/handle/20.500.11850/297645), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
 
 Tips for usage
 ----------------------
-- The 3D Visualization window implements the following keyboard shortcuts (you need to have the window in focus, click on it):
-    - Press 't': toggle freezing visualization (as of know, this blocks the whole pipeline, it might change once the visualization is threaded).
-    - Press 'v': prints to the terminal the pose of the current viewpoint of the 3D visualization window.
-    - Press 'w': prints to the terminal the size of the 3D visualization window.
-    - Do not press 'q': unless you want to terminate the pipeline in an abrupt way, see #74.
+- The 3D Visualization window implements the following keyboard shortcuts (you need to have the window in focus: click on it):
+    - Press `t`: toggle freezing visualization.
+    - Press `v`: prints pose of the current viewpoint of the 3D visualization window.
+    - Press `w`: prints to the terminal the size of the 3D visualization window.
 
-     These last two shortcuts are useful if you want to programmatically set the initial viewpoint and size of the screen when launching the 3D visualization window (this is done at the constructor of the 3DVisualizer class).
-    - Press 's': to get a screenshot of the 3D visualization window.
-    - Press '0', '1', or '2': to toggle the 3D mesh representation (only visible if the gflag 'visualize_mesh' is set to true).
-    - Press 'a': to toggle ambient light for the 3D mesh ('visualize_mesh' has to be set to true).
-    - Press 'l': to toggle lighting for the 3D mesh ('visualize_mesh' has to be set to true).
+     > These last two shortcuts are useful if you want to programmatically set the initial viewpoint and size of the screen when launching the 3D visualization window (this is done at the constructor of the 3DVisualizer class).
 
-> For these shortcuts to take effect you need to have the window in focus. Note also that there might be a big delay between your keypress and the actual processing of the information as this is purely sequential with the VIO pipeline itself; this might change after parallelizing the pipeline).
+    - Do not press `q` unless you want to terminate the pipeline in an abrupt way (see #74).
+    - Press `s`: to get a screenshot of the 3D visualization window.
+    - Press `0`, `1`, or `2`: to toggle the 3D mesh representation (only visible if the gflag 'visualize_mesh' is set to true).
+    - Press `a`: to toggle ambient light for the 3D mesh (gflag `visualize_mesh` has to be set to true).
+    - Press `l`: to toggle lighting for the 3D mesh (gflag `visualize_mesh` has to be set to true).
 
 - The 3D Visualization allows to load an initial `.ply` file.
 This is useful for example for the Euroc dataset `V1_01_*` where we are given a point-cloud of the scene. Note that the `.ply` file must have the following properties in the header, and its corresponding entries:
@@ -270,13 +282,13 @@ Tips for development
 
 > Note: these changes are not sufficient to make the output repeatable between different machines.
 
-> Note to self: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
->
+> Note: remember that we are using ```-march=native``` compiler flag, which will be a problem if we ever want to distribute binaries of this code.
 
-For Developers: Pull Requests
-======================
+# Contributing:
 
-## Use code linter
+We stick to the branch, open PR, review, merge workflow.
+
+### Use code linter
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
 
@@ -284,9 +296,7 @@ To contribute to this repo, ensure your commits pass the linter pre-commit check
 
 Install the following dependencies to run the linter:
 
- * **requests** `pip install requests`
- * **pylint** `pip install pylint`
- * **yapf** `pip install yapf`
+ * `pip install requests pyline yapf`
  * **clang-format**
    * Compatible with `clang-format-3.8 - 6.0`
    * Ubuntu: `sudo apt install clang-format-${VERSION}`
@@ -299,19 +309,20 @@ Install the following dependencies to run the linter:
 ### Installation
 
 ```bash
-cd $THIS_REPO
+cd SparkVIO
 git submodule update --init
-echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc  # Or the matching file for
-                                                   # your shell.
+echo "source $(realpath ./dev_tools/linter/setup_linter.sh)" >> ~/.bashrc  
+# Or the matching file for your shell
 bash
 ```
 
 Then you can install the linter in your repository:
 
-```
-cd $THIS_REPO
+```bash
+cd SparkVIO
 init_linter_git_hooks
 ```
+
 For more information about the linter, check [here](https://github.com/ToniRV/linter).
 
 # Additional Information
