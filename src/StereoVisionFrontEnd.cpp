@@ -29,7 +29,8 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
       save_images_option_(save_images_option),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
-      log_output_(log_output) {  // Only for debugging and visualization.
+      log_output_(log_output),
+      logger_() {  // Only for debugging and visualization.
 
   // Instantiate IMU frontend.
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
@@ -156,6 +157,8 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
       logger_.logFrontendResults(
           trackerStatusSummary_,
           stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
+
+      logger_.logTrackerStatistics(getTrackerInfo());
     }
     ////////////////////////////////////////////////////////////////////////////
 

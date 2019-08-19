@@ -78,9 +78,14 @@ class FrontendLogger : private Logger {
   void logFrontendResults(const TrackerStatusSummary& tracker_summary,
                           const size_t& nrKeypoints);
 
+  void logTrackerStatistics(const DebugTrackerInfo& tracker_info);
+
  private:
   // Filenames to be saved in the output folder.
-  const std::string output_frontend_filename_ = "output_frontence.csv";
+  const std::string output_frontend_results_filename_ =
+      "output_frontend_results.csv";
+  const std::string output_frontend_statistics_filename_ =
+      "output_frontend_statistics.csv";
 };
 
 class VisualizerLogger : private Logger {

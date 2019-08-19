@@ -218,7 +218,8 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 FrontendLogger::FrontendLogger() : Logger() {
-  openLogFile(output_frontend_filename_);
+  openLogFile(output_frontend_results_filename_, true);
+  openLogFile(output_frontend_statistics_filename_, true);
 }
 
 void FrontendLogger::logFrontendResults(
@@ -228,7 +229,7 @@ void FrontendLogger::logFrontendResults(
   static bool is_header_written = false;
 
   std::ofstream& output_frontend_stream =
-      filename_to_outstream_.at(output_frontend_filename_);
+      filename_to_outstream_.at(output_frontend_results_filename_);
   if (!is_header_written) {
     output_frontend_stream << "mono_status, stereo_status, nr_keypoints"
                            << std::endl;
@@ -243,8 +244,55 @@ void FrontendLogger::logFrontendResults(
   output_frontend_stream << TrackerStatusSummary::asString(
                                 tracker_summary.kfTrackingStatus_stereo_)
                          << ", ";
-  // Nr of keypoints
+  // Nr of keypoints.
   output_frontend_stream << nrKeypoints << ", ";
+}
+
+void FrontendLogger::logTrackerStatistics(
+    const DebugTrackerInfo& tracker_info) {
+  // We log frontend tracker statistics in csv format.
+  static bool is_header_written = false;
+
+  std::ofstream& output_frontend_stream =
+      filename_to_outstream_.at(output_frontend_statistics_filename_);
+  if (!is_header_written) {
+    output_frontend_stream << "nrDetFeat,nrTrackFeat,nrMoIn,nrMoPu,nrStIn,"
+                           << "nrStPu,moRaIt,stRaIt,nrVaRKP,nrNoLRKP,"
+                           << "nrNoRRKP,nrNoDRKP,nrFaARKP,featDetTime,"
+                           << "featTrackTime,moRanTime,stRanTime,"
+                           << "featSelTime,extCorn,needNCorn"
+                           << std::endl;
+    is_header_written = true;
+  }
+
+  // Feature detection, tracking and ransac.
+  output_frontend_stream << tracker_info.nrDetectedFeatures_ << ", "
+                         << tracker_info.nrTrackerFeatures_ << ", "
+                         << tracker_info.nrMonoInliers_ << ", "
+                         << tracker_info.nrMonoPutatives_ << ", "
+                         << tracker_info.nrStereoInliers_ << ", "
+                         << tracker_info.nrStereoPutatives_ << ", "
+                         << tracker_info.monoRansacIters_ << ", "
+                         << tracker_info.stereoRansacIters_ << ", "
+
+  // Performance of sparse-stereo-matching and ransac.
+                         << tracker_info.nrValidRKP_ << ", "
+                         << tracker_info.nrNoLeftRectRKP_ << ", "
+                         << tracker_info.nrNoRightRectRKP_ << ", "
+                         << tracker_info.nrNoDepthRKP_ << ", "
+                         << tracker_info.nrFailedArunRKP_ << ", "
+
+  // Info about timing.
+                         << tracker_info.featureDetectionTime_ << ", "
+                         << tracker_info.featureTrackingTime_ << ", "
+                         << tracker_info.monoRansacTime_ << ", "
+                         << tracker_info.stereoRansacTime_ << ", "
+
+  // Info about feature selector.
+                         << tracker_info.featureSelectionTime_ << ", "
+                         << tracker_info.extracted_corners_ << ", "
+                         << tracker_info.need_n_corners_ << ", "
+                         << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
