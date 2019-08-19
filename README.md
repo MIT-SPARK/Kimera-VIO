@@ -1,3 +1,7 @@
+<div align="center">
+    <img src="./docs/media/sparkvio_logo.png", width="100">
+</div>
+
 # SparkVIO: Open-Source Visual Inertial Odometry
 
 [![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/)
