@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="./docs/media/sparkvio_logo.png", width="100">
+    <img src="docs/media/sparkvio_logo.png" width="100">
 </div>
 
 # SparkVIO: Open-Source Visual Inertial Odometry
@@ -30,8 +30,8 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 
 ## Demo
 
-<div style="text-align:center">
-<img src="docs/media/spark_vio_release.gif"/>
+<div align="center">
+  <img src="docs/media/sparkvio_release.gif"/>
 </div>
 
 # 1. Installation
@@ -125,7 +125,7 @@ We follow the branch, open PR, review, and merge workflow.
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
  To enable these checks you will need to [install linter](./docs/linter_installation.md).
 
-Also, check [tips for development](./docs/tips_development.md).
+Also, check [tips for development](./docs/tips_development.md) and our [developer guide](./docs/developer_guide.md)
 
 # 5. BSD License
 
