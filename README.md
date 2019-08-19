@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="docs/media/sparkvio_logo.png", width="100">
+    <img src="docs/media/sparkvio_logo.png" width="100">
 </div>
 
 # SparkVIO: Open-Source Visual Inertial Odometry
