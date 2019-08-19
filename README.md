@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="./docs/media/sparkvio_logo.png", width="100">
+    <img src="docs/media/sparkvio_logo.png", width="100">
 </div>
 
 # SparkVIO: Open-Source Visual Inertial Odometry
@@ -30,8 +30,8 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 
 ## Demo
 
-<div style="text-align:center">
-<img src="docs/media/spark_vio_release.gif"/>
+<div align="center">
+  <img src="docs/media/sparkvio_release.gif"/>
 </div>
 
 # 1. Installation
