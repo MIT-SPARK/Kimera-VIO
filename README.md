@@ -38,7 +38,7 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 
 Tested on Mac, Ubuntu 14.04 & 16.04.
 
-## Prerequisites:
+## Prerequisites
 
 - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
 - [OpenCV](https://github.com/opencv/opencv) >= 3.0
