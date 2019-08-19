@@ -125,7 +125,7 @@ We follow the branch, open PR, review, and merge workflow.
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
  To enable these checks you will need to [install linter](./docs/linter_installation.md).
 
-Also, check [tips for development](./docs/tips_development.md).
+Also, check [tips for development](./docs/tips_development.md) and our [developer guide](./docs/developer_guide.md)
 
 # 5. BSD License
 
