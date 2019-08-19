@@ -95,6 +95,9 @@ struct StatisticsMapValue {
   double RollingMean() const { return values_.RollingMean(); }
   double Max() const { return values_.max(); }
   double Min() const { return values_.min(); }
+  double Median() const { return values_.median(); }
+  double Q1() const { return values_.q1(); }
+  double Q3() const { return values_.q3(); }
   double LazyVariance() const { return values_.LazyVariance(); }
   double MeanCallsPerSec() const {
     double mean_dt = time_deltas_.Mean();
@@ -110,8 +113,9 @@ struct StatisticsMapValue {
   double MaxDeltaTime() const { return time_deltas_.max(); }
   double MinDeltaTime() const { return time_deltas_.min(); }
   double LazyVarianceDeltaTime() const { return time_deltas_.LazyVariance(); }
+  std::vector<double> GetAllValues() const { return values_.GetAllSamples(); }
 
- private:
+private:
   // Create an accumulator with specified window size.
   Accumulator<double, double, kWindowSize> values_;
   Accumulator<double, double, kWindowSize> time_deltas_;
@@ -158,6 +162,8 @@ class Statistics {
   static double GetTotal(std::string const& tag);
   static double GetMean(size_t handle);
   static double GetMean(std::string const& tag);
+  static std::vector<double> GetAllSamples(size_t handle);
+  static std::vector<double> GetAllSamples(std::string const &tag);
   static size_t GetNumSamples(size_t handle);
   static size_t GetNumSamples(std::string const& tag);
   static double GetVariance(size_t handle);
@@ -166,6 +172,12 @@ class Statistics {
   static double GetMin(std::string const& tag);
   static double GetMax(size_t handle);
   static double GetMax(std::string const& tag);
+  static double GetMedian(size_t handle);
+  static double GetMedian(std::string const &tag);
+  static double GetQ1(size_t handle);
+  static double GetQ1(std::string const &tag);
+  static double GetQ3(size_t handle);
+  static double GetQ3(std::string const &tag);
   static double GetHz(size_t handle);
   static double GetHz(std::string const& tag);
 
@@ -180,6 +192,9 @@ class Statistics {
   static double GetVarianceDeltaTime(std::string const& tag);
   static double GetVarianceDeltaTime(size_t handle);
 
+  // Writes a csv file, but transposed, each row first element represents the
+  // columns headers, and the subsequent values are the data.
+  static void WriteAllSamplesToCsvFile(const std::string &path);
   static void WriteToYamlFile(const std::string& path);
   static void Print(std::ostream& out);  // NOLINT
   static std::string Print();

@@ -104,12 +104,12 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
   const auto& pim =
       imu_frontend_->preintegrateImuMeasurements(imu_stamps, imu_accgyr);
   auto full_preint_duration =
-      utils::Timer::toc<std::chrono::nanoseconds>(tic_full_preint).count();
-  utils::StatsCollector stats_full_preint("Full Preint Timing [ns]");
+      utils::Timer::toc<std::chrono::microseconds>(tic_full_preint).count();
+  utils::StatsCollector stats_full_preint("IMU Preintegration Timing [us]");
   stats_full_preint.AddSample(full_preint_duration);
   LOG_IF(WARNING, full_preint_duration != 0.0)
-      << "Current IMU Preintegration frequency: " << 10e9 / full_preint_duration
-      << " Hz. (" << full_preint_duration << " ns).";
+      << "Current IMU Preintegration frequency: " << 10e6 / full_preint_duration
+      << " Hz. (" << full_preint_duration << " us).";
 
   // On the left camera rectified!!
   static const gtsam::Rot3 body_Rot_cam =

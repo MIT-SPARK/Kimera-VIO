@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
   LOG(INFO) << "Pipeline successful? "
             << (is_pipeline_successful ? "Yes!" : "No!");
-  VIO::utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
+  VIO::utils::Statistics::WriteAllSamplesToCsvFile("StatisticsVIO.csv");
 
   if (is_pipeline_successful) {
     // Log overall time of pipeline run.
