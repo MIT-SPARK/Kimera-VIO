@@ -115,3 +115,11 @@ Following these guidelines and common sense ones like not adding random includes
 On top of that, use as many .h as possible to allow others and yourself to just include the strictly necessary things: for example, the imu definitions, used by many, are set in a separate header file, so that not everyone includes the imu_frontend!
 
 iii) Altough not recommended (see [google cpp styleguide](https://google.github.io/styleguide/cppguide.html#Forward_Declarations)), you can use **Fast-forward definitions**: this is typically the case for your .h functions that ask for arguments of a given type. Note that the compiler does not need to know the exact type of these arguments, so you can, at the top of your .h just tell the compiler that your argument is indeed a type, using: `class your_type;` That's it!! Neverthe
+We use git and stick to a strict "branch, pull-request, review, merge" workflow.
+
+### Commits Guidelines:
+* Each commit should strive to be **compilable**.
+* Each commit should pass all tests: `make test`.
+* Each commit message should start with a capital letter, and end with a period. Keep commit titles short (80 characters) but informative.
+* Each commit should be self-contained in functionality so that it can be easily reverted. One conceptual function/feature modified at a time if possible.
+* Commit often.
