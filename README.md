@@ -51,7 +51,7 @@ Tested on Mac, Ubuntu 14.04 & 16.04.
 
 Find how to install SparkVIO and its dependencies here: **[Installation instructions](./docs/sparkvio_installation.md)**.
 
-# 2. Running examples
+# 2. Usage
 
 ## i. [Euroc](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) Dataset
 
