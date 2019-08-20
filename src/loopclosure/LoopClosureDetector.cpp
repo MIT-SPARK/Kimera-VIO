@@ -163,6 +163,11 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   W_Pose_Bkf_estimates_.push_back(input->W_Pose_Blkf_);
   VioFactor vio_factor(input->cur_kf_id_, input->W_Pose_Blkf_,
       shared_noise_model_);
+
+  // Initialize PGO with first frame if needed.
+  if (vio_factor.cur_key_ == 1) {
+    initializePGO(vio_factor);
+  }
   addVioFactorAndOptimize(vio_factor);
 
   // Process the StereoFrame and check for a loop closure with previous ones.
@@ -923,26 +928,24 @@ void LoopClosureDetector::initializePGO() {
   pgo_->update(init_nfg, init_val);
 }
 
+void LoopClosureDetector::initializePGO(const VioFactor& factor) {
+  gtsam::NonlinearFactorGraph init_nfg;
+  gtsam::Values init_val;
+
+  init_val.insert(gtsam::Symbol(0), factor.W_Pose_Blkf_);
+
+  init_nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
+      gtsam::Symbol(0), factor.W_Pose_Blkf_, factor.noise_));
+
+  pgo_->update(init_nfg, init_val);
+}
+
 // TODO(marcus): only add nodes if they're x dist away from previous node
-// TOOD(marcus): vio factors have LAST KEYFRAME not current
-// TODO(marcus): failure happening due to a super high index, past the size
-// of the vector of poses
 void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor& factor) {
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
 
-  // TODO(marcus): move this to initializePGO, use pgo_->size() to determine.
-  if (factor.cur_key_ == 1) {
-
-    value.insert(gtsam::Symbol(factor.cur_key_-1), factor.W_Pose_Blkf_);
-
-    nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
-        factor.cur_key_-1, factor.W_Pose_Blkf_, factor.noise_));
-
-    pgo_->update(nfg, value);
-
-  } else if (factor.cur_key_ <= W_Pose_Bkf_estimates_.size() &&
-        factor.cur_key_ > 1) {
+  if (factor.cur_key_ <= W_Pose_Bkf_estimates_.size() && factor.cur_key_ > 1) {
     value.insert(gtsam::Symbol(factor.cur_key_-1), factor.W_Pose_Blkf_);
 
     gtsam::Pose3 B_llkf_Pose_lkf =

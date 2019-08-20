@@ -159,6 +159,8 @@ class LoopClosureDetector {
 
   void initializePGO();
 
+  void initializePGO(const VioFactor& factor);
+
   void addVioFactorAndOptimize(const VioFactor& factor);
 
   void addLoopClosureFactorAndOptimize(const LoopClosureFactor& factor);
