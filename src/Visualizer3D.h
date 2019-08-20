@@ -26,7 +26,7 @@
 #include "mesh/Mesher.h"
 #include "utils/ThreadsafeQueue.h"
 
-#include "LoggerMatlab.h"
+#include "logging/Logger.h"
 
 namespace VIO {
 
