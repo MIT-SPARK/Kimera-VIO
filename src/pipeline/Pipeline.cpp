@@ -27,7 +27,7 @@
 #include "InitializationBackEnd.h"
 #include "RegularVioBackEnd.h"
 #include "StereoVisionFrontEnd.h"
-#include "LoopClosureDetector.h"
+#include "loopclosure/LoopClosureDetector.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
 

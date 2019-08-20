@@ -75,7 +75,6 @@ RUN cd DBoW2 && \
   # Install RobustPGO
   RUN git clone https://github.com/MIT-SPARK/RobustPGO.git
   RUN cd RobustPGO && \
-        git checkout fix/unique_ptr_issue && \
         mkdir build && \
         cd build && \
         cmake .. && \

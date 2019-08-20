@@ -19,11 +19,9 @@
 #include "common/vio_types.h"
 #include "StereoFrame.h"
 
-#include <DBoW2/DBoW2.h>
-
 #include <gtsam/geometry/Pose3.h>
-#include <gtsam/base/Matrix.h>
 #include <gtsam/linear/NoiseModel.h>
+#include <gtsam/nonlinear/Values.h>
 
 namespace VIO {
 

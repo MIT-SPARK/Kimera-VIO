@@ -22,7 +22,7 @@
 #include "StereoImuSyncPacket.h"
 #include "VioBackEndParams.h"
 #include "VioFrontEndParams.h"
-#include "LoopClosureDetectorParams.h"
+#include "loopclosure/LoopClosureDetectorParams.h"
 
 #include <gtsam/navigation/ImuBias.h>
 

@@ -15,9 +15,9 @@
 #include <string>
 #include <algorithm>
 
-#include "LoopClosureDetector.h"
+#include "loopclosure/LoopClosureDetector.h"
 
-#include <gtsam/base/Matrix.h>
+#include <RobustPGO/RobustSolver.h>
 
 #include <opengv/sac/Ransac.hpp>
 #include <opengv/sac_problems/relative_pose/CentralRelativePoseSacProblem.hpp>

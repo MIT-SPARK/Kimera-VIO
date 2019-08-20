@@ -15,10 +15,11 @@
 #ifndef LoopClosureDetector_H_
 #define LoopClosureDetector_H_
 
-// TODO(marcus): forward declare EVERYTHING
-
 #include <memory>
 #include <vector>
+
+#include "loopclosure/LoopClosureDetector-definitions.h"
+#include "loopclosure/LoopClosureDetectorParams.h"
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
@@ -27,13 +28,14 @@
 #include <opencv2/features2d.hpp>
 
 #include <DBoW2/DBoW2.h>
-#include <RobustPGO/RobustSolver.h>
 
 #include "utils/ThreadsafeQueue.h"
-
 #include "StereoFrame.h"
-#include "LoopClosureDetector-definitions.h"
-#include "LoopClosureDetectorParams.h"
+
+// Forward declare RobustPGO, a private dependency.
+namespace RobustPGO {
+  class RobustSolver;
+}
 
 namespace VIO {
 

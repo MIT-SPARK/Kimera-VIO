@@ -35,7 +35,7 @@ Make build dir, and run `cmake`:
 cd gtsam
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=OFF ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=OFF -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON ..
 ```
 
 Ensure that:
@@ -99,7 +99,7 @@ sudo make -j $(nproc) install
 ## Install OpenGV
 Clone the repo:
 ```bash
-git clone https://github.com/laurentkneip/opengv
+git clone https://github.com/laurentkneip/opengv.git
 ```
 
 - using cmake-gui, set: the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen). if you don't do so, very weird error (TODO document) appear (may be due to GTSAM and OpenGV using different versions of eigen!)
@@ -114,6 +114,28 @@ sudo make -j $(nproc) install
 ```
 
 > Alternatively, replace `$(nproc)` by the number of available cores in your computer.
+
+## Install DBoW2
+Clone the repo and run cmake:
+```bash
+git clone https://github.com/dorian3d/DBoW2.git
+cd DBoW2
+mkdir build
+cd build
+cmake ..
+sudo make -j $(nproc) install
+```
+
+## Install RobustPGO
+Clone the repo and run cmake:
+```bash
+git clone https://github.com/MIT-SPARK/RobustPGO.git
+cd RobustPGO
+mkdir build
+cd build
+cmake ..
+sudo make -j $(nproc)
+```
 
 ## Glog, Gflags & Gtest
 Glog, Gflags, and Gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).

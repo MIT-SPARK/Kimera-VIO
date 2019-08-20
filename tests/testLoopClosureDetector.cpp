@@ -12,7 +12,7 @@
  * @author Marcus Abate, Luca Carlone
  */
 
-#include "LoopClosureDetector.h"
+#include "loopclosure/LoopClosureDetector.h"
 
 #include <memory>
 #include <string>
@@ -41,13 +41,13 @@ using namespace VIO;
 class LCDFixture :public ::testing::Test {
  public:
   LCDFixture()
-      : lcd_FLAGS_test_data_path_(FLAGS_test_data_path +
-                                  string("/ForLoopClosureDetector")) {
+      : lcd_test_data_path_(FLAGS_test_data_path +
+                                  std::string("/ForLoopClosureDetector")) {
     // First set value of vocabulary path for LoopClosureDetector
     FLAGS_vocabulary_path = "../vocabulary/ORBvoc.yml";
 
     LoopClosureDetectorParams params;
-    params.parseYAML(lcd_FLAGS_test_data_path_+"/testLCDParameters.yaml");
+    params.parseYAML(lcd_test_data_path_+"/testLCDParameters.yaml");
 
     lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
 
@@ -77,20 +77,20 @@ class LCDFixture :public ::testing::Test {
   void initializeData() {
     // Initialize CameraParams for both frames
     CameraParams cam_params_left, cam_params_right;
-    cam_params_left.parseYAML(lcd_FLAGS_test_data_path_+"/sensorLeft.yaml");
-    cam_params_right.parseYAML(lcd_FLAGS_test_data_path_+"/sensorRight.yaml");
+    cam_params_left.parseYAML(lcd_test_data_path_+"/sensorLeft.yaml");
+    cam_params_right.parseYAML(lcd_test_data_path_+"/sensorRight.yaml");
 
-    string img_name_ref1_left = lcd_FLAGS_test_data_path_ + "/left_img_0.png";
-    string img_name_ref1_right = lcd_FLAGS_test_data_path_ + "/right_img_0.png";
+    std::string img_name_ref1_left = lcd_test_data_path_ + "/left_img_0.png";
+    std::string img_name_ref1_right = lcd_test_data_path_ + "/right_img_0.png";
 
-    string img_name_cur1_left = lcd_FLAGS_test_data_path_ + "/left_img_1.png";
-    string img_name_cur1_right = lcd_FLAGS_test_data_path_ + "/right_img_1.png";
+    std::string img_name_cur1_left = lcd_test_data_path_ + "/left_img_1.png";
+    std::string img_name_cur1_right = lcd_test_data_path_ + "/right_img_1.png";
 
-    string img_name_ref2_left = lcd_FLAGS_test_data_path_ + "/left_img_2.png";
-    string img_name_ref2_right = lcd_FLAGS_test_data_path_ + "/right_img_2.png";
+    std::string img_name_ref2_left = lcd_test_data_path_ + "/left_img_2.png";
+    std::string img_name_ref2_right = lcd_test_data_path_ + "/right_img_2.png";
 
-    string img_name_cur2_left = lcd_FLAGS_test_data_path_ + "/left_img_3.png";
-    string img_name_cur2_right = lcd_FLAGS_test_data_path_ + "/right_img_3.png";
+    std::string img_name_cur2_left = lcd_test_data_path_ + "/left_img_3.png";
+    std::string img_name_cur2_right = lcd_test_data_path_ + "/right_img_3.png";
 
     // Get ground truth camera relative poses
     gtsam::Pose3 camL_Pose_camR =
@@ -162,7 +162,7 @@ class LCDFixture :public ::testing::Test {
 
 protected:
   // Data-related members
-  std::string lcd_FLAGS_test_data_path_;
+  std::string lcd_test_data_path_;
 
   // LCD members
   std::unique_ptr<LoopClosureDetector> lcd_detector_;

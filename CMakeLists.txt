@@ -80,9 +80,6 @@ add_library(SparkVio SHARED
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
   src/LoggerMatlab.cpp
-  src/LoopClosureDetector.cpp
-  src/LoopClosureDetector.h
-  src/LoopClosureDetectorParams.h
   src/FeatureSelector.cpp
   src/YamlParser.h
   src/VioBackEndParams.h
@@ -109,6 +106,8 @@ include(src/initial/CMakeLists.txt)
 include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
+### Add source code for LoopClosureDetector
+include(src/loopclosure/CMakeLists.txt)
 
 target_link_libraries(SparkVio
   PRIVATE
@@ -200,7 +199,6 @@ add_executable(testSparkVio
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
-  #tests/testInitializationBackEnd.cpp
   tests/testOnlineAlignment.cpp
   )
 
