@@ -12,7 +12,7 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "LoggerMatlab.h"
+#include "logging/Logger.h"
 
 #include <boost/foreach.hpp>
 #include <memory>
