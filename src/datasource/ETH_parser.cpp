@@ -121,7 +121,7 @@ void ETHDatasetParser::spinOnce(
   // it, but totally useless...
   static bool do_once = true;
   if (do_once) {
-    timestamp_first_lkf_ = timestamp_last_frame;
+    timestamp_first_lkf_ = timestamp_frame_k;
     do_once = false;
   }
 
@@ -172,14 +172,10 @@ void ETHDatasetParser::parse() {
     final_k_ = nr_images;
     LOG(WARNING) << "Using final_k = " << final_k_;
   }
-  CHECK(final_k_ > initial_k_)
-      << "Value for final_k (" << final_k_ << ") is smaller than value for"
-      << " initial_k (" << initial_k_ << ").";
 
-  LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
-            << final_k_;
-
-  parseParams(); // parse backend/frontend parameters
+  // Parse backend/frontend parameters
+  parseBackendParams();
+  parseFrontendParams();
 }
 
 /* -------------------------------------------------------------------------- */

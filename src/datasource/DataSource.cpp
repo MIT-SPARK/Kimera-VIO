@@ -34,10 +34,28 @@ DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
 
 namespace VIO {
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS CameraImageLists              //////////
-////////////////////////////////////////////////////////////////////////////////
-/* -------------------------------------------------------------------------- */
+gtNavState::gtNavState(const gtsam::Pose3& pose,
+    const gtsam::Vector3& velocity,
+    const gtsam::imuBias::ConstantBias& imu_bias)
+  : pose_(pose),
+    velocity_(velocity),
+    imu_bias_(imu_bias) {}
+
+gtNavState::gtNavState(const gtsam::NavState& nav_state,
+    const gtsam::imuBias::ConstantBias& imu_bias)
+  : pose_(nav_state.pose()),
+    velocity_(nav_state.velocity()),
+    imu_bias_(imu_bias) {}
+
+void gtNavState::print(const std::string& message) const {
+  if (VLOG_IS_ON(10)) {
+    LOG(INFO) << "--- " << message << "--- ";
+    pose_.print("\n pose: \n");
+    LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
+    imu_bias_.print("\n imuBias: \n");
+  }
+}
+
 bool CameraImageLists::parseCamImgList(const std::string& folderpath,
                                        const std::string& filename) {
   image_folder_path_ = folderpath;  // stored, only for debug
@@ -71,10 +89,6 @@ void CameraImageLists::print() const {
             << "img_lists size: " << img_lists.size();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS GroundTruthData              ///////////
-////////////////////////////////////////////////////////////////////////////////
-/* -------------------------------------------------------------------------- */
 void GroundTruthData::print() const {
   LOG(INFO) << "------------ GroundTruthData::print -------------";
   body_Pose_cam_.print("body_Pose_cam_: \n");
@@ -82,10 +96,24 @@ void GroundTruthData::print() const {
             << "nr of gtStates: " << mapToGt_.size();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS Initialization Performance   ///////////
-////////////////////////////////////////////////////////////////////////////////
-/* -------------------------------------------------------------------------- */
+InitializationPerformance::InitializationPerformance(
+    const Timestamp init_timestamp,
+    const int init_n_frames,
+    const double avg_rotationErrorBA,
+    const double avg_tranErrorBA,
+    const gtNavState init_nav_state,
+    const gtsam::Vector3 init_gravity,
+    const gtNavState gt_nav_state,
+    const gtsam::Vector3 gt_gravity)
+  : init_timestamp_(init_timestamp),
+    init_n_frames_(init_n_frames),
+    avg_rotationErrorBA_(avg_rotationErrorBA),
+    avg_tranErrorBA_(avg_tranErrorBA),
+    init_nav_state_(init_nav_state),
+    init_gravity_(init_gravity),
+    gt_nav_state_(gt_nav_state),
+    gt_gravity_(gt_gravity) {}
+
 void InitializationPerformance::print() const {
       // Log everything
       LOG(INFO) << "BUNDLE ADJUSTMENT\n"
@@ -120,13 +148,19 @@ void InitializationPerformance::print() const {
               << gt_gravity_;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS DataProvider                  //////////
-////////////////////////////////////////////////////////////////////////////////
 DataProvider::DataProvider() :
     initial_k_(FLAGS_initial_k),
     final_k_(FLAGS_final_k),
-    dataset_path_(FLAGS_dataset_path) {}
+    dataset_path_(FLAGS_dataset_path) {
+
+  CHECK(final_k_ > initial_k_)
+      << "Value for final_k (" << final_k_
+      << ") is smaller than value for"
+      << " initial_k (" << initial_k_ << ").";
+
+  LOG(INFO) << "Running dataset between frame " << initial_k_
+          << " and frame " << final_k_;
+}
 
 DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";
@@ -161,7 +195,7 @@ bool DataProvider::spin() {
 }
 
 /* -------------------------------------------------------------------------- */
-void DataProvider::parseParams() {
+void DataProvider::parseBackendParams() {
   switch (FLAGS_backend_type) {
     case 0: {
       pipeline_params_.backend_params_ = std::make_shared<VioBackEndParams>();
@@ -172,7 +206,7 @@ void DataProvider::parseParams() {
       break;
     }
     default: {
-      CHECK(false) << "Unrecognized backend type: " << FLAGS_backend_type << "."
+      LOG(FATAL) << "Unrecognized backend type: " << FLAGS_backend_type << "."
                    << " 0: normalVio, 1: RegularVio.";
     }
   }
@@ -181,7 +215,7 @@ void DataProvider::parseParams() {
 
   // Read/define vio params.
   if (FLAGS_vio_params_path.empty()) {
-    VLOG(100) << "No vio parameters specified, using default.";
+    LOG(WARNING) << "No vio parameters specified, using default.";
     // Default params with IMU stats from dataset.
     pipeline_params_.backend_params_->gyroNoiseDensity_ = pipeline_params_.imu_params_.gyro_noise_;
     pipeline_params_.backend_params_->accNoiseDensity_ = pipeline_params_.imu_params_.acc_noise_;
@@ -197,10 +231,14 @@ void DataProvider::parseParams() {
   // on their own mostly.
   pipeline_params_.imu_params_.imu_integration_sigma_ = pipeline_params_.backend_params_->imuIntegrationSigma_;
   pipeline_params_.imu_params_.n_gravity_ = pipeline_params_.backend_params_->n_gravity_;
+}
+
+/* -------------------------------------------------------------------------- */
+void DataProvider::parseFrontendParams() {
 
   // Read/define tracker params.
   if (FLAGS_tracker_params_path.empty()) {
-    VLOG(100) << "No tracker parameters specified, using default";
+    LOG(WARNING) << "No tracker parameters specified, using default";
     pipeline_params_.frontend_params_ = VioFrontEndParams();  // default params
   } else {
     VLOG(100) << "Using user-specified tracker parameters: "

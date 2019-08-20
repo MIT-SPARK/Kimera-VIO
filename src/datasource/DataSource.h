@@ -41,28 +41,21 @@ namespace VIO {
  */
 class gtNavState {
  public:
-  gtNavState() = default;
-  gtNavState(const gtsam::Pose3& pose, const gtsam::Vector3& velocity,
-             const gtsam::imuBias::ConstantBias& imu_bias)
-      : pose_(pose), velocity_(velocity), imu_bias_(imu_bias) {}
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  gtNavState(){}
+
+  gtNavState(const gtsam::Pose3& pose,
+             const gtsam::Vector3& velocity,
+             const gtsam::imuBias::ConstantBias& imu_bias);
+
   gtNavState(const gtsam::NavState& nav_state,
-             const gtsam::imuBias::ConstantBias& imu_bias)
-    : pose_(nav_state.pose()),
-      velocity_(nav_state.velocity()),
-      imu_bias_(imu_bias) {}
+             const gtsam::imuBias::ConstantBias& imu_bias);
 
   gtsam::Pose3 pose_;
   gtsam::Vector3 velocity_;
   gtsam::imuBias::ConstantBias imu_bias_;
 
-  void print(const std::string message = " ") const {
-    if (VLOG_IS_ON(10)) {
-      LOG(INFO) << "--- " << message << "--- ";
-      pose_.print("\n pose: \n");
-      LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
-      imu_bias_.print("\n imuBias: \n");
-    }
-  }
+  void print(const std::string& message = " ") const;
 
   gtsam::Pose3 pose() const { return pose_; };
 };
@@ -79,15 +72,7 @@ struct InitializationPerformance {
       const gtNavState init_nav_state,
       const gtsam::Vector3 init_gravity,
       const gtNavState gt_nav_state,
-      const gtsam::Vector3 gt_gravity)
-      : init_timestamp_(init_timestamp),
-        init_n_frames_(init_n_frames),
-        avg_rotationErrorBA_(avg_rotationErrorBA),
-        avg_tranErrorBA_(avg_tranErrorBA),
-        init_nav_state_(init_nav_state),
-        init_gravity_(init_gravity),
-        gt_nav_state_(gt_nav_state),
-        gt_gravity_(gt_gravity) {}
+      const gtsam::Vector3 gt_gravity);
 
     void print() const;
 
@@ -111,6 +96,7 @@ class GroundTruthData {
   void print() const;
 
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Sensor extrinsics wrt. the body-frame
   gtsam::Pose3 body_Pose_cam_;
 
@@ -175,7 +161,8 @@ class DataProvider {
 
 protected:
   // Helper function to parse user-specified parameters.
-  void parseParams();
+  void parseBackendParams();
+  void parseFrontendParams();
 };
 
 }  // namespace VIO

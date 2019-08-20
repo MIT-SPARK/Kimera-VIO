@@ -4,7 +4,7 @@
 /matlab/result-*
 /scripts/*/*.txt
 /*/*.csv
-
+.ipynb_checkpoints
 
 % Ignore VS code settings
 .vscode

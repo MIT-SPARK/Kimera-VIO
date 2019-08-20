@@ -965,12 +965,17 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
   std::tie(trackedAndSelectedSmartStereoMeasurements, *feature_selection_time) =
       feature_selector_->splitTrackedAndNewFeatures_Select_Display(
-          stereoFrame_km1, status_smart_stereo_meas.second, cur_kf_id,
-          save_image_selector, tracker_params.featureSelectionCriterion_,
+          stereoFrame_km1,
+          status_smart_stereo_meas.second,
+          cur_kf_id,
+          save_image_selector,
+          tracker_params.featureSelectionCriterion_,
           tracker_params.featureSelectionNrCornersToSelect_,
-          tracker_params.maxFeatureAge_, posesAtFutureKeyframes, curr_state_cov,
-          std::string(),
-          left_frame); // last 2 are for visualization
+          tracker_params.maxFeatureAge_,
+          posesAtFutureKeyframes,
+          curr_state_cov,
+          "",
+          left_frame);  // last 2 are for visualization
   VLOG(100) << "Feature selection completed.";
 
   // Same status as before.
