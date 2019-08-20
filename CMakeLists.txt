@@ -117,12 +117,6 @@ target_compile_features(SparkVio PUBLIC
 add_executable(stereoVIOEuroc ./examples/SparkVio.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::SparkVio)
 
-add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
-target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
-
-#add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-#target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::SparkVio)
-
 ### Add testing
 # Download and unpack googletest at configure time
 # TODO Consider doing the same for glog, gflags, although it might
