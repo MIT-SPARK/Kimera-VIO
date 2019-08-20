@@ -44,8 +44,7 @@ Tested on Mac, Ubuntu 14.04 & 16.04.
 - [OpenCV](https://github.com/opencv/opencv) >= 3.0
 - [OpenGV](https://github.com/laurentkneip/opengv)
 - [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
-- [DBoW2](https://github.com/marcusabate/DBoW2)
-- [DLib](https://github.com/marcusabate/DLib)
+- [DBoW2](https://github.com/dorian3d/DBoW2)
 - [RobustPGO](https://github.com/MIT-SPARK/RobustPGO)
 
 > Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/sparkvio_installation.md](./docs/sparkvio_installation.md).

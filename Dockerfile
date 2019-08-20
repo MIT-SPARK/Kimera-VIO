@@ -64,19 +64,9 @@ RUN cd opengv/build && \
       -DEIGEN_INCLUDE_DIR=$DIRPATH/gtsam/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
-# Install DLib
-RUN git clone https://github.com/marcusabate/DLib.git
-RUN cd DLib && \
-      git fetch && git checkout feature/spark_vio_compatibility && \
-      mkdir build && \
-      cd build && \
-      cmake .. && \
-      make -j$(nproc) install
-
 # Install DBoW2
-RUN git clone https://github.com/marcusabate/DBoW2.git
+RUN git clone https://github.com/dorian3d/DBoW2.git
 RUN cd DBoW2 && \
-      git fetch && git checkout feature/orbslam2_updates && \
       mkdir build && \
       cd build && \
       cmake .. && \

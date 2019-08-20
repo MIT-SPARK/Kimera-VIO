@@ -39,13 +39,6 @@ if(OpenCV_FOUND)
   message(STATUS "FOUND OpenCV!")
 endif(OpenCV_FOUND)
 
-# TODO: Install these if not already installed
-### Find the Dlib package # TODO: get rid of this dependency
-find_package(DLib REQUIRED)
-if(DLib_FOUND)
-  message(STATUS "FOUND DLib!")
-endif(DLib_FOUND)
-
 ### Find the DBoW2 package
 find_package(DBoW2)
 if(DBoW2_FOUND)
@@ -59,8 +52,9 @@ if(RobustPGO_FOUND)
 endif(RobustPGO_FOUND)
 
 ### Unzip the vocabularly file
+message(STATUS "Unpacking BoW Vocabulary File.")
 execute_process(
-  COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/vocabulary/ORBvoc.txt.tar.gz
+  COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/vocabulary/ORBvoc.zip
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vocabulary
 )
 
@@ -120,7 +114,6 @@ target_link_libraries(SparkVio
   PRIVATE
     opengv
     DBoW2
-    DLib
   PUBLIC
     Boost::boost
     ${OpenCV_LIBS}

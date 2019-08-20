@@ -24,4 +24,4 @@
 /scripts/*.yaml
 
 % ignore large vocabulary files (unzipped)
-/vocabulary/*.txt
+/vocabulary/*.yml

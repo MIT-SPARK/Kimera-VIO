@@ -44,7 +44,7 @@ class LCDFixture :public ::testing::Test {
       : lcd_FLAGS_test_data_path_(FLAGS_test_data_path +
                                   string("/ForLoopClosureDetector")) {
     // First set value of vocabulary path for LoopClosureDetector
-    FLAGS_vocabulary_path = "../vocabulary/ORBvoc.txt";
+    FLAGS_vocabulary_path = "../vocabulary/ORBvoc.yml";
 
     LoopClosureDetectorParams params;
     params.parseYAML(lcd_FLAGS_test_data_path_+"/testLCDParameters.yaml");

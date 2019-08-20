@@ -33,7 +33,7 @@
 #include <glog/logging.h>
 
 // TODO(marcus): check with crowd whether this relative default is okay
-DEFINE_string(vocabulary_path, "../vocabulary/ORBvoc.txt",
+DEFINE_string(vocabulary_path, "../vocabulary/ORBvoc.yml",
               "Path to BoW vocabulary file for LoopClosureDetector module.");
 
 // TODO(marcus): add statistics reporting for verbosity_>=3
@@ -86,7 +86,7 @@ LoopClosureDetector::LoopClosureDetector(
   // Load ORB vocabulary:
   OrbVocabulary vocab;
   LOG(INFO) << "Loading vocabulary from " << FLAGS_vocabulary_path;
-  vocab.loadFromTextFile(FLAGS_vocabulary_path);  // TODO(marcus): support .gz files
+  vocab.load(FLAGS_vocabulary_path);
   LOG(INFO) << "Loaded vocabulary with " << vocab.size() << " visual words.";
 
   // Initialize db_BoW_:

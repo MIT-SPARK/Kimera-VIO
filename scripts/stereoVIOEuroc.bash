@@ -92,7 +92,7 @@ echo """ Launching:
   --final_k=2000 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
   --lcd_params_path="$LCD_PARAMS_PATH" \
-  --vocabulary_path="../vocabulary/ORBvoc.txt" \
+  --vocabulary_path="../vocabulary/ORBvoc.yml" \
   --flagfile="../params/flags/stereoVIOEuroc.flags" \
   --flagfile="../params/flags/Mesher.flags" \
   --flagfile="../params/flags/VioBackEnd.flags" \
