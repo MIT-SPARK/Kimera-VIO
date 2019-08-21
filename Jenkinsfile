@@ -39,13 +39,6 @@ pipeline {
         }
       }
     }
-    stage('Delete Vocabulary File') {
-      steps {
-        wrap([$class: 'Xvfb']) {
-          sh 'cd vocabulary && rm ORBvoc.yml && rm ORBvoc.zip'
-        }
-      }
-    }
   }
   post {
     always {
@@ -80,6 +73,9 @@ pipeline {
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
       deleteDir()
+
+      // Delete vocabulary file
+      sh 'cd vocabulary && rm ORBvoc.yml && rm ORBvoc.zip'
     }
     success {
       echo 'Success!'
