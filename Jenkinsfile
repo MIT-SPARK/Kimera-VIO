@@ -70,12 +70,13 @@ pipeline {
       // Process the CTest xml output
       junit 'build/testresults.xml'
 
+      // Delete vocabulary files
+      // This is not needed if using deleteDir()
+      rm vocabulary/ORBvoc.yml && rm vocabulary/ORBvoc.zip
+
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
       deleteDir()
-
-      // Delete vocabulary file
-      cd vocabulary && rm ORBvoc.yml && rm ORBvoc.zip
     }
     success {
       echo 'Success!'
