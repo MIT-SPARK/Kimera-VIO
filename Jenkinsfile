@@ -75,7 +75,7 @@ pipeline {
       deleteDir()
 
       // Delete vocabulary file
-      sh 'cd vocabulary && rm ORBvoc.yml && rm ORBvoc.zip'
+      cd vocabulary && rm ORBvoc.yml && rm ORBvoc.zip
     }
     success {
       echo 'Success!'
