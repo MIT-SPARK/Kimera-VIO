@@ -234,7 +234,7 @@ namespace VIO {
     ransac.max_iterations_ = trackerParams_.ransac_max_iterations_;
     ransac.probability_ = trackerParams_.ransac_probability_;
 
-    VLOG(10) << "geometricOutlierRejectionMono: starting RANSAC.";
+    VLOG(10) << "geometricOutlierRejectionMono: starting 5-point RANSAC.";
 
     // Solve.
     if (!ransac.computeModel(0)) {
@@ -325,7 +325,7 @@ namespace VIO {
     ransac.max_iterations_ = trackerParams_.ransac_max_iterations_;
     ransac.probability_ = trackerParams_.ransac_probability_;
 
-    VLOG(10) << "geometricOutlierRejectionMonoGivenRot: starting RANSAC";
+    VLOG(10) << "geometricOutlierRejectionMonoGivenRot: starting 2-point RANSAC";
 
     // Solve.
 #ifdef sw_frontend
@@ -689,6 +689,9 @@ namespace VIO {
     findMatchingStereoKeypoints(ref_stereoFrame, cur_stereoFrame,
                                 &matches_ref_cur);
 
+    VLOG(10) << "geometricOutlierRejectionStereo:"
+                " starting 3-point RANSAC (voting)";
+
     // Vector of 3D vectors
     Points3d f_cur;
     f_cur.reserve(matches_ref_cur.size());
@@ -716,6 +719,8 @@ namespace VIO {
       return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
     }
 
+    VLOG(10) << "geometricOutlierRejectionStereo: voting complete.";
+
     // Remove outliers.
     removeOutliersStereo(ref_stereoFrame, cur_stereoFrame, matches_ref_cur,
                          ransac.inliers_, ransac.iterations_);
@@ -741,9 +746,7 @@ namespace VIO {
                           UtilsOpenCV::Gvtrans2pose(best_transformation));
   }
 
-  /* --------------------------------------------------------------------------
-   */
-  // TODO(Toni) do not use return for vector, pass by pointer.
+  /* ------------------------------------------------------------------------ */
   void Tracker::findOutliers(
       const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
       std::vector<int> inliers, std::vector<int>* outliers) {
@@ -916,10 +919,9 @@ namespace VIO {
     }
   }
 
-  /* --------------------------------------------------------------------------
-   */
+  /* -------------------------------------------------------------------------- */
   double Tracker::computeMedianDisparity(const Frame& ref_frame,
-                                         const Frame& cur_frame) {
+                                        const Frame& cur_frame) {
     // Find keypoints that observe the same landmarks in both frames:
     std::vector<std::pair<size_t, size_t>> matches_ref_cur;
     findMatchingKeypoints(ref_frame, cur_frame, &matches_ref_cur);
@@ -941,63 +943,61 @@ namespace VIO {
 
     // Compute median:
     const size_t center = disparity.size() / 2;
-    std::nth_element(disparity.begin(), disparity.begin() + center,
-                     disparity.end());
+    std::nth_element(disparity.begin(),
+                    disparity.begin() + center,
+                    disparity.end());
     return disparity[center];
   }
 
-  /* --------------------------------------------------------------------------
-   */
-  // TODO(Toni) this won't work in parallel mode, as visualization must be done in
+  /* -------------------------------------------------------------------------- */
+  // TODO this won't work in parallel mode, as visualization must be done in
   // main thread.
-  cv::Mat Tracker::displayFrame(const Frame& ref_frame, const Frame& cur_frame,
-                                int verbosity, const KeypointsCV& extraCorners1,
-                                const KeypointsCV& extraCorners2,
-                                const std::string& extraString) const {
+  cv::Mat Tracker::displayFrame(
+      const Frame& ref_frame,
+      const Frame& cur_frame,
+      int verbosity,
+      const KeypointsCV& extraCorners1,
+      const KeypointsCV& extraCorners2,
+      const std::string& extraString) const {
     cv::Mat img_rgb = cv::Mat(cur_frame.img_.size(), CV_8U);
     cv::cvtColor(cur_frame.img_, img_rgb, cv::COLOR_GRAY2RGB);
 
     // Add extra corners if desired.
-    for (auto px_cur : extraCorners1)  // gray
-      cv::circle(img_rgb, px_cur, 4, cv::Scalar(255, 255, 255), 2);
-    for (auto px_cur : extraCorners2)  // blue
-      cv::circle(img_rgb, px_cur, 4, cv::Scalar(255, 0, 0), 2);
+    for (auto px_cur : extraCorners1) // gray
+      cv::circle(img_rgb, px_cur, 4, cv::Scalar(255,255,255), 2);
+    for (auto px_cur : extraCorners2) // blue
+      cv::circle(img_rgb, px_cur, 4, cv::Scalar(255,0,0), 2);
 
     // Add all keypoints in cur_frame with the tracks.
     for (size_t i = 0; i < cur_frame.keypoints_.size(); ++i) {
-      cv::Point2f px_cur = cur_frame.keypoints_.at(i);
-      if (cur_frame.landmarks_.at(i) == -1) {  // Untracked landmarks are red.
-        cv::circle(img_rgb, px_cur, 4, cv::Scalar(0, 0, 255), 2);
+      cv::Point2f px_cur = cur_frame.keypoints_.at(i) ;
+      if (cur_frame.landmarks_.at(i) == -1) {// Untracked landmarks are red.
+        cv::circle(img_rgb, px_cur, 4, cv::Scalar(0,0,255), 2);
       } else {
         auto it = find(ref_frame.landmarks_.begin(), ref_frame.landmarks_.end(),
-                       cur_frame.landmarks_.at(i));
+                      cur_frame.landmarks_.at(i));
         if (it != ref_frame.landmarks_.end()) {
-          // If feature was in previous frame, display tracked feature with
-          // green circle/line
-          cv::circle(img_rgb, px_cur, 6, cv::Scalar(0, 255, 0), 1);
+          // If feature was in previous frame, display tracked feature with green circle/line
+          cv::circle(img_rgb, px_cur, 6, cv::Scalar(0,255,0), 1);
           int nPos = distance(ref_frame.landmarks_.begin(), it);
           cv::Point2f px_ref = ref_frame.keypoints_.at(nPos);
-          cv::line(img_rgb, px_cur, px_ref, cv::Scalar(0, 255, 0), 1);
-        } else {  // New feature tracks are blue.
-          cv::circle(img_rgb, px_cur, 6, cv::Scalar(255, 0, 0), 1);
+          cv::line(img_rgb, px_cur, px_ref, cv::Scalar(0,255,0), 1);
+        } else {// New feature tracks are blue.
+          cv::circle(img_rgb, px_cur, 6, cv::Scalar(255,0,0), 1);
         }
       }
     }
-    if (verbosity == 1) {  // otherwise just return the image
-      cv::imshow("img" + extraString, img_rgb);
-      cv::waitKey(trackerParams_.display_time_);
+    if (verbosity == 1) { // otherwise just return the image
+      cv::imshow("img"+ extraString, img_rgb);
+      cv::waitKey(1);
     } else if (verbosity == 2) {
-      std::string folderName = outputImagesPath_ + extraString + "-" +
-                               VioFrontEndParams::FeatureSelectionCriterionStr(
-                                   trackerParams_.featureSelectionCriterion_) +
-                               "/";
+      std::string folderName = outputImagesPath_ + extraString + "-" + VioFrontEndParams::FeatureSelectionCriterionStr(trackerParams_.featureSelectionCriterion_) + "/";
       boost::filesystem::path trackerDir(folderName.c_str());
       boost::filesystem::create_directory(trackerDir);
-      std::string img_name = folderName + "/trackerDisplay" + extraString +
-                             "_" + std::to_string(cur_frame.id_) + ".png";
+      std::string img_name = folderName + "/trackerDisplay" + extraString + "_" + std::to_string(cur_frame.id_) + ".png";
       cv::imwrite(img_name, img_rgb);
     }
     return img_rgb;
   }
 
-}  // namespace VIO
+} // End of VIO namespace.

@@ -36,7 +36,7 @@ KittiDataProvider::KittiData::operator bool() const {
 
 KittiDataProvider::KittiDataProvider() : DataProvider(), kitti_data_() {
   // Parse Kitti dataset.
-  parseData(dataset_path_, &kitti_data_);
+  parseKittiData(dataset_path_, &kitti_data_);
 }
 
 KittiDataProvider::~KittiDataProvider() {}
@@ -60,7 +60,7 @@ bool KittiDataProvider::spin() {
   const size_t number_of_images = kitti_data_.getNumberOfImages();
 
   const StereoMatchingParams& stereo_matching_params =
-      frontend_params_.getStereoMatchingParams();
+      pipeline_params_.frontend_params_.getStereoMatchingParams();
 
   // Store camera info
   const CameraParams& left_cam_info =
@@ -120,7 +120,7 @@ bool Earlier_time(std::pair<Timestamp, std::string>& a,
   return a.first < b.first;
 }
 
-void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
+void KittiDataProvider::parseKittiData(const std::string& kitti_sequence_path,
                                   KittiData* kitti_data) {
   // Images in Kitti dataset: datapath/image_02/data gives all (left) images in
   // order datapath/image_02/timestamps.txt gives the timestamps in order same
@@ -211,8 +211,10 @@ void KittiDataProvider::parseData(const std::string& kitti_sequence_path,
     LOG(WARNING) << "Using final_k = " << final_k_ << ", where we removed "
                  << skip_n_end_frames << " frames to avoid bad IMU readings.";
   }
-  LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
-            << final_k_;
+
+  // parse backend/frontend parameters
+  parseBackendParams();
+  parseFrontendParams();
 
   // Check data is parsed correctly.
   CHECK(*kitti_data);
@@ -255,7 +257,7 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
                                         const std::string& left_cam_id,
                                         const std::string& right_cam_id,
                                         KittiData* kitti_data) {
-  // note that the stamps and images were parsed in parseData method
+  // note that the stamps and images were parsed in parseKittiData method
   // perhaps move all that into this method?
   // for now write parse camera info here
   // Default names: match names of the corresponding folders.
@@ -271,12 +273,12 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   // First get R_imu2velo and T_imu2velo
   cv::Mat R_imu2velo, T_imu2velo;
   std::string imu_to_velo_filename = "/../calib_imu_to_velo.txt";
-  parseRT(input_dataset_path, imu_to_velo_filename, R_imu2velo, T_imu2velo);
+  parsePose(input_dataset_path, imu_to_velo_filename, R_imu2velo, T_imu2velo);
 
   // Then get R_velo2cam and T_velo2cam
   cv::Mat R_velo2cam, T_velo2cam;
   std::string velo_to_cam_filename = "/../calib_velo_to_cam.txt";
-  parseRT(input_dataset_path, velo_to_cam_filename, R_velo2cam, T_velo2cam);
+  parsePose(input_dataset_path, velo_to_cam_filename, R_velo2cam, T_velo2cam);
 
   // Then form the rotation matrix R_imu2body
   cv::Mat R_imu2body;  // In case the convention is different
@@ -316,9 +318,10 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   return true;
 }
 
-bool KittiDataProvider::parseRT(const std::string& input_dataset_path,
-                                const std::string& calibration_filename,
-                                cv::Mat& R, cv::Mat& T) const {
+bool KittiDataProvider::parsePose(
+                const std::string& input_dataset_path,
+                const std::string& calibration_filename,
+                cv::Mat& R, cv::Mat& T) const {
   std::ifstream calib_file;
   std::string calibration_file_path = input_dataset_path + calibration_filename;
   calib_file.open(calibration_file_path.c_str());
@@ -496,10 +499,10 @@ bool KittiDataProvider::parseImuData(const std::string& input_dataset_path,
       std::sqrt(stdDelta / double(deltaCount - 1u));
   kitti_data->imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
   // KITTI does not give these so using values from EuRoC
-  imu_params_.gyro_noise_ = 1.6968e-3;
-  imu_params_.gyro_walk_ = 1.9393e-4;
-  imu_params_.acc_noise_ = 2.0000e-2;
-  imu_params_.acc_walk_ = 3.0000e-2;
+  pipeline_params_.imu_params_.gyro_noise_ = 1.6968e-3;
+  pipeline_params_.imu_params_.gyro_walk_ = 1.9393e-4;
+  pipeline_params_.imu_params_.acc_noise_ = 2.0000e-2;
+  pipeline_params_.imu_params_.acc_walk_ = 3.0000e-2;
   LOG(INFO) << "Maximum measured rotation rate (norm):" << maxNormRotRate << '-'
             << "Maximum measured acceleration (norm): " << maxNormAcc;
   return true;

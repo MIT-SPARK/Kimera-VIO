@@ -43,12 +43,9 @@ public:
 
 public:
   StereoVisionFrontEnd(
-      const ImuParams& imu_params,
-      const ImuBias& imu_initial_bias,
-      const VioFrontEndParams& trackerParams = VioFrontEndParams(),
-      int saveImages = 1,
-      const std::string& dataset_name = "",
-      bool log_output = false);
+      const ImuParams &imu_params, const ImuBias &imu_initial_bias,
+      const VioFrontEndParams &trackerParams = VioFrontEndParams(),
+      int saveImages = 0, bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
   bool spin(ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
@@ -75,16 +72,61 @@ public:
   // Query if thread is working and not waiting on input queue to be filled.
   inline bool isWorking() const {return is_thread_working_;}
 
-  /* ------------------------------------------------------------------------ */
-  // Get tracker info
-  inline DebugTrackerInfo getTrackerInfo() { return tracker_.getTrackerDebugInfo();}
-
 public:
   /* ------------------------------------------------------------------------ */
   // Update Imu Bias. This is thread-safe as imu_frontend_->updateBias is
   // thread-safe.
   inline void updateImuBias(const ImuBias& imu_bias) const {
     imu_frontend_->updateBias(imu_bias);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Get Imu Bias. This is thread-safe as imu_frontend_->getCurrentImuBias is
+  // thread-safe.
+  inline ImuBias getCurrentImuBias() const {
+    return imu_frontend_->getCurrentImuBias();
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Update Imu Bias and reset pre-integration during initialization.
+  // This is not thread-safe! (no multi-thread during initialization)
+  inline void updateAndResetImuBias(const ImuBias &imu_bias) const {
+    imu_frontend_->updateBias(imu_bias);
+    imu_frontend_->resetIntegrationWithCachedBias();
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Prepare frontend for initial bundle adjustment for online alignment
+  void prepareFrontendForOnlineAlignment() {
+    LOG(WARNING) << "Preparing frontend for online alignment!\n";
+    updateAndResetImuBias(gtsam::imuBias::ConstantBias(
+                Vector3::Zero(), Vector3::Zero()));
+    resetGravity(Vector3::Zero());
+    forceFiveThreePointMethod(true);
+    CHECK(force_53point_ransac_);
+    CHECK_DOUBLE_EQ(getGravity().norm(),0.0);
+    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(),0.0);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Check values in frontend for initial bundle adjustment for online alignment
+  void checkFrontendForOnlineAlignment() {
+    CHECK(force_53point_ransac_);
+    CHECK_DOUBLE_EQ(getGravity().norm(),0.0);
+    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(),0.0);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Reset frontend after initial bundle adjustment for online alignment
+  void resetFrontendAfterOnlineAlignment(const gtsam::Vector3 &gravity,
+                                      gtsam::Vector3 &gyro_bias) {
+    LOG(WARNING) << "Resetting frontend after online alignment!\n";
+    forceFiveThreePointMethod(false);
+    resetGravity(gravity);
+    gtsam::imuBias::ConstantBias final_bias(gtsam::Vector3::Zero(), gyro_bias);
+    updateAndResetImuBias(final_bias);
+    CHECK_DOUBLE_EQ(getGravity().norm(), gravity.norm());
+    CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(), gyro_bias.norm());
   }
 
   /* ************************************************************************ */
@@ -111,11 +153,18 @@ public:
   // current keyframe (k) - STEREO RANSAC
   gtsam::Pose3 getRelativePoseBodyStereo() const;
 
-private:
+  // private: // TODO: Fix access to this function. Is this thread safe???
   /* ------------------------------------------------------------------------ */
   StereoFrontEndOutputPayload spinOnce(
       const std::shared_ptr<StereoFrontEndInputPayload>& input);
 
+  /* ------------------------------------------------------------------------ */
+  // Get IMU Params for IMU Frontend.
+  gtsam::PreintegratedImuMeasurements::Params getImuFrontEndParams() {
+    return imu_frontend_->getImuParams();
+  }
+
+ private:
   /* ------------------------------------------------------------------------ */
   // Frontend main function.
   StatusSmartStereoMeasurements processStereoFrame(
@@ -159,6 +208,36 @@ private:
       const std::string& img_name_prepend = "monoTrackerDisplay1Keyframe_",
       const int verbosity = 0) const;
 
+  /* ------------------------------------------------------------------------ */
+  // Reset ImuFrontEnd gravity. Trivial gravity is needed for initial alignment.
+  // This is thread-safe as imu_frontend_->resetPreintegrationGravity is thread-safe.
+  void resetGravity(const gtsam::Vector3 &reset_value) const {
+    imu_frontend_->resetPreintegrationGravity(reset_value);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Get ImuFrontEnd gravity.
+  // This is thread-safe as imu_frontend_->getPreintegrationGravity is
+  // thread-safe.
+  inline gtsam::Vector3 getGravity() const {
+    return imu_frontend_->getPreintegrationGravity();
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Force use of 3/5 point methods in initialization phase.
+  // This despite the parameter specified in the tracker
+  void forceFiveThreePointMethod(const bool force_flag) {
+    force_53point_ransac_ = force_flag;
+    LOG(WARNING) << "Forcing of 5/3 point method has been turned "
+                 << (force_53point_ransac_ ? "ON!!" : "OFF");
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Get tracker info.
+  inline DebugTrackerInfo getTrackerInfo() {
+    return tracker_.getTrackerDebugInfo();
+  }
+
 private:
   // TODO MAKE THESE GUYS std::unique_ptr, we do not want to have multiple
   // owners, instead they should be passed around.
@@ -186,6 +265,9 @@ private:
 
   // IMU frontend.
   std::unique_ptr<ImuFrontEnd> imu_frontend_;
+
+  // Used to force the use of 5/3 point ransac, despite parameters
+  std::atomic_bool force_53point_ransac_ = {false};
 
   // Debug flag.
   const int save_images_option_; // 0: don't show, 1: show, 2: write & save

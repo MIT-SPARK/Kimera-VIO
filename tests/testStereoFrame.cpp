@@ -879,7 +879,6 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
 /* *************************************************************************
 TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
   // this should be enabled if lines after 66 are uncommented
-
   // create a brand new stereo frame
   initializeDataStereo();
 
@@ -998,6 +997,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching_v2) {
 
       // TEST: projecting 3d point to stereo camera
       // reproject to camera and check that matches corresponding rectified
+      // TODO: don't explicitly call new, use make_shared
       pixels Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(
           sfnew->left_undistRectCameraMatrix_.fx(),
           sfnew->left_undistRectCameraMatrix_.fy(),
@@ -1033,8 +1033,9 @@ TEST_F(StereoFrameFixture, getLandmarkInfo) {
   }
 }
 
+/* ************************************************************************* */
 // Test undistortion of fisheye / pinhole equidistant model
-TEST_F(StereoFrameFixture, undistortFisheye) {
+TEST(testStereoFrame, undistortFisheye) {
   // Parse camera params
   static CameraParams cam_params_left_fisheye;
   cam_params_left_fisheye.parseYAML(stereo_FLAGS_test_data_path +
@@ -1071,7 +1072,7 @@ TEST_F(StereoFrameFixture, undistortFisheye) {
 
   // Test distortion with image comparison
   EXPECT_TRUE(UtilsOpenCV::CvMatCmp(left_fisheye_image_undist,
-                                    left_fisheye_image_ref, 1e-3));
+                               left_fisheye_image_ref, 1e-3));
 }
 
 // TODO: Figure out why this compiles on PC, but not on Jenkins

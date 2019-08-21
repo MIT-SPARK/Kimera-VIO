@@ -102,7 +102,7 @@ TEST(testCameraParams, Cal3_S2ToCvmat) {
 }
 
 /* ************************************************************************* */
-TEST(testCameraParams, parseKITTICalib) {
+TEST(testCameraParams, DISABLED_parseKITTICalib) {
   CameraParams camParams;
   camParams.parseKITTICalib(
       FLAGS_test_data_path + "/ForKittiData/calib_cam_to_cam.txt",

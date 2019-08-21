@@ -22,6 +22,8 @@ DEFINE_int32(skip_n_end_frames, 100, "Number of final frames to skip.");
 
 namespace VIO {
 
+//////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
+////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::ETHDatasetParser() : DataProvider(), imuData_() {
   parse();
@@ -47,6 +49,12 @@ ETHDatasetParser::ETHDatasetParser() : DataProvider(), imuData_() {
 }
 
 /* -------------------------------------------------------------------------- */
+ETHDatasetParser::ETHDatasetParser(const std::string& input_string) {
+    LOG(INFO) << "Dummy ETHDatasetParser constructor called. Purpose: "
+              << input_string;
+}
+
+/* -------------------------------------------------------------------------- */
 ETHDatasetParser::~ETHDatasetParser() {
   LOG(INFO) << "ETHDatasetParser destructor called.";
 }
@@ -68,7 +76,7 @@ bool ETHDatasetParser::spin() {
 
   // Spin.
   const StereoMatchingParams& stereo_matching_params =
-      frontend_params_.getStereoMatchingParams();
+      pipeline_params_.frontend_params_.getStereoMatchingParams();
   const bool equalize_image = stereo_matching_params.equalize_image_;
   const CameraParams& left_cam_info = getLeftCamInfo();
   const CameraParams& right_cam_info = getRightCamInfo();
@@ -113,7 +121,7 @@ void ETHDatasetParser::spinOnce(
   // it, but totally useless...
   static bool do_once = true;
   if (do_once) {
-    timestamp_first_lkf_ = timestamp_last_frame;
+    timestamp_first_lkf_ = timestamp_frame_k;
     do_once = false;
   }
 
@@ -145,6 +153,29 @@ void ETHDatasetParser::parse() {
   parseDataset(dataset_path_, left_cam_name, right_cam_name, imu_name,
                ground_truth_name);
   print();
+
+  // Start processing dataset from frame initial_k.
+  // Useful to skip a bunch of images at the beginning (imu calibration).
+  CHECK_GE(initial_k_, 0);
+  CHECK_GE(initial_k_, 10)
+      << "initial_k should be >= 10 for IMU bias initialization";
+
+  // Finish processing dataset at frame final_k.
+  // Last frame to process (to avoid processing the entire dataset),
+  // skip last frames.
+  CHECK_GT(final_k_, 0);
+
+  const size_t& nr_images = getNumImages();
+  if (final_k_ > nr_images) {
+    LOG(WARNING) << "Value for final_k, " << final_k_ << " is larger than total"
+                 << " number of frames in dataset " << nr_images;
+    final_k_ = nr_images;
+    LOG(WARNING) << "Using final_k = " << final_k_;
+  }
+
+  // Parse backend/frontend parameters
+  parseBackendParams();
+  parseFrontendParams();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -174,10 +205,10 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
   CHECK_NE(rate, 0);
   imuData_.nominal_imu_rate_ = 1 / static_cast<double>(rate);
 
-  imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
-  imu_params_.gyro_walk_ = fs["gyroscope_random_walk"];
-  imu_params_.acc_noise_ = fs["accelerometer_noise_density"];
-  imu_params_.acc_walk_ = fs["accelerometer_random_walk"];
+  pipeline_params_.imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
+  pipeline_params_.imu_params_.gyro_walk_ = fs["gyroscope_random_walk"];
+  pipeline_params_.imu_params_.acc_noise_ = fs["accelerometer_noise_density"];
+  pipeline_params_.imu_params_.acc_walk_ = fs["accelerometer_random_walk"];
 
   fs.release();
   return true;
@@ -566,6 +597,94 @@ gtNavState ETHDatasetParser::getGroundTruthState(
 }
 
 /* -------------------------------------------------------------------------- */
+// Compute initialization errors and stats.
+// [in]: timestamp vector for poses in bundle-adjustment
+// [in]: vector of poses from bundle-adjustment. the initial
+// pose is identity (we are interested in relative poses!)
+// [in]: initial nav state with pose, velocity in body frame,
+// [in]: gravity vector estimate in body frame.
+const InitializationPerformance
+        ETHDatasetParser::getInitializationPerformance(
+                    const std::vector<Timestamp>& timestamps,
+                    const std::vector<gtsam::Pose3>& poses_ba,
+                    const gtNavState& init_nav_state,
+                    const gtsam::Vector3& init_gravity) {
+  CHECK(isGroundTruthAvailable());
+  CHECK_EQ(timestamps.size(), poses_ba.size());
+  // The first BA pose must be identity and can be discarded
+
+  // GT and performance variables to fill
+  int init_n_frames = timestamps.size() - 1;
+  double avg_relativeRotError = 0.0;
+  double avg_relativeTranError = 0.0;
+  gtsam::Pose3 gt_relative;
+  gtNavState gt_state = getGroundTruthState(timestamps.at(1));
+  gtsam::Vector3 gt_gravity = gtsam::Vector3(0.0, 0.0, -9.81);
+  // Assumes gravity vector is downwards
+
+  // Loop through bundle adjustment poses and get GT
+  for (int i = 1; i < timestamps.size(); i++) {
+    double relativeRotError = -1;
+    double relativeTranError = -1;
+    // Fill relative poses from GT
+    // Check that GT is available
+    if (!isGroundTruthAvailable(timestamps.at(i-1)) ||
+        !isGroundTruthAvailable(timestamps.at(i))) {
+        LOG(FATAL) << "GT Timestamp not available!";
+    }
+    gt_relative = getGroundTruthRelativePose(timestamps.at(i-1),
+                                            timestamps.at(i));
+    // Get relative pose from BA
+    gtsam::Pose3 ba_relative =
+        poses_ba.at(i-1).between(poses_ba.at(i));
+    // Compute errors between BA and GT
+    std::tie(relativeRotError, relativeTranError) =
+      UtilsOpenCV::ComputeRotationAndTranslationErrors(
+        gt_relative, ba_relative, false);
+    avg_relativeRotError += fabs(relativeRotError);
+    avg_relativeTranError += fabs(relativeTranError);
+  }
+  // Compute average logmap error and translation error
+  avg_relativeRotError = avg_relativeRotError/double(init_n_frames);
+  avg_relativeTranError = avg_relativeTranError/double(init_n_frames);
+
+  LOG(INFO) << "avg. rot. error\n"
+              << avg_relativeRotError
+              << "\navg. tran. error\n"
+              << avg_relativeTranError;
+
+  // Convert velocities and gravity vector in initial body frame.
+  // This is already the case for the init nav state passed.
+  gt_state.velocity_ = gt_state.pose().rotation().transpose() *
+                      gt_state.velocity_;
+  gt_gravity = gt_state.pose().rotation().transpose() * gt_gravity;
+
+  LOG(INFO) << "GT: init pose\n"
+              << gt_state.pose().rotation()
+              << "\n init velocity\n"
+              << gt_state.velocity_
+              << "\n init bias\n"
+              << gt_state.imu_bias_.gyroscope()
+              << "\n init gravity\n"
+              << gt_gravity;
+
+  // Create performance overview
+  const InitializationPerformance init_performance(
+                            timestamps.at(1),
+                            init_n_frames,
+                            avg_relativeRotError,
+                            avg_relativeTranError,
+                            init_nav_state,
+                            init_gravity,
+                            gt_state,
+                            gt_gravity);
+  // Log performance
+  init_performance.print();
+  // Return
+  return init_performance;
+}
+
+/* -------------------------------------------------------------------------- */
 std::pair<double, double> ETHDatasetParser::computePoseErrors(
     const gtsam::Pose3& lkf_T_k_body, const bool isTrackingValid,
     const Timestamp& previousTimestamp, const Timestamp& currentTimestamp,
@@ -596,7 +715,8 @@ void ETHDatasetParser::print() const {
             << "------------------ ETHDatasetParser::print ------------------\n"
             << "-------------------------------------------------------------\n"
             << "Displaying info for dataset: " << dataset_path_;
-  camL_Pose_camR_.print("camL_Pose_calR \n");
+  if (FLAGS_minloglevel < 1)
+    camL_Pose_camR_.print("camL_Pose_calR \n");
   // For each of the 2 cameras.
   for (size_t i = 0; i < camera_names_.size(); i++) {
     LOG(INFO) << "\n"
@@ -605,8 +725,10 @@ void ETHDatasetParser::print() const {
     camera_info_.at(camera_names_[i]).print();
     camera_image_lists_.at(camera_names_[i]).print();
   }
-  gtData_.print();
-  imuData_.print();
+  if (FLAGS_minloglevel < 1) {
+    gtData_.print();
+    imuData_.print();
+  }
   LOG(INFO) << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------";

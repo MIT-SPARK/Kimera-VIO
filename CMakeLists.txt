@@ -13,7 +13,7 @@ message(STATUS "==============================================================="
 message(STATUS "====================  Dependencies ============================")
 
 ### Include the boost directory
-find_package(Boost REQUIRED COMPONENTS filesystem)
+find_package(Boost REQUIRED COMPONENTS filesystem serialization regex timer date_time thread)
 if(NOT TARGET Boost::boost)
   add_library(Boost::boost INTERFACE IMPORTED)
   set_target_properties(Boost::boost PROPERTIES
@@ -62,6 +62,7 @@ add_library(SparkVio STATIC
   src/Histogram.cpp
   src/LoggerMatlab.cpp
   src/FeatureSelector.cpp
+  src/YamlParser.h
   src/VioBackEndParams.h
   src/VioFrontEndParams.h
   src/RegularVioBackEndParams.h
@@ -80,6 +81,8 @@ include(src/factors/CMakeLists.txt)
 include(src/mesh/CMakeLists.txt)
 ### Add source code for utils
 include(src/utils/CMakeLists.txt)
+### Add source code for initialization
+include(src/initial/CMakeLists.txt)
 ### Add source code for pipeline
 include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
@@ -102,21 +105,17 @@ target_include_directories(SparkVio
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>
   )
+
 target_compile_options(SparkVio
   PRIVATE -Wall -pipe
-  PRIVATE -march=native) # Remove these
+  PRIVATE -march=native)
+
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(SparkVio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
-add_executable(spark_vio ./examples/SparkVio.cpp)
-target_link_libraries(spark_vio PUBLIC SparkVio::SparkVio)
-
-add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
-target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
-
-#add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-#target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::SparkVio)
+add_executable(stereoVIOEuroc ./examples/SparkVio.cpp)
+target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::SparkVio)
 
 ### Add testing
 # Download and unpack googletest at configure time
@@ -177,7 +176,8 @@ add_executable(testSparkVio
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
   )
-target_link_libraries(testSparkVio gtest_main SparkVio::SparkVio)
+
+target_link_libraries(testSparkVio gtest SparkVio::SparkVio)
 
 if(CMAKE_VERSION VERSION_LESS 3.10)
   enable_testing()

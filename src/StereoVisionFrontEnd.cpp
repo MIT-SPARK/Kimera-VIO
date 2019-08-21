@@ -22,7 +22,7 @@ namespace VIO {
 StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuParams& imu_params, const ImuBias& imu_initial_bias,
     const VioFrontEndParams& trackerParams, int save_images_option,
-    const std::string& dataset_name, bool log_output)
+    bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
       last_landmark_count_(0),
@@ -35,10 +35,6 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
   // Instantiate IMU frontend.
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
 
-  if (save_images_option > 0) {
-    output_images_path_ = "./outputStereoTrackerImages-" + dataset_name;
-    tracker_.outputImagesPath_ = "./outputTrackerImages-" + dataset_name;
-  }
   tracker_.trackerParams_.print();
 }
 
@@ -60,7 +56,7 @@ bool StereoVisionFrontEnd::spin(
       auto tic = utils::Timer::tic();
       const StereoFrontEndOutputPayload& output = spinOnce(input);
       if (output.is_keyframe_) {
-        VLOG(2) << "Frontend output is a keyframe.";
+        VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
         output_queue.push(output);
       } else {
         VLOG(2) << "Frontend output is not a keyframe."
@@ -109,12 +105,12 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
   const auto& pim =
       imu_frontend_->preintegrateImuMeasurements(imu_stamps, imu_accgyr);
   auto full_preint_duration =
-      utils::Timer::toc<std::chrono::nanoseconds>(tic_full_preint).count();
-  utils::StatsCollector stats_full_preint("Full Preint Timing [ns]");
+      utils::Timer::toc<std::chrono::microseconds>(tic_full_preint).count();
+  utils::StatsCollector stats_full_preint("IMU Preintegration Timing [us]");
   stats_full_preint.AddSample(full_preint_duration);
   LOG_IF(WARNING, full_preint_duration != 0.0)
-      << "Current IMU Preintegration frequency: " << 10e9 / full_preint_duration
-      << " Hz. (" << full_preint_duration << " ns).";
+      << "Current IMU Preintegration frequency: " << 10e6 / full_preint_duration
+      << " Hz. (" << full_preint_duration << " us).";
 
   // On the left camera rectified!!
   static const gtsam::Rot3 body_Rot_cam =
@@ -286,9 +282,12 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   const bool nr_features_low =
       nr_valid_features <= tracker_.trackerParams_.min_number_features_;
 
+  // Also if the user requires the keyframe to be enforced
+  if (stereoFrame_k_->isKeyframe())
+    LOG(WARNING) << "User inforced keyframe!";
   // If max time elaspsed and not able to track feature -> create new keyframe
-  if (max_time_elapsed || nr_features_low) {
-    ++keyframe_count_;  // mainly for debugging
+  if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
+    ++keyframe_count_; // mainly for debugging
 
     VLOG(2) << "+++++++++++++++++++++++++++++++++++++++++++++++++++"
             << "Keyframe after: "
@@ -319,14 +318,16 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       std::pair<TrackingStatus, gtsam::Pose3> statusPoseMono;
       Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
       if (tracker_.trackerParams_.ransac_use_2point_mono_ &&
-          calLrectLkf_R_camLrectKf_imu) {
+          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
         // 2-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMonoGivenRotation(
             left_frame_lkf, left_frame_k, *calLrectLkf_R_camLrectKf_imu);
       } else {
         // 5-point RANSAC.
-        statusPoseMono = tracker_.geometricOutlierRejectionMono(left_frame_lkf,
-                                                                left_frame_k);
+        statusPoseMono = tracker_.geometricOutlierRejectionMono(
+              left_frame_lkf, left_frame_k);
+        if (force_53point_ransac_)
+          LOG(WARNING) << "5-point RANSAC was enforced!";
       }
 
       // Set relative pose.
@@ -352,7 +353,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       std::pair<TrackingStatus, gtsam::Pose3> statusPoseStereo;
       gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
       if (tracker_.trackerParams_.ransac_use_1point_stereo_ &&
-          calLrectLkf_R_camLrectKf_imu) {
+          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
         // 1-point RANSAC.
         std::tie(statusPoseStereo, infoMatStereoTranslation) =
             tracker_.geometricOutlierRejectionStereoGivenRotation(
@@ -361,7 +362,9 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       } else {
         // 3-point RANSAC.
         statusPoseStereo = tracker_.geometricOutlierRejectionStereo(
-            *stereoFrame_lkf_, *stereoFrame_k_);
+                    *stereoFrame_lkf_, *stereoFrame_k_);
+        if (force_53point_ransac_)
+          LOG(WARNING) << "3-point RANSAC was enforced!";
       }
 
       // Set relative pose.
@@ -632,7 +635,7 @@ void StereoVisionFrontEnd::displaySaveImage(
   }
   if (verbosity == 1) {  // otherwise just return the image
     cv::imshow(imshow_name, img_left);
-    cv::waitKey(tracker_.trackerParams_.display_time_);
+    cv::waitKey(1);
   } else if (verbosity == 2) {
     // Create output folders:
     std::string folderName =
@@ -669,4 +672,4 @@ void StereoVisionFrontEnd::printStatusStereoMeasurements(
   std::cout << std::endl;
 }
 
-}  // namespace VIO
+} // End of VIO namespace.

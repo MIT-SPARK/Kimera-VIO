@@ -126,7 +126,6 @@ TEST(testFrame, CalibratePixel) {
 
 /* ************************************************************************* */
 // TODO: Create test for Calibrate Pixel with pinhole equidistant model
-/*
 TEST(testFrame, DISABLED_CalibratePixel) {
   // Perform a scan on the grid to verify the correctness of pixel calibration!
   const int numTestRows = 8;
@@ -159,7 +158,9 @@ uncalibrated_px_expected = Point2(iter->x, iter->y); Point2 px_mismatch =
 uncalibrated_px_actual - uncalibrated_px_expected;
     ASSERT_TRUE(px_mismatch.vector().norm() < 0.5);
   }
-} */
+}
+
+// TEST(testFrame, CalibratePixelEquidistant) {}
 
 /* ************************************************************************* */
 TEST(testFrame, findLmkIdFromPixel) {

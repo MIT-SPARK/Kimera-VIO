@@ -38,6 +38,7 @@ class LoggerMatlab {
   std::ofstream outputFile_;
   std::ofstream outputFile_posesVIO_;
   std::ofstream outputFile_posesVIO_csv_;
+  std::ofstream outputFile_posesVIO_csv_pipeline_;
   std::ofstream outputFile_posesGT_;
   std::ofstream outputFile_landmarks_;
   std::ofstream outputFile_normals_;
@@ -49,6 +50,7 @@ class LoggerMatlab {
   std::ofstream outputFile_statsFactors_;
   std::ofstream outputFile_mesh_;
   std::ofstream outputFile_frontend_;
+  std::ofstream outputFile_initPerformance_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
 
@@ -81,6 +83,15 @@ class LoggerMatlab {
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResultsCSV(const VioBackEndOutputPayload& vio_output);
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logPipelineResultsCSV(const SpinOutputPacket& vio_output);
+
+  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+  void logInitializationResultsCSV(const InitializationPerformance& perf,
+                                  const double& ba_duration,
+                                  const double& alignment_duration,
+                                  const bool& is_successful);
 
   /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
   void logBackendResults(

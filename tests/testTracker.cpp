@@ -146,6 +146,7 @@ class TestTracker : public ::testing::Test {
   }
 
   void ClearFrame(Frame* f) {
+    CHECK_NOTNULL(f);
     f->keypoints_.resize(0);
     f->scores_.resize(0);
     f->landmarks_.resize(0);
@@ -154,6 +155,7 @@ class TestTracker : public ::testing::Test {
   }
 
   void AddNoiseToFrame(Frame* f, const double noise_sigma) {
+    CHECK_NOTNULL(f);
     default_random_engine generator;
     normal_distribution<double> distribution(0, noise_sigma);
     for (auto versor : f->versors_) {
@@ -167,6 +169,8 @@ class TestTracker : public ::testing::Test {
                                const Pose3 camRef_pose_camCur,
                                const Vector3& PlaneN, const double PlaneD,
                                const int inlierNum) {
+    CHECK_NOTNULL(f_ref);
+    CHECK_NOTNULL(f_cur);
     // All points are on the plane: PlaneN * x = d
     for (int i = 0; i < inlierNum; i++) {
       // Randomly synthesize the point!
@@ -197,6 +201,8 @@ class TestTracker : public ::testing::Test {
                                   const vector<double>& depth_range,
                                   const int inlierNum) {
     for (int i = 0; i < inlierNum; i++) {
+      CHECK_NOTNULL(f_ref);
+      CHECK_NOTNULL(f_cur);
       // Randomly syntheisze the point!
       KeypointCV pt_ref(rand() % f_ref->img_.cols, rand() % f_ref->img_.rows);
 
@@ -226,6 +232,8 @@ class TestTracker : public ::testing::Test {
                           int outlierNum) {
     for (int i = 0; i < outlierNum; i++) {
       while (true) {
+        CHECK_NOTNULL(f_ref);
+        CHECK_NOTNULL(f_cur);
         // Keypoints
         KeypointCV pt_ref(rand() % f_ref->img_.cols, rand() % f_ref->img_.rows);
         KeypointCV pt_cur(rand() % f_cur->img_.cols, rand() % f_cur->img_.rows);
@@ -257,6 +265,8 @@ class TestTracker : public ::testing::Test {
 
   void AddVersorsToStereoFrames(StereoFrame* sf_ref, StereoFrame* sf_cur,
                                 Vector3& v_ref, Vector3& v_cur) {
+    CHECK_NOTNULL(sf_ref);
+    CHECK_NOTNULL(sf_cur);
     // Decide the largest landmark IDs for each frame!
     int max_id;
     if (sf_ref->getLeftFrame().landmarks_.size() == 0 &&
@@ -325,6 +335,8 @@ class TestTracker : public ::testing::Test {
                                         const Pose3 camLeftRef_pose_camLeftCur,
                                         const vector<double>& depth_range,
                                         const int inlierNum) {
+    CHECK_NOTNULL(sf_ref);
+    CHECK_NOTNULL(sf_cur);
     for (int i = 0; i < inlierNum; i++) {
       // Randomly synthesize left keypoint!
       KeypointCV pt_ref(rand() % sf_ref->getLeftFrame().img_.cols,
@@ -351,6 +363,7 @@ class TestTracker : public ::testing::Test {
   }
 
   void ClearStereoFrame(StereoFrame* sf) {
+    CHECK_NOTNULL(sf);
     ClearFrame(sf->getLeftFrameMutable());
     ClearFrame(sf->getRightFrameMutable());
     sf->keypoints_3d_.clear();
@@ -363,6 +376,8 @@ class TestTracker : public ::testing::Test {
   void AddOutliersToStereoFrame(StereoFrame* sf_ref, StereoFrame* sf_cur,
                                 Pose3 camRef_pose_camCur,
                                 vector<double>& depth_range, int outlierNum) {
+    CHECK_NOTNULL(sf_ref);
+    CHECK_NOTNULL(sf_cur);
     for (int i = 0; i < outlierNum; i++) {
       while (true) {
         // Keypoints
@@ -409,6 +424,8 @@ class TestTracker : public ::testing::Test {
                                      const Pose3 camLeftRef_pose_camLeftCur,
                                      const Vector3& PlaneN, const double PlaneD,
                                      const int inlierNum) {
+    CHECK_NOTNULL(sf_ref);
+    CHECK_NOTNULL(sf_cur);
     // All points are on the plane: PlaneN * x = d
     for (int i = 0; i < inlierNum; i++) {
       // Randomly synthesize the point!
@@ -431,6 +448,7 @@ class TestTracker : public ::testing::Test {
   }
 
   void AddNoiseToStereoFrame(StereoFrame* sf, const double noise_sigma) {
+    CHECK_NOTNULL(sf);
     default_random_engine generator;
     normal_distribution<double> distribution(0, noise_sigma);
     for (auto versor : sf->keypoints_3d_) {

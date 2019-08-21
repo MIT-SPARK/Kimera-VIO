@@ -29,28 +29,61 @@
 
 //########### SPARK_VIO_ROS ############################################
 namespace VIO {
+
+// TODO make new file for Ground Truth Data and the like,
+// because it is used by the backend and the feature selector.
+// Leaving it in the parser forces these modules to include a parser which is
+// at the very least weird.
+
 /*
  * Compact storage of state.
  */
 class gtNavState {
  public:
-  gtNavState() = default;
-  gtNavState(const gtsam::Pose3& pose, const gtsam::Vector3& velocity,
-             const gtsam::imuBias::ConstantBias& imu_bias)
-      : pose_(pose), velocity_(velocity), imu_bias_(imu_bias) {}
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  gtNavState(){}
+
+  gtNavState(const gtsam::Pose3& pose,
+             const gtsam::Vector3& velocity,
+             const gtsam::imuBias::ConstantBias& imu_bias);
+
+  gtNavState(const gtsam::NavState& nav_state,
+             const gtsam::imuBias::ConstantBias& imu_bias);
 
   gtsam::Pose3 pose_;
   gtsam::Vector3 velocity_;
   gtsam::imuBias::ConstantBias imu_bias_;
 
-  void print(const std::string message = " ") const {
-    if (VLOG_IS_ON(10)) {
-      LOG(INFO) << "--- " << message << "--- ";
-      pose_.print("\n pose: \n");
-      LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
-      imu_bias_.print("\n imuBias: \n");
-    }
-  }
+  void print(const std::string& message = " ") const;
+
+  gtsam::Pose3 pose() const { return pose_; };
+};
+
+// Struct for performance in initialization
+struct InitializationPerformance {
+  public:
+    // Default constructor
+    InitializationPerformance(
+      const Timestamp init_timestamp,
+      const int init_n_frames,
+      const double avg_rotationErrorBA,
+      const double avg_tranErrorBA,
+      const gtNavState init_nav_state,
+      const gtsam::Vector3 init_gravity,
+      const gtNavState gt_nav_state,
+      const gtsam::Vector3 gt_gravity);
+
+    void print() const;
+
+  public:
+    const Timestamp init_timestamp_;
+    const int init_n_frames_;
+    const double avg_rotationErrorBA_;
+    const double avg_tranErrorBA_;
+    const gtNavState init_nav_state_;
+    const gtsam::Vector3 init_gravity_;
+    const gtNavState gt_nav_state_;
+    const gtsam::Vector3 gt_gravity_;
 };
 
 /*
@@ -62,6 +95,7 @@ class GroundTruthData {
   void print() const;
 
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Sensor extrinsics wrt. the body-frame
   gtsam::Pose3 body_Pose_cam_;
 
@@ -90,16 +124,9 @@ class CameraImageLists {
 
 struct PipelineParams {
   VioFrontEndParams frontend_params_;
-  VioBackEndParamsConstPtr backend_params_;
+  VioBackEndParamsPtr backend_params_;
   ImuParams imu_params_;
   int backend_type_;
-  PipelineParams(VioFrontEndParams frontend_params,
-                 VioBackEndParamsConstPtr backend_params, ImuParams imu_params,
-                 int backend_type)
-      : frontend_params_(frontend_params),
-        backend_params_(backend_params),
-        imu_params_(imu_params),
-        backend_type_(backend_type) {}
 };
 
 class DataProvider {
@@ -113,7 +140,8 @@ class DataProvider {
   // for the VIO pipeline to do one processing iteration.
   // A Dummy example is provided as an implementation.
   virtual bool spin();
-  const PipelineParams getParams();
+  // Init Vio parameters.
+  PipelineParams pipeline_params_;
 
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.
@@ -125,26 +153,14 @@ class DataProvider {
   // is available for processing.
   std::function<void(const StereoImuSyncPacket&)> vio_callback_;
 
-  // Init Vio parameters.
-  VioBackEndParamsPtr backend_params_;
-  VioFrontEndParams frontend_params_;
-  ImuParams imu_params_;
-
-  FrameId initial_k_;  // start frame
-  FrameId final_k_;    // end frame
+  int initial_k_; // start frame
+  int final_k_; // end frame
   std::string dataset_path_;
 
-  inline ImuParams getImuParams() const { return imu_params_; }
-  inline VioBackEndParamsConstPtr getBackendParams() const {
-    return backend_params_;
-  }
-  inline VioFrontEndParams getFrontendParams() const {
-    return frontend_params_;
-  }
-
- protected:
+protected:
   // Helper function to parse user-specified parameters.
-  void parseParams();
+  void parseBackendParams();
+  void parseFrontendParams();
 };
 
 }  // namespace VIO

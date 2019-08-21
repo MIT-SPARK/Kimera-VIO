@@ -27,7 +27,7 @@ class KittiDataProvider : public DataProvider {
   KittiDataProvider();
   virtual ~KittiDataProvider();
 
-  bool spin();
+  bool spin() override;
 
  private:
   struct KittiData {
@@ -57,7 +57,7 @@ class KittiDataProvider : public DataProvider {
 
  private:
   cv::Mat readKittiImage(const std::string& img_name);
-  void parseData(const std::string& kitti_sequence_path, KittiData* kitti_data);
+  void parseKittiData(const std::string& kitti_sequence_path, KittiData* kitti_data);
 
   // Parse the timestamps of a particular device of given dataset
   bool parseTimestamps(const std::string& timestamps_file,
@@ -74,9 +74,9 @@ class KittiDataProvider : public DataProvider {
                     KittiData* kitti_data);
 
   // Get R and T matrix from calibration file
-  bool parseRT(const std::string& input_dataset_path,
-               const std::string& calibration_filename, cv::Mat& R,
-               cv::Mat& T) const;
+  bool parsePose(const std::string& input_dataset_path,
+               const std::string& calibration_filename,
+               cv::Mat& rotation, cv::Mat& translation) const;
 
   void print() const;
 

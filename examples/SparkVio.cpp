@@ -49,14 +49,15 @@ int main(int argc, char *argv[]) {
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
     } break;
-    default: {
-      CHECK(false) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
+    default:
+    {
+      LOG(FATAL) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
                    << " 0: EuRoC, 1: Kitti.";
     }
   }
 
-  // Build vio pipeline.
-  VIO::Pipeline vio_pipeline(dataset_parser->getParams(), FLAGS_parallel_run);
+  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_,
+                             FLAGS_parallel_run);
 
   // Register callback to vio pipeline.
   dataset_parser->registerVioCallback(
@@ -83,7 +84,7 @@ int main(int argc, char *argv[]) {
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
   LOG(INFO) << "Pipeline successful? "
             << (is_pipeline_successful ? "Yes!" : "No!");
-  VIO::utils::Statistics::WriteToYamlFile("StatisticsVIO.yaml");
+  VIO::utils::Statistics::WriteAllSamplesToCsvFile("StatisticsVIO.csv");
 
   if (is_pipeline_successful) {
     // Log overall time of pipeline run.

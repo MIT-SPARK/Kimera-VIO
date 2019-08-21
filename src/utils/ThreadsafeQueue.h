@@ -117,6 +117,24 @@ class ThreadsafeQueue {
     return result;
   }
 
+  // Swap queue with empty queue if not empty.
+  // Returns true if values were retrieved.
+  // Returns false if values were not retrieved.
+  bool batchPop(std::queue<T> *output_queue) {
+    if (shutdown_)
+      return false;
+    CHECK_NOTNULL(output_queue);
+    CHECK(output_queue->empty());
+    //*output_queue = std::queue<T>();
+    std::lock_guard<std::mutex> lk(mutex_);
+    if (data_queue_.empty()) {
+      return false;
+    } else {
+      data_queue_.swap(*output_queue);
+      return true;
+    }
+  }
+  
   void shutdown() {
     std::unique_lock<std::mutex> mlock(mutex_);
     // Even if the shared variable is atomic, it must be modified under the

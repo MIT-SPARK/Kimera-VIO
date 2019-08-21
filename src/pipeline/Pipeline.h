@@ -19,17 +19,16 @@
 #include <cstdlib>  // for srand()
 #include <memory>
 #include <thread>
+#include <utility>  // for make_pair
+#include <vector>
 
-#include <gtsam/navigation/ImuBias.h>
-
+#include "datasource/DataSource.h"
 #include "FeatureSelector.h"
 #include "LoggerMatlab.h"
 #include "StereoImuSyncPacket.h"
 #include "Visualizer3D.h"
-#include "datasource/DataSource.h"
+#include "initial/InitializationBackEnd-definitions.h"
 #include "mesh/Mesher.h"
-#include "pipeline/BufferControl.h"
-#include "pipeline/ProcessControl.h"
 #include "utils/ThreadsafeQueue.h"
 
 namespace VIO {
@@ -54,7 +53,6 @@ class Pipeline {
   ~Pipeline();
 
   // Main spin, runs the pipeline.
-  // Outputs results at frame-rate.
   void spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
@@ -63,7 +61,7 @@ class Pipeline {
   // Spin the pipeline only once.
   void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // TODO a parallel pipeline should always be able to run sequentially...
+  // A parallel pipeline should always be able to run sequentially...
   void spinSequential();
 
   // Shutdown the pipeline once all data has been consumed.
@@ -104,11 +102,23 @@ class Pipeline {
   // TODO Still does not make RANSAC REPEATABLE across different machines.
   inline void setDeterministicPipeline() const { srand(0); }
 
-  // Initialize pipeline.
+  // Initialize pipeline with desired option (flag).
   bool initialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // Re-initialize pipeline.
-  bool reInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  // Check if necessary to re-initialize pipeline.
+  void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Initialize pipeline from IMU or GT.
+  bool initializeFromIMUorGT(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Initialize pipeline from online gravity alignment.
+  bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
+
+  // Initialize backend given external pose estimate (GT or OGA)
+  // TODO(Sandro): Unify both functions below (init backend)
+  bool initializeVioBackend(const StereoImuSyncPacket& stereo_imu_sync_packet,
+                            std::shared_ptr<gtNavState> initial_state,
+                            const StereoFrame& stereo_frame_lkf);
 
   // Initialize backend.
   /// @param: vio_backend: returns the backend initialized.
@@ -147,6 +157,12 @@ class Pipeline {
   // Launch different threads with processes.
   void launchThreads();
 
+  // Launch frontend thread with process.
+  void launchFrontendThread();
+
+  // Launch remaining threads with processes.
+  void launchRemainingThreads();
+
   // Shutdown processes and queues.
   void stopThreads();
 
@@ -156,9 +172,6 @@ class Pipeline {
   // Callbacks.
   KeyframeRateOutputCallback keyframe_rate_output_callback_;
 
-  // Timestamp of last keyframe.
-  Timestamp timestamp_lkf_;
-
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
@@ -166,14 +179,15 @@ class Pipeline {
   // TODO this should go to another class to avoid not having copy-ctor...
   // Frontend.
   std::unique_ptr<StereoVisionFrontEnd> vio_frontend_;
-  FeatureSelector feature_selector_;
-
-  // Debug information from frontend (this is the only going out)
-  DebugTrackerInfo debug_tracker_info_;
+  std::unique_ptr<FeatureSelector> feature_selector_;
 
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
   ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
+
+  // Online initialization frontend queue.
+  ThreadsafeQueue<InitializationInputPayload>
+      initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   std::unique_ptr<VioBackEnd> vio_backend_;
@@ -202,13 +216,11 @@ class Pipeline {
   ThreadsafeQueue<VisualizerInputPayload> visualizer_input_queue_;
   ThreadsafeQueue<VisualizerOutputPayload> visualizer_output_queue_;
 
-  // High-level abstractions for workflow control.
-  ProcessControl process_control_;
-  BufferControl buffer_control_;
-
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
+  std::atomic_bool is_launched_ = {false};
+  int init_frame_id_;
 
   // Threads.
   std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};
