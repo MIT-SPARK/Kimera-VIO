@@ -12,8 +12,7 @@
  * @author Marcus Abate, Luca Carlone
  */
 
-#ifndef LoopClosureDetector_H_
-#define LoopClosureDetector_H_
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -53,7 +52,8 @@ class LoopClosureDetector {
   LoopClosureDetectorOutputPayload spinOnce(
       const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
 
-  LoopResult checkLoopClosure(const StereoFrame& stereo_frame);
+  void checkLoopClosure(const StereoFrame& stereo_frame,
+      LoopResult* loop_result);
 
   FrameId processAndAddFrame(const StereoFrame& stereo_frame);
 
@@ -146,14 +146,14 @@ class LoopClosureDetector {
                              std::vector<unsigned int>& i_match,
                              bool cut_matches = false) const;
 
-  bool geometricVerification_nister(const FrameId& query_id,
+  bool geometricVerificationNister(const FrameId& query_id,
                                     const FrameId& match_id,
                                     gtsam::Pose3* camRef_T_camCur_mono) const;
 
-  bool recoverPose_arun(const FrameId& query_id, const FrameId& match_id,
+  bool recoverPoseArun(const FrameId& query_id, const FrameId& match_id,
                         gtsam::Pose3* bodyRef_T_bodyCur) const;
 
-  bool recoverPose_givenRot(const FrameId& query_id, const FrameId& match_id,
+  bool recoverPoseGivenRot(const FrameId& query_id, const FrameId& match_id,
                             const gtsam::Pose3& camRef_T_camCur_mono,
                             gtsam::Pose3* bodyRef_T_bodyCur) const;
 
@@ -200,4 +200,3 @@ class LoopClosureDetector {
 };  // class LoopClosureDetector
 
 }  // namespace VIO
-#endif  // LoopClosureDetector_H_

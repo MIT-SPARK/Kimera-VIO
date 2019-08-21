@@ -91,6 +91,9 @@ DEFINE_double(between_translation_bundle_adjustment, 0.5,
               "Between factor precision for bundle adjustment"
               " in initialization.");
 
+DEFINE_bool(use_lcd, true,
+            "Enable LoopClosureDetector processing in pipeline.");
+
 namespace VIO {
 
 Pipeline::Pipeline(const PipelineParams &params, bool parallel_run)
@@ -134,9 +137,11 @@ Pipeline::Pipeline(const PipelineParams &params, bool parallel_run)
       frontend_params_, saveImages,
       FLAGS_log_output);
 
-  loop_closure_detector_ = VIO::make_unique<LoopClosureDetector>(
-      lcd_params_,
-      FLAGS_log_output);
+  if (FLAGS_use_lcd) {
+    loop_closure_detector_ = VIO::make_unique<LoopClosureDetector>(
+        lcd_params_,
+        FLAGS_log_output);
+  }
 
   // Instantiate feature selector: not used in vanilla implementation.
   if (FLAGS_use_feature_selection) {
@@ -237,17 +242,21 @@ void Pipeline::processKeyframe(
   // TODO(marcus): not robust to cases where frontend and backend processing
   // happen in different methods. This only works if they're done one after
   // another. Mixing input from two different outputs is bad form.
-  VLOG(2) << "Push input payload to LoopClosureDetector.";
-  lcd_input_queue_.push(LoopClosureDetectorInputPayload(
-      last_stereo_keyframe.getTimestamp(), backend_output_payload->cur_kf_id_,
-      last_stereo_keyframe, backend_output_payload->W_Pose_Blkf_));
+  std::shared_ptr<LoopClosureDetectorOutputPayload> lcd_output_payload;
+  if (FLAGS_use_lcd) {
+    VLOG(2) << "Push input payload to LoopClosureDetector.";
+    lcd_input_queue_.push(LoopClosureDetectorInputPayload(
+        last_stereo_keyframe.getTimestamp(), backend_output_payload->cur_kf_id_,
+        last_stereo_keyframe, backend_output_payload->W_Pose_Blkf_));
 
-  VLOG(2) << "Checking for payload from LoopClosureDetector (not blocking).";
-  std::shared_ptr<LoopClosureDetectorOutputPayload> lcd_output_payload =
-      lcd_output_queue_.pop();
-  LOG_IF(WARNING, !lcd_output_payload) << "Missing LCD output payload.";
-  // This is done to prevent undefined initialization in the SpinOutputPacket
-  // and to prevent segfaults once spinOutputPacket is returned:
+    VLOG(2) << "Checking for payload from LoopClosureDetector (not blocking).";
+    std::shared_ptr<LoopClosureDetectorOutputPayload> lcd_output_payload =
+        lcd_output_queue_.pop();
+    LOG_IF(WARNING, !lcd_output_payload) << "Missing LCD output payload.";
+    // This is done to prevent undefined initialization in the SpinOutputPacket
+    // and to prevent segfaults once spinOutputPacket is returned:
+  }
+
   if (!lcd_output_payload) {
     lcd_output_payload = std::make_shared<LoopClosureDetectorOutputPayload>(
         false, 0, 0, 0, gtsam::Pose3(), gtsam::Pose3(), gtsam::Values());
@@ -394,8 +403,6 @@ bool Pipeline::spinViz(bool parallel_run) {
 /* --------------------------------------------------------------------------
  */
 void Pipeline::spinSequential() {
-  // TODO Marcus: Need to add a flag for using LCD in sequential, it makes things slow
-
   // Spin once frontend.
   CHECK(vio_frontend_);
   vio_frontend_->spin(stereo_frontend_input_queue_,
@@ -436,13 +443,11 @@ void Pipeline::spinSequential() {
       backend_output_payload->W_Pose_Blkf_));
 
   // Spin once LCD. Do not run in parallel.
-  loop_closure_detector_->spin(lcd_input_queue_, lcd_output_queue_, false);
+  if (FLAGS_use_lcd)
+      loop_closure_detector_->spin(lcd_input_queue_, lcd_output_queue_, false);
 
-  // Pop blocking from LoopClosureDetector.
-  // TODO(marcus): consider making this a pop() to speed up performance
-  // You'll have to check with Toni if that's the intention for spinSequential
+  // Pop from LoopClosureDetector, not blocking.
   const auto &lcd_output_payload = lcd_output_queue_.pop();
-  CHECK(lcd_output_payload);
 
   const auto& stereo_keyframe =
       stereo_frontend_output_payload->stereo_frame_lkf_;
@@ -646,7 +651,8 @@ void Pipeline::checkReInitialize(
     CHECK(vio_backend_);
     vio_backend_->restart();
     mesher_.restart();
-    loop_closure_detector_->restart();
+    if (FLAGS_use_lcd)
+        loop_closure_detector_->restart();
     visualizer_.restart();
     // Resume pipeline
     resume();
@@ -986,7 +992,6 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
 /* --------------------------------------------------------------------------
  */
 void Pipeline::processKeyframePop() {
-  // TODO(marcus): send these to the LCD input thread as well
   // TODO (Sandro): Adapt to be able to batch pop frames for batch backend
   // Pull from stereo frontend output queue.
   LOG(INFO) << "Spinning wrapped thread.";
@@ -1060,9 +1065,10 @@ void Pipeline::launchRemainingThreads() {
         &Mesher::spin, &mesher_, std::ref(mesher_input_queue_),
         std::ref(mesher_output_queue_), true);
 
-    lcd_thread_ = VIO::make_unique<std::thread>(
-        &LoopClosureDetector::spin, CHECK_NOTNULL(loop_closure_detector_.get()),
-        std::ref(lcd_input_queue_), std::ref(lcd_output_queue_), true);
+    if (FLAGS_use_lcd)
+        lcd_thread_ = VIO::make_unique<std::thread>(
+            &LoopClosureDetector::spin, CHECK_NOTNULL(loop_closure_detector_.get()),
+            std::ref(lcd_input_queue_), std::ref(lcd_output_queue_), true);
 
     // Start visualizer_thread.
     // visualizer_thread_ = std::thread(&Visualizer3D::spin,

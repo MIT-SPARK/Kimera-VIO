@@ -25,7 +25,7 @@
 
 namespace VIO {
 
-enum LCDStatus {
+enum class LCDStatus : unsigned int {
   LOOP_DETECTED,
   NO_MATCHES,
   LOW_NSS_FACTOR,
@@ -36,12 +36,9 @@ enum LCDStatus {
   FAILED_POSE_RECOVERY
 };
 
-enum GeomVerifOption {
-  NISTER,
-  NONE
-};
+enum class GeomVerifOption : unsigned int { NISTER, NONE };
 
-enum PoseRecoveryOption { RANSAC_ARUN, GIVEN_ROT };
+enum class PoseRecoveryOption : unsigned int { RANSAC_ARUN, GIVEN_ROT };
 
 struct LCDFrame {
   LCDFrame() {}
@@ -80,14 +77,14 @@ struct MatchIsland {
       best_id_(0),
       best_score_(0) {}
 
-  MatchIsland(FrameId start, FrameId end)
+  MatchIsland(const FrameId& start, const FrameId& end)
     : start_id_(start),
       end_id_(end),
       island_score_(0),
       best_id_(0),
       best_score_(0) {}
 
-  MatchIsland(FrameId start, FrameId end, double score)
+  MatchIsland(const FrameId& start, const FrameId& end, const double& score)
     : start_id_(start),
       end_id_(end),
       island_score_(score),
@@ -95,11 +92,11 @@ struct MatchIsland {
       best_score_(0) {}
 
   inline bool operator < (const MatchIsland& other) const {
-    return this->island_score_ < other.island_score_;
+    return island_score_ < other.island_score_;
   }
 
   inline bool operator > (const MatchIsland& other) const {
-    return this->island_score_ > other.island_score_;
+    return island_score_ > other.island_score_;
   }
 
   inline size_t size() const { return end_id_ - start_id_ + 1; }

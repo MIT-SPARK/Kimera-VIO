@@ -12,16 +12,16 @@
 * @author Marcus Abate
 */
 
-
-#ifndef LoopClosureDetectorParams_H_
-#define LoopClosureDetectorParams_H_
+#pragma once
 
 #include <string>
 
 #include <glog/logging.h>
 
 #include <opencv/cv.hpp>
+
 #include "LoopClosureDetector-definitions.h"
+#include "YamlParser.h"
 
 namespace VIO {
 
@@ -189,127 +189,50 @@ class LoopClosureDetectorParams {
 
   virtual ~LoopClosureDetectorParams() = default;
 
-  virtual bool parseYAML(const std::string& filepath) {
-    // make sure that each YAML file has %YAML:1.0 as first line
-    cv::FileStorage fs;
-    openFile(filepath, &fs);
-    bool result = parseYAMLLCDParams(fs);
-    closeFile(&fs);
-    return result;
-  }
-
-  virtual void print() const { printLCDParams(); }
-
- protected:
-  void openFile(const std::string& filepath, cv::FileStorage* fs) const {
-    CHECK_NOTNULL(fs);
-    fs->open(filepath, cv::FileStorage::READ);
-    if (!fs->isOpened()) {
-      std::cout << "Cannot open file in parseYAML: " << filepath << std::endl;
-      throw std::runtime_error(
-        "parseYAML (LCD): cannot open file (remember first line: %YAML:1.0)");
-    }
-  }
-
-  void closeFile(cv::FileStorage* fs) {
-    CHECK_NOTNULL(fs);
-    fs->release();
-  }
-
   // NOTE: we cannot parse width, height principe pt and focal length from here.
   // Those are done via setIntrinsics() in real time in the first StereoFrame.
-  bool parseYAMLLCDParams(const cv::FileStorage& fs) {
-    cv::FileNode file_handle;
+  bool parseYAML(const std::string& filepath) {
+    yaml_parser_ = std::make_shared<YamlParser>(filepath);
 
-    file_handle = fs["use_nss"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> use_nss_;
-
-    file_handle = fs["alpha"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> alpha_;
-
-    file_handle = fs["min_temporal_matches"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> min_temporal_matches_;
-
-    file_handle = fs["dist_local"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> dist_local_;
-
-    file_handle = fs["max_db_results"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> max_db_results_;
-
-    file_handle = fs["min_nss_factor"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> min_nss_factor_;
-
-    file_handle = fs["min_matches_per_group"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> min_matches_per_group_;
-
-    file_handle = fs["max_intragroup_gap"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> max_intragroup_gap_;
-
-    file_handle = fs["max_distance_between_groups"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> max_distance_between_groups_;
-
-    file_handle = fs["max_distance_between_queries"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> max_distance_between_queries_;
+    yaml_parser_->getYamlParam("use_nss", &use_nss_);
+    yaml_parser_->getYamlParam("alpha", &alpha_);
+    yaml_parser_->getYamlParam("min_temporal_matches", &min_temporal_matches_);
+    yaml_parser_->getYamlParam("dist_local", &dist_local_);
+    yaml_parser_->getYamlParam("max_db_results", &max_db_results_);
+    yaml_parser_->getYamlParam("min_nss_factor", &min_nss_factor_);
+    yaml_parser_->getYamlParam("min_matches_per_group", &min_matches_per_group_);
+    yaml_parser_->getYamlParam("max_intragroup_gap", &max_intragroup_gap_);
+    yaml_parser_->getYamlParam("max_distance_between_groups", &max_distance_between_groups_);
+    yaml_parser_->getYamlParam("max_distance_between_queries", &max_distance_between_queries_);
 
     int geom_check_id;
-    file_handle = fs["geom_check_id"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> geom_check_id;
+    yaml_parser_->getYamlParam("geom_check_id",& geom_check_id);
     switch (geom_check_id) {
-      case GeomVerifOption::NISTER:
+      case static_cast<unsigned int>(GeomVerifOption::NISTER):
         geom_check_ = GeomVerifOption::NISTER;
         break;
-      case GeomVerifOption::NONE:
+      case static_cast<unsigned int>(GeomVerifOption::NONE):
         geom_check_ = GeomVerifOption::NONE;
         break;
       default:
         throw std::runtime_error("LCDparams parseYAML: wrong geom_check_id");
         break;
     }
-
-    file_handle = fs["min_correspondences"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> min_correspondences_;
-
-    file_handle = fs["max_ransac_iterations_mono"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> max_ransac_iterations_mono_;
-
-    file_handle = fs["ransac_probability_mono"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> ransac_probability_mono_;
-
-    file_handle = fs["ransac_threshold_mono"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> ransac_threshold_mono_;
-
-    file_handle = fs["ransac_randomize_mono"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> ransac_randomize_mono_;
-
-    file_handle = fs["ransac_inlier_threshold_mono"];
-    CHECK(file_handle.type() != cv::FileNode::NONE);
-    file_handle >> ransac_inlier_threshold_mono_;
+    yaml_parser_->getYamlParam("min_correspondences", &min_correspondences_);
+    yaml_parser_->getYamlParam("max_ransac_iterations_mono", &max_ransac_iterations_mono_);
+    yaml_parser_->getYamlParam("ransac_probability_mono", &ransac_probability_mono_);
+    yaml_parser_->getYamlParam("ransac_threshold_mono", &ransac_threshold_mono_);
+    yaml_parser_->getYamlParam("ransac_randomize_mono", &ransac_randomize_mono_);
+    yaml_parser_->getYamlParam("ransac_inlier_threshold_mono", &ransac_inlier_threshold_mono_);
 
     int pose_recovery_option_id;
-    file_handle = fs["pose_recovery_option_id"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> pose_recovery_option_id;
+    yaml_parser_->getYamlParam("pose_recovery_option_id",
+                                &pose_recovery_option_id);
     switch (pose_recovery_option_id) {
-      case PoseRecoveryOption::RANSAC_ARUN:
+      case static_cast<unsigned int>(PoseRecoveryOption::RANSAC_ARUN):
         pose_recovery_option_ = PoseRecoveryOption::RANSAC_ARUN;
         break;
-      case PoseRecoveryOption::GIVEN_ROT:
+      case static_cast<unsigned int>(PoseRecoveryOption::GIVEN_ROT):
         pose_recovery_option_ = PoseRecoveryOption::GIVEN_ROT;
         break;
       default:
@@ -317,63 +240,22 @@ class LoopClosureDetectorParams {
             "LCDparams parseYAML: wrong pose_recovery_option_id");
         break;
     }
-
-    file_handle = fs["max_ransac_iterations_stereo"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> max_ransac_iterations_stereo_;
-
-    file_handle = fs["ransac_probability_stereo"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> ransac_probability_stereo_;
-
-    file_handle = fs["ransac_threshold_stereo"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> ransac_threshold_stereo_;
-
-    file_handle = fs["ransac_randomize_stereo"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> ransac_randomize_stereo_;
-
-    file_handle = fs["ransac_inlier_threshold_stereo"];
-    CHECK(file_handle.type() != cv::FileNode::NONE);
-    file_handle >> ransac_inlier_threshold_stereo_;
-
-    file_handle = fs["use_mono_rot"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> use_mono_rot_;
-
-    file_handle = fs["lowe_ratio"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> lowe_ratio_;
-
-    file_handle = fs["nfeatures"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> nfeatures_;
-
-    file_handle = fs["scale_factor"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> scale_factor_;
-
-    file_handle = fs["nlevels"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> nlevels_;
-
-    file_handle = fs["edge_threshold"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> edge_threshold_;
-
-    file_handle = fs["first_level"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> first_level_;
-
-    file_handle = fs["WTA_K"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> WTA_K_;
+    yaml_parser_->getYamlParam("max_ransac_iterations_stereo", &max_ransac_iterations_stereo_);
+    yaml_parser_->getYamlParam("ransac_probability_stereo", &ransac_probability_stereo_);
+    yaml_parser_->getYamlParam("ransac_threshold_stereo", &ransac_threshold_stereo_);
+    yaml_parser_->getYamlParam("ransac_randomize_stereo", &ransac_randomize_stereo_);
+    yaml_parser_->getYamlParam("ransac_inlier_threshold_stereo", &ransac_inlier_threshold_stereo_);
+    yaml_parser_->getYamlParam("use_mono_rot", &use_mono_rot_);
+    yaml_parser_->getYamlParam("lowe_ratio", &lowe_ratio_);
+    yaml_parser_->getYamlParam("nfeatures", &nfeatures_);
+    yaml_parser_->getYamlParam("scale_factor", &scale_factor_);
+    yaml_parser_->getYamlParam("nlevels", &nlevels_);
+    yaml_parser_->getYamlParam("edge_threshold", &edge_threshold_);
+    yaml_parser_->getYamlParam("first_level", &first_level_);
+    yaml_parser_->getYamlParam("WTA_K", &WTA_K_);
 
     int score_type_id;
-    file_handle = fs["score_type_id"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> score_type_id;
+    yaml_parser_->getYamlParam("score_type_id", &score_type_id);
     switch (score_type_id) {
       case 0:
         score_type_ = cv::ORB::HARRIS_SCORE;
@@ -383,27 +265,15 @@ class LoopClosureDetectorParams {
         throw std::runtime_error("LCDparams parseYAML: wrong score_type_id");
         break;
     }
-
-    file_handle = fs["patch_sze"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> patch_sze_;
-
-    file_handle = fs["fast_threshold"];
-    CHECK(file_handle.type() != cv::FileNode:: NONE);
-    file_handle >> fast_threshold_;
-
-    file_handle = fs["pgo_rot_threshold"];
-    CHECK(file_handle.type() != cv::FileNode::NONE);
-    file_handle >> pgo_rot_threshold_;
-
-    file_handle = fs["pgo_trans_threshold"];
-    CHECK(file_handle.type() != cv::FileNode::NONE);
-    file_handle >> pgo_trans_threshold_;
+    yaml_parser_->getYamlParam("patch_sze", &patch_sze_);
+    yaml_parser_->getYamlParam("fast_threshold", &fast_threshold_);
+    yaml_parser_->getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
+    yaml_parser_->getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
 
     return true;
   }
 
-  void printLCDParams() const {
+  void print() const {
     // TODO(marcus): print all params
     LOG(INFO)
         << "$$$$$$$$$$$$$$$$$$$$$ LCD PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
@@ -426,7 +296,7 @@ class LoopClosureDetectorParams {
         << "max_distance_between_queries_: " << max_distance_between_queries_
         << '\n'
 
-        << "geom_check_: " << geom_check_ << '\n'
+        << "geom_check_: " << static_cast<unsigned int>(geom_check_) << '\n'
         << "min_correspondences_: " << min_correspondences_ << '\n'
         << "max_ransac_iterations_mono_: " << max_ransac_iterations_mono_
         << '\n'
@@ -436,7 +306,8 @@ class LoopClosureDetectorParams {
         << "ransac_inlier_threshold_mono_: " << ransac_inlier_threshold_mono_
         << '\n'
 
-        << "pose_recovery_option_: " << pose_recovery_option_ << '\n'
+        << "pose_recovery_option_: "
+        << static_cast<unsigned int>(pose_recovery_option_) << '\n'
         << "max_ransac_iterations_stereo_: " << max_ransac_iterations_stereo_
         << '\n'
         << "ransac_probability_stereo_: " << ransac_probability_stereo_ << '\n'
@@ -461,7 +332,12 @@ class LoopClosureDetectorParams {
         << "pgo_rot_threshold_: " << pgo_rot_threshold_ << '\n'
         << "pgo_trans_threshold_: " << pgo_trans_threshold_;
   }
-};  // class LoopClosureDetectorParams
-}  // namespace VIO
 
-#endif  // LoopClosureDetectorParams_H_
+ private:
+   // TODO(Toni) Needs to be shared because we are copying params around, if
+   // parsing was separated from actual params struct we would not have this
+   // issue.
+   std::shared_ptr<YamlParser> yaml_parser_;
+};  // class LoopClosureDetectorParams
+
+}  // namespace VIO

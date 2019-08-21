@@ -13,6 +13,9 @@ DATASET_TYPE=0
 
 # Specify: 1 to run pipeline in parallel mode, 0 to run sequentially.
 PARALLEL_RUN=1
+
+# Specify: 1 to enable the LoopClosureDetector, 0 to not.
+USE_LCD=1
 ###################################################################
 
 # Parse Options.
@@ -40,6 +43,8 @@ else
           echo "Using Regular VIO!" ;;
       -s) PARALLEL_RUN=0
           echo "Run VIO in SEQUENTIAL mode!" ;;
+      -nl) USE_LCD=0
+           echo "Run VIO without LoopClosureDetector!" ;;
       --)
           shift # The double dash which separates options from parameters
           break
@@ -92,6 +97,7 @@ echo """ Launching:
   --final_k=2000 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
   --lcd_params_path="$LCD_PARAMS_PATH" \
+  --use_lcd="$USE_LCD" \
   --vocabulary_path="../vocabulary/ORBvoc.yml" \
   --flagfile="../params/flags/stereoVIOEuroc.flags" \
   --flagfile="../params/flags/Mesher.flags" \

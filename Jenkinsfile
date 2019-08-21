@@ -42,7 +42,7 @@ pipeline {
     stage('Delete Vocabulary File') {
       steps {
         wrap([$class: 'Xvfb']) {
-          sh 'cd vocabulary && rm ORBvoc.txt && rm ORBvoc.txt.tar.gz'
+          sh 'cd vocabulary && rm ORBvoc.yml && rm ORBvoc.zip'
         }
       }
     }

@@ -172,7 +172,8 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
 
   // Process the StereoFrame and check for a loop closure with previous ones.
   StereoFrame working_frame = input->stereo_frame_;
-  LoopResult loop_result = checkLoopClosure(working_frame);
+  LoopResult loop_result;
+  checkLoopClosure(working_frame, &loop_result);
 
   // Update the PGO with the loop closure result if available.
   if (loop_result.isLoop()) {
@@ -195,43 +196,50 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
       gtsam::Pose3(), gtsam::Values());
 }
 
-LoopResult LoopClosureDetector::checkLoopClosure(
-    const StereoFrame& stereo_frame) {
+void LoopClosureDetector::checkLoopClosure(
+    const StereoFrame& stereo_frame, LoopResult* loop_result) {
   FrameId frame_id = processAndAddFrame(stereo_frame);
-  LoopResult loop_result;
-  detectLoop(frame_id, &loop_result);
+  detectLoop(frame_id, loop_result);
 
-  if (loop_result.isLoop()) {
+  if (loop_result->isLoop()) {
     if (VERBOSITY >= 1) {
       LOG(WARNING) << "LoopClosureDetector: LOOP CLOSURE detected from image "
-                   << loop_result.match_id_ << " to image "
-                   << loop_result.query_id_;
+                   << loop_result->match_id_ << " to image "
+                   << loop_result->query_id_;
     }
   } else {
     if (VERBOSITY >= 2) {
       std::string erhdr = "LoopClosureDetector Failure Reason: ";
-      switch (loop_result.status_) {
-        case 0: LOG(ERROR) << erhdr+"Loop detected.";
-                break;
-        case 1: LOG(ERROR) << erhdr+"No matches against the database.";
-                break;
-        case 2: LOG(ERROR) << erhdr+"Current image score vs previous too low.";
-                break;
-        case 3: LOG(ERROR) << erhdr+"Scores were below the alpha threshold.";
-                break;
-        case 4: LOG(ERROR) << erhdr+"Not enough matches to create groups.";
-                break;
-        case 5: LOG(ERROR) << erhdr+"No temporal consistency between matches.";
-                break;
-        case 6: LOG(ERROR) << erhdr+"The geometric verification step failed.";
-                break;
-        case 7:
-          LOG(ERROR) << erhdr + "The pose recovery step failed.";
+      switch (loop_result->status_) {
+        default:
+             LOG(ERROR) << erhdr + "INVALID LCDStatus.";
+        case LCDStatus::LOOP_DETECTED:
+             LOG(ERROR) << erhdr + "Loop detected.";
+             break;
+        case LCDStatus::NO_MATCHES:
+             LOG(ERROR) << erhdr + "No matches against the database.";
+             break;
+        case LCDStatus::LOW_NSS_FACTOR:
+             LOG(ERROR) << erhdr + "Current image score vs previous too low.";
+             break;
+        case LCDStatus::LOW_SCORE:
+             LOG(ERROR) << erhdr + "Scores were below the alpha threshold.";
+             break;
+        case LCDStatus::NO_GROUPS:
+             LOG(ERROR) << erhdr + "Not enough matches to create groups.";
+             break;
+        case LCDStatus::FAILED_TEMPORAL_CONSTRAINT:
+             LOG(ERROR) << erhdr + "No temporal consistency between matches.";
+             break;
+        case LCDStatus::FAILED_GEOM_VERIFICATION:
+             LOG(ERROR) << erhdr + "The geometric verification step failed.";
+             break;
+        case LCDStatus::FAILED_POSE_RECOVERY:
+             LOG(ERROR) << erhdr + "The pose recovery step failed.";
+             break;
       }
     }
   }
-
-  return loop_result;
 }
 
 FrameId LoopClosureDetector::processAndAddFrame(
@@ -380,7 +388,7 @@ bool LoopClosureDetector::geometricVerificationCheck(
       LOG(ERROR) << "LoopClosureDetector: Incorrect geom_check_ option.";
       break;
     case GeomVerifOption::NISTER:
-      return geometricVerification_nister(query_id, match_id,
+      return geometricVerificationNister(query_id, match_id,
                                           camRef_T_camCur_mono);
     case GeomVerifOption::NONE:
       return true;
@@ -401,10 +409,10 @@ bool LoopClosureDetector::recoverPose(
       break;
     case PoseRecoveryOption::RANSAC_ARUN:
       compute_success =
-          recoverPose_arun(query_id, match_id, bodyRef_T_bodyCur_stereo);
+          recoverPoseArun(query_id, match_id, bodyRef_T_bodyCur_stereo);
       break;
     case PoseRecoveryOption::GIVEN_ROT:
-      compute_success = recoverPose_givenRot(
+      compute_success = recoverPoseGivenRot(
           query_id, match_id, camRef_T_camCur_mono, bodyRef_T_bodyCur_stereo);
       break;
   }
@@ -700,7 +708,7 @@ void LoopClosureDetector::computeMatchedIndices(
 // alg this is wasteful. Store the matched indices as latest for use in the
 // compute step
 // TODO(marcus): This is the camera frame. Your transform has to happen later
-bool LoopClosureDetector::geometricVerification_nister(
+bool LoopClosureDetector::geometricVerificationNister(
     const FrameId& query_id, const FrameId& match_id,
     gtsam::Pose3* camRef_T_camCur_mono) const {
   // Find correspondences between keypoints.
@@ -785,7 +793,7 @@ inline const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
   return gtsam::Pose3();
 }
 
-bool LoopClosureDetector::recoverPose_arun(
+bool LoopClosureDetector::recoverPoseArun(
     const FrameId& query_id, const FrameId& match_id,
     gtsam::Pose3* bodyRef_T_bodyCur) const {
   // Find correspondences between frames.
@@ -842,7 +850,7 @@ bool LoopClosureDetector::recoverPose_arun(
 
 // TODO(marcus): Add median check coordiante wise instead of the other check
 // TODO(marcus): rename pose_2d to pose_cam or something for cam frame
-bool LoopClosureDetector::recoverPose_givenRot(
+bool LoopClosureDetector::recoverPoseGivenRot(
     const FrameId& query_id, const FrameId& match_id,
     const gtsam::Pose3& camRef_T_camCur_mono,
     gtsam::Pose3* bodyRef_T_bodyCur) const {
