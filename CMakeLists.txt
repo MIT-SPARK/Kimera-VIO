@@ -113,6 +113,7 @@ target_link_libraries(SparkVio
   PRIVATE
     opengv
     DBoW2
+    RobustPGO
   PUBLIC
     Boost::boost
     ${OpenCV_LIBS}
@@ -120,7 +121,6 @@ target_link_libraries(SparkVio
     glog::glog
     gtsam
     gtsam_unstable
-    RobustPGO
 )
 target_include_directories(SparkVio
   PUBLIC

@@ -12,7 +12,6 @@ if(NOT TARGET Boost::boost)
 endif()
 find_dependency(GTSAM REQUIRED)
 find_dependency(OpenCV REQUIRED)
-find_dependency(RobustPGO REQUIRED)
 
 # We should set those right?
 #find_dependency(glog REQUIRED)
