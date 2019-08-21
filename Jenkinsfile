@@ -73,6 +73,7 @@ pipeline {
       // Clear the source and build dirs before next run
       // TODO this might delete the .csv file for plots?
       deleteDir()
+      cleanWs()
     }
     success {
       echo 'Success!'
