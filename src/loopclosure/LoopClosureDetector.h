@@ -61,11 +61,11 @@ class LoopClosureDetector {
 
   bool geometricVerificationCheck(const FrameId& query_id,
                                   const FrameId& match_id,
-                                  gtsam::Pose3* camRef_T_camCur_mono) const;
+                                  gtsam::Pose3* camCur_T_camRef_mono) const;
 
   bool recoverPose(const FrameId& query_id, const FrameId& match_id,
-                   const gtsam::Pose3& camRef_T_camCur_mono,
-                   gtsam::Pose3* bodyRef_T_bodyCur_stereo) const;
+                   const gtsam::Pose3& camCur_T_camRef_mono,
+                   gtsam::Pose3* bodyCur_T_bodyRef_stereo) const;
 
   inline void shutdown() {
     LOG_IF(WARNING, shutdown_) << "Shutdown requested, but LoopClosureDetector "
@@ -122,11 +122,11 @@ class LoopClosureDetector {
                                              bool cut_matches = false) const;
 
   // TODO(marcus): maybe these should be private?
-  void transformCameraPose2BodyPose(const gtsam::Pose3& camRef_T_camCur,
-                                    gtsam::Pose3* bodyRef_T_bodyCur) const;
+  void transformCameraPose2BodyPose(const gtsam::Pose3& camCur_T_camRef,
+                                    gtsam::Pose3* bodyCur_T_bodyRef) const;
 
-  void transformBodyPose2CameraPose(const gtsam::Pose3& bodyRef_T_bodyCur,
-                                    gtsam::Pose3* camRef_T_camCur) const;
+  void transformBodyPose2CameraPose(const gtsam::Pose3& bodyCur_T_bodyRef,
+                                    gtsam::Pose3* camCur_T_camRef) const;
 
   inline const gtsam::Pose3 getWPoseMap() const;
 
@@ -148,14 +148,14 @@ class LoopClosureDetector {
 
   bool geometricVerificationNister(const FrameId& query_id,
                                     const FrameId& match_id,
-                                    gtsam::Pose3* camRef_T_camCur_mono) const;
+                                    gtsam::Pose3* camCur_T_camRef_mono) const;
 
   bool recoverPoseArun(const FrameId& query_id, const FrameId& match_id,
-                        gtsam::Pose3* bodyRef_T_bodyCur) const;
+                        gtsam::Pose3* bodyCur_T_bodyRef) const;
 
   bool recoverPoseGivenRot(const FrameId& query_id, const FrameId& match_id,
-                            const gtsam::Pose3& camRef_T_camCur_mono,
-                            gtsam::Pose3* bodyRef_T_bodyCur) const;
+                            const gtsam::Pose3& camCur_T_camRef_mono,
+                            gtsam::Pose3* bodyCur_T_bodyRef) const;
 
   void initializePGO();
 

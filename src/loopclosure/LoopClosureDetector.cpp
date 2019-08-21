@@ -347,22 +347,22 @@ bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
             result->status_ = LCDStatus::FAILED_TEMPORAL_CONSTRAINT;
           } else {
             // Perform geometric verification check.
-            gtsam::Pose3 camRef_T_camCur_mono;
+            gtsam::Pose3 camCur_T_camRef_mono;
             bool passGeometricVerification = geometricVerificationCheck(
-                frame_id, best_island.best_id_, &camRef_T_camCur_mono);
+                frame_id, best_island.best_id_, &camCur_T_camRef_mono);
 
             if (!passGeometricVerification) {
               result->status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
             } else {
-              gtsam::Pose3 bodyRef_T_bodyCur_stereo;
+              gtsam::Pose3 bodyCur_T_bodyRef_stereo;
               bool pass3DPoseCompute =
                   recoverPose(result->query_id_, result->match_id_,
-                              camRef_T_camCur_mono, &bodyRef_T_bodyCur_stereo);
+                              camCur_T_camRef_mono, &bodyCur_T_bodyRef_stereo);
 
               if (!pass3DPoseCompute) {
                 result->status_ = LCDStatus::FAILED_POSE_RECOVERY;
               } else {
-                result->relative_pose_ = bodyRef_T_bodyCur_stereo;
+                result->relative_pose_ = bodyCur_T_bodyRef_stereo;
                 result->status_ = LCDStatus::LOOP_DETECTED;
               }
             }
@@ -382,14 +382,14 @@ bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
 
 bool LoopClosureDetector::geometricVerificationCheck(
     const FrameId& query_id, const FrameId& match_id,
-    gtsam::Pose3* camRef_T_camCur_mono) const {
+    gtsam::Pose3* camCur_T_camRef_mono) const {
   switch (lcd_params_.geom_check_) {
     default:
       LOG(ERROR) << "LoopClosureDetector: Incorrect geom_check_ option.";
       break;
     case GeomVerifOption::NISTER:
       return geometricVerificationNister(query_id, match_id,
-                                          camRef_T_camCur_mono);
+                                          camCur_T_camRef_mono);
     case GeomVerifOption::NONE:
       return true;
   }
@@ -399,8 +399,8 @@ bool LoopClosureDetector::geometricVerificationCheck(
 
 bool LoopClosureDetector::recoverPose(
     const FrameId& query_id, const FrameId& match_id,
-    const gtsam::Pose3& camRef_T_camCur_mono,
-    gtsam::Pose3* bodyRef_T_bodyCur_stereo) const {
+    const gtsam::Pose3& camCur_T_camRef_mono,
+    gtsam::Pose3* bodyCur_T_bodyRef_stereo) const {
   bool compute_success = false;
 
   switch (lcd_params_.pose_recovery_option_) {
@@ -409,20 +409,20 @@ bool LoopClosureDetector::recoverPose(
       break;
     case PoseRecoveryOption::RANSAC_ARUN:
       compute_success =
-          recoverPoseArun(query_id, match_id, bodyRef_T_bodyCur_stereo);
+          recoverPoseArun(query_id, match_id, bodyCur_T_bodyRef_stereo);
       break;
     case PoseRecoveryOption::GIVEN_ROT:
       compute_success = recoverPoseGivenRot(
-          query_id, match_id, camRef_T_camCur_mono, bodyRef_T_bodyCur_stereo);
+          query_id, match_id, camCur_T_camRef_mono, bodyCur_T_bodyRef_stereo);
       break;
   }
 
   if (lcd_params_.use_mono_rot_) {
-    gtsam::Pose3 bodyRef_T_bodyCur_mono;
-    transformCameraPose2BodyPose(camRef_T_camCur_mono, &bodyRef_T_bodyCur_mono);
-    *bodyRef_T_bodyCur_stereo =
-        gtsam::Pose3(bodyRef_T_bodyCur_mono.rotation(),
-                     bodyRef_T_bodyCur_stereo->translation());
+    gtsam::Pose3 bodyCur_T_bodyRef_mono;
+    transformCameraPose2BodyPose(camCur_T_camRef_mono, &bodyCur_T_bodyRef_mono);
+    *bodyCur_T_bodyRef_stereo =
+        gtsam::Pose3(bodyCur_T_bodyRef_mono.rotation(),
+                     bodyCur_T_bodyRef_stereo->translation());
   }
 
   return compute_success;
@@ -710,7 +710,7 @@ void LoopClosureDetector::computeMatchedIndices(
 // TODO(marcus): This is the camera frame. Your transform has to happen later
 bool LoopClosureDetector::geometricVerificationNister(
     const FrameId& query_id, const FrameId& match_id,
-    gtsam::Pose3* camRef_T_camCur_mono) const {
+    gtsam::Pose3* camCur_T_camRef_mono) const {
   // Find correspondences between keypoints.
   std::vector<unsigned int> i_query, i_match;
   computeMatchedIndices(query_id, match_id, i_query, i_match, true);
@@ -754,7 +754,7 @@ bool LoopClosureDetector::geometricVerificationNister(
 
       if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_mono_) {
         opengv::transformation_t transformation = ransac.model_coefficients_;
-        *camRef_T_camCur_mono = UtilsOpenCV::Gvtrans2pose(transformation);
+        *camCur_T_camRef_mono = UtilsOpenCV::Gvtrans2pose(transformation);
 
         return true;
       }
@@ -765,18 +765,18 @@ bool LoopClosureDetector::geometricVerificationNister(
 }
 
 void LoopClosureDetector::transformCameraPose2BodyPose(
-    const gtsam::Pose3& camRef_T_camCur,
-    gtsam::Pose3* bodyRef_T_bodyCur) const {
+    const gtsam::Pose3& camCur_T_camRef,
+    gtsam::Pose3* bodyCur_T_bodyRef) const {
   // TODO(marcus): is this the right way to set an object without returning?
   // @toni
-  *bodyRef_T_bodyCur = B_Pose_camLrect_ * camRef_T_camCur *
+  *bodyCur_T_bodyRef = B_Pose_camLrect_ * camCur_T_camRef *
     B_Pose_camLrect_.inverse();
 }
 
 void LoopClosureDetector::transformBodyPose2CameraPose(
-    const gtsam::Pose3& bodyRef_T_bodyCur,
-    gtsam::Pose3* camRef_T_camCur) const {
-  *camRef_T_camCur = B_Pose_camLrect_.inverse() * bodyRef_T_bodyCur *
+    const gtsam::Pose3& bodyCur_T_bodyRef,
+    gtsam::Pose3* camCur_T_camRef) const {
+  *camCur_T_camRef = B_Pose_camLrect_.inverse() * bodyCur_T_bodyRef *
     B_Pose_camLrect_;
 }
 
@@ -795,7 +795,7 @@ inline const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
 
 bool LoopClosureDetector::recoverPoseArun(
     const FrameId& query_id, const FrameId& match_id,
-    gtsam::Pose3* bodyRef_T_bodyCur) const {
+    gtsam::Pose3* bodyCur_T_bodyRef) const {
   // Find correspondences between frames.
   std::vector<unsigned int> i_query, i_match;
   computeMatchedIndices(query_id, match_id, i_query, i_match, false);
@@ -838,8 +838,8 @@ bool LoopClosureDetector::recoverPoseArun(
       transformation = ransac.model_coefficients_;
 
       // Transform pose from camera frame to body frame.
-      gtsam::Pose3 camRef_T_camCur = UtilsOpenCV::Gvtrans2pose(transformation);
-      transformCameraPose2BodyPose(camRef_T_camCur, bodyRef_T_bodyCur);
+      gtsam::Pose3 camCur_T_camRef = UtilsOpenCV::Gvtrans2pose(transformation);
+      transformCameraPose2BodyPose(camCur_T_camRef, bodyCur_T_bodyRef);
 
       return true;
     }
@@ -852,9 +852,9 @@ bool LoopClosureDetector::recoverPoseArun(
 // TODO(marcus): rename pose_2d to pose_cam or something for cam frame
 bool LoopClosureDetector::recoverPoseGivenRot(
     const FrameId& query_id, const FrameId& match_id,
-    const gtsam::Pose3& camRef_T_camCur_mono,
-    gtsam::Pose3* bodyRef_T_bodyCur) const {
-  gtsam::Rot3 R = camRef_T_camCur_mono.rotation();
+    const gtsam::Pose3& camCur_T_camRef_mono,
+    gtsam::Pose3* bodyCur_T_bodyRef) const {
+  gtsam::Rot3 R = camCur_T_camRef_mono.rotation();
 
   // Find correspondences between frames.
   std::vector<unsigned int> i_query, i_match;
@@ -892,8 +892,8 @@ bool LoopClosureDetector::recoverPoseGivenRot(
 
   // TODO(marcus): input should alwasy be with unit translation, no need to
   // check
-  // gtsam::Point3 unit_t = camRef_T_camCur_mono.translation() /
-  // camRef_T_camCur_mono.translation().norm();
+  // gtsam::Point3 unit_t = camCur_T_camRef_mono.translation() /
+  // camCur_T_camRef_mono.translation().norm();
   // // Get sacling factor for translation by averaging across point cloud.
   // double scaling_factor = 0.0;
   // for (size_t i=0; i<f_ref.size(); i++) {
@@ -919,8 +919,8 @@ bool LoopClosureDetector::recoverPoseGivenRot(
   //     unit_t[1] * scaling_factor, unit_t[2] * scaling_factor);
 
   // Transform pose from camera frame to body frame.
-  gtsam::Pose3 camRef_T_camCur_stereo(R, scaled_t);
-  transformCameraPose2BodyPose(camRef_T_camCur_stereo, bodyRef_T_bodyCur);
+  gtsam::Pose3 camCur_T_camRef_stereo(R, scaled_t);
+  transformCameraPose2BodyPose(camCur_T_camRef_stereo, bodyCur_T_bodyRef);
   return true;
 
   // TODO(marcus): add some sort of check for returning failure
