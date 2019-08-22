@@ -77,8 +77,10 @@ class FrontendLogger : private Logger {
 
   void logFrontendResults(const TrackerStatusSummary& tracker_summary,
                           const size_t& nrKeypoints);
-
   void logTrackerStatistics(const DebugTrackerInfo& tracker_info);
+  void logFrontendRansac(const gtsam::Pose3& relative_pose_body_mono,
+                         const gtsam::Pose3& relative_pose_body_stereo,
+                         const Timestamp& timestamp_lkf);
 
  private:
   // Filenames to be saved in the output folder.
@@ -86,6 +88,10 @@ class FrontendLogger : private Logger {
       "output_frontend_results.csv";
   const std::string output_frontend_statistics_filename_ =
       "output_frontend_statistics.csv";
+  const std::string output_frontend_ransac_mono_ =
+      "output_frontend_ransac_mono.csv";
+  const std::string output_frontend_ransac_stereo_ =
+      "output_frontend_ransac_stereo.csv";
 };
 
 class VisualizerLogger : private Logger {

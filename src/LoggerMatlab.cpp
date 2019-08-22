@@ -220,6 +220,8 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
 FrontendLogger::FrontendLogger() : Logger() {
   openLogFile(output_frontend_results_filename_, true);
   openLogFile(output_frontend_statistics_filename_, true);
+  openLogFile(output_frontend_ransac_mono_, true);
+  openLogFile(output_frontend_ransac_stereo_, true);
 }
 
 void FrontendLogger::logFrontendResults(
@@ -245,7 +247,7 @@ void FrontendLogger::logFrontendResults(
                                 tracker_summary.kfTrackingStatus_stereo_)
                          << ", ";
   // Nr of keypoints.
-  output_frontend_stream << nrKeypoints << ", ";
+  output_frontend_stream << nrKeypoints << std::endl;;
 }
 
 void FrontendLogger::logTrackerStatistics(
@@ -256,11 +258,11 @@ void FrontendLogger::logTrackerStatistics(
   std::ofstream& output_frontend_stream =
       filename_to_outstream_.at(output_frontend_statistics_filename_);
   if (!is_header_written) {
-    output_frontend_stream << "nrDetFeat,nrTrackFeat,nrMoIn,nrMoPu,nrStIn,"
-                           << "nrStPu,moRaIt,stRaIt,nrVaRKP,nrNoLRKP,"
-                           << "nrNoRRKP,nrNoDRKP,nrFaARKP,featDetTime,"
-                           << "featTrackTime,moRanTime,stRanTime,"
-                           << "featSelTime,extCorn,needNCorn"
+    output_frontend_stream << "nrDetFeat, nrTrackFeat, nrMoIn, nrMoPu, nrStIn, "
+                           << "nrStPu, moRaIt, stRaIt, nrVaRKP, nrNoLRKP, "
+                           << "nrNoRRKP, nrNoDRKP, nrFaARKP, featDetTime, "
+                           << "featTrackTime, moRanTime, stRanTime, "
+                           << "featSelTime, extCorn, needNCorn"
                            << std::endl;
     is_header_written = true;
   }
@@ -293,6 +295,56 @@ void FrontendLogger::logTrackerStatistics(
                          << tracker_info.extracted_corners_ << ", "
                          << tracker_info.need_n_corners_ << ", "
                          << std::endl;
+}
+
+void FrontendLogger::logFrontendRansac(
+    const gtsam::Pose3& relative_pose_body_mono,
+    const gtsam::Pose3& relative_pose_body_stereo,
+    const Timestamp& timestamp_lkf) {
+  // We log the poses in csv format for later alignement and analysis.
+  static bool is_header_written = false;
+  std::ofstream& output_stream_mono =
+      filename_to_outstream_.at(output_frontend_ransac_mono_);
+  if (!is_header_written) {
+    output_stream_mono << "timestamp_lkf, x, y, z, qx, qy, qz, qw, vx, vy, vz, "
+                       << "bgx, bgy, bgz, bax, bay, baz" << std::endl;
+    is_header_written = true;
+  }
+
+  // Log relative mono poses; pose from previous keyframe to current keyframe,
+  // in previous-keyframe coordinates. These are not cumulative trajectories.
+  const auto& mono_tran = relative_pose_body_mono.translation();
+  const auto& mono_quat = relative_pose_body_mono.rotation().toQuaternion();
+
+  output_stream_mono << timestamp_lkf << ", " << mono_tran.x() << ", "
+                     << mono_tran.y() << ", " << mono_tran.z() << ", "
+                     << mono_quat.x() << ", " << mono_quat.y() << ", "
+                     << mono_quat.z() << ", " << mono_quat.w() << ", "
+                     << 0 << ", " << 0 << ", " << 0 << ", " << 0 << ", "
+                     << 0 << ", " << 0 << ", " << 0 << ", " << 0 << ", " << 0
+                     << std::endl;
+
+  is_header_written = false;
+  std::ofstream& output_stream_stereo =
+     filename_to_outstream_.at(output_frontend_ransac_stereo_);
+  if (!is_header_written) {
+   output_stream_stereo << "timestamp_lkf, x, y, z, qx, qy, qz, qw, vx, vy, "
+                        << "vz, bgx, bgy, bgz, bax, bay, baz" << std::endl;
+   is_header_written = true;
+  }
+
+  // Log relative stereo poses; pose from previous keyframe to current keyframe,
+  // in previous-keyframe coordinates. These are not cumulative trajectories.
+  const auto& stereo_tran = relative_pose_body_stereo.translation();
+  const auto& stereo_quat = relative_pose_body_stereo.rotation().toQuaternion();
+
+  output_stream_stereo << timestamp_lkf   << ", " << stereo_tran.x() << ", "
+                       << stereo_tran.y() << ", " << stereo_tran.z() << ", "
+                       << stereo_quat.x() << ", " << stereo_quat.y() << ", "
+                       << stereo_quat.z() << ", " << stereo_quat.w() << ", "
+                       << 0 << ", " << 0 << ", " << 0 << ", " << 0 << ", "
+                       << 0 << ", " << 0 << ", " << 0 << ", " << 0 << ", " << 0
+                       << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
