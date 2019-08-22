@@ -80,7 +80,7 @@ class FrontendLogger : private Logger {
 
  private:
   // Filenames to be saved in the output folder.
-  const std::string output_frontend_filename_ = "output_frontence.csv";
+  const std::string output_frontend_filename_ = "output_frontend.csv";
 };
 
 class VisualizerLogger : private Logger {

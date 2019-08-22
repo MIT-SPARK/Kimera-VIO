@@ -37,7 +37,7 @@ void Logger::openLogFile(const std::string& output_file_name,
   CHECK(filename_to_outstream_.find(output_file_name) ==
         filename_to_outstream_.end())
       << "Using an already existing filename.";
-  UtilsOpenCV::OpenFile(output_path_ + output_file_name,
+  UtilsOpenCV::OpenFile(output_path_ + '/' + output_file_name,
                         &filename_to_outstream_[output_file_name],
                         open_file_in_append_mode);
 }
