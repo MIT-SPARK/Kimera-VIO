@@ -1,6 +1,10 @@
 /* Jenkinsfile for Jenkins running in a server using docker.
  * Run the following command to mount EUROC dataset and be able to run VIO evaluation on it:
  * sudo docker run -it -u root --rm -d -p 8080:8080 -p 50000:50000 -v /home/sparklab/Datasets/euroc:/Datasets/euroc -v jenkins-data:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock jenkinsci/blueocean
+ * If you want to enable HTML reports in Jenkins, further call:
+ * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
+ * in the Script console in Jenkins' administration section.
+ * TODO(Toni): change all spark_vio_evaluation/html/data into a Groovy String.
  */
 pipeline {
   agent { dockerfile {
@@ -26,16 +30,23 @@ pipeline {
         }
       }
     }
-    stage('Performance') {
+    stage('Euroc Performance') {
       steps {
         wrap([$class: 'Xvfb']) {
           // Run performance tests.
-          sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a --save_plots --save_boxplots --save_results \
-            /root/spark_vio_evaluation/experiments/jenkins_euroc.yaml'
+          // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
+          sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a -v \
+                --save_plots --save_boxplots --save_results \
+                /root/spark_vio_evaluation/experiments/jenkins_euroc.yaml'
+
           // Compile summary results.
           sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
-            spark_vio_evaluation/results/V1_01_easy/S/results.yaml \
-            spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv'
+                spark_vio_evaluation/html/data/V1_01_easy/S/results.yaml \
+                spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
+
+          // Copy performance website to Workspace
+          sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
+
         }
       }
     }
@@ -46,24 +57,28 @@ pipeline {
 
       // Plot VIO performance.
       plot csvFileName: 'plot-vio-performance-per-build.csv',
-           csvSeries: [[file: 'spark_vio_evaluation/results/V1_01_easy/S/vio_performance.csv']],
-           group: 'Performance',
+           csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv']],
+           group: 'Euroc Performance',
            numBuilds: '30',
            style: 'line',
            title: 'VIO Performance',
-           yaxis: 'Metrics'
+           yaxis: 'ATE [m]'
+
       // Plot VIO timing.
       plot csvFileName: 'plot-vio-timing-per-build.csv',
-           csvSeries: [[file: 'spark_vio_evaluation/results/V1_01_easy/S/output/output_timingOverall.csv']],
-           group: 'Performance',
+           csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/output/output_timingOverall.csv']],
+           group: 'Euroc Performance',
            numBuilds: '30',
            style: 'line',
            title: 'VIO Timing',
            yaxis: 'Time [ms]'
 
-      // Archive the CTest xml output
+      // Publish HTML website with Dygraphs and pdfs of VIO performance
+      publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
+
+      // Archive the CTest xml output.
       archiveArtifacts (
-          artifacts: 'build/tests/Testing/**/*.xml, spark_vio_evaluation/results/**/*.*',
+          artifacts: 'spark_vio_evaluation/html/data/**/*.*',
           fingerprint: true
           )
 
@@ -71,7 +86,6 @@ pipeline {
       junit 'build/testresults.xml'
 
       // Clear the source and build dirs before next run
-      // TODO this might delete the .csv file for plots?
       deleteDir()
     }
     success {
