@@ -34,7 +34,7 @@ pipeline {
       steps {
         wrap([$class: 'Xvfb']) {
           // Copy performance website to Workspace
-          sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
+          sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/html'
 
           // Run performance tests.
           // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
