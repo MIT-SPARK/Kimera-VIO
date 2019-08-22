@@ -655,18 +655,15 @@ const InitializationPerformance
 
   // Convert velocities and gravity vector in initial body frame.
   // This is already the case for the init nav state passed.
-  gt_state.velocity_ = gt_state.pose().rotation().transpose() *
-                      gt_state.velocity_;
-  gt_gravity = gt_state.pose().rotation().transpose() * gt_gravity;
+  gt_state.velocity_ =
+      gt_state.pose_.rotation().transpose() * gt_state.velocity_;
+  gt_gravity = gt_state.pose_.rotation().transpose() * gt_gravity;
 
   LOG(INFO) << "GT: init pose\n"
-              << gt_state.pose().rotation()
-              << "\n init velocity\n"
-              << gt_state.velocity_
-              << "\n init bias\n"
-              << gt_state.imu_bias_.gyroscope()
-              << "\n init gravity\n"
-              << gt_gravity;
+            << gt_state.pose_.rotation() << "\n init velocity\n"
+            << gt_state.velocity_ << "\n init bias\n"
+            << gt_state.imu_bias_.gyroscope() << "\n init gravity\n"
+            << gt_gravity;
 
   // Create performance overview
   const InitializationPerformance init_performance(

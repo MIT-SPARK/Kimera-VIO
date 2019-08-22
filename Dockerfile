@@ -64,7 +64,7 @@ RUN cd opengv/build && \
       -DEIGEN_INCLUDE_DIR=$DIRPATH/gtsam/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
-# Install spark_vio_evaluation from PyPI
+# Install spark_vio_evaluation
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json

@@ -34,7 +34,7 @@
 #include "StereoVisionFrontEnd-definitions.h"
 #include "VioBackEnd-definitions.h"
 
-#include "LoggerMatlab.h"
+#include "logging/Logger.h"
 
 namespace VIO {
 

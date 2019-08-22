@@ -60,7 +60,6 @@ add_library(SparkVio STATIC
   src/VioBackEnd.cpp
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
-  src/LoggerMatlab.cpp
   src/FeatureSelector.cpp
   src/YamlParser.h
   src/VioBackEndParams.h
@@ -87,6 +86,8 @@ include(src/initial/CMakeLists.txt)
 include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
+### Add source code for logging
+include(src/logging/CMakeLists.txt)
 
 target_link_libraries(SparkVio
   PRIVATE
@@ -116,12 +117,6 @@ target_compile_features(SparkVio PUBLIC
 
 add_executable(stereoVIOEuroc ./examples/SparkVio.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::SparkVio)
-
-add_executable(semanticVIOEuroc ./examples/semanticVIOEuroc.cpp)
-target_link_libraries(semanticVIOEuroc PUBLIC SparkVio::SparkVio)
-
-#add_executable(stereoVIOSimulation ./examples/stereoVIOSimulation.cpp)
-#target_link_libraries(stereoVIOSimulation PUBLIC SparkVio::SparkVio)
 
 ### Add testing
 # Download and unpack googletest at configure time
@@ -301,6 +296,6 @@ if(NOT MSVC AND NOT XCODE_VERSION)
       message(WARNING "  Build type is not in RELEASE, this will slow down the code.")
     endif()
     message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
-    message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS_RELEASE}")
+    message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
 

@@ -116,6 +116,26 @@ class Accumulator {
   SumType min() const { return min_; }
 
   /* ------------------------------------------------------------------------ */
+  inline SumType median() const {
+    CHECK_GT(samples_.size(), 0);
+    return samples_.at(std::ceil(samples_.size() / 2) - 1);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // First quartile.
+  inline SumType q1() const {
+    CHECK_GT(samples_.size(), 0);
+    return samples_.at(std::ceil(samples_.size() / 4) - 1);
+  }
+
+  /* ------------------------------------------------------------------------ */
+  // Third quartile.
+  inline SumType q3() const {
+    CHECK_GT(samples_.size(), 0);
+    return samples_.at(std::ceil(samples_.size() * 3 / 4) - 1);
+  }
+
+  /* ------------------------------------------------------------------------ */
   SumType LazyVariance() const {
     if (samples_.size() < 2) {
       return 0.0;
@@ -136,9 +156,9 @@ class Accumulator {
   SumType StandardDeviation() const { return std::sqrt(LazyVariance()); }
 
   /* ------------------------------------------------------------------------ */
-  const std::vector<SampleType>& GetSamples() const { return samples_; }
+  const std::vector<SampleType> &GetAllSamples() const { return samples_; }
 
- private:
+private:
   std::vector<SampleType> samples_;
   int sample_index_;
   int total_samples_;
