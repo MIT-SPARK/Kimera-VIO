@@ -44,26 +44,19 @@ class BackendLogger : private Logger {
   ~BackendLogger() = default;
 
   void logBackendResultsCSV(const VioBackEndOutputPayload& vio_output);
+  void logSmartFactorsStats(const VioBackEndOutputPayload& vio_output);
+  void logBackendFactorsStats(const VioBackEndOutputPayload& vio_output);
+  void logBackendTiming(const VioBackEndOutputPayload& vio_output);
   void displayInitialStateVioInfo(const gtsam::Vector3& n_gravity_,
                                   const gtsam::Pose3& W_Pose_B_Lkf,
                                   const gtNavState& initialStateGT,
                                   const ImuAccGyrS& imu_accgyr,
                                   const Timestamp& timestamp_k) const;
-  void logBackendResults(
-      const ETHDatasetParser& dataset,
-      const TrackerStatusSummary& tracker_status_summary,
-      const gtsam::Pose3& relative_pose_body_mono,
-      const Tracker& tracker,
-      const gtsam::Pose3& relative_pose_body_stereo,
-      const std::shared_ptr<VioBackEndOutputPayload>& vio_output,
-      const double& horizon,
-      const Timestamp& timestamp_lkf,
-      const Timestamp& timestamp_k,
-      const size_t& k);
-
  private:
   // Filenames to be saved in the output folder.
   const std::string output_poses_vio_filename_csv_ = "output_posesVIO.csv";
+  const std::string output_smart_factors_stats_csv_ = "output_smartFactors.csv";
+  const std::string output_backend_timing_csv_ = "output_backendTiming.csv";
   const std::string output_landmarks_filename_ = "output_landmarks.txt";
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;

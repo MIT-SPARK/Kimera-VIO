@@ -135,7 +135,6 @@ class DebugVioInfo {
   double retractTime_;
   double linearizeMarginalizeTime_;
   double marginalizeTime_;
-  double imuPreintegrateTime_;
 
   /* ------------------------------------------------------------------------ */
   void resetSmartFactorsStatistics() {

@@ -52,7 +52,50 @@ void Logger::closeLogFiles() {
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 BackendLogger::BackendLogger() : Logger() {
   openLogFile(output_landmarks_filename_, true);
+  openLogFile(output_smart_factors_stats_csv_, true);
+  openLogFile(output_backend_timing_csv_, true);
   openLogFile(output_poses_vio_filename_csv_, true);
+}
+
+void BackendLogger::logBackendResultsCSV(
+    const VioBackEndOutputPayload& vio_output) {
+  // We log the poses in csv format for later alignement and analysis.
+  std::ofstream& output_stream =
+      filename_to_outstream_.at(output_poses_vio_filename_csv_);
+
+  // First, write header, but only once.
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    output_stream << "timestamp, x, y, z, qx, qy, qz, qw, vx, vy, vz,"
+                     " bgx, bgy, bgz, bax, bay, baz"
+                  << std::endl;
+    is_header_written = true;
+  }
+
+  const auto& w_pose_blkf_trans =
+      vio_output.W_Pose_Blkf_.translation().transpose();
+  const auto& w_pose_blkf_rot = vio_output.W_Pose_Blkf_.rotation().quaternion();
+  const auto& w_vel_blkf = vio_output.W_Vel_Blkf_.transpose();
+  const auto& imu_bias_gyro = vio_output.imu_bias_lkf_.gyroscope().transpose();
+  const auto& imu_bias_acc =
+      vio_output.imu_bias_lkf_.accelerometer().transpose();
+  output_stream << vio_output.timestamp_kf_ << ", "  //
+                << w_pose_blkf_trans.x() << ", "     //
+                << w_pose_blkf_trans.y() << ", "     //
+                << w_pose_blkf_trans.z() << ", "     //
+                << w_pose_blkf_rot(1) << ", "        // q_x
+                << w_pose_blkf_rot(2) << ", "        // q_y
+                << w_pose_blkf_rot(3) << ", "        // q_z
+                << w_pose_blkf_rot(0) << ", "        // q_w
+                << w_vel_blkf(0) << ", "             //
+                << w_vel_blkf(1) << ", "             //
+                << w_vel_blkf(2) << ", "             //
+                << imu_bias_gyro(0) << ", "          //
+                << imu_bias_gyro(1) << ", "          //
+                << imu_bias_gyro(2) << ", "          //
+                << imu_bias_acc(0) << ", "           //
+                << imu_bias_acc(1) << ", "           //
+                << imu_bias_acc(2) << std::endl;     //
 }
 
 void BackendLogger::displayInitialStateVioInfo(
@@ -92,37 +135,93 @@ void BackendLogger::displayInitialStateVioInfo(
       << "stereoVIOExample: wrong initialization (ground truth initialization)";
 }
 
-void BackendLogger::logBackendResultsCSV(
+void BackendLogger::logSmartFactorsStats(
     const VioBackEndOutputPayload& vio_output) {
-  // We log the poses in csv format for later alignement and analysis.
-  static bool is_header_written = false;
   std::ofstream& output_stream =
-      filename_to_outstream_.at(output_poses_vio_filename_csv_);
+      filename_to_outstream_.at(output_smart_factors_stats_csv_);
+
+  // First, write header, but only once.
+  static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "timestamp, x, y, z, qx, qy, qz, qw, vx, vy, vz,"
-                     " bgx, bgy, bgz, bax, bay, baz"
-                  << std::endl;
+    output_stream
+        << "cur_kf_id, k, timestamp_k, numSF,"
+           "numValid, numDegenerate, numFarPoints, numOutliers, numCheirality, "
+           "meanPixelError, maxPixelError, meanTrackLength, maxTrackLength, "
+           "nrElementsInMatrix, nrZeroElementsInMatrix\n";
     is_header_written = true;
   }
-  const auto& w_pose_blkf_trans =
-      vio_output.W_Pose_Blkf_.translation().transpose();
-  const auto& w_pose_blkf_rot = vio_output.W_Pose_Blkf_.rotation().quaternion();
-  const auto& w_vel_blkf = vio_output.W_Vel_Blkf_.transpose();
-  const auto& imu_bias_gyro = vio_output.imu_bias_lkf_.gyroscope().transpose();
-  const auto& imu_bias_acc =
-      vio_output.imu_bias_lkf_.accelerometer().transpose();
-  output_stream << vio_output.timestamp_kf_ << ", " << w_pose_blkf_trans.x()
-                << ", " << w_pose_blkf_trans.y() << ", "
-                << w_pose_blkf_trans.z() << ", " << w_pose_blkf_rot(1)
-                << ", "                        // q_x
-                << w_pose_blkf_rot(2) << ", "  // q_y
-                << w_pose_blkf_rot(3) << ", "  // q_z
-                << w_pose_blkf_rot(0) << ", "  // q_w
-                << w_vel_blkf(0) << ", " << w_vel_blkf(1) << ", "
-                << w_vel_blkf(2) << ", " << imu_bias_gyro(0) << ", "
-                << imu_bias_gyro(1) << ", " << imu_bias_gyro(2) << ", "
-                << imu_bias_acc(0) << ", " << imu_bias_acc(1) << ", "
-                << imu_bias_acc(2) << std::endl;
+
+  output_stream << vio_output.cur_kf_id_ << ", "     // keyframe id
+                << vio_output.timestamp_kf_ << ", "  // timestamp
+                << vio_output.debug_info_.numSF_ << ", "
+                << vio_output.debug_info_.numValid_ << ", "
+                << vio_output.debug_info_.numDegenerate_ << ", "
+                << vio_output.debug_info_.numFarPoints_ << ", "
+                << vio_output.debug_info_.numOutliers_ << ", "
+                << vio_output.debug_info_.numCheirality_ << ", "
+                << vio_output.debug_info_.meanPixelError_ << ", "
+                << vio_output.debug_info_.maxPixelError_ << ", "
+                << vio_output.debug_info_.meanTrackLength_ << ", "
+                << vio_output.debug_info_.maxTrackLength_ << ", "
+                << vio_output.debug_info_.nrElementsInMatrix_ << ", "
+                << vio_output.debug_info_.nrZeroElementsInMatrix_ << std::endl;
+}
+
+void BackendLogger::logBackendTiming(
+    const VioBackEndOutputPayload& vio_output) {
+  std::ofstream& output_stream =
+      filename_to_outstream_.at(output_backend_timing_csv_);
+
+  // First, write header, but only once.
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    output_stream
+        << "factorsAndSlotsTime, preUpdateTime, updateTime, updateSlotTime,"
+           "extraIterationsTime, printTime, linearizeTime, linearSolveTime, "
+           "retractTime, linearizeMarginalizeTime, marginalizeTime";
+    is_header_written = true;
+  }
+
+  // Log timing for benchmarking and performance profiling.
+  output_stream << vio_output.cur_kf_id_ << ", "
+                << vio_output.debug_info_.factorsAndSlotsTime_ << ", "
+                << vio_output.debug_info_.preUpdateTime_ << ", "
+                << vio_output.debug_info_.updateTime_ << ", "
+                << vio_output.debug_info_.updateSlotTime_ << ", "
+                << vio_output.debug_info_.extraIterationsTime_ << ", "
+                << vio_output.debug_info_.printTime_ << ", "
+                << vio_output.debug_info_.linearizeTime_ << ", "
+                << vio_output.debug_info_.linearSolveTime_ << ", "
+                << vio_output.debug_info_.retractTime_ << ", "
+                << vio_output.debug_info_.linearizeMarginalizeTime_ << ", "
+                << vio_output.debug_info_.marginalizeTime_ << std::endl;
+}
+
+void BackendLogger::logBackendFactorsStats(
+    const VioBackEndOutputPayload& vio_output) {
+  std::ofstream& output_stream =
+      filename_to_outstream_.at(output_backend_timing_csv_);
+
+  // First, write header, but only once.
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    output_stream
+        << "cur_kf_id, numAddedSmartF, numAddedImuF, numAddedNoMotionF,"
+           "numAddedConstantF, numAddedBetweenStereoF, state_size, "
+           "landmark_count";
+    is_header_written = true;
+  }
+
+  // Log timing for benchmarking and performance profiling.
+  // Statistics about factors added to the graph.
+  output_stream << vio_output.cur_kf_id_ << ", "
+                << vio_output.debug_info_.numAddedSmartF_ << ", "
+                << vio_output.debug_info_.numAddedImuF_ << ", "
+                << vio_output.debug_info_.numAddedNoMotionF_ << ", "
+                << vio_output.debug_info_.numAddedConstantVelF_ << ", "
+                << vio_output.debug_info_.numAddedBetweenStereoF_ << ", "
+                << vio_output.state_.size() << ", "
+                << vio_output.landmark_count_ << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
