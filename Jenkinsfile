@@ -33,16 +33,19 @@ pipeline {
     stage('Euroc Performance') {
       steps {
         wrap([$class: 'Xvfb']) {
+          // Copy performance website to Workspace
+          sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
+
           // Run performance tests.
-          sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a -v --save_plots --save_boxplots --save_results \
-            /root/spark_vio_evaluation/experiments/jenkins_euroc.yaml'
+          // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
+          sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a -v \
+                --save_plots --save_boxplots --save_results \
+                /root/spark_vio_evaluation/experiments/jenkins_euroc.yaml'
+
           // Compile summary results.
           sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
-            spark_vio_evaluation/html/data/V1_01_easy/S/results.yaml \
-            spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
-
-          // Copy performance website to Workspace
-          sh 'cp -r /root/spark_vio_evaluation/html spark_vio_evaluation/'
+                spark_vio_evaluation/html/data/V1_01_easy/S/results.yaml \
+                spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
         }
       }
     }
