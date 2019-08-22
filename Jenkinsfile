@@ -84,6 +84,9 @@ pipeline {
 
       // Process the CTest xml output
       junit 'build/testresults.xml'
+
+      // Clear the source and build dirs before next run
+      deleteDir()
     }
     success {
       echo 'Success!'
