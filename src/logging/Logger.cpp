@@ -338,6 +338,9 @@ void FrontendLogger::logFrontendResults(
                          << ", ";
   // Nr of keypoints
   output_frontend_stream << nrKeypoints << ", ";
+
+  // End of line
+  output_frontend_stream << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
