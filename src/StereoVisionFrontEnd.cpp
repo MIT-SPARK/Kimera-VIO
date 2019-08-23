@@ -31,7 +31,6 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
       save_images_option_(save_images_option),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
-      log_output_(log_output),
       logger_(nullptr) {  // Only for debugging and visualization.
 
   if (log_output) {

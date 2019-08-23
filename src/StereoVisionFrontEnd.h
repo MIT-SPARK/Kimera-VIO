@@ -285,7 +285,6 @@ private:
   std::atomic_bool is_thread_working_ = {false};
 
   // Frontend logger.
-  const bool log_output_ = {false};
   std::unique_ptr<FrontendLogger> logger_;
 };
 
