@@ -305,9 +305,15 @@ void FrontendLogger::logFrontendRansac(
   static bool is_header_written = false;
   std::ofstream& output_stream_mono =
       filename_to_outstream_.at(output_frontend_ransac_mono_);
+  std::ofstream& output_stream_stereo =
+     filename_to_outstream_.at(output_frontend_ransac_stereo_);
+
   if (!is_header_written) {
     output_stream_mono << "timestamp_lkf, x, y, z, qx, qy, qz, qw, vx, vy, vz, "
                        << "bgx, bgy, bgz, bax, bay, baz" << std::endl;
+
+    output_stream_stereo << "timestamp_lkf, x, y, z, qx, qy, qz, qw, vx, vy, "
+                         << "vz, bgx, bgy, bgz, bax, bay, baz" << std::endl;
     is_header_written = true;
   }
 
@@ -323,15 +329,6 @@ void FrontendLogger::logFrontendRansac(
                      << 0 << ", " << 0 << ", " << 0 << ", " << 0 << ", "
                      << 0 << ", " << 0 << ", " << 0 << ", " << 0 << ", " << 0
                      << std::endl;
-
-  is_header_written = false;
-  std::ofstream& output_stream_stereo =
-     filename_to_outstream_.at(output_frontend_ransac_stereo_);
-  if (!is_header_written) {
-   output_stream_stereo << "timestamp_lkf, x, y, z, qx, qy, qz, qw, vx, vy, "
-                        << "vz, bgx, bgy, bgz, bax, bay, baz" << std::endl;
-   is_header_written = true;
-  }
 
   // Log relative stereo poses; pose from previous keyframe to current keyframe,
   // in previous-keyframe coordinates. These are not cumulative trajectories.
