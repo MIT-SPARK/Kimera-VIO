@@ -123,7 +123,8 @@ Also, check [tips for usage](./docs/tips_usage.md) for interacting with OpenCV's
 We follow the branch, open PR, review, and merge workflow.
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
- To enable these checks you will need to [install linter](./docs/linter_installation.md).
+To enable these checks you will need to [install linter](./docs/linter_installation.md).
+We also provide a `.clang-format` file with the style rules that the repo uses, so that you can use [`clang-format`](https://clang.llvm.org/docs/ClangFormat.html) to reformat your code.
 
 Also, check [tips for development](./docs/tips_development.md) and our [developer guide](./docs/developer_guide.md)
 

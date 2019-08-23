@@ -60,7 +60,6 @@ add_library(SparkVio STATIC
   src/VioBackEnd.cpp
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
-  src/LoggerMatlab.cpp
   src/FeatureSelector.cpp
   src/YamlParser.h
   src/VioBackEndParams.h
@@ -87,6 +86,8 @@ include(src/initial/CMakeLists.txt)
 include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
+### Add source code for logging
+include(src/logging/CMakeLists.txt)
 
 target_link_libraries(SparkVio
   PRIVATE
