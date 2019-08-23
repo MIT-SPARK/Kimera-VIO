@@ -122,7 +122,13 @@ ImageToDisplay::ImageToDisplay(const std::string& name, const cv::Mat& image)
 
 /* -------------------------------------------------------------------------- */
 Visualizer3D::Visualizer3D(VisualizationType viz_type, int backend_type)
-    : visualization_type_(viz_type), backend_type_(backend_type) {
+    : visualization_type_(viz_type),
+      backend_type_(backend_type),
+      logger_(nullptr) {
+  if (FLAGS_log_mesh) {
+    logger_ = VIO::make_unique<VisualizerLogger>();
+  }
+
   if (VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {
@@ -1192,7 +1198,8 @@ void Visualizer3D::logMesh(const cv::Mat& map_points_3d, const cv::Mat& colors,
       6500000000) {  // Log every 6 seconds approx. (a little bit more than
                      // time-horizon)
     LOG(WARNING) << "Logging mesh every (ns) = " << timestamp - last_timestamp;
-    logger_.logMesh(
+    CHECK(logger_);
+    logger_->logMesh(
         map_points_3d, colors, polygons_mesh, timestamp, log_accumulated_mesh);
     last_timestamp = timestamp;
   }

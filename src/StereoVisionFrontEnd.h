@@ -286,7 +286,7 @@ private:
 
   // Frontend logger.
   const bool log_output_ = {false};
-  FrontendLogger logger_;
+  std::unique_ptr<FrontendLogger> logger_;
 };
 
 } // namespace VIO

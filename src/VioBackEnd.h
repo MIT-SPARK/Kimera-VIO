@@ -520,7 +520,7 @@ class VioBackEnd {
 
   // Logger.
   const bool log_output_ = {false};
-  BackendLogger logger_;
+  std::unique_ptr<BackendLogger> logger_;
 
   // Flags.
   const int verbosity_;

@@ -76,23 +76,25 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
       curr_kf_id_(0),
       landmark_count_(0),
       log_output_(log_output),
-      logger_(),
+      logger_(nullptr),
       verbosity_(0) {
   CHECK_NOTNULL(initial_state_gt);
 
-  // TODO the parsing of the params should be done inside here out from the
-  // path to the params file, otherwise other derived VIO backends will be stuck
-  // with the parameters used by vanilla VIO, as there is no polymorphic
-  // container in C++...
-  // This way VioBackEnd can parse the params it cares about, while others can
-  // have the opportunity to parse their own parameters as well.
-  // Unfortunately, doing that would not work because many other modules use
-  // VioBackEndParams as weird as this may sound...
-  // For now we have polymorphic params, with dynamic_cast to derived class, aka
-  // suboptimal...
+  if (log_output_) logger_ = VIO::make_unique<BackendLogger>();
 
-  //////////////////////////////////////////////////////////////////////////////
-  // Initialize smoother.
+    // TODO the parsing of the params should be done inside here out from the
+    // path to the params file, otherwise other derived VIO backends will be
+    // stuck with the parameters used by vanilla VIO, as there is no polymorphic
+    // container in C++...
+    // This way VioBackEnd can parse the params it cares about, while others can
+    // have the opportunity to parse their own parameters as well.
+    // Unfortunately, doing that would not work because many other modules use
+    // VioBackEndParams as weird as this may sound...
+    // For now we have polymorphic params, with dynamic_cast to derived class,
+    // aka suboptimal...
+
+    //////////////////////////////////////////////////////////////////////////////
+    // Initialize smoother.
 #ifdef INCREMENTAL_SMOOTHER
   gtsam::ISAM2Params isam_param;
   setIsam2Params(vioParams, &isam_param);
@@ -245,8 +247,8 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
       imu_bias_lkf_, getCurrentStateCovariance(), curr_kf_id_, landmark_count_,
       debug_info_);
 
-  if (log_output_) {
-    logger_.logBackendOutput(output_payload);
+  if (logger_) {
+    logger_->logBackendOutput(output_payload);
   }
   return output_payload;
 }
