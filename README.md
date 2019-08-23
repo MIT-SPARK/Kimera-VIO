@@ -128,6 +128,14 @@ We also provide a `.clang-format` file with the style rules that the repo uses, 
 
 Also, check [tips for development](./docs/tips_development.md) and our [developer guide](./docs/developer_guide.md)
 
-# 5. BSD License
+# 6. FAQ
+
+### 1. Gflags
+  I have added/changed a gflag but it has no effect?
+
+  > Mind that according to gflags specs: 
+  > > If a flag is specified more than once, only the last specification is used; the others are ignored.
+
+# 7. BSD License
 
 SparkVIO is open source under the BSD license, see the [LICENSE.BSD](LICENSE.BSD) file.
