@@ -165,6 +165,7 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   landmark_count_(0),
   verbosity_(0),
   log_output_(log_output) {
+  if (log_output_) logger_ = VIO::make_unique<BackendLogger>();
 
   setFactorsParams(vioParams,
                    &smart_noise_,
