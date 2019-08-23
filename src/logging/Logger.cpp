@@ -111,8 +111,7 @@ void BackendLogger::logBackendResultsCSV(
   static bool is_header_written = false;
   if (!is_header_written) {
     output_stream << "timestamp, x, y, z, qx, qy, qz, qw, vx, vy, vz,"
-                     " bgx, bgy, bgz, bax, bay, baz"
-                  << std::endl;
+                     " bgx, bgy, bgz, bax, bay, baz\n";
     is_header_written = true;
   }
 
@@ -184,7 +183,7 @@ void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {
     output_stream << "cur_kf_id, factorsAndSlotsTime, preUpdateTime, "
                      "updateTime, updateSlotTime,"
                      "extraIterationsTime, linearizeTime, linearSolveTime, "
-                     "retractTime, linearizeMarginalizeTime, marginalizeTime";
+                     "retractTime, linearizeMarginalizeTime, marginalizeTime\n";
     is_header_written = true;
   }
 
@@ -212,7 +211,7 @@ void BackendLogger::logBackendFactorsStats(
     output_stream
         << "cur_kf_id, numAddedSmartF, numAddedImuF, numAddedNoMotionF,"
            "numAddedConstantF, numAddedBetweenStereoF, state_size, "
-           "landmark_count";
+           "landmark_count\n";
     is_header_written = true;
   }
 
@@ -325,8 +324,7 @@ void FrontendLogger::logFrontendResults(
 
   std::ofstream& output_frontend_stream = output_frontend_.ofstream_;
   if (!is_header_written) {
-    output_frontend_stream << "mono_status, stereo_status, nr_keypoints"
-                           << std::endl;
+    output_frontend_stream << "mono_status, stereo_status, nr_keypoints\n";
     is_header_written = true;
   }
 
