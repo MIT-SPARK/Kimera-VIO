@@ -82,11 +82,14 @@ class VioBackEnd {
   /// @param: timestamp: timestamp of the initial state.
   /// @param: imu_accgyr: used for auto-initialization of VIO pipeline if no
   /// ground-truth is provided. Ignored if not auto-initialized.
-  VioBackEnd(const Pose3& leftCamPose, const Cal3_S2& leftCameraCalRectified,
+  VioBackEnd(const Pose3& leftCamPose,
+             const Cal3_S2& leftCameraCalRectified,
              const double& baseline,
              std::shared_ptr<gtNavState>* initial_state_gt,
-             const Timestamp& timestamp, const ImuAccGyrS& imu_accgyr,
-             const VioBackEndParams& vioParams, const bool log_output = false);
+             const Timestamp& timestamp,
+             const ImuAccGyrS& imu_accgyr,
+             const VioBackEndParams& vioParams,
+             const bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
   // Create and initialize VioBackEnd, without initiaing pose.
