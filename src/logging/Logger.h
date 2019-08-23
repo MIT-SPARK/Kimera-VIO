@@ -23,22 +23,27 @@
 
 namespace VIO {
 
-class Logger {
- protected:
-  Logger();
-  virtual ~Logger();
+// Wrapper for std::ofstream to open/close it when created/destructed.
+class OfstreamWrapper {
+ public:
+  OfstreamWrapper(const std::string& filename,
+                  const bool& open_file_in_append_mode = false);
+  ~OfstreamWrapper();
 
+ public:
+  std::ofstream ofstream_;
+
+ private:
   void openLogFile(const std::string& output_file_name,
                    bool open_file_in_append_mode = false);
 
-  std::map<std::string, std::ofstream> filename_to_outstream_;
-
  private:
-  void closeLogFiles();
+  const std::string filename_;
   const std::string output_path_;
+  const bool open_file_in_append_mode = false;
 };
 
-class BackendLogger : private Logger {
+class BackendLogger {
  public:
   BackendLogger();
   ~BackendLogger() = default;
@@ -58,16 +63,16 @@ class BackendLogger : private Logger {
 
  private:
   // Filenames to be saved in the output folder.
-  const std::string output_poses_vio_filename_csv_ = "output_posesVIO.csv";
-  const std::string output_smart_factors_stats_csv_ = "output_smartFactors.csv";
-  const std::string output_backend_timing_csv_ = "output_backendTiming.csv";
-  const std::string output_landmarks_filename_ = "output_landmarks.txt";
+  OfstreamWrapper output_poses_vio_csv_;
+  OfstreamWrapper output_smart_factors_stats_csv_;
+  OfstreamWrapper output_backend_factors_stats_csv_;
+  OfstreamWrapper output_backend_timing_csv_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
   double timing_loggerBackend_;
 };
 
-class FrontendLogger : private Logger {
+class FrontendLogger {
  public:
   FrontendLogger();
   ~FrontendLogger() = default;
@@ -77,10 +82,10 @@ class FrontendLogger : private Logger {
 
  private:
   // Filenames to be saved in the output folder.
-  const std::string output_frontend_filename_ = "output_frontend.csv";
+  OfstreamWrapper output_frontend_;
 };
 
-class VisualizerLogger : private Logger {
+class VisualizerLogger {
  public:
   VisualizerLogger();
   ~VisualizerLogger() = default;
@@ -95,11 +100,11 @@ class VisualizerLogger : private Logger {
 
  private:
   // Filenames to be saved in the output folder.
-  const std::string output_mesh_filename_ = "output_mesh.ply";
-  const std::string output_landmarks_filename_ = "output_landmarks.txt";
+  OfstreamWrapper output_mesh_;
+  OfstreamWrapper output_landmarks_;
 };
 
-class PipelineLogger : private Logger {
+class PipelineLogger {
  public:
   PipelineLogger();
   ~PipelineLogger() = default;
@@ -108,7 +113,7 @@ class PipelineLogger : private Logger {
 
  private:
   // Filenames to be saved in the output folder.
-  const std::string output_pipeline_timing_ = "output_timingOverall.csv";
+  OfstreamWrapper output_pipeline_timing_;
 };
 
 }  // namespace VIO

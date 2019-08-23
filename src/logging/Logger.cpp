@@ -27,36 +27,35 @@ DEFINE_string(output_path, "./", "Path where to store VIO's log output.");
 namespace VIO {
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-Logger::Logger() : output_path_(FLAGS_output_path) {}
+// This constructor will directly open the log file when called.
+OfstreamWrapper::OfstreamWrapper(const std::string& filename,
+                                 const bool& open_file_in_append_mode)
+    : filename_(filename), output_path_(FLAGS_output_path) {
+  openLogFile(filename);
+}
 
-Logger::~Logger() { closeLogFiles(); }
+// This destructor will directly close the log file when the wrapper is
+// destructed. So no need to explicitly call .close();
+OfstreamWrapper::~OfstreamWrapper() {
+  LOG(INFO) << "Closing output file: " << filename_.c_str();
+  ofstream_.close();
+};
 
-void Logger::openLogFile(const std::string& output_file_name,
-                         bool open_file_in_append_mode) {
+void OfstreamWrapper::openLogFile(const std::string& output_file_name,
+                                  bool open_file_in_append_mode) {
   CHECK(!output_file_name.empty());
-  CHECK(filename_to_outstream_.find(output_file_name) ==
-        filename_to_outstream_.end())
-      << "Using an already existing filename.";
-  VLOG(1) << "Opening output file: " << output_file_name.c_str();
+  LOG(INFO) << "Opening output file: " << output_file_name.c_str();
   UtilsOpenCV::OpenFile(output_path_ + '/' + output_file_name,
-                        &filename_to_outstream_[output_file_name],
+                        &ofstream_,
                         open_file_in_append_mode);
 }
 
-void Logger::closeLogFiles() {
-  for (auto& x : filename_to_outstream_) {
-    VLOG(1) << "Closing output file: " << x.first.c_str();
-    x.second.close();
-  }
-}
-
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-BackendLogger::BackendLogger() : Logger() {
-  openLogFile(output_landmarks_filename_, true);
-  openLogFile(output_smart_factors_stats_csv_, true);
-  openLogFile(output_backend_timing_csv_, true);
-  openLogFile(output_poses_vio_filename_csv_, true);
-}
+BackendLogger::BackendLogger()
+    : output_poses_vio_csv_("output_posesVIO.csv"),
+      output_smart_factors_stats_csv_("output_smartFactors.csv"),
+      output_backend_factors_stats_csv_("output_backendFactors.csv"),
+      output_backend_timing_csv_("output_backendTiming.csv"){};
 
 void BackendLogger::logBackendOutput(const VioBackEndOutputPayload& output) {
   logBackendResultsCSV(output);
@@ -106,8 +105,7 @@ void BackendLogger::displayInitialStateVioInfo(
 void BackendLogger::logBackendResultsCSV(
     const VioBackEndOutputPayload& vio_output) {
   // We log the poses in csv format for later alignement and analysis.
-  std::ofstream& output_stream =
-      filename_to_outstream_.at(output_poses_vio_filename_csv_);
+  std::ofstream& output_stream = output_poses_vio_csv_.ofstream_;
 
   // First, write header, but only once.
   static bool is_header_written = false;
@@ -146,8 +144,7 @@ void BackendLogger::logBackendResultsCSV(
 
 void BackendLogger::logSmartFactorsStats(
     const VioBackEndOutputPayload& output) {
-  std::ofstream& output_stream =
-      filename_to_outstream_.at(output_smart_factors_stats_csv_);
+  std::ofstream& output_stream = output_smart_factors_stats_csv_.ofstream_;
 
   // First, write header, but only once.
   static bool is_header_written = false;
@@ -179,8 +176,7 @@ void BackendLogger::logSmartFactorsStats(
 }
 
 void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {
-  std::ofstream& output_stream =
-      filename_to_outstream_.at(output_backend_timing_csv_);
+  std::ofstream& output_stream = output_backend_timing_csv_.ofstream_;
 
   // First, write header, but only once.
   static bool is_header_written = false;
@@ -208,8 +204,7 @@ void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {
 
 void BackendLogger::logBackendFactorsStats(
     const VioBackEndOutputPayload& output) {
-  std::ofstream& output_stream =
-      filename_to_outstream_.at(output_backend_timing_csv_);
+  std::ofstream& output_stream = output_backend_factors_stats_csv_.ofstream_;
 
   // First, write header, but only once.
   static bool is_header_written = false;
@@ -234,15 +229,13 @@ void BackendLogger::logBackendFactorsStats(
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-VisualizerLogger::VisualizerLogger() : Logger() {
-  openLogFile(output_mesh_filename_);
-  openLogFile(output_landmarks_filename_);
-}
+VisualizerLogger::VisualizerLogger()
+    : output_mesh_("output_mesh.ply"),
+      output_landmarks_("output_landmarks.txt"){};
 
 void VisualizerLogger::logLandmarks(const PointsWithId& lmks) {
   // Absolute vio errors
-  std::ofstream& output_landmarks_stream =
-      filename_to_outstream_.at(output_landmarks_filename_);
+  std::ofstream& output_landmarks_stream = output_landmarks_.ofstream_;
   output_landmarks_stream << "Id\t"
                           << "x\t"
                           << "y\t"
@@ -258,8 +251,7 @@ void VisualizerLogger::logLandmarks(const PointsWithId& lmks) {
 void VisualizerLogger::logLandmarks(const cv::Mat& lmks) {
   // cv::Mat each row has a lmk with x, y, z.
   // Absolute vio errors
-  std::ofstream& output_landmarks_stream =
-      filename_to_outstream_.at(output_landmarks_filename_);
+  std::ofstream& output_landmarks_stream = output_landmarks_.ofstream_;
   output_landmarks_stream << "x\t"
                           << "y\t"
                           << "z\n";
@@ -276,8 +268,7 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
                                const cv::Mat& mesh,
                                const double& timestamp,
                                bool log_accumulated_mesh) {
-  std::ofstream& output_mesh_stream =
-      filename_to_outstream_.at(output_mesh_filename_);
+  std::ofstream& output_mesh_stream = output_mesh_.ofstream_;
   CHECK(output_mesh_stream) << "Output File Mesh: error writing.";
   // Number of vertices in the mesh.
   int vertex_count = lmks.rows;
@@ -325,18 +316,14 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-FrontendLogger::FrontendLogger() : Logger() {
-  openLogFile(output_frontend_filename_);
-}
-
+FrontendLogger::FrontendLogger() : output_frontend_("output_frontend.csv"){};
 void FrontendLogger::logFrontendResults(
     const TrackerStatusSummary& tracker_summary,
     const size_t& nrKeypoints) {
   // We log frontend results in csv format.
   static bool is_header_written = false;
 
-  std::ofstream& output_frontend_stream =
-      filename_to_outstream_.at(output_frontend_filename_);
+  std::ofstream& output_frontend_stream = output_frontend_.ofstream_;
   if (!is_header_written) {
     output_frontend_stream << "mono_status, stereo_status, nr_keypoints"
                            << std::endl;
@@ -356,15 +343,12 @@ void FrontendLogger::logFrontendResults(
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-PipelineLogger::PipelineLogger() : Logger() {
-  openLogFile(output_pipeline_timing_);
-}
-
+PipelineLogger::PipelineLogger()
+    : output_pipeline_timing_("output_timingOverall.csv"){};
 void PipelineLogger::logPipelineOverallTiming(
     const std::chrono::milliseconds& duration) {
   // Add header.
-  std::ofstream& outputFile_timingOverall_ =
-      filename_to_outstream_.at(output_pipeline_timing_);
+  std::ofstream& outputFile_timingOverall_ = output_pipeline_timing_.ofstream_;
   outputFile_timingOverall_ << "vio_overall_time [ms]" << std::endl;
   outputFile_timingOverall_ << duration.count();
 }
