@@ -43,15 +43,19 @@ class BackendLogger : private Logger {
   BackendLogger();
   ~BackendLogger() = default;
 
-  void logBackendResultsCSV(const VioBackEndOutputPayload& vio_output);
-  void logSmartFactorsStats(const VioBackEndOutputPayload& vio_output);
-  void logBackendFactorsStats(const VioBackEndOutputPayload& vio_output);
-  void logBackendTiming(const VioBackEndOutputPayload& vio_output);
+  void logBackendOutput(const VioBackEndOutputPayload& output);
   void displayInitialStateVioInfo(const gtsam::Vector3& n_gravity_,
                                   const gtsam::Pose3& W_Pose_B_Lkf,
-                                  const gtNavState& initialStateGT,
+                                  const gtNavState& initial_state_gt,
                                   const ImuAccGyrS& imu_accgyr,
                                   const Timestamp& timestamp_k) const;
+
+ private:
+  void logBackendResultsCSV(const VioBackEndOutputPayload& output);
+  void logSmartFactorsStats(const VioBackEndOutputPayload& output);
+  void logBackendFactorsStats(const VioBackEndOutputPayload& output);
+  void logBackendTiming(const VioBackEndOutputPayload& output);
+
  private:
   // Filenames to be saved in the output folder.
   const std::string output_poses_vio_filename_csv_ = "output_posesVIO.csv";

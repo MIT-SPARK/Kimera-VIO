@@ -112,7 +112,6 @@ class DebugVioInfo {
   double updateTime_;
   double updateSlotTime_;
   double extraIterationsTime_;
-  double printTime_;
 
   double meanPixelError_;
   double maxPixelError_;
@@ -158,7 +157,6 @@ class DebugVioInfo {
     updateTime_ = 0;
     updateSlotTime_ = 0;
     extraIterationsTime_ = 0;
-    printTime_ = 0;
     linearizeTime_ = 0;
     linearSolveTime_ = 0;
     retractTime_ = 0;
@@ -176,18 +174,24 @@ class DebugVioInfo {
   }
 
   /* ------------------------------------------------------------------------ */
+  double sumAllTimes() const {
+    return factorsAndSlotsTime_ + preUpdateTime_ + updateTime_ +
+           updateSlotTime_ + extraIterationsTime_;
+  }
+
+  /* ------------------------------------------------------------------------ */
   void printTimes() const {
-    LOG(INFO) << "Find delete time: " << factorsAndSlotsTime_ << '\n'
-              << "preUpdate time: " << preUpdateTime_ << '\n'
-              << "Update Time time: " << updateTime_ << '\n'
-              << "Update slot time: " << updateSlotTime_ << '\n'
-              << "Extra iterations time: " << extraIterationsTime_ << '\n'
-              << "Print time: " << printTime_;
+    LOG(INFO) << "-------- VIO Backend Timing --------\n"
+              << "Find delete time      :" << factorsAndSlotsTime_ << '\n'
+              << "preUpdate time        :" << preUpdateTime_ << '\n'
+              << "Update Time time      :" << updateTime_ << '\n'
+              << "Update slot time      :" << updateSlotTime_ << '\n'
+              << "Extra iterations time :" << extraIterationsTime_;
   }
 
   /* ------------------------------------------------------------------------ */
   void print() const {
-    LOG(INFO) << "----- DebugVioInfo: --------\n"
+    LOG(INFO) << "-------- DebugVioInfo: --------\n"
               << " numSF: " << numSF_ << '\n'
               << " numValid: " << numValid_ << '\n'
               << " numDegenerate: " << numDegenerate_ << '\n'

@@ -162,10 +162,6 @@ class VioBackEnd {
   // NOT TESTED
   void computeStateCovariance();
 
-  /// Printers
-  /* ------------------------------------------------------------------------ */
-  void print() const;
-
  protected:
   /* ------------------------------------------------------------------------ */
   // Store stereo frame info into landmarks table:
@@ -353,6 +349,9 @@ class VioBackEnd {
 
   /// Private printers.
   /* ------------------------------------------------------------------------ */
+  void print() const;
+
+  /* ------------------------------------------------------------------------ */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
                          const gtsam::FactorIndices& delete_slots,
                          const std::string& message = "CATCHING EXCEPTION",
@@ -410,7 +409,7 @@ class VioBackEnd {
   // Debugging post optimization and estimate calculation.
   void postDebug(
       const std::chrono::high_resolution_clock::time_point& total_start_time,
-      std::chrono::high_resolution_clock::time_point start_time);
+      const std::chrono::high_resolution_clock::time_point& start_time);
 
   /* ------------------------------------------------------------------------ */
   // Reset state of debug info.

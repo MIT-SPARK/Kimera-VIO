@@ -37,6 +37,7 @@ void Logger::openLogFile(const std::string& output_file_name,
   CHECK(filename_to_outstream_.find(output_file_name) ==
         filename_to_outstream_.end())
       << "Using an already existing filename.";
+  VLOG(1) << "Opening output file: " << output_file_name.c_str();
   UtilsOpenCV::OpenFile(output_path_ + '/' + output_file_name,
                         &filename_to_outstream_[output_file_name],
                         open_file_in_append_mode);
@@ -55,6 +56,51 @@ BackendLogger::BackendLogger() : Logger() {
   openLogFile(output_smart_factors_stats_csv_, true);
   openLogFile(output_backend_timing_csv_, true);
   openLogFile(output_poses_vio_filename_csv_, true);
+}
+
+void BackendLogger::logBackendOutput(const VioBackEndOutputPayload& output) {
+  logBackendResultsCSV(output);
+  logBackendFactorsStats(output);
+  logSmartFactorsStats(output);
+  logBackendTiming(output);
+}
+
+void BackendLogger::displayInitialStateVioInfo(
+    const gtsam::Vector3& n_gravity_,
+    const gtsam::Pose3& W_Pose_B_Lkf,
+    const gtNavState& initial_state_gt,
+    const ImuAccGyrS& imu_accgyr,
+    const Timestamp& timestamp_k) const {
+  initial_state_gt.print("initialStateGT\n");
+  const gtsam::Vector3& rpy_gt = initial_state_gt.pose_.rotation()
+                                     .rpy();  // such that R = Rot3::Ypr(y,p,r)
+  LOG(INFO) << "yaw= " << rpy_gt(2) << ' ' << "pitch= " << rpy_gt(1) << ' '
+            << "roll= " << rpy_gt(0);
+  gtsam::Vector3 localGravity =
+      initial_state_gt.pose_.rotation().inverse().matrix() * n_gravity_;
+  LOG(INFO) << "gravity in global frame: \n"
+            << n_gravity_ << '\n'
+            << "gravity in local frame: \n"
+            << localGravity << '\n'
+            << "expected initial acc measurement (no bias correction): \n"
+            << -localGravity << '\n'
+            << "expected initial acc measurement: \n"
+            << -localGravity + initial_state_gt.imu_bias_.accelerometer()
+            << '\n'
+            << "actual initial acc measurement: \n"
+            << imu_accgyr.block<3, 1>(0, 0) << '\n'
+            << "expected initial gyro measurement: \n"
+            << initial_state_gt.imu_bias_.gyroscope() << '\n'
+            << "actual initial gyro measurement: \n"
+            << imu_accgyr.block<3, 1>(3, 0);
+
+  double vioRotError, vioTranError;
+  std::tie(vioRotError, vioTranError) =
+      UtilsOpenCV::ComputeRotationAndTranslationErrors(initial_state_gt.pose_,
+                                                       W_Pose_B_Lkf);
+  CHECK_LE(vioRotError, 1e-4);
+  CHECK_LE(vioTranError, 1e-4)
+      << "stereoVIOExample: wrong initialization (ground truth initialization)";
 }
 
 void BackendLogger::logBackendResultsCSV(
@@ -98,45 +144,8 @@ void BackendLogger::logBackendResultsCSV(
                 << imu_bias_acc(2) << std::endl;     //
 }
 
-void BackendLogger::displayInitialStateVioInfo(
-    const gtsam::Vector3& n_gravity_,
-    const gtsam::Pose3& W_Pose_B_Lkf,
-    const gtNavState& initialStateGT,
-    const ImuAccGyrS& imu_accgyr,
-    const Timestamp& timestamp_k) const {
-  initialStateGT.print("initialStateGT\n");
-  const gtsam::Vector3& rpy_gt =
-      initialStateGT.pose_.rotation().rpy();  // such that R = Rot3::Ypr(y,p,r)
-  LOG(INFO) << "yaw= " << rpy_gt(2) << ' ' << "pitch= " << rpy_gt(1) << ' '
-            << "roll= " << rpy_gt(0);
-  gtsam::Vector3 localGravity =
-      initialStateGT.pose_.rotation().inverse().matrix() * n_gravity_;
-  LOG(INFO) << "gravity in global frame: \n"
-            << n_gravity_ << '\n'
-            << "gravity in local frame: \n"
-            << localGravity << '\n'
-            << "expected initial acc measurement (no bias correction): \n"
-            << -localGravity << '\n'
-            << "expected initial acc measurement: \n"
-            << -localGravity + initialStateGT.imu_bias_.accelerometer() << '\n'
-            << "actual initial acc measurement: \n"
-            << imu_accgyr.block<3, 1>(0, 0) << '\n'
-            << "expected initial gyro measurement: \n"
-            << initialStateGT.imu_bias_.gyroscope() << '\n'
-            << "actual initial gyro measurement: \n"
-            << imu_accgyr.block<3, 1>(3, 0);
-
-  double vioRotError, vioTranError;
-  std::tie(vioRotError, vioTranError) =
-      UtilsOpenCV::ComputeRotationAndTranslationErrors(initialStateGT.pose_,
-                                                       W_Pose_B_Lkf);
-  CHECK_LE(vioRotError, 1e-4);
-  CHECK_LE(vioTranError, 1e-4)
-      << "stereoVIOExample: wrong initialization (ground truth initialization)";
-}
-
 void BackendLogger::logSmartFactorsStats(
-    const VioBackEndOutputPayload& vio_output) {
+    const VioBackEndOutputPayload& output) {
   std::ofstream& output_stream =
       filename_to_outstream_.at(output_smart_factors_stats_csv_);
 
@@ -144,61 +153,59 @@ void BackendLogger::logSmartFactorsStats(
   static bool is_header_written = false;
   if (!is_header_written) {
     output_stream
-        << "cur_kf_id, k, timestamp_k, numSF,"
+        << "cur_kf_id, timestamp_kf, numSF,"
            "numValid, numDegenerate, numFarPoints, numOutliers, numCheirality, "
            "meanPixelError, maxPixelError, meanTrackLength, maxTrackLength, "
            "nrElementsInMatrix, nrZeroElementsInMatrix\n";
     is_header_written = true;
   }
 
-  output_stream << vio_output.cur_kf_id_ << ", "     // keyframe id
-                << vio_output.timestamp_kf_ << ", "  // timestamp
-                << vio_output.debug_info_.numSF_ << ", "
-                << vio_output.debug_info_.numValid_ << ", "
-                << vio_output.debug_info_.numDegenerate_ << ", "
-                << vio_output.debug_info_.numFarPoints_ << ", "
-                << vio_output.debug_info_.numOutliers_ << ", "
-                << vio_output.debug_info_.numCheirality_ << ", "
-                << vio_output.debug_info_.meanPixelError_ << ", "
-                << vio_output.debug_info_.maxPixelError_ << ", "
-                << vio_output.debug_info_.meanTrackLength_ << ", "
-                << vio_output.debug_info_.maxTrackLength_ << ", "
-                << vio_output.debug_info_.nrElementsInMatrix_ << ", "
-                << vio_output.debug_info_.nrZeroElementsInMatrix_ << std::endl;
+  output_stream << output.cur_kf_id_ << ", "     // keyframe id
+                << output.timestamp_kf_ << ", "  // timestamp
+                << output.debug_info_.numSF_ << ", "
+                << output.debug_info_.numValid_ << ", "
+                << output.debug_info_.numDegenerate_ << ", "
+                << output.debug_info_.numFarPoints_ << ", "
+                << output.debug_info_.numOutliers_ << ", "
+                << output.debug_info_.numCheirality_ << ", "
+                << output.debug_info_.meanPixelError_ << ", "
+                << output.debug_info_.maxPixelError_ << ", "
+                << output.debug_info_.meanTrackLength_ << ", "
+                << output.debug_info_.maxTrackLength_ << ", "
+                << output.debug_info_.nrElementsInMatrix_ << ", "
+                << output.debug_info_.nrZeroElementsInMatrix_ << std::endl;
 }
 
-void BackendLogger::logBackendTiming(
-    const VioBackEndOutputPayload& vio_output) {
+void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {
   std::ofstream& output_stream =
       filename_to_outstream_.at(output_backend_timing_csv_);
 
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream
-        << "factorsAndSlotsTime, preUpdateTime, updateTime, updateSlotTime,"
-           "extraIterationsTime, printTime, linearizeTime, linearSolveTime, "
-           "retractTime, linearizeMarginalizeTime, marginalizeTime";
+    output_stream << "cur_kf_id, factorsAndSlotsTime, preUpdateTime, "
+                     "updateTime, updateSlotTime,"
+                     "extraIterationsTime, linearizeTime, linearSolveTime, "
+                     "retractTime, linearizeMarginalizeTime, marginalizeTime";
     is_header_written = true;
   }
 
   // Log timing for benchmarking and performance profiling.
-  output_stream << vio_output.cur_kf_id_ << ", "
-                << vio_output.debug_info_.factorsAndSlotsTime_ << ", "
-                << vio_output.debug_info_.preUpdateTime_ << ", "
-                << vio_output.debug_info_.updateTime_ << ", "
-                << vio_output.debug_info_.updateSlotTime_ << ", "
-                << vio_output.debug_info_.extraIterationsTime_ << ", "
-                << vio_output.debug_info_.printTime_ << ", "
-                << vio_output.debug_info_.linearizeTime_ << ", "
-                << vio_output.debug_info_.linearSolveTime_ << ", "
-                << vio_output.debug_info_.retractTime_ << ", "
-                << vio_output.debug_info_.linearizeMarginalizeTime_ << ", "
-                << vio_output.debug_info_.marginalizeTime_ << std::endl;
+  output_stream << output.cur_kf_id_ << ", "
+                << output.debug_info_.factorsAndSlotsTime_ << ", "
+                << output.debug_info_.preUpdateTime_ << ", "
+                << output.debug_info_.updateTime_ << ", "
+                << output.debug_info_.updateSlotTime_ << ", "
+                << output.debug_info_.extraIterationsTime_ << ", "
+                << output.debug_info_.linearizeTime_ << ", "
+                << output.debug_info_.linearSolveTime_ << ", "
+                << output.debug_info_.retractTime_ << ", "
+                << output.debug_info_.linearizeMarginalizeTime_ << ", "
+                << output.debug_info_.marginalizeTime_ << std::endl;
 }
 
 void BackendLogger::logBackendFactorsStats(
-    const VioBackEndOutputPayload& vio_output) {
+    const VioBackEndOutputPayload& output) {
   std::ofstream& output_stream =
       filename_to_outstream_.at(output_backend_timing_csv_);
 
@@ -214,14 +221,14 @@ void BackendLogger::logBackendFactorsStats(
 
   // Log timing for benchmarking and performance profiling.
   // Statistics about factors added to the graph.
-  output_stream << vio_output.cur_kf_id_ << ", "
-                << vio_output.debug_info_.numAddedSmartF_ << ", "
-                << vio_output.debug_info_.numAddedImuF_ << ", "
-                << vio_output.debug_info_.numAddedNoMotionF_ << ", "
-                << vio_output.debug_info_.numAddedConstantVelF_ << ", "
-                << vio_output.debug_info_.numAddedBetweenStereoF_ << ", "
-                << vio_output.state_.size() << ", "
-                << vio_output.landmark_count_ << std::endl;
+  output_stream << output.cur_kf_id_ << ", "
+                << output.debug_info_.numAddedSmartF_ << ", "
+                << output.debug_info_.numAddedImuF_ << ", "
+                << output.debug_info_.numAddedNoMotionF_ << ", "
+                << output.debug_info_.numAddedConstantVelF_ << ", "
+                << output.debug_info_.numAddedBetweenStereoF_ << ", "
+                << output.state_.size() << ", " << output.landmark_count_
+                << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

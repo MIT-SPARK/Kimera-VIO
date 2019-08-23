@@ -214,8 +214,10 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
     const std::shared_ptr<VioBackEndInputPayload>& input) {
   CHECK(input) << "No VioBackEnd Input Payload received.";
   if (VLOG_IS_ON(10)) input->print();
+
   // Process data with VIO.
   addVisualInertialStateAndOptimize(input);
+
   // Update imu bias for the frontend! Note that this should be done asap
   // ideally just when the optimization finishes, so that the frontend might
   // start preintegrating the imu data using the newest bias!
@@ -225,6 +227,7 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
                                       "frontend? Do so by using "
                                       "registerImuBiasUpdateCallback function";
   imu_bias_update_callback_(imu_bias_lkf_);
+
   if (VLOG_IS_ON(10)) {
     LOG(INFO) << "Latest backend IMU bias is: ";
     getLatestImuBias().print();
@@ -243,9 +246,8 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
       debug_info_);
 
   if (log_output_) {
-    logger_.logBackendResultsCSV(output_payload);
+    logger_.logBackendOutput(output_payload);
   }
-
   return output_payload;
 }
 
@@ -1872,19 +1874,12 @@ void VioBackEnd::printSelectedGraph(
 /* --------------------------------------------------------------------------
  */
 void VioBackEnd::computeSmartFactorStatistics() {
-  if (verbosity_ > 8) {
-    std::cout << "Landmarks in old_smart_factors_: " << std::endl;
-    for (const auto& it : old_smart_factors_) {
-      std::cout << "Landmark " << it.first << " with slot " << it.second.second
-                << std::endl;
-    }
-  }
   // Compute number of valid/degenerate
   debug_info_.resetSmartFactorsStatistics();
   gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
-  for (auto& g : graph) {
+  for (const auto& g : graph) {
     if (g) {
-      auto gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
+      const auto& gsf = boost::dynamic_pointer_cast<SmartStereoFactor>(g);
       if (gsf) {
         debug_info_.numSF_ += 1;
 
@@ -1908,39 +1903,34 @@ void VioBackEnd::computeSmartFactorStatistics() {
         //  last_key = key;
         //  first_key = false;
         //}
+
         // Check SF status
-        gtsam::TriangulationResult result = gsf->point();
+        const gtsam::TriangulationResult& result = gsf->point();
         if (result.is_initialized()) {
           if (result.degenerate()) debug_info_.numDegenerate_ += 1;
-
           if (result.farPoint()) debug_info_.numFarPoints_ += 1;
-
           if (result.outlier()) debug_info_.numOutliers_ += 1;
-
+          if (result.behindCamera()) debug_info_.numCheirality_ += 1;
           if (result.valid()) {
             debug_info_.numValid_ += 1;
             // Check track length
             size_t trackLength = gsf->keys().size();
-            if (trackLength > debug_info_.maxTrackLength_)
+            if (trackLength > debug_info_.maxTrackLength_) {
               debug_info_.maxTrackLength_ = trackLength;
-
+            }
             debug_info_.meanTrackLength_ += trackLength;
           }
-
-          if (result.behindCamera()) debug_info_.numCheirality_ += 1;
         } else {
           LOG(WARNING) << "Triangulation result is not initialized...";
         }
       }
     }
   }
-  if (debug_info_.numValid_ > 0)
+  if (debug_info_.numValid_ > 0) {
     debug_info_.meanTrackLength_ =
         debug_info_.meanTrackLength_ / ((double)debug_info_.numValid_);
-  else
+  } else {
     debug_info_.meanTrackLength_ = 0;
-  if (verbosity_ >= 4) {
-    debug_info_.print();
   }
 }
 
@@ -1954,19 +1944,21 @@ void VioBackEnd::computeSparsityStatistics() {
   debug_info_.nrZeroElementsInMatrix_ = 0;
   for (int i = 0; i < Hessian.rows(); ++i) {
     for (int j = 0; j < Hessian.cols(); ++j) {
-      if (fabs(Hessian(i, j)) < 1e-15) debug_info_.nrZeroElementsInMatrix_ += 1;
+      if (std::fabs(Hessian(i, j)) < 1e-15) {
+        debug_info_.nrZeroElementsInMatrix_ += 1;
+      }
     }
   }
-  // sanity check
-  if (Hessian.rows() != Hessian.cols())  // matrix is not square
-    LOG(FATAL) << "computeSparsityStatistics: hessian is not a square matrix?";
 
-  std::cout << "Hessian stats: =========== " << std::endl;
-  std::cout << "rows: " << Hessian.rows() << std::endl;
-  std::cout << "nrElementsInMatrix_: " << debug_info_.nrElementsInMatrix_
-            << std::endl;
-  std::cout << "nrZeroElementsInMatrix_: "
-            << debug_info_.nrZeroElementsInMatrix_ << std::endl;
+  CHECK_EQ(Hessian.rows(), Hessian.cols())
+      << "computeSparsityStatistics: hessian is not a square matrix?";
+
+  LOG(INFO) << "Hessian stats: ===========\n"
+            << "rows: " << Hessian.rows() << '\n'
+            << "nrElementsInMatrix_: " << debug_info_.nrElementsInMatrix_
+            << '\n'
+            << "nrZeroElementsInMatrix_: "
+            << debug_info_.nrZeroElementsInMatrix_;
 }
 
 /* --------------------------------------------------------------------------
@@ -1974,49 +1966,41 @@ void VioBackEnd::computeSparsityStatistics() {
 // Debugging post optimization and estimate calculation.
 void VioBackEnd::postDebug(
     const std::chrono::high_resolution_clock::time_point& total_start_time,
-    std::chrono::high_resolution_clock::time_point start_time) {
-  if (verbosity_ >= 9) {
+    const std::chrono::high_resolution_clock::time_point& start_time) {
+  if (log_output_) {
     computeSparsityStatistics();
-  }
-
-  if (verbosity_ >= 5) {
-    std::cout << "starting computeSmartFactorStatistics" << std::endl;
-  }
-  if (verbosity_ >= 4) {
     computeSmartFactorStatistics();
   }
-  if (verbosity_ >= 5) {
-    std::cout << "finished computeSmartFactorStatistics" << std::endl;
-  }
-  if (verbosity_ >= 6) {
+
+  if (VLOG_IS_ON(10)) {
+    // Print old_smart_factors_
+    LOG(INFO) << "Landmarks in old_smart_factors_:";
+    for (const auto& it : old_smart_factors_) {
+      LOG(INFO) << " - Landmark " << it.first << " with slot "
+                << it.second.second;
+    }
+
+    // Print debug_info_
+    debug_info_.print();
+
+    // Print times.
+    debug_info_.printTimes();
+
+    // Sanity check timings
+    const auto& end_time =
+        utils::Timer::toc<std::chrono::seconds>(total_start_time).count();
+    const auto& end_time_from_sum = debug_info_.sumAllTimes();
+    CHECK_EQ(end_time, end_time_from_sum)
+        << "Optimize: time measurement mismatch."
+           "The sum of the parts is not equal to the total.";
+
+    // Print error.
     gtsam::NonlinearFactorGraph graph = gtsam::NonlinearFactorGraph(
         smoother_->getFactors());  // clone, expensive but safer!
-    std::cout << "Error before: " << graph.error(debug_info_.stateBeforeOpt)
-              << "Error after: " << graph.error(state_) << std::endl;
-  }
-  if (verbosity_ >= 5 || log_output_) {
-    debug_info_.printTime_ =
-        utils::Timer::toc<std::chrono::seconds>(start_time).count();
-  }
-
-  if (verbosity_ >= 5 || log_output_) {
-    debug_info_.printTimes();
-  }
-
-  if (verbosity_ >= 5 || log_output_) {
-    auto endTime =
-        utils::Timer::toc<std::chrono::seconds>(total_start_time).count();
-    // sanity check:
-    auto endTimeFromSum =
-        debug_info_.factorsAndSlotsTime_ + debug_info_.preUpdateTime_ +
-        debug_info_.updateTime_ + debug_info_.updateSlotTime_ +
-        debug_info_.extraIterationsTime_ + debug_info_.printTime_;
-    LOG_IF(ERROR, fabs(endTimeFromSum - endTime) >= 1e-1)
-        << "optimize: time measurement mismatch (this check on timing "
-           "might be "
-           "too strict)\n"
-        << " - endTime: " << endTime << '\n'
-        << " - endTimeFromSum: " << endTimeFromSum;
+    VLOG(10) << "Optimization Errors:\n"
+             << " - Error before :" << graph.error(debug_info_.stateBeforeOpt)
+             << '\n'
+             << " - Error after  :" << graph.error(state_);
   }
 }
 
