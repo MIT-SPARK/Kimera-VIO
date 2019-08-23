@@ -154,7 +154,8 @@ void BackendLogger::logSmartFactorsStats(
   if (!is_header_written) {
     output_stream
         << "cur_kf_id, timestamp_kf, numSF,"
-           "numValid, numDegenerate, numFarPoints, numOutliers, numCheirality, "
+           "numValid, numDegenerate, numFarPoints, numOutliers, numCheirality,"
+           "numNonInitialized, "
            "meanPixelError, maxPixelError, meanTrackLength, maxTrackLength, "
            "nrElementsInMatrix, nrZeroElementsInMatrix\n";
     is_header_written = true;
@@ -168,6 +169,7 @@ void BackendLogger::logSmartFactorsStats(
                 << output.debug_info_.numFarPoints_ << ", "
                 << output.debug_info_.numOutliers_ << ", "
                 << output.debug_info_.numCheirality_ << ", "
+                << output.debug_info_.numNonInitialized_ << ", "
                 << output.debug_info_.meanPixelError_ << ", "
                 << output.debug_info_.maxPixelError_ << ", "
                 << output.debug_info_.meanTrackLength_ << ", "

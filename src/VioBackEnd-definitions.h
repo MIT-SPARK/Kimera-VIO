@@ -100,6 +100,7 @@ class DebugVioInfo {
   int numFarPoints_;
   int numOutliers_;
   int numCheirality_;
+  int numNonInitialized_;
 
   gtsam::Rot3 imuR_lkf_kf = gtsam::Rot3();
 
@@ -143,6 +144,7 @@ class DebugVioInfo {
     numFarPoints_ = 0;
     numOutliers_ = 0;
     numCheirality_ = 0;
+    numNonInitialized_ = 0;
 
     meanPixelError_ = 0;
     maxPixelError_ = 0;
@@ -198,6 +200,7 @@ class DebugVioInfo {
               << " numOutliers: " << numOutliers_ << '\n'
               << " numFarPoints: " << numFarPoints_ << '\n'
               << " numCheirality: " << numCheirality_ << '\n'
+              << " numNonInitialized: " << numNonInitialized << '\n'
               << " meanPixelError: " << meanPixelError_ << '\n'
               << " maxPixelError: " << maxPixelError_ << '\n'
               << " meanTrackLength: " << meanTrackLength_ << '\n'
