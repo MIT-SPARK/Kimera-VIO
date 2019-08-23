@@ -200,7 +200,7 @@ class DebugVioInfo {
               << " numOutliers: " << numOutliers_ << '\n'
               << " numFarPoints: " << numFarPoints_ << '\n'
               << " numCheirality: " << numCheirality_ << '\n'
-              << " numNonInitialized: " << numNonInitialized << '\n'
+              << " numNonInitialized: " << numNonInitialized_ << '\n'
               << " meanPixelError: " << meanPixelError_ << '\n'
               << " maxPixelError: " << maxPixelError_ << '\n'
               << " meanTrackLength: " << meanTrackLength_ << '\n'
