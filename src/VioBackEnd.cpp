@@ -416,8 +416,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   timestamp_lkf_ = input->timestamp_kf_nsec_;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Uses landmark table to add factors in graph.
 void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
   // Add selected landmarks to graph:
@@ -1854,8 +1853,7 @@ void VioBackEnd::printSelectedFactors(
   }
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::printSelectedGraph(
     const gtsam::NonlinearFactorGraph& graph, const bool& print_smart_factors,
     const bool& print_point_plane_factors, const bool& print_plane_priors,
@@ -1871,8 +1869,7 @@ void VioBackEnd::printSelectedGraph(
   std::cout << std::endl;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::computeSmartFactorStatistics() {
   // Compute number of valid/degenerate
   debug_info_.resetSmartFactorsStatistics();
@@ -1935,8 +1932,7 @@ void VioBackEnd::computeSmartFactorStatistics() {
   }
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::computeSparsityStatistics() {
   gtsam::NonlinearFactorGraph graph = smoother_->getFactors();
   gtsam::GaussianFactorGraph::shared_ptr gfg = graph.linearize(state_);
@@ -1962,8 +1958,7 @@ void VioBackEnd::computeSparsityStatistics() {
             << debug_info_.nrZeroElementsInMatrix_;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Debugging post optimization and estimate calculation.
 void VioBackEnd::postDebug(
     const std::chrono::high_resolution_clock::time_point& total_start_time,
@@ -2005,8 +2000,7 @@ void VioBackEnd::postDebug(
   }
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Reset state of debug info.
 void VioBackEnd::resetDebugInfo(DebugVioInfo* debug_info) {
   CHECK_NOTNULL(debug_info);
@@ -2017,8 +2011,7 @@ void VioBackEnd::resetDebugInfo(DebugVioInfo* debug_info) {
   debug_info->nrZeroElementsInMatrix_ = 0;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::cleanNullPtrsFromGraph(
     gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors) {
   CHECK_NOTNULL(new_imu_prior_and_other_factors);
@@ -2031,8 +2024,7 @@ void VioBackEnd::cleanNullPtrsFromGraph(
   }
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::deleteAllFactorsWithKeyFromFactorGraph(
     const gtsam::Key& key, const gtsam::NonlinearFactorGraph& factor_graph,
     gtsam::NonlinearFactorGraph* factor_graph_output) {
@@ -2067,8 +2059,7 @@ void VioBackEnd::deleteAllFactorsWithKeyFromFactorGraph(
   }
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Returns if the key in timestamps could be removed or not.
 bool VioBackEnd::deleteKeyFromTimestamps(
     const gtsam::Key& key, const std::map<Key, double>& timestamps,
@@ -2082,8 +2073,7 @@ bool VioBackEnd::deleteKeyFromTimestamps(
   return false;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Returns if the key in timestamps could be removed or not.
 bool VioBackEnd::deleteKeyFromValues(const gtsam::Key& key,
                                      const gtsam::Values& values,
@@ -2108,8 +2098,7 @@ bool VioBackEnd::deleteKeyFromValues(const gtsam::Key& key,
   return false;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Returns if the key in timestamps could be removed or not.
 void VioBackEnd::findSlotsOfFactorsWithKey(
     const gtsam::Key& key, const gtsam::NonlinearFactorGraph& graph,
@@ -2140,8 +2129,7 @@ void VioBackEnd::findSlotsOfFactorsWithKey(
   }
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Returns if the key in feature tracks could be removed or not.
 bool VioBackEnd::deleteLmkFromFeatureTracks(const LandmarkId& lmk_id) {
   if (feature_tracks_.find(lmk_id) != feature_tracks_.end()) {
@@ -2152,8 +2140,7 @@ bool VioBackEnd::deleteLmkFromFeatureTracks(const LandmarkId& lmk_id) {
   return false;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 ImuBias VioBackEnd::initImuBias(const ImuAccGyrS& accGyroRaw,
                                 const Vector3& n_gravity) {
   LOG(WARNING) << "imuBiasInitialization: currently assumes that the vehicle is"
