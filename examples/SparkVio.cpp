@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   // Build dataset parser.
-  std::unique_ptr<VIO::PreintegratedImuMeasurements> dataset_parser;
+  std::unique_ptr<VIO::DataProvider> dataset_parser;
   switch (FLAGS_dataset_type) {
     case 0: {
       dataset_parser = VIO::make_unique<VIO::ETHDatasetParser>();
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
   bool is_pipeline_successful = false;
   if (FLAGS_parallel_run) {
     auto handle = std::async(std::launch::async,
-                             &VIO::PreintegratedImuMeasurements::spin,
+                             &VIO::DataProvider::spin,
                              std::move(dataset_parser));
     auto handle_pipeline =
         std::async(std::launch::async, &VIO::Pipeline::shutdownWhenFinished,

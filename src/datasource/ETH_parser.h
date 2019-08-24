@@ -36,7 +36,7 @@ namespace VIO {
 /*
  * Parse all images and camera calibration for an ETH dataset.
  */
-class ETHDatasetParser : public PreintegratedImuMeasurements {
+class ETHDatasetParser : public DataProvider {
  public:
   ETHDatasetParser();
   ETHDatasetParser(const std::string& input_string);
@@ -70,7 +70,7 @@ class ETHDatasetParser : public PreintegratedImuMeasurements {
 
 public:
 
-  bool spin() override;
+  virtual bool spin() override;
 
   void spinOnce(const FrameId& k, Timestamp& timestamp_last_frame,
                 const StereoMatchingParams& stereo_matchiong_params,

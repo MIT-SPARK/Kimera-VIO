@@ -26,7 +26,7 @@ namespace VIO {
 ////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::ETHDatasetParser()
-    : PreintegratedImuMeasurements(), imuData_() {
+    : DataProvider(), imuData_() {
   parse();
 
   // Check that final_k_ is smaller than the number of images.
