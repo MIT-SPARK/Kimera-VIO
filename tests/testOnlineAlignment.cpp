@@ -20,11 +20,10 @@
 
 #include "ImuFrontEnd-definitions.h"
 #include "ImuFrontEnd.h"
-#include "datasource/ETH_parser.h"
 #include "initial/OnlineGravityAlignment.h"
 #include "utils/ThreadsafeImuBuffer.h"
-
-DECLARE_string(test_data_path);
+#include "ETH_parser.h"
+#include "test_config.h"
 
 using namespace VIO;
 
@@ -48,109 +47,111 @@ class OnlineAlignmentTestData {
   Vector3 bias_gyr_;
   gtNavState init_navstate_;
   OnlineAlignmentTestData(ETHDatasetParser &dataset,
-                          const std::string data_path,
-                          const int n_begin_data,
-                          const int n_frames_data) {
-    // Load IMU data and compute pre-integrations
-    std::string left_cam_name = "cam0";
-    std::string right_cam_name = "cam1";
-    std::string imu_name = "imu0";
-    std::string gt_name = "gt0";
-    dataset.parseDataset(data_path, left_cam_name, right_cam_name, imu_name,
-                         gt_name, false);
+                      const std::string data_path,
+                      const int n_begin_data,
+                      const int n_frames_data) {
+      // Load IMU data and compute pre-integrations
+      std::string imu_name = "imu0";
+      dataset.parseImuData(data_path,
+                          imu_name);
 
-    // Set IMU params
-    imu_params_.acc_walk_ = 1.0;
-    imu_params_.acc_noise_ = 1.0;
-    imu_params_.gyro_walk_ = 1.0;
-    imu_params_.gyro_noise_ = 1.0;
-    imu_params_.n_gravity_ << 0.0, 0.0,
-        0.0; // This is needed for online alignment
-    imu_params_.imu_integration_sigma_ = 1.0;
-    bias_acc_ = Vector3(0.0, 0.0, 0.0);
-    bias_gyr_ = Vector3(0.0, 0.0, 0.0);
-    imu_bias_ = ImuBias(bias_acc_, bias_gyr_);
+      // Set IMU params
+      imu_params_.acc_walk_ = 1.0;
+      imu_params_.acc_noise_ = 1.0;
+      imu_params_.gyro_walk_ = 1.0;
+      imu_params_.gyro_noise_ = 1.0;
+      imu_params_.n_gravity_ << 0.0, 0.0, 0.0; // This is needed for online alignment
+      imu_params_.imu_integration_sigma_ = 1.0;
+      bias_acc_ = Vector3(0.0, 0.0, 0.0);
+      bias_gyr_ = Vector3 (0.0, 0.0, 0.0);
+      imu_bias_ = ImuBias(bias_acc_, bias_gyr_);
 
-    // Load ground-truth poses
-    GroundTruthData gtData();
+      // Load ground-truth poses
+      std::string gt_name = "gt0";
+      dataset.parseGTdata(data_path,
+                          gt_name);
+      GroundTruthData gtData();
 
-    // Get GT poses and IMU pims
-    Timestamp timestamp_last_frame;
-    Timestamp timestamp_frame_k;
-    ImuMeasurements imu_meas;
+      // Get GT poses and IMU pims
+      Timestamp timestamp_last_frame;
+      Timestamp timestamp_frame_k;
+      ImuMeasurements imu_meas;
 
-    // Variables for online alignment
-    estimated_poses_.clear();
-    pims_.clear();
-    delta_t_poses_.clear();
-    ahrs_pim_.clear();
+      // Variables for online alignment
+      estimated_poses_.clear();
+      pims_.clear();
+      delta_t_poses_.clear();
+      ahrs_pim_.clear();
 
-    // Extract first element in the map
-    std::map<long long, gtNavState>::iterator it;
-    it = dataset.gtData_.mapToGt_.begin();
-    for (int i = 0; i < n_begin_data; i++) {
-      it++; // Move iterator to desired spot
-    }
-    timestamp_last_frame = it->first;
-    gtsam::Pose3 gt_pose_k = it->second.pose();
-    estimated_poses_.push_back(gt_pose_k);
-    init_navstate_ = it->second;
-
-    it++; // Move to the second one
-    while (it != dataset.gtData_.mapToGt_.end()) {
-      // Get GT information
-      timestamp_frame_k = it->first;
-      gt_pose_k = it->second.pose();
-
-      // Get PIM information
-      dataset.imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-          timestamp_last_frame, timestamp_frame_k, &imu_meas.timestamps_,
-          &imu_meas.measurements_);
-      ImuFrontEnd imu_frontend(imu_params_, imu_bias_);
-      const auto &pim = imu_frontend.preintegrateImuMeasurements(
-          imu_meas.timestamps_, imu_meas.measurements_);
-
-      // AHRS Pre-integration
-      // Define covariance matrices
-      Vector3 biasHat(0, 0, 0);
-      double accNoiseVar = 0.01;
-      const Matrix3 kMeasuredAccCovariance =
-          accNoiseVar * gtsam::Matrix3::Identity();
-      gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim(
-          biasHat, kMeasuredAccCovariance);
-      for (size_t i = 0; i < (imu_meas.measurements_.cols() - 1); ++i) {
-        double delta_t = UtilsOpenCV::NsecToSec(imu_meas.timestamps_(i + 1) -
-                                                imu_meas.timestamps_(i));
-        gtsam::Vector3 measured_omega =
-            imu_meas.measurements_.block(3, 6, i, i + 1);
-        ahrs_pim.integrateMeasurement(measured_omega, delta_t);
+      // Extract first element in the map
+      std::map<long long, gtNavState>::iterator it;
+      it = dataset.gtData_.mapToGt_.begin();
+      for (int i = 0; i < n_begin_data; i++) {
+        it++; // Move iterator to desired spot
       }
+      timestamp_last_frame = it->first;
+      gtsam::Pose3 gt_pose_k = it->second.pose();
+      estimated_poses_.push_back(gt_pose_k);
+      init_navstate_ = it->second;
 
-      // Buffer for online alignment
-      estimated_poses_.push_back(estimated_poses_[0].between(gt_pose_k));
-      delta_t_poses_.push_back(
-          UtilsOpenCV::NsecToSec(timestamp_frame_k - timestamp_last_frame));
-      pims_.push_back(pim);
-      ahrs_pim_.push_back(ahrs_pim);
-      if (pims_.size() > n_frames_data) {
-        break;
+      it++; // Move to the second one
+      while (it != dataset.gtData_.mapToGt_.end())
+      {
+        // Get GT information
+        timestamp_frame_k = it->first;
+        gt_pose_k = it->second.pose();
+
+        // Get PIM information
+        dataset.imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+              timestamp_last_frame,
+              timestamp_frame_k,
+              &imu_meas.timestamps_,
+              &imu_meas.measurements_);
+        ImuFrontEnd imu_frontend(imu_params_, imu_bias_);
+        const auto& pim = imu_frontend.preintegrateImuMeasurements(
+                    imu_meas.timestamps_, imu_meas.measurements_);
+
+        // AHRS Pre-integration
+        // Define covariance matrices
+        Vector3 biasHat(0, 0, 0);
+        double accNoiseVar = 0.01;
+        const Matrix3 kMeasuredAccCovariance =
+                  accNoiseVar * gtsam::Matrix3::Identity();
+        gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim(biasHat,
+                                            kMeasuredAccCovariance);
+        for (size_t i = 0; i < (imu_meas.measurements_.cols() - 1); ++i) {
+          double delta_t = UtilsOpenCV::NsecToSec(
+                  imu_meas.timestamps_(i+1) - imu_meas.timestamps_(i));
+          gtsam::Vector3 measured_omega =
+              imu_meas.measurements_.block(3, 6, i, i+1);
+          ahrs_pim.integrateMeasurement(measured_omega, delta_t);
+        }
+
+        // Buffer for online alignment
+        estimated_poses_.push_back(estimated_poses_[0].between(gt_pose_k));
+        delta_t_poses_.push_back(UtilsOpenCV::NsecToSec(
+                  timestamp_frame_k - timestamp_last_frame));
+        pims_.push_back(pim);
+        ahrs_pim_.push_back(ahrs_pim);
+        if (pims_.size() > n_frames_data) {
+          break;
+        }
+        // Move to next element in map
+        timestamp_last_frame = timestamp_frame_k;
+        it++;
       }
-      // Move to next element in map
-      timestamp_last_frame = timestamp_frame_k;
-      it++;
-    }
-    // Set initial pose to identity as we compute all relative to it
-    estimated_poses_[0] = gtsam::Pose3();
+      // Set initial pose to identity as we compute all relative to it
+      estimated_poses_[0] = gtsam::Pose3();
   };
 };
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimation) {
+TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
   // Construct ETH Parser and get data
   std::string reason = "test of gyroscope estimation";
   ETHDatasetParser dataset(reason);
-  static const std::string data_path(
-      FLAGS_test_data_path + std::string("/ForOnlineAlignment/gyro_bias"));
+  static const std::string data_path(DATASET_PATH + std::string(
+                                      "/ForOnlineAlignment/gyro_bias/"));
   int n_begin= 1;
   int n_frames = 5;
   OnlineAlignmentTestData test_data(dataset, data_path,
@@ -158,10 +159,11 @@ TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimation) {
 
   // Construct online alignment class with dummy gravity vector
   gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
-  OnlineGravityAlignment initial_alignment(test_data.estimated_poses_,
-                                           test_data.delta_t_poses_,
-                                           test_data.pims_,
-                                           n_gravity);
+  OnlineGravityAlignment initial_alignment(
+                      test_data.estimated_poses_,
+                      test_data.delta_t_poses_,
+                      test_data.pims_,
+                      n_gravity);
 
   // Initialize OnlineAlignment
   gtsam::Vector3 gyro_bias = test_data.imu_bias_.gyroscope();
@@ -180,8 +182,8 @@ TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimationAHRS) {
   // Construct ETH Parser and get data
   std::string reason = "test of gyroscope estimation AHRS";
   ETHDatasetParser dataset(reason);
-  static const std::string data_path(
-      FLAGS_test_data_path + std::string("/ForOnlineAlignment/gyro_bias/"));
+  static const std::string data_path(DATASET_PATH + std::string(
+                                      "/ForOnlineAlignment/gyro_bias/"));
   int n_begin= 1;
   int n_frames = 5;
   OnlineAlignmentTestData test_data(dataset, data_path,
@@ -190,8 +192,11 @@ TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimationAHRS) {
   // Construct online alignment class with dummy gravity vector
   gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
   OnlineGravityAlignment initial_alignment(
-      test_data.estimated_poses_, test_data.delta_t_poses_, test_data.pims_,
-      n_gravity, test_data.ahrs_pim_);
+                      test_data.estimated_poses_,
+                      test_data.delta_t_poses_,
+                      test_data.pims_,
+                      n_gravity,
+                      test_data.ahrs_pim_);
 
   // Initialize OnlineAlignment
   gtsam::Vector3 gyro_bias = test_data.imu_bias_.gyroscope();
@@ -206,14 +211,14 @@ TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimationAHRS) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, DISABLED_CreateTangentBasis) {
+TEST(testOnlineAlignment, CreateTangentBasis) {
   for (int i=0; i<20; i++) {
     // Create random vector (this is not unit vector!)
     gtsam::Vector3 random_vector = UtilsOpenCV::RandomVectorGenerator(1.0);
 
     // Create tangent basis to random vector
     gtsam::Matrix tangent_basis =
-        OnlineGravityAlignment::createTangentBasis(random_vector);
+            OnlineGravityAlignment::createTangentBasis(random_vector);
 
     // Check size is corrrect
     CHECK_EQ(tangent_basis.cols(), 2);
@@ -235,12 +240,11 @@ TEST(testOnlineAlignment, DISABLED_CreateTangentBasis) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, DISABLED_OnlineGravityAlignment) {
+TEST(testOnlineAlignment, OnlineGravityAlignment) {
   // Construct ETH Parser and get data
   std::string reason = "test of alignment estimation";
   ETHDatasetParser dataset(reason);
-  static const std::string data_path(
-      FLAGS_test_data_path + std::string("/ForOnlineAlignment/alignment"));
+  static const std::string data_path(DATASET_PATH + std::string("/ForOnlineAlignment/alignment/"));
   int n_begin= 1;
   int n_frames = 40;
   OnlineAlignmentTestData test_data(dataset, data_path,
@@ -254,10 +258,11 @@ TEST(testOnlineAlignment, DISABLED_OnlineGravityAlignment) {
 
   // Construct online alignment class with world gravity vector
   gtsam::Vector3 n_gravity(0.0, 0.0, -9.81);
-  OnlineGravityAlignment initial_alignment(test_data.estimated_poses_,
-                                           test_data.delta_t_poses_,
-                                           test_data.pims_,
-                                           n_gravity);
+  OnlineGravityAlignment initial_alignment(
+                      test_data.estimated_poses_,
+                      test_data.delta_t_poses_,
+                      test_data.pims_,
+                      n_gravity);
 
   // Compute online gravity alignment (without gyroscope bias estimation)
   CHECK(initial_alignment.alignVisualInertialEstimates(&gyro_bias, &g_iter,
@@ -286,13 +291,13 @@ TEST(testOnlineAlignment, DISABLED_OnlineGravityAlignment) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, DISABLED_GravityAlignmentRealData) {
+TEST(testOnlineAlignment, GravityAlignmentRealData) {
   for (int i = 0; i < 30; i++) {
     // Construct ETH Parser and get data
     std::string reason = "test of alignment estimation - real data";
     ETHDatasetParser dataset(reason);
     static const std::string data_path(
-        FLAGS_test_data_path + std::string("/ForOnlineAlignment/real_data/"));
+        DATASET_PATH + std::string("/ForOnlineAlignment/real_data/"));
     int n_begin = int(UtilsOpenCV::RandomFloatGenerator(3000));
     int n_frames = 40;
     OnlineAlignmentTestData test_data(dataset, data_path, n_begin, n_frames);
@@ -325,6 +330,7 @@ TEST(testOnlineAlignment, DISABLED_GravityAlignmentRealData) {
     EXPECT_NEAR(real_body_grav.x(), g_iter.x(), tol_RD_gv);
     EXPECT_NEAR(real_body_grav.y(), g_iter.y(), tol_RD_gv);
     EXPECT_NEAR(real_body_grav.z(), g_iter.z(), tol_RD_gv);
+
 
     EXPECT_NEAR(fabs(remainder(real_init_pose.rotation().pitch() -
       init_navstate.pose().rotation().pitch(), 2*M_PI)), 0.0, tol_RD_an);
