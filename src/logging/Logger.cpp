@@ -326,20 +326,20 @@ void FrontendLogger::logFrontendStats(const DebugTrackerInfo& tracker_info,
   // We log frontend results in csv format.
   static bool is_header_written = false;
 
-  std::ofstream& output_frontend_stream = output_frontend_stats_.ofstream_;
+  std::ofstream& output_stream_stats = output_frontend_stats_.ofstream_;
   if (!is_header_written) {
-    output_frontend_stream << "mono_status, stereo_status, nr_keypoints, "
-                           << "nrDetFeat, nrTrackFeat, nrMoIn, nrMoPu, nrStIn, "
-                           << "nrStPu, moRaIt, stRaIt, nrVaRKP, nrNoLRKP, "
-                           << "nrNoRRKP, nrNoDRKP, nrFaARKP, featDetTime, "
-                           << "featTrackTime, moRanTime, stRanTime, "
-                           << "featSelTime, extCorn, needNCorn"
-                           << std::endl;
+    output_stream_stats << "mono_status, stereo_status, nr_keypoints, "
+                        << "nrDetFeat, nrTrackFeat, nrMoIn, nrMoPu, nrStIn, "
+                        << "nrStPu, moRaIt, stRaIt, nrVaRKP, nrNoLRKP, "
+                        << "nrNoRRKP, nrNoDRKP, nrFaARKP, featDetTime, "
+                        << "featTrackTime, moRanTime, stRanTime, "
+                        << "featSelTime, extCorn, needNCorn"
+                        << std::endl;
     is_header_written = true;
   }
 
   // Mono status.
-  output_frontend_stream << TrackerStatusSummary::asString(
+  output_stream_stats << TrackerStatusSummary::asString(
                                 tracker_summary.kfTrackingStatus_mono_)
                          << ", "
   // Stereo status.
@@ -348,7 +348,6 @@ void FrontendLogger::logFrontendStats(const DebugTrackerInfo& tracker_info,
                          << ", "
   // Nr of keypoints.
                          << nrKeypoints << ", "
-
   // Feature detection, tracking and ransac.
                          << tracker_info.nrDetectedFeatures_ << ", "
                          << tracker_info.nrTrackerFeatures_ << ", "
@@ -358,20 +357,17 @@ void FrontendLogger::logFrontendStats(const DebugTrackerInfo& tracker_info,
                          << tracker_info.nrStereoPutatives_ << ", "
                          << tracker_info.monoRansacIters_ << ", "
                          << tracker_info.stereoRansacIters_ << ", "
-
   // Performance of sparse-stereo-matching and ransac.
                          << tracker_info.nrValidRKP_ << ", "
                          << tracker_info.nrNoLeftRectRKP_ << ", "
                          << tracker_info.nrNoRightRectRKP_ << ", "
                          << tracker_info.nrNoDepthRKP_ << ", "
                          << tracker_info.nrFailedArunRKP_ << ", "
-
   // Info about timing.
                          << tracker_info.featureDetectionTime_ << ", "
                          << tracker_info.featureTrackingTime_ << ", "
                          << tracker_info.monoRansacTime_ << ", "
                          << tracker_info.stereoRansacTime_ << ", "
-
   // Info about feature selector.
                          << tracker_info.featureSelectionTime_ << ", "
                          << tracker_info.extracted_corners_ << ", "
@@ -385,10 +381,9 @@ void FrontendLogger::logFrontendRansac(
     const Timestamp& timestamp_lkf) {
   // We log the poses in csv format for later alignement and analysis.
   static bool is_header_written = false;
-  std::ofstream& output_stream_mono =
-      filename_to_outstream_.at(output_frontend_ransac_mono_);
+  std::ofstream& output_stream_mono = output_frontend_ransac_mono_.ofstream_;
   std::ofstream& output_stream_stereo =
-     filename_to_outstream_.at(output_frontend_ransac_stereo_);
+      output_frontend_ransac_stereo_.ofstream_;
 
   if (!is_header_written) {
     output_stream_mono << "timestamp_lkf, x, y, z, qx, qy, qz, qw, vx, vy, vz, "
@@ -424,10 +419,6 @@ void FrontendLogger::logFrontendRansac(
                        << 0 << ", " << 0 << ", " << 0 << ", " << 0 << ", "
                        << 0 << ", " << 0 << ", " << 0 << ", " << 0 << ", " << 0
                        << std::endl;
-}
-
-  // End of line
-  output_frontend_stream << std::endl;
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

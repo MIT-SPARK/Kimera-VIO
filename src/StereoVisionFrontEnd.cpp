@@ -162,7 +162,7 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
           getTrackerInfo(),
           trackerStatusSummary_,
           stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
-      logger_.logFrontendRansac(
+      logger_->logFrontendRansac(
           getRelativePoseBodyMono(),
           getRelativePoseBodyStereo(),
           stereoFrame_lkf_->getTimestamp());
