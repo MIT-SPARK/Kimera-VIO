@@ -15,19 +15,20 @@
  * robots. International Conference on Intelligent Robots and Systems (IROS).
  * IEEE, 2017.
  *
+ * @author Antoni Rosinol
  * @author Sandro Berchier
  * @author Luca Carlone
  */
 
-#ifndef OnlineGravityAlignment_H_
-#define OnlineGravityAlignment_H_
+#pragma once
 
 #include <vector>
+
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/AHRSFactor.h>
+#include <gtsam/navigation/ImuFactor.h>
 
 #include "OnlineGravityAlignment-definitions.h"
-#include "imu-frontend/ImuFrontEnd.h"
 
 namespace VIO {
 
@@ -35,11 +36,12 @@ namespace VIO {
 typedef std::vector<gtsam::Pose3> AlignmentPoses;
 typedef std::vector<gtsam::PreintegratedImuMeasurements> AlignmentPims;
 typedef std::vector<VisualInertialFrame> VisualInertialFrames;
-typedef std::vector<gtsam::AHRSFactor::PreintegratedMeasurements> InitialAHRSPims;
+typedef std::vector<gtsam::AHRSFactor::PreintegratedMeasurements>
+    InitialAHRSPims;
 
 // Class with functions for online initialization
 class OnlineGravityAlignment {
-public:
+ public:
   /* ------------------------------------------------------------------------ */
   OnlineGravityAlignment(const AlignmentPoses &estimated_body_poses,
                          const std::vector<double> &delta_t_camera,
@@ -50,46 +52,46 @@ public:
   /* ------------------------------------------------------------------------ */
   ~OnlineGravityAlignment() = default;
 
-public:
+ public:
   /* ------------------------------------------------------------------------ */
   bool alignVisualInertialEstimates(gtsam::Vector3 *gyro_bias,
                                     gtsam::Vector3 *g_iter,
                                     gtsam::NavState *init_navstate,
-                                    const bool& estimate_bias = true);
+                                    const bool &estimate_bias = true);
 
   /* ------------------------------------------------------------------------ */
   static gtsam::Matrix createTangentBasis(const gtsam::Vector3 &g0);
 
   /* ------------------------------------------------------------------------ */
   bool estimateGyroscopeBiasOnly(gtsam::Vector3 *gyro_bias,
-                                const bool& use_ahrs_estimator = false);
+                                 const bool &use_ahrs_estimator = false);
 
   /* ------------------------------------------------------------------------ */
   gtsam::Vector3 estimateGyroscopeResiduals(
-                              const VisualInertialFrames &vi_frames);
+      const VisualInertialFrames &vi_frames);
 
-private:
+ private:
   /* ------------------------------------------------------------------------ */
   void constructVisualInertialFrames(const AlignmentPoses &estimated_body_poses,
-                              const std::vector<double> &delta_t_camera,
-                              const AlignmentPims &pims,
-                              VisualInertialFrames *vi_frames);
+                                     const std::vector<double> &delta_t_camera,
+                                     const AlignmentPims &pims,
+                                     VisualInertialFrames *vi_frames);
 
   /* ------------------------------------------------------------------------ */
   bool estimateBiasAndUpdateStates(const AlignmentPims &pims,
-                              const InitialAHRSPims &ahrs_pims,
-                              gtsam::Vector3 *gyro_bias,
-                              VisualInertialFrames *vi_frames,
-                              const bool& use_ahrs_estimator);
+                                   const InitialAHRSPims &ahrs_pims,
+                                   gtsam::Vector3 *gyro_bias,
+                                   VisualInertialFrames *vi_frames,
+                                   const bool &use_ahrs_estimator);
 
   /* ------------------------------------------------------------------------ */
   void estimateGyroscopeBias(const VisualInertialFrames &vi_frames,
-                              gtsam::Vector3 *gyro_bias);
+                             gtsam::Vector3 *gyro_bias);
 
   /* ------------------------------------------------------------------------ */
   void estimateGyroscopeBiasAHRS(const VisualInertialFrames &vi_frames,
-      const InitialAHRSPims &ahrs_pims,
-      gtsam::Vector3 *gyro_bias);
+                                 const InitialAHRSPims &ahrs_pims,
+                                 gtsam::Vector3 *gyro_bias);
 
   /* ------------------------------------------------------------------------ */
   void updateDeltaStates(const AlignmentPims &pims,
@@ -108,7 +110,7 @@ private:
                      gtsam::Vector3 *g_iter,
                      gtsam::Velocity3 *init_vel);
 
-private:
+ private:
   const AlignmentPims pims_;
   const AlignmentPoses estimated_body_poses_;
   const std::vector<double> delta_t_camera_;
@@ -116,6 +118,4 @@ private:
   const InitialAHRSPims ahrs_pims_;
 };
 
-} // namespace VIO
-
-#endif /* OnlineGravityAlignment_H_ */
+}  // namespace VIO

@@ -36,7 +36,7 @@ namespace VIO {
 /*
  * Parse all images and camera calibration for an ETH dataset.
  */
-class ETHDatasetParser : public DataProvider {
+class ETHDatasetParser : public PreintegratedImuMeasurements {
  public:
   ETHDatasetParser();
   ETHDatasetParser(const std::string& input_string);

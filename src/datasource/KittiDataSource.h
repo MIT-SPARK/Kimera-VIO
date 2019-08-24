@@ -22,7 +22,7 @@
 
 namespace VIO {
 
-class KittiDataProvider : public DataProvider {
+class KittiDataProvider : public PreintegratedImuMeasurements {
  public:
   KittiDataProvider();
   virtual ~KittiDataProvider();

@@ -34,7 +34,8 @@ KittiDataProvider::KittiData::operator bool() const {
   return !empty_data && !missing_data;
 }
 
-KittiDataProvider::KittiDataProvider() : DataProvider(), kitti_data_() {
+KittiDataProvider::KittiDataProvider()
+    : PreintegratedImuMeasurements(), kitti_data_() {
   // Parse Kitti dataset.
   parseKittiData(dataset_path_, &kitti_data_);
 }
