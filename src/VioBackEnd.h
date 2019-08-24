@@ -46,12 +46,12 @@
 #include <gtsam/nonlinear/LinearContainerFactor.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 
-#include "ImuFrontEnd.h"
 #include "StereoVisionFrontEnd-definitions.h"
 #include "UtilsOpenCV.h"
 #include "VioBackEnd-definitions.h"
 #include "VioBackEndParams.h"
 #include "factors/PointPlaneFactor.h"
+#include "imu-frontend/ImuFrontEnd.h"
 #include "utils/ThreadsafeQueue.h"
 
 #include "logging/Logger.h"

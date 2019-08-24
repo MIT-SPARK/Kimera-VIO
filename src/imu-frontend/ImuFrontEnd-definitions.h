@@ -15,6 +15,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+
 #include <gtsam/base/Matrix.h>
 #include <gtsam/navigation/ImuBias.h>
 
@@ -65,4 +66,4 @@ struct ImuMeasurements {
   ImuAccGyrS measurements_;
 };
 
-} // End of VIO namespace.
+}  // namespace VIO

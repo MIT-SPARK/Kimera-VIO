@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <boost/shared_ptr.hpp> // used for opengv
 #include <time.h>
 #include <boost/shared_ptr.hpp>  // used for opengv
 

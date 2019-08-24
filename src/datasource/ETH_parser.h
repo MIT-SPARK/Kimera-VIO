@@ -29,6 +29,7 @@
 
 #include "Frame.h"
 #include "StereoImuSyncPacket.h"
+#include "datasource/DataSource-definitions.h"
 #include "datasource/DataSource.h"
 
 namespace VIO {

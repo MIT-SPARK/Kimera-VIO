@@ -14,8 +14,8 @@
 
 #include "datasource/ETH_parser.h"
 
-#include "ImuFrontEnd-definitions.h"
 #include "StereoFrame.h"
+#include "imu-frontend/ImuFrontEnd-definitions.h"
 
 DEFINE_int32(skip_n_start_frames, 10, "Number of initial frames to skip.");
 DEFINE_int32(skip_n_end_frames, 100, "Number of final frames to skip.");

@@ -9,20 +9,18 @@
 /**
  * @file   ImuFrontEnd.cpp
  * @brief  Class managing sequences of IMU measurements.
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <glog/logging.h>
 
-#include "ImuFrontEnd.h"
 #include "UtilsOpenCV.h"
 #include "common/vio_types.h"
+#include "imu-frontend/ImuFrontEnd.h"
 
 namespace VIO {
 
-////////////////////////////////////////////////////////////////////////////////
-//////////////// FUNCTIONS OF THE CLASS ImuData                       //////////
-////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
 void ImuData::print() const {
   LOG(INFO) << "------------ ImuData::print -------------\n"
@@ -31,17 +29,6 @@ void ImuData::print() const {
             << "imu_rate_std: " << imu_rate_std_ << '\n'
             << "imu_rate_maxMismatch: " << imu_rate_maxMismatch_ << '\n'
             << "nr of imu measurements: " << imu_buffer_.size();
-}
-
-/* -------------------------------------------------------------------------- */
-void ImuParams::print() const {
-  LOG(INFO) << "------------ ImuParams::print -------------";
-  LOG(INFO) << "\ngyroscope_noise_density: " << gyro_noise_ << '\n'
-            << "gyroscope_random_walk: " << gyro_walk_ << '\n'
-            << "accelerometer_noise_density: " << acc_noise_ << '\n'
-            << "accelerometer_random_walk: " << acc_walk_ << '\n'
-            << "n_gravity: " << n_gravity_ << '\n'
-            << "imu_integration_sigma: " << imu_integration_sigma_;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -10,9 +10,10 @@
  * @file   OnlineGravityAlignment.h
  * @brief  Contains initial Online Gravity Alignment functions.
  *
- * Qin, Tong, and Shaojie Shen. 
- * Robust initialization of monocular visual-inertial estimation on aerial robots.
- * International Conference on Intelligent Robots and Systems (IROS). IEEE, 2017.
+ * Qin, Tong, and Shaojie Shen.
+ * Robust initialization of monocular visual-inertial estimation on aerial
+ * robots. International Conference on Intelligent Robots and Systems (IROS).
+ * IEEE, 2017.
  *
  * @author Sandro Berchier
  * @author Luca Carlone
@@ -25,8 +26,8 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/AHRSFactor.h>
 
-#include "ImuFrontEnd.h"
 #include "OnlineGravityAlignment-definitions.h"
+#include "imu-frontend/ImuFrontEnd.h"
 
 namespace VIO {
 

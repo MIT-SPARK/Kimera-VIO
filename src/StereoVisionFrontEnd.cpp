@@ -9,12 +9,13 @@
 /**
  * @file   StereoVisionFrontEnd.cpp
  * @brief  Class describing a stereo tracker
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
-#include <glog/logging.h>
-
 #include "StereoVisionFrontEnd.h"
+
+#include <glog/logging.h>
 
 namespace VIO {
 

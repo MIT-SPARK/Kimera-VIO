@@ -99,4 +99,5 @@ echo """ Launching:
   --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 \
   --backend_type="$BACKEND_TYPE" \
   --parallel_run="$PARALLEL_RUN" \
-  --dataset_type="$DATASET_TYPE"
+  --dataset_type="$DATASET_TYPE" \
+  --log_output=1 --output_path="../output"
