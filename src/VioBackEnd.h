@@ -82,11 +82,14 @@ class VioBackEnd {
   /// @param: timestamp: timestamp of the initial state.
   /// @param: imu_accgyr: used for auto-initialization of VIO pipeline if no
   /// ground-truth is provided. Ignored if not auto-initialized.
-  VioBackEnd(const Pose3& leftCamPose, const Cal3_S2& leftCameraCalRectified,
+  VioBackEnd(const Pose3& leftCamPose,
+             const Cal3_S2& leftCameraCalRectified,
              const double& baseline,
              std::shared_ptr<gtNavState>* initial_state_gt,
-             const Timestamp& timestamp, const ImuAccGyrS& imu_accgyr,
-             const VioBackEndParams& vioParams, const bool log_output = false);
+             const Timestamp& timestamp,
+             const ImuAccGyrS& imu_accgyr,
+             const VioBackEndParams& vioParams,
+             const bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
   // Create and initialize VioBackEnd, without initiaing pose.
@@ -161,10 +164,6 @@ class VioBackEnd {
   // Update covariance matrix using getCurrentStateCovariance()
   // NOT TESTED
   void computeStateCovariance();
-
-  /// Printers
-  /* ------------------------------------------------------------------------ */
-  void print() const;
 
  protected:
   /* ------------------------------------------------------------------------ */
@@ -353,6 +352,9 @@ class VioBackEnd {
 
   /// Private printers.
   /* ------------------------------------------------------------------------ */
+  void print() const;
+
+  /* ------------------------------------------------------------------------ */
   void printSmootherInfo(const gtsam::NonlinearFactorGraph& new_factors_tmp,
                          const gtsam::FactorIndices& delete_slots,
                          const std::string& message = "CATCHING EXCEPTION",
@@ -410,7 +412,7 @@ class VioBackEnd {
   // Debugging post optimization and estimate calculation.
   void postDebug(
       const std::chrono::high_resolution_clock::time_point& total_start_time,
-      std::chrono::high_resolution_clock::time_point start_time);
+      const std::chrono::high_resolution_clock::time_point& start_time);
 
   /* ------------------------------------------------------------------------ */
   // Reset state of debug info.
@@ -521,7 +523,7 @@ class VioBackEnd {
 
   // Logger.
   const bool log_output_ = {false};
-  BackendLogger logger_;
+  std::unique_ptr<BackendLogger> logger_;
 
   // Flags.
   const int verbosity_;

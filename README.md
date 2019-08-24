@@ -123,10 +123,19 @@ Also, check [tips for usage](./docs/tips_usage.md) for interacting with OpenCV's
 We follow the branch, open PR, review, and merge workflow.
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
- To enable these checks you will need to [install linter](./docs/linter_installation.md).
+To enable these checks you will need to [install linter](./docs/linter_installation.md).
+We also provide a `.clang-format` file with the style rules that the repo uses, so that you can use [`clang-format`](https://clang.llvm.org/docs/ClangFormat.html) to reformat your code.
 
 Also, check [tips for development](./docs/tips_development.md) and our [developer guide](./docs/developer_guide.md)
 
-# 5. BSD License
+# 6. FAQ
+
+### 1. Gflags
+  I have added/changed a gflag but it has no effect?
+
+  > Mind that according to gflags specs: 
+  > > If a flag is specified more than once, only the last specification is used; the others are ignored.
+
+# 7. BSD License
 
 SparkVIO is open source under the BSD license, see the [LICENSE.BSD](LICENSE.BSD) file.

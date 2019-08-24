@@ -23,78 +23,75 @@
 
 namespace VIO {
 
-class Logger {
- protected:
-  Logger();
-  virtual ~Logger();
+// Wrapper for std::ofstream to open/close it when created/destructed.
+class OfstreamWrapper {
+ public:
+  OfstreamWrapper(const std::string& filename,
+                  const bool& open_file_in_append_mode = false);
+  ~OfstreamWrapper();
 
+ public:
+  std::ofstream ofstream_;
+
+ private:
   void openLogFile(const std::string& output_file_name,
                    bool open_file_in_append_mode = false);
 
-  std::map<std::string, std::ofstream> filename_to_outstream_;
-
  private:
-  void closeLogFiles();
+  const std::string filename_;
   const std::string output_path_;
+  const bool open_file_in_append_mode = false;
 };
 
-class BackendLogger : private Logger {
+class BackendLogger {
  public:
   BackendLogger();
   ~BackendLogger() = default;
 
-  void logBackendResultsCSV(const VioBackEndOutputPayload& vio_output);
+  void logBackendOutput(const VioBackEndOutputPayload& output);
   void displayInitialStateVioInfo(const gtsam::Vector3& n_gravity_,
                                   const gtsam::Pose3& W_Pose_B_Lkf,
-                                  const gtNavState& initialStateGT,
+                                  const gtNavState& initial_state_gt,
                                   const ImuAccGyrS& imu_accgyr,
                                   const Timestamp& timestamp_k) const;
-  void logBackendResults(
-      const ETHDatasetParser& dataset,
-      const TrackerStatusSummary& tracker_status_summary,
-      const gtsam::Pose3& relative_pose_body_mono,
-      const Tracker& tracker,
-      const gtsam::Pose3& relative_pose_body_stereo,
-      const std::shared_ptr<VioBackEndOutputPayload>& vio_output,
-      const double& horizon,
-      const Timestamp& timestamp_lkf,
-      const Timestamp& timestamp_k,
-      const size_t& k);
+
+ private:
+  void logBackendResultsCSV(const VioBackEndOutputPayload& output);
+  void logSmartFactorsStats(const VioBackEndOutputPayload& output);
+  void logBackendFactorsStats(const VioBackEndOutputPayload& output);
+  void logBackendTiming(const VioBackEndOutputPayload& output);
 
  private:
   // Filenames to be saved in the output folder.
-  const std::string output_poses_vio_filename_csv_ = "output_posesVIO.csv";
-  const std::string output_landmarks_filename_ = "output_landmarks.txt";
+  OfstreamWrapper output_poses_vio_csv_;
+  OfstreamWrapper output_smart_factors_stats_csv_;
+  OfstreamWrapper output_backend_factors_stats_csv_;
+  OfstreamWrapper output_backend_timing_csv_;
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
   double timing_loggerBackend_;
 };
 
-class FrontendLogger : private Logger {
+class FrontendLogger {
  public:
   FrontendLogger();
   ~FrontendLogger() = default;
 
-  void logFrontendResults(const TrackerStatusSummary& tracker_summary,
+  void logFrontendStats(const DebugTrackerInfo& tracker_info,
+                          const TrackerStatusSummary& tracker_summary,
                           const size_t& nrKeypoints);
-  void logTrackerStatistics(const DebugTrackerInfo& tracker_info);
   void logFrontendRansac(const gtsam::Pose3& relative_pose_body_mono,
                          const gtsam::Pose3& relative_pose_body_stereo,
                          const Timestamp& timestamp_lkf);
 
  private:
-  // Filenames to be saved in the output folder.
-  const std::string output_frontend_results_filename_ =
-      "output_frontend_results.csv";
-  const std::string output_frontend_statistics_filename_ =
-      "output_frontend_statistics.csv";
-  const std::string output_frontend_ransac_mono_ =
-      "output_frontend_ransac_mono.csv";
-  const std::string output_frontend_ransac_stereo_ =
-      "output_frontend_ransac_stereo.csv";
+  // StreamWrappers with filenames to which output is saved.
+  OfstreamWrapper output_frontend_stats_;
+  OfstreamWrapper output_frontend_ransac_mono_;
+  OfstreamWrapper output_frontend_ransac_stereo_;
 };
 
-class VisualizerLogger : private Logger {
+class VisualizerLogger {
  public:
   VisualizerLogger();
   ~VisualizerLogger() = default;
@@ -109,11 +106,11 @@ class VisualizerLogger : private Logger {
 
  private:
   // Filenames to be saved in the output folder.
-  const std::string output_mesh_filename_ = "output_mesh.ply";
-  const std::string output_landmarks_filename_ = "output_landmarks.txt";
+  OfstreamWrapper output_mesh_;
+  OfstreamWrapper output_landmarks_;
 };
 
-class PipelineLogger : private Logger {
+class PipelineLogger {
  public:
   PipelineLogger();
   ~PipelineLogger() = default;
@@ -122,7 +119,7 @@ class PipelineLogger : private Logger {
 
  private:
   // Filenames to be saved in the output folder.
-  const std::string output_pipeline_timing_ = "output_timingOverall.csv";
+  OfstreamWrapper output_pipeline_timing_;
 };
 
 }  // namespace VIO

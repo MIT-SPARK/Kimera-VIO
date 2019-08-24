@@ -19,8 +19,10 @@
 namespace VIO {
 
 StereoVisionFrontEnd::StereoVisionFrontEnd(
-    const ImuParams& imu_params, const ImuBias& imu_initial_bias,
-    const VioFrontEndParams& trackerParams, int save_images_option,
+    const ImuParams& imu_params,
+    const ImuBias& imu_initial_bias,
+    const VioFrontEndParams& trackerParams,
+    int save_images_option,
     bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
@@ -29,8 +31,11 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
       save_images_option_(save_images_option),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
-      log_output_(log_output),
-      logger_() {  // Only for debugging and visualization.
+      logger_(nullptr) {  // Only for debugging and visualization.
+
+  if (log_output) {
+    logger_ = VIO::make_unique<FrontendLogger>();
+  }
 
   // Instantiate IMU frontend.
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
@@ -152,11 +157,11 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
               << " smart measurements";
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
-    if (log_output_) {
-      logger_.logFrontendResults(
+    if (logger_) {
+      logger_->logFrontendStats(
+          getTrackerInfo(),
           trackerStatusSummary_,
           stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
-      logger_.logTrackerStatistics(getTrackerInfo());
       logger_.logFrontendRansac(
           getRelativePoseBodyMono(),
           getRelativePoseBodyStereo(),

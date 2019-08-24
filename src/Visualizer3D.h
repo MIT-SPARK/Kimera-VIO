@@ -400,7 +400,7 @@ class Visualizer3D {
   // widgets.
   WindowData window_data_;
 
-  VisualizerLogger logger_;
+  std::unique_ptr<VisualizerLogger> logger_;
 
   /* ------------------------------------------------------------------------ */
   // Log mesh to ply file.
