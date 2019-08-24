@@ -14,8 +14,11 @@
 
 #pragma once
 
+#include <gflags/gflags.h>
 #include <functional>
 #include <string>
+
+#include <gtsam/navigation/ImuBias.h>
 
 #include "ImuFrontEnd.h"
 #include "RegularVioBackEndParams.h"
@@ -24,11 +27,6 @@
 #include "VioFrontEndParams.h"
 #include "loopclosure/LoopClosureDetectorParams.h"
 
-#include <gtsam/navigation/ImuBias.h>
-
-#include <gflags/gflags.h>
-
-//########### SPARK_VIO_ROS ############################################
 namespace VIO {
 
 // TODO make new file for Ground Truth Data and the like,
@@ -56,25 +54,22 @@ class gtNavState {
   gtsam::imuBias::ConstantBias imu_bias_;
 
   void print(const std::string& message = " ") const;
-
-  gtsam::Pose3 pose() const { return pose_; };
 };
 
 // Struct for performance in initialization
 struct InitializationPerformance {
   public:
     // Default constructor
-    InitializationPerformance(
-      const Timestamp init_timestamp,
-      const int init_n_frames,
-      const double avg_rotationErrorBA,
-      const double avg_tranErrorBA,
-      const gtNavState init_nav_state,
-      const gtsam::Vector3 init_gravity,
-      const gtNavState gt_nav_state,
-      const gtsam::Vector3 gt_gravity);
+   InitializationPerformance(const Timestamp& init_timestamp,
+                             const int& init_n_frames,
+                             const double& avg_rotationErrorBA,
+                             const double& avg_tranErrorBA,
+                             const gtNavState& init_nav_state,
+                             const gtsam::Vector3& init_gravity,
+                             const gtNavState& gt_nav_state,
+                             const gtsam::Vector3& gt_gravity);
 
-    void print() const;
+   void print() const;
 
   public:
     const Timestamp init_timestamp_;

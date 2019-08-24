@@ -9,7 +9,7 @@
 /**
  * @file   Mesher.h
  * @brief  Build and visualize 2D mesh from Frame
- * @author Luca Carlone, AJ Haeffner, Antoni Rosinol
+ * @author Antoni Rosinol, Luca Carlone
  */
 
 #include "mesh/Mesher.h"
@@ -20,7 +20,6 @@
 #include <algorithm>
 #include <opencv2/imgproc.hpp>
 
-#include "LoggerMatlab.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
 
@@ -619,26 +618,13 @@ void Mesher::clusterNormalsPerpendicularToAxis(
     const cv::Point3f& axis, const std::vector<cv::Point3f>& normals,
     const double& tolerance, std::vector<int>* cluster_normals_idx) {
   size_t idx = 0;
-  // TODO, this should be in the same loop as the one calculating
-  // the normals...
-  // TODO: remove logger.
   static constexpr bool log_normals = false;
   std::vector<cv::Point3f> cluster_normals;
   for (const cv::Point3f& normal : normals) {
     if (isNormalPerpendicularToAxis(axis, normal, tolerance)) {
       cluster_normals_idx->push_back(idx);
-      // TODO: remove logger.
-      if (log_normals) {
-        cluster_normals.push_back(normal);
-      }
     }
     idx++;
-  }
-  if (log_normals) {
-    LoggerMatlab logger;
-    logger.openLogFiles(4);
-    logger.logNormals(cluster_normals);
-    logger.closeLogFiles(4);
   }
 }
 

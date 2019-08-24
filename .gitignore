@@ -2,7 +2,7 @@
 /data-sets/
 /.settings/
 /matlab/result-*
-/scripts/*/*.txt
+/scripts/**/*.txt
 /*/*.csv
 .ipynb_checkpoints
 

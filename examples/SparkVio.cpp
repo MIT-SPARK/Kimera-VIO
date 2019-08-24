@@ -19,9 +19,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "LoggerMatlab.h"
 #include "datasource/ETH_parser.h"
 #include "datasource/KittiDataSource.h"
+#include "logging/Logger.h"
 #include "pipeline/Pipeline.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
@@ -88,10 +88,8 @@ int main(int argc, char *argv[]) {
 
   if (is_pipeline_successful) {
     // Log overall time of pipeline run.
-    VIO::LoggerMatlab logger;
-    logger.openLogFiles(11);
+    VIO::PipelineLogger logger;
     logger.logPipelineOverallTiming(spin_duration);
-    logger.closeLogFiles();
   }
 
   return is_pipeline_successful ? EXIT_SUCCESS : EXIT_FAILURE;

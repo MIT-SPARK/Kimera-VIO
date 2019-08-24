@@ -124,7 +124,6 @@ Pipeline::Pipeline(const PipelineParams &params, bool parallel_run)
       visualizer_input_queue_("visualizer_input_queue"),
       visualizer_output_queue_("visualizer_output_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
-  if (FLAGS_log_output) logger_.openLogFiles();
 
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.
@@ -601,10 +600,6 @@ void Pipeline::shutdown() {
   // if (parallel_run_) {
   joinThreads();
   //}
-  if (FLAGS_log_output) {
-    LOG(INFO) << "Closing log files";
-    logger_.closeLogFiles();
-  }
   LOG(INFO) << "Pipeline destructor finished.";
 }
 

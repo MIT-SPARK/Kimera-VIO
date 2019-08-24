@@ -97,55 +97,51 @@ void GroundTruthData::print() const {
 }
 
 InitializationPerformance::InitializationPerformance(
-    const Timestamp init_timestamp,
-    const int init_n_frames,
-    const double avg_rotationErrorBA,
-    const double avg_tranErrorBA,
-    const gtNavState init_nav_state,
-    const gtsam::Vector3 init_gravity,
-    const gtNavState gt_nav_state,
-    const gtsam::Vector3 gt_gravity)
-  : init_timestamp_(init_timestamp),
-    init_n_frames_(init_n_frames),
-    avg_rotationErrorBA_(avg_rotationErrorBA),
-    avg_tranErrorBA_(avg_tranErrorBA),
-    init_nav_state_(init_nav_state),
-    init_gravity_(init_gravity),
-    gt_nav_state_(gt_nav_state),
-    gt_gravity_(gt_gravity) {}
+    const Timestamp& init_timestamp,
+    const int& init_n_frames,
+    const double& avg_rotationErrorBA,
+    const double& avg_tranErrorBA,
+    const gtNavState& init_nav_state,
+    const gtsam::Vector3& init_gravity,
+    const gtNavState& gt_nav_state,
+    const gtsam::Vector3& gt_gravity)
+    : init_timestamp_(init_timestamp),
+      init_n_frames_(init_n_frames),
+      avg_rotationErrorBA_(avg_rotationErrorBA),
+      avg_tranErrorBA_(avg_tranErrorBA),
+      init_nav_state_(init_nav_state),
+      init_gravity_(init_gravity),
+      gt_nav_state_(gt_nav_state),
+      gt_gravity_(gt_gravity) {}
 
 void InitializationPerformance::print() const {
       // Log everything
       LOG(INFO) << "BUNDLE ADJUSTMENT\n"
-              << "Average relative errors: (BA vs. GT)\n"
-              << "(avg. relative rot error)\n"
-              << avg_rotationErrorBA_
-              << "\n(avg. relative tran error)\n"
-              << avg_tranErrorBA_
-              << "\nONLINE GRAVITY ALIGNMENT\n"
-              << "Initialization state:\n"
-              << "(timestamp)\n"
-              << init_timestamp_
-              << "\n(pitch estimate)\n"
-              << init_nav_state_.pose().rotation().pitch()*180.0/M_PI
-              << "\n(pitch GT)\n"
-              << gt_nav_state_.pose().rotation().pitch()*180.0/M_PI
-              << "\n(roll estimate)\n"
-              << init_nav_state_.pose().rotation().roll()*180.0/M_PI
-              << "\n(roll GT)\n"
-              << gt_nav_state_.pose().rotation().roll()*180.0/M_PI
-              << "\n(gyroscope bias estimate)\n"
-              << init_nav_state_.imu_bias_.gyroscope()
-              << "\n(gyroscope bias GT)\n"
-              << gt_nav_state_.imu_bias_.gyroscope()
-              << "\n(initial body frame velocity estimate)\n"
-              << init_nav_state_.velocity_
-              << "\n(initial body frame velocity GT)\n"
-              << gt_nav_state_.velocity_
-              << "\n(initial body frame gravity estimate)\n"
-              << init_gravity_
-              << "\n(initial body frame gravity GT)\n"
-              << gt_gravity_;
+                << "Average relative errors: (BA vs. GT)\n"
+                << "(avg. relative rot error)\n"
+                << avg_rotationErrorBA_ << "\n(avg. relative tran error)\n"
+                << avg_tranErrorBA_ << "\nONLINE GRAVITY ALIGNMENT\n"
+                << "Initialization state:\n"
+                << "(timestamp)\n"
+                << init_timestamp_ << "\n(pitch estimate)\n"
+                << init_nav_state_.pose_.rotation().pitch() * 180.0 / M_PI
+                << "\n(pitch GT)\n"
+                << gt_nav_state_.pose_.rotation().pitch() * 180.0 / M_PI
+                << "\n(roll estimate)\n"
+                << init_nav_state_.pose_.rotation().roll() * 180.0 / M_PI
+                << "\n(roll GT)\n"
+                << gt_nav_state_.pose_.rotation().roll() * 180.0 / M_PI
+                << "\n(gyroscope bias estimate)\n"
+                << init_nav_state_.imu_bias_.gyroscope()
+                << "\n(gyroscope bias GT)\n"
+                << gt_nav_state_.imu_bias_.gyroscope()
+                << "\n(initial body frame velocity estimate)\n"
+                << init_nav_state_.velocity_
+                << "\n(initial body frame velocity GT)\n"
+                << gt_nav_state_.velocity_
+                << "\n(initial body frame gravity estimate)\n"
+                << init_gravity_ << "\n(initial body frame gravity GT)\n"
+                << gt_gravity_;
 }
 
 DataProvider::DataProvider() :

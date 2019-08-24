@@ -79,7 +79,6 @@ add_library(SparkVio SHARED
   src/VioBackEnd.cpp
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
-  src/LoggerMatlab.cpp
   src/FeatureSelector.cpp
   src/YamlParser.h
   src/VioBackEndParams.h
@@ -108,6 +107,8 @@ include(src/pipeline/CMakeLists.txt)
 include(src/common/CMakeLists.txt)
 ### Add source code for LoopClosureDetector
 include(src/loopclosure/CMakeLists.txt)
+### Add source code for logging
+include(src/logging/CMakeLists.txt)
 
 target_link_libraries(SparkVio
   PRIVATE
@@ -320,5 +321,5 @@ if(NOT MSVC AND NOT XCODE_VERSION)
       message(WARNING "  Build type is not in RELEASE, this will slow down the code.")
     endif()
     message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
-    message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS_RELEASE}")
+    message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()

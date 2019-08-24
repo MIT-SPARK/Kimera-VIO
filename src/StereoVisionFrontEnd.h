@@ -12,8 +12,7 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#ifndef StereoVisionFrontEnd_H_
-#define StereoVisionFrontEnd_H_
+#pragma once
 
 #include <boost/shared_ptr.hpp> // used for opengv
 
@@ -33,6 +32,7 @@
 #include "Tracker-definitions.h"
 #include "StereoVisionFrontEnd-definitions.h"
 #include "VioBackEnd-definitions.h"
+#include "logging/Logger.h"
 
 namespace VIO {
 
@@ -285,9 +285,8 @@ private:
   std::atomic_bool is_thread_working_ = {false};
 
   // Frontend logger.
-  const bool log_output_ = {false};
+  std::unique_ptr<FrontendLogger> logger_;
 };
 
 } // namespace VIO
-#endif /* StereoVisionFrontEnd_H_ */
 
