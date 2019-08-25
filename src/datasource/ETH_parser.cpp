@@ -8,8 +8,10 @@
 
 /**
  * @file   ETH_parser.h
- * @brief  Reads ETH's Euroc dataset.
- * @author Antoni Rosinol, Luca Carlone, Yun Chang
+ * @brief  Parse EUROC dataset.
+ * @author Antoni Rosinol,
+ * @author Yun Chang,
+ * @author Luca Carlone
  */
 
 #include "datasource/ETH_parser.h"
@@ -22,8 +24,6 @@ DEFINE_int32(skip_n_end_frames, 100, "Number of final frames to skip.");
 
 namespace VIO {
 
-//////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
-////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::ETHDatasetParser()
     : DataProvider(), imuData_() {
@@ -47,12 +47,6 @@ ETHDatasetParser::ETHDatasetParser()
   }
   CHECK_GT(final_k_, 0);
   CHECK_LT(final_k_, nr_images);
-}
-
-/* -------------------------------------------------------------------------- */
-ETHDatasetParser::ETHDatasetParser(const std::string& input_string) {
-    LOG(INFO) << "Dummy ETHDatasetParser constructor called. Purpose: "
-              << input_string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -118,14 +112,6 @@ void ETHDatasetParser::spinOnce(
 
   timestamp_last_frame = timestamp_frame_k;
 
-  // TODO(Toni) remove this, it's just because the logging in the pipeline needs
-  // it, but totally useless...
-  static bool do_once = true;
-  if (do_once) {
-    timestamp_first_lkf_ = timestamp_frame_k;
-    do_once = false;
-  }
-
   // TODO(Toni) alternatively push here to a queue, and give that queue to the
   // VIO pipeline so it can pull from it.
   // Call VIO Pipeline.
@@ -177,6 +163,13 @@ void ETHDatasetParser::parse() {
   // Parse backend/frontend parameters
   parseBackendParams();
   parseFrontendParams();
+
+  // Send first ground-truth pose to VIO for initialization if requested.
+  if (pipeline_params_.backend_params_->autoInitialize_ == 0) {
+    // We want to initialize from ground-truth.
+    pipeline_params_.backend_params_->initial_ground_truth_state_ =
+        getGroundTruthState(timestampAtFrame(initial_k_));
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -588,14 +581,14 @@ bool ETHDatasetParser::isGroundTruthAvailable() const {
 /* -------------------------------------------------------------------------- */
 VioNavState ETHDatasetParser::getGroundTruthState(
     const Timestamp& timestamp) const {
-  auto it_low_up = gtData_.mapToGt_.equal_range(timestamp);
-  auto it_low = it_low_up.first;  // closest, non-lesser
+  const auto& it_low =
+      gtData_.mapToGt_.equal_range(timestamp).first;  // closest, non-lesser
 
   // Sanity check.
   double delta_low = double(it_low->first - timestamp) * 1e-9;
   auto it_begin = gtData_.mapToGt_.begin();
   LOG_IF(FATAL, timestamp > it_begin->first && delta_low > 0.01)
-      << "\n getGroundTruthState: something wrong " << delta_low;
+      << "getGroundTruthState: something wrong " << delta_low;
   return it_low->second;
 }
 

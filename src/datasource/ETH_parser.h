@@ -8,12 +8,13 @@
 
 /**
  * @file   ETH_parser.h
- * @brief  Reads ETH's Euroc dataset.
- * @author Antoni Rosinol, Luca Carlone, Chang
+ * @brief  Parse EUROC dataset.
+ * @author Antoni Rosinol,
+ * @author Yun Chang,
+ * @author Luca Carlone
  */
 
-#ifndef ETH_parser_H_
-#define ETH_parser_H_
+#pragma once
 
 #include <stdlib.h>
 #include <fstream>
@@ -39,10 +40,9 @@ namespace VIO {
 class ETHDatasetParser : public DataProvider {
  public:
   ETHDatasetParser();
-  ETHDatasetParser(const std::string& input_string);
   virtual ~ETHDatasetParser();
 
-  // Gt data.
+  // Ground truth data.
   GroundTruthData gtData_;
 
   // IMU data.
@@ -85,7 +85,8 @@ public:
   bool parseDataset(const std::string& input_dataset_path,
                     const std::string& leftCameraName,
                     const std::string& rightCameraName,
-                    const std::string& imuName, const std::string& gtSensorName,
+                    const std::string& imuName,
+                    const std::string& gtSensorName,
                     bool doParseImages = true);
 
   // Retrieve relative pose between timestamps.
@@ -122,12 +123,6 @@ public:
 
   // Print info about dataset.
   void print() const;
-
- public:
-  // THIS IS ONLY HERE BECAUSE the pipeline needs to know what is this value.
-  // But it should not need to!!
-  // Put it as a static variable in the spin function.
-  Timestamp timestamp_first_lkf_;
 
  private:
   bool parseImuData(const std::string& input_dataset_path,
@@ -192,5 +187,3 @@ public:
 };
 
 }  // namespace VIO
-
-#endif /* ETH_parser_H_ */

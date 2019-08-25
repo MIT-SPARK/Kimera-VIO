@@ -20,25 +20,25 @@
 
 namespace VIO {
 
-gtNavState::gtNavState(const gtsam::Pose3& pose,
-                       const gtsam::Vector3& velocity,
-                       const gtsam::imuBias::ConstantBias& imu_bias)
+VioNavState::VioNavState(const gtsam::Pose3& pose,
+                         const gtsam::Vector3& velocity,
+                         const gtsam::imuBias::ConstantBias& imu_bias)
     : pose_(pose), velocity_(velocity), imu_bias_(imu_bias) {}
 
-gtNavState::gtNavState(const gtsam::NavState& nav_state,
-                       const gtsam::imuBias::ConstantBias& imu_bias)
+VioNavState::VioNavState(const gtsam::NavState& nav_state,
+                         const gtsam::imuBias::ConstantBias& imu_bias)
     : pose_(nav_state.pose()),
       velocity_(nav_state.velocity()),
       imu_bias_(imu_bias) {}
 
-void gtNavState::print(const std::string& message) const {
+void VioNavState::print(const std::string& message) const {
   LOG(INFO) << "--- " << message << "--- ";
   pose_.print("\n pose: \n");
   LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
   imu_bias_.print("\n imuBias: \n");
 }
 
-bool gtNavState::equals(const gtNavState& rhs) const {
+bool VioNavState::equals(const VioNavState& rhs) const {
   return pose_.equals(rhs.pose_) && imu_bias_.equals(rhs.imu_bias_) &&
          velocity_.isApprox(rhs.velocity_);
 }
@@ -88,9 +88,9 @@ InitializationPerformance::InitializationPerformance(
     const int& init_n_frames,
     const double& avg_rotationErrorBA,
     const double& avg_tranErrorBA,
-    const gtNavState& init_nav_state,
+    const VioNavState& init_nav_state,
     const gtsam::Vector3& init_gravity,
-    const gtNavState& gt_nav_state,
+    const VioNavState& gt_nav_state,
     const gtsam::Vector3& gt_gravity)
     : init_timestamp_(init_timestamp),
       init_n_frames_(init_n_frames),

@@ -94,8 +94,8 @@ class GroundTruthData {
   // Data rate in seconds, for debug.
   double gt_rate_;
 
-  // Map from timestamp to gtNavState.
-  std::map<long long, VioNavState> mapToGt_;
+  // Map from timestamp to VioNavState.
+  std::map<Timestamp, VioNavState> mapToGt_;
 };
 
 /*
