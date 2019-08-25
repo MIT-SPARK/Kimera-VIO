@@ -191,7 +191,7 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
 
   // sanity check: IMU is usually chosen as the body frame
   gtsam::Pose3 identityPose;
-  LOG_IF(FATAL, !body_Pose_cam.equals(gtData_.body_Pose_cam_))
+  LOG_IF(FATAL, !body_Pose_cam.equals(gt_data_.body_Pose_cam_))
       << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
 
   // TODO(Toni) REMOVE THIS PARSING.
@@ -310,13 +310,13 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
 
   std::vector<double> vec;
   fs["T_BS"]["data"] >> vec;
-  gtData_.body_Pose_cam_ = UtilsOpenCV::Vec2pose(vec, n_rows, n_cols);
+  gt_data_.body_Pose_cam_ = UtilsOpenCV::Vec2pose(vec, n_rows, n_cols);
 
   // sanity check: usually this is the identity matrix as the GT "sensor"
   // is at the body frame
   gtsam::Pose3 identityPose;
 
-  LOG_IF(FATAL, !gtData_.body_Pose_cam_.equals(identityPose))
+  LOG_IF(FATAL, !gt_data_.body_Pose_cam_.equals(identityPose))
       << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
 
   fs.release();
@@ -387,7 +387,8 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
         << "(" << q(2) << "," << gtDataRaw[5] << ") "
         << "(" << q(3) << "," << gtDataRaw[6] << ").";
 
-    gt_curr.pose_ = gtsam::Pose3(rot, position).compose(gtData_.body_Pose_cam_);
+    gt_curr.pose_ =
+        gtsam::Pose3(rot, position).compose(gt_data_.body_Pose_cam_);
     gt_curr.velocity_ =
         gtsam::Vector3(gtDataRaw[7], gtDataRaw[8], gtDataRaw[9]);
     gtsam::Vector3 gyroBias =
@@ -396,21 +397,21 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
         gtsam::Vector3(gtDataRaw[13], gtDataRaw[14], gtDataRaw[15]);
     gt_curr.imu_bias_ = gtsam::imuBias::ConstantBias(accBias, gyroBias);
 
-    gtData_.mapToGt_.insert(
+    gt_data_.mapToGt_.insert(
         std::pair<Timestamp, VioNavState>(timestamp, gt_curr));
 
     double normVel = gt_curr.velocity_.norm();
     if (normVel > maxGTvel) maxGTvel = normVel;
   }  // End of while loop.
 
-  LOG_IF(FATAL, deltaCount != gtData_.mapToGt_.size() - 1u)
+  LOG_IF(FATAL, deltaCount != gt_data_.mapToGt_.size() - 1u)
       << "parseGTdata: wrong nr of deltaCount: deltaCount " << deltaCount
-      << " nrPoses " << gtData_.mapToGt_.size();
+      << " nrPoses " << gt_data_.mapToGt_.size();
 
   CHECK_NE(deltaCount, 0u);
   // Converted in seconds.
   // TODO(TONI): this looks horrible.
-  gtData_.gt_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
+  gt_data_.gt_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
   fin.close();
 
   LOG(INFO) << "Maximum ground truth velocity: " << maxGTvel;
@@ -569,7 +570,7 @@ gtsam::Pose3 ETHDatasetParser::getGroundTruthRelativePose(
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::isGroundTruthAvailable(
     const Timestamp& timestamp) const {
-  auto it_begin = gtData_.mapToGt_.begin();
+  auto it_begin = gt_data_.mapToGt_.begin();
   return timestamp > it_begin->first;
 }
 
@@ -582,11 +583,11 @@ bool ETHDatasetParser::isGroundTruthAvailable() const {
 VioNavState ETHDatasetParser::getGroundTruthState(
     const Timestamp& timestamp) const {
   const auto& it_low =
-      gtData_.mapToGt_.equal_range(timestamp).first;  // closest, non-lesser
+      gt_data_.mapToGt_.equal_range(timestamp).first;  // closest, non-lesser
 
   // Sanity check.
   double delta_low = double(it_low->first - timestamp) * 1e-9;
-  auto it_begin = gtData_.mapToGt_.begin();
+  auto it_begin = gt_data_.mapToGt_.begin();
   LOG_IF(FATAL, timestamp > it_begin->first && delta_low > 0.01)
       << "getGroundTruthState: something wrong " << delta_low;
   return it_low->second;
@@ -718,7 +719,7 @@ void ETHDatasetParser::print() const {
     camera_image_lists_.at(camera_names_[i]).print();
   }
   if (FLAGS_minloglevel < 1) {
-    gtData_.print();
+    gt_data_.print();
     imuData_.print();
   }
   LOG(INFO) << "-------------------------------------------------------------\n"

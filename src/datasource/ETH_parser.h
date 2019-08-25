@@ -43,7 +43,7 @@ class ETHDatasetParser : public DataProvider {
   virtual ~ETHDatasetParser();
 
   // Ground truth data.
-  GroundTruthData gtData_;
+  GroundTruthData gt_data_;
 
   // IMU data.
   ImuData imuData_;
