@@ -17,13 +17,15 @@
 #pragma once
 
 #include <stdlib.h>
+#include <algorithm>  // for max
 #include <fstream>
+#include <map>  // for map<>
 #include <string>
+#include <utility>  // for make_pair
+#include <vector>
 
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/ml/ml.hpp>
 
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
@@ -34,6 +36,7 @@
 #include "datasource/DataSource.h"
 
 namespace VIO {
+
 /*
  * Parse all images and camera calibration for an ETH dataset.
  */
@@ -46,7 +49,7 @@ class ETHDatasetParser : public DataProvider {
   GroundTruthData gt_data_;
 
   // IMU data.
-  ImuData imuData_;
+  ImuData imu_data_;
 
   /// Getters
   inline std::string getDatasetName() const { return dataset_name_; }

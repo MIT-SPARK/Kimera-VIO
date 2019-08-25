@@ -25,8 +25,7 @@ DEFINE_int32(skip_n_end_frames, 100, "Number of final frames to skip.");
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-ETHDatasetParser::ETHDatasetParser()
-    : DataProvider(), imuData_() {
+ETHDatasetParser::ETHDatasetParser() : DataProvider(), imu_data_() {
   parse();
 
   // Check that final_k_ is smaller than the number of images.
@@ -92,8 +91,10 @@ void ETHDatasetParser::spinOnce(
   ImuMeasurements imu_meas;
   CHECK_LT(timestamp_last_frame, timestamp_frame_k);
   CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
-        imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-            timestamp_last_frame, timestamp_frame_k, &imu_meas.timestamps_,
+        imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+            timestamp_last_frame,
+            timestamp_frame_k,
+            &imu_meas.timestamps_,
             &imu_meas.measurements_));
 
   VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
@@ -197,7 +198,7 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
   // TODO(Toni) REMOVE THIS PARSING.
   int rate = fs["rate_hz"];
   CHECK_NE(rate, 0);
-  imuData_.nominal_imu_rate_ = 1 / static_cast<double>(rate);
+  imu_data_.nominal_imu_rate_ = 1 / static_cast<double>(rate);
 
   pipeline_params_.imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
   pipeline_params_.imu_params_.gyro_walk_ = fs["gyroscope_random_walk"];
@@ -253,14 +254,14 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
     double normRotRate = gyroAccData.head(3).norm();
     if (normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
 
-    imuData_.imu_buffer_.addMeasurement(timestamp, imu_accgyr);
+    imu_data_.imu_buffer_.addMeasurement(timestamp, imu_accgyr);
     if (previous_timestamp == -1) {
       // Do nothing.
       previous_timestamp = timestamp;
     } else {
       sumOfDelta += (timestamp - previous_timestamp);
       double deltaMismatch = std::fabs(
-          double(timestamp - previous_timestamp - imuData_.nominal_imu_rate_) *
+          double(timestamp - previous_timestamp - imu_data_.nominal_imu_rate_) *
           1e-9);
       stdDelta += std::pow(deltaMismatch, 2);
       imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
@@ -269,17 +270,17 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
     }
   }
 
-  LOG_IF(FATAL, deltaCount != imuData_.imu_buffer_.size() - 1u)
+  LOG_IF(FATAL, deltaCount != imu_data_.imu_buffer_.size() - 1u)
       << "parseImuData: wrong nr of deltaCount: deltaCount " << deltaCount
-      << " nr lines " << imuData_.imu_buffer_.size();
+      << " nr lines " << imu_data_.imu_buffer_.size();
 
   // Converted to seconds.
-  imuData_.imu_rate_ =
+  imu_data_.imu_rate_ =
       (static_cast<double>(sumOfDelta) / static_cast<double>(deltaCount)) *
       1e-9;
-  imuData_.imu_rate_std_ =
+  imu_data_.imu_rate_std_ =
       std::sqrt(stdDelta / static_cast<double>(deltaCount - 1u));
-  imuData_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
+  imu_data_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
   fin.close();
 
   LOG(INFO) << "Maximum measured rotation rate (norm):" << maxNormRotRate << '-'
@@ -720,7 +721,7 @@ void ETHDatasetParser::print() const {
   }
   if (FLAGS_minloglevel < 1) {
     gt_data_.print();
-    imuData_.print();
+    imu_data_.print();
   }
   LOG(INFO) << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------\n"
