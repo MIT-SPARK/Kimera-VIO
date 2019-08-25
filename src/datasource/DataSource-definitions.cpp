@@ -40,7 +40,7 @@ void gtNavState::print(const std::string& message) const {
 
 bool gtNavState::equals(const gtNavState& rhs) const {
   return pose_.equals(rhs.pose_) && imu_bias_.equals(rhs.imu_bias_) &&
-         velocity_ == rhs.velocity_;
+         velocity_.isApprox(rhs.velocity_);
 }
 
 bool CameraImageLists::parseCamImgList(const std::string& folderpath,

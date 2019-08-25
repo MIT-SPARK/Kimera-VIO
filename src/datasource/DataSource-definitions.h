@@ -34,7 +34,7 @@ namespace VIO {
 class gtNavState {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  gtNavState() {}
+  gtNavState() : pose_(), velocity_(gtsam::Vector3::Zero()), imu_bias_() {}
 
   gtNavState(const gtsam::Pose3& pose,
              const gtsam::Vector3& velocity,
