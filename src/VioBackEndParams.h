@@ -222,7 +222,6 @@ protected:
       break;
     default:
       LOG(FATAL) << "Wrong linearizationMode in VIO backend parameters.";
-      break;
     }
 
     int degeneracyModeId;
@@ -239,7 +238,6 @@ protected:
       break;
     default:
       LOG(FATAL) << "Wrong degeneracyMode in VIO backend parameters.";
-      break;
     }
 
     yaml_parser_->getYamlParam("smartNoiseSigma", &smartNoiseSigma_);

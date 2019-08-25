@@ -182,11 +182,9 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
   // create vio
   Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
-  std::shared_ptr<gtNavState> initial_state =
-      std::make_shared<gtNavState>(poses[0].first, v, imu_bias);
+  gtNavState initial_state = gtNavState(poses[0].first, v, imu_bias);
   boost::shared_ptr<VioBackEnd> vio = boost::make_shared<VioBackEnd>(
-      B_pose_camLrect, cam_params, baseline, &initial_state, t_start,
-      ImuAccGyrS(), vioParams);
+      B_pose_camLrect, cam_params, baseline, initial_state, t_start, vioParams);
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
   imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
