@@ -75,9 +75,11 @@ public:
 
   virtual bool spin() override;
 
-  void spinOnce(const FrameId& k, Timestamp& timestamp_last_frame,
+  void spinOnce(const FrameId& k,
+                Timestamp& timestamp_last_frame,
                 const StereoMatchingParams& stereo_matchiong_params,
-                const bool equalize_image, const CameraParams& left_cam_info,
+                const bool equalize_image,
+                const CameraParams& left_cam_info,
                 const CameraParams& right_cam_info,
                 const gtsam::Pose3& camL_pose_camR);
 

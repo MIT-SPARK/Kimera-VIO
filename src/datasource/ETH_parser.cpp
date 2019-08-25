@@ -83,10 +83,13 @@ bool ETHDatasetParser::spin() {
 }
 
 void ETHDatasetParser::spinOnce(
-    const FrameId& k, Timestamp& timestamp_last_frame,
+    const FrameId& k,
+    Timestamp& timestamp_last_frame,
     const StereoMatchingParams& stereo_matching_params,
-    const bool equalize_image, const CameraParams& left_cam_info,
-    const CameraParams& right_cam_info, const gtsam::Pose3& camL_pose_camR) {
+    const bool equalize_image,
+    const CameraParams& left_cam_info,
+    const CameraParams& right_cam_info,
+    const gtsam::Pose3& camL_pose_camR) {
   Timestamp timestamp_frame_k = timestampAtFrame(k);
   ImuMeasurements imu_meas;
   CHECK_LT(timestamp_last_frame, timestamp_frame_k);

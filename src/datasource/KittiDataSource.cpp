@@ -217,6 +217,14 @@ void KittiDataProvider::parseKittiData(const std::string& kitti_sequence_path,
   parseBackendParams();
   parseFrontendParams();
 
+  // Send first ground-truth pose to VIO for initialization if requested.
+  if (pipeline_params_.backend_params_->autoInitialize_ == 0) {
+    // We don't have Kitti ground-truth for now!
+    LOG(FATAL) << "User requested ground-truth initialization. Unfortuantely,"
+                  " this feature is not supported in Kitti. Set autoInitialize"
+                  " parameter to something other than 0 (from ground-truth).";
+  }
+
   // Check data is parsed correctly.
   CHECK(*kitti_data);
   print();
