@@ -19,16 +19,18 @@
  * Perspective based on Smart Factors. In IEEE Intl. Conf. on Robotics and
  * Automation (ICRA), 2014.
  *
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #pragma once
 
-#include <boost/foreach.hpp>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
+
+#include <boost/foreach.hpp>
 
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Cal3_S2.h>
@@ -42,7 +44,6 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
-
 #include <gtsam/nonlinear/LinearContainerFactor.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 
@@ -53,7 +54,6 @@
 #include "factors/PointPlaneFactor.h"
 #include "imu-frontend/ImuFrontEnd.h"
 #include "utils/ThreadsafeQueue.h"
-
 #include "logging/Logger.h"
 
 namespace VIO {
@@ -63,6 +63,7 @@ class gtNavState;
 
 class VioBackEnd {
  public:
+  // TODO(Toni): remove this verbosity flag, use VLOG
   // verbosity_ explanation
   /*
    * 4: display smart factors statistics
@@ -74,25 +75,21 @@ class VioBackEnd {
    * 9: display also factors and values
    */
 
-  /* ------------------------------------------------------------------------ */
   // Create and initialize VioBackEnd.
-  /// @param: [in,out] initial_state_gt: information about the initial pose.
-  /// non-null pointer to a shared_ptr which might be null if there is no
-  /// ground-truth available, otw it contains the initial ground-truth state.
+  /// @param: [in] initial_state_seed: information about the initial pose.
   /// @param: timestamp: timestamp of the initial state.
-  /// @param: imu_accgyr: used for auto-initialization of VIO pipeline if no
-  /// ground-truth is provided. Ignored if not auto-initialized.
   VioBackEnd(const Pose3& leftCamPose,
              const Cal3_S2& leftCameraCalRectified,
              const double& baseline,
-             std::shared_ptr<gtNavState>* initial_state_gt,
+             const gtNavState& initial_state_seed,
              const Timestamp& timestamp,
-             const ImuAccGyrS& imu_accgyr,
              const VioBackEndParams& vioParams,
-             const bool log_output = false);
+             const bool& log_output = false);
 
   /* ------------------------------------------------------------------------ */
-  // Create and initialize VioBackEnd, without initiaing pose.
+  // Create and initialize VioBackEnd, without initiating pose.
+  // TODO(Toni): remove this constructor... it is only used by
+  // InitializationBackend...
   VioBackEnd(const Pose3& leftCamPose,
              const Cal3_S2& leftCameraCalRectified,
              const double& baseline,
@@ -137,12 +134,6 @@ class VioBackEnd {
   // the callee of this function.
   void registerImuBiasUpdateCallback(
       const std::function<void(const ImuBias&)>& imu_bias_update_callback);
-
-  /* ------------------------------------------------------------------------ */
-  // TODO only public because it is used for testing...
-  static gtsam::Pose3 guessPoseFromIMUmeasurements(const ImuAccGyrS& accGyroRaw,
-                                                   const Vector3& n_gravity,
-                                                   const bool& round = true);
 
   /* ------------------------------------------------------------------------ */
   // Get valid 3D points - TODO: this copies the graph.
@@ -248,7 +239,7 @@ class VioBackEnd {
   // Sets initial state at given pose, zero velociy and with imu bias obtained
   // by assuming steady upright platform.
   void initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
-                             const Pose3& initialPose,
+                             const Pose3& initial_pose,
                              const ImuAccGyrS& accGyroRaw);
 
   /* ------------------------------------------------------------------------ */
@@ -446,10 +437,6 @@ class VioBackEnd {
   inline const gtsam::NonlinearFactorGraph& getFactorsUnsafe() const {
     return smoother_->getFactors();
   }
-
-  /* ------------------------------------------------------------------------ */
-  static ImuBias initImuBias(const ImuAccGyrS& accGyroRaw,
-                             const Vector3& n_gravity);
 
  protected:
   // Raw, user-specified params.

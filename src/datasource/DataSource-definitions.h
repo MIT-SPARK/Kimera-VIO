@@ -48,6 +48,8 @@ class gtNavState {
   gtsam::imuBias::ConstantBias imu_bias_;
 
   void print(const std::string& message = " ") const;
+
+  bool equals(const gtNavState& rhs) const;
 };
 
 // Struct for performance in initialization

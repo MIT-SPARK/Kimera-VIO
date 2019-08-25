@@ -32,12 +32,15 @@ gtNavState::gtNavState(const gtsam::NavState& nav_state,
       imu_bias_(imu_bias) {}
 
 void gtNavState::print(const std::string& message) const {
-  if (VLOG_IS_ON(10)) {
-    LOG(INFO) << "--- " << message << "--- ";
-    pose_.print("\n pose: \n");
-    LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
-    imu_bias_.print("\n imuBias: \n");
-  }
+  LOG(INFO) << "--- " << message << "--- ";
+  pose_.print("\n pose: \n");
+  LOG(INFO) << "\n velocity: \n" << velocity_.transpose();
+  imu_bias_.print("\n imuBias: \n");
+}
+
+bool gtNavState::equals(const gtNavState& rhs) const {
+  return pose_.equals(rhs.pose_) && imu_bias_.equals(rhs.imu_bias_) &&
+         velocity_ == rhs.velocity_;
 }
 
 bool CameraImageLists::parseCamImgList(const std::string& folderpath,

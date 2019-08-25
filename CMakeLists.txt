@@ -173,6 +173,7 @@ add_executable(testSparkVio
   tests/testTimer.cpp
   tests/testTracker.cpp
   tests/testUtilsOpenCV.cpp
+  tests/testInitializationFromImu.cpp
   tests/testVioBackEnd.cpp
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
