@@ -5,6 +5,7 @@
 /scripts/**/*.txt
 /*/*.csv
 .ipynb_checkpoints
+.autosave
 
 % Ignore VS code settings
 .vscode

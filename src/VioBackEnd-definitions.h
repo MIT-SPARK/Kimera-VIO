@@ -8,26 +8,29 @@
 
 /**
  * @file   VioBackEnd-definitions.h
- * @brief  Definitions for VioBackEnd
+ * @brief  Definitions for VioBackEnd.
  * @author Antoni Rosinol
  */
 
 #pragma once
 
-#include <glog/logging.h>
-#include <boost/optional.hpp>
 #include <vector>
+
+#include <boost/optional.hpp>
+
+#include <glog/logging.h>
 
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/StereoPoint2.h>
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 
-#include "ImuFrontEnd.h"
 #include "StereoVisionFrontEnd-definitions.h"
 #include "Tracker-definitions.h"
 #include "UtilsOpenCV.h"
 #include "common/vio_types.h"
+#include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "imu-frontend/ImuFrontEnd.h"
 
 namespace VIO {
 

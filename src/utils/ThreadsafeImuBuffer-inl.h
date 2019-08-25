@@ -43,7 +43,7 @@
 #include <glog/logging.h>
 
 #include "common/vio_types.h"
-#include "ImuFrontEnd-definitions.h"
+#include "imu-frontend/ImuFrontEnd-definitions.h"
 
 namespace VIO {
 

@@ -67,7 +67,8 @@ int main(int argc, char *argv[]) {
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
   if (FLAGS_parallel_run) {
-    auto handle = std::async(std::launch::async, &VIO::DataProvider::spin,
+    auto handle = std::async(std::launch::async,
+                             &VIO::DataProvider::spin,
                              std::move(dataset_parser));
     auto handle_pipeline =
         std::async(std::launch::async, &VIO::Pipeline::shutdownWhenFinished,

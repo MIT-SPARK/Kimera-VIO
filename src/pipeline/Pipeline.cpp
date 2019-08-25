@@ -30,7 +30,7 @@
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
 
-#include "OnlineGravityAlignment.h"
+#include "initial/OnlineGravityAlignment.h"
 
 DEFINE_bool(log_output, false, "Log output to matlab.");
 DEFINE_int32(regular_vio_backend_modality, 4u,
