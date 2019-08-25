@@ -74,7 +74,7 @@ TEST(testVio, getInitialStateEstimate) {
     }
 
     bool round = false;
-    gtNavState initial_state_guess =
+    VioNavState initial_state_guess =
         InitializationFromImu::getInitialStateEstimate(
             accGyroRaw, n_gravity, round);
     Pose3 poseActual = initial_state_guess.pose_;
@@ -109,7 +109,7 @@ TEST(testVio, getInitialStateEstimate) {
       round = true;
       // check that rounding does not mess up with the previous cases
       // by rounding we should filter out perturbation
-      gtNavState initial_state_guess_2 =
+      VioNavState initial_state_guess_2 =
           InitializationFromImu::getInitialStateEstimate(
               accGyroRaw, n_gravity, round);
       gtsam::Pose3 poseActual2 = initial_state_guess_2.pose_;
@@ -118,7 +118,7 @@ TEST(testVio, getInitialStateEstimate) {
       // check that rounding filter out perturbation
       gtsam::Vector3 n_gravity_perturbed =
           n_gravity + gtsam::Vector3(-0.1, 0.1, 0.3);
-      gtNavState initial_state_guess_round =
+      VioNavState initial_state_guess_round =
           InitializationFromImu::getInitialStateEstimate(
               accGyroRaw, n_gravity_perturbed, round);
       Pose3 poseActualRound = initial_state_guess_round.pose_;

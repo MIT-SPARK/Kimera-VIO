@@ -32,9 +32,9 @@ class InitializationFromImu {
   ~InitializationFromImu() = default;
 
  public:
-  static gtNavState getInitialStateEstimate(const ImuAccGyr& imu_accgyr,
-                                            const Vector3& global_gravity,
-                                            const bool& round);
+  static VioNavState getInitialStateEstimate(const ImuAccGyr& imu_accgyr,
+                                             const Vector3& global_gravity,
+                                             const bool& round);
 
  private:
   static inline ImuAccGyr computeAverageImuMeasurements(

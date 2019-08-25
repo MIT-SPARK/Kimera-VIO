@@ -371,7 +371,7 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
       previous_timestamp = timestamp;
     }
 
-    gtNavState gt_curr;
+    VioNavState gt_curr;
     gtsam::Point3 position(gtDataRaw[0], gtDataRaw[1], gtDataRaw[2]);
     // Quaternion w x y z.
     gtsam::Rot3 rot = gtsam::Rot3::Quaternion(gtDataRaw[3], gtDataRaw[4],
@@ -404,7 +404,7 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
     gt_curr.imu_bias_ = gtsam::imuBias::ConstantBias(accBias, gyroBias);
 
     gtData_.mapToGt_.insert(
-        std::pair<Timestamp, gtNavState>(timestamp, gt_curr));
+        std::pair<Timestamp, VioNavState>(timestamp, gt_curr));
 
     double normVel = gt_curr.velocity_.norm();
     if (normVel > maxGTvel) maxGTvel = normVel;
@@ -586,7 +586,7 @@ bool ETHDatasetParser::isGroundTruthAvailable() const {
 }
 
 /* -------------------------------------------------------------------------- */
-gtNavState ETHDatasetParser::getGroundTruthState(
+VioNavState ETHDatasetParser::getGroundTruthState(
     const Timestamp& timestamp) const {
   auto it_low_up = gtData_.mapToGt_.equal_range(timestamp);
   auto it_low = it_low_up.first;  // closest, non-lesser
@@ -606,12 +606,11 @@ gtNavState ETHDatasetParser::getGroundTruthState(
 // pose is identity (we are interested in relative poses!)
 // [in]: initial nav state with pose, velocity in body frame,
 // [in]: gravity vector estimate in body frame.
-const InitializationPerformance
-        ETHDatasetParser::getInitializationPerformance(
-                    const std::vector<Timestamp>& timestamps,
-                    const std::vector<gtsam::Pose3>& poses_ba,
-                    const gtNavState& init_nav_state,
-                    const gtsam::Vector3& init_gravity) {
+const InitializationPerformance ETHDatasetParser::getInitializationPerformance(
+    const std::vector<Timestamp>& timestamps,
+    const std::vector<gtsam::Pose3>& poses_ba,
+    const VioNavState& init_nav_state,
+    const gtsam::Vector3& init_gravity) {
   CHECK(isGroundTruthAvailable());
   CHECK_EQ(timestamps.size(), poses_ba.size());
   // The first BA pose must be identity and can be discarded
@@ -621,7 +620,7 @@ const InitializationPerformance
   double avg_relativeRotError = 0.0;
   double avg_relativeTranError = 0.0;
   gtsam::Pose3 gt_relative;
-  gtNavState gt_state = getGroundTruthState(timestamps.at(1));
+  VioNavState gt_state = getGroundTruthState(timestamps.at(1));
   gtsam::Vector3 gt_gravity = gtsam::Vector3(0.0, 0.0, -9.81);
   // Assumes gravity vector is downwards
 

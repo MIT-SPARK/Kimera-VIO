@@ -110,7 +110,7 @@ class Pipeline {
   // Initialize pipeline from ground truth pose.
   bool initializeFromGroundTruth(
       const StereoImuSyncPacket& stereo_imu_sync_packet,
-      const gtNavState& initial_ground_truth_state);
+      const VioNavState& initial_ground_truth_state);
 
   // Initialize pipeline from IMU readings only:
   //  - Guesses initial state assuming zero velocity.
@@ -126,7 +126,7 @@ class Pipeline {
   /// @param: initial_state_seed: first state guess.
   bool initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                    const StereoImuSyncPacket& stereo_imu_sync_packet,
-                   const gtNavState& initial_state_seed,
+                   const VioNavState& initial_state_seed,
                    const StereoFrame& stereo_frame_lkf);
 
   // Displaying must be done in the main thread.

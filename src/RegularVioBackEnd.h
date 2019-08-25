@@ -45,7 +45,7 @@ public:
       const Pose3& leftCamPose,
       const Cal3_S2& leftCameraCalRectified,
       const double& baseline,
-      const gtNavState& initial_state_seed,
+      const VioNavState& initial_state_seed,
       const Timestamp& timestamp,
       const VioBackEndParams& vioParams = VioBackEndParams(),
       const bool& log_timing = false,

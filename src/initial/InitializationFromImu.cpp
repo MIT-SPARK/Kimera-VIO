@@ -19,7 +19,7 @@ namespace VIO {
 // Guess State (pose, velocity, imu bias) from IMU only:
 //  - Guesses initial state **assuming zero velocity**.
 //  - Guesses IMU bias **assuming upright vehicle**.
-gtNavState InitializationFromImu::getInitialStateEstimate(
+VioNavState InitializationFromImu::getInitialStateEstimate(
     const ImuAccGyr& imu_accgyr,
     const Vector3& global_gravity,
     const bool& round) {
@@ -51,7 +51,7 @@ gtNavState InitializationFromImu::getInitialStateEstimate(
   ImuBias imu_bias_guess = guessImuBias(mean_accgyr, local_gravity);
 
   // Return estimated state.
-  return gtNavState(initial_pose_guess, velocity_guess, imu_bias_guess);
+  return VioNavState(initial_pose_guess, velocity_guess, imu_bias_guess);
 }
 
 gtsam::Pose3 InitializationFromImu::guessPoseFromImuMeasurements(

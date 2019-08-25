@@ -548,7 +548,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
       // mistake, although it can happen that the ground truth initial pose is
       // identity! But if that is the case, create another autoInitialize value
       // for this case and send directly a identity pose...
-      CHECK(!backend_params_->initial_ground_truth_state_.equals(gtNavState()))
+      CHECK(!backend_params_->initial_ground_truth_state_.equals(VioNavState()))
           << "Requested initialization from Ground-Truth pose but got an "
              "identity pose: did you parse your ground-truth correctly?";
       return initializeFromGroundTruth(
@@ -599,7 +599,7 @@ void Pipeline::checkReInitialize(
 /* -------------------------------------------------------------------------- */
 bool Pipeline::initializeFromGroundTruth(
     const StereoImuSyncPacket& stereo_imu_sync_packet,
-    const gtNavState& initial_ground_truth_state) {
+    const VioNavState& initial_ground_truth_state) {
   LOG(INFO) << "------------------- Initialize Pipeline with frame k = "
             << stereo_imu_sync_packet.getStereoFrame().getFrameId()
             << "--------------------";
@@ -627,7 +627,7 @@ bool Pipeline::initializeFromIMU(
             << "--------------------";
 
   // Guess pose from IMU, assumes vehicle to be static.
-  gtNavState initial_state_estimate =
+  VioNavState initial_state_estimate =
       InitializationFromImu::getInitialStateEstimate(
           stereo_imu_sync_packet.getImuAccGyr(),
           backend_params_->n_gravity_,
@@ -777,8 +777,8 @@ bool Pipeline::initializeOnline(
         ///////////////////////////// BACKEND ////////////////////////////////
         // Initialize backend with pose estimate from gravity alignment
         // Create initial state for initialization from online gravity
-        gtNavState initial_state_OGA(init_navstate,
-                                     ImuBias(gtsam::Vector3(), gyro_bias));
+        VioNavState initial_state_OGA(init_navstate,
+                                      ImuBias(gtsam::Vector3(), gyro_bias));
         initBackend(&vio_backend_,
                     stereo_imu_sync_packet,
                     initial_state_OGA,
@@ -804,7 +804,7 @@ bool Pipeline::initializeOnline(
 /* -------------------------------------------------------------------------- */
 bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                            const StereoImuSyncPacket& stereo_imu_sync_packet,
-                           const gtNavState& initial_state_seed,
+                           const VioNavState& initial_state_seed,
                            const StereoFrame& stereo_frame_lkf) {
   CHECK_NOTNULL(vio_backend);
   // Create VIO.

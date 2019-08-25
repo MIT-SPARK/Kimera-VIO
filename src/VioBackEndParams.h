@@ -53,7 +53,7 @@ public:
      // INITIALIZATION SETTINGS
      const int autoInitialize = 0,
      /// Only used if autoInitialize is off (0)
-     const gtNavState &initial_ground_truth_state = gtNavState(),
+     const VioNavState &initial_ground_truth_state = VioNavState(),
      const bool roundOnAutoInitialize = false,
      const double initialPositionSigma = 0.00001,
      const double initialRollPitchSigma = 10.0 / 180.0 * M_PI,
@@ -142,7 +142,7 @@ public:
   gtsam::Vector3 n_gravity_;
   int autoInitialize_;
   /// Only used if autoInitialize set to false.
-  gtNavState initial_ground_truth_state_;
+  VioNavState initial_ground_truth_state_;
   bool roundOnAutoInitialize_;
 
   // Smart factor params

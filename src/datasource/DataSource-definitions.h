@@ -31,17 +31,17 @@ namespace VIO {
 /*
  * Compact storage of state.
  */
-class gtNavState {
+class VioNavState {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  gtNavState() : pose_(), velocity_(gtsam::Vector3::Zero()), imu_bias_() {}
+  VioNavState() : pose_(), velocity_(gtsam::Vector3::Zero()), imu_bias_() {}
 
-  gtNavState(const gtsam::Pose3& pose,
-             const gtsam::Vector3& velocity,
-             const gtsam::imuBias::ConstantBias& imu_bias);
+  VioNavState(const gtsam::Pose3& pose,
+              const gtsam::Vector3& velocity,
+              const gtsam::imuBias::ConstantBias& imu_bias);
 
-  gtNavState(const gtsam::NavState& nav_state,
-             const gtsam::imuBias::ConstantBias& imu_bias);
+  VioNavState(const gtsam::NavState& nav_state,
+              const gtsam::imuBias::ConstantBias& imu_bias);
 
   gtsam::Pose3 pose_;
   gtsam::Vector3 velocity_;
@@ -49,7 +49,7 @@ class gtNavState {
 
   void print(const std::string& message = " ") const;
 
-  bool equals(const gtNavState& rhs) const;
+  bool equals(const VioNavState& rhs) const;
 };
 
 // Struct for performance in initialization
@@ -60,9 +60,9 @@ struct InitializationPerformance {
                             const int& init_n_frames,
                             const double& avg_rotationErrorBA,
                             const double& avg_tranErrorBA,
-                            const gtNavState& init_nav_state,
+                            const VioNavState& init_nav_state,
                             const gtsam::Vector3& init_gravity,
-                            const gtNavState& gt_nav_state,
+                            const VioNavState& gt_nav_state,
                             const gtsam::Vector3& gt_gravity);
 
   void print() const;
@@ -72,9 +72,9 @@ struct InitializationPerformance {
   const int init_n_frames_;
   const double avg_rotationErrorBA_;
   const double avg_tranErrorBA_;
-  const gtNavState init_nav_state_;
+  const VioNavState init_nav_state_;
   const gtsam::Vector3 init_gravity_;
-  const gtNavState gt_nav_state_;
+  const VioNavState gt_nav_state_;
   const gtsam::Vector3 gt_gravity_;
 };
 
@@ -95,7 +95,7 @@ class GroundTruthData {
   double gt_rate_;
 
   // Map from timestamp to gtNavState.
-  std::map<long long, gtNavState> mapToGt_;
+  std::map<long long, VioNavState> mapToGt_;
 };
 
 /*

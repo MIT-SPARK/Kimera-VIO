@@ -94,14 +94,14 @@ public:
       const Timestamp& currentTimestamp) const;
 
   // Retrieve absolute pose at timestamp.
-  gtNavState getGroundTruthState(const Timestamp& timestamp) const;
+  VioNavState getGroundTruthState(const Timestamp& timestamp) const;
 
   // Compute initialization errors and stats.
   const InitializationPerformance getInitializationPerformance(
-                    const std::vector<Timestamp>& timestamps,
-                    const std::vector<gtsam::Pose3>& poses_ba,
-                    const gtNavState& init_nav_state,
-                    const gtsam::Vector3& init_gravity);
+      const std::vector<Timestamp>& timestamps,
+      const std::vector<gtsam::Pose3>& poses_ba,
+      const VioNavState& init_nav_state,
+      const gtsam::Vector3& init_gravity);
 
   // Check if the ground truth is available.
   // (i.e., the timestamp is after the first gt state)
