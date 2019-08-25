@@ -80,7 +80,7 @@ void GroundTruthData::print() const {
   LOG(INFO) << "------------ GroundTruthData::print -------------";
   body_Pose_cam_.print("body_Pose_cam_: \n");
   LOG(INFO) << "\n gt_rate: " << gt_rate_ << '\n'
-            << "nr of gtStates: " << mapToGt_.size();
+            << "nr of gtStates: " << map_to_gt_.size();
 }
 
 InitializationPerformance::InitializationPerformance(

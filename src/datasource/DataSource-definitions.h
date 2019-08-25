@@ -95,7 +95,7 @@ class GroundTruthData {
   double gt_rate_;
 
   // Map from timestamp to VioNavState.
-  std::map<Timestamp, VioNavState> mapToGt_;
+  std::map<Timestamp, VioNavState> map_to_gt_;
 };
 
 /*

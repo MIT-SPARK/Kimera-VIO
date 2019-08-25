@@ -191,7 +191,7 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
   int n_cols(fs["T_BS"]["cols"]);
   std::vector<double> vec;
   fs["T_BS"]["data"] >> vec;
-  auto body_Pose_cam = UtilsOpenCV::Vec2pose(vec, n_rows, n_cols);
+  gtsam::Pose3 body_Pose_cam = UtilsOpenCV::Vec2pose(vec, n_rows, n_cols);
 
   // sanity check: IMU is usually chosen as the body frame
   gtsam::Pose3 identityPose;
@@ -401,16 +401,16 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
         gtsam::Vector3(gtDataRaw[13], gtDataRaw[14], gtDataRaw[15]);
     gt_curr.imu_bias_ = gtsam::imuBias::ConstantBias(accBias, gyroBias);
 
-    gt_data_.mapToGt_.insert(
+    gt_data_.map_to_gt_.insert(
         std::pair<Timestamp, VioNavState>(timestamp, gt_curr));
 
     double normVel = gt_curr.velocity_.norm();
     if (normVel > maxGTvel) maxGTvel = normVel;
   }  // End of while loop.
 
-  LOG_IF(FATAL, deltaCount != gt_data_.mapToGt_.size() - 1u)
+  LOG_IF(FATAL, deltaCount != gt_data_.map_to_gt_.size() - 1u)
       << "parseGTdata: wrong nr of deltaCount: deltaCount " << deltaCount
-      << " nrPoses " << gt_data_.mapToGt_.size();
+      << " nrPoses " << gt_data_.map_to_gt_.size();
 
   CHECK_NE(deltaCount, 0u);
   // Converted in seconds.
@@ -574,8 +574,7 @@ gtsam::Pose3 ETHDatasetParser::getGroundTruthRelativePose(
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::isGroundTruthAvailable(
     const Timestamp& timestamp) const {
-  auto it_begin = gt_data_.mapToGt_.begin();
-  return timestamp > it_begin->first;
+  return timestamp > gt_data_.map_to_gt_.begin()->first;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -587,11 +586,11 @@ bool ETHDatasetParser::isGroundTruthAvailable() const {
 VioNavState ETHDatasetParser::getGroundTruthState(
     const Timestamp& timestamp) const {
   const auto& it_low =
-      gt_data_.mapToGt_.equal_range(timestamp).first;  // closest, non-lesser
+      gt_data_.map_to_gt_.equal_range(timestamp).first;  // closest, non-lesser
 
   // Sanity check.
-  double delta_low = double(it_low->first - timestamp) * 1e-9;
-  auto it_begin = gt_data_.mapToGt_.begin();
+  double delta_low = static_cast<double>(it_low->first - timestamp) * 1e-9;
+  const auto& it_begin = gt_data_.map_to_gt_.begin();
   LOG_IF(FATAL, timestamp > it_begin->first && delta_low > 0.01)
       << "getGroundTruthState: something wrong " << delta_low;
   return it_low->second;
