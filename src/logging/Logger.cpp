@@ -325,7 +325,8 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
 FrontendLogger::FrontendLogger()
     : output_frontend_stats_("output_frontend_stats.csv"),
       output_frontend_ransac_mono_("output_frontend_ransac_mono.csv"),
-      output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv") {};
+      output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv"),
+      output_frontend_pim_("output_frontend_pim.csv") {};
 
 void FrontendLogger::logFrontendStats(
     const Timestamp& timestamp_lkf,
@@ -440,6 +441,19 @@ void FrontendLogger::logFrontendRansac(
                        << 0 << "," << 0 << "," << 0 << "," << 0 << ","
                        << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0
                        << std::endl;
+}
+
+void FrontendLogger::logPIM(const Timestamp& timestamp_lkf,
+    const PreintegratedImuMeasurements& pim) {
+  // We log the PreintegratedImuMeasurements for later analysis.
+  std::ofstream& output_stream_pim = output_frontend_pim_.ofstream_;
+
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    output_stream_pim << "timestamp_lkf,
+                      << std::endl;
+    is_header_written = true;
+  }
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

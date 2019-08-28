@@ -167,6 +167,7 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
           stereoFrame_lkf_->getTimestamp(),
           getRelativePoseBodyMono(),
           getRelativePoseBodyStereo());
+      logger_->logPIM(stereoFrame_lkf->getTmestamp(), pim);
     }
     ////////////////////////////////////////////////////////////////////////////
 

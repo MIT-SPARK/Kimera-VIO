@@ -84,12 +84,15 @@ class FrontendLogger {
   void logFrontendRansac(const Timestamp& timestamp_lkf
                          const gtsam::Pose3& relative_pose_body_mono,
                          const gtsam::Pose3& relative_pose_body_stereo);
+  void logPIM(const Timestamp& timestamp_lkf,
+              const PreintegratedImuMeasurements& pim);
 
  private:
   // StreamWrappers with filenames to which output is saved.
   OfstreamWrapper output_frontend_stats_;
   OfstreamWrapper output_frontend_ransac_mono_;
   OfstreamWrapper output_frontend_ransac_stereo_;
+  OfstreamWrapper output_frontend_pim_;
 };
 
 class VisualizerLogger {
