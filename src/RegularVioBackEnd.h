@@ -45,13 +45,12 @@ public:
       const Pose3& leftCamPose,
       const Cal3_S2& leftCameraCalRectified,
       const double& baseline,
-      std::shared_ptr<gtNavState>* initial_state_gt,
+      const VioNavState& initial_state_seed,
       const Timestamp& timestamp,
-      const ImuAccGyrS& imu_accgyr,
       const VioBackEndParams& vioParams = VioBackEndParams(),
       const bool& log_timing = false,
       const BackendModality& backend_modality =
-      BackendModality::STRUCTURELESS_PROJECTION_AND_REGULARITY);
+          BackendModality::STRUCTURELESS_PROJECTION_AND_REGULARITY);
 
   /* ------------------------------------------------------------------------ */
   ~RegularVioBackEnd() = default;

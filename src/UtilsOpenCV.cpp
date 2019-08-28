@@ -1,4 +1,4 @@
-/* ----------------------------------------------------------------------------
+﻿/* ----------------------------------------------------------------------------
  * Copyright 2017, Massachusetts Institute of Technology,
  * Cambridge, MA 02139
  * All Rights Reserved
@@ -416,42 +416,54 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
 }
 
 /* -------------------------------------------------------------------------- */
-// creates pose by aligning initial gravity vector estimates
-gtsam::Pose3
-UtilsOpenCV::AlignGravityVectors(const gtsam::Vector3 &local_gravity_dir,
-                                 const gtsam::Vector3 &global_gravity_dir,
-                                 bool round) {
-  gtsam::Unit3 localGravityDir(
-      local_gravity_dir); // a = localGravity (we measure the opposite of
-                          // gravity)
-  gtsam::Unit3 globalGravityDir(global_gravity_dir); // b
+// Returns rotation that aligs two vectors.
+gtsam::Rot3 UtilsOpenCV::AlignGravityVectors(
+    const gtsam::Vector3& local_gravity_dir,
+    const gtsam::Vector3& global_gravity_dir,
+    bool round) {
+  // a = localGravity (we measure the opposite of gravity).
+  gtsam::Unit3 localGravityDir(local_gravity_dir);
+  // b
+  gtsam::Unit3 globalGravityDir(global_gravity_dir);
 
-  if (round) { // align vectors to dominant axis: e.g., [0.01 0.1 1] becomes [0 0 1]
+  if (round) {
+    // Align vectors to dominant axis: e.g. [0.01 0.1 1] becomes [0 0 1]
     localGravityDir = UtilsOpenCV::RoundUnit3(localGravityDir);
     globalGravityDir = UtilsOpenCV::RoundUnit3(globalGravityDir);
   }
 
-  gtsam::Unit3 v = localGravityDir.cross(globalGravityDir); // a x b
+  // a x b
+  gtsam::Unit3 cross_product = localGravityDir.cross(globalGravityDir);
   double c = localGravityDir.dot(globalGravityDir);
   // compute rotation such that R * a = b
   // http://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d/476311#476311
   gtsam::Rot3 R;
-  if (fabs(1 - c) < 1e-3) { // already aligned
+  if (std::fabs(1 - c) < 1e-3) {
+    // Already aligned.
     R = gtsam::Rot3();
-  } else if (fabs(1 + c) < 1e-3) { // degenerate condition a =-b
-    gtsam::Unit3 perturbedGravity (localGravityDir.unitVector() +
-                                   gtsam::Vector3(1, 2, 3)); // compute cross product with any nonparallel vector
-    v = localGravityDir.cross(perturbedGravity);
-    if (std::isnan(v.unitVector()(0))) { // if the resulting vector is still not a number (i.e., perturbedGravity // localGravityDir)
-      perturbedGravity = gtsam::Unit3(localGravityDir.unitVector() +
-                                      gtsam::Vector3(3, 2, 1)); // compute cross product with any nonparallel vector
-      v = localGravityDir.cross(perturbedGravity);
+  } else if (std::fabs(1 + c) < 1e-3) {
+    // Degenerate condition a = -b
+    // Compute cross product with any nonparallel vector.
+    gtsam::Unit3 perturbedGravity(localGravityDir.unitVector() +
+                                  gtsam::Vector3(1, 2, 3));
+    cross_product = localGravityDir.cross(perturbedGravity);
+
+    // If the resulting vector is still not a number
+    // (i.e. perturbedGravity // localGravityDir)
+    if (std::isnan(cross_product.unitVector()(0))) {
+      // Compute cross product with any nonparallel vector.
+      perturbedGravity =
+          gtsam::Unit3(localGravityDir.unitVector() + gtsam::Vector3(3, 2, 1));
+      cross_product = localGravityDir.cross(perturbedGravity);
     }
-    R = gtsam::Rot3::Expmap(v.unitVector() * M_PI); // 180 rotation around an axis perpendicular to both vectors
+    // 180 rotation around an axis perpendicular to both vectors
+    R = gtsam::Rot3::Expmap(cross_product.unitVector() * M_PI);
   } else {
-    R = gtsam::Rot3::AlignPair(v, globalGravityDir, localGravityDir);
+    R = gtsam::Rot3::AlignPair(
+        cross_product, globalGravityDir, localGravityDir);
   }
-  return gtsam::Pose3(R, gtsam::Point3());// absolute position is not observable anyway
+
+  return R;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -67,7 +67,7 @@ void BackendLogger::logBackendOutput(const VioBackEndOutputPayload& output) {
 void BackendLogger::displayInitialStateVioInfo(
     const gtsam::Vector3& n_gravity_,
     const gtsam::Pose3& W_Pose_B_Lkf,
-    const gtNavState& initial_state_gt,
+    const VioNavState& initial_state_gt,
     const ImuAccGyrS& imu_accgyr,
     const Timestamp& timestamp_k) const {
   initial_state_gt.print("initialStateGT\n");

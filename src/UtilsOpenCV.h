@@ -7,13 +7,13 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   UtilsOpenC.h
+ * @file   UtilsOpenCV.h
  * @brief  Utilities to interface GTSAM with OpenCV
+ * @author Antoni Rosinol
  * @author Luca Carlone
  */
 
-#ifndef UtilsOpenCV_H_
-#define UtilsOpenCV_H_
+#pragma once
 
 #include <iostream>
 
@@ -31,6 +31,7 @@
 // not complain for now.
 #include "common/vio_types.h"
 
+// TODO(Toni): do not forward declare that much!!
 // Forward declare classes.
 namespace gtsam {
 class Point2;
@@ -196,9 +197,10 @@ public:
 
   /* -------------------------------------------------------------------------- */
   // creates pose by aligning initial gravity vector estimates
-  static gtsam::Pose3
-  AlignGravityVectors(const gtsam::Vector3 &local_gravity_dir,
-                      const gtsam::Vector3 &global_gravity_dir, bool round);
+  static gtsam::Rot3 AlignGravityVectors(
+      const gtsam::Vector3& local_gravity_dir,
+      const gtsam::Vector3& global_gravity_dir,
+      bool round);
 
   /* ------------------------------------------------------------------------ */
   // rounds entries in a unit3, such that largest entry is saturated to +/-1 and the other become 0
@@ -485,5 +487,4 @@ private:
   }
 };
 
-} // namespace VIO
-#endif /* UtilsOpenCV_H_ */
+}  // namespace VIO

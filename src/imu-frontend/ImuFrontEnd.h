@@ -24,21 +24,18 @@
 #include <Eigen/Dense>
 
 #include <gtsam/base/Matrix.h>
-#include <gtsam/navigation/ImuBias.h>
-#include <gtsam/geometry/Pose3.h>
-#include <gtsam/navigation/CombinedImuFactor.h> // Used if IMU combined is off.
-#include <gtsam/navigation/ImuFactor.h>
+#include <gtsam/base/Vector.h>
 #include <gtsam/navigation/AHRSFactor.h>
+#include <gtsam/navigation/CombinedImuFactor.h>  // Used if IMU combined is off.
+#include <gtsam/navigation/ImuBias.h>
+#include <gtsam/navigation/ImuFactor.h>
 
-#include "ImuFrontEnd-definitions.h"
-
+#include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "imu-frontend/ImuFrontEndParams.h"
 #include "utils/ThreadsafeImuBuffer.h"
 
 namespace VIO {
 
-/*
- * Class describing the imu data.
- */
 class ImuData {
 public:
   // Imu buffer with virtually infinite memory.
@@ -53,25 +50,6 @@ public:
 
   // Imu data.
   utils::ThreadsafeImuBuffer imu_buffer_;
-
-public:
-  void print() const;
-};
-
-/*
- * Struct describing the imu parameters.
- */
-struct ImuParams {
-public:
-  double gyro_noise_;
-  double gyro_walk_;
-  double acc_noise_;
-  double acc_walk_;
-  double imu_shift_; // Defined as t_imu = t_cam + imu_shift
-
-  // TODO: n_gravity_ should not be in ImuParams
-  gtsam::Vector3 n_gravity_;
-  double imu_integration_sigma_;
 
 public:
   void print() const;
@@ -222,7 +200,6 @@ public:
                  << reset_value;
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
     imu_params_.n_gravity = reset_value;
-    
   }
 
   /* ------------------------------------------------------------------------ */
