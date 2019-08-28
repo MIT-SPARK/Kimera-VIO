@@ -52,8 +52,6 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   // Create inputs for online gravity alignment
   std::vector<gtsam::PreintegratedImuMeasurements> pims;
   std::vector<double> delta_t_camera;
-  // Empty vector for planes
-  std::vector<Plane> *planes;
   // Iterate and fill backend input vector
   while (!output_frontend.empty()) {
     // Create input for backend
@@ -64,7 +62,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
             output_frontend.front().tracker_status_,
             output_frontend.front().pim_,
             output_frontend.front().relative_pose_body_stereo_,
-            planes));
+            nullptr));
     inputs_backend.push_back(input_backend);
     pims.push_back(output_frontend.front().pim_);
     // Bookkeeping for timestamps

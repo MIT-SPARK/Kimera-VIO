@@ -124,104 +124,6 @@ void CreateImuBuffer(VIO::utils::ThreadsafeImuBuffer& imu_buf,
 }
 
 /* ************************************************************************* */
-TEST(testVio, GuessPoseFromIMUmeasurements) {
-  for (size_t test = 0; test < 5; test++) {
-    gtsam::Vector3 n_gravity;
-    gtsam::Vector3 a;
-    switch (test) {
-      case 0:  // generic vectors
-        a = gtsam::Vector3(9.8, 1, 0);
-        n_gravity = gtsam::Vector3(0, 0, -9.8);
-        break;
-      case 1:  // already aligned vectors
-        a = gtsam::Vector3(0, -9.8, 0);
-        n_gravity = gtsam::Vector3(0, -9.8, 0);
-        break;
-      case 2:  // opposite vectors
-        a = gtsam::Vector3(0, 0, -9.8);
-        n_gravity = gtsam::Vector3(0, 0, +9.8);
-        break;
-      case 3:
-        a = gtsam::Vector3(9.8, 0, 0);
-        n_gravity = gtsam::Vector3(0, -9.8, 0);
-        break;
-      case 4:
-        a = gtsam::Vector3(9.8, -1, 0);
-        n_gravity = Rot3::Expmap(gtsam::Vector3(0.1, 1, 0.5)).matrix() * a;
-        break;
-    }
-
-    size_t n = 10;
-    ImuAccGyrS accGyroRaw;
-    accGyroRaw.resize(6, n);  // n identical measurements
-    for (size_t i = 0; i < n; i++)
-      accGyroRaw.col(i) << -a,
-          gtsam::Vector3::Zero();  // we measure the opposite of gravity
-
-    bool round = false;
-    Pose3 poseActual =
-        VioBackEnd::guessPoseFromIMUmeasurements(accGyroRaw, n_gravity, round);
-    gtsam::Vector3 tExpected = gtsam::Vector3::Zero();
-    gtsam::Vector3 tActual = poseActual.translation();
-    EXPECT_TRUE(assert_equal(tExpected, tActual, tol));
-
-    Unit3 n_gravityDir_actual = poseActual.rotation().rotate(Unit3(a));
-    Unit3 n_gravityDir_expected = Unit3(n_gravity);
-    EXPECT_TRUE(assert_equal(n_gravityDir_expected, n_gravityDir_actual, tol));
-
-    if (test > 0 &&
-        test < 4) {  // case in which true gravity is along a single axis
-      round = true;
-      // check that rounding does not mess up with the previous cases
-      Pose3 poseActual2 = VioBackEnd::guessPoseFromIMUmeasurements(
-          accGyroRaw, n_gravity,
-          round);  // by rounding we should filter out perturbation
-      EXPECT_TRUE(assert_equal(poseActual, poseActual2, tol));
-
-      // check that rounding filter out perturbation
-      gtsam::Vector3 n_gravity_perturbed =
-          n_gravity + gtsam::Vector3(-0.1, 0.1, 0.3);
-      Pose3 poseActualRound = VioBackEnd::guessPoseFromIMUmeasurements(
-          accGyroRaw, n_gravity_perturbed, round);
-      EXPECT_TRUE(assert_equal(poseActual, poseActualRound, tol));
-    }
-  }
-}
-
-/* ************************************************************************* */
-TEST(testVio, InitializeImuBias) {
-  // Synthesize the data
-  const int num_measurements = 100;
-  ImuAccGyrS imu_accgyr;
-  imu_accgyr.resize(6, num_measurements);
-  gtsam::Vector3 n_gravity(1.1, 2.2, 3.3);  // random numbers, just for the test
-  srand(0);
-  for (int i = 0; i < num_measurements; i++) {
-    Vector6 rand_nums;
-    for (int idx = 0; idx < 6; idx++) {
-      rand_nums[idx] =
-          (rand() / ((double)RAND_MAX)) * 3;  // random number between 0 and 3
-    }
-    imu_accgyr.col(i) = rand_nums;
-  }
-
-  // Compute the actual bias!
-  ImuBias imu_bias_actual = VioBackEnd::initImuBias(imu_accgyr, n_gravity);
-
-  // Compute the expected value!
-  Vector6 imu_mean = Vector6::Zero();
-  for (int i = 0; i < num_measurements; i++) {
-    imu_mean += imu_accgyr.col(i);
-  }
-  imu_mean = imu_mean / ((double)num_measurements);
-  imu_mean.head(3) = imu_mean.head(3) + n_gravity;
-  ImuBias imu_bias_expected(imu_mean.head(3), imu_mean.tail(3));
-
-  // Compare the results!
-  EXPECT_TRUE(assert_equal(imu_bias_expected, imu_bias_actual, tol));
-}
-
-/* ************************************************************************* */
 TEST(testVio, robotMovingWithConstantVelocity) {
   // Additional parameters
   VioBackEndParams vioParams;
@@ -280,11 +182,9 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
   // create vio
   Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
-  std::shared_ptr<gtNavState> initial_state =
-      std::make_shared<gtNavState>(poses[0].first, v, imu_bias);
+  VioNavState initial_state = VioNavState(poses[0].first, v, imu_bias);
   boost::shared_ptr<VioBackEnd> vio = boost::make_shared<VioBackEnd>(
-      B_pose_camLrect, cam_params, baseline, &initial_state, t_start,
-      ImuAccGyrS(), vioParams);
+      B_pose_camLrect, cam_params, baseline, initial_state, t_start, vioParams);
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
   imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;

@@ -107,32 +107,28 @@ class Pipeline {
   // Check if necessary to re-initialize pipeline.
   void checkReInitialize(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // Initialize pipeline from IMU or GT.
-  bool initializeFromIMUorGT(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  // Initialize pipeline from ground truth pose.
+  bool initializeFromGroundTruth(
+      const StereoImuSyncPacket& stereo_imu_sync_packet,
+      const VioNavState& initial_ground_truth_state);
+
+  // Initialize pipeline from IMU readings only:
+  //  - Guesses initial state assuming zero velocity.
+  //  - Guesses IMU bias assuming steady upright vehicle.
+  bool initializeFromIMU(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Initialize pipeline from online gravity alignment.
   bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // Initialize backend given external pose estimate (GT or OGA)
-  // TODO(Sandro): Unify both functions below (init backend)
-  bool initializeVioBackend(const StereoImuSyncPacket& stereo_imu_sync_packet,
-                            std::shared_ptr<gtNavState> initial_state,
-                            const StereoFrame& stereo_frame_lkf);
-
   // Initialize backend.
+  // Initialize backend given external pose estimate (GT, IMU or OGA)
   /// @param: vio_backend: returns the backend initialized.
-  /// @param: initial_state_gt: serves as input in case there is ground-truth
-  /// available for the initial state and one wants to initialize the backend
-  /// using this information. And also as output by returning the eventually
-  /// used initial state (either grount-truth, or guessed from imu data).
+  /// @param: initial_state_seed: first state guess.
   bool initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
-                   const gtsam::Pose3& B_Pose_camLrect,
-                   const gtsam::Cal3_S2& left_undist_rect_cam_mat,
-                   const double& baseline,
-                   const VioBackEndParams& vio_params,
-                   std::shared_ptr<gtNavState>* initial_state_gt,
-                   const Timestamp& timestamp_k,
-                   const ImuAccGyrS& imu_accgyr);
+                   const StereoImuSyncPacket& stereo_imu_sync_packet,
+                   const VioNavState& initial_state_seed,
+                   const StereoFrame& stereo_frame_lkf);
+
   // Displaying must be done in the main thread.
   void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
 

@@ -47,8 +47,8 @@ class DataProvider {
   // is available for processing.
   std::function<void(const StereoImuSyncPacket&)> vio_callback_;
 
-  int initial_k_; // start frame
-  int final_k_; // end frame
+  FrameId initial_k_;  // start frame
+  FrameId final_k_;    // end frame
   std::string dataset_path_;
 
 protected:
