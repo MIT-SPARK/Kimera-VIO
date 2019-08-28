@@ -158,11 +158,15 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
     if (logger_) {
-      logger_->logFrontendStats(getTrackerInfo(), trackerStatusSummary_,
-          stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
-      logger_->logFrontendRansac(getRelativePoseBodyMono(),
-          getRelativePoseBodyStereo(),
+      logger_->logFrontendStats(
           stereoFrame_lkf_->getTimestamp());
+          getTrackerInfo(),
+          trackerStatusSummary_,
+          stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
+      logger_->logFrontendRansac(
+          stereoFrame_lkf_->getTimestamp(),
+          getRelativePoseBodyMono(),
+          getRelativePoseBodyStereo());
     }
     ////////////////////////////////////////////////////////////////////////////
 

@@ -77,12 +77,13 @@ class FrontendLogger {
   FrontendLogger();
   ~FrontendLogger() = default;
 
-  void logFrontendStats(const DebugTrackerInfo& tracker_info,
-                          const TrackerStatusSummary& tracker_summary,
-                          const size_t& nrKeypoints);
-  void logFrontendRansac(const gtsam::Pose3& relative_pose_body_mono,
-                         const gtsam::Pose3& relative_pose_body_stereo,
-                         const Timestamp& timestamp_lkf);
+  void logFrontendStats(const Timestamp& timestamp_lkf,
+                        const DebugTrackerInfo& tracker_info,
+                        const TrackerStatusSummary& tracker_summary,
+                        const size_t& nrKeypoints);
+  void logFrontendRansac(const Timestamp& timestamp_lkf
+                         const gtsam::Pose3& relative_pose_body_mono,
+                         const gtsam::Pose3& relative_pose_body_stereo);
 
  private:
   // StreamWrappers with filenames to which output is saved.

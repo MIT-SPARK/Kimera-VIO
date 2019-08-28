@@ -327,27 +327,31 @@ FrontendLogger::FrontendLogger()
       output_frontend_ransac_mono_("output_frontend_ransac_mono.csv"),
       output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv") {};
 
-void FrontendLogger::logFrontendStats(const DebugTrackerInfo& tracker_info,
+void FrontendLogger::logFrontendStats(
+    const Timestamp& timestamp_lkf,
+    const DebugTrackerInfo& tracker_info,
     const TrackerStatusSummary& tracker_summary,
     const size_t& nrKeypoints) {
   // We log frontend results in csv format.
-  static bool is_header_written = false;
-
   std::ofstream& output_stream_stats = output_frontend_stats_.ofstream_;
+
+  static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_stats << "mono_status,stereo_status,nr_keypoints,"
-                        << "nrDetectedFeatures,nrTrackerFeatures,nrMonoInliers,"
-                        << "nrMonoPutatives,nrStereoInliers,nrStereoPutatives,"
-                        << "monoRansacIters,stereoRansacIters,nrValidRKP,"
-                        << "nrNoLeftRectRKP,nrNoRightRectRKP,nrNoDepthRKP,"
-                        << "nrFailedArunRKP,featureDetectionTime,"
-                        << "featureTrackingTime,monoRansacTime,"
-                        << "stereoRansacTime,featureSelectionTime,"
-                        << "extracted_corners,need_n_corners"
+    output_stream_stats << "timestamp_lkf,mono_status,stereo_status,"
+                        << "nr_keypoints,nrDetectedFeatures,nrTrackerFeatures,"
+                        << "nrMonoInliers,nrMonoPutatives,nrStereoInliers,"
+                        << "nrStereoPutatives,monoRansacIters,"
+                        << "stereoRansacIters,nrValidRKP,nrNoLeftRectRKP,"
+                        << "nrNoRightRectRKP,nrNoDepthRKP,nrFailedArunRKP,"
+                        << "featureDetectionTime,featureTrackingTime,"
+                        << "monoRansacTime,stereoRansacTime,"
+                        << "featureSelectionTime,extracted_corners,"
+                        << "need_n_corners"
                         << std::endl;
     is_header_written = true;
   }
 
+  output_stream_stats << timestamp_lkf << ","
   // Mono status.
   output_stream_stats << TrackerStatusSummary::asString(
                               tracker_summary.kfTrackingStatus_mono_) << ","
@@ -384,15 +388,15 @@ void FrontendLogger::logFrontendStats(const DebugTrackerInfo& tracker_info,
 }
 
 void FrontendLogger::logFrontendRansac(
+    const Timestamp& timestamp_lkf,
     const gtsam::Pose3& relative_pose_body_mono,
-    const gtsam::Pose3& relative_pose_body_stereo,
-    const Timestamp& timestamp_lkf) {
+    const gtsam::Pose3& relative_pose_body_stereo) {
   // We log the relative poses in csv format for later analysis.
-  static bool is_header_written = false;
   std::ofstream& output_stream_mono = output_frontend_ransac_mono_.ofstream_;
   std::ofstream& output_stream_stereo =
       output_frontend_ransac_stereo_.ofstream_;
 
+  static bool is_header_written = false;
   if (!is_header_written) {
     output_stream_mono << "timestamp_lkf,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
                        << "bgx,bgy,bgz,bax,bay,baz"
@@ -441,6 +445,7 @@ void FrontendLogger::logFrontendRansac(
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 PipelineLogger::PipelineLogger()
     : output_pipeline_timing_("output_timingOverall.csv"){};
+
 void PipelineLogger::logPipelineOverallTiming(
     const std::chrono::milliseconds& duration) {
   // Add header.
