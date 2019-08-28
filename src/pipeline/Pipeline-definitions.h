@@ -17,6 +17,7 @@
 #include "VioBackEndParams.h"
 #include "VioFrontEndParams.h"
 #include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "loopclosure/LoopClosureDetectorParams.h"
 
 namespace VIO {
 
@@ -24,6 +25,7 @@ struct PipelineParams {
   VioFrontEndParams frontend_params_;
   VioBackEndParamsPtr backend_params_;
   ImuParams imu_params_;
+  LoopClosureDetectorParams lcd_params_;
   int backend_type_;
 };
 

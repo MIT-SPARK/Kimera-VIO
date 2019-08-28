@@ -351,7 +351,7 @@ void FrontendLogger::logFrontendStats(
     is_header_written = true;
   }
 
-  output_stream_stats << timestamp_lkf << ","
+  output_stream_stats << timestamp_lkf << ",";
   // Mono status.
   output_stream_stats << TrackerStatusSummary::asString(
                               tracker_summary.kfTrackingStatus_mono_) << ","
@@ -444,7 +444,7 @@ void FrontendLogger::logFrontendRansac(
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 PipelineLogger::PipelineLogger()
-    : output_pipeline_timing_("output_timingOverall.csv"){};
+    : output_pipeline_timing_("output_timingOverall.csv") {};
 
 void PipelineLogger::logPipelineOverallTiming(
     const std::chrono::milliseconds& duration) {
@@ -452,6 +452,73 @@ void PipelineLogger::logPipelineOverallTiming(
   std::ofstream& outputFile_timingOverall_ = output_pipeline_timing_.ofstream_;
   outputFile_timingOverall_ << "vio_overall_time [ms]" << std::endl;
   outputFile_timingOverall_ << duration.count();
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+LoopClosureDetectorLogger::LoopClosureDetectorLogger()
+    : output_lcd_("output_lcd_result.scv"),
+      output_traj_("output_optimized_traj.csv") {};
+
+void LoopClosureDetectorLogger::logLCDResult(
+    const LoopClosureDetectorOutputPayload& lcd_output) {
+  // We log loop-closure results in csv format.
+  std::ofstream& output_stream_lcd = output_lcd_.ofstream_;
+
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    output_stream_lcd << "timestamp,isLoop,matchKfId,queryKfId,px,py,pz,qw,qx,"
+                      << "qy,qz"
+                      << std::endl;
+    is_header_written = true;
+  }
+
+  const auto& rel_trans = lcd_output.relative_pose_.translation();
+  const auto& rel_quat = lcd_output.relative_pose_.rotation().toQuaternion();
+
+  output_stream_lcd << lcd_output.timestamp_kf_ << ","
+                    << lcd_output.is_loop_closure_ << ","
+                    << lcd_output.id_match_ << ","
+                    << lcd_output.id_recent_ << ","
+                    << rel_trans.x() << ","
+                    << rel_trans.y() << ","
+                    << rel_trans.z() << ","
+                    << rel_quat.w() << ","
+                    << rel_quat.x() << ","
+                    << rel_quat.y() << ","
+                    << rel_quat.z() << ","
+                    << std::endl;
+}
+
+void LoopClosureDetectorLogger::logOptimizedTrajectory(
+    const Timestamp& timestamp,
+    const gtsam::Values& traj) {
+  // We log the full optimized trajectory in csv format.
+  std::ofstream& output_stream_traj = output_traj_.ofstream_;
+
+  // TODO(marcus): set the append to false on this one and overwrite EVERY TIME
+
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    output_stream_traj << "timestamp,x,y,z,qw,qx,qy,qz"
+                       << std::endl;
+    is_header_written = true;
+  }
+
+  for (size_t i = 0; i < traj.size(); i++) {
+    gtsam::Pose3 pose = traj.at<gtsam::Pose3>(i);
+    const auto trans = pose.translation();
+    const auto quat = pose.rotation().toQuaternion();
+
+    output_stream_traj << timestamp << ","
+                       << trans.x() << ","
+                       << trans.y() << ","
+                       << trans.z() << ","
+                       << quat.w() << ","
+                       << quat.x() << ","
+                       << quat.y() << ","
+                       << quat.z() << ","
+                       << std::endl;
+  }
 }
 
 }  // namespace VIO
