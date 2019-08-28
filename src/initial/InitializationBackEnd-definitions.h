@@ -22,6 +22,8 @@
 
 namespace VIO {
 
+enum InitializationModes { GT, IMU, ALIGNMENT };
+
 struct InitializationInputPayload : public StereoFrontEndOutputPayload {
  public:
   // Default constructor

@@ -29,6 +29,8 @@ using ImuStampS = Eigen::Matrix<ImuStamp, 1, Eigen::Dynamic>;
 // First 3 elements correspond to acceleration data [m/s^2]
 // while the 3 last correspond to angular velocities [rad/s].
 using ImuAccGyr = Eigen::Matrix<double, 6, 1>;
+using ImuAcc = Eigen::Matrix<double, 3, 1>;
+using ImuGyr = Eigen::Matrix<double, 3, 1>;
 using ImuAccGyrS = Eigen::Matrix<double, 6, Eigen::Dynamic>;
 using ImuBias = gtsam::imuBias::ConstantBias;
 

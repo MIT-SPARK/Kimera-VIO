@@ -140,8 +140,9 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
   // Align visual and inertial estimates
   if (alignEstimatesLinearly(vi_frames, g_world_, g_iter, &init_velocity)) {
     // Align gravity vectors and estimate initial pose
-    gtsam::Pose3 w0_T_b0 =
+    gtsam::Rot3 w0_R_b0 =
         UtilsOpenCV::AlignGravityVectors(*g_iter, g_world_, false);
+    gtsam::Pose3 w0_T_b0(w0_R_b0, gtsam::Point3());
     // Create initial navstate and rotate velocity in world frame
     *init_navstate = gtsam::NavState(w0_T_b0 * vi_frames.at(0).b0Tbk(),
                                      w0_T_b0.rotation() * init_velocity);

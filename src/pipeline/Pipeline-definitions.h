@@ -16,7 +16,7 @@
 
 #include "VioBackEndParams.h"
 #include "VioFrontEndParams.h"
-#include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "imu-frontend/ImuFrontEndParams.h"
 
 namespace VIO {
 
@@ -25,6 +25,7 @@ struct PipelineParams {
   VioBackEndParamsPtr backend_params_;
   ImuParams imu_params_;
   int backend_type_;
+  bool parallel_run_;
 };
 
 }  // namespace VIO
