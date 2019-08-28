@@ -81,7 +81,7 @@ class FrontendLogger {
                         const DebugTrackerInfo& tracker_info,
                         const TrackerStatusSummary& tracker_summary,
                         const size_t& nrKeypoints);
-  void logFrontendRansac(const Timestamp& timestamp_lkf
+  void logFrontendRansac(const Timestamp& timestamp_lkf,
                          const gtsam::Pose3& relative_pose_body_mono,
                          const gtsam::Pose3& relative_pose_body_stereo);
 

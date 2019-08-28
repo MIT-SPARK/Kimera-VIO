@@ -353,7 +353,7 @@ void FrontendLogger::logFrontendStats(
 
   output_stream_stats << timestamp_lkf << ","
   // Mono status.
-  output_stream_stats << TrackerStatusSummary::asString(
+                      << TrackerStatusSummary::asString(
                               tracker_summary.kfTrackingStatus_mono_) << ","
   // Stereo status.
                       << TrackerStatusSummary::asString(
