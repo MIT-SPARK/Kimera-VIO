@@ -22,10 +22,10 @@
 #include <utility>  // for make_pair
 #include <vector>
 
-#include "datasource/DataSource.h"
 #include "FeatureSelector.h"
 #include "StereoImuSyncPacket.h"
 #include "Visualizer3D.h"
+#include "datasource/DataSource-definitions.h"  // Only used for gtNavState, add it to vio_types.h instead...
 #include "initial/InitializationBackEnd-definitions.h"
 #include "mesh/Mesher.h"
 #include "utils/ThreadsafeQueue.h"
@@ -130,9 +130,11 @@ class Pipeline {
   bool initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                    const gtsam::Pose3& B_Pose_camLrect,
                    const gtsam::Cal3_S2& left_undist_rect_cam_mat,
-                   const double& baseline, const VioBackEndParams& vio_params,
+                   const double& baseline,
+                   const VioBackEndParams& vio_params,
                    std::shared_ptr<gtNavState>* initial_state_gt,
-                   const Timestamp& timestamp_k, const ImuAccGyrS& imu_accgyr);
+                   const Timestamp& timestamp_k,
+                   const ImuAccGyrS& imu_accgyr);
   // Displaying must be done in the main thread.
   void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
 
@@ -147,12 +149,16 @@ class Pipeline {
   void processKeyframePop();
 
   StatusSmartStereoMeasurements featureSelect(
-      const VioFrontEndParams& tracker_params, const Timestamp& timestamp_k,
-      const Timestamp& timestamp_lkf, const gtsam::Pose3& W_Pose_Blkf,
+      const VioFrontEndParams& tracker_params,
+      const Timestamp& timestamp_k,
+      const Timestamp& timestamp_lkf,
+      const gtsam::Pose3& W_Pose_Blkf,
       double* feature_selection_time,
       std::shared_ptr<StereoFrame>& stereoFrame_km1,
-      const StatusSmartStereoMeasurements& smart_stereo_meas, int cur_kf_id,
-      int save_image_selector, const gtsam::Matrix& curr_state_cov,
+      const StatusSmartStereoMeasurements& smart_stereo_meas,
+      int cur_kf_id,
+      int save_image_selector,
+      const gtsam::Matrix& curr_state_cov,
       const Frame& left_frame);
 
   // Launch different threads with processes.

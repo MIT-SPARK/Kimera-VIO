@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <utility>  // for forward
+#include <vector>
 
 #include <gtsam/base/Matrix.h>
 #include <gtsam/geometry/Point2.h>
@@ -32,6 +34,7 @@ using Matrixf = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic>;
 using Matrices3f = std::vector<Matrix3f, Eigen::aligned_allocator<Matrix3f>>;
 using Vectors3f = std::vector<Vector3f, Eigen::aligned_allocator<Vector3f>>;
 
+// TODO(Toni): make a class enum.
 enum Kstatus { VALID, NO_LEFT_RECT, NO_RIGHT_RECT, NO_DEPTH, FAILED_ARUN };
 
 // Definitions relevant to frame types

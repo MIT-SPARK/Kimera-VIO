@@ -75,7 +75,6 @@ add_library(SparkVio SHARED
   src/StereoImuSyncPacket.cpp
   src/UtilsGeometry.cpp
   src/UtilsOpenCV.cpp
-  src/ImuFrontEnd.cpp
   src/VioBackEnd.cpp
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
@@ -109,6 +108,8 @@ include(src/common/CMakeLists.txt)
 include(src/loopclosure/CMakeLists.txt)
 ### Add source code for logging
 include(src/logging/CMakeLists.txt)
+### Add source code for imu frontend
+include(src/imu-frontend/CMakeLists.txt)
 
 target_link_libraries(SparkVio
   PRIVATE

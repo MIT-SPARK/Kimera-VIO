@@ -10,34 +10,37 @@
  * @file   InitializationBackEnd.cpp
  * @brief  Derived class from VioBackEnd for bundle adjustment and alignment
  * for the online initialization
+ * @author Antoni Rosinol
  * @author Sandro Berchier
  * @author Luca Carlone
  */
 
 #include "InitializationBackEnd.h"
-#include "OnlineGravityAlignment.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "initial/OnlineGravityAlignment.h"
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-InitializationBackEnd::InitializationBackEnd(const Pose3& leftCamPose,
-                       const Cal3_S2& leftCameraCalRectified,
-                       const double& baseline,
-                       const VioBackEndParams& vioParams,
-                       const bool log_output) :
-  VioBackEnd(leftCamPose,
-        leftCameraCalRectified,
-        baseline,
-        vioParams,
-        log_output) {}
+InitializationBackEnd::InitializationBackEnd(
+    const gtsam::Pose3 &leftCamPose,
+    const Cal3_S2 &leftCameraCalRectified,
+    const double &baseline,
+    const VioBackEndParams &vioParams,
+    const bool log_output)
+    : VioBackEnd(leftCamPose,
+                 leftCameraCalRectified,
+                 baseline,
+                 vioParams,
+                 log_output) {}
 
 /* ------------------------------------------------------------------------ */
 // Perform Bundle-Adjustment and initial gravity alignment
 bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
-  std::queue<InitializationInputPayload>& output_frontend,
+    std::queue<InitializationInputPayload> &output_frontend,
     gtsam::Vector3 *gyro_bias,
     gtsam::Vector3 *g_iter_b0,
     gtsam::NavState *init_navstate) {
@@ -50,7 +53,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   std::vector<gtsam::PreintegratedImuMeasurements> pims;
   std::vector<double> delta_t_camera;
   // Empty vector for planes
-  std::vector<Plane>* planes;
+  std::vector<Plane> *planes;
   // Iterate and fill backend input vector
   while (!output_frontend.empty()) {
     // Create input for backend
@@ -60,14 +63,15 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
             output_frontend.front().statusSmartStereoMeasurements_,
             output_frontend.front().tracker_status_,
             output_frontend.front().pim_,
-            output_frontend.front().relative_pose_body_stereo_, planes));
+            output_frontend.front().relative_pose_body_stereo_,
+            planes));
     inputs_backend.push_back(input_backend);
     pims.push_back(output_frontend.front().pim_);
     // Bookkeeping for timestamps
     Timestamp timestamp_kf =
-            output_frontend.front().stereo_frame_lkf_.getTimestamp();
-    delta_t_camera.push_back(UtilsOpenCV::NsecToSec(
-                    timestamp_kf - timestamp_lkf_));
+        output_frontend.front().stereo_frame_lkf_.getTimestamp();
+    delta_t_camera.push_back(
+        UtilsOpenCV::NsecToSec(timestamp_kf - timestamp_lkf_));
     timestamp_lkf_ = timestamp_kf;
 
     // Check that all frames are keyframes (required)
@@ -85,9 +89,9 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   std::vector<gtsam::Pose3> estimated_poses =
       addInitialVisualStatesAndOptimize(inputs_backend);
   auto ba_duration =
-    utils::Timer::toc<std::chrono::nanoseconds>(tic_ba).count() * 1e-9;
-  LOG(WARNING) << "Current bundle-adjustment duration: ("
-                << ba_duration << " s).";
+      utils::Timer::toc<std::chrono::nanoseconds>(tic_ba).count() * 1e-9;
+  LOG(WARNING) << "Current bundle-adjustment duration: (" << ba_duration
+               << " s).";
   // Remove initial delta time and pims from input vector to online
   // alignment due to the disregarded init values in bundle adjustment
   delta_t_camera.erase(delta_t_camera.begin());
@@ -97,19 +101,14 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 
   // Run initial visual-inertial alignment(OGA)
   OnlineGravityAlignment initial_alignment(
-                            estimated_poses,
-                            delta_t_camera,
-                            pims,
-                            vio_params_.n_gravity_);
+      estimated_poses, delta_t_camera, pims, vio_params_.n_gravity_);
   auto tic_oga = utils::Timer::tic();
   bool is_success = initial_alignment.alignVisualInertialEstimates(
-                                                gyro_bias, g_iter_b0,
-                                                init_navstate,
-                                                true);
+      gyro_bias, g_iter_b0, init_navstate, true);
   auto alignment_duration =
-    utils::Timer::toc<std::chrono::nanoseconds>(tic_oga).count() * 1e-9;
-  LOG(WARNING) << "Current alignment duration: ("
-                << alignment_duration << " s).";
+      utils::Timer::toc<std::chrono::nanoseconds>(tic_oga).count() * 1e-9;
+  LOG(WARNING) << "Current alignment duration: (" << alignment_duration
+               << " s).";
 
   // TODO(Sandro): Check initialization against GT
   // Compute performance and Log output if requested
@@ -146,8 +145,8 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 
 /* -------------------------------------------------------------------------- */
 std::vector<gtsam::Pose3>
-    InitializationBackEnd::addInitialVisualStatesAndOptimize(
-        const std::vector<std::shared_ptr<VioBackEndInputPayload>> &input) {
+InitializationBackEnd::addInitialVisualStatesAndOptimize(
+    const std::vector<std::shared_ptr<VioBackEndInputPayload>> &input) {
   CHECK(input.front());
 
   // Initial clear values.
@@ -158,17 +157,19 @@ std::vector<gtsam::Pose3>
   // Insert relative poses for bundle adjustment
   for (int i = 0; i < input.size(); i++) {
     auto input_iter = input[i];
-    bool use_stereo_btw_factor = vio_params_.addBetweenStereoFactors_ == true &&
+    bool use_stereo_btw_factor =
+        vio_params_.addBetweenStereoFactors_ == true &&
         input_iter->stereo_tracking_status_ == TrackingStatus::VALID;
     VLOG(5) << "Adding initial visual state.";
     VLOG_IF(5, use_stereo_btw_factor) << "Using stereo between factor.";
     // Features and IMU line up --> do iSAM update
     addInitialVisualState(
-        input_iter->timestamp_kf_nsec_, // Current time for fixed lag smoother.
-        input_iter->status_smart_stereo_measurements_kf_, // Vision data.
+        input_iter->timestamp_kf_nsec_,  // Current time for fixed lag smoother.
+        input_iter->status_smart_stereo_measurements_kf_,  // Vision data.
         input_iter->planes_,
         use_stereo_btw_factor ? input_iter->stereo_ransac_body_pose_
-                              : boost::none, 0);
+                              : boost::none,
+        0);
     last_kf_id_ = curr_kf_id_;
     ++curr_kf_id_;
   }
@@ -194,19 +195,18 @@ std::vector<gtsam::Pose3>
   // All relative to initial pose, as we need to fix x0 from the BA.
   gtsam::Pose3 initial_pose;
   for (int j = 0; j < estimated_poses.size(); j++) {
-    if (j==0) {
+    if (j == 0) {
       initial_pose = estimated_poses.at(0);
       estimated_poses.at(0) = gtsam::Pose3();
     } else {
       estimated_poses.at(j) = initial_pose.between(estimated_poses.at(j));
     }
-    if (VLOG_IS_ON(10))
-      estimated_poses.at(j).print();
+    if (VLOG_IS_ON(10)) estimated_poses.at(j).print();
   }
   // Return poses (b0_T_bk, for k in 0:N).
   // Since we need to optimize for poses with observed landmarks, the
-  // ransac estimate for the first pose is not used, as there are no observations
-  // for the previous keyframe (which doesn't exist).
+  // ransac estimate for the first pose is not used, as there are no
+  // observations for the previous keyframe (which doesn't exist).
   CHECK_EQ(input.size(), estimated_poses.size());
   return estimated_poses;
 }
@@ -225,12 +225,12 @@ void InitializationBackEnd::addInitialVisualState(
   debug_info_.resetAddedFactorsStatistics();
 
   VLOG(10) << "Initialization: adding keyframe " << curr_kf_id_
-          << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec)
-          << " (nsec).";
+           << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec)
+           << " (nsec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
-  if (stereo_ransac_body_pose && curr_kf_id_!=0) {
+  if (stereo_ransac_body_pose && curr_kf_id_ != 0) {
     // We need to keep adding the relative poses, since we process a
     // whole batch. Otherwise we start with wrong initial guesses.
     W_Pose_B_lkf_ = W_Pose_B_lkf_.compose(*stereo_ransac_body_pose);
@@ -240,10 +240,9 @@ void InitializationBackEnd::addInitialVisualState(
   }
 
   // add between factor from RANSAC
-  if (stereo_ransac_body_pose && curr_kf_id_!=0) {
+  if (stereo_ransac_body_pose && curr_kf_id_ != 0) {
     VLOG(10) << "Initialization: adding between ";
-    if (VLOG_IS_ON(10))
-      (*stereo_ransac_body_pose).print();
+    if (VLOG_IS_ON(10)) (*stereo_ransac_body_pose).print();
     addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
   }
 
@@ -257,14 +256,14 @@ void InitializationBackEnd::addInitialVisualState(
 
   // extract relevant information from stereo frame
   LandmarkIds landmarks_kf;
-  addStereoMeasurementsToFeatureTracks(curr_kf_id_, smartStereoMeasurements_kf,
-                                       &landmarks_kf);
+  addStereoMeasurementsToFeatureTracks(
+      curr_kf_id_, smartStereoMeasurements_kf, &landmarks_kf);
 
   // Add zero velocity update if no-motion detected
   TrackingStatus kfTrackingStatus_mono =
       status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
-  if (kfTrackingStatus_mono == TrackingStatus::LOW_DISPARITY
-      && curr_kf_id_!=0) {
+  if (kfTrackingStatus_mono == TrackingStatus::LOW_DISPARITY &&
+      curr_kf_id_ != 0) {
     VLOG(10) << "No-motion factor added in Bundle-Adjustment.\n";
     LOG(WARNING) << "No-motion factor added in Bundle-Adjustment.\n";
     addNoMotionFactor(last_kf_id_, curr_kf_id_);
@@ -276,11 +275,13 @@ void InitializationBackEnd::addInitialVisualState(
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO(Toni): do not return vectors...
 std::vector<gtsam::Pose3> InitializationBackEnd::optimizeInitialVisualStates(
-    const Timestamp &timestamp_kf_nsec, const FrameId &cur_id,
+    const Timestamp &timestamp_kf_nsec,
+    const FrameId &cur_id,
     const size_t &max_extra_iterations,
     const std::vector<size_t> &extra_factor_slots_to_delete,
-    const int verbosity_) { // TODO: Remove verbosity and use VLOG
+    const int verbosity_) {  // TODO: Remove verbosity and use VLOG
 
   // Only for statistics and debugging.
   // Store start time to calculate absolute total time taken.
@@ -296,7 +297,7 @@ std::vector<gtsam::Pose3> InitializationBackEnd::optimizeInitialVisualStates(
     // Push back the smart factor to the list of new factors to add to the
     // graph.
     new_factors_tmp.push_back(
-        new_smart_factor.second); // Smart factor, so same address right?
+        new_smart_factor.second);  // Smart factor, so same address right?
     // VLOG(10) << "Iteration: " << new_smart_factor.first;
   }
 
@@ -308,8 +309,7 @@ std::vector<gtsam::Pose3> InitializationBackEnd::optimizeInitialVisualStates(
 
   // Print graph before optimization
   // TODO(Sandro): Change back verbosity level!
-  if (VLOG_IS_ON(2))
-    new_factors_tmp.print();
+  if (VLOG_IS_ON(2)) new_factors_tmp.print();
 
   // Levenberg-Marquardt optimization
   gtsam::LevenbergMarquardtParams lmParams;

@@ -29,6 +29,7 @@
 
 #include "Frame.h"
 #include "StereoImuSyncPacket.h"
+#include "datasource/DataSource-definitions.h"
 #include "datasource/DataSource.h"
 
 namespace VIO {
@@ -69,7 +70,7 @@ class ETHDatasetParser : public DataProvider {
 
 public:
 
-  bool spin() override;
+  virtual bool spin() override;
 
   void spinOnce(const FrameId& k, Timestamp& timestamp_last_frame,
                 const StereoMatchingParams& stereo_matchiong_params,

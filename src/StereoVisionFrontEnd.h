@@ -23,16 +23,17 @@
 
 #include "StereoFrame.h"
 #include "StereoImuSyncPacket.h"
+#include "StereoVisionFrontEnd-definitions.h"
+#include "Tracker-definitions.h"
 #include "Tracker.h"
-#include "utils/Timer.h"
+#include "VioBackEnd-definitions.h"
+#include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "imu-frontend/ImuFrontEnd.h"
+#include "imu-frontend/ImuFrontEndParams.h"
+#include "logging/Logger.h"
 #include "utils/Statistics.h"
 #include "utils/ThreadsafeQueue.h"
-#include "ImuFrontEnd-definitions.h"
-#include "ImuFrontEnd.h"
-#include "Tracker-definitions.h"
-#include "StereoVisionFrontEnd-definitions.h"
-#include "VioBackEnd-definitions.h"
-#include "logging/Logger.h"
+#include "utils/Timer.h"
 
 namespace VIO {
 

@@ -14,8 +14,8 @@
 
 #include "datasource/ETH_parser.h"
 
-#include "ImuFrontEnd-definitions.h"
 #include "StereoFrame.h"
+#include "imu-frontend/ImuFrontEnd-definitions.h"
 
 DEFINE_int32(skip_n_start_frames, 10, "Number of initial frames to skip.");
 DEFINE_int32(skip_n_end_frames, 100, "Number of final frames to skip.");
@@ -25,7 +25,8 @@ namespace VIO {
 //////////////// FUNCTIONS OF THE CLASS ETHDatasetParser              //////////
 ////////////////////////////////////////////////////////////////////////////////
 /* -------------------------------------------------------------------------- */
-ETHDatasetParser::ETHDatasetParser() : DataProvider(), imuData_() {
+ETHDatasetParser::ETHDatasetParser()
+    : DataProvider(), imuData_() {
   parse();
 
   // Check that final_k_ is smaller than the number of images.
@@ -415,6 +416,7 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
 
   CHECK_NE(deltaCount, 0u);
   // Converted in seconds.
+  // TODO(TONI): this looks horrible.
   gtData_.gt_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
   fin.close();
 
@@ -540,6 +542,7 @@ bool ETHDatasetParser::sanityCheckCamTimestamps(
       deltaCount++;
       const Timestamp& timestamp = left_img_lists.at(i).first;
       const Timestamp& previous_timestamp = left_img_lists.at(i - 1).first;
+      // TODO(TONI): this looks horrible.
       double deltaMismatch = fabs(
           double(timestamp - previous_timestamp - left_cam_info.frame_rate_) *
           1e-9);

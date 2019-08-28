@@ -42,8 +42,8 @@
 
 #include <Eigen/Dense>
 
-#include "ImuFrontEnd-definitions.h"
 #include "common/vio_types.h"
+#include "imu-frontend/ImuFrontEnd-definitions.h"
 #include "utils/ThreadsafeTemporalBuffer.h"
 
 namespace VIO {

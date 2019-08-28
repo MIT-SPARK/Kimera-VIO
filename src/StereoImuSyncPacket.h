@@ -16,10 +16,13 @@
 
 #pragma once
 
-#include "ImuFrontEnd.h"
+#include <gtsam/base/Vector.h>
+#include <gtsam/geometry/Pose3.h>
+
 #include "StereoFrame.h"
 #include "Tracker-definitions.h"
 #include "VioBackEnd-definitions.h"
+#include "imu-frontend/ImuFrontEnd-definitions.h"
 #include "mesh/Mesh.h"
 
 namespace VIO {
@@ -28,7 +31,7 @@ struct ReinitPacket {
   ReinitPacket(const bool& reinit_flag_ext = false,
                const Timestamp& timestamp_ext = 0,
                const gtsam::Pose3& W_Pose_Bext = gtsam::Pose3(),
-               const Vector3& W_Vel_Bext = gtsam::zero(3),
+               const gtsam::Vector3& W_Vel_Bext = gtsam::zero(3),
                const ImuBias& imu_bias_ext = gtsam::imuBias::ConstantBias())
       : reinit_flag_ext_(reinit_flag_ext),
         timestamp_ext_(timestamp_ext),
@@ -41,7 +44,7 @@ struct ReinitPacket {
   bool reinit_flag_ext_;
   Timestamp timestamp_ext_;
   gtsam::Pose3 W_Pose_Bext_;
-  Vector3 W_Vel_Bext_;
+  gtsam::Vector3 W_Vel_Bext_;
   ImuBias imu_bias_ext_;
 
  public:
@@ -81,7 +84,8 @@ class StereoImuSyncPacket {
   // WARNING do not use constructor params after being moved with
   // std::move as they are left in an invalid state!!
   StereoImuSyncPacket() = delete;
-  StereoImuSyncPacket(StereoFrame stereo_frame, ImuStampS imu_stamps,
+  StereoImuSyncPacket(StereoFrame stereo_frame,
+                      ImuStampS imu_stamps,
                       ImuAccGyrS imu_accgyr,
                       ReinitPacket reinit_packet = ReinitPacket());
   ~StereoImuSyncPacket() = default;
@@ -93,7 +97,9 @@ class StereoImuSyncPacket {
   inline const ImuStampS& getImuStamps() const { return imu_stamps_; }
   inline const ImuAccGyrS& getImuAccGyr() const { return imu_accgyr_; }
   inline const ReinitPacket& getReinitPacket() const { return reinit_packet_; }
-  inline const bool getReinitFlag() const { return reinit_packet_.getReinitFlag(); }
+  inline const bool getReinitFlag() const {
+    return reinit_packet_.getReinitFlag();
+  }
 
   // This enforces the frame to be a keyframe
   void setAsKeyframe() { stereo_frame_.setIsKeyframe(true); }
