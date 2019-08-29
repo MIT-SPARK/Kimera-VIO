@@ -10,69 +10,79 @@
  * @file   OnlineGravityAlignment.cpp
  * @brief  Contains initial Online Gravity Alignment functions.
  *
- * Qin, Tong, and Shaojie Shen. 
- * Robust initialization of monocular visual-inertial estimation on aerial robots.
- * International Conference on Intelligent Robots and Systems (IROS). IEEE, 2017.
+ * Qin, Tong, and Shaojie Shen.
+ * Robust initialization of monocular visual-inertial estimation on aerial
+ * robots. International Conference on Intelligent Robots and Systems (IROS).
+ * IEEE, 2017.
  *
+ * @author Antoni Rosinol
  * @author Sandro Berchier
  * @author Luca Carlone
  */
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
 #include <memory>
 #include <unordered_map>
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+
 #include <gtsam/base/Matrix.h>
-#include <gtsam/navigation/ImuBias.h>
 #include <gtsam/inference/Symbol.h>
-#include <gtsam/nonlinear/Values.h>
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/linear/JacobianFactor.h>
-#include <gtsam/slam/PriorFactor.h>
+#include <gtsam/navigation/ImuBias.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/Values.h>
+#include <gtsam/slam/PriorFactor.h>
 
 //#include <gtsam/linear/VectorValues.h>
 //#include <gtsam/nonlinear/Marginals.h>
 
-#include "utils/Timer.h"
 #include "UtilsOpenCV.h"
-#include "OnlineGravityAlignment.h"
+#include "initial/OnlineGravityAlignment.h"
+#include "utils/Timer.h"
 
 // TODO(Sandro): Create YAML file for initialization and read in!
-DEFINE_double(gyroscope_residuals, 5e-2,
+DEFINE_double(gyroscope_residuals,
+              5e-2,
               "Maximum allowed gyroscope residual after"
               " pre-integrationcorrection.");
-DEFINE_bool(use_ahrs_estimator, false,
-              "Use AHRS gyroscope bias estimator"
-              " instead of linear 1st order approximation.");
-DEFINE_double(rotation_noise_prior, 1e-2,
+DEFINE_bool(use_ahrs_estimator,
+            false,
+            "Use AHRS gyroscope bias estimator"
+            " instead of linear 1st order approximation.");
+DEFINE_double(rotation_noise_prior,
+              1e-2,
               "Rotation noise for Rot3 priors"
               " in AHRS gyroscope estimation.");
-DEFINE_double(gravity_tolerance_linear, 1e-6,
+DEFINE_double(gravity_tolerance_linear,
+              1e-6,
               "Maximum gravity tolerance for linear alignment.");
-DEFINE_int32(num_iterations_gravity_refinement, 4,
+DEFINE_int32(num_iterations_gravity_refinement,
+             4,
              "Number of iterations for gravity refinement.");
-DEFINE_double(gravity_tolerance_refinement, 1e-1,
+DEFINE_double(gravity_tolerance_refinement,
+              1e-1,
               "Maximum gravity tolerance for refinement.");
-DEFINE_double(camera_pim_delta_difference, 5e-3,
+DEFINE_double(camera_pim_delta_difference,
+              5e-3,
               "Maximum tolerable difference in time interval.");
 
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 void VisualInertialFrame::updateDeltaState(const gtsam::NavState &delta_state) {
-    bk_alpha_bkp1_ = gtsam::Vector3(delta_state.pose().translation());
-    bk_beta_bkp1_ = delta_state.velocity();
-    bk_gamma_bkp1_ = delta_state.pose().rotation().matrix();
+  bk_alpha_bkp1_ = gtsam::Vector3(delta_state.pose().translation());
+  bk_beta_bkp1_ = delta_state.velocity();
+  bk_gamma_bkp1_ = delta_state.pose().rotation().matrix();
 }
 
 // TODO(Sandro): Retract velocities and poses from last optimization
 // TODO(Sandro): Check conventions
 // TODO(Sandro): Why are we not iterating also the tangent basis?
 // TODO(Sandro): Either retrieve all velocities and poses to insert
-  // in the backend optimization or retrieve last pose and velocity
-  // so that there is no lag for the backend optimization
+// in the backend optimization or retrieve last pose and velocity
+// so that there is no lag for the backend optimization
 
 /* -------------------------------------------------------------------------- */
 // Constructor for visual inertial alignment.
@@ -99,9 +109,10 @@ OnlineGravityAlignment::OnlineGravityAlignment(
 // [out] initial nav state for initialization.
 // [optional] flag to estimate gyroscope bias.
 bool OnlineGravityAlignment::alignVisualInertialEstimates(
-    gtsam::Vector3 *gyro_bias, gtsam::Vector3 *g_iter,
+    gtsam::Vector3 *gyro_bias,
+    gtsam::Vector3 *g_iter,
     gtsam::NavState *init_navstate,
-    const bool& estimate_bias) {
+    const bool &estimate_bias) {
   CHECK_NOTNULL(gyro_bias);
   CHECK_NOTNULL(g_iter);
   VLOG(10) << "Online gravity alignment called.";
@@ -109,14 +120,16 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
   gtsam::Velocity3 init_velocity;
 
   // Construct set of frames for linear alignment
-  constructVisualInertialFrames(estimated_body_poses_, delta_t_camera_, pims_,
-                                &vi_frames);
+  constructVisualInertialFrames(
+      estimated_body_poses_, delta_t_camera_, pims_, &vi_frames);
 
   // Estimate gyroscope bias if requested
   if (estimate_bias) {
-    if (!estimateBiasAndUpdateStates(pims_, ahrs_pims_,
-                                    gyro_bias, &vi_frames,
-                                    FLAGS_use_ahrs_estimator)) {
+    if (!estimateBiasAndUpdateStates(pims_,
+                                     ahrs_pims_,
+                                     gyro_bias,
+                                     &vi_frames,
+                                     FLAGS_use_ahrs_estimator)) {
       LOG(ERROR) << "Gyroscope bias estimation failed!";
       return false;
     }
@@ -127,8 +140,9 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
   // Align visual and inertial estimates
   if (alignEstimatesLinearly(vi_frames, g_world_, g_iter, &init_velocity)) {
     // Align gravity vectors and estimate initial pose
-    gtsam::Pose3 w0_T_b0 =
+    gtsam::Rot3 w0_R_b0 =
         UtilsOpenCV::AlignGravityVectors(*g_iter, g_world_, false);
+    gtsam::Pose3 w0_T_b0(w0_R_b0, gtsam::Point3());
     // Create initial navstate and rotate velocity in world frame
     *init_navstate = gtsam::NavState(w0_T_b0 * vi_frames.at(0).b0Tbk(),
                                      w0_T_b0.rotation() * init_velocity);
@@ -155,10 +169,11 @@ bool OnlineGravityAlignment::alignVisualInertialEstimates(
 // [out] vector of frames used for initial alignment.
 void OnlineGravityAlignment::constructVisualInertialFrames(
     const AlignmentPoses &estimated_body_poses,
-    const std::vector<double> &delta_t_camera, const AlignmentPims &pims,
+    const std::vector<double> &delta_t_camera,
+    const AlignmentPims &pims,
     VisualInertialFrames *vi_frames) {
   CHECK_NOTNULL(vi_frames);
-  CHECK_EQ(estimated_body_poses.size()-1, delta_t_camera.size());
+  CHECK_EQ(estimated_body_poses.size() - 1, delta_t_camera.size());
   CHECK_EQ(delta_t_camera.size(), pims.size());
   vi_frames->clear();
 
@@ -169,24 +184,27 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
     gtsam::NavState delta_state(pims.at(i).deltaXij());
     // Get delta_time_pim = t_kp1-t_k
     const double delta_t_pim = pims.at(i).deltaTij();
-    #ifdef GTSAM_TANGENT_PREINTEGRATION
-      // Get pre-integration Jacobian wrt. gyro_bias (dPIM = J * dbg)
-      gtsam::Matrix dbg_J_dPIM = pims.at(i).preintegrated_H_biasOmega();
-      // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
-      gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
-    #else
-      // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
-      gtsam::Matrix3 dbg_Jacobian_dR = pims.at(i).delRdelBiasOmega();
-    #endif
+#ifdef GTSAM_TANGENT_PREINTEGRATION
+    // Get pre-integration Jacobian wrt. gyro_bias (dPIM = J * dbg)
+    gtsam::Matrix dbg_J_dPIM = pims.at(i).preintegrated_H_biasOmega();
+    // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
+    gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
+#else
+    // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
+    gtsam::Matrix3 dbg_Jacobian_dR = pims.at(i).delRdelBiasOmega();
+#endif
 
     CHECK_GT(FLAGS_camera_pim_delta_difference,
-              abs(delta_t_pim - delta_t_camera.at(i)));
+             abs(delta_t_pim - delta_t_camera.at(i)));
 
     // Create frame with b0_T_bkp1, b0_T_bk, dt_bk_cam,
     // dbg_Jacobian_dR_bk, dt_bk_imu
-    VisualInertialFrame frame_i(
-        estimated_body_poses.at(i + 1), estimated_body_poses.at(i),
-        delta_t_camera.at(i), delta_state, dbg_Jacobian_dR, delta_t_pim);
+    VisualInertialFrame frame_i(estimated_body_poses.at(i + 1),
+                                estimated_body_poses.at(i),
+                                delta_t_camera.at(i),
+                                delta_state,
+                                dbg_Jacobian_dR,
+                                delta_t_pim);
     vi_frames->push_back(frame_i);
   }
 }
@@ -197,31 +215,30 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
 // [out] new estimated value for gyroscope bias.
 // [out] frames containing pim constraints and body poses.
 bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
-          const AlignmentPims &pims,
-          const InitialAHRSPims &ahrs_pims,
-          gtsam::Vector3 *gyro_bias,
-          VisualInertialFrames *vi_frames,
-          const bool& use_ahrs_estimator) {
+    const AlignmentPims &pims,
+    const InitialAHRSPims &ahrs_pims,
+    gtsam::Vector3 *gyro_bias,
+    VisualInertialFrames *vi_frames,
+    const bool &use_ahrs_estimator) {
   CHECK_NOTNULL(gyro_bias);
   CHECK_NOTNULL(vi_frames);
-  if(gyro_bias->norm() != 0.0) {
+  if (gyro_bias->norm() != 0.0) {
     LOG(ERROR) << "Non-zero PIM gyro bias:\n" << *gyro_bias;
     return false;
   }
   // Estimate gyroscope bias using either AHRS estimator
   // (if available and requested) or linear 1st approximator.
-  if (use_ahrs_estimator && 
-        (vi_frames->size() == ahrs_pims.size())) {
-      estimateGyroscopeBiasAHRS(*vi_frames, ahrs_pims, gyro_bias);
-      LOG(INFO) << "AHRS Bias Estimator used.";
+  if (use_ahrs_estimator && (vi_frames->size() == ahrs_pims.size())) {
+    estimateGyroscopeBiasAHRS(*vi_frames, ahrs_pims, gyro_bias);
+    LOG(INFO) << "AHRS Bias Estimator used.";
   } else {
-      estimateGyroscopeBias(*vi_frames, gyro_bias);
-      LOG(INFO) << "Linear Bias Estimator used.";
+    estimateGyroscopeBias(*vi_frames, gyro_bias);
+    LOG(INFO) << "Linear Bias Estimator used.";
   }
   // Update delta states with corrected bias
   updateDeltaStates(pims_, *gyro_bias, vi_frames);
-  if(estimateGyroscopeResiduals(*vi_frames).norm() > 
-                            FLAGS_gyroscope_residuals) {
+  if (estimateGyroscopeResiduals(*vi_frames).norm() >
+      FLAGS_gyroscope_residuals) {
     LOG(ERROR) << "High residuals after bias update.";
     return false;
   }
@@ -236,8 +253,8 @@ bool OnlineGravityAlignment::estimateBiasAndUpdateStates(
 // [out] new estimated value for gyroscope bias.
 // Unit tested.
 void OnlineGravityAlignment::estimateGyroscopeBias(
-          const VisualInertialFrames &vi_frames,
-          gtsam::Vector3 *gyro_bias) {
+    const VisualInertialFrames &vi_frames,
+    gtsam::Vector3 *gyro_bias) {
   CHECK_NOTNULL(gyro_bias);
   // Create Gaussian Graph with unit noise
   gtsam::GaussianFactorGraph gaussian_graph;
@@ -260,13 +277,15 @@ void OnlineGravityAlignment::estimateGyroscopeBias(
   }
   // Optimize Gaussian Graph and get solution
   gtsam::VectorValues solution = gaussian_graph.optimize();
-  gtsam::Vector3 delta_bg  = solution.at(gtsam::Symbol('d', 0));
+  gtsam::Vector3 delta_bg = solution.at(gtsam::Symbol('d', 0));
 
   // Adapt gyroscope bias
   *gyro_bias += delta_bg;
 
   // Logging of solution
-  if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
+  if (VLOG_IS_ON(5)) {
+    gaussian_graph.print("\nGaussian Factor graph:\n");
+  }
   VLOG(5) << "Gyro bias estimation:\n" << delta_bg;
 
   // TODO(Sandro): Implement check on quality of estimate
@@ -280,9 +299,9 @@ void OnlineGravityAlignment::estimateGyroscopeBias(
 // [out] new estimated value for gyroscope bias.
 // Not yet unit tested!
 void OnlineGravityAlignment::estimateGyroscopeBiasAHRS(
-      const VisualInertialFrames &vi_frames,
-      const InitialAHRSPims &ahrs_pims,
-      gtsam::Vector3 *gyro_bias) {
+    const VisualInertialFrames &vi_frames,
+    const InitialAHRSPims &ahrs_pims,
+    gtsam::Vector3 *gyro_bias) {
   CHECK_NOTNULL(gyro_bias);
   CHECK_EQ(vi_frames.size(), ahrs_pims.size());
 
@@ -294,40 +313,41 @@ void OnlineGravityAlignment::estimateGyroscopeBiasAHRS(
 
   // Create noise model (Gaussian) in body frame
   Matrix3 B_Rot_W = vi_frames.at(0).b0Rbk().transpose();
-  gtsam::SharedNoiseModel noise_init_rot = 
-    gtsam::noiseModel::Gaussian::Covariance(B_Rot_W * (FLAGS_rotation_noise_prior *
-                      gtsam::Matrix3::Identity()) * B_Rot_W.transpose());
-  
+  gtsam::SharedNoiseModel noise_init_rot =
+      gtsam::noiseModel::Gaussian::Covariance(
+          B_Rot_W * (FLAGS_rotation_noise_prior * gtsam::Matrix3::Identity()) *
+          B_Rot_W.transpose());
+
   // Insert initial value with tight rotation prior
   initial.insert(gtsam::Symbol('R', 0), gtsam::Rot3(vi_frames.at(0).b0Rbk()));
-  nfg.push_back(gtsam::PriorFactor<gtsam::Rot3>(
-                            gtsam::Symbol('R', 0),
-                            gtsam::Rot3(vi_frames.at(0).b0Rbk()),
-                            noise_init_rot));
+  nfg.push_back(
+      gtsam::PriorFactor<gtsam::Rot3>(gtsam::Symbol('R', 0),
+                                      gtsam::Rot3(vi_frames.at(0).b0Rbk()),
+                                      noise_init_rot));
 
   // Loop through all initialization frames
   for (int i = 0; i < vi_frames.size(); i++) {
-    auto frame_id = i+1;
+    auto frame_id = i + 1;
     auto frame_i = std::next(vi_frames.begin(), i);
 
     // Insert initial value with tight rotation prior
-    initial.insert(gtsam::Symbol('R', frame_id), gtsam::Rot3(frame_i->b0Rbkp1()));
-    nfg.push_back(gtsam::PriorFactor<gtsam::Rot3>(
-                            gtsam::Symbol('R', frame_id),
-                            gtsam::Rot3(frame_i->b0Rbkp1()),
-                            noise_init_rot));
+    initial.insert(gtsam::Symbol('R', frame_id),
+                   gtsam::Rot3(frame_i->b0Rbkp1()));
+    nfg.push_back(
+        gtsam::PriorFactor<gtsam::Rot3>(gtsam::Symbol('R', frame_id),
+                                        gtsam::Rot3(frame_i->b0Rbkp1()),
+                                        noise_init_rot));
     // Add AHRS factor between rotations
-    nfg.push_back(gtsam::AHRSFactor(gtsam::Symbol('R', i), 
-                            gtsam::Symbol('R', frame_id),
-                            gtsam::Symbol('b', 0),
-                            ahrs_pims.at(i), 
-                            gtsam::Vector3(0,0,0)));
+    nfg.push_back(gtsam::AHRSFactor(gtsam::Symbol('R', i),
+                                    gtsam::Symbol('R', frame_id),
+                                    gtsam::Symbol('b', 0),
+                                    ahrs_pims.at(i),
+                                    gtsam::Vector3(0, 0, 0)));
   }
 
   // Levenberg-Marquardt optimization
   gtsam::LevenbergMarquardtParams lmParams;
-  gtsam::LevenbergMarquardtOptimizer bias_estimator(
-                                      nfg, initial, lmParams);
+  gtsam::LevenbergMarquardtOptimizer bias_estimator(nfg, initial, lmParams);
 
   // Optimize and get values
   gtsam::Values initial_values = bias_estimator.optimize();
@@ -335,14 +355,16 @@ void OnlineGravityAlignment::estimateGyroscopeBiasAHRS(
   *gyro_bias = initial_values.at<gtsam::Vector3>(gtsam::Symbol('b', 0));
 
   // Logging of solution
-  //std::stringstream ss;
-  //auto old_buf = std::cout.rdbuf(ss.rdbuf()); 
-  if (VLOG_IS_ON(5)) { nfg.print("\nNon-linear factor graph:\n"); }
-  //std::cout.rdbuf(old_buf); //reset 
-  //LOG(ERROR) << ss.str();
+  // std::stringstream ss;
+  // auto old_buf = std::cout.rdbuf(ss.rdbuf());
+  if (VLOG_IS_ON(5)) {
+    nfg.print("\nNon-linear factor graph:\n");
+  }
+  // std::cout.rdbuf(old_buf); //reset
+  // LOG(ERROR) << ss.str();
   VLOG(5) << "Gyro bias estimation:\n" << *gyro_bias;
   LOG(ERROR) << *gyro_bias;
-  
+
   // TODO(Sandro): Implement check on quality of estimate
   return;
 }
@@ -355,7 +377,7 @@ void OnlineGravityAlignment::estimateGyroscopeBiasAHRS(
 // [out] new estimated value for gyroscope bias.
 // Unit tested.
 gtsam::Vector3 OnlineGravityAlignment::estimateGyroscopeResiduals(
-          const VisualInertialFrames &vi_frames) {
+    const VisualInertialFrames &vi_frames) {
   gtsam::Vector3 dR(0.0, 0.0, 0.0);
   // Loop through all initialization frame
   for (int i = 0; i < vi_frames.size(); i++) {
@@ -377,7 +399,8 @@ gtsam::Vector3 OnlineGravityAlignment::estimateGyroscopeResiduals(
 // [in] new estimated value for gyroscope bias.
 // [out] updated vector of frames used for initial alignment.
 void OnlineGravityAlignment::updateDeltaStates(
-    const AlignmentPims &pims, const gtsam::Vector3 &gyro_bias,
+    const AlignmentPims &pims,
+    const gtsam::Vector3 &gyro_bias,
     VisualInertialFrames *vi_frames) {
   CHECK_NOTNULL(vi_frames);
   CHECK_EQ(vi_frames->size(), pims.size());
@@ -404,8 +427,10 @@ void OnlineGravityAlignment::updateDeltaStates(
 // global gravity value for alignment. [out] gravity vector expressed in initial
 // body frame. [out] initial velocity expressed in initial body frame.
 bool OnlineGravityAlignment::alignEstimatesLinearly(
-    const VisualInertialFrames &vi_frames, const gtsam::Vector3 &g_world,
-    gtsam::Vector3 *g_iter, gtsam::Velocity3 *init_vel) {
+    const VisualInertialFrames &vi_frames,
+    const gtsam::Vector3 &g_world,
+    gtsam::Vector3 *g_iter,
+    gtsam::Velocity3 *init_vel) {
   CHECK_NOTNULL(g_iter);
   CHECK_NOTNULL(init_vel);
 
@@ -418,28 +443,36 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
     auto frame_i = std::next(vi_frames.begin(), i);
 
     // Add binary factor for position constraint
-    gaussian_graph.add(gtsam::Symbol('V', i), frame_i->A11(),
-                       gtsam::Symbol('g', 0), frame_i->A13(),
-                       frame_i->b1(), noise);
+    gaussian_graph.add(gtsam::Symbol('V', i),
+                       frame_i->A11(),
+                       gtsam::Symbol('g', 0),
+                       frame_i->A13(),
+                       frame_i->b1(),
+                       noise);
 
     // Add ternary factor for velocity constraint
-    gaussian_graph.add(gtsam::Symbol('V', i), frame_i->A21(),
-                       gtsam::Symbol('V', i + 1), frame_i->A22(),
-                       gtsam::Symbol('g', 0), frame_i->A23(),
-                       frame_i->b2(), noise);
+    gaussian_graph.add(gtsam::Symbol('V', i),
+                       frame_i->A21(),
+                       gtsam::Symbol('V', i + 1),
+                       frame_i->A22(),
+                       gtsam::Symbol('g', 0),
+                       frame_i->A23(),
+                       frame_i->b2(),
+                       noise);
   }
 
   // Optimize Gaussian Graph and get solution
   gtsam::VectorValues solution = gaussian_graph.optimize();
-  gtsam::Vector3 g_b0  = solution.at(gtsam::Symbol('g', 0));
+  gtsam::Vector3 g_b0 = solution.at(gtsam::Symbol('g', 0));
 
   // Logging of solution
-  if (VLOG_IS_ON(5)) { gaussian_graph.print("\nGaussian Factor graph:\n"); }
+  if (VLOG_IS_ON(5)) {
+    gaussian_graph.print("\nGaussian Factor graph:\n");
+  }
 
   // Refine gravity alignment if necessary
   // TODO(Sandro): Load tolerance in yaml file
-  if (abs(g_b0.norm() - g_world.norm()) > 
-            FLAGS_gravity_tolerance_linear) {
+  if (abs(g_b0.norm() - g_world.norm()) > FLAGS_gravity_tolerance_linear) {
     refineGravity(vi_frames, g_world, &g_b0, init_vel);
   } else {
     // Retrieve initial velocity from graph optimization
@@ -449,16 +482,16 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
   // We want the gravity vector and not the measured acceleration
   // by the IMU, hence multiply estimated value by -1 (the IMU measures
   // the reaction forces of gravity in the accelerometer).
-  *g_iter = - g_b0;
+  *g_iter = -g_b0;
 
   // Logging of solution
-  VLOG(5) << "Final gravity estimate:\n" << *g_iter
-            << " with norm: " << g_iter->norm();
+  VLOG(5) << "Final gravity estimate:\n"
+          << *g_iter << " with norm: " << g_iter->norm();
 
   // Return true if successful
   // TODO(Sandro): Load tolerance in yaml file
-  if (abs(g_iter->norm() - g_world.norm()) > 
-              FLAGS_gravity_tolerance_refinement) {
+  if (abs(g_iter->norm() - g_world.norm()) >
+      FLAGS_gravity_tolerance_refinement) {
     return false;
   }
   return true;
@@ -468,9 +501,8 @@ bool OnlineGravityAlignment::alignEstimatesLinearly(
 // Creates tangent basis to input vector.
 // [in] Vector for which tangent basis is desired.
 // [return] Tangent basis spanned by orthogonal basis to input vector.
-gtsam::Matrix
-OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g0) {
-
+gtsam::Matrix OnlineGravityAlignment::createTangentBasis(
+    const gtsam::Vector3 &g0) {
   // Vectors b, c
   gtsam::Vector3 b, c;
 
@@ -479,8 +511,7 @@ OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g0) {
 
   // Look for b orthogonal to a
   gtsam::Vector3 tmp(0, 0, 1);
-  if (a == tmp)
-    tmp << (1, 0, 0);
+  if (a == tmp) tmp << (1, 0, 0);
   b = (tmp - a * (a.transpose() * tmp)).normalized();
 
   // C orthogonal to b and a
@@ -502,8 +533,10 @@ OnlineGravityAlignment::createTangentBasis(const gtsam::Vector3 &g0) {
 // [out] gravity vector expressed in initial body frame.
 // [out] initial velocity estimate in initial body frame.
 void OnlineGravityAlignment::refineGravity(
-    const VisualInertialFrames &vi_frames, const gtsam::Vector3 &g_world,
-    gtsam::Vector3 *g_iter, gtsam::Velocity3 *init_vel) {
+    const VisualInertialFrames &vi_frames,
+    const gtsam::Vector3 &g_world,
+    gtsam::Vector3 *g_iter,
+    gtsam::Velocity3 *init_vel) {
   CHECK_NOTNULL(g_iter);
   CHECK_NOTNULL(init_vel);
   // Define current gravity estimate (normalized)
@@ -513,7 +546,7 @@ void OnlineGravityAlignment::refineGravity(
   gtsam::Matrix txty = createTangentBasis(g0);
 
   // Multiple iterations till convergence
-  for (int l=0; l < FLAGS_num_iterations_gravity_refinement; l++) {
+  for (int l = 0; l < FLAGS_num_iterations_gravity_refinement; l++) {
     // Create Gaussian Graph with unit noise
     gtsam::GaussianFactorGraph gaussian_graph;
     auto noise = gtsam::noiseModel::Unit::Create(3);
@@ -523,34 +556,41 @@ void OnlineGravityAlignment::refineGravity(
       auto frame_i = std::next(vi_frames.begin(), i);
 
       // Apply tangent basis to g (g = g0 + txty*dxdy)
-      gtsam::Matrix A_13_tangent = frame_i->A13()*txty;
-      gtsam::Vector3 b_1_tangent = frame_i->b1() - frame_i->A13()*g0;
+      gtsam::Matrix A_13_tangent = frame_i->A13() * txty;
+      gtsam::Vector3 b_1_tangent = frame_i->b1() - frame_i->A13() * g0;
 
       // Add binary factor for position constraint
-      gaussian_graph.add(gtsam::Symbol('V', i), frame_i->A11(),
-                         gtsam::Symbol('d', 0), A_13_tangent, b_1_tangent,
+      gaussian_graph.add(gtsam::Symbol('V', i),
+                         frame_i->A11(),
+                         gtsam::Symbol('d', 0),
+                         A_13_tangent,
+                         b_1_tangent,
                          noise);
 
       // Apply tangent basis to g (g = g0 + txty*dxdy)
-      gtsam::Matrix A_23_tangent = frame_i->A23()*txty;
-      gtsam::Vector3 b_2_tangent = frame_i->b2() - frame_i->A23()*g0;
+      gtsam::Matrix A_23_tangent = frame_i->A23() * txty;
+      gtsam::Vector3 b_2_tangent = frame_i->b2() - frame_i->A23() * g0;
 
       // Add ternary factor for velocity constraint
-      gaussian_graph.add(gtsam::Symbol('V', i), frame_i->A21(), 
-                        gtsam::Symbol('V', i+1), frame_i->A22(),
-                        gtsam::Symbol('d', 0), A_23_tangent,
-                        b_2_tangent, noise);
+      gaussian_graph.add(gtsam::Symbol('V', i),
+                         frame_i->A21(),
+                         gtsam::Symbol('V', i + 1),
+                         frame_i->A22(),
+                         gtsam::Symbol('d', 0),
+                         A_23_tangent,
+                         b_2_tangent,
+                         noise);
     }
 
     // Optimize Gaussian Graph and get solution
     gtsam::VectorValues solution = gaussian_graph.optimize();
-    auto dxdy  = solution.at(gtsam::Symbol('d', 0));
+    auto dxdy = solution.at(gtsam::Symbol('d', 0));
 
     // Retrieve velocity from graph optimization
     *init_vel = solution.at(gtsam::Symbol('V', 0));
 
     // Compute new g estimate
-    g0 = (g0 + txty*dxdy).normalized()*g_world.norm();
+    g0 = (g0 + txty * dxdy).normalized() * g_world.norm();
   }
 }
 
@@ -559,22 +599,21 @@ void OnlineGravityAlignment::refineGravity(
 // [out] initial gyro bias estimate.
 bool OnlineGravityAlignment::estimateGyroscopeBiasOnly(
     gtsam::Vector3 *gyro_bias,
-    const bool& use_ahrs_estimator) {
+    const bool &use_ahrs_estimator) {
   CHECK_NOTNULL(gyro_bias);
   VLOG(10) << "Gyroscope bias only called.";
   VisualInertialFrames vi_frames;
 
   // Construct set of frames for linear alignment
-  constructVisualInertialFrames(estimated_body_poses_, delta_t_camera_, 
-                                pims_, &vi_frames);
+  constructVisualInertialFrames(
+      estimated_body_poses_, delta_t_camera_, pims_, &vi_frames);
 
   // Estimate gyro bias and check residuals
-  if(!estimateBiasAndUpdateStates(pims_, ahrs_pims_,
-                              gyro_bias, &vi_frames,
-                              use_ahrs_estimator)) {
+  if (!estimateBiasAndUpdateStates(
+          pims_, ahrs_pims_, gyro_bias, &vi_frames, use_ahrs_estimator)) {
     return false;
   }
   return true;
 }
 
-} // namespace VIO
+}  // namespace VIO

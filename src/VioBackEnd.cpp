@@ -27,7 +27,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "ETH_parser.h"  // Only for gtNavState ...
+#include "datasource/DataSource-definitions.h"  // Only for gtNavState ...
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
 
@@ -47,17 +47,13 @@ DEFINE_bool(compute_state_covariance, false,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-// initial_state_gt is a non-null pointer to a shared_ptr which might be null
-// if there is no ground-truth available, otherwise it contains the initial
-// ground-truth state.
 VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const Cal3_S2& leftCameraCalRectified,
                        const double& baseline,
-                       std::shared_ptr<gtNavState>* initial_state_gt,
+                       const VioNavState& initial_state_seed,
                        const Timestamp& timestamp_k,
-                       const ImuAccGyrS& imu_accgyr,
                        const VioBackEndParams& vioParams,
-                       const bool log_output)
+                       const bool& log_output)
     : vio_params_(vioParams),
       timestamp_lkf_(-1),
       imu_bias_lkf_(ImuBias()),
@@ -78,8 +74,6 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
       log_output_(log_output),
       logger_(nullptr),
       verbosity_(0) {
-  CHECK_NOTNULL(initial_state_gt);
-
   if (log_output_) logger_ = VIO::make_unique<BackendLogger>();
 
     // TODO the parsing of the params should be done inside here out from the
@@ -116,33 +110,17 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
   // Reset debug info.
   resetDebugInfo(&debug_info_);
 
-  // TODO change VIO initialization logic, because right now if it is not
-  // auto-initialized it still asks for ImuAccGyr data.
-  // USE imu frontend to send pim data instead of raw ImuAccGyr data.
   // Initialize VIO.
-  if (vio_params_.autoInitialize_ == InitializationModes::IMU || !*initial_state_gt) {
-    // Use initial IMU measurements to guess first pose
-    LOG_IF(WARNING, vio_params_.autoInitialize_ != InitializationModes::IMU)
-        << "Could not initialize from ground truth, since it is not "
-           "available. Autoinitializing instead.";
-    *initial_state_gt = std::make_shared<gtNavState>();
-    (*initial_state_gt)->pose_ = guessPoseFromIMUmeasurements(
-        imu_accgyr, vio_params_.n_gravity_, vio_params_.roundOnAutoInitialize_);
-    initStateAndSetPriors(timestamp_k, (*initial_state_gt)->pose_, imu_accgyr);
-
-    // Only for display later on.
-    (*initial_state_gt)->velocity_ = W_Vel_B_lkf_;
-    (*initial_state_gt)->imu_bias_ = imu_bias_lkf_;
-  } else {
-    // Use ground-truth or external pose estimate as first pose.
-    initStateAndSetPriors(timestamp_k, (*initial_state_gt)->pose_,
-                          (*initial_state_gt)->velocity_,
-                          (*initial_state_gt)->imu_bias_);
-  }
+  // Use ground-truth or external pose estimate as first pose.
+  initStateAndSetPriors(timestamp_k,
+                        initial_state_seed.pose_,
+                        initial_state_seed.velocity_,
+                        initial_state_seed.imu_bias_);
 }
 
 /* ------------------------------------------------------------------------ */
-// Create and initialize VioBackEnd, without initiaing pose.
+// Create and initialize VioBackEnd, without initiating pose.
+// TODO(Toni): remove this ctor, only used by InitializationBackend...
 VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
                        const Cal3_S2& leftCameraCalRectified,
                        const double& baseline,
@@ -266,38 +244,28 @@ void VioBackEnd::registerImuBiasUpdateCallback(
   imu_bias_update_callback(imu_bias_lkf_);
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
-                                       const Pose3& initialPose,
-                                       const ImuAccGyrS& accGyroRaw) {
-  Vector3 localGravity =
-      initialPose.rotation().inverse().matrix() * vio_params_.n_gravity_;
-  initStateAndSetPriors(timestamp_kf_nsec, initialPose, Vector3::Zero(),
-                        initImuBias(accGyroRaw, localGravity));
-}
-
-/* --------------------------------------------------------------------------
- */
-void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
-                                       const Pose3& initialPose,
-                                       const Vector3& initialVel,
-                                       const ImuBias& initialBias) {
+                                       const Pose3& initial_pose,
+                                       const Vector3& initial_vel,
+                                       const ImuBias& initial_bias) {
+  // Update member variables.
   timestamp_lkf_ = timestamp_kf_nsec;
-  W_Pose_B_lkf_ = initialPose;
-  W_Vel_B_lkf_ = initialVel;
-  imu_bias_lkf_ = initialBias;
-  imu_bias_prev_kf_ = initialBias;
+  W_Pose_B_lkf_ = initial_pose;
+  W_Vel_B_lkf_ = initial_vel;
+  imu_bias_lkf_ = initial_bias;
+  imu_bias_prev_kf_ = initial_bias;
 
-  LOG(INFO) << "Initialized state: \n"
-            << "Initial pose: " << W_Pose_B_lkf_ << '\n'
-            << "Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
-            << "Initial IMU bias: " << imu_bias_lkf_;
+  LOG(INFO) << "Initial state seed: \n"
+            << " - Initial pose: " << W_Pose_B_lkf_ << '\n'
+            << " - Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
+            << " - Initial IMU bias: " << imu_bias_lkf_;
 
   // Can't add inertial prior factor until we have a state measurement.
   addInitialPriorFactors(curr_kf_id_);
 
   // TODO encapsulate this in a function, code duplicated in addImuValues.
+  // Add initial state seed
   new_values_.insert(gtsam::Symbol('x', curr_kf_id_), W_Pose_B_lkf_);
   new_values_.insert(gtsam::Symbol('v', curr_kf_id_), W_Vel_B_lkf_);
   new_values_.insert(gtsam::Symbol('b', curr_kf_id_), imu_bias_lkf_);
@@ -522,24 +490,6 @@ void VioBackEnd::updateLandmarkInGraph(
     std::cout << "updateLandmarkInGraph: added observation to point: " << lmk_id
               << std::endl;
   }
-}
-
-/* --------------------------------------------------------------------------
- */
-gtsam::Pose3 VioBackEnd::guessPoseFromIMUmeasurements(
-    const ImuAccGyrS& accGyroRaw, const Vector3& n_gravity, const bool& round) {
-  // Compute average of initial measurements.
-  LOG(INFO) << "GuessPoseFromIMUmeasurements: currently assumes that the "
-               "vehicle is stationary and upright along some axis,"
-               "and gravity vector is along a single axis!";
-  Vector3 sumAccMeasurements = Vector3::Zero();
-  size_t nrMeasured = accGyroRaw.cols();
-  for (size_t i = 0; i < nrMeasured; i++) {
-    sumAccMeasurements += accGyroRaw.col(i).head(3);
-  }
-  sumAccMeasurements = sumAccMeasurements / double(nrMeasured);
-  Vector3 local_gravity = -sumAccMeasurements;
-  return UtilsOpenCV::AlignGravityVectors(local_gravity, n_gravity, round);
 }
 
 /* --------------------------------------------------------------------------
@@ -786,8 +736,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
 }
 
 /// Value adders.
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::addImuValues(const FrameId& cur_id,
                               const gtsam::PreintegratedImuMeasurements& pim) {
   gtsam::NavState navstate_lkf(W_Pose_B_lkf_, W_Vel_B_lkf_);
@@ -802,8 +751,7 @@ void VioBackEnd::addImuValues(const FrameId& cur_id,
 }
 
 /// Factor adders.
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::addImuFactor(const FrameId& from_id, const FrameId& to_id,
                               const gtsam::PreintegratedImuMeasurements& pim) {
 #ifdef USE_COMBINED_IMU_FACTOR
@@ -1104,8 +1052,7 @@ void VioBackEnd::optimize(
 }
 
 /// Private methods.
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
   // Set initial covariance for inertial factors
   // W_Pose_Blkf_ set by motion capture to start with
@@ -1133,6 +1080,7 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
       B_Rot_W * pose_prior_covariance.topLeftCorner(3, 3) * B_Rot_W.transpose();
 
   // Add pose prior.
+  // TODO(Toni): Make this noise model a member constant.
   gtsam::SharedNoiseModel noise_init_pose =
       gtsam::noiseModel::Gaussian::Covariance(pose_prior_covariance);
   new_imu_prior_and_other_factors_.push_back(
@@ -1140,6 +1088,7 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
           gtsam::Symbol('x', frame_id), W_Pose_B_lkf_, noise_init_pose));
 
   // Add initial velocity priors.
+  // TODO(Toni): Make this noise model a member constant.
   gtsam::SharedNoiseModel noise_init_vel_prior =
       gtsam::noiseModel::Isotropic::Sigma(3, vio_params_.initialVelocitySigma_);
   new_imu_prior_and_other_factors_.push_back(
@@ -1150,6 +1099,7 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
   Vector6 prior_biasSigmas;
   prior_biasSigmas.head<3>().setConstant(vio_params_.initialAccBiasSigma_);
   prior_biasSigmas.tail<3>().setConstant(vio_params_.initialGyroBiasSigma_);
+  // TODO(Toni): Make this noise model a member constant.
   gtsam::SharedNoiseModel imu_bias_prior_noise =
       gtsam::noiseModel::Diagonal::Sigmas(prior_biasSigmas);
   if (VLOG_IS_ON(10)) {
@@ -1163,21 +1113,22 @@ void VioBackEnd::addInitialPriorFactors(const FrameId& frame_id) {
   VLOG(2) << "Added initial priors for frame " << frame_id;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::addConstantVelocityFactor(const FrameId& from_id,
                                            const FrameId& to_id) {
   VLOG(10) << "Adding constant velocity factor.";
   new_imu_prior_and_other_factors_.push_back(
       boost::make_shared<gtsam::BetweenFactor<gtsam::Vector3>>(
-          gtsam::Symbol('v', from_id), gtsam::Symbol('v', to_id),
-          gtsam::Vector3::Zero(), constant_velocity_prior_noise_));
+          gtsam::Symbol('v', from_id),
+          gtsam::Symbol('v', to_id),
+          gtsam::Vector3::Zero(),
+          constant_velocity_prior_noise_));
 
+  // Log number of added constant velocity factors.
   debug_info_.numAddedConstantVelF_++;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Update states.
 void VioBackEnd::updateStates(const FrameId& cur_id) {
   VLOG(10) << "Starting to calculate estimate.";
@@ -1194,8 +1145,7 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
       state_.at<gtsam::imuBias::ConstantBias>(gtsam::Symbol('b', cur_id));
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Update smoother.
 void VioBackEnd::updateSmoother(Smoother::Result* result,
                                 const gtsam::NonlinearFactorGraph& new_factors,
@@ -2143,25 +2093,4 @@ bool VioBackEnd::deleteLmkFromFeatureTracks(const LandmarkId& lmk_id) {
   return false;
 }
 
-/* -------------------------------------------------------------------------- */
-ImuBias VioBackEnd::initImuBias(const ImuAccGyrS& accGyroRaw,
-                                const Vector3& n_gravity) {
-  LOG(WARNING) << "imuBiasInitialization: currently assumes that the vehicle is"
-                  " stationary and upright!";
-  Vector3 sumAccMeasurements = Vector3::Zero();
-  Vector3 sumGyroMeasurements = Vector3::Zero();
-  const size_t& nrMeasured = accGyroRaw.cols();
-  for (size_t i = 0; i < nrMeasured; i++) {
-    const Vector6& accGyroRaw_i = accGyroRaw.col(i);
-    sumAccMeasurements += accGyroRaw_i.head(3);
-    sumGyroMeasurements += accGyroRaw_i.tail(3);
-  }
-
-  // Avoid the dark world of Undefined Behaviour...
-  CHECK_NE(nrMeasured, 0) << "About to divide by 0!";
-
-  return ImuBias(sumAccMeasurements / double(nrMeasured) + n_gravity,
-                 sumGyroMeasurements / double(nrMeasured));
-}
-
-} // namespace VIO.
+}  // namespace VIO.

@@ -14,10 +14,10 @@
 
 #pragma once
 
-#include "common/vio_types.h"
 #include "StereoFrame-definitions.h"
-#include "ImuFrontEnd.h"
 #include "Tracker.h"
+#include "common/vio_types.h"
+#include "imu-frontend/ImuFrontEnd.h"
 
 namespace VIO {
 
@@ -54,12 +54,11 @@ public:
   const gtsam::Pose3 relative_pose_body_stereo_;
   const StereoFrame stereo_frame_lkf_;
   const ImuFrontEnd::PreintegratedImuMeasurements pim_;
-  const DebugTrackerInfo debug_tracker_info_; 
+  const DebugTrackerInfo debug_tracker_info_;
 
   inline DebugTrackerInfo getTrackerInfo() {
     return debug_tracker_info_;
   }
-  
 };
 
 } // End of VIO namespace.

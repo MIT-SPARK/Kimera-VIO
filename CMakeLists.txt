@@ -56,7 +56,6 @@ add_library(SparkVio STATIC
   src/StereoImuSyncPacket.cpp
   src/UtilsGeometry.cpp
   src/UtilsOpenCV.cpp
-  src/ImuFrontEnd.cpp
   src/VioBackEnd.cpp
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
@@ -88,6 +87,8 @@ include(src/pipeline/CMakeLists.txt)
 include(src/common/CMakeLists.txt)
 ### Add source code for logging
 include(src/logging/CMakeLists.txt)
+### Add source code for imu frontend
+include(src/imu-frontend/CMakeLists.txt)
 
 target_link_libraries(SparkVio
   PRIVATE
@@ -172,6 +173,7 @@ add_executable(testSparkVio
   tests/testTimer.cpp
   tests/testTracker.cpp
   tests/testUtilsOpenCV.cpp
+  tests/testInitializationFromImu.cpp
   tests/testVioBackEnd.cpp
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp

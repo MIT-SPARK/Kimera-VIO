@@ -9,6 +9,7 @@
 /**
  * @file   testVioBackEnd.h
  * @brief  test VioBackEnd
+ * @author Antoni Rosinol
  * @author Luca Carlone
  */
 
@@ -16,14 +17,22 @@
 #include <cstdlib>
 #include <iostream>
 #include <random>
-#include "datasource/DataSource.h"  // only for gtNavState...
-#include "VioBackEnd.h"
-#include "utils/ThreadsafeImuBuffer.h"
-#include "initial/InitializationBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include <gtsam/base/Vector.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/navigation/ImuBias.h>
+
+#include "VioBackEnd.h"
+#include "common/vio_types.h"
+#include "datasource/DataSource-definitions.h"  // only for gtNavState...
+#include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "imu-frontend/ImuFrontEndParams.h"
+#include "initial/InitializationBackEnd.h"
+#include "utils/ThreadsafeImuBuffer.h"
 
 DECLARE_string(test_data_path);
 
@@ -38,14 +47,16 @@ static const double tol = 1e-7;
 // Parameters
 static const int num_key_frames =
     10;                             // number of frames of the synthetic scene
-static const Vector3 p0(0, 0, 0);   // initial pose of the robot camera
-static const Vector3 v(1.0, 0, 0);  // velocity of the robot, per time_step
+static const gtsam::Vector3 p0(0, 0, 0);  // initial pose of the robot camera
+static const gtsam::Vector3 v(1.0,
+                              0,
+                              0);  // velocity of the robot, per time_step
 static const int time_step =
     1e9;  // elapsed time between two consecutive frames is 1 second (1e9 nsecs)
 static const Timestamp t_start = 1e9;  // ImuBuffer does not allow t = 0;
 static const double baseline = 0.5;
-static const imuBias::ConstantBias imu_bias(Vector3(0.1, -0.1, 0.3),
-                                            Vector3(0.1, 0.3, -0.2));
+static const imuBias::ConstantBias imu_bias(gtsam::Vector3(0.1, -0.1, 0.3),
+                                            gtsam::Vector3(0.1, 0.3, -0.2));
 
 using StereoPoses = vector<pair<Pose3, Pose3>>;
 
@@ -67,18 +78,20 @@ vector<Point3> CreateScene() {
   return points;
 }
 /* ------------------------------------------------------------------------- */
-StereoPoses CreateCameraPoses(const int num_keyframes, const double baseline,
-                              const Vector3 p0, const Vector3 v) {
+StereoPoses CreateCameraPoses(const int num_keyframes,
+                              const double baseline,
+                              const gtsam::Vector3 p0,
+                              const gtsam::Vector3 v) {
   StereoPoses poses;
   poses.reserve(num_keyframes);
-  Pose3 L_pose_R(Rot3::identity(), Vector3(baseline, 0, 0));
+  Pose3 L_pose_R(Rot3::identity(), gtsam::Vector3(baseline, 0, 0));
 
   // The camera is assumed to face (0, 0, 1): z-forward, y down and x to the
   // right
   for (int f_id = 0; f_id < num_keyframes; f_id++) {
     // constant velocity model along x: the robot moves to the right, keeping
     // the point in front of the camera
-    Vector3 p_offset = v * f_id * (time_step / ((double)1e9));
+    gtsam::Vector3 p_offset = v * f_id * (time_step / ((double)1e9));
 
     Pose3 pose_left(Rot3::identity(), p0 + p_offset);
     Pose3 pose_right = pose_left.compose(L_pose_R);
@@ -90,9 +103,12 @@ StereoPoses CreateCameraPoses(const int num_keyframes, const double baseline,
 
 /* ------------------------------------------------------------------------- */
 void CreateImuBuffer(VIO::utils::ThreadsafeImuBuffer& imu_buf,
-                     const int num_frames, const Vector3 v,
-                     const ImuBias imu_bias, const Vector3 n_gravity,
-                     const Timestamp time_step, const Timestamp t_start) {
+                     const int num_frames,
+                     const gtsam::Vector3 v,
+                     const ImuBias imu_bias,
+                     const gtsam::Vector3 n_gravity,
+                     const Timestamp time_step,
+                     const Timestamp t_start) {
   // Synthesize IMU measurements
   for (int f_id = 0; f_id < num_frames; f_id++) {
     Vector6 acc_gyr;
@@ -105,103 +121,6 @@ void CreateImuBuffer(VIO::utils::ThreadsafeImuBuffer& imu_buf,
     LOG(INFO) << "Timestamp: " << t;
     LOG(INFO) << "Accgyr: " << acc_gyr;
   }
-}
-
-/* ************************************************************************* */
-TEST(testVio, GuessPoseFromIMUmeasurements) {
-  for (size_t test = 0; test < 5; test++) {
-    Vector3 n_gravity;
-    Vector3 a;
-    switch (test) {
-      case 0:  // generic vectors
-        a = Vector3(9.8, 1, 0);
-        n_gravity = Vector3(0, 0, -9.8);
-        break;
-      case 1:  // already aligned vectors
-        a = Vector3(0, -9.8, 0);
-        n_gravity = Vector3(0, -9.8, 0);
-        break;
-      case 2:  // opposite vectors
-        a = Vector3(0, 0, -9.8);
-        n_gravity = Vector3(0, 0, +9.8);
-        break;
-      case 3:
-        a = Vector3(9.8, 0, 0);
-        n_gravity = Vector3(0, -9.8, 0);
-        break;
-      case 4:
-        a = Vector3(9.8, -1, 0);
-        n_gravity = Rot3::Expmap(Vector3(0.1, 1, 0.5)).matrix() * a;
-        break;
-    }
-
-    size_t n = 10;
-    ImuAccGyrS accGyroRaw;
-    accGyroRaw.resize(6, n);  // n identical measurements
-    for (size_t i = 0; i < n; i++)
-      accGyroRaw.col(i) << -a,
-          Vector3::Zero();  // we measure the opposite of gravity
-
-    bool round = false;
-    Pose3 poseActual =
-        VioBackEnd::guessPoseFromIMUmeasurements(accGyroRaw, n_gravity, round);
-    Vector3 tExpected = Vector3::Zero();
-    Vector3 tActual = poseActual.translation();
-    EXPECT_TRUE(assert_equal(tExpected, tActual, tol));
-
-    Unit3 n_gravityDir_actual = poseActual.rotation().rotate(Unit3(a));
-    Unit3 n_gravityDir_expected = Unit3(n_gravity);
-    EXPECT_TRUE(assert_equal(n_gravityDir_expected, n_gravityDir_actual, tol));
-
-    if (test > 0 &&
-        test < 4) {  // case in which true gravity is along a single axis
-      round = true;
-      // check that rounding does not mess up with the previous cases
-      Pose3 poseActual2 = VioBackEnd::guessPoseFromIMUmeasurements(
-          accGyroRaw, n_gravity,
-          round);  // by rounding we should filter out perturbation
-      EXPECT_TRUE(assert_equal(poseActual, poseActual2, tol));
-
-      // check that rounding filter out perturbation
-      Vector3 n_gravity_perturbed = n_gravity + Vector3(-0.1, 0.1, 0.3);
-      Pose3 poseActualRound = VioBackEnd::guessPoseFromIMUmeasurements(
-          accGyroRaw, n_gravity_perturbed, round);
-      EXPECT_TRUE(assert_equal(poseActual, poseActualRound, tol));
-    }
-  }
-}
-
-/* ************************************************************************* */
-TEST(testVio, InitializeImuBias) {
-  // Synthesize the data
-  const int num_measurements = 100;
-  ImuAccGyrS imu_accgyr;
-  imu_accgyr.resize(6, num_measurements);
-  Vector3 n_gravity(1.1, 2.2, 3.3);  // random numbers, just for the test
-  srand(0);
-  for (int i = 0; i < num_measurements; i++) {
-    Vector6 rand_nums;
-    for (int idx = 0; idx < 6; idx++) {
-      rand_nums[idx] =
-          (rand() / ((double)RAND_MAX)) * 3;  // random number between 0 and 3
-    }
-    imu_accgyr.col(i) = rand_nums;
-  }
-
-  // Compute the actual bias!
-  ImuBias imu_bias_actual = VioBackEnd::initImuBias(imu_accgyr, n_gravity);
-
-  // Compute the expected value!
-  Vector6 imu_mean = Vector6::Zero();
-  for (int i = 0; i < num_measurements; i++) {
-    imu_mean += imu_accgyr.col(i);
-  }
-  imu_mean = imu_mean / ((double)num_measurements);
-  imu_mean.head(3) = imu_mean.head(3) + n_gravity;
-  ImuBias imu_bias_expected(imu_mean.head(3), imu_mean.tail(3));
-
-  // Compare the results!
-  EXPECT_TRUE(assert_equal(imu_bias_expected, imu_bias_actual, tol));
 }
 
 /* ************************************************************************* */
@@ -262,12 +181,10 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   }
 
   // create vio
-  Pose3 B_pose_camLrect(Rot3::identity(), Vector3::Zero());
-  std::shared_ptr<gtNavState> initial_state =
-      std::make_shared<gtNavState>(poses[0].first, v, imu_bias);
+  Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
+  VioNavState initial_state = VioNavState(poses[0].first, v, imu_bias);
   boost::shared_ptr<VioBackEnd> vio = boost::make_shared<VioBackEnd>(
-      B_pose_camLrect, cam_params, baseline, &initial_state, t_start,
-      ImuAccGyrS(), vioParams);
+      B_pose_camLrect, cam_params, baseline, initial_state, t_start, vioParams);
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
   imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
@@ -332,7 +249,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
     for (int f_id = 0; f_id <= k; f_id++) {
       Pose3 W_Pose_Blkf = results.at<Pose3>(Symbol('x', f_id));
-      Vector3 W_Vel_Blkf = results.at<Vector3>(Symbol('v', f_id));
+      gtsam::Vector3 W_Vel_Blkf = results.at<gtsam::Vector3>(Symbol('v', f_id));
       ImuBias imu_bias_lkf = results.at<ImuBias>(Symbol('b', f_id));
 
       EXPECT_TRUE(assert_equal(poses[f_id].first, W_Pose_Blkf, tol));
@@ -403,7 +320,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   }
 
   // create vio
-  Pose3 B_pose_camLrect(Rot3::identity(), Vector3::Zero());
+  Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
   boost::shared_ptr<InitializationBackEnd> vio =
     boost::make_shared<InitializationBackEnd>(
         B_pose_camLrect, cam_params,

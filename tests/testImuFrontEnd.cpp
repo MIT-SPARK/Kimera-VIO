@@ -14,14 +14,12 @@
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
-#include "ImuFrontEnd-definitions.h"
-#include "ImuFrontEnd.h"
-#include "utils/ThreadsafeImuBuffer.h"
-
-#include <gflags/gflags.h>
-#include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "imu-frontend/ImuFrontEnd.h"
+#include "imu-frontend/ImuFrontEndParams.h"
+#include "utils/ThreadsafeImuBuffer.h"
 
 namespace VIO {
 

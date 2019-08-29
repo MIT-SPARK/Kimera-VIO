@@ -8,44 +8,48 @@
 
 /**
  * @file   ETH_parser.h
- * @brief  Reads ETH's Euroc dataset.
- * @author Antoni Rosinol, Luca Carlone, Chang
+ * @brief  Parse EUROC dataset.
+ * @author Antoni Rosinol,
+ * @author Yun Chang,
+ * @author Luca Carlone
  */
 
-#ifndef ETH_parser_H_
-#define ETH_parser_H_
+#pragma once
 
 #include <stdlib.h>
+#include <algorithm>  // for max
 #include <fstream>
+#include <map>  // for map<>
 #include <string>
+#include <utility>  // for make_pair
+#include <vector>
 
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/ml/ml.hpp>
 
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
 #include "Frame.h"
 #include "StereoImuSyncPacket.h"
+#include "datasource/DataSource-definitions.h"
 #include "datasource/DataSource.h"
 
 namespace VIO {
+
 /*
  * Parse all images and camera calibration for an ETH dataset.
  */
 class ETHDatasetParser : public DataProvider {
  public:
   ETHDatasetParser();
-  ETHDatasetParser(const std::string& input_string);
   virtual ~ETHDatasetParser();
 
-  // Gt data.
-  GroundTruthData gtData_;
+  // Ground truth data.
+  GroundTruthData gt_data_;
 
   // IMU data.
-  ImuData imuData_;
+  ImuData imu_data_;
 
   /// Getters
   inline std::string getDatasetName() const { return dataset_name_; }
@@ -69,11 +73,13 @@ class ETHDatasetParser : public DataProvider {
 
 public:
 
-  bool spin() override;
+  virtual bool spin() override;
 
-  void spinOnce(const FrameId& k, Timestamp& timestamp_last_frame,
+  void spinOnce(const FrameId& k,
+                Timestamp& timestamp_last_frame,
                 const StereoMatchingParams& stereo_matchiong_params,
-                const bool equalize_image, const CameraParams& left_cam_info,
+                const bool equalize_image,
+                const CameraParams& left_cam_info,
                 const CameraParams& right_cam_info,
                 const gtsam::Pose3& camL_pose_camR);
 
@@ -84,7 +90,8 @@ public:
   bool parseDataset(const std::string& input_dataset_path,
                     const std::string& leftCameraName,
                     const std::string& rightCameraName,
-                    const std::string& imuName, const std::string& gtSensorName,
+                    const std::string& imuName,
+                    const std::string& gtSensorName,
                     bool doParseImages = true);
 
   // Retrieve relative pose between timestamps.
@@ -93,14 +100,14 @@ public:
       const Timestamp& currentTimestamp) const;
 
   // Retrieve absolute pose at timestamp.
-  gtNavState getGroundTruthState(const Timestamp& timestamp) const;
+  VioNavState getGroundTruthState(const Timestamp& timestamp) const;
 
   // Compute initialization errors and stats.
   const InitializationPerformance getInitializationPerformance(
-                    const std::vector<Timestamp>& timestamps,
-                    const std::vector<gtsam::Pose3>& poses_ba,
-                    const gtNavState& init_nav_state,
-                    const gtsam::Vector3& init_gravity);
+      const std::vector<Timestamp>& timestamps,
+      const std::vector<gtsam::Pose3>& poses_ba,
+      const VioNavState& init_nav_state,
+      const gtsam::Vector3& init_gravity);
 
   // Check if the ground truth is available.
   // (i.e., the timestamp is after the first gt state)
@@ -121,12 +128,6 @@ public:
 
   // Print info about dataset.
   void print() const;
-
- public:
-  // THIS IS ONLY HERE BECAUSE the pipeline needs to know what is this value.
-  // But it should not need to!!
-  // Put it as a static variable in the spin function.
-  Timestamp timestamp_first_lkf_;
 
  private:
   bool parseImuData(const std::string& input_dataset_path,
@@ -191,5 +192,3 @@ public:
 };
 
 }  // namespace VIO
-
-#endif /* ETH_parser_H_ */
