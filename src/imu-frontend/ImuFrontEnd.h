@@ -85,6 +85,10 @@ public:
     pim_ = VIO::make_unique<PreintegratedImuMeasurements>(
           boost::make_shared<PreintegratedImuMeasurements::Params>(imu_params_),
           imu_bias);
+    CHECK_GT(imu_params.acc_noise_, 0.0);
+    CHECK_GT(imu_params.acc_walk_, 0.0);
+    CHECK_GT(imu_params.gyro_noise_, 0.0);
+    CHECK_GT(imu_params.gyro_walk_, 0.0);
     CHECK(pim_);
     {
       std::lock_guard<std::mutex> lock(imu_bias_mutex_);
