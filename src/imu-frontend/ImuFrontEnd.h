@@ -89,6 +89,10 @@ public:
     CHECK_GT(imu_params.acc_walk_, 0.0);
     CHECK_GT(imu_params.gyro_noise_, 0.0);
     CHECK_GT(imu_params.gyro_walk_, 0.0);
+    CHECK_GT(imu_params.imu_integration_sigma_, 0.0);
+    LOG_IF(WARNING, imu_params.imu_shift_ != 0.0)
+        << "Applying IMU timestamp shift of: " << imu_params.imu_shift_
+        << "ns.";
     CHECK(pim_);
     {
       std::lock_guard<std::mutex> lock(imu_bias_mutex_);

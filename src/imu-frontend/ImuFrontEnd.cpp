@@ -90,6 +90,9 @@ gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
 // Set parameters for imu factors.
 gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(
     const ImuParams& imu_params) {
+  CHECK_GT(imu_params.acc_noise_, 0.0);
+  CHECK_GT(imu_params.gyro_noise_, 0.0);
+  CHECK_GT(imu_params.imu_integration_sigma_, 0.0);
   PreintegratedImuMeasurements::Params preint_imu_params =
       PreintegratedImuMeasurements::Params(imu_params.n_gravity_);
   preint_imu_params.gyroscopeCovariance =
@@ -99,7 +102,8 @@ gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(
   preint_imu_params.integrationCovariance =
       std::pow(imu_params.imu_integration_sigma_, 2.0) *
       Eigen::Matrix3d::Identity();
-  preint_imu_params.use2ndOrderCoriolis = false;  // TODO: expose this parameter
+  // TODO(Toni): REMOVE HARDCODED
+  preint_imu_params.use2ndOrderCoriolis = false;
 
 #ifdef USE_COMBINED_IMU_FACTOR
   preint_imu_params.biasAccCovariance =
