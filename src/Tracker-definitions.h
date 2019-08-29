@@ -33,8 +33,6 @@
 
 #include "common/vio_types.h"
 
-#include <glog/logging.h>
-
 namespace VIO {
 
 // Mono
