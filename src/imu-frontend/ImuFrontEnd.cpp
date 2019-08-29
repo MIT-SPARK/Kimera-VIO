@@ -46,6 +46,7 @@ ImuFrontEnd::ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias)
 ImuFrontEnd::ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
                          const ImuBias& imu_bias)
     : imu_params_(imu_params) {
+  // TODO(Toni): this ctor doesn't check params... ADD CHECKS
   initializeImuFrontEnd(imu_bias);
 }
 
