@@ -79,102 +79,55 @@ public:
    * manually in order to preintegrate the IMU with the latest IMU bias coming
    * from the backend optimization.
    */
-  ImuFrontEnd(const ImuParams& imu_params,
-              const ImuBias& imu_bias)
-    : imu_params_(setImuParams(imu_params)) {
-    pim_ = VIO::make_unique<PreintegratedImuMeasurements>(
-          boost::make_shared<PreintegratedImuMeasurements::Params>(imu_params_),
-          imu_bias);
-    CHECK_GT(imu_params.acc_noise_, 0.0);
-    CHECK_GT(imu_params.acc_walk_, 0.0);
-    CHECK_GT(imu_params.gyro_noise_, 0.0);
-    CHECK_GT(imu_params.gyro_walk_, 0.0);
-    CHECK_GT(imu_params.imu_integration_sigma_, 0.0);
-    LOG_IF(WARNING, imu_params.imu_shift_ != 0.0)
-        << "Applying IMU timestamp shift of: " << imu_params.imu_shift_
-        << "ns.";
-    CHECK(pim_);
-    {
-      std::lock_guard<std::mutex> lock(imu_bias_mutex_);
-      latest_imu_bias_ = imu_bias;
-    }
-    if (VLOG_IS_ON(10)) {
-      LOG(ERROR) << "IMU PREINTEGRATION PARAMS GIVEN TO IMU FRONTEND.";
-      imu_params_.print("");
-      LOG(ERROR) << "IMU BIAS GIVEN TO IMU FRONTEND AT CONSTRUCTION:\n "
-                 << getCurrentImuBias();
-      LOG(ERROR) << "IMU PREINTEGRATION COVARIANCE: ";
-      pim_->print();
-    }
-  }
+ ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias);
+ ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
+             const ImuBias& imu_bias);
+ ~ImuFrontEnd() = default;
 
-  ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
-              const ImuBias& imu_bias)
-    : imu_params_(imu_params) {
-    pim_ = VIO::make_unique<PreintegratedImuMeasurements>(
-    boost::make_shared<PreintegratedImuMeasurements::Params>(imu_params_),
-    imu_bias);
-    CHECK(pim_);
-    {
-      std::lock_guard<std::mutex> lock(imu_bias_mutex_);
-      latest_imu_bias_ = imu_bias;
-    }
-    if (VLOG_IS_ON(10)) {
-      LOG(ERROR) << "IMU PREINTEGRATION PARAMS GIVEN TO IMU FRONTEND.";
-      imu_params_.print("");
-      LOG(ERROR) << "IMU BIAS GIVEN TO IMU FRONTEND AT CONSTRUCTION:\n "
-                 << getCurrentImuBias();
-      LOG(ERROR) << "IMU PREINTEGRATION COVARIANCE: ";
-      pim_->print();
-    }
-  }
+ /* ------------------------------------------------------------------------ */
+ PreintegratedImuMeasurements preintegrateImuMeasurements(
+     const ImuStampS& imu_stamps,
+     const ImuAccGyrS& imu_accgyr);
+ PreintegratedImuMeasurements preintegrateImuMeasurements(
+     const ImuStampS& imu_stamps,
+     const ImuAccGyr& imu_accgyr) = delete;
+ PreintegratedImuMeasurements preintegrateImuMeasurements(
+     const ImuStamp& imu_stamps,
+     const ImuAccGyrS& imu_accgyr) = delete;
+ PreintegratedImuMeasurements preintegrateImuMeasurements(
+     const ImuStamp& imu_stamps,
+     const ImuAccGyr& imu_accgyr) = delete;
 
-  /* ------------------------------------------------------------------------ */
-  PreintegratedImuMeasurements preintegrateImuMeasurements(
-      const ImuStampS& imu_stamps,
-      const ImuAccGyrS& imu_accgyr);
-  PreintegratedImuMeasurements preintegrateImuMeasurements(
-      const ImuStampS& imu_stamps,
-      const ImuAccGyr& imu_accgyr) = delete;
-  PreintegratedImuMeasurements preintegrateImuMeasurements(
-      const ImuStamp& imu_stamps,
-      const ImuAccGyrS& imu_accgyr) = delete;
-  PreintegratedImuMeasurements preintegrateImuMeasurements(
-      const ImuStamp& imu_stamps,
-      const ImuAccGyr& imu_accgyr) = delete;
+ /* --------------------------------------------------------------------------
+  */
+ gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,
+                                          const ImuAccGyrS& imu_accgyr);
+ gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,
+                                          const ImuAccGyr& imu_accgyr) = delete;
+ gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamp& imu_stamps,
+                                          const ImuAccGyrS& imu_accgyr) =
+     delete;
+ gtsam::Rot3 preintegrateGyroMeasurements(const ImuStamp& imu_stamps,
+                                          const ImuAccGyr& imu_accgyr) = delete;
 
-  /* -------------------------------------------------------------------------- */
-  gtsam::Rot3 preintegrateGyroMeasurements(
-      const ImuStampS& imu_stamps,
-      const ImuAccGyrS& imu_accgyr);
-  gtsam::Rot3 preintegrateGyroMeasurements(
-      const ImuStampS& imu_stamps,
-      const ImuAccGyr& imu_accgyr) = delete;
-  gtsam::Rot3 preintegrateGyroMeasurements(
-      const ImuStamp& imu_stamps,
-      const ImuAccGyrS& imu_accgyr) = delete;
-  gtsam::Rot3 preintegrateGyroMeasurements(
-      const ImuStamp& imu_stamps,
-      const ImuAccGyr& imu_accgyr) = delete;
-
-  /* ------------------------------------------------------------------------ */
-  // This should be called by the backend, whenever there
-  // is a new imu bias estimate. Note that we only store the new
-  // bias, but we don't reset the pre-integration.This is because we
-  // might have already started preintegrating measurements from
-  // latest keyframe to the current frame using the previous bias,
-  // which at the moment was the best last estimate.
-  // The pre-integration is updated with the correct bias
-  // in the backend.
-  inline void updateBias(const ImuBias& imu_bias_prev_kf) {
-    std::lock_guard<std::mutex> lock(imu_bias_mutex_);
-    latest_imu_bias_ = imu_bias_prev_kf;
-    // Debug output.
-    if (VLOG_IS_ON(10)) {
-      LOG(INFO) << "Updating Preintegration imu bias (needs to reset "
-                   "integration for the bias to have effect):";
-      latest_imu_bias_.print();
-    }
+ /* ------------------------------------------------------------------------ */
+ // This should be called by the backend, whenever there
+ // is a new imu bias estimate. Note that we only store the new
+ // bias, but we don't reset the pre-integration.This is because we
+ // might have already started preintegrating measurements from
+ // latest keyframe to the current frame using the previous bias,
+ // which at the moment was the best last estimate.
+ // The pre-integration is updated with the correct bias
+ // in the backend.
+ inline void updateBias(const ImuBias& imu_bias_prev_kf) {
+   std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+   latest_imu_bias_ = imu_bias_prev_kf;
+   // Debug output.
+   if (VLOG_IS_ON(10)) {
+     LOG(INFO) << "Updating Preintegration imu bias (needs to reset "
+                  "integration for the bias to have effect):";
+     latest_imu_bias_.print();
+   }
   }
 
   /* ------------------------------------------------------------------------ */
@@ -213,6 +166,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // THREAD-SAFE.
   inline gtsam::Vector3 getPreintegrationGravity() const {
+    // TODO(Toni): why are we locking the imu_bias_mutex here???
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
     return imu_params_.n_gravity;
   }
@@ -229,15 +183,16 @@ public:
   }
 
 private:
-  PreintegratedImuMeasurements::Params imu_params_;
-  std::unique_ptr<PreintegratedImuMeasurements> pim_ = nullptr;
-  ImuBias latest_imu_bias_;
-  mutable std::mutex imu_bias_mutex_;
+ void initializeImuFrontEnd(const ImuBias& imu_bias);
 
-  /* ------------------------------------------------------------------------ */
-  // Set parameters for imu preintegration from the given ImuParams.
-  PreintegratedImuMeasurements::Params setImuParams(
-      const ImuParams& imu_params);
+ // Set parameters for imu preintegration from the given ImuParams.
+ PreintegratedImuMeasurements::Params setImuParams(const ImuParams& imu_params);
+
+private:
+ PreintegratedImuMeasurements::Params imu_params_;
+ std::unique_ptr<PreintegratedImuMeasurements> pim_ = nullptr;
+ ImuBias latest_imu_bias_;
+ mutable std::mutex imu_bias_mutex_;
 };
 
 } // End of VIO namespace.
