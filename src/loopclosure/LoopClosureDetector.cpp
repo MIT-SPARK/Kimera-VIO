@@ -72,7 +72,8 @@ LoopClosureDetector::LoopClosureDetector(
       B_Pose_camLrect_(),
       pgo_(nullptr),
       W_Pose_Bkf_estimates_(),
-      shared_noise_model_(gtsam::noiseModel::Isotropic::Variance(6, 0.1)) {
+      shared_noise_model_(gtsam::noiseModel::Isotropic::Variance(6, 0.1)),
+      logger_(nullptr) {
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
       lcd_params_.scale_factor_, lcd_params_.nlevels_,
@@ -103,6 +104,8 @@ LoopClosureDetector::LoopClosureDetector(
   pgo_ = VIO::make_unique<RobustPGO::RobustSolver>(pgo_params);
   // TODO(marcus): decide on initialization.
   // initializePGO();
+
+  if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
 }
 
 LoopClosureDetector::~LoopClosureDetector() {
@@ -175,6 +178,8 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   LoopResult loop_result;
   checkLoopClosure(working_frame, &loop_result);
 
+  if (logger_) logger_->logKfStatus(working_frame.getTimestamp(), loop_result);
+
   // Update the PGO with the loop closure result if available.
   if (loop_result.isLoop()) {
     LoopClosureFactor lc_factor(loop_result.match_id_, loop_result.query_id_,
@@ -188,6 +193,8 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     LoopClosureDetectorOutputPayload output_payload(loop_result.isLoop(),
         input->timestamp_kf_, loop_result.match_id_, loop_result.query_id_,
         loop_result.relative_pose_, w_Pose_map, pgo_->calculateEstimate());
+
+    if (logger_) logger_->logLCDResult(output_payload);
 
     return output_payload;
   }
@@ -209,35 +216,8 @@ void LoopClosureDetector::checkLoopClosure(
     }
   } else {
     if (VERBOSITY >= 2) {
-      std::string erhdr = "LoopClosureDetector Failure Reason: ";
-      switch (loop_result->status_) {
-        default:
-             LOG(ERROR) << erhdr + "INVALID LCDStatus.";
-        case LCDStatus::LOOP_DETECTED:
-             LOG(ERROR) << erhdr + "Loop detected.";
-             break;
-        case LCDStatus::NO_MATCHES:
-             LOG(ERROR) << erhdr + "No matches against the database.";
-             break;
-        case LCDStatus::LOW_NSS_FACTOR:
-             LOG(ERROR) << erhdr + "Current image score vs previous too low.";
-             break;
-        case LCDStatus::LOW_SCORE:
-             LOG(ERROR) << erhdr + "Scores were below the alpha threshold.";
-             break;
-        case LCDStatus::NO_GROUPS:
-             LOG(ERROR) << erhdr + "Not enough matches to create groups.";
-             break;
-        case LCDStatus::FAILED_TEMPORAL_CONSTRAINT:
-             LOG(ERROR) << erhdr + "No temporal consistency between matches.";
-             break;
-        case LCDStatus::FAILED_GEOM_VERIFICATION:
-             LOG(ERROR) << erhdr + "The geometric verification step failed.";
-             break;
-        case LCDStatus::FAILED_POSE_RECOVERY:
-             LOG(ERROR) << erhdr + "The pose recovery step failed.";
-             break;
-      }
+      LOG(ERROR) << "LoopClosureDetector Failure Reason: "
+                 << LoopResult::asString(loop_result->status_);
     }
   }
 }

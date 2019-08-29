@@ -457,9 +457,16 @@ void PipelineLogger::logPipelineOverallTiming(
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 LoopClosureDetectorLogger::LoopClosureDetectorLogger()
     : output_lcd_("output_lcd_result.scv"),
-      output_traj_("output_optimized_traj.csv") {};
+      output_traj_("output_lcd_optimized_traj.csv"),
+      output_status_("output_lcd_status") {};
 
 void LoopClosureDetectorLogger::logLCDResult(
+    const LoopClosureDetectorOutputPayload& lcd_output) {
+  logLoopClosure(lcd_output);
+  logOptimizedTraj(lcd_output);
+}
+
+void LoopClosureDetectorLogger::logLoopClosure(
     const LoopClosureDetectorOutputPayload& lcd_output) {
   // We log loop-closure results in csv format.
   std::ofstream& output_stream_lcd = output_lcd_.ofstream_;
@@ -489,9 +496,8 @@ void LoopClosureDetectorLogger::logLCDResult(
                     << std::endl;
 }
 
-void LoopClosureDetectorLogger::logOptimizedTrajectory(
-    const Timestamp& timestamp,
-    const gtsam::Values& traj) {
+void LoopClosureDetectorLogger::logOptimizedTraj(
+    const LoopClosureDetectorOutputPayload& lcd_output) {
   // We log the full optimized trajectory in csv format.
   std::ofstream& output_stream_traj = output_traj_.ofstream_;
 
@@ -499,17 +505,19 @@ void LoopClosureDetectorLogger::logOptimizedTrajectory(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_traj << "timestamp,x,y,z,qw,qx,qy,qz"
+    output_stream_traj << "kf_id,x,y,z,qw,qx,qy,qz"
                        << std::endl;
     is_header_written = true;
   }
+
+  const gtsam::Values& traj = lcd_output.states_;
 
   for (size_t i = 0; i < traj.size(); i++) {
     gtsam::Pose3 pose = traj.at<gtsam::Pose3>(i);
     const auto trans = pose.translation();
     const auto quat = pose.rotation().toQuaternion();
 
-    output_stream_traj << timestamp << ","
+    output_stream_traj << i << ","
                        << trans.x() << ","
                        << trans.y() << ","
                        << trans.z() << ","
@@ -519,6 +527,25 @@ void LoopClosureDetectorLogger::logOptimizedTrajectory(
                        << quat.z() << ","
                        << std::endl;
   }
+}
+
+void LoopClosureDetectorLogger::logKfStatus(const Timestamp& timestamp_kf,
+    const LoopResult& lc_result) {
+  // We log the loop-closure result of every key frame in csv format.
+  std::ofstream& output_stream_status = output_status_.ofstream_;
+
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    output_stream_status << "timestamp_kf,status,query_id,match_id"
+                        << std::endl;
+    is_header_written = true;
+  }
+
+  output_stream_status << timestamp_kf << ","
+                       << LoopResult::asString(lc_result.status_) << ","
+                       << lc_result.query_id_ << ","
+                       << lc_result.match_id_ << ","
+                       << std::endl;
 }
 
 }  // namespace VIO

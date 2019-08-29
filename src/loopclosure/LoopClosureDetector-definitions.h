@@ -119,6 +119,45 @@ struct MatchIsland {
 struct LoopResult {
   inline bool isLoop() const { return status_ == LCDStatus::LOOP_DETECTED; }
 
+  static std::string asString(const LCDStatus& status) {
+    std::string status_str = "";
+    switch(status) {
+      case LCDStatus::LOOP_DETECTED: {
+        status_str = "LOOP_DETECTED";
+        break;
+      }
+      case LCDStatus::NO_MATCHES: {
+        status_str = "NO_MATCHES";
+        break;
+      }
+      case LCDStatus::LOW_NSS_FACTOR: {
+        status_str = "LOW_NSS_FACTOR";
+        break;
+      }
+      case LCDStatus::LOW_SCORE: {
+        status_str = "LOW_SCORE";
+        break;
+      }
+      case LCDStatus::NO_GROUPS: {
+        status_str = "NO_GROUPS";
+        break;
+      }
+      case LCDStatus::FAILED_TEMPORAL_CONSTRAINT: {
+        status_str = "FAILED_TEMPORAL_CONSTRAINT";
+        break;
+      }
+      case LCDStatus::FAILED_GEOM_VERIFICATION: {
+        status_str = "FAILED_GEOM_VERIFICATION";
+        break;
+      }
+      case LCDStatus::FAILED_POSE_RECOVERY: {
+        status_str = "FAILED_POSE_RECOVERY";
+        break;
+      }
+    }
+    return status_str;
+  }
+
   LCDStatus status_;
   FrameId query_id_;
   FrameId match_id_;

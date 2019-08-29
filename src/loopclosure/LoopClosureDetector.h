@@ -30,6 +30,7 @@
 
 #include "utils/ThreadsafeQueue.h"
 #include "StereoFrame.h"
+#include "logging/Logger.h"
 
 // Forward declare RobustPGO, a private dependency.
 namespace RobustPGO {
@@ -197,6 +198,9 @@ class LoopClosureDetector {
   std::vector<gtsam::Pose3> W_Pose_Bkf_estimates_;
   gtsam::SharedNoiseModel shared_noise_model_; // TODO(marcus): make accurate
                                                // should also come in with input
+
+  // LoopCLosureDetector Logger
+  std::unique_ptr<LoopClosureDetectorLogger> logger_;
 };  // class LoopClosureDetector
 
 }  // namespace VIO
