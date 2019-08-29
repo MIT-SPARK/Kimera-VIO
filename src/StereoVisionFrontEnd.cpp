@@ -90,6 +90,7 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
     const std::shared_ptr<StereoFrontEndInputPayload>& input) {
   const StereoFrame& stereoFrame_k = input->getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
+  const Timestamp& timestamp_kf = stereoFrame_k.getTimestamp();
   LOG(INFO) << "------------------- Processing frame k = " << k
             << "--------------------";
 
@@ -158,11 +159,15 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
     if (logger_) {
-      // Use default filename (sending empty "" uses default name), and set
-      // write mode to append (sending true).
-      logger_->logFrontendResults(
+      logger_->logFrontendStats(
+          stereoFrame_lkf_->getTimestamp(),
+          getTrackerInfo(),
           trackerStatusSummary_,
           stereoFrame_km1_->getLeftFrame().getNrValidKeypoints());
+      logger_->logFrontendRansac(
+          stereoFrame_lkf_->getTimestamp(),
+          getRelativePoseBodyMono(),
+          getRelativePoseBodyStereo());
     }
     ////////////////////////////////////////////////////////////////////////////
 

@@ -20,6 +20,7 @@
 #include <unordered_map>
 
 #include "datasource/ETH_parser.h"  // REMOVE THIS!!
+#include "loopclosure/LoopClosureDetector-definitions.h"
 
 namespace VIO {
 
@@ -77,12 +78,19 @@ class FrontendLogger {
   FrontendLogger();
   ~FrontendLogger() = default;
 
-  void logFrontendResults(const TrackerStatusSummary& tracker_summary,
-                          const size_t& nrKeypoints);
+  void logFrontendStats(const Timestamp& timestamp_lkf,
+                        const DebugTrackerInfo& tracker_info,
+                        const TrackerStatusSummary& tracker_summary,
+                        const size_t& nrKeypoints);
+  void logFrontendRansac(const Timestamp& timestamp_lkf,
+                         const gtsam::Pose3& relative_pose_body_mono,
+                         const gtsam::Pose3& relative_pose_body_stereo);
 
  private:
-  // Filenames to be saved in the output folder.
-  OfstreamWrapper output_frontend_;
+  // StreamWrappers with filenames to which output is saved.
+  OfstreamWrapper output_frontend_stats_;
+  OfstreamWrapper output_frontend_ransac_mono_;
+  OfstreamWrapper output_frontend_ransac_stereo_;
 };
 
 class VisualizerLogger {
@@ -114,6 +122,21 @@ class PipelineLogger {
  private:
   // Filenames to be saved in the output folder.
   OfstreamWrapper output_pipeline_timing_;
+};
+
+class LoopClosureDetectorLogger {
+ public:
+  LoopClosureDetectorLogger();
+  ~LoopClosureDetectorLogger() = default;
+
+  void logLCDResult(const LoopClosureDetectorOutputPayload& lcd_output);
+  void logOptimizedTrajectory(const Timestamp& timestamp,
+                              const gtsam::Values& traj);
+
+ private:
+  // Filenames to be saved in the output folder.
+  OfstreamWrapper output_lcd_;
+  OfstreamWrapper output_traj_;
 };
 
 }  // namespace VIO
