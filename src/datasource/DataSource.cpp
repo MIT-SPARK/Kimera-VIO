@@ -118,16 +118,28 @@ void DataProvider::parseBackendParams() {
               << FLAGS_vio_params_path;
     pipeline_params_.backend_params_->parseYAML(FLAGS_vio_params_path);
   }
-  // TODO(Toni) make this cleaner! pipeline_params_.imu_params_ are parsed all around, it's a
-  // mess!! They are basically parsed from backend params... but they should be
-  // on their own mostly.
-  pipeline_params_.imu_params_.imu_integration_sigma_ = pipeline_params_.backend_params_->imuIntegrationSigma_;
-  pipeline_params_.imu_params_.n_gravity_ = pipeline_params_.backend_params_->n_gravity_;
+  // TODO(Toni) make this cleaner! pipeline_params_.imu_params_ are parsed all
+  // around, it's a mess!! They are basically parsed from backend params... but
+  // they should be on their own mostly. Here we just override gravity and
+  // imu_integration sigma from backend_params_ But one may be able to overwrite
+  // all of them using backend_params_
+  CHECK_DOUBLE_EQ(pipeline_params_.imu_params_.acc_walk_,
+                  pipeline_params_.backend_params_->accBiasSigma_);
+  CHECK_DOUBLE_EQ(pipeline_params_.imu_params_.acc_noise_,
+                  pipeline_params_.backend_params_->accNoiseDensity_);
+  CHECK_DOUBLE_EQ(pipeline_params_.imu_params_.gyro_walk_,
+                  pipeline_params_.backend_params_->gyroBiasSigma_);
+  CHECK_DOUBLE_EQ(pipeline_params_.imu_params_.gyro_noise_,
+                  pipeline_params_.backend_params_->gyroNoiseDensity_);
+  pipeline_params_.imu_params_.imu_integration_sigma_ =
+      pipeline_params_.backend_params_->imuIntegrationSigma_;
+  pipeline_params_.imu_params_.n_gravity_ =
+      pipeline_params_.backend_params_->n_gravity_;
+  CHECK(pipeline_params_.backend_params_);
 }
 
 /* -------------------------------------------------------------------------- */
 void DataProvider::parseFrontendParams() {
-
   // Read/define tracker params.
   if (FLAGS_tracker_params_path.empty()) {
     LOG(WARNING) << "No tracker parameters specified, using default";
@@ -137,9 +149,6 @@ void DataProvider::parseFrontendParams() {
               << FLAGS_tracker_params_path;
     pipeline_params_.frontend_params_.parseYAML(FLAGS_tracker_params_path);
   }
-
-  CHECK(pipeline_params_.backend_params_);
-  CHECK_NOTNULL(&pipeline_params_.frontend_params_);
 }
 
 }  // namespace VIO
