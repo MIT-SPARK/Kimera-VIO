@@ -71,14 +71,6 @@ ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/mast
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 RUN cd spark_vio_evaluation && pip install .
 
-# Download and extract EuRoC dataset.
-RUN apt-get update && apt-get install -y wget
-RUN wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip
-RUN mkdir -p $DIRPATH/euroc && unzip V1_01_easy.zip -d $DIRPATH/euroc
-
-# Yamelize euroc dataset
-RUN bash $DIRPATH/VIO/scripts/euroc/yamelize.bash -p $DIRPATH/euroc
-
 # Add credentials on build
 ARG SSH_PRIVATE_KEY
 RUN mkdir /root/.ssh/
@@ -94,6 +86,14 @@ RUN ssh-keyscan -t rsa github.mit.edu >> /root/.ssh/known_hosts
 #RUN git config --global user.email "arosinol@mit.edu"
 RUN git clone git@github.mit.edu:SPARK/VIO.git
 RUN cd VIO && git checkout feature/full_docker_install && mkdir build && cd build && cmake .. && make -j$(nproc)
+
+# Download and extract EuRoC dataset.
+RUN apt-get update && apt-get install -y wget
+RUN wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip
+RUN mkdir -p $DIRPATH/euroc && unzip V1_01_easy.zip -d $DIRPATH/euroc
+
+# Yamelize euroc dataset
+RUN bash $DIRPATH/VIO/scripts/euroc/yamelize.bash -p $DIRPATH/euroc
 
 #CMD xvfb-run $DIRPATH/VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/euroc -r
 CMD $DIRPATH/VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/euroc -r
