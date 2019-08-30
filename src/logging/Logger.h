@@ -58,6 +58,7 @@ class BackendLogger {
  private:
   void logBackendResultsCSV(const VioBackEndOutputPayload& output);
   void logSmartFactorsStats(const VioBackEndOutputPayload& output);
+  void logBackendPimNavstates(const VioBackEndOutputPayload& output);
   void logBackendFactorsStats(const VioBackEndOutputPayload& output);
   void logBackendTiming(const VioBackEndOutputPayload& output);
 
@@ -65,6 +66,7 @@ class BackendLogger {
   // Filenames to be saved in the output folder.
   OfstreamWrapper output_poses_vio_csv_;
   OfstreamWrapper output_smart_factors_stats_csv_;
+  OfstreamWrapper output_pim_navstates_csv_;
   OfstreamWrapper output_backend_factors_stats_csv_;
   OfstreamWrapper output_backend_timing_csv_;
 

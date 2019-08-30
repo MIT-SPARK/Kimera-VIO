@@ -54,12 +54,14 @@ void OfstreamWrapper::openLogFile(const std::string& output_file_name,
 BackendLogger::BackendLogger()
     : output_poses_vio_csv_("output_posesVIO.csv"),
       output_smart_factors_stats_csv_("output_smartFactors.csv"),
+      output_pim_navstates_csv_("output_pim_navstates.csv"),
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
       output_backend_timing_csv_("output_backendTiming.csv"){};
 
 void BackendLogger::logBackendOutput(const VioBackEndOutputPayload& output) {
   logBackendResultsCSV(output);
   logBackendFactorsStats(output);
+  logBackendPimNavstates(output);
   logSmartFactorsStats(output);
   logBackendTiming(output);
 }
@@ -160,8 +162,8 @@ void BackendLogger::logSmartFactorsStats(
     is_header_written = true;
   }
 
-  output_stream << output.cur_kf_id_ << ","     // keyframe id
-                << output.timestamp_kf_ << ","  // timestamp
+  output_stream << output.cur_kf_id_ << ","
+                << output.timestamp_kf_ << ","
                 << output.debug_info_.numSF_ << ","
                 << output.debug_info_.numValid_ << ","
                 << output.debug_info_.numDegenerate_ << ","
@@ -175,6 +177,37 @@ void BackendLogger::logSmartFactorsStats(
                 << output.debug_info_.maxTrackLength_ << ","
                 << output.debug_info_.nrElementsInMatrix_ << ","
                 << output.debug_info_.nrZeroElementsInMatrix_
+                << std::endl;
+}
+
+void BackendLogger::logBackendPimNavstates(
+    const VioBackEndOutputPayload& output) {
+  std::ofstream& output_stream = output_pim_navstates_csv_.ofstream_;
+
+  // First, write header, but only once.
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    output_stream << "timestamp_kf,tx,ty,tz,qw,qx,qy,qz,vx,vy,vz"
+                  << std::endl;
+    is_header_written = true;
+  }
+
+  const gtsam::Pose3& pose = output.debug_info_.navstate_k_.pose();
+  const gtsam::Point3& position = pose.translation();
+  const gtsam::Quaternion& quaternion = pose.rotation().toQuaternion();
+  const gtsam::Velocity3& velocity = output.debug_info_.navstate_k_.velocity();
+
+  output_stream << output.timestamp_kf_ << ","
+                << position.x() << ","
+                << position.y() << ","
+                << position.z() << ","
+                << quaternion.w() << ","
+                << quaternion.x() << ","
+                << quaternion.y() << ","
+                << quaternion.z() << ","
+                << velocity.x() << ","
+                << velocity.y() << ","
+                << velocity.z()
                 << std::endl;
 }
 
