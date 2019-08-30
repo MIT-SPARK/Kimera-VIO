@@ -7,7 +7,7 @@ MAINTAINER Antoni Rosinol "arosinol@mit.edu"
 ENV DEBIAN_FRONTEND noninteractive
 
 # Set the working directory to /root
-ENV DIRPATH /root/
+ENV DIRPATH /root
 WORKDIR $DIRPATH
 
 #Install build dependencies
@@ -77,7 +77,7 @@ RUN wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room
 RUN mkdir -p $DIRPATH/euroc && unzip V1_01_easy.zip -d $DIRPATH/euroc
 
 # Yamelize euroc dataset
-RUN bash $DIRPATH/VIO/scripts/yamelize.bash -p $DIRPATH/euroc
+RUN bash $DIRPATH/VIO/scripts/euroc/yamelize.bash -p $DIRPATH/euroc
 
 # Add credentials on build
 ARG SSH_PRIVATE_KEY
