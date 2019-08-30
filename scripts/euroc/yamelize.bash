@@ -26,7 +26,7 @@ else
           shift ;;
       --) shift # The double dash which separates options from parameters
           break
-          ;; # Exit the loop using break command
+          ;;
       *) echo -e "\e[31mOption $1 not recognized"
          exit
          ;;
@@ -54,6 +54,6 @@ for euroc_dataset in $LIST_INODES; do
   fi
   for file in $YAML_FILES; do
     echo -e "Yamelizing file: $file"
-    sed -i'' -e '1 i\\%YAML\:1\.0' $i/$file
+    sed -i'' -e '1 i\\%YAML\:1\.0' $file
   done
 done
