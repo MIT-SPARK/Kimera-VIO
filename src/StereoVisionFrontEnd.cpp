@@ -15,21 +15,29 @@
 
 #include "StereoVisionFrontEnd.h"
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
+
+DEFINE_int32(save_images_option,
+             0,
+             "Display/Save images in frontend for debugging (only use if "
+             "in sequential mode, otherwise expect segfaults). "
+             "Values:\n"
+             " - 0: don't display or save images.\n"
+             " - 1: display images.\n"
+             " - 2: display and save images.");
 
 namespace VIO {
 
 StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
-    const VioFrontEndParams& trackerParams,
-    int save_images_option,
+    const VioFrontEndParams& tracker_params,
     bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
       last_landmark_count_(0),
-      tracker_(trackerParams, save_images_option),
-      save_images_option_(save_images_option),
+      tracker_(tracker_params),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
       logger_(nullptr) {  // Only for debugging and visualization.
@@ -256,9 +264,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   time_to_clone_rect_params = UtilsOpenCV::GetTimeInSeconds() - start_time;
 
   // Only for visualization.
-  // TODO remove these. Use gflags.
-  int verbosityFrames = save_images_option_;     // default: 0
-  int verbosityKeyframes = save_images_option_;  // default: 1
+  int verbosityFrames = FLAGS_save_images_option;
+  int verbosityKeyframes = FLAGS_save_images_option;
 
   double timeSparseStereo = 0;
   double timeGetMeasurements = 0;
@@ -633,9 +640,12 @@ gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyStereo() const {
 // This function is just to wrap a lot of duplicated code that was
 // floating around.
 void StereoVisionFrontEnd::displaySaveImage(
-    const cv::Mat& img_left, const std::string& text_on_img,
-    const std::string& imshow_name, const std::string& folder_name_append,
-    const std::string& img_name_prepend, const int verbosity) const {
+    const cv::Mat& img_left,
+    const std::string& text_on_img,
+    const std::string& imshow_name,
+    const std::string& folder_name_append,
+    const std::string& img_name_prepend,
+    const int verbosity) const {
   // Plot text with keyframe id.
   if (!text_on_img.empty()) {
     cv::putText(img_left, text_on_img, KeypointCV(10, 15),
