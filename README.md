@@ -67,10 +67,10 @@ unzip -o ~/Downloads/V1_01_easy.zip -d ~/Euroc/V1_01_easy
 
 #### Yamelize Euroc's dataset
 Add `%YAML:1.0` at the top of each `.yaml` file inside Euroc.
-You can do this manually or run the `yamelize.bash` script by indicating where the dataset is (it is assumed below to be in `~/Euroc`):
+You can do this manually or run the `yamelize.bash` script by indicating where the dataset is (it is assumed below to be in `~/path/to/euroc`):
 ```bash
 cd SparkVIO
-bash ./scripts/euroc/yamelize.bash ~/Euroc
+bash ./scripts/euroc/yamelize.bash -p ~/path/to/euroc
 ```
 
 ### Run SparkVIO in Euroc's dataset
