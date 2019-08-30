@@ -93,6 +93,13 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
             img_name_cur_right, tp.getStereoMatchingParams().equalize_image_),
         cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
 
+    // Imu Params
+    imu_params_.acc_walk_ = 1;
+    imu_params_.gyro_walk_ = 1;
+    imu_params_.acc_noise_ = 1;
+    imu_params_.gyro_noise_ = 1;
+    imu_params_.imu_integration_sigma_ = 1;
+
     // Set randomness!
     srand(0);
   }
@@ -236,6 +243,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
   const FrameId id_ref = 0, id_cur = 1;
   const int64_t timestamp_ref = 1000, timestamp_cur = 2000;
 
+  ImuParams imu_params_;
   std::string stereo_FLAGS_test_data_path;
 };
 
@@ -257,7 +265,7 @@ TEST_F(StereoVisionFrontEndFixture, getRelativePoseBodyMono) {
   cur_stereo_frame->setIsKeyframe(true);
   cur_stereo_frame->setIsRectified(true);
   // Avoid the Most Vexing Parse compilation error with bracket initialization.
-  StereoVisionFrontEnd st(ImuParams{}, ImuBias{});
+  StereoVisionFrontEnd st(imu_params_, ImuBias{});
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_mono_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
@@ -285,7 +293,7 @@ TEST_F(StereoVisionFrontEndFixture, getRelativePoseBodyStereo) {
   // Compute everything twice?
   ref_stereo_frame->setIsKeyframe(true);
   ref_stereo_frame->setIsRectified(true);
-  StereoVisionFrontEnd st(ImuParams{}, ImuBias{});
+  StereoVisionFrontEnd st(imu_params_, ImuBias{});
   st.stereoFrame_lkf_ = make_shared<StereoFrame>(*ref_stereo_frame);
   st.trackerStatusSummary_.lkf_T_k_stereo_ = Pose3(
       Rot3::Expmap(Vector3(0.1, -0.1, 0.2)), Vector3(0.1, 0.1, 0.1));
@@ -304,7 +312,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   ref_stereo_frame->setIsKeyframe(true);
   ref_stereo_frame->setIsRectified(true);
 
-  StereoVisionFrontEnd st(ImuParams{}, ImuBias{});
+  StereoVisionFrontEnd st(imu_params_, ImuBias{});
 
   // Landmarks_, left_keypoints_rectified_, right_keypoints_rectified_,
   // rightKeypoints_status
@@ -452,7 +460,7 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
       LoadCorners(matlab_syn_path + "/corners_normal_left.txt");
 
   // Call StereoVisionFrontEnd::Process first frame!
-  StereoVisionFrontEnd st(ImuParams(), ImuBias(), p);
+  StereoVisionFrontEnd st(imu_params_, ImuBias(), p);
   const StereoFrame &sf = st.processFirstStereoFrame(first_stereo_frame);
 
   // Check the following results:
