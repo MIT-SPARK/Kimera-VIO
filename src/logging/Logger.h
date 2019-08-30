@@ -58,6 +58,7 @@ class BackendLogger {
  private:
   void logBackendResultsCSV(const VioBackEndOutputPayload& output);
   void logSmartFactorsStats(const VioBackEndOutputPayload& output);
+  void logBackendPimNavstates(const VioBackEndOutputPayload& output);
   void logBackendFactorsStats(const VioBackEndOutputPayload& output);
   void logBackendTiming(const VioBackEndOutputPayload& output);
 
@@ -65,6 +66,7 @@ class BackendLogger {
   // Filenames to be saved in the output folder.
   OfstreamWrapper output_poses_vio_csv_;
   OfstreamWrapper output_smart_factors_stats_csv_;
+  OfstreamWrapper output_pim_navstates_csv_;
   OfstreamWrapper output_backend_factors_stats_csv_;
   OfstreamWrapper output_backend_timing_csv_;
 
@@ -81,18 +83,15 @@ class FrontendLogger {
                         const DebugTrackerInfo& tracker_info,
                         const TrackerStatusSummary& tracker_summary,
                         const size_t& nrKeypoints);
-  void logFrontendRansac(const Timestamp& timestamp_lkf
+  void logFrontendRansac(const Timestamp& timestamp_lkf,
                          const gtsam::Pose3& relative_pose_body_mono,
                          const gtsam::Pose3& relative_pose_body_stereo);
-  void logPIM(const Timestamp& timestamp_lkf,
-              const PreintegratedImuMeasurements& pim);
 
  private:
   // StreamWrappers with filenames to which output is saved.
   OfstreamWrapper output_frontend_stats_;
   OfstreamWrapper output_frontend_ransac_mono_;
   OfstreamWrapper output_frontend_ransac_stereo_;
-  OfstreamWrapper output_frontend_pim_;
 };
 
 class VisualizerLogger {
