@@ -36,21 +36,13 @@
 #include <gtsam/nonlinear/Marginals.h>
 #include "FeatureSelector.h"
 
-#define TRACKER_VERBOSITY 0 // Should be 1
-
 namespace VIO {
 
 ////////////////////////////////////////////////////////////////////////////////
 class Tracker {
 public:
   // Constructor
- Tracker(const VioFrontEndParams& trackerParams = VioFrontEndParams())
-     : trackerParams_(trackerParams),
-       outputImagesPath_(
-           "./outputImages/"),  // only for debugging and visualization
-       landmark_count_(0),
-       pixelOffset_(),
-       verbosity_(TRACKER_VERBOSITY) {}
+ Tracker(const VioFrontEndParams& trackerParams = VioFrontEndParams());
 
  // Tracker parameters.
  const VioFrontEndParams trackerParams_;
@@ -118,10 +110,10 @@ public:
   cv::Mat displayFrame(
       const Frame& ref_frame,
       const Frame& cur_frame,
-      int verbosity = 0,
-      const KeypointsCV& extraCorners1 = KeypointsCV(),
-      const KeypointsCV& extraCorners2 = KeypointsCV(),
-      const std::string& extraString = "") const;
+      bool write_frame = false,
+      const std::string& img_title = "",
+      const KeypointsCV& extra_corners_gray = KeypointsCV(),
+      const KeypointsCV& extra_corners_blue = KeypointsCV()) const;
 
   /* ---------------------------- STATIC FUNCTIONS -------------------------- */
   static void findOutliers(

@@ -49,12 +49,12 @@ public:
      const VioFrontEndParams& tracker_params = VioFrontEndParams(),
      bool log_output = false);
 
- /* ------------------------------------------------------------------------ */
+ /* ------------------------------------------------------------------------- */
  bool spin(ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
            ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue,
            bool parallel_run = true);
 
- /* ------------------------------------------------------------------------ */
+ /* ------------------------------------------------------------------------- */
  // Shutdown spin.
  inline void shutdown() {
    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Frontend was already "

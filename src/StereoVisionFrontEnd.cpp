@@ -18,7 +18,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-DEFINE_int32(save_images_option,
+DEFINE_int32(save_frontend_images_option,
              0,
              "Display/Save images in frontend for debugging (only use if "
              "in sequential mode, otherwise expect segfaults). "
@@ -264,8 +264,8 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   time_to_clone_rect_params = UtilsOpenCV::GetTimeInSeconds() - start_time;
 
   // Only for visualization.
-  int verbosityFrames = FLAGS_save_images_option;
-  int verbosityKeyframes = FLAGS_save_images_option;
+  int verbosityFrames = FLAGS_save_frontend_images_option;
+  int verbosityKeyframes = FLAGS_save_frontend_images_option;
 
   double timeSparseStereo = 0;
   double timeGetMeasurements = 0;
@@ -278,7 +278,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   tracker_.featureTracking(left_frame_km1, left_frame_k);
   if (verbosityFrames > 0) {
     // TODO this won't work in parallel mode...
-    tracker_.displayFrame(*left_frame_km1, *left_frame_k, verbosityFrames);
+    tracker_.displayFrame(*left_frame_km1, *left_frame_k, false);
   }
   //////////////////////////////////////////////////////////////////////////////
 
@@ -356,7 +356,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
       }
 
       if (verbosityFrames > 0) {
-        tracker_.displayFrame(*left_frame_km1, *left_frame_k, verbosityFrames);
+        tracker_.displayFrame(*left_frame_km1, *left_frame_k, false);
       }
 
       ////////////////// STEREO geometric outlier rejection ////////////////
@@ -414,7 +414,6 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     if (verbosityKeyframes > 0) {
       displayStereoTrack(verbosityKeyframes);
       displayMonoTrack(verbosityKeyframes);
-      // cv::waitKey(0);
     }
 
     // Populate statistics.
@@ -497,25 +496,27 @@ void StereoVisionFrontEnd::displayStereoTrack(const int& verbosity) const {
 
   // Show current frame with tracking results
   // The output of the following is already a color image
-  cv::Mat img_left = tracker_.displayFrame(stereoFrame_lkf_->getLeftFrame(),
-                                           left_frame_k, 0);  // 0 verbosity
-
-  //############################################################################
-  displaySaveImage(img_left, "", "mono tracking visualization (1 frame)",
-                   "-monoMatching1frame", "monoTrackerDisplay1Keyframe_",
-                   verbosity);
-  //############################################################################
+  cv::Mat img_left = tracker_.displayFrame(
+      stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
+  // TODO(Toni) put this inside tracker_.displayFrames?
+  displaySaveImage(img_left,
+                   "",
+                   "mono tracking visualization (1 frame)",
+                   "-monoMatching1frame",
+                   "monoTrackerDisplay1Keyframe_",
+                   verbosity == 2 ? 2 : 0);  // Don't display twice...
 
   // Draw the matchings: assumes that keypoints in the left and right keyframe
   // are ordered in the same way
   const Frame& right_frame_k(stereoFrame_k_->getRightFrame());
 
   if ((left_frame_k.img_.cols != right_frame_k.img_.cols) ||
-      (left_frame_k.img_.rows != right_frame_k.img_.rows))
+      (left_frame_k.img_.rows != right_frame_k.img_.rows)) {
     LOG(FATAL) << "displayStereoTrack: image dimension mismatch!";
+  }
 
   cv::Mat img_right;
-  (right_frame_k.img_).copyTo(img_right);
+  right_frame_k.img_.copyTo(img_right);
   // stereoFrame_k_->keypoints_depth_
 
   std::vector<cv::DMatch> matches;
@@ -533,10 +534,14 @@ void StereoVisionFrontEnd::displayStereoTrack(const int& verbosity) const {
 
   //############################################################################
   // Plot matches.
-  cv::Mat img_left_right = UtilsOpenCV::DrawCornersMatches(
-      img_left, left_frame_k.keypoints_, img_right, right_frame_k.keypoints_,
-      matches, true);  // true: random color
-
+  cv::Mat img_left_right =
+      UtilsOpenCV::DrawCornersMatches(img_left,
+                                      left_frame_k.keypoints_,
+                                      img_right,
+                                      right_frame_k.keypoints_,
+                                      matches,
+                                      true);  // true: random color
+  // TODO(Toni) put this inside tracker_.displayFrames?
   displaySaveImage(img_left_right, "S:" + std::to_string(keyframe_count_),
                    "stereo tracking visualization",
                    "-stereoMatchingUnrectified",
@@ -549,14 +554,13 @@ void StereoVisionFrontEnd::displayStereoTrack(const int& verbosity) const {
       stereoFrame_k_->left_img_rectified_,
       stereoFrame_k_->left_keypoints_rectified_,
       stereoFrame_k_->right_img_rectified_,
-      stereoFrame_k_->right_keypoints_rectified_, matches,
+      stereoFrame_k_->right_keypoints_rectified_,
+      matches,
       true);  // true: random color
-
   displaySaveImage(
       img_left_right_rectified, "S(Rect):" + std::to_string(keyframe_count_),
       "stereo tracking visualization (rectified)", "-stereoMatchingRectified",
       "stereoTrackerDisplayKeyframe_", verbosity);
-  //############################################################################
 }
 
 /* -------------------------------------------------------------------------- */
@@ -572,7 +576,7 @@ void StereoVisionFrontEnd::displayMonoTrack(const int& verbosity) const {
                      ref_left_frame.landmarks_.end(),
                      cur_left_frame.landmarks_.at(i));
       if (it != ref_left_frame.landmarks_.end()) {  // if landmark was found
-        int nPos = distance(ref_left_frame.landmarks_.begin(), it);
+        int nPos = std::distance(ref_left_frame.landmarks_.begin(), it);
         matches.push_back(cv::DMatch(nPos, i, 0));
       }
     }
@@ -580,16 +584,21 @@ void StereoVisionFrontEnd::displayMonoTrack(const int& verbosity) const {
 
   //############################################################################
   // Plot matches.
-  cv::Mat img_left_lkf_kf = UtilsOpenCV::DrawCornersMatches(
-      ref_left_frame.img_, ref_left_frame.keypoints_, cur_left_frame.img_,
-      cur_left_frame.keypoints_, matches, true);  // true: random color
-
+  cv::Mat img_left_lkf_kf =
+      UtilsOpenCV::DrawCornersMatches(ref_left_frame.img_,
+                                      ref_left_frame.keypoints_,
+                                      cur_left_frame.img_,
+                                      cur_left_frame.keypoints_,
+                                      matches,
+                                      true);  // true: random color
   // TODO Visualization must be done in the main thread.
   displaySaveImage(img_left_lkf_kf,
                    "M:" + std::to_string(keyframe_count_ - 1) + "-" +
                        std::to_string(keyframe_count_),
-                   "mono tracking visualization", "-monoMatchingUnrectified",
-                   "monoTrackerDispalyKeyframe_", verbosity);
+                   "mono tracking visualization",
+                   "-monoMatchingUnrectified",
+                   "monoTrackerDispalyKeyframe_",
+                   verbosity);
   //############################################################################
 
   //############################################################################
@@ -600,9 +609,9 @@ void StereoVisionFrontEnd::displayMonoTrack(const int& verbosity) const {
       stereoFrame_lkf_->left_img_rectified_,
       stereoFrame_lkf_->left_keypoints_rectified_,
       stereoFrame_k_->left_img_rectified_,
-      stereoFrame_k_->left_keypoints_rectified_, matches,
+      stereoFrame_k_->left_keypoints_rectified_,
+      matches,
       true);  // true: random color
-
   // TODO Visualization must be done in the main thread.
   displaySaveImage(img_left_lkf_kf_rectified,
                    "M(Rect):" + std::to_string(keyframe_count_ - 1) + "-" +
@@ -610,7 +619,6 @@ void StereoVisionFrontEnd::displayMonoTrack(const int& verbosity) const {
                    "mono tracking visualization (rectified)",
                    "-monoMatchingRectified", "monoTrackerDispalyKeyframe_",
                    verbosity);
-  //############################################################################
 }
 
 /* -------------------------------------------------------------------------- */
