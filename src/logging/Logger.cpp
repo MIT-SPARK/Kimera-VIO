@@ -416,7 +416,7 @@ void FrontendLogger::logFrontendStats(
   // Info about feature selector.
                       << tracker_info.featureSelectionTime_ << ","
                       << tracker_info.extracted_corners_ << ","
-                      << tracker_info.need_n_corners_ << ","
+                      << tracker_info.need_n_corners_
                       << std::endl;
 }
 
@@ -431,19 +431,17 @@ void FrontendLogger::logFrontendRansac(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_mono << "timestamp_lkf,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
-                       << "bgx,bgy,bgz,bax,bay,baz"
+    output_stream_mono << "timestamp_lkf,x,y,z,qw,qx,qy,qz"
                        << std::endl;
-    output_stream_stereo << "timestamp_lkf,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
-                         << "bgx,bgy,bgz,bax,bay,baz"
+    output_stream_stereo << "timestamp_lkf,x,y,z,qw,qx,qy,qz"
                          << std::endl;
     is_header_written = true;
   }
 
   // Log relative mono poses; pose from previous keyframe to current keyframe,
   // in previous-keyframe coordinates. These are not cumulative trajectories.
-  const auto& mono_tran = relative_pose_body_mono.translation();
-  const auto& mono_quat = relative_pose_body_mono.rotation().toQuaternion();
+  const gtsam::Point3& mono_tran = relative_pose_body_mono.translation();
+  const gtsam::Quaternion& mono_quat = relative_pose_body_mono.rotation().toQuaternion();
 
   output_stream_mono << timestamp_lkf << ","
                      << mono_tran.x() << ","
@@ -452,15 +450,13 @@ void FrontendLogger::logFrontendRansac(
                      << mono_quat.w() << ","
                      << mono_quat.x() << ","
                      << mono_quat.y() << ","
-                     << mono_quat.z() << ","
-                     << 0 << "," << 0 << "," << 0 << "," << 0 << ","
-                     << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0
+                     << mono_quat.z()
                      << std::endl;
 
   // Log relative stereo poses; pose from previous keyframe to current keyframe,
   // in previous-keyframe coordinates. These are not cumulative trajectories.
-  const auto& stereo_tran = relative_pose_body_stereo.translation();
-  const auto& stereo_quat = relative_pose_body_stereo.rotation().toQuaternion();
+  const gtsam::Point3& stereo_tran = relative_pose_body_stereo.translation();
+  const gtsam::Quaternion& stereo_quat = relative_pose_body_stereo.rotation().toQuaternion();
 
   output_stream_stereo << timestamp_lkf   << ","
                        << stereo_tran.x() << ","
@@ -469,9 +465,7 @@ void FrontendLogger::logFrontendRansac(
                        << stereo_quat.w() << ","
                        << stereo_quat.x() << ","
                        << stereo_quat.y() << ","
-                       << stereo_quat.z() << ","
-                       << 0 << "," << 0 << "," << 0 << "," << 0 << ","
-                       << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0
+                       << stereo_quat.z()
                        << std::endl;
 }
 
