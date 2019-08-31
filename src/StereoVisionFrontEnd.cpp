@@ -90,7 +90,6 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
     const std::shared_ptr<StereoFrontEndInputPayload>& input) {
   const StereoFrame& stereoFrame_k = input->getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
-  const Timestamp& timestamp_kf = stereoFrame_k.getTimestamp();
   LOG(INFO) << "------------------- Processing frame k = " << k
             << "--------------------";
 
