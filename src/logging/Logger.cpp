@@ -130,10 +130,10 @@ void BackendLogger::logBackendResultsCSV(
                 << w_pose_blkf_trans.x() << ","     //
                 << w_pose_blkf_trans.y() << ","     //
                 << w_pose_blkf_trans.z() << ","     //
-                << w_pose_blkf_rot(0) << ","        // q_w
                 << w_pose_blkf_rot(1) << ","        // q_x
                 << w_pose_blkf_rot(2) << ","        // q_y
                 << w_pose_blkf_rot(3) << ","        // q_z
+                << w_pose_blkf_rot(0) << ","        // q_w
                 << w_vel_blkf(0) << ","             //
                 << w_vel_blkf(1) << ","             //
                 << w_vel_blkf(2) << ","             //
