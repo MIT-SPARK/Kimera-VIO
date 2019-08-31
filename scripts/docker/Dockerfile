@@ -85,7 +85,7 @@ RUN ssh-keyscan -t rsa github.mit.edu >> /root/.ssh/known_hosts
 #RUN git config --global user.name "arosinol"
 #RUN git config --global user.email "arosinol@mit.edu"
 RUN git clone git@github.mit.edu:SPARK/VIO.git
-RUN cd VIO && git checkout feature/full_docker_install && mkdir build && cd build && cmake .. && make -j$(nproc)
+RUN cd VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 # Download and extract EuRoC dataset.
 RUN apt-get update && apt-get install -y wget
