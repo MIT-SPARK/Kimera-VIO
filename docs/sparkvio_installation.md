@@ -151,12 +151,17 @@ Once installed, clone this repo, build the image and run it:
 ```bash
 # Clone the repo
 git clone git@github.mit.edu:SPARK/VIO.git SparkVIO
-cd SparkVIO
 
 # Build the image
+cd SparkVIO
 docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
 --build-arg SSH_PRIVATE_KEY="$(cat /home/<username>/.ssh/id_rsa)"
+```
 
+This may take a while (>15min), so you can go and grab a cup of coffee.
+Once done, you can run the `spark_vio_docker.bash`:
+
+```bash
 # Run an example dataset
 ./scripts/docker/spark_vio_docker.bash
 ```
