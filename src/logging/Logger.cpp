@@ -112,7 +112,7 @@ void BackendLogger::logBackendResultsCSV(
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "timestamp,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
+    output_stream << "timestamp,x,y,z,qx,qy,qz,qw,vx,vy,vz,"
                   << "bgx,bgy,bgz,bax,bay,baz"
                   << std::endl;
     is_header_written = true;
