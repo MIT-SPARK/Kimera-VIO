@@ -13,6 +13,9 @@ DATASET_TYPE=0
 
 # Specify: 1 to run pipeline in parallel mode, 0 to run sequentially.
 PARALLEL_RUN=1
+
+# Specify: 1 to log output files, 0 to not run logger
+LOG_OUTPUT=0
 ###################################################################
 
 # Parse Options.
@@ -40,6 +43,8 @@ else
           echo "Using Regular VIO!" ;;
       -s) PARALLEL_RUN=0
           echo "Run VIO in SEQUENTIAL mode!" ;;
+      -l) LOG_OUTPUT=1
+          echo "Logging output!";;
       --)
           shift # The double dash which separates options from parameters
           break
@@ -99,4 +104,6 @@ echo """ Launching:
   --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 \
   --backend_type="$BACKEND_TYPE" \
   --parallel_run="$PARALLEL_RUN" \
-  --dataset_type="$DATASET_TYPE"
+  --dataset_type="$DATASET_TYPE" \
+  --log_output="$LOG_OUTPUT" \
+  --output_path="../output_logs/"
