@@ -187,7 +187,7 @@ void BackendLogger::logBackendPimNavstates(
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "timestamp_kf,tx,ty,tz,qw,qx,qy,qz,vx,vy,vz"
+    output_stream << "timestamp_kf,x,y,z,qw,qx,qy,qz,vx,vy,vz"
                   << std::endl;
     is_header_written = true;
   }
