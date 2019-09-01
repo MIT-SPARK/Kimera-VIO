@@ -43,7 +43,7 @@ else
           echo "Using Regular VIO!" ;;
       -s) PARALLEL_RUN=0
           echo "Run VIO in SEQUENTIAL mode!" ;;
-      -nl) USE_LCD=0
+      -nlcd) USE_LCD=0
            echo "Run VIO without LoopClosureDetector!" ;;
       --)
           shift # The double dash which separates options from parameters
@@ -97,8 +97,8 @@ echo """ Launching:
   --final_k=2000 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
   --lcd_params_path="$LCD_PARAMS_PATH" \
-  --use_lcd="$USE_LCD" \
   --vocabulary_path="../vocabulary/ORBvoc.yml" \
+  --use_lcd="$USE_LCD" \
   --flagfile="../params/flags/stereoVIOEuroc.flags" \
   --flagfile="../params/flags/Mesher.flags" \
   --flagfile="../params/flags/VioBackEnd.flags" \

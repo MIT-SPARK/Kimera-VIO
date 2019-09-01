@@ -153,8 +153,6 @@ struct SpinOutputPacket {
       const Timestamp& timestamp_kf,
       const gtsam::Pose3& W_Pose_Blkf,
       const Vector3& W_Vel_Blkf,
-      const gtsam::Pose3& W_Pose_Map,
-      const gtsam::Values& optimized_states,
       const ImuBias& imu_bias_lkf,
       const Mesh2D& mesh_2d,
       const Mesh3D& mesh_3d,
@@ -166,8 +164,6 @@ struct SpinOutputPacket {
       : timestamp_kf_(timestamp_kf),
         W_Pose_Blkf_(W_Pose_Blkf),
         W_Vel_Blkf_(W_Vel_Blkf),
-        W_Pose_Map_(W_Pose_Map),
-        optimized_states_(optimized_states),
         imu_bias_lkf_(imu_bias_lkf),
         mesh_2d_(mesh_2d),
         mesh_3d_(mesh_3d),
@@ -186,8 +182,6 @@ struct SpinOutputPacket {
       : timestamp_kf_(0),
         W_Pose_Blkf_(gtsam::Pose3()),
         W_Vel_Blkf_(gtsam::Vector3()),
-        W_Pose_Map_(gtsam::Pose3()),
-        optimized_states_(gtsam::Values()),
         imu_bias_lkf_(gtsam::imuBias::ConstantBias()),
         mesh_2d_(),
         mesh_3d_(),
@@ -204,10 +198,6 @@ struct SpinOutputPacket {
   inline Timestamp getTimestamp() const { return timestamp_kf_; }
   inline gtsam::Pose3 getEstimatedPose() const { return W_Pose_Blkf_; }
   inline Vector3 getEstimatedVelocity() const { return W_Vel_Blkf_; }
-  inline gtsam::Pose3 getEstimatedMapPose() const { return W_Pose_Map_; }
-  inline gtsam::Values getOptimizedTrajectory() const {
-    return optimized_states_;
-  }
   inline gtsam::Matrix6 getEstimatedPoseCov() const {
     return gtsam::sub(state_covariance_lkf_, 0, 6, 0, 6);
   }
@@ -231,8 +221,6 @@ struct SpinOutputPacket {
   Timestamp timestamp_kf_;
   gtsam::Pose3 W_Pose_Blkf_;
   Vector3 W_Vel_Blkf_;
-  gtsam::Pose3 W_Pose_Map_;
-  gtsam::Values optimized_states_;
   ImuBias imu_bias_lkf_;
   gtsam::Matrix state_covariance_lkf_;
   DebugTrackerInfo debug_tracker_info_;

@@ -22,6 +22,7 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
 #include <gtsam/nonlinear/Values.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
 
 namespace VIO {
 
@@ -216,14 +217,16 @@ struct LoopClosureDetectorOutputPayload {
                                    const FrameId& id_recent,
                                    const gtsam::Pose3& relative_pose,
                                    const gtsam::Pose3& W_Pose_Map,
-                                   const gtsam::Values& states)
+                                   const gtsam::Values& states,
+                                   const gtsam::NonlinearFactorGraph& nfg)
       : is_loop_closure_(is_loop_closure),
         timestamp_kf_(timestamp_kf),
         id_match_(id_match),
         id_recent_(id_recent),
         relative_pose_(relative_pose),
         W_Pose_Map_(W_Pose_Map),
-        states_(states) {}
+        states_(states),
+        nfg_(nfg) {}
 
   // TODO(marcus): inlude stats/score of match
   const bool is_loop_closure_;
@@ -233,6 +236,7 @@ struct LoopClosureDetectorOutputPayload {
   const gtsam::Pose3 relative_pose_;
   const gtsam::Pose3 W_Pose_Map_;
   const gtsam::Values states_;
+  const gtsam::NonlinearFactorGraph nfg_;
 };  // struct LoopClosureDetectorOutputPayload
 
 }  // namespace VIO

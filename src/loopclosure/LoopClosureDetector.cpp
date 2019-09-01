@@ -100,10 +100,7 @@ LoopClosureDetector::LoopClosureDetector(
   RobustPGO::RobustSolverParams pgo_params;
   pgo_params.setPcmSimple3DParams(lcd_params_.pgo_trans_threshold_,
       lcd_params_.pgo_rot_threshold_, RobustPGO::Verbosity::VERBOSE);
-
   pgo_ = VIO::make_unique<RobustPGO::RobustSolver>(pgo_params);
-  // TODO(marcus): decide on initialization.
-  // initializePGO();
 
   if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
 }
@@ -187,20 +184,31 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     addLoopClosureFactorAndOptimize(lc_factor);
   }
 
-  // Construct output payload, fill only if loop closure.
+  // Construct output payload.
+  gtsam::Pose3 w_Pose_map = getWPoseMap();
+  gtsam::Values pgo_states = pgo_->calculateEstimate();
+  gtsam::NonlinearFactorGraph pgo_nfg = pgo_->getFactorsUnsafe();
+
+  LoopClosureDetectorOutputPayload output_payload =
+      LoopClosureDetectorOutputPayload(false, 0, 0, 0, gtsam::Pose3(),
+          w_Pose_map, pgo_states, pgo_nfg);
+
   if (loop_result.isLoop()) {
-    gtsam::Pose3 w_Pose_map = getWPoseMap();
-    LoopClosureDetectorOutputPayload output_payload(loop_result.isLoop(),
-        input->timestamp_kf_, loop_result.match_id_, loop_result.query_id_,
-        loop_result.relative_pose_, w_Pose_map, pgo_->calculateEstimate());
-
-    if (logger_) logger_->logLCDResult(output_payload);
-
-    return output_payload;
+    LoopClosureDetectorOutputPayload output_payload =
+        LoopClosureDetectorOutputPayload(
+            loop_result.isLoop(),
+            input->timestamp_kf_,
+            loop_result.match_id_,
+            loop_result.query_id_,
+            loop_result.relative_pose_,
+            w_Pose_map,
+            pgo_states,
+            pgo_nfg);
   }
 
-  return LoopClosureDetectorOutputPayload(false, 0, 0, 0, gtsam::Pose3(),
-      gtsam::Pose3(), gtsam::Values());
+  if (logger_) logger_->logLCDResult(output_payload);
+
+  return output_payload;
 }
 
 void LoopClosureDetector::checkLoopClosure(

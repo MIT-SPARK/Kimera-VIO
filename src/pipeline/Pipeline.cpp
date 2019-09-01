@@ -239,28 +239,42 @@ void Pipeline::processKeyframe(
       backend_output_queue_.popBlocking();
   LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
 
-  // Push to lcd.
+  // Optionally, push to lcd input.
   // TODO(marcus): not robust to cases where frontend and backend processing
   // happen in different methods. This only works if they're done one after
   // another. Mixing input from two different outputs is bad form.
-  std::shared_ptr<LoopClosureDetectorOutputPayload> lcd_output_payload;
+  // It is unfortunately the only option in this architecture.
   if (FLAGS_use_lcd) {
     VLOG(2) << "Push input payload to LoopClosureDetector.";
     lcd_input_queue_.push(LoopClosureDetectorInputPayload(
-        last_stereo_keyframe.getTimestamp(), backend_output_payload->cur_kf_id_,
-        last_stereo_keyframe, backend_output_payload->W_Pose_Blkf_));
+        last_stereo_keyframe.getTimestamp(),
+        backend_output_payload->cur_kf_id_,
+        last_stereo_keyframe,
+        backend_output_payload->W_Pose_Blkf_));
 
     VLOG(2) << "Checking for payload from LoopClosureDetector (not blocking).";
     std::shared_ptr<LoopClosureDetectorOutputPayload> lcd_output_payload =
         lcd_output_queue_.pop();
     LOG_IF(WARNING, !lcd_output_payload) << "Missing LCD output payload.";
-    // This is done to prevent undefined initialization in the SpinOutputPacket
-    // and to prevent segfaults once spinOutputPacket is returned:
-  }
 
-  if (!lcd_output_payload) {
-    lcd_output_payload = std::make_shared<LoopClosureDetectorOutputPayload>(
-        false, 0, 0, 0, gtsam::Pose3(), gtsam::Pose3(), gtsam::Values());
+    // Send loop closure result to optional callback.
+    if (lcd_output_payload) {
+      if (loop_closure_pgo_callback_) {
+        static constexpr int max_time_allowed_for_lcd_callback = 5;  // ms
+        auto tic = utils::Timer::tic();
+        VLOG(2) << "Call loop-closure callback with lcd output payload.";
+        loop_closure_pgo_callback_(*lcd_output_payload.get());
+        auto toc = utils::Timer::toc(tic);
+        if (toc.count() > max_time_allowed_for_lcd_callback) {
+          LOG_IF(WARNING,
+                 "Loop-Closure Output Callback is taking longer than it should: "
+                 "make sure your callback is fast!");
+        }
+      } else {
+        LOG(WARNING) << "LoopClosureDetector is running but there is no "
+                     << "callback registered.";
+      }
+    }
   }
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
@@ -370,8 +384,6 @@ void Pipeline::processKeyframe(
         backend_output_payload->timestamp_kf_,
         backend_output_payload->W_Pose_Blkf_,
         backend_output_payload->W_Vel_Blkf_,
-        lcd_output_payload->W_Pose_Map_,
-        lcd_output_payload->states_,
         backend_output_payload->imu_bias_lkf_,
         mesher_output_payload.mesh_2d_,
         mesher_output_payload.mesh_3d_,
@@ -444,11 +456,23 @@ void Pipeline::spinSequential() {
       backend_output_payload->W_Pose_Blkf_));
 
   // Spin once LCD. Do not run in parallel.
-  if (FLAGS_use_lcd)
-      loop_closure_detector_->spin(lcd_input_queue_, lcd_output_queue_, false);
+  if (FLAGS_use_lcd) {
+    CHECK(loop_closure_detector_);
+    loop_closure_detector_->spin(lcd_input_queue_, lcd_output_queue_, false);
 
-  // Pop from LoopClosureDetector, not blocking.
-  const auto &lcd_output_payload = lcd_output_queue_.pop();
+    // Pop blocking from LoopClosureDetector.
+    // NOTE: this will be extremely slow in sequential mode. If you wish to
+    // test the rest of the pipeline, disable FLAGS_use_lcd.
+    const auto& lcd_output_payload = lcd_output_queue_.popBlocking();
+    CHECK(lcd_output_payload);
+    if (loop_closure_pgo_callback_) {
+      loop_closure_pgo_callback_(*lcd_output_payload.get());
+    }
+    else {
+      LOG(WARNING) << "LoopClosureDetector is running but there is no callback"
+                   << "registered.";
+    }
+  }
 
   const auto& stereo_keyframe =
       stereo_frontend_output_payload->stereo_frame_lkf_;

@@ -37,7 +37,7 @@ class VioBackEnd;
 class StereoVisionFrontEnd;
 class LoopClosureDetectorParams;
 class LoopClosureDetector;
-
+class LoopClosureDetectorOutputPayload;
 }  // namespace VIO
 
 namespace VIO {
@@ -47,6 +47,8 @@ class Pipeline {
   // Typedefs
   typedef std::function<void(const SpinOutputPacket&)>
       KeyframeRateOutputCallback;
+  typedef std::function<void(const LoopClosureDetectorOutputPayload&)>
+    LoopClosurePGOCallback;
 
  public:
   Pipeline(const PipelineParams& params, bool parallel_run = true);
@@ -87,8 +89,8 @@ class Pipeline {
   // Callback to modify the mesh visual properties every time the mesher
   // has a new 3d mesh.
   inline void registerSemanticMeshSegmentationCallback(
-      Mesher::Mesh3dVizPropertiesSetterCallback cb) {
-    visualizer_.registerMesh3dVizProperties(cb);
+      Mesher::Mesh3dVizPropertiesSetterCallback callback) {
+    visualizer_.registerMesh3dVizProperties(callback);
   }
 
   // Callback to output the VIO backend results at keyframe rate.
@@ -96,6 +98,12 @@ class Pipeline {
   inline void registerKeyFrameRateOutputCallback(
       KeyframeRateOutputCallback callback) {
     keyframe_rate_output_callback_ = callback;
+  }
+
+  // Callback to output the LoopClosureDetector's loop-closure/PGO results.
+  inline void registerLoopClosureCallback(
+      LoopClosurePGOCallback callback) {
+    loop_closure_pgo_callback_ = callback;
   }
 
  private:
@@ -174,6 +182,7 @@ class Pipeline {
 
   // Callbacks.
   KeyframeRateOutputCallback keyframe_rate_output_callback_;
+  LoopClosurePGOCallback loop_closure_pgo_callback_;
 
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
