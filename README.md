@@ -136,7 +136,11 @@ Also, check [tips for development](./docs/tips_development.md) and our [develope
 
   > Mind that according to gflags specs: 
   > > If a flag is specified more than once, only the last specification is used; the others are ignored.
+  
+# 7. Chart
 
-# 7. BSD License
+![chart](./docs/media/sparkvio_chart.png)
+
+# 8. BSD License
 
 SparkVIO is open source under the BSD license, see the [LICENSE.BSD](LICENSE.BSD) file.
