@@ -1,7 +1,7 @@
 %YAML:1.0
 # LoopClosureDetector parameters:
 use_nss: 1
-alpha: 0.5
+alpha: 0.0001
 min_temporal_matches: 3
 dist_local: 20
 max_db_results: 50
@@ -28,6 +28,7 @@ ransac_inlier_threshold_stereo: 0.5
 use_mono_rot: 1
 
 lowe_ratio: 0.7
+matcher_type: 3
 
 nfeatures: 500
 scale_factor: 1.2
@@ -49,3 +50,11 @@ pgo_trans_threshold: 0.1
 # pose_recovery_option_id options:
 #   0: RANSAC_ARUN
 #   1: GIVEN_ROT
+
+# matcher_type options:
+#   0: FLANNBASED
+#   1: BRUTEFORCE
+#   2: BRUTEFORCE_L1
+#   3: BRUTEFORCE_HAMMING
+#   4: BRUTEFORCE_HAMMINGLUT
+#   5: BRUTEFORCE_SL2
