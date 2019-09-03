@@ -1,17 +1,45 @@
 # SparkVIO Installation
 
-Tested on Mac, Ubuntu 14.04 & 16.04.
+Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 
 > Note: if you want to avoid building all these dependencies yourself, we provide a docker image that will install them for you. See section `From Dockerfile` below.
 
 ## Prerequisites:
 
-- [GTSAM](https://github.com/borglab/gtsam) >= 4.0
-- [OpenCV](https://github.com/opencv/opencv) >= 3.3.1
-- [OpenGV](https://github.com/laurentkneip/opengv)
-- [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
+- Third-party dependencies:
+
+  - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
+  - [OpenCV](https://github.com/opencv/opencv) >= 3.3.1
+  - [OpenGV](https://github.com/laurentkneip/opengv)
+  - [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
 
 > Installation instructions below.
+
+## Install general dependencies
+
+First, update package list: `sudo apt-get update`
+
+- Build dependencies:
+```bash
+sudo apt-get install -y --no-install-recommends apt-utils
+sudo apt-get install -y cmake
+```
+
+- Gtsam dependencies:
+```bash
+sudo apt-get install -y libboost-all-dev
+```
+
+- OpenCV dependencies:
+  - On Ubuntu 18.04
+```bash
+sudo apt-get install -y \
+      build-essential unzip pkg-config \
+      libjpeg-dev libpng-dev libtiff-dev \
+      libvtk6-dev \
+      libgtk-3-dev \
+      libatlas-base-dev gfortran
+```
 
 ## Install GTSAM
 
