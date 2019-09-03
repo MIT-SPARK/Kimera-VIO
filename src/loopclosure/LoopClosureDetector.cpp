@@ -43,7 +43,6 @@ DEFINE_string(vocabulary_path, "../vocabulary/ORBvoc.yml",
       2: Loop closure failures are reported as errors.
       3: Statistics are reported at relevant steps.
 **/
-static const int VERBOSITY = 0;
 
 using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
 using SacProblemMono =
@@ -82,7 +81,8 @@ LoopClosureDetector::LoopClosureDetector(
       lcd_params_.fast_threshold_);
 
   // Initialize our feature matching object:
-  orb_feature_matcher_ = cv::DescriptorMatcher::create("BruteForce-Hamming");
+  orb_feature_matcher_ = cv::DescriptorMatcher::create(
+      lcd_params_.matcher_type_);
 
   // Load ORB vocabulary:
   OrbVocabulary vocab;
@@ -149,6 +149,20 @@ bool LoopClosureDetector::spin(
   return true;
 }
 
+inline const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
+  if (W_Pose_Bkf_estimates_.size() > 1) {
+    CHECK(pgo_);
+    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Bkf_estimates_.back();
+    gtsam::Pose3 w_Pose_Bkf_optimal =
+        pgo_->calculateBestEstimate().at<gtsam::Pose3>(
+            W_Pose_Bkf_estimates_.size() - 1);
+
+    return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
+  }
+
+  return gtsam::Pose3();
+}
+
 LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     const std::shared_ptr<LoopClosureDetectorInputPayload>& input) {
   CHECK(input) << "No LoopClosureDetector Input Payload received.";
@@ -157,35 +171,43 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   if (!set_intrinsics_) {
     setIntrinsics(input->stereo_frame_);
   }
+  CHECK_EQ(set_intrinsics_, true);
 
   // Update the PGO with the backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
   W_Pose_Bkf_estimates_.push_back(input->W_Pose_Blkf_);
-  VioFactor vio_factor(input->cur_kf_id_, input->W_Pose_Blkf_,
+  OdometryFactor odom_factor(input->cur_kf_id_, input->W_Pose_Blkf_,
       shared_noise_model_);
 
   // Initialize PGO with first frame if needed.
-  if (vio_factor.cur_key_ == 1) {
-    initializePGO(vio_factor);
+  if (odom_factor.cur_key_ == 1) {
+    initializePGO(odom_factor);
   }
-  addVioFactorAndOptimize(vio_factor);
+  // TODO(marcus): need a better check than this:
+  CHECK_GT(pgo_->calculateEstimate().size(), 0);
+  addOdometryFactorAndOptimize(odom_factor);
 
   // Process the StereoFrame and check for a loop closure with previous ones.
   StereoFrame working_frame = input->stereo_frame_;
   LoopResult loop_result;
-  checkLoopClosure(working_frame, &loop_result);
 
-  if (logger_) logger_->logKfStatus(working_frame.getTimestamp(), loop_result);
-
-  // Update the PGO with the loop closure result if available.
-  if (loop_result.isLoop()) {
+  // Try to find a loop and update the PGO with the result if available.
+  if (detectLoop(working_frame, &loop_result)) {
     LoopClosureFactor lc_factor(loop_result.match_id_, loop_result.query_id_,
         loop_result.relative_pose_, shared_noise_model_);
     addLoopClosureFactorAndOptimize(lc_factor);
+
+    VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from image "
+                 << loop_result.match_id_ << " to image "
+                 << loop_result.query_id_;
+  } else {
+    VLOG(2) << "LoopClosureDetector: No loop closure detected. Reason: "
+            << LoopResult::asString(loop_result.status_);
   }
 
   // Construct output payload.
-  gtsam::Pose3 w_Pose_map = getWPoseMap();
+  CHECK(pgo_);
+  const gtsam::Pose3& w_Pose_map = getWPoseMap();
   gtsam::Values pgo_states = pgo_->calculateEstimate();
   gtsam::NonlinearFactorGraph pgo_nfg = pgo_->getFactorsUnsafe();
 
@@ -206,28 +228,12 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
             pgo_nfg);
   }
 
-  if (logger_) logger_->logLCDResult(output_payload);
+  if (logger_) {
+    logger_->logKfStatus(working_frame.getTimestamp(), loop_result);
+    logger_->logLCDResult(output_payload);
+  }
 
   return output_payload;
-}
-
-void LoopClosureDetector::checkLoopClosure(
-    const StereoFrame& stereo_frame, LoopResult* loop_result) {
-  FrameId frame_id = processAndAddFrame(stereo_frame);
-  detectLoop(frame_id, loop_result);
-
-  if (loop_result->isLoop()) {
-    if (VERBOSITY >= 1) {
-      LOG(WARNING) << "LoopClosureDetector: LOOP CLOSURE detected from image "
-                   << loop_result->match_id_ << " to image "
-                   << loop_result->query_id_;
-    }
-  } else {
-    if (VERBOSITY >= 2) {
-      LOG(ERROR) << "LoopClosureDetector Failure Reason: "
-                 << LoopResult::asString(loop_result->status_);
-    }
-  }
 }
 
 FrameId LoopClosureDetector::processAndAddFrame(
@@ -243,7 +249,7 @@ FrameId LoopClosureDetector::processAndAddFrame(
   int L = orb_feature_detector_->descriptorSize();
   descriptors_vec.resize(descriptors_mat.size().height);
 
-  for (unsigned int i = 0; i < descriptors_vec.size(); i++) {
+  for (size_t i = 0; i < descriptors_vec.size(); i++) {
     descriptors_vec[i] = cv::Mat(1, L, descriptors_mat.type());  // one row only
     descriptors_mat.row(i).copyTo(descriptors_vec[i].row(0));
   }
@@ -253,21 +259,21 @@ FrameId LoopClosureDetector::processAndAddFrame(
   rewriteStereoFrameFeatures(keypoints, &cp_stereo_frame);
 
   // Build and store LCDFrame object.
-  LCDFrame cur_frame =
+  db_frames_.push_back(
       LCDFrame(cp_stereo_frame.getTimestamp(), db_frames_.size(),
-               cp_stereo_frame.getFrameId(), keypoints,
-               cp_stereo_frame.keypoints_3d_, descriptors_vec, descriptors_mat,
-               cp_stereo_frame.getLeftFrame().versors_);
+          cp_stereo_frame.getFrameId(), keypoints,
+          cp_stereo_frame.keypoints_3d_, descriptors_vec, descriptors_mat,
+          cp_stereo_frame.getLeftFrame().versors_));
 
-  db_frames_.push_back(cur_frame);
-
-  return cur_frame.id_;
+  return db_frames_.back().id_;
 }
 
-bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
-                                     LoopResult* result) {
-  result->query_id_ = frame_id;
+bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
+    LoopResult* result) {
+  FrameId frame_id = processAndAddFrame(stereo_frame);
 
+  CHECK_NOTNULL(result);
+  result->query_id_ = frame_id;
   DBoW2::BowVector bow_vec;
 
   // Create BOW representation of descriptors.
@@ -315,7 +321,7 @@ bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
 
         // Compute islands in the matches.
         std::vector<MatchIsland> islands;
-        computeIslands(query_result, islands);
+        computeIslands(query_result, &islands);
 
         if (islands.empty()) {
           result->status_ = LCDStatus::NO_GROUPS;
@@ -325,29 +331,29 @@ bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
               islands.end());
 
           // Run temporal constraint check on this best island.
-          bool passTemporalConstraint = checkTemporalConstraint(frame_id,
+          bool pass_temporal_constraint = checkTemporalConstraint(frame_id,
               best_island);
 
           latest_matched_island_ = best_island;
           latest_query_id_ = frame_id;
 
-          if (!passTemporalConstraint) {
+          if (!pass_temporal_constraint) {
             result->status_ = LCDStatus::FAILED_TEMPORAL_CONSTRAINT;
           } else {
             // Perform geometric verification check.
             gtsam::Pose3 camCur_T_camRef_mono;
-            bool passGeometricVerification = geometricVerificationCheck(
+            bool pass_geometric_verification = geometricVerificationCheck(
                 frame_id, best_island.best_id_, &camCur_T_camRef_mono);
 
-            if (!passGeometricVerification) {
+            if (!pass_geometric_verification) {
               result->status_ = LCDStatus::FAILED_GEOM_VERIFICATION;
             } else {
               gtsam::Pose3 bodyCur_T_bodyRef_stereo;
-              bool pass3DPoseCompute =
+              bool pass_3d_pose_compute =
                   recoverPose(result->query_id_, result->match_id_,
                               camCur_T_camRef_mono, &bodyCur_T_bodyRef_stereo);
 
-              if (!pass3DPoseCompute) {
+              if (!pass_3d_pose_compute) {
                 result->status_ = LCDStatus::FAILED_POSE_RECOVERY;
               } else {
                 result->relative_pose_ = bodyCur_T_bodyRef_stereo;
@@ -363,6 +369,8 @@ bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
   // Update latest bowvec for normalized similarity scoring (NSS).
   if (static_cast<int>(frame_id + 1) > lcd_params_.dist_local_) {
     latest_bowvec_ = bow_vec;
+  } else {
+    VLOG(3) << "LoopClosureDetector: Not enough frames processed.";
   }
 
   return result->isLoop();
@@ -371,15 +379,17 @@ bool LoopClosureDetector::detectLoop(const FrameId& frame_id,
 bool LoopClosureDetector::geometricVerificationCheck(
     const FrameId& query_id, const FrameId& match_id,
     gtsam::Pose3* camCur_T_camRef_mono) const {
+  CHECK_NOTNULL(camCur_T_camRef_mono);
   switch (lcd_params_.geom_check_) {
-    default:
-      LOG(ERROR) << "LoopClosureDetector: Incorrect geom_check_ option.";
-      break;
     case GeomVerifOption::NISTER:
       return geometricVerificationNister(query_id, match_id,
-                                          camCur_T_camRef_mono);
+          camCur_T_camRef_mono);
     case GeomVerifOption::NONE:
       return true;
+    default:
+      // TODO(marcus): trigger an exception here instead of logging error.
+      LOG(ERROR) << "LoopClosureDetector: Incorrect geom_check_ option.";
+      break;
   }
 
   return false;
@@ -389,31 +399,21 @@ bool LoopClosureDetector::recoverPose(
     const FrameId& query_id, const FrameId& match_id,
     const gtsam::Pose3& camCur_T_camRef_mono,
     gtsam::Pose3* bodyCur_T_bodyRef_stereo) const {
-  bool compute_success = false;
+  CHECK_NOTNULL(bodyCur_T_bodyRef_stereo);
 
   switch (lcd_params_.pose_recovery_option_) {
+    case PoseRecoveryOption::RANSAC_ARUN:
+      return recoverPoseArun(query_id, match_id, bodyCur_T_bodyRef_stereo);
+    case PoseRecoveryOption::GIVEN_ROT:
+      return recoverPoseGivenRot(query_id, match_id, camCur_T_camRef_mono,
+          bodyCur_T_bodyRef_stereo);
     default:
+      // TODO(marcus): trigger an exception here instead of logging error.
       LOG(ERROR) << "LoopClosureDetector: Incorrect pose recovery option.";
       break;
-    case PoseRecoveryOption::RANSAC_ARUN:
-      compute_success =
-          recoverPoseArun(query_id, match_id, bodyCur_T_bodyRef_stereo);
-      break;
-    case PoseRecoveryOption::GIVEN_ROT:
-      compute_success = recoverPoseGivenRot(
-          query_id, match_id, camCur_T_camRef_mono, bodyCur_T_bodyRef_stereo);
-      break;
   }
 
-  if (lcd_params_.use_mono_rot_) {
-    gtsam::Pose3 bodyCur_T_bodyRef_mono;
-    transformCameraPose2BodyPose(camCur_T_camRef_mono, &bodyCur_T_bodyRef_mono);
-    *bodyCur_T_bodyRef_stereo =
-        gtsam::Pose3(bodyCur_T_bodyRef_mono.rotation(),
-                     bodyCur_T_bodyRef_stereo->translation());
-  }
-
-  return compute_success;
+  return false;
 }
 
 // TODO(marcus): should this be parsed from the other VIO components' params?
@@ -444,11 +444,11 @@ void LoopClosureDetector::allocate(size_t n) {
   }
 
   // Reserve size for keypoints and descriptors of each expected frame
-  for (size_t i = 0; i < db_frames_.size(); i++) {
-    db_frames_[i].keypoints_.reserve(lcd_params_.nfeatures_);
-    db_frames_[i].keypoints_3d_.reserve(lcd_params_.nfeatures_);
-    db_frames_[i].descriptors_vec_.reserve(lcd_params_.nfeatures_);
-    db_frames_[i].versors_.reserve(lcd_params_.nfeatures_);
+  for (LCDFrame& db_frame:db_frames_) {
+    db_frame.keypoints_.reserve(lcd_params_.nfeatures_);
+    db_frame.keypoints_3d_.reserve(lcd_params_.nfeatures_);
+    db_frame.descriptors_vec_.reserve(lcd_params_.nfeatures_);
+    db_frame.versors_.reserve(lcd_params_.nfeatures_);
   }
 
   db_BoW_->allocate(n, lcd_params_.nfeatures_);
@@ -472,6 +472,7 @@ void LoopClosureDetector::print() const {
 void LoopClosureDetector::rewriteStereoFrameFeatures(
     const std::vector<cv::KeyPoint>& keypoints,
     StereoFrame* stereo_frame) const {
+  CHECK_NOTNULL(stereo_frame);
   // Populate frame keypoints with ORB features instead of the normal
   // VIO features that came with the StereoFrame.
 
@@ -479,6 +480,8 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   // first?
   Frame* left_frame_mutable = stereo_frame->getLeftFrameMutable();
   Frame* right_frame_mutable = stereo_frame->getRightFrameMutable();
+  CHECK_NOTNULL(left_frame_mutable);
+  CHECK_NOTNULL(right_frame_mutable);
 
   // Clear all relevant fields.
   left_frame_mutable->keypoints_.clear();
@@ -507,10 +510,10 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   stereo_frame->setIsRectified(false);
 
   // Add ORB keypoints.
-  for (unsigned int i = 0; i < keypoints.size(); i++) {
-    left_frame_mutable->keypoints_.push_back(keypoints[i].pt);
+  for (const cv::KeyPoint& keypoint:keypoints) {
+    left_frame_mutable->keypoints_.push_back(keypoint.pt);
     left_frame_mutable->versors_.push_back(
-        Frame::CalibratePixel(keypoints[i].pt, left_frame_mutable->cam_param_));
+        Frame::CalibratePixel(keypoint.pt, left_frame_mutable->cam_param_));
     left_frame_mutable->scores_.push_back(1.0);
     // TODO(marcus): ^ is this a max score? Is that the right thing to do?
   }
@@ -533,40 +536,61 @@ cv::Mat LoopClosureDetector::computeAndDrawMatchesBetweenFrames(
   orb_feature_matcher_->knnMatch(db_frames_[query_id].descriptors_mat_,
       db_frames_[match_id].descriptors_mat_, matches, 2);
 
-  for (size_t i = 0; i < matches.size(); i++) {
-    if (matches[i][0].distance < lowe_ratio * matches[i][1].distance) {
-      good_matches.push_back(matches[i][0]);
+  for (const std::vector<cv::DMatch>& match:matches) {
+    if (match[0].distance < lowe_ratio * match[1].distance) {
+      good_matches.push_back(match[0]);
     }
   }
 
   // Draw matches.
   cv::Mat img_matches;
-  cv::drawMatches(query_img, db_frames_[query_id].keypoints_, match_img,
-      db_frames_[match_id].keypoints_, good_matches, img_matches,
+  cv::drawMatches(query_img, db_frames_.at(query_id).keypoints_, match_img,
+      db_frames_.at(match_id).keypoints_, good_matches, img_matches,
       cv::Scalar(255, 0, 0), cv::Scalar(255, 0, 0));
 
   return img_matches;
+}
+
+void LoopClosureDetector::transformCameraPose2BodyPose(
+    const gtsam::Pose3& camCur_T_camRef,
+    gtsam::Pose3* bodyCur_T_bodyRef) const {
+  CHECK_NOTNULL(bodyCur_T_bodyRef);
+  // TODO(marcus): is this the right way to set an object without returning?
+  // @toni
+  *bodyCur_T_bodyRef = B_Pose_camLrect_ * camCur_T_camRef *
+    B_Pose_camLrect_.inverse();
+}
+
+void LoopClosureDetector::transformBodyPose2CameraPose(
+    const gtsam::Pose3& bodyCur_T_bodyRef,
+    gtsam::Pose3* camCur_T_camRef) const {
+  CHECK_NOTNULL(camCur_T_camRef);
+  *camCur_T_camRef = B_Pose_camLrect_.inverse() * bodyCur_T_bodyRef *
+    B_Pose_camLrect_;
 }
 
 // TODO(marcus): rewrite to be less like DLoopDetector
 bool LoopClosureDetector::checkTemporalConstraint(const FrameId& id,
     const MatchIsland& island) {
   if (temporal_entries_ == 0 ||
-      int(id - latest_query_id_) > lcd_params_.max_distance_between_queries_) {
+      static_cast<int>(id - latest_query_id_) >
+          lcd_params_.max_distance_between_queries_) {
     temporal_entries_ = 1;
   } else {
     // Check whether current island encloses latest island or vice versa
-    bool curEnclosesOld =
+    bool cur_encloses_old =
         island.start_id_ <= latest_matched_island_.start_id_ &&
         latest_matched_island_.start_id_ <= island.end_id_;
-    bool oldEnclosesCur =
+    bool old_encloses_cur =
         latest_matched_island_.start_id_ <= island.start_id_ &&
         island.start_id_ <= latest_matched_island_.end_id_;
 
-    bool passGroupDistConstraint = curEnclosesOld || oldEnclosesCur;
-    if (!passGroupDistConstraint) {
-      int d1 = (int)latest_matched_island_.start_id_ - (int)island.end_id_;
-      int d2 = (int)island.start_id_ - (int)latest_matched_island_.end_id_;
+    bool pass_group_constraint = cur_encloses_old || old_encloses_cur;
+    if (!pass_group_constraint) {
+      int d1 = static_cast<int>(latest_matched_island_.start_id_) -
+          static_cast<int>(island.end_id_);
+      int d2 = static_cast<int>(island.start_id_) -
+          static_cast<int>(latest_matched_island_.end_id_);
 
       int gap;
       if (d1 > d2) {
@@ -575,10 +599,10 @@ bool LoopClosureDetector::checkTemporalConstraint(const FrameId& id,
         gap = d2;
       }
 
-      passGroupDistConstraint = gap <= lcd_params_.max_distance_between_groups_;
+      pass_group_constraint = gap <= lcd_params_.max_distance_between_groups_;
     }
 
-    if (passGroupDistConstraint) {
+    if (pass_group_constraint) {
       temporal_entries_++;
     } else {
       temporal_entries_ = 1;
@@ -590,17 +614,17 @@ bool LoopClosureDetector::checkTemporalConstraint(const FrameId& id,
 
 // TODO(marcus): rewrite to be less like DLoopDetector
 void LoopClosureDetector::computeIslands(DBoW2::QueryResults& q,
-    std::vector<MatchIsland>& islands) const {
-  islands.clear();
+    std::vector<MatchIsland>* islands) const {
+  CHECK_NOTNULL(islands);
+  islands->clear();
 
   // The case of one island is easy to compute and is done separately
   if (q.size() == 1) {
     MatchIsland island(q[0].Id, q[0].Id, q[0].Score);
     island.best_id_ = q[0].Id;
     island.best_score_ = q[0].Score;
-    islands.push_back(island);
-  }
-  else if (!q.empty()) {
+    islands->push_back(island);
+  } else if (!q.empty()) {
     // sort query results in ascending order of ids
     std::sort(q.begin(), q.end(), DBoW2::Result::ltId);
 
@@ -632,9 +656,9 @@ void LoopClosureDetector::computeIslands(DBoW2::QueryResults& q,
           MatchIsland island = MatchIsland(first_island_entry,
               last_island_entry, computeIslandScore(q, i_first, i_last));
 
-          islands.push_back(island);
-          islands.back().best_score_ = best_score;
-          islands.back().best_id_ = best_entry;
+          islands->push_back(island);
+          islands->back().best_score_ = best_score;
+          islands->back().best_id_ = best_entry;
         }
 
         // prepare next island
@@ -650,18 +674,20 @@ void LoopClosureDetector::computeIslands(DBoW2::QueryResults& q,
       MatchIsland island = MatchIsland(first_island_entry,
           last_island_entry, computeIslandScore(q, i_first, i_last));
 
-      islands.push_back(island);
-      islands.back().best_score_ = best_score;
-      islands.back().best_id_ = best_entry;
+      islands->push_back(island);
+      islands->back().best_score_ = best_score;
+      islands->back().best_id_ = best_entry;
     }
   }
 }
 
 double LoopClosureDetector::computeIslandScore(const DBoW2::QueryResults& q,
     const FrameId& start_id, const FrameId& end_id) const {
+  CHECK_GT(q.size(), start_id);
+  CHECK_GT(q.size(), end_id);
   double score_sum = 0.0;
   for (FrameId id = start_id; id <= end_id; id++) {
-    score_sum += q[id].Score;
+    score_sum += q.at(id).Score;
   }
 
   return score_sum;
@@ -671,8 +697,10 @@ double LoopClosureDetector::computeIslandScore(const DBoW2::QueryResults& q,
 // match against them later
 void LoopClosureDetector::computeMatchedIndices(
     const FrameId& query_id, const FrameId& match_id,
-    std::vector<unsigned int>& i_query, std::vector<unsigned int>& i_match,
+    std::vector<unsigned int>* i_query, std::vector<unsigned int>* i_match,
     bool cut_matches) const {
+  CHECK_NOTNULL(i_query);
+  CHECK_NOTNULL(i_match);
   // Get two best matches between frame descriptors.
   std::vector<std::vector<cv::DMatch>> matches;
   double lowe_ratio = 1.0;
@@ -684,10 +712,10 @@ void LoopClosureDetector::computeMatchedIndices(
   // TODO(marcus): any way to reserve space ahead of time? even if it's
   // over-reserved Keep only the best matches using Lowe's ratio test and store
   // indicies.
-  for (size_t i = 0; i < matches.size(); i++) {
-    if (matches[i][0].distance < lowe_ratio * matches[i][1].distance) {
-      i_query.push_back(matches[i][0].queryIdx);
-      i_match.push_back(matches[i][0].trainIdx);
+  for (const std::vector<cv::DMatch>& match:matches) {
+    if (match[0].distance < lowe_ratio * match[1].distance) {
+      i_query->push_back(match[0].queryIdx);
+      i_match->push_back(match[0].trainIdx);
     }
   }
 }
@@ -699,20 +727,25 @@ void LoopClosureDetector::computeMatchedIndices(
 bool LoopClosureDetector::geometricVerificationNister(
     const FrameId& query_id, const FrameId& match_id,
     gtsam::Pose3* camCur_T_camRef_mono) const {
+  CHECK_NOTNULL(camCur_T_camRef_mono);
+
   // Find correspondences between keypoints.
   std::vector<unsigned int> i_query, i_match;
-  computeMatchedIndices(query_id, match_id, i_query, i_match, true);
+  computeMatchedIndices(query_id, match_id, &i_query, &i_match, true);
 
   BearingVectors query_versors, match_versors;
-  std::vector<cv::Point2f> query_points, match_points;
 
+  CHECK_EQ(i_query.size(), i_match.size());
+  query_versors.resize(i_query.size());
+  match_versors.resize(i_match.size());
   for (size_t i = 0; i < i_match.size(); i++) {
-    query_versors.push_back(db_frames_[query_id].versors_[i_query[i]]);
-    match_versors.push_back(db_frames_[match_id].versors_[i_match[i]]);
+    query_versors[i] = (db_frames_[query_id].versors_[i_query[i]]);
+    match_versors[i] = (db_frames_[match_id].versors_[i_match[i]]);
   }
 
   // Recover relative pose between frames, with translation up to a scalar.
-  if ((int)match_versors.size() >= lcd_params_.min_correspondences_) {
+  if (static_cast<int>(match_versors.size()) >=
+      lcd_params_.min_correspondences_) {
     AdapterMono adapter(match_versors, query_versors);
 
     // Use RANSAC to solve the central-relative-pose problem.
@@ -728,14 +761,12 @@ bool LoopClosureDetector::geometricVerificationNister(
 
     // Compute transformation via RANSAC.
     if (!ransac.computeModel()) {
-      LOG(ERROR)
-          << "LoopClosureDetector Failure: RANSAC 5pt could not solve.";
+      VLOG(3) << "LoopClosureDetector Failure: RANSAC 5pt could not solve.";
     } else {
-      // TODO(marcus): return statistics on the ransac.
-      // std::cout << "ransac inliers: " << ransac.inliers_.size()
-      //           << "\niterations: " << ransac.iterations_
-      //           << "\nsize of input: " << query_versors.size()
-      //           << std::endl;
+      // TODO(marcus): return statistics on the ransac in some form for logging
+      VLOG(3) << "ransac 5pt size of input: " << query_versors.size()
+              << "\nransac 5pt inliers: "     << ransac.inliers_.size()
+              << "\nransac 5pt iterations: "  << ransac.iterations_;
 
       double inliers = static_cast<double>(ransac.inliers_.size());
       double inlier_percentage = inliers / query_versors.size();
@@ -752,50 +783,25 @@ bool LoopClosureDetector::geometricVerificationNister(
   return false;
 }
 
-void LoopClosureDetector::transformCameraPose2BodyPose(
-    const gtsam::Pose3& camCur_T_camRef,
-    gtsam::Pose3* bodyCur_T_bodyRef) const {
-  // TODO(marcus): is this the right way to set an object without returning?
-  // @toni
-  *bodyCur_T_bodyRef = B_Pose_camLrect_ * camCur_T_camRef *
-    B_Pose_camLrect_.inverse();
-}
-
-void LoopClosureDetector::transformBodyPose2CameraPose(
-    const gtsam::Pose3& bodyCur_T_bodyRef,
-    gtsam::Pose3* camCur_T_camRef) const {
-  *camCur_T_camRef = B_Pose_camLrect_.inverse() * bodyCur_T_bodyRef *
-    B_Pose_camLrect_;
-}
-
-inline const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
-  if (W_Pose_Bkf_estimates_.size() > 1) {
-    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Bkf_estimates_.back();
-    gtsam::Pose3 w_Pose_Bkf_optimal =
-        pgo_->calculateBestEstimate().at<gtsam::Pose3>(
-            W_Pose_Bkf_estimates_.size() - 1);
-
-    return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
-  }
-
-  return gtsam::Pose3();
-}
-
 bool LoopClosureDetector::recoverPoseArun(
     const FrameId& query_id, const FrameId& match_id,
     gtsam::Pose3* bodyCur_T_bodyRef) const {
+  CHECK_NOTNULL(bodyCur_T_bodyRef);
+
   // Find correspondences between frames.
   std::vector<unsigned int> i_query, i_match;
-  computeMatchedIndices(query_id, match_id, i_query, i_match, false);
+  computeMatchedIndices(query_id, match_id, &i_query, &i_match, false);
 
   // TODO(marcus): is there any way to reserve the correct space for these?
-  Points3d f_ref;
-  Points3d f_cur;
+  Points3d f_ref, f_cur;
 
   // Fill point clouds with matched 3D keypoints.
+  CHECK_EQ(i_query.size(), i_match.size());
+  f_ref.resize(i_match.size());
+  f_cur.resize(i_query.size());
   for (size_t i = 0; i < i_match.size(); i++) {
-    f_cur.push_back(db_frames_[query_id].keypoints_3d_.at(i_query[i]));
-    f_ref.push_back(db_frames_[match_id].keypoints_3d_.at(i_match[i]));
+    f_cur[i] = (db_frames_[query_id].keypoints_3d_.at(i_query[i]));
+    f_ref[i] = (db_frames_[match_id].keypoints_3d_.at(i_match[i]));
   }
 
   AdapterStereo adapter(f_ref, f_cur);
@@ -810,14 +816,14 @@ bool LoopClosureDetector::recoverPoseArun(
   ransac.probability_ = lcd_params_.ransac_probability_stereo_;
   ransac.threshold_ = lcd_params_.ransac_threshold_stereo_;
 
+  // Compute transformation via RANSAC.
   if (!ransac.computeModel()) {
-    LOG(ERROR) << "LoopClosureDetector Failure: RANSAC could not solve.";
+    VLOG(3) << "LoopClosureDetector Failure: RANSAC 3pt could not solve.";
   } else {
-    // TODO(marcus): return statistics on the ransac.
-    // std::cout << "ransac inliers: " << ransac.inliers_.size()
-    //           << "\niterations: " << ransac.iterations_
-    //           << "\nsize of input: " << f_ref.size()
-    //           << std::endl;
+    // TODO(marcus): return statistics on the ransac in some form for logging
+    VLOG(3) << "ransac 3pt size of input: " << f_ref.size()
+            << "\nransac 3pt inliers: "     << ransac.inliers_.size()
+            << "\nransac 3pt iterations: "  << ransac.iterations_;
 
     double inliers = static_cast<double>(ransac.inliers_.size());
     double inlier_percentage = inliers / f_ref.size();
@@ -836,26 +842,27 @@ bool LoopClosureDetector::recoverPoseArun(
   return false;
 }
 
-// TODO(marcus): Add median check coordiante wise instead of the other check
-// TODO(marcus): rename pose_2d to pose_cam or something for cam frame
 bool LoopClosureDetector::recoverPoseGivenRot(
     const FrameId& query_id, const FrameId& match_id,
     const gtsam::Pose3& camCur_T_camRef_mono,
     gtsam::Pose3* bodyCur_T_bodyRef) const {
+  CHECK_NOTNULL(bodyCur_T_bodyRef);
+
   gtsam::Rot3 R = camCur_T_camRef_mono.rotation();
 
   // Find correspondences between frames.
   std::vector<unsigned int> i_query, i_match;
-  computeMatchedIndices(query_id, match_id, i_query, i_match, true);
+  computeMatchedIndices(query_id, match_id, &i_query, &i_match, true);
 
-  // TODO(marcus): is there anyway to reserve the correct space for these?
-  Points3d f_ref;
-  Points3d f_cur;
+  Points3d f_ref, f_cur;
 
   // Fill point clouds with matched 3D keypoints.
+  CHECK_EQ(i_query.size(), i_match.size());
+  f_ref.resize(i_match.size());
+  f_cur.resize(i_query.size());
   for (size_t i = 0; i < i_match.size(); i++) {
-    f_cur.push_back(db_frames_[query_id].keypoints_3d_.at(i_query[i]));
-    f_ref.push_back(db_frames_[match_id].keypoints_3d_.at(i_match[i]));
+    f_cur[i] = (db_frames_[query_id].keypoints_3d_.at(i_query[i]));
+    f_ref[i] = (db_frames_[match_id].keypoints_3d_.at(i_match[i]));
   }
 
   // TODO(marcus): decide between median check and scaling factor
@@ -875,8 +882,8 @@ bool LoopClosureDetector::recoverPoseGivenRot(
   std::sort(z_coord.begin(), z_coord.end());
 
   gtsam::Point3 scaled_t(x_coord[int(x_coord.size()/2)],
-      y_coord[int(y_coord.size()/2)],
-      z_coord[int(z_coord.size()/2)]);
+                         y_coord[int(y_coord.size()/2)],
+                         z_coord[int(z_coord.size()/2)]);
 
   // TODO(marcus): input should alwasy be with unit translation, no need to
   // check
@@ -921,10 +928,11 @@ void LoopClosureDetector::initializePGO() {
   gtsam::Values init_val;
   init_val.insert(gtsam::Symbol(0), gtsam::Pose3());
 
+  CHECK(pgo_);
   pgo_->update(init_nfg, init_val);
 }
 
-void LoopClosureDetector::initializePGO(const VioFactor& factor) {
+void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
   gtsam::NonlinearFactorGraph init_nfg;
   gtsam::Values init_val;
 
@@ -933,11 +941,13 @@ void LoopClosureDetector::initializePGO(const VioFactor& factor) {
   init_nfg.add(gtsam::PriorFactor<gtsam::Pose3>(
       gtsam::Symbol(0), factor.W_Pose_Blkf_, factor.noise_));
 
+  CHECK(pgo_);
   pgo_->update(init_nfg, init_val);
 }
 
 // TODO(marcus): only add nodes if they're x dist away from previous node
-void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor& factor) {
+void LoopClosureDetector::addOdometryFactorAndOptimize(
+    const OdometryFactor& factor) {
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
 
@@ -952,6 +962,7 @@ void LoopClosureDetector::addVioFactorAndOptimize(const VioFactor& factor) {
         gtsam::Symbol(factor.cur_key_-2), gtsam::Symbol(factor.cur_key_-1),
         B_llkf_Pose_lkf, factor.noise_));
 
+    CHECK(pgo_);
     pgo_->update(nfg, value);
   } else {
     LOG(WARNING) << "LoopClosureDetector: Not enough factors for optimization.";
@@ -966,6 +977,7 @@ void LoopClosureDetector::addLoopClosureFactorAndOptimize(
       gtsam::Symbol(factor.ref_key_), gtsam::Symbol(factor.cur_key_),
       factor.ref_Pose_cur_, factor.noise_));
 
+  CHECK(pgo_);
   pgo_->update(nfg);
 }
 

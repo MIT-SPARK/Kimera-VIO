@@ -359,25 +359,24 @@ TEST_F(LCDFixture, recoverPose_givenRot) {
   EXPECT_LT(error.second, tran_tol);
 }
 
-TEST_F(LCDFixture, checkLoopClosure) {
+TEST_F(LCDFixture, detectLoop) {
   std::pair<double, double> error;
 
   lcd_detector_->getLCDParamsMutable()->pose_recovery_option_ =
       PoseRecoveryOption::GIVEN_ROT;
-  lcd_detector_->getLCDParamsMutable()->use_mono_rot_ = true;
 
-  /* Test the checkLoopClosure method against two images without closure */
+  /* Test the detectLoop method against two images without closure */
   LoopResult loop_result_0, loop_result_1, loop_result_2, loop_result_3;
 
-  lcd_detector_->checkLoopClosure(*ref2_stereo_frame_.get(), &loop_result_0);
+  lcd_detector_->detectLoop(*ref2_stereo_frame_.get(), &loop_result_0);
   EXPECT_EQ(loop_result_0.isLoop(), false);
 
-  lcd_detector_->checkLoopClosure(*ref1_stereo_frame_.get(), &loop_result_1);
+  lcd_detector_->detectLoop(*ref1_stereo_frame_.get(), &loop_result_1);
   EXPECT_EQ(loop_result_1.isLoop(), false);
 
-  /* Test the checkLoopClosure method against two images that are identical */
+  /* Test the detectLoop method against two images that are identical */
   // TODO(marcus): why isn't geom_check working for two identical images?
-  lcd_detector_->checkLoopClosure(*ref1_stereo_frame_.get(), &loop_result_2);
+  lcd_detector_->detectLoop(*ref1_stereo_frame_.get(), &loop_result_2);
   // EXPECT_EQ(output_payload_2.is_loop_, true);
   // EXPECT_EQ(output_payload_2.timestamp_kf_, timestamp_ref1_);
   // EXPECT_EQ(output_payload_2.id_recent_, id_ref1_);
@@ -385,8 +384,8 @@ TEST_F(LCDFixture, checkLoopClosure) {
   // EXPECT_TRUE(output_payload_2.relative_pose_.equals(gtsam::Pose3(
   //     gtsam::Rot3::identity(), gtsam::Point3(0,0,0)), tol));
 
-  /* Test the checkLoopClosure method against two unidentical, similar images */
-  lcd_detector_->checkLoopClosure(*cur1_stereo_frame_.get(), &loop_result_3);
+  /* Test the detectLoop method against two unidentical, similar images */
+  lcd_detector_->detectLoop(*cur1_stereo_frame_.get(), &loop_result_3);
   EXPECT_EQ(loop_result_3.isLoop(), true);
   EXPECT_EQ(loop_result_3.match_id_, 1);
   EXPECT_EQ(loop_result_3.query_id_, 3);
