@@ -69,10 +69,10 @@ unzip -o ~/Downloads/V1_01_easy.zip -d ~/Euroc/V1_01_easy
 
 #### Yamelize Euroc's dataset
 Add `%YAML:1.0` at the top of each `.yaml` file inside Euroc.
-You can do this manually or run the `yamelize.bash` script by indicating where the dataset is (it is assumed below to be in `~/Euroc`):
+You can do this manually or run the `yamelize.bash` script by indicating where the dataset is (it is assumed below to be in `~/path/to/euroc`):
 ```bash
 cd SparkVIO
-bash ./scripts/euroc/yamelize.bash ~/Euroc
+bash ./scripts/euroc/yamelize.bash -p ~/path/to/euroc
 ```
 
 ### Run SparkVIO in Euroc's dataset
@@ -138,7 +138,11 @@ Also, check [tips for development](./docs/tips_development.md) and our [develope
 
   > Mind that according to gflags specs: 
   > > If a flag is specified more than once, only the last specification is used; the others are ignored.
+  
+# 7. Chart
 
-# 7. BSD License
+![chart](./docs/media/sparkvio_chart.png)
+
+# 8. BSD License
 
 SparkVIO is open source under the BSD license, see the [LICENSE.BSD](LICENSE.BSD) file.

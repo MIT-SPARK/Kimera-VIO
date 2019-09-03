@@ -91,6 +91,10 @@ DEFINE_double(outlier_rejection_bundle_adjustment, 30,
 DEFINE_double(between_translation_bundle_adjustment, 0.5,
               "Between factor precision for bundle adjustment"
               " in initialization.");
+DEFINE_int32(max_time_allowed_for_keyframe_callback,
+             5u,
+             "Maximum time allowed for processing keyframe rate callback "
+             "(in ms).");
 
 DEFINE_bool(use_lcd, true,
             "Enable LoopClosureDetector processing in pipeline.");
@@ -377,7 +381,6 @@ void Pipeline::processKeyframe(
   }
 
   if (keyframe_rate_output_callback_) {
-    static constexpr int max_time_allowed_for_keyframe_callback = 5;  // ms
     auto tic = utils::Timer::tic();
     VLOG(2) << "Call keyframe callback with spin output payload.";
     keyframe_rate_output_callback_(SpinOutputPacket(
@@ -393,11 +396,9 @@ void Pipeline::processKeyframe(
         points_with_id_VIO, lmk_id_to_lmk_type_map,
         backend_output_payload->state_covariance_lkf_, debug_tracker_info));
     auto toc = utils::Timer::toc(tic);
-    if (toc.count() > max_time_allowed_for_keyframe_callback) {
-      LOG_IF(WARNING,
-             "Keyframe Rate Output Callback is taking longer than it should: "
-             "make sure your callback is fast!");
-    }
+    LOG_IF(WARNING, toc.count() > FLAGS_max_time_allowed_for_keyframe_callback)
+        << "Keyframe Rate Output Callback is taking longer than it should: "
+           "make sure your callback is fast!";
   }
 }
 
@@ -413,8 +414,7 @@ bool Pipeline::spinViz(bool parallel_run) {
   return true;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void Pipeline::spinSequential() {
   // Spin once frontend.
   CHECK(vio_frontend_);
@@ -556,6 +556,30 @@ void Pipeline::spinSequential() {
         visualizer_input_queue_, visualizer_output_queue_,
         std::bind(&Pipeline::spinDisplayOnce, this, std::placeholders::_1),
         false);
+  }
+
+  if (keyframe_rate_output_callback_) {
+    auto tic = utils::Timer::tic();
+    VLOG(2) << "Call keyframe callback with spin output payload.";
+    keyframe_rate_output_callback_(SpinOutputPacket(
+        backend_output_payload->timestamp_kf_,
+        backend_output_payload->W_Pose_Blkf_,
+        backend_output_payload->W_Vel_Blkf_,
+        backend_output_payload->imu_bias_lkf_,
+        mesher_output_payload.mesh_2d_,
+        mesher_output_payload.mesh_3d_,
+        Visualizer3D::visualizeMesh2D(
+            mesher_output_payload.mesh_2d_filtered_for_viz_,
+            stereo_frontend_output_payload->stereo_frame_lkf_.getLeftFrame()
+                .img_),
+        points_with_id_VIO,
+        lmk_id_to_lmk_type_map,
+        backend_output_payload->state_covariance_lkf_,
+        stereo_frontend_output_payload->debug_tracker_info_));
+    auto toc = utils::Timer::toc(tic);
+    LOG_IF(WARNING, toc.count() > FLAGS_max_time_allowed_for_keyframe_callback)
+        << "Keyframe Rate Output Callback is taking longer than it should: "
+           "make sure your callback is fast!";
   }
 }
 
