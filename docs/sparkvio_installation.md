@@ -31,21 +31,22 @@ sudo apt-get install -y libboost-all-dev
 ```
 
 - OpenCV dependencies:
+  - on Mac:
+```bash
+homebrew install vtk # (to check)
+```
   - On Ubuntu 18.04
 ```bash
+# (libvtk5-dev, libgtk2.0-dev in ubuntu 16.04)
 sudo apt-get install -y \
       build-essential unzip pkg-config \
       libjpeg-dev libpng-dev libtiff-dev \
-      libvtk6-dev \
+      libvtk6-dev \ 
       libgtk-3-dev \
       libatlas-base-dev gfortran
 ```
 
 ## Install GTSAM
-
-#### GTSAM's dependencies:
-
-Install Boost: `sudo apt-get update && sudo apt-get install -y libboost-all-dev`
 
 #### GTSAM's Optional dependencies (highly recommended for speed)
 
@@ -92,18 +93,6 @@ sudo make $(nproc) install
 > Note: also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `-march=native` might cause problems that culminates in the form of segfaults when you run the unittests.
 
 ## Install OpenCV
-
-#### OpenCV's dependencies:
-- on Mac:
-```bash
-homebrew install vtk # (to check)
-```
-
-- on Linux:
-```bash
-sudo apt-get install -y libvtk5-dev   # (libvtk6-dev in ubuntu 17.10)
-sudo apt-get install -y pkg-config libgtk2.0-dev
-```
 
 #### OpenCV Source Install
 
