@@ -127,10 +127,11 @@ bool LoopClosureDetector::spin(
       auto tic = utils::Timer::tic();
       LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
 
-      // Only push output if it's a detected loop.
-      if (output_payload.is_loop_closure_) {
-        output_queue.push(output_payload);
-      }
+      // // Only push output if it's a detected loop.
+      // if (output_payload.is_loop_closure_) {
+      //   output_queue.push(output_payload);
+      // }
+      output_queue.push(output_payload);
 
       auto spin_duration = utils::Timer::toc(tic).count();
       stat_lcd_timing.AddSample(spin_duration);
