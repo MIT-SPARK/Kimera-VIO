@@ -42,6 +42,7 @@ Ensure that:
 - TBB is enabled: check for `--   Use Intel TBB                  : Yes` after running `cmake`.
 - Compilation is in Release mode: check for `--   Build type                     : Release` after running `cmake`.
 - Use GTSAM's Eigen, **not** the system-wide one (OpenGV and GTSAM must use same Eigen, see OpenGV install instructions below).
+- `Rot3 retract is full ExpMap` is set to enabled, and `Pose3 retract is full ExpMap` is also set to enabled. Without these flags, RobustPGO does not optimize the pose-graph well and may produce incorrect results.
 
 Compile and install GTSAM:
 ```bash
