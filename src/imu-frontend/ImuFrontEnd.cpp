@@ -31,6 +31,44 @@ void ImuData::print() const {
             << "nr of imu measurements: " << imu_buffer_.size();
 }
 
+ImuFrontEnd::ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias)
+    : imu_params_(setImuParams(imu_params)) {
+  CHECK_GT(imu_params.acc_noise_, 0.0);
+  CHECK_GT(imu_params.acc_walk_, 0.0);
+  CHECK_GT(imu_params.gyro_noise_, 0.0);
+  CHECK_GT(imu_params.gyro_walk_, 0.0);
+  CHECK_GT(imu_params.imu_integration_sigma_, 0.0);
+  LOG_IF(WARNING, imu_params.imu_shift_ != 0.0)
+      << "Applying IMU timestamp shift of: " << imu_params.imu_shift_ << "ns.";
+  initializeImuFrontEnd(imu_bias);
+}
+
+ImuFrontEnd::ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
+                         const ImuBias& imu_bias)
+    : imu_params_(imu_params) {
+  // TODO(Toni): this ctor doesn't check params... ADD CHECKS
+  initializeImuFrontEnd(imu_bias);
+}
+
+void ImuFrontEnd::initializeImuFrontEnd(const ImuBias& imu_bias) {
+  pim_ = VIO::make_unique<PreintegratedImuMeasurements>(
+      boost::make_shared<PreintegratedImuMeasurements::Params>(imu_params_),
+      imu_bias);
+  CHECK(pim_);
+  {
+    std::lock_guard<std::mutex> lock(imu_bias_mutex_);
+    latest_imu_bias_ = imu_bias;
+  }
+  if (VLOG_IS_ON(10)) {
+    LOG(ERROR) << "IMU PREINTEGRATION PARAMS GIVEN TO IMU FRONTEND.";
+    imu_params_.print("");
+    LOG(ERROR) << "IMU BIAS GIVEN TO IMU FRONTEND AT CONSTRUCTION:\n "
+               << getCurrentImuBias();
+    LOG(ERROR) << "IMU PREINTEGRATION COVARIANCE: ";
+    pim_->print();
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 // NOT THREAD-SAFE
 // What happens if someone updates the bias in the middle of the
@@ -90,6 +128,9 @@ gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
 // Set parameters for imu factors.
 gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(
     const ImuParams& imu_params) {
+  CHECK_GT(imu_params.acc_noise_, 0.0);
+  CHECK_GT(imu_params.gyro_noise_, 0.0);
+  CHECK_GT(imu_params.imu_integration_sigma_, 0.0);
   PreintegratedImuMeasurements::Params preint_imu_params =
       PreintegratedImuMeasurements::Params(imu_params.n_gravity_);
   preint_imu_params.gyroscopeCovariance =
@@ -99,7 +140,8 @@ gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(
   preint_imu_params.integrationCovariance =
       std::pow(imu_params.imu_integration_sigma_, 2.0) *
       Eigen::Matrix3d::Identity();
-  preint_imu_params.use2ndOrderCoriolis = false;  // TODO: expose this parameter
+  // TODO(Toni): REMOVE HARDCODED
+  preint_imu_params.use2ndOrderCoriolis = false;
 
 #ifdef USE_COMBINED_IMU_FACTOR
   preint_imu_params.biasAccCovariance =

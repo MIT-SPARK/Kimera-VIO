@@ -53,12 +53,9 @@ class LoopClosureDetector {
   LoopClosureDetectorOutputPayload spinOnce(
       const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
 
-  void checkLoopClosure(const StereoFrame& stereo_frame,
-      LoopResult* loop_result);
-
   FrameId processAndAddFrame(const StereoFrame& stereo_frame);
 
-  bool detectLoop(const FrameId& frame_id, LoopResult* result);
+  bool detectLoop(const StereoFrame& stereo_frame, LoopResult* result);
 
   bool geometricVerificationCheck(const FrameId& query_id,
                                   const FrameId& match_id,
@@ -82,21 +79,23 @@ class LoopClosureDetector {
 
   inline bool isWorking() const { return is_thread_working_; }
 
-  inline const LoopClosureDetectorParams& getLCDParams() const {
+  inline LoopClosureDetectorParams getLCDParams() const {
     return lcd_params_;
   }
 
   inline LoopClosureDetectorParams* getLCDParamsMutable() {
-    return& lcd_params_;
+    return &lcd_params_;
   }
 
   inline const OrbDatabase* getBoWDatabase() const { return db_BoW_.get(); }
 
   inline const std::vector<LCDFrame>* getFrameDatabasePtr() const {
-    return& db_frames_;
+    return &db_frames_;
   }
 
   inline const bool getIntrinsicsFlag() const { return set_intrinsics_; }
+
+  inline const gtsam::Pose3 getWPoseMap() const;
 
   // TODO(marcus): maybe this should be private. But that makes testing harder.
   void setIntrinsics(const StereoFrame& stereo_frame);
@@ -129,22 +128,20 @@ class LoopClosureDetector {
   void transformBodyPose2CameraPose(const gtsam::Pose3& bodyCur_T_bodyRef,
                                     gtsam::Pose3* camCur_T_camRef) const;
 
-  inline const gtsam::Pose3 getWPoseMap() const;
-
  private:
   // TODO(marcus): review this one
   bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
 
   // TODO(marcus): review these
   void computeIslands(DBoW2::QueryResults& q,
-      std::vector<MatchIsland>& islands) const;
+      std::vector<MatchIsland>* islands) const;
 
   double computeIslandScore(const DBoW2::QueryResults& q,
       const FrameId& start_id, const FrameId& end_id) const;
 
   void computeMatchedIndices(const FrameId& query_id, const FrameId& match_id,
-                             std::vector<unsigned int>& i_query,
-                             std::vector<unsigned int>& i_match,
+                             std::vector<unsigned int>* i_query,
+                             std::vector<unsigned int>* i_match,
                              bool cut_matches = false) const;
 
   bool geometricVerificationNister(const FrameId& query_id,
@@ -160,9 +157,9 @@ class LoopClosureDetector {
 
   void initializePGO();
 
-  void initializePGO(const VioFactor& factor);
+  void initializePGO(const OdometryFactor& factor);
 
-  void addVioFactorAndOptimize(const VioFactor& factor);
+  void addOdometryFactorAndOptimize(const OdometryFactor& factor);
 
   void addLoopClosureFactorAndOptimize(const LoopClosureFactor& factor);
 

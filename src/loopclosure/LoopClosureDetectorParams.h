@@ -58,10 +58,10 @@ class LoopClosureDetectorParams {
        double ransac_probability_stereo = 0.995,
        double ransac_threshold_stereo = 0.15,
        bool ransac_randomize_stereo = false,
-       bool use_mono_rot = true,
        double ransac_inlier_threshold_stereo = 0.5,
 
        double lowe_ratio = 0.7,
+       int matcher_type = 4,
 
        int nfeatures = 500,
        float scale_factor = 1.2f,
@@ -105,9 +105,9 @@ class LoopClosureDetectorParams {
          ransac_threshold_stereo_(ransac_threshold_stereo),
          ransac_randomize_stereo_(ransac_randomize_stereo),
          ransac_inlier_threshold_stereo_(ransac_inlier_threshold_stereo),
-         use_mono_rot_(use_mono_rot),
 
          lowe_ratio_(lowe_ratio),
+         matcher_type_(matcher_type),
 
          nfeatures_(nfeatures),
          scale_factor_(scale_factor),
@@ -163,11 +163,11 @@ class LoopClosureDetectorParams {
   double ransac_threshold_stereo_;
   bool ransac_randomize_stereo_;
   double ransac_inlier_threshold_stereo_;
-  bool use_mono_rot_;
   //////////////////////////////////////////////////////////////////////////////
 
   ///////////////////////// ORB feature matching params ////////////////////////
   double lowe_ratio_;
+  int matcher_type_;
   //////////////////////////////////////////////////////////////////////////////
 
   ///////////////////////// ORB feature detector params ////////////////////////
@@ -245,8 +245,8 @@ class LoopClosureDetectorParams {
     yaml_parser_->getYamlParam("ransac_threshold_stereo", &ransac_threshold_stereo_);
     yaml_parser_->getYamlParam("ransac_randomize_stereo", &ransac_randomize_stereo_);
     yaml_parser_->getYamlParam("ransac_inlier_threshold_stereo", &ransac_inlier_threshold_stereo_);
-    yaml_parser_->getYamlParam("use_mono_rot", &use_mono_rot_);
     yaml_parser_->getYamlParam("lowe_ratio", &lowe_ratio_);
+    yaml_parser_->getYamlParam("matcher_type", &matcher_type_);
     yaml_parser_->getYamlParam("nfeatures", &nfeatures_);
     yaml_parser_->getYamlParam("scale_factor", &scale_factor_);
     yaml_parser_->getYamlParam("nlevels", &nlevels_);
@@ -315,9 +315,9 @@ class LoopClosureDetectorParams {
         << "ransac_randomize_stereo_: " << ransac_randomize_stereo_ << '\n'
         << "ransac_inlier_threshold_stereo_: "
         << ransac_inlier_threshold_stereo_ << '\n'
-        << "use_mono_rot_: " << use_mono_rot_ << '\n'
 
         << "lowe_ratio_: " << lowe_ratio_ << '\n'
+        << "matcher_type_:" << static_cast<unsigned int>(matcher_type_) << '\n'
 
         << "nfeatures_: " << nfeatures_ << '\n'
         << "scale_factor_: " << scale_factor_ << '\n'

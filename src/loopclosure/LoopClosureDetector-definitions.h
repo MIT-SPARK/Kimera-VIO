@@ -26,6 +26,9 @@
 
 namespace VIO {
 
+typedef cv::Mat OrbDescriptor;
+typedef std::vector<OrbDescriptor> OrbDescriptorVec;
+
 enum class LCDStatus : unsigned int {
   LOOP_DETECTED,
   NO_MATCHES,
@@ -48,8 +51,8 @@ struct LCDFrame {
            const FrameId& id_kf,
            const std::vector<cv::KeyPoint>& keypoints,
            const std::vector<gtsam::Vector3>& keypoints_3d,
-           const std::vector<cv::Mat>& descriptors_vec,
-           const cv::Mat& descriptors_mat,
+           const OrbDescriptorVec& descriptors_vec,
+           const OrbDescriptor& descriptors_mat,
            const BearingVectors& versors)
     : timestamp_(timestamp),
       id_(id),
@@ -65,8 +68,8 @@ struct LCDFrame {
   FrameId id_kf_;
   std::vector<cv::KeyPoint> keypoints_;
   std::vector<gtsam::Vector3> keypoints_3d_;
-  std::vector<cv::Mat> descriptors_vec_;
-  cv::Mat descriptors_mat_;
+  OrbDescriptorVec descriptors_vec_;
+  OrbDescriptor descriptors_mat_;
   BearingVectors versors_;
 };  // struct LCDFrame
 
@@ -165,8 +168,8 @@ struct LoopResult {
   gtsam::Pose3 relative_pose_;
 };  // struct LoopResult
 
-struct VioFactor {
-  VioFactor(const FrameId& cur_key,
+struct OdometryFactor {
+  OdometryFactor(const FrameId& cur_key,
             const gtsam::Pose3& W_Pose_Blkf,
             const gtsam::SharedNoiseModel& noise)
       : cur_key_(cur_key),
@@ -176,7 +179,7 @@ struct VioFactor {
   const FrameId cur_key_;
   const gtsam::Pose3 W_Pose_Blkf_;
   const gtsam::SharedNoiseModel noise_;
-}; // struct VioFactor
+}; // struct OdometryFactor
 
 struct LoopClosureFactor {
   LoopClosureFactor(const FrameId& ref_key,
