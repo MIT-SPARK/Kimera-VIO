@@ -45,8 +45,8 @@ Ensure that:
 
 Compile and install GTSAM:
 ```bash
-make $(nproc) check # (optional, runs unit tests)
-sudo make $(nproc) install
+make -j $(nproc) check # (optional, runs unit tests)
+sudo make -j $(nproc) install
 ```
 
 > Alternatively, replace `$(nproc)` by the number of available cores in your computer.
