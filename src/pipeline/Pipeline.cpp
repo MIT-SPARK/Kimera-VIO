@@ -96,7 +96,7 @@ DEFINE_int32(max_time_allowed_for_keyframe_callback,
              "Maximum time allowed for processing keyframe rate callback "
              "(in ms).");
 
-DEFINE_bool(use_lcd, true,
+DEFINE_bool(use_lcd, false,
             "Enable LoopClosureDetector processing in pipeline.");
 
 namespace VIO {
