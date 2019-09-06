@@ -155,18 +155,29 @@ bool LoopClosureDetector::spin(
   return true;
 }
 
-inline const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
+const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
   if (W_Pose_Bkf_estimates_.size() > 1) {
     CHECK(pgo_);
     gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Bkf_estimates_.back();
     gtsam::Pose3 w_Pose_Bkf_optimal =
-        pgo_->calculateBestEstimate().at<gtsam::Pose3>(
+        pgo_->calculateEstimate().at<gtsam::Pose3>(
             W_Pose_Bkf_estimates_.size() - 1);
 
     return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
   }
 
   return gtsam::Pose3();
+}
+
+const gtsam::Values LoopClosureDetector::getPGOTrajectory() const {
+  CHECK(pgo_);
+  return pgo_->calculateEstimate();
+}
+
+const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg()
+    const {
+  CHECK(pgo_);
+  return pgo_->getFactorsUnsafe();
 }
 
 LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
@@ -181,7 +192,6 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
 
   // Update the PGO with the backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
-  W_Pose_Bkf_estimates_.push_back(input->W_Pose_Blkf_);
   OdometryFactor odom_factor(input->cur_kf_id_, input->W_Pose_Blkf_,
       shared_noise_model_);
 
@@ -189,6 +199,7 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   if (odom_factor.cur_key_ == 1) {
     initializePGO(odom_factor);
   }
+
   // TODO(marcus): need a better check than this:
   CHECK_GT(pgo_->calculateEstimate().size(), 0);
   addOdometryFactorAndOptimize(odom_factor);
@@ -214,24 +225,24 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   // Construct output payload.
   CHECK(pgo_);
   const gtsam::Pose3& w_Pose_map = getWPoseMap();
-  gtsam::Values pgo_states = pgo_->calculateEstimate();
-  gtsam::NonlinearFactorGraph pgo_nfg = pgo_->getFactorsUnsafe();
+  const gtsam::Values pgo_states = getPGOTrajectory();
+  const gtsam::NonlinearFactorGraph pgo_nfg = getPGOnfg();
 
-  LoopClosureDetectorOutputPayload output_payload =
-      LoopClosureDetectorOutputPayload(false, 0, 0, 0, gtsam::Pose3(),
-          w_Pose_map, pgo_states, pgo_nfg);
+  LoopClosureDetectorOutputPayload output_payload;
 
   if (loop_result.isLoop()) {
-    LoopClosureDetectorOutputPayload output_payload =
-        LoopClosureDetectorOutputPayload(
-            loop_result.isLoop(),
-            input->timestamp_kf_,
-            loop_result.match_id_,
-            loop_result.query_id_,
-            loop_result.relative_pose_,
-            w_Pose_map,
-            pgo_states,
-            pgo_nfg);
+    output_payload = LoopClosureDetectorOutputPayload(
+        true,
+        input->timestamp_kf_,
+        loop_result.match_id_,
+        loop_result.query_id_,
+        loop_result.relative_pose_,
+        w_Pose_map,
+        pgo_states,
+        pgo_nfg);
+  } else {
+    output_payload = LoopClosureDetectorOutputPayload(false, 0, 0, 0,
+        gtsam::Pose3(), w_Pose_map, pgo_states, pgo_nfg);
   }
 
   if (logger_) {
@@ -952,12 +963,18 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
 }
 
 // TODO(marcus): only add nodes if they're x dist away from previous node
+// TODO(marcus): consider making the keys of OdometryFactor minus one each so
+// that the extra check in here isn't needed...
 void LoopClosureDetector::addOdometryFactorAndOptimize(
     const OdometryFactor& factor) {
+  W_Pose_Bkf_estimates_.push_back(factor.W_Pose_Blkf_);
+  CHECK(factor.cur_key_ <= W_Pose_Bkf_estimates_.size())
+      << "LoopClosureDetector: new odometry factor has a key that is too high.";
+
   gtsam::NonlinearFactorGraph nfg;
   gtsam::Values value;
 
-  if (factor.cur_key_ <= W_Pose_Bkf_estimates_.size() && factor.cur_key_ > 1) {
+  if (factor.cur_key_ > 1) {
     value.insert(gtsam::Symbol(factor.cur_key_-1), factor.W_Pose_Blkf_);
 
     gtsam::Pose3 B_llkf_Pose_lkf =
