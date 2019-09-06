@@ -267,7 +267,7 @@ void Pipeline::processKeyframe(
         static constexpr int max_time_allowed_for_lcd_callback = 5;  // ms
         auto tic = utils::Timer::tic();
         VLOG(2) << "Call loop-closure callback with lcd output payload.";
-        loop_closure_pgo_callback_(*lcd_output_payload.get());
+        loop_closure_pgo_callback_(*lcd_output_payload);
         auto toc = utils::Timer::toc(tic);
         if (toc.count() > max_time_allowed_for_lcd_callback) {
           LOG_IF(WARNING,
@@ -466,7 +466,7 @@ void Pipeline::spinSequential() {
     const auto& lcd_output_payload = lcd_output_queue_.popBlocking();
     CHECK(lcd_output_payload);
     if (loop_closure_pgo_callback_) {
-      loop_closure_pgo_callback_(*lcd_output_payload.get());
+      loop_closure_pgo_callback_(*lcd_output_payload);
     }
     else {
       LOG(WARNING) << "LoopClosureDetector is running but there is no callback"
