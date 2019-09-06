@@ -456,9 +456,9 @@ void PipelineLogger::logPipelineOverallTiming(
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 LoopClosureDetectorLogger::LoopClosureDetectorLogger()
-    : output_lcd_("output_lcd_result.scv"),
+    : output_lcd_("output_lcd_result.csv"),
       output_traj_("output_lcd_optimized_traj.csv"),
-      output_status_("output_lcd_status") {};
+      output_status_("output_lcd_status.csv") {};
 
 void LoopClosureDetectorLogger::logLCDResult(
     const LoopClosureDetectorOutputPayload& lcd_output) {
