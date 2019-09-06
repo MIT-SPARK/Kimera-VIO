@@ -231,15 +231,25 @@ struct LoopClosureDetectorOutputPayload {
         states_(states),
         nfg_(nfg) {}
 
+  LoopClosureDetectorOutputPayload()
+      : is_loop_closure_(false),
+        timestamp_kf_(0),
+        id_match_(0),
+        id_recent_(0),
+        relative_pose_(gtsam::Pose3()),
+        W_Pose_Map_(gtsam::Pose3()),
+        states_(gtsam::Values()),
+        nfg_(gtsam::NonlinearFactorGraph()) {}
+
   // TODO(marcus): inlude stats/score of match
-  const bool is_loop_closure_;
-  const Timestamp timestamp_kf_;
-  const FrameId id_match_;
-  const FrameId id_recent_;
-  const gtsam::Pose3 relative_pose_;
-  const gtsam::Pose3 W_Pose_Map_;
-  const gtsam::Values states_;
-  const gtsam::NonlinearFactorGraph nfg_;
+  bool is_loop_closure_;
+  Timestamp timestamp_kf_;
+  FrameId id_match_;
+  FrameId id_recent_;
+  gtsam::Pose3 relative_pose_;
+  gtsam::Pose3 W_Pose_Map_;
+  gtsam::Values states_;
+  gtsam::NonlinearFactorGraph nfg_;
 };  // struct LoopClosureDetectorOutputPayload
 
 }  // namespace VIO
