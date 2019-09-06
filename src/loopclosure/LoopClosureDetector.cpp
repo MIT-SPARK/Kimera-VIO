@@ -14,9 +14,10 @@
 
 #include <string>
 #include <algorithm>
+#include <fstream>
 
+// TODO(marcus): move these to the bottom and figure out why that causes probs.
 #include "loopclosure/LoopClosureDetector.h"
-
 #include <RobustPGO/RobustSolver.h>
 
 #include <opengv/sac/Ransac.hpp>
@@ -85,8 +86,13 @@ LoopClosureDetector::LoopClosureDetector(
       lcd_params_.matcher_type_);
 
   // Load ORB vocabulary:
+  std::ifstream f_vocab(FLAGS_vocabulary_path.c_str());
+  CHECK(f_vocab.good()) << "LoopClosureDetector: Incorrect vocabulary path.";
+  f_vocab.close();
+
   OrbVocabulary vocab;
-  LOG(INFO) << "Loading vocabulary from " << FLAGS_vocabulary_path;
+  LOG(INFO) << "LoopClosureDetector:: Loading vocabulary from "
+            << FLAGS_vocabulary_path;
   vocab.load(FLAGS_vocabulary_path);
   LOG(INFO) << "Loaded vocabulary with " << vocab.size() << " visual words.";
 
