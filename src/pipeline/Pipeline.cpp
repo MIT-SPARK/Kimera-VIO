@@ -259,17 +259,17 @@ void Pipeline::processKeyframe(
     VLOG(2) << "Checking for payload from LoopClosureDetector (not blocking).";
     std::shared_ptr<LoopClosureDetectorOutputPayload> lcd_output_payload =
         lcd_output_queue_.pop();
+    // TODO(marcus): remove this warning as it is expected often.
     LOG_IF(WARNING, !lcd_output_payload) << "Missing LCD output payload.";
 
     // Send loop closure result to optional callback.
     if (lcd_output_payload) {
       if (loop_closure_pgo_callback_) {
-        static constexpr int max_time_allowed_for_lcd_callback = 5;  // ms
         auto tic = utils::Timer::tic();
         VLOG(2) << "Call loop-closure callback with lcd output payload.";
         loop_closure_pgo_callback_(*lcd_output_payload);
         auto toc = utils::Timer::toc(tic);
-        if (toc.count() > max_time_allowed_for_lcd_callback) {
+        if (toc.count() > FLAGS_max_time_allowed_for_keyframe_callback) {
           LOG_IF(WARNING,
                  "Loop-Closure Output Callback is taking longer than it should: "
                  "make sure your callback is fast!");

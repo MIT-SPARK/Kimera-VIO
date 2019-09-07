@@ -123,7 +123,7 @@ bool LoopClosureDetector::spin(
   utils::StatsCollector stat_lcd_timing("LoopClosureDetector Timing [ms]");
 
   while (!shutdown_) {
-    // Get input keyframe.
+    // Get input data from queue. Wait for payload.
     is_thread_working_ = false;
     std::shared_ptr<LoopClosureDetectorInputPayload> input =
         input_queue.popBlocking();
@@ -131,11 +131,7 @@ bool LoopClosureDetector::spin(
 
     if (input) {
       auto tic = utils::Timer::tic();
-      LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
-
-      // Publish every time. TODO: neccessary for visualization but might slow down code
-      output_queue.push(output_payload);
-
+      output_queue.push(spinOnce(input));
       auto spin_duration = utils::Timer::toc(tic).count();
       stat_lcd_timing.AddSample(spin_duration);
 
