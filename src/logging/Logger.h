@@ -30,6 +30,7 @@ class OfstreamWrapper {
   OfstreamWrapper(const std::string& filename,
                   const bool& open_file_in_append_mode = false);
   ~OfstreamWrapper();
+  void closeAndOpenLogFile();
 
  public:
   std::ofstream ofstream_;

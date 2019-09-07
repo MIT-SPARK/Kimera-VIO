@@ -41,6 +41,11 @@ OfstreamWrapper::~OfstreamWrapper() {
   ofstream_.close();
 };
 
+void OfstreamWrapper::closeAndOpenLogFile() {
+  ofstream_.close();
+  openLogFile(filename_);
+}
+
 void OfstreamWrapper::openLogFile(const std::string& output_file_name,
                                   bool open_file_in_append_mode) {
   CHECK(!output_file_name.empty());
@@ -498,6 +503,8 @@ void LoopClosureDetectorLogger::logLoopClosure(
 
 void LoopClosureDetectorLogger::logOptimizedTraj(
     const LoopClosureDetectorOutputPayload& lcd_output) {
+  // First close and reopen log file to clear contents completely.
+  output_traj_.closeAndOpenLogFile();
   // We log the full optimized trajectory in csv format.
   std::ofstream& output_stream_traj = output_traj_.ofstream_;
 
