@@ -185,6 +185,7 @@ class LoopClosureDetector {
   // BoW and Loop Detection database and members
   std::unique_ptr<OrbDatabase> db_BoW_;
   std::vector<LCDFrame> db_frames_;
+  std::unordered_map<FrameId, Timestamp> ts_map_;
 
   // Store latest computed objects for temporal matching and nss scoring
   DBoW2::BowVector latest_bowvec_;

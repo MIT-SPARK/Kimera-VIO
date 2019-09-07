@@ -65,6 +65,7 @@ LoopClosureDetector::LoopClosureDetector(
       orb_feature_matcher_(),
       db_BoW_(nullptr),
       db_frames_(),
+      ts_map_(),
       latest_bowvec_(),
       latest_matched_island_(),
       latest_query_id_(FrameId(0)),
@@ -240,6 +241,8 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   }
 
   if (logger_) {
+    ts_map_[input->cur_kf_id_] = input->timestamp_kf_;
+    logger_->logTsMap(ts_map_);
     logger_->logKfStatus(working_frame.getTimestamp(), loop_result);
     logger_->logLCDResult(output_payload);
   }
