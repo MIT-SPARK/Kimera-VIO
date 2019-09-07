@@ -33,8 +33,8 @@ DECLARE_string(test_data_path);
 DECLARE_string(vocabulary_path);
 
 static const double tol = 1e-7;
-static const double rot_tol = 0.04;
-static const double tran_tol = 0.10;
+static const double rot_tol = 0.05;
+static const double tran_tol = 0.20;
 
 namespace VIO {
 
@@ -309,7 +309,7 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   EXPECT_LT(error.second, tran_tol * 2.5);
 }
 
-TEST_F(LCDFixture, recoverPose_arun) {
+TEST_F(LCDFixture, recoverPoseArun) {
   /* Test proper scaled pose recovery between two identical images */
   CHECK(lcd_detector_);
   lcd_detector_->getLCDParamsMutable()->pose_recovery_option_ =
@@ -347,7 +347,7 @@ TEST_F(LCDFixture, recoverPose_arun) {
   // EXPECT_LT(error.second, tran_tol);
 }
 
-TEST_F(LCDFixture, recoverPose_givenRot) {
+TEST_F(LCDFixture, recoverPoseGivenRot) {
   CHECK(lcd_detector_);
   lcd_detector_->getLCDParamsMutable()->pose_recovery_option_ =
       PoseRecoveryOption::GIVEN_ROT;
