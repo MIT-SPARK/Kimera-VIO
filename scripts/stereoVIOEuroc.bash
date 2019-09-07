@@ -15,7 +15,10 @@ DATASET_TYPE=0
 PARALLEL_RUN=1
 
 # Specify: 1 to enable the LoopClosureDetector, 0 to not.
-USE_LCD=1
+USE_LCD=0
+
+# Specify: 1 to enable loogging, 0 to not.
+LOG_OUTPUT=0
 ###################################################################
 
 # Parse Options.
@@ -43,8 +46,10 @@ else
           echo "Using Regular VIO!" ;;
       -s) PARALLEL_RUN=0
           echo "Run VIO in SEQUENTIAL mode!" ;;
-      -nlcd) USE_LCD=0
-           echo "Run VIO without LoopClosureDetector!" ;;
+      -lcd) USE_LCD=1
+           echo "Run VIO with LoopClosureDetector!" ;;
+      -log) LOG_OUTPUT=1
+           echo "Logging output!";;
       --)
           shift # The double dash which separates options from parameters
           break
@@ -88,6 +93,12 @@ echo """ Launching:
 # The flag --help will provide you with information about what each flag
 # does.
 ../build/stereoVIOEuroc \
+  --flagfile="../params/flags/stereoVIOEuroc.flags" \
+  --flagfile="../params/flags/Mesher.flags" \
+  --flagfile="../params/flags/VioBackEnd.flags" \
+  --flagfile="../params/flags/RegularVioBackEnd.flags" \
+  --flagfile="../params/flags/Visualizer3D.flags" \
+  --flagfile="../params/flags/EthParser.flags" \
   --logtostderr=1 \
   --colorlogtostderr=1 \
   --log_prefix=0 \
@@ -99,14 +110,10 @@ echo """ Launching:
   --lcd_params_path="$LCD_PARAMS_PATH" \
   --vocabulary_path="../vocabulary/ORBvoc.yml" \
   --use_lcd="$USE_LCD" \
-  --flagfile="../params/flags/stereoVIOEuroc.flags" \
-  --flagfile="../params/flags/Mesher.flags" \
-  --flagfile="../params/flags/VioBackEnd.flags" \
-  --flagfile="../params/flags/RegularVioBackEnd.flags" \
-  --flagfile="../params/flags/Visualizer3D.flags" \
-  --flagfile="../params/flags/EthParser.flags" \
   --v=0 \
   --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 \
   --backend_type="$BACKEND_TYPE" \
   --parallel_run="$PARALLEL_RUN" \
-  --dataset_type="$DATASET_TYPE"
+  --dataset_type="$DATASET_TYPE" \
+  --log_output="$LOG_OUTPUT" \
+  --output_path="../output_logs/"

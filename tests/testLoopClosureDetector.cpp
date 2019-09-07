@@ -66,24 +66,24 @@ class LCDFixture :public ::testing::Test {
 
     lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
 
-    gtsam::Pose3 ref1_pose = gtsam::Pose3(
+    ref1_pose_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.338337, 0.608466, -0.535476, 0.478082)),
         gtsam::Point3(1.573832, 2.023348, 1.738755));
 
-    gtsam::Pose3 cur1_pose = gtsam::Pose3(
+    cur1_pose_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.478634, 0.415595, -0.700197, 0.328505)),
         gtsam::Point3(1.872115, 1.786064, 1.586159));
 
-    gtsam::Pose3 ref2_pose = gtsam::Pose3(
+    ref2_pose_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.3394, -0.672895, -0.492724, -0.435018)),
         gtsam::Point3(-0.662997, -0.495046, 1.347300));
 
-    gtsam::Pose3 cur2_pose = gtsam::Pose3(
+    cur2_pose_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.39266, -0.590667, -0.58023, -0.400326)),
         gtsam::Point3(-0.345638, -0.501712, 1.320441));
 
-    ref1_to_cur1_pose_ = ref1_pose.between(cur1_pose);
-    ref2_to_cur2_pose_ = ref2_pose.between(cur2_pose);
+    ref1_to_cur1_pose_ = ref1_pose_.between(cur1_pose_);
+    ref2_to_cur2_pose_ = ref2_pose_.between(cur2_pose_);
 
     initializeData();
   }
@@ -188,6 +188,7 @@ protected:
   std::unique_ptr<LoopClosureDetector> lcd_detector_;
 
   // Stored frame members
+  gtsam::Pose3 ref1_pose_, ref2_pose_, cur1_pose_, cur2_pose_;
   gtsam::Pose3 ref1_to_cur1_pose_, ref2_to_cur2_pose_;
   std::unique_ptr<StereoFrame> ref1_stereo_frame_, cur1_stereo_frame_;
   std::unique_ptr<StereoFrame> ref2_stereo_frame_, cur2_stereo_frame_;
@@ -435,12 +436,45 @@ TEST_F(LCDFixture, detectLoop) {
   EXPECT_LT(error.second, tran_tol);
 }
 
-TEST_F(LCDFixture, DISABLED_addVioFactorAndOptimize) {
-  // TODO(marcus): implement
+TEST_F(LCDFixture, addOdometryFactorAndOptimize) {
+  /* Test the addition of odometry factors to the PGO */
+  CHECK(lcd_detector_);
+  lcd_detector_->initializePGO();
+  lcd_detector_->addOdometryFactorAndOptimize(
+      VIO::OdometryFactor(1, gtsam::Pose3(),
+          gtsam::noiseModel::Isotropic::Variance(6, 0.1)));
+
+  VIO::OdometryFactor odom_factor(2, ref1_pose_,
+      gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+  lcd_detector_->addOdometryFactorAndOptimize(odom_factor);
+
+  gtsam::Values pgo_trajectory = lcd_detector_->getPGOTrajectory();
+  gtsam::NonlinearFactorGraph pgo_nfg = lcd_detector_->getPGOnfg();
+
+  EXPECT_EQ(pgo_trajectory.size(), 2);
+  EXPECT_EQ(pgo_nfg.size(), 1);
 }
 
-TEST_F(LCDFixture, DISABLED_addLoopClosureFactorAndOptimize) {
-  // TODO(marcus): implement
+TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
+  /* Test the addition of odometry and loop closure factors to the PGO */
+  CHECK(lcd_detector_);
+  lcd_detector_->initializePGO();
+  VIO::OdometryFactor odom_factor_1(1, ref1_pose_,
+      gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+  VIO::OdometryFactor odom_factor_2(2, cur1_pose_,
+      gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+  VIO::LoopClosureFactor lc_factor_1_2(1, 2, ref1_to_cur1_pose_,
+      gtsam::noiseModel::Isotropic::Variance(6, 0.1));
+
+  lcd_detector_->addOdometryFactorAndOptimize(odom_factor_1);
+  lcd_detector_->addOdometryFactorAndOptimize(odom_factor_2);
+  lcd_detector_->addLoopClosureFactorAndOptimize(lc_factor_1_2);
+
+  gtsam::Values pgo_trajectory = lcd_detector_->getPGOTrajectory();
+  gtsam::NonlinearFactorGraph pgo_nfg = lcd_detector_->getPGOnfg();
+
+  EXPECT_EQ(pgo_trajectory.size(), 2);
+  EXPECT_EQ(pgo_nfg.size(), 1);
 }
 
 TEST_F(LCDFixture, spinOnce) {
@@ -452,25 +486,25 @@ TEST_F(LCDFixture, spinOnce) {
   const std::shared_ptr<LoopClosureDetectorInputPayload> input_0 =
     std::make_shared<LoopClosureDetectorInputPayload>(timestamp_ref1_,
       FrameId(1), *ref1_stereo_frame_, gtsam::Pose3());
-  auto output_0 = lcd_detector_->spinOnce(input_0);
+  LoopClosureDetectorOutputPayload output_0 = lcd_detector_->spinOnce(input_0);
 
   CHECK(ref2_stereo_frame_);
   const std::shared_ptr<LoopClosureDetectorInputPayload> input_1 =
     std::make_shared<LoopClosureDetectorInputPayload>(timestamp_ref2_,
       FrameId(2), *ref2_stereo_frame_, gtsam::Pose3());
-  auto output_1 = lcd_detector_->spinOnce(input_1);
+  LoopClosureDetectorOutputPayload output_1 = lcd_detector_->spinOnce(input_1);
 
   CHECK(cur1_stereo_frame_);
   const std::shared_ptr<LoopClosureDetectorInputPayload> input_2 =
     std::make_shared<LoopClosureDetectorInputPayload>(timestamp_cur1_,
       FrameId(3), *cur1_stereo_frame_, gtsam::Pose3());
-  auto output_2 = lcd_detector_->spinOnce(input_2);
+  LoopClosureDetectorOutputPayload output_2 = lcd_detector_->spinOnce(input_2);
 
   CHECK(cur2_stereo_frame_);
   const std::shared_ptr<LoopClosureDetectorInputPayload> input_3 =
     std::make_shared<LoopClosureDetectorInputPayload>(timestamp_cur2_,
       FrameId(4), *cur2_stereo_frame_, gtsam::Pose3());
-  auto output_3 = lcd_detector_->spinOnce(input_3);
+  LoopClosureDetectorOutputPayload output_3 = lcd_detector_->spinOnce(input_3);
 
   EXPECT_EQ(output_0.is_loop_closure_, false);
   EXPECT_EQ(output_1.is_loop_closure_, false);

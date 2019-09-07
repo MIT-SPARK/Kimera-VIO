@@ -1,9 +1,9 @@
 %YAML:1.0
 # LoopClosureDetector parameters:
 use_nss: 1
-alpha: 0.0001
+alpha: 0.1
 min_temporal_matches: 3
-dist_local: 20
+dist_local: 5
 max_db_results: 50
 min_nss_factor: 0.005
 min_matches_per_group: 1

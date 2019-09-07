@@ -47,8 +47,8 @@ class LoopClosureDetector {
   virtual ~LoopClosureDetector();
 
   bool spin(ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
-      ThreadsafeQueue<LoopClosureDetectorOutputPayload>& output_queue,
-      bool parallel_run = true);
+            ThreadsafeQueue<LoopClosureDetectorOutputPayload>& output_queue,
+            bool parallel_run = true);
 
   LoopClosureDetectorOutputPayload spinOnce(
       const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
@@ -95,7 +95,11 @@ class LoopClosureDetector {
 
   inline const bool getIntrinsicsFlag() const { return set_intrinsics_; }
 
-  inline const gtsam::Pose3 getWPoseMap() const;
+  const gtsam::Pose3 getWPoseMap() const;
+
+  const gtsam::Values getPGOTrajectory() const;
+
+  const gtsam::NonlinearFactorGraph getPGOnfg() const;
 
   // TODO(marcus): maybe this should be private. But that makes testing harder.
   void setIntrinsics(const StereoFrame& stereo_frame);
@@ -128,6 +132,14 @@ class LoopClosureDetector {
   void transformBodyPose2CameraPose(const gtsam::Pose3& bodyCur_T_bodyRef,
                                     gtsam::Pose3* camCur_T_camRef) const;
 
+  void addOdometryFactorAndOptimize(const OdometryFactor& factor);
+
+  void addLoopClosureFactorAndOptimize(const LoopClosureFactor& factor);
+
+  void initializePGO();
+
+  void initializePGO(const OdometryFactor& factor);
+
  private:
   // TODO(marcus): review this one
   bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
@@ -137,7 +149,8 @@ class LoopClosureDetector {
       std::vector<MatchIsland>* islands) const;
 
   double computeIslandScore(const DBoW2::QueryResults& q,
-      const FrameId& start_id, const FrameId& end_id) const;
+                            const FrameId& start_id,
+                            const FrameId& end_id) const;
 
   void computeMatchedIndices(const FrameId& query_id, const FrameId& match_id,
                              std::vector<unsigned int>* i_query,
@@ -145,23 +158,15 @@ class LoopClosureDetector {
                              bool cut_matches = false) const;
 
   bool geometricVerificationNister(const FrameId& query_id,
-                                    const FrameId& match_id,
-                                    gtsam::Pose3* camCur_T_camRef_mono) const;
+                                   const FrameId& match_id,
+                                   gtsam::Pose3* camCur_T_camRef_mono) const;
 
   bool recoverPoseArun(const FrameId& query_id, const FrameId& match_id,
-                        gtsam::Pose3* bodyCur_T_bodyRef) const;
+                       gtsam::Pose3* bodyCur_T_bodyRef) const;
 
   bool recoverPoseGivenRot(const FrameId& query_id, const FrameId& match_id,
-                            const gtsam::Pose3& camCur_T_camRef_mono,
-                            gtsam::Pose3* bodyCur_T_bodyRef) const;
-
-  void initializePGO();
-
-  void initializePGO(const OdometryFactor& factor);
-
-  void addOdometryFactorAndOptimize(const OdometryFactor& factor);
-
-  void addLoopClosureFactorAndOptimize(const LoopClosureFactor& factor);
+                           const gtsam::Pose3& camCur_T_camRef_mono,
+                           gtsam::Pose3* bodyCur_T_bodyRef) const;
 
  private:
   // Parameter members

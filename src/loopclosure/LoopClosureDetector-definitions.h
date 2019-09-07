@@ -231,14 +231,15 @@ struct LoopClosureDetectorOutputPayload {
         states_(states),
         nfg_(nfg) {}
 
-  // Trivial constructor
   LoopClosureDetectorOutputPayload()
       : is_loop_closure_(false),
         timestamp_kf_(0),
         id_match_(0),
         id_recent_(0),
         relative_pose_(gtsam::Pose3()),
-        W_Pose_Map_(gtsam::Pose3()) {}
+        W_Pose_Map_(gtsam::Pose3()),
+        states_(gtsam::Values()),
+        nfg_(gtsam::NonlinearFactorGraph()) {}
 
   // TODO(marcus): inlude stats/score of match
   bool is_loop_closure_;
