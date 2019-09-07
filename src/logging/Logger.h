@@ -130,6 +130,7 @@ class LoopClosureDetectorLogger {
   LoopClosureDetectorLogger();
   ~LoopClosureDetectorLogger() = default;
 
+  void logTsMap(const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map);
   void logLCDResult(const LoopClosureDetectorOutputPayload& lcd_output);
   void logLoopClosure(const LoopClosureDetectorOutputPayload& lcd_output);
   void logOptimizedTraj(const LoopClosureDetectorOutputPayload& lcd_output);
@@ -140,6 +141,7 @@ class LoopClosureDetectorLogger {
   OfstreamWrapper output_lcd_;
   OfstreamWrapper output_traj_;
   OfstreamWrapper output_status_;
+  std::unordered_map<VIO::FrameId, VIO::Timestamp> ts_map_;
 };
 
 }  // namespace VIO

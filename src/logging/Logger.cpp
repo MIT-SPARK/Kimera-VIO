@@ -463,7 +463,13 @@ void PipelineLogger::logPipelineOverallTiming(
 LoopClosureDetectorLogger::LoopClosureDetectorLogger()
     : output_lcd_("output_lcd_result.csv"),
       output_traj_("output_lcd_optimized_traj.csv"),
-      output_status_("output_lcd_status.csv") {};
+      output_status_("output_lcd_status.csv"),
+      ts_map_() {};
+
+void LoopClosureDetectorLogger::logTsMap(
+    const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map) {
+  ts_map_ = ts_map;
+}
 
 void LoopClosureDetectorLogger::logLCDResult(
     const LoopClosureDetectorOutputPayload& lcd_output) {
@@ -497,41 +503,42 @@ void LoopClosureDetectorLogger::logLoopClosure(
                     << rel_quat.w() << ","
                     << rel_quat.x() << ","
                     << rel_quat.y() << ","
-                    << rel_quat.z() << ","
+                    << rel_quat.z()
                     << std::endl;
 }
 
 void LoopClosureDetectorLogger::logOptimizedTraj(
     const LoopClosureDetectorOutputPayload& lcd_output) {
-  // First close and reopen log file to clear contents completely.
+  // We close and reopen log file to clear contents completely.
   output_traj_.closeAndOpenLogFile();
   // We log the full optimized trajectory in csv format.
   std::ofstream& output_stream_traj = output_traj_.ofstream_;
 
   // TODO(marcus): set the append to false on this one and overwrite EVERY TIME
 
-  static bool is_header_written = false;
+  bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_traj << "kf_id,x,y,z,qw,qx,qy,qz"
+    output_stream_traj << "timestamp_kf,kf_id,x,y,z,qw,qx,qy,qz"
                        << std::endl;
     is_header_written = true;
   }
 
   const gtsam::Values& traj = lcd_output.states_;
 
-  for (size_t i = 0; i < traj.size(); i++) {
+  for (size_t i = 1; i < traj.size(); i++) {
     gtsam::Pose3 pose = traj.at<gtsam::Pose3>(i);
     const auto trans = pose.translation();
     const auto quat = pose.rotation().toQuaternion();
 
-    output_stream_traj << i << ","
+    output_stream_traj << ts_map_.at(i) << ","
+                       << i << ","
                        << trans.x() << ","
                        << trans.y() << ","
                        << trans.z() << ","
                        << quat.w() << ","
                        << quat.x() << ","
                        << quat.y() << ","
-                       << quat.z() << ","
+                       << quat.z()
                        << std::endl;
   }
 }
@@ -551,7 +558,7 @@ void LoopClosureDetectorLogger::logKfStatus(const Timestamp& timestamp_kf,
   output_stream_status << timestamp_kf << ","
                        << LoopResult::asString(lc_result.status_) << ","
                        << lc_result.query_id_ << ","
-                       << lc_result.match_id_ << ","
+                       << lc_result.match_id_
                        << std::endl;
 }
 
