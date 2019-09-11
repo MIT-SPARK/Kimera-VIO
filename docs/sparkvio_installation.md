@@ -7,7 +7,7 @@ Tested on Mac, Ubuntu 14.04 & 16.04.
 ## Prerequisites:
 
 - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
-- [OpenCV](https://github.com/opencv/opencv) >= 3.0
+- [OpenCV](https://github.com/opencv/opencv) >= 3.3.1
 - [OpenGV](https://github.com/laurentkneip/opengv)
 - [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
 
@@ -45,8 +45,8 @@ Ensure that:
 
 Compile and install GTSAM:
 ```bash
-make $(nproc) check # (optional, runs unit tests)
-sudo make $(nproc) install
+make -j $(nproc) check # (optional, runs unit tests)
+sudo make -j $(nproc) install
 ```
 
 > Alternatively, replace `$(nproc)` by the number of available cores in your computer.
@@ -151,12 +151,17 @@ Once installed, clone this repo, build the image and run it:
 ```bash
 # Clone the repo
 git clone git@github.mit.edu:SPARK/VIO.git SparkVIO
-cd SparkVIO
 
 # Build the image
+cd SparkVIO
 docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
 --build-arg SSH_PRIVATE_KEY="$(cat /home/<username>/.ssh/id_rsa)"
+```
 
+This may take a while (>15min), so you can go and grab a cup of coffee.
+Once done, you can run the `spark_vio_docker.bash`:
+
+```bash
 # Run an example dataset
 ./scripts/docker/spark_vio_docker.bash
 ```
