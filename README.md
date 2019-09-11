@@ -59,6 +59,9 @@ Find how to install SparkVIO and its dependencies here: **[Installation instruct
 #### Download Euroc's dataset
 
 - Download one of Euroc's datasets, for example [V1_01_easy.zip](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip).
+
+> Datasets MH_04 and V2_03 have different number of left/right frames. We suggest using instead our version of Euroc [here](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O).
+
 - Unzip the dataset to your preferred directory, for example, in `~/Euroc/V1_01_easy`:
 ```bash
 mkdir -p ~/Euroc/V1_01_easy
@@ -132,10 +135,21 @@ Also, check [tips for development](./docs/tips_development.md) and our [develope
 # 6. FAQ
 
 ### 1. Gflags
-  I have added/changed a gflag but it has no effect?
+  Q: I have added/changed a gflag but it has no effect?
 
-  > Mind that according to gflags specs: 
-  > > If a flag is specified more than once, only the last specification is used; the others are ignored.
+  A: Mind that according to gflags specs: 
+  > If a flag is specified more than once, only the last specification is used; the others are ignored.
+
+### 2. Euroc dataset
+  Q: Frame mismatch in Euroc? Seeing this error msg:
+  ```
+    W0911 10:22:30.347504 27725 ETH_parser.cpp:520] Different number of images in left and right camera!
+    Left: 2033
+    Right: 2032
+  ```
+
+  A: Euroc has datasets with mismatching number of frames, use instead our dataset files [here](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O).
+
   
 # 7. Chart
 
