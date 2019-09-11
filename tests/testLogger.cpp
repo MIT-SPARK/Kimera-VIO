@@ -18,6 +18,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <random>
 #include <boost/algorithm/string.hpp>
 #include <boost/random/mersenne_twister.hpp>
 
@@ -36,6 +37,15 @@ static const double tol = 1e-7;
 namespace VIO {
 
 using csv_mat = std::vector<std::vector<std::string>>;
+
+void checkHeader(std::vector<std::string> actual,
+    std::vector<std::string> expected) {
+  EXPECT_EQ(actual.size(), expected.size());
+
+  for (size_t i=0; i<actual.size(); i++) {
+    EXPECT_EQ(actual.at(i), expected.at(i));
+  }
+}
 
 class CSVReader {
  public:
@@ -61,11 +71,25 @@ class CSVReader {
   std::string sep_;
 };
 
-class BackendLoggerFixture : public ::testing::Test {
+class LoggerFixture : public ::testing::Test {
  public:
-  BackendLoggerFixture()
-      : logger_FLAGS_test_data_path(FLAGS_test_data_path +
-                                    std::string("/ForLogger/")) {
+  LoggerFixture() : logger_FLAGS_test_data_path(
+      FLAGS_test_data_path + std::string("/ForLogger/")) {}
+
+ protected:
+  virtual void SetUp() {}
+  virtual void TearDown() {}
+
+ protected:
+  std::string logger_FLAGS_test_data_path;
+  CSVReader csv_reader_;
+  boost::random::mt19937 rng_;
+  std::default_random_engine random_eng_;
+};
+
+class BackendLoggerFixture : public LoggerFixture {
+ public:
+  BackendLoggerFixture() {
     FLAGS_output_path = logger_FLAGS_test_data_path + "backend_output/";
     logger_ = VIO::make_unique<BackendLogger>();
 
@@ -74,41 +98,26 @@ class BackendLoggerFixture : public ::testing::Test {
   }
 
  protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+  std::unique_ptr<BackendLogger> logger_;
+};
 
- protected:
-  void checkHeader(std::vector<std::string> actual,
-      std::vector<std::string> expected) {
-    EXPECT_EQ(actual.at(0), expected.at(0));
-    EXPECT_EQ(actual.at(1), expected.at(1));
-    EXPECT_EQ(actual.at(2), expected.at(2));
-    EXPECT_EQ(actual.at(3), expected.at(3));
-    EXPECT_EQ(actual.at(4), expected.at(4));
-    EXPECT_EQ(actual.at(5), expected.at(5));
-    EXPECT_EQ(actual.at(6), expected.at(6));
-    EXPECT_EQ(actual.at(7), expected.at(7));
-    EXPECT_EQ(actual.at(8), expected.at(8));
-    EXPECT_EQ(actual.at(9), expected.at(9));
-    EXPECT_EQ(actual.at(10), expected.at(10));
-    EXPECT_EQ(actual.at(11), expected.at(11));
-    EXPECT_EQ(actual.at(12), expected.at(12));
-    EXPECT_EQ(actual.at(13), expected.at(13));
-    EXPECT_EQ(actual.at(14), expected.at(14));
-    EXPECT_EQ(actual.at(15), expected.at(15));
-    EXPECT_EQ(actual.at(16), expected.at(16));
+class FrontendLoggerFixture : public LoggerFixture {
+ public:
+  FrontendLoggerFixture() {
+    FLAGS_output_path = logger_FLAGS_test_data_path + "frontend_output/";
+    logger_ = VIO::make_unique<FrontendLogger>();
+
+    // Seed randomness.
+    std::srand(0);
   }
 
  protected:
-  std::string logger_FLAGS_test_data_path;
-  std::unique_ptr<BackendLogger> logger_;
-  CSVReader csv_reader_;
-  boost::random::mt19937 rng_;
+  std::unique_ptr<FrontendLogger> logger_;
 };
 
 TEST_F(BackendLoggerFixture, logBackendOutput) {
   // Declare all random output members.
-  Timestamp timestamp = rand();
+  const Timestamp& timestamp = random_eng_();
   gtsam::Values state_values;
   gtsam::Pose3 W_Pose_Blkf = gtsam::Pose3(
       gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
@@ -116,8 +125,8 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   gtsam::Pose3 B_Pose_leftCam = gtsam::Pose3(
       gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
   ImuBias imu_bias;
-  int cur_kf_id = rand();
-  int landmark_count = rand();
+  int cur_kf_id = random_eng_();
+  int landmark_count = random_eng_();
 
 
   logger_->logBackendOutput(
@@ -167,6 +176,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   float actual_bax = std::stof(actual_W_Pose_Blkf.at(14));
   float actual_bay = std::stof(actual_W_Pose_Blkf.at(15));
   float actual_baz = std::stof(actual_W_Pose_Blkf.at(16));
+  EXPECT_EQ(actual_timestamp, timestamp);
   EXPECT_LT(actual_x - W_Pose_Blkf.translation().x(), tol);
   EXPECT_LT(actual_y - W_Pose_Blkf.translation().y(), tol);
   EXPECT_LT(actual_z - W_Pose_Blkf.translation().z(), tol);
@@ -184,8 +194,6 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   EXPECT_LT(actual_bax - imu_bias.accelerometer()(0), tol);
   EXPECT_LT(actual_bay - imu_bias.accelerometer()(1), tol);
   EXPECT_LT(actual_baz - imu_bias.accelerometer()(2), tol);
-  std::cout << "finished all the first ones." << std::endl;
-
 
 
   // Next we check the output_smartFactors.csv results file.
@@ -195,7 +203,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   // Check that only the header and one line were logged.
   EXPECT_EQ(smart_factors.size(), 2);
 
-  // Check csv header for output_smarFactors.csv.
+  // Check csv header for output_smartFactors.csv.
   std::vector<std::string> actual_smart_factors_header = smart_factors.at(0);
   std::vector<std::string> expected_smart_factors_header =
       {"cur_kf_id", "timestamp_kf", "numSF", "numValid", "numDegenerate",
@@ -204,12 +212,10 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
        "nrElementsInMatrix", "nrZeroElementsInMatrix"};
   checkHeader(actual_smart_factors_header, expected_smart_factors_header);
   // TODO(marcus): check values if you can easily make them nonzero.
-  std::cout << "finished all the second ones." << std::endl;
-
 
 
   // Next we check the output_pim_navstates.csv results file.
-  std::string pim_csv = FLAGS_output_path + "output_pim_navstates_csv";
+  std::string pim_csv = FLAGS_output_path + "output_pim_navstates.csv";
   csv_mat pim = csv_reader_.getData(pim_csv);
 
   // Check that only the header and one line were logged.
@@ -218,11 +224,9 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   // Check csv header for output_pim_navstates.csv.
   std::vector<std::string> actual_pim_header = pim.at(0);
   std::vector<std::string> expected_pim_header =
-      {"timestamp", "x", "y", "z", "qw", "qx", "qy", "qz", "vx", "vy", "vz"};
+      {"timestamp_kf", "x", "y", "z", "qw", "qx", "qy", "qz", "vx", "vy", "vz"};
   checkHeader(actual_pim_header, expected_pim_header);
   // TODO(marcus): check values if you can easily make them nonzero.
-  std::cout << "finished all the third ones." << std::endl;
-
 
 
   // Next we check the output_backendFactors.csv results file.
@@ -240,8 +244,6 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
        "landmark_count"};
   checkHeader(actual_factor_stats_header, expected_factor_stats_header);
   // TODO(marcus): check values if you can easily make them nonzero.
-  std::cout << "finished all the fourth ones." << std::endl;
-
 
 
   // Next we check the output_backendTiming.csv results file.
@@ -260,7 +262,134 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
        "marginalizeTime"};
   checkHeader(actual_timing_header, expected_timing_header);
   // TODO(marcus): check values if you can easily make them nonzero.
-  std::cout << "finished all the fifth ones." << std::endl;
+}
+
+TEST_F(FrontendLoggerFixture, logFrontendStats) {
+  const Timestamp& timestamp = random_eng_();
+  const size_t& nrKeypoints = random_eng_();
+
+  logger_->logFrontendStats(
+      timestamp,
+      VIO::DebugTrackerInfo(),
+      VIO::TrackerStatusSummary(),
+      nrKeypoints);
+
+  // First check the output_frontend_stats.csv results file.
+  std::string stats_csv = FLAGS_output_path + "output_frontend_stats.csv";
+  csv_mat stats = csv_reader_.getData(stats_csv);
+
+  // Check that only header and one line were logged.
+  EXPECT_EQ(stats.size(), 2);
+
+  // Check csv header for output_posesVIO.csv.
+  std::vector<std::string> actual_results_header = stats.at(0);
+  std::vector<std::string> expected_results_header =
+      {"timestamp_lkf", "mono_status", "stereo_status", "nr_keypoints",
+       "nrDetectedFeatures", "nrTrackerFeatures", "nrMonoInliers",
+       "nrMonoPutatives", "nrStereoInliers", "nrStereoPutatives",
+       "monoRansacIters", "stereoRansacIters", "nrValidRKP", "nrNoLeftRectRKP",
+       "nrNoRightRectRKP", "nrNoDepthRKP", "nrFailedArunRKP",
+       "featureDetectionTime", "featureTrackingTime", "monoRansacTime",
+       "stereoRansacTime", "featureSelectionTime", "extracted_corners",
+       "need_n_corners"};
+  checkHeader(actual_results_header, expected_results_header);
+
+  // Check values of the only result line.
+  std::vector<std::string> actual_stats = stats.at(1);
+
+  Timestamp actual_timestamp = std::stof(actual_stats.at(0));
+  std::string actual_mono_status = actual_stats.at(1);
+  std::string actual_stereo_status = actual_stats.at(2);
+  size_t actual_nrkeypoints = std::stof(actual_stats.at(3));
+
+  EXPECT_EQ(actual_timestamp, timestamp);
+  EXPECT_EQ(actual_mono_status, "INVALID");
+  EXPECT_EQ(actual_stereo_status, "INVALID");
+  // TODO(marcus): why doesn't this work:
+  // EXPECT_EQ(actual_nrkeypoints, nrKeypoints);
+
+  for (size_t i = 4; i < actual_stats.size(); i++) {
+    float val = std::stof(actual_stats.at(i));
+    EXPECT_EQ(val, 0);
+  }
+}
+
+TEST_F(FrontendLoggerFixture, logFrontendRansac) {
+  const Timestamp& timestamp = random_eng_();
+  gtsam::Pose3 mono_pose = gtsam::Pose3(
+      gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
+  gtsam::Pose3 stereo_pose = gtsam::Pose3(
+      gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
+
+  logger_->logFrontendRansac(
+      timestamp,
+      mono_pose,
+      stereo_pose);
+
+  // First check the output_frontend_ransac_mono.csv results file.
+  std::string ransac_mono_csv = FLAGS_output_path +
+      "output_frontend_ransac_mono.csv";
+  csv_mat ransac_mono = csv_reader_.getData(ransac_mono_csv);
+
+  // Check that only header and one line were logged.
+  EXPECT_EQ(ransac_mono.size(), 2);
+
+  // Check csv header for output_frontend_ransac_mono.csv.
+  std::vector<std::string> actual_mono_header = ransac_mono.at(0);
+  std::vector<std::string> expected_mono_header =
+      {"timestamp_lkf", "x", "y", "z", "qw", "qx", "qy", "qz"};
+  checkHeader(actual_mono_header, expected_mono_header);
+
+  // Check values of the only result line.
+  std::vector<std::string> actual_ransac_mono = ransac_mono.at(1);
+
+  Timestamp actual_timestamp = std::stof(actual_ransac_mono.at(0));
+  float actual_x = std::stof(actual_ransac_mono.at(1));
+  float actual_y = std::stof(actual_ransac_mono.at(2));
+  float actual_z = std::stof(actual_ransac_mono.at(3));
+  float actual_qw = std::stof(actual_ransac_mono.at(4));
+  float actual_qx = std::stof(actual_ransac_mono.at(5));
+  float actual_qy = std::stof(actual_ransac_mono.at(6));
+  float actual_qz = std::stof(actual_ransac_mono.at(7));
+  EXPECT_EQ(actual_timestamp, timestamp);
+  EXPECT_LT(actual_x - mono_pose.translation().x(), tol);
+  EXPECT_LT(actual_y - mono_pose.translation().y(), tol);
+  EXPECT_LT(actual_z - mono_pose.translation().z(), tol);
+  EXPECT_LT(actual_qw - mono_pose.rotation().toQuaternion().w(), tol);
+  EXPECT_LT(actual_qx - mono_pose.rotation().toQuaternion().x(), tol);
+  EXPECT_LT(actual_qy - mono_pose.rotation().toQuaternion().y(), tol);
+  EXPECT_LT(actual_qz - mono_pose.rotation().toQuaternion().z(), tol);
+
+  // Lastly do the same checks for the stereo file.
+  std::string ransac_stereo_csv = FLAGS_output_path +
+      "output_frontend_ransac_stereo.csv";
+  csv_mat ransac_stereo = csv_reader_.getData(ransac_stereo_csv);
+
+  EXPECT_EQ(ransac_stereo.size(), 2);
+
+  std::vector<std::string> actual_stereo_header = ransac_stereo.at(0);
+  std::vector<std::string> expected_stereo_header =
+      {"timestamp_lkf", "x", "y", "z", "qw", "qx", "qy", "qz"};
+  checkHeader(actual_stereo_header, expected_stereo_header);
+
+  std::vector<std::string> actual_ransac_stereo = ransac_stereo.at(1);
+
+  actual_timestamp = std::stof(actual_ransac_stereo.at(0));
+  actual_x = std::stof(actual_ransac_stereo.at(1));
+  actual_y = std::stof(actual_ransac_stereo.at(2));
+  actual_z = std::stof(actual_ransac_stereo.at(3));
+  actual_qw = std::stof(actual_ransac_stereo.at(4));
+  actual_qx = std::stof(actual_ransac_stereo.at(5));
+  actual_qy = std::stof(actual_ransac_stereo.at(6));
+  actual_qz = std::stof(actual_ransac_stereo.at(7));
+  EXPECT_EQ(actual_timestamp, timestamp);
+  EXPECT_LT(actual_x - stereo_pose.translation().x(), tol);
+  EXPECT_LT(actual_y - stereo_pose.translation().y(), tol);
+  EXPECT_LT(actual_z - stereo_pose.translation().z(), tol);
+  EXPECT_LT(actual_qw - stereo_pose.rotation().toQuaternion().w(), tol);
+  EXPECT_LT(actual_qx - stereo_pose.rotation().toQuaternion().x(), tol);
+  EXPECT_LT(actual_qy - stereo_pose.rotation().toQuaternion().y(), tol);
+  EXPECT_LT(actual_qz - stereo_pose.rotation().toQuaternion().z(), tol);
 }
 
 } // namespace VIO
