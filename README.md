@@ -60,7 +60,7 @@ Find how to install SparkVIO and its dependencies here: **[Installation instruct
 
 - Download one of Euroc's datasets, for example [V1_01_easy.zip](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip).
 
-> Datasets MH_04 and V2_03 have different number of left/right frames. We suggest using instead our version of Euroc [here](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O)
+> Datasets MH_04 and V2_03 have different number of left/right frames. We suggest using instead our version of Euroc [here](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O).
 
 - Unzip the dataset to your preferred directory, for example, in `~/Euroc/V1_01_easy`:
 ```bash
@@ -148,7 +148,7 @@ Also, check [tips for development](./docs/tips_development.md) and our [develope
     Right: 2032
   ```
 
-  A: Euroc has datasets with mismatching number of frames, use instead our dataset files [here](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O)
+  A: Euroc has datasets with mismatching number of frames, use instead our dataset files [here](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O).
 
   
 # 7. Chart
