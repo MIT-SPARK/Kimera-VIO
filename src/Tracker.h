@@ -36,38 +36,29 @@
 #include <gtsam/nonlinear/Marginals.h>
 #include "FeatureSelector.h"
 
-#define TRACKER_VERBOSITY 0 // Should be 1
-
 namespace VIO {
 
 ////////////////////////////////////////////////////////////////////////////////
 class Tracker {
 public:
   // Constructor
-  Tracker(const VioFrontEndParams& trackerParams = VioFrontEndParams(),
-          const int saveImages = 1):
-    trackerParams_(trackerParams),
-    outputImagesPath_("./outputImages/"), // only for debugging and visualization
-    landmark_count_(0),
-    pixelOffset_(),
-    saveImages_(saveImages),
-    verbosity_(TRACKER_VERBOSITY) {}
+ Tracker(const VioFrontEndParams& trackerParams = VioFrontEndParams());
 
-  // Tracker parameters.
-  const VioFrontEndParams trackerParams_;
+ // Tracker parameters.
+ const VioFrontEndParams trackerParams_;
 
-  // This is not const as for debugging we want to redirect the image save path
-  // where we like.
-  std::string outputImagesPath_;
+ // This is not const as for debugging we want to redirect the image save path
+ // where we like.
+ std::string outputImagesPath_;
 
-  // Mask for features.
-  cv::Mat camMask_;
+ // Mask for features.
+ cv::Mat camMask_;
 
-  // Counters.
-  int landmark_count_; // incremental id assigned to new landmarks
+ // Counters.
+ int landmark_count_;  // incremental id assigned to new landmarks
 
-  // Debug info.
-  DebugTrackerInfo debugInfo_;
+ // Debug info.
+ DebugTrackerInfo debugInfo_;
 
 public:
   /* +++++++++++++++++++++ NONCONST FUNCTIONS +++++++++++++++++++++++++++++++ */
@@ -119,10 +110,10 @@ public:
   cv::Mat displayFrame(
       const Frame& ref_frame,
       const Frame& cur_frame,
-      int verbosity = 0,
-      const KeypointsCV& extraCorners1 = KeypointsCV(),
-      const KeypointsCV& extraCorners2 = KeypointsCV(),
-      const std::string& extraString = "") const;
+      bool write_frame = false,
+      const std::string& img_title = "",
+      const KeypointsCV& extra_corners_gray = KeypointsCV(),
+      const KeypointsCV& extra_corners_blue = KeypointsCV()) const;
 
   /* ---------------------------- STATIC FUNCTIONS -------------------------- */
   static void findOutliers(
@@ -165,13 +156,11 @@ public:
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
   // Get tracker info
-  inline DebugTrackerInfo getTrackerDebugInfo() {return debugInfo_;} 
+  inline DebugTrackerInfo getTrackerDebugInfo() { return debugInfo_; }
 
-private:
+ private:
   // Pixel offset for using center of image
   cv::Point2f pixelOffset_;
-
-  const int saveImages_; // 0: don't show, 1: show, 2: write & save
 
   // Flags
   const int verbosity_;

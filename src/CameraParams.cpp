@@ -235,8 +235,7 @@ void CameraParams::print() const {
             << " height= " << image_size_.height << '\n'
             << "camera_matrix_: \n"
             << camera_matrix_ << '\n'
-            << "distortion_model_: \n"
-            << distortion_model_ << '\n'
+            << "distortion_model_: " << distortion_model_ << '\n'
             << "distortion_coeff_: \n"
             << distortion_coeff_ << '\n'
             << "R_rectify_: \n"
