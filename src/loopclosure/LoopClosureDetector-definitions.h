@@ -216,6 +216,8 @@ struct LoopClosureDetectorInputPayload {
 struct LoopClosureDetectorOutputPayload {
   LoopClosureDetectorOutputPayload(bool is_loop_closure,
                                    const Timestamp& timestamp_kf,
+                                   const Timestamp& timestamp_query,
+                                   const Timestamp& timestamp_match,
                                    const FrameId& id_match,
                                    const FrameId& id_recent,
                                    const gtsam::Pose3& relative_pose,
@@ -224,6 +226,8 @@ struct LoopClosureDetectorOutputPayload {
                                    const gtsam::NonlinearFactorGraph& nfg)
       : is_loop_closure_(is_loop_closure),
         timestamp_kf_(timestamp_kf),
+        timestamp_query_(timestamp_query),
+        timestamp_match_(timestamp_match),
         id_match_(id_match),
         id_recent_(id_recent),
         relative_pose_(relative_pose),
@@ -234,6 +238,8 @@ struct LoopClosureDetectorOutputPayload {
   LoopClosureDetectorOutputPayload()
       : is_loop_closure_(false),
         timestamp_kf_(0),
+        timestamp_query_(0),
+        timestamp_match_(0),
         id_match_(0),
         id_recent_(0),
         relative_pose_(gtsam::Pose3()),
@@ -244,6 +250,8 @@ struct LoopClosureDetectorOutputPayload {
   // TODO(marcus): inlude stats/score of match
   bool is_loop_closure_;
   Timestamp timestamp_kf_;
+  Timestamp timestamp_query_;
+  Timestamp timestamp_match_;
   FrameId id_match_;
   FrameId id_recent_;
   gtsam::Pose3 relative_pose_;

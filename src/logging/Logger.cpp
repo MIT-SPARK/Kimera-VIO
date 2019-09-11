@@ -484,8 +484,8 @@ void LoopClosureDetectorLogger::logLoopClosure(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_lcd << "timestamp,isLoop,matchKfId,queryKfId,px,py,pz,qw,qx,"
-                      << "qy,qz"
+    output_stream_lcd << "timestamp_kf,timestamp_query,timestamp_match,isLoop,"
+                      << "matchKfId,queryKfId,px,py,pz,qw,qx,qy,qz"
                       << std::endl;
     is_header_written = true;
   }
@@ -494,6 +494,8 @@ void LoopClosureDetectorLogger::logLoopClosure(
   const auto& rel_quat = lcd_output.relative_pose_.rotation().toQuaternion();
 
   output_stream_lcd << lcd_output.timestamp_kf_ << ","
+                    << lcd_output.timestamp_query_ << ","
+                    << lcd_output.timestamp_match_ << ","
                     << lcd_output.is_loop_closure_ << ","
                     << lcd_output.id_match_ << ","
                     << lcd_output.id_recent_ << ","

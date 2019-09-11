@@ -185,8 +185,11 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   }
   CHECK_EQ(set_intrinsics_, true);
 
+  CHECK(input->cur_kf_id_ > 0);
+
   // Update the PGO with the backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
+  ts_map_[input->cur_kf_id_-1] = input->timestamp_kf_;
   OdometryFactor odom_factor(input->cur_kf_id_, input->W_Pose_Blkf_,
       shared_noise_model_);
 
@@ -229,6 +232,8 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     output_payload = LoopClosureDetectorOutputPayload(
         true,
         input->timestamp_kf_,
+        ts_map_.at(loop_result.query_id_),
+        ts_map_.at(loop_result.match_id_),
         loop_result.match_id_,
         loop_result.query_id_,
         loop_result.relative_pose_,
@@ -236,12 +241,12 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
         pgo_states,
         pgo_nfg);
   } else {
-    output_payload = LoopClosureDetectorOutputPayload(false, 0, 0, 0,
-        gtsam::Pose3(), w_Pose_map, pgo_states, pgo_nfg);
+    output_payload.W_Pose_Map_ = w_Pose_map;
+    output_payload.states_ = pgo_states;
+    output_payload.nfg_ = pgo_nfg;
   }
 
   if (logger_) {
-    ts_map_[input->cur_kf_id_] = input->timestamp_kf_;
     logger_->logTsMap(ts_map_);
     logger_->logKfStatus(working_frame.getTimestamp(), loop_result);
     logger_->logLCDResult(output_payload);
