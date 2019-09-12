@@ -45,7 +45,7 @@ pipeline {
                 spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
 
           // Copy params to Workspace
-          sh 'cp -r /root/spark_vio_evaluation/params $WORKSPACE/spark_vio_evaluation/'
+          sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/'
 
           // Copy performance website to Workspace
           sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
