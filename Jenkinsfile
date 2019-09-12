@@ -44,6 +44,9 @@ pipeline {
                 spark_vio_evaluation/html/data/V1_01_easy/S/results.yaml \
                 spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
 
+          // Copy params to Workspace
+          sh 'cp -r /root/spark_vio_evaluation/params $WORKSPACE/spark_vio_evaluation/'
+
           // Copy performance website to Workspace
           sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
 
@@ -76,9 +79,16 @@ pipeline {
       // Publish HTML website with Dygraphs and pdfs of VIO performance
       publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
 
-      // Archive the CTest xml output.
+      // Archive the website
       archiveArtifacts (
           artifacts: 'spark_vio_evaluation/html/data/**/*.*',
+          fingerprint: true
+          )
+
+      // Archive the params used in evaluation (if these are used is determined
+      // by the experiments yaml file in spark_vio_evaluation)
+      archiveArtifacts (
+          artifacts: 'spark_vio_evaluation/params/**/*.*',
           fingerprint: true
           )
 
