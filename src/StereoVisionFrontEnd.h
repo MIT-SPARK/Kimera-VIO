@@ -43,23 +43,24 @@ public:
   //using StereoFrontEndOutputPayload = VioBackEndInputPayload;
 
 public:
-  StereoVisionFrontEnd(
-      const ImuParams &imu_params, const ImuBias &imu_initial_bias,
-      const VioFrontEndParams &trackerParams = VioFrontEndParams(),
-      int saveImages = 0, bool log_output = false);
+ StereoVisionFrontEnd(
+     const ImuParams& imu_params,
+     const ImuBias& imu_initial_bias,
+     const VioFrontEndParams& tracker_params = VioFrontEndParams(),
+     bool log_output = false);
 
-  /* ------------------------------------------------------------------------ */
-  bool spin(ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
-            ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue,
-            bool parallel_run = true);
+ /* ------------------------------------------------------------------------- */
+ bool spin(ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
+           ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue,
+           bool parallel_run = true);
 
-  /* ------------------------------------------------------------------------ */
-  // Shutdown spin.
-  inline void shutdown() {
-    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Frontend was already "
-                                  "shutdown.";
-    LOG(INFO) << "Shutting down Frontend.";
-    shutdown_ = true;
+ /* ------------------------------------------------------------------------- */
+ // Shutdown spin.
+ inline void shutdown() {
+   LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Frontend was already "
+                                 "shutdown.";
+   LOG(INFO) << "Shutting down Frontend.";
+   shutdown_ = true;
   }
 
   /* ------------------------------------------------------------------------ */
@@ -269,9 +270,6 @@ private:
 
   // Used to force the use of 5/3 point ransac, despite parameters
   std::atomic_bool force_53point_ransac_ = {false};
-
-  // Debug flag.
-  const int save_images_option_; // 0: don't show, 1: show, 2: write & save
 
   // Summary of information from the tracker, e.g., relative pose estimates and
   // status of mono and stereo ransac

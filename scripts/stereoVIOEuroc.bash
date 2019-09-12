@@ -17,7 +17,7 @@ PARALLEL_RUN=1
 # Specify: 1 to enable the LoopClosureDetector, 0 to not.
 USE_LCD=0
 
-# Specify: 1 to enable loogging, 0 to not.
+# Specify: 1 to enable logging of output files, 0 to not.
 LOG_OUTPUT=0
 ###################################################################
 

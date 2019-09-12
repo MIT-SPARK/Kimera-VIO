@@ -133,14 +133,11 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
 
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.
-  // TODO remove hardcoded saveImages, use gflag.
-  static constexpr int saveImages =
-      0;  // 0: don't show, 1: show, 2: write & save
-  vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
-      params.imu_params_,
-      gtsam::imuBias::ConstantBias(),
-      frontend_params_, saveImages,
-      FLAGS_log_output);
+  vio_frontend_ =
+      VIO::make_unique<StereoVisionFrontEnd>(params.imu_params_,
+                                             gtsam::imuBias::ConstantBias(),
+                                             frontend_params_,
+                                             FLAGS_log_output);
 
   if (FLAGS_use_lcd) {
     loop_closure_detector_ = VIO::make_unique<LoopClosureDetector>(

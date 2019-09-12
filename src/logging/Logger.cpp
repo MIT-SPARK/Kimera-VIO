@@ -59,12 +59,14 @@ void OfstreamWrapper::openLogFile(const std::string& output_file_name,
 BackendLogger::BackendLogger()
     : output_poses_vio_csv_("output_posesVIO.csv"),
       output_smart_factors_stats_csv_("output_smartFactors.csv"),
+      output_pim_navstates_csv_("output_pim_navstates.csv"),
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
       output_backend_timing_csv_("output_backendTiming.csv"){};
 
 void BackendLogger::logBackendOutput(const VioBackEndOutputPayload& output) {
   logBackendResultsCSV(output);
   logBackendFactorsStats(output);
+  logBackendPimNavstates(output);
   logSmartFactorsStats(output);
   logBackendTiming(output);
 }
@@ -115,7 +117,7 @@ void BackendLogger::logBackendResultsCSV(
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "#timestamp,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
+    output_stream << "timestamp,x,y,z,qx,qy,qz,qw,vx,vy,vz,"
                   << "bgx,bgy,bgz,bax,bay,baz"
                   << std::endl;
     is_header_written = true;
@@ -133,10 +135,10 @@ void BackendLogger::logBackendResultsCSV(
                 << w_pose_blkf_trans.x() << ","     //
                 << w_pose_blkf_trans.y() << ","     //
                 << w_pose_blkf_trans.z() << ","     //
-                << w_pose_blkf_rot(0) << ","        // q_w
                 << w_pose_blkf_rot(1) << ","        // q_x
                 << w_pose_blkf_rot(2) << ","        // q_y
                 << w_pose_blkf_rot(3) << ","        // q_z
+                << w_pose_blkf_rot(0) << ","        // q_w
                 << w_vel_blkf(0) << ","             //
                 << w_vel_blkf(1) << ","             //
                 << w_vel_blkf(2) << ","             //
@@ -165,8 +167,8 @@ void BackendLogger::logSmartFactorsStats(
     is_header_written = true;
   }
 
-  output_stream << output.cur_kf_id_ << ","     // keyframe id
-                << output.timestamp_kf_ << ","  // timestamp
+  output_stream << output.cur_kf_id_ << ","
+                << output.timestamp_kf_ << ","
                 << output.debug_info_.numSF_ << ","
                 << output.debug_info_.numValid_ << ","
                 << output.debug_info_.numDegenerate_ << ","
@@ -180,6 +182,37 @@ void BackendLogger::logSmartFactorsStats(
                 << output.debug_info_.maxTrackLength_ << ","
                 << output.debug_info_.nrElementsInMatrix_ << ","
                 << output.debug_info_.nrZeroElementsInMatrix_
+                << std::endl;
+}
+
+void BackendLogger::logBackendPimNavstates(
+    const VioBackEndOutputPayload& output) {
+  std::ofstream& output_stream = output_pim_navstates_csv_.ofstream_;
+
+  // First, write header, but only once.
+  static bool is_header_written = false;
+  if (!is_header_written) {
+    output_stream << "timestamp_kf,x,y,z,qw,qx,qy,qz,vx,vy,vz"
+                  << std::endl;
+    is_header_written = true;
+  }
+
+  const gtsam::Pose3& pose = output.debug_info_.navstate_k_.pose();
+  const gtsam::Point3& position = pose.translation();
+  const gtsam::Quaternion& quaternion = pose.rotation().toQuaternion();
+  const gtsam::Velocity3& velocity = output.debug_info_.navstate_k_.velocity();
+
+  output_stream << output.timestamp_kf_ << ","
+                << position.x() << ","
+                << position.y() << ","
+                << position.z() << ","
+                << quaternion.w() << ","
+                << quaternion.x() << ","
+                << quaternion.y() << ","
+                << quaternion.z() << ","
+                << velocity.x() << ","
+                << velocity.y() << ","
+                << velocity.z()
                 << std::endl;
 }
 
@@ -356,9 +389,9 @@ void FrontendLogger::logFrontendStats(
     is_header_written = true;
   }
 
-  output_stream_stats << timestamp_lkf << ",";
+  output_stream_stats << timestamp_lkf << ","
   // Mono status.
-  output_stream_stats << TrackerStatusSummary::asString(
+                      << TrackerStatusSummary::asString(
                               tracker_summary.kfTrackingStatus_mono_) << ","
   // Stereo status.
                       << TrackerStatusSummary::asString(
@@ -388,7 +421,7 @@ void FrontendLogger::logFrontendStats(
   // Info about feature selector.
                       << tracker_info.featureSelectionTime_ << ","
                       << tracker_info.extracted_corners_ << ","
-                      << tracker_info.need_n_corners_ << ","
+                      << tracker_info.need_n_corners_
                       << std::endl;
 }
 
@@ -403,19 +436,17 @@ void FrontendLogger::logFrontendRansac(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_mono << "timestamp_lkf,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
-                       << "bgx,bgy,bgz,bax,bay,baz"
+    output_stream_mono << "timestamp_lkf,x,y,z,qw,qx,qy,qz"
                        << std::endl;
-    output_stream_stereo << "timestamp_lkf,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
-                         << "bgx,bgy,bgz,bax,bay,baz"
+    output_stream_stereo << "timestamp_lkf,x,y,z,qw,qx,qy,qz"
                          << std::endl;
     is_header_written = true;
   }
 
   // Log relative mono poses; pose from previous keyframe to current keyframe,
   // in previous-keyframe coordinates. These are not cumulative trajectories.
-  const auto& mono_tran = relative_pose_body_mono.translation();
-  const auto& mono_quat = relative_pose_body_mono.rotation().toQuaternion();
+  const gtsam::Point3& mono_tran = relative_pose_body_mono.translation();
+  const gtsam::Quaternion& mono_quat = relative_pose_body_mono.rotation().toQuaternion();
 
   output_stream_mono << timestamp_lkf << ","
                      << mono_tran.x() << ","
@@ -424,15 +455,13 @@ void FrontendLogger::logFrontendRansac(
                      << mono_quat.w() << ","
                      << mono_quat.x() << ","
                      << mono_quat.y() << ","
-                     << mono_quat.z() << ","
-                     << 0 << "," << 0 << "," << 0 << "," << 0 << ","
-                     << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0
+                     << mono_quat.z()
                      << std::endl;
 
   // Log relative stereo poses; pose from previous keyframe to current keyframe,
   // in previous-keyframe coordinates. These are not cumulative trajectories.
-  const auto& stereo_tran = relative_pose_body_stereo.translation();
-  const auto& stereo_quat = relative_pose_body_stereo.rotation().toQuaternion();
+  const gtsam::Point3& stereo_tran = relative_pose_body_stereo.translation();
+  const gtsam::Quaternion& stereo_quat = relative_pose_body_stereo.rotation().toQuaternion();
 
   output_stream_stereo << timestamp_lkf   << ","
                        << stereo_tran.x() << ","
@@ -441,9 +470,7 @@ void FrontendLogger::logFrontendRansac(
                        << stereo_quat.w() << ","
                        << stereo_quat.x() << ","
                        << stereo_quat.y() << ","
-                       << stereo_quat.z() << ","
-                       << 0 << "," << 0 << "," << 0 << "," << 0 << ","
-                       << 0 << "," << 0 << "," << 0 << "," << 0 << "," << 0
+                       << stereo_quat.z()
                        << std::endl;
 }
 

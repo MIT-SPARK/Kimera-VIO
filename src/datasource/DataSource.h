@@ -55,6 +55,7 @@ protected:
   // Helper function to parse user-specified parameters.
   void parseBackendParams();
   void parseFrontendParams();
+  void parseLCDParams();
 };
 
 }  // namespace VIO

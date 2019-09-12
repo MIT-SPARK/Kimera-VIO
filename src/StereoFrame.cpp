@@ -1444,7 +1444,7 @@ void StereoFrame::showRectified(const int verbosity) const {
     cv::imwrite(img_name, canvas_undistort);
   }
   cv::imshow("Rectified!", canvas_undistort);
-  cv::waitKey(50);
+  cv::waitKey(1);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1459,7 +1459,7 @@ void StereoFrame::showImagesSideBySide(const cv::Mat imL, const cv::Mat imR,
     cv::namedWindow(
         title, cv::WINDOW_AUTOSIZE);  // moved in here to allow saving images
     cv::imshow("originalLR", originalLR);
-    cv::waitKey(200);
+    cv::waitKey(1);
   } else if (verbosity == 2) {
     std::string img_name =
         "./outputImages/" + title + std::to_string(id_) + ".png";

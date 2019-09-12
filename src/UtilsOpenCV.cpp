@@ -815,7 +815,7 @@ void UtilsOpenCV::DrawCornersMatchesOneByOne(
     cv::line(baseCanvas, corners1[matches[i].queryIdx],
              corners2[matches[i].trainIdx] + ptOffset, cv::Scalar(0, 255, 0));
     cv::imshow("Match one by one", baseCanvas);
-    cv::waitKey(0);
+    cv::waitKey(1);
   }
 }
 /* -------------------------------------------------------------------------- */
@@ -1007,7 +1007,7 @@ UtilsOpenCV::FindHighIntensityInTriangle(const cv::Mat img,
 
   if (isDebug) {
     cv::imshow("imgCopy", imgCopy);
-    cv::waitKey(0);
+    cv::waitKey(1);
   }
 
   return keypointsWithIntensities;

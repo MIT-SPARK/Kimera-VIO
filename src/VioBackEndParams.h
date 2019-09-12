@@ -137,6 +137,7 @@ public:
       initialVelocitySigma_, initialAccBiasSigma_, initialGyroBiasSigma_;
 
   // imu params
+  // TODO(TONI): these imu stuff should be in its own yaml parser!!
   double gyroNoiseDensity_, accNoiseDensity_, imuIntegrationSigma_,
       gyroBiasSigma_, accBiasSigma_, nominalImuRate_;
   gtsam::Vector3 n_gravity_;
@@ -182,9 +183,9 @@ protected:
     // IMU PARAMS
     yaml_parser_->getYamlParam("gyroNoiseDensity", &gyroNoiseDensity_);
     yaml_parser_->getYamlParam("accNoiseDensity", &accNoiseDensity_);
-    yaml_parser_->getYamlParam("imuIntegrationSigma", &imuIntegrationSigma_);
     yaml_parser_->getYamlParam("gyroBiasSigma", &gyroBiasSigma_);
     yaml_parser_->getYamlParam("accBiasSigma", &accBiasSigma_);
+    yaml_parser_->getYamlParam("imuIntegrationSigma", &imuIntegrationSigma_);
     std::vector<double> n_gravity;
     yaml_parser_->getYamlParam("n_gravity", &n_gravity);
     CHECK_EQ(n_gravity.size(), 3);

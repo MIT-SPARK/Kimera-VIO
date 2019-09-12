@@ -113,7 +113,7 @@ class LCDFixture :public ::testing::Test {
 
     // Initialize StereoFrame objects for reference and current frames
     VioFrontEndParams tp;
-    Tracker tracker(tp, 0);
+    Tracker tracker(tp);
 
     ref1_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_ref1_, timestamp_ref1_,
