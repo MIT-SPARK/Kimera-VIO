@@ -198,7 +198,7 @@ class LoopClosureDetector {
 
   // Robust PGO members
   std::unique_ptr<RobustPGO::RobustSolver> pgo_;
-  std::vector<gtsam::Pose3> W_Pose_Bkf_estimates_;
+  std::vector<gtsam::Pose3> W_Pose_Blkf_estimates_;
   gtsam::SharedNoiseModel shared_noise_model_; // TODO(marcus): make accurate
                                                // should also come in with input
 

@@ -72,9 +72,14 @@ LoopClosureDetector::LoopClosureDetector(
       temporal_entries_(0),
       B_Pose_camLrect_(),
       pgo_(nullptr),
-      W_Pose_Bkf_estimates_(),
-      shared_noise_model_(gtsam::noiseModel::Isotropic::Variance(6, 0.1)),
+      W_Pose_Blkf_estimates_(),
       logger_(nullptr) {
+
+  // TODO(marcus): initializer list!
+  gtsam::Vector6 sigmas;
+  sigmas << 0.01, 0.01, 0.01, 0.1, 0.1, 0.1;
+  shared_noise_model_ = gtsam::noiseModel::Diagonal::Sigmas(sigmas);
+
   // Initialize the ORB feature detector object:
   orb_feature_detector_ = cv::ORB::create(lcd_params_.nfeatures_,
       lcd_params_.scale_factor_, lcd_params_.nlevels_,
@@ -151,12 +156,14 @@ bool LoopClosureDetector::spin(
 }
 
 const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
-  if (W_Pose_Bkf_estimates_.size() > 1) {
+  if (W_Pose_Blkf_estimates_.size() > 1) {
     CHECK(pgo_);
-    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Bkf_estimates_.back();
+    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
+    // TODO(marcus): Seems like we might be picking the wrong one.
+    // If W_Pose_Blkf_estimates_ is lkf, then we should want the cur one?
     gtsam::Pose3 w_Pose_Bkf_optimal =
         pgo_->calculateEstimate().at<gtsam::Pose3>(
-            W_Pose_Bkf_estimates_.size() - 1);
+            W_Pose_Blkf_estimates_.size() - 1);
 
     return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
   }
@@ -184,8 +191,7 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     setIntrinsics(input->stereo_frame_);
   }
   CHECK_EQ(set_intrinsics_, true);
-
-  CHECK(input->cur_kf_id_ > 0);
+  CHECK_GT(input->cur_kf_id_, 0);
 
   // Update the PGO with the backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
@@ -219,6 +225,11 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     VLOG(2) << "LoopClosureDetector: No loop closure detected. Reason: "
             << LoopResult::asString(loop_result.status_);
   }
+
+  // Timestamps for PGO and for LCD should match now.
+  CHECK_EQ(db_frames_.back().timestamp_, ts_map_.at(db_frames_.back().id_));
+  CHECK_EQ(ts_map_.size(), db_frames_.size());
+  CHECK_EQ(ts_map_.size(), W_Pose_Blkf_estimates_.size());
 
   // Construct output payload.
   CHECK(pgo_);
@@ -471,7 +482,7 @@ void LoopClosureDetector::allocate(size_t n) {
   }
 
   db_BoW_->allocate(n, lcd_params_.nfeatures_);
-  W_Pose_Bkf_estimates_.reserve(n);
+  W_Pose_Blkf_estimates_.reserve(n);
 }
 
 void LoopClosureDetector::clear() {
@@ -479,7 +490,7 @@ void LoopClosureDetector::clear() {
   db_frames_.clear();
   latest_bowvec_.clear();
   latest_matched_island_.clear();
-  W_Pose_Bkf_estimates_.clear();
+  W_Pose_Blkf_estimates_.clear();
   latest_query_id_ = 0;
   temporal_entries_ = 0;
 }
@@ -539,6 +550,15 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
 
   // Automatically match keypoints in right image with those in left.
   stereo_frame->sparseStereoMatching();
+
+  size_t num_kp = keypoints.size();
+  CHECK_EQ(left_frame_mutable->keypoints_.size(), num_kp);
+  CHECK_EQ(left_frame_mutable->versors_.size(), num_kp);
+  CHECK_EQ(left_frame_mutable->scores_.size(), num_kp);
+  CHECK_EQ(stereo_frame->keypoints_3d_.size(), num_kp);
+  CHECK_EQ(stereo_frame->keypoints_depth_.size(), num_kp);
+  CHECK_EQ(stereo_frame->left_keypoints_rectified_.size(), num_kp);
+  CHECK_EQ(stereo_frame->right_keypoints_rectified_.size(), num_kp);
 }
 
 cv::Mat LoopClosureDetector::computeAndDrawMatchesBetweenFrames(
@@ -969,8 +989,8 @@ void LoopClosureDetector::initializePGO(const OdometryFactor& factor) {
 // that the extra check in here isn't needed...
 void LoopClosureDetector::addOdometryFactorAndOptimize(
     const OdometryFactor& factor) {
-  W_Pose_Bkf_estimates_.push_back(factor.W_Pose_Blkf_);
-  CHECK(factor.cur_key_ <= W_Pose_Bkf_estimates_.size())
+  W_Pose_Blkf_estimates_.push_back(factor.W_Pose_Blkf_);
+  CHECK(factor.cur_key_ <= W_Pose_Blkf_estimates_.size())
       << "LoopClosureDetector: new odometry factor has a key that is too high.";
 
   gtsam::NonlinearFactorGraph nfg;
@@ -980,7 +1000,7 @@ void LoopClosureDetector::addOdometryFactorAndOptimize(
     value.insert(gtsam::Symbol(factor.cur_key_-1), factor.W_Pose_Blkf_);
 
     gtsam::Pose3 B_llkf_Pose_lkf =
-        W_Pose_Bkf_estimates_.at(factor.cur_key_-2).between(
+        W_Pose_Blkf_estimates_.at(factor.cur_key_-2).between(
             factor.W_Pose_Blkf_);
 
     nfg.add(gtsam::BetweenFactor<gtsam::Pose3>(
