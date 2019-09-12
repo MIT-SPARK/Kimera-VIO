@@ -272,7 +272,7 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
   DCHECK_EQ(counts.size(), vertices_mesh_normal_.rows);
   // Average and normalize normals.
   // clang-format off
-#pragma omp parallel for num_threads(params.omp_num_threads) schedule(static, params.omp_chunk_size)
+  // #pragma omp parallel for num_threads(params.omp_num_threads) schedule(static, params.omp_chunk_size)
   // clang-format on
   for (int i = 0; i < vertices_mesh_normal_.rows; i++) {
     VertexNormal& normal = vertices_mesh_normal_.at<VertexNormal>(i);
