@@ -59,11 +59,11 @@ class LoopClosureDetector {
 
   bool geometricVerificationCheck(const FrameId& query_id,
                                   const FrameId& match_id,
-                                  gtsam::Pose3* camCur_T_camRef_mono) const;
+                                  gtsam::Pose3* camCur_T_camRef_mono);
 
   bool recoverPose(const FrameId& query_id, const FrameId& match_id,
                    const gtsam::Pose3& camCur_T_camRef_mono,
-                   gtsam::Pose3* bodyCur_T_bodyRef_stereo) const;
+                   gtsam::Pose3* bodyCur_T_bodyRef_stereo);
 
   inline void shutdown() {
     LOG_IF(WARNING, shutdown_) << "Shutdown requested, but LoopClosureDetector "
@@ -159,14 +159,14 @@ class LoopClosureDetector {
 
   bool geometricVerificationNister(const FrameId& query_id,
                                    const FrameId& match_id,
-                                   gtsam::Pose3* camCur_T_camRef_mono) const;
+                                   gtsam::Pose3* camCur_T_camRef_mono);
 
   bool recoverPoseArun(const FrameId& query_id, const FrameId& match_id,
-                       gtsam::Pose3* bodyCur_T_bodyRef) const;
+                       gtsam::Pose3* bodyCur_T_bodyRef);
 
   bool recoverPoseGivenRot(const FrameId& query_id, const FrameId& match_id,
                            const gtsam::Pose3& camCur_T_camRef_mono,
-                           gtsam::Pose3* bodyCur_T_bodyRef) const;
+                           gtsam::Pose3* bodyCur_T_bodyRef);
 
  private:
   // Parameter members
@@ -202,8 +202,9 @@ class LoopClosureDetector {
   gtsam::SharedNoiseModel shared_noise_model_; // TODO(marcus): make accurate
                                                // should also come in with input
 
-  // LoopCLosureDetector Logger
+  // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;
+  LcdDebugInfo debug_info_;
 };  // class LoopClosureDetector
 
 }  // namespace VIO

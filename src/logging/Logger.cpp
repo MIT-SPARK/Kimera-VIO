@@ -572,22 +572,34 @@ void LoopClosureDetectorLogger::logOptimizedTraj(
   }
 }
 
-void LoopClosureDetectorLogger::logKfStatus(const Timestamp& timestamp_kf,
-    const LoopResult& lc_result) {
+void LoopClosureDetectorLogger::logDebugInfo(const LcdDebugInfo& debug_info) {
   // We log the loop-closure result of every key frame in csv format.
   std::ofstream& output_stream_status = output_status_.ofstream_;
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_status << "timestamp_kf,status,query_id,match_id"
-                        << std::endl;
+    output_stream_status << "timestamp_kf,lcd_status,query_id,match_id,"
+                         << "mono_input_size,mono_inliers,mono_iters,"
+                         << "stereo_input_size,stereo_inliers,stereo_iters,"
+                         << "pgo_size,pgo_lc_count,pgo_lc_inliers"
+                         << std::endl;
     is_header_written = true;
   }
 
-  output_stream_status << timestamp_kf << ","
-                       << LoopResult::asString(lc_result.status_) << ","
-                       << lc_result.query_id_ << ","
-                       << lc_result.match_id_
+  output_stream_status << debug_info.timestamp_ << ","
+                       << LoopResult::asString(
+                            debug_info.loop_result_.status_) << ","
+                       << debug_info.loop_result_.query_id_ << ","
+                       << debug_info.loop_result_.match_id_ << ","
+                       << debug_info.mono_input_size_ << ","
+                       << debug_info.mono_inliers_ << ","
+                       << debug_info.mono_iter_ << ","
+                       << debug_info.stereo_input_size_ << ","
+                       << debug_info.stereo_inliers_ << ","
+                       << debug_info.stereo_iter_ << ","
+                       << debug_info.pgo_size_ << ","
+                       << debug_info.pgo_lc_count_ << ","
+                       << debug_info.pgo_lc_inliers_
                        << std::endl;
 }
 

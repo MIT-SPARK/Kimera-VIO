@@ -37,7 +37,6 @@
 DEFINE_string(vocabulary_path, "../vocabulary/ORBvoc.yml",
               "Path to BoW vocabulary file for LoopClosureDetector module.");
 
-// TODO(marcus): add statistics reporting for verbosity_>=3
 /** Verbosity settings: (cumulative with every increase in level)
       0: Runtime errors and warnings, spin start and frequency are reported.
       1: Loop closure detections are reported as warnings.
@@ -195,6 +194,7 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
 
   // Update the PGO with the backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
+  // TODO(marcus): OdometryPose vs OdometryFactor
   ts_map_[input->cur_kf_id_-1] = input->timestamp_kf_;
   OdometryFactor odom_factor(input->cur_kf_id_, input->W_Pose_Blkf_,
       shared_noise_model_);
@@ -258,8 +258,14 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   }
 
   if (logger_) {
+    debug_info_.timestamp_ = output_payload.timestamp_kf_;
+    debug_info_.loop_result_ = loop_result;
+    debug_info_.pgo_size_ = pgo_->size();
+    debug_info_.pgo_lc_count_ = pgo_->getNumLC();
+    debug_info_.pgo_lc_inliers_ = pgo_->getNumLCInliers();
+
     logger_->logTsMap(ts_map_);
-    logger_->logKfStatus(working_frame.getTimestamp(), loop_result);
+    logger_->logDebugInfo(debug_info_);
     logger_->logLCDResult(output_payload);
   }
 
@@ -327,6 +333,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
   } else {
     double nss_factor = 1.0;
     if (lcd_params_.use_nss_) {
+      // TODO(marcus): review and send to Luca
       nss_factor = db_BoW_->getVocabulary()->score(bow_vec, latest_bowvec_);
     }
 
@@ -408,7 +415,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
 
 bool LoopClosureDetector::geometricVerificationCheck(
     const FrameId& query_id, const FrameId& match_id,
-    gtsam::Pose3* camCur_T_camRef_mono) const {
+    gtsam::Pose3* camCur_T_camRef_mono) {
   CHECK_NOTNULL(camCur_T_camRef_mono);
   switch (lcd_params_.geom_check_) {
     case GeomVerifOption::NISTER:
@@ -417,8 +424,7 @@ bool LoopClosureDetector::geometricVerificationCheck(
     case GeomVerifOption::NONE:
       return true;
     default:
-      // TODO(marcus): trigger an exception here instead of logging error.
-      LOG(ERROR) << "LoopClosureDetector: Incorrect geom_check_ option.";
+      LOG(FATAL) << "LoopClosureDetector: Incorrect geom_check_ option.";
       break;
   }
 
@@ -428,7 +434,7 @@ bool LoopClosureDetector::geometricVerificationCheck(
 bool LoopClosureDetector::recoverPose(
     const FrameId& query_id, const FrameId& match_id,
     const gtsam::Pose3& camCur_T_camRef_mono,
-    gtsam::Pose3* bodyCur_T_bodyRef_stereo) const {
+    gtsam::Pose3* bodyCur_T_bodyRef_stereo) {
   CHECK_NOTNULL(bodyCur_T_bodyRef_stereo);
 
   switch (lcd_params_.pose_recovery_option_) {
@@ -438,8 +444,7 @@ bool LoopClosureDetector::recoverPose(
       return recoverPoseGivenRot(query_id, match_id, camCur_T_camRef_mono,
           bodyCur_T_bodyRef_stereo);
     default:
-      // TODO(marcus): trigger an exception here instead of logging error.
-      LOG(ERROR) << "LoopClosureDetector: Incorrect pose recovery option.";
+      LOG(FATAL) << "LoopClosureDetector: Incorrect pose recovery option.";
       break;
   }
 
@@ -765,7 +770,7 @@ void LoopClosureDetector::computeMatchedIndices(
 // TODO(marcus): This is the camera frame. Your transform has to happen later
 bool LoopClosureDetector::geometricVerificationNister(
     const FrameId& query_id, const FrameId& match_id,
-    gtsam::Pose3* camCur_T_camRef_mono) const {
+    gtsam::Pose3* camCur_T_camRef_mono) {
   CHECK_NOTNULL(camCur_T_camRef_mono);
 
   // Find correspondences between keypoints.
@@ -799,16 +804,19 @@ bool LoopClosureDetector::geometricVerificationNister(
     ransac.threshold_ = lcd_params_.ransac_threshold_mono_;
 
     // Compute transformation via RANSAC.
-    if (!ransac.computeModel()) {
+    bool ransac_success = ransac.computeModel();
+    VLOG(3) << "ransac 5pt size of input: " << query_versors.size()
+            << "\nransac 5pt inliers: "     << ransac.inliers_.size()
+            << "\nransac 5pt iterations: "  << ransac.iterations_;
+    debug_info_.mono_input_size_ = query_versors.size();
+    debug_info_.mono_inliers_ = ransac.inliers_.size();
+    debug_info_.mono_iter_ = ransac.iterations_;
+
+    if (!ransac_success) {
       VLOG(3) << "LoopClosureDetector Failure: RANSAC 5pt could not solve.";
     } else {
-      // TODO(marcus): return statistics on the ransac in some form for logging
-      VLOG(3) << "ransac 5pt size of input: " << query_versors.size()
-              << "\nransac 5pt inliers: "     << ransac.inliers_.size()
-              << "\nransac 5pt iterations: "  << ransac.iterations_;
-
-      double inliers = static_cast<double>(ransac.inliers_.size());
-      double inlier_percentage = inliers / query_versors.size();
+      double inlier_percentage =
+          static_cast<double>(ransac.inliers_.size()) / query_versors.size();
 
       if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_mono_) {
         opengv::transformation_t transformation = ransac.model_coefficients_;
@@ -824,7 +832,7 @@ bool LoopClosureDetector::geometricVerificationNister(
 
 bool LoopClosureDetector::recoverPoseArun(
     const FrameId& query_id, const FrameId& match_id,
-    gtsam::Pose3* bodyCur_T_bodyRef) const {
+    gtsam::Pose3* bodyCur_T_bodyRef) {
   CHECK_NOTNULL(bodyCur_T_bodyRef);
 
   // Find correspondences between frames.
@@ -856,16 +864,19 @@ bool LoopClosureDetector::recoverPoseArun(
   ransac.threshold_ = lcd_params_.ransac_threshold_stereo_;
 
   // Compute transformation via RANSAC.
-  if (!ransac.computeModel()) {
+  bool ransac_success = ransac.computeModel();
+  VLOG(3) << "ransac 3pt size of input: " << f_ref.size()
+          << "\nransac 3pt inliers: "     << ransac.inliers_.size()
+          << "\nransac 3pt iterations: "  << ransac.iterations_;
+  debug_info_.stereo_input_size_ = f_ref.size();
+  debug_info_.stereo_inliers_ = ransac.inliers_.size();
+  debug_info_.stereo_iter_ = ransac.iterations_;
+
+  if (!ransac_success) {
     VLOG(3) << "LoopClosureDetector Failure: RANSAC 3pt could not solve.";
   } else {
-    // TODO(marcus): return statistics on the ransac in some form for logging
-    VLOG(3) << "ransac 3pt size of input: " << f_ref.size()
-            << "\nransac 3pt inliers: "     << ransac.inliers_.size()
-            << "\nransac 3pt iterations: "  << ransac.iterations_;
-
-    double inliers = static_cast<double>(ransac.inliers_.size());
-    double inlier_percentage = inliers / f_ref.size();
+    double inlier_percentage =
+        static_cast<double>(ransac.inliers_.size()) / f_ref.size();
 
     if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_stereo_) {
       transformation = ransac.model_coefficients_;
@@ -884,7 +895,7 @@ bool LoopClosureDetector::recoverPoseArun(
 bool LoopClosureDetector::recoverPoseGivenRot(
     const FrameId& query_id, const FrameId& match_id,
     const gtsam::Pose3& camCur_T_camRef_mono,
-    gtsam::Pose3* bodyCur_T_bodyRef) const {
+    gtsam::Pose3* bodyCur_T_bodyRef) {
   CHECK_NOTNULL(bodyCur_T_bodyRef);
 
   gtsam::Rot3 R = camCur_T_camRef_mono.rotation();

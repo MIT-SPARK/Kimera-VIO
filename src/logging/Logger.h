@@ -136,7 +136,7 @@ class LoopClosureDetectorLogger {
   void logLCDResult(const LoopClosureDetectorOutputPayload& lcd_output);
   void logLoopClosure(const LoopClosureDetectorOutputPayload& lcd_output);
   void logOptimizedTraj(const LoopClosureDetectorOutputPayload& lcd_output);
-  void logKfStatus(const Timestamp& timestamp_kf, const LoopResult& lc_result);
+  void logDebugInfo(const LcdDebugInfo& debug_info);
 
  private:
   // Filenames to be saved in the output folder.

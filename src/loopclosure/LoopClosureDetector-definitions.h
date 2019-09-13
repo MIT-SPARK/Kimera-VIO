@@ -168,10 +168,29 @@ struct LoopResult {
   gtsam::Pose3 relative_pose_;
 };  // struct LoopResult
 
+struct LcdDebugInfo {
+  LcdDebugInfo() = default;
+
+  Timestamp timestamp_;
+  LoopResult loop_result_;
+
+  size_t mono_input_size_;
+  size_t mono_inliers_;
+  int mono_iter_;
+
+  size_t stereo_input_size_;
+  size_t stereo_inliers_;
+  int stereo_iter_;
+
+  size_t pgo_size_;
+  size_t pgo_lc_count_;
+  size_t pgo_lc_inliers_;
+};  // struct LcdDebugInfo
+
 struct OdometryFactor {
   OdometryFactor(const FrameId& cur_key,
-            const gtsam::Pose3& W_Pose_Blkf,
-            const gtsam::SharedNoiseModel& noise)
+                 const gtsam::Pose3& W_Pose_Blkf,
+                 const gtsam::SharedNoiseModel& noise)
       : cur_key_(cur_key),
       W_Pose_Blkf_(W_Pose_Blkf),
       noise_(noise) {}
