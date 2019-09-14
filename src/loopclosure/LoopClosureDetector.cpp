@@ -110,7 +110,7 @@ LoopClosureDetector::LoopClosureDetector(
   // shared_noise_model_ = gtsam::noiseModel::Isotropic::Variance(6, 0.1);
   RobustPGO::RobustSolverParams pgo_params;
   pgo_params.setPcmSimple3DParams(lcd_params_.pgo_trans_threshold_,
-      lcd_params_.pgo_rot_threshold_, RobustPGO::Verbosity::VERBOSE);
+      lcd_params_.pgo_rot_threshold_, RobustPGO::Verbosity::QUIET);
   pgo_ = VIO::make_unique<RobustPGO::RobustSolver>(pgo_params);
 
   if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
