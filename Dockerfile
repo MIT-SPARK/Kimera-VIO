@@ -75,6 +75,7 @@ RUN cd DBoW2 && \
   # Install RobustPGO
   RUN git clone https://github.com/MIT-SPARK/RobustPGO.git
   RUN cd RobustPGO && \
+        git checkout feature/stats_reporting && \
         mkdir build && \
         cd build && \
         cmake .. && \
