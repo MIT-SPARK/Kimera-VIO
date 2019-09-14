@@ -819,10 +819,12 @@ bool LoopClosureDetector::geometricVerificationNister(
           static_cast<double>(ransac.inliers_.size()) / query_versors.size();
 
       if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_mono_) {
-        opengv::transformation_t transformation = ransac.model_coefficients_;
-        *camCur_T_camRef_mono = UtilsOpenCV::Gvtrans2pose(transformation);
+        if (ransac.iterations_ < lcd_params_.max_ransac_iterations_mono_) {
+          opengv::transformation_t transformation = ransac.model_coefficients_;
+          *camCur_T_camRef_mono = UtilsOpenCV::Gvtrans2pose(transformation);
 
-        return true;
+          return true;
+        }
       }
     }
   }
@@ -879,13 +881,15 @@ bool LoopClosureDetector::recoverPoseArun(
         static_cast<double>(ransac.inliers_.size()) / f_ref.size();
 
     if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_stereo_) {
-      transformation = ransac.model_coefficients_;
+      if (ransac.iterations_ < lcd_params_.max_ransac_iterations_stereo_) {
+        transformation = ransac.model_coefficients_;
 
-      // Transform pose from camera frame to body frame.
-      gtsam::Pose3 camCur_T_camRef = UtilsOpenCV::Gvtrans2pose(transformation);
-      transformCameraPose2BodyPose(camCur_T_camRef, bodyCur_T_bodyRef);
+        // Transform pose from camera frame to body frame.
+        gtsam::Pose3 camCur_T_camRef = UtilsOpenCV::Gvtrans2pose(transformation);
+        transformCameraPose2BodyPose(camCur_T_camRef, bodyCur_T_bodyRef);
 
-      return true;
+        return true;
+      }
     }
   }
 
