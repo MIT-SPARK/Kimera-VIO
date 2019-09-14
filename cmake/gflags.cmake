@@ -1,13 +1,11 @@
 if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
   set(__GFLAGS_INCLUDED TRUE)
 
-  # use the system-wide gflags if present
-  set(GFLAGS_PREFER_EXPORTED_GFLAGS_CMAKE_CONFIGURATION TRUE)
-  #find_package(Gflags QUIET)
+  # Try the system-wide gflags first.
+  # Note: System-wide gflags causes linker issues on current Ubuntu LTS
+  #find_package(gflags QUIET)
   if (gflags_FOUND)
     message(STATUS "FOUND gflags!")
-    #message(STATUS "GFLAGS libs: ${GFLAGS_LIBRARIES}")
-    #message(STATUS "GFLAGS includes: ${GFLAGS_INCLUDE_DIR}")
   else()
     message(STATUS "NOT FOUND gflags! Will be downloaded from github.")
 
@@ -31,7 +29,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
     ExternalProject_Add(gflags
       PREFIX ${gflags_PREFIX}
       GIT_REPOSITORY "https://github.com/gflags/gflags.git"
-      GIT_TAG "v2.1.2"
+      GIT_TAG "v2.2.2"
       UPDATE_COMMAND ""
       INSTALL_DIR ${gflags_INSTALL}
       CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
