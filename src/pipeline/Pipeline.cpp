@@ -606,7 +606,8 @@ void Pipeline::shutdownWhenFinished() {
             lcd_output_queue_.empty() && !loop_closure_detector_is_working &&
             visualizer_input_queue_.empty() && visualizer_output_queue_.empty()
             && !visualizer_.isWorking()))) {
-    VLOG_EVERY_N(10, 100)
+    VLOG(10)
+        << "shutdown_: " << shutdown_ << '\n'
         << "VIO pipeline status: \n"
         << "Initialized? " << is_initialized_ << '\n'
         << "Frontend input queue empty?" << stereo_frontend_input_queue_.empty()
@@ -622,19 +623,20 @@ void Pipeline::shutdownWhenFinished() {
         << "Mesher input queue empty?" << mesher_input_queue_.empty() << '\n'
         << "Mesher output queue empty?" << mesher_output_queue_.empty() << '\n'
         << "Mesher is working? " << mesher_.isWorking() << '\n'
-        << "LoopClosureDetector input queue empty?"
-        << lcd_input_queue_.empty() << '\n'
-        << "LoopClosureDetector output queue empty?"
-        << lcd_output_queue_.empty() << '\n'
         << "Visualizer input queue empty?" << visualizer_input_queue_.empty()
         << '\n'
         << "Visualizer output queue empty?" << visualizer_output_queue_.empty()
         << '\n'
         << "Visualizer is working? " << visualizer_.isWorking();
-    if (loop_closure_detector_)
+    if (loop_closure_detector_) {
       VLOG(10)
+          << "LoopClosureDetector input queue empty?"
+          << lcd_input_queue_.empty() << '\n'
+          << "LoopClosureDetector output queue empty?"
+          << lcd_output_queue_.empty() << '\n'
           << "LoopClosureDetector is working? "
           << loop_closure_detector_->isWorking() << '\n';
+    }
 
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
 
