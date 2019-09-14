@@ -448,6 +448,21 @@ bool LoopClosureDetector::recoverPose(
       break;
   }
 
+  // Use the rotation obtained from 5pt method if needed.
+  // TODO(marcus): check that the rotations are close to each other!
+  if (lcd_params_.use_mono_rot_ &&
+      lcd_params_.pose_recovery_option_ != PoseRecoveryOption::GIVEN_ROT) {
+    gtsam::Pose3 bodyCur_T_bodyRef_mono;
+    transformCameraPose2BodyPose(camCur_T_camRef_mono, &bodyCur_T_bodyRef_mono);
+
+    gtsam::Rot3 bodyCur_R_bodyRef_stereo = bodyCur_T_bodyRef_mono.rotation();
+    gtsam::Point3 bodyCur_t_bodyRef_stereo =
+        bodyCur_T_bodyRef_stereo->translation();
+
+    *bodyCur_T_bodyRef_stereo = gtsam::Pose3(bodyCur_R_bodyRef_stereo,
+        bodyCur_t_bodyRef_stereo);
+  }
+
   return false;
 }
 
