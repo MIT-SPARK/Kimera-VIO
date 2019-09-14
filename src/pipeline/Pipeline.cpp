@@ -106,6 +106,7 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
       vio_frontend_(nullptr),
       feature_selector_(nullptr),
       vio_backend_(nullptr),
+      loop_closure_detector_(nullptr),
       backend_params_(params.backend_params_),
       frontend_params_(params.frontend_params_),
       lcd_params_(params.lcd_params_),
@@ -162,8 +163,6 @@ Pipeline::~Pipeline() {
     LOG(INFO) << "Manual shutdown was requested.";
   }
 }
-
-// TODO MARCUS: Make sure loop_closure_detector_ is properly integrated to all of the methods below
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
@@ -590,6 +589,11 @@ void Pipeline::shutdownWhenFinished() {
   // Time to sleep between queries to the queues [in seconds].
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
   static constexpr int sleep_time = 1;
+
+  bool loop_closure_detector_is_working = false;
+  if (loop_closure_detector_)
+    loop_closure_detector_is_working = loop_closure_detector_->isWorking();
+
   while (!shutdown_ &&         // Loop while not explicitly shutdown.
          (!is_initialized_ ||  // Loop while not initialized
                                // Or, once init, data is not yet consumed.
@@ -599,7 +603,7 @@ void Pipeline::shutdownWhenFinished() {
             backend_output_queue_.empty() && !vio_backend_->isWorking() &&
             mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
             !mesher_.isWorking() && lcd_input_queue_.empty() &&
-            lcd_output_queue_.empty() && !loop_closure_detector_->isWorking() &&
+            lcd_output_queue_.empty() && !loop_closure_detector_is_working &&
             visualizer_input_queue_.empty() && visualizer_output_queue_.empty()
             && !visualizer_.isWorking()))) {
     VLOG_EVERY_N(10, 100)
@@ -622,14 +626,20 @@ void Pipeline::shutdownWhenFinished() {
         << lcd_input_queue_.empty() << '\n'
         << "LoopClosureDetector output queue empty?"
         << lcd_output_queue_.empty() << '\n'
-        << "LoopClosureDetector is working? "
-        << loop_closure_detector_->isWorking() << '\n'
         << "Visualizer input queue empty?" << visualizer_input_queue_.empty()
         << '\n'
         << "Visualizer output queue empty?" << visualizer_output_queue_.empty()
         << '\n'
         << "Visualizer is working? " << visualizer_.isWorking();
+    if (loop_closure_detector_)
+      VLOG(10)
+          << "LoopClosureDetector is working? "
+          << loop_closure_detector_->isWorking() << '\n';
+
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
+
+    if (loop_closure_detector_)
+      loop_closure_detector_is_working = loop_closure_detector_->isWorking();
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
@@ -698,7 +708,7 @@ void Pipeline::checkReInitialize(
     CHECK(vio_backend_);
     vio_backend_->restart();
     mesher_.restart();
-    if (FLAGS_use_lcd)
+    if (loop_closure_detector_)
         loop_closure_detector_->restart();
     visualizer_.restart();
     // Resume pipeline
@@ -1192,7 +1202,8 @@ void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping loop closure workers and queues...";
   lcd_input_queue_.shutdown();
   lcd_output_queue_.shutdown();
-  loop_closure_detector_->shutdown();
+  if (loop_closure_detector_)
+    loop_closure_detector_->shutdown();
 
   LOG(INFO) << "Stopping visualizer workers and queues...";
   visualizer_input_queue_.shutdown();
