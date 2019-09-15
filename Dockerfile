@@ -83,13 +83,14 @@ RUN cd DBoW2 && \
         cmake .. && \
         make -j$(nproc)
 
+RUN apt-get update && apt-get install -y python-pip python-dev python-tk
+
 # Install evo-1 for evaluation
 RUN git clone https://github.com/ToniRV/evo-1.git
 RUN cd evo-1 && \
       pip install . --upgrade --no-binary evo
 
 # Install spark_vio_evaluation
-RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 # ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
 ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/feature/lcd_support version.json
