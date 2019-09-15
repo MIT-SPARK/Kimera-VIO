@@ -309,7 +309,7 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   EXPECT_LT(error.second, tran_tol * 2.5);
 }
 
-TEST_F(LCDFixture, recoverPoseArun) {
+TEST_F(LCDFixture, DISABLED_recoverPoseArun) {
   /* Test proper scaled pose recovery between two identical images */
   CHECK(lcd_detector_);
   lcd_detector_->getLCDParamsMutable()->pose_recovery_option_ =
@@ -477,7 +477,7 @@ TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
   EXPECT_EQ(pgo_nfg.size(), 1);
 }
 
-TEST_F(LCDFixture, spinOnce) {
+TEST_F(LCDFixture, DISABLED_spinOnce) {
   /* Test the full pipeline with one loop closure and full PGO optimization */
   std::pair<double, double> error;
 
