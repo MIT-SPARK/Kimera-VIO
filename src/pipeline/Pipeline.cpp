@@ -636,12 +636,13 @@ void Pipeline::shutdownWhenFinished() {
           << lcd_output_queue_.empty() << '\n'
           << "LoopClosureDetector is working? "
           << loop_closure_detector_->isWorking() << '\n';
-    }
 
-    std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
-
-    if (loop_closure_detector_)
       loop_closure_detector_is_working = loop_closure_detector_->isWorking();
+      if (!loop_closure_detector_->isWorking() && !lcd_output_queue_.empty()) {
+        lcd_output_queue_.popBlocking();
+      }
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
