@@ -216,10 +216,19 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   if (detectLoop(working_frame, &loop_result)) {
     LoopClosureFactor lc_factor(loop_result.match_id_, loop_result.query_id_,
         loop_result.relative_pose_, shared_noise_model_);
+
+    utils::StatsCollector stat_pgo_timing(
+        "PGO Update/Optimization Timing [ms]");
+    auto tic = utils::Timer::tic();
+
     addLoopClosureFactorAndOptimize(lc_factor);
 
-    VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from image "
-                 << loop_result.match_id_ << " to image "
+    auto update_duration = utils::Timer::toc(tic).count();
+    stat_pgo_timing.AddSample(update_duration);
+
+
+    VLOG(1) << "LoopClosureDetector: LOOP CLOSURE detected from keyframe "
+                 << loop_result.match_id_ << " to keyframe "
                  << loop_result.query_id_;
   } else {
     VLOG(2) << "LoopClosureDetector: No loop closure detected. Reason: "
