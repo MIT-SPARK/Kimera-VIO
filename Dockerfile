@@ -86,7 +86,8 @@ RUN cd DBoW2 && \
 # Install spark_vio_evaluation
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
-ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
+# ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
+ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/feature/lcd_support version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 # RUN cd spark_vio_evaluation && pip install .
 # TODO(marcus): re-enable this when we have a better way to evaluate LCD/PGO.
