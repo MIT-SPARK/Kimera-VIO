@@ -92,7 +92,7 @@ LoopClosureDetector::LoopClosureDetector(
 
   // Load ORB vocabulary:
   std::ifstream f_vocab(FLAGS_vocabulary_path.c_str());
-  CHECK(f_vocab.good()) << "LoopClosureDetector: Incorrect vocabulary path."
+  CHECK(f_vocab.good()) << "LoopClosureDetector: Incorrect vocabulary path: "
                         << FLAGS_vocabulary_path;
   f_vocab.close();
 
