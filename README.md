@@ -109,6 +109,8 @@ cd SparkVIO
 
 We provide a ROS wrapper of SparkVIO that you can find at: https://github.mit.edu/SPARK/spark_vio_ros.
 
+This library can be cloned into a catkin workspace and built alongside the ROS wrapper.
+
 # 3. Parameters
 SparkVIO accepts two sources of parameters:
 - YAML files: contains parameters for Backend and Frontend.
