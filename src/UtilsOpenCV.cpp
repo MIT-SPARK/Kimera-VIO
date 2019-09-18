@@ -31,11 +31,6 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
 
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/opencv.hpp>
-
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */

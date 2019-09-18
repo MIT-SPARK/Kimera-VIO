@@ -109,7 +109,7 @@ cd SparkVIO
 
 We provide a ROS wrapper of SparkVIO that you can find at: https://github.mit.edu/SPARK/spark_vio_ros.
 
-Alternatively, you may be interested in using SparkVIO as a library by depending on it via catkin: https://github.mit.edu/SPARK/spark_vio_catkin
+This library can be cloned into a catkin workspace and built alongside the ROS wrapper.
 
 # 3. Parameters
 SparkVIO accepts two sources of parameters:

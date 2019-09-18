@@ -4,12 +4,11 @@ include("cmake/gflags.cmake")
 if (NOT __GLOG_INCLUDED)
   set(__GLOG_INCLUDED TRUE)
 
-  # try the system-wide glog first
+  # Try the system-wide glog first.
+  # Note: Glog < 0.3.5 doesn't include CMake support, and system-wide glog causes linker issues on current Ubuntu LTS
   #find_package(glog QUIET)
-  if (GLOG_FOUND)
+  if (glog_FOUND)
     message(STATUS "FOUND glog!")
-    message(STATUS "GLOG libs: ${GLOG_LIBRARIES}")
-    message(STATUS "GLOG includes: ${GLOG_INCLUDE_DIR}")
   else()
     # Fetch and build glog from github
     message(STATUS "NOT FOUND glog! Will be downloaded from github.")
@@ -37,13 +36,16 @@ if (NOT __GLOG_INCLUDED)
       DEPENDS ${GLOG_DEPENDS}
       PREFIX ${GLOG_PREFIX}
       GIT_REPOSITORY "https://github.com/google/glog"
-      GIT_TAG "v0.3.4"
+      GIT_TAG "v0.4.0"
       UPDATE_COMMAND ""
       INSTALL_DIR ${GLOG_INSTALL}
-      PATCH_COMMAND autoreconf -i ${GLOG_PREFIX}/src/glog
-      CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${GLOG_PREFIX}/src/glog/configure --prefix=${GLOG_INSTALL} --enable-shared=no --enable-static=yes  --with-gflags=${gflags_INSTALL}
+      CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                 -DCMAKE_INSTALL_PREFIX=${GLOG_INSTALL}
+                 -DBUILD_SHARED_LIBS=OFF
+                 -DBUILD_TESTING=OFF
+                 -DCMAKE_C_FLAGS=${GLOG_C_FLAGS}
+                 -DCMAKE_CXX_FLAGS=${GLOG_CXX_FLAGS}
       LOG_DOWNLOAD 1
-      LOG_CONFIGURE 1
       LOG_INSTALL 1
       )
 
