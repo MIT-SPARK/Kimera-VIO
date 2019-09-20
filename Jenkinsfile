@@ -34,7 +34,8 @@ pipeline {
       steps {
         wrap([$class: 'Xvfb']) {
           // Copy params to Workspace
-          sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/'
+          sh 'mkdir -p $WORKSPACE/spark_vio_evaluation/experiments'
+          sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/experiments'
 
           // Run performance tests.
           // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
