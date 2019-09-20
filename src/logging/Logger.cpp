@@ -7,7 +7,7 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   LoggerMatlab.cpp
+ * @file   Logger.cpp
  * @brief  Logging output information.
  * @author Antoni Rosinol, Luca Carlone
  */
