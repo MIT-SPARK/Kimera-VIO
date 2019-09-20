@@ -33,6 +33,10 @@ pipeline {
     stage('Euroc Performance') {
       steps {
         wrap([$class: 'Xvfb']) {
+          // Copy params to Workspace
+          sh 'mkdir -p $WORKSPACE/spark_vio_evaluation/experiments'
+          sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/experiments/'
+
           // Run performance tests.
           // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
           sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a -v \
@@ -43,9 +47,6 @@ pipeline {
           sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
                 spark_vio_evaluation/html/data/V1_01_easy/S/results.yaml \
                 spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
-
-          // Copy params to Workspace
-          sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/'
 
           // Copy performance website to Workspace
           sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
@@ -88,7 +89,7 @@ pipeline {
       // Archive the params used in evaluation (if these are used is determined
       // by the experiments yaml file in spark_vio_evaluation)
       archiveArtifacts (
-          artifacts: 'spark_vio_evaluation/params/**/*.*',
+          artifacts: 'spark_vio_evaluation/experiments/params/**/*.*',
           fingerprint: true
           )
 
