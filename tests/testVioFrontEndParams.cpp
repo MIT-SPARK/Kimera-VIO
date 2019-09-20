@@ -101,20 +101,3 @@ TEST(testTracker, equals) {
 
   EXPECT_TRUE(!tp.equals(tp2));
 }
-
-TEST(testTracker, DISABLED_cppVSmatlabVioFrontEndParams) {
-  // check that the cpp default params match the matlab ones.
-  // before running, make sure that you run "writeDefaultParams" in matlab
-  VioFrontEndParams cppDefault_tp = VioFrontEndParams();
-
-  VioFrontEndParams matlabDefault_tp;
-  matlabDefault_tp.parseYAML(FLAGS_test_data_path +
-                             "/../../matlab/myLib/defaultTrackerParams.yaml");
-
-  EXPECT_TRUE(matlabDefault_tp.equals(cppDefault_tp));
-
-  if (!matlabDefault_tp.equals(cppDefault_tp)) {
-    matlabDefault_tp.print();
-    cppDefault_tp.print();
-  }
-}
