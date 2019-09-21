@@ -58,8 +58,8 @@ fi
 # No user input from this point on.
 # Unless user specified to use Regular VIO, run pipeline with default parameters.
 BACKEND_TYPE=0
-VIO_PARAMS_PATH=""
-TRACKER_PARAMS_PATH=""
+VIO_PARAMS_PATH="../params/regularVioParameters.yaml"
+TRACKER_PARAMS_PATH="../params/trackerParameters.yaml"
 if [ $USE_REGULAR_VIO == 1 ]; then
   BACKEND_TYPE=1
   VIO_PARAMS_PATH="../params/regularVioParameters.yaml"
