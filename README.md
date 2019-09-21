@@ -82,7 +82,7 @@ Using a bash script bundling all command-line options and gflags:
 
 ```bash
 cd SparkVIO
-./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
+bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
 ```
 
 > Alternatively, one may directly use the executable in the build folder:
