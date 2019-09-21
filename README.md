@@ -105,9 +105,9 @@ bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
   ```
    where you specify the path to the dataset (e.g. path to `2011_09_26_drive_0005_extract` folder).
 
-## iii. Using [ROS wrapper](https://github.mit.edu/SPARK/spark_vio_ros)
+## iii. Using [ROS wrapper](https://github.com/MIT-SPARK/Kimera-VIO-ROS)
 
-We provide a ROS wrapper of SparkVIO that you can find at: https://github.mit.edu/SPARK/spark_vio_ros.
+We provide a ROS wrapper of SparkVIO that you can find at: https://github.com/MIT-SPARK/Kimera-VIO-ROS.
 
 This library can be cloned into a catkin workspace and built alongside the ROS wrapper.
 
