@@ -193,7 +193,9 @@ Also, check [tips for development](./docs/tips_development.md) and our [develope
   
 # 7. Chart
 
-![chart](./docs/media/sparkvio_chart.png)
+![vio_chart](./docs/media/sparkvio_chart.png)
+
+![overall_chart](./docs/media/kimera_chart_23.jpeg)
 
 # 8. BSD License
 
