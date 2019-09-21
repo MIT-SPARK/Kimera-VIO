@@ -67,6 +67,18 @@ bool UndistortImage(const cv::Mat& input_image, cv::Mat* output_image) const {
 #### Parameter checking
 * All parameters passed by pointer need to be checked for null. Use the GLog ```CHECK_NOTNULL(pointer);``` macro for raw pointers and the GLog ```CHECK(shared_ptr)``` macro for shared_ptrs.
 
+#### Example of function signature
+
+```cpp
+void myFunctionSignature(const Input& input, InputOutput* input_output, Output* output) {
+ CHECK_NOTNULL(input_output);
+ CHECK_NOTNULL(output);
+
+ // Your code
+ *output = ...
+}
+```
+
 ### Value Checks
 Use the glog ```CHECK(x)``` macros instead of assertions. http://google-glog.googlecode.com/svn/trunk/doc/glog.html### 
 

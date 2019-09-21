@@ -32,12 +32,12 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 ## Demo
 
 <div align="center">
-  <img src="docs/media/sparkvio_release.gif"/>
+  <img src="docs/media/SparkVIO_ROS_mesh.gif"/>
 </div>
 
 # 1. Installation
 
-Tested on Mac, Ubuntu 14.04 & 16.04.
+Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 
 ## Prerequisites
 
@@ -82,7 +82,7 @@ Using a bash script bundling all command-line options and gflags:
 
 ```bash
 cd SparkVIO
-./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
+bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
 ```
 
 > Alternatively, one may directly use the executable in the build folder:
@@ -101,13 +101,13 @@ cd SparkVIO
 - Run: 
   ```bash
   cd SparkVIO
-  ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/2011_09_26_drive_0005_extract" -d 1
+  bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/2011_09_26_drive_0005_extract" -d 1
   ```
    where you specify the path to the dataset (e.g. path to `2011_09_26_drive_0005_extract` folder).
 
-## iii. Using [ROS wrapper](https://github.mit.edu/SPARK/spark_vio_ros)
+## iii. Using [ROS wrapper](https://github.com/MIT-SPARK/Kimera-VIO-ROS)
 
-We provide a ROS wrapper of SparkVIO that you can find at: https://github.mit.edu/SPARK/spark_vio_ros.
+We provide a ROS wrapper of SparkVIO that you can find at: https://github.com/MIT-SPARK/Kimera-VIO-ROS.
 
 This library can be cloned into a catkin workspace and built alongside the ROS wrapper.
 
@@ -118,9 +118,9 @@ SparkVIO accepts two sources of parameters:
 
 To get help on what each gflag parameter does, just run the executable with the `--help` flag: `./build/stereoVIOEuroc --help`. You should get a list of gflags similar to the ones [here](./docs/gflags_parameters.md).
 
-  - Optionally, you can try the VIO using structural regularities, as in [Toni's thesis](https://www.research-collection.ethz.ch/handle/20.500.11850/297645), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
+  - Optionally, you can try the VIO using structural regularities, as in [our ICRA 2019 paper](https://ieeexplore.ieee.org/abstract/document/8794456), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
 
-Also, check [tips for usage](./docs/tips_usage.md) for interacting with OpenCV's 3D visualizer.
+OpenCV's 3D visualization has also some shortcuts for interacting with it: check [tips for usage](./docs/tips_usage.md) 
 
 # 4. Contribution guidelines
 
@@ -130,31 +130,17 @@ To contribute to this repo, ensure your commits pass the linter pre-commit check
 To enable these checks you will need to [install linter](./docs/linter_installation.md).
 We also provide a `.clang-format` file with the style rules that the repo uses, so that you can use [`clang-format`](https://clang.llvm.org/docs/ClangFormat.html) to reformat your code.
 
-Also, check [tips for development](./docs/tips_development.md) and our [developer guide](./docs/developer_guide.md)
+Also, check [tips for development](./docs/tips_development.md) and our **[developer guide](./docs/developer_guide.md)**.
 
-# 6. FAQ
+# 5. FAQ
+  If you have problems building or running the pipeline and/or issues with dependencies, you might find useful information in our [FAQ](./docs/faq.md) or in the issue tracker.
 
-### 1. Gflags
-  Q: I have added/changed a gflag but it has no effect?
+# 6. Chart
 
-  A: Mind that according to gflags specs: 
-  > If a flag is specified more than once, only the last specification is used; the others are ignored.
+![vio_chart](./docs/media/sparkvio_chart.png)
 
-### 2. Euroc dataset
-  Q: Frame mismatch in Euroc? Seeing this error msg:
-  ```
-    W0911 10:22:30.347504 27725 ETH_parser.cpp:520] Different number of images in left and right camera!
-    Left: 2033
-    Right: 2032
-  ```
+![overall_chart](./docs/media/kimera_chart_23.jpeg)
 
-  A: Euroc has datasets with mismatching number of frames, use instead our dataset files [here](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O).
-
-  
-# 7. Chart
-
-![chart](./docs/media/sparkvio_chart.png)
-
-# 8. BSD License
+# 7. BSD License
 
 SparkVIO is open source under the BSD license, see the [LICENSE.BSD](LICENSE.BSD) file.

@@ -17,6 +17,7 @@
 #include <fstream>
 #include <iostream>
 #include <random>
+#include <string>
 
 #include "CameraParams.h"
 #include "Frame.h"
@@ -31,35 +32,37 @@
 DECLARE_string(test_data_path);
 
 using namespace gtsam;
-using namespace std;
 using namespace VIO;
 using namespace cv;
 
-/* ************************************************************************* */
 class StereoVisionFrontEndFixture : public ::testing::Test {
  public:
   StereoVisionFrontEndFixture()
       : stereo_FLAGS_test_data_path(FLAGS_test_data_path +
-                                    string("/ForStereoFrame/")) {
-    InitializeData();
+                                    std::string("/ForStereoFrame/")) {
+    initializeData();
   }
 
  protected:
   virtual void SetUp() {}
-  virtual void TearDown() {}  //
+  virtual void TearDown() {}
 
   // Helper function
-  void InitializeData() {
+  void initializeData() {
     CameraParams cam_params_left, cam_params_right;
     cam_params_left.parseYAML(stereo_FLAGS_test_data_path + "/sensorLeft.yaml");
     cam_params_right.parseYAML(stereo_FLAGS_test_data_path +
                                "/sensorRight.yaml");
 
-    string img_name_ref_left = stereo_FLAGS_test_data_path + "left_img_0.png";
-    string img_name_ref_right = stereo_FLAGS_test_data_path + "right_img_0.png";
+    std::string img_name_ref_left =
+        stereo_FLAGS_test_data_path + "left_img_0.png";
+    std::string img_name_ref_right =
+        stereo_FLAGS_test_data_path + "right_img_0.png";
 
-    string img_name_cur_left = stereo_FLAGS_test_data_path + "left_img_1.png";
-    string img_name_cur_right = stereo_FLAGS_test_data_path + "right_img_1.png";
+    std::string img_name_cur_left =
+        stereo_FLAGS_test_data_path + "left_img_1.png";
+    std::string img_name_cur_right =
+        stereo_FLAGS_test_data_path + "right_img_1.png";
 
     // Data for testing "geometricOutlierRejectionMono"
     ref_frame = std::make_shared<Frame>(
@@ -103,20 +106,23 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     // Set randomness!
     srand(0);
   }
-  void ClearFrame(Frame *f) {
+
+  void clearFrame(Frame* f) {
     f->keypoints_.clear();
     f->landmarks_.clear();
     f->landmarksAge_.clear();
     f->versors_.clear();
   }
-  void ClearStereoFrame(std::shared_ptr<StereoFrame> &sf) {
-    ClearFrame(sf->getLeftFrameMutable());
-    ClearFrame(sf->getRightFrameMutable());
+
+  void clearStereoFrame(std::shared_ptr<StereoFrame>& sf) {
+    clearFrame(sf->getLeftFrameMutable());
+    clearFrame(sf->getRightFrameMutable());
     sf->keypoints_3d_.clear();
     sf->keypoints_depth_.clear();
     sf->right_keypoints_status_.clear();
   }
-  void FillStereoFrame(std::shared_ptr<StereoFrame> &sf) {
+
+  void fillStereoFrame(std::shared_ptr<StereoFrame>& sf) {
     // Fill the fields in a StereoFrame to pass the sanity check
     // StereoFrame::checkStereoFrame
     const int num_keypoints = sf->getLeftFrame().landmarks_.size();
@@ -128,7 +134,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
 
     // right_keypoints_status_.size
     if (sf->right_keypoints_status_.size() != num_keypoints) {
-      sf->right_keypoints_status_ = vector<Kstatus>(num_keypoints);
+      sf->right_keypoints_status_ = std::vector<Kstatus>(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
         sf->right_keypoints_status_[i] = Kstatus::VALID;
       }
@@ -157,7 +163,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
 
     // keypoints_depth_.size
     if (sf->keypoints_depth_.size() != num_keypoints) {
-      sf->keypoints_depth_ = vector<double>(num_keypoints);
+      sf->keypoints_depth_ = std::vector<double>(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
         if (sf->right_keypoints_status_[i] == Kstatus::VALID) {
           sf->keypoints_depth_[i] = 1;
@@ -169,7 +175,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
 
     // keypoints_3d_.size
     if (sf->keypoints_3d_.size() != num_keypoints) {
-      sf->keypoints_3d_ = vector<Vector3>(num_keypoints);
+      sf->keypoints_3d_ = std::vector<Vector3>(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
         sf->keypoints_3d_[i](2) = sf->keypoints_depth_[i];
       }
@@ -185,9 +191,10 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
       sf->right_keypoints_rectified_ = KeypointsCV(num_keypoints);
     }
   }
-  vector<Point2> LoadCorners(const string filepath) {
-    vector<Point2> corners;
-    ifstream fin(filepath);
+
+  std::vector<Point2> loadCorners(const std::string& filepath) {
+    std::vector<Point2> corners;
+    std::ifstream fin(filepath);
     int num_corners;
     fin >> num_corners;
     corners.reserve(num_corners);
@@ -199,9 +206,10 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     }
     return corners;
   }
-  vector<double> LoadDepth(const string filepath) {
-    vector<double> depth;
-    ifstream fin(filepath);
+
+  std::vector<double> loadDepth(const std::string& filepath) {
+    std::vector<double> depth;
+    std::ifstream fin(filepath);
     int num_corners;
     fin >> num_corners;
     depth.reserve(num_corners);
@@ -213,19 +221,22 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     }
     return depth;
   }
-  int FindCorners(const Point2 pt_query, const vector<Point2> &pt_set) {
+
+  int findCorners(const Point2 pt_query, const std::vector<Point2>& pt_set) {
     for (int i = 0; i < pt_set.size(); i++) {
       if (pt_set[i].equals(pt_query, 3)) return i;
     }
     return -1;
   }
-  vector<Point2> ConvertCornersAcrossCameras(const vector<Point2> &corners_in,
-                                             const Cal3DS2 &calib_in,
-                                             const Cal3_S2 &calib_out) {
-    if (abs(calib_in.skew()) > 1e-7 || abs(calib_out.skew()) > 1e-7) {
-      throw runtime_error("Skew of the calibration is non-zero!");
-    }
-    vector<Point2> corners_out;
+
+  std::vector<Point2> convertCornersAcrossCameras(
+      const std::vector<Point2>& corners_in,
+      const Cal3DS2& calib_in,
+      const Cal3_S2& calib_out) {
+    CHECK_DOUBLE_EQ(calib_in.skew(), 0.0);
+    CHECK_DOUBLE_EQ(calib_out.skew(), 0.0);
+
+    std::vector<Point2> corners_out;
     corners_out.reserve(corners_in.size());
     for (int i = 0; i < corners_in.size(); i++) {
       double xn = (corners_in[i].x() - calib_in.px()) / calib_in.fx();
@@ -240,14 +251,15 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
   // Data
   std::shared_ptr<Frame> ref_frame, cur_frame;
   std::shared_ptr<StereoFrame> ref_stereo_frame, cur_stereo_frame;
-  const FrameId id_ref = 0, id_cur = 1;
-  const int64_t timestamp_ref = 1000, timestamp_cur = 2000;
+  const FrameId id_ref = 0u;
+  const FrameId id_cur = 1u;
+  const Timestamp timestamp_ref = 1000u;
+  const Timestamp timestamp_cur = 2000u;
 
   ImuParams imu_params_;
   std::string stereo_FLAGS_test_data_path;
 };
 
-/* ************************************************************************* */
 /* This test is flawed in that it is using private members of the frontend...
  * There is three ways to go around this:
  * 1) Proper way: test getRelativePoseBodyStereo by just using the public
@@ -308,7 +320,7 @@ TEST_F(StereoVisionFrontEndFixture, getRelativePoseBodyStereo) {
 }
 /* ************************************************************************* */
 TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
-  ClearStereoFrame(ref_stereo_frame);
+  clearStereoFrame(ref_stereo_frame);
   ref_stereo_frame->setIsKeyframe(true);
   ref_stereo_frame->setIsRectified(true);
 
@@ -361,14 +373,14 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
     ref_stereo_frame->right_keypoints_status_.push_back(Kstatus::VALID);
   }
 
-  FillStereoFrame(ref_stereo_frame);
+  fillStereoFrame(ref_stereo_frame);
   // Call the function!
   SmartStereoMeasurements ssm;
   ssm = st.getSmartStereoMeasurements(*ref_stereo_frame);
 
   // Verify the correctness of the results!
   EXPECT_EQ(ssm.size(), num_valid + num_right_missing);
-  set<int> landmark_set;
+  std::set<int> landmark_set;
 
   for (auto s : ssm) {
     // No order requirement for the entries in ssm.
@@ -398,14 +410,14 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
   // 1. Feature detection (from tracker)
   // 2. results from sparseStereoMatching
 
-  // Load a synthetic stereo pair from MATLAB with known ground-truth
+  // Load a synthetic stereo pair with known ground-truth.
   CameraParams cam_params_left, cam_params_right;
-  string matlab_syn_path(FLAGS_test_data_path + string("/ForStereoTracker"));
-  cam_params_left.parseYAML(matlab_syn_path + "/camLeft.yaml");
-  cam_params_right.parseYAML(matlab_syn_path + "/camRight.yaml");
+  std::string synthetic_stereo_path(FLAGS_test_data_path + "/ForStereoTracker");
+  cam_params_left.parseYAML(synthetic_stereo_path + "/camLeft.yaml");
+  cam_params_right.parseYAML(synthetic_stereo_path + "/camRight.yaml");
 
-  string img_name_left = matlab_syn_path + "/img_distort_left.png";
-  string img_name_right = matlab_syn_path + "/img_distort_right.png";
+  std::string img_name_left = synthetic_stereo_path + "/img_distort_left.png";
+  std::string img_name_right = synthetic_stereo_path + "/img_distort_right.png";
 
   Pose3 camL_Pose_camR =
       cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
@@ -456,8 +468,8 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
           scale);
 
   // Load the expected corners
-  vector<Point2> left_distort_corners =
-      LoadCorners(matlab_syn_path + "/corners_normal_left.txt");
+  std::vector<Point2> left_distort_corners =
+      loadCorners(synthetic_stereo_path + "/corners_normal_left.txt");
 
   // Call StereoVisionFrontEnd::Process first frame!
   StereoVisionFrontEnd st(imu_params_, ImuBias(), p);
@@ -481,12 +493,12 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
     EXPECT_GE(lid, 0);
   }
 
-  vector<int> corner_id_map_frame2gt;  // useful for the tests later
+  std::vector<int> corner_id_map_frame2gt;  // useful for the tests later
   corner_id_map_frame2gt.reserve(num_corners);
   for (int i = 0; i < num_corners; i++) {
     KeypointCV pt_cv = left_frame.keypoints_[i];
     Point2 pt(pt_cv.x, pt_cv.y);
-    int idx = FindCorners(pt, left_distort_corners);
+    int idx = findCorners(pt, left_distort_corners);
     EXPECT_GE(idx, 0);
     corner_id_map_frame2gt.push_back(idx);
   }
@@ -513,11 +525,12 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
   EXPECT_TRUE(sf.isRectified());
 
   // left_keypoints_rectified!
-  vector<Point2> left_undistort_corners =
-      LoadCorners(matlab_syn_path + "/corners_undistort_left.txt");
-  vector<Point2> left_rect_corners = ConvertCornersAcrossCameras(
-      left_undistort_corners, sf.getLeftFrame().cam_param_.calibration_,
-      sf.getLeftUndistRectCamMat());
+  std::vector<Point2> left_undistort_corners =
+      loadCorners(synthetic_stereo_path + "/corners_undistort_left.txt");
+  std::vector<Point2> left_rect_corners =
+      convertCornersAcrossCameras(left_undistort_corners,
+                                  sf.getLeftFrame().cam_param_.calibration_,
+                                  sf.getLeftUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     Point2 pt_expect = left_rect_corners[idx_gt];
@@ -527,11 +540,12 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
   }
 
   // right_keypoints_rectified
-  vector<Point2> right_undistort_corners =
-      LoadCorners(matlab_syn_path + "/corners_undistort_right.txt");
-  vector<Point2> right_rect_corners = ConvertCornersAcrossCameras(
-      right_undistort_corners, sf.getRightFrame().cam_param_.calibration_,
-      sf.getRightUndistRectCamMat());
+  std::vector<Point2> right_undistort_corners =
+      loadCorners(synthetic_stereo_path + "/corners_undistort_right.txt");
+  std::vector<Point2> right_rect_corners =
+      convertCornersAcrossCameras(right_undistort_corners,
+                                  sf.getRightFrame().cam_param_.calibration_,
+                                  sf.getRightUndistRectCamMat());
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
     Point2 pt_expect = right_rect_corners[idx_gt];
@@ -546,7 +560,8 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
   }
 
   // keypoints depth
-  vector<double> depth_gt = LoadDepth(matlab_syn_path + "/depth_left.txt");
+  std::vector<double> depth_gt =
+      loadDepth(synthetic_stereo_path + "/depth_left.txt");
 
   for (int i = 0; i < num_corners; i++) {
     int idx_gt = corner_id_map_frame2gt[i];
