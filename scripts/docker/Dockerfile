@@ -79,12 +79,12 @@ RUN chmod 600 ~/.ssh/id_rsa
 
 # Make sure your domain is accepted
 RUN touch /root/.ssh/known_hosts
-RUN ssh-keyscan -t rsa github.mit.edu >> /root/.ssh/known_hosts
+RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
 # Install Spark VIO
 #RUN git config --global user.name "arosinol"
 #RUN git config --global user.email "arosinol@mit.edu"
-RUN git clone git@github.mit.edu:SPARK/VIO.git
+RUN git clone git@github.com:MIT-SPARK/Kimera-VIO.git
 RUN cd VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 # Download and extract EuRoC dataset.
