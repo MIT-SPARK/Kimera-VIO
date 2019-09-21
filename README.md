@@ -32,7 +32,7 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 ## Demo
 
 <div align="center">
-  <img src="docs/media/sparkVIO_ROS_mesh.gif"/>
+  <img src="docs/media/SparkVIO_ROS_mesh.gif"/>
 </div>
 
 # 1. Installation
