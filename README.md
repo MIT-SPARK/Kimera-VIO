@@ -82,7 +82,7 @@ Using a bash script bundling all command-line options and gflags:
 
 ```bash
 cd SparkVIO
-./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
+bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
 ```
 
 > Alternatively, one may directly use the executable in the build folder:
@@ -101,7 +101,7 @@ cd SparkVIO
 - Run: 
   ```bash
   cd SparkVIO
-  ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/2011_09_26_drive_0005_extract" -d 1
+  bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/2011_09_26_drive_0005_extract" -d 1
   ```
    where you specify the path to the dataset (e.g. path to `2011_09_26_drive_0005_extract` folder).
 
@@ -118,9 +118,9 @@ SparkVIO accepts two sources of parameters:
 
 To get help on what each gflag parameter does, just run the executable with the `--help` flag: `./build/stereoVIOEuroc --help`. You should get a list of gflags similar to the ones [here](./docs/gflags_parameters.md).
 
-  - Optionally, you can try the VIO using structural regularities, as in [Toni's thesis](https://www.research-collection.ethz.ch/handle/20.500.11850/297645), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
+  - [ ] Optionally, you can try the VIO using structural regularities, as in [our ICRA 2019 paper](https://ieeexplore.ieee.org/abstract/document/8794456), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
 
-Also, check [tips for usage](./docs/tips_usage.md) for interacting with OpenCV's 3D visualizer.
+OpenCV's 3D visualization has also some shortcuts for interacting with it: check [tips for usage](./docs/tips_usage.md) 
 
 # 4. Contribution guidelines
 
