@@ -97,7 +97,7 @@ class Pipeline {
   }
 
   // Callback to output the LoopClosureDetector's loop-closure/PGO results.
-  inline void registerLoopClosureCallback(LoopClosurePGOCallback callback) {
+  inline void registerLcdPgoOutputCallback(LoopClosurePGOCallback callback) {
     loop_closure_detector_->registerLcdPgoOutputCallback(callback);
   }
 
