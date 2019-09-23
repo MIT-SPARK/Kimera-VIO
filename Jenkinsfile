@@ -33,6 +33,9 @@ pipeline {
     stage('Euroc Performance') {
       steps {
         wrap([$class: 'Xvfb']) {
+          // Copy params to Workspace
+          sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/'
+
           // Run performance tests.
           // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
           sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a -v \
@@ -46,7 +49,6 @@ pipeline {
 
           // Copy performance website to Workspace
           sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
-
         }
       }
     }
@@ -76,9 +78,16 @@ pipeline {
       // Publish HTML website with Dygraphs and pdfs of VIO performance
       publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
 
-      // Archive the CTest xml output.
+      // Archive the website
       archiveArtifacts (
           artifacts: 'spark_vio_evaluation/html/data/**/*.*',
+          fingerprint: true
+          )
+
+      // Archive the params used in evaluation (if these are used is determined
+      // by the experiments yaml file in spark_vio_evaluation)
+      archiveArtifacts (
+          artifacts: 'spark_vio_evaluation/params/**/*.*',
           fingerprint: true
           )
 
