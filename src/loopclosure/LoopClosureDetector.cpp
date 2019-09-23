@@ -161,33 +161,6 @@ bool LoopClosureDetector::spin(
   return true;
 }
 
-const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
-  if (W_Pose_Blkf_estimates_.size() > 1) {
-    CHECK(pgo_);
-    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
-    // TODO(marcus): Seems like we might be picking the wrong one.
-    // If W_Pose_Blkf_estimates_ is lkf, then we should want the cur one?
-    gtsam::Pose3 w_Pose_Bkf_optimal =
-        pgo_->calculateEstimate().at<gtsam::Pose3>(
-            W_Pose_Blkf_estimates_.size() - 1);
-
-    return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
-  }
-
-  return gtsam::Pose3();
-}
-
-const gtsam::Values LoopClosureDetector::getPGOTrajectory() const {
-  CHECK(pgo_);
-  return pgo_->calculateEstimate();
-}
-
-const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg()
-    const {
-  CHECK(pgo_);
-  return pgo_->getFactorsUnsafe();
-}
-
 LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
     const std::shared_ptr<LoopClosureDetectorInputPayload>& input) {
   CHECK(input) << "No LoopClosureDetector Input Payload received.";
@@ -480,6 +453,33 @@ bool LoopClosureDetector::recoverPose(
   }
 
   return false;
+}
+
+const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
+  if (W_Pose_Blkf_estimates_.size() > 1) {
+    CHECK(pgo_);
+    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
+    // TODO(marcus): Seems like we might be picking the wrong one.
+    // If W_Pose_Blkf_estimates_ is lkf, then we should want the cur one?
+    gtsam::Pose3 w_Pose_Bkf_optimal =
+        pgo_->calculateEstimate().at<gtsam::Pose3>(
+            W_Pose_Blkf_estimates_.size() - 1);
+
+    return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
+  }
+
+  return gtsam::Pose3();
+}
+
+const gtsam::Values LoopClosureDetector::getPGOTrajectory() const {
+  CHECK(pgo_);
+  return pgo_->calculateEstimate();
+}
+
+const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg()
+    const {
+  CHECK(pgo_);
+  return pgo_->getFactorsUnsafe();
 }
 
 // TODO(marcus): should this be parsed from the other VIO components' params?
