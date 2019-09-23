@@ -39,6 +39,9 @@ namespace RobustPGO {
 
 namespace VIO {
 
+typedef std::function<void(const LoopClosureDetectorOutputPayload&)>
+  LoopClosurePGOCallback;
+
 class LoopClosureDetector {
  public:
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
@@ -47,7 +50,6 @@ class LoopClosureDetector {
   virtual ~LoopClosureDetector();
 
   bool spin(ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
-            ThreadsafeQueue<LoopClosureDetectorOutputPayload>& output_queue,
             bool parallel_run = true);
 
   LoopClosureDetectorOutputPayload spinOnce(
@@ -100,6 +102,10 @@ class LoopClosureDetector {
   const gtsam::Values getPGOTrajectory() const;
 
   const gtsam::NonlinearFactorGraph getPGOnfg() const;
+
+  inline void registerLcdPgoOutputCallback(LoopClosurePGOCallback callback) {
+    lcd_pgo_output_callback_ = callback;
+  }
 
   // TODO(marcus): maybe this should be private. But that makes testing harder.
   void setIntrinsics(const StereoFrame& stereo_frame);
@@ -169,6 +175,9 @@ class LoopClosureDetector {
                            gtsam::Pose3* bodyCur_T_bodyRef);
 
  private:
+  // Output callback(s). // TODO(marcus): make it possible to have multiple.
+  LoopClosurePGOCallback lcd_pgo_output_callback_;
+
   // Parameter members
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = {false};

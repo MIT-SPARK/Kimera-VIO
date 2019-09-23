@@ -122,7 +122,6 @@ LoopClosureDetector::~LoopClosureDetector() {
 
 bool LoopClosureDetector::spin(
     ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
-    ThreadsafeQueue<LoopClosureDetectorOutputPayload>& output_queue,
     bool parallel_run) {
   LOG(INFO) << "Spinning LoopClosureDetector.";
   utils::StatsCollector stat_lcd_timing("LoopClosureDetector Timing [ms]");
@@ -136,13 +135,21 @@ bool LoopClosureDetector::spin(
 
     if (input) {
       auto tic = utils::Timer::tic();
-      output_queue.push(spinOnce(input));
-      auto spin_duration = utils::Timer::toc(tic).count();
-      stat_lcd_timing.AddSample(spin_duration);
+      LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
 
-      LOG(WARNING) << "Current LoopClosureDetector frequency: "
-                   << 1000.0 / spin_duration << " Hz. ("
-                   << spin_duration << " ms).";
+      if (lcd_pgo_output_callback_) {
+        lcd_pgo_output_callback_(output_payload);
+        auto spin_duration = utils::Timer::toc(tic).count();
+        stat_lcd_timing.AddSample(spin_duration);
+
+        LOG(WARNING) << "Current LoopClosureDetector frequency: "
+                     << 1000.0 / spin_duration << " Hz. ("
+                     << spin_duration << " ms).";
+      } else {
+        LOG(ERROR) << "LoopClosureDetector: No output callback registered. "
+                   << "Either register a callback or disable LCD with "
+                   << "flag use_lcd=false.";
+      }
 
     } else {
       LOG(WARNING) << "No LoopClosureDetector Input Payload received.";
