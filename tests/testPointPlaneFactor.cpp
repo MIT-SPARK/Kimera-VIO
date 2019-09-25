@@ -420,9 +420,10 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
     smoother.update(graph, initial, timestamps, delete_slots);
     // Another extra iteration.
     for (size_t i = 0; i < 3; i++) {
-      smoother.update(gtsam::NonlinearFactorGraph(), gtsam::Values(),
+      smoother.update(gtsam::NonlinearFactorGraph(),
+                      gtsam::Values(),
                       gtsam::FixedLagSmoother::KeyTimestampMap(),
-                      gtsam::FastVector<size_t>());
+                      gtsam::FastVector<gtsam::FactorIndex>());
     }
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
     std::cout << e.what();
@@ -492,9 +493,10 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
     smoother.update(graph, initial, timestamps, delete_slots);
     // Another extra iteration.
     for (size_t i = 0; i < 3; i++) {
-      smoother.update(gtsam::NonlinearFactorGraph(), gtsam::Values(),
+      smoother.update(gtsam::NonlinearFactorGraph(),
+                      gtsam::Values(),
                       gtsam::FixedLagSmoother::KeyTimestampMap(),
-                      gtsam::FastVector<size_t>());
+                      gtsam::FastVector<gtsam::FactorIndex>());
     }
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
     std::cout << e.what();
