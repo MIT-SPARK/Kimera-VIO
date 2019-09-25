@@ -21,7 +21,7 @@
 
 #include <Eigen/Core>
 
-#include <opencv2/core/core.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/geometry/Unit3.h>

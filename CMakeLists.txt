@@ -12,7 +12,7 @@ endif()
 message(STATUS "===============================================================")
 message(STATUS "====================  Dependencies ============================")
 
-### Include the boost directory
+### System Dependencies
 find_package(Boost REQUIRED COMPONENTS filesystem serialization regex timer date_time thread)
 if(NOT TARGET Boost::boost)
   add_library(Boost::boost INTERFACE IMPORTED)
@@ -21,23 +21,9 @@ if(NOT TARGET Boost::boost)
   INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
 endif()
 
-### Find the GTSAM package
 find_package(GTSAM REQUIRED)
-if(GTSAM_FOUND)
-  message(STATUS "FOUND GTSAM! ${OpenCV_INCLUDE_DIRS}")
-endif(GTSAM_FOUND)
-
-### Find the OpenGV package
 find_package(opengv REQUIRED)
-if(opengv_FOUND)
-  message(STATUS "FOUND OpenGV!")
-endif(opengv_FOUND)
-
-### Find opencv
 find_package(OpenCV 3.3.1 REQUIRED)
-if(OpenCV_FOUND)
-  message(STATUS "FOUND OpenCV!")
-endif(OpenCV_FOUND)
 
 ### Find the DBoW2 package
 find_package(DBoW2)
@@ -60,11 +46,7 @@ execute_process(
 
 ### External Dependencies
 include(ExternalProject)
-
-### Include the gflags directory
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
-
-### Include the glog directory
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
@@ -118,7 +100,7 @@ target_link_libraries(SparkVio
     RobustPGO
   PUBLIC
     Boost::boost
-    ${OpenCV_LIBS}
+    ${OpenCV_LIBRARIES} # TODO: modernize
     gflags::gflags
     glog::glog
     gtsam
@@ -126,6 +108,7 @@ target_link_libraries(SparkVio
 )
 target_include_directories(SparkVio
   PUBLIC
+    ${OpenCV_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:src>

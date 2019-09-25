@@ -33,7 +33,7 @@
 #include "initial/InitializationBackEnd.h"
 #include "initial/InitializationFromImu.h"
 
-DEFINE_bool(log_output, false, "Log output to matlab.");
+DEFINE_bool(log_output, false, "Log output to CSV files.");
 DEFINE_int32(regular_vio_backend_modality, 4u,
              "Modality for regular Vio backend, currently supported:\n"
              "0: Structureless (equivalent to normal VIO)\n"

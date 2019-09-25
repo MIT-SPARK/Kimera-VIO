@@ -34,7 +34,8 @@ pipeline {
       steps {
         wrap([$class: 'Xvfb']) {
           // Copy params to Workspace
-          sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/'
+          sh 'mkdir -p $WORKSPACE/spark_vio_evaluation/experiments'
+          sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/experiments/'
 
           // Run performance tests.
           // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
@@ -87,7 +88,7 @@ pipeline {
       // Archive the params used in evaluation (if these are used is determined
       // by the experiments yaml file in spark_vio_evaluation)
       archiveArtifacts (
-          artifacts: 'spark_vio_evaluation/params/**/*.*',
+          artifacts: 'spark_vio_evaluation/experiments/params/**/*.*',
           fingerprint: true
           )
 
