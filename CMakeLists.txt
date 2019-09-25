@@ -23,7 +23,7 @@ endif()
 
 find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
-find_package(OpenCV 3.3.1 REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ### External Dependencies
 include(ExternalProject)
