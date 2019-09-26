@@ -89,21 +89,3 @@ TEST(testVioBackEndParams, equals) {
 
   EXPECT_TRUE(!vp.equals(vp2));
 }
-
-/* ************************************************************************* */
-TEST(testVioBackEndParams, cppVSmatlabTrackerParams) {
-  // check that the cpp default params match the matlab ones.
-  // before running, make sure that you run "writeDefaultParams" in matlab
-  VioBackEndParams cppDefault_vp = VioBackEndParams();
-
-  VioBackEndParams matlabDefault_vp;
-  matlabDefault_vp.parseYAML(string(FLAGS_test_data_path) +
-                             "/../../matlab/myLib/defaultVioParams.yaml");
-
-  EXPECT_TRUE(matlabDefault_vp.equals(cppDefault_vp, 1e-5));
-
-  if (!matlabDefault_vp.equals(cppDefault_vp)) {
-    matlabDefault_vp.print();
-    cppDefault_vp.print();
-  }
-}

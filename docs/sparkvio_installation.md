@@ -166,7 +166,7 @@ Before proceeding, ensure all dependencies are installed or use the provided [do
 
 Clone this repository:
 ```bash
-git clone git@github.mit.edu:SPARK/VIO.git SparkVIO
+git clone git@github.com:MIT-SPARK/Kimera-VIO.git SparkVIO
 ```
 
 Build SparkVIO:
@@ -186,16 +186,14 @@ If you want to avoid building all these dependencies yourself, we provide a dock
 For that, you will need to install [Docker](https://docs.docker.com/install/).
 
 Once installed, clone this repo, build the image and run it:
-> Note: while this repo remains private, you'll need to **specify your ssh keys**: replace `<username>` below, with an ssh key that has read access to the repo in github.mit.edu (check your profile settings for such ssh key). Also, since docker build doesn't handle user input, ensure your ssh key does **not** have a passphrase.
 
 ```bash
 # Clone the repo
-git clone git@github.mit.edu:SPARK/VIO.git SparkVIO
+git clone git@github.com:MIT-SPARK/Kimera-VIO.git SparkVIO
 
 # Build the image
 cd SparkVIO
-docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . \
---build-arg SSH_PRIVATE_KEY="$(cat /home/<username>/.ssh/id_rsa)"
+docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . 
 ```
 
 This may take a while (>15min), so you can go and grab a cup of coffee.
