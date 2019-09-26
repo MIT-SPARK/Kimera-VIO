@@ -1010,20 +1010,20 @@ void Tracker::featureDetection(Frame* cur_frame) {
       }
     }
 
-    cv::imshow("Tracker img " + img_title, img_rgb);
-    cv::waitKey(1);
-
-    if (write_frame) {
-      std::string folderName = outputImagesPath_ + img_title + "-" +
-                               VioFrontEndParams::FeatureSelectionCriterionStr(
-                                   trackerParams_.featureSelectionCriterion_) +
-                               "/";
-      boost::filesystem::path trackerDir(folderName.c_str());
-      boost::filesystem::create_directory(trackerDir);
-      std::string img_name = folderName + "/trackerDisplay" + img_title + "_" +
-                             std::to_string(cur_frame.id_) + ".png";
-      cv::imwrite(img_name, img_rgb);
-    }
+    // cv::imshow("Tracker img " + img_title, img_rgb);
+    // cv::waitKey(1);
+    //
+    // if (write_frame) {
+    //   std::string folderName = outputImagesPath_ + img_title + "-" +
+    //                            VioFrontEndParams::FeatureSelectionCriterionStr(
+    //                                trackerParams_.featureSelectionCriterion_) +
+    //                            "/";
+    //   boost::filesystem::path trackerDir(folderName.c_str());
+    //   boost::filesystem::create_directory(trackerDir);
+    //   std::string img_name = folderName + "/trackerDisplay" + img_title + "_" +
+    //                          std::to_string(cur_frame.id_) + ".png";
+    //   cv::imwrite(img_name, img_rgb);
+    // }
 
     return img_rgb;
   }

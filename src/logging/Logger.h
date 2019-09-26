@@ -19,6 +19,8 @@
 #include <iostream>
 #include <unordered_map>
 
+#include <opencv2/opencv.hpp>
+
 #include "datasource/ETH_parser.h"  // REMOVE THIS!!
 
 namespace VIO {
@@ -86,12 +88,18 @@ class FrontendLogger {
   void logFrontendRansac(const Timestamp& timestamp_lkf,
                          const gtsam::Pose3& relative_pose_body_mono,
                          const gtsam::Pose3& relative_pose_body_stereo);
+  void logFrontendImg(const FrameId& kf_id,
+                      const cv::Mat& img,
+                      const std::string& img_name_prepend,
+                      const std::string& dir_name,
+                      const bool distp_img = false);
 
  private:
   // StreamWrappers with filenames to which output is saved.
   OfstreamWrapper output_frontend_stats_;
   OfstreamWrapper output_frontend_ransac_mono_;
   OfstreamWrapper output_frontend_ransac_stereo_;
+  std::string output_frontend_img_path_;
 };
 
 class VisualizerLogger {

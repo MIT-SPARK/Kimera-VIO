@@ -358,7 +358,22 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
 FrontendLogger::FrontendLogger()
     : output_frontend_stats_("output_frontend_stats.csv"),
       output_frontend_ransac_mono_("output_frontend_ransac_mono.csv"),
-      output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv") {};
+      output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv"),
+      output_frontend_img_path_(FLAGS_output_path + "/frontend_images/"){
+  // Create output directories for images.
+  boost::filesystem::create_directory(boost::filesystem::path(
+      output_frontend_img_path_.c_str()));
+  boost::filesystem::create_directory(boost::filesystem::path(
+      (output_frontend_img_path_ + "monoFeatureTracksLeftImg").c_str()));
+  boost::filesystem::create_directory(boost::filesystem::path(
+      (output_frontend_img_path_ + "monoTrackingUnrectifiedImg").c_str()));
+  boost::filesystem::create_directory(boost::filesystem::path(
+      (output_frontend_img_path_ + "monoTrackingRectifiedImg").c_str()));
+  boost::filesystem::create_directory(boost::filesystem::path(
+      (output_frontend_img_path_ + "stereoMatchingUnrectifiedImg").c_str()));
+  boost::filesystem::create_directory(boost::filesystem::path(
+      (output_frontend_img_path_ + "stereoMatchingRectifiedImg").c_str()));
+}
 
 void FrontendLogger::logFrontendStats(
     const Timestamp& timestamp_lkf,
@@ -467,6 +482,30 @@ void FrontendLogger::logFrontendRansac(
                        << stereo_quat.y() << ","
                        << stereo_quat.z()
                        << std::endl;
+}
+
+void FrontendLogger::logFrontendImg(const FrameId& kf_id,
+    const cv::Mat& img, const std::string& img_name_prepend,
+    const std::string& dir_name, const bool disp_img) {
+  // We save the images to the output folder so that they can be visualized.
+  // Plot text with keyframe id.
+  // if (!text_on_img.empty()) {
+  //   cv::putText(img, text_on_img, KeypointCV(10, 15),
+  //               CV_FONT_HERSHEY_COMPLEX, 0.6, cv::Scalar(0, 255, 0));
+  // }
+
+  std::string img_name = output_frontend_img_path_ + dir_name +
+      img_name_prepend + std::to_string(kf_id) + ".png";
+
+  // Show image.
+  if (disp_img) {
+    cv::imshow(img_name_prepend, img);
+    cv::waitKey(1);
+  }
+
+  // Write image to disk.
+  LOG(INFO) << "Writing image: " << img_name;
+  cv::imwrite(img_name, img);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
