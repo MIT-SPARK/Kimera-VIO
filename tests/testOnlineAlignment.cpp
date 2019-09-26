@@ -164,7 +164,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
 };
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
+TEST_F(OnlineAlignmentFixture, GyroscopeBiasEstimation) {
   // Construct ETH Parser and get data
   std::string reason = "test of gyroscope estimation";
   ETHDatasetParser dataset(reason);
@@ -196,7 +196,7 @@ TEST(testOnlineAlignment, GyroscopeBiasEstimation) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimationAHRS) {
+TEST_F(OnlineAlignmentFixture, DISABLED_GyroscopeBiasEstimationAHRS) {
   // Construct ETH Parser and get data
   std::string reason = "test of gyroscope estimation AHRS";
   ETHDatasetParser dataset(reason);
@@ -229,7 +229,7 @@ TEST(testOnlineAlignment, DISABLED_GyroscopeBiasEstimationAHRS) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, CreateTangentBasis) {
+TEST_F(OnlineAlignmentFixture, CreateTangentBasis) {
   for (int i=0; i<20; i++) {
     // Create random vector (this is not unit vector!)
     gtsam::Vector3 random_vector = UtilsOpenCV::RandomVectorGenerator(1.0);
@@ -258,7 +258,7 @@ TEST(testOnlineAlignment, CreateTangentBasis) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, OnlineGravityAlignment) {
+TEST_F(OnlineAlignmentFixture, OnlineGravityAlignment) {
   // Construct ETH Parser and get data
   std::string reason = "test of alignment estimation";
   ETHDatasetParser dataset(reason);
@@ -310,7 +310,7 @@ TEST(testOnlineAlignment, OnlineGravityAlignment) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST(testOnlineAlignment, GravityAlignmentRealData) {
+TEST_F(OnlineAlignmentFixture, GravityAlignmentRealData) {
   for (int i = 0; i < 30; i++) {
     // Construct ETH Parser and get data
     std::string reason = "test of alignment estimation - real data";

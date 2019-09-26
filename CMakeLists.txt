@@ -162,6 +162,7 @@ add_executable(testSparkVio
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
+  tests/testOnlineAlignment.cpp
   )
 
 target_link_libraries(testSparkVio gtest SparkVio::SparkVio)
