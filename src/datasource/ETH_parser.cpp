@@ -19,33 +19,39 @@
 #include "StereoFrame.h"
 #include "imu-frontend/ImuFrontEnd-definitions.h"
 
-DEFINE_int32(skip_n_start_frames, 10, "Number of initial frames to skip.");
-DEFINE_int32(skip_n_end_frames, 100, "Number of final frames to skip.");
+DEFINE_int32(skip_n_start_frames,
+             10,
+             "Number of initial frames to skip for "
+             "IMU calibration. We only use the IMU"
+             "information and discard the frames.");
+DEFINE_int32(skip_n_end_frames,
+             100,
+             "Number of final frames to skip for "
+             "IMU calibration. We only use the IMU"
+             "information and discard the frames.");
 
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-ETHDatasetParser::ETHDatasetParser() : DataProvider(), imu_data_() {
+ETHDatasetParser::ETHDatasetParser(int initial_k,
+                                   int final_k,
+                                   const std::string& dataset_path,
+                                   int skip_n_start_frames,
+                                   int skip_n_end_frames)
+    : DataProvider(initial_k, final_k, dataset_path),
+      skip_n_start_frames_(skip_n_start_frames),
+      skip_n_end_frames_(skip_n_end_frames),
+      imu_data_() {
   parse();
+}
 
-  // Check that final_k_ is smaller than the number of images.
-  // And remove final frames.
-  const size_t& nr_images = getNumImages();
-  if (final_k_ >= nr_images) {
-    LOG(WARNING) << "Value for final_k, " << final_k_
-                 << " is larger or equal to the total"
-                 << " number of frames in dataset " << nr_images;
-    // Skip last frames which are typically problematic
-    // (IMU bumps, FOV occluded)...
-    CHECK_GT(FLAGS_skip_n_end_frames, 0);
-    CHECK_LT(FLAGS_skip_n_end_frames, nr_images);
-    final_k_ = nr_images - FLAGS_skip_n_end_frames;
-    LOG(WARNING) << "Using final_k = " << final_k_ << ", where we removed "
-                 << FLAGS_skip_n_end_frames
-                 << " frames to avoid bad IMU readings.";
-  }
-  CHECK_GT(final_k_, 0);
-  CHECK_LT(final_k_, nr_images);
+/* -------------------------------------------------------------------------- */
+ETHDatasetParser::ETHDatasetParser()
+    : DataProvider(),
+      skip_n_start_frames_(FLAGS_skip_n_start_frames),
+      skip_n_end_frames_(FLAGS_skip_n_end_frames),
+      imu_data_() {
+  parse();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -62,40 +68,46 @@ bool ETHDatasetParser::spin() {
   // Check also that the dataset has been correctly parsed.
 
   // Timestamp 10 frames before the first (for imu calibration)
-  CHECK_GE(initial_k_, FLAGS_skip_n_start_frames)
+  CHECK_GE(initial_k_, skip_n_start_frames_)
       << "Initial frame " << initial_k_ << " has to be larger than "
-      << FLAGS_skip_n_start_frames << " (needed for IMU calibration)";
+      << skip_n_start_frames_ << " (needed for IMU calibration)";
   Timestamp timestamp_last_frame =
-      timestampAtFrame(initial_k_ - FLAGS_skip_n_start_frames);
+      timestampAtFrame(initial_k_ - skip_n_start_frames_);
 
   // Spin.
   const StereoMatchingParams& stereo_matching_params =
       pipeline_params_.frontend_params_.getStereoMatchingParams();
-  const bool equalize_image = stereo_matching_params.equalize_image_;
+  const bool& equalize_image = stereo_matching_params.equalize_image_;
   const CameraParams& left_cam_info = getLeftCamInfo();
   const CameraParams& right_cam_info = getRightCamInfo();
   const gtsam::Pose3& camL_pose_camR = getCamLPoseCamR();
   for (FrameId k = initial_k_; k < final_k_; k++) {
-    spinOnce(k, timestamp_last_frame, stereo_matching_params, equalize_image,
-             left_cam_info, right_cam_info, camL_pose_camR);
+    spinOnce(k,
+             stereo_matching_params,
+             equalize_image,
+             left_cam_info,
+             right_cam_info,
+             camL_pose_camR,
+             &timestamp_last_frame);
   }
   return true;
 }
 
 void ETHDatasetParser::spinOnce(
     const FrameId& k,
-    Timestamp& timestamp_last_frame,
     const StereoMatchingParams& stereo_matching_params,
     const bool equalize_image,
     const CameraParams& left_cam_info,
     const CameraParams& right_cam_info,
-    const gtsam::Pose3& camL_pose_camR) {
+    const gtsam::Pose3& camL_pose_camR,
+    Timestamp* timestamp_last_frame) {
+  CHECK_NOTNULL(timestamp_last_frame);
   Timestamp timestamp_frame_k = timestampAtFrame(k);
   ImuMeasurements imu_meas;
-  CHECK_LT(timestamp_last_frame, timestamp_frame_k);
+  CHECK_LT(*timestamp_last_frame, timestamp_frame_k);
   CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
         imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-            timestamp_last_frame,
+            *timestamp_last_frame,
             timestamp_frame_k,
             &imu_meas.timestamps_,
             &imu_meas.measurements_));
@@ -114,7 +126,7 @@ void ETHDatasetParser::spinOnce(
            << "ACCGYR IMU: \n"
            << imu_meas.measurements_;
 
-  timestamp_last_frame = timestamp_frame_k;
+  *timestamp_last_frame = timestamp_frame_k;
 
   // TODO(Toni) alternatively push here to a queue, and give that queue to the
   // VIO pipeline so it can pull from it.
@@ -174,6 +186,23 @@ void ETHDatasetParser::parse() {
     pipeline_params_.backend_params_->initial_ground_truth_state_ =
         getGroundTruthState(timestampAtFrame(initial_k_));
   }
+
+  // Check that final_k_ is smaller than the number of images.
+  // And remove final frames.
+  if (final_k_ >= nr_images) {
+    LOG(WARNING) << "Value for final_k, " << final_k_
+                 << " is larger or equal to the total"
+                 << " number of frames in dataset " << nr_images;
+    // Skip last frames which are typically problematic
+    // (IMU bumps, FOV occluded)...
+    CHECK_GT(skip_n_end_frames, 0);
+    CHECK_LT(skip_n_end_frames, nr_images);
+    final_k_ = nr_images - skip_n_end_frames;
+    LOG(WARNING) << "Using final_k = " << final_k_ << ", where we removed "
+                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
+  }
+  CHECK_GT(final_k_, 0);
+  CHECK_LT(final_k_, nr_images);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -423,30 +452,30 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
-                                    const std::string& leftCameraName,
-                                    const std::string& rightCameraName,
-                                    const std::string& imuName,
-                                    const std::string& gtSensorName,
-                                    bool doParseImages) {
-  parseCameraData(input_dataset_path, leftCameraName, rightCameraName,
-                  doParseImages);
-  CHECK(parseImuParams(input_dataset_path, imuName));
-  parseImuData(input_dataset_path, imuName);
-  is_gt_available_ = parseGTdata(input_dataset_path, gtSensorName);
+bool ETHDatasetParser::*parseDataset(const std::string& input_dataset_path,
+                                     const std::string& left_cam_name,
+                                     const std::string& right_cam_name,
+                                     const std::string& imu_name,
+                                     const std::string& gt_sensor_name,
+                                     bool parse_images) {
+  parseCameraData(
+      input_dataset_path, left_cam_name, right_cam_name, parse_images);
+  CHECK(parseImuParams(input_dataset_path, imu_name));
+  parseImuData(input_dataset_path, imu_name);
+  is_gt_available_ = parseGTdata(input_dataset_path, gt_sensor_name);
 
   // Find and store actual name (rather than path) of the dataset.
   std::size_t foundLastSlash = input_dataset_path.find_last_of("/\\");
   std::string dataset_path_tmp = input_dataset_path;
   dataset_name_ = dataset_path_tmp.substr(foundLastSlash + 1);
-  if (foundLastSlash >=
-      dataset_path_tmp.size() -
-          1) {  // the dataset name has a slash at the very end
-    dataset_path_tmp =
-        dataset_path_tmp.substr(0, foundLastSlash);  // cut the last slash
-    foundLastSlash = dataset_path_tmp.find_last_of("/\\");  // repeat the search
-    dataset_name_ =
-        dataset_path_tmp.substr(foundLastSlash + 1);  // try to pick right name
+  // The dataset name has a slash at the very end
+  if (foundLastSlash >= dataset_path_tmp.size() - 1) {
+    // Cut the last slash.
+    dataset_path_tmp = dataset_path_tmp.substr(0, foundLastSlash);
+    // Repeat the search.
+    foundLastSlash = dataset_path_tmp.find_last_of("/\\");
+    // Try to pick right name.
+    dataset_name_ = dataset_path_tmp.substr(foundLastSlash + 1);
   }
   LOG(INFO) << "Dataset name: " << dataset_name_;
   return true;
@@ -501,8 +530,8 @@ bool ETHDatasetParser::sanityCheckCameraData(
     std::map<std::string, CameraImageLists>* camera_image_lists) const {
   CHECK_NOTNULL(camera_image_lists);
   const auto& left_cam_info = camera_info.at(camera_names.at(0));
-  auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists;
-  auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists;
+  auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists_;
+  auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists_;
   return sanityCheckCamSize(&left_img_lists, &right_img_lists) &&
          sanityCheckCamTimestamps(left_img_lists, right_img_lists,
                                   left_cam_info);
@@ -701,8 +730,8 @@ std::pair<double, double> ETHDatasetParser::computePoseErrors(
 /* -------------------------------------------------------------------------- */
 Timestamp ETHDatasetParser::timestampAtFrame(const FrameId& frame_number) {
   DCHECK_LT(frame_number,
-            camera_image_lists_[camera_names_[0]].img_lists.size());
-  return camera_image_lists_[camera_names_[0]].img_lists[frame_number].first;
+            camera_image_lists_[camera_names_[0]].img_lists_.size());
+  return camera_image_lists_[camera_names_[0]].img_lists_[frame_number].first;
 }
 
 /* -------------------------------------------------------------------------- */

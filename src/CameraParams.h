@@ -38,11 +38,11 @@ public:
   bool parseYAML(const std::string& filepath);
 
   /* ------------------------------------------------------------------------ */
-  // Parse KITTI calib file describing camera parameters. 
-  bool parseKITTICalib(const std::string& filepath, 
-                       cv::Mat R_cam_to_imu, 
+  // Parse KITTI calib file describing camera parameters.
+  bool parseKITTICalib(const std::string& filepath,
+                       cv::Mat R_cam_to_imu,
                        cv::Mat T_cam_to_imu,
-                       const std::string& cam_id); 
+                       const std::string& cam_id);
 
   /* ------------------------------------------------------------------------ */
   // Display all params.
