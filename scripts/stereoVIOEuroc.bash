@@ -106,5 +106,4 @@ echo """ Launching:
   --parallel_run="$PARALLEL_RUN" \
   --dataset_type="$DATASET_TYPE" \
   --log_output="$LOG_OUTPUT" \
-  --output_path="../output_logs/" \
-  --log_frontend_images=2
+  --output_path="../output_logs/"

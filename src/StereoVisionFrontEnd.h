@@ -185,30 +185,16 @@ public:
   static void printStatusStereoMeasurements(
       const StatusSmartStereoMeasurements& statusStereoMeasurements);
 
-  // verbosity_ explanation (TODO: include this)
-  /*
-   * 0: no display
-   * 1: show images
-   * 2: write images (at each keyframe)
-   * 3: write video
-   * 4: write an image for each feature matched between left and right
-   */
   /* ------------------------------------------------------------------------ */
-  // Visualize quality of temporal and stereo matching
-  void displayStereoTrack(const int& verbosity) const;
+  // Log, visualize and/or save the feature tracks on the current left frame
+  void sendFeatureTracksToLogger() const;
+
+  // Log, visualize and/or save quality of temporal and stereo matching
+  void sendStereoMatchesToLogger() const;
 
   /* ------------------------------------------------------------------------ */
-  // Visualize quality of temporal and stereo matching
-  void displayMonoTrack(const int& verbosity) const;
-
-  /* ------------------------------------------------------------------------ */
-  void displaySaveImage(
-      const cv::Mat& img_left,
-      const std::string& text_on_img = "",
-      const std::string& imshow_name = "mono tracking visualization (1 frame)",
-      const std::string& folder_name_append = "-monoMatching1frame",
-      const std::string& img_name_prepend = "monoTrackerDisplay1Keyframe_",
-      const int verbosity = 0) const;
+  // Log, visualize and/or save quality of temporal and stereo matching
+  void sendMonoTrackingToLogger() const;
 
   /* ------------------------------------------------------------------------ */
   // Reset ImuFrontEnd gravity. Trivial gravity is needed for initial alignment.
@@ -288,4 +274,3 @@ private:
 };
 
 } // namespace VIO
-

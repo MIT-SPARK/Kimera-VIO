@@ -15,6 +15,13 @@
 --visualize_semantic_mesh=true
 --visualize_mesh_in_frustum=true
 #--visualize_load_mesh_filename=/home/tonirv/datasets/euroc/V1_01_easy/mav0/pointcloud0/data.ply
+--visualize_frontend_images=true
+--save_frontend_images=false
 --viz_type=3
 --min_num_obs_for_mesher_points=3
 --extract_planes_from_the_scene=false
+
+# For displaying/saving frontend images:
+--log_feature_tracks=true
+--log_mono_tracking_images=false
+--log_stereo_matching_images=false

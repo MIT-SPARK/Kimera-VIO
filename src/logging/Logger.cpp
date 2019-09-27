@@ -485,8 +485,11 @@ void FrontendLogger::logFrontendRansac(
 }
 
 void FrontendLogger::logFrontendImg(const FrameId& kf_id,
-    const cv::Mat& img, const std::string& img_name_prepend,
-    const std::string& dir_name, const bool disp_img) {
+                                    const cv::Mat& img,
+                                    const std::string& img_name_prepend,
+                                    const std::string& dir_name,
+                                    const bool disp_img,
+                                    const bool save_img) {
   // We save the images to the output folder so that they can be visualized.
   // Plot text with keyframe id.
   // if (!text_on_img.empty()) {
@@ -504,8 +507,10 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
   }
 
   // Write image to disk.
-  LOG(INFO) << "Writing image: " << img_name;
-  cv::imwrite(img_name, img);
+  if (save_img) {
+    LOG(INFO) << "Writing image: " << img_name;
+    cv::imwrite(img_name, img);
+  }
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

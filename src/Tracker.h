@@ -107,7 +107,7 @@ public:
 
   /* ---------------------------- CONST FUNCTIONS --------------------------- */
   // returns frame with markers
-  cv::Mat displayFrame(
+  cv::Mat getFeatureTrackImg(
       const Frame& ref_frame,
       const Frame& cur_frame,
       bool write_frame = false,
