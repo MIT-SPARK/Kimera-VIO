@@ -74,10 +74,9 @@ RUN cd DBoW2 && \
 
   # Install RobustPGO
   # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
-  ADD https://api.github.com/repos/MIT-SPARK/RobustPGO/git/refs/heads/master version.json
-  RUN git clone https://github.com/MIT-SPARK/RobustPGO.git
+  ADD https://api.github.com/MIT-SPARK/Kimera-RPGO/git/refs/heads/master version.json
+  RUN git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
   RUN cd RobustPGO && \
-        git checkout feature/stats_reporting && \
         mkdir build && \
         cd build && \
         cmake .. && \
