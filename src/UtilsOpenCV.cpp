@@ -113,15 +113,11 @@ bool UtilsOpenCV::CvPointCmp(const cv::Point2f& p1, const cv::Point2f& p2,
 gtsam::Pose3 UtilsOpenCV::poseVectorToGtsamPose3(
     const std::vector<double>& vector_pose) {
   CHECK_EQ(vector_pose.size(), 16u);
-  gtsam::Matrix pose_matrix (4, 4);
-  // clang-format off
-  pose_matrix
-      << vector_pose[0],  vector_pose[1],  vector_pose[2],  vector_pose[3],
-         vector_pose[4],  vector_pose[5],  vector_pose[6],  vector_pose[7],
-         vector_pose[8],  vector_pose[9],  vector_pose[10], vector_pose[11],
-         vector_pose[12], vector_pose[13], vector_pose[14], vector_pose[15];
-  // clang-format on
-  return gtsam::Pose3(pose_matrix);
+  DCHECK_EQ(vector_pose[12], 0.0);
+  DCHECK_EQ(vector_pose[13], 0.0);
+  DCHECK_EQ(vector_pose[14], 0.0);
+  DCHECK_EQ(vector_pose[15], 1.0);
+  return gtsam::Pose3(Eigen::Matrix4d(vector_pose.data()).transpose());
 }
 
 /* -------------------------------------------------------------------------- */
