@@ -25,6 +25,7 @@
 #include "FeatureSelector.h"
 #include "StereoImuSyncPacket.h"
 #include "Visualizer3D.h"
+#include "loopclosure/LoopClosureDetector.h"  // TODO(marcus): would be nice to remove
 #include "datasource/DataSource-definitions.h"  // Only used for gtNavState, add it to vio_types.h instead...
 #include "initial/InitializationBackEnd-definitions.h"
 #include "mesh/Mesher.h"
@@ -35,9 +36,6 @@ namespace VIO {
 class VioBackEndParams;
 class VioBackEnd;
 class StereoVisionFrontEnd;
-class LoopClosureDetectorParams;
-class LoopClosureDetector;
-class LoopClosureDetectorOutputPayload;
 }  // namespace VIO
 
 namespace VIO {
@@ -47,8 +45,6 @@ class Pipeline {
   // Typedefs
   typedef std::function<void(const SpinOutputPacket&)>
       KeyframeRateOutputCallback;
-  typedef std::function<void(const LoopClosureDetectorOutputPayload&)>
-    LoopClosurePGOCallback;
 
  public:
   Pipeline(const PipelineParams& params, bool parallel_run = true);
@@ -101,9 +97,9 @@ class Pipeline {
   }
 
   // Callback to output the LoopClosureDetector's loop-closure/PGO results.
-  inline void registerLoopClosureCallback(
-      LoopClosurePGOCallback callback) {
-    loop_closure_pgo_callback_ = callback;
+  inline void registerLcdPgoOutputCallback(
+      const LoopClosurePGOCallback& callback) {
+    loop_closure_detector_->registerLcdPgoOutputCallback(callback);
   }
 
  private:
@@ -224,7 +220,6 @@ class Pipeline {
 
   // Thread-safe queue for the loop closure detector.
   ThreadsafeQueue<LoopClosureDetectorInputPayload> lcd_input_queue_;
-  ThreadsafeQueue<LoopClosureDetectorOutputPayload> lcd_output_queue_;
 
   // Visualization process.
   Visualizer3D visualizer_;

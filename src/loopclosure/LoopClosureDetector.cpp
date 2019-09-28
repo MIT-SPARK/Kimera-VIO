@@ -92,7 +92,8 @@ LoopClosureDetector::LoopClosureDetector(
 
   // Load ORB vocabulary:
   std::ifstream f_vocab(FLAGS_vocabulary_path.c_str());
-  CHECK(f_vocab.good()) << "LoopClosureDetector: Incorrect vocabulary path.";
+  CHECK(f_vocab.good()) << "LoopClosureDetector: Incorrect vocabulary path: "
+                        << FLAGS_vocabulary_path;
   f_vocab.close();
 
   OrbVocabulary vocab;
@@ -122,7 +123,6 @@ LoopClosureDetector::~LoopClosureDetector() {
 
 bool LoopClosureDetector::spin(
     ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
-    ThreadsafeQueue<LoopClosureDetectorOutputPayload>& output_queue,
     bool parallel_run) {
   LOG(INFO) << "Spinning LoopClosureDetector.";
   utils::StatsCollector stat_lcd_timing("LoopClosureDetector Timing [ms]");
@@ -136,13 +136,21 @@ bool LoopClosureDetector::spin(
 
     if (input) {
       auto tic = utils::Timer::tic();
-      output_queue.push(spinOnce(input));
-      auto spin_duration = utils::Timer::toc(tic).count();
-      stat_lcd_timing.AddSample(spin_duration);
+      LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
 
-      LOG(WARNING) << "Current LoopClosureDetector frequency: "
-                   << 1000.0 / spin_duration << " Hz. ("
-                   << spin_duration << " ms).";
+      if (lcd_pgo_output_callback_) {
+        lcd_pgo_output_callback_(output_payload);
+        auto spin_duration = utils::Timer::toc(tic).count();
+        stat_lcd_timing.AddSample(spin_duration);
+
+        LOG(WARNING) << "Current LoopClosureDetector frequency: "
+                     << 1000.0 / spin_duration << " Hz. ("
+                     << spin_duration << " ms).";
+      } else {
+        LOG(ERROR) << "LoopClosureDetector: No output callback registered. "
+                   << "Either register a callback or disable LCD with "
+                   << "flag use_lcd=false.";
+      }
 
     } else {
       LOG(WARNING) << "No LoopClosureDetector Input Payload received.";
@@ -152,33 +160,6 @@ bool LoopClosureDetector::spin(
   }
   LOG(INFO) << "LoopClosureDetector successfully shutdown.";
   return true;
-}
-
-const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
-  if (W_Pose_Blkf_estimates_.size() > 1) {
-    CHECK(pgo_);
-    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
-    // TODO(marcus): Seems like we might be picking the wrong one.
-    // If W_Pose_Blkf_estimates_ is lkf, then we should want the cur one?
-    gtsam::Pose3 w_Pose_Bkf_optimal =
-        pgo_->calculateEstimate().at<gtsam::Pose3>(
-            W_Pose_Blkf_estimates_.size() - 1);
-
-    return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
-  }
-
-  return gtsam::Pose3();
-}
-
-const gtsam::Values LoopClosureDetector::getPGOTrajectory() const {
-  CHECK(pgo_);
-  return pgo_->calculateEstimate();
-}
-
-const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg()
-    const {
-  CHECK(pgo_);
-  return pgo_->getFactorsUnsafe();
 }
 
 LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
@@ -473,6 +454,33 @@ bool LoopClosureDetector::recoverPose(
   }
 
   return false;
+}
+
+const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
+  if (W_Pose_Blkf_estimates_.size() > 1) {
+    CHECK(pgo_);
+    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
+    // TODO(marcus): Seems like we might be picking the wrong one.
+    // If W_Pose_Blkf_estimates_ is lkf, then we should want the cur one?
+    gtsam::Pose3 w_Pose_Bkf_optimal =
+        pgo_->calculateEstimate().at<gtsam::Pose3>(
+            W_Pose_Blkf_estimates_.size() - 1);
+
+    return w_Pose_Bkf_optimal.between(w_Pose_Bkf_estim);
+  }
+
+  return gtsam::Pose3();
+}
+
+const gtsam::Values LoopClosureDetector::getPGOTrajectory() const {
+  CHECK(pgo_);
+  return pgo_->calculateEstimate();
+}
+
+const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg()
+    const {
+  CHECK(pgo_);
+  return pgo_->getFactorsUnsafe();
 }
 
 // TODO(marcus): should this be parsed from the other VIO components' params?
