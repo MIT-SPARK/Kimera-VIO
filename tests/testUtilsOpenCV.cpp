@@ -53,18 +53,18 @@ class UtilsOpenCVFixture : public ::testing::Test {
         R_cvmat_(),
         T_cvmat_() {
     // clang-format off
-  R_gtsam_ = gtsam::Rot3(
-      pose_vector_[0], pose_vector_[1], pose_vector_[2],
-      pose_vector_[4], pose_vector_[5], pose_vector_[6],
-      pose_vector_[8], pose_vector_[9], pose_vector_[10]);
-  T_gtsam_ = gtsam::Point3(pose_vector_[3], pose_vector_[7], pose_vector_[11]);
-  pose_gtsam_ = gtsam::Pose3(R_gtsam_, T_gtsam_);
-  R_cvmat_ = (cv::Mat_<double>(3, 3)
-             << pose_vector_[0], pose_vector_[1], pose_vector_[2],
-                pose_vector_[4], pose_vector_[5], pose_vector_[6],
-                pose_vector_[8], pose_vector_[9], pose_vector_[10]);
-  T_cvmat_ = (cv::Mat_<double>(3, 1)
-             << pose_vector_[3], pose_vector_[7], pose_vector_[11]);
+    R_gtsam_ = gtsam::Rot3(
+        pose_vector_[0], pose_vector_[1], pose_vector_[2],
+        pose_vector_[4], pose_vector_[5], pose_vector_[6],
+        pose_vector_[8], pose_vector_[9], pose_vector_[10]);
+    T_gtsam_ = gtsam::Point3(pose_vector_[3], pose_vector_[7], pose_vector_[11]);
+    pose_gtsam_ = gtsam::Pose3(R_gtsam_, T_gtsam_);
+    R_cvmat_ = (cv::Mat_<double>(3, 3)
+               << pose_vector_[0], pose_vector_[1], pose_vector_[2],
+                  pose_vector_[4], pose_vector_[5], pose_vector_[6],
+                  pose_vector_[8], pose_vector_[9], pose_vector_[10]);
+    T_cvmat_ = (cv::Mat_<double>(3, 1)
+               << pose_vector_[3], pose_vector_[7], pose_vector_[11]);
     // clang-format on
   }
 
