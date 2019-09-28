@@ -32,7 +32,7 @@ using namespace gtsam;
 using namespace VIO;
 using namespace cv;
 
-/* ************************************************************************* */
+/* ************************************************************************** */
 TEST(testCameraParams, parseYAML) {
   CameraParams cam_params;
   cam_params.parseYAML(FLAGS_test_data_path + "/sensor.yaml");
@@ -90,7 +90,7 @@ TEST(testCameraParams, parseYAML) {
   EXPECT_DOUBLE_EQ(distortion_expected[3], cam_params.calibration_.p2());
 }
 
-/* ************************************************************************* */
+/* ************************************************************************** */
 TEST(testCameraParams, equals) {
   CameraParams camParams;
   camParams.parseYAML(FLAGS_test_data_path + "/sensor.yaml");
@@ -105,12 +105,12 @@ TEST(testCameraParams, equals) {
   EXPECT_TRUE(camParams.equals(camParams2, 1e-7));
 }
 
-/* ************************************************************************* */
+/* ************************************************************************** */
 TEST(testCameraParams, Cal3_S2ToCvmat) {
   Cal3_S2 K(500, 500, 0.0, 640 / 2, 480 / 2);
 }
 
-/* ************************************************************************* */
+/* ************************************************************************** */
 TEST(testCameraParams, DISABLED_parseKITTICalib) {
   CameraParams camParams;
   camParams.parseKITTICalib(

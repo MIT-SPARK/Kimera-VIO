@@ -251,7 +251,7 @@ TEST_F(OnlineAlignmentFixture, CreateTangentBasis) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST_F(OnlineAlignmentFixture, OnlineGravityAlignment) {
+TEST_F(OnlineAlignmentFixture, DISABLED_OnlineGravityAlignment) {
   // Construct ETH Parser and get data
   static const std::string data_path(FLAGS_test_data_path +
                                      "/ForOnlineAlignment/alignment/");
