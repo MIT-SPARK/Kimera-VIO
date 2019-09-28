@@ -74,7 +74,7 @@ RUN cd DBoW2 && \
 
   # Install RobustPGO
   RUN git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
-  RUN cd RobustPGO && \
+  RUN cd Kimera-RPGO && \
         mkdir build && \
         cd build && \
         cmake .. && \
