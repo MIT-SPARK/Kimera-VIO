@@ -195,11 +195,11 @@ void ETHDatasetParser::parse() {
                  << " number of frames in dataset " << nr_images;
     // Skip last frames which are typically problematic
     // (IMU bumps, FOV occluded)...
-    CHECK_GT(skip_n_end_frames, 0);
-    CHECK_LT(skip_n_end_frames, nr_images);
-    final_k_ = nr_images - skip_n_end_frames;
+    CHECK_GT(skip_n_end_frames_, 0u);
+    CHECK_LT(skip_n_end_frames_, nr_images);
+    final_k_ = nr_images - skip_n_end_frames_;
     LOG(WARNING) << "Using final_k = " << final_k_ << ", where we removed "
-                 << skip_n_end_frames << " frames to avoid bad IMU readings.";
+                 << skip_n_end_frames_ << " frames to avoid bad IMU readings.";
   }
   CHECK_GT(final_k_, 0);
   CHECK_LT(final_k_, nr_images);
@@ -207,35 +207,37 @@ void ETHDatasetParser::parse() {
 
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
-                                      const std::string& imuName) {
+                                      const std::string& imu_name) {
   std::string filename_sensor =
-      input_dataset_path + "/mav0/" + imuName + "/sensor.yaml";
+      input_dataset_path + "/mav0/" + imu_name + "/sensor.yaml";
   // parse sensor parameters
   // make sure that each YAML file has %YAML:1.0 as first line
   cv::FileStorage fs;
   UtilsOpenCV::safeOpenCVFileStorage(&fs, filename_sensor);
 
-  // body_Pose_cam_: sensor to body transformation
-  int n_rows(fs["T_BS"]["rows"]);
-  int n_cols(fs["T_BS"]["cols"]);
-  std::vector<double> vec;
-  fs["T_BS"]["data"] >> vec;
-  gtsam::Pose3 body_Pose_cam = UtilsOpenCV::Vec2pose(vec, n_rows, n_cols);
+  // Rows and cols are redundant info, since the pose 4x4, but we parse just
+  // to check we are all on the same page.
+  CHECK_EQ(static_cast<int>(fs["T_BS"]["rows"]), 4u);
+  CHECK_EQ(static_cast<int>(fs["T_BS"]["cols"]), 4u);
+  std::vector<double> vector_pose;
+  fs["T_BS"]["data"] >> vector_pose;
+  gtsam::Pose3 body_Pose_cam = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
-  // sanity check: IMU is usually chosen as the body frame
-  gtsam::Pose3 identityPose;
-  LOG_IF(FATAL, !body_Pose_cam.equals(gt_data_.body_Pose_cam_))
+  // Sanity check: IMU is usually chosen as the body frame.
+  LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3()))
       << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
 
-  // TODO(Toni) REMOVE THIS PARSING.
+  // TODO(Toni) REMOVE THIS PARSING. Actually don't!! It is used to infer
+  // the covariance for the IMU factors! But this param is currently not getting
+  // to the backend, the one in the yaml file is! FIX THAT
   int rate = fs["rate_hz"];
-  CHECK_NE(rate, 0);
+  CHECK_GT(rate, 0u);
   imu_data_.nominal_imu_rate_ = 1 / static_cast<double>(rate);
 
   pipeline_params_.imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
-  pipeline_params_.imu_params_.gyro_walk_ = fs["gyroscope_random_walk"];
-  pipeline_params_.imu_params_.acc_noise_ = fs["accelerometer_noise_density"];
-  pipeline_params_.imu_params_.acc_walk_ = fs["accelerometer_random_walk"];
+  pipeline_params_.imu_params_.gyro_walk_  = fs["gyroscope_random_walk"];
+  pipeline_params_.imu_params_.acc_noise_  = fs["accelerometer_noise_density"];
+  pipeline_params_.imu_params_.acc_walk_   = fs["accelerometer_random_walk"];
 
   fs.release();
   return true;
@@ -336,20 +338,17 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
     return false;
   }
 
-  // body_Pose_cam_: usually this is the identity matrix as the GT "sensor" is
-  // at the body frame
-  int n_rows(fs["T_BS"]["rows"]);
-  int n_cols(fs["T_BS"]["cols"]);
+  // Rows and cols are redundant info, since the pose 4x4, but we parse just
+  // to check we are all on the same page.
+  CHECK_EQ(static_cast<int>(fs["T_BS"]["rows"]), 4u);
+  CHECK_EQ(static_cast<int>(fs["T_BS"]["cols"]), 4u);
+  std::vector<double> vector_pose;
+  fs["T_BS"]["data"] >> vector_pose;
+  gt_data_.body_Pose_cam_ = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
-  std::vector<double> vec;
-  fs["T_BS"]["data"] >> vec;
-  gt_data_.body_Pose_cam_ = UtilsOpenCV::Vec2pose(vec, n_rows, n_cols);
-
-  // sanity check: usually this is the identity matrix as the GT "sensor"
+  // Sanity check: usually this is the identity matrix as the GT "sensor"
   // is at the body frame
-  gtsam::Pose3 identityPose;
-
-  LOG_IF(FATAL, !gt_data_.body_Pose_cam_.equals(identityPose))
+  LOG_IF(FATAL, !gt_data_.body_Pose_cam_.equals(gtsam::Pose3()))
       << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
 
   fs.release();
@@ -452,12 +451,12 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::*parseDataset(const std::string& input_dataset_path,
-                                     const std::string& left_cam_name,
-                                     const std::string& right_cam_name,
-                                     const std::string& imu_name,
-                                     const std::string& gt_sensor_name,
-                                     bool parse_images) {
+bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
+                                    const std::string& left_cam_name,
+                                    const std::string& right_cam_name,
+                                    const std::string& imu_name,
+                                    const std::string& gt_sensor_name,
+                                    bool parse_images) {
   parseCameraData(
       input_dataset_path, left_cam_name, right_cam_name, parse_images);
   CHECK(parseImuParams(input_dataset_path, imu_name));
@@ -465,17 +464,17 @@ bool ETHDatasetParser::*parseDataset(const std::string& input_dataset_path,
   is_gt_available_ = parseGTdata(input_dataset_path, gt_sensor_name);
 
   // Find and store actual name (rather than path) of the dataset.
-  std::size_t foundLastSlash = input_dataset_path.find_last_of("/\\");
+  size_t found_last_slash = input_dataset_path.find_last_of("/\\");
   std::string dataset_path_tmp = input_dataset_path;
-  dataset_name_ = dataset_path_tmp.substr(foundLastSlash + 1);
+  dataset_name_ = dataset_path_tmp.substr(found_last_slash + 1);
   // The dataset name has a slash at the very end
-  if (foundLastSlash >= dataset_path_tmp.size() - 1) {
+  if (found_last_slash >= dataset_path_tmp.size() - 1) {
     // Cut the last slash.
-    dataset_path_tmp = dataset_path_tmp.substr(0, foundLastSlash);
+    dataset_path_tmp = dataset_path_tmp.substr(0, found_last_slash);
     // Repeat the search.
-    foundLastSlash = dataset_path_tmp.find_last_of("/\\");
+    found_last_slash = dataset_path_tmp.find_last_of("/\\");
     // Try to pick right name.
-    dataset_name_ = dataset_path_tmp.substr(foundLastSlash + 1);
+    dataset_name_ = dataset_path_tmp.substr(found_last_slash + 1);
   }
   LOG(INFO) << "Dataset name: " << dataset_name_;
   return true;
@@ -513,7 +512,7 @@ bool ETHDatasetParser::parseCameraData(const std::string& input_dataset_path,
       sanityCheckCameraData(camera_names_, camera_info_, &camera_image_lists_));
 
   // Set extrinsic for the stereo.
-  const CameraParams& left_camera_info = camera_info_.at(camera_names_.at(0));
+  const CameraParams& left_camera_info  = camera_info_.at(camera_names_.at(0));
   const CameraParams& right_camera_info = camera_info_.at(camera_names_.at(1));
 
   // Extrinsics of the stereo (not rectified)

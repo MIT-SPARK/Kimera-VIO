@@ -153,7 +153,7 @@ class ETHDatasetParser : public DataProvider {
 
   // Parse IMU parameters.
   bool parseImuParams(const std::string& input_dataset_path,
-                      const std::string& imuName);
+                      const std::string& imu_name);
 
   /// Getters.
   inline size_t getNumImages() const {

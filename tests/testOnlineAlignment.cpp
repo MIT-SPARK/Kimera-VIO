@@ -40,15 +40,6 @@ class OnlineAlignmentFixture : public ::testing::Test {
         bias_acc_(),
         bias_gyr_(),
         init_navstate_() {
-    int initial_k = 0;
-    int final_k = 0;
-    int skip_n_start_frames = 0;
-    int skip_n_end_frames = 0;
-    dataset_ = VIO::make_unique<ETHDatasetParser>(initial_k,
-                                                  final_k,
-                                                  FLAGS_test_data_path,
-                                                  skip_n_start_frames,
-                                                  skip_n_end_frames);
     // Set IMU params
     initializeImuParams(&imu_params_);
 
@@ -58,7 +49,22 @@ class OnlineAlignmentFixture : public ::testing::Test {
     imu_bias_ = ImuBias(bias_acc_, bias_gyr_);
   }
 
-  void initializeOnlineAlignmentData(int n_begin_data, int n_frames_data) {
+ protected:
+  virtual void SetUp() override {}
+  virtual void TearDown() override {}
+
+  void initializeOnlineAlignmentData(int n_begin_data, int n_frames_data,
+                                     const std::string& dataset_path) {
+    int initial_k = 0;
+    int final_k = 0;
+    int skip_n_start_frames = 0;
+    int skip_n_end_frames = 0;
+    dataset_ = VIO::make_unique<ETHDatasetParser>(initial_k,
+                                                  final_k,
+                                                  dataset_path,
+                                                  skip_n_start_frames,
+                                                  skip_n_end_frames);
+
     // Get GT poses and IMU pims.
     Timestamp timestamp_last_frame;
     Timestamp timestamp_frame_k;
@@ -130,12 +136,6 @@ class OnlineAlignmentFixture : public ::testing::Test {
     estimated_poses_[0] = gtsam::Pose3();
   }
 
- protected:
-  virtual void SetUp() override {}
-  virtual void TearDown() override {}
-
-  void initializeFromDataset(const std::string& dataset_path) {}
-
   void initializeImuParams(ImuParams* imu_params) const {
     CHECK_NOTNULL(imu_params);
     imu_params->acc_walk_ = 1.0;
@@ -175,7 +175,7 @@ TEST_F(OnlineAlignmentFixture, GyroscopeBiasEstimation) {
                                      "/ForOnlineAlignment/gyro_bias/");
   int n_begin = 1;
   int n_frames = 5;
-  initializeOnlineAlignmentData(n_begin, n_frames);
+  initializeOnlineAlignmentData(n_begin, n_frames, data_path);
 
   // Construct online alignment class with dummy gravity vector
   gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
@@ -202,7 +202,7 @@ TEST_F(OnlineAlignmentFixture, DISABLED_GyroscopeBiasEstimationAHRS) {
 
   int n_begin = 1;
   int n_frames = 5;
-  initializeOnlineAlignmentData(n_begin, n_frames);
+  initializeOnlineAlignmentData(n_begin, n_frames, data_path);
 
   // Construct online alignment class with dummy gravity vector
   gtsam::Vector3 n_gravity(0.0, 0.0, 0.0);
@@ -223,11 +223,7 @@ TEST_F(OnlineAlignmentFixture, DISABLED_GyroscopeBiasEstimationAHRS) {
 
 /* -------------------------------------------------------------------------- */
 TEST_F(OnlineAlignmentFixture, CreateTangentBasis) {
-  int n_begin = 1;
-  int n_frames = 5;
-  initializeOnlineAlignmentData(n_begin, n_frames);
-
-  for (int i=0; i<20; i++) {
+  for (int i=0; i < 20; i++) {
     // Create random vector (this is not unit vector!)
     gtsam::Vector3 random_vector = UtilsOpenCV::RandomVectorGenerator(1.0);
 
@@ -261,7 +257,7 @@ TEST_F(OnlineAlignmentFixture, OnlineGravityAlignment) {
                                      "/ForOnlineAlignment/alignment/");
   int n_begin = 1;
   int n_frames = 40;
-  initializeOnlineAlignmentData(n_begin, n_frames);
+  initializeOnlineAlignmentData(n_begin, n_frames, data_path);
 
   // Initialize OnlineAlignment
   gtsam::Vector3 gyro_bias = imu_bias_.gyroscope();
@@ -307,7 +303,7 @@ TEST_F(OnlineAlignmentFixture, GravityAlignmentRealData) {
                                        "/ForOnlineAlignment/real_data/");
     int n_begin = int(UtilsOpenCV::RandomFloatGenerator(3000));
     int n_frames = 40;
-    initializeOnlineAlignmentData(n_begin, n_frames);
+    initializeOnlineAlignmentData(n_begin, n_frames, data_path);
 
     // Initialize OnlineAlignment
     gtsam::Vector3 gyro_bias = imu_bias_.gyroscope();

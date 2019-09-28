@@ -53,7 +53,7 @@ DataProvider::DataProvider(int initial_k,
 }
 
 DataProvider::DataProvider()
-    : DataProvider(FLAGS_initial_k, FLAGS_initial_k, FLAGS_dataset_path) {}
+    : DataProvider(FLAGS_initial_k, FLAGS_final_k, FLAGS_dataset_path) {}
 
 DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";

@@ -106,24 +106,22 @@ bool UtilsOpenCV::CvPointCmp(const cv::Point2f& p1, const cv::Point2f& p2,
                              const double tol) {
   return std::abs(p1.x - p2.x) <= tol && std::abs(p1.y - p2.y) <= tol;
 }
-/* -------------------------------------------------------------------------- */
-// converts a vector of 16 elements listing the elements of a 4x4 3D pose matrix
-// by rows into a pose3 in gtsam
-gtsam::Pose3 UtilsOpenCV::Vec2pose(const std::vector<double>& vecRows,
-                                   const int n_rows, const int n_cols) {
-  if (n_rows != 4 || n_cols != 4)
-    throw std::runtime_error("Vec2pose: wrong dimension!");
 
-  gtsam::Matrix T_BS_mat(n_rows, n_cols);  // allocation
-  int idx = 0;
-  for (int r = 0; r < n_rows; r++) {
-    for (int c = 0; c < n_cols; c++) {
-      T_BS_mat(r, c) = vecRows[idx];
-      idx++;
-    }
-  }
-  return gtsam::Pose3(T_BS_mat);
+/* -------------------------------------------------------------------------- */
+// Converts a vector of 16 elements listing the elements of a 4x4 3D pose matrix
+// by rows into a pose3 in gtsam
+gtsam::Pose3 UtilsOpenCV::poseVectorToGtsamPose3(
+    const std::vector<double>& vector_pose) {
+  CHECK_EQ(vector_pose.size(), 16u);
+  gtsam::Matrix pose_matrix (4, 4);
+  pose_matrix
+      << vector_pose[0],  vector_pose[1],  vector_pose[2],  vector_pose[3],
+         vector_pose[4],  vector_pose[5],  vector_pose[6],  vector_pose[7],
+         vector_pose[8],  vector_pose[9],  vector_pose[10], vector_pose[11],
+         vector_pose[12], vector_pose[13], vector_pose[14], vector_pose[15];
+  return gtsam::Pose3(pose_matrix);
 }
+
 /* -------------------------------------------------------------------------- */
 // Converts a gtsam pose3 to a 3x3 rotation matrix and translation vector
 // in opencv format (note: the function only extracts R and t, without changing

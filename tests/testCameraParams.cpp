@@ -34,51 +34,60 @@ using namespace cv;
 
 /* ************************************************************************* */
 TEST(testCameraParams, parseYAML) {
-  CameraParams camParams;
-  camParams.parseYAML(FLAGS_test_data_path + "/sensor.yaml");
+  CameraParams cam_params;
+  cam_params.parseYAML(FLAGS_test_data_path + "/sensor.yaml");
 
-  // Frame rate
+  // Frame rate.
   const double frame_rate_expected = 1.0 / 20.0;
-  EXPECT_DOUBLE_EQ(frame_rate_expected, camParams.frame_rate_);
+  EXPECT_DOUBLE_EQ(frame_rate_expected, cam_params.frame_rate_);
 
-  // image size
+  // Image size.
   const Size size_expected(752, 480);
-  EXPECT_EQ(size_expected.width, camParams.image_size_.width);
-  EXPECT_EQ(size_expected.height, camParams.image_size_.height);
+  EXPECT_EQ(size_expected.width, cam_params.image_size_.width);
+  EXPECT_EQ(size_expected.height, cam_params.image_size_.height);
 
-  // intrinsics
-  const double intrinsics_expected[] = {458.654, 457.296, 367.215, 248.375};
-  for (int c = 0; c < 4; c++) {
-    EXPECT_DOUBLE_EQ(intrinsics_expected[c], camParams.intrinsics_[c]);
+  // Intrinsics.
+  const std::vector<double> intrinsics_expected = {458.654, 457.296, 367.215,
+                                                   248.375};
+  for (int c = 0u; c < 4u; c++) {
+    EXPECT_DOUBLE_EQ(intrinsics_expected[c], cam_params.intrinsics_[c]);
   }
+  EXPECT_DOUBLE_EQ(intrinsics_expected[0],
+                   cam_params.camera_matrix_.at<double>(0, 0));
+  EXPECT_DOUBLE_EQ(intrinsics_expected[1],
+                   cam_params.camera_matrix_.at<double>(1, 1));
+  EXPECT_DOUBLE_EQ(intrinsics_expected[2],
+                   cam_params.camera_matrix_.at<double>(0, 2));
+  EXPECT_DOUBLE_EQ(intrinsics_expected[3],
+                   cam_params.camera_matrix_.at<double>(1, 2));
+  EXPECT_EQ(cam_params.intrinsics_.size(), 4u);
+  EXPECT_DOUBLE_EQ(intrinsics_expected[0], cam_params.calibration_.fx());
+  EXPECT_DOUBLE_EQ(intrinsics_expected[1], cam_params.calibration_.fy());
+  EXPECT_DOUBLE_EQ(0u, cam_params.calibration_.skew());
+  EXPECT_DOUBLE_EQ(intrinsics_expected[2], cam_params.calibration_.px());
+  EXPECT_DOUBLE_EQ(intrinsics_expected[3], cam_params.calibration_.py());
 
-  EXPECT_DOUBLE_EQ(intrinsics_expected[0], camParams.calibration_.fx());
-  EXPECT_DOUBLE_EQ(intrinsics_expected[1], camParams.calibration_.fy());
-  EXPECT_DOUBLE_EQ(0, camParams.calibration_.skew());
-  EXPECT_DOUBLE_EQ(intrinsics_expected[2], camParams.calibration_.px());
-  EXPECT_DOUBLE_EQ(intrinsics_expected[3], camParams.calibration_.py());
-
-  // Sensor extrinsics wrt. the body-frame
-  Rot3 R_expected(0.0148655429818, -0.999880929698, 0.00414029679422,
-                  0.999557249008, 0.0149672133247, 0.025715529948,
+  // Sensor extrinsics wrt. the body-frame.
+  Rot3 R_expected(0.0148655429818,  -0.999880929698,  0.00414029679422,
+                  0.999557249008,   0.0149672133247,  0.025715529948,
                   -0.0257744366974, 0.00375618835797, 0.999660727178);
   Point3 T_expected(-0.0216401454975, -0.064676986768, 0.00981073058949);
   Pose3 pose_expected(R_expected, T_expected);
-  EXPECT_TRUE(assert_equal(pose_expected, camParams.body_Pose_cam_));
+  EXPECT_TRUE(assert_equal(pose_expected, cam_params.body_Pose_cam_));
 
-  // distortion coefficients
-  // TODO: Adapt this unit test!!
-  const double distortion_expected[] = {-0.28340811, 0.07395907, 0.00019359,
-                                        1.76187114e-05};
-  for (int c = 0; c < 4; c++) {
+  // Distortion coefficients.
+  const std::vector<double> distortion_expected = {-0.28340811, 0.07395907,
+                                                   0.00019359, 1.76187114e-05};
+  for (int c = 0u; c < 4u; c++) {
     EXPECT_DOUBLE_EQ(distortion_expected[c],
-                     camParams.distortion_coeff_.at<double>(c));
+                     cam_params.distortion_coeff_.at<double>(c));
   }
-  EXPECT_DOUBLE_EQ(0, camParams.distortion_coeff_.at<double>(4));
-  EXPECT_DOUBLE_EQ(distortion_expected[0], camParams.calibration_.k1());
-  EXPECT_DOUBLE_EQ(distortion_expected[1], camParams.calibration_.k2());
-  EXPECT_DOUBLE_EQ(distortion_expected[2], camParams.calibration_.p1());
-  EXPECT_DOUBLE_EQ(distortion_expected[3], camParams.calibration_.p2());
+  EXPECT_EQ(cam_params.distortion_coeff_.rows, 1u);
+  EXPECT_EQ(cam_params.distortion_coeff_.cols, 4u);
+  EXPECT_DOUBLE_EQ(distortion_expected[0], cam_params.calibration_.k1());
+  EXPECT_DOUBLE_EQ(distortion_expected[1], cam_params.calibration_.k2());
+  EXPECT_DOUBLE_EQ(distortion_expected[2], cam_params.calibration_.p1());
+  EXPECT_DOUBLE_EQ(distortion_expected[3], cam_params.calibration_.p2());
 }
 
 /* ************************************************************************* */

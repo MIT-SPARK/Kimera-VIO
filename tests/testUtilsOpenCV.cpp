@@ -154,7 +154,7 @@ TEST(testUtils, Vec2pose) {
   // Expected pose
   Pose3 pose_expected = pose_gtsam;
   // Actually converted pose
-  Pose3 pose_actual = UtilsOpenCV::Vec2pose(poseVec, 4, 4);
+  Pose3 pose_actual = UtilsOpenCV::poseVectorToGtsamPose3(poseVec);
   // Comparison!
   EXPECT_TRUE(assert_equal(pose_expected, pose_actual));
 }
