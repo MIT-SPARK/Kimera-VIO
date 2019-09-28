@@ -72,13 +72,14 @@ RUN cd DBoW2 && \
       cmake .. && \
       make -j$(nproc) install
 
-  # Install RobustPGO
-  RUN git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
-  RUN cd Kimera-RPGO && \
-        mkdir build && \
-        cd build && \
-        cmake .. && \
-        make -j$(nproc)
+# Install RobustPGO
+ADD https://api.github.com/repos/MIT-SPARK/Kimera-RPGO/git/refs/heads/master version.json
+RUN git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
+RUN cd Kimera-RPGO && \
+      mkdir build && \
+      cd build && \
+      cmake .. && \
+      make -j$(nproc)
 
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 
