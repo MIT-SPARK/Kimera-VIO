@@ -103,7 +103,8 @@ class LoopClosureDetector {
 
   const gtsam::NonlinearFactorGraph getPGOnfg() const;
 
-  inline void registerLcdPgoOutputCallback(LoopClosurePGOCallback callback) {
+  inline void registerLcdPgoOutputCallback(
+      const LoopClosurePGOCallback& callback) {
     lcd_pgo_output_callback_ = callback;
   }
 
