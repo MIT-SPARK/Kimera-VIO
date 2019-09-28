@@ -168,7 +168,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
 };
 
 /* -------------------------------------------------------------------------- */
-TEST_F(OnlineAlignmentFixture, GyroscopeBiasEstimation) {
+TEST_F(OnlineAlignmentFixture, DISABLED_GyroscopeBiasEstimation) {
   // Construct ETH Parser and get data
   std::string reason = "test of gyroscope estimation";
   static const std::string data_path(FLAGS_test_data_path +
@@ -297,7 +297,7 @@ TEST_F(OnlineAlignmentFixture, OnlineGravityAlignment) {
 }
 
 /* -------------------------------------------------------------------------- */
-TEST_F(OnlineAlignmentFixture, GravityAlignmentRealData) {
+TEST_F(OnlineAlignmentFixture, DISABLED_GravityAlignmentRealData) {
   for (int i = 0; i < 30; i++) {
     static const std::string data_path(FLAGS_test_data_path +
                                        "/ForOnlineAlignment/real_data/");
