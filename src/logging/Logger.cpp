@@ -491,11 +491,6 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
                                     bool disp_img,
                                     bool save_img) {
   // We save the images to the output folder so that they can be visualized.
-  // Plot text with keyframe id.
-  // if (!text_on_img.empty()) {
-  //   cv::putText(img, text_on_img, KeypointCV(10, 15),
-  //               CV_FONT_HERSHEY_COMPLEX, 0.6, cv::Scalar(0, 255, 0));
-  // }
 
   std::string img_name = output_frontend_img_path_ + dir_name +
       img_name_prepend + std::to_string(kf_id) + ".png";
