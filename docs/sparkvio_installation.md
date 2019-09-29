@@ -41,7 +41,7 @@ homebrew install vtk # (to check)
 sudo apt-get install -y \
       build-essential unzip pkg-config \
       libjpeg-dev libpng-dev libtiff-dev \
-      libvtk6-dev \ 
+      libvtk6-dev \
       libgtk-3-dev \
       libatlas-base-dev gfortran
 ```
@@ -71,7 +71,7 @@ Ensure that:
 - TBB is enabled: check for `--   Use Intel TBB                  : Yes` after running `cmake`.
 - Compilation is in Release mode: check for `--   Build type                     : Release` after running `cmake`.
 - Use GTSAM's Eigen, **not** the system-wide one (OpenGV and GTSAM must use same Eigen, see OpenGV install instructions below).
-- `Rot3 retract is full ExpMap` is set to enabled, and `Pose3 retract is full ExpMap` is also set to enabled. Without these flags, RobustPGO does not optimize the pose-graph well and may produce incorrect results.
+- `Rot3 retract is full ExpMap` is set to enabled, and `Pose3 retract is full ExpMap` is also set to enabled. Without these flags, Kimera-RPGO does not optimize the pose-graph well and may produce incorrect results.
 
 Compile and install GTSAM:
 ```bash
@@ -144,11 +144,11 @@ cmake ..
 sudo make -j $(nproc) install
 ```
 
-## Install RobustPGO
+## Install Kimera-RPGO
 Clone the repo and run cmake:
 ```bash
-git clone https://github.com/MIT-SPARK/RobustPGO.git
-cd RobustPGO
+git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
+cd Kimera-RPGO
 mkdir build
 cd build
 cmake ..
@@ -193,7 +193,7 @@ git clone git@github.com:MIT-SPARK/Kimera-VIO.git SparkVIO
 
 # Build the image
 cd SparkVIO
-docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . 
+docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile .
 ```
 
 This may take a while (>15min), so you can go and grab a cup of coffee.
