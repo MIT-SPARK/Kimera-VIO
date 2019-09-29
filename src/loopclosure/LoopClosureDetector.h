@@ -105,7 +105,7 @@ class LoopClosureDetector {
 
   inline void registerLcdPgoOutputCallback(
       const LoopClosurePGOCallback& callback) {
-    lcd_pgo_output_callback_ = callback;
+    lcd_pgo_output_callbacks_.push_back(callback);
   }
 
   // TODO(marcus): maybe this should be private. But that makes testing harder.
@@ -177,7 +177,7 @@ class LoopClosureDetector {
 
  private:
   // Output callback(s). // TODO(marcus): make it possible to have multiple.
-  LoopClosurePGOCallback lcd_pgo_output_callback_;
+  std::vector<LoopClosurePGOCallback> lcd_pgo_output_callbacks_;
 
   // Parameter members
   LoopClosureDetectorParams lcd_params_;

@@ -57,7 +57,8 @@ namespace VIO {
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
     const bool log_output)
-    : lcd_params_(lcd_params),
+    : lcd_pgo_output_callbacks_(),
+      lcd_params_(lcd_params),
       log_output_(log_output),
       set_intrinsics_(false),
       orb_feature_detector_(),
@@ -137,11 +138,13 @@ bool LoopClosureDetector::spin(
     if (input) {
       auto tic = utils::Timer::tic();
       LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
+      auto spin_duration = utils::Timer::toc(tic).count();
+      stat_lcd_timing.AddSample(spin_duration);
 
-      if (lcd_pgo_output_callback_) {
-        lcd_pgo_output_callback_(output_payload);
-        auto spin_duration = utils::Timer::toc(tic).count();
-        stat_lcd_timing.AddSample(spin_duration);
+      if (lcd_pgo_output_callbacks_.size() > 0) {
+        for (LoopClosurePGOCallback& callback : lcd_pgo_output_callbacks_) {
+          callback(output_payload);
+        }
 
         LOG(WARNING) << "Current LoopClosureDetector frequency: "
                      << 1000.0 / spin_duration << " Hz. ("
