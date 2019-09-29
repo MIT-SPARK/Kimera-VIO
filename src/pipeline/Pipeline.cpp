@@ -26,7 +26,6 @@
 
 #include "RegularVioBackEnd.h"
 #include "StereoVisionFrontEnd.h"
-#include "loopclosure/LoopClosureDetector.h"
 #include "utils/Statistics.h"
 #include "utils/Timer.h"
 
@@ -127,7 +126,6 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
       mesher_input_queue_("mesher_input_queue"),
       mesher_output_queue_("mesher_output_queue"),
       lcd_input_queue_("lcd_input_queue"),
-      lcd_output_queue_("lcd_output_queue"),
       visualizer_input_queue_("visualizer_input_queue"),
       visualizer_output_queue_("visualizer_output_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
@@ -251,30 +249,6 @@ void Pipeline::processKeyframe(
         backend_output_payload->cur_kf_id_,
         last_stereo_keyframe,
         backend_output_payload->W_Pose_Blkf_));
-
-    VLOG(2) << "Checking for payload from LoopClosureDetector (not blocking).";
-    std::shared_ptr<LoopClosureDetectorOutputPayload> lcd_output_payload =
-        lcd_output_queue_.pop();
-    // TODO(marcus): remove this warning as it is expected often.
-    LOG_IF(WARNING, !lcd_output_payload) << "Missing LCD output payload.";
-
-    // Send loop closure result to optional callback.
-    if (lcd_output_payload) {
-      if (loop_closure_pgo_callback_) {
-        auto tic = utils::Timer::tic();
-        VLOG(2) << "Call loop-closure callback with lcd output payload.";
-        loop_closure_pgo_callback_(*lcd_output_payload);
-        auto toc = utils::Timer::toc(tic);
-        if (toc.count() > FLAGS_max_time_allowed_for_keyframe_callback) {
-          LOG_IF(WARNING,
-                 "Loop-Closure Output Callback is taking longer than it should: "
-                 "make sure your callback is fast!");
-        }
-      } else {
-        LOG(WARNING) << "LoopClosureDetector is running but there is no "
-                     << "callback registered.";
-      }
-    }
   }
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
@@ -454,20 +428,7 @@ void Pipeline::spinSequential() {
   // Spin once LCD. Do not run in parallel.
   if (FLAGS_use_lcd) {
     CHECK(loop_closure_detector_);
-    loop_closure_detector_->spin(lcd_input_queue_, lcd_output_queue_, false);
-
-    // Pop blocking from LoopClosureDetector.
-    // NOTE: this will be extremely slow in sequential mode. If you wish to
-    // test the rest of the pipeline, disable FLAGS_use_lcd.
-    const auto& lcd_output_payload = lcd_output_queue_.popBlocking();
-    CHECK(lcd_output_payload);
-    if (loop_closure_pgo_callback_) {
-      loop_closure_pgo_callback_(*lcd_output_payload);
-    }
-    else {
-      LOG(WARNING) << "LoopClosureDetector is running but there is no callback"
-                   << "registered.";
-    }
+    loop_closure_detector_->spin(lcd_input_queue_, false);
   }
 
   const auto& stereo_keyframe =
@@ -590,10 +551,6 @@ void Pipeline::shutdownWhenFinished() {
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
   static constexpr int sleep_time = 1;
 
-  bool loop_closure_detector_is_working = false;
-  if (loop_closure_detector_)
-    loop_closure_detector_is_working = loop_closure_detector_->isWorking();
-
   while (!shutdown_ &&         // Loop while not explicitly shutdown.
          (!is_initialized_ ||  // Loop while not initialized
                                // Or, once init, data is not yet consumed.
@@ -603,7 +560,7 @@ void Pipeline::shutdownWhenFinished() {
             backend_output_queue_.empty() && !vio_backend_->isWorking() &&
             mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
             !mesher_.isWorking() && lcd_input_queue_.empty() &&
-            lcd_output_queue_.empty() && !loop_closure_detector_is_working &&
+            !loop_closure_detector_->isWorking() &&
             visualizer_input_queue_.empty() && visualizer_output_queue_.empty()
             && !visualizer_.isWorking()))) {
     VLOG(10)
@@ -628,20 +585,8 @@ void Pipeline::shutdownWhenFinished() {
         << "Visualizer output queue empty?" << visualizer_output_queue_.empty()
         << '\n'
         << "Visualizer is working? " << visualizer_.isWorking();
-    if (loop_closure_detector_) {
-      VLOG(10)
-          << "LoopClosureDetector input queue empty?"
-          << lcd_input_queue_.empty() << '\n'
-          << "LoopClosureDetector output queue empty?"
-          << lcd_output_queue_.empty() << '\n'
-          << "LoopClosureDetector is working? "
-          << loop_closure_detector_->isWorking() << '\n';
-    }
 
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
-
-    if (loop_closure_detector_)
-      loop_closure_detector_is_working = loop_closure_detector_->isWorking();
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
@@ -1129,7 +1074,7 @@ void Pipeline::launchRemainingThreads() {
     if (FLAGS_use_lcd)
         lcd_thread_ = VIO::make_unique<std::thread>(
             &LoopClosureDetector::spin, CHECK_NOTNULL(loop_closure_detector_.get()),
-            std::ref(lcd_input_queue_), std::ref(lcd_output_queue_), true);
+            std::ref(lcd_input_queue_), true);
 
     // Start visualizer_thread.
     // visualizer_thread_ = std::thread(&Visualizer3D::spin,
@@ -1160,13 +1105,12 @@ void Pipeline::resume() {
   mesher_input_queue_.resume();
   mesher_output_queue_.resume();
 
-    LOG(INFO) << "Restarting loop closure workers and queues...";
-    lcd_input_queue_.resume();
-    lcd_output_queue_.resume();
+  LOG(INFO) << "Restarting loop closure workers and queues...";
+  lcd_input_queue_.resume();
 
-    LOG(INFO) << "Restarting visualizer workers and queues...";
-    visualizer_input_queue_.resume();
-    visualizer_output_queue_.resume();
+  LOG(INFO) << "Restarting visualizer workers and queues...";
+  visualizer_input_queue_.resume();
+  visualizer_output_queue_.resume();
 
   // Re-launch threads
   /*if (parallel_run_) {
@@ -1203,7 +1147,6 @@ void Pipeline::stopThreads() {
 
   LOG(INFO) << "Stopping loop closure workers and queues...";
   lcd_input_queue_.shutdown();
-  lcd_output_queue_.shutdown();
   if (loop_closure_detector_)
     loop_closure_detector_->shutdown();
 

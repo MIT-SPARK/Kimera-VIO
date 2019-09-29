@@ -309,7 +309,7 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   EXPECT_LT(error.second, tran_tol * 2.5);
 }
 
-TEST_F(LCDFixture, DISABLED_recoverPoseArun) {
+TEST_F(LCDFixture, recoverPoseArun) {
   /* Test proper scaled pose recovery between two identical images */
   CHECK(lcd_detector_);
   lcd_detector_->getLCDParamsMutable()->pose_recovery_option_ =
@@ -477,7 +477,7 @@ TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
   EXPECT_EQ(pgo_nfg.size(), 1);
 }
 
-TEST_F(LCDFixture, DISABLED_spinOnce) {
+TEST_F(LCDFixture, spinOnce) {
   /* Test the full pipeline with one loop closure and full PGO optimization */
   std::pair<double, double> error;
 
@@ -500,26 +500,31 @@ TEST_F(LCDFixture, DISABLED_spinOnce) {
       FrameId(3), *cur1_stereo_frame_, gtsam::Pose3());
   LoopClosureDetectorOutputPayload output_2 = lcd_detector_->spinOnce(input_2);
 
-  CHECK(cur2_stereo_frame_);
-  const std::shared_ptr<LoopClosureDetectorInputPayload> input_3 =
-    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_cur2_,
-      FrameId(4), *cur2_stereo_frame_, gtsam::Pose3());
-  LoopClosureDetectorOutputPayload output_3 = lcd_detector_->spinOnce(input_3);
-
   EXPECT_EQ(output_0.is_loop_closure_, false);
+  EXPECT_EQ(output_0.timestamp_kf_, 0);
+  EXPECT_EQ(output_0.timestamp_query_, 0);
+  EXPECT_EQ(output_0.timestamp_match_, 0);
+  EXPECT_EQ(output_0.id_match_, 0);
+  EXPECT_EQ(output_0.id_recent_, 0);
+  EXPECT_EQ(output_0.states_.size(), 1);
+  EXPECT_EQ(output_0.nfg_.size(), 1);
+
   EXPECT_EQ(output_1.is_loop_closure_, false);
+  EXPECT_EQ(output_1.timestamp_kf_, 0);
+  EXPECT_EQ(output_1.timestamp_query_, 0);
+  EXPECT_EQ(output_1.timestamp_match_, 0);
+  EXPECT_EQ(output_1.id_match_, 0);
+  EXPECT_EQ(output_1.id_recent_, 0);
+  EXPECT_EQ(output_1.states_.size(), 2);
+  EXPECT_EQ(output_1.nfg_.size(), 2);
 
   EXPECT_EQ(output_2.is_loop_closure_, true);
   EXPECT_EQ(output_2.timestamp_kf_, timestamp_cur1_);
+  EXPECT_EQ(output_2.timestamp_query_, timestamp_cur1_);
+  EXPECT_EQ(output_2.timestamp_match_, timestamp_ref1_);
   EXPECT_EQ(output_2.id_match_, 0);
   EXPECT_EQ(output_2.id_recent_, 2);
   EXPECT_EQ(output_2.states_.size(), 3);
-
-  EXPECT_EQ(output_3.is_loop_closure_, true);
-  EXPECT_EQ(output_3.timestamp_kf_, timestamp_cur2_);
-  EXPECT_EQ(output_3.id_match_, 1);
-  EXPECT_EQ(output_3.id_recent_, 3);
-  EXPECT_EQ(output_3.states_.size(), 4);
 }
 
 }  // namespace VIO
