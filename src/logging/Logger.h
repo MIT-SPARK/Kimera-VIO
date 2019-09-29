@@ -92,8 +92,8 @@ class FrontendLogger {
                       const cv::Mat& img,
                       const std::string& img_name_prepend,
                       const std::string& dir_name,
-                      const bool disp_img,
-                      const bool save_img);
+                      bool disp_img,
+                      bool save_img);
 
  private:
   // StreamWrappers with filenames to which output is saved.

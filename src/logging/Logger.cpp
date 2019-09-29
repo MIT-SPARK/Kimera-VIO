@@ -488,8 +488,8 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
                                     const cv::Mat& img,
                                     const std::string& img_name_prepend,
                                     const std::string& dir_name,
-                                    const bool disp_img,
-                                    const bool save_img) {
+                                    bool disp_img,
+                                    bool save_img) {
   // We save the images to the output folder so that they can be visualized.
   // Plot text with keyframe id.
   // if (!text_on_img.empty()) {
