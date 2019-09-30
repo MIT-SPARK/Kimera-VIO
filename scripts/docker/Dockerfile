@@ -81,11 +81,11 @@ RUN chmod 600 ~/.ssh/id_rsa
 RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
-# Install Spark VIO
+# Install Kimear-VIO
 #RUN git config --global user.name "arosinol"
 #RUN git config --global user.email "arosinol@mit.edu"
 RUN git clone git@github.com:MIT-SPARK/Kimera-VIO.git
-RUN cd VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
+RUN cd Kimera-VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 # Download and extract EuRoC dataset.
 RUN apt-get update && apt-get install -y wget
@@ -93,7 +93,7 @@ RUN wget http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room
 RUN mkdir -p $DIRPATH/euroc && unzip V1_01_easy.zip -d $DIRPATH/euroc
 
 # Yamelize euroc dataset
-RUN bash $DIRPATH/VIO/scripts/euroc/yamelize.bash -p $DIRPATH/euroc
+RUN bash $DIRPATH/Kimera-VIO/scripts/euroc/yamelize.bash -p $DIRPATH/euroc
 
-#CMD xvfb-run $DIRPATH/VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/euroc -r
-CMD $DIRPATH/VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/euroc -r
+#CMD xvfb-run $DIRPATH/Kimera-VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/euroc -r
+CMD $DIRPATH/Kimera-VIO/scripts/stereoVIOEuroc.bash -p $DIRPATH/euroc -r

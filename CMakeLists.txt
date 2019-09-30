@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.5)
-project(SparkVio VERSION 1.0 LANGUAGES CXX)
+project(KimeraVIO VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
 # Currently we do not have any custom find module...
@@ -31,7 +31,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(SparkVio STATIC
+add_library(KimeraVIO STATIC
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
   src/StereoFrame.cpp
@@ -51,7 +51,7 @@ add_library(SparkVio STATIC
   src/Visualizer3D.cpp "")
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(SparkVio::SparkVio ALIAS SparkVio)
+add_library(KimeraVIO::KimeraVIO ALIAS KimeraVIO)
 
 ### Add source code for data provider.
 include(src/datasource/CMakeLists.txt)
@@ -72,7 +72,7 @@ include(src/logging/CMakeLists.txt)
 ### Add source code for imu frontend
 include(src/imu-frontend/CMakeLists.txt)
 
-target_link_libraries(SparkVio
+target_link_libraries(KimeraVIO
   PRIVATE
     opengv
   PUBLIC
@@ -83,7 +83,7 @@ target_link_libraries(SparkVio
     gtsam
     gtsam_unstable
 )
-target_include_directories(SparkVio
+target_include_directories(KimeraVIO
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
@@ -91,16 +91,16 @@ target_include_directories(SparkVio
     $<INSTALL_INTERFACE:src>
   )
 
-target_compile_options(SparkVio
+target_compile_options(KimeraVIO
   PRIVATE -Wall -pipe
   PRIVATE -march=native)
 
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(SparkVio PUBLIC
+target_compile_features(KimeraVIO PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
 
-add_executable(stereoVIOEuroc ./examples/SparkVio.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC SparkVio::SparkVio)
+add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
+target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
 
 ### Add testing
 # Download and unpack googletest at configure time
@@ -132,8 +132,8 @@ endif()
 
 # Generate gtests.
 include(CTest)
-add_executable(testSparkVio
-  tests/testSparkVio.cpp
+add_executable(testKimeraVIO
+  tests/testKimeraVIO.cpp
   tests/testCameraParams.cpp
   tests/testCodesignIdeas.cpp
   tests/testFeatureSelector.cpp
@@ -162,38 +162,37 @@ add_executable(testSparkVio
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
-  tests/testOnlineAlignment.cpp
   )
 
-target_link_libraries(testSparkVio gtest SparkVio::SparkVio)
+target_link_libraries(testKimeraVIO gtest KimeraVIO::KimeraVIO)
 
 if(CMAKE_VERSION VERSION_LESS 3.10)
   enable_testing()
   include(FindGTest)
-  gtest_add_tests(testSparkVio "" AUTO)
+  gtest_add_tests(testKimeraVIO "" AUTO)
 else()
   include(GoogleTest)
-  gtest_discover_tests(testSparkVio)
+  gtest_discover_tests(testKimeraVIO)
 endif()
 
-#export(TARGETS SparkVio FILE SparkVio.cmake)
+#export(TARGETS KimeraVIO FILE KimeraVIO.cmake)
 #
 #
-#install(TARGETS SparkVio EXPORT stereoVioTargets
+#install(TARGETS KimeraVIO EXPORT stereoVioTargets
 #  LIBRARY DESTINATION lib
 #  ARCHIVE DESTINATION lib
 #  RUNTIME DESTINATION bin
 #  INCLUDES DESTINATION include
 #  )
-#install(EXPORT SparkVioTargets
-#  FILE SparkVioTargets.cmake
+#install(EXPORT KimeraVIOTargets
+#  FILE KimeraVIOTargets.cmake
 #  NAMESPACE stereoVio::
-#  DESTINATION lib/cmake/SparkVio
+#  DESTINATION lib/cmake/KimeraVIO
 #  )
 
 #include(CMakePackageConfigHelpers)
-#write_basic_package_version_file("SparkVioConfigVersion.cmake"
-#  VERSION ${SparkVio_VERSION}
+#write_basic_package_version_file("KimeraVIOConfigVersion.cmake"
+#  VERSION ${KimeraVIO_VERSION}
 #  COMPATIBILITY SameMajorVersion
 #)
 
@@ -202,15 +201,15 @@ endif()
 #include(GNUInstallDirs)
 #
 ## First of all, we need to install the library itself.
-#install(TARGETS SparkVio
-#    EXPORT SparkVio-export
+#install(TARGETS KimeraVIO
+#    EXPORT KimeraVIO-export
 #    LIBRARY DESTINATION lib
 #    ARCHIVE DESTINATION lib
 #    INCLUDES DESTINATION include # We need this right?
 #)
 
-## This is required so that the exported target has the name SparkVio and not SparkVio
-#set_target_properties(SparkVio PROPERTIES EXPORT_NAME SparkVio)
+## This is required so that the exported target has the name KimeraVIO and not KimeraVIO
+#set_target_properties(KimeraVIO PROPERTIES EXPORT_NAME KimeraVIO)
 
 ## TODO THIS SHOULD BE only the headers... aka include/
 ##install(DIRECTORY src/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -221,16 +220,16 @@ endif()
 #install(DIRECTORY ${GLOG_INCLUDE_DIRS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 #
 ## CMAKE_INSTALL_LIBDIR is lib usually
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SparkVio)
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/KimeraVIO)
 
 ## We install the export that we defined above
 ## Export the targets to a script
-## This will install the import script SparkVioTargets.cmake
+## This will install the import script KimeraVIOTargets.cmake
 ## When findpackaged by other scripts, it will load the targets defined
-## in the export SparkVio-export.
-#install(EXPORT SparkVio-export
-#  FILE SparkVioTargets.cmake
-#  NAMESPACE SparkVio::
+## in the export KimeraVIO-export.
+#install(EXPORT KimeraVIO-export
+#  FILE KimeraVIOTargets.cmake
+#  NAMESPACE KimeraVIO::
 ## It's usually a good idea to give CMake access to the version,
 ## so that find_package can have a version specified.
 ## Create a ConfigVersion.cmake file
@@ -238,23 +237,23 @@ set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SparkVio)
 ## so that find_package can have a version specified.
 ## Create a ConfigVersion.cmake file
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfigVersion.cmake
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
-# Create SparkVioConfig.cmake with extra info from SparkVioConfig.cmake.in
-# This file is necessary to find_package the library SparkVio.
-configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/SparkVioConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfig.cmake
+# Create KimeraVIOConfig.cmake with extra info from KimeraVIOConfig.cmake.in
+# This file is necessary to find_package the library KimeraVIO.
+configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/KimeraVIOConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
     INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 #
 ## Install the config and configversion
 ## Here you could also install custom cmake find modules
 #install(FILES
-#    ${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfig.cmake
-#    ${CMAKE_CURRENT_BINARY_DIR}/SparkVioConfigVersion.cmake
+#    ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
+#    ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
 #    DESTINATION ${INSTALL_CONFIGDIR}
 #)
 
@@ -262,9 +261,9 @@ set(EXPORTED_DEPENDENCIES "")
 list(APPEND EXPORTED_DEPENDENCIES "glog::glog")
 list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
 
-export(TARGETS SparkVio ${EXPORTED_DEPENDENCIES}
-       FILE SparkVioTargets.cmake)
-export(PACKAGE SparkVio)
+export(TARGETS KimeraVIO ${EXPORTED_DEPENDENCIES}
+       FILE KimeraVIOTargets.cmake)
+export(PACKAGE KimeraVIO)
 
 ### SIYI's way of exporting.
 ##target_include_directories(stereoVIO PUBLIC "./src" ${Boost_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} "/usr/local/include/opengv/" ${OpenCV_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS} ${GLOG_INCLUDE_DIRS})
