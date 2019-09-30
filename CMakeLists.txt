@@ -106,7 +106,8 @@ target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
 # Download and unpack googletest at configure time
 # TODO Consider doing the same for glog, gflags, although it might
 # make the command `cmake ..` a bit slow.
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake external/googletest-download/CMakeLists.txt)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake
+  external/googletest-download/CMakeLists.txt)
 execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download" )
 execute_process(COMMAND "${CMAKE_COMMAND}" --build .
@@ -119,8 +120,11 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 # Add googletest directly to our build. This adds
 # the following targets: gtest, gtest_main, gmock
 # and gmock_main
+# Exclude these targets from installation with EXCLUDE_FROM_ALL
+# Check issue: https://github.com/google/googletest/issues/868
 add_subdirectory("${CMAKE_BINARY_DIR}/external/googletest-src"
-                 "${CMAKE_BINARY_DIR}/external/googletest-build")
+                 "${CMAKE_BINARY_DIR}/external/googletest-build"
+                 EXCLUDE_FROM_ALL)
 
 # The gtest/gmock targets carry header search path
 # dependencies automatically when using CMake 2.8.11 or
