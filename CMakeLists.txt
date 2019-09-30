@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.5)
-project(KimeraVIO VERSION 1.0 LANGUAGES CXX)
+project(kimera_vio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
 # Currently we do not have any custom find module...
