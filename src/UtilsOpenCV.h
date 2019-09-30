@@ -21,6 +21,7 @@
 
 #include <Eigen/Core>
 
+#include <opencv2/highgui/highgui_c.h>
 #include <opencv2/opencv.hpp>
 
 #include <gtsam/inference/Symbol.h>
@@ -120,10 +121,10 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  // converts a vector of 16 elements listing the elements of a 4x4 3D pose matrix by rows
-  // into a pose3 in gtsam
-  static gtsam::Pose3 Vec2pose(const std::vector<double>& vecRows,
-                               const int n_rows, const int n_cols);
+  // Converts a vector of 16 elements listing the elements of a 4x4 3D pose
+  // matrix by rows into a pose3 in gtsam
+  static gtsam::Pose3 poseVectorToGtsamPose3(
+      const std::vector<double>& vector_pose);
 
   /* ------------------------------------------------------------------------ */
   // Converts a gtsam pose3 to a 3x3 rotation matrix and translation vector

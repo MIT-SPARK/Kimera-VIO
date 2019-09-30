@@ -23,7 +23,7 @@ endif()
 
 find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
-find_package(OpenCV 3.3.1 REQUIRED)
+find_package(OpenCV REQUIRED)
 
 ### External Dependencies
 include(ExternalProject)
@@ -166,6 +166,7 @@ add_executable(testSparkVio
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
+  tests/testOnlineAlignment.cpp
   )
 
 target_link_libraries(testSparkVio gtest SparkVio::SparkVio)

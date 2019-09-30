@@ -42,14 +42,56 @@ namespace VIO {
  */
 class ETHDatasetParser : public DataProvider {
  public:
+  // Ctor with params.
+  ETHDatasetParser(int initial_k,
+                   int final_k,
+                   const std::string& dataset_path,
+                   int skip_n_start_frames,
+                   int skip_n_end_frames);
+  // Ctor from gflags params.
   ETHDatasetParser();
   virtual ~ETHDatasetParser();
 
-  // Ground truth data.
-  GroundTruthData gt_data_;
+ public:
+  virtual bool spin() override;
 
-  // IMU data.
-  ImuData imu_data_;
+  void spinOnce(const FrameId& k,
+                const StereoMatchingParams& stereo_matchiong_params,
+                const bool equalize_image,
+                const CameraParams& left_cam_info,
+                const CameraParams& right_cam_info,
+                const gtsam::Pose3& camL_pose_camR,
+                Timestamp* timestamp_last_frame);
+
+  // Parses EuRoC data, as well as the frontend and backend parameters
+  void parse();
+
+  // Parse camera, gt, and imu data if using different Euroc format.
+  bool parseDataset(const std::string& input_dataset_path,
+                    const std::string& left_cam_name,
+                    const std::string& right_cam_name,
+                    const std::string& imu_name,
+                    const std::string& gt_sensor_name,
+                    bool parse_images = true);
+
+  // Check if the ground truth is available.
+  // (i.e., the timestamp is after the first gt state)
+  bool isGroundTruthAvailable(const Timestamp& timestamp) const;
+
+  // Get if the dataset has ground truth.
+  bool isGroundTruthAvailable() const;
+
+  // Compute error on the relative pose between two time stamps,
+  // compared with the relative pose from ground truth.
+  std::pair<double, double> computePoseErrors(
+      const gtsam::Pose3& lkf_T_k_body,
+      const bool isTrackingValid,
+      const Timestamp& previousTimestamp,
+      const Timestamp& currentTimestamp,
+      const bool upToScale = false) const;
+
+  // Get timestamp of a given pair of stereo images (synchronized).
+  Timestamp timestampAtFrame(const FrameId& frame_number);
 
   /// Getters
   inline std::string getDatasetName() const { return dataset_name_; }
@@ -71,29 +113,6 @@ class ETHDatasetParser : public DataProvider {
     return pipeline_params_.imu_params_;
   }
 
-public:
-
-  virtual bool spin() override;
-
-  void spinOnce(const FrameId& k,
-                Timestamp& timestamp_last_frame,
-                const StereoMatchingParams& stereo_matchiong_params,
-                const bool equalize_image,
-                const CameraParams& left_cam_info,
-                const CameraParams& right_cam_info,
-                const gtsam::Pose3& camL_pose_camR);
-
-  // Parses EuRoC data, as well as the frontend and backend parameters
-  void parse();
-
-  // Parse camera, gt, and imu data if using different Euroc format.
-  bool parseDataset(const std::string& input_dataset_path,
-                    const std::string& leftCameraName,
-                    const std::string& rightCameraName,
-                    const std::string& imuName,
-                    const std::string& gtSensorName,
-                    bool doParseImages = true);
-
   // Retrieve relative pose between timestamps.
   gtsam::Pose3 getGroundTruthRelativePose(
       const Timestamp& previousTimestamp,
@@ -109,51 +128,40 @@ public:
       const VioNavState& init_nav_state,
       const gtsam::Vector3& init_gravity);
 
-  // Check if the ground truth is available.
-  // (i.e., the timestamp is after the first gt state)
-  bool isGroundTruthAvailable(const Timestamp& timestamp) const;
-
-  // Get if the dataset has ground truth.
-  bool isGroundTruthAvailable() const;
-
-  // Compute error on the relative pose between two time stamps,
-  // compared with the relative pose from ground truth.
-  std::pair<double, double> computePoseErrors(
-      const gtsam::Pose3& lkf_T_k_body, const bool isTrackingValid,
-      const Timestamp& previousTimestamp, const Timestamp& currentTimestamp,
-      const bool upToScale = false) const;
-
-  // Get timestamp of a given pair of stereo images (synchronized).
-  Timestamp timestampAtFrame(const FrameId& frame_number);
-
   // Print info about dataset.
   void print() const;
 
+ public:
+  // Ground truth data.
+  GroundTruthData gt_data_;
+
+  // IMU data.
+  ImuData imu_data_;
+
  private:
   bool parseImuData(const std::string& input_dataset_path,
-                    const std::string& imuName);
+                    const std::string& imu_name);
 
   bool parseGTdata(const std::string& input_dataset_path,
                    const std::string& gtSensorName);
 
   // Parse cam0, cam1 of a given dataset.
   bool parseCameraData(const std::string& input_dataset_path,
-                       const std::string& leftCameraName,
-                       const std::string& rightCameraName,
-                       const bool doParseImages = true);
+                       const std::string& left_cam_name,
+                       const std::string& right_cam_name,
+                       const bool parse_images = true);
 
   // Parse IMU parameters.
   bool parseImuParams(const std::string& input_dataset_path,
-                      const std::string& imuName);
+                      const std::string& imu_name);
 
   /// Getters.
   inline size_t getNumImages() const {
     return camera_image_lists_.at(camera_names_.at(0)).getNumImages();
   }
   inline std::string getImgName(const std::string& id, const size_t& k) const {
-    return camera_image_lists_.at(id).img_lists.at(k).second;
+    return camera_image_lists_.at(id).img_lists_.at(k).second;
   }
-
   // Retrieve absolute pose at timestamp.
   inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {
     return getGroundTruthState(timestamp).pose_;
@@ -189,6 +197,13 @@ public:
 
   bool is_gt_available_;
   std::string dataset_name_;
+
+  // Number of initial frames to skip for
+  // IMU calibration. We only use the IMU information and discard the frames.
+  int skip_n_start_frames_ = 0;
+  // Number of final frames to skip for IMU calibration. We only use the IMU
+  // information and discard the frames.
+  int skip_n_end_frames_ = 0;
 };
 
 }  // namespace VIO
