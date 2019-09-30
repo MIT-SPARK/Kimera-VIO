@@ -81,10 +81,8 @@ RUN chmod 600 ~/.ssh/id_rsa
 RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
-# Install Kimear-VIO
-#RUN git config --global user.name "arosinol"
-#RUN git config --global user.email "arosinol@mit.edu"
-RUN git clone git@github.com:MIT-SPARK/Kimera-VIO.git
+# Install Kimera-VIO
+RUN git clone https://github.com/MIT-SPARK/Kimera-VIO.git
 RUN cd Kimera-VIO && mkdir build && cd build && cmake .. && make -j$(nproc)
 
 # Download and extract EuRoC dataset.
