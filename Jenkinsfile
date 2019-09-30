@@ -26,7 +26,7 @@ pipeline {
     stage('Test') {
       steps {
         wrap([$class: 'Xvfb']) {
-          sh 'cd build && ./testSparkVio --gtest_output="xml:testresults.xml"'
+          sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
         }
       }
     }
