@@ -15,6 +15,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "loopclosure/LoopClosureDetector-definitions.h"
@@ -28,19 +29,19 @@
 
 #include <DBoW2/DBoW2.h>
 
-#include "utils/ThreadsafeQueue.h"
 #include "StereoFrame.h"
 #include "logging/Logger.h"
+#include "utils/ThreadsafeQueue.h"
 
 // Forward declare RobustPGO, a private dependency.
 namespace RobustPGO {
-  class RobustSolver;
+class RobustSolver;
 }
 
 namespace VIO {
 
 typedef std::function<void(const LoopClosureDetectorOutputPayload&)>
-  LoopClosurePGOCallback;
+    LoopClosurePGOCallback;
 
 class LoopClosureDetector {
  public:
@@ -63,7 +64,8 @@ class LoopClosureDetector {
                                   const FrameId& match_id,
                                   gtsam::Pose3* camCur_T_camRef_mono);
 
-  bool recoverPose(const FrameId& query_id, const FrameId& match_id,
+  bool recoverPose(const FrameId& query_id,
+                   const FrameId& match_id,
                    const gtsam::Pose3& camCur_T_camRef_mono,
                    gtsam::Pose3* bodyCur_T_bodyRef_stereo);
 
@@ -81,9 +83,7 @@ class LoopClosureDetector {
 
   inline bool isWorking() const { return is_thread_working_; }
 
-  inline LoopClosureDetectorParams getLCDParams() const {
-    return lcd_params_;
-  }
+  inline LoopClosureDetectorParams getLCDParams() const { return lcd_params_; }
 
   inline LoopClosureDetectorParams* getLCDParamsMutable() {
     return &lcd_params_;
@@ -153,13 +153,14 @@ class LoopClosureDetector {
 
   // TODO(marcus): review these
   void computeIslands(DBoW2::QueryResults& q,
-      std::vector<MatchIsland>* islands) const;
+                      std::vector<MatchIsland>* islands) const;
 
   double computeIslandScore(const DBoW2::QueryResults& q,
                             const FrameId& start_id,
                             const FrameId& end_id) const;
 
-  void computeMatchedIndices(const FrameId& query_id, const FrameId& match_id,
+  void computeMatchedIndices(const FrameId& query_id,
+                             const FrameId& match_id,
                              std::vector<unsigned int>* i_query,
                              std::vector<unsigned int>* i_match,
                              bool cut_matches = false) const;
@@ -168,10 +169,12 @@ class LoopClosureDetector {
                                    const FrameId& match_id,
                                    gtsam::Pose3* camCur_T_camRef_mono);
 
-  bool recoverPoseArun(const FrameId& query_id, const FrameId& match_id,
+  bool recoverPoseArun(const FrameId& query_id,
+                       const FrameId& match_id,
                        gtsam::Pose3* bodyCur_T_bodyRef);
 
-  bool recoverPoseGivenRot(const FrameId& query_id, const FrameId& match_id,
+  bool recoverPoseGivenRot(const FrameId& query_id,
+                           const FrameId& match_id,
                            const gtsam::Pose3& camCur_T_camRef_mono,
                            gtsam::Pose3* bodyCur_T_bodyRef);
 
@@ -209,8 +212,9 @@ class LoopClosureDetector {
   // Robust PGO members
   std::unique_ptr<RobustPGO::RobustSolver> pgo_;
   std::vector<gtsam::Pose3> W_Pose_Blkf_estimates_;
-  gtsam::SharedNoiseModel shared_noise_model_; // TODO(marcus): make accurate
-                                               // should also come in with input
+  gtsam::SharedNoiseModel
+      shared_noise_model_;  // TODO(marcus): make accurate
+                            // should also come in with input
 
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;

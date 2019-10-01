@@ -14,15 +14,16 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 
-#include "common/vio_types.h"
 #include "StereoFrame.h"
+#include "common/vio_types.h"
 
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/linear/NoiseModel.h>
-#include <gtsam/nonlinear/Values.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/Values.h>
 
 namespace VIO {
 
@@ -54,14 +55,14 @@ struct LCDFrame {
            const OrbDescriptorVec& descriptors_vec,
            const OrbDescriptor& descriptors_mat,
            const BearingVectors& versors)
-    : timestamp_(timestamp),
-      id_(id),
-      id_kf_(id_kf),
-      keypoints_(keypoints),
-      keypoints_3d_(keypoints_3d),
-      descriptors_vec_(descriptors_vec),
-      descriptors_mat_(descriptors_mat),
-      versors_(versors) {}
+      : timestamp_(timestamp),
+        id_(id),
+        id_kf_(id_kf),
+        keypoints_(keypoints),
+        keypoints_3d_(keypoints_3d),
+        descriptors_vec_(descriptors_vec),
+        descriptors_mat_(descriptors_mat),
+        versors_(versors) {}
 
   Timestamp timestamp_;
   FrameId id_;
@@ -75,31 +76,31 @@ struct LCDFrame {
 
 struct MatchIsland {
   MatchIsland()
-    : start_id_(0),
-      end_id_(0),
-      island_score_(0),
-      best_id_(0),
-      best_score_(0) {}
+      : start_id_(0),
+        end_id_(0),
+        island_score_(0),
+        best_id_(0),
+        best_score_(0) {}
 
   MatchIsland(const FrameId& start, const FrameId& end)
-    : start_id_(start),
-      end_id_(end),
-      island_score_(0),
-      best_id_(0),
-      best_score_(0) {}
+      : start_id_(start),
+        end_id_(end),
+        island_score_(0),
+        best_id_(0),
+        best_score_(0) {}
 
   MatchIsland(const FrameId& start, const FrameId& end, const double& score)
-    : start_id_(start),
-      end_id_(end),
-      island_score_(score),
-      best_id_(0),
-      best_score_(0) {}
+      : start_id_(start),
+        end_id_(end),
+        island_score_(score),
+        best_id_(0),
+        best_score_(0) {}
 
-  inline bool operator < (const MatchIsland& other) const {
+  inline bool operator<(const MatchIsland& other) const {
     return island_score_ < other.island_score_;
   }
 
-  inline bool operator > (const MatchIsland& other) const {
+  inline bool operator>(const MatchIsland& other) const {
     return island_score_ > other.island_score_;
   }
 
@@ -125,7 +126,7 @@ struct LoopResult {
 
   static std::string asString(const LCDStatus& status) {
     std::string status_str = "";
-    switch(status) {
+    switch (status) {
       case LCDStatus::LOOP_DETECTED: {
         status_str = "LOOP_DETECTED";
         break;
@@ -191,14 +192,12 @@ struct OdometryFactor {
   OdometryFactor(const FrameId& cur_key,
                  const gtsam::Pose3& W_Pose_Blkf,
                  const gtsam::SharedNoiseModel& noise)
-      : cur_key_(cur_key),
-      W_Pose_Blkf_(W_Pose_Blkf),
-      noise_(noise) {}
+      : cur_key_(cur_key), W_Pose_Blkf_(W_Pose_Blkf), noise_(noise) {}
 
   const FrameId cur_key_;
   const gtsam::Pose3 W_Pose_Blkf_;
   const gtsam::SharedNoiseModel noise_;
-}; // struct OdometryFactor
+};  // struct OdometryFactor
 
 struct LoopClosureFactor {
   LoopClosureFactor(const FrameId& ref_key,
@@ -214,7 +213,7 @@ struct LoopClosureFactor {
   const FrameId cur_key_;
   const gtsam::Pose3 ref_Pose_cur_;
   const gtsam::SharedNoiseModel noise_;
-}; // struct LoopClosureFactor
+};  // struct LoopClosureFactor
 
 struct LoopClosureDetectorInputPayload {
   LoopClosureDetectorInputPayload(const Timestamp& timestamp_kf,
