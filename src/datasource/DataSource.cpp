@@ -41,19 +41,20 @@ DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
 
 namespace VIO {
 
-DataProvider::DataProvider() :
-    initial_k_(FLAGS_initial_k),
-    final_k_(FLAGS_final_k),
-    dataset_path_(FLAGS_dataset_path) {
-
+DataProvider::DataProvider(int initial_k,
+                           int final_k,
+                           const std::string& dataset_path)
+    : initial_k_(initial_k), final_k_(final_k), dataset_path_(dataset_path) {
   CHECK(final_k_ > initial_k_)
       << "Value for final_k (" << final_k_
       << ") is smaller than value for"
       << " initial_k (" << initial_k_ << ").";
-
   LOG(INFO) << "Running dataset between frame " << initial_k_
           << " and frame " << final_k_;
 }
+
+DataProvider::DataProvider()
+    : DataProvider(FLAGS_initial_k, FLAGS_final_k, FLAGS_dataset_path) {}
 
 DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";

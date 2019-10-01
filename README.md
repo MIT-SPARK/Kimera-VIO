@@ -1,17 +1,17 @@
 <div align="center">
-    <img src="docs/media/sparkvio_logo.png" width="100">
+    <img src="docs/media/kimeravio_logo.png" width="100">
 </div>
 
-# SparkVIO: Open-Source Visual Inertial Odometry
+# Kimera-VIO: Open-Source Visual Inertial Odometry
 
 [![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/)
 For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/VIO_20Euroc_20Performance_20Report/plots.html#V1_01_easy).
 
 **Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
 
-## What is SparkVIO?
+## What is Kimera-VIO?
 
-SparkVIO is a Visual Inertial Odometry pipeline for accurate State Estimation from **Stereo** + **IMU** data. (Mono-only capabilities soon to be released).
+Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation from **Stereo** + **IMU** data. (Mono-only capabilities soon to be released).
 
 ## Related Publications
 
@@ -32,7 +32,7 @@ Alternatively, the `Regular VIO` backend, using structural regularities, is desc
 ## Demo
 
 <div align="center">
-  <img src="docs/media/SparkVIO_ROS_mesh.gif"/>
+  <img src="docs/media/kimeravio_ROS_mesh.gif"/>
 </div>
 
 # 1. Installation
@@ -48,11 +48,11 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 - [DBoW2](https://github.com/dorian3d/DBoW2)
 - [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
 
-> Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/sparkvio_installation.md](./docs/sparkvio_installation.md).
+> Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimeravio_installation.md](./docs/kimeravio_installation.md).
 
 ## Installation Instructions
 
-Find how to install SparkVIO and its dependencies here: **[Installation instructions](./docs/sparkvio_installation.md)**.
+Find how to install Kimera-VIO and its dependencies here: **[Installation instructions](./docs/kimeravio_installation.md)**.
 
 # 2. Usage
 
@@ -74,16 +74,16 @@ unzip -o ~/Downloads/V1_01_easy.zip -d ~/Euroc/V1_01_easy
 Add `%YAML:1.0` at the top of each `.yaml` file inside Euroc.
 You can do this manually or run the `yamelize.bash` script by indicating where the dataset is (it is assumed below to be in `~/path/to/euroc`):
 ```bash
-cd SparkVIO
+cd Kimera-VIO
 bash ./scripts/euroc/yamelize.bash -p ~/path/to/euroc
 ```
 
-### Run SparkVIO in Euroc's dataset
+### Run Kimera-VIO in Euroc's dataset
 
 Using a bash script bundling all command-line options and gflags:
 
 ```bash
-cd SparkVIO
+cd Kimera-VIO
 bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
 ```
 
@@ -98,23 +98,23 @@ bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
   - Download unsynced + unrectified raw dataset (e.g. [2011\_09\_26\_drive\_0005\_extract](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0005/2011_09_26_drive_0005_extract.zip)).
   - Download as well the calibration data (three files) from raw dataset (e.g. [2011\_09\_26\_calib](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip)), and save them inside the folder `2011_09_26`.
 
-### Run SparkVIO in Kitti's dataset
+### Run Kimera-VIO in Kitti's dataset
 
 - Run:
   ```bash
-  cd SparkVIO
+  cd Kimera-VIO
   bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/2011_09_26_drive_0005_extract" -d 1
   ```
    where you specify the path to the dataset (e.g. path to `2011_09_26_drive_0005_extract` folder).
 
 ## iii. Using [ROS wrapper](https://github.com/MIT-SPARK/Kimera-VIO-ROS)
 
-We provide a ROS wrapper of SparkVIO that you can find at: https://github.com/MIT-SPARK/Kimera-VIO-ROS.
+We provide a ROS wrapper of Kimera-VIO that you can find at: https://github.com/MIT-SPARK/Kimera-VIO-ROS.
 
 This library can be cloned into a catkin workspace and built alongside the ROS wrapper.
 
 # 3. Parameters
-SparkVIO accepts two sources of parameters:
+Kimera-VIO accepts two sources of parameters:
 - YAML files: contains parameters for Backend and Frontend.
 - [gflags](https://gflags.github.io/gflags/) contains parameters for all the rest.
 
@@ -139,10 +139,10 @@ Also, check [tips for development](./docs/tips_development.md) and our **[develo
 
 # 6. Chart
 
-![vio_chart](./docs/media/sparkvio_chart.png)
+![vio_chart](./docs/media/kimeravio_chart.png)
 
 ![overall_chart](./docs/media/kimera_chart_23.jpeg)
 
 # 7. BSD License
 
-SparkVIO is open source under the BSD license, see the [LICENSE.BSD](LICENSE.BSD) file.
+Kimera-VIO is open source under the BSD license, see the [LICENSE.BSD](LICENSE.BSD) file.

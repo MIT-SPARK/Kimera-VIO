@@ -24,6 +24,13 @@ namespace VIO {
 
 class DataProvider {
  public:
+  /** Regular ctor.
+   *   [in] initial_k: first frame id to be parsed.
+   *   [in] final_k: last frame id to be parsed.
+   *   [in] dataset_path: path to the Euroc dataset.
+   **/
+  DataProvider(int initial_k, int final_k, const std::string& dataset_path);
+  // Ctor from gflags. Calls regular ctor with gflags values.
   DataProvider();
   virtual ~DataProvider();
 
