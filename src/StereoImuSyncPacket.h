@@ -152,7 +152,7 @@ struct SpinOutputPacket {
   SpinOutputPacket(
       const Timestamp& timestamp_kf,
       const gtsam::Pose3& W_Pose_Blkf,
-      const Vector3& W_Vel_Blkf,
+      const gtsam::Vector3& W_Vel_Blkf,
       const ImuBias& imu_bias_lkf,
       const Mesh2D& mesh_2d,
       const Mesh3D& mesh_3d,
@@ -197,7 +197,7 @@ struct SpinOutputPacket {
   // struct.
   inline Timestamp getTimestamp() const { return timestamp_kf_; }
   inline gtsam::Pose3 getEstimatedPose() const { return W_Pose_Blkf_; }
-  inline Vector3 getEstimatedVelocity() const { return W_Vel_Blkf_; }
+  inline gtsam::Vector3 getEstimatedVelocity() const { return W_Vel_Blkf_; }
   inline gtsam::Matrix6 getEstimatedPoseCov() const {
     return gtsam::sub(state_covariance_lkf_, 0, 6, 0, 6);
   }
@@ -220,7 +220,7 @@ struct SpinOutputPacket {
  private:
   Timestamp timestamp_kf_;
   gtsam::Pose3 W_Pose_Blkf_;
-  Vector3 W_Vel_Blkf_;
+  gtsam::Vector3 W_Vel_Blkf_;
   ImuBias imu_bias_lkf_;
   gtsam::Matrix state_covariance_lkf_;
   DebugTrackerInfo debug_tracker_info_;

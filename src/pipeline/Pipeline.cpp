@@ -563,28 +563,32 @@ void Pipeline::shutdownWhenFinished() {
             !loop_closure_detector_->isWorking() &&
             visualizer_input_queue_.empty() && visualizer_output_queue_.empty()
             && !visualizer_.isWorking()))) {
-    VLOG(10)
-        << "shutdown_: " << shutdown_ << '\n'
-        << "VIO pipeline status: \n"
-        << "Initialized? " << is_initialized_ << '\n'
-        << "Frontend input queue empty?" << stereo_frontend_input_queue_.empty()
-        << '\n'
-        << "Frontend output queue empty?"
-        << stereo_frontend_output_queue_.empty() << '\n'
-        << "Frontend is working? " << vio_frontend_->isWorking() << '\n'
-        << "Backend Input queue empty?" << backend_input_queue_.empty() << '\n'
-        << "Backend Output queue empty?" << backend_output_queue_.empty()
-        << '\n'
-        << "Backend is working? "
-        << (is_initialized_ ? vio_backend_->isWorking() : false) << '\n'
-        << "Mesher input queue empty?" << mesher_input_queue_.empty() << '\n'
-        << "Mesher output queue empty?" << mesher_output_queue_.empty() << '\n'
-        << "Mesher is working? " << mesher_.isWorking() << '\n'
-        << "Visualizer input queue empty?" << visualizer_input_queue_.empty()
-        << '\n'
-        << "Visualizer output queue empty?" << visualizer_output_queue_.empty()
-        << '\n'
-        << "Visualizer is working? " << visualizer_.isWorking();
+    VLOG_EVERY_N(10, 100) << "shutdown_: " << shutdown_ << '\n'
+                          << "VIO pipeline status: \n"
+                          << "Initialized? " << is_initialized_ << '\n'
+                          << "Frontend input queue empty?"
+                          << stereo_frontend_input_queue_.empty() << '\n'
+                          << "Frontend output queue empty?"
+                          << stereo_frontend_output_queue_.empty() << '\n'
+                          << "Frontend is working? " << vio_frontend_->isWorking()
+                          << '\n'
+                          << "Backend Input queue empty?"
+                          << backend_input_queue_.empty() << '\n'
+                          << "Backend Output queue empty?"
+                          << backend_output_queue_.empty() << '\n'
+                          << "Backend is working? "
+                          << (is_initialized_ ? vio_backend_->isWorking() : false)
+                          << '\n'
+                          << "Mesher input queue empty?"
+                          << mesher_input_queue_.empty() << '\n'
+                          << "Mesher output queue empty?"
+                          << mesher_output_queue_.empty() << '\n'
+                          << "Mesher is working? " << mesher_.isWorking() << '\n'
+                          << "Visualizer input queue empty?"
+                          << visualizer_input_queue_.empty() << '\n'
+                          << "Visualizer output queue empty?"
+                          << visualizer_output_queue_.empty() << '\n'
+                          << "Visualizer is working? " << visualizer_.isWorking();
 
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
