@@ -61,7 +61,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
         INTERFACE_LINK_LIBRARIES "${GFLAGS_LIBRARIES}"
         INTERFACE_INCLUDE_DIRECTORIES "${GFLAGS_INCLUDE_DIR}")
       if(TARGET gflags)
-        # This is to avoid sparkvio library to build before gflags
+        # This is to avoid KimeraVIO library to build before gflags
         add_dependencies(gflags::gflags gflags)
       endif()
     else()

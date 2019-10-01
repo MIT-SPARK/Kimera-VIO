@@ -1,7 +1,7 @@
-get_filename_component(SparkVio_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(KimeraVIO_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include(CMakeFindDependencyMacro)
 
-list(APPEND CMAKE_MODULE_PATH ${SparkVio_CMAKE_DIR})
+list(APPEND CMAKE_MODULE_PATH ${KimeraVIO_CMAKE_DIR})
 
 find_dependency(Boost REQUIRED)
 if(NOT TARGET Boost::boost)
@@ -20,6 +20,6 @@ find_dependency(OpenCV REQUIRED)
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
-if(NOT TARGET SparkVio)
-  include("${SparkVio_CMAKE_DIR}/SparkVioTargets.cmake")
+if(NOT TARGET KimeraVIO)
+  include("${KimeraVIO_CMAKE_DIR}/KimeraVIOTargets.cmake")
 endif()

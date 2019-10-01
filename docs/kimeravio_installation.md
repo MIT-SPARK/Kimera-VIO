@@ -1,4 +1,4 @@
-# SparkVIO Installation
+# Kimera-VIO Installation
 
 Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 
@@ -158,7 +158,7 @@ sudo make -j $(nproc)
 ## Glog, Gflags & Gtest
 Glog, Gflags, and Gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
 
-## Install SparkVIO
+## Install Kimera-VIO
 
 Before proceeding, ensure all dependencies are installed or use the provided [dockerfile](#From-Dockerfile).
 
@@ -166,12 +166,12 @@ Before proceeding, ensure all dependencies are installed or use the provided [do
 
 Clone this repository:
 ```bash
-git clone git@github.com:MIT-SPARK/Kimera-VIO.git SparkVIO
+git clone git@github.com:MIT-SPARK/Kimera-VIO.git Kimera-VIO
 ```
 
-Build SparkVIO:
+Build Kimera-VIO
 ```bash
-cd SparkVIO
+cd Kimera-VIO
 mkdir build
 cd build
 cmake ..
@@ -189,17 +189,17 @@ Once installed, clone this repo, build the image and run it:
 
 ```bash
 # Clone the repo
-git clone git@github.com:MIT-SPARK/Kimera-VIO.git SparkVIO
+git clone git@github.com:MIT-SPARK/Kimera-VIO.git Kimera-VIO
 
 # Build the image
-cd SparkVIO
-docker build --rm -t spark_vio -f ./scripts/docker/Dockerfile . 
+cd Kimera-VIO
+docker build --rm -t kimera_vio -f ./scripts/docker/Dockerfile . 
 ```
 
 This may take a while (>15min), so you can go and grab a cup of coffee.
-Once done, you can run the `spark_vio_docker.bash`:
+Once done, you can run the `kimera_vio_docker.bash`:
 
 ```bash
 # Run an example dataset
-./scripts/docker/spark_vio_docker.bash
+./scripts/docker/kimera_vio_docker.bash
 ```
