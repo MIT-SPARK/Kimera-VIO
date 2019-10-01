@@ -31,11 +31,11 @@ if(DBoW2_FOUND)
   message(STATUS "FOUND DBoW2!")
 endif(DBoW2_FOUND)
 
-### Find the RobustPGO package
-find_package(RobustPGO)
-if(RobustPGO_FOUND)
-  message(STATUS "FOUND RobustPGO!")
-endif(RobustPGO_FOUND)
+### Find the KimeraRPGO package
+find_package(KimeraRPGO)
+if(KimeraRPGO_FOUND)
+  message(STATUS "FOUND KimeraRPGO!")
+endif(KimeraRPGO_FOUND)
 
 ### Unzip the vocabularly file
 message(STATUS "Unpacking BoW Vocabulary File.")
@@ -97,7 +97,7 @@ target_link_libraries(KimeraVIO
   PRIVATE
     opengv
     DBoW2
-    RobustPGO
+    KimeraRPGO
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES} # TODO: modernize
