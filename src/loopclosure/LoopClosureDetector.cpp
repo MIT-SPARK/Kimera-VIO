@@ -17,7 +17,7 @@
 #include <string>
 
 // TODO(marcus): move these to the bottom and figure out why that causes probs.
-#include <RobustPGO/RobustSolver.h>
+#include <KimeraRPGO/RobustSolver.h>
 #include "loopclosure/LoopClosureDetector.h"
 
 #include <opengv/point_cloud/PointCloudAdapter.hpp>
@@ -113,11 +113,11 @@ LoopClosureDetector::LoopClosureDetector(
   // Initialize pgo_:
   // TODO(marcus): parametrize the verbosity of PGO params
   // shared_noise_model_ = gtsam::noiseModel::Isotropic::Variance(6, 0.1);
-  RobustPGO::RobustSolverParams pgo_params;
+  KimeraRPGO::RobustSolverParams pgo_params;
   pgo_params.setPcmSimple3DParams(lcd_params_.pgo_trans_threshold_,
                                   lcd_params_.pgo_rot_threshold_,
-                                  RobustPGO::Verbosity::QUIET);
-  pgo_ = VIO::make_unique<RobustPGO::RobustSolver>(pgo_params);
+                                  KimeraRPGO::Verbosity::QUIET);
+  pgo_ = VIO::make_unique<KimeraRPGO::RobustSolver>(pgo_params);
 
   if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
 }

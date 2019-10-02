@@ -33,8 +33,8 @@
 #include "logging/Logger.h"
 #include "utils/ThreadsafeQueue.h"
 
-// Forward declare RobustPGO, a private dependency.
-namespace RobustPGO {
+// Forward declare KimeraRPGO, a private dependency.
+namespace KimeraRPGO {
 class RobustSolver;
 }
 
@@ -210,7 +210,7 @@ class LoopClosureDetector {
   gtsam::Pose3 B_Pose_camLrect_;
 
   // Robust PGO members
-  std::unique_ptr<RobustPGO::RobustSolver> pgo_;
+  std::unique_ptr<KimeraRPGO::RobustSolver> pgo_;
   std::vector<gtsam::Pose3> W_Pose_Blkf_estimates_;
   gtsam::SharedNoiseModel
       shared_noise_model_;  // TODO(marcus): make accurate

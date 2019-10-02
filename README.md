@@ -4,7 +4,7 @@
 
 # Kimera-VIO: Open-Source Visual Inertial Odometry
 
-[![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/) 
+[![Build Status](http://ci-sparklab.mit.edu:8080/buildStatus/icon?job=VIO/master)](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/)
 For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/VIO_20Euroc_20Performance_20Report/plots.html#V1_01_easy).
 
 **Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
@@ -46,7 +46,7 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 - [OpenGV](https://github.com/laurentkneip/opengv)
 - [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
 - [DBoW2](https://github.com/dorian3d/DBoW2)
-- [RobustPGO](https://github.com/MIT-SPARK/RobustPGO)
+- [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
 
 > Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimeravio_installation.md](./docs/kimeravio_installation.md).
 
@@ -122,7 +122,7 @@ To get help on what each gflag parameter does, just run the executable with the 
 
   - Optionally, you can try the VIO using structural regularities, as in [our ICRA 2019 paper](https://ieeexplore.ieee.org/abstract/document/8794456), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
 
-OpenCV's 3D visualization has also some shortcuts for interacting with it: check [tips for usage](./docs/tips_usage.md) 
+OpenCV's 3D visualization has also some shortcuts for interacting with it: check [tips for usage](./docs/tips_usage.md)
 
 # 4. Contribution guidelines
 
