@@ -24,7 +24,7 @@ RUN cd gtsam && \
     git fetch && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON .. && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DGTSAM_BUILD_TESTS=OFF -DGTSAM_BUILD_EXAMPLES_ALWAYS=OFF -DCMAKE_BUILD_TYPE=Release -DGTSAM_BUILD_UNSTABLE=ON -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON .. && \
     make -j$(nproc) install
 
 # Install OpenCV for Ubuntu 18.04
@@ -64,9 +64,34 @@ RUN cd opengv/build && \
       -DEIGEN_INCLUDE_DIR=$DIRPATH/gtsam/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
-# Install spark_vio_evaluation
+# Install DBoW2
+RUN git clone https://github.com/dorian3d/DBoW2.git
+RUN cd DBoW2 && \
+      mkdir build && \
+      cd build && \
+      cmake .. && \
+      make -j$(nproc) install
+
+# Install RobustPGO
+ADD https://api.github.com/repos/MIT-SPARK/Kimera-RPGO/git/refs/heads/master version.json
+RUN git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
+RUN cd Kimera-RPGO && \
+      mkdir build && \
+      cd build && \
+      cmake .. && \
+      make -j$(nproc)
+
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
+
+# Install evo-1 for evaluation
+RUN git clone https://github.com/ToniRV/evo-1.git
+RUN cd evo-1 && \
+      pip install . --upgrade --no-binary evo
+
+# Install spark_vio_evaluation
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
-ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
+# ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
+ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/feature/lcd_support version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
-RUN cd spark_vio_evaluation && pip install .
+# RUN cd spark_vio_evaluation && pip install .
+RUN cd spark_vio_evaluation && git checkout feature/lcd_support && pip install .

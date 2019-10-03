@@ -17,9 +17,11 @@
 #include <stdlib.h>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <unordered_map>
 
 #include "datasource/ETH_parser.h"  // REMOVE THIS!!
+#include "loopclosure/LoopClosureDetector-definitions.h"
 
 namespace VIO {
 
@@ -29,6 +31,7 @@ class OfstreamWrapper {
   OfstreamWrapper(const std::string& filename,
                   const bool& open_file_in_append_mode = false);
   ~OfstreamWrapper();
+  void closeAndOpenLogFile();
 
  public:
   std::ofstream ofstream_;
@@ -123,6 +126,26 @@ class PipelineLogger {
  private:
   // Filenames to be saved in the output folder.
   OfstreamWrapper output_pipeline_timing_;
+};
+
+class LoopClosureDetectorLogger {
+ public:
+  LoopClosureDetectorLogger();
+  ~LoopClosureDetectorLogger() = default;
+
+  void logTimestampMap(
+      const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map);
+  void logLCDResult(const LoopClosureDetectorOutputPayload& lcd_output);
+  void logLoopClosure(const LoopClosureDetectorOutputPayload& lcd_output);
+  void logOptimizedTraj(const LoopClosureDetectorOutputPayload& lcd_output);
+  void logDebugInfo(const LcdDebugInfo& debug_info);
+
+ private:
+  // Filenames to be saved in the output folder.
+  OfstreamWrapper output_lcd_;
+  OfstreamWrapper output_traj_;
+  OfstreamWrapper output_status_;
+  FrameIDTimestampMap ts_map_;
 };
 
 }  // namespace VIO

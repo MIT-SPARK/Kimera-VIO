@@ -312,7 +312,7 @@ public:
   inline const Frame& getLeftFrame() const {return left_frame_;}
   inline const Frame& getRightFrame() const {return right_frame_;}
   // NON-THREAD SAFE, and potentially very hazardous, giving away rights to
-  // modify class members is evil.
+  // modify class members is EVIL.
   inline Frame* getLeftFrameMutable() {return &left_frame_;}
   inline Frame* getRightFrameMutable() {return &right_frame_;}
 

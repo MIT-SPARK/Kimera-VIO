@@ -176,9 +176,10 @@ void ETHDatasetParser::parse() {
     LOG(WARNING) << "Using final_k = " << final_k_;
   }
 
-  // Parse backend/frontend parameters
+  // Parse backend/frontend/lcd parameters
   parseBackendParams();
   parseFrontendParams();
+  parseLCDParams();
 
   // Send first ground-truth pose to VIO for initialization if requested.
   if (pipeline_params_.backend_params_->autoInitialize_ == 0) {

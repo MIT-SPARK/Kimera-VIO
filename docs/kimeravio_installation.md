@@ -41,7 +41,7 @@ homebrew install vtk # (to check)
 sudo apt-get install -y \
       build-essential unzip pkg-config \
       libjpeg-dev libpng-dev libtiff-dev \
-      libvtk6-dev \ 
+      libvtk6-dev \
       libgtk-3-dev \
       libatlas-base-dev gfortran
 ```
@@ -64,13 +64,14 @@ Make build dir, and run `cmake`:
 cd gtsam
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=OFF ..
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DGTSAM_USE_SYSTEM_EIGEN=OFF -DGTSAM_POSE3_EXPMAP=ON -DGTSAM_ROT3_EXPMAP=ON ..
 ```
 
 Ensure that:
 - TBB is enabled: check for `--   Use Intel TBB                  : Yes` after running `cmake`.
 - Compilation is in Release mode: check for `--   Build type                     : Release` after running `cmake`.
 - Use GTSAM's Eigen, **not** the system-wide one (OpenGV and GTSAM must use same Eigen, see OpenGV install instructions below).
+- `Rot3 retract is full ExpMap` is set to enabled, and `Pose3 retract is full ExpMap` is also set to enabled. Without these flags, Kimera-RPGO does not optimize the pose-graph well and may produce incorrect results.
 
 Compile and install GTSAM:
 ```bash
@@ -116,7 +117,7 @@ sudo make -j $(nproc) install
 ## Install OpenGV
 Clone the repo:
 ```bash
-git clone https://github.com/laurentkneip/opengv
+git clone https://github.com/laurentkneip/opengv.git
 ```
 
 - using cmake-gui, set: the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen). if you don't do so, very weird error (TODO document) appear (may be due to GTSAM and OpenGV using different versions of eigen!)
@@ -131,6 +132,28 @@ sudo make -j $(nproc) install
 ```
 
 > Alternatively, replace `$(nproc)` by the number of available cores in your computer.
+
+## Install DBoW2
+Clone the repo and run cmake:
+```bash
+git clone https://github.com/dorian3d/DBoW2.git
+cd DBoW2
+mkdir build
+cd build
+cmake ..
+sudo make -j $(nproc) install
+```
+
+## Install Kimera-RPGO
+Clone the repo and run cmake:
+```bash
+git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
+cd Kimera-RPGO
+mkdir build
+cd build
+cmake ..
+sudo make -j $(nproc)
+```
 
 ## Glog, Gflags & Gtest
 Glog, Gflags, and Gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).

@@ -1,5 +1,6 @@
 Tips for usage
 ----------------------
+- If you do not wish to run the LoopClosureDetector in the pipeline and instead want to use only the backend's VIO estimation, you can do so by disabling the `use_lcd` flag for the executable. This flag is disabled by default. Pass `-lcd` to the example script to turn on the LoopClosureDetector module: `./scripts/stereoVIOEUROC.bash -lcd`
 - The 3D Visualization window implements the following keyboard shortcuts (you need to have the window in focus: click on it):
     - Press `t`: toggle freezing visualization.
     - Press `v`: prints pose of the current viewpoint of the 3D visualization window.

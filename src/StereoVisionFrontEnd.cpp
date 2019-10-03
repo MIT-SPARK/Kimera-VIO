@@ -424,7 +424,7 @@ StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
 
     // Get relevant info for keyframe.
     start_time = UtilsOpenCV::GetTimeInSeconds();
-    smartStereoMeasurements = getSmartStereoMeasurements(*stereoFrame_k_.get());
+    smartStereoMeasurements = getSmartStereoMeasurements(*stereoFrame_k_);
     timeGetMeasurements = UtilsOpenCV::GetTimeInSeconds() - start_time;
 
     VLOG(2) << "timeClone: " << time_to_clone_rect_params << '\n'

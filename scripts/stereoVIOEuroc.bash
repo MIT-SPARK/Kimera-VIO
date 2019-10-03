@@ -14,7 +14,10 @@ DATASET_TYPE=0
 # Specify: 1 to run pipeline in parallel mode, 0 to run sequentially.
 PARALLEL_RUN=1
 
-# Specify: 1 to log output files, 0 to not run logger
+# Specify: 1 to enable the LoopClosureDetector, 0 to not.
+USE_LCD=0
+
+# Specify: 1 to enable logging of output files, 0 to not.
 LOG_OUTPUT=0
 ###################################################################
 
@@ -43,8 +46,10 @@ else
           echo "Using Regular VIO!" ;;
       -s) PARALLEL_RUN=0
           echo "Run VIO in SEQUENTIAL mode!" ;;
-      -l) LOG_OUTPUT=1
-          echo "Logging output!";;
+      -lcd) USE_LCD=1
+           echo "Run VIO with LoopClosureDetector!" ;;
+      -log) LOG_OUTPUT=1
+           echo "Logging output!";;
       --)
           shift # The double dash which separates options from parameters
           break
@@ -58,12 +63,15 @@ fi
 # No user input from this point on.
 # Unless user specified to use Regular VIO, run pipeline with default parameters.
 BACKEND_TYPE=0
+
 VIO_PARAMS_PATH="../params/regularVioParameters.yaml"
 TRACKER_PARAMS_PATH="../params/trackerParameters.yaml"
+LCD_PARAMS_PATH="../params/LCDParameters.yaml"
 if [ $USE_REGULAR_VIO == 1 ]; then
   BACKEND_TYPE=1
   VIO_PARAMS_PATH="../params/regularVioParameters.yaml"
   TRACKER_PARAMS_PATH="../params/trackerParameters.yaml"
+  LCD_PARAMS_PATH="../params/LCDParameters.yaml"
 fi
 
 # Change directory to parent path, in order to make this script
@@ -86,6 +94,12 @@ echo """ Launching:
 # The flag --help will provide you with information about what each flag
 # does.
 ../build/stereoVIOEuroc \
+  --flagfile="../params/flags/stereoVIOEuroc.flags" \
+  --flagfile="../params/flags/Mesher.flags" \
+  --flagfile="../params/flags/VioBackEnd.flags" \
+  --flagfile="../params/flags/RegularVioBackEnd.flags" \
+  --flagfile="../params/flags/Visualizer3D.flags" \
+  --flagfile="../params/flags/EthParser.flags" \
   --logtostderr=1 \
   --colorlogtostderr=1 \
   --log_prefix=0 \
@@ -94,12 +108,9 @@ echo """ Launching:
   --initial_k=50 \
   --final_k=2000 \
   --tracker_params_path="$TRACKER_PARAMS_PATH" \
-  --flagfile="../params/flags/stereoVIOEuroc.flags" \
-  --flagfile="../params/flags/Mesher.flags" \
-  --flagfile="../params/flags/VioBackEnd.flags" \
-  --flagfile="../params/flags/RegularVioBackEnd.flags" \
-  --flagfile="../params/flags/Visualizer3D.flags" \
-  --flagfile="../params/flags/EthParser.flags" \
+  --lcd_params_path="$LCD_PARAMS_PATH" \
+  --vocabulary_path="../vocabulary/ORBvoc.yml" \
+  --use_lcd="$USE_LCD" \
   --v=0 \
   --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 \
   --backend_type="$BACKEND_TYPE" \

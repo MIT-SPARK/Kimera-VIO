@@ -24,11 +24,12 @@
 DEFINE_string(vio_params_path, "", "Path to vio user-defined parameters.");
 DEFINE_string(tracker_params_path, "",
               "Path to tracker user-defined parameters.");
+DEFINE_string(lcd_params_path, "",
+              "Path to loop-closure-detector user-defined parameters.");
 DEFINE_int32(backend_type, 0,
              "Type of vioBackEnd to use:\n"
              "0: VioBackEnd\n"
              "1: RegularVioBackEnd");
-
 DEFINE_int64(initial_k, 50,
              "Initial frame to start processing dataset, "
              "previous frames will not be used.");
@@ -150,6 +151,20 @@ void DataProvider::parseFrontendParams() {
               << FLAGS_tracker_params_path;
     pipeline_params_.frontend_params_.parseYAML(FLAGS_tracker_params_path);
   }
+  CHECK_NOTNULL(&pipeline_params_.frontend_params_);
+}
+
+void DataProvider::parseLCDParams() {
+  // Read/define LCD params.
+  if (FLAGS_lcd_params_path.empty()) {
+    VLOG(100) << "No LoopClosureDetector parameters specified, using default";
+    pipeline_params_.lcd_params_ = LoopClosureDetectorParams();
+  } else {
+    VLOG(100) << "Using user-specified LoopClosureDetector parameters: "
+              << FLAGS_lcd_params_path;
+    pipeline_params_.lcd_params_.parseYAML(FLAGS_lcd_params_path);
+  }
+  CHECK_NOTNULL(&pipeline_params_.lcd_params_);
 }
 
 }  // namespace VIO

@@ -25,13 +25,32 @@ find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV REQUIRED)
 
+### Find the DBoW2 package
+find_package(DBoW2)
+if(DBoW2_FOUND)
+  message(STATUS "FOUND DBoW2!")
+endif(DBoW2_FOUND)
+
+### Find the KimeraRPGO package
+find_package(KimeraRPGO)
+if(KimeraRPGO_FOUND)
+  message(STATUS "FOUND KimeraRPGO!")
+endif(KimeraRPGO_FOUND)
+
+### Unzip the vocabularly file
+message(STATUS "Unpacking BoW Vocabulary File.")
+execute_process(
+  COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/vocabulary/ORBvoc.zip
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vocabulary
+)
+
 ### External Dependencies
 include(ExternalProject)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(KimeraVIO STATIC
+add_library(KimeraVIO SHARED
   src/StereoVisionFrontEnd.cpp
   src/Tracker.cpp
   src/StereoFrame.cpp
@@ -67,6 +86,8 @@ include(src/initial/CMakeLists.txt)
 include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(src/common/CMakeLists.txt)
+### Add source code for LoopClosureDetector
+include(src/loopclosure/CMakeLists.txt)
 ### Add source code for logging
 include(src/logging/CMakeLists.txt)
 ### Add source code for imu frontend
@@ -75,6 +96,8 @@ include(src/imu-frontend/CMakeLists.txt)
 target_link_libraries(KimeraVIO
   PRIVATE
     opengv
+    DBoW2
+    KimeraRPGO
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES} # TODO: modernize
@@ -146,6 +169,7 @@ add_executable(testKimeraVIO
   tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testImuFrontEnd.cpp
   tests/testKittiDataProvider.cpp # TODO
+  tests/testLoopClosureDetector.cpp
   tests/testLogger.cpp
   # tests/testMesher.cpp # rotten
   tests/testParallelPlaneRegularBasicFactor.cpp
@@ -166,6 +190,7 @@ add_executable(testKimeraVIO
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
+  # tests/testOnlineAlignment.cpp  #TODO: add back in
   )
 
 target_link_libraries(testKimeraVIO gtest KimeraVIO::KimeraVIO)
