@@ -3,17 +3,17 @@
 ## General
 
 - Sequential/Parallel mode: gflag `parallel_run`
-    - Running in parallel is the default: `parallel_run=1`.
-    - Running in sequential mode: `parallel_run=0`. This can be done in the example script with the `-s` argument at commandline.
-- To log output, set the `log_output` flag to true. For the script, this is done with the `-log` commandline argument. By default, log files will be saved in output_logs.
+    - Running in parallel (default): `parallel_run=1`.
+    - Running in sequential mode: `parallel_run=0`. Or, if using the example script, use the `-s` flag at commandline.
+- Log output in csv files: gflag `log_output=true`. Or, if using the example script, use the `-log` commandline argument. By default, log files will be saved in `output_logs` directory.
 
 ## Loop Closure Detector
 
-- `use_lcd=true` gflag. This flag is disabled by default. Pass `-lcd` to the example script to turn on the LoopClosureDetector module: `./scripts/stereoVIOEUROC.bash -lcd`.
+- Enable Loop Closures: `use_lcd=true` gflag (disabled by default). Or, pass `-lcd` to the example script to turn on the LoopClosureDetector module: `./scripts/stereoVIOEUROC.bash -lcd`.
 
 ## Structural Regularities
 
-  - You can run Kimera-VIO using structural regularities, as in [our ICRA 2019 paper](https://ieeexplore.ieee.org/abstract/document/8794456), by specifying the option ```-r```: 
+  - You can run Kimera-VIO using structural regularities, as in our [ICRA 2019 paper](https://ieeexplore.ieee.org/abstract/document/8794456), by specifying the option `-r`: 
   
   ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
 
