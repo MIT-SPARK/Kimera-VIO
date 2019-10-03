@@ -90,8 +90,7 @@ RUN cd evo-1 && \
 
 # Install spark_vio_evaluation
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
-# ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
-ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/feature/lcd_support version.json
+ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 # RUN cd spark_vio_evaluation && pip install .
-RUN cd spark_vio_evaluation && git checkout feature/lcd_support && pip install .
+RUN cd spark_vio_evaluation && pip install .

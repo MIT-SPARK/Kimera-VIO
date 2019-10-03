@@ -235,7 +235,7 @@ class LoopClosureDetector {
    * @param[in] stereo_frame A StereoFrame with the calibration and parameters
    *  needed to set the intrinsics.
    */
-  // TODO(marcus): maybe this should be private. But that makes testing harder.
+  // TODO(marcus): this should be private. But that makes testing harder.
   void setIntrinsics(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
@@ -290,7 +290,7 @@ class LoopClosureDetector {
    * @param[out] bodyCur_T_bodyRef The relative pose between two frames in the
    *  body coordinate frame.
    */
-  // TODO(marcus): maybe these should be private?
+  // TODO(marcus): these should be private or util
   void transformCameraPoseToBodyPose(const gtsam::Pose3& camCur_T_camRef,
                                      gtsam::Pose3* bodyCur_T_bodyRef) const;
 
@@ -342,7 +342,7 @@ class LoopClosureDetector {
    * @param[in] island A MatchIsland representing several potential matches.
    * @return True if the constraint is met, false otherwise.
    */
-  // TODO(marcus): review this one
+  // TODO(marcus): unit tests
   bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
 
   /* ------------------------------------------------------------------------ */
@@ -354,7 +354,7 @@ class LoopClosureDetector {
    *  nearby possible matches with the frame being queried.
    * @return
    */
-  // TODO(marcus): review these
+  // TODO(marcus): unit tests
   void computeIslands(DBoW2::QueryResults& q,
                       std::vector<MatchIsland>* islands) const;
 
