@@ -73,7 +73,7 @@ To run the pipeline in sequential mode (one thread only), set `parallel_run`to f
 
 - Download one of Euroc's datasets, for example [V1_01_easy.zip](http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.zip).
 
-> Datasets MH_04 and V2_03 have different number of left/right frames. We suggest using instead our version of Euroc [here](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O).
+> Datasets MH_04 and V2_03 have different number of left/right frames. We suggest using instead [**our version of Euroc here**](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O).
 
 - Unzip the dataset to your preferred directory, for example, in `~/Euroc/V1_01_easy`:
 ```bash
@@ -85,6 +85,7 @@ unzip -o ~/Downloads/V1_01_easy.zip -d ~/Euroc/V1_01_easy
 
 Add `%YAML:1.0` at the top of each `.yaml` file inside Euroc.
 You can do this manually or run the `yamelize.bash` script by indicating where the dataset is (it is assumed below to be in `~/path/to/euroc`):
+> You don't need to yamelize the dataset if you download our version [here](https://drive.google.com/open?id=1_kwqHojvBusHxilcclqXh6haxelhJW0O)
 ```bash
 cd Kimera-VIO
 bash ./scripts/euroc/yamelize.bash -p ~/path/to/euroc
@@ -102,31 +103,14 @@ bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy"
 > Alternatively, one may directly use the executable in the build folder:
 `./build/stereoVIOEuroc`. Nevertheless, check the script `./scripts/stereoVIOEuroc.bash` to understand what parameters are expected, or check the [parameters](#Parameters) section below.
 
-## ii. [Kitti](http://www.cvlibs.net/datasets/kitti/raw_data.php) Dataset
-
-#### Download Kitti's dataset
-
-- Download raw data from [Kitti ](http://www.cvlibs.net/datasets/kitti/raw_data.php?type=residential) (in order to have IMU messages). For example:
-  - Download unsynced + unrectified raw dataset (e.g. [2011\_09\_26\_drive\_0005\_extract](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0005/2011_09_26_drive_0005_extract.zip)).
-  - Download as well the calibration data (three files) from raw dataset (e.g. [2011\_09\_26\_calib](https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip)), and save them inside the folder `2011_09_26`.
-
-### Run Kimera-VIO in Kitti's dataset
-
-- Run:
-  ```bash
-  cd Kimera-VIO
-  bash ./scripts/stereoVIOEuroc.bash -p "PATH_TO_DATASET/2011_09_26_drive_0005_extract" -d 1
-  ```
-   where you specify the path to the dataset (e.g. path to `2011_09_26_drive_0005_extract` folder).
-
-## iii. Using [ROS wrapper](https://github.com/MIT-SPARK/Kimera-VIO-ROS)
+## ii. Using [ROS wrapper](https://github.com/MIT-SPARK/Kimera-VIO-ROS)
 
 We provide a ROS wrapper of Kimera-VIO that you can find at: https://github.com/MIT-SPARK/Kimera-VIO-ROS.
 
 This library can be cloned into a catkin workspace and built alongside the ROS wrapper.
 
 # 3. Parameters
-Kimera-VIO accepts two sources of parameters:
+Kimera-VIO accepts two independent sources of parameters:
 - YAML files: contains parameters for Backend and Frontend.
 - [gflags](https://gflags.github.io/gflags/) contains parameters for all the rest.
 
@@ -138,6 +122,7 @@ OpenCV's 3D visualization also has some shortcuts for interaction: check [tips f
 
 # 4. Contribution guidelines
 
+We strongly encourage you to submit issues, feedback and potential improvements.
 We follow the branch, open PR, review, and merge workflow.
 
 To contribute to this repo, ensure your commits pass the linter pre-commit checks.
