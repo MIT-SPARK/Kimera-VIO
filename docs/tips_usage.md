@@ -8,7 +8,14 @@
 - To log output, set the `log_output` flag to true. For the script, this is done with the `-log` commandline argument. By default, log files will be saved in output_logs.
 
 ## Loop Closure Detector
-- If you do not wish to run the LoopClosureDetector in the pipeline and instead want to use only the backend's VIO estimation, you can do so by disabling the `use_lcd` flag for the executable. This flag is disabled by default. Pass `-lcd` to the example script to turn on the LoopClosureDetector module: `./scripts/stereoVIOEUROC.bash -lcd`.
+
+- `use_lcd=true` gflag. This flag is disabled by default. Pass `-lcd` to the example script to turn on the LoopClosureDetector module: `./scripts/stereoVIOEUROC.bash -lcd`.
+
+## Structural Regularities
+
+  - You can run Kimera-VIO using structural regularities, as in [our ICRA 2019 paper](https://ieeexplore.ieee.org/abstract/document/8794456), by specifying the option ```-r```: 
+  
+  ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
 
 ## 3D Visualizer
 - The 3D Visualization window implements the following keyboard shortcuts (you need to have the window in focus: click on it):
