@@ -1,6 +1,16 @@
-Tips for usage
-----------------------
-- If you do not wish to run the LoopClosureDetector in the pipeline and instead want to use only the backend's VIO estimation, you can do so by disabling the `use_lcd` flag for the executable. This flag is disabled by default. Pass `-lcd` to the example script to turn on the LoopClosureDetector module: `./scripts/stereoVIOEUROC.bash -lcd`
+# Tips for usage
+
+## General
+
+- Sequential/Parallel mode: gflag `parallel_run`
+    - Running in parallel is the default: `parallel_run=1`.
+    - Running in sequential mode: `parallel_run=0`. This can be done in the example script with the `-s` argument at commandline.
+- To log output, set the `log_output` flag to true. For the script, this is done with the `-log` commandline argument. By default, log files will be saved in output_logs.
+
+## Loop Closure Detector
+- If you do not wish to run the LoopClosureDetector in the pipeline and instead want to use only the backend's VIO estimation, you can do so by disabling the `use_lcd` flag for the executable. This flag is disabled by default. Pass `-lcd` to the example script to turn on the LoopClosureDetector module: `./scripts/stereoVIOEUROC.bash -lcd`.
+
+## 3D Visualizer
 - The 3D Visualization window implements the following keyboard shortcuts (you need to have the window in focus: click on it):
     - Press `t`: toggle freezing visualization.
     - Press `v`: prints pose of the current viewpoint of the 3D visualization window.
