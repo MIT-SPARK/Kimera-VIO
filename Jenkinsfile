@@ -112,6 +112,11 @@ pipeline {
       echo 'Unstable!'
       slackSend color: 'warning', message: "Unstable - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
     }
+    cleanup {
+      // Clear the source and build dirs before next run
+      // TODO this might delete the .csv file for plots?
+      cleanWs()
+    }
   }
   options {
     buildDiscarder logRotator(artifactDaysToKeepStr: '120', artifactNumToKeepStr: '60', daysToKeepStr: '30', numToKeepStr: '30')
