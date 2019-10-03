@@ -11,9 +11,8 @@ ENV DIRPATH /root/
 WORKDIR $DIRPATH
 
 #Install build dependencies
-# Making random changes to trigger dropping the cache...
-RUN apt-get update && apt-get install -y git cmake
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
+RUN apt-get update && apt-get install -y git cmake
 
 # Install xvfb to provide a display to container for GUI realted testing.
 RUN apt-get update && apt-get install -y xvfb
