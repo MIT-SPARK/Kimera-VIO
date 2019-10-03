@@ -108,7 +108,6 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
       loop_closure_detector_(nullptr),
       backend_params_(params.backend_params_),
       frontend_params_(params.frontend_params_),
-      lcd_params_(params.lcd_params_),
       mesher_(),
       visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
                   params.backend_type_),
@@ -140,8 +139,7 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
 
   if (FLAGS_use_lcd) {
     loop_closure_detector_ = VIO::make_unique<LoopClosureDetector>(
-        lcd_params_,
-        FLAGS_log_output);
+        params.lcd_params_, FLAGS_log_output);
   }
 
   // Instantiate feature selector: not used in vanilla implementation.

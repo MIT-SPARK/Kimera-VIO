@@ -32,13 +32,15 @@
 DECLARE_string(test_data_path);
 DECLARE_string(vocabulary_path);
 
-static const double tol = 1e-7;
-static const double rot_tol = 0.05;
-static const double tran_tol = 0.20;
-
 namespace VIO {
 
 class LCDFixture :public ::testing::Test {
+ protected:
+  // Tolerances
+  const double tol = 1e-7;
+  const double rot_tol = 0.05;
+  const double tran_tol = 0.20;
+
  public:
   LCDFixture()
       : lcd_test_data_path_(FLAGS_test_data_path +
@@ -180,7 +182,7 @@ class LCDFixture :public ::testing::Test {
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-protected:
+ protected:
   // Data-related members
   std::string lcd_test_data_path_;
 
@@ -227,20 +229,18 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
 
   // TODO(marcus): Don't need mutable frames!
 
-  Frame* left_frame = stereo_frame.getLeftFrameMutable();
-  Frame* right_frame = stereo_frame.getRightFrameMutable();
+  Frame left_frame = stereo_frame.getLeftFrame();
+  Frame right_frame = stereo_frame.getRightFrame();
 
-  CHECK(left_frame);
-  CHECK(right_frame);  // TODO(marcus): add tolerances
-  EXPECT_EQ(left_frame->keypoints_.size(), nfeatures);
-  EXPECT_EQ(right_frame->keypoints_.size(), nfeatures);
-  EXPECT_EQ(left_frame->versors_.size(), nfeatures);
-  EXPECT_EQ(left_frame->scores_.size(), nfeatures);
+  EXPECT_EQ(left_frame.keypoints_.size(), nfeatures);
+  EXPECT_EQ(right_frame.keypoints_.size(), nfeatures);
+  EXPECT_EQ(left_frame.versors_.size(), nfeatures);
+  EXPECT_EQ(left_frame.scores_.size(), nfeatures);
 
-  for (unsigned int i = 0; i < left_frame->keypoints_.size(); i++) {
-    EXPECT_EQ(left_frame->keypoints_[i], keypoints[i].pt);
-    EXPECT_EQ(left_frame->versors_[i], Frame::CalibratePixel(keypoints[i].pt,
-        left_frame->cam_param_));
+  for (unsigned int i = 0; i < left_frame.keypoints_.size(); i++) {
+    EXPECT_EQ(left_frame.keypoints_[i], keypoints[i].pt);
+    EXPECT_EQ(left_frame.versors_[i],
+              Frame::CalibratePixel(keypoints[i].pt, left_frame.cam_param_));
   }
 
   EXPECT_EQ(stereo_frame.keypoints_3d_.size(), nfeatures);
@@ -290,15 +290,15 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
       cur1_stereo_frame_->getLeftFrame().img_,
       ref1_stereo_frame_->getLeftFrame().img_, 1, 0, false);
 
-  // TODO get rid of this and switch to false on toscale flag
+  // TODO(marcus): get rid of this and switch to false on toscale flag
   gtsam::Point3 unit_T_ref_to_cur = ref1_to_cur1_pose_.translation() /
                                     ref1_to_cur1_pose_.translation().norm();
   gtsam::Pose3 ref_to_cur_gnd_truth_pose =
       gtsam::Pose3(ref1_to_cur1_pose_.rotation(), unit_T_ref_to_cur);
 
   gtsam::Pose3 bodyRef1_T_bodyCur1;
-  lcd_detector_->transformCameraPose2BodyPose(camRef1_T_camCur1_mono,
-                                              &bodyRef1_T_bodyCur1);
+  lcd_detector_->transformCameraPoseToBodyPose(camRef1_T_camCur1_mono,
+                                               &bodyRef1_T_bodyCur1);
 
   std::pair<double, double> error =
       UtilsOpenCV::ComputeRotationAndTranslationErrors(
@@ -364,7 +364,8 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
   body_input_pose = gtsam::Pose3(ref1_to_cur1_pose_.rotation(),
                                  ref1_to_cur1_pose_.translation() /
                                      ref1_to_cur1_pose_.translation().norm());
-  lcd_detector_->transformBodyPose2CameraPose(body_input_pose, &cam_input_pose);
+  lcd_detector_->transformBodyPoseToCameraPose(body_input_pose,
+                                               &cam_input_pose);
 
   gtsam::Pose3 pose_0_1;
   lcd_detector_->recoverPose(1, 0, cam_input_pose, &pose_0_1);
@@ -383,7 +384,8 @@ TEST_F(LCDFixture, recoverPoseGivenRot) {
   body_input_pose = gtsam::Pose3(ref2_to_cur2_pose_.rotation(),
                                  ref2_to_cur2_pose_.translation() /
                                      ref2_to_cur2_pose_.translation().norm());
-  lcd_detector_->transformBodyPose2CameraPose(body_input_pose, &cam_input_pose);
+  lcd_detector_->transformBodyPoseToCameraPose(body_input_pose,
+                                               &cam_input_pose);
 
   gtsam::Pose3 pose_2_3;
   lcd_detector_->recoverPose(3, 2, cam_input_pose, &pose_2_3);

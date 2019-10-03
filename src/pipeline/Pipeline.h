@@ -216,7 +216,6 @@ class Pipeline {
 
   // Create class to detect loop closures.
   std::unique_ptr<LoopClosureDetector> loop_closure_detector_;
-  LoopClosureDetectorParams lcd_params_;
 
   // Thread-safe queue for the loop closure detector.
   ThreadsafeQueue<LoopClosureDetectorInputPayload> lcd_input_queue_;

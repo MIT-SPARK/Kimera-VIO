@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <unordered_map>
 
 #include "datasource/ETH_parser.h"  // REMOVE THIS!!
@@ -132,7 +133,8 @@ class LoopClosureDetectorLogger {
   LoopClosureDetectorLogger();
   ~LoopClosureDetectorLogger() = default;
 
-  void logTsMap(const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map);
+  void logTimestampMap(
+      const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map);
   void logLCDResult(const LoopClosureDetectorOutputPayload& lcd_output);
   void logLoopClosure(const LoopClosureDetectorOutputPayload& lcd_output);
   void logOptimizedTraj(const LoopClosureDetectorOutputPayload& lcd_output);
@@ -143,7 +145,7 @@ class LoopClosureDetectorLogger {
   OfstreamWrapper output_lcd_;
   OfstreamWrapper output_traj_;
   OfstreamWrapper output_status_;
-  std::unordered_map<VIO::FrameId, VIO::Timestamp> ts_map_;
+  FrameIDTimestampMap ts_map_;
 };
 
 }  // namespace VIO

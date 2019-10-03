@@ -15,6 +15,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "StereoFrame.h"
@@ -29,8 +30,9 @@ namespace VIO {
 
 typedef cv::Mat OrbDescriptor;
 typedef std::vector<OrbDescriptor> OrbDescriptorVec;
+typedef std::unordered_map<FrameId, Timestamp> FrameIDTimestampMap;
 
-enum class LCDStatus : unsigned int {
+enum class LCDStatus : int {
   LOOP_DETECTED,
   NO_MATCHES,
   LOW_NSS_FACTOR,
@@ -41,9 +43,9 @@ enum class LCDStatus : unsigned int {
   FAILED_POSE_RECOVERY
 };
 
-enum class GeomVerifOption : unsigned int { NISTER, NONE };
+enum class GeomVerifOption : int { NISTER, NONE };
 
-enum class PoseRecoveryOption : unsigned int { RANSAC_ARUN, GIVEN_ROT };
+enum class PoseRecoveryOption : int { RANSAC_ARUN, GIVEN_ROT };
 
 struct LCDFrame {
   LCDFrame() {}

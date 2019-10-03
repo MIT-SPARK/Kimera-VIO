@@ -245,17 +245,6 @@ class LoopClosureDetector {
   void setDatabase(const OrbDatabase& db);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Allocates space for a known number of frames in all databases.
-   * @param[in] n A number of frames that are going to be sent to the pipeline.
-   */
-  void allocate(size_t n);
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Clears all databases and resets the pipeline's memory.
-   */
-  inline void clear();
-
-  /* ------------------------------------------------------------------------ */
   /* @brief Prints parameters and other statistics on the LoopClosureDetector.
    */
   void print() const;
@@ -302,19 +291,19 @@ class LoopClosureDetector {
    *  body coordinate frame.
    */
   // TODO(marcus): maybe these should be private?
-  void transformCameraPose2BodyPose(const gtsam::Pose3& camCur_T_camRef,
-                                    gtsam::Pose3* bodyCur_T_bodyRef) const;
+  void transformCameraPoseToBodyPose(const gtsam::Pose3& camCur_T_camRef,
+                                     gtsam::Pose3* bodyCur_T_bodyRef) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief The inverse of transformCameraPose2BodyPose.
+  /* @brief The inverse of transformCameraPoseToBodyPose.
    * @param[in] bodyCur_T_bodyRef The relative pose between two frames in the
    *  body coordinate frame.
    * @param[out] camCur_T_camRef The relative pose between two frames in the
    *  camera coordinate frame.
    * @return
    */
-  void transformBodyPose2CameraPose(const gtsam::Pose3& bodyCur_T_bodyRef,
-                                    gtsam::Pose3* camCur_T_camRef) const;
+  void transformBodyPoseToCameraPose(const gtsam::Pose3& bodyCur_T_bodyRef,
+                                     gtsam::Pose3* camCur_T_camRef) const;
 
   /* ------------------------------------------------------------------------ */
   /* @brief Adds an odometry factor to the PGO and optimizes the trajectory.
@@ -456,7 +445,7 @@ class LoopClosureDetector {
   // BoW and Loop Detection database and members
   std::unique_ptr<OrbDatabase> db_BoW_;
   std::vector<LCDFrame> db_frames_;
-  std::unordered_map<FrameId, Timestamp> ts_map_;
+  FrameIDTimestampMap timestamp_map_;
 
   // Store latest computed objects for temporal matching and nss scoring
   DBoW2::BowVector latest_bowvec_;

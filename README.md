@@ -56,6 +56,17 @@ Find how to install Kimera-VIO and its dependencies here: **[Installation instru
 
 # 2. Usage
 
+## General tips
+
+The LoopClosureDetector (and PGO) module is disabled by default. If you wish to run the pipeline with loop-closure detection enabled, set the `use_lcd` flag to true. For the example script, this is done by passing `-lcd` at commandline like so:
+```bash
+./scripts/stereoVIOEUROC.bash -lcd
+```
+
+To log output, set the `log_output` flag to true. For the script, this is done with the `-log` commandline argument. By default, log files will be saved in [output_logs](output_logs/).
+
+To run the pipeline in sequential mode (one thread only), set `parallel_run`to false. This can be done in the example script with the `-s` argument at commandline.
+
 ## i. [Euroc](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) Dataset
 
 #### Download Euroc's dataset
@@ -71,6 +82,7 @@ unzip -o ~/Downloads/V1_01_easy.zip -d ~/Euroc/V1_01_easy
 ```
 
 #### Yamelize Euroc's dataset
+
 Add `%YAML:1.0` at the top of each `.yaml` file inside Euroc.
 You can do this manually or run the `yamelize.bash` script by indicating where the dataset is (it is assumed below to be in `~/path/to/euroc`):
 ```bash
@@ -122,7 +134,7 @@ To get help on what each gflag parameter does, just run the executable with the 
 
   - Optionally, you can try the VIO using structural regularities, as in [our ICRA 2019 paper](https://ieeexplore.ieee.org/abstract/document/8794456), by specifying the option ```-r```: ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
 
-OpenCV's 3D visualization has also some shortcuts for interacting with it: check [tips for usage](./docs/tips_usage.md)
+OpenCV's 3D visualization also has some shortcuts for interaction: check [tips for usage](./docs/tips_usage.md)
 
 # 4. Contribution guidelines
 

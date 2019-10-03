@@ -16,6 +16,7 @@
 
 #include <boost/foreach.hpp>
 #include <memory>
+#include <string>
 
 #include "StereoVisionFrontEnd-definitions.h"
 #include "UtilsOpenCV.h"
@@ -39,7 +40,7 @@ OfstreamWrapper::OfstreamWrapper(const std::string& filename,
 OfstreamWrapper::~OfstreamWrapper() {
   LOG(INFO) << "Closing output file: " << filename_.c_str();
   ofstream_.close();
-};
+}
 
 void OfstreamWrapper::closeAndOpenLogFile() {
   ofstream_.close();
@@ -61,7 +62,7 @@ BackendLogger::BackendLogger()
       output_smart_factors_stats_csv_("output_smartFactors.csv"),
       output_pim_navstates_csv_("output_pim_navstates.csv"),
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
-      output_backend_timing_csv_("output_backendTiming.csv"){};
+      output_backend_timing_csv_("output_backendTiming.csv") {}
 
 void BackendLogger::logBackendOutput(const VioBackEndOutputPayload& output) {
   logBackendResultsCSV(output);
@@ -275,7 +276,7 @@ void BackendLogger::logBackendFactorsStats(
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 VisualizerLogger::VisualizerLogger()
     : output_mesh_("output_mesh.ply"),
-      output_landmarks_("output_landmarks.txt"){};
+      output_landmarks_("output_landmarks.txt") {}
 
 void VisualizerLogger::logLandmarks(const PointsWithId& lmks) {
   // Absolute vio errors
@@ -363,7 +364,7 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
 FrontendLogger::FrontendLogger()
     : output_frontend_stats_("output_frontend_stats.csv"),
       output_frontend_ransac_mono_("output_frontend_ransac_mono.csv"),
-      output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv") {};
+      output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv") {}
 
 void FrontendLogger::logFrontendStats(
     const Timestamp& timestamp_lkf,
@@ -446,7 +447,8 @@ void FrontendLogger::logFrontendRansac(
   // Log relative mono poses; pose from previous keyframe to current keyframe,
   // in previous-keyframe coordinates. These are not cumulative trajectories.
   const gtsam::Point3& mono_tran = relative_pose_body_mono.translation();
-  const gtsam::Quaternion& mono_quat = relative_pose_body_mono.rotation().toQuaternion();
+  const gtsam::Quaternion& mono_quat =
+      relative_pose_body_mono.rotation().toQuaternion();
 
   output_stream_mono << timestamp_lkf << ","
                      << mono_tran.x() << ","
@@ -461,7 +463,8 @@ void FrontendLogger::logFrontendRansac(
   // Log relative stereo poses; pose from previous keyframe to current keyframe,
   // in previous-keyframe coordinates. These are not cumulative trajectories.
   const gtsam::Point3& stereo_tran = relative_pose_body_stereo.translation();
-  const gtsam::Quaternion& stereo_quat = relative_pose_body_stereo.rotation().toQuaternion();
+  const gtsam::Quaternion& stereo_quat =
+      relative_pose_body_stereo.rotation().toQuaternion();
 
   output_stream_stereo << timestamp_lkf   << ","
                        << stereo_tran.x() << ","
@@ -476,7 +479,7 @@ void FrontendLogger::logFrontendRansac(
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 PipelineLogger::PipelineLogger()
-    : output_pipeline_timing_("output_timingOverall.csv") {};
+    : output_pipeline_timing_("output_timingOverall.csv") {}
 
 void PipelineLogger::logPipelineOverallTiming(
     const std::chrono::milliseconds& duration) {
@@ -491,9 +494,9 @@ LoopClosureDetectorLogger::LoopClosureDetectorLogger()
     : output_lcd_("output_lcd_result.csv"),
       output_traj_("output_lcd_optimized_traj.csv"),
       output_status_("output_lcd_status.csv"),
-      ts_map_() {};
+      ts_map_() {}
 
-void LoopClosureDetectorLogger::logTsMap(
+void LoopClosureDetectorLogger::logTimestampMap(
     const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map) {
   ts_map_ = ts_map;
 }
@@ -517,8 +520,9 @@ void LoopClosureDetectorLogger::logLoopClosure(
     is_header_written = true;
   }
 
-  const auto& rel_trans = lcd_output.relative_pose_.translation();
-  const auto& rel_quat = lcd_output.relative_pose_.rotation().toQuaternion();
+  const gtsam::Point3& rel_trans = lcd_output.relative_pose_.translation();
+  const gtsam::Quaternion& rel_quat =
+      lcd_output.relative_pose_.rotation().toQuaternion();
 
   output_stream_lcd << lcd_output.timestamp_kf_ << ","
                     << lcd_output.timestamp_query_ << ","
@@ -555,9 +559,9 @@ void LoopClosureDetectorLogger::logOptimizedTraj(
   const gtsam::Values& traj = lcd_output.states_;
 
   for (size_t i = 1; i < traj.size(); i++) {
-    gtsam::Pose3 pose = traj.at<gtsam::Pose3>(i);
-    const auto trans = pose.translation();
-    const auto quat = pose.rotation().toQuaternion();
+    const gtsam::Pose3& pose = traj.at<gtsam::Pose3>(i);
+    const gtsam::Point3& trans = pose.translation();
+    const gtsam::Quaternion& quat = pose.rotation().toQuaternion();
 
     output_stream_traj << ts_map_.at(i) << ","
                        << i << ","
