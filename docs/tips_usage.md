@@ -9,7 +9,9 @@
 
 ## Loop Closure Detector
 
-- Enable Loop Closures: `use_lcd=true` gflag (disabled by default). Or, pass `-lcd` to the example script to turn on the LoopClosureDetector module: `./scripts/stereoVIOEUROC.bash -lcd`.
+- Enable Loop Closures: `use_lcd=true` gflag (disabled by default). Or, pass `-lcd` to the example script to turn on the LoopClosureDetector module: 
+
+```./scripts/stereoVIOEUROC.bash -p "PATH_TO_DATASET/V1_01_easy" -lcd```
 
 ## Structural Regularities
 
