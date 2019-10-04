@@ -190,7 +190,7 @@ add_executable(testKimeraVIO
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
-  # tests/testOnlineAlignment.cpp  #TODO: add back in
+  tests/testOnlineAlignment.cpp
   )
 
 target_link_libraries(testKimeraVIO gtest KimeraVIO::KimeraVIO)
