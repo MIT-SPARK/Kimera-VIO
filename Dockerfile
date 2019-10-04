@@ -86,12 +86,11 @@ RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 # Install evo-1 for evaluation
 RUN git clone https://github.com/ToniRV/evo-1.git
 RUN cd evo-1 && \
-      pip install . --upgrade --no-binary evo
+      pip install .
 
 # Install spark_vio_evaluation
+RUN pip install ipython prompt_toolkit
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
-# ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
-ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/feature/lcd_support version.json
+ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
-# RUN cd spark_vio_evaluation && pip install .
-RUN cd spark_vio_evaluation && git checkout feature/lcd_support && pip install .
+RUN cd spark_vio_evaluation && pip install .

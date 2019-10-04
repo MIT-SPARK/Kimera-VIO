@@ -32,7 +32,6 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-// TODO(marcus): check with crowd whether this relative default is okay
 DEFINE_string(vocabulary_path,
               "../vocabulary/ORBvoc.yml",
               "Path to BoW vocabulary file for LoopClosureDetector module.");
@@ -108,12 +107,10 @@ LoopClosureDetector::LoopClosureDetector(
   LOG(INFO) << "Loaded vocabulary with " << vocab.size() << " visual words.";
 
   // Initialize db_BoW_:
-  // TODO(marcus): can pass direct indexing bool and levels here.
   db_BoW_ = VIO::make_unique<OrbDatabase>(vocab);
 
   // Initialize pgo_:
   // TODO(marcus): parametrize the verbosity of PGO params
-  // shared_noise_model_ = gtsam::noiseModel::Isotropic::Variance(6, 0.1);
   KimeraRPGO::RobustSolverParams pgo_params;
   pgo_params.setPcmSimple3DParams(lcd_params_.pgo_trans_threshold_,
                                   lcd_params_.pgo_rot_threshold_,
@@ -343,7 +340,6 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
   } else {
     double nss_factor = 1.0;
     if (lcd_params_.use_nss_) {
-      // TODO(marcus): review and send to Luca
       nss_factor = db_BoW_->getVocabulary()->score(bow_vec, latest_bowvec_);
     }
 
@@ -489,8 +485,6 @@ const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
   if (W_Pose_Blkf_estimates_.size() > 1) {
     CHECK(pgo_);
     gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
-    // TODO(marcus): Seems like we might be picking the wrong one.
-    // If W_Pose_Blkf_estimates_ is lkf, then we should want the cur one?
     const gtsam::Pose3& w_Pose_Bkf_optimal =
         pgo_->calculateEstimate().at<gtsam::Pose3>(
             W_Pose_Blkf_estimates_.size() - 1);
@@ -514,7 +508,7 @@ const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg() const {
 }
 
 /* ------------------------------------------------------------------------ */
-// TODO(marcus): should this be parsed from the other VIO components' params?
+// TODO(marcus): this should be parsed from CameraParams directly
 void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
   const CameraParams& cam_param = stereo_frame.getLeftFrame().cam_param_;
   const std::vector<double>& intrinsics = cam_param.intrinsics_;
@@ -583,7 +577,6 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
     left_frame_mutable->versors_.push_back(
         Frame::CalibratePixel(keypoint.pt, left_frame_mutable->cam_param_));
     left_frame_mutable->scores_.push_back(1.0);
-    // TODO(marcus): ^ is this a max score? Is that the right thing to do?
   }
 
   // Automatically match keypoints in right image with those in left.
@@ -805,7 +798,7 @@ void LoopClosureDetector::computeMatchedIndices(
                                  matches,
                                  2u);
 
-  // TODO(marcus): any way to reserve space ahead of time? even if it's
+  // TODO(marcus): Worth it to reserve space ahead of time? even if it's
   // over-reserved Keep only the best matches using Lowe's ratio test and store
   // indicies.
   for (const std::vector<cv::DMatch>& match : matches) {
@@ -818,7 +811,7 @@ void LoopClosureDetector::computeMatchedIndices(
 
 /* ------------------------------------------------------------------------ */
 // TODO(marcus): both geometrticVerification and recoverPose run the matching
-// alg this is wasteful. Store the matched indices as latest for use in the
+// alg. this is wasteful. Store the matched indices as latest for use in the
 // compute step
 bool LoopClosureDetector::geometricVerificationNister(
     const FrameId& query_id,
@@ -896,7 +889,6 @@ bool LoopClosureDetector::recoverPoseArun(const FrameId& query_id,
   std::vector<unsigned int> i_query, i_match;
   computeMatchedIndices(query_id, match_id, &i_query, &i_match, false);
 
-  // TODO(marcus): is there any way to reserve the correct space for these?
   Points3d f_ref, f_cur;
 
   // Fill point clouds with matched 3D keypoints.
@@ -1031,8 +1023,6 @@ bool LoopClosureDetector::recoverPoseGivenRot(
   return true;
 
   // TODO(marcus): add some sort of check for returning failure
-
-  return false;
 }
 
 /* ------------------------------------------------------------------------ */

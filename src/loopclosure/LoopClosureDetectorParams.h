@@ -28,7 +28,6 @@ namespace VIO {
 
 class LoopClosureDetectorParams {
  public:
-  // TODO(marcus): vocabulary path cannot be hardcoded
   LoopClosureDetectorParams(
       int image_width = 752,
       int image_height = 480,
