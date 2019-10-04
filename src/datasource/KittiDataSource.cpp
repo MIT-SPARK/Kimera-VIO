@@ -213,9 +213,10 @@ void KittiDataProvider::parseKittiData(const std::string& kitti_sequence_path,
                  << skip_n_end_frames << " frames to avoid bad IMU readings.";
   }
 
-  // parse backend/frontend parameters
+  // parse backend/frontend/lcd parameters
   parseBackendParams();
   parseFrontendParams();
+  parseLCDParams();
 
   // Send first ground-truth pose to VIO for initialization if requested.
   if (pipeline_params_.backend_params_->autoInitialize_ == 0) {

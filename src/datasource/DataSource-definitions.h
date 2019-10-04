@@ -105,13 +105,14 @@ class CameraImageLists {
  public:
   bool parseCamImgList(const std::string& folderpath,
                        const std::string& filename);
-  inline size_t getNumImages() const { return img_lists.size(); }
+  inline size_t getNumImages() const { return img_lists_.size(); }
   void print() const;
 
  public:
   std::string image_folder_path_;
-  typedef std::vector<std::pair<long long, std::string> > ImgLists;
-  ImgLists img_lists;
+  typedef std::pair<Timestamp, std::string> TimestampToFilename;
+  typedef std::vector<TimestampToFilename> ImgLists;
+  ImgLists img_lists_;
 };
 
 }  // namespace VIO

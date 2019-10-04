@@ -25,6 +25,7 @@
 #include "FeatureSelector.h"
 #include "StereoImuSyncPacket.h"
 #include "Visualizer3D.h"
+#include "loopclosure/LoopClosureDetector.h"  // TODO(marcus): would be nice to remove
 #include "datasource/DataSource-definitions.h"  // Only used for gtNavState, add it to vio_types.h instead...
 #include "initial/InitializationBackEnd-definitions.h"
 #include "mesh/Mesher.h"
@@ -35,7 +36,6 @@ namespace VIO {
 class VioBackEndParams;
 class VioBackEnd;
 class StereoVisionFrontEnd;
-
 }  // namespace VIO
 
 namespace VIO {
@@ -85,8 +85,8 @@ class Pipeline {
   // Callback to modify the mesh visual properties every time the mesher
   // has a new 3d mesh.
   inline void registerSemanticMeshSegmentationCallback(
-      Mesher::Mesh3dVizPropertiesSetterCallback cb) {
-    visualizer_.registerMesh3dVizProperties(cb);
+      Mesher::Mesh3dVizPropertiesSetterCallback callback) {
+    visualizer_.registerMesh3dVizProperties(callback);
   }
 
   // Callback to output the VIO backend results at keyframe rate.
@@ -94,6 +94,12 @@ class Pipeline {
   inline void registerKeyFrameRateOutputCallback(
       KeyframeRateOutputCallback callback) {
     keyframe_rate_output_callback_ = callback;
+  }
+
+  // Callback to output the LoopClosureDetector's loop-closure/PGO results.
+  inline void registerLcdPgoOutputCallback(
+      const LoopClosurePGOCallback& callback) {
+    loop_closure_detector_->registerLcdPgoOutputCallback(callback);
   }
 
  private:
@@ -172,6 +178,7 @@ class Pipeline {
 
   // Callbacks.
   KeyframeRateOutputCallback keyframe_rate_output_callback_;
+  LoopClosurePGOCallback loop_closure_pgo_callback_;
 
   // Init Vio parameter
   VioBackEndParamsConstPtr backend_params_;
@@ -207,6 +214,12 @@ class Pipeline {
   ThreadsafeQueue<MesherInputPayload> mesher_input_queue_;
   ThreadsafeQueue<MesherOutputPayload> mesher_output_queue_;
 
+  // Create class to detect loop closures.
+  std::unique_ptr<LoopClosureDetector> loop_closure_detector_;
+
+  // Thread-safe queue for the loop closure detector.
+  ThreadsafeQueue<LoopClosureDetectorInputPayload> lcd_input_queue_;
+
   // Visualization process.
   Visualizer3D visualizer_;
 
@@ -225,6 +238,7 @@ class Pipeline {
   std::unique_ptr<std::thread> wrapped_thread_ = {nullptr};
   std::unique_ptr<std::thread> backend_thread_ = {nullptr};
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
+  std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
   // std::thread visualizer_thread_;
 
   int backend_type_;

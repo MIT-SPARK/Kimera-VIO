@@ -1,5 +1,5 @@
 ### Add source code for stereoVIO
-target_sources(SparkVio
+target_sources(KimeraVIO
     PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/InitializationFromImu.h"
         "${CMAKE_CURRENT_LIST_DIR}/InitializationFromImu.cpp"
@@ -10,4 +10,4 @@ target_sources(SparkVio
         "${CMAKE_CURRENT_LIST_DIR}/OnlineGravityAlignment.h"
         "${CMAKE_CURRENT_LIST_DIR}/OnlineGravityAlignment.cpp"
 )
-target_include_directories(SparkVio PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(KimeraVIO PRIVATE ${CMAKE_CURRENT_LIST_DIR})

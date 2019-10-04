@@ -596,7 +596,7 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
       << "Landmark not found in old_smart_factors_.";
 
   SmartStereoFactor::shared_ptr old_factor = old_smart_factors_it->second.first;
-  CHECK_NOTNULL(old_factor.get());
+  CHECK(old_factor);
 
   // Add landmark value to graph.
   VLOG(30) << "Print old_factor of lmk_id: " << lmk_id;

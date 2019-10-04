@@ -63,7 +63,7 @@ DEFINE_bool(texturize_3d_mesh, false,
             "Whether you want to add texture to the 3d"
             "mesh. The texture is taken from the image"
             " frame.");
-DEFINE_bool(set_mesh_ambient, false,
+DEFINE_bool(set_mesh_ambient, true,
             "Whether to use ambient light for the "
             "mesh.");
 DEFINE_bool(set_mesh_lighting, false, "Whether to use lighting for the mesh.");
