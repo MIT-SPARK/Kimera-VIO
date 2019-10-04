@@ -313,3 +313,18 @@ if(NOT MSVC AND NOT XCODE_VERSION)
     message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
     message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
+
+include(GNUInstallDirs)
+install(TARGETS KimeraVIO
+    EXPORT kimera-vio-export
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+install(EXPORT kimera-vio-export
+  FILE
+    KimeraVIOTargets.cmake
+    #NAMESPACE
+    #NAKimeraVIO::
+  DESTINATION
+    ${CMAKE_INSTALL_LIBDIR}/cmake/KimeraVIO
+)
