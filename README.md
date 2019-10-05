@@ -1,19 +1,13 @@
-<div style="width: 100%; display:inline-block;">
-  <div align="left" style="width: 33%; display: inline-block;">
-    <a href="https://mit.edu/sparklab/">
-      <img src="docs/media/sparklab_logo.png" width="80" alt="sparklab">
-    </a>
-  </div>
-  <div align="center" style="width: 33%; display: inline-block;">
-    <a href="https://www.mit.edu/~arosinol/">
-      <img src="docs/media/kimeravio_logo.png" width="150" alt="kimera">
-    </a>
-  </div>
-  <div align="right" style="width: 33%; display: inline-block;">
-    <a href="https://mit.edu">
-      <img src="docs/media/mit.png" width="100" alt="mit">
-    </a>
-  </div>
+<div align="center">
+  <a href="https://mit.edu/sparklab/">
+    <img align="left" src="docs/media/sparklab_logo.png" width="80" alt="sparklab">
+  </a> 
+  <a href="https://www.mit.edu/~arosinol/">
+    <img align="center" src="docs/media/kimeravio_logo.png" width="150" alt="kimera">
+  </a> 
+  <a href="https://mit.edu"> 
+    <img align="right" src="docs/media/mit.png" width="100" alt="mit">
+  </a>
 </div>
 
 # Kimera-VIO: Open-Source Visual Inertial Odometry
