@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <algorithm>  // for max
 #include <fstream>
-#include <map>  // for map<>
+#include <map>
 #include <string>
 #include <utility>  // for make_pair
 #include <vector>
