@@ -14,7 +14,7 @@
  * @author Antoni Rosinol
  */
 
-#include "StereoImuSyncPacket.h"
+#include "kimera-vio/StereoImuSyncPacket.h"
 
 #include <utility>
 

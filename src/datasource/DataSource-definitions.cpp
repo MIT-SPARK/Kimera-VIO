@@ -11,7 +11,7 @@
  * @brief  Base implementation of a data provider for the VIO pipeline.
  * @author Antoni Rosinol
  */
-#include "datasource/DataSource-definitions.h"
+#include "kimera-vio/datasource/DataSource-definitions.h"
 
 #include <fstream>
 

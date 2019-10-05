@@ -16,13 +16,14 @@
 #include <cstdlib>
 #include <iostream>
 #include <random>
-#include "CameraParams.h"
-#include "Frame.h"
-#include "VioFrontEndParams.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/CameraParams.h"
+#include "kimera-vio/Frame.h"
+#include "kimera-vio/VioFrontEndParams.h"
 
 DECLARE_string(test_data_path);
 

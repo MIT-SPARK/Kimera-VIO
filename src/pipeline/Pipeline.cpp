@@ -12,7 +12,7 @@
  * @author Antoni Rosinol
  */
 
-#include "pipeline/Pipeline.h"
+#include "kimera-vio/pipeline/Pipeline.h"
 
 #include <future>
 #include <string>
@@ -24,14 +24,14 @@
 
 #include <gtsam/geometry/Pose3.h>
 
-#include "RegularVioBackEnd.h"
-#include "StereoVisionFrontEnd.h"
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
+#include "kimera-vio/RegularVioBackEnd.h"
+#include "kimera-vio/StereoVisionFrontEnd.h"
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
-#include "initial/OnlineGravityAlignment.h"
-#include "initial/InitializationBackEnd.h"
-#include "initial/InitializationFromImu.h"
+#include "kimera-vio/initial/InitializationBackEnd.h"
+#include "kimera-vio/initial/InitializationFromImu.h"
+#include "kimera-vio/initial/OnlineGravityAlignment.h"
 
 DEFINE_bool(log_output, false, "Log output to CSV files.");
 DEFINE_int32(regular_vio_backend_modality, 4u,

@@ -4,5 +4,4 @@ target_sources(KimeraVIO
         "${CMAKE_CURRENT_LIST_DIR}/ParallelPlaneRegularFactor.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/PointPlaneFactor.cpp"
 )
-target_include_directories(KimeraVIO PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
 

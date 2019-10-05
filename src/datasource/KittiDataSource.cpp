@@ -11,12 +11,12 @@
  * @brief  Kitti dataset parser.
  * @author Antoni Rosinol, Yun Chang
  */
-#include "datasource/KittiDataSource.h"
+#include "kimera-vio/datasource/KittiDataSource.h"
 
 #include <opencv2/core/core.hpp>
 
-#include "StereoFrame.h"
-#include "StereoImuSyncPacket.h"
+#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/StereoImuSyncPacket.h"
 
 namespace VIO {
 

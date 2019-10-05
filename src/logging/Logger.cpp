@@ -12,16 +12,16 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "logging/Logger.h"
+#include "kimera-vio/logging/Logger.h"
 
 #include <boost/foreach.hpp>
 #include <memory>
 #include <string>
 
-#include "StereoVisionFrontEnd-definitions.h"
-#include "UtilsOpenCV.h"
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
+#include "kimera-vio/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
 DEFINE_string(output_path, "./", "Path where to store VIO's log output.");
 
