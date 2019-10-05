@@ -12,7 +12,7 @@
  * @author Antoni Rosinol, AJ Haeffner, Luca Carlone
  */
 
-#include "Visualizer3D.h"
+#include "kimera-vio/Visualizer3D.h"
 
 #include <algorithm>      // for min
 #include <memory>         // for shared_ptr<>
@@ -23,13 +23,13 @@
 
 #include <gflags/gflags.h>
 
-#include "UtilsOpenCV.h"
-#include "VioBackEnd-definitions.h"
-#include "common/FilesystemUtils.h"
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
+#include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/VioBackEnd-definitions.h"
+#include "kimera-vio/common/FilesystemUtils.h"
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
-#include "factors/PointPlaneFactor.h"  // For visualization of constraints.
+#include "kimera-vio/factors/PointPlaneFactor.h"  // For visualization of constraints.
 
 DEFINE_bool(visualize_mesh, false, "Enable 3D mesh visualization.");
 

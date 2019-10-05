@@ -24,17 +24,18 @@
 
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 
-#include "VioBackEndParams.h"
 
 #include <gtsam/geometry/OrientedPlane3.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/slam/PriorFactor.h>
-#include "factors/PointPlaneFactor.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/VioBackEndParams.h"
+#include "kimera-vio/factors/PointPlaneFactor.h"
 
 using namespace std;
 using namespace gtsam;

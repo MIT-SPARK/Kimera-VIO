@@ -36,14 +36,13 @@
 *********************************************************************************/
 
 #include <chrono>
-
 #include <thread>
-
-#include "utils/ThreadsafeTemporalBuffer.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/utils/ThreadsafeTemporalBuffer.h"
 
 namespace VIO {
 

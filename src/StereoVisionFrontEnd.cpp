@@ -13,7 +13,7 @@
  * @author Luca Carlone
  */
 
-#include "StereoVisionFrontEnd.h"
+#include "kimera-vio/StereoVisionFrontEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>

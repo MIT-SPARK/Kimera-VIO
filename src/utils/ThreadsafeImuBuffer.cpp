@@ -36,8 +36,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "Timer.h"
-#include "utils/ThreadsafeImuBuffer.h"
+#include "kimera-vio/utils/ThreadsafeImuBuffer.h"
+#include "kimera-vio/utils/Timer.h"
 
 namespace VIO {
 

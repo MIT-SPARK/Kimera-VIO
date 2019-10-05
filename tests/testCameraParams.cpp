@@ -9,7 +9,8 @@
 /**
  * @file   testCameraParams.h
  * @brief  test CameraParams
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <cmath>
@@ -17,13 +18,14 @@
 #include <iostream>
 #include <utility>
 
+#include <gtsam/geometry/Cal3_S2.h>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "CameraParams.h"
-#include "UtilsOpenCV.h"
-#include "gtsam/geometry/Cal3_S2.h"
+#include "kimera-vio/CameraParams.h"
+#include "kimera-vio/UtilsOpenCV.h"
 
 DECLARE_string(test_data_path);
 

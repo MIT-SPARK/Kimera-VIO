@@ -18,19 +18,17 @@
  * @author Luca Carlone
  */
 
-#include <glog/logging.h>
-
 #include <gtsam/inference/Ordering.h>
 #include <gtsam/linear/GaussianFactorGraph.h>
 #include <gtsam/navigation/ImuBias.h>
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
-#include "FeatureSelector.h"
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/FeatureSelector.h"
 
 using namespace gtsam;
 using namespace std;

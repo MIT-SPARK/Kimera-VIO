@@ -15,12 +15,12 @@
  * @author Luca Carlone
  */
 
-#include "InitializationBackEnd.h"
+#include "kimera-vio/initial/InitializationBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "initial/OnlineGravityAlignment.h"
+#include "kimera-vio/initial/OnlineGravityAlignment.h"
 
 namespace VIO {
 

@@ -9,7 +9,8 @@
 /**
  * @file   testStereoVisionFrontEnd.cpp
  * @brief  test StereoVisionFrontEnd
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <cstdlib>
@@ -22,12 +23,12 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/random/mersenne_twister.hpp>
 
-#include "logging/Logger.h"
-#include "StereoVisionFrontEnd-definitions.h"
-#include "VioBackEnd-definitions.h"
-
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/VioBackEnd-definitions.h"
+#include "kimera-vio/logging/Logger.h"
 
 DECLARE_string(test_data_path);
 DECLARE_string(output_path);
@@ -49,18 +50,17 @@ void checkHeader(std::vector<std::string> actual,
 
 class CSVReader {
  public:
-	CSVReader(std::string sep = ",")
-      : sep_(sep) {}
+  CSVReader(std::string sep = ",") : sep_(sep) {}
 
-	csv_mat getData(std::string filename) {
+  csv_mat getData(std::string filename) {
     std::ifstream file(filename);
     csv_mat dataList;
     std::string line = "";
 
     while (std::getline(file, line)) {
-    	std::vector<std::string> vec;
-    	boost::algorithm::split(vec, line, boost::is_any_of(sep_));
-    	dataList.push_back(vec);
+      std::vector<std::string> vec;
+      boost::algorithm::split(vec, line, boost::is_any_of(sep_));
+      dataList.push_back(vec);
     }
 
     file.close();

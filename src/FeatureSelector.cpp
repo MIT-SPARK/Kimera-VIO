@@ -20,7 +20,7 @@
 #include <boost/filesystem.hpp> // to create folders
 #include <glog/logging.h>
 
-#include "FeatureSelector.h"
+#include "kimera-vio/FeatureSelector.h"
 
 namespace VIO {
 

@@ -5,7 +5,7 @@
  *      Author: Antoni Rosinol
  */
 
-#include "PointPlaneFactor.h"
+#include "kimera-vio/factors/PointPlaneFactor.h"
 
 using namespace std;
 

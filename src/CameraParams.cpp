@@ -12,7 +12,7 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "CameraParams.h"
+#include "kimera-vio/CameraParams.h"
 
 #include <iostream>
 #include <fstream>

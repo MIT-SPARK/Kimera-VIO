@@ -12,22 +12,21 @@
  * @author Marcus Abate, Luca Carlone
  */
 
-#include "loopclosure/LoopClosureDetector.h"
-
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "CameraParams.h"
-#include "Frame.h"
-#include "StereoFrame.h"
-#include "Tracker.h"
-#include "UtilsOpenCV.h"
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/CameraParams.h"
+#include "kimera-vio/Frame.h"
+#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/Tracker.h"
+#include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/loopclosure/LoopClosureDetector.h"
 
 DECLARE_string(test_data_path);
 DECLARE_string(vocabulary_path);

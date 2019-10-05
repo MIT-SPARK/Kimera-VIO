@@ -12,7 +12,7 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "mesh/Mesher.h"
+#include "kimera-vio/mesh/Mesher.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -20,8 +20,8 @@
 #include <algorithm>
 #include <opencv2/imgproc.hpp>
 
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
 // General functionality for the mesher.
 DEFINE_bool(add_extra_lmks_from_stereo, false,

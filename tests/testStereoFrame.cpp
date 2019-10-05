@@ -9,7 +9,8 @@
 /**
  * @file   testStereoFrame.h
  * @brief  test StereoFrame
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <iostream>
@@ -20,9 +21,9 @@
 
 #include <gtsam/geometry/StereoCamera.h>
 
-#include "Frame.h"
-#include "StereoFrame.h"
-#include "VioFrontEndParams.h"
+#include "kimera-vio/Frame.h"
+#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/VioFrontEndParams.h"
 
 DECLARE_string(test_data_path);
 

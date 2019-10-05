@@ -27,12 +27,12 @@
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 #include <gtsam/slam/PriorFactor.h>
-#include "factors/ParallelPlaneRegularFactor.h"
-#include "factors/PointPlaneFactor.h"
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/factors/ParallelPlaneRegularFactor.h"
+#include "kimera-vio/factors/PointPlaneFactor.h"
 
 using namespace std;
 using namespace gtsam;

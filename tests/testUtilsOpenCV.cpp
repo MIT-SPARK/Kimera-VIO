@@ -22,8 +22,6 @@
 #include <iostream>
 #include <utility>
 
-#include "UtilsOpenCV.h"
-
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
@@ -34,6 +32,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/UtilsOpenCV.h"
 
 DECLARE_string(test_data_path);
 

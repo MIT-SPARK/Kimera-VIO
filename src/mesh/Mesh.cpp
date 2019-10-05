@@ -12,10 +12,11 @@
  * @author Antoni Rosinol
  */
 
-#include <glog/logging.h>
-#include <opencv2/core/core.hpp>
+#include "kimera-vio/mesh/Mesh.h"
 
-#include "mesh/Mesh.h"
+#include <glog/logging.h>
+
+#include <opencv2/core/core.hpp>
 
 namespace VIO {
 

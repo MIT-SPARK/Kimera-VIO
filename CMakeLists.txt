@@ -23,7 +23,7 @@ endif()
 
 find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 3.3.1 REQUIRED)
 
 ### Find the DBoW2 package
 find_package(DBoW2)
@@ -61,36 +61,41 @@ add_library(KimeraVIO SHARED
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
   src/FeatureSelector.cpp
-  src/YamlParser.h
-  src/VioBackEndParams.h
-  src/VioFrontEndParams.h
-  src/RegularVioBackEndParams.h
   src/CameraParams.cpp
-  src/Frame.h
   src/Visualizer3D.cpp "")
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(KimeraVIO::KimeraVIO ALIAS KimeraVIO)
 
 ### Add source code for data provider.
+include(include/kimera-vio/datasource/CMakeLists.txt)
 include(src/datasource/CMakeLists.txt)
 ### Add source code for factors
+include(include/kimera-vio/factors/CMakeLists.txt)
 include(src/factors/CMakeLists.txt)
 ### Add source code for mesh
+include(include/kimera-vio/mesh/CMakeLists.txt)
 include(src/mesh/CMakeLists.txt)
-### Add source code for utils
-include(src/utils/CMakeLists.txt)
 ### Add source code for initialization
+include(include/kimera-vio/initial/CMakeLists.txt)
 include(src/initial/CMakeLists.txt)
+### Add source code for utils
+include(include/kimera-vio/utils/CMakeLists.txt)
+include(src/utils/CMakeLists.txt)
 ### Add source code for pipeline
+include(include/kimera-vio/pipeline/CMakeLists.txt)
 include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
+include(include/kimera-vio/common/CMakeLists.txt)
 include(src/common/CMakeLists.txt)
 ### Add source code for LoopClosureDetector
+include(include/kimera-vio/loopclosure/CMakeLists.txt)
 include(src/loopclosure/CMakeLists.txt)
 ### Add source code for logging
+include(include/kimera-vio/logging/CMakeLists.txt)
 include(src/logging/CMakeLists.txt)
 ### Add source code for imu frontend
+include(include/kimera-vio/imu-frontend/CMakeLists.txt)
 include(src/imu-frontend/CMakeLists.txt)
 
 target_link_libraries(KimeraVIO
@@ -110,8 +115,8 @@ target_include_directories(KimeraVIO
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<INSTALL_INTERFACE:src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
   )
 
 target_compile_options(KimeraVIO
@@ -190,7 +195,7 @@ add_executable(testKimeraVIO
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
   tests/testVisualizer3D.cpp
-  # tests/testOnlineAlignment.cpp  #TODO: add back in
+  tests/testOnlineAlignment.cpp
   )
 
 target_link_libraries(testKimeraVIO gtest KimeraVIO::KimeraVIO)
@@ -313,3 +318,18 @@ if(NOT MSVC AND NOT XCODE_VERSION)
     message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
     message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
+
+#include(GNUInstallDirs)
+#install(TARGETS KimeraVIO
+#    EXPORT kimera-vio-export
+#    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#)
+#install(EXPORT kimera-vio-export
+#  FILE
+#    KimeraVIOTargets.cmake
+#    #NAMESPACE
+#    #NAKimeraVIO::
+#  DESTINATION
+#    ${CMAKE_INSTALL_LIBDIR}/cmake/KimeraVIO
+#)

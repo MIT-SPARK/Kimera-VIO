@@ -22,14 +22,14 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "VioBackEnd.h"
+#include "kimera-vio/VioBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "datasource/DataSource-definitions.h"  // Only for gtNavState ...
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
+#include "kimera-vio/datasource/DataSource-definitions.h"  // Only for gtNavState ...
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
 DEFINE_bool(debug_graph_before_opt, false,
             "Store factor graph before optimization for later printing if the "

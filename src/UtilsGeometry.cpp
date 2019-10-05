@@ -12,7 +12,7 @@
  * @author Luca Carlone, Antoni Rosinol
  */
 
-#include "UtilsGeometry.h"
+#include "kimera-vio/UtilsGeometry.h"
 
 #include <algorithm>
 #include <limits>

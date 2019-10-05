@@ -9,7 +9,8 @@
 /**
  * @file   SparkVio.cpp
  * @brief  Example of VIO pipeline.
- * @author Antoni Rosinol, Luca Carlone, Yun Chang
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <future>
@@ -19,14 +20,13 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "datasource/ETH_parser.h"
-#include "datasource/KittiDataSource.h"
-#include "logging/Logger.h"
-#include "pipeline/Pipeline.h"
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
-
-#include "StereoImuSyncPacket.h"
+#include "kimera-vio/StereoImuSyncPacket.h"
+#include "kimera-vio/datasource/ETH_parser.h"
+#include "kimera-vio/datasource/KittiDataSource.h"
+#include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/pipeline/Pipeline.h"
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
 DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
 DEFINE_int32(dataset_type, 0,
