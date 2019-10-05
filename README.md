@@ -50,6 +50,8 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 
 > Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimeravio_installation.md](./docs/kimeravio_installation.md).
 
+> Note 2: if you use ROS, then [Kimera-VIO-ROS](https://github.com/MIT-SPARK/Kimera-VIO-ROS) can install all dependencies and Kimera inside a catkin workspace.
+
 ## Installation Instructions
 
 Find how to install Kimera-VIO and its dependencies here: **[Installation instructions](./docs/kimeravio_installation.md)**.
