@@ -113,11 +113,10 @@ target_link_libraries(KimeraVIO
 )
 target_include_directories(KimeraVIO
   PUBLIC
-    include
     ${OpenCV_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<INSTALL_INTERFACE:src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
   )
 
 target_compile_options(KimeraVIO
