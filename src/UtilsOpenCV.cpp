@@ -12,7 +12,7 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include <UtilsOpenCV.h>
+#include "kimera-vio/UtilsOpenCV.h"
 
 #include <stdlib.h>
 #include <sys/time.h>

@@ -16,6 +16,9 @@
 #include <fstream>
 #include <string>
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+
 #include <opengv/point_cloud/PointCloudAdapter.hpp>
 #include <opengv/relative_pose/CentralRelativeAdapter.hpp>
 #include <opengv/sac/Ransac.hpp>
@@ -23,14 +26,11 @@
 #include <opengv/sac_problems/relative_pose/CentralRelativePoseSacProblem.hpp>
 
 #include <KimeraRPGO/RobustSolver.h>
-#include "loopclosure/LoopClosureDetector.h"
 
-#include "UtilsOpenCV.h"
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
-
-#include <gflags/gflags.h>
-#include <glog/logging.h>
+#include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/loopclosure/LoopClosureDetector.h"
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
 DEFINE_string(vocabulary_path,
               "../vocabulary/ORBvoc.yml",

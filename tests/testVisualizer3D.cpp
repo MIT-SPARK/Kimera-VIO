@@ -18,11 +18,11 @@
 #include <iostream>
 #include <random>
 
-#include "Visualizer3D.h"
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/Visualizer3D.h"
 
 DECLARE_string(test_data_path);
 

@@ -14,10 +14,10 @@
  * @author Luca Carlone
  */
 
-#include "datasource/ETH_parser.h"
+#include "kimera-vio/datasource/ETH_parser.h"
 
-#include "StereoFrame.h"
-#include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
 DEFINE_int32(skip_n_start_frames,
              10,

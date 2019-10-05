@@ -12,14 +12,14 @@
  * @author Antoni Rosinol
  */
 
-#include "datasource/DataSource.h"
+#include "kimera-vio/datasource/DataSource.h"
 
 #include <gflags/gflags.h>
 
-#include "RegularVioBackEndParams.h"
-#include "VioBackEndParams.h"
-#include "VioFrontEndParams.h"
-#include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/RegularVioBackEndParams.h"
+#include "kimera-vio/VioBackEndParams.h"
+#include "kimera-vio/VioFrontEndParams.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
 DEFINE_string(vio_params_path, "", "Path to vio user-defined parameters.");
 DEFINE_string(tracker_params_path, "",

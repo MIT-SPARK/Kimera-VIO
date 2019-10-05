@@ -9,7 +9,8 @@
 /**
  * @file   testStereoVisionFrontEnd.cpp
  * @brief  test StereoVisionFrontEnd
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <algorithm>
@@ -19,15 +20,15 @@
 #include <random>
 #include <string>
 
-#include "CameraParams.h"
-#include "Frame.h"
-#include "StereoFrame.h"
-#include "StereoVisionFrontEnd.h"
-#include "Tracker.h"
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/CameraParams.h"
+#include "kimera-vio/Frame.h"
+#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/StereoVisionFrontEnd.h"
+#include "kimera-vio/Tracker.h"
 
 DECLARE_string(test_data_path);
 
