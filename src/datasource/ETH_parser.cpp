@@ -9,12 +9,15 @@
 /**
  * @file   ETH_parser.h
  * @brief  Parse EUROC dataset.
- * @author Antoni Rosinol,
- * @author Yun Chang,
+ * @author Antoni Rosinol
+ * @author Yun Chang
  * @author Luca Carlone
  */
 
 #include "kimera-vio/datasource/ETH_parser.h"
+
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include "kimera-vio/StereoFrame.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"

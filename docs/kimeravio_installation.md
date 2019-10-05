@@ -1,8 +1,15 @@
 # Kimera-VIO Installation
 
-Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
+Tested on Mac, Ubuntu 14.04, 16.04 & 18.04.
 
-> Note: if you want to avoid building all these dependencies yourself, we provide a docker image that will install them for you. See section `From Dockerfile` below.
+If you want to avoid building all these dependencies yourself, we provide two options:
+
+1. **Docker image**: that will install them for you. See section [From Dockerfile](#From-Dockerfile) below.
+
+2. **Catkin**: if you use ROS, then [Kimera-VIO-ROS](https://github.com/MIT-SPARK/Kimera-VIO-ROS) can install all dependencies and Kimera inside a catkin workspace. Follow the instructions in there.
+
+We recommend using the docker image for a quick demo, and catkin for actual development.
+Alternatively, you may install the dependencies and Kimera from \"source\" as detailed below:
 
 ## Prerequisites:
 
@@ -12,6 +19,8 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
   - [OpenCV](https://github.com/opencv/opencv) >= 3.3.1
   - [OpenGV](https://github.com/laurentkneip/opengv)
   - [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
+  - [DBoW2](https://github.com/dorian3d/DBoW2)
+  - [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
 
 > Installation instructions below.
 
@@ -43,6 +52,7 @@ sudo apt-get install -y \
       libjpeg-dev libpng-dev libtiff-dev \
       libvtk6-dev \
       libgtk-3-dev \
+      libparmetis-dev \
       libatlas-base-dev gfortran
 ```
 

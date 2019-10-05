@@ -13,6 +13,7 @@
   <depend>GTSAM</depend>
   <depend>opencv3_catkin</depend>
   <depend>opengv_catkin</depend>
+  <depend>dbow2_catkin</depend>
   <export>
     <!-- Specify that this is not really a catkin package-->
     <build_type>cmake</build_type>

@@ -1,5 +1,13 @@
 <div align="center">
-    <img src="docs/media/kimeravio_logo.png" width="100">
+  <a href="http://mit.edu/sparklab/">
+    <img align="left" src="docs/media/sparklab_logo.png" width="80" alt="sparklab">
+  </a> 
+  <a href="https://www.mit.edu/~arosinol/">
+    <img align="center" src="docs/media/kimeravio_logo.png" width="150" alt="kimera">
+  </a> 
+  <a href="https://mit.edu"> 
+    <img align="right" src="docs/media/mit.png" width="100" alt="mit">
+  </a>
 </div>
 
 # Kimera-VIO: Open-Source Visual Inertial Odometry
@@ -49,6 +57,8 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 - [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
 
 > Note: if you want to avoid building all dependencies yourself, we provide a docker image that will install them for you. Check installation instructions in [docs/kimeravio_installation.md](./docs/kimeravio_installation.md).
+
+> Note 2: if you use ROS, then [Kimera-VIO-ROS](https://github.com/MIT-SPARK/Kimera-VIO-ROS) can install all dependencies and Kimera inside a catkin workspace.
 
 ## Installation Instructions
 
