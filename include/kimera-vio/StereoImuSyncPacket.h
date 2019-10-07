@@ -31,7 +31,7 @@ struct ReinitPacket {
   ReinitPacket(const bool& reinit_flag_ext = false,
                const Timestamp& timestamp_ext = 0,
                const gtsam::Pose3& W_Pose_Bext = gtsam::Pose3(),
-               const gtsam::Vector3& W_Vel_Bext = gtsam::zero(3),
+               const gtsam::Vector3& W_Vel_Bext = gtsam::Vector3::Zero(3),
                const ImuBias& imu_bias_ext = gtsam::imuBias::ConstantBias())
       : reinit_flag_ext_(reinit_flag_ext),
         timestamp_ext_(timestamp_ext),
@@ -159,7 +159,7 @@ struct SpinOutputPacket {
       const cv::Mat& mesh_2d_img,
       const PointsWithIdMap& points_with_id_VIO,
       const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
-      const gtsam::Matrix state_covariance_lkf = gtsam::zeros(15, 15),
+      const gtsam::Matrix state_covariance_lkf = gtsam::Matrix::Zero(15, 15),
       const DebugTrackerInfo debug_tracker_info = DebugTrackerInfo())
       : timestamp_kf_(timestamp_kf),
         W_Pose_Blkf_(W_Pose_Blkf),
@@ -188,7 +188,7 @@ struct SpinOutputPacket {
         mesh_2d_img_(),
         points_with_id_VIO_(),
         lmk_id_to_lmk_type_map_(),
-        state_covariance_lkf_(gtsam::zeros(15, 15)),
+        state_covariance_lkf_(gtsam::Matrix::Zero(15, 15)),
         debug_tracker_info_(DebugTrackerInfo()) {}
 
   // Define getters for output values
