@@ -398,7 +398,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
       EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_[landmark_id].x,
                 s.second.uR());
     } else {
-      EXPECT_TRUE(isnan(s.second.uR()));
+      EXPECT_TRUE(std::isnan(s.second.uR()));
     }
 
     // Verify that there is no replicated entries in landmark_set.

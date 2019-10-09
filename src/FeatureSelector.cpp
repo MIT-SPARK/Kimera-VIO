@@ -1183,7 +1183,7 @@ boost::optional<gtsam::Unit3> FeatureSelector::GetVersorIfInFOV(
     return boost::none;  // point is outside the FOV
   }
   // point (as a vector) in camera frame
-  Vector3 pcam = (cam.pose().transform_to(pworld)).vector();
+  Vector3 pcam = (cam.pose().transformTo(pworld)).vector();
   if (pcam.norm() > maxDistance) {  // beyond max distance
     return boost::none;
   }

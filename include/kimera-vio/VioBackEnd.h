@@ -452,7 +452,7 @@ class VioBackEnd {
   ImuBias imu_bias_prev_kf_;  //!< bias estimate at previous keyframe
 
   // State covariance. (initialize to zero)
-  gtsam::Matrix state_covariance_lkf_ = gtsam::zeros(15, 15);
+  gtsam::Matrix state_covariance_lkf_ = Eigen::MatrixXd::Zero(15, 15);
 
   // Vision params.
   gtsam::SmartStereoProjectionParams smart_factors_params_;
