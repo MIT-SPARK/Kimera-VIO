@@ -25,7 +25,19 @@ Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation 
 
 We kindly ask to cite the papers below if you find this library useful:
 
- - **TODO:** add latest paper.
+ - A. Rosinol, M. Abate, Y. Chang, L. Carlone **Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping**. arXiv preprint arXiv:1910.02490.
+ ```
+ @misc{Rosinol19tr-Kimera,
+   title = {Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping},
+   author = {Rosinol, Antoni and Abate, Marcus and Chang, Yun and Carlone, Luca},
+   year = {2019},
+   eprint = {1910.02490},
+   archiveprefix = {arXiv},
+   primaryclass = {cs.RO},
+   url = {https://github.com/MIT-SPARK/Kimera},
+   pdf = {https://arxiv.org/pdf/1910.02490.pdf}
+ }
+```
 
 Backend optimization is based on:
 
