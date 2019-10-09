@@ -100,7 +100,12 @@ class Pipeline {
   // Callback to output the LoopClosureDetector's loop-closure/PGO results.
   inline void registerLcdPgoOutputCallback(
       const LoopClosurePGOCallback& callback) {
-    loop_closure_detector_->registerLcdPgoOutputCallback(callback);
+    if (loop_closure_detector_) {
+      loop_closure_detector_->registerLcdPgoOutputCallback(callback);
+    } else {
+      LOG(ERROR) << "Attempt to register LCD/PGO callback, but no "
+                 << "LoopClosureDetector member is active in pipeline.";
+    }
   }
 
  private:
