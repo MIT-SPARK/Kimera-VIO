@@ -130,14 +130,18 @@ Clone the repo:
 git clone https://github.com/laurentkneip/opengv.git
 ```
 
-- using cmake-gui, set: the eigen version to the GTSAM one (for me: /Users/Luca/borg/gtsam/gtsam/3rdparty/Eigen). if you don't do so, very weird error (TODO document) appear (may be due to GTSAM and OpenGV using different versions of eigen!)
-- in the opengv folder do:
+Set opengv to use the same Eigen version than GTSAM (for example: `$HOME/gtsam/gtsam/3rdparty/Eigen`), by modifying the cmake flag `EIGEN_INCLUDE_DIRS`. If you don't do so, errors may appear (maybe due to GTSAM and OpenGV using different versions of Eigen!):
 
 ```bash
 cd opengv
 mkdir build
 cd build
-cmake ..
+# Replace path to your GTSAM's Eigen
+cmake .. -DEIGEN_INCLUDE_DIRS=/home/tonirv/Code/gtsam/gtsam/3rdparty/Eigen
+```
+
+Finally, install opengv:
+```bash
 sudo make -j $(nproc) install
 ```
 
