@@ -21,9 +21,9 @@ For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080
 
 Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation from **Stereo** + **IMU** data. (Mono-only capabilities soon to be released).
 
-## Related Publications
+## Publications
 
-We kindly ask to cite the papers below if you find this library useful:
+We kindly ask to cite our paper if you find this library useful:
 
  - A. Rosinol, M. Abate, Y. Chang, L. Carlone. [**Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping**](https://arxiv.org/abs/1910.02490). arXiv preprint [arXiv:1910.02490](https://arxiv.org/abs/1910.02490).
  ```
@@ -38,6 +38,8 @@ We kindly ask to cite the papers below if you find this library useful:
    pdf = {https://arxiv.org/pdf/1910.02490.pdf}
  }
 ```
+
+### Related Publications
 
 Backend optimization is based on:
 
