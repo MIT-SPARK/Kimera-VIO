@@ -42,9 +42,9 @@
         main()
       File ".git/hooks/pre-commit", line 51, in main
         linter.linter_check(repo_root, linter_folder)
-      File "/home/tonirv/Code/spark_vio/dev_tools/linter/linter.py", line 483, in linter_check
+      File "/home/tonirv/Code/Kimera-VIO/dev_tools/linter/linter.py", line 483, in linter_check
         ascii_art, repo_root)
-      File "/home/tonirv/Code/spark_vio/dev_tools/linter/linter.py", line 124, in check_cpp_lint
+      File "/home/tonirv/Code/Kimera-VIO/dev_tools/linter/linter.py", line 124, in check_cpp_lint
         cpplint = imp.load_source('cpplint', cpplint_file)
     IOError: [Errno 2] No such file or directory
   ```

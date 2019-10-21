@@ -22,14 +22,14 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "VioBackEnd.h"
+#include "kimera-vio/VioBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "datasource/DataSource-definitions.h"  // Only for gtNavState ...
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
+#include "kimera-vio/datasource/DataSource-definitions.h"  // Only for gtNavState ...
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
 DEFINE_bool(debug_graph_before_opt, false,
             "Store factor graph before optimization for later printing if the "
@@ -854,7 +854,7 @@ void VioBackEnd::optimize(
     const Timestamp& timestamp_kf_nsec, const FrameId& cur_id,
     const size_t& max_extra_iterations,
     gtsam::FactorIndices extra_factor_slots_to_delete) {
-  DCHECK(smoother_.get()) << "Incremental smoother is a null pointer.";
+  DCHECK(smoother_) << "Incremental smoother is a null pointer.";
 
   // Only for statistics and debugging.
   // Store start time to calculate absolute total time taken.
@@ -1652,7 +1652,7 @@ void VioBackEnd::printSmootherInfo(
     // besides the slot to be deleted.
     CHECK_EQ(debug_info_.graphToBeDeleted.size(), delete_slots.size());
     for (size_t i = 0; i < delete_slots.size(); ++i) {
-      CHECK_NOTNULL(debug_info_.graphToBeDeleted.at(i).get());
+      CHECK(debug_info_.graphToBeDeleted.at(i));
       if (print_point_plane_factors) {
         printSelectedFactors(debug_info_.graphToBeDeleted.at(i),
                              delete_slots.at(i), false,

@@ -9,7 +9,8 @@
 /**
  * @file   testStereoVisionFrontEnd.cpp
  * @brief  test StereoVisionFrontEnd
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <algorithm>
@@ -19,15 +20,15 @@
 #include <random>
 #include <string>
 
-#include "CameraParams.h"
-#include "Frame.h"
-#include "StereoFrame.h"
-#include "StereoVisionFrontEnd.h"
-#include "Tracker.h"
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/CameraParams.h"
+#include "kimera-vio/Frame.h"
+#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/StereoVisionFrontEnd.h"
+#include "kimera-vio/Tracker.h"
 
 DECLARE_string(test_data_path);
 
@@ -397,7 +398,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
       EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_[landmark_id].x,
                 s.second.uR());
     } else {
-      EXPECT_TRUE(isnan(s.second.uR()));
+      EXPECT_TRUE(std::isnan(s.second.uR()));
     }
 
     // Verify that there is no replicated entries in landmark_set.

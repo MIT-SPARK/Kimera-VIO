@@ -12,7 +12,7 @@
  * @author Antoni Rosinol
  */
 
-#include "pipeline/Pipeline.h"
+#include "kimera-vio/pipeline/Pipeline.h"
 
 #include <future>
 #include <string>
@@ -24,14 +24,14 @@
 
 #include <gtsam/geometry/Pose3.h>
 
-#include "RegularVioBackEnd.h"
-#include "StereoVisionFrontEnd.h"
-#include "initial/InitializationBackEnd.h"
-#include "initial/InitializationFromImu.h"
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
+#include "kimera-vio/RegularVioBackEnd.h"
+#include "kimera-vio/StereoVisionFrontEnd.h"
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
-#include "initial/OnlineGravityAlignment.h"
+#include "kimera-vio/initial/InitializationBackEnd.h"
+#include "kimera-vio/initial/InitializationFromImu.h"
+#include "kimera-vio/initial/OnlineGravityAlignment.h"
 
 DEFINE_bool(log_output, false, "Log output to CSV files.");
 DEFINE_int32(regular_vio_backend_modality, 4u,
@@ -95,6 +95,9 @@ DEFINE_int32(max_time_allowed_for_keyframe_callback,
              "Maximum time allowed for processing keyframe rate callback "
              "(in ms).");
 
+DEFINE_bool(use_lcd, false,
+            "Enable LoopClosureDetector processing in pipeline.");
+
 namespace VIO {
 
 Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
@@ -102,6 +105,7 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
       vio_frontend_(nullptr),
       feature_selector_(nullptr),
       vio_backend_(nullptr),
+      loop_closure_detector_(nullptr),
       backend_params_(params.backend_params_),
       frontend_params_(params.frontend_params_),
       mesher_(),
@@ -120,6 +124,7 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
       backend_output_queue_("backend_output_queue"),
       mesher_input_queue_("mesher_input_queue"),
       mesher_output_queue_("mesher_output_queue"),
+      lcd_input_queue_("lcd_input_queue"),
       visualizer_input_queue_("visualizer_input_queue"),
       visualizer_output_queue_("visualizer_output_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
@@ -131,6 +136,11 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
                                              gtsam::imuBias::ConstantBias(),
                                              frontend_params_,
                                              FLAGS_log_output);
+
+  if (FLAGS_use_lcd) {
+    loop_closure_detector_ = VIO::make_unique<LoopClosureDetector>(
+        params.lcd_params_, FLAGS_log_output);
+  }
 
   // Instantiate feature selector: not used in vanilla implementation.
   if (FLAGS_use_feature_selection) {
@@ -224,6 +234,20 @@ void Pipeline::processKeyframe(
   std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
       backend_output_queue_.popBlocking();
   LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
+
+  // Optionally, push to lcd input.
+  // TODO(marcus): not robust to cases where frontend and backend processing
+  // happen in different methods. This only works if they're done one after
+  // another. Mixing input from two different outputs is bad form.
+  // It is unfortunately the only option in this architecture.
+  if (FLAGS_use_lcd) {
+    VLOG(2) << "Push input payload to LoopClosureDetector.";
+    lcd_input_queue_.push(LoopClosureDetectorInputPayload(
+        last_stereo_keyframe.getTimestamp(),
+        backend_output_payload->cur_kf_id_,
+        last_stereo_keyframe,
+        backend_output_payload->W_Pose_Blkf_));
+  }
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
   PointsWithIdMap points_with_id_VIO;
@@ -331,7 +355,8 @@ void Pipeline::processKeyframe(
         backend_output_payload->timestamp_kf_,
         backend_output_payload->W_Pose_Blkf_,
         backend_output_payload->W_Vel_Blkf_,
-        backend_output_payload->imu_bias_lkf_, mesher_output_payload.mesh_2d_,
+        backend_output_payload->imu_bias_lkf_,
+        mesher_output_payload.mesh_2d_,
         mesher_output_payload.mesh_3d_,
         Visualizer3D::visualizeMesh2D(
             mesher_output_payload.mesh_2d_filtered_for_viz_,
@@ -390,6 +415,19 @@ void Pipeline::spinSequential() {
   // Pop blocking from backend.
   const auto& backend_output_payload = backend_output_queue_.popBlocking();
   CHECK(backend_output_payload);
+
+  // Push keyframe to LCD.
+  lcd_input_queue_.push(LoopClosureDetectorInputPayload(
+      stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
+      backend_output_payload->cur_kf_id_,
+      stereo_frontend_output_payload->stereo_frame_lkf_,
+      backend_output_payload->W_Pose_Blkf_));
+
+  // Spin once LCD. Do not run in parallel.
+  if (FLAGS_use_lcd) {
+    CHECK(loop_closure_detector_);
+    loop_closure_detector_->spin(lcd_input_queue_, false);
+  }
 
   const auto& stereo_keyframe =
       stereo_frontend_output_payload->stereo_frame_lkf_;
@@ -510,6 +548,7 @@ void Pipeline::shutdownWhenFinished() {
   // Time to sleep between queries to the queues [in seconds].
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
   static constexpr int sleep_time = 1;
+
   while (!shutdown_ &&         // Loop while not explicitly shutdown.
          (!is_initialized_ ||  // Loop while not initialized
                                // Or, once init, data is not yet consumed.
@@ -518,29 +557,37 @@ void Pipeline::shutdownWhenFinished() {
             !vio_frontend_->isWorking() && backend_input_queue_.empty() &&
             backend_output_queue_.empty() && !vio_backend_->isWorking() &&
             mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
-            !mesher_.isWorking() && visualizer_input_queue_.empty() &&
-            visualizer_output_queue_.empty() && !visualizer_.isWorking()))) {
-    VLOG_EVERY_N(10, 100)
-        << "VIO pipeline status: \n"
-        << "Initialized? " << is_initialized_ << '\n'
-        << "Frontend input queue empty?" << stereo_frontend_input_queue_.empty()
-        << '\n'
-        << "Frontend output queue empty?"
-        << stereo_frontend_output_queue_.empty() << '\n'
-        << "Frontend is working? " << vio_frontend_->isWorking() << '\n'
-        << "Backend Input queue empty?" << backend_input_queue_.empty() << '\n'
-        << "Backend Output queue empty?" << backend_output_queue_.empty()
-        << '\n'
-        << "Backend is working? "
-        << (is_initialized_ ? vio_backend_->isWorking() : false) << '\n'
-        << "Mesher input queue empty?" << mesher_input_queue_.empty() << '\n'
-        << "Mesher output queue empty?" << mesher_output_queue_.empty() << '\n'
-        << "Mesher is working? " << mesher_.isWorking() << '\n'
-        << "Visualizer input queue empty?" << visualizer_input_queue_.empty()
-        << '\n'
-        << "Visualizer output queue empty?" << visualizer_output_queue_.empty()
-        << '\n'
-        << "Visualizer is working? " << visualizer_.isWorking();
+            !mesher_.isWorking() && lcd_input_queue_.empty() &&
+            !loop_closure_detector_->isWorking() &&
+            visualizer_input_queue_.empty() && visualizer_output_queue_.empty()
+            && !visualizer_.isWorking()))) {
+    VLOG_EVERY_N(10, 100) << "shutdown_: " << shutdown_ << '\n'
+                          << "VIO pipeline status: \n"
+                          << "Initialized? " << is_initialized_ << '\n'
+                          << "Frontend input queue empty?"
+                          << stereo_frontend_input_queue_.empty() << '\n'
+                          << "Frontend output queue empty?"
+                          << stereo_frontend_output_queue_.empty() << '\n'
+                          << "Frontend is working? " << vio_frontend_->isWorking()
+                          << '\n'
+                          << "Backend Input queue empty?"
+                          << backend_input_queue_.empty() << '\n'
+                          << "Backend Output queue empty?"
+                          << backend_output_queue_.empty() << '\n'
+                          << "Backend is working? "
+                          << (is_initialized_ ? vio_backend_->isWorking() : false)
+                          << '\n'
+                          << "Mesher input queue empty?"
+                          << mesher_input_queue_.empty() << '\n'
+                          << "Mesher output queue empty?"
+                          << mesher_output_queue_.empty() << '\n'
+                          << "Mesher is working? " << mesher_.isWorking() << '\n'
+                          << "Visualizer input queue empty?"
+                          << visualizer_input_queue_.empty() << '\n'
+                          << "Visualizer output queue empty?"
+                          << visualizer_output_queue_.empty() << '\n'
+                          << "Visualizer is working? " << visualizer_.isWorking();
+
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
@@ -610,6 +657,8 @@ void Pipeline::checkReInitialize(
     CHECK(vio_backend_);
     vio_backend_->restart();
     mesher_.restart();
+    if (loop_closure_detector_)
+        loop_closure_detector_->restart();
     visualizer_.restart();
     // Resume pipeline
     resume();
@@ -1024,6 +1073,11 @@ void Pipeline::launchRemainingThreads() {
         &Mesher::spin, &mesher_, std::ref(mesher_input_queue_),
         std::ref(mesher_output_queue_), true);
 
+    if (FLAGS_use_lcd)
+        lcd_thread_ = VIO::make_unique<std::thread>(
+            &LoopClosureDetector::spin, CHECK_NOTNULL(loop_closure_detector_.get()),
+            std::ref(lcd_input_queue_), true);
+
     // Start visualizer_thread.
     // visualizer_thread_ = std::thread(&Visualizer3D::spin,
     //                                 &visualizer_,
@@ -1052,6 +1106,9 @@ void Pipeline::resume() {
   LOG(INFO) << "Restarting mesher workers and queues...";
   mesher_input_queue_.resume();
   mesher_output_queue_.resume();
+
+  LOG(INFO) << "Restarting loop closure workers and queues...";
+  lcd_input_queue_.resume();
 
   LOG(INFO) << "Restarting visualizer workers and queues...";
   visualizer_input_queue_.resume();
@@ -1089,6 +1146,11 @@ void Pipeline::stopThreads() {
   mesher_input_queue_.shutdown();
   mesher_output_queue_.shutdown();
   mesher_.shutdown();
+
+  LOG(INFO) << "Stopping loop closure workers and queues...";
+  lcd_input_queue_.shutdown();
+  if (loop_closure_detector_)
+    loop_closure_detector_->shutdown();
 
   LOG(INFO) << "Stopping visualizer workers and queues...";
   visualizer_input_queue_.shutdown();
@@ -1134,6 +1196,15 @@ void Pipeline::joinThreads() {
   } else {
     LOG_IF(ERROR, parallel_run_) << "Mesher thread is not joinable...";
   }
+
+  LOG(INFO) << "Joining loop closure thread...";
+  if (lcd_thread_ && lcd_thread_->joinable()) {
+    lcd_thread_->join();
+    LOG(INFO) << "Joined loop closure thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "Loop closure thread is not joinable...";
+  }
+
   // visualizer_thread_.join();
 
   LOG(INFO) << "All threads joined.";

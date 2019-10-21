@@ -14,12 +14,13 @@
 
 #include <gtsam/geometry/StereoCamera.h>
 #include <iostream>
-#include "Frame.h"
-#include "StereoFrame.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/Frame.h"
+#include "kimera-vio/StereoFrame.h"
 
 DECLARE_string(test_data_path);
 

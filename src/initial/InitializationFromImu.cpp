@@ -12,7 +12,7 @@
  * @author Antoni Rosinol
  */
 
-#include "initial/InitializationFromImu.h"
+#include "kimera-vio/initial/InitializationFromImu.h"
 
 namespace VIO {
 

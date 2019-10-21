@@ -258,6 +258,8 @@ The following are the gflags accepted by SparkVIO, this has been generated using
       adjustment in initialization.) type: double default: 1.5
     * use_feature_selection (Enable smart feature selection.) type: bool
       default: false
+    * use_lcd (Enable LoopClosureDetector processing in pipeline.) type: bool
+      default: false
     * visualize (Enable overall visualization.) type: bool default: true
     * visualize_lmk_type (Enable landmark type visualization.) type: bool
       default: false

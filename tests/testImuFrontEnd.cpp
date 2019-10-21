@@ -16,10 +16,10 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "imu-frontend/ImuFrontEnd-definitions.h"
-#include "imu-frontend/ImuFrontEnd.h"
-#include "imu-frontend/ImuFrontEndParams.h"
-#include "utils/ThreadsafeImuBuffer.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
+#include "kimera-vio/utils/ThreadsafeImuBuffer.h"
 
 namespace VIO {
 

@@ -12,8 +12,12 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "StereoFrame.h"
-#include "glog/logging.h"
+#include "kimera-vio/StereoFrame.h"
+
+#include <gflags/gflags.h>
+#include <glog/logging.h>
+
+#include <opencv2/core/core.hpp>
 
 DEFINE_bool(images_rectified, false, "Input image data already rectified.");
 

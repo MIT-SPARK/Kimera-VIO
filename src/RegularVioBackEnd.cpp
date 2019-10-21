@@ -18,14 +18,15 @@
  * @author Antoni Rosinol
  */
 
-#include "RegularVioBackEnd.h"
+#include "kimera-vio/RegularVioBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/ProjectionFactor.h>
 
-#include "factors/PointPlaneFactor.h"
+#include "kimera-vio/factors/PointPlaneFactor.h"
 
 DEFINE_int32(min_num_of_observations, 2,
              "Minimum number of observations for a feature track to be added "
@@ -596,7 +597,7 @@ bool RegularVioBackEnd::convertSmartToProjectionFactor(
       << "Landmark not found in old_smart_factors_.";
 
   SmartStereoFactor::shared_ptr old_factor = old_smart_factors_it->second.first;
-  CHECK_NOTNULL(old_factor.get());
+  CHECK(old_factor);
 
   // Add landmark value to graph.
   VLOG(30) << "Print old_factor of lmk_id: " << lmk_id;

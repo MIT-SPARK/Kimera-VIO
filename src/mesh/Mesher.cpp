@@ -12,7 +12,7 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "mesh/Mesher.h"
+#include "kimera-vio/mesh/Mesher.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -20,8 +20,8 @@
 #include <algorithm>
 #include <opencv2/imgproc.hpp>
 
-#include "utils/Statistics.h"
-#include "utils/Timer.h"
+#include "kimera-vio/utils/Statistics.h"
+#include "kimera-vio/utils/Timer.h"
 
 // General functionality for the mesher.
 DEFINE_bool(add_extra_lmks_from_stereo, false,
@@ -242,16 +242,16 @@ double Mesher::getRatioBetweenTangentialAndRadialDisplacement(
 
   // get 3D points
   gtsam::Point3 p1_C = gtsam::Point3(double(p1.x), double(p1.y), double(p1.z));
-  points.push_back(leftCameraPose.transform_to(
-      p1_C));  // checks elongation in *camera frame*
+  points.push_back(
+      leftCameraPose.transformTo(p1_C));  // checks elongation in *camera frame*
 
   gtsam::Point3 p2_C = gtsam::Point3(double(p2.x), double(p2.y), double(p2.z));
-  points.push_back(leftCameraPose.transform_to(
-      p2_C));  // checks elongation in *camera frame*
+  points.push_back(
+      leftCameraPose.transformTo(p2_C));  // checks elongation in *camera frame*
 
   gtsam::Point3 p3_C = gtsam::Point3(double(p3.x), double(p3.y), double(p3.z));
-  points.push_back(leftCameraPose.transform_to(
-      p3_C));  // checks elongation in *camera frame*
+  points.push_back(
+      leftCameraPose.transformTo(p3_C));  // checks elongation in *camera frame*
 
   return UtilsGeometry::getRatioBetweenTangentialAndRadialDisplacement(points);
 }
@@ -1342,7 +1342,7 @@ void Mesher::appendNonVioStereoPoints(
     // THIS IS NOT THREAD-SAFE
     if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID &&
         leftFrame.landmarks_.at(i) != -1) {
-      const gtsam::Point3& p_i_global = leftCameraPose.transform_from(
+      const gtsam::Point3& p_i_global = leftCameraPose.transformFrom(
           gtsam::Point3(stereoFrame->keypoints_3d_.at(i)));
       // Use insert() instead of [] operator, to make sure that if there is
       // already a point with the same lmk_id, we do not override it.
