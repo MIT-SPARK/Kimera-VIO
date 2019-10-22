@@ -1,6 +1,6 @@
 # Kimera-VIO Debugging and Evaluation
 
-Kimera-VIO comes with several tools for debugging issues in the VIO and loop-closure pipeline as well as tools for evaluating overall performance. The majority of Kimera's evaluation is handled by [`spark_vio_evaluation`](https://github.com/MIT-SPARK/Kimera-Evaluation) - this is the pipeline that is used to evaluate performance in Jenkins. However, for rapid testing the library comes with additional tools for evaluation in the form of Jupyter notebooks.
+Kimera-VIO comes with several tools for debugging issues in the VIO and loop-closure pipeline as well as tools for evaluating overall performance. The majority of Kimera's evaluation is handled by [`Kimera-Evaluation`](https://github.com/MIT-SPARK/Kimera-Evaluation) - this is the pipeline that is used to evaluate performance in Jenkins. However, for rapid testing the library comes with additional tools for evaluation in the form of Jupyter notebooks.
 
 ## General Debugging Tools
 
