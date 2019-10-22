@@ -133,6 +133,10 @@ We provide a ROS wrapper of Kimera-VIO that you can find at: https://github.com/
 
 This library can be cloned into a catkin workspace and built alongside the ROS wrapper.
 
+## iii. Evalation and Debugging
+
+For more information on tools for debugging and evaluating the pipeline, see [our documentation](/docs/kimeravio_debug_evaluation.md)
+
 # 3. Parameters
 Kimera-VIO accepts two independent sources of parameters:
 - YAML files: contains parameters for Backend and Frontend.
