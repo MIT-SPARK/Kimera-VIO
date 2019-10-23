@@ -24,18 +24,8 @@ endif()
 find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV 3.3.1 REQUIRED)
-
-### Find the DBoW2 package
-find_package(DBoW2)
-if(DBoW2_FOUND)
-  message(STATUS "FOUND DBoW2!")
-endif(DBoW2_FOUND)
-
-### Find the KimeraRPGO package
+find_package(DBoW2 REQUIRED)
 find_package(KimeraRPGO REQUIRED)
-if(KimeraRPGO_FOUND)
-  message(STATUS "FOUND KimeraRPGO!")
-endif(KimeraRPGO_FOUND)
 
 ### Unzip the vocabularly file
 message(STATUS "Unpacking BoW Vocabulary File.")
