@@ -32,7 +32,7 @@ if(DBoW2_FOUND)
 endif(DBoW2_FOUND)
 
 ### Find the KimeraRPGO package
-find_package(KimeraRPGO)
+find_package(KimeraRPGO REQUIRED)
 if(KimeraRPGO_FOUND)
   message(STATUS "FOUND KimeraRPGO!")
 endif(KimeraRPGO_FOUND)
