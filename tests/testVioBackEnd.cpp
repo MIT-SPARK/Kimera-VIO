@@ -26,7 +26,7 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
 
-#include "kimera-vio/VioBackEnd.h"
+#include "kimera-vio/backend/VioBackEnd.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/datasource/DataSource-definitions.h"  // only for gtNavState...
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"

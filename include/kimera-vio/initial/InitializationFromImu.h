@@ -16,9 +16,9 @@
 
 #include <gtsam/geometry/Pose3.h>
 
-#include "kimera-vio/StereoImuSyncPacket.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/datasource/DataSource-definitions.h"
+#include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
 namespace VIO {

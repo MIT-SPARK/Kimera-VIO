@@ -26,7 +26,7 @@
 
 #include <DBoW2/DBoW2.h>
 
-#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
