@@ -48,8 +48,8 @@
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 
 #include "kimera-vio/UtilsOpenCV.h"
-#include "kimera-vio/VioBackEnd-definitions.h"
-#include "kimera-vio/VioBackEndParams.h"
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackEndParams.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"

@@ -16,8 +16,8 @@
 
 #include <gflags/gflags.h>
 
-#include "kimera-vio/RegularVioBackEndParams.h"
-#include "kimera-vio/VioBackEndParams.h"
+#include "kimera-vio/backend/RegularVioBackEndParams.h"
+#include "kimera-vio/backend/VioBackEndParams.h"
 #include "kimera-vio/frontend/VioFrontEndParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 

@@ -26,7 +26,7 @@
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 

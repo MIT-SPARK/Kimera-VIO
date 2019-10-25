@@ -22,7 +22,7 @@
 #include <gtsam/nonlinear/Values.h>
 
 #include "kimera-vio/UtilsOpenCV.h"
-#include "kimera-vio/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/mesh/Mesher.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"

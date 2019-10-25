@@ -22,7 +22,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/highgui/highgui_c.h>
 
-#include "kimera-vio/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"

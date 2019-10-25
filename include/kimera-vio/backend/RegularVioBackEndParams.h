@@ -28,7 +28,7 @@
 
 #include <glog/logging.h>
 
-#include "kimera-vio/VioBackEndParams.h"
+#include "kimera-vio/backend/VioBackEndParams.h"
 
 namespace VIO {
 

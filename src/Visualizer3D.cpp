@@ -24,7 +24,7 @@
 #include <gflags/gflags.h>
 
 #include "kimera-vio/UtilsOpenCV.h"
-#include "kimera-vio/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/common/FilesystemUtils.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"

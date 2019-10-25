@@ -20,7 +20,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "kimera-vio/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 
 namespace VIO {

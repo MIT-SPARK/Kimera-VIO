@@ -19,7 +19,7 @@
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Pose3.h>
 
-#include "kimera-vio/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"

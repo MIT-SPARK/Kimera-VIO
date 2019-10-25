@@ -22,7 +22,7 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "kimera-vio/VioBackEnd.h"
+#include "kimera-vio/backend/VioBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>

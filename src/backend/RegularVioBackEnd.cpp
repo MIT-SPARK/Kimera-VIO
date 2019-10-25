@@ -18,7 +18,7 @@
  * @author Antoni Rosinol
  */
 
-#include "kimera-vio/RegularVioBackEnd.h"
+#include "kimera-vio/backend/RegularVioBackEnd.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
