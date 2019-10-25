@@ -28,8 +28,8 @@
 
 #include <glog/logging.h>
 
-#include "kimera-vio/YamlParser.h"
 #include "kimera-vio/datasource/DataSource-definitions.h"
+#include "kimera-vio/utils/YamlParser.h"
 
 namespace VIO {
 

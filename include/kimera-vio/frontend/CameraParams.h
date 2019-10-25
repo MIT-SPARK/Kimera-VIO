@@ -22,7 +22,7 @@
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
-#include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
 

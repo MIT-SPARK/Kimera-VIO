@@ -9,10 +9,11 @@
 /**
  * @file   UtilsGeometry.h
  * @brief  Utilities to compute geometric quantities
- * @author Luca Carlone, Antoni Rosinol
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
-#include "kimera-vio/UtilsGeometry.h"
+#include "kimera-vio/utils/UtilsGeometry.h"
 
 #include <algorithm>
 #include <limits>

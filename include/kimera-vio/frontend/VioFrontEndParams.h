@@ -24,9 +24,9 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "kimera-vio/UtilsOpenCV.h"
-#include "kimera-vio/YamlParser.h"
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
+#include "kimera-vio/utils/YamlParser.h"
 
 namespace VIO {
 

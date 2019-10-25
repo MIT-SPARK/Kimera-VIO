@@ -30,11 +30,11 @@
 #include <gtsam/geometry/CameraSet.h>
 #include <gtsam/inference/Symbol.h>
 
-#include "kimera-vio/UtilsOpenCV.h"
 #include "kimera-vio/backend/VioBackEndParams.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 //#define useSpectra
 #ifdef useSpectra

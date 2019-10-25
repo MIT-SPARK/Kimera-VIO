@@ -34,8 +34,8 @@
 #include <gtsam/geometry/PinholeCamera.h>
 #include <gtsam/geometry/Point3.h>
 
-#include "kimera-vio/UtilsOpenCV.h"
 #include "kimera-vio/frontend/CameraParams.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
 

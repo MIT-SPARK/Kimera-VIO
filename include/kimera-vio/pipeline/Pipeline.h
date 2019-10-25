@@ -22,7 +22,6 @@
 #include <utility>  // for make_pair
 #include <vector>
 
-#include "kimera-vio/Visualizer3D.h"
 #include "kimera-vio/datasource/DataSource-definitions.h"  // Only used for gtNavState, add it to vio_types.h instead...
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
@@ -31,6 +30,7 @@
 #include "kimera-vio/mesh/Mesher.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/visualizer/Visualizer3D.h"
 
 namespace VIO {
 // Forward-declare classes.

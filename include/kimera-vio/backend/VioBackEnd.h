@@ -47,7 +47,6 @@
 #include <gtsam/nonlinear/LinearContainerFactor.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 
-#include "kimera-vio/UtilsOpenCV.h"
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEndParams.h"
 #include "kimera-vio/factors/PointPlaneFactor.h"
@@ -55,6 +54,7 @@
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
 

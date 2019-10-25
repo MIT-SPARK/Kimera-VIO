@@ -12,7 +12,7 @@
  * @author Antoni Rosinol, AJ Haeffner, Luca Carlone
  */
 
-#include "kimera-vio/Visualizer3D.h"
+#include "kimera-vio/visualizer/Visualizer3D.h"
 
 #include <algorithm>      // for min
 #include <memory>         // for shared_ptr<>
@@ -23,11 +23,11 @@
 
 #include <gflags/gflags.h>
 
-#include "kimera-vio/UtilsOpenCV.h"
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/common/FilesystemUtils.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 #include "kimera-vio/factors/PointPlaneFactor.h"  // For visualization of constraints.
 

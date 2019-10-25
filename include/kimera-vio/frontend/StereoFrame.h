@@ -35,9 +35,9 @@
 #include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/geometry/StereoPoint2.h>
 
-#include "kimera-vio/UtilsGeometry.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame-definitions.h"
+#include "kimera-vio/utils/UtilsGeometry.h"
 
 namespace VIO {
 
