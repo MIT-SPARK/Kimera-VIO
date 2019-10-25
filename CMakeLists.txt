@@ -9,11 +9,12 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-message(STATUS "===============================================================")
-message(STATUS "====================  Dependencies ============================")
+message(STATUS "==============================================================")
+message(STATUS "====================  Dependencies ===========================")
 
 ### System Dependencies
-find_package(Boost REQUIRED COMPONENTS filesystem serialization regex timer date_time thread)
+find_package(Boost REQUIRED COMPONENTS
+  filesystem serialization regex timer date_time thread)
 if(NOT TARGET Boost::boost)
   add_library(Boost::boost INTERFACE IMPORTED)
   set_target_properties(Boost::boost PROPERTIES
@@ -24,18 +25,8 @@ endif()
 find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV 3.3.1 REQUIRED)
-
-### Find the DBoW2 package
-find_package(DBoW2)
-if(DBoW2_FOUND)
-  message(STATUS "FOUND DBoW2!")
-endif(DBoW2_FOUND)
-
-### Find the KimeraRPGO package
-find_package(KimeraRPGO)
-if(KimeraRPGO_FOUND)
-  message(STATUS "FOUND KimeraRPGO!")
-endif(KimeraRPGO_FOUND)
+find_package(DBoW2 REQUIRED)
+find_package(KimeraRPGO REQUIRED)
 
 ### Unzip the vocabularly file
 message(STATUS "Unpacking BoW Vocabulary File.")
@@ -50,26 +41,20 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
-add_library(KimeraVIO SHARED
-  src/StereoVisionFrontEnd.cpp
-  src/Tracker.cpp
-  src/StereoFrame.cpp
-  src/StereoImuSyncPacket.cpp
-  src/UtilsGeometry.cpp
-  src/UtilsOpenCV.cpp
-  src/VioBackEnd.cpp
-  src/RegularVioBackEnd.cpp
-  src/Histogram.cpp
-  src/FeatureSelector.cpp
-  src/CameraParams.cpp
-  src/Visualizer3D.cpp "")
-
-# Add an alias so that library can be used inside the build tree, e.g. when testing
+add_library(KimeraVIO SHARED "")
+# Add an alias so that library can be used inside the build tree,
+# e.g. when testing
 add_library(KimeraVIO::KimeraVIO ALIAS KimeraVIO)
 
 ### Add source code for data provider.
 include(include/kimera-vio/datasource/CMakeLists.txt)
 include(src/datasource/CMakeLists.txt)
+### Add source code for frontend.
+include(include/kimera-vio/frontend/CMakeLists.txt)
+include(src/frontend/CMakeLists.txt)
+### Add source code for backend.
+include(include/kimera-vio/backend/CMakeLists.txt)
+include(src/backend/CMakeLists.txt)
 ### Add source code for factors
 include(include/kimera-vio/factors/CMakeLists.txt)
 include(src/factors/CMakeLists.txt)
@@ -88,7 +73,7 @@ include(src/pipeline/CMakeLists.txt)
 ### Add source code for common
 include(include/kimera-vio/common/CMakeLists.txt)
 include(src/common/CMakeLists.txt)
-### Add source code for LoopClosureDetector
+### Add source code for loopclosure
 include(include/kimera-vio/loopclosure/CMakeLists.txt)
 include(src/loopclosure/CMakeLists.txt)
 ### Add source code for logging
@@ -97,6 +82,9 @@ include(src/logging/CMakeLists.txt)
 ### Add source code for imu frontend
 include(include/kimera-vio/imu-frontend/CMakeLists.txt)
 include(src/imu-frontend/CMakeLists.txt)
+### Add source code for visualizer.
+include(include/kimera-vio/visualizer/CMakeLists.txt)
+include(src/visualizer/CMakeLists.txt)
 
 target_link_libraries(KimeraVIO
   PRIVATE
@@ -105,27 +93,28 @@ target_link_libraries(KimeraVIO
     KimeraRPGO
   PUBLIC
     Boost::boost
-    ${OpenCV_LIBRARIES} # TODO: modernize
+    ${OpenCV_LIBRARIES}
     gflags::gflags
     glog::glog
     gtsam
     gtsam_unstable
-)
+ )
 target_include_directories(KimeraVIO
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-  )
+)
 
 target_compile_options(KimeraVIO
   PRIVATE -Wall -pipe
-  PRIVATE -march=native)
+  PRIVATE -march=native
+)
 
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(KimeraVIO PUBLIC
-        cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override ) # And many more
+        cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override)
 
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
@@ -298,10 +287,6 @@ list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
 export(TARGETS KimeraVIO ${EXPORTED_DEPENDENCIES}
        FILE KimeraVIOTargets.cmake)
 export(PACKAGE KimeraVIO)
-
-### SIYI's way of exporting.
-##target_include_directories(stereoVIO PUBLIC "./src" ${Boost_INCLUDE_DIRS} ${GTSAM_INCLUDE_DIR} "/usr/local/include/opengv/" ${OpenCV_INCLUDE_DIRS} ${GFLAGS_INCLUDE_DIRS} ${GLOG_INCLUDE_DIRS})
-##export(TARGETS stereoVIO FILE stereoVIO.cmake)
 
 ###############################################################################
 # Print configuration variables

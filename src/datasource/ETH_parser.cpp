@@ -19,7 +19,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
 DEFINE_int32(skip_n_start_frames,

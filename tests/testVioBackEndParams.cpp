@@ -21,7 +21,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/VioBackEndParams.h"
+#include "kimera-vio/backend/VioBackEndParams.h"
 
 DECLARE_string(test_data_path);
 

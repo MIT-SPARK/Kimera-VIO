@@ -18,7 +18,7 @@
 
 #include <gtsam/navigation/AHRSFactor.h>
 
-#include "kimera-vio/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 
 namespace VIO {
 

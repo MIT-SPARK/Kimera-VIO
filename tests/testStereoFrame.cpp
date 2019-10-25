@@ -21,9 +21,9 @@
 
 #include <gtsam/geometry/StereoCamera.h>
 
-#include "kimera-vio/Frame.h"
-#include "kimera-vio/StereoFrame.h"
-#include "kimera-vio/VioFrontEndParams.h"
+#include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/VioFrontEndParams.h"
 
 DECLARE_string(test_data_path);
 
