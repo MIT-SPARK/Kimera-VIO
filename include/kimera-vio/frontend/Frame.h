@@ -12,8 +12,7 @@
  * @author Luca Carlone
  */
 
-#ifndef Frame_H_
-#define Frame_H_
+#pragma once
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,8 +34,8 @@
 #include <gtsam/geometry/PinholeCamera.h>
 #include <gtsam/geometry/Point3.h>
 
-#include "kimera-vio/CameraParams.h"
 #include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/frontend/CameraParams.h"
 
 namespace VIO {
 
@@ -370,4 +369,3 @@ class Frame {
 };
 
 }  // namespace VIO
-#endif /* Frame_H_ */

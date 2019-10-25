@@ -18,7 +18,7 @@
 
 #include "kimera-vio/RegularVioBackEndParams.h"
 #include "kimera-vio/VioBackEndParams.h"
-#include "kimera-vio/VioFrontEndParams.h"
+#include "kimera-vio/frontend/VioFrontEndParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
 DEFINE_string(vio_params_path, "", "Path to vio user-defined parameters.");

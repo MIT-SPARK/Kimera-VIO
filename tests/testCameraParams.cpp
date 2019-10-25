@@ -24,8 +24,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/CameraParams.h"
 #include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/frontend/CameraParams.h"
 
 DECLARE_string(test_data_path);
 

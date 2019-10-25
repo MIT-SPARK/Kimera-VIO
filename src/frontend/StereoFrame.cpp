@@ -12,7 +12,7 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/frontend/StereoFrame.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>

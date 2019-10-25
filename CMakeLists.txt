@@ -51,17 +51,11 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
 add_library(KimeraVIO SHARED
-  src/StereoVisionFrontEnd.cpp
-  src/Tracker.cpp
-  src/StereoFrame.cpp
-  src/StereoImuSyncPacket.cpp
   src/UtilsGeometry.cpp
   src/UtilsOpenCV.cpp
   src/VioBackEnd.cpp
   src/RegularVioBackEnd.cpp
   src/Histogram.cpp
-  src/FeatureSelector.cpp
-  src/CameraParams.cpp
   src/Visualizer3D.cpp "")
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
@@ -70,6 +64,9 @@ add_library(KimeraVIO::KimeraVIO ALIAS KimeraVIO)
 ### Add source code for data provider.
 include(include/kimera-vio/datasource/CMakeLists.txt)
 include(src/datasource/CMakeLists.txt)
+### Add source code for frontend.
+include(include/kimera-vio/frontend/CMakeLists.txt)
+include(src/frontend/CMakeLists.txt)
 ### Add source code for factors
 include(include/kimera-vio/factors/CMakeLists.txt)
 include(src/factors/CMakeLists.txt)

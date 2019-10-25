@@ -27,14 +27,14 @@
 
 #include <gtsam/geometry/StereoCamera.h>
 
-#include "kimera-vio/Frame.h"
-#include "kimera-vio/StereoFrame.h"
-#include "kimera-vio/Tracker-definitions.h"
 #include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/frontend/FeatureSelector.h"
+#include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/Tracker-definitions.h"
 
 // implementation of feature selector, still within the tracker class
 #include <gtsam/nonlinear/Marginals.h>
-#include "kimera-vio/FeatureSelector.h"
 
 namespace VIO {
 

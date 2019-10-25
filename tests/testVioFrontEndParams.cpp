@@ -21,9 +21,9 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/CameraParams.h"
-#include "kimera-vio/Frame.h"
-#include "kimera-vio/VioFrontEndParams.h"
+#include "kimera-vio/frontend/CameraParams.h"
+#include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/VioFrontEndParams.h"
 
 DECLARE_string(test_data_path);
 

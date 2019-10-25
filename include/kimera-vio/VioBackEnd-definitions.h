@@ -25,10 +25,10 @@
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 #include <gtsam_unstable/slam/SmartStereoProjectionPoseFactor.h>
 
-#include "kimera-vio/StereoVisionFrontEnd-definitions.h"
-#include "kimera-vio/Tracker-definitions.h"
 #include "kimera-vio/UtilsOpenCV.h"
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 

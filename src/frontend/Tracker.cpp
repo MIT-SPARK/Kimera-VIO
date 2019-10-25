@@ -4,7 +4,7 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include "kimera-vio/Tracker.h"
+#include "kimera-vio/frontend/Tracker.h"
 
 #include <string>
 #include <algorithm>   // for sort

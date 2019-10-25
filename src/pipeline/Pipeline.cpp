@@ -25,7 +25,7 @@
 #include <gtsam/geometry/Pose3.h>
 
 #include "kimera-vio/RegularVioBackEnd.h"
-#include "kimera-vio/StereoVisionFrontEnd.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 

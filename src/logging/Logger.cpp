@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "kimera-vio/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 

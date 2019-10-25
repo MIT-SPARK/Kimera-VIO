@@ -14,9 +14,9 @@
 
 #pragma once
 
-#include "kimera-vio/StereoFrame-definitions.h"
-#include "kimera-vio/Tracker.h"
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/StereoFrame-definitions.h"
+#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 
 namespace VIO {

@@ -22,12 +22,12 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/highgui/highgui_c.h>
 
-#include "kimera-vio/StereoFrame.h"
-#include "kimera-vio/StereoImuSyncPacket.h"
-#include "kimera-vio/StereoVisionFrontEnd-definitions.h"
-#include "kimera-vio/Tracker-definitions.h"
-#include "kimera-vio/Tracker.h"
 #include "kimera-vio/VioBackEnd-definitions.h"
+#include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/StereoImuSyncPacket.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/frontend/Tracker-definitions.h"
+#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
