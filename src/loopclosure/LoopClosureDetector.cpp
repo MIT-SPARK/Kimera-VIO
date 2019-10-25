@@ -153,9 +153,9 @@ bool LoopClosureDetector::spin(
                      << 1000.0 / spin_duration << " Hz. (" << spin_duration
                      << " ms).";
       } else {
-        LOG(ERROR) << "LoopClosureDetector: No output callback registered. "
-                   << "Either register a callback or disable LCD with "
-                   << "flag use_lcd=false.";
+        LOG(WARNING) << "LoopClosureDetector: No output callback registered. "
+                     << "Either register a callback or disable LCD with "
+                     << "flag use_lcd=false.";
       }
 
     } else {
