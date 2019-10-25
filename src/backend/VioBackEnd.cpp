@@ -1903,12 +1903,12 @@ void VioBackEnd::computeSparsityStatistics() {
   CHECK_EQ(Hessian.rows(), Hessian.cols())
       << "computeSparsityStatistics: hessian is not a square matrix?";
 
-  LOG(INFO) << "Hessian stats: ===========\n"
-            << "rows: " << Hessian.rows() << '\n'
-            << "nrElementsInMatrix_: " << debug_info_.nrElementsInMatrix_
-            << '\n'
-            << "nrZeroElementsInMatrix_: "
-            << debug_info_.nrZeroElementsInMatrix_;
+  VLOG(10) << "Hessian stats: ===========\n"
+           << "rows: " << Hessian.rows() << '\n'
+           << "nrElementsInMatrix_: " << debug_info_.nrElementsInMatrix_
+           << '\n'
+           << "nrZeroElementsInMatrix_: "
+           << debug_info_.nrZeroElementsInMatrix_;
 }
 
 /* -------------------------------------------------------------------------- */
