@@ -27,10 +27,10 @@
 
 #include <KimeraRPGO/RobustSolver.h>
 
-#include "kimera-vio/UtilsOpenCV.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 DEFINE_string(vocabulary_path,
               "../vocabulary/ORBvoc.yml",

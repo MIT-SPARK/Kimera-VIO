@@ -15,8 +15,8 @@
 
 #include <opencv2/core/core.hpp>
 
-#include "kimera-vio/StereoFrame.h"
-#include "kimera-vio/StereoImuSyncPacket.h"
+#include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/StereoImuSyncPacket.h"
 
 namespace VIO {
 

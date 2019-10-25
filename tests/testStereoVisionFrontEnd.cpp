@@ -24,11 +24,11 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/CameraParams.h"
-#include "kimera-vio/Frame.h"
-#include "kimera-vio/StereoFrame.h"
-#include "kimera-vio/StereoVisionFrontEnd.h"
-#include "kimera-vio/Tracker.h"
+#include "kimera-vio/frontend/CameraParams.h"
+#include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd.h"
+#include "kimera-vio/frontend/Tracker.h"
 
 DECLARE_string(test_data_path);
 
