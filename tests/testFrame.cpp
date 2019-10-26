@@ -9,15 +9,17 @@
 /**
  * @file   testFrame.h
  * @brief  test Frame
+ * @author Antoni Rosinol
  * @author Luca Carlone
  */
-
-#include "Frame.h"
-DECLARE_string(test_data_path);
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/frontend/Frame.h"
+
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;

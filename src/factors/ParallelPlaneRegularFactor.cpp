@@ -5,7 +5,7 @@
  *      Author: Antoni Rosinol
  */
 
-#include "ParallelPlaneRegularFactor.h"
+#include "kimera-vio/factors/ParallelPlaneRegularFactor.h"
 
 namespace gtsam {
 

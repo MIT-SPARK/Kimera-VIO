@@ -1,5 +1,25 @@
-Tips for usage
-----------------------
+# Tips for usage
+
+## General
+
+- Sequential/Parallel mode: gflag `parallel_run`
+    - Running in parallel (default): `parallel_run=1`.
+    - Running in sequential mode: `parallel_run=0`. Or, if using the example script, use the `-s` flag at commandline.
+- Log output in csv files: gflag `log_output=true`. Or, if using the example script, use the `-log` commandline argument. By default, log files will be saved in `output_logs` directory.
+
+## Loop Closure Detector
+
+- Enable Loop Closures: `use_lcd=true` gflag (disabled by default). Or, pass `-lcd` to the example script to turn on the LoopClosureDetector module: 
+
+```./scripts/stereoVIOEUROC.bash -p "PATH_TO_DATASET/V1_01_easy" -lcd```
+
+## Structural Regularities
+
+  - You can run Kimera-VIO using structural regularities, as in our [ICRA 2019 paper](https://ieeexplore.ieee.org/abstract/document/8794456), by specifying the option `-r`: 
+  
+  ```./stereoVIOEuroc.bash -p "PATH_TO_DATASET/V1_01_easy" -r```
+
+## 3D Visualizer
 - The 3D Visualization window implements the following keyboard shortcuts (you need to have the window in focus: click on it):
     - Press `t`: toggle freezing visualization.
     - Press `v`: prints pose of the current viewpoint of the 3D visualization window.

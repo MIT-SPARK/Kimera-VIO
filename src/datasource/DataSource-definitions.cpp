@@ -11,7 +11,7 @@
  * @brief  Base implementation of a data provider for the VIO pipeline.
  * @author Antoni Rosinol
  */
-#include "datasource/DataSource-definitions.h"
+#include "kimera-vio/datasource/DataSource-definitions.h"
 
 #include <fstream>
 
@@ -59,11 +59,11 @@ bool CameraImageLists::parseCamImgList(const std::string& folderpath,
     // Print the item!
     int idx = item.find_first_of(',');
     Timestamp timestamp = std::stoll(item.substr(0, idx));
-    std::string imageFilename =
+    std::string image_filename =
         folderpath + "/data/" + item.substr(0, idx) + ".png";
     // Strangely, on mac, it does not work if we use: item.substr(idx + 1);
     // maybe different string termination characters???
-    img_lists.push_back(make_pair(timestamp, imageFilename));
+    img_lists_.push_back(make_pair(timestamp, image_filename));
   }
   fin.close();
   return true;
@@ -73,7 +73,7 @@ bool CameraImageLists::parseCamImgList(const std::string& folderpath,
 void CameraImageLists::print() const {
   LOG(INFO) << "------------ CameraImageLists::print -------------\n"
             << "image_folder_path: " << image_folder_path_ << '\n'
-            << "img_lists size: " << img_lists.size();
+            << "img_lists size: " << img_lists_.size();
 }
 
 void GroundTruthData::print() const {

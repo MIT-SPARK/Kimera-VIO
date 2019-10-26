@@ -16,11 +16,12 @@
 #include <cstdlib>
 #include <iostream>
 #include <random>
-#include "VioBackEndParams.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/backend/VioBackEndParams.h"
 
 DECLARE_string(test_data_path);
 

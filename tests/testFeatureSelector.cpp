@@ -18,19 +18,17 @@
  * @author Luca Carlone
  */
 
-#include <glog/logging.h>
-
 #include <gtsam/inference/Ordering.h>
 #include <gtsam/linear/GaussianFactorGraph.h>
 #include <gtsam/navigation/ImuBias.h>
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/PriorFactor.h>
-#include "FeatureSelector.h"
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/frontend/FeatureSelector.h"
 
 using namespace gtsam;
 using namespace std;
@@ -374,7 +372,7 @@ TEST(FeatureSelector, DISABLED_GetVersorIfInFOV) {
         break;
     }
     // check that points in FOV are calibrated correctly
-    EXPECT_TRUE(assert_equal(Unit3((cam.pose().transform_to(p)).vector()),
+    EXPECT_TRUE(assert_equal(Unit3((cam.pose().transformTo(p)).vector()),
                              *FeatureSelector::GetVersorIfInFOV(cam, p)));
 
     // check that point far away does not pass check (set max distance = 1m)
@@ -490,7 +488,7 @@ TEST(FeatureSelector, createLinearVisionFactor_And_SchurComplement) {
        i++) {  // for each camera we create 2 jacobian factors (left, right)
     for (size_t j = 0; j < 2; j++) {  // for left and right
       Pose3 pose = featureSelectionData.posesAtFutureKeyframes.at(i).pose;
-      Unit3 uij = Unit3(pose.transform_to(pworld_l).vector());
+      Unit3 uij = Unit3(pose.transformTo(pworld_l).vector());
       Matrix3 M33 = uij.skew() * pose.rotation().transpose();
       Matrix M39 = Matrix::Zero(3, 9);
       M39.block<3, 3>(0, 0) = -M33;
@@ -530,7 +528,7 @@ Matrix schurComplementTest(Point3 pworld_l,
       else
         pose = posesAtFutureKeyframes.at(i).pose.compose(b_P_RCam);
 
-      Unit3 uij = Unit3(pose.transform_to(pworld_l).vector());
+      Unit3 uij = Unit3(pose.transformTo(pworld_l).vector());
       Matrix3 M33 = uij.skew() * pose.rotation().transpose();
       Matrix M39 = Matrix::Zero(3, 9);
       M39.block<3, 3>(0, 0) = -M33;
@@ -633,7 +631,7 @@ GaussianFactorGraph::shared_ptr createOmegaBarTest() {
   Point3 pworld_l =
       cam.backproject(Point2(320, 200), 2.0);  // backprojected 2 meters away
   featureSelectionData.keypoints_3d.push_back(
-      pose0.transform_to(pworld_l));  // convert to local frame
+      pose0.transformTo(pworld_l));  // convert to local frame
   featureSelectionData.keypointLife.push_back(3);
 
   // instantiate selector
@@ -952,7 +950,7 @@ TEST(FeatureSelector, createDeltas) {
   Point3 pworld_l =
       cam.backproject(Point2(320, 200), 2.0);  // backprojected 2 meters away
   featureSelectionData.keypoints_3d.push_back(
-      spose0.pose.transform_to(pworld_l));  // convert to local frame
+      spose0.pose.transformTo(pworld_l));  // convert to local frame
   featureSelectionData.keypointLife.push_back(3);
 
   // instantiate selector

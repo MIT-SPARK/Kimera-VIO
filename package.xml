@@ -1,13 +1,19 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>SparkVio</name>
+  <name>KimeraVIO</name>
   <version>0.0.1</version>
-  <description>SparkVio</description>
+  <description>KimeraVIO</description>
 
   <maintainer email="mhkabir@mit.edu"></maintainer>
   <license>BSD</license>
 
   <buildtool_depend>cmake</buildtool_depend>
+
+  <depend>KimeraRPGO</depend>
+  <depend>GTSAM</depend>
+  <depend>opencv3_catkin</depend>
+  <depend>opengv_catkin</depend>
+  <depend>dbow2_catkin</depend>
   <export>
     <!-- Specify that this is not really a catkin package-->
     <build_type>cmake</build_type>

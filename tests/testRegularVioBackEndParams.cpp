@@ -16,14 +16,14 @@
 #include <cstdlib>
 #include <iostream>
 #include <random>
-#include "RegularVioBackEndParams.h"
-DECLARE_string(test_data_path);
 
 #include <glog/logging.h>
-
 #include <gflags/gflags.h>
-#include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/backend/RegularVioBackEndParams.h"
+
+DECLARE_string(test_data_path);
 
 using namespace gtsam;
 using namespace std;

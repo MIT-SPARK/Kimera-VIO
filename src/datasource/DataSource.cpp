@@ -12,23 +12,24 @@
  * @author Antoni Rosinol
  */
 
-#include "datasource/DataSource.h"
+#include "kimera-vio/datasource/DataSource.h"
 
 #include <gflags/gflags.h>
 
-#include "RegularVioBackEndParams.h"
-#include "VioBackEndParams.h"
-#include "VioFrontEndParams.h"
-#include "imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/backend/RegularVioBackEndParams.h"
+#include "kimera-vio/backend/VioBackEndParams.h"
+#include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
 DEFINE_string(vio_params_path, "", "Path to vio user-defined parameters.");
 DEFINE_string(tracker_params_path, "",
               "Path to tracker user-defined parameters.");
+DEFINE_string(lcd_params_path, "",
+              "Path to loop-closure-detector user-defined parameters.");
 DEFINE_int32(backend_type, 0,
              "Type of vioBackEnd to use:\n"
              "0: VioBackEnd\n"
              "1: RegularVioBackEnd");
-
 DEFINE_int64(initial_k, 50,
              "Initial frame to start processing dataset, "
              "previous frames will not be used.");
@@ -40,19 +41,20 @@ DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
 
 namespace VIO {
 
-DataProvider::DataProvider() :
-    initial_k_(FLAGS_initial_k),
-    final_k_(FLAGS_final_k),
-    dataset_path_(FLAGS_dataset_path) {
-
+DataProvider::DataProvider(int initial_k,
+                           int final_k,
+                           const std::string& dataset_path)
+    : initial_k_(initial_k), final_k_(final_k), dataset_path_(dataset_path) {
   CHECK(final_k_ > initial_k_)
       << "Value for final_k (" << final_k_
       << ") is smaller than value for"
       << " initial_k (" << initial_k_ << ").";
-
   LOG(INFO) << "Running dataset between frame " << initial_k_
           << " and frame " << final_k_;
 }
+
+DataProvider::DataProvider()
+    : DataProvider(FLAGS_initial_k, FLAGS_final_k, FLAGS_dataset_path) {}
 
 DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";
@@ -149,6 +151,20 @@ void DataProvider::parseFrontendParams() {
               << FLAGS_tracker_params_path;
     pipeline_params_.frontend_params_.parseYAML(FLAGS_tracker_params_path);
   }
+  CHECK_NOTNULL(&pipeline_params_.frontend_params_);
+}
+
+void DataProvider::parseLCDParams() {
+  // Read/define LCD params.
+  if (FLAGS_lcd_params_path.empty()) {
+    VLOG(100) << "No LoopClosureDetector parameters specified, using default";
+    pipeline_params_.lcd_params_ = LoopClosureDetectorParams();
+  } else {
+    VLOG(100) << "Using user-specified LoopClosureDetector parameters: "
+              << FLAGS_lcd_params_path;
+    pipeline_params_.lcd_params_.parseYAML(FLAGS_lcd_params_path);
+  }
+  CHECK_NOTNULL(&pipeline_params_.lcd_params_);
 }
 
 }  // namespace VIO

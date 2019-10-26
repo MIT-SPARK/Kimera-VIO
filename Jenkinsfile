@@ -1,6 +1,7 @@
 /* Jenkinsfile for Jenkins running in a server using docker.
  * Run the following command to mount EUROC dataset and be able to run VIO evaluation on it:
  * sudo docker run -it -u root --rm -d -p 8080:8080 -p 50000:50000 -v /home/sparklab/Datasets/euroc:/Datasets/euroc -v jenkins-data:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock jenkinsci/blueocean
+ * Periodically, you might need to clean disk space, run: `docker system prune -a` while running jenkins (but stop all jobs).
  * If you want to enable HTML reports in Jenkins, further call:
  * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
  * in the Script console in Jenkins' administration section.
@@ -26,7 +27,7 @@ pipeline {
     stage('Test') {
       steps {
         wrap([$class: 'Xvfb']) {
-          sh 'cd build && ./testSparkVio --gtest_output="xml:testresults.xml"'
+          sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
         }
       }
     }
@@ -50,7 +51,6 @@ pipeline {
 
           // Copy performance website to Workspace
           sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
-
         }
       }
     }
@@ -96,7 +96,7 @@ pipeline {
       // Process the CTest xml output
       junit 'build/testresults.xml'
 
-      // Clear the source and build dirs before next run
+      // Clear the source and build dirs before the next run
       deleteDir()
     }
     success {
@@ -111,6 +111,11 @@ pipeline {
     unstable {
       echo 'Unstable!'
       slackSend color: 'warning', message: "Unstable - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+    }
+    cleanup {
+      // Clear the source and build dirs before next run
+      // TODO this might delete the .csv file for plots?
+      cleanWs()
     }
   }
   options {

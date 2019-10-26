@@ -26,13 +26,13 @@
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/navigation/ImuBias.h>
 
-#include "VioBackEnd.h"
-#include "common/vio_types.h"
-#include "datasource/DataSource-definitions.h"  // only for gtNavState...
-#include "imu-frontend/ImuFrontEnd-definitions.h"
-#include "imu-frontend/ImuFrontEndParams.h"
-#include "initial/InitializationBackEnd.h"
-#include "utils/ThreadsafeImuBuffer.h"
+#include "kimera-vio/backend/VioBackEnd.h"
+#include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/datasource/DataSource-definitions.h"  // only for gtNavState...
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
+#include "kimera-vio/initial/InitializationBackEnd.h"
+#include "kimera-vio/utils/ThreadsafeImuBuffer.h"
 
 DECLARE_string(test_data_path);
 

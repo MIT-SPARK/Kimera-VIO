@@ -23,3 +23,6 @@
 *.mp4
 
 /scripts/*.yaml
+
+% ignore large vocabulary files (unzipped)
+/vocabulary/*.yml

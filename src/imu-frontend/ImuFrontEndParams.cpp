@@ -12,7 +12,7 @@
  * @author Antoni Rosinol
  */
 
-#include "imu-frontend/ImuFrontEndParams.h"
+#include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 
 #include <glog/logging.h>
 

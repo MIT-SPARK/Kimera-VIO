@@ -22,7 +22,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "utils/ThreadsafeQueue.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 void consumer(ThreadsafeQueue<std::string>& q,  // NOLINT
               const std::atomic_bool& kill_switch) {
