@@ -24,9 +24,9 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/viz/vizcore.hpp>
 
-#include "kimera-vio/Histogram.h"
-#include "kimera-vio/StereoFrame.h"
+#include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/mesh/Mesh.h"
+#include "kimera-vio/utils/Histogram.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {

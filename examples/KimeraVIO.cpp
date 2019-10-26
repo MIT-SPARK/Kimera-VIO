@@ -20,9 +20,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "kimera-vio/StereoImuSyncPacket.h"
 #include "kimera-vio/datasource/ETH_parser.h"
 #include "kimera-vio/datasource/KittiDataSource.h"
+#include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/Pipeline.h"
 #include "kimera-vio/utils/Statistics.h"

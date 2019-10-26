@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include "kimera-vio/VioBackEndParams.h"
-#include "kimera-vio/VioFrontEndParams.h"
+#include "kimera-vio/backend/VioBackEndParams.h"
+#include "kimera-vio/frontend/VioFrontEndParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 

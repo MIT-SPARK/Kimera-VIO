@@ -28,7 +28,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/FeatureSelector.h"
+#include "kimera-vio/frontend/FeatureSelector.h"
 
 using namespace gtsam;
 using namespace std;

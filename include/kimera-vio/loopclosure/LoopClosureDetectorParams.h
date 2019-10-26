@@ -21,8 +21,8 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "kimera-vio/YamlParser.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
+#include "kimera-vio/utils/YamlParser.h"
 
 namespace VIO {
 

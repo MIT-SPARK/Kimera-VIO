@@ -13,7 +13,7 @@
 # Kimera-VIO: Open-Source Visual Inertial Odometry
 
 [![Build Status](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/badge/icon)](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/)
-For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080/job/VIO/job/master/VIO_20Euroc_20Performance_20Report/plots.html#V1_01_easy).
+For evaluation plots, check our [jenkins server](http://ci-sparklab.mit.edu:8080/job/MIT-SPARK-Kimera/job/master/VIO_20Euroc_20Performance_20Report/plots.html#V1_01_easy).
 
 **Authors:** [Antoni Rosinol](https://www.mit.edu/~arosinol/), Yun Chang, Marcus Abate, Sandro Berchier, [Luca Carlone](https://lucacarlone.mit.edu/)
 
