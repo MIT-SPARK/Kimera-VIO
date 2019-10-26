@@ -15,9 +15,9 @@
 
 #include <glog/logging.h>
 
-#include "kimera-vio/UtilsOpenCV.h"
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
 

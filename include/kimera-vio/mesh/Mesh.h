@@ -21,7 +21,7 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/viz/types.hpp>  // Just for color type.
 
-#include "kimera-vio/UtilsOpenCV.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
 

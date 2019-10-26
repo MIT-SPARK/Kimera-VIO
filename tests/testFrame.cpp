@@ -17,7 +17,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/Frame.h"
+#include "kimera-vio/frontend/Frame.h"
 
 DECLARE_string(test_data_path);
 

@@ -17,8 +17,8 @@
 #include <functional>
 #include <string>
 
-#include "kimera-vio/StereoImuSyncPacket.h"
 #include "kimera-vio/datasource/DataSource.h"
+#include "kimera-vio/frontend/StereoImuSyncPacket.h"
 
 namespace VIO {
 
