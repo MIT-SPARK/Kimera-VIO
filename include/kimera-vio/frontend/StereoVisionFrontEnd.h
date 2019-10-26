@@ -52,7 +52,7 @@ public:
 
  /* ------------------------------------------------------------------------- */
  bool spin(ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
-           ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue,
+           ThreadsafeQueue<StereoFrontEndOutputPayload::Ptr>& output_queue,
            bool parallel_run = true);
 
  /* ------------------------------------------------------------------------- */
@@ -158,7 +158,7 @@ public:
 
   // private: // TODO: Fix access to this function. Is this thread safe???
   /* ------------------------------------------------------------------------ */
-  StereoFrontEndOutputPayload spinOnce(
+  StereoFrontEndOutputPayload::UniquePtr spinOnce(
       const std::shared_ptr<StereoFrontEndInputPayload>& input);
 
   /* ------------------------------------------------------------------------ */

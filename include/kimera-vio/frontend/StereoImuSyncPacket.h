@@ -84,10 +84,10 @@ class StereoImuSyncPacket {
   // WARNING do not use constructor params after being moved with
   // std::move as they are left in an invalid state!!
   StereoImuSyncPacket() = delete;
-  StereoImuSyncPacket(StereoFrame stereo_frame,
-                      ImuStampS imu_stamps,
-                      ImuAccGyrS imu_accgyr,
-                      ReinitPacket reinit_packet = ReinitPacket());
+  StereoImuSyncPacket(const StereoFrame& stereo_frame,
+                      const ImuStampS& imu_stamps,
+                      const ImuAccGyrS& imu_accgyr,
+                      const ReinitPacket& reinit_packet = ReinitPacket());
   ~StereoImuSyncPacket() = default;
 
   // TODO delete copy-constructor because it is used in some places!

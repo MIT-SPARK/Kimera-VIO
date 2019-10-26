@@ -21,9 +21,11 @@
 #include <mutex>
 #include <queue>
 
+// TODO make specialized queue for unique ptrs. (non-copyable objects).
 template <typename T>
 class ThreadsafeQueue {
  public:
+  typedef std::queue<std::shared_ptr<T>> InternalQueue;
   ThreadsafeQueue(const std::string& queue_id) : queue_id_(queue_id) {}
   ThreadsafeQueue(const ThreadsafeQueue& other) {
     std::unique_lock<std::mutex> lk(other.mutex_);
@@ -37,11 +39,12 @@ class ThreadsafeQueue {
   // Returns false if the queue has been shutdown.
   bool push(const T& new_value) {
     if (shutdown_) return false;  // atomic, no lock needed.
+    std::shared_ptr<T> data(std::make_shared<T>(new_value));
     std::unique_lock<std::mutex> lk(mutex_);
     size_t queue_size = data_queue_.size();
     VLOG_IF(1, queue_size != 0) << "Queue with id: " << queue_id_
                                 << " is getting full, size: " << queue_size;
-    data_queue_.push(new_value);
+    data_queue_.push(data);
     lk.unlock();  // Unlock before notify.
     data_cond_.notify_one();
     return true;
@@ -53,11 +56,12 @@ class ThreadsafeQueue {
   // reference.
   bool push(T&& new_value) {
     if (shutdown_) return false;  // atomic, no lock needed.
+    std::shared_ptr<T> data(std::make_shared<T>(std::move(new_value)));
     std::unique_lock<std::mutex> lk(mutex_);
     size_t queue_size = data_queue_.size();
     VLOG_IF(1, queue_size != 0) << "Queue with id: " << queue_id_
                                 << " is getting full, size: " << queue_size;
-    data_queue_.push(std::move(new_value));
+    data_queue_.push(data);
     lk.unlock();  // Unlock before notify.
     data_cond_.notify_one();
     return true;
@@ -71,7 +75,7 @@ class ThreadsafeQueue {
     data_cond_.wait(lk, [this] { return !data_queue_.empty() || shutdown_; });
     // Return false in case shutdown is requested.
     if (shutdown_) return false;
-    value = data_queue_.front();
+    value = std::move(*data_queue_.front());
     data_queue_.pop();
     return true;
   }
@@ -82,10 +86,7 @@ class ThreadsafeQueue {
     std::unique_lock<std::mutex> lk(mutex_);
     data_cond_.wait(lk, [this] { return !data_queue_.empty() || shutdown_; });
     if (shutdown_) return std::shared_ptr<T>(nullptr);
-    // The shared_ptr allocation might throw an exception.
-    // Making the queue hold shared_ptr instead, would avoid this issue.
-    // See listing 6.3 in [1]. And we also spare copies.
-    std::shared_ptr<T> result(std::make_shared<T>(data_queue_.front()));
+    std::shared_ptr<T> result = data_queue_.front();
     data_queue_.pop();
     return result;
   }
@@ -96,7 +97,7 @@ class ThreadsafeQueue {
     if (shutdown_) return false;
     std::lock_guard<std::mutex> lk(mutex_);
     if (data_queue_.empty()) return false;
-    value = data_queue_.front();
+    value = std::move(*data_queue_.front());
     data_queue_.pop();
     return true;
   }
@@ -109,10 +110,7 @@ class ThreadsafeQueue {
     if (shutdown_) return std::shared_ptr<T>(nullptr);
     std::lock_guard<std::mutex> lk(mutex_);
     if (data_queue_.empty()) return std::shared_ptr<T>(nullptr);
-    // The shared_ptr allocation might throw an exception.
-    // Making the queue hold shared_ptr instead, would avoid this issue.
-    // See listing 6.3 in [1].
-    std::shared_ptr<T> result(std::make_shared<T>(data_queue_.front()));
+    std::shared_ptr<T> result = data_queue_.front();
     data_queue_.pop();
     return result;
   }
@@ -120,12 +118,12 @@ class ThreadsafeQueue {
   // Swap queue with empty queue if not empty.
   // Returns true if values were retrieved.
   // Returns false if values were not retrieved.
-  bool batchPop(std::queue<T> *output_queue) {
+  bool batchPop(InternalQueue* output_queue) {
     if (shutdown_)
       return false;
     CHECK_NOTNULL(output_queue);
     CHECK(output_queue->empty());
-    //*output_queue = std::queue<T>();
+    //*output_queue = InternalQueue();
     std::lock_guard<std::mutex> lk(mutex_);
     if (data_queue_.empty()) {
       return false;
@@ -165,7 +163,7 @@ class ThreadsafeQueue {
  private:
   mutable std::mutex mutex_;  // mutable for empty() and copy-constructor.
   std::string queue_id_;
-  std::queue<T> data_queue_;
+  InternalQueue data_queue_;
   std::condition_variable data_cond_;
   std::atomic_bool shutdown_ = {false};  // flag for signaling queue shutdown.
 };

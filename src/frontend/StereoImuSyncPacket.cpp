@@ -19,19 +19,17 @@
 #include <utility>
 
 namespace VIO {
-StereoImuSyncPacket::StereoImuSyncPacket(StereoFrame stereo_frame,
-                                         ImuStampS imu_stamps,
-                                         ImuAccGyrS imu_accgyr,
-                                         ReinitPacket reinit_packet)
-    : stereo_frame_(std::move(stereo_frame)),
-      imu_stamps_(std::move(imu_stamps)),
-      imu_accgyr_(std::move(imu_accgyr)),
-      reinit_packet_(std::move(reinit_packet)) {
+StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
+                                         const ImuStampS& imu_stamps,
+                                         const ImuAccGyrS& imu_accgyr,
+                                         const ReinitPacket& reinit_packet)
+    : stereo_frame_(stereo_frame),
+      imu_stamps_(imu_stamps),
+      imu_accgyr_(imu_accgyr),
+      reinit_packet_(reinit_packet) {
   CHECK_GT(imu_stamps_.cols(), 0u);
   CHECK_GT(imu_accgyr_.cols(), 0u);
   CHECK_EQ(imu_stamps_.cols(), imu_accgyr_.cols());
-  // WARNING do not use constructor params after being moved with
-  // std::move as they are left in an invalid state!!
   // The timestamp of the last IMU measurement must correspond to the timestamp
   // of the stereo frame. In case there is no IMU measurement with exactly
   // the same timestamp as the stereo frame, the user should interpolate

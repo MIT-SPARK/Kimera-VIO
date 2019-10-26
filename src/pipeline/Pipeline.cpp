@@ -391,8 +391,8 @@ void Pipeline::spinSequential() {
                       false);  // Do not run in parallel.
 
   // Pop from frontend.
-  const auto& stereo_frontend_output_payload =
-      stereo_frontend_output_queue_.pop();
+  StereoFrontEndOutputPayload::Ptr stereo_frontend_output_payload;
+  stereo_frontend_output_queue_.pop(stereo_frontend_output_payload);
   if (!stereo_frontend_output_payload) {
     // Frontend hasn't reach a keyframe, return and wait frontend to create a
     // keyframe.
@@ -761,17 +761,19 @@ bool Pipeline::initializeOnline(
     vio_frontend_->checkFrontendForOnlineAlignment();
     // Spin frontend once with enforced keyframe and 53-point method
     // TODO why is this copying? (by doing make_shared?)
-    auto frontend_output = vio_frontend_->spinOnce(
-        std::make_shared<StereoImuSyncPacket>(stereo_imu_sync_init));
-    const StereoFrame stereo_frame_lkf = frontend_output.stereo_frame_lkf_;
+    const StereoFrontEndOutputPayload::UniquePtr& frontend_output =
+        vio_frontend_->spinOnce(
+            std::make_shared<StereoImuSyncPacket>(stereo_imu_sync_init));
+    const StereoFrame stereo_frame_lkf = frontend_output->stereo_frame_lkf_;
     // TODO(Sandro): Optionally add AHRS PIM
     InitializationInputPayload frontend_init_output(
-        frontend_output.is_keyframe_,
-        frontend_output.statusSmartStereoMeasurements_,
-        frontend_output.tracker_status_,
-        frontend_output.relative_pose_body_stereo_,
-        frontend_output.stereo_frame_lkf_, frontend_output.pim_,
-        frontend_output.debug_tracker_info_);
+        frontend_output->is_keyframe_,
+        frontend_output->statusSmartStereoMeasurements_,
+        frontend_output->tracker_status_,
+        frontend_output->relative_pose_body_stereo_,
+        frontend_output->stereo_frame_lkf_,
+        frontend_output->pim_,
+        frontend_output->debug_tracker_info_);
     initialization_frontend_output_queue_.push(frontend_init_output);
 
     // TODO(Sandro): Find a way to optimize this
@@ -780,17 +782,17 @@ bool Pipeline::initializeOnline(
     const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
     const auto& pim =
         imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
-    StereoFrontEndOutputPayload frontend_real_output(
-        frontend_output.is_keyframe_,
-        frontend_output.statusSmartStereoMeasurements_,
-        frontend_output.tracker_status_,
-        frontend_output.relative_pose_body_stereo_,
-        frontend_output.stereo_frame_lkf_, pim,
-        frontend_output.debug_tracker_info_);
     // This queue is used for the backend after initialization
     VLOG(2) << "Initialization: Push input payload to Backend.";
-    stereo_frontend_output_queue_.push(frontend_real_output);
-    /////////
+    stereo_frontend_output_queue_.push(
+        VIO::make_unique<StereoFrontEndOutputPayload>(
+            frontend_output->is_keyframe_,
+            frontend_output->statusSmartStereoMeasurements_,
+            frontend_output->tracker_status_,
+            frontend_output->relative_pose_body_stereo_,
+            frontend_output->stereo_frame_lkf_,
+            pim,
+            frontend_output->debug_tracker_info_));
 
     // Only process set of frontend outputs after specific number of frames
     if (frame_id < (init_frame_id_ + FLAGS_num_frames_vio_init)) {
@@ -804,7 +806,7 @@ bool Pipeline::initializeOnline(
       gtsam::NavState init_navstate;
 
       // Get frontend output to backend input for online initialization
-      std::queue<InitializationInputPayload> output_frontend;
+      std::queue<std::shared_ptr<InitializationInputPayload>> output_frontend;
       CHECK(initialization_frontend_output_queue_.batchPop(&output_frontend));
       // Shutdown the initialization input queue once used
       initialization_frontend_output_queue_.shutdown();
@@ -821,10 +823,11 @@ bool Pipeline::initializeOnline(
 
       // Create initial backend
       InitializationBackEnd initial_backend(
-          output_frontend.front().stereo_frame_lkf_.getBPoseCamLRect(),
-          output_frontend.front().stereo_frame_lkf_.getLeftUndistRectCamMat(),
-          output_frontend.front().stereo_frame_lkf_.getBaseline(),
-          backend_params_init, FLAGS_log_output);
+          output_frontend.front()->stereo_frame_lkf_.getBPoseCamLRect(),
+          output_frontend.front()->stereo_frame_lkf_.getLeftUndistRectCamMat(),
+          output_frontend.front()->stereo_frame_lkf_.getBaseline(),
+          backend_params_init,
+          FLAGS_log_output);
 
       // Enforce zero bias in initial propagation
       // TODO(Sandro): Remove this, once AHRS is implemented
@@ -924,8 +927,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
   return true;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void Pipeline::spinDisplayOnce(
     VisualizerOutputPayload& visualizer_output_payload) {
   // Display 3D window.
@@ -1006,9 +1008,8 @@ void Pipeline::processKeyframePop() {
   while (!shutdown_) {
     // Here we are inside the WRAPPED THREAD //
     VLOG(2) << "Waiting payload from Frontend.";
-    std::shared_ptr<StereoFrontEndOutputPayload>
-        stereo_frontend_output_payload =
-            stereo_frontend_output_queue_.popBlocking();
+    StereoFrontEndOutputPayload::Ptr stereo_frontend_output_payload;
+    stereo_frontend_output_queue_.popBlocking(stereo_frontend_output_payload);
     if (!stereo_frontend_output_payload) {
       LOG(WARNING) << "Missing frontend output payload.";
       continue;

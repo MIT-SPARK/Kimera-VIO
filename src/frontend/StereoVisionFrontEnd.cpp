@@ -55,7 +55,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 /* -------------------------------------------------------------------------- */
 bool StereoVisionFrontEnd::spin(
     ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
-    ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue,
+    ThreadsafeQueue<StereoFrontEndOutputPayload::Ptr>& output_queue,
     bool parallel_run) {
   LOG(INFO) << "Spinning StereoFrontEnd.";
   utils::StatsCollector stat_stereo_frontend_timing(
@@ -68,8 +68,8 @@ bool StereoVisionFrontEnd::spin(
     is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();
-      const StereoFrontEndOutputPayload& output = spinOnce(input);
-      if (output.is_keyframe_) {
+      const StereoFrontEndOutputPayload::Ptr& output = spinOnce(input);
+      if (output->is_keyframe_) {
         VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
         output_queue.push(output);
       } else {
@@ -78,7 +78,7 @@ bool StereoVisionFrontEnd::spin(
       }
       auto spin_duration = utils::Timer::toc(tic).count();
       LOG(WARNING) << "Current Stereo FrontEnd "
-                   << (output.is_keyframe_ ? "(keyframe) " : "")
+                   << (output->is_keyframe_ ? "(keyframe) " : "")
                    << "frequency: " << 1000.0 / spin_duration << " Hz. ("
                    << spin_duration << " ms).";
       stat_stereo_frontend_timing.AddSample(spin_duration);
@@ -94,7 +94,7 @@ bool StereoVisionFrontEnd::spin(
 }
 
 /* -------------------------------------------------------------------------- */
-StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
+StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
     const std::shared_ptr<StereoFrontEndInputPayload>& input) {
   const StereoFrame& stereoFrame_k = input->getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
@@ -184,15 +184,24 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
     imu_frontend_->resetIntegrationWithCachedBias();
 
     // Return the output of the frontend for the others.
-    return StereoFrontEndOutputPayload(
-        true, statusSmartStereoMeasurements,
+    return VIO::make_unique<StereoFrontEndOutputPayload>(
+        true,
+        statusSmartStereoMeasurements,
         trackerStatusSummary_.kfTrackingStatus_stereo_,
-        getRelativePoseBodyStereo(), *stereoFrame_lkf_, pim, getTrackerInfo());
+        getRelativePoseBodyStereo(),
+        *stereoFrame_lkf_,
+        pim,
+        getTrackerInfo());
   } else {
     // We don't have a keyframe.
-    return StereoFrontEndOutputPayload(
-        false, statusSmartStereoMeasurements, TrackingStatus::INVALID,
-        getRelativePoseBodyStereo(), *stereoFrame_lkf_, pim, getTrackerInfo());
+    return VIO::make_unique<StereoFrontEndOutputPayload>(
+        false,
+        statusSmartStereoMeasurements,
+        TrackingStatus::INVALID,
+        getRelativePoseBodyStereo(),
+        *stereoFrame_lkf_,
+        pim,
+        getTrackerInfo());
   }
 }
 

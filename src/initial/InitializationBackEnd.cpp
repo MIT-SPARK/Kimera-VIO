@@ -40,10 +40,10 @@ InitializationBackEnd::InitializationBackEnd(
 /* ------------------------------------------------------------------------ */
 // Perform Bundle-Adjustment and initial gravity alignment
 bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
-    std::queue<InitializationInputPayload> &output_frontend,
-    gtsam::Vector3 *gyro_bias,
-    gtsam::Vector3 *g_iter_b0,
-    gtsam::NavState *init_navstate) {
+    InitializationQueue& output_frontend,
+    gtsam::Vector3* gyro_bias,
+    gtsam::Vector3* g_iter_b0,
+    gtsam::NavState* init_navstate) {
   // Logging
   VLOG(10) << "N frames for initial alignment: " << output_frontend.size();
   // Create inputs for backend
@@ -57,23 +57,23 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
     // Create input for backend
     std::shared_ptr<VioBackEndInputPayload> input_backend =
         std::make_shared<VioBackEndInputPayload>(VioBackEndInputPayload(
-            output_frontend.front().stereo_frame_lkf_.getTimestamp(),
-            output_frontend.front().statusSmartStereoMeasurements_,
-            output_frontend.front().tracker_status_,
-            output_frontend.front().pim_,
-            output_frontend.front().relative_pose_body_stereo_,
+            output_frontend.front()->stereo_frame_lkf_.getTimestamp(),
+            output_frontend.front()->statusSmartStereoMeasurements_,
+            output_frontend.front()->tracker_status_,
+            output_frontend.front()->pim_,
+            output_frontend.front()->relative_pose_body_stereo_,
             nullptr));
     inputs_backend.push_back(input_backend);
-    pims.push_back(output_frontend.front().pim_);
+    pims.push_back(output_frontend.front()->pim_);
     // Bookkeeping for timestamps
     Timestamp timestamp_kf =
-        output_frontend.front().stereo_frame_lkf_.getTimestamp();
+        output_frontend.front()->stereo_frame_lkf_.getTimestamp();
     delta_t_camera.push_back(
         UtilsOpenCV::NsecToSec(timestamp_kf - timestamp_lkf_));
     timestamp_lkf_ = timestamp_kf;
 
     // Check that all frames are keyframes (required)
-    CHECK(output_frontend.front().is_keyframe_);
+    CHECK(output_frontend.front()->is_keyframe_);
     // Pop from queue
     output_frontend.pop();
   }

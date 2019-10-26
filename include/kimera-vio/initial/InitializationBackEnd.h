@@ -21,11 +21,15 @@
 
 #include "kimera-vio/backend/VioBackEnd.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
 
 namespace VIO {
 
 class InitializationBackEnd : public VioBackEnd {
+  typedef ThreadsafeQueue<InitializationInputPayload>::InternalQueue
+      InitializationQueue;
+
  public:
   /* ------------------------------------------------------------------------ */
   // Create and initialize InitializationBackEnd, without initiaing pose.
@@ -41,11 +45,10 @@ class InitializationBackEnd : public VioBackEnd {
  public:
   /* ------------------------------------------------------------------------ */
   // Perform Bundle-Adjustment and initial gravity alignment
-  bool bundleAdjustmentAndGravityAlignment(
-      std::queue<InitializationInputPayload> &output_frontend,
-      gtsam::Vector3 *gyro_bias,
-      gtsam::Vector3 *g_iter_b0,
-      gtsam::NavState *init_navstate);
+  bool bundleAdjustmentAndGravityAlignment(InitializationQueue& output_frontend,
+                                           gtsam::Vector3* gyro_bias,
+                                           gtsam::Vector3* g_iter_b0,
+                                           gtsam::NavState* init_navstate);
 
  public:
   /* ------------------------------------------------------------------------ */
