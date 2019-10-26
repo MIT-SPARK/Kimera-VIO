@@ -27,10 +27,10 @@
 
 #include <KimeraRPGO/RobustSolver.h>
 
-#include "kimera-vio/UtilsOpenCV.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 DEFINE_string(vocabulary_path,
               "../vocabulary/ORBvoc.yml",
@@ -153,9 +153,9 @@ bool LoopClosureDetector::spin(
                      << 1000.0 / spin_duration << " Hz. (" << spin_duration
                      << " ms).";
       } else {
-        LOG(ERROR) << "LoopClosureDetector: No output callback registered. "
-                   << "Either register a callback or disable LCD with "
-                   << "flag use_lcd=false.";
+        LOG(WARNING) << "LoopClosureDetector: No output callback registered. "
+                     << "Either register a callback or disable LCD with "
+                     << "flag use_lcd=false.";
       }
 
     } else {

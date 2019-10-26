@@ -35,9 +35,9 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/slam/PriorFactor.h>
 
-#include "kimera-vio/UtilsOpenCV.h"
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 // TODO(Sandro): Create YAML file for initialization and read in!
 DEFINE_double(gyroscope_residuals,

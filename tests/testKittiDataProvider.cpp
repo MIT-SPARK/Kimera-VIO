@@ -22,7 +22,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "kimera-vio/Visualizer3D.h"
+#include "kimera-vio/visualizer/Visualizer3D.h"
 
 DECLARE_string(test_data_path);
 

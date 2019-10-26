@@ -30,10 +30,10 @@
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
-#include "kimera-vio/Frame.h"
-#include "kimera-vio/StereoImuSyncPacket.h"
 #include "kimera-vio/datasource/DataSource-definitions.h"
 #include "kimera-vio/datasource/DataSource.h"
+#include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/StereoImuSyncPacket.h"
 
 namespace VIO {
 
