@@ -3,7 +3,7 @@
 # Fill the variables DATASET_PATH, USE_REGULAR_VIO and PARALLEL_RUN.
 
 # Specify path of the EuRoC dataset.
-DATASET_PATH="/path/to/dataset"
+DATASET_PATH="/path/to/euroc/dataset"
 
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
