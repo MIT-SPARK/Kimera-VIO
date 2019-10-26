@@ -101,7 +101,7 @@ sudo make -j $(nproc) install
 
 > Note: for better performance when using the IMU factors, set GTSAM_TANGENT_PREINTEGRATION to 'false' (cmake flag)
 
-> Note: also add `-march=native` to `GTSAM_CMAKE_CXX_FLAGS` for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `-march=native` might cause problems that culminates in the form of segfaults when you run the unittests.
+> Note: also enable the `GTSAM_BUILD_WITH_MARCH_NATIVE` compile option for max performance (at the expense of the portability of your executable). Check [install gtsam](https://github.com/borglab/gtsam/blob/develop/INSTALL.md) for more details. Note that for some systems, `MARCH_NATIVE` might cause problems that culminates in the form of segfaults when you run the unittests. If you do wish to use this flag, simply add `-DGTSAM_BUILD_WITH_MARCH_NATIVE=On ` to the flags on the `cmake` command. Note that sometimes, the flag it is enabled by default.
 
 ## Install OpenCV
 
@@ -130,14 +130,14 @@ Clone the repo:
 git clone https://github.com/laurentkneip/opengv.git
 ```
 
-Set opengv to use the same Eigen version than GTSAM (for example: `$HOME/gtsam/gtsam/3rdparty/Eigen`), by modifying the cmake flag `EIGEN_INCLUDE_DIRS`. If you don't do so, errors may appear (maybe due to GTSAM and OpenGV using different versions of Eigen!):
+Set opengv to use the same Eigen version than GTSAM (for example: `$HOME/gtsam/gtsam/3rdparty/Eigen`), by modifying the cmake flags `EIGEN_INCLUDE_DIR` and `EIGEN_INCLUDE_DIRS`. If you don't do so, errors may appear (maybe due to GTSAM and OpenGV using different versions of Eigen!) Note that if using `cmake-gui` to modify paths, make sure you tick the `Advanced` box so that both flags are visible:
 
 ```bash
 cd opengv
 mkdir build
 cd build
 # Replace path to your GTSAM's Eigen
-cmake .. -DEIGEN_INCLUDE_DIRS=/home/tonirv/Code/gtsam/gtsam/3rdparty/Eigen
+cmake .. -DEIGEN_INCLUDE_DIR=/home/tonirv/Code/gtsam/gtsam/3rdparty/Eigen -DEIGEN_INCLUDE_DIRS=/home/tonirv/Code/gtsam/gtsam/3rdparty/Eigen
 ```
 
 Finally, install opengv:
