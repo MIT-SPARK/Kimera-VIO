@@ -63,6 +63,9 @@ class VioNavState;
 
 class VioBackEnd {
  public:
+  typedef ThreadsafeQueue<VioBackEndInputPayload::Ptr> InputQueue;
+  typedef ThreadsafeQueue<VioBackEndOutputPayload::Ptr> OutputQueue;
+
   // TODO(Toni): remove this verbosity flag, use VLOG
   // verbosity_ explanation
   /*
@@ -101,13 +104,13 @@ class VioBackEnd {
 
  public:
   /* ------------------------------------------------------------------------ */
-  bool spin(ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
-            ThreadsafeQueue<VioBackEndOutputPayload>& output_queue,
+  bool spin(InputQueue& input_queue,
+            OutputQueue& output_queue,
             bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
-  VioBackEndOutputPayload spinOnce(
-      const std::shared_ptr<VioBackEndInputPayload>& input);
+  VioBackEndOutputPayload::Ptr spinOnce(
+      const VioBackEndInputPayload::Ptr& input);
 
   /* ------------------------------------------------------------------------ */
   inline void shutdown() {

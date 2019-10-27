@@ -222,17 +222,21 @@ void Pipeline::processKeyframe(
   // This should be done inside the frontend!!!!
   // Or the backend should pull from the frontend!!!!
   VLOG(2) << "Push input payload to Backend.";
-  backend_input_queue_.push(VioBackEndInputPayload(
-      last_stereo_keyframe.getTimestamp(), statusSmartStereoMeasurements,
-      kf_tracking_status_stereo, pim, relative_pose_body_stereo, &planes_));
+  backend_input_queue_.push(VIO::make_unique<VioBackEndInputPayload>(
+      last_stereo_keyframe.getTimestamp(),
+      statusSmartStereoMeasurements,
+      kf_tracking_status_stereo,
+      pim,
+      relative_pose_body_stereo,
+      &planes_));
 
   // This should be done inside those who need the backend results
   // IN this case the logger!!!!!
   // But there are many more people that want backend results...
   // Pull from backend.
   VLOG(2) << "Waiting payload from Backend.";
-  std::shared_ptr<VioBackEndOutputPayload> backend_output_payload =
-      backend_output_queue_.popBlocking();
+  VioBackEndOutputPayload::Ptr backend_output_payload;
+  backend_output_queue_.popBlocking(backend_output_payload);
   LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
 
   // Optionally, push to lcd input.
@@ -401,20 +405,21 @@ void Pipeline::spinSequential() {
   CHECK(stereo_frontend_output_payload->is_keyframe_);
 
   // We have a keyframe. Push to backend.
-  backend_input_queue_.push(VioBackEndInputPayload(
+  backend_input_queue_.push(VIO::make_unique<VioBackEndInputPayload>(
       stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
       stereo_frontend_output_payload->statusSmartStereoMeasurements_,
       stereo_frontend_output_payload->tracker_status_,
       stereo_frontend_output_payload->pim_,
-      stereo_frontend_output_payload->relative_pose_body_stereo_, &planes_));
+      stereo_frontend_output_payload->relative_pose_body_stereo_,
+      &planes_));
 
   // Spin once backend. Do not run in parallel.
   CHECK(vio_backend_);
   vio_backend_->spin(backend_input_queue_, backend_output_queue_, false);
 
   // Pop blocking from backend.
-  const auto& backend_output_payload = backend_output_queue_.popBlocking();
-  CHECK(backend_output_payload);
+  VioBackEndOutputPayload::Ptr backend_output_payload;
+  CHECK(backend_output_queue_.popBlocking(backend_output_payload));
 
   // Push keyframe to LCD.
   lcd_input_queue_.push(LoopClosureDetectorInputPayload(

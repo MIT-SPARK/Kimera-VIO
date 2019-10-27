@@ -39,6 +39,7 @@ class ThreadsafeQueue {
   // Returns false if the queue has been shutdown.
   bool push(const T& new_value) {
     if (shutdown_) return false;  // atomic, no lock needed.
+    // This does a copy, so you better use pointers as T.
     std::shared_ptr<T> data(std::make_shared<T>(new_value));
     std::unique_lock<std::mutex> lk(mutex_);
     size_t queue_size = data_queue_.size();

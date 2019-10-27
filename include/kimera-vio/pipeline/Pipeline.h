@@ -208,8 +208,8 @@ class Pipeline {
   std::unique_ptr<VioBackEnd> vio_backend_;
 
   // Thread-safe queue for the backend.
-  ThreadsafeQueue<VioBackEndInputPayload> backend_input_queue_;
-  ThreadsafeQueue<VioBackEndOutputPayload> backend_output_queue_;
+  ThreadsafeQueue<VioBackEndInputPayload::Ptr> backend_input_queue_;
+  ThreadsafeQueue<VioBackEndOutputPayload::Ptr> backend_output_queue_;
 
   // Set of planes in the scene.
   std::vector<Plane> planes_;

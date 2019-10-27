@@ -30,6 +30,7 @@
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
@@ -213,6 +214,8 @@ class DebugVioInfo {
 
 ////////////////////////////////////////////////////////////////////////////////
 struct VioBackEndInputPayload {
+  KIMERA_POINTER_TYPEDEFS(VioBackEndInputPayload);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VioBackEndInputPayload(
       const Timestamp& timestamp_kf_nsec,
       const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
@@ -271,6 +274,7 @@ struct VioBackEndInputPayload {
 
 ////////////////////////////////////////////////////////////////////////////////
 struct VioBackEndOutputPayload {
+  KIMERA_POINTER_TYPEDEFS(VioBackEndOutputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VioBackEndOutputPayload(
       const Timestamp& timestamp_kf, const gtsam::Values state,

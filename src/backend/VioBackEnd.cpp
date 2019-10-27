@@ -157,8 +157,8 @@ VioBackEnd::VioBackEnd(const Pose3& leftCamPose,
 }
 
 /* -------------------------------------------------------------------------- */
-bool VioBackEnd::spin(ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
-                      ThreadsafeQueue<VioBackEndOutputPayload>& output_queue,
+bool VioBackEnd::spin(InputQueue& input_queue,
+                      OutputQueue& output_queue,
                       bool parallel_run) {
   LOG(INFO) << "Spinning VioBackEnd.";
   utils::StatsCollector stat_pipeline_timing("Pipeline Overall Timing [ms]");
@@ -167,7 +167,8 @@ bool VioBackEnd::spin(ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
     // Get input data from queue. Wait for Backend payload.
     is_thread_working_ = false;
     auto tic_pipeline_overall = utils::Timer::tic();
-    std::shared_ptr<VioBackEndInputPayload> input = input_queue.popBlocking();
+    VioBackEndInputPayload::Ptr input;
+    CHECK(input_queue.popBlocking(input));
     is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();
@@ -191,8 +192,8 @@ bool VioBackEnd::spin(ThreadsafeQueue<VioBackEndInputPayload>& input_queue,
 }
 
 /* -------------------------------------------------------------------------- */
-VioBackEndOutputPayload VioBackEnd::spinOnce(
-    const std::shared_ptr<VioBackEndInputPayload>& input) {
+VioBackEndOutputPayload::Ptr VioBackEnd::spinOnce(
+    const VioBackEndInputPayload::Ptr& input) {
   CHECK(input) << "No VioBackEnd Input Payload received.";
   if (VLOG_IS_ON(10)) input->print();
 
@@ -217,17 +218,23 @@ VioBackEndOutputPayload VioBackEnd::spinOnce(
   }
 
   // Create Backend Output Payload.
-  VioBackEndOutputPayload output_payload(
-      input->timestamp_kf_nsec_, state_,
-      W_Pose_B_lkf_,    // Actual output.
-      W_Vel_B_lkf_,     // Actual output.
-      B_Pose_leftCam_,  // This is a fixed thing, the first instance of which
-                        // appears in the StereoFrame...
-      imu_bias_lkf_, getCurrentStateCovariance(), curr_kf_id_, landmark_count_,
-      debug_info_);
+  VioBackEndOutputPayload::Ptr output_payload =
+      VIO::make_unique<VioBackEndOutputPayload>(
+          input->timestamp_kf_nsec_,
+          state_,
+          W_Pose_B_lkf_,    // Actual output.
+          W_Vel_B_lkf_,     // Actual output.
+          B_Pose_leftCam_,  // This is a fixed thing, the first instance of
+                            // which
+          // appears in the StereoFrame...
+          imu_bias_lkf_,
+          getCurrentStateCovariance(),
+          curr_kf_id_,
+          landmark_count_,
+          debug_info_);
 
   if (logger_) {
-    logger_->logBackendOutput(output_payload);
+    logger_->logBackendOutput(*output_payload);
   }
   return output_payload;
 }
