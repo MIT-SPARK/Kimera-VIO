@@ -38,4 +38,31 @@ StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
   // TODO: Add check on ReinitPacket
 }
 
+void StereoImuSyncPacket::print() const {
+  LOG(INFO) << "Stereo Frame timestamp: " << stereo_frame_.getTimestamp()
+            << '\n'
+            << "STAMPS IMU rows : \n"
+            << imu_stamps_.rows() << '\n'
+            << "STAMPS IMU cols : \n"
+            << imu_stamps_.cols() << '\n'
+            << "STAMPS IMU: \n"
+            << imu_stamps_ << '\n'
+            << "ACCGYR IMU rows : \n"
+            << imu_accgyr_.rows() << '\n'
+            << "ACCGYR IMU cols : \n"
+            << imu_accgyr_.cols() << '\n'
+            << "ACCGYR IMU: \n"
+            << imu_accgyr_;
+  if (reinit_packet_.getReinitFlag() == true) {
+    LOG(INFO) << "\nVIO Re-Initialized at: " << reinit_packet_.getReinitTime()
+              << '\n'
+              << "POSE : \n"
+              << reinit_packet_.getReinitPose() << '\n'
+              << "VELOCITY : \n"
+              << reinit_packet_.getReinitVel() << '\n'
+              << "BIAS : \n"
+              << reinit_packet_.getReinitBias();
+  }
+}
+
 }  // namespace VIO

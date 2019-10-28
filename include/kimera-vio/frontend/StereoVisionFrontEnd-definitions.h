@@ -22,13 +22,11 @@
 
 namespace VIO {
 
-using StatusSmartStereoMeasurements =
-std::pair<TrackerStatusSummary, SmartStereoMeasurements>;
-
 ////////////////////////////////////////////////////////////////////////////////
 struct StereoFrontEndOutputPayload {
 public:
  KIMERA_POINTER_TYPEDEFS(StereoFrontEndOutputPayload);
+ KIMERA_DELETE_COPY_CONSTRUCTORS(StereoFrontEndOutputPayload);
  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
  // Default ctor sets everything to default and it is used to define an
  // invalid output: meaning we still don't have a keyframe.
@@ -36,23 +34,25 @@ public:
  // queue once we have a keyframe.
  StereoFrontEndOutputPayload(
      const bool is_keyframe,
-     const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
+     const StatusStereoMeasurements& status_stereo_measurements,
      const TrackingStatus& tracker_status,
      const gtsam::Pose3& relative_pose_body_stereo,
      const StereoFrame& stereo_frame_lkf,
      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
      const DebugTrackerInfo& debug_tracker_info)
      : is_keyframe_(is_keyframe),
-       statusSmartStereoMeasurements_(statusSmartStereoMeasurements),
+       status_stereo_measurements_(status_stereo_measurements),
        tracker_status_(tracker_status),
        relative_pose_body_stereo_(relative_pose_body_stereo),
        stereo_frame_lkf_(stereo_frame_lkf),
        pim_(pim),
        debug_tracker_info_(debug_tracker_info) {}
 
+ virtual ~StereoFrontEndOutputPayload() = default;
+
 public:
   const bool is_keyframe_;
-  const StatusSmartStereoMeasurements statusSmartStereoMeasurements_;
+  const StatusStereoMeasurements status_stereo_measurements_;
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_stereo_;
   const StereoFrame stereo_frame_lkf_;

@@ -164,7 +164,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   tracker_status_valid.kfTrackingStatus_mono_ = TrackingStatus::VALID;
   tracker_status_valid.kfTrackingStatus_stereo_ = TrackingStatus::VALID;
 
-  vector<StatusSmartStereoMeasurements> all_measurements;
+  vector<StatusStereoMeasurements> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
     PinholeCamera<Cal3_S2> cam_left(poses[i].first, cam_params);
     PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
@@ -304,7 +304,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   tracker_status_valid.kfTrackingStatus_mono_ = TrackingStatus::VALID;
   tracker_status_valid.kfTrackingStatus_stereo_ = TrackingStatus::VALID;
 
-  vector<StatusSmartStereoMeasurements> all_measurements;
+  vector<StatusStereoMeasurements> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
     PinholeCamera<Cal3_S2> cam_left(poses[i].first, cam_params);
     PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);

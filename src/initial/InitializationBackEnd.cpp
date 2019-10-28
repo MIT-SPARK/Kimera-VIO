@@ -163,7 +163,7 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
     // Features and IMU line up --> do iSAM update
     addInitialVisualState(
         input_iter->timestamp_kf_nsec_,  // Current time for fixed lag smoother.
-        input_iter->status_smart_stereo_measurements_kf_,  // Vision data.
+        input_iter->status_stereo_measurements_kf_,  // Vision data.
         input_iter->planes_,
         use_stereo_btw_factor ? input_iter->stereo_ransac_body_pose_
                               : boost::none,
@@ -215,9 +215,9 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
 // [in] status_smart_stereo_measurements_kf, vision data.
 // [in] stereo_ransac_body_pose, inertial data.
 void InitializationBackEnd::addInitialVisualState(
-    const Timestamp &timestamp_kf_nsec,
-    const StatusSmartStereoMeasurements &status_smart_stereo_measurements_kf,
-    std::vector<Plane> *planes,
+    const Timestamp& timestamp_kf_nsec,
+    const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
+    std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
     const int verbosity_ = 0) {
   debug_info_.resetAddedFactorsStatistics();

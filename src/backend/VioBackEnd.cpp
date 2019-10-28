@@ -289,8 +289,9 @@ void VioBackEnd::initStateAndSetPriors(const Timestamp& timestamp_kf_nsec,
 // [in] stereo_ransac_body_pose, inertial data.
 void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
-    const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-    const gtsam::PreintegratedImuMeasurements& pim, std::vector<Plane>* planes,
+    const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
+    const gtsam::PreintegratedImuMeasurements& pim,
+    std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
 
@@ -385,11 +386,13 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
   addVisualInertialStateAndOptimize(
-        input->timestamp_kf_nsec_, // Current time for fixed lag smoother.
-        input->status_smart_stereo_measurements_kf_, // Vision data.
-        input->pim_, // Imu preintegrated data.
-        input->planes_,
-        use_stereo_btw_factor? input->stereo_ransac_body_pose_ : boost::none); // optional: pose estimate from stereo ransac
+      input->timestamp_kf_nsec_,  // Current time for fixed lag smoother.
+      input->status_stereo_measurements_kf_,  // Vision data.
+      input->pim_,                            // Imu preintegrated data.
+      input->planes_,
+      use_stereo_btw_factor
+          ? input->stereo_ransac_body_pose_
+          : boost::none);  // optional: pose estimate from stereo ransac
   // Bookkeeping
   timestamp_lkf_ = input->timestamp_kf_nsec_;
 }

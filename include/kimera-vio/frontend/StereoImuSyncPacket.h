@@ -83,9 +83,8 @@ struct ReinitPacket {
 class StereoImuSyncPacket {
  public:
   KIMERA_POINTER_TYPEDEFS(StereoImuSyncPacket);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(StereoImuSyncPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  // WARNING do not use constructor params after being moved with
-  // std::move as they are left in an invalid state!!
   StereoImuSyncPacket() = delete;
   StereoImuSyncPacket(const StereoFrame& stereo_frame,
                       const ImuStampS& imu_stamps,
@@ -104,40 +103,10 @@ class StereoImuSyncPacket {
     return reinit_packet_.getReinitFlag();
   }
 
-  // This enforces the frame to be a keyframe
-  void setAsKeyframe() { stereo_frame_.setIsKeyframe(true); }
-
-  void print() const {
-    LOG(INFO) << "Stereo Frame timestamp: " << stereo_frame_.getTimestamp()
-              << '\n'
-              << "STAMPS IMU rows : \n"
-              << imu_stamps_.rows() << '\n'
-              << "STAMPS IMU cols : \n"
-              << imu_stamps_.cols() << '\n'
-              << "STAMPS IMU: \n"
-              << imu_stamps_ << '\n'
-              << "ACCGYR IMU rows : \n"
-              << imu_accgyr_.rows() << '\n'
-              << "ACCGYR IMU cols : \n"
-              << imu_accgyr_.cols() << '\n'
-              << "ACCGYR IMU: \n"
-              << imu_accgyr_;
-    if (reinit_packet_.getReinitFlag() == true) {
-      LOG(INFO) << "\nVIO Re-Initialized at: " << reinit_packet_.getReinitTime()
-                << '\n'
-                << "POSE : \n"
-                << reinit_packet_.getReinitPose() << '\n'
-                << "VELOCITY : \n"
-                << reinit_packet_.getReinitVel() << '\n'
-                << "BIAS : \n"
-                << reinit_packet_.getReinitBias();
-    }
-  }
+  void print() const;
 
  private:
-  // TODO(Toni): this should be const as well, but the initialization is
-  // modifying it and setting as keyframe....
-  StereoFrame stereo_frame_;
+  const StereoFrame stereo_frame_;
   const ImuStampS imu_stamps_;
   const ImuAccGyrS imu_accgyr_;
   const ReinitPacket reinit_packet_;
@@ -145,7 +114,8 @@ class StereoImuSyncPacket {
 
 // Struct to deal with getting values out of the spin
 struct SpinOutputPacket {
-  KIMERA_POINTER_TYPEDEFS(StereoImuSyncPacket);
+  KIMERA_POINTER_TYPEDEFS(SpinOutputPacket);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(SpinOutputPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Default constructor
   SpinOutputPacket(

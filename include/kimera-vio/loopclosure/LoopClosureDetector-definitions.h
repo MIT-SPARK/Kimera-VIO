@@ -222,6 +222,7 @@ struct LoopClosureFactor {
 
 struct LoopClosureDetectorInputPayload {
   KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorInputPayload);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetectorInputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   LoopClosureDetectorInputPayload(const Timestamp& timestamp_kf,
                                   const FrameId& cur_kf_id,
@@ -240,6 +241,7 @@ struct LoopClosureDetectorInputPayload {
 
 struct LoopClosureDetectorOutputPayload {
   KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorOutputPayload);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetectorOutputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   LoopClosureDetectorOutputPayload(bool is_loop_closure,
                                    const Timestamp& timestamp_kf,

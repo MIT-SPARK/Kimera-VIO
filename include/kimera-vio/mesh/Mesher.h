@@ -34,10 +34,12 @@ namespace VIO {
 
 struct MesherInputPayload {
   KIMERA_POINTER_TYPEDEFS(MesherInputPayload);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherInputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MesherInputPayload(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
-      const StereoFrame& stereo_frame, const gtsam::Pose3& left_camera_pose)
+      const StereoFrame& stereo_frame,
+      const gtsam::Pose3& left_camera_pose)
       : points_with_id_vio_(points_with_id_vio),
         stereo_frame_(stereo_frame),
         left_camera_pose_(left_camera_pose) {}
@@ -50,6 +52,9 @@ struct MesherInputPayload {
 struct MesherOutputPayload {
  public:
   KIMERA_POINTER_TYPEDEFS(MesherOutputPayload);
+  // TODO delete copy constructors
+  // KIMERA_DELETE_COPY_CONSTRUCTORS(MesherOutputPayload);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MesherOutputPayload(
       Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
       Mesh3D&& mesh_3d,  // Use move semantics for the actual 2d mesh.

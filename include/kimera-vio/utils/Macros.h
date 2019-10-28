@@ -10,3 +10,7 @@
   typedef std::weak_ptr<TypeName> WeakPtr;                \
   typedef std::weak_ptr<const TypeName> WeakConstPtr;     \
   void definePointerTypedefs##__FILE__##__LINE__(void)
+
+#define KIMERA_DELETE_COPY_CONSTRUCTORS(TypeName) \
+  TypeName(const TypeName&) = delete;             \
+  void operator=(const TypeName&) = delete

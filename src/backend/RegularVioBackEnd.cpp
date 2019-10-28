@@ -136,8 +136,9 @@ RegularVioBackEnd::RegularVioBackEnd(const Pose3& leftCamPose,
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
-    const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-    const gtsam::PreintegratedImuMeasurements& pim, std::vector<Plane>* planes,
+    const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
+    const gtsam::PreintegratedImuMeasurements& pim,
+    std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   CHECK(planes != nullptr)
       << "Consider using normal VIO instead of regular VIO if you are not "

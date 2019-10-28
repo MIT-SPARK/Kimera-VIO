@@ -215,29 +215,26 @@ class DebugVioInfo {
 ////////////////////////////////////////////////////////////////////////////////
 struct VioBackEndInputPayload {
   KIMERA_POINTER_TYPEDEFS(VioBackEndInputPayload);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(VioBackEndInputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VioBackEndInputPayload(
       const Timestamp& timestamp_kf_nsec,
-      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
+      const StatusStereoMeasurements& status_stereo_measurements_kf,
       const TrackingStatus&
           stereo_tracking_status,  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
       std::vector<Plane>* planes = nullptr)
       : timestamp_kf_nsec_(timestamp_kf_nsec),
-        status_smart_stereo_measurements_kf_(
-            status_smart_stereo_measurements_kf),
+        status_stereo_measurements_kf_(status_stereo_measurements_kf),
         stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
         planes_(planes),
         stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
   const Timestamp timestamp_kf_nsec_;
-  const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf_;
+  const StatusStereoMeasurements status_stereo_measurements_kf_;
   const TrackingStatus
       stereo_tracking_status_;  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
-  // I believe we do not need EIGEN_MAKE_ALIGNED_OPERATOR_NEW for these members
-  // as they are dynamic eigen, not "fixed-size vectorizable matrices and
-  // vectors."
   const gtsam::PreintegratedImuMeasurements pim_;
   std::vector<Plane>* planes_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
@@ -248,19 +245,19 @@ struct VioBackEndInputPayload {
               << "Timestamp: " << timestamp_kf_nsec_ << '\n'
               << "Status smart stereo measurements: "
               << "\n\t Meas size: "
-              << status_smart_stereo_measurements_kf_.second.size();
+              << status_stereo_measurements_kf_.second.size();
 
-    LOG(INFO) << "Mono Tracking Status: "
-              << TrackerStatusSummary::asString(
-                     status_smart_stereo_measurements_kf_.first
-                         .kfTrackingStatus_mono_);
-    status_smart_stereo_measurements_kf_.first.lkf_T_k_mono_.print(
+    LOG(INFO)
+        << "Mono Tracking Status: "
+        << TrackerStatusSummary::asString(
+               status_stereo_measurements_kf_.first.kfTrackingStatus_mono_);
+    status_stereo_measurements_kf_.first.lkf_T_k_mono_.print(
         "\n\t Tracker Pose (mono): ");
-    LOG(INFO) << "Stereo Tracking Status: "
-              << TrackerStatusSummary::asString(
-                     status_smart_stereo_measurements_kf_.first
-                         .kfTrackingStatus_stereo_);
-    status_smart_stereo_measurements_kf_.first.lkf_T_k_stereo_.print(
+    LOG(INFO)
+        << "Stereo Tracking Status: "
+        << TrackerStatusSummary::asString(
+               status_stereo_measurements_kf_.first.kfTrackingStatus_stereo_);
+    status_stereo_measurements_kf_.first.lkf_T_k_stereo_.print(
         "\n\t Tracker Pose (stereo): ");
 
     LOG(INFO) << "Stereo Tracking Status: "
@@ -275,6 +272,7 @@ struct VioBackEndInputPayload {
 ////////////////////////////////////////////////////////////////////////////////
 struct VioBackEndOutputPayload {
   KIMERA_POINTER_TYPEDEFS(VioBackEndOutputPayload);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(VioBackEndOutputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VioBackEndOutputPayload(
       const Timestamp& timestamp_kf, const gtsam::Values state,

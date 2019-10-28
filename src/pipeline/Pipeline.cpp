@@ -212,7 +212,7 @@ void Pipeline::spinOnce(
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::processKeyframe(
-    const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
+    const StatusStereoMeasurements& status_stereo_measurements,
     const StereoFrame& last_stereo_keyframe,
     const ImuFrontEnd::PreintegratedImuMeasurements& pim,
     const TrackingStatus& kf_tracking_status_stereo,
@@ -226,7 +226,7 @@ void Pipeline::processKeyframe(
   VLOG(2) << "Push input payload to Backend.";
   backend_input_queue_.push(VIO::make_unique<VioBackEndInputPayload>(
       last_stereo_keyframe.getTimestamp(),
-      statusSmartStereoMeasurements,
+      status_stereo_measurements,
       kf_tracking_status_stereo,
       pim,
       relative_pose_body_stereo,
@@ -411,7 +411,7 @@ void Pipeline::spinSequential() {
   // We have a keyframe. Push to backend.
   backend_input_queue_.push(VIO::make_unique<VioBackEndInputPayload>(
       stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
-      stereo_frontend_output_payload->statusSmartStereoMeasurements_,
+      stereo_frontend_output_payload->status_stereo_measurements_,
       stereo_frontend_output_payload->tracker_status_,
       stereo_frontend_output_payload->pim_,
       stereo_frontend_output_payload->relative_pose_body_stereo_,
@@ -750,9 +750,14 @@ bool Pipeline::initializeOnline(
                   imu_params.n_gravity.norm());
 
   // Enforce stereo frame as keyframe for initialization
-  // TODO: why is it copying it???
-  StereoImuSyncPacket stereo_imu_sync_init = stereo_imu_sync_packet;
-  stereo_imu_sync_init.setAsKeyframe();
+  StereoFrame stereo_frame = stereo_imu_sync_packet.getStereoFrame();
+  stereo_frame.setIsKeyframe(true);
+  // TODO: this is copying the packet implicitly, just to set a flag to true.
+  StereoImuSyncPacket stereo_imu_sync_init(
+      stereo_frame,
+      stereo_imu_sync_packet.getImuStamps(),
+      stereo_imu_sync_packet.getImuAccGyr(),
+      stereo_imu_sync_packet.getReinitPacket());
 
   /////////////////// FIRST FRAME //////////////////////////////////////////////
   if (frame_id == init_frame_id_) {
@@ -763,20 +768,17 @@ bool Pipeline::initializeOnline(
         stereo_imu_sync_init.getStereoFrame());
     return false;
 
-    /////////////////// FRONTEND
-    /////////////////////////////////////////////////////
+    /////////////////// FRONTEND ///////////////////////////////////////////////
   } else {
     // Check trivial bias and gravity vector for online initialization
     vio_frontend_->checkFrontendForOnlineAlignment();
     // Spin frontend once with enforced keyframe and 53-point method
-    // TODO why is this copying? (by doing make_shared?)
     const StereoFrontEndOutputPayload::UniquePtr& frontend_output =
         vio_frontend_->spinOnce(stereo_imu_sync_init);
-    const StereoFrame stereo_frame_lkf = frontend_output->stereo_frame_lkf_;
     // TODO(Sandro): Optionally add AHRS PIM
     InitializationInputPayload frontend_init_output(
         frontend_output->is_keyframe_,
-        frontend_output->statusSmartStereoMeasurements_,
+        frontend_output->status_stereo_measurements_,
         frontend_output->tracker_status_,
         frontend_output->relative_pose_body_stereo_,
         frontend_output->stereo_frame_lkf_,
@@ -795,7 +797,7 @@ bool Pipeline::initializeOnline(
     stereo_frontend_output_queue_.push(
         VIO::make_unique<StereoFrontEndOutputPayload>(
             frontend_output->is_keyframe_,
-            frontend_output->statusSmartStereoMeasurements_,
+            frontend_output->status_stereo_measurements_,
             frontend_output->tracker_status_,
             frontend_output->relative_pose_body_stereo_,
             frontend_output->stereo_frame_lkf_,
@@ -863,7 +865,7 @@ bool Pipeline::initializeOnline(
         initBackend(&vio_backend_,
                     stereo_imu_sync_packet,
                     initial_state_OGA,
-                    stereo_frame_lkf);
+                    frontend_output->stereo_frame_lkf_);
         LOG(INFO) << "Initialization finalized.";
 
         // TODO(Sandro): Create check-return for function
@@ -962,13 +964,17 @@ void Pipeline::spinDisplayOnce(
 }
 
 /* -------------------------------------------------------------------------- */
-StatusSmartStereoMeasurements Pipeline::featureSelect(
-    const VioFrontEndParams& tracker_params, const Timestamp& timestamp_k,
-    const Timestamp& timestamp_lkf, const gtsam::Pose3& W_Pose_Blkf,
+StatusStereoMeasurements Pipeline::featureSelect(
+    const VioFrontEndParams& tracker_params,
+    const Timestamp& timestamp_k,
+    const Timestamp& timestamp_lkf,
+    const gtsam::Pose3& W_Pose_Blkf,
     double* feature_selection_time,
     std::shared_ptr<StereoFrame>& stereoFrame_km1,
-    const StatusSmartStereoMeasurements& status_smart_stereo_meas,
-    int cur_kf_id, int save_image_selector, const gtsam::Matrix& curr_state_cov,
+    const StatusStereoMeasurements& status_stereo_meas,
+    int cur_kf_id,
+    int save_image_selector,
+    const gtsam::Matrix& curr_state_cov,
     const Frame& left_frame) {  // last one for visualization only
   CHECK_NOTNULL(feature_selection_time);
 
@@ -991,7 +997,7 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   std::tie(trackedAndSelectedSmartStereoMeasurements, *feature_selection_time) =
       feature_selector_->splitTrackedAndNewFeatures_Select_Display(
           stereoFrame_km1,
-          status_smart_stereo_meas.second,
+          status_stereo_meas.second,
           cur_kf_id,
           save_image_selector,
           tracker_params.featureSelectionCriterion_,
@@ -1004,7 +1010,7 @@ StatusSmartStereoMeasurements Pipeline::featureSelect(
   VLOG(100) << "Feature selection completed.";
 
   // Same status as before.
-  TrackerStatusSummary status = status_smart_stereo_meas.first;
+  TrackerStatusSummary status = status_stereo_meas.first;
   return std::make_pair(status, trackedAndSelectedSmartStereoMeasurements);
 }
 
@@ -1031,13 +1037,12 @@ void Pipeline::processKeyframePop() {
     ////////////////////////////// BACK-END
     ///////////////////////////////////////
     VLOG(2) << "Process Keyframe in BackEnd";
-    processKeyframe(
-        stereo_frontend_output_payload->statusSmartStereoMeasurements_,
-        stereo_frontend_output_payload->stereo_frame_lkf_,
-        stereo_frontend_output_payload->pim_,
-        stereo_frontend_output_payload->tracker_status_,
-        stereo_frontend_output_payload->relative_pose_body_stereo_,
-        stereo_frontend_output_payload->debug_tracker_info_);
+    processKeyframe(stereo_frontend_output_payload->status_stereo_measurements_,
+                    stereo_frontend_output_payload->stereo_frame_lkf_,
+                    stereo_frontend_output_payload->pim_,
+                    stereo_frontend_output_payload->tracker_status_,
+                    stereo_frontend_output_payload->relative_pose_body_stereo_,
+                    stereo_frontend_output_payload->debug_tracker_info_);
   }
   LOG(INFO) << "Shutdown wrapped thread.";
 }

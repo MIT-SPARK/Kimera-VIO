@@ -148,7 +148,7 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
   VLOG(10) << "Starting processStereoFrame...";
-  StatusSmartStereoMeasurements statusSmartStereoMeasurements =
+  StatusStereoMeasurements status_stereo_measurements =
       processStereoFrame(stereoFrame_k, calLrectLkf_R_camLrectK_imu);
 
   CHECK(!stereoFrame_k_);  // processStereoFrame is setting this to nullptr!!!
@@ -163,7 +163,7 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
     CHECK(!stereoFrame_k_);
     CHECK(stereoFrame_lkf_->isKeyframe());
     LOG(INFO) << "Keyframe " << k
-              << " with: " << statusSmartStereoMeasurements.second.size()
+              << " with: " << status_stereo_measurements.second.size()
               << " smart measurements";
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
@@ -188,7 +188,7 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
     // Return the output of the frontend for the others.
     return VIO::make_unique<StereoFrontEndOutputPayload>(
         true,
-        statusSmartStereoMeasurements,
+        status_stereo_measurements,
         trackerStatusSummary_.kfTrackingStatus_stereo_,
         getRelativePoseBodyStereo(),
         *stereoFrame_lkf_,
@@ -198,7 +198,7 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
     // We don't have a keyframe.
     return VIO::make_unique<StereoFrontEndOutputPayload>(
         false,
-        statusSmartStereoMeasurements,
+        status_stereo_measurements,
         TrackingStatus::INVALID,
         getRelativePoseBodyStereo(),
         *stereoFrame_lkf_,
@@ -251,7 +251,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 /* -------------------------------------------------------------------------- */
 // FRONTEND WORKHORSE
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
-StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
+StatusStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     const StereoFrame& cur_frame,
     boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu) {
   VLOG(2) << "===================================================\n"
@@ -693,7 +693,7 @@ void StereoVisionFrontEnd::displaySaveImage(
 /* ------------------------------------------------------------------------ */
 // Static function to display output of stereo tracker
 void StereoVisionFrontEnd::printStatusStereoMeasurements(
-    const StatusSmartStereoMeasurements& statusStereoMeasurements) {
+    const StatusStereoMeasurements& statusStereoMeasurements) {
   LOG(INFO) << " SmartStereoMeasurements with status:";
   logTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_mono_,
                     "mono");

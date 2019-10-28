@@ -146,7 +146,7 @@ class Pipeline {
   void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
 
   void processKeyframe(
-      const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
+      const StatusStereoMeasurements& statusSmartStereoMeasurements,
       const StereoFrame& last_stereo_keyframe,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       const TrackingStatus& kf_tracking_status_stereo,
@@ -155,14 +155,14 @@ class Pipeline {
 
   void processKeyframePop();
 
-  StatusSmartStereoMeasurements featureSelect(
+  StatusStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
       const gtsam::Pose3& W_Pose_Blkf,
       double* feature_selection_time,
       std::shared_ptr<StereoFrame>& stereoFrame_km1,
-      const StatusSmartStereoMeasurements& smart_stereo_meas,
+      const StatusStereoMeasurements& smart_stereo_meas,
       int cur_kf_id,
       int save_image_selector,
       const gtsam::Matrix& curr_state_cov,

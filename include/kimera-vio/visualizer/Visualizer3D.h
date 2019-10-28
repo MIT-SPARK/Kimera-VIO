@@ -46,6 +46,7 @@ static bool getEstimateOfKey(const gtsam::Values& state, const gtsam::Key& key,
 
 struct VisualizerInputPayload {
   KIMERA_POINTER_TYPEDEFS(VisualizerInputPayload);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerInputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VisualizerInputPayload(
       const gtsam::Pose3& pose,
@@ -77,6 +78,7 @@ struct ImageToDisplay {
 
 struct VisualizerOutputPayload {
   KIMERA_POINTER_TYPEDEFS(VisualizerOutputPayload);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerOutputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VisualizerOutputPayload() = default;
   ~VisualizerOutputPayload() = default;

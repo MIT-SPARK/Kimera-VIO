@@ -171,7 +171,7 @@ public:
  private:
   /* ------------------------------------------------------------------------ */
   // Frontend main function.
-  StatusSmartStereoMeasurements processStereoFrame(
+  StatusStereoMeasurements processStereoFrame(
       const StereoFrame& cur_frame,
       boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
 
@@ -185,7 +185,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Static function to display output of stereo tracker
   static void printStatusStereoMeasurements(
-      const StatusSmartStereoMeasurements& statusStereoMeasurements);
+      const StatusStereoMeasurements& statusStereoMeasurements);
 
   // verbosity_ explanation (TODO: include this)
   /*

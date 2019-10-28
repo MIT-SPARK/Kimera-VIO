@@ -17,11 +17,14 @@
 #include <gtsam/geometry/StereoPoint2.h>
 
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/Tracker-definitions.h"
 
 namespace VIO {
 
 using SmartStereoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
 using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
+using StatusStereoMeasurements =
+    std::pair<TrackerStatusSummary, SmartStereoMeasurements>;
 
 // TODO make enum class.
 enum Mesh2Dtype {VALIDKEYPOINTS, DENSE};

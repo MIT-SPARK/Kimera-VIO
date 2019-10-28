@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include <glog/logging.h>
+
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/base/Matrix.h>
 
