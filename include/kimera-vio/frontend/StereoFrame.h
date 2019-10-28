@@ -44,7 +44,6 @@ namespace VIO {
 ////////////////////////////////////////////////////////////////////////////////
 // TODO put these parameters in its own .h/.cpp and add tests as in frontend
 // params
-enum VisionSensorType { STEREO, RGBD };  // 0 for stereo and 1 for RGBD
 
 class StereoMatchingParams {
  public:
@@ -60,26 +59,27 @@ class StereoMatchingParams {
   bool bidirectional_matching_;  // check best match left->right and right->left
   bool subpixel_refinement_;     // refine stereo matches with subpixel accuracy
   bool equalize_image_;          // do equalize image before processing
-  int vision_sensor_type_;       // options to use RGB-D vs. stereo
+  VisionSensorType vision_sensor_type_;  // options to use RGB-D vs. stereo
   double min_depth_factor_;      // min-depth to be used with RGB-D
   double map_depth_factor_;      // depth-map to be used with RGB-D
 
  public:
-  StereoMatchingParams(double tol_template_matching = 0.15,
-                       int templ_cols = 101,
-                       int templ_rows = 11,
-                       int stripe_extra_rows = 0,
-                       double min_point_dist = 0.1,
-                       double max_point_dist = 15.0,
-                       bool bidirectional_matching = false,
-                       double nominal_baseline =
-                           0.11,  // NOTE that this is hard coded (for EuRoC)
-                       bool subpixel_refinement = false,
-                       bool equalize_image = false,
-                       int vision_sensor_type = VisionSensorType::STEREO,
-                       double min_depth_factor =
-                           0.3,  // NOTE that this is hard coded (for RealSense)
-                       double map_depth_factor = 0.001)
+  StereoMatchingParams(
+      double tol_template_matching = 0.15,
+      int templ_cols = 101,
+      int templ_rows = 11,
+      int stripe_extra_rows = 0,
+      double min_point_dist = 0.1,
+      double max_point_dist = 15.0,
+      bool bidirectional_matching = false,
+      double nominal_baseline =
+          0.11,  // NOTE that this is hard coded (for EuRoC)
+      bool subpixel_refinement = false,
+      bool equalize_image = false,
+      VisionSensorType vision_sensor_type = VisionSensorType::STEREO,
+      double min_depth_factor =
+          0.3,  // NOTE that this is hard coded (for RealSense)
+      double map_depth_factor = 0.001)
       :  // NOTE that this is hard coded (for RealSense)
         tolerance_template_matching_(std::move(tol_template_matching)),
         nominal_baseline_(std::move(nominal_baseline)),
@@ -118,10 +118,11 @@ class StereoMatchingParams {
   }
 
   void print() const {
+    LOG(INFO) << "Using vision_sensor_type_: "
+              << to_underlying(vision_sensor_type_);
     LOG(INFO) << "** Sparse Stereo Matching parameters **\n"
               << "equalize_image_: " << equalize_image_ << '\n'
               << "nominalBaseline_: " << nominal_baseline_ << '\n'
-              << "vision_sensor_type_: " << vision_sensor_type_ << '\n'
               << "toleranceTemplateMatching_: " << tolerance_template_matching_
               << '\n'
               << "templ_cols_: " << templ_cols_ << '\n'
