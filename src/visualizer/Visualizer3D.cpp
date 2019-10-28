@@ -148,8 +148,8 @@ Visualizer3D::Visualizer3D(VisualizationType viz_type, int backend_type)
 /* -------------------------------------------------------------------------- */
 // Returns false if visualizer has shutdown.
 bool Visualizer3D::spin(
-    ThreadsafeQueue<VisualizerInputPayload::Ptr>& input_queue,
-    ThreadsafeQueue<VisualizerOutputPayload::Ptr>& output_queue,
+    ThreadsafeQueue<VisualizerInputPayload::UniquePtr>& input_queue,
+    ThreadsafeQueue<VisualizerOutputPayload::UniquePtr>& output_queue,
     std::function<void(VisualizerOutputPayload&)> display,
     bool parallel_run) {
   LOG(INFO) << "Spinning Visualizer.";
@@ -157,18 +157,22 @@ bool Visualizer3D::spin(
   while (!shutdown_) {
     // Wait for mesher payload.
     is_thread_working_ = false;
-    VisualizerInputPayload::Ptr visualizer_payload;
+    VisualizerInputPayload::UniquePtr visualizer_payload;
     CHECK(input_queue.popBlocking(visualizer_payload));
     is_thread_working_ = true;
     auto tic = utils::Timer::tic();
-    VisualizerOutputPayload::UniquePtr output_payload =
-        VIO::make_unique<VisualizerOutputPayload>();
-    visualize(visualizer_payload, output_payload.get());
-    if (display) {
-      display(*output_payload);
-      output_payload->images_to_display_.clear();
+    if (visualizer_payload) {
+      VisualizerOutputPayload::UniquePtr output_payload =
+          VIO::make_unique<VisualizerOutputPayload>();
+      CHECK(visualize(*visualizer_payload, output_payload.get()));
+      if (display) {
+        display(*output_payload);
+        output_payload->images_to_display_.clear();
+      } else {
+        output_queue.push(std::move(output_payload));
+      }
     } else {
-      output_queue.push(std::move(output_payload));
+      LOG(WARNING) << "No Visualizer Input Payload received";
     }
     auto spin_duration = utils::Timer::toc(tic).count();
     LOG(WARNING) << "Current Visualizer frequency: " << 1000.0 / spin_duration
@@ -194,19 +198,6 @@ void Visualizer3D::shutdown() {
 void Visualizer3D::restart() {
   LOG(INFO) << "Resetting shutdown visualizer flag to false.";
   shutdown_ = false;
-}
-
-/* -------------------------------------------------------------------------- */
-// Returns true if visualization is ready, false otherwise.
-bool Visualizer3D::visualize(const VisualizerInputPayload::ConstPtr& input,
-                             VisualizerOutputPayload* output) {
-  CHECK_NOTNULL(output);
-  if (input) {
-    return visualize(*input, output);
-  } else {
-    LOG(WARNING) << "No Visualizer Input Payload received";
-    return false;
-  }
 }
 
 /* -------------------------------------------------------------------------- */

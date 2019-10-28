@@ -118,8 +118,8 @@ class Visualizer3D {
   /* ------------------------------------------------------------------------ */
   // Spin for Visualizer3D. Calling shutdown stops the visualizer.
   // Returns false when visualizer has been shutdown.
-  bool spin(ThreadsafeQueue<VisualizerInputPayload::Ptr>& input_queue,
-            ThreadsafeQueue<VisualizerOutputPayload::Ptr>& output_queue,
+  bool spin(ThreadsafeQueue<VisualizerInputPayload::UniquePtr>& input_queue,
+            ThreadsafeQueue<VisualizerOutputPayload::UniquePtr>& output_queue,
             std::function<void(VisualizerOutputPayload&)> display,
             bool parallel_run = true);
 
@@ -140,13 +140,6 @@ class Visualizer3D {
       Mesher::Mesh3dVizPropertiesSetterCallback cb) {
     mesh3d_viz_properties_callback_ = cb;
   }
-
-  /* ------------------------------------------------------------------------ */
-  // Returns true if visualization is ready, false otherwise.
-  // The actual visualization must be done in the main thread, and as such,
-  // it is not done here to separate visualization preparation from display.
-  bool visualize(const VisualizerInputPayload::ConstPtr& input,
-                 VisualizerOutputPayload* output);
 
   /* ------------------------------------------------------------------------ */
   // Returns true if visualization is ready, false otherwise.

@@ -22,7 +22,7 @@
 #include <utility>  // for make_pair
 #include <vector>
 
-#include "kimera-vio/datasource/DataSource-definitions.h"  // Only used for gtNavState, add it to vio_types.h instead...
+#include "kimera-vio/datasource/DataSource-definitions.h"
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
@@ -232,8 +232,8 @@ class Pipeline {
   Visualizer3D visualizer_;
 
   // Thread-safe queue for the visualizer.
-  ThreadsafeQueue<VisualizerInputPayload::Ptr> visualizer_input_queue_;
-  ThreadsafeQueue<VisualizerOutputPayload::Ptr> visualizer_output_queue_;
+  ThreadsafeQueue<VisualizerInputPayload::UniquePtr> visualizer_input_queue_;
+  ThreadsafeQueue<VisualizerOutputPayload::UniquePtr> visualizer_output_queue_;
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
