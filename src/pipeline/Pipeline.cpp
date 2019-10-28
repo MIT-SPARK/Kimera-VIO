@@ -397,7 +397,7 @@ void Pipeline::spinSequential() {
                       false);  // Do not run in parallel.
 
   // Pop from frontend.
-  StereoFrontEndOutputPayload::Ptr stereo_frontend_output_payload;
+  StereoFrontEndOutputPayload::UniquePtr stereo_frontend_output_payload;
   stereo_frontend_output_queue_.pop(stereo_frontend_output_payload);
   if (!stereo_frontend_output_payload) {
     // Frontend hasn't reach a keyframe, return and wait frontend to create a
@@ -769,8 +769,7 @@ bool Pipeline::initializeOnline(
     // Spin frontend once with enforced keyframe and 53-point method
     // TODO why is this copying? (by doing make_shared?)
     const StereoFrontEndOutputPayload::UniquePtr& frontend_output =
-        vio_frontend_->spinOnce(
-            std::make_shared<StereoImuSyncPacket>(stereo_imu_sync_init));
+        vio_frontend_->spinOnce(stereo_imu_sync_init);
     const StereoFrame stereo_frame_lkf = frontend_output->stereo_frame_lkf_;
     // TODO(Sandro): Optionally add AHRS PIM
     InitializationInputPayload frontend_init_output(
@@ -1015,7 +1014,7 @@ void Pipeline::processKeyframePop() {
   while (!shutdown_) {
     // Here we are inside the WRAPPED THREAD //
     VLOG(2) << "Waiting payload from Frontend.";
-    StereoFrontEndOutputPayload::Ptr stereo_frontend_output_payload;
+    StereoFrontEndOutputPayload::UniquePtr stereo_frontend_output_payload;
     stereo_frontend_output_queue_.popBlocking(stereo_frontend_output_payload);
     if (!stereo_frontend_output_payload) {
       LOG(WARNING) << "Missing frontend output payload.";

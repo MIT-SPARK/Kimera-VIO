@@ -55,7 +55,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 /* -------------------------------------------------------------------------- */
 bool StereoVisionFrontEnd::spin(
     ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
-    ThreadsafeQueue<StereoFrontEndOutputPayload::Ptr>& output_queue,
+    ThreadsafeQueue<StereoFrontEndOutputPayload::UniquePtr>& output_queue,
     bool parallel_run) {
   LOG(INFO) << "Spinning StereoFrontEnd.";
   utils::StatsCollector stat_stereo_frontend_timing(
@@ -63,22 +63,23 @@ bool StereoVisionFrontEnd::spin(
   while (!shutdown_) {
     // Get input data from queue. Wait for Backend payload.
     is_thread_working_ = false;
-    std::shared_ptr<StereoFrontEndInputPayload> input =
-        input_queue.popBlocking();
+    StereoFrontEndInputPayload::Ptr input = input_queue.popBlocking();
     is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();
-      const StereoFrontEndOutputPayload::Ptr& output = spinOnce(input);
-      if (output->is_keyframe_) {
+      StereoFrontEndOutputPayload::UniquePtr output = spinOnce(*input);
+      bool is_keyframe = output->is_keyframe_;
+      if (is_keyframe) {
         VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
-        output_queue.push(output);
+        // WARNING: explicit move, do not use output after this call...
+        output_queue.push(std::move(output));
       } else {
         VLOG(2) << "Frontend output is not a keyframe."
                    " Skipping output queue push.";
       }
       auto spin_duration = utils::Timer::toc(tic).count();
       LOG(WARNING) << "Current Stereo FrontEnd "
-                   << (output->is_keyframe_ ? "(keyframe) " : "")
+                   << (is_keyframe ? "(keyframe) " : "")
                    << "frequency: " << 1000.0 / spin_duration << " Hz. ("
                    << spin_duration << " ms).";
       stat_stereo_frontend_timing.AddSample(spin_duration);
@@ -95,18 +96,18 @@ bool StereoVisionFrontEnd::spin(
 
 /* -------------------------------------------------------------------------- */
 StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
-    const std::shared_ptr<StereoFrontEndInputPayload>& input) {
-  const StereoFrame& stereoFrame_k = input->getStereoFrame();
+    const StereoFrontEndInputPayload& input) {
+  const StereoFrame& stereoFrame_k = input.getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
   LOG(INFO) << "------------------- Processing frame k = " << k
             << "--------------------";
 
   ////////////////////////////// GET IMU DATA //////////////////////////////////
-  const auto& imu_stamps = input->getImuStamps();
-  const auto& imu_accgyr = input->getImuAccGyr();
+  const auto& imu_stamps = input.getImuStamps();
+  const auto& imu_accgyr = input.getImuAccGyr();
 
   // Print IMU data.
-  if (VLOG_IS_ON(10)) input->print();
+  if (VLOG_IS_ON(10)) input.print();
 
   // For k > 1
   // The preintegration btw frames is needed for RANSAC.

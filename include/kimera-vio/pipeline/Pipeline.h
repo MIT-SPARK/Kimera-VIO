@@ -198,7 +198,7 @@ class Pipeline {
 
   // Stereo vision frontend payloads.
   ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
-  ThreadsafeQueue<StereoFrontEndOutputPayload::Ptr>
+  ThreadsafeQueue<StereoFrontEndOutputPayload::UniquePtr>
       stereo_frontend_output_queue_;
 
   // Online initialization frontend queue.

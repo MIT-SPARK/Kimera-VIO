@@ -24,6 +24,7 @@
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/mesh/Mesh.h"
+#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
@@ -81,6 +82,8 @@ struct ReinitPacket {
 
 class StereoImuSyncPacket {
  public:
+  KIMERA_POINTER_TYPEDEFS(StereoImuSyncPacket);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // WARNING do not use constructor params after being moved with
   // std::move as they are left in an invalid state!!
   StereoImuSyncPacket() = delete;
@@ -131,11 +134,6 @@ class StereoImuSyncPacket {
     }
   }
 
-  // Use only unique ptr since this class should be moved around,
-  // not copied!
-  typedef std::unique_ptr<StereoImuSyncPacket> UniquePtr;
-  typedef std::unique_ptr<const StereoImuSyncPacket> ConstUniquePtr;
-
  private:
   // TODO(Toni): this should be const as well, but the initialization is
   // modifying it and setting as keyframe....
@@ -147,6 +145,7 @@ class StereoImuSyncPacket {
 
 // Struct to deal with getting values out of the spin
 struct SpinOutputPacket {
+  KIMERA_POINTER_TYPEDEFS(StereoImuSyncPacket);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Default constructor
   SpinOutputPacket(
