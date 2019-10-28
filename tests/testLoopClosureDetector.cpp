@@ -480,52 +480,47 @@ TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
 
 TEST_F(LCDFixture, spinOnce) {
   /* Test the full pipeline with one loop closure and full PGO optimization */
-  std::pair<double, double> error;
-
   CHECK(lcd_detector_);
   CHECK(ref1_stereo_frame_);
-  const std::shared_ptr<LoopClosureDetectorInputPayload> input_0 =
-    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_ref1_,
-      FrameId(1), *ref1_stereo_frame_, gtsam::Pose3());
-  LoopClosureDetectorOutputPayload output_0 = lcd_detector_->spinOnce(input_0);
+  LoopClosureDetectorOutputPayload::UniquePtr output_0 =
+      lcd_detector_->spinOnce(LoopClosureDetectorInputPayload(
+          timestamp_ref1_, FrameId(1), *ref1_stereo_frame_, gtsam::Pose3()));
 
   CHECK(ref2_stereo_frame_);
-  const std::shared_ptr<LoopClosureDetectorInputPayload> input_1 =
-    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_ref2_,
-      FrameId(2), *ref2_stereo_frame_, gtsam::Pose3());
-  LoopClosureDetectorOutputPayload output_1 = lcd_detector_->spinOnce(input_1);
+  LoopClosureDetectorOutputPayload::UniquePtr output_1 =
+      lcd_detector_->spinOnce(LoopClosureDetectorInputPayload(
+          timestamp_ref2_, FrameId(2), *ref2_stereo_frame_, gtsam::Pose3()));
 
   CHECK(cur1_stereo_frame_);
-  const std::shared_ptr<LoopClosureDetectorInputPayload> input_2 =
-    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_cur1_,
-      FrameId(3), *cur1_stereo_frame_, gtsam::Pose3());
-  LoopClosureDetectorOutputPayload output_2 = lcd_detector_->spinOnce(input_2);
+  LoopClosureDetectorOutputPayload::UniquePtr output_2 =
+      lcd_detector_->spinOnce(LoopClosureDetectorInputPayload(
+          timestamp_cur1_, FrameId(3), *cur1_stereo_frame_, gtsam::Pose3()));
 
-  EXPECT_EQ(output_0.is_loop_closure_, false);
-  EXPECT_EQ(output_0.timestamp_kf_, 0);
-  EXPECT_EQ(output_0.timestamp_query_, 0);
-  EXPECT_EQ(output_0.timestamp_match_, 0);
-  EXPECT_EQ(output_0.id_match_, 0);
-  EXPECT_EQ(output_0.id_recent_, 0);
-  EXPECT_EQ(output_0.states_.size(), 1);
-  EXPECT_EQ(output_0.nfg_.size(), 1);
+  EXPECT_EQ(output_0->is_loop_closure_, false);
+  EXPECT_EQ(output_0->timestamp_kf_, 0);
+  EXPECT_EQ(output_0->timestamp_query_, 0);
+  EXPECT_EQ(output_0->timestamp_match_, 0);
+  EXPECT_EQ(output_0->id_match_, 0);
+  EXPECT_EQ(output_0->id_recent_, 0);
+  EXPECT_EQ(output_0->states_.size(), 1);
+  EXPECT_EQ(output_0->nfg_.size(), 1);
 
-  EXPECT_EQ(output_1.is_loop_closure_, false);
-  EXPECT_EQ(output_1.timestamp_kf_, 0);
-  EXPECT_EQ(output_1.timestamp_query_, 0);
-  EXPECT_EQ(output_1.timestamp_match_, 0);
-  EXPECT_EQ(output_1.id_match_, 0);
-  EXPECT_EQ(output_1.id_recent_, 0);
-  EXPECT_EQ(output_1.states_.size(), 2);
-  EXPECT_EQ(output_1.nfg_.size(), 2);
+  EXPECT_EQ(output_1->is_loop_closure_, false);
+  EXPECT_EQ(output_1->timestamp_kf_, 0);
+  EXPECT_EQ(output_1->timestamp_query_, 0);
+  EXPECT_EQ(output_1->timestamp_match_, 0);
+  EXPECT_EQ(output_1->id_match_, 0);
+  EXPECT_EQ(output_1->id_recent_, 0);
+  EXPECT_EQ(output_1->states_.size(), 2);
+  EXPECT_EQ(output_1->nfg_.size(), 2);
 
-  EXPECT_EQ(output_2.is_loop_closure_, true);
-  EXPECT_EQ(output_2.timestamp_kf_, timestamp_cur1_);
-  EXPECT_EQ(output_2.timestamp_query_, timestamp_cur1_);
-  EXPECT_EQ(output_2.timestamp_match_, timestamp_ref1_);
-  EXPECT_EQ(output_2.id_match_, 0);
-  EXPECT_EQ(output_2.id_recent_, 2);
-  EXPECT_EQ(output_2.states_.size(), 3);
+  EXPECT_EQ(output_2->is_loop_closure_, true);
+  EXPECT_EQ(output_2->timestamp_kf_, timestamp_cur1_);
+  EXPECT_EQ(output_2->timestamp_query_, timestamp_cur1_);
+  EXPECT_EQ(output_2->timestamp_match_, timestamp_ref1_);
+  EXPECT_EQ(output_2->id_match_, 0);
+  EXPECT_EQ(output_2->id_recent_, 2);
+  EXPECT_EQ(output_2->states_.size(), 3);
 }
 
 }  // namespace VIO

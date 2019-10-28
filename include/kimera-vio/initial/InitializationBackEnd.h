@@ -27,10 +27,9 @@
 namespace VIO {
 
 class InitializationBackEnd : public VioBackEnd {
-  typedef ThreadsafeQueue<InitializationInputPayload>::InternalQueue
-      InitializationQueue;
-
  public:
+  typedef ThreadsafeQueue<InitializationInputPayload::UniquePtr>::InternalQueue
+      InitializationQueue;
   /* ------------------------------------------------------------------------ */
   // Create and initialize InitializationBackEnd, without initiaing pose.
   InitializationBackEnd(const gtsam::Pose3 &leftCamPose,
@@ -53,7 +52,7 @@ class InitializationBackEnd : public VioBackEnd {
  public:
   /* ------------------------------------------------------------------------ */
   std::vector<gtsam::Pose3> addInitialVisualStatesAndOptimize(
-      const std::vector<std::shared_ptr<VioBackEndInputPayload>> &input);
+      const std::vector<VioBackEndInputPayload::UniquePtr>& input);
 
  private:
   /* ------------------------------------------------------------------------ */

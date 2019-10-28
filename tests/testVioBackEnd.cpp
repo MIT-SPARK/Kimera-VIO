@@ -183,7 +183,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   // create vio
   Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
   VioNavState initial_state = VioNavState(poses[0].first, v, imu_bias);
-  boost::shared_ptr<VioBackEnd> vio = boost::make_shared<VioBackEnd>(
+  std::shared_ptr<VioBackEnd> vio = std::make_shared<VioBackEnd>(
       B_pose_camLrect, cam_params, baseline, initial_state, t_start, vioParams);
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
@@ -213,12 +213,12 @@ TEST(testVio, robotMovingWithConstantVelocity) {
     const auto& pim =
         imu_frontend.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
 
-    const VioBackEndInputPayload input(
-        timestamp_k, all_measurements[k],
-        tracker_status_valid.kfTrackingStatus_stereo_, pim);
-
     // process data with VIO
-    vio->spinOnce(std::make_shared<VioBackEndInputPayload>(input));
+    vio->spinOnce(
+        VioBackEndInputPayload(timestamp_k,
+                               all_measurements[k],
+                               tracker_status_valid.kfTrackingStatus_stereo_,
+                               pim));
     // At this point the update imu bias callback should be triggered which
     // will update the imu_frontend imu bias.
     imu_frontend.resetIntegrationWithCachedBias();
@@ -335,7 +335,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
 
   // Create vector of input payloads
-  std::vector<std::shared_ptr<VioBackEndInputPayload>> input_vector;
+  std::vector<VioBackEndInputPayload::UniquePtr> input_vector;
   input_vector.clear();
 
   // For each frame, add landmarks.
@@ -357,19 +357,21 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
                                                                imu_accgyr);
 
     // Push input payload into queue
-    VioBackEndInputPayload input (
-          timestamp_k,
-          all_measurements[k],
-          tracker_status_valid.kfTrackingStatus_stereo_,
-          pim);
+
+    VioBackEndInputPayload::UniquePtr input =
+        VIO::make_unique<VioBackEndInputPayload>(
+            timestamp_k,
+            all_measurements[k],
+            tracker_status_valid.kfTrackingStatus_stereo_,
+            pim);
 
     // Create artificially noisy "RANSAC" pose measurements
     gtsam::Pose3 random_pose = (poses[k-1].first).between(poses[k].first) *
                 UtilsOpenCV::RandomPose3(rad_sigma, pos_sigma);
-    input.stereo_ransac_body_pose_ = random_pose;
+    input->stereo_ransac_body_pose_ = random_pose;
 
     // Create input vector for backend
-    input_vector.push_back(std::make_shared<VioBackEndInputPayload>(input));
+    input_vector.push_back(std::move(input));
   }
 
   // Perform Bundle Adjustment

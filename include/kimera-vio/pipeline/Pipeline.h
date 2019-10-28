@@ -203,7 +203,7 @@ class Pipeline {
       stereo_frontend_output_queue_;
 
   // Online initialization frontend queue.
-  ThreadsafeQueue<InitializationInputPayload>
+  ThreadsafeQueue<InitializationInputPayload::UniquePtr>
       initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.

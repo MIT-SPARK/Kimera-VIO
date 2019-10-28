@@ -237,7 +237,7 @@ void Pipeline::processKeyframe(
   // But there are many more people that want backend results...
   // Pull from backend.
   VLOG(2) << "Waiting payload from Backend.";
-  VioBackEndOutputPayload::Ptr backend_output_payload;
+  VioBackEndOutputPayload::UniquePtr backend_output_payload;
   backend_output_queue_.popBlocking(backend_output_payload);
   LOG_IF(WARNING, !backend_output_payload) << "Missing backend output payload.";
 
@@ -248,7 +248,7 @@ void Pipeline::processKeyframe(
   // It is unfortunately the only option in this architecture.
   if (FLAGS_use_lcd) {
     VLOG(2) << "Push input payload to LoopClosureDetector.";
-    lcd_input_queue_.push(LoopClosureDetectorInputPayload(
+    lcd_input_queue_.push(VIO::make_unique<LoopClosureDetectorInputPayload>(
         last_stereo_keyframe.getTimestamp(),
         backend_output_payload->cur_kf_id_,
         last_stereo_keyframe,
@@ -776,15 +776,15 @@ bool Pipeline::initializeOnline(
     const StereoFrontEndOutputPayload::UniquePtr& frontend_output =
         vio_frontend_->spinOnce(stereo_imu_sync_init);
     // TODO(Sandro): Optionally add AHRS PIM
-    InitializationInputPayload frontend_init_output(
-        frontend_output->is_keyframe_,
-        frontend_output->status_stereo_measurements_,
-        frontend_output->tracker_status_,
-        frontend_output->relative_pose_body_stereo_,
-        frontend_output->stereo_frame_lkf_,
-        frontend_output->pim_,
-        frontend_output->debug_tracker_info_);
-    initialization_frontend_output_queue_.push(frontend_init_output);
+    initialization_frontend_output_queue_.push(
+        VIO::make_unique<InitializationInputPayload>(
+            frontend_output->is_keyframe_,
+            frontend_output->status_stereo_measurements_,
+            frontend_output->tracker_status_,
+            frontend_output->relative_pose_body_stereo_,
+            frontend_output->stereo_frame_lkf_,
+            frontend_output->pim_,
+            frontend_output->debug_tracker_info_));
 
     // TODO(Sandro): Find a way to optimize this
     // This queue is used for the the backend optimization
@@ -816,7 +816,7 @@ bool Pipeline::initializeOnline(
       gtsam::NavState init_navstate;
 
       // Get frontend output to backend input for online initialization
-      std::queue<std::shared_ptr<InitializationInputPayload>> output_frontend;
+      InitializationBackEnd::InitializationQueue output_frontend;
       CHECK(initialization_frontend_output_queue_.batchPop(&output_frontend));
       // Shutdown the initialization input queue once used
       initialization_frontend_output_queue_.shutdown();
@@ -833,9 +833,10 @@ bool Pipeline::initializeOnline(
 
       // Create initial backend
       InitializationBackEnd initial_backend(
-          output_frontend.front()->stereo_frame_lkf_.getBPoseCamLRect(),
-          output_frontend.front()->stereo_frame_lkf_.getLeftUndistRectCamMat(),
-          output_frontend.front()->stereo_frame_lkf_.getBaseline(),
+          (*output_frontend.front())->stereo_frame_lkf_.getBPoseCamLRect(),
+          (*output_frontend.front())
+              ->stereo_frame_lkf_.getLeftUndistRectCamMat(),
+          (*output_frontend.front())->stereo_frame_lkf_.getBaseline(),
           backend_params_init,
           FLAGS_log_output);
 

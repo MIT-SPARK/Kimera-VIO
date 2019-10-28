@@ -47,7 +47,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   // Logging
   VLOG(10) << "N frames for initial alignment: " << output_frontend.size();
   // Create inputs for backend
-  std::vector<std::shared_ptr<VioBackEndInputPayload>> inputs_backend;
+  std::vector<VioBackEndInputPayload::UniquePtr> inputs_backend;
 
   // Create inputs for online gravity alignment
   std::vector<gtsam::PreintegratedImuMeasurements> pims;
@@ -55,25 +55,25 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   // Iterate and fill backend input vector
   while (!output_frontend.empty()) {
     // Create input for backend
-    std::shared_ptr<VioBackEndInputPayload> input_backend =
-        std::make_shared<VioBackEndInputPayload>(VioBackEndInputPayload(
-            output_frontend.front()->stereo_frame_lkf_.getTimestamp(),
-            output_frontend.front()->status_stereo_measurements_,
-            output_frontend.front()->tracker_status_,
-            output_frontend.front()->pim_,
-            output_frontend.front()->relative_pose_body_stereo_,
-            nullptr));
-    inputs_backend.push_back(input_backend);
-    pims.push_back(output_frontend.front()->pim_);
+    const InitializationInputPayload& init_input_payload =
+        *(*output_frontend.front());
+    inputs_backend.push_back(VIO::make_unique<VioBackEndInputPayload>(
+        init_input_payload.stereo_frame_lkf_.getTimestamp(),
+        init_input_payload.status_stereo_measurements_,
+        init_input_payload.tracker_status_,
+        init_input_payload.pim_,
+        init_input_payload.relative_pose_body_stereo_,
+        nullptr));
+    pims.push_back(init_input_payload.pim_);
     // Bookkeeping for timestamps
     Timestamp timestamp_kf =
-        output_frontend.front()->stereo_frame_lkf_.getTimestamp();
+        init_input_payload.stereo_frame_lkf_.getTimestamp();
     delta_t_camera.push_back(
         UtilsOpenCV::NsecToSec(timestamp_kf - timestamp_lkf_));
     timestamp_lkf_ = timestamp_kf;
 
     // Check that all frames are keyframes (required)
-    CHECK(output_frontend.front()->is_keyframe_);
+    CHECK(init_input_payload.is_keyframe_);
     // Pop from queue
     output_frontend.pop();
   }
@@ -84,7 +84,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   // The first pim and ransac poses are lost, as in the Bundle
   // Adjustment we need observations of landmarks intra-frames.
   auto tic_ba = utils::Timer::tic();
-  std::vector<gtsam::Pose3> estimated_poses =
+  const std::vector<gtsam::Pose3>& estimated_poses =
       addInitialVisualStatesAndOptimize(inputs_backend);
   auto ba_duration =
       utils::Timer::toc<std::chrono::nanoseconds>(tic_ba).count() * 1e-9;
@@ -144,7 +144,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 /* -------------------------------------------------------------------------- */
 std::vector<gtsam::Pose3>
 InitializationBackEnd::addInitialVisualStatesAndOptimize(
-    const std::vector<std::shared_ptr<VioBackEndInputPayload>> &input) {
+    const std::vector<VioBackEndInputPayload::UniquePtr>& input) {
   CHECK(input.front());
 
   // Initial clear values.
@@ -154,18 +154,18 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
 
   // Insert relative poses for bundle adjustment
   for (int i = 0; i < input.size(); i++) {
-    auto input_iter = input[i];
+    const VioBackEndInputPayload& input_iter = *input[i];
     bool use_stereo_btw_factor =
         vio_params_.addBetweenStereoFactors_ == true &&
-        input_iter->stereo_tracking_status_ == TrackingStatus::VALID;
+        input_iter.stereo_tracking_status_ == TrackingStatus::VALID;
     VLOG(5) << "Adding initial visual state.";
     VLOG_IF(5, use_stereo_btw_factor) << "Using stereo between factor.";
     // Features and IMU line up --> do iSAM update
     addInitialVisualState(
-        input_iter->timestamp_kf_nsec_,  // Current time for fixed lag smoother.
-        input_iter->status_stereo_measurements_kf_,  // Vision data.
-        input_iter->planes_,
-        use_stereo_btw_factor ? input_iter->stereo_ransac_body_pose_
+        input_iter.timestamp_kf_nsec_,  // Current time for fixed lag smoother.
+        input_iter.status_stereo_measurements_kf_,  // Vision data.
+        input_iter.planes_,
+        use_stereo_btw_factor ? input_iter.stereo_ransac_body_pose_
                               : boost::none,
         0);
     last_kf_id_ = curr_kf_id_;
