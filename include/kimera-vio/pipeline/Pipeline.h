@@ -210,8 +210,8 @@ class Pipeline {
   std::unique_ptr<VioBackEnd> vio_backend_;
 
   // Thread-safe queue for the backend.
-  ThreadsafeQueue<VioBackEndInputPayload::Ptr> backend_input_queue_;
-  ThreadsafeQueue<VioBackEndOutputPayload::Ptr> backend_output_queue_;
+  ThreadsafeQueue<VioBackEndInputPayload::UniquePtr> backend_input_queue_;
+  ThreadsafeQueue<VioBackEndOutputPayload::UniquePtr> backend_output_queue_;
 
   // Set of planes in the scene.
   std::vector<Plane> planes_;
@@ -227,7 +227,7 @@ class Pipeline {
   std::unique_ptr<LoopClosureDetector> loop_closure_detector_;
 
   // Thread-safe queue for the loop closure detector.
-  ThreadsafeQueue<LoopClosureDetectorInputPayload> lcd_input_queue_;
+  ThreadsafeQueue<LoopClosureDetectorInputPayload::UniquePtr> lcd_input_queue_;
 
   // Visualization process.
   Visualizer3D visualizer_;

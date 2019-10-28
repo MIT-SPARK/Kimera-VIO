@@ -422,11 +422,11 @@ void Pipeline::spinSequential() {
   vio_backend_->spin(backend_input_queue_, backend_output_queue_, false);
 
   // Pop blocking from backend.
-  VioBackEndOutputPayload::Ptr backend_output_payload;
+  VioBackEndOutputPayload::UniquePtr backend_output_payload;
   CHECK(backend_output_queue_.popBlocking(backend_output_payload));
 
   // Push keyframe to LCD.
-  lcd_input_queue_.push(LoopClosureDetectorInputPayload(
+  lcd_input_queue_.push(VIO::make_unique<LoopClosureDetectorInputPayload>(
       stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
       backend_output_payload->cur_kf_id_,
       stereo_frontend_output_payload->stereo_frame_lkf_,
@@ -1077,15 +1077,20 @@ void Pipeline::launchRemainingThreads() {
     wrapped_thread_ =
         VIO::make_unique<std::thread>(&Pipeline::processKeyframePop, this);
 
-    backend_thread_ = VIO::make_unique<std::thread>(
-        &VioBackEnd::spin,
-        // Returns the pointer to vio_backend_.
-        CHECK_NOTNULL(vio_backend_.get()), std::ref(backend_input_queue_),
-        std::ref(backend_output_queue_), true);
+    backend_thread_ =
+        VIO::make_unique<std::thread>(&VioBackEnd::spin,
+                                      // Returns the pointer to vio_backend_.
+                                      CHECK_NOTNULL(vio_backend_.get()),
+                                      std::ref(backend_input_queue_),
+                                      std::ref(backend_output_queue_),
+                                      true);
 
-    mesher_thread_ = VIO::make_unique<std::thread>(
-        &Mesher::spin, &mesher_, std::ref(mesher_input_queue_),
-        std::ref(mesher_output_queue_), true);
+    mesher_thread_ =
+        VIO::make_unique<std::thread>(&Mesher::spin,
+                                      &mesher_,
+                                      std::ref(mesher_input_queue_),
+                                      std::ref(mesher_output_queue_),
+                                      true);
 
     if (FLAGS_use_lcd) {
       lcd_thread_ = VIO::make_unique<std::thread>(

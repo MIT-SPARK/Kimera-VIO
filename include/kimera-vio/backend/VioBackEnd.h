@@ -63,8 +63,8 @@ class VioNavState;
 
 class VioBackEnd {
  public:
-  typedef ThreadsafeQueue<VioBackEndInputPayload::Ptr> InputQueue;
-  typedef ThreadsafeQueue<VioBackEndOutputPayload::Ptr> OutputQueue;
+  typedef ThreadsafeQueue<VioBackEndInputPayload::UniquePtr> InputQueue;
+  typedef ThreadsafeQueue<VioBackEndOutputPayload::UniquePtr> OutputQueue;
 
   // TODO(Toni): remove this verbosity flag, use VLOG
   // verbosity_ explanation
@@ -109,8 +109,8 @@ class VioBackEnd {
             bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
-  VioBackEndOutputPayload::Ptr spinOnce(
-      const VioBackEndInputPayload::Ptr& input);
+  VioBackEndOutputPayload::UniquePtr spinOnce(
+      const VioBackEndInputPayload& input);
 
   /* ------------------------------------------------------------------------ */
   inline void shutdown() {
@@ -235,8 +235,7 @@ class VioBackEnd {
 
  private:
   /* ------------------------------------------------------------------------ */
-  void addVisualInertialStateAndOptimize(
-      const std::shared_ptr<VioBackEndInputPayload>& input);
+  void addVisualInertialStateAndOptimize(const VioBackEndInputPayload& input);
 
   /* ------------------------------------------------------------------------ */
   // Sets initial state at given pose, zero velociy and with imu bias obtained

@@ -58,7 +58,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
     std::shared_ptr<VioBackEndInputPayload> input_backend =
         std::make_shared<VioBackEndInputPayload>(VioBackEndInputPayload(
             output_frontend.front()->stereo_frame_lkf_.getTimestamp(),
-            output_frontend.front()->statusSmartStereoMeasurements_,
+            output_frontend.front()->status_stereo_measurements_,
             output_frontend.front()->tracker_status_,
             output_frontend.front()->pim_,
             output_frontend.front()->relative_pose_body_stereo_,

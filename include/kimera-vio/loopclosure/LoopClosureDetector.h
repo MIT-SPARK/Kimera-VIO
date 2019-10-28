@@ -41,7 +41,7 @@ class RobustSolver;
 namespace VIO {
 
 /* ------------------------------------------------------------------------ */
-typedef std::function<void(const LoopClosureDetectorOutputPayload&)>
+typedef std::function<void(const LoopClosureDetectorOutputPayload::UniquePtr&)>
     LoopClosurePGOCallback;
 
 /* ------------------------------------------------------------------------ */
@@ -69,16 +69,17 @@ class LoopClosureDetector {
    * won't loop and instead will return at the end of each run.
    * @reutrn True if everything goes well.
    */
-  bool spin(ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
-            bool parallel_run = true);
+  bool spin(
+      ThreadsafeQueue<LoopClosureDetectorInputPayload::UniquePtr>& input_queue,
+      bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
   /* @brief Processed a single input payload and runs it through the pipeline.
    * @param[in] input A shared_ptr referencing an input payload.
    * @return The output payload from the pipeline.
    */
-  LoopClosureDetectorOutputPayload spinOnce(
-      const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
+  LoopClosureDetectorOutputPayload::UniquePtr spinOnce(
+      const LoopClosureDetectorInputPayload& input);
 
   /* ------------------------------------------------------------------------ */
   /* @brief Processed a single frame and adds it to relevant internal databases.

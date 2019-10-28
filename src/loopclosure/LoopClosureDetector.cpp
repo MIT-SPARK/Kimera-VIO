@@ -128,7 +128,7 @@ LoopClosureDetector::~LoopClosureDetector() {
 
 /* ------------------------------------------------------------------------ */
 bool LoopClosureDetector::spin(
-    ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
+    ThreadsafeQueue<LoopClosureDetectorInputPayload::UniquePtr>& input_queue,
     bool parallel_run) {
   LOG(INFO) << "Spinning LoopClosureDetector.";
   utils::StatsCollector stat_lcd_timing("LoopClosureDetector Timing [ms]");
@@ -136,18 +136,19 @@ bool LoopClosureDetector::spin(
   while (!shutdown_) {
     // Get input data from queue. Wait for payload.
     is_thread_working_ = false;
-    std::shared_ptr<LoopClosureDetectorInputPayload> input =
-        input_queue.popBlocking();
+    LoopClosureDetectorInputPayload::UniquePtr input;
+    input_queue.popBlocking(input);
     is_thread_working_ = true;
-
     if (input) {
       if (lcd_pgo_output_callbacks_.size() > 0) {
         auto tic = utils::Timer::tic();
-        LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
+        LoopClosureDetectorOutputPayload::UniquePtr output_payload =
+            spinOnce(*input);
         auto spin_duration = utils::Timer::toc(tic).count();
         stat_lcd_timing.AddSample(spin_duration);
 
-        for (LoopClosurePGOCallback& callback : lcd_pgo_output_callbacks_) {
+        for (const LoopClosurePGOCallback& callback :
+             lcd_pgo_output_callbacks_) {
           callback(output_payload);
         }
 
@@ -172,23 +173,21 @@ bool LoopClosureDetector::spin(
 }
 
 /* ------------------------------------------------------------------------ */
-LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
-    const std::shared_ptr<LoopClosureDetectorInputPayload>& input) {
-  CHECK(input) << "No LoopClosureDetector Input Payload received.";
-
+LoopClosureDetectorOutputPayload::UniquePtr LoopClosureDetector::spinOnce(
+    const LoopClosureDetectorInputPayload& input) {
   // One time initialization from camera parameters.
   if (!set_intrinsics_) {
-    setIntrinsics(input->stereo_frame_);
+    setIntrinsics(input.stereo_frame_);
   }
   CHECK_EQ(set_intrinsics_, true);
-  CHECK_GT(input->cur_kf_id_, 0);
+  CHECK_GT(input.cur_kf_id_, 0);
 
   // Update the PGO with the backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
   // TODO(marcus): OdometryPose vs OdometryFactor
-  timestamp_map_[input->cur_kf_id_ - 1] = input->timestamp_kf_;
+  timestamp_map_[input.cur_kf_id_ - 1] = input.timestamp_kf_;
   OdometryFactor odom_factor(
-      input->cur_kf_id_, input->W_Pose_Blkf_, shared_noise_model_);
+      input.cur_kf_id_, input.W_Pose_Blkf_, shared_noise_model_);
 
   // Initialize PGO with first frame if needed.
   if (odom_factor.cur_key_ == 1) {
@@ -200,11 +199,9 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   addOdometryFactorAndOptimize(odom_factor);
 
   // Process the StereoFrame and check for a loop closure with previous ones.
-  StereoFrame working_frame = input->stereo_frame_;
   LoopResult loop_result;
-
   // Try to find a loop and update the PGO with the result if available.
-  if (detectLoop(working_frame, &loop_result)) {
+  if (detectLoop(input.stereo_frame_, &loop_result)) {
     LoopClosureFactor lc_factor(loop_result.match_id_,
                                 loop_result.query_id_,
                                 loop_result.relative_pose_,
@@ -239,12 +236,11 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   const gtsam::Values& pgo_states = pgo_->calculateEstimate();
   const gtsam::NonlinearFactorGraph& pgo_nfg = pgo_->getFactorsUnsafe();
 
-  LoopClosureDetectorOutputPayload output_payload;
-
+  LoopClosureDetectorOutputPayload::UniquePtr output_payload;
   if (loop_result.isLoop()) {
-    output_payload = LoopClosureDetectorOutputPayload(
+    output_payload = VIO::make_unique<LoopClosureDetectorOutputPayload>(
         true,
-        input->timestamp_kf_,
+        input.timestamp_kf_,
         timestamp_map_.at(loop_result.query_id_),
         timestamp_map_.at(loop_result.match_id_),
         loop_result.match_id_,
@@ -254,13 +250,14 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
         pgo_states,
         pgo_nfg);
   } else {
-    output_payload.W_Pose_Map_ = w_Pose_map;
-    output_payload.states_ = pgo_states;
-    output_payload.nfg_ = pgo_nfg;
+    output_payload = VIO::make_unique<LoopClosureDetectorOutputPayload>();
+    output_payload->W_Pose_Map_ = w_Pose_map;
+    output_payload->states_ = pgo_states;
+    output_payload->nfg_ = pgo_nfg;
   }
 
   if (logger_) {
-    debug_info_.timestamp_ = output_payload.timestamp_kf_;
+    debug_info_.timestamp_ = output_payload->timestamp_kf_;
     debug_info_.loop_result_ = loop_result;
     debug_info_.pgo_size_ = pgo_->size();
     debug_info_.pgo_lc_count_ = pgo_->getNumLC();
@@ -268,7 +265,7 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
 
     logger_->logTimestampMap(timestamp_map_);
     logger_->logDebugInfo(debug_info_);
-    logger_->logLCDResult(output_payload);
+    logger_->logLCDResult(*output_payload);
   }
 
   return output_payload;

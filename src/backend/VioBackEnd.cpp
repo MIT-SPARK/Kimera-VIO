@@ -167,13 +167,14 @@ bool VioBackEnd::spin(InputQueue& input_queue,
     // Get input data from queue. Wait for Backend payload.
     is_thread_working_ = false;
     auto tic_pipeline_overall = utils::Timer::tic();
-    VioBackEndInputPayload::Ptr input;
+    VioBackEndInputPayload::UniquePtr input;
     input_queue.popBlocking(input);
     is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();
       VLOG(2) << "Push backend output payload.";
-      output_queue.push(spinOnce(input));
+      CHECK(input) << "No VioBackEnd Input Payload received.";
+      output_queue.push(spinOnce(*input));
       auto spin_duration = utils::Timer::toc(tic).count();
       LOG(WARNING) << "Current Backend frequency: " << 1000.0 / spin_duration
                    << " Hz. (" << spin_duration << " ms).";
@@ -192,10 +193,9 @@ bool VioBackEnd::spin(InputQueue& input_queue,
 }
 
 /* -------------------------------------------------------------------------- */
-VioBackEndOutputPayload::Ptr VioBackEnd::spinOnce(
-    const VioBackEndInputPayload::Ptr& input) {
-  CHECK(input) << "No VioBackEnd Input Payload received.";
-  if (VLOG_IS_ON(10)) input->print();
+VioBackEndOutputPayload::UniquePtr VioBackEnd::spinOnce(
+    const VioBackEndInputPayload& input) {
+  if (VLOG_IS_ON(10)) input.print();
 
   // Process data with VIO.
   addVisualInertialStateAndOptimize(input);
@@ -218,9 +218,9 @@ VioBackEndOutputPayload::Ptr VioBackEnd::spinOnce(
   }
 
   // Create Backend Output Payload.
-  VioBackEndOutputPayload::Ptr output_payload =
+  VioBackEndOutputPayload::UniquePtr output_payload =
       VIO::make_unique<VioBackEndOutputPayload>(
-          input->timestamp_kf_nsec_,
+          input.timestamp_kf_nsec_,
           state_,
           W_Pose_B_lkf_,    // Actual output.
           W_Vel_B_lkf_,     // Actual output.
@@ -378,23 +378,22 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
 }
 
 void VioBackEnd::addVisualInertialStateAndOptimize(
-    const std::shared_ptr<VioBackEndInputPayload>& input) {
-  CHECK(input);
+    const VioBackEndInputPayload& input) {
   bool use_stereo_btw_factor =
       vio_params_.addBetweenStereoFactors_ == true &&
-      input->stereo_tracking_status_ == TrackingStatus::VALID;
+      input.stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
   addVisualInertialStateAndOptimize(
-      input->timestamp_kf_nsec_,  // Current time for fixed lag smoother.
-      input->status_stereo_measurements_kf_,  // Vision data.
-      input->pim_,                            // Imu preintegrated data.
-      input->planes_,
+      input.timestamp_kf_nsec_,  // Current time for fixed lag smoother.
+      input.status_stereo_measurements_kf_,  // Vision data.
+      input.pim_,                            // Imu preintegrated data.
+      input.planes_,
       use_stereo_btw_factor
-          ? input->stereo_ransac_body_pose_
+          ? input.stereo_ransac_body_pose_
           : boost::none);  // optional: pose estimate from stereo ransac
   // Bookkeeping
-  timestamp_lkf_ = input->timestamp_kf_nsec_;
+  timestamp_lkf_ = input.timestamp_kf_nsec_;
 }
 
 /* -------------------------------------------------------------------------- */
