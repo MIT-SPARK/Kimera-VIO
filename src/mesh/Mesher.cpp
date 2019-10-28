@@ -171,33 +171,34 @@ Mesher::Mesher() : mesh_3d_() {
 
 /* -------------------------------------------------------------------------- */
 // Method for the mesher to run on a thread.
-void Mesher::spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
-                  ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue,
-                  bool parallel_run) {
+void Mesher::spin(
+    ThreadsafeQueue<MesherInputPayload::UniquePtr>& mesher_input_queue,
+    ThreadsafeQueue<MesherOutputPayload::UniquePtr>& mesher_output_queue,
+    bool parallel_run) {
   LOG(INFO) << "Spinning Mesher.";
-  MesherOutputPayload mesher_output_payload;
   utils::StatsCollector stats_mesher("Mesher Timing [ms]");
   while (!shutdown_) {
     // Wait for mesher payload.
     is_thread_working_ = false;
-    const std::shared_ptr<const MesherInputPayload>& mesher_payload =
-        mesher_input_queue.popBlocking();
+    MesherInputPayload::UniquePtr mesher_input_payload;
+    mesher_input_queue.popBlocking(mesher_input_payload);
     is_thread_working_ = true;
+    auto tic = utils::Timer::tic();
     // If you put mesher_output_payload outside the loop, don't forget to clean
     // the mesh_2d or everything
-    auto tic = utils::Timer::tic();
-    updateMesh3D(
-        mesher_payload,
-        FLAGS_return_mesh_2d
-            ? &(mesher_output_payload.mesh_2d_)
-            : nullptr,  // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
-        &(mesher_output_payload.mesh_2d_for_viz_),  // These are more or less
-                                                    // the same info as mesh_2d_
-        &(mesher_output_payload.mesh_2d_filtered_for_viz_));
-    getVerticesMesh(&(mesher_output_payload.vertices_mesh_));
-    getPolygonsMesh(&(mesher_output_payload.polygons_mesh_));
-    mesher_output_payload.mesh_3d_ = mesh_3d_;
-    mesher_output_queue.push(mesher_output_payload);
+    MesherOutputPayload::UniquePtr mesher_output_payload;
+    updateMesh3D(mesher_input_payload,
+                 FLAGS_return_mesh_2d
+                     ? &(mesher_output_payload->mesh_2d_)
+                     : nullptr,  // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
+                 &(mesher_output_payload
+                       ->mesh_2d_for_viz_),  // These are more or less
+                                             // the same info as mesh_2d_
+                 &(mesher_output_payload->mesh_2d_filtered_for_viz_));
+    getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
+    getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));
+    mesher_output_payload->mesh_3d_ = mesh_3d_;
+    mesher_output_queue.push(std::move(mesher_output_payload));
     auto spin_duration = utils::Timer::toc(tic).count();
     LOG(WARNING) << "Current Mesher frequency: " << 1000.0 / spin_duration
                  << " Hz. (" << spin_duration << " ms).";
@@ -1312,10 +1313,10 @@ void Mesher::updateMesh3D(
 
 /* -------------------------------------------------------------------------- */
 // Update mesh, but in a thread-safe way.
-void Mesher::updateMesh3D(
-    const std::shared_ptr<const MesherInputPayload>& mesher_payload,
-    Mesh2D* mesh_2d, std::vector<cv::Vec6f>* mesh_2d_for_viz,
-    std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
+void Mesher::updateMesh3D(const MesherInputPayload::UniquePtr& mesher_payload,
+                          Mesh2D* mesh_2d,
+                          std::vector<cv::Vec6f>* mesh_2d_for_viz,
+                          std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
   if (!mesher_payload) {
     LOG(INFO) << "Empty payload skipping mesh update";
   } else {

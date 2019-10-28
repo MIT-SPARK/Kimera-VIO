@@ -27,11 +27,14 @@
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/mesh/Mesh.h"
 #include "kimera-vio/utils/Histogram.h"
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
 
 struct MesherInputPayload {
+  KIMERA_POINTER_TYPEDEFS(MesherInputPayload);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MesherInputPayload(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       const StereoFrame& stereo_frame, const gtsam::Pose3& left_camera_pose)
@@ -46,6 +49,7 @@ struct MesherInputPayload {
 
 struct MesherOutputPayload {
  public:
+  KIMERA_POINTER_TYPEDEFS(MesherOutputPayload);
   MesherOutputPayload(
       Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
       Mesh3D&& mesh_3d,  // Use move semantics for the actual 2d mesh.
@@ -123,9 +127,10 @@ class Mesher {
 
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to run on a thread.
-  void spin(ThreadsafeQueue<MesherInputPayload>& mesher_input_queue,
-            ThreadsafeQueue<MesherOutputPayload>& mesher_output_queue,
-            bool parallel_run = true);
+  void spin(
+      ThreadsafeQueue<MesherInputPayload::UniquePtr>& mesher_input_queue,
+      ThreadsafeQueue<MesherOutputPayload::UniquePtr>& mesher_output_queue,
+      bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to request thread stop.
@@ -167,11 +172,10 @@ class Mesher {
 
   /* ------------------------------------------------------------------------ */
   // Update mesh, but in a thread-safe way.
-  void updateMesh3D(
-      const std::shared_ptr<const MesherInputPayload>& mesher_payload,
-      Mesh2D* mesh_2d = nullptr,
-      std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
-      std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
+  void updateMesh3D(const MesherInputPayload::UniquePtr& mesher_payload,
+                    Mesh2D* mesh_2d = nullptr,
+                    std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
+                    std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Cluster planes from the mesh.

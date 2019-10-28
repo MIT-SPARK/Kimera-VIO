@@ -24,6 +24,7 @@
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/mesh/Mesher.h"
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
@@ -44,18 +45,21 @@ static bool getEstimateOfKey(const gtsam::Values& state, const gtsam::Key& key,
                              T* estimate);
 
 struct VisualizerInputPayload {
-  VisualizerInputPayload(const gtsam::Pose3& pose,
-                         const StereoFrame& last_stereo_keyframe,
-                         const MesherOutputPayload& mesher_output_payload,
-                         const PointsWithIdMap& points_with_id_VIO,
-                         const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
-                         const std::vector<Plane>& planes,
-                         const gtsam::NonlinearFactorGraph& graph,
-                         const gtsam::Values& values);
+  KIMERA_POINTER_TYPEDEFS(VisualizerInputPayload);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  VisualizerInputPayload(
+      const gtsam::Pose3& pose,
+      const StereoFrame& last_stereo_keyframe,
+      MesherOutputPayload::ConstUniquePtr mesher_output_payload,
+      const PointsWithIdMap& points_with_id_VIO,
+      const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
+      const std::vector<Plane>& planes,
+      const gtsam::NonlinearFactorGraph& graph,
+      const gtsam::Values& values);
 
   const gtsam::Pose3 pose_;
   const StereoFrame stereo_keyframe_;
-  const MesherOutputPayload mesher_output_payload_;
+  const MesherOutputPayload::ConstUniquePtr mesher_output_payload_;
   const PointsWithIdMap points_with_id_VIO_;
   const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
   const std::vector<Plane> planes_;
@@ -72,6 +76,8 @@ struct ImageToDisplay {
 };
 
 struct VisualizerOutputPayload {
+  KIMERA_POINTER_TYPEDEFS(VisualizerOutputPayload);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VisualizerOutputPayload() = default;
   ~VisualizerOutputPayload() = default;
   VisualizationType visualization_type_ = VisualizationType::NONE;
@@ -112,8 +118,8 @@ class Visualizer3D {
   /* ------------------------------------------------------------------------ */
   // Spin for Visualizer3D. Calling shutdown stops the visualizer.
   // Returns false when visualizer has been shutdown.
-  bool spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
-            ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
+  bool spin(ThreadsafeQueue<VisualizerInputPayload::Ptr>& input_queue,
+            ThreadsafeQueue<VisualizerOutputPayload::Ptr>& output_queue,
             std::function<void(VisualizerOutputPayload&)> display,
             bool parallel_run = true);
 
@@ -139,7 +145,7 @@ class Visualizer3D {
   // Returns true if visualization is ready, false otherwise.
   // The actual visualization must be done in the main thread, and as such,
   // it is not done here to separate visualization preparation from display.
-  bool visualize(const std::shared_ptr<VisualizerInputPayload>& input,
+  bool visualize(const VisualizerInputPayload::ConstPtr& input,
                  VisualizerOutputPayload* output);
 
   /* ------------------------------------------------------------------------ */

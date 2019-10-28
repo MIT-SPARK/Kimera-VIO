@@ -168,7 +168,7 @@ bool VioBackEnd::spin(InputQueue& input_queue,
     is_thread_working_ = false;
     auto tic_pipeline_overall = utils::Timer::tic();
     VioBackEndInputPayload::Ptr input;
-    CHECK(input_queue.popBlocking(input));
+    input_queue.popBlocking(input);
     is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();

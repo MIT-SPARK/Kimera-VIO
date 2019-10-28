@@ -102,15 +102,18 @@ Visualizer3D::WindowData::WindowData()
 
 /* -------------------------------------------------------------------------- */
 VisualizerInputPayload::VisualizerInputPayload(
-    const gtsam::Pose3& pose, const StereoFrame& last_stero_keyframe,
-    const MesherOutputPayload& mesher_output_payload,
+    const gtsam::Pose3& pose,
+    const StereoFrame& last_stero_keyframe,
+    MesherOutputPayload::ConstUniquePtr mesher_output_payload,
     const PointsWithIdMap& points_with_id_VIO,
     const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
-    const std::vector<Plane>& planes, const gtsam::NonlinearFactorGraph& graph,
+    const std::vector<Plane>& planes,
+    const gtsam::NonlinearFactorGraph& graph,
     const gtsam::Values& values)
     : pose_(pose),
       stereo_keyframe_(last_stero_keyframe),
-      mesher_output_payload_(mesher_output_payload),  // TODO expensive...
+      mesher_output_payload_(
+          std::move(mesher_output_payload)),  // TODO expensive...
       points_with_id_VIO_(points_with_id_VIO),
       lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
       planes_(planes),
@@ -144,27 +147,29 @@ Visualizer3D::Visualizer3D(VisualizationType viz_type, int backend_type)
 
 /* -------------------------------------------------------------------------- */
 // Returns false if visualizer has shutdown.
-bool Visualizer3D::spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
-                        ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
-                        std::function<void(VisualizerOutputPayload&)> display,
-                        bool parallel_run) {
+bool Visualizer3D::spin(
+    ThreadsafeQueue<VisualizerInputPayload::Ptr>& input_queue,
+    ThreadsafeQueue<VisualizerOutputPayload::Ptr>& output_queue,
+    std::function<void(VisualizerOutputPayload&)> display,
+    bool parallel_run) {
   LOG(INFO) << "Spinning Visualizer.";
-  VisualizerOutputPayload output_payload;
   utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
   while (!shutdown_) {
     // Wait for mesher payload.
     is_thread_working_ = false;
-    const std::shared_ptr<VisualizerInputPayload>& visualizer_payload =
-        input_queue.popBlocking();
+    VisualizerInputPayload::Ptr visualizer_payload;
+    CHECK(input_queue.popBlocking(visualizer_payload));
     is_thread_working_ = true;
     auto tic = utils::Timer::tic();
-    visualize(visualizer_payload, &output_payload);
+    VisualizerOutputPayload::UniquePtr output_payload =
+        VIO::make_unique<VisualizerOutputPayload>();
+    visualize(visualizer_payload, output_payload.get());
     if (display) {
-      display(output_payload);
+      display(*output_payload);
+      output_payload->images_to_display_.clear();
     } else {
-      output_queue.push(output_payload);
+      output_queue.push(std::move(output_payload));
     }
-    output_payload.images_to_display_.clear();
     auto spin_duration = utils::Timer::toc(tic).count();
     LOG(WARNING) << "Current Visualizer frequency: " << 1000.0 / spin_duration
                  << " Hz. (" << spin_duration << " ms).";
@@ -193,9 +198,8 @@ void Visualizer3D::restart() {
 
 /* -------------------------------------------------------------------------- */
 // Returns true if visualization is ready, false otherwise.
-bool Visualizer3D::visualize(
-    const std::shared_ptr<VisualizerInputPayload>& input,
-    VisualizerOutputPayload* output) {
+bool Visualizer3D::visualize(const VisualizerInputPayload::ConstPtr& input,
+                             VisualizerOutputPayload* output) {
   CHECK_NOTNULL(output);
   if (input) {
     return visualize(*input, output);
@@ -254,10 +258,11 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       output->visualization_type_ = VisualizationType::MESH2DTo3Dsparse;
       // Visualize 2d mesh.
       if (FLAGS_visualize_mesh_2d) {
-        output->images_to_display_.push_back(ImageToDisplay(
-            "Mesh 2D",
-            visualizeMesh2DStereo(input.mesher_output_payload_.mesh_2d_for_viz_,
-                                  left_stereo_keyframe)));
+        output->images_to_display_.push_back(
+            ImageToDisplay("Mesh 2D",
+                           visualizeMesh2DStereo(
+                               input.mesher_output_payload_->mesh_2d_for_viz_,
+                               left_stereo_keyframe)));
       }
 
       // Visualize filtered 2d mesh.
@@ -265,7 +270,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
         output->images_to_display_.push_back(ImageToDisplay(
             "Mesh 2D Filtered",
             visualizeMesh2DStereo(
-                input.mesher_output_payload_.mesh_2d_filtered_for_viz_,
+                input.mesher_output_payload_->mesh_2d_filtered_for_viz_,
                 left_stereo_keyframe)));
         mesh_2d_img = output->images_to_display_.back().image_;
       }
@@ -421,8 +426,8 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
       }
 
       planes_prev = input.planes_;
-      vertices_mesh_prev = input.mesher_output_payload_.vertices_mesh_;
-      polygons_mesh_prev = input.mesher_output_payload_.polygons_mesh_;
+      vertices_mesh_prev = input.mesher_output_payload_->vertices_mesh_;
+      polygons_mesh_prev = input.mesher_output_payload_->polygons_mesh_;
       points_with_id_VIO_prev = input.points_with_id_VIO_;
       lmk_id_to_lmk_type_map_prev = input.lmk_id_to_lmk_type_map_;
       LOG_IF(WARNING, mesh3d_viz_properties_callback_)
@@ -431,15 +436,16 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
           // Call semantic mesh segmentation if someone registered a callback.
           mesh3d_viz_properties_callback_
               ? mesh3d_viz_properties_callback_(
-                    left_stereo_keyframe.timestamp_, left_stereo_keyframe.img_,
-                    input.mesher_output_payload_.mesh_2d_,
-                    input.mesher_output_payload_.mesh_3d_)
+                    left_stereo_keyframe.timestamp_,
+                    left_stereo_keyframe.img_,
+                    input.mesher_output_payload_->mesh_2d_,
+                    input.mesher_output_payload_->mesh_3d_)
               : (FLAGS_texturize_3d_mesh
                      ? Visualizer3D::texturizeMesh3D(
                            left_stereo_keyframe.timestamp_,
                            left_stereo_keyframe.img_,
-                           input.mesher_output_payload_.mesh_2d_,
-                           input.mesher_output_payload_.mesh_3d_)
+                           input.mesher_output_payload_->mesh_2d_,
+                           input.mesher_output_payload_->mesh_3d_)
                      : Mesher::Mesh3DVizProperties()),
       VLOG(10) << "Finished mesh visualization.";
 

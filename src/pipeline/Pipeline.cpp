@@ -256,7 +256,7 @@ void Pipeline::processKeyframe(
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
   PointsWithIdMap points_with_id_VIO;
   LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-  MesherOutputPayload mesher_output_payload;
+  MesherOutputPayload::UniquePtr mesher_output_payload;
   VisualizationType visualization_type =
       static_cast<VisualizationType>(FLAGS_viz_type);
   // Compute 3D mesh
@@ -279,7 +279,7 @@ void Pipeline::processKeyframe(
     // Push to queue.
     // In another thread, mesher is running, consuming mesher payloads.
     VLOG(2) << "Push input payload to Mesher.";
-    mesher_input_queue_.push(MesherInputPayload(
+    mesher_input_queue_.push(VIO::make_unique<MesherInputPayload>(
         points_with_id_VIO,
         last_stereo_keyframe,  // not really thread safe, read only.
         backend_output_payload->W_Pose_Blkf_.compose(
@@ -327,7 +327,7 @@ void Pipeline::processKeyframe(
     // This cannot happen at all from a single module, because visualizer
     // takes input from mesher and backend right now...
     VLOG(2) << "Push input payload to Visualizer.";
-    visualizer_input_queue_.push(VisualizerInputPayload(
+    visualizer_input_queue_.push(VIO::make_unique<VisualizerInputPayload>(
         // Pose for trajectory viz.
         backend_output_payload->W_Pose_Blkf_ *
             last_stereo_keyframe
@@ -337,7 +337,7 @@ void Pipeline::processKeyframe(
         // For visualizeMesh2D and visualizeMesh2DStereo.
         last_stereo_keyframe,
         // visualizeConvexHull & visualizeMesh3DWithColoredClusters
-        mesher_output_payload,
+        std::move(mesher_output_payload),
         // visualizeMesh3DWithColoredClusters & visualizePoints3D
         visualization_type == VisualizationType::POINTCLOUD
             ? vio_backend_
@@ -355,18 +355,20 @@ void Pipeline::processKeyframe(
   if (keyframe_rate_output_callback_) {
     auto tic = utils::Timer::tic();
     VLOG(2) << "Call keyframe callback with spin output payload.";
-    keyframe_rate_output_callback_(SpinOutputPacket(
-        backend_output_payload->timestamp_kf_,
-        backend_output_payload->W_Pose_Blkf_,
-        backend_output_payload->W_Vel_Blkf_,
-        backend_output_payload->imu_bias_lkf_,
-        mesher_output_payload.mesh_2d_,
-        mesher_output_payload.mesh_3d_,
-        Visualizer3D::visualizeMesh2D(
-            mesher_output_payload.mesh_2d_filtered_for_viz_,
-            last_stereo_keyframe.getLeftFrame().img_),
-        points_with_id_VIO, lmk_id_to_lmk_type_map,
-        backend_output_payload->state_covariance_lkf_, debug_tracker_info));
+    keyframe_rate_output_callback_(
+        SpinOutputPacket(backend_output_payload->timestamp_kf_,
+                         backend_output_payload->W_Pose_Blkf_,
+                         backend_output_payload->W_Vel_Blkf_,
+                         backend_output_payload->imu_bias_lkf_,
+                         mesher_output_payload->mesh_2d_,
+                         mesher_output_payload->mesh_3d_,
+                         Visualizer3D::visualizeMesh2D(
+                             mesher_output_payload->mesh_2d_filtered_for_viz_,
+                             last_stereo_keyframe.getLeftFrame().img_),
+                         points_with_id_VIO,
+                         lmk_id_to_lmk_type_map,
+                         backend_output_payload->state_covariance_lkf_,
+                         debug_tracker_info));
     auto toc = utils::Timer::toc(tic);
     LOG_IF(WARNING, toc.count() > FLAGS_max_time_allowed_for_keyframe_callback)
         << "Keyframe Rate Output Callback is taking longer than it should: "
@@ -439,7 +441,7 @@ void Pipeline::spinSequential() {
   ////////////////// CREATE 3D MESH //////////////////////////////////////////
   PointsWithIdMap points_with_id_VIO;
   LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-  MesherOutputPayload mesher_output_payload;
+  MesherOutputPayload::UniquePtr mesher_output_payload;
   VisualizationType visualization_type =
       static_cast<VisualizationType>(FLAGS_viz_type);
   if (visualization_type == VisualizationType::MESH2DTo3Dsparse) {
@@ -451,7 +453,7 @@ void Pipeline::spinSequential() {
                                                // be a popBlocking...
     // Push to queue.
     // In another thread, mesher is running, consuming mesher payloads.
-    CHECK(mesher_input_queue_.push(MesherInputPayload(
+    CHECK(mesher_input_queue_.push(VIO::make_unique<MesherInputPayload>(
         points_with_id_VIO,
         stereo_keyframe,  // not really thread safe, read only.
         backend_output_payload->W_Pose_Blkf_.compose(
@@ -489,7 +491,7 @@ void Pipeline::spinSequential() {
     // WHO Should be pushing to the visualizer input queue????????
     // This cannot happen at all from a single module, because visualizer
     // takes input from mesher and backend right now...
-    visualizer_input_queue_.push(VisualizerInputPayload(
+    visualizer_input_queue_.push(VIO::make_unique<VisualizerInputPayload>(
         // Pose for trajectory viz.
         vio_backend_->getWPoseBLkf() *  // The visualizer needs backend results
             stereo_keyframe
@@ -526,10 +528,10 @@ void Pipeline::spinSequential() {
         backend_output_payload->W_Pose_Blkf_,
         backend_output_payload->W_Vel_Blkf_,
         backend_output_payload->imu_bias_lkf_,
-        mesher_output_payload.mesh_2d_,
-        mesher_output_payload.mesh_3d_,
+        mesher_output_payload->mesh_2d_,
+        mesher_output_payload->mesh_3d_,
         Visualizer3D::visualizeMesh2D(
-            mesher_output_payload.mesh_2d_filtered_for_viz_,
+            mesher_output_payload->mesh_2d_filtered_for_viz_,
             stereo_frontend_output_payload->stereo_frame_lkf_.getLeftFrame()
                 .img_),
         points_with_id_VIO,

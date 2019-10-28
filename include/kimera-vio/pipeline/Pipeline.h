@@ -78,7 +78,8 @@ class Pipeline {
   // mesh_3d to extract semantic information.
   // TODO(Toni) this should be a callback instead...
   // right now it works because no one is pulling from this queue in pipeline.
-  inline ThreadsafeQueue<MesherOutputPayload>& getMesherOutputQueue() {
+  inline ThreadsafeQueue<MesherOutputPayload::UniquePtr>&
+  getMesherOutputQueue() {
     return mesher_output_queue_;
   }
 
@@ -218,8 +219,8 @@ class Pipeline {
   Mesher mesher_;
 
   // Thread-safe queue for the mesher.
-  ThreadsafeQueue<MesherInputPayload> mesher_input_queue_;
-  ThreadsafeQueue<MesherOutputPayload> mesher_output_queue_;
+  ThreadsafeQueue<MesherInputPayload::UniquePtr> mesher_input_queue_;
+  ThreadsafeQueue<MesherOutputPayload::UniquePtr> mesher_output_queue_;
 
   // Create class to detect loop closures.
   std::unique_ptr<LoopClosureDetector> loop_closure_detector_;
@@ -231,8 +232,8 @@ class Pipeline {
   Visualizer3D visualizer_;
 
   // Thread-safe queue for the visualizer.
-  ThreadsafeQueue<VisualizerInputPayload> visualizer_input_queue_;
-  ThreadsafeQueue<VisualizerOutputPayload> visualizer_output_queue_;
+  ThreadsafeQueue<VisualizerInputPayload::Ptr> visualizer_input_queue_;
+  ThreadsafeQueue<VisualizerOutputPayload::Ptr> visualizer_output_queue_;
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
