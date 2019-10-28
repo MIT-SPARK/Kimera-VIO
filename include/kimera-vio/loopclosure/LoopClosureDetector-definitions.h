@@ -9,7 +9,9 @@
 /**
  * @file   LoopClosureDetector-definitions.h
  * @brief  Definitions for LoopClosureDetector
- * @author Marcus Abate, Luca Carlone
+ * @author Marcus Abate
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #pragma once
@@ -24,7 +26,8 @@
 #include <gtsam/nonlinear/Values.h>
 
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/stereoframe.h"
+#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
@@ -218,6 +221,8 @@ struct LoopClosureFactor {
 };  // struct LoopClosureFactor
 
 struct LoopClosureDetectorInputPayload {
+  KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorInputPayload);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   LoopClosureDetectorInputPayload(const Timestamp& timestamp_kf,
                                   const FrameId& cur_kf_id,
                                   const StereoFrame& stereo_frame,
@@ -231,9 +236,11 @@ struct LoopClosureDetectorInputPayload {
   const FrameId cur_kf_id_;
   const StereoFrame stereo_frame_;
   const gtsam::Pose3 W_Pose_Blkf_;
-};  // struct LoopClosureDetectorInputPayload
+};
 
 struct LoopClosureDetectorOutputPayload {
+  KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorOutputPayload);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   LoopClosureDetectorOutputPayload(bool is_loop_closure,
                                    const Timestamp& timestamp_kf,
                                    const Timestamp& timestamp_query,
@@ -278,6 +285,6 @@ struct LoopClosureDetectorOutputPayload {
   gtsam::Pose3 W_Pose_Map_;
   gtsam::Values states_;
   gtsam::NonlinearFactorGraph nfg_;
-};  // struct LoopClosureDetectorOutputPayload
+};
 
 }  // namespace VIO

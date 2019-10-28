@@ -60,8 +60,7 @@ DataProvider::~DataProvider() {
   LOG(INFO) << "Data provider destructor called.";
 }
 
-void DataProvider::registerVioCallback(
-    std::function<void(const StereoImuSyncPacket&)> callback) {
+void DataProvider::registerVioCallback(VioInputCallback callback) {
   vio_callback_ = std::move(callback);
 }
 
@@ -76,12 +75,18 @@ bool DataProvider::spin() {
   //  a) Create StereoImuSyncPacket packets out of the data.
   //  This one is dummy since it is filled with empty images, parameters,
   //  imu data, etc.
-  StereoImuSyncPacket vio_packet(
-      StereoFrame(1, 1, cv::Mat(), CameraParams(), cv::Mat(), CameraParams(),
-                  gtsam::Pose3(), StereoMatchingParams()),
-      ImuStampS(), ImuAccGyrS());
   //  b) Call the vio callback in order to start processing the packet.
-  vio_callback_(vio_packet);
+  vio_callback_(
+      VIO::make_unique<StereoImuSyncPacket>(StereoFrame(1,
+                                                        1,
+                                                        cv::Mat(),
+                                                        CameraParams(),
+                                                        cv::Mat(),
+                                                        CameraParams(),
+                                                        gtsam::Pose3(),
+                                                        StereoMatchingParams()),
+                                            ImuStampS(),
+                                            ImuAccGyrS()));
 
   // 3) Once the dataset spin has finished, exit.
   // You can return false if something went wrong.

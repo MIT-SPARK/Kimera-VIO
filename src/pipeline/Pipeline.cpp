@@ -161,17 +161,18 @@ Pipeline::~Pipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+void Pipeline::spin(
+    StereoImuSyncPacket::ConstUniquePtr stereo_imu_sync_packet) {
   CHECK(!shutdown_) << "Pipeline is shutdown.";
   // Check if we have to re-initialize
-  checkReInitialize(stereo_imu_sync_packet);
+  checkReInitialize(*stereo_imu_sync_packet);
   // Initialize pipeline if not initialized
   if (!is_initialized_) {
     // Launch frontend thread
     if (!is_launched_) {
       launchFrontendThread();
       is_launched_ = true;
-      init_frame_id_ = stereo_imu_sync_packet.getStereoFrame().getFrameId();
+      init_frame_id_ = stereo_imu_sync_packet->getStereoFrame().getFrameId();
     }
     CHECK(is_launched_);
 
@@ -179,7 +180,7 @@ void Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     // TODO this is very brittle, because we are accumulating IMU data, but
     // not using it for initialization, because accumulated and actual IMU data
     // at init is the same...
-    if (initialize(stereo_imu_sync_packet)) {
+    if (initialize(*stereo_imu_sync_packet)) {
       LOG(INFO) << "Before launching threads.";
       launchRemainingThreads();
       LOG(INFO) << " launching threads.";
@@ -190,19 +191,20 @@ void Pipeline::spin(const StereoImuSyncPacket& stereo_imu_sync_packet) {
   } else {
     // TODO Warning: we do not accumulate IMU measurements for the first
     // packet... Spin.
-    spinOnce(stereo_imu_sync_packet);
+    spinOnce(std::move(stereo_imu_sync_packet));
   }
   return;
 }
 
 /* -------------------------------------------------------------------------- */
 // Spin the pipeline only once.
-void Pipeline::spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet) {
+void Pipeline::spinOnce(
+    StereoImuSyncPacket::ConstUniquePtr stereo_imu_sync_packet) {
   CHECK(is_initialized_);
   ////////////////////////////// FRONT-END /////////////////////////////////////
   // Push to stereo frontend input queue.
   VLOG(2) << "Push input payload to Frontend.";
-  stereo_frontend_input_queue_.push(stereo_imu_sync_packet);
+  stereo_frontend_input_queue_.push(std::move(stereo_imu_sync_packet));
 
   // Run the pipeline sequentially.
   if (!parallel_run_) spinSequential();
@@ -1080,10 +1082,13 @@ void Pipeline::launchRemainingThreads() {
         &Mesher::spin, &mesher_, std::ref(mesher_input_queue_),
         std::ref(mesher_output_queue_), true);
 
-    if (FLAGS_use_lcd)
-        lcd_thread_ = VIO::make_unique<std::thread>(
-            &LoopClosureDetector::spin, CHECK_NOTNULL(loop_closure_detector_.get()),
-            std::ref(lcd_input_queue_), true);
+    if (FLAGS_use_lcd) {
+      lcd_thread_ = VIO::make_unique<std::thread>(
+          &LoopClosureDetector::spin,
+          CHECK_NOTNULL(loop_closure_detector_.get()),
+          std::ref(lcd_input_queue_),
+          true);
+    }
 
     // Start visualizer_thread.
     // visualizer_thread_ = std::thread(&Visualizer3D::spin,

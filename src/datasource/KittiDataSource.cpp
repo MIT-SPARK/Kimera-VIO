@@ -101,13 +101,17 @@ bool KittiDataProvider::spin() {
 
     timestamp_last_frame = timestamp_frame_k;
 
-    vio_callback_(StereoImuSyncPacket(
-        StereoFrame(k, timestamp_frame_k,
+    vio_callback_(VIO::make_unique<const StereoImuSyncPacket>(
+        StereoFrame(k,
+                    timestamp_frame_k,
                     readKittiImage(kitti_data_.left_img_names_.at(k)),
                     left_cam_info,
                     readKittiImage(kitti_data_.right_img_names_.at(k)),
-                    right_cam_info, camL_pose_camR, stereo_matching_params),
-        imu_meas.timestamps_, imu_meas.measurements_));
+                    right_cam_info,
+                    camL_pose_camR,
+                    stereo_matching_params),
+        imu_meas.timestamps_,
+        imu_meas.measurements_));
 
     VLOG(10) << "Finished VIO processing for frame k = " << k;
   }

@@ -54,7 +54,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 
 /* -------------------------------------------------------------------------- */
 bool StereoVisionFrontEnd::spin(
-    ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
+    ThreadsafeQueue<StereoFrontEndInputPayload::ConstUniquePtr>& input_queue,
     ThreadsafeQueue<StereoFrontEndOutputPayload::UniquePtr>& output_queue,
     bool parallel_run) {
   LOG(INFO) << "Spinning StereoFrontEnd.";
@@ -63,7 +63,8 @@ bool StereoVisionFrontEnd::spin(
   while (!shutdown_) {
     // Get input data from queue. Wait for Backend payload.
     is_thread_working_ = false;
-    StereoFrontEndInputPayload::Ptr input = input_queue.popBlocking();
+    StereoFrontEndInputPayload::ConstUniquePtr input;
+    input_queue.popBlocking(input);
     is_thread_working_ = true;
     if (input) {
       auto tic = utils::Timer::tic();

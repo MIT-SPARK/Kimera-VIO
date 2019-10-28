@@ -136,15 +136,19 @@ void ETHDatasetParser::spinOnce(
   // Call VIO Pipeline.
   VLOG(10) << "Call VIO processing for frame k: " << k
            << " with timestamp: " << timestamp_frame_k;
-  vio_callback_(StereoImuSyncPacket(
-      StereoFrame(k, timestamp_frame_k,
+  vio_callback_(VIO::make_unique<const StereoImuSyncPacket>(
+      StereoFrame(k,
+                  timestamp_frame_k,
                   UtilsOpenCV::ReadAndConvertToGrayScale(getLeftImgName(k),
                                                          equalize_image),
                   left_cam_info,
                   UtilsOpenCV::ReadAndConvertToGrayScale(getRightImgName(k),
                                                          equalize_image),
-                  right_cam_info, camL_pose_camR, stereo_matching_params),
-      imu_meas.timestamps_, imu_meas.measurements_));
+                  right_cam_info,
+                  camL_pose_camR,
+                  stereo_matching_params),
+      imu_meas.timestamps_,
+      imu_meas.measurements_));
   VLOG(10) << "Finished VIO processing for frame k = " << k;
 }
 

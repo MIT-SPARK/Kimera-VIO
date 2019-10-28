@@ -8,8 +8,10 @@
 
 /**
  * @file   LoopClosureDetector.cpp
- * @brief  Pipeline for detection and reporting of Loop Closures between frames
- * @author Marcus Abate, Luca Carlone
+ * @brief  Pipeline for detection and reporting of Loop Closures between frames.
+ * @author Marcus Abate
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <algorithm>
@@ -43,14 +45,14 @@ DEFINE_string(vocabulary_path,
       3: Statistics are reported at relevant steps.
 **/
 
+namespace VIO {
+
 using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
 using SacProblemMono =
     opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
 using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
 using SacProblemStereo =
     opengv::sac_problems::point_cloud::PointCloudSacProblem;
-
-namespace VIO {
 
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
@@ -139,12 +141,12 @@ bool LoopClosureDetector::spin(
     is_thread_working_ = true;
 
     if (input) {
-      auto tic = utils::Timer::tic();
-      LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
-      auto spin_duration = utils::Timer::toc(tic).count();
-      stat_lcd_timing.AddSample(spin_duration);
-
       if (lcd_pgo_output_callbacks_.size() > 0) {
+        auto tic = utils::Timer::tic();
+        LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
+        auto spin_duration = utils::Timer::toc(tic).count();
+        stat_lcd_timing.AddSample(spin_duration);
+
         for (LoopClosurePGOCallback& callback : lcd_pgo_output_callbacks_) {
           callback(output_payload);
         }
@@ -153,17 +155,18 @@ bool LoopClosureDetector::spin(
                      << 1000.0 / spin_duration << " Hz. (" << spin_duration
                      << " ms).";
       } else {
-        LOG(WARNING) << "LoopClosureDetector: No output callback registered. "
-                     << "Either register a callback or disable LCD with "
-                     << "flag use_lcd=false.";
+        LOG_EVERY_N(WARNING, 100)
+            << "LoopClosureDetector: No output callback registered. "
+            << "Either register a callback or disable LCD with "
+            << "flag use_lcd=false.";
       }
-
     } else {
       LOG(WARNING) << "No LoopClosureDetector Input Payload received.";
     }
 
     if (!parallel_run) return true;
   }
+
   LOG(INFO) << "LoopClosureDetector successfully shutdown.";
   return true;
 }

@@ -24,6 +24,8 @@ namespace VIO {
 
 class DataProvider {
  public:
+  typedef std::function<void(StereoImuSyncPacket::ConstUniquePtr)>
+      VioInputCallback;
   /** Regular ctor.
    *   [in] initial_k: first frame id to be parsed.
    *   [in] final_k: last frame id to be parsed.
@@ -46,13 +48,12 @@ class DataProvider {
 
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.
-  void registerVioCallback(
-      std::function<void(const StereoImuSyncPacket&)> callback);
+  void registerVioCallback(VioInputCallback callback);
 
  protected:
   // Vio callback. This function should be called once a StereoImuSyncPacket
   // is available for processing.
-  std::function<void(const StereoImuSyncPacket&)> vio_callback_;
+  VioInputCallback vio_callback_;
 
   FrameId initial_k_;  // start frame
   FrameId final_k_;    // end frame

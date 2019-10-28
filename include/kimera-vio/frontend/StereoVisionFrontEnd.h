@@ -52,7 +52,7 @@ public:
 
  /* ------------------------------------------------------------------------- */
  bool spin(
-     ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
+     ThreadsafeQueue<StereoFrontEndInputPayload::ConstUniquePtr>& input_queue,
      ThreadsafeQueue<StereoFrontEndOutputPayload::UniquePtr>& output_queue,
      bool parallel_run = true);
 
