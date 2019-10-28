@@ -26,7 +26,7 @@
 #include <gtsam/nonlinear/Values.h>
 
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/frontend/stereoframe.h"
+#include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {

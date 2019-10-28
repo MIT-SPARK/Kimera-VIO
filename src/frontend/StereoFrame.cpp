@@ -24,7 +24,8 @@ DEFINE_bool(images_rectified, false, "Input image data already rectified.");
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-StereoFrame::StereoFrame(const FrameId& id, const Timestamp& timestamp,
+StereoFrame::StereoFrame(const FrameId& id,
+                         const Timestamp& timestamp,
                          const cv::Mat& left_image,
                          const CameraParams& cam_param_left,
                          const cv::Mat& right_image,

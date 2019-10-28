@@ -323,6 +323,29 @@ void Pipeline::processKeyframe(
   DCHECK(last_stereo_keyframe.getBPoseCamLRect().equals(
       vio_backend_->getBPoseLeftCam()));
 
+  if (keyframe_rate_output_callback_) {
+    auto tic = utils::Timer::tic();
+    VLOG(2) << "Call keyframe callback with spin output payload.";
+    keyframe_rate_output_callback_(
+        SpinOutputPacket(backend_output_payload->timestamp_kf_,
+                         backend_output_payload->W_Pose_Blkf_,
+                         backend_output_payload->W_Vel_Blkf_,
+                         backend_output_payload->imu_bias_lkf_,
+                         mesher_output_payload->mesh_2d_,
+                         mesher_output_payload->mesh_3d_,
+                         Visualizer3D::visualizeMesh2D(
+                             mesher_output_payload->mesh_2d_filtered_for_viz_,
+                             last_stereo_keyframe.getLeftFrame().img_),
+                         points_with_id_VIO,
+                         lmk_id_to_lmk_type_map,
+                         backend_output_payload->state_covariance_lkf_,
+                         debug_tracker_info));
+    auto toc = utils::Timer::toc(tic);
+    LOG_IF(WARNING, toc.count() > FLAGS_max_time_allowed_for_keyframe_callback)
+        << "Keyframe Rate Output Callback is taking longer than it should: "
+           "make sure your callback is fast!";
+  }
+
   if (FLAGS_visualize) {
     // Push data for visualizer thread.
     // WHO Should be pushing to the visualizer input queue????????
@@ -352,29 +375,6 @@ void Pipeline::processKeyframe(
                                            // thread-safe
         backend_output_payload->state_  // For planes and plane constraints viz.
         ));
-  }
-
-  if (keyframe_rate_output_callback_) {
-    auto tic = utils::Timer::tic();
-    VLOG(2) << "Call keyframe callback with spin output payload.";
-    keyframe_rate_output_callback_(
-        SpinOutputPacket(backend_output_payload->timestamp_kf_,
-                         backend_output_payload->W_Pose_Blkf_,
-                         backend_output_payload->W_Vel_Blkf_,
-                         backend_output_payload->imu_bias_lkf_,
-                         mesher_output_payload->mesh_2d_,
-                         mesher_output_payload->mesh_3d_,
-                         Visualizer3D::visualizeMesh2D(
-                             mesher_output_payload->mesh_2d_filtered_for_viz_,
-                             last_stereo_keyframe.getLeftFrame().img_),
-                         points_with_id_VIO,
-                         lmk_id_to_lmk_type_map,
-                         backend_output_payload->state_covariance_lkf_,
-                         debug_tracker_info));
-    auto toc = utils::Timer::toc(tic);
-    LOG_IF(WARNING, toc.count() > FLAGS_max_time_allowed_for_keyframe_callback)
-        << "Keyframe Rate Output Callback is taking longer than it should: "
-           "make sure your callback is fast!";
   }
 }
 
@@ -488,6 +488,30 @@ void Pipeline::spinSequential() {
   }
   ////////////////////////////////////////////////////////////////////////////
 
+  if (keyframe_rate_output_callback_) {
+    auto tic = utils::Timer::tic();
+    VLOG(2) << "Call keyframe callback with spin output payload.";
+    keyframe_rate_output_callback_(SpinOutputPacket(
+        backend_output_payload->timestamp_kf_,
+        backend_output_payload->W_Pose_Blkf_,
+        backend_output_payload->W_Vel_Blkf_,
+        backend_output_payload->imu_bias_lkf_,
+        mesher_output_payload->mesh_2d_,
+        mesher_output_payload->mesh_3d_,
+        Visualizer3D::visualizeMesh2D(
+            mesher_output_payload->mesh_2d_filtered_for_viz_,
+            stereo_frontend_output_payload->stereo_frame_lkf_.getLeftFrame()
+                .img_),
+        points_with_id_VIO,
+        lmk_id_to_lmk_type_map,
+        backend_output_payload->state_covariance_lkf_,
+        stereo_frontend_output_payload->debug_tracker_info_));
+    auto toc = utils::Timer::toc(tic);
+    LOG_IF(WARNING, toc.count() > FLAGS_max_time_allowed_for_keyframe_callback)
+        << "Keyframe Rate Output Callback is taking longer than it should: "
+           "make sure your callback is fast!";
+  }
+
   if (FLAGS_visualize) {
     // Push data for visualizer thread.
     // WHO Should be pushing to the visualizer input queue????????
@@ -520,30 +544,6 @@ void Pipeline::spinSequential() {
         visualizer_input_queue_, visualizer_output_queue_,
         std::bind(&Pipeline::spinDisplayOnce, this, std::placeholders::_1),
         false);
-  }
-
-  if (keyframe_rate_output_callback_) {
-    auto tic = utils::Timer::tic();
-    VLOG(2) << "Call keyframe callback with spin output payload.";
-    keyframe_rate_output_callback_(SpinOutputPacket(
-        backend_output_payload->timestamp_kf_,
-        backend_output_payload->W_Pose_Blkf_,
-        backend_output_payload->W_Vel_Blkf_,
-        backend_output_payload->imu_bias_lkf_,
-        mesher_output_payload->mesh_2d_,
-        mesher_output_payload->mesh_3d_,
-        Visualizer3D::visualizeMesh2D(
-            mesher_output_payload->mesh_2d_filtered_for_viz_,
-            stereo_frontend_output_payload->stereo_frame_lkf_.getLeftFrame()
-                .img_),
-        points_with_id_VIO,
-        lmk_id_to_lmk_type_map,
-        backend_output_payload->state_covariance_lkf_,
-        stereo_frontend_output_payload->debug_tracker_info_));
-    auto toc = utils::Timer::toc(tic);
-    LOG_IF(WARNING, toc.count() > FLAGS_max_time_allowed_for_keyframe_callback)
-        << "Keyframe Rate Output Callback is taking longer than it should: "
-           "make sure your callback is fast!";
   }
 }
 
