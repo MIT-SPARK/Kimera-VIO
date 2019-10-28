@@ -567,9 +567,10 @@ void Pipeline::shutdownWhenFinished() {
             backend_output_queue_.empty() && !vio_backend_->isWorking() &&
             mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
             !mesher_.isWorking() && lcd_input_queue_.empty() &&
-            !loop_closure_detector_->isWorking() &&
-            visualizer_input_queue_.empty() && visualizer_output_queue_.empty()
-            && !visualizer_.isWorking()))) {
+            (loop_closure_detector_ ? !loop_closure_detector_->isWorking()
+                                    : true) &&
+            visualizer_input_queue_.empty() &&
+            visualizer_output_queue_.empty() && !visualizer_.isWorking()))) {
     VLOG_EVERY_N(10, 100) << "shutdown_: " << shutdown_ << '\n'
                           << "VIO pipeline status: \n"
                           << "Initialized? " << is_initialized_ << '\n'
@@ -1221,11 +1222,15 @@ void Pipeline::joinThreads() {
   }
 
   LOG(INFO) << "Joining loop closure thread...";
-  if (lcd_thread_ && lcd_thread_->joinable()) {
-    lcd_thread_->join();
-    LOG(INFO) << "Joined loop closure thread...";
+  if (lcd_thread_) {
+    if (lcd_thread_->joinable()) {
+      lcd_thread_->join();
+      LOG(INFO) << "Joined loop closure thread...";
+    } else {
+      LOG_IF(ERROR, parallel_run_) << "Loop closure thread is not joinable...";
+    }
   } else {
-    LOG_IF(ERROR, parallel_run_) << "Loop closure thread is not joinable...";
+    LOG(WARNING) << "No lcd thread registered.";
   }
 
   // visualizer_thread_.join();

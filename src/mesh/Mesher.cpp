@@ -182,32 +182,42 @@ void Mesher::spin(
     is_thread_working_ = false;
     MesherInputPayload::UniquePtr mesher_input_payload;
     mesher_input_queue.popBlocking(mesher_input_payload);
-    is_thread_working_ = true;
-    auto tic = utils::Timer::tic();
-    // If you put mesher_output_payload outside the loop, don't forget to clean
-    // the mesh_2d or everything
-    MesherOutputPayload::UniquePtr mesher_output_payload;
-    updateMesh3D(mesher_input_payload,
-                 FLAGS_return_mesh_2d
-                     ? &(mesher_output_payload->mesh_2d_)
-                     : nullptr,  // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
-                 &(mesher_output_payload
-                       ->mesh_2d_for_viz_),  // These are more or less
-                                             // the same info as mesh_2d_
-                 &(mesher_output_payload->mesh_2d_filtered_for_viz_));
-    getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
-    getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));
-    mesher_output_payload->mesh_3d_ = mesh_3d_;
-    mesher_output_queue.push(std::move(mesher_output_payload));
-    auto spin_duration = utils::Timer::toc(tic).count();
-    LOG(WARNING) << "Current Mesher frequency: " << 1000.0 / spin_duration
-                 << " Hz. (" << spin_duration << " ms).";
-    stats_mesher.AddSample(spin_duration);
+    if (mesher_input_payload) {
+      is_thread_working_ = true;
+      auto tic = utils::Timer::tic();
+      mesher_output_queue.push(spinOnce(*mesher_input_payload));
+      auto spin_duration = utils::Timer::toc(tic).count();
+      LOG(WARNING) << "Current Mesher frequency: " << 1000.0 / spin_duration
+                   << " Hz. (" << spin_duration << " ms).";
+      stats_mesher.AddSample(spin_duration);
+    } else {
+      LOG(WARNING) << "No InputPayload received for Mesher";
+    }
 
     // Break the while loop if we are in sequential mode.
     if (!parallel_run) return;
   }
   LOG(INFO) << "Mesher successfully shutdown.";
+}
+
+MesherOutputPayload::UniquePtr Mesher::spinOnce(
+    const MesherInputPayload& input) {
+  // If you put mesher_output_payload outside the loop, don't forget to clean
+  // the mesh_2d or everything
+  MesherOutputPayload::UniquePtr mesher_output_payload =
+      VIO::make_unique<MesherOutputPayload>();
+  updateMesh3D(
+      input,
+      FLAGS_return_mesh_2d
+          ? &(mesher_output_payload->mesh_2d_)
+          : nullptr,  // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
+      &(mesher_output_payload->mesh_2d_for_viz_),  // These are more or less
+                                                   // the same info as mesh_2d_
+      &(mesher_output_payload->mesh_2d_filtered_for_viz_));
+  getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
+  getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));
+  mesher_output_payload->mesh_3d_ = mesh_3d_;
+  return nullptr;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1313,18 +1323,17 @@ void Mesher::updateMesh3D(
 
 /* -------------------------------------------------------------------------- */
 // Update mesh, but in a thread-safe way.
-void Mesher::updateMesh3D(const MesherInputPayload::UniquePtr& mesher_payload,
+// TODO(TONI): this seems completely unnecessary
+void Mesher::updateMesh3D(const MesherInputPayload& mesher_payload,
                           Mesh2D* mesh_2d,
                           std::vector<cv::Vec6f>* mesh_2d_for_viz,
                           std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
-  if (!mesher_payload) {
-    LOG(INFO) << "Empty payload skipping mesh update";
-  } else {
-    updateMesh3D(mesher_payload->points_with_id_vio_,
-                 std::make_shared<StereoFrame>(mesher_payload->stereo_frame_),
-                 mesher_payload->left_camera_pose_, mesh_2d, mesh_2d_for_viz,
-                 mesh_2d_filtered_for_viz);
-  }
+  updateMesh3D(mesher_payload.points_with_id_vio_,
+               std::make_shared<StereoFrame>(mesher_payload.stereo_frame_),
+               mesher_payload.left_camera_pose_,
+               mesh_2d,
+               mesh_2d_for_viz,
+               mesh_2d_filtered_for_viz);
 }
 
 /* -------------------------------------------------------------------------- */

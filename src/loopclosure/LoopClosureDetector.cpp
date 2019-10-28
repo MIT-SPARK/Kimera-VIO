@@ -132,12 +132,11 @@ bool LoopClosureDetector::spin(
     bool parallel_run) {
   LOG(INFO) << "Spinning LoopClosureDetector.";
   utils::StatsCollector stat_lcd_timing("LoopClosureDetector Timing [ms]");
-
   while (!shutdown_) {
     // Get input data from queue. Wait for payload.
     is_thread_working_ = false;
     LoopClosureDetectorInputPayload::UniquePtr input;
-    input_queue.popBlocking(input);
+    CHECK(input_queue.popBlocking(input));
     is_thread_working_ = true;
     if (input) {
       if (lcd_pgo_output_callbacks_.size() > 0) {
@@ -255,6 +254,7 @@ LoopClosureDetectorOutputPayload::UniquePtr LoopClosureDetector::spinOnce(
     output_payload->states_ = pgo_states;
     output_payload->nfg_ = pgo_nfg;
   }
+  CHECK(output_payload) << "Missing LCD output payload.";
 
   if (logger_) {
     debug_info_.timestamp_ = output_payload->timestamp_kf_;

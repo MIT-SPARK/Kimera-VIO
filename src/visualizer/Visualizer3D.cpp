@@ -112,8 +112,7 @@ VisualizerInputPayload::VisualizerInputPayload(
     const gtsam::Values& values)
     : pose_(pose),
       stereo_keyframe_(last_stero_keyframe),
-      mesher_output_payload_(
-          std::move(mesher_output_payload)),  // TODO expensive...
+      mesher_output_payload_(std::move(mesher_output_payload)),
       points_with_id_VIO_(points_with_id_VIO),
       lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
       planes_(planes),
@@ -158,13 +157,12 @@ bool Visualizer3D::spin(
     // Wait for mesher payload.
     is_thread_working_ = false;
     VisualizerInputPayload::UniquePtr visualizer_payload;
-    CHECK(input_queue.popBlocking(visualizer_payload));
+    input_queue.popBlocking(visualizer_payload);
     is_thread_working_ = true;
     auto tic = utils::Timer::tic();
     if (visualizer_payload) {
       VisualizerOutputPayload::UniquePtr output_payload =
-          VIO::make_unique<VisualizerOutputPayload>();
-      CHECK(visualize(*visualizer_payload, output_payload.get()));
+          spinOnce(*visualizer_payload);
       if (display) {
         display(*output_payload);
         output_payload->images_to_display_.clear();
@@ -202,9 +200,10 @@ void Visualizer3D::restart() {
 
 /* -------------------------------------------------------------------------- */
 // Returns true if visualization is ready, false otherwise.
-bool Visualizer3D::visualize(const VisualizerInputPayload& input,
-                             VisualizerOutputPayload* output) {
-  CHECK_NOTNULL(output);
+VisualizerOutputPayload::UniquePtr Visualizer3D::spinOnce(
+    const VisualizerInputPayload& input) {
+  VisualizerOutputPayload::UniquePtr output =
+      VIO::make_unique<VisualizerOutputPayload>();
   cv::Mat mesh_2d_img;  // Only for visualization.
   const Frame& left_stereo_keyframe = input.stereo_keyframe_.getLeftFrame();
   switch (visualization_type_) {
@@ -467,7 +466,7 @@ bool Visualizer3D::visualize(const VisualizerInputPayload& input,
   // TODO avoid copying and use a std::unique_ptr! You need to pass window_data_
   // as a parameter to all the functions and set them as const.
   output->window_ = window_data_.window_;
-  return true;
+  return output;
 }
 
 /* -------------------------------------------------------------------------- */

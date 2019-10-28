@@ -137,6 +137,8 @@ class Mesher {
       ThreadsafeQueue<MesherOutputPayload::UniquePtr>& mesher_output_queue,
       bool parallel_run = true);
 
+  MesherOutputPayload::UniquePtr spinOnce(const MesherInputPayload& input);
+
   /* ------------------------------------------------------------------------ */
   // Method for the mesher to request thread stop.
   inline void shutdown() {
@@ -177,7 +179,7 @@ class Mesher {
 
   /* ------------------------------------------------------------------------ */
   // Update mesh, but in a thread-safe way.
-  void updateMesh3D(const MesherInputPayload::UniquePtr& mesher_payload,
+  void updateMesh3D(const MesherInputPayload& mesher_payload,
                     Mesh2D* mesh_2d = nullptr,
                     std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
                     std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);

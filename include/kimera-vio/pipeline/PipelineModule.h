@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <memory>
+#include <string>
 
 #include <glog/logging.h>
 

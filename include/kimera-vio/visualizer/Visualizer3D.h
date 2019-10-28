@@ -144,11 +144,13 @@ class Visualizer3D {
   }
 
   /* ------------------------------------------------------------------------ */
-  // Returns true if visualization is ready, false otherwise.
-  // The actual visualization must be done in the main thread, and as such,
-  // it is not done here to separate visualization preparation from display.
-  bool visualize(const VisualizerInputPayload& input,
-                 VisualizerOutputPayload* output);
+  /**
+   * \brief Returns true if visualization is ready, false otherwise.
+   * The actual visualization must be done in the main thread, and as such,
+   * it is not done here to separate visualization preparation from display.
+   */
+  VisualizerOutputPayload::UniquePtr spinOnce(
+      const VisualizerInputPayload& input);
 
   /* ------------------------------------------------------------------------ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class

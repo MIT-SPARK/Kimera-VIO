@@ -173,7 +173,6 @@ bool VioBackEnd::spin(InputQueue& input_queue,
     if (input) {
       auto tic = utils::Timer::tic();
       VLOG(2) << "Push backend output payload.";
-      CHECK(input) << "No VioBackEnd Input Payload received.";
       output_queue.push(spinOnce(*input));
       auto spin_duration = utils::Timer::toc(tic).count();
       LOG(WARNING) << "Current Backend frequency: " << 1000.0 / spin_duration
