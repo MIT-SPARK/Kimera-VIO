@@ -141,13 +141,13 @@ DEFINE_int32(z_histogram_max_number_of_peaks_to_select, 3,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-Mesher::Mesher(PipelineModule::InputQueue* input_queue,
-               PipelineModule::OutputQueue* output_queue,
+Mesher::Mesher(InputQueue* input_queue,
+               OutputQueue* output_queue,
                const bool& parallel_run)
-    : PipelineModule<MesherInputPayload>(input_queue,
-                                         output_queue,
-                                         "Mesher",
-                                         parallel_run),
+    : PipelineModule<MesherInputPayload, MesherOutputPayload>(input_queue,
+                                                              output_queue,
+                                                              "Mesher",
+                                                              parallel_run),
       mesh_3d_() {
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
@@ -176,9 +176,7 @@ Mesher::Mesher(PipelineModule::InputQueue* input_queue,
                        true, false);
 }
 
-PipelinePayload::UniquePtr Mesher::spinOnce(const MesherInputPayload& input) {
-  // If you put mesher_output_payload outside the loop, don't forget to clean
-  // the mesh_2d or everything
+Mesher::OutputPayloadPtr Mesher::spinOnce(const MesherInputPayload& input) {
   MesherOutputPayload::UniquePtr mesher_output_payload =
       VIO::make_unique<MesherOutputPayload>();
   updateMesh3D(
@@ -192,7 +190,7 @@ PipelinePayload::UniquePtr Mesher::spinOnce(const MesherInputPayload& input) {
   getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
   getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));
   mesher_output_payload->mesh_3d_ = mesh_3d_;
-  return nullptr;
+  return mesher_output_payload;
 }
 
 /* -------------------------------------------------------------------------- */

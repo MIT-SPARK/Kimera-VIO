@@ -75,6 +75,7 @@ class Frame {
   const Timestamp timestamp_;
 
   // These are non-const since they will be changed during rectification.
+  // TODO(Toni): keep original and rectified params.
   CameraParams cam_param_;
 
   // Actual image stored by the class frame.

@@ -220,8 +220,8 @@ class Pipeline {
   std::unique_ptr<Mesher> mesher_;
 
   // Thread-safe queue for the mesher.
-  ThreadsafeQueue<MesherInputPayload::UniquePtr> mesher_input_queue_;
-  ThreadsafeQueue<MesherOutputPayload::UniquePtr> mesher_output_queue_;
+  Mesher::InputQueue mesher_input_queue_;
+  Mesher::OutputQueue mesher_output_queue_;
 
   // Create class to detect loop closures.
   std::unique_ptr<LoopClosureDetector> loop_closure_detector_;

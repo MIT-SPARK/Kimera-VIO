@@ -29,32 +29,25 @@
 
 namespace VIO {
 
-struct PipelinePayload {
-  KIMERA_POINTER_TYPEDEFS(PipelinePayload);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(PipelinePayload);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  PipelinePayload();
-  virtual ~PipelinePayload() = default;
-};
-
 /**
  * @brief Abstraction of a pipeline module. Templated on the expected input
- * payload. The output payload is a generic PipelinePayload.
+ * and output payload.
  *
  * Provides common algorithmic logic for a pipeline module, in summary:
  * - spin(): runs the pipeline module by pulling and pushing from/to the
  * input/output queues given at construction.
  * - spinOnce(): given a minimal input, computes the output of the module.
  */
-template <typename InputPayload>
+template <typename InputPayload, typename OutputPayload>
 class PipelineModule {
  public:
   KIMERA_POINTER_TYPEDEFS(PipelineModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef std::unique_ptr<InputPayload> InputPayloadPtr;
+  typedef std::unique_ptr<OutputPayload> OutputPayloadPtr;
   typedef ThreadsafeQueue<InputPayloadPtr> InputQueue;
-  typedef ThreadsafeQueue<PipelinePayload::UniquePtr> OutputQueue;
+  typedef ThreadsafeQueue<OutputPayloadPtr> OutputQueue;
 
   // TODO(Toni) In/Output queue should be shared ptr
   PipelineModule(InputQueue* input_queue,
@@ -63,8 +56,8 @@ class PipelineModule {
                  const bool& parallel_run)
       : input_queue_(input_queue),
         output_queue_(output_queue),
-        name_id_(name_id),
-        parallel_run_(parallel_run) {
+        parallel_run_(parallel_run),
+        name_id_(name_id) {
     CHECK(input_queue_);
     CHECK(output_queue_);
   }
@@ -80,7 +73,6 @@ class PipelineModule {
     while (!shutdown_) {
       // Get input data from queue by waiting for payload.
       is_thread_working_ = false;
-      auto tic_pipeline_overall = utils::Timer::tic();
       InputPayloadPtr input;
       if (input_queue_->popBlocking(input)) {
         is_thread_working_ = true;
@@ -111,7 +103,7 @@ class PipelineModule {
    * @param[in] input: an input payload for module to work on.
    * @return The output payload from the pipeline module.
    */
-  virtual PipelinePayload::UniquePtr spinOnce(const InputPayload& input) = 0;
+  virtual OutputPayloadPtr spinOnce(const InputPayload& input) = 0;
 
   /* ------------------------------------------------------------------------ */
   inline void shutdown() {
@@ -132,9 +124,6 @@ class PipelineModule {
   inline bool isWorking() const { return is_thread_working_; }
 
  private:
-  std::string name_id_ = {"PipelineModule"};
-  bool parallel_run_ = {true};
-
   //! Queues
   InputQueue* input_queue_;
   OutputQueue* output_queue_;
@@ -142,6 +131,10 @@ class PipelineModule {
   //! Thread related members.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_thread_working_ = {false};
+  bool parallel_run_ = {true};
+
+  //! Properties
+  std::string name_id_ = {"PipelineModule"};
 };
 
 }  // namespace VIO

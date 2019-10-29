@@ -56,9 +56,16 @@ using SacProblemStereo =
 
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
+    InputQueue* input_queue,
+    OutputQueue* output_queue,
     const LoopClosureDetectorParams& lcd_params,
+    const bool parallel_run,
     const bool log_output)
-    : lcd_pgo_output_callbacks_(),
+    : PipelineModule<LcdInputPayload, LcdOutputPayload>(input_queue,
+                                                        output_queue,
+                                                        "LoopClosureDetector",
+                                                        parallel_run),
+      lcd_pgo_output_callbacks_(),
       lcd_params_(lcd_params),
       log_output_(log_output),
       set_intrinsics_(false),
@@ -124,51 +131,6 @@ LoopClosureDetector::LoopClosureDetector(
 
 LoopClosureDetector::~LoopClosureDetector() {
   LOG(INFO) << "LoopClosureDetector desctuctor called.";
-}
-
-/* ------------------------------------------------------------------------ */
-bool LoopClosureDetector::spin(
-    ThreadsafeQueue<LoopClosureDetectorInputPayload::UniquePtr>& input_queue,
-    bool parallel_run) {
-  LOG(INFO) << "Spinning LoopClosureDetector.";
-  utils::StatsCollector stat_lcd_timing("LoopClosureDetector Timing [ms]");
-  while (!shutdown_) {
-    // Get input data from queue. Wait for payload.
-    is_thread_working_ = false;
-    LoopClosureDetectorInputPayload::UniquePtr input;
-    input_queue.popBlocking(input);
-    is_thread_working_ = true;
-    if (input) {
-      if (lcd_pgo_output_callbacks_.size() > 0) {
-        auto tic = utils::Timer::tic();
-        LoopClosureDetectorOutputPayload::UniquePtr output_payload =
-            spinOnce(*input);
-        auto spin_duration = utils::Timer::toc(tic).count();
-        stat_lcd_timing.AddSample(spin_duration);
-
-        for (const LoopClosurePGOCallback& callback :
-             lcd_pgo_output_callbacks_) {
-          callback(output_payload);
-        }
-
-        LOG(WARNING) << "Current LoopClosureDetector frequency: "
-                     << 1000.0 / spin_duration << " Hz. (" << spin_duration
-                     << " ms).";
-      } else {
-        LOG_EVERY_N(WARNING, 100)
-            << "LoopClosureDetector: No output callback registered. "
-            << "Either register a callback or disable LCD with "
-            << "flag use_lcd=false.";
-      }
-    } else {
-      LOG(WARNING) << "No LoopClosureDetector Input Payload received.";
-    }
-
-    if (!parallel_run) return true;
-  }
-
-  LOG(INFO) << "LoopClosureDetector successfully shutdown.";
-  return true;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -266,6 +228,11 @@ LoopClosureDetectorOutputPayload::UniquePtr LoopClosureDetector::spinOnce(
     logger_->logTimestampMap(timestamp_map_);
     logger_->logDebugInfo(debug_info_);
     logger_->logLCDResult(*output_payload);
+  }
+
+  //! Send output to all registered callbacks.
+  for (const LoopClosurePGOCallback& callback : lcd_pgo_output_callbacks_) {
+    callback(output_payload);
   }
 
   return output_payload;
