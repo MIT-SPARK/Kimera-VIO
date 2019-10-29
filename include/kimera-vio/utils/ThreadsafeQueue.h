@@ -21,19 +21,15 @@
 #include <mutex>
 #include <queue>
 
-// TODO make specialized queue for unique ptrs. (non-copyable objects).
+#include <kimera-vio/utils/Macros.h>
+
 template <typename T>
 class ThreadsafeQueue {
  public:
+  KIMERA_POINTER_TYPEDEFS(ThreadsafeQueue);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeQueue);
   typedef std::queue<std::shared_ptr<T>> InternalQueue;
   ThreadsafeQueue(const std::string& queue_id) : queue_id_(queue_id) {}
-  ThreadsafeQueue(const ThreadsafeQueue& other) {
-    std::unique_lock<std::mutex> lk(other.mutex_);
-    data_queue_ = other.data_queue_;
-    lk.unlock();
-    // No need to lock here, atomic bool.
-    shutdown_ = other.shutdown_;
-  }
 
   // Push an lvalue to the queue.
   // Returns false if the queue has been shutdown.

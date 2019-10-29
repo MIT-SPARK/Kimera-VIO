@@ -136,7 +136,7 @@ bool LoopClosureDetector::spin(
     // Get input data from queue. Wait for payload.
     is_thread_working_ = false;
     LoopClosureDetectorInputPayload::UniquePtr input;
-    CHECK(input_queue.popBlocking(input));
+    input_queue.popBlocking(input);
     is_thread_working_ = true;
     if (input) {
       if (lcd_pgo_output_callbacks_.size() > 0) {

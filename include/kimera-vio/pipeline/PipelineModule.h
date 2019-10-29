@@ -44,10 +44,7 @@ struct PipelinePayload {
  * Provides common algorithmic logic for a pipeline module, in summary:
  * - spin(): runs the pipeline module by pulling and pushing from/to the
  * input/output queues given at construction.
- * - spinOnce():
- * @param myParam1 Description of 1st parameter.
- * @param myParam2 Description of 2nd parameter.
- * @returns Description of returned value.
+ * - spinOnce(): given a minimal input, computes the output of the module.
  */
 template <typename InputPayload>
 class PipelineModule {
@@ -59,8 +56,19 @@ class PipelineModule {
   typedef ThreadsafeQueue<InputPayloadPtr> InputQueue;
   typedef ThreadsafeQueue<PipelinePayload::UniquePtr> OutputQueue;
 
-  PipelineModule();
-  virtual ~PipelineModule() { LOG(INFO) << name_id_ + " destructor called."; };
+  // TODO(Toni) In/Output queue should be shared ptr
+  PipelineModule(InputQueue* input_queue,
+                 OutputQueue* output_queue,
+                 const std::string& name_id,
+                 const bool& parallel_run)
+      : input_queue_(input_queue),
+        output_queue_(output_queue),
+        name_id_(name_id),
+        parallel_run_(parallel_run) {
+    CHECK(input_queue_);
+    CHECK(output_queue_);
+  }
+  virtual ~PipelineModule() { LOG(INFO) << name_id_ + " destructor called."; }
 
   /**
    * @brief Main spin function.
@@ -74,11 +82,11 @@ class PipelineModule {
       is_thread_working_ = false;
       auto tic_pipeline_overall = utils::Timer::tic();
       InputPayloadPtr input;
-      if (input_queue_.popBlocking(input)) {
+      if (input_queue_->popBlocking(input)) {
         is_thread_working_ = true;
         if (input) {
           auto tic = utils::Timer::tic();
-          output_queue_.push(spinOnce(*input));
+          output_queue_->push(spinOnce(*input));
           auto spin_duration = utils::Timer::toc(tic).count();
           LOG(WARNING) << "Module " << name_id_
                        << " - frequency: " << 1000.0 / spin_duration << " Hz. ("
@@ -128,8 +136,8 @@ class PipelineModule {
   bool parallel_run_ = {true};
 
   //! Queues
-  InputQueue input_queue_;
-  OutputQueue output_queue_;
+  InputQueue* input_queue_;
+  OutputQueue* output_queue_;
 
   //! Thread related members.
   std::atomic_bool shutdown_ = {false};

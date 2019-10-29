@@ -26,13 +26,13 @@
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/mesh/Mesh.h"
+#include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Histogram.h"
 #include "kimera-vio/utils/Macros.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
 
-struct MesherInputPayload {
+struct MesherInputPayload : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(MesherInputPayload);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MesherInputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -40,7 +40,8 @@ struct MesherInputPayload {
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       const StereoFrame& stereo_frame,
       const gtsam::Pose3& left_camera_pose)
-      : points_with_id_vio_(points_with_id_vio),
+      : PipelinePayload(),
+        points_with_id_vio_(points_with_id_vio),
         stereo_frame_(stereo_frame),
         left_camera_pose_(left_camera_pose) {}
 
@@ -49,29 +50,31 @@ struct MesherInputPayload {
   const gtsam::Pose3 left_camera_pose_;
 };
 
-struct MesherOutputPayload {
+struct MesherOutputPayload : public PipelinePayload {
  public:
   KIMERA_POINTER_TYPEDEFS(MesherOutputPayload);
   // TODO delete copy constructors
   // KIMERA_DELETE_COPY_CONSTRUCTORS(MesherOutputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  MesherOutputPayload() = default;
+
   MesherOutputPayload(
       Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
-      Mesh3D&& mesh_3d,  // Use move semantics for the actual 2d mesh.
+      Mesh3D&& mesh_3d,  // Use move semantics for the actual 3d mesh.
       const std::vector<cv::Vec6f>& mesh_2d_for_viz,
       const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
-      : mesh_2d_(std::move(mesh_2d)),
+      : PipelinePayload(),
+        mesh_2d_(std::move(mesh_2d)),
         mesh_3d_(std::move(mesh_3d)),
         mesh_2d_for_viz_(mesh_2d_for_viz),
         mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
 
-  MesherOutputPayload(const std::shared_ptr<MesherOutputPayload>& in)
-      : mesh_2d_for_viz_(in ? in->mesh_2d_for_viz_
+  MesherOutputPayload(const MesherOutputPayload::Ptr& in)
+      : PipelinePayload(),
+        mesh_2d_for_viz_(in ? in->mesh_2d_for_viz_
                             : std::vector<cv::Vec6f>()),  // yet another copy...
         mesh_2d_filtered_for_viz_(in ? in->mesh_2d_filtered_for_viz_
                                      : std::vector<cv::Vec6f>()) {}
-
-  MesherOutputPayload() = default;
 
   // Default copy ctor.
   MesherOutputPayload(const MesherOutputPayload& rhs) = default;
@@ -101,10 +104,8 @@ struct MesherOutputPayload {
   cv::Mat polygons_mesh_;
 };
 
-class Mesher {
+class Mesher : public PipelineModule<MesherInputPayload> {
  public:
-  // Public definitions.
-
   // Structure storing mesh 3d visualization properties.
   struct Mesh3DVizProperties {
    public:
@@ -128,36 +129,23 @@ class Mesher {
 
  public:
   /* ------------------------------------------------------------------------ */
-  Mesher();
+  /**
+   * @brief Mesher::Mesher Ctor for the Mesher.
+   * @param input_queue Threadsafe queue for processing input to the Mesher.
+   * @param output_queue Threadsafe queue for retrieving output from the Mesher.
+   * @param parallel_run Whether to run the pipeline module in parallel mode.
+   */
+  Mesher(PipelineModule::InputQueue* input_queue,
+         PipelineModule::OutputQueue* output_queue,
+         const bool& parallel_run);
 
-  /* ------------------------------------------------------------------------ */
-  // Method for the mesher to run on a thread.
-  void spin(
-      ThreadsafeQueue<MesherInputPayload::UniquePtr>& mesher_input_queue,
-      ThreadsafeQueue<MesherOutputPayload::UniquePtr>& mesher_output_queue,
-      bool parallel_run = true);
-
-  MesherOutputPayload::UniquePtr spinOnce(const MesherInputPayload& input);
-
-  /* ------------------------------------------------------------------------ */
-  // Method for the mesher to request thread stop.
-  inline void shutdown() {
-    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Mesher was already "
-                                  "shutdown.";
-    LOG(INFO) << "Shutting down Mesher.";
-    shutdown_ = true;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Method for the mesher to avoid shutdown during thread re-start.
-  inline void restart() {
-    LOG(INFO) << "Resetting shutdown mesher flag to false.";
-    shutdown_ = false;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Check whether the mesher is waiting for input queue or if it is working.
-  inline bool isWorking() const { return is_thread_working_; }
+  /**
+   * @brief Mesher::spinOnce Process only one minimal packet of information.
+   * @param input Minimal input for the Mesher to do its work.
+   * @return Mesher's output
+   */
+  virtual PipelinePayload::UniquePtr spinOnce(
+      const MesherInputPayload& input) override;
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before
@@ -211,11 +199,6 @@ class Mesher {
   // The 2d histogram of theta angle (latitude) and distance of polygons
   // perpendicular to the vertical (aka parallel to walls).
   Histogram hist_2d_;
-
-  // Signaler for stop.
-  std::atomic_bool shutdown_ = {false};
-  // Signaler for thread working vs waiting for input queue.
-  std::atomic_bool is_thread_working_ = {false};
 
  private:
   // Provide Mesh 3D in read-only mode.

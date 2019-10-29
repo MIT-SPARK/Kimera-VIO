@@ -217,7 +217,7 @@ class Pipeline {
   std::vector<Plane> planes_;
 
   // Create class to build mesh.
-  Mesher mesher_;
+  std::unique_ptr<Mesher> mesher_;
 
   // Thread-safe queue for the mesher.
   ThreadsafeQueue<MesherInputPayload::UniquePtr> mesher_input_queue_;

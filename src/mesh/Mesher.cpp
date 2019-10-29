@@ -141,7 +141,14 @@ DEFINE_int32(z_histogram_max_number_of_peaks_to_select, 3,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-Mesher::Mesher() : mesh_3d_() {
+Mesher::Mesher(PipelineModule::InputQueue* input_queue,
+               PipelineModule::OutputQueue* output_queue,
+               const bool& parallel_run)
+    : PipelineModule<MesherInputPayload>(input_queue,
+                                         output_queue,
+                                         "Mesher",
+                                         parallel_run),
+      mesh_3d_() {
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
   // We cannot use an array of doubles here bcs the function cv::calcHist asks
@@ -169,39 +176,7 @@ Mesher::Mesher() : mesh_3d_() {
                        true, false);
 }
 
-/* -------------------------------------------------------------------------- */
-// Method for the mesher to run on a thread.
-void Mesher::spin(
-    ThreadsafeQueue<MesherInputPayload::UniquePtr>& mesher_input_queue,
-    ThreadsafeQueue<MesherOutputPayload::UniquePtr>& mesher_output_queue,
-    bool parallel_run) {
-  LOG(INFO) << "Spinning Mesher.";
-  utils::StatsCollector stats_mesher("Mesher Timing [ms]");
-  while (!shutdown_) {
-    // Wait for mesher payload.
-    is_thread_working_ = false;
-    MesherInputPayload::UniquePtr mesher_input_payload;
-    mesher_input_queue.popBlocking(mesher_input_payload);
-    if (mesher_input_payload) {
-      is_thread_working_ = true;
-      auto tic = utils::Timer::tic();
-      mesher_output_queue.push(spinOnce(*mesher_input_payload));
-      auto spin_duration = utils::Timer::toc(tic).count();
-      LOG(WARNING) << "Current Mesher frequency: " << 1000.0 / spin_duration
-                   << " Hz. (" << spin_duration << " ms).";
-      stats_mesher.AddSample(spin_duration);
-    } else {
-      LOG(WARNING) << "No InputPayload received for Mesher";
-    }
-
-    // Break the while loop if we are in sequential mode.
-    if (!parallel_run) return;
-  }
-  LOG(INFO) << "Mesher successfully shutdown.";
-}
-
-MesherOutputPayload::UniquePtr Mesher::spinOnce(
-    const MesherInputPayload& input) {
+PipelinePayload::UniquePtr Mesher::spinOnce(const MesherInputPayload& input) {
   // If you put mesher_output_payload outside the loop, don't forget to clean
   // the mesh_2d or everything
   MesherOutputPayload::UniquePtr mesher_output_payload =
