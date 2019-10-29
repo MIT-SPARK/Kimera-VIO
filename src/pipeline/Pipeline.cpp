@@ -549,6 +549,11 @@ void Pipeline::shutdownWhenFinished() {
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
   static constexpr int sleep_time = 1;
 
+  bool lcd_and_lcd_input_finished = true;
+  if (loop_closure_detector_) {
+    lcd_and_lcd_input_finished = false;
+  }
+
   while (!shutdown_ &&         // Loop while not explicitly shutdown.
          (!is_initialized_ ||  // Loop while not initialized
                                // Or, once init, data is not yet consumed.
@@ -557,10 +562,9 @@ void Pipeline::shutdownWhenFinished() {
             !vio_frontend_->isWorking() && backend_input_queue_.empty() &&
             backend_output_queue_.empty() && !vio_backend_->isWorking() &&
             mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
-            !mesher_.isWorking() && lcd_input_queue_.empty() &&
-            !loop_closure_detector_->isWorking() &&
-            visualizer_input_queue_.empty() && visualizer_output_queue_.empty()
-            && !visualizer_.isWorking()))) {
+            !mesher_.isWorking() && visualizer_input_queue_.empty() &&
+            visualizer_output_queue_.empty() && !visualizer_.isWorking() &&
+            lcd_and_lcd_input_finished))) {
     VLOG_EVERY_N(10, 100) << "shutdown_: " << shutdown_ << '\n'
                           << "VIO pipeline status: \n"
                           << "Initialized? " << is_initialized_ << '\n'
@@ -587,6 +591,14 @@ void Pipeline::shutdownWhenFinished() {
                           << "Visualizer output queue empty?"
                           << visualizer_output_queue_.empty() << '\n'
                           << "Visualizer is working? " << visualizer_.isWorking();
+    if (loop_closure_detector_) {
+      lcd_and_lcd_input_finished = lcd_input_queue_.empty() &&
+                                   !loop_closure_detector_->isWorking();
+      VLOG_EVERY_N(10, 100) << "LCD input queue empty?"
+                            << lcd_input_queue_.empty() << '\n'
+                            << "LCD is working? "
+                            << loop_closure_detector_->isWorking();
+    }
 
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
