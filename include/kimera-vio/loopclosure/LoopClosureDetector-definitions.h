@@ -238,6 +238,7 @@ struct LoopClosureDetectorInputPayload {
   const StereoFrame stereo_frame_;
   const gtsam::Pose3 W_Pose_Blkf_;
 };
+typedef LoopClosureDetectorInputPayload LcdInputPayload;
 
 struct LoopClosureDetectorOutputPayload {
   KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorOutputPayload);
@@ -288,5 +289,6 @@ struct LoopClosureDetectorOutputPayload {
   gtsam::Values states_;
   gtsam::NonlinearFactorGraph nfg_;
 };
+typedef LoopClosureDetectorOutputPayload LcdOutputPayload;
 
 }  // namespace VIO

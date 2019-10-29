@@ -227,7 +227,8 @@ class Pipeline {
   std::unique_ptr<LoopClosureDetector> loop_closure_detector_;
 
   // Thread-safe queue for the loop closure detector.
-  ThreadsafeQueue<LoopClosureDetectorInputPayload::UniquePtr> lcd_input_queue_;
+  LoopClosureDetector::InputQueue lcd_input_queue_;
+  ThreadsafeNullQueue<LcdOutputPayload::UniquePtr> null_lcd_output_queue_;
 
   // Visualization process.
   Visualizer3D visualizer_;

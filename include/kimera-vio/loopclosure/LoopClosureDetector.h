@@ -30,6 +30,7 @@
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
+#include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 
 /* ------------------------------------------------------------------------ */
@@ -45,44 +46,34 @@ typedef std::function<void(const LoopClosureDetectorOutputPayload::UniquePtr&)>
     LoopClosurePGOCallback;
 
 /* ------------------------------------------------------------------------ */
-class LoopClosureDetector {
+class LoopClosureDetector
+    : public PipelineModule<LcdInputPayload, LcdOutputPayload> {
  public:
   /* ------------------------------------------------------------------------ */
-  /* @brief Constructor: detects loop-closures and updates internal PGO.
+  /** @brief Constructor: detects loop-closures and updates internal PGO.
    * @param[in] lcd_params Parameters for the instance of LoopClosureDetector.
    * @param[in] log_output Output-logging flag. If set to true, the logger is
    *  instantiated and output/statistics are logged at every spinOnce().
    */
-  LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-                      const bool log_output = false);
+  LoopClosureDetector(InputQueue* input_queue,
+                      OutputQueue* output_queue,
+                      const LoopClosureDetectorParams& lcd_params,
+                      const bool parallel_run,
+                      const bool log_output);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Destructor.
-   */
-  virtual ~LoopClosureDetector();
+  virtual ~LoopClosureDetector() override;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Main spin function for the LoopClosureDetector pipeline.
-   * @param[in] input_queue A ThreadsafeQueue into which input payloads are
-   * pushed.
-   * @param[in] parallel_run The parallelized flag. If set to false, the spin
-   * won't loop and instead will return at the end of each run.
-   * @reutrn True if everything goes well.
-   */
-  bool spin(
-      ThreadsafeQueue<LoopClosureDetectorInputPayload::UniquePtr>& input_queue,
-      bool parallel_run = true);
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Processed a single input payload and runs it through the pipeline.
+  /** @brief Processed a single input payload and runs it through the pipeline.
    * @param[in] input A shared_ptr referencing an input payload.
    * @return The output payload from the pipeline.
    */
-  LoopClosureDetectorOutputPayload::UniquePtr spinOnce(
-      const LoopClosureDetectorInputPayload& input);
+  virtual OutputPayloadPtr spinOnce(const LcdInputPayload& input) override;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Processed a single frame and adds it to relevant internal databases.
+  /** @brief Processed a single frame and adds it to relevant internal
+   * databases.
    * @param[in] stereo_frame A StereoFrame object with two images and a pose to
    * the body frame at a minimum. Other fields may also be populated.
    * @return The local ID of the frame after it is added to the databases.
@@ -90,7 +81,7 @@ class LoopClosureDetector {
   FrameId processAndAddFrame(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Runs all checks on a frame and determines whether it a loop-closure
+  /** @brief Runs all checks on a frame and determines whether it a loop-closure
       with a previous frame or not. Fills the LoopResult with this information.
    * @param[in] stereo_frame A stereo_frame that has already been "rewritten" by
    *  the pipeline to have ORB features and keypoints.
@@ -102,7 +93,7 @@ class LoopClosureDetector {
   bool detectLoop(const StereoFrame& stereo_frame, LoopResult* result);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Verify that the geometry between two frames is close enough to be
+  /** @brief Verify that the geometry between two frames is close enough to be
       considered a match, and generate a monocular transformation between them.
    * @param[in] query_id The frame ID of the query image in the database.
    * @param[in] match_id The frame ID of the match image in the databse.
@@ -115,7 +106,7 @@ class LoopClosureDetector {
                                   gtsam::Pose3* camCur_T_camRef_mono);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Determine the 3D pose betwen two frames.
+  /** @brief Determine the 3D pose betwen two frames.
    * @param[in] query_id The frame ID of the query image in the database.
    * @param[in] match_id The frame ID of the match image in the database.
    * @param[in] camCur_T_camRef_mono The relative pose between the match frame
@@ -130,37 +121,13 @@ class LoopClosureDetector {
                    gtsam::Pose3* bodyCur_T_bodyRef_stereo);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Shuts-down the LoopClosureDetector pipeline.
-   */
-  inline void shutdown() {
-    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but LoopClosureDetector "
-                                  "was already shutdown.";
-    LOG(INFO) << "Shutting down LoopClosureDetector.";
-    shutdown_ = true;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Restarts the LoopClosureDetector pipeline.
-   */
-  inline void restart() {
-    LOG(INFO) << "Resetting shutdown LoopClosureDetector flag to false.";
-    shutdown_ = false;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Returns the working status of the thread.
-   * @return True if the thread is working, false otherwise.
-   */
-  inline bool isWorking() const { return is_thread_working_; }
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Gets a copy of the parameters of the LoopClosureDetector.
+  /** @brief Gets a copy of the parameters of the LoopClosureDetector.
    * @return The local parameters of the LoopClosureDetector.
    */
   inline LoopClosureDetectorParams getLCDParams() const { return lcd_params_; }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns a pointer to the parameters of the LoopClosureDetector.
+  /** @brief Returns a pointer to the parameters of the LoopClosureDetector.
    * @return A pointer to the parameters of the LoopClosureDetector.
    */
   inline LoopClosureDetectorParams* getLCDParamsMutable() {
@@ -168,7 +135,7 @@ class LoopClosureDetector {
   }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the RAW pointer to the BoW database.
+  /** @brief Returns the RAW pointer to the BoW database.
    * @return A pointer to the BoW database.
    *
    * WARNING: This is a potentially dangerous method to use because it requires
@@ -177,7 +144,7 @@ class LoopClosureDetector {
   inline const OrbDatabase* getBoWDatabase() const { return db_BoW_.get(); }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns a pointer to the database of LCDFrames.
+  /** @brief Returns a pointer to the database of LCDFrames.
    * @return A pointer to the LCDFrame database.
    *
    * WARNING: This is a potentially dangerous method to use because it requires
@@ -188,7 +155,7 @@ class LoopClosureDetector {
   }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the "intrinsics flag", which is true if the pipeline has
+  /** @brief Returns the "intrinsics flag", which is true if the pipeline has
    *  recieved the dimensions, principle point, and focal length of the images
    *  in the frames, as well as the transformation from body to camera.
    * @return True if the intrinsics have been recieved, false otherwise.
@@ -196,28 +163,28 @@ class LoopClosureDetector {
   inline const bool getIntrinsicsFlag() const { return set_intrinsics_; }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the pose between the inertial world-reference frame and the
+  /** @brief Returns the pose between the inertial world-reference frame and the
    *  "map" frame, which is the error between the VIO and the PGO trajectories.
    * @return The pose of the map frame relative to the world frame.
    */
   const gtsam::Pose3 getWPoseMap() const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the values of the PGO, which is the full trajectory of the
+  /** @brief Returns the values of the PGO, which is the full trajectory of the
    *  PGO.
    * @return The gtsam::Values (poses) of the PGO.
    */
   const gtsam::Values getPGOTrajectory() const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the Nonlinear-Factor-Graph from the PGO.
+  /** @brief Returns the Nonlinear-Factor-Graph from the PGO.
    * @return The gtsam::NonlinearFactorGraph of the optimized trajectory from
    *  the PGO.
    */
   const gtsam::NonlinearFactorGraph getPGOnfg() const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Registers an external callback to which output payloads are sent.
+  /** @brief Registers an external callback to which output payloads are sent.
    *  The callback is added to a vector of callbacks, enabling multiple
    *  functions for each output payload.
    * @param[in] callback A LoopClosurePGOCallback function which will parse
@@ -229,7 +196,7 @@ class LoopClosureDetector {
   }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Set the bool set_intrinsics as well as the parameter members
+  /** @brief Set the bool set_intrinsics as well as the parameter members
    *  representing the principle point, image dimensions, focal length and
    *  camera-to-body pose.
    * @param[in] stereo_frame A StereoFrame with the calibration and parameters
@@ -239,18 +206,18 @@ class LoopClosureDetector {
   void setIntrinsics(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Set the OrbDatabase internal member.
+  /** @brief Set the OrbDatabase internal member.
    * @param[in] db An OrbDatabase object.
    */
   void setDatabase(const OrbDatabase& db);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Prints parameters and other statistics on the LoopClosureDetector.
+  /** @brief Prints parameters and other statistics on the LoopClosureDetector.
    */
   void print() const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Clears all keypoints and features from an input StereoFrame and
+  /** @brief Clears all keypoints and features from an input StereoFrame and
    *  fills it with ORB features.
    * @param[in] keypoints A vector of KeyPoints representing the ORB keypoints
    *  identified by an ORB detector.
@@ -262,7 +229,7 @@ class LoopClosureDetector {
                                   StereoFrame* stereo_frame) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Creates an image with matched ORB features between two frames.
+  /** @brief Creates an image with matched ORB features between two frames.
    *  This is a utility for debugging the ORB feature matcher and isn't used
    *  in the main pipeline.
    * @param[in] query_img The image of the query frame in the database.
@@ -283,7 +250,7 @@ class LoopClosureDetector {
                                              bool cut_matches = false) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Gives the transform between two frames in the body frame given
+  /** @brief Gives the transform between two frames in the body frame given
    *  that same transform in the camera frame.
    * @param[in] camCur_T_camRef The relative pose between two frames in the
    *  camera coordinate frame.
@@ -295,7 +262,7 @@ class LoopClosureDetector {
                                      gtsam::Pose3* bodyCur_T_bodyRef) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief The inverse of transformCameraPoseToBodyPose.
+  /** @brief The inverse of transformCameraPoseToBodyPose.
    * @param[in] bodyCur_T_bodyRef The relative pose between two frames in the
    *  body coordinate frame.
    * @param[out] camCur_T_camRef The relative pose between two frames in the
@@ -306,7 +273,7 @@ class LoopClosureDetector {
                                      gtsam::Pose3* camCur_T_camRef) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Adds an odometry factor to the PGO and optimizes the trajectory.
+  /** @brief Adds an odometry factor to the PGO and optimizes the trajectory.
    *  No actual optimization is performed on the RPGO side for odometry.
    * @param[in] factor An OdometryFactor representing the backend's guess for
    *  odometry between two consecutive keyframes.
@@ -314,20 +281,20 @@ class LoopClosureDetector {
   void addOdometryFactorAndOptimize(const OdometryFactor& factor);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Adds a loop-closure factor to the PGO and optimizes the trajectory.
+  /** @brief Adds a loop-closure factor to the PGO and optimizes the trajectory.
    * @param[in] factor A LoopClosureFactor representing the relative pose
    *  between two frames that are not (necessarily) consecutive.
    */
   void addLoopClosureFactorAndOptimize(const LoopClosureFactor& factor);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Initializes the RobustSolver member with no prior, or a neutral
+  /** @brief Initializes the RobustSolver member with no prior, or a neutral
    *  starting pose.
    */
   void initializePGO();
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Initializes the RobustSolver member with an initial prior factor,
+  /** @brief Initializes the RobustSolver member with an initial prior factor,
    *  which can be the first OdometryFactor given by the backend.
    * @param[in] factor An OdometryFactor representing the pose between the
    *  initial state of the vehicle and the first keyframe.
@@ -336,7 +303,7 @@ class LoopClosureDetector {
 
  private:
   /* ------------------------------------------------------------------------ */
-  /* @brief Determines whether a frame meets the temoral constraint given by
+  /** @brief Determines whether a frame meets the temoral constraint given by
    *  a MatchIsland.
    * @param[in] id The frame ID of the frame being processed in the database.
    * @param[in] island A MatchIsland representing several potential matches.
@@ -346,7 +313,7 @@ class LoopClosureDetector {
   bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Computes the various islands created by a QueryResult, which is
+  /** @brief Computes the various islands created by a QueryResult, which is
    *  given by the OrbDatabase.
    * @param[in] q A QueryResults object containing all the resulting possible
    *  matches with a frame.
@@ -359,7 +326,7 @@ class LoopClosureDetector {
                       std::vector<MatchIsland>* islands) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Compute the overall score of an island.
+  /** @brief Compute the overall score of an island.
    * @param[in] q A QueryResults object containing all the possible matches
    *  with a frame.
    * @param[in] start_id The frame ID that starts the island.
@@ -371,7 +338,7 @@ class LoopClosureDetector {
                             const FrameId& end_id) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Computes the indices of keypoints that match between two frames.
+  /** @brief Computes the indices of keypoints that match between two frames.
    * @param[in] query_id The frame ID of the query frame in the database.
    * @param[in] match_id The frame ID of the match frame in the database.
    * @param[out] i_query A vector of indices that match in the query frame.
@@ -386,7 +353,7 @@ class LoopClosureDetector {
                              bool cut_matches = false) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Checks geometric verification and determines a pose with
+  /** @brief Checks geometric verification and determines a pose with
    *  a translation up to a scale factor between two frames, using Nister's
    *  five-point method.
    * @param[in] query_id The frame ID of the query frame in the database.
@@ -400,7 +367,7 @@ class LoopClosureDetector {
                                    gtsam::Pose3* camCur_T_camRef_mono);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Checks geometric verification and determines a pose that is
+  /** @brief Checks geometric verification and determines a pose that is
    *  "stereo" - correct in translation scale using Arun's three-point method.
    * @param[in] query_id The frame ID of the query frame in the database.
    * @param[in] match_id The frame ID of the match frame in the database.
@@ -412,7 +379,7 @@ class LoopClosureDetector {
                        gtsam::Pose3* bodyCur_T_bodyRef);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Checks geometric verification and determines a pose that is
+  /** @brief Checks geometric verification and determines a pose that is
    *  "stereo" - correct in translation scale using the median of all
    *  3D keypoints matched between the frames.
    * @param[in] query_id The frame ID of the query frame in the database.
@@ -433,10 +400,6 @@ class LoopClosureDetector {
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = {false};
   bool set_intrinsics_ = {false};
-
-  // Thread related members
-  std::atomic_bool shutdown_ = {false};
-  std::atomic_bool is_thread_working_ = {false};
 
   // ORB extraction and matching members
   cv::Ptr<cv::ORB> orb_feature_detector_;

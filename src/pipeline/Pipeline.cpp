@@ -140,8 +140,12 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
       &mesher_input_queue_, &mesher_output_queue_, parallel_run_);
 
   if (FLAGS_use_lcd) {
-    loop_closure_detector_ = VIO::make_unique<LoopClosureDetector>(
-        params.lcd_params_, FLAGS_log_output);
+    loop_closure_detector_ =
+        VIO::make_unique<LoopClosureDetector>(lcd_input_queue_,
+                                              null_lcd_output_queue_,
+                                              params.lcd_params_,
+                                              parallel_run_,
+                                              FLAGS_log_output);
   }
 
   // Instantiate feature selector: not used in vanilla implementation.
