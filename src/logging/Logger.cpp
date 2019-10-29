@@ -487,6 +487,9 @@ void PipelineLogger::logPipelineOverallTiming(
   std::ofstream& outputFile_timingOverall_ = output_pipeline_timing_.ofstream_;
   outputFile_timingOverall_ << "vio_overall_time [ms]" << std::endl;
   outputFile_timingOverall_ << duration.count();
+
+  VIO::utils::Statistics::WriteAllSamplesToCsvFile(
+      FLAGS_output_path + '/' + "StatisticsVIO.csv");
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
