@@ -65,7 +65,10 @@ class LCDFixture :public ::testing::Test {
     LoopClosureDetectorParams params;
     params.parseYAML(lcd_test_data_path_+"/testLCDParameters.yaml");
 
-    lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
+    LoopClosureDetector::InputQueue input_queue("lcd_input_queue");
+    LoopClosureDetector::OutputQueue output_queue("lcd_output_queue");
+    lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
+        &input_queue, &output_queue, params, false, false);
 
     ref1_pose_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.338337, 0.608466, -0.535476, 0.478082)),

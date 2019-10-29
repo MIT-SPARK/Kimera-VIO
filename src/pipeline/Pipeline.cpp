@@ -100,7 +100,7 @@ DEFINE_bool(use_lcd, false,
 
 namespace VIO {
 
-Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
+Pipeline::Pipeline(const PipelineParams& params)
     : backend_type_(params.backend_type_),
       vio_frontend_(nullptr),
       feature_selector_(nullptr),
@@ -115,7 +115,7 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
       wrapped_thread_(nullptr),
       backend_thread_(nullptr),
       mesher_thread_(nullptr),
-      parallel_run_(parallel_run),
+      parallel_run_(params.parallel_run_),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       stereo_frontend_output_queue_("stereo_frontend_output_queue"),
       initialization_frontend_output_queue_(
@@ -125,6 +125,7 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
       mesher_input_queue_("mesher_input_queue"),
       mesher_output_queue_("mesher_output_queue"),
       lcd_input_queue_("lcd_input_queue"),
+      null_lcd_output_queue_("null_lcd_output_queue"),
       visualizer_input_queue_("visualizer_input_queue"),
       visualizer_output_queue_("visualizer_output_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
@@ -141,8 +142,8 @@ Pipeline::Pipeline(const PipelineParams& params, bool parallel_run)
 
   if (FLAGS_use_lcd) {
     loop_closure_detector_ =
-        VIO::make_unique<LoopClosureDetector>(lcd_input_queue_,
-                                              null_lcd_output_queue_,
+        VIO::make_unique<LoopClosureDetector>(&lcd_input_queue_,
+                                              &null_lcd_output_queue_,
                                               params.lcd_params_,
                                               parallel_run_,
                                               FLAGS_log_output);
@@ -254,11 +255,12 @@ void Pipeline::processKeyframe(
   // It is unfortunately the only option in this architecture.
   if (FLAGS_use_lcd) {
     VLOG(2) << "Push input payload to LoopClosureDetector.";
-    lcd_input_queue_.push(VIO::make_unique<LoopClosureDetectorInputPayload>(
-        last_stereo_keyframe.getTimestamp(),
-        backend_output_payload->cur_kf_id_,
-        last_stereo_keyframe,
-        backend_output_payload->W_Pose_Blkf_));
+    lcd_input_queue_.push(
+        std::move(VIO::make_unique<LoopClosureDetectorInputPayload>(
+            last_stereo_keyframe.getTimestamp(),
+            backend_output_payload->cur_kf_id_,
+            last_stereo_keyframe,
+            backend_output_payload->W_Pose_Blkf_)));
   }
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
@@ -441,7 +443,7 @@ void Pipeline::spinSequential() {
   // Spin once LCD. Do not run in parallel.
   if (FLAGS_use_lcd) {
     CHECK(loop_closure_detector_);
-    loop_closure_detector_->spin(lcd_input_queue_, false);
+    loop_closure_detector_->spin();
   }
 
   const auto& stereo_keyframe =
@@ -669,8 +671,7 @@ void Pipeline::checkReInitialize(
     CHECK(vio_backend_);
     vio_backend_->restart();
     mesher_->restart();
-    if (loop_closure_detector_)
-        loop_closure_detector_->restart();
+    if (loop_closure_detector_) loop_closure_detector_->restart();
     visualizer_.restart();
     // Resume pipeline
     resume();
@@ -1041,6 +1042,8 @@ void Pipeline::processKeyframePop() {
     ////////////////////////////// BACK-END
     ///////////////////////////////////////
     VLOG(2) << "Process Keyframe in BackEnd";
+    // TODO(Toni): There is a potential 800 element vector copying to pass
+    // the visual feature tracks between frontend and backend!
     processKeyframe(stereo_frontend_output_payload->status_stereo_measurements_,
                     stereo_frontend_output_payload->stereo_frame_lkf_,
                     stereo_frontend_output_payload->pim_,
@@ -1095,9 +1098,7 @@ void Pipeline::launchRemainingThreads() {
     if (FLAGS_use_lcd) {
       lcd_thread_ = VIO::make_unique<std::thread>(
           &LoopClosureDetector::spin,
-          CHECK_NOTNULL(loop_closure_detector_.get()),
-          std::ref(lcd_input_queue_),
-          true);
+          CHECK_NOTNULL(loop_closure_detector_.get()));
     }
 
     // Start visualizer_thread.

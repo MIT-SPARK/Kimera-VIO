@@ -78,14 +78,16 @@ class PipelineModule {
         is_thread_working_ = true;
         if (input) {
           auto tic = utils::Timer::tic();
-          output_queue_->push(spinOnce(*input));
+          if (!output_queue_->push(spinOnce(*input))) {
+            LOG(WARNING) << "Output Queue is down for module: " << name_id_;
+          }
           auto spin_duration = utils::Timer::toc(tic).count();
           LOG(WARNING) << "Module " << name_id_
                        << " - frequency: " << 1000.0 / spin_duration << " Hz. ("
                        << spin_duration << " ms).";
           timing_stats.AddSample(spin_duration);
         } else {
-          LOG(WARNING) << "No InputPayload received for module: " << name_id_;
+          LOG(WARNING) << "No Input Payload received for module: " << name_id_;
         }
       } else {
         LOG(WARNING) << "Input Queue is down for module: " << name_id_;
@@ -99,7 +101,7 @@ class PipelineModule {
   }
 
   /**
-   * @brief Abstract functiuon to process a single input payload.
+   * @brief Abstract function to process a single input payload.
    * @param[in] input: an input payload for module to work on.
    * @return The output payload from the pipeline module.
    */

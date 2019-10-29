@@ -43,12 +43,13 @@ namespace VIO {
 
 class Pipeline {
  private:
+  KIMERA_DELETE_COPY_CONSTRUCTORS(Pipeline);
   // Typedefs
   typedef std::function<void(const SpinOutputPacket&)>
       KeyframeRateOutputCallback;
 
  public:
-  Pipeline(const PipelineParams& params, bool parallel_run = true);
+  Pipeline(const PipelineParams& params);
 
   ~Pipeline();
 
@@ -228,6 +229,7 @@ class Pipeline {
 
   // Thread-safe queue for the loop closure detector.
   LoopClosureDetector::InputQueue lcd_input_queue_;
+  //! Null queue since no module needs the output of LCD for now...
   ThreadsafeNullQueue<LcdOutputPayload::UniquePtr> null_lcd_output_queue_;
 
   // Visualization process.

@@ -56,8 +56,8 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_,
-                             FLAGS_parallel_run);
+  dataset_parser->pipeline_params_.parallel_run_ = FLAGS_parallel_run;
+  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
 
   // Register callback to vio pipeline.
   dataset_parser->registerVioCallback(

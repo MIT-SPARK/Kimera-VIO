@@ -149,7 +149,7 @@ Visualizer3D::Visualizer3D(VisualizationType viz_type, int backend_type)
 bool Visualizer3D::spin(
     ThreadsafeQueue<VisualizerInputPayload::UniquePtr>& input_queue,
     ThreadsafeQueue<VisualizerOutputPayload::UniquePtr>& output_queue,
-    std::function<void(VisualizerOutputPayload&)> display,
+    DisplayCallback display_callback_,
     bool parallel_run) {
   LOG(INFO) << "Spinning Visualizer.";
   utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
@@ -163,8 +163,8 @@ bool Visualizer3D::spin(
     if (visualizer_payload) {
       VisualizerOutputPayload::UniquePtr output_payload =
           spinOnce(*visualizer_payload);
-      if (display) {
-        display(*output_payload);
+      if (display_callback_) {
+        display_callback_(*output_payload);
         output_payload->images_to_display_.clear();
       } else {
         output_queue.push(std::move(output_payload));

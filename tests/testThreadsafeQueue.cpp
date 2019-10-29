@@ -24,6 +24,8 @@
 
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 
+namespace VIO {
+
 void consumer(ThreadsafeQueue<std::string>& q,  // NOLINT
               const std::atomic_bool& kill_switch) {
   while (!kill_switch) {
@@ -170,3 +172,5 @@ TEST(testThreadsafeQueue, stress_test) {
   }
   VLOG(1) << "Threads joined.\n";
 }
+
+}  // namespace VIO

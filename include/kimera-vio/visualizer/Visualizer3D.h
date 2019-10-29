@@ -96,6 +96,7 @@ class Visualizer3D {
   typedef std::uint64_t PlaneId;
   typedef std::map<LandmarkId, size_t> LmkIdToLineIdMap;
   typedef std::map<PlaneId, LmkIdToLineIdMap> PlaneIdMap;
+  typedef std::function<void(VisualizerOutputPayload&)> DisplayCallback;
 
   // Contains internal data for Visualizer3D window.
   struct WindowData {
@@ -122,7 +123,7 @@ class Visualizer3D {
   // Returns false when visualizer has been shutdown.
   bool spin(ThreadsafeQueue<VisualizerInputPayload::UniquePtr>& input_queue,
             ThreadsafeQueue<VisualizerOutputPayload::UniquePtr>& output_queue,
-            std::function<void(VisualizerOutputPayload&)> display,
+            DisplayCallback display_callback_,
             bool parallel_run = true);
 
   /* ------------------------------------------------------------------------ */
