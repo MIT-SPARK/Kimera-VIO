@@ -651,6 +651,7 @@ void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
 
 /* -------------------------------------------------------------------------- */
 // note also computes the rectification maps
+// TODO(Toni): this should be done much earlier and only once...
 void StereoFrame::computeRectificationParameters() {
   // Get extrinsics in open CV format.
   cv::Mat L_Rot_R, L_Tran_R;

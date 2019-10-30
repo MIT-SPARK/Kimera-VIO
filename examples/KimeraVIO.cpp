@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   // Build dataset parser.
-  std::unique_ptr<VIO::DataProvider> dataset_parser;
+  std::unique_ptr<VIO::DataProviderInterface> dataset_parser;
   switch (FLAGS_dataset_type) {
     case 0: {
       dataset_parser = VIO::make_unique<VIO::ETHDatasetParser>();
@@ -55,8 +55,9 @@ int main(int argc, char *argv[]) {
                    << " 0: EuRoC, 1: Kitti.";
     }
   }
-
+  CHECK(dataset_parser);
   dataset_parser->pipeline_params_.parallel_run_ = FLAGS_parallel_run;
+
   VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
 
   // Register callback to vio pipeline.
@@ -68,7 +69,7 @@ int main(int argc, char *argv[]) {
   bool is_pipeline_successful = false;
   if (FLAGS_parallel_run) {
     auto handle = std::async(std::launch::async,
-                             &VIO::DataProvider::spin,
+                             &VIO::DataProviderInterface::spin,
                              std::move(dataset_parser));
     auto handle_pipeline =
         std::async(std::launch::async, &VIO::Pipeline::shutdownWhenFinished,

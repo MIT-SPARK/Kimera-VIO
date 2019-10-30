@@ -43,6 +43,7 @@ using gtsam::Point3;
 using gtsam::Pose3;
 using gtsam::Rot3;
 using gtsam::StereoPoint2;
+using StereoCalibPtr = gtsam::Cal3_S2Stereo::shared_ptr;
 
 #define INCREMENTAL_SMOOTHER
 //#define USE_COMBINED_IMU_FACTOR
@@ -274,33 +275,30 @@ struct VioBackEndOutputPayload {
   KIMERA_POINTER_TYPEDEFS(VioBackEndOutputPayload);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VioBackEndOutputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  VioBackEndOutputPayload(
-      const Timestamp& timestamp_kf, const gtsam::Values state,
-      const gtsam::Pose3& W_Pose_Blkf, const Vector3& W_Vel_Blkf,
-      const gtsam::Pose3& B_Pose_leftCam, const ImuBias& imu_bias_lkf,
-      const gtsam::Matrix& state_covariance_lkf, const int& cur_kf_id,
-      const int& landmark_count, const DebugVioInfo& debug_info)
-      : timestamp_kf_(timestamp_kf),
-        state_(state),
-        W_Pose_Blkf_(W_Pose_Blkf),
-        W_Vel_Blkf_(W_Vel_Blkf),
-        B_Pose_leftCam_(B_Pose_leftCam),
-        imu_bias_lkf_(imu_bias_lkf),
+  VioBackEndOutputPayload(const Timestamp& timestamp_kf,
+                          const gtsam::Values& state,
+                          const gtsam::Pose3& W_Pose_Blkf,
+                          const Vector3& W_Vel_Blkf,
+                          const ImuBias& imu_bias_lkf,
+                          const gtsam::Matrix& state_covariance_lkf,
+                          const int& cur_kf_id,
+                          const int& landmark_count,
+                          const DebugVioInfo& debug_info)
+      : state_(state),
+        W_State_Blkf_(timestamp_kf, W_Pose_Blkf, W_Vel_Blkf, imu_bias_lkf),
         state_covariance_lkf_(state_covariance_lkf),
         cur_kf_id_(cur_kf_id),
         landmark_count_(landmark_count),
         debug_info_(debug_info) {}
 
-  const Timestamp timestamp_kf_;
+  const VioNavStateTimestamped W_State_Blkf_;
   const gtsam::Values state_;
-  const gtsam::Pose3 W_Pose_Blkf_;
-  const Vector3 W_Vel_Blkf_;
-  const gtsam::Pose3 B_Pose_leftCam_;
-  const ImuBias imu_bias_lkf_;
   const gtsam::Matrix state_covariance_lkf_;
   const int cur_kf_id_;
   const int landmark_count_;
   const DebugVioInfo debug_info_;
 };
+
+enum class BackendType { Stereo = 0u, StructuralRegularities = 1u };
 
 }  // namespace VIO

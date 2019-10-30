@@ -31,7 +31,8 @@ public:
   YamlParser(const std::string &filepath) { openFile(filepath, &fs_); }
   ~YamlParser() { closeFile(&fs_); };
 
-  template <class T> void getYamlParam(const std::string &id, T *output) const {
+  template <class T>
+  void getYamlParam(const std::string& id, T* output) const {
     const cv::FileNode &file_handle = fs_[id];
     CHECK_NE(file_handle.type(), cv::FileNode::NONE)
         << "Missing parameter: " << id.c_str();

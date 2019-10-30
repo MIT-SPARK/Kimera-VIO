@@ -28,6 +28,9 @@ namespace VIO {
 
 class InitializationBackEnd : public VioBackEnd {
  public:
+  KIMERA_POINTER_TYPEDEFS(InitializationBackEnd);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(InitializationBackEnd);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef ThreadsafeQueue<InitializationInputPayload::UniquePtr>::InternalQueue
       InitializationQueue;
   /* ------------------------------------------------------------------------ */
@@ -39,7 +42,7 @@ class InitializationBackEnd : public VioBackEnd {
                         const bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
-  ~InitializationBackEnd() = default;
+  virtual ~InitializationBackEnd() = default;
 
  public:
   /* ------------------------------------------------------------------------ */

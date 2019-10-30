@@ -99,7 +99,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 
   // Run initial visual-inertial alignment(OGA)
   OnlineGravityAlignment initial_alignment(
-      estimated_poses, delta_t_camera, pims, vio_params_.n_gravity_);
+      estimated_poses, delta_t_camera, pims, backend_params_.n_gravity_);
   auto tic_oga = utils::Timer::tic();
   bool is_success = initial_alignment.alignVisualInertialEstimates(
       gyro_bias, g_iter_b0, init_navstate, true);
@@ -156,7 +156,7 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
   for (int i = 0; i < input.size(); i++) {
     const VioBackEndInputPayload& input_iter = *input[i];
     bool use_stereo_btw_factor =
-        vio_params_.addBetweenStereoFactors_ == true &&
+        backend_params_.addBetweenStereoFactors_ == true &&
         input_iter.stereo_tracking_status_ == TrackingStatus::VALID;
     VLOG(5) << "Adding initial visual state.";
     VLOG_IF(5, use_stereo_btw_factor) << "Using stereo between factor.";
@@ -185,8 +185,10 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
 
   // Perform Bundle Adjustment and retrieve body poses (b0_T_bk)
   // b0 is the initial body frame
-  std::vector<gtsam::Pose3> estimated_poses = optimizeInitialVisualStates(
-      input.front()->timestamp_kf_nsec_, curr_kf_id_, vio_params_.numOptimize_);
+  std::vector<gtsam::Pose3> estimated_poses =
+      optimizeInitialVisualStates(input.front()->timestamp_kf_nsec_,
+                                  curr_kf_id_,
+                                  backend_params_.numOptimize_);
 
   VLOG(10) << "Initial bundle adjustment completed.";
 

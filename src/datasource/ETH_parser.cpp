@@ -41,7 +41,7 @@ ETHDatasetParser::ETHDatasetParser(int initial_k,
                                    const std::string& dataset_path,
                                    int skip_n_start_frames,
                                    int skip_n_end_frames)
-    : DataProvider(initial_k, final_k, dataset_path),
+    : DataProviderInterface(initial_k, final_k, dataset_path),
       skip_n_start_frames_(skip_n_start_frames),
       skip_n_end_frames_(skip_n_end_frames),
       imu_data_() {
@@ -50,7 +50,7 @@ ETHDatasetParser::ETHDatasetParser(int initial_k,
 
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::ETHDatasetParser()
-    : DataProvider(),
+    : DataProviderInterface(),
       skip_n_start_frames_(FLAGS_skip_n_start_frames),
       skip_n_end_frames_(FLAGS_skip_n_end_frames),
       imu_data_() {
@@ -465,8 +465,11 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
                                     const std::string& imu_name,
                                     const std::string& gt_sensor_name,
                                     bool parse_images) {
-  parseCameraData(
-      input_dataset_path, left_cam_name, right_cam_name, parse_images);
+  parseCameraParams(input_dataset_path,
+                    left_cam_name,
+                    right_cam_name,
+                    parse_images,
+                    &pipeline_params_.camera_params_);
   CHECK(parseImuParams(input_dataset_path, imu_name));
   parseImuData(input_dataset_path, imu_name);
   is_gt_available_ = parseGTdata(input_dataset_path, gt_sensor_name);
@@ -489,10 +492,13 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseCameraData(const std::string& input_dataset_path,
-                                       const std::string& left_cam_name,
-                                       const std::string& right_cam_name,
-                                       const bool parse_imgs) {
+bool ETHDatasetParser::parseCameraParams(const std::string& input_dataset_path,
+                                         const std::string& left_cam_name,
+                                         const std::string& right_cam_name,
+                                         const bool parse_imgs,
+                                         MultiCameraParams* multi_cam_params) {
+  CHECK_NOTNULL(multi_cam_params)->clear();
+
   // Default names: match names of the corresponding folders.
   camera_names_.resize(2);
   camera_names_[0] = left_cam_name;
@@ -503,10 +509,11 @@ bool ETHDatasetParser::parseCameraData(const std::string& input_dataset_path,
   camera_image_lists_.clear();
   for (const std::string& cam_name : camera_names_) {
     LOG(INFO) << "reading camera: " << cam_name;
-    CameraParams cam_info_i;
+    CameraParams cam_info_i("left_cam");
     cam_info_i.parseYAML(input_dataset_path + "/mav0/" + cam_name +
                          "/sensor.yaml");
     camera_info_[cam_name] = cam_info_i;
+    multi_cam_params->push_back(cam_info_i);
 
     CameraImageLists cam_list_i;
     if (parse_imgs) {

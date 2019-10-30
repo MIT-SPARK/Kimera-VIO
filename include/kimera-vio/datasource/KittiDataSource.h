@@ -22,7 +22,7 @@
 
 namespace VIO {
 
-class KittiDataProvider : public DataProvider {
+class KittiDataProvider : public DataProviderInterface {
  public:
   KittiDataProvider();
   virtual ~KittiDataProvider();

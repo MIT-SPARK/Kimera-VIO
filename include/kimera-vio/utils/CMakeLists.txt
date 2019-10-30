@@ -12,6 +12,7 @@ target_sources(KimeraVIO
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeTemporalBuffer-inl.h"
     "${CMAKE_CURRENT_LIST_DIR}/Timer.h"
     "${CMAKE_CURRENT_LIST_DIR}/UtilsGeometry.h"
+    "${CMAKE_CURRENT_LIST_DIR}/UtilsGTSAM.h"
     "${CMAKE_CURRENT_LIST_DIR}/UtilsOpenCV.h"
     "${CMAKE_CURRENT_LIST_DIR}/YamlParser.h"
 )

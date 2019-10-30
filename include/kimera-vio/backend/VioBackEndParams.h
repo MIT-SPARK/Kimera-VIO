@@ -14,10 +14,10 @@
 
 #pragma once
 
+#include <stdlib.h>
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <stdlib.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -33,151 +33,76 @@
 
 namespace VIO {
 
-
-// TODO(Toni) Params should not inherit from YamlParser, rather the params
-// should have a parser.
 class VioBackEndParams {
-public:
- VioBackEndParams(
-     // IMU PARAMS
-     const double gyroNoiseDensity = 0.00016968,
-     const double accNoiseDensity = 0.002,
-     const double gyroBiasSigma = 1.9393e-05,
-     const double accBiasSigma = 0.003,
-     const double imuIntegrationSigma = 1e-8,
-     const gtsam::Vector3 &n_gravity =
-         gtsam::Vector3(0.0,
-                        0.0,
-                        -9.81),  // gravity in navigation frame, according to
-     const double nominalImuRate = 0.005,
-     // INITIALIZATION SETTINGS
-     const int autoInitialize = 0,
-     /// Only used if autoInitialize is off (0)
-     const VioNavState &initial_ground_truth_state = VioNavState(),
-     const bool roundOnAutoInitialize = false,
-     const double initialPositionSigma = 0.00001,
-     const double initialRollPitchSigma = 10.0 / 180.0 * M_PI,
-     const double initialYawSigma = 0.1 / 180.0 * M_PI,
-     const double initialVelocitySigma = 1e-3,
-     const double initialAccBiasSigma = 0.1,
-     const double initialGyroBiasSigma = 0.01,
-     // http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets,
-     // the x axis points upwards VISION PARAMS
-     const gtsam::LinearizationMode linMode = gtsam::HESSIAN,
-     const gtsam::DegeneracyMode degMode = gtsam::ZERO_ON_DEGENERACY,
-     const double smartNoiseSigma = 3,
-     const double rankTolerance = 1,  // we might also use 0.1
-     const double landmarkDistanceThreshold =
-         20,  // max distance to triangulate point in meters
-     const double outlierRejection =
-         8,  // max acceptable reprojection error // before tuning: 3
-     const double retriangulationThreshold = 1e-3,
-     const bool addBetweenStereoFactors = true,
-     const double betweenRotationPrecision = 0.0,  // inverse of variance
-     const double betweenTranslationPrecision = 1 /
-                                                (0.1 *
-                                                 0.1),  // inverse of variance
-     // OPTIMIZATION PARAMS
-     const double relinearizeThreshold = 1e-2,  // Before tuning: 1e-3
-     const double relinearizeSkip = 1,
-     const double zeroVelocitySigma =
-         1e-3,  // zero velocity prior when disparity is low
-     const double noMotionPositionSigma = 1e-3,
-     const double noMotionRotationSigma = 1e-4,
-     const double constantVelSigma = 1e-2,
-     const size_t numOptimize = 2,
-     const double horizon = 6,  // in seconds
-     const bool useDogLeg = false)
-     : initialPositionSigma_(initialPositionSigma),
-       initialRollPitchSigma_(initialRollPitchSigma),
-       initialYawSigma_(initialYawSigma),
-       initialVelocitySigma_(initialVelocitySigma),
-       initialAccBiasSigma_(initialAccBiasSigma),
-       initialGyroBiasSigma_(initialGyroBiasSigma),
-       gyroNoiseDensity_(gyroNoiseDensity),
-       accNoiseDensity_(accNoiseDensity),
-       imuIntegrationSigma_(imuIntegrationSigma),
-       gyroBiasSigma_(gyroBiasSigma),
-       accBiasSigma_(accBiasSigma),
-       nominalImuRate_(nominalImuRate),
-       n_gravity_(n_gravity),
-       autoInitialize_(autoInitialize),
-       initial_ground_truth_state_(initial_ground_truth_state),
-       roundOnAutoInitialize_(roundOnAutoInitialize),
-       linearizationMode_(linMode),
-       degeneracyMode_(degMode),
-       smartNoiseSigma_(smartNoiseSigma),
-       rankTolerance_(rankTolerance),
-       landmarkDistanceThreshold_(landmarkDistanceThreshold),
-       outlierRejection_(outlierRejection),
-       retriangulationThreshold_(retriangulationThreshold),
-       addBetweenStereoFactors_(addBetweenStereoFactors),
-       betweenRotationPrecision_(betweenRotationPrecision),
-       betweenTranslationPrecision_(betweenTranslationPrecision),
-       relinearizeThreshold_(relinearizeThreshold),
-       relinearizeSkip_(relinearizeSkip),
-       horizon_(horizon),
-       numOptimize_(numOptimize),
-       useDogLeg_(useDogLeg),
-       zeroVelocitySigma_(zeroVelocitySigma),
-       noMotionPositionSigma_(noMotionPositionSigma),
-       noMotionRotationSigma_(noMotionRotationSigma),
-       constantVelSigma_(constantVelSigma),
-       yaml_parser_(nullptr) {
-   // Trivial sanity checks.
-   CHECK_GE(horizon, 0);
-   CHECK_GE(numOptimize, 0);
- }
-
-  // Needed for virtual classes.
+ public:
+  VioBackEndParams(){};
   virtual ~VioBackEndParams() = default;
 
-  // initialization params
-  double initialPositionSigma_, initialRollPitchSigma_, initialYawSigma_,
-      initialVelocitySigma_, initialAccBiasSigma_, initialGyroBiasSigma_;
+  //! Initialization params
+  double initialPositionSigma_;
+  double initialRollPitchSigma_;
+  double initialYawSigma_;
+  double initialVelocitySigma_;
+  double initialAccBiasSigma_;
+  double initialGyroBiasSigma_;
 
-  // imu params
+  //! Imu params
   // TODO(TONI): these imu stuff should be in its own yaml parser!!
-  double gyroNoiseDensity_, accNoiseDensity_, imuIntegrationSigma_,
-      gyroBiasSigma_, accBiasSigma_, nominalImuRate_;
+  double gyroNoiseDensity_;
+  double accNoiseDensity_;
+  double imuIntegrationSigma_;
+  double gyroBiasSigma_;
+  double accBiasSigma_;
+  double nominalImuRate_;
   gtsam::Vector3 n_gravity_;
+
+  //! Initialization parameters
   int autoInitialize_;
   /// Only used if autoInitialize set to false.
   VioNavState initial_ground_truth_state_;
   bool roundOnAutoInitialize_;
 
-  // Smart factor params
+  //! Smart factor params
   gtsam::LinearizationMode linearizationMode_;
   gtsam::DegeneracyMode degeneracyMode_;
   double smartNoiseSigma_;
-  double rankTolerance_, landmarkDistanceThreshold_, outlierRejection_,
-      retriangulationThreshold_;
-  bool addBetweenStereoFactors_;
-  double betweenRotationPrecision_, betweenTranslationPrecision_;
+  double rankTolerance_;
+  double landmarkDistanceThreshold_;
+  double outlierRejection_;
+  double retriangulationThreshold_;
 
-  // iSAM params
-  double relinearizeThreshold_, relinearizeSkip_, horizon_;
+  bool addBetweenStereoFactors_;
+
+  double betweenRotationPrecision_;
+  double betweenTranslationPrecision_;
+
+  //! iSAM params
+  double relinearizeThreshold_;
+  double relinearizeSkip_;
+  double horizon_;
   int numOptimize_;
   bool useDogLeg_;
 
-  // No Motion params
-  double zeroVelocitySigma_, noMotionPositionSigma_, noMotionRotationSigma_,
-      constantVelSigma_;
+  //! No Motion params
+  double zeroVelocitySigma_;
+  double noMotionPositionSigma_;
+  double noMotionRotationSigma_;
+  double constantVelSigma_;
 
-public:
-  virtual bool equals(const VioBackEndParams &vp2, double tol = 1e-8) const {
+ public:
+  virtual bool equals(const VioBackEndParams& vp2, double tol = 1e-8) const {
     return equalsVioBackEndParams(vp2, tol);
   }
 
   virtual void print() const { printVioBackEndParams(); }
 
   // Parse params YAML file
-  virtual bool parseYAML(const std::string &filepath) {
+  virtual bool parseYAML(const std::string& filepath) {
     yaml_parser_ = std::make_shared<YamlParser>(filepath);
     return parseYAMLVioBackEndParams();
   }
 
-protected:
+ protected:
   bool parseYAMLVioBackEndParams() {
     CHECK(yaml_parser_ != nullptr);
     // IMU PARAMS
@@ -189,8 +114,7 @@ protected:
     std::vector<double> n_gravity;
     yaml_parser_->getYamlParam("n_gravity", &n_gravity);
     CHECK_EQ(n_gravity.size(), 3);
-    for (int k = 0; k < 3; k++)
-      n_gravity_(k) = n_gravity[k];
+    for (int k = 0; k < 3; k++) n_gravity_(k) = n_gravity[k];
     yaml_parser_->getYamlParam("nominalImuRate", &nominalImuRate_);
 
     // INITIALIZATION
@@ -209,36 +133,36 @@ protected:
     int linearization_mode_id;
     yaml_parser_->getYamlParam("linearizationMode", &linearization_mode_id);
     switch (linearization_mode_id) {
-    case 0:
-      linearizationMode_ = gtsam::HESSIAN;
-      break;
-    case 1:
-      linearizationMode_ = gtsam::IMPLICIT_SCHUR;
-      break;
-    case 2:
-      linearizationMode_ = gtsam::JACOBIAN_Q;
-      break;
-    case 3:
-      linearizationMode_ = gtsam::JACOBIAN_SVD;
-      break;
-    default:
-      LOG(FATAL) << "Wrong linearizationMode in VIO backend parameters.";
+      case 0:
+        linearizationMode_ = gtsam::HESSIAN;
+        break;
+      case 1:
+        linearizationMode_ = gtsam::IMPLICIT_SCHUR;
+        break;
+      case 2:
+        linearizationMode_ = gtsam::JACOBIAN_Q;
+        break;
+      case 3:
+        linearizationMode_ = gtsam::JACOBIAN_SVD;
+        break;
+      default:
+        LOG(FATAL) << "Wrong linearizationMode in VIO backend parameters.";
     }
 
     int degeneracyModeId;
     yaml_parser_->getYamlParam("degeneracyMode", &degeneracyModeId);
     switch (degeneracyModeId) {
-    case 0:
-      degeneracyMode_ = gtsam::IGNORE_DEGENERACY;
-      break;
-    case 1:
-      degeneracyMode_ = gtsam::ZERO_ON_DEGENERACY;
-      break;
-    case 2:
-      degeneracyMode_ = gtsam::HANDLE_INFINITY;
-      break;
-    default:
-      LOG(FATAL) << "Wrong degeneracyMode in VIO backend parameters.";
+      case 0:
+        degeneracyMode_ = gtsam::IGNORE_DEGENERACY;
+        break;
+      case 1:
+        degeneracyMode_ = gtsam::ZERO_ON_DEGENERACY;
+        break;
+      case 2:
+        degeneracyMode_ = gtsam::HANDLE_INFINITY;
+        break;
+      default:
+        LOG(FATAL) << "Wrong degeneracyMode in VIO backend parameters.";
     }
 
     yaml_parser_->getYamlParam("smartNoiseSigma", &smartNoiseSigma_);
@@ -271,7 +195,7 @@ protected:
     return true;
   }
 
-  bool equalsVioBackEndParams(const VioBackEndParams &vp2,
+  bool equalsVioBackEndParams(const VioBackEndParams& vp2,
                               double tol = 1e-8) const {
     return
         // IMU PARAMS
@@ -373,10 +297,10 @@ protected:
               << "useDogLeg_: " << useDogLeg_;
   }
 
-protected:
+ protected:
   std::shared_ptr<YamlParser> yaml_parser_;
 };
 typedef std::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
 typedef std::shared_ptr<const VioBackEndParams> VioBackEndParamsConstPtr;
 
-} // namespace VIO
+}  // namespace VIO

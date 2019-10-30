@@ -85,23 +85,15 @@ DEFINE_double(prior_noise_sigma_distance, 0.1,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-RegularVioBackEnd::RegularVioBackEnd(const Pose3& leftCamPose,
-                                     const Cal3_S2& leftCameraCalRectified,
-                                     const double& baseline,
-                                     const VioNavState& initial_state_seed,
-                                     const Timestamp& timestamp,
-                                     const VioBackEndParams& vioParams,
-                                     const bool& log_timing,
-                                     const BackendModality& backend_modality)
-    : regular_vio_params_(RegularVioBackEndParams::safeCast(vioParams)),
-      backend_modality_(backend_modality),
-      VioBackEnd(leftCamPose,
-                 leftCameraCalRectified,
-                 baseline,
-                 initial_state_seed,
-                 timestamp,
-                 vioParams,
-                 log_timing) {
+RegularVioBackEnd::RegularVioBackEnd(const Pose3& B_Pose_leftCam,
+                                     const StereoCalibPtr& stereo_calibration,
+                                     const VioBackEndParams& backend_params,
+                                     const bool& log_output)
+    : regular_vio_params_(RegularVioBackEndParams::safeCast(backend_params)),
+      VioBackEnd(B_Pose_leftCam,
+                 stereo_calibration,
+                 backend_params,
+                 log_output) {
   LOG(INFO) << "Using Regular VIO backend.\n";
 
   // Set type of mono_noise_ for generic projection factors.
@@ -224,34 +216,35 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // Extract lmk ids that are involved in a regularity.
         VLOG(10) << "Starting extracting lmk ids from set of planes...";
         LandmarkIds lmk_ids_with_regularity;
-        switch (backend_modality_) {
-          case BackendModality::STRUCTURELESS: {
+        switch (regular_vio_params_.backend_modality_) {
+          case RegularBackendModality::STRUCTURELESS: {
             // Do nothing, lmk_ids_with_regularity should be empty.
             CHECK_EQ(lmk_ids_with_regularity.size(), 0);
             planes->clear();
             break;
           }
-          case BackendModality::STRUCTURELESS_AND_PROJECTION: {
+          case RegularBackendModality::STRUCTURELESS_AND_PROJECTION: {
             // Transforms to projection factors only the ones that should
             // have regularities, but do not use the planes anymore.
             extractLmkIdsFromPlanes(*planes, &lmk_ids_with_regularity);
             planes->clear();
             break;
           }
-          case BackendModality::PROJECTION: {
+          case RegularBackendModality::PROJECTION: {
             // Transform all smart factors to projection factors,
             // and clear all planes.
             lmk_ids_with_regularity = lmks_kf;
             planes->clear();
             break;
           }
-          case BackendModality::PROJECTION_AND_REGULARITY: {
+          case RegularBackendModality::PROJECTION_AND_REGULARITY: {
             // Keep the planes, but change all smart factors to projection
             // factors.
             lmk_ids_with_regularity = lmks_kf;
             break;
           }
-          case BackendModality::STRUCTURELESS_PROJECTION_AND_REGULARITY: {
+          case RegularBackendModality::
+              STRUCTURELESS_PROJECTION_AND_REGULARITY: {
             // Act as usual, keep planes, and transform smart factors to projj
             // factors for those that will have regularities.
             extractLmkIdsFromPlanes(*planes, &lmk_ids_with_regularity);
@@ -260,8 +253,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           default: {
             LOG(ERROR)
                 << "Backend modality: "
-                << static_cast<std::underlying_type<BackendModality>::type>(
-                       backend_modality_)
+                << static_cast<
+                       std::underlying_type<RegularBackendModality>::type>(
+                       regular_vio_params_.backend_modality_)
                 << " is not supported.";
             break;
           }
@@ -330,7 +324,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           // an existing plane from planes structure...
           // Log warning only if we are not using a structureless approach
           // (since it does not require planes).
-          LOG_IF(WARNING, backend_modality_ != BackendModality::STRUCTURELESS)
+          LOG_IF(WARNING,
+                 regular_vio_params_.backend_modality_ !=
+                     RegularBackendModality::STRUCTURELESS)
               << "We are not receiving planes for the backend. If planes have "
                  "been"
                  "added to the optimization, we are not removing them.";
@@ -345,7 +341,9 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   VLOG(10) << "Starting optimize...";
-  optimize(timestamp_kf_nsec, curr_kf_id_, vio_params_.numOptimize_,
+  optimize(timestamp_kf_nsec,
+           curr_kf_id_,
+           backend_params_.numOptimize_,
            delete_slots);
   VLOG(10) << "Finished optimize.";
 

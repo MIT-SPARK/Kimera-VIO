@@ -15,6 +15,7 @@
 #include "kimera-vio/datasource/DataSource.h"
 
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include "kimera-vio/backend/RegularVioBackEndParams.h"
 #include "kimera-vio/backend/VioBackEndParams.h"
@@ -41,9 +42,9 @@ DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
 
 namespace VIO {
 
-DataProvider::DataProvider(int initial_k,
-                           int final_k,
-                           const std::string& dataset_path)
+DataProviderInterface::DataProviderInterface(int initial_k,
+                                             int final_k,
+                                             const std::string& dataset_path)
     : initial_k_(initial_k), final_k_(final_k), dataset_path_(dataset_path) {
   CHECK(final_k_ > initial_k_)
       << "Value for final_k (" << final_k_
@@ -53,18 +54,20 @@ DataProvider::DataProvider(int initial_k,
           << " and frame " << final_k_;
 }
 
-DataProvider::DataProvider()
-    : DataProvider(FLAGS_initial_k, FLAGS_final_k, FLAGS_dataset_path) {}
+DataProviderInterface::DataProviderInterface()
+    : DataProviderInterface(FLAGS_initial_k,
+                            FLAGS_final_k,
+                            FLAGS_dataset_path) {}
 
-DataProvider::~DataProvider() {
+DataProviderInterface::~DataProviderInterface() {
   LOG(INFO) << "Data provider destructor called.";
 }
 
-void DataProvider::registerVioCallback(VioInputCallback callback) {
+void DataProviderInterface::registerVioCallback(VioInputCallback callback) {
   vio_callback_ = std::move(callback);
 }
 
-bool DataProvider::spin() {
+bool DataProviderInterface::spin() {
   // Dummy example:
   // 1) Check that the vio_callback_ has been registered, aka that the user has
   // called the function registerVioCallback, in order to store the callback
@@ -76,17 +79,17 @@ bool DataProvider::spin() {
   //  This one is dummy since it is filled with empty images, parameters,
   //  imu data, etc.
   //  b) Call the vio callback in order to start processing the packet.
-  vio_callback_(
-      VIO::make_unique<StereoImuSyncPacket>(StereoFrame(1,
-                                                        1,
-                                                        cv::Mat(),
-                                                        CameraParams(),
-                                                        cv::Mat(),
-                                                        CameraParams(),
-                                                        gtsam::Pose3(),
-                                                        StereoMatchingParams()),
-                                            ImuStampS(),
-                                            ImuAccGyrS()));
+  vio_callback_(VIO::make_unique<StereoImuSyncPacket>(
+      StereoFrame(1,
+                  1,
+                  cv::Mat(),
+                  CameraParams("left_cam"),
+                  cv::Mat(),
+                  CameraParams("right_cam"),
+                  gtsam::Pose3(),
+                  StereoMatchingParams()),
+      ImuStampS(),
+      ImuAccGyrS()));
 
   // 3) Once the dataset spin has finished, exit.
   // You can return false if something went wrong.
@@ -94,23 +97,23 @@ bool DataProvider::spin() {
 }
 
 /* -------------------------------------------------------------------------- */
-void DataProvider::parseBackendParams() {
-  switch (FLAGS_backend_type) {
-    case 0: {
+void DataProviderInterface::parseBackendParams() {
+  pipeline_params_.backend_type_ = static_cast<BackendType>(FLAGS_backend_type);
+  switch (pipeline_params_.backend_type_) {
+    case BackendType::Stereo: {
       pipeline_params_.backend_params_ = std::make_shared<VioBackEndParams>();
       break;
     }
-    case 1: {
+    case BackendType::StructuralRegularities: {
       pipeline_params_.backend_params_ = std::make_shared<RegularVioBackEndParams>();
       break;
     }
     default: {
-      LOG(FATAL) << "Unrecognized backend type: " << FLAGS_backend_type << "."
-                   << " 0: normalVio, 1: RegularVio.";
+      LOG(FATAL) << "Unrecognized backend type: "
+                 << static_cast<int>(pipeline_params_.backend_type_) << "."
+                 << " 0: normalVio, 1: RegularVio.";
     }
   }
-
-  pipeline_params_.backend_type_ = FLAGS_backend_type;
 
   // Read/define vio params.
   if (FLAGS_vio_params_path.empty()) {
@@ -146,7 +149,7 @@ void DataProvider::parseBackendParams() {
 }
 
 /* -------------------------------------------------------------------------- */
-void DataProvider::parseFrontendParams() {
+void DataProviderInterface::parseFrontendParams() {
   // Read/define tracker params.
   if (FLAGS_tracker_params_path.empty()) {
     LOG(WARNING) << "No tracker parameters specified, using default";
@@ -159,7 +162,7 @@ void DataProvider::parseFrontendParams() {
   CHECK_NOTNULL(&pipeline_params_.frontend_params_);
 }
 
-void DataProvider::parseLCDParams() {
+void DataProviderInterface::parseLCDParams() {
   // Read/define LCD params.
   if (FLAGS_lcd_params_path.empty()) {
     VLOG(100) << "No LoopClosureDetector parameters specified, using default";

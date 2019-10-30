@@ -25,6 +25,7 @@
 #include <gtsam/geometry/Pose3.h>
 
 #include "kimera-vio/backend/RegularVioBackEnd.h"
+#include "kimera-vio/backend/VioBackEndFactory.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -101,10 +102,10 @@ DEFINE_bool(use_lcd, false,
 namespace VIO {
 
 Pipeline::Pipeline(const PipelineParams& params)
-    : backend_type_(params.backend_type_),
+    : backend_type_(static_cast<BackendType>(params.backend_type_)),
       vio_frontend_(nullptr),
       feature_selector_(nullptr),
-      vio_backend_(nullptr),
+      vio_backend_module_(nullptr),
       loop_closure_detector_(nullptr),
       backend_params_(params.backend_params_),
       frontend_params_(params.frontend_params_),
@@ -137,6 +138,25 @@ Pipeline::Pipeline(const PipelineParams& params)
                                              frontend_params_,
                                              FLAGS_log_output);
 
+  // These two should be given by parameters...
+  Pose3 B_Pose_leftCam;
+  StereoCalibPtr stereo_calibration;
+  vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
+      &backend_input_queue_,
+      &backend_output_queue_,
+      parallel_run_,
+      BackEndFactory::createBackend(backend_type_,
+                                    B_Pose_leftCam,
+                                    stereo_calibration,
+                                    *CHECK_NOTNULL(backend_params_),
+                                    FLAGS_log_output));
+  vio_backend_module_->registerImuBiasUpdateCallback(
+      std::bind(&StereoVisionFrontEnd::updateImuBias,
+                // Send a cref: constant reference because vio_frontend_ is
+                // not copyable.
+                std::cref(*CHECK_NOTNULL(vio_frontend_.get())),
+                std::placeholders::_1));
+
   // TODO(Toni): only create if used.
   mesher_ = VIO::make_unique<Mesher>(
       &mesher_input_queue_, &mesher_output_queue_, parallel_run_);
@@ -145,6 +165,7 @@ Pipeline::Pipeline(const PipelineParams& params)
   visualizer_ = VIO::make_unique<Visualizer3D>(
       &visualizer_input_queue_,
       &null_visualizer_output_queue_,
+      // TODO(Toni): bundle these three params in VisualizerParams...
       static_cast<VisualizationType>(FLAGS_viz_type),
       backend_type_,
       std::bind(&Pipeline::spinDisplayOnce, this, std::placeholders::_1),
@@ -291,11 +312,13 @@ void Pipeline::processKeyframe(
     // TODO(Toni) Ideally, should be sent along backend output payload, but
     // it is computationally expensive to compute.
     points_with_id_VIO =
-        vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(  // not thread-safe
-            FLAGS_visualize_lmk_type ? &lmk_id_to_lmk_type_map : nullptr,
-            FLAGS_min_num_obs_for_mesher_points);  // copy, thread safe,
-                                                   // read-only. // This should
-                                                   // be a popBlocking...
+        vio_backend_module_
+            ->getMapLmkIdsTo3dPointsInTimeHorizon(  // not thread-safe
+                FLAGS_visualize_lmk_type ? &lmk_id_to_lmk_type_map : nullptr,
+                FLAGS_min_num_obs_for_mesher_points);  // copy, thread safe,
+                                                       // read-only. // This
+                                                       // should be a
+                                                       // popBlocking...
     // Push to queue.
     // In another thread, mesher is running, consuming mesher payloads.
     VLOG(2) << "Push input payload to Mesher.";
@@ -323,32 +346,23 @@ void Pipeline::processKeyframe(
       CHECK_EQ(backend_type_, 1u);  // Use Regular VIO
       mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
-      LOG_IF_EVERY_N(
-          WARNING,
-          backend_type_ == 1u && (FLAGS_regular_vio_backend_modality == 2u ||
-                                  FLAGS_regular_vio_backend_modality == 3u ||
-                                  FLAGS_regular_vio_backend_modality == 4u),
-          10)
+      LOG_IF_EVERY_N(WARNING,
+                     backend_type_ == BackendType::StructuralRegularities &&
+                         (FLAGS_regular_vio_backend_modality == 2u ||
+                          FLAGS_regular_vio_backend_modality == 3u ||
+                          FLAGS_regular_vio_backend_modality == 4u),
+                     10)
           << "Using Regular VIO without extracting planes from the scene. "
              "Set flag extract_planes_from_the_scene to true to enforce "
              "regularities.";
     }
   }
 
-  // TODO(Toni) All these guys have the same info, should simplify.
-  DCHECK(last_stereo_keyframe.getBPoseCamLRect().equals(
-      backend_output_payload->B_Pose_leftCam_));
-  DCHECK(last_stereo_keyframe.getBPoseCamLRect().equals(
-      vio_backend_->getBPoseLeftCam()));
-
   if (keyframe_rate_output_callback_) {
     auto tic = utils::Timer::tic();
     VLOG(2) << "Call keyframe callback with spin output payload.";
     keyframe_rate_output_callback_(
-        SpinOutputPacket(backend_output_payload->timestamp_kf_,
-                         backend_output_payload->W_Pose_Blkf_,
-                         backend_output_payload->W_Vel_Blkf_,
-                         backend_output_payload->imu_bias_lkf_,
+        SpinOutputPacket(backend_output_payload->W_State_Blkf_,
                          mesher_output_payload->mesh_2d_,
                          mesher_output_payload->mesh_3d_,
                          Visualizer3D::visualizeMesh2D(
@@ -372,25 +386,23 @@ void Pipeline::processKeyframe(
     VLOG(2) << "Push input payload to Visualizer.";
     visualizer_input_queue_.push(VIO::make_unique<VisualizerInputPayload>(
         // Pose for trajectory viz.
-        backend_output_payload->W_Pose_Blkf_ *
+        backend_output_payload->W_State_Blkf_.pose_ *
             last_stereo_keyframe
                 .getBPoseCamLRect(),  // This should be pass at ctor level...
-                                      // TODO(Toni): isn't this the same as the
-                                      // backend_output_payload B_Pose_leftCam?
         // For visualizeMesh2D and visualizeMesh2DStereo.
         last_stereo_keyframe,
         // visualizeConvexHull & visualizeMesh3DWithColoredClusters
         std::move(mesher_output_payload),
         // visualizeMesh3DWithColoredClusters & visualizePoints3D
         visualization_type == VisualizationType::POINTCLOUD
-            ? vio_backend_
+            ? vio_backend_module_
                   ->getMapLmkIdsTo3dPointsInTimeHorizon()  // not thread-safe
             : points_with_id_VIO,
         // visualizeMesh3DWithColoredClusters & visualizePoints3D
         lmk_id_to_lmk_type_map,
-        planes_,                           // visualizeMesh3DWithColoredClusters
-        vio_backend_->getFactorsUnsafe(),  // For plane constraints viz.  // not
-                                           // thread-safe
+        planes_,  // visualizeMesh3DWithColoredClusters
+        vio_backend_module_->getFactorsUnsafe(),  // For plane constraints viz.
+                                                  // // not thread-safe
         backend_output_payload->state_  // For planes and plane constraints viz.
         ));
   }
@@ -434,8 +446,8 @@ void Pipeline::spinSequential() {
       &planes_));
 
   // Spin once backend. Do not run in parallel.
-  CHECK(vio_backend_);
-  vio_backend_->spin(backend_input_queue_, backend_output_queue_, false);
+  CHECK(vio_backend_module_);
+  vio_backend_module_->spin();
 
   // Pop blocking from backend.
   VioBackEndOutputPayload::UniquePtr backend_output_payload;
@@ -464,19 +476,19 @@ void Pipeline::spinSequential() {
       static_cast<VisualizationType>(FLAGS_viz_type);
   if (visualization_type == VisualizationType::MESH2DTo3Dsparse) {
     // Push to mesher.
-    points_with_id_VIO = vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon(
-        FLAGS_visualize_lmk_type ? &lmk_id_to_lmk_type_map : nullptr,
-        FLAGS_min_num_obs_for_mesher_points);  // copy, thread safe,
-                                               // read-only. // This should
-                                               // be a popBlocking...
+    points_with_id_VIO =
+        vio_backend_module_->getMapLmkIdsTo3dPointsInTimeHorizon(
+            FLAGS_visualize_lmk_type ? &lmk_id_to_lmk_type_map : nullptr,
+            FLAGS_min_num_obs_for_mesher_points);  // copy, thread safe,
+                                                   // read-only. // This should
+                                                   // be a popBlocking...
     // Push to queue.
     // In another thread, mesher is running, consuming mesher payloads.
     CHECK(mesher_input_queue_.push(VIO::make_unique<MesherInputPayload>(
         points_with_id_VIO,
         stereo_keyframe,  // not really thread safe, read only.
         backend_output_payload->W_Pose_Blkf_.compose(
-            vio_backend_
-                ->getBPoseLeftCam()))));  // Get camera pose, thread safe.
+            stereo_keyframe.getBPoseCamLRect()))));
 
     // Spin once mesher.
     mesher_->spin();
@@ -487,12 +499,12 @@ void Pipeline::spinSequential() {
       CHECK_EQ(backend_type_, 1);  // Use Regular VIO
       mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
-      LOG_IF_EVERY_N(
-          WARNING,
-          backend_type_ == 1u && (FLAGS_regular_vio_backend_modality == 2u ||
-                                  FLAGS_regular_vio_backend_modality == 3u ||
-                                  FLAGS_regular_vio_backend_modality == 4u),
-          10)
+      LOG_IF_EVERY_N(WARNING,
+                     backend_type_ == BackendType::StructuralRegularities &&
+                         (FLAGS_regular_vio_backend_modality == 2u ||
+                          FLAGS_regular_vio_backend_modality == 3u ||
+                          FLAGS_regular_vio_backend_modality == 4u),
+                     10)
           << "Using Regular VIO without extracting planes from the scene. "
              "Set flag extract_planes_from_the_scene to true to enforce "
              "regularities.";
@@ -508,10 +520,7 @@ void Pipeline::spinSequential() {
     auto tic = utils::Timer::tic();
     VLOG(2) << "Call keyframe callback with spin output payload.";
     keyframe_rate_output_callback_(SpinOutputPacket(
-        backend_output_payload->timestamp_kf_,
-        backend_output_payload->W_Pose_Blkf_,
-        backend_output_payload->W_Vel_Blkf_,
-        backend_output_payload->imu_bias_lkf_,
+        backend_output_payload->W_State_Blkf_,
         mesher_output_payload->mesh_2d_,
         mesher_output_payload->mesh_3d_,
         Visualizer3D::visualizeMesh2D(
@@ -535,7 +544,8 @@ void Pipeline::spinSequential() {
     // takes input from mesher and backend right now...
     visualizer_input_queue_.push(VIO::make_unique<VisualizerInputPayload>(
         // Pose for trajectory viz.
-        vio_backend_->getWPoseBLkf() *  // The visualizer needs backend results
+        backend_output_payload->W_State_Blkf_
+                .pose_ *  // The visualizer needs backend results
             stereo_keyframe
                 .getBPoseCamLRect(),  // This should be pass at ctor level....
         // For visualizeMesh2D and visualizeMesh2DStereo.
@@ -546,13 +556,13 @@ void Pipeline::spinSequential() {
         // visualizeMesh3DWithColoredClusters & visualizePoints3D
         visualization_type == VisualizationType::POINTCLOUD
             ?  // This is to avoid recomputing MapLmkIdsTo3d...
-            vio_backend_->getMapLmkIdsTo3dPointsInTimeHorizon()
+            vio_backend_module_->getMapLmkIdsTo3dPointsInTimeHorizon()
             : points_with_id_VIO,
         // visualizeMesh3DWithColoredClusters & visualizePoints3D
         lmk_id_to_lmk_type_map,
-        planes_,                           // visualizeMesh3DWithColoredClusters
-        vio_backend_->getFactorsUnsafe(),  // For plane constraints viz.
-        vio_backend_->getState()  // For planes and plane constraints viz.
+        planes_,  // visualizeMesh3DWithColoredClusters
+        vio_backend_module_->getFactorsUnsafe(),  // For plane constraints viz.
+        backend_output_payload->state_  // For planes and plane constraints viz.
         ));
 
     // Spin visualizer.
@@ -579,7 +589,7 @@ void Pipeline::shutdownWhenFinished() {
        !(stereo_frontend_input_queue_.empty() &&
          stereo_frontend_output_queue_.empty() && !vio_frontend_->isWorking() &&
          backend_input_queue_.empty() && backend_output_queue_.empty() &&
-         !vio_backend_->isWorking() && mesher_input_queue_.empty() &&
+         !vio_backend_module_->isWorking() && mesher_input_queue_.empty() &&
          mesher_output_queue_.empty() &&
          (mesher_ ? !mesher_->isWorking() : true) && lcd_input_queue_.empty() &&
          (loop_closure_detector_ ? !loop_closure_detector_->isWorking()
@@ -601,7 +611,7 @@ void Pipeline::shutdownWhenFinished() {
                           << "Backend Output queue empty?"
                           << backend_output_queue_.empty() << '\n'
                           << "Backend is working? "
-                          << (is_initialized_ ? vio_backend_->isWorking()
+                          << (is_initialized_ ? vio_backend_module_->isWorking()
                                               : false);
 
     VLOG_IF_EVERY_N(10, mesher_, 100)
@@ -691,8 +701,8 @@ void Pipeline::checkReInitialize(
     // Resume threads
     CHECK(vio_frontend_);
     vio_frontend_->restart();
-    CHECK(vio_backend_);
-    vio_backend_->restart();
+    CHECK(vio_backend_module_);
+    vio_backend_module_->restart();
     mesher_->restart();
     if (loop_closure_detector_) loop_closure_detector_->restart();
     visualizer_->restart();
@@ -791,11 +801,9 @@ bool Pipeline::initializeOnline(
     // Set trivial bias, gravity and force 5/3 point method for initialization
     vio_frontend_->prepareFrontendForOnlineAlignment();
     // Initialize Stereo Frontend.
-    StereoFrame stereo_frame_lkf = vio_frontend_->processFirstStereoFrame(
+    vio_frontend_->processFirstStereoFrame(
         stereo_imu_sync_init.getStereoFrame());
     return false;
-
-    /////////////////// FRONTEND ///////////////////////////////////////////////
   } else {
     // Check trivial bias and gravity vector for online initialization
     vio_frontend_->checkFrontendForOnlineAlignment();
@@ -920,7 +928,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
   CHECK_NOTNULL(vio_backend);
   // Create VIO.
   switch (backend_type_) {
-    case 0: {
+    case BackendType::Stereo: {
       LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
       *vio_backend = VIO::make_unique<VioBackEnd>(
           stereo_frame_lkf.getBPoseCamLRect(),
@@ -932,7 +940,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
           FLAGS_log_output);  // No timestamps needed for IMU?
       break;
     }
-    case 1: {
+    case BackendType::StructuralRegularities: {
       LOG(INFO) << "\e[1m Using Regular VIO with modality "
                 << FLAGS_regular_vio_backend_modality << "\e[0m";
       *vio_backend = VIO::make_unique<RegularVioBackEnd>(
@@ -943,7 +951,7 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
           stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
           *backend_params_,
           FLAGS_log_output,
-          static_cast<RegularVioBackEnd::BackendModality>(
+          static_cast<RegularVioBackEnd::RegularBackendModality>(
               FLAGS_regular_vio_backend_modality));
       break;
     }
@@ -952,16 +960,10 @@ bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
                  << "Currently supported backend types:\n"
                  << "0: normal VIO\n"
                  << "1: regular VIO\n"
-                 << " but requested backend: " << backend_type_;
+                 << " but requested backend: "
+                 << static_cast<int>(backend_type_);
     }
   }
-  CHECK(vio_backend_);
-  vio_backend_->registerImuBiasUpdateCallback(
-      std::bind(&StereoVisionFrontEnd::updateImuBias,
-                // Send a cref: constant reference because vio_frontend_ is
-                // not copyable.
-                std::cref(*vio_frontend_),
-                std::placeholders::_1));
   return true;
 }
 
@@ -1107,13 +1109,8 @@ void Pipeline::launchRemainingThreads() {
     wrapped_thread_ =
         VIO::make_unique<std::thread>(&Pipeline::processKeyframePop, this);
 
-    backend_thread_ =
-        VIO::make_unique<std::thread>(&VioBackEnd::spin,
-                                      // Returns the pointer to vio_backend_.
-                                      CHECK_NOTNULL(vio_backend_.get()),
-                                      std::ref(backend_input_queue_),
-                                      std::ref(backend_output_queue_),
-                                      true);
+    backend_thread_ = VIO::make_unique<std::thread>(
+        &VioBackEndModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
 
     mesher_thread_ = VIO::make_unique<std::thread>(
         &Mesher::spin, CHECK_NOTNULL(mesher_.get()));
@@ -1178,8 +1175,8 @@ void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping backend workers and queues...";
   backend_input_queue_.shutdown();
   backend_output_queue_.shutdown();
-  CHECK(vio_backend_);
-  vio_backend_->shutdown();
+  CHECK(vio_backend_module_);
+  vio_backend_module_->shutdown();
 
   // Shutdown workers and queues.
   LOG(INFO) << "Stopping frontend workers and queues...";

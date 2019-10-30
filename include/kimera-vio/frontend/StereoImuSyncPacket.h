@@ -119,10 +119,7 @@ struct SpinOutputPacket {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Default constructor
   SpinOutputPacket(
-      const Timestamp& timestamp_kf,
-      const gtsam::Pose3& W_Pose_Blkf,
-      const gtsam::Vector3& W_Vel_Blkf,
-      const ImuBias& imu_bias_lkf,
+      const VioNavStateTimestamped& vio_nav_state,
       const Mesh2D& mesh_2d,
       const Mesh3D& mesh_3d,
       const cv::Mat& mesh_2d_img,
@@ -130,10 +127,7 @@ struct SpinOutputPacket {
       const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
       const gtsam::Matrix state_covariance_lkf = gtsam::Matrix::Zero(15, 15),
       const DebugTrackerInfo debug_tracker_info = DebugTrackerInfo())
-      : timestamp_kf_(timestamp_kf),
-        W_Pose_Blkf_(W_Pose_Blkf),
-        W_Vel_Blkf_(W_Vel_Blkf),
-        imu_bias_lkf_(imu_bias_lkf),
+      : vio_nav_state_(vio_nav_state),
         mesh_2d_(mesh_2d),
         mesh_3d_(mesh_3d),
         mesh_2d_img_(mesh_2d_img),
@@ -148,10 +142,10 @@ struct SpinOutputPacket {
 
   // Trivial constructor
   SpinOutputPacket()
-      : timestamp_kf_(0),
-        W_Pose_Blkf_(gtsam::Pose3()),
-        W_Vel_Blkf_(gtsam::Vector3()),
-        imu_bias_lkf_(gtsam::imuBias::ConstantBias()),
+      : vio_nav_state_(0,
+                       gtsam::Pose3(),
+                       gtsam::Vector3(),
+                       gtsam::imuBias::ConstantBias()),
         mesh_2d_(),
         mesh_3d_(),
         mesh_2d_img_(),
@@ -164,16 +158,18 @@ struct SpinOutputPacket {
   // TODO(Toni, Sandro): I don't think we need getters for these guys, they
   // should be public members instead and just follow the philosophy of a
   // struct.
-  inline Timestamp getTimestamp() const { return timestamp_kf_; }
-  inline gtsam::Pose3 getEstimatedPose() const { return W_Pose_Blkf_; }
-  inline gtsam::Vector3 getEstimatedVelocity() const { return W_Vel_Blkf_; }
+  inline Timestamp getTimestamp() const { return vio_nav_state_.timestamp_; }
+  inline gtsam::Pose3 getEstimatedPose() const { return vio_nav_state_.pose_; }
+  inline gtsam::Vector3 getEstimatedVelocity() const {
+    return vio_nav_state_.velocity_;
+  }
   inline gtsam::Matrix6 getEstimatedPoseCov() const {
     return gtsam::sub(state_covariance_lkf_, 0, 6, 0, 6);
   }
   inline gtsam::Matrix3 getEstimatedVelCov() const {
     return gtsam::sub(state_covariance_lkf_, 6, 9, 6, 9);
   }
-  inline ImuBias getEstimatedBias() const { return imu_bias_lkf_; }
+  inline ImuBias getEstimatedBias() const { return vio_nav_state_.imu_bias_; }
   inline gtsam::Matrix6 getEstimatedBiasCov() const {
     return gtsam::sub(state_covariance_lkf_, 9, 15, 9, 15);
   }
@@ -187,10 +183,8 @@ struct SpinOutputPacket {
   LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
 
  private:
-  Timestamp timestamp_kf_;
-  gtsam::Pose3 W_Pose_Blkf_;
-  gtsam::Vector3 W_Vel_Blkf_;
-  ImuBias imu_bias_lkf_;
+  //! Nav state from World to Body coordinates.
+  VioNavStateTimestamped vio_nav_state_;
   gtsam::Matrix state_covariance_lkf_;
   DebugTrackerInfo debug_tracker_info_;
 };

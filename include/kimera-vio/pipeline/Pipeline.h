@@ -22,22 +22,18 @@
 #include <utility>  // for make_pair
 #include <vector>
 
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackEndModule.h"
 #include "kimera-vio/datasource/DataSource-definitions.h"
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
-#include "kimera-vio/loopclosure/LoopClosureDetector.h"  // TODO(marcus): would be nice to remove
+#include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/mesh/Mesher.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
-
-namespace VIO {
-// Forward-declare classes.
-class VioBackEndParams;
-class VioBackEnd;
-class StereoVisionFrontEnd;
-}  // namespace VIO
 
 namespace VIO {
 
@@ -208,7 +204,7 @@ class Pipeline {
       initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
-  std::unique_ptr<VioBackEnd> vio_backend_;
+  std::unique_ptr<VioBackEndModule> vio_backend_module_;
 
   // Thread-safe queue for the backend.
   ThreadsafeQueue<VioBackEndInputPayload::UniquePtr> backend_input_queue_;
@@ -254,7 +250,7 @@ class Pipeline {
   std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
   // std::thread visualizer_thread_;
 
-  int backend_type_;
+  BackendType backend_type_;
   bool parallel_run_;
 };
 

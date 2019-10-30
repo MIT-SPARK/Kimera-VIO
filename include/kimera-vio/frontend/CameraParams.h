@@ -22,23 +22,81 @@
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
-
-// TODO(Toni): leaving this here is a bit ugly...
-using Calibration = gtsam::Cal3DS2;
 
 /*
  * Class describing camera parameters.
  */
 class CameraParams {
  public:
+  KIMERA_POINTER_TYPEDEFS(CameraParams);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  using CameraId = std::string;
+
+  CameraParams(const CameraId& cam_id) : camera_id_(cam_id){};
+  virtual ~CameraParams();
+
   /* ------------------------------------------------------------------------ */
   // Parse YAML file describing camera parameters.
   bool parseYAML(const std::string& filepath);
 
   /* ------------------------------------------------------------------------ */
+  // TODO(Toni): remove this, make calib to be converted to Euroc format.
+  // Parse KITTI calib file describing camera parameters.
+  bool parseKITTICalib(const std::string& filepath,
+                       cv::Mat R_cam_to_imu,
+                       cv::Mat T_cam_to_imu,
+                       const std::string& cam_id);
+
+  /* ------------------------------------------------------------------------ */
+  // Display all params.
+  void print() const;
+
+  /* ------------------------------------------------------------------------ */
+  // Assert equality up to a tolerance.
+  bool equals(const CameraParams& cam_par, const double& tol = 1e-9) const;
+
+ public:
+  // Id of the camera
+  CameraId camera_id_;
+
+  // fu, fv, cu, cv
+  std::vector<double> intrinsics_;
+
+  // Sensor extrinsics wrt. body-frame
+  gtsam::Pose3 body_Pose_cam_;
+
+  // Image info.
+  double frame_rate_;
+  cv::Size image_size_;
+
+  // GTSAM structures to calibrate points.
+  gtsam::Cal3DS2 calibration_;
+
+  // OpenCV structures: For radial distortion and rectification.
+  // needed to compute the undistorsion map.
+  cv::Mat camera_matrix_;
+  // 5 parameters (last is zero): distortion_model: radial-tangential.
+  std::string distortion_model_;  // define default
+  cv::Mat distortion_coeff_;
+
+  cv::Mat undistRect_map_x_;
+  cv::Mat undistRect_map_y_;
+
+  // Rotation resulting from rectification.
+  cv::Mat R_rectify_;
+
+  // Camera matrix after rectification.
+  cv::Mat P_;
+
+  //! List of Cameras which share field of view with this one: i.e. stereo.
+  std::vector<CameraId> is_stereo_with_camera_ids_;
+
+ private:
   static void parseDistortion(const cv::FileStorage& fs,
                               const std::string& filepath,
                               std::string* distortion_model,
@@ -59,51 +117,7 @@ class CameraParams {
   static void createGtsamCalibration(const std::vector<double>& distortion,
                                      const std::vector<double>& intrinsics,
                                      gtsam::Cal3DS2* calibration);
-
-  /* ------------------------------------------------------------------------ */
-  // Parse KITTI calib file describing camera parameters.
-  bool parseKITTICalib(const std::string& filepath,
-                       cv::Mat R_cam_to_imu,
-                       cv::Mat T_cam_to_imu,
-                       const std::string& cam_id);
-
-  /* ------------------------------------------------------------------------ */
-  // Display all params.
-  void print() const;
-
-  /* ------------------------------------------------------------------------ */
-  // Assert equality up to a tolerance.
-  bool equals(const CameraParams& cam_par, const double& tol = 1e-9) const;
-
- public:
-  // fu, fv, cu, cv
-  std::vector<double> intrinsics_;
-
-  // Sensor extrinsics wrt. body-frame
-  gtsam::Pose3 body_Pose_cam_;
-
-  // Image info.
-  double frame_rate_;
-  cv::Size image_size_;
-
-  // GTSAM structures to calibrate points.
-  Calibration calibration_;
-
-  // OpenCV structures: For radial distortion and rectification.
-  // needed to compute the undistorsion map.
-  cv::Mat camera_matrix_;
-  // 5 parameters (last is zero): distortion_model: radial-tangential.
-  std::string distortion_model_;  // define default
-  cv::Mat distortion_coeff_;
-
-  cv::Mat undistRect_map_x_;
-  cv::Mat undistRect_map_y_;
-
-  // Rotation resulting from rectification.
-  cv::Mat R_rectify_;
-
-  // Camera matrix after rectification.
-  cv::Mat P_;
 };
+typedef std::vector<CameraParams> MultiCameraParams;
 
 }  // namespace VIO

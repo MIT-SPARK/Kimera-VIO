@@ -77,20 +77,6 @@ DEFINE_int32(displayed_trajectory_length, 50,
 
 namespace VIO {
 
-/* -------------------------------------------------------------------------- */
-template <class T>
-static bool getEstimateOfKey(const gtsam::Values& state,
-                             const gtsam::Key& key,
-                             T* estimate) {
-  CHECK_NOTNULL(estimate);
-  if (state.exists(key)) {
-    *estimate = state.at<T>(key);
-    return true;
-  } else {
-    return false;
-  }
-}
-
 // Contains internal data for Visualizer3D window.
 Visualizer3D::WindowData::WindowData()
     : window_(cv::viz::Viz3d("3D Visualizer")),
@@ -289,11 +275,9 @@ VisualizerOutputPayload::UniquePtr Visualizer3D::spinOnce(
             lmk_ids_in_current_pp_factors.push_back(lmk_id);
             // Get point estimate.
             gtsam::Point3 point;
-            CHECK(getEstimateOfKey(
-                input.values_, point_key,
-                &point));  // This call makes visualizer unable to perform this
-                           // in parallel. But you can just copy the state_
-
+            // This call makes visualizer unable to perform this
+            // in parallel. But you can just copy the state_
+            CHECK(getEstimateOfKey(input.values_, point_key, &point));
             // Visualize.
             const Key& ppf_plane_key = ppf->getPlaneKey();
             for (const Plane& plane :
@@ -301,11 +285,12 @@ VisualizerOutputPayload::UniquePtr Visualizer3D::spinOnce(
                                    // others with planes...
               if (ppf_plane_key == plane.getPlaneSymbol().key()) {
                 gtsam::OrientedPlane3 current_plane_estimate;
-                CHECK(getEstimateOfKey<
-                      gtsam::OrientedPlane3>(  // This call makes visualizer
-                                               // unable to perform this in
-                                               // parallel.
-                    input.values_, ppf_plane_key, &current_plane_estimate));
+                CHECK(getEstimateOfKey(  // This call makes visualizer
+                                         // unable to perform this in
+                                         // parallel.
+                    input.values_,
+                    ppf_plane_key,
+                    &current_plane_estimate));
                 // WARNING assumes the backend updates normal and distance
                 // of plane and that no one modifies it afterwards...
                 visualizePlaneConstraints(
@@ -361,7 +346,7 @@ VisualizerOutputPayload::UniquePtr Visualizer3D::spinOnce(
           const gtsam::Symbol& plane_symbol = plane.getPlaneSymbol();
           const std::uint64_t& plane_index = plane_symbol.index();
           gtsam::OrientedPlane3 current_plane_estimate;
-          if (!getEstimateOfKey<gtsam::OrientedPlane3>(
+          if (!getEstimateOfKey(
                   input.values_, plane_symbol.key(), &current_plane_estimate)) {
             // We could not find the plane in the optimization...
             // Delete the plane.

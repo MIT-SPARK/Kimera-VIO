@@ -40,7 +40,7 @@ namespace VIO {
 /*
  * Parse all images and camera calibration for an ETH dataset.
  */
-class ETHDatasetParser : public DataProvider {
+class ETHDatasetParser : public DataProviderInterface {
  public:
   // Ctor with params.
   ETHDatasetParser(int initial_k,
@@ -146,14 +146,14 @@ class ETHDatasetParser : public DataProvider {
                    const std::string& gtSensorName);
 
   // Parse cam0, cam1 of a given dataset.
-  bool parseCameraData(const std::string& input_dataset_path,
-                       const std::string& left_cam_name,
-                       const std::string& right_cam_name,
-                       const bool parse_images = true);
+  virtual bool parseCameraParams(const std::string& input_dataset_path,
+                                 const std::string& left_cam_name,
+                                 const std::string& right_cam_name,
+                                 const bool parse_images,
+                                 MultiCameraParams* multi_cam_params) override;
 
-  // Parse IMU parameters.
-  bool parseImuParams(const std::string& input_dataset_path,
-                      const std::string& imu_name);
+  virtual bool parseImuParams(const std::string& input_dataset_path,
+                              const std::string& imu_name) override;
 
   /// Getters.
   inline size_t getNumImages() const {

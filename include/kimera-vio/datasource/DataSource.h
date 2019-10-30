@@ -22,19 +22,22 @@
 
 namespace VIO {
 
-class DataProvider {
+class DataProviderInterface {
  public:
   typedef std::function<void(StereoImuSyncPacket::ConstUniquePtr)>
       VioInputCallback;
+
   /** Regular ctor.
    *   [in] initial_k: first frame id to be parsed.
    *   [in] final_k: last frame id to be parsed.
    *   [in] dataset_path: path to the Euroc dataset.
    **/
-  DataProvider(int initial_k, int final_k, const std::string& dataset_path);
+  DataProviderInterface(int initial_k,
+                        int final_k,
+                        const std::string& dataset_path);
   // Ctor from gflags. Calls regular ctor with gflags values.
-  DataProvider();
-  virtual ~DataProvider();
+  DataProviderInterface();
+  virtual ~DataProviderInterface();
 
   // The derived classes need to implement this function!
   // Spin the dataset: processes the input data and constructs a Stereo Imu
@@ -60,10 +63,21 @@ class DataProvider {
   std::string dataset_path_;
 
 protected:
-  // Helper function to parse user-specified parameters.
-  void parseBackendParams();
-  void parseFrontendParams();
-  void parseLCDParams();
+ //! Helper functions to parse user-specified parameters.
+ //! These are agnostic to dataset type.
+ void parseBackendParams();
+ void parseFrontendParams();
+ void parseLCDParams();
+
+ //! Functions to parse dataset dependent parameters.
+ // Parse cam0, cam1 of a given dataset.
+ virtual bool parseCameraParams(const std::string& input_dataset_path,
+                                const std::string& left_cam_name,
+                                const std::string& right_cam_name,
+                                const bool parse_images,
+                                MultiCameraParams* multi_cam_params) = 0;
+ virtual bool parseImuParams(const std::string& input_dataset_path,
+                             const std::string& imu_name) = 0;
 };
 
 }  // namespace VIO

@@ -295,7 +295,7 @@ void CameraParams::print() const {
   for(size_t i = 0; i < intrinsics_.size(); i++) {
     output += std::to_string(intrinsics_.at(i)) + " , ";
   }
-  LOG(INFO) << "------------ CameraParams::print -------------\n"
+  LOG(INFO) << "------------ Camera ID: " << camera_id_ << " -------------\n"
             << "intrinsics_: " << output;
 
   LOG(INFO) << "body_Pose_cam_: \n" << body_Pose_cam_ << std::endl;
@@ -329,7 +329,7 @@ bool CameraParams::equals(const CameraParams& cam_par, const double& tol) const 
       break;
     }
   }
-  return areIntrinsicEqual &&
+  return camera_id_ == cam_par.camera_id_ && areIntrinsicEqual &&
          body_Pose_cam_.equals(cam_par.body_Pose_cam_, tol) &&
          (std::fabs(frame_rate_ - cam_par.frame_rate_) < tol) &&
          (image_size_.width == cam_par.image_size_.width) &&

@@ -26,6 +26,7 @@
 #include "kimera-vio/mesh/Mesher.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/utils/UtilsGTSAM.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
@@ -39,11 +40,6 @@ enum class VisualizationType {
                      // corresponding to non planar obstacles
   NONE               // does not visualize map
 };
-
-template <class T>
-static bool getEstimateOfKey(const gtsam::Values& state,
-                             const gtsam::Key& key,
-                             T* estimate);
 
 struct VisualizerInputPayload {
   KIMERA_POINTER_TYPEDEFS(VisualizerInputPayload);
