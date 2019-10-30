@@ -118,7 +118,7 @@ void BackendLogger::logBackendResultsCSV(
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "timestamp,x,y,z,qx,qy,qz,qw,vx,vy,vz,"
+    output_stream << "#timestamp,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
                   << "bgx,bgy,bgz,bax,bay,baz"
                   << std::endl;
     is_header_written = true;
@@ -136,10 +136,10 @@ void BackendLogger::logBackendResultsCSV(
                 << w_pose_blkf_trans.x() << ","     //
                 << w_pose_blkf_trans.y() << ","     //
                 << w_pose_blkf_trans.z() << ","     //
+                << w_pose_blkf_rot(0) << ","        // q_w
                 << w_pose_blkf_rot(1) << ","        // q_x
                 << w_pose_blkf_rot(2) << ","        // q_y
                 << w_pose_blkf_rot(3) << ","        // q_z
-                << w_pose_blkf_rot(0) << ","        // q_w
                 << w_vel_blkf(0) << ","             //
                 << w_vel_blkf(1) << ","             //
                 << w_vel_blkf(2) << ","             //
@@ -159,7 +159,7 @@ void BackendLogger::logSmartFactorsStats(
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "cur_kf_id,timestamp_kf,numSF,"
+    output_stream << "#cur_kf_id,timestamp_kf,numSF,"
                   << "numValid,numDegenerate,numFarPoints,numOutliers,"
                   << "numCheirality,numNonInitialized,meanPixelError,"
                   << "maxPixelError,meanTrackLength,maxTrackLength,"
@@ -193,7 +193,7 @@ void BackendLogger::logBackendPimNavstates(
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "timestamp_kf,x,y,z,qw,qx,qy,qz,vx,vy,vz"
+    output_stream << "#timestamp_kf,x,y,z,qw,qx,qy,qz,vx,vy,vz"
                   << std::endl;
     is_header_written = true;
   }
@@ -223,7 +223,7 @@ void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "cur_kf_id,factorsAndSlotsTime,preUpdateTime,"
+    output_stream << "#cur_kf_id,factorsAndSlotsTime,preUpdateTime,"
                   << "updateTime,updateSlotTime,extraIterationsTime,"
                   << "linearizeTime,linearSolveTime,retractTime,"
                   << "linearizeMarginalizeTime,marginalizeTime"
@@ -253,7 +253,7 @@ void BackendLogger::logBackendFactorsStats(
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "cur_kf_id,numAddedSmartF,numAddedImuF,numAddedNoMotionF,"
+    output_stream << "#cur_kf_id,numAddedSmartF,numAddedImuF,numAddedNoMotionF,"
                   << "numAddedConstantF,numAddedBetweenStereoF,state_size,"
                   << "landmark_count"
                   << std::endl;
@@ -376,7 +376,7 @@ void FrontendLogger::logFrontendStats(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_stats << "timestamp_lkf,mono_status,stereo_status,"
+    output_stream_stats << "#timestamp_lkf,mono_status,stereo_status,"
                         << "nr_keypoints,nrDetectedFeatures,nrTrackerFeatures,"
                         << "nrMonoInliers,nrMonoPutatives,nrStereoInliers,"
                         << "nrStereoPutatives,monoRansacIters,"
@@ -437,9 +437,9 @@ void FrontendLogger::logFrontendRansac(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_mono << "timestamp_lkf,x,y,z,qw,qx,qy,qz"
+    output_stream_mono << "#timestamp_lkf,x,y,z,qw,qx,qy,qz"
                        << std::endl;
-    output_stream_stereo << "timestamp_lkf,x,y,z,qw,qx,qy,qz"
+    output_stream_stereo << "#timestamp_lkf,x,y,z,qw,qx,qy,qz"
                          << std::endl;
     is_header_written = true;
   }
@@ -487,6 +487,9 @@ void PipelineLogger::logPipelineOverallTiming(
   std::ofstream& outputFile_timingOverall_ = output_pipeline_timing_.ofstream_;
   outputFile_timingOverall_ << "vio_overall_time [ms]" << std::endl;
   outputFile_timingOverall_ << duration.count();
+
+  VIO::utils::Statistics::WriteAllSamplesToCsvFile(
+      FLAGS_output_path + '/' + "StatisticsVIO.csv");
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -514,8 +517,8 @@ void LoopClosureDetectorLogger::logLoopClosure(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_lcd << "timestamp_kf,timestamp_query,timestamp_match,isLoop,"
-                      << "matchKfId,queryKfId,px,py,pz,qw,qx,qy,qz"
+    output_stream_lcd << "#timestamp_kf,timestamp_query,timestamp_match,isLoop,"
+                      << "matchKfId,queryKfId,x,y,z,qw,qx,qy,qz"
                       << std::endl;
     is_header_written = true;
   }
@@ -551,7 +554,7 @@ void LoopClosureDetectorLogger::logOptimizedTraj(
 
   bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_traj << "timestamp_kf,kf_id,x,y,z,qw,qx,qy,qz"
+    output_stream_traj << "#timestamp_kf,x,y,z,qw,qx,qy,qz"
                        << std::endl;
     is_header_written = true;
   }
@@ -564,7 +567,6 @@ void LoopClosureDetectorLogger::logOptimizedTraj(
     const gtsam::Quaternion& quat = pose.rotation().toQuaternion();
 
     output_stream_traj << ts_map_.at(i) << ","
-                       << i << ","
                        << trans.x() << ","
                        << trans.y() << ","
                        << trans.z() << ","
@@ -582,7 +584,7 @@ void LoopClosureDetectorLogger::logDebugInfo(const LcdDebugInfo& debug_info) {
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_status << "timestamp_kf,lcd_status,query_id,match_id,"
+    output_stream_status << "#timestamp_kf,lcd_status,query_id,match_id,"
                          << "mono_input_size,mono_inliers,mono_iters,"
                          << "stereo_input_size,stereo_inliers,stereo_iters,"
                          << "pgo_size,pgo_lc_count,pgo_lc_inliers"
