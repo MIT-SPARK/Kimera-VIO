@@ -40,11 +40,13 @@ class ThreadsafeQueue {
    * But it does the job: see Item 41 Effective Modern C++
    *
    * Alternatives:
-   *  - Push(T&& ) rvalue to the queue using move semantics.
+   *  Using both:
+   *  - push(const T&)
+   *  - with push(T&& ) rvalue to the queue using move semantics.
    * Since there is no type deduction, T&& is NOT a universal
    * reference (typename T is not at the level of the push function).
    * Problem: virtual keyword will make push(T&&) be discarded for
-   * push(const T&)...
+   * push(const T&), non-copyable things will compile-complain.
    *
    */
   virtual bool push(T new_value);

@@ -109,8 +109,7 @@ Pipeline::Pipeline(const PipelineParams& params)
       backend_params_(params.backend_params_),
       frontend_params_(params.frontend_params_),
       mesher_(nullptr),
-      visualizer_(static_cast<VisualizationType>(FLAGS_viz_type),
-                  params.backend_type_),
+      visualizer_(nullptr),
       stereo_frontend_thread_(nullptr),
       wrapped_thread_(nullptr),
       backend_thread_(nullptr),
@@ -127,7 +126,7 @@ Pipeline::Pipeline(const PipelineParams& params)
       lcd_input_queue_("lcd_input_queue"),
       null_lcd_output_queue_("null_lcd_output_queue"),
       visualizer_input_queue_("visualizer_input_queue"),
-      visualizer_output_queue_("visualizer_output_queue") {
+      null_visualizer_output_queue_("visualizer_output_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
 
   // Instantiate stereo tracker (class that tracks implements estimation
@@ -137,8 +136,19 @@ Pipeline::Pipeline(const PipelineParams& params)
                                              gtsam::imuBias::ConstantBias(),
                                              frontend_params_,
                                              FLAGS_log_output);
+
+  // TODO(Toni): only create if used.
   mesher_ = VIO::make_unique<Mesher>(
       &mesher_input_queue_, &mesher_output_queue_, parallel_run_);
+
+  // TODO(Toni): only create if used.
+  visualizer_ = VIO::make_unique<Visualizer3D>(
+      &visualizer_input_queue_,
+      &null_visualizer_output_queue_,
+      static_cast<VisualizationType>(FLAGS_viz_type),
+      backend_type_,
+      std::bind(&Pipeline::spinDisplayOnce, this, std::placeholders::_1),
+      parallel_run_);
 
   if (FLAGS_use_lcd) {
     loop_closure_detector_ =
@@ -388,12 +398,10 @@ void Pipeline::processKeyframe(
 
 // Returns whether the visualizer_ is running or not. While in parallel mode,
 // it does not return unless shutdown.
-bool Pipeline::spinViz(bool parallel_run) {
+bool Pipeline::spinViz() {
   if (FLAGS_visualize) {
-    return visualizer_.spin(
-        visualizer_input_queue_, visualizer_output_queue_,
-        std::bind(&Pipeline::spinDisplayOnce, this, std::placeholders::_1),
-        parallel_run);
+    CHECK(visualizer_);
+    return visualizer_->spin();
   }
   return true;
 }
@@ -548,10 +556,8 @@ void Pipeline::spinSequential() {
         ));
 
     // Spin visualizer.
-    visualizer_.spin(
-        visualizer_input_queue_, visualizer_output_queue_,
-        std::bind(&Pipeline::spinDisplayOnce, this, std::placeholders::_1),
-        false);
+    CHECK(visualizer_);
+    visualizer_->spin();
   }
 }
 
@@ -566,41 +572,58 @@ void Pipeline::shutdownWhenFinished() {
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
   static constexpr int sleep_time = 1;
 
-  while (!shutdown_ &&         // Loop while not explicitly shutdown.
-         (!is_initialized_ ||  // Loop while not initialized
-                               // Or, once init, data is not yet consumed.
-          !(stereo_frontend_input_queue_.empty() &&
-            stereo_frontend_output_queue_.empty() &&
-            !vio_frontend_->isWorking() && backend_input_queue_.empty() &&
-            backend_output_queue_.empty() && !vio_backend_->isWorking() &&
-            mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
-            !mesher_->isWorking() && lcd_input_queue_.empty() &&
-            (loop_closure_detector_ ? !loop_closure_detector_->isWorking()
-                                    : true) &&
-            visualizer_input_queue_.empty() &&
-            visualizer_output_queue_.empty() && !visualizer_.isWorking()))) {
-    VLOG_EVERY_N(10, 100)
-        << "shutdown_: " << shutdown_ << '\n'
-        << "VIO pipeline status: \n"
-        << "Initialized? " << is_initialized_ << '\n'
-        << "Frontend input queue empty?" << stereo_frontend_input_queue_.empty()
-        << '\n'
-        << "Frontend output queue empty?"
-        << stereo_frontend_output_queue_.empty() << '\n'
-        << "Frontend is working? " << vio_frontend_->isWorking() << '\n'
-        << "Backend Input queue empty?" << backend_input_queue_.empty() << '\n'
-        << "Backend Output queue empty?" << backend_output_queue_.empty()
-        << '\n'
-        << "Backend is working? "
-        << (is_initialized_ ? vio_backend_->isWorking() : false) << '\n'
+  while (
+      !shutdown_ &&         // Loop while not explicitly shutdown.
+      (!is_initialized_ ||  // Loop while not initialized
+                            // Or, once init, data is not yet consumed.
+       !(stereo_frontend_input_queue_.empty() &&
+         stereo_frontend_output_queue_.empty() && !vio_frontend_->isWorking() &&
+         backend_input_queue_.empty() && backend_output_queue_.empty() &&
+         !vio_backend_->isWorking() && mesher_input_queue_.empty() &&
+         mesher_output_queue_.empty() &&
+         (mesher_ ? !mesher_->isWorking() : true) && lcd_input_queue_.empty() &&
+         (loop_closure_detector_ ? !loop_closure_detector_->isWorking()
+                                 : true) &&
+         visualizer_input_queue_.empty() &&
+         null_visualizer_output_queue_.empty() &&
+         (visualizer_ ? !visualizer_->isWorking() : true)))) {
+    VLOG_EVERY_N(10, 100) << "shutdown_: " << shutdown_ << '\n'
+                          << "VIO pipeline status: \n"
+                          << "Initialized? " << is_initialized_ << '\n'
+                          << "Frontend input queue empty?"
+                          << stereo_frontend_input_queue_.empty() << '\n'
+                          << "Frontend output queue empty?"
+                          << stereo_frontend_output_queue_.empty() << '\n'
+                          << "Frontend is working? "
+                          << vio_frontend_->isWorking() << '\n'
+                          << "Backend Input queue empty?"
+                          << backend_input_queue_.empty() << '\n'
+                          << "Backend Output queue empty?"
+                          << backend_output_queue_.empty() << '\n'
+                          << "Backend is working? "
+                          << (is_initialized_ ? vio_backend_->isWorking()
+                                              : false);
+
+    VLOG_IF_EVERY_N(10, mesher_, 100)
         << "Mesher input queue empty?" << mesher_input_queue_.empty() << '\n'
         << "Mesher output queue empty?" << mesher_output_queue_.empty() << '\n'
-        << "Mesher is working? " << mesher_->isWorking() << '\n'
+        << "Mesher is working? " << mesher_->isWorking();
+
+    VLOG_IF_EVERY_N(10, loop_closure_detector_, 100)
+        << "LoopClosureDetector input queue empty?" << lcd_input_queue_.empty()
+        << '\n'
+        << "LoopClosureDetector output queue empty?"
+        << null_lcd_output_queue_.empty() << '\n'
+        << "LoopClosureDetector is working? "
+        << loop_closure_detector_->isWorking();
+
+    // NOLINTNEXTLINE
+    VLOG_IF_EVERY_N(10, visualizer_, 100)
         << "Visualizer input queue empty?" << visualizer_input_queue_.empty()
         << '\n'
-        << "Visualizer output queue empty?" << visualizer_output_queue_.empty()
-        << '\n'
-        << "Visualizer is working? " << visualizer_.isWorking();
+        << "Visualizer output queue empty?"
+        << null_visualizer_output_queue_.empty() << '\n'
+        << "Visualizer is working? " << visualizer_->isWorking();  // NOLINT
 
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
@@ -672,7 +695,7 @@ void Pipeline::checkReInitialize(
     vio_backend_->restart();
     mesher_->restart();
     if (loop_closure_detector_) loop_closure_detector_->restart();
-    visualizer_.restart();
+    visualizer_->restart();
     // Resume pipeline
     resume();
     initialization_frontend_output_queue_.resume();
@@ -955,7 +978,7 @@ void Pipeline::spinDisplayOnce(
     // TODO this is not very thread-safe!!! Since recordVideo might modify
     // window_ in this thread, while it might also be called in viz thread.
     if (FLAGS_record_video_for_viz_3d) {
-      visualizer_.recordVideo();
+      visualizer_->recordVideo();
     }
   }
 
@@ -1135,7 +1158,7 @@ void Pipeline::resume() {
 
   LOG(INFO) << "Restarting visualizer workers and queues...";
   visualizer_input_queue_.resume();
-  visualizer_output_queue_.resume();
+  null_visualizer_output_queue_.resume();
 
   // Re-launch threads
   /*if (parallel_run_) {
@@ -1168,17 +1191,16 @@ void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping mesher workers and queues...";
   mesher_input_queue_.shutdown();
   mesher_output_queue_.shutdown();
-  mesher_->shutdown();
+  if (mesher_) mesher_->shutdown();
 
   LOG(INFO) << "Stopping loop closure workers and queues...";
   lcd_input_queue_.shutdown();
-  if (loop_closure_detector_)
-    loop_closure_detector_->shutdown();
+  if (loop_closure_detector_) loop_closure_detector_->shutdown();
 
   LOG(INFO) << "Stopping visualizer workers and queues...";
   visualizer_input_queue_.shutdown();
-  visualizer_output_queue_.shutdown();
-  visualizer_.shutdown();
+  null_visualizer_output_queue_.shutdown();
+  if (visualizer_) visualizer_->shutdown();
 
   LOG(INFO) << "Sent stop flag to all workers and queues...";
 }

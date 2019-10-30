@@ -79,7 +79,8 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 template <class T>
-static bool getEstimateOfKey(const gtsam::Values& state, const gtsam::Key& key,
+static bool getEstimateOfKey(const gtsam::Values& state,
+                             const gtsam::Key& key,
                              T* estimate) {
   CHECK_NOTNULL(estimate);
   if (state.exists(key)) {
@@ -124,9 +125,20 @@ ImageToDisplay::ImageToDisplay(const std::string& name, const cv::Mat& image)
     : name_(name), image_(image) {}
 
 /* -------------------------------------------------------------------------- */
-Visualizer3D::Visualizer3D(VisualizationType viz_type, int backend_type)
-    : visualization_type_(viz_type),
+Visualizer3D::Visualizer3D(InputQueue* input_queue,
+                           OutputQueue* output_queue,
+                           VisualizationType viz_type,
+                           int backend_type,
+                           const DisplayCallback& display_callback,
+                           bool parallel_run)
+    : PipelineModule<VisualizerInputPayload, VisualizerOutputPayload>(
+          input_queue,
+          output_queue,
+          "Visualizer3D",
+          parallel_run),
+      visualization_type_(viz_type),
       backend_type_(backend_type),
+      display_callback_(display_callback),
       logger_(nullptr) {
   if (FLAGS_log_mesh) {
     logger_ = VIO::make_unique<VisualizerLogger>();
@@ -142,60 +154,6 @@ Visualizer3D::Visualizer3D(VisualizationType viz_type, int backend_type)
   window_data_.window_.setBackgroundColor(window_data_.background_color_);
   window_data_.window_.showWidget("Coordinate Widget",
                                   cv::viz::WCoordinateSystem());
-}
-
-/* -------------------------------------------------------------------------- */
-// Returns false if visualizer has shutdown.
-bool Visualizer3D::spin(
-    ThreadsafeQueue<VisualizerInputPayload::UniquePtr>& input_queue,
-    ThreadsafeQueue<VisualizerOutputPayload::UniquePtr>& output_queue,
-    DisplayCallback display_callback_,
-    bool parallel_run) {
-  LOG(INFO) << "Spinning Visualizer.";
-  utils::StatsCollector stats_visualizer("Visualizer Timing [ms]");
-  while (!shutdown_) {
-    // Wait for mesher payload.
-    is_thread_working_ = false;
-    VisualizerInputPayload::UniquePtr visualizer_payload;
-    input_queue.popBlocking(visualizer_payload);
-    is_thread_working_ = true;
-    auto tic = utils::Timer::tic();
-    if (visualizer_payload) {
-      VisualizerOutputPayload::UniquePtr output_payload =
-          spinOnce(*visualizer_payload);
-      if (display_callback_) {
-        display_callback_(*output_payload);
-        output_payload->images_to_display_.clear();
-      } else {
-        output_queue.push(std::move(output_payload));
-      }
-    } else {
-      LOG(WARNING) << "No Visualizer Input Payload received";
-    }
-    auto spin_duration = utils::Timer::toc(tic).count();
-    LOG(WARNING) << "Current Visualizer frequency: " << 1000.0 / spin_duration
-                 << " Hz. (" << spin_duration << " ms).";
-    stats_visualizer.AddSample(spin_duration);
-
-    // Break the while loop if we are in sequential mode.
-    if (!parallel_run) return true;
-  }
-  LOG(INFO) << "Visualizer has shutdown.";
-  return false;
-}
-
-/* -------------------------------------------------------------------------- */
-void Visualizer3D::shutdown() {
-  LOG_IF(WARNING, shutdown_) << "Shutdown for Visualizer requested, but it was "
-                                "already shutdown.";
-  LOG(INFO) << "Shutting down Visualizer.";
-  shutdown_ = true;
-}
-
-/* -------------------------------------------------------------------------- */
-void Visualizer3D::restart() {
-  LOG(INFO) << "Resetting shutdown visualizer flag to false.";
-  shutdown_ = false;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -466,6 +424,10 @@ VisualizerOutputPayload::UniquePtr Visualizer3D::spinOnce(
   // TODO avoid copying and use a std::unique_ptr! You need to pass window_data_
   // as a parameter to all the functions and set them as const.
   output->window_ = window_data_.window_;
+
+  //! Call the displayer
+  if (display_callback_) display_callback_(*output);
+
   return output;
 }
 
@@ -1162,10 +1124,11 @@ void Visualizer3D::addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam) {
 }
 
 /* -------------------------------------------------------------------------- */
-// Render window with drawn objects/widgets.
-// @param wait_time Amount of time in milliseconds for the event loop to keep
-// running.
-// @param force_redraw If true, window renders.
+/** Render window with drawn objects/widgets.
+ * @param wait_time Amount of time in milliseconds for the event loop to keep
+ * running.
+ * @param force_redraw If true, window renders.
+ */
 void Visualizer3D::renderWindow(int wait_time, bool force_redraw) {
   window_data_.window_.spinOnce(wait_time, force_redraw);
 }

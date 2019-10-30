@@ -41,7 +41,8 @@ enum class VisualizationType {
 };
 
 template <class T>
-static bool getEstimateOfKey(const gtsam::Values& state, const gtsam::Key& key,
+static bool getEstimateOfKey(const gtsam::Values& state,
+                             const gtsam::Key& key,
                              T* estimate);
 
 struct VisualizerInputPayload {
@@ -87,16 +88,32 @@ struct VisualizerOutputPayload {
   cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
 };
 
-class Visualizer3D {
+class Visualizer3D
+    : public PipelineModule<VisualizerInputPayload, VisualizerOutputPayload> {
  public:
-  Visualizer3D(VisualizationType viz_type, int backend_type);
-  ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; };
-
+  KIMERA_DELETE_COPY_CONSTRUCTORS(Visualizer3D);
+  KIMERA_POINTER_TYPEDEFS(Visualizer3D);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef size_t LineNr;
   typedef std::uint64_t PlaneId;
   typedef std::map<LandmarkId, size_t> LmkIdToLineIdMap;
   typedef std::map<PlaneId, LmkIdToLineIdMap> PlaneIdMap;
   typedef std::function<void(VisualizerOutputPayload&)> DisplayCallback;
+
+  /**
+   * @brief Visualizer3D constructor
+   * @param viz_type: type of 3D visualization
+   * @param backend_type backend used so that we display the right info
+   * @param display_callback function to be called for opencv 3D
+   * and image visualization
+   */
+  Visualizer3D(InputQueue* input_queue,
+               OutputQueue* output_queue,
+               VisualizationType viz_type,
+               int backend_type,
+               const DisplayCallback& display_callback,
+               bool parallel_run);
+  ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; };
 
   // Contains internal data for Visualizer3D window.
   struct WindowData {
@@ -117,26 +134,6 @@ class Visualizer3D {
     bool mesh_ambient_;
     bool mesh_lighting_;
   };
-
-  /* ------------------------------------------------------------------------ */
-  // Spin for Visualizer3D. Calling shutdown stops the visualizer.
-  // Returns false when visualizer has been shutdown.
-  bool spin(ThreadsafeQueue<VisualizerInputPayload::UniquePtr>& input_queue,
-            ThreadsafeQueue<VisualizerOutputPayload::UniquePtr>& output_queue,
-            DisplayCallback display_callback_,
-            bool parallel_run = true);
-
-  /* ------------------------------------------------------------------------ */
-  // Stops the visualization spin.
-  void shutdown();
-
-  /* ------------------------------------------------------------------------ */
-  // Resets the shutdown flag for visualization spin
-  void restart();
-
-  /* ------------------------------------------------------------------------ */
-  // Checks if the thread is working or if it is waiting for input queue.
-  inline bool isWorking() const { return is_thread_working_; }
 
   /* ------------------------------------------------------------------------ */
   inline void registerMesh3dVizProperties(
@@ -388,11 +385,6 @@ class Visualizer3D {
   // Mesh 3d visualization properties setter callback.
   Mesher::Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
 
-  // Shutdown flag to stop the visualization spin.
-  std::atomic_bool shutdown_ = {false};
-  // Signals if the thread is working or waiting for input queue.
-  std::atomic_bool is_thread_working_ = {false};
-
   std::deque<cv::Affine3f> trajectoryPoses3d_;
 
   std::map<PlaneId, LineNr> plane_to_line_nr_map_;
@@ -403,6 +395,10 @@ class Visualizer3D {
   // widgets.
   WindowData window_data_;
 
+  //! Callback to display results.
+  DisplayCallback display_callback_;
+
+  //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;
 
   /* ------------------------------------------------------------------------ */

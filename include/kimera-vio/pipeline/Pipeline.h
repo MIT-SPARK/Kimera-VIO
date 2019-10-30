@@ -57,7 +57,7 @@ class Pipeline {
   void spin(StereoImuSyncPacket::ConstUniquePtr stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
-  bool spinViz(bool parallel_run = true);
+  bool spinViz();
 
   // Spin the pipeline only once.
   void spinOnce(StereoImuSyncPacket::ConstUniquePtr stereo_imu_sync_packet);
@@ -89,7 +89,7 @@ class Pipeline {
   // has a new 3d mesh.
   inline void registerSemanticMeshSegmentationCallback(
       Mesher::Mesh3dVizPropertiesSetterCallback callback) {
-    visualizer_.registerMesh3dVizProperties(callback);
+    visualizer_->registerMesh3dVizProperties(callback);
   }
 
   // Callback to output the VIO backend results at keyframe rate.
@@ -233,11 +233,12 @@ class Pipeline {
   ThreadsafeNullQueue<LcdOutputPayload::UniquePtr> null_lcd_output_queue_;
 
   // Visualization process.
-  Visualizer3D visualizer_;
+  std::unique_ptr<Visualizer3D> visualizer_;
 
   // Thread-safe queue for the visualizer.
-  ThreadsafeQueue<VisualizerInputPayload::UniquePtr> visualizer_input_queue_;
-  ThreadsafeQueue<VisualizerOutputPayload::UniquePtr> visualizer_output_queue_;
+  Visualizer3D::InputQueue visualizer_input_queue_;
+  ThreadsafeNullQueue<VisualizerOutputPayload::UniquePtr>
+      null_visualizer_output_queue_;
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};

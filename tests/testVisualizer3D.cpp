@@ -22,22 +22,22 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
 
 DECLARE_string(test_data_path);
 
-using namespace std;
-using namespace VIO;
-using namespace cv;
+namespace VIO {
 
 TEST(testVisualizer3D, DISABLED_visualizeMesh2D) {
   // Construct a frame from image name.
   FrameId id = 0;
   Timestamp tmp = 123;
-  const string imgName = string(FLAGS_test_data_path) + "/chessboard_small.png";
+  const std::string imgName =
+      std::string(FLAGS_test_data_path) + "/chessboard_small.png";
 
-  Frame f(id, tmp, CameraParams(),
-          UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
+  Frame f(
+      id, tmp, CameraParams(), UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   f.extractCorners();
   for (int i = 0; i < f.keypoints_.size();
        i++) {  // populate landmark structure with fake data
@@ -48,6 +48,16 @@ TEST(testVisualizer3D, DISABLED_visualizeMesh2D) {
   const std::vector<cv::Vec6f>& mesh_2d = f.createMesh2D();
 
   // Visualize mesh.
-  Visualizer3D visualizer(VisualizationType::NONE, 0);
+  Visualizer3D::DisplayCallback null_callback;
+  Visualizer3D::InputQueue input_queue("VisualizerInputQueue");
+  Visualizer3D::OutputQueue output_queue("VisualizerOutputQueue");
+  Visualizer3D visualizer(&input_queue,
+                          &output_queue,
+                          VisualizationType::NONE,
+                          0,
+                          null_callback,
+                          false);
   EXPECT_NO_THROW(visualizer.visualizeMesh2D(mesh_2d, f.img_));
 }
+
+}  // namespace VIO
