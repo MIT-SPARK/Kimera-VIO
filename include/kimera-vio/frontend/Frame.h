@@ -90,10 +90,15 @@ class Frame {
   KeypointsCV keypoints_;
   std::vector<double> scores_;  // quality of extracted keypoints
   LandmarkIds landmarks_;
-  std::vector<int>
-      landmarksAge_;        // how many consecutive *keyframes* saw the keypoint
-  BearingVectors versors_;  // in the ref frame of the UNRECTIFIED left frame
-  cv::Mat descriptors_;     // not currently used
+  //! How many consecutive *keyframes* saw the keypoint
+  std::vector<int> landmarksAge_;
+  //! in the ref frame of the UNRECTIFIED left frame
+  BearingVectors versors_;
+  //! Not currently used
+  cv::Mat descriptors_;
+
+  // TODO(Toni): remove this.
+  //! Triangulation over keypoints
   std::vector<cv::Vec6f> triangulation2D_;
 
  public:
@@ -231,23 +236,6 @@ class Frame {
     }
     return triangulation2D;
   }
-
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // NOT TESTED: get surf descriptors
-  //  void extractDescriptors()
-  //  {
-  //    int descriptor_radius = 5;
-  //
-  //    // Convert points to keypoints
-  //    std::vector<cv::KeyPoint> keypoints;
-  //    keypoints.reserve(keypoints_.size());
-  //    for (int i = 0; i < keypoints_.size(); i++) {
-  //      keypoints.push_back(cv::KeyPoint(keypoints_[i], 15));
-  //    }
-  //
-  //    cv::SurfDescriptorExtractor extractor;
-  //    extractor.compute(img_, keypoints, descriptors_);
-  //  }
 
   /* ----------------------- CONST FUNCTIONS -------------------------------- */
   // NOT TESTED: undistort and return

@@ -39,7 +39,7 @@ StereoFrame::StereoFrame(const FrameId& id,
       is_rectified_(FLAGS_images_rectified),
       is_keyframe_(false),
       sparse_stereo_params_(stereo_matching_params),
-      camL_Pose_camR(L_Pose_R) {
+      camL_Pose_camR_(L_Pose_R) {
   // If input is rectified already
   if (is_rectified_) {
     left_img_rectified_ = left_frame_.img_;
@@ -48,11 +48,54 @@ StereoFrame::StereoFrame(const FrameId& id,
         UtilsOpenCV::Cvmat2Cal3_S2(left_frame_.cam_param_.P_);
     right_undistRectCameraMatrix_ =
         UtilsOpenCV::Cvmat2Cal3_S2(right_frame_.cam_param_.P_);
+  } else {
+    // TODO(Toni): the undistRect maps should be computed once and cached!!
+    computeRectificationParameters(camL_Pose_camR_,
+                                   &left_frame_.cam_param_,
+                                   &right_frame_.cam_param_,
+                                   &B_Pose_camLrect_,
+                                   &baseline_);
+    left_undistRectCameraMatrix_ =
+        UtilsOpenCV::Cvmat2Cal3_S2(left_frame_.cam_param_.P_);
+    right_undistRectCameraMatrix_ =
+        UtilsOpenCV::Cvmat2Cal3_S2(right_frame_.cam_param_.P_);
+    //! Sanity check that rectified baseline remains within 10% of the
+    //! expected baseline.
+    const double& nominal_baseline = sparse_stereo_params_.nominal_baseline_;
+    static constexpr double kBaselineTolerance = 0.10;
+    if (baseline_ > (1.0 + kBaselineTolerance) * nominal_baseline ||
+        baseline_ < (1.0 - kBaselineTolerance) * nominal_baseline) {
+      LOG(FATAL) << "Baseline after rectification differs from nominal: \n"
+                 << "- Abnormal baseline: " << baseline_ << '\n'
+                 << "- Nominal baseline: " << nominal_baseline << '\n'
+                 << "(not within +/-10% bounds)";
+    }
+    //! Rectify and undistort images
+    cv::remap(left_frame_.img_,
+              left_img_rectified_,
+              left_frame_.cam_param_.undistRect_map_x_,
+              left_frame_.cam_param_.undistRect_map_y_,
+              cv::INTER_LINEAR);
+    cv::remap(right_frame_.img_,
+              right_img_rectified_,
+              right_frame_.cam_param_.undistRect_map_x_,
+              right_frame_.cam_param_.undistRect_map_y_,
+              cv::INTER_LINEAR);
+    is_rectified_ = true;
   }
+  VLOG(10) << "- size before (left): " << left_frame_.img_.rows << " x "
+           << left_frame_.img_.cols << '\n'
+           << "- size after  (left): " << left_img_rectified_.rows << " x "
+           << left_img_rectified_.cols
+           << "\n- size before (right): " << right_frame_.img_.rows << " x "
+           << right_frame_.img_.cols << '\n'
+           << "- size after  (right): " << right_img_rectified_.rows << " x "
+           << right_img_rectified_.cols;
 }
 
 /* -------------------------------------------------------------------------- */
 // TODO: Clean up RGBD
+// TODO: this should be in StereoMatcher
 void StereoFrame::sparseStereoMatching(const int verbosity) {
   if (verbosity > 0) {
     cv::Mat leftImgWithKeypoints =
@@ -61,12 +104,12 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
                          "unrectifiedLeftWithKeypoints_", verbosity);
   }
 
-  // Rectify images.
-  getRectifiedImages();
+  CHECK(is_rectified_);
 
   // Get rectified left keypoints.
   StatusKeypointsCV left_keypoints_rectified;
-  undistortRectifyPoints(left_frame_.keypoints_, left_frame_.cam_param_,
+  undistortRectifyPoints(left_frame_.keypoints_,
+                         left_frame_.cam_param_,
                          left_undistRectCameraMatrix_,
                          &left_keypoints_rectified);
   // TODO (actually this is compensated later on in the pipeline): This should
@@ -259,9 +302,11 @@ void StereoFrame::checkStereoFrame() const {
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO: this should be in Camera
 std::pair<KeypointsCV, std::vector<Kstatus>>
 StereoFrame::distortUnrectifyPoints(
-    const StatusKeypointsCV& keypoints_rectified, const cv::Mat map_x,
+    const StatusKeypointsCV& keypoints_rectified,
+    const cv::Mat map_x,
     const cv::Mat map_y) {
   std::vector<Kstatus> pointStatuses;
   KeypointsCV points;
@@ -280,6 +325,7 @@ StereoFrame::distortUnrectifyPoints(
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO: this should be in Camera
 void StereoFrame::undistortRectifyPoints(
     const KeypointsCV& left_keypoints_unrectified,
     const CameraParams& cam_param, const gtsam::Cal3_S2& rectCameraMatrix,
@@ -304,10 +350,10 @@ void StereoFrame::undistortRectifyPoints(
       LOG(FATAL) << "undistortRectifyPoints: versor with zero depth";
     }
 
-    double fx = rectCameraMatrix.fx();
-    double cx = rectCameraMatrix.px();
-    double fy = rectCameraMatrix.fy();
-    double cy = rectCameraMatrix.py();
+    const double& fx = rectCameraMatrix.fx();
+    const double& cx = rectCameraMatrix.px();
+    const double& fy = rectCameraMatrix.fy();
+    const double& cy = rectCameraMatrix.py();
 
     // rectified_versor = rectCameraMatrix * calibrated_versor; -> this is down
     // manually since the matrix and the versor are incompatible types (opencv
@@ -361,6 +407,7 @@ void StereoFrame::undistortRectifyPoints(
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO: this should be in StereoMatcher
 cv::Mat StereoFrame::getDisparityImage() const {
   const cv::Mat imgLeft = left_img_rectified_.clone();
   const cv::Mat imgRight = right_img_rectified_.clone();
@@ -410,6 +457,7 @@ void StereoFrame::setIsRectified(bool is_rectified) {
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO: this should be in Mesher.
 // TODO visualization has to be done in the main thread (aka calls to
 // imshow/waitKey). THIS IS NOT THREAD-SAFE
 void StereoFrame::createMesh2dStereo(
@@ -533,6 +581,7 @@ void StereoFrame::createMesh2dStereo(
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO: this should be in Mesher
 // THIS IS NOT THREAD-SAFE
 void StereoFrame::createMesh2dVIO(
     std::vector<cv::Vec6f>* triangulation_2D,
@@ -568,6 +617,7 @@ void StereoFrame::createMesh2dVIO(
 }
 
 /* -------------------------------------------------------------------------- */
+// TODO: this should be in Mesher.
 // Removes triangles in the 2d mesh that have more than "max_keypoints_with_
 // gradient" keypoints with higher gradient than "gradient_bound".
 // Input the original triangulation: original_triangulation_2D
@@ -652,43 +702,69 @@ void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
 /* -------------------------------------------------------------------------- */
 // note also computes the rectification maps
 // TODO(Toni): this should be done much earlier and only once...
-void StereoFrame::computeRectificationParameters() {
+void StereoFrame::computeRectificationParameters(
+    const gtsam::Pose3& camL_Pose_camR,
+    CameraParams* left_cam_params,  // left_frame_.cam_param_
+    CameraParams* right_cam_params,
+    gtsam::Pose3* B_Pose_camLrect,
+    double* baseline) {
+  CHECK_NOTNULL(left_cam_params);
+  CHECK_NOTNULL(right_cam_params);
+  CHECK_NOTNULL(B_Pose_camLrect);
+  CHECK_NOTNULL(baseline);
+
   // Get extrinsics in open CV format.
   cv::Mat L_Rot_R, L_Tran_R;
 
   // NOTE: openCV pose convention is the opposite, that's why we have to invert
-  boost::tie(L_Rot_R, L_Tran_R) = UtilsOpenCV::Pose2cvmats(
-      camL_Pose_camR.inverse());  // set L_Rot_R,L_Tran_R
+  boost::tie(L_Rot_R, L_Tran_R) =
+      UtilsOpenCV::Pose2cvmats(camL_Pose_camR.inverse());
 
   //////////////////////////////////////////////////////////////////////////////
   // get rectification matrices
-  CameraParams& left_camera_info = left_frame_.cam_param_;
-  CameraParams& right_camera_info = right_frame_.cam_param_;
+  CameraParams& left_camera_info = *left_cam_params;
+  CameraParams& right_camera_info = *right_cam_params;
 
-  cv::Mat P1, P2, Q;  // P1 and P2 are the new camera matrices, but with an
-                      // extra 0 0 0 column
+  // P1 and P2 are the new camera matrices, but with an extra 0 0 0 column
+  cv::Mat P1, P2, Q;
 
   if (left_camera_info.distortion_model_ == "radtan" ||
       left_camera_info.distortion_model_ == "radial-tangential") {
     // Get stereo rectification
     VLOG(10) << "Stereo camera distortion for rectification: radtan";
     cv::stereoRectify(
-        left_camera_info.camera_matrix_, left_camera_info.distortion_coeff_,
-        right_camera_info.camera_matrix_, right_camera_info.distortion_coeff_,
-        left_camera_info.image_size_, L_Rot_R, L_Tran_R,
-        // following are output
-        left_camera_info.R_rectify_, right_camera_info.R_rectify_, P1, P2, Q);
+        // Input
+        left_camera_info.camera_matrix_,
+        left_camera_info.distortion_coeff_,
+        right_camera_info.camera_matrix_,
+        right_camera_info.distortion_coeff_,
+        left_camera_info.image_size_,
+        L_Rot_R,
+        L_Tran_R,
+        // Output
+        left_camera_info.R_rectify_,
+        right_camera_info.R_rectify_,
+        P1,
+        P2,
+        Q);
   } else if (left_camera_info.distortion_model_ == "equidistant") {
     // Get stereo rectification
     VLOG(10) << "Stereo camera distortion for rectification: equidistant";
-    cv::fisheye::stereoRectify(
-        left_camera_info.camera_matrix_, left_camera_info.distortion_coeff_,
-        right_camera_info.camera_matrix_, right_camera_info.distortion_coeff_,
-        left_camera_info.image_size_, L_Rot_R, L_Tran_R,
-        // following are output
-        left_camera_info.R_rectify_, right_camera_info.R_rectify_, P1, P2, Q,
-        // TODO: Flag to maximise area???
-        cv::CALIB_ZERO_DISPARITY);
+    cv::fisheye::stereoRectify(left_camera_info.camera_matrix_,
+                               left_camera_info.distortion_coeff_,
+                               right_camera_info.camera_matrix_,
+                               right_camera_info.distortion_coeff_,
+                               left_camera_info.image_size_,
+                               L_Rot_R,
+                               L_Tran_R,
+                               // following are output
+                               left_camera_info.R_rectify_,
+                               right_camera_info.R_rectify_,
+                               P1,
+                               P2,
+                               Q,
+                               // TODO: Flag to maximise area???
+                               cv::CALIB_ZERO_DISPARITY);
   } else {
     LOG(ERROR)
         << "Stereo camera distortion model not found for stereo rectification!";
@@ -700,13 +776,14 @@ void StereoFrame::computeRectificationParameters() {
            << "right_camera_info.R_rectify_\n"
            << right_camera_info.R_rectify_;
 
-  // left camera pose after rectification
+  // Left camera pose after rectification
   gtsam::Rot3 camL_Rot_camLrect =
       UtilsOpenCV::Cvmat2rot(left_camera_info.R_rectify_).inverse();
-  gtsam::Pose3 camL_Pose_camLrect =
-      gtsam::Pose3(camL_Rot_camLrect, gtsam::Point3());
-  B_Pose_camLrect_ =
-      (left_camera_info.body_Pose_cam_).compose(camL_Pose_camLrect);
+  //! Fix camL position to camLrect.
+  //! aka use gtsam::Point3()
+  gtsam::Pose3 camL_Pose_camLrect(camL_Rot_camLrect, gtsam::Point3::Zero());
+  *B_Pose_camLrect =
+      left_camera_info.body_Pose_cam_.compose(camL_Pose_camLrect);
 
   // right camera pose after rectification
   gtsam::Rot3 camR_Rot_camRrect =
@@ -716,23 +793,11 @@ void StereoFrame::computeRectificationParameters() {
   gtsam::Pose3 B_Pose_camRrect =
       (right_camera_info.body_Pose_cam_).compose(camR_Pose_camRrect);
 
-  // relative pose after rectification
+  // Relative pose after rectification
   gtsam::Pose3 camLrect_Pose_calRrect =
-      B_Pose_camLrect_.between(B_Pose_camRrect);
+      B_Pose_camLrect->between(B_Pose_camRrect);
   // get baseline
-  baseline_ = camLrect_Pose_calRrect.translation().x();
-  // TODO remove hardcoded values.
-  // within 10% of the expected baseline
-  static constexpr double baseline_tolerance = 0.10;
-  if (baseline_ > (1.0 + baseline_tolerance) *
-                      sparse_stereo_params_.nominal_baseline_ ||
-      baseline_ < (1.0 - baseline_tolerance) *
-                      sparse_stereo_params_.nominal_baseline_) {
-    LOG(WARNING) << "getRectifiedImages: abnormal baseline: " << baseline_
-                 << ", nominalBaseline: "
-                 << sparse_stereo_params_.nominal_baseline_
-                 << "(+/-10%) \n\n\n\n";
-  }
+  *baseline = camLrect_Pose_calRrect.translation().x();
 
   // Sanity check.
   LOG_IF(FATAL,
@@ -755,19 +820,27 @@ void StereoFrame::computeRectificationParameters() {
       left_camera_info.distortion_model_ == "radial-tangential") {
     // Get rectification & undistortion maps. (radtan dist. model)
     VLOG(10) << "Left camera distortion: radtan";
-    cv::initUndistortRectifyMap(
-        left_camera_info.camera_matrix_, left_camera_info.distortion_coeff_,
-        left_camera_info.R_rectify_, P1, left_camera_info.image_size_, CV_32FC1,
-        // output:
-        left_camera_info.undistRect_map_x_, left_camera_info.undistRect_map_y_);
+    cv::initUndistortRectifyMap(left_camera_info.camera_matrix_,
+                                left_camera_info.distortion_coeff_,
+                                left_camera_info.R_rectify_,
+                                P1,
+                                left_camera_info.image_size_,
+                                CV_32FC1,
+                                // output:
+                                left_camera_info.undistRect_map_x_,
+                                left_camera_info.undistRect_map_y_);
   } else if (left_camera_info.distortion_model_ == "equidistant") {
     // Get rectification & undistortion maps. (equi dist. model)
     VLOG(10) << "Left camera distortion: equidistant";
-    cv::fisheye::initUndistortRectifyMap(
-        left_camera_info.camera_matrix_, left_camera_info.distortion_coeff_,
-        left_camera_info.R_rectify_, P1, left_camera_info.image_size_, CV_32F,
-        // output:
-        left_camera_info.undistRect_map_x_, left_camera_info.undistRect_map_y_);
+    cv::fisheye::initUndistortRectifyMap(left_camera_info.camera_matrix_,
+                                         left_camera_info.distortion_coeff_,
+                                         left_camera_info.R_rectify_,
+                                         P1,
+                                         left_camera_info.image_size_,
+                                         CV_32F,
+                                         // output:
+                                         left_camera_info.undistRect_map_x_,
+                                         left_camera_info.undistRect_map_y_);
   } else {
     LOG(ERROR) << "Camera distortion model not found for left camera!";
   }
@@ -779,20 +852,25 @@ void StereoFrame::computeRectificationParameters() {
     VLOG(10) << "Right camera distortion: radtan";
     cv::initUndistortRectifyMap(right_camera_info.camera_matrix_,
                                 right_camera_info.distortion_coeff_,
-                                right_camera_info.R_rectify_, P2,
-                                right_camera_info.image_size_, CV_32FC1,
-                                // output:
+                                right_camera_info.R_rectify_,
+                                P2,
+                                right_camera_info.image_size_,
+                                CV_32FC1,
+                                // Output:
                                 right_camera_info.undistRect_map_x_,
                                 right_camera_info.undistRect_map_y_);
   } else if (right_camera_info.distortion_model_ == "equidistant") {
     // Get rectification & undistortion maps. (equi dist. model)
     VLOG(10) << "Right camera distortion: equidistant";
-    cv::fisheye::initUndistortRectifyMap(
-        right_camera_info.camera_matrix_, right_camera_info.distortion_coeff_,
-        right_camera_info.R_rectify_, P2, right_camera_info.image_size_, CV_32F,
-        // output:
-        right_camera_info.undistRect_map_x_,
-        right_camera_info.undistRect_map_y_);
+    cv::fisheye::initUndistortRectifyMap(right_camera_info.camera_matrix_,
+                                         right_camera_info.distortion_coeff_,
+                                         right_camera_info.R_rectify_,
+                                         P2,
+                                         right_camera_info.image_size_,
+                                         CV_32F,
+                                         // Output:
+                                         right_camera_info.undistRect_map_x_,
+                                         right_camera_info.undistRect_map_y_);
   } else {
     LOG(ERROR) << "Camera distortion model not found for right camera!";
   }
@@ -802,56 +880,7 @@ void StereoFrame::computeRectificationParameters() {
   left_camera_info.P_ = P1;
   // contains an extra column to project in homogeneous coordinates
   right_camera_info.P_ = P2;
-  // this cuts the last column
-  left_undistRectCameraMatrix_ = UtilsOpenCV::Cvmat2Cal3_S2(P1);
-  // this cuts the last column
-  right_undistRectCameraMatrix_ = UtilsOpenCV::Cvmat2Cal3_S2(P2);
-  is_rectified_ = true;
   VLOG(10) << "Storing undistRect maps and other rectification parameters!";
-}
-
-/* -------------------------------------------------------------------------- */
-void StereoFrame::getRectifiedImages() {
-  if (!is_rectified_)  // if we haven't computed rectification parameters yet
-    computeRectificationParameters();
-
-  if (left_frame_.img_.rows != left_img_rectified_.rows ||
-      left_frame_.img_.cols != left_img_rectified_.cols ||
-      right_frame_.img_.rows != right_img_rectified_.rows ||
-      right_frame_.img_.cols != right_img_rectified_.cols) {
-    // if we haven't rectified images yet
-    // rectify and undistort images
-    cv::remap(left_frame_.img_, left_img_rectified_,
-              left_frame_.cam_param_.undistRect_map_x_,
-              left_frame_.cam_param_.undistRect_map_y_, cv::INTER_LINEAR);
-    cv::remap(right_frame_.img_, right_img_rectified_,
-              right_frame_.cam_param_.undistRect_map_x_,
-              right_frame_.cam_param_.undistRect_map_y_, cv::INTER_LINEAR);
-  }
-
-  // // rectification check:
-
-  //  cv::namedWindow("left_frame_img_", cv::WINDOW_NORMAL);
-  //  cv::imshow("left_frame_img_", left_frame_.img_);
-
-  //  cv::namedWindow("left_img_rectified_", cv::WINDOW_NORMAL);
-  //  cv::imshow("left_img_rectified_", left_img_rectified_);
-  //  cv::waitKey(0);
-
-  //  cv::namedWindow("right_frame_img_", cv::WINDOW_NORMAL);
-  //  cv::imshow("right_frame_img_", right_frame_.img_);
-
-  //  cv::namedWindow("right_img_rectified_", cv::WINDOW_NORMAL);
-  //  cv::imshow("right_img_rectified_", right_img_rectified_);
-  //  cv::waitKey(0);
-  VLOG(10) << "size before (left): " << left_frame_.img_.rows << " x "
-           << left_frame_.img_.cols << '\n'
-           << "size after  (left): " << left_img_rectified_.rows << " x "
-           << left_img_rectified_.cols << '\n'
-           << "size before (right): " << right_frame_.img_.rows << " x "
-           << right_frame_.img_.cols << '\n'
-           << "size after  (right): " << right_img_rectified_.rows << " x "
-           << right_img_rectified_.cols;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -917,8 +946,10 @@ void StereoFrame::getRightKeypointsLKunrectified() {
 
 /* -------------------------------------------------------------------------- */
 StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
-    const cv::Mat left_rectified, const cv::Mat right_rectified,
-    const StatusKeypointsCV& left_keypoints_rectified, const double& fx,
+    const cv::Mat left_rectified,
+    const cv::Mat right_rectified,
+    const StatusKeypointsCV& left_keypoints_rectified,
+    const double& fx,
     const double& baseline) const {
   int verbosity = 0;  // Change back to 0
   bool writeImageLeftRightMatching = false;
@@ -935,7 +966,7 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
   // dimension of the search space in right camera is defined by min depth:
   // depth = fx * b / disparity => max disparity = fx * b / minDepth;
   int stripe_cols =
-      round(fx * baseline / sparse_stereo_params_.min_point_dist_) +
+      std::round(fx * baseline / sparse_stereo_params_.min_point_dist_) +
       sparse_stereo_params_.templ_cols_ + 4;  // 4 is a tolerance
   // std::cout << "stripe_cols " << stripe_cols << " stripe_rows " <<
   // stripe_rows << " right_rectified.cols "<< right_rectified.cols
@@ -1420,7 +1451,7 @@ void StereoFrame::print() const {
             << '\n'
             << "nr keypoints_depth_: " << keypoints_depth_.size() << '\n'
             << "nr keypoints_3d_: " << keypoints_3d_.size() << '\n'
-            << "camL_Pose_camR: " << camL_Pose_camR << '\n'
+            << "camL_Pose_camR: " << camL_Pose_camR_ << '\n'
             << "left_frame_.cam_param_.body_Pose_cam_: "
             << left_frame_.cam_param_.body_Pose_cam_ << '\n'
             << "right_frame_.cam_param_.body_Pose_cam_: "

@@ -45,7 +45,8 @@ void initializeData() {}
 
 class StereoFrameFixture : public ::testing::Test {
  public:
-  StereoFrameFixture() {
+  StereoFrameFixture()
+      : cam_params_left("left_cam"), cam_params_right("right_cam") {
     cam_params_left.parseYAML(stereo_FLAGS_test_data_path + "/sensorLeft.yaml");
     cam_params_right.parseYAML(stereo_FLAGS_test_data_path +
                                "/sensorRight.yaml");
@@ -67,8 +68,7 @@ class StereoFrameFixture : public ::testing::Test {
             tp.getStereoMatchingParams().equalize_image_),
         cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
 
-    sf->computeRectificationParameters();
-    sf->getRectifiedImages();
+    CHECK(sf->isRectified());
 
     sf->left_img_rectified_.copyTo(left_image_rectified);
     sf->right_img_rectified_.copyTo(right_image_rectified);
@@ -1079,10 +1079,10 @@ TEST(testStereoFrame, undistortFisheye) {
 // TODO: Figure out why this compiles on PC, but not on Jenkins
 TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
   // Parse camera params for left and right cameras
-  static CameraParams cam_params_left_fisheye;
+  static CameraParams cam_params_left_fisheye("left_fisheye");
   cam_params_left_fisheye.parseYAML(stereo_FLAGS_test_data_path +
                                     "/left_sensor_fisheye.yaml");
-  static CameraParams cam_params_right_fisheye;
+  static CameraParams cam_params_right_fisheye("right_fisheye");
   cam_params_right_fisheye.parseYAML(stereo_FLAGS_test_data_path +
                                      "/right_sensor_fisheye.yaml");
 
@@ -1097,22 +1097,21 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
       (cam_params_left_fisheye.body_Pose_cam_)
           .between(cam_params_right_fisheye.body_Pose_cam_);
 
-  sf = std::make_shared<StereoFrame>(
-      0, 0,  // Default, not used here
-             // Left frame
-      left_fisheye_image_dist, cam_params_left_fisheye,
-      // Right frame
-      right_fisheye_image_dist, cam_params_right_fisheye,
-      // Relative pose
-      camL_pose_camR_fisheye,
-      // Default, not used here
-      StereoMatchingParams());
-
-  // Compute rectification parameters
-  sf->computeRectificationParameters();
+  sf = std::make_shared<StereoFrame>(0,
+                                     0,  // Default, not used here
+                                     // Left frame
+                                     left_fisheye_image_dist,
+                                     cam_params_left_fisheye,
+                                     // Right frame
+                                     right_fisheye_image_dist,
+                                     cam_params_right_fisheye,
+                                     // Relative pose
+                                     camL_pose_camR_fisheye,
+                                     // Default, not used here
+                                     StereoMatchingParams());
 
   // Get rectified images
-  sf->getRectifiedImages();
+  CHECK(sf->isRectified());
 
   // Define rectified images
   cv::Mat left_image_rectified, right_image_rectified;

@@ -222,11 +222,6 @@ class StereoFrame {
   void cloneRectificationParameters(const StereoFrame& sf);
 
   /* ------------------------------------------------------------------------ */
-  // Returns left and right rectified images and left and right rectified camera
-  // calibration
-  void getRectifiedImages();
-
-  /* ------------------------------------------------------------------------ */
   // For each keypoint in the left frame, get
   // (i) keypoint in right frame,
   // (ii) depth,
@@ -241,7 +236,12 @@ class StereoFrame {
 
   /* ------------------------------------------------------------------------ */
   // Compute rectification parameters.
-  void computeRectificationParameters();
+  static void computeRectificationParameters(
+      const gtsam::Pose3& camL_Pose_camR,
+      CameraParams* left_cam_params,  // left_frame_.cam_param_
+      CameraParams* right_cam_params,
+      gtsam::Pose3* B_Pose_camLrect,
+      double* baseline);
 
   // TODO the functions below are just public for testing... fix that.
   /* ------------------------------------------------------------------------ */
@@ -345,18 +345,17 @@ class StereoFrame {
   StereoMatchingParams sparse_stereo_params_;
 
   // RELATIVE POSE BEFORE RECTIFICATION
-  const gtsam::Pose3
-      camL_Pose_camR;  // relative pose between left and right camera
+  //! Relative pose between left and right camera:
+  const gtsam::Pose3 camL_Pose_camR_;
 
   // QUANTITIES AFTER RECTIFICATION
-  // Note: rectification
-  // is something that belongs to a stereo camera,
+  // Note: rectification is something that belongs to a stereo camera,
   // and that's why these are stored here!
   gtsam::Cal3_S2 left_undistRectCameraMatrix_;
   gtsam::Cal3_S2 right_undistRectCameraMatrix_;
-  gtsam::Pose3 B_Pose_camLrect_;  // pose of the left camera wrt the body frame
-                                  // - after rectification!
-  double baseline_;               // after rectification!
+  //! Pose of the left camera wrt the body frame after rectification!
+  gtsam::Pose3 B_Pose_camLrect_;
+  double baseline_;
 
  private:
   /* ------------------------------------------------------------------------ */

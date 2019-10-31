@@ -669,8 +669,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
   // Start with the simplest case:
   // Noise free, no outlier, non-planar
 
-  // Must call getRectifiedImages() to get the baseline!
-  ref_stereo_frame->getRectifiedImages();
+  CHECK(ref_stereo_frame->isRectified());
   Rot3 R = Rot3::Expmap(Vector3(0.1, 0.1, 0.1));
   Vector3 T(ref_stereo_frame->getBaseline(), 0, 0);
   Pose3 camLeftRef_pose_camLeftCur(R, T);
@@ -801,8 +800,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
   // Start with the simplest case:
   // Noise free, no outlier, non-planar
 
-  // Must call getRectifiedImages() to get the baseline!
-  ref_stereo_frame->getRectifiedImages();
+  CHECK(ref_stereo_frame->isRectified());
   Rot3 R = Rot3::Expmap(Vector3(0.1, 0.1, 0.1));
   Vector3 T(ref_stereo_frame->getBaseline(), 0, 0);
   Pose3 camLeftRef_pose_camLeftCur(R, T);
