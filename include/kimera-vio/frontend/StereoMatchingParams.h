@@ -47,8 +47,8 @@ class StereoMatchingParams {
       double min_point_dist = 0.1,
       double max_point_dist = 15.0,
       bool bidirectional_matching = false,
-      double nominal_baseline =
-          0.11,  // NOTE that this is hard coded (for EuRoC)
+      // NOTE that this is hard coded (for EuRoC)
+      double nominal_baseline = 0.11,
       bool subpixel_refinement = false,
       bool equalize_image = false,
       VisionSensorType vision_sensor_type = VisionSensorType::STEREO,

@@ -37,7 +37,8 @@ StereoFrame::StereoFrame(const FrameId& id,
       right_frame_(id, timestamp, cam_param_right, right_image),
       is_rectified_(FLAGS_images_rectified),
       is_keyframe_(false),
-      sparse_stereo_params_(stereo_matching_params) {
+      sparse_stereo_params_(stereo_matching_params),
+      baseline_(0.0) {
   // If input is rectified already
   if (is_rectified_) {
     left_img_rectified_ = left_frame_.img_;
@@ -46,12 +47,19 @@ StereoFrame::StereoFrame(const FrameId& id,
         UtilsOpenCV::Cvmat2Cal3_S2(left_frame_.cam_param_.P_);
     right_undistRectCameraMatrix_ =
         UtilsOpenCV::Cvmat2Cal3_S2(right_frame_.cam_param_.P_);
+    // TODO(Toni): remove assumption on stereo cameras being x-aligned!
+    baseline_ =
+        cam_param_left.body_Pose_cam_.between(cam_param_right.body_Pose_cam_)
+            .x();
   } else {
     // TODO(Toni): the undistRect maps should be computed once and cached!!
-    computeRectificationParameters(&left_frame_.cam_param_,
-                                   &right_frame_.cam_param_,
-                                   &B_Pose_camLrect_,
-                                   &baseline_);
+    computeRectificationParameters(
+        &left_frame_.cam_param_, &right_frame_.cam_param_, &B_Pose_camLrect_);
+    // TODO REMOVE ASSUMPTION ON x aligned stereo camera, can't we just take the
+    // norm?
+    baseline_ = left_frame_.cam_param_.body_Pose_cam_
+                    .between(right_frame_.cam_param_.body_Pose_cam_)
+                    .x();
     left_undistRectCameraMatrix_ =
         UtilsOpenCV::Cvmat2Cal3_S2(left_frame_.cam_param_.P_);
     right_undistRectCameraMatrix_ =
@@ -699,14 +707,13 @@ void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
 /* -------------------------------------------------------------------------- */
 // note also computes the rectification maps
 // TODO(Toni): this should be done much earlier and only once...
-void StereoFrame::computeRectificationParameters(CameraParams* left_cam_params,
-                                                 CameraParams* right_cam_params,
-                                                 gtsam::Pose3* B_Pose_camLrect,
-                                                 double* baseline) {
+void StereoFrame::computeRectificationParameters(
+    CameraParams* left_cam_params,
+    CameraParams* right_cam_params,
+    gtsam::Pose3* B_Pose_camLrect) {
   CHECK_NOTNULL(left_cam_params);
   CHECK_NOTNULL(right_cam_params);
   CHECK_NOTNULL(B_Pose_camLrect);
-  CHECK_NOTNULL(baseline);
 
   // Get extrinsics in open CV format.
   cv::Mat L_Rot_R, L_Tran_R;
@@ -794,8 +801,6 @@ void StereoFrame::computeRectificationParameters(CameraParams* left_cam_params,
   // Relative pose after rectification
   gtsam::Pose3 camLrect_Pose_calRrect =
       B_Pose_camLrect->between(B_Pose_camRrect);
-  // get baseline
-  *baseline = camLrect_Pose_calRrect.translation().x();
 
   // Sanity check.
   LOG_IF(FATAL,

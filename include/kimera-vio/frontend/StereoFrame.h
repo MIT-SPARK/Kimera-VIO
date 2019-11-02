@@ -141,8 +141,7 @@ class StereoFrame {
   static void computeRectificationParameters(
       CameraParams* left_cam_params,  // left_frame_.cam_param_
       CameraParams* right_cam_params,
-      gtsam::Pose3* B_Pose_camLrect,
-      double* baseline);
+      gtsam::Pose3* B_Pose_camLrect);
 
   // TODO the functions below are just public for testing... fix that.
   /* ------------------------------------------------------------------------ */
