@@ -17,6 +17,7 @@
 #include <functional>
 #include <string>
 
+#include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 
@@ -48,6 +49,9 @@ class DataProviderInterface {
 
   // Init Vio parameters.
   PipelineParams pipeline_params_;
+
+  // Stereo Camera //TODO(Toni): make this a generic sensor platform (multicamera)
+  StereoCamera::UniquePtr stereo_camera_;
 
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.

@@ -34,6 +34,7 @@
 #include "kimera-vio/datasource/DataSource.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
+#include "kimera-vio/frontend/StereoMatchingParams.h"
 
 namespace VIO {
 
