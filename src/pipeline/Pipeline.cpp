@@ -101,7 +101,8 @@ DEFINE_bool(use_lcd, false,
 
 namespace VIO {
 
-Pipeline::Pipeline(const PipelineParams& params)
+Pipeline::Pipeline(const PipelineParams& params,
+                   const StereoCamera& stereo_camera)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       vio_frontend_(nullptr),
       feature_selector_(nullptr),
@@ -139,15 +140,13 @@ Pipeline::Pipeline(const PipelineParams& params)
                                              FLAGS_log_output);
 
   // These two should be given by parameters...
-  Pose3 B_Pose_leftCam;
-  StereoCalibPtr stereo_calibration;
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
       &backend_input_queue_,
       &backend_output_queue_,
       parallel_run_,
       BackEndFactory::createBackend(backend_type_,
-                                    B_Pose_leftCam,
-                                    stereo_calibration,
+                                    stereo_camera.B_Pose_camLrect_,
+                                    stereo_camera.stereo_matching_params_,
                                     *CHECK_NOTNULL(backend_params_),
                                     FLAGS_log_output));
   vio_backend_module_->registerImuBiasUpdateCallback(

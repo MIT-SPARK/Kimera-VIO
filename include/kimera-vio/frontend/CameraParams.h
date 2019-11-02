@@ -37,8 +37,9 @@ class CameraParams {
 
   using CameraId = std::string;
 
-  CameraParams(const CameraId& cam_id) : camera_id_(cam_id){};
-  virtual ~CameraParams();
+  CameraParams(const CameraId& cam_id)
+    : camera_id_(cam_id) {}
+  virtual ~CameraParams() = default;
 
   /* ------------------------------------------------------------------------ */
   // Parse YAML file describing camera parameters.

@@ -45,7 +45,11 @@ namespace VIO {
 DataProviderInterface::DataProviderInterface(int initial_k,
                                              int final_k,
                                              const std::string& dataset_path)
-    : initial_k_(initial_k), final_k_(final_k), dataset_path_(dataset_path) {
+    : pipeline_params_(),
+      stereo_camera_(nullptr),
+      initial_k_(initial_k),
+      final_k_(final_k),
+      dataset_path_(dataset_path) {
   CHECK(final_k_ > initial_k_)
       << "Value for final_k (" << final_k_
       << ") is smaller than value for"
