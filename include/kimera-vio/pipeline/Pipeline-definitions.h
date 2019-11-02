@@ -16,8 +16,8 @@
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEndParams.h"
-#include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Camera.h"
+#include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/VioFrontEndParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"

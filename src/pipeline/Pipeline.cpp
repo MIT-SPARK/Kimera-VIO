@@ -35,16 +35,6 @@
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
 
 DEFINE_bool(log_output, false, "Log output to CSV files.");
-DEFINE_int32(regular_vio_backend_modality, 4u,
-             "Modality for regular Vio backend, currently supported:\n"
-             "0: Structureless (equivalent to normal VIO)\n"
-             "1: Projection (as if it was a typical VIO backend with projection"
-             "factors)\n"
-             "2: Structureless and Projection, sets to projection factors the "
-             "structureless factors that are supposed to be in a regularity.\n"
-             "3: Projection and Regularity, sets all structureless factors to"
-             "projection factors and adds regularity factors to a subset.\n"
-             "4: Structureless, Projection and Regularity factors used.");
 DEFINE_bool(extract_planes_from_the_scene, false,
             "Whether to use structural regularities in the scene,"
             "currently only planes.");
@@ -134,29 +124,28 @@ Pipeline::Pipeline(const PipelineParams& params)
   //! Create Stereo Camera
   CHECK_EQ(params.camera_params_.size(), 2u) << "Only stereo camera support.";
   stereo_camera_ = VIO::make_unique<StereoCamera>(
-        params.camera_params_.at(0),
-        params.camera_params_.at(1),
-        params.frontend_params_.stereo_matching_params_);
+      params.camera_params_.at(0),
+      params.camera_params_.at(1),
+      params.frontend_params_.stereo_matching_params_);
 
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.
-  vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
-        params.imu_params_,
-        gtsam::imuBias::ConstantBias(),
-        frontend_params_,
-        FLAGS_log_output);
+  vio_frontend_ =
+      VIO::make_unique<StereoVisionFrontEnd>(params.imu_params_,
+                                             gtsam::imuBias::ConstantBias(),
+                                             frontend_params_,
+                                             FLAGS_log_output);
 
   // These two should be given by parameters...
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
-        &backend_input_queue_,
-        &backend_output_queue_,
-        parallel_run_,
-        BackEndFactory::createBackend(
-          backend_type_,
-          stereo_camera_->getLeftCamPose(),
-          stereo_camera_->getStereoCalib(),
-          *CHECK_NOTNULL(backend_params_),
-          FLAGS_log_output));
+      &backend_input_queue_,
+      &backend_output_queue_,
+      parallel_run_,
+      BackEndFactory::createBackend(backend_type_,
+                                    stereo_camera_->getLeftCamPose(),
+                                    stereo_camera_->getStereoCalib(),
+                                    *CHECK_NOTNULL(backend_params_),
+                                    FLAGS_log_output));
   vio_backend_module_->registerImuBiasUpdateCallback(
       std::bind(&StereoVisionFrontEnd::updateImuBias,
                 // Send a cref: constant reference because vio_frontend_ is
@@ -354,12 +343,19 @@ void Pipeline::processKeyframe(
       CHECK(backend_type_ == BackendType::StructuralRegularities);
       mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
-      LOG_IF_EVERY_N(WARNING,
-                     backend_type_ == BackendType::StructuralRegularities &&
-                         (FLAGS_regular_vio_backend_modality == 2u ||
-                          FLAGS_regular_vio_backend_modality == 3u ||
-                          FLAGS_regular_vio_backend_modality == 4u),
-                     10)
+      RegularVioBackEndParams regular_vio_backend_params =
+          RegularVioBackEndParams::safeCast(*backend_params_);
+      LOG_IF_EVERY_N(
+          WARNING,
+          backend_type_ == BackendType::StructuralRegularities &&
+              (regular_vio_backend_params.backend_modality_ ==
+                   RegularBackendModality::STRUCTURELESS_AND_PROJECTION ||
+               regular_vio_backend_params.backend_modality_ ==
+                   RegularBackendModality::PROJECTION_AND_REGULARITY ||
+               regular_vio_backend_params.backend_modality_ ==
+                   RegularBackendModality::
+                       STRUCTURELESS_PROJECTION_AND_REGULARITY),
+          10)
           << "Using Regular VIO without extracting planes from the scene. "
              "Set flag extract_planes_from_the_scene to true to enforce "
              "regularities.";
@@ -507,12 +503,19 @@ void Pipeline::spinSequential() {
       CHECK(backend_type_ == BackendType::StructuralRegularities);
       mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
-      LOG_IF_EVERY_N(WARNING,
-                     backend_type_ == BackendType::StructuralRegularities &&
-                         (FLAGS_regular_vio_backend_modality == 2u ||
-                          FLAGS_regular_vio_backend_modality == 3u ||
-                          FLAGS_regular_vio_backend_modality == 4u),
-                     10)
+      RegularVioBackEndParams regular_vio_backend_params =
+          RegularVioBackEndParams::safeCast(*backend_params_);
+      LOG_IF_EVERY_N(
+          WARNING,
+          backend_type_ == BackendType::StructuralRegularities &&
+              (regular_vio_backend_params.backend_modality_ ==
+                   RegularBackendModality::STRUCTURELESS_AND_PROJECTION ||
+               regular_vio_backend_params.backend_modality_ ==
+                   RegularBackendModality::PROJECTION_AND_REGULARITY ||
+               regular_vio_backend_params.backend_modality_ ==
+                   RegularBackendModality::
+                       STRUCTURELESS_PROJECTION_AND_REGULARITY),
+          10)
           << "Using Regular VIO without extracting planes from the scene. "
              "Set flag extract_planes_from_the_scene to true to enforce "
              "regularities.";
@@ -735,9 +738,8 @@ bool Pipeline::initializeFromGroundTruth(
 
   // Initialize Backend using ground-truth.
   CHECK(vio_backend_module_);
-  vio_backend_module_->initializeBackend(
-        VioNavStateTimestamped(stereo_frame_lkf.getTimestamp(),
-                               initial_ground_truth_state));
+  vio_backend_module_->initializeBackend(VioNavStateTimestamped(
+      stereo_frame_lkf.getTimestamp(), initial_ground_truth_state));
 
   return true;
 }
@@ -764,9 +766,8 @@ bool Pipeline::initializeFromIMU(
 
   // Initialize Backend using IMU data.
   CHECK(vio_backend_module_);
-  vio_backend_module_->initializeBackend(
-        VioNavStateTimestamped(stereo_frame_lkf.getTimestamp(),
-                               initial_state_estimate));
+  vio_backend_module_->initializeBackend(VioNavStateTimestamped(
+      stereo_frame_lkf.getTimestamp(), initial_state_estimate));
 
   return true;
 }
@@ -906,10 +907,9 @@ bool Pipeline::initializeOnline(
                                       ImuBias(gtsam::Vector3(), gyro_bias));
         // Initialize Backend using IMU data.
         CHECK(vio_backend_module_);
-        vio_backend_module_->initializeBackend(
-              VioNavStateTimestamped(
-                frontend_output->stereo_frame_lkf_.getTimestamp(),
-                initial_state_OGA));
+        vio_backend_module_->initializeBackend(VioNavStateTimestamped(
+            frontend_output->stereo_frame_lkf_.getTimestamp(),
+            initial_state_OGA));
         LOG(INFO) << "Initialization finalized.";
 
         // TODO(Sandro): Create check-return for function

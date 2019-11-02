@@ -242,9 +242,9 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
   imu_data_.nominal_imu_rate_ = 1 / static_cast<double>(rate);
 
   imu_params->gyro_noise_ = fs["gyroscope_noise_density"];
-  imu_params->gyro_walk_  = fs["gyroscope_random_walk"];
-  imu_params->acc_noise_  = fs["accelerometer_noise_density"];
-  imu_params->acc_walk_   = fs["accelerometer_random_walk"];
+  imu_params->gyro_walk_ = fs["gyroscope_random_walk"];
+  imu_params->acc_noise_ = fs["accelerometer_noise_density"];
+  imu_params->acc_walk_ = fs["accelerometer_random_walk"];
 
   fs.release();
   return true;
@@ -470,9 +470,8 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
                           right_cam_name,
                           parse_images,
                           &pipeline_params_.camera_params_));
-  CHECK(parseImuParams(input_dataset_path,
-                       imu_name,
-                       &pipeline_params_.imu_params_));
+  CHECK(parseImuParams(
+      input_dataset_path, imu_name, &pipeline_params_.imu_params_));
 
   //! Parse Sensor data.
   parseImuData(input_dataset_path, imu_name);

@@ -40,7 +40,9 @@ TEST(testFrame, constructor) {
   FrameId id = 0;
   Timestamp tmp = 123;
   const string imgName = string(FLAGS_test_data_path) + "/chessboard.png";
-  Frame f(id, tmp, CameraParams("cam"),
+  Frame f(id,
+          tmp,
+          CameraParams("cam"),
           UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   ASSERT_EQ(f.id_, id);
   ASSERT_EQ(f.timestamp_, tmp);
@@ -53,7 +55,9 @@ TEST(testFrame, constructor) {
 
 /* ************************************************************************* */
 TEST(testFrame, ExtractCornersChessboard) {
-  Frame f(0, 0, CameraParams("cam"),
+  Frame f(0,
+          0,
+          CameraParams("cam"),
           UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
   f.extractCorners();
   int numCorners_expected = 7 * 9;

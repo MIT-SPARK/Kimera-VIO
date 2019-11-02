@@ -116,13 +116,15 @@ class LCDFixture :public ::testing::Test {
     Tracker tracker(tp);
 
     ref1_stereo_frame_ = VIO::make_unique<StereoFrame>(
-        id_ref1_, timestamp_ref1_,
+        id_ref1_,
+        timestamp_ref1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref1_left, tp.getStereoMatchingParams().equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref1_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     tracker.featureDetection(ref1_stereo_frame_->getLeftFrameMutable());
     CHECK(ref1_stereo_frame_);
@@ -130,13 +132,15 @@ class LCDFixture :public ::testing::Test {
     ref1_stereo_frame_->sparseStereoMatching();
 
     cur1_stereo_frame_ = VIO::make_unique<StereoFrame>(
-        id_cur1_, timestamp_cur1_,
+        id_cur1_,
+        timestamp_cur1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur1_left, tp.getStereoMatchingParams().equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur1_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     tracker.featureDetection(cur1_stereo_frame_->getLeftFrameMutable());
     CHECK(cur1_stereo_frame_);
@@ -144,13 +148,15 @@ class LCDFixture :public ::testing::Test {
     cur1_stereo_frame_->sparseStereoMatching();
 
     ref2_stereo_frame_ = VIO::make_unique<StereoFrame>(
-        id_ref2_, timestamp_ref2_,
+        id_ref2_,
+        timestamp_ref2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref2_left, tp.getStereoMatchingParams().equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref2_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     tracker.featureDetection(ref2_stereo_frame_->getLeftFrameMutable());
     CHECK(ref2_stereo_frame_);
@@ -158,13 +164,15 @@ class LCDFixture :public ::testing::Test {
     ref2_stereo_frame_->sparseStereoMatching();
 
     cur2_stereo_frame_ = VIO::make_unique<StereoFrame>(
-        id_cur2_, timestamp_cur2_,
+        id_cur2_,
+        timestamp_cur2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur2_left, tp.getStereoMatchingParams().equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur2_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     tracker.featureDetection(cur2_stereo_frame_->getLeftFrameMutable());
     CHECK(cur2_stereo_frame_);
@@ -227,8 +235,8 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
 
   // TODO(marcus): Don't need mutable frames!
 
-  Frame left_frame = stereo_frame.getLeftFrame();
-  Frame right_frame = stereo_frame.getRightFrame();
+  const Frame& left_frame = stereo_frame.getLeftFrame();
+  const Frame& right_frame = stereo_frame.getRightFrame();
 
   EXPECT_EQ(left_frame.keypoints_.size(), nfeatures);
   EXPECT_EQ(right_frame.keypoints_.size(), nfeatures);

@@ -328,8 +328,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
                  regular_vio_params_.backend_modality_ !=
                      RegularBackendModality::STRUCTURELESS)
               << "We are not receiving planes for the backend. If planes have "
-                 "been"
-                 "added to the optimization, we are not removing them.";
+                 "been added to the optimization, we are not removing them.";
         }
       }
       break;

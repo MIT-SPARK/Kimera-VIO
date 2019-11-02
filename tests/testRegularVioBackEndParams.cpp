@@ -33,8 +33,8 @@ TEST(testRegularVioBackEndParams, VioParseYAML) {
   EXPECT_DOUBLE_EQ(1e-05, vp.imuIntegrationSigma_);
   EXPECT_DOUBLE_EQ(1.92e-05, vp.gyroBiasSigma_);
   EXPECT_DOUBLE_EQ(0.001, vp.accBiasSigma_);
-  EXPECT_TRUE(gtsam::assert_equal(gtsam::Vector3(-10, 2, -7.81),
-                                  vp.n_gravity_));
+  EXPECT_TRUE(
+      gtsam::assert_equal(gtsam::Vector3(-10, 2, -7.81), vp.n_gravity_));
   EXPECT_DOUBLE_EQ(1e-04, vp.nominalImuRate_);
 
   // INITIALIZATION params

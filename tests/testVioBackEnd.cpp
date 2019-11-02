@@ -52,8 +52,9 @@ static const int time_step =
     1e9;  // elapsed time between two consecutive frames is 1 second (1e9 nsecs)
 static const Timestamp t_start = 1e9;  // ImuBuffer does not allow t = 0;
 static const double baseline = 0.5;
-static const gtsam::imuBias::ConstantBias imu_bias(gtsam::Vector3(0.1, -0.1, 0.3),
-                                            gtsam::Vector3(0.1, 0.3, -0.2));
+static const gtsam::imuBias::ConstantBias imu_bias(
+    gtsam::Vector3(0.1, -0.1, 0.3),
+    gtsam::Vector3(0.1, 0.3, -0.2));
 
 using StereoPoses = std::vector<std::pair<gtsam::Pose3, gtsam::Pose3>>;
 
@@ -185,17 +186,15 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   // create vio
   Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
   VioNavState initial_state = VioNavState(poses[0].first, v, imu_bias);
-  StereoCalibPtr stereo_calibration = boost::make_shared<
-      gtsam::Cal3_S2Stereo>(cam_params.fx(),
-                            cam_params.fy(),
-                            cam_params.skew(),
-                            cam_params.px(),
-                            cam_params.py(),
-                            baseline);
+  StereoCalibPtr stereo_calibration =
+      boost::make_shared<gtsam::Cal3_S2Stereo>(cam_params.fx(),
+                                               cam_params.fy(),
+                                               cam_params.skew(),
+                                               cam_params.px(),
+                                               cam_params.py(),
+                                               baseline);
   std::shared_ptr<VioBackEnd> vio = std::make_shared<VioBackEnd>(
-        B_pose_camLrect,
-        stereo_calibration,
-        vioParams, false);
+      B_pose_camLrect, stereo_calibration, vioParams, false);
   vio->initStateAndSetPriors(VioNavStateTimestamped(t_start, initial_state));
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
@@ -261,7 +260,8 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 
     for (int f_id = 0; f_id <= k; f_id++) {
       Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
-      gtsam::Vector3 W_Vel_Blkf = results.at<gtsam::Vector3>(gtsam::Symbol('v', f_id));
+      gtsam::Vector3 W_Vel_Blkf =
+          results.at<gtsam::Vector3>(gtsam::Symbol('v', f_id));
       ImuBias imu_bias_lkf = results.at<ImuBias>(gtsam::Symbol('b', f_id));
 
       EXPECT_TRUE(assert_equal(poses[f_id].first, W_Pose_Blkf, tol));
@@ -333,23 +333,22 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
       EXPECT_DOUBLE_EQ(pt_left.y(), pt_right.y());
       measurement_frame.push_back(std::make_pair(l_id, pt_lr));
     }
-    all_measurements.push_back(std::make_pair(tracker_status_valid,
-                                              measurement_frame));
+    all_measurements.push_back(
+        std::make_pair(tracker_status_valid, measurement_frame));
   }
 
   // create vio
-  Pose3 B_pose_camLrect (Rot3::identity(), gtsam::Vector3::Zero());
-  StereoCalibPtr stereo_calibration = boost::make_shared<gtsam::Cal3_S2Stereo>(
-        cam_params.fx(),
-        cam_params.fy(),
-        cam_params.skew(),
-        cam_params.px(),
-        cam_params.py(),
-        baseline);
+  Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
+  StereoCalibPtr stereo_calibration =
+      boost::make_shared<gtsam::Cal3_S2Stereo>(cam_params.fx(),
+                                               cam_params.fy(),
+                                               cam_params.skew(),
+                                               cam_params.px(),
+                                               cam_params.py(),
+                                               baseline);
   std::shared_ptr<InitializationBackEnd> vio =
-    std::make_shared<InitializationBackEnd>(B_pose_camLrect,
-                                            stereo_calibration,
-                                            vioParams);
+      std::make_shared<InitializationBackEnd>(
+          B_pose_camLrect, stereo_calibration, vioParams);
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
   imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;

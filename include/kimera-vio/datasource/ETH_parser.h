@@ -151,7 +151,8 @@ class ETHDatasetParser : public DataProviderInterface {
     return getGroundTruthState(timestamp).pose_;
   }
 
-  bool sanityCheckCameraData(const std::vector<std::string>& camera_names,
+  bool sanityCheckCameraData(
+      const std::vector<std::string>& camera_names,
       std::map<std::string, CameraImageLists>* camera_image_lists) const;
 
   // Sanity check: nr images is the same for left and right camera

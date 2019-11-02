@@ -536,7 +536,7 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   stereo_frame->left_keypoints_rectified_.reserve(keypoints.size());
   stereo_frame->right_keypoints_rectified_.reserve(keypoints.size());
 
-  stereo_frame->setIsRectified(false);
+  // stereo_frame->setIsRectified(false);
 
   // Add ORB keypoints.
   for (const cv::KeyPoint& keypoint : keypoints) {

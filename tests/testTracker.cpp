@@ -81,24 +81,28 @@ class TestTracker : public ::testing::Test {
     VioFrontEndParams tp;
 
     ref_stereo_frame = new StereoFrame(
-        id_ref, timestamp_ref,
+        id_ref,
+        timestamp_ref,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref_left, tp.getStereoMatchingParams().equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     ref_stereo_frame->sparseStereoMatching();  // only initialize rectification
 
     cur_stereo_frame = new StereoFrame(
-        id_cur, timestamp_cur,
+        id_cur,
+        timestamp_cur,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur_left, tp.getStereoMatchingParams().equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     cur_stereo_frame->sparseStereoMatching();  // only initialize rectification
   }

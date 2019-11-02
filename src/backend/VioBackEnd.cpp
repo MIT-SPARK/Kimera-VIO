@@ -132,7 +132,6 @@ VioBackEndOutputPayload::UniquePtr VioBackEnd::spinOnce(
       break;
     }
     default: {
-
       LOG(FATAL) << "Unrecognized backend state.";
       break;
     }
@@ -238,8 +237,9 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   last_kf_id_ = curr_kf_id_;
   ++curr_kf_id_;
 
-  VLOG(1) << "VIO: adding keyframe " << curr_kf_id_ << " at timestamp:"
-          << UtilsOpenCV::NsecToSec(timestamp_kf_nsec) << " (nsec).";
+  VLOG(1) << "VIO: adding keyframe " << curr_kf_id_
+          << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec)
+          << " (nsec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
@@ -947,8 +947,8 @@ void VioBackEnd::optimize(
            << ", and " << delete_slots.size() << " deleted factors.";
   Smoother::Result result;
   VLOG(10) << "Starting first update.";
-  updateSmoother(&result, new_factors_tmp, new_values_, timestamps,
-                 delete_slots);
+  updateSmoother(
+      &result, new_factors_tmp, new_values_, timestamps, delete_slots);
   VLOG(10) << "Finished first update.";
 
   // Store time after iSAM update.

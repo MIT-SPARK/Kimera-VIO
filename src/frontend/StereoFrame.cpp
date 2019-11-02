@@ -699,11 +699,10 @@ void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
 /* -------------------------------------------------------------------------- */
 // note also computes the rectification maps
 // TODO(Toni): this should be done much earlier and only once...
-void StereoFrame::computeRectificationParameters(
-    CameraParams* left_cam_params,
-    CameraParams* right_cam_params,
-    gtsam::Pose3* B_Pose_camLrect,
-    double* baseline) {
+void StereoFrame::computeRectificationParameters(CameraParams* left_cam_params,
+                                                 CameraParams* right_cam_params,
+                                                 gtsam::Pose3* B_Pose_camLrect,
+                                                 double* baseline) {
   CHECK_NOTNULL(left_cam_params);
   CHECK_NOTNULL(right_cam_params);
   CHECK_NOTNULL(B_Pose_camLrect);
@@ -714,7 +713,7 @@ void StereoFrame::computeRectificationParameters(
 
   //! Extrinsics of the stereo (not rectified) relative pose between cameras
   gtsam::Pose3 camL_Pose_camR = (left_cam_params->body_Pose_cam_)
-      .between(right_cam_params->body_Pose_cam_);
+                                    .between(right_cam_params->body_Pose_cam_);
   // NOTE: openCV pose convention is the opposite, that's why we have to invert
   boost::tie(L_Rot_R, L_Tran_R) =
       UtilsOpenCV::Pose2cvmats(camL_Pose_camR.inverse());

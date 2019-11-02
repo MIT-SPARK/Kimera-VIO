@@ -76,7 +76,7 @@ void setIsam2Params(const VioBackEndParams& vio_params,
   // isam_param->cacheLinearizedFactors = true;
   // isam_param->enableDetailedResults = true;   // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
-  isam_param->print("isam_param");
+  // isam_param->print("isam_param");
   // isam_param.evaluateNonlinearError = true;  // only for debugging.
 }
 
@@ -427,16 +427,16 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
                       gtsam::FastVector<gtsam::FactorIndex>());
     }
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
-    std::cout << e.what();
+    LOG(ERROR) << e.what();
 
     const gtsam::Key& var = e.nearbyVariable();
     gtsam::Symbol symb(var);
 
-    std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
-              << "and index " << symb.index() << std::endl;
+    LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
+               << "and index " << symb.index();
 
     smoother.getFactors().print("Smoother's factors:\n[\n\t");
-    std::cout << " ]" << std::endl;
+    LOG(ERROR) << " ]";
 
     throw;
   }
@@ -500,16 +500,16 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
                       gtsam::FastVector<gtsam::FactorIndex>());
     }
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
-    std::cout << e.what();
+    LOG(ERROR) << e.what();
 
     const gtsam::Key& var = e.nearbyVariable();
     gtsam::Symbol symb(var);
 
-    std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
-              << "and index " << symb.index() << std::endl;
+    LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
+               << "and index " << symb.index();
 
     smoother.getFactors().print("Smoother's factors:\n[\n\t");
-    std::cout << " ]" << std::endl;
+    LOG(ERROR) << " ]";
 
     throw;
   }

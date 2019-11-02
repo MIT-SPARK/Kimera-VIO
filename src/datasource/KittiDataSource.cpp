@@ -305,7 +305,7 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
 
   for (const std::string& cam_name : camera_names) {
     LOG(INFO) << "reading camera: " << cam_name;
-    CameraParams cam_info_i (cam_name);
+    CameraParams cam_info_i(cam_name);
     cam_info_i.parseKITTICalib(input_dataset_path + "/../calib_cam_to_cam.txt",
                                R_cam2body, T_cam2body, cam_name);
     pipeline_params_.camera_params_.push_back(cam_info_i);

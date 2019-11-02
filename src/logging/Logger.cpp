@@ -132,22 +132,22 @@ void BackendLogger::logBackendResultsCSV(
   const auto& imu_bias_gyro = cached_state.imu_bias_.gyroscope().transpose();
   const auto& imu_bias_acc = cached_state.imu_bias_.accelerometer().transpose();
   output_stream << cached_state.timestamp_ << ","  //
-                << w_pose_blkf_trans.x() << ","     //
-                << w_pose_blkf_trans.y() << ","     //
-                << w_pose_blkf_trans.z() << ","     //
-                << w_pose_blkf_rot(1) << ","        // q_x
-                << w_pose_blkf_rot(2) << ","        // q_y
-                << w_pose_blkf_rot(3) << ","        // q_z
-                << w_pose_blkf_rot(0) << ","        // q_w
-                << w_vel_blkf(0) << ","             //
-                << w_vel_blkf(1) << ","             //
-                << w_vel_blkf(2) << ","             //
-                << imu_bias_gyro(0) << ","          //
-                << imu_bias_gyro(1) << ","          //
-                << imu_bias_gyro(2) << ","          //
-                << imu_bias_acc(0) << ","           //
-                << imu_bias_acc(1) << ","           //
-                << imu_bias_acc(2)                  //
+                << w_pose_blkf_trans.x() << ","    //
+                << w_pose_blkf_trans.y() << ","    //
+                << w_pose_blkf_trans.z() << ","    //
+                << w_pose_blkf_rot(1) << ","       // q_x
+                << w_pose_blkf_rot(2) << ","       // q_y
+                << w_pose_blkf_rot(3) << ","       // q_z
+                << w_pose_blkf_rot(0) << ","       // q_w
+                << w_vel_blkf(0) << ","            //
+                << w_vel_blkf(1) << ","            //
+                << w_vel_blkf(2) << ","            //
+                << imu_bias_gyro(0) << ","         //
+                << imu_bias_gyro(1) << ","         //
+                << imu_bias_gyro(2) << ","         //
+                << imu_bias_acc(0) << ","          //
+                << imu_bias_acc(1) << ","          //
+                << imu_bias_acc(2)                 //
                 << std::endl;
 }
 
@@ -167,9 +167,8 @@ void BackendLogger::logSmartFactorsStats(
     is_header_written = true;
   }
 
-  output_stream << output.cur_kf_id_ << ","
-                << output.W_State_Blkf_.timestamp_ << ","
-                << output.debug_info_.numSF_ << ","
+  output_stream << output.cur_kf_id_ << "," << output.W_State_Blkf_.timestamp_
+                << "," << output.debug_info_.numSF_ << ","
                 << output.debug_info_.numValid_ << ","
                 << output.debug_info_.numDegenerate_ << ","
                 << output.debug_info_.numFarPoints_ << ","
@@ -181,8 +180,7 @@ void BackendLogger::logSmartFactorsStats(
                 << output.debug_info_.meanTrackLength_ << ","
                 << output.debug_info_.maxTrackLength_ << ","
                 << output.debug_info_.nrElementsInMatrix_ << ","
-                << output.debug_info_.nrZeroElementsInMatrix_
-                << std::endl;
+                << output.debug_info_.nrZeroElementsInMatrix_ << std::endl;
 }
 
 void BackendLogger::logBackendPimNavstates(
@@ -202,18 +200,11 @@ void BackendLogger::logBackendPimNavstates(
   const gtsam::Quaternion& quaternion = pose.rotation().toQuaternion();
   const gtsam::Velocity3& velocity = output.debug_info_.navstate_k_.velocity();
 
-  output_stream << output.W_State_Blkf_.timestamp_ << ","
-                << position.x() << ","
-                << position.y() << ","
-                << position.z() << ","
-                << quaternion.w() << ","
-                << quaternion.x() << ","
-                << quaternion.y() << ","
-                << quaternion.z() << ","
-                << velocity.x() << ","
-                << velocity.y() << ","
-                << velocity.z()
-                << std::endl;
+  output_stream << output.W_State_Blkf_.timestamp_ << "," << position.x() << ","
+                << position.y() << "," << position.z() << "," << quaternion.w()
+                << "," << quaternion.x() << "," << quaternion.y() << ","
+                << quaternion.z() << "," << velocity.x() << "," << velocity.y()
+                << "," << velocity.z() << std::endl;
 }
 
 void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {

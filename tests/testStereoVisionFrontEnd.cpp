@@ -76,22 +76,26 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     VioFrontEndParams tp;
 
     ref_stereo_frame = std::make_shared<StereoFrame>(
-        id_ref, timestamp_ref,
+        id_ref,
+        timestamp_ref,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref_left, tp.getStereoMatchingParams().equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     cur_stereo_frame = std::make_shared<StereoFrame>(
-        id_cur, timestamp_cur,
+        id_cur,
+        timestamp_cur,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur_left, tp.getStereoMatchingParams().equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     // Imu Params
     imu_params_.acc_walk_ = 1;
@@ -444,13 +448,15 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
   p.quality_level_ = 0.1;
 
   StereoFrame first_stereo_frame(
-      0, 0,
+      0,
+      0,
       UtilsOpenCV::ReadAndConvertToGrayScale(
           img_name_left, p.getStereoMatchingParams().equalize_image_),
       cam_params_left,
       UtilsOpenCV::ReadAndConvertToGrayScale(
           img_name_right, p.getStereoMatchingParams().equalize_image_),
-      cam_params_right, p.getStereoMatchingParams());
+      cam_params_right,
+      p.getStereoMatchingParams());
 
   first_stereo_frame.getLeftFrameMutable()->cam_param_.body_Pose_cam_ = Pose3(
       first_stereo_frame.getLeftFrame().cam_param_.body_Pose_cam_.rotation(),

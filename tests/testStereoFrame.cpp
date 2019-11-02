@@ -54,7 +54,8 @@ class StereoFrameFixture : public ::testing::Test {
     // construct stereo camera
     VioFrontEndParams tp;  // only to get default stereo matching params
     sf = std::make_shared<StereoFrame>(
-        id, timestamp,
+        id,
+        timestamp,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + left_image_name,
             tp.getStereoMatchingParams().equalize_image_),
@@ -62,7 +63,8 @@ class StereoFrameFixture : public ::testing::Test {
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + right_image_name,
             tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     CHECK(sf->isRectified());
 
@@ -87,7 +89,8 @@ class StereoFrameFixture : public ::testing::Test {
     // construct stereo camera
     VioFrontEndParams tp;
     sfnew = std::make_shared<StereoFrame>(
-        id, timestamp,
+        id,
+        timestamp,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + left_image_name,
             tp.getStereoMatchingParams().equalize_image_),
@@ -95,7 +98,8 @@ class StereoFrameFixture : public ::testing::Test {
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + right_image_name,
             tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, tp.getStereoMatchingParams());
+        cam_params_right,
+        tp.getStereoMatchingParams());
 
     sfnew->getLeftFrameMutable()->extractCorners();
     sfnew->getLeftFrameMutable()->versors_.reserve(
@@ -182,8 +186,11 @@ TEST_F(StereoFrameFixture, rectification) {
 
   // Verify the quality of the rectification!
   // Baseline
-  double baseline_expect = left_camera_info.body_Pose_cam_.between(
-        right_camera_info.body_Pose_cam_).translation().vector().norm();
+  double baseline_expect =
+      left_camera_info.body_Pose_cam_.between(right_camera_info.body_Pose_cam_)
+          .translation()
+          .vector()
+          .norm();
   // Make sure that it is compatible with the baseline used in the test data
   EXPECT_TRUE(baseline_expect >= 0.10 && baseline_expect <= 0.12);
   EXPECT_DOUBLE_EQ(baseline_expect, sf->getBaseline());
@@ -212,16 +219,18 @@ TEST_F(StereoFrameFixture, rectification) {
 TEST_F(StereoFrameFixture, cloneRectificationParameters) {
   // construct stereo camera
   VioFrontEndParams tp;
-  StereoFrame* sf2 = new StereoFrame(
-      id, timestamp,
-      UtilsOpenCV::ReadAndConvertToGrayScale(
-          stereo_FLAGS_test_data_path + left_image_name,
-          tp.getStereoMatchingParams().equalize_image_),
-      cam_params_left,
-      UtilsOpenCV::ReadAndConvertToGrayScale(
-          stereo_FLAGS_test_data_path + right_image_name,
-          tp.getStereoMatchingParams().equalize_image_),
-      cam_params_right, tp.getStereoMatchingParams());
+  StereoFrame* sf2 =
+      new StereoFrame(id,
+                      timestamp,
+                      UtilsOpenCV::ReadAndConvertToGrayScale(
+                          stereo_FLAGS_test_data_path + left_image_name,
+                          tp.getStereoMatchingParams().equalize_image_),
+                      cam_params_left,
+                      UtilsOpenCV::ReadAndConvertToGrayScale(
+                          stereo_FLAGS_test_data_path + right_image_name,
+                          tp.getStereoMatchingParams().equalize_image_),
+                      cam_params_right,
+                      tp.getStereoMatchingParams());
   // clone
   sf2->cloneRectificationParameters(*sf);
   // make sure everything was copied correctly

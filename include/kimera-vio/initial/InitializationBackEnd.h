@@ -35,9 +35,9 @@ class InitializationBackEnd : public VioBackEnd {
       InitializationQueue;
   /* ------------------------------------------------------------------------ */
   // Create and initialize InitializationBackEnd, without initiaing pose.
-  InitializationBackEnd(const gtsam::Pose3 &B_Pose_leftCam,
+  InitializationBackEnd(const gtsam::Pose3& B_Pose_leftCam,
                         const StereoCalibPtr& stereo_calibration,
-                        const VioBackEndParams &backend_params,
+                        const VioBackEndParams& backend_params,
                         const bool log_output = false);
 
   /* ------------------------------------------------------------------------ */

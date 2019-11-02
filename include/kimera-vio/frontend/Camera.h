@@ -82,16 +82,16 @@ class StereoCamera {
 
     //! Create stereo camera calibration after rectification and undistortion.
     stereo_calibration_ = boost::make_shared<gtsam::Cal3_S2Stereo>(
-          left_undist_rect_cam_mat.fx(),
-          left_undist_rect_cam_mat.fy(),
-          left_undist_rect_cam_mat.skew(),
-          left_undist_rect_cam_mat.px(),
-          left_undist_rect_cam_mat.py(),
-          baseline_);
+        left_undist_rect_cam_mat.fx(),
+        left_undist_rect_cam_mat.fy(),
+        left_undist_rect_cam_mat.skew(),
+        left_undist_rect_cam_mat.px(),
+        left_undist_rect_cam_mat.py(),
+        baseline_);
 
     //! Create stereo camera implementation
-    stereo_camera_impl_ = gtsam::StereoCamera(B_Pose_camLrect_,
-                                              stereo_calibration_);
+    stereo_camera_impl_ =
+        gtsam::StereoCamera(B_Pose_camLrect_, stereo_calibration_);
     CHECK_GT(baseline_, 0);
   }
   virtual ~StereoCamera() = default;
@@ -110,9 +110,7 @@ class StereoCamera {
    * @brief getLeftCamPose
    * @return left cam pose after rectification wrt body frame of reference.
    */
-  gtsam::Pose3 getLeftCamPose() const {
-    return B_Pose_camLrect_;
-  }
+  gtsam::Pose3 getLeftCamPose() const { return B_Pose_camLrect_; }
 
   void rectifyUndistortStereoFrame(
       StereoFrame* stereo_frame,
@@ -180,7 +178,7 @@ class StereoCamera {
 
     //! Extrinsics of the stereo (not rectified) relative pose between cameras
     gtsam::Pose3 camL_Pose_camR = (left_cam_params.body_Pose_cam_)
-        .between(right_cam_params.body_Pose_cam_);
+                                      .between(right_cam_params.body_Pose_cam_);
     // NOTE: openCV pose convention is the opposite, that's why we have to
     // invert
     boost::tie(L_Rot_R, L_Tran_R) =
