@@ -51,10 +51,6 @@ class StereoFrameFixture : public ::testing::Test {
     cam_params_right.parseYAML(stereo_FLAGS_test_data_path +
                                "/sensorRight.yaml");
 
-    // Relative pose before rectification
-    camL_Pose_camR =
-        cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
-
     // construct stereo camera
     VioFrontEndParams tp;  // only to get default stereo matching params
     sf = std::make_shared<StereoFrame>(
@@ -66,7 +62,7 @@ class StereoFrameFixture : public ::testing::Test {
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + right_image_name,
             tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     CHECK(sf->isRectified());
 
@@ -88,10 +84,6 @@ class StereoFrameFixture : public ::testing::Test {
     cam_params_right.parseYAML(stereo_FLAGS_test_data_path +
                                "/sensorRight.yaml");
 
-    // Relative pose before rectification
-    camL_Pose_camR =
-        cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
-
     // construct stereo camera
     VioFrontEndParams tp;
     sfnew = std::make_shared<StereoFrame>(
@@ -103,7 +95,7 @@ class StereoFrameFixture : public ::testing::Test {
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + right_image_name,
             tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     sfnew->getLeftFrameMutable()->extractCorners();
     sfnew->getLeftFrameMutable()->versors_.reserve(
@@ -126,7 +118,6 @@ class StereoFrameFixture : public ::testing::Test {
 
   CameraParams cam_params_left;
   CameraParams cam_params_right;
-  Pose3 camL_Pose_camR;
   std::shared_ptr<StereoFrame> sf;
   std::shared_ptr<StereoFrame> sfnew;
   cv::Mat left_image_rectified, right_image_rectified;
@@ -191,7 +182,8 @@ TEST_F(StereoFrameFixture, rectification) {
 
   // Verify the quality of the rectification!
   // Baseline
-  double baseline_expect = camL_Pose_camR.translation().vector().norm();
+  double baseline_expect = left_camera_info.body_Pose_cam_.between(
+        right_camera_info.body_Pose_cam_).translation().vector().norm();
   // Make sure that it is compatible with the baseline used in the test data
   EXPECT_TRUE(baseline_expect >= 0.10 && baseline_expect <= 0.12);
   EXPECT_DOUBLE_EQ(baseline_expect, sf->getBaseline());
@@ -229,7 +221,7 @@ TEST_F(StereoFrameFixture, cloneRectificationParameters) {
       UtilsOpenCV::ReadAndConvertToGrayScale(
           stereo_FLAGS_test_data_path + right_image_name,
           tp.getStereoMatchingParams().equalize_image_),
-      cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+      cam_params_right, tp.getStereoMatchingParams());
   // clone
   sf2->cloneRectificationParameters(*sf);
   // make sure everything was copied correctly
@@ -1092,11 +1084,6 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
   cv::Mat right_fisheye_image_dist = UtilsOpenCV::ReadAndConvertToGrayScale(
       stereo_FLAGS_test_data_path + "right_fisheye_img_0.png", false);
 
-  // Get relative pose of cameras
-  gtsam::Pose3 camL_pose_camR_fisheye =
-      (cam_params_left_fisheye.body_Pose_cam_)
-          .between(cam_params_right_fisheye.body_Pose_cam_);
-
   sf = std::make_shared<StereoFrame>(0,
                                      0,  // Default, not used here
                                      // Left frame
@@ -1106,7 +1093,6 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
                                      right_fisheye_image_dist,
                                      cam_params_right_fisheye,
                                      // Relative pose
-                                     camL_pose_camR_fisheye,
                                      // Default, not used here
                                      StereoMatchingParams());
 

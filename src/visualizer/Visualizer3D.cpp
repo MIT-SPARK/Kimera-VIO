@@ -113,8 +113,8 @@ ImageToDisplay::ImageToDisplay(const std::string& name, const cv::Mat& image)
 /* -------------------------------------------------------------------------- */
 Visualizer3D::Visualizer3D(InputQueue* input_queue,
                            OutputQueue* output_queue,
-                           VisualizationType viz_type,
-                           int backend_type,
+                           const VisualizationType& viz_type,
+                           const BackendType& backend_type,
                            const DisplayCallback& display_callback,
                            bool parallel_run)
     : PipelineModule<VisualizerInputPayload, VisualizerOutputPayload>(
@@ -262,7 +262,8 @@ VisualizerOutputPayload::UniquePtr Visualizer3D::spinOnce(
         }
       }
 
-      if (backend_type_ == 1 && FLAGS_visualize_plane_constraints) {
+      if (backend_type_ == BackendType::StructuralRegularities &&
+          FLAGS_visualize_plane_constraints) {
         LandmarkIds lmk_ids_in_current_pp_factors;
         for (const auto& g : input.graph_) {
           const auto& ppf =

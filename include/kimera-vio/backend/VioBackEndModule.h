@@ -57,6 +57,10 @@ class VioBackEndModule
   };
 
  public:
+  void initializeBackend(const VioNavStateTimestamped& initial_seed) {
+    vio_backend_->initStateAndSetPriors(initial_seed);
+  }
+
   void registerImuBiasUpdateCallback(
       const VioBackEnd::ImuBiasCallback& imu_bias_update_callback) {
     CHECK(vio_backend_);
@@ -64,7 +68,7 @@ class VioBackEndModule
   }
 
  public:
-  // TODO(TONI): REMOVE CALLS BELOW !!!!!
+  // TODO(TONI): REMOVE CALLS BELOW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   // Get valid 3D points and corresponding lmk id.
   // Warning! it modifies old_smart_factors_!!
   PointsWithIdMap getMapLmkIdsTo3dPointsInTimeHorizon(

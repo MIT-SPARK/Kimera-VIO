@@ -105,8 +105,8 @@ class Visualizer3D
    */
   Visualizer3D(InputQueue* input_queue,
                OutputQueue* output_queue,
-               VisualizationType viz_type,
-               int backend_type,
+               const VisualizationType& viz_type,
+               const BackendType& backend_type,
                const DisplayCallback& display_callback,
                bool parallel_run);
   ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; };
@@ -375,7 +375,7 @@ class Visualizer3D
  private:
   // Flags for visualization behaviour.
   const VisualizationType visualization_type_;
-  const int backend_type_;
+  const BackendType backend_type_;
 
   // Callbacks.
   // Mesh 3d visualization properties setter callback.

@@ -53,7 +53,6 @@
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/logging/Logger.h"
-#include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/UtilsGTSAM.h"
@@ -177,8 +176,8 @@ class VioBackEnd {
 
  protected:
   enum class BackendState {
-    Bootstrap = 0,  //! Initialize backend
-    Nominal = 1     //! Run backend
+    Bootstrap = 0u,  //! Initialize backend
+    Nominal = 1u     //! Run backend
   };
   BackendState backend_state_;
 

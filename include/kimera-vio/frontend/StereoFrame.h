@@ -37,6 +37,7 @@
 
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame-definitions.h"
+#include "kimera-vio/frontend/StereoMatchingParams.h"
 #include "kimera-vio/utils/UtilsGeometry.h"
 
 namespace VIO {
@@ -49,7 +50,6 @@ class StereoFrame {
               const CameraParams& cam_param_left,
               const cv::Mat& right_image,
               const CameraParams& cam_param_right,
-              const gtsam::Pose3& L_Pose_R,
               const StereoMatchingParams& stereo_matching_params);
 
  public:
@@ -139,7 +139,6 @@ class StereoFrame {
   /* ------------------------------------------------------------------------ */
   // Compute rectification parameters.
   static void computeRectificationParameters(
-      const gtsam::Pose3& camL_Pose_camR,
       CameraParams* left_cam_params,  // left_frame_.cam_param_
       CameraParams* right_cam_params,
       gtsam::Pose3* B_Pose_camLrect,
@@ -246,10 +245,7 @@ class StereoFrame {
 
   StereoMatchingParams sparse_stereo_params_;
 
-  // RELATIVE POSE BEFORE RECTIFICATION
-  //! Relative pose between left and right camera:
-  const gtsam::Pose3 camL_Pose_camR_;
-
+  // TODO(TONI): all of this should be in StereoCamera!!
   // QUANTITIES AFTER RECTIFICATION
   // Note: rectification is something that belongs to a stereo camera,
   // and that's why these are stored here!

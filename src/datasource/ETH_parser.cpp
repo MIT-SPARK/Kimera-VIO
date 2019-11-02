@@ -81,16 +81,15 @@ bool ETHDatasetParser::spin() {
   const StereoMatchingParams& stereo_matching_params =
       pipeline_params_.frontend_params_.getStereoMatchingParams();
   const bool& equalize_image = stereo_matching_params.equalize_image_;
-  const CameraParams& left_cam_info = getLeftCamInfo();
-  const CameraParams& right_cam_info = getRightCamInfo();
-  const gtsam::Pose3& camL_pose_camR = getCamLPoseCamR();
+  CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
+  const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
+  const CameraParams& right_cam_info = pipeline_params_.camera_params_.at(1);
   for (FrameId k = initial_k_; k < final_k_; k++) {
     spinOnce(k,
              stereo_matching_params,
              equalize_image,
              left_cam_info,
              right_cam_info,
-             camL_pose_camR,
              &timestamp_last_frame);
   }
   return true;
@@ -102,7 +101,6 @@ void ETHDatasetParser::spinOnce(
     const bool equalize_image,
     const CameraParams& left_cam_info,
     const CameraParams& right_cam_info,
-    const gtsam::Pose3& camL_pose_camR,
     Timestamp* timestamp_last_frame) {
   CHECK_NOTNULL(timestamp_last_frame);
   Timestamp timestamp_frame_k = timestampAtFrame(k);
@@ -145,7 +143,6 @@ void ETHDatasetParser::spinOnce(
                   UtilsOpenCV::ReadAndConvertToGrayScale(getRightImgName(k),
                                                          equalize_image),
                   right_cam_info,
-                  camL_pose_camR,
                   stereo_matching_params),
       imu_meas.timestamps_,
       imu_meas.measurements_));
@@ -215,11 +212,13 @@ void ETHDatasetParser::parse() {
 
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
-                                      const std::string& imu_name) {
+                                      const std::string& imu_name,
+                                      ImuParams* imu_params) {
+  CHECK_NOTNULL(imu_params);
+
   std::string filename_sensor =
       input_dataset_path + "/mav0/" + imu_name + "/sensor.yaml";
-  // parse sensor parameters
-  // make sure that each YAML file has %YAML:1.0 as first line
+
   cv::FileStorage fs;
   UtilsOpenCV::safeOpenCVFileStorage(&fs, filename_sensor);
 
@@ -242,10 +241,10 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
   CHECK_GT(rate, 0u);
   imu_data_.nominal_imu_rate_ = 1 / static_cast<double>(rate);
 
-  pipeline_params_.imu_params_.gyro_noise_ = fs["gyroscope_noise_density"];
-  pipeline_params_.imu_params_.gyro_walk_  = fs["gyroscope_random_walk"];
-  pipeline_params_.imu_params_.acc_noise_  = fs["accelerometer_noise_density"];
-  pipeline_params_.imu_params_.acc_walk_   = fs["accelerometer_random_walk"];
+  imu_params->gyro_noise_ = fs["gyroscope_noise_density"];
+  imu_params->gyro_walk_  = fs["gyroscope_random_walk"];
+  imu_params->acc_noise_  = fs["accelerometer_noise_density"];
+  imu_params->acc_walk_   = fs["accelerometer_random_walk"];
 
   fs.release();
   return true;
@@ -465,12 +464,17 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
                                     const std::string& imu_name,
                                     const std::string& gt_sensor_name,
                                     bool parse_images) {
-  parseCameraParams(input_dataset_path,
-                    left_cam_name,
-                    right_cam_name,
-                    parse_images,
-                    &pipeline_params_.camera_params_);
-  CHECK(parseImuParams(input_dataset_path, imu_name));
+  //! Parse Sensor parameters
+  CHECK(parseCameraParams(input_dataset_path,
+                          left_cam_name,
+                          right_cam_name,
+                          parse_images,
+                          &pipeline_params_.camera_params_));
+  CHECK(parseImuParams(input_dataset_path,
+                       imu_name,
+                       &pipeline_params_.imu_params_));
+
+  //! Parse Sensor data.
   parseImuData(input_dataset_path, imu_name);
   is_gt_available_ = parseGTdata(input_dataset_path, gt_sensor_name);
 
@@ -495,7 +499,7 @@ bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
 bool ETHDatasetParser::parseCameraParams(const std::string& input_dataset_path,
                                          const std::string& left_cam_name,
                                          const std::string& right_cam_name,
-                                         const bool parse_imgs,
+                                         bool parse_imgs,
                                          MultiCameraParams* multi_cam_params) {
   CHECK_NOTNULL(multi_cam_params)->clear();
 
@@ -505,14 +509,12 @@ bool ETHDatasetParser::parseCameraParams(const std::string& input_dataset_path,
   camera_names_[1] = right_cam_name;
 
   // Read camera info and list of images.
-  camera_info_.clear();
   camera_image_lists_.clear();
   for (const std::string& cam_name : camera_names_) {
-    LOG(INFO) << "reading camera: " << cam_name;
-    CameraParams cam_info_i("left_cam");
+    LOG(INFO) << "Reading camera: " << cam_name;
+    CameraParams cam_info_i(cam_name);
     cam_info_i.parseYAML(input_dataset_path + "/mav0/" + cam_name +
                          "/sensor.yaml");
-    camera_info_[cam_name] = cam_info_i;
     multi_cam_params->push_back(cam_info_i);
 
     CameraImageLists cam_list_i;
@@ -523,27 +525,18 @@ bool ETHDatasetParser::parseCameraParams(const std::string& input_dataset_path,
     camera_image_lists_[cam_name] = cam_list_i;
   }
 
-  CHECK(
-      sanityCheckCameraData(camera_names_, camera_info_, &camera_image_lists_));
+  CHECK(sanityCheckCameraData(camera_names_, &camera_image_lists_));
 
-  // Set extrinsic for the stereo.
-  const CameraParams& left_camera_info  = camera_info_.at(camera_names_.at(0));
-  const CameraParams& right_camera_info = camera_info_.at(camera_names_.at(1));
-
-  // Extrinsics of the stereo (not rectified)
-  // relative pose between cameras
-  camL_Pose_camR_ = (left_camera_info.body_Pose_cam_)
-                        .between(right_camera_info.body_Pose_cam_);
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::sanityCheckCameraData(
     const std::vector<std::string>& camera_names,
-    const std::map<std::string, CameraParams>& camera_info,
     std::map<std::string, CameraImageLists>* camera_image_lists) const {
   CHECK_NOTNULL(camera_image_lists);
-  const auto& left_cam_info = camera_info.at(camera_names.at(0));
+  CHECK_GT(pipeline_params_.camera_params_.size(), 0u);
+  const auto& left_cam_info = pipeline_params_.camera_params_.at(0);
   auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists_;
   auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists_;
   return sanityCheckCamSize(&left_img_lists, &right_img_lists) &&
@@ -724,24 +717,6 @@ const InitializationPerformance ETHDatasetParser::getInitializationPerformance(
 }
 
 /* -------------------------------------------------------------------------- */
-std::pair<double, double> ETHDatasetParser::computePoseErrors(
-    const gtsam::Pose3& lkf_T_k_body, const bool isTrackingValid,
-    const Timestamp& previousTimestamp, const Timestamp& currentTimestamp,
-    const bool upToScale) const {
-  double relativeRotError = -1.0;
-  double relativeTranError = -1.0;
-  if (isTrackingValid && isGroundTruthAvailable(previousTimestamp)) {
-    gtsam::Pose3 lkf_T_k_gt =
-        getGroundTruthRelativePose(previousTimestamp, currentTimestamp);
-    // Compute errors.
-    std::tie(relativeRotError, relativeTranError) =
-        UtilsOpenCV::ComputeRotationAndTranslationErrors(
-            lkf_T_k_gt, lkf_T_k_body, upToScale);
-  }
-  return std::make_pair(relativeRotError, relativeTranError);
-}
-
-/* -------------------------------------------------------------------------- */
 Timestamp ETHDatasetParser::timestampAtFrame(const FrameId& frame_number) {
   DCHECK_LT(frame_number,
             camera_image_lists_[camera_names_[0]].img_lists_.size());
@@ -754,14 +729,13 @@ void ETHDatasetParser::print() const {
             << "------------------ ETHDatasetParser::print ------------------\n"
             << "-------------------------------------------------------------\n"
             << "Displaying info for dataset: " << dataset_path_;
-  if (FLAGS_minloglevel < 1)
-    camL_Pose_camR_.print("camL_Pose_calR \n");
   // For each of the 2 cameras.
+  CHECK_EQ(pipeline_params_.camera_params_.size(), camera_names_.size());
   for (size_t i = 0; i < camera_names_.size(); i++) {
     LOG(INFO) << "\n"
               << (i == 0 ? "Left" : "Right")
               << " camera name: " << camera_names_[i] << ", with params:\n";
-    camera_info_.at(camera_names_[i]).print();
+    pipeline_params_.camera_params_.at(i).print();
     camera_image_lists_.at(camera_names_[i]).print();
   }
   if (FLAGS_minloglevel < 1) {

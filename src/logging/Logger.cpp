@@ -125,14 +125,13 @@ void BackendLogger::logBackendResultsCSV(
   }
   // TODO(marcus): everything on EVO and evaluation needs to change for the new
   // qw before qx paradigm!
-  const auto& w_pose_blkf_trans =
-      vio_output.W_Pose_Blkf_.translation().transpose();
-  const auto& w_pose_blkf_rot = vio_output.W_Pose_Blkf_.rotation().quaternion();
-  const auto& w_vel_blkf = vio_output.W_Vel_Blkf_.transpose();
-  const auto& imu_bias_gyro = vio_output.imu_bias_lkf_.gyroscope().transpose();
-  const auto& imu_bias_acc =
-      vio_output.imu_bias_lkf_.accelerometer().transpose();
-  output_stream << vio_output.timestamp_kf_ << ","  //
+  const auto& cached_state = vio_output.W_State_Blkf_;
+  const auto& w_pose_blkf_trans = cached_state.pose_.translation().transpose();
+  const auto& w_pose_blkf_rot = cached_state.pose_.rotation().quaternion();
+  const auto& w_vel_blkf = cached_state.velocity_.transpose();
+  const auto& imu_bias_gyro = cached_state.imu_bias_.gyroscope().transpose();
+  const auto& imu_bias_acc = cached_state.imu_bias_.accelerometer().transpose();
+  output_stream << cached_state.timestamp_ << ","  //
                 << w_pose_blkf_trans.x() << ","     //
                 << w_pose_blkf_trans.y() << ","     //
                 << w_pose_blkf_trans.z() << ","     //
@@ -169,7 +168,7 @@ void BackendLogger::logSmartFactorsStats(
   }
 
   output_stream << output.cur_kf_id_ << ","
-                << output.timestamp_kf_ << ","
+                << output.W_State_Blkf_.timestamp_ << ","
                 << output.debug_info_.numSF_ << ","
                 << output.debug_info_.numValid_ << ","
                 << output.debug_info_.numDegenerate_ << ","
@@ -203,7 +202,7 @@ void BackendLogger::logBackendPimNavstates(
   const gtsam::Quaternion& quaternion = pose.rotation().toQuaternion();
   const gtsam::Velocity3& velocity = output.debug_info_.navstate_k_.velocity();
 
-  output_stream << output.timestamp_kf_ << ","
+  output_stream << output.W_State_Blkf_.timestamp_ << ","
                 << position.x() << ","
                 << position.y() << ","
                 << position.z() << ","

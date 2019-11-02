@@ -426,8 +426,10 @@ void Tracker::featureDetection(Frame* cur_frame) {
   /* --------------------------------------------------------------------------
    */
   std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
-      const StereoFrame& stereoFrame, const gtsam::StereoCamera& stereoCam,
-      const size_t pointId, const Matrix3& stereoPtCov,
+      const StereoFrame& stereoFrame,
+      const gtsam::StereoCamera& stereoCam,
+      const size_t pointId,
+      const Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat) {
     gtsam::StereoPoint2 stereoPoint = gtsam::StereoPoint2(
         static_cast<double>(stereoFrame.left_keypoints_rectified_[pointId].x),

@@ -54,7 +54,7 @@ TEST(testVisualizer3D, DISABLED_visualizeMesh2D) {
   Visualizer3D visualizer(&input_queue,
                           &output_queue,
                           VisualizationType::NONE,
-                          0,
+                          BackendType::Stereo,
                           null_callback,
                           false);
   EXPECT_NO_THROW(visualizer.visualizeMesh2D(mesh_2d, f.img_));

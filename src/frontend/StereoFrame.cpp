@@ -30,7 +30,6 @@ StereoFrame::StereoFrame(const FrameId& id,
                          const CameraParams& cam_param_left,
                          const cv::Mat& right_image,
                          const CameraParams& cam_param_right,
-                         const gtsam::Pose3& L_Pose_R,
                          const StereoMatchingParams& stereo_matching_params)
     : id_(id),
       timestamp_(timestamp),
@@ -38,8 +37,7 @@ StereoFrame::StereoFrame(const FrameId& id,
       right_frame_(id, timestamp, cam_param_right, right_image),
       is_rectified_(FLAGS_images_rectified),
       is_keyframe_(false),
-      sparse_stereo_params_(stereo_matching_params),
-      camL_Pose_camR_(L_Pose_R) {
+      sparse_stereo_params_(stereo_matching_params) {
   // If input is rectified already
   if (is_rectified_) {
     left_img_rectified_ = left_frame_.img_;
@@ -50,8 +48,7 @@ StereoFrame::StereoFrame(const FrameId& id,
         UtilsOpenCV::Cvmat2Cal3_S2(right_frame_.cam_param_.P_);
   } else {
     // TODO(Toni): the undistRect maps should be computed once and cached!!
-    computeRectificationParameters(camL_Pose_camR_,
-                                   &left_frame_.cam_param_,
+    computeRectificationParameters(&left_frame_.cam_param_,
                                    &right_frame_.cam_param_,
                                    &B_Pose_camLrect_,
                                    &baseline_);
@@ -703,8 +700,7 @@ void StereoFrame::cloneRectificationParameters(const StereoFrame& sf) {
 // note also computes the rectification maps
 // TODO(Toni): this should be done much earlier and only once...
 void StereoFrame::computeRectificationParameters(
-    const gtsam::Pose3& camL_Pose_camR,
-    CameraParams* left_cam_params,  // left_frame_.cam_param_
+    CameraParams* left_cam_params,
     CameraParams* right_cam_params,
     gtsam::Pose3* B_Pose_camLrect,
     double* baseline) {
@@ -716,6 +712,9 @@ void StereoFrame::computeRectificationParameters(
   // Get extrinsics in open CV format.
   cv::Mat L_Rot_R, L_Tran_R;
 
+  //! Extrinsics of the stereo (not rectified) relative pose between cameras
+  gtsam::Pose3 camL_Pose_camR = (left_cam_params->body_Pose_cam_)
+      .between(right_cam_params->body_Pose_cam_);
   // NOTE: openCV pose convention is the opposite, that's why we have to invert
   boost::tie(L_Rot_R, L_Tran_R) =
       UtilsOpenCV::Pose2cvmats(camL_Pose_camR.inverse());
@@ -1451,7 +1450,6 @@ void StereoFrame::print() const {
             << '\n'
             << "nr keypoints_depth_: " << keypoints_depth_.size() << '\n'
             << "nr keypoints_3d_: " << keypoints_3d_.size() << '\n'
-            << "camL_Pose_camR: " << camL_Pose_camR_ << '\n'
             << "left_frame_.cam_param_.body_Pose_cam_: "
             << left_frame_.cam_param_.body_Pose_cam_ << '\n'
             << "right_frame_.cam_param_.body_Pose_cam_: "

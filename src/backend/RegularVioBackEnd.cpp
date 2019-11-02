@@ -1416,7 +1416,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
           VLOG(10)
               << "Adding a prior to the plane, delete just the bad factors.";
           gtsam::OrientedPlane3 plane_estimate;
-          CHECK(getEstimateOfKey(plane_symbol.key(), &plane_estimate));
+          CHECK(getEstimateOfKey(state_, plane_symbol.key(), &plane_estimate));
           LOG(WARNING) << "Using plane prior on plane with id "
                        << gtsam::DefaultKeyFormatter(plane_symbol);
           CHECK(!has_plane_a_prior && !has_plane_a_linear_factor)
@@ -1455,7 +1455,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   //  // not really attached to the rest of the graph...
 
   //  //  gtsam::Point3 point;
-  //  //  if (getEstimateOfKey(point_symbol.key(), &point)) {
+  //  //  if (getEstimateOfKey(state_, point_symbol.key(), &point)) {
   //  //    LOG(WARNING) << "Using lmk prior on lmk with id " <<
   //  //                    gtsam::DefaultKeyFormatter(point_symbol);
   //  //    // TODO make sure this prior is not repeated over and over on the
@@ -1658,7 +1658,7 @@ void RegularVioBackEnd::updatePlaneEstimates(std::vector<Plane>* planes) {
   for (std::vector<Plane>::iterator plane_it = planes->begin();
        plane_it != planes->end();) {
     const PlaneId& plane_key = plane_it->getPlaneSymbol().key();
-    if (getEstimateOfKey<gtsam::OrientedPlane3>(plane_key, &plane_estimate)) {
+    if (getEstimateOfKey(state_, plane_key, &plane_estimate)) {
       // We found the plane in the state.
       // Update the plane.
       VLOG(10) << "Update plane with id "

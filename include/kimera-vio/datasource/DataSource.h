@@ -50,9 +50,6 @@ class DataProviderInterface {
   // Init Vio parameters.
   PipelineParams pipeline_params_;
 
-  // Stereo Camera //TODO(Toni): make this a generic sensor platform (multicamera)
-  StereoCamera::UniquePtr stereo_camera_;
-
   // Register a callback function that will be called once a StereoImu Synchro-
   // nized packet is available for processing.
   void registerVioCallback(VioInputCallback callback);
@@ -81,7 +78,8 @@ protected:
                                 const bool parse_images,
                                 MultiCameraParams* multi_cam_params) = 0;
  virtual bool parseImuParams(const std::string& input_dataset_path,
-                             const std::string& imu_name) = 0;
+                             const std::string& imu_name,
+                             ImuParams* imu_params) = 0;
 };
 
 }  // namespace VIO

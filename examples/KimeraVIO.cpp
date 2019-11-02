@@ -29,12 +29,13 @@
 #include "kimera-vio/utils/Timer.h"
 
 DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
-DEFINE_int32(dataset_type, 0,
+DEFINE_int32(dataset_type,
+             0,
              "Type of parser to use:\n"
              "0: EuRoC\n"
              "1: Kitti");
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
@@ -49,10 +50,9 @@ int main(int argc, char *argv[]) {
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
     } break;
-    default:
-    {
+    default: {
       LOG(FATAL) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
-                   << " 0: EuRoC, 1: Kitti.";
+                 << " 0: EuRoC, 1: Kitti.";
     }
   }
   CHECK(dataset_parser);
@@ -71,9 +71,9 @@ int main(int argc, char *argv[]) {
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
                              std::move(dataset_parser));
-    auto handle_pipeline =
-        std::async(std::launch::async, &VIO::Pipeline::shutdownWhenFinished,
-                   &vio_pipeline);
+    auto handle_pipeline = std::async(std::launch::async,
+                                      &VIO::Pipeline::shutdownWhenFinished,
+                                      &vio_pipeline);
     vio_pipeline.spinViz();
     is_pipeline_successful = handle.get();
     handle_pipeline.get();

@@ -101,9 +101,9 @@ DEFINE_bool(use_lcd, false,
 
 namespace VIO {
 
-Pipeline::Pipeline(const PipelineParams& params,
-                   const StereoCamera& stereo_camera)
+Pipeline::Pipeline(const PipelineParams& params)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
+      stereo_camera_(nullptr),
       vio_frontend_(nullptr),
       feature_selector_(nullptr),
       vio_backend_module_(nullptr),
@@ -131,24 +131,32 @@ Pipeline::Pipeline(const PipelineParams& params,
       null_visualizer_output_queue_("visualizer_output_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
 
+  //! Create Stereo Camera
+  CHECK_EQ(params.camera_params_.size(), 2u) << "Only stereo camera support.";
+  stereo_camera_ = VIO::make_unique<StereoCamera>(
+        params.camera_params_.at(0),
+        params.camera_params_.at(1),
+        params.frontend_params_.stereo_matching_params_);
+
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.
-  vio_frontend_ =
-      VIO::make_unique<StereoVisionFrontEnd>(params.imu_params_,
-                                             gtsam::imuBias::ConstantBias(),
-                                             frontend_params_,
-                                             FLAGS_log_output);
+  vio_frontend_ = VIO::make_unique<StereoVisionFrontEnd>(
+        params.imu_params_,
+        gtsam::imuBias::ConstantBias(),
+        frontend_params_,
+        FLAGS_log_output);
 
   // These two should be given by parameters...
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
-      &backend_input_queue_,
-      &backend_output_queue_,
-      parallel_run_,
-      BackEndFactory::createBackend(backend_type_,
-                                    stereo_camera.B_Pose_camLrect_,
-                                    stereo_camera.stereo_matching_params_,
-                                    *CHECK_NOTNULL(backend_params_),
-                                    FLAGS_log_output));
+        &backend_input_queue_,
+        &backend_output_queue_,
+        parallel_run_,
+        BackEndFactory::createBackend(
+          backend_type_,
+          stereo_camera_->getLeftCamPose(),
+          stereo_camera_->getStereoCalib(),
+          *CHECK_NOTNULL(backend_params_),
+          FLAGS_log_output));
   vio_backend_module_->registerImuBiasUpdateCallback(
       std::bind(&StereoVisionFrontEnd::updateImuBias,
                 // Send a cref: constant reference because vio_frontend_ is
@@ -290,7 +298,7 @@ void Pipeline::processKeyframe(
             last_stereo_keyframe.getTimestamp(),
             backend_output_payload->cur_kf_id_,
             last_stereo_keyframe,
-            backend_output_payload->W_Pose_Blkf_)));
+            backend_output_payload->W_State_Blkf_.pose_)));
   }
 
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
@@ -324,7 +332,7 @@ void Pipeline::processKeyframe(
     mesher_input_queue_.push(VIO::make_unique<MesherInputPayload>(
         points_with_id_VIO,
         last_stereo_keyframe,  // not really thread safe, read only.
-        backend_output_payload->W_Pose_Blkf_.compose(
+        backend_output_payload->W_State_Blkf_.pose_.compose(
             last_stereo_keyframe
                 .getBPoseCamLRect())));  // TODO(Toni) this is constant and
                                          // should not be sent via output
@@ -342,7 +350,8 @@ void Pipeline::processKeyframe(
     // TODO create a new class that is mesh segmenter or plane extractor.
     // This is NOT THREAD_SAFE, do it after popBlocking the mesher...
     if (FLAGS_extract_planes_from_the_scene) {
-      CHECK_EQ(backend_type_, 1u);  // Use Regular VIO
+      // Use Regular VIO
+      CHECK(backend_type_ == BackendType::StructuralRegularities);
       mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
       LOG_IF_EVERY_N(WARNING,
@@ -457,7 +466,7 @@ void Pipeline::spinSequential() {
       stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
       backend_output_payload->cur_kf_id_,
       stereo_frontend_output_payload->stereo_frame_lkf_,
-      backend_output_payload->W_Pose_Blkf_));
+      backend_output_payload->W_State_Blkf_.pose_));
 
   // Spin once LCD. Do not run in parallel.
   if (FLAGS_use_lcd) {
@@ -486,7 +495,7 @@ void Pipeline::spinSequential() {
     CHECK(mesher_input_queue_.push(VIO::make_unique<MesherInputPayload>(
         points_with_id_VIO,
         stereo_keyframe,  // not really thread safe, read only.
-        backend_output_payload->W_Pose_Blkf_.compose(
+        backend_output_payload->W_State_Blkf_.pose_.compose(
             stereo_keyframe.getBPoseCamLRect()))));
 
     // Spin once mesher.
@@ -495,7 +504,7 @@ void Pipeline::spinSequential() {
     // Find regularities in the mesh if we are using RegularVIO backend.
     // TODO create a new class that is mesh segmenter or plane extractor.
     if (FLAGS_extract_planes_from_the_scene) {
-      CHECK_EQ(backend_type_, 1);  // Use Regular VIO
+      CHECK(backend_type_ == BackendType::StructuralRegularities);
       mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
       LOG_IF_EVERY_N(WARNING,
@@ -725,10 +734,10 @@ bool Pipeline::initializeFromGroundTruth(
       stereo_imu_sync_packet.getStereoFrame());
 
   // Initialize Backend using ground-truth.
-  initBackend(&vio_backend_,
-              stereo_imu_sync_packet,
-              initial_ground_truth_state,
-              stereo_frame_lkf);
+  CHECK(vio_backend_module_);
+  vio_backend_module_->initializeBackend(
+        VioNavStateTimestamped(stereo_frame_lkf.getTimestamp(),
+                               initial_ground_truth_state));
 
   return true;
 }
@@ -754,10 +763,10 @@ bool Pipeline::initializeFromIMU(
       stereo_imu_sync_packet.getStereoFrame());
 
   // Initialize Backend using IMU data.
-  initBackend(&vio_backend_,
-              stereo_imu_sync_packet,
-              initial_state_estimate,
-              stereo_frame_lkf);
+  CHECK(vio_backend_module_);
+  vio_backend_module_->initializeBackend(
+        VioNavStateTimestamped(stereo_frame_lkf.getTimestamp(),
+                               initial_state_estimate));
 
   return true;
 }
@@ -866,13 +875,11 @@ bool Pipeline::initializeOnline(
           FLAGS_between_translation_bundle_adjustment;
 
       // Create initial backend
-      InitializationBackEnd initial_backend(
-          (*output_frontend.front())->stereo_frame_lkf_.getBPoseCamLRect(),
-          (*output_frontend.front())
-              ->stereo_frame_lkf_.getLeftUndistRectCamMat(),
-          (*output_frontend.front())->stereo_frame_lkf_.getBaseline(),
-          backend_params_init,
-          FLAGS_log_output);
+      CHECK(stereo_camera_);
+      InitializationBackEnd initial_backend(stereo_camera_->getLeftCamPose(),
+                                            stereo_camera_->getStereoCalib(),
+                                            backend_params_init,
+                                            FLAGS_log_output);
 
       // Enforce zero bias in initial propagation
       // TODO(Sandro): Remove this, once AHRS is implemented
@@ -897,10 +904,12 @@ bool Pipeline::initializeOnline(
         // Create initial state for initialization from online gravity
         VioNavState initial_state_OGA(init_navstate,
                                       ImuBias(gtsam::Vector3(), gyro_bias));
-        initBackend(&vio_backend_,
-                    stereo_imu_sync_packet,
-                    initial_state_OGA,
-                    frontend_output->stereo_frame_lkf_);
+        // Initialize Backend using IMU data.
+        CHECK(vio_backend_module_);
+        vio_backend_module_->initializeBackend(
+              VioNavStateTimestamped(
+                frontend_output->stereo_frame_lkf_.getTimestamp(),
+                initial_state_OGA));
         LOG(INFO) << "Initialization finalized.";
 
         // TODO(Sandro): Create check-return for function
@@ -917,53 +926,6 @@ bool Pipeline::initializeOnline(
       }
     }
   }
-}
-
-/* -------------------------------------------------------------------------- */
-bool Pipeline::initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
-                           const StereoImuSyncPacket& stereo_imu_sync_packet,
-                           const VioNavState& initial_state_seed,
-                           const StereoFrame& stereo_frame_lkf) {
-  CHECK_NOTNULL(vio_backend);
-  // Create VIO.
-  switch (backend_type_) {
-    case BackendType::Stereo: {
-      LOG(INFO) << "\e[1m Using Normal VIO. \e[0m";
-      *vio_backend = VIO::make_unique<VioBackEnd>(
-          stereo_frame_lkf.getBPoseCamLRect(),
-          stereo_frame_lkf.getLeftUndistRectCamMat(),
-          stereo_frame_lkf.getBaseline(),
-          initial_state_seed,
-          stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
-          *backend_params_,
-          FLAGS_log_output);  // No timestamps needed for IMU?
-      break;
-    }
-    case BackendType::StructuralRegularities: {
-      LOG(INFO) << "\e[1m Using Regular VIO with modality "
-                << FLAGS_regular_vio_backend_modality << "\e[0m";
-      *vio_backend = VIO::make_unique<RegularVioBackEnd>(
-          stereo_frame_lkf.getBPoseCamLRect(),
-          stereo_frame_lkf.getLeftUndistRectCamMat(),
-          stereo_frame_lkf.getBaseline(),
-          initial_state_seed,
-          stereo_imu_sync_packet.getStereoFrame().getTimestamp(),
-          *backend_params_,
-          FLAGS_log_output,
-          static_cast<RegularVioBackEnd::RegularBackendModality>(
-              FLAGS_regular_vio_backend_modality));
-      break;
-    }
-    default: {
-      LOG(FATAL) << "Requested backend type is not supported.\n"
-                 << "Currently supported backend types:\n"
-                 << "0: normal VIO\n"
-                 << "1: regular VIO\n"
-                 << " but requested backend: "
-                 << static_cast<int>(backend_type_);
-    }
-  }
-  return true;
 }
 
 /* -------------------------------------------------------------------------- */

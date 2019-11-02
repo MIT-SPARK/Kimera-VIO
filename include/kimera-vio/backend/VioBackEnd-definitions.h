@@ -275,17 +275,31 @@ struct VioBackEndOutputPayload {
   KIMERA_POINTER_TYPEDEFS(VioBackEndOutputPayload);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VioBackEndOutputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  VioBackEndOutputPayload(const Timestamp& timestamp_kf,
-                          const gtsam::Values& state,
-                          const gtsam::Pose3& W_Pose_Blkf,
-                          const Vector3& W_Vel_Blkf,
-                          const ImuBias& imu_bias_lkf,
-                          const gtsam::Matrix& state_covariance_lkf,
-                          const int& cur_kf_id,
-                          const int& landmark_count,
-                          const DebugVioInfo& debug_info)
+  explicit VioBackEndOutputPayload(const Timestamp& timestamp_kf,
+                                   const gtsam::Values& state,
+                                   const gtsam::Pose3& W_Pose_Blkf,
+                                   const Vector3& W_Vel_Blkf,
+                                   const ImuBias& imu_bias_lkf,
+                                   const gtsam::Matrix& state_covariance_lkf,
+                                   const FrameId& cur_kf_id,
+                                   const int& landmark_count,
+                                   const DebugVioInfo& debug_info)
       : state_(state),
         W_State_Blkf_(timestamp_kf, W_Pose_Blkf, W_Vel_Blkf, imu_bias_lkf),
+        state_covariance_lkf_(state_covariance_lkf),
+        cur_kf_id_(cur_kf_id),
+        landmark_count_(landmark_count),
+        debug_info_(debug_info) {}
+
+  explicit VioBackEndOutputPayload(
+      const VioNavStateTimestamped& vio_navstate_timestamped,
+      const gtsam::Values& state,
+      const gtsam::Matrix& state_covariance_lkf,
+      const FrameId& cur_kf_id,
+      const int& landmark_count,
+      const DebugVioInfo& debug_info)
+      : W_State_Blkf_(vio_navstate_timestamped),
+        state_(state),
         state_covariance_lkf_(state_covariance_lkf),
         cur_kf_id_(cur_kf_id),
         landmark_count_(landmark_count),
@@ -294,7 +308,7 @@ struct VioBackEndOutputPayload {
   const VioNavStateTimestamped W_State_Blkf_;
   const gtsam::Values state_;
   const gtsam::Matrix state_covariance_lkf_;
-  const int cur_kf_id_;
+  const FrameId cur_kf_id_;
   const int landmark_count_;
   const DebugVioInfo debug_info_;
 };

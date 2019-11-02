@@ -46,7 +46,6 @@ DataProviderInterface::DataProviderInterface(int initial_k,
                                              int final_k,
                                              const std::string& dataset_path)
     : pipeline_params_(),
-      stereo_camera_(nullptr),
       initial_k_(initial_k),
       final_k_(final_k),
       dataset_path_(dataset_path) {
@@ -90,7 +89,6 @@ bool DataProviderInterface::spin() {
                   CameraParams("left_cam"),
                   cv::Mat(),
                   CameraParams("right_cam"),
-                  gtsam::Pose3(),
                   StereoMatchingParams()),
       ImuStampS(),
       ImuAccGyrS()));

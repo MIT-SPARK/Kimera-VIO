@@ -78,10 +78,6 @@ class TestTracker : public ::testing::Test {
         new Frame(id_cur, timestamp_cur, cam_params_left,
                   UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
-    // Data for testing "geometricOutlilerRejectionStereo"
-    Pose3 camL_Pose_camR =
-        cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
-
     VioFrontEndParams tp;
 
     ref_stereo_frame = new StereoFrame(
@@ -91,7 +87,7 @@ class TestTracker : public ::testing::Test {
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     ref_stereo_frame->sparseStereoMatching();  // only initialize rectification
 
@@ -102,7 +98,7 @@ class TestTracker : public ::testing::Test {
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     cur_stereo_frame->sparseStereoMatching();  // only initialize rectification
   }

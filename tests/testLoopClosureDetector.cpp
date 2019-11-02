@@ -111,10 +111,6 @@ class LCDFixture :public ::testing::Test {
     std::string img_name_cur2_left = lcd_test_data_path_ + "/left_img_3.png";
     std::string img_name_cur2_right = lcd_test_data_path_ + "/right_img_3.png";
 
-    // Get ground truth camera relative poses
-    gtsam::Pose3 camL_Pose_camR =
-        cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
-
     // Initialize StereoFrame objects for reference and current frames
     VioFrontEndParams tp;
     Tracker tracker(tp);
@@ -126,7 +122,7 @@ class LCDFixture :public ::testing::Test {
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref1_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     tracker.featureDetection(ref1_stereo_frame_->getLeftFrameMutable());
     CHECK(ref1_stereo_frame_);
@@ -140,7 +136,7 @@ class LCDFixture :public ::testing::Test {
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur1_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     tracker.featureDetection(cur1_stereo_frame_->getLeftFrameMutable());
     CHECK(cur1_stereo_frame_);
@@ -154,7 +150,7 @@ class LCDFixture :public ::testing::Test {
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref2_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     tracker.featureDetection(ref2_stereo_frame_->getLeftFrameMutable());
     CHECK(ref2_stereo_frame_);
@@ -168,7 +164,7 @@ class LCDFixture :public ::testing::Test {
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur2_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     tracker.featureDetection(cur2_stereo_frame_->getLeftFrameMutable());
     CHECK(cur2_stereo_frame_);

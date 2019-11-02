@@ -125,7 +125,7 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   gtsam::Pose3 B_Pose_leftCam = gtsam::Pose3(
       gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
   ImuBias imu_bias;
-  int cur_kf_id = random_eng_();
+  FrameId cur_kf_id = random_eng_();
   int landmark_count = random_eng_();
 
 
@@ -135,7 +135,6 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
           state_values,
           W_Pose_Blkf,
           W_Vel_Blkf,
-          B_Pose_leftCam,
           imu_bias,
           gtsam::Matrix(),
           cur_kf_id,

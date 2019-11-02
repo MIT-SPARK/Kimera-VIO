@@ -39,15 +39,18 @@ namespace VIO {
 
 class Pipeline {
  private:
+  KIMERA_POINTER_TYPEDEFS(Pipeline);
   KIMERA_DELETE_COPY_CONSTRUCTORS(Pipeline);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   // Typedefs
   typedef std::function<void(const SpinOutputPacket&)>
       KeyframeRateOutputCallback;
 
  public:
-  Pipeline(const PipelineParams& params);
+  explicit Pipeline(const PipelineParams& params);
 
-  ~Pipeline();
+  virtual ~Pipeline();
 
   // Main spin, runs the pipeline.
   void spin(StereoImuSyncPacket::ConstUniquePtr stereo_imu_sync_packet);
@@ -130,15 +133,6 @@ class Pipeline {
   // Initialize pipeline from online gravity alignment.
   bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // Initialize backend.
-  // Initialize backend given external pose estimate (GT, IMU or OGA)
-  /// @param: vio_backend: returns the backend initialized.
-  /// @param: initial_state_seed: first state guess.
-  bool initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
-                   const StereoImuSyncPacket& stereo_imu_sync_packet,
-                   const VioNavState& initial_state_seed,
-                   const StereoFrame& stereo_frame_lkf);
-
   // Displaying must be done in the main thread.
   void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
 
@@ -185,8 +179,11 @@ class Pipeline {
   LoopClosurePGOCallback loop_closure_pgo_callback_;
 
   // Init Vio parameter
-  VioBackEndParamsConstPtr backend_params_;
+  VioBackEndParams::ConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
+
+  //! Definition of sensor rig used
+  StereoCamera::UniquePtr stereo_camera_;
 
   // TODO this should go to another class to avoid not having copy-ctor...
   // Frontend.

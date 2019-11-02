@@ -40,7 +40,7 @@ TEST(testFrame, constructor) {
   FrameId id = 0;
   Timestamp tmp = 123;
   const string imgName = string(FLAGS_test_data_path) + "/chessboard.png";
-  Frame f(id, tmp, CameraParams(),
+  Frame f(id, tmp, CameraParams("cam"),
           UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   ASSERT_EQ(f.id_, id);
   ASSERT_EQ(f.timestamp_, tmp);
@@ -48,12 +48,12 @@ TEST(testFrame, constructor) {
   Mat img = imread(imgName, IMREAD_ANYCOLOR);
   ASSERT_TRUE(UtilsOpenCV::CvMatCmp(f.img_, img));
   ASSERT_TRUE(!f.isKeyframe_);  // false by default
-  ASSERT_TRUE(CameraParams().equals(f.cam_param_));
+  ASSERT_TRUE(CameraParams("cam").equals(f.cam_param_));
 }
 
 /* ************************************************************************* */
 TEST(testFrame, ExtractCornersChessboard) {
-  Frame f(0, 0, CameraParams(),
+  Frame f(0, 0, CameraParams("cam"),
           UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
   f.extractCorners();
   int numCorners_expected = 7 * 9;

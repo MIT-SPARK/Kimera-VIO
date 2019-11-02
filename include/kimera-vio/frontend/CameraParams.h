@@ -37,7 +37,7 @@ class CameraParams {
 
   using CameraId = std::string;
 
-  CameraParams(const CameraId& cam_id)
+  CameraParams(const CameraId& cam_id = "cam")
     : camera_id_(cam_id) {}
   virtual ~CameraParams() = default;
 

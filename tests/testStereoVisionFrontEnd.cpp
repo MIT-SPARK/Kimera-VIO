@@ -73,10 +73,6 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
         id_cur, timestamp_cur, cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
-    // Data for testing "geometricOutlilerRejectionStereo"
-    Pose3 camL_Pose_camR =
-        cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
-
     VioFrontEndParams tp;
 
     ref_stereo_frame = std::make_shared<StereoFrame>(
@@ -86,7 +82,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_ref_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     cur_stereo_frame = std::make_shared<StereoFrame>(
         id_cur, timestamp_cur,
@@ -95,7 +91,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             img_name_cur_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+        cam_params_right, tp.getStereoMatchingParams());
 
     // Imu Params
     imu_params_.acc_walk_ = 1;
@@ -454,7 +450,7 @@ TEST_F(StereoVisionFrontEndFixture, processFirstFrame) {
       cam_params_left,
       UtilsOpenCV::ReadAndConvertToGrayScale(
           img_name_right, p.getStereoMatchingParams().equalize_image_),
-      cam_params_right, camL_Pose_camR, p.getStereoMatchingParams());
+      cam_params_right, p.getStereoMatchingParams());
 
   first_stereo_frame.getLeftFrameMutable()->cam_param_.body_Pose_cam_ = Pose3(
       first_stereo_frame.getLeftFrame().cam_param_.body_Pose_cam_.rotation(),

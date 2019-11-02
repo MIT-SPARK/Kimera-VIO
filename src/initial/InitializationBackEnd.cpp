@@ -26,15 +26,13 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 InitializationBackEnd::InitializationBackEnd(
-    const gtsam::Pose3 &leftCamPose,
-    const Cal3_S2 &leftCameraCalRectified,
-    const double &baseline,
-    const VioBackEndParams &vioParams,
+    const gtsam::Pose3 &B_Pose_leftCam,
+    const StereoCalibPtr& stereo_calibration,
+    const VioBackEndParams &backend_params,
     const bool log_output)
-    : VioBackEnd(leftCamPose,
-                 leftCameraCalRectified,
-                 baseline,
-                 vioParams,
+    : VioBackEnd(B_Pose_leftCam,
+                 stereo_calibration,
+                 backend_params,
                  log_output) {}
 
 /* ------------------------------------------------------------------------ */

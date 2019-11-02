@@ -22,20 +22,111 @@
 #include <unordered_map>
 #include <vector>
 
-#include <opencv2/core/core.hpp>
-
+#include <gtsam/base/Vector.h>
 #include <gtsam/slam/SmartFactorParams.h>
 
 #include <glog/logging.h>
 
 #include "kimera-vio/datasource/DataSource-definitions.h"
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/YamlParser.h"
 
 namespace VIO {
 
 class VioBackEndParams {
  public:
-  VioBackEndParams(){};
+  KIMERA_POINTER_TYPEDEFS(VioBackEndParams);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  VioBackEndParams(
+      // IMU PARAMS
+      const double gyroNoiseDensity = 0.00016968,
+      const double accNoiseDensity = 0.002,
+      const double gyroBiasSigma = 1.9393e-05,
+      const double accBiasSigma = 0.003,
+      const double imuIntegrationSigma = 1e-8,
+      const gtsam::Vector3& n_gravity =
+          gtsam::Vector3(0.0,
+                         0.0,
+                         -9.81),  // gravity in navigation frame, according to
+      const double nominalImuRate = 0.005,
+      // INITIALIZATION SETTINGS
+      const int autoInitialize = 0,
+      /// Only used if autoInitialize is off (0)
+      const VioNavState& initial_ground_truth_state = VioNavState(),
+      const bool roundOnAutoInitialize = false,
+      const double initialPositionSigma = 0.00001,
+      const double initialRollPitchSigma = 10.0 / 180.0 * M_PI,
+      const double initialYawSigma = 0.1 / 180.0 * M_PI,
+      const double initialVelocitySigma = 1e-3,
+      const double initialAccBiasSigma = 0.1,
+      const double initialGyroBiasSigma = 0.01,
+      // http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets,
+      // the x axis points upwards VISION PARAMS
+      const gtsam::LinearizationMode linMode = gtsam::HESSIAN,
+      const gtsam::DegeneracyMode degMode = gtsam::ZERO_ON_DEGENERACY,
+      const double smartNoiseSigma = 3,
+      const double rankTolerance = 1,  // we might also use 0.1
+      const double landmarkDistanceThreshold =
+          20,  // max distance to triangulate point in meters
+      const double outlierRejection =
+          8,  // max acceptable reprojection error // before tuning: 3
+      const double retriangulationThreshold = 1e-3,
+      const bool addBetweenStereoFactors = true,
+      const double betweenRotationPrecision = 0.0,  // inverse of variance
+      const double betweenTranslationPrecision = 1 /
+                                                 (0.1 *
+                                                  0.1),  // inverse of variance
+      // OPTIMIZATION PARAMS
+      const double relinearizeThreshold = 1e-2,  // Before tuning: 1e-3
+      const double relinearizeSkip = 1,
+      const double zeroVelocitySigma =
+          1e-3,  // zero velocity prior when disparity is low
+      const double noMotionPositionSigma = 1e-3,
+      const double noMotionRotationSigma = 1e-4,
+      const double constantVelSigma = 1e-2,
+      const size_t numOptimize = 2,
+      const double horizon = 6,  // in seconds
+      const bool useDogLeg = false)
+      : initialPositionSigma_(initialPositionSigma),
+        initialRollPitchSigma_(initialRollPitchSigma),
+        initialYawSigma_(initialYawSigma),
+        initialVelocitySigma_(initialVelocitySigma),
+        initialAccBiasSigma_(initialAccBiasSigma),
+        initialGyroBiasSigma_(initialGyroBiasSigma),
+        gyroNoiseDensity_(gyroNoiseDensity),
+        accNoiseDensity_(accNoiseDensity),
+        imuIntegrationSigma_(imuIntegrationSigma),
+        gyroBiasSigma_(gyroBiasSigma),
+        accBiasSigma_(accBiasSigma),
+        nominalImuRate_(nominalImuRate),
+        n_gravity_(n_gravity),
+        autoInitialize_(autoInitialize),
+        initial_ground_truth_state_(initial_ground_truth_state),
+        roundOnAutoInitialize_(roundOnAutoInitialize),
+        linearizationMode_(linMode),
+        degeneracyMode_(degMode),
+        smartNoiseSigma_(smartNoiseSigma),
+        rankTolerance_(rankTolerance),
+        landmarkDistanceThreshold_(landmarkDistanceThreshold),
+        outlierRejection_(outlierRejection),
+        retriangulationThreshold_(retriangulationThreshold),
+        addBetweenStereoFactors_(addBetweenStereoFactors),
+        betweenRotationPrecision_(betweenRotationPrecision),
+        betweenTranslationPrecision_(betweenTranslationPrecision),
+        relinearizeThreshold_(relinearizeThreshold),
+        relinearizeSkip_(relinearizeSkip),
+        horizon_(horizon),
+        numOptimize_(numOptimize),
+        useDogLeg_(useDogLeg),
+        zeroVelocitySigma_(zeroVelocitySigma),
+        noMotionPositionSigma_(noMotionPositionSigma),
+        noMotionRotationSigma_(noMotionRotationSigma),
+        constantVelSigma_(constantVelSigma),
+        yaml_parser_(nullptr) {
+    // Trivial sanity checks.
+    CHECK_GE(horizon, 0);
+    CHECK_GE(numOptimize, 0);
+  }
   virtual ~VioBackEndParams() = default;
 
   //! Initialization params
@@ -300,7 +391,5 @@ class VioBackEndParams {
  protected:
   std::shared_ptr<YamlParser> yaml_parser_;
 };
-typedef std::shared_ptr<VioBackEndParams> VioBackEndParamsPtr;
-typedef std::shared_ptr<const VioBackEndParams> VioBackEndParamsConstPtr;
 
 }  // namespace VIO

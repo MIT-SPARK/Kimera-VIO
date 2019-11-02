@@ -24,10 +24,9 @@
 
 #include <gtsam/slam/SmartFactorParams.h>
 
-#include <opencv2/core/core.hpp>
-
 #include <glog/logging.h>
 
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/backend/RegularVioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEndParams.h"
 
@@ -35,7 +34,9 @@ namespace VIO {
 
 class RegularVioBackEndParams : public VioBackEndParams {
  public:
-  RegularVioBackEndParams();
+  KIMERA_POINTER_TYPEDEFS(RegularVioBackEndParams);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  RegularVioBackEndParams() = default;
   virtual ~RegularVioBackEndParams() = default;
 
  public:
@@ -56,17 +57,18 @@ class RegularVioBackEndParams : public VioBackEndParams {
   double tukeyParam_;
 
  public:
-  virtual bool parseYAML(const std::string& filepath) {
+  virtual bool parseYAML(const std::string& filepath) override {
     yaml_parser_ = std::make_shared<YamlParser>(filepath);
     return parseYAMLVioBackEndParams() && parseYAMLRegularVioBackEndParams();
   }
 
-  virtual bool equals(const VioBackEndParams& vp2, double tol = 1e-8) const {
+  virtual bool equals(const VioBackEndParams& vp2,
+                      double tol = 1e-8) const override {
     return equalsVioBackEndParams(vp2, tol) &&
            equalsRegularVioBackEndParams(vp2, tol);
   }
 
-  virtual void print() const { printVioBackEndParams(); }
+  virtual void print() const override { printVioBackEndParams(); }
 
   // Use this to safely cast VioBackEndParams to RegularVioBackEndParams.
   static RegularVioBackEndParams safeCast(const VioBackEndParams& params) {

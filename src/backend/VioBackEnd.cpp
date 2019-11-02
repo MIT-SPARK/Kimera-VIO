@@ -61,6 +61,7 @@ VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
                        const VioBackEndParams& backend_params,
                        bool log_output)
     : backend_params_(backend_params),
+      backend_state_(BackendState::Bootstrap),
       timestamp_lkf_(-1),
       imu_bias_lkf_(ImuBias()),
       W_Vel_B_lkf_(Vector3::Zero()),
@@ -117,20 +118,30 @@ VioBackEndOutputPayload::UniquePtr VioBackEnd::spinOnce(
   if (VLOG_IS_ON(10)) input.print();
 
   switch (backend_state_) {
-    case BackendState::Bootstrap:
+    case BackendState::Bootstrap: {
       // Initialize backend.
-
-    case BackendState::Nominal:
+      // TODO(Toni) we should do initialization here and follow the general
+      // workflow of the pipeline instead of having a different module...
+      backend_state_ = BackendState::Nominal;
+      addVisualInertialStateAndOptimize(input);
+      break;
+    }
+    case BackendState::Nominal: {
       // Process data with VIO.
       addVisualInertialStateAndOptimize(input);
-    default:
+      break;
+    }
+    default: {
+
       LOG(FATAL) << "Unrecognized backend state.";
+      break;
+    }
   }
 
   // Update imu bias for the frontend! Note that this should be done asap
   // ideally just when the optimization finishes, so that the frontend might
   // start preintegrating the imu data using the newest bias!
-  LOG(INFO) << "Backend: Update IMU Bias.";
+  VLOG(1) << "Backend: Update IMU Bias.";
   CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
                                       "update callback for at least the "
                                       "frontend? Do so by using "
@@ -227,9 +238,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   last_kf_id_ = curr_kf_id_;
   ++curr_kf_id_;
 
-  LOG(INFO) << "VIO: adding keyframe " << curr_kf_id_
-            << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec)
-            << " (nsec).";
+  VLOG(1) << "VIO: adding keyframe " << curr_kf_id_ << " at timestamp:"
+          << UtilsOpenCV::NsecToSec(timestamp_kf_nsec) << " (nsec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////
   // Predict next step, add initial guess
@@ -240,8 +250,10 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
 
   // add between factor from RANSAC
   if (stereo_ransac_body_pose) {
-    LOG(INFO) << "VIO: adding between ";
-    (*stereo_ransac_body_pose).print();
+    if (VLOG_IS_ON(10)) {
+      LOG(INFO) << "VIO: adding between ";
+      (*stereo_ransac_body_pose).print();
+    }
     addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
   }
 
@@ -923,6 +935,23 @@ void VioBackEnd::optimize(
   DCHECK_EQ(timestamps.size(), new_values_.size());
 
   // Store time before iSAM update.
+  if (VLOG_IS_ON(10) || log_output_) {
+    debug_info_.updateTime_ =
+        utils::Timer::toc<std::chrono::seconds>(start_time).count();
+    start_time = utils::Timer::tic();
+  }
+
+  // Compute iSAM update.
+  VLOG(10) << "iSAM2 update with " << new_factors_tmp.size() << " new factors "
+           << ", " << new_values_.size() << " new values "
+           << ", and " << delete_slots.size() << " deleted factors.";
+  Smoother::Result result;
+  VLOG(10) << "Starting first update.";
+  updateSmoother(&result, new_factors_tmp, new_values_, timestamps,
+                 delete_slots);
+  VLOG(10) << "Finished first update.";
+
+  // Store time after iSAM update.
   if (VLOG_IS_ON(10) || log_output_) {
     debug_info_.updateTime_ =
         utils::Timer::toc<std::chrono::seconds>(start_time).count();
