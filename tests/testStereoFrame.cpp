@@ -193,7 +193,7 @@ TEST_F(StereoFrameFixture, rectification) {
           .norm();
   // Make sure that it is compatible with the baseline used in the test data
   EXPECT_TRUE(baseline_expect >= 0.10 && baseline_expect <= 0.12);
-  EXPECT_DOUBLE_EQ(baseline_expect, sf->getBaseline());
+  EXPECT_NEAR(baseline_expect, sf->getBaseline(), 1e-5);
   // check condition 1) on Rotation
   double rotation_deviation =
       Rot3::Logmap(camLrect_Pose_camRrect.rotation()).norm();
