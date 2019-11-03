@@ -94,7 +94,7 @@ namespace VIO {
 Pipeline::Pipeline(const PipelineParams& params)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
-      vio_frontend_(nullptr),
+      vio_frontend_module_(nullptr),
       feature_selector_(nullptr),
       vio_backend_module_(nullptr),
       loop_closure_detector_(nullptr),
@@ -130,11 +130,15 @@ Pipeline::Pipeline(const PipelineParams& params)
 
   // Instantiate stereo tracker (class that tracks implements estimation
   // front-end) and print parameters.
-  vio_frontend_ =
-      VIO::make_unique<StereoVisionFrontEnd>(params.imu_params_,
-                                             gtsam::imuBias::ConstantBias(),
-                                             frontend_params_,
-                                             FLAGS_log_output);
+  vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
+      &stereo_frontend_input_queue_,
+      &stereo_frontend_output_queue_,
+      parallel_run_,
+      FrontEndFactory::createFrontend(params.frontend_type_,
+                                      params.imu_params_,
+                                      gtsam::imuBias::ConstantBias(),
+                                      frontend_params_,
+                                      FLAGS_log_output));
 
   // These two should be given by parameters...
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
@@ -710,8 +714,8 @@ void Pipeline::checkReInitialize(
     init_frame_id_ = stereo_imu_sync_packet.getStereoFrame().getFrameId();
 
     // Resume threads
-    CHECK(vio_frontend_);
-    vio_frontend_->restart();
+    CHECK(vio_frontend_module_);
+    vio_frontend_module_->restart();
     CHECK(vio_backend_module_);
     vio_backend_module_->restart();
     mesher_->restart();
@@ -732,9 +736,10 @@ bool Pipeline::initializeFromGroundTruth(
             << "--------------------";
 
   // Initialize Stereo Frontend.
-  CHECK(vio_frontend_);
-  const StereoFrame& stereo_frame_lkf = vio_frontend_->processFirstStereoFrame(
-      stereo_imu_sync_packet.getStereoFrame());
+  CHECK(vio_frontend_module_);
+  const StereoFrame& stereo_frame_lkf =
+      vio_frontend_module_->processFirstStereoFrame(
+          stereo_imu_sync_packet.getStereoFrame());
 
   // Initialize Backend using ground-truth.
   CHECK(vio_backend_module_);
@@ -760,9 +765,10 @@ bool Pipeline::initializeFromIMU(
           backend_params_->roundOnAutoInitialize_);
 
   // Initialize Stereo Frontend.
-  CHECK(vio_frontend_);
-  const StereoFrame& stereo_frame_lkf = vio_frontend_->processFirstStereoFrame(
-      stereo_imu_sync_packet.getStereoFrame());
+  CHECK(vio_frontend_module_);
+  const StereoFrame& stereo_frame_lkf =
+      vio_frontend_module_->processFirstStereoFrame(
+          stereo_imu_sync_packet.getStereoFrame());
 
   // Initialize Backend using IMU data.
   CHECK(vio_backend_module_);
@@ -780,14 +786,14 @@ bool Pipeline::initializeOnline(
   LOG(INFO) << "------------------- Initializing Pipeline with frame k = "
             << frame_id << "--------------------";
 
-  CHECK(vio_frontend_);
+  CHECK(vio_frontend_module_);
   CHECK_GE(frame_id, init_frame_id_);
   CHECK_GE(init_frame_id_ + FLAGS_num_frames_vio_init, frame_id);
 
   // TODO(Sandro): Find a way to optimize this
   // Create ImuFrontEnd with non-zero gravity (zero bias)
   gtsam::PreintegratedImuMeasurements::Params imu_params =
-      vio_frontend_->getImuFrontEndParams();
+      vio_frontend_module_->getImuFrontEndParams();
   imu_params.n_gravity = backend_params_->n_gravity_;
   ImuFrontEnd imu_frontend_real(
       imu_params,
@@ -808,17 +814,17 @@ bool Pipeline::initializeOnline(
   /////////////////// FIRST FRAME //////////////////////////////////////////////
   if (frame_id == init_frame_id_) {
     // Set trivial bias, gravity and force 5/3 point method for initialization
-    vio_frontend_->prepareFrontendForOnlineAlignment();
+    vio_frontend_module_->prepareFrontendForOnlineAlignment();
     // Initialize Stereo Frontend.
-    vio_frontend_->processFirstStereoFrame(
+    vio_frontend_module_->processFirstStereoFrame(
         stereo_imu_sync_init.getStereoFrame());
     return false;
   } else {
     // Check trivial bias and gravity vector for online initialization
-    vio_frontend_->checkFrontendForOnlineAlignment();
+    vio_frontend_module_->checkFrontendForOnlineAlignment();
     // Spin frontend once with enforced keyframe and 53-point method
     const StereoFrontEndOutputPayload::UniquePtr& frontend_output =
-        vio_frontend_->spinOnce(stereo_imu_sync_init);
+        vio_frontend_module_->spinOnce(stereo_imu_sync_init);
     // TODO(Sandro): Optionally add AHRS PIM
     initialization_frontend_output_queue_.push(
         VIO::make_unique<InitializationInputPayload>(
@@ -884,9 +890,9 @@ bool Pipeline::initializeOnline(
 
       // Enforce zero bias in initial propagation
       // TODO(Sandro): Remove this, once AHRS is implemented
-      vio_frontend_->updateAndResetImuBias(
+      vio_frontend_module_->updateAndResetImuBias(
           gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
-      gyro_bias = vio_frontend_->getCurrentImuBias().gyroscope();
+      gyro_bias = vio_frontend_module_->getCurrentImuBias().gyroscope();
 
       // Initialize if successful
       if (initial_backend.bundleAdjustmentAndGravityAlignment(
@@ -895,7 +901,7 @@ bool Pipeline::initializeOnline(
 
         // Reset frontend with non-trivial gravity and remove 53-enforcement.
         // Update frontend with initial gyro bias estimate.
-        vio_frontend_->resetFrontendAfterOnlineAlignment(
+        vio_frontend_module_->resetFrontendAfterOnlineAlignment(
             backend_params_->n_gravity_, gyro_bias);
         LOG(WARNING) << "Time used for initialization: "
                      << utils::Timer::toc(tic_full_init).count() << " (ms).";
@@ -1053,9 +1059,8 @@ void Pipeline::launchFrontendThread() {
   if (parallel_run_) {
     // Start frontend_thread.
     stereo_frontend_thread_ = VIO::make_unique<std::thread>(
-        &StereoVisionFrontEnd::spin, CHECK_NOTNULL(vio_frontend_.get()),
-        std::ref(stereo_frontend_input_queue_),
-        std::ref(stereo_frontend_output_queue_), true);
+        &StereoVisionFrontEndModule::spin,
+        CHECK_NOTNULL(vio_frontend_module_.get()));
     LOG(INFO) << "Frontend launched (parallel_run set to " << parallel_run_
               << ").";
   } else {
@@ -1143,8 +1148,8 @@ void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping frontend workers and queues...";
   stereo_frontend_input_queue_.shutdown();
   stereo_frontend_output_queue_.shutdown();
-  CHECK(vio_frontend_);
-  vio_frontend_->shutdown();
+  CHECK(vio_frontend_module_);
+  vio_frontend_module_->shutdown();
 
   LOG(INFO) << "Stopping mesher workers and queues...";
   mesher_input_queue_.shutdown();

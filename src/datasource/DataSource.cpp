@@ -31,6 +31,10 @@ DEFINE_int32(backend_type, 0,
              "Type of vioBackEnd to use:\n"
              "0: VioBackEnd\n"
              "1: RegularVioBackEnd");
+DEFINE_int32(frontend_type,
+             0,
+             "Type of VIO Frontend to use:\n"
+             "0: StereoImu");
 DEFINE_int64(initial_k, 50,
              "Initial frame to start processing dataset, "
              "previous frames will not be used.");
@@ -152,6 +156,8 @@ void DataProviderInterface::parseBackendParams() {
 
 /* -------------------------------------------------------------------------- */
 void DataProviderInterface::parseFrontendParams() {
+  pipeline_params_.frontend_type_ =
+      static_cast<FrontendType>(FLAGS_frontend_type);
   // Read/define tracker params.
   if (FLAGS_tracker_params_path.empty()) {
     LOG(WARNING) << "No tracker parameters specified, using default";

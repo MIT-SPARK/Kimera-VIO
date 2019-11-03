@@ -187,7 +187,7 @@ class Pipeline {
 
   // TODO this should go to another class to avoid not having copy-ctor...
   // Frontend.
-  std::unique_ptr<StereoVisionFrontEnd> vio_frontend_;
+  std::unique_ptr<StereoVisionFrontEndModule> vio_frontend_module_;
   std::unique_ptr<FeatureSelector> feature_selector_;
 
   // Stereo vision frontend payloads.

@@ -36,12 +36,17 @@
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
 
+#include "kimera-vio/pipeline/PipelineModule.h"
+
 namespace VIO {
 
 class StereoVisionFrontEnd {
 public:
-  using StereoFrontEndInputPayload = StereoImuSyncPacket;
-  //using StereoFrontEndOutputPayload = VioBackEndInputPayload;
+ KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEnd);
+ KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEnd);
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+ using StereoFrontEndInputPayload = StereoImuSyncPacket;
+ // using StereoFrontEndOutputPayload = VioBackEndInputPayload;
 
 public:
  StereoVisionFrontEnd(
@@ -49,32 +54,6 @@ public:
      const ImuBias& imu_initial_bias,
      const VioFrontEndParams& tracker_params = VioFrontEndParams(),
      bool log_output = false);
-
- /* ------------------------------------------------------------------------- */
- bool spin(
-     ThreadsafeQueue<StereoFrontEndInputPayload::ConstUniquePtr>& input_queue,
-     ThreadsafeQueue<StereoFrontEndOutputPayload::UniquePtr>& output_queue,
-     bool parallel_run = true);
-
- /* ------------------------------------------------------------------------- */
- // Shutdown spin.
- inline void shutdown() {
-   LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Frontend was already "
-                                 "shutdown.";
-   LOG(INFO) << "Shutting down Frontend.";
-   shutdown_ = true;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Avoid shutdown of spin.
-  inline void restart() {
-    LOG(INFO) << "Resetting shutdown frontend flag to false.";
-    shutdown_ = false;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Query if thread is working and not waiting on input queue to be filled.
-  inline bool isWorking() const {return is_thread_working_;}
 
 public:
   /* ------------------------------------------------------------------------ */
@@ -287,6 +266,71 @@ private:
 
   // Frontend logger.
   std::unique_ptr<FrontendLogger> logger_;
+};
+
+class StereoVisionFrontEndModule
+    : public PipelineModule<StereoImuSyncPacket, StereoFrontEndOutputPayload> {
+  KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEndModule);
+  KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEndModule);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  /**
+   * @brief StereoVisionFrontEndModule
+   * @param input_queue
+   * @param output_queue
+   * @param parallel_run
+   * @param vio_frontend
+   */
+  StereoVisionFrontEndModule(InputQueue* input_queue,
+                             OutputQueue* output_queue,
+                             bool parallel_run,
+                             StereoVisionFrontEnd::UniquePtr vio_frontend)
+      : PipelineModule<StereoImuSyncPacket, StereoFrontEndOutputPayload>(
+            input_queue,
+            output_queue,
+            "VioFrontEnd",
+            parallel_run),
+        vio_frontend_(std::move(vio_frontend)) {
+    CHECK(vio_frontend_);
+  }
+  virtual ~StereoVisionFrontEndModule() = default;
+
+  virtual StereoFrontEndOutputPayload::UniquePtr spinOnce(
+      const StereoImuSyncPacket& input) {
+    return vio_frontend_->spinOnce(input);
+  };
+
+ private:
+  StereoVisionFrontEnd::UniquePtr vio_frontend_;
+};
+
+class FrontEndFactory {
+ public:
+  KIMERA_POINTER_TYPEDEFS(FrontEndFactory);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(FrontEndFactory);
+  FrontEndFactory() = delete;
+  virtual ~FrontEndFactory() = default;
+
+  static StereoVisionFrontEnd::UniquePtr createFrontend(
+      const FrontendType& frontend_type,
+      const ImuParams& imu_params,
+      const ImuBias& imu_initial_bias,
+      const VioFrontEndParams& frontend_params,
+      bool log_output) {
+    switch (frontend_type) {
+      case FrontendType::Stereo: {
+        return VIO::make_unique<StereoVisionFrontEnd>(
+            imu_params, imu_initial_bias, frontend_params, log_output);
+      }
+      default: {
+        LOG(FATAL) << "Requested backend type is not supported.\n"
+                   << "Currently supported backend types:\n"
+                   << "0: normal VIO\n 1: regular VIO\n"
+                   << " but requested backend: "
+                   << static_cast<int>(frontend_type);
+      }
+    }
+  }
 };
 
 } // namespace VIO

@@ -22,6 +22,11 @@
 
 namespace VIO {
 
+enum class FrontendType {
+  //! Frontend that works with Stereo camera and Imu
+  StereoImu = 0
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 struct StereoFrontEndOutputPayload {
 public:
