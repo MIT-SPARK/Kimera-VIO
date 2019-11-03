@@ -346,22 +346,21 @@ void Pipeline::processKeyframe(
       CHECK(backend_type_ == BackendType::StructuralRegularities);
       mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
-      RegularVioBackEndParams regular_vio_backend_params =
-          RegularVioBackEndParams::safeCast(*backend_params_);
-      LOG_IF_EVERY_N(
-          WARNING,
-          backend_type_ == BackendType::StructuralRegularities &&
-              (regular_vio_backend_params.backend_modality_ ==
-                   RegularBackendModality::STRUCTURELESS_AND_PROJECTION ||
-               regular_vio_backend_params.backend_modality_ ==
-                   RegularBackendModality::PROJECTION_AND_REGULARITY ||
-               regular_vio_backend_params.backend_modality_ ==
-                   RegularBackendModality::
-                       STRUCTURELESS_PROJECTION_AND_REGULARITY),
-          10)
-          << "Using Regular VIO without extracting planes from the scene. "
-             "Set flag extract_planes_from_the_scene to true to enforce "
-             "regularities.";
+      if (backend_type_ == BackendType::StructuralRegularities) {
+        RegularVioBackEndParams regular_vio_backend_params =
+            RegularVioBackEndParams::safeCast(*backend_params_);
+        LOG_IF_EVERY_N(
+            WARNING,
+            regular_vio_backend_params.backend_modality_ ==
+                    RegularBackendModality::PROJECTION_AND_REGULARITY ||
+                regular_vio_backend_params.backend_modality_ ==
+                    RegularBackendModality::
+                        STRUCTURELESS_PROJECTION_AND_REGULARITY,
+            10)
+            << "Using Regular VIO without extracting planes from the scene. "
+               "Set flag extract_planes_from_the_scene to true to enforce "
+               "regularities.";
+      }
     }
   }
 
@@ -504,22 +503,21 @@ void Pipeline::spinSequential() {
       CHECK(backend_type_ == BackendType::StructuralRegularities);
       mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
-      RegularVioBackEndParams regular_vio_backend_params =
-          RegularVioBackEndParams::safeCast(*backend_params_);
-      LOG_IF_EVERY_N(
-          WARNING,
-          backend_type_ == BackendType::StructuralRegularities &&
-              (regular_vio_backend_params.backend_modality_ ==
-                   RegularBackendModality::STRUCTURELESS_AND_PROJECTION ||
-               regular_vio_backend_params.backend_modality_ ==
-                   RegularBackendModality::PROJECTION_AND_REGULARITY ||
-               regular_vio_backend_params.backend_modality_ ==
-                   RegularBackendModality::
-                       STRUCTURELESS_PROJECTION_AND_REGULARITY),
-          10)
-          << "Using Regular VIO without extracting planes from the scene. "
-             "Set flag extract_planes_from_the_scene to true to enforce "
-             "regularities.";
+      if (backend_type_ == BackendType::StructuralRegularities) {
+        RegularVioBackEndParams regular_vio_backend_params =
+            RegularVioBackEndParams::safeCast(*backend_params_);
+        LOG_IF_EVERY_N(
+            WARNING,
+            regular_vio_backend_params.backend_modality_ ==
+                    RegularBackendModality::PROJECTION_AND_REGULARITY ||
+                regular_vio_backend_params.backend_modality_ ==
+                    RegularBackendModality::
+                        STRUCTURELESS_PROJECTION_AND_REGULARITY,
+            10)
+            << "Using Regular VIO without extracting planes from the scene. "
+               "Set flag extract_planes_from_the_scene to true to enforce "
+               "regularities.";
+      }
     }
 
     // Pop from mesher.

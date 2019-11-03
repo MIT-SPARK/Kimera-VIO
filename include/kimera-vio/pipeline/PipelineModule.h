@@ -107,7 +107,7 @@ class PipelineModule {
       // Break the while loop if we are in sequential mode.
       if (!parallel_run_) return true;
     }
-    LOG(INFO) << "Successfully shutdown for module: " << name_id_;
+    LOG(INFO) << "Successful shutdown of module: " << name_id_;
     return true;
   }
 

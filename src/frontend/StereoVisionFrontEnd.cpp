@@ -81,7 +81,7 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
       utils::Timer::toc<std::chrono::microseconds>(tic_full_preint).count();
   utils::StatsCollector stats_full_preint("IMU Preintegration Timing [us]");
   stats_full_preint.AddSample(full_preint_duration);
-  LOG_IF(WARNING, full_preint_duration != 0.0)
+  VLOG_IF(1, full_preint_duration != 0.0)
       << "Current IMU Preintegration frequency: " << 10e6 / full_preint_duration
       << " Hz. (" << full_preint_duration << " us).";
 
