@@ -200,8 +200,7 @@ Pipeline::~Pipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::spin(
-    StereoImuSyncPacket::ConstUniquePtr stereo_imu_sync_packet) {
+void Pipeline::spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
   CHECK(!shutdown_) << "Pipeline is shutdown.";
   // Check if we have to re-initialize
   checkReInitialize(*stereo_imu_sync_packet);
@@ -237,8 +236,7 @@ void Pipeline::spin(
 
 /* -------------------------------------------------------------------------- */
 // Spin the pipeline only once.
-void Pipeline::spinOnce(
-    StereoImuSyncPacket::ConstUniquePtr stereo_imu_sync_packet) {
+void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
   CHECK(is_initialized_);
   ////////////////////////////// FRONT-END /////////////////////////////////////
   // Push to stereo frontend input queue.
@@ -690,6 +688,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
     default:
       LOG(FATAL) << "Wrong initialization mode.";
   }
+  return false;
 }
 
 /* -------------------------------------------------------------------------- */

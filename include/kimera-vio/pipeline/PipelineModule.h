@@ -37,6 +37,8 @@ namespace VIO {
  * - spin(): runs the pipeline module by pulling and pushing from/to the
  * input/output queues given at construction.
  * - spinOnce(): given a minimal input, computes the output of the module.
+ * Returning a nullptr signals that the output should not be sent to the output
+ * queue.
  */
 template <typename InputPayload, typename OutputPayload>
 class PipelineModule {
@@ -64,7 +66,10 @@ class PipelineModule {
   virtual ~PipelineModule() { LOG(INFO) << name_id_ + " destructor called."; }
 
   /**
-   * @brief Main spin function.
+   * @brief Main spin function. Every pipeline module calls this spin, where
+   * the input is taken from an input queue and processed into an output packet
+   * which is sent to the output queue. If the module returns a nullptr, then
+   * we don't push to the output queue to save computation time.
    * @return True if everything goes well.
    */
   bool spin() {
@@ -78,8 +83,14 @@ class PipelineModule {
         is_thread_working_ = true;
         if (input) {
           auto tic = utils::Timer::tic();
-          if (!output_queue_->push(spinOnce(*input))) {
-            LOG(WARNING) << "Output Queue is down for module: " << name_id_;
+          OutputPayloadPtr output = spinOnce(*input);
+          if (output) {
+            // Received a valid output, send to output queue
+            if (!output_queue_->push(std::move(output))) {
+              LOG(WARNING) << "Output Queue is down for module: " << name_id_;
+            }
+          } else {
+            VLOG(1) << "Module " << name_id_ << " skipped sending an output.";
           }
           auto spin_duration = utils::Timer::toc(tic).count();
           LOG(WARNING) << "Module " << name_id_
@@ -103,7 +114,8 @@ class PipelineModule {
   /**
    * @brief Abstract function to process a single input payload.
    * @param[in] input: an input payload for module to work on.
-   * @return The output payload from the pipeline module.
+   * @return The output payload from the pipeline module. Returning a nullptr
+   * signals that the output should not be sent to the output queue.
    */
   virtual OutputPayloadPtr spinOnce(const InputPayload& input) = 0;
 

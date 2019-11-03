@@ -25,8 +25,7 @@ namespace VIO {
 
 class DataProviderInterface {
  public:
-  typedef std::function<void(StereoImuSyncPacket::ConstUniquePtr)>
-      VioInputCallback;
+  typedef std::function<void(StereoImuSyncPacket::UniquePtr)> VioInputCallback;
 
   /** Regular ctor.
    *   [in] initial_k: first frame id to be parsed.

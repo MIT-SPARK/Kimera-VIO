@@ -97,7 +97,7 @@ bool KittiDataProvider::spin() {
 
     timestamp_last_frame = timestamp_frame_k;
 
-    vio_callback_(VIO::make_unique<const StereoImuSyncPacket>(
+    vio_callback_(VIO::make_unique<StereoImuSyncPacket>(
         StereoFrame(k,
                     timestamp_frame_k,
                     readKittiImage(kitti_data_.left_img_names_.at(k)),

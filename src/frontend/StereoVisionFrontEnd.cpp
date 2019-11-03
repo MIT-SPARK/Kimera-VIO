@@ -143,6 +143,7 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
     imu_frontend_->resetIntegrationWithCachedBias();
 
     // Return the output of the frontend for the others.
+    VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
     return VIO::make_unique<StereoFrontEndOutputPayload>(
         true,
         status_stereo_measurements,
@@ -153,14 +154,8 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
         getTrackerInfo());
   } else {
     // We don't have a keyframe.
-    return VIO::make_unique<StereoFrontEndOutputPayload>(
-        false,
-        status_stereo_measurements,
-        TrackingStatus::INVALID,
-        getRelativePoseBodyStereo(),
-        *stereoFrame_lkf_,
-        pim,
-        getTrackerInfo());
+    VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
+    return nullptr;
   }
 }
 

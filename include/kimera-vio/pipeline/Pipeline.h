@@ -53,13 +53,13 @@ class Pipeline {
   virtual ~Pipeline();
 
   // Main spin, runs the pipeline.
-  void spin(StereoImuSyncPacket::ConstUniquePtr stereo_imu_sync_packet);
+  void spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
   bool spinViz();
 
   // Spin the pipeline only once.
-  void spinOnce(StereoImuSyncPacket::ConstUniquePtr stereo_imu_sync_packet);
+  void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
 
   // A parallel pipeline should always be able to run sequentially...
   void spinSequential();
@@ -192,8 +192,7 @@ class Pipeline {
   std::unique_ptr<FeatureSelector> feature_selector_;
 
   // Stereo vision frontend payloads.
-  ThreadsafeQueue<StereoImuSyncPacket::ConstUniquePtr>
-      stereo_frontend_input_queue_;
+  ThreadsafeQueue<StereoImuSyncPacket::UniquePtr> stereo_frontend_input_queue_;
   ThreadsafeQueue<StereoFrontEndOutputPayload::UniquePtr>
       stereo_frontend_output_queue_;
 

@@ -134,7 +134,7 @@ void ETHDatasetParser::spinOnce(
   // Call VIO Pipeline.
   VLOG(10) << "Call VIO processing for frame k: " << k
            << " with timestamp: " << timestamp_frame_k;
-  vio_callback_(VIO::make_unique<const StereoImuSyncPacket>(
+  vio_callback_(VIO::make_unique<StereoImuSyncPacket>(
       StereoFrame(k,
                   timestamp_frame_k,
                   UtilsOpenCV::ReadAndConvertToGrayScale(getLeftImgName(k),
