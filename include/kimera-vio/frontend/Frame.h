@@ -167,8 +167,8 @@ class Frame {
     // Add points from Frame.
     std::vector<cv::Point2f> keypointsToTriangulate;
     for (const auto& i : selectedIndices) {
-      cv::Point2f kp_i(float(frame.keypoints_.at(i).x),
-                       float(frame.keypoints_.at(i).y));
+      cv::Point2f kp_i(static_cast<float>(frame.keypoints_.at(i).x),
+                       static_cast<float>(frame.keypoints_.at(i).y));
       if (frame.landmarks_.at(i) != -1 && rect.contains(kp_i)) {
         // Only for valid keypoints (some keypoints may
         // end up outside image after tracking which causes subdiv to crash).
@@ -199,7 +199,7 @@ class Frame {
     for (auto it = keypoints_to_triangulate->begin();
          it != keypoints_to_triangulate->end();) {
       if (!rect.contains(*it)) {
-        LOG(ERROR) << "createMesh2D - error, keypoint out of image frame.";
+        VLOG(1) << "createMesh2D - error, keypoint out of image frame.";
         it = keypoints_to_triangulate->erase(it);
         // Go backwards, otherwise it++ will jump one keypoint...
       } else {
