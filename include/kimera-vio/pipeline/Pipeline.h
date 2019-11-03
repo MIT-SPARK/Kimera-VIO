@@ -181,6 +181,7 @@ class Pipeline {
   // Init Vio parameter
   VioBackEndParams::ConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
+  ImuParams imu_params_;
 
   //! Definition of sensor rig used
   StereoCamera::UniquePtr stereo_camera_;

@@ -82,8 +82,8 @@ public:
   // Prepare frontend for initial bundle adjustment for online alignment
   void prepareFrontendForOnlineAlignment() {
     LOG(WARNING) << "Preparing frontend for online alignment!\n";
-    updateAndResetImuBias(gtsam::imuBias::ConstantBias(
-                Vector3::Zero(), Vector3::Zero()));
+    updateAndResetImuBias(
+        gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
     resetGravity(Vector3::Zero());
     forceFiveThreePointMethod(true);
     CHECK(force_53point_ransac_);
@@ -270,6 +270,7 @@ private:
 
 class StereoVisionFrontEndModule
     : public PipelineModule<StereoImuSyncPacket, StereoFrontEndOutputPayload> {
+ public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEndModule);
   KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEndModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -295,10 +296,45 @@ class StereoVisionFrontEndModule
   }
   virtual ~StereoVisionFrontEndModule() = default;
 
+ public:
   virtual StereoFrontEndOutputPayload::UniquePtr spinOnce(
       const StereoImuSyncPacket& input) {
     return vio_frontend_->spinOnce(input);
-  };
+  }
+
+  //! Frontend Initialization
+  StereoFrame processFirstStereoFrame(const StereoFrame& first_frame) {
+    return vio_frontend_->processFirstStereoFrame(first_frame);
+  }
+
+  //! Imu related
+  inline void updateAndResetImuBias(const ImuBias& imu_bias) const {
+    vio_frontend_->updateAndResetImuBias(imu_bias);
+  }
+  inline ImuBias getCurrentImuBias() const {
+    return vio_frontend_->getCurrentImuBias();
+  }
+
+  void resetFrontendAfterOnlineAlignment(const gtsam::Vector3& gravity,
+                                         gtsam::Vector3& gyro_bias) {
+    vio_frontend_->resetFrontendAfterOnlineAlignment(gravity, gyro_bias);
+  }
+
+  //! Callbacks
+  inline void updateImuBias(const ImuBias& imu_bias) const {
+    vio_frontend_->updateImuBias(imu_bias);
+  }
+
+ public:
+  // TODO: Remove these calls below!
+  void prepareFrontendForOnlineAlignment() {
+    vio_frontend_->prepareFrontendForOnlineAlignment();
+  }
+
+  // Check values in frontend for initial bundle adjustment for online alignment
+  void checkFrontendForOnlineAlignment() {
+    vio_frontend_->checkFrontendForOnlineAlignment();
+  }
 
  private:
   StereoVisionFrontEnd::UniquePtr vio_frontend_;
@@ -318,15 +354,15 @@ class FrontEndFactory {
       const VioFrontEndParams& frontend_params,
       bool log_output) {
     switch (frontend_type) {
-      case FrontendType::Stereo: {
+      case FrontendType::StereoImu: {
         return VIO::make_unique<StereoVisionFrontEnd>(
             imu_params, imu_initial_bias, frontend_params, log_output);
       }
       default: {
-        LOG(FATAL) << "Requested backend type is not supported.\n"
-                   << "Currently supported backend types:\n"
-                   << "0: normal VIO\n 1: regular VIO\n"
-                   << " but requested backend: "
+        LOG(FATAL) << "Requested fronetnd type is not supported.\n"
+                   << "Currently supported frontend types:\n"
+                   << "0: Stereo + IMU \n"
+                   << " but requested frontend: "
                    << static_cast<int>(frontend_type);
       }
     }

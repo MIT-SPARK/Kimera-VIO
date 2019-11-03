@@ -53,49 +53,6 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 }
 
 /* -------------------------------------------------------------------------- */
-bool StereoVisionFrontEnd::spin(
-    ThreadsafeQueue<StereoFrontEndInputPayload::ConstUniquePtr>& input_queue,
-    ThreadsafeQueue<StereoFrontEndOutputPayload::UniquePtr>& output_queue,
-    bool parallel_run) {
-  LOG(INFO) << "Spinning StereoFrontEnd.";
-  utils::StatsCollector stat_stereo_frontend_timing(
-      "StereoFrontEnd Timing [ms]");
-  while (!shutdown_) {
-    // Get input data from queue. Wait for Backend payload.
-    is_thread_working_ = false;
-    StereoFrontEndInputPayload::ConstUniquePtr input;
-    input_queue.popBlocking(input);
-    is_thread_working_ = true;
-    if (input) {
-      auto tic = utils::Timer::tic();
-      StereoFrontEndOutputPayload::UniquePtr output = spinOnce(*input);
-      bool is_keyframe = output->is_keyframe_;
-      if (is_keyframe) {
-        VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
-        // WARNING: explicit move, do not use output after this call...
-        output_queue.push(std::move(output));
-      } else {
-        VLOG(2) << "Frontend output is not a keyframe."
-                   " Skipping output queue push.";
-      }
-      auto spin_duration = utils::Timer::toc(tic).count();
-      LOG(WARNING) << "Current Stereo FrontEnd "
-                   << (is_keyframe ? "(keyframe) " : "")
-                   << "frequency: " << 1000.0 / spin_duration << " Hz. ("
-                   << spin_duration << " ms).";
-      stat_stereo_frontend_timing.AddSample(spin_duration);
-    } else {
-      LOG(WARNING) << "No StereoFrontEnd Input Payload received.";
-    }
-
-    // Break the while loop if we are in sequential mode.
-    if (!parallel_run) return true;
-  }
-  LOG(INFO) << "StereoFrontEnd successfully shutdown.";
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
 StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
     const StereoFrontEndInputPayload& input) {
   const StereoFrame& stereoFrame_k = input.getStereoFrame();

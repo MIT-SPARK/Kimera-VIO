@@ -182,17 +182,19 @@ public:
     return imu_params_;
   }
 
-private:
- void initializeImuFrontEnd(const ImuBias& imu_bias);
+  /* ------------------------------------------------------------------------ */
+  // Convert parameters for imu preintegration from the given ImuParams.
+  static PreintegratedImuMeasurements::Params convertImuParams(
+      const ImuParams& imu_params);
 
- // Set parameters for imu preintegration from the given ImuParams.
- PreintegratedImuMeasurements::Params setImuParams(const ImuParams& imu_params);
+ private:
+  void initializeImuFrontEnd(const ImuBias& imu_bias);
 
-private:
- PreintegratedImuMeasurements::Params imu_params_;
- std::unique_ptr<PreintegratedImuMeasurements> pim_ = nullptr;
- ImuBias latest_imu_bias_;
- mutable std::mutex imu_bias_mutex_;
+ private:
+  PreintegratedImuMeasurements::Params imu_params_;
+  std::unique_ptr<PreintegratedImuMeasurements> pim_ = nullptr;
+  ImuBias latest_imu_bias_;
+  mutable std::mutex imu_bias_mutex_;
 };
 
 } // End of VIO namespace.

@@ -100,6 +100,7 @@ Pipeline::Pipeline(const PipelineParams& params)
       loop_closure_detector_(nullptr),
       backend_params_(params.backend_params_),
       frontend_params_(params.frontend_params_),
+      imu_params_(params.imu_params_),
       mesher_(nullptr),
       visualizer_(nullptr),
       stereo_frontend_thread_(nullptr),
@@ -137,7 +138,7 @@ Pipeline::Pipeline(const PipelineParams& params)
       FrontEndFactory::createFrontend(params.frontend_type_,
                                       params.imu_params_,
                                       gtsam::imuBias::ConstantBias(),
-                                      frontend_params_,
+                                      params.frontend_params_,
                                       FLAGS_log_output));
 
   // These two should be given by parameters...
@@ -151,10 +152,10 @@ Pipeline::Pipeline(const PipelineParams& params)
                                     *CHECK_NOTNULL(backend_params_),
                                     FLAGS_log_output));
   vio_backend_module_->registerImuBiasUpdateCallback(
-      std::bind(&StereoVisionFrontEnd::updateImuBias,
+      std::bind(&StereoVisionFrontEndModule::updateImuBias,
                 // Send a cref: constant reference because vio_frontend_ is
                 // not copyable.
-                std::cref(*CHECK_NOTNULL(vio_frontend_.get())),
+                std::cref(*CHECK_NOTNULL(vio_frontend_module_.get())),
                 std::placeholders::_1));
 
   // TODO(Toni): only create if used.
@@ -429,10 +430,8 @@ bool Pipeline::spinViz() {
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinSequential() {
   // Spin once frontend.
-  CHECK(vio_frontend_);
-  vio_frontend_->spin(stereo_frontend_input_queue_,
-                      stereo_frontend_output_queue_,
-                      false);  // Do not run in parallel.
+  CHECK(vio_frontend_module_);
+  vio_frontend_module_->spin();
 
   // Pop from frontend.
   StereoFrontEndOutputPayload::UniquePtr stereo_frontend_output_payload;
@@ -602,10 +601,10 @@ void Pipeline::shutdownWhenFinished() {
       (!is_initialized_ ||  // Loop while not initialized
                             // Or, once init, data is not yet consumed.
        !(stereo_frontend_input_queue_.empty() &&
-         stereo_frontend_output_queue_.empty() && !vio_frontend_->isWorking() &&
-         backend_input_queue_.empty() && backend_output_queue_.empty() &&
-         !vio_backend_module_->isWorking() && mesher_input_queue_.empty() &&
-         mesher_output_queue_.empty() &&
+         stereo_frontend_output_queue_.empty() &&
+         !vio_frontend_module_->isWorking() && backend_input_queue_.empty() &&
+         backend_output_queue_.empty() && !vio_backend_module_->isWorking() &&
+         mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
          (mesher_ ? !mesher_->isWorking() : true) && lcd_input_queue_.empty() &&
          (loop_closure_detector_ ? !loop_closure_detector_->isWorking()
                                  : true) &&
@@ -620,7 +619,7 @@ void Pipeline::shutdownWhenFinished() {
                           << "Frontend output queue empty?"
                           << stereo_frontend_output_queue_.empty() << '\n'
                           << "Frontend is working? "
-                          << vio_frontend_->isWorking() << '\n'
+                          << vio_frontend_module_->isWorking() << '\n'
                           << "Backend Input queue empty?"
                           << backend_input_queue_.empty() << '\n'
                           << "Backend Output queue empty?"
@@ -793,7 +792,7 @@ bool Pipeline::initializeOnline(
   // TODO(Sandro): Find a way to optimize this
   // Create ImuFrontEnd with non-zero gravity (zero bias)
   gtsam::PreintegratedImuMeasurements::Params imu_params =
-      vio_frontend_module_->getImuFrontEndParams();
+      ImuFrontEnd::convertImuParams(imu_params_);
   imu_params.n_gravity = backend_params_->n_gravity_;
   ImuFrontEnd imu_frontend_real(
       imu_params,
