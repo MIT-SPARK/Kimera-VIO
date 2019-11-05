@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include <boost/shared_ptr.hpp> // used for opengv
 
 #include <opencv2/opencv.hpp>
@@ -46,6 +48,8 @@ public:
  KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEnd);
  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
  using StereoFrontEndInputPayload = StereoImuSyncPacket;
+ using FrontendOutputCallback =
+     std::function<void(const StereoFrontEndOutputPayload::ConstPtr& payload)>;
  // using StereoFrontEndOutputPayload = VioBackEndInputPayload;
 
 public:
@@ -62,6 +66,13 @@ public:
   inline void updateImuBias(const ImuBias& imu_bias) const {
     imu_frontend_->updateBias(imu_bias);
   }
+
+  inline void registerOutputCallback(
+      const FrontendOutputCallback& output_callback) {
+    output_callbacks_.push(output_callback);
+  }
+
+  bool callCallbacks(const StereoFrontEndOutputPayload::ConstPtr& output);
 
   /* ------------------------------------------------------------------------ */
   // Get Imu Bias. This is thread-safe as imu_frontend_->getCurrentImuBias is
@@ -225,7 +236,6 @@ private:
   // TODO MAKE THESE GUYS std::unique_ptr, we do not want to have multiple
   // owners, instead they should be passed around.
   // Stereo Frames
-
   // Current frame
   std::shared_ptr<StereoFrame> stereoFrame_k_;
   // Last frame
@@ -248,6 +258,9 @@ private:
 
   // IMU frontend.
   std::unique_ptr<ImuFrontEnd> imu_frontend_;
+
+  //! Callbacks
+  std::vector<FrontendOutputCallback> output_callbacks_;
 
   // Used to force the use of 5/3 point ransac, despite parameters
   std::atomic_bool force_53point_ransac_ = {false};
@@ -323,6 +336,11 @@ class StereoVisionFrontEndModule
   //! Callbacks
   inline void updateImuBias(const ImuBias& imu_bias) const {
     vio_frontend_->updateImuBias(imu_bias);
+  }
+
+  inline void registerOutputCallback(
+      const StereoVisionFrontEnd::FrontendOutputCallback& output_callback) {
+    vio_frontend_->registerOutputCallback(output_callback);
   }
 
  public:

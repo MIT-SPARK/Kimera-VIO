@@ -252,11 +252,8 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::processKeyframe(
-    const StatusStereoMeasurements& status_stereo_measurements,
     const StereoFrame& last_stereo_keyframe,
     const ImuFrontEnd::PreintegratedImuMeasurements& pim,
-    const TrackingStatus& kf_tracking_status_stereo,
-    const gtsam::Pose3& relative_pose_body_stereo,
     // Only for output of pipeline
     const DebugTrackerInfo& debug_tracker_info) {
   //////////////////// BACK-END ////////////////////////////////////////////////
@@ -640,6 +637,7 @@ bool Pipeline::initializeOnline(
 
   // TODO(Sandro): Find a way to optimize this
   // Create ImuFrontEnd with non-zero gravity (zero bias)
+  // TODO(Toni): shouldn't this be done only once?
   gtsam::PreintegratedImuMeasurements::Params imu_params =
       ImuFrontEnd::convertImuParams(imu_params_);
   imu_params.n_gravity = backend_params_->n_gravity_;
@@ -659,6 +657,8 @@ bool Pipeline::initializeOnline(
       stereo_imu_sync_packet.getImuAccGyr(),
       stereo_imu_sync_packet.getReinitPacket());
 
+  StereoFrontEndOutputPayload::ConstPtr frontend_output =
+      VIO::make_unique<const StereoFrontEndOutputPayload>();
   /////////////////// FIRST FRAME //////////////////////////////////////////////
   if (frame_id == init_frame_id_) {
     // Set trivial bias, gravity and force 5/3 point method for initialization
@@ -666,13 +666,19 @@ bool Pipeline::initializeOnline(
     // Initialize Stereo Frontend.
     vio_frontend_module_->processFirstStereoFrame(
         stereo_imu_sync_init.getStereoFrame());
+
+    //! Register frontend output queue for the initializer.
+    vio_frontend_module_->registerOutputCallback(
+        [&frontend_output](
+            const StereoFrontEndOutputPayload::ConstPtr& output) {
+          frontend_output = output;
+        });
     return false;
   } else {
     // Check trivial bias and gravity vector for online initialization
     vio_frontend_module_->checkFrontendForOnlineAlignment();
     // Spin frontend once with enforced keyframe and 53-point method
-    const VioBackEndInputPayload::UniquePtr& frontend_output =
-        vio_frontend_module_->spinOnce(stereo_imu_sync_init);
+    vio_frontend_module_->spinOnce(stereo_imu_sync_init);
     // TODO(Sandro): Optionally add AHRS PIM
     initialization_frontend_output_queue_.push(
         VIO::make_unique<InitializationInputPayload>(
@@ -885,10 +891,7 @@ void Pipeline::processKeyframePop(bool parallel_run) {
     // TODO(Toni): There is a potential 800 element vector copying to pass
     // the visual feature tracks between frontend and backend!
     processKeyframe(stereo_frontend_output_payload->status_stereo_measurements_,
-                    stereo_frontend_output_payload->stereo_frame_lkf_,
                     stereo_frontend_output_payload->pim_,
-                    stereo_frontend_output_payload->tracker_status_,
-                    stereo_frontend_output_payload->relative_pose_body_stereo_,
                     stereo_frontend_output_payload->debug_tracker_info_);
 
     if (!parallel_run) return;

@@ -137,11 +137,8 @@ class Pipeline {
   void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
 
   void processKeyframe(
-      const StatusStereoMeasurements& statusSmartStereoMeasurements,
       const StereoFrame& last_stereo_keyframe,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
-      const TrackingStatus& kf_tracking_status_stereo,
-      const gtsam::Pose3& relative_pose_body_stereo,
       const DebugTrackerInfo& debug_tracker_info);
 
   void processKeyframePop(bool parallel_run = true);

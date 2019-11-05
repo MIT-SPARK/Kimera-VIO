@@ -144,6 +144,18 @@ VioBackEndInputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
 
     // Return the output of the frontend for the others.
     VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
+
+    //! Call registered callback, this might be slow, so use a timer to check
+    //! it is not going too slow.
+    callCallbacks(std::make_shared<const StereoFrontEndOutputPayload>(
+        true,
+        status_stereo_measurements,
+        trackerStatusSummary_.kfTrackingStatus_stereo_,
+        getRelativePoseBodyStereo(),
+        *stereoFrame_lkf_,
+        pim,
+        getTrackerInfo()));
+
     return VIO::make_unique<VioBackEndInputPayload>(
         stereoFrame_lkf_->getTimestamp(),
         status_stereo_measurements,
@@ -151,18 +163,36 @@ VioBackEndInputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
         pim,
         getRelativePoseBodyStereo(),
         nullptr);
-    // return VIO::make_unique<StereoFrontEndOutputPayload>(
-    //    true,
-    //    status_stereo_measurements,
-    //    trackerStatusSummary_.kfTrackingStatus_stereo_,
-    //    getRelativePoseBodyStereo(),
-    //    *stereoFrame_lkf_,
-    //    pim,
-    //    getTrackerInfo());
   } else {
     // We don't have a keyframe.
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
+    callCallbacks(std::make_shared<const StereoFrontEndOutputPayload>(
+        false,
+        status_stereo_measurements,
+        TrackingStatus::INVALID,
+        getRelativePoseBodyStereo(),
+        *stereoFrame_lkf_,
+        pim,
+        getTrackerInfo()));
     return nullptr;
+  }
+}
+
+bool StereoVisionFrontEnd::callCallbacks(
+    const StereoFrontEndOutputPayload::ConstPtr& output) {
+  auto tic_callbacks = utils::Timer::tic();
+  for (const auto& callback : output_callbacks_) {
+    CHECK(callback);
+    callback(output);
+  }
+  static constexpr auto kTimeLimitCallbacks = std::chrono::milliseconds(10);
+  auto callbacks_duration = utils::Timer::toc(tic_callbacks);
+  if (callbacks_duration > kTimeLimitCallbacks) {
+    LOG(WARNING) << "Frontend Callbacks are taking very long! Current latency: "
+                 << callbacks_duration.count() << " us).";
+    return false;
+  } else {
+    return true;
   }
 }
 
