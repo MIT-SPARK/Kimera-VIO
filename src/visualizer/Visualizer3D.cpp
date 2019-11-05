@@ -151,36 +151,6 @@ VisualizerOutputPayload::UniquePtr Visualizer3D::spinOnce(
   cv::Mat mesh_2d_img;  // Only for visualization.
   const Frame& left_stereo_keyframe = input.stereo_keyframe_.getLeftFrame();
   switch (visualization_type_) {
-    // Computes and visualizes 2D mesh.
-    // vertices: all leftframe kps with lmkId != -1 and inside the image
-    // triangles: all the ones with edges inside images as produced by
-    // cv::subdiv
-    case VisualizationType::MESH2D: {
-      output->visualization_type_ = VisualizationType::MESH2D;
-      output->images_to_display_.push_back(ImageToDisplay(
-          "Mesh 2D", visualizeMesh2D(left_stereo_keyframe.createMesh2D(),
-                                     left_stereo_keyframe.img_)));
-      break;
-    }
-
-      // Computes and visualizes 2D mesh.
-      // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and
-      // inside the image triangles: all the ones with edges inside images as
-      // produced by cv::subdiv, which have uniform gradient
-    case VisualizationType::
-        MESH2Dsparse: {  // visualize a 2D mesh of (right-valid) keypoints
-                         // discarding triangles corresponding to non planar
-                         // obstacles
-      output->visualization_type_ = VisualizationType::MESH2Dsparse;
-      std::vector<cv::Vec6f> mesh_2d;
-      input.stereo_keyframe_.createMesh2dStereo(&mesh_2d, nullptr,
-                                                Mesh2Dtype::DENSE, true);
-      // Add image to output queue.
-      output->images_to_display_.push_back(ImageToDisplay(
-          "Mesh 2D", visualizeMesh2DStereo(mesh_2d, left_stereo_keyframe)));
-      break;
-    }
-
       // Computes and visualizes 3D mesh from 2D triangulation.
       // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and
       // inside the image triangles: all the ones with edges inside images as

@@ -53,7 +53,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 }
 
 /* -------------------------------------------------------------------------- */
-StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
+VioBackEndInputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
     const StereoFrontEndInputPayload& input) {
   const StereoFrame& stereoFrame_k = input.getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
@@ -144,14 +144,21 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
 
     // Return the output of the frontend for the others.
     VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
-    return VIO::make_unique<StereoFrontEndOutputPayload>(
-        true,
+    return VIO::make_unique<VioBackEndInputPayload>(
+        stereoFrame_lkf_->getTimestamp(),
         status_stereo_measurements,
         trackerStatusSummary_.kfTrackingStatus_stereo_,
-        getRelativePoseBodyStereo(),
-        *stereoFrame_lkf_,
         pim,
-        getTrackerInfo());
+        getRelativePoseBodyStereo(),
+        nullptr);
+    // return VIO::make_unique<StereoFrontEndOutputPayload>(
+    //    true,
+    //    status_stereo_measurements,
+    //    trackerStatusSummary_.kfTrackingStatus_stereo_,
+    //    getRelativePoseBodyStereo(),
+    //    *stereoFrame_lkf_,
+    //    pim,
+    //    getTrackerInfo());
   } else {
     // We don't have a keyframe.
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";

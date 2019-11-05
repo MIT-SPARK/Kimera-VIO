@@ -133,7 +133,7 @@ Pipeline::Pipeline(const PipelineParams& params)
   // front-end) and print parameters.
   vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
       &stereo_frontend_input_queue_,
-      &stereo_frontend_output_queue_,
+      &backend_input_queue_,
       parallel_run_,
       FrontEndFactory::createFrontend(params.frontend_type_,
                                       params.imu_params_,
@@ -159,8 +159,11 @@ Pipeline::Pipeline(const PipelineParams& params)
                 std::placeholders::_1));
 
   // TODO(Toni): only create if used.
-  mesher_ = VIO::make_unique<Mesher>(
-      &mesher_input_queue_, &mesher_output_queue_, parallel_run_);
+  mesher_ = VIO::make_unique<Mesher>(&mesher_input_queue_,
+                                     &mesher_output_queue_,
+                                     parallel_run_,
+                                     stereo_camera_->getLeftCamPose(),
+                                     params.camera_params_.at(0).image_size_);
 
   // TODO(Toni): only create if used.
   visualizer_ = VIO::make_unique<Visualizer3D>(
@@ -254,21 +257,9 @@ void Pipeline::processKeyframe(
     const ImuFrontEnd::PreintegratedImuMeasurements& pim,
     const TrackingStatus& kf_tracking_status_stereo,
     const gtsam::Pose3& relative_pose_body_stereo,
-    const DebugTrackerInfo&
-        debug_tracker_info) {  // Only for output of pipeline
+    // Only for output of pipeline
+    const DebugTrackerInfo& debug_tracker_info) {
   //////////////////// BACK-END ////////////////////////////////////////////////
-  // Push to backend input.
-  // This should be done inside the frontend!!!!
-  // Or the backend should pull from the frontend!!!!
-  VLOG(2) << "Push input payload to Backend.";
-  backend_input_queue_.push(VIO::make_unique<VioBackEndInputPayload>(
-      last_stereo_keyframe.getTimestamp(),
-      status_stereo_measurements,
-      kf_tracking_status_stereo,
-      pim,
-      relative_pose_body_stereo,
-      &planes_));
-
   // This should be done inside those who need the backend results
   // IN this case the logger!!!!!
   // But there are many more people that want backend results...
@@ -285,6 +276,7 @@ void Pipeline::processKeyframe(
   // It is unfortunately the only option in this architecture.
   if (FLAGS_use_lcd) {
     VLOG(2) << "Push input payload to LoopClosureDetector.";
+    // NEEDS INPUT FROM FRONTEND AND BACKEND
     lcd_input_queue_.push(
         std::move(VIO::make_unique<LoopClosureDetectorInputPayload>(
             last_stereo_keyframe.getTimestamp(),
@@ -301,6 +293,8 @@ void Pipeline::processKeyframe(
       static_cast<VisualizationType>(FLAGS_viz_type);
   // Compute 3D mesh
   if (visualization_type == VisualizationType::MESH2DTo3Dsparse) {
+    // NEEDS INPUT FROM FRONTEND AND BACKEND
+
     // Create and fill data packet for mesher.
     // Points_with_id_VIO contains all the points in the optimization,
     // (encoded as either smart factors or explicit values), potentially
@@ -321,14 +315,14 @@ void Pipeline::processKeyframe(
     // Push to queue.
     // In another thread, mesher is running, consuming mesher payloads.
     VLOG(2) << "Push input payload to Mesher.";
+    const Frame& left_frame = last_stereo_keyframe.getLeftFrame();
     mesher_input_queue_.push(VIO::make_unique<MesherInputPayload>(
         points_with_id_VIO,
-        last_stereo_keyframe,  // not really thread safe, read only.
-        backend_output_payload->W_State_Blkf_.pose_.compose(
-            last_stereo_keyframe
-                .getBPoseCamLRect())));  // TODO(Toni) this is constant and
-                                         // should not be sent via output
-                                         // payload.
+        left_frame.getValidKeypoints(),
+        last_stereo_keyframe.right_keypoints_status_,
+        last_stereo_keyframe.keypoints_3d_,
+        left_frame.landmarks_,
+        backend_output_payload->W_State_Blkf_.pose_));
 
     // In the mesher thread push queue with meshes for visualization.
     // Use blocking to avoid skipping frames.
@@ -430,151 +424,9 @@ void Pipeline::spinSequential() {
   CHECK(vio_frontend_module_);
   vio_frontend_module_->spin();
 
-  // Pop from frontend.
-  StereoFrontEndOutputPayload::UniquePtr stereo_frontend_output_payload;
-  stereo_frontend_output_queue_.pop(stereo_frontend_output_payload);
-  if (!stereo_frontend_output_payload) {
-    // Frontend hasn't reach a keyframe, return and wait frontend to create a
-    // keyframe.
-    return;
-  }
-  CHECK(stereo_frontend_output_payload->is_keyframe_);
-
-  // We have a keyframe. Push to backend.
-  backend_input_queue_.push(VIO::make_unique<VioBackEndInputPayload>(
-      stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
-      stereo_frontend_output_payload->status_stereo_measurements_,
-      stereo_frontend_output_payload->tracker_status_,
-      stereo_frontend_output_payload->pim_,
-      stereo_frontend_output_payload->relative_pose_body_stereo_,
-      &planes_));
-
-  // Spin once backend. Do not run in parallel.
-  CHECK(vio_backend_module_);
-  vio_backend_module_->spin();
-
-  // Pop blocking from backend.
-  VioBackEndOutputPayload::UniquePtr backend_output_payload;
-  CHECK(backend_output_queue_.popBlocking(backend_output_payload));
-
-  // Push keyframe to LCD.
-  lcd_input_queue_.push(VIO::make_unique<LoopClosureDetectorInputPayload>(
-      stereo_frontend_output_payload->stereo_frame_lkf_.getTimestamp(),
-      backend_output_payload->cur_kf_id_,
-      stereo_frontend_output_payload->stereo_frame_lkf_,
-      backend_output_payload->W_State_Blkf_.pose_));
-
-  // Spin once LCD. Do not run in parallel.
-  if (FLAGS_use_lcd) {
-    CHECK(loop_closure_detector_);
-    loop_closure_detector_->spin();
-  }
-
-  const auto& stereo_keyframe =
-      stereo_frontend_output_payload->stereo_frame_lkf_;
-  ////////////////// CREATE 3D MESH //////////////////////////////////////////
-  PointsWithIdMap points_with_id_VIO;
-  LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-  MesherOutputPayload::UniquePtr mesher_output_payload;
-  VisualizationType visualization_type =
-      static_cast<VisualizationType>(FLAGS_viz_type);
-  if (visualization_type == VisualizationType::MESH2DTo3Dsparse) {
-    // Push to mesher.
-    points_with_id_VIO =
-        vio_backend_module_->getMapLmkIdsTo3dPointsInTimeHorizon(
-            FLAGS_visualize_lmk_type ? &lmk_id_to_lmk_type_map : nullptr,
-            FLAGS_min_num_obs_for_mesher_points);  // copy, thread safe,
-                                                   // read-only. // This should
-                                                   // be a popBlocking...
-    // Push to queue.
-    // In another thread, mesher is running, consuming mesher payloads.
-    CHECK(mesher_input_queue_.push(VIO::make_unique<MesherInputPayload>(
-        points_with_id_VIO,
-        stereo_keyframe,  // not really thread safe, read only.
-        backend_output_payload->W_State_Blkf_.pose_.compose(
-            stereo_keyframe.getBPoseCamLRect()))));
-
-    // Spin once mesher.
-    mesher_->spin();
-
-    // Find regularities in the mesh if we are using RegularVIO backend.
-    // TODO create a new class that is mesh segmenter or plane extractor.
-    if (FLAGS_extract_planes_from_the_scene) {
-      CHECK(backend_type_ == BackendType::StructuralRegularities);
-      mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
-    } else {
-      if (backend_type_ == BackendType::StructuralRegularities) {
-        RegularVioBackEndParams regular_vio_backend_params =
-            RegularVioBackEndParams::safeCast(*backend_params_);
-        LOG_IF_EVERY_N(
-            WARNING,
-            regular_vio_backend_params.backend_modality_ ==
-                    RegularBackendModality::PROJECTION_AND_REGULARITY ||
-                regular_vio_backend_params.backend_modality_ ==
-                    RegularBackendModality::
-                        STRUCTURELESS_PROJECTION_AND_REGULARITY,
-            10)
-            << "Using Regular VIO without extracting planes from the scene. "
-               "Set flag extract_planes_from_the_scene to true to enforce "
-               "regularities.";
-      }
-    }
-
-    // Pop from mesher.
-    LOG_IF(WARNING, !mesher_output_queue_.popBlocking(mesher_output_payload))
-        << "Mesher output queue did not pop a payload.";
-  }
-  ////////////////////////////////////////////////////////////////////////////
-
-  if (keyframe_rate_output_callback_) {
-    auto tic = utils::Timer::tic();
-    VLOG(2) << "Call keyframe callback with spin output payload.";
-    keyframe_rate_output_callback_(SpinOutputPacket(
-        backend_output_payload->W_State_Blkf_,
-        mesher_output_payload->mesh_2d_,
-        mesher_output_payload->mesh_3d_,
-        Visualizer3D::visualizeMesh2D(
-            mesher_output_payload->mesh_2d_filtered_for_viz_,
-            stereo_frontend_output_payload->stereo_frame_lkf_.getLeftFrame()
-                .img_),
-        points_with_id_VIO,
-        lmk_id_to_lmk_type_map,
-        backend_output_payload->state_covariance_lkf_,
-        stereo_frontend_output_payload->debug_tracker_info_));
-    auto toc = utils::Timer::toc(tic);
-    LOG_IF(WARNING, toc.count() > FLAGS_max_time_allowed_for_keyframe_callback)
-        << "Keyframe Rate Output Callback is taking longer than it should: "
-           "make sure your callback is fast!";
-  }
+  processKeyframePop(false);
 
   if (FLAGS_visualize) {
-    // Push data for visualizer thread.
-    // WHO Should be pushing to the visualizer input queue????????
-    // This cannot happen at all from a single module, because visualizer
-    // takes input from mesher and backend right now...
-    visualizer_input_queue_.push(VIO::make_unique<VisualizerInputPayload>(
-        // Pose for trajectory viz.
-        backend_output_payload->W_State_Blkf_
-                .pose_ *  // The visualizer needs backend results
-            stereo_keyframe
-                .getBPoseCamLRect(),  // This should be pass at ctor level....
-        // For visualizeMesh2D and visualizeMesh2DStereo.
-        stereo_keyframe,
-        // visualizeConvexHull & visualizeMesh3DWithColoredClusters
-        // WARNING using move explicitly!
-        std::move(mesher_output_payload),
-        // visualizeMesh3DWithColoredClusters & visualizePoints3D
-        visualization_type == VisualizationType::POINTCLOUD
-            ?  // This is to avoid recomputing MapLmkIdsTo3d...
-            vio_backend_module_->getMapLmkIdsTo3dPointsInTimeHorizon()
-            : points_with_id_VIO,
-        // visualizeMesh3DWithColoredClusters & visualizePoints3D
-        lmk_id_to_lmk_type_map,
-        planes_,  // visualizeMesh3DWithColoredClusters
-        vio_backend_module_->getFactorsUnsafe(),  // For plane constraints viz.
-        backend_output_payload->state_  // For planes and plane constraints viz.
-        ));
-
     // Spin visualizer.
     CHECK(visualizer_);
     visualizer_->spin();
@@ -819,7 +671,7 @@ bool Pipeline::initializeOnline(
     // Check trivial bias and gravity vector for online initialization
     vio_frontend_module_->checkFrontendForOnlineAlignment();
     // Spin frontend once with enforced keyframe and 53-point method
-    const StereoFrontEndOutputPayload::UniquePtr& frontend_output =
+    const VioBackEndInputPayload::UniquePtr& frontend_output =
         vio_frontend_module_->spinOnce(stereo_imu_sync_init);
     // TODO(Sandro): Optionally add AHRS PIM
     initialization_frontend_output_queue_.push(
@@ -1008,7 +860,7 @@ StatusStereoMeasurements Pipeline::featureSelect(
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::processKeyframePop() {
+void Pipeline::processKeyframePop(bool parallel_run) {
   // TODO (Sandro): Adapt to be able to batch pop frames for batch backend
   // Pull from stereo frontend output queue.
   LOG(INFO) << "Spinning wrapped thread.";
@@ -1038,6 +890,8 @@ void Pipeline::processKeyframePop() {
                     stereo_frontend_output_payload->tracker_status_,
                     stereo_frontend_output_payload->relative_pose_body_stereo_,
                     stereo_frontend_output_payload->debug_tracker_info_);
+
+    if (!parallel_run) return;
   }
   LOG(INFO) << "Shutdown wrapped thread.";
 }

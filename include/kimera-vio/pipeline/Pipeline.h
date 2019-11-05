@@ -144,7 +144,7 @@ class Pipeline {
       const gtsam::Pose3& relative_pose_body_stereo,
       const DebugTrackerInfo& debug_tracker_info);
 
-  void processKeyframePop();
+  void processKeyframePop(bool parallel_run = true);
 
   StatusStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,

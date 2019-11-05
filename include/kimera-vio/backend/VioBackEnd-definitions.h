@@ -221,8 +221,7 @@ struct VioBackEndInputPayload {
   VioBackEndInputPayload(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_stereo_measurements_kf,
-      const TrackingStatus&
-          stereo_tracking_status,  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
+      const TrackingStatus& stereo_tracking_status,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
       std::vector<Plane>* planes = nullptr)
@@ -234,8 +233,8 @@ struct VioBackEndInputPayload {
         stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
   const Timestamp timestamp_kf_nsec_;
   const StatusStereoMeasurements status_stereo_measurements_kf_;
-  const TrackingStatus
-      stereo_tracking_status_;  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
+  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
+  const TrackingStatus stereo_tracking_status_;
   const gtsam::PreintegratedImuMeasurements pim_;
   std::vector<Plane>* planes_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;

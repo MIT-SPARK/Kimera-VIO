@@ -118,6 +118,8 @@ class CameraParams {
                                      const std::vector<double>& intrinsics,
                                      gtsam::Cal3DS2* calibration);
 };
+// TODO(Toni): this should be a base class, so that stereo camera is a specific
+// type of a multi camera sensor rig, or something along these lines.
 typedef std::vector<CameraParams> MultiCameraParams;
 
 }  // namespace VIO

@@ -38,16 +38,30 @@ struct MesherInputPayload {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MesherInputPayload(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
-      const StereoFrame& stereo_frame,
+      const KeypointsCV& keypoints,
+      const std::vector<Kstatus>& keypoints_status,
+      const std::vector<Vector3>& keypoints_3d,
+      const LandmarkIds& landmarks,
       const gtsam::Pose3& left_camera_pose)
       : points_with_id_vio_(points_with_id_vio),
-        stereo_frame_(stereo_frame),
-        left_camera_pose_(left_camera_pose) {}
+        keypoints_(keypoints),
+        keypoints_status_(keypoints_status),
+        keypoints_3d_(keypoints_3d),
+        landmarks_(landmarks),
+        W_Pose_B_(left_camera_pose) {}
   virtual ~MesherInputPayload() = default;
 
+  //! Backenc optimized landmark and pose information.
   const std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_vio_;
-  const StereoFrame stereo_frame_;
-  const gtsam::Pose3 left_camera_pose_;
+  const gtsam::Pose3 W_Pose_B_;
+
+  //! Frontend per-frame information
+  // TODO(Toni): Simplify... This info seems terribly redundant, requires
+  // frontend refactor though...
+  const KeypointsCV& keypoints_;
+  const std::vector<Kstatus>& keypoints_status_;
+  const std::vector<Vector3>& keypoints_3d_;
+  const LandmarkIds& landmarks_;
 };
 
 struct MesherOutputPayload {
@@ -138,7 +152,9 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
    */
   Mesher(InputQueue* input_queue,
          OutputQueue* output_queue,
-         const bool& parallel_run);
+         const bool& parallel_run,
+         const gtsam::Pose3& B_Pose_camLrect,
+         const cv::Size& img_size);
 
   /**
    * @brief Mesher::spinOnce Process only one minimal packet of information.
@@ -160,8 +176,12 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
   // 3D face from the 2D triangle.
   void updateMesh3D(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
-      std::shared_ptr<StereoFrame> stereo_frame_ptr,
-      const gtsam::Pose3& left_camera_pose, Mesh2D* mesh_2d = nullptr,
+      const KeypointsCV& keypoints,
+      const std::vector<Kstatus>& keypoints_status,
+      const std::vector<Vector3>& keypoints_3d,
+      const LandmarkIds& landmarks,
+      const gtsam::Pose3& left_camera_pose,
+      Mesh2D* mesh_2d = nullptr,
       std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
       std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
 
@@ -179,8 +199,10 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio);
 
   /* ------------------------------------------------------------------------ */
-  void appendNonVioStereoPoints(std::shared_ptr<StereoFrame> stereoFrame,
-                                const gtsam::Pose3& leftCameraPose,
+  void appendNonVioStereoPoints(const LandmarkIds& landmarks,
+                                const std::vector<Kstatus>& keypoints_status,
+                                const std::vector<Vector3>& keypoints_3d,
+                                const gtsam::Pose3& left_cam_pose,
                                 std::unordered_map<LandmarkId, gtsam::Point3>*
                                     points_with_id_stereo) const;
 
@@ -199,6 +221,13 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
   // The 2d histogram of theta angle (latitude) and distance of polygons
   // perpendicular to the vertical (aka parallel to walls).
   Histogram hist_2d_;
+
+  // Needs to know where the camera is with respect to the body pose for
+  // correctly transforming the body pose estimates of the backend.
+  const gtsam::Pose3 B_Pose_camL_rect_;
+
+  //! Size of the 2D image
+  const cv::Size img_size_;
 
  private:
   // Provide Mesh 3D in read-only mode.
@@ -242,21 +271,30 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
   // parameter. The 3D mesh contains, at any given time, only points that are in
   // points_with_id_map.
   void populate3dMeshTimeHorizon(
+      // cv::Vec6f assumes triangular mesh.
       const std::vector<cv::Vec6f>& mesh_2d_pixels,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
-      const Frame& frame, const gtsam::Pose3& leftCameraPose,
-      double min_ratio_largest_smallest_side, double min_elongation_ratio,
-      double max_triangle_side, Mesh2D* mesh_2d = nullptr);
+      const KeypointsCV& keypoints,
+      const LandmarkIds& landmarks,
+      const gtsam::Pose3& left_cam_pose,
+      double min_ratio_largest_smallest_side,
+      double min_elongation_ratio,
+      double max_triangle_side,
+      Mesh2D* mesh_2d = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Create a 3D mesh from 2D corners in an image.
   void populate3dMesh(
-      const std::vector<cv::Vec6f>&
-          mesh_2d_pixels,  // cv::Vec6f assumes triangular mesh.
+      // cv::Vec6f assumes triangular mesh.
+      const std::vector<cv::Vec6f>& mesh_2d_pixels,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
-      const Frame& frame, const gtsam::Pose3& leftCameraPose,
-      double min_ratio_largest_smallest_side, double min_elongation_ratio,
-      double max_triangle_side, Mesh2D* mesh_2d = nullptr);
+      const KeypointsCV& keypoints,
+      const LandmarkIds& landmarks,
+      const gtsam::Pose3& left_cam_pose,
+      double min_ratio_largest_smallest_side,
+      double min_elongation_ratio,
+      double max_triangle_side,
+      Mesh2D* mesh_2d = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Calculate normals of each polygon in the mesh.
@@ -428,6 +466,34 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
   // Clones underlying data structures encoding the mesh.
   void getVerticesMesh(cv::Mat* vertices_mesh) const;
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
+
+  /* -------------------------------------------------------------------------
+   */
+  static std::vector<cv::Vec6f> createMesh2D(
+      const cv::Size& img_size,
+      std::vector<cv::Point2f>* keypoints_to_triangulate);
+
+  static std::vector<cv::Vec6f> createMesh2D(
+      const Frame& frame,
+      const std::vector<size_t>& selectedIndices);
+
+  static void createMesh2dVIO(
+      std::vector<cv::Vec6f>* triangulation_2D,
+      const LandmarkIds& landmarks,
+      const std::vector<Kstatus>& keypoints_status,
+      const KeypointsCV& keypoints,
+      const cv::Size& img_size,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO);
+
+  static void createMesh2dStereo(
+      std::vector<cv::Vec6f>* triangulation_2D,
+      const LandmarkIds& landmarks,
+      const std::vector<Kstatus>& keypoints_status,
+      const KeypointsCV& keypoints,
+      const std::vector<Vector3>& keypoints_3d,
+      const cv::Size& img_size,
+      std::vector<std::pair<LandmarkId, gtsam::Point3>>* lmk_with_id_stereo =
+          nullptr);
 };
 
 }  // namespace VIO

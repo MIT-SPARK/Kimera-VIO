@@ -138,7 +138,7 @@ public:
 
   // private: // TODO: Fix access to this function. Is this thread safe???
   /* ------------------------------------------------------------------------ */
-  StereoFrontEndOutputPayload::UniquePtr spinOnce(
+  VioBackEndInputPayload::UniquePtr spinOnce(
       const StereoFrontEndInputPayload& input);
 
   /* ------------------------------------------------------------------------ */
@@ -269,7 +269,7 @@ private:
 };
 
 class StereoVisionFrontEndModule
-    : public PipelineModule<StereoImuSyncPacket, StereoFrontEndOutputPayload> {
+    : public PipelineModule<StereoImuSyncPacket, VioBackEndInputPayload> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEndModule);
   KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEndModule);
@@ -286,7 +286,7 @@ class StereoVisionFrontEndModule
                              OutputQueue* output_queue,
                              bool parallel_run,
                              StereoVisionFrontEnd::UniquePtr vio_frontend)
-      : PipelineModule<StereoImuSyncPacket, StereoFrontEndOutputPayload>(
+      : PipelineModule<StereoImuSyncPacket, VioBackEndInputPayload>(
             input_queue,
             output_queue,
             "VioFrontEnd",
@@ -297,7 +297,7 @@ class StereoVisionFrontEndModule
   virtual ~StereoVisionFrontEndModule() = default;
 
  public:
-  virtual StereoFrontEndOutputPayload::UniquePtr spinOnce(
+  virtual VioBackEndInputPayload::UniquePtr spinOnce(
       const StereoImuSyncPacket& input) {
     return vio_frontend_->spinOnce(input);
   }

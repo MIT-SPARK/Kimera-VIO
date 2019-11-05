@@ -143,11 +143,15 @@ namespace VIO {
 /* -------------------------------------------------------------------------- */
 Mesher::Mesher(InputQueue* input_queue,
                OutputQueue* output_queue,
-               const bool& parallel_run)
+               const bool& parallel_run,
+               const gtsam::Pose3& B_Pose_camLrect,
+               const cv::Size& img_size)
     : PipelineModule<MesherInputPayload, MesherOutputPayload>(input_queue,
                                                               output_queue,
                                                               "Mesher",
                                                               parallel_run),
+      B_Pose_camL_rect_(B_Pose_camLrect),
+      img_size_(img_size),
       mesh_3d_() {
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
@@ -181,11 +185,11 @@ Mesher::OutputPayloadPtr Mesher::spinOnce(const MesherInputPayload& input) {
       VIO::make_unique<MesherOutputPayload>();
   updateMesh3D(
       input,
-      FLAGS_return_mesh_2d
-          ? &(mesher_output_payload->mesh_2d_)
-          : nullptr,  // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
-      &(mesher_output_payload->mesh_2d_for_viz_),  // These are more or less
-                                                   // the same info as mesh_2d_
+      // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
+      FLAGS_return_mesh_2d ? &(mesher_output_payload->mesh_2d_) : nullptr,
+      // These are more or less
+      // the same info as mesh_2d_
+      &(mesher_output_payload->mesh_2d_for_viz_),
       &(mesher_output_payload->mesh_2d_filtered_for_viz_));
   getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
   getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));
@@ -271,9 +275,11 @@ void Mesher::filterOutBadTriangles(const gtsam::Pose3& leftCameraPose,
 /* -------------------------------------------------------------------------- */
 // Try to reject bad triangles, corresponding to outliers.
 bool Mesher::isBadTriangle(
-    const Mesh3D::Polygon& polygon, const gtsam::Pose3& left_camera_pose,
+    const Mesh3D::Polygon& polygon,
+    const gtsam::Pose3& left_camera_pose,
     const double& min_ratio_between_largest_an_smallest_side,
-    const double& min_elongation_ratio, const double& max_triangle_side) const {
+    const double& min_elongation_ratio,
+    const double& max_triangle_side) const {
   CHECK_EQ(polygon.size(), 3) << "Expecting 3 vertices in triangle";
   const Vertex3D& p1 = polygon.at(0).getVertexPosition();
   const Vertex3D& p2 = polygon.at(1).getVertexPosition();
@@ -326,25 +332,36 @@ bool Mesher::isBadTriangle(
 // Optionally returns the 2D mesh that links with the 3D mesh via the
 // landmarks ids.
 void Mesher::populate3dMeshTimeHorizon(
-    const std::vector<cv::Vec6f>&
-        mesh_2d_pixels,  // cv::Vec6f assumes triangular mesh.
+    // cv::Vec6f assumes triangular mesh.
+    const std::vector<cv::Vec6f>& mesh_2d_pixels,
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
-    const Frame& frame, const gtsam::Pose3& leftCameraPose,
-    double min_ratio_largest_smallest_side, double min_elongation_ratio,
-    double max_triangle_side, Mesh2D* mesh_2d) {
+    const KeypointsCV& keypoints,
+    const LandmarkIds& landmarks,
+    const gtsam::Pose3& left_cam_pose,
+    double min_ratio_largest_smallest_side,
+    double min_elongation_ratio,
+    double max_triangle_side,
+    Mesh2D* mesh_2d) {
   VLOG(10) << "Starting populate3dMeshTimeHorizon...";
   VLOG(10) << "Starting populate3dMesh...";
-  populate3dMesh(mesh_2d_pixels, points_with_id_map, frame, leftCameraPose,
-                 min_ratio_largest_smallest_side, min_elongation_ratio,
-                 max_triangle_side, mesh_2d);
+  populate3dMesh(mesh_2d_pixels,
+                 points_with_id_map,
+                 keypoints,
+                 landmarks,
+                 left_cam_pose,
+                 min_ratio_largest_smallest_side,
+                 min_elongation_ratio,
+                 max_triangle_side,
+                 mesh_2d);
   VLOG(10) << "Finished populate3dMesh.";
-
   // Remove faces in the mesh that have vertices which are not in
   // points_with_id_map anymore.
   VLOG(10) << "Starting updatePolygonMeshToTimeHorizon...";
-  updatePolygonMeshToTimeHorizon(
-      points_with_id_map, leftCameraPose, min_ratio_largest_smallest_side,
-      max_triangle_side, FLAGS_reduce_mesh_to_time_horizon);
+  updatePolygonMeshToTimeHorizon(points_with_id_map,
+                                 left_cam_pose,
+                                 min_ratio_largest_smallest_side,
+                                 max_triangle_side,
+                                 FLAGS_reduce_mesh_to_time_horizon);
   VLOG(10) << "Finished updatePolygonMeshToTimeHorizon.";
   VLOG(10) << "Finished populate3dMeshTimeHorizon.";
 }
@@ -352,12 +369,15 @@ void Mesher::populate3dMeshTimeHorizon(
 /* -------------------------------------------------------------------------- */
 // Create a 3D mesh from 2D corners in an image.
 void Mesher::populate3dMesh(
-    const std::vector<cv::Vec6f>&
-        mesh_2d_pixels,  // cv::Vec6f assumes triangular mesh.
+    const std::vector<cv::Vec6f>& mesh_2d_pixels,
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
-    const Frame& frame, const gtsam::Pose3& leftCameraPose,
-    double min_ratio_largest_smallest_side, double min_elongation_ratio,
-    double max_triangle_side, Mesh2D* mesh_2d) {
+    const KeypointsCV& keypoints,
+    const LandmarkIds& landmarks,
+    const gtsam::Pose3& left_cam_pose,
+    double min_ratio_largest_smallest_side,
+    double min_elongation_ratio,
+    double max_triangle_side,
+    Mesh2D* mesh_2d) {
   // Iterate over each face in the 2d mesh, and generate the 3d mesh.
   // TODO to retrieve lmk id from pixels, do it in the stereo frame! not here.
 
@@ -383,7 +403,8 @@ void Mesher::populate3dMesh(
       const cv::Point2f pixel(triangle_2d[j * 2], triangle_2d[j * 2 + 1]);
 
       // Extract landmark id corresponding to this pixel.
-      const LandmarkId& lmk_id(frame.findLmkIdFromPixel(pixel));
+      const LandmarkId& lmk_id(
+          Frame::findLmkIdFromPixel(pixel, keypoints, landmarks));
       CHECK_NE(lmk_id, -1);
 
       // Try to find this landmark id in points_with_id_map.
@@ -403,9 +424,11 @@ void Mesher::populate3dMesh(
         if (j == loop_end) {
           // Last iteration.
           // Filter out bad polygons.
-          if (!isBadTriangle(polygon, leftCameraPose,
+          if (!isBadTriangle(polygon,
+                             left_cam_pose,
                              min_ratio_largest_smallest_side,
-                             min_elongation_ratio, max_triangle_side)) {
+                             min_elongation_ratio,
+                             max_triangle_side)) {
             // Save the valid triangular polygon, since it has all vertices in
             // points_with_id_map.
             mesh_3d_.addPolygonToMesh(polygon);
@@ -1237,11 +1260,14 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 /* -------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
 // Optional parameter is the mesh in 2D for visualization.
-// THIS CALL IS NOT THREAD-SAFE
 void Mesher::updateMesh3D(
     const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
-    std::shared_ptr<StereoFrame> stereo_frame_ptr,
-    const gtsam::Pose3& left_camera_pose, Mesh2D* mesh_2d,
+    const KeypointsCV& keypoints,
+    const std::vector<Kstatus>& keypoints_status,
+    const std::vector<Vector3>& keypoints_3d,
+    const LandmarkIds& landmarks,
+    const gtsam::Pose3& left_camera_pose,
+    Mesh2D* mesh_2d,
     std::vector<cv::Vec6f>* mesh_2d_for_viz,
     std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
   VLOG(10) << "Starting updateMesh3D...";
@@ -1256,7 +1282,10 @@ void Mesher::updateMesh3D(
     // matters! first add vio points, then stereo, so that vio points have
     // preference over stereo ones if they are repeated!
     points_with_id_stereo = points_with_id_VIO;
-    appendNonVioStereoPoints(stereo_frame_ptr, left_camera_pose,
+    appendNonVioStereoPoints(landmarks,
+                             keypoints_status,
+                             keypoints_3d,
+                             left_camera_pose,
                              &points_with_id_stereo);
     VLOG(20) << "Number of stereo landmarks used for the mesh: "
              << points_with_id_stereo.size() << "\n"
@@ -1271,21 +1300,29 @@ void Mesher::updateMesh3D(
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d_pixels;
   // THIS CALL IS NOT THREAD-SAFE
-  stereo_frame_ptr->createMesh2dVIO(&mesh_2d_pixels, *points_with_id_all);
+  createMesh2dVIO(&mesh_2d_pixels,
+                  landmarks,
+                  keypoints_status,
+                  keypoints,
+                  img_size_,
+                  *points_with_id_all);
   if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d_pixels;
 
   // Filter 2D mesh.
   std::vector<cv::Vec6f> mesh_2d_filtered;
   // THIS CALL IS NOT THREAD-SAFE
-  stereo_frame_ptr->filterTrianglesWithGradients(
-      mesh_2d_pixels, &mesh_2d_filtered, FLAGS_max_grad_in_triangle);
+  // stereo_frame_ptr->filterTrianglesWithGradients(
+  //    mesh_2d_pixels, &mesh_2d_filtered, FLAGS_max_grad_in_triangle);
   if (mesh_2d_filtered_for_viz) *mesh_2d_filtered_for_viz = mesh_2d_filtered;
 
-  populate3dMeshTimeHorizon(mesh_2d_filtered, *points_with_id_all,
-                            // THIS CALL IS NOT THREAD-SAFE
-                            stereo_frame_ptr->getLeftFrame(), left_camera_pose,
+  populate3dMeshTimeHorizon(mesh_2d_filtered,
+                            *points_with_id_all,
+                            keypoints,
+                            landmarks,
+                            left_camera_pose,
                             FLAGS_min_ratio_btw_largest_smallest_side,
-                            FLAGS_min_elongation_ratio, FLAGS_max_triangle_side,
+                            FLAGS_min_elongation_ratio,
+                            FLAGS_max_triangle_side,
                             mesh_2d);
 
   // Calculate 3d mesh normals.
@@ -1302,35 +1339,35 @@ void Mesher::updateMesh3D(const MesherInputPayload& mesher_payload,
                           std::vector<cv::Vec6f>* mesh_2d_for_viz,
                           std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
   updateMesh3D(mesher_payload.points_with_id_vio_,
-               std::make_shared<StereoFrame>(mesher_payload.stereo_frame_),
-               mesher_payload.left_camera_pose_,
+               mesher_payload.keypoints_,
+               mesher_payload.keypoints_status_,
+               mesher_payload.keypoints_3d_,
+               mesher_payload.landmarks_,
+               mesher_payload.W_Pose_B_.compose(B_Pose_camL_rect_),
                mesh_2d,
                mesh_2d_for_viz,
                mesh_2d_filtered_for_viz);
 }
 
 /* -------------------------------------------------------------------------- */
-// THIS IS NOT THREAD-SAFE
 // Attempts to insert new points in the map, but does not override if there
 // is already a point with the same lmk id.
 void Mesher::appendNonVioStereoPoints(
-    std::shared_ptr<StereoFrame> stereoFrame,  // THIS IS NOT THREAD-SAFE
-    const gtsam::Pose3& leftCameraPose,
+    const LandmarkIds& landmarks,
+    const std::vector<Kstatus>& keypoints_status,
+    const std::vector<Vector3>& keypoints_3d,
+    const gtsam::Pose3& left_cam_pose,
     std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo)
     const {
   CHECK_NOTNULL(points_with_id_stereo);
-  const Frame& leftFrame =
-      stereoFrame->getLeftFrame();  // THIS IS NOT THREAD-SAFE
-  for (size_t i = 0; i < leftFrame.landmarks_.size(); i++) {
-    // THIS IS NOT THREAD-SAFE
-    if (stereoFrame->right_keypoints_status_.at(i) == Kstatus::VALID &&
-        leftFrame.landmarks_.at(i) != -1) {
-      const gtsam::Point3& p_i_global = leftCameraPose.transformFrom(
-          gtsam::Point3(stereoFrame->keypoints_3d_.at(i)));
+  for (size_t i = 0; i < landmarks.size(); i++) {
+    if (keypoints_status.at(i) == Kstatus::VALID && landmarks.at(i) != -1) {
+      const gtsam::Point3& p_i_global =
+          left_cam_pose.transformFrom(gtsam::Point3(keypoints_3d.at(i)));
       // Use insert() instead of [] operator, to make sure that if there is
       // already a point with the same lmk_id, we do not override it.
       points_with_id_stereo->insert(
-          std::make_pair(leftFrame.landmarks_.at(i), p_i_global));
+          std::make_pair(landmarks.at(i), p_i_global));
     }
   }
 }
@@ -1423,6 +1460,165 @@ void Mesher::getVerticesMesh(cv::Mat* vertices_mesh) const {
 void Mesher::getPolygonsMesh(cv::Mat* polygons_mesh) const {
   CHECK_NOTNULL(polygons_mesh);
   mesh_3d_.convertPolygonsMeshToMat(polygons_mesh);
+}
+
+/* -------------------------------------------------------------------------- */
+void Mesher::createMesh2dVIO(
+    std::vector<cv::Vec6f>* triangulation_2D,
+    const LandmarkIds& landmarks,
+    const std::vector<Kstatus>& keypoints_status,
+    const KeypointsCV& keypoints,
+    const cv::Size& img_size,
+    const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO) {
+  CHECK_NOTNULL(triangulation_2D);
+
+  // Pick left frame.
+  // Sanity check.
+  CHECK_EQ(landmarks.size(), keypoints_status.size())
+      << "StereoFrame: wrong dimension for the landmarks";
+
+  // Create mesh including indices of keypoints with valid 3D.
+  // (which have right px).
+  std::vector<cv::Point2f> keypoints_for_mesh;
+  // TODO this double loop is quite expensive.
+  for (const auto& point_with_id : pointsWithIdVIO) {
+    for (size_t j = 0; j < landmarks.size(); j++) {
+      // If we are seeing a VIO point in left and right frame, add to keypoints
+      // to generate the mesh in 2D.
+      if (landmarks.at(j) == point_with_id.first &&
+          keypoints_status.at(j) == Kstatus::VALID) {
+        // Add keypoints for mesh 2d.
+        keypoints_for_mesh.push_back(keypoints.at(j));
+      }
+    }
+  }
+
+  // Get a triangulation for all valid keypoints.
+  *triangulation_2D = createMesh2D(img_size, &keypoints_for_mesh);
+}
+
+/* -------------------------------------------------------------------------- */
+// Create a 2D mesh from 2D corners in an image, coded as a Frame class
+// Returns the actual keypoints used to perform the triangulation.
+std::vector<cv::Vec6f> Mesher::createMesh2D(
+    const cv::Size& img_size,
+    std::vector<cv::Point2f>* keypoints_to_triangulate) {
+  CHECK_NOTNULL(keypoints_to_triangulate);
+  // Nothing to triangulate.
+  if (keypoints_to_triangulate->size() == 0) return std::vector<cv::Vec6f>();
+
+  // Rectangle to be used with Subdiv2D.
+  cv::Rect2f rect(0, 0, img_size.width, img_size.height);
+  // subdiv has the delaunay triangulation function
+  cv::Subdiv2D subdiv(rect);
+
+  // TODO Luca: there are kpts outside image, probably from tracker. This
+  // check should be in the tracker.
+  // -> Make sure we only pass keypoints inside the image!
+  for (auto it = keypoints_to_triangulate->begin();
+       it != keypoints_to_triangulate->end();) {
+    if (!rect.contains(*it)) {
+      VLOG(1) << "createMesh2D - error, keypoint out of image frame.";
+      it = keypoints_to_triangulate->erase(it);
+      // Go backwards, otherwise it++ will jump one keypoint...
+    } else {
+      it++;
+    }
+  }
+
+  // Perform triangulation.
+  try {
+    subdiv.insert(*keypoints_to_triangulate);
+  } catch (...) {
+    LOG(FATAL) << "CreateMesh2D: subdiv.insert error (2).\n Keypoints to "
+                  "triangulate: "
+               << keypoints_to_triangulate->size();
+  }
+
+  // getTriangleList returns some spurious triangle with vertices outside
+  // image
+  // TODO I think that the spurious triangles are due to ourselves sending
+  // keypoints out of the image... Compute actual triangulation.
+  std::vector<cv::Vec6f> triangulation2D;
+  subdiv.getTriangleList(triangulation2D);
+
+  // Retrieve "good triangles" (all vertices are inside image).
+  for (auto it = triangulation2D.begin(); it != triangulation2D.end();) {
+    if (!rect.contains(cv::Point2f((*it)[0], (*it)[1])) ||
+        !rect.contains(cv::Point2f((*it)[2], (*it)[3])) ||
+        !rect.contains(cv::Point2f((*it)[4], (*it)[5]))) {
+      it = triangulation2D.erase(it);
+      // Go backwards, otherwise it++ will jump one keypoint...
+    } else {
+      it++;
+    }
+  }
+  return triangulation2D;
+}
+
+/* -------------------------------------------------------------------------- */
+// Create a 2D mesh from 2D corners in an image
+std::vector<cv::Vec6f> Mesher::createMesh2D(
+    const Frame& frame,
+    const std::vector<size_t>& selectedIndices) {
+  // Sanity check.
+  CHECK_EQ(frame.landmarks_.size(), frame.keypoints_.size())
+      << "Frame: wrong dimension for the landmarks";
+
+  cv::Size size = frame.img_.size();
+  cv::Rect2f rect(0, 0, size.width, size.height);
+
+  // Add points from Frame.
+  std::vector<cv::Point2f> keypointsToTriangulate;
+  for (const auto& i : selectedIndices) {
+    cv::Point2f kp_i(static_cast<float>(frame.keypoints_.at(i).x),
+                     static_cast<float>(frame.keypoints_.at(i).y));
+    if (frame.landmarks_.at(i) != -1 && rect.contains(kp_i)) {
+      // Only for valid keypoints (some keypoints may
+      // end up outside image after tracking which causes subdiv to crash).
+      keypointsToTriangulate.push_back(kp_i);
+    }
+  }
+  return createMesh2D(frame.img_.size(), &keypointsToTriangulate);
+}
+
+/* -------------------------------------------------------------------------- */
+void Mesher::createMesh2dStereo(
+    std::vector<cv::Vec6f>* triangulation_2D,
+    const LandmarkIds& landmarks,
+    const std::vector<Kstatus>& keypoints_status,
+    const KeypointsCV& keypoints,
+    const std::vector<Vector3>& keypoints_3d,
+    const cv::Size& img_size,
+    std::vector<std::pair<LandmarkId, gtsam::Point3>>* lmk_with_id_stereo) {
+  // triangulation_2D is compulsory, lmk_with_id_stereo is optional.
+  CHECK_NOTNULL(triangulation_2D);
+
+  // Sanity check.
+  CHECK_EQ(landmarks.size(), keypoints_status.size())
+      << "StereoFrame: wrong dimension for the landmarks.";
+
+  // Create mesh including indices of keypoints with valid 3D
+  // (which have right px).
+  std::vector<cv::Point2f> keypoints_for_mesh;
+  for (int i = 0; i < landmarks.size(); i++) {
+    if (keypoints_status.at(i) == Kstatus::VALID && landmarks.at(i) != -1) {
+      // Add keypoints for mesh 2d.
+      keypoints_for_mesh.push_back(keypoints.at(i));
+
+      // Store corresponding landmarks.
+      // These points are in stereo camera and are not in VIO, but have lmk id.
+      if (lmk_with_id_stereo != nullptr) {
+        const gtsam::Point3& p_i_camera_left =
+            gtsam::Point3(keypoints_3d.at(i));
+        lmk_with_id_stereo->push_back(
+            std::make_pair(landmarks.at(i), p_i_camera_left));
+      }
+    }
+  }
+
+  // Get a triangulation for all valid keypoints.
+  *triangulation_2D = createMesh2D(img_size, &keypoints_for_mesh);
 }
 
 }  // namespace VIO

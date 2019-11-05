@@ -141,102 +141,6 @@ class Frame {
     }
   }
 
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  // It considers all valid keypoints for the mesh.
-  // Optionally, it returns a 2D mesh via its argument.
-  std::vector<cv::Vec6f> createMesh2D() const {
-    std::vector<size_t> selectedIndices(keypoints_.size());
-    // Fills selectedIndices with the indices of ALL keypoints: 0, 1, 2...
-    std::iota(selectedIndices.begin(), selectedIndices.end(), 0);
-    return createMesh2D(*this, selectedIndices);
-  }
-
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static std::vector<cv::Vec6f> createMesh2D(
-      const Frame& frame,
-      const std::vector<size_t>& selectedIndices) {
-    // Sanity check.
-    CHECK_EQ(frame.landmarks_.size(), frame.keypoints_.size())
-        << "Frame: wrong dimension for the landmarks";
-
-    cv::Size size = frame.img_.size();
-    cv::Rect2f rect(0, 0, size.width, size.height);
-
-    // Add points from Frame.
-    std::vector<cv::Point2f> keypointsToTriangulate;
-    for (const auto& i : selectedIndices) {
-      cv::Point2f kp_i(static_cast<float>(frame.keypoints_.at(i).x),
-                       static_cast<float>(frame.keypoints_.at(i).y));
-      if (frame.landmarks_.at(i) != -1 && rect.contains(kp_i)) {
-        // Only for valid keypoints (some keypoints may
-        // end up outside image after tracking which causes subdiv to crash).
-        keypointsToTriangulate.push_back(kp_i);
-      }
-    }
-    return createMesh2D(frame.img_.size(), &keypointsToTriangulate);
-  }
-
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  // Returns the actual keypoints used to perform the triangulation.
-  static std::vector<cv::Vec6f> createMesh2D(
-      const cv::Size& img_size,
-      std::vector<cv::Point2f>* keypoints_to_triangulate) {
-    CHECK_NOTNULL(keypoints_to_triangulate);
-    // Nothing to triangulate.
-    if (keypoints_to_triangulate->size() == 0) return std::vector<cv::Vec6f>();
-
-    // Rectangle to be used with Subdiv2D.
-    cv::Rect2f rect(0, 0, img_size.width, img_size.height);
-    cv::Subdiv2D subdiv(
-        rect);  // subdiv has the delaunay triangulation function
-
-    // TODO Luca: there are kpts outside image, probably from tracker. This
-    // check should be in the tracker.
-    // -> Make sure we only pass keypoints inside the image!
-    for (auto it = keypoints_to_triangulate->begin();
-         it != keypoints_to_triangulate->end();) {
-      if (!rect.contains(*it)) {
-        VLOG(1) << "createMesh2D - error, keypoint out of image frame.";
-        it = keypoints_to_triangulate->erase(it);
-        // Go backwards, otherwise it++ will jump one keypoint...
-      } else {
-        it++;
-      }
-    }
-
-    // Perform triangulation.
-    try {
-      subdiv.insert(*keypoints_to_triangulate);
-    } catch (...) {
-      LOG(FATAL) << "CreateMesh2D: subdiv.insert error (2).\n Keypoints to "
-                    "triangulate: "
-                 << keypoints_to_triangulate->size();
-    }
-
-    // getTriangleList returns some spurious triangle with vertices outside
-    // image
-    // TODO I think that the spurious triangles are due to ourselves sending
-    // keypoints out of the image... Compute actual triangulation.
-    std::vector<cv::Vec6f> triangulation2D;
-    subdiv.getTriangleList(triangulation2D);
-
-    // Retrieve "good triangles" (all vertices are inside image).
-    for (auto it = triangulation2D.begin(); it != triangulation2D.end();) {
-      if (!rect.contains(cv::Point2f((*it)[0], (*it)[1])) ||
-          !rect.contains(cv::Point2f((*it)[2], (*it)[3])) ||
-          !rect.contains(cv::Point2f((*it)[4], (*it)[5]))) {
-        it = triangulation2D.erase(it);
-        // Go backwards, otherwise it++ will jump one keypoint...
-      } else {
-        it++;
-      }
-    }
-    return triangulation2D;
-  }
-
   /* ----------------------- CONST FUNCTIONS -------------------------------- */
   // NOT TESTED: undistort and return
   //  cv::Mat undistortImage() const {
@@ -275,18 +179,20 @@ class Frame {
   }
 
   /* ------------------------------------------------------------------------ */
-  LandmarkId findLmkIdFromPixel(
+  static LandmarkId findLmkIdFromPixel(
       const KeypointCV& px,
-      boost::optional<int&> idx_in_keypoints = boost::none) const {
+      const KeypointsCV& keypoints,
+      const LandmarkIds& landmarks,
+      boost::optional<int&> idx_in_keypoints = boost::none) {
     // Iterate over all current keypoints_.
-    for (int i = 0; i < keypoints_.size(); i++) {
+    for (int i = 0; i < keypoints.size(); i++) {
       // If we have found the pixel px in the set of keypoints, return the
       // landmark id of the keypoint and return the index of it at keypoints_.
-      if (keypoints_.at(i).x == px.x && keypoints_.at(i).y == px.y) {
+      if (keypoints.at(i).x == px.x && keypoints.at(i).y == px.y) {
         if (idx_in_keypoints) {
           *idx_in_keypoints = i;  // Return index.
         }
-        return landmarks_.at(i);
+        return landmarks.at(i);
       }
     }
     // We did not find the keypoint.

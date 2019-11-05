@@ -32,12 +32,9 @@
 namespace VIO {
 
 enum class VisualizationType {
-  POINTCLOUD,    // visualize 3D VIO points  (no repeated point)
-  MESH2D,        // only visualizes 2D mesh on image
-  MESH2Dsparse,  // visualize a 2D mesh of (right-valid) keypoints discarding
-                 // triangles corresponding to non planar obstacles
   MESH2DTo3Dsparse,  // same as MESH2DTo3D but filters out triangles
                      // corresponding to non planar obstacles
+  POINTCLOUD,        // visualize 3D VIO points  (no repeated point)
   NONE               // does not visualize map
 };
 

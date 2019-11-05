@@ -72,8 +72,8 @@ class StereoFrame {
   KeypointsCV right_keypoints_rectified_;
   std::vector<Kstatus> right_keypoints_status_;
   std::vector<double> keypoints_depth_;
-  std::vector<Vector3>
-      keypoints_3d_;  // in the ref frame of the UNRECTIFIED left frame
+  //! in the ref frame of the UNRECTIFIED left frame
+  std::vector<Vector3> keypoints_3d_;
 
  public:
   /* ------------------------------------------------------------------------ */
@@ -81,28 +81,6 @@ class StereoFrame {
 
   /* ------------------------------------------------------------------------ */
   void setIsRectified(bool is_rectified);
-
-  /* ------------------------------------------------------------------------ */
-  // THIS IS NOT THREAD-SAFE
-  // Create a 2D mesh only including triangles corresponding to obstables
-  // (planar surfaces) min_elongation_ratio = 0.5 (max 1): check on the
-  // elongation of the triangle (TODO: this check is conservative) if mesh2Dtype
-  // = VALIDKEYPOINTS: 2D triangulation is computed form keypoints with VALID
-  // right match and valid lmk id (!=-1) if mesh2Dtype = DENSE: to the keypoints
-  // mentioned in the sparse case, we add other points without lmk id (but with
-  // valid stereo) pointsWithIdStereo is optional, and represents the landmarks
-  // corresponding to the keypoints used to create the 2d mesh.
-  void createMesh2dStereo(std::vector<cv::Vec6f>* triangulation_2D,
-                          std::vector<std::pair<LandmarkId, gtsam::Point3>>*
-                              pointsWithIdStereo = nullptr,
-                          const Mesh2Dtype& mesh2Dtype = VALIDKEYPOINTS,
-                          const bool& useCanny = true) const;
-
-  /* ------------------------------------------------------------------------ */
-  // THIS IS NOT THREAD-SAFE
-  void createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
-                       const std::unordered_map<LandmarkId, gtsam::Point3>&
-                           pointsWithIdVIO) const;
 
   /* ------------------------------------------------------------------------ */
   // Removes triangles in the 2d mesh that have more than "max_keypoints_with_

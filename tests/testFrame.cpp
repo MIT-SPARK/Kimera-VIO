@@ -179,7 +179,8 @@ TEST(testFrame, findLmkIdFromPixel) {
   }
   // check that if you query ith f.keypoints_ you get i+5
   for (int i = 0; i < f.keypoints_.size(); i++) {
-    ASSERT_EQ(f.findLmkIdFromPixel(f.keypoints_[i]), i + 5);
+    ASSERT_EQ(f.findLmkIdFromPixel(f.keypoints_[i], f.keypoints_, f.landmarks_),
+              i + 5);
   }
 }
 /* ************************************************************************* */
