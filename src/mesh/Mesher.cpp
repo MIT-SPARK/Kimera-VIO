@@ -141,18 +141,8 @@ DEFINE_int32(z_histogram_max_number_of_peaks_to_select, 3,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-Mesher::Mesher(InputQueue* input_queue,
-               OutputQueue* output_queue,
-               const bool& parallel_run,
-               const gtsam::Pose3& B_Pose_camLrect,
-               const cv::Size& img_size)
-    : PipelineModule<MesherInputPayload, MesherOutputPayload>(input_queue,
-                                                              output_queue,
-                                                              "Mesher",
-                                                              parallel_run),
-      B_Pose_camL_rect_(B_Pose_camLrect),
-      img_size_(img_size),
-      mesh_3d_() {
+Mesher::Mesher(const MesherParams& mesher_params)
+    : mesher_params_(mesher_params), mesh_3d_() {
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
   // We cannot use an array of doubles here bcs the function cv::calcHist asks
@@ -180,9 +170,9 @@ Mesher::Mesher(InputQueue* input_queue,
                        true, false);
 }
 
-Mesher::OutputPayloadPtr Mesher::spinOnce(const MesherInputPayload& input) {
-  MesherOutputPayload::UniquePtr mesher_output_payload =
-      VIO::make_unique<MesherOutputPayload>();
+MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
+  MesherOutput::UniquePtr mesher_output_payload =
+      VIO::make_unique<MesherOutput>();
   updateMesh3D(
       input,
       // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
@@ -1304,7 +1294,7 @@ void Mesher::updateMesh3D(
                   landmarks,
                   keypoints_status,
                   keypoints,
-                  img_size_,
+                  mesher_params_.img_size_,
                   *points_with_id_all);
   if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d_pixels;
 
@@ -1334,19 +1324,20 @@ void Mesher::updateMesh3D(
 /* -------------------------------------------------------------------------- */
 // Update mesh, but in a thread-safe way.
 // TODO(TONI): this seems completely unnecessary
-void Mesher::updateMesh3D(const MesherInputPayload& mesher_payload,
+void Mesher::updateMesh3D(const MesherInput& mesher_payload,
                           Mesh2D* mesh_2d,
                           std::vector<cv::Vec6f>* mesh_2d_for_viz,
                           std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
-  updateMesh3D(mesher_payload.points_with_id_vio_,
-               mesher_payload.keypoints_,
-               mesher_payload.keypoints_status_,
-               mesher_payload.keypoints_3d_,
-               mesher_payload.landmarks_,
-               mesher_payload.W_Pose_B_.compose(B_Pose_camL_rect_),
-               mesh_2d,
-               mesh_2d_for_viz,
-               mesh_2d_filtered_for_viz);
+  updateMesh3D(
+      mesher_payload.points_with_id_vio_,
+      mesher_payload.keypoints_,
+      mesher_payload.keypoints_status_,
+      mesher_payload.keypoints_3d_,
+      mesher_payload.landmarks_,
+      mesher_payload.W_Pose_B_.compose(mesher_params_.B_Pose_camL_rect_),
+      mesh_2d,
+      mesh_2d_for_viz,
+      mesh_2d_filtered_for_viz);
 }
 
 /* -------------------------------------------------------------------------- */

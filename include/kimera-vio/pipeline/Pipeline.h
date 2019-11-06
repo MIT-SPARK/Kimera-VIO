@@ -78,8 +78,7 @@ class Pipeline {
   // mesh_3d to extract semantic information.
   // TODO(Toni) this should be a callback instead...
   // right now it works because no one is pulling from this queue in pipeline.
-  inline ThreadsafeQueue<MesherOutputPayload::UniquePtr>&
-  getMesherOutputQueue() {
+  inline ThreadsafeQueue<MesherOutput::UniquePtr>& getMesherOutputQueue() {
     return mesher_output_queue_;
   }
 
@@ -208,11 +207,7 @@ class Pipeline {
   std::vector<Plane> planes_;
 
   // Create class to build mesh.
-  std::unique_ptr<Mesher> mesher_;
-
-  // Thread-safe queue for the mesher.
-  Mesher::InputQueue mesher_input_queue_;
-  Mesher::OutputQueue mesher_output_queue_;
+  MesherModule::UniquePtr mesher_module_;
 
   // Create class to detect loop closures.
   std::unique_ptr<LoopClosureDetector> loop_closure_detector_;

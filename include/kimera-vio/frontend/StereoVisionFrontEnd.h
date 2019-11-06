@@ -69,7 +69,7 @@ public:
 
   inline void registerOutputCallback(
       const FrontendOutputCallback& output_callback) {
-    output_callbacks_.push(output_callback);
+    output_callbacks_.push_back(output_callback);
   }
 
   bool callCallbacks(const StereoFrontEndOutputPayload::ConstPtr& output);
@@ -282,7 +282,7 @@ private:
 };
 
 class StereoVisionFrontEndModule
-    : public PipelineModule<StereoImuSyncPacket, VioBackEndInputPayload> {
+    : public SISOPipelineModule<StereoImuSyncPacket, VioBackEndInputPayload> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEndModule);
   KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEndModule);
@@ -299,7 +299,7 @@ class StereoVisionFrontEndModule
                              OutputQueue* output_queue,
                              bool parallel_run,
                              StereoVisionFrontEnd::UniquePtr vio_frontend)
-      : PipelineModule<StereoImuSyncPacket, VioBackEndInputPayload>(
+      : SISOPipelineModule<StereoImuSyncPacket, VioBackEndInputPayload>(
             input_queue,
             output_queue,
             "VioFrontEnd",

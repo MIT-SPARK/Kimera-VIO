@@ -69,7 +69,7 @@ class LoopClosureDetector
    * @param[in] input A shared_ptr referencing an input payload.
    * @return The output payload from the pipeline.
    */
-  virtual OutputPayloadPtr spinOnce(const LcdInputPayload& input) override;
+  virtual OutputPtr spinOnce(const LcdInputPayload& input) override;
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single frame and adds it to relevant internal

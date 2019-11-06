@@ -101,7 +101,7 @@ Pipeline::Pipeline(const PipelineParams& params)
       backend_params_(params.backend_params_),
       frontend_params_(params.frontend_params_),
       imu_params_(params.imu_params_),
-      mesher_(nullptr),
+      mesher_module_(nullptr),
       visualizer_(nullptr),
       stereo_frontend_thread_(nullptr),
       wrapped_thread_(nullptr),
@@ -114,8 +114,6 @@ Pipeline::Pipeline(const PipelineParams& params)
           "initialization_frontend_output_queue"),
       backend_input_queue_("backend_input_queue"),
       backend_output_queue_("backend_output_queue"),
-      mesher_input_queue_("mesher_input_queue"),
-      mesher_output_queue_("mesher_output_queue"),
       lcd_input_queue_("lcd_input_queue"),
       null_lcd_output_queue_("null_lcd_output_queue"),
       visualizer_input_queue_("visualizer_input_queue"),
@@ -159,11 +157,12 @@ Pipeline::Pipeline(const PipelineParams& params)
                 std::placeholders::_1));
 
   // TODO(Toni): only create if used.
-  mesher_ = VIO::make_unique<Mesher>(&mesher_input_queue_,
-                                     &mesher_output_queue_,
-                                     parallel_run_,
-                                     stereo_camera_->getLeftCamPose(),
-                                     params.camera_params_.at(0).image_size_);
+  mesher_module_ = VIO::make_unique<MesherModule>(
+      parallel_run_,
+      MesherFactory::createMesher(
+          MesherType::PROJECTIVE,
+          MesherParams(stereo_camera_->getLeftCamPose(),
+                       params.camera_params_.at(0).image_size_)));
 
   // TODO(Toni): only create if used.
   visualizer_ = VIO::make_unique<Visualizer3D>(
@@ -276,7 +275,7 @@ void Pipeline::processKeyframe(
     // NEEDS INPUT FROM FRONTEND AND BACKEND
     lcd_input_queue_.push(
         std::move(VIO::make_unique<LoopClosureDetectorInputPayload>(
-            last_stereo_keyframe.getTimestamp(),
+            backend_output_payload->W_State_Blkf_.timestamp_,
             backend_output_payload->cur_kf_id_,
             last_stereo_keyframe,
             backend_output_payload->W_State_Blkf_.pose_)));
@@ -285,7 +284,7 @@ void Pipeline::processKeyframe(
   ////////////////// CREATE AND VISUALIZE MESH /////////////////////////////////
   PointsWithIdMap points_with_id_VIO;
   LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
-  MesherOutputPayload::UniquePtr mesher_output_payload;
+  MesherOutput::UniquePtr mesher_output_payload;
   VisualizationType visualization_type =
       static_cast<VisualizationType>(FLAGS_viz_type);
   // Compute 3D mesh
@@ -313,7 +312,7 @@ void Pipeline::processKeyframe(
     // In another thread, mesher is running, consuming mesher payloads.
     VLOG(2) << "Push input payload to Mesher.";
     const Frame& left_frame = last_stereo_keyframe.getLeftFrame();
-    mesher_input_queue_.push(VIO::make_unique<MesherInputPayload>(
+    mesher_input_queue_.push(VIO::make_unique<MesherInput>(
         points_with_id_VIO,
         left_frame.getValidKeypoints(),
         last_stereo_keyframe.right_keypoints_status_,
@@ -335,7 +334,7 @@ void Pipeline::processKeyframe(
     if (FLAGS_extract_planes_from_the_scene) {
       // Use Regular VIO
       CHECK(backend_type_ == BackendType::StructuralRegularities);
-      mesher_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
+      mesher_module_->clusterPlanesFromMesh(&planes_, points_with_id_VIO);
     } else {
       if (backend_type_ == BackendType::StructuralRegularities) {
         RegularVioBackEndParams regular_vio_backend_params =
@@ -450,7 +449,8 @@ void Pipeline::shutdownWhenFinished() {
          !vio_frontend_module_->isWorking() && backend_input_queue_.empty() &&
          backend_output_queue_.empty() && !vio_backend_module_->isWorking() &&
          mesher_input_queue_.empty() && mesher_output_queue_.empty() &&
-         (mesher_ ? !mesher_->isWorking() : true) && lcd_input_queue_.empty() &&
+         (mesher_module_ ? !mesher_module_->isWorking() : true) &&
+         lcd_input_queue_.empty() &&
          (loop_closure_detector_ ? !loop_closure_detector_->isWorking()
                                  : true) &&
          visualizer_input_queue_.empty() &&
@@ -473,10 +473,10 @@ void Pipeline::shutdownWhenFinished() {
                           << (is_initialized_ ? vio_backend_module_->isWorking()
                                               : false);
 
-    VLOG_IF_EVERY_N(10, mesher_, 100)
+    VLOG_IF_EVERY_N(10, mesher_module_, 100)
         << "Mesher input queue empty?" << mesher_input_queue_.empty() << '\n'
         << "Mesher output queue empty?" << mesher_output_queue_.empty() << '\n'
-        << "Mesher is working? " << mesher_->isWorking();
+        << "Mesher is working? " << mesher_module_->isWorking();
 
     VLOG_IF_EVERY_N(10, loop_closure_detector_, 100)
         << "LoopClosureDetector input queue empty?" << lcd_input_queue_.empty()
@@ -563,7 +563,7 @@ void Pipeline::checkReInitialize(
     vio_frontend_module_->restart();
     CHECK(vio_backend_module_);
     vio_backend_module_->restart();
-    mesher_->restart();
+    mesher_module_->restart();
     if (loop_closure_detector_) loop_closure_detector_->restart();
     visualizer_->restart();
     // Resume pipeline
@@ -932,7 +932,7 @@ void Pipeline::launchRemainingThreads() {
         &VioBackEndModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
 
     mesher_thread_ = VIO::make_unique<std::thread>(
-        &Mesher::spin, CHECK_NOTNULL(mesher_.get()));
+        &Mesher::spin, CHECK_NOTNULL(mesher_module_.get()));
 
     if (FLAGS_use_lcd) {
       lcd_thread_ = VIO::make_unique<std::thread>(
@@ -1007,7 +1007,7 @@ void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping mesher workers and queues...";
   mesher_input_queue_.shutdown();
   mesher_output_queue_.shutdown();
-  if (mesher_) mesher_->shutdown();
+  if (mesher_module_) mesher_module_->shutdown();
 
   LOG(INFO) << "Stopping loop closure workers and queues...";
   lcd_input_queue_.shutdown();

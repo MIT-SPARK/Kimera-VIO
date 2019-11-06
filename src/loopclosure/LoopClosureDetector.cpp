@@ -134,7 +134,7 @@ LoopClosureDetector::~LoopClosureDetector() {
 }
 
 /* ------------------------------------------------------------------------ */
-LoopClosureDetector::OutputPayloadPtr LoopClosureDetector::spinOnce(
+LoopClosureDetector::OutputPtr LoopClosureDetector::spinOnce(
     const LcdInputPayload& input) {
   // One time initialization from camera parameters.
   if (!set_intrinsics_) {

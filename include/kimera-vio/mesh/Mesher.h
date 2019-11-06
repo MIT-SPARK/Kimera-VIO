@@ -30,13 +30,33 @@
 #include "kimera-vio/utils/Histogram.h"
 #include "kimera-vio/utils/Macros.h"
 
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
+
 namespace VIO {
 
-struct MesherInputPayload {
-  KIMERA_POINTER_TYPEDEFS(MesherInputPayload);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherInputPayload);
+enum class MesherType {
+  //! Generates a per-frame 2D mesh and projects it to 3D.
+  PROJECTIVE = 0,
+};
+
+struct MesherParams {
+  KIMERA_POINTER_TYPEDEFS(MesherParams);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MesherInputPayload(
+  MesherParams(const gtsam::Pose3& B_Pose_camLrect, const cv::Size& img_size)
+      : B_Pose_camLrect_(B_Pose_camLrect), img_size_(img_size) {}
+  //! B_Pose_camLrect pose of the rectified camera wrt body frame of ref.
+  gtsam::Pose3 B_Pose_camLrect_;
+  //! img_size size of the camera's images used for 2D triangulation.
+  cv::Size img_size_;
+};
+
+struct MesherInput {
+  KIMERA_POINTER_TYPEDEFS(MesherInput);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherInput);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  MesherInput(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       const KeypointsCV& keypoints,
       const std::vector<Kstatus>& keypoints_status,
@@ -49,7 +69,7 @@ struct MesherInputPayload {
         keypoints_3d_(keypoints_3d),
         landmarks_(landmarks),
         W_Pose_B_(left_camera_pose) {}
-  virtual ~MesherInputPayload() = default;
+  virtual ~MesherInput() = default;
 
   //! Backenc optimized landmark and pose information.
   const std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_vio_;
@@ -64,26 +84,25 @@ struct MesherInputPayload {
   const LandmarkIds& landmarks_;
 };
 
-struct MesherOutputPayload {
+struct MesherOutput {
  public:
-  KIMERA_POINTER_TYPEDEFS(MesherOutputPayload);
+  KIMERA_POINTER_TYPEDEFS(MesherOutput);
   // TODO delete copy constructors
-  // KIMERA_DELETE_COPY_CONSTRUCTORS(MesherOutputPayload);
+  // KIMERA_DELETE_COPY_CONSTRUCTORS(MesherOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MesherOutputPayload() = default;
-  virtual ~MesherOutputPayload() = default;
+  MesherOutput() = default;
+  virtual ~MesherOutput() = default;
 
-  MesherOutputPayload(
-      Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
-      Mesh3D&& mesh_3d,  // Use move semantics for the actual 3d mesh.
-      const std::vector<cv::Vec6f>& mesh_2d_for_viz,
-      const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
+  MesherOutput(Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
+               Mesh3D&& mesh_3d,  // Use move semantics for the actual 3d mesh.
+               const std::vector<cv::Vec6f>& mesh_2d_for_viz,
+               const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
       : mesh_2d_(std::move(mesh_2d)),
         mesh_3d_(std::move(mesh_3d)),
         mesh_2d_for_viz_(mesh_2d_for_viz),
         mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
 
-  MesherOutputPayload(const MesherOutputPayload::Ptr& in)
+  MesherOutput(const MesherOutput::Ptr& in)
       : mesh_2d_(2),
         mesh_3d_(3),
         mesh_2d_for_viz_(in ? in->mesh_2d_for_viz_
@@ -92,13 +111,13 @@ struct MesherOutputPayload {
                                      : std::vector<cv::Vec6f>()) {}
 
   // Default copy ctor.
-  MesherOutputPayload(const MesherOutputPayload& rhs) = default;
+  MesherOutput(const MesherOutput& rhs) = default;
   // Default copy assignment operator.
-  MesherOutputPayload& operator=(const MesherOutputPayload& rhs) = default;
+  MesherOutput& operator=(const MesherOutput& rhs) = default;
 
   // Use default move ctor and move assignment operator.
-  MesherOutputPayload(MesherOutputPayload&&) = default;
-  MesherOutputPayload& operator=(MesherOutputPayload&&) = default;
+  MesherOutput(MesherOutput&&) = default;
+  MesherOutput& operator=(MesherOutput&&) = default;
 
  public:
   // 2D Mesh.
@@ -119,8 +138,12 @@ struct MesherOutputPayload {
   cv::Mat polygons_mesh_;
 };
 
-class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
+class Mesher {
  public:
+  KIMERA_POINTER_TYPEDEFS(Mesher);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(Mesher);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   // Structure storing mesh 3d visualization properties.
   struct Mesh3DVizProperties {
    public:
@@ -143,25 +166,15 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
       Mesh3dVizPropertiesSetterCallback;
 
  public:
-  /* ------------------------------------------------------------------------ */
-  /**
-   * @brief Mesher::Mesher Ctor for the Mesher.
-   * @param input_queue Threadsafe queue for processing input to the Mesher.
-   * @param output_queue Threadsafe queue for retrieving output from the Mesher.
-   * @param parallel_run Whether to run the pipeline module in parallel mode.
-   */
-  Mesher(InputQueue* input_queue,
-         OutputQueue* output_queue,
-         const bool& parallel_run,
-         const gtsam::Pose3& B_Pose_camLrect,
-         const cv::Size& img_size);
+  Mesher(const MesherParams& mesher_params);
+  virtual ~Mesher() = default;
 
   /**
    * @brief Mesher::spinOnce Process only one minimal packet of information.
    * @param input Minimal input for the Mesher to do its work.
    * @return Mesher's output
    */
-  virtual OutputPayloadPtr spinOnce(const MesherInputPayload& input) override;
+  virtual MesherOutput::UniquePtr spinOnce(const MesherInput& input);
 
   /* ------------------------------------------------------------------------ */
   // Update mesh: update structures keeping memory of the map before
@@ -187,7 +200,7 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
 
   /* ------------------------------------------------------------------------ */
   // Update mesh, but in a thread-safe way.
-  void updateMesh3D(const MesherInputPayload& mesher_payload,
+  void updateMesh3D(const MesherInput& mesher_payload,
                     Mesh2D* mesh_2d = nullptr,
                     std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
                     std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
@@ -222,12 +235,7 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
   // perpendicular to the vertical (aka parallel to walls).
   Histogram hist_2d_;
 
-  // Needs to know where the camera is with respect to the body pose for
-  // correctly transforming the body pose estimates of the backend.
-  const gtsam::Pose3 B_Pose_camL_rect_;
-
-  //! Size of the 2D image
-  const cv::Size img_size_;
+  const MesherParams mesher_params_;
 
  private:
   // Provide Mesh 3D in read-only mode.
@@ -494,6 +502,107 @@ class Mesher : public PipelineModule<MesherInputPayload, MesherOutputPayload> {
       const cv::Size& img_size,
       std::vector<std::pair<LandmarkId, gtsam::Point3>>* lmk_with_id_stereo =
           nullptr);
+};
+
+class MesherFactory {
+ public:
+  KIMERA_POINTER_TYPEDEFS(MesherFactory);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherFactory);
+  MesherFactory() = delete;
+  virtual ~MesherFactory() = default;
+  static Mesher::UniquePtr createMesher(const MesherType& mesher_type,
+                                        const MesherParams& mesher_params) {
+    switch (mesher_type) {
+      case MesherType::PROJECTIVE: {
+        return VIO::make_unique<Mesher>(mesher_params);
+      }
+      default: {
+        LOG(FATAL) << "Requested mesher type is not supported.\n"
+                   << static_cast<int>(mesher_type);
+      }
+    }
+  }
+};
+
+class MesherModule : public PipelineModule<MesherInput, MesherOutput> {
+ public:
+  using MesherFrontendInput = StereoFrontEndOutputPayload::ConstPtr;
+  using MesherBackendInput = VioBackEndOutputPayload::ConstPtr;
+  // TODO(Toni): using this callback generates copies...
+  using MesherOutputCallback = std::function<void(const MesherOutput& output)>;
+
+  MesherModule(bool parallel_run, Mesher::UniquePtr mesher)
+      : PipelineModule<MesherInput, MesherOutput>("Mesher", parallel_run),
+        frontend_payload_queue_(""),
+        backend_payload_queue_(""),
+        output_callbacks_(),
+        mesher_(std::move(mesher)){};
+  virtual ~MesherModule() = default;
+
+  //! Callbacks to fill queues: they should be all lighting fast.
+  inline void fillFrontendQueue(const MesherFrontendInput& frontend_payload) {
+    frontend_payload_queue_.push(frontend_payload);
+  }
+  inline void fillBackendQueue(const MesherBackendInput& backend_payload) {
+    backend_payload_queue_.push(backend_payload);
+  }
+
+  //! Synchronize input queues.
+  virtual inline bool getInputPacket(InputPtr input) override {
+    MesherBackendInput backend_payload;
+    backend_payload_queue_.popBlocking(backend_payload);
+
+    // Look for the synchronized packet in frontend payload queue
+    // This should always work, because it should not be possible to have
+    // a backend payload without having a frontend one first!
+    MesherFrontendInput frontend_payload;
+    while (backend_payload->W_State_Blkf_.timestamp_ !=
+           frontend_payload->stereo_frame_lkf_.getTimestamp()) {
+      if (!frontend_payload_queue_.pop(frontend_payload)) {
+        // We had a backend input but no frontend input, something's wrong.
+        LOG(ERROR) << "Mesher's frontend payload queue is empty or "
+                      "has been shutdown.";
+        return false;
+      }
+    }
+
+    // Push the synced messages to the mesher's input queue
+    const StereoFrame& last_stereo_keyframe =
+        frontend_payload->stereo_frame_lkf_;
+    const Frame& left_frame = last_stereo_keyframe.getLeftFrame();
+    input = VIO::make_unique<MesherInput>(
+        PointsWithIdMap(),
+        left_frame.getValidKeypoints(),
+        last_stereo_keyframe.right_keypoints_status_,
+        last_stereo_keyframe.keypoints_3d_,
+        left_frame.landmarks_,
+        backend_payload->W_State_Blkf_.pose_);
+    return true;
+  }
+
+  //! Sent output to others: call all registered callbacks.
+  virtual inline bool pushOutputPacket(OutputPtr output_packet) override {
+    for (const MesherOutputCallback& callback : output_callbacks_) {
+      CHECK(callback);
+      callback(*output_packet);
+    }
+    return true;
+  }
+
+  virtual OutputPtr spinOnce(const MesherInput& input) override {
+    return mesher_->spinOnce(input);
+  }
+
+ private:
+  //! Input Queues
+  ThreadsafeQueue<MesherFrontendInput> frontend_payload_queue_;
+  ThreadsafeQueue<MesherBackendInput> backend_payload_queue_;
+
+  //! Output callbacks
+  std::vector<MesherOutputCallback> output_callbacks_;
+
+  //! Mesher implementation
+  Mesher::UniquePtr mesher_;
 };
 
 }  // namespace VIO
