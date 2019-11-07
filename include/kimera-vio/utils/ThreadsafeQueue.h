@@ -107,9 +107,11 @@ class ThreadsafeQueue {
     return data_queue_.empty();
   }
 
+ public:
+  std::string queue_id_;
+
  protected:
   mutable std::mutex mutex_;  //! mutable for empty() and copy-constructor.
-  std::string queue_id_;
   InternalQueue data_queue_;
   std::condition_variable data_cond_;
   std::atomic_bool shutdown_ = {false};  //! flag for signaling queue shutdown.

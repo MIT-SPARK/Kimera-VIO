@@ -609,17 +609,36 @@ class VisualizerModule
   }
 
  protected:
-  //! Synchronize input queues.
+  //! Synchronize input queues. Currently doing it in a crude way:
+  //! Pop blocking the payload that should be the last to be computed,
+  //! then loop over the other queues until you get a payload that has exactly
+  //! the same timestamp. Guaranteed to sync messages unless the assumption
+  //! on the order of msg generation is broken.
   virtual inline InputPtr getInputPacket() override {
+    bool queue_state = false;
     VizMesherInput mesher_payload;
-    mesher_queue_.popBlocking(mesher_payload);
+    if (PIO::parallel_run_) {
+      queue_state = mesher_queue_.popBlocking(mesher_payload);
+    } else {
+      queue_state = mesher_queue_.pop(mesher_payload);
+    }
+    if (!queue_state) {
+      LOG_IF(WARNING, PIO::parallel_run_)
+          << "Module: " << name_id_ << " - Mesher queue is down";
+      VLOG_IF(1, !PIO::parallel_run_)
+          << "Module: " << name_id_ << " - Mesher queue is empty or down";
+      return nullptr;
+    }
+    CHECK(mesher_payload);
     const Timestamp& timestamp = mesher_payload->timestamp_;
 
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
     // a backend payload without having a frontend one first!
+    Timestamp frontend_payload_timestamp =
+        std::numeric_limits<Timestamp>::max();
     VizFrontendInput frontend_payload;
-    while (timestamp != frontend_payload->stereo_frame_lkf_.getTimestamp()) {
+    while (timestamp != frontend_payload_timestamp) {
       // Pop will remove messages until the queue is empty.
       // This assumes the mesher ends processing after the frontend queue
       // has been filled (it could happen that frontend_queue_ didn't receive
@@ -628,14 +647,22 @@ class VisualizerModule
       if (!frontend_queue_.pop(frontend_payload)) {
         // We had a mesher input but no frontend input, something's wrong.
         // We assume mesher runs after frontend.
-        LOG(ERROR) << "Visualizer's frontend payload queue is empty or "
+        LOG(ERROR) << name_id_
+                   << "'s frontend payload queue is empty or "
                       "has been shutdown.";
         return nullptr;
       }
+      if (frontend_payload) {
+        frontend_payload_timestamp =
+            frontend_payload->stereo_frame_lkf_.getTimestamp();
+      } else {
+        LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
+      }
     }
 
+    Timestamp backend_payload_timestamp = std::numeric_limits<Timestamp>::max();
     VizBackendInput backend_payload;
-    while (timestamp != backend_payload->W_State_Blkf_.timestamp_) {
+    while (timestamp != backend_payload_timestamp) {
       if (!backend_queue_.pop(backend_payload)) {
         // We had a mesher input but no backend input, something's wrong.
         // We assume mesher runs after backend.
@@ -643,11 +670,15 @@ class VisualizerModule
                       "has been shutdown.";
         return nullptr;
       }
+      if (backend_payload) {
+        backend_payload_timestamp = backend_payload->W_State_Blkf_.timestamp_;
+      } else {
+        LOG(WARNING) << "Missing backend payload for Module: " << name_id_;
+      }
     }
 
     // Push the synced messages to the visualizer's input queue
     const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
-    const Frame& left_frame = stereo_keyframe.getLeftFrame();
     return VIO::make_unique<VisualizerInput>(
         // Pose for trajectory viz.
         backend_payload->W_State_Blkf_.pose_ *

@@ -52,12 +52,6 @@ class PipelineModule {
   //! The output is instead a shared ptr, since many users might need the output
   using OutputPtr = std::shared_ptr<Output>;
 
-  //! Provide default ctor for multiple inheritance.
-  PipelineModule() {
-    LOG(FATAL) << "PipelineModule() constructor is only for multiple "
-                  "inheritance and should not be called.";
-  };
-
   // TODO(Toni) In/Output queue should be shared ptr
   /**
    * @brief PipelineModule
@@ -77,7 +71,7 @@ class PipelineModule {
    * @return True if everything goes well.
    */
   bool spin() {
-    LOG(INFO) << "Spinning" << name_id_;
+    LOG_IF(INFO, parallel_run_) << "Module: " << name_id_ << " - Spinning.";
     utils::StatsCollector timing_stats(name_id_ + " [ms]");
     while (!shutdown_) {
       // Get input data from queue by waiting for payload.
@@ -90,41 +84,43 @@ class PipelineModule {
         if (output) {
           // Received a valid output, send to output queue
           if (!pushOutputPacket(output)) {
-            LOG(WARNING) << "Output is down for module: " << name_id_;
+            LOG(WARNING) << "Module: " << name_id_ << " - Output push failed.";
           } else {
-            VLOG(2) << "Module " << name_id_ << "successfully pushed output.";
+            VLOG(2) << "Module: " << name_id_ << " - Pushed output.";
           }
         } else {
-          VLOG(1) << "Module " << name_id_ << " skipped sending an output.";
+          VLOG(1) << "Module: " << name_id_ << "  - Skipped sending an output.";
         }
         auto spin_duration = utils::Timer::toc(tic).count();
-        LOG(WARNING) << "Module " << name_id_
+        LOG(WARNING) << "Module: " << name_id_
                      << " - frequency: " << 1000.0 / spin_duration << " Hz. ("
                      << spin_duration << " ms).";
         timing_stats.AddSample(spin_duration);
       } else {
-        LOG(WARNING) << "No Input received for module: " << name_id_;
+        LOG(WARNING) << "Module: " << name_id_ << " - No Input received.";
       }
 
       // Break the while loop if we are in sequential mode.
       if (!parallel_run_) return true;
     }
-    LOG(INFO) << "Successful shutdown of module: " << name_id_;
+    LOG(INFO) << "Module: " << name_id_ << " - Successful shutdown.";
     return true;
   }
 
   /* ------------------------------------------------------------------------ */
   virtual inline void shutdown() {
     LOG_IF(WARNING, shutdown_)
-        << "Shutdown requested, but " << name_id_ << " was already shutdown.";
+        << "Module: " << name_id_
+        << " - Shutdown requested, but was already shutdown.";
     shutdownQueues();
-    LOG(INFO) << "Shutting down: " << name_id_;
+    LOG(INFO) << "Module: " << name_id_ << " - Shutting down.";
     shutdown_ = true;
   }
 
   /* ------------------------------------------------------------------------ */
   inline void restart() {
-    LOG(INFO) << "Resetting shutdown flag to false for: " << name_id_;
+    LOG(INFO) << "Module: " << name_id_
+              << " - Resetting shutdown flag to false";
     shutdown_ = false;
   }
 
@@ -176,12 +172,12 @@ class PipelineModule {
  protected:
   //! Properties
   std::string name_id_ = {"PipelineModule"};
+  bool parallel_run_ = {true};
 
  private:
   //! Thread related members.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_thread_working_ = {false};
-  bool parallel_run_ = {true};
 };
 
 /** @brief MIMOPipelineModule Multiple Input Multiple Output (MIMO) pipeline
@@ -205,11 +201,6 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
   using OutputCallback =
       std::function<void(const typename PIO::OutputPtr& output)>;
 
-  //! Provide default ctor for multiple inheritance.
-  MIMOPipelineModule() {
-    LOG(FATAL) << "MIMOPipelineModule() constructor is only for multiple "
-                  "inheritance and should not be called.";
-  };
   MIMOPipelineModule(const std::string& name_id, const bool& parallel_run)
       : PipelineModule<Input, Output>(name_id, parallel_run),
         output_callbacks_() {}
@@ -296,10 +287,18 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
    */
   virtual inline typename PIO::InputPtr getInputPacket() override {
     typename PIO::InputPtr input;
-    if (input_queue_->popBlocking(input)) {
+    bool queue_state = false;
+    if (PIO::parallel_run_) {
+      queue_state = input_queue_->popBlocking(input);
+    } else {
+      queue_state = input_queue_->pop(input);
+    }
+
+    if (queue_state) {
       return input;
     } else {
-      LOG(WARNING) << "Input queue: for module: " << PIO::name_id_
+      LOG(WARNING) << "Module: " << PIO::name_id_ << " - "
+                   << "Input queue: " << input_queue_->queue_id_
                    << " didn't return an output.";
       return nullptr;
     }
@@ -420,7 +419,8 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
     if (input_queue_->popBlocking(input)) {
       return input;
     } else {
-      LOG(WARNING) << "Input queue: for module: " << MISO::name_id_
+      LOG(WARNING) << "Module: " << MISO::name_id_ << " - "
+                   << "Input queue: " << input_queue_->queue_id_
                    << " didn't return an output.";
       return nullptr;
     }

@@ -120,4 +120,5 @@ echo """ Launching:
   --output_path="../output_logs/"
 
 # If in debug mode, you can run gdb to trace problems.
+#export DATASET_PATH=/home/tonirv/datasets/euroc/EuRoC/V1_01_easy
 #gdb --args ../build/stereoVIOEuroc --flagfile="../params/flags/stereoVIOEuroc.flags" --flagfile="../params/flags/Mesher.flags" --flagfile="../params/flags/VioBackEnd.flags" --flagfile="../params/flags/RegularVioBackEnd.flags" --flagfile="../params/flags/Visualizer3D.flags" --flagfile="../params/flags/EthParser.flags" --logtostderr=1 --colorlogtostderr=1 --log_prefix=0 --dataset_path="$DATASET_PATH" --vio_params_path="$VIO_PARAMS_PATH" --initial_k=50 --final_k=2000 --tracker_params_path="" --lcd_params_path="" --vocabulary_path="../vocabulary/ORBvoc.yml" --use_lcd="0" --v=0 --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 --backend_type="0" --parallel_run="1" --dataset_type="0" --log_output="0" --output_path="../output_logs/"

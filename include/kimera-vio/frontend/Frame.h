@@ -170,9 +170,10 @@ class Frame {
   KeypointsCV getValidKeypoints() const {
     // TODO: can we cache this result?
     KeypointsCV validKeypoints;
+    CHECK_EQ(landmarks_.size(), keypoints_.size());
     for (size_t i = 0; i < landmarks_.size(); i++) {
       if (landmarks_.at(i) != -1) {  // It is valid.
-        validKeypoints.push_back(keypoints_[i]);
+        validKeypoints.push_back(keypoints_.at(i));
       }
     }
     return validKeypoints;

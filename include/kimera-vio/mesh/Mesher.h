@@ -553,27 +553,47 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
   }
 
  protected:
-  //! Synchronize input queues.
+  //! Synchronize input queues. Currently doing it in a crude way:
+  //! Pop blocking the payload that should be the last to be computed,
+  //! then loop over the other queues until you get a payload that has exactly
+  //! the same timestamp. Guaranteed to sync messages unless the assumption
+  //! on the order of msg generation is broken.
   virtual inline InputPtr getInputPacket() override {
     MesherBackendInput backend_payload;
-    backend_payload_queue_.popBlocking(backend_payload);
+    bool queue_state = false;
+    if (PIO::parallel_run_) {
+      queue_state = backend_payload_queue_.popBlocking(backend_payload);
+    } else {
+      queue_state = backend_payload_queue_.pop(backend_payload);
+    }
+    if (!queue_state) {
+      LOG_IF(WARNING, PIO::parallel_run_)
+          << "Module: " << name_id_ << " - Backend queue is down";
+      VLOG_IF(1, !PIO::parallel_run_)
+          << "Module: " << name_id_ << " - Backend queue is empty or down";
+      return nullptr;
+    }
     CHECK(backend_payload);
     const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
 
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
     // a backend payload without having a frontend one first!
-    Timestamp t = 0;
+    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::max();
     MesherFrontendInput frontend_payload;
-    while (timestamp != t) {
+    while (timestamp != payload_timestamp) {
       if (!frontend_payload_queue_.pop(frontend_payload)) {
         // We had a backend input but no frontend input, something's wrong.
-        LOG(ERROR) << "Mesher's frontend payload queue is empty or "
+        LOG(ERROR) << name_id_
+                   << "'s frontend payload queue is empty or "
                       "has been shutdown.";
         return nullptr;
       }
-      CHECK(frontend_payload);
-      t = frontend_payload->stereo_frame_lkf_.getTimestamp();
+      if (frontend_payload) {
+        payload_timestamp = frontend_payload->stereo_frame_lkf_.getTimestamp();
+      } else {
+        LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
+      }
     }
 
     // Push the synced messages to the mesher's input queue
@@ -584,7 +604,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
         // TODO(Toni): call getMapLmkIdsto3dPointsInTimeHorizon from
         // backend for this functionality.
         PointsWithIdMap(),
-        left_frame.getValidKeypoints(),
+        left_frame.keypoints_,
         stereo_keyframe.right_keypoints_status_,
         stereo_keyframe.keypoints_3d_,
         left_frame.landmarks_,

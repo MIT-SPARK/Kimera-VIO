@@ -131,13 +131,16 @@ Pipeline::Pipeline(const PipelineParams& params)
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerCallback(
       [&backend_input_queue](const StereoFrontEndOutputPayload::Ptr& output) {
-        backend_input_queue.push(VIO::make_unique<VioBackEndInputPayload>(
-            output->stereo_frame_lkf_.getTimestamp(),
-            output->status_stereo_measurements_,
-            output->tracker_status_,
-            output->pim_,
-            output->relative_pose_body_stereo_,
-            nullptr));
+        if (output->is_keyframe_) {
+          //! Only push to backend input queue if it is a keyframe!
+          backend_input_queue.push(VIO::make_unique<VioBackEndInputPayload>(
+              output->stereo_frame_lkf_.getTimestamp(),
+              output->status_stereo_measurements_,
+              output->tracker_status_,
+              output->pim_,
+              output->relative_pose_body_stereo_,
+              nullptr));  // TODO(Toni): remove planes.
+        }
       });
 
   //! Create backend

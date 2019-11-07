@@ -1467,12 +1467,16 @@ void Mesher::createMesh2dVIO(
   // Pick left frame.
   // Sanity check.
   CHECK_EQ(landmarks.size(), keypoints_status.size())
-      << "StereoFrame: wrong dimension for the landmarks";
+      << "Wrong dimension for the landmarks";
+  CHECK_EQ(landmarks.size(), keypoints.size())
+      << "Wrong dimension for the keypoints";
 
   // Create mesh including indices of keypoints with valid 3D.
   // (which have right px).
   std::vector<cv::Point2f> keypoints_for_mesh;
   // TODO this double loop is quite expensive.
+  LOG_IF(WARNING, pointsWithIdVIO.size() == 0u)
+      << "List of Keypoints with associated Landmarks is empty.";
   for (const auto& point_with_id : pointsWithIdVIO) {
     for (size_t j = 0; j < landmarks.size(); j++) {
       // If we are seeing a VIO point in left and right frame, add to keypoints
