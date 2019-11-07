@@ -121,6 +121,10 @@ LoopClosureDetector::LoopClosureDetector(
   if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
 }
 
+LoopClosureDetector::~LoopClosureDetector() {
+  LOG(INFO) << "LoopClosureDetector desctuctor called.";
+}
+
 /* ------------------------------------------------------------------------ */
 LcdOutput::Ptr LoopClosureDetector::spinOnce(const LcdInput& input) {
   // One time initialization from camera parameters.

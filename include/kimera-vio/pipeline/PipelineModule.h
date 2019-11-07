@@ -54,7 +54,7 @@ class PipelineModule {
 
   //! Provide default ctor for multiple inheritance.
   PipelineModule() {
-    LOG(FATAL) << "This constructor is only for multiple"
+    LOG(FATAL) << "PipelineModule() constructor is only for multiple "
                   "inheritance and should not be called.";
   };
 
@@ -207,7 +207,7 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
 
   //! Provide default ctor for multiple inheritance.
   MIMOPipelineModule() {
-    LOG(FATAL) << "This constructor is only for multiple"
+    LOG(FATAL) << "MIMOPipelineModule() constructor is only for multiple "
                   "inheritance and should not be called.";
   };
   MIMOPipelineModule(const std::string& name_id, const bool& parallel_run)
@@ -267,13 +267,13 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
  * module.
  */
 template <typename Input, typename Output>
-class SIMOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
+class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
  public:
   KIMERA_POINTER_TYPEDEFS(SIMOPipelineModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(SIMOPipelineModule);
 
-  using SIMO = SIMOPipelineModule<Input, Output>;
-  using InputQueue = ThreadsafeQueue<typename SIMO::InputPtr>;
+  using PIO = PipelineModule<Input, Output>;
+  using InputQueue = ThreadsafeQueue<typename PIO::InputPtr>;
 
   SIMOPipelineModule(InputQueue* input_queue,
                      const std::string& name_id,
@@ -294,12 +294,12 @@ class SIMOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
    * @return a boolean indicating whether the generation of the input packet was
    * successful.
    */
-  virtual inline typename SIMO::InputPtr getInputPacket() override {
-    typename SIMO::InputPtr input;
+  virtual inline typename PIO::InputPtr getInputPacket() override {
+    typename PIO::InputPtr input;
     if (input_queue_->popBlocking(input)) {
       return input;
     } else {
-      LOG(WARNING) << "Input queue: for module: " << SIMO::name_id_
+      LOG(WARNING) << "Input queue: for module: " << PIO::name_id_
                    << " didn't return an output.";
       return nullptr;
     }
@@ -324,13 +324,13 @@ class SIMOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
  * module.
  */
 template <typename Input, typename Output>
-class MISOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
+class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
  public:
   KIMERA_POINTER_TYPEDEFS(MISOPipelineModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MISOPipelineModule);
 
-  using PIO = PipelineModule<Input, Output>;
-  using OutputQueue = ThreadsafeQueue<typename PIO::OutputPtr>;
+  using MIMO = MIMOPipelineModule<Input, Output>;
+  using OutputQueue = ThreadsafeQueue<typename MIMO::OutputPtr>;
 
   MISOPipelineModule(OutputQueue* output_queue,
                      const std::string& name_id,
@@ -341,6 +341,13 @@ class MISOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
   }
   virtual ~MISOPipelineModule() = default;
 
+  //! Override registering of output callbacks since this is only used for
+  //! multiple output pipelines.
+  virtual void registerCallback(
+      const typename MIMO::OutputCallback& output_callback) override {
+    LOG(WARNING) << "SISO Pipeline Module does not use callbacks.";
+  }
+
  protected:
   /**
    * @brief pushOutputPacket Sends the output of the module to other interested
@@ -350,7 +357,7 @@ class MISOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
    * @return boolean indicating whether the push was successful or not.
    */
   virtual inline bool pushOutputPacket(
-      typename PIO::OutputPtr output_packet) const override {
+      typename MIMO::OutputPtr output_packet) const override {
     return output_queue_->push(std::move(output_packet));
   }
 
@@ -365,52 +372,73 @@ class MISOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
   OutputQueue* output_queue_;
 };
 
-// Using multiple inheritance check for excellent reference:
+// We explictly avoid using multiple inheritance check for excellent reference:
 // https://isocpp.org/wiki/faq/multiple-inheritance
+// Since we would end in the "Dreaded Diamond of Death" inheritance
+// (anti-)pattern...
 /** @brief SISOPipelineModule Single Input Single Output (SISO) pipeline module.
  * Receives Input packets via a threadsafe queue, and sends output packets
  * to a threadsafe output queue.
  * This is the most standard and simplest pipeline module.
  */
 template <typename Input, typename Output>
-class SISOPipelineModule : public SIMOPipelineModule<Input, Output>,
-                           public MISOPipelineModule<Input, Output> {
+class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
  public:
   KIMERA_POINTER_TYPEDEFS(SISOPipelineModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(SISOPipelineModule);
 
-  using MIMO = MIMOPipelineModule<Input, Output>;
-  using SIMO = SIMOPipelineModule<Input, Output>;
   using MISO = MISOPipelineModule<Input, Output>;
-  using InputQueue = ThreadsafeQueue<typename MIMO::InputPtr>;
-  using OutputQueue = ThreadsafeQueue<typename MIMO::OutputPtr>;
+  using InputQueue = ThreadsafeQueue<typename MISO::InputPtr>;
+  using OutputQueue = ThreadsafeQueue<typename MISO::OutputPtr>;
 
   SISOPipelineModule(InputQueue* input_queue,
                      OutputQueue* output_queue,
                      const std::string& name_id,
                      const bool& parallel_run)
-      : SIMO(input_queue, name_id, parallel_run),
-        MISO(input_queue, name_id, parallel_run),
-        MIMO(name_id, parallel_run) {}
+      : MISO(input_queue, name_id, parallel_run) {}
   virtual ~SISOPipelineModule() = default;
 
   //! Override registering of output callbacks since this is only used for
   //! multiple output pipelines.
   virtual void registerCallback(
-      const typename MIMO::OutputCallback& output_callback) override {
+      const typename MISO::OutputCallback& output_callback) override {
     LOG(WARNING) << "SISO Pipeline Module does not use callbacks.";
   }
 
  protected:
+  /**
+   * @brief getSyncedInputPacket Retrieves the input packet for processing.
+   * Just pops from a threadsafe queue that contains the input packets to be
+   * processed.
+   * @param[out] input_packet Parameter to be filled that is then used by the
+   * pipeline module's specific spinOnce.
+   * @return a boolean indicating whether the generation of the input packet was
+   * successful.
+   */
+  virtual inline typename MISO::InputPtr getInputPacket() override {
+    typename MISO::InputPtr input;
+    if (input_queue_->popBlocking(input)) {
+      return input;
+    } else {
+      LOG(WARNING) << "Input queue: for module: " << MISO::name_id_
+                   << " didn't return an output.";
+      return nullptr;
+    }
+  }
+
   //! Called when general shutdown of PipelineModule is triggered.
   virtual void shutdownQueues() override {
-    SIMO::shutdownQueues() && MISO::shutdownQueues();
+    input_queue_->shutdown() && MISO::shutdownQueues();
   };
 
   //! Checks if the module has work to do (should check input queues are empty)
   virtual bool hasWork() const override {
-    return SIMO::hasWork() && MISO::hasWork();
+    return input_queue_->empty() && MISO::hasWork();
   };
+
+ private:
+  //! Input
+  InputQueue* input_queue_;
 };
 
 }  // namespace VIO

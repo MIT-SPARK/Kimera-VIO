@@ -557,19 +557,23 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
   virtual inline InputPtr getInputPacket() override {
     MesherBackendInput backend_payload;
     backend_payload_queue_.popBlocking(backend_payload);
+    CHECK(backend_payload);
     const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
 
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
     // a backend payload without having a frontend one first!
+    Timestamp t = 0;
     MesherFrontendInput frontend_payload;
-    while (timestamp != frontend_payload->stereo_frame_lkf_.getTimestamp()) {
+    while (timestamp != t) {
       if (!frontend_payload_queue_.pop(frontend_payload)) {
         // We had a backend input but no frontend input, something's wrong.
         LOG(ERROR) << "Mesher's frontend payload queue is empty or "
                       "has been shutdown.";
         return nullptr;
       }
+      CHECK(frontend_payload);
+      t = frontend_payload->stereo_frame_lkf_.getTimestamp();
     }
 
     // Push the synced messages to the mesher's input queue

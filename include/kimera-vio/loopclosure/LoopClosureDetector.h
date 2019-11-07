@@ -58,9 +58,7 @@ class LoopClosureDetector {
                       bool log_output);
 
   /* ------------------------------------------------------------------------ */
-  virtual ~LoopClosureDetector() {
-    LOG(INFO) << "LoopClosureDetector desctuctor called.";
-  }
+  virtual ~LoopClosureDetector();
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single input payload and runs it through the pipeline.
