@@ -94,7 +94,7 @@ include(src/visualizer/CMakeLists.txt)
 target_link_libraries(KimeraVIO
   PRIVATE
     opengv
-    DBoW2
+    ${DBoW2_LIBRARIES}
     KimeraRPGO
   PUBLIC
     Boost::boost
