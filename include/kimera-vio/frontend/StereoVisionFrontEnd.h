@@ -48,8 +48,6 @@ public:
  KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEnd);
  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
  using StereoFrontEndInputPayload = StereoImuSyncPacket;
- using FrontendOutputCallback =
-     std::function<void(const StereoFrontEndOutputPayload::ConstPtr& payload)>;
  // using StereoFrontEndOutputPayload = VioBackEndInputPayload;
 
 public:
@@ -66,13 +64,6 @@ public:
   inline void updateImuBias(const ImuBias& imu_bias) const {
     imu_frontend_->updateBias(imu_bias);
   }
-
-  inline void registerOutputCallback(
-      const FrontendOutputCallback& output_callback) {
-    output_callbacks_.push_back(output_callback);
-  }
-
-  bool callCallbacks(const StereoFrontEndOutputPayload::ConstPtr& output);
 
   /* ------------------------------------------------------------------------ */
   // Get Imu Bias. This is thread-safe as imu_frontend_->getCurrentImuBias is
@@ -149,7 +140,7 @@ public:
 
   // private: // TODO: Fix access to this function. Is this thread safe???
   /* ------------------------------------------------------------------------ */
-  VioBackEndInputPayload::UniquePtr spinOnce(
+  StereoFrontEndOutputPayload::UniquePtr spinOnce(
       const StereoFrontEndInputPayload& input);
 
   /* ------------------------------------------------------------------------ */
@@ -259,9 +250,6 @@ private:
   // IMU frontend.
   std::unique_ptr<ImuFrontEnd> imu_frontend_;
 
-  //! Callbacks
-  std::vector<FrontendOutputCallback> output_callbacks_;
-
   // Used to force the use of 5/3 point ransac, despite parameters
   std::atomic_bool force_53point_ransac_ = {false};
 
@@ -282,7 +270,8 @@ private:
 };
 
 class StereoVisionFrontEndModule
-    : public SISOPipelineModule<StereoImuSyncPacket, VioBackEndInputPayload> {
+    : public SIMOPipelineModule<StereoImuSyncPacket,
+                                StereoFrontEndOutputPayload> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEndModule);
   KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEndModule);
@@ -296,12 +285,10 @@ class StereoVisionFrontEndModule
    * @param vio_frontend
    */
   StereoVisionFrontEndModule(InputQueue* input_queue,
-                             OutputQueue* output_queue,
                              bool parallel_run,
                              StereoVisionFrontEnd::UniquePtr vio_frontend)
-      : SISOPipelineModule<StereoImuSyncPacket, VioBackEndInputPayload>(
+      : SIMOPipelineModule<StereoImuSyncPacket, StereoFrontEndOutputPayload>(
             input_queue,
-            output_queue,
             "VioFrontEnd",
             parallel_run),
         vio_frontend_(std::move(vio_frontend)) {
@@ -310,8 +297,7 @@ class StereoVisionFrontEndModule
   virtual ~StereoVisionFrontEndModule() = default;
 
  public:
-  virtual VioBackEndInputPayload::UniquePtr spinOnce(
-      const StereoImuSyncPacket& input) {
+  virtual OutputPtr spinOnce(const StereoImuSyncPacket& input) {
     return vio_frontend_->spinOnce(input);
   }
 
@@ -336,11 +322,6 @@ class StereoVisionFrontEndModule
   //! Callbacks
   inline void updateImuBias(const ImuBias& imu_bias) const {
     vio_frontend_->updateImuBias(imu_bias);
-  }
-
-  inline void registerOutputCallback(
-      const StereoVisionFrontEnd::FrontendOutputCallback& output_callback) {
-    vio_frontend_->registerOutputCallback(output_callback);
   }
 
  public:

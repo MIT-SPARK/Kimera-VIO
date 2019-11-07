@@ -15,6 +15,7 @@
 #pragma once
 
 #include <atomic>
+#include <functional>  // for function
 #include <memory>
 #include <string>
 
@@ -45,8 +46,11 @@ class PipelineModule {
  public:
   KIMERA_POINTER_TYPEDEFS(PipelineModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModule);
+  //! The input is a unique ptr, as the user should implement getInputPacket
+  //! such that it only retrieves an input structure with all data.
   using InputPtr = std::unique_ptr<Input>;
-  using OutputPtr = std::unique_ptr<Output>;
+  //! The output is instead a shared ptr, since many users might need the output
+  using OutputPtr = std::shared_ptr<Output>;
 
   // TODO(Toni) In/Output queue should be shared ptr
   /**
@@ -58,29 +62,6 @@ class PipelineModule {
   PipelineModule(const std::string& name_id, const bool& parallel_run)
       : parallel_run_(parallel_run), name_id_(name_id) {}
   virtual ~PipelineModule() { LOG(INFO) << name_id_ + " destructor called."; }
-
-  /**
-   * @brief getSyncedInputPacket Retrieves the input packet for processing.
-   * The typical usage of this function just pops from a threadsafe queue that
-   * contains the input packets to be processed. Alternatively, one may consider
-   * synchronizing different queues and generating a custom packet.
-   * @param[out] input_packet Parameter to be filled that is then used by the
-   * pipeline module's specific spinOnce.
-   * @return a boolean indicating whether the generation of the input packet was
-   * successful.
-   */
-  virtual inline bool getInputPacket(InputPtr input_packet) = 0;
-
-  /**
-   * @brief pushOutputPacket Sends the output of the module to other interested
-   * parties, potentially other pipeline modules.
-   * The typical use case would be to just push to a threadsafe output queue
-   * the newly generated output. Alternatively, one may override this function
-   * to send the output to multiple registered queues or callbacks.
-   * @param[out] output_packet  Parameter to be sent to others
-   * @return boolean indicating whether the push was successful or not.
-   */
-  virtual inline bool pushOutputPacket(OutputPtr output_packet) = 0;
 
   /**
    * @brief Main spin function. Every pipeline module calls this spin, where
@@ -105,6 +86,8 @@ class PipelineModule {
             // Received a valid output, send to output queue
             if (!pushOutputPacket(output)) {
               LOG(WARNING) << "Output is down for module: " << name_id_;
+            } else {
+              VLOG(2) << "Module " << name_id_ << "successfully pushed output.";
             }
           } else {
             VLOG(1) << "Module " << name_id_ << " skipped sending an output.";
@@ -128,18 +111,11 @@ class PipelineModule {
     return true;
   }
 
-  /**
-   * @brief Abstract function to process a single input payload.
-   * @param[in] input: an input payload for module to work on.
-   * @return The output payload from the pipeline module. Returning a nullptr
-   * signals that the output should not be sent to the output queue.
-   */
-  virtual OutputPtr spinOnce(const Input& input) = 0;
-
   /* ------------------------------------------------------------------------ */
-  inline void shutdown() {
+  virtual inline void shutdown() {
     LOG_IF(WARNING, shutdown_)
         << "Shutdown requested, but " << name_id_ << " was already shutdown.";
+    shutdownQueues();
     LOG(INFO) << "Shutting down: " << name_id_;
     shutdown_ = true;
   }
@@ -151,46 +127,157 @@ class PipelineModule {
   }
 
   /* ------------------------------------------------------------------------ */
-  //! Checks if the thread is waiting for the input or if it is working instead.
-  inline bool isWorking() const { return is_thread_working_; }
+  //! Checks if the module is working or if it still has work to do.
+  inline bool isWorking() const { return is_thread_working_ && !hasWork(); }
+
+ protected:
+  /**
+   * @brief getSyncedInputPacket Retrieves the input packet for processing.
+   * The typical usage of this function just pops from a threadsafe queue that
+   * contains the input packets to be processed. Alternatively, one may consider
+   * synchronizing different queues and generating a custom packet.
+   * @param[out] input_packet Parameter to be filled that is then used by the
+   * pipeline module's specific spinOnce.
+   * @return a boolean indicating whether the generation of the input packet was
+   * successful.
+   */
+  virtual inline bool getInputPacket(InputPtr input_packet) = 0;
+
+  /**
+   * @brief pushOutputPacket Sends the output of the module to other interested
+   * parties, potentially other pipeline modules.
+   * The typical use case would be to just push to a threadsafe output queue
+   * the newly generated output. Alternatively, one may override this function
+   * to send the output to multiple registered queues or callbacks.
+   * @param[out] output_packet  Parameter to be sent to others
+   * @return boolean indicating whether the push was successful or not.
+   */
+  virtual inline bool pushOutputPacket(OutputPtr output_packet) const = 0;
+
+  /**
+   * @brief Abstract function to process a single input payload.
+   * @param[in] input: an input payload for module to work on.
+   * @return The output payload from the pipeline module. Returning a nullptr
+   * signals that the output should not be sent to the output queue.
+   */
+  virtual OutputPtr spinOnce(const Input& input) = 0;
+
+  /**
+   * @brief shutdownQueues If the module stores Threadsafe queues, it must
+   * shutdown those for a complete shutdown.
+   */
+  virtual void shutdownQueues() = 0;
+
+  //! Checks if the module has work to do (should check input queues are empty)
+  virtual bool hasWork() const = 0;
+
+ protected:
+  //! Properties
+  std::string name_id_ = {"PipelineModule"};
 
  private:
   //! Thread related members.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_thread_working_ = {false};
   bool parallel_run_ = {true};
-
-  //! Properties
-  std::string name_id_ = {"PipelineModule"};
 };
 
-/** @brief SISOPipelineModule Single Input Single Output (SISO) pipeline module.
- * Receives Input packets via a threadsafe queue, and sends output packets
- * to a threadsafe output queue.
- * This is the most standard and simplest pipeline module.
+/** @brief MIMOPipelineModule Multiple Input Multiple Output (MIMO) pipeline
+ * module.
+ * This is still an abstract class and the user must implement the
+ * getInputPacket function that deals with the input.
+ * Potentially one can receive Input packets via a set of callbacks.
+ * Alternatively, one can use a threadsafe queue (in which case you can use
+ * the class SIMOPipelineModule, a specialization of a MIMO pipeline module).
+ * Sends output to a list of registered callbacks with a specific signature.
+ * This is the most general pipeline module accepting and dispatching multiple
+ * results.
  */
 template <typename Input, typename Output>
-class SISOPipelineModule : public PipelineModule<Input, Output> {
+class MIMOPipelineModule : public PipelineModule<Input, Output> {
  public:
-  KIMERA_POINTER_TYPEDEFS(SISOPipelineModule);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(SISOPipelineModule);
+  KIMERA_POINTER_TYPEDEFS(MIMOPipelineModule);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MIMOPipelineModule);
+
+  using PIO = PipelineModule<Input, Output>;
+  using OutputCallback =
+      std::function<void(const std::shared_ptr<Output>& output)>;
+
+  MIMOPipelineModule(const std::string& name_id, const bool& parallel_run)
+      : PipelineModule<Input, Output>(name_id, parallel_run),
+        output_callbacks_() {}
+  virtual ~MIMOPipelineModule() = default;
+
+  /**
+   * @brief registerOutputCallback Add an extra output callback to the list
+   * of callbacks. This will be called every time there is a new output from
+   * this module.
+   * @param output_callback actual callback to register.
+   */
+  virtual void registerCallback(const OutputCallback& output_callback) {
+    CHECK(output_callback);
+    output_callbacks_.push_back(output_callback);
+  }
+
+ protected:
+  /**
+   * @brief pushOutputPacket Sends the output of the module to other interested
+   * parties, potentially other pipeline modules.
+   * Just push to a threadsafe output queue the newly generated output.
+   * @param[out] output_packet  Parameter to be sent to others
+   * @return boolean indicating whether the push was successful or not.
+   */
+  virtual inline bool pushOutputPacket(
+      typename PIO::OutputPtr output_packet) const override {
+    //! Call all callbacks
+    auto tic_callbacks = utils::Timer::tic();
+    for (const OutputCallback& callback : output_callbacks_) {
+      CHECK(callback);
+      callback(*output_packet);
+    }
+    static constexpr auto kTimeLimitCallbacks = std::chrono::milliseconds(10);
+    auto callbacks_duration = utils::Timer::toc(tic_callbacks);
+    if (callbacks_duration > kTimeLimitCallbacks) {
+      LOG(WARNING) << "Callbacks for module: " << this->name_id_
+                   << " are taking very long! Current latency: "
+                   << callbacks_duration.count() << " us).";
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+ private:
+  //! Output callbacks
+  std::vector<OutputCallback> output_callbacks_;
+};
+
+/** @brief SIMOPipelineModule Single Input Multiple Output (SIMO) pipeline
+ * module.
+ * Receives Input packets via a threadsafe queue, and sends output packets
+ * to a list of registered callbacks with a specific signature.
+ * This is useful when there are multiple modules expecting results from this
+ * module.
+ */
+template <typename Input, typename Output>
+class SIMOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
+ public:
+  KIMERA_POINTER_TYPEDEFS(SIMOPipelineModule);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(SIMOPipelineModule);
 
   using PIO = PipelineModule<Input, Output>;
   using InputQueue = ThreadsafeQueue<typename PIO::InputPtr>;
-  using OutputQueue = ThreadsafeQueue<typename PIO::OutputPtr>;
 
-  SISOPipelineModule(InputQueue* input_queue,
-                     OutputQueue* output_queue,
+  SIMOPipelineModule(InputQueue* input_queue,
                      const std::string& name_id,
                      const bool& parallel_run)
-      : PipelineModule<Input, Output>(name_id, parallel_run),
-        input_queue_(input_queue),
-        output_queue_(output_queue) {
+      : MIMOPipelineModule<Input, Output>(name_id, parallel_run),
+        input_queue_(input_queue) {
     CHECK(input_queue_);
-    CHECK(output_queue_);
   }
-  virtual ~SISOPipelineModule() = 0;
+  virtual ~SIMOPipelineModule() = default;
 
+ protected:
   /**
    * @brief getSyncedInputPacket Retrieves the input packet for processing.
    * Just pops from a threadsafe queue that contains the input packets to be
@@ -205,6 +292,43 @@ class SISOPipelineModule : public PipelineModule<Input, Output> {
     return input_queue_->popBlocking(input_packet);
   }
 
+  //! Called when general shutdown of PipelineModule is triggered.
+  virtual void shutdownQueues() override { input_queue_->shutdown(); };
+
+  //! Checks if the module has work to do (should check input queues are empty)
+  virtual bool hasWork() const override { return input_queue_->empty(); };
+
+ private:
+  //! Input
+  InputQueue* input_queue_;
+};
+
+/** @brief MISOPipelineModule Single Input Multiple Output (MISO) pipeline
+ * module.
+ * Receives Input packets via a threadsafe queue, and sends output packets
+ * to a list of registered callbacks with a specific signature.
+ * This is useful when there are multiple modules expecting results from this
+ * module.
+ */
+template <typename Input, typename Output>
+class MISOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
+ public:
+  KIMERA_POINTER_TYPEDEFS(MISOPipelineModule);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MISOPipelineModule);
+
+  using PIO = PipelineModule<Input, Output>;
+  using OutputQueue = ThreadsafeQueue<typename PIO::OutputPtr>;
+
+  MISOPipelineModule(OutputQueue* output_queue,
+                     const std::string& name_id,
+                     const bool& parallel_run)
+      : MIMOPipelineModule<Input, Output>(name_id, parallel_run),
+        output_queue_(output_queue) {
+    CHECK(output_queue_);
+  }
+  virtual ~MISOPipelineModule() = default;
+
+ protected:
   /**
    * @brief pushOutputPacket Sends the output of the module to other interested
    * parties, potentially other pipeline modules.
@@ -217,10 +341,62 @@ class SISOPipelineModule : public PipelineModule<Input, Output> {
     return output_queue_->push(std::move(output_packet));
   }
 
+  //! Called when general shutdown of PipelineModule is triggered.
+  virtual void shutdownQueues() override { output_queue_->shutdown(); };
+
+  //! Checks if the module has work to do (should check input queues are empty)
+  virtual bool hasWork() const override { return output_queue_->empty(); };
+
  private:
-  //! Queues
-  InputQueue* input_queue_;
+  //! Output
   OutputQueue* output_queue_;
+};
+
+// Using multiple inheritance check for excellent reference:
+// https://isocpp.org/wiki/faq/multiple-inheritance
+/** @brief SISOPipelineModule Single Input Single Output (SISO) pipeline module.
+ * Receives Input packets via a threadsafe queue, and sends output packets
+ * to a threadsafe output queue.
+ * This is the most standard and simplest pipeline module.
+ */
+template <typename Input, typename Output>
+class SISOPipelineModule : public SIMOPipelineModule<Input, Output>,
+                           public MISOPipelineModule<Input, Output> {
+ public:
+  KIMERA_POINTER_TYPEDEFS(SISOPipelineModule);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(SISOPipelineModule);
+
+  using MIMO = MIMOPipelineModule<Input, Output>;
+  using SIMO = SIMOPipelineModule<Input, Output>;
+  using MISO = MISOPipelineModule<Input, Output>;
+  using InputQueue = ThreadsafeQueue<typename MIMO::InputPtr>;
+  using OutputQueue = ThreadsafeQueue<typename MIMO::OutputPtr>;
+
+  SISOPipelineModule(InputQueue* input_queue,
+                     OutputQueue* output_queue,
+                     const std::string& name_id,
+                     const bool& parallel_run)
+      : SIMO(input_queue, name_id, parallel_run),
+        MISO(input_queue, name_id, parallel_run) {}
+  virtual ~SISOPipelineModule() = default;
+
+  //! Override registering of output callbacks since this is only used for
+  //! multiple output pipelines.
+  virtual void registerCallback(
+      const typename MIMO::OutputCallback& output_callback) override {
+    LOG(WARNING) << "SISO Pipeline Module does not use callbacks.";
+  }
+
+ protected:
+  //! Called when general shutdown of PipelineModule is triggered.
+  virtual void shutdownQueues() override {
+    SIMO::shutdownQueues() && MISO::shutdownQueues();
+  };
+
+  //! Checks if the module has work to do (should check input queues are empty)
+  virtual bool hasWork() const override {
+    return SIMO::hasWork() && MISO::hasWork();
+  };
 };
 
 }  // namespace VIO

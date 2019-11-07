@@ -173,6 +173,7 @@ Mesher::Mesher(const MesherParams& mesher_params)
 MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
   MesherOutput::UniquePtr mesher_output_payload =
       VIO::make_unique<MesherOutput>();
+  mesher_output_payload->timestamp_ = input.timestamp_;
   updateMesh3D(
       input,
       // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!

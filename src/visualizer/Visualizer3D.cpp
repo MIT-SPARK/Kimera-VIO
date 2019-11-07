@@ -88,10 +88,10 @@ Visualizer3D::WindowData::WindowData()
       mesh_lighting_(FLAGS_set_mesh_lighting) {}
 
 /* -------------------------------------------------------------------------- */
-VisualizerInputPayload::VisualizerInputPayload(
+VisualizerInput::VisualizerInput(
     const gtsam::Pose3& pose,
     const StereoFrame& last_stero_keyframe,
-    MesherOutputPayload::ConstUniquePtr mesher_output_payload,
+    MesherOutput::ConstUniquePtr mesher_output_payload,
     const PointsWithIdMap& points_with_id_VIO,
     const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
     const std::vector<Plane>& planes,
@@ -111,20 +111,10 @@ ImageToDisplay::ImageToDisplay(const std::string& name, const cv::Mat& image)
     : name_(name), image_(image) {}
 
 /* -------------------------------------------------------------------------- */
-Visualizer3D::Visualizer3D(InputQueue* input_queue,
-                           OutputQueue* output_queue,
-                           const VisualizationType& viz_type,
-                           const BackendType& backend_type,
-                           const DisplayCallback& display_callback,
-                           bool parallel_run)
-    : PipelineModule<VisualizerInputPayload, VisualizerOutputPayload>(
-          input_queue,
-          output_queue,
-          "Visualizer3D",
-          parallel_run),
-      visualization_type_(viz_type),
+Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
+                           const BackendType& backend_type)
+    : visualization_type_(viz_type),
       backend_type_(backend_type),
-      display_callback_(display_callback),
       logger_(nullptr) {
   if (FLAGS_log_mesh) {
     logger_ = VIO::make_unique<VisualizerLogger>();
@@ -144,10 +134,8 @@ Visualizer3D::Visualizer3D(InputQueue* input_queue,
 
 /* -------------------------------------------------------------------------- */
 // Returns true if visualization is ready, false otherwise.
-VisualizerOutputPayload::UniquePtr Visualizer3D::spinOnce(
-    const VisualizerInputPayload& input) {
-  VisualizerOutputPayload::UniquePtr output =
-      VIO::make_unique<VisualizerOutputPayload>();
+VisualizerOutput::Ptr Visualizer3D::spinOnce(const VisualizerInput& input) {
+  VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
   cv::Mat mesh_2d_img;  // Only for visualization.
   const Frame& left_stereo_keyframe = input.stereo_keyframe_.getLeftFrame();
   switch (visualization_type_) {
@@ -380,9 +368,6 @@ VisualizerOutputPayload::UniquePtr Visualizer3D::spinOnce(
   // TODO avoid copying and use a std::unique_ptr! You need to pass window_data_
   // as a parameter to all the functions and set them as const.
   output->window_ = window_data_.window_;
-
-  //! Call the displayer
-  if (display_callback_) display_callback_(*output);
 
   return output;
 }

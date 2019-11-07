@@ -74,22 +74,6 @@ class Pipeline {
   // Resumes all queues
   void resume();
 
-  // Return the mesher output queue for FUSES to process the mesh_2d and
-  // mesh_3d to extract semantic information.
-  // TODO(Toni) this should be a callback instead...
-  // right now it works because no one is pulling from this queue in pipeline.
-  inline ThreadsafeQueue<MesherOutput::UniquePtr>& getMesherOutputQueue() {
-    return mesher_output_queue_;
-  }
-
-  // Registration of callbacks.
-  // Callback to modify the mesh visual properties every time the mesher
-  // has a new 3d mesh.
-  inline void registerSemanticMeshSegmentationCallback(
-      Mesher::Mesh3dVizPropertiesSetterCallback callback) {
-    visualizer_->registerMesh3dVizProperties(callback);
-  }
-
   // Callback to output the VIO backend results at keyframe rate.
   // This callback also allows to
   inline void registerKeyFrameRateOutputCallback(
@@ -133,14 +117,7 @@ class Pipeline {
   bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   // Displaying must be done in the main thread.
-  void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
-
-  void processKeyframe(
-      const StereoFrame& last_stereo_keyframe,
-      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
-      const DebugTrackerInfo& debug_tracker_info);
-
-  void processKeyframePop(bool parallel_run = true);
+  void spinDisplayOnce(const VisualizerOutput::Ptr& viz_output) const;
 
   StatusStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
@@ -201,10 +178,6 @@ class Pipeline {
 
   // Thread-safe queue for the backend.
   ThreadsafeQueue<VioBackEndInputPayload::UniquePtr> backend_input_queue_;
-  ThreadsafeQueue<VioBackEndOutputPayload::UniquePtr> backend_output_queue_;
-
-  // Set of planes in the scene.
-  std::vector<Plane> planes_;
 
   // Create class to build mesh.
   MesherModule::UniquePtr mesher_module_;
@@ -218,12 +191,7 @@ class Pipeline {
   ThreadsafeNullQueue<LcdOutputPayload::UniquePtr> null_lcd_output_queue_;
 
   // Visualization process.
-  std::unique_ptr<Visualizer3D> visualizer_;
-
-  // Thread-safe queue for the visualizer.
-  Visualizer3D::InputQueue visualizer_input_queue_;
-  ThreadsafeNullQueue<VisualizerOutputPayload::UniquePtr>
-      null_visualizer_output_queue_;
+  VisualizerModule::UniquePtr visualizer_module_;
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
@@ -232,12 +200,11 @@ class Pipeline {
   int init_frame_id_;
 
   // Threads.
-  std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};
-  std::unique_ptr<std::thread> wrapped_thread_ = {nullptr};
+  std::unique_ptr<std::thread> frontend_thread_ = {nullptr};
   std::unique_ptr<std::thread> backend_thread_ = {nullptr};
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
   std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
-  // std::thread visualizer_thread_;
+  std::unique_ptr<std::thread> visualizer_thread_ = {nullptr};
 
   BackendType backend_type_;
   bool parallel_run_;

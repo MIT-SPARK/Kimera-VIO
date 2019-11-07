@@ -23,8 +23,8 @@
 
 namespace VIO {
 
-class VioBackEndModule
-    : public PipelineModule<VioBackEndInputPayload, VioBackEndOutputPayload> {
+class VioBackEndModule : public SIMOPipelineModule<VioBackEndInputPayload,
+                                                   VioBackEndOutputPayload> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(VioBackEndModule);
   KIMERA_POINTER_TYPEDEFS(VioBackEndModule);
@@ -38,12 +38,10 @@ class VioBackEndModule
    * @param vio_backend
    */
   VioBackEndModule(InputQueue* input_queue,
-                   OutputQueue* output_queue,
                    bool parallel_run,
                    VioBackEnd::UniquePtr vio_backend)
-      : PipelineModule<VioBackEndInputPayload, VioBackEndOutputPayload>(
+      : SIMOPipelineModule<VioBackEndInputPayload, VioBackEndOutputPayload>(
             input_queue,
-            output_queue,
             "VioBackEnd",
             parallel_run),
         vio_backend_(std::move(vio_backend)) {
@@ -51,8 +49,7 @@ class VioBackEndModule
   }
   virtual ~VioBackEndModule() = default;
 
-  virtual VioBackEndOutputPayload::UniquePtr spinOnce(
-      const VioBackEndInputPayload& input) {
+  virtual OutputPtr spinOnce(const VioBackEndInputPayload& input) {
     return vio_backend_->spinOnce(input);
   };
 

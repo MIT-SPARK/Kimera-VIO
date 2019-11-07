@@ -57,19 +57,23 @@ struct MesherInput {
   KIMERA_DELETE_COPY_CONSTRUCTORS(MesherInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MesherInput(
+      const Timestamp& timestamp,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       const KeypointsCV& keypoints,
       const std::vector<Kstatus>& keypoints_status,
       const std::vector<Vector3>& keypoints_3d,
       const LandmarkIds& landmarks,
       const gtsam::Pose3& left_camera_pose)
-      : points_with_id_vio_(points_with_id_vio),
+      : timestamp_(timestamp),
+        points_with_id_vio_(points_with_id_vio),
         keypoints_(keypoints),
         keypoints_status_(keypoints_status),
         keypoints_3d_(keypoints_3d),
         landmarks_(landmarks),
         W_Pose_B_(left_camera_pose) {}
   virtual ~MesherInput() = default;
+
+  const Timestamp timestamp_;
 
   //! Backenc optimized landmark and pose information.
   const std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_vio_;
@@ -93,17 +97,20 @@ struct MesherOutput {
   MesherOutput() = default;
   virtual ~MesherOutput() = default;
 
-  MesherOutput(Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
+  MesherOutput(const Timestamp& timestamp,
+               Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
                Mesh3D&& mesh_3d,  // Use move semantics for the actual 3d mesh.
                const std::vector<cv::Vec6f>& mesh_2d_for_viz,
                const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
-      : mesh_2d_(std::move(mesh_2d)),
+      : timestamp_(timestamp),
+        mesh_2d_(std::move(mesh_2d)),
         mesh_3d_(std::move(mesh_3d)),
         mesh_2d_for_viz_(mesh_2d_for_viz),
         mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
 
   MesherOutput(const MesherOutput::Ptr& in)
-      : mesh_2d_(2),
+      : timestamp_(in ? in->timestamp_ : Timestamp()),
+        mesh_2d_(2),
         mesh_3d_(3),
         mesh_2d_for_viz_(in ? in->mesh_2d_for_viz_
                             : std::vector<cv::Vec6f>()),  // yet another copy...
@@ -120,10 +127,9 @@ struct MesherOutput {
   MesherOutput& operator=(MesherOutput&&) = default;
 
  public:
-  // 2D Mesh.
-  Mesh2D mesh_2d_;
+  Timestamp timestamp_;
 
-  // 3D Mesh.
+  Mesh2D mesh_2d_;
   Mesh3D mesh_3d_;
 
   // 2D Mesh visualization.
@@ -457,8 +463,7 @@ class Mesher {
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
-  /* --------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------ */
   // Extracts lmk ids from a mesh polygon.
   // In case we are using extra lmks from stereo, then it makes sure that the
   // lmk ids are used in the optimization (they are present in time horizon:
@@ -475,8 +480,7 @@ class Mesher {
   void getVerticesMesh(cv::Mat* vertices_mesh) const;
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
-  /* -------------------------------------------------------------------------
-   */
+  /* ------------------------------------------------------------------------ */
   static std::vector<cv::Vec6f> createMesh2D(
       const cv::Size& img_size,
       std::vector<cv::Point2f>* keypoints_to_triangulate);
@@ -524,15 +528,17 @@ class MesherFactory {
   }
 };
 
-class MesherModule : public PipelineModule<MesherInput, MesherOutput> {
+class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
  public:
-  using MesherFrontendInput = StereoFrontEndOutputPayload::ConstPtr;
-  using MesherBackendInput = VioBackEndOutputPayload::ConstPtr;
+  KIMERA_POINTER_TYPEDEFS(MesherModule);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherModule);
+  using MesherFrontendInput = StereoFrontEndOutputPayload::Ptr;
+  using MesherBackendInput = VioBackEndOutputPayload::Ptr;
   // TODO(Toni): using this callback generates copies...
   using MesherOutputCallback = std::function<void(const MesherOutput& output)>;
 
   MesherModule(bool parallel_run, Mesher::UniquePtr mesher)
-      : PipelineModule<MesherInput, MesherOutput>("Mesher", parallel_run),
+      : MIMOPipelineModule<MesherInput, MesherOutput>("Mesher", parallel_run),
         frontend_payload_queue_(""),
         backend_payload_queue_(""),
         output_callbacks_(),
@@ -547,17 +553,18 @@ class MesherModule : public PipelineModule<MesherInput, MesherOutput> {
     backend_payload_queue_.push(backend_payload);
   }
 
+ protected:
   //! Synchronize input queues.
   virtual inline bool getInputPacket(InputPtr input) override {
     MesherBackendInput backend_payload;
     backend_payload_queue_.popBlocking(backend_payload);
+    const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
 
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
     // a backend payload without having a frontend one first!
     MesherFrontendInput frontend_payload;
-    while (backend_payload->W_State_Blkf_.timestamp_ !=
-           frontend_payload->stereo_frame_lkf_.getTimestamp()) {
+    while (timestamp != frontend_payload->stereo_frame_lkf_.getTimestamp()) {
       if (!frontend_payload_queue_.pop(frontend_payload)) {
         // We had a backend input but no frontend input, something's wrong.
         LOG(ERROR) << "Mesher's frontend payload queue is empty or "
@@ -567,31 +574,38 @@ class MesherModule : public PipelineModule<MesherInput, MesherOutput> {
     }
 
     // Push the synced messages to the mesher's input queue
-    const StereoFrame& last_stereo_keyframe =
-        frontend_payload->stereo_frame_lkf_;
-    const Frame& left_frame = last_stereo_keyframe.getLeftFrame();
+    const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
+    const Frame& left_frame = stereo_keyframe.getLeftFrame();
     input = VIO::make_unique<MesherInput>(
+        timestamp,
+        // TODO(Toni): call getMapLmkIdsto3dPointsInTimeHorizon from
+        // backend for this functionality.
         PointsWithIdMap(),
         left_frame.getValidKeypoints(),
-        last_stereo_keyframe.right_keypoints_status_,
-        last_stereo_keyframe.keypoints_3d_,
+        stereo_keyframe.right_keypoints_status_,
+        stereo_keyframe.keypoints_3d_,
         left_frame.landmarks_,
         backend_payload->W_State_Blkf_.pose_);
-    return true;
-  }
-
-  //! Sent output to others: call all registered callbacks.
-  virtual inline bool pushOutputPacket(OutputPtr output_packet) override {
-    for (const MesherOutputCallback& callback : output_callbacks_) {
-      CHECK(callback);
-      callback(*output_packet);
-    }
     return true;
   }
 
   virtual OutputPtr spinOnce(const MesherInput& input) override {
     return mesher_->spinOnce(input);
   }
+
+ protected:
+  //! Called when general shutdown of PipelineModule is triggered.
+  virtual void shutdownQueues() override {
+    LOG(INFO) << "Shutting down queues for: " << name_id_;
+    frontend_payload_queue_.shutdown();
+    backend_payload_queue_.shutdown();
+  };
+
+  //! Checks if the module has work to do (should check input queues are empty)
+  virtual bool hasWork() const override {
+    // We don't check frontend queue because it runs faster than backend queue.
+    return backend_payload_queue_.empty();
+  };
 
  private:
   //! Input Queues
