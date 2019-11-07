@@ -467,29 +467,49 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
  protected:
   //! Synchronize input queues.
   virtual inline InputPtr getInputPacket() override {
+    // TODO(X): this is the same or very similar to the Mesher getInputPacket.
     LcdBackendInput backend_payload;
-    backend_queue_.popBlocking(backend_payload);
+    bool queue_state = false;
+    if (PIO::parallel_run_) {
+      queue_state = backend_queue_.popBlocking(backend_payload);
+    } else {
+      queue_state = backend_queue_.pop(backend_payload);
+    }
+    if (!queue_state) {
+      LOG_IF(WARNING, PIO::parallel_run_)
+          << "Module: " << name_id_ << " - Backend queue is down";
+      VLOG_IF(1, !PIO::parallel_run_)
+          << "Module: " << name_id_ << " - Backend queue is empty or down";
+      return nullptr;
+    }
+    CHECK(backend_payload);
     const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
 
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
     // a backend payload without having a frontend one first!
+    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::max();
     LcdFrontendInput frontend_payload;
-    while (timestamp != frontend_payload->stereo_frame_lkf_.getTimestamp()) {
+    while (timestamp != payload_timestamp) {
       if (!frontend_queue_.pop(frontend_payload)) {
         // We had a backend input but no frontend input, something's wrong.
-        LOG(ERROR) << "Lcd's frontend payload queue is empty or "
+        LOG(ERROR) << "Module: " << name_id_
+                   << " - Frontend payload queue is empty or "
                       "has been shutdown.";
         return nullptr;
+      }
+      if (frontend_payload) {
+        payload_timestamp = frontend_payload->stereo_frame_lkf_.getTimestamp();
+      } else {
+        LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
       }
     }
 
     // Push the synced messages to the lcd's input queue
     const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
-    const Frame& left_frame = stereo_keyframe.getLeftFrame();
     const gtsam::Pose3& body_pose = backend_payload->W_State_Blkf_.pose_;
     return VIO::make_unique<LoopClosureDetectorInputPayload>(
-        timestamp, stereo_keyframe.getFrameId(), stereo_keyframe, body_pose);
+        timestamp, backend_payload->cur_kf_id_, stereo_keyframe, body_pose);
   }
 
   virtual OutputPtr spinOnce(const LcdInput& input) override {

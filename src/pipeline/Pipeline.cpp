@@ -35,13 +35,15 @@
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
 
 DEFINE_bool(log_output, false, "Log output to CSV files.");
-DEFINE_bool(extract_planes_from_the_scene, false,
+DEFINE_bool(extract_planes_from_the_scene,
+            false,
             "Whether to use structural regularities in the scene,"
             "currently only planes.");
 
 DEFINE_bool(visualize, true, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
-DEFINE_int32(viz_type, 0,
+DEFINE_int32(viz_type,
+             0,
              "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
              "are re-plotted at every frame)\n"
              "1: MESH2D, only visualizes 2D mesh on image\n"
@@ -55,27 +57,33 @@ DEFINE_int32(viz_type, 0,
 
 DEFINE_bool(use_feature_selection, false, "Enable smart feature selection.");
 
-DEFINE_bool(deterministic_random_number_generator, false,
+DEFINE_bool(deterministic_random_number_generator,
+            false,
             "If true the random number generator will consistently output the "
             "same sequence of pseudo-random numbers for every run (use it to "
             "have repeatable output). If false the random number generator "
             "will output a different sequence for each run.");
-DEFINE_int32(min_num_obs_for_mesher_points, 4,
+DEFINE_int32(min_num_obs_for_mesher_points,
+             4,
              "Minimum number of observations for a smart factor's landmark to "
              "to be used as a 3d point to consider for the mesher.");
 
-DEFINE_int32(num_frames_vio_init, 25,
+DEFINE_int32(num_frames_vio_init,
+             25,
              "Minimum number of frames for the online "
              "gravity-aligned initialization.");
 
 // TODO(Sandro): Create YAML file for initialization and read in!
-DEFINE_double(smart_noise_sigma_bundle_adjustment, 1.5,
+DEFINE_double(smart_noise_sigma_bundle_adjustment,
+              1.5,
               "Smart noise sigma for bundle adjustment"
               " in initialization.");
-DEFINE_double(outlier_rejection_bundle_adjustment, 30,
+DEFINE_double(outlier_rejection_bundle_adjustment,
+              30,
               "Outlier rejection for bundle adjustment"
               " in initialization.");
-DEFINE_double(between_translation_bundle_adjustment, 0.5,
+DEFINE_double(between_translation_bundle_adjustment,
+              0.5,
               "Between factor precision for bundle adjustment"
               " in initialization.");
 DEFINE_int32(max_time_allowed_for_keyframe_callback,
@@ -83,7 +91,8 @@ DEFINE_int32(max_time_allowed_for_keyframe_callback,
              "Maximum time allowed for processing keyframe rate callback "
              "(in ms).");
 
-DEFINE_bool(use_lcd, false,
+DEFINE_bool(use_lcd,
+            false,
             "Enable LoopClosureDetector processing in pipeline.");
 
 namespace VIO {
@@ -780,8 +789,7 @@ void Pipeline::resume() {
   is_launched_ = true; */
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping workers and queues...";
 
@@ -812,45 +820,63 @@ void Pipeline::stopThreads() {
 void Pipeline::joinThreads() {
   LOG(INFO) << "Joining threads...";
 
-  LOG(INFO) << "Joining backend thread...";
-  if (backend_thread_ && backend_thread_->joinable()) {
-    backend_thread_->join();
-    LOG(INFO) << "Joined backend thread...";
+  if (backend_thread_) {
+    LOG(INFO) << "Joining backend thread...";
+    if (backend_thread_->joinable()) {
+      backend_thread_->join();
+      LOG(INFO) << "Joined backend thread...";
+    } else {
+      LOG_IF(ERROR, parallel_run_) << "Backend thread is not joinable...";
+    }
   } else {
-    LOG_IF(ERROR, parallel_run_) << "Backend thread is not joinable...";
+    VLOG(1) << "No Backend thread, not joining.";
   }
 
-  LOG(INFO) << "Joining frontend thread...";
-  if (frontend_thread_ && frontend_thread_->joinable()) {
-    frontend_thread_->join();
-    LOG(INFO) << "Joined frontend thread...";
+  if (frontend_thread_) {
+    LOG(INFO) << "Joining frontend thread...";
+    if (frontend_thread_->joinable()) {
+      frontend_thread_->join();
+      LOG(INFO) << "Joined frontend thread...";
+    } else {
+      LOG_IF(ERROR, parallel_run_) << "Frontend thread is not joinable...";
+    }
   } else {
-    LOG_IF(ERROR, parallel_run_) << "Frontend thread is not joinable...";
+    VLOG(1) << "No Frontend thread, not joining.";
   }
 
-  LOG(INFO) << "Joining mesher thread...";
-  if (mesher_thread_ && mesher_thread_->joinable()) {
-    mesher_thread_->join();
-    LOG(INFO) << "Joined mesher thread...";
+  if (mesher_thread_) {
+    LOG(INFO) << "Joining mesher thread...";
+    if (mesher_thread_->joinable()) {
+      mesher_thread_->join();
+      LOG(INFO) << "Joined mesher thread...";
+    } else {
+      LOG_IF(ERROR, parallel_run_) << "Mesher thread is not joinable...";
+    }
   } else {
-    LOG_IF(ERROR, parallel_run_) << "Mesher thread is not joinable...";
   }
 
-  LOG(INFO) << "Joining loop closure thread...";
-  if (lcd_thread_ && lcd_thread_->joinable()) {
-    lcd_thread_->join();
-    LOG(INFO) << "Joined loop closure thread...";
+  if (lcd_thread_) {
+    LOG(INFO) << "Joining loop closure thread...";
+    if (lcd_thread_->joinable()) {
+      lcd_thread_->join();
+      LOG(INFO) << "Joined loop closure thread...";
+    } else {
+      LOG_IF(ERROR, parallel_run_) << "Loop closure thread is not joinable...";
+    }
   } else {
-    LOG_IF(ERROR, parallel_run_) << "Loop closure thread is not joinable...";
+    VLOG(1) << "No LCD thread, not joining.";
   }
 
-  // visualizer_thread_.join();
-  LOG(INFO) << "Joining visualizer thread...";
-  if (visualizer_thread_ && visualizer_thread_->joinable()) {
-    visualizer_thread_->join();
-    LOG(INFO) << "Joined visualizer thread...";
+  if (visualizer_thread_) {
+    LOG(INFO) << "Joining visualizer thread...";
+    if (visualizer_thread_->joinable()) {
+      visualizer_thread_->join();
+      LOG(INFO) << "Joined visualizer thread...";
+    } else {
+      LOG_IF(ERROR, parallel_run_) << "visualizer thread is not joinable...";
+    }
   } else {
-    LOG_IF(ERROR, parallel_run_) << "visualizer thread is not joinable...";
+    VLOG(1) << "No Visualizer thread, not joining.";
   }
 
   LOG(INFO) << "All threads joined.";
