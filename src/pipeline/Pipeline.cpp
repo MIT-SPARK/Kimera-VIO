@@ -756,11 +756,12 @@ void Pipeline::launchRemainingThreads() {
           &LcdModule::spin, CHECK_NOTNULL(lcd_module_.get()));
     }
 
-    // Start visualizer_thread.
-    if (visualizer_module_) {
-      visualizer_thread_ = VIO::make_unique<std::thread>(
-          &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
-    }
+    // TODO(Toni): visualizer thread is run in main thread.
+    //// Start visualizer_thread.
+    // if (visualizer_module_) {
+    //  visualizer_thread_ = VIO::make_unique<std::thread>(
+    //      &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
+    //}
 
     LOG(INFO) << "Backend, mesher and visualizer launched (parallel_run set to "
               << parallel_run_ << ").";
