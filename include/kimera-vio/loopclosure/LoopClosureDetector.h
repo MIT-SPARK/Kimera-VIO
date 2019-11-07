@@ -42,34 +42,32 @@ class RobustSolver;
 namespace VIO {
 
 /* ------------------------------------------------------------------------ */
-typedef std::function<void(const LoopClosureDetectorOutputPayload::UniquePtr&)>
-    LoopClosurePGOCallback;
-
-/* ------------------------------------------------------------------------ */
-class LoopClosureDetector
-    : public PipelineModule<LcdInputPayload, LcdOutputPayload> {
+class LoopClosureDetector {
  public:
+  KIMERA_POINTER_TYPEDEFS(LoopClosureDetector);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetector);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   /* ------------------------------------------------------------------------ */
   /** @brief Constructor: detects loop-closures and updates internal PGO.
    * @param[in] lcd_params Parameters for the instance of LoopClosureDetector.
    * @param[in] log_output Output-logging flag. If set to true, the logger is
    *  instantiated and output/statistics are logged at every spinOnce().
    */
-  LoopClosureDetector(InputQueue* input_queue,
-                      OutputQueue* output_queue,
-                      const LoopClosureDetectorParams& lcd_params,
-                      const bool parallel_run,
-                      const bool log_output);
+  LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
+                      bool log_output);
 
   /* ------------------------------------------------------------------------ */
-  virtual ~LoopClosureDetector() override;
+  virtual ~LoopClosureDetector() {
+    LOG(INFO) << "LoopClosureDetector desctuctor called.";
+  }
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single input payload and runs it through the pipeline.
    * @param[in] input A shared_ptr referencing an input payload.
    * @return The output payload from the pipeline.
    */
-  virtual OutputPtr spinOnce(const LcdInputPayload& input) override;
+  virtual LcdOutput::Ptr spinOnce(const LcdInput& input);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single frame and adds it to relevant internal
@@ -182,18 +180,6 @@ class LoopClosureDetector
    *  the PGO.
    */
   const gtsam::NonlinearFactorGraph getPGOnfg() const;
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Registers an external callback to which output payloads are sent.
-   *  The callback is added to a vector of callbacks, enabling multiple
-   *  functions for each output payload.
-   * @param[in] callback A LoopClosurePGOCallback function which will parse
-   *  LoopClosureDetectorOutputPayload objects.
-   */
-  inline void registerLcdPgoOutputCallback(
-      const LoopClosurePGOCallback& callback) {
-    lcd_pgo_output_callbacks_.push_back(callback);
-  }
 
   /* ------------------------------------------------------------------------ */
   /** @brief Set the bool set_intrinsics as well as the parameter members
@@ -393,9 +379,6 @@ class LoopClosureDetector
                            gtsam::Pose3* bodyCur_T_bodyRef);
 
  private:
-  // Output callback(s).
-  std::vector<LoopClosurePGOCallback> lcd_pgo_output_callbacks_;
-
   // Parameter members
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = {false};
@@ -430,5 +413,111 @@ class LoopClosureDetector
   std::unique_ptr<LoopClosureDetectorLogger> logger_;
   LcdDebugInfo debug_info_;
 };  // class LoopClosureDetector
+
+enum class LoopClosureDetectorType {
+  //! Bag of Words approach
+  BoW = 0u,
+};
+
+class LcdFactory {
+ public:
+  KIMERA_POINTER_TYPEDEFS(LcdFactory);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdFactory);
+  LcdFactory() = delete;
+  virtual ~LcdFactory() = default;
+
+  static LoopClosureDetector::UniquePtr createLcd(
+      const LoopClosureDetectorType& lcd_type,
+      const LoopClosureDetectorParams& lcd_params,
+      bool log_output) {
+    switch (lcd_type) {
+      case LoopClosureDetectorType::BoW: {
+        return VIO::make_unique<LoopClosureDetector>(lcd_params, log_output);
+      }
+      default: {
+        LOG(FATAL) << "Requested loop closure detector type is not supported.\n"
+                   << "Currently supported loop closure detector types:\n"
+                   << "0: BoW \n but requested loop closure detector: "
+                   << static_cast<int>(lcd_type);
+      }
+    }
+  }
+};
+
+class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
+ public:
+  KIMERA_POINTER_TYPEDEFS(LcdModule);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdModule);
+  using LcdFrontendInput = StereoFrontEndOutputPayload::Ptr;
+  using LcdBackendInput = VioBackEndOutputPayload::Ptr;
+
+  LcdModule(bool parallel_run, LoopClosureDetector::UniquePtr lcd)
+      : MIMOPipelineModule<LcdInput, LcdOutput>("Lcd", parallel_run),
+        frontend_queue_("lcd_frontend_queue"),
+        backend_queue_("lcd_backend_queue"),
+        lcd_(std::move(lcd)){};
+  virtual ~LcdModule() = default;
+
+  //! Callbacks to fill queues: they should be all lighting fast.
+  inline void fillFrontendQueue(const LcdFrontendInput& frontend_payload) {
+    frontend_queue_.push(frontend_payload);
+  }
+  inline void fillBackendQueue(const LcdBackendInput& backend_payload) {
+    backend_queue_.push(backend_payload);
+  }
+
+ protected:
+  //! Synchronize input queues.
+  virtual inline InputPtr getInputPacket() override {
+    LcdBackendInput backend_payload;
+    backend_queue_.popBlocking(backend_payload);
+    const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
+
+    // Look for the synchronized packet in frontend payload queue
+    // This should always work, because it should not be possible to have
+    // a backend payload without having a frontend one first!
+    LcdFrontendInput frontend_payload;
+    while (timestamp != frontend_payload->stereo_frame_lkf_.getTimestamp()) {
+      if (!frontend_queue_.pop(frontend_payload)) {
+        // We had a backend input but no frontend input, something's wrong.
+        LOG(ERROR) << "Lcd's frontend payload queue is empty or "
+                      "has been shutdown.";
+        return nullptr;
+      }
+    }
+
+    // Push the synced messages to the lcd's input queue
+    const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
+    const Frame& left_frame = stereo_keyframe.getLeftFrame();
+    const gtsam::Pose3& body_pose = backend_payload->W_State_Blkf_.pose_;
+    return VIO::make_unique<LoopClosureDetectorInputPayload>(
+        timestamp, stereo_keyframe.getFrameId(), stereo_keyframe, body_pose);
+  }
+
+  virtual OutputPtr spinOnce(const LcdInput& input) override {
+    return lcd_->spinOnce(input);
+  }
+
+  //! Called when general shutdown of PipelineModule is triggered.
+  virtual void shutdownQueues() override {
+    LOG(INFO) << "Shutting down queues for: " << name_id_;
+    frontend_queue_.shutdown();
+    backend_queue_.shutdown();
+  };
+
+  //! Checks if the module has work to do (should check input queues are empty)
+  virtual bool hasWork() const override {
+    // We don't check frontend queue because it runs faster than backend queue.
+    return backend_queue_.empty();
+  };
+
+ private:
+  //! Input Queues
+  ThreadsafeQueue<LcdFrontendInput> frontend_queue_;
+  ThreadsafeQueue<LcdBackendInput> backend_queue_;
+
+  //! Lcd implementation
+  LoopClosureDetector::UniquePtr lcd_;
+};
 
 }  // namespace VIO

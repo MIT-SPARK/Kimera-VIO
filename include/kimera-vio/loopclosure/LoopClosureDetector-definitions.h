@@ -238,22 +238,22 @@ struct LoopClosureDetectorInputPayload {
   const StereoFrame stereo_frame_;
   const gtsam::Pose3 W_Pose_Blkf_;
 };
-typedef LoopClosureDetectorInputPayload LcdInputPayload;
+typedef LoopClosureDetectorInputPayload LcdInput;
 
-struct LoopClosureDetectorOutputPayload {
-  KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorOutputPayload);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetectorOutputPayload);
+struct LcdOutput {
+  KIMERA_POINTER_TYPEDEFS(LcdOutput);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  LoopClosureDetectorOutputPayload(bool is_loop_closure,
-                                   const Timestamp& timestamp_kf,
-                                   const Timestamp& timestamp_query,
-                                   const Timestamp& timestamp_match,
-                                   const FrameId& id_match,
-                                   const FrameId& id_recent,
-                                   const gtsam::Pose3& relative_pose,
-                                   const gtsam::Pose3& W_Pose_Map,
-                                   const gtsam::Values& states,
-                                   const gtsam::NonlinearFactorGraph& nfg)
+  LcdOutput(bool is_loop_closure,
+            const Timestamp& timestamp_kf,
+            const Timestamp& timestamp_query,
+            const Timestamp& timestamp_match,
+            const FrameId& id_match,
+            const FrameId& id_recent,
+            const gtsam::Pose3& relative_pose,
+            const gtsam::Pose3& W_Pose_Map,
+            const gtsam::Values& states,
+            const gtsam::NonlinearFactorGraph& nfg)
       : is_loop_closure_(is_loop_closure),
         timestamp_kf_(timestamp_kf),
         timestamp_query_(timestamp_query),
@@ -265,7 +265,7 @@ struct LoopClosureDetectorOutputPayload {
         states_(states),
         nfg_(nfg) {}
 
-  LoopClosureDetectorOutputPayload()
+  LcdOutput()
       : is_loop_closure_(false),
         timestamp_kf_(0),
         timestamp_query_(0),
@@ -289,6 +289,6 @@ struct LoopClosureDetectorOutputPayload {
   gtsam::Values states_;
   gtsam::NonlinearFactorGraph nfg_;
 };
-typedef LoopClosureDetectorOutputPayload LcdOutputPayload;
+typedef LcdOutput LcdOutputPayload;
 
 }  // namespace VIO

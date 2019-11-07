@@ -277,6 +277,9 @@ class StereoVisionFrontEndModule
   KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEndModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  using SIMO =
+      SIMOPipelineModule<StereoImuSyncPacket, StereoFrontEndOutputPayload>;
+  using InputQueue = ThreadsafeQueue<typename SIMO::InputPtr>;
   /**
    * @brief StereoVisionFrontEndModule
    * @param input_queue
@@ -284,13 +287,11 @@ class StereoVisionFrontEndModule
    * @param parallel_run
    * @param vio_frontend
    */
-  StereoVisionFrontEndModule(InputQueue* input_queue,
-                             bool parallel_run,
-                             StereoVisionFrontEnd::UniquePtr vio_frontend)
-      : SIMOPipelineModule<StereoImuSyncPacket, StereoFrontEndOutputPayload>(
-            input_queue,
-            "VioFrontEnd",
-            parallel_run),
+  explicit StereoVisionFrontEndModule(
+      InputQueue* input_queue,
+      bool parallel_run,
+      StereoVisionFrontEnd::UniquePtr vio_frontend)
+      : SIMO(input_queue, "VioFrontEnd", parallel_run),
         vio_frontend_(std::move(vio_frontend)) {
     CHECK(vio_frontend_);
   }

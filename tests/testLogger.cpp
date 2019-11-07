@@ -427,17 +427,16 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
 
   logger_->logTimestampMap(ts_map);
 
-  logger_->logOptimizedTraj(LoopClosureDetectorOutputPayload(
-      true,
-      timestamp_kf,
-      timestamp_query,
-      timestamp_match,
-      id_match,
-      id_recent,
-      relative_pose,
-      w_pose_map,
-      traj_values,
-      gtsam::NonlinearFactorGraph()));
+  logger_->logOptimizedTraj(LcdOutput(true,
+                                      timestamp_kf,
+                                      timestamp_query,
+                                      timestamp_match,
+                                      id_match,
+                                      id_recent,
+                                      relative_pose,
+                                      w_pose_map,
+                                      traj_values,
+                                      gtsam::NonlinearFactorGraph()));
 
   // First check the output_frontend_ransac_mono.csv results file.
   std::string opt_traj_csv = FLAGS_output_path +

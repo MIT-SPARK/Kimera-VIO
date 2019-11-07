@@ -42,8 +42,8 @@ struct VisualizerInput {
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VisualizerInput(const gtsam::Pose3& pose,
-                  const StereoFrame& last_stereo_keyframe,
-                  MesherOutput::ConstUniquePtr mesher_output_payload,
+                  const StereoFrame& stereo_keyframe,
+                  const MesherOutput::Ptr& mesher_output_payload,
                   const PointsWithIdMap& points_with_id_VIO,
                   const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
                   const std::vector<Plane>& planes,
@@ -52,7 +52,7 @@ struct VisualizerInput {
 
   const gtsam::Pose3 pose_;
   const StereoFrame stereo_keyframe_;
-  const MesherOutput::ConstUniquePtr mesher_output_payload_;
+  const MesherOutput::Ptr mesher_output_payload_;
   const PointsWithIdMap points_with_id_VIO_;
   const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
   const std::vector<Plane> planes_;
@@ -548,6 +548,37 @@ class Visualizer3D {
   }
 };
 
+enum class VisualizerType {
+  //! OpenCV 3D viz, uses VTK underneath the hood.
+  OpenCV = 0u,
+};
+
+class VisualizerFactory {
+ public:
+  KIMERA_POINTER_TYPEDEFS(VisualizerFactory);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerFactory);
+  VisualizerFactory() = delete;
+  virtual ~VisualizerFactory() = default;
+
+  static Visualizer3D::UniquePtr createVisualizer(
+      const VisualizerType visualizer_type,
+      const VisualizationType& viz_type,
+      const BackendType& backend_type) {
+    switch (visualizer_type) {
+      case VisualizerType::OpenCV: {
+        return VIO::make_unique<Visualizer3D>(viz_type, backend_type);
+      }
+      default: {
+        LOG(FATAL) << "Requested visualizer type is not supported.\n"
+                   << "Currently supported visualizer types:\n"
+                   << "0: OpenCV 3D viz\n 1: Pangolin (not supported yet)\n"
+                   << " but requested visualizer: "
+                   << static_cast<int>(visualizer_type);
+      }
+    }
+  }
+};
+
 class VisualizerModule
     : public MIMOPipelineModule<VisualizerInput, VisualizerOutput> {
  public:
@@ -579,7 +610,7 @@ class VisualizerModule
 
  protected:
   //! Synchronize input queues.
-  virtual inline bool getInputPacket(InputPtr input) override {
+  virtual inline InputPtr getInputPacket() override {
     VizMesherInput mesher_payload;
     mesher_queue_.popBlocking(mesher_payload);
     const Timestamp& timestamp = mesher_payload->timestamp_;
@@ -599,7 +630,7 @@ class VisualizerModule
         // We assume mesher runs after frontend.
         LOG(ERROR) << "Visualizer's frontend payload queue is empty or "
                       "has been shutdown.";
-        return false;
+        return nullptr;
       }
     }
 
@@ -610,24 +641,14 @@ class VisualizerModule
         // We assume mesher runs after backend.
         LOG(ERROR) << "Visualizer's backend payload queue is empty or "
                       "has been shutdown.";
-        return false;
+        return nullptr;
       }
     }
 
     // Push the synced messages to the visualizer's input queue
     const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
     const Frame& left_frame = stereo_keyframe.getLeftFrame();
-    input = VIO::make_unique<VisualizerInput>(
-        // TODO(Toni): call getMapLmkIdsto3dPointsInTimeHorizon from
-        // backend for this functionality.
-        PointsWithIdMap(),
-        left_frame.getValidKeypoints(),
-        stereo_keyframe.right_keypoints_status_,
-        stereo_keyframe.keypoints_3d_,
-        left_frame.landmarks_,
-        backend_payload->W_State_Blkf_.pose_);
-
-    input = VIO::make_unique<VisualizerInput>(
+    return VIO::make_unique<VisualizerInput>(
         // Pose for trajectory viz.
         backend_payload->W_State_Blkf_.pose_ *
             stereo_keyframe
@@ -652,7 +673,6 @@ class VisualizerModule
         gtsam::NonlinearFactorGraph(),
         backend_payload->state_  // For planes and plane constraints viz.
     );
-    return true;
   }
 
   virtual OutputPtr spinOnce(const VisualizerInput& input) override {

@@ -492,14 +492,12 @@ void LoopClosureDetectorLogger::logTimestampMap(
   ts_map_ = ts_map;
 }
 
-void LoopClosureDetectorLogger::logLCDResult(
-    const LoopClosureDetectorOutputPayload& lcd_output) {
+void LoopClosureDetectorLogger::logLCDResult(const LcdOutput& lcd_output) {
   logLoopClosure(lcd_output);
   logOptimizedTraj(lcd_output);
 }
 
-void LoopClosureDetectorLogger::logLoopClosure(
-    const LoopClosureDetectorOutputPayload& lcd_output) {
+void LoopClosureDetectorLogger::logLoopClosure(const LcdOutput& lcd_output) {
   // We log loop-closure results in csv format.
   std::ofstream& output_stream_lcd = output_lcd_.ofstream_;
 
@@ -531,8 +529,7 @@ void LoopClosureDetectorLogger::logLoopClosure(
                     << std::endl;
 }
 
-void LoopClosureDetectorLogger::logOptimizedTraj(
-    const LoopClosureDetectorOutputPayload& lcd_output) {
+void LoopClosureDetectorLogger::logOptimizedTraj(const LcdOutput& lcd_output) {
   // We close and reopen log file to clear contents completely.
   output_traj_.closeAndOpenLogFile();
   // We log the full optimized trajectory in csv format.

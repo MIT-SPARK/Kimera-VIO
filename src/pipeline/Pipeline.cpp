@@ -94,7 +94,7 @@ Pipeline::Pipeline(const PipelineParams& params)
       vio_frontend_module_(nullptr),
       feature_selector_(nullptr),
       vio_backend_module_(nullptr),
-      loop_closure_detector_(nullptr),
+      lcd_module_(nullptr),
       backend_params_(params.backend_params_),
       frontend_params_(params.frontend_params_),
       imu_params_(params.imu_params_),
@@ -107,14 +107,9 @@ Pipeline::Pipeline(const PipelineParams& params)
       visualizer_thread_(nullptr),
       parallel_run_(params.parallel_run_),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
-      stereo_frontend_output_queue_("stereo_frontend_output_queue"),
       initialization_frontend_output_queue_(
           "initialization_frontend_output_queue"),
-      backend_input_queue_("backend_input_queue"),
-      lcd_input_queue_("lcd_input_queue"),
-      null_lcd_output_queue_("null_lcd_output_queue"),
-      visualizer_input_queue_("visualizer_input_queue"),
-      null_visualizer_output_queue_("visualizer_output_queue") {
+      backend_input_queue_("backend_input_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
 
   //! Create Stereo Camera
@@ -124,8 +119,7 @@ Pipeline::Pipeline(const PipelineParams& params)
       params.camera_params_.at(1),
       params.frontend_params_.stereo_matching_params_);
 
-  // Instantiate stereo tracker (class that tracks implements estimation
-  // front-end) and print parameters.
+  //! Create frontend
   vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
       &stereo_frontend_input_queue_,
       parallel_run_,
@@ -146,6 +140,7 @@ Pipeline::Pipeline(const PipelineParams& params)
             nullptr));
       });
 
+  //! Create backend
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
       &backend_input_queue_,
       parallel_run_,
@@ -178,13 +173,14 @@ Pipeline::Pipeline(const PipelineParams& params)
                 std::ref(*CHECK_NOTNULL(mesher_module_.get())),
                 std::placeholders::_1));
 
-  // TODO(Toni): only create if used.
   if (FLAGS_visualize) {
     visualizer_module_ = VIO::make_unique<VisualizerModule>(
-        // TODO(Toni): bundle these three params in VisualizerParams...
-        static_cast<VisualizationType>(FLAGS_viz_type),
-        backend_type_,
-        parallel_run_);
+        parallel_run_,
+        VisualizerFactory::createVisualizer(
+            VisualizerType::OpenCV,
+            // TODO(Toni): bundle these three params in VisualizerParams...
+            static_cast<VisualizationType>(FLAGS_viz_type),
+            backend_type_));
     //! Register input callbacks
     vio_backend_module_->registerCallback(
         std::bind(&VisualizerModule::fillBackendQueue,
@@ -204,12 +200,20 @@ Pipeline::Pipeline(const PipelineParams& params)
   }
 
   if (FLAGS_use_lcd) {
-    loop_closure_detector_ =
-        VIO::make_unique<LoopClosureDetector>(&lcd_input_queue_,
-                                              &null_lcd_output_queue_,
-                                              params.lcd_params_,
-                                              parallel_run_,
-                                              FLAGS_log_output);
+    lcd_module_ = VIO::make_unique<LcdModule>(
+        parallel_run_,
+        LcdFactory::createLcd(LoopClosureDetectorType::BoW,
+                              params.lcd_params_,
+                              FLAGS_log_output));
+    //! Register input callbacks
+    vio_backend_module_->registerCallback(
+        std::bind(&LcdModule::fillBackendQueue,
+                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
+                  std::placeholders::_1));
+    vio_frontend_module_->registerCallback(
+        std::bind(&LcdModule::fillFrontendQueue,
+                  std::ref(*CHECK_NOTNULL(lcd_module_.get())),
+                  std::placeholders::_1));
   }
 
   // Instantiate feature selector: not used in vanilla implementation.
@@ -298,7 +302,7 @@ void Pipeline::spinSequential() {
 
   if (mesher_module_) mesher_module_->spin();
 
-  if (loop_closure_detector_) loop_closure_detector_->spin();
+  if (lcd_module_) lcd_module_->spin();
 
   if (visualizer_module_) visualizer_module_->spin();
 }
@@ -318,21 +322,16 @@ void Pipeline::shutdownWhenFinished() {
          (!is_initialized_ ||  // Loop while not initialized
                                // Or, once init, data is not yet consumed.
           !(stereo_frontend_input_queue_.empty() &&
-            stereo_frontend_output_queue_.empty() &&
             !vio_frontend_module_->isWorking() &&
             backend_input_queue_.empty() && !vio_backend_module_->isWorking() &&
             (mesher_module_ ? !mesher_module_->isWorking() : true) &&
-            lcd_input_queue_.empty() &&
-            (loop_closure_detector_ ? !loop_closure_detector_->isWorking()
-                                    : true) &&
+            (lcd_module_ ? !lcd_module_->isWorking() : true) &&
             (visualizer_module_ ? !visualizer_module_->isWorking() : true)))) {
     VLOG_EVERY_N(10, 100) << "shutdown_: " << shutdown_ << '\n'
                           << "VIO pipeline status: \n"
                           << "Initialized? " << is_initialized_ << '\n'
                           << "Frontend input queue empty?"
                           << stereo_frontend_input_queue_.empty() << '\n'
-                          << "Frontend output queue empty?"
-                          << stereo_frontend_output_queue_.empty() << '\n'
                           << "Frontend is working? "
                           << vio_frontend_module_->isWorking() << '\n'
                           << "Backend Input queue empty?"
@@ -344,15 +343,9 @@ void Pipeline::shutdownWhenFinished() {
     VLOG_IF_EVERY_N(10, mesher_module_, 100)
         << "Mesher is working? " << mesher_module_->isWorking();
 
-    VLOG_IF_EVERY_N(10, loop_closure_detector_, 100)
-        << "LoopClosureDetector input queue empty?" << lcd_input_queue_.empty()
-        << '\n'
-        << "LoopClosureDetector output queue empty?"
-        << null_lcd_output_queue_.empty() << '\n'
-        << "LoopClosureDetector is working? "
-        << loop_closure_detector_->isWorking();
+    VLOG_IF_EVERY_N(10, lcd_module_, 100)
+        << "LoopClosureDetector is working? " << lcd_module_->isWorking();
 
-    // NOLINTNEXTLINE
     VLOG_IF_EVERY_N(10, visualizer_module_, 100)
         << "Visualizer is working? " << visualizer_module_->isWorking();
 
@@ -426,7 +419,7 @@ void Pipeline::checkReInitialize(
     CHECK(vio_backend_module_);
     vio_backend_module_->restart();
     mesher_module_->restart();
-    if (loop_closure_detector_) loop_closure_detector_->restart();
+    if (lcd_module_) lcd_module_->restart();
     visualizer_module_->restart();
     // Resume pipeline
     resume();
@@ -519,8 +512,7 @@ bool Pipeline::initializeOnline(
       stereo_imu_sync_packet.getImuAccGyr(),
       stereo_imu_sync_packet.getReinitPacket());
 
-  StereoFrontEndOutputPayload::ConstPtr frontend_output =
-      VIO::make_unique<const StereoFrontEndOutputPayload>();
+  StereoFrontEndOutputPayload::ConstPtr frontend_output = nullptr;
   /////////////////// FIRST FRAME //////////////////////////////////////////////
   if (frame_id == init_frame_id_) {
     // Set trivial bias, gravity and force 5/3 point method for initialization
@@ -542,6 +534,7 @@ bool Pipeline::initializeOnline(
     // Spin frontend once with enforced keyframe and 53-point method
     vio_frontend_module_->spinOnce(stereo_imu_sync_init);
     // TODO(Sandro): Optionally add AHRS PIM
+    CHECK(frontend_output);
     initialization_frontend_output_queue_.push(
         VIO::make_unique<InitializationInputPayload>(
             frontend_output->is_keyframe_,
@@ -560,15 +553,13 @@ bool Pipeline::initializeOnline(
         imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
     // This queue is used for the backend after initialization
     VLOG(2) << "Initialization: Push input payload to Backend.";
-    stereo_frontend_output_queue_.push(
-        VIO::make_unique<StereoFrontEndOutputPayload>(
-            frontend_output->is_keyframe_,
-            frontend_output->status_stereo_measurements_,
-            frontend_output->tracker_status_,
-            frontend_output->relative_pose_body_stereo_,
-            frontend_output->stereo_frame_lkf_,
-            pim,
-            frontend_output->debug_tracker_info_));
+    backend_input_queue_.push(VIO::make_unique<VioBackEndInputPayload>(
+        frontend_output->stereo_frame_lkf_.getTimestamp(),
+        frontend_output->status_stereo_measurements_,
+        frontend_output->tracker_status_,
+        pim,
+        frontend_output->relative_pose_body_stereo_,
+        nullptr));
 
     // Only process set of frontend outputs after specific number of frames
     if (frame_id < (init_frame_id_ + FLAGS_num_frames_vio_init)) {
@@ -640,9 +631,7 @@ bool Pipeline::initializeOnline(
         // Reset initialization
         LOG(ERROR) << "Bundle adjustment or alignment failed!";
         init_frame_id_ = stereo_imu_sync_packet.getStereoFrame().getFrameId();
-        stereo_frontend_output_queue_.shutdown();
         initialization_frontend_output_queue_.shutdown();
-        stereo_frontend_output_queue_.resume();
         initialization_frontend_output_queue_.resume();
         return false;
       }
@@ -750,10 +739,9 @@ void Pipeline::launchRemainingThreads() {
     mesher_thread_ = VIO::make_unique<std::thread>(
         &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
 
-    if (loop_closure_detector_) {
+    if (lcd_module_) {
       lcd_thread_ = VIO::make_unique<std::thread>(
-          &LoopClosureDetector::spin,
-          CHECK_NOTNULL(loop_closure_detector_.get()));
+          &LcdModule::spin, CHECK_NOTNULL(lcd_module_.get()));
     }
 
     // Start visualizer_thread.
@@ -775,19 +763,9 @@ void Pipeline::launchRemainingThreads() {
 void Pipeline::resume() {
   LOG(INFO) << "Restarting frontend workers and queues...";
   stereo_frontend_input_queue_.resume();
-  stereo_frontend_output_queue_.resume();
 
   LOG(INFO) << "Restarting backend workers and queues...";
   backend_input_queue_.resume();
-
-  LOG(INFO) << "Restarting mesher workers and queues...";
-  mesher_input_queue_.resume();
-  mesher_output_queue_.resume();
-
-  LOG(INFO) << "Restarting loop closure workers and queues...";
-  lcd_input_queue_.resume();
-
-  LOG(INFO) << "Restarting visualizer workers and queues...";
 
   // Re-launch threads
   /*if (parallel_run_) {
@@ -812,7 +790,6 @@ void Pipeline::stopThreads() {
   // Shutdown workers and queues.
   LOG(INFO) << "Stopping frontend workers and queues...";
   stereo_frontend_input_queue_.shutdown();
-  stereo_frontend_output_queue_.shutdown();
   CHECK(vio_frontend_module_);
   vio_frontend_module_->shutdown();
 
@@ -820,8 +797,7 @@ void Pipeline::stopThreads() {
   if (mesher_module_) mesher_module_->shutdown();
 
   LOG(INFO) << "Stopping loop closure workers and queues...";
-  lcd_input_queue_.shutdown();
-  if (loop_closure_detector_) loop_closure_detector_->shutdown();
+  if (lcd_module_) lcd_module_->shutdown();
 
   LOG(INFO) << "Stopping visualizer workers and queues...";
   if (visualizer_module_) visualizer_module_->shutdown();
@@ -858,18 +834,21 @@ void Pipeline::joinThreads() {
   }
 
   LOG(INFO) << "Joining loop closure thread...";
-  if (lcd_thread_) {
-    if (lcd_thread_->joinable()) {
-      lcd_thread_->join();
-      LOG(INFO) << "Joined loop closure thread...";
-    } else {
-      LOG_IF(ERROR, parallel_run_) << "Loop closure thread is not joinable...";
-    }
+  if (lcd_thread_ && lcd_thread_->joinable()) {
+    lcd_thread_->join();
+    LOG(INFO) << "Joined loop closure thread...";
   } else {
-    LOG(WARNING) << "No lcd thread registered.";
+    LOG_IF(ERROR, parallel_run_) << "Loop closure thread is not joinable...";
   }
 
   // visualizer_thread_.join();
+  LOG(INFO) << "Joining visualizer thread...";
+  if (visualizer_thread_ && visualizer_thread_->joinable()) {
+    visualizer_thread_->join();
+    LOG(INFO) << "Joined visualizer thread...";
+  } else {
+    LOG_IF(ERROR, parallel_run_) << "visualizer thread is not joinable...";
+  }
 
   LOG(INFO) << "All threads joined.";
 }

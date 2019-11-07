@@ -90,15 +90,15 @@ Visualizer3D::WindowData::WindowData()
 /* -------------------------------------------------------------------------- */
 VisualizerInput::VisualizerInput(
     const gtsam::Pose3& pose,
-    const StereoFrame& last_stero_keyframe,
-    MesherOutput::ConstUniquePtr mesher_output_payload,
+    const StereoFrame& stereo_keyframe,
+    const MesherOutput::Ptr& mesher_output_payload,
     const PointsWithIdMap& points_with_id_VIO,
     const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
     const std::vector<Plane>& planes,
     const gtsam::NonlinearFactorGraph& graph,
     const gtsam::Values& values)
     : pose_(pose),
-      stereo_keyframe_(last_stero_keyframe),
+      stereo_keyframe_(stereo_keyframe),
       mesher_output_payload_(std::move(mesher_output_payload)),
       points_with_id_VIO_(points_with_id_VIO),
       lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),

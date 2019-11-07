@@ -83,9 +83,9 @@ class Pipeline {
 
   // Callback to output the LoopClosureDetector's loop-closure/PGO results.
   inline void registerLcdPgoOutputCallback(
-      const LoopClosurePGOCallback& callback) {
-    if (loop_closure_detector_) {
-      loop_closure_detector_->registerLcdPgoOutputCallback(callback);
+      const LcdModule::OutputCallback& callback) {
+    if (lcd_module_) {
+      lcd_module_->registerCallback(callback);
     } else {
       LOG(ERROR) << "Attempt to register LCD/PGO callback, but no "
                  << "LoopClosureDetector member is active in pipeline.";
@@ -149,7 +149,6 @@ class Pipeline {
 
   // Callbacks.
   KeyframeRateOutputCallback keyframe_rate_output_callback_;
-  LoopClosurePGOCallback loop_closure_pgo_callback_;
 
   // Init Vio parameter
   VioBackEndParams::ConstPtr backend_params_;
@@ -165,9 +164,7 @@ class Pipeline {
   std::unique_ptr<FeatureSelector> feature_selector_;
 
   // Stereo vision frontend payloads.
-  ThreadsafeQueue<StereoImuSyncPacket::UniquePtr> stereo_frontend_input_queue_;
-  ThreadsafeQueue<StereoFrontEndOutputPayload::UniquePtr>
-      stereo_frontend_output_queue_;
+  StereoVisionFrontEndModule::InputQueue stereo_frontend_input_queue_;
 
   // Online initialization frontend queue.
   ThreadsafeQueue<InitializationInputPayload::UniquePtr>
@@ -177,18 +174,13 @@ class Pipeline {
   std::unique_ptr<VioBackEndModule> vio_backend_module_;
 
   // Thread-safe queue for the backend.
-  ThreadsafeQueue<VioBackEndInputPayload::UniquePtr> backend_input_queue_;
+  VioBackEndModule::InputQueue backend_input_queue_;
 
   // Create class to build mesh.
   MesherModule::UniquePtr mesher_module_;
 
   // Create class to detect loop closures.
-  std::unique_ptr<LoopClosureDetector> loop_closure_detector_;
-
-  // Thread-safe queue for the loop closure detector.
-  LoopClosureDetector::InputQueue lcd_input_queue_;
-  //! Null queue since no module needs the output of LCD for now...
-  ThreadsafeNullQueue<LcdOutputPayload::UniquePtr> null_lcd_output_queue_;
+  LcdModule::UniquePtr lcd_module_;
 
   // Visualization process.
   VisualizerModule::UniquePtr visualizer_module_;

@@ -135,9 +135,9 @@ class LoopClosureDetectorLogger {
 
   void logTimestampMap(
       const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map);
-  void logLCDResult(const LoopClosureDetectorOutputPayload& lcd_output);
-  void logLoopClosure(const LoopClosureDetectorOutputPayload& lcd_output);
-  void logOptimizedTraj(const LoopClosureDetectorOutputPayload& lcd_output);
+  void logLCDResult(const LcdOutput& lcd_output);
+  void logLoopClosure(const LcdOutput& lcd_output);
+  void logOptimizedTraj(const LcdOutput& lcd_output);
   void logDebugInfo(const LcdDebugInfo& debug_info);
 
  private:

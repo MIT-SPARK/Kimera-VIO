@@ -48,9 +48,15 @@ class PipelineModule {
   KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModule);
   //! The input is a unique ptr, as the user should implement getInputPacket
   //! such that it only retrieves an input structure with all data.
-  using InputPtr = std::unique_ptr<Input>;
+  using InputPtr = std::shared_ptr<Input>;  //! should be unique_ptr
   //! The output is instead a shared ptr, since many users might need the output
   using OutputPtr = std::shared_ptr<Output>;
+
+  //! Provide default ctor for multiple inheritance.
+  PipelineModule() {
+    LOG(FATAL) << "This constructor is only for multiple"
+                  "inheritance and should not be called.";
+  };
 
   // TODO(Toni) In/Output queue should be shared ptr
   /**
@@ -76,32 +82,28 @@ class PipelineModule {
     while (!shutdown_) {
       // Get input data from queue by waiting for payload.
       is_thread_working_ = false;
-      InputPtr input;
-      if (getInputPacket(input)) {
-        is_thread_working_ = true;
-        if (input) {
-          auto tic = utils::Timer::tic();
-          OutputPtr output = spinOnce(*input);
-          if (output) {
-            // Received a valid output, send to output queue
-            if (!pushOutputPacket(output)) {
-              LOG(WARNING) << "Output is down for module: " << name_id_;
-            } else {
-              VLOG(2) << "Module " << name_id_ << "successfully pushed output.";
-            }
+      InputPtr input = getInputPacket();
+      is_thread_working_ = true;
+      if (input) {
+        auto tic = utils::Timer::tic();
+        OutputPtr output = spinOnce(*input);
+        if (output) {
+          // Received a valid output, send to output queue
+          if (!pushOutputPacket(output)) {
+            LOG(WARNING) << "Output is down for module: " << name_id_;
           } else {
-            VLOG(1) << "Module " << name_id_ << " skipped sending an output.";
+            VLOG(2) << "Module " << name_id_ << "successfully pushed output.";
           }
-          auto spin_duration = utils::Timer::toc(tic).count();
-          LOG(WARNING) << "Module " << name_id_
-                       << " - frequency: " << 1000.0 / spin_duration << " Hz. ("
-                       << spin_duration << " ms).";
-          timing_stats.AddSample(spin_duration);
         } else {
-          LOG(WARNING) << "No Input received for module: " << name_id_;
+          VLOG(1) << "Module " << name_id_ << " skipped sending an output.";
         }
+        auto spin_duration = utils::Timer::toc(tic).count();
+        LOG(WARNING) << "Module " << name_id_
+                     << " - frequency: " << 1000.0 / spin_duration << " Hz. ("
+                     << spin_duration << " ms).";
+        timing_stats.AddSample(spin_duration);
       } else {
-        LOG(WARNING) << "Input is down for module: " << name_id_;
+        LOG(WARNING) << "No Input received for module: " << name_id_;
       }
 
       // Break the while loop if we are in sequential mode.
@@ -141,7 +143,7 @@ class PipelineModule {
    * @return a boolean indicating whether the generation of the input packet was
    * successful.
    */
-  virtual inline bool getInputPacket(InputPtr input_packet) = 0;
+  virtual inline InputPtr getInputPacket() = 0;
 
   /**
    * @brief pushOutputPacket Sends the output of the module to other interested
@@ -201,8 +203,13 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
 
   using PIO = PipelineModule<Input, Output>;
   using OutputCallback =
-      std::function<void(const std::shared_ptr<Output>& output)>;
+      std::function<void(const typename PIO::OutputPtr& output)>;
 
+  //! Provide default ctor for multiple inheritance.
+  MIMOPipelineModule() {
+    LOG(FATAL) << "This constructor is only for multiple"
+                  "inheritance and should not be called.";
+  };
   MIMOPipelineModule(const std::string& name_id, const bool& parallel_run)
       : PipelineModule<Input, Output>(name_id, parallel_run),
         output_callbacks_() {}
@@ -233,7 +240,7 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
     auto tic_callbacks = utils::Timer::tic();
     for (const OutputCallback& callback : output_callbacks_) {
       CHECK(callback);
-      callback(*output_packet);
+      callback(output_packet);
     }
     static constexpr auto kTimeLimitCallbacks = std::chrono::milliseconds(10);
     auto callbacks_duration = utils::Timer::toc(tic_callbacks);
@@ -265,8 +272,8 @@ class SIMOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
   KIMERA_POINTER_TYPEDEFS(SIMOPipelineModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(SIMOPipelineModule);
 
-  using PIO = PipelineModule<Input, Output>;
-  using InputQueue = ThreadsafeQueue<typename PIO::InputPtr>;
+  using SIMO = SIMOPipelineModule<Input, Output>;
+  using InputQueue = ThreadsafeQueue<typename SIMO::InputPtr>;
 
   SIMOPipelineModule(InputQueue* input_queue,
                      const std::string& name_id,
@@ -287,9 +294,15 @@ class SIMOPipelineModule : public virtual MIMOPipelineModule<Input, Output> {
    * @return a boolean indicating whether the generation of the input packet was
    * successful.
    */
-  virtual inline bool getInputPacket(
-      typename PIO::InputPtr input_packet) const override {
-    return input_queue_->popBlocking(input_packet);
+  virtual inline typename SIMO::InputPtr getInputPacket() override {
+    typename SIMO::InputPtr input;
+    if (input_queue_->popBlocking(input)) {
+      return input;
+    } else {
+      LOG(WARNING) << "Input queue: for module: " << SIMO::name_id_
+                   << " didn't return an output.";
+      return nullptr;
+    }
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
@@ -377,7 +390,8 @@ class SISOPipelineModule : public SIMOPipelineModule<Input, Output>,
                      const std::string& name_id,
                      const bool& parallel_run)
       : SIMO(input_queue, name_id, parallel_run),
-        MISO(input_queue, name_id, parallel_run) {}
+        MISO(input_queue, name_id, parallel_run),
+        MIMO(name_id, parallel_run) {}
   virtual ~SISOPipelineModule() = default;
 
   //! Override registering of output callbacks since this is only used for

@@ -1335,7 +1335,7 @@ void Mesher::updateMesh3D(const MesherInput& mesher_payload,
       mesher_payload.keypoints_status_,
       mesher_payload.keypoints_3d_,
       mesher_payload.landmarks_,
-      mesher_payload.W_Pose_B_.compose(mesher_params_.B_Pose_camL_rect_),
+      mesher_payload.W_Pose_B_.compose(mesher_params_.B_Pose_camLrect_),
       mesh_2d,
       mesh_2d_for_viz,
       mesh_2d_filtered_for_viz);

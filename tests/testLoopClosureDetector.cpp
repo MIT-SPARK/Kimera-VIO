@@ -489,17 +489,17 @@ TEST_F(LCDFixture, spinOnce) {
   /* Test the full pipeline with one loop closure and full PGO optimization */
   CHECK(lcd_detector_);
   CHECK(ref1_stereo_frame_);
-  LoopClosureDetectorOutputPayload::UniquePtr output_0 =
+  LcdOutput::UniquePtr output_0 =
       lcd_detector_->spinOnce(LoopClosureDetectorInputPayload(
           timestamp_ref1_, FrameId(1), *ref1_stereo_frame_, gtsam::Pose3()));
 
   CHECK(ref2_stereo_frame_);
-  LoopClosureDetectorOutputPayload::UniquePtr output_1 =
+  LcdOutput::UniquePtr output_1 =
       lcd_detector_->spinOnce(LoopClosureDetectorInputPayload(
           timestamp_ref2_, FrameId(2), *ref2_stereo_frame_, gtsam::Pose3()));
 
   CHECK(cur1_stereo_frame_);
-  LoopClosureDetectorOutputPayload::UniquePtr output_2 =
+  LcdOutput::UniquePtr output_2 =
       lcd_detector_->spinOnce(LoopClosureDetectorInputPayload(
           timestamp_cur1_, FrameId(3), *cur1_stereo_frame_, gtsam::Pose3()));
 

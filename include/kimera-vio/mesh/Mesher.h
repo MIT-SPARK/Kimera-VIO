@@ -541,7 +541,6 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
       : MIMOPipelineModule<MesherInput, MesherOutput>("Mesher", parallel_run),
         frontend_payload_queue_(""),
         backend_payload_queue_(""),
-        output_callbacks_(),
         mesher_(std::move(mesher)){};
   virtual ~MesherModule() = default;
 
@@ -555,7 +554,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
 
  protected:
   //! Synchronize input queues.
-  virtual inline bool getInputPacket(InputPtr input) override {
+  virtual inline InputPtr getInputPacket() override {
     MesherBackendInput backend_payload;
     backend_payload_queue_.popBlocking(backend_payload);
     const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
@@ -569,14 +568,14 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
         // We had a backend input but no frontend input, something's wrong.
         LOG(ERROR) << "Mesher's frontend payload queue is empty or "
                       "has been shutdown.";
-        return false;
+        return nullptr;
       }
     }
 
     // Push the synced messages to the mesher's input queue
     const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
     const Frame& left_frame = stereo_keyframe.getLeftFrame();
-    input = VIO::make_unique<MesherInput>(
+    return VIO::make_unique<MesherInput>(
         timestamp,
         // TODO(Toni): call getMapLmkIdsto3dPointsInTimeHorizon from
         // backend for this functionality.
@@ -586,7 +585,6 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
         stereo_keyframe.keypoints_3d_,
         left_frame.landmarks_,
         backend_payload->W_State_Blkf_.pose_);
-    return true;
   }
 
   virtual OutputPtr spinOnce(const MesherInput& input) override {
@@ -611,9 +609,6 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
   //! Input Queues
   ThreadsafeQueue<MesherFrontendInput> frontend_payload_queue_;
   ThreadsafeQueue<MesherBackendInput> backend_payload_queue_;
-
-  //! Output callbacks
-  std::vector<MesherOutputCallback> output_callbacks_;
 
   //! Mesher implementation
   Mesher::UniquePtr mesher_;

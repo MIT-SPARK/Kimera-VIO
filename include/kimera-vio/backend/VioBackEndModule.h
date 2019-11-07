@@ -30,6 +30,10 @@ class VioBackEndModule : public SIMOPipelineModule<VioBackEndInputPayload,
   KIMERA_POINTER_TYPEDEFS(VioBackEndModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  using SIMO =
+      SIMOPipelineModule<VioBackEndInputPayload, VioBackEndOutputPayload>;
+  using InputQueue = ThreadsafeQueue<typename PIO::InputPtr>;
+
   /**
    * @brief VioBackEndModule
    * @param input_queue
@@ -40,10 +44,7 @@ class VioBackEndModule : public SIMOPipelineModule<VioBackEndInputPayload,
   VioBackEndModule(InputQueue* input_queue,
                    bool parallel_run,
                    VioBackEnd::UniquePtr vio_backend)
-      : SIMOPipelineModule<VioBackEndInputPayload, VioBackEndOutputPayload>(
-            input_queue,
-            "VioBackEnd",
-            parallel_run),
+      : SIMO(input_queue, "VioBackEnd", parallel_run),
         vio_backend_(std::move(vio_backend)) {
     CHECK(vio_backend_);
   }

@@ -56,17 +56,9 @@ using SacProblemStereo =
 
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
-    InputQueue* input_queue,
-    OutputQueue* output_queue,
     const LoopClosureDetectorParams& lcd_params,
-    const bool parallel_run,
-    const bool log_output)
-    : PipelineModule<LcdInputPayload, LcdOutputPayload>(input_queue,
-                                                        output_queue,
-                                                        "LoopClosureDetector",
-                                                        parallel_run),
-      lcd_pgo_output_callbacks_(),
-      lcd_params_(lcd_params),
+    bool log_output)
+    : lcd_params_(lcd_params),
       log_output_(log_output),
       set_intrinsics_(false),
       orb_feature_detector_(),
@@ -129,13 +121,8 @@ LoopClosureDetector::LoopClosureDetector(
   if (log_output) logger_ = VIO::make_unique<LoopClosureDetectorLogger>();
 }
 
-LoopClosureDetector::~LoopClosureDetector() {
-  LOG(INFO) << "LoopClosureDetector desctuctor called.";
-}
-
 /* ------------------------------------------------------------------------ */
-LoopClosureDetector::OutputPtr LoopClosureDetector::spinOnce(
-    const LcdInputPayload& input) {
+LcdOutput::Ptr LoopClosureDetector::spinOnce(const LcdInput& input) {
   // One time initialization from camera parameters.
   if (!set_intrinsics_) {
     setIntrinsics(input.stereo_frame_);
@@ -197,21 +184,21 @@ LoopClosureDetector::OutputPtr LoopClosureDetector::spinOnce(
   const gtsam::Values& pgo_states = pgo_->calculateEstimate();
   const gtsam::NonlinearFactorGraph& pgo_nfg = pgo_->getFactorsUnsafe();
 
-  LoopClosureDetectorOutputPayload::UniquePtr output_payload;
+  LcdOutput::UniquePtr output_payload;
   if (loop_result.isLoop()) {
-    output_payload = VIO::make_unique<LoopClosureDetectorOutputPayload>(
-        true,
-        input.timestamp_kf_,
-        timestamp_map_.at(loop_result.query_id_),
-        timestamp_map_.at(loop_result.match_id_),
-        loop_result.match_id_,
-        loop_result.query_id_,
-        loop_result.relative_pose_,
-        w_Pose_map,
-        pgo_states,
-        pgo_nfg);
+    output_payload =
+        VIO::make_unique<LcdOutput>(true,
+                                    input.timestamp_kf_,
+                                    timestamp_map_.at(loop_result.query_id_),
+                                    timestamp_map_.at(loop_result.match_id_),
+                                    loop_result.match_id_,
+                                    loop_result.query_id_,
+                                    loop_result.relative_pose_,
+                                    w_Pose_map,
+                                    pgo_states,
+                                    pgo_nfg);
   } else {
-    output_payload = VIO::make_unique<LoopClosureDetectorOutputPayload>();
+    output_payload = VIO::make_unique<LcdOutput>();
     output_payload->W_Pose_Map_ = w_Pose_map;
     output_payload->states_ = pgo_states;
     output_payload->nfg_ = pgo_nfg;
@@ -228,11 +215,6 @@ LoopClosureDetector::OutputPtr LoopClosureDetector::spinOnce(
     logger_->logTimestampMap(timestamp_map_);
     logger_->logDebugInfo(debug_info_);
     logger_->logLCDResult(*output_payload);
-  }
-
-  //! Send output to all registered callbacks.
-  for (const LoopClosurePGOCallback& callback : lcd_pgo_output_callbacks_) {
-    callback(output_payload);
   }
 
   return output_payload;
