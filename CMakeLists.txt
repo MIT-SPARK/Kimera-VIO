@@ -31,6 +31,12 @@ find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV 3.3.1 REQUIRED)
 find_package(DBoW2 REQUIRED)
+if(NOT TARGET DBoW2::DBoW2)
+  add_library(DBoW2::DBoW2 INTERFACE IMPORTED)
+  set_target_properties(DBoW2::DBoW2 PROPERTIES
+  INTERFACE_LINK_LIBRARIES "${DBoW2_LIBRARIES}"
+  INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
+endif()
 find_package(KimeraRPGO REQUIRED)
 
 ### Unzip the vocabularly file
@@ -94,7 +100,7 @@ include(src/visualizer/CMakeLists.txt)
 target_link_libraries(KimeraVIO
   PRIVATE
     opengv
-    ${DBoW2_LIBRARIES}
+    DBoW2::DBoW2
     KimeraRPGO
   PUBLIC
     Boost::boost
