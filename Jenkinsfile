@@ -10,7 +10,7 @@
 pipeline {
   agent none
   stages {
-    stage('Build, Test, Deploy on Ubuntu') {
+    stage('Build and Test on Ubuntu') {
       parallel {
         stage('Ubuntu 18.04') {
           agent {
@@ -24,7 +24,7 @@ pipeline {
               steps {
                 slackSend color: 'good',
                           message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
-                            cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
+               cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
                           cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
                           generator: 'Unix Makefiles', installation: 'InSearchPath',
                           sourceDir: '.', steps: [[args: '-j 8']]
@@ -44,19 +44,62 @@ pipeline {
                   sh 'mkdir -p $WORKSPACE/spark_vio_evaluation/experiments'
                     sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/experiments/'
 
-                    // Run performance tests.
-                    // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
-                    sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a -v \
+                  // Run performance tests.
+                  // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
+                  sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a -v \
                     --save_plots --save_boxplots --save_results \
                     /root/spark_vio_evaluation/experiments/jenkins_euroc.yaml'
 
-                    // Compile summary results.
-                    sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
+                  // Compile summary results.
+                  sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
                     spark_vio_evaluation/html/data/V1_01_easy/S/results.yaml \
                     spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
 
-                    // Copy performance website to Workspace
-                    sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
+                  // Copy performance website to Workspace
+                  sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
+                }
+              }
+              post {
+                success {
+                    // Plot VIO performance.
+                    plot csvFileName: 'plot-vio-performance-per-build.csv',
+                         csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv']],
+                         group: 'Euroc Performance',
+                         numBuilds: '30',
+                         style: 'line',
+                         title: 'VIO Performance',
+                         yaxis: 'ATE [m]'
+
+                    // Plot VIO timing.
+                    plot csvFileName: 'plot-vio-timing-per-build.csv',
+                         csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/output/output_timingOverall.csv']],
+                         group: 'Euroc Performance',
+                         numBuilds: '30',
+                         style: 'line',
+                         title: 'VIO Timing',
+                         yaxis: 'Time [ms]'
+
+                    // Publish HTML website with Dygraphs and pdfs of VIO performance
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
+
+                    // Archive the website
+                    archiveArtifacts (
+                        artifacts: 'spark_vio_evaluation/html/data/**/*.*',
+                        fingerprint: true
+                        )
+
+                    // Archive the params used in evaluation (if these are used is determined
+                    // by the experiments yaml file in spark_vio_evaluation)
+                    archiveArtifacts (
+                        artifacts: 'spark_vio_evaluation/experiments/params/**/*.*',
+                        fingerprint: true
+                    )
+                }
+                failure {
+                  node(null) {
+                    echo 'Fail!'
+                    slackSend color: 'danger', message: "Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+                  }
                 }
               }
             }
@@ -96,46 +139,6 @@ pipeline {
     always {
       node(null) {
         echo 'Jenkins Finished'
-
-        if (fileExists('spark_vio_evaluation')) {
-            echo 'Evaluation available'
-
-            // Plot VIO performance.
-            plot csvFileName: 'plot-vio-performance-per-build.csv',
-                 csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv']],
-                 group: 'Euroc Performance',
-                 numBuilds: '30',
-                 style: 'line',
-                 title: 'VIO Performance',
-                 yaxis: 'ATE [m]'
-
-            // Plot VIO timing.
-            plot csvFileName: 'plot-vio-timing-per-build.csv',
-                 csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/output/output_timingOverall.csv']],
-                 group: 'Euroc Performance',
-                 numBuilds: '30',
-                 style: 'line',
-                 title: 'VIO Timing',
-                 yaxis: 'Time [ms]'
-
-            // Publish HTML website with Dygraphs and pdfs of VIO performance
-            publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
-
-            // Archive the website
-            archiveArtifacts (
-                artifacts: 'spark_vio_evaluation/html/data/**/*.*',
-                fingerprint: true
-                )
-
-            // Archive the params used in evaluation (if these are used is determined
-            // by the experiments yaml file in spark_vio_evaluation)
-            archiveArtifacts (
-                artifacts: 'spark_vio_evaluation/experiments/params/**/*.*',
-                fingerprint: true
-                )
-        } else {
-            echo 'No evaluation available'
-        }
 
         // Process the CTest xml output
         junit 'build/testresults.xml'
