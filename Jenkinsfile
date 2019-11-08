@@ -14,13 +14,10 @@ pipeline {
       parallel {
         stage('Ubuntu 18.04') {
           agent {
-            docker {
-              label 'Ubuntu 18.04'
               dockerfile {
                 filename 'Dockerfile'
                   args '-e WORKSPACE=$WORKSPACE'
               }
-            }
           }
           stages {
             stage('Build') {
@@ -67,12 +64,9 @@ pipeline {
         }
         stage('Ubuntu 16.04') {
           agent {
-            docker {
-              label 'Ubuntu 16.04'
               dockerfile {
                 filename 'Dockerfile_16_04'
                   args '-e WORKSPACE=$WORKSPACE'
-              }
             }
           }
           stages {
@@ -100,7 +94,7 @@ pipeline {
   }
   post {
     always {
-      node('Ubuntu 18.04') {
+      node(null) {
         echo 'Jenkins Finished'
 
         // Plot VIO performance.
