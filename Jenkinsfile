@@ -14,10 +14,12 @@ pipeline {
       parallel {
         stage('Ubuntu 18.04') {
           agent {
-            label 'Ubuntu 18.04'
-            dockerfile {
-              filename 'Dockerfile'
-                args '-e WORKSPACE=$WORKSPACE'
+            docker {
+              label 'Ubuntu 18.04'
+              dockerfile {
+                filename 'Dockerfile'
+                  args '-e WORKSPACE=$WORKSPACE'
+              }
             }
           }
           stages {
@@ -65,10 +67,12 @@ pipeline {
         }
         stage('Ubuntu 16.04') {
           agent {
-            label 'Ubuntu 16.04'
-            dockerfile {
-              filename 'Dockerfile_16_04'
-                args '-e WORKSPACE=$WORKSPACE'
+            docker {
+              label 'Ubuntu 16.04'
+              dockerfile {
+                filename 'Dockerfile_16_04'
+                  args '-e WORKSPACE=$WORKSPACE'
+              }
             }
           }
           stages {
