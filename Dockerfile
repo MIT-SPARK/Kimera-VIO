@@ -12,7 +12,7 @@ WORKDIR $DIRPATH
 
 #Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
-RUN apt-get update && apt-get install -y git cmake
+RUN apt-get update && apt-get install -y git cmake build-essential pkg-config
 
 # Install xvfb to provide a display to container for GUI realted testing.
 RUN apt-get update && apt-get install -y xvfb
@@ -29,7 +29,7 @@ RUN cd gtsam && \
 
 # Install OpenCV for Ubuntu 18.04
 RUN apt-get update && apt-get install -y \
-      build-essential cmake unzip pkg-config \
+      unzip \
       libjpeg-dev libpng-dev libtiff-dev \
       libvtk6-dev \
       libgtk-3-dev \
