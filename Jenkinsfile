@@ -97,39 +97,45 @@ pipeline {
       node(null) {
         echo 'Jenkins Finished'
 
-        // Plot VIO performance.
-        plot csvFileName: 'plot-vio-performance-per-build.csv',
-             csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv']],
-             group: 'Euroc Performance',
-             numBuilds: '30',
-             style: 'line',
-             title: 'VIO Performance',
-             yaxis: 'ATE [m]'
+        if (fileExists('spark_vio_evaluation')) {
+            echo 'Evaluation available'
 
-        // Plot VIO timing.
-        plot csvFileName: 'plot-vio-timing-per-build.csv',
-             csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/output/output_timingOverall.csv']],
-             group: 'Euroc Performance',
-             numBuilds: '30',
-             style: 'line',
-             title: 'VIO Timing',
-             yaxis: 'Time [ms]'
+            // Plot VIO performance.
+            plot csvFileName: 'plot-vio-performance-per-build.csv',
+                 csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv']],
+                 group: 'Euroc Performance',
+                 numBuilds: '30',
+                 style: 'line',
+                 title: 'VIO Performance',
+                 yaxis: 'ATE [m]'
 
-        // Publish HTML website with Dygraphs and pdfs of VIO performance
-        publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
+            // Plot VIO timing.
+            plot csvFileName: 'plot-vio-timing-per-build.csv',
+                 csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/output/output_timingOverall.csv']],
+                 group: 'Euroc Performance',
+                 numBuilds: '30',
+                 style: 'line',
+                 title: 'VIO Timing',
+                 yaxis: 'Time [ms]'
 
-        // Archive the website
-        archiveArtifacts (
-            artifacts: 'spark_vio_evaluation/html/data/**/*.*',
-            fingerprint: true
-            )
+            // Publish HTML website with Dygraphs and pdfs of VIO performance
+            publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
 
-        // Archive the params used in evaluation (if these are used is determined
-        // by the experiments yaml file in spark_vio_evaluation)
-        archiveArtifacts (
-            artifacts: 'spark_vio_evaluation/experiments/params/**/*.*',
-            fingerprint: true
-            )
+            // Archive the website
+            archiveArtifacts (
+                artifacts: 'spark_vio_evaluation/html/data/**/*.*',
+                fingerprint: true
+                )
+
+            // Archive the params used in evaluation (if these are used is determined
+            // by the experiments yaml file in spark_vio_evaluation)
+            archiveArtifacts (
+                artifacts: 'spark_vio_evaluation/experiments/params/**/*.*',
+                fingerprint: true
+                )
+        } else {
+            echo 'No evaluation available'
+        }
 
         // Process the CTest xml output
         junit 'build/testresults.xml'
