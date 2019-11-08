@@ -330,6 +330,11 @@ void Pipeline::shutdownWhenFinished() {
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
   static constexpr int sleep_time = 1;
 
+  bool lcd_and_lcd_input_finished = true;
+  if (loop_closure_detector_) {
+    lcd_and_lcd_input_finished = false;
+  }
+
   while (!shutdown_ &&         // Loop while not explicitly shutdown.
          (!is_initialized_ ||  // Loop while not initialized
                                // Or, once init, data is not yet consumed.
