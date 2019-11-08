@@ -82,7 +82,9 @@ RUN cd Kimera-RPGO && \
       make -j$(nproc)
 
 RUN apt-get update && apt-get install -y \
-      python-pip python3-pip python-dev python-tk
+      python-pip python-dev python-tk
+# Upgrade pip, otherwise gives errors in following steps
+RUN apt-get update && pip install --upgrade pip
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
