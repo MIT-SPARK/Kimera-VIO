@@ -16,7 +16,6 @@ pipeline {
           agent {
             dockerfile {
               filename 'Dockerfile'
-                label 'Ubuntu 18.04'
                 args '-e WORKSPACE=$WORKSPACE'
             }
           }
@@ -67,7 +66,6 @@ pipeline {
           agent {
             dockerfile {
               filename 'Dockerfile_16_04'
-                label 'Ubuntu 16.04'
                 args '-e WORKSPACE=$WORKSPACE'
             }
           }
