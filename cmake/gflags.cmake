@@ -33,12 +33,14 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
       INSTALL_DIR ${gflags_INSTALL}
       CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                  -DCMAKE_INSTALL_PREFIX=${gflags_INSTALL}
+                 -DBUILD_SHARED_LIBS=OFF
                  -DBUILD_STATIC_LIBS=ON
-                 -DGFLAGS_NAMESPACE=google
                  -DBUILD_PACKAGING=OFF
                  -DBUILD_TESTING=OFF
+                 -BUILD_CONFIG_TESTS=OFF
                  -DINSTALL_HEADERS=ON
                  -DCMAKE_CXX_FLAGS=${GFLAGS_CXX_FLAGS}
+                 -DGFLAGS_NAMESPACE=google
       LOG_DOWNLOAD 1
       LOG_INSTALL 1
       )
