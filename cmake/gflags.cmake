@@ -24,6 +24,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
     endif()
 
     set(GFLAGS_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS}")
+    set(GFLAGS_C_FLAGS "${CMAKE_C_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS}")
 
     ExternalProject_Add(gflags
       PREFIX ${gflags_PREFIX}
@@ -39,6 +40,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
                  -DBUILD_TESTING=OFF
                  -BUILD_CONFIG_TESTS=OFF
                  -DINSTALL_HEADERS=ON
+                 -DCMAKE_C_FLAGS=${GFLAGS_C_FLAGS}
                  -DCMAKE_CXX_FLAGS=${GFLAGS_CXX_FLAGS}
                  -DGFLAGS_NAMESPACE=google
       LOG_DOWNLOAD 1
@@ -58,6 +60,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
   else()
     # Create interface library to link against gflags.
     if(NOT TARGET gflags::gflags)
+      message(STATUS "Create gflags::gflags.")
       add_library(gflags::gflags INTERFACE IMPORTED GLOBAL)
       set_target_properties(gflags::gflags PROPERTIES
         INTERFACE_LINK_LIBRARIES "${GFLAGS_LIBRARIES}"
