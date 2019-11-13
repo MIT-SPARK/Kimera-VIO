@@ -44,7 +44,7 @@ if (NOT __GLOG_INCLUDED)
                  -DCMAKE_INSTALL_PREFIX=${GLOG_INSTALL}
                  -DWITH_GFLAGS=ON
                  -DWITH_THREADS=ON
-                 -DBUILD_SHARED_LIBS=ON
+                 -DBUILD_SHARED_LIBS=OFF
                  -DBUILD_TESTING=OFF
                  -DCMAKE_C_FLAGS=${GLOG_C_FLAGS}
                  -DCMAKE_CXX_FLAGS=${GLOG_CXX_FLAGS}
@@ -55,7 +55,7 @@ if (NOT __GLOG_INCLUDED)
     set(glog_FOUND TRUE)
     set(GLOG_INCLUDE_DIR ${GLOG_INSTALL}/include)
     # Glog builds libglogd.dylib when in debug mode, add a `d' if debug mode.
-    set(GLOG_LIBRARIES ${GLOG_INSTALL}/lib/libglog$<$<CONFIG:Debug>:d>.dylib)
+    set(GLOG_LIBRARIES ${GLOG_INSTALL}/lib/libglog$<$<CONFIG:Debug>:d>.a)
     set(GLOG_LIBRARY_DIRS ${GLOG_INSTALL}/lib)
     # HACK to avoid interface library glog::glog to complain that
     # INTERFACE_INCLUDE_DIRECTORIES does not exist the first time we run cmake before build.

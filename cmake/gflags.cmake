@@ -34,10 +34,10 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
                  -DCMAKE_INSTALL_PREFIX=${gflags_INSTALL}
                  -DBUILD_gflags_LIB=ON
                  -DBUILD_gflags_nothreads_LIB=ON
-                 -DBUILD_SHARED_LIBS=ON
-                 -DINSTALL_SHARED_LIBS=ON
-                 -DBUILD_STATIC_LIBS=OFF
-                 -DINSTALL_STATIC_LIBS=OFF
+                 -DBUILD_SHARED_LIBS=OFF
+                 -DINSTALL_SHARED_LIBS=OFF
+                 -DBUILD_STATIC_LIBS=ON
+                 -DINSTALL_STATIC_LIBS=ON
                  -DBUILD_PACKAGING=OFF
                  -DBUILD_TESTING=OFF
                  -DINSTALL_HEADERS=ON
@@ -54,7 +54,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
     set(gflags_FOUND TRUE)
     set(GFLAGS_INCLUDE_DIR ${gflags_INSTALL}/include)
     set(GFLAGS_LIBRARIES
-      "${gflags_INSTALL}/lib/libgflags$<$<CONFIG:Debug>:_debug>.dylib"
+      "${gflags_INSTALL}/lib/libgflags$<$<CONFIG:Debug>:_debug>.a"
       ${CMAKE_THREAD_LIBS_INIT})
     # HACK to avoid interface library gflags::gflags to complain that
     # INTERFACE_INCLUDE_DIRECTORIES does not exist the first time we run cmake before build.
