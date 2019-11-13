@@ -18,6 +18,8 @@
 #include <memory>
 #include <string>
 
+#include <gflags/gflags.h>
+
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
