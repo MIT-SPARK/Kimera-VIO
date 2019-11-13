@@ -18,8 +18,7 @@ if (NOT __GLOG_INCLUDED)
     # install directory
     set(GLOG_INSTALL ${CMAKE_BINARY_DIR}/external/glog-install)
 
-    # we build glog statically, but want to link it into the caffe shared library
-    # this requires position-independent code
+    # we build glog shared, this requires position-independent code
     if (UNIX)
       set(GLOG_EXTRA_COMPILER_FLAGS "-fPIC")
     endif()
@@ -41,24 +40,22 @@ if (NOT __GLOG_INCLUDED)
       GIT_TAG "v0.4.0"
       UPDATE_COMMAND ""
       INSTALL_DIR ${GLOG_INSTALL}
-      # PATCH_COMMAND autoreconf -i ${GLOG_PREFIX}/src/glog
-      # CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${GLOG_PREFIX}/src/glog/configure --prefix=${glog_INSTALL} --enable-shared=no --enable-static=yes --with-gflags=${GFLAGS_LIBRARY_DIRS}/..
-       CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                  -DCMAKE_INSTALL_PREFIX=${GLOG_INSTALL}
-                  -DWITH_GFLAGS=ON
-                  -DWITH_THREADS=ON
-                  -DBUILD_SHARED_LIBS=OFF
-                  -DBUILD_TESTING=OFF
-                  -DCMAKE_C_FLAGS=${GLOG_C_FLAGS}
-                  -DCMAKE_CXX_FLAGS=${GLOG_CXX_FLAGS}
+      CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                 -DCMAKE_INSTALL_PREFIX=${GLOG_INSTALL}
+                 -DWITH_GFLAGS=ON
+                 -DWITH_THREADS=ON
+                 -DBUILD_SHARED_LIBS=ON
+                 -DBUILD_TESTING=OFF
+                 -DCMAKE_C_FLAGS=${GLOG_C_FLAGS}
+                 -DCMAKE_CXX_FLAGS=${GLOG_CXX_FLAGS}
       LOG_DOWNLOAD 1
       LOG_INSTALL 1
       )
 
     set(glog_FOUND TRUE)
     set(GLOG_INCLUDE_DIR ${GLOG_INSTALL}/include)
-    # Glog builds libglogd.a when in debug mode, add a `d' if debug mode.
-    set(GLOG_LIBRARIES ${GLOG_INSTALL}/lib/libglog$<$<CONFIG:Debug>:d>.a)
+    # Glog builds libglogd.dylib when in debug mode, add a `d' if debug mode.
+    set(GLOG_LIBRARIES ${GLOG_INSTALL}/lib/libglog$<$<CONFIG:Debug>:d>.dylib)
     set(GLOG_LIBRARY_DIRS ${GLOG_INSTALL}/lib)
     # HACK to avoid interface library glog::glog to complain that
     # INTERFACE_INCLUDE_DIRECTORIES does not exist the first time we run cmake before build.
