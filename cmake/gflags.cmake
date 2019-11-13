@@ -17,14 +17,12 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
     # install directory
     set(gflags_INSTALL ${CMAKE_BINARY_DIR}/external/gflags-install)
 
-    # we build gflags statically, but want to link it into the caffe shared library
-    # this requires position-independent code
+    # we build gflags shared, this requires position-independent code
     if (UNIX)
         set(GFLAGS_EXTRA_COMPILER_FLAGS "-fPIC")
     endif()
 
     set(GFLAGS_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS}")
-    set(GFLAGS_C_FLAGS "${CMAKE_C_FLAGS} ${GFLAGS_EXTRA_COMPILER_FLAGS}")
 
     ExternalProject_Add(gflags
       PREFIX ${gflags_PREFIX}
@@ -36,10 +34,10 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
                  -DCMAKE_INSTALL_PREFIX=${gflags_INSTALL}
                  -DBUILD_gflags_LIB=ON
                  -DBUILD_gflags_nothreads_LIB=ON
-                 -DBUILD_SHARED_LIBS=OFF
-                 -DINSTALL_SHARED_LIBS=OFF
-                 -DBUILD_STATIC_LIBS=ON
-                 -DINSTALL_STATIC_LIBS=ON
+                 -DBUILD_SHARED_LIBS=ON
+                 -DINSTALL_SHARED_LIBS=ON
+                 -DBUILD_STATIC_LIBS=OFF
+                 -DINSTALL_STATIC_LIBS=OFF
                  -DBUILD_PACKAGING=OFF
                  -DBUILD_TESTING=OFF
                  -DINSTALL_HEADERS=ON
@@ -56,7 +54,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
     set(gflags_FOUND TRUE)
     set(GFLAGS_INCLUDE_DIR ${gflags_INSTALL}/include)
     set(GFLAGS_LIBRARIES
-      "${gflags_INSTALL}/lib/libgflags$<$<CONFIG:Debug>:_debug>.a"
+      "${gflags_INSTALL}/lib/libgflags$<$<CONFIG:Debug>:_debug>.dylib"
       ${CMAKE_THREAD_LIBS_INIT})
     # HACK to avoid interface library gflags::gflags to complain that
     # INTERFACE_INCLUDE_DIRECTORIES does not exist the first time we run cmake before build.
