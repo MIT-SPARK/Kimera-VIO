@@ -63,10 +63,11 @@ DEFINE_bool(texturize_3d_mesh, false,
             "Whether you want to add texture to the 3d"
             "mesh. The texture is taken from the image"
             " frame.");
-DEFINE_bool(set_mesh_ambient, true,
+DEFINE_bool(set_mesh_ambient,
+            false,
             "Whether to use ambient light for the "
             "mesh.");
-DEFINE_bool(set_mesh_lighting, false, "Whether to use lighting for the mesh.");
+DEFINE_bool(set_mesh_lighting, true, "Whether to use lighting for the mesh.");
 DEFINE_bool(log_mesh, false, "Log the mesh at time horizon.");
 DEFINE_bool(log_accumulated_mesh, false, "Accumulate the mesh when logging.");
 

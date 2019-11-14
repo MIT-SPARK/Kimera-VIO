@@ -5,6 +5,11 @@ project(KimeraVIO VERSION 1.0 LANGUAGES CXX)
 # Currently we do not have any custom find module...
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 
+IF(APPLE)
+    # Fix linking on 10.14+. See https://stackoverflow.com/questions/54068035
+    LINK_DIRECTORIES(/usr/local/lib)
+ENDIF()
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -26,6 +31,12 @@ find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV 3.3.1 REQUIRED)
 find_package(DBoW2 REQUIRED)
+if(NOT TARGET DBoW2::DBoW2)
+  add_library(DBoW2::DBoW2 INTERFACE IMPORTED)
+  set_target_properties(DBoW2::DBoW2 PROPERTIES
+  INTERFACE_LINK_LIBRARIES "${DBoW2_LIBRARIES}"
+  INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
+endif()
 find_package(KimeraRPGO REQUIRED)
 
 ### Unzip the vocabularly file
@@ -89,7 +100,7 @@ include(src/visualizer/CMakeLists.txt)
 target_link_libraries(KimeraVIO
   PRIVATE
     opengv
-    DBoW2
+    DBoW2::DBoW2
     KimeraRPGO
   PUBLIC
     Boost::boost

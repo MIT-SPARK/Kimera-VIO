@@ -30,7 +30,7 @@ using namespace std;
 using namespace VIO;
 using namespace cv;
 
-TEST(testFrame, visualizeMesh2D) {
+TEST(testVisualizer3D, DISABLED_visualizeMesh2D) {
   // Construct a frame from image name.
   FrameId id = 0;
   Timestamp tmp = 123;
