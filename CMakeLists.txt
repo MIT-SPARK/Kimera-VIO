@@ -137,9 +137,11 @@ target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake
   external/googletest-download/CMakeLists.txt)
 execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download" )
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download"
+    OUTPUT_QUIET)
 execute_process(COMMAND "${CMAKE_COMMAND}" --build .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download" )
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download"
+    OUTPUT_QUIET)
 
 # Prevent GoogleTest from overriding our compiler/linker options
 # when building with Visual Studio
