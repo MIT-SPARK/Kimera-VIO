@@ -18,8 +18,7 @@ if (NOT __GLOG_INCLUDED)
     # install directory
     set(GLOG_INSTALL ${CMAKE_BINARY_DIR}/external/glog-install)
 
-    # we build glog statically, but want to link it into the caffe shared library
-    # this requires position-independent code
+    # we build glog shared, this requires position-independent code
     if (UNIX)
       set(GLOG_EXTRA_COMPILER_FLAGS "-fPIC")
     endif()
@@ -30,6 +29,8 @@ if (NOT __GLOG_INCLUDED)
     # depend on gflags if we're also building it
     if (gflags_FOUND)
       set(GLOG_DEPENDS gflags::gflags)
+    else()
+      message(ERROR "Glog depends on gflags, but gflags::gflags was not found.")
     endif()
 
     ExternalProject_Add(glog
@@ -41,6 +42,8 @@ if (NOT __GLOG_INCLUDED)
       INSTALL_DIR ${GLOG_INSTALL}
       CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                  -DCMAKE_INSTALL_PREFIX=${GLOG_INSTALL}
+                 -DWITH_GFLAGS=ON
+                 -DWITH_THREADS=ON
                  -DBUILD_SHARED_LIBS=OFF
                  -DBUILD_TESTING=OFF
                  -DCMAKE_C_FLAGS=${GLOG_C_FLAGS}
@@ -51,7 +54,8 @@ if (NOT __GLOG_INCLUDED)
 
     set(glog_FOUND TRUE)
     set(GLOG_INCLUDE_DIR ${GLOG_INSTALL}/include)
-    set(GLOG_LIBRARIES ${GLOG_INSTALL}/lib/libglog.a)
+    # Glog builds libglogd.dylib when in debug mode, add a `d' if debug mode.
+    set(GLOG_LIBRARIES ${GLOG_INSTALL}/lib/libglog$<$<CONFIG:Debug>:d>.a)
     set(GLOG_LIBRARY_DIRS ${GLOG_INSTALL}/lib)
     # HACK to avoid interface library glog::glog to complain that
     # INTERFACE_INCLUDE_DIRECTORIES does not exist the first time we run cmake before build.
@@ -66,8 +70,9 @@ if (NOT __GLOG_INCLUDED)
       message(STATUS "Create glog::glog.")
       add_library(glog::glog INTERFACE IMPORTED GLOBAL)
       set_target_properties(glog::glog PROPERTIES
-        INTERFACE_LINK_LIBRARIES "${GLOG_LIBRARIES}"
-        INTERFACE_INCLUDE_DIRECTORIES "${GLOG_INCLUDE_DIR}")
+        INTERFACE_LINK_LIBRARIES ${GLOG_LIBRARIES}
+        INTERFACE_INCLUDE_DIRECTORIES ${GLOG_INCLUDE_DIR})
+      target_link_libraries(glog::glog INTERFACE gflags::gflags)
       if(TARGET glog)
         add_dependencies(glog::glog glog)
       endif()

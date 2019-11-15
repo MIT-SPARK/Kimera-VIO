@@ -27,10 +27,8 @@ pipeline {
               }
           }
           stages {
-            stage('Build') {
+            stage('Build Release') {
               steps {
-                slackSend color: 'good',
-                          message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
                cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
                           cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
                           generator: 'Unix Makefiles', installation: 'InSearchPath',
@@ -120,7 +118,15 @@ pipeline {
             }
           }
           stages {
-            stage('Build') {
+            stage('Build Debug') {
+              steps {
+               cmakeBuild buildDir: 'build', buildType: 'Debug', cleanBuild: true,
+                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
+                          generator: 'Unix Makefiles', installation: 'InSearchPath',
+                          sourceDir: '.', steps: [[args: '-j 8']]
+              }
+            }
+            stage('Build Release') {
               steps {
                 slackSend color: 'good',
                           message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
