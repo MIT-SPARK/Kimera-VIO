@@ -1,12 +1,19 @@
 /* Jenkinsfile for Jenkins running in a server using docker.
  * Run the following command to mount EUROC dataset and be able to run VIO evaluation on it:
- * sudo docker run -it -u root --rm -d -p 8080:8080 -p 50000:50000 -v /home/sparklab/Datasets/euroc:/Datasets/euroc -v jenkins-data:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock jenkinsci/blueocean
+ * sudo docker run -it -u root --rm -d -p 8080:8080 -p 50000:50000 -v /home/sparklab/Datasets/euroc:/Datasets/euroc -v \
+  jenkins-data:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock \
+  --env JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=\"default-src 'self'; script-src * 'unsafe-inline'; img-src \
+  'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';\"" \
+  jenkinsci/blueocean
  * Periodically, you might need to clean disk space, run: `docker system prune -a` while running jenkins (but stop all jobs).
+ * Also, backup: `docker cp <jenkins-container-name>:/var/jenkins_home ./jenkins_home`
  * If you want to enable HTML reports in Jenkins, further call:
  * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
  * in the Script console in Jenkins' administration section.
  * TODO(Toni): change all spark_vio_evaluation/html/data into a Groovy String.
  */
+
+
 pipeline {
   agent none
   stages {
@@ -20,10 +27,8 @@ pipeline {
               }
           }
           stages {
-            stage('Build') {
+            stage('Build Release') {
               steps {
-                slackSend color: 'good',
-                          message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
                cmakeBuild buildDir: 'build', buildType: 'Release', cleanBuild: false,
                           cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
                           generator: 'Unix Makefiles', installation: 'InSearchPath',
@@ -113,7 +118,15 @@ pipeline {
             }
           }
           stages {
-            stage('Build') {
+            stage('Build Debug') {
+              steps {
+               cmakeBuild buildDir: 'build', buildType: 'Debug', cleanBuild: true,
+                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
+                          generator: 'Unix Makefiles', installation: 'InSearchPath',
+                          sourceDir: '.', steps: [[args: '-j 8']]
+              }
+            }
+            stage('Build Release') {
               steps {
                 slackSend color: 'good',
                           message: "Started Build <${env.BUILD_URL}|#${env.BUILD_NUMBER}> - Branch <${env.GIT_URL}|${env.GIT_BRANCH}>."
