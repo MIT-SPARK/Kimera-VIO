@@ -487,7 +487,7 @@ class Mesher {
 
   static std::vector<cv::Vec6f> createMesh2D(
       const Frame& frame,
-      const std::vector<size_t>& selectedIndices);
+      const std::vector<size_t>& selected_indices);
 
   static void createMesh2dVIO(
       std::vector<cv::Vec6f>* triangulation_2D,
@@ -579,18 +579,21 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
     // a backend payload without having a frontend one first!
-    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::max();
+    Timestamp frontend_payload_timestamp =
+        std::numeric_limits<Timestamp>::max();
     MesherFrontendInput frontend_payload;
-    while (timestamp != payload_timestamp) {
+    while (timestamp != frontend_payload_timestamp) {
       if (!frontend_payload_queue_.pop(frontend_payload)) {
         // We had a backend input but no frontend input, something's wrong.
-        LOG(ERROR) << name_id_
-                   << "'s frontend payload queue is empty or "
-                      "has been shutdown.";
+        LOG(ERROR) << name_id_ << "'s frontend payload queue is empty or "
+                   << "has been shutdown.";
         return nullptr;
+      } else {
+        VLOG(5) << "Popping frontend_payload.";
       }
       if (frontend_payload) {
-        payload_timestamp = frontend_payload->stereo_frame_lkf_.getTimestamp();
+        frontend_payload_timestamp =
+            frontend_payload->stereo_frame_lkf_.getTimestamp();
       } else {
         LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
       }
@@ -599,15 +602,27 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
     // Push the synced messages to the mesher's input queue
     const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
     const Frame& left_frame = stereo_keyframe.getLeftFrame();
+    const auto& keypoints = left_frame.keypoints_;
+    const auto& right_keypoints_status =
+        stereo_keyframe.right_keypoints_status_;
+    const auto& keypoints_3d = stereo_keyframe.keypoints_3d_;
+    const auto& landmarks = left_frame.landmarks_;
+
+    // Sanity Checks:
+    CHECK_EQ(timestamp, frontend_payload_timestamp);
+    CHECK_EQ(landmarks.size(), keypoints.size());
+    CHECK_EQ(landmarks.size(), right_keypoints_status.size());
+    CHECK_EQ(landmarks.size(), keypoints_3d.size());
+
     return VIO::make_unique<MesherInput>(
         timestamp,
         // TODO(Toni): call getMapLmkIdsto3dPointsInTimeHorizon from
         // backend for this functionality.
         PointsWithIdMap(),
-        left_frame.keypoints_,
-        stereo_keyframe.right_keypoints_status_,
-        stereo_keyframe.keypoints_3d_,
-        left_frame.landmarks_,
+        keypoints,
+        right_keypoints_status,
+        keypoints_3d,
+        landmarks,
         backend_payload->W_State_Blkf_.pose_);
   }
 

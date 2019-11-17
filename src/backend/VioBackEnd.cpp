@@ -560,8 +560,7 @@ PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
   }
 
   // Step 2:
-  ////////////// Add landmarks that now are in projection factors.
-  ////////////////
+  ////////////// Add landmarks that now are in projection factors. /////////////
   for (const gtsam::Values::Filtered<gtsam::Value>::ConstKeyValuePair&
            key_value : state_.filter(gtsam::Symbol::ChrTest('l'))) {
     DCHECK(gtsam::Symbol(key_value.key).chr() == 'l');

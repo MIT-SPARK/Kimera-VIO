@@ -1352,14 +1352,18 @@ void Mesher::appendNonVioStereoPoints(
     std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo)
     const {
   CHECK_NOTNULL(points_with_id_stereo);
+  CHECK_EQ(landmarks.size(), keypoints_status.size())
+      << "Landmarks and keypoints_status should have same dimension...";
+  CHECK_EQ(landmarks.size(), keypoints_3d.size())
+      << "Landmarks and keypoints_3d should have same dimension...";
   for (size_t i = 0; i < landmarks.size(); i++) {
-    if (keypoints_status.at(i) == Kstatus::VALID && landmarks.at(i) != -1) {
+    const LandmarkId& landmark_id = landmarks.at(i);
+    if (keypoints_status.at(i) == Kstatus::VALID && landmark_id != -1) {
       const gtsam::Point3& p_i_global =
           left_cam_pose.transformFrom(gtsam::Point3(keypoints_3d.at(i)));
       // Use insert() instead of [] operator, to make sure that if there is
       // already a point with the same lmk_id, we do not override it.
-      points_with_id_stereo->insert(
-          std::make_pair(landmarks.at(i), p_i_global));
+      points_with_id_stereo->insert(std::make_pair(landmark_id, p_i_global));
     }
   }
 }
@@ -1475,7 +1479,7 @@ void Mesher::createMesh2dVIO(
   // (which have right px).
   std::vector<cv::Point2f> keypoints_for_mesh;
   // TODO this double loop is quite expensive.
-  LOG_IF(WARNING, pointsWithIdVIO.size() == 0u)
+  LOG_IF(WARNING, pointsWithIdVIO.empty())
       << "List of Keypoints with associated Landmarks is empty.";
   for (const auto& point_with_id : pointsWithIdVIO) {
     for (size_t j = 0; j < landmarks.size(); j++) {
@@ -1556,26 +1560,29 @@ std::vector<cv::Vec6f> Mesher::createMesh2D(
 // Create a 2D mesh from 2D corners in an image
 std::vector<cv::Vec6f> Mesher::createMesh2D(
     const Frame& frame,
-    const std::vector<size_t>& selectedIndices) {
+    const std::vector<size_t>& selected_indices) {
   // Sanity check.
-  CHECK_EQ(frame.landmarks_.size(), frame.keypoints_.size())
+  const size_t& n_landmarks = frame.landmarks_.size();
+  const size_t& n_keypoints = frame.keypoints_.size();
+  CHECK_EQ(n_landmarks, n_keypoints)
       << "Frame: wrong dimension for the landmarks";
 
-  cv::Size size = frame.img_.size();
-  cv::Rect2f rect(0, 0, size.width, size.height);
+  const cv::Size& frame_size = frame.img_.size();
+  cv::Rect2i rect(0, 0, frame_size.width, frame_size.height);
 
   // Add points from Frame.
-  std::vector<cv::Point2f> keypointsToTriangulate;
-  for (const auto& i : selectedIndices) {
-    cv::Point2f kp_i(static_cast<float>(frame.keypoints_.at(i).x),
-                     static_cast<float>(frame.keypoints_.at(i).y));
-    if (frame.landmarks_.at(i) != -1 && rect.contains(kp_i)) {
+  std::vector<cv::Point2f> keypoints_to_triangulate;
+  for (const size_t& i : selected_indices) {
+    CHECK_LT(i, n_landmarks);
+    CHECK_LT(i, n_keypoints);
+    const KeypointCV& keypoint_i = frame.keypoints_.at(i);
+    if (frame.landmarks_.at(i) != -1 && rect.contains(keypoint_i)) {
       // Only for valid keypoints (some keypoints may
       // end up outside image after tracking which causes subdiv to crash).
-      keypointsToTriangulate.push_back(kp_i);
+      keypoints_to_triangulate.push_back(keypoint_i);
     }
   }
-  return createMesh2D(frame.img_.size(), &keypointsToTriangulate);
+  return createMesh2D(frame_size, &keypoints_to_triangulate);
 }
 
 /* -------------------------------------------------------------------------- */
