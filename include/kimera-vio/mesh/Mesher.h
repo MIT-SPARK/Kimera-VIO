@@ -86,10 +86,15 @@ struct MesherInput {
   //! Frontend per-frame information
   // TODO(Toni): Simplify... This info seems terribly redundant, requires
   // frontend refactor though...
-  const KeypointsCV& keypoints_;
-  const std::vector<Kstatus>& keypoints_status_;
-  const std::vector<Vector3>& keypoints_3d_;
-  const LandmarkIds& landmarks_;
+  // TODO(Toni): WARNING, here we are copying all info, otw, not threadsafe!
+  // if you use const T& then you must be certain the frontend does not change
+  // these guys, but that seems not to be the case right now, so until further
+  // notice, just copy!
+  // We are losing a 1000ms literally because of this...
+  const KeypointsCV keypoints_;
+  const std::vector<Vector3> keypoints_3d_;
+  const std::vector<Kstatus> keypoints_status_;
+  const LandmarkIds landmarks_;
 };
 
 struct MesherOutput {
