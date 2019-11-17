@@ -238,7 +238,7 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
     if (callbacks_duration > kTimeLimitCallbacks) {
       LOG(WARNING) << "Callbacks for module: " << this->name_id_
                    << " are taking very long! Current latency: "
-                   << callbacks_duration.count() << " us).";
+                   << callbacks_duration.count() << " ms).";
       return false;
     } else {
       return true;
