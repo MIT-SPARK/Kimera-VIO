@@ -14,6 +14,10 @@
 
 #include "kimera-vio/mesh/Mesher.h"
 
+#include <unordered_map>
+#include <utility>  // for make_pair
+#include <vector>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <math.h>
@@ -220,15 +224,21 @@ double Mesher::getRatioBetweenTangentialAndRadialDisplacement(
   std::vector<gtsam::Point3> points;
 
   // get 3D points
-  gtsam::Point3 p1_C = gtsam::Point3(double(p1.x), double(p1.y), double(p1.z));
+  gtsam::Point3 p1_C = gtsam::Point3(static_cast<double>(p1.x),
+                                     static_cast<double>(p1.y),
+                                     static_cast<double>(p1.z));
   points.push_back(
       leftCameraPose.transformTo(p1_C));  // checks elongation in *camera frame*
 
-  gtsam::Point3 p2_C = gtsam::Point3(double(p2.x), double(p2.y), double(p2.z));
+  gtsam::Point3 p2_C = gtsam::Point3(static_cast<double>(p2.x),
+                                     static_cast<double>(p2.y),
+                                     static_cast<double>(p2.z));
   points.push_back(
       leftCameraPose.transformTo(p2_C));  // checks elongation in *camera frame*
 
-  gtsam::Point3 p3_C = gtsam::Point3(double(p3.x), double(p3.y), double(p3.z));
+  gtsam::Point3 p3_C = gtsam::Point3(static_cast<double>(p3.x),
+                                     static_cast<double>(p3.y),
+                                     static_cast<double>(p3.z));
   points.push_back(
       leftCameraPose.transformTo(p3_C));  // checks elongation in *camera frame*
 
@@ -404,7 +414,9 @@ void Mesher::populate3dMesh(
         // We found the landmark.
         // Extract 3D position of the landmark.
         const gtsam::Point3& point(lmk_it->second);
-        cv::Point3f lmk(float(point.x()), float(point.y()), float(point.z()));
+        cv::Point3f lmk(static_cast<float>(point.x()),
+                        static_cast<float>(point.y()),
+                        static_cast<float>(point.z()));
         // Add landmark as one of the vertices of the current polygon in 3D.
         DCHECK_LT(j, polygon.size());
         polygon.at(j) = Mesh3D::VertexType(lmk_id, lmk);

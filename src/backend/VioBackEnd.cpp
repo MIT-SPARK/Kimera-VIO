@@ -29,6 +29,12 @@
 
 #include "kimera-vio/backend/VioBackEnd.h"
 
+#include <limits>  // for numeric_limits<>
+#include <map>
+#include <string>
+#include <utility>  // for make_pair
+#include <vector>
+
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -563,7 +569,7 @@ PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
   ////////////// Add landmarks that now are in projection factors. /////////////
   for (const gtsam::Values::Filtered<gtsam::Value>::ConstKeyValuePair&
            key_value : state_.filter(gtsam::Symbol::ChrTest('l'))) {
-    DCHECK(gtsam::Symbol(key_value.key).chr() == 'l');
+    DCHECK_EQ(gtsam::Symbol(key_value.key).chr(), 'l');
     const LandmarkId& lmk_id = gtsam::Symbol(key_value.key).index();
     DCHECK(points_with_id.find(lmk_id) == points_with_id.end());
     points_with_id[lmk_id] = key_value.value.cast<gtsam::Point3>();
@@ -1216,7 +1222,7 @@ void VioBackEnd::updateSmoother(Smoother::Result* result,
                FLAGS_max_number_of_cheirality_exceptions);
 
       // Check that we have a landmark.
-      CHECK(lmk_symbol_cheirality.chr() == 'l');
+      CHECK_EQ(lmk_symbol_cheirality.chr(), 'l');
 
       // Now that we know the lmk id, delete all factors attached to it!
       gtsam::NonlinearFactorGraph new_factors_tmp_cheirality;
@@ -1871,8 +1877,8 @@ void VioBackEnd::computeSmartFactorStatistics() {
     }
   }
   if (debug_info_.numValid_ > 0) {
-    debug_info_.meanTrackLength_ =
-        debug_info_.meanTrackLength_ / ((double)debug_info_.numValid_);
+    debug_info_.meanTrackLength_ = debug_info_.meanTrackLength_ /
+                                   static_cast<double>(debug_info_.numValid_);
   } else {
     debug_info_.meanTrackLength_ = 0;
   }

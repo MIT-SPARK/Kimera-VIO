@@ -16,6 +16,10 @@
 
 #include <stdlib.h>
 #include <atomic>
+#include <limits>  // for numeric_limits<>
+#include <unordered_map>
+#include <utility>  // for move
+#include <vector>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
