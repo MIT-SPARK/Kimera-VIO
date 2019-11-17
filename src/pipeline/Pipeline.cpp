@@ -331,7 +331,7 @@ void Pipeline::shutdownWhenFinished() {
   static constexpr int sleep_time = 1;
 
   bool lcd_and_lcd_input_finished = true;
-  if (loop_closure_detector_) {
+  if (lcd_module_) {
     lcd_and_lcd_input_finished = false;
   }
 
