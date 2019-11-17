@@ -29,7 +29,6 @@
 #include "kimera-vio/frontend/StereoVisionFrontEnd.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
-
 #include "kimera-vio/initial/InitializationBackEnd.h"
 #include "kimera-vio/initial/InitializationFromImu.h"
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
@@ -147,8 +146,7 @@ Pipeline::Pipeline(const PipelineParams& params)
               output->status_stereo_measurements_,
               output->tracker_status_,
               output->pim_,
-              output->relative_pose_body_stereo_,
-              nullptr));  // TODO(Toni): remove planes.
+              output->relative_pose_body_stereo_));
         }
       });
 
@@ -575,8 +573,7 @@ bool Pipeline::initializeOnline(
         frontend_output->status_stereo_measurements_,
         frontend_output->tracker_status_,
         pim,
-        frontend_output->relative_pose_body_stereo_,
-        nullptr));
+        frontend_output->relative_pose_body_stereo_));
 
     // Only process set of frontend outputs after specific number of frames
     if (frame_id < (init_frame_id_ + FLAGS_num_frames_vio_init)) {

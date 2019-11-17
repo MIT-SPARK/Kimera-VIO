@@ -46,7 +46,6 @@ class RegularVioBackEnd : public VioBackEnd {
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       const gtsam::PreintegratedImuMeasurements& pim,
-      std::vector<Plane>* planes = nullptr,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose =
           boost::none) override;
 
@@ -78,6 +77,12 @@ class RegularVioBackEnd : public VioBackEnd {
 
   // RAW parameters given by the user for the regulaVIO backend.
   const RegularVioBackEndParams regular_vio_params_;
+
+  // Planes in the scene
+  // TODO(Toni): CURRENTLY DISABLED
+  // We need to make a shared queue with the MeshSegmenter which will push plane
+  // hypothesis while the backend pulls them.
+  std::vector<Plane> planes_;
 
  private:
   /* ------------------------------------------------------------------------ */

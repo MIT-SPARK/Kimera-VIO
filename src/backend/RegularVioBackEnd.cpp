@@ -130,11 +130,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegratedImuMeasurements& pim,
-    std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
-  CHECK(planes != nullptr)
-      << "Consider using normal VIO instead of regular VIO if you are not "
-         "passing planes...";
 
   debug_info_.resetAddedFactorsStatistics();
 
@@ -220,21 +216,21 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           case RegularBackendModality::STRUCTURELESS: {
             // Do nothing, lmk_ids_with_regularity should be empty.
             CHECK_EQ(lmk_ids_with_regularity.size(), 0);
-            planes->clear();
+            planes_.clear();
             break;
           }
           case RegularBackendModality::STRUCTURELESS_AND_PROJECTION: {
             // Transforms to projection factors only the ones that should
             // have regularities, but do not use the planes anymore.
-            extractLmkIdsFromPlanes(*planes, &lmk_ids_with_regularity);
-            planes->clear();
+            extractLmkIdsFromPlanes(planes_, &lmk_ids_with_regularity);
+            planes_.clear();
             break;
           }
           case RegularBackendModality::PROJECTION: {
             // Transform all smart factors to projection factors,
             // and clear all planes.
             lmk_ids_with_regularity = lmks_kf;
-            planes->clear();
+            planes_.clear();
             break;
           }
           case RegularBackendModality::PROJECTION_AND_REGULARITY: {
@@ -247,7 +243,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
               STRUCTURELESS_PROJECTION_AND_REGULARITY: {
             // Act as usual, keep planes, and transform smart factors to projj
             // factors for those that will have regularities.
-            extractLmkIdsFromPlanes(*planes, &lmk_ids_with_regularity);
+            extractLmkIdsFromPlanes(planes_, &lmk_ids_with_regularity);
             break;
           }
           default: {
@@ -282,7 +278,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
               << "Finished converting extra smart factors to proj factors...";
         }
 
-        if (planes->size() > 0) {
+        if (planes_.size() > 0) {
           /////////////////// REGULARITY FACTORS
           //////////////////////////////////////////
           // Add regularity factor on vertices of the mesh.
@@ -291,7 +287,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           // planes.
           std::map<PlaneId, std::vector<std::pair<Slot, LandmarkId>>>
               idx_of_point_plane_factors_to_add;
-          for (const Plane& plane : *planes) {
+          for (const Plane& plane : planes_) {
             const PlaneId& plane_key = plane.getPlaneSymbol().key();
 
             VLOG(10) << "Adding regularity factors.";
@@ -307,9 +303,10 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           if (FLAGS_remove_old_reg_factors) {
             VLOG(10) << "Removing old regularity factors.";
             gtsam::FactorIndices delete_old_regularity_factors;
-            removeOldRegularityFactors_Slow(
-                *planes, idx_of_point_plane_factors_to_add,
-                &plane_id_to_lmk_id_reg_type_, &delete_old_regularity_factors);
+            removeOldRegularityFactors_Slow(planes_,
+                                            idx_of_point_plane_factors_to_add,
+                                            &plane_id_to_lmk_id_reg_type_,
+                                            &delete_old_regularity_factors);
             if (delete_old_regularity_factors.size() > 0) {
               delete_slots.insert(delete_slots.end(),
                                   delete_old_regularity_factors.begin(),
@@ -349,13 +346,13 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   // Sanity check: ensure no one is removing planes outside
   // updatePlaneEstimates.
   static size_t nr_of_planes = 0;
-  CHECK_LE(nr_of_planes, planes->size());
+  CHECK_LE(nr_of_planes, planes_.size());
 
   // Update estimates of planes, and remove planes that are not in the state.
   VLOG(10) << "Starting updatePlaneEstimates...";
-  updatePlaneEstimates(planes);
+  updatePlaneEstimates(&planes_);
   VLOG(10) << "Finished updatePlaneEstimates.";
-  nr_of_planes = planes->size();
+  nr_of_planes = planes_.size();
 
   // Reset list of factors to delete.
   // These are the smart factors that have been converted to projection factors

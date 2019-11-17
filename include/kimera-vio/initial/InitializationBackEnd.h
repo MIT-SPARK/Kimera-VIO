@@ -65,7 +65,6 @@ class InitializationBackEnd : public VioBackEnd {
   virtual void addInitialVisualState(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-      std::vector<Plane>* planes,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
       const int verbosity);
 

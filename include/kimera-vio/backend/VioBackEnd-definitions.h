@@ -223,20 +223,17 @@ struct VioBackEndInputPayload {
       const StatusStereoMeasurements& status_stereo_measurements_kf,
       const TrackingStatus& stereo_tracking_status,
       const ImuFrontEnd::PreintegratedImuMeasurements& pim,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
-      std::vector<Plane>* planes = nullptr)
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
       : timestamp_kf_nsec_(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
-        planes_(planes),
         stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
   const Timestamp timestamp_kf_nsec_;
   const StatusStereoMeasurements status_stereo_measurements_kf_;
   // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
   const TrackingStatus stereo_tracking_status_;
   const gtsam::PreintegratedImuMeasurements pim_;
-  std::vector<Plane>* planes_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
 
  public:
@@ -263,7 +260,6 @@ struct VioBackEndInputPayload {
     LOG(INFO) << "Stereo Tracking Status: "
               << TrackerStatusSummary::asString(stereo_tracking_status_);
     pim_.print("PIM : ");
-    LOG_IF(INFO, planes_ != nullptr) << "Number of planes: " << planes_->size();
     LOG_IF(INFO, stereo_ransac_body_pose_)
         << "Stereo Ransac Body Pose: " << *stereo_ransac_body_pose_;
   }

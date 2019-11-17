@@ -224,14 +224,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     const gtsam::PreintegratedImuMeasurements& pim,
-    std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
-
-  // if (verbosity_ >= 7) {
-  //  StereoVisionFrontEnd::PrintStatusStereoMeasurements(
-  //        status_smart_stereo_measurements_kf);
-  //}
 
   // Features and IMU line up --> do iSAM update
   last_kf_id_ = curr_kf_id_;
@@ -245,10 +239,10 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   // Predict next step, add initial guess
   addImuValues(curr_kf_id_, pim);
 
-  // add imu factors between consecutive keyframe states
+  // Add imu factors between consecutive keyframe states
   addImuFactor(last_kf_id_, curr_kf_id_, pim);
 
-  // add between factor from RANSAC
+  // Add between factor from RANSAC
   if (stereo_ransac_body_pose) {
     if (VLOG_IS_ON(10)) {
       LOG(INFO) << "VIO: adding between ";
@@ -323,7 +317,6 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
       input.timestamp_kf_nsec_,  // Current time for fixed lag smoother.
       input.status_stereo_measurements_kf_,  // Vision data.
       input.pim_,                            // Imu preintegrated data.
-      input.planes_,
       use_stereo_btw_factor
           ? input.stereo_ransac_body_pose_
           : boost::none);  // optional: pose estimate from stereo ransac

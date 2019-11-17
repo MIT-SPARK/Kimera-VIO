@@ -60,8 +60,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
         init_input_payload.status_stereo_measurements_,
         init_input_payload.tracker_status_,
         init_input_payload.pim_,
-        init_input_payload.relative_pose_body_stereo_,
-        nullptr));
+        init_input_payload.relative_pose_body_stereo_));
     pims.push_back(init_input_payload.pim_);
     // Bookkeeping for timestamps
     Timestamp timestamp_kf =
@@ -162,7 +161,6 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
     addInitialVisualState(
         input_iter.timestamp_kf_nsec_,  // Current time for fixed lag smoother.
         input_iter.status_stereo_measurements_kf_,  // Vision data.
-        input_iter.planes_,
         use_stereo_btw_factor ? input_iter.stereo_ransac_body_pose_
                               : boost::none,
         0);
@@ -217,7 +215,6 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
 void InitializationBackEnd::addInitialVisualState(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-    std::vector<Plane>* planes,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
     const int verbosity_ = 0) {
   debug_info_.resetAddedFactorsStatistics();
