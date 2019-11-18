@@ -616,7 +616,7 @@ class VisualizerModule
   //! on the order of msg generation is broken.
   virtual inline InputPtr getInputPacket() override {
     bool queue_state = false;
-    VizMesherInput mesher_payload;
+    VizMesherInput mesher_payload = nullptr;
     if (PIO::parallel_run_) {
       queue_state = mesher_queue_.popBlocking(mesher_payload);
     } else {
@@ -637,7 +637,7 @@ class VisualizerModule
     // a backend payload without having a frontend one first!
     Timestamp frontend_payload_timestamp =
         std::numeric_limits<Timestamp>::max();
-    VizFrontendInput frontend_payload;
+    VizFrontendInput frontend_payload = nullptr;
     while (timestamp != frontend_payload_timestamp) {
       // Pop will remove messages until the queue is empty.
       // This assumes the mesher ends processing after the frontend queue
@@ -659,9 +659,10 @@ class VisualizerModule
         LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
       }
     }
+    CHECK(frontend_payload);
 
     Timestamp backend_payload_timestamp = std::numeric_limits<Timestamp>::max();
-    VizBackendInput backend_payload;
+    VizBackendInput backend_payload = nullptr;
     while (timestamp != backend_payload_timestamp) {
       if (!backend_queue_.pop(backend_payload)) {
         // We had a mesher input but no backend input, something's wrong.
@@ -676,9 +677,12 @@ class VisualizerModule
         LOG(WARNING) << "Missing backend payload for Module: " << name_id_;
       }
     }
+    CHECK(backend_payload);
 
     // Push the synced messages to the visualizer's input queue
     const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
+    // TODO(TONI): store the payloads' pointers in the visualizer payload
+    // so that no copies are done, nor we have dangling references!
     return VIO::make_unique<VisualizerInput>(
         // Pose for trajectory viz.
         backend_payload->W_State_Blkf_.pose_ *

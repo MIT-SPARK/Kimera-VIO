@@ -57,44 +57,54 @@ struct MesherParams {
 };
 
 struct MesherInput {
+ public:
   KIMERA_POINTER_TYPEDEFS(MesherInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MesherInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  // Copy the pointers so that we do not need to copy the data, we will
+  // reference to it via the copied pointers.
   MesherInput(
-      const Timestamp& timestamp,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
-      const KeypointsCV& keypoints,
-      const std::vector<Kstatus>& keypoints_status,
-      const std::vector<Vector3>& keypoints_3d,
-      const LandmarkIds& landmarks,
-      const gtsam::Pose3& left_camera_pose)
-      : timestamp_(timestamp),
+      StereoFrontEndOutputPayload::Ptr frontend_payload,
+      VioBackEndOutputPayload::Ptr backend_payload,
+      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+      : frontend_payload_(frontend_payload),
+        backend_payload_(backend_payload),
+        timestamp_(backend_payload->W_State_Blkf_.timestamp_),
         points_with_id_vio_(points_with_id_vio),
-        keypoints_(keypoints),
-        keypoints_status_(keypoints_status),
-        keypoints_3d_(keypoints_3d),
-        landmarks_(landmarks),
-        W_Pose_B_(left_camera_pose) {}
+        keypoints_(
+            frontend_payload->stereo_frame_lkf_.getLeftFrame().keypoints_),
+        keypoints_status_(
+            frontend_payload->stereo_frame_lkf_.right_keypoints_status_),
+        keypoints_3d_(frontend_payload->stereo_frame_lkf_.keypoints_3d_),
+        landmarks_(
+            frontend_payload->stereo_frame_lkf_.getLeftFrame().landmarks_),
+        W_Pose_B_(backend_payload->W_State_Blkf_.pose_) {}
   virtual ~MesherInput() = default;
 
-  const Timestamp timestamp_;
+ public:
+  const Timestamp& timestamp_;
 
-  //! Backenc optimized landmark and pose information.
+  //! Backend optimized body pose.
+  const gtsam::Pose3& W_Pose_B_;
+
+  //! Backend optimized landmark information.
+  // TODO(Toni): this should be a const & to avoid copying but I have to
+  // implement a thread-safe way to get them from the backend...
   const std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_vio_;
-  const gtsam::Pose3 W_Pose_B_;
 
   //! Frontend per-frame information
   // TODO(Toni): Simplify... This info seems terribly redundant, requires
   // frontend refactor though...
-  // TODO(Toni): WARNING, here we are copying all info, otw, not threadsafe!
-  // if you use const T& then you must be certain the frontend does not change
-  // these guys, but that seems not to be the case right now, so until further
-  // notice, just copy!
-  // We are losing a 1000ms literally because of this...
-  const KeypointsCV keypoints_;
-  const std::vector<Vector3> keypoints_3d_;
-  const std::vector<Kstatus> keypoints_status_;
-  const LandmarkIds landmarks_;
+  const KeypointsCV& keypoints_;
+  const std::vector<Vector3>& keypoints_3d_;
+  const std::vector<Kstatus>& keypoints_status_;
+  const LandmarkIds& landmarks_;
+
+ private:
+  // Copy the pointers so that we do not need to copy the data (we use const&
+  // instead).
+  const StereoFrontEndOutputPayload::ConstPtr frontend_payload_;
+  const VioBackEndOutputPayload::ConstPtr backend_payload_;
 };
 
 struct MesherOutput {
@@ -177,7 +187,8 @@ class Mesher {
   // Returns Colors of the Mesh3D. Each color representing a semantic class.
   typedef std::function<Mesh3DVizProperties(const Timestamp& img_left_timestamp,
                                             const cv::Mat& img_left,
-                                            const Mesh2D&, const Mesh3D&)>
+                                            const Mesh2D&,
+                                            const Mesh3D&)>
       Mesh3dVizPropertiesSetterCallback;
 
  public:
@@ -262,14 +273,17 @@ class Mesher {
   void updatePolygonMeshToTimeHorizon(
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
       const gtsam::Pose3& leftCameraPose,
-      double min_ratio_largest_smallest_side, double max_triangle_side,
+      double min_ratio_largest_smallest_side,
+      double max_triangle_side,
       const bool& reduce_mesh_to_time_horizon = true);
 
   /* ------------------------------------------------------------------------ */
   // For a triangle defined by the 3d points p1, p2, and p3
   // compute ratio between largest side and smallest side (how elongated it is).
   double getRatioBetweenSmallestAndLargestSide(
-      const double& d12, const double& d23, const double& d31,
+      const double& d12,
+      const double& d23,
+      const double& d31,
       boost::optional<double&> minSide_out = boost::none,
       boost::optional<double&> maxSide_out = boost::none) const;
 
@@ -277,7 +291,9 @@ class Mesher {
   // For a triangle defined by the 3d points p1, p2, and p3
   // compute ratio between largest side and smallest side (how elongated it is)
   double getRatioBetweenTangentialAndRadialDisplacement(
-      const Vertex3D& p1, const Vertex3D& p2, const Vertex3D& p3,
+      const Vertex3D& p1,
+      const Vertex3D& p2,
+      const Vertex3D& p3,
       const gtsam::Pose3& leftCameraPose) const;
 
   /* ------------------------------------------------------------------------ */
@@ -326,8 +342,10 @@ class Mesher {
   /* ------------------------------------------------------------------------ */
   // Calculate normal of a triangle, and return whether it was possible or not.
   // Calculating the normal of aligned points in 3D is not possible...
-  bool calculateNormal(const Vertex3D& p1, const Vertex3D& p2,
-                       const Vertex3D& p3, cv::Point3f* normal) const;
+  bool calculateNormal(const Vertex3D& p1,
+                       const Vertex3D& p2,
+                       const Vertex3D& p3,
+                       cv::Point3f* normal) const;
 
   /* ------------------------------------------------------------------------ */
   // Is normal perpendicular to axis?
@@ -337,7 +355,8 @@ class Mesher {
 
   /* ------------------------------------------------------------------------ */
   // Is normal around axis?
-  bool isNormalAroundAxis(const cv::Point3f& axis, const cv::Point3f& normal,
+  bool isNormalAroundAxis(const cv::Point3f& axis,
+                          const cv::Point3f& normal,
                           const double& tolerance) const;
 
   /* ------------------------------------------------------------------------ */
@@ -354,8 +373,10 @@ class Mesher {
   // and a tolerance. The result is a vector of indices of the given set of
   // normals that are in the cluster.
   void clusterNormalsPerpendicularToAxis(
-      const cv::Point3f& axis, const std::vector<cv::Point3f>& normals,
-      const double& tolerance, std::vector<int>* cluster_normals_idx);
+      const cv::Point3f& axis,
+      const std::vector<cv::Point3f>& normals,
+      const double& tolerance,
+      std::vector<int>* cluster_normals_idx);
 
   /* ------------------------------------------------------------------------ */
   // Checks whether all points in polygon are closer than tolerance to the
@@ -387,7 +408,8 @@ class Mesher {
   // WARNING: data association must be performed between seed_planes and
   // new_planes since both structures might have the same planes.
   void segmentPlanesInMesh(
-      std::vector<Plane>* seed_planes, std::vector<Plane>* new_planes,
+      std::vector<Plane>* seed_planes,
+      std::vector<Plane>* new_planes,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       const double& normal_tolerance_polygon_plane_association,
       const double& distance_tolerance_polygon_plane_association,
@@ -408,7 +430,8 @@ class Mesher {
   // the vertices of the polygons that are close to the plane.
   // It will append lmk ids to the ones already present in the plane.
   void updatePlanesLmkIdsFromMesh(
-      std::vector<Plane>* planes, double normal_tolerance,
+      std::vector<Plane>* planes,
+      double normal_tolerance,
       double distance_tolerance,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
       const;
@@ -419,9 +442,12 @@ class Mesher {
   // It can either associate a polygon only once to the first plane it matches,
   // or it can associate to multiple planes, depending on the flag passed.
   bool updatePlanesLmkIdsFromPolygon(
-      std::vector<Plane>* seed_planes, const Mesh3D::Polygon& polygon,
-      const size_t& triangle_id, const cv::Point3f& triangle_normal,
-      double normal_tolerance, double distance_tolerance,
+      std::vector<Plane>* seed_planes,
+      const Mesh3D::Polygon& polygon,
+      const size_t& triangle_id,
+      const cv::Point3f& triangle_normal,
+      double normal_tolerance,
+      double distance_tolerance,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
       bool only_associate_a_polygon_to_a_single_plane = false) const;
 
@@ -435,17 +461,20 @@ class Mesher {
   // angle of the wall) and the second channel the distance of it.
   // points_with_id_vio is only used if we are using stereo points...
   void segmentNewPlanes(std::vector<Plane>* new_segmented_planes,
-                        const cv::Mat& z_components, const cv::Mat& walls);
+                        const cv::Mat& z_components,
+                        const cv::Mat& walls);
 
   /* ------------------------------------------------------------------------ */
   // Segment wall planes.
-  void segmentWalls(std::vector<Plane>* wall_planes, size_t* plane_id,
+  void segmentWalls(std::vector<Plane>* wall_planes,
+                    size_t* plane_id,
                     const cv::Mat& walls);
 
   /* ------------------------------------------------------------------------ */
   // Segment new planes horizontal.
   void segmentHorizontalPlanes(std::vector<Plane>* horizontal_planes,
-                               size_t* plane_id, const Plane::Normal& normal,
+                               size_t* plane_id,
+                               const Plane::Normal& normal,
                                const cv::Mat& z_components);
 
   /* ------------------------------------------------------------------------ */
@@ -480,7 +509,8 @@ class Mesher {
   // WARNING: this function won't check that the original lmk_ids are in the
   // optimization (time-horizon)...
   void appendLmkIdsOfPolygon(
-      const Mesh3D::Polygon& polygon, LandmarkIds* lmk_ids,
+      const Mesh3D::Polygon& polygon,
+      LandmarkIds* lmk_ids,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
       const;
 
@@ -568,7 +598,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
   //! the same timestamp. Guaranteed to sync messages unless the assumption
   //! on the order of msg generation is broken.
   virtual inline InputPtr getInputPacket() override {
-    MesherBackendInput backend_payload;
+    MesherBackendInput backend_payload = nullptr;
     bool queue_state = false;
     if (PIO::parallel_run_) {
       queue_state = backend_payload_queue_.popBlocking(backend_payload);
@@ -590,7 +620,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
     // a backend payload without having a frontend one first!
     Timestamp frontend_payload_timestamp =
         std::numeric_limits<Timestamp>::max();
-    MesherFrontendInput frontend_payload;
+    MesherFrontendInput frontend_payload = nullptr;
     while (timestamp != frontend_payload_timestamp) {
       if (!frontend_payload_queue_.pop(frontend_payload)) {
         // We had a backend input but no frontend input, something's wrong.
@@ -607,32 +637,14 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
         LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
       }
     }
-
-    // Push the synced messages to the mesher's input queue
-    const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
-    const Frame& left_frame = stereo_keyframe.getLeftFrame();
-    const auto& keypoints = left_frame.keypoints_;
-    const auto& right_keypoints_status =
-        stereo_keyframe.right_keypoints_status_;
-    const auto& keypoints_3d = stereo_keyframe.keypoints_3d_;
-    const auto& landmarks = left_frame.landmarks_;
-
-    // Sanity Checks:
-    CHECK_EQ(timestamp, frontend_payload_timestamp);
-    CHECK_EQ(landmarks.size(), keypoints.size());
-    CHECK_EQ(landmarks.size(), right_keypoints_status.size());
-    CHECK_EQ(landmarks.size(), keypoints_3d.size());
+    CHECK(frontend_payload);
 
     return VIO::make_unique<MesherInput>(
-        timestamp,
+        frontend_payload,
+        backend_payload,
         // TODO(Toni): call getMapLmkIdsto3dPointsInTimeHorizon from
         // backend for this functionality.
-        PointsWithIdMap(),
-        keypoints,
-        right_keypoints_status,
-        keypoints_3d,
-        landmarks,
-        backend_payload->W_State_Blkf_.pose_);
+        PointsWithIdMap());
   }
 
   virtual OutputPtr spinOnce(const MesherInput& input) override {
