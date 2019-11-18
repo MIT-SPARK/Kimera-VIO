@@ -110,7 +110,7 @@ struct MesherInput {
 struct MesherOutput {
  public:
   KIMERA_POINTER_TYPEDEFS(MesherOutput);
-  // TODO delete copy constructors
+  // TODO(Toni): delete copy constructors
   // KIMERA_DELETE_COPY_CONSTRUCTORS(MesherOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   MesherOutput() = default;
@@ -127,7 +127,7 @@ struct MesherOutput {
         mesh_2d_for_viz_(mesh_2d_for_viz),
         mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
 
-  MesherOutput(const MesherOutput::Ptr& in)
+  explicit MesherOutput(const MesherOutput::Ptr& in)
       : timestamp_(in ? in->timestamp_ : Timestamp()),
         mesh_2d_(2),
         mesh_3d_(3),
@@ -192,7 +192,7 @@ class Mesher {
       Mesh3dVizPropertiesSetterCallback;
 
  public:
-  Mesher(const MesherParams& mesher_params);
+  explicit Mesher(const MesherParams& mesher_params);
   virtual ~Mesher() = default;
 
   /**
@@ -580,7 +580,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
       : MIMOPipelineModule<MesherInput, MesherOutput>("Mesher", parallel_run),
         frontend_payload_queue_(""),
         backend_payload_queue_(""),
-        mesher_(std::move(mesher)){};
+        mesher_(std::move(mesher)) {}
   virtual ~MesherModule() = default;
 
   //! Callbacks to fill queues: they should be all lighting fast.
@@ -618,6 +618,9 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
     // a backend payload without having a frontend one first!
+    // TODO(Toni): make a getSyncedPayloadFromQueue(timestamp, &payload);
+    // utility function in pipeline module. Will need a payload baseclass
+    // that has a timestamp as a member.
     Timestamp frontend_payload_timestamp =
         std::numeric_limits<Timestamp>::max();
     MesherFrontendInput frontend_payload = nullptr;
