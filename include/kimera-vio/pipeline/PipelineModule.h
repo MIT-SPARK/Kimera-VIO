@@ -21,6 +21,7 @@
 
 #include <glog/logging.h>
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
@@ -416,7 +417,14 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
    */
   virtual inline typename MISO::InputPtr getInputPacket() override {
     typename MISO::InputPtr input;
-    if (input_queue_->popBlocking(input)) {
+    bool queue_state = false;
+    if (MISO::parallel_run_) {
+      queue_state = input_queue_->popBlocking(input);
+    } else {
+      queue_state = input_queue_->pop(input);
+    }
+
+    if (queue_state) {
       return input;
     } else {
       LOG(WARNING) << "Module: " << MISO::name_id_ << " - "

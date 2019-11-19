@@ -137,8 +137,7 @@ class VioBackEnd {
 
  public:
   /* ------------------------------------------------------------------------ */
-  VioBackEndOutputPayload::UniquePtr spinOnce(
-      const VioBackEndInputPayload& input);
+  BackendOutput::UniquePtr spinOnce(const BackendInput& input);
 
   /* ------------------------------------------------------------------------ */
   // Register (and trigger!) callback that will be called as soon as the backend
@@ -251,7 +250,7 @@ class VioBackEnd {
 
  private:
   /* ------------------------------------------------------------------------ */
-  void addVisualInertialStateAndOptimize(const VioBackEndInputPayload& input);
+  void addVisualInertialStateAndOptimize(const BackendInput& input);
 
   /* ------------------------------------------------------------------------ */
   // Add initial prior factors.

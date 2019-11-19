@@ -138,10 +138,10 @@ Pipeline::Pipeline(const PipelineParams& params)
                                       FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerCallback(
-      [&backend_input_queue](const StereoFrontEndOutputPayload::Ptr& output) {
+      [&backend_input_queue](const FrontendOutput::Ptr& output) {
         if (output->is_keyframe_) {
           //! Only push to backend input queue if it is a keyframe!
-          backend_input_queue.push(VIO::make_unique<VioBackEndInputPayload>(
+          backend_input_queue.push(VIO::make_unique<BackendInput>(
               output->stereo_frame_lkf_.getTimestamp(),
               output->status_stereo_measurements_,
               output->tracker_status_,
@@ -527,7 +527,7 @@ bool Pipeline::initializeOnline(
       stereo_imu_sync_packet.getImuAccGyr(),
       stereo_imu_sync_packet.getReinitPacket());
 
-  StereoFrontEndOutputPayload::ConstPtr frontend_output = nullptr;
+  FrontendOutput::ConstPtr frontend_output = nullptr;
   /////////////////// FIRST FRAME //////////////////////////////////////////////
   if (frame_id == init_frame_id_) {
     // Set trivial bias, gravity and force 5/3 point method for initialization
@@ -538,8 +538,7 @@ bool Pipeline::initializeOnline(
 
     //! Register frontend output queue for the initializer.
     vio_frontend_module_->registerCallback(
-        [&frontend_output](
-            const StereoFrontEndOutputPayload::ConstPtr& output) {
+        [&frontend_output](const FrontendOutput::ConstPtr& output) {
           frontend_output = output;
         });
     return false;
@@ -568,7 +567,7 @@ bool Pipeline::initializeOnline(
         imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
     // This queue is used for the backend after initialization
     VLOG(2) << "Initialization: Push input payload to Backend.";
-    backend_input_queue_.push(VIO::make_unique<VioBackEndInputPayload>(
+    backend_input_queue_.push(VIO::make_unique<BackendInput>(
         frontend_output->stereo_frame_lkf_.getTimestamp(),
         frontend_output->status_stereo_measurements_,
         frontend_output->tracker_status_,

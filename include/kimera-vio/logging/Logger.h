@@ -51,7 +51,7 @@ class BackendLogger {
   BackendLogger();
   ~BackendLogger() = default;
 
-  void logBackendOutput(const VioBackEndOutputPayload& output);
+  void logBackendOutput(const BackendOutput& output);
   void displayInitialStateVioInfo(const gtsam::Vector3& n_gravity_,
                                   const gtsam::Pose3& W_Pose_B_Lkf,
                                   const VioNavState& initial_state_gt,
@@ -59,11 +59,11 @@ class BackendLogger {
                                   const Timestamp& timestamp_k) const;
 
  private:
-  void logBackendResultsCSV(const VioBackEndOutputPayload& output);
-  void logSmartFactorsStats(const VioBackEndOutputPayload& output);
-  void logBackendPimNavstates(const VioBackEndOutputPayload& output);
-  void logBackendFactorsStats(const VioBackEndOutputPayload& output);
-  void logBackendTiming(const VioBackEndOutputPayload& output);
+  void logBackendResultsCSV(const BackendOutput& output);
+  void logSmartFactorsStats(const BackendOutput& output);
+  void logBackendPimNavstates(const BackendOutput& output);
+  void logBackendFactorsStats(const BackendOutput& output);
+  void logBackendTiming(const BackendOutput& output);
 
  private:
   // Filenames to be saved in the output folder.

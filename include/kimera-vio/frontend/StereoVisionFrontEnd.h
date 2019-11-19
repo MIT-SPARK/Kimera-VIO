@@ -140,8 +140,7 @@ public:
 
   // private: // TODO: Fix access to this function. Is this thread safe???
   /* ------------------------------------------------------------------------ */
-  StereoFrontEndOutputPayload::UniquePtr spinOnce(
-      const StereoFrontEndInputPayload& input);
+  FrontendOutput::UniquePtr spinOnce(const StereoFrontEndInputPayload& input);
 
   /* ------------------------------------------------------------------------ */
   // Get IMU Params for IMU Frontend.
@@ -270,15 +269,13 @@ private:
 };
 
 class StereoVisionFrontEndModule
-    : public SIMOPipelineModule<StereoImuSyncPacket,
-                                StereoFrontEndOutputPayload> {
+    : public SIMOPipelineModule<StereoImuSyncPacket, FrontendOutput> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEndModule);
   KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEndModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using SIMO =
-      SIMOPipelineModule<StereoImuSyncPacket, StereoFrontEndOutputPayload>;
+  using SIMO = SIMOPipelineModule<StereoImuSyncPacket, FrontendOutput>;
   using InputQueue = ThreadsafeQueue<typename SIMO::InputPtr>;
   /**
    * @brief StereoVisionFrontEndModule

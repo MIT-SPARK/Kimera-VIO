@@ -66,7 +66,7 @@ BackendLogger::BackendLogger()
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
       output_backend_timing_csv_("output_backendTiming.csv") {}
 
-void BackendLogger::logBackendOutput(const VioBackEndOutputPayload& output) {
+void BackendLogger::logBackendOutput(const BackendOutput& output) {
   logBackendResultsCSV(output);
   logBackendFactorsStats(output);
   logBackendPimNavstates(output);
@@ -112,8 +112,7 @@ void BackendLogger::displayInitialStateVioInfo(
       << "stereoVIOExample: wrong initialization (ground truth initialization)";
 }
 
-void BackendLogger::logBackendResultsCSV(
-    const VioBackEndOutputPayload& vio_output) {
+void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
   // We log the poses in csv format for later alignement and analysis.
   std::ofstream& output_stream = output_poses_vio_csv_.ofstream_;
 
@@ -151,8 +150,7 @@ void BackendLogger::logBackendResultsCSV(
                 << std::endl;
 }
 
-void BackendLogger::logSmartFactorsStats(
-    const VioBackEndOutputPayload& output) {
+void BackendLogger::logSmartFactorsStats(const BackendOutput& output) {
   std::ofstream& output_stream = output_smart_factors_stats_csv_.ofstream_;
 
   // First, write header, but only once.
@@ -183,8 +181,7 @@ void BackendLogger::logSmartFactorsStats(
                 << output.debug_info_.nrZeroElementsInMatrix_ << std::endl;
 }
 
-void BackendLogger::logBackendPimNavstates(
-    const VioBackEndOutputPayload& output) {
+void BackendLogger::logBackendPimNavstates(const BackendOutput& output) {
   std::ofstream& output_stream = output_pim_navstates_csv_.ofstream_;
 
   // First, write header, but only once.
@@ -207,7 +204,7 @@ void BackendLogger::logBackendPimNavstates(
                 << "," << velocity.z() << std::endl;
 }
 
-void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {
+void BackendLogger::logBackendTiming(const BackendOutput& output) {
   std::ofstream& output_stream = output_backend_timing_csv_.ofstream_;
 
   // First, write header, but only once.
@@ -236,8 +233,7 @@ void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {
                 << std::endl;
 }
 
-void BackendLogger::logBackendFactorsStats(
-    const VioBackEndOutputPayload& output) {
+void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
   std::ofstream& output_stream = output_backend_factors_stats_csv_.ofstream_;
 
   // First, write header, but only once.

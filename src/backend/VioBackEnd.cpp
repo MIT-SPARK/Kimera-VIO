@@ -119,8 +119,7 @@ VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
 }
 
 /* -------------------------------------------------------------------------- */
-VioBackEndOutputPayload::UniquePtr VioBackEnd::spinOnce(
-    const VioBackEndInputPayload& input) {
+BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   if (VLOG_IS_ON(10)) input.print();
 
   switch (backend_state_) {
@@ -161,17 +160,14 @@ VioBackEndOutputPayload::UniquePtr VioBackEnd::spinOnce(
   }
 
   // Create Backend Output Payload.
-  VioBackEndOutputPayload::UniquePtr output_payload =
-      VIO::make_unique<VioBackEndOutputPayload>(
-          VioNavStateTimestamped(input.timestamp_kf_nsec_,
-                                 W_Pose_B_lkf_,
-                                 W_Vel_B_lkf_,
-                                 imu_bias_lkf_),
-          state_,
-          getCurrentStateCovariance(),
-          curr_kf_id_,
-          landmark_count_,
-          debug_info_);
+  BackendOutput::UniquePtr output_payload = VIO::make_unique<BackendOutput>(
+      VioNavStateTimestamped(
+          input.timestamp_, W_Pose_B_lkf_, W_Vel_B_lkf_, imu_bias_lkf_),
+      state_,
+      getCurrentStateCovariance(),
+      curr_kf_id_,
+      landmark_count_,
+      debug_info_);
 
   if (logger_) {
     logger_->logBackendOutput(*output_payload);
@@ -312,22 +308,21 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   optimize(timestamp_kf_nsec, curr_kf_id_, backend_params_.numOptimize_);
 }
 
-void VioBackEnd::addVisualInertialStateAndOptimize(
-    const VioBackEndInputPayload& input) {
+void VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
   bool use_stereo_btw_factor =
       backend_params_.addBetweenStereoFactors_ == true &&
       input.stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
   addVisualInertialStateAndOptimize(
-      input.timestamp_kf_nsec_,  // Current time for fixed lag smoother.
+      input.timestamp_,  // Current time for fixed lag smoother.
       input.status_stereo_measurements_kf_,  // Vision data.
       input.pim_,                            // Imu preintegrated data.
       use_stereo_btw_factor
           ? input.stereo_ransac_body_pose_
           : boost::none);  // optional: pose estimate from stereo ransac
   // Bookkeeping
-  timestamp_lkf_ = input.timestamp_kf_nsec_;
+  timestamp_lkf_ = input.timestamp_;
 }
 
 /* -------------------------------------------------------------------------- */

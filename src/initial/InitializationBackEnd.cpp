@@ -45,7 +45,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   // Logging
   VLOG(10) << "N frames for initial alignment: " << output_frontend.size();
   // Create inputs for backend
-  std::vector<VioBackEndInputPayload::UniquePtr> inputs_backend;
+  std::vector<BackendInput::UniquePtr> inputs_backend;
 
   // Create inputs for online gravity alignment
   std::vector<gtsam::PreintegratedImuMeasurements> pims;
@@ -55,7 +55,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
     // Create input for backend
     const InitializationInputPayload& init_input_payload =
         *(*output_frontend.front());
-    inputs_backend.push_back(VIO::make_unique<VioBackEndInputPayload>(
+    inputs_backend.push_back(VIO::make_unique<BackendInput>(
         init_input_payload.stereo_frame_lkf_.getTimestamp(),
         init_input_payload.status_stereo_measurements_,
         init_input_payload.tracker_status_,
@@ -141,7 +141,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 /* -------------------------------------------------------------------------- */
 std::vector<gtsam::Pose3>
 InitializationBackEnd::addInitialVisualStatesAndOptimize(
-    const std::vector<VioBackEndInputPayload::UniquePtr>& input) {
+    const std::vector<BackendInput::UniquePtr>& input) {
   CHECK(input.front());
 
   // Initial clear values.
@@ -151,7 +151,7 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
 
   // Insert relative poses for bundle adjustment
   for (int i = 0; i < input.size(); i++) {
-    const VioBackEndInputPayload& input_iter = *input[i];
+    const BackendInput& input_iter = *input[i];
     bool use_stereo_btw_factor =
         backend_params_.addBetweenStereoFactors_ == true &&
         input_iter.stereo_tracking_status_ == TrackingStatus::VALID;
@@ -159,7 +159,7 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
     VLOG_IF(5, use_stereo_btw_factor) << "Using stereo between factor.";
     // Features and IMU line up --> do iSAM update
     addInitialVisualState(
-        input_iter.timestamp_kf_nsec_,  // Current time for fixed lag smoother.
+        input_iter.timestamp_,  // Current time for fixed lag smoother.
         input_iter.status_stereo_measurements_kf_,  // Vision data.
         use_stereo_btw_factor ? input_iter.stereo_ransac_body_pose_
                               : boost::none,
@@ -181,10 +181,8 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
 
   // Perform Bundle Adjustment and retrieve body poses (b0_T_bk)
   // b0 is the initial body frame
-  std::vector<gtsam::Pose3> estimated_poses =
-      optimizeInitialVisualStates(input.front()->timestamp_kf_nsec_,
-                                  curr_kf_id_,
-                                  backend_params_.numOptimize_);
+  std::vector<gtsam::Pose3> estimated_poses = optimizeInitialVisualStates(
+      input.front()->timestamp_, curr_kf_id_, backend_params_.numOptimize_);
 
   VLOG(10) << "Initial bundle adjustment completed.";
 

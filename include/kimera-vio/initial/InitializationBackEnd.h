@@ -54,7 +54,7 @@ class InitializationBackEnd : public VioBackEnd {
  public:
   /* ------------------------------------------------------------------------ */
   std::vector<gtsam::Pose3> addInitialVisualStatesAndOptimize(
-      const std::vector<VioBackEndInputPayload::UniquePtr>& input);
+      const std::vector<BackendInput::UniquePtr>& input);
 
  private:
   /* ------------------------------------------------------------------------ */

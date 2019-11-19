@@ -225,8 +225,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
         imu_frontend.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
 
     // process data with VIO
-    vio->spinOnce(
-        VioBackEndInputPayload(timestamp_k,
+    vio->spinOnce(BackendInput(timestamp_k,
                                all_measurements[k],
                                tracker_status_valid.kfTrackingStatus_stereo_,
                                pim));
@@ -359,7 +358,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
 
   // Create vector of input payloads
-  std::vector<VioBackEndInputPayload::UniquePtr> input_vector;
+  std::vector<BackendInput::UniquePtr> input_vector;
   input_vector.clear();
 
   // For each frame, add landmarks.
@@ -380,12 +379,11 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
 
     // Push input payload into queue
 
-    VioBackEndInputPayload::UniquePtr input =
-        VIO::make_unique<VioBackEndInputPayload>(
-            timestamp_k,
-            all_measurements[k],
-            tracker_status_valid.kfTrackingStatus_stereo_,
-            pim);
+    BackendInput::UniquePtr input = VIO::make_unique<BackendInput>(
+        timestamp_k,
+        all_measurements[k],
+        tracker_status_valid.kfTrackingStatus_stereo_,
+        pim);
 
     // Create artificially noisy "RANSAC" pose measurements
     gtsam::Pose3 random_pose = (poses[k - 1].first).between(poses[k].first) *

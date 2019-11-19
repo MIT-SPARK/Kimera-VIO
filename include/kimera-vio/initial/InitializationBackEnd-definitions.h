@@ -25,7 +25,7 @@ namespace VIO {
 
 enum InitializationModes { GT, IMU, ALIGNMENT };
 
-struct InitializationInputPayload : public StereoFrontEndOutputPayload {
+struct InitializationInputPayload : public FrontendOutput {
   KIMERA_POINTER_TYPEDEFS(InitializationInputPayload);
   KIMERA_DELETE_COPY_CONSTRUCTORS(InitializationInputPayload);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -41,13 +41,13 @@ struct InitializationInputPayload : public StereoFrontEndOutputPayload {
       const DebugTrackerInfo& debug_tracker_info,
       const gtsam::AHRSFactor::PreintegratedMeasurements& ahrs_pim =
           gtsam::AHRSFactor::PreintegratedMeasurements())
-      : StereoFrontEndOutputPayload(is_keyframe,
-                                    status_stereo_measurements,
-                                    tracker_status,
-                                    relative_pose_body_stereo,
-                                    stereo_frame_lkf,
-                                    pim,
-                                    debug_tracker_info),
+      : FrontendOutput(is_keyframe,
+                       status_stereo_measurements,
+                       tracker_status,
+                       relative_pose_body_stereo,
+                       stereo_frame_lkf,
+                       pim,
+                       debug_tracker_info),
         ahrs_pim_(ahrs_pim) {}
 
   const gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim_;

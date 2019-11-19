@@ -28,14 +28,14 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/viz/vizcore.hpp>
 
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/mesh/Mesh.h"
+#include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Histogram.h"
 #include "kimera-vio/utils/Macros.h"
-
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
@@ -56,7 +56,7 @@ struct MesherParams {
   cv::Size img_size_;
 };
 
-struct MesherInput {
+struct MesherInput : public PipelinePayload {
  public:
   KIMERA_POINTER_TYPEDEFS(MesherInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MesherInput);
@@ -64,77 +64,61 @@ struct MesherInput {
   // Copy the pointers so that we do not need to copy the data, we will
   // reference to it via the copied pointers.
   MesherInput(
-      StereoFrontEndOutputPayload::Ptr frontend_payload,
-      VioBackEndOutputPayload::Ptr backend_payload,
+      const Timestamp& timestamp,
+      const FrontendOutput::Ptr& frontend_payload,
+      const BackendOutput::Ptr& backend_payload,
       const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-      : frontend_payload_(frontend_payload),
+      : PipelinePayload(timestamp),
+        frontend_payload_(frontend_payload),
         backend_payload_(backend_payload),
-        timestamp_(backend_payload->W_State_Blkf_.timestamp_),
-        points_with_id_vio_(points_with_id_vio),
-        keypoints_(
-            frontend_payload->stereo_frame_lkf_.getLeftFrame().keypoints_),
-        keypoints_status_(
-            frontend_payload->stereo_frame_lkf_.right_keypoints_status_),
-        keypoints_3d_(frontend_payload->stereo_frame_lkf_.keypoints_3d_),
-        landmarks_(
-            frontend_payload->stereo_frame_lkf_.getLeftFrame().landmarks_),
-        W_Pose_B_(backend_payload->W_State_Blkf_.pose_) {}
+        points_with_id_vio_(points_with_id_vio) {
+    CHECK_EQ(timestamp, frontend_payload->timestamp_);
+    CHECK_EQ(timestamp, backend_payload->timestamp_);
+  }
   virtual ~MesherInput() = default;
 
- public:
-  const Timestamp& timestamp_;
+  // Copy the pointers so that we do not need to copy the data.
+  const FrontendOutput::ConstPtr frontend_payload_;
+  const BackendOutput::ConstPtr backend_payload_;
 
-  //! Backend optimized body pose.
-  const gtsam::Pose3& W_Pose_B_;
-
-  //! Backend optimized landmark information.
-  // TODO(Toni): this should be a const & to avoid copying but I have to
-  // implement a thread-safe way to get them from the backend...
+  // TODO(Toni): this should be in the backend payload.
   const std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_vio_;
-
-  //! Frontend per-frame information
-  // TODO(Toni): Simplify... This info seems terribly redundant, requires
-  // frontend refactor though...
-  const KeypointsCV& keypoints_;
-  const std::vector<Vector3>& keypoints_3d_;
-  const std::vector<Kstatus>& keypoints_status_;
-  const LandmarkIds& landmarks_;
-
- private:
-  // Copy the pointers so that we do not need to copy the data (we use const&
-  // instead).
-  const StereoFrontEndOutputPayload::ConstPtr frontend_payload_;
-  const VioBackEndOutputPayload::ConstPtr backend_payload_;
 };
 
-struct MesherOutput {
+struct MesherOutput : public PipelinePayload {
  public:
   KIMERA_POINTER_TYPEDEFS(MesherOutput);
   // TODO(Toni): delete copy constructors
   // KIMERA_DELETE_COPY_CONSTRUCTORS(MesherOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MesherOutput() = default;
-  virtual ~MesherOutput() = default;
+  explicit MesherOutput(const Timestamp& timestamp)
+      : PipelinePayload(timestamp),
+        mesh_2d_(3),
+        mesh_3d_(3),
+        mesh_2d_for_viz_(),
+        mesh_2d_filtered_for_viz_() {}
 
   MesherOutput(const Timestamp& timestamp,
                Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
                Mesh3D&& mesh_3d,  // Use move semantics for the actual 3d mesh.
                const std::vector<cv::Vec6f>& mesh_2d_for_viz,
                const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
-      : timestamp_(timestamp),
+      : PipelinePayload(timestamp),
         mesh_2d_(std::move(mesh_2d)),
         mesh_3d_(std::move(mesh_3d)),
         mesh_2d_for_viz_(mesh_2d_for_viz),
         mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
 
   explicit MesherOutput(const MesherOutput::Ptr& in)
-      : timestamp_(in ? in->timestamp_ : Timestamp()),
-        mesh_2d_(2),
+      : PipelinePayload(in ? in->timestamp_ : Timestamp()),
+        mesh_2d_(3),
         mesh_3d_(3),
         mesh_2d_for_viz_(in ? in->mesh_2d_for_viz_
                             : std::vector<cv::Vec6f>()),  // yet another copy...
         mesh_2d_filtered_for_viz_(in ? in->mesh_2d_filtered_for_viz_
                                      : std::vector<cv::Vec6f>()) {}
+
+  virtual ~MesherOutput() = default;
 
   // Default copy ctor.
   MesherOutput(const MesherOutput& rhs) = default;
@@ -146,8 +130,6 @@ struct MesherOutput {
   MesherOutput& operator=(MesherOutput&&) = default;
 
  public:
-  Timestamp timestamp_;
-
   Mesh2D mesh_2d_;
   Mesh3D mesh_3d_;
 
@@ -571,8 +553,8 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(MesherModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(MesherModule);
-  using MesherFrontendInput = StereoFrontEndOutputPayload::Ptr;
-  using MesherBackendInput = VioBackEndOutputPayload::Ptr;
+  using MesherFrontendInput = FrontendOutput::Ptr;
+  using MesherBackendInput = BackendOutput::Ptr;
   // TODO(Toni): using this callback generates copies...
   using MesherOutputCallback = std::function<void(const MesherOutput& output)>;
 
@@ -613,7 +595,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
       return nullptr;
     }
     CHECK(backend_payload);
-    const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
+    const Timestamp& timestamp = backend_payload->timestamp_;
 
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
@@ -634,8 +616,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
         VLOG(5) << "Popping frontend_payload.";
       }
       if (frontend_payload) {
-        frontend_payload_timestamp =
-            frontend_payload->stereo_frame_lkf_.getTimestamp();
+        frontend_payload_timestamp = frontend_payload->timestamp_;
       } else {
         LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
       }
@@ -643,6 +624,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
     CHECK(frontend_payload);
 
     return VIO::make_unique<MesherInput>(
+        timestamp,
         frontend_payload,
         backend_payload,
         // TODO(Toni): call getMapLmkIdsto3dPointsInTimeHorizon from

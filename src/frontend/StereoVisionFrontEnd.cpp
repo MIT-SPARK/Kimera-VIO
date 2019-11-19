@@ -53,7 +53,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 }
 
 /* -------------------------------------------------------------------------- */
-StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
+FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
     const StereoFrontEndInputPayload& input) {
   const StereoFrame& stereoFrame_k = input.getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
@@ -144,7 +144,7 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
 
     // Return the output of the frontend for the others.
     VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
-    return VIO::make_unique<StereoFrontEndOutputPayload>(
+    return VIO::make_unique<FrontendOutput>(
         true,
         status_stereo_measurements,
         trackerStatusSummary_.kfTrackingStatus_stereo_,
@@ -155,14 +155,13 @@ StereoFrontEndOutputPayload::UniquePtr StereoVisionFrontEnd::spinOnce(
   } else {
     // We don't have a keyframe.
     VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
-    return VIO::make_unique<StereoFrontEndOutputPayload>(
-        false,
-        status_stereo_measurements,
-        TrackingStatus::INVALID,
-        getRelativePoseBodyStereo(),
-        *stereoFrame_lkf_,
-        pim,
-        getTrackerInfo());
+    return VIO::make_unique<FrontendOutput>(false,
+                                            status_stereo_measurements,
+                                            TrackingStatus::INVALID,
+                                            getRelativePoseBodyStereo(),
+                                            *stereoFrame_lkf_,
+                                            pim,
+                                            getTrackerInfo());
   }
 }
 

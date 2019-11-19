@@ -142,19 +142,15 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   FrameId cur_kf_id = random_eng_();
   int landmark_count = random_eng_();
 
-
-  logger_->logBackendOutput(
-      VioBackEndOutputPayload(
-          timestamp,
-          state_values,
-          W_Pose_Blkf,
-          W_Vel_Blkf,
-          imu_bias,
-          gtsam::Matrix(),
-          cur_kf_id,
-          landmark_count,
-          DebugVioInfo()));
-
+  logger_->logBackendOutput(BackendOutput(timestamp,
+                                          state_values,
+                                          W_Pose_Blkf,
+                                          W_Vel_Blkf,
+                                          imu_bias,
+                                          gtsam::Matrix(),
+                                          cur_kf_id,
+                                          landmark_count,
+                                          DebugVioInfo()));
 
   // First check the output_posesVIO.csv results file.
   std::string results_csv = FLAGS_output_path + "output_posesVIO.csv";

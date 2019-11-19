@@ -89,6 +89,7 @@ Visualizer3D::WindowData::WindowData()
 
 /* -------------------------------------------------------------------------- */
 VisualizerInput::VisualizerInput(
+    const Timestamp& timestamp,
     const gtsam::Pose3& pose,
     const StereoFrame& stereo_keyframe,
     const MesherOutput::Ptr& mesher_output_payload,
@@ -97,7 +98,8 @@ VisualizerInput::VisualizerInput(
     const std::vector<Plane>& planes,
     const gtsam::NonlinearFactorGraph& graph,
     const gtsam::Values& values)
-    : pose_(pose),
+    : PipelinePayload(timestamp),
+      pose_(pose),
       stereo_keyframe_(stereo_keyframe),
       mesher_output_payload_(std::move(mesher_output_payload)),
       points_with_id_VIO_(points_with_id_VIO),

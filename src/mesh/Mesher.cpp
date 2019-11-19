@@ -176,8 +176,7 @@ Mesher::Mesher(const MesherParams& mesher_params)
 
 MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
   MesherOutput::UniquePtr mesher_output_payload =
-      VIO::make_unique<MesherOutput>();
-  mesher_output_payload->timestamp_ = input.timestamp_;
+      VIO::make_unique<MesherOutput>(input.timestamp_);
   updateMesh3D(
       input,
       // TODO REMOVE THIS FLAG MAKE MESH_2D Optional!
@@ -1341,16 +1340,18 @@ void Mesher::updateMesh3D(const MesherInput& mesher_payload,
                           Mesh2D* mesh_2d,
                           std::vector<cv::Vec6f>* mesh_2d_for_viz,
                           std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
-  updateMesh3D(
-      mesher_payload.points_with_id_vio_,
-      mesher_payload.keypoints_,
-      mesher_payload.keypoints_status_,
-      mesher_payload.keypoints_3d_,
-      mesher_payload.landmarks_,
-      mesher_payload.W_Pose_B_.compose(mesher_params_.B_Pose_camLrect_),
-      mesh_2d,
-      mesh_2d_for_viz,
-      mesh_2d_filtered_for_viz);
+  const StereoFrame& stereo_frame =
+      mesher_payload.frontend_payload_->stereo_frame_lkf_;
+  updateMesh3D(mesher_payload.points_with_id_vio_,
+               stereo_frame.getLeftFrame().keypoints_,
+               stereo_frame.right_keypoints_status_,
+               stereo_frame.keypoints_3d_,
+               stereo_frame.getLeftFrame().landmarks_,
+               mesher_payload.backend_payload_->W_State_Blkf_.pose_.compose(
+                   mesher_params_.B_Pose_camLrect_),
+               mesh_2d,
+               mesh_2d_for_viz,
+               mesh_2d_filtered_for_viz);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -24,6 +24,7 @@
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/mesh/Mesher.h"
+#include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsGTSAM.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -37,11 +38,12 @@ enum class VisualizationType {
   NONE               // does not visualize map
 };
 
-struct VisualizerInput {
+struct VisualizerInput : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(VisualizerInput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  VisualizerInput(const gtsam::Pose3& pose,
+  VisualizerInput(const Timestamp& timestamp,
+                  const gtsam::Pose3& pose,
                   const StereoFrame& stereo_keyframe,
                   const MesherOutput::Ptr& mesher_output_payload,
                   const PointsWithIdMap& points_with_id_VIO,
@@ -584,8 +586,8 @@ class VisualizerModule
  public:
   KIMERA_POINTER_TYPEDEFS(VisualizerModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerModule);
-  using VizFrontendInput = StereoFrontEndOutputPayload::Ptr;
-  using VizBackendInput = VioBackEndOutputPayload::Ptr;
+  using VizFrontendInput = FrontendOutput::Ptr;
+  using VizBackendInput = BackendOutput::Ptr;
   using VizMesherInput = MesherOutput::Ptr;
 
   VisualizerModule(bool parallel_run, Visualizer3D::UniquePtr visualizer)
@@ -684,6 +686,7 @@ class VisualizerModule
     // TODO(TONI): store the payloads' pointers in the visualizer payload
     // so that no copies are done, nor we have dangling references!
     return VIO::make_unique<VisualizerInput>(
+        timestamp,
         // Pose for trajectory viz.
         backend_payload->W_State_Blkf_.pose_ *
             stereo_keyframe

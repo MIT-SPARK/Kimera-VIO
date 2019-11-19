@@ -23,15 +23,14 @@
 
 namespace VIO {
 
-class VioBackEndModule : public SIMOPipelineModule<VioBackEndInputPayload,
-                                                   VioBackEndOutputPayload> {
+class VioBackEndModule
+    : public SIMOPipelineModule<BackendInput, BackendOutput> {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(VioBackEndModule);
   KIMERA_POINTER_TYPEDEFS(VioBackEndModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  using SIMO =
-      SIMOPipelineModule<VioBackEndInputPayload, VioBackEndOutputPayload>;
+  using SIMO = SIMOPipelineModule<BackendInput, BackendOutput>;
   using InputQueue = ThreadsafeQueue<typename PIO::InputPtr>;
 
   /**
@@ -50,7 +49,7 @@ class VioBackEndModule : public SIMOPipelineModule<VioBackEndInputPayload,
   }
   virtual ~VioBackEndModule() = default;
 
-  virtual OutputPtr spinOnce(const VioBackEndInputPayload& input) {
+  virtual OutputPtr spinOnce(const BackendInput& input) {
     return vio_backend_->spinOnce(input);
   };
 
