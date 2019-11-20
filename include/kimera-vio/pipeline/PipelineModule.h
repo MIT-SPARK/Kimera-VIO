@@ -140,6 +140,8 @@ class PipelineModule {
    * @return a boolean indicating whether the generation of the input packet was
    * successful.
    */
+  // TODO(Toni): given a list of queues, syncronize them and get an output
+  // payload. Maybe keep a list of input queues, that the user can provide.
   virtual inline InputPtr getInputPacket() = 0;
 
   /**
@@ -287,7 +289,7 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
    * successful.
    */
   virtual inline typename PIO::InputPtr getInputPacket() override {
-    typename PIO::InputPtr input;
+    typename PIO::InputPtr input = nullptr;
     bool queue_state = false;
     if (PIO::parallel_run_) {
       queue_state = input_queue_->popBlocking(input);
@@ -416,7 +418,7 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
    * successful.
    */
   virtual inline typename MISO::InputPtr getInputPacket() override {
-    typename MISO::InputPtr input;
+    typename MISO::InputPtr input = nullptr;
     bool queue_state = false;
     if (MISO::parallel_run_) {
       queue_state = input_queue_->popBlocking(input);
