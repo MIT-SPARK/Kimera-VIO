@@ -7,9 +7,9 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   Mesher.h
- * @brief  Build and visualize 2D mesh from Frame
- * @author Antoni Rosinol, Luca Carlone
+ * @file   Mesher.cpp
+ * @brief  Build and visualize 3D mesh from 2D mesh
+ * @author Antoni Rosinol
  */
 
 #include "kimera-vio/mesh/Mesher.h"

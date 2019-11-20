@@ -30,7 +30,7 @@
 #include "kimera-vio/frontend/StereoVisionFrontEnd.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
-#include "kimera-vio/mesh/Mesher.h"
+#include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"

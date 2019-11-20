@@ -8,8 +8,8 @@
 
 /**
  * @file   Mesher.h
- * @brief  Build and visualize 2D mesh from Frame
- * @author Antoni Rosinol, Luca Carlone
+ * @brief  Build 3D mesh from 2D mesh.
+ * @author Antoni Rosinol
  */
 
 #pragma once
@@ -21,129 +21,15 @@
 #include <utility>  // for move
 #include <vector>
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-#include <opencv2/viz/vizcore.hpp>
 
-#include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/mesh/Mesh.h"
-#include "kimera-vio/pipeline/Pipeline-definitions.h"
-#include "kimera-vio/pipeline/PipelineModule.h"
+#include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/Histogram.h"
 #include "kimera-vio/utils/Macros.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
 
 namespace VIO {
-
-enum class MesherType {
-  //! Generates a per-frame 2D mesh and projects it to 3D.
-  PROJECTIVE = 0,
-};
-
-struct MesherParams {
-  KIMERA_POINTER_TYPEDEFS(MesherParams);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  MesherParams(const gtsam::Pose3& B_Pose_camLrect, const cv::Size& img_size)
-      : B_Pose_camLrect_(B_Pose_camLrect), img_size_(img_size) {}
-  //! B_Pose_camLrect pose of the rectified camera wrt body frame of ref.
-  gtsam::Pose3 B_Pose_camLrect_;
-  //! img_size size of the camera's images used for 2D triangulation.
-  cv::Size img_size_;
-};
-
-struct MesherInput : public PipelinePayload {
- public:
-  KIMERA_POINTER_TYPEDEFS(MesherInput);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherInput);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  // Copy the pointers so that we do not need to copy the data, we will
-  // reference to it via the copied pointers.
-  MesherInput(
-      const Timestamp& timestamp,
-      const FrontendOutput::Ptr& frontend_payload,
-      const BackendOutput::Ptr& backend_payload,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-      : PipelinePayload(timestamp),
-        frontend_payload_(frontend_payload),
-        backend_payload_(backend_payload),
-        points_with_id_vio_(points_with_id_vio) {
-    CHECK_EQ(timestamp, frontend_payload->timestamp_);
-    CHECK_EQ(timestamp, backend_payload->timestamp_);
-  }
-  virtual ~MesherInput() = default;
-
-  // Copy the pointers so that we do not need to copy the data.
-  const FrontendOutput::ConstPtr frontend_payload_;
-  const BackendOutput::ConstPtr backend_payload_;
-
-  // TODO(Toni): this should be in the backend payload.
-  const std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_vio_;
-};
-
-struct MesherOutput : public PipelinePayload {
- public:
-  KIMERA_POINTER_TYPEDEFS(MesherOutput);
-  // TODO(Toni): delete copy constructors
-  // KIMERA_DELETE_COPY_CONSTRUCTORS(MesherOutput);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  explicit MesherOutput(const Timestamp& timestamp)
-      : PipelinePayload(timestamp),
-        mesh_2d_(3),
-        mesh_3d_(3),
-        mesh_2d_for_viz_(),
-        mesh_2d_filtered_for_viz_() {}
-
-  MesherOutput(const Timestamp& timestamp,
-               Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
-               Mesh3D&& mesh_3d,  // Use move semantics for the actual 3d mesh.
-               const std::vector<cv::Vec6f>& mesh_2d_for_viz,
-               const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
-      : PipelinePayload(timestamp),
-        mesh_2d_(std::move(mesh_2d)),
-        mesh_3d_(std::move(mesh_3d)),
-        mesh_2d_for_viz_(mesh_2d_for_viz),
-        mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
-
-  explicit MesherOutput(const MesherOutput::Ptr& in)
-      : PipelinePayload(in ? in->timestamp_ : Timestamp()),
-        mesh_2d_(3),
-        mesh_3d_(3),
-        mesh_2d_for_viz_(in ? in->mesh_2d_for_viz_
-                            : std::vector<cv::Vec6f>()),  // yet another copy...
-        mesh_2d_filtered_for_viz_(in ? in->mesh_2d_filtered_for_viz_
-                                     : std::vector<cv::Vec6f>()) {}
-
-  virtual ~MesherOutput() = default;
-
-  // Default copy ctor.
-  MesherOutput(const MesherOutput& rhs) = default;
-  // Default copy assignment operator.
-  MesherOutput& operator=(const MesherOutput& rhs) = default;
-
-  // Use default move ctor and move assignment operator.
-  MesherOutput(MesherOutput&&) = default;
-  MesherOutput& operator=(MesherOutput&&) = default;
-
- public:
-  Mesh2D mesh_2d_;
-  Mesh3D mesh_3d_;
-
-  // 2D Mesh visualization.
-  std::vector<cv::Vec6f> mesh_2d_for_viz_;
-  std::vector<cv::Vec6f> mesh_2d_filtered_for_viz_;
-
-  // 3D Mesh using underlying storage type, aka a list of vertices, together
-  // with a list of polygons represented as vertices ids pointing to the list
-  // of vertices. (see OpenCV way of storing a Mesh)
-  // https://docs.opencv.org/3.4/dc/d4f/classcv_1_1viz_1_1Mesh.html#ac4482e5c832f2bd24bb697c340eaf853
-  cv::Mat vertices_mesh_;
-  cv::Mat polygons_mesh_;
-};
 
 class Mesher {
  public:
@@ -527,136 +413,6 @@ class Mesher {
       const cv::Size& img_size,
       std::vector<std::pair<LandmarkId, gtsam::Point3>>* lmk_with_id_stereo =
           nullptr);
-};
-
-class MesherFactory {
- public:
-  KIMERA_POINTER_TYPEDEFS(MesherFactory);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherFactory);
-  MesherFactory() = delete;
-  virtual ~MesherFactory() = default;
-  static Mesher::UniquePtr createMesher(const MesherType& mesher_type,
-                                        const MesherParams& mesher_params) {
-    switch (mesher_type) {
-      case MesherType::PROJECTIVE: {
-        return VIO::make_unique<Mesher>(mesher_params);
-      }
-      default: {
-        LOG(FATAL) << "Requested mesher type is not supported.\n"
-                   << static_cast<int>(mesher_type);
-      }
-    }
-  }
-};
-
-class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
- public:
-  KIMERA_POINTER_TYPEDEFS(MesherModule);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherModule);
-  using MesherFrontendInput = FrontendOutput::Ptr;
-  using MesherBackendInput = BackendOutput::Ptr;
-  // TODO(Toni): using this callback generates copies...
-  using MesherOutputCallback = std::function<void(const MesherOutput& output)>;
-
-  MesherModule(bool parallel_run, Mesher::UniquePtr mesher)
-      : MIMOPipelineModule<MesherInput, MesherOutput>("Mesher", parallel_run),
-        frontend_payload_queue_(""),
-        backend_payload_queue_(""),
-        mesher_(std::move(mesher)) {}
-  virtual ~MesherModule() = default;
-
-  //! Callbacks to fill queues: they should be all lighting fast.
-  inline void fillFrontendQueue(const MesherFrontendInput& frontend_payload) {
-    frontend_payload_queue_.push(frontend_payload);
-  }
-  inline void fillBackendQueue(const MesherBackendInput& backend_payload) {
-    backend_payload_queue_.push(backend_payload);
-  }
-
- protected:
-  //! Synchronize input queues. Currently doing it in a crude way:
-  //! Pop blocking the payload that should be the last to be computed,
-  //! then loop over the other queues until you get a payload that has exactly
-  //! the same timestamp. Guaranteed to sync messages unless the assumption
-  //! on the order of msg generation is broken.
-  virtual inline InputPtr getInputPacket() override {
-    MesherBackendInput backend_payload = nullptr;
-    bool queue_state = false;
-    if (PIO::parallel_run_) {
-      queue_state = backend_payload_queue_.popBlocking(backend_payload);
-    } else {
-      queue_state = backend_payload_queue_.pop(backend_payload);
-    }
-    if (!queue_state) {
-      LOG_IF(WARNING, PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Backend queue is down";
-      VLOG_IF(1, !PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Backend queue is empty or down";
-      return nullptr;
-    }
-    CHECK(backend_payload);
-    const Timestamp& timestamp = backend_payload->timestamp_;
-
-    // Look for the synchronized packet in frontend payload queue
-    // This should always work, because it should not be possible to have
-    // a backend payload without having a frontend one first!
-    // TODO(Toni): make a getSyncedPayloadFromQueue(timestamp, &payload);
-    // utility function in pipeline module. Will need a payload baseclass
-    // that has a timestamp as a member.
-    Timestamp frontend_payload_timestamp =
-        std::numeric_limits<Timestamp>::max();
-    MesherFrontendInput frontend_payload = nullptr;
-    while (timestamp != frontend_payload_timestamp) {
-      if (!frontend_payload_queue_.pop(frontend_payload)) {
-        // We had a backend input but no frontend input, something's wrong.
-        LOG(ERROR) << name_id_ << "'s frontend payload queue is empty or "
-                   << "has been shutdown.";
-        return nullptr;
-      } else {
-        VLOG(5) << "Popping frontend_payload.";
-      }
-      if (frontend_payload) {
-        frontend_payload_timestamp = frontend_payload->timestamp_;
-      } else {
-        LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
-      }
-    }
-    CHECK(frontend_payload);
-
-    return VIO::make_unique<MesherInput>(
-        timestamp,
-        frontend_payload,
-        backend_payload,
-        // TODO(Toni): call getMapLmkIdsto3dPointsInTimeHorizon from
-        // backend for this functionality.
-        PointsWithIdMap());
-  }
-
-  virtual OutputPtr spinOnce(const MesherInput& input) override {
-    return mesher_->spinOnce(input);
-  }
-
- protected:
-  //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override {
-    LOG(INFO) << "Shutting down queues for: " << name_id_;
-    frontend_payload_queue_.shutdown();
-    backend_payload_queue_.shutdown();
-  };
-
-  //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override {
-    // We don't check frontend queue because it runs faster than backend queue.
-    return backend_payload_queue_.empty();
-  };
-
- private:
-  //! Input Queues
-  ThreadsafeQueue<MesherFrontendInput> frontend_payload_queue_;
-  ThreadsafeQueue<MesherBackendInput> backend_payload_queue_;
-
-  //! Mesher implementation
-  Mesher::UniquePtr mesher_;
 };
 
 }  // namespace VIO
