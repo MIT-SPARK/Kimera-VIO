@@ -25,7 +25,7 @@
 #include <gtsam/geometry/Pose3.h>
 
 #include "kimera-vio/backend/VioBackEndFactory.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd.h"
+#include "kimera-vio/frontend/VisionFrontEndFactory.h"
 #include "kimera-vio/initial/InitializationBackEnd.h"
 #include "kimera-vio/initial/InitializationFromImu.h"
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
@@ -132,11 +132,11 @@ Pipeline::Pipeline(const PipelineParams& params)
   vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
       &stereo_frontend_input_queue_,
       parallel_run_,
-      FrontEndFactory::createFrontend(params.frontend_type_,
-                                      params.imu_params_,
-                                      gtsam::imuBias::ConstantBias(),
-                                      params.frontend_params_,
-                                      FLAGS_log_output));
+      VisionFrontEndFactory::createFrontend(params.frontend_type_,
+                                            params.imu_params_,
+                                            gtsam::imuBias::ConstantBias(),
+                                            params.frontend_params_,
+                                            FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerCallback(
       [&backend_input_queue](const FrontendOutput::Ptr& output) {

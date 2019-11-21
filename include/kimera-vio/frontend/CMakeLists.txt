@@ -10,6 +10,8 @@ target_sources(KimeraVIO PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/StereoImuSyncPacket.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/StereoVisionFrontEnd.h"
+  "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndModule.h"
+  "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndFactory.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker.h"
   "${CMAKE_CURRENT_LIST_DIR}/VioFrontEndParams.h"

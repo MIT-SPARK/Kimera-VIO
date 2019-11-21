@@ -12,6 +12,8 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
+// TODO(Toni): put tracker in another folder.
+
 #pragma once
 
 #include <time.h>

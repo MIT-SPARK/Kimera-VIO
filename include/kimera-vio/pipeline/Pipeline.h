@@ -27,7 +27,7 @@
 #include "kimera-vio/datasource/DataSource-definitions.h"
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
-#include "kimera-vio/frontend/StereoVisionFrontEnd.h"
+#include "kimera-vio/frontend/VisionFrontEndModule.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/mesh/MesherModule.h"
