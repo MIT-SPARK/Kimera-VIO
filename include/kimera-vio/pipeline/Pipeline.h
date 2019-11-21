@@ -160,7 +160,7 @@ class Pipeline {
 
   // TODO this should go to another class to avoid not having copy-ctor...
   // Frontend.
-  std::unique_ptr<StereoVisionFrontEndModule> vio_frontend_module_;
+  StereoVisionFrontEndModule::UniquePtr vio_frontend_module_;
   std::unique_ptr<FeatureSelector> feature_selector_;
 
   // Stereo vision frontend payloads.
@@ -171,7 +171,7 @@ class Pipeline {
       initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
-  std::unique_ptr<VioBackEndModule> vio_backend_module_;
+  VioBackEndModule::UniquePtr vio_backend_module_;
 
   // Thread-safe queue for the backend.
   VioBackEndModule::InputQueue backend_input_queue_;
