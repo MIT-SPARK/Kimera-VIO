@@ -24,7 +24,6 @@
 
 #include <gtsam/geometry/Pose3.h>
 
-#include "kimera-vio/backend/RegularVioBackEnd.h"
 #include "kimera-vio/backend/VioBackEndFactory.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd.h"
 #include "kimera-vio/initial/InitializationBackEnd.h"
@@ -33,6 +32,7 @@
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 DEFINE_bool(log_output, false, "Log output to CSV files.");
 DEFINE_bool(extract_planes_from_the_scene,

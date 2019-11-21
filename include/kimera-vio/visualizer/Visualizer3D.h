@@ -17,69 +17,17 @@
 #include <vector>
 
 #include <glog/logging.h>
+
+#include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/nonlinear/Values.h>
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/logging/Logger.h"
-#include "kimera-vio/mesh/Mesher.h"
-#include "kimera-vio/pipeline/PipelineModule.h"
+#include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/utils/Macros.h"
-#include "kimera-vio/utils/UtilsGTSAM.h"
-#include "kimera-vio/utils/UtilsOpenCV.h"
+#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 
 namespace VIO {
-
-enum class VisualizationType {
-  MESH2DTo3Dsparse,  // same as MESH2DTo3D but filters out triangles
-                     // corresponding to non planar obstacles
-  POINTCLOUD,        // visualize 3D VIO points  (no repeated point)
-  NONE               // does not visualize map
-};
-
-struct VisualizerInput : public PipelinePayload {
-  KIMERA_POINTER_TYPEDEFS(VisualizerInput);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerInput);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  VisualizerInput(const Timestamp& timestamp,
-                  const gtsam::Pose3& pose,
-                  const StereoFrame& stereo_keyframe,
-                  const MesherOutput::Ptr& mesher_output_payload,
-                  const PointsWithIdMap& points_with_id_VIO,
-                  const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
-                  const std::vector<Plane>& planes,
-                  const gtsam::NonlinearFactorGraph& graph,
-                  const gtsam::Values& values);
-
-  const gtsam::Pose3 pose_;
-  const StereoFrame stereo_keyframe_;
-  const MesherOutput::Ptr mesher_output_payload_;
-  const PointsWithIdMap points_with_id_VIO_;
-  const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
-  const std::vector<Plane> planes_;
-  const gtsam::NonlinearFactorGraph graph_;
-  const gtsam::Values values_;
-};
-
-struct ImageToDisplay {
-  ImageToDisplay() = default;
-  ImageToDisplay(const std::string& name, const cv::Mat& image);
-
-  std::string name_;
-  cv::Mat image_;
-};
-
-struct VisualizerOutput {
-  KIMERA_POINTER_TYPEDEFS(VisualizerOutput);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerOutput);
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  VisualizerOutput() = default;
-  ~VisualizerOutput() = default;
-  VisualizationType visualization_type_ = VisualizationType::NONE;
-  std::vector<ImageToDisplay> images_to_display_;
-  cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
-};
 
 class Visualizer3D {
  public:
@@ -123,7 +71,7 @@ class Visualizer3D {
 
   /* ------------------------------------------------------------------------ */
   inline void registerMesh3dVizProperties(
-      Mesher::Mesh3dVizPropertiesSetterCallback cb) {
+      Mesh3dVizPropertiesSetterCallback cb) {
     mesh3d_viz_properties_callback_ = cb;
   }
 
@@ -267,16 +215,17 @@ class Visualizer3D {
   void recordVideo();
 
   /* ------------------------------------------------------------------------ */
-  static Mesher::Mesh3DVizProperties texturizeMesh3D(
-      const Timestamp& image_timestamp, const cv::Mat& texture_image,
-      const Mesh2D& mesh_2d, const Mesh3D& mesh_3d) {
+  static Mesh3DVizProperties texturizeMesh3D(const Timestamp& image_timestamp,
+                                             const cv::Mat& texture_image,
+                                             const Mesh2D& mesh_2d,
+                                             const Mesh3D& mesh_3d) {
     // Dummy checks for valid data.
     CHECK(!texture_image.empty());
     CHECK_GE(mesh_2d.getNumberOfUniqueVertices(), 0);
     CHECK_GE(mesh_3d.getNumberOfUniqueVertices(), 0);
 
     // Let us fill the mesh 3d viz properties structure.
-    Mesher::Mesh3DVizProperties mesh_3d_viz_props;
+    Mesh3DVizProperties mesh_3d_viz_props;
 
     // Color all vertices in red. Each polygon will be colored according
     // to a mix of the three vertices colors I think...
@@ -370,7 +319,7 @@ class Visualizer3D {
 
   // Callbacks.
   // Mesh 3d visualization properties setter callback.
-  Mesher::Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
+  Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
 
   std::deque<cv::Affine3f> trajectoryPoses3d_;
 
@@ -548,201 +497,6 @@ class Visualizer3D {
       window_data.window_.saveScreenshot(filename);
     }
   }
-};
-
-enum class VisualizerType {
-  //! OpenCV 3D viz, uses VTK underneath the hood.
-  OpenCV = 0u,
-};
-
-class VisualizerFactory {
- public:
-  KIMERA_POINTER_TYPEDEFS(VisualizerFactory);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerFactory);
-  VisualizerFactory() = delete;
-  virtual ~VisualizerFactory() = default;
-
-  static Visualizer3D::UniquePtr createVisualizer(
-      const VisualizerType visualizer_type,
-      const VisualizationType& viz_type,
-      const BackendType& backend_type) {
-    switch (visualizer_type) {
-      case VisualizerType::OpenCV: {
-        return VIO::make_unique<Visualizer3D>(viz_type, backend_type);
-      }
-      default: {
-        LOG(FATAL) << "Requested visualizer type is not supported.\n"
-                   << "Currently supported visualizer types:\n"
-                   << "0: OpenCV 3D viz\n 1: Pangolin (not supported yet)\n"
-                   << " but requested visualizer: "
-                   << static_cast<int>(visualizer_type);
-      }
-    }
-  }
-};
-
-class VisualizerModule
-    : public MIMOPipelineModule<VisualizerInput, VisualizerOutput> {
- public:
-  KIMERA_POINTER_TYPEDEFS(VisualizerModule);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerModule);
-  using VizFrontendInput = FrontendOutput::Ptr;
-  using VizBackendInput = BackendOutput::Ptr;
-  using VizMesherInput = MesherOutput::Ptr;
-
-  VisualizerModule(bool parallel_run, Visualizer3D::UniquePtr visualizer)
-      : MIMOPipelineModule<VisualizerInput, VisualizerOutput>("Visualizer",
-                                                              parallel_run),
-        frontend_queue_(""),
-        backend_queue_(""),
-        mesher_queue_(""),
-        visualizer_(std::move(visualizer)){};
-  virtual ~VisualizerModule() = default;
-
-  //! Callbacks to fill queues: they should be all lighting fast.
-  inline void fillFrontendQueue(const VizFrontendInput& frontend_payload) {
-    frontend_queue_.push(frontend_payload);
-  }
-  inline void fillBackendQueue(const VizBackendInput& backend_payload) {
-    backend_queue_.push(backend_payload);
-  }
-  inline void fillMesherQueue(const VizMesherInput& mesher_payload) {
-    mesher_queue_.push(mesher_payload);
-  }
-
- protected:
-  //! Synchronize input queues. Currently doing it in a crude way:
-  //! Pop blocking the payload that should be the last to be computed,
-  //! then loop over the other queues until you get a payload that has exactly
-  //! the same timestamp. Guaranteed to sync messages unless the assumption
-  //! on the order of msg generation is broken.
-  virtual inline InputPtr getInputPacket() override {
-    bool queue_state = false;
-    VizMesherInput mesher_payload = nullptr;
-    if (PIO::parallel_run_) {
-      queue_state = mesher_queue_.popBlocking(mesher_payload);
-    } else {
-      queue_state = mesher_queue_.pop(mesher_payload);
-    }
-    if (!queue_state) {
-      LOG_IF(WARNING, PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Mesher queue is down";
-      VLOG_IF(1, !PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Mesher queue is empty or down";
-      return nullptr;
-    }
-    CHECK(mesher_payload);
-    const Timestamp& timestamp = mesher_payload->timestamp_;
-
-    // Look for the synchronized packet in frontend payload queue
-    // This should always work, because it should not be possible to have
-    // a backend payload without having a frontend one first!
-    Timestamp frontend_payload_timestamp =
-        std::numeric_limits<Timestamp>::max();
-    VizFrontendInput frontend_payload = nullptr;
-    while (timestamp != frontend_payload_timestamp) {
-      // Pop will remove messages until the queue is empty.
-      // This assumes the mesher ends processing after the frontend queue
-      // has been filled (it could happen that frontend_queue_ didn't receive
-      // the msg before mesher finishes, but that is very unlikely, unless
-      // the queue is blocked by someone...)
-      if (!frontend_queue_.pop(frontend_payload)) {
-        // We had a mesher input but no frontend input, something's wrong.
-        // We assume mesher runs after frontend.
-        LOG(ERROR) << name_id_
-                   << "'s frontend payload queue is empty or "
-                      "has been shutdown.";
-        return nullptr;
-      }
-      if (frontend_payload) {
-        frontend_payload_timestamp =
-            frontend_payload->stereo_frame_lkf_.getTimestamp();
-      } else {
-        LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
-      }
-    }
-    CHECK(frontend_payload);
-
-    Timestamp backend_payload_timestamp = std::numeric_limits<Timestamp>::max();
-    VizBackendInput backend_payload = nullptr;
-    while (timestamp != backend_payload_timestamp) {
-      if (!backend_queue_.pop(backend_payload)) {
-        // We had a mesher input but no backend input, something's wrong.
-        // We assume mesher runs after backend.
-        LOG(ERROR) << "Visualizer's backend payload queue is empty or "
-                      "has been shutdown.";
-        return nullptr;
-      }
-      if (backend_payload) {
-        backend_payload_timestamp = backend_payload->W_State_Blkf_.timestamp_;
-      } else {
-        LOG(WARNING) << "Missing backend payload for Module: " << name_id_;
-      }
-    }
-    CHECK(backend_payload);
-
-    // Push the synced messages to the visualizer's input queue
-    const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
-    // TODO(TONI): store the payloads' pointers in the visualizer payload
-    // so that no copies are done, nor we have dangling references!
-    return VIO::make_unique<VisualizerInput>(
-        timestamp,
-        // Pose for trajectory viz.
-        backend_payload->W_State_Blkf_.pose_ *
-            stereo_keyframe
-                .getBPoseCamLRect(),  // This should be pass at ctor level...
-        // For visualizeMesh2D and visualizeMesh2DStereo.
-        stereo_keyframe,
-        // visualizeConvexHull & visualizeMesh3DWithColoredClusters
-        std::move(mesher_payload),
-        // PointsWithIdMap() should be:
-        // visualization_type == VisualizationType::POINTCLOUD
-        //    ? vio_backend_module_
-        //          ->getMapLmkIdsTo3dPointsInTimeHorizon()  // not thread-safe
-        //    : points_with_id_VIO,
-        PointsWithIdMap(),
-        // visualizeMesh3DWithColoredClusters & visualizePoints3D
-        // LmkIdToLmkTypeMap should be lmk_id_to_lmk_type_map,
-        LmkIdToLmkTypeMap(),
-        // Should be planes_
-        std::vector<Plane>(),
-        // vio_backend_module_->getFactorsUnsafe(),
-        // For plane constraints viz.
-        gtsam::NonlinearFactorGraph(),
-        backend_payload->state_  // For planes and plane constraints viz.
-    );
-  }
-
-  virtual OutputPtr spinOnce(const VisualizerInput& input) override {
-    return visualizer_->spinOnce(input);
-  }
-
-  //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override {
-    LOG(INFO) << "Shutting down queues for: " << name_id_;
-    frontend_queue_.shutdown();
-    backend_queue_.shutdown();
-    mesher_queue_.shutdown();
-  };
-
-  //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override {
-    LOG_IF(WARNING, mesher_queue_.empty() && !backend_queue_.empty())
-        << "Mesher queue is empty, yet backend queue is not!"
-           "This should not happen since Mesher runs at Backend pace!";
-    // We don't check frontend queue because it runs faster than the other two
-    // queues.
-    return mesher_queue_.empty();
-  };
-
- private:
-  //! Input Queues
-  ThreadsafeQueue<VizFrontendInput> frontend_queue_;
-  ThreadsafeQueue<VizBackendInput> backend_queue_;
-  ThreadsafeQueue<VizMesherInput> mesher_queue_;
-
-  //! Visualizer implementation
-  Visualizer3D::UniquePtr visualizer_;
 };
 
 }  // namespace VIO

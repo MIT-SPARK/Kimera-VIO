@@ -14,16 +14,17 @@
 
 #pragma once
 
-#include "kimera-vio/utils/Macros.h"
-
+#include <functional>
 #include <vector>
 
 #include <gtsam/geometry/Pose3.h>
 
 #include <opencv2/opencv.hpp>
 
+#include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/mesh/Mesh.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
+#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
@@ -31,6 +32,30 @@ enum class MesherType {
   //! Generates a per-frame 2D mesh and projects it to 3D.
   PROJECTIVE = 0,
 };
+
+/**
+ * @brief Structure storing mesh 3d visualization properties.
+ */
+struct Mesh3DVizProperties {
+ public:
+  // List of RGB colors, one color (three entries R G B) for each vertex in
+  // the Mesh3D. Therefore, colors must have same number of rows than the
+  // number of vertices in the 3D mesh and three cols for each RGB entry.
+  cv::Mat colors_;
+  // Texture coordinates.
+  cv::Mat tcoords_;
+  // Texture image.
+  cv::Mat texture_;
+};
+/** Given the following:
+ * Left image in colors, Mesh in 2D, Mesh in 3D.
+ * Returns Colors of the Mesh3D. Each color representing a semantic class.
+ */
+typedef std::function<Mesh3DVizProperties(const Timestamp& img_left_timestamp,
+                                          const cv::Mat& img_left,
+                                          const Mesh2D&,
+                                          const Mesh3D&)>
+    Mesh3dVizPropertiesSetterCallback;
 
 struct MesherParams {
   KIMERA_POINTER_TYPEDEFS(MesherParams);

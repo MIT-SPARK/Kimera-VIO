@@ -27,6 +27,7 @@
 #include "kimera-vio/common/FilesystemUtils.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsGTSAM.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 #include "kimera-vio/factors/PointPlaneFactor.h"  // For visualization of constraints.
@@ -87,30 +88,6 @@ Visualizer3D::WindowData::WindowData()
       mesh_ambient_(FLAGS_set_mesh_ambient),
       mesh_lighting_(FLAGS_set_mesh_lighting) {}
 
-/* -------------------------------------------------------------------------- */
-VisualizerInput::VisualizerInput(
-    const Timestamp& timestamp,
-    const gtsam::Pose3& pose,
-    const StereoFrame& stereo_keyframe,
-    const MesherOutput::Ptr& mesher_output_payload,
-    const PointsWithIdMap& points_with_id_VIO,
-    const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
-    const std::vector<Plane>& planes,
-    const gtsam::NonlinearFactorGraph& graph,
-    const gtsam::Values& values)
-    : PipelinePayload(timestamp),
-      pose_(pose),
-      stereo_keyframe_(stereo_keyframe),
-      mesher_output_payload_(std::move(mesher_output_payload)),
-      points_with_id_VIO_(points_with_id_VIO),
-      lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
-      planes_(planes),
-      graph_(graph),
-      values_(values) {}
-
-/* -------------------------------------------------------------------------- */
-ImageToDisplay::ImageToDisplay(const std::string& name, const cv::Mat& image)
-    : name_(name), image_(image) {}
 
 /* -------------------------------------------------------------------------- */
 Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
@@ -177,7 +154,7 @@ VisualizerOutput::Ptr Visualizer3D::spinOnce(const VisualizerInput& input) {
       static LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_prev;
       static cv::Mat vertices_mesh_prev;
       static cv::Mat polygons_mesh_prev;
-      static Mesher::Mesh3DVizProperties mesh_3d_viz_props_prev;
+      static Mesh3DVizProperties mesh_3d_viz_props_prev;
 
       if (FLAGS_visualize_mesh) {
         VLOG(10) << "Visualize mesh.";
@@ -340,7 +317,7 @@ VisualizerOutput::Ptr Visualizer3D::spinOnce(const VisualizerInput& input) {
                            left_stereo_keyframe.img_,
                            input.mesher_output_payload_->mesh_2d_,
                            input.mesher_output_payload_->mesh_3d_)
-                     : Mesher::Mesh3DVizProperties()),
+                     : Mesh3DVizProperties()),
       VLOG(10) << "Finished mesh visualization.";
 
       break;
