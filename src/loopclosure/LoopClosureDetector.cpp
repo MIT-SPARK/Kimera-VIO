@@ -794,8 +794,8 @@ double LoopClosureDetector::computeIslandScore(const DBoW2::QueryResults& q,
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
                                                 const FrameId& match_id,
-                                                std::vector<int>* i_query,
-                                                std::vector<int>* i_match,
+                                                std::vector<FrameId>* i_query,
+                                                std::vector<FrameId>* i_match,
                                                 bool cut_matches) const {
   CHECK_NOTNULL(i_query);
   CHECK_NOTNULL(i_match);
@@ -831,7 +831,7 @@ bool LoopClosureDetector::geometricVerificationNister(
   CHECK_NOTNULL(camCur_T_camRef_mono);
 
   // Find correspondences between keypoints.
-  std::vector<int> i_query, i_match;
+  std::vector<FrameId> i_query, i_match;
   computeMatchedIndices(query_id, match_id, &i_query, &i_match, true);
 
   BearingVectors query_versors, match_versors;
@@ -897,7 +897,7 @@ bool LoopClosureDetector::recoverPoseArun(const FrameId& query_id,
   CHECK_NOTNULL(bodyCur_T_bodyRef);
 
   // Find correspondences between frames.
-  std::vector<int> i_query, i_match;
+  std::vector<FrameId> i_query, i_match;
   computeMatchedIndices(query_id, match_id, &i_query, &i_match, false);
 
   Points3d f_ref, f_cur;
@@ -966,7 +966,7 @@ bool LoopClosureDetector::recoverPoseGivenRot(
   gtsam::Rot3 R = camCur_T_camRef_mono.rotation();
 
   // Find correspondences between frames.
-  std::vector<int> i_query, i_match;
+  std::vector<FrameId> i_query, i_match;
   computeMatchedIndices(query_id, match_id, &i_query, &i_match, true);
 
   Points3d f_ref, f_cur;
@@ -997,9 +997,9 @@ bool LoopClosureDetector::recoverPoseGivenRot(
     std::sort(y_coord.begin(), y_coord.end());
     std::sort(z_coord.begin(), z_coord.end());
 
-    gtsam::Point3 scaled_t(x_coord.at(int(x_coord.size() / 2)),
-                           y_coord.at(int(y_coord.size() / 2)),
-                           z_coord.at(int(z_coord.size() / 2)));
+    gtsam::Point3 scaled_t(x_coord.at(static_cast<int>(x_coord.size() / 2)),
+                           y_coord.at(static_cast<int>(y_coord.size() / 2)),
+                           z_coord.at(static_cast<int>(z_coord.size() / 2)));
 
     // Transform pose from camera frame to body frame.
     gtsam::Pose3 camCur_T_camRef_stereo(R, scaled_t);
