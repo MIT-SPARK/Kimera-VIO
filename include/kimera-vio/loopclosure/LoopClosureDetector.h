@@ -67,7 +67,7 @@ class LoopClosureDetector {
    * pushed.
    * @param[in] parallel_run The parallelized flag. If set to false, the spin
    * won't loop and instead will return at the end of each run.
-   * @reutrn True if everything goes well.
+   * @return True if everything goes well.
    */
   bool spin(ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
             bool parallel_run = true);
@@ -363,7 +363,7 @@ class LoopClosureDetector {
    *  with a frame.
    * @param[in] start_id The frame ID that starts the island.
    * @param[in] end_id The frame ID that ends the island.
-   * @reutrn The score of the island.
+   * @return The score of the island.
    */
   double computeIslandScore(const DBoW2::QueryResults& q,
                             const FrameId& start_id,

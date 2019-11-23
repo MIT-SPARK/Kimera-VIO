@@ -969,37 +969,41 @@ bool LoopClosureDetector::recoverPoseGivenRot(
   std::vector<FrameId> i_query, i_match;
   computeMatchedIndices(query_id, match_id, &i_query, &i_match, true);
 
-  Points3d f_ref, f_cur;
-
   // Fill point clouds with matched 3D keypoints.
-  CHECK_EQ(i_query.size(), i_match.size());
-  f_ref.resize(i_match.size());
-  f_cur.resize(i_query.size());
-  for (size_t i = 0; i < i_match.size(); i++) {
-    f_cur[i] = (db_frames_[query_id].keypoints_3d_.at(i_query[i]));
-    f_ref[i] = (db_frames_[match_id].keypoints_3d_.at(i_match[i]));
-  }
+  size_t n_matches = i_match.size();
+  CHECK_EQ(i_query.size(), n_matches);
 
-  // TODO(marcus): decide between median check and scaling factor
-  std::vector<double> x_coord, y_coord, z_coord;
-  for (size_t i = 0; i < f_ref.size(); i++) {
-    gtsam::Vector3 keypoint_ref = f_ref[i];
-    gtsam::Vector3 keypoint_cur = f_cur[i];
+  if (n_matches > 0) {
+    std::vector<double> x_coord, y_coord, z_coord;
+    x_coord.reserve(n_matches);
+    y_coord.reserve(n_matches);
+    z_coord.reserve(n_matches);
 
-    gtsam::Vector3 rotated_keypoint_diff = keypoint_ref - (R * keypoint_cur);
-    x_coord.push_back(rotated_keypoint_diff[0]);
-    y_coord.push_back(rotated_keypoint_diff[1]);
-    z_coord.push_back(rotated_keypoint_diff[2]);
-  }
+    for (size_t i = 0; i < n_matches; i++) {
+      const gtsam::Vector3& keypoint_cur =
+          db_frames_[query_id].keypoints_3d_.at(i_query[i]);
+      const gtsam::Vector3& keypoint_ref =
+          db_frames_[match_id].keypoints_3d_.at(i_match[i]);
 
-  if (x_coord.size() != 0 && y_coord.size() != 0 && z_coord.size() != 0) {
+      gtsam::Vector3 rotated_keypoint_diff = keypoint_ref - (R * keypoint_cur);
+      x_coord.push_back(rotated_keypoint_diff[0]);
+      y_coord.push_back(rotated_keypoint_diff[1]);
+      z_coord.push_back(rotated_keypoint_diff[2]);
+    }
+
+    CHECK_EQ(x_coord.size(), n_matches);
+    CHECK_EQ(y_coord.size(), n_matches);
+    CHECK_EQ(z_coord.size(), n_matches);
+
+    // TODO(marcus): decide between median check and scaling factor
     std::sort(x_coord.begin(), x_coord.end());
     std::sort(y_coord.begin(), y_coord.end());
     std::sort(z_coord.begin(), z_coord.end());
 
-    gtsam::Point3 scaled_t(x_coord.at(static_cast<int>(x_coord.size() / 2)),
-                           y_coord.at(static_cast<int>(y_coord.size() / 2)),
-                           z_coord.at(static_cast<int>(z_coord.size() / 2)));
+    gtsam::Point3 scaled_t(
+        x_coord.at(std::floor(static_cast<int>(x_coord.size() / 2))),
+        y_coord.at(std::floor(static_cast<int>(y_coord.size() / 2))),
+        z_coord.at(std::floor(static_cast<int>(z_coord.size() / 2))));
 
     // Transform pose from camera frame to body frame.
     gtsam::Pose3 camCur_T_camRef_stereo(R, scaled_t);
