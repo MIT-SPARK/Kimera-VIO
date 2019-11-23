@@ -65,10 +65,7 @@ class LCDFixture :public ::testing::Test {
     LoopClosureDetectorParams params;
     params.parseYAML(lcd_test_data_path_+"/testLCDParameters.yaml");
 
-    LoopClosureDetector::InputQueue input_queue("lcd_input_queue");
-    LoopClosureDetector::OutputQueue output_queue("lcd_output_queue");
-    lcd_detector_ = VIO::make_unique<LoopClosureDetector>(
-        &input_queue, &output_queue, params, false, false);
+    lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
 
     ref1_pose_ = gtsam::Pose3(
         gtsam::Rot3(gtsam::Quaternion(0.338337, 0.608466, -0.535476, 0.478082)),
@@ -489,19 +486,16 @@ TEST_F(LCDFixture, spinOnce) {
   /* Test the full pipeline with one loop closure and full PGO optimization */
   CHECK(lcd_detector_);
   CHECK(ref1_stereo_frame_);
-  LcdOutput::UniquePtr output_0 =
-      lcd_detector_->spinOnce(LoopClosureDetectorInputPayload(
-          timestamp_ref1_, FrameId(1), *ref1_stereo_frame_, gtsam::Pose3()));
+  LcdOutput::Ptr output_0 = lcd_detector_->spinOnce(LcdInput(
+      timestamp_ref1_, FrameId(1), *ref1_stereo_frame_, gtsam::Pose3()));
 
   CHECK(ref2_stereo_frame_);
-  LcdOutput::UniquePtr output_1 =
-      lcd_detector_->spinOnce(LoopClosureDetectorInputPayload(
-          timestamp_ref2_, FrameId(2), *ref2_stereo_frame_, gtsam::Pose3()));
+  LcdOutput::Ptr output_1 = lcd_detector_->spinOnce(LcdInput(
+      timestamp_ref2_, FrameId(2), *ref2_stereo_frame_, gtsam::Pose3()));
 
   CHECK(cur1_stereo_frame_);
-  LcdOutput::UniquePtr output_2 =
-      lcd_detector_->spinOnce(LoopClosureDetectorInputPayload(
-          timestamp_cur1_, FrameId(3), *cur1_stereo_frame_, gtsam::Pose3()));
+  LcdOutput::Ptr output_2 = lcd_detector_->spinOnce(LcdInput(
+      timestamp_cur1_, FrameId(3), *cur1_stereo_frame_, gtsam::Pose3()));
 
   EXPECT_EQ(output_0->is_loop_closure_, false);
   EXPECT_EQ(output_0->timestamp_kf_, 0);

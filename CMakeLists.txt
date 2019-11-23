@@ -176,7 +176,7 @@ add_executable(testKimeraVIO
   tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testImuFrontEnd.cpp
   tests/testKittiDataProvider.cpp # TODO
-  # tests/testLoopClosureDetector.cpp # NEEDS UPDATE
+  tests/testLoopClosureDetector.cpp
   tests/testLogger.cpp
   # tests/testMesher.cpp # rotten
   tests/testParallelPlaneRegularBasicFactor.cpp
