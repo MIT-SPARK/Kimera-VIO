@@ -380,8 +380,8 @@ class LoopClosureDetector {
    */
   void computeMatchedIndices(const FrameId& query_id,
                              const FrameId& match_id,
-                             std::vector<unsigned int>* i_query,
-                             std::vector<unsigned int>* i_match,
+                             std::vector<int>* i_query,
+                             std::vector<int>* i_match,
                              bool cut_matches = false) const;
 
   /* ------------------------------------------------------------------------ */
