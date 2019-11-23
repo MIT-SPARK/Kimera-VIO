@@ -65,8 +65,10 @@ namespace VIO {
 VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
                        const StereoCalibPtr& stereo_calibration,
                        const VioBackEndParams& backend_params,
+                       const BackendOutputParams& backend_output_params,
                        bool log_output)
     : backend_params_(backend_params),
+      backend_output_params_(backend_output_params),
       backend_state_(BackendState::Bootstrap),
       timestamp_lkf_(-1),
       imu_bias_lkf_(ImuBias()),
@@ -159,6 +161,22 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
     getImuBiasPrevKf().print();
   }
 
+  // Generate extra optional backend ouputs.
+  static const bool kOutputLmkMap =
+      backend_output_params_.output_map_lmk_ids_to_3d_points_in_time_horizon_;
+  static const bool kMinLmkObs =
+      backend_output_params_.min_num_obs_for_lmks_in_time_horizon_;
+  static const bool kOutputLmkTypeMap =
+      backend_output_params_.output_lmk_id_to_lmk_type_map_;
+  LmkIdToLmkTypeMap lmk_id_to_lmk_type_map;
+  PointsWithIdMap lmk_ids_to_3d_points_in_time_horizon;
+  if (kOutputLmkMap) {
+    // Generate this map only if requested, since costly.
+    // Also, if lmk type requested, fill lmk id to lmk type object.
+    getMapLmkIdsTo3dPointsInTimeHorizon(
+        kOutputLmkTypeMap ? &lmk_id_to_lmk_type_map : nullptr, kMinLmkObs);
+  }
+
   // Create Backend Output Payload.
   BackendOutput::UniquePtr output_payload = VIO::make_unique<BackendOutput>(
       VioNavStateTimestamped(
@@ -169,7 +187,8 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
       curr_kf_id_,
       landmark_count_,
       debug_info_,
-      getMapLmkIdsTo3dPointsInTimeHorizon());
+      lmk_ids_to_3d_points_in_time_horizon,
+      lmk_id_to_lmk_type_map);
 
   if (logger_) {
     logger_->logBackendOutput(*output_payload);

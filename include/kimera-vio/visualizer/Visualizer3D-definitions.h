@@ -41,32 +41,26 @@ struct VisualizerInput : public PipelinePayload {
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VisualizerInput(const Timestamp& timestamp,
-                  const gtsam::Pose3& pose,
-                  const StereoFrame& stereo_keyframe,
-                  const MesherOutput::Ptr& mesher_output_payload,
-                  const PointsWithIdMap& points_with_id_VIO,
-                  const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
-                  const std::vector<Plane>& planes,
-                  const gtsam::NonlinearFactorGraph& graph,
-                  const gtsam::Values& values)
+                  const MesherOutput::Ptr& mesher_output,
+                  const BackendOutput::Ptr& backend_output,
+                  const FrontendOutput::Ptr& frontend_output)
       : PipelinePayload(timestamp),
-        pose_(pose),
-        stereo_keyframe_(stereo_keyframe),
-        mesher_output_payload_(std::move(mesher_output_payload)),
-        points_with_id_VIO_(points_with_id_VIO),
-        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
-        planes_(planes),
-        graph_(graph),
-        values_(values) {}
+        mesher_output_(mesher_output),
+        backend_output_(backend_output),
+        frontend_output_(frontend_output) {
+    CHECK_NOTNULL(mesher_output);
+    CHECK_NOTNULL(backend_output);
+    CHECK_NOTNULL(frontend_output);
+    CHECK_EQ(timestamp, mesher_output->timestamp_);
+    CHECK_EQ(timestamp, frontend_output->timestamp_);
+    CHECK_EQ(timestamp, backend_output->timestamp_);
+  }
+  virtual ~VisualizerInput() = default;
 
-  const gtsam::Pose3 pose_;
-  const StereoFrame stereo_keyframe_;
-  const MesherOutput::Ptr mesher_output_payload_;
-  const PointsWithIdMap points_with_id_VIO_;
-  const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
-  const std::vector<Plane> planes_;
-  const gtsam::NonlinearFactorGraph graph_;
-  const gtsam::Values values_;
+  // Copy the pointers so that we do not need to copy the data.
+  const MesherOutput::ConstPtr mesher_output_;
+  const BackendOutput::ConstPtr backend_output_;
+  const FrontendOutput::ConstPtr frontend_output_;
 };
 
 struct ImageToDisplay {

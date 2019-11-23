@@ -34,15 +34,22 @@ class BackEndFactory {
       const Pose3& B_Pose_leftCam,
       const StereoCalibPtr& stereo_calibration,
       const VioBackEndParams& backend_params,
+      const BackendOutputParams& backend_output_params,
       bool log_output) {
     switch (backend_type) {
       case BackendType::Stereo: {
-        return VIO::make_unique<VioBackEnd>(
-            B_Pose_leftCam, stereo_calibration, backend_params, log_output);
+        return VIO::make_unique<VioBackEnd>(B_Pose_leftCam,
+                                            stereo_calibration,
+                                            backend_params,
+                                            backend_output_params,
+                                            log_output);
       }
       case BackendType::StructuralRegularities: {
-        return VIO::make_unique<RegularVioBackEnd>(
-            B_Pose_leftCam, stereo_calibration, backend_params, log_output);
+        return VIO::make_unique<RegularVioBackEnd>(B_Pose_leftCam,
+                                                   stereo_calibration,
+                                                   backend_params,
+                                                   backend_output_params,
+                                                   log_output);
       }
       default: {
         LOG(FATAL) << "Requested backend type is not supported.\n"

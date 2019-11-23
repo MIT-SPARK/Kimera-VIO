@@ -38,6 +38,7 @@ class InitializationBackEnd : public VioBackEnd {
   InitializationBackEnd(const gtsam::Pose3& B_Pose_leftCam,
                         const StereoCalibPtr& stereo_calibration,
                         const VioBackEndParams& backend_params,
+                        const BackendOutputParams& backend_output_params,
                         const bool log_output = false);
 
   /* ------------------------------------------------------------------------ */

@@ -79,16 +79,18 @@ struct MesherInput : public PipelinePayload {
               const FrontendOutput::Ptr& frontend_payload,
               const BackendOutput::Ptr& backend_payload)
       : PipelinePayload(timestamp),
-        frontend_payload_(frontend_payload),
-        backend_payload_(backend_payload) {
+        frontend_output_(frontend_payload),
+        backend_output_(backend_payload) {
+    CHECK_NOTNULL(frontend_payload);
+    CHECK_NOTNULL(backend_payload);
     CHECK_EQ(timestamp, frontend_payload->timestamp_);
     CHECK_EQ(timestamp, backend_payload->timestamp_);
   }
   virtual ~MesherInput() = default;
 
   // Copy the pointers so that we do not need to copy the data.
-  const FrontendOutput::ConstPtr frontend_payload_;
-  const BackendOutput::ConstPtr backend_payload_;
+  const FrontendOutput::ConstPtr frontend_output_;
+  const BackendOutput::ConstPtr backend_output_;
 };
 
 struct MesherOutput : public PipelinePayload {
@@ -101,28 +103,27 @@ struct MesherOutput : public PipelinePayload {
       : PipelinePayload(timestamp),
         mesh_2d_(3),
         mesh_3d_(3),
-        mesh_2d_for_viz_(),
-        mesh_2d_filtered_for_viz_() {}
+        mesh_2d_for_viz_() {}
 
   MesherOutput(const Timestamp& timestamp,
                Mesh2D&& mesh_2d,  // Use move semantics for the actual 2d mesh.
                Mesh3D&& mesh_3d,  // Use move semantics for the actual 3d mesh.
-               const std::vector<cv::Vec6f>& mesh_2d_for_viz,
-               const std::vector<cv::Vec6f>& mesh_2d_filtered_for_viz)
+               const std::vector<cv::Vec6f>& mesh_2d_for_viz)
       : PipelinePayload(timestamp),
         mesh_2d_(std::move(mesh_2d)),
         mesh_3d_(std::move(mesh_3d)),
         mesh_2d_for_viz_(mesh_2d_for_viz),
-        mesh_2d_filtered_for_viz_(mesh_2d_filtered_for_viz) {}
+        // TODO(Toni): re-implement.
+        planes_() {}
 
   explicit MesherOutput(const MesherOutput::Ptr& in)
       : PipelinePayload(in ? in->timestamp_ : Timestamp()),
         mesh_2d_(3),
         mesh_3d_(3),
-        mesh_2d_for_viz_(in ? in->mesh_2d_for_viz_
-                            : std::vector<cv::Vec6f>()),  // yet another copy...
-        mesh_2d_filtered_for_viz_(in ? in->mesh_2d_filtered_for_viz_
-                                     : std::vector<cv::Vec6f>()) {}
+        // yet another copy...
+        mesh_2d_for_viz_(in ? in->mesh_2d_for_viz_ : std::vector<cv::Vec6f>()),
+        // TODO(Toni): re-implement.
+        planes_() {}
 
   virtual ~MesherOutput() = default;
 
@@ -139,9 +140,9 @@ struct MesherOutput : public PipelinePayload {
   Mesh2D mesh_2d_;
   Mesh3D mesh_3d_;
 
+  // TODO(Toni): remove, this info is already in mesh_2d_
   // 2D Mesh visualization.
   std::vector<cv::Vec6f> mesh_2d_for_viz_;
-  std::vector<cv::Vec6f> mesh_2d_filtered_for_viz_;
 
   // 3D Mesh using underlying storage type, aka a list of vertices, together
   // with a list of polygons represented as vertices ids pointing to the list
@@ -149,6 +150,9 @@ struct MesherOutput : public PipelinePayload {
   // https://docs.opencv.org/3.4/dc/d4f/classcv_1_1viz_1_1Mesh.html#ac4482e5c832f2bd24bb697c340eaf853
   cv::Mat vertices_mesh_;
   cv::Mat polygons_mesh_;
+
+  //! Planes from Regular VIO backend
+  std::vector<Plane> planes_;
 };
 
 }  // namespace VIO

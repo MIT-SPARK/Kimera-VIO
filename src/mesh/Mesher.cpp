@@ -183,8 +183,8 @@ MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
       FLAGS_return_mesh_2d ? &(mesher_output_payload->mesh_2d_) : nullptr,
       // These are more or less
       // the same info as mesh_2d_
-      &(mesher_output_payload->mesh_2d_for_viz_),
-      &(mesher_output_payload->mesh_2d_filtered_for_viz_));
+      &(mesher_output_payload->mesh_2d_for_viz_));
+  // TODO(Toni): remove these calls, since all info is in mesh_3d_...
   getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
   getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));
   mesher_output_payload->mesh_3d_ = mesh_3d_;
@@ -381,6 +381,10 @@ void Mesher::populate3dMesh(
   // Iterate over each face in the 2d mesh, and generate the 3d mesh.
   // TODO to retrieve lmk id from pixels, do it in the stereo frame! not here.
 
+  LOG_IF(WARNING, points_with_id_map.size() == 0u)
+      << "Missing landmark information for the Mesher: "
+         "cannot generate 3D Mesh.";
+
   // Create face and add it to the 2d mesh.
   Mesh2D::Polygon face;
   face.resize(3);
@@ -455,16 +459,20 @@ void Mesher::populate3dMesh(
 // TODO the polygon_mesh has repeated faces...
 // And this seems to slow down quite a bit the for loop!
 void Mesher::updatePolygonMeshToTimeHorizon(
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
-    const gtsam::Pose3& leftCameraPose, double min_ratio_largest_smallest_side,
-    double max_triangle_side, const bool& reduce_mesh_to_time_horizon) {
+    const PointsWithIdMap& points_with_id_map,
+    const gtsam::Pose3& leftCameraPose,
+    double min_ratio_largest_smallest_side,
+    double max_triangle_side,
+    const bool& reduce_mesh_to_time_horizon) {
   VLOG(10) << "Starting updatePolygonMeshToTimeHorizon...";
-  Mesh3D mesh_output;
+  LOG_IF(WARNING, points_with_id_map.size() == 0u)
+      << "Missing landmark information for the Mesher: "
+         "cannot trim 3D mesh to time horizon.";
+  const auto& end = points_with_id_map.end();
 
-  auto end = points_with_id_map.end();
   // Loop over each face in the mesh.
   Mesh3D::Polygon polygon;
-
+  Mesh3D mesh_output;
   for (size_t i = 0; i < mesh_3d_.getNumberOfPolygons(); i++) {
     CHECK(mesh_3d_.getPolygon(i, &polygon)) << "Could not retrieve polygon.";
     bool save_polygon = true;
@@ -1262,22 +1270,19 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 /* -------------------------------------------------------------------------- */
 // Update mesh: update structures keeping memory of the map before visualization
 // Optional parameter is the mesh in 2D for visualization.
-void Mesher::updateMesh3D(
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
-    const KeypointsCV& keypoints,
-    const std::vector<Kstatus>& keypoints_status,
-    const std::vector<Vector3>& keypoints_3d,
-    const LandmarkIds& landmarks,
-    const gtsam::Pose3& left_camera_pose,
-    Mesh2D* mesh_2d,
-    std::vector<cv::Vec6f>* mesh_2d_for_viz,
-    std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
+void Mesher::updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
+                          const KeypointsCV& keypoints,
+                          const std::vector<Kstatus>& keypoints_status,
+                          const std::vector<Vector3>& keypoints_3d,
+                          const LandmarkIds& landmarks,
+                          const gtsam::Pose3& left_camera_pose,
+                          Mesh2D* mesh_2d,
+                          std::vector<cv::Vec6f>* mesh_2d_for_viz) {
   VLOG(10) << "Starting updateMesh3D...";
-  const std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_all =
-      &points_with_id_VIO;
+  const PointsWithIdMap* points_with_id_all = &points_with_id_VIO;
 
   // Get points in stereo camera that are not in vio but have lmk id:
-  std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_stereo;
+  PointsWithIdMap points_with_id_stereo;
   if (FLAGS_add_extra_lmks_from_stereo) {
     // Append vio points.
     // WARNING some stereo and vio lmks share the same id, so adding order
@@ -1296,12 +1301,13 @@ void Mesher::updateMesh3D(
 
     points_with_id_all = &points_with_id_stereo;
   }
+  LOG_IF(WARNING, points_with_id_all->size() == 0)
+      << "Missing landmark informmation for the Mesher!";
   VLOG(20) << "Total number of landmarks used for the mesh: "
            << points_with_id_all->size();
 
   // Build 2D mesh.
   std::vector<cv::Vec6f> mesh_2d_pixels;
-  // THIS CALL IS NOT THREAD-SAFE
   createMesh2dVIO(&mesh_2d_pixels,
                   landmarks,
                   keypoints_status,
@@ -1309,15 +1315,9 @@ void Mesher::updateMesh3D(
                   mesher_params_.img_size_,
                   *points_with_id_all);
   if (mesh_2d_for_viz) *mesh_2d_for_viz = mesh_2d_pixels;
+  LOG_IF(WARNING, mesh_2d_pixels.size() == 0) << "2D Mesh is empty!";
 
-  // Filter 2D mesh.
-  std::vector<cv::Vec6f> mesh_2d_filtered;
-  // THIS CALL IS NOT THREAD-SAFE
-  // stereo_frame_ptr->filterTrianglesWithGradients(
-  //    mesh_2d_pixels, &mesh_2d_filtered, FLAGS_max_grad_in_triangle);
-  if (mesh_2d_filtered_for_viz) *mesh_2d_filtered_for_viz = mesh_2d_filtered;
-
-  populate3dMeshTimeHorizon(mesh_2d_filtered,
+  populate3dMeshTimeHorizon(mesh_2d_pixels,
                             *points_with_id_all,
                             keypoints,
                             landmarks,
@@ -1338,20 +1338,18 @@ void Mesher::updateMesh3D(
 // TODO(TONI): this seems completely unnecessary
 void Mesher::updateMesh3D(const MesherInput& mesher_payload,
                           Mesh2D* mesh_2d,
-                          std::vector<cv::Vec6f>* mesh_2d_for_viz,
-                          std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
+                          std::vector<cv::Vec6f>* mesh_2d_for_viz) {
   const StereoFrame& stereo_frame =
-      mesher_payload.frontend_payload_->stereo_frame_lkf_;
-  updateMesh3D(mesher_payload.backend_payload_->landmarks_with_id_map_,
+      mesher_payload.frontend_output_->stereo_frame_lkf_;
+  updateMesh3D(mesher_payload.backend_output_->landmarks_with_id_map_,
                stereo_frame.getLeftFrame().keypoints_,
                stereo_frame.right_keypoints_status_,
                stereo_frame.keypoints_3d_,
                stereo_frame.getLeftFrame().landmarks_,
-               mesher_payload.backend_payload_->W_State_Blkf_.pose_.compose(
+               mesher_payload.backend_output_->W_State_Blkf_.pose_.compose(
                    mesher_params_.B_Pose_camLrect_),
                mesh_2d,
-               mesh_2d_for_viz,
-               mesh_2d_filtered_for_viz);
+               mesh_2d_for_viz);
 }
 
 /* -------------------------------------------------------------------------- */

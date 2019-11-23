@@ -96,31 +96,7 @@ VisualizerModule::InputPtr VisualizerModule::getInputPacket() {
   // TODO(TONI): store the payloads' pointers in the visualizer payload
   // so that no copies are done, nor we have dangling references!
   return VIO::make_unique<VisualizerInput>(
-      timestamp,
-      // Pose for trajectory viz.
-      backend_payload->W_State_Blkf_.pose_ *
-          stereo_keyframe
-              .getBPoseCamLRect(),  // This should be pass at ctor level...
-      // For visualizeMesh2D and visualizeMesh2DStereo.
-      stereo_keyframe,
-      // visualizeConvexHull & visualizeMesh3DWithColoredClusters
-      std::move(mesher_payload),
-      // PointsWithIdMap() should be:
-      // visualization_type == VisualizationType::POINTCLOUD
-      //    ? vio_backend_module_
-      //          ->getMapLmkIdsTo3dPointsInTimeHorizon()  // not thread-safe
-      //    : points_with_id_VIO,
-      PointsWithIdMap(),
-      // visualizeMesh3DWithColoredClusters & visualizePoints3D
-      // LmkIdToLmkTypeMap should be lmk_id_to_lmk_type_map,
-      LmkIdToLmkTypeMap(),
-      // Should be planes_
-      std::vector<Plane>(),
-      // vio_backend_module_->getFactorsUnsafe(),
-      // For plane constraints viz.
-      gtsam::NonlinearFactorGraph(),
-      backend_payload->state_  // For planes and plane constraints viz.
-  );
+      timestamp, mesher_payload, backend_payload, frontend_payload);
 }
 
 VisualizerModule::OutputPtr VisualizerModule::spinOnce(

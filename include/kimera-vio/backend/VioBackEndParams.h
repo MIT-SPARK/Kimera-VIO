@@ -33,6 +33,35 @@
 
 namespace VIO {
 
+/** \struct Backend Output Params
+ * \brief Params controlling what the backend outputs.
+ */
+struct BackendOutputParams {
+ public:
+  BackendOutputParams(
+      const bool& output_map_lmk_ids_to_3d_points_in_time_horizon,
+      const int& min_num_obs_for_lmks_in_time_horizon,
+      const bool& output_lmk_id_to_lmk_type_map)
+      : output_map_lmk_ids_to_3d_points_in_time_horizon_(
+            output_map_lmk_ids_to_3d_points_in_time_horizon),
+        min_num_obs_for_lmks_in_time_horizon_(
+            min_num_obs_for_lmks_in_time_horizon),
+        output_lmk_id_to_lmk_type_map_(output_lmk_id_to_lmk_type_map) {}
+  ~BackendOutputParams() = default;
+
+ public:
+  //! Whether to output the map from lmk ids to actual lmk 3D positions for
+  //! those landmarks that are in the time-horizon of the backend optimization.
+  bool output_map_lmk_ids_to_3d_points_in_time_horizon_ = false;
+  //! Minimum number of observations for a landmark to be included in the
+  //! output of the map from landmark ids to actual landmark 3D positions.
+  int min_num_obs_for_lmks_in_time_horizon_ = 4u;
+  //! Whether to output as well the type of lmk id (smart, projection, etc).
+  //! This is typically used for visualization, to display lmks with different
+  //! colors depending on their type.
+  bool output_lmk_id_to_lmk_type_map_ = false;
+};
+
 class VioBackEndParams {
  public:
   KIMERA_POINTER_TYPEDEFS(VioBackEndParams);
@@ -87,6 +116,7 @@ class VioBackEndParams {
       const size_t numOptimize = 2,
       const double horizon = 6,  // in seconds
       const bool useDogLeg = false)
+
       : initialPositionSigma_(initialPositionSigma),
         initialRollPitchSigma_(initialRollPitchSigma),
         initialYawSigma_(initialYawSigma),
@@ -389,7 +419,7 @@ class VioBackEndParams {
   }
 
  protected:
-  std::shared_ptr<YamlParser> yaml_parser_;
+  YamlParser::Ptr yaml_parser_;
 };
 
 }  // namespace VIO

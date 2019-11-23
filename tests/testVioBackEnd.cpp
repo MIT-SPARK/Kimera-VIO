@@ -193,8 +193,12 @@ TEST(testVio, robotMovingWithConstantVelocity) {
                                                cam_params.px(),
                                                cam_params.py(),
                                                baseline);
-  std::shared_ptr<VioBackEnd> vio = std::make_shared<VioBackEnd>(
-      B_pose_camLrect, stereo_calibration, vioParams, false);
+  std::shared_ptr<VioBackEnd> vio =
+      std::make_shared<VioBackEnd>(B_pose_camLrect,
+                                   stereo_calibration,
+                                   vioParams,
+                                   BackendOutputParams(false, 0, false),
+                                   false);
   vio->initStateAndSetPriors(VioNavStateTimestamped(t_start, initial_state));
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
@@ -347,7 +351,10 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
                                                baseline);
   std::shared_ptr<InitializationBackEnd> vio =
       std::make_shared<InitializationBackEnd>(
-          B_pose_camLrect, stereo_calibration, vioParams);
+          B_pose_camLrect,
+          stereo_calibration,
+          vioParams,
+          BackendOutputParams(false, 0, false));
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
   imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;

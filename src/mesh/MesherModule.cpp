@@ -67,12 +67,7 @@ MesherModule::InputPtr MesherModule::getInputPacket() {
   CHECK(frontend_payload);
 
   return VIO::make_unique<MesherInput>(
-      timestamp,
-      frontend_payload,
-      backend_payload,
-      // TODO(Toni): call getMapLmkIdsto3dPointsInTimeHorizon from
-      // backend for this functionality.
-      PointsWithIdMap());
+      timestamp, frontend_payload, backend_payload);
 }
 
 MesherModule::OutputPtr MesherModule::spinOnce(const MesherInput& input) {

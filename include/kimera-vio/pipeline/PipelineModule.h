@@ -238,14 +238,11 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
     }
     static constexpr auto kTimeLimitCallbacks = std::chrono::milliseconds(10);
     auto callbacks_duration = utils::Timer::toc(tic_callbacks);
-    if (callbacks_duration > kTimeLimitCallbacks) {
-      LOG(WARNING) << "Callbacks for module: " << this->name_id_
-                   << " are taking very long! Current latency: "
-                   << callbacks_duration.count() << " ms.";
-      return false;
-    } else {
-      return true;
-    }
+    LOG_IF(WARNING, callbacks_duration > kTimeLimitCallbacks)
+        << "Callbacks for module: " << this->name_id_
+        << " are taking very long! Current latency: "
+        << callbacks_duration.count() << " ms.";
+    return true;
   }
 
  private:

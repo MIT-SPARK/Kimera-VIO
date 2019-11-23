@@ -24,19 +24,23 @@
 
 #include <opencv2/core/core.hpp>
 
+#include "kimera-vio/utils/Macros.h"
+
 namespace VIO {
 
 class YamlParser {
 public:
-  YamlParser(const std::string &filepath) { openFile(filepath, &fs_); }
-  ~YamlParser() { closeFile(&fs_); };
+ KIMERA_POINTER_TYPEDEFS(YamlParser);
 
-  template <class T>
-  void getYamlParam(const std::string& id, T* output) const {
-    const cv::FileNode &file_handle = fs_[id];
-    CHECK_NE(file_handle.type(), cv::FileNode::NONE)
-        << "Missing parameter: " << id.c_str();
-    file_handle >> *CHECK_NOTNULL(output);
+ YamlParser(const std::string& filepath) { openFile(filepath, &fs_); }
+ ~YamlParser() { closeFile(&fs_); };
+
+ template <class T>
+ void getYamlParam(const std::string& id, T* output) const {
+   const cv::FileNode& file_handle = fs_[id];
+   CHECK_NE(file_handle.type(), cv::FileNode::NONE)
+       << "Missing parameter: " << id.c_str();
+   file_handle >> *CHECK_NOTNULL(output);
   }
 
 private:

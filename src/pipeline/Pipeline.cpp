@@ -44,16 +44,12 @@ DEFINE_bool(visualize, true, "Enable overall visualization.");
 DEFINE_bool(visualize_lmk_type, false, "Enable landmark type visualization.");
 DEFINE_int32(viz_type,
              0,
-             "\n0: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
-             "are re-plotted at every frame)\n"
-             "1: MESH2D, only visualizes 2D mesh on image\n"
-             "2: MESH2Dsparse, visualize a 2D mesh of (right-valid) keypoints "
-             "discarding "
-             "triangles corresponding to non planar obstacles\n"
-             "3: MESH2DTo3Dsparse, get a 3D mesh from a 2D triangulation of "
-             "the (right-VALID) "
+             "0: MESH2DTo3Dsparse, get a 3D mesh from a 2D triangulation of "
+             "the (right-VALID).\n"
+             "1: POINTCLOUD, visualize 3D VIO points (no repeated point)\n"
+             "are re-plotted at every frame).\n"
              "keypoints in the left frame and filters out triangles \n"
-             "4: NONE, does not visualize map\n");
+             "2: NONE, does not visualize map.");
 
 DEFINE_bool(use_feature_selection, false, "Enable smart feature selection.");
 
@@ -151,6 +147,14 @@ Pipeline::Pipeline(const PipelineParams& params)
         }
       });
 
+  //! Params for what the backend outputs.
+  // TODO(Toni): put this into backend params.
+  BackendOutputParams backend_output_params(
+      static_cast<VisualizationType>(FLAGS_viz_type) ==
+          VisualizationType::MESH2DTo3Dsparse,
+      FLAGS_min_num_obs_for_mesher_points,
+      FLAGS_visualize_lmk_type);
+
   //! Create backend
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
       &backend_input_queue_,
@@ -160,6 +164,7 @@ Pipeline::Pipeline(const PipelineParams& params)
                                     stereo_camera_->getLeftCamPose(),
                                     stereo_camera_->getStereoCalib(),
                                     *CHECK_NOTNULL(backend_params_),
+                                    backend_output_params,
                                     FLAGS_log_output));
   vio_backend_module_->registerImuBiasUpdateCallback(
       std::bind(&StereoVisionFrontEndModule::updateImuBias,
@@ -604,10 +609,12 @@ bool Pipeline::initializeOnline(
 
       // Create initial backend
       CHECK(stereo_camera_);
-      InitializationBackEnd initial_backend(stereo_camera_->getLeftCamPose(),
-                                            stereo_camera_->getStereoCalib(),
-                                            backend_params_init,
-                                            FLAGS_log_output);
+      InitializationBackEnd initial_backend(
+          stereo_camera_->getLeftCamPose(),
+          stereo_camera_->getStereoCalib(),
+          backend_params_init,
+          BackendOutputParams(false, 0, false),
+          FLAGS_log_output);
 
       // Enforce zero bias in initial propagation
       // TODO(Sandro): Remove this, once AHRS is implemented

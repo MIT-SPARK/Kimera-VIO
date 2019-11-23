@@ -273,38 +273,46 @@ struct BackendOutput : public PipelinePayload {
   KIMERA_POINTER_TYPEDEFS(BackendOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(BackendOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  explicit BackendOutput(const Timestamp& timestamp_kf,
-                         const gtsam::Values& state,
-                         const gtsam::Pose3& W_Pose_Blkf,
-                         const Vector3& W_Vel_Blkf,
-                         const ImuBias& imu_bias_lkf,
-                         const gtsam::Matrix& state_covariance_lkf,
-                         const FrameId& cur_kf_id,
-                         const int& landmark_count,
-                         const DebugVioInfo& debug_info,
-                         const PointsWithIdMap& landmarks_with_id_map)
+  BackendOutput(const Timestamp& timestamp_kf,
+                const gtsam::Values& state,
+                const gtsam::Pose3& W_Pose_Blkf,
+                const Vector3& W_Vel_Blkf,
+                const ImuBias& imu_bias_lkf,
+                const gtsam::Matrix& state_covariance_lkf,
+                const FrameId& cur_kf_id,
+                const int& landmark_count,
+                const DebugVioInfo& debug_info,
+                const PointsWithIdMap& landmarks_with_id_map,
+                const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map)
       : PipelinePayload(timestamp_kf),
-        state_(state),
         W_State_Blkf_(timestamp_kf, W_Pose_Blkf, W_Vel_Blkf, imu_bias_lkf),
+        state_(state),
         state_covariance_lkf_(state_covariance_lkf),
         cur_kf_id_(cur_kf_id),
         landmark_count_(landmark_count),
         debug_info_(debug_info),
-        landmarks_with_id_map_(landmarks_with_id_map) {}
+        landmarks_with_id_map_(landmarks_with_id_map),
+        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
+        graph_() {}
 
-  explicit BackendOutput(const VioNavStateTimestamped& vio_navstate_timestamped,
-                         const gtsam::Values& state,
-                         const gtsam::Matrix& state_covariance_lkf,
-                         const FrameId& cur_kf_id,
-                         const int& landmark_count,
-                         const DebugVioInfo& debug_info)
+  BackendOutput(const VioNavStateTimestamped& vio_navstate_timestamped,
+                const gtsam::Values& state,
+                const gtsam::Matrix& state_covariance_lkf,
+                const FrameId& cur_kf_id,
+                const int& landmark_count,
+                const DebugVioInfo& debug_info,
+                const PointsWithIdMap& landmarks_with_id_map,
+                const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map)
       : PipelinePayload(vio_navstate_timestamped.timestamp_),
         W_State_Blkf_(vio_navstate_timestamped),
         state_(state),
         state_covariance_lkf_(state_covariance_lkf),
         cur_kf_id_(cur_kf_id),
         landmark_count_(landmark_count),
-        debug_info_(debug_info) {}
+        debug_info_(debug_info),
+        landmarks_with_id_map_(landmarks_with_id_map),
+        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
+        graph_() {}
 
   const VioNavStateTimestamped W_State_Blkf_;
   const gtsam::Values state_;
@@ -313,6 +321,8 @@ struct BackendOutput : public PipelinePayload {
   const int landmark_count_;
   const DebugVioInfo debug_info_;
   const PointsWithIdMap landmarks_with_id_map_;
+  const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
+  const gtsam::NonlinearFactorGraph graph_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

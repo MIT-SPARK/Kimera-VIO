@@ -132,6 +132,7 @@ class VioBackEnd {
   VioBackEnd(const Pose3& B_Pose_leftCam,
              const StereoCalibPtr& stereo_calibration,
              const VioBackEndParams& backend_params,
+             const BackendOutputParams& backend_output_params,
              bool log_output);
   virtual ~VioBackEnd() { LOG(INFO) << "Backend destructor called."; };
 
@@ -450,6 +451,7 @@ class VioBackEnd {
  protected:
   // Raw, user-specified params.
   const VioBackEndParams backend_params_;
+  const BackendOutputParams backend_output_params_;
 
   // State estimates.
   // TODO(Toni): bundle these in a VioNavStateTimestamped.

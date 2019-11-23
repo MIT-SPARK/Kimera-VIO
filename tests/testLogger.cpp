@@ -150,7 +150,9 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
                                           gtsam::Matrix(),
                                           cur_kf_id,
                                           landmark_count,
-                                          DebugVioInfo()));
+                                          DebugVioInfo(),
+                                          PointsWithIdMap(),
+                                          LmkIdToLmkTypeMap()));
 
   // First check the output_posesVIO.csv results file.
   std::string results_csv = FLAGS_output_path + "output_posesVIO.csv";

@@ -59,23 +59,20 @@ class Mesher {
   // that have a corresponding polygon face in 3D.
   // Iterate over the mesh 2D, and use mesh3D getVertex to get the
   // 3D face from the 2D triangle.
-  void updateMesh3D(
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_VIO,
-      const KeypointsCV& keypoints,
-      const std::vector<Kstatus>& keypoints_status,
-      const std::vector<Vector3>& keypoints_3d,
-      const LandmarkIds& landmarks,
-      const gtsam::Pose3& left_camera_pose,
-      Mesh2D* mesh_2d = nullptr,
-      std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
-      std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
+  void updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
+                    const KeypointsCV& keypoints,
+                    const std::vector<Kstatus>& keypoints_status,
+                    const std::vector<Vector3>& keypoints_3d,
+                    const LandmarkIds& landmarks,
+                    const gtsam::Pose3& left_camera_pose,
+                    Mesh2D* mesh_2d = nullptr,
+                    std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Update mesh, but in a thread-safe way.
   void updateMesh3D(const MesherInput& mesher_payload,
                     Mesh2D* mesh_2d = nullptr,
-                    std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr,
-                    std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz = nullptr);
+                    std::vector<cv::Vec6f>* mesh_2d_for_viz = nullptr);
 
   /* ------------------------------------------------------------------------ */
   // Cluster planes from the mesh.
@@ -117,7 +114,7 @@ class Mesher {
   /* ------------------------------------------------------------------------ */
   // Reduce the 3D mesh to the current VIO lmks only.
   void updatePolygonMeshToTimeHorizon(
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+      const PointsWithIdMap& points_with_id_map,
       const gtsam::Pose3& leftCameraPose,
       double min_ratio_largest_smallest_side,
       double max_triangle_side,
