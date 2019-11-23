@@ -1342,7 +1342,7 @@ void Mesher::updateMesh3D(const MesherInput& mesher_payload,
                           std::vector<cv::Vec6f>* mesh_2d_filtered_for_viz) {
   const StereoFrame& stereo_frame =
       mesher_payload.frontend_payload_->stereo_frame_lkf_;
-  updateMesh3D(mesher_payload.points_with_id_vio_,
+  updateMesh3D(mesher_payload.backend_payload_->landmarks_with_id_map_,
                stereo_frame.getLeftFrame().keypoints_,
                stereo_frame.right_keypoints_status_,
                stereo_frame.keypoints_3d_,

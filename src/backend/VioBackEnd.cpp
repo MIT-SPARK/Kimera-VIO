@@ -163,11 +163,13 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   BackendOutput::UniquePtr output_payload = VIO::make_unique<BackendOutput>(
       VioNavStateTimestamped(
           input.timestamp_, W_Pose_B_lkf_, W_Vel_B_lkf_, imu_bias_lkf_),
+      // TODO(Toni): Make all below optional!!
       state_,
       getCurrentStateCovariance(),
       curr_kf_id_,
       landmark_count_,
-      debug_info_);
+      debug_info_,
+      getMapLmkIdsTo3dPointsInTimeHorizon());
 
   if (logger_) {
     logger_->logBackendOutput(*output_payload);
@@ -431,8 +433,7 @@ void VioBackEnd::updateLandmarkInGraph(
   }
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // Get valid 3D points and corresponding lmk id.
 // Warning! it modifies old_smart_factors_!!
 PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
@@ -445,8 +446,7 @@ PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
   }
 
   // Step 1:
-  /////////////// Add landmarks encoded in the smart factors.
-  /////////////////////
+  /////////////// Add landmarks encoded in the smart factors. //////////////////
   const gtsam::NonlinearFactorGraph& graph = smoother_->getFactors();
 
   // old_smart_factors_ has all smart factors included so far.
@@ -592,8 +592,7 @@ PointsWithIdMap VioBackEnd::getMapLmkIdsTo3dPointsInTimeHorizon(
   return points_with_id;
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // NOT TESTED (--> There is a UnitTest function in UtilsOpenCV)
 void VioBackEnd::computeStateCovariance() {
   gtsam::Marginals marginals(smoother_->getFactors(),
@@ -612,8 +611,7 @@ void VioBackEnd::computeStateCovariance() {
           .fullMatrix());  // 6 + 3 + 6 = 15x15matrix
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 // TODO this function doesn't do just one thing... Should be refactored!
 // It returns the landmark ids of the stereo measurements
 // It also updates the feature tracks. Why is this in the backend???

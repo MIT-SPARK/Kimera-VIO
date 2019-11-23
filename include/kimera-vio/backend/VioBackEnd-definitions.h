@@ -281,14 +281,16 @@ struct BackendOutput : public PipelinePayload {
                          const gtsam::Matrix& state_covariance_lkf,
                          const FrameId& cur_kf_id,
                          const int& landmark_count,
-                         const DebugVioInfo& debug_info)
+                         const DebugVioInfo& debug_info,
+                         const PointsWithIdMap& landmarks_with_id_map)
       : PipelinePayload(timestamp_kf),
         state_(state),
         W_State_Blkf_(timestamp_kf, W_Pose_Blkf, W_Vel_Blkf, imu_bias_lkf),
         state_covariance_lkf_(state_covariance_lkf),
         cur_kf_id_(cur_kf_id),
         landmark_count_(landmark_count),
-        debug_info_(debug_info) {}
+        debug_info_(debug_info),
+        landmarks_with_id_map_(landmarks_with_id_map) {}
 
   explicit BackendOutput(const VioNavStateTimestamped& vio_navstate_timestamped,
                          const gtsam::Values& state,
@@ -310,6 +312,7 @@ struct BackendOutput : public PipelinePayload {
   const FrameId cur_kf_id_;
   const int landmark_count_;
   const DebugVioInfo debug_info_;
+  const PointsWithIdMap landmarks_with_id_map_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

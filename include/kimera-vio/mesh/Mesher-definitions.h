@@ -75,15 +75,12 @@ struct MesherInput : public PipelinePayload {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // Copy the pointers so that we do not need to copy the data, we will
   // reference to it via the copied pointers.
-  MesherInput(
-      const Timestamp& timestamp,
-      const FrontendOutput::Ptr& frontend_payload,
-      const BackendOutput::Ptr& backend_payload,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
+  MesherInput(const Timestamp& timestamp,
+              const FrontendOutput::Ptr& frontend_payload,
+              const BackendOutput::Ptr& backend_payload)
       : PipelinePayload(timestamp),
         frontend_payload_(frontend_payload),
-        backend_payload_(backend_payload),
-        points_with_id_vio_(points_with_id_vio) {
+        backend_payload_(backend_payload) {
     CHECK_EQ(timestamp, frontend_payload->timestamp_);
     CHECK_EQ(timestamp, backend_payload->timestamp_);
   }
@@ -92,9 +89,6 @@ struct MesherInput : public PipelinePayload {
   // Copy the pointers so that we do not need to copy the data.
   const FrontendOutput::ConstPtr frontend_payload_;
   const BackendOutput::ConstPtr backend_payload_;
-
-  // TODO(Toni): this should be in the backend payload.
-  const std::unordered_map<LandmarkId, gtsam::Point3> points_with_id_vio_;
 };
 
 struct MesherOutput : public PipelinePayload {
