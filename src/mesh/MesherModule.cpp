@@ -29,8 +29,12 @@ MesherModule::InputPtr MesherModule::getInputPacket() {
   if (PIO::parallel_run_) {
     queue_state = backend_payload_queue_.popBlocking(backend_payload);
   } else {
+    // TODO(Toni): can't you always do popBlocking?
     queue_state = backend_payload_queue_.pop(backend_payload);
   }
+  CHECK(backend_payload);
+  const Timestamp& timestamp = backend_payload->timestamp_;
+
   if (!queue_state) {
     LOG_IF(WARNING, PIO::parallel_run_)
         << "Module: " << name_id_ << " - Backend queue is down";
@@ -38,33 +42,14 @@ MesherModule::InputPtr MesherModule::getInputPacket() {
         << "Module: " << name_id_ << " - Backend queue is empty or down";
     return nullptr;
   }
-  CHECK(backend_payload);
-  const Timestamp& timestamp = backend_payload->timestamp_;
 
   // Look for the synchronized packet in frontend payload queue
   // This should always work, because it should not be possible to have
   // a backend payload without having a frontend one first!
-  // TODO(Toni): make a getSyncedPayloadFromQueue(timestamp, &payload);
-  // utility function in pipeline module. Will need a payload baseclass
-  // that has a timestamp as a member.
-  Timestamp frontend_payload_timestamp = std::numeric_limits<Timestamp>::max();
   MesherFrontendInput frontend_payload = nullptr;
-  while (timestamp != frontend_payload_timestamp) {
-    if (!frontend_payload_queue_.pop(frontend_payload)) {
-      // We had a backend input but no frontend input, something's wrong.
-      LOG(ERROR) << name_id_ << "'s frontend payload queue is empty or "
-                 << "has been shutdown.";
-      return nullptr;
-    } else {
-      VLOG(5) << "Popping frontend_payload.";
-    }
-    if (frontend_payload) {
-      frontend_payload_timestamp = frontend_payload->timestamp_;
-    } else {
-      LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
-    }
-  }
+  PIO::syncQueue(timestamp, &frontend_payload_queue_, &frontend_payload);
   CHECK(frontend_payload);
+  CHECK(frontend_payload->is_keyframe_);
 
   return VIO::make_unique<MesherInput>(
       timestamp, frontend_payload, backend_payload);
