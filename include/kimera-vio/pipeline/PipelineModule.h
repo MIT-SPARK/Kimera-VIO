@@ -22,6 +22,7 @@
 #include <glog/logging.h>
 
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
@@ -131,7 +132,9 @@ class PipelineModule {
 
  protected:
   /**
-   * @brief getSyncedInputPacket Retrieves the input packet for processing.
+   * @brief getSyncedInputPacket Retrieves the input packet for processing when
+   * spinning. The user must implement this to feed input payloads to the
+   * spinOnce.
    * The typical usage of this function just pops from a threadsafe queue that
    * contains the input packets to be processed. Alternatively, one may consider
    * synchronizing different queues and generating a custom packet.
@@ -143,6 +146,67 @@ class PipelineModule {
   // TODO(Toni): given a list of queues, syncronize them and get an output
   // payload. Maybe keep a list of input queues, that the user can provide.
   virtual inline InputPtr getInputPacket() = 0;
+
+  /**
+   * @brief Utility function to synchronize threadsafe queues.
+   * For now we are doing a very simple naive sync approach:
+   * Just loop over the messages in the queue until you find the matching
+   * timestamp. If we are at a timestamp greater than the queried one
+   *
+   * @param[in] timestamp Timestamp of the payload we want to retrieve from the
+   * queue
+   * @param[in] queue Threadsafe queue templated on a POINTER to a class that
+   * is derived from PipelinePayload (otw we cannot query what is its timestamp)
+   * @param[out] pipeline_payload Returns payload to be found in the given queue
+   * at the given timestamp.
+   * @param[in] max_iterations Number of times we try to find the payload at the
+   * given timestamp in the given queue.
+   * @return a boolean indicating whether the synchronizing was successful (i.e.
+   * we found a payload with the requested timestamp) or we failed because a
+   * payload with an older timestamp was retrieved.
+   */
+  template <class T>
+  bool syncQueue(const Timestamp& timestamp,
+                 ThreadsafeQueue<T>* queue,
+                 T* pipeline_payload,
+                 int max_iterations = 10) {
+    CHECK_NOTNULL(queue);
+    CHECK_NOTNULL(pipeline_payload);
+    static_assert(
+        std::is_base_of<PipelinePayload,
+                        typename std::pointer_traits<T>::element_type>::value,
+        "T must be a pointer to a class that derives from PipelinePayload.");
+    // Look for the synchronized packet in payload queue
+    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
+    // Loop over payload timestamps until we reach the query timestamp
+    // or we are past the asked timestamp (in which case, we failed).
+    int i = 0;
+    for (; i < max_iterations && timestamp > payload_timestamp; ++i) {
+      // TODO(Toni): add a timer to avoid waiting forever...
+      if (!queue->popBlocking(*pipeline_payload)) {
+        LOG(ERROR) << name_id_ << "'s " << queue->queue_id_ << " is empty or "
+                   << "has been shutdown.";
+        return false;
+      } else {
+        VLOG(5) << "Popping from: " << queue->queue_id_;
+      }
+      if (*pipeline_payload) {
+        payload_timestamp = (*pipeline_payload)->timestamp_;
+      } else {
+        LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
+      }
+    }
+    CHECK_EQ(timestamp, payload_timestamp)
+        << "Syncing queue " << queue->queue_id_ << " in module " << name_id_
+        << " failed;\n Could not retrieve exact timestamp requested: \n"
+        << " - Requested timestamp: " << timestamp << '\n'
+        << " - Actual timestamp:    " << payload_timestamp << '\n'
+        << (i >= max_iterations ? "Reached max number of sync attempts: " +
+                                      std::to_string(max_iterations)
+                                : "");
+    CHECK(*pipeline_payload);
+    return true;
+  }
 
   /**
    * @brief pushOutputPacket Sends the output of the module to other interested
@@ -157,6 +221,8 @@ class PipelineModule {
 
   /**
    * @brief Abstract function to process a single input payload.
+   * The user must implement this function at a minimum, which
+   * is the one doing the actual work of the pipeline module.
    * @param[in] input: an input payload for module to work on.
    * @return The output payload from the pipeline module. Returning a nullptr
    * signals that the output should not be sent to the output queue.
@@ -246,7 +312,8 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
   }
 
  private:
-  //! Output callbacks
+  //! Output callbacks that will be called on each spinOnce if
+  //! an output is present.
   std::vector<OutputCallback> output_callbacks_;
 };
 
@@ -305,10 +372,10 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override { input_queue_->shutdown(); };
+  virtual void shutdownQueues() override { input_queue_->shutdown(); }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override { return input_queue_->empty(); };
+  virtual bool hasWork() const override { return input_queue_->empty(); }
 
  private:
   //! Input
@@ -342,8 +409,7 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
 
   //! Override registering of output callbacks since this is only used for
   //! multiple output pipelines.
-  virtual void registerCallback(
-      const typename MIMO::OutputCallback& output_callback) override {
+  virtual void registerCallback(const typename MIMO::OutputCallback&) override {
     LOG(WARNING) << "SISO Pipeline Module does not use callbacks.";
   }
 
@@ -361,10 +427,10 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override { output_queue_->shutdown(); };
+  virtual void shutdownQueues() override { output_queue_->shutdown(); }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override { return output_queue_->empty(); };
+  virtual bool hasWork() const override { return output_queue_->empty(); }
 
  private:
   //! Output
@@ -436,12 +502,12 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
   //! Called when general shutdown of PipelineModule is triggered.
   virtual void shutdownQueues() override {
     input_queue_->shutdown() && MISO::shutdownQueues();
-  };
+  }
 
   //! Checks if the module has work to do (should check input queues are empty)
   virtual bool hasWork() const override {
     return input_queue_->empty() && MISO::hasWork();
-  };
+  }
 
  private:
   //! Input
