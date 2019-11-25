@@ -244,6 +244,12 @@ class LoopClosureDetector {
   void setDatabase(const OrbDatabase& db);
 
   /* ------------------------------------------------------------------------ */
+  /* @brief Set the vocabulary of the BoW detector.
+   * @param[in] voc An OrbVocabulary object.
+   */
+  void setVocabulary(const OrbVocabulary& voc);
+
+  /* ------------------------------------------------------------------------ */
   /* @brief Prints parameters and other statistics on the LoopClosureDetector.
    */
   void print() const;

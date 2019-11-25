@@ -65,6 +65,10 @@ class LCDFixture :public ::testing::Test {
     LoopClosureDetectorParams params;
     params.parseYAML(lcd_test_data_path_+"/testLCDParameters.yaml");
 
+    FLAGS_vocabulary_path =
+        FLAGS_test_data_path +
+        std::string("/ForLoopClosureDetector/small_voc.yml.gz");
+
     lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
 
     ref1_pose_ = gtsam::Pose3(
