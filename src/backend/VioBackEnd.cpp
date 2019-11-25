@@ -173,7 +173,7 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
   if (kOutputLmkMap) {
     // Generate this map only if requested, since costly.
     // Also, if lmk type requested, fill lmk id to lmk type object.
-    getMapLmkIdsTo3dPointsInTimeHorizon(
+    lmk_ids_to_3d_points_in_time_horizon = getMapLmkIdsTo3dPointsInTimeHorizon(
         kOutputLmkTypeMap ? &lmk_id_to_lmk_type_map : nullptr, kMinLmkObs);
   }
 
