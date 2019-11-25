@@ -32,8 +32,6 @@ MesherModule::InputPtr MesherModule::getInputPacket() {
     // TODO(Toni): can't you always do popBlocking?
     queue_state = backend_payload_queue_.pop(backend_payload);
   }
-  CHECK(backend_payload);
-  const Timestamp& timestamp = backend_payload->timestamp_;
 
   if (!queue_state) {
     LOG_IF(WARNING, PIO::parallel_run_)
@@ -42,6 +40,9 @@ MesherModule::InputPtr MesherModule::getInputPacket() {
         << "Module: " << name_id_ << " - Backend queue is empty or down";
     return nullptr;
   }
+
+  CHECK(backend_payload);
+  const Timestamp& timestamp = backend_payload->timestamp_;
 
   // Look for the synchronized packet in frontend payload queue
   // This should always work, because it should not be possible to have

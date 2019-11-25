@@ -35,8 +35,6 @@ VisualizerModule::InputPtr VisualizerModule::getInputPacket() {
   } else {
     queue_state = mesher_queue_.pop(mesher_payload);
   }
-  CHECK(mesher_payload);
-  const Timestamp& timestamp = mesher_payload->timestamp_;
 
   if (!queue_state) {
     LOG_IF(WARNING, PIO::parallel_run_)
@@ -45,6 +43,9 @@ VisualizerModule::InputPtr VisualizerModule::getInputPacket() {
         << "Module: " << name_id_ << " - Mesher queue is empty or down";
     return nullptr;
   }
+
+  CHECK(mesher_payload);
+  const Timestamp& timestamp = mesher_payload->timestamp_;
 
   // Look for the synchronized packet in frontend payload queue
   // This should always work, because it should not be possible to have
