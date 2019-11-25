@@ -481,6 +481,11 @@ void LoopClosureDetector::setDatabase(const OrbDatabase& db) {
 }
 
 /* ------------------------------------------------------------------------ */
+void LoopClosureDetector::setVocabulary(const OrbVocabulary& voc) {
+  db_BoW_->setVocabulary(voc);
+}
+
+/* ------------------------------------------------------------------------ */
 void LoopClosureDetector::print() const {
   // TODO(marcus): implement
 }
@@ -676,7 +681,8 @@ void LoopClosureDetector::computeIslands(
 
     ++dit;
     for (unsigned int idx = 1; dit != q.end(); ++dit, ++idx) {
-      if ((int)dit->Id - last_island_entry < lcd_params_.max_intragroup_gap_) {
+      if (static_cast<int>(dit->Id) - last_island_entry <
+          lcd_params_.max_intragroup_gap_) {
         last_island_entry = dit->Id;
         i_last = idx;
         if (dit->Score > best_score) {
