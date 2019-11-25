@@ -106,11 +106,11 @@ bool DataProviderInterface::spin() {
 void DataProviderInterface::parseBackendParams() {
   pipeline_params_.backend_type_ = static_cast<BackendType>(FLAGS_backend_type);
   switch (pipeline_params_.backend_type_) {
-    case BackendType::Stereo: {
+    case BackendType::kStereoImu: {
       pipeline_params_.backend_params_ = std::make_shared<VioBackEndParams>();
       break;
     }
-    case BackendType::StructuralRegularities: {
+    case BackendType::kStructuralRegularities: {
       pipeline_params_.backend_params_ = std::make_shared<RegularVioBackEndParams>();
       break;
     }

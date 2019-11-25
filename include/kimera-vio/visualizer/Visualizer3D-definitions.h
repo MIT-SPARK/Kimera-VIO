@@ -30,10 +30,10 @@
 namespace VIO {
 
 enum class VisualizationType {
-  MESH2DTo3Dsparse,  // same as MESH2DTo3D but filters out triangles
-                     // corresponding to non planar obstacles
-  POINTCLOUD,        // visualize 3D VIO points  (no repeated point)
-  NONE               // does not visualize map
+  kMesh2dTo3dSparse,  // same as MESH2DTo3D but filters out triangles
+                      // corresponding to non planar obstacles
+  kPointcloud,        // visualize 3D VIO points  (no repeated point)
+  kNone               // does not visualize map
 };
 
 struct VisualizerInput : public PipelinePayload {
@@ -79,7 +79,7 @@ struct VisualizerOutput {
   VisualizerOutput() = default;
   ~VisualizerOutput() = default;
 
-  VisualizationType visualization_type_ = VisualizationType::NONE;
+  VisualizationType visualization_type_ = VisualizationType::kNone;
   std::vector<ImageToDisplay> images_to_display_;
   cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
 };

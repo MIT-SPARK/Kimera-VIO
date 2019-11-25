@@ -92,6 +92,10 @@ class Mesher {
       const PointsWithIdMap& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
+  static std::vector<cv::Vec6f> createMesh2D(
+      const Frame& frame,
+      const std::vector<size_t>& selected_indices);
+
  private:
   // The 3D mesh.
   Mesh3D mesh_3d_;
@@ -355,13 +359,9 @@ class Mesher {
   void getPolygonsMesh(cv::Mat* polygons_mesh) const;
 
   /* ------------------------------------------------------------------------ */
-  static std::vector<cv::Vec6f> createMesh2D(
+  static std::vector<cv::Vec6f> createMesh2dImpl(
       const cv::Size& img_size,
       std::vector<cv::Point2f>* keypoints_to_triangulate);
-
-  static std::vector<cv::Vec6f> createMesh2D(
-      const Frame& frame,
-      const std::vector<size_t>& selected_indices);
 
   static void createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
                               const LandmarkIds& landmarks,

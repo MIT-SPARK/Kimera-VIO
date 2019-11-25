@@ -326,6 +326,11 @@ struct BackendOutput : public PipelinePayload {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-enum class BackendType { Stereo = 0u, StructuralRegularities = 1u };
+/** \brief The BackendType enum
+ *  - kStereoImu: vanilla backend type using Stereo and IMU
+ *  - kStructuralRegularities: the `regular VIO` backend, using structural
+ * regularities derived from the 3D Mesh.
+ */
+enum class BackendType { kStereoImu = 0, kStructuralRegularities = 1 };
 
 }  // namespace VIO

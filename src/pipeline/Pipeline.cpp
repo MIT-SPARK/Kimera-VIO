@@ -151,7 +151,7 @@ Pipeline::Pipeline(const PipelineParams& params)
   // TODO(Toni): put this into backend params.
   BackendOutputParams backend_output_params(
       static_cast<VisualizationType>(FLAGS_viz_type) ==
-          VisualizationType::MESH2DTo3Dsparse,
+          VisualizationType::kMesh2dTo3dSparse,
       FLAGS_min_num_obs_for_mesher_points,
       FLAGS_visualize_lmk_type);
 
@@ -663,7 +663,7 @@ bool Pipeline::initializeOnline(
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinDisplayOnce(const VisualizerOutput::Ptr& viz_output) const {
   // Display 3D window.
-  if (viz_output->visualization_type_ != VisualizationType::NONE) {
+  if (viz_output->visualization_type_ != VisualizationType::kNone) {
     VLOG(10) << "Spin Visualize 3D output.";
     // visualizer_output_payload->window_.spin();
     CHECK(!viz_output->window_.wasStopped());

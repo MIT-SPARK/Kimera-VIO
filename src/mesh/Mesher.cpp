@@ -1506,13 +1506,13 @@ void Mesher::createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
   }
 
   // Get a triangulation for all valid keypoints.
-  *triangulation_2D = createMesh2D(img_size, &keypoints_for_mesh);
+  *triangulation_2D = createMesh2dImpl(img_size, &keypoints_for_mesh);
 }
 
 /* -------------------------------------------------------------------------- */
 // Create a 2D mesh from 2D corners in an image, coded as a Frame class
 // Returns the actual keypoints used to perform the triangulation.
-std::vector<cv::Vec6f> Mesher::createMesh2D(
+std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
     const cv::Size& img_size,
     std::vector<cv::Point2f>* keypoints_to_triangulate) {
   CHECK_NOTNULL(keypoints_to_triangulate);
@@ -1594,7 +1594,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2D(
       keypoints_to_triangulate.push_back(keypoint_i);
     }
   }
-  return createMesh2D(frame_size, &keypoints_to_triangulate);
+  return createMesh2dImpl(frame_size, &keypoints_to_triangulate);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1633,7 +1633,7 @@ void Mesher::createMesh2dStereo(
   }
 
   // Get a triangulation for all valid keypoints.
-  *triangulation_2D = createMesh2D(img_size, &keypoints_for_mesh);
+  *triangulation_2D = createMesh2dImpl(img_size, &keypoints_for_mesh);
 }
 
 }  // namespace VIO

@@ -58,10 +58,15 @@ typedef std::function<Mesh3DVizProperties(const Timestamp& img_left_timestamp,
     Mesh3dVizPropertiesSetterCallback;
 
 struct MesherParams {
+ public:
   KIMERA_POINTER_TYPEDEFS(MesherParams);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  MesherParams() = default;
   MesherParams(const gtsam::Pose3& B_Pose_camLrect, const cv::Size& img_size)
       : B_Pose_camLrect_(B_Pose_camLrect), img_size_(img_size) {}
+  ~MesherParams() = default;
+
+ public:
   //! B_Pose_camLrect pose of the rectified camera wrt body frame of ref.
   gtsam::Pose3 B_Pose_camLrect_;
   //! img_size size of the camera's images used for 2D triangulation.

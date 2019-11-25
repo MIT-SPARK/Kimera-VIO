@@ -127,7 +127,7 @@ VisualizerOutput::Ptr Visualizer3D::spinOnce(const VisualizerInput& input) {
       // filters out geometrically) Sparsity comes from filtering out triangles
       // corresponding to non planar obstacles which are assumed to have
       // non-uniform gradient.
-    case VisualizationType::MESH2DTo3Dsparse: {
+    case VisualizationType::kMesh2dTo3dSparse: {
       // Visualize 2d mesh.
       if (FLAGS_visualize_mesh_2d || FLAGS_visualize_mesh_in_frustum) {
         const ImageToDisplay& mesh_display = ImageToDisplay(
@@ -199,7 +199,7 @@ VisualizerOutput::Ptr Visualizer3D::spinOnce(const VisualizerInput& input) {
         }
       }
 
-      if (backend_type_ == BackendType::StructuralRegularities &&
+      if (backend_type_ == BackendType::kStructuralRegularities &&
           FLAGS_visualize_plane_constraints) {
         LandmarkIds lmk_ids_in_current_pp_factors;
         for (const auto& g : input.backend_output_->graph_) {
@@ -328,13 +328,13 @@ VisualizerOutput::Ptr Visualizer3D::spinOnce(const VisualizerInput& input) {
 
     // Computes and visualizes a 3D point cloud with VIO points in current time
     // horizon of the optimization.
-    case VisualizationType::POINTCLOUD: {
+    case VisualizationType::kPointcloud: {
       // Do not color the cloud, send empty lmk id to lmk type map
       visualizePoints3D(input.backend_output_->landmarks_with_id_map_,
                         input.backend_output_->lmk_id_to_lmk_type_map_);
       break;
     }
-    case VisualizationType::NONE: {
+    case VisualizationType::kNone: {
       break;
     }
   }
