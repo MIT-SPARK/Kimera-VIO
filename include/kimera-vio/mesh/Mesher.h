@@ -17,7 +17,6 @@
 #include <stdlib.h>
 #include <atomic>
 #include <limits>  // for numeric_limits<>
-#include <unordered_map>
 #include <utility>  // for move
 #include <vector>
 
@@ -76,23 +75,21 @@ class Mesher {
 
   /* ------------------------------------------------------------------------ */
   // Cluster planes from the mesh.
-  void clusterPlanesFromMesh(
-      std::vector<Plane>* planes,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio);
+  void clusterPlanesFromMesh(std::vector<Plane>* planes,
+                             const PointsWithIdMap& points_with_id_vio);
 
   /* ------------------------------------------------------------------------ */
   void appendNonVioStereoPoints(const LandmarkIds& landmarks,
                                 const std::vector<Kstatus>& keypoints_status,
                                 const std::vector<Vector3>& keypoints_3d,
                                 const gtsam::Pose3& left_cam_pose,
-                                std::unordered_map<LandmarkId, gtsam::Point3>*
-                                    points_with_id_stereo) const;
+                                PointsWithIdMap* points_with_id_stereo) const;
 
   /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.
   void extractLmkIdsFromTriangleClusters(
       const std::vector<TriangleCluster>& triangle_cluster,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      const PointsWithIdMap& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
  private:
@@ -152,10 +149,9 @@ class Mesher {
   // pixel in the 2d mesh. The correspondence is found using the frame
   // parameter. The 3D mesh contains, at any given time, only points that are in
   // points_with_id_map.
-  void populate3dMeshTimeHorizon(
-      // cv::Vec6f assumes triangular mesh.
+  void populate3dMeshTimeHorizon(  // cv::Vec6f assumes triangular mesh.
       const std::vector<cv::Vec6f>& mesh_2d_pixels,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+      const PointsWithIdMap& points_with_id_map,
       const KeypointsCV& keypoints,
       const LandmarkIds& landmarks,
       const gtsam::Pose3& left_cam_pose,
@@ -166,10 +162,9 @@ class Mesher {
 
   /* ------------------------------------------------------------------------ */
   // Create a 3D mesh from 2D corners in an image.
-  void populate3dMesh(
-      // cv::Vec6f assumes triangular mesh.
+  void populate3dMesh(  // cv::Vec6f assumes triangular mesh.
       const std::vector<cv::Vec6f>& mesh_2d_pixels,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+      const PointsWithIdMap& points_with_id_map,
       const KeypointsCV& keypoints,
       const LandmarkIds& landmarks,
       const gtsam::Pose3& left_cam_pose,
@@ -253,7 +248,7 @@ class Mesher {
   void segmentPlanesInMesh(
       std::vector<Plane>* seed_planes,
       std::vector<Plane>* new_planes,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      const PointsWithIdMap& points_with_id_vio,
       const double& normal_tolerance_polygon_plane_association,
       const double& distance_tolerance_polygon_plane_association,
       const double& normal_tolerance_horizontal_surface,
@@ -276,8 +271,7 @@ class Mesher {
       std::vector<Plane>* planes,
       double normal_tolerance,
       double distance_tolerance,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-      const;
+      const PointsWithIdMap& points_with_id_vio) const;
 
   /* ------------------------------------------------------------------------ */
   // Updates planes lmk ids field with a polygon vertices ids if this polygon
@@ -291,7 +285,7 @@ class Mesher {
       const cv::Point3f& triangle_normal,
       double normal_tolerance,
       double distance_tolerance,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      const PointsWithIdMap& points_with_id_vio,
       bool only_associate_a_polygon_to_a_single_plane = false) const;
 
   /* --------------------------------------------------------------------------
@@ -334,14 +328,14 @@ class Mesher {
   // Extract lmk ids from a vector of triangle clusters.
   void extractLmkIdsFromVectorOfTriangleClusters(
       const std::vector<TriangleCluster>& triangle_cluster,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      const PointsWithIdMap& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
   /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.
   void extractLmkIdsFromTriangleCluster(
       const TriangleCluster& triangle_cluster,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+      const PointsWithIdMap& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
   /* ------------------------------------------------------------------------ */
@@ -351,11 +345,9 @@ class Mesher {
   // meaning it checks that we can find the lmk id in points_with_id_vio...
   // WARNING: this function won't check that the original lmk_ids are in the
   // optimization (time-horizon)...
-  void appendLmkIdsOfPolygon(
-      const Mesh3D::Polygon& polygon,
-      LandmarkIds* lmk_ids,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-      const;
+  void appendLmkIdsOfPolygon(const Mesh3D::Polygon& polygon,
+                             LandmarkIds* lmk_ids,
+                             const PointsWithIdMap& points_with_id_vio) const;
 
   /* ------------------------------------------------------------------------ */
   // Clones underlying data structures encoding the mesh.
@@ -371,13 +363,12 @@ class Mesher {
       const Frame& frame,
       const std::vector<size_t>& selected_indices);
 
-  static void createMesh2dVIO(
-      std::vector<cv::Vec6f>* triangulation_2D,
-      const LandmarkIds& landmarks,
-      const std::vector<Kstatus>& keypoints_status,
-      const KeypointsCV& keypoints,
-      const cv::Size& img_size,
-      const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO);
+  static void createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
+                              const LandmarkIds& landmarks,
+                              const std::vector<Kstatus>& keypoints_status,
+                              const KeypointsCV& keypoints,
+                              const cv::Size& img_size,
+                              const PointsWithIdMap& pointsWithIdVIO);
 
   static void createMesh2dStereo(
       std::vector<cv::Vec6f>* triangulation_2D,

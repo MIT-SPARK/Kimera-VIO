@@ -14,7 +14,6 @@
 
 #include "kimera-vio/mesh/Mesher.h"
 
-#include <unordered_map>
 #include <utility>  // for make_pair
 #include <vector>
 
@@ -334,7 +333,7 @@ bool Mesher::isBadTriangle(
 void Mesher::populate3dMeshTimeHorizon(
     // cv::Vec6f assumes triangular mesh.
     const std::vector<cv::Vec6f>& mesh_2d_pixels,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
+    const PointsWithIdMap& points_with_id_map,
     const KeypointsCV& keypoints,
     const LandmarkIds& landmarks,
     const gtsam::Pose3& left_cam_pose,
@@ -368,16 +367,15 @@ void Mesher::populate3dMeshTimeHorizon(
 
 /* -------------------------------------------------------------------------- */
 // Create a 3D mesh from 2D corners in an image.
-void Mesher::populate3dMesh(
-    const std::vector<cv::Vec6f>& mesh_2d_pixels,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_map,
-    const KeypointsCV& keypoints,
-    const LandmarkIds& landmarks,
-    const gtsam::Pose3& left_cam_pose,
-    double min_ratio_largest_smallest_side,
-    double min_elongation_ratio,
-    double max_triangle_side,
-    Mesh2D* mesh_2d) {
+void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
+                            const PointsWithIdMap& points_with_id_map,
+                            const KeypointsCV& keypoints,
+                            const LandmarkIds& landmarks,
+                            const gtsam::Pose3& left_cam_pose,
+                            double min_ratio_largest_smallest_side,
+                            double min_elongation_ratio,
+                            double max_triangle_side,
+                            Mesh2D* mesh_2d) {
   // Iterate over each face in the 2d mesh, and generate the 3d mesh.
   // TODO to retrieve lmk id from pixels, do it in the stereo frame! not here.
 
@@ -691,9 +689,8 @@ bool Mesher::isPointAtDistanceFromPlane(
 // Cluster planes from Mesh.
 // Points_with_id_vio are only used when add_extra_lmks_from_stereo is true, so
 // that we only extract lmk ids that are in the optimization time horizon.
-void Mesher::clusterPlanesFromMesh(
-    std::vector<Plane>* planes,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio) {
+void Mesher::clusterPlanesFromMesh(std::vector<Plane>* planes,
+                                   const PointsWithIdMap& points_with_id_vio) {
   CHECK_NOTNULL(planes);
   // Segment planes in the mesh, using seeds.
   VLOG(10) << "Starting plane segmentation...";
@@ -741,8 +738,9 @@ void Mesher::clusterPlanesFromMesh(
 // They are used by extractLmkIdsFromTriangleCluster to extract only lmk ids
 // that are in the time horizon (aka points_with_id_vio).
 void Mesher::segmentPlanesInMesh(
-    std::vector<Plane>* seed_planes, std::vector<Plane>* new_planes,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+    std::vector<Plane>* seed_planes,
+    std::vector<Plane>* new_planes,
+    const PointsWithIdMap& points_with_id_vio,
     const double& normal_tolerance_polygon_plane_association,
     const double& distance_tolerance_polygon_plane_association,
     const double& normal_tolerance_horizontal_surface,
@@ -865,10 +863,10 @@ double Mesher::getLongitude(const cv::Point3f& triangle_normal,
 // Points with id vio, only used if we are using stereo points to build the
 // mesh.
 void Mesher::updatePlanesLmkIdsFromMesh(
-    std::vector<Plane>* planes, double normal_tolerance,
+    std::vector<Plane>* planes,
+    double normal_tolerance,
     double distance_tolerance,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-    const {
+    const PointsWithIdMap& points_with_id_vio) const {
   CHECK_NOTNULL(planes);
   static constexpr size_t mesh_polygon_dim = 3;
   CHECK_EQ(mesh_3d_.getMeshPolygonDimension(), mesh_polygon_dim)
@@ -900,10 +898,13 @@ void Mesher::updatePlanesLmkIdsFromMesh(
 // is part of the plane according to given tolerance.
 // points_with_id_vio is only used if we are using stereo points...
 bool Mesher::updatePlanesLmkIdsFromPolygon(
-    std::vector<Plane>* seed_planes, const Mesh3D::Polygon& polygon,
-    const size_t& triangle_id, const cv::Point3f& triangle_normal,
-    double normal_tolerance, double distance_tolerance,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+    std::vector<Plane>* seed_planes,
+    const Mesh3D::Polygon& polygon,
+    const size_t& triangle_id,
+    const cv::Point3f& triangle_normal,
+    double normal_tolerance,
+    double distance_tolerance,
+    const PointsWithIdMap& points_with_id_vio,
     bool only_associate_a_polygon_to_a_single_plane) const {
   CHECK_NOTNULL(seed_planes);
   bool is_polygon_on_a_plane = false;
@@ -1279,6 +1280,8 @@ void Mesher::updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
                           Mesh2D* mesh_2d,
                           std::vector<cv::Vec6f>* mesh_2d_for_viz) {
   VLOG(10) << "Starting updateMesh3D...";
+  LOG_IF(WARNING, points_with_id_VIO.size() == 0u)
+      << "Missing landmark information to build 3D Mesh.";
   const PointsWithIdMap* points_with_id_all = &points_with_id_VIO;
 
   // Get points in stereo camera that are not in vio but have lmk id:
@@ -1301,8 +1304,8 @@ void Mesher::updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
 
     points_with_id_all = &points_with_id_stereo;
   }
-  LOG_IF(WARNING, points_with_id_all->size() == 0)
-      << "Missing landmark informmation for the Mesher!";
+  LOG_IF(WARNING, points_with_id_all->size() == 0u)
+      << "Missing landmark information for the Mesher!";
   VLOG(20) << "Total number of landmarks used for the mesh: "
            << points_with_id_all->size();
 
@@ -1360,8 +1363,7 @@ void Mesher::appendNonVioStereoPoints(
     const std::vector<Kstatus>& keypoints_status,
     const std::vector<Vector3>& keypoints_3d,
     const gtsam::Pose3& left_cam_pose,
-    std::unordered_map<LandmarkId, gtsam::Point3>* points_with_id_stereo)
-    const {
+    PointsWithIdMap* points_with_id_stereo) const {
   CHECK_NOTNULL(points_with_id_stereo);
   CHECK_EQ(landmarks.size(), keypoints_status.size())
       << "Landmarks and keypoints_status should have same dimension...";
@@ -1387,7 +1389,7 @@ void Mesher::appendNonVioStereoPoints(
 // (they are present in time horizon).
 void Mesher::extractLmkIdsFromVectorOfTriangleClusters(
     const std::vector<TriangleCluster>& triangle_clusters,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+    const PointsWithIdMap& points_with_id_vio,
     LandmarkIds* lmk_ids) const {
   VLOG(10) << "Starting extract lmk ids for vector of triangle cluster...";
   CHECK_NOTNULL(lmk_ids);
@@ -1407,7 +1409,7 @@ void Mesher::extractLmkIdsFromVectorOfTriangleClusters(
 // lmk id in points_with_id_vio...
 void Mesher::extractLmkIdsFromTriangleCluster(
     const TriangleCluster& triangle_cluster,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio,
+    const PointsWithIdMap& points_with_id_vio,
     LandmarkIds* lmk_ids) const {
   VLOG(10) << "Starting extractLmkIdsFromTriangleCluster...";
   CHECK_NOTNULL(lmk_ids);
@@ -1430,9 +1432,9 @@ void Mesher::extractLmkIdsFromTriangleCluster(
 // WARNING: this function won't check that the original lmk_ids are in the
 // optimization (time-horizon)...
 void Mesher::appendLmkIdsOfPolygon(
-    const Mesh3D::Polygon& polygon, LandmarkIds* lmk_ids,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& points_with_id_vio)
-    const {
+    const Mesh3D::Polygon& polygon,
+    LandmarkIds* lmk_ids,
+    const PointsWithIdMap& points_with_id_vio) const {
   CHECK_NOTNULL(lmk_ids);
   for (const Mesh3D::VertexType& vertex : polygon) {
     // Ensure we are not adding more than once the same lmk_id.
@@ -1470,13 +1472,12 @@ void Mesher::getPolygonsMesh(cv::Mat* polygons_mesh) const {
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesher::createMesh2dVIO(
-    std::vector<cv::Vec6f>* triangulation_2D,
-    const LandmarkIds& landmarks,
-    const std::vector<Kstatus>& keypoints_status,
-    const KeypointsCV& keypoints,
-    const cv::Size& img_size,
-    const std::unordered_map<LandmarkId, gtsam::Point3>& pointsWithIdVIO) {
+void Mesher::createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
+                             const LandmarkIds& landmarks,
+                             const std::vector<Kstatus>& keypoints_status,
+                             const KeypointsCV& keypoints,
+                             const cv::Size& img_size,
+                             const PointsWithIdMap& pointsWithIdVIO) {
   CHECK_NOTNULL(triangulation_2D);
 
   // Pick left frame.
