@@ -1,7 +1,7 @@
 #!/bin/bash
 # Mesher parameters.
 # General functionality for the mesher.
---add_extra_lmks_from_stereo=false
+--add_extra_lmks_from_stereo=true
 --reduce_mesh_to_time_horizon=true
 --compute_per_vertex_normals=false
 
@@ -14,9 +14,9 @@
 
 # Mesh filters.
 --max_grad_in_triangle=-1
---min_ratio_btw_largest_smallest_side=0
---min_elongation_ratio=0
---max_triangle_side=29.0
+--min_ratio_btw_largest_smallest_side=0.3
+--min_elongation_ratio=0.3
+--max_triangle_side=2.0
 
 # Association.
 --normal_tolerance_polygon_plane_association=0.021
