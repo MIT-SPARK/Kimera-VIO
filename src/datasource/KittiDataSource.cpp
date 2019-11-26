@@ -35,12 +35,10 @@ KittiDataProvider::KittiData::operator bool() const {
 }
 
 KittiDataProvider::KittiDataProvider()
-    : DataProvider(), kitti_data_() {
+    : DataProviderInterface(), kitti_data_() {
   // Parse Kitti dataset.
   parseKittiData(dataset_path_, &kitti_data_);
 }
-
-KittiDataProvider::~KittiDataProvider() {}
 
 cv::Mat KittiDataProvider::readKittiImage(const std::string& img_name) {
   cv::Mat img = cv::imread(img_name, CV_LOAD_IMAGE_UNCHANGED);
@@ -64,11 +62,9 @@ bool KittiDataProvider::spin() {
       pipeline_params_.frontend_params_.getStereoMatchingParams();
 
   // Store camera info
-  const CameraParams& left_cam_info =
-      kitti_data_.camera_info_.at(kitti_data_.left_camera_name_);
-  const CameraParams& right_cam_info =
-      kitti_data_.camera_info_.at(kitti_data_.right_camera_name_);
-  const gtsam::Pose3& camL_pose_camR = kitti_data_.camL_Pose_camR_;
+  CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
+  const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
+  const CameraParams& right_cam_info = pipeline_params_.camera_params_.at(1);
 
   // Main loop
   for (size_t k = initial_k_; k < final_k_; k++) {
@@ -101,13 +97,16 @@ bool KittiDataProvider::spin() {
 
     timestamp_last_frame = timestamp_frame_k;
 
-    vio_callback_(StereoImuSyncPacket(
-        StereoFrame(k, timestamp_frame_k,
+    vio_callback_(VIO::make_unique<StereoImuSyncPacket>(
+        StereoFrame(k,
+                    timestamp_frame_k,
                     readKittiImage(kitti_data_.left_img_names_.at(k)),
                     left_cam_info,
                     readKittiImage(kitti_data_.right_img_names_.at(k)),
-                    right_cam_info, camL_pose_camR, stereo_matching_params),
-        imu_meas.timestamps_, imu_meas.measurements_));
+                    right_cam_info,
+                    stereo_matching_params),
+        imu_meas.timestamps_,
+        imu_meas.measurements_));
 
     VLOG(10) << "Finished VIO processing for frame k = " << k;
   }
@@ -278,7 +277,6 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
   std::vector<std::string> camera_names;
   camera_names.push_back(left_cam_id);
   camera_names.push_back(right_cam_id);
-  kitti_data->camera_info_.clear();
 
   // First get R_imu2velo and T_imu2velo
   cv::Mat R_imu2velo, T_imu2velo;
@@ -307,23 +305,12 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
 
   for (const std::string& cam_name : camera_names) {
     LOG(INFO) << "reading camera: " << cam_name;
-    CameraParams cam_info_i;
+    CameraParams cam_info_i(cam_name);
     cam_info_i.parseKITTICalib(input_dataset_path + "/../calib_cam_to_cam.txt",
                                R_cam2body, T_cam2body, cam_name);
-    kitti_data->camera_info_[cam_name] = cam_info_i;
+    pipeline_params_.camera_params_.push_back(cam_info_i);
     LOG(INFO) << "parsed camera: " << cam_name;
   }
-
-  // Set extrinsic for the stereo.
-  const CameraParams& left_camera_info =
-      kitti_data->camera_info_.at(left_cam_id);
-  const CameraParams& right_camera_info =
-      kitti_data->camera_info_.at(right_cam_id);
-
-  // Extrinsics of the stereo (not rectified)
-  // relative pose between cameras
-  kitti_data->camL_Pose_camR_ = (left_camera_info.body_Pose_cam_)
-                                    .between(right_camera_info.body_Pose_cam_);
 
   return true;
 }
@@ -525,14 +512,14 @@ void KittiDataProvider::print() const {
       << "------------------ KittiDataProvider::print ------------------\n"
       << "-------------------------------------------------------------\n"
       << "Displaying info for dataset: " << dataset_path_;
-  kitti_data_.camL_Pose_camR_.print("camL_Pose_calR \n");
   // For each of the 2 cameras.
+  CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
   LOG(INFO) << "Left camera name: " << kitti_data_.left_camera_name_
             << ", with params:\n";
-  kitti_data_.camera_info_.at(kitti_data_.left_camera_name_).print();
+  pipeline_params_.camera_params_.at(0).print();
   LOG(INFO) << "Right camera name: " << kitti_data_.right_camera_name_
             << ", with params:\n";
-  kitti_data_.camera_info_.at(kitti_data_.right_camera_name_).print();
+  pipeline_params_.camera_params_.at(1).print();
   kitti_data_.imuData_.print();
   LOG(INFO) << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------\n"

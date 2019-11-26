@@ -32,7 +32,7 @@ void ImuData::print() const {
 }
 
 ImuFrontEnd::ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias)
-    : imu_params_(setImuParams(imu_params)) {
+    : imu_params_(convertImuParams(imu_params)) {
   CHECK_GT(imu_params.acc_noise_, 0.0);
   CHECK_GT(imu_params.acc_walk_, 0.0);
   CHECK_GT(imu_params.gyro_noise_, 0.0);
@@ -125,8 +125,7 @@ gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
 }
 
 /* -------------------------------------------------------------------------- */
-// Set parameters for imu factors.
-gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(
+gtsam::PreintegrationBase::Params ImuFrontEnd::convertImuParams(
     const ImuParams& imu_params) {
   CHECK_GT(imu_params.acc_noise_, 0.0);
   CHECK_GT(imu_params.gyro_noise_, 0.0);

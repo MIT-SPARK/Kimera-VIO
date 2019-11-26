@@ -22,6 +22,8 @@
 
 #include <opengv/point_cloud/methods.hpp>
 
+#include <opencv2/core/eigen.hpp>
+
 #include <gtsam/base/Matrix.h>
 #include <gtsam/base/Vector.h>
 #include <gtsam/geometry/Cal3DS2.h>
@@ -70,25 +72,16 @@ std::string UtilsOpenCV::typeToString(int type) {
 }
 
 /* -------------------------------------------------------------------------- */
-// Open files with name output_filename, and checks that it is valid
-void UtilsOpenCV::OpenFile(const std::string &output_filename,
-                           std::ofstream *output_file, bool append_mode) {
-  CHECK_NOTNULL(output_file);
-  output_file->open(output_filename.c_str(),
-                    append_mode ? std::ios_base::app : std::ios_base::out);
-  output_file->precision(20);
-  CHECK(output_file->is_open()) << "Cannot open file: " << output_filename;
-  CHECK(output_file->good()) << "File in bad state: " << output_filename;
-}
-/* -------------------------------------------------------------------------- */
-// compares 2 cv::Mat
-bool UtilsOpenCV::CvMatCmp(const cv::Mat mat1, const cv::Mat mat2,
-                           const double tol) {
+// Compares two opencv matrices up to a certain tolerance error.
+bool UtilsOpenCV::compareCvMatsUpToTol(const cv::Mat& mat1,
+                                       const cv::Mat& mat2,
+                                       const double& tol) {
   // treat two empty mat as identical as well
   if (mat1.empty() && mat2.empty()) {
     LOG(WARNING) << "CvMatCmp: asked comparison of 2 empty matrices.";
     return true;
   }
+
   // if dimensionality of two mats are not identical, these two mats are not
   // identical
   if (mat1.cols != mat2.cols || mat1.rows != mat2.rows ||
@@ -100,10 +93,12 @@ bool UtilsOpenCV::CvMatCmp(const cv::Mat mat1, const cv::Mat mat2,
   cv::Mat diff = mat1 - mat2;
   return cv::checkRange(diff, true, 0, -tol, tol);
 }
+
 /* -------------------------------------------------------------------------- */
 // comparse 2 cvPoints
-bool UtilsOpenCV::CvPointCmp(const cv::Point2f& p1, const cv::Point2f& p2,
-                             const double tol) {
+bool UtilsOpenCV::CvPointCmp(const cv::Point2f& p1,
+                             const cv::Point2f& p2,
+                             const double& tol) {
   return std::abs(p1.x - p2.x) <= tol && std::abs(p1.y - p2.y) <= tol;
 }
 
@@ -125,65 +120,71 @@ gtsam::Pose3 UtilsOpenCV::poseVectorToGtsamPose3(
 // in opencv format (note: the function only extracts R and t, without changing
 // them)
 std::pair<cv::Mat, cv::Mat> UtilsOpenCV::Pose2cvmats(const gtsam::Pose3& pose) {
-  gtsam::Matrix3 rot = pose.rotation().matrix();
-  cv::Mat R = cv::Mat(3, 3, CV_64F);
-  for (int r = 0; r < 3; r++) {
-    for (int c = 0; c < 3; c++) {
-      R.at<double>(r, c) = rot(r, c);
-    }
-  }
-  gtsam::Vector3 tran = pose.translation();
-  cv::Mat T = cv::Mat(3, 1, CV_64F);
-  for (int r = 0; r < 3; r++) T.at<double>(r, 0) = tran(r);
-
-  return std::make_pair(R, T);
+  const gtsam::Matrix3& rot = pose.rotation().matrix();
+  const gtsam::Vector3& tran = pose.translation();
+  return std::make_pair(gtsamMatrix3ToCvMat(rot), gtsamVector3ToCvMat(tran));
 }
+
+cv::Mat UtilsOpenCV::gtsamMatrix3ToCvMat(const gtsam::Matrix3& rot) {
+  cv::Mat R = cv::Mat(3, 3, CV_64F);
+  cv::eigen2cv(rot, R);
+  return R;
+}
+
+cv::Mat UtilsOpenCV::gtsamVector3ToCvMat(const gtsam::Vector3& tran) {
+  cv::Mat T = cv::Mat(3, 1, CV_64F);
+  cv::eigen2cv(tran, T);
+  return T;
+}
+
 /* -------------------------------------------------------------------------- */
 // Converts a gtsam pose3 to a opencv Affine3d
-cv::Affine3f UtilsOpenCV::Pose2Affine3f(const gtsam::Pose3& pose) {
-  gtsam::Matrix4 Agtsam = pose.matrix();
-  cv::Mat RT(4, 4, CV_32FC1);  // 4x4
-  // [R t ; 0 1]
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) RT.at<float>(i, j) = float(Agtsam(i, j));
-  }
-  cv::Affine3f A(RT);
-  return A;
+cv::Affine3d UtilsOpenCV::gtsamPose3ToCvAffine3d(const gtsam::Pose3& pose) {
+  cv::Mat RT(4, 4, CV_64F);
+  cv::eigen2cv(pose.matrix(), RT);
+  return cv::Affine3d(RT);
 }
 /* -------------------------------------------------------------------------- */
 // Converts a rotation matrix and translation vector from opencv to gtsam pose3
-gtsam::Pose3 UtilsOpenCV::Cvmats2pose(const cv::Mat& R, const cv::Mat& T) {
-  gtsam::Matrix poseMat = gtsam::Matrix::Identity(4, 4);
-  for (int r = 0; r < 3; r++) {
-    for (int c = 0; c < 3; c++) {
-      poseMat(r, c) = R.at<double>(r, c);
-    }
-  }
-  for (int r = 0; r < 3; r++) poseMat(r, 3) = T.at<double>(r, 0);
-
-  return gtsam::Pose3(poseMat);
+gtsam::Pose3 UtilsOpenCV::cvMatsToGtsamPose3(const cv::Mat& R,
+                                             const cv::Mat& T) {
+  return gtsam::Pose3(cvMatToGtsamRot3(R), cvMatToGtsamPoint3(T));
 }
+
 /* -------------------------------------------------------------------------- */
 // Converts a 3x3 rotation matrix from opencv to gtsam Rot3
-gtsam::Rot3 UtilsOpenCV::Cvmat2rot(const cv::Mat& R) {
-  gtsam::Matrix rotMat = gtsam::Matrix::Identity(3, 3);
-  for (int r = 0; r < 3; r++) {
-    for (int c = 0; c < 3; c++) {
-      rotMat(r, c) = R.at<double>(r, c);
-    }
-  }
-  return gtsam::Rot3(rotMat);
+gtsam::Rot3 UtilsOpenCV::cvMatToGtsamRot3(const cv::Mat& R) {
+  CHECK_EQ(R.rows, 3);
+  CHECK_EQ(R.cols, 3);
+  gtsam::Matrix rot_mat = gtsam::Matrix::Identity(3, 3);
+  cv::cv2eigen(R, rot_mat);
+  return gtsam::Rot3(rot_mat);
 }
+
 /* -------------------------------------------------------------------------- */
-// Converts a camera matrix from opencv to gtsam::Cal3_S2
+// Converts a 3x1 OpenCV matrix to gtsam Point3
+gtsam::Point3 UtilsOpenCV::cvMatToGtsamPoint3(const cv::Mat& cv_t) {
+  CHECK_EQ(cv_t.rows, 3);
+  CHECK_EQ(cv_t.cols, 1);
+  gtsam::Point3 gtsam_t;
+  gtsam_t << cv_t.at<double>(0, 0), cv_t.at<double>(1, 0),
+      cv_t.at<double>(2, 0);
+  return gtsam_t;
+}
+
+/* -------------------------------------------------------------------------- */
+// Converts a 3x3 (or 3xM, M > 3) camera matrix from opencv to gtsam::Cal3_S2.
 gtsam::Cal3_S2 UtilsOpenCV::Cvmat2Cal3_S2(const cv::Mat& M) {
-  double fx = M.at<double>(0, 0);
-  double fy = M.at<double>(1, 1);
-  double s = M.at<double>(0, 1);
-  double u0 = M.at<double>(0, 2);
-  double v0 = M.at<double>(1, 2);
+  CHECK_EQ(M.rows, 3);  // We expect homogeneous camera matrix.
+  CHECK_GE(M.cols, 3);  // We accept extra columns (which we do not use).
+  const double& fx = M.at<double>(0, 0);
+  const double& fy = M.at<double>(1, 1);
+  const double& s = M.at<double>(0, 1);
+  const double& u0 = M.at<double>(0, 2);
+  const double& v0 = M.at<double>(1, 2);
   return gtsam::Cal3_S2(fx, fy, s, u0, v0);
 }
+
 /* -------------------------------------------------------------------------- */
 // Converts a camera matrix from opencv to gtsam::Cal3_S2
 cv::Mat UtilsOpenCV::Cal3_S2ToCvmat(const gtsam::Cal3_S2& M) {
@@ -195,56 +196,83 @@ cv::Mat UtilsOpenCV::Cal3_S2ToCvmat(const gtsam::Cal3_S2& M) {
   C.at<double>(1, 2) = M.py();
   return C;
 }
+
 /* -------------------------------------------------------------------------- */
-// converts an opengv transformation (3x4 [R t] matrix) to a gtsam::Pose3
-gtsam::Pose3 UtilsOpenCV::Gvtrans2pose(const opengv::transformation_t& RT) {
+// Converts an opengv transformation (3x4 [R t] matrix) to a gtsam::Pose3
+gtsam::Pose3 UtilsOpenCV::openGvTfToGtsamPose3(
+    const opengv::transformation_t& RT) {
   gtsam::Matrix poseMat = gtsam::Matrix::Identity(4, 4);
-  for (int r = 0; r < 3; r++) {
-    for (int c = 0; c < 4; c++) {
-      poseMat(r, c) = RT(r, c);
-    }
-  }
+  poseMat.block<3, 4>(0, 0) = RT;
   return gtsam::Pose3(poseMat);
-}
-/* -------------------------------------------------------------------------- */
-// Crops pixel coordinates avoiding that it falls outside image
-cv::Point2f UtilsOpenCV::CropToSize(cv::Point2f px, cv::Size size) {
-  cv::Point2f px_cropped = px;
-  px_cropped.x = std::min(px_cropped.x, float(size.width - 1));
-  px_cropped.x = std::max(px_cropped.x, float(0.0));
-  px_cropped.y = std::min(px_cropped.y, float(size.height - 1));
-  px_cropped.y = std::max(px_cropped.y, float(0.0));
-  return px_cropped;
-}
-/* -------------------------------------------------------------------------- */
-// crop to size and round pixel coordinates to integers
-cv::Point2f UtilsOpenCV::RoundAndCropToSize(cv::Point2f px, cv::Size size) {
-  cv::Point2f px_cropped = px;
-  px_cropped.x = round(px_cropped.x);
-  px_cropped.y = round(px_cropped.y);
-  return CropToSize(px_cropped, size);
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO(Toni): return a bool that signals if it was successful or not.
-void UtilsOpenCV::ExtractCorners(const cv::Mat& img,
+// Crops pixel coordinates avoiding that it falls outside image
+bool UtilsOpenCV::cropToSize(cv::Point2f* px, const cv::Size& size) {
+  CHECK_NOTNULL(px);
+  bool cropped = false;
+  float max_width = static_cast<float>(size.width - 1);
+  if (px->x > max_width) {
+    px->x = max_width;
+    cropped = true;
+  } else if (px->x < 0.0f) {
+    px->x = 0.0f;
+    cropped = true;
+  }
+  float max_height = static_cast<float>(size.height - 1);
+  if (px->y > max_height) {
+    px->y = max_height;
+    cropped = true;
+  } else if (px->y < 0.0f) {
+    px->y = 0.0f;
+    cropped = true;
+  }
+  return cropped;
+}
+/* -------------------------------------------------------------------------- */
+/** @brief Crop to size and round pixel coordinates to integers
+ * @param
+ * @return whether the pixel was cropped or not.
+ */
+bool UtilsOpenCV::roundAndCropToSize(cv::Point2f* px, const cv::Size& size) {
+  CHECK_NOTNULL(px);
+  px->x = round(px->x);
+  px->y = round(px->y);
+  return cropToSize(px, size);
+}
+
+/* -------------------------------------------------------------------------- */
+bool UtilsOpenCV::ExtractCorners(const cv::Mat& img,
                                  std::vector<cv::Point2f>* corners,
                                  const double& qualityLevel,
-                                 const double& minDistance, const int blockSize,
+                                 const double& minDistance,
+                                 const int& blockSize,
                                  const double& k,
-                                 const bool useHarrisDetector) {
+                                 const bool& useHarrisDetector) {
   CHECK_NOTNULL(corners)->clear();
-  cv::TermCriteria criteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+  // TODO(Toni): wtf are all these hardcoded things :(
+  // please remove...
+  static const cv::TermCriteria criteria(
+      CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+  static const cv::Size winSize(10, 10);
+  static const cv::Size zeroZone(-1, -1);
   try {
     // Extract the corners
-    cv::goodFeaturesToTrack(img, *corners, 100, qualityLevel, minDistance,
-                            cv::noArray(), blockSize, useHarrisDetector, k);
-    cv::Size winSize(10, 10);
-    cv::Size zeroZone(-1, -1);
+    cv::goodFeaturesToTrack(img,
+                            *corners,
+                            100,
+                            qualityLevel,
+                            minDistance,
+                            cv::noArray(),
+                            blockSize,
+                            useHarrisDetector,
+                            k);
     cv::cornerSubPix(img, *corners, winSize, zeroZone, criteria);
   } catch (...) {
     LOG(ERROR) << "ExtractCorners: no corner found in image.";
+    return false;
   }
+  return true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -254,14 +282,20 @@ bool UtilsOpenCV::myGreaterThanPtr<T>::operator()(
   return *(a.first) > *(b.first);
 }
 /* -------------------------------------------------------------------------- */
-// TODO this function should be optimized and cleaned.
+// TODO(Toni): VIT this function should be optimized and cleaned.
 // Refactor corners_with_scores using typedef.
 // Use std::vector<std::pair<cv::Point2f, double>>
 // Or  std::vector<std::pair<KeypointCV, Score>> but not a pair of vectors.
+// Remove hardcoded parameters (there are a ton).
 void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
-    const cv::Mat& image, const int& maxCorners, const double& qualityLevel,
-    double minDistance, const cv::Mat& mask, const int& blockSize,
-    const bool& useHarrisDetector, const double& harrisK,
+    const cv::Mat& image,
+    const int& maxCorners,
+    const double& qualityLevel,
+    double minDistance,
+    const cv::Mat& mask,
+    const int& blockSize,
+    const bool& useHarrisDetector,
+    const double& harrisK,
     std::pair<std::vector<cv::Point2f>, std::vector<double>>*
         corners_with_scores) {
   CHECK_NOTNULL(corners_with_scores);
@@ -284,7 +318,7 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
     cv::threshold(eig, eig, maxVal * qualityLevel, 0, CV_THRESH_TOZERO);
     cv::dilate(eig, tmp, cv::Mat());
 
-    cv::Size imgsize = image.size();
+    const cv::Size& imgsize = image.size();
 
     // Create corners.
     std::vector<std::pair<const float*, float>> tmpCornersScores;
@@ -296,7 +330,7 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
       const uchar* mask_data = mask.data ? mask.ptr(y) : nullptr;
 
       for (int x = 1; x < imgsize.width - 1; x++) {
-        float val = eig_data[x];
+        const float& val = eig_data[x];
         // TODO this takes a ton of time 12ms each time...
         if (val != 0 && val == tmp_data[x] && (!mask_data || mask_data[x])) {
           tmpCornersScores.push_back(std::make_pair(eig_data + x, val));
@@ -308,7 +342,7 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
               myGreaterThanPtr<float>());
 
     // Put sorted corner in other struct.
-    size_t i, j;
+    size_t j;
     size_t total = tmpCornersScores.size();
     size_t ncorners = 0;
 
@@ -325,7 +359,7 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
 
       minDistance *= minDistance;
 
-      for (i = 0; i < total; i++) {
+      for (size_t i = 0; i < total; i++) {
         int ofs = (int)((const uchar*)tmpCornersScores[i].first - eig.data);
         int y = (int)(ofs / eig.step);
         int x = (int)((ofs - y * eig.step) / sizeof(float));
@@ -349,12 +383,12 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
 
         for (int yy = y1; yy <= y2; yy++) {
           for (int xx = x1; xx <= x2; xx++) {
-            std::vector<cv::Point2f>& m = grid[yy * grid_width + xx];
+            const std::vector<cv::Point2f>& m = grid[yy * grid_width + xx];
 
             if (m.size()) {
               for (j = 0; j < m.size(); j++) {
-                float dx = x - m[j].x;
-                float dy = y - m[j].y;
+                const float& dx = x - m[j].x;
+                const float& dy = y - m[j].y;
 
                 if (dx * dx + dy * dy < minDistance) {
                   good = false;
@@ -376,11 +410,13 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
           corners_with_scores->first.push_back(cv::Point2f((float)x, (float)y));
           corners_with_scores->second.push_back(eigVal);
           ++ncorners;
-          if (maxCorners > 0 && (int)ncorners == maxCorners) break;
+          if (maxCorners > 0 && (int)ncorners == maxCorners) {
+            break;
+          }
         }
       }
     } else {
-      for (i = 0; i < total; i++) {
+      for (size_t i = 0; i < total; i++) {
         int ofs = (int)((const uchar*)tmpCornersScores[i].first - eig.data);
         int y = (int)(ofs / eig.step);
         int x = (int)((ofs - y * eig.step) / sizeof(float));
@@ -388,14 +424,18 @@ void UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
         corners_with_scores->first.push_back(cv::Point2f((float)x, (float)y));
         corners_with_scores->second.push_back(eigVal);
         ++ncorners;
-        if (maxCorners > 0 && (int)ncorners == maxCorners) break;
+        if (maxCorners > 0 && (int)ncorners == maxCorners) {
+          break;
+        }
       }
     }
 
     // subpixel accuracy: TODO: create function for the next 4 lines
-    cv::TermCriteria criteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
-    cv::Size winSize(10, 10);
-    cv::Size zeroZone(-1, -1);
+    // TODO(Toni): REMOVE all these hardcoded stuff...
+    static const cv::TermCriteria criteria(
+        CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+    static const cv::Size winSize(10, 10);
+    static const cv::Size zeroZone(-1, -1);
 
     // TODO this takes a ton of time 27ms each time...
     cv::cornerSubPix(image, corners_with_scores->first, winSize, zeroZone,
@@ -741,11 +781,13 @@ cv::Mat UtilsOpenCV::DrawCircles(const cv::Mat img,
   KeypointsCV valid_imagePoints;
   std::vector<cv::Scalar> circleColors;
   for (size_t i = 0; i < imagePoints.size(); i++) {
-    if (imagePoints[i].first == Kstatus::VALID) {  // it is a valid point!
+    if (imagePoints[i].first ==
+        KeypointStatus::VALID) {  // it is a valid point!
       valid_imagePoints.push_back(imagePoints[i].second);
       circleColors.push_back(cv::Scalar(0, 255, 0));  // green
     } else if (imagePoints[i].first ==
-               Kstatus::NO_RIGHT_RECT) {  // template matching did not pass
+               KeypointStatus::NO_RIGHT_RECT) {  // template matching did not
+                                                 // pass
       valid_imagePoints.push_back(imagePoints[i].second);
       circleColors.push_back(cv::Scalar(0, 0, 255));
     } else {

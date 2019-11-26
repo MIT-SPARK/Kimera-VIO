@@ -53,60 +53,19 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
 }
 
 /* -------------------------------------------------------------------------- */
-bool StereoVisionFrontEnd::spin(
-    ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
-    ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue,
-    bool parallel_run) {
-  LOG(INFO) << "Spinning StereoFrontEnd.";
-  utils::StatsCollector stat_stereo_frontend_timing(
-      "StereoFrontEnd Timing [ms]");
-  while (!shutdown_) {
-    // Get input data from queue. Wait for Backend payload.
-    is_thread_working_ = false;
-    std::shared_ptr<StereoFrontEndInputPayload> input =
-        input_queue.popBlocking();
-    is_thread_working_ = true;
-    if (input) {
-      auto tic = utils::Timer::tic();
-      const StereoFrontEndOutputPayload& output = spinOnce(input);
-      if (output.is_keyframe_) {
-        VLOG(2) << "Frontend output is a keyframe: pushing to output queue.";
-        output_queue.push(output);
-      } else {
-        VLOG(2) << "Frontend output is not a keyframe."
-                   " Skipping output queue push.";
-      }
-      auto spin_duration = utils::Timer::toc(tic).count();
-      LOG(WARNING) << "Current Stereo FrontEnd "
-                   << (output.is_keyframe_ ? "(keyframe) " : "")
-                   << "frequency: " << 1000.0 / spin_duration << " Hz. ("
-                   << spin_duration << " ms).";
-      stat_stereo_frontend_timing.AddSample(spin_duration);
-    } else {
-      LOG(WARNING) << "No StereoFrontEnd Input Payload received.";
-    }
-
-    // Break the while loop if we are in sequential mode.
-    if (!parallel_run) return true;
-  }
-  LOG(INFO) << "StereoFrontEnd successfully shutdown.";
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
-StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
-    const std::shared_ptr<StereoFrontEndInputPayload>& input) {
-  const StereoFrame& stereoFrame_k = input->getStereoFrame();
+FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
+    const StereoFrontEndInputPayload& input) {
+  const StereoFrame& stereoFrame_k = input.getStereoFrame();
   const auto& k = stereoFrame_k.getFrameId();
   LOG(INFO) << "------------------- Processing frame k = " << k
             << "--------------------";
 
   ////////////////////////////// GET IMU DATA //////////////////////////////////
-  const auto& imu_stamps = input->getImuStamps();
-  const auto& imu_accgyr = input->getImuAccGyr();
+  const auto& imu_stamps = input.getImuStamps();
+  const auto& imu_accgyr = input.getImuAccGyr();
 
   // Print IMU data.
-  if (VLOG_IS_ON(10)) input->print();
+  if (VLOG_IS_ON(10)) input.print();
 
   // For k > 1
   // The preintegration btw frames is needed for RANSAC.
@@ -122,7 +81,7 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
       utils::Timer::toc<std::chrono::microseconds>(tic_full_preint).count();
   utils::StatsCollector stats_full_preint("IMU Preintegration Timing [us]");
   stats_full_preint.AddSample(full_preint_duration);
-  LOG_IF(WARNING, full_preint_duration != 0.0)
+  VLOG_IF(1, full_preint_duration != 0.0)
       << "Current IMU Preintegration frequency: " << 10e6 / full_preint_duration
       << " Hz. (" << full_preint_duration << " us).";
 
@@ -146,7 +105,7 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
   VLOG(10) << "Starting processStereoFrame...";
-  StatusSmartStereoMeasurements statusSmartStereoMeasurements =
+  StatusStereoMeasurements status_stereo_measurements =
       processStereoFrame(stereoFrame_k, calLrectLkf_R_camLrectK_imu);
 
   CHECK(!stereoFrame_k_);  // processStereoFrame is setting this to nullptr!!!
@@ -161,7 +120,7 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
     CHECK(!stereoFrame_k_);
     CHECK(stereoFrame_lkf_->isKeyframe());
     LOG(INFO) << "Keyframe " << k
-              << " with: " << statusSmartStereoMeasurements.second.size()
+              << " with: " << status_stereo_measurements.second.size()
               << " smart measurements";
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
@@ -184,15 +143,25 @@ StereoFrontEndOutputPayload StereoVisionFrontEnd::spinOnce(
     imu_frontend_->resetIntegrationWithCachedBias();
 
     // Return the output of the frontend for the others.
-    return StereoFrontEndOutputPayload(
-        true, statusSmartStereoMeasurements,
+    VLOG(2) << "Frontend output is a keyframe: pushing to output callbacks.";
+    return VIO::make_unique<FrontendOutput>(
+        true,
+        status_stereo_measurements,
         trackerStatusSummary_.kfTrackingStatus_stereo_,
-        getRelativePoseBodyStereo(), *stereoFrame_lkf_, pim, getTrackerInfo());
+        getRelativePoseBodyStereo(),
+        *stereoFrame_lkf_,
+        pim,
+        getTrackerInfo());
   } else {
     // We don't have a keyframe.
-    return StereoFrontEndOutputPayload(
-        false, statusSmartStereoMeasurements, TrackingStatus::INVALID,
-        getRelativePoseBodyStereo(), *stereoFrame_lkf_, pim, getTrackerInfo());
+    VLOG(2) << "Frontend output is not a keyframe. Skipping output queue push.";
+    return VIO::make_unique<FrontendOutput>(false,
+                                            status_stereo_measurements,
+                                            TrackingStatus::INVALID,
+                                            getRelativePoseBodyStereo(),
+                                            *stereoFrame_lkf_,
+                                            pim,
+                                            getTrackerInfo());
   }
 }
 
@@ -240,7 +209,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 /* -------------------------------------------------------------------------- */
 // FRONTEND WORKHORSE
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
-StatusSmartStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
+StatusStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
     const StereoFrame& cur_frame,
     boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu) {
   VLOG(2) << "===================================================\n"
@@ -456,7 +425,7 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
   const LandmarkIds& landmarkId_kf = stereoFrame_kf.getLeftFrame().landmarks_;
   const KeypointsCV& leftKeypoints = stereoFrame_kf.left_keypoints_rectified_;
   const KeypointsCV& rightKeypoints = stereoFrame_kf.right_keypoints_rectified_;
-  const std::vector<Kstatus>& rightKeypoints_status =
+  const std::vector<KeypointStatus>& rightKeypoints_status =
       stereoFrame_kf.right_keypoints_status_;
 
   // Pack information in landmark structure.
@@ -477,7 +446,7 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
                       " (set useStereoTracking_ = true to use it)";
     }
     if (tracker_.trackerParams_.useStereoTracking_ &&
-        rightKeypoints_status.at(i) == Kstatus::VALID) {
+        rightKeypoints_status.at(i) == KeypointStatus::VALID) {
       // TODO implicit conversion float to double increases floating-point
       // precision!
       uR = rightKeypoints.at(i).x;
@@ -522,7 +491,7 @@ void StereoVisionFrontEnd::displayStereoTrack(const int& verbosity) const {
   if (left_frame_k.keypoints_.size() == right_frame_k.keypoints_.size()) {
     for (size_t i = 0; i < left_frame_k.keypoints_.size(); i++) {
       if (left_frame_k.landmarks_[i] != -1 &&
-          stereoFrame_k_->right_keypoints_status_[i] == Kstatus::VALID) {
+          stereoFrame_k_->right_keypoints_status_[i] == KeypointStatus::VALID) {
         matches.push_back(cv::DMatch(i, i, 0));
       }
     }
@@ -682,7 +651,7 @@ void StereoVisionFrontEnd::displaySaveImage(
 /* ------------------------------------------------------------------------ */
 // Static function to display output of stereo tracker
 void StereoVisionFrontEnd::printStatusStereoMeasurements(
-    const StatusSmartStereoMeasurements& statusStereoMeasurements) {
+    const StatusStereoMeasurements& statusStereoMeasurements) {
   LOG(INFO) << " SmartStereoMeasurements with status:";
   logTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_mono_,
                     "mono");

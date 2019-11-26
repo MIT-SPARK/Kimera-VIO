@@ -29,19 +29,20 @@
 #include "kimera-vio/utils/Timer.h"
 
 DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
-DEFINE_int32(dataset_type, 0,
+DEFINE_int32(dataset_type,
+             0,
              "Type of parser to use:\n"
              "0: EuRoC\n"
              "1: Kitti");
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
   // Build dataset parser.
-  std::unique_ptr<VIO::DataProvider> dataset_parser;
+  std::unique_ptr<VIO::DataProviderInterface> dataset_parser;
   switch (FLAGS_dataset_type) {
     case 0: {
       dataset_parser = VIO::make_unique<VIO::ETHDatasetParser>();
@@ -49,15 +50,15 @@ int main(int argc, char *argv[]) {
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
     } break;
-    default:
-    {
+    default: {
       LOG(FATAL) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
-                   << " 0: EuRoC, 1: Kitti.";
+                 << " 0: EuRoC, 1: Kitti.";
     }
   }
+  CHECK(dataset_parser);
+  dataset_parser->pipeline_params_.parallel_run_ = FLAGS_parallel_run;
 
-  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_,
-                             FLAGS_parallel_run);
+  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
 
   // Register callback to vio pipeline.
   dataset_parser->registerVioCallback(
@@ -68,11 +69,11 @@ int main(int argc, char *argv[]) {
   bool is_pipeline_successful = false;
   if (FLAGS_parallel_run) {
     auto handle = std::async(std::launch::async,
-                             &VIO::DataProvider::spin,
+                             &VIO::DataProviderInterface::spin,
                              std::move(dataset_parser));
-    auto handle_pipeline =
-        std::async(std::launch::async, &VIO::Pipeline::shutdownWhenFinished,
-                   &vio_pipeline);
+    auto handle_pipeline = std::async(std::launch::async,
+                                      &VIO::Pipeline::shutdownWhenFinished,
+                                      &vio_pipeline);
     vio_pipeline.spinViz();
     is_pipeline_successful = handle.get();
     handle_pipeline.get();

@@ -34,13 +34,14 @@
 #include "kimera-vio/datasource/DataSource.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
+#include "kimera-vio/frontend/StereoMatchingParams.h"
 
 namespace VIO {
 
 /*
  * Parse all images and camera calibration for an ETH dataset.
  */
-class ETHDatasetParser : public DataProvider {
+class ETHDatasetParser : public DataProviderInterface {
  public:
   // Ctor with params.
   ETHDatasetParser(int initial_k,
@@ -60,7 +61,6 @@ class ETHDatasetParser : public DataProvider {
                 const bool equalize_image,
                 const CameraParams& left_cam_info,
                 const CameraParams& right_cam_info,
-                const gtsam::Pose3& camL_pose_camR,
                 Timestamp* timestamp_last_frame);
 
   // Parses EuRoC data, as well as the frontend and backend parameters
@@ -81,15 +81,6 @@ class ETHDatasetParser : public DataProvider {
   // Get if the dataset has ground truth.
   bool isGroundTruthAvailable() const;
 
-  // Compute error on the relative pose between two time stamps,
-  // compared with the relative pose from ground truth.
-  std::pair<double, double> computePoseErrors(
-      const gtsam::Pose3& lkf_T_k_body,
-      const bool isTrackingValid,
-      const Timestamp& previousTimestamp,
-      const Timestamp& currentTimestamp,
-      const bool upToScale = false) const;
-
   // Get timestamp of a given pair of stereo images (synchronized).
   Timestamp timestampAtFrame(const FrameId& frame_number);
 
@@ -100,14 +91,6 @@ class ETHDatasetParser : public DataProvider {
   }
   inline std::string getRightImgName(const size_t& k) const {
     return getImgName("cam1", k);
-  }
-  // A bit risky to send refs to members... Can lead to dangling references.
-  inline const gtsam::Pose3& getCamLPoseCamR() const { return camL_Pose_camR_; }
-  inline const CameraParams& getLeftCamInfo() const {
-    return camera_info_.at("cam0");
-  }
-  inline const CameraParams& getRightCamInfo() const {
-    return camera_info_.at("cam1");
   }
   inline ImuParams getImuParams() const {
     return pipeline_params_.imu_params_;
@@ -146,14 +129,15 @@ class ETHDatasetParser : public DataProvider {
                    const std::string& gtSensorName);
 
   // Parse cam0, cam1 of a given dataset.
-  bool parseCameraData(const std::string& input_dataset_path,
-                       const std::string& left_cam_name,
-                       const std::string& right_cam_name,
-                       const bool parse_images = true);
+  virtual bool parseCameraParams(const std::string& input_dataset_path,
+                                 const std::string& left_cam_name,
+                                 const std::string& right_cam_name,
+                                 bool parse_images,
+                                 MultiCameraParams* multi_cam_params) override;
 
-  // Parse IMU parameters.
-  bool parseImuParams(const std::string& input_dataset_path,
-                      const std::string& imu_name);
+  virtual bool parseImuParams(const std::string& input_dataset_path,
+                              const std::string& imu_name,
+                              ImuParams* imu_params) override;
 
   /// Getters.
   inline size_t getNumImages() const {
@@ -169,7 +153,6 @@ class ETHDatasetParser : public DataProvider {
 
   bool sanityCheckCameraData(
       const std::vector<std::string>& camera_names,
-      const std::map<std::string, CameraParams>& camera_info,
       std::map<std::string, CameraImageLists>* camera_image_lists) const;
 
   // Sanity check: nr images is the same for left and right camera
@@ -188,12 +171,8 @@ class ETHDatasetParser : public DataProvider {
   /// Images data.
   // This matches the names of the folders in the dataset
   std::vector<std::string> camera_names_;
-  // Map from camera name to its parameters
-  std::map<std::string, CameraParams> camera_info_;
   // Map from camera name to its images
   std::map<std::string, CameraImageLists> camera_image_lists_;
-
-  gtsam::Pose3 camL_Pose_camR_;
 
   bool is_gt_available_;
   std::string dataset_name_;

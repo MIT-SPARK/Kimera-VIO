@@ -12,29 +12,23 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include <algorithm>
-#include <cstdlib>
-#include <iostream>
-#include <random>
+#include <string>
 
 #include <gflags/gflags.h>
-#include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include "kimera-vio/backend/VioBackEndParams.h"
 
 DECLARE_string(test_data_path);
 
-using namespace gtsam;
-using namespace std;
-using namespace VIO;
-using namespace cv;
+namespace VIO {
 
 /* ************************************************************************* */
 TEST(testVioBackEndParams, VioParseYAML) {
   // Test parseYAML
   VioBackEndParams vp;
-  vp.parseYAML(string(FLAGS_test_data_path) + "/ForVIO/vioParameters.yaml");
+  vp.parseYAML(std::string(FLAGS_test_data_path) +
+               "/ForVIO/vioParameters.yaml");
 
   // Check the parsed values!
   // IMU params
@@ -43,7 +37,8 @@ TEST(testVioBackEndParams, VioParseYAML) {
   EXPECT_DOUBLE_EQ(1e-05, vp.imuIntegrationSigma_);
   EXPECT_DOUBLE_EQ(1.92e-05, vp.gyroBiasSigma_);
   EXPECT_DOUBLE_EQ(0.001, vp.accBiasSigma_);
-  EXPECT_TRUE(assert_equal(Vector3(-10, 2, -7.81), vp.n_gravity_));
+  EXPECT_TRUE(
+      gtsam::assert_equal(gtsam::Vector3(-10, 2, -7.81), vp.n_gravity_));
   EXPECT_DOUBLE_EQ(1e-04, vp.nominalImuRate_);
 
   // INITIALIZATION params
@@ -90,3 +85,5 @@ TEST(testVioBackEndParams, equals) {
 
   EXPECT_TRUE(!vp.equals(vp2));
 }
+
+}  // namespace VIO

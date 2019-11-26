@@ -18,7 +18,8 @@ if (NOT __GLOG_INCLUDED)
     # install directory
     set(GLOG_INSTALL ${CMAKE_BINARY_DIR}/external/glog-install)
 
-    # we build glog shared, this requires position-independent code
+    # we build glog statically, but want to link it into the shared library
+    # this requires position-independent code
     if (UNIX)
       set(GLOG_EXTRA_COMPILER_FLAGS "-fPIC")
     endif()

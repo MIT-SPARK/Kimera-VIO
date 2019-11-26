@@ -24,6 +24,7 @@
 #include <gtsam/navigation/NavState.h>
 
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
@@ -33,8 +34,10 @@ namespace VIO {
  */
 class VioNavState {
  public:
+  KIMERA_POINTER_TYPEDEFS(VioNavState);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VioNavState() : pose_(), velocity_(gtsam::Vector3::Zero()), imu_bias_() {}
+  virtual ~VioNavState() = default;
 
   VioNavState(const gtsam::Pose3& pose,
               const gtsam::Vector3& velocity,
@@ -47,9 +50,28 @@ class VioNavState {
   gtsam::Vector3 velocity_;
   gtsam::imuBias::ConstantBias imu_bias_;
 
-  void print(const std::string& message = " ") const;
+  virtual void print(const std::string& message = " ") const;
+  virtual bool equals(const VioNavState& rhs) const;
+};
 
-  bool equals(const VioNavState& rhs) const;
+class VioNavStateTimestamped : public VioNavState {
+ public:
+  KIMERA_POINTER_TYPEDEFS(VioNavState);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  VioNavStateTimestamped(const Timestamp& timestamp,
+                         const VioNavState& vio_nav_state)
+      : VioNavState(vio_nav_state), timestamp_(timestamp) {}
+
+  VioNavStateTimestamped(const Timestamp& timestamp,
+                         const gtsam::Pose3& pose,
+                         const gtsam::Vector3& velocity,
+                         const gtsam::imuBias::ConstantBias& imu_bias)
+      : VioNavState(pose, velocity, imu_bias), timestamp_(timestamp) {}
+
+  Timestamp timestamp_;
+
+  virtual void print(const std::string& message = " ") const override;
+  virtual bool equals(const VioNavStateTimestamped& rhs) const;
 };
 
 // Struct for performance in initialization

@@ -22,45 +22,46 @@
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
-
-// TODO(Toni): leaving this here is a bit ugly...
-using Calibration = gtsam::Cal3DS2;
 
 /*
  * Class describing camera parameters.
  */
 class CameraParams {
  public:
+  KIMERA_POINTER_TYPEDEFS(CameraParams);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  using CameraId = std::string;
+  // fu, fv, cu, cv
+  using Intrinsics = std::array<double, 4>;
+
+  CameraParams(const CameraId& cam_id = "cam")
+      : camera_id_(cam_id),
+        intrinsics_(),
+        body_Pose_cam_(),
+        frame_rate_(),
+        image_size_(),
+        calibration_(),
+        camera_matrix_(),
+        distortion_model_(),
+        distortion_coeff_(),
+        undistRect_map_x_(),
+        undistRect_map_y_(),
+        R_rectify_(),
+        P_(),
+        is_stereo_with_camera_ids_() {}
+  virtual ~CameraParams() = default;
+
   /* ------------------------------------------------------------------------ */
   // Parse YAML file describing camera parameters.
   bool parseYAML(const std::string& filepath);
 
   /* ------------------------------------------------------------------------ */
-  static void parseDistortion(const cv::FileStorage& fs,
-                              const std::string& filepath,
-                              std::string* distortion_model,
-                              std::vector<double>* distortion_coeff);
-  static void parseImgSize(const cv::FileStorage& fs, cv::Size* image_size);
-  static void parseFrameRate(const cv::FileStorage& fs, double* frame_rate);
-  static void parseBodyPoseCam(const cv::FileStorage& fs,
-                               gtsam::Pose3* body_Pose_cam);
-  static void parseCameraIntrinsics(const cv::FileStorage& fs,
-                                    std::vector<double>* intrinsics_);
-  // Convert distortion coefficients to OpenCV Format
-  static void convertDistortionVectorToMatrix(
-      const std::vector<double>& distortion_coeffs,
-      cv::Mat* distortion_coeffs_mat);
-  static void convertIntrinsicsVectorToMatrix(
-      const std::vector<double>& intrinsics,
-      cv::Mat* camera_matrix);
-  static void createGtsamCalibration(const std::vector<double>& distortion,
-                                     const std::vector<double>& intrinsics,
-                                     gtsam::Cal3DS2* calibration);
-
-  /* ------------------------------------------------------------------------ */
+  // TODO(Toni): remove this, make calib to be converted to Euroc format.
   // Parse KITTI calib file describing camera parameters.
   bool parseKITTICalib(const std::string& filepath,
                        cv::Mat R_cam_to_imu,
@@ -76,8 +77,11 @@ class CameraParams {
   bool equals(const CameraParams& cam_par, const double& tol = 1e-9) const;
 
  public:
+  // Id of the camera
+  CameraId camera_id_;
+
   // fu, fv, cu, cv
-  std::vector<double> intrinsics_;
+  Intrinsics intrinsics_;
 
   // Sensor extrinsics wrt. body-frame
   gtsam::Pose3 body_Pose_cam_;
@@ -87,15 +91,18 @@ class CameraParams {
   cv::Size image_size_;
 
   // GTSAM structures to calibrate points.
-  Calibration calibration_;
+  gtsam::Cal3DS2 calibration_;
 
   // OpenCV structures: For radial distortion and rectification.
   // needed to compute the undistorsion map.
   cv::Mat camera_matrix_;
+
   // 5 parameters (last is zero): distortion_model: radial-tangential.
+  // TODO(Toni): USE ENUM CLASS, not std::string...
   std::string distortion_model_;  // define default
   cv::Mat distortion_coeff_;
 
+  // TODO(Toni): don't use cv::Mat to store things of fixed size...
   cv::Mat undistRect_map_x_;
   cv::Mat undistRect_map_y_;
 
@@ -104,6 +111,33 @@ class CameraParams {
 
   // Camera matrix after rectification.
   cv::Mat P_;
+
+  //! List of Cameras which share field of view with this one: i.e. stereo.
+  std::vector<CameraId> is_stereo_with_camera_ids_;
+
+ private:
+  static void parseDistortion(const cv::FileStorage& fs,
+                              const std::string& filepath,
+                              std::string* distortion_model,
+                              std::vector<double>* distortion_coeff);
+  static void parseImgSize(const cv::FileStorage& fs, cv::Size* image_size);
+  static void parseFrameRate(const cv::FileStorage& fs, double* frame_rate);
+  static void parseBodyPoseCam(const cv::FileStorage& fs,
+                               gtsam::Pose3* body_Pose_cam);
+  static void parseCameraIntrinsics(const cv::FileStorage& fs,
+                                    Intrinsics* intrinsics_);
+  // Convert distortion coefficients to OpenCV Format
+  static void convertDistortionVectorToMatrix(
+      const std::vector<double>& distortion_coeffs,
+      cv::Mat* distortion_coeffs_mat);
+  static void convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
+                                              cv::Mat* camera_matrix);
+  static void createGtsamCalibration(const std::vector<double>& distortion,
+                                     const Intrinsics& intrinsics,
+                                     gtsam::Cal3DS2* calibration);
 };
+// TODO(Toni): this should be a base class, so that stereo camera is a specific
+// type of a multi camera sensor rig, or something along these lines.
+typedef std::vector<CameraParams> MultiCameraParams;
 
 }  // namespace VIO

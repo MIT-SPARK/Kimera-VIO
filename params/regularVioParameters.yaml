@@ -1,4 +1,7 @@
 %YAML:1.0
+# Backend modality for regular VIO
+# 0: Structureless factors only, 4: SPR pipeline
+backend_modality: 0
 #IMU PARAMETERS
 gyroNoiseDensity: 0.00016968
 accNoiseDensity: 0.002

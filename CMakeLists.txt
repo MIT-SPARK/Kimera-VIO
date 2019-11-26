@@ -171,21 +171,21 @@ add_executable(testKimeraVIO
   tests/testCameraParams.cpp
   tests/testCodesignIdeas.cpp
   tests/testFeatureSelector.cpp
-  tests/testFrame.cpp
+  tests/testFrame.cpp # NEEDS UPDATE
   tests/testGeneralParallelPlaneRegularBasicFactor.cpp
   tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testImuFrontEnd.cpp
   tests/testKittiDataProvider.cpp # TODO
   tests/testLoopClosureDetector.cpp
   tests/testLogger.cpp
-  # tests/testMesher.cpp # rotten
+  tests/testMesher.cpp # rotten
   tests/testParallelPlaneRegularBasicFactor.cpp
   tests/testParallelPlaneRegularTangentSpaceFactor.cpp
   tests/testPointPlaneFactor.cpp
   #tests/testRegularVioBackEnd.cpp # rotten
   tests/testRegularVioBackEndParams.cpp
-  tests/testStereoFrame.cpp
-  tests/testStereoVisionFrontEnd.cpp
+  tests/testStereoFrame.cpp # NEEDS UPDATE
+  tests/testStereoVisionFrontEnd.cpp # NEEDS UPDATE
   tests/testThreadsafeImuBuffer.cpp
   tests/testThreadsafeQueue.cpp
   tests/testThreadsafeTemporalBuffer.cpp
@@ -196,7 +196,7 @@ add_executable(testKimeraVIO
   tests/testVioBackEnd.cpp
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
-  tests/testVisualizer3D.cpp
+  # tests/testVisualizer3D.cpp # NEEDS UPDATE
   tests/testOnlineAlignment.cpp
   )
 

@@ -85,23 +85,18 @@ DEFINE_double(prior_noise_sigma_distance, 0.1,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-RegularVioBackEnd::RegularVioBackEnd(const Pose3& leftCamPose,
-                                     const Cal3_S2& leftCameraCalRectified,
-                                     const double& baseline,
-                                     const VioNavState& initial_state_seed,
-                                     const Timestamp& timestamp,
-                                     const VioBackEndParams& vioParams,
-                                     const bool& log_timing,
-                                     const BackendModality& backend_modality)
-    : regular_vio_params_(RegularVioBackEndParams::safeCast(vioParams)),
-      backend_modality_(backend_modality),
-      VioBackEnd(leftCamPose,
-                 leftCameraCalRectified,
-                 baseline,
-                 initial_state_seed,
-                 timestamp,
-                 vioParams,
-                 log_timing) {
+RegularVioBackEnd::RegularVioBackEnd(
+    const Pose3& B_Pose_leftCam,
+    const StereoCalibPtr& stereo_calibration,
+    const VioBackEndParams& backend_params,
+    const BackendOutputParams& backend_output_params,
+    const bool& log_output)
+    : regular_vio_params_(RegularVioBackEndParams::safeCast(backend_params)),
+      VioBackEnd(B_Pose_leftCam,
+                 stereo_calibration,
+                 backend_params,
+                 backend_output_params,
+                 log_output) {
   LOG(INFO) << "Using Regular VIO backend.\n";
 
   // Set type of mono_noise_ for generic projection factors.
@@ -136,12 +131,9 @@ RegularVioBackEnd::RegularVioBackEnd(const Pose3& leftCamPose,
 /* -------------------------------------------------------------------------- */
 void RegularVioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
-    const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-    const gtsam::PreintegratedImuMeasurements& pim, std::vector<Plane>* planes,
+    const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
+    const gtsam::PreintegratedImuMeasurements& pim,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
-  CHECK(planes != nullptr)
-      << "Consider using normal VIO instead of regular VIO if you are not "
-         "passing planes...";
 
   debug_info_.resetAddedFactorsStatistics();
 
@@ -223,44 +215,46 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
         // Extract lmk ids that are involved in a regularity.
         VLOG(10) << "Starting extracting lmk ids from set of planes...";
         LandmarkIds lmk_ids_with_regularity;
-        switch (backend_modality_) {
-          case BackendModality::STRUCTURELESS: {
+        switch (regular_vio_params_.backend_modality_) {
+          case RegularBackendModality::STRUCTURELESS: {
             // Do nothing, lmk_ids_with_regularity should be empty.
             CHECK_EQ(lmk_ids_with_regularity.size(), 0);
-            planes->clear();
+            planes_.clear();
             break;
           }
-          case BackendModality::STRUCTURELESS_AND_PROJECTION: {
+          case RegularBackendModality::STRUCTURELESS_AND_PROJECTION: {
             // Transforms to projection factors only the ones that should
             // have regularities, but do not use the planes anymore.
-            extractLmkIdsFromPlanes(*planes, &lmk_ids_with_regularity);
-            planes->clear();
+            extractLmkIdsFromPlanes(planes_, &lmk_ids_with_regularity);
+            planes_.clear();
             break;
           }
-          case BackendModality::PROJECTION: {
+          case RegularBackendModality::PROJECTION: {
             // Transform all smart factors to projection factors,
             // and clear all planes.
             lmk_ids_with_regularity = lmks_kf;
-            planes->clear();
+            planes_.clear();
             break;
           }
-          case BackendModality::PROJECTION_AND_REGULARITY: {
+          case RegularBackendModality::PROJECTION_AND_REGULARITY: {
             // Keep the planes, but change all smart factors to projection
             // factors.
             lmk_ids_with_regularity = lmks_kf;
             break;
           }
-          case BackendModality::STRUCTURELESS_PROJECTION_AND_REGULARITY: {
+          case RegularBackendModality::
+              STRUCTURELESS_PROJECTION_AND_REGULARITY: {
             // Act as usual, keep planes, and transform smart factors to projj
             // factors for those that will have regularities.
-            extractLmkIdsFromPlanes(*planes, &lmk_ids_with_regularity);
+            extractLmkIdsFromPlanes(planes_, &lmk_ids_with_regularity);
             break;
           }
           default: {
             LOG(ERROR)
                 << "Backend modality: "
-                << static_cast<std::underlying_type<BackendModality>::type>(
-                       backend_modality_)
+                << static_cast<
+                       std::underlying_type<RegularBackendModality>::type>(
+                       regular_vio_params_.backend_modality_)
                 << " is not supported.";
             break;
           }
@@ -287,7 +281,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
               << "Finished converting extra smart factors to proj factors...";
         }
 
-        if (planes->size() > 0) {
+        if (planes_.size() > 0) {
           /////////////////// REGULARITY FACTORS
           //////////////////////////////////////////
           // Add regularity factor on vertices of the mesh.
@@ -296,7 +290,7 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           // planes.
           std::map<PlaneId, std::vector<std::pair<Slot, LandmarkId>>>
               idx_of_point_plane_factors_to_add;
-          for (const Plane& plane : *planes) {
+          for (const Plane& plane : planes_) {
             const PlaneId& plane_key = plane.getPlaneSymbol().key();
 
             VLOG(10) << "Adding regularity factors.";
@@ -312,9 +306,10 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           if (FLAGS_remove_old_reg_factors) {
             VLOG(10) << "Removing old regularity factors.";
             gtsam::FactorIndices delete_old_regularity_factors;
-            removeOldRegularityFactors_Slow(
-                *planes, idx_of_point_plane_factors_to_add,
-                &plane_id_to_lmk_id_reg_type_, &delete_old_regularity_factors);
+            removeOldRegularityFactors_Slow(planes_,
+                                            idx_of_point_plane_factors_to_add,
+                                            &plane_id_to_lmk_id_reg_type_,
+                                            &delete_old_regularity_factors);
             if (delete_old_regularity_factors.size() > 0) {
               delete_slots.insert(delete_slots.end(),
                                   delete_old_regularity_factors.begin(),
@@ -329,10 +324,11 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
           // an existing plane from planes structure...
           // Log warning only if we are not using a structureless approach
           // (since it does not require planes).
-          LOG_IF(WARNING, backend_modality_ != BackendModality::STRUCTURELESS)
+          LOG_IF(WARNING,
+                 regular_vio_params_.backend_modality_ !=
+                     RegularBackendModality::STRUCTURELESS)
               << "We are not receiving planes for the backend. If planes have "
-                 "been"
-                 "added to the optimization, we are not removing them.";
+                 "been added to the optimization, we are not removing them.";
         }
       }
       break;
@@ -344,20 +340,22 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
   imu_bias_prev_kf_ = imu_bias_lkf_;
 
   VLOG(10) << "Starting optimize...";
-  optimize(timestamp_kf_nsec, curr_kf_id_, vio_params_.numOptimize_,
+  optimize(timestamp_kf_nsec,
+           curr_kf_id_,
+           backend_params_.numOptimize_,
            delete_slots);
   VLOG(10) << "Finished optimize.";
 
   // Sanity check: ensure no one is removing planes outside
   // updatePlaneEstimates.
   static size_t nr_of_planes = 0;
-  CHECK_LE(nr_of_planes, planes->size());
+  CHECK_LE(nr_of_planes, planes_.size());
 
   // Update estimates of planes, and remove planes that are not in the state.
   VLOG(10) << "Starting updatePlaneEstimates...";
-  updatePlaneEstimates(planes);
+  updatePlaneEstimates(&planes_);
   VLOG(10) << "Finished updatePlaneEstimates.";
-  nr_of_planes = planes->size();
+  nr_of_planes = planes_.size();
 
   // Reset list of factors to delete.
   // These are the smart factors that have been converted to projection factors
@@ -1417,7 +1415,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
           VLOG(10)
               << "Adding a prior to the plane, delete just the bad factors.";
           gtsam::OrientedPlane3 plane_estimate;
-          CHECK(getEstimateOfKey(plane_symbol.key(), &plane_estimate));
+          CHECK(getEstimateOfKey(state_, plane_symbol.key(), &plane_estimate));
           LOG(WARNING) << "Using plane prior on plane with id "
                        << gtsam::DefaultKeyFormatter(plane_symbol);
           CHECK(!has_plane_a_prior && !has_plane_a_linear_factor)
@@ -1456,7 +1454,7 @@ void RegularVioBackEnd::removeOldRegularityFactors_Slow(
   //  // not really attached to the rest of the graph...
 
   //  //  gtsam::Point3 point;
-  //  //  if (getEstimateOfKey(point_symbol.key(), &point)) {
+  //  //  if (getEstimateOfKey(state_, point_symbol.key(), &point)) {
   //  //    LOG(WARNING) << "Using lmk prior on lmk with id " <<
   //  //                    gtsam::DefaultKeyFormatter(point_symbol);
   //  //    // TODO make sure this prior is not repeated over and over on the
@@ -1659,7 +1657,7 @@ void RegularVioBackEnd::updatePlaneEstimates(std::vector<Plane>* planes) {
   for (std::vector<Plane>::iterator plane_it = planes->begin();
        plane_it != planes->end();) {
     const PlaneId& plane_key = plane_it->getPlaneSymbol().key();
-    if (getEstimateOfKey<gtsam::OrientedPlane3>(plane_key, &plane_estimate)) {
+    if (getEstimateOfKey(state_, plane_key, &plane_estimate)) {
       // We found the plane in the state.
       // Update the plane.
       VLOG(10) << "Update plane with id "
