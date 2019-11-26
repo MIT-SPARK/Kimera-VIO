@@ -20,8 +20,56 @@
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
+#include "kimera-vio/pipeline/PipelineModule.h"
+#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
+
+class DataProviderModule
+    : public MISOPipelineModule<StereoImuSyncPacket, StereoImuSyncPacket> {
+ public:
+  KIMERA_DELETE_COPY_CONSTRUCTORS(DataProviderModule);
+  KIMERA_POINTER_TYPEDEFS(DataProviderModule);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  DataProviderModule(OutputQueue* output_queue,
+                     const std::string& name_id,
+                     const bool& parallel_run)
+      : MISOPipelineModule<StereoImuSyncPacket, StereoImuSyncPacket>(
+            output_queue,
+            name_id,
+            parallel_run),
+        imu_queue_("Imu Queue"),
+        left_frame_queue_("Left Frame Queue"),
+        right_frame_queue_("Right Frame Queue") {}
+
+  virtual ~DataProviderModule() = default;
+
+  virtual OutputPtr spinOnce(const StereoImuSyncPacket& input);
+
+  //! Callbacks to fill queues: they should be all lighting fast.
+  inline void fillImuQueue(ImuData::UniquePtr&& imu_data) {
+    CHECK(imu_data);
+    imu_queue_.push(std::move(imu_data));
+  }
+  inline void fillLeftFrameQueue(Frame::UniquePtr&& left_frame) {
+    CHECK(left_frame);
+    left_frame_queue_.push(std::move(left_frame));
+  }
+  inline void fillRightFrameQueue(Frame::UniquePtr&& right_frame) {
+    CHECK(right_frame);
+    right_frame_queue_.push(std::move(right_frame));
+  }
+
+ protected:
+  virtual InputPtr getInputPacket() override {}
+
+ private:
+  //! Input Queues
+  ThreadsafeQueue<ImuData::UniquePtr> imu_queue_;
+  ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
+  ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
+};
 
 class DataProviderInterface {
  public:
@@ -63,6 +111,7 @@ class DataProviderInterface {
   std::string dataset_path_;
 
 protected:
+ // TODO(Toni): Create a separate params only parser!
  //! Helper functions to parse user-specified parameters.
  //! These are agnostic to dataset type.
  void parseBackendParams();

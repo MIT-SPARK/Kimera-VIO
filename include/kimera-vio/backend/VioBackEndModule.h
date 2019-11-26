@@ -51,7 +51,7 @@ class VioBackEndModule
 
   virtual OutputPtr spinOnce(const BackendInput& input) {
     return vio_backend_->spinOnce(input);
-  };
+  }
 
  public:
   void initializeBackend(const VioNavStateTimestamped& initial_seed) {

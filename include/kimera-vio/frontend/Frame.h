@@ -43,11 +43,16 @@ namespace VIO {
 // Class for storing/processing a single image
 class Frame {
  public:
+  // TODO(Toni): do it please.
+  // KIMERA_DELETE_COPY_CONSTRUCTORS(Frame);
+  KIMERA_POINTER_TYPEDEFS(Frame);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   // Constructors.
   /// @param img: does a shallow copy of the image by defaults,
   ///  if Frame should have ownership of the image, clone it.
   Frame(const FrameId& id,
-        const int64_t& timestamp,
+        const Timestamp& timestamp,
         const CameraParams& cam_param,
         const cv::Mat& img)
       : id_(id),
@@ -55,51 +60,6 @@ class Frame {
         cam_param_(cam_param),
         img_(img),
         isKeyframe_(false) {}
-
-  // TODO delete Frame copy constructor
-  // Copy constructor.
-  // Also does a shallow copy of the image!
-  Frame(const Frame& f)
-      : id_(f.id_),
-        timestamp_(f.timestamp_),
-        cam_param_(f.cam_param_),
-        img_(f.img_),
-        isKeyframe_(f.isKeyframe_),
-        keypoints_(f.keypoints_),
-        scores_(f.scores_),
-        landmarks_(f.landmarks_),
-        landmarksAge_(f.landmarksAge_),
-        versors_(f.versors_) {}
-
-  const FrameId id_;
-  const Timestamp timestamp_;
-
-  // These are non-const since they will be changed during rectification.
-  // TODO(Toni): keep original and rectified params.
-  CameraParams cam_param_;
-
-  // Actual image stored by the class frame.
-  // This must be const otw, we have to reimplement the copy ctor to allow
-  // for deep copies.
-  const cv::Mat img_;
-
-  // Results of image processing.
-  bool isKeyframe_ = false;
-
-  // These containers must have same size.
-  KeypointsCV keypoints_;
-  std::vector<double> scores_;  // quality of extracted keypoints
-  LandmarkIds landmarks_;
-  //! How many consecutive *keyframes* saw the keypoint
-  std::vector<int> landmarksAge_;
-  //! in the ref frame of the UNRECTIFIED left frame
-  BearingVectors versors_;
-  //! Not currently used
-  cv::Mat descriptors_;
-
-  // TODO(Toni): remove this.
-  //! Triangulation over keypoints
-  std::vector<cv::Vec6f> triangulation2D_;
 
  public:
   /* ++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++ */
@@ -264,6 +224,33 @@ class Frame {
     // Return unit norm vector
     return versor.normalized();
   }
+
+ public:
+  const FrameId id_;
+  const Timestamp timestamp_;
+
+  // These are non-const since they will be changed during rectification.
+  // TODO(Toni): keep original and rectified params.
+  CameraParams cam_param_;
+
+  // Actual image stored by the class frame.
+  // This must be const otw, we have to reimplement the copy ctor to allow
+  // for deep copies.
+  const cv::Mat img_;
+
+  // Results of image processing.
+  bool isKeyframe_ = false;
+
+  // These containers must have same size.
+  KeypointsCV keypoints_;
+  std::vector<double> scores_;  // quality of extracted keypoints
+  LandmarkIds landmarks_;
+  //! How many consecutive *keyframes* saw the keypoint
+  std::vector<int> landmarksAge_;
+  //! in the ref frame of the UNRECTIFIED left frame
+  BearingVectors versors_;
+  //! Not currently used
+  cv::Mat descriptors_;
 };
 
 }  // namespace VIO

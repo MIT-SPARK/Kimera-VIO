@@ -766,8 +766,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
   // pim_.reset();
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::addBetweenFactor(const FrameId& from_id,
                                   const FrameId& to_id,
                                   const gtsam::Pose3& from_id_POSE_to_id) {
