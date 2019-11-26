@@ -10,8 +10,7 @@
 --log_histogram_1D=false
 --visualize_histogram_2D=false
 --log_histogram_2D=false
---visualize_mesh_2d=false
---visualize_mesh_2d_filtered=true
+--visualize_mesh_2d=true
 
 # Mesh filters.
 --max_grad_in_triangle=-1

@@ -38,6 +38,16 @@ void VioNavState::print(const std::string& message) const {
   imu_bias_.print("\n imuBias: \n");
 }
 
+void VioNavStateTimestamped::print(const std::string& message) const {
+  LOG(INFO) << "--- " << message << "--- \n"
+            << "Timestamp: " << timestamp_;
+  VioNavState::print();
+}
+
+bool VioNavStateTimestamped::equals(const VioNavStateTimestamped& rhs) const {
+  return timestamp_ == rhs.timestamp_ && VioNavState::equals(rhs);
+}
+
 bool VioNavState::equals(const VioNavState& rhs) const {
   return pose_.equals(rhs.pose_) && imu_bias_.equals(rhs.imu_bias_) &&
          velocity_.isApprox(rhs.velocity_);

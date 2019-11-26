@@ -3,6 +3,7 @@ target_sources(KimeraVIO
     PRIVATE
     "${CMAKE_CURRENT_LIST_DIR}/Accumulator.h"
     "${CMAKE_CURRENT_LIST_DIR}/Histogram.h"
+    "${CMAKE_CURRENT_LIST_DIR}/Macros.h"
     "${CMAKE_CURRENT_LIST_DIR}/Statistics.h"
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeImuBuffer.h"
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeImuBuffer-inl.h"
@@ -11,6 +12,7 @@ target_sources(KimeraVIO
     "${CMAKE_CURRENT_LIST_DIR}/ThreadsafeTemporalBuffer-inl.h"
     "${CMAKE_CURRENT_LIST_DIR}/Timer.h"
     "${CMAKE_CURRENT_LIST_DIR}/UtilsGeometry.h"
+    "${CMAKE_CURRENT_LIST_DIR}/UtilsGTSAM.h"
     "${CMAKE_CURRENT_LIST_DIR}/UtilsOpenCV.h"
     "${CMAKE_CURRENT_LIST_DIR}/YamlParser.h"
 )

@@ -22,12 +22,12 @@
 
 namespace VIO {
 
-class KittiDataProvider : public DataProvider {
+class KittiDataProvider : public DataProviderInterface {
  public:
   KittiDataProvider();
-  virtual ~KittiDataProvider();
+  virtual ~KittiDataProvider() = default;
 
-  bool spin() override;
+  virtual bool spin() override;
 
  private:
   struct KittiData {
@@ -37,10 +37,6 @@ class KittiDataProvider : public DataProvider {
     // frames This matches the names of the folders in the dataset
     std::string left_camera_name_;
     std::string right_camera_name_;
-    // Map from camera name to its parameters
-    std::map<std::string, CameraParams> camera_info_;
-
-    gtsam::Pose3 camL_Pose_camR_;  // relative pose between cameras
 
     // The image names of the images from left camera
     std::vector<std::string> left_img_names_;
@@ -57,7 +53,8 @@ class KittiDataProvider : public DataProvider {
 
  private:
   cv::Mat readKittiImage(const std::string& img_name);
-  void parseKittiData(const std::string& kitti_sequence_path, KittiData* kitti_data);
+  void parseKittiData(const std::string& kitti_sequence_path,
+                      KittiData* kitti_data);
 
   // Parse the timestamps of a particular device of given dataset
   bool parseTimestamps(const std::string& timestamps_file,
@@ -75,8 +72,24 @@ class KittiDataProvider : public DataProvider {
 
   // Get R and T matrix from calibration file
   bool parsePose(const std::string& input_dataset_path,
-               const std::string& calibration_filename,
-               cv::Mat& rotation, cv::Mat& translation) const;
+                 const std::string& calibration_filename,
+                 cv::Mat& rotation,
+                 cv::Mat& translation) const;
+
+  // TODO: these are left unimplemented... They are implicitly implemented
+  // in parseCamera/ImuData, but should be disentangled...
+  virtual bool parseCameraParams(const std::string& input_dataset_path,
+                                 const std::string& left_cam_name,
+                                 const std::string& right_cam_name,
+                                 const bool parse_images,
+                                 MultiCameraParams* multi_cam_params) override {
+    return false;
+  };
+  virtual bool parseImuParams(const std::string& input_dataset_path,
+                              const std::string& imu_name,
+                              ImuParams* imu_params) override {
+    return false;
+  };
 
   void print() const;
 

@@ -9,7 +9,9 @@
 /**
  * @file   LoopClosureDetector-definitions.h
  * @brief  Definitions for LoopClosureDetector
- * @author Marcus Abate, Luca Carlone
+ * @author Marcus Abate
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #pragma once
@@ -25,6 +27,7 @@
 
 #include "kimera-vio/common/vio_types.h"
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
 
@@ -218,6 +221,9 @@ struct LoopClosureFactor {
 };  // struct LoopClosureFactor
 
 struct LoopClosureDetectorInputPayload {
+  KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorInputPayload);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetectorInputPayload);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   LoopClosureDetectorInputPayload(const Timestamp& timestamp_kf,
                                   const FrameId& cur_kf_id,
                                   const StereoFrame& stereo_frame,
@@ -231,19 +237,23 @@ struct LoopClosureDetectorInputPayload {
   const FrameId cur_kf_id_;
   const StereoFrame stereo_frame_;
   const gtsam::Pose3 W_Pose_Blkf_;
-};  // struct LoopClosureDetectorInputPayload
+};
+typedef LoopClosureDetectorInputPayload LcdInput;
 
-struct LoopClosureDetectorOutputPayload {
-  LoopClosureDetectorOutputPayload(bool is_loop_closure,
-                                   const Timestamp& timestamp_kf,
-                                   const Timestamp& timestamp_query,
-                                   const Timestamp& timestamp_match,
-                                   const FrameId& id_match,
-                                   const FrameId& id_recent,
-                                   const gtsam::Pose3& relative_pose,
-                                   const gtsam::Pose3& W_Pose_Map,
-                                   const gtsam::Values& states,
-                                   const gtsam::NonlinearFactorGraph& nfg)
+struct LcdOutput {
+  KIMERA_POINTER_TYPEDEFS(LcdOutput);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdOutput);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  LcdOutput(bool is_loop_closure,
+            const Timestamp& timestamp_kf,
+            const Timestamp& timestamp_query,
+            const Timestamp& timestamp_match,
+            const FrameId& id_match,
+            const FrameId& id_recent,
+            const gtsam::Pose3& relative_pose,
+            const gtsam::Pose3& W_Pose_Map,
+            const gtsam::Values& states,
+            const gtsam::NonlinearFactorGraph& nfg)
       : is_loop_closure_(is_loop_closure),
         timestamp_kf_(timestamp_kf),
         timestamp_query_(timestamp_query),
@@ -255,7 +265,7 @@ struct LoopClosureDetectorOutputPayload {
         states_(states),
         nfg_(nfg) {}
 
-  LoopClosureDetectorOutputPayload()
+  LcdOutput()
       : is_loop_closure_(false),
         timestamp_kf_(0),
         timestamp_query_(0),
@@ -278,6 +288,7 @@ struct LoopClosureDetectorOutputPayload {
   gtsam::Pose3 W_Pose_Map_;
   gtsam::Values states_;
   gtsam::NonlinearFactorGraph nfg_;
-};  // struct LoopClosureDetectorOutputPayload
+};
+typedef LcdOutput LcdOutputPayload;
 
 }  // namespace VIO

@@ -33,10 +33,10 @@
 DECLARE_string(test_data_path);
 DECLARE_string(output_path);
 
-static const double tol = 1e-7;
 
 namespace VIO {
 
+static const double tol = 1e-7;
 using csv_mat = std::vector<std::vector<std::string>>;
 
 void checkHeader(std::vector<std::string> actual,
@@ -139,23 +139,20 @@ TEST_F(BackendLoggerFixture, logBackendOutput) {
   gtsam::Pose3 B_Pose_leftCam = gtsam::Pose3(
       gtsam::Rot3::Random(rng_), gtsam::Point3::Random());
   ImuBias imu_bias;
-  int cur_kf_id = random_eng_();
+  FrameId cur_kf_id = random_eng_();
   int landmark_count = random_eng_();
 
-
-  logger_->logBackendOutput(
-      VioBackEndOutputPayload(
-          timestamp,
-          state_values,
-          W_Pose_Blkf,
-          W_Vel_Blkf,
-          B_Pose_leftCam,
-          imu_bias,
-          gtsam::Matrix(),
-          cur_kf_id,
-          landmark_count,
-          DebugVioInfo()));
-
+  logger_->logBackendOutput(BackendOutput(timestamp,
+                                          state_values,
+                                          W_Pose_Blkf,
+                                          W_Vel_Blkf,
+                                          imu_bias,
+                                          gtsam::Matrix(),
+                                          cur_kf_id,
+                                          landmark_count,
+                                          DebugVioInfo(),
+                                          PointsWithIdMap(),
+                                          LmkIdToLmkTypeMap()));
 
   // First check the output_posesVIO.csv results file.
   std::string results_csv = FLAGS_output_path + "output_posesVIO.csv";
@@ -428,17 +425,16 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
 
   logger_->logTimestampMap(ts_map);
 
-  logger_->logOptimizedTraj(LoopClosureDetectorOutputPayload(
-      true,
-      timestamp_kf,
-      timestamp_query,
-      timestamp_match,
-      id_match,
-      id_recent,
-      relative_pose,
-      w_pose_map,
-      traj_values,
-      gtsam::NonlinearFactorGraph()));
+  logger_->logOptimizedTraj(LcdOutput(true,
+                                      timestamp_kf,
+                                      timestamp_query,
+                                      timestamp_match,
+                                      id_match,
+                                      id_recent,
+                                      relative_pose,
+                                      w_pose_map,
+                                      traj_values,
+                                      gtsam::NonlinearFactorGraph()));
 
   // First check the output_frontend_ransac_mono.csv results file.
   std::string opt_traj_csv = FLAGS_output_path +
@@ -473,6 +469,14 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
   EXPECT_LT(actual_qx - traj_pose.rotation().toQuaternion().x(), tol);
   EXPECT_LT(actual_qy - traj_pose.rotation().toQuaternion().y(), tol);
   EXPECT_LT(actual_qz - traj_pose.rotation().toQuaternion().z(), tol);
+}
+
+TEST(testOpenFile, OpenFile) {
+  std::ofstream outputFile;
+  OpenFile("tmp.txt", &outputFile);
+  EXPECT_TRUE(outputFile.is_open());
+  outputFile.close();
+  EXPECT_TRUE(!outputFile.is_open());
 }
 
 // TODO(marcus): add remaining tests for non-critical logs on all three modules.

@@ -42,7 +42,7 @@ TEST(testCodesignIdeas, pixelDisplacementLinearVelocity) {
                                                 367.452,  // px(),
                                                 252.201,  // py()
                                                 0.1));
-  K->print("Calibration:\n");
+  // K->print("Calibration:\n");
 
   // create camera 1: 1 meter from ground, pointing downwards
   StereoCamera stereoCam1 =
@@ -50,8 +50,8 @@ TEST(testCodesignIdeas, pixelDisplacementLinearVelocity) {
   StereoPoint2 sp1 = stereoCam1.project(point3d);
 
   double fps = 40;  // fps
-  cout << "\n LINEAR VELOCITY" << endl;
-  cout << "\n speed, distanceTraveled, pxDisplacement" << endl;
+  // cout << "\n LINEAR VELOCITY" << endl;
+  // cout << "\n speed, distanceTraveled, pxDisplacement" << endl;
   for (size_t i = 0; i <= 20; i++) {
     // create camera 2: 1 meter from ground, moving at 10m/s at 40fps
     double speed = double(i);  // m/s (from 0 to 20m/s): DJI Inspire 1, the max
@@ -67,10 +67,11 @@ TEST(testCodesignIdeas, pixelDisplacementLinearVelocity) {
     // sp1.print("sp1: \n"); sp2.print("sp2: \n");
     // cout << "distanceTraveled: " << distanceTraveled << " pxDisplacement: "
     // << pxDisplacement << endl;
-    cout << speed << " " << distanceTraveled << " " << pxDisplacement << endl;
+    // cout << speed << " " << distanceTraveled << " " << pxDisplacement <<
+    // endl;
   }
-  cout << "\n ANGULAR VELOCITY" << endl;
-  cout << "\n speed, distanceTraveled, pxDisplacement" << endl;
+  // cout << "\n ANGULAR VELOCITY" << endl;
+  // cout << "\n speed, distanceTraveled, pxDisplacement" << endl;
   for (size_t i = 0; i <= 20; i++) {
     // create camera 2: 1 meter from ground, moving at 10m/s at 40fps
     double angularRate =

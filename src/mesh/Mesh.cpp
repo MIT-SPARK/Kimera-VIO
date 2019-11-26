@@ -20,6 +20,9 @@
 
 namespace VIO {
 
+/**
+ * param[in]: polygon_dimension number of vertices per polygon (triangle = 3).
+ */
 template <typename VertexPositionType>
 Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
     : vertex_to_lmk_id_map_(),

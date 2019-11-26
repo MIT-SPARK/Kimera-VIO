@@ -8,8 +8,10 @@
 
 /**
  * @file   LoopClosureDetector.cpp
- * @brief  Pipeline for detection and reporting of Loop Closures between frames
- * @author Marcus Abate, Luca Carlone
+ * @brief  Pipeline for detection and reporting of Loop Closures between frames.
+ * @author Marcus Abate
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <algorithm>
@@ -43,6 +45,8 @@ DEFINE_string(vocabulary_path,
       3: Statistics are reported at relevant steps.
 **/
 
+namespace VIO {
+
 using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
 using SacProblemMono =
     opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
@@ -50,14 +54,11 @@ using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
 using SacProblemStereo =
     opengv::sac_problems::point_cloud::PointCloudSacProblem;
 
-namespace VIO {
-
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
-    const bool log_output)
-    : lcd_pgo_output_callbacks_(),
-      lcd_params_(lcd_params),
+    bool log_output)
+    : lcd_params_(lcd_params),
       log_output_(log_output),
       set_intrinsics_(false),
       orb_feature_detector_(),
@@ -125,67 +126,20 @@ LoopClosureDetector::~LoopClosureDetector() {
 }
 
 /* ------------------------------------------------------------------------ */
-bool LoopClosureDetector::spin(
-    ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
-    bool parallel_run) {
-  LOG(INFO) << "Spinning LoopClosureDetector.";
-  utils::StatsCollector stat_lcd_timing("LoopClosureDetector Timing [ms]");
-
-  while (!shutdown_) {
-    // Get input data from queue. Wait for payload.
-    is_thread_working_ = false;
-    std::shared_ptr<LoopClosureDetectorInputPayload> input =
-        input_queue.popBlocking();
-    is_thread_working_ = true;
-
-    if (input) {
-      auto tic = utils::Timer::tic();
-      LoopClosureDetectorOutputPayload output_payload = spinOnce(input);
-      auto spin_duration = utils::Timer::toc(tic).count();
-      stat_lcd_timing.AddSample(spin_duration);
-
-      if (lcd_pgo_output_callbacks_.size() > 0) {
-        for (LoopClosurePGOCallback& callback : lcd_pgo_output_callbacks_) {
-          callback(output_payload);
-        }
-
-        LOG(WARNING) << "Current LoopClosureDetector frequency: "
-                     << 1000.0 / spin_duration << " Hz. (" << spin_duration
-                     << " ms).";
-      } else {
-        LOG(WARNING) << "LoopClosureDetector: No output callback registered. "
-                     << "Either register a callback or disable LCD with "
-                     << "flag use_lcd=false.";
-      }
-
-    } else {
-      LOG(WARNING) << "No LoopClosureDetector Input Payload received.";
-    }
-
-    if (!parallel_run) return true;
-  }
-  LOG(INFO) << "LoopClosureDetector successfully shutdown.";
-  return true;
-}
-
-/* ------------------------------------------------------------------------ */
-LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
-    const std::shared_ptr<LoopClosureDetectorInputPayload>& input) {
-  CHECK(input) << "No LoopClosureDetector Input Payload received.";
-
+LcdOutput::Ptr LoopClosureDetector::spinOnce(const LcdInput& input) {
   // One time initialization from camera parameters.
   if (!set_intrinsics_) {
-    setIntrinsics(input->stereo_frame_);
+    setIntrinsics(input.stereo_frame_);
   }
   CHECK_EQ(set_intrinsics_, true);
-  CHECK_GT(input->cur_kf_id_, 0);
+  CHECK_GT(input.cur_kf_id_, 0);
 
   // Update the PGO with the backend VIO estimate.
   // TODO(marcus): only add factor if it's a set distance away from previous
   // TODO(marcus): OdometryPose vs OdometryFactor
-  timestamp_map_[input->cur_kf_id_ - 1] = input->timestamp_kf_;
+  timestamp_map_[input.cur_kf_id_ - 1] = input.timestamp_kf_;
   OdometryFactor odom_factor(
-      input->cur_kf_id_, input->W_Pose_Blkf_, shared_noise_model_);
+      input.cur_kf_id_, input.W_Pose_Blkf_, shared_noise_model_);
 
   // Initialize PGO with first frame if needed.
   if (odom_factor.cur_key_ == 1) {
@@ -197,11 +151,9 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   addOdometryFactorAndOptimize(odom_factor);
 
   // Process the StereoFrame and check for a loop closure with previous ones.
-  StereoFrame working_frame = input->stereo_frame_;
   LoopResult loop_result;
-
   // Try to find a loop and update the PGO with the result if available.
-  if (detectLoop(working_frame, &loop_result)) {
+  if (detectLoop(input.stereo_frame_, &loop_result)) {
     LoopClosureFactor lc_factor(loop_result.match_id_,
                                 loop_result.query_id_,
                                 loop_result.relative_pose_,
@@ -236,28 +188,29 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
   const gtsam::Values& pgo_states = pgo_->calculateEstimate();
   const gtsam::NonlinearFactorGraph& pgo_nfg = pgo_->getFactorsUnsafe();
 
-  LoopClosureDetectorOutputPayload output_payload;
-
+  LcdOutput::UniquePtr output_payload;
   if (loop_result.isLoop()) {
-    output_payload = LoopClosureDetectorOutputPayload(
-        true,
-        input->timestamp_kf_,
-        timestamp_map_.at(loop_result.query_id_),
-        timestamp_map_.at(loop_result.match_id_),
-        loop_result.match_id_,
-        loop_result.query_id_,
-        loop_result.relative_pose_,
-        w_Pose_map,
-        pgo_states,
-        pgo_nfg);
+    output_payload =
+        VIO::make_unique<LcdOutput>(true,
+                                    input.timestamp_kf_,
+                                    timestamp_map_.at(loop_result.query_id_),
+                                    timestamp_map_.at(loop_result.match_id_),
+                                    loop_result.match_id_,
+                                    loop_result.query_id_,
+                                    loop_result.relative_pose_,
+                                    w_Pose_map,
+                                    pgo_states,
+                                    pgo_nfg);
   } else {
-    output_payload.W_Pose_Map_ = w_Pose_map;
-    output_payload.states_ = pgo_states;
-    output_payload.nfg_ = pgo_nfg;
+    output_payload = VIO::make_unique<LcdOutput>();
+    output_payload->W_Pose_Map_ = w_Pose_map;
+    output_payload->states_ = pgo_states;
+    output_payload->nfg_ = pgo_nfg;
   }
+  CHECK(output_payload) << "Missing LCD output payload.";
 
   if (logger_) {
-    debug_info_.timestamp_ = output_payload.timestamp_kf_;
+    debug_info_.timestamp_ = output_payload->timestamp_kf_;
     debug_info_.loop_result_ = loop_result;
     debug_info_.pgo_size_ = pgo_->size();
     debug_info_.pgo_lc_count_ = pgo_->getNumLC();
@@ -265,7 +218,7 @@ LoopClosureDetectorOutputPayload LoopClosureDetector::spinOnce(
 
     logger_->logTimestampMap(timestamp_map_);
     logger_->logDebugInfo(debug_info_);
-    logger_->logLCDResult(output_payload);
+    logger_->logLCDResult(*output_payload);
   }
 
   return output_payload;
@@ -523,7 +476,7 @@ const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg() const {
 // TODO(marcus): this should be parsed from CameraParams directly
 void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
   const CameraParams& cam_param = stereo_frame.getLeftFrame().cam_param_;
-  const std::vector<double>& intrinsics = cam_param.intrinsics_;
+  const CameraParams::Intrinsics& intrinsics = cam_param.intrinsics_;
 
   lcd_params_.image_width_ = cam_param.image_size_.width;
   lcd_params_.image_height_ = cam_param.image_size_.height;
@@ -537,6 +490,11 @@ void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::setDatabase(const OrbDatabase& db) {
   db_BoW_ = VIO::make_unique<OrbDatabase>(db);
+}
+
+/* ------------------------------------------------------------------------ */
+void LoopClosureDetector::setVocabulary(const OrbVocabulary& voc) {
+  db_BoW_->setVocabulary(voc);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -581,13 +539,13 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   stereo_frame->left_keypoints_rectified_.reserve(keypoints.size());
   stereo_frame->right_keypoints_rectified_.reserve(keypoints.size());
 
-  stereo_frame->setIsRectified(false);
+  // stereo_frame->setIsRectified(false);
 
   // Add ORB keypoints.
   for (const cv::KeyPoint& keypoint : keypoints) {
     left_frame_mutable->keypoints_.push_back(keypoint.pt);
     left_frame_mutable->versors_.push_back(
-        Frame::CalibratePixel(keypoint.pt, left_frame_mutable->cam_param_));
+        Frame::calibratePixel(keypoint.pt, left_frame_mutable->cam_param_));
     left_frame_mutable->scores_.push_back(1.0);
   }
 
@@ -735,7 +693,8 @@ void LoopClosureDetector::computeIslands(
 
     ++dit;
     for (FrameId idx = 1; dit != q.end(); ++dit, ++idx) {
-      if ((int)dit->Id - last_island_entry < lcd_params_.max_intragroup_gap_) {
+      if (static_cast<int>(dit->Id) - last_island_entry <
+          lcd_params_.max_intragroup_gap_) {
         last_island_entry = dit->Id;
         i_last = idx;
         if (dit->Score > best_score) {
@@ -879,7 +838,8 @@ bool LoopClosureDetector::geometricVerificationNister(
       if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_mono_) {
         if (ransac.iterations_ < lcd_params_.max_ransac_iterations_mono_) {
           opengv::transformation_t transformation = ransac.model_coefficients_;
-          *camCur_T_camRef_mono = UtilsOpenCV::Gvtrans2pose(transformation);
+          *camCur_T_camRef_mono =
+              UtilsOpenCV::openGvTfToGtsamPose3(transformation);
 
           return true;
         }
@@ -944,7 +904,7 @@ bool LoopClosureDetector::recoverPoseArun(const FrameId& query_id,
 
         // Transform pose from camera frame to body frame.
         gtsam::Pose3 camCur_T_camRef =
-            UtilsOpenCV::Gvtrans2pose(transformation);
+            UtilsOpenCV::openGvTfToGtsamPose3(transformation);
         transformCameraPoseToBodyPose(camCur_T_camRef, bodyCur_T_bodyRef);
 
         return true;

@@ -12,12 +12,6 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#include <algorithm>
-#include <cstdlib>
-#include <iostream>
-#include <random>
-
-#include <glog/logging.h>
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
 
@@ -25,12 +19,7 @@
 
 DECLARE_string(test_data_path);
 
-using namespace gtsam;
-using namespace std;
-using namespace VIO;
-using namespace cv;
-
-static const double tol = 1e-7;
+namespace VIO {
 
 TEST(testRegularVioBackEndParams, VioParseYAML) {
   // Test parseYAML
@@ -44,7 +33,8 @@ TEST(testRegularVioBackEndParams, VioParseYAML) {
   EXPECT_DOUBLE_EQ(1e-05, vp.imuIntegrationSigma_);
   EXPECT_DOUBLE_EQ(1.92e-05, vp.gyroBiasSigma_);
   EXPECT_DOUBLE_EQ(0.001, vp.accBiasSigma_);
-  EXPECT_TRUE(assert_equal(Vector3(-10, 2, -7.81), vp.n_gravity_));
+  EXPECT_TRUE(
+      gtsam::assert_equal(gtsam::Vector3(-10, 2, -7.81), vp.n_gravity_));
   EXPECT_DOUBLE_EQ(1e-04, vp.nominalImuRate_);
 
   // INITIALIZATION params
@@ -99,3 +89,5 @@ TEST(testRegularVioBackEndParams, equals) {
 
   EXPECT_TRUE(!vp.equals(vp2));
 }
+
+}  // namespace VIO

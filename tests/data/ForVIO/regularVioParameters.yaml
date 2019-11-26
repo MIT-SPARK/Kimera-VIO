@@ -1,4 +1,5 @@
 %YAML:1.0
+backend_modality: 0
 #IMU PARAMETERS
 gyroNoiseDensity: 0.00013
 accNoiseDensity: 0.001

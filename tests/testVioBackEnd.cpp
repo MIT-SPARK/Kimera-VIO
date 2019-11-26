@@ -36,17 +36,14 @@
 
 DECLARE_string(test_data_path);
 
-using namespace gtsam;
-using namespace std;
-using namespace VIO;
-using namespace cv;
+namespace VIO {
 
 static const double tol = 1e-7;
 
 /* ************************************************************************* */
 // Parameters
 static const int num_key_frames =
-    10;                             // number of frames of the synthetic scene
+    10;  // number of frames of the synthetic scene
 static const gtsam::Vector3 p0(0, 0, 0);  // initial pose of the robot camera
 static const gtsam::Vector3 v(1.0,
                               0,
@@ -55,15 +52,16 @@ static const int time_step =
     1e9;  // elapsed time between two consecutive frames is 1 second (1e9 nsecs)
 static const Timestamp t_start = 1e9;  // ImuBuffer does not allow t = 0;
 static const double baseline = 0.5;
-static const imuBias::ConstantBias imu_bias(gtsam::Vector3(0.1, -0.1, 0.3),
-                                            gtsam::Vector3(0.1, 0.3, -0.2));
+static const gtsam::imuBias::ConstantBias imu_bias(
+    gtsam::Vector3(0.1, -0.1, 0.3),
+    gtsam::Vector3(0.1, 0.3, -0.2));
 
-using StereoPoses = vector<pair<Pose3, Pose3>>;
+using StereoPoses = std::vector<std::pair<gtsam::Pose3, gtsam::Pose3>>;
 
 /* ************************************************************************* */
 // Helper functions!
-vector<Point3> CreateScene() {
-  vector<Point3> points;
+std::vector<Point3> CreateScene() {
+  std::vector<Point3> points;
   // a scene with 8 points
   points.push_back(Point3(0, 0, 20));
   points.push_back(Point3(0, 20, 20));
@@ -96,7 +94,7 @@ StereoPoses CreateCameraPoses(const int num_keyframes,
     Pose3 pose_left(Rot3::identity(), p0 + p_offset);
     Pose3 pose_right = pose_left.compose(L_pose_R);
 
-    poses.push_back(make_pair(pose_left, pose_right));
+    poses.push_back(std::make_pair(pose_left, pose_right));
   }
   return poses;
 }
@@ -132,7 +130,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   vioParams.horizon_ = 100;
 
   // Create 3D points
-  vector<Point3> pts = CreateScene();
+  std::vector<Point3> pts = CreateScene();
   const int num_pts = pts.size();
 
   // Create cameras
@@ -152,8 +150,13 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   StereoPoses poses;
   VIO::utils::ThreadsafeImuBuffer imu_buf(-1);
   poses = CreateCameraPoses(num_key_frames, baseline, p0, v);
-  CreateImuBuffer(imu_buf, num_key_frames, v, imu_bias, vioParams.n_gravity_,
-                  time_step, t_start);
+  CreateImuBuffer(imu_buf,
+                  num_key_frames,
+                  v,
+                  imu_bias,
+                  vioParams.n_gravity_,
+                  time_step,
+                  t_start);
 
   // Create measurements
   //    using SmartStereoMeasurement = pair<LandmarkId,StereoPoint2>;
@@ -164,17 +167,17 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   tracker_status_valid.kfTrackingStatus_mono_ = TrackingStatus::VALID;
   tracker_status_valid.kfTrackingStatus_stereo_ = TrackingStatus::VALID;
 
-  vector<StatusSmartStereoMeasurements> all_measurements;
+  std::vector<StatusStereoMeasurements> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
-    PinholeCamera<Cal3_S2> cam_left(poses[i].first, cam_params);
-    PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
+    gtsam::PinholeCamera<Cal3_S2> cam_left(poses[i].first, cam_params);
+    gtsam::PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
     SmartStereoMeasurements measurement_frame;
     for (int l_id = 0; l_id < num_pts; l_id++) {
       Point2 pt_left = cam_left.project(pts[l_id]);
       Point2 pt_right = cam_right.project(pts[l_id]);
       StereoPoint2 pt_lr(pt_left.x(), pt_right.x(), pt_left.y());
       EXPECT_DOUBLE_EQ(pt_left.y(), pt_right.y());
-      measurement_frame.push_back(make_pair(l_id, pt_lr));
+      measurement_frame.push_back(std::make_pair(l_id, pt_lr));
     }
     all_measurements.push_back(
         make_pair(tracker_status_valid, measurement_frame));
@@ -183,8 +186,20 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   // create vio
   Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
   VioNavState initial_state = VioNavState(poses[0].first, v, imu_bias);
-  boost::shared_ptr<VioBackEnd> vio = boost::make_shared<VioBackEnd>(
-      B_pose_camLrect, cam_params, baseline, initial_state, t_start, vioParams);
+  StereoCalibPtr stereo_calibration =
+      boost::make_shared<gtsam::Cal3_S2Stereo>(cam_params.fx(),
+                                               cam_params.fy(),
+                                               cam_params.skew(),
+                                               cam_params.px(),
+                                               cam_params.py(),
+                                               baseline);
+  std::shared_ptr<VioBackEnd> vio =
+      std::make_shared<VioBackEnd>(B_pose_camLrect,
+                                   stereo_calibration,
+                                   vioParams,
+                                   BackendOutputParams(false, 0, false),
+                                   false);
+  vio->initStateAndSetPriors(VioNavStateTimestamped(t_start, initial_state));
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
   imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
@@ -206,24 +221,23 @@ TEST(testVio, robotMovingWithConstantVelocity) {
     // Get the IMU data
     ImuStampS imu_stamps;
     ImuAccGyrS imu_accgyr;
-    CHECK(imu_buf.getImuDataInterpolatedUpperBorder(timestamp_lkf, timestamp_k,
-                                                    &imu_stamps, &imu_accgyr) ==
+    CHECK(imu_buf.getImuDataInterpolatedUpperBorder(
+              timestamp_lkf, timestamp_k, &imu_stamps, &imu_accgyr) ==
           VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
 
     const auto& pim =
         imu_frontend.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
 
-    const VioBackEndInputPayload input(
-        timestamp_k, all_measurements[k],
-        tracker_status_valid.kfTrackingStatus_stereo_, pim);
-
     // process data with VIO
-    vio->spinOnce(std::make_shared<VioBackEndInputPayload>(input));
+    vio->spinOnce(BackendInput(timestamp_k,
+                               all_measurements[k],
+                               tracker_status_valid.kfTrackingStatus_stereo_,
+                               pim));
     // At this point the update imu bias callback should be triggered which
     // will update the imu_frontend imu bias.
     imu_frontend.resetIntegrationWithCachedBias();
 
-    const NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
+    const gtsam::NonlinearFactorGraph& nlfg = vio->getFactorsUnsafe();
     size_t nrFactorsInSmoother = 0;
     for (const auto& f : nlfg) {  // count the number of nonempty factors
       if (f) nrFactorsInSmoother++;
@@ -245,12 +259,13 @@ TEST(testVio, robotMovingWithConstantVelocity) {
     }
 #endif
     // Check the results!
-    const Values& results = vio->getState();
+    const gtsam::Values& results = vio->getState();
 
     for (int f_id = 0; f_id <= k; f_id++) {
-      Pose3 W_Pose_Blkf = results.at<Pose3>(Symbol('x', f_id));
-      gtsam::Vector3 W_Vel_Blkf = results.at<gtsam::Vector3>(Symbol('v', f_id));
-      ImuBias imu_bias_lkf = results.at<ImuBias>(Symbol('b', f_id));
+      Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
+      gtsam::Vector3 W_Vel_Blkf =
+          results.at<gtsam::Vector3>(gtsam::Symbol('v', f_id));
+      ImuBias imu_bias_lkf = results.at<ImuBias>(gtsam::Symbol('b', f_id));
 
       EXPECT_TRUE(assert_equal(poses[f_id].first, W_Pose_Blkf, tol));
       EXPECT_LT((W_Vel_Blkf - v).norm(), tol);
@@ -264,7 +279,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   // Additional parameters
   VioBackEndParams vioParams;
-  vioParams.landmarkDistanceThreshold_ = 100; // we simulate points 30-40m away
+  vioParams.landmarkDistanceThreshold_ = 100;  // we simulate points 30-40m away
   vioParams.imuIntegrationSigma_ = 1e-4;
   vioParams.horizon_ = 100;
   vioParams.smartNoiseSigma_ = 0.001;
@@ -272,7 +287,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   vioParams.betweenTranslationPrecision_ = 1;
 
   // Create 3D points
-  vector<Point3> pts = CreateScene();
+  std::vector<Point3> pts = CreateScene();
   const int num_pts = pts.size();
 
   // Create cameras
@@ -294,37 +309,52 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
 
   // Create camera poses and IMU data
   StereoPoses poses;
-  VIO::utils::ThreadsafeImuBuffer imu_buf (-1);
+  VIO::utils::ThreadsafeImuBuffer imu_buf(-1);
   poses = CreateCameraPoses(num_key_frames, baseline, p0, v);
-  CreateImuBuffer(imu_buf, num_key_frames, v, imu_bias,
-      vioParams.n_gravity_, time_step, t_start);
+  CreateImuBuffer(imu_buf,
+                  num_key_frames,
+                  v,
+                  imu_bias,
+                  vioParams.n_gravity_,
+                  time_step,
+                  t_start);
 
   // Create measurements
   TrackerStatusSummary tracker_status_valid;
   tracker_status_valid.kfTrackingStatus_mono_ = TrackingStatus::VALID;
   tracker_status_valid.kfTrackingStatus_stereo_ = TrackingStatus::VALID;
 
-  vector<StatusSmartStereoMeasurements> all_measurements;
+  std::vector<StatusStereoMeasurements> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
-    PinholeCamera<Cal3_S2> cam_left(poses[i].first, cam_params);
-    PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
+    gtsam::PinholeCamera<Cal3_S2> cam_left(poses[i].first, cam_params);
+    gtsam::PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
     SmartStereoMeasurements measurement_frame;
     for (int l_id = 0; l_id < num_pts; l_id++) {
       Point2 pt_left = cam_left.project(pts[l_id]);
       Point2 pt_right = cam_right.project(pts[l_id]);
       StereoPoint2 pt_lr(pt_left.x(), pt_right.x(), pt_left.y());
       EXPECT_DOUBLE_EQ(pt_left.y(), pt_right.y());
-      measurement_frame.push_back(make_pair(l_id, pt_lr));
+      measurement_frame.push_back(std::make_pair(l_id, pt_lr));
     }
-    all_measurements.push_back(make_pair(tracker_status_valid,measurement_frame));
+    all_measurements.push_back(
+        std::make_pair(tracker_status_valid, measurement_frame));
   }
 
   // create vio
   Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
-  boost::shared_ptr<InitializationBackEnd> vio =
-    boost::make_shared<InitializationBackEnd>(
-        B_pose_camLrect, cam_params,
-        baseline, vioParams);
+  StereoCalibPtr stereo_calibration =
+      boost::make_shared<gtsam::Cal3_S2Stereo>(cam_params.fx(),
+                                               cam_params.fy(),
+                                               cam_params.skew(),
+                                               cam_params.px(),
+                                               cam_params.py(),
+                                               baseline);
+  std::shared_ptr<InitializationBackEnd> vio =
+      std::make_shared<InitializationBackEnd>(
+          B_pose_camLrect,
+          stereo_calibration,
+          vioParams,
+          BackendOutputParams(false, 0, false));
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
   imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
@@ -335,7 +365,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
 
   // Create vector of input payloads
-  std::vector<std::shared_ptr<VioBackEndInputPayload>> input_vector;
+  std::vector<BackendInput::UniquePtr> input_vector;
   input_vector.clear();
 
   // For each frame, add landmarks.
@@ -347,29 +377,28 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
     // Get the IMU data
     ImuStampS imu_stamps;
     ImuAccGyrS imu_accgyr;
-    CHECK(imu_buf.getImuDataInterpolatedUpperBorder(timestamp_lkf,
-                                                    timestamp_k,
-                                                    &imu_stamps,
-                                                    &imu_accgyr) ==
+    CHECK(imu_buf.getImuDataInterpolatedUpperBorder(
+              timestamp_lkf, timestamp_k, &imu_stamps, &imu_accgyr) ==
           VIO::utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable);
 
-    const auto& pim = imu_frontend.preintegrateImuMeasurements(imu_stamps,
-                                                               imu_accgyr);
+    const auto& pim =
+        imu_frontend.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
 
     // Push input payload into queue
-    VioBackEndInputPayload input (
-          timestamp_k,
-          all_measurements[k],
-          tracker_status_valid.kfTrackingStatus_stereo_,
-          pim);
+
+    BackendInput::UniquePtr input = VIO::make_unique<BackendInput>(
+        timestamp_k,
+        all_measurements[k],
+        tracker_status_valid.kfTrackingStatus_stereo_,
+        pim);
 
     // Create artificially noisy "RANSAC" pose measurements
-    gtsam::Pose3 random_pose = (poses[k-1].first).between(poses[k].first) *
-                UtilsOpenCV::RandomPose3(rad_sigma, pos_sigma);
-    input.stereo_ransac_body_pose_ = random_pose;
+    gtsam::Pose3 random_pose = (poses[k - 1].first).between(poses[k].first) *
+                               UtilsOpenCV::RandomPose3(rad_sigma, pos_sigma);
+    input->stereo_ransac_body_pose_ = random_pose;
 
     // Create input vector for backend
-    input_vector.push_back(std::make_shared<VioBackEndInputPayload>(input));
+    input_vector.push_back(std::move(input));
   }
 
   // Perform Bundle Adjustment
@@ -382,7 +411,9 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   // The tolerance is on compounded error!! Not relative.
   for (int f_id = 0; f_id < (num_key_frames-1); f_id++) {
     Pose3 W_Pose_Blkf = poses[1].first.compose(results.at(f_id));
-    EXPECT_TRUE(assert_equal(poses[f_id+1].first, W_Pose_Blkf,
-                          vioParams.smartNoiseSigma_));
+    EXPECT_TRUE(assert_equal(
+        poses[f_id + 1].first, W_Pose_Blkf, vioParams.smartNoiseSigma_));
   }
 }
+
+}  // namespace VIO

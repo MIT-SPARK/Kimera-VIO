@@ -736,7 +736,7 @@ TEST(FeatureSelector, lowerBound) {
   EXPECT_TRUE(numericalLowerBound != +1);  // different from a positive number
   EXPECT_LT(numericalLowerBound, -1000);   // smaller than a negative number
   EXPECT_LT(numericalLowerBound, 0.1);     // smaller than a positive number
-  cout << "numericalLowerBound " << numericalLowerBound << endl;
+  LOG(INFO) << "numericalLowerBound " << numericalLowerBound << endl;
 }
 
 /* ************************************************************************* */
@@ -749,7 +749,7 @@ TEST(FeatureSelector, upperBound) {
   EXPECT_TRUE(numericalUpperBound != +1);    // different from a positive number
   EXPECT_TRUE(numericalUpperBound > -1000);  // larger than a negative number
   EXPECT_TRUE(numericalUpperBound > 1000);   // larger than a positive number
-  cout << "numericalUpperBound " << numericalUpperBound << endl;
+  LOG(INFO) << "numericalUpperBound " << numericalUpperBound << endl;
 }
 
 /* ************************************************************************* */

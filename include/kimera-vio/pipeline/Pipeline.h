@@ -22,44 +22,44 @@
 #include <utility>  // for make_pair
 #include <vector>
 
-#include "kimera-vio/datasource/DataSource-definitions.h"  // Only used for gtNavState, add it to vio_types.h instead...
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
+#include "kimera-vio/backend/VioBackEndModule.h"
+#include "kimera-vio/datasource/DataSource-definitions.h"
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
+#include "kimera-vio/frontend/VisionFrontEndModule.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
-#include "kimera-vio/loopclosure/LoopClosureDetector.h"  // TODO(marcus): would be nice to remove
-#include "kimera-vio/mesh/Mesher.h"
+#include "kimera-vio/loopclosure/LoopClosureDetector.h"
+#include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/visualizer/Visualizer3D.h"
-
-namespace VIO {
-// Forward-declare classes.
-class VioBackEndParams;
-class VioBackEnd;
-class StereoVisionFrontEnd;
-}  // namespace VIO
+#include "kimera-vio/visualizer/Visualizer3DModule.h"
 
 namespace VIO {
 
 class Pipeline {
  private:
+  KIMERA_POINTER_TYPEDEFS(Pipeline);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(Pipeline);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   // Typedefs
   typedef std::function<void(const SpinOutputPacket&)>
       KeyframeRateOutputCallback;
 
  public:
-  Pipeline(const PipelineParams& params, bool parallel_run = true);
+  explicit Pipeline(const PipelineParams& params);
 
-  ~Pipeline();
+  virtual ~Pipeline();
 
   // Main spin, runs the pipeline.
-  void spin(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  void spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
 
   // Run an endless loop until shutdown to visualize.
-  bool spinViz(bool parallel_run = true);
+  bool spinViz();
 
   // Spin the pipeline only once.
-  void spinOnce(const StereoImuSyncPacket& stereo_imu_sync_packet);
+  void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
 
   // A parallel pipeline should always be able to run sequentially...
   void spinSequential();
@@ -74,22 +74,6 @@ class Pipeline {
   // Resumes all queues
   void resume();
 
-  // Return the mesher output queue for FUSES to process the mesh_2d and
-  // mesh_3d to extract semantic information.
-  // TODO(Toni) this should be a callback instead...
-  // right now it works because no one is pulling from this queue in pipeline.
-  inline ThreadsafeQueue<MesherOutputPayload>& getMesherOutputQueue() {
-    return mesher_output_queue_;
-  }
-
-  // Registration of callbacks.
-  // Callback to modify the mesh visual properties every time the mesher
-  // has a new 3d mesh.
-  inline void registerSemanticMeshSegmentationCallback(
-      Mesher::Mesh3dVizPropertiesSetterCallback callback) {
-    visualizer_.registerMesh3dVizProperties(callback);
-  }
-
   // Callback to output the VIO backend results at keyframe rate.
   // This callback also allows to
   inline void registerKeyFrameRateOutputCallback(
@@ -99,9 +83,9 @@ class Pipeline {
 
   // Callback to output the LoopClosureDetector's loop-closure/PGO results.
   inline void registerLcdPgoOutputCallback(
-      const LoopClosurePGOCallback& callback) {
-    if (loop_closure_detector_) {
-      loop_closure_detector_->registerLcdPgoOutputCallback(callback);
+      const LcdModule::OutputCallback& callback) {
+    if (lcd_module_) {
+      lcd_module_->registerCallback(callback);
     } else {
       LOG(ERROR) << "Attempt to register LCD/PGO callback, but no "
                  << "LoopClosureDetector member is active in pipeline.";
@@ -132,36 +116,17 @@ class Pipeline {
   // Initialize pipeline from online gravity alignment.
   bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // Initialize backend.
-  // Initialize backend given external pose estimate (GT, IMU or OGA)
-  /// @param: vio_backend: returns the backend initialized.
-  /// @param: initial_state_seed: first state guess.
-  bool initBackend(std::unique_ptr<VioBackEnd>* vio_backend,
-                   const StereoImuSyncPacket& stereo_imu_sync_packet,
-                   const VioNavState& initial_state_seed,
-                   const StereoFrame& stereo_frame_lkf);
-
   // Displaying must be done in the main thread.
-  void spinDisplayOnce(VisualizerOutputPayload& visualizer_output_payload);
+  void spinDisplayOnce(const VisualizerOutput::Ptr& viz_output) const;
 
-  void processKeyframe(
-      const StatusSmartStereoMeasurements& statusSmartStereoMeasurements,
-      const StereoFrame& last_stereo_keyframe,
-      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
-      const TrackingStatus& kf_tracking_status_stereo,
-      const gtsam::Pose3& relative_pose_body_stereo,
-      const DebugTrackerInfo& debug_tracker_info);
-
-  void processKeyframePop();
-
-  StatusSmartStereoMeasurements featureSelect(
+  StatusStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
       const gtsam::Pose3& W_Pose_Blkf,
       double* feature_selection_time,
       std::shared_ptr<StereoFrame>& stereoFrame_km1,
-      const StatusSmartStereoMeasurements& smart_stereo_meas,
+      const StatusStereoMeasurements& smart_stereo_meas,
       int cur_kf_id,
       int save_image_selector,
       const gtsam::Matrix& curr_state_cov,
@@ -184,54 +149,41 @@ class Pipeline {
 
   // Callbacks.
   KeyframeRateOutputCallback keyframe_rate_output_callback_;
-  LoopClosurePGOCallback loop_closure_pgo_callback_;
 
   // Init Vio parameter
-  VioBackEndParamsConstPtr backend_params_;
+  VioBackEndParams::ConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
+  ImuParams imu_params_;
+
+  //! Definition of sensor rig used
+  StereoCamera::UniquePtr stereo_camera_;
 
   // TODO this should go to another class to avoid not having copy-ctor...
   // Frontend.
-  std::unique_ptr<StereoVisionFrontEnd> vio_frontend_;
+  StereoVisionFrontEndModule::UniquePtr vio_frontend_module_;
   std::unique_ptr<FeatureSelector> feature_selector_;
 
   // Stereo vision frontend payloads.
-  ThreadsafeQueue<StereoImuSyncPacket> stereo_frontend_input_queue_;
-  ThreadsafeQueue<StereoFrontEndOutputPayload> stereo_frontend_output_queue_;
+  StereoVisionFrontEndModule::InputQueue stereo_frontend_input_queue_;
 
   // Online initialization frontend queue.
-  ThreadsafeQueue<InitializationInputPayload>
+  ThreadsafeQueue<InitializationInputPayload::UniquePtr>
       initialization_frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
-  std::unique_ptr<VioBackEnd> vio_backend_;
+  VioBackEndModule::UniquePtr vio_backend_module_;
 
   // Thread-safe queue for the backend.
-  ThreadsafeQueue<VioBackEndInputPayload> backend_input_queue_;
-  ThreadsafeQueue<VioBackEndOutputPayload> backend_output_queue_;
-
-  // Set of planes in the scene.
-  std::vector<Plane> planes_;
+  VioBackEndModule::InputQueue backend_input_queue_;
 
   // Create class to build mesh.
-  Mesher mesher_;
-
-  // Thread-safe queue for the mesher.
-  ThreadsafeQueue<MesherInputPayload> mesher_input_queue_;
-  ThreadsafeQueue<MesherOutputPayload> mesher_output_queue_;
+  MesherModule::UniquePtr mesher_module_;
 
   // Create class to detect loop closures.
-  std::unique_ptr<LoopClosureDetector> loop_closure_detector_;
-
-  // Thread-safe queue for the loop closure detector.
-  ThreadsafeQueue<LoopClosureDetectorInputPayload> lcd_input_queue_;
+  LcdModule::UniquePtr lcd_module_;
 
   // Visualization process.
-  Visualizer3D visualizer_;
-
-  // Thread-safe queue for the visualizer.
-  ThreadsafeQueue<VisualizerInputPayload> visualizer_input_queue_;
-  ThreadsafeQueue<VisualizerOutputPayload> visualizer_output_queue_;
+  VisualizerModule::UniquePtr visualizer_module_;
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
@@ -240,14 +192,13 @@ class Pipeline {
   int init_frame_id_;
 
   // Threads.
-  std::unique_ptr<std::thread> stereo_frontend_thread_ = {nullptr};
-  std::unique_ptr<std::thread> wrapped_thread_ = {nullptr};
+  std::unique_ptr<std::thread> frontend_thread_ = {nullptr};
   std::unique_ptr<std::thread> backend_thread_ = {nullptr};
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
   std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
-  // std::thread visualizer_thread_;
+  std::unique_ptr<std::thread> visualizer_thread_ = {nullptr};
 
-  int backend_type_;
+  BackendType backend_type_;
   bool parallel_run_;
 };
 

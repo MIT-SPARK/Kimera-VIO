@@ -190,7 +190,7 @@ FeatureSelector::featureSelectionLinearModel(
   availableVersors.reserve(availableCorners.size());
   for (size_t l = 0; l < availableCorners.size(); l++)
     availableVersors.push_back(
-        Frame::CalibratePixel(availableCorners.at(l), cam_param));
+        Frame::calibratePixel(availableCorners.at(l), cam_param));
 
 #ifdef FEATURE_SELECTOR_DEBUG_COUT
   std::cout << "known points time: "
@@ -1455,7 +1455,7 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
 
       // featureSelectionData.print();
       const gtsam::Cal3_S2& K = stereoFrame_km1->getLeftUndistRectCamMat();
-      CameraParams cam_param;
+      CameraParams cam_param("cam");
       cam_param.calibration_ =
           gtsam::Cal3DS2(K.fx(), K.fy(), 0.0, K.px(), K.py(), 0.0, 0.0);
       cam_param.camera_matrix_ = cv::Mat::eye(3, 3, CV_64F);

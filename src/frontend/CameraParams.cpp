@@ -101,11 +101,10 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
         std::vector<double> K_vector;
         double value;  // store values in Kvector
         while (ss >> value) K_vector.push_back(value);
-        intrinsics_.clear();
-        intrinsics_.push_back(K_vector[0]);
-        intrinsics_.push_back(K_vector[4]);
-        intrinsics_.push_back(K_vector[2]);
-        intrinsics_.push_back(K_vector[5]);
+        intrinsics_[0] = K_vector[0];
+        intrinsics_[1] = K_vector[4];
+        intrinsics_[1] = K_vector[2];
+        intrinsics_[1] = K_vector[5];
         // Convert intrinsics to OpenCV Format.
         camera_matrix_ = cv::Mat::eye(3, 3, CV_64F);
         camera_matrix_.at<double>(0, 0) = intrinsics_[0];
@@ -166,7 +165,7 @@ bool CameraParams::parseKITTICalib(const std::string& filepath,
   rotation = R_cam_to_body * rotation.t();
   translation = T_cam_to_body - R_cam_to_body * translation;
 
-  body_Pose_cam_ = UtilsOpenCV::Cvmats2pose(rotation, translation);
+  body_Pose_cam_ = UtilsOpenCV::cvMatsToGtsamPose3(rotation, translation);
 
   calibration_ = gtsam::Cal3DS2(intrinsics_[0],          // fx
                                 intrinsics_[1],          // fy
@@ -249,17 +248,22 @@ void CameraParams::parseBodyPoseCam(const cv::FileStorage& fs,
 
 /* -------------------------------------------------------------------------- */
 void CameraParams::parseCameraIntrinsics(const cv::FileStorage& fs,
-                                         std::vector<double>* intrinsics_) {
-  CHECK_NOTNULL(intrinsics_)->clear();
-  fs["intrinsics"] >> *intrinsics_;
+                                         Intrinsics* intrinsics_) {
+  CHECK_NOTNULL(intrinsics_);
+  std::vector<double> intrinsics;
+  fs["intrinsics"] >> intrinsics;
+  CHECK_EQ(intrinsics.size(), intrinsics_->size());
+  // Move elements from one to the other.
+  std::copy_n(std::make_move_iterator(intrinsics.begin()),
+              intrinsics_->size(),
+              intrinsics_->begin());
 }
 
 /* -------------------------------------------------------------------------- */
-void CameraParams::convertIntrinsicsVectorToMatrix(
-    const std::vector<double>& intrinsics,
-    cv::Mat* camera_matrix) {
+void CameraParams::convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
+                                                   cv::Mat* camera_matrix) {
   CHECK_NOTNULL(camera_matrix);
-  CHECK_EQ(intrinsics.size(), 4);
+  DCHECK_EQ(intrinsics.size(), 4);
   *camera_matrix = cv::Mat::eye(3, 3, CV_64F);
   camera_matrix->at<double>(0, 0) = intrinsics[0];
   camera_matrix->at<double>(1, 1) = intrinsics[1];
@@ -269,10 +273,9 @@ void CameraParams::convertIntrinsicsVectorToMatrix(
 
 /* -------------------------------------------------------------------------- */
 // TODO(Toni) : Check if equidistant distortion is supported as well in gtsam.
-void CameraParams::createGtsamCalibration(
-    const std::vector<double>& distortion,
-    const std::vector<double>& intrinsics,
-    gtsam::Cal3DS2* calibration) {
+void CameraParams::createGtsamCalibration(const std::vector<double>& distortion,
+                                          const Intrinsics& intrinsics,
+                                          gtsam::Cal3DS2* calibration) {
   CHECK_NOTNULL(calibration);
   CHECK_GE(intrinsics.size(), 4);
   CHECK_GE(distortion.size(), 4);
@@ -295,7 +298,7 @@ void CameraParams::print() const {
   for(size_t i = 0; i < intrinsics_.size(); i++) {
     output += std::to_string(intrinsics_.at(i)) + " , ";
   }
-  LOG(INFO) << "------------ CameraParams::print -------------\n"
+  LOG(INFO) << "------------ Camera ID: " << camera_id_ << " -------------\n"
             << "intrinsics_: " << output;
 
   LOG(INFO) << "body_Pose_cam_: \n" << body_Pose_cam_ << std::endl;
@@ -329,18 +332,22 @@ bool CameraParams::equals(const CameraParams& cam_par, const double& tol) const 
       break;
     }
   }
-  return areIntrinsicEqual &&
+  return camera_id_ == cam_par.camera_id_ && areIntrinsicEqual &&
          body_Pose_cam_.equals(cam_par.body_Pose_cam_, tol) &&
          (std::fabs(frame_rate_ - cam_par.frame_rate_) < tol) &&
          (image_size_.width == cam_par.image_size_.width) &&
          (image_size_.height == cam_par.image_size_.height) &&
          calibration_.equals(cam_par.calibration_, tol) &&
-         UtilsOpenCV::CvMatCmp(camera_matrix_, cam_par.camera_matrix_) &&
-         UtilsOpenCV::CvMatCmp(distortion_coeff_, cam_par.distortion_coeff_) &&
-         UtilsOpenCV::CvMatCmp(undistRect_map_x_, cam_par.undistRect_map_x_) &&
-         UtilsOpenCV::CvMatCmp(undistRect_map_y_, cam_par.undistRect_map_y_) &&
-         UtilsOpenCV::CvMatCmp(R_rectify_, cam_par.R_rectify_) &&
-         UtilsOpenCV::CvMatCmp(P_, cam_par.P_);
+         UtilsOpenCV::compareCvMatsUpToTol(camera_matrix_,
+                                           cam_par.camera_matrix_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(distortion_coeff_,
+                                           cam_par.distortion_coeff_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(undistRect_map_x_,
+                                           cam_par.undistRect_map_x_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(undistRect_map_y_,
+                                           cam_par.undistRect_map_y_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(R_rectify_, cam_par.R_rectify_) &&
+         UtilsOpenCV::compareCvMatsUpToTol(P_, cam_par.P_);
 }
 
 }  // namespace VIO
