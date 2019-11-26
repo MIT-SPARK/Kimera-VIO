@@ -723,18 +723,18 @@ void LoopClosureDetector::computeIslands(
 
     // create long enough islands
     DBoW2::QueryResults::const_iterator dit = q.begin();
-    int first_island_entry = dit->Id;
-    int last_island_entry = dit->Id;
+    int first_island_entry = static_cast<int>(dit->Id);
+    int last_island_entry = static_cast<int>(dit->Id);
 
     // these are indices of q
-    int i_first = 0;
-    int i_last = 0;
+    FrameId i_first = 0;
+    FrameId i_last = 0;
 
     double best_score = dit->Score;
-    FrameId best_entry = dit->Id;
+    DBoW2::EntryId best_entry = dit->Id;
 
     ++dit;
-    for (int idx = 1; dit != q.end(); ++dit, ++idx) {
+    for (FrameId idx = 1; dit != q.end(); ++dit, ++idx) {
       if ((int)dit->Id - last_island_entry < lcd_params_.max_intragroup_gap_) {
         last_island_entry = dit->Id;
         i_last = idx;
@@ -772,7 +772,7 @@ void LoopClosureDetector::computeIslands(
 
       islands->push_back(island);
       islands->back().best_score_ = best_score;
-      islands->back().best_id_ = best_entry;
+      islands->back().best_id_ = static_cast<FrameId>(best_entry);
     }
   }
 }
