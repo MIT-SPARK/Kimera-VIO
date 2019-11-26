@@ -214,14 +214,14 @@ class Frame {
   }
 
   /* ------------------------------------------------------------------------ */
-  static Vector3 CalibratePixel(const KeypointCV& cv_px,
+  static Vector3 calibratePixel(const KeypointCV& cv_px,
                                 const CameraParams& cam_param) {
     // Calibrate pixel.
-    cv::Mat_<KeypointCV> uncalibrated_px(
-        1, 1);  // matrix of px with a single entry, i.e., a single pixel
+    // matrix of px with a single entry, i.e., a single pixel
+    cv::Mat_<KeypointCV> uncalibrated_px(1, 1);
     uncalibrated_px(0) = cv_px;
-    cv::Mat calibrated_px;
 
+    cv::Mat calibrated_px;
     if (cam_param.distortion_model_ == "radtan" ||
         cam_param.distortion_model_ == "radial-tangential") {
       // TODO optimize this in just one call, the s in Points is there for
@@ -260,7 +260,9 @@ class Frame {
     //  throw std::runtime_error("CalibratePixel: possible calibration
     //  mismatch");
     //}
-    return versor / versor.norm();  // return unit norm vector
+
+    // Return unit norm vector
+    return versor.normalized();
   }
 };
 

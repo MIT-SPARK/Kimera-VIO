@@ -60,7 +60,7 @@ class Mesher {
   // 3D face from the 2D triangle.
   void updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
                     const KeypointsCV& keypoints,
-                    const std::vector<Kstatus>& keypoints_status,
+                    const std::vector<KeypointStatus>& keypoints_status,
                     const std::vector<Vector3>& keypoints_3d,
                     const LandmarkIds& landmarks,
                     const gtsam::Pose3& left_camera_pose,
@@ -79,11 +79,12 @@ class Mesher {
                              const PointsWithIdMap& points_with_id_vio);
 
   /* ------------------------------------------------------------------------ */
-  void appendNonVioStereoPoints(const LandmarkIds& landmarks,
-                                const std::vector<Kstatus>& keypoints_status,
-                                const std::vector<Vector3>& keypoints_3d,
-                                const gtsam::Pose3& left_cam_pose,
-                                PointsWithIdMap* points_with_id_stereo) const;
+  void appendNonVioStereoPoints(
+      const LandmarkIds& landmarks,
+      const std::vector<KeypointStatus>& keypoints_status,
+      const std::vector<Vector3>& keypoints_3d,
+      const gtsam::Pose3& left_cam_pose,
+      PointsWithIdMap* points_with_id_stereo) const;
 
   /* ------------------------------------------------------------------------ */
   // Extract lmk ids from triangle cluster.
@@ -363,17 +364,18 @@ class Mesher {
       const cv::Size& img_size,
       std::vector<cv::Point2f>* keypoints_to_triangulate);
 
-  static void createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
-                              const LandmarkIds& landmarks,
-                              const std::vector<Kstatus>& keypoints_status,
-                              const KeypointsCV& keypoints,
-                              const cv::Size& img_size,
-                              const PointsWithIdMap& pointsWithIdVIO);
+  static void createMesh2dVIO(
+      std::vector<cv::Vec6f>* triangulation_2D,
+      const LandmarkIds& landmarks,
+      const std::vector<KeypointStatus>& keypoints_status,
+      const KeypointsCV& keypoints,
+      const cv::Size& img_size,
+      const PointsWithIdMap& pointsWithIdVIO);
 
   static void createMesh2dStereo(
       std::vector<cv::Vec6f>* triangulation_2D,
       const LandmarkIds& landmarks,
-      const std::vector<Kstatus>& keypoints_status,
+      const std::vector<KeypointStatus>& keypoints_status,
       const KeypointsCV& keypoints,
       const std::vector<Vector3>& keypoints_3d,
       const cv::Size& img_size,

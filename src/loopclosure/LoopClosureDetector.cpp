@@ -464,7 +464,7 @@ const gtsam::NonlinearFactorGraph LoopClosureDetector::getPGOnfg() const {
 // TODO(marcus): this should be parsed from CameraParams directly
 void LoopClosureDetector::setIntrinsics(const StereoFrame& stereo_frame) {
   const CameraParams& cam_param = stereo_frame.getLeftFrame().cam_param_;
-  const std::vector<double>& intrinsics = cam_param.intrinsics_;
+  const CameraParams::Intrinsics& intrinsics = cam_param.intrinsics_;
 
   lcd_params_.image_width_ = cam_param.image_size_.width;
   lcd_params_.image_height_ = cam_param.image_size_.height;
@@ -533,7 +533,7 @@ void LoopClosureDetector::rewriteStereoFrameFeatures(
   for (const cv::KeyPoint& keypoint : keypoints) {
     left_frame_mutable->keypoints_.push_back(keypoint.pt);
     left_frame_mutable->versors_.push_back(
-        Frame::CalibratePixel(keypoint.pt, left_frame_mutable->cam_param_));
+        Frame::calibratePixel(keypoint.pt, left_frame_mutable->cam_param_));
     left_frame_mutable->scores_.push_back(1.0);
   }
 
@@ -827,7 +827,8 @@ bool LoopClosureDetector::geometricVerificationNister(
       if (inlier_percentage >= lcd_params_.ransac_inlier_threshold_mono_) {
         if (ransac.iterations_ < lcd_params_.max_ransac_iterations_mono_) {
           opengv::transformation_t transformation = ransac.model_coefficients_;
-          *camCur_T_camRef_mono = UtilsOpenCV::Gvtrans2pose(transformation);
+          *camCur_T_camRef_mono =
+              UtilsOpenCV::openGvTfToGtsamPose3(transformation);
 
           return true;
         }
@@ -892,7 +893,7 @@ bool LoopClosureDetector::recoverPoseArun(const FrameId& query_id,
 
         // Transform pose from camera frame to body frame.
         gtsam::Pose3 camCur_T_camRef =
-            UtilsOpenCV::Gvtrans2pose(transformation);
+            UtilsOpenCV::openGvTfToGtsamPose3(transformation);
         transformCameraPoseToBodyPose(camCur_T_camRef, bodyCur_T_bodyRef);
 
         return true;

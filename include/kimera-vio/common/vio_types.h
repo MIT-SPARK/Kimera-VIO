@@ -35,7 +35,13 @@ using Matrices3f = std::vector<Matrix3f, Eigen::aligned_allocator<Matrix3f>>;
 using Vectors3f = std::vector<Vector3f, Eigen::aligned_allocator<Vector3f>>;
 
 // TODO(Toni): make a class enum.
-enum Kstatus { VALID, NO_LEFT_RECT, NO_RIGHT_RECT, NO_DEPTH, FAILED_ARUN };
+enum KeypointStatus {
+  VALID,
+  NO_LEFT_RECT,
+  NO_RIGHT_RECT,
+  NO_DEPTH,
+  FAILED_ARUN
+};
 
 // Definitions relevant to frame types
 using FrameId = std::uint64_t;  // Frame id is used as the index of gtsam symbol
@@ -47,7 +53,7 @@ using LandmarkIds = std::vector<LandmarkId>;
 enum class LandmarkType { SMART, PROJECTION };
 using KeypointCV = cv::Point2f;
 using KeypointsCV = std::vector<KeypointCV>;
-using StatusKeypointCV = std::pair<Kstatus, KeypointCV>;
+using StatusKeypointCV = std::pair<KeypointStatus, KeypointCV>;
 using StatusKeypointsCV = std::vector<StatusKeypointCV>;
 using BearingVectors = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 

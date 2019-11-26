@@ -70,7 +70,7 @@ class StereoFrame {
   // Output queue.
   KeypointsCV left_keypoints_rectified_;
   KeypointsCV right_keypoints_rectified_;
-  std::vector<Kstatus> right_keypoints_status_;
+  std::vector<KeypointStatus> right_keypoints_status_;
   std::vector<double> keypoints_depth_;
   //! in the ref frame of the UNRECTIFIED left frame
   std::vector<Vector3> keypoints_3d_;
@@ -155,10 +155,10 @@ class StereoFrame {
       const double& getBaseline) const;
 
   /* ------------------------------------------------------------------------ */
-  static std::pair<KeypointsCV, std::vector<Kstatus>> distortUnrectifyPoints(
-      const StatusKeypointsCV& keypoints_rectified,
-      const cv::Mat map_x,
-      const cv::Mat map_y);
+  static std::pair<KeypointsCV, std::vector<KeypointStatus>>
+  distortUnrectifyPoints(const StatusKeypointsCV& keypoints_rectified,
+                         const cv::Mat map_x,
+                         const cv::Mat map_y);
 
   /* ------------------------------------------------------------------------ */
   std::pair<StatusKeypointCV, double> findMatchingKeypointRectified(

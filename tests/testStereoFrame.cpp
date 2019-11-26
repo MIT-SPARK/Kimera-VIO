@@ -111,7 +111,7 @@ class StereoFrameFixture : public ::testing::Test {
           5 * landmark_count_);  // seen in a single (key)frame
       sfnew->getLeftFrameMutable()->scores_.push_back(10 * landmark_count_);
       sfnew->getLeftFrameMutable()->versors_.push_back(
-          Frame::CalibratePixel(sfnew->getLeftFrame().keypoints_.at(i),
+          Frame::calibratePixel(sfnew->getLeftFrame().keypoints_.at(i),
                                 sfnew->getLeftFrame().cam_param_));
       ++landmark_count_;
     }
@@ -162,7 +162,7 @@ TEST_F(StereoFrameFixture, rectification) {
   // satisfies: 1) no rotation 2) translation only along x axis = baseline
   // Compensate for the fact that opencv works on the inverse of rotations
   gtsam::Rot3 camL_Rot_camLrect =
-      UtilsOpenCV::Cvmat2rot(left_camera_info.R_rectify_).inverse();
+      UtilsOpenCV::cvMatToGtsamRot3(left_camera_info.R_rectify_).inverse();
   gtsam::Pose3 camL_Pose_camLrect = gtsam::Pose3(camL_Rot_camLrect, Point3());
 
   // B_Pose_camLrect
@@ -173,7 +173,7 @@ TEST_F(StereoFrameFixture, rectification) {
 
   // Right camera pose after rectification
   gtsam::Rot3 camR_Rot_camRrect =
-      UtilsOpenCV::Cvmat2rot(right_camera_info.R_rectify_).inverse();
+      UtilsOpenCV::cvMatToGtsamRot3(right_camera_info.R_rectify_).inverse();
   gtsam::Pose3 camR_Pose_camRrect = gtsam::Pose3(camR_Rot_camRrect, Point3());
 
   // B_Pose_camRrect
@@ -204,15 +204,15 @@ TEST_F(StereoFrameFixture, rectification) {
   EXPECT_LT(z_deviation, tol);
 
   // Check that the intrinsics of P1 and P2 are exactly the same!
-  EXPECT_TRUE(UtilsOpenCV::CvMatCmp(P1(cv::Rect(0, 0, 3, 3)),
-                                    P2(cv::Rect(0, 0, 3, 3))));
+  EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(P1(cv::Rect(0, 0, 3, 3)),
+                                                P2(cv::Rect(0, 0, 3, 3))));
 
   // Test projection using 3x4 (rectified) camera matrix
   Mat P2_T_expect = P1(cv::Rect(0, 0, 3, 3)) *
                     (cv::Mat_<double>(3, 1) << -baseline_expect, 0, 0);
   P2_T_expect = P2_T_expect.clone();
   Mat P2_T_actual = P2(cv::Rect(3, 0, 1, 3)).clone();
-  EXPECT_TRUE(UtilsOpenCV::CvMatCmp(P2_T_expect, P2_T_actual));
+  EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(P2_T_expect, P2_T_actual));
 }
 
 TEST_F(StereoFrameFixture, cloneRectificationParameters) {
@@ -303,12 +303,12 @@ TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
         // NO_RIGHT_RECT
         if (y_left <= (stripe_rows - 1) / 2 ||
             y_left + (stripe_rows - 1) / 2 >= left_img.rows) {
-          EXPECT_EQ(right_pt.first, Kstatus::NO_RIGHT_RECT);
+          EXPECT_EQ(right_pt.first, KeypointStatus::NO_RIGHT_RECT);
           EXPECT_DOUBLE_EQ(matchingVal_LR, -1);
         } else if (x_exp >= (templ_cols - 1) / 2 &&
                    x_exp + (templ_cols - 1) / 2 < left_img.cols) {
           // The match should be marked valid!
-          EXPECT_EQ(right_pt.first, Kstatus::VALID);
+          EXPECT_EQ(right_pt.first, KeypointStatus::VALID);
           EXPECT_LT(matchingVal_LR, tol_corr);
           EXPECT_NEAR(x_exp, x_actual, 0.5);
           EXPECT_NEAR(left_pt.y, right_pt.second.y, 0.5);
@@ -316,7 +316,7 @@ TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
                    x_exp >= left_img.cols) {  // if true right match is invalid
                                               // and left is outside image
           // The match should be marked invalid!
-          EXPECT_EQ(right_pt.first, Kstatus::NO_RIGHT_RECT);
+          EXPECT_EQ(right_pt.first, KeypointStatus::NO_RIGHT_RECT);
           EXPECT_GE(matchingVal_LR, tol_corr);
         } else {
           // Corner case: The matching may be affected by the image border
@@ -406,7 +406,7 @@ TEST_F(StereoFrameFixture, matchTemplate) {
 
   // check that results are the same
   // cout << result1 << "\n" << result2 << endl;
-  EXPECT_TRUE(UtilsOpenCV::CvMatCmp(result2, result1, 1e-3));
+  EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(result2, result1, 1e-3));
 }
 
 /* ************************************************************************* */
@@ -419,16 +419,16 @@ TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
     for (int c = 0; c < numCols; c++) {
       int y = left_image_rectified.rows / (numRows - 1) * r;
       int x = left_image_rectified.cols / (numCols - 1) * c;
-      Kstatus st = Kstatus::VALID;
+      KeypointStatus st = KeypointStatus::VALID;
       if ((r + c) % 2 == 0) {  // set some of them to NO_RIGHT_RECT
-        st = Kstatus::NO_RIGHT_RECT;
+        st = KeypointStatus::NO_RIGHT_RECT;
       }
       keypoints_rectified.push_back(make_pair(st, Point2f(x, y)));
     }
   }
 
   KeypointsCV keypoints_unrectified;
-  std::vector<Kstatus> keypoints_status;
+  std::vector<KeypointStatus> keypoints_status;
 
   tie(keypoints_unrectified, keypoints_status) =
       StereoFrame::distortUnrectifyPoints(
@@ -441,8 +441,9 @@ TEST_F(StereoFrameFixture, DistortUnrectifyPoints) {
     // Status should be the same
     EXPECT_EQ(keypoints_status[i], keypoints_rectified[i].first);
     if (keypoints_status[i] !=
-        Kstatus::VALID) {  // if status is not valid, keypoint is conventionally
-                           // set to (0,0)
+        KeypointStatus::VALID) {  // if status is not valid, keypoint is
+                                  // conventionally
+                                  // set to (0,0)
       EXPECT_TRUE(keypoints_unrectified[i].x == 0 &&
                   keypoints_unrectified[i].y == 0);
       continue;
@@ -498,7 +499,7 @@ TEST_F(StereoFrameFixture, undistortRectifyPoints) {
 
   // Map back!
   KeypointsCV keypoints_unrectified_actual;
-  std::vector<Kstatus> status_unrectified;
+  std::vector<KeypointStatus> status_unrectified;
   tie(keypoints_unrectified_actual, status_unrectified) =
       StereoFrame::distortUnrectifyPoints(
           keypoints_rectified, sf->getLeftFrame().cam_param_.undistRect_map_x_,
@@ -506,7 +507,7 @@ TEST_F(StereoFrameFixture, undistortRectifyPoints) {
 
   // Comparision
   for (int i = 0; i < keypoints_unrectified_actual.size(); i++) {
-    if (keypoints_rectified[i].first != Kstatus::VALID) continue;
+    if (keypoints_rectified[i].first != KeypointStatus::VALID) continue;
     // compare pixel coordinates of valid points
     EXPECT_NEAR(keypoints_unrectified_actual[i].x,
                 keypoints_unrectified_gt[i].x, 1);
@@ -568,9 +569,10 @@ TEST_F(StereoFrameFixture, getDepthFromRectifiedMatches) {
                         pt_mat_left.at<double>(1, 0));  // express as pixels
         Point2f pt_right(pt_mat_right.at<double>(0, 0),
                          pt_mat_right.at<double>(1, 0));  // express as pixels
-        left_keypoints_rectified.push_back(make_pair(Kstatus::VALID, pt_left));
+        left_keypoints_rectified.push_back(
+            make_pair(KeypointStatus::VALID, pt_left));
         right_keypoints_rectified.push_back(
-            make_pair(Kstatus::VALID, pt_right));
+            make_pair(KeypointStatus::VALID, pt_right));
         depth_expected.push_back(depth);
       }
     }
@@ -578,28 +580,28 @@ TEST_F(StereoFrameFixture, getDepthFromRectifiedMatches) {
 
   // Add a few invalid keypoints to the test.
   left_keypoints_rectified.push_back(
-      make_pair(Kstatus::VALID, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::VALID, Point2f(1.0, 2.0)));
   right_keypoints_rectified.push_back(
-      make_pair(Kstatus::NO_RIGHT_RECT, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::NO_RIGHT_RECT, Point2f(1.0, 2.0)));
   depth_expected.push_back(0);
 
   left_keypoints_rectified.push_back(
-      make_pair(Kstatus::NO_LEFT_RECT, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::NO_LEFT_RECT, Point2f(1.0, 2.0)));
   right_keypoints_rectified.push_back(
-      make_pair(Kstatus::VALID, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::VALID, Point2f(1.0, 2.0)));
   depth_expected.push_back(0);
 
   left_keypoints_rectified.push_back(
-      make_pair(Kstatus::NO_DEPTH, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::NO_DEPTH, Point2f(1.0, 2.0)));
   right_keypoints_rectified.push_back(
-      make_pair(Kstatus::FAILED_ARUN, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::FAILED_ARUN, Point2f(1.0, 2.0)));
   depth_expected.push_back(0);
 
   // Add a test case with negative disparity
   left_keypoints_rectified.push_back(
-      make_pair(Kstatus::NO_DEPTH, Point2f(3.0, 2.0)));
+      make_pair(KeypointStatus::NO_DEPTH, Point2f(3.0, 2.0)));
   right_keypoints_rectified.push_back(
-      make_pair(Kstatus::FAILED_ARUN, Point2f(1.0, 2.0)));
+      make_pair(KeypointStatus::FAILED_ARUN, Point2f(1.0, 2.0)));
   depth_expected.push_back(0);
 
   // Call StereoFrame::getDepthFromRectifiedMatches to get the actual depth!
@@ -653,13 +655,14 @@ TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
       // error
       if (t == 1) {
         for (const auto& left_px : left_keypoints)
-          left_keypoints_rectified.push_back(make_pair(
-              Kstatus::VALID, KeypointCV(round(left_px.x), round(left_px.y))));
+          left_keypoints_rectified.push_back(
+              make_pair(KeypointStatus::VALID,
+                        KeypointCV(round(left_px.x), round(left_px.y))));
         tol_corr = 1e-6;
       } else {
         for (const auto& left_px : left_keypoints)
           left_keypoints_rectified.push_back(
-              make_pair(Kstatus::VALID, left_px));
+              make_pair(KeypointStatus::VALID, left_px));
         tol_corr = 5e-3;
       }
 
@@ -688,12 +691,12 @@ TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
         // NO_RIGHT_RECT
         if (y_left <= (stripe_rows - 1) / 2 ||
             y_left + (stripe_rows - 1) / 2 >= left_img.rows) {
-          EXPECT_EQ(right_pt.first, Kstatus::NO_RIGHT_RECT);
+          EXPECT_EQ(right_pt.first, KeypointStatus::NO_RIGHT_RECT);
         } else if (x_exp >= (templ_cols - 1) / 2 &&
                    x_exp + (templ_cols - 1) / 2 <
                        left_img.cols) {  // inside the frame
           // The match should be marked valid!
-          EXPECT_EQ(right_pt.first, Kstatus::VALID);
+          EXPECT_EQ(right_pt.first, KeypointStatus::VALID);
           EXPECT_NEAR(x_exp, x_actual, 0.5);
           EXPECT_NEAR(left_pt.second.y, right_pt.second.y, 0.5);
           countValid += 1;
@@ -764,14 +767,14 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       sfnew->getLeftFrame().cam_param_.body_Pose_cam_.rotation().between(
           sfnew->getBPoseCamLRect().rotation());  // camL_R_camLrect
   gtsam::Rot3 actual_camL_R_camLrect =
-      UtilsOpenCV::Cvmat2rot(sfnew->getLeftFrame().cam_param_.R_rectify_)
+      UtilsOpenCV::cvMatToGtsamRot3(sfnew->getLeftFrame().cam_param_.R_rectify_)
           .inverse();
   EXPECT_TRUE(
       assert_equal(expected_camL_R_camLrect, actual_camL_R_camLrect, 1e-4));
 
   int nrValid = 0;
   for (size_t i = 0; i < sfnew->keypoints_3d_.size(); i++) {
-    if (sfnew->right_keypoints_status_.at(i) == Kstatus::VALID) {
+    if (sfnew->right_keypoints_status_.at(i) == KeypointStatus::VALID) {
       nrValid += 1;
       double depth = sfnew->keypoints_depth_.at(i);
       gtsam::Vector3 versorActual = sfnew->keypoints_3d_.at(i) / depth;
@@ -794,7 +797,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that 3D point reprojects correctly to the two cameras:
   for (size_t i = 0; i < sfnew->keypoints_3d_.size(); i++) {
-    if (sfnew->right_keypoints_status_.at(i) == Kstatus::VALID) {
+    if (sfnew->right_keypoints_status_.at(i) == KeypointStatus::VALID) {
       // TEST: uncalibrateDistUnrect(versor) = original distorted unrectified
       // point (CHECK DIST UNRECT CALIBRATION WORKS)
       KeypointCV kp_i_distUnrect = sfnew->getLeftFrame().keypoints_.at(i);
@@ -828,9 +831,9 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       // TEST: distortUnrectify(undistRectified) = original distorted
       // unrectified point (CHECK UNDISTORTION WORKS)
       KeypointsCV dup;
-      std::vector<Kstatus> statuses;
+      std::vector<KeypointStatus> statuses;
       StatusKeypointsCV urp;
-      urp.push_back(make_pair(Kstatus::VALID, kp_i_undistRect));
+      urp.push_back(make_pair(KeypointStatus::VALID, kp_i_undistRect));
       tie(dup, statuses) = StereoFrame::distortUnrectifyPoints(
           urp, sfnew->getLeftFrame().cam_param_.undistRect_map_x_,
           sfnew->getLeftFrame().cam_param_.undistRect_map_y_);
@@ -1075,8 +1078,8 @@ TEST(testStereoFrame, undistortFisheye) {
       stereo_FLAGS_test_data_path + "left_ref_img_0.png", false);
 
   // Test distortion with image comparison
-  EXPECT_TRUE(UtilsOpenCV::CvMatCmp(left_fisheye_image_undist,
-                               left_fisheye_image_ref, 1e-3));
+  EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(
+      left_fisheye_image_undist, left_fisheye_image_ref, 1e-3));
 }
 
 // TODO: Figure out why this compiles on PC, but not on Jenkins
@@ -1151,6 +1154,6 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
       left_undistRectCameraMatrix_fisheye.fx(), sf->getBaseline());
 
   // Test distortion with image comparison --> uncomment
-  EXPECT_TRUE(
-      UtilsOpenCV::CvMatCmp(undist_sidebyside, undist_sidebyside_ref, 1e-1));
+  EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(
+      undist_sidebyside, undist_sidebyside_ref, 1e-1));
 }

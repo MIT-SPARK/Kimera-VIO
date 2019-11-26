@@ -25,6 +25,19 @@
 
 namespace VIO {
 
+/* -------------------------------------------------------------------------- */
+// Open files with name output_filename, and checks that it is valid
+static void OpenFile(const std::string& output_filename,
+                     std::ofstream* output_file,
+                     bool append_mode = false) {
+  CHECK_NOTNULL(output_file);
+  output_file->open(output_filename.c_str(),
+                    append_mode ? std::ios_base::app : std::ios_base::out);
+  output_file->precision(20);
+  CHECK(output_file->is_open()) << "Cannot open file: " << output_filename;
+  CHECK(output_file->good()) << "File in bad state: " << output_filename;
+}
+
 // Wrapper for std::ofstream to open/close it when created/destructed.
 class OfstreamWrapper {
  public:

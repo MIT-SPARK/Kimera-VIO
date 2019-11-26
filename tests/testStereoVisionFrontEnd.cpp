@@ -135,9 +135,9 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
 
     // right_keypoints_status_.size
     if (sf->right_keypoints_status_.size() != num_keypoints) {
-      sf->right_keypoints_status_ = std::vector<Kstatus>(num_keypoints);
+      sf->right_keypoints_status_ = std::vector<KeypointStatus>(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
-        sf->right_keypoints_status_[i] = Kstatus::VALID;
+        sf->right_keypoints_status_[i] = KeypointStatus::VALID;
       }
     }
 
@@ -153,7 +153,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     if (sf->getRightFrame().keypoints_.size() != num_keypoints) {
       sf->getRightFrameMutable()->keypoints_ = KeypointsCV(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
-        if (sf->right_keypoints_status_[i] == Kstatus::VALID) {
+        if (sf->right_keypoints_status_[i] == KeypointStatus::VALID) {
           sf->getRightFrameMutable()->keypoints_[i] =
               KeypointCV(i + 20, i + (i % 3 - 1));
         } else {
@@ -166,7 +166,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
     if (sf->keypoints_depth_.size() != num_keypoints) {
       sf->keypoints_depth_ = std::vector<double>(num_keypoints);
       for (int i = 0; i < num_keypoints; i++) {
-        if (sf->right_keypoints_status_[i] == Kstatus::VALID) {
+        if (sf->right_keypoints_status_[i] == KeypointStatus::VALID) {
           sf->keypoints_depth_[i] = 1;
         } else {
           sf->keypoints_depth_[i] = 0;
@@ -348,7 +348,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
     ref_stereo_frame->getLeftFrameMutable()->scores_.push_back(1.0);
     ref_stereo_frame->left_keypoints_rectified_.push_back(cv::Point2f(uL, v));
     ref_stereo_frame->right_keypoints_rectified_.push_back(cv::Point2f(uL, v));
-    ref_stereo_frame->right_keypoints_status_.push_back(Kstatus::VALID);
+    ref_stereo_frame->right_keypoints_status_.push_back(KeypointStatus::VALID);
   }
 
   // right keypoints invalid!
@@ -361,7 +361,8 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
     ref_stereo_frame->getLeftFrameMutable()->scores_.push_back(1.0);
     ref_stereo_frame->left_keypoints_rectified_.push_back(cv::Point2f(uL, v));
     ref_stereo_frame->right_keypoints_rectified_.push_back(cv::Point2f(uL, v));
-    ref_stereo_frame->right_keypoints_status_.push_back(Kstatus::NO_RIGHT_RECT);
+    ref_stereo_frame->right_keypoints_status_.push_back(
+        KeypointStatus::NO_RIGHT_RECT);
   }
 
   // landmark missing!
@@ -373,7 +374,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
     ref_stereo_frame->getLeftFrameMutable()->scores_.push_back(1.0);
     ref_stereo_frame->left_keypoints_rectified_.push_back(cv::Point2f(uL, v));
     ref_stereo_frame->right_keypoints_rectified_.push_back(cv::Point2f(uL, v));
-    ref_stereo_frame->right_keypoints_status_.push_back(Kstatus::VALID);
+    ref_stereo_frame->right_keypoints_status_.push_back(KeypointStatus::VALID);
   }
 
   fillStereoFrame(ref_stereo_frame);
@@ -396,7 +397,7 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
     EXPECT_EQ(ref_stereo_frame->left_keypoints_rectified_[landmark_id].y,
               s.second.v());
     if (ref_stereo_frame->right_keypoints_status_[landmark_id] ==
-        Kstatus::VALID) {
+        KeypointStatus::VALID) {
       EXPECT_EQ(ref_stereo_frame->right_keypoints_rectified_[landmark_id].x,
                 s.second.uR());
     } else {
@@ -503,7 +504,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   }
   for (int i = 0; i < num_corners; i++) {
     Vector3 v_expect =
-        Frame::CalibratePixel(left_frame.keypoints_[i], left_frame.cam_param_);
+        Frame::calibratePixel(left_frame.keypoints_[i], left_frame.cam_param_);
     Vector3 v_actual = left_frame.versors_[i];
     EXPECT_LT((v_actual - v_expect).norm(), 0.1);
   }
@@ -555,7 +556,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
 
   // right_keypoints_status_
   for (auto status : sf.right_keypoints_status_) {
-    EXPECT_EQ(status, Kstatus::VALID);
+    EXPECT_EQ(status, KeypointStatus::VALID);
   }
 
   // keypoints depth
@@ -575,7 +576,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
     double depth_expect = depth_gt[idx_gt];
     double depth_actual = sf.keypoints_depth_[i];
     Vector3 v_expected =
-        Frame::CalibratePixel(KeypointCV(left_distort_corners[idx_gt].x(),
+        Frame::calibratePixel(KeypointCV(left_distort_corners[idx_gt].x(),
                                          left_distort_corners[idx_gt].y()),
                               left_frame.cam_param_);
     v_expected = v_expected * (depth_gt[idx_gt]);

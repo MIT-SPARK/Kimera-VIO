@@ -36,8 +36,24 @@ class CameraParams {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   using CameraId = std::string;
+  // fu, fv, cu, cv
+  using Intrinsics = std::array<double, 4>;
 
-  CameraParams(const CameraId& cam_id = "cam") : camera_id_(cam_id) {}
+  CameraParams(const CameraId& cam_id = "cam")
+      : camera_id_(cam_id),
+        intrinsics_(),
+        body_Pose_cam_(),
+        frame_rate_(),
+        image_size_(),
+        calibration_(),
+        camera_matrix_(),
+        distortion_model_(),
+        distortion_coeff_(),
+        undistRect_map_x_(),
+        undistRect_map_y_(),
+        R_rectify_(),
+        P_(),
+        is_stereo_with_camera_ids_() {}
   virtual ~CameraParams() = default;
 
   /* ------------------------------------------------------------------------ */
@@ -65,7 +81,7 @@ class CameraParams {
   CameraId camera_id_;
 
   // fu, fv, cu, cv
-  std::vector<double> intrinsics_;
+  Intrinsics intrinsics_;
 
   // Sensor extrinsics wrt. body-frame
   gtsam::Pose3 body_Pose_cam_;
@@ -80,10 +96,13 @@ class CameraParams {
   // OpenCV structures: For radial distortion and rectification.
   // needed to compute the undistorsion map.
   cv::Mat camera_matrix_;
+
   // 5 parameters (last is zero): distortion_model: radial-tangential.
+  // TODO(Toni): USE ENUM CLASS, not std::string...
   std::string distortion_model_;  // define default
   cv::Mat distortion_coeff_;
 
+  // TODO(Toni): don't use cv::Mat to store things of fixed size...
   cv::Mat undistRect_map_x_;
   cv::Mat undistRect_map_y_;
 
@@ -106,16 +125,15 @@ class CameraParams {
   static void parseBodyPoseCam(const cv::FileStorage& fs,
                                gtsam::Pose3* body_Pose_cam);
   static void parseCameraIntrinsics(const cv::FileStorage& fs,
-                                    std::vector<double>* intrinsics_);
+                                    Intrinsics* intrinsics_);
   // Convert distortion coefficients to OpenCV Format
   static void convertDistortionVectorToMatrix(
       const std::vector<double>& distortion_coeffs,
       cv::Mat* distortion_coeffs_mat);
-  static void convertIntrinsicsVectorToMatrix(
-      const std::vector<double>& intrinsics,
-      cv::Mat* camera_matrix);
+  static void convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
+                                              cv::Mat* camera_matrix);
   static void createGtsamCalibration(const std::vector<double>& distortion,
-                                     const std::vector<double>& intrinsics,
+                                     const Intrinsics& intrinsics,
                                      gtsam::Cal3DS2* calibration);
 };
 // TODO(Toni): this should be a base class, so that stereo camera is a specific

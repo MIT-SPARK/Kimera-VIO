@@ -33,10 +33,10 @@
 DECLARE_string(test_data_path);
 DECLARE_string(output_path);
 
-static const double tol = 1e-7;
 
 namespace VIO {
 
+static const double tol = 1e-7;
 using csv_mat = std::vector<std::vector<std::string>>;
 
 void checkHeader(std::vector<std::string> actual,
@@ -469,6 +469,14 @@ TEST_F(LoopClosureDetectorLoggerFixture, logOptimizedTraj) {
   EXPECT_LT(actual_qx - traj_pose.rotation().toQuaternion().x(), tol);
   EXPECT_LT(actual_qy - traj_pose.rotation().toQuaternion().y(), tol);
   EXPECT_LT(actual_qz - traj_pose.rotation().toQuaternion().z(), tol);
+}
+
+TEST(testOpenFile, OpenFile) {
+  std::ofstream outputFile;
+  OpenFile("tmp.txt", &outputFile);
+  EXPECT_TRUE(outputFile.is_open());
+  outputFile.close();
+  EXPECT_TRUE(!outputFile.is_open());
 }
 
 // TODO(marcus): add remaining tests for non-critical logs on all three modules.

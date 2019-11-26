@@ -53,9 +53,9 @@ void OfstreamWrapper::openLogFile(const std::string& output_file_name,
                                   bool open_file_in_append_mode) {
   CHECK(!output_file_name.empty());
   LOG(INFO) << "Opening output file: " << output_file_name.c_str();
-  UtilsOpenCV::OpenFile(output_path_ + '/' + output_file_name,
-                        &ofstream_,
-                        open_file_in_append_mode);
+  OpenFile(output_path_ + '/' + output_file_name,
+           &ofstream_,
+           open_file_in_append_mode);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */

@@ -196,7 +196,7 @@ add_executable(testKimeraVIO
   tests/testVioBackEnd.cpp
   tests/testVioBackEndParams.cpp
   tests/testVioFrontEndParams.cpp
-  tests/testVisualizer3D.cpp # NEEDS UPDATE
+  # tests/testVisualizer3D.cpp # NEEDS UPDATE
   tests/testOnlineAlignment.cpp
   )
 

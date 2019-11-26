@@ -219,12 +219,12 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   // avoid adding numerical errors (we are using very tight thresholds on
   // 5-point RANSAC)
   gtsam::Rot3 camLrect_R_camL =
-      UtilsOpenCV::Cvmat2rot(left_frame_.cam_param_.R_rectify_);
+      UtilsOpenCV::cvMatToGtsamRot3(left_frame_.cam_param_.R_rectify_);
   for (size_t i = 0; i < right_keypoints_rectified.size(); i++) {
     left_keypoints_rectified_.push_back(left_keypoints_rectified.at(i).second);
     right_keypoints_rectified_.push_back(
         right_keypoints_rectified.at(i).second);
-    if (right_keypoints_rectified[i].first == Kstatus::VALID) {
+    if (right_keypoints_rectified[i].first == KeypointStatus::VALID) {
       Vector3 versor = camLrect_R_camL.rotate(left_frame_.versors_[i]);
       CHECK_GE(versor(2), 1e-3)
           << "sparseStereoMatching: found point with nonpositive depth!";
@@ -266,7 +266,7 @@ void StereoFrame::checkStereoFrame() const {
 
   double tol = 1e-4;
   for (size_t i = 0; i < nrLeftKeypoints; i++) {
-    if (right_keypoints_status_[i] == Kstatus::VALID) {
+    if (right_keypoints_status_[i] == KeypointStatus::VALID) {
       CHECK_LE(fabs(right_keypoints_rectified_[i].y -
                     left_keypoints_rectified_[i].y),
                3)
@@ -279,7 +279,7 @@ void StereoFrame::checkStereoFrame() const {
         << "keypoints_3d_[i] has wrong depth " << keypoints_3d_[i](2) << " vs. "
         << keypoints_depth_[i];
 
-    if (right_keypoints_status_[i] == Kstatus::VALID) {
+    if (right_keypoints_status_[i] == KeypointStatus::VALID) {
       CHECK_NE(fabs(right_frame_.keypoints_[i].x) +
                    fabs(right_frame_.keypoints_[i].y),
                0)
@@ -308,16 +308,16 @@ void StereoFrame::checkStereoFrame() const {
 
 /* -------------------------------------------------------------------------- */
 // TODO: this should be in Camera
-std::pair<KeypointsCV, std::vector<Kstatus>>
+std::pair<KeypointsCV, std::vector<KeypointStatus>>
 StereoFrame::distortUnrectifyPoints(
     const StatusKeypointsCV& keypoints_rectified,
     const cv::Mat map_x,
     const cv::Mat map_y) {
-  std::vector<Kstatus> pointStatuses;
+  std::vector<KeypointStatus> pointStatuses;
   KeypointsCV points;
   for (size_t i = 0; i < keypoints_rectified.size(); i++) {
     pointStatuses.push_back(keypoints_rectified[i].first);
-    if (keypoints_rectified[i].first == Kstatus::VALID) {
+    if (keypoints_rectified[i].first == KeypointStatus::VALID) {
       KeypointCV px = keypoints_rectified[i].second;
       auto x = map_x.at<float>(round(px.y), round(px.x));
       auto y = map_y.at<float>(round(px.y), round(px.x));
@@ -333,42 +333,44 @@ StereoFrame::distortUnrectifyPoints(
 // TODO: this should be in Camera
 void StereoFrame::undistortRectifyPoints(
     const KeypointsCV& left_keypoints_unrectified,
-    const CameraParams& cam_param, const gtsam::Cal3_S2& rectCameraMatrix,
+    const CameraParams& cam_param,
+    const gtsam::Cal3_S2& rectCameraMatrix,
     StatusKeypointsCV* left_keypoints_rectified) const {
   CHECK_NOTNULL(left_keypoints_rectified)
       ->resize(left_keypoints_unrectified.size());
-  int invalidCount = 0;
+
+  int invalid_count = 0;
   size_t idx = 0;
   for (const KeypointCV& px : left_keypoints_unrectified) {
     // The following undistort to a versor,
     // then we can project by the new camera matrix.
-    Vector3 calibrated_versor = Frame::CalibratePixel(px, cam_param);
+    Vector3 calibrated_versor = Frame::calibratePixel(px, cam_param);
 
     // Compensate for rectification.
-    gtsam::Rot3 R_rect = UtilsOpenCV::Cvmat2rot(cam_param.R_rectify_);
+    gtsam::Rot3 R_rect = UtilsOpenCV::cvMatToGtsamRot3(cam_param.R_rectify_);
     calibrated_versor = R_rect.matrix() * calibrated_versor;
 
     // Normalize to unit z.
-    if (fabs(calibrated_versor(2)) > 1e-4) {
-      calibrated_versor = calibrated_versor / calibrated_versor(2);
-    } else {
-      LOG(FATAL) << "undistortRectifyPoints: versor with zero depth";
-    }
+    LOG_IF(FATAL, std::fabs(calibrated_versor(2)) < 1e-4)
+        << "undistortRectifyPoints: versor with zero depth";
+    calibrated_versor = calibrated_versor / calibrated_versor(2);
 
     const double& fx = rectCameraMatrix.fx();
     const double& cx = rectCameraMatrix.px();
     const double& fy = rectCameraMatrix.fy();
     const double& cy = rectCameraMatrix.py();
 
-    // rectified_versor = rectCameraMatrix * calibrated_versor; -> this is down
+    // rectified_versor = rectCameraMatrix * calibrated_versor; -> this is done
     // manually since the matrix and the versor are incompatible types (opencv
     // vs. gtsam)
     KeypointCV px_undistRect(fx * calibrated_versor(0) + cx,
                              fy * calibrated_versor(1) + cy);
-    px_undistRect = UtilsOpenCV::CropToSize(px_undistRect,
-                                            cam_param.undistRect_map_x_.size());
+    bool cropped = UtilsOpenCV::cropToSize(&px_undistRect,
+                                           cam_param.undistRect_map_x_.size());
 
-    float x_check, y_check;
+    float x_check = 0.0f;
+    float y_check = 0.0f;
+    // TODO(Toni): should be in camera_params
     if (!FLAGS_images_rectified) {
       // sanity check: you can go back to the original image accurately (if
       // original not rectified)
@@ -381,34 +383,40 @@ void StereoFrame::undistortRectifyPoints(
       y_check = px.y;
     }
 
-    float tol = 2.0;  // pixels
-    if (fabs(px.x - x_check) > tol || fabs(px.y - y_check) > tol) {
-      DVLOG(10) << "undistortRectifyPoints: pixel mismatch\n"
-                << "px.x " << px.x << " x_check " << x_check << '\n'
-                << "px.y " << px.y << " y_check " << y_check << '\n'
-                << "px_undistRect " << px_undistRect << '\n'
-                << "rounded " << round(px_undistRect.y) << '\n'
-                << " " << round(px_undistRect.x) << '\n'
-                << "cam_param.undistRect_map_x_ "
-                << cam_param.undistRect_map_x_.size() << '\n'
-                << "map type " << cam_param.undistRect_map_x_.type() << '\n'
-                << "fx " << fx << " cx " << cx << " fy " << fy << " cy " << cy
-                << '\n'
-                << "calibrated_versor\n"
-                << calibrated_versor;
-      invalidCount += 1;
+    // Tolerance in pixels
+    // This tolerance is huge no??
+    static constexpr float kTolInPixels = 2.0;
+    if (cropped || std::fabs(px.x - x_check) > kTolInPixels ||
+        std::fabs(px.y - y_check) > kTolInPixels) {
+      // Mark as invalid all pixels that were undistorted out of the frame
+      // and for which the undistroted rectified keypoint remaps close to
+      // the distorted unrectified pixel.
+      VLOG(10) << "undistortRectifyPoints: pixel mismatch\n"
+               << "px.x " << px.x << " x_check " << x_check << '\n'
+               << "px.y " << px.y << " y_check " << y_check << '\n'
+               << "px_undistRect " << px_undistRect << '\n'
+               << "rounded " << round(px_undistRect.y) << '\n'
+               << " " << round(px_undistRect.x) << '\n'
+               << "cam_param.undistRect_map_x_ "
+               << cam_param.undistRect_map_x_.size() << '\n'
+               << "map type " << cam_param.undistRect_map_x_.type() << '\n'
+               << "fx " << fx << " cx " << cx << " fy " << fy << " cy " << cy
+               << '\n'
+               << "calibrated_versor\n"
+               << calibrated_versor;
+      invalid_count += 1;
       // Invalid points.
       left_keypoints_rectified->at(idx) =
-          std::make_pair(Kstatus::NO_LEFT_RECT, px_undistRect);
+          std::make_pair(KeypointStatus::NO_LEFT_RECT, px_undistRect);
     } else {
       // Point is valid!
       left_keypoints_rectified->at(idx) =
-          std::make_pair(Kstatus::VALID, px_undistRect);
+          std::make_pair(KeypointStatus::VALID, px_undistRect);
     }
     idx++;
   }
-  VLOG_IF(10, invalidCount > 0) << "undistortRectifyPoints: unable to match "
-                                << invalidCount << " keypoints";
+  VLOG_IF(10, invalid_count > 0) << "undistortRectifyPoints: unable to match "
+                                 << invalid_count << " keypoints";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -623,8 +631,8 @@ void StereoFrame::computeRectificationParameters(
            << right_camera_info.R_rectify_;
 
   // Left camera pose after rectification
-  gtsam::Rot3 camL_Rot_camLrect =
-      UtilsOpenCV::Cvmat2rot(left_camera_info.R_rectify_).inverse();
+  const gtsam::Rot3& camL_Rot_camLrect =
+      UtilsOpenCV::cvMatToGtsamRot3(left_camera_info.R_rectify_).inverse();
   //! Fix camL position to camLrect.
   //! aka use gtsam::Point3()
   gtsam::Pose3 camL_Pose_camLrect(camL_Rot_camLrect, gtsam::Point3::Zero());
@@ -632,10 +640,9 @@ void StereoFrame::computeRectificationParameters(
       left_camera_info.body_Pose_cam_.compose(camL_Pose_camLrect);
 
   // right camera pose after rectification
-  gtsam::Rot3 camR_Rot_camRrect =
-      UtilsOpenCV::Cvmat2rot(right_camera_info.R_rectify_).inverse();
-  gtsam::Pose3 camR_Pose_camRrect =
-      gtsam::Pose3(camR_Rot_camRrect, gtsam::Point3());
+  const gtsam::Rot3& camR_Rot_camRrect =
+      UtilsOpenCV::cvMatToGtsamRot3(right_camera_info.R_rectify_).inverse();
+  gtsam::Pose3 camR_Pose_camRrect(camR_Rot_camRrect, gtsam::Point3());
   gtsam::Pose3 B_Pose_camRrect =
       (right_camera_info.body_Pose_cam_).compose(camR_Pose_camRrect);
 
@@ -738,7 +745,6 @@ void StereoFrame::getRightKeypointsLKunrectified() {
   // get correspondences on right image by using Lucas Kanade
   // Parameters
   int klt_max_iter = 40;
-  double klt_eps = 0.001;
   int klt_win_size = 31;
 
   ////////////////////////////////////////////////////////////////////////
@@ -899,8 +905,9 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
     // if the left point is invalid, we also set the right point to be invalid
     // and we move on
     if (left_keypoints_rectified[i].first !=
-        Kstatus::VALID) {  // skip invalid points (fill in with placeholders in
-                           // right)
+        KeypointStatus::VALID) {  // skip invalid points (fill in with
+                                  // placeholders in
+                                  // right)
       right_keypoints_rectified.push_back(std::make_pair(
           left_keypoints_rectified[i].first, KeypointCV(0.0, 0.0)));
       continue;
@@ -1001,8 +1008,9 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     // if the left point is invalid, we also set the right point to be invalid
     // and we move on
     if (left_keypoints_rectified[i].first !=
-        Kstatus::VALID) {  // skip invalid points (fill in with placeholders in
-                           // right)
+        KeypointStatus::VALID) {  // skip invalid points (fill in with
+                                  // placeholders in
+                                  // right)
       right_keypoints_rectified.push_back(std::make_pair(
           left_keypoints_rectified[i].first, KeypointCV(0.0, 0.0)));
       continue;
@@ -1034,12 +1042,13 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
          0)) {  // valid disparity (> 0 pixels), depth > min_depth, in the right
                 // image
                 // Use correct definition of disparity in VIO code
-      right_rectified_i_candidate = std::make_pair(
-          Kstatus::VALID, KeypointCV(left_rectified_i.x - disparityFromRGBD,
-                                     left_rectified_i.y));
+      right_rectified_i_candidate =
+          std::make_pair(KeypointStatus::VALID,
+                         KeypointCV(left_rectified_i.x - disparityFromRGBD,
+                                    left_rectified_i.y));
     } else {  // invalid disparity
       right_rectified_i_candidate =
-          std::make_pair(Kstatus::NO_DEPTH, KeypointCV(0.0, 0.0));
+          std::make_pair(KeypointStatus::NO_DEPTH, KeypointCV(0.0, 0.0));
     }
     right_keypoints_rectified.push_back(right_rectified_i_candidate);
   }
@@ -1082,7 +1091,7 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
           left_rectified.rows -
               1) {  // template exceeds bottom or top of the image
     return std::make_pair(
-        std::make_pair(Kstatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0)),
+        std::make_pair(KeypointStatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0)),
         -1.0);  // skip point too close to up or down boundary
   }
   int offset_temp = 0;  // compensate when the template falls off the image
@@ -1122,7 +1131,7 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
           right_rectified.rows -
               1) {  // stripe exceeds bottom or top of the image
     return std::make_pair(
-        std::make_pair(Kstatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0)),
+        std::make_pair(KeypointStatus::NO_RIGHT_RECT, KeypointCV(0.0, 0.0)),
         -1.0);  // skip point too close to boundary
   }
   int offset_stripe = 0;  // compensate when the template falls off the image
@@ -1201,10 +1210,11 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
   }
 
   if (minVal < tol_corr) {  // Valid point with small mismatch wrt template
-    return std::make_pair(std::make_pair(Kstatus::VALID, match_px), minVal);
-  } else {
-    return std::make_pair(std::make_pair(Kstatus::NO_RIGHT_RECT, match_px),
+    return std::make_pair(std::make_pair(KeypointStatus::VALID, match_px),
                           minVal);
+  } else {
+    return std::make_pair(
+        std::make_pair(KeypointStatus::NO_RIGHT_RECT, match_px), minVal);
   }
 }
 
@@ -1247,8 +1257,8 @@ std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
   int nrValidDepths = 0;
   // disparity = left_px.x - right_px.x, hence we check: right_px.x < left_px.x
   for (size_t i = 0; i < left_keypoints_rectified.size(); i++) {
-    if (left_keypoints_rectified[i].first == Kstatus::VALID &&
-        right_keypoints_rectified[i].first == Kstatus::VALID) {
+    if (left_keypoints_rectified[i].first == KeypointStatus::VALID &&
+        right_keypoints_rectified[i].first == KeypointStatus::VALID) {
       KeypointCV left_px = left_keypoints_rectified[i].second;
       KeypointCV right_px = right_keypoints_rectified[i].second;
       double disparity = left_px.x - right_px.x;
@@ -1258,19 +1268,19 @@ std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
         double depth = fx_b / disparity;
         if (depth < sparse_stereo_params_.min_point_dist_ ||
             depth > sparse_stereo_params_.max_point_dist_) {
-          right_keypoints_rectified[i].first = Kstatus::NO_DEPTH;
+          right_keypoints_rectified[i].first = KeypointStatus::NO_DEPTH;
           depths.push_back(0.0);
         } else {
           depths.push_back(depth);
         }
       } else {
         // Right match was wrong.
-        right_keypoints_rectified[i].first = Kstatus::NO_DEPTH;
+        right_keypoints_rectified[i].first = KeypointStatus::NO_DEPTH;
         depths.push_back(0.0);
       }
     } else {
       // Something is wrong.
-      if (left_keypoints_rectified[i].first != Kstatus::VALID) {
+      if (left_keypoints_rectified[i].first != KeypointStatus::VALID) {
         // We cannot have a valid right, without a valid left keypoint.
         right_keypoints_rectified[i].first = left_keypoints_rectified[i].first;
       }
@@ -1396,23 +1406,23 @@ void StereoFrame::displayKeypointStats(
   for (const StatusKeypointCV& right_keypoint_rectified :
        right_keypoints_rectified) {
     switch (right_keypoint_rectified.first) {
-      case Kstatus::VALID: {
+      case KeypointStatus::VALID: {
         nrValid++;
         break;
       }
-      case Kstatus::NO_LEFT_RECT: {
+      case KeypointStatus::NO_LEFT_RECT: {
         nrNoLeftRect++;
         break;
       }
-      case Kstatus::NO_RIGHT_RECT: {
+      case KeypointStatus::NO_RIGHT_RECT: {
         nrNoRightRect++;
         break;
       }
-      case Kstatus::NO_DEPTH: {
+      case KeypointStatus::NO_DEPTH: {
         nrNoDepth++;
         break;
       }
-      case Kstatus::FAILED_ARUN: {
+      case KeypointStatus::FAILED_ARUN: {
         nrFailedArunRKP++;
         break;
       }

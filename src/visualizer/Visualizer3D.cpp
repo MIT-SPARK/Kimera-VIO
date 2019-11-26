@@ -112,7 +112,12 @@ Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
 
 /* -------------------------------------------------------------------------- */
 // Returns true if visualization is ready, false otherwise.
+// TODO(Toni): Put all flags inside spinOnce into Visualizer3DParams!
 VisualizerOutput::Ptr Visualizer3D::spinOnce(const VisualizerInput& input) {
+  DCHECK(input.frontend_output_);
+  DCHECK(input.mesher_output_);
+  DCHECK(input.backend_output_);
+
   VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
   output->visualization_type_ = visualization_type_;
 
@@ -832,7 +837,7 @@ void Visualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
 /* -------------------------------------------------------------------------- */
 // Visualize trajectory. Adds an image to the frustum if cv::Mat is not empty.
 void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image) {
-  if (trajectoryPoses3d_.size() == 0) {  // no points to visualize
+  if (trajectory_poses_3d_.size() == 0) {  // no points to visualize
     return;
   }
 
@@ -845,17 +850,17 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image) {
     cam_widget_ptr = cv::viz::WCameraPosition(K, frustum_image, 1.0,
                                               cv::viz::Color::white());
   }
-  window_data_.window_.showWidget("Camera Pose with Frustum", cam_widget_ptr,
-                                  trajectoryPoses3d_.back());
+  window_data_.window_.showWidget(
+      "Camera Pose with Frustum", cam_widget_ptr, trajectory_poses_3d_.back());
   window_data_.window_.setWidgetPose("Camera Pose with Frustum",
-                                     trajectoryPoses3d_.back());
+                                     trajectory_poses_3d_.back());
 
   // Option A: This does not work very well.
   // window_data_.window_.resetCameraViewpoint("Camera Pose with Frustum");
   // Viewer is our viewpoint, camera the pose estimate (frustum).
   static constexpr bool follow_camera = false;
   if (follow_camera) {
-    cv::Affine3f camera_in_world_coord = trajectoryPoses3d_.back();
+    cv::Affine3f camera_in_world_coord = trajectory_poses_3d_.back();
     // Option B: specify viewer wrt camera. Works, but motion is non-smooth.
     // cv::Affine3f viewer_in_camera_coord (Vec3f(
     //                                       -0.3422019, -0.3422019, 1.5435732),
@@ -876,17 +881,17 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image) {
 
   // Create a Trajectory frustums widget.
   std::vector<cv::Affine3f> trajectory_frustums(
-      trajectoryPoses3d_.end() -
-          std::min(trajectoryPoses3d_.size(), size_t(10u)),
-      trajectoryPoses3d_.end());
+      trajectory_poses_3d_.end() -
+          std::min(trajectory_poses_3d_.size(), size_t(10u)),
+      trajectory_poses_3d_.end());
   cv::viz::WTrajectoryFrustums trajectory_frustums_widget(
       trajectory_frustums, K, 0.2, cv::viz::Color::red());
   window_data_.window_.showWidget("Trajectory Frustums",
                                   trajectory_frustums_widget);
 
   // Create a Trajectory widget. (argument can be PATH, FRAMES, BOTH).
-  std::vector<cv::Affine3f> trajectory(trajectoryPoses3d_.begin(),
-                                       trajectoryPoses3d_.end());
+  std::vector<cv::Affine3f> trajectory(trajectory_poses_3d_.begin(),
+                                       trajectory_poses_3d_.end());
   cv::viz::WTrajectory trajectory_widget(trajectory, cv::viz::WTrajectory::PATH,
                                          1.0, cv::viz::Color::red());
   window_data_.window_.showWidget("Trajectory", trajectory_widget);
@@ -1047,10 +1052,11 @@ void Visualizer3D::removePlane(const PlaneId& plane_index,
 /* -------------------------------------------------------------------------- */
 // Add pose to the previous trajectory.
 void Visualizer3D::addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam) {
-  trajectoryPoses3d_.push_back(UtilsOpenCV::Pose2Affine3f(current_pose_gtsam));
+  trajectory_poses_3d_.push_back(
+      UtilsOpenCV::gtsamPose3ToCvAffine3d(current_pose_gtsam));
   if (FLAGS_displayed_trajectory_length > 0) {
-    while (trajectoryPoses3d_.size() > FLAGS_displayed_trajectory_length) {
-      trajectoryPoses3d_.pop_front();
+    while (trajectory_poses_3d_.size() > FLAGS_displayed_trajectory_length) {
+      trajectory_poses_3d_.pop_front();
     }
   }
 }

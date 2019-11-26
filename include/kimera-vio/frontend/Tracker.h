@@ -105,7 +105,7 @@ public:
       const int iterations);
 
   void checkStatusRightKeypoints(
-      const std::vector<Kstatus>& right_keypoints_status);
+      const std::vector<KeypointStatus>& right_keypoints_status);
 
   /* ---------------------------- CONST FUNCTIONS --------------------------- */
   // returns frame with markers

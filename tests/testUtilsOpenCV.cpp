@@ -72,7 +72,7 @@ class UtilsOpenCVFixture : public ::testing::Test {
   virtual void SetUp() override {}
   virtual void TearDown() override {}
 
-  pair<cv::Mat, std::vector<cv::Point2f>> cvCreateChessboard(
+  pair<cv::Mat, std::vector<KeypointCV>> cvCreateChessboard(
       int square_width,
       int num_pattern_row,
       int num_pattern_col) const {
@@ -89,15 +89,15 @@ class UtilsOpenCVFixture : public ::testing::Test {
       }
     }
     // Generate the corners!
-    vector<cv::Point2f> corners;
+    vector<KeypointCV> corners;
     corners.reserve((num_pattern_row - 1) * (num_pattern_col - 1));
     for (int pr = 1; pr < num_pattern_row; pr++) {
       for (int pc = 1; pc < num_pattern_col; pc++) {
         corners.push_back(
-            cv::Point2f(pc * square_width - 0.5, pr * square_width - 0.5));
+            KeypointCV(pc * square_width - 0.5, pr * square_width - 0.5));
       }
     }
-    return make_pair(chessboard_img, corners);
+    return std::make_pair(chessboard_img, corners);
   }
 
  protected:
@@ -127,28 +127,20 @@ class UtilsOpenCVFixture : public ::testing::Test {
 };
 
 /* ************************************************************************** */
-TEST(testUtilsOpenCV, OpenFile) {
-  ofstream outputFile;
-  UtilsOpenCV::OpenFile("tmp.txt", &outputFile);
-  EXPECT_TRUE(outputFile.is_open());
-  outputFile.close();
-  EXPECT_TRUE(!outputFile.is_open());
-}
-
-/* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, CvMatCmp) {
   Mat chessboardImg;
-  vector<cv::Point2f> keypoints_expected;
+  vector<KeypointCV> keypoints_expected;
   tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
   // image is identical to itself
-  EXPECT_TRUE(UtilsOpenCV::CvMatCmp(chessboardImg, chessboardImg));
+  EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(chessboardImg, chessboardImg));
   // but becomes different if we perturb an entry
   Mat chessboardImg2;
   chessboardImg.copyTo(chessboardImg2);
   // perturb some entry:
   chessboardImg2.at<unsigned char>(0, 1) =
       chessboardImg2.at<unsigned char>(0, 1) + 1;
-  EXPECT_TRUE(!UtilsOpenCV::CvMatCmp(chessboardImg, chessboardImg2));
+  EXPECT_TRUE(
+      !UtilsOpenCV::compareCvMatsUpToTol(chessboardImg, chessboardImg2));
 }
 
 /* ************************************************************************** */
@@ -181,27 +173,27 @@ TEST_F(UtilsOpenCVFixture, Pose2cvmats) {
 
   cv::Mat R_expected = R_cvmat_, T_expected = T_cvmat_;
   // Comparison
-  EXPECT_TRUE(UtilsOpenCV::CvMatCmp(R_expected, R_actual));
-  EXPECT_TRUE(UtilsOpenCV::CvMatCmp(T_expected, T_actual));
+  EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(R_expected, R_actual));
+  EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(T_expected, T_actual));
 }
 
 /* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, Pose2Affine3d) {
-  // expected result
+TEST_F(UtilsOpenCVFixture, gtsamPose3ToCvAffine3d) {
+  // Expected result
   cv::Mat R_expected, T_expected;
   std::tie(R_expected, T_expected) = UtilsOpenCV::Pose2cvmats(pose_gtsam_);
 
-  // actual result
-  cv::Affine3f affineActual = UtilsOpenCV::Pose2Affine3f(pose_gtsam_);
+  // Actual result
+  cv::Affine3d affine_actual = UtilsOpenCV::gtsamPose3ToCvAffine3d(pose_gtsam_);
 
   // Comparison
   for (int r = 0; r < 3; r++) {
     EXPECT_NEAR(T_expected.at<double>(r, 0),
-                double(affineActual.translation()(r)),
+                double(affine_actual.translation()(r)),
                 tol_);
     for (int c = 0; c < 3; c++) {
       EXPECT_NEAR(R_expected.at<double>(r, c),
-                  double(affineActual.rotation()(r, c)),
+                  double(affine_actual.rotation()(r, c)),
                   tol_);
     }
   }
@@ -210,8 +202,15 @@ TEST_F(UtilsOpenCVFixture, Pose2Affine3d) {
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, Cvmats2pose) {
   Pose3 pose_expected = pose_gtsam_;
-  Pose3 pose_actual = UtilsOpenCV::Cvmats2pose(R_cvmat_, T_cvmat_);
+  Pose3 pose_actual = UtilsOpenCV::cvMatsToGtsamPose3(R_cvmat_, T_cvmat_);
   EXPECT_TRUE(assert_equal(pose_expected, pose_actual));
+}
+
+/* ************************************************************************** */
+TEST_F(UtilsOpenCVFixture, CvMatToGtsamRot) {
+  Rot3 rot_expected = pose_gtsam_.rotation();
+  Rot3 rot_actual = UtilsOpenCV::cvMatToGtsamRot3(R_cvmat_);
+  EXPECT_TRUE(assert_equal(rot_expected, rot_actual));
 }
 
 /* ************************************************************************** */
@@ -219,7 +218,7 @@ TEST_F(UtilsOpenCVFixture, Cvmat2rot) {
   // Expected ROT
   Rot3 Rot_expected = R_gtsam_;
   // Actual ROT
-  Rot3 Rot_actual = UtilsOpenCV::Cvmat2rot(R_cvmat_);
+  Rot3 Rot_actual = UtilsOpenCV::cvMatToGtsamRot3(R_cvmat_);
   EXPECT_TRUE(assert_equal(Rot_expected, Rot_actual));
 }
 
@@ -244,7 +243,7 @@ TEST(testUtilsOpenCV, Cal3S2ToCvmat) {
   Cal3_S2 cal_expected(458.654, 457.296, 0.01, 367.215, 248.375);
   Mat Mactual = UtilsOpenCV::Cal3_S2ToCvmat(cal_expected);
   // Actual output
-  EXPECT_TRUE(UtilsOpenCV::CvMatCmp(M, Mactual, 1e-5));
+  EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(M, Mactual, 1e-5));
 }
 
 /* ************************************************************************** */
@@ -257,7 +256,7 @@ TEST_F(UtilsOpenCVFixture, Gvtrans2pose) {
       pose_vector_[4], pose_vector_[5], pose_vector_[6], pose_vector_[7],
       pose_vector_[8], pose_vector_[9], pose_vector_[10], pose_vector_[11];
   // Actual pose
-  Pose3 pose_actual = UtilsOpenCV::Gvtrans2pose(RT);
+  Pose3 pose_actual = UtilsOpenCV::openGvTfToGtsamPose3(RT);
   EXPECT_TRUE(assert_equal(pose_expected, pose_actual));
 }
 
@@ -268,8 +267,8 @@ TEST(testUtilsOpenCV, CropToSizeInside) {
   Size size(800, 600);
   Point2f px_in(700, 300);
   Point2f px_expected = px_in;
-  Point2f px_actual = UtilsOpenCV::CropToSize(px_in, size);
-  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  UtilsOpenCV::cropToSize(&px_in, size);
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 }
 
 /* ************************************************************************** */
@@ -279,60 +278,58 @@ TEST(testUtilsOpenCV, CropToSizeBoundary) {
   // Crop (799, 599) in the frame of 800w*600h. Should output the same point.
   Point2f px_in(799, 599);
   Point2f px_expected(799, 599);
-  Point2f px_actual = UtilsOpenCV::CropToSize(px_in, size);
-  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  EXPECT_FALSE(UtilsOpenCV::cropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 
   // Crop (800, 600) in the frame of 800w*600h. Should output (799, 599).
   px_in = Point2f(800, 600);
   px_expected = Point2f(799, 599);
-  px_actual = UtilsOpenCV::CropToSize(px_in, size);
-  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  EXPECT_TRUE(UtilsOpenCV::cropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 
   // Crop (0, 0) in the frame of 800w*600h. Should output the same point.
   px_in = Point2f(0, 0);
   px_expected = Point2f(0, 0);
-  px_actual = UtilsOpenCV::CropToSize(px_in, size);
-  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  EXPECT_FALSE(UtilsOpenCV::cropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 
   // Crop (-1, -1) in the frame of 800w*600h. Should output (0, 0)
   px_in = Point2f(-1, -1);
   px_expected = Point2f(0, 0);
-  px_actual = UtilsOpenCV::CropToSize(px_in, size);
-  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  EXPECT_TRUE(UtilsOpenCV::cropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 }
 
 /* ************************************************************************** */
 TEST(testUtilsOpenCV, CropToSize) {
-  {  // check that point outside boundary is correctly cropped
-    Size size(800, 600);
-    // Crop (1000, 700) in the frame of 800w*600h. Should output(800, 600)
-    Point2f px_in(1000, 700);
-    Point2f px_expected(799, 599);
-    Point2f px_actual = UtilsOpenCV::CropToSize(px_in, size);
-    EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  // 1. Check that point outside boundary is correctly cropped.
+  Size size(800, 600);
+  // Crop (1000, 700) in the frame of 800w*600h. Should output(800, 600)
+  Point2f px_in(1000, 700);
+  Point2f px_expected(799, 599);
+  EXPECT_TRUE(UtilsOpenCV::cropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 
-    // Crop (-100, -200) in the frame of 800w*600h. Should output(-100, -200)
-    px_in = Point2f(-100, -200);
-    px_expected = Point2f(0, 0);
-    px_actual = UtilsOpenCV::CropToSize(px_in, size);
-    EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
-  }
-  {  // check that point inside boundary remains the same
-    // Crop (700.3f, 399.5f) in the frame of 800w*600h.
-    // Should output (700, 400);
-    Size size(800, 600);
-    Point2f px_in(700.3f, 399.5f);
-    Point2f px_expected(700.0f, 400.0f);
-    Point2f px_actual = UtilsOpenCV::RoundAndCropToSize(px_in, size);
-    EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  // Crop (-100, -200) in the frame of 800w*600h. Should output(-100, -200)
+  px_in = Point2f(-100, -200);
+  px_expected = Point2f(0, 0);
+  EXPECT_TRUE(UtilsOpenCV::cropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 
-    // Crop (699.50001f, 300.499f) in the frame of 800w*600h. Should output(700,
-    // 300)
-    px_in = Point2f(699.50001f, 300.499f);
-    px_expected = Point2f(700, 300);
-    px_actual = UtilsOpenCV::RoundAndCropToSize(px_in, size);
-    EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
-  }
+  // 2. Check that point inside boundary remains the same.
+  // Crop (700.3f, 399.5f) in the frame of 800w*600h.
+  // Should output (700, 400);
+  px_in = Point2f(700.3f, 399.5f);
+  px_expected = Point2f(700.0f, 400.0f);
+  EXPECT_FALSE(UtilsOpenCV::roundAndCropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
+
+  // Crop (699.50001f, 300.499f) in the frame of 800w*600h. Should output(700,
+  // 300)
+  px_in = Point2f(699.50001f, 300.499f);
+  px_expected = Point2f(700, 300);
+  EXPECT_FALSE(UtilsOpenCV::roundAndCropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 }
 
 /* ************************************************************************** */
@@ -342,14 +339,14 @@ TEST(testUtilsOpenCV, RoundAndCropToSizeBoundary) {
   Size size(800, 600);
   Point2f px_in(799.5f, 599.5f);
   Point2f px_expected(799, 599);
-  Point2f px_actual = UtilsOpenCV::RoundAndCropToSize(px_in, size);
-  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  EXPECT_TRUE(UtilsOpenCV::roundAndCropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 
   // Crop (-0.499f, -0.499f) in the frame of 800w*600h. Should output(0, 0)
   px_in = Point2f(-0.499f, -0.499f);
-  px_expected = Point2f(0, 0);
-  px_actual = UtilsOpenCV::RoundAndCropToSize(px_in, size);
-  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  px_expected = Point2f(0.0f, 0.0f);
+  EXPECT_FALSE(UtilsOpenCV::roundAndCropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 }
 
 /* ************************************************************************** */
@@ -359,25 +356,25 @@ TEST(testUtilsOpenCV, RoundAndCropToSizeOutside) {
   Size size(800, 600);
   Point2f px_in(1000.4f, 700.4f);
   Point2f px_expected(799, 599);
-  Point2f px_actual = UtilsOpenCV::RoundAndCropToSize(px_in, size);
-  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  EXPECT_TRUE(UtilsOpenCV::roundAndCropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 
   // Crop (-1000f, -800) in the frame of 800w*600h. Should output(0, 0)
   px_in = Point2f(-1000, -800);
   px_expected = Point2f(0, 0);
-  px_actual = UtilsOpenCV::RoundAndCropToSize(px_in, size);
-  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_actual));
+  EXPECT_TRUE(UtilsOpenCV::roundAndCropToSize(&px_in, size));
+  EXPECT_TRUE(UtilsOpenCV::CvPointCmp(px_expected, px_in));
 }
 
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, ExtractCornersChessboard) {
   // Generate the chessboard to extract!
   Mat chessboardImg;
-  vector<cv::Point2f> keypoints_expected;
+  vector<KeypointCV> keypoints_expected;
   tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
 
   // Extract the corners!
-  vector<cv::Point2f> keypoints_actual;
+  vector<KeypointCV> keypoints_actual;
   UtilsOpenCV::ExtractCorners(chessboardImg, &keypoints_actual);
 
   EXPECT_LE(keypoints_actual.size(), 100);
@@ -405,7 +402,7 @@ TEST(testUtilsOpenCV, ExtractCornersWhiteWall) {
   // Given an image of white wall, no corners should be extracted!!
   Mat whitewallImg = Mat::zeros(800, 600, CV_8U);
 
-  vector<cv::Point2f> keypoints_actual;
+  vector<KeypointCV> keypoints_actual;
   EXPECT_NO_THROW(UtilsOpenCV::ExtractCorners(whitewallImg, &keypoints_actual));
 
   // Assert that no corners are extracted!
@@ -573,12 +570,13 @@ TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
   // original image is already gray, hence it remains the same
   {
     Mat chessboardImg;
-    vector<cv::Point2f> keypoints_expected;
+    vector<KeypointCV> keypoints_expected;
     tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
     Mat chessboardImgGray =
         UtilsOpenCV::ReadAndConvertToGrayScale("chessboard.png");
     EXPECT_EQ(chessboardImgGray.channels(), 1);
-    EXPECT_TRUE(UtilsOpenCV::CvMatCmp(chessboardImg, chessboardImgGray));
+    EXPECT_TRUE(
+        UtilsOpenCV::compareCvMatsUpToTol(chessboardImg, chessboardImgGray));
   }
   // original image is in color and it is converted to gray
   {
@@ -588,7 +586,7 @@ TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
     EXPECT_EQ(imageGray.channels(), 1);
     // we read gray image we just wrote and make sure it is ok
     Mat imgGrayWritten = imread("lenaGrayScale.png", IMREAD_ANYCOLOR);
-    EXPECT_TRUE(UtilsOpenCV::CvMatCmp(imageGray, imgGrayWritten));
+    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(imageGray, imgGrayWritten));
   }
   // original image is already gray, hence it remains the same
   {
@@ -597,7 +595,7 @@ TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
     Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
         string(FLAGS_test_data_path) + "testImage.png");
     EXPECT_EQ(imageGray.channels(), 1);
-    EXPECT_TRUE(UtilsOpenCV::CvMatCmp(img, imageGray));
+    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img, imageGray));
   }
 }
 
@@ -634,9 +632,9 @@ TEST(testUtilsOpenCV, covariancebvx2xvb) {
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, DISABLED_ExtractCornersChessboard) {
   Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(chess_img_path_);
-  std::vector<cv::Point2f> actualCorners, actualCorners2;
+  std::vector<KeypointCV> actualCorners, actualCorners2;
   std::vector<double> actualScores;
-  std::pair<std::vector<cv::Point2f>, std::vector<double>> corners_with_scores;
+  std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
   UtilsOpenCV::MyGoodFeaturesToTrackSubPix(img, 100, 0.01, 10, Mat(), 3, false,
                                            0.04, &corners_with_scores);
 
@@ -658,11 +656,11 @@ TEST_F(UtilsOpenCVFixture, DISABLED_ExtractCornersChessboard) {
 TEST_F(UtilsOpenCVFixture, ExtractCornersImage) {
   cv::Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(real_img_path_);
 
-  std::pair<std::vector<cv::Point2f>, std::vector<double>> corners_with_scores;
+  std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
   UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
       img, 100, 0.01, 10, cv::Mat(), 3, false, 0.04, &corners_with_scores);
 
-  std::vector<cv::Point2f> actualCorners2;
+  std::vector<KeypointCV> actualCorners2;
   UtilsOpenCV::ExtractCorners(img, &actualCorners2);
 
   EXPECT_NEAR(corners_with_scores.first.size(), actualCorners2.size(), 1e-3);
@@ -704,7 +702,7 @@ TEST(testUtilsOpenCV, VectorUnique) {
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, ImageLaplacian) {
   cv::Mat chessboardImg;
-  std::vector<cv::Point2f> notUsed;
+  std::vector<KeypointCV> notUsed;
   std::tie(chessboardImg, notUsed) = cvCreateChessboard(30, 10, 8);
   cv::Mat actual = UtilsOpenCV::ImageLaplacian(chessboardImg);
   // cv::imshow("actual",actual);

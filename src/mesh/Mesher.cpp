@@ -1273,7 +1273,7 @@ void Mesher::associatePlanes(const std::vector<Plane>& segmented_planes,
 // Optional parameter is the mesh in 2D for visualization.
 void Mesher::updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
                           const KeypointsCV& keypoints,
-                          const std::vector<Kstatus>& keypoints_status,
+                          const std::vector<KeypointStatus>& keypoints_status,
                           const std::vector<Vector3>& keypoints_3d,
                           const LandmarkIds& landmarks,
                           const gtsam::Pose3& left_camera_pose,
@@ -1286,12 +1286,17 @@ void Mesher::updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
 
   // Get points in stereo camera that are not in vio but have lmk id:
   PointsWithIdMap points_with_id_stereo;
+  // TODO(Toni): put this in mesher params, and allow for only seeing stereo
+  // mesh
   if (FLAGS_add_extra_lmks_from_stereo) {
     // Append vio points.
     // WARNING some stereo and vio lmks share the same id, so adding order
     // matters! first add vio points, then stereo, so that vio points have
     // preference over stereo ones if they are repeated!
-    points_with_id_stereo = points_with_id_VIO;
+    static constexpr bool kAppendStereoLmks = true;
+    if (kAppendStereoLmks) {
+      points_with_id_stereo = points_with_id_VIO;
+    }
     appendNonVioStereoPoints(landmarks,
                              keypoints_status,
                              keypoints_3d,
@@ -1360,7 +1365,7 @@ void Mesher::updateMesh3D(const MesherInput& mesher_payload,
 // is already a point with the same lmk id.
 void Mesher::appendNonVioStereoPoints(
     const LandmarkIds& landmarks,
-    const std::vector<Kstatus>& keypoints_status,
+    const std::vector<KeypointStatus>& keypoints_status,
     const std::vector<Vector3>& keypoints_3d,
     const gtsam::Pose3& left_cam_pose,
     PointsWithIdMap* points_with_id_stereo) const {
@@ -1371,7 +1376,7 @@ void Mesher::appendNonVioStereoPoints(
       << "Landmarks and keypoints_3d should have same dimension...";
   for (size_t i = 0; i < landmarks.size(); i++) {
     const LandmarkId& landmark_id = landmarks.at(i);
-    if (keypoints_status.at(i) == Kstatus::VALID && landmark_id != -1) {
+    if (keypoints_status.at(i) == KeypointStatus::VALID && landmark_id != -1) {
       const gtsam::Point3& p_i_global =
           left_cam_pose.transformFrom(gtsam::Point3(keypoints_3d.at(i)));
       // Use insert() instead of [] operator, to make sure that if there is
@@ -1472,12 +1477,13 @@ void Mesher::getPolygonsMesh(cv::Mat* polygons_mesh) const {
 }
 
 /* -------------------------------------------------------------------------- */
-void Mesher::createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
-                             const LandmarkIds& landmarks,
-                             const std::vector<Kstatus>& keypoints_status,
-                             const KeypointsCV& keypoints,
-                             const cv::Size& img_size,
-                             const PointsWithIdMap& pointsWithIdVIO) {
+void Mesher::createMesh2dVIO(
+    std::vector<cv::Vec6f>* triangulation_2D,
+    const LandmarkIds& landmarks,
+    const std::vector<KeypointStatus>& keypoints_status,
+    const KeypointsCV& keypoints,
+    const cv::Size& img_size,
+    const PointsWithIdMap& pointsWithIdVIO) {
   CHECK_NOTNULL(triangulation_2D);
 
   // Pick left frame.
@@ -1498,7 +1504,7 @@ void Mesher::createMesh2dVIO(std::vector<cv::Vec6f>* triangulation_2D,
       // If we are seeing a VIO point in left and right frame, add to keypoints
       // to generate the mesh in 2D.
       if (landmarks.at(j) == point_with_id.first &&
-          keypoints_status.at(j) == Kstatus::VALID) {
+          keypoints_status.at(j) == KeypointStatus::VALID) {
         // Add keypoints for mesh 2d.
         keypoints_for_mesh.push_back(keypoints.at(j));
       }
@@ -1601,7 +1607,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2D(
 void Mesher::createMesh2dStereo(
     std::vector<cv::Vec6f>* triangulation_2D,
     const LandmarkIds& landmarks,
-    const std::vector<Kstatus>& keypoints_status,
+    const std::vector<KeypointStatus>& keypoints_status,
     const KeypointsCV& keypoints,
     const std::vector<Vector3>& keypoints_3d,
     const cv::Size& img_size,
@@ -1617,7 +1623,8 @@ void Mesher::createMesh2dStereo(
   // (which have right px).
   std::vector<cv::Point2f> keypoints_for_mesh;
   for (int i = 0; i < landmarks.size(); i++) {
-    if (keypoints_status.at(i) == Kstatus::VALID && landmarks.at(i) != -1) {
+    if (keypoints_status.at(i) == KeypointStatus::VALID &&
+        landmarks.at(i) != -1) {
       // Add keypoints for mesh 2d.
       keypoints_for_mesh.push_back(keypoints.at(i));
 

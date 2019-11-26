@@ -425,7 +425,7 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
   const LandmarkIds& landmarkId_kf = stereoFrame_kf.getLeftFrame().landmarks_;
   const KeypointsCV& leftKeypoints = stereoFrame_kf.left_keypoints_rectified_;
   const KeypointsCV& rightKeypoints = stereoFrame_kf.right_keypoints_rectified_;
-  const std::vector<Kstatus>& rightKeypoints_status =
+  const std::vector<KeypointStatus>& rightKeypoints_status =
       stereoFrame_kf.right_keypoints_status_;
 
   // Pack information in landmark structure.
@@ -446,7 +446,7 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
                       " (set useStereoTracking_ = true to use it)";
     }
     if (tracker_.trackerParams_.useStereoTracking_ &&
-        rightKeypoints_status.at(i) == Kstatus::VALID) {
+        rightKeypoints_status.at(i) == KeypointStatus::VALID) {
       // TODO implicit conversion float to double increases floating-point
       // precision!
       uR = rightKeypoints.at(i).x;
@@ -491,7 +491,7 @@ void StereoVisionFrontEnd::displayStereoTrack(const int& verbosity) const {
   if (left_frame_k.keypoints_.size() == right_frame_k.keypoints_.size()) {
     for (size_t i = 0; i < left_frame_k.keypoints_.size(); i++) {
       if (left_frame_k.landmarks_[i] != -1 &&
-          stereoFrame_k_->right_keypoints_status_[i] == Kstatus::VALID) {
+          stereoFrame_k_->right_keypoints_status_[i] == KeypointStatus::VALID) {
         matches.push_back(cv::DMatch(i, i, 0));
       }
     }

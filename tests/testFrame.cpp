@@ -48,7 +48,7 @@ TEST(testFrame, constructor) {
   ASSERT_EQ(f.timestamp_, tmp);
   // check image:
   Mat img = imread(imgName, IMREAD_ANYCOLOR);
-  ASSERT_TRUE(UtilsOpenCV::CvMatCmp(f.img_, img));
+  ASSERT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(f.img_, img));
   ASSERT_TRUE(!f.isKeyframe_);  // false by default
   ASSERT_TRUE(CameraParams("cam").equals(f.cam_param_));
 }
@@ -117,7 +117,7 @@ TEST(testFrame, CalibratePixel) {
   // Calibrate, and uncalibrate the point, verify that we get the same point
   for (KeypointsCV::iterator iter = testPointsCV.begin();
        iter != testPointsCV.end(); iter++) {
-    Vector3 versor = Frame::CalibratePixel(*iter, camParams);
+    Vector3 versor = Frame::calibratePixel(*iter, camParams);
     ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
@@ -152,9 +152,11 @@ TEST(testFrame, DISABLED_CalibratePixel) {
     }
   }
   // Calibrate, and uncalibrate the point, verify that we get the same point
-  for (KeypointsCV::iterator iter = testPointsCV.begin(); iter !=
-testPointsCV.end(); iter++) { Vector3 versor = Frame::CalibratePixel(*iter,
-camParams); ASSERT_DOUBLE_EQ(versor.norm(), 1);
+  for (KeypointsCV::iterator iter = testPointsCV.begin();
+       iter != testPointsCV.end();
+       iter++) {
+    Vector3 versor = Frame::calibratePixel(*iter, camParams);
+    ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
     versor = versor / versor(2);

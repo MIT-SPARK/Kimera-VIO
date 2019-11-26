@@ -35,12 +35,22 @@ namespace VIO {
 class VisualizerFixture : public ::testing::Test {
  public:
   VisualizerFixture()
-      : img_(),
+      : camera_params_("left"),
+        img_(),
         img_name_(),
         frame_(nullptr),
         viz_type_(VisualizationType::kMesh2dTo3dSparse),
         backend_type_(BackendType::kStereoImu),
         visualizer_(nullptr) {
+    camera_params_.R_rectify_ = (cv::Mat_<double>(3, 3) << pose_vector_[0],
+                                 pose_vector_[1],
+                                 pose_vector_[2],
+                                 pose_vector_[4],
+                                 pose_vector_[5],
+                                 pose_vector_[6],
+                                 pose_vector_[8],
+                                 pose_vector_[9],
+                                 pose_vector_[10]);
     img_name_ = std::string(FLAGS_test_data_path) + "/chessboard_small.png";
     img_ = UtilsOpenCV::ReadAndConvertToGrayScale(img_name_);
     // Construct a frame from image name, and extract keypoints/landmarks.
@@ -73,8 +83,18 @@ class VisualizerFixture : public ::testing::Test {
   }
 
  protected:
-  static constexpr double tol = 1e-8;
+  static constexpr double tol_ = 1e-8;
 
+  // 3D pose in vector format
+  // clang-format off
+  const std::vector<double> pose_vector_ =
+    {0.0148655429818,  -0.999880929698,  0.00414029679422, -0.0216401454975,
+     0.999557249008,   0.0149672133247,  0.025715529948,   -0.064676986768,
+     -0.0257744366974, 0.00375618835797, 0.999660727178,   0.00981073058949,
+     0.0,              0.0,              0.0,              1.0};
+  // clang-format on
+
+  CameraParams camera_params_;
   cv::Mat img_;
   std::string img_name_;
   std::unique_ptr<Frame> frame_;
@@ -106,9 +126,9 @@ TEST_F(VisualizerFixture, spinOnce) {
       StereoFrame(FrameId(),
                   timestamp,
                   cv::Mat(),
-                  CameraParams(),
+                  camera_params_,
                   cv::Mat(),
-                  CameraParams(),
+                  camera_params_,
                   StereoMatchingParams()),
       ImuFrontEnd::PreintegratedImuMeasurements(),
       DebugTrackerInfo());

@@ -321,7 +321,7 @@ class Visualizer3D {
   // Mesh 3d visualization properties setter callback.
   Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
 
-  std::deque<cv::Affine3f> trajectoryPoses3d_;
+  std::deque<cv::Affine3d> trajectory_poses_3d_;
 
   std::map<PlaneId, LineNr> plane_to_line_nr_map_;
   PlaneIdMap plane_id_map_;

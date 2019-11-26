@@ -190,7 +190,7 @@ FeatureSelector::featureSelectionLinearModel(
   availableVersors.reserve(availableCorners.size());
   for (size_t l = 0; l < availableCorners.size(); l++)
     availableVersors.push_back(
-        Frame::CalibratePixel(availableCorners.at(l), cam_param));
+        Frame::calibratePixel(availableCorners.at(l), cam_param));
 
 #ifdef FEATURE_SELECTOR_DEBUG_COUT
   std::cout << "known points time: "
