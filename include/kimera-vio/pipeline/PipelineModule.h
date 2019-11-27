@@ -50,7 +50,7 @@ class PipelineModule {
   KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModule);
   //! The input is a unique ptr, as the user should implement getInputPacket
   //! such that it only retrieves an input structure with all data.
-  using InputPtr = std::shared_ptr<Input>;  //! should be unique_ptr
+  using InputPtr = std::unique_ptr<Input>;
   //! The output is instead a shared ptr, since many users might need the output
   using OutputPtr = std::shared_ptr<Output>;
 
@@ -82,7 +82,9 @@ class PipelineModule {
       is_thread_working_ = true;
       if (input) {
         auto tic = utils::Timer::tic();
-        OutputPtr output = spinOnce(*input);
+        // Transfer the ownership of input to the actual pipeline module.
+        // From this point on, you cannot use input, since spinOnce owns it.
+        OutputPtr output = spinOnce(std::move(input));
         if (output) {
           // Received a valid output, send to output queue
           if (!pushOutputPacket(output)) {
@@ -223,11 +225,15 @@ class PipelineModule {
    * @brief Abstract function to process a single input payload.
    * The user must implement this function at a minimum, which
    * is the one doing the actual work of the pipeline module.
-   * @param[in] input: an input payload for module to work on.
+   * @param[in] input: an input payload unique pointer, for the module to work
+   * on. Mind that we pass a unique_ptr so that one can do perfect forwarding,
+   * i.e. if the pipeline module does nothing but forwarding the input to the
+   * output (for example the data provider module does this, since it just syncs
+   * input and forwards it to the output).
    * @return The output payload from the pipeline module. Returning a nullptr
    * signals that the output should not be sent to the output queue.
    */
-  virtual OutputPtr spinOnce(const Input& input) = 0;
+  virtual OutputPtr spinOnce(InputPtr input) = 0;
 
   /**
    * @brief shutdownQueues If the module stores Threadsafe queues, it must

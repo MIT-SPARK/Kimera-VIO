@@ -45,7 +45,7 @@ class StereoVisionFrontEndModule
   virtual ~StereoVisionFrontEndModule() = default;
 
  public:
-  virtual OutputPtr spinOnce(const StereoImuSyncPacket& input);
+  virtual OutputPtr spinOnce(StereoImuSyncPacket::UniquePtr input);
 
   //! Frontend Initialization
   StereoFrame processFirstStereoFrame(const StereoFrame& first_frame);

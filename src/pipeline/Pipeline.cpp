@@ -96,6 +96,7 @@ namespace VIO {
 Pipeline::Pipeline(const PipelineParams& params)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
+      data_provider_module_(nullptr),
       vio_frontend_module_(nullptr),
       feature_selector_(nullptr),
       vio_backend_module_(nullptr),
@@ -123,6 +124,10 @@ Pipeline::Pipeline(const PipelineParams& params)
       params.camera_params_.at(0),
       params.camera_params_.at(1),
       params.frontend_params_.stereo_matching_params_);
+
+  //! Create DataProvider
+  data_provider_module_ = VIO::make_unique<DataProviderModule>(
+      &stereo_frontend_input_queue_, "Data Provider", parallel_run_);
 
   //! Create frontend
   vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
@@ -251,7 +256,8 @@ Pipeline::~Pipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
+void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
+  CHECK_NOTNULL(stereo_imu_sync_packet);
   CHECK(!shutdown_) << "Pipeline is shutdown.";
   // Check if we have to re-initialize
   checkReInitialize(*stereo_imu_sync_packet);
@@ -278,24 +284,19 @@ void Pipeline::spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
       LOG(INFO) << "Not yet initialized...";
     }
   } else {
+    // SEND INFO TO FRONTEND, here is when we are in nominal mode.
     // TODO Warning: we do not accumulate IMU measurements for the first
     // packet... Spin.
-    spinOnce(std::move(stereo_imu_sync_packet));
+    CHECK(is_initialized_);
+
+    // Push to stereo frontend input queue.
+    VLOG(2) << "Push input payload to Frontend.";
+    stereo_frontend_input_queue_.push(std::move(stereo_imu_sync_packet));
+
+    // Run the pipeline sequentially.
+    if (!parallel_run_) spinSequential();
   }
   return;
-}
-
-/* -------------------------------------------------------------------------- */
-// Spin the pipeline only once.
-void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
-  CHECK(is_initialized_);
-  ////////////////////////////// FRONT-END /////////////////////////////////////
-  // Push to stereo frontend input queue.
-  VLOG(2) << "Push input payload to Frontend.";
-  stereo_frontend_input_queue_.push(std::move(stereo_imu_sync_packet));
-
-  // Run the pipeline sequentially.
-  if (!parallel_run_) spinSequential();
 }
 
 // Returns whether the visualizer_ is running or not. While in parallel mode,
@@ -527,11 +528,12 @@ bool Pipeline::initializeOnline(
   StereoFrame stereo_frame = stereo_imu_sync_packet.getStereoFrame();
   stereo_frame.setIsKeyframe(true);
   // TODO: this is copying the packet implicitly, just to set a flag to true.
-  StereoImuSyncPacket stereo_imu_sync_init(
-      stereo_frame,
-      stereo_imu_sync_packet.getImuStamps(),
-      stereo_imu_sync_packet.getImuAccGyr(),
-      stereo_imu_sync_packet.getReinitPacket());
+  StereoImuSyncPacket::UniquePtr stereo_imu_sync_init =
+      VIO::make_unique<StereoImuSyncPacket>(
+          stereo_frame,
+          stereo_imu_sync_packet.getImuStamps(),
+          stereo_imu_sync_packet.getImuAccGyr(),
+          stereo_imu_sync_packet.getReinitPacket());
 
   FrontendOutput::ConstPtr frontend_output = nullptr;
   /////////////////// FIRST FRAME //////////////////////////////////////////////
@@ -540,7 +542,7 @@ bool Pipeline::initializeOnline(
     vio_frontend_module_->prepareFrontendForOnlineAlignment();
     // Initialize Stereo Frontend.
     vio_frontend_module_->processFirstStereoFrame(
-        stereo_imu_sync_init.getStereoFrame());
+        stereo_imu_sync_init->getStereoFrame());
 
     //! Register frontend output queue for the initializer.
     vio_frontend_module_->registerCallback(
@@ -552,7 +554,7 @@ bool Pipeline::initializeOnline(
     // Check trivial bias and gravity vector for online initialization
     vio_frontend_module_->checkFrontendForOnlineAlignment();
     // Spin frontend once with enforced keyframe and 53-point method
-    vio_frontend_module_->spinOnce(stereo_imu_sync_init);
+    vio_frontend_module_->spinOnce(std::move(stereo_imu_sync_init));
     // TODO(Sandro): Optionally add AHRS PIM
     CHECK(frontend_output);
     initialization_frontend_output_queue_.push(
@@ -567,9 +569,9 @@ bool Pipeline::initializeOnline(
 
     // TODO(Sandro): Find a way to optimize this
     // This queue is used for the the backend optimization
-    const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
-    const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
-    const auto& pim =
+    const ImuStampS& imu_stamps = stereo_imu_sync_packet.getImuStamps();
+    const ImuAccGyrS& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
+    const gtsam::PreintegratedImuMeasurements& pim =
         imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
     // This queue is used for the backend after initialization
     VLOG(2) << "Initialization: Push input payload to Backend.";

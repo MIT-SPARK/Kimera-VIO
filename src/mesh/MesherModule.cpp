@@ -56,8 +56,8 @@ MesherModule::InputPtr MesherModule::getInputPacket() {
       timestamp, frontend_payload, backend_payload);
 }
 
-MesherModule::OutputPtr MesherModule::spinOnce(const MesherInput& input) {
-  return mesher_->spinOnce(input);
+MesherModule::OutputPtr MesherModule::spinOnce(MesherInput::UniquePtr input) {
+  return mesher_->spinOnce(*CHECK_NOTNULL(input));
 }
 
 void MesherModule::shutdownQueues() {

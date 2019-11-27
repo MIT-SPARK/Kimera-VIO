@@ -57,7 +57,7 @@ class VisualizerModule
   //! on the order of msg generation is broken.
   virtual inline InputPtr getInputPacket() override;
 
-  virtual OutputPtr spinOnce(const VisualizerInput& input) override;
+  virtual OutputPtr spinOnce(VisualizerInput::UniquePtr input) override;
 
   //! Called when general shutdown of PipelineModule is triggered.
   virtual void shutdownQueues() override;

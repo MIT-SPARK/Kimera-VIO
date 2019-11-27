@@ -517,8 +517,8 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
         timestamp, backend_payload->cur_kf_id_, stereo_keyframe, body_pose);
   }
 
-  virtual OutputPtr spinOnce(const LcdInput& input) override {
-    return lcd_->spinOnce(input);
+  virtual OutputPtr spinOnce(LcdInput::UniquePtr input) override {
+    return lcd_->spinOnce(*input);
   }
 
   //! Called when general shutdown of PipelineModule is triggered.

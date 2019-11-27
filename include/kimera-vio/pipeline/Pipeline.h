@@ -25,6 +25,7 @@
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEndModule.h"
 #include "kimera-vio/datasource/DataSource-definitions.h"
+#include "kimera-vio/datasource/DataSource.h"
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
@@ -38,7 +39,7 @@
 namespace VIO {
 
 class Pipeline {
- private:
+ public:
   KIMERA_POINTER_TYPEDEFS(Pipeline);
   KIMERA_DELETE_COPY_CONSTRUCTORS(Pipeline);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -52,17 +53,21 @@ class Pipeline {
 
   virtual ~Pipeline();
 
-  // Main spin, runs the pipeline.
-  void spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
+  //! Callbacks to fill input queues.
+  inline void fillImuQueue(const ImuMeasurements& imu_measurements) {
+    data_provider_module_->fillImuQueue(imu_measurements);
+  }
+  inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
+    CHECK(left_frame);
+    data_provider_module_->fillLeftFrameQueue(std::move(left_frame));
+  }
+  inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
+    CHECK(right_frame);
+    data_provider_module_->fillRightFrameQueue(std::move(right_frame));
+  }
 
   // Run an endless loop until shutdown to visualize.
   bool spinViz();
-
-  // Spin the pipeline only once.
-  void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
-
-  // A parallel pipeline should always be able to run sequentially...
-  void spinSequential();
 
   // Shutdown the pipeline once all data has been consumed.
   void shutdownWhenFinished();
@@ -91,6 +96,13 @@ class Pipeline {
                  << "LoopClosureDetector member is active in pipeline.";
     }
   }
+
+ private:
+  // Spin the pipeline only once.
+  void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
+
+  // A parallel pipeline should always be able to run sequentially...
+  void spinSequential();
 
  private:
   // Initialize random seed for repeatability (only on the same machine).
@@ -147,59 +159,66 @@ class Pipeline {
   // Join threads to do a clean shutdown.
   void joinThreads();
 
-  // Callbacks.
+ private:
+  //! Callbacks.
   KeyframeRateOutputCallback keyframe_rate_output_callback_;
 
-  // Init Vio parameter
+  //! Parameters
+  // TODO(Toni): aren't all of these already in pipeline_params?
   VioBackEndParams::ConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
   ImuParams imu_params_;
+  BackendType backend_type_;
+  bool parallel_run_;
 
   //! Definition of sensor rig used
   StereoCamera::UniquePtr stereo_camera_;
 
+  //! Data provider.
+  DataProviderModule::UniquePtr data_provider_module_;
+
   // TODO this should go to another class to avoid not having copy-ctor...
-  // Frontend.
+  //! Frontend.
   StereoVisionFrontEndModule::UniquePtr vio_frontend_module_;
   std::unique_ptr<FeatureSelector> feature_selector_;
 
-  // Stereo vision frontend payloads.
+  //! Stereo vision frontend payloads.
   StereoVisionFrontEndModule::InputQueue stereo_frontend_input_queue_;
 
   // Online initialization frontend queue.
   ThreadsafeQueue<InitializationInputPayload::UniquePtr>
       initialization_frontend_output_queue_;
 
-  // Create VIO: class that implements estimation back-end.
+  //! Backend
   VioBackEndModule::UniquePtr vio_backend_module_;
 
-  // Thread-safe queue for the backend.
+  //! Thread-safe queue for the backend.
   VioBackEndModule::InputQueue backend_input_queue_;
 
-  // Create class to build mesh.
+  //! Mesher
   MesherModule::UniquePtr mesher_module_;
 
-  // Create class to detect loop closures.
+  //! Loop Closure Detector
   LcdModule::UniquePtr lcd_module_;
 
-  // Visualization process.
+  //! Visualizer
   VisualizerModule::UniquePtr visualizer_module_;
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
   std::atomic_bool is_launched_ = {false};
+
+  // TODO(Toni): Remove this?
   int init_frame_id_;
 
-  // Threads.
+  //! Threads.
   std::unique_ptr<std::thread> frontend_thread_ = {nullptr};
   std::unique_ptr<std::thread> backend_thread_ = {nullptr};
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
   std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
   std::unique_ptr<std::thread> visualizer_thread_ = {nullptr};
 
-  BackendType backend_type_;
-  bool parallel_run_;
 };
 
 }  // namespace VIO

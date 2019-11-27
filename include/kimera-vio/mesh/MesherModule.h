@@ -49,7 +49,7 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
   //! on the order of msg generation is broken.
   virtual InputPtr getInputPacket() override;
 
-  virtual OutputPtr spinOnce(const MesherInput& input) override;
+  virtual OutputPtr spinOnce(MesherInput::UniquePtr input) override;
 
  protected:
   //! Called when general shutdown of PipelineModule is triggered.
