@@ -61,8 +61,16 @@ int main(int argc, char* argv[]) {
   VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
 
   // Register callback to vio pipeline.
-  dataset_parser->registerVioCallback(
-      std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
+  dataset_parser->registerImuCallback(std::bind(
+      &VIO::Pipeline::fillImuQueue(), &vio_pipeline, std::placeholders::_1));
+  dataset_parser->registerLeftFrameCallback(
+      std::bind(&VIO::Pipeline::fillLeftFrameQueue(),
+                &vio_pipeline,
+                std::placeholders::_1));
+  dataset_parser->registerRightFrameCallback(
+      std::bind(&VIO::Pipeline::fillRightFrameQueue(),
+                &vio_pipeline,
+                std::placeholders::_1));
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();

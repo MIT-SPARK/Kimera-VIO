@@ -70,32 +70,25 @@ DataProviderInterface::~DataProviderInterface() {
   LOG(INFO) << "Data provider destructor called.";
 }
 
-void DataProviderInterface::registerVioCallback(VioInputCallback callback) {
-  vio_callback_ = std::move(callback);
-}
-
 bool DataProviderInterface::spin() {
   // Dummy example:
-  // 1) Check that the vio_callback_ has been registered, aka that the user has
+  // 1) Check that the callbacks have been registered, aka that the user has
   // called the function registerVioCallback, in order to store the callback
   // function.
-  CHECK(vio_callback_);
+  CHECK(imu_callback_);
+  CHECK(left_frame_callback_);
+  CHECK(right_frame_callback_);
 
   // 2) Loop over the dataset and:
-  //  a) Create StereoImuSyncPacket packets out of the data.
+  //  a) Create data packets out of the data.
   //  This one is dummy since it is filled with empty images, parameters,
   //  imu data, etc.
-  //  b) Call the vio callback in order to start processing the packet.
-  vio_callback_(VIO::make_unique<StereoImuSyncPacket>(
-      StereoFrame(1,
-                  1,
-                  cv::Mat(),
-                  CameraParams("left_cam"),
-                  cv::Mat(),
-                  CameraParams("right_cam"),
-                  StereoMatchingParams()),
-      ImuStampS(),
-      ImuAccGyrS()));
+  //  b) Call the callbacks in order to send the data.
+  left_frame_callback_(
+      VIO::make_unique<Frame>(0, 0, CameraParams("left_cam"), cv::Mat()));
+  right_frame_callback_(
+      VIO::make_unique<Frame>(0, 0, CameraParams("right_cam"), cv::Mat()));
+  imu_callback_(ImuMeasurements());
 
   // 3) Once the dataset spin has finished, exit.
   // You can return false if something went wrong.

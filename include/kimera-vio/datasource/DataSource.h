@@ -24,11 +24,13 @@
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
+
 class DataProviderInterface {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(DataProviderInterface);
   KIMERA_POINTER_TYPEDEFS(DataProviderInterface);
-  typedef std::function<void(StereoImuSyncPacket::UniquePtr)> VioInputCallback;
+  typedef std::function<void(const ImuMeasurements&)> ImuInputCallback;
+  typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
 
   /** Regular ctor.
    *   [in] initial_k: first frame id to be parsed.
@@ -43,23 +45,30 @@ class DataProviderInterface {
   virtual ~DataProviderInterface();
 
   // The derived classes need to implement this function!
-  // Spin the dataset: processes the input data and constructs a Stereo Imu
-  // Synchronized Packet which contains the minimum amount of information
-  // for the VIO pipeline to do one processing iteration.
+  // Spin the dataset: processes the input data and feeds it to the VIO pipeline
   // A Dummy example is provided as an implementation.
   virtual bool spin();
 
   // Init Vio parameters.
   PipelineParams pipeline_params_;
 
-  // Register a callback function that will be called once a StereoImu Synchro-
-  // nized packet is available for processing.
-  void registerVioCallback(VioInputCallback callback);
+  // Register a callback function for IMU data
+  inline void registerImuCallback(const ImuInputCallback& callback) {
+    imu_callback_ = callback;
+  }
+  inline void registerLeftFrameCallback(const FrameInputCallback& callback) {
+    left_frame_callback_ = callback;
+  }
+  inline void registerRightFrameCallback(const FrameInputCallback& callback) {
+    right_frame_callback_ = callback;
+  }
 
  protected:
-  // Vio callback. This function should be called once a StereoImuSyncPacket
-  // is available for processing.
-  VioInputCallback vio_callback_;
+  // Vio callbacks. These functions should be called once data is available for
+  // processing.
+  ImuInputCallback imu_callback_;
+  FrameInputCallback left_frame_callback_;
+  FrameInputCallback right_frame_callback_;
 
   FrameId initial_k_;  // start frame
   FrameId final_k_;    // end frame
@@ -129,7 +138,11 @@ class DataProviderModule
   }
 
  protected:
+  // Spin the dataset: processes the input data and constructs a Stereo Imu
+  // Synchronized Packet which contains the minimum amount of information
+  // for the VIO pipeline to do one processing iteration.
   virtual InputPtr getInputPacket() override {
+    // Look for a left frame inside the queue.
     bool queue_state = false;
     Frame::UniquePtr left_frame_payload = nullptr;
     if (PIO::parallel_run_) {
@@ -149,13 +162,12 @@ class DataProviderModule
     CHECK(left_frame_payload);
     const Timestamp& timestamp = left_frame_payload->timestamp_;
 
-    // Look for the synchronized packet in frontend payload queue
-    // This should always work, because it should not be possible to have
-    // a backend payload without having a frontend one first!
+    // Look for the synchronized right frame inside the queue.
     Frame::UniquePtr right_frame_payload = nullptr;
     PIO::syncQueue(timestamp, &right_frame_queue_, &right_frame_payload);
     CHECK(right_frame_payload);
 
+    // Extract imu measurements between consecutive frames.
     static Timestamp timestamp_last_frame = 0;
     ImuMeasurements imu_meas;
     CHECK_LT(timestamp_last_frame, timestamp);
@@ -166,7 +178,7 @@ class DataProviderModule
               &imu_meas.timestamps_,
               &imu_meas.measurements_));
 
-    // Push the synced messages to the visualizer's input queue
+    // Push the synced messages to the frontend's input queue
     static FrameId k;
     k = k + 1;
     return VIO::make_unique<StereoImuSyncPacket>(
@@ -174,7 +186,8 @@ class DataProviderModule
                     timestamp,
                     *left_frame_payload,
                     *right_frame_payload,
-                    StereoMatchingParams()),
+                    StereoMatchingParams()),  // TODO(Toni): these params should
+                                              // be given in PipelineParams.
         imu_meas.timestamps_,
         imu_meas.measurements_);
   }
