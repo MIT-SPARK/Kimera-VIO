@@ -93,7 +93,7 @@ DEFINE_bool(use_lcd,
 
 namespace VIO {
 
-Pipeline::Pipeline(const PipelineParams& params)
+Pipeline::Pipeline(const VioParams& params)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
       data_provider_module_(nullptr),
@@ -684,6 +684,7 @@ void Pipeline::spinDisplayOnce(const VisualizerOutput::Ptr& viz_output) const {
 /* -------------------------------------------------------------------------- */
 StatusStereoMeasurements Pipeline::featureSelect(
     const VioFrontEndParams& tracker_params,
+    const FeatureSelectorParams& feature_selector_params,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf,
     const gtsam::Pose3& W_Pose_Blkf,
@@ -697,8 +698,9 @@ StatusStereoMeasurements Pipeline::featureSelect(
   CHECK_NOTNULL(feature_selection_time);
 
   // ------------ DATA ABOUT CURRENT AND FUTURE ROBOT STATE ------------- //
-  size_t nrKfInHorizon = round(tracker_params.featureSelectionHorizon_ /
-                               tracker_params.intra_keyframe_time_);
+  size_t nrKfInHorizon =
+      round(feature_selector_params.featureSelectionHorizon_ /
+            tracker_params.intra_keyframe_time_);
   VLOG(100) << "nrKfInHorizon for selector: " << nrKfInHorizon;
 
   // Future poses are gt and might be far from the vio pose: we have to
@@ -718,8 +720,8 @@ StatusStereoMeasurements Pipeline::featureSelect(
           status_stereo_meas.second,
           cur_kf_id,
           save_image_selector,
-          tracker_params.featureSelectionCriterion_,
-          tracker_params.featureSelectionNrCornersToSelect_,
+          feature_selector_params.featureSelectionCriterion_,
+          feature_selector_params.featureSelectionNrCornersToSelect_,
           tracker_params.maxFeatureAge_,
           posesAtFutureKeyframes,
           curr_state_cov,

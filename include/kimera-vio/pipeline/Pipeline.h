@@ -49,7 +49,7 @@ class Pipeline {
       KeyframeRateOutputCallback;
 
  public:
-  explicit Pipeline(const PipelineParams& params);
+  explicit Pipeline(const VioParams& params);
 
   virtual ~Pipeline();
 
@@ -138,6 +138,7 @@ class Pipeline {
 
   StatusStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
+      const FeatureSelectorParams& feature_selector_params,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
       const gtsam::Pose3& W_Pose_Blkf,

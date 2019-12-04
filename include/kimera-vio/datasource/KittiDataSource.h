@@ -76,20 +76,6 @@ class KittiDataProvider : public DataProviderInterface {
                  cv::Mat& rotation,
                  cv::Mat& translation) const;
 
-  // TODO: these are left unimplemented... They are implicitly implemented
-  // in parseCamera/ImuData, but should be disentangled...
-  virtual bool parseCameraParams(const std::string& input_dataset_path,
-                                 const std::string& left_cam_name,
-                                 const std::string& right_cam_name,
-                                 const bool parse_images,
-                                 MultiCameraParams* multi_cam_params) {
-    return false;
-  };
-  virtual bool parseImuParams(const std::string& imu_yaml_path,
-                              ImuParams* imu_params) override {
-    return false;
-  };
-
   void print() const;
 
  private:

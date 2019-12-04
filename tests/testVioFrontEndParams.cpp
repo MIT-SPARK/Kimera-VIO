@@ -66,15 +66,6 @@ TEST(testTracker, TrackerParamParseYAML) {
   EXPECT_EQ(tp.stereo_matching_params_.bidirectional_matching_, true);
   EXPECT_EQ(tp.stereo_matching_params_.subpixel_refinement_, true);
 
-  EXPECT_EQ(tp.featureSelectionCriterion_, 2);
-  EXPECT_EQ(tp.featureSelectionHorizon_, 1);
-  EXPECT_EQ(tp.featureSelectionNrCornersToSelect_, 10);
-  EXPECT_EQ(tp.featureSelectionImuRate_, 0.001);
-  EXPECT_EQ(tp.featureSelectionDefaultDepth_, 4);
-  EXPECT_EQ(tp.featureSelectionCosineNeighborhood_, 0.9);
-  EXPECT_EQ(tp.featureSelectionUseLazyEvaluation_, 0);
-  EXPECT_EQ(tp.useSuccessProbabilities_, 0);
-
   EXPECT_EQ(tp.useRANSAC_, false);
   EXPECT_EQ(tp.minNrMonoInliers_, 2000);
   EXPECT_EQ(tp.minNrStereoInliers_, 1000);
@@ -98,7 +89,6 @@ TEST(testTracker, equals) {
   EXPECT_TRUE(tp.equals(tp));
 
   VioFrontEndParams tp2 = VioFrontEndParams();
-  tp2.featureSelectionCosineNeighborhood_ += 1e-7;  // small perturbation
 
   EXPECT_TRUE(!tp.equals(tp2));
 }

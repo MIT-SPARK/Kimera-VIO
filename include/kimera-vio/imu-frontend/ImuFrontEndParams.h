@@ -30,6 +30,10 @@ struct ImuParams : public PipelineParams {
   virtual ~ImuParams() = default;
 
  public:
+  virtual bool parseYAML(const std::string& filepath) override;
+  virtual void print() const override;
+
+ public:
   double gyro_noise_ = 0.0;
   double gyro_walk_ = 0.0;
   double acc_noise_ = 0.0;
@@ -40,10 +44,6 @@ struct ImuParams : public PipelineParams {
   double imu_integration_sigma_ = 0.0;
 
   gtsam::Vector3 n_gravity_ = gtsam::Vector3();
-
- public:
-  virtual bool parseYAML(const std::string& filepath) override;
-  virtual void print() const override;
 };
 
 }  // namespace VIO

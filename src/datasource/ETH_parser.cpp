@@ -26,18 +26,24 @@ namespace VIO {
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::ETHDatasetParser(const int& initial_k,
                                    const int& final_k,
-                                   const std::string& dataset_path)
-    : DataProviderInterface(initial_k, final_k, dataset_path) {
-  // Parse all VIO and dataset params.
-  parseParams();
-  clipFinalFrame();
-}
+                                   const std::string& dataset_path,
+                                   const std::string& left_cam_params_path,
+                                   const std::string& right_cam_params_path,
+                                   const std::string& imu_params_path,
+                                   const std::string& backend_params_path,
+                                   const std::string& frontend_params_path,
+                                   const std::string& lcd_params_path)
+    : DataProviderInterface(initial_k,
+                            final_k,
+                            dataset_path,
+                            left_cam_params_path,
+                            right_cam_params_path,
+                            imu_params_path,
+                            backend_params_path,
+                            frontend_params_path,
+                            lcd_params_path) {}
 
-ETHDatasetParser::ETHDatasetParser() : DataProviderInterface() {
-  // Parse all VIO and dataset params.
-  parseParams();
-  clipFinalFrame();
-}
+ETHDatasetParser::ETHDatasetParser() : DataProviderInterface() {}
 
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::~ETHDatasetParser() {
@@ -119,28 +125,6 @@ void ETHDatasetParser::parse() {
     pipeline_params_.backend_params_->initial_ground_truth_state_ =
         getGroundTruthState(timestampAtFrame(initial_k_));
   }
-}
-
-void ETHDatasetParser::parseParams() {
-  // Parse Sensor parameters
-  static const std::string kLeftCamParamsFilename =
-      dataset_path_ + "/mav0/" + kLeftCamName + "/sensor.yaml";
-  static const std::string kRightCamParamsFilename =
-      dataset_path_ + "/mav0/" + kRightCamName + "/sensor.yaml";
-  pipeline_params_.camera_params_.push_back(
-      parseCameraParams(kLeftCamName, kLeftCamParamsFilename));
-  pipeline_params_.camera_params_.push_back(
-      parseCameraParams(kRightCamName, kRightCamParamsFilename));
-
-  static const std::string kImuFilename =
-      dataset_path_ + "/mav0/" + kImuName + "/sensor.yaml";
-  CHECK(DataProviderInterface::parseImuParams(kImuFilename,
-                                              &pipeline_params_.imu_params_));
-
-  // Parse backend/frontend/lcd parameters
-  parseBackendParams();
-  parseFrontendParams();
-  parseLCDParams();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -371,6 +355,8 @@ bool ETHDatasetParser::parseDataset() {
   // Parse Ground-Truth data.
   static const std::string ground_truth_name = "state_groundtruth_estimate0";
   is_gt_available_ = parseGTdata(dataset_path_, ground_truth_name);
+
+  clipFinalFrame();
 
   return true;
 }

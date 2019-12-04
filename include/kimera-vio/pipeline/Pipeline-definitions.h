@@ -25,7 +25,7 @@
 
 namespace VIO {
 
-struct PipelineParams {
+struct VioParams {
   //! Sensor parameters
   ImuParams imu_params_;
   MultiCameraParams camera_params_;

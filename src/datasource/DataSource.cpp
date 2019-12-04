@@ -21,7 +21,10 @@
 #include "kimera-vio/backend/VioBackEndParams.h"
 #include "kimera-vio/frontend/VioFrontEndParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/pipeline/PipelineParams.h"
 
+DEFINE_string(left_cam_params_path, "", "Path to Left Camera parameters.");
+DEFINE_string(right_cam_params_path, "", "Path to Right Camera parameters.");
 DEFINE_string(imu_params_path, "", "Path to IMU parameters.");
 DEFINE_string(backend_params_path, "", "Path to VIO backend parameters.");
 DEFINE_string(frontend_params_path, "", "Path to VIO frontend parameters.");
@@ -53,6 +56,8 @@ DataProviderInterface::DataProviderInterface(
     const int& initial_k,
     const int& final_k,
     const std::string& dataset_path,
+    const std::string& left_cam_params_path,
+    const std::string& right_cam_params_path,
     const std::string& imu_params_path,
     const std::string& backend_params_path,
     const std::string& frontend_params_path,
@@ -61,10 +66,14 @@ DataProviderInterface::DataProviderInterface(
       initial_k_(initial_k),
       final_k_(final_k),
       dataset_path_(dataset_path),
+      left_cam_params_path_(left_cam_params_path),
+      right_cam_params_path_(right_cam_params_path),
       imu_params_path_(imu_params_path),
       backend_params_path_(backend_params_path),
       frontend_params_path_(frontend_params_path),
       lcd_params_path_(lcd_params_path) {
+  parseParams();
+
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
   CHECK_GE(initial_k_, 0);
@@ -87,6 +96,8 @@ DataProviderInterface::DataProviderInterface()
     : DataProviderInterface(FLAGS_initial_k,
                             FLAGS_final_k,
                             FLAGS_dataset_path,
+                            FLAGS_left_cam_params_path,
+                            FLAGS_right_cam_params_path,
                             FLAGS_imu_params_path,
                             FLAGS_backend_params_path,
                             FLAGS_frontend_params_path,
@@ -115,9 +126,9 @@ bool DataProviderInterface::spin() {
   //  imu data, etc.
   //  b) Call the callbacks in order to send the data.
   left_frame_callback_(
-      VIO::make_unique<Frame>(0, 0, CameraParams("left_cam"), cv::Mat()));
+      VIO::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
   right_frame_callback_(
-      VIO::make_unique<Frame>(0, 0, CameraParams("right_cam"), cv::Mat()));
+      VIO::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
   //! Usually you would use only one of these
   imu_single_callback_(ImuMeasurement());
   imu_multi_callback_(ImuMeasurements());
@@ -127,7 +138,20 @@ bool DataProviderInterface::spin() {
   return true;
 }
 
-/* -------------------------------------------------------------------------- */
+void DataProviderInterface::parseParams() {
+  // Parse Sensor parameters
+  pipeline_params_.camera_params_.push_back(
+      parseCameraParams(left_cam_params_path_));
+  pipeline_params_.camera_params_.push_back(
+      parseCameraParams(right_cam_params_path_));
+  parseImuParams();
+
+  // Parse backend/frontend/lcd parameters
+  parseBackendParams();
+  parseFrontendParams();
+  parseLCDParams();
+}
+
 void DataProviderInterface::parseBackendParams() {
   pipeline_params_.backend_type_ = static_cast<BackendType>(FLAGS_backend_type);
   switch (pipeline_params_.backend_type_) {
@@ -148,56 +172,34 @@ void DataProviderInterface::parseBackendParams() {
   }
 
   // Read/define vio params.
-  if (backend_params_path_.empty()) {
-    LOG(WARNING) << "No vio parameters specified, using default.";
-  } else {
-    VLOG(100) << "Using user-specified VIO parameters: "
-              << backend_params_path_;
-    pipeline_params_.backend_params_->parseYAML(backend_params_path_);
-  }
   CHECK(pipeline_params_.backend_params_);
+  parsePipelineParams(backend_params_path_,
+                      // TODO(Toni): a bit ugly this get()
+                      pipeline_params_.backend_params_.get());
 }
 
-/* -------------------------------------------------------------------------- */
 void DataProviderInterface::parseFrontendParams() {
   pipeline_params_.frontend_type_ =
       static_cast<FrontendType>(FLAGS_frontend_type);
   // Read/define tracker params.
-  if (frontend_params_path_.empty()) {
-    LOG(WARNING) << "No tracker parameters specified, using default";
-    pipeline_params_.frontend_params_ = VioFrontEndParams();  // default params
-  } else {
-    VLOG(100) << "Using user-specified tracker parameters: "
-              << frontend_params_path_;
-    pipeline_params_.frontend_params_.parseYAML(frontend_params_path_);
-  }
+  parsePipelineParams(frontend_params_path_,
+                      &pipeline_params_.frontend_params_);
 }
 
 void DataProviderInterface::parseLCDParams() {
-  // Read/define LCD params.
-  if (lcd_params_path_.empty()) {
-    VLOG(100) << "No LoopClosureDetector parameters specified, using default";
-    pipeline_params_.lcd_params_ = LoopClosureDetectorParams();
-  } else {
-    VLOG(100) << "Using user-specified LoopClosureDetector parameters: "
-              << lcd_params_path_;
-    pipeline_params_.lcd_params_.parseYAML(lcd_params_path_);
-  }
+  parsePipelineParams(lcd_params_path_, &pipeline_params_.lcd_params_);
 }
 
 // Parse camera params for a given dataset
 CameraParams DataProviderInterface::parseCameraParams(
-    const std::string& camera_name,
     const std::string& filename) {
-  CameraParams camera_params(camera_name);
-  camera_params.parseYAML(filename);
+  CameraParams camera_params;
+  parsePipelineParams(filename, &camera_params);
   return camera_params;
 }
 
-bool DataProviderInterface::parseImuParams(const std::string& imu_yaml_path,
-                                           ImuParams* imu_params) {
-  CHECK_NOTNULL(imu_params);
-  return imu_params->parseYAML(imu_yaml_path);
+void DataProviderInterface::parseImuParams() {
+  parsePipelineParams(imu_params_path_, &pipeline_params_.imu_params_);
 }
 
 }  // namespace VIO

@@ -233,8 +233,9 @@ TEST(FeatureSelector, createMatricesLinearImuFactor) {
       StampedPose(Pose3(Rot3::Ypr(M_PI, 0.1, 0.3), Point3(1, 10, 1)), 0.5);
 
   VioFrontEndParams trackerParams2 = VioFrontEndParams();
-  trackerParams2.featureSelectionImuRate_ =
-      0.1;  // fake imu rate to make problem simpler
+  FeatureSelectorParams feature_select_params;
+  // fake imu rate to make problem simpler
+  feature_select_params.featureSelectionImuRate_ = 0.1;
 
   VioBackEndParams vioParams2 = VioBackEndParams();
   vioParams2.smartNoiseSigma_ = 1000;
@@ -679,7 +680,9 @@ TEST(FeatureSelector, evaluateGain_det) {
 
       // actual
       double actualDet = FeatureSelector::EvaluateGain(
-          gfg, H, VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
+          gfg,
+          H,
+          FeatureSelectorParams::FeatureSelectionCriterion::LOGDET,
           useDenseMatrices);
       EXPECT_NEAR(expectedLogDet, actualDet,
                   expectedLogDet * 1e-3);  // relative tolerance
@@ -690,7 +693,9 @@ TEST(FeatureSelector, evaluateGain_det) {
       // actual2: call it again and make sure we did not mess up gfg inside the
       // function
       actualDet = FeatureSelector::EvaluateGain(
-          gfg, H, VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
+          gfg,
+          H,
+          FeatureSelectorParams::FeatureSelectionCriterion::LOGDET,
           useDenseMatrices);
       EXPECT_NEAR(expectedLogDet, actualDet,
                   expectedLogDet * 1e-3);  // relative tolerance
@@ -710,8 +715,9 @@ TEST(FeatureSelector, evaluateGain_det) {
 
       // actual
       double actualDet = FeatureSelector::EvaluateGain(
-          gfg, boost::make_shared<HessianFactor>(),
-          VioFrontEndParams::FeatureSelectionCriterion::LOGDET,
+          gfg,
+          boost::make_shared<HessianFactor>(),
+          FeatureSelectorParams::FeatureSelectionCriterion::LOGDET,
           useDenseMatrices);
       EXPECT_NEAR(expectedLogDet, actualDet,
                   expectedLogDet * 1e-3);  // relative tolerance
@@ -815,7 +821,9 @@ TEST(FeatureSelector, evaluateGain_minEig) {
 
       // actual
       double actualMinEig = FeatureSelector::EvaluateGain(
-          gfg, H, VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
+          gfg,
+          H,
+          FeatureSelectorParams::FeatureSelectionCriterion::MIN_EIG,
           useDenseMatrices);
       EXPECT_NEAR(expectedMinEig, actualMinEig,
                   expectedMinEig * 1e-4);  // relative tolerance
@@ -823,7 +831,9 @@ TEST(FeatureSelector, evaluateGain_minEig) {
       // actual2: call it again and make sure we did not mess up gfg inside the
       // function
       actualMinEig = FeatureSelector::EvaluateGain(
-          gfg, H, VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
+          gfg,
+          H,
+          FeatureSelectorParams::FeatureSelectionCriterion::MIN_EIG,
           useDenseMatrices);
       EXPECT_NEAR(expectedMinEig, actualMinEig,
                   expectedMinEig * 1e-4);  // relative tolerance
@@ -843,8 +853,9 @@ TEST(FeatureSelector, evaluateGain_minEig) {
 
       // actual
       double actualMinEig = FeatureSelector::EvaluateGain(
-          gfg, boost::make_shared<HessianFactor>(),
-          VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG,
+          gfg,
+          boost::make_shared<HessianFactor>(),
+          FeatureSelectorParams::FeatureSelectionCriterion::MIN_EIG,
           useDenseMatrices);
       EXPECT_NEAR(expectedMinEig, actualMinEig,
                   expectedMinEig * 1e-4);  // relative tolerance
@@ -893,8 +904,10 @@ TEST(FeatureSelector, greedyAlgorithm) {
   vector<size_t> actualEig;
   vector<double> actualGainEig;
   tie(actualEig, actualGainEig) = FeatureSelector::GreedyAlgorithm(
-      OmegaBar, Deltas, need_n_corners,
-      VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG);
+      OmegaBar,
+      Deltas,
+      need_n_corners,
+      FeatureSelectorParams::FeatureSelectionCriterion::MIN_EIG);
   // check
   sort(actualEig.begin(), actualEig.end());  // to facilitate comparison
   EXPECT_NEAR(actualEig[0], 3, 1e-3);
@@ -908,8 +921,10 @@ TEST(FeatureSelector, greedyAlgorithm) {
   vector<size_t> actualDet;
   vector<double> actualGainDet;
   tie(actualDet, actualGainDet) = FeatureSelector::GreedyAlgorithm(
-      OmegaBar, Deltas, need_n_corners,
-      VioFrontEndParams::FeatureSelectionCriterion::LOGDET);
+      OmegaBar,
+      Deltas,
+      need_n_corners,
+      FeatureSelectorParams::FeatureSelectionCriterion::LOGDET);
   // check
   sort(actualDet.begin(), actualDet.end());  // to facilitate comparison
   EXPECT_NEAR(actualDet[0], 3, 1e-3);
@@ -1096,9 +1111,13 @@ TEST(FeatureSelector, featureSelection) {
     }
     tie(selected, selectedIndices, selectedGains) =
         f.featureSelectionLinearModel(
-            availableCorners, successProbability, cornerDistances, cam_param,
-            need_n_corners, featureSelectionData,
-            VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG);
+            availableCorners,
+            successProbability,
+            cornerDistances,
+            cam_param,
+            need_n_corners,
+            featureSelectionData,
+            FeatureSelectorParams::FeatureSelectionCriterion::MIN_EIG);
     EXPECT_NEAR(1, selectedIndices[0], 1e-3);
     EXPECT_EQ(selectedIndices.size(), 1);
     EXPECT_EQ(selected.size(), 1);
@@ -1106,9 +1125,13 @@ TEST(FeatureSelector, featureSelection) {
     // check det
     tie(selected, selectedIndices, selectedGains) =
         f.featureSelectionLinearModel(
-            availableCorners, successProbability, cornerDistances, cam_param,
-            need_n_corners, featureSelectionData,
-            VioFrontEndParams::FeatureSelectionCriterion::LOGDET);
+            availableCorners,
+            successProbability,
+            cornerDistances,
+            cam_param,
+            need_n_corners,
+            featureSelectionData,
+            FeatureSelectorParams::FeatureSelectionCriterion::LOGDET);
     EXPECT_NEAR(1, selectedIndices[0], 1e-3);
     EXPECT_EQ(selectedIndices.size(), 1);
     EXPECT_EQ(selected.size(), 1);

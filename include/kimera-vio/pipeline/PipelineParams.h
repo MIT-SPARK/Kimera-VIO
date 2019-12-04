@@ -15,7 +15,7 @@
 namespace VIO {
 
 /**
- * @brief The PipelineParams class
+ * @brief The PipelineParams base class
  * Sets a common base class for parameters of the pipeline
  * for easy parsing/printing.
  */
@@ -32,18 +32,16 @@ class PipelineParams {
   // Parameters of the pipeline must specify how to be printed.
   virtual void print() const = 0;
 
- protected:
-  const std::string name_;
+ public:
+  std::string name_;
 };
 
 template <class T>
 static void parsePipelineParams(const std::string& params_path,
                                 T* pipeline_params) {
   CHECK_NOTNULL(pipeline_params);
-  static_assert(
-      std::is_base_of<PipelineParams,
-                      typename std::pointer_traits<T>::element_type>::value,
-      "T must be a pointer to a class that derives from PipelineParams.");
+  static_assert(std::is_base_of<PipelineParams, T>::value,
+                "T must be a class that derives from PipelineParams.");
   // Read/define tracker params.
   if (params_path.empty()) {
     LOG(WARNING) << "No " << pipeline_params->name_

@@ -44,6 +44,8 @@ class DataProviderInterface {
   DataProviderInterface(const int& initial_k,
                         const int& final_k,
                         const std::string& dataset_path,
+                        const std::string& left_cam_params_path,
+                        const std::string& right_cam_params_path,
                         const std::string& imu_params_path,
                         const std::string& backend_params_path,
                         const std::string& frontend_params_path,
@@ -72,9 +74,24 @@ class DataProviderInterface {
     right_frame_callback_ = callback;
   }
 
+ protected:
+  void parseParams();
+
+  // TODO(Toni): Create a separate params only parser!
+  //! Helper functions to parse user-specified parameters.
+  //! These are agnostic to dataset type.
+  void parseBackendParams();
+  void parseFrontendParams();
+  void parseLCDParams();
+
+  //! Functions to parse dataset dependent parameters.
+  // Parse camera params for a given dataset
+  CameraParams parseCameraParams(const std::string& filename);
+  void parseImuParams();
+
  public:
   // Init Vio parameters.
-  PipelineParams pipeline_params_;
+  VioParams pipeline_params_;
 
  protected:
   // Vio callbacks. These functions should be called once data is available for
@@ -87,26 +104,12 @@ class DataProviderInterface {
   FrameId initial_k_;  // start frame
   FrameId final_k_;    // end frame
   const std::string dataset_path_;
+  const std::string left_cam_params_path_;
+  const std::string right_cam_params_path_;
   const std::string imu_params_path_;
   const std::string backend_params_path_;
   const std::string frontend_params_path_;
   const std::string lcd_params_path_;
-
- protected:
-  // TODO(Toni): Create a separate params only parser!
-  //! Helper functions to parse user-specified parameters.
-  //! These are agnostic to dataset type.
-  void parseBackendParams();
-  void parseFrontendParams();
-  void parseLCDParams();
-
-  //! Functions to parse dataset dependent parameters.
-  // Parse camera params for a given dataset
-  virtual CameraParams parseCameraParams(const std::string& camera_name,
-                                         const std::string& filename);
-
-  virtual bool parseImuParams(const std::string& imu_yaml_path,
-                              ImuParams* imu_params);
 };
 
 class DataProviderModule

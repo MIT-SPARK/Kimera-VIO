@@ -57,8 +57,8 @@ class OnlineAlignmentFixture : public ::testing::Test {
                                      const std::string& dataset_path) {
     int initial_k = 0;
     int final_k = 0;
-    dataset_ =
-        VIO::make_unique<ETHDatasetParser>(initial_k, final_k, dataset_path);
+    dataset_ = VIO::make_unique<ETHDatasetParser>(
+        initial_k, final_k, dataset_path, "", "", "", "", "", "");
 
     // Get GT poses and IMU pims.
     Timestamp timestamp_last_frame;

@@ -43,8 +43,16 @@ public:
    file_handle >> *CHECK_NOTNULL(output);
   }
 
-  //! Very dangerous, do not use unless strictly necessary.
-  inline cv::FileStorage& getYamlFileStorage() { return fs_; }
+  template <class T>
+  void getNestedYamlParam(const std::string& id,
+                          const std::string& id_2,
+                          T* output) const {
+    const cv::FileNode& file_handle = fs_[id][id_2];
+    CHECK_NE(file_handle.type(), cv::FileNode::NONE)
+        << "Missing nested parameter: " << id_2.c_str() << " inside "
+        << id.c_str();
+    file_handle >> *CHECK_NOTNULL(output);
+  }
 
  private:
   void openFile(const std::string &filepath, cv::FileStorage *fs) const {

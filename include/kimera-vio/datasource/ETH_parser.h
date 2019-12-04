@@ -46,7 +46,13 @@ class ETHDatasetParser : public DataProviderInterface {
   // Ctor with params.
   ETHDatasetParser(const int& initial_k,
                    const int& final_k,
-                   const std::string& dataset_path);
+                   const std::string& dataset_path,
+                   const std::string& left_cam_params_path,
+                   const std::string& right_cam_params_path,
+                   const std::string& imu_params_path,
+                   const std::string& backend_params_path,
+                   const std::string& frontend_params_path,
+                   const std::string& lcd_params_path);
   // Ctor from gflags
   ETHDatasetParser();
   virtual ~ETHDatasetParser();
@@ -75,8 +81,6 @@ class ETHDatasetParser : public DataProviderInterface {
   bool parseDataset();
 
   //! Parsers
-  void parseParams();
-
   bool parseImuData(const std::string& input_dataset_path,
                     const std::string& imu_name);
 
@@ -111,10 +115,16 @@ class ETHDatasetParser : public DataProviderInterface {
       const gtsam::Vector3& init_gravity);
 
   inline size_t getNumImages() const {
-    return camera_image_lists_.at(camera_names_.at(0)).getNumImages();
+    const std::string& camera_name = camera_names_.at(0);
+    const auto& iter = camera_image_lists_.find(camera_name);
+    CHECK(iter != camera_image_lists_.end());
+    return iter->second.getNumImages();
   }
   inline std::string getImgName(const std::string& id, const size_t& k) const {
-    return camera_image_lists_.at(id).img_lists_.at(k).second;
+    const std::string& camera_name = camera_names_.at(0);
+    const auto& iter = camera_image_lists_.find(id);
+    CHECK(iter != camera_image_lists_.end());
+    return iter->second.img_lists_.at(k).second;
   }
   // Retrieve absolute pose at timestamp.
   inline gtsam::Pose3 getGroundTruthPose(const Timestamp& timestamp) const {

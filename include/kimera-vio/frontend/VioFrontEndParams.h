@@ -32,6 +32,7 @@
 namespace VIO {
 
 class FeatureSelectorParams {
+ public:
   // TODO make an enum class.
   enum FeatureSelectionCriterion { QUALITY, MIN_EIG, LOGDET, RANDOM };
 
@@ -184,7 +185,7 @@ class VioFrontEndParams : public PipelineParams {
 
   void print() const {
     LOG(INFO) << "&&&&&&&&&&&&&&&&&&&& TRACKER PARAMETERS "
-                 "&&&&&&&&&&&&&&&&&&&&&&&&&&&\n"
+                 "&&&&&&&&&&&&&&&&&&&&&&\n"
               << "** Feature tracking parameters **\n"
               << "klt_win_size_: " << klt_win_size_ << '\n'
               << "klt_max_iter_: " << klt_max_iter_ << '\n'
@@ -226,6 +227,8 @@ class VioFrontEndParams : public PipelineParams {
   }
 
   bool parseYAML(const std::string &filepath) {
+    stereo_matching_params_.parseYAML(filepath);
+
     YamlParser yaml_parser(filepath);
     yaml_parser.getYamlParam("klt_win_size", &klt_win_size_);
     yaml_parser.getYamlParam("klt_max_iter", &klt_max_iter_);

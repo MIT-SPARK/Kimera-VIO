@@ -22,15 +22,17 @@
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
+#include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
+#include "kimera-vio/utils/YamlParser.h"
 
 namespace VIO {
 
 /*
  * Class describing camera parameters.
  */
-class CameraParams {
+class CameraParams : public PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(CameraParams);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -39,8 +41,9 @@ class CameraParams {
   // fu, fv, cu, cv
   using Intrinsics = std::array<double, 4>;
 
-  CameraParams(const CameraId& cam_id = "cam")
-      : camera_id_(cam_id),
+  CameraParams()
+      : PipelineParams("Camera Parameters"),
+        camera_id_(),
         intrinsics_(),
         body_Pose_cam_(),
         frame_rate_(),
@@ -58,19 +61,11 @@ class CameraParams {
 
   /* ------------------------------------------------------------------------ */
   // Parse YAML file describing camera parameters.
-  bool parseYAML(const std::string& filepath);
-
-  /* ------------------------------------------------------------------------ */
-  // TODO(Toni): remove this, make calib to be converted to Euroc format.
-  // Parse KITTI calib file describing camera parameters.
-  bool parseKITTICalib(const std::string& filepath,
-                       cv::Mat R_cam_to_imu,
-                       cv::Mat T_cam_to_imu,
-                       const std::string& cam_id);
+  virtual bool parseYAML(const std::string& filepath) override;
 
   /* ------------------------------------------------------------------------ */
   // Display all params.
-  void print() const;
+  virtual void print() const override;
 
   /* ------------------------------------------------------------------------ */
   // Assert equality up to a tolerance.
@@ -116,15 +111,12 @@ class CameraParams {
   std::vector<CameraId> is_stereo_with_camera_ids_;
 
  private:
-  static void parseDistortion(const cv::FileStorage& fs,
-                              const std::string& filepath,
-                              std::string* distortion_model,
-                              std::vector<double>* distortion_coeff);
-  static void parseImgSize(const cv::FileStorage& fs, cv::Size* image_size);
-  static void parseFrameRate(const cv::FileStorage& fs, double* frame_rate);
-  static void parseBodyPoseCam(const cv::FileStorage& fs,
+  void parseDistortion(const YamlParser& yaml_parser);
+  static void parseImgSize(const YamlParser& yaml_parser, cv::Size* image_size);
+  static void parseFrameRate(const YamlParser& yaml_parser, double* frame_rate);
+  static void parseBodyPoseCam(const YamlParser& yaml_parser,
                                gtsam::Pose3* body_Pose_cam);
-  static void parseCameraIntrinsics(const cv::FileStorage& fs,
+  static void parseCameraIntrinsics(const YamlParser& yaml_parser,
                                     Intrinsics* intrinsics_);
   // Convert distortion coefficients to OpenCV Format
   static void convertDistortionVectorToMatrix(

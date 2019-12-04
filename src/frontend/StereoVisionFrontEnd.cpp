@@ -633,10 +633,7 @@ void StereoVisionFrontEnd::displaySaveImage(
   } else if (verbosity == 2) {
     // Create output folders:
     std::string folderName =
-        output_images_path_ + "-" +
-        VioFrontEndParams::FeatureSelectionCriterionStr(
-            tracker_.trackerParams_.featureSelectionCriterion_) +
-        folder_name_append + "/";
+        output_images_path_ + "-" + folder_name_append + "/";
     boost::filesystem::path tracker_dir(folderName.c_str());
     boost::filesystem::create_directory(tracker_dir);
     // Write image.

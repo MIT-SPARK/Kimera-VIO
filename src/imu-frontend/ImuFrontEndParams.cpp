@@ -30,12 +30,14 @@ bool ImuParams::parseYAML(const std::string& filepath) {
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
   // to check we are all on the same page.
-  // TODO(Toni): don't use the getYamlFileStorage function...
-  cv::FileStorage fs = yaml_parser.getYamlFileStorage();
-  CHECK_EQ(static_cast<int>(fs["T_BS"]["rows"]), 4u);
-  CHECK_EQ(static_cast<int>(fs["T_BS"]["cols"]), 4u);
+  int n_rows = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
+  CHECK_EQ(n_rows, 4u);
+  int n_cols = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
+  CHECK_EQ(n_cols, 4u);
   std::vector<double> vector_pose;
-  fs["T_BS"]["data"] >> vector_pose;
+  yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
   const gtsam::Pose3& body_Pose_cam =
       UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 
@@ -58,7 +60,6 @@ bool ImuParams::parseYAML(const std::string& filepath) {
   CHECK_EQ(n_gravity.size(), 3);
   for (int k = 0; k < 3; k++) n_gravity_(k) = n_gravity[k];
 
-  fs.release();
   return true;
 }
 

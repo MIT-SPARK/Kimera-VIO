@@ -25,34 +25,35 @@ namespace VIO {
 // Parse YAML file describing camera parameters.
 bool CameraParams::parseYAML(const std::string& filepath) {
   // Make sure that each YAML file has %YAML:1.0 as first line.
+  // TODO(Toni): use YamlParser...
   cv::FileStorage fs;
   UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
 
+  YamlParser yaml_parser(filepath);
+
+  yaml_parser.getYamlParam("camera_id", &camera_id_);
+
   // Distortion parameters.
-  std::vector<double> distortion_;
-  parseDistortion(fs, filepath,
-                  &distortion_model_,
-                  &distortion_);
-  convertDistortionVectorToMatrix(distortion_, &distortion_coeff_);
+  parseDistortion(yaml_parser);
 
   // Camera resolution.
-  parseImgSize(fs, &image_size_);
+  parseImgSize(yaml_parser, &image_size_);
 
   // Camera frame rate.
-  parseFrameRate(fs, &frame_rate_);
+  parseFrameRate(yaml_parser, &frame_rate_);
 
   // Camera pose wrt body.
-  parseBodyPoseCam(fs, &body_Pose_cam_);
+  parseBodyPoseCam(yaml_parser, &body_Pose_cam_);
 
   // Intrinsics.
-  parseCameraIntrinsics(fs, &intrinsics_);
+  parseCameraIntrinsics(yaml_parser, &intrinsics_);
 
   // Convert intrinsics to cv::Mat format.
   convertIntrinsicsVectorToMatrix(intrinsics_, &camera_matrix_);
 
   // Create gtsam calibration object.
   // Calibration of a camera with radial distortion that also supports
-  createGtsamCalibration(distortion_, intrinsics_, &calibration_);
+  createGtsamCalibration(distortion_coeff_, intrinsics_, &calibration_);
 
   // P_ = R_rectify_ * camera_matrix_;
   fs.release();
@@ -60,144 +61,19 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO(Toni): DEPRECATE. Move this code into a Kitti->Euroc converter or
-// something, and re-use parseYAML.
-// Parse KITTI calibration txt file describing camera parameters.
-bool CameraParams::parseKITTICalib(const std::string& filepath,
-                                   cv::Mat R_cam_to_body, cv::Mat T_cam_to_body,
-                                   const std::string& cam_id) {
-  // rate is approx 10 hz as given by the README
-  frame_rate_ = 1 / 10.0;
-
-  // rate is approx 10 hz as given by the README
-  frame_rate_ = 1 / 10.0;
-
-  // set up R and T matrices
-  cv::Mat rotation = cv::Mat::zeros(3, 3, CV_64F);
-  cv::Mat translation = cv::Mat::zeros(3, 1, CV_64F);
-  distortion_model_ = "radial-tangential";
-  // Set up to read the text file
-  std::ifstream calib_file;
-  calib_file.open(filepath.c_str());
-  CHECK(calib_file.is_open()) << "Could not open file at: " << filepath.c_str();
-  std::vector<double> distortion_coeff5_;
-  // read loop
-  while (!calib_file.eof()) {
-    std::string line;
-    getline(calib_file, line);
-
-    if (!line.empty()) {
-      std::stringstream ss;
-      ss << line;
-      std::string label;
-      ss >> label;
-      if (label == "S_" + cam_id + ":") {
-        // this entry gives image size
-        double width, height;
-        ss >> width >> height;
-        image_size_ = cv::Size(width, height);
-      } else if (label == "K_" + cam_id + ":") {
-        // this entry gives the camera matrix
-        std::vector<double> K_vector;
-        double value;  // store values in Kvector
-        while (ss >> value) K_vector.push_back(value);
-        intrinsics_[0] = K_vector[0];
-        intrinsics_[1] = K_vector[4];
-        intrinsics_[1] = K_vector[2];
-        intrinsics_[1] = K_vector[5];
-        // Convert intrinsics to OpenCV Format.
-        camera_matrix_ = cv::Mat::eye(3, 3, CV_64F);
-        camera_matrix_.at<double>(0, 0) = intrinsics_[0];
-        camera_matrix_.at<double>(1, 1) = intrinsics_[1];
-        camera_matrix_.at<double>(0, 2) = intrinsics_[2];
-        camera_matrix_.at<double>(1, 2) = intrinsics_[3];
-      } else if (label == "D_" + cam_id + ":") {
-        // this entry gives the distortion coeffs
-        distortion_coeff_ = cv::Mat::zeros(1, 5, CV_64F);
-        double value;
-        while (ss >> value) distortion_coeff5_.push_back(value);
-        for (int k = 0; k < 5; k++) {
-          distortion_coeff_.at<double>(0, k) = distortion_coeff5_[k];
-        }
-
-      }else if (label == "R_" + cam_id + ":") {
-        // this entry gives the rotation matrix
-        double value;
-        for (int i = 0; i < 9; i++){
-          ss >> value;
-          int row = i/3; int col = i%3;
-          rotation.at<double>(row, col) = value;
-        }
-
-      }else if (label == "T_" + cam_id + ":") {
-        // this entry gives the translation
-        double value;
-        for (int i = 0; i < 3; i++){
-          ss >> value;
-          translation.at<double>(i, 0) = value;
-        }
-
-      } else if (label == "R_rect_" + cam_id + ":") {
-        // this entry gives the rotation resulting from rectification.
-        R_rectify_ = cv::Mat::zeros(3, 3, CV_64F);
-        double value;
-        for (int i = 0; i < 9; i++) {
-          ss >> value;
-          int row = i / 3;
-          int col = i % 3;
-          R_rectify_.at<double>(row, col) = value;
-        }
-      } else if (label == "P_rect_" + cam_id + ":") {
-        // this entry gives the camera matric from rectification
-        P_ = cv::Mat::zeros(3, 4, CV_64F);
-        double value;
-        for (int i = 0; i < 12; i++) {
-          ss >> value;
-          int row = i / 4;
-          int col = i % 4;
-          P_.at<double>(row, col) = value;
-        }
-      }
-    }
-  }
-
-  // Cam pose wrt to body
-  rotation = R_cam_to_body * rotation.t();
-  translation = T_cam_to_body - R_cam_to_body * translation;
-
-  body_Pose_cam_ = UtilsOpenCV::cvMatsToGtsamPose3(rotation, translation);
-
-  calibration_ = gtsam::Cal3DS2(intrinsics_[0],          // fx
-                                intrinsics_[1],          // fy
-                                0.0,                     // skew
-                                intrinsics_[2],          // u0
-                                intrinsics_[3],          // v0
-                                distortion_coeff5_[0],   //  k1
-                                distortion_coeff5_[1],   //  k2
-                                distortion_coeff5_[3],   //  p1
-                                distortion_coeff5_[4]);  //  p2
-  // NOTE check if ignorting the 3rd distortion coeff is correct
-
-  return true;
-}
-
-/* -------------------------------------------------------------------------- */
-void CameraParams::parseDistortion(
-    const cv::FileStorage& fs,
-    const std::string& filepath,
-    std::string* distortion_model,
-    std::vector<double>* distortion_coeff) {
-  CHECK_NOTNULL(distortion_model);
-  CHECK_NOTNULL(distortion_coeff)->clear();
+void CameraParams::parseDistortion(const YamlParser& yaml_parser) {
+  yaml_parser.getYamlParam("distortion_model", &distortion_model_);
   // 4 parameters (read from file)
-  fs["distortion_model"] >> *distortion_model;
-  CHECK(*distortion_model == "radtan" ||
-        *distortion_model == "radial-tangential" ||
-        *distortion_model == "equidistant")
+  CHECK(distortion_model_ == "radtan" ||
+        distortion_model_ == "radial-tangential" ||
+        distortion_model_ == "equidistant")
       << "Unsupported distortion model. Expected: radtan or equidistant,"
-         "but got instead: " << distortion_model->c_str();
-  fs["distortion_coefficients"] >> *distortion_coeff;
-  CHECK_EQ(distortion_coeff->size(), 4);
+         "but got instead: "
+      << distortion_model_.c_str();
+  std::vector<double> distortion_coeff;
+  yaml_parser.getYamlParam("distortion_coefficients", &distortion_coeff);
+  CHECK_EQ(distortion_coeff.size(), 4);
+  convertDistortionVectorToMatrix(distortion_coeff, &distortion_coeff_);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -214,44 +90,46 @@ void CameraParams::convertDistortionVectorToMatrix(
 }
 
 /* -------------------------------------------------------------------------- */
-void CameraParams::parseImgSize(const cv::FileStorage& fs,
+void CameraParams::parseImgSize(const YamlParser& yaml_parser,
                                 cv::Size* image_size) {
   CHECK_NOTNULL(image_size);
   std::vector<int> resolution;
-  resolution.clear();
-  fs["resolution"] >> resolution;
+  yaml_parser.getYamlParam("resolution", &resolution);
   CHECK_EQ(resolution.size(), 2);
   *image_size = cv::Size(resolution[0], resolution[1]);
 }
 
 /* -------------------------------------------------------------------------- */
-void CameraParams::parseFrameRate(const cv::FileStorage& fs,
+void CameraParams::parseFrameRate(const YamlParser& yaml_parser,
                                   double* frame_rate) {
   CHECK_NOTNULL(frame_rate);
-  int rate = fs["rate_hz"];
+  int rate = 0;
+  yaml_parser.getYamlParam("rate_hz", &rate);
   CHECK_GT(rate, 0u);
   *frame_rate = 1 / static_cast<double>(rate);
 }
 
 /* -------------------------------------------------------------------------- */
-void CameraParams::parseBodyPoseCam(const cv::FileStorage& fs,
+void CameraParams::parseBodyPoseCam(const YamlParser& yaml_parser,
                                     gtsam::Pose3* body_Pose_cam) {
   CHECK_NOTNULL(body_Pose_cam);
-  int n_rows = static_cast<int>(fs["T_BS"]["rows"]);
-  int n_cols = static_cast<int>(fs["T_BS"]["cols"]);
+  int n_rows = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
   CHECK_GT(n_rows, 0u);
+  int n_cols = 0;
+  yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
   CHECK_GT(n_cols, 0u);
   std::vector<double> vector_pose;
-  fs["T_BS"]["data"] >> vector_pose;
+  yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
   *body_Pose_cam = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
 }
 
 /* -------------------------------------------------------------------------- */
-void CameraParams::parseCameraIntrinsics(const cv::FileStorage& fs,
+void CameraParams::parseCameraIntrinsics(const YamlParser& yaml_parser,
                                          Intrinsics* intrinsics_) {
   CHECK_NOTNULL(intrinsics_);
   std::vector<double> intrinsics;
-  fs["intrinsics"] >> intrinsics;
+  yaml_parser.getYamlParam("intrinsics", &intrinsics);
   CHECK_EQ(intrinsics.size(), intrinsics_->size());
   // Move elements from one to the other.
   std::copy_n(std::make_move_iterator(intrinsics.begin()),

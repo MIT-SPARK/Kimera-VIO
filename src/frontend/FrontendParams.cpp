@@ -7,12 +7,12 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   FrontendParams.cpp
+ * @file   VioFrontEndParams.cpp
  * @brief frontend parameters
  * @author Antoni Rosinol
  */
 
-#include "kimera-vio/frontend/FrontendParams.h"
+#include "kimera-vio/frontend/VioFrontEndParams.h"
 
 #include <utility>
 
