@@ -57,13 +57,8 @@ class OnlineAlignmentFixture : public ::testing::Test {
                                      const std::string& dataset_path) {
     int initial_k = 0;
     int final_k = 0;
-    int skip_n_start_frames = 0;
-    int skip_n_end_frames = 0;
-    dataset_ = VIO::make_unique<ETHDatasetParser>(initial_k,
-                                                  final_k,
-                                                  dataset_path,
-                                                  skip_n_start_frames,
-                                                  skip_n_end_frames);
+    dataset_ =
+        VIO::make_unique<ETHDatasetParser>(initial_k, final_k, dataset_path);
 
     // Get GT poses and IMU pims.
     Timestamp timestamp_last_frame;
@@ -94,11 +89,12 @@ class OnlineAlignmentFixture : public ::testing::Test {
       gt_pose_k = it->second.pose_;
 
       // Get PIM information
-      dataset_->imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-          timestamp_last_frame,
-          timestamp_frame_k,
-          &imu_meas.timestamps_,
-          &imu_meas.acc_gyr_);
+      // TODO(Toni): fix this
+      // dataset_->imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+      //     timestamp_last_frame,
+      //     timestamp_frame_k,
+      //     &imu_meas.timestamps_,
+      //     &imu_meas.acc_gyr_);
       ImuFrontEnd imu_frontend(imu_params_, imu_bias_);
       const auto& pim = imu_frontend.preintegrateImuMeasurements(
           imu_meas.timestamps_, imu_meas.acc_gyr_);

@@ -44,25 +44,15 @@ namespace VIO {
 class ETHDatasetParser : public DataProviderInterface {
  public:
   // Ctor with params.
-  ETHDatasetParser(int initial_k,
-                   int final_k,
-                   const std::string& dataset_path,
-                   int skip_n_start_frames,
-                   int skip_n_end_frames);
-  // Ctor from gflags params.
+  ETHDatasetParser(const int& initial_k,
+                   const int& final_k,
+                   const std::string& dataset_path);
+  // Ctor from gflags
   ETHDatasetParser();
   virtual ~ETHDatasetParser();
 
  public:
   virtual bool spin() override;
-
-  void spinOnce(const FrameId& k,
-                const CameraParams& left_cam_info,
-                const CameraParams& right_cam_info,
-                const bool& equalize_image);
-
-  // Parses EuRoC data, as well as the frontend and backend parameters
-  void parse();
 
   // Print info about dataset.
   void print() const;
@@ -72,34 +62,37 @@ class ETHDatasetParser : public DataProviderInterface {
   GroundTruthData gt_data_;
 
  private:
+  // Parses EuRoC data
+  void parse();
+
+  // Send data to VIO pipeline on a per-frame basis
+  void spinOnce(const FrameId& k,
+                const CameraParams& left_cam_info,
+                const CameraParams& right_cam_info,
+                const bool& equalize_image);
+
   // Parse camera, gt, and imu data if using different Euroc format.
-  bool parseDataset(const std::string& input_dataset_path,
-                    const std::string& left_cam_name,
-                    const std::string& right_cam_name,
-                    const std::string& imu_name,
-                    const std::string& gt_sensor_name,
-                    bool parse_images = true);
+  bool parseDataset();
 
-  // Check if the ground truth is available.
-  // (i.e., the timestamp is after the first gt state)
-  bool isGroundTruthAvailable(const Timestamp& timestamp) const;
+  //! Parsers
+  void parseParams();
 
-  // Get if the dataset has ground truth.
-  bool isGroundTruthAvailable() const;
+  bool parseImuData(const std::string& input_dataset_path,
+                    const std::string& imu_name);
 
-  // Get timestamp of a given pair of stereo images (synchronized).
-  Timestamp timestampAtFrame(const FrameId& frame_number);
+  bool parseGTdata(const std::string& input_dataset_path,
+                   const std::string& gtSensorName);
 
-  /// Getters
-  inline std::string getDatasetName() const { return dataset_name_; }
+  bool parseCameraData(const std::string& cam_name,
+                       CameraImageLists* cam_list_i);
+
+  //! Getters.
+  std::string getDatasetName();
   inline std::string getLeftImgName(const size_t& k) const {
     return getImgName("cam0", k);
   }
   inline std::string getRightImgName(const size_t& k) const {
     return getImgName("cam1", k);
-  }
-  inline ImuParams getImuParams() const {
-    return pipeline_params_.imu_params_;
   }
 
   // Retrieve relative pose between timestamps.
@@ -117,24 +110,6 @@ class ETHDatasetParser : public DataProviderInterface {
       const VioNavState& init_nav_state,
       const gtsam::Vector3& init_gravity);
 
-  bool parseImuData(const std::string& input_dataset_path,
-                    const std::string& imu_name);
-
-  bool parseGTdata(const std::string& input_dataset_path,
-                   const std::string& gtSensorName);
-
-  // Parse cam0, cam1 of a given dataset.
-  virtual bool parseCameraParams(const std::string& input_dataset_path,
-                                 const std::string& left_cam_name,
-                                 const std::string& right_cam_name,
-                                 bool parse_images,
-                                 MultiCameraParams* multi_cam_params) override;
-
-  bool parseImuParams(const std::string& input_dataset_path,
-                      const std::string& imu_name,
-                      ImuParams* imu_params);
-
-  /// Getters.
   inline size_t getNumImages() const {
     return camera_image_lists_.at(camera_names_.at(0)).getNumImages();
   }
@@ -146,6 +121,7 @@ class ETHDatasetParser : public DataProviderInterface {
     return getGroundTruthState(timestamp).pose_;
   }
 
+  //! Sanity checks
   bool sanityCheckCameraData(
       const std::vector<std::string>& camera_names,
       std::map<std::string, CameraImageLists>* camera_image_lists) const;
@@ -161,6 +137,20 @@ class ETHDatasetParser : public DataProviderInterface {
       const CameraImageLists::ImgLists& left_img_lists,
       const CameraImageLists::ImgLists& right_img_lists,
       const CameraParams& left_cam_info) const;
+
+  //! Utilities
+  // Check if the ground truth is available.
+  // (i.e., the timestamp is after the first gt state)
+  bool isGroundTruthAvailable(const Timestamp& timestamp) const;
+
+  // Get if the dataset has ground truth.
+  bool isGroundTruthAvailable() const;
+
+  // Get timestamp of a given pair of stereo images (synchronized).
+  Timestamp timestampAtFrame(const FrameId& frame_number);
+
+  // Clip final frame to the number of images in the dataset.
+  void clipFinalFrame();
 
  private:
   /// Images data.
@@ -178,6 +168,10 @@ class ETHDatasetParser : public DataProviderInterface {
   // Number of final frames to skip for IMU calibration. We only use the IMU
   // information and discard the frames.
   int skip_n_end_frames_ = 0;
+
+  const std::string kLeftCamName = "cam0";
+  const std::string kRightCamName = "cam1";
+  const std::string kImuName = "imu0";
 };
 
 }  // namespace VIO

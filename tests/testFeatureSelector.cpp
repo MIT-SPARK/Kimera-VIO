@@ -633,8 +633,6 @@ GaussianFactorGraph::shared_ptr createOmegaBarTest() {
   // instantiate selector
   VioBackEndParams vp = VioBackEndParams();
   vp.smartNoiseSigma_ = 1000;
-  vp.accNoiseDensity_ = 1e-2;
-  vp.accBiasSigma_ = 1e-2;
   FeatureSelector f(trackerParams, vp);
   Cameras left_cameras, right_cameras;
   tie(left_cameras, right_cameras) = f.getCameras(featureSelectionData);
@@ -1060,9 +1058,6 @@ TEST(FeatureSelector, featureSelection) {
   // create feature selector
   VioBackEndParams vp = VioBackEndParams();
   vp.smartNoiseSigma_ = 1000;
-  vp.accNoiseDensity_ =
-      0.1;  // fake noise to avoid that covariance it too small
-  vp.accBiasSigma_ = 0.03;
   FeatureSelector f(trackerParams, vp);
   // TEST 1
   {

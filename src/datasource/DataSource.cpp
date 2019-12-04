@@ -22,13 +22,10 @@
 #include "kimera-vio/frontend/VioFrontEndParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
-DEFINE_string(vio_params_path, "", "Path to vio user-defined parameters.");
-DEFINE_string(tracker_params_path,
-              "",
-              "Path to tracker user-defined parameters.");
-DEFINE_string(lcd_params_path,
-              "",
-              "Path to loop-closure-detector user-defined parameters.");
+DEFINE_string(imu_params_path, "", "Path to IMU parameters.");
+DEFINE_string(backend_params_path, "", "Path to VIO backend parameters.");
+DEFINE_string(frontend_params_path, "", "Path to VIO frontend parameters.");
+DEFINE_string(lcd_params_path, "", "Path to loop-closure-detector parameters.");
 DEFINE_int32(backend_type,
              0,
              "Type of vioBackEnd to use:\n"
@@ -52,13 +49,33 @@ DEFINE_string(dataset_path,
 
 namespace VIO {
 
-DataProviderInterface::DataProviderInterface(int initial_k,
-                                             int final_k,
-                                             const std::string& dataset_path)
+DataProviderInterface::DataProviderInterface(
+    const int& initial_k,
+    const int& final_k,
+    const std::string& dataset_path,
+    const std::string& imu_params_path,
+    const std::string& backend_params_path,
+    const std::string& frontend_params_path,
+    const std::string& lcd_params_path)
     : pipeline_params_(),
       initial_k_(initial_k),
       final_k_(final_k),
-      dataset_path_(dataset_path) {
+      dataset_path_(dataset_path),
+      imu_params_path_(imu_params_path),
+      backend_params_path_(backend_params_path),
+      frontend_params_path_(frontend_params_path),
+      lcd_params_path_(lcd_params_path) {
+  // Start processing dataset from frame initial_k.
+  // Useful to skip a bunch of images at the beginning (imu calibration).
+  CHECK_GE(initial_k_, 0);
+  CHECK_GE(initial_k_, 10)
+      << "initial_k should be >= 10 for IMU bias initialization";
+
+  // Finish processing dataset at frame final_k.
+  // Last frame to process (to avoid processing the entire dataset),
+  // skip last frames.
+  CHECK_GT(final_k_, 0);
+
   CHECK(final_k_ > initial_k_)
       << "Value for final_k (" << final_k_ << ") is smaller than value for"
       << " initial_k (" << initial_k_ << ").";
@@ -69,7 +86,11 @@ DataProviderInterface::DataProviderInterface(int initial_k,
 DataProviderInterface::DataProviderInterface()
     : DataProviderInterface(FLAGS_initial_k,
                             FLAGS_final_k,
-                            FLAGS_dataset_path) {}
+                            FLAGS_dataset_path,
+                            FLAGS_imu_params_path,
+                            FLAGS_backend_params_path,
+                            FLAGS_frontend_params_path,
+                            FLAGS_lcd_params_path) {}
 
 DataProviderInterface::~DataProviderInterface() {
   LOG(INFO) << "Data provider destructor called.";
@@ -127,12 +148,12 @@ void DataProviderInterface::parseBackendParams() {
   }
 
   // Read/define vio params.
-  if (FLAGS_vio_params_path.empty()) {
+  if (backend_params_path_.empty()) {
     LOG(WARNING) << "No vio parameters specified, using default.";
   } else {
     VLOG(100) << "Using user-specified VIO parameters: "
-              << FLAGS_vio_params_path;
-    pipeline_params_.backend_params_->parseYAML(FLAGS_vio_params_path);
+              << backend_params_path_;
+    pipeline_params_.backend_params_->parseYAML(backend_params_path_);
   }
   CHECK(pipeline_params_.backend_params_);
 }
@@ -142,71 +163,41 @@ void DataProviderInterface::parseFrontendParams() {
   pipeline_params_.frontend_type_ =
       static_cast<FrontendType>(FLAGS_frontend_type);
   // Read/define tracker params.
-  if (FLAGS_tracker_params_path.empty()) {
+  if (frontend_params_path_.empty()) {
     LOG(WARNING) << "No tracker parameters specified, using default";
     pipeline_params_.frontend_params_ = VioFrontEndParams();  // default params
   } else {
     VLOG(100) << "Using user-specified tracker parameters: "
-              << FLAGS_tracker_params_path;
-    pipeline_params_.frontend_params_.parseYAML(FLAGS_tracker_params_path);
+              << frontend_params_path_;
+    pipeline_params_.frontend_params_.parseYAML(frontend_params_path_);
   }
-  CHECK_NOTNULL(&pipeline_params_.frontend_params_);
+}
+
+void DataProviderInterface::parseLCDParams() {
+  // Read/define LCD params.
+  if (lcd_params_path_.empty()) {
+    VLOG(100) << "No LoopClosureDetector parameters specified, using default";
+    pipeline_params_.lcd_params_ = LoopClosureDetectorParams();
+  } else {
+    VLOG(100) << "Using user-specified LoopClosureDetector parameters: "
+              << lcd_params_path_;
+    pipeline_params_.lcd_params_.parseYAML(lcd_params_path_);
+  }
+}
+
+// Parse camera params for a given dataset
+CameraParams DataProviderInterface::parseCameraParams(
+    const std::string& camera_name,
+    const std::string& filename) {
+  CameraParams camera_params(camera_name);
+  camera_params.parseYAML(filename);
+  return camera_params;
 }
 
 bool DataProviderInterface::parseImuParams(const std::string& imu_yaml_path,
                                            ImuParams* imu_params) {
   CHECK_NOTNULL(imu_params);
-
-  YamlParser::Ptr yaml_parser_ = std::make_shared<YamlParser>(imu_yaml_path);
-
-  // Rows and cols are redundant info, since the pose 4x4, but we parse just
-  // to check we are all on the same page.
-  // TODO(Toni): don't use the getYamlFileStorage function...
-  cv::FileStorage fs = yaml_parser_->getYamlFileStorage();
-  CHECK_EQ(static_cast<int>(fs["T_BS"]["rows"]), 4u);
-  CHECK_EQ(static_cast<int>(fs["T_BS"]["cols"]), 4u);
-  std::vector<double> vector_pose;
-  fs["T_BS"]["data"] >> vector_pose;
-  const gtsam::Pose3& body_Pose_cam =
-      UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
-
-  // Sanity check: IMU is usually chosen as the body frame.
-  LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3()))
-      << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
-
-  int rate = 0;
-  yaml_parser_->getYamlParam("rate_hz", &rate);
-  CHECK_GT(rate, 0u);
-  imu_params->nominal_rate_ = 1 / static_cast<double>(rate);
-
-  // IMU PARAMS
-  yaml_parser_->getYamlParam("gyroscope_noise_density",
-                             &imu_params->gyro_noise_);
-  yaml_parser_->getYamlParam("accelerometer_noise_density",
-                             &imu_params->acc_noise_);
-  yaml_parser_->getYamlParam("gyroscope_random_walk", &imu_params->gyro_walk_);
-  yaml_parser_->getYamlParam("accelerometer_random_walk",
-                             &imu_params->acc_walk_);
-  std::vector<double> n_gravity;
-  yaml_parser_->getYamlParam("n_gravity", &n_gravity);
-  CHECK_EQ(n_gravity.size(), 3);
-  for (int k = 0; k < 3; k++) imu_params->n_gravity_(k) = n_gravity[k];
-
-  fs.release();
-  return true;
-}
-
-void DataProviderInterface::parseLCDParams() {
-  // Read/define LCD params.
-  if (FLAGS_lcd_params_path.empty()) {
-    VLOG(100) << "No LoopClosureDetector parameters specified, using default";
-    pipeline_params_.lcd_params_ = LoopClosureDetectorParams();
-  } else {
-    VLOG(100) << "Using user-specified LoopClosureDetector parameters: "
-              << FLAGS_lcd_params_path;
-    pipeline_params_.lcd_params_.parseYAML(FLAGS_lcd_params_path);
-  }
-  CHECK_NOTNULL(&pipeline_params_.lcd_params_);
+  return imu_params->parseYAML(imu_yaml_path);
 }
 
 }  // namespace VIO

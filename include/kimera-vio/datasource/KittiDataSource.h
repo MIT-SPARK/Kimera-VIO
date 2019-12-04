@@ -82,7 +82,7 @@ class KittiDataProvider : public DataProviderInterface {
                                  const std::string& left_cam_name,
                                  const std::string& right_cam_name,
                                  const bool parse_images,
-                                 MultiCameraParams* multi_cam_params) override {
+                                 MultiCameraParams* multi_cam_params) {
     return false;
   };
   virtual bool parseImuParams(const std::string& imu_yaml_path,

@@ -41,9 +41,13 @@ class DataProviderInterface {
    *   [in] final_k: last frame id to be parsed.
    *   [in] dataset_path: path to the Euroc dataset.
    **/
-  DataProviderInterface(int initial_k,
-                        int final_k,
-                        const std::string& dataset_path);
+  DataProviderInterface(const int& initial_k,
+                        const int& final_k,
+                        const std::string& dataset_path,
+                        const std::string& imu_params_path,
+                        const std::string& backend_params_path,
+                        const std::string& frontend_params_path,
+                        const std::string& lcd_params_path);
   // Ctor from gflags. Calls regular ctor with gflags values.
   DataProviderInterface();
   virtual ~DataProviderInterface();
@@ -52,9 +56,6 @@ class DataProviderInterface {
   // Spin the dataset: processes the input data and feeds it to the VIO pipeline
   // A Dummy example is provided as an implementation.
   virtual bool spin();
-
-  // Init Vio parameters.
-  PipelineParams pipeline_params_;
 
   // Register a callback function for IMU data
   inline void registerImuSingleCallback(
@@ -71,6 +72,10 @@ class DataProviderInterface {
     right_frame_callback_ = callback;
   }
 
+ public:
+  // Init Vio parameters.
+  PipelineParams pipeline_params_;
+
  protected:
   // Vio callbacks. These functions should be called once data is available for
   // processing.
@@ -81,25 +86,27 @@ class DataProviderInterface {
 
   FrameId initial_k_;  // start frame
   FrameId final_k_;    // end frame
-  std::string dataset_path_;
+  const std::string dataset_path_;
+  const std::string imu_params_path_;
+  const std::string backend_params_path_;
+  const std::string frontend_params_path_;
+  const std::string lcd_params_path_;
 
-protected:
- // TODO(Toni): Create a separate params only parser!
- //! Helper functions to parse user-specified parameters.
- //! These are agnostic to dataset type.
- void parseBackendParams();
- void parseFrontendParams();
- void parseLCDParams();
+ protected:
+  // TODO(Toni): Create a separate params only parser!
+  //! Helper functions to parse user-specified parameters.
+  //! These are agnostic to dataset type.
+  void parseBackendParams();
+  void parseFrontendParams();
+  void parseLCDParams();
 
- //! Functions to parse dataset dependent parameters.
- // Parse cam0, cam1 of a given dataset.
- virtual bool parseCameraParams(const std::string& input_dataset_path,
-                                const std::string& left_cam_name,
-                                const std::string& right_cam_name,
-                                const bool parse_images,
-                                MultiCameraParams* multi_cam_params) = 0;
- virtual bool parseImuParams(const std::string& imu_yaml_path,
-                             ImuParams* imu_params);
+  //! Functions to parse dataset dependent parameters.
+  // Parse camera params for a given dataset
+  virtual CameraParams parseCameraParams(const std::string& camera_name,
+                                         const std::string& filename);
+
+  virtual bool parseImuParams(const std::string& imu_yaml_path,
+                              ImuParams* imu_params);
 };
 
 class DataProviderModule
@@ -126,7 +133,7 @@ class DataProviderModule
       StereoImuSyncPacket::UniquePtr input) override {
     // Data provider is only syncing input sensor information, which
     // is done at the level of getInputPacket, therefore here we h
-    return std::move(input);
+    return input;
   }
 
   //! Callbacks to fill queues: they should be all lighting fast.

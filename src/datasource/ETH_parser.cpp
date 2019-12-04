@@ -16,40 +16,28 @@
 
 #include "kimera-vio/datasource/ETH_parser.h"
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
-DEFINE_int32(skip_n_start_frames,
-             10,
-             "Number of initial frames to skip for "
-             "IMU calibration. We only use the IMU"
-             "information and discard the frames.");
-DEFINE_int32(skip_n_end_frames,
-             100,
-             "Number of final frames to skip for "
-             "IMU calibration. We only use the IMU"
-             "information and discard the frames.");
-
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-ETHDatasetParser::ETHDatasetParser(int initial_k,
-                                   int final_k,
-                                   const std::string& dataset_path,
-                                   int skip_n_start_frames,
-                                   int skip_n_end_frames)
-    : DataProviderInterface(initial_k, final_k, dataset_path),
-      skip_n_start_frames_(skip_n_start_frames),
-      skip_n_end_frames_(skip_n_end_frames) {}
+ETHDatasetParser::ETHDatasetParser(const int& initial_k,
+                                   const int& final_k,
+                                   const std::string& dataset_path)
+    : DataProviderInterface(initial_k, final_k, dataset_path) {
+  // Parse all VIO and dataset params.
+  parseParams();
+  clipFinalFrame();
+}
 
-/* -------------------------------------------------------------------------- */
-ETHDatasetParser::ETHDatasetParser()
-    : DataProviderInterface(),
-      skip_n_start_frames_(FLAGS_skip_n_start_frames),
-      skip_n_end_frames_(FLAGS_skip_n_end_frames) {}
+ETHDatasetParser::ETHDatasetParser() : DataProviderInterface() {
+  // Parse all VIO and dataset params.
+  parseParams();
+  clipFinalFrame();
+}
 
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::~ETHDatasetParser() {
@@ -62,7 +50,9 @@ bool ETHDatasetParser::spin() {
   // pipeline.
   CHECK(left_frame_callback_);
   CHECK(right_frame_callback_);
-  // Check also that the dataset has been correctly parsed.
+
+  // Parse the actual dataset first, then run it.
+  parse();
 
   // Timestamp 10 frames before the first (for imu calibration)
   CHECK_GE(initial_k_, skip_n_start_frames_)
@@ -120,40 +110,8 @@ void ETHDatasetParser::spinOnce(const FrameId& k,
 void ETHDatasetParser::parse() {
   VLOG(100) << "Using dataset path: " << dataset_path_;
   // Parse the dataset (ETH format).
-  static const std::string left_cam_name = "cam0";
-  static const std::string right_cam_name = "cam1";
-  static const std::string imu_name = "imu0";
-  static const std::string ground_truth_name = "state_groundtruth_estimate0";
-  parseDataset(dataset_path_,
-               left_cam_name,
-               right_cam_name,
-               imu_name,
-               ground_truth_name);
+  parseDataset();
   print();
-
-  // Start processing dataset from frame initial_k.
-  // Useful to skip a bunch of images at the beginning (imu calibration).
-  CHECK_GE(initial_k_, 0);
-  CHECK_GE(initial_k_, 10)
-      << "initial_k should be >= 10 for IMU bias initialization";
-
-  // Finish processing dataset at frame final_k.
-  // Last frame to process (to avoid processing the entire dataset),
-  // skip last frames.
-  CHECK_GT(final_k_, 0);
-
-  const size_t& nr_images = getNumImages();
-  if (final_k_ > nr_images) {
-    LOG(WARNING) << "Value for final_k, " << final_k_ << " is larger than total"
-                 << " number of frames in dataset " << nr_images;
-    final_k_ = nr_images;
-    LOG(WARNING) << "Using final_k = " << final_k_;
-  }
-
-  // Parse backend/frontend/lcd parameters
-  parseBackendParams();
-  parseFrontendParams();
-  parseLCDParams();
 
   // Send first ground-truth pose to VIO for initialization if requested.
   if (pipeline_params_.backend_params_->autoInitialize_ == 0) {
@@ -161,35 +119,28 @@ void ETHDatasetParser::parse() {
     pipeline_params_.backend_params_->initial_ground_truth_state_ =
         getGroundTruthState(timestampAtFrame(initial_k_));
   }
-
-  // Check that final_k_ is smaller than the number of images.
-  // And remove final frames.
-  if (final_k_ >= nr_images) {
-    LOG(WARNING) << "Value for final_k, " << final_k_
-                 << " is larger or equal to the total"
-                 << " number of frames in dataset " << nr_images;
-    // Skip last frames which are typically problematic
-    // (IMU bumps, FOV occluded)...
-    CHECK_GT(skip_n_end_frames_, 0u);
-    CHECK_LT(skip_n_end_frames_, nr_images);
-    final_k_ = nr_images - skip_n_end_frames_;
-    LOG(WARNING) << "Using final_k = " << final_k_ << ", where we removed "
-                 << skip_n_end_frames_ << " frames to avoid bad IMU readings.";
-  }
-  CHECK_GT(final_k_, 0);
-  CHECK_LT(final_k_, nr_images);
 }
 
-/* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
-                                      const std::string& imu_name,
-                                      ImuParams* imu_params) {
-  CHECK_NOTNULL(imu_params);
+void ETHDatasetParser::parseParams() {
+  // Parse Sensor parameters
+  static const std::string kLeftCamParamsFilename =
+      dataset_path_ + "/mav0/" + kLeftCamName + "/sensor.yaml";
+  static const std::string kRightCamParamsFilename =
+      dataset_path_ + "/mav0/" + kRightCamName + "/sensor.yaml";
+  pipeline_params_.camera_params_.push_back(
+      parseCameraParams(kLeftCamName, kLeftCamParamsFilename));
+  pipeline_params_.camera_params_.push_back(
+      parseCameraParams(kRightCamName, kRightCamParamsFilename));
 
-  std::string filename_sensor =
-      input_dataset_path + "/mav0/" + imu_name + "/sensor.yaml";
+  static const std::string kImuFilename =
+      dataset_path_ + "/mav0/" + kImuName + "/sensor.yaml";
+  CHECK(DataProviderInterface::parseImuParams(kImuFilename,
+                                              &pipeline_params_.imu_params_));
 
-  return DataProviderInterface::parseImuParams(filename_sensor, imu_params);
+  // Parse backend/frontend/lcd parameters
+  parseBackendParams();
+  parseFrontendParams();
+  parseLCDParams();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -404,74 +355,31 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseDataset(const std::string& input_dataset_path,
-                                    const std::string& left_cam_name,
-                                    const std::string& right_cam_name,
-                                    const std::string& imu_name,
-                                    const std::string& gt_sensor_name,
-                                    bool parse_images) {
-  //! Parse Sensor parameters
-  CHECK(parseCameraParams(input_dataset_path,
-                          left_cam_name,
-                          right_cam_name,
-                          parse_images,
-                          &pipeline_params_.camera_params_));
-  CHECK(parseImuParams(
-      input_dataset_path, imu_name, &pipeline_params_.imu_params_));
+bool ETHDatasetParser::parseDataset() {
+  // Parse IMU data.
+  parseImuData(dataset_path_, kImuName);
 
-  //! Parse Sensor data.
-  parseImuData(input_dataset_path, imu_name);
-  is_gt_available_ = parseGTdata(input_dataset_path, gt_sensor_name);
+  // Parse Camera data.
+  CameraImageLists left_cam_image_list;
+  CameraImageLists right_cam_image_list;
+  parseCameraData(kLeftCamName, &left_cam_image_list);
+  parseCameraData(kRightCamName, &right_cam_image_list);
+  camera_image_lists_.at(kLeftCamName) = left_cam_image_list;
+  camera_image_lists_.at(kRightCamName) = right_cam_image_list;
+  CHECK(sanityCheckCameraData(camera_names_, &camera_image_lists_));
 
-  // Find and store actual name (rather than path) of the dataset.
-  size_t found_last_slash = input_dataset_path.find_last_of("/\\");
-  std::string dataset_path_tmp = input_dataset_path;
-  dataset_name_ = dataset_path_tmp.substr(found_last_slash + 1);
-  // The dataset name has a slash at the very end
-  if (found_last_slash >= dataset_path_tmp.size() - 1) {
-    // Cut the last slash.
-    dataset_path_tmp = dataset_path_tmp.substr(0, found_last_slash);
-    // Repeat the search.
-    found_last_slash = dataset_path_tmp.find_last_of("/\\");
-    // Try to pick right name.
-    dataset_name_ = dataset_path_tmp.substr(found_last_slash + 1);
-  }
-  LOG(INFO) << "Dataset name: " << dataset_name_;
+  // Parse Ground-Truth data.
+  static const std::string ground_truth_name = "state_groundtruth_estimate0";
+  is_gt_available_ = parseGTdata(dataset_path_, ground_truth_name);
+
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseCameraParams(const std::string& input_dataset_path,
-                                         const std::string& left_cam_name,
-                                         const std::string& right_cam_name,
-                                         bool parse_imgs,
-                                         MultiCameraParams* multi_cam_params) {
-  CHECK_NOTNULL(multi_cam_params)->clear();
-
-  // Default names: match names of the corresponding folders.
-  camera_names_.resize(2);
-  camera_names_[0] = left_cam_name;
-  camera_names_[1] = right_cam_name;
-
-  // Read camera info and list of images.
-  camera_image_lists_.clear();
-  for (const std::string& cam_name : camera_names_) {
-    LOG(INFO) << "Reading camera: " << cam_name;
-    CameraParams cam_info_i(cam_name);
-    cam_info_i.parseYAML(input_dataset_path + "/mav0/" + cam_name +
-                         "/sensor.yaml");
-    multi_cam_params->push_back(cam_info_i);
-
-    CameraImageLists cam_list_i;
-    if (parse_imgs) {
-      cam_list_i.parseCamImgList(input_dataset_path + "/mav0/" + cam_name,
-                                 "data.csv");
-    }
-    camera_image_lists_[cam_name] = cam_list_i;
-  }
-
-  CHECK(sanityCheckCameraData(camera_names_, &camera_image_lists_));
-
+bool ETHDatasetParser::parseCameraData(const std::string& cam_name,
+                                       CameraImageLists* cam_list_i) {
+  CHECK_NOTNULL(cam_list_i)
+      ->parseCamImgList(dataset_path_ + "/mav0/" + cam_name, "data.csv");
   return true;
 }
 
@@ -541,6 +449,26 @@ bool ETHDatasetParser::sanityCheckCamTimestamps(
             << std::sqrt(stdDelta / double(deltaCount - 1u)) << '\n'
             << "frame rate maxMismatch: " << frame_rate_maxMismatch;
   return true;
+}
+
+std::string ETHDatasetParser::getDatasetName() {
+  if (dataset_name_.empty()) {
+    // Find and store actual name (rather than path) of the dataset.
+    size_t found_last_slash = dataset_path_.find_last_of("/\\");
+    std::string dataset_path_tmp = dataset_path_;
+    dataset_name_ = dataset_path_tmp.substr(found_last_slash + 1);
+    // The dataset name has a slash at the very end
+    if (found_last_slash >= dataset_path_tmp.size() - 1) {
+      // Cut the last slash.
+      dataset_path_tmp = dataset_path_tmp.substr(0, found_last_slash);
+      // Repeat the search.
+      found_last_slash = dataset_path_tmp.find_last_of("/\\");
+      // Try to pick right name.
+      dataset_name_ = dataset_path_tmp.substr(found_last_slash + 1);
+    }
+    LOG(INFO) << "Dataset name: " << dataset_name_;
+  }
+  return dataset_name_;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -665,6 +593,17 @@ Timestamp ETHDatasetParser::timestampAtFrame(const FrameId& frame_number) {
   return camera_image_lists_[camera_names_[0]].img_lists_[frame_number].first;
 }
 
+void ETHDatasetParser::clipFinalFrame() {
+  // Clip final_k_ to the total number of images.
+  const size_t& nr_images = getNumImages();
+  if (final_k_ > nr_images) {
+    LOG(WARNING) << "Value for final_k, " << final_k_ << " is larger than total"
+                 << " number of frames in dataset " << nr_images;
+    final_k_ = nr_images;
+    LOG(WARNING) << "Using final_k = " << final_k_;
+  }
+  CHECK_LT(final_k_, nr_images);
+}
 /* -------------------------------------------------------------------------- */
 void ETHDatasetParser::print() const {
   LOG(INFO) << "-------------------------------------------------------------\n"

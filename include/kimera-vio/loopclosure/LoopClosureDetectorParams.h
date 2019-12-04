@@ -22,11 +22,12 @@
 #include <opencv2/opencv.hpp>
 
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
+#include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/YamlParser.h"
 
 namespace VIO {
 
-class LoopClosureDetectorParams {
+class LoopClosureDetectorParams : public PipelineParams {
  public:
   LoopClosureDetectorParams(
       int image_width = 752,
@@ -195,25 +196,24 @@ class LoopClosureDetectorParams {
 
   // NOTE: we cannot parse width, height principe pt and focal length from here.
   // Those are done via setIntrinsics() in real time in the first StereoFrame.
-  bool parseYAML(const std::string& filepath) {
-    yaml_parser_ = std::make_shared<YamlParser>(filepath);
+  virtual bool parseYAML(const std::string& filepath) override {
+    YamlParser yaml_parser(filepath);
 
-    yaml_parser_->getYamlParam("use_nss", &use_nss_);
-    yaml_parser_->getYamlParam("alpha", &alpha_);
-    yaml_parser_->getYamlParam("min_temporal_matches", &min_temporal_matches_);
-    yaml_parser_->getYamlParam("dist_local", &dist_local_);
-    yaml_parser_->getYamlParam("max_db_results", &max_db_results_);
-    yaml_parser_->getYamlParam("min_nss_factor", &min_nss_factor_);
-    yaml_parser_->getYamlParam("min_matches_per_group",
-                               &min_matches_per_group_);
-    yaml_parser_->getYamlParam("max_intragroup_gap", &max_intragroup_gap_);
-    yaml_parser_->getYamlParam("max_distance_between_groups",
-                               &max_distance_between_groups_);
-    yaml_parser_->getYamlParam("max_distance_between_queries",
-                               &max_distance_between_queries_);
+    yaml_parser.getYamlParam("use_nss", &use_nss_);
+    yaml_parser.getYamlParam("alpha", &alpha_);
+    yaml_parser.getYamlParam("min_temporal_matches", &min_temporal_matches_);
+    yaml_parser.getYamlParam("dist_local", &dist_local_);
+    yaml_parser.getYamlParam("max_db_results", &max_db_results_);
+    yaml_parser.getYamlParam("min_nss_factor", &min_nss_factor_);
+    yaml_parser.getYamlParam("min_matches_per_group", &min_matches_per_group_);
+    yaml_parser.getYamlParam("max_intragroup_gap", &max_intragroup_gap_);
+    yaml_parser.getYamlParam("max_distance_between_groups",
+                             &max_distance_between_groups_);
+    yaml_parser.getYamlParam("max_distance_between_queries",
+                             &max_distance_between_queries_);
 
     int geom_check_id;
-    yaml_parser_->getYamlParam("geom_check_id", &geom_check_id);
+    yaml_parser.getYamlParam("geom_check_id", &geom_check_id);
     switch (geom_check_id) {
       case static_cast<unsigned int>(GeomVerifOption::NISTER):
         geom_check_ = GeomVerifOption::NISTER;
@@ -225,21 +225,19 @@ class LoopClosureDetectorParams {
         throw std::runtime_error("LCDparams parseYAML: wrong geom_check_id");
         break;
     }
-    yaml_parser_->getYamlParam("min_correspondences", &min_correspondences_);
-    yaml_parser_->getYamlParam("max_ransac_iterations_mono",
-                               &max_ransac_iterations_mono_);
-    yaml_parser_->getYamlParam("ransac_probability_mono",
-                               &ransac_probability_mono_);
-    yaml_parser_->getYamlParam("ransac_threshold_mono",
-                               &ransac_threshold_mono_);
-    yaml_parser_->getYamlParam("ransac_randomize_mono",
-                               &ransac_randomize_mono_);
-    yaml_parser_->getYamlParam("ransac_inlier_threshold_mono",
-                               &ransac_inlier_threshold_mono_);
+    yaml_parser.getYamlParam("min_correspondences", &min_correspondences_);
+    yaml_parser.getYamlParam("max_ransac_iterations_mono",
+                             &max_ransac_iterations_mono_);
+    yaml_parser.getYamlParam("ransac_probability_mono",
+                             &ransac_probability_mono_);
+    yaml_parser.getYamlParam("ransac_threshold_mono", &ransac_threshold_mono_);
+    yaml_parser.getYamlParam("ransac_randomize_mono", &ransac_randomize_mono_);
+    yaml_parser.getYamlParam("ransac_inlier_threshold_mono",
+                             &ransac_inlier_threshold_mono_);
 
     int pose_recovery_option_id;
-    yaml_parser_->getYamlParam("pose_recovery_option_id",
-                               &pose_recovery_option_id);
+    yaml_parser.getYamlParam("pose_recovery_option_id",
+                             &pose_recovery_option_id);
     switch (pose_recovery_option_id) {
       case static_cast<unsigned int>(PoseRecoveryOption::RANSAC_ARUN):
         pose_recovery_option_ = PoseRecoveryOption::RANSAC_ARUN;
@@ -252,28 +250,28 @@ class LoopClosureDetectorParams {
             "LCDparams parseYAML: wrong pose_recovery_option_id");
         break;
     }
-    yaml_parser_->getYamlParam("max_ransac_iterations_stereo",
-                               &max_ransac_iterations_stereo_);
-    yaml_parser_->getYamlParam("ransac_probability_stereo",
-                               &ransac_probability_stereo_);
-    yaml_parser_->getYamlParam("ransac_threshold_stereo",
-                               &ransac_threshold_stereo_);
-    yaml_parser_->getYamlParam("ransac_randomize_stereo",
-                               &ransac_randomize_stereo_);
-    yaml_parser_->getYamlParam("ransac_inlier_threshold_stereo",
-                               &ransac_inlier_threshold_stereo_);
-    yaml_parser_->getYamlParam("use_mono_rot", &use_mono_rot_);
-    yaml_parser_->getYamlParam("lowe_ratio", &lowe_ratio_);
-    yaml_parser_->getYamlParam("matcher_type", &matcher_type_);
-    yaml_parser_->getYamlParam("nfeatures", &nfeatures_);
-    yaml_parser_->getYamlParam("scale_factor", &scale_factor_);
-    yaml_parser_->getYamlParam("nlevels", &nlevels_);
-    yaml_parser_->getYamlParam("edge_threshold", &edge_threshold_);
-    yaml_parser_->getYamlParam("first_level", &first_level_);
-    yaml_parser_->getYamlParam("WTA_K", &WTA_K_);
+    yaml_parser.getYamlParam("max_ransac_iterations_stereo",
+                             &max_ransac_iterations_stereo_);
+    yaml_parser.getYamlParam("ransac_probability_stereo",
+                             &ransac_probability_stereo_);
+    yaml_parser.getYamlParam("ransac_threshold_stereo",
+                             &ransac_threshold_stereo_);
+    yaml_parser.getYamlParam("ransac_randomize_stereo",
+                             &ransac_randomize_stereo_);
+    yaml_parser.getYamlParam("ransac_inlier_threshold_stereo",
+                             &ransac_inlier_threshold_stereo_);
+    yaml_parser.getYamlParam("use_mono_rot", &use_mono_rot_);
+    yaml_parser.getYamlParam("lowe_ratio", &lowe_ratio_);
+    yaml_parser.getYamlParam("matcher_type", &matcher_type_);
+    yaml_parser.getYamlParam("nfeatures", &nfeatures_);
+    yaml_parser.getYamlParam("scale_factor", &scale_factor_);
+    yaml_parser.getYamlParam("nlevels", &nlevels_);
+    yaml_parser.getYamlParam("edge_threshold", &edge_threshold_);
+    yaml_parser.getYamlParam("first_level", &first_level_);
+    yaml_parser.getYamlParam("WTA_K", &WTA_K_);
 
     int score_type_id;
-    yaml_parser_->getYamlParam("score_type_id", &score_type_id);
+    yaml_parser.getYamlParam("score_type_id", &score_type_id);
     switch (score_type_id) {
       case 0:
         score_type_ = cv::ORB::HARRIS_SCORE;
@@ -283,15 +281,15 @@ class LoopClosureDetectorParams {
         throw std::runtime_error("LCDparams parseYAML: wrong score_type_id");
         break;
     }
-    yaml_parser_->getYamlParam("patch_sze", &patch_sze_);
-    yaml_parser_->getYamlParam("fast_threshold", &fast_threshold_);
-    yaml_parser_->getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
-    yaml_parser_->getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
+    yaml_parser.getYamlParam("patch_sze", &patch_sze_);
+    yaml_parser.getYamlParam("fast_threshold", &fast_threshold_);
+    yaml_parser.getYamlParam("pgo_rot_threshold", &pgo_rot_threshold_);
+    yaml_parser.getYamlParam("pgo_trans_threshold", &pgo_trans_threshold_);
 
     return true;
   }
 
-  void print() const {
+  virtual void print() const override {
     // TODO(marcus): print all params
     LOG(INFO)
         << "$$$$$$$$$$$$$$$$$$$$$ LCD PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
@@ -351,12 +349,6 @@ class LoopClosureDetectorParams {
         << "pgo_rot_threshold_: " << pgo_rot_threshold_ << '\n'
         << "pgo_trans_threshold_: " << pgo_trans_threshold_;
   }
-
- private:
-  // TODO(Toni) Needs to be shared because we are copying params around, if
-  // parsing was separated from actual params struct we would not have this
-  // issue.
-  std::shared_ptr<YamlParser> yaml_parser_;
-};  // class LoopClosureDetectorParams
+};
 
 }  // namespace VIO
