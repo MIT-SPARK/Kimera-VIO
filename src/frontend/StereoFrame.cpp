@@ -31,8 +31,10 @@ StereoFrame::StereoFrame(const FrameId& id,
                          const StereoMatchingParams& stereo_matching_params)
     : id_(id),
       timestamp_(timestamp),
+      // TODO(Toni): these copies are the culprits of all evil...
       left_frame_(left_frame),
       right_frame_(right_frame),
+      // TODO(Toni): completely useless to copy params all the time...
       sparse_stereo_params_(stereo_matching_params) {
   initialize(left_frame_.cam_param_, right_frame_.cam_param_);
   CHECK_EQ(id_, left_frame_.id_);

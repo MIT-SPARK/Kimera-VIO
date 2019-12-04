@@ -57,15 +57,21 @@ class ETHDatasetParser : public DataProviderInterface {
   virtual bool spin() override;
 
   void spinOnce(const FrameId& k,
-                const StereoMatchingParams& stereo_matchiong_params,
-                const bool equalize_image,
                 const CameraParams& left_cam_info,
                 const CameraParams& right_cam_info,
-                Timestamp* timestamp_last_frame);
+                const bool& equalize_image);
 
   // Parses EuRoC data, as well as the frontend and backend parameters
   void parse();
 
+  // Print info about dataset.
+  void print() const;
+
+ public:
+  // Ground truth data.
+  GroundTruthData gt_data_;
+
+ private:
   // Parse camera, gt, and imu data if using different Euroc format.
   bool parseDataset(const std::string& input_dataset_path,
                     const std::string& left_cam_name,
@@ -111,17 +117,6 @@ class ETHDatasetParser : public DataProviderInterface {
       const VioNavState& init_nav_state,
       const gtsam::Vector3& init_gravity);
 
-  // Print info about dataset.
-  void print() const;
-
- public:
-  // Ground truth data.
-  GroundTruthData gt_data_;
-
-  // IMU data.
-  ImuData imu_data_;
-
- private:
   bool parseImuData(const std::string& input_dataset_path,
                     const std::string& imu_name);
 
@@ -135,9 +130,9 @@ class ETHDatasetParser : public DataProviderInterface {
                                  bool parse_images,
                                  MultiCameraParams* multi_cam_params) override;
 
-  virtual bool parseImuParams(const std::string& input_dataset_path,
-                              const std::string& imu_name,
-                              ImuParams* imu_params) override;
+  bool parseImuParams(const std::string& input_dataset_path,
+                      const std::string& imu_name,
+                      ImuParams* imu_params);
 
   /// Getters.
   inline size_t getNumImages() const {

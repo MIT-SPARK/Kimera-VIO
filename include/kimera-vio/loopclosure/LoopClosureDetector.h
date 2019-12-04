@@ -65,7 +65,7 @@ class LoopClosureDetector {
    * @param[in] input A shared_ptr referencing an input payload.
    * @return The output payload from the pipeline.
    */
-  virtual LcdOutput::Ptr spinOnce(const LcdInput& input);
+  virtual LcdOutput::UniquePtr spinOnce(const LcdInput& input);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single frame and adds it to relevant internal
@@ -471,7 +471,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
 
  protected:
   //! Synchronize input queues.
-  virtual inline InputPtr getInputPacket() override {
+  virtual inline InputUniquePtr getInputPacket() override {
     // TODO(X): this is the same or very similar to the Mesher getInputPacket.
     LcdBackendInput backend_payload;
     bool queue_state = false;
@@ -517,7 +517,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
         timestamp, backend_payload->cur_kf_id_, stereo_keyframe, body_pose);
   }
 
-  virtual OutputPtr spinOnce(LcdInput::UniquePtr input) override {
+  virtual OutputUniquePtr spinOnce(LcdInput::UniquePtr input) override {
     return lcd_->spinOnce(*input);
   }
 

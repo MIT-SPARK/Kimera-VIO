@@ -34,6 +34,7 @@ class BackEndFactory {
       const Pose3& B_Pose_leftCam,
       const StereoCalibPtr& stereo_calibration,
       const VioBackEndParams& backend_params,
+      const ImuParams& imu_params,
       const BackendOutputParams& backend_output_params,
       bool log_output) {
     switch (backend_type) {
@@ -41,6 +42,7 @@ class BackEndFactory {
         return VIO::make_unique<VioBackEnd>(B_Pose_leftCam,
                                             stereo_calibration,
                                             backend_params,
+                                            imu_params,
                                             backend_output_params,
                                             log_output);
       }
@@ -48,6 +50,7 @@ class BackEndFactory {
         return VIO::make_unique<RegularVioBackEnd>(B_Pose_leftCam,
                                                    stereo_calibration,
                                                    backend_params,
+                                                   imu_params,
                                                    backend_output_params,
                                                    log_output);
       }

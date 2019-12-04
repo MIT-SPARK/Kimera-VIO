@@ -31,7 +31,7 @@ class VioBackEndModule
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   using SIMO = SIMOPipelineModule<BackendInput, BackendOutput>;
-  using InputQueue = ThreadsafeQueue<typename PIO::InputPtr>;
+  using InputQueue = ThreadsafeQueue<typename PIO::InputUniquePtr>;
 
   /**
    * @brief VioBackEndModule
@@ -49,7 +49,7 @@ class VioBackEndModule
   }
   virtual ~VioBackEndModule() = default;
 
-  virtual OutputPtr spinOnce(BackendInput::UniquePtr input) {
+  virtual OutputUniquePtr spinOnce(BackendInput::UniquePtr input) {
     return vio_backend_->spinOnce(*CHECK_NOTNULL(input));
   }
 

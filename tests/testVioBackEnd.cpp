@@ -126,7 +126,6 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   // Additional parameters
   VioBackEndParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 30;  // we simulate points 20m away
-  vioParams.imuIntegrationSigma_ = 1e-4;
   vioParams.horizon_ = 100;
 
   // Create 3D points
@@ -201,12 +200,6 @@ TEST(testVio, robotMovingWithConstantVelocity) {
                                    false);
   vio->initStateAndSetPriors(VioNavStateTimestamped(t_start, initial_state));
   ImuParams imu_params;
-  imu_params.n_gravity_ = vioParams.n_gravity_;
-  imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
-  imu_params.acc_walk_ = vioParams.accBiasSigma_;
-  imu_params.acc_noise_ = vioParams.accNoiseDensity_;
-  imu_params.gyro_walk_ = vioParams.gyroBiasSigma_;
-  imu_params.gyro_noise_ = vioParams.gyroNoiseDensity_;
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
 
   vio->registerImuBiasUpdateCallback(std::bind(
@@ -280,7 +273,6 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   // Additional parameters
   VioBackEndParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 100;  // we simulate points 30-40m away
-  vioParams.imuIntegrationSigma_ = 1e-4;
   vioParams.horizon_ = 100;
   vioParams.smartNoiseSigma_ = 0.001;
   vioParams.outlierRejection_ = 100;
@@ -357,7 +349,6 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
           BackendOutputParams(false, 0, false));
   ImuParams imu_params;
   imu_params.n_gravity_ = vioParams.n_gravity_;
-  imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
   imu_params.acc_walk_ = vioParams.accBiasSigma_;
   imu_params.acc_noise_ = vioParams.accNoiseDensity_;
   imu_params.gyro_walk_ = vioParams.gyroBiasSigma_;

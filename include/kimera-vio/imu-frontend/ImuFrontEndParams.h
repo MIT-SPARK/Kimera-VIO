@@ -26,6 +26,8 @@ struct ImuParams {
   double acc_walk_;
   double imu_shift_;  // Defined as t_imu = t_cam + imu_shift
 
+  double nominal_rate_;
+
   // TODO: n_gravity_ should not be in ImuParams
   gtsam::Vector3 n_gravity_;
   double imu_integration_sigma_;

@@ -125,7 +125,7 @@ ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::getImuDataBtwTimestamps(
 
   for (size_t idx = 0u; idx < num_measurements; ++idx) {
     (*imu_timestamps)(idx) = between_values[idx].timestamp_;
-    (*imu_measurements).col(idx) = between_values[idx].imu_data_;
+    (*imu_measurements).col(idx) = between_values[idx].acc_gyr_;
   }
 
   return query_result;
@@ -233,9 +233,12 @@ void ThreadsafeImuBuffer::interpolateValueAtTimestamp(
       << "The IMU buffer seems not to contain measurements at or after time: "
       << timestamp_ns;
   CHECK_EQ(post_border_timestamp, post_border_value.timestamp_);
-  linearInterpolate(pre_border_value.timestamp_, pre_border_value.imu_data_,
-                    post_border_value.timestamp_, post_border_value.imu_data_,
-                    timestamp_ns, interpolated_imu_measurement);
+  linearInterpolate(pre_border_value.timestamp_,
+                    pre_border_value.acc_gyr_,
+                    post_border_value.timestamp_,
+                    post_border_value.acc_gyr_,
+                    timestamp_ns,
+                    interpolated_imu_measurement);
 }
 
 ThreadsafeImuBuffer::QueryResult

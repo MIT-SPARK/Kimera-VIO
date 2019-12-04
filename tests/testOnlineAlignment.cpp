@@ -98,10 +98,10 @@ class OnlineAlignmentFixture : public ::testing::Test {
           timestamp_last_frame,
           timestamp_frame_k,
           &imu_meas.timestamps_,
-          &imu_meas.measurements_);
+          &imu_meas.acc_gyr_);
       ImuFrontEnd imu_frontend(imu_params_, imu_bias_);
       const auto& pim = imu_frontend.preintegrateImuMeasurements(
-          imu_meas.timestamps_, imu_meas.measurements_);
+          imu_meas.timestamps_, imu_meas.acc_gyr_);
 
       // AHRS Pre-integration
       // Define covariance matrices
@@ -111,11 +111,10 @@ class OnlineAlignmentFixture : public ::testing::Test {
           accNoiseVar * gtsam::Matrix3::Identity();
       gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim(
           biasHat, kMeasuredAccCovariance);
-      for (size_t i = 0; i < (imu_meas.measurements_.cols() - 1); ++i) {
+      for (size_t i = 0; i < (imu_meas.acc_gyr_.cols() - 1); ++i) {
         double delta_t = UtilsOpenCV::NsecToSec(imu_meas.timestamps_(i + 1) -
                                                 imu_meas.timestamps_(i));
-        gtsam::Vector3 measured_omega =
-            imu_meas.measurements_.block(3, 6, i, i + 1);
+        gtsam::Vector3 measured_omega = imu_meas.acc_gyr_.block(3, 6, i, i + 1);
         ahrs_pim.integrateMeasurement(measured_omega, delta_t);
       }
 

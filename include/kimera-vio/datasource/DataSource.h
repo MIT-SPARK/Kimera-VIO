@@ -29,7 +29,11 @@ class DataProviderInterface {
  public:
   KIMERA_DELETE_COPY_CONSTRUCTORS(DataProviderInterface);
   KIMERA_POINTER_TYPEDEFS(DataProviderInterface);
-  typedef std::function<void(const ImuMeasurements&)> ImuInputCallback;
+  //! IMU input callbacks come in two flavours:
+  //! - Single: allows to add only one single measurement at a time.
+  //! - Multi: allows to add a bunck of measurements at a time.
+  typedef std::function<void(const ImuMeasurement&)> ImuSingleInputCallback;
+  typedef std::function<void(const ImuMeasurements&)> ImuMultiInputCallback;
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
 
   /** Regular ctor.
@@ -53,8 +57,12 @@ class DataProviderInterface {
   PipelineParams pipeline_params_;
 
   // Register a callback function for IMU data
-  inline void registerImuCallback(const ImuInputCallback& callback) {
-    imu_callback_ = callback;
+  inline void registerImuSingleCallback(
+      const ImuSingleInputCallback& callback) {
+    imu_single_callback_ = callback;
+  }
+  inline void registerImuMultiCallback(const ImuMultiInputCallback& callback) {
+    imu_multi_callback_ = callback;
   }
   inline void registerLeftFrameCallback(const FrameInputCallback& callback) {
     left_frame_callback_ = callback;
@@ -66,7 +74,8 @@ class DataProviderInterface {
  protected:
   // Vio callbacks. These functions should be called once data is available for
   // processing.
-  ImuInputCallback imu_callback_;
+  ImuSingleInputCallback imu_single_callback_;
+  ImuMultiInputCallback imu_multi_callback_;
   FrameInputCallback left_frame_callback_;
   FrameInputCallback right_frame_callback_;
 
@@ -89,9 +98,8 @@ protected:
                                 const std::string& right_cam_name,
                                 const bool parse_images,
                                 MultiCameraParams* multi_cam_params) = 0;
- virtual bool parseImuParams(const std::string& input_dataset_path,
-                             const std::string& imu_name,
-                             ImuParams* imu_params) = 0;
+ virtual bool parseImuParams(const std::string& imu_yaml_path,
+                             ImuParams* imu_params);
 };
 
 class DataProviderModule
@@ -114,20 +122,14 @@ class DataProviderModule
 
   virtual ~DataProviderModule() = default;
 
-  virtual OutputPtr spinOnce(StereoImuSyncPacket::UniquePtr input) override {
+  virtual OutputUniquePtr spinOnce(
+      StereoImuSyncPacket::UniquePtr input) override {
     // Data provider is only syncing input sensor information, which
     // is done at the level of getInputPacket, therefore here we h
-    // TODO(TONI): WARNING we could be doing perfect forwarding here but we
-    // aren't because spinOnce uses as parameter a const& instead of the unique
-    // pointer itself.
     return std::move(input);
   }
 
   //! Callbacks to fill queues: they should be all lighting fast.
-  inline void fillImuQueue(const ImuMeasurements& imu_measurements) {
-    imu_data_.imu_buffer_.addMeasurements(imu_measurements.timestamps_,
-                                          imu_measurements.measurements_);
-  }
   inline void fillLeftFrameQueue(Frame::UniquePtr&& left_frame) {
     CHECK(left_frame);
     left_frame_queue_.push(std::move(left_frame));
@@ -136,12 +138,22 @@ class DataProviderModule
     CHECK(right_frame);
     right_frame_queue_.push(std::move(right_frame));
   }
+  //! Fill multiple IMU measurements at once
+  inline void fillImuQueue(const ImuMeasurements& imu_measurements) {
+    imu_data_.imu_buffer_.addMeasurements(imu_measurements.timestamps_,
+                                          imu_measurements.acc_gyr_);
+  }
+  //! Fill one IMU measurement only
+  inline void fillImuQueue(const ImuMeasurement& imu_measurement) {
+    imu_data_.imu_buffer_.addMeasurement(imu_measurement.timestamp_,
+                                         imu_measurement.acc_gyr_);
+  }
 
  protected:
   // Spin the dataset: processes the input data and constructs a Stereo Imu
   // Synchronized Packet which contains the minimum amount of information
   // for the VIO pipeline to do one processing iteration.
-  virtual InputPtr getInputPacket() override {
+  virtual InputUniquePtr getInputPacket() override {
     // Look for a left frame inside the queue.
     bool queue_state = false;
     Frame::UniquePtr left_frame_payload = nullptr;
@@ -176,7 +188,21 @@ class DataProviderModule
               timestamp_last_frame,
               timestamp,
               &imu_meas.timestamps_,
-              &imu_meas.measurements_));
+              &imu_meas.acc_gyr_));
+
+    VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
+             << "STAMPS IMU rows : \n"
+             << imu_meas.timestamps_.rows() << '\n'
+             << "STAMPS IMU cols : \n"
+             << imu_meas.timestamps_.cols() << '\n'
+             << "STAMPS IMU: \n"
+             << imu_meas.timestamps_ << '\n'
+             << "ACCGYR IMU rows : \n"
+             << imu_meas.acc_gyr_.rows() << '\n'
+             << "ACCGYR IMU cols : \n"
+             << imu_meas.acc_gyr_.cols() << '\n'
+             << "ACCGYR IMU: \n"
+             << imu_meas.acc_gyr_;
 
     // Push the synced messages to the frontend's input queue
     static FrameId k;
@@ -189,7 +215,7 @@ class DataProviderModule
                     StereoMatchingParams()),  // TODO(Toni): these params should
                                               // be given in PipelineParams.
         imu_meas.timestamps_,
-        imu_meas.measurements_);
+        imu_meas.acc_gyr_);
   }
 
  private:

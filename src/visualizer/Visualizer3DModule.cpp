@@ -27,7 +27,7 @@ VisualizerModule::VisualizerModule(bool parallel_run,
       mesher_queue_("visualizer_mesher_queue"),
       visualizer_(std::move(visualizer)){};
 
-VisualizerModule::InputPtr VisualizerModule::getInputPacket() {
+VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   bool queue_state = false;
   VizMesherInput mesher_payload = nullptr;
   if (PIO::parallel_run_) {
@@ -64,7 +64,7 @@ VisualizerModule::InputPtr VisualizerModule::getInputPacket() {
       timestamp, mesher_payload, backend_payload, frontend_payload);
 }
 
-VisualizerModule::OutputPtr VisualizerModule::spinOnce(
+VisualizerModule::OutputUniquePtr VisualizerModule::spinOnce(
     VisualizerInput::UniquePtr input) {
   return visualizer_->spinOnce(*CHECK_NOTNULL(input));
 }

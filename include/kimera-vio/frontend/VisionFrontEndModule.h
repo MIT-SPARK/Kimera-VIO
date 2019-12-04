@@ -29,7 +29,7 @@ class StereoVisionFrontEndModule
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   using SIMO = SIMOPipelineModule<StereoImuSyncPacket, FrontendOutput>;
-  using InputQueue = ThreadsafeQueue<typename SIMO::InputPtr>;
+  using InputQueue = ThreadsafeQueue<typename SIMO::InputUniquePtr>;
 
   /**
    * @brief StereoVisionFrontEndModule
@@ -45,7 +45,7 @@ class StereoVisionFrontEndModule
   virtual ~StereoVisionFrontEndModule() = default;
 
  public:
-  virtual OutputPtr spinOnce(StereoImuSyncPacket::UniquePtr input);
+  virtual OutputUniquePtr spinOnce(StereoImuSyncPacket::UniquePtr input);
 
   //! Frontend Initialization
   StereoFrame processFirstStereoFrame(const StereoFrame& first_frame);

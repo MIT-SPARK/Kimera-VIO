@@ -35,6 +35,8 @@
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeImuBuffer.h"
 
+//#define USE_COMBINED_IMU_FACTOR
+
 namespace VIO {
 
 class ImuData {

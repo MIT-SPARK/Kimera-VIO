@@ -50,11 +50,11 @@ class PipelineModule {
   KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModule);
   //! The input is a unique ptr, as the user should implement getInputPacket
   //! such that it only retrieves an input structure with all data.
-  using InputPtr = std::unique_ptr<Input>;
+  using InputUniquePtr = std::unique_ptr<Input>;
   //! The output is instead a shared ptr, since many users might need the output
-  using OutputPtr = std::shared_ptr<Output>;
+  using OutputUniquePtr = std::unique_ptr<Output>;
+  using OutputSharedPtr = std::shared_ptr<Output>;
 
-  // TODO(Toni) In/Output queue should be shared ptr
   /**
    * @brief PipelineModule
    * @param name_id Identifier for the pipeline module
@@ -62,7 +62,7 @@ class PipelineModule {
    * does only one call to spinOnce and returns).
    */
   PipelineModule(const std::string& name_id, const bool& parallel_run)
-      : parallel_run_(parallel_run), name_id_(name_id) {}
+      : name_id_(name_id), parallel_run_(parallel_run) {}
   virtual ~PipelineModule() { LOG(INFO) << name_id_ + " destructor called."; }
 
   /**
@@ -78,16 +78,16 @@ class PipelineModule {
     while (!shutdown_) {
       // Get input data from queue by waiting for payload.
       is_thread_working_ = false;
-      InputPtr input = getInputPacket();
+      InputUniquePtr input = getInputPacket();
       is_thread_working_ = true;
       if (input) {
         auto tic = utils::Timer::tic();
         // Transfer the ownership of input to the actual pipeline module.
         // From this point on, you cannot use input, since spinOnce owns it.
-        OutputPtr output = spinOnce(std::move(input));
+        OutputUniquePtr output = spinOnce(std::move(input));
         if (output) {
           // Received a valid output, send to output queue
-          if (!pushOutputPacket(output)) {
+          if (!pushOutputPacket(std::move(output))) {
             LOG(WARNING) << "Module: " << name_id_ << " - Output push failed.";
           } else {
             VLOG(2) << "Module: " << name_id_ << " - Pushed output.";
@@ -147,7 +147,7 @@ class PipelineModule {
    */
   // TODO(Toni): given a list of queues, syncronize them and get an output
   // payload. Maybe keep a list of input queues, that the user can provide.
-  virtual inline InputPtr getInputPacket() = 0;
+  virtual inline InputUniquePtr getInputPacket() = 0;
 
   /**
    * @brief Utility function to synchronize threadsafe queues.
@@ -219,7 +219,7 @@ class PipelineModule {
    * @param[out] output_packet  Parameter to be sent to others
    * @return boolean indicating whether the push was successful or not.
    */
-  virtual inline bool pushOutputPacket(OutputPtr output_packet) const = 0;
+  virtual inline bool pushOutputPacket(OutputUniquePtr output_packet) const = 0;
 
   /**
    * @brief Abstract function to process a single input payload.
@@ -233,7 +233,7 @@ class PipelineModule {
    * @return The output payload from the pipeline module. Returning a nullptr
    * signals that the output should not be sent to the output queue.
    */
-  virtual OutputPtr spinOnce(InputPtr input) = 0;
+  virtual OutputUniquePtr spinOnce(InputUniquePtr input) = 0;
 
   /**
    * @brief shutdownQueues If the module stores Threadsafe queues, it must
@@ -273,8 +273,10 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
   KIMERA_DELETE_COPY_CONSTRUCTORS(MIMOPipelineModule);
 
   using PIO = PipelineModule<Input, Output>;
+  //! Callback used to send data to other pipeline modules, makes use of
+  //! shared pointer since the data may be shared between several modules.
   using OutputCallback =
-      std::function<void(const typename PIO::OutputPtr& output)>;
+      std::function<void(const typename PIO::OutputSharedPtr& output)>;
 
   MIMOPipelineModule(const std::string& name_id, const bool& parallel_run)
       : PipelineModule<Input, Output>(name_id, parallel_run),
@@ -301,12 +303,16 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
    * @return boolean indicating whether the push was successful or not.
    */
   virtual inline bool pushOutputPacket(
-      typename PIO::OutputPtr output_packet) const override {
-    //! Call all callbacks
+      typename PIO::OutputUniquePtr output_packet) const override {
     auto tic_callbacks = utils::Timer::tic();
+    //! We need to make our packet shared in order to send it to multiple
+    //! other modules.
+    typename PIO::OutputSharedPtr shared_output_packet =
+        std::move(output_packet);
+    //! Call all callbacks
     for (const OutputCallback& callback : output_callbacks_) {
       CHECK(callback);
-      callback(output_packet);
+      callback(shared_output_packet);
     }
     static constexpr auto kTimeLimitCallbacks = std::chrono::milliseconds(10);
     auto callbacks_duration = utils::Timer::toc(tic_callbacks);
@@ -337,7 +343,7 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
   KIMERA_DELETE_COPY_CONSTRUCTORS(SIMOPipelineModule);
 
   using PIO = PipelineModule<Input, Output>;
-  using InputQueue = ThreadsafeQueue<typename PIO::InputPtr>;
+  using InputQueue = ThreadsafeQueue<typename PIO::InputUniquePtr>;
 
   SIMOPipelineModule(InputQueue* input_queue,
                      const std::string& name_id,
@@ -358,8 +364,8 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
    * @return a boolean indicating whether the generation of the input packet was
    * successful.
    */
-  virtual inline typename PIO::InputPtr getInputPacket() override {
-    typename PIO::InputPtr input = nullptr;
+  virtual inline typename PIO::InputUniquePtr getInputPacket() override {
+    typename PIO::InputUniquePtr input = nullptr;
     bool queue_state = false;
     if (PIO::parallel_run_) {
       queue_state = input_queue_->popBlocking(input);
@@ -402,7 +408,9 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
   KIMERA_DELETE_COPY_CONSTRUCTORS(MISOPipelineModule);
 
   using MIMO = MIMOPipelineModule<Input, Output>;
-  using OutputQueue = ThreadsafeQueue<typename MIMO::OutputPtr>;
+  //! The output queue of a MISO pipeline is a unique pointer instead of a
+  //! shared pointer!
+  using OutputQueue = ThreadsafeQueue<typename MIMO::OutputUniquePtr>;
 
   MISOPipelineModule(OutputQueue* output_queue,
                      const std::string& name_id,
@@ -428,7 +436,7 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
    * @return boolean indicating whether the push was successful or not.
    */
   virtual inline bool pushOutputPacket(
-      typename MIMO::OutputPtr output_packet) const override {
+      typename MIMO::OutputUniquePtr output_packet) const override {
     return output_queue_->push(std::move(output_packet));
   }
 
@@ -459,8 +467,8 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
   KIMERA_DELETE_COPY_CONSTRUCTORS(SISOPipelineModule);
 
   using MISO = MISOPipelineModule<Input, Output>;
-  using InputQueue = ThreadsafeQueue<typename MISO::InputPtr>;
-  using OutputQueue = ThreadsafeQueue<typename MISO::OutputPtr>;
+  using InputQueue = ThreadsafeQueue<typename MISO::InputUniquePtr>;
+  using OutputQueue = ThreadsafeQueue<typename MISO::OutputSharedPtr>;
 
   SISOPipelineModule(InputQueue* input_queue,
                      OutputQueue* output_queue,
@@ -486,8 +494,8 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
    * @return a boolean indicating whether the generation of the input packet was
    * successful.
    */
-  virtual inline typename MISO::InputPtr getInputPacket() override {
-    typename MISO::InputPtr input = nullptr;
+  virtual inline typename MISO::InputUniquePtr getInputPacket() override {
+    typename MISO::InputUniquePtr input = nullptr;
     bool queue_state = false;
     if (MISO::parallel_run_) {
       queue_state = input_queue_->popBlocking(input);

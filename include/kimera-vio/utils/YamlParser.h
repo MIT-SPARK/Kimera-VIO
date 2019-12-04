@@ -43,7 +43,10 @@ public:
    file_handle >> *CHECK_NOTNULL(output);
   }
 
-private:
+  //! Very dangerous, do not use unless strictly necessary.
+  inline cv::FileStorage& getYamlFileStorage() { return fs_; }
+
+ private:
   void openFile(const std::string &filepath, cv::FileStorage *fs) const {
     CHECK_NOTNULL(fs)->open(filepath, cv::FileStorage::READ);
     LOG_IF(FATAL, !fs->isOpened())

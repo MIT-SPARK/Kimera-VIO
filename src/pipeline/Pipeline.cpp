@@ -169,6 +169,7 @@ Pipeline::Pipeline(const PipelineParams& params)
                                     stereo_camera_->getLeftCamPose(),
                                     stereo_camera_->getStereoCalib(),
                                     *CHECK_NOTNULL(backend_params_),
+                                    imu_params_,
                                     backend_output_params,
                                     FLAGS_log_output));
   vio_backend_module_->registerImuBiasUpdateCallback(
@@ -483,7 +484,7 @@ bool Pipeline::initializeFromIMU(
   VioNavState initial_state_estimate =
       InitializationFromImu::getInitialStateEstimate(
           stereo_imu_sync_packet.getImuAccGyr(),
-          backend_params_->n_gravity_,
+          imu_params_.n_gravity_,
           backend_params_->roundOnAutoInitialize_);
 
   // Initialize Stereo Frontend.
@@ -517,7 +518,6 @@ bool Pipeline::initializeOnline(
   // TODO(Toni): shouldn't this be done only once?
   gtsam::PreintegratedImuMeasurements::Params imu_params =
       ImuFrontEnd::convertImuParams(imu_params_);
-  imu_params.n_gravity = backend_params_->n_gravity_;
   ImuFrontEnd imu_frontend_real(
       imu_params,
       gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
@@ -615,6 +615,7 @@ bool Pipeline::initializeOnline(
           stereo_camera_->getLeftCamPose(),
           stereo_camera_->getStereoCalib(),
           backend_params_init,
+          imu_params_,
           BackendOutputParams(false, 0, false),
           FLAGS_log_output);
 
@@ -632,7 +633,7 @@ bool Pipeline::initializeOnline(
         // Reset frontend with non-trivial gravity and remove 53-enforcement.
         // Update frontend with initial gyro bias estimate.
         vio_frontend_module_->resetFrontendAfterOnlineAlignment(
-            backend_params_->n_gravity_, gyro_bias);
+            imu_params_.n_gravity_, gyro_bias);
         LOG(WARNING) << "Time used for initialization: "
                      << utils::Timer::toc(tic_full_init).count() << " (ms).";
 

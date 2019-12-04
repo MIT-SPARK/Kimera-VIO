@@ -21,6 +21,7 @@
 #include <glog/logging.h>
 
 #include "kimera-vio/frontend/FeatureSelector.h"
+#include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 
 namespace VIO {
 
@@ -79,9 +80,11 @@ FeatureSelector::FeatureSelector(const VioFrontEndParams& trackerParams,
                                  const VioBackEndParams& vioParams) {
   imuDeltaT_ = trackerParams.featureSelectionImuRate_;
   // Variance, converted to discrete time, see ImuFactor.cpp
-  accVarianceDiscTime_ = pow(vioParams.accNoiseDensity_, 2) / imuDeltaT_;
+  // TODO(x): reenable
+  // accVarianceDiscTime_ = pow(vioParams.accNoiseDensity_, 2) / imuDeltaT_;
   // Variance, converted to discrete time, see CombinedImuFactor.cpp
-  biasAccVarianceDiscTime_ = pow(vioParams.accBiasSigma_, 2) * imuDeltaT_;
+  // TODO(x): reenable
+  // biasAccVarianceDiscTime_ = pow(vioParams.accBiasSigma_, 2) * imuDeltaT_;
   // Inverse of std of vision measurements
   sqrtInfoVision_ = 1 / vioParams.smartNoiseSigma_;  // TODO: this * 1000 should
                                                      // be fx of the calibration
@@ -89,7 +92,9 @@ FeatureSelector::FeatureSelector(const VioFrontEndParams& trackerParams,
   useStereo_ = trackerParams.useStereoTracking_;
   // Variance of integration noise, converted to discrete time, see
   // ImuFactor.cpp (?)
-  integrationVar_ = pow(vioParams.imuIntegrationSigma_, 2) * imuDeltaT_;
+  // TODO(X): should be like this, setting to 0 for now...
+  // integrationVar_ = pow(imu_params.imuIntegrationSigma_, 2) * imuDeltaT_;
+  integrationVar_ = 0;
   featureSelectionDefaultDepth_ = trackerParams.featureSelectionDefaultDepth_;
   featureSelectionCosineNeighborhood_ =
       trackerParams.featureSelectionCosineNeighborhood_;

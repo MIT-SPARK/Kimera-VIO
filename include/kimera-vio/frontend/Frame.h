@@ -35,13 +35,14 @@
 #include <gtsam/geometry/Point3.h>
 
 #include "kimera-vio/frontend/CameraParams.h"
+#include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
 
 ////////////////////////////////////////////////////////////////////////////
 // Class for storing/processing a single image
-class Frame {
+class Frame : public PipelinePayload {
  public:
   // TODO(Toni): do it please.
   // KIMERA_DELETE_COPY_CONSTRUCTORS(Frame);
@@ -55,11 +56,26 @@ class Frame {
         const Timestamp& timestamp,
         const CameraParams& cam_param,
         const cv::Mat& img)
-      : id_(id),
-        timestamp_(timestamp),
+      : PipelinePayload(timestamp),
+        id_(id),
         cam_param_(cam_param),
         img_(img),
         isKeyframe_(false) {}
+
+  // TODO(TONI): delete all copy constructors!!
+  // Look at the waste of time this is :O
+  Frame(const Frame& frame)
+      : PipelinePayload(frame.timestamp_),
+        id_(frame.id_),
+        cam_param_(frame.cam_param_),
+        img_(frame.img_),
+        isKeyframe_(frame.isKeyframe_),
+        keypoints_(frame.keypoints_),
+        scores_(frame.scores_),
+        landmarks_(frame.landmarks_),
+        landmarksAge_(frame.landmarksAge_),
+        versors_(frame.versors_),
+        descriptors_(frame.descriptors_) {}
 
  public:
   /* ++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++ */
@@ -227,7 +243,6 @@ class Frame {
 
  public:
   const FrameId id_;
-  const Timestamp timestamp_;
 
   // These are non-const since they will be changed during rectification.
   // TODO(Toni): keep original and rectified params.

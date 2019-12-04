@@ -67,17 +67,6 @@ class VioBackEndParams {
   KIMERA_POINTER_TYPEDEFS(VioBackEndParams);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VioBackEndParams(
-      // IMU PARAMS
-      const double gyroNoiseDensity = 0.00016968,
-      const double accNoiseDensity = 0.002,
-      const double gyroBiasSigma = 1.9393e-05,
-      const double accBiasSigma = 0.003,
-      const double imuIntegrationSigma = 1e-8,
-      const gtsam::Vector3& n_gravity =
-          gtsam::Vector3(0.0,
-                         0.0,
-                         -9.81),  // gravity in navigation frame, according to
-      const double nominalImuRate = 0.005,
       // INITIALIZATION SETTINGS
       const int autoInitialize = 0,
       /// Only used if autoInitialize is off (0)
@@ -123,13 +112,6 @@ class VioBackEndParams {
         initialVelocitySigma_(initialVelocitySigma),
         initialAccBiasSigma_(initialAccBiasSigma),
         initialGyroBiasSigma_(initialGyroBiasSigma),
-        gyroNoiseDensity_(gyroNoiseDensity),
-        accNoiseDensity_(accNoiseDensity),
-        imuIntegrationSigma_(imuIntegrationSigma),
-        gyroBiasSigma_(gyroBiasSigma),
-        accBiasSigma_(accBiasSigma),
-        nominalImuRate_(nominalImuRate),
-        n_gravity_(n_gravity),
         autoInitialize_(autoInitialize),
         initial_ground_truth_state_(initial_ground_truth_state),
         roundOnAutoInitialize_(roundOnAutoInitialize),
@@ -166,16 +148,6 @@ class VioBackEndParams {
   double initialVelocitySigma_;
   double initialAccBiasSigma_;
   double initialGyroBiasSigma_;
-
-  //! Imu params
-  // TODO(TONI): these imu stuff should be in its own yaml parser!!
-  double gyroNoiseDensity_;
-  double accNoiseDensity_;
-  double imuIntegrationSigma_;
-  double gyroBiasSigma_;
-  double accBiasSigma_;
-  double nominalImuRate_;
-  gtsam::Vector3 n_gravity_;
 
   //! Initialization parameters
   int autoInitialize_;
@@ -226,18 +198,6 @@ class VioBackEndParams {
  protected:
   bool parseYAMLVioBackEndParams() {
     CHECK(yaml_parser_ != nullptr);
-    // IMU PARAMS
-    yaml_parser_->getYamlParam("gyroNoiseDensity", &gyroNoiseDensity_);
-    yaml_parser_->getYamlParam("accNoiseDensity", &accNoiseDensity_);
-    yaml_parser_->getYamlParam("gyroBiasSigma", &gyroBiasSigma_);
-    yaml_parser_->getYamlParam("accBiasSigma", &accBiasSigma_);
-    yaml_parser_->getYamlParam("imuIntegrationSigma", &imuIntegrationSigma_);
-    std::vector<double> n_gravity;
-    yaml_parser_->getYamlParam("n_gravity", &n_gravity);
-    CHECK_EQ(n_gravity.size(), 3);
-    for (int k = 0; k < 3; k++) n_gravity_(k) = n_gravity[k];
-    yaml_parser_->getYamlParam("nominalImuRate", &nominalImuRate_);
-
     // INITIALIZATION
     yaml_parser_->getYamlParam("autoInitialize", &autoInitialize_);
     yaml_parser_->getYamlParam("roundOnAutoInitialize",
@@ -319,16 +279,6 @@ class VioBackEndParams {
   bool equalsVioBackEndParams(const VioBackEndParams& vp2,
                               double tol = 1e-8) const {
     return
-        // IMU PARAMS
-        (fabs(gyroNoiseDensity_ - vp2.gyroNoiseDensity_) <= tol) &&
-        (fabs(accNoiseDensity_ - vp2.accNoiseDensity_) <= tol) &&
-        (fabs(imuIntegrationSigma_ - vp2.imuIntegrationSigma_) <= tol) &&
-        (fabs(gyroBiasSigma_ - vp2.gyroBiasSigma_) <= tol) &&
-        (fabs(accBiasSigma_ - vp2.accBiasSigma_) <= tol) &&
-        (fabs(n_gravity_(0) - vp2.n_gravity_(0)) <= tol) &&
-        (fabs(n_gravity_(1) - vp2.n_gravity_(1)) <= tol) &&
-        (fabs(n_gravity_(2) - vp2.n_gravity_(2)) <= tol) &&
-        (fabs(nominalImuRate_ - vp2.nominalImuRate_) <= tol) &&
         // INITIALIZATION
         (autoInitialize_ == vp2.autoInitialize_) &&
         initial_ground_truth_state_.equals(vp2.initial_ground_truth_state_) &&
@@ -367,15 +317,6 @@ class VioBackEndParams {
 
   void printVioBackEndParams() const {
     LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
-              << "** IMU parameters **\n"
-              << "gyroNoiseDensity_: " << gyroNoiseDensity_ << '\n'
-              << "accNoiseDensity_: " << accNoiseDensity_ << '\n'
-              << "imuIntegrationSigma_: " << imuIntegrationSigma_ << '\n'
-              << "gyroBiasSigma_: " << gyroBiasSigma_ << '\n'
-              << "accBiasSigma_: " << accBiasSigma_ << '\n'
-              << "n_gravity_: " << n_gravity_.transpose() << '\n'
-              << "nominalImuRate_: " << nominalImuRate_ << '\n'
-
               << "** INITIALIZATION parameters **\n"
               << "autoInitialize_: " << autoInitialize_ << '\n'
               << "initial_ground_truth_state_: ";

@@ -43,19 +43,13 @@ ETHDatasetParser::ETHDatasetParser(int initial_k,
                                    int skip_n_end_frames)
     : DataProviderInterface(initial_k, final_k, dataset_path),
       skip_n_start_frames_(skip_n_start_frames),
-      skip_n_end_frames_(skip_n_end_frames),
-      imu_data_() {
-  parse();
-}
+      skip_n_end_frames_(skip_n_end_frames) {}
 
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::ETHDatasetParser()
     : DataProviderInterface(),
       skip_n_start_frames_(FLAGS_skip_n_start_frames),
-      skip_n_end_frames_(FLAGS_skip_n_end_frames),
-      imu_data_() {
-  parse();
-}
+      skip_n_end_frames_(FLAGS_skip_n_end_frames) {}
 
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::~ETHDatasetParser() {
@@ -66,16 +60,14 @@ ETHDatasetParser::~ETHDatasetParser() {
 bool ETHDatasetParser::spin() {
   // Check that the user correctly registered a callback function for the
   // pipeline.
-  CHECK(vio_callback_) << "Missing VIO callback registration. Call "
-                          " registerVioCallback before spinning the dataset.";
+  CHECK(left_frame_callback_);
+  CHECK(right_frame_callback_);
   // Check also that the dataset has been correctly parsed.
 
   // Timestamp 10 frames before the first (for imu calibration)
   CHECK_GE(initial_k_, skip_n_start_frames_)
       << "Initial frame " << initial_k_ << " has to be larger than "
       << skip_n_start_frames_ << " (needed for IMU calibration)";
-  Timestamp timestamp_last_frame =
-      timestampAtFrame(initial_k_ - skip_n_start_frames_);
 
   // Spin.
   const StereoMatchingParams& stereo_matching_params =
@@ -85,67 +77,42 @@ bool ETHDatasetParser::spin() {
   const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
   const CameraParams& right_cam_info = pipeline_params_.camera_params_.at(1);
   for (FrameId k = initial_k_; k < final_k_; k++) {
-    spinOnce(k,
-             stereo_matching_params,
-             equalize_image,
-             left_cam_info,
-             right_cam_info,
-             &timestamp_last_frame);
+    spinOnce(k, left_cam_info, right_cam_info, equalize_image);
   }
   return true;
 }
 
-void ETHDatasetParser::spinOnce(
-    const FrameId& k,
-    const StereoMatchingParams& stereo_matching_params,
-    const bool equalize_image,
-    const CameraParams& left_cam_info,
-    const CameraParams& right_cam_info,
-    Timestamp* timestamp_last_frame) {
-  CHECK_NOTNULL(timestamp_last_frame);
-  Timestamp timestamp_frame_k = timestampAtFrame(k);
-  ImuMeasurements imu_meas;
-  CHECK_LT(*timestamp_last_frame, timestamp_frame_k);
-  CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
-        imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-            *timestamp_last_frame,
-            timestamp_frame_k,
-            &imu_meas.timestamps_,
-            &imu_meas.measurements_));
-
-  VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
-           << "STAMPS IMU rows : \n"
-           << imu_meas.timestamps_.rows() << '\n'
-           << "STAMPS IMU cols : \n"
-           << imu_meas.timestamps_.cols() << '\n'
-           << "STAMPS IMU: \n"
-           << imu_meas.timestamps_ << '\n'
-           << "ACCGYR IMU rows : \n"
-           << imu_meas.measurements_.rows() << '\n'
-           << "ACCGYR IMU cols : \n"
-           << imu_meas.measurements_.cols() << '\n'
-           << "ACCGYR IMU: \n"
-           << imu_meas.measurements_;
-
-  *timestamp_last_frame = timestamp_frame_k;
+void ETHDatasetParser::spinOnce(const FrameId& k,
+                                const CameraParams& left_cam_info,
+                                const CameraParams& right_cam_info,
+                                const bool& equalize_image) {
+  const Timestamp& timestamp_frame_k = timestampAtFrame(k);
 
   // TODO(Toni) alternatively push here to a queue, and give that queue to the
   // VIO pipeline so it can pull from it.
   // Call VIO Pipeline.
   VLOG(10) << "Call VIO processing for frame k: " << k
            << " with timestamp: " << timestamp_frame_k;
-  vio_callback_(VIO::make_unique<StereoImuSyncPacket>(
-      StereoFrame(k,
-                  timestamp_frame_k,
-                  UtilsOpenCV::ReadAndConvertToGrayScale(getLeftImgName(k),
-                                                         equalize_image),
-                  left_cam_info,
-                  UtilsOpenCV::ReadAndConvertToGrayScale(getRightImgName(k),
-                                                         equalize_image),
-                  right_cam_info,
-                  stereo_matching_params),
-      imu_meas.timestamps_,
-      imu_meas.measurements_));
+
+  // TODO(Toni): ideally only send cv::Mat raw images...:
+  // - pass params to vio_pipeline ctor
+  // - make vio_pipeline actually equalize or transform images as necessary.
+  left_frame_callback_(
+      VIO::make_unique<Frame>(k,
+                              timestamp_frame_k,
+                              left_cam_info,
+                              UtilsOpenCV::ReadAndConvertToGrayScale(
+                                  getLeftImgName(k), equalize_image)));
+  right_frame_callback_(
+      VIO::make_unique<Frame>(k,
+                              timestamp_frame_k,
+                              right_cam_info,
+                              UtilsOpenCV::ReadAndConvertToGrayScale(
+                                  getRightImgName(k), equalize_image)));
+
+  // This is done directly when parsing the Imu data.
+  // imu_single_callback_(imu_meas);
+
   VLOG(10) << "Finished VIO processing for frame k = " << k;
 }
 
@@ -157,7 +124,10 @@ void ETHDatasetParser::parse() {
   static const std::string right_cam_name = "cam1";
   static const std::string imu_name = "imu0";
   static const std::string ground_truth_name = "state_groundtruth_estimate0";
-  parseDataset(dataset_path_, left_cam_name, right_cam_name, imu_name,
+  parseDataset(dataset_path_,
+               left_cam_name,
+               right_cam_name,
+               imu_name,
                ground_truth_name);
   print();
 
@@ -219,35 +189,7 @@ bool ETHDatasetParser::parseImuParams(const std::string& input_dataset_path,
   std::string filename_sensor =
       input_dataset_path + "/mav0/" + imu_name + "/sensor.yaml";
 
-  cv::FileStorage fs;
-  UtilsOpenCV::safeOpenCVFileStorage(&fs, filename_sensor);
-
-  // Rows and cols are redundant info, since the pose 4x4, but we parse just
-  // to check we are all on the same page.
-  CHECK_EQ(static_cast<int>(fs["T_BS"]["rows"]), 4u);
-  CHECK_EQ(static_cast<int>(fs["T_BS"]["cols"]), 4u);
-  std::vector<double> vector_pose;
-  fs["T_BS"]["data"] >> vector_pose;
-  gtsam::Pose3 body_Pose_cam = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
-
-  // Sanity check: IMU is usually chosen as the body frame.
-  LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3()))
-      << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
-
-  // TODO(Toni) REMOVE THIS PARSING. Actually don't!! It is used to infer
-  // the covariance for the IMU factors! But this param is currently not getting
-  // to the backend, the one in the yaml file is! FIX THAT
-  int rate = fs["rate_hz"];
-  CHECK_GT(rate, 0u);
-  imu_data_.nominal_imu_rate_ = 1 / static_cast<double>(rate);
-
-  imu_params->gyro_noise_ = fs["gyroscope_noise_density"];
-  imu_params->gyro_walk_ = fs["gyroscope_random_walk"];
-  imu_params->acc_noise_ = fs["accelerometer_noise_density"];
-  imu_params->acc_walk_ = fs["accelerometer_random_walk"];
-
-  fs.release();
-  return true;
+  return DataProviderInterface::parseImuParams(filename_sensor, imu_params);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -273,6 +215,8 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
   Timestamp previous_timestamp = -1;
 
   // Read/store imu measurements, line by line.
+  ImuMeasurements imu_meas;
+  CHECK(imu_single_callback_) << "Did you forget to register the IMU callback?";
   while (std::getline(fin, line)) {
     Timestamp timestamp = 0;
     gtsam::Vector6 gyroAccData;
@@ -295,14 +239,17 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
     double normRotRate = gyroAccData.head(3).norm();
     if (normRotRate > maxNormRotRate) maxNormRotRate = normRotRate;
 
-    imu_data_.imu_buffer_.addMeasurement(timestamp, imu_accgyr);
+    //! Send IMU measurement to the VIO pipeline.
+    imu_single_callback_(ImuMeasurement(timestamp, imu_accgyr));
+
     if (previous_timestamp == -1) {
       // Do nothing.
       previous_timestamp = timestamp;
     } else {
       sumOfDelta += (timestamp - previous_timestamp);
       double deltaMismatch = std::fabs(
-          double(timestamp - previous_timestamp - imu_data_.nominal_imu_rate_) *
+          static_cast<double>(timestamp - previous_timestamp -
+                              pipeline_params_.imu_params_.nominal_rate_) *
           1e-9);
       stdDelta += std::pow(deltaMismatch, 2);
       imu_rate_maxMismatch = std::max(imu_rate_maxMismatch, deltaMismatch);
@@ -311,21 +258,19 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
     }
   }
 
-  LOG_IF(FATAL, deltaCount != imu_data_.imu_buffer_.size() - 1u)
-      << "parseImuData: wrong nr of deltaCount: deltaCount " << deltaCount
-      << " nr lines " << imu_data_.imu_buffer_.size();
-
   // Converted to seconds.
-  imu_data_.imu_rate_ =
-      (static_cast<double>(sumOfDelta) / static_cast<double>(deltaCount)) *
-      1e-9;
-  imu_data_.imu_rate_std_ =
-      std::sqrt(stdDelta / static_cast<double>(deltaCount - 1u));
-  imu_data_.imu_rate_maxMismatch_ = imu_rate_maxMismatch;
+  VLOG(10) << "IMU rate: "
+           << (static_cast<double>(sumOfDelta) /
+               static_cast<double>(deltaCount)) *
+                  1e-9
+           << '\n'
+           << "IMU rate std: "
+           << std::sqrt(stdDelta / static_cast<double>(deltaCount - 1u)) << '\n'
+           << "IMU rate max mismatch: " << imu_rate_maxMismatch << '\n'
+           << "Maximum measured rotation rate (norm):" << maxNormRotRate << '\n'
+           << "Maximum measured acceleration (norm): " << maxNormAcc;
   fin.close();
 
-  LOG(INFO) << "Maximum measured rotation rate (norm):" << maxNormRotRate << '-'
-            << "Maximum measured acceleration (norm): " << maxNormAcc;
   return true;
 }
 
@@ -406,8 +351,8 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
     VioNavState gt_curr;
     gtsam::Point3 position(gtDataRaw[0], gtDataRaw[1], gtDataRaw[2]);
     // Quaternion w x y z.
-    gtsam::Rot3 rot = gtsam::Rot3::Quaternion(gtDataRaw[3], gtDataRaw[4],
-                                              gtDataRaw[5], gtDataRaw[6]);
+    gtsam::Rot3 rot = gtsam::Rot3::Quaternion(
+        gtDataRaw[3], gtDataRaw[4], gtDataRaw[5], gtDataRaw[6]);
 
     // Sanity check.
     gtsam::Vector q = rot.quaternion();
@@ -416,10 +361,11 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
       q = -q;
     }
 
-    LOG_IF(FATAL, (fabs(q(0) - gtDataRaw[3]) > 1e-3) ||
-                      (fabs(q(1) - gtDataRaw[4]) > 1e-3) ||
-                      (fabs(q(2) - gtDataRaw[5]) > 1e-3) ||
-                      (fabs(q(3) - gtDataRaw[6]) > 1e-3))
+    LOG_IF(FATAL,
+           (fabs(q(0) - gtDataRaw[3]) > 1e-3) ||
+               (fabs(q(1) - gtDataRaw[4]) > 1e-3) ||
+               (fabs(q(2) - gtDataRaw[5]) > 1e-3) ||
+               (fabs(q(3) - gtDataRaw[6]) > 1e-3))
         << "parseGTdata: wrong quaternion conversion"
         << "(" << q(0) << "," << gtDataRaw[3] << ") "
         << "(" << q(1) << "," << gtDataRaw[4] << ") "
@@ -539,8 +485,8 @@ bool ETHDatasetParser::sanityCheckCameraData(
   auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists_;
   auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists_;
   return sanityCheckCamSize(&left_img_lists, &right_img_lists) &&
-         sanityCheckCamTimestamps(left_img_lists, right_img_lists,
-                                  left_cam_info);
+         sanityCheckCamTimestamps(
+             left_img_lists, right_img_lists, left_cam_info);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -662,30 +608,28 @@ const InitializationPerformance ETHDatasetParser::getInitializationPerformance(
     double relativeTranError = -1;
     // Fill relative poses from GT
     // Check that GT is available
-    if (!isGroundTruthAvailable(timestamps.at(i-1)) ||
+    if (!isGroundTruthAvailable(timestamps.at(i - 1)) ||
         !isGroundTruthAvailable(timestamps.at(i))) {
-        LOG(FATAL) << "GT Timestamp not available!";
+      LOG(FATAL) << "GT Timestamp not available!";
     }
-    gt_relative = getGroundTruthRelativePose(timestamps.at(i-1),
-                                            timestamps.at(i));
+    gt_relative =
+        getGroundTruthRelativePose(timestamps.at(i - 1), timestamps.at(i));
     // Get relative pose from BA
-    gtsam::Pose3 ba_relative =
-        poses_ba.at(i-1).between(poses_ba.at(i));
+    gtsam::Pose3 ba_relative = poses_ba.at(i - 1).between(poses_ba.at(i));
     // Compute errors between BA and GT
     std::tie(relativeRotError, relativeTranError) =
-      UtilsOpenCV::ComputeRotationAndTranslationErrors(
-        gt_relative, ba_relative, false);
+        UtilsOpenCV::ComputeRotationAndTranslationErrors(
+            gt_relative, ba_relative, false);
     avg_relativeRotError += fabs(relativeRotError);
     avg_relativeTranError += fabs(relativeTranError);
   }
   // Compute average logmap error and translation error
-  avg_relativeRotError = avg_relativeRotError/double(init_n_frames);
-  avg_relativeTranError = avg_relativeTranError/double(init_n_frames);
+  avg_relativeRotError = avg_relativeRotError / double(init_n_frames);
+  avg_relativeTranError = avg_relativeTranError / double(init_n_frames);
 
   LOG(INFO) << "avg. rot. error\n"
-              << avg_relativeRotError
-              << "\navg. tran. error\n"
-              << avg_relativeTranError;
+            << avg_relativeRotError << "\navg. tran. error\n"
+            << avg_relativeTranError;
 
   // Convert velocities and gravity vector in initial body frame.
   // This is already the case for the init nav state passed.
@@ -700,15 +644,14 @@ const InitializationPerformance ETHDatasetParser::getInitializationPerformance(
             << gt_gravity;
 
   // Create performance overview
-  const InitializationPerformance init_performance(
-                            timestamps.at(1),
-                            init_n_frames,
-                            avg_relativeRotError,
-                            avg_relativeTranError,
-                            init_nav_state,
-                            init_gravity,
-                            gt_state,
-                            gt_gravity);
+  const InitializationPerformance init_performance(timestamps.at(1),
+                                                   init_n_frames,
+                                                   avg_relativeRotError,
+                                                   avg_relativeTranError,
+                                                   init_nav_state,
+                                                   init_gravity,
+                                                   gt_state,
+                                                   gt_gravity);
   // Log performance
   init_performance.print();
   // Return
@@ -739,7 +682,6 @@ void ETHDatasetParser::print() const {
   }
   if (FLAGS_minloglevel < 1) {
     gt_data_.print();
-    imu_data_.print();
   }
   LOG(INFO) << "-------------------------------------------------------------\n"
             << "-------------------------------------------------------------\n"

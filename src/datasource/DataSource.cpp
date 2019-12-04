@@ -23,11 +23,14 @@
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
 DEFINE_string(vio_params_path, "", "Path to vio user-defined parameters.");
-DEFINE_string(tracker_params_path, "",
+DEFINE_string(tracker_params_path,
+              "",
               "Path to tracker user-defined parameters.");
-DEFINE_string(lcd_params_path, "",
+DEFINE_string(lcd_params_path,
+              "",
               "Path to loop-closure-detector user-defined parameters.");
-DEFINE_int32(backend_type, 0,
+DEFINE_int32(backend_type,
+             0,
              "Type of vioBackEnd to use:\n"
              "0: VioBackEnd\n"
              "1: RegularVioBackEnd");
@@ -35,13 +38,16 @@ DEFINE_int32(frontend_type,
              0,
              "Type of VIO Frontend to use:\n"
              "0: StereoImu");
-DEFINE_int64(initial_k, 50,
+DEFINE_int64(initial_k,
+             50,
              "Initial frame to start processing dataset, "
              "previous frames will not be used.");
-DEFINE_int64(final_k, 10000,
+DEFINE_int64(final_k,
+             10000,
              "Final frame to finish processing dataset, "
              "subsequent frames will not be used.");
-DEFINE_string(dataset_path, "/Users/Luca/data/MH_01_easy",
+DEFINE_string(dataset_path,
+              "/Users/Luca/data/MH_01_easy",
               "Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).");
 
 namespace VIO {
@@ -54,11 +60,10 @@ DataProviderInterface::DataProviderInterface(int initial_k,
       final_k_(final_k),
       dataset_path_(dataset_path) {
   CHECK(final_k_ > initial_k_)
-      << "Value for final_k (" << final_k_
-      << ") is smaller than value for"
+      << "Value for final_k (" << final_k_ << ") is smaller than value for"
       << " initial_k (" << initial_k_ << ").";
-  LOG(INFO) << "Running dataset between frame " << initial_k_
-          << " and frame " << final_k_;
+  LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
+            << final_k_;
 }
 
 DataProviderInterface::DataProviderInterface()
@@ -75,7 +80,11 @@ bool DataProviderInterface::spin() {
   // 1) Check that the callbacks have been registered, aka that the user has
   // called the function registerVioCallback, in order to store the callback
   // function.
-  CHECK(imu_callback_);
+  //! Check only the imu callback that you want to use:
+  //! - single: only one message at a time.
+  //! - multi: multiple message at a time.
+  CHECK(imu_single_callback_);
+  CHECK(imu_multi_callback_);
   CHECK(left_frame_callback_);
   CHECK(right_frame_callback_);
 
@@ -88,7 +97,9 @@ bool DataProviderInterface::spin() {
       VIO::make_unique<Frame>(0, 0, CameraParams("left_cam"), cv::Mat()));
   right_frame_callback_(
       VIO::make_unique<Frame>(0, 0, CameraParams("right_cam"), cv::Mat()));
-  imu_callback_(ImuMeasurements());
+  //! Usually you would use only one of these
+  imu_single_callback_(ImuMeasurement());
+  imu_multi_callback_(ImuMeasurements());
 
   // 3) Once the dataset spin has finished, exit.
   // You can return false if something went wrong.
@@ -104,7 +115,8 @@ void DataProviderInterface::parseBackendParams() {
       break;
     }
     case BackendType::kStructuralRegularities: {
-      pipeline_params_.backend_params_ = std::make_shared<RegularVioBackEndParams>();
+      pipeline_params_.backend_params_ =
+          std::make_shared<RegularVioBackEndParams>();
       break;
     }
     default: {
@@ -117,33 +129,11 @@ void DataProviderInterface::parseBackendParams() {
   // Read/define vio params.
   if (FLAGS_vio_params_path.empty()) {
     LOG(WARNING) << "No vio parameters specified, using default.";
-    // Default params with IMU stats from dataset.
-    pipeline_params_.backend_params_->gyroNoiseDensity_ = pipeline_params_.imu_params_.gyro_noise_;
-    pipeline_params_.backend_params_->accNoiseDensity_ = pipeline_params_.imu_params_.acc_noise_;
-    pipeline_params_.backend_params_->gyroBiasSigma_ = pipeline_params_.imu_params_.gyro_walk_;
-    pipeline_params_.backend_params_->accBiasSigma_ = pipeline_params_.imu_params_.acc_walk_;
   } else {
     VLOG(100) << "Using user-specified VIO parameters: "
               << FLAGS_vio_params_path;
     pipeline_params_.backend_params_->parseYAML(FLAGS_vio_params_path);
   }
-  // TODO(Toni) make this cleaner! pipeline_params_.imu_params_ are parsed all
-  // around, it's a mess!! They are basically parsed from backend params... but
-  // they should be on their own mostly. Here we just override gravity and
-  // imu_integration sigma from backend_params_ But one may be able to overwrite
-  // all of them using backend_params_
-  CHECK_DOUBLE_EQ(pipeline_params_.imu_params_.acc_walk_,
-                  pipeline_params_.backend_params_->accBiasSigma_);
-  CHECK_DOUBLE_EQ(pipeline_params_.imu_params_.acc_noise_,
-                  pipeline_params_.backend_params_->accNoiseDensity_);
-  CHECK_DOUBLE_EQ(pipeline_params_.imu_params_.gyro_walk_,
-                  pipeline_params_.backend_params_->gyroBiasSigma_);
-  CHECK_DOUBLE_EQ(pipeline_params_.imu_params_.gyro_noise_,
-                  pipeline_params_.backend_params_->gyroNoiseDensity_);
-  pipeline_params_.imu_params_.imu_integration_sigma_ =
-      pipeline_params_.backend_params_->imuIntegrationSigma_;
-  pipeline_params_.imu_params_.n_gravity_ =
-      pipeline_params_.backend_params_->n_gravity_;
   CHECK(pipeline_params_.backend_params_);
 }
 
@@ -161,6 +151,49 @@ void DataProviderInterface::parseFrontendParams() {
     pipeline_params_.frontend_params_.parseYAML(FLAGS_tracker_params_path);
   }
   CHECK_NOTNULL(&pipeline_params_.frontend_params_);
+}
+
+bool DataProviderInterface::parseImuParams(const std::string& imu_yaml_path,
+                                           ImuParams* imu_params) {
+  CHECK_NOTNULL(imu_params);
+
+  YamlParser::Ptr yaml_parser_ = std::make_shared<YamlParser>(imu_yaml_path);
+
+  // Rows and cols are redundant info, since the pose 4x4, but we parse just
+  // to check we are all on the same page.
+  // TODO(Toni): don't use the getYamlFileStorage function...
+  cv::FileStorage fs = yaml_parser_->getYamlFileStorage();
+  CHECK_EQ(static_cast<int>(fs["T_BS"]["rows"]), 4u);
+  CHECK_EQ(static_cast<int>(fs["T_BS"]["cols"]), 4u);
+  std::vector<double> vector_pose;
+  fs["T_BS"]["data"] >> vector_pose;
+  const gtsam::Pose3& body_Pose_cam =
+      UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);
+
+  // Sanity check: IMU is usually chosen as the body frame.
+  LOG_IF(FATAL, !body_Pose_cam.equals(gtsam::Pose3()))
+      << "parseImuData: we expected identity body_Pose_cam_: is everything ok?";
+
+  int rate = 0;
+  yaml_parser_->getYamlParam("rate_hz", &rate);
+  CHECK_GT(rate, 0u);
+  imu_params->nominal_rate_ = 1 / static_cast<double>(rate);
+
+  // IMU PARAMS
+  yaml_parser_->getYamlParam("gyroscope_noise_density",
+                             &imu_params->gyro_noise_);
+  yaml_parser_->getYamlParam("accelerometer_noise_density",
+                             &imu_params->acc_noise_);
+  yaml_parser_->getYamlParam("gyroscope_random_walk", &imu_params->gyro_walk_);
+  yaml_parser_->getYamlParam("accelerometer_random_walk",
+                             &imu_params->acc_walk_);
+  std::vector<double> n_gravity;
+  yaml_parser_->getYamlParam("n_gravity", &n_gravity);
+  CHECK_EQ(n_gravity.size(), 3);
+  for (int k = 0; k < 3; k++) imu_params->n_gravity_(k) = n_gravity[k];
+
+  fs.release();
+  return true;
 }
 
 void DataProviderInterface::parseLCDParams() {

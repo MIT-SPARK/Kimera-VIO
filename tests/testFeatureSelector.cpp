@@ -238,10 +238,6 @@ TEST(FeatureSelector, createMatricesLinearImuFactor) {
 
   VioBackEndParams vioParams2 = VioBackEndParams();
   vioParams2.smartNoiseSigma_ = 1000;
-  vioParams2.accNoiseDensity_ =
-      0.1;  // fake noise to avoid that covariance it too small
-  vioParams2.accBiasSigma_ = 0.03;
-  vioParams2.imuIntegrationSigma_ = 0.2;
 
   Matrix Ai_actual, imuCov;
   FeatureSelector f(trackerParams2, vioParams2);
@@ -637,7 +633,6 @@ GaussianFactorGraph::shared_ptr createOmegaBarTest() {
   // instantiate selector
   VioBackEndParams vp = VioBackEndParams();
   vp.smartNoiseSigma_ = 1000;
-  vp.imuIntegrationSigma_ = 1e-4;
   vp.accNoiseDensity_ = 1e-2;
   vp.accBiasSigma_ = 1e-2;
   FeatureSelector f(trackerParams, vp);
@@ -1068,7 +1063,6 @@ TEST(FeatureSelector, featureSelection) {
   vp.accNoiseDensity_ =
       0.1;  // fake noise to avoid that covariance it too small
   vp.accBiasSigma_ = 0.03;
-  vp.imuIntegrationSigma_ = 1e-3;
   FeatureSelector f(trackerParams, vp);
   // TEST 1
   {

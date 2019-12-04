@@ -126,7 +126,7 @@ LoopClosureDetector::~LoopClosureDetector() {
 }
 
 /* ------------------------------------------------------------------------ */
-LcdOutput::Ptr LoopClosureDetector::spinOnce(const LcdInput& input) {
+LcdOutput::UniquePtr LoopClosureDetector::spinOnce(const LcdInput& input) {
   // One time initialization from camera parameters.
   if (!set_intrinsics_) {
     setIntrinsics(input.stereo_frame_);

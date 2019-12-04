@@ -89,12 +89,14 @@ RegularVioBackEnd::RegularVioBackEnd(
     const Pose3& B_Pose_leftCam,
     const StereoCalibPtr& stereo_calibration,
     const VioBackEndParams& backend_params,
+    const ImuParams& imu_params,
     const BackendOutputParams& backend_output_params,
     const bool& log_output)
     : regular_vio_params_(RegularVioBackEndParams::safeCast(backend_params)),
       VioBackEnd(B_Pose_leftCam,
                  stereo_calibration,
                  backend_params,
+                 imu_params,
                  backend_output_params,
                  log_output) {
   LOG(INFO) << "Using Regular VIO backend.\n";

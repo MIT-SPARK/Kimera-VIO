@@ -23,7 +23,7 @@ MesherModule::MesherModule(bool parallel_run, Mesher::UniquePtr mesher)
       backend_payload_queue_("mesher_backend"),
       mesher_(std::move(mesher)) {}
 
-MesherModule::InputPtr MesherModule::getInputPacket() {
+MesherModule::InputUniquePtr MesherModule::getInputPacket() {
   MesherBackendInput backend_payload = nullptr;
   bool queue_state = false;
   if (PIO::parallel_run_) {
@@ -56,7 +56,8 @@ MesherModule::InputPtr MesherModule::getInputPacket() {
       timestamp, frontend_payload, backend_payload);
 }
 
-MesherModule::OutputPtr MesherModule::spinOnce(MesherInput::UniquePtr input) {
+MesherModule::OutputUniquePtr MesherModule::spinOnce(
+    MesherInput::UniquePtr input) {
   return mesher_->spinOnce(*CHECK_NOTNULL(input));
 }
 

@@ -54,9 +54,6 @@ class Pipeline {
   virtual ~Pipeline();
 
   //! Callbacks to fill input queues.
-  inline void fillImuQueue(const ImuMeasurements& imu_measurements) {
-    data_provider_module_->fillImuQueue(imu_measurements);
-  }
   inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
     CHECK(left_frame);
     data_provider_module_->fillLeftFrameQueue(std::move(left_frame));
@@ -64,6 +61,14 @@ class Pipeline {
   inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
     CHECK(right_frame);
     data_provider_module_->fillRightFrameQueue(std::move(right_frame));
+  }
+  //! Fill one IMU measurement at a time.
+  inline void fillSingleImuQueue(const ImuMeasurement& imu_measurement) {
+    data_provider_module_->fillImuQueue(imu_measurement);
+  }
+  //! Fill multiple IMU measurements in batch
+  inline void fillMultiImuQueue(const ImuMeasurements& imu_measurements) {
+    data_provider_module_->fillImuQueue(imu_measurements);
   }
 
   // Run an endless loop until shutdown to visualize.
