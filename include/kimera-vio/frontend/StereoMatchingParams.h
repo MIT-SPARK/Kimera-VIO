@@ -18,57 +18,66 @@
 
 #include <glog/logging.h>
 
+#include "kimera-vio/utils/YamlParser.h"
+
 namespace VIO {
 
 class StereoMatchingParams {
  public:
-  double tolerance_template_matching_;
-  double nominal_baseline_;
-  int templ_cols_;         // must be odd
-  int templ_rows_;         // must be odd
-  int stripe_extra_rows_;  // must be even
-  double min_point_dist_;  // stereo points triangulated below this distance are
-                           // discarded
-  double max_point_dist_;  // stereo points triangulated beyond this distance
-                           // are discarded=
-  bool bidirectional_matching_;  // check best match left->right and right->left
-  bool subpixel_refinement_;     // refine stereo matches with subpixel accuracy
-  bool equalize_image_;          // do equalize image before processing
-  VisionSensorType vision_sensor_type_;  // options to use RGB-D vs. stereo
-  double min_depth_factor_;      // min-depth to be used with RGB-D
-  double map_depth_factor_;      // depth-map to be used with RGB-D
+  double tolerance_template_matching_ = 0.15;
+  double nominal_baseline_ = 0.11;
+  int templ_cols_ = 101;         // must be odd
+  int templ_rows_ = 11;          // must be odd
+  int stripe_extra_rows_ = 0;    // must be even
+  double min_point_dist_ = 0.1;  // stereo points triangulated below this
+                                 // distance are discarded
+  double max_point_dist_ = 15.0;  // stereo points triangulated beyond this
+                                  // distance are discarded=
+  bool bidirectional_matching_ =
+      false;  // check best match left->right and right->left
+  bool subpixel_refinement_ =
+      false;                     // refine stereo matches with subpixel accuracy
+  bool equalize_image_ = false;  // do equalize image before processing
+  VisionSensorType vision_sensor_type_ =
+      VisionSensorType::STEREO;      // options to use RGB-D vs. stereo
+  double min_depth_factor_ = 0.3;    // min-depth to be used with RGB-D
+  double map_depth_factor_ = 0.001;  // depth-map to be used with RGB-D
 
  public:
-  StereoMatchingParams(
-      double tol_template_matching = 0.15,
-      int templ_cols = 101,
-      int templ_rows = 11,
-      int stripe_extra_rows = 0,
-      double min_point_dist = 0.1,
-      double max_point_dist = 15.0,
-      bool bidirectional_matching = false,
-      // NOTE that this is hard coded (for EuRoC)
-      double nominal_baseline = 0.11,
-      bool subpixel_refinement = false,
-      bool equalize_image = false,
-      VisionSensorType vision_sensor_type = VisionSensorType::STEREO,
-      double min_depth_factor =
-          0.3,  // NOTE that this is hard coded (for RealSense)
-      double map_depth_factor = 0.001)
+  StereoMatchingParams() {}
+  StereoMatchingParams(const double& tol_template_matching,
+                       const int& templ_cols,
+                       const int& templ_rows,
+                       const int& stripe_extra_rows,
+                       const double& min_point_dist,
+                       const double& max_point_dist,
+                       const bool& bidirectional_matching,
+                       // NOTE that this is hard coded (for EuRoC)
+                       const double& nominal_baseline,
+                       const bool& subpixel_refinement,
+                       const bool& equalize_image,
+                       const VisionSensorType& vision_sensor_type,
+                       // NOTE that this is hard coded (for RealSense)
+                       const double& min_depth_factor,
+                       const double& map_depth_factor)
       :  // NOTE that this is hard coded (for RealSense)
-        tolerance_template_matching_(std::move(tol_template_matching)),
-        nominal_baseline_(std::move(nominal_baseline)),
-        templ_cols_(std::move(templ_cols)),
-        templ_rows_(std::move(templ_rows)),
-        stripe_extra_rows_(std::move(stripe_extra_rows)),
+        tolerance_template_matching_(tol_template_matching),
+        nominal_baseline_(nominal_baseline),
+        templ_cols_(templ_cols),
+        templ_rows_(templ_rows),
+        stripe_extra_rows_(stripe_extra_rows),
         min_point_dist_(std::max(min_point_dist, 1e-3)),
-        max_point_dist_(std::move(max_point_dist)),
-        bidirectional_matching_(std::move(bidirectional_matching)),
-        subpixel_refinement_(std::move(subpixel_refinement)),
-        equalize_image_(std::move(equalize_image)),
-        vision_sensor_type_(std::move(vision_sensor_type)),
-        min_depth_factor_(std::move(min_depth_factor)),
-        map_depth_factor_(std::move(map_depth_factor)) {
+        max_point_dist_(max_point_dist),
+        bidirectional_matching_(bidirectional_matching),
+        subpixel_refinement_(subpixel_refinement),
+        equalize_image_(equalize_image),
+        vision_sensor_type_(vision_sensor_type),
+        min_depth_factor_(min_depth_factor),
+        map_depth_factor_(map_depth_factor) {
+    checkParams();
+  }
+
+  void checkParams() {
     CHECK(!(templ_cols_ % 2 != 1 ||
             templ_rows_ % 2 != 1))  // check that they are odd
         << "StereoMatchingParams: template size must be odd!";
@@ -111,6 +120,22 @@ class StereoMatchingParams {
       LOG(INFO) << "minDepthFactor_: " << min_depth_factor_ << '\n'
                 << "mapDepthFactor_: " << map_depth_factor_;
     }
+  }
+
+  bool parseYAML(const std::string& filepath) {
+    YamlParser yaml_parser(filepath);
+    yaml_parser.getYamlParam("equalizeImage", &equalize_image_);
+    yaml_parser.getYamlParam("nominalBaseline", &nominal_baseline_);
+    yaml_parser.getYamlParam("toleranceTemplateMatching",
+                             &tolerance_template_matching_);
+    yaml_parser.getYamlParam("templ_cols", &templ_cols_);
+    yaml_parser.getYamlParam("templ_rows", &templ_rows_);
+    yaml_parser.getYamlParam("stripe_extra_rows", &stripe_extra_rows_);
+    yaml_parser.getYamlParam("minPointDist", &min_point_dist_);
+    yaml_parser.getYamlParam("maxPointDist", &max_point_dist_);
+    yaml_parser.getYamlParam("bidirectionalMatching", &bidirectional_matching_);
+    yaml_parser.getYamlParam("subpixelRefinementStereo", &subpixel_refinement_);
+    return true;
   }
 };
 

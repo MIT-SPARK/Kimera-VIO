@@ -120,12 +120,12 @@ class LCDFixture :public ::testing::Test {
         id_ref1_,
         timestamp_ref1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref1_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref1_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref1_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref1_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(ref1_stereo_frame_->getLeftFrameMutable());
     CHECK(ref1_stereo_frame_);
@@ -136,12 +136,12 @@ class LCDFixture :public ::testing::Test {
         id_cur1_,
         timestamp_cur1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur1_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur1_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur1_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur1_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(cur1_stereo_frame_->getLeftFrameMutable());
     CHECK(cur1_stereo_frame_);
@@ -152,12 +152,12 @@ class LCDFixture :public ::testing::Test {
         id_ref2_,
         timestamp_ref2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref2_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref2_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref2_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref2_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(ref2_stereo_frame_->getLeftFrameMutable());
     CHECK(ref2_stereo_frame_);
@@ -168,12 +168,12 @@ class LCDFixture :public ::testing::Test {
         id_cur2_,
         timestamp_cur2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur2_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur2_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur2_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur2_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(cur2_stereo_frame_->getLeftFrameMutable());
     CHECK(cur2_stereo_frame_);

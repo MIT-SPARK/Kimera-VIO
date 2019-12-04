@@ -59,7 +59,7 @@ bool KittiDataProvider::spin() {
   const size_t number_of_images = kitti_data_.getNumberOfImages();
 
   const StereoMatchingParams& stereo_matching_params =
-      pipeline_params_.frontend_params_.getStereoMatchingParams();
+      pipeline_params_.frontend_params_.stereo_matching_params_;
 
   // Store camera info
   CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);

@@ -33,7 +33,7 @@ public:
  KIMERA_POINTER_TYPEDEFS(YamlParser);
 
  YamlParser(const std::string& filepath) { openFile(filepath, &fs_); }
- ~YamlParser() { closeFile(&fs_); };
+ ~YamlParser() { closeFile(&fs_); }
 
  template <class T>
  void getYamlParam(const std::string& id, T* output) const {

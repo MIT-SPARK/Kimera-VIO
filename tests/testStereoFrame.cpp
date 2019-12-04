@@ -58,13 +58,13 @@ class StereoFrameFixture : public ::testing::Test {
         timestamp,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + left_image_name,
-            tp.getStereoMatchingParams().equalize_image_),
+            tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + right_image_name,
-            tp.getStereoMatchingParams().equalize_image_),
+            tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     CHECK(sf->isRectified());
 
@@ -93,13 +93,13 @@ class StereoFrameFixture : public ::testing::Test {
         timestamp,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + left_image_name,
-            tp.getStereoMatchingParams().equalize_image_),
+            tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + right_image_name,
-            tp.getStereoMatchingParams().equalize_image_),
+            tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     sfnew->getLeftFrameMutable()->extractCorners();
     sfnew->getLeftFrameMutable()->versors_.reserve(
@@ -223,13 +223,13 @@ TEST_F(StereoFrameFixture, cloneRectificationParameters) {
                       timestamp,
                       UtilsOpenCV::ReadAndConvertToGrayScale(
                           stereo_FLAGS_test_data_path + left_image_name,
-                          tp.getStereoMatchingParams().equalize_image_),
+                          tp.stereo_matching_params_.equalize_image_),
                       cam_params_left,
                       UtilsOpenCV::ReadAndConvertToGrayScale(
                           stereo_FLAGS_test_data_path + right_image_name,
-                          tp.getStereoMatchingParams().equalize_image_),
+                          tp.stereo_matching_params_.equalize_image_),
                       cam_params_right,
-                      tp.getStereoMatchingParams());
+                      tp.stereo_matching_params_);
   // clone
   sf2->cloneRectificationParameters(*sf);
   // make sure everything was copied correctly

@@ -61,7 +61,7 @@ bool ETHDatasetParser::spin() {
 
   // Spin.
   const StereoMatchingParams& stereo_matching_params =
-      pipeline_params_.frontend_params_.getStereoMatchingParams();
+      pipeline_params_.frontend_params_.stereo_matching_params_;
   const bool& equalize_image = stereo_matching_params.equalize_image_;
   CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
   const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
