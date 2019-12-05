@@ -607,7 +607,7 @@ void ETHDatasetParser::clipFinalFrame() {
     final_k_ = nr_images;
     LOG(WARNING) << "Using final_k = " << final_k_;
   }
-  CHECK_LT(final_k_, nr_images);
+  CHECK_LE(final_k_, nr_images);
 }
 /* -------------------------------------------------------------------------- */
 void ETHDatasetParser::print() const {

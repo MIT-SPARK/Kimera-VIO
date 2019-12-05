@@ -365,26 +365,27 @@ bool Pipeline::shutdownWhenFinished() {
             (mesher_module_ ? !mesher_module_->isWorking() : true) &&
             (lcd_module_ ? !lcd_module_->isWorking() : true) &&
             (visualizer_module_ ? !visualizer_module_->isWorking() : true)))) {
-    LOG(ERROR) << "shutdown_: " << shutdown_ << '\n'
-               << "VIO pipeline status: \n"
-               << "Initialized? " << is_initialized_ << '\n'
-               << "Data provider is working? "
-               << data_provider_module_->isWorking() << '\n'
-               << "Frontend input queue empty? "
-               << stereo_frontend_input_queue_.empty() << '\n'
-               << "Frontend is working? " << vio_frontend_module_->isWorking()
-               << '\n'
-               << "Backend Input queue empty? " << backend_input_queue_.empty()
-               << '\n'
-               << "Backend is working? "
-               << (is_initialized_ ? vio_backend_module_->isWorking() : false);
-    VLOG_IF_EVERY_N(10, mesher_module_, 10)
+    VLOG(5) << "shutdown_: " << shutdown_ << '\n'
+            << "VIO pipeline status: \n"
+            << "Initialized? " << is_initialized_ << '\n'
+            << "Data provider is working? "
+            << data_provider_module_->isWorking() << '\n'
+            << "Frontend input queue empty? "
+            << stereo_frontend_input_queue_.empty() << '\n'
+            << "Frontend is working? " << vio_frontend_module_->isWorking()
+            << '\n'
+            << "Backend Input queue empty? " << backend_input_queue_.empty()
+            << '\n'
+            << "Backend is working? "
+            << (is_initialized_ ? vio_backend_module_->isWorking() : false);
+
+    VLOG_IF(5, mesher_module_)
         << "Mesher is working? " << mesher_module_->isWorking();
 
-    VLOG_IF_EVERY_N(10, lcd_module_, 10)
+    VLOG_IF(5, lcd_module_)
         << "LoopClosureDetector is working? " << lcd_module_->isWorking();
 
-    VLOG_IF_EVERY_N(10, visualizer_module_, 10)
+    VLOG_IF(5, visualizer_module_)
         << "Visualizer is working? " << visualizer_module_->isWorking();
 
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
