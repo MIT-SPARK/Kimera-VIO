@@ -83,7 +83,7 @@ bool VisualizerModule::hasWork() const {
          "This should not happen since Mesher runs at Backend pace!";
   // We don't check frontend queue because it runs faster than the other two
   // queues.
-  return mesher_queue_.empty();
+  return !mesher_queue_.empty();
 };
 
 }  // namespace VIO

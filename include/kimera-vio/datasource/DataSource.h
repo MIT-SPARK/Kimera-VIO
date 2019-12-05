@@ -119,6 +119,9 @@ class DataProviderModule
   KIMERA_POINTER_TYPEDEFS(DataProviderModule);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  using VioPipelineCallback =
+      std::function<void(StereoImuSyncPacket::UniquePtr)>;
+
   DataProviderModule(OutputQueue* output_queue,
                      const std::string& name_id,
                      const bool& parallel_run,
@@ -159,6 +162,11 @@ class DataProviderModule
   inline void fillImuQueue(const ImuMeasurement& imu_measurement) {
     imu_data_.imu_buffer_.addMeasurement(imu_measurement.timestamp_,
                                          imu_measurement.acc_gyr_);
+  }
+
+  // TODO(Toni): remove
+  inline void registerVioPipelineCallback(const VioPipelineCallback& cb) {
+    vio_pipeline_callback_ = cb;
   }
 
  protected:
@@ -226,17 +234,33 @@ class DataProviderModule
              << "ACCGYR IMU: \n"
              << imu_meas.acc_gyr_;
 
-    // Push the synced messages to the frontend's input queue
-    return VIO::make_unique<StereoImuSyncPacket>(
+    CHECK(vio_pipeline_callback_);
+    vio_pipeline_callback_(VIO::make_unique<StereoImuSyncPacket>(
         StereoFrame(
             left_frame_payload->id_,
             timestamp,
             *left_frame_payload,
             *right_frame_payload,
             stereo_matching_params_),  // TODO(Toni): these params should
-                                       // be given in PipelineParams.
+        // be given in PipelineParams.
         imu_meas.timestamps_,
-        imu_meas.acc_gyr_);
+        imu_meas.acc_gyr_));
+
+    // Push the synced messages to the frontend's input queue
+    // TODO(Toni): should be a return like that, so that we pass the info to the
+    // queue... Right now we use a callback bcs otw I need to fix all
+    // initialization which is a lot to be fixed.
+    // return VIO::make_unique<StereoImuSyncPacket>(
+    //    StereoFrame(
+    //        left_frame_payload->id_,
+    //        timestamp,
+    //        *left_frame_payload,
+    //        *right_frame_payload,
+    //        stereo_matching_params_),  // TODO(Toni): these params should
+    //                                   // be given in PipelineParams.
+    //    imu_meas.timestamps_,
+    //    imu_meas.acc_gyr_);
+    return nullptr;
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
@@ -244,12 +268,11 @@ class DataProviderModule
     left_frame_queue_.shutdown();
     right_frame_queue_.shutdown();
     MISOPipelineModule::shutdownQueues();
-  };
+  }
 
   //! Checks if the module has work to do (should check input queues are empty)
   virtual bool hasWork() const override {
-    return !left_frame_queue_.empty() || !right_frame_queue_.empty() ||
-           MISOPipelineModule::hasWork();
+    return !left_frame_queue_.empty() || !right_frame_queue_.empty();
   }
 
  private:
@@ -257,8 +280,9 @@ class DataProviderModule
   ImuData imu_data_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
-  // TODO(Toni): remove this
+  // TODO(Toni): remove these below
   StereoMatchingParams stereo_matching_params_;
+  VioPipelineCallback vio_pipeline_callback_;
 };
 
 }  // namespace VIO

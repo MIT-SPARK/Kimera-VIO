@@ -526,13 +526,13 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
     LOG(INFO) << "Shutting down queues for: " << name_id_;
     frontend_queue_.shutdown();
     backend_queue_.shutdown();
-  };
+  }
 
   //! Checks if the module has work to do (should check input queues are empty)
   virtual bool hasWork() const override {
     // We don't check frontend queue because it runs faster than backend queue.
-    return backend_queue_.empty();
-  };
+    return !backend_queue_.empty();
+  }
 
  private:
   //! Input Queues

@@ -88,7 +88,12 @@ int main(int argc, char* argv[]) {
     is_pipeline_successful = handle.get();
     handle_pipeline.get();
   } else {
+    // First parse the dataset entirely.
+    LOG(INFO) << "Parsing dataset...";
     is_pipeline_successful = dataset_parser->spin();
+    LOG(INFO) << "Starting VIO...";
+    // Then process the whole dataset until we run out of data.
+    vio_pipeline.shutdownWhenFinished();
   }
 
   // Output stats.

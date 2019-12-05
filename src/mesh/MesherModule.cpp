@@ -69,7 +69,7 @@ void MesherModule::shutdownQueues() {
 
 bool MesherModule::hasWork() const {
   // We don't check frontend queue because it runs faster than backend queue.
-  return backend_payload_queue_.empty();
+  return !backend_payload_queue_.empty();
 };
 
 }  // namespace VIO

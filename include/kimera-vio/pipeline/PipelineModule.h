@@ -105,8 +105,12 @@ class PipelineModule {
       }
 
       // Break the while loop if we are in sequential mode.
-      if (!parallel_run_) return true;
+      if (!parallel_run_) {
+        is_thread_working_ = false;
+        return true;
+      }
     }
+    is_thread_working_ = false;
     LOG(INFO) << "Module: " << name_id_ << " - Successful shutdown.";
     return true;
   }
@@ -130,7 +134,7 @@ class PipelineModule {
 
   /* ------------------------------------------------------------------------ */
   //! Checks if the module is working or if it still has work to do.
-  inline bool isWorking() const { return is_thread_working_ && !hasWork(); }
+  inline bool isWorking() const { return is_thread_working_ || hasWork(); }
 
  protected:
   /**
@@ -444,7 +448,7 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
   virtual void shutdownQueues() override { output_queue_->shutdown(); }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override { return !output_queue_->empty(); }
+  virtual bool hasWork() const = 0;
 
  private:
   //! Output
@@ -519,9 +523,7 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
   }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override {
-    return !input_queue_->empty() || MISO::hasWork();
-  }
+  virtual bool hasWork() const override { return !input_queue_->empty(); }
 
  private:
   //! Input

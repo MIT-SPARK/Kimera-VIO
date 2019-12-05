@@ -79,7 +79,7 @@ class Pipeline {
   bool spinViz();
 
   // Shutdown the pipeline once all data has been consumed.
-  void shutdownWhenFinished();
+  bool shutdownWhenFinished();
 
   // Shutdown processing pipeline: stops and joins threads, stops queues.
   // And closes logfiles.

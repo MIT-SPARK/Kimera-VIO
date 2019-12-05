@@ -133,6 +133,9 @@ Pipeline::Pipeline(const VioParams& params)
       // TODO(Toni): these params should not be sent...
       params.frontend_params_.stereo_matching_params_);
 
+  data_provider_module_->registerVioPipelineCallback(
+      std::bind(&Pipeline::spinOnce, this, std::placeholders::_1));
+
   //! Create frontend
   vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
       &stereo_frontend_input_queue_,
@@ -316,8 +319,8 @@ bool Pipeline::spinViz() {
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinSequential() {
   // Spin once each pipeline module.
-  CHECK(data_provider_module_);
-  data_provider_module_->spin();
+  // CHECK(data_provider_module_);
+  // data_provider_module_->spin();
 
   CHECK(vio_frontend_module_);
   vio_frontend_module_->spin();
@@ -334,7 +337,7 @@ void Pipeline::spinSequential() {
 
 // TODO: Adapt this function to be able to cope with new initialization
 /* -------------------------------------------------------------------------- */
-void Pipeline::shutdownWhenFinished() {
+bool Pipeline::shutdownWhenFinished() {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.
@@ -362,36 +365,51 @@ void Pipeline::shutdownWhenFinished() {
             (mesher_module_ ? !mesher_module_->isWorking() : true) &&
             (lcd_module_ ? !lcd_module_->isWorking() : true) &&
             (visualizer_module_ ? !visualizer_module_->isWorking() : true)))) {
-    VLOG_EVERY_N(10, 100) << "shutdown_: " << shutdown_ << '\n'
-                          << "VIO pipeline status: \n"
-                          << "Initialized? " << is_initialized_ << '\n'
-                          << "Data provider is working?"
-                          << data_provider_module_->isWorking() << '\n'
-                          << "Frontend input queue empty?"
-                          << stereo_frontend_input_queue_.empty() << '\n'
-                          << "Frontend is working? "
-                          << vio_frontend_module_->isWorking() << '\n'
-                          << "Backend Input queue empty?"
-                          << backend_input_queue_.empty() << '\n'
-                          << "Backend is working? "
-                          << (is_initialized_ ? vio_backend_module_->isWorking()
-                                              : false);
+    VLOG_EVERY_N(10, 10) << "shutdown_: " << shutdown_ << '\n'
+                         << "VIO pipeline status: \n"
+                         << "Initialized? " << is_initialized_ << '\n'
+                         << "Data provider is working? "
+                         << data_provider_module_->isWorking() << '\n'
+                         << "Frontend input queue empty? "
+                         << stereo_frontend_input_queue_.empty() << '\n'
+                         << "Frontend is working? "
+                         << vio_frontend_module_->isWorking() << '\n'
+                         << "Backend Input queue empty? "
+                         << backend_input_queue_.empty() << '\n'
+                         << "Backend is working? "
+                         << (is_initialized_ ? vio_backend_module_->isWorking()
+                                             : false);
+    // Feed data to the pipeline
     data_provider_module_->spin();
 
-    VLOG_IF_EVERY_N(10, mesher_module_, 100)
+    VLOG_IF_EVERY_N(10, mesher_module_, 10)
         << "Mesher is working? " << mesher_module_->isWorking();
 
-    VLOG_IF_EVERY_N(10, lcd_module_, 100)
+    VLOG_IF_EVERY_N(10, lcd_module_, 10)
         << "LoopClosureDetector is working? " << lcd_module_->isWorking();
 
-    VLOG_IF_EVERY_N(10, visualizer_module_, 100)
+    VLOG_IF_EVERY_N(10, visualizer_module_, 10)
         << "Visualizer is working? " << visualizer_module_->isWorking();
 
-    std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
+    // std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
+  VLOG(10) << "shutdown_: " << shutdown_ << '\n'
+           << "VIO pipeline status: \n"
+           << "Initialized? " << is_initialized_ << '\n'
+           << "Data provider is working? " << data_provider_module_->isWorking()
+           << '\n'
+           << "Frontend input queue empty? "
+           << stereo_frontend_input_queue_.empty() << '\n'
+           << "Frontend is working? " << vio_frontend_module_->isWorking()
+           << '\n'
+           << "Backend Input queue empty? " << backend_input_queue_.empty()
+           << '\n'
+           << "Backend is working? "
+           << (is_initialized_ ? vio_backend_module_->isWorking() : false);
   if (!shutdown_) shutdown();
+  return true;
 }
 
 /* -------------------------------------------------------------------------- */
