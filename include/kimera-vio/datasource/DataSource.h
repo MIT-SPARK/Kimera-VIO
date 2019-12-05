@@ -239,11 +239,25 @@ class DataProviderModule
         imu_meas.acc_gyr_);
   }
 
+  //! Called when general shutdown of PipelineModule is triggered.
+  virtual void shutdownQueues() override {
+    left_frame_queue_.shutdown();
+    right_frame_queue_.shutdown();
+    MISOPipelineModule::shutdownQueues();
+  };
+
+  //! Checks if the module has work to do (should check input queues are empty)
+  virtual bool hasWork() const override {
+    return !left_frame_queue_.empty() || !right_frame_queue_.empty() ||
+           MISOPipelineModule::hasWork();
+  }
+
  private:
   //! Input data
   ImuData imu_data_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
+  // TODO(Toni): remove this
   StereoMatchingParams stereo_matching_params_;
 };
 

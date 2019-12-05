@@ -348,10 +348,15 @@ void Pipeline::shutdownWhenFinished() {
     lcd_and_lcd_input_finished = false;
   }
 
+  CHECK(data_provider_module_);
+  CHECK(vio_frontend_module_);
+  CHECK(vio_backend_module_);
+
   while (!shutdown_ &&         // Loop while not explicitly shutdown.
          (!is_initialized_ ||  // Loop while not initialized
                                // Or, once init, data is not yet consumed.
-          !(stereo_frontend_input_queue_.empty() &&
+          !(!data_provider_module_->isWorking() &&
+            stereo_frontend_input_queue_.empty() &&
             !vio_frontend_module_->isWorking() &&
             backend_input_queue_.empty() && !vio_backend_module_->isWorking() &&
             (mesher_module_ ? !mesher_module_->isWorking() : true) &&
@@ -360,6 +365,8 @@ void Pipeline::shutdownWhenFinished() {
     VLOG_EVERY_N(10, 100) << "shutdown_: " << shutdown_ << '\n'
                           << "VIO pipeline status: \n"
                           << "Initialized? " << is_initialized_ << '\n'
+                          << "Data provider is working?"
+                          << data_provider_module_->isWorking() << '\n'
                           << "Frontend input queue empty?"
                           << stereo_frontend_input_queue_.empty() << '\n'
                           << "Frontend is working? "

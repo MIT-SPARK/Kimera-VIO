@@ -387,7 +387,7 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
   virtual void shutdownQueues() override { input_queue_->shutdown(); }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override { return input_queue_->empty(); }
+  virtual bool hasWork() const override { return !input_queue_->empty(); }
 
  private:
   //! Input
@@ -444,7 +444,7 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
   virtual void shutdownQueues() override { output_queue_->shutdown(); }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override { return output_queue_->empty(); }
+  virtual bool hasWork() const override { return !output_queue_->empty(); }
 
  private:
   //! Output
@@ -520,7 +520,7 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
 
   //! Checks if the module has work to do (should check input queues are empty)
   virtual bool hasWork() const override {
-    return input_queue_->empty() && MISO::hasWork();
+    return !input_queue_->empty() || MISO::hasWork();
   }
 
  private:
