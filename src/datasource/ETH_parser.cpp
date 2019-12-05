@@ -24,7 +24,8 @@
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-ETHDatasetParser::ETHDatasetParser(const int& initial_k,
+ETHDatasetParser::ETHDatasetParser(const bool& parallel_run,
+                                   const int& initial_k,
                                    const int& final_k,
                                    const std::string& dataset_path,
                                    const std::string& left_cam_params_path,
@@ -41,9 +42,11 @@ ETHDatasetParser::ETHDatasetParser(const int& initial_k,
                             imu_params_path,
                             backend_params_path,
                             frontend_params_path,
-                            lcd_params_path) {}
+                            lcd_params_path),
+      parallel_run_(parallel_run) {}
 
-ETHDatasetParser::ETHDatasetParser() : DataProviderInterface() {}
+ETHDatasetParser::ETHDatasetParser(const bool& parallel_run)
+    : DataProviderInterface(), parallel_run_(parallel_run) {}
 
 /* -------------------------------------------------------------------------- */
 ETHDatasetParser::~ETHDatasetParser() {
@@ -52,40 +55,47 @@ ETHDatasetParser::~ETHDatasetParser() {
 
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::spin() {
-  // Check that the user correctly registered a callback function for the
-  // pipeline.
-  CHECK(left_frame_callback_);
-  CHECK(right_frame_callback_);
-
   // Parse the actual dataset first, then run it.
-  parse();
+  static bool dataset_parsed = false;
+  if (!dataset_parsed) {
+    // Ideally we would parse at the ctor level, but the IMU callback needs
+    // to be registered first.
+    parse();
+    dataset_parsed = true;
+  }
 
   // Spin.
-  const StereoMatchingParams& stereo_matching_params =
-      pipeline_params_.frontend_params_.stereo_matching_params_;
-  const bool& equalize_image = stereo_matching_params.equalize_image_;
   CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
-  const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
-  const CameraParams& right_cam_info = pipeline_params_.camera_params_.at(1);
   CHECK_GT(final_k_, initial_k_);
-  for (FrameId k = initial_k_; k < final_k_; k++) {
-    spinOnce(k, left_cam_info, right_cam_info, equalize_image);
-  }
-  return true;
+  while (spinOnce()) {
+    if (!parallel_run_) {
+      return true;
+    }
+  };
+  return false;
 }
 
-void ETHDatasetParser::spinOnce(const FrameId& k,
-                                const CameraParams& left_cam_info,
-                                const CameraParams& right_cam_info,
-                                const bool& equalize_image) {
-  const Timestamp& timestamp_frame_k = timestampAtFrame(k);
+bool ETHDatasetParser::spinOnce() {
+  static FrameId k = initial_k_;
+  if (k >= final_k_) {
+    return false;
+  }
 
+  static const CameraParams& left_cam_info =
+      pipeline_params_.camera_params_.at(0);
+  static const CameraParams& right_cam_info =
+      pipeline_params_.camera_params_.at(1);
+  static const bool& equalize_image =
+      pipeline_params_.frontend_params_.stereo_matching_params_.equalize_image_;
+
+  const Timestamp& timestamp_frame_k = timestampAtFrame(k);
   VLOG(10) << "Sending left/right frames k= " << k
            << " with timestamp: " << timestamp_frame_k;
 
   // TODO(Toni): ideally only send cv::Mat raw images...:
   // - pass params to vio_pipeline ctor
   // - make vio_pipeline actually equalize or transform images as necessary.
+  CHECK(left_frame_callback_);
   left_frame_callback_(
       VIO::make_unique<Frame>(k,
                               timestamp_frame_k,
@@ -94,6 +104,7 @@ void ETHDatasetParser::spinOnce(const FrameId& k,
                               left_cam_info,
                               UtilsOpenCV::ReadAndConvertToGrayScale(
                                   getLeftImgName(k), equalize_image)));
+  CHECK(right_frame_callback_);
   right_frame_callback_(
       VIO::make_unique<Frame>(k,
                               timestamp_frame_k,
@@ -107,6 +118,8 @@ void ETHDatasetParser::spinOnce(const FrameId& k,
   // imu_single_callback_(imu_meas);
 
   VLOG(10) << "Finished VIO processing for frame k = " << k;
+  k++;
+  return true;
 }
 
 /* -------------------------------------------------------------------------- */

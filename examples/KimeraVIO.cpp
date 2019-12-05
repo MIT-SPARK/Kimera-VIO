@@ -45,7 +45,8 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<VIO::DataProviderInterface> dataset_parser;
   switch (FLAGS_dataset_type) {
     case 0: {
-      dataset_parser = VIO::make_unique<VIO::ETHDatasetParser>();
+      dataset_parser =
+          VIO::make_unique<VIO::ETHDatasetParser>(FLAGS_parallel_run);
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
@@ -81,19 +82,20 @@ int main(int argc, char* argv[]) {
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
                              std::move(dataset_parser));
-    auto handle_pipeline = std::async(std::launch::async,
+    auto handle_pipeline =
+        std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
+    auto handle_shutdown = std::async(std::launch::async,
                                       &VIO::Pipeline::shutdownWhenFinished,
                                       &vio_pipeline);
     vio_pipeline.spinViz();
-    is_pipeline_successful = handle.get();
+    is_pipeline_successful = !handle.get();
+    handle_shutdown.get();
     handle_pipeline.get();
   } else {
-    // First parse the dataset entirely.
-    LOG(INFO) << "Parsing dataset...";
-    is_pipeline_successful = dataset_parser->spin();
-    LOG(INFO) << "Starting VIO...";
-    // Then process the whole dataset until we run out of data.
-    vio_pipeline.shutdownWhenFinished();
+    while (dataset_parser->spin()) {
+      vio_pipeline.spin();
+    };
+    is_pipeline_successful = true;
   }
 
   // Output stats.

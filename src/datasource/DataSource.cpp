@@ -133,9 +133,8 @@ bool DataProviderInterface::spin() {
   imu_single_callback_(ImuMeasurement());
   imu_multi_callback_(ImuMeasurements());
 
-  // 3) Once the dataset spin has finished, exit.
-  // You can return false if something went wrong.
-  return true;
+  // 3) Once the dataset spin has finished, exit with false.
+  return false;
 }
 
 void DataProviderInterface::parseParams() {

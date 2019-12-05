@@ -365,23 +365,19 @@ bool Pipeline::shutdownWhenFinished() {
             (mesher_module_ ? !mesher_module_->isWorking() : true) &&
             (lcd_module_ ? !lcd_module_->isWorking() : true) &&
             (visualizer_module_ ? !visualizer_module_->isWorking() : true)))) {
-    VLOG_EVERY_N(10, 10) << "shutdown_: " << shutdown_ << '\n'
-                         << "VIO pipeline status: \n"
-                         << "Initialized? " << is_initialized_ << '\n'
-                         << "Data provider is working? "
-                         << data_provider_module_->isWorking() << '\n'
-                         << "Frontend input queue empty? "
-                         << stereo_frontend_input_queue_.empty() << '\n'
-                         << "Frontend is working? "
-                         << vio_frontend_module_->isWorking() << '\n'
-                         << "Backend Input queue empty? "
-                         << backend_input_queue_.empty() << '\n'
-                         << "Backend is working? "
-                         << (is_initialized_ ? vio_backend_module_->isWorking()
-                                             : false);
-    // Feed data to the pipeline
-    data_provider_module_->spin();
-
+    LOG(ERROR) << "shutdown_: " << shutdown_ << '\n'
+               << "VIO pipeline status: \n"
+               << "Initialized? " << is_initialized_ << '\n'
+               << "Data provider is working? "
+               << data_provider_module_->isWorking() << '\n'
+               << "Frontend input queue empty? "
+               << stereo_frontend_input_queue_.empty() << '\n'
+               << "Frontend is working? " << vio_frontend_module_->isWorking()
+               << '\n'
+               << "Backend Input queue empty? " << backend_input_queue_.empty()
+               << '\n'
+               << "Backend is working? "
+               << (is_initialized_ ? vio_backend_module_->isWorking() : false);
     VLOG_IF_EVERY_N(10, mesher_module_, 10)
         << "Mesher is working? " << mesher_module_->isWorking();
 
@@ -391,7 +387,7 @@ bool Pipeline::shutdownWhenFinished() {
     VLOG_IF_EVERY_N(10, visualizer_module_, 10)
         << "Visualizer is working? " << visualizer_module_->isWorking();
 
-    // std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
+    std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
@@ -841,27 +837,30 @@ void Pipeline::resume() {
 void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping workers and queues...";
 
-  LOG(INFO) << "Stopping backend workers and queues...";
+  LOG(INFO) << "Stopping data provider module...";
+  data_provider_module_->shutdown();
+
+  LOG(INFO) << "Stopping backend module and queues...";
   backend_input_queue_.shutdown();
   CHECK(vio_backend_module_);
   vio_backend_module_->shutdown();
 
   // Shutdown workers and queues.
-  LOG(INFO) << "Stopping frontend workers and queues...";
+  LOG(INFO) << "Stopping frontend module and queues...";
   stereo_frontend_input_queue_.shutdown();
   CHECK(vio_frontend_module_);
   vio_frontend_module_->shutdown();
 
-  LOG(INFO) << "Stopping mesher workers and queues...";
+  LOG(INFO) << "Stopping mesher module and queues...";
   if (mesher_module_) mesher_module_->shutdown();
 
-  LOG(INFO) << "Stopping loop closure workers and queues...";
+  LOG(INFO) << "Stopping loop closure module and queues...";
   if (lcd_module_) lcd_module_->shutdown();
 
-  LOG(INFO) << "Stopping visualizer workers and queues...";
+  LOG(INFO) << "Stopping visualizer module and queues...";
   if (visualizer_module_) visualizer_module_->shutdown();
 
-  LOG(INFO) << "Sent stop flag to all workers and queues...";
+  LOG(INFO) << "Sent stop flag to all module and queues...";
 }
 
 /* -------------------------------------------------------------------------- */

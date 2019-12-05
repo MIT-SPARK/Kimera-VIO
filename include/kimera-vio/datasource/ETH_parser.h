@@ -44,7 +44,8 @@ namespace VIO {
 class ETHDatasetParser : public DataProviderInterface {
  public:
   // Ctor with params.
-  ETHDatasetParser(const int& initial_k,
+  ETHDatasetParser(const bool& parallel_run,
+                   const int& initial_k,
                    const int& final_k,
                    const std::string& dataset_path,
                    const std::string& left_cam_params_path,
@@ -54,10 +55,16 @@ class ETHDatasetParser : public DataProviderInterface {
                    const std::string& frontend_params_path,
                    const std::string& lcd_params_path);
   // Ctor from gflags
-  ETHDatasetParser();
+  ETHDatasetParser(const bool& parallel_run);
   virtual ~ETHDatasetParser();
 
  public:
+  /**
+   * @brief spin Spins the dataset until it finishes. If set in sequential mode,
+   * it will return each tieme a frame is sent. In parallel mode, it will not
+   * return until it finishes.
+   * @return True if the dataset still has data, false otherwise.
+   */
   virtual bool spin() override;
 
   // Print info about dataset.
@@ -71,11 +78,11 @@ class ETHDatasetParser : public DataProviderInterface {
   // Parses EuRoC data
   void parse();
 
-  // Send data to VIO pipeline on a per-frame basis
-  void spinOnce(const FrameId& k,
-                const CameraParams& left_cam_info,
-                const CameraParams& right_cam_info,
-                const bool& equalize_image);
+  /**
+   * @brief spinOnce Send data to VIO pipeline on a per-frame basis
+   * @return if the dataset finished or not
+   */
+  bool spinOnce();
 
   // Parse camera, gt, and imu data if using different Euroc format.
   bool parseDataset();
@@ -178,6 +185,9 @@ class ETHDatasetParser : public DataProviderInterface {
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";
   const std::string kImuName = "imu0";
+
+  //! Whether the dataset provider will run in parallel mode or not.
+  const bool parallel_run_;
 };
 
 }  // namespace VIO

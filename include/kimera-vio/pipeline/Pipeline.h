@@ -106,6 +106,17 @@ class Pipeline {
     }
   }
 
+  /**
+   * @brief spin Spin the whole pipeline by spinning the data provider
+   * If in sequential mode, it will return for each spin.
+   * If in parallel mode, it will not return until the pipeline is shutdown.
+   * @return True if everything goes well.
+   */
+  bool spin() {
+    // Feed data to the pipeline
+    return data_provider_module_->spin();
+  }
+
  private:
   // Spin the pipeline only once.
   void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);

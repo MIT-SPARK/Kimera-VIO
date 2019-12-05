@@ -55,8 +55,14 @@ class DataProviderInterface {
   virtual ~DataProviderInterface();
 
   // The derived classes need to implement this function!
-  // Spin the dataset: processes the input data and feeds it to the VIO pipeline
-  // A Dummy example is provided as an implementation.
+  /**
+   * @brief spin Spins the dataset until it finishes.
+   * - If set in sequential mode, it should return each time a frame is sent.
+   * - In parallel mode, it should not return until it finishes.
+   * A dummy example is provided as implementation (instead of being pure
+   * virtual)
+   * @return True if the dataset still has data, false otherwise.
+   */
   virtual bool spin();
 
   // Register a callback function for IMU data
@@ -185,9 +191,9 @@ class DataProviderModule
 
     if (!queue_state) {
       LOG_IF(WARNING, PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Mesher queue is down";
+          << "Module: " << name_id_ << " - queue is down";
       VLOG_IF(1, !PIO::parallel_run_)
-          << "Module: " << name_id_ << " - Mesher queue is empty or down";
+          << "Module: " << name_id_ << " - queue is empty or down";
       return nullptr;
     }
 
@@ -202,8 +208,8 @@ class DataProviderModule
     // Extract imu measurements between consecutive frames.
     static Timestamp timestamp_last_frame = 0;
     if (timestamp_last_frame == 0) {
-      VLOG(1) << "Skipping first frame, because we do not have concept of "
-                 "previous frame timestamp otherwise.";
+      VLOG(1) << "Skipping first frame, because we do not have a concept of "
+                 "a previous frame timestamp otherwise.";
       timestamp_last_frame = timestamp;
       return nullptr;
     }
