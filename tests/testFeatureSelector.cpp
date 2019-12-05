@@ -52,7 +52,7 @@ static const Cal3_S2 Kleft(1500, 1200, 0, 640, 480);
 static const Cal3_S2 Kright(1500, 1400, 0, 640, 480);
 
 /* ************************************************************************* */
-TEST(FeatureSelector, cameras) {
+TEST(FeatureSelector, DISABLED_cameras) {
   KeyframeToStampedPose poses;
   poses.push_back(StampedPose(Pose3(), 0));
   poses.push_back(
@@ -87,7 +87,7 @@ TEST(FeatureSelector, cameras) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, createPrior1) {
+TEST(FeatureSelector, DISABLED_createPrior1) {
   // this is mainly to confer that covariances in gtsam are in local frame
   // and that the block structure of the covariance is what we ask for [pose,
   // vel, biases] we test two main things: 1) the covariances of two poses
@@ -225,7 +225,7 @@ TEST(FeatureSelector, createPrior1) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, createMatricesLinearImuFactor) {
+TEST(FeatureSelector, DISABLED_createMatricesLinearImuFactor) {
   // create 2 stamped pose
   StampedPose spose0 = StampedPose(
       Pose3(Rot3::Ypr(-M_PI / 2, 0., -M_PI / 2), Point3(0, 0, 1)), 0);
@@ -398,7 +398,7 @@ TEST(FeatureSelector, DISABLED_GetVersorIfInFOV) {
 
 static const Cal3_S2 K = Cal3_S2(500, 500, 0.1, 640 / 2, 480 / 2);
 /* ************************************************************************* */
-TEST(FeatureSelector, createLinearVisionFactor_no_parallax) {
+TEST(FeatureSelector, DISABLED_createLinearVisionFactor_no_parallax) {
   // create 3 stamped pose
   Pose3 pose0 = Pose3(Rot3::Ypr(0.2, 0.4, 0.5), Point3(0, 0, 1));
   StampedPose spose0 = StampedPose(pose0, 0);
@@ -437,7 +437,7 @@ TEST(FeatureSelector, createLinearVisionFactor_no_parallax) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, createLinearVisionFactor_And_SchurComplement) {
+TEST(FeatureSelector, DISABLED_createLinearVisionFactor_And_SchurComplement) {
   // create 3 stamped pose
   Pose3 pose0 = Pose3(Rot3::Ypr(0.2, 0.4, 0.5), Point3(0, 0, 1));
   StampedPose spose0 = StampedPose(pose0, 0);
@@ -546,7 +546,7 @@ Matrix schurComplementTest(Point3 pworld_l,
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, createLinearVisionFactor_body_P_cam) {
+TEST(FeatureSelector, DISABLED_createLinearVisionFactor_body_P_cam) {
   const Pose3 b_P_LCam =
       Pose3(Rot3::Ypr(-M_PI / 2, 0., -M_PI / 2), Point3(0, 0, 1));
   const Pose3 b_P_RCam =
@@ -642,7 +642,7 @@ GaussianFactorGraph::shared_ptr createOmegaBarTest() {
   return f.createOmegaBar(featureSelectionData, left_cameras, right_cameras);
 }
 /* ************************************************************************* */
-TEST(FeatureSelector, createOmegaBar) {
+TEST(FeatureSelector, DISABLED_createOmegaBar) {
   // get gaussian factor graph by calling createOmegaBar (done inside function
   // to avoid more copy-paste)
   GaussianFactorGraph::shared_ptr gfg = createOmegaBarTest();
@@ -656,7 +656,7 @@ TEST(FeatureSelector, createOmegaBar) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, evaluateGain_det) {
+TEST(FeatureSelector, DISABLED_evaluateGain_det) {
   // get some gaussian factor graph
   GaussianFactorGraph::shared_ptr gfg = createOmegaBarTest();
 
@@ -726,7 +726,7 @@ TEST(FeatureSelector, evaluateGain_det) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, lowerBound) {
+TEST(FeatureSelector, DISABLED_lowerBound) {
   double numericalUpperBound = std::numeric_limits<double>::max();
   // min instead will return a tiny positive number.
   double numericalLowerBound = -numericalUpperBound;
@@ -739,7 +739,7 @@ TEST(FeatureSelector, lowerBound) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, upperBound) {
+TEST(FeatureSelector, DISABLED_upperBound) {
   double numericalUpperBound = std::numeric_limits<double>::max();
   // min instead will return a tiny positive number.
   double numericalLowerBound = -numericalUpperBound;
@@ -752,7 +752,7 @@ TEST(FeatureSelector, upperBound) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, logget) {
+TEST(FeatureSelector, DISABLED_logget) {
   Matrix M = (Matrix(5, 5) << 0.0874197, -0.0030860, 0.0116969, 0.0081463,
               0.0048741, -0.0030860, 0.0872727, 0.0183073, 0.0125325,
               -0.0037363, 0.0116969, 0.0183073, 0.0966217, 0.0103894,
@@ -766,7 +766,7 @@ TEST(FeatureSelector, logget) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, smallestEig) {
+TEST(FeatureSelector, DISABLED_smallestEig) {
   Matrix M = (Matrix(5, 5) << 0.0874197, -0.0030860, 0.0116969, 0.0081463,
               0.0048741, -0.0030860, 0.0872727, 0.0183073, 0.0125325,
               -0.0037363, 0.0116969, 0.0183073, 0.0966217, 0.0103894,
@@ -791,7 +791,7 @@ TEST(FeatureSelector, smallestEig) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, evaluateGain_minEig) {
+TEST(FeatureSelector, DISABLED_evaluateGain_minEig) {
   // get some gaussian factor graph
   GaussianFactorGraph::shared_ptr gfg = createOmegaBarTest();
 
@@ -864,7 +864,7 @@ TEST(FeatureSelector, evaluateGain_minEig) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, greedyAlgorithm) {
+TEST(FeatureSelector, DISABLED_greedyAlgorithm) {
   // Create Omega bar
   GaussianFactorGraph::shared_ptr OmegaBar = createOmegaBarTest();
 
@@ -936,7 +936,7 @@ TEST(FeatureSelector, greedyAlgorithm) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, createDeltas) {
+TEST(FeatureSelector, DISABLED_createDeltas) {
   // create 3 stamped pose
   Pose3 pose0 = Pose3(Rot3::Ypr(0.2, 0.4, 0.5), Point3(0, 0, 1));
   StampedPose spose0 = StampedPose(pose0, 0);
@@ -1016,7 +1016,7 @@ TEST(FeatureSelector, createDeltas) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, featureSelection) {
+TEST(FeatureSelector, DISABLED_featureSelection) {
   // test feature selection with eig criterion
 
   const Cal3_S2 Kreal = Cal3_S2(10, 10, 0.1, 640 / 2, 480 / 2);
@@ -1139,7 +1139,7 @@ TEST(FeatureSelector, featureSelection) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, sorting) {
+TEST(FeatureSelector, DISABLED_sorting) {
   // test feature selection with eig criterion
   vector<double> upperBounds;
   upperBounds.push_back(0.1);
@@ -1167,7 +1167,7 @@ TEST(FeatureSelector, sorting) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, MultiplyHessianInPlace) {
+TEST(FeatureSelector, DISABLED_MultiplyHessianInPlace) {
   Matrix M =
       (Matrix(7, 7) << 125.0000, 0.0, -25.0000, 0.0, -100.0000, 0.0, 25.0000,
        0.0, 125.0000, 0.0, -25.0000, 0.0, -100.0000, -17.5000, -25.0000, 0.0,
@@ -1218,7 +1218,7 @@ TEST(FeatureSelector, MultiplyHessianInPlace) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, smallestEigSpectra) {
+TEST(FeatureSelector, DISABLED_smallestEigSpectra) {
   Matrix M = (Matrix(5, 5) << 0.0874197, -0.0030860, 0.0116969, 0.0081463,
               0.0048741, -0.0030860, 0.0872727, 0.0183073, 0.0125325,
               -0.0037363, 0.0116969, 0.0183073, 0.0966217, 0.0103894,
@@ -1244,7 +1244,7 @@ TEST(FeatureSelector, smallestEigSpectra) {
 }
 
 /* ************************************************************************* */
-TEST(FeatureSelector, smallestEigSpectraShift) {
+TEST(FeatureSelector, DISABLED_smallestEigSpectraShift) {
   Matrix M = (Matrix(5, 5) << 0.0874197, -0.0030860, 0.0116969, 0.0081463,
               0.0048741, -0.0030860, 0.0872727, 0.0183073, 0.0125325,
               -0.0037363, 0.0116969, 0.0183073, 0.0966217, 0.0103894,

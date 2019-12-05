@@ -134,6 +134,8 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   imu_params.gyro_walk_ = 1.9393e-05;
   imu_params.acc_walk_ = 0.003;
   imu_params.n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81);
+  imu_params.imu_integration_sigma_ = 1.0;
+  imu_params.nominal_rate_ = 200.0;
 
   // Create 3D points
   std::vector<Point3> pts = CreateScene();
@@ -291,6 +293,8 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   imu_params.gyro_walk_ = 1.9393e-05;
   imu_params.acc_walk_ = 0.003;
   imu_params.n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81);
+  imu_params.imu_integration_sigma_ = 1.0;
+  imu_params.nominal_rate_ = 200.0;
 
   // Create 3D points
   std::vector<Point3> pts = CreateScene();

@@ -34,7 +34,7 @@ using namespace VIO;
 static const double tol = 1e-7;
 
 /* ************************************************************************* */
-TEST(testTracker, TrackerParamParseYAML) {
+TEST(testVioFrontEndParams, TrackerParamParseYAML) {
   // check that YAML is parsed correctly
 
   // Test parseYAML
@@ -84,11 +84,7 @@ TEST(testTracker, TrackerParamParseYAML) {
 }
 
 /* ************************************************************************** */
-TEST(testTracker, equals) {
+TEST(testVioFrontEndParams, equals) {
   VioFrontEndParams tp = VioFrontEndParams();
   EXPECT_TRUE(tp.equals(tp));
-
-  VioFrontEndParams tp2 = VioFrontEndParams();
-
-  EXPECT_TRUE(!tp.equals(tp2));
 }

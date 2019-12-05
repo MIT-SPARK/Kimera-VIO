@@ -110,7 +110,7 @@ $BUILD_PATH/stereoVIOEuroc \
   --dataset_type="$DATASET_TYPE" \
   --dataset_path="$DATASET_PATH" \
   --initial_k=50 \
-  --final_k=200 \
+  --final_k=2000 \
   --backend_type="$BACKEND_TYPE" \
   --left_cam_params_path="$PARAMS_PATH/LeftCameraParams.yaml" \
   --right_cam_params_path="$PARAMS_PATH/RightCameraParams.yaml" \
@@ -131,7 +131,7 @@ $BUILD_PATH/stereoVIOEuroc \
   --colorlogtostderr=1 \
   --log_prefix=0 \
   --v=0 \
-  --vmodule=Pipeline*=20 \
+  --vmodule=Pipeline*=00 \
   --log_output="$LOG_OUTPUT" \
   --output_path="$OUTPUT_PATH"
 

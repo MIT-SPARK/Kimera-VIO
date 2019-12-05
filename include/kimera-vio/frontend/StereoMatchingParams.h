@@ -24,27 +24,7 @@ namespace VIO {
 
 class StereoMatchingParams {
  public:
-  double tolerance_template_matching_ = 0.15;
-  double nominal_baseline_ = 0.11;
-  int templ_cols_ = 101;         // must be odd
-  int templ_rows_ = 11;          // must be odd
-  int stripe_extra_rows_ = 0;    // must be even
-  double min_point_dist_ = 0.1;  // stereo points triangulated below this
-                                 // distance are discarded
-  double max_point_dist_ = 15.0;  // stereo points triangulated beyond this
-                                  // distance are discarded=
-  bool bidirectional_matching_ =
-      false;  // check best match left->right and right->left
-  bool subpixel_refinement_ =
-      false;                     // refine stereo matches with subpixel accuracy
-  bool equalize_image_ = false;  // do equalize image before processing
-  VisionSensorType vision_sensor_type_ =
-      VisionSensorType::STEREO;      // options to use RGB-D vs. stereo
-  double min_depth_factor_ = 0.3;    // min-depth to be used with RGB-D
-  double map_depth_factor_ = 0.001;  // depth-map to be used with RGB-D
-
- public:
-  StereoMatchingParams() {}
+  StereoMatchingParams() { checkParams(); }
   StereoMatchingParams(const double& tol_template_matching,
                        const int& templ_cols,
                        const int& templ_rows,
@@ -137,6 +117,26 @@ class StereoMatchingParams {
     yaml_parser.getYamlParam("subpixelRefinementStereo", &subpixel_refinement_);
     return true;
   }
+
+ public:
+  double tolerance_template_matching_ = 0.15;
+  double nominal_baseline_ = 0.11;
+  int templ_cols_ = 101;       // must be odd
+  int templ_rows_ = 11;        // must be odd
+  int stripe_extra_rows_ = 0;  // must be even
+  // stereo points triangulated below this distance are discarded.
+  double min_point_dist_ = 0.1;
+  // stereo points triangulated beyond this distance are discarded.
+  double max_point_dist_ = 15.0;
+  // check best match left->right and right->left
+  bool bidirectional_matching_ = false;
+  // refine stereo matches with subpixel accuracy
+  bool subpixel_refinement_ = false;
+  // do equalize image before processing options to use RGB-D vs. stereo.
+  bool equalize_image_ = false;
+  VisionSensorType vision_sensor_type_ = VisionSensorType::STEREO;
+  double min_depth_factor_ = 0.3;    // min-depth to be used with RGB-D
+  double map_depth_factor_ = 0.001;  // depth-map to be used with RGB-D
 };
 
 }  // namespace VIO

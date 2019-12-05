@@ -791,7 +791,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       EXPECT_NEAR(0.0, sfnew->keypoints_depth_.at(i), 1e-5);
     }
   }
-  EXPECT_NEAR(92, nrValid, 1e-5);
+  EXPECT_NEAR(68, nrValid, 1e-5);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that 3D point reprojects correctly to the two cameras:

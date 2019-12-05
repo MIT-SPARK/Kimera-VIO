@@ -931,7 +931,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
 }
 
 /* ************************************************************************* */
-TEST_F(TestTracker, GetPoint3AndCovariance) {
+TEST_F(TestTracker, getPoint3AndCovariance) {
   ClearStereoFrame(ref_stereo_frame);
   // create stereo cam
   Cal3_S2 ref_left_undist_rect_cam_mat =
