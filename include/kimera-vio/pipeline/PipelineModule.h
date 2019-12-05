@@ -101,7 +101,8 @@ class PipelineModule {
                      << spin_duration << " ms).";
         timing_stats.AddSample(spin_duration);
       } else {
-        LOG(WARNING) << "Module: " << name_id_ << " - No Input received.";
+        LOG_IF(WARNING, VLOG_IS_ON(1))
+            << "Module: " << name_id_ << " - No Input received.";
       }
 
       // Break the while loop if we are in sequential mode.
