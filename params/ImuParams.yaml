@@ -1,3 +1,4 @@
+%YAML:1.0
 # These are Euroc Dataset parameters
 # Sensor extrinsics wrt. the body-frame.
 T_BS:
@@ -15,5 +16,7 @@ gyroscope_random_walk: 1.9393e-05       # [ rad / s^2 / sqrt(Hz) ] ( gyro bias d
 accelerometer_noise_density: 2.0000e-3  # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
 accelerometer_random_walk: 3.0000e-3    # [ m / s^3 / sqrt(Hz) ].  ( accel bias diffusion )
 
-# The only extra parameter that we need is gravity's vector.
+# Extra parameters
+imu_integration_sigma: 1.0e-8
+imu_time_shift: 0.0
 n_gravity: [0.0, 0.0, -9.81]

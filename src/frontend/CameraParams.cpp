@@ -24,14 +24,11 @@ namespace VIO {
 /* -------------------------------------------------------------------------- */
 // Parse YAML file describing camera parameters.
 bool CameraParams::parseYAML(const std::string& filepath) {
-  // Make sure that each YAML file has %YAML:1.0 as first line.
-  // TODO(Toni): use YamlParser...
-  cv::FileStorage fs;
-  UtilsOpenCV::safeOpenCVFileStorage(&fs, filepath);
-
   YamlParser yaml_parser(filepath);
 
   yaml_parser.getYamlParam("camera_id", &camera_id_);
+  CHECK(!camera_id_.empty()) << "Camera id cannot be empty.";
+  LOG(INFO) << "Parsing camera parameters for: " << camera_id_;
 
   // Distortion parameters.
   parseDistortion(yaml_parser);
@@ -56,7 +53,6 @@ bool CameraParams::parseYAML(const std::string& filepath) {
   createGtsamCalibration(distortion_coeff_, intrinsics_, &calibration_);
 
   // P_ = R_rectify_ * camera_matrix_;
-  fs.release();
   return true;
 }
 
@@ -113,12 +109,12 @@ void CameraParams::parseFrameRate(const YamlParser& yaml_parser,
 void CameraParams::parseBodyPoseCam(const YamlParser& yaml_parser,
                                     gtsam::Pose3* body_Pose_cam) {
   CHECK_NOTNULL(body_Pose_cam);
-  int n_rows = 0;
-  yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
-  CHECK_GT(n_rows, 0u);
-  int n_cols = 0;
-  yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
-  CHECK_GT(n_cols, 0u);
+  // int n_rows = 0;
+  // yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
+  // CHECK_EQ(n_rows, 4);
+  // int n_cols = 0;
+  // yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
+  // CHECK_EQ(n_cols, 4);
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
   *body_Pose_cam = UtilsOpenCV::poseVectorToGtsamPose3(vector_pose);

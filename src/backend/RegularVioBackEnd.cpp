@@ -1595,13 +1595,13 @@ void RegularVioBackEnd::selectNormType(
   CHECK_NOTNULL(noise_model_output);
   switch (norm_type) {
     case 0: {
-      LOG(INFO) << "Using l-2 norm.";
+      VLOG(1) << "Using l-2 norm.";
       *noise_model_output = noise_model_input;
       break;
     }
     case 1: {
-      LOG(INFO) << "Using Huber norm, with parameter value: "
-                << norm_type_parameter;
+      VLOG(1) << "Using Huber norm, with parameter value: "
+              << norm_type_parameter;
       *noise_model_output = gtsam::noiseModel::Robust::Create(
           gtsam::noiseModel::mEstimator::Huber::Create(
               norm_type_parameter,
@@ -1611,8 +1611,8 @@ void RegularVioBackEnd::selectNormType(
       break;
     }
     case 2: {
-      LOG(INFO) << "Using Tukey norm, with parameter value: "
-                << norm_type_parameter;
+      VLOG(1) << "Using Tukey norm, with parameter value: "
+              << norm_type_parameter;
       *noise_model_output = gtsam::noiseModel::Robust::Create(
           gtsam::noiseModel::mEstimator::Tukey::Create(
               norm_type_parameter,

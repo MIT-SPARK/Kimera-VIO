@@ -1468,7 +1468,7 @@ void VioBackEnd::setIsam2Params(const VioBackEndParams& vio_params,
   isam_param->setEvaluateNonlinearError(false);  // only for debugging
   isam_param->enableDetailedResults = false;     // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
-  if (FLAGS_minloglevel < 1) isam_param->print("isam_param");
+  if (VLOG_IS_ON(1)) isam_param->print("isam_param");
 }
 
 /* --------------------------------------------------------------------------

@@ -55,19 +55,23 @@ class Pipeline {
 
   //! Callbacks to fill input queues.
   inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
+    CHECK(data_provider_module_);
     CHECK(left_frame);
     data_provider_module_->fillLeftFrameQueue(std::move(left_frame));
   }
   inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
+    CHECK(data_provider_module_);
     CHECK(right_frame);
     data_provider_module_->fillRightFrameQueue(std::move(right_frame));
   }
   //! Fill one IMU measurement at a time.
   inline void fillSingleImuQueue(const ImuMeasurement& imu_measurement) {
+    CHECK(data_provider_module_);
     data_provider_module_->fillImuQueue(imu_measurement);
   }
   //! Fill multiple IMU measurements in batch
   inline void fillMultiImuQueue(const ImuMeasurements& imu_measurements) {
+    CHECK(data_provider_module_);
     data_provider_module_->fillImuQueue(imu_measurements);
   }
 

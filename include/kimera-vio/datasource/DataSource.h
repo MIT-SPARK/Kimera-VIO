@@ -121,14 +121,16 @@ class DataProviderModule
 
   DataProviderModule(OutputQueue* output_queue,
                      const std::string& name_id,
-                     const bool& parallel_run)
+                     const bool& parallel_run,
+                     const StereoMatchingParams& stereo_matching_params)
       : MISOPipelineModule<StereoImuSyncPacket, StereoImuSyncPacket>(
             output_queue,
             name_id,
             parallel_run),
         imu_data_(),
         left_frame_queue_("data_provider_left_frame_queue"),
-        right_frame_queue_("data_provider_right_frame_queue") {}
+        right_frame_queue_("data_provider_right_frame_queue"),
+        stereo_matching_params_(stereo_matching_params) {}
 
   virtual ~DataProviderModule() = default;
 
@@ -191,6 +193,13 @@ class DataProviderModule
 
     // Extract imu measurements between consecutive frames.
     static Timestamp timestamp_last_frame = 0;
+    if (timestamp_last_frame == 0) {
+      VLOG(1) << "Skipping first frame, because we do not have concept of "
+                 "previous frame timestamp otherwise.";
+      timestamp_last_frame = timestamp;
+      return nullptr;
+    }
+
     ImuMeasurements imu_meas;
     CHECK_LT(timestamp_last_frame, timestamp);
     CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
@@ -198,7 +207,10 @@ class DataProviderModule
               timestamp_last_frame,
               timestamp,
               &imu_meas.timestamps_,
-              &imu_meas.acc_gyr_));
+              &imu_meas.acc_gyr_))
+        << "No IMU data from timestamp: " << timestamp
+        << " to timestamp: " << timestamp_last_frame;
+    timestamp_last_frame = timestamp;
 
     VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
              << "STAMPS IMU rows : \n"
@@ -215,15 +227,14 @@ class DataProviderModule
              << imu_meas.acc_gyr_;
 
     // Push the synced messages to the frontend's input queue
-    static FrameId k;
-    k = k + 1;
     return VIO::make_unique<StereoImuSyncPacket>(
-        StereoFrame(k,
-                    timestamp,
-                    *left_frame_payload,
-                    *right_frame_payload,
-                    StereoMatchingParams()),  // TODO(Toni): these params should
-                                              // be given in PipelineParams.
+        StereoFrame(
+            left_frame_payload->id_,
+            timestamp,
+            *left_frame_payload,
+            *right_frame_payload,
+            stereo_matching_params_),  // TODO(Toni): these params should
+                                       // be given in PipelineParams.
         imu_meas.timestamps_,
         imu_meas.acc_gyr_);
   }
@@ -233,6 +244,7 @@ class DataProviderModule
   ImuData imu_data_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
+  StereoMatchingParams stereo_matching_params_;
 };
 
 }  // namespace VIO

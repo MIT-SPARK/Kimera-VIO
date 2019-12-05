@@ -27,7 +27,7 @@ LOG_OUTPUT=0
 # All paths can be absolute or relative to this file location.
 
 # Build path: specify where the executable for Kimera is.
-BUILD_PATH="../build/"
+BUILD_PATH="../build"
 
 # Params path: specify where the parameters for Kimera are.
 PARAMS_PATH="../params"
@@ -112,6 +112,9 @@ $BUILD_PATH/stereoVIOEuroc \
   --initial_k=50 \
   --final_k=2000 \
   --backend_type="$BACKEND_TYPE" \
+  --left_cam_params_path="$PARAMS_PATH/LeftCameraParams.yaml" \
+  --right_cam_params_path="$PARAMS_PATH/RightCameraParams.yaml" \
+  --imu_params_path="$PARAMS_PATH/ImuParams.yaml" \
   --backend_params_path="$PARAMS_PATH/regularVioParameters.yaml" \
   --frontend_params_path="$PARAMS_PATH/trackerParameters.yaml" \
   --use_lcd="$USE_LCD" \
@@ -128,10 +131,10 @@ $BUILD_PATH/stereoVIOEuroc \
   --colorlogtostderr=1 \
   --log_prefix=0 \
   --v=0 \
-  --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 \
   --log_output="$LOG_OUTPUT" \
   --output_path="$OUTPUT_PATH"
 
 # If in debug mode, you can run gdb to trace problems.
 #export DATASET_PATH=/home/tonirv/datasets/euroc/EuRoC/V1_01_easy
-#gdb --args ../build/stereoVIOEuroc --flagfile="../params/flags/stereoVIOEuroc.flags" --flagfile="../params/flags/Mesher.flags" --flagfile="../params/flags/VioBackEnd.flags" --flagfile="../params/flags/RegularVioBackEnd.flags" --flagfile="../params/flags/Visualizer3D.flags" --flagfile="../params/flags/EthParser.flags" --logtostderr=1 --colorlogtostderr=1 --log_prefix=0 --dataset_path="$DATASET_PATH" --backend_params_path="$BACKEND_PARAMS_PATH" --initial_k=50 --final_k=2000 --frontend_params_path="" --lcd_params_path="" --vocabulary_path="../vocabulary/ORBvoc.yml" --use_lcd="0" --v=0 --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 --backend_type="0" --parallel_run="1" --dataset_type="0" --log_output="0" --output_path="../output_logs/"
+#gdb --args ../build/stereoVIOEuroc --flagfile="../params/flags/stereoVIOEuroc.flags" --flagfile="../params/flags/Mesher.flags" --flagfile="../params/flags/VioBackEnd.flags" --flagfile="../params/flags/RegularVioBackEnd.flags" --flagfile="../params/flags/Visualizer3D.flags" --flagfile="../params/flags/EthParser.flags" --logtostderr=1 --colorlogtostderr=1 --log_prefix=0 --dataset_path="$DATASET_PATH" --left_cam_params_path="../params/LeftCameraParams.yaml" --right_cam_params_path="../params/RightCameraParams.yaml" --imu_params_path="../params/ImuParams.yaml" --backend_params_path="$BACKEND_PARAMS_PATH" --initial_k=50 --final_k=2000 --frontend_params_path="" --lcd_params_path="" --vocabulary_path="../vocabulary/ORBvoc.yml" --use_lcd="0" --v=0 --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 --backend_type="0" --parallel_run="1" --dataset_type="0" --log_output="0" --output_path="../output_logs/"
+

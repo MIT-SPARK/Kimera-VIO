@@ -115,12 +115,14 @@ class ETHDatasetParser : public DataProviderInterface {
       const gtsam::Vector3& init_gravity);
 
   inline size_t getNumImages() const {
+    CHECK_GT(camera_names_.size(), 0u);
     const std::string& camera_name = camera_names_.at(0);
     const auto& iter = camera_image_lists_.find(camera_name);
     CHECK(iter != camera_image_lists_.end());
     return iter->second.getNumImages();
   }
   inline std::string getImgName(const std::string& id, const size_t& k) const {
+    CHECK_GT(camera_names_.size(), 0u);
     const std::string& camera_name = camera_names_.at(0);
     const auto& iter = camera_image_lists_.find(id);
     CHECK(iter != camera_image_lists_.end());
@@ -164,6 +166,7 @@ class ETHDatasetParser : public DataProviderInterface {
 
  private:
   /// Images data.
+  // TODO(Toni): remove camera_names_ and camera_image_lists_...
   // This matches the names of the folders in the dataset
   std::vector<std::string> camera_names_;
   // Map from camera name to its images
@@ -171,13 +174,6 @@ class ETHDatasetParser : public DataProviderInterface {
 
   bool is_gt_available_;
   std::string dataset_name_;
-
-  // Number of initial frames to skip for
-  // IMU calibration. We only use the IMU information and discard the frames.
-  int skip_n_start_frames_ = 0;
-  // Number of final frames to skip for IMU calibration. We only use the IMU
-  // information and discard the frames.
-  int skip_n_end_frames_ = 0;
 
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";

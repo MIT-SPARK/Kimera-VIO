@@ -48,7 +48,8 @@ static void parsePipelineParams(const std::string& params_path,
                  << " parameters specified, using default.";
     *pipeline_params = T();  // default params
   } else {
-    VLOG(100) << "Using user-specified tracker parameters: " << params_path;
+    VLOG(100) << "Using user-specified " << pipeline_params->name_
+              << " parameters: " << params_path;
     pipeline_params->parseYAML(params_path);
   }
 }

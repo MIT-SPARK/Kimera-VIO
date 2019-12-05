@@ -127,7 +127,11 @@ Pipeline::Pipeline(const VioParams& params)
 
   //! Create DataProvider
   data_provider_module_ = VIO::make_unique<DataProviderModule>(
-      &stereo_frontend_input_queue_, "Data Provider", parallel_run_);
+      &stereo_frontend_input_queue_,
+      "Data Provider",
+      parallel_run_,
+      // TODO(Toni): these params should not be sent...
+      params.frontend_params_.stereo_matching_params_);
 
   //! Create frontend
   vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
@@ -312,6 +316,9 @@ bool Pipeline::spinViz() {
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinSequential() {
   // Spin once each pipeline module.
+  CHECK(data_provider_module_);
+  data_provider_module_->spin();
+
   CHECK(vio_frontend_module_);
   vio_frontend_module_->spin();
 
@@ -362,6 +369,7 @@ void Pipeline::shutdownWhenFinished() {
                           << "Backend is working? "
                           << (is_initialized_ ? vio_backend_module_->isWorking()
                                               : false);
+    data_provider_module_->spin();
 
     VLOG_IF_EVERY_N(10, mesher_module_, 100)
         << "Mesher is working? " << mesher_module_->isWorking();

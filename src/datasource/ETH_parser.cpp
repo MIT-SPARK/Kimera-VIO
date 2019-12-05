@@ -60,11 +60,6 @@ bool ETHDatasetParser::spin() {
   // Parse the actual dataset first, then run it.
   parse();
 
-  // Timestamp 10 frames before the first (for imu calibration)
-  CHECK_GE(initial_k_, skip_n_start_frames_)
-      << "Initial frame " << initial_k_ << " has to be larger than "
-      << skip_n_start_frames_ << " (needed for IMU calibration)";
-
   // Spin.
   const StereoMatchingParams& stereo_matching_params =
       pipeline_params_.frontend_params_.stereo_matching_params_;
@@ -72,6 +67,7 @@ bool ETHDatasetParser::spin() {
   CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
   const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
   const CameraParams& right_cam_info = pipeline_params_.camera_params_.at(1);
+  CHECK_GT(final_k_, initial_k_);
   for (FrameId k = initial_k_; k < final_k_; k++) {
     spinOnce(k, left_cam_info, right_cam_info, equalize_image);
   }
@@ -84,10 +80,7 @@ void ETHDatasetParser::spinOnce(const FrameId& k,
                                 const bool& equalize_image) {
   const Timestamp& timestamp_frame_k = timestampAtFrame(k);
 
-  // TODO(Toni) alternatively push here to a queue, and give that queue to the
-  // VIO pipeline so it can pull from it.
-  // Call VIO Pipeline.
-  VLOG(10) << "Call VIO processing for frame k: " << k
+  VLOG(10) << "Sending left/right frames k= " << k
            << " with timestamp: " << timestamp_frame_k;
 
   // TODO(Toni): ideally only send cv::Mat raw images...:
@@ -96,12 +89,16 @@ void ETHDatasetParser::spinOnce(const FrameId& k,
   left_frame_callback_(
       VIO::make_unique<Frame>(k,
                               timestamp_frame_k,
+                              // TODO(Toni): this info should be passed to
+                              // the camera... not all the time here...
                               left_cam_info,
                               UtilsOpenCV::ReadAndConvertToGrayScale(
                                   getLeftImgName(k), equalize_image)));
   right_frame_callback_(
       VIO::make_unique<Frame>(k,
                               timestamp_frame_k,
+                              // TODO(Toni): this info should be passed to
+                              // the camera... not all the time here...
                               right_cam_info,
                               UtilsOpenCV::ReadAndConvertToGrayScale(
                                   getRightImgName(k), equalize_image)));
@@ -117,7 +114,7 @@ void ETHDatasetParser::parse() {
   VLOG(100) << "Using dataset path: " << dataset_path_;
   // Parse the dataset (ETH format).
   parseDataset();
-  print();
+  if (VLOG_IS_ON(1)) print();
 
   // Send first ground-truth pose to VIO for initialization if requested.
   if (pipeline_params_.backend_params_->autoInitialize_ == 0) {
@@ -212,7 +209,9 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
                                    const std::string& gtSensorName) {
-  ///////////////// PARSE SENSOR FILE //////////////////////////////////////////
+  CHECK(!input_dataset_path.empty());
+  CHECK(!gtSensorName.empty());
+
   std::string filename_sensor =
       input_dataset_path + "/mav0/" + gtSensorName + "/sensor.yaml";
 
@@ -235,7 +234,7 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
 
   // Sanity check: usually this is the identity matrix as the GT "sensor"
   // is at the body frame
-  LOG_IF(FATAL, !gt_data_.body_Pose_cam_.equals(gtsam::Pose3()))
+  CHECK(gt_data_.body_Pose_cam_.equals(gtsam::Pose3()))
       << "parseGTdata: we expected identity body_Pose_cam_: is everything ok?";
 
   fs.release();
@@ -249,8 +248,8 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
   std::string filename_data =
       input_dataset_path + "/mav0/" + gtSensorName + "/data.csv";
   std::ifstream fin(filename_data.c_str());
-  LOG_IF(FATAL, !fin.is_open()) << "Cannot open file: " << filename_data << '\n'
-                                << "Assuming dataset has no ground truth...";
+  CHECK(fin.is_open()) << "Cannot open file: " << filename_data << '\n'
+                       << "Assuming dataset has no ground truth...";
 
   // Skip the first line, containing the header.
   std::string line;
@@ -324,7 +323,7 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
     if (normVel > maxGTvel) maxGTvel = normVel;
   }  // End of while loop.
 
-  LOG_IF(FATAL, deltaCount != gt_data_.map_to_gt_.size() - 1u)
+  CHECK_EQ(deltaCount, gt_data_.map_to_gt_.size() - 1u)
       << "parseGTdata: wrong nr of deltaCount: deltaCount " << deltaCount
       << " nrPoses " << gt_data_.map_to_gt_.size();
 
@@ -334,23 +333,29 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
   gt_data_.gt_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
   fin.close();
 
-  LOG(INFO) << "Maximum ground truth velocity: " << maxGTvel;
+  VLOG(1) << "Maximum ground truth velocity: " << maxGTvel;
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
 bool ETHDatasetParser::parseDataset() {
   // Parse IMU data.
-  parseImuData(dataset_path_, kImuName);
+  CHECK(parseImuData(dataset_path_, kImuName));
 
   // Parse Camera data.
   CameraImageLists left_cam_image_list;
   CameraImageLists right_cam_image_list;
   parseCameraData(kLeftCamName, &left_cam_image_list);
+  if (VLOG_IS_ON(1)) left_cam_image_list.print();
   parseCameraData(kRightCamName, &right_cam_image_list);
-  camera_image_lists_.at(kLeftCamName) = left_cam_image_list;
-  camera_image_lists_.at(kRightCamName) = right_cam_image_list;
-  CHECK(sanityCheckCameraData(camera_names_, &camera_image_lists_));
+  if (VLOG_IS_ON(1)) right_cam_image_list.print();
+  // TODO(Toni): remove camera_names_ and camera_image_lists_...
+  camera_names_.push_back(kLeftCamName);
+  camera_names_.push_back(kRightCamName);
+  // WARNING Use [x] not .at() because we are adding entries that do not exist.
+  camera_image_lists_[kLeftCamName] = left_cam_image_list;
+  camera_image_lists_[kRightCamName] = right_cam_image_list;
+  // CHECK(sanityCheckCameraData(camera_names_, &camera_image_lists_));
 
   // Parse Ground-Truth data.
   static const std::string ground_truth_name = "state_groundtruth_estimate0";
@@ -375,6 +380,7 @@ bool ETHDatasetParser::sanityCheckCameraData(
     std::map<std::string, CameraImageLists>* camera_image_lists) const {
   CHECK_NOTNULL(camera_image_lists);
   CHECK_GT(pipeline_params_.camera_params_.size(), 0u);
+  CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
   const auto& left_cam_info = pipeline_params_.camera_params_.at(0);
   auto& left_img_lists = camera_image_lists->at(camera_names.at(0)).img_lists_;
   auto& right_img_lists = camera_image_lists->at(camera_names.at(1)).img_lists_;

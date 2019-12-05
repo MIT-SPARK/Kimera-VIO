@@ -30,12 +30,12 @@ bool ImuParams::parseYAML(const std::string& filepath) {
 
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
   // to check we are all on the same page.
-  int n_rows = 0;
-  yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
-  CHECK_EQ(n_rows, 4u);
-  int n_cols = 0;
-  yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
-  CHECK_EQ(n_cols, 4u);
+  // int n_rows = 0;
+  // yaml_parser.getNestedYamlParam("T_BS", "rows", &n_rows);
+  // CHECK_EQ(n_rows, 4u);
+  // int n_cols = 0;
+  // yaml_parser.getNestedYamlParam("T_BS", "cols", &n_cols);
+  // CHECK_EQ(n_cols, 4u);
   std::vector<double> vector_pose;
   yaml_parser.getNestedYamlParam("T_BS", "data", &vector_pose);
   const gtsam::Pose3& body_Pose_cam =
@@ -55,6 +55,8 @@ bool ImuParams::parseYAML(const std::string& filepath) {
   yaml_parser.getYamlParam("accelerometer_noise_density", &acc_noise_);
   yaml_parser.getYamlParam("gyroscope_random_walk", &gyro_walk_);
   yaml_parser.getYamlParam("accelerometer_random_walk", &acc_walk_);
+  yaml_parser.getYamlParam("imu_integration_sigma", &imu_integration_sigma_);
+  yaml_parser.getYamlParam("imu_time_shift", &imu_shift_);
   std::vector<double> n_gravity;
   yaml_parser.getYamlParam("n_gravity", &n_gravity);
   CHECK_EQ(n_gravity.size(), 3);
@@ -69,8 +71,9 @@ void ImuParams::print() const {
             << "gyroscope_random_walk: " << gyro_walk_ << '\n'
             << "accelerometer_noise_density: " << acc_noise_ << '\n'
             << "accelerometer_random_walk: " << acc_walk_ << '\n'
-            << "n_gravity: " << n_gravity_ << '\n'
-            << "imu_integration_sigma: " << imu_integration_sigma_;
+            << "imu_integration_sigma: " << imu_integration_sigma_ << '\n'
+            << "imu_time_shift: " << imu_shift_ << '\n'
+            << "n_gravity: " << n_gravity_;
 }
 
 }  // namespace VIO

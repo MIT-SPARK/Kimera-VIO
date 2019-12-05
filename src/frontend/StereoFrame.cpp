@@ -34,8 +34,11 @@ StereoFrame::StereoFrame(const FrameId& id,
       // TODO(Toni): these copies are the culprits of all evil...
       left_frame_(left_frame),
       right_frame_(right_frame),
+      is_rectified_(FLAGS_images_rectified),
+      is_keyframe_(false),
       // TODO(Toni): completely useless to copy params all the time...
-      sparse_stereo_params_(stereo_matching_params) {
+      sparse_stereo_params_(stereo_matching_params),
+      baseline_(0.0) {
   initialize(left_frame_.cam_param_, right_frame_.cam_param_);
   CHECK_EQ(id_, left_frame_.id_);
   CHECK_EQ(id_, right_frame_.id_);
