@@ -82,7 +82,8 @@ class Visualizer3D {
    */
   virtual VisualizerOutput::Ptr spinOnce(const VisualizerInput& input);
 
- private:
+  // TODO(marcus): Is there any reason the following two methods must be private?
+  
   /* ------------------------------------------------------------------------ */
   // Create a 2D mesh from 2D corners in an image, coded as a Frame class
   static cv::Mat visualizeMesh2D(
@@ -96,6 +97,7 @@ class Visualizer3D {
       const std::vector<cv::Vec6f>& triangulation_2D,
       const Frame& ref_frame);
 
+ private:
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks.
   void visualizePoints3D(const PointsWithIdMap& points_with_id,

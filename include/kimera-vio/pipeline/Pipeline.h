@@ -44,7 +44,7 @@ class Pipeline {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Typedefs
-  typedef std::function<void(const SpinOutputPacket&)>
+  typedef std::function<void(const SpinOutputPacket::Ptr&)>
       KeyframeRateOutputCallback;
 
  public:
@@ -64,6 +64,19 @@ class Pipeline {
   // A parallel pipeline should always be able to run sequentially...
   void spinSequential();
 
+  // TODO(marcus): document
+  void sendOutputPacket();
+
+  inline void fillBackendQueue(const BackendOutput::Ptr& output) {
+    backend_output_queue_.push(output);
+  }
+  inline void fillMesherQueue(const MesherOutput::Ptr& output) {
+    mesher_output_queue_.push(output);
+  }
+  inline void fillFrontendQueue(const FrontendOutput::Ptr& output) {
+    frontend_output_queue_.push(output);
+  }
+
   // Shutdown the pipeline once all data has been consumed.
   void shutdownWhenFinished();
 
@@ -78,7 +91,7 @@ class Pipeline {
   // This callback also allows to
   inline void registerKeyFrameRateOutputCallback(
       KeyframeRateOutputCallback callback) {
-    keyframe_rate_output_callback_ = callback;
+    keyframe_rate_output_callbacks_.push_back(callback);
   }
 
   // Callback to output the LoopClosureDetector's loop-closure/PGO results.
@@ -148,7 +161,7 @@ class Pipeline {
   void joinThreads();
 
   // Callbacks.
-  KeyframeRateOutputCallback keyframe_rate_output_callback_;
+  std::vector<KeyframeRateOutputCallback> keyframe_rate_output_callbacks_;
 
   // Init Vio parameter
   VioBackEndParams::ConstPtr backend_params_;
@@ -169,6 +182,14 @@ class Pipeline {
   // Online initialization frontend queue.
   ThreadsafeQueue<InitializationInputPayload::UniquePtr>
       initialization_frontend_output_queue_;
+
+  // TODO(marcus): document
+  ThreadsafeQueue<BackendOutput::Ptr>
+      backend_output_queue_;
+  ThreadsafeQueue<MesherOutput::Ptr>
+      mesher_output_queue_;
+  ThreadsafeQueue<FrontendOutput::Ptr>
+      frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   VioBackEndModule::UniquePtr vio_backend_module_;
