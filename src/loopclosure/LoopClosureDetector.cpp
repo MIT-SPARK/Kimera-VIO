@@ -16,7 +16,9 @@
 
 #include <algorithm>
 #include <fstream>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -449,7 +451,7 @@ bool LoopClosureDetector::recoverPose(const FrameId& query_id,
 const gtsam::Pose3 LoopClosureDetector::getWPoseMap() const {
   if (W_Pose_Blkf_estimates_.size() > 1) {
     CHECK(pgo_);
-    gtsam::Pose3 w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
+    const gtsam::Pose3& w_Pose_Bkf_estim = W_Pose_Blkf_estimates_.back();
     const gtsam::Pose3& w_Pose_Bkf_optimal =
         pgo_->calculateEstimate().at<gtsam::Pose3>(
             W_Pose_Blkf_estimates_.size() - 1);
@@ -771,6 +773,9 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
   // TODO(marcus): Worth it to reserve space ahead of time? even if it's
   // over-reserved Keep only the best matches using Lowe's ratio test and store
   // indicies.
+  const size_t& n_matches = matches.size();
+  i_query->resize(n_matches);
+  i_match->resize(n_matches);
   for (const std::vector<cv::DMatch>& match : matches) {
     if (match.at(0).distance < lowe_ratio * match.at(1).distance) {
       i_query->push_back(match[0].queryIdx);
@@ -923,21 +928,20 @@ bool LoopClosureDetector::recoverPoseGivenRot(
     gtsam::Pose3* bodyCur_T_bodyRef) {
   CHECK_NOTNULL(bodyCur_T_bodyRef);
 
-  gtsam::Rot3 R = camCur_T_camRef_mono.rotation();
+  const gtsam::Rot3& R = camCur_T_camRef_mono.rotation();
 
   // Find correspondences between frames.
   std::vector<FrameId> i_query, i_match;
   computeMatchedIndices(query_id, match_id, &i_query, &i_match, true);
 
   // Fill point clouds with matched 3D keypoints.
-  size_t n_matches = i_match.size();
+  const size_t& n_matches = i_match.size();
   CHECK_EQ(i_query.size(), n_matches);
 
   if (n_matches > 0) {
-    std::vector<double> x_coord, y_coord, z_coord;
-    x_coord.reserve(n_matches);
-    y_coord.reserve(n_matches);
-    z_coord.reserve(n_matches);
+    std::vector<double> x_coord(n_matches);
+    std::vector<double> y_coord(n_matches);
+    std::vector<double> z_coord(n_matches);
 
     for (size_t i = 0; i < n_matches; i++) {
       const gtsam::Vector3& keypoint_cur =
@@ -946,9 +950,9 @@ bool LoopClosureDetector::recoverPoseGivenRot(
           db_frames_[match_id].keypoints_3d_.at(i_match[i]);
 
       gtsam::Vector3 rotated_keypoint_diff = keypoint_ref - (R * keypoint_cur);
-      x_coord.push_back(rotated_keypoint_diff[0]);
-      y_coord.push_back(rotated_keypoint_diff[1]);
-      z_coord.push_back(rotated_keypoint_diff[2]);
+      x_coord[i] = rotated_keypoint_diff[0];
+      y_coord[i] = rotated_keypoint_diff[1];
+      z_coord[i] = rotated_keypoint_diff[2];
     }
 
     CHECK_EQ(x_coord.size(), n_matches);
