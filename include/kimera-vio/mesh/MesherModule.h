@@ -47,16 +47,16 @@ class MesherModule : public MIMOPipelineModule<MesherInput, MesherOutput> {
   //! then loop over the other queues until you get a payload that has exactly
   //! the same timestamp. Guaranteed to sync messages unless the assumption
   //! on the order of msg generation is broken.
-  virtual InputUniquePtr getInputPacket() override;
+  InputUniquePtr getInputPacket() override;
 
-  virtual OutputUniquePtr spinOnce(MesherInput::UniquePtr input) override;
+  OutputUniquePtr spinOnce(MesherInput::UniquePtr input) override;
 
  protected:
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override;
+  void shutdownQueues() override;
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override;
+  bool hasWork() const override;
 
  private:
   //! Input Queues
