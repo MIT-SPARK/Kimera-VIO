@@ -16,8 +16,11 @@
 
 #include <atomic>
 #include <functional>  // for function
+#include <limits>      // for  numeric_limits
 #include <memory>
 #include <string>
+#include <utility>  // for move
+#include <vector>
 
 #include <glog/logging.h>
 
@@ -307,7 +310,7 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
    * @param[out] output_packet  Parameter to be sent to others
    * @return boolean indicating whether the push was successful or not.
    */
-  virtual inline bool pushOutputPacket(
+  bool pushOutputPacket(
       typename PIO::OutputUniquePtr output_packet) const override {
     auto tic_callbacks = utils::Timer::tic();
     //! We need to make our packet shared in order to send it to multiple
@@ -369,7 +372,7 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
    * @return a boolean indicating whether the generation of the input packet was
    * successful.
    */
-  virtual inline typename PIO::InputUniquePtr getInputPacket() override {
+  typename PIO::InputUniquePtr getInputPacket() override {
     typename PIO::InputUniquePtr input = nullptr;
     bool queue_state = false;
     if (PIO::parallel_run_) {
@@ -389,10 +392,10 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override { input_queue_->shutdown(); }
+  void shutdownQueues() override { input_queue_->shutdown(); }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override { return !input_queue_->empty(); }
+  bool hasWork() const override { return !input_queue_->empty(); }
 
  private:
   //! Input
@@ -428,7 +431,7 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
 
   //! Override registering of output callbacks since this is only used for
   //! multiple output pipelines.
-  virtual void registerCallback(const typename MIMO::OutputCallback&) override {
+  void registerCallback(const typename MIMO::OutputCallback&) override {
     LOG(WARNING) << "SISO Pipeline Module does not use callbacks.";
   }
 
@@ -440,13 +443,13 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
    * @param[out] output_packet  Parameter to be sent to others
    * @return boolean indicating whether the push was successful or not.
    */
-  virtual inline bool pushOutputPacket(
+  inline bool pushOutputPacket(
       typename MIMO::OutputUniquePtr output_packet) const override {
     return output_queue_->push(std::move(output_packet));
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override { output_queue_->shutdown(); }
+  void shutdownQueues() override { output_queue_->shutdown(); }
 
  private:
   //! Output
@@ -481,7 +484,7 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
 
   //! Override registering of output callbacks since this is only used for
   //! multiple output pipelines.
-  virtual void registerCallback(
+  void registerCallback(
       const typename MISO::OutputCallback& output_callback) override {
     LOG(WARNING) << "SISO Pipeline Module does not use callbacks.";
   }
@@ -496,7 +499,7 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
    * @return a boolean indicating whether the generation of the input packet was
    * successful.
    */
-  virtual inline typename MISO::InputUniquePtr getInputPacket() override {
+  typename MISO::InputUniquePtr getInputPacket() override {
     typename MISO::InputUniquePtr input = nullptr;
     bool queue_state = false;
     if (MISO::parallel_run_) {
@@ -516,12 +519,12 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override {
+  void shutdownQueues() override {
     input_queue_->shutdown() && MISO::shutdownQueues();
   }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override { return !input_queue_->empty(); }
+  bool hasWork() const override { return !input_queue_->empty(); }
 
  private:
   //! Input
