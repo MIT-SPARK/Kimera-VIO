@@ -448,9 +448,6 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
   //! Called when general shutdown of PipelineModule is triggered.
   virtual void shutdownQueues() override { output_queue_->shutdown(); }
 
-  //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const = 0;
-
  private:
   //! Output
   OutputQueue* output_queue_;
