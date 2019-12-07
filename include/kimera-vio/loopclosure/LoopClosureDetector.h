@@ -320,7 +320,7 @@ class LoopClosureDetector {
    *  with a frame.
    * @param[in] start_id The frame ID that starts the island.
    * @param[in] end_id The frame ID that ends the island.
-   * @reutrn The score of the island.
+   * @return The score of the island.
    */
   double computeIslandScore(const DBoW2::QueryResults& q,
                             const FrameId& start_id,
@@ -337,8 +337,8 @@ class LoopClosureDetector {
    */
   void computeMatchedIndices(const FrameId& query_id,
                              const FrameId& match_id,
-                             std::vector<unsigned int>* i_query,
-                             std::vector<unsigned int>* i_match,
+                             std::vector<FrameId>* i_query,
+                             std::vector<FrameId>* i_match,
                              bool cut_matches = false) const;
 
   /* ------------------------------------------------------------------------ */
