@@ -1,5 +1,6 @@
 # Use an official Python runtime as a parent image
 FROM ubuntu:18.04
+
 MAINTAINER Antoni Rosinol "arosinol@mit.edu"
 
 # To avoid tzdata asking for geographic location...
@@ -17,7 +18,7 @@ RUN apt-get update && apt-get install -y git cmake build-essential pkg-config
 RUN apt-get update && apt-get install -y xvfb
 
 # Install GTSAM
-RUN apt-get update && apt-get install -y libboost-all-dev
+RUN apt-get update && apt-get install -y libboost-all-dev libtbb-dev
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
     git fetch && \
