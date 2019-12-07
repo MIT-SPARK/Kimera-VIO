@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <utility>  // For move
 #include <vector>
 
 #include <gtsam/geometry/Pose3.h>
@@ -311,7 +312,7 @@ class LoopClosureDetector {
    * @return
    */
   // TODO(marcus): unit tests
-  void computeIslands(DBoW2::QueryResults& q,
+  void computeIslands(DBoW2::QueryResults* q,
                       std::vector<MatchIsland>* islands) const;
 
   /* ------------------------------------------------------------------------ */
@@ -458,7 +459,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
       : MIMOPipelineModule<LcdInput, LcdOutput>("Lcd", parallel_run),
         frontend_queue_("lcd_frontend_queue"),
         backend_queue_("lcd_backend_queue"),
-        lcd_(std::move(lcd)){};
+        lcd_(std::move(lcd)) {}
   virtual ~LcdModule() = default;
 
   //! Callbacks to fill queues: they should be all lighting fast.
@@ -471,7 +472,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
 
  protected:
   //! Synchronize input queues.
-  virtual inline InputUniquePtr getInputPacket() override {
+  inline InputUniquePtr getInputPacket() override {
     // TODO(X): this is the same or very similar to the Mesher getInputPacket.
     LcdBackendInput backend_payload;
     bool queue_state = false;
@@ -493,43 +494,31 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
     // a backend payload without having a frontend one first!
-    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::max();
-    LcdFrontendInput frontend_payload;
-    while (timestamp != payload_timestamp) {
-      if (!frontend_queue_.pop(frontend_payload)) {
-        // We had a backend input but no frontend input, something's wrong.
-        LOG(ERROR) << "Module: " << name_id_
-                   << " - Frontend payload queue is empty or "
-                      "has been shutdown.";
-        return nullptr;
-      }
-      if (frontend_payload) {
-        payload_timestamp = frontend_payload->stereo_frame_lkf_.getTimestamp();
-      } else {
-        LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
-      }
-    }
+    LcdFrontendInput frontend_payload = nullptr;
+    PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
+    CHECK(frontend_payload);
+    CHECK(frontend_payload->is_keyframe_);
 
     // Push the synced messages to the lcd's input queue
     const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
     const gtsam::Pose3& body_pose = backend_payload->W_State_Blkf_.pose_;
-    return VIO::make_unique<LoopClosureDetectorInputPayload>(
+    return VIO::make_unique<LcdInput>(
         timestamp, backend_payload->cur_kf_id_, stereo_keyframe, body_pose);
   }
 
-  virtual OutputUniquePtr spinOnce(LcdInput::UniquePtr input) override {
+  OutputUniquePtr spinOnce(LcdInput::UniquePtr input) override {
     return lcd_->spinOnce(*input);
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override {
+  void shutdownQueues() override {
     LOG(INFO) << "Shutting down queues for: " << name_id_;
     frontend_queue_.shutdown();
     backend_queue_.shutdown();
   }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override {
+  bool hasWork() const override {
     // We don't check frontend queue because it runs faster than backend queue.
     return !backend_queue_.empty();
   }

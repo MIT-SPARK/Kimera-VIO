@@ -320,7 +320,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
 
         // Compute islands in the matches.
         std::vector<MatchIsland> islands;
-        computeIslands(query_result, &islands);
+        computeIslands(&query_result, &islands);
 
         if (islands.empty()) {
           result->status_ = LCDStatus::NO_GROUPS;
@@ -666,23 +666,26 @@ bool LoopClosureDetector::checkTemporalConstraint(const FrameId& id,
 
 /* ------------------------------------------------------------------------ */
 void LoopClosureDetector::computeIslands(
-    DBoW2::QueryResults& q,
+    DBoW2::QueryResults* q,
     std::vector<MatchIsland>* islands) const {
+  CHECK_NOTNULL(q);
   CHECK_NOTNULL(islands);
   islands->clear();
 
   // The case of one island is easy to compute and is done separately
-  if (q.size() == 1) {
-    MatchIsland island(q[0].Id, q[0].Id, q[0].Score);
-    island.best_id_ = q[0].Id;
-    island.best_score_ = q[0].Score;
+  if (q->size() == 1) {
+    const DBoW2::Result& result = (*q)[0];
+    const DBoW2::EntryId& result_id = result.Id;
+    MatchIsland island(result_id, result_id, result.Score);
+    island.best_id_ = result_id;
+    island.best_score_ = result.Score;
     islands->push_back(island);
-  } else if (!q.empty()) {
+  } else if (!q->empty()) {
     // sort query results in ascending order of ids
-    std::sort(q.begin(), q.end(), DBoW2::Result::ltId);
+    std::sort(q->begin(), q->end(), DBoW2::Result::ltId);
 
     // create long enough islands
-    DBoW2::QueryResults::const_iterator dit = q.begin();
+    DBoW2::QueryResults::const_iterator dit = q->begin();
     int first_island_entry = static_cast<int>(dit->Id);
     int last_island_entry = static_cast<int>(dit->Id);
 
@@ -694,7 +697,7 @@ void LoopClosureDetector::computeIslands(
     DBoW2::EntryId best_entry = dit->Id;
 
     ++dit;
-    for (FrameId idx = 1; dit != q.end(); ++dit, ++idx) {
+    for (FrameId idx = 1; dit != q->end(); ++dit, ++idx) {
       if (static_cast<int>(dit->Id) - last_island_entry <
           lcd_params_.max_intragroup_gap_) {
         last_island_entry = dit->Id;
@@ -710,7 +713,7 @@ void LoopClosureDetector::computeIslands(
           MatchIsland island =
               MatchIsland(first_island_entry,
                           last_island_entry,
-                          computeIslandScore(q, i_first, i_last));
+                          computeIslandScore(*q, i_first, i_last));
 
           islands->push_back(island);
           islands->back().best_score_ = best_score;
@@ -729,7 +732,7 @@ void LoopClosureDetector::computeIslands(
         lcd_params_.min_matches_per_group_) {
       MatchIsland island = MatchIsland(first_island_entry,
                                        last_island_entry,
-                                       computeIslandScore(q, i_first, i_last));
+                                       computeIslandScore(*q, i_first, i_last));
 
       islands->push_back(island);
       islands->back().best_score_ = best_score;
