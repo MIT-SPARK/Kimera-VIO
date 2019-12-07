@@ -152,7 +152,7 @@ class PipelineModule {
    */
   // TODO(Toni): given a list of queues, syncronize them and get an output
   // payload. Maybe keep a list of input queues, that the user can provide.
-  virtual inline InputUniquePtr getInputPacket() = 0;
+  virtual InputUniquePtr getInputPacket() = 0;
 
   /**
    * @brief Utility function to synchronize threadsafe queues.
@@ -224,7 +224,7 @@ class PipelineModule {
    * @param[out] output_packet  Parameter to be sent to others
    * @return boolean indicating whether the push was successful or not.
    */
-  virtual inline bool pushOutputPacket(OutputUniquePtr output_packet) const = 0;
+  virtual bool pushOutputPacket(OutputUniquePtr output_packet) const = 0;
 
   /**
    * @brief Abstract function to process a single input payload.
