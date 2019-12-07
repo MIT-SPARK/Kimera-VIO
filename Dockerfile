@@ -1,6 +1,5 @@
 # Use an official Python runtime as a parent image
 FROM ubuntu:18.04
-
 MAINTAINER Antoni Rosinol "arosinol@mit.edu"
 
 # To avoid tzdata asking for geographic location...
