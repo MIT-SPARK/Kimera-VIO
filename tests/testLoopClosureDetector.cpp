@@ -293,15 +293,8 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   gtsam::Pose3 camRef1_T_camCur1_mono;
   lcd_detector_->geometricVerificationCheck(1, 0, &camRef1_T_camCur1_mono);
 
-  cv::Mat match_img = lcd_detector_->computeAndDrawMatchesBetweenFrames(
-      cur1_stereo_frame_->getLeftFrame().img_,
-      ref1_stereo_frame_->getLeftFrame().img_, 1, 0, false);
-
-  // TODO(marcus): get rid of this and switch to false on toscale flag
-  gtsam::Point3 unit_T_ref_to_cur = ref1_to_cur1_pose_.translation() /
-                                    ref1_to_cur1_pose_.translation().norm();
   gtsam::Pose3 ref_to_cur_gnd_truth_pose =
-      gtsam::Pose3(ref1_to_cur1_pose_.rotation(), unit_T_ref_to_cur);
+      gtsam::Pose3(ref1_to_cur1_pose_.rotation(), ref1_to_cur1_pose_.translation());
 
   gtsam::Pose3 bodyRef1_T_bodyCur1;
   lcd_detector_->transformCameraPoseToBodyPose(camRef1_T_camCur1_mono,
@@ -309,7 +302,7 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
 
   std::pair<double, double> error =
       UtilsOpenCV::ComputeRotationAndTranslationErrors(
-          ref_to_cur_gnd_truth_pose, bodyRef1_T_bodyCur1, true);
+          ref_to_cur_gnd_truth_pose, bodyRef1_T_bodyCur1, false);
 
   EXPECT_LT(error.first, rot_tol);
   // TODO(marcus): This test doesn't pass with realistic error tolerances

@@ -49,13 +49,6 @@ DEFINE_string(vocabulary_path,
 
 namespace VIO {
 
-using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
-using SacProblemMono =
-    opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
-using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
-using SacProblemStereo =
-    opengv::sac_problems::point_cloud::PointCloudSacProblem;
-
 /* ------------------------------------------------------------------------ */
 LoopClosureDetector::LoopClosureDetector(
     const LoopClosureDetectorParams& lcd_params,
@@ -763,8 +756,9 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
                                                 bool cut_matches) const {
   CHECK_NOTNULL(i_query);
   CHECK_NOTNULL(i_match);
+
   // Get two best matches between frame descriptors.
-  std::vector<std::vector<cv::DMatch>> matches;
+  std::vector<DMatchVec> matches;
   double lowe_ratio = 1.0;
   if (cut_matches) lowe_ratio = lcd_params_.lowe_ratio_;
 
@@ -773,14 +767,14 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
                                  matches,
                                  2u);
 
-  // TODO(marcus): Worth it to reserve space ahead of time? even if it's
-  // over-reserved Keep only the best matches using Lowe's ratio test and store
-  // indicies.
+  // We reserve instead of resize because some of the matches will be pruned.
   const size_t& n_matches = matches.size();
-  i_query->resize(n_matches);
-  i_match->resize(n_matches);
-  for (const std::vector<cv::DMatch>& match : matches) {
-    if (match.at(0).distance < lowe_ratio * match.at(1).distance) {
+  i_query->reserve(n_matches);
+  i_match->reserve(n_matches);
+  for (size_t i; i < n_matches; i++) {
+    const DMatchVec& match = matches[i];
+    CHECK_EQ(match.size(), 2);
+    if (match[0].distance < lowe_ratio * match[1].distance) {
       i_query->push_back(match[0].queryIdx);
       i_match->push_back(match[0].trainIdx);
     }
@@ -818,12 +812,11 @@ bool LoopClosureDetector::geometricVerificationNister(
 
     // Use RANSAC to solve the central-relative-pose problem.
     opengv::sac::Ransac<SacProblemMono> ransac;
-    std::shared_ptr<SacProblemMono> relposeproblem_ptr(
-        new SacProblemMono(adapter,
-                           SacProblemMono::Algorithm::NISTER,
-                           lcd_params_.ransac_randomize_mono_));
 
-    ransac.sac_model_ = relposeproblem_ptr;
+    ransac.sac_model_ =
+        std::make_shared<SacProblemMono>(adapter,
+                                         SacProblemMono::Algorithm::NISTER,
+                                         lcd_params_.ransac_randomize_mono_);
     ransac.max_iterations_ = lcd_params_.max_ransac_iterations_mono_;
     ransac.probability_ = lcd_params_.ransac_probability_mono_;
     ransac.threshold_ = lcd_params_.ransac_threshold_mono_;
@@ -883,10 +876,9 @@ bool LoopClosureDetector::recoverPoseArun(const FrameId& query_id,
   opengv::transformation_t transformation;
 
   // Compute transform using RANSAC 3-point method (Arun).
-  std::shared_ptr<SacProblemStereo> ptcloudproblem_ptr(
-      new SacProblemStereo(adapter, lcd_params_.ransac_randomize_stereo_));
   opengv::sac::Ransac<SacProblemStereo> ransac;
-  ransac.sac_model_ = ptcloudproblem_ptr;
+  ransac.sac_model_ = std::make_shared<SacProblemStereo>(
+      adapter, lcd_params_.ransac_randomize_stereo_);
   ransac.max_iterations_ = lcd_params_.max_ransac_iterations_stereo_;
   ransac.probability_ = lcd_params_.ransac_probability_stereo_;
   ransac.threshold_ = lcd_params_.ransac_threshold_stereo_;

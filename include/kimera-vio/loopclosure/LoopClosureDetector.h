@@ -416,6 +416,16 @@ class LoopClosureDetector {
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;
   LcdDebugInfo debug_info_;
+
+ private:
+  // Lcd typedefs
+  using DMatchVec = std::vector<cv::DMatch>;
+  using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
+  using SacProblemMono =
+      opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
+  using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
+  using SacProblemStereo =
+      opengv::sac_problems::point_cloud::PointCloudSacProblem;
 };  // class LoopClosureDetector
 
 enum class LoopClosureDetectorType {
