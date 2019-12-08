@@ -111,14 +111,10 @@ Pipeline::Pipeline(const PipelineParams& params)
       lcd_thread_(nullptr),
       visualizer_thread_(nullptr),
       parallel_run_(params.parallel_run_),
-      keyframe_rate_output_callbacks_(),
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       initialization_frontend_output_queue_(
           "initialization_frontend_output_queue"),
-      backend_input_queue_("backend_input_queue"),
-      backend_output_queue_("backend_output_queue"),
-      mesher_output_queue_("mesher_output_queue"),
-      frontend_output_queue_("frontend_output_queue") {
+      backend_input_queue_("backend_input_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
 
   //! Create Stereo Camera
@@ -241,21 +237,6 @@ Pipeline::Pipeline(const PipelineParams& params)
     feature_selector_ =
         VIO::make_unique<FeatureSelector>(frontend_params_, *backend_params_);
   }
-
-  // Register all output callbacks
-  // TODO(marcus): make sure they should all be Ptr and not UniquePtr
-  vio_backend_module_->registerCallback(
-        std::bind(&Pipeline::fillBackendQueue,
-                  this,
-                  std::placeholders::_1));
-  mesher_module_->registerCallback(
-        std::bind(&Pipeline::fillMesherQueue,
-                  this,
-                  std::placeholders::_1));
-  vio_frontend_module_->registerCallback(
-        std::bind(&Pipeline::fillFrontendQueue,
-                  this,
-                  std::placeholders::_1));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -302,46 +283,7 @@ void Pipeline::spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
     spinOnce(std::move(stereo_imu_sync_packet));
   }
 
-  // Construct SpinOutputPacket and send to callback
-  // TODO(marcus): make sure this is the correct place to put this
-  sendOutputPacket();
-
   return;
-}
-
-void Pipeline::sendOutputPacket() {
-  // popBlocking from Backend and Mesher
-  BackendOutput::Ptr backend_output;
-  MesherOutput::Ptr mesher_output;
-  FrontendOutput::Ptr frontend_output;
-
-  backend_output_queue_.pop(backend_output);
-  mesher_output_queue_.pop(mesher_output);
-  frontend_output_queue_.pop(frontend_output);
-
-  // TODO(marcus): add timing check on this callback stuff
-  // TODO(marcus): decide whether this should push UniquePtr or just Ptr
-
-  if (!keyframe_rate_output_callbacks_.empty()) {
-    LOG(INFO) << "Pushing SpinOutputPacket to callbacks.";
-
-    for (const KeyframeRateOutputCallback& callback : keyframe_rate_output_callbacks_) {
-      callback(std::make_shared<SpinOutputPacket>(
-          backend_output->W_State_Blkf_,
-          mesher_output->mesh_2d_,
-          mesher_output->mesh_3d_,
-          Visualizer3D::visualizeMesh2D(
-              mesher_output->mesh_2d_for_viz_,
-              frontend_output->stereo_frame_lkf_.getLeftFrame().img_),
-          backend_output->landmarks_with_id_map_,
-          backend_output->lmk_id_to_lmk_type_map_,
-          backend_output->state_covariance_lkf_,
-          frontend_output->debug_tracker_info_));
-    }
-  } else {
-    LOG(WARNING) << "No pipeline output callback registered.";
-  }
-  
 }
 
 /* -------------------------------------------------------------------------- */

@@ -43,10 +43,6 @@ class Pipeline {
   KIMERA_DELETE_COPY_CONSTRUCTORS(Pipeline);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // Typedefs
-  typedef std::function<void(const SpinOutputPacket::Ptr&)>
-      KeyframeRateOutputCallback;
-
  public:
   explicit Pipeline(const PipelineParams& params);
 
@@ -64,19 +60,6 @@ class Pipeline {
   // A parallel pipeline should always be able to run sequentially...
   void spinSequential();
 
-  // TODO(marcus): document
-  void sendOutputPacket();
-
-  inline void fillBackendQueue(const BackendOutput::Ptr& output) {
-    backend_output_queue_.push(output);
-  }
-  inline void fillMesherQueue(const MesherOutput::Ptr& output) {
-    mesher_output_queue_.push(output);
-  }
-  inline void fillFrontendQueue(const FrontendOutput::Ptr& output) {
-    frontend_output_queue_.push(output);
-  }
-
   // Shutdown the pipeline once all data has been consumed.
   void shutdownWhenFinished();
 
@@ -87,15 +70,28 @@ class Pipeline {
   // Resumes all queues
   void resume();
 
-  // Callback to output the VIO backend results at keyframe rate.
-  // This callback also allows to
-  inline void registerKeyFrameRateOutputCallback(
-      KeyframeRateOutputCallback callback) {
-    keyframe_rate_output_callbacks_.push_back(callback);
+  // Register external callback to output the VIO backend results.
+  inline void registerBackendOuptutCallback(
+      const VioBackEndModule::OutputCallback& callback) {
+    vio_backend_module_->registerCallback(callback);
   }
 
-  // Callback to output the LoopClosureDetector's loop-closure/PGO results.
-  inline void registerLcdPgoOutputCallback(
+  // Register external callback to output the VIO frontend results.
+  // TODO(marcus): once we have a base class for StereoVisionFrontend, we need 
+  // that type to go here instead.
+  inline void registerFrontendOuptutCallback(
+      const StereoVisionFrontEndModule::OutputCallback& callback) {
+    vio_frontend_module_->registerCallback(callback);
+  }
+
+  // Register external callback to output mesher results.
+  inline void registerMesherOuptutCallback(
+      const MesherModule::OutputCallback& callback) {
+    mesher_module_->registerCallback(callback);
+  }
+
+  // Register external callback to output the LoopClosureDetector's results.
+  inline void registerLcdOutputCallback(
       const LcdModule::OutputCallback& callback) {
     if (lcd_module_) {
       lcd_module_->registerCallback(callback);
@@ -160,9 +156,6 @@ class Pipeline {
   // Join threads to do a clean shutdown.
   void joinThreads();
 
-  // Callbacks.
-  std::vector<KeyframeRateOutputCallback> keyframe_rate_output_callbacks_;
-
   // Init Vio parameter
   VioBackEndParams::ConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
@@ -182,14 +175,6 @@ class Pipeline {
   // Online initialization frontend queue.
   ThreadsafeQueue<InitializationInputPayload::UniquePtr>
       initialization_frontend_output_queue_;
-
-  // TODO(marcus): document
-  ThreadsafeQueue<BackendOutput::Ptr>
-      backend_output_queue_;
-  ThreadsafeQueue<MesherOutput::Ptr>
-      mesher_output_queue_;
-  ThreadsafeQueue<FrontendOutput::Ptr>
-      frontend_output_queue_;
 
   // Create VIO: class that implements estimation back-end.
   VioBackEndModule::UniquePtr vio_backend_module_;
