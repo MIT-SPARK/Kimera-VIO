@@ -47,13 +47,14 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 ### Download and unzip the vocabularly file
 ExternalProject_Add(ORBvoc
     PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary
-    URL https://www.dropbox.com/s/t5bu56x1uuh2pn1/ORBvoc.zip.zip?dl=1
+    URL https://www.dropbox.com/s/lyo0qgbdxn6eg6o/ORBvoc.zip?dl=1
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
-    # INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory
-    #   ${CMAKE_CURRENT_BINARY_DIR}/vocabulary/src/ORBvoc/
-    #   ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/
-    INSTALL_COMMAND ""
+    INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
+      ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ &&
+      ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
+)
 
 ### Compile the code
 add_library(KimeraVIO SHARED "")
