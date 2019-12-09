@@ -71,7 +71,7 @@ class Pipeline {
   void resume();
 
   // Register external callback to output the VIO backend results.
-  inline void registerBackendOuptutCallback(
+  inline void registerBackendOutputCallback(
       const VioBackEndModule::OutputCallback& callback) {
     vio_backend_module_->registerCallback(callback);
   }
@@ -79,13 +79,13 @@ class Pipeline {
   // Register external callback to output the VIO frontend results.
   // TODO(marcus): once we have a base class for StereoVisionFrontend, we need 
   // that type to go here instead.
-  inline void registerFrontendOuptutCallback(
+  inline void registerFrontendOutputCallback(
       const StereoVisionFrontEndModule::OutputCallback& callback) {
     vio_frontend_module_->registerCallback(callback);
   }
 
   // Register external callback to output mesher results.
-  inline void registerMesherOuptutCallback(
+  inline void registerMesherOutputCallback(
       const MesherModule::OutputCallback& callback) {
     mesher_module_->registerCallback(callback);
   }
