@@ -189,16 +189,7 @@ class Pipeline {
   // Join threads to do a clean shutdown.
   void joinThreads();
 
-<<<<<<< HEAD
   // Init Vio parameter
-=======
- private:
-  //! Callbacks.
-  KeyframeRateOutputCallback keyframe_rate_output_callback_;
-
-  //! Parameters
-  // TODO(Toni): aren't all of these already in pipeline_params?
->>>>>>> feature/data_source_module_fast
   VioBackEndParams::ConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
   ImuParams imu_params_;
