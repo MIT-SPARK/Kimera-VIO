@@ -93,9 +93,10 @@ DEFINE_bool(use_lcd,
 
 namespace VIO {
 
-Pipeline::Pipeline(const PipelineParams& params)
+Pipeline::Pipeline(const VioParams& params)
     : backend_type_(static_cast<BackendType>(params.backend_type_)),
       stereo_camera_(nullptr),
+      data_provider_module_(nullptr),
       vio_frontend_module_(nullptr),
       feature_selector_(nullptr),
       vio_backend_module_(nullptr),
@@ -123,6 +124,17 @@ Pipeline::Pipeline(const PipelineParams& params)
       params.camera_params_.at(0),
       params.camera_params_.at(1),
       params.frontend_params_.stereo_matching_params_);
+
+  //! Create DataProvider
+  data_provider_module_ = VIO::make_unique<DataProviderModule>(
+      &stereo_frontend_input_queue_,
+      "Data Provider",
+      parallel_run_,
+      // TODO(Toni): these params should not be sent...
+      params.frontend_params_.stereo_matching_params_);
+
+  data_provider_module_->registerVioPipelineCallback(
+      std::bind(&Pipeline::spinOnce, this, std::placeholders::_1));
 
   //! Create frontend
   vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
@@ -164,6 +176,7 @@ Pipeline::Pipeline(const PipelineParams& params)
                                     stereo_camera_->getLeftCamPose(),
                                     stereo_camera_->getStereoCalib(),
                                     *CHECK_NOTNULL(backend_params_),
+                                    imu_params_,
                                     backend_output_params,
                                     FLAGS_log_output));
   vio_backend_module_->registerImuBiasUpdateCallback(
@@ -251,7 +264,8 @@ Pipeline::~Pipeline() {
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
+void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
+  CHECK_NOTNULL(stereo_imu_sync_packet);
   CHECK(!shutdown_) << "Pipeline is shutdown.";
   // Check if we have to re-initialize
   checkReInitialize(*stereo_imu_sync_packet);
@@ -278,25 +292,20 @@ void Pipeline::spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
       LOG(INFO) << "Not yet initialized...";
     }
   } else {
+    // SEND INFO TO FRONTEND, here is when we are in nominal mode.
     // TODO Warning: we do not accumulate IMU measurements for the first
     // packet... Spin.
-    spinOnce(std::move(stereo_imu_sync_packet));
+    CHECK(is_initialized_);
+
+    // Push to stereo frontend input queue.
+    VLOG(2) << "Push input payload to Frontend.";
+    stereo_frontend_input_queue_.push(std::move(stereo_imu_sync_packet));
+
+    // Run the pipeline sequentially.
+    if (!parallel_run_) spinSequential();
   }
 
   return;
-}
-
-/* -------------------------------------------------------------------------- */
-// Spin the pipeline only once.
-void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
-  CHECK(is_initialized_);
-  ////////////////////////////// FRONT-END /////////////////////////////////////
-  // Push to stereo frontend input queue.
-  VLOG(2) << "Push input payload to Frontend.";
-  stereo_frontend_input_queue_.push(std::move(stereo_imu_sync_packet));
-
-  // Run the pipeline sequentially.
-  if (!parallel_run_) spinSequential();
 }
 
 // Returns whether the visualizer_ is running or not. While in parallel mode,
@@ -311,6 +320,9 @@ bool Pipeline::spinViz() {
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinSequential() {
   // Spin once each pipeline module.
+  // CHECK(data_provider_module_);
+  // data_provider_module_->spin();
+
   CHECK(vio_frontend_module_);
   vio_frontend_module_->spin();
 
@@ -326,7 +338,7 @@ void Pipeline::spinSequential() {
 
 // TODO: Adapt this function to be able to cope with new initialization
 /* -------------------------------------------------------------------------- */
-void Pipeline::shutdownWhenFinished() {
+bool Pipeline::shutdownWhenFinished() {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.
@@ -340,42 +352,62 @@ void Pipeline::shutdownWhenFinished() {
     lcd_and_lcd_input_finished = false;
   }
 
+  CHECK(data_provider_module_);
+  CHECK(vio_frontend_module_);
+  CHECK(vio_backend_module_);
+
   while (!shutdown_ &&         // Loop while not explicitly shutdown.
          (!is_initialized_ ||  // Loop while not initialized
                                // Or, once init, data is not yet consumed.
-          !(stereo_frontend_input_queue_.empty() &&
+          !(!data_provider_module_->isWorking() &&
+            stereo_frontend_input_queue_.empty() &&
             !vio_frontend_module_->isWorking() &&
             backend_input_queue_.empty() && !vio_backend_module_->isWorking() &&
             (mesher_module_ ? !mesher_module_->isWorking() : true) &&
             (lcd_module_ ? !lcd_module_->isWorking() : true) &&
             (visualizer_module_ ? !visualizer_module_->isWorking() : true)))) {
-    VLOG_EVERY_N(10, 100) << "shutdown_: " << shutdown_ << '\n'
-                          << "VIO pipeline status: \n"
-                          << "Initialized? " << is_initialized_ << '\n'
-                          << "Frontend input queue empty?"
-                          << stereo_frontend_input_queue_.empty() << '\n'
-                          << "Frontend is working? "
-                          << vio_frontend_module_->isWorking() << '\n'
-                          << "Backend Input queue empty?"
-                          << backend_input_queue_.empty() << '\n'
-                          << "Backend is working? "
-                          << (is_initialized_ ? vio_backend_module_->isWorking()
-                                              : false);
+    VLOG(5) << "shutdown_: " << shutdown_ << '\n'
+            << "VIO pipeline status: \n"
+            << "Initialized? " << is_initialized_ << '\n'
+            << "Data provider is working? "
+            << data_provider_module_->isWorking() << '\n'
+            << "Frontend input queue empty? "
+            << stereo_frontend_input_queue_.empty() << '\n'
+            << "Frontend is working? " << vio_frontend_module_->isWorking()
+            << '\n'
+            << "Backend Input queue empty? " << backend_input_queue_.empty()
+            << '\n'
+            << "Backend is working? "
+            << (is_initialized_ ? vio_backend_module_->isWorking() : false);
 
-    VLOG_IF_EVERY_N(10, mesher_module_, 100)
+    VLOG_IF(5, mesher_module_)
         << "Mesher is working? " << mesher_module_->isWorking();
 
-    VLOG_IF_EVERY_N(10, lcd_module_, 100)
+    VLOG_IF(5, lcd_module_)
         << "LoopClosureDetector is working? " << lcd_module_->isWorking();
 
-    VLOG_IF_EVERY_N(10, visualizer_module_, 100)
+    VLOG_IF(5, visualizer_module_)
         << "Visualizer is working? " << visualizer_module_->isWorking();
 
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
+  VLOG(10) << "shutdown_: " << shutdown_ << '\n'
+           << "VIO pipeline status: \n"
+           << "Initialized? " << is_initialized_ << '\n'
+           << "Data provider is working? " << data_provider_module_->isWorking()
+           << '\n'
+           << "Frontend input queue empty? "
+           << stereo_frontend_input_queue_.empty() << '\n'
+           << "Frontend is working? " << vio_frontend_module_->isWorking()
+           << '\n'
+           << "Backend Input queue empty? " << backend_input_queue_.empty()
+           << '\n'
+           << "Backend is working? "
+           << (is_initialized_ ? vio_backend_module_->isWorking() : false);
   if (!shutdown_) shutdown();
+  return true;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -483,7 +515,7 @@ bool Pipeline::initializeFromIMU(
   VioNavState initial_state_estimate =
       InitializationFromImu::getInitialStateEstimate(
           stereo_imu_sync_packet.getImuAccGyr(),
-          backend_params_->n_gravity_,
+          imu_params_.n_gravity_,
           backend_params_->roundOnAutoInitialize_);
 
   // Initialize Stereo Frontend.
@@ -517,7 +549,6 @@ bool Pipeline::initializeOnline(
   // TODO(Toni): shouldn't this be done only once?
   gtsam::PreintegratedImuMeasurements::Params imu_params =
       ImuFrontEnd::convertImuParams(imu_params_);
-  imu_params.n_gravity = backend_params_->n_gravity_;
   ImuFrontEnd imu_frontend_real(
       imu_params,
       gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
@@ -528,11 +559,12 @@ bool Pipeline::initializeOnline(
   StereoFrame stereo_frame = stereo_imu_sync_packet.getStereoFrame();
   stereo_frame.setIsKeyframe(true);
   // TODO: this is copying the packet implicitly, just to set a flag to true.
-  StereoImuSyncPacket stereo_imu_sync_init(
-      stereo_frame,
-      stereo_imu_sync_packet.getImuStamps(),
-      stereo_imu_sync_packet.getImuAccGyr(),
-      stereo_imu_sync_packet.getReinitPacket());
+  StereoImuSyncPacket::UniquePtr stereo_imu_sync_init =
+      VIO::make_unique<StereoImuSyncPacket>(
+          stereo_frame,
+          stereo_imu_sync_packet.getImuStamps(),
+          stereo_imu_sync_packet.getImuAccGyr(),
+          stereo_imu_sync_packet.getReinitPacket());
 
   FrontendOutput::ConstPtr frontend_output = nullptr;
   /////////////////// FIRST FRAME //////////////////////////////////////////////
@@ -541,7 +573,7 @@ bool Pipeline::initializeOnline(
     vio_frontend_module_->prepareFrontendForOnlineAlignment();
     // Initialize Stereo Frontend.
     vio_frontend_module_->processFirstStereoFrame(
-        stereo_imu_sync_init.getStereoFrame());
+        stereo_imu_sync_init->getStereoFrame());
 
     //! Register frontend output queue for the initializer.
     vio_frontend_module_->registerCallback(
@@ -553,7 +585,7 @@ bool Pipeline::initializeOnline(
     // Check trivial bias and gravity vector for online initialization
     vio_frontend_module_->checkFrontendForOnlineAlignment();
     // Spin frontend once with enforced keyframe and 53-point method
-    vio_frontend_module_->spinOnce(stereo_imu_sync_init);
+    vio_frontend_module_->spinOnce(std::move(stereo_imu_sync_init));
     // TODO(Sandro): Optionally add AHRS PIM
     CHECK(frontend_output);
     initialization_frontend_output_queue_.push(
@@ -568,9 +600,9 @@ bool Pipeline::initializeOnline(
 
     // TODO(Sandro): Find a way to optimize this
     // This queue is used for the the backend optimization
-    const auto& imu_stamps = stereo_imu_sync_packet.getImuStamps();
-    const auto& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
-    const auto& pim =
+    const ImuStampS& imu_stamps = stereo_imu_sync_packet.getImuStamps();
+    const ImuAccGyrS& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
+    const gtsam::PreintegratedImuMeasurements& pim =
         imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
     // This queue is used for the backend after initialization
     VLOG(2) << "Initialization: Push input payload to Backend.";
@@ -614,6 +646,7 @@ bool Pipeline::initializeOnline(
           stereo_camera_->getLeftCamPose(),
           stereo_camera_->getStereoCalib(),
           backend_params_init,
+          imu_params_,
           BackendOutputParams(false, 0, false),
           FLAGS_log_output);
 
@@ -631,7 +664,7 @@ bool Pipeline::initializeOnline(
         // Reset frontend with non-trivial gravity and remove 53-enforcement.
         // Update frontend with initial gyro bias estimate.
         vio_frontend_module_->resetFrontendAfterOnlineAlignment(
-            backend_params_->n_gravity_, gyro_bias);
+            imu_params_.n_gravity_, gyro_bias);
         LOG(WARNING) << "Time used for initialization: "
                      << utils::Timer::toc(tic_full_init).count() << " (ms).";
 
@@ -682,6 +715,7 @@ void Pipeline::spinDisplayOnce(const VisualizerOutput::Ptr& viz_output) const {
 /* -------------------------------------------------------------------------- */
 StatusStereoMeasurements Pipeline::featureSelect(
     const VioFrontEndParams& tracker_params,
+    const FeatureSelectorParams& feature_selector_params,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf,
     const gtsam::Pose3& W_Pose_Blkf,
@@ -695,8 +729,9 @@ StatusStereoMeasurements Pipeline::featureSelect(
   CHECK_NOTNULL(feature_selection_time);
 
   // ------------ DATA ABOUT CURRENT AND FUTURE ROBOT STATE ------------- //
-  size_t nrKfInHorizon = round(tracker_params.featureSelectionHorizon_ /
-                               tracker_params.intra_keyframe_time_);
+  size_t nrKfInHorizon =
+      round(feature_selector_params.featureSelectionHorizon_ /
+            tracker_params.intra_keyframe_time_);
   VLOG(100) << "nrKfInHorizon for selector: " << nrKfInHorizon;
 
   // Future poses are gt and might be far from the vio pose: we have to
@@ -716,8 +751,8 @@ StatusStereoMeasurements Pipeline::featureSelect(
           status_stereo_meas.second,
           cur_kf_id,
           save_image_selector,
-          tracker_params.featureSelectionCriterion_,
-          tracker_params.featureSelectionNrCornersToSelect_,
+          feature_selector_params.featureSelectionCriterion_,
+          feature_selector_params.featureSelectionNrCornersToSelect_,
           tracker_params.maxFeatureAge_,
           posesAtFutureKeyframes,
           curr_state_cov,
@@ -804,27 +839,30 @@ void Pipeline::resume() {
 void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping workers and queues...";
 
-  LOG(INFO) << "Stopping backend workers and queues...";
+  LOG(INFO) << "Stopping data provider module...";
+  data_provider_module_->shutdown();
+
+  LOG(INFO) << "Stopping backend module and queues...";
   backend_input_queue_.shutdown();
   CHECK(vio_backend_module_);
   vio_backend_module_->shutdown();
 
   // Shutdown workers and queues.
-  LOG(INFO) << "Stopping frontend workers and queues...";
+  LOG(INFO) << "Stopping frontend module and queues...";
   stereo_frontend_input_queue_.shutdown();
   CHECK(vio_frontend_module_);
   vio_frontend_module_->shutdown();
 
-  LOG(INFO) << "Stopping mesher workers and queues...";
+  LOG(INFO) << "Stopping mesher module and queues...";
   if (mesher_module_) mesher_module_->shutdown();
 
-  LOG(INFO) << "Stopping loop closure workers and queues...";
+  LOG(INFO) << "Stopping loop closure module and queues...";
   if (lcd_module_) lcd_module_->shutdown();
 
-  LOG(INFO) << "Stopping visualizer workers and queues...";
+  LOG(INFO) << "Stopping visualizer module and queues...";
   if (visualizer_module_) visualizer_module_->shutdown();
 
-  LOG(INFO) << "Sent stop flag to all workers and queues...";
+  LOG(INFO) << "Sent stop flag to all module and queues...";
 }
 
 /* -------------------------------------------------------------------------- */

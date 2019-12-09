@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y git cmake build-essential pkg-config
 RUN apt-get update && apt-get install -y xvfb
 
 # Install GTSAM
-RUN apt-get update && apt-get install -y libboost-all-dev
+RUN apt-get update && apt-get install -y libboost-all-dev libtbb-dev
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
     git fetch && \
@@ -81,20 +81,21 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-RUN apt-get update && apt-get install -y \
-      python-pip python-dev python-tk
-# Upgrade pip, otherwise gives errors in following steps
-RUN apt-get update && pip install --upgrade pip
-
-# Install evo-1 for evaluation
-# Hack to avoid Docker's cache when evo-1 master branch is updated.
-ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/evo-1.git
-RUN cd evo-1 && pip install .
-
-# Install spark_vio_evaluation
-RUN pip install ipython prompt_toolkit
-# Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
-ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
-RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
-RUN cd spark_vio_evaluation && pip install .
+# Below is only needed if running performance evaluation
+#RUN apt-get update && apt-get install -y \
+#      python-pip python-dev python-tk
+## Upgrade pip, otherwise gives errors in following steps
+#RUN apt-get update && pip install --upgrade pip
+#
+## Install evo-1 for evaluation
+## Hack to avoid Docker's cache when evo-1 master branch is updated.
+#ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
+#RUN git clone https://github.com/ToniRV/evo-1.git
+#RUN cd evo-1 && pip install .
+#
+## Install spark_vio_evaluation
+#RUN pip install ipython prompt_toolkit
+## Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
+#ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
+#RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
+#RUN cd spark_vio_evaluation && pip install .

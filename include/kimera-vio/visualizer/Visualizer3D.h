@@ -80,7 +80,7 @@ class Visualizer3D {
    * The actual visualization must be done in the main thread, and as such,
    * it is not done here to separate visualization preparation from display.
    */
-  virtual VisualizerOutput::Ptr spinOnce(const VisualizerInput& input);
+  virtual VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input);
 
   // TODO(marcus): Is there any reason the following two methods must be private?
   

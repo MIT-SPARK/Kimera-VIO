@@ -26,6 +26,8 @@
 
 namespace VIO {
 
+class QueueSyncer {};
+
 template <typename T>
 class ThreadsafeQueue {
  public:
@@ -54,6 +56,7 @@ class ThreadsafeQueue {
   /** \brief Pop value. Waits for data to be available in the queue.
    * Returns false if the queue has been shutdown.
    */
+  // TODO(Toni): add a timer to avoid waiting forever...
   virtual bool popBlocking(T& value);
 
   /** \brief Pop value. Waits for data to be available in the queue.
