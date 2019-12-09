@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <gtsam/geometry/Pose3.h>
@@ -28,6 +30,7 @@
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
@@ -292,41 +295,6 @@ class LoopClosureDetector {
 
  private:
   /* ------------------------------------------------------------------------ */
-  /** @brief Determines whether a frame meets the temoral constraint given by
-   *  a MatchIsland.
-   * @param[in] id The frame ID of the frame being processed in the database.
-   * @param[in] island A MatchIsland representing several potential matches.
-   * @return True if the constraint is met, false otherwise.
-   */
-  // TODO(marcus): unit tests
-  bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Computes the various islands created by a QueryResult, which is
-   *  given by the OrbDatabase.
-   * @param[in] q A QueryResults object containing all the resulting possible
-   *  matches with a frame.
-   * @param[out] A vector of MatchIslands, each of which is an island of
-   *  nearby possible matches with the frame being queried.
-   * @return
-   */
-  // TODO(marcus): unit tests
-  void computeIslands(DBoW2::QueryResults& q,
-                      std::vector<MatchIsland>* islands) const;
-
-  /* ------------------------------------------------------------------------ */
-  /** @brief Compute the overall score of an island.
-   * @param[in] q A QueryResults object containing all the possible matches
-   *  with a frame.
-   * @param[in] start_id The frame ID that starts the island.
-   * @param[in] end_id The frame ID that ends the island.
-   * @reutrn The score of the island.
-   */
-  double computeIslandScore(const DBoW2::QueryResults& q,
-                            const FrameId& start_id,
-                            const FrameId& end_id) const;
-
-  /* ------------------------------------------------------------------------ */
   /** @brief Computes the indices of keypoints that match between two frames.
    * @param[in] query_id The frame ID of the query frame in the database.
    * @param[in] match_id The frame ID of the match frame in the database.
@@ -397,10 +365,8 @@ class LoopClosureDetector {
   FrameIDTimestampMap timestamp_map_;
 
   // Store latest computed objects for temporal matching and nss scoring
+  LcdThirdPartyWrapper::UniquePtr lcd_tp_wrapper_;
   DBoW2::BowVector latest_bowvec_;
-  MatchIsland latest_matched_island_;
-  FrameId latest_query_id_;
-  int temporal_entries_;
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
@@ -458,7 +424,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
       : MIMOPipelineModule<LcdInput, LcdOutput>("Lcd", parallel_run),
         frontend_queue_("lcd_frontend_queue"),
         backend_queue_("lcd_backend_queue"),
-        lcd_(std::move(lcd)){};
+        lcd_(std::move(lcd)) {}
   virtual ~LcdModule() = default;
 
   //! Callbacks to fill queues: they should be all lighting fast.
@@ -471,7 +437,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
 
  protected:
   //! Synchronize input queues.
-  virtual inline InputPtr getInputPacket() override {
+  inline InputPtr getInputPacket() override {
     // TODO(X): this is the same or very similar to the Mesher getInputPacket.
     LcdBackendInput backend_payload;
     bool queue_state = false;
@@ -517,19 +483,19 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
         timestamp, backend_payload->cur_kf_id_, stereo_keyframe, body_pose);
   }
 
-  virtual OutputPtr spinOnce(const LcdInput& input) override {
+  OutputPtr spinOnce(const LcdInput& input) override {
     return lcd_->spinOnce(input);
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override {
+  void shutdownQueues() override {
     LOG(INFO) << "Shutting down queues for: " << name_id_;
     frontend_queue_.shutdown();
     backend_queue_.shutdown();
   };
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const override {
+  bool hasWork() const override {
     // We don't check frontend queue because it runs faster than backend queue.
     return backend_queue_.empty();
   };

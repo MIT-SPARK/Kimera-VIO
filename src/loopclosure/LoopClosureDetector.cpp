@@ -66,10 +66,8 @@ LoopClosureDetector::LoopClosureDetector(
       db_BoW_(nullptr),
       db_frames_(),
       timestamp_map_(),
+      lcd_tp_wrapper_(nullptr),
       latest_bowvec_(),
-      latest_matched_island_(),
-      latest_query_id_(FrameId(0)),
-      temporal_entries_(0),
       B_Pose_camLrect_(),
       pgo_(nullptr),
       W_Pose_Blkf_estimates_(),
@@ -106,6 +104,9 @@ LoopClosureDetector::LoopClosureDetector(
             << FLAGS_vocabulary_path;
   vocab.load(FLAGS_vocabulary_path);
   LOG(INFO) << "Loaded vocabulary with " << vocab.size() << " visual words.";
+
+  // Initialize the thirdparty wrapper:
+  lcd_tp_wrapper_ = VIO::make_unique<LcdThirdPartyWrapper>(lcd_params_);
 
   // Initialize db_BoW_:
   db_BoW_ = VIO::make_unique<OrbDatabase>(vocab);
@@ -318,7 +319,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
 
         // Compute islands in the matches.
         std::vector<MatchIsland> islands;
-        computeIslands(query_result, &islands);
+        lcd_tp_wrapper_->computeIslands(query_result, &islands);
 
         if (islands.empty()) {
           result->status_ = LCDStatus::NO_GROUPS;
@@ -329,10 +330,7 @@ bool LoopClosureDetector::detectLoop(const StereoFrame& stereo_frame,
 
           // Run temporal constraint check on this best island.
           bool pass_temporal_constraint =
-              checkTemporalConstraint(frame_id, best_island);
-
-          latest_matched_island_ = best_island;
-          latest_query_id_ = frame_id;
+              lcd_tp_wrapper_->checkTemporalConstraint(frame_id, best_island);
 
           if (!pass_temporal_constraint) {
             result->status_ = LCDStatus::FAILED_TEMPORAL_CONSTRAINT;
@@ -606,136 +604,6 @@ void LoopClosureDetector::transformBodyPoseToCameraPose(
   CHECK_NOTNULL(camCur_T_camRef);
   *camCur_T_camRef =
       B_Pose_camLrect_.inverse() * bodyCur_T_bodyRef * B_Pose_camLrect_;
-}
-
-/* ------------------------------------------------------------------------ */
-bool LoopClosureDetector::checkTemporalConstraint(const FrameId& id,
-                                                  const MatchIsland& island) {
-  if (temporal_entries_ == 0 || static_cast<int>(id - latest_query_id_) >
-                                    lcd_params_.max_distance_between_queries_) {
-    temporal_entries_ = 1;
-  } else {
-    // Check whether current island encloses latest island or vice versa
-    bool cur_encloses_old =
-        island.start_id_ <= latest_matched_island_.start_id_ &&
-        latest_matched_island_.start_id_ <= island.end_id_;
-    bool old_encloses_cur =
-        latest_matched_island_.start_id_ <= island.start_id_ &&
-        island.start_id_ <= latest_matched_island_.end_id_;
-
-    bool pass_group_constraint = cur_encloses_old || old_encloses_cur;
-    if (!pass_group_constraint) {
-      int d1 = static_cast<int>(latest_matched_island_.start_id_) -
-               static_cast<int>(island.end_id_);
-      int d2 = static_cast<int>(island.start_id_) -
-               static_cast<int>(latest_matched_island_.end_id_);
-
-      int gap;
-      if (d1 > d2) {
-        gap = d1;
-      } else {
-        gap = d2;
-      }
-
-      pass_group_constraint = gap <= lcd_params_.max_distance_between_groups_;
-    }
-
-    if (pass_group_constraint) {
-      temporal_entries_++;
-    } else {
-      temporal_entries_ = 1;
-    }
-  }
-
-  return temporal_entries_ > lcd_params_.min_temporal_matches_;
-}
-
-/* ------------------------------------------------------------------------ */
-void LoopClosureDetector::computeIslands(
-    DBoW2::QueryResults& q,
-    std::vector<MatchIsland>* islands) const {
-  CHECK_NOTNULL(islands);
-  islands->clear();
-
-  // The case of one island is easy to compute and is done separately
-  if (q.size() == 1) {
-    MatchIsland island(q[0].Id, q[0].Id, q[0].Score);
-    island.best_id_ = q[0].Id;
-    island.best_score_ = q[0].Score;
-    islands->push_back(island);
-  } else if (!q.empty()) {
-    // sort query results in ascending order of ids
-    std::sort(q.begin(), q.end(), DBoW2::Result::ltId);
-
-    // create long enough islands
-    DBoW2::QueryResults::const_iterator dit = q.begin();
-    int first_island_entry = dit->Id;
-    int last_island_entry = dit->Id;
-
-    // these are indices of q
-    unsigned int i_first = 0;
-    unsigned int i_last = 0;
-
-    double best_score = dit->Score;
-    FrameId best_entry = dit->Id;
-
-    ++dit;
-    for (unsigned int idx = 1; dit != q.end(); ++dit, ++idx) {
-      if (static_cast<int>(dit->Id) - last_island_entry <
-          lcd_params_.max_intragroup_gap_) {
-        last_island_entry = dit->Id;
-        i_last = idx;
-        if (dit->Score > best_score) {
-          best_score = dit->Score;
-          best_entry = dit->Id;
-        }
-      } else {
-        // end of island reached
-        int length = last_island_entry - first_island_entry + 1;
-        if (length >= lcd_params_.min_matches_per_group_) {
-          MatchIsland island =
-              MatchIsland(first_island_entry,
-                          last_island_entry,
-                          computeIslandScore(q, i_first, i_last));
-
-          islands->push_back(island);
-          islands->back().best_score_ = best_score;
-          islands->back().best_id_ = best_entry;
-        }
-
-        // prepare next island
-        first_island_entry = last_island_entry = dit->Id;
-        i_first = i_last = idx;
-        best_score = dit->Score;
-        best_entry = dit->Id;
-      }
-    }
-    // add last island
-    if (last_island_entry - first_island_entry + 1 >=
-        lcd_params_.min_matches_per_group_) {
-      MatchIsland island = MatchIsland(first_island_entry,
-                                       last_island_entry,
-                                       computeIslandScore(q, i_first, i_last));
-
-      islands->push_back(island);
-      islands->back().best_score_ = best_score;
-      islands->back().best_id_ = best_entry;
-    }
-  }
-}
-
-/* ------------------------------------------------------------------------ */
-double LoopClosureDetector::computeIslandScore(const DBoW2::QueryResults& q,
-                                               const FrameId& start_id,
-                                               const FrameId& end_id) const {
-  CHECK_GT(q.size(), start_id);
-  CHECK_GT(q.size(), end_id);
-  double score_sum = 0.0;
-  for (FrameId id = start_id; id <= end_id; id++) {
-    score_sum += q.at(id).Score;
-  }
-
-  return score_sum;
 }
 
 /* ------------------------------------------------------------------------ */
