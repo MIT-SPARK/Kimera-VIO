@@ -966,13 +966,13 @@ void Tracker::featureDetection(Frame* cur_frame) {
   /* -------------------------------------------------------------------------- */
   // TODO this won't work in parallel mode, as visualization must be done in
   // main thread.
-  cv::Mat Tracker::getFeatureTrackImg(const Frame& ref_frame,
-                                      const Frame& cur_frame,
-                                      bool write_frame,
-                                      const std::string& img_title,
-                                      const KeypointsCV& extra_corners_gray,
-                                      const KeypointsCV& extra_corners_blue)
-                                      const {
+  cv::Mat Tracker::getTrackerImage(
+      const Frame& ref_frame,
+      const Frame& cur_frame,
+      bool write_frame,
+      const std::string& img_title,
+      const KeypointsCV& extra_corners_gray,
+      const KeypointsCV& extra_corners_blue) const {
     cv::Mat img_rgb = cv::Mat(cur_frame.img_.size(), CV_8U);
     cv::cvtColor(cur_frame.img_, img_rgb, cv::COLOR_GRAY2RGB);
 

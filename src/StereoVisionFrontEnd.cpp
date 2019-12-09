@@ -487,7 +487,7 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
-  cv::Mat img_left = tracker_.getFeatureTrackImg(
+  cv::Mat img_left = tracker_.getTrackerImage(
       stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
 
   logger_->logFrontendImg(left_frame_k.id_, img_left,
@@ -502,7 +502,7 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
   const Frame& right_frame_k(stereoFrame_k_->getRightFrame());
 
-  cv::Mat img_left = tracker_.getFeatureTrackImg(
+  cv::Mat img_left = tracker_.getTrackerImage(
       stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
 
   if ((left_frame_k.img_.cols != right_frame_k.img_.cols) ||
