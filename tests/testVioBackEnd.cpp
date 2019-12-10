@@ -28,7 +28,8 @@
 
 #include "kimera-vio/backend/VioBackEnd.h"
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/datasource/DataSource-definitions.h"  // only for gtNavState...
+// only for gtNavState...
+#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/initial/InitializationBackEnd.h"

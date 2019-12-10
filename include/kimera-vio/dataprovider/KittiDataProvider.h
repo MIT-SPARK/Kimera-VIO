@@ -7,9 +7,10 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   KittiDataSource.h
+ * @file   KittiDataProvider.h
  * @brief  Kitti dataset parser.
- * @author Antoni Rosinol, Yun Chang
+ * @author Antoni Rosinol
+ * @author Yun Chang
  */
 
 #pragma once
@@ -17,7 +18,7 @@
 #include <functional>
 #include <string>
 
-#include "kimera-vio/datasource/DataSource.h"
+#include "kimera-vio/dataprovider/DataProviderInterface.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 
 namespace VIO {

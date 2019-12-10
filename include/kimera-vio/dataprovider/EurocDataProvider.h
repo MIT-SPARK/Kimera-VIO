@@ -7,10 +7,10 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   ETH_parser.h
+ * @file   EurocDataProvider.h
  * @brief  Parse EUROC dataset.
- * @author Antoni Rosinol,
- * @author Yun Chang,
+ * @author Antoni Rosinol
+ * @author Yun Chang
  * @author Luca Carlone
  */
 
@@ -30,8 +30,8 @@
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
-#include "kimera-vio/datasource/DataSource-definitions.h"
-#include "kimera-vio/datasource/DataSource.h"
+#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
+#include "kimera-vio/dataprovider/DataProviderInterface.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
@@ -41,10 +41,10 @@ namespace VIO {
 /*
  * Parse all images and camera calibration for an ETH dataset.
  */
-class ETHDatasetParser : public DataProviderInterface {
+class EurocDataProvider : public DataProviderInterface {
  public:
   // Ctor with params.
-  ETHDatasetParser(const bool& parallel_run,
+  EurocDataProvider(const bool& parallel_run,
                    const int& initial_k,
                    const int& final_k,
                    const std::string& dataset_path,
@@ -55,8 +55,8 @@ class ETHDatasetParser : public DataProviderInterface {
                    const std::string& frontend_params_path,
                    const std::string& lcd_params_path);
   // Ctor from gflags
-  ETHDatasetParser(const bool& parallel_run);
-  virtual ~ETHDatasetParser();
+  EurocDataProvider(const bool& parallel_run);
+  virtual ~EurocDataProvider();
 
  public:
   /**
