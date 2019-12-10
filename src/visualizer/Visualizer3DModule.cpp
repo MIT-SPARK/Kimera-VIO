@@ -27,7 +27,7 @@ VisualizerModule::VisualizerModule(bool parallel_run,
       mesher_queue_("visualizer_mesher_queue"),
       visualizer_(std::move(visualizer)){};
 
-VisualizerModule::InputPtr VisualizerModule::getInputPacket() {
+VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   bool queue_state = false;
   VizMesherInput mesher_payload = nullptr;
   if (PIO::parallel_run_) {
@@ -64,9 +64,9 @@ VisualizerModule::InputPtr VisualizerModule::getInputPacket() {
       timestamp, mesher_payload, backend_payload, frontend_payload);
 }
 
-VisualizerModule::OutputPtr VisualizerModule::spinOnce(
-    const VisualizerInput& input) {
-  return visualizer_->spinOnce(input);
+VisualizerModule::OutputUniquePtr VisualizerModule::spinOnce(
+    VisualizerInput::UniquePtr input) {
+  return visualizer_->spinOnce(*CHECK_NOTNULL(input));
 }
 
 void VisualizerModule::shutdownQueues() {
@@ -83,7 +83,7 @@ bool VisualizerModule::hasWork() const {
          "This should not happen since Mesher runs at Backend pace!";
   // We don't check frontend queue because it runs faster than the other two
   // queues.
-  return mesher_queue_.empty();
+  return !mesher_queue_.empty();
 };
 
 }  // namespace VIO

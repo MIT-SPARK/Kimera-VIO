@@ -50,7 +50,8 @@ namespace VIO {
 namespace utils {
 
 inline void ThreadsafeImuBuffer::addMeasurement(
-    Timestamp timestamp_nanoseconds, const ImuAccGyr& imu_measurement) {
+    const Timestamp& timestamp_nanoseconds,
+    const ImuAccGyr& imu_measurement) {
   // Enforce strict time-wise ordering.
   ImuMeasurement last_value;
   if (buffer_.getNewestValue(&last_value)) {

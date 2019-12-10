@@ -36,36 +36,28 @@ using ImuBias = gtsam::imuBias::ConstantBias;
 
 struct ImuMeasurement {
   ImuMeasurement() = default;
-  ImuMeasurement(const ImuStamp& timestamp,
-                 const ImuAccGyr& imu_data)
-    : timestamp_(timestamp),
-      imu_data_(imu_data) {}
-  ImuMeasurement(ImuStamp&& timestamp,
-                 ImuAccGyr&& imu_data)
-    : timestamp_(std::move(timestamp)),
-      imu_data_(std::move(imu_data)) {}
+  ImuMeasurement(const ImuStamp& timestamp, const ImuAccGyr& imu_data)
+      : timestamp_(timestamp), acc_gyr_(imu_data) {}
+  ImuMeasurement(ImuStamp&& timestamp, ImuAccGyr&& imu_data)
+      : timestamp_(std::move(timestamp)), acc_gyr_(std::move(imu_data)) {}
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   ImuStamp timestamp_;
-  ImuAccGyr imu_data_;
+  ImuAccGyr acc_gyr_;
 };
 
 // Multiple Imu measurements, bundled in dynamic matrices.
 struct ImuMeasurements {
  public:
   ImuMeasurements() = default;
-  ImuMeasurements(const ImuStampS& timestamps,
-                  const ImuAccGyrS& measurements)
-    : timestamps_(timestamps),
-      measurements_(measurements) {}
-  ImuMeasurements(ImuStampS&& timestamps,
-                  ImuAccGyrS&& measurements)
-    : timestamps_(std::move(timestamps)),
-      measurements_(std::move(measurements)) {}
+  ImuMeasurements(const ImuStampS& timestamps, const ImuAccGyrS& measurements)
+      : timestamps_(timestamps), acc_gyr_(measurements) {}
+  ImuMeasurements(ImuStampS&& timestamps, ImuAccGyrS&& measurements)
+      : timestamps_(std::move(timestamps)), acc_gyr_(std::move(measurements)) {}
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   ImuStampS timestamps_;
-  ImuAccGyrS measurements_;
+  ImuAccGyrS acc_gyr_;
 };
 
 }  // namespace VIO

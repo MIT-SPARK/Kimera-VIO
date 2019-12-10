@@ -45,8 +45,7 @@ void initializeData() {}
 
 class StereoFrameFixture : public ::testing::Test {
  public:
-  StereoFrameFixture()
-      : cam_params_left("left_cam"), cam_params_right("right_cam") {
+  StereoFrameFixture() : cam_params_left(), cam_params_right() {
     cam_params_left.parseYAML(stereo_FLAGS_test_data_path + "/sensorLeft.yaml");
     cam_params_right.parseYAML(stereo_FLAGS_test_data_path +
                                "/sensorRight.yaml");
@@ -58,13 +57,13 @@ class StereoFrameFixture : public ::testing::Test {
         timestamp,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + left_image_name,
-            tp.getStereoMatchingParams().equalize_image_),
+            tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + right_image_name,
-            tp.getStereoMatchingParams().equalize_image_),
+            tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     CHECK(sf->isRectified());
 
@@ -93,13 +92,13 @@ class StereoFrameFixture : public ::testing::Test {
         timestamp,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + left_image_name,
-            tp.getStereoMatchingParams().equalize_image_),
+            tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
             stereo_FLAGS_test_data_path + right_image_name,
-            tp.getStereoMatchingParams().equalize_image_),
+            tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     sfnew->getLeftFrameMutable()->extractCorners();
     sfnew->getLeftFrameMutable()->versors_.reserve(
@@ -223,13 +222,13 @@ TEST_F(StereoFrameFixture, cloneRectificationParameters) {
                       timestamp,
                       UtilsOpenCV::ReadAndConvertToGrayScale(
                           stereo_FLAGS_test_data_path + left_image_name,
-                          tp.getStereoMatchingParams().equalize_image_),
+                          tp.stereo_matching_params_.equalize_image_),
                       cam_params_left,
                       UtilsOpenCV::ReadAndConvertToGrayScale(
                           stereo_FLAGS_test_data_path + right_image_name,
-                          tp.getStereoMatchingParams().equalize_image_),
+                          tp.stereo_matching_params_.equalize_image_),
                       cam_params_right,
-                      tp.getStereoMatchingParams());
+                      tp.stereo_matching_params_);
   // clone
   sf2->cloneRectificationParameters(*sf);
   // make sure everything was copied correctly
@@ -792,6 +791,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
       EXPECT_NEAR(0.0, sfnew->keypoints_depth_.at(i), 1e-5);
     }
   }
+  // TODO(Toni): sometimes it is 68(lambda), sometimes 92 (Jenkins)?
   EXPECT_NEAR(92, nrValid, 1e-5);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1085,10 +1085,10 @@ TEST(testStereoFrame, undistortFisheye) {
 // TODO: Figure out why this compiles on PC, but not on Jenkins
 TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
   // Parse camera params for left and right cameras
-  static CameraParams cam_params_left_fisheye("left_fisheye");
+  static CameraParams cam_params_left_fisheye;
   cam_params_left_fisheye.parseYAML(stereo_FLAGS_test_data_path +
                                     "/left_sensor_fisheye.yaml");
-  static CameraParams cam_params_right_fisheye("right_fisheye");
+  static CameraParams cam_params_right_fisheye;
   cam_params_right_fisheye.parseYAML(stereo_FLAGS_test_data_path +
                                      "/right_sensor_fisheye.yaml");
 

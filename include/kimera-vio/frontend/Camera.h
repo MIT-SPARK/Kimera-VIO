@@ -68,8 +68,8 @@ class StereoCamera {
         baseline_(0.0),
         left_cam_params_(left_cam_params),
         right_cam_params_(right_cam_params),
-        left_cam_rectified_params_(left_cam_params.camera_id_ + "_rectified"),
-        right_cam_rectified_params_(right_cam_params.camera_id_ + "_rectified"),
+        left_cam_rectified_params_(),
+        right_cam_rectified_params_(),
         stereo_matching_params_(stereo_matching_params) {
     computeRectificationParameters(left_cam_params,
                                    right_cam_params,

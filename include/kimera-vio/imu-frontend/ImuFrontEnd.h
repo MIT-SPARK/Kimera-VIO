@@ -32,24 +32,31 @@
 
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeImuBuffer.h"
+
+//#define USE_COMBINED_IMU_FACTOR
 
 namespace VIO {
 
 class ImuData {
 public:
-  // Imu buffer with virtually infinite memory.
-  ImuData()
-    : imu_buffer_(-1) {}
+ KIMERA_POINTER_TYPEDEFS(ImuData);
+ KIMERA_DELETE_COPY_CONSTRUCTORS(ImuData);
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // Checks for statistics..
-  double imu_rate_;
-  double nominal_imu_rate_;
-  double imu_rate_std_;
-  double imu_rate_maxMismatch_;
+ // Imu buffer with virtually infinite memory.
+ ImuData() : imu_buffer_(-1) {}
 
-  // Imu data.
-  utils::ThreadsafeImuBuffer imu_buffer_;
+ // Checks for statistics..
+ // TODO(Toni): remove these and put in params.
+ double imu_rate_;
+ double nominal_imu_rate_;
+ double imu_rate_std_;
+ double imu_rate_maxMismatch_;
+
+ // Imu data.
+ utils::ThreadsafeImuBuffer imu_buffer_;
 
 public:
   void print() const;
@@ -71,14 +78,18 @@ public:
     using PreintegratedImuMeasurements = gtsam::PreintegratedImuMeasurements;
   #endif
 public:
-  /* ------------------------------------------------------------------------
-   * Class to do IMU preintegration.
-   * [in] imu_params: IMU parameters used for the preintegration.
-   * [in] imu_bias: IMU bias used to initialize PreintegratedImuMeasurements
-   * !! The user of this class must update the bias and reset the integration
-   * manually in order to preintegrate the IMU with the latest IMU bias coming
-   * from the backend optimization.
-   */
+ KIMERA_POINTER_TYPEDEFS(ImuFrontEnd);
+ KIMERA_DELETE_COPY_CONSTRUCTORS(ImuFrontEnd);
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+ /* ------------------------------------------------------------------------
+  * Class to do IMU preintegration.
+  * [in] imu_params: IMU parameters used for the preintegration.
+  * [in] imu_bias: IMU bias used to initialize PreintegratedImuMeasurements
+  * !! The user of this class must update the bias and reset the integration
+  * manually in order to preintegrate the IMU with the latest IMU bias coming
+  * from the backend optimization.
+  */
  ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias);
  ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
              const ImuBias& imu_bias);

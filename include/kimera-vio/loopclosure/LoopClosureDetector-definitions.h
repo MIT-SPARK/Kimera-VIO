@@ -220,14 +220,14 @@ struct LoopClosureFactor {
   const gtsam::SharedNoiseModel noise_;
 };  // struct LoopClosureFactor
 
-struct LoopClosureDetectorInputPayload {
-  KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorInputPayload);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetectorInputPayload);
+struct LcdInput {
+  KIMERA_POINTER_TYPEDEFS(LcdInput);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdInput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  LoopClosureDetectorInputPayload(const Timestamp& timestamp_kf,
-                                  const FrameId& cur_kf_id,
-                                  const StereoFrame& stereo_frame,
-                                  const gtsam::Pose3& W_Pose_Blkf)
+  LcdInput(const Timestamp& timestamp_kf,
+           const FrameId& cur_kf_id,
+           const StereoFrame& stereo_frame,
+           const gtsam::Pose3& W_Pose_Blkf)
       : timestamp_kf_(timestamp_kf),
         cur_kf_id_(cur_kf_id),
         stereo_frame_(stereo_frame),
@@ -238,7 +238,6 @@ struct LoopClosureDetectorInputPayload {
   const StereoFrame stereo_frame_;
   const gtsam::Pose3 W_Pose_Blkf_;
 };
-typedef LoopClosureDetectorInputPayload LcdInput;
 
 struct LcdOutput {
   KIMERA_POINTER_TYPEDEFS(LcdOutput);
@@ -289,6 +288,5 @@ struct LcdOutput {
   gtsam::Values states_;
   gtsam::NonlinearFactorGraph nfg_;
 };
-typedef LcdOutput LcdOutputPayload;
 
 }  // namespace VIO

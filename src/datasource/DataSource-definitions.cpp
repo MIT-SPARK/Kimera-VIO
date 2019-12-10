@@ -55,10 +55,12 @@ bool VioNavState::equals(const VioNavState& rhs) const {
 
 bool CameraImageLists::parseCamImgList(const std::string& folderpath,
                                        const std::string& filename) {
+  CHECK(!folderpath.empty());
+  CHECK(!filename.empty());
   image_folder_path_ = folderpath;  // stored, only for debug
   const std::string fullname = folderpath + "/" + filename;
   std::ifstream fin(fullname.c_str());
-  LOG_IF(FATAL, !fin.is_open()) << "Cannot open file: " << fullname;
+  CHECK(fin.is_open()) << "Cannot open file: " << fullname;
 
   // Skip the first line, containing the header.
   std::string item;
