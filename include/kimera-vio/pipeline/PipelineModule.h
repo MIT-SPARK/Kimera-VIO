@@ -402,7 +402,7 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
   InputQueue* input_queue_;
 };
 
-/** @brief MISOPipelineModule Single Input Multiple Output (MISO) pipeline
+/** @brief MISOPipelineModule Multi Input Single Output (MISO) pipeline
  * module.
  * Receives Input packets via a threadsafe queue, and sends output packets
  * to a list of registered callbacks with a specific signature.

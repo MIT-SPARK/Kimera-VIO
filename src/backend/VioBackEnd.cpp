@@ -38,7 +38,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "kimera-vio/datasource/DataSource-definitions.h"  // Only for gtNavState ...
+// Only for gtNavState ...
+#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 

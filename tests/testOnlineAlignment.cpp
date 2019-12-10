@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 #include <math.h>
 
-#include "kimera-vio/datasource/ETH_parser.h"
+#include "kimera-vio/dataprovider/EurocDataProvider.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
@@ -57,7 +57,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
                                      const std::string& dataset_path) {
     int initial_k = 0;
     int final_k = 0;
-    dataset_ = VIO::make_unique<ETHDatasetParser>(
+    dataset_ = VIO::make_unique<EurocDataProvider>(
         true, initial_k, final_k, dataset_path, "", "", "", "", "", "");
 
     // Get GT poses and IMU pims.
@@ -150,7 +150,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
   static constexpr double tol_RD_gv = 25e-2;
   static constexpr double tol_RD_an = 4 / 180.0 * M_PI;
 
-  std::unique_ptr<ETHDatasetParser> dataset_;
+  std::unique_ptr<EurocDataProvider> dataset_;
   AlignmentPoses estimated_poses_;
   AlignmentPims pims_;
   InitialAHRSPims ahrs_pim_;

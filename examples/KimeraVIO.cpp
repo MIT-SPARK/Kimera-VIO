@@ -20,8 +20,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "kimera-vio/datasource/ETH_parser.h"
-#include "kimera-vio/datasource/KittiDataSource.h"
+#include "kimera-vio/dataprovider/EurocDataProvider.h"
+#include "kimera-vio/dataprovider/KittiDataProvider.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/Pipeline.h"
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
   switch (FLAGS_dataset_type) {
     case 0: {
       dataset_parser =
-          VIO::make_unique<VIO::ETHDatasetParser>(FLAGS_parallel_run);
+          VIO::make_unique<VIO::EurocDataProvider>(FLAGS_parallel_run);
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();

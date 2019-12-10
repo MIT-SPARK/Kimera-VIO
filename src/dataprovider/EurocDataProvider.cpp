@@ -7,14 +7,21 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   ETH_parser.h
+ * @file   EurocDataProvider.h
  * @brief  Parse EUROC dataset.
  * @author Antoni Rosinol
  * @author Yun Chang
  * @author Luca Carlone
  */
 
-#include "kimera-vio/datasource/ETH_parser.h"
+#include "kimera-vio/dataprovider/EurocDataProvider.h"
+
+#include <algorithm>  // for max
+#include <fstream>
+#include <map>
+#include <string>
+#include <utility>  // for pair<>
+#include <vector>
 
 #include <glog/logging.h>
 
@@ -24,16 +31,16 @@
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-ETHDatasetParser::ETHDatasetParser(const bool& parallel_run,
-                                   const int& initial_k,
-                                   const int& final_k,
-                                   const std::string& dataset_path,
-                                   const std::string& left_cam_params_path,
-                                   const std::string& right_cam_params_path,
-                                   const std::string& imu_params_path,
-                                   const std::string& backend_params_path,
-                                   const std::string& frontend_params_path,
-                                   const std::string& lcd_params_path)
+EurocDataProvider::EurocDataProvider(const bool& parallel_run,
+                                     const int& initial_k,
+                                     const int& final_k,
+                                     const std::string& dataset_path,
+                                     const std::string& left_cam_params_path,
+                                     const std::string& right_cam_params_path,
+                                     const std::string& imu_params_path,
+                                     const std::string& backend_params_path,
+                                     const std::string& frontend_params_path,
+                                     const std::string& lcd_params_path)
     : DataProviderInterface(initial_k,
                             final_k,
                             dataset_path,
@@ -45,16 +52,16 @@ ETHDatasetParser::ETHDatasetParser(const bool& parallel_run,
                             lcd_params_path),
       parallel_run_(parallel_run) {}
 
-ETHDatasetParser::ETHDatasetParser(const bool& parallel_run)
+EurocDataProvider::EurocDataProvider(const bool& parallel_run)
     : DataProviderInterface(), parallel_run_(parallel_run) {}
 
 /* -------------------------------------------------------------------------- */
-ETHDatasetParser::~ETHDatasetParser() {
+EurocDataProvider::~EurocDataProvider() {
   LOG(INFO) << "ETHDatasetParser destructor called.";
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::spin() {
+bool EurocDataProvider::spin() {
   // Parse the actual dataset first, then run it.
   static bool dataset_parsed = false;
   if (!dataset_parsed) {
@@ -71,11 +78,11 @@ bool ETHDatasetParser::spin() {
     if (!parallel_run_) {
       return true;
     }
-  };
+  }
   return false;
 }
 
-bool ETHDatasetParser::spinOnce() {
+bool EurocDataProvider::spinOnce() {
   static FrameId k = initial_k_;
   if (k >= final_k_) {
     return false;
@@ -123,7 +130,7 @@ bool ETHDatasetParser::spinOnce() {
 }
 
 /* -------------------------------------------------------------------------- */
-void ETHDatasetParser::parse() {
+void EurocDataProvider::parse() {
   VLOG(100) << "Using dataset path: " << dataset_path_;
   // Parse the dataset (ETH format).
   parseDataset();
@@ -138,8 +145,8 @@ void ETHDatasetParser::parse() {
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
-                                    const std::string& imuName) {
+bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
+                                     const std::string& imuName) {
   ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
   //#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],
   // a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]
@@ -220,8 +227,8 @@ bool ETHDatasetParser::parseImuData(const std::string& input_dataset_path,
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
-                                   const std::string& gtSensorName) {
+bool EurocDataProvider::parseGTdata(const std::string& input_dataset_path,
+                                    const std::string& gtSensorName) {
   CHECK(!input_dataset_path.empty());
   CHECK(!gtSensorName.empty());
 
@@ -343,7 +350,9 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
   CHECK_NE(deltaCount, 0u);
   // Converted in seconds.
   // TODO(TONI): this looks horrible.
-  gt_data_.gt_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
+  gt_data_.gt_rate_ =
+      (static_cast<double>(sumOfDelta) / static_cast<double>(deltaCount)) *
+      1e-9;
   fin.close();
 
   VLOG(1) << "Maximum ground truth velocity: " << maxGTvel;
@@ -351,7 +360,7 @@ bool ETHDatasetParser::parseGTdata(const std::string& input_dataset_path,
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseDataset() {
+bool EurocDataProvider::parseDataset() {
   // Parse IMU data.
   CHECK(parseImuData(dataset_path_, kImuName));
 
@@ -380,15 +389,15 @@ bool ETHDatasetParser::parseDataset() {
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::parseCameraData(const std::string& cam_name,
-                                       CameraImageLists* cam_list_i) {
+bool EurocDataProvider::parseCameraData(const std::string& cam_name,
+                                        CameraImageLists* cam_list_i) {
   CHECK_NOTNULL(cam_list_i)
       ->parseCamImgList(dataset_path_ + "/mav0/" + cam_name, "data.csv");
   return true;
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::sanityCheckCameraData(
+bool EurocDataProvider::sanityCheckCameraData(
     const std::vector<std::string>& camera_names,
     std::map<std::string, CameraImageLists>* camera_image_lists) const {
   CHECK_NOTNULL(camera_image_lists);
@@ -403,7 +412,7 @@ bool ETHDatasetParser::sanityCheckCameraData(
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::sanityCheckCamSize(
+bool EurocDataProvider::sanityCheckCamSize(
     CameraImageLists::ImgLists* left_img_lists,
     CameraImageLists::ImgLists* right_img_lists) const {
   CHECK_NOTNULL(left_img_lists);
@@ -422,12 +431,12 @@ bool ETHDatasetParser::sanityCheckCamSize(
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::sanityCheckCamTimestamps(
+bool EurocDataProvider::sanityCheckCamTimestamps(
     const CameraImageLists::ImgLists& left_img_lists,
     const CameraImageLists::ImgLists& right_img_lists,
     const CameraParams& left_cam_info) const {
-  double stdDelta = 0;
-  double frame_rate_maxMismatch = 0;
+  double stdDelta = 0.0;
+  double frame_rate_maxMismatch = 0.0;
   size_t deltaCount = 0u;
   for (size_t i = 0; i < left_img_lists.size(); i++) {
     if (i > 0) {
@@ -435,9 +444,10 @@ bool ETHDatasetParser::sanityCheckCamTimestamps(
       const Timestamp& timestamp = left_img_lists.at(i).first;
       const Timestamp& previous_timestamp = left_img_lists.at(i - 1).first;
       // TODO(TONI): this looks horrible.
-      double deltaMismatch = fabs(
-          double(timestamp - previous_timestamp - left_cam_info.frame_rate_) *
-          1e-9);
+      double deltaMismatch =
+          std::fabs(static_cast<double>(timestamp - previous_timestamp -
+                                        left_cam_info.frame_rate_) *
+                    1e-9);
       stdDelta += pow(deltaMismatch, 2);
       frame_rate_maxMismatch = std::max(frame_rate_maxMismatch, deltaMismatch);
     }
@@ -449,14 +459,16 @@ bool ETHDatasetParser::sanityCheckCamTimestamps(
         << " for image " << i << " of " << left_img_lists.size();
   }
 
+  CHECK_NE(deltaCount - 1, 0);
   LOG(INFO) << "nominal frame rate: " << left_cam_info.frame_rate_ << '\n'
             << "frame rate std: "
-            << std::sqrt(stdDelta / double(deltaCount - 1u)) << '\n'
+            << std::sqrt(stdDelta / static_cast<double>(deltaCount - 1u))
+            << '\n'
             << "frame rate maxMismatch: " << frame_rate_maxMismatch;
   return true;
 }
 
-std::string ETHDatasetParser::getDatasetName() {
+std::string EurocDataProvider::getDatasetName() {
   if (dataset_name_.empty()) {
     // Find and store actual name (rather than path) of the dataset.
     size_t found_last_slash = dataset_path_.find_last_of("/\\");
@@ -477,7 +489,7 @@ std::string ETHDatasetParser::getDatasetName() {
 }
 
 /* -------------------------------------------------------------------------- */
-gtsam::Pose3 ETHDatasetParser::getGroundTruthRelativePose(
+gtsam::Pose3 EurocDataProvider::getGroundTruthRelativePose(
     const Timestamp& previousTimestamp,
     const Timestamp& currentTimestamp) const {
   gtsam::Pose3 previousPose = getGroundTruthPose(previousTimestamp);
@@ -486,18 +498,18 @@ gtsam::Pose3 ETHDatasetParser::getGroundTruthRelativePose(
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::isGroundTruthAvailable(
+bool EurocDataProvider::isGroundTruthAvailable(
     const Timestamp& timestamp) const {
   return timestamp > gt_data_.map_to_gt_.begin()->first;
 }
 
 /* -------------------------------------------------------------------------- */
-bool ETHDatasetParser::isGroundTruthAvailable() const {
+bool EurocDataProvider::isGroundTruthAvailable() const {
   return is_gt_available_;
 }
 
 /* -------------------------------------------------------------------------- */
-VioNavState ETHDatasetParser::getGroundTruthState(
+VioNavState EurocDataProvider::getGroundTruthState(
     const Timestamp& timestamp) const {
   const auto& it_low =
       gt_data_.map_to_gt_.equal_range(timestamp).first;  // closest, non-lesser
@@ -517,7 +529,7 @@ VioNavState ETHDatasetParser::getGroundTruthState(
 // pose is identity (we are interested in relative poses!)
 // [in]: initial nav state with pose, velocity in body frame,
 // [in]: gravity vector estimate in body frame.
-const InitializationPerformance ETHDatasetParser::getInitializationPerformance(
+const InitializationPerformance EurocDataProvider::getInitializationPerformance(
     const std::vector<Timestamp>& timestamps,
     const std::vector<gtsam::Pose3>& poses_ba,
     const VioNavState& init_nav_state,
@@ -557,8 +569,11 @@ const InitializationPerformance ETHDatasetParser::getInitializationPerformance(
     avg_relativeTranError += fabs(relativeTranError);
   }
   // Compute average logmap error and translation error
-  avg_relativeRotError = avg_relativeRotError / double(init_n_frames);
-  avg_relativeTranError = avg_relativeTranError / double(init_n_frames);
+  CHECK_NE(init_n_frames, 0);
+  avg_relativeRotError =
+      avg_relativeRotError / static_cast<double>(init_n_frames);
+  avg_relativeTranError =
+      avg_relativeTranError / static_cast<double>(init_n_frames);
 
   LOG(INFO) << "avg. rot. error\n"
             << avg_relativeRotError << "\navg. tran. error\n"
@@ -592,13 +607,13 @@ const InitializationPerformance ETHDatasetParser::getInitializationPerformance(
 }
 
 /* -------------------------------------------------------------------------- */
-Timestamp ETHDatasetParser::timestampAtFrame(const FrameId& frame_number) {
+Timestamp EurocDataProvider::timestampAtFrame(const FrameId& frame_number) {
   DCHECK_LT(frame_number,
             camera_image_lists_[camera_names_[0]].img_lists_.size());
   return camera_image_lists_[camera_names_[0]].img_lists_[frame_number].first;
 }
 
-void ETHDatasetParser::clipFinalFrame() {
+void EurocDataProvider::clipFinalFrame() {
   // Clip final_k_ to the total number of images.
   const size_t& nr_images = getNumImages();
   if (final_k_ > nr_images) {
@@ -610,7 +625,7 @@ void ETHDatasetParser::clipFinalFrame() {
   CHECK_LE(final_k_, nr_images);
 }
 /* -------------------------------------------------------------------------- */
-void ETHDatasetParser::print() const {
+void EurocDataProvider::print() const {
   LOG(INFO) << "------------------ ETHDatasetParser::print ------------------\n"
             << "Displaying info for dataset: " << dataset_path_;
   // For each of the 2 cameras.
