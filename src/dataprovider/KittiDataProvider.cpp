@@ -7,11 +7,12 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   KittiDataSource.cpp
+ * @file   KittiDataProvider.cpp
  * @brief  Kitti dataset parser.
- * @author Antoni Rosinol, Yun Chang
+ * @author Antoni Rosinol
+ * @author Yun Chang
  */
-#include "kimera-vio/datasource/KittiDataSource.h"
+#include "kimera-vio/dataprovider/KittiDataProvider.h"
 
 #include <opencv2/core/core.hpp>
 
@@ -59,7 +60,7 @@ bool KittiDataProvider::spin() {
   const size_t number_of_images = kitti_data_.getNumberOfImages();
 
   const StereoMatchingParams& stereo_matching_params =
-      pipeline_params_.frontend_params_.getStereoMatchingParams();
+      pipeline_params_.frontend_params_.stereo_matching_params_;
 
   // Store camera info
   CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
@@ -72,8 +73,10 @@ bool KittiDataProvider::spin() {
     ImuMeasurements imu_meas;
     CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
           kitti_data_.imuData_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-              timestamp_last_frame, timestamp_frame_k, &imu_meas.timestamps_,
-              &imu_meas.measurements_))
+              timestamp_last_frame,
+              timestamp_frame_k,
+              &imu_meas.timestamps_,
+              &imu_meas.acc_gyr_))
         << "Make sure queried timestamp lies before the first IMU sample in "
            "the buffer";
     // Call VIO Pipeline.
@@ -87,26 +90,28 @@ bool KittiDataProvider::spin() {
              << "STAMPS IMU: \n"
              << imu_meas.timestamps_ << '\n'
              << "ACCGYR IMU rows : \n"
-             << imu_meas.measurements_.rows() << '\n'
+             << imu_meas.acc_gyr_.rows() << '\n'
              << "ACCGYR IMU cols : \n"
-             << imu_meas.measurements_.cols() << '\n'
+             << imu_meas.acc_gyr_.cols() << '\n'
              << "ACCGYR IMU: \n"
-             << imu_meas.measurements_ << '\n'
+             << imu_meas.acc_gyr_ << '\n'
              << "IMAGE NAME: \n"
              << kitti_data_.right_img_names_.at(k);
 
     timestamp_last_frame = timestamp_frame_k;
 
-    vio_callback_(VIO::make_unique<StereoImuSyncPacket>(
-        StereoFrame(k,
-                    timestamp_frame_k,
-                    readKittiImage(kitti_data_.left_img_names_.at(k)),
-                    left_cam_info,
-                    readKittiImage(kitti_data_.right_img_names_.at(k)),
-                    right_cam_info,
-                    stereo_matching_params),
-        imu_meas.timestamps_,
-        imu_meas.measurements_));
+    left_frame_callback_(VIO::make_unique<Frame>(
+        k,
+        timestamp_frame_k,
+        left_cam_info,
+        readKittiImage(kitti_data_.left_img_names_.at(k))));
+    right_frame_callback_(VIO::make_unique<Frame>(
+        k,
+        timestamp_frame_k,
+        right_cam_info,
+        readKittiImage(kitti_data_.right_img_names_.at(k))));
+
+    imu_multi_callback_(imu_meas);
 
     VLOG(10) << "Finished VIO processing for frame k = " << k;
   }
@@ -304,11 +309,13 @@ bool KittiDataProvider::parseCameraData(const std::string& input_dataset_path,
       -R_imu2body * T_imu2velo - R_imu2body * R_imu2velo.t() * T_velo2cam;
 
   for (const std::string& cam_name : camera_names) {
+    LOG(FATAL) << "Parsing Kitti files directly is NOT supported";
     LOG(INFO) << "reading camera: " << cam_name;
-    CameraParams cam_info_i(cam_name);
-    cam_info_i.parseKITTICalib(input_dataset_path + "/../calib_cam_to_cam.txt",
-                               R_cam2body, T_cam2body, cam_name);
-    pipeline_params_.camera_params_.push_back(cam_info_i);
+    // CameraParams cam_info_i(cam_name);
+    // cam_info_i.parseKITTICalib(input_dataset_path +
+    // "/../calib_cam_to_cam.txt",
+    //                            R_cam2body, T_cam2body, cam_name);
+    // pipeline_params_.camera_params_.push_back(cam_info_i);
     LOG(INFO) << "parsed camera: " << cam_name;
   }
 

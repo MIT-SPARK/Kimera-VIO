@@ -75,7 +75,7 @@ class ThreadsafeImuBuffer {
     kTooFewMeasurementsAvailable
   };
 
-  explicit ThreadsafeImuBuffer(Timestamp buffer_length_ns)
+  explicit ThreadsafeImuBuffer(const Timestamp& buffer_length_ns)
       : buffer_(buffer_length_ns), shutdown_(false) {}
 
   ~ThreadsafeImuBuffer() { shutdown(); }
@@ -87,7 +87,7 @@ class ThreadsafeImuBuffer {
 
   /// Add IMU measurement in IMU frame.
   /// (Ordering: accelerations [m/s^2], angular velocities [rad/s])
-  inline void addMeasurement(Timestamp timestamp_nanoseconds,
+  inline void addMeasurement(const Timestamp& timestamp_nanoseconds,
                              const ImuAccGyr& imu_measurement);
   inline void addMeasurements(const ImuStampS& timestamps_nanoseconds,
                               const ImuAccGyrS& imu_measurements);
@@ -99,8 +99,8 @@ class ThreadsafeImuBuffer {
   //      getImuDataStrictlyBtwTiemstamps(2, 5, ..., true)
   // returns elements at 2, 3, 4.
   // by setting the parameter get_lower_bound to true.
-  QueryResult getImuDataBtwTimestamps(Timestamp timestamp_ns_from,
-                                      Timestamp timestamp_ns_to,
+  QueryResult getImuDataBtwTimestamps(const Timestamp& timestamp_ns_from,
+                                      const Timestamp& timestamp_ns_to,
                                       ImuStampS* imu_timestamps,
                                       ImuAccGyrS* imu_measurements,
                                       bool get_lower_bound = false);
@@ -117,8 +117,8 @@ class ThreadsafeImuBuffer {
   /// @return The return code signals if the buffer does not contain data
   /// up to the requested timestamp.
   /// In this case the output matrices will be of size 0.
-  QueryResult getImuDataInterpolatedBorders(Timestamp timestamp_from,
-                                            Timestamp timestamp_to,
+  QueryResult getImuDataInterpolatedBorders(const Timestamp& timestamp_from,
+                                            const Timestamp& timestamp_to,
                                             ImuStampS* imu_timestamps,
                                             ImuAccGyrS* imu_measurements);
 
@@ -137,16 +137,17 @@ class ThreadsafeImuBuffer {
   /// surrounding the requested timestamps
   /// (check function isDataAvailableUpToImpl).
   /// In this case the output matrices will be of size 0.
-  QueryResult getImuDataInterpolatedUpperBorder(Timestamp timestamp_ns_from,
-                                                Timestamp timestamp_ns_to,
-                                                ImuStampS* imu_timestamps,
-                                                ImuAccGyrS* imu_measurements);
+  QueryResult getImuDataInterpolatedUpperBorder(
+      const Timestamp& timestamp_ns_from,
+      const Timestamp& timestamp_ns_to,
+      ImuStampS* imu_timestamps,
+      ImuAccGyrS* imu_measurements);
 
   // Interpolates an IMU measurement at timestamp by taking previous and
   // posterior measurements to the given timestamp.
   // WARNING: the user must make sure the buffer has enough elements.
   // This can be done be checked using the isDataAvailableUpToImpl function.
-  void interpolateValueAtTimestamp(Timestamp timestamp_ns,
+  void interpolateValueAtTimestamp(const Timestamp& timestamp_ns,
                                    ImuAccGyr* interpolated_imu_measurement);
 
   /// Try to pop the requested IMU measurements for the duration of
@@ -155,13 +156,19 @@ class ThreadsafeImuBuffer {
   /// reached, the method
   /// will return false and no data will be removed from the buffer.
   QueryResult getImuDataInterpolatedBordersBlocking(
-      Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
-      Timestamp wait_timeout_nanoseconds, ImuStampS* imu_timestamps,
+      const Timestamp& timestamp_ns_from,
+      const Timestamp& timestamp_ns_to,
+      const Timestamp& wait_timeout_nanoseconds,
+      ImuStampS* imu_timestamps,
       ImuAccGyrS* imu_measurements);
 
   /// Linear interpolation between two imu measurements.
-  static void linearInterpolate(Timestamp x0, const ImuAccGyr& y0, Timestamp x1,
-                                const ImuAccGyr& y1, Timestamp x, ImuAccGyr* y);
+  static void linearInterpolate(const Timestamp& x0,
+                                const ImuAccGyr& y0,
+                                const Timestamp& x1,
+                                const ImuAccGyr& y1,
+                                const Timestamp& x,
+                                ImuAccGyr* y);
 
  private:
   /// TODO I think this comment is deprecated:
@@ -178,8 +185,8 @@ class ThreadsafeImuBuffer {
   ///       iii) Query from timestamp 3 to 4, returns kDataAvailable.
   /// And I don't think there is a need to lock any mutex, as buffer_ is already
   /// threadsafe...
-  QueryResult isDataAvailableUpToImpl(Timestamp timestamp_ns_from,
-                                      Timestamp timestamp_ns_to) const;
+  QueryResult isDataAvailableUpToImpl(const Timestamp& timestamp_ns_from,
+                                      const Timestamp& timestamp_ns_to) const;
 
   typedef std::pair<const Timestamp, ImuMeasurement> BufferElement;
   typedef Eigen::aligned_allocator<BufferElement> BufferAllocator;

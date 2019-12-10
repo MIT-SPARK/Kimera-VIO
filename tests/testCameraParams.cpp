@@ -115,9 +115,9 @@ TEST(testCameraParams, Cal3_S2ToCvmat) {
 /* ************************************************************************** */
 TEST(testCameraParams, DISABLED_parseKITTICalib) {
   CameraParams camParams;
-  camParams.parseKITTICalib(
-      FLAGS_test_data_path + "/ForKittiData/calib_cam_to_cam.txt",
-      cv::Mat::eye(3, 3, CV_64F), cv::Mat::zeros(3, 1, CV_64F), "00");
+  // camParams.parseKITTICalib(
+  //    FLAGS_test_data_path + "/ForKittiData/calib_cam_to_cam.txt",
+  //    cv::Mat::eye(3, 3, CV_64F), cv::Mat::zeros(3, 1, CV_64F), "00");
 
   // Frame rate
   const double frame_rate_expected = 1.0 / 10.0;

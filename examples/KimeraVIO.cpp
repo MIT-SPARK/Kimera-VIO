@@ -20,8 +20,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "kimera-vio/datasource/ETH_parser.h"
-#include "kimera-vio/datasource/KittiDataSource.h"
+#include "kimera-vio/dataprovider/EurocDataProvider.h"
+#include "kimera-vio/dataprovider/KittiDataProvider.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/Pipeline.h"
@@ -45,7 +45,8 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<VIO::DataProviderInterface> dataset_parser;
   switch (FLAGS_dataset_type) {
     case 0: {
-      dataset_parser = VIO::make_unique<VIO::ETHDatasetParser>();
+      dataset_parser =
+          VIO::make_unique<VIO::EurocDataProvider>(FLAGS_parallel_run);
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
@@ -61,8 +62,18 @@ int main(int argc, char* argv[]) {
   VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
 
   // Register callback to vio pipeline.
-  dataset_parser->registerVioCallback(
-      std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
+  dataset_parser->registerImuSingleCallback(
+      std::bind(&VIO::Pipeline::fillSingleImuQueue,
+                &vio_pipeline,
+                std::placeholders::_1));
+  dataset_parser->registerLeftFrameCallback(
+      std::bind(&VIO::Pipeline::fillLeftFrameQueue,
+                &vio_pipeline,
+                std::placeholders::_1));
+  dataset_parser->registerRightFrameCallback(
+      std::bind(&VIO::Pipeline::fillRightFrameQueue,
+                &vio_pipeline,
+                std::placeholders::_1));
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
@@ -71,14 +82,20 @@ int main(int argc, char* argv[]) {
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
                              std::move(dataset_parser));
-    auto handle_pipeline = std::async(std::launch::async,
+    auto handle_pipeline =
+        std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
+    auto handle_shutdown = std::async(std::launch::async,
                                       &VIO::Pipeline::shutdownWhenFinished,
                                       &vio_pipeline);
     vio_pipeline.spinViz();
-    is_pipeline_successful = handle.get();
+    is_pipeline_successful = !handle.get();
+    handle_shutdown.get();
     handle_pipeline.get();
   } else {
-    is_pipeline_successful = dataset_parser->spin();
+    while (dataset_parser->spin()) {
+      vio_pipeline.spin();
+    };
+    is_pipeline_successful = true;
   }
 
   // Output stats.

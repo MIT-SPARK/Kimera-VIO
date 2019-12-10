@@ -38,7 +38,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "kimera-vio/datasource/DataSource-definitions.h"  // Only for gtNavState ...
+// Only for gtNavState ...
+#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
@@ -65,9 +66,11 @@ namespace VIO {
 VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
                        const StereoCalibPtr& stereo_calibration,
                        const VioBackEndParams& backend_params,
+                       const ImuParams& imu_params,
                        const BackendOutputParams& backend_output_params,
                        bool log_output)
     : backend_params_(backend_params),
+      imu_params_(imu_params),
       backend_output_params_(backend_output_params),
       backend_state_(BackendState::Bootstrap),
       timestamp_lkf_(-1),
@@ -737,14 +740,14 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
 
   // Factor to discretize and move normalize by the interval between
   // measurements:
-  CHECK_NE(backend_params_.nominalImuRate_, 0.0)
+  CHECK_NE(imu_params_.nominal_rate_, 0.0)
       << "Nominal IMU rate param cannot be 0.";
   // 1/sqrt(nominalImuRate_) to discretize, then
   // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
-  const double d = sqrt(pim.deltaTij()) / backend_params_.nominalImuRate_;
+  const double d = sqrt(pim.deltaTij()) / imu_params_.nominal_rate_;
   Vector6 biasSigmas;
-  biasSigmas.head<3>().setConstant(d * backend_params_.accBiasSigma_);
-  biasSigmas.tail<3>().setConstant(d * backend_params_.gyroBiasSigma_);
+  biasSigmas.head<3>().setConstant(d * imu_params_.acc_walk_);
+  biasSigmas.tail<3>().setConstant(d * imu_params_.gyro_walk_);
   const gtsam::SharedNoiseModel& bias_noise_model =
       gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
 
@@ -766,8 +769,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
   // pim_.reset();
 }
 
-/* --------------------------------------------------------------------------
- */
+/* -------------------------------------------------------------------------- */
 void VioBackEnd::addBetweenFactor(const FrameId& from_id,
                                   const FrameId& to_id,
                                   const gtsam::Pose3& from_id_POSE_to_id) {
@@ -1467,7 +1469,7 @@ void VioBackEnd::setIsam2Params(const VioBackEndParams& vio_params,
   isam_param->setEvaluateNonlinearError(false);  // only for debugging
   isam_param->enableDetailedResults = false;     // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
-  if (FLAGS_minloglevel < 1) isam_param->print("isam_param");
+  if (VLOG_IS_ON(1)) isam_param->print("isam_param");
 }
 
 /* --------------------------------------------------------------------------

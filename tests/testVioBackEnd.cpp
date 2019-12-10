@@ -28,7 +28,8 @@
 
 #include "kimera-vio/backend/VioBackEnd.h"
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/datasource/DataSource-definitions.h"  // only for gtNavState...
+// only for gtNavState...
+#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/initial/InitializationBackEnd.h"
@@ -126,8 +127,16 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   // Additional parameters
   VioBackEndParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 30;  // we simulate points 20m away
-  vioParams.imuIntegrationSigma_ = 1e-4;
   vioParams.horizon_ = 100;
+
+  ImuParams imu_params;
+  imu_params.gyro_noise_ = 0.00016968;
+  imu_params.acc_noise_ = 0.002;
+  imu_params.gyro_walk_ = 1.9393e-05;
+  imu_params.acc_walk_ = 0.003;
+  imu_params.n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81);
+  imu_params.imu_integration_sigma_ = 1.0;
+  imu_params.nominal_rate_ = 200.0;
 
   // Create 3D points
   std::vector<Point3> pts = CreateScene();
@@ -154,7 +163,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
                   num_key_frames,
                   v,
                   imu_bias,
-                  vioParams.n_gravity_,
+                  imu_params.n_gravity_,
                   time_step,
                   t_start);
 
@@ -197,16 +206,10 @@ TEST(testVio, robotMovingWithConstantVelocity) {
       std::make_shared<VioBackEnd>(B_pose_camLrect,
                                    stereo_calibration,
                                    vioParams,
+                                   imu_params,
                                    BackendOutputParams(false, 0, false),
                                    false);
   vio->initStateAndSetPriors(VioNavStateTimestamped(t_start, initial_state));
-  ImuParams imu_params;
-  imu_params.n_gravity_ = vioParams.n_gravity_;
-  imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
-  imu_params.acc_walk_ = vioParams.accBiasSigma_;
-  imu_params.acc_noise_ = vioParams.accNoiseDensity_;
-  imu_params.gyro_walk_ = vioParams.gyroBiasSigma_;
-  imu_params.gyro_noise_ = vioParams.gyroNoiseDensity_;
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
 
   vio->registerImuBiasUpdateCallback(std::bind(
@@ -280,11 +283,19 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   // Additional parameters
   VioBackEndParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 100;  // we simulate points 30-40m away
-  vioParams.imuIntegrationSigma_ = 1e-4;
   vioParams.horizon_ = 100;
   vioParams.smartNoiseSigma_ = 0.001;
   vioParams.outlierRejection_ = 100;
   vioParams.betweenTranslationPrecision_ = 1;
+
+  ImuParams imu_params;
+  imu_params.gyro_noise_ = 0.00016968;
+  imu_params.acc_noise_ = 0.002;
+  imu_params.gyro_walk_ = 1.9393e-05;
+  imu_params.acc_walk_ = 0.003;
+  imu_params.n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81);
+  imu_params.imu_integration_sigma_ = 1.0;
+  imu_params.nominal_rate_ = 200.0;
 
   // Create 3D points
   std::vector<Point3> pts = CreateScene();
@@ -315,7 +326,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
                   num_key_frames,
                   v,
                   imu_bias,
-                  vioParams.n_gravity_,
+                  imu_params.n_gravity_,
                   time_step,
                   t_start);
 
@@ -354,14 +365,8 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
           B_pose_camLrect,
           stereo_calibration,
           vioParams,
+          imu_params,
           BackendOutputParams(false, 0, false));
-  ImuParams imu_params;
-  imu_params.n_gravity_ = vioParams.n_gravity_;
-  imu_params.imu_integration_sigma_ = vioParams.imuIntegrationSigma_;
-  imu_params.acc_walk_ = vioParams.accBiasSigma_;
-  imu_params.acc_noise_ = vioParams.accNoiseDensity_;
-  imu_params.gyro_walk_ = vioParams.gyroBiasSigma_;
-  imu_params.gyro_noise_ = vioParams.gyroNoiseDensity_;
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
 
   // Create vector of input payloads

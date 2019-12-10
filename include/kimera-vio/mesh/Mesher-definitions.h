@@ -15,6 +15,7 @@
 #pragma once
 
 #include <functional>
+#include <utility>  // For move
 #include <vector>
 
 #include <gtsam/geometry/Pose3.h>
@@ -101,8 +102,7 @@ struct MesherInput : public PipelinePayload {
 struct MesherOutput : public PipelinePayload {
  public:
   KIMERA_POINTER_TYPEDEFS(MesherOutput);
-  // TODO(Toni): delete copy constructors
-  // KIMERA_DELETE_COPY_CONSTRUCTORS(MesherOutput);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   explicit MesherOutput(const Timestamp& timestamp)
       : PipelinePayload(timestamp),
@@ -132,14 +132,9 @@ struct MesherOutput : public PipelinePayload {
 
   virtual ~MesherOutput() = default;
 
-  // Default copy ctor.
-  MesherOutput(const MesherOutput& rhs) = default;
-  // Default copy assignment operator.
-  MesherOutput& operator=(const MesherOutput& rhs) = default;
-
   // Use default move ctor and move assignment operator.
-  MesherOutput(MesherOutput&&) = default;
-  MesherOutput& operator=(MesherOutput&&) = default;
+  MesherOutput(MesherOutput&&) = delete;
+  MesherOutput& operator=(MesherOutput&&) = delete;
 
  public:
   Mesh2D mesh_2d_;

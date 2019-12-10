@@ -118,14 +118,6 @@ pipeline {
             }
           }
           stages {
-            stage('Build Debug') {
-              steps {
-               cmakeBuild buildDir: 'build', buildType: 'Debug', cleanBuild: true,
-                          cmakeArgs: '-DEIGEN3_INCLUDE_DIR=/usr/local/include/gtsam/3rdparty/Eigen',
-                          generator: 'Unix Makefiles', installation: 'InSearchPath',
-                          sourceDir: '.', steps: [[args: '-j 8']]
-              }
-            }
             stage('Build Release') {
               steps {
                 slackSend color: 'good',

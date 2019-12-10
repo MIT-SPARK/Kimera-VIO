@@ -1,7 +1,6 @@
 %YAML:1.0
 # General sensor definitions.
-sensor_type: camera
-comment: VI-Sensor cam0 (MT9M034)
+camera_id: camera
 
 # Sensor extrinsics wrt. the body-frame.
 T_BS:
