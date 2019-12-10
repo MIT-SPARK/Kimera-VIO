@@ -45,16 +45,42 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Download and unzip the vocabularly file
-ExternalProject_Add(ORBvoc
-    PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary
-    URL http://www.dropbox.com/s/lyo0qgbdxn6eg6o/ORBvoc.zip?dl=1
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
-      ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ &&
-      ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
-)
+# TODO(marcus): cannot use this with 16.04 because cmake version is too low.
+# ExternalProject_Add(ORBvoc
+#     PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary
+#     URL http://www.dropbox.com/s/lyo0qgbdxn6eg6o/ORBvoc.zip?dl=1
+#     CONFIGURE_COMMAND ""
+#     BUILD_COMMAND ""
+#     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory
+#       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
+#       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ &&
+#       ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
+# )
+
+if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.yml)
+  message(STATUS "Downloading vocabulary file from dropbox.")
+  file(DOWNLOAD
+       http://www.dropbox.com/s/lyo0qgbdxn6eg6o/ORBvoc.zip?dl=1
+       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.zip
+       SHOW_PROGRESS
+       STATUS orbvoc_download_success
+       TIMEOUT 60)
+  if(orbvoc_download_success)
+    message(STATUS "Unzipping vocabulary file.")
+    
+    execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.zip
+                            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/)
+    message(STATUS "Moving vocabulary file.")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc/
+                    ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc/)
+  else(orbvoc_download_success)
+    message(STATUS "Failed to download vocabulary file. Please download manually.")
+  endif(orbvoc_download_success)
+else()
+  message(STATUS "Vocabulary file exists, will not download.")
+endif()
 
 ### Compile the code
 add_library(KimeraVIO SHARED "")
