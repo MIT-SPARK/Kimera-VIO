@@ -120,12 +120,12 @@ class LCDFixture :public ::testing::Test {
         id_ref1_,
         timestamp_ref1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref1_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref1_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref1_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref1_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(ref1_stereo_frame_->getLeftFrameMutable());
     CHECK(ref1_stereo_frame_);
@@ -136,12 +136,12 @@ class LCDFixture :public ::testing::Test {
         id_cur1_,
         timestamp_cur1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur1_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur1_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur1_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur1_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(cur1_stereo_frame_->getLeftFrameMutable());
     CHECK(cur1_stereo_frame_);
@@ -152,12 +152,12 @@ class LCDFixture :public ::testing::Test {
         id_ref2_,
         timestamp_ref2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref2_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref2_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref2_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref2_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(ref2_stereo_frame_->getLeftFrameMutable());
     CHECK(ref2_stereo_frame_);
@@ -168,12 +168,12 @@ class LCDFixture :public ::testing::Test {
         id_cur2_,
         timestamp_cur2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur2_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur2_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur2_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur2_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(cur2_stereo_frame_->getLeftFrameMutable());
     CHECK(cur2_stereo_frame_);
@@ -293,15 +293,8 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   gtsam::Pose3 camRef1_T_camCur1_mono;
   lcd_detector_->geometricVerificationCheck(1, 0, &camRef1_T_camCur1_mono);
 
-  cv::Mat match_img = lcd_detector_->computeAndDrawMatchesBetweenFrames(
-      cur1_stereo_frame_->getLeftFrame().img_,
-      ref1_stereo_frame_->getLeftFrame().img_, 1, 0, false);
-
-  // TODO(marcus): get rid of this and switch to false on toscale flag
-  gtsam::Point3 unit_T_ref_to_cur = ref1_to_cur1_pose_.translation() /
-                                    ref1_to_cur1_pose_.translation().norm();
   gtsam::Pose3 ref_to_cur_gnd_truth_pose =
-      gtsam::Pose3(ref1_to_cur1_pose_.rotation(), unit_T_ref_to_cur);
+      gtsam::Pose3(ref1_to_cur1_pose_.rotation(), ref1_to_cur1_pose_.translation());
 
   gtsam::Pose3 bodyRef1_T_bodyCur1;
   lcd_detector_->transformCameraPoseToBodyPose(camRef1_T_camCur1_mono,
@@ -309,7 +302,7 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
 
   std::pair<double, double> error =
       UtilsOpenCV::ComputeRotationAndTranslationErrors(
-          ref_to_cur_gnd_truth_pose, bodyRef1_T_bodyCur1, true);
+          ref_to_cur_gnd_truth_pose, bodyRef1_T_bodyCur1, false);
 
   EXPECT_LT(error.first, rot_tol);
   // TODO(marcus): This test doesn't pass with realistic error tolerances

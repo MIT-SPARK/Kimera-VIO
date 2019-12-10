@@ -105,43 +105,43 @@ bool LcdThirdPartyWrapper::checkTemporalConstraint(const FrameId& id,
     }
   }
 
-  latest_matched_island_ = island;
-  latest_query_id_ = id;
-
   return temporal_entries_ > lcd_params_.min_temporal_matches_;
 }
 
 /* ------------------------------------------------------------------------ */
 void LcdThirdPartyWrapper::computeIslands(
-    DBoW2::QueryResults& q,
+    DBoW2::QueryResults* q,
     std::vector<MatchIsland>* islands) const {
+  CHECK_NOTNULL(q);
   CHECK_NOTNULL(islands);
   islands->clear();
 
   // The case of one island is easy to compute and is done separately
-  if (q.size() == 1) {
-    MatchIsland island(q[0].Id, q[0].Id, q[0].Score);
-    island.best_id_ = q[0].Id;
-    island.best_score_ = q[0].Score;
+  if (q->size() == 1) {
+    const DBoW2::Result& result = (*q)[0];
+    const DBoW2::EntryId& result_id = result.Id;
+    MatchIsland island(result_id, result_id, result.Score);
+    island.best_id_ = result_id;
+    island.best_score_ = result.Score;
     islands->push_back(island);
-  } else if (!q.empty()) {
+  } else if (!q->empty()) {
     // sort query results in ascending order of ids
-    std::sort(q.begin(), q.end(), DBoW2::Result::ltId);
+    std::sort(q->begin(), q->end(), DBoW2::Result::ltId);
 
     // create long enough islands
-    DBoW2::QueryResults::const_iterator dit = q.begin();
-    int first_island_entry = dit->Id;
-    int last_island_entry = dit->Id;
+    DBoW2::QueryResults::const_iterator dit = q->begin();
+    int first_island_entry = static_cast<int>(dit->Id);
+    int last_island_entry = static_cast<int>(dit->Id);
 
     // these are indices of q
-    unsigned int i_first = 0;
-    unsigned int i_last = 0;
+    FrameId i_first = 0;
+    FrameId i_last = 0;
 
     double best_score = dit->Score;
-    FrameId best_entry = dit->Id;
+    DBoW2::EntryId best_entry = dit->Id;
 
     ++dit;
-    for (unsigned int idx = 1; dit != q.end(); ++dit, ++idx) {
+    for (FrameId idx = 1; dit != q->end(); ++dit, ++idx) {
       if (static_cast<int>(dit->Id) - last_island_entry <
           lcd_params_.max_intragroup_gap_) {
         last_island_entry = dit->Id;
@@ -157,7 +157,7 @@ void LcdThirdPartyWrapper::computeIslands(
           MatchIsland island =
               MatchIsland(first_island_entry,
                           last_island_entry,
-                          computeIslandScore(q, i_first, i_last));
+                          computeIslandScore(*q, i_first, i_last));
 
           islands->push_back(island);
           islands->back().best_score_ = best_score;
@@ -176,11 +176,11 @@ void LcdThirdPartyWrapper::computeIslands(
         lcd_params_.min_matches_per_group_) {
       MatchIsland island = MatchIsland(first_island_entry,
                                        last_island_entry,
-                                       computeIslandScore(q, i_first, i_last));
+                                       computeIslandScore(*q, i_first, i_last));
 
       islands->push_back(island);
       islands->back().best_score_ = best_score;
-      islands->back().best_id_ = best_entry;
+      islands->back().best_id_ = static_cast<FrameId>(best_entry);
     }
   }
 }

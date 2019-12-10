@@ -90,7 +90,7 @@ class LcdThirdPartyWrapper {
    *  nearby possible matches with the frame being queried.
    */
   // TODO(marcus): unit tests
-  void computeIslands(DBoW2::QueryResults& q,
+  void computeIslands(DBoW2::QueryResults* q,
                       std::vector<MatchIsland>* islands) const;
 
  private:

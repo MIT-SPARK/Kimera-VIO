@@ -28,7 +28,7 @@
 
 namespace VIO {
 
-// TODO (Toni): this should be in its own...
+// TODO (Toni): this should be on its own...
 /*
  * Compact storage of state.
  */

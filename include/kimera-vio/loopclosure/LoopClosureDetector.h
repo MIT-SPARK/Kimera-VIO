@@ -68,7 +68,7 @@ class LoopClosureDetector {
    * @param[in] input A shared_ptr referencing an input payload.
    * @return The output payload from the pipeline.
    */
-  virtual LcdOutput::Ptr spinOnce(const LcdInput& input);
+  virtual LcdOutput::UniquePtr spinOnce(const LcdInput& input);
 
   /* ------------------------------------------------------------------------ */
   /** @brief Processed a single frame and adds it to relevant internal
@@ -305,8 +305,8 @@ class LoopClosureDetector {
    */
   void computeMatchedIndices(const FrameId& query_id,
                              const FrameId& match_id,
-                             std::vector<unsigned int>* i_query,
-                             std::vector<unsigned int>* i_match,
+                             std::vector<FrameId>* i_query,
+                             std::vector<FrameId>* i_match,
                              bool cut_matches = false) const;
 
   /* ------------------------------------------------------------------------ */
@@ -381,6 +381,16 @@ class LoopClosureDetector {
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;
   LcdDebugInfo debug_info_;
+
+ private:
+  // Lcd typedefs
+  using DMatchVec = std::vector<cv::DMatch>;
+  using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
+  using SacProblemMono =
+      opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
+  using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
+  using SacProblemStereo =
+      opengv::sac_problems::point_cloud::PointCloudSacProblem;
 };  // class LoopClosureDetector
 
 enum class LoopClosureDetectorType {
@@ -437,7 +447,7 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
 
  protected:
   //! Synchronize input queues.
-  inline InputPtr getInputPacket() override {
+  inline InputUniquePtr getInputPacket() override {
     // TODO(X): this is the same or very similar to the Mesher getInputPacket.
     LcdBackendInput backend_payload;
     bool queue_state = false;
@@ -459,32 +469,20 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
     // Look for the synchronized packet in frontend payload queue
     // This should always work, because it should not be possible to have
     // a backend payload without having a frontend one first!
-    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::max();
-    LcdFrontendInput frontend_payload;
-    while (timestamp != payload_timestamp) {
-      if (!frontend_queue_.pop(frontend_payload)) {
-        // We had a backend input but no frontend input, something's wrong.
-        LOG(ERROR) << "Module: " << name_id_
-                   << " - Frontend payload queue is empty or "
-                      "has been shutdown.";
-        return nullptr;
-      }
-      if (frontend_payload) {
-        payload_timestamp = frontend_payload->stereo_frame_lkf_.getTimestamp();
-      } else {
-        LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
-      }
-    }
+    LcdFrontendInput frontend_payload = nullptr;
+    PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
+    CHECK(frontend_payload);
+    CHECK(frontend_payload->is_keyframe_);
 
     // Push the synced messages to the lcd's input queue
     const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
     const gtsam::Pose3& body_pose = backend_payload->W_State_Blkf_.pose_;
-    return VIO::make_unique<LoopClosureDetectorInputPayload>(
+    return VIO::make_unique<LcdInput>(
         timestamp, backend_payload->cur_kf_id_, stereo_keyframe, body_pose);
   }
 
-  OutputPtr spinOnce(const LcdInput& input) override {
-    return lcd_->spinOnce(input);
+  OutputUniquePtr spinOnce(LcdInput::UniquePtr input) override {
+    return lcd_->spinOnce(*input);
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
@@ -492,13 +490,13 @@ class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
     LOG(INFO) << "Shutting down queues for: " << name_id_;
     frontend_queue_.shutdown();
     backend_queue_.shutdown();
-  };
+  }
 
   //! Checks if the module has work to do (should check input queues are empty)
   bool hasWork() const override {
     // We don't check frontend queue because it runs faster than backend queue.
-    return backend_queue_.empty();
-  };
+    return !backend_queue_.empty();
+  }
 
  private:
   //! Input Queues

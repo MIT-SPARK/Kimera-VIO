@@ -1,7 +1,6 @@
 %YAML:1.0
 # General sensor definitions.
-sensor_type: MyntEye S - JPL
-comment: Mynteye S - JPL
+camera_id: MyntEye S - JPL
 
 # Sensor extrinsics wrt. the body-frame.
 T_BS:

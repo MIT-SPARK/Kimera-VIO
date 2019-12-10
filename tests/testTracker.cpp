@@ -84,12 +84,12 @@ class TestTracker : public ::testing::Test {
         id_ref,
         timestamp_ref,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     ref_stereo_frame->sparseStereoMatching();  // only initialize rectification
 
@@ -97,12 +97,12 @@ class TestTracker : public ::testing::Test {
         id_cur,
         timestamp_cur,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur_right, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur_right, tp.stereo_matching_params_.equalize_image_),
         cam_params_right,
-        tp.getStereoMatchingParams());
+        tp.stereo_matching_params_);
 
     cur_stereo_frame->sparseStereoMatching();  // only initialize rectification
   }
@@ -931,7 +931,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
 }
 
 /* ************************************************************************* */
-TEST_F(TestTracker, GetPoint3AndCovariance) {
+TEST_F(TestTracker, getPoint3AndCovariance) {
   ClearStereoFrame(ref_stereo_frame);
   // create stereo cam
   Cal3_S2 ref_left_undist_rect_cam_mat =

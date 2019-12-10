@@ -80,7 +80,7 @@ struct ReinitPacket {
   }
 };
 
-class StereoImuSyncPacket {
+class StereoImuSyncPacket : public PipelinePayload {
  public:
   KIMERA_POINTER_TYPEDEFS(StereoImuSyncPacket);
   KIMERA_DELETE_COPY_CONSTRUCTORS(StereoImuSyncPacket);
