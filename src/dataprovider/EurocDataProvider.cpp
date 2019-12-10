@@ -350,7 +350,9 @@ bool EurocDataProvider::parseGTdata(const std::string& input_dataset_path,
   CHECK_NE(deltaCount, 0u);
   // Converted in seconds.
   // TODO(TONI): this looks horrible.
-  gt_data_.gt_rate_ = (double(sumOfDelta) / double(deltaCount)) * 1e-9;
+  gt_data_.gt_rate_ =
+      (static_cast<double>(sumOfDelta) / static_cast<double>(deltaCount)) *
+      1e-9;
   fin.close();
 
   VLOG(1) << "Maximum ground truth velocity: " << maxGTvel;
@@ -433,8 +435,8 @@ bool EurocDataProvider::sanityCheckCamTimestamps(
     const CameraImageLists::ImgLists& left_img_lists,
     const CameraImageLists::ImgLists& right_img_lists,
     const CameraParams& left_cam_info) const {
-  double stdDelta = 0;
-  double frame_rate_maxMismatch = 0;
+  double stdDelta = 0.0;
+  double frame_rate_maxMismatch = 0.0;
   size_t deltaCount = 0u;
   for (size_t i = 0; i < left_img_lists.size(); i++) {
     if (i > 0) {
@@ -442,9 +444,10 @@ bool EurocDataProvider::sanityCheckCamTimestamps(
       const Timestamp& timestamp = left_img_lists.at(i).first;
       const Timestamp& previous_timestamp = left_img_lists.at(i - 1).first;
       // TODO(TONI): this looks horrible.
-      double deltaMismatch = fabs(
-          double(timestamp - previous_timestamp - left_cam_info.frame_rate_) *
-          1e-9);
+      double deltaMismatch =
+          std::fabs(static_cast<double>(timestamp - previous_timestamp -
+                                        left_cam_info.frame_rate_) *
+                    1e-9);
       stdDelta += pow(deltaMismatch, 2);
       frame_rate_maxMismatch = std::max(frame_rate_maxMismatch, deltaMismatch);
     }
@@ -456,9 +459,11 @@ bool EurocDataProvider::sanityCheckCamTimestamps(
         << " for image " << i << " of " << left_img_lists.size();
   }
 
+  CHECK_NE(deltaCount - 1, 0);
   LOG(INFO) << "nominal frame rate: " << left_cam_info.frame_rate_ << '\n'
             << "frame rate std: "
-            << std::sqrt(stdDelta / double(deltaCount - 1u)) << '\n'
+            << std::sqrt(stdDelta / static_cast<double>(deltaCount - 1u))
+            << '\n'
             << "frame rate maxMismatch: " << frame_rate_maxMismatch;
   return true;
 }
@@ -564,8 +569,11 @@ const InitializationPerformance EurocDataProvider::getInitializationPerformance(
     avg_relativeTranError += fabs(relativeTranError);
   }
   // Compute average logmap error and translation error
-  avg_relativeRotError = avg_relativeRotError / double(init_n_frames);
-  avg_relativeTranError = avg_relativeTranError / double(init_n_frames);
+  CHECK_NE(init_n_frames, 0);
+  avg_relativeRotError =
+      avg_relativeRotError / static_cast<double>(init_n_frames);
+  avg_relativeTranError =
+      avg_relativeTranError / static_cast<double>(init_n_frames);
 
   LOG(INFO) << "avg. rot. error\n"
             << avg_relativeRotError << "\navg. tran. error\n"

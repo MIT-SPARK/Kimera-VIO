@@ -16,6 +16,7 @@
 
 #include <functional>
 #include <string>
+#include <utility>  // for move
 
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
@@ -42,7 +43,7 @@ class DataProviderModule
 
   virtual ~DataProviderModule() = default;
 
-  virtual inline OutputUniquePtr spinOnce(
+  inline OutputUniquePtr spinOnce(
       StereoImuSyncPacket::UniquePtr input) override {
     // Data provider is only syncing input sensor information, which
     // is done at the level of getInputPacket, therefore here we h
@@ -78,13 +79,13 @@ class DataProviderModule
   // Spin the dataset: processes the input data and constructs a Stereo Imu
   // Synchronized Packet which contains the minimum amount of information
   // for the VIO pipeline to do one processing iteration.
-  virtual InputUniquePtr getInputPacket() override;
+  InputUniquePtr getInputPacket() override;
 
   //! Called when general shutdown of PipelineModule is triggered.
-  virtual void shutdownQueues() override;
+  void shutdownQueues() override;
 
   //! Checks if the module has work to do (should check input queues are empty)
-  virtual inline bool hasWork() const override {
+  inline bool hasWork() const override {
     return !left_frame_queue_.empty() || !right_frame_queue_.empty();
   }
 

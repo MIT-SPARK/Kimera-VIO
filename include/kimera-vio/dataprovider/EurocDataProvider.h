@@ -51,7 +51,7 @@ class EurocDataProvider : public DataProviderInterface {
                     const std::string& frontend_params_path,
                     const std::string& lcd_params_path);
   // Ctor from gflags
-  EurocDataProvider(const bool& parallel_run);
+  explicit EurocDataProvider(const bool& parallel_run);
   virtual ~EurocDataProvider();
 
  public:
@@ -61,7 +61,7 @@ class EurocDataProvider : public DataProviderInterface {
    * return until it finishes.
    * @return True if the dataset still has data, false otherwise.
    */
-  virtual bool spin() override;
+  bool spin() override;
 
   // Print info about dataset.
   void print() const;
