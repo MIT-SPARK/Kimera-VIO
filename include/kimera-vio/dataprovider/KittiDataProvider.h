@@ -7,9 +7,10 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   KittiDataSource.h
+ * @file   KittiDataProvider.h
  * @brief  Kitti dataset parser.
- * @author Antoni Rosinol, Yun Chang
+ * @author Antoni Rosinol
+ * @author Yun Chang
  */
 
 #pragma once
@@ -17,7 +18,7 @@
 #include <functional>
 #include <string>
 
-#include "kimera-vio/datasource/DataSource.h"
+#include "kimera-vio/dataprovider/DataProviderInterface.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 
 namespace VIO {
@@ -75,21 +76,6 @@ class KittiDataProvider : public DataProviderInterface {
                  const std::string& calibration_filename,
                  cv::Mat& rotation,
                  cv::Mat& translation) const;
-
-  // TODO: these are left unimplemented... They are implicitly implemented
-  // in parseCamera/ImuData, but should be disentangled...
-  virtual bool parseCameraParams(const std::string& input_dataset_path,
-                                 const std::string& left_cam_name,
-                                 const std::string& right_cam_name,
-                                 const bool parse_images,
-                                 MultiCameraParams* multi_cam_params) override {
-    return false;
-  };
-  virtual bool parseImuParams(const std::string& input_dataset_path,
-                              const std::string& imu_name,
-                              ImuParams* imu_params) override {
-    return false;
-  };
 
   void print() const;
 

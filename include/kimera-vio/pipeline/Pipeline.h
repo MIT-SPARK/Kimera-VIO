@@ -24,7 +24,8 @@
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEndModule.h"
-#include "kimera-vio/datasource/DataSource-definitions.h"
+#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
+#include "kimera-vio/dataprovider/DataProviderModule.h"
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
@@ -38,30 +39,43 @@
 namespace VIO {
 
 class Pipeline {
- private:
+ public:
   KIMERA_POINTER_TYPEDEFS(Pipeline);
   KIMERA_DELETE_COPY_CONSTRUCTORS(Pipeline);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  public:
-  explicit Pipeline(const PipelineParams& params);
+  explicit Pipeline(const VioParams& params);
 
   virtual ~Pipeline();
 
-  // Main spin, runs the pipeline.
-  void spin(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
+  //! Callbacks to fill input queues.
+  inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
+    CHECK(data_provider_module_);
+    CHECK(left_frame);
+    data_provider_module_->fillLeftFrameQueue(std::move(left_frame));
+  }
+  inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
+    CHECK(data_provider_module_);
+    CHECK(right_frame);
+    data_provider_module_->fillRightFrameQueue(std::move(right_frame));
+  }
+  //! Fill one IMU measurement at a time.
+  inline void fillSingleImuQueue(const ImuMeasurement& imu_measurement) {
+    CHECK(data_provider_module_);
+    data_provider_module_->fillImuQueue(imu_measurement);
+  }
+  //! Fill multiple IMU measurements in batch
+  inline void fillMultiImuQueue(const ImuMeasurements& imu_measurements) {
+    CHECK(data_provider_module_);
+    data_provider_module_->fillImuQueue(imu_measurements);
+  }
 
   // Run an endless loop until shutdown to visualize.
   bool spinViz();
 
-  // Spin the pipeline only once.
-  void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
-
-  // A parallel pipeline should always be able to run sequentially...
-  void spinSequential();
-
   // Shutdown the pipeline once all data has been consumed.
-  void shutdownWhenFinished();
+  bool shutdownWhenFinished();
 
   // Shutdown processing pipeline: stops and joins threads, stops queues.
   // And closes logfiles.
@@ -101,6 +115,24 @@ class Pipeline {
     }
   }
 
+  /**
+   * @brief spin Spin the whole pipeline by spinning the data provider
+   * If in sequential mode, it will return for each spin.
+   * If in parallel mode, it will not return until the pipeline is shutdown.
+   * @return True if everything goes well.
+   */
+  bool spin() {
+    // Feed data to the pipeline
+    return data_provider_module_->spin();
+  }
+
+ private:
+  // Spin the pipeline only once.
+  void spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet);
+
+  // A parallel pipeline should always be able to run sequentially...
+  void spinSequential();
+
  private:
   // Initialize random seed for repeatability (only on the same machine).
   // TODO Still does not make RANSAC REPEATABLE across different machines.
@@ -130,6 +162,7 @@ class Pipeline {
 
   StatusStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
+      const FeatureSelectorParams& feature_selector_params,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
       const gtsam::Pose3& W_Pose_Blkf,
@@ -160,52 +193,57 @@ class Pipeline {
   VioBackEndParams::ConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
   ImuParams imu_params_;
+  BackendType backend_type_;
+  bool parallel_run_;
 
   //! Definition of sensor rig used
   StereoCamera::UniquePtr stereo_camera_;
 
+  //! Data provider.
+  DataProviderModule::UniquePtr data_provider_module_;
+
   // TODO this should go to another class to avoid not having copy-ctor...
-  // Frontend.
+  //! Frontend.
   StereoVisionFrontEndModule::UniquePtr vio_frontend_module_;
   std::unique_ptr<FeatureSelector> feature_selector_;
 
-  // Stereo vision frontend payloads.
+  //! Stereo vision frontend payloads.
   StereoVisionFrontEndModule::InputQueue stereo_frontend_input_queue_;
 
   // Online initialization frontend queue.
   ThreadsafeQueue<InitializationInputPayload::UniquePtr>
       initialization_frontend_output_queue_;
 
-  // Create VIO: class that implements estimation back-end.
+  //! Backend
   VioBackEndModule::UniquePtr vio_backend_module_;
 
-  // Thread-safe queue for the backend.
+  //! Thread-safe queue for the backend.
   VioBackEndModule::InputQueue backend_input_queue_;
 
-  // Create class to build mesh.
+  //! Mesher
   MesherModule::UniquePtr mesher_module_;
 
-  // Create class to detect loop closures.
+  //! Loop Closure Detector
   LcdModule::UniquePtr lcd_module_;
 
-  // Visualization process.
+  //! Visualizer
   VisualizerModule::UniquePtr visualizer_module_;
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
   std::atomic_bool is_launched_ = {false};
+
+  // TODO(Toni): Remove this?
   int init_frame_id_;
 
-  // Threads.
+  //! Threads.
   std::unique_ptr<std::thread> frontend_thread_ = {nullptr};
   std::unique_ptr<std::thread> backend_thread_ = {nullptr};
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
   std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
   std::unique_ptr<std::thread> visualizer_thread_ = {nullptr};
 
-  BackendType backend_type_;
-  bool parallel_run_;
 };
 
 }  // namespace VIO

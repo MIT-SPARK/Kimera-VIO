@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 #include <math.h>
 
-#include "kimera-vio/datasource/ETH_parser.h"
+#include "kimera-vio/dataprovider/EurocDataProvider.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/initial/OnlineGravityAlignment.h"
@@ -57,13 +57,8 @@ class OnlineAlignmentFixture : public ::testing::Test {
                                      const std::string& dataset_path) {
     int initial_k = 0;
     int final_k = 0;
-    int skip_n_start_frames = 0;
-    int skip_n_end_frames = 0;
-    dataset_ = VIO::make_unique<ETHDatasetParser>(initial_k,
-                                                  final_k,
-                                                  dataset_path,
-                                                  skip_n_start_frames,
-                                                  skip_n_end_frames);
+    dataset_ = VIO::make_unique<EurocDataProvider>(
+        true, initial_k, final_k, dataset_path, "", "", "", "", "", "");
 
     // Get GT poses and IMU pims.
     Timestamp timestamp_last_frame;
@@ -94,14 +89,15 @@ class OnlineAlignmentFixture : public ::testing::Test {
       gt_pose_k = it->second.pose_;
 
       // Get PIM information
-      dataset_->imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-          timestamp_last_frame,
-          timestamp_frame_k,
-          &imu_meas.timestamps_,
-          &imu_meas.measurements_);
+      // TODO(Toni): fix this
+      // dataset_->imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+      //     timestamp_last_frame,
+      //     timestamp_frame_k,
+      //     &imu_meas.timestamps_,
+      //     &imu_meas.acc_gyr_);
       ImuFrontEnd imu_frontend(imu_params_, imu_bias_);
       const auto& pim = imu_frontend.preintegrateImuMeasurements(
-          imu_meas.timestamps_, imu_meas.measurements_);
+          imu_meas.timestamps_, imu_meas.acc_gyr_);
 
       // AHRS Pre-integration
       // Define covariance matrices
@@ -111,11 +107,10 @@ class OnlineAlignmentFixture : public ::testing::Test {
           accNoiseVar * gtsam::Matrix3::Identity();
       gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim(
           biasHat, kMeasuredAccCovariance);
-      for (size_t i = 0; i < (imu_meas.measurements_.cols() - 1); ++i) {
+      for (size_t i = 0; i < (imu_meas.acc_gyr_.cols() - 1); ++i) {
         double delta_t = UtilsOpenCV::NsecToSec(imu_meas.timestamps_(i + 1) -
                                                 imu_meas.timestamps_(i));
-        gtsam::Vector3 measured_omega =
-            imu_meas.measurements_.block(3, 6, i, i + 1);
+        gtsam::Vector3 measured_omega = imu_meas.acc_gyr_.block(3, 6, i, i + 1);
         ahrs_pim.integrateMeasurement(measured_omega, delta_t);
       }
 
@@ -155,7 +150,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
   static constexpr double tol_RD_gv = 25e-2;
   static constexpr double tol_RD_an = 4 / 180.0 * M_PI;
 
-  std::unique_ptr<ETHDatasetParser> dataset_;
+  std::unique_ptr<EurocDataProvider> dataset_;
   AlignmentPoses estimated_poses_;
   AlignmentPims pims_;
   InitialAHRSPims ahrs_pim_;

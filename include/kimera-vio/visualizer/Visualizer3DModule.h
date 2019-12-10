@@ -55,9 +55,9 @@ class VisualizerModule
   //! then loop over the other queues until you get a payload that has exactly
   //! the same timestamp. Guaranteed to sync messages unless the assumption
   //! on the order of msg generation is broken.
-  virtual inline InputPtr getInputPacket() override;
+  virtual inline InputUniquePtr getInputPacket() override;
 
-  virtual OutputPtr spinOnce(const VisualizerInput& input) override;
+  virtual OutputUniquePtr spinOnce(VisualizerInput::UniquePtr input) override;
 
   //! Called when general shutdown of PipelineModule is triggered.
   virtual void shutdownQueues() override;

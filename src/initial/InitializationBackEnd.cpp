@@ -29,11 +29,13 @@ InitializationBackEnd::InitializationBackEnd(
     const gtsam::Pose3& B_Pose_leftCam,
     const StereoCalibPtr& stereo_calibration,
     const VioBackEndParams& backend_params,
+    const ImuParams& imu_params,
     const BackendOutputParams& backend_output_params,
     const bool log_output)
     : VioBackEnd(B_Pose_leftCam,
                  stereo_calibration,
                  backend_params,
+                 imu_params,
                  backend_output_params,
                  log_output) {}
 
@@ -98,7 +100,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 
   // Run initial visual-inertial alignment(OGA)
   OnlineGravityAlignment initial_alignment(
-      estimated_poses, delta_t_camera, pims, backend_params_.n_gravity_);
+      estimated_poses, delta_t_camera, pims, imu_params_.n_gravity_);
   auto tic_oga = utils::Timer::tic();
   bool is_success = initial_alignment.alignVisualInertialEstimates(
       gyro_bias, g_iter_b0, init_navstate, true);

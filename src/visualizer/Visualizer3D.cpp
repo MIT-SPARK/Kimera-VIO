@@ -113,7 +113,8 @@ Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
 /* -------------------------------------------------------------------------- */
 // Returns true if visualization is ready, false otherwise.
 // TODO(Toni): Put all flags inside spinOnce into Visualizer3DParams!
-VisualizerOutput::Ptr Visualizer3D::spinOnce(const VisualizerInput& input) {
+VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
+    const VisualizerInput& input) {
   DCHECK(input.frontend_output_);
   DCHECK(input.mesher_output_);
   DCHECK(input.backend_output_);

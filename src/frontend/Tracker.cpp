@@ -96,8 +96,10 @@ void Tracker::featureDetection(Frame* cur_frame) {
   /* --------------------------------------------------------------------------
    */
   std::pair<KeypointsCV, std::vector<double>> Tracker::featureDetection(
-      const Frame& cur_frame, const VioFrontEndParams& tracker_params,
-      const cv::Mat& cam_mask, const int need_n_corners) {
+      const Frame& cur_frame,
+      const VioFrontEndParams& tracker_params,
+      const cv::Mat& cam_mask,
+      const int need_n_corners) {
     // Create mask such that new keypoints are not close to old ones.
     cv::Mat mask;
     cam_mask.copyTo(mask);
@@ -1023,10 +1025,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
     cv::waitKey(1);
 
     if (write_frame) {
-      std::string folderName = outputImagesPath_ + img_title + "-" +
-                               VioFrontEndParams::FeatureSelectionCriterionStr(
-                                   trackerParams_.featureSelectionCriterion_) +
-                               "/";
+      std::string folderName = outputImagesPath_ + img_title + "-" + "/";
       boost::filesystem::path trackerDir(folderName.c_str());
       boost::filesystem::create_directory(trackerDir);
       std::string img_name = folderName + "/trackerDisplay" + img_title + "_" +

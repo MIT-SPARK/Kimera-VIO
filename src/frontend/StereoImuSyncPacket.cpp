@@ -23,7 +23,8 @@ StereoImuSyncPacket::StereoImuSyncPacket(const StereoFrame& stereo_frame,
                                          const ImuStampS& imu_stamps,
                                          const ImuAccGyrS& imu_accgyr,
                                          const ReinitPacket& reinit_packet)
-    : stereo_frame_(stereo_frame),
+    : PipelinePayload(stereo_frame.getTimestamp()),
+      stereo_frame_(stereo_frame),
       imu_stamps_(imu_stamps),
       imu_accgyr_(imu_accgyr),
       reinit_packet_(reinit_packet) {

@@ -44,6 +44,11 @@ namespace VIO {
 
 class StereoFrame {
  public:
+  // TODO(Toni) Do it pls...
+  // KIMERA_DELETE_COPY_CONSTRUCTORS(StereoFrame);
+  // KIMERA_POINTER_TYPEDEFS(StereoFrame);
+  // EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   StereoFrame(const FrameId& id,
               const Timestamp& timestamp,
               const cv::Mat& left_image,
@@ -51,6 +56,15 @@ class StereoFrame {
               const cv::Mat& right_image,
               const CameraParams& cam_param_right,
               const StereoMatchingParams& stereo_matching_params);
+
+  StereoFrame(const FrameId& id,
+              const Timestamp& timestamp,
+              const Frame& left_frame,
+              const Frame& right_frame,
+              const StereoMatchingParams& stereo_matching_params);
+
+  void initialize(const CameraParams& cam_param_left,
+                  const CameraParams& cam_param_right);
 
  public:
   struct LandmarkInfo {
