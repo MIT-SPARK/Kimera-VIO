@@ -16,6 +16,13 @@
 
 #include "kimera-vio/dataprovider/EurocDataProvider.h"
 
+#include <algorithm>  // for max
+#include <fstream>
+#include <map>
+#include <string>
+#include <utility>  // for pair<>
+#include <vector>
+
 #include <glog/logging.h>
 
 #include "kimera-vio/frontend/StereoFrame.h"
@@ -25,15 +32,15 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 EurocDataProvider::EurocDataProvider(const bool& parallel_run,
-                                   const int& initial_k,
-                                   const int& final_k,
-                                   const std::string& dataset_path,
-                                   const std::string& left_cam_params_path,
-                                   const std::string& right_cam_params_path,
-                                   const std::string& imu_params_path,
-                                   const std::string& backend_params_path,
-                                   const std::string& frontend_params_path,
-                                   const std::string& lcd_params_path)
+                                     const int& initial_k,
+                                     const int& final_k,
+                                     const std::string& dataset_path,
+                                     const std::string& left_cam_params_path,
+                                     const std::string& right_cam_params_path,
+                                     const std::string& imu_params_path,
+                                     const std::string& backend_params_path,
+                                     const std::string& frontend_params_path,
+                                     const std::string& lcd_params_path)
     : DataProviderInterface(initial_k,
                             final_k,
                             dataset_path,
@@ -71,7 +78,7 @@ bool EurocDataProvider::spin() {
     if (!parallel_run_) {
       return true;
     }
-  };
+  }
   return false;
 }
 
@@ -139,7 +146,7 @@ void EurocDataProvider::parse() {
 
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
-                                    const std::string& imuName) {
+                                     const std::string& imuName) {
   ///////////////// PARSE ACTUAL DATA //////////////////////////////////////////
   //#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad s^-1],w_RS_S_z [rad s^-1],
   // a_RS_S_x [m s^-2],a_RS_S_y [m s^-2],a_RS_S_z [m s^-2]
@@ -221,7 +228,7 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
 
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::parseGTdata(const std::string& input_dataset_path,
-                                   const std::string& gtSensorName) {
+                                    const std::string& gtSensorName) {
   CHECK(!input_dataset_path.empty());
   CHECK(!gtSensorName.empty());
 
@@ -381,7 +388,7 @@ bool EurocDataProvider::parseDataset() {
 
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::parseCameraData(const std::string& cam_name,
-                                       CameraImageLists* cam_list_i) {
+                                        CameraImageLists* cam_list_i) {
   CHECK_NOTNULL(cam_list_i)
       ->parseCamImgList(dataset_path_ + "/mav0/" + cam_name, "data.csv");
   return true;

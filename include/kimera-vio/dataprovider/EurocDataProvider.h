@@ -16,12 +16,8 @@
 
 #pragma once
 
-#include <stdlib.h>
-#include <algorithm>  // for max
-#include <fstream>
 #include <map>
 #include <string>
-#include <utility>  // for make_pair
 #include <vector>
 
 #include <opencv2/calib3d/calib3d.hpp>
@@ -45,15 +41,15 @@ class EurocDataProvider : public DataProviderInterface {
  public:
   // Ctor with params.
   EurocDataProvider(const bool& parallel_run,
-                   const int& initial_k,
-                   const int& final_k,
-                   const std::string& dataset_path,
-                   const std::string& left_cam_params_path,
-                   const std::string& right_cam_params_path,
-                   const std::string& imu_params_path,
-                   const std::string& backend_params_path,
-                   const std::string& frontend_params_path,
-                   const std::string& lcd_params_path);
+                    const int& initial_k,
+                    const int& final_k,
+                    const std::string& dataset_path,
+                    const std::string& left_cam_params_path,
+                    const std::string& right_cam_params_path,
+                    const std::string& imu_params_path,
+                    const std::string& backend_params_path,
+                    const std::string& frontend_params_path,
+                    const std::string& lcd_params_path);
   // Ctor from gflags
   EurocDataProvider(const bool& parallel_run);
   virtual ~EurocDataProvider();
