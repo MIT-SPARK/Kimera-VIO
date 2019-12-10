@@ -7,11 +7,11 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   DataSource.cpp
+ * @file   DataProviderInterface-definitions.cpp
  * @brief  Base implementation of a data provider for the VIO pipeline.
  * @author Antoni Rosinol
  */
-#include "kimera-vio/datasource/DataSource-definitions.h"
+#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
 
 #include <fstream>
 

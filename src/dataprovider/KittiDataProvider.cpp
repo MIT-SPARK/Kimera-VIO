@@ -7,11 +7,12 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   KittiDataSource.cpp
+ * @file   KittiDataProvider.cpp
  * @brief  Kitti dataset parser.
- * @author Antoni Rosinol, Yun Chang
+ * @author Antoni Rosinol
+ * @author Yun Chang
  */
-#include "kimera-vio/datasource/KittiDataSource.h"
+#include "kimera-vio/dataprovider/KittiDataProvider.h"
 
 #include <opencv2/core/core.hpp>
 

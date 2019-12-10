@@ -24,8 +24,8 @@
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEndModule.h"
-#include "kimera-vio/datasource/DataSource-definitions.h"
-#include "kimera-vio/datasource/DataSource.h"
+#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
+#include "kimera-vio/dataprovider/DataProviderModule.h"
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/VisionFrontEndModule.h"

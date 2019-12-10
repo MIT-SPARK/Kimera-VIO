@@ -63,8 +63,8 @@ add_library(KimeraVIO SHARED "")
 add_library(KimeraVIO::KimeraVIO ALIAS KimeraVIO)
 
 ### Add source code for data provider.
-include(include/kimera-vio/datasource/CMakeLists.txt)
-include(src/datasource/CMakeLists.txt)
+include(include/kimera-vio/dataprovider/CMakeLists.txt)
+include(src/dataprovider/CMakeLists.txt)
 ### Add source code for frontend.
 include(include/kimera-vio/frontend/CMakeLists.txt)
 include(src/frontend/CMakeLists.txt)

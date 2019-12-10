@@ -7,21 +7,17 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   ETH_parser.h
+ * @file   EurocDataProvider.h
  * @brief  Parse EUROC dataset.
- * @author Antoni Rosinol,
- * @author Yun Chang,
+ * @author Antoni Rosinol
+ * @author Yun Chang
  * @author Luca Carlone
  */
 
 #pragma once
 
-#include <stdlib.h>
-#include <algorithm>  // for max
-#include <fstream>
 #include <map>
 #include <string>
-#include <utility>  // for make_pair
 #include <vector>
 
 #include <opencv2/calib3d/calib3d.hpp>
@@ -30,8 +26,8 @@
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
-#include "kimera-vio/datasource/DataSource-definitions.h"
-#include "kimera-vio/datasource/DataSource.h"
+#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
+#include "kimera-vio/dataprovider/DataProviderInterface.h"
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
@@ -41,22 +37,22 @@ namespace VIO {
 /*
  * Parse all images and camera calibration for an ETH dataset.
  */
-class ETHDatasetParser : public DataProviderInterface {
+class EurocDataProvider : public DataProviderInterface {
  public:
   // Ctor with params.
-  ETHDatasetParser(const bool& parallel_run,
-                   const int& initial_k,
-                   const int& final_k,
-                   const std::string& dataset_path,
-                   const std::string& left_cam_params_path,
-                   const std::string& right_cam_params_path,
-                   const std::string& imu_params_path,
-                   const std::string& backend_params_path,
-                   const std::string& frontend_params_path,
-                   const std::string& lcd_params_path);
+  EurocDataProvider(const bool& parallel_run,
+                    const int& initial_k,
+                    const int& final_k,
+                    const std::string& dataset_path,
+                    const std::string& left_cam_params_path,
+                    const std::string& right_cam_params_path,
+                    const std::string& imu_params_path,
+                    const std::string& backend_params_path,
+                    const std::string& frontend_params_path,
+                    const std::string& lcd_params_path);
   // Ctor from gflags
-  ETHDatasetParser(const bool& parallel_run);
-  virtual ~ETHDatasetParser();
+  explicit EurocDataProvider(const bool& parallel_run);
+  virtual ~EurocDataProvider();
 
  public:
   /**
@@ -65,7 +61,7 @@ class ETHDatasetParser : public DataProviderInterface {
    * return until it finishes.
    * @return True if the dataset still has data, false otherwise.
    */
-  virtual bool spin() override;
+  bool spin() override;
 
   // Print info about dataset.
   void print() const;

@@ -7,7 +7,7 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   DataSource-definitions.h
+ * @file   DataProviderInterface-definitions.h
  * @brief  Definitions for data providers for the VIO pipeline.
  * @author Antoni Rosinol
  */
