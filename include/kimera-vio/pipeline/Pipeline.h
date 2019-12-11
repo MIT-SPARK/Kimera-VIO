@@ -130,6 +130,7 @@ class Pipeline {
    */
   bool spin() {
     // Feed data to the pipeline
+    CHECK(data_provider_module_);
     return data_provider_module_->spin();
   }
 
