@@ -34,6 +34,139 @@
 namespace VIO {
 
 /**
+ * @brief Abstraction of a pipeline module. Contains non-templated members.
+ * 
+ * Provides common algorithmic logic for a pipeline module base class.
+ */
+class PipelineModuleBase {
+ public:
+  KIMERA_POINTER_TYPEDEFS(PipelineModuleBase);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModuleBase);
+
+  /**
+   * @brief PipelineModuleBase
+   * @param
+   */
+  PipelineModuleBase(const std::string& name_id, const bool& parallel_run)
+      : name_id_(name_id), parallel_run_(parallel_run) {}
+
+  virtual ~PipelineModuleBase() = default;
+
+  /**
+   * @brief Utility function to synchronize threadsafe queues.
+   * For now we are doing a very simple naive sync approach:
+   * Just loop over the messages in the queue until you find the matching
+   * timestamp. If we are at a timestamp greater than the queried one
+   *
+   * @param[in] timestamp Timestamp of the payload we want to retrieve from the
+   * queue
+   * @param[in] queue Threadsafe queue templated on a POINTER to a class that
+   * is derived from PipelinePayload (otw we cannot query what is its timestamp)
+   * @param[out] pipeline_payload Returns payload to be found in the given queue
+   * at the given timestamp.
+   * @param[in] max_iterations Number of times we try to find the payload at the
+   * given timestamp in the given queue.
+   * @return a boolean indicating whether the synchronizing was successful (i.e.
+   * we found a payload with the requested timestamp) or we failed because a
+   * payload with an older timestamp was retrieved.
+   */
+  template <class T>
+  static bool syncQueue(const Timestamp& timestamp,
+                        ThreadsafeQueue<T>* queue,
+                        T* pipeline_payload,
+                        std::string name_id,
+                        int max_iterations = 10) {
+    CHECK_NOTNULL(queue);
+    CHECK_NOTNULL(pipeline_payload);
+    static_assert(
+        std::is_base_of<PipelinePayload,
+                        typename std::pointer_traits<T>::element_type>::value,
+        "T must be a pointer to a class that derives from PipelinePayload.");
+    // Look for the synchronized packet in payload queue
+    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
+    // Loop over payload timestamps until we reach the query timestamp
+    // or we are past the asked timestamp (in which case, we failed).
+    int i = 0;
+    for (; i < max_iterations && timestamp > payload_timestamp; ++i) {
+      // TODO(Toni): add a timer to avoid waiting forever...
+      if (!queue->popBlocking(*pipeline_payload)) {
+        LOG(ERROR) << name_id << "'s " << queue->queue_id_ << " is empty or "
+                   << "has been shutdown.";
+        return false;
+      } else {
+        VLOG(5) << "Popping from: " << queue->queue_id_;
+      }
+      if (*pipeline_payload) {
+        payload_timestamp = (*pipeline_payload)->timestamp_;
+      } else {
+        LOG(WARNING) << "Missing frontend payload for Module: " << name_id;
+      }
+    }
+    CHECK_EQ(timestamp, payload_timestamp)
+        << "Syncing queue " << queue->queue_id_ << " in module " << name_id
+        << " failed;\n Could not retrieve exact timestamp requested: \n"
+        << " - Requested timestamp: " << timestamp << '\n'
+        << " - Actual timestamp:    " << payload_timestamp << '\n'
+        << (i >= max_iterations ? "Reached max number of sync attempts: " +
+                                      std::to_string(max_iterations)
+                                : "");
+    CHECK(*pipeline_payload);
+    return true;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  virtual inline void shutdown() {
+    LOG_IF(WARNING, shutdown_)
+        << "Module: " << name_id_
+        << " - Shutdown requested, but was already shutdown.";
+    shutdownQueues();
+    LOG(INFO) << "Module: " << name_id_ << " - Shutting down.";
+    shutdown_ = true;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  inline void restart() {
+    LOG(INFO) << "Module: " << name_id_
+              << " - Resetting shutdown flag to false";
+    shutdown_ = false;
+  }
+
+  /* ------------------------------------------------------------------------ */
+  inline bool isWorking() const { return is_thread_working_ || hasWork(); }
+
+ protected:
+  /**
+   * @brief Non-static wrapper around the static queue synchronizer.
+   * this->name_id_ is used for the name_id parameter.
+   */
+  template <class T>
+  bool syncQueue(const Timestamp& timestamp,
+                 ThreadsafeQueue<T>* queue,
+                 T* pipeline_payload,
+                 int max_iterations = 10) {
+    return PipelineModuleBase::syncQueue(
+        timestamp, queue, pipeline_payload, name_id_, max_iterations);
+  }
+  /**
+   * @brief shutdownQueues If the module stores Threadsafe queues, it must
+   * shutdown those for a complete shutdown.
+   */
+  virtual void shutdownQueues() = 0;
+
+  //! Checks if the module has work to do (should check input queues are empty)
+  virtual bool hasWork() const = 0;
+
+ protected:
+  //! Properties
+  std::string name_id_ = {"PipelineModule"};
+  bool parallel_run_ = {true};
+
+  //! Thread related members.
+  std::atomic_bool shutdown_ = {false};
+  std::atomic_bool is_thread_working_ = {false};
+};
+
+/**
  * @brief Abstraction of a pipeline module. Templated on the expected input
  * and output payloads.
  *
@@ -47,7 +180,7 @@ namespace VIO {
  * output but just ignored.
  */
 template <typename Input, typename Output>
-class PipelineModule {
+class PipelineModule : public PipelineModuleBase {
  public:
   KIMERA_POINTER_TYPEDEFS(PipelineModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModule);
@@ -65,8 +198,11 @@ class PipelineModule {
    * does only one call to spinOnce and returns).
    */
   PipelineModule(const std::string& name_id, const bool& parallel_run)
-      : name_id_(name_id), parallel_run_(parallel_run) {}
-  virtual ~PipelineModule() { LOG(INFO) << name_id_ + " destructor called."; }
+      : PipelineModuleBase(name_id, parallel_run) {}
+
+  virtual ~PipelineModule() {
+    LOG(INFO) << name_id_ + " destructor called.";
+  }
 
   /**
    * @brief Main spin function. Every pipeline module calls this spin, where
@@ -119,27 +255,6 @@ class PipelineModule {
     return true;
   }
 
-  /* ------------------------------------------------------------------------ */
-  virtual inline void shutdown() {
-    LOG_IF(WARNING, shutdown_)
-        << "Module: " << name_id_
-        << " - Shutdown requested, but was already shutdown.";
-    shutdownQueues();
-    LOG(INFO) << "Module: " << name_id_ << " - Shutting down.";
-    shutdown_ = true;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  inline void restart() {
-    LOG(INFO) << "Module: " << name_id_
-              << " - Resetting shutdown flag to false";
-    shutdown_ = false;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  //! Checks if the module is working or if it still has work to do.
-  inline bool isWorking() const { return is_thread_working_ || hasWork(); }
-
  protected:
   /**
    * @brief getSyncedInputPacket Retrieves the input packet for processing when
@@ -156,77 +271,6 @@ class PipelineModule {
   // TODO(Toni): given a list of queues, syncronize them and get an output
   // payload. Maybe keep a list of input queues, that the user can provide.
   virtual InputUniquePtr getInputPacket() = 0;
-
-  /**
-   * @brief Utility function to synchronize threadsafe queues.
-   * For now we are doing a very simple naive sync approach:
-   * Just loop over the messages in the queue until you find the matching
-   * timestamp. If we are at a timestamp greater than the queried one
-   *
-   * @param[in] timestamp Timestamp of the payload we want to retrieve from the
-   * queue
-   * @param[in] queue Threadsafe queue templated on a POINTER to a class that
-   * is derived from PipelinePayload (otw we cannot query what is its timestamp)
-   * @param[out] pipeline_payload Returns payload to be found in the given queue
-   * at the given timestamp.
-   * @param[in] max_iterations Number of times we try to find the payload at the
-   * given timestamp in the given queue.
-   * @return a boolean indicating whether the synchronizing was successful (i.e.
-   * we found a payload with the requested timestamp) or we failed because a
-   * payload with an older timestamp was retrieved.
-   */
-  template <class T>
-  bool syncQueue(const Timestamp& timestamp,
-                 ThreadsafeQueue<T>* queue,
-                 T* pipeline_payload,
-                 int max_iterations = 10) {
-    return PipelineModule::syncQueue(
-        timestamp, queue, pipeline_payload, name_id_, max_iterations);
-  }
-
-  template <class T>
-  static bool syncQueue(const Timestamp& timestamp,
-                        ThreadsafeQueue<T>* queue,
-                        T* pipeline_payload,
-                        std::string name_id,
-                        int max_iterations = 10) {
-    CHECK_NOTNULL(queue);
-    CHECK_NOTNULL(pipeline_payload);
-    static_assert(
-        std::is_base_of<PipelinePayload,
-                        typename std::pointer_traits<T>::element_type>::value,
-        "T must be a pointer to a class that derives from PipelinePayload.");
-    // Look for the synchronized packet in payload queue
-    Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
-    // Loop over payload timestamps until we reach the query timestamp
-    // or we are past the asked timestamp (in which case, we failed).
-    int i = 0;
-    for (; i < max_iterations && timestamp > payload_timestamp; ++i) {
-      // TODO(Toni): add a timer to avoid waiting forever...
-      if (!queue->popBlocking(*pipeline_payload)) {
-        LOG(ERROR) << name_id << "'s " << queue->queue_id_ << " is empty or "
-                   << "has been shutdown.";
-        return false;
-      } else {
-        VLOG(5) << "Popping from: " << queue->queue_id_;
-      }
-      if (*pipeline_payload) {
-        payload_timestamp = (*pipeline_payload)->timestamp_;
-      } else {
-        LOG(WARNING) << "Missing frontend payload for Module: " << name_id;
-      }
-    }
-    CHECK_EQ(timestamp, payload_timestamp)
-        << "Syncing queue " << queue->queue_id_ << " in module " << name_id
-        << " failed;\n Could not retrieve exact timestamp requested: \n"
-        << " - Requested timestamp: " << timestamp << '\n'
-        << " - Actual timestamp:    " << payload_timestamp << '\n'
-        << (i >= max_iterations ? "Reached max number of sync attempts: " +
-                                      std::to_string(max_iterations)
-                                : "");
-    CHECK(*pipeline_payload);
-    return true;
-  }
 
   /**
    * @brief pushOutputPacket Sends the output of the module to other interested
@@ -252,25 +296,6 @@ class PipelineModule {
    * signals that the output should not be sent to the output queue.
    */
   virtual OutputUniquePtr spinOnce(InputUniquePtr input) = 0;
-
-  /**
-   * @brief shutdownQueues If the module stores Threadsafe queues, it must
-   * shutdown those for a complete shutdown.
-   */
-  virtual void shutdownQueues() = 0;
-
-  //! Checks if the module has work to do (should check input queues are empty)
-  virtual bool hasWork() const = 0;
-
- protected:
-  //! Properties
-  std::string name_id_ = {"PipelineModule"};
-  bool parallel_run_ = {true};
-
- private:
-  //! Thread related members.
-  std::atomic_bool shutdown_ = {false};
-  std::atomic_bool is_thread_working_ = {false};
 };
 
 /** @brief MIMOPipelineModule Multiple Input Multiple Output (MIMO) pipeline
