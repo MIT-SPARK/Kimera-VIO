@@ -417,9 +417,9 @@ void Pipeline::shutdown() {
   LOG(INFO) << "Shutting down VIO pipeline.";
   shutdown_ = true;
   stopThreads();
-  // if (parallel_run_) {
-  joinThreads();
-  //}
+  if (parallel_run_) {
+    joinThreads();
+  }
   LOG(INFO) << "Pipeline destructor finished.";
 }
 
@@ -840,6 +840,7 @@ void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping workers and queues...";
 
   LOG(INFO) << "Stopping data provider module...";
+  CHECK(data_provider_module_);
   data_provider_module_->shutdown();
 
   LOG(INFO) << "Stopping backend module and queues...";
@@ -867,6 +868,9 @@ void Pipeline::stopThreads() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::joinThreads() {
+  LOG_IF(WARNING, !parallel_run_)
+      << "Asked to join threads while in sequential mode, this is ok, but "
+      << "should not happen.";
   LOG(INFO) << "Joining threads...";
 
   if (backend_thread_) {
