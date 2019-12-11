@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   // Build dataset parser.
-  std::unique_ptr<VIO::DataProviderInterface> dataset_parser;
+  VIO::DataProviderInterface::UniquePtr dataset_parser = nullptr;
   switch (FLAGS_dataset_type) {
     case 0: {
       dataset_parser =
@@ -57,7 +57,6 @@ int main(int argc, char* argv[]) {
     }
   }
   CHECK(dataset_parser);
-  dataset_parser->pipeline_params_.parallel_run_ = FLAGS_parallel_run;
 
   VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
 
