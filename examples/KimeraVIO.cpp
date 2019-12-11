@@ -28,7 +28,6 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
-DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
 DEFINE_int32(dataset_type,
              0,
              "Type of parser to use:\n"
@@ -46,7 +45,7 @@ int main(int argc, char* argv[]) {
   switch (FLAGS_dataset_type) {
     case 0: {
       dataset_parser =
-          VIO::make_unique<VIO::EurocDataProvider>(FLAGS_parallel_run);
+          VIO::make_unique<VIO::EurocDataProvider>();
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
@@ -77,7 +76,7 @@ int main(int argc, char* argv[]) {
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
-  if (FLAGS_parallel_run) {
+  if (dataset_parser->pipeline_params_.parallel_run_) {
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
                              std::move(dataset_parser));
