@@ -39,6 +39,17 @@ namespace VIO {
  */
 class EurocDataProvider : public DataProviderInterface {
  public:
+  // Ctor with params.
+  EurocDataProvider(const bool& parallel_run,
+                    const int& initial_k,
+                    const int& final_k,
+                    const std::string& dataset_path,
+                    const std::string& left_cam_params_path,
+                    const std::string& right_cam_params_path,
+                    const std::string& imu_params_path,
+                    const std::string& backend_params_path,
+                    const std::string& frontend_params_path,
+                    const std::string& lcd_params_path);
   // Ctor from gflags
   explicit EurocDataProvider();
   virtual ~EurocDataProvider();
