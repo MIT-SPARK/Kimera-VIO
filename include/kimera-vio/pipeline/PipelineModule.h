@@ -333,7 +333,6 @@ class MIMOPipelineModule : public PipelineModule<Input, Output> {
    * @param output_callback actual callback to register.
    */
   virtual void registerCallback(const OutputCallback& output_callback) {
-    LOG(INFO) << "Callback registered for one of the pipeline's modules.";
     CHECK(output_callback);
     output_callbacks_.push_back(output_callback);
   }

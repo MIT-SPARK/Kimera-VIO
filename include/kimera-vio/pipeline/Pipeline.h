@@ -87,7 +87,6 @@ class Pipeline {
   // Register external callback to output the VIO backend results.
   inline void registerBackendOutputCallback(
       const VioBackEndModule::OutputCallback& callback) {
-    LOG(INFO) << "Registering Backend Output Callback.";
     CHECK_NOTNULL(vio_backend_module_);
     vio_backend_module_->registerCallback(callback);
   }
@@ -97,7 +96,6 @@ class Pipeline {
   // that type to go here instead.
   inline void registerFrontendOutputCallback(
       const StereoVisionFrontEndModule::OutputCallback& callback) {
-    LOG(INFO) << "Registering Frontend Output Callback.";
     CHECK_NOTNULL(vio_frontend_module_);
     vio_frontend_module_->registerCallback(callback);
   }
@@ -105,7 +103,6 @@ class Pipeline {
   // Register external callback to output mesher results.
   inline void registerMesherOutputCallback(
       const MesherModule::OutputCallback& callback) {
-    LOG(INFO) << "Registering Mesher Output Callback.";
     CHECK_NOTNULL(mesher_module_);
     mesher_module_->registerCallback(callback);
   }
@@ -113,7 +110,6 @@ class Pipeline {
   // Register external callback to output the LoopClosureDetector's results.
   inline void registerLcdOutputCallback(
       const LcdModule::OutputCallback& callback) {
-    LOG(INFO) << "Registering LCD Output Callback.";
     if (lcd_module_) {
       lcd_module_->registerCallback(callback);
     } else {
