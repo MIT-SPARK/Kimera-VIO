@@ -180,6 +180,16 @@ class PipelineModule {
                  ThreadsafeQueue<T>* queue,
                  T* pipeline_payload,
                  int max_iterations = 10) {
+    return PipelineModule::syncQueue(
+        timestamp, queue, pipeline_payload, name_id_, max_iterations);
+  }
+
+  template <class T>
+  static bool syncQueue(const Timestamp& timestamp,
+                        ThreadsafeQueue<T>* queue,
+                        T* pipeline_payload,
+                        std::string name_id,
+                        int max_iterations = 10) {
     CHECK_NOTNULL(queue);
     CHECK_NOTNULL(pipeline_payload);
     static_assert(
@@ -194,7 +204,7 @@ class PipelineModule {
     for (; i < max_iterations && timestamp > payload_timestamp; ++i) {
       // TODO(Toni): add a timer to avoid waiting forever...
       if (!queue->popBlocking(*pipeline_payload)) {
-        LOG(ERROR) << name_id_ << "'s " << queue->queue_id_ << " is empty or "
+        LOG(ERROR) << name_id << "'s " << queue->queue_id_ << " is empty or "
                    << "has been shutdown.";
         return false;
       } else {
@@ -203,11 +213,11 @@ class PipelineModule {
       if (*pipeline_payload) {
         payload_timestamp = (*pipeline_payload)->timestamp_;
       } else {
-        LOG(WARNING) << "Missing frontend payload for Module: " << name_id_;
+        LOG(WARNING) << "Missing frontend payload for Module: " << name_id;
       }
     }
     CHECK_EQ(timestamp, payload_timestamp)
-        << "Syncing queue " << queue->queue_id_ << " in module " << name_id_
+        << "Syncing queue " << queue->queue_id_ << " in module " << name_id
         << " failed;\n Could not retrieve exact timestamp requested: \n"
         << " - Requested timestamp: " << timestamp << '\n'
         << " - Actual timestamp:    " << payload_timestamp << '\n'
