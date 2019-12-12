@@ -131,6 +131,9 @@ add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
 
 ### Add testing
+option(BUILD_TESTS "Build tests" OFF)
+if(BUILD_TESTS)
+
 # Download and unpack googletest at configure time
 # TODO Consider doing the same for glog, gflags, although it might
 # make the command `cmake ..` a bit slow.
@@ -209,6 +212,8 @@ if(CMAKE_VERSION VERSION_LESS 3.10)
 else()
   include(GoogleTest)
   gtest_discover_tests(testKimeraVIO)
+endif()
+
 endif()
 
 #export(TARGETS KimeraVIO FILE KimeraVIO.cmake)
