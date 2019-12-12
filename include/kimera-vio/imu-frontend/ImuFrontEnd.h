@@ -101,8 +101,7 @@ public:
                                                 const ImuAccGyr& imu_accgyr) =
      delete;
 
- /* --------------------------------------------------------------------------
-  */
+ /* ------------------------------------------------------------------------- */
  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,
                                           const ImuAccGyrS& imu_accgyr);
  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,

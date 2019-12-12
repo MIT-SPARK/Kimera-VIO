@@ -61,8 +61,8 @@ struct ImuMeasurements {
 };
 
 enum class ImuPreintegrationType {
-  kPreintegratedImuMeasurements = 0,
-  kPreintegratedCombinedMeasurements = 1,
+  kPreintegratedCombinedMeasurements = 0,
+  kPreintegratedImuMeasurements = 1
 };
 
 }  // namespace VIO

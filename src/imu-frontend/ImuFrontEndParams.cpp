@@ -31,15 +31,15 @@ bool ImuParams::parseYAML(const std::string& filepath) {
   int imu_preintegration_type;
   yaml_parser.getYamlParam("imu_preintegration_type", &imu_preintegration_type);
   switch (imu_preintegration_type) {
-    case to_underlying(ImuPreintegrationType::kPreintegratedImuMeasurements): {
-      imu_preintegration_type_ =
-          ImuPreintegrationType::kPreintegratedImuMeasurements;
-      break;
-    }
     case to_underlying(
         ImuPreintegrationType::kPreintegratedCombinedMeasurements): {
       imu_preintegration_type_ =
           ImuPreintegrationType::kPreintegratedCombinedMeasurements;
+      break;
+    }
+    case to_underlying(ImuPreintegrationType::kPreintegratedImuMeasurements): {
+      imu_preintegration_type_ =
+          ImuPreintegrationType::kPreintegratedImuMeasurements;
       break;
     }
     default: {
