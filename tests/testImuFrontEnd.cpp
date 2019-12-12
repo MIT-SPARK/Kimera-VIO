@@ -39,10 +39,11 @@ TEST(ImuFrontEnd, ImuFrontEndInitialization) {
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
   EXPECT_TRUE(imu_frontend.getCurrentImuBias().equals(imu_bias));
   EXPECT_TRUE(imu_frontend.getCurrentPIM().equals(
-      ImuFrontEnd::PreintegratedImuMeasurements(
-          boost::make_shared<ImuFrontEnd::PreintegratedImuMeasurements::Params>(
-              imu_frontend.getImuParams()),
-          imu_bias)));
+      ImuFrontEnd::PreintegrationType(
+          boost::make_shared<ImuFrontEnd::PreintegrationType::Params>(
+              imu_frontend.getGtsamImuParams()),
+          imu_bias),
+      1e-8));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -136,7 +137,7 @@ TEST(ImuFrontEnd, ResetPreintegration) {
   auto curr_pim = imu_frontend.getCurrentPIM();
   imu_frontend.resetIntegrationWithCachedBias();
   auto reseted_pim = imu_frontend.getCurrentPIM();
-  EXPECT_TRUE(reseted_pim.equals(curr_pim));
+  EXPECT_TRUE(reseted_pim.equals(curr_pim, 1e-8));
   // If we update the biases, the new PIM should reflect that.
   ImuBias updated_imu_bias = imu_bias.compose(imu_bias);  // Random composition.
   imu_frontend.updateBias(updated_imu_bias);
@@ -144,7 +145,7 @@ TEST(ImuFrontEnd, ResetPreintegration) {
   reseted_pim = imu_frontend.getCurrentPIM();
   EXPECT_TRUE(reseted_pim.biasHat().equals(updated_imu_bias));
   // Also expect that it is not the same as the previous pim.
-  EXPECT_TRUE(!reseted_pim.equals(curr_pim));
+  EXPECT_TRUE(!reseted_pim.equals(curr_pim, 1e-8));
 }
 
 /* TODO(Toni): tests left:

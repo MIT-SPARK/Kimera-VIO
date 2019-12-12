@@ -225,7 +225,7 @@ struct BackendInput : public PipelinePayload {
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_stereo_measurements_kf,
       const TrackingStatus& stereo_tracking_status,
-      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
+      const ImuFrontEnd::PreintegrationType& pim,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
@@ -236,7 +236,7 @@ struct BackendInput : public PipelinePayload {
   const StatusStereoMeasurements status_stereo_measurements_kf_;
   // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
   const TrackingStatus stereo_tracking_status_;
-  const gtsam::PreintegratedImuMeasurements pim_;
+  const ImuFrontEnd::PreintegrationType pim_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
 
  public:

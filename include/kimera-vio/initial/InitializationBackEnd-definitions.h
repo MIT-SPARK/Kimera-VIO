@@ -37,7 +37,7 @@ struct InitializationInputPayload : public FrontendOutput {
       const TrackingStatus& tracker_status,
       const gtsam::Pose3& relative_pose_body_stereo,
       const StereoFrame& stereo_frame_lkf,
-      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
+      const ImuFrontEnd::PreintegrationType& pim,
       const DebugTrackerInfo& debug_tracker_info,
       const gtsam::AHRSFactor::PreintegratedMeasurements& ahrs_pim =
           gtsam::AHRSFactor::PreintegratedMeasurements())

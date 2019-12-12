@@ -52,7 +52,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   std::vector<BackendInput::UniquePtr> inputs_backend;
 
   // Create inputs for online gravity alignment
-  std::vector<gtsam::PreintegratedImuMeasurements> pims;
+  std::vector<ImuFrontEnd::PreintegrationType> pims;
   std::vector<double> delta_t_camera;
   // Iterate and fill backend input vector
   while (!output_frontend.empty()) {

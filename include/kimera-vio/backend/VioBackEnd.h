@@ -198,7 +198,7 @@ class VioBackEnd {
   virtual void addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
       const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-      const gtsam::PreintegratedImuMeasurements& pim,
+      const gtsam::PreintegrationType& pim,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
 
   /* ------------------------------------------------------------------------ */
@@ -216,13 +216,13 @@ class VioBackEnd {
   /* ------------------------------------------------------------------------ */
   // Set initial guess at current state.
   void addImuValues(const FrameId& cur_id,
-                    const gtsam::PreintegratedImuMeasurements& pim);
+                    const gtsam::PreintegrationType& pim);
 
   /* ------------------------------------------------------------------------ */
   // Add imu factors:
   void addImuFactor(const FrameId& from_id,
                     const FrameId& to_id,
-                    const gtsam::PreintegratedImuMeasurements& pim);
+                    const gtsam::PreintegrationType& pim);
 
   /* ------------------------------------------------------------------------ */
   // Add no motion factors in case of low disparity.
@@ -420,6 +420,13 @@ class VioBackEnd {
   /* ------------------------------------------------------------------------ */
   // Reset state of debug info.
   void resetDebugInfo(DebugVioInfo* debug_info);
+
+  static gtsam::PreintegratedImuMeasurements
+  safeCastToPreintegratedImuMeasurements(const gtsam::PreintegrationType& pim);
+
+  static gtsam::PreintegratedCombinedMeasurements
+  safeCastToPreintegratedCombinedImuMeasurements(
+      const gtsam::PreintegrationType& pim);
 
  public:
   /// Getters

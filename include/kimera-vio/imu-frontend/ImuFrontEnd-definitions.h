@@ -60,4 +60,9 @@ struct ImuMeasurements {
   ImuAccGyrS acc_gyr_;
 };
 
+enum class ImuPreintegrationType {
+  kPreintegratedImuMeasurements = 0,
+  kPreintegratedCombinedMeasurements = 1,
+};
+
 }  // namespace VIO

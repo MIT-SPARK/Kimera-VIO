@@ -249,7 +249,7 @@ void VioBackEnd::initStateAndSetPriors(
 void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-    const gtsam::PreintegratedImuMeasurements& pim,
+    const gtsam::PreintegrationType& pim,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
 
@@ -700,7 +700,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
 /// Value adders.
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::addImuValues(const FrameId& cur_id,
-                              const gtsam::PreintegratedImuMeasurements& pim) {
+                              const gtsam::PreintegrationType& pim) {
   gtsam::NavState navstate_lkf(W_Pose_B_lkf_, W_Vel_B_lkf_);
   gtsam::NavState navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
 
@@ -716,48 +716,60 @@ void VioBackEnd::addImuValues(const FrameId& cur_id,
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::addImuFactor(const FrameId& from_id,
                               const FrameId& to_id,
-                              const gtsam::PreintegratedImuMeasurements& pim) {
-#ifdef USE_COMBINED_IMU_FACTOR
-  new_imu_and_prior_factors_.push_back(
-      boost::make_shared<gtsam::CombinedImuFactor>(gtsam::Symbol('x', from_id),
-                                                   gtsam::Symbol('v', from_id),
-                                                   gtsam::Symbol('x', to_id),
-                                                   gtsam::Symbol('v', to_id),
-                                                   gtsam::Symbol('b', from_id),
-                                                   gtsam::Symbol('b', to_id),
-                                                   pim));
-#else
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::ImuFactor>(gtsam::Symbol('x', from_id),
-                                           gtsam::Symbol('v', from_id),
-                                           gtsam::Symbol('x', to_id),
-                                           gtsam::Symbol('v', to_id),
-                                           gtsam::Symbol('b', from_id),
-                                           pim));
+                              const gtsam::PreintegrationType& pim) {
+  switch (imu_params_.imu_preintegration_type_) {
+    case ImuPreintegrationType::kPreintegratedCombinedMeasurements: {
+      new_imu_prior_and_other_factors_.push_back(
+          boost::make_shared<gtsam::CombinedImuFactor>(
+              gtsam::Symbol('x', from_id),
+              gtsam::Symbol('v', from_id),
+              gtsam::Symbol('x', to_id),
+              gtsam::Symbol('v', to_id),
+              gtsam::Symbol('b', from_id),
+              gtsam::Symbol('b', to_id),
+              safeCastToPreintegratedCombinedImuMeasurements(pim)));
+      break;
+    }
+    case ImuPreintegrationType::kPreintegratedImuMeasurements: {
+      new_imu_prior_and_other_factors_.push_back(
+          boost::make_shared<gtsam::ImuFactor>(
+              gtsam::Symbol('x', from_id),
+              gtsam::Symbol('v', from_id),
+              gtsam::Symbol('x', to_id),
+              gtsam::Symbol('v', to_id),
+              gtsam::Symbol('b', from_id),
+              safeCastToPreintegratedImuMeasurements(pim)));
 
-  static const gtsam::imuBias::ConstantBias zero_bias(Vector3(0, 0, 0),
-                                                      Vector3(0, 0, 0));
+      static const gtsam::imuBias::ConstantBias zero_bias(Vector3(0, 0, 0),
+                                                          Vector3(0, 0, 0));
 
-  // Factor to discretize and move normalize by the interval between
-  // measurements:
-  CHECK_NE(imu_params_.nominal_rate_, 0.0)
-      << "Nominal IMU rate param cannot be 0.";
-  // 1/sqrt(nominalImuRate_) to discretize, then
-  // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
-  const double d = sqrt(pim.deltaTij()) / imu_params_.nominal_rate_;
-  Vector6 biasSigmas;
-  biasSigmas.head<3>().setConstant(d * imu_params_.acc_walk_);
-  biasSigmas.tail<3>().setConstant(d * imu_params_.gyro_walk_);
-  const gtsam::SharedNoiseModel& bias_noise_model =
-      gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
+      // Factor to discretize and move normalize by the interval between
+      // measurements:
+      CHECK_NE(imu_params_.nominal_rate_, 0.0)
+          << "Nominal IMU rate param cannot be 0.";
+      // 1/sqrt(nominalImuRate_) to discretize, then
+      // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
+      const double d = sqrt(pim.deltaTij()) / imu_params_.nominal_rate_;
+      Vector6 biasSigmas;
+      biasSigmas.head<3>().setConstant(d * imu_params_.acc_walk_);
+      biasSigmas.tail<3>().setConstant(d * imu_params_.gyro_walk_);
+      const gtsam::SharedNoiseModel& bias_noise_model =
+          gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
 
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>>(
-          gtsam::Symbol('b', from_id),
-          gtsam::Symbol('b', to_id),
-          zero_bias,
-          bias_noise_model));
-#endif
+      new_imu_prior_and_other_factors_.push_back(
+          boost::make_shared<
+              gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>>(
+              gtsam::Symbol('b', from_id),
+              gtsam::Symbol('b', to_id),
+              zero_bias,
+              bias_noise_model));
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unknown IMU Preintegration Type.";
+      break;
+    }
+  }
 
   debug_info_.imuR_lkf_kf = pim.deltaRij();
   debug_info_.numAddedImuF_++;
@@ -1974,6 +1986,40 @@ void VioBackEnd::resetDebugInfo(DebugVioInfo* debug_info) {
   debug_info->resetAddedFactorsStatistics();
   debug_info->nrElementsInMatrix_ = 0;
   debug_info->nrZeroElementsInMatrix_ = 0;
+}
+
+/* -------------------------------------------------------------------------- */
+gtsam::PreintegratedImuMeasurements
+VioBackEnd::safeCastToPreintegratedImuMeasurements(
+    const gtsam::PreintegrationType& pim) {
+  try {
+    return dynamic_cast<const gtsam::PreintegratedImuMeasurements&>(pim);
+  } catch (const std::bad_cast& e) {
+    LOG(ERROR) << "Seems that you are casting PreintegratedType to "
+                  "PreintegratedImuMeasurements, but this object is not "
+                  "a PreintegratedImuMeasurements!";
+    LOG(FATAL) << e.what();
+  } catch (...) {
+    LOG(FATAL) << "Exception caught when casting to "
+                  "PreintegratedImuMeasurements.";
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+gtsam::PreintegratedCombinedMeasurements
+VioBackEnd::safeCastToPreintegratedCombinedImuMeasurements(
+    const gtsam::PreintegrationType& pim) {
+  try {
+    return dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(pim);
+  } catch (const std::bad_cast& e) {
+    LOG(ERROR) << "Seems that you are casting PreintegratedType to "
+                  "PreintegratedCombinedMeasurements, but this object is not "
+                  "a PreintegratedCombinedMeasurements!";
+    LOG(FATAL) << e.what();
+  } catch (...) {
+    LOG(FATAL) << "Exception caught when casting to "
+                  "PreintegratedCombinedMeasurements.";
+  }
 }
 
 /* -------------------------------------------------------------------------- */

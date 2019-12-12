@@ -28,6 +28,26 @@ ImuParams::ImuParams() : PipelineParams("IMU params") {}
 bool ImuParams::parseYAML(const std::string& filepath) {
   YamlParser yaml_parser(filepath);
 
+  int imu_preintegration_type;
+  yaml_parser.getYamlParam("imu_preintegration_type", &imu_preintegration_type);
+  switch (imu_preintegration_type) {
+    case to_underlying(ImuPreintegrationType::kPreintegratedImuMeasurements): {
+      imu_preintegration_type_ =
+          ImuPreintegrationType::kPreintegratedImuMeasurements;
+      break;
+    }
+    case to_underlying(
+        ImuPreintegrationType::kPreintegratedCombinedMeasurements): {
+      imu_preintegration_type_ =
+          ImuPreintegrationType::kPreintegratedCombinedMeasurements;
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unknown Imu Preintegration Type in IMU parameters.";
+      break;
+    }
+  }
+
   // Rows and cols are redundant info, since the pose 4x4, but we parse just
   // to check we are all on the same page.
   // int n_rows = 0;

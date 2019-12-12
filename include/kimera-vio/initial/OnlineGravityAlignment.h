@@ -34,7 +34,7 @@ namespace VIO {
 
 // Typedefs for online initialization
 typedef std::vector<gtsam::Pose3> AlignmentPoses;
-typedef std::vector<gtsam::PreintegratedImuMeasurements> AlignmentPims;
+typedef std::vector<gtsam::PreintegrationType> AlignmentPims;
 typedef std::vector<VisualInertialFrame> VisualInertialFrames;
 typedef std::vector<gtsam::AHRSFactor::PreintegratedMeasurements>
     InitialAHRSPims;

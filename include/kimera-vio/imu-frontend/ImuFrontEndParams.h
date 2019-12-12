@@ -16,6 +16,7 @@
 
 #include <gtsam/base/Vector.h>
 
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/Macros.h"
 
@@ -34,6 +35,10 @@ struct ImuParams : public PipelineParams {
   virtual void print() const override;
 
  public:
+  // TODO(Toni): this is currently not YAML parsed...
+  ImuPreintegrationType imu_preintegration_type_ =
+      ImuPreintegrationType::kPreintegratedCombinedMeasurements;
+
   double gyro_noise_ = 0.0;
   double gyro_walk_ = 0.0;
   double acc_noise_ = 0.0;

@@ -38,7 +38,7 @@ struct FrontendOutput : public PipelinePayload {
                  const TrackingStatus& tracker_status,
                  const gtsam::Pose3& relative_pose_body_stereo,
                  const StereoFrame& stereo_frame_lkf,
-                 const ImuFrontEnd::PreintegratedImuMeasurements& pim,
+                 const ImuFrontEnd::PreintegrationType& pim,
                  const DebugTrackerInfo& debug_tracker_info)
       : PipelinePayload(stereo_frame_lkf.getTimestamp()),
         is_keyframe_(is_keyframe),
@@ -57,7 +57,7 @@ struct FrontendOutput : public PipelinePayload {
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_stereo_;
   const StereoFrame stereo_frame_lkf_;
-  const ImuFrontEnd::PreintegratedImuMeasurements pim_;
+  const ImuFrontEnd::PreintegrationType pim_;
   const DebugTrackerInfo debug_tracker_info_;
 
   inline DebugTrackerInfo getTrackerInfo() {
