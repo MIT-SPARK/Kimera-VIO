@@ -83,7 +83,7 @@ StereoPoses CreateCameraPoses(const int num_keyframes,
                               const gtsam::Vector3 v) {
   StereoPoses poses;
   poses.reserve(num_keyframes);
-  Pose3 L_pose_R(Rot3::identity(), gtsam::Vector3(baseline, 0, 0));
+  Pose3 L_pose_R(Rot3::identity(), gtsam::Point3(baseline, 0, 0));
 
   // The camera is assumed to face (0, 0, 1): z-forward, y down and x to the
   // right
@@ -347,8 +347,8 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
     gtsam::PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
     SmartStereoMeasurements measurement_frame;
     for (int l_id = 0; l_id < num_pts; l_id++) {
-      Point2 pt_left = cam_left.project(pts[l_id]);
-      Point2 pt_right = cam_right.project(pts[l_id]);
+      Point2 pt_left = cam_left.project2(pts[l_id]);
+      Point2 pt_right = cam_right.project2(pts[l_id]);
       StereoPoint2 pt_lr(pt_left.x(), pt_right.x(), pt_left.y());
       EXPECT_DOUBLE_EQ(pt_left.y(), pt_right.y());
       measurement_frame.push_back(std::make_pair(l_id, pt_lr));
