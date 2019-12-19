@@ -131,7 +131,7 @@ add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
 
 ### Add testing
-option(BUILD_TESTS "Build tests" OFF)
+option(BUILD_TESTS "Build tests" ON)
 if(BUILD_TESTS)
 
 # Download and unpack googletest at configure time

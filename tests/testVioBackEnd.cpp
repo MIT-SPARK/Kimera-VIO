@@ -137,6 +137,9 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   imu_params.n_gravity_ = gtsam::Vector3(0.0, 0.0, -9.81);
   imu_params.imu_integration_sigma_ = 1.0;
   imu_params.nominal_rate_ = 200.0;
+  // TODO(Toni): test with Combined, I think it actually fails now...
+  imu_params.imu_preintegration_type_ =
+      ImuPreintegrationType::kPreintegratedImuMeasurements;
 
   // Create 3D points
   std::vector<Point3> pts = CreateScene();
@@ -182,8 +185,8 @@ TEST(testVio, robotMovingWithConstantVelocity) {
     gtsam::PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
     SmartStereoMeasurements measurement_frame;
     for (int l_id = 0; l_id < num_pts; l_id++) {
-      Point2 pt_left = cam_left.project(pts[l_id]);
-      Point2 pt_right = cam_right.project(pts[l_id]);
+      Point2 pt_left = cam_left.project2(pts[l_id]);
+      Point2 pt_right = cam_right.project2(pts[l_id]);
       StereoPoint2 pt_lr(pt_left.x(), pt_right.x(), pt_left.y());
       EXPECT_DOUBLE_EQ(pt_left.y(), pt_right.y());
       measurement_frame.push_back(std::make_pair(l_id, pt_lr));
@@ -193,7 +196,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   }
 
   // create vio
-  Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
+  Pose3 B_pose_camLrect;
   VioNavState initial_state = VioNavState(poses[0].first, v, imu_bias);
   StereoCalibPtr stereo_calibration =
       boost::make_shared<gtsam::Cal3_S2Stereo>(cam_params.fx(),
@@ -202,6 +205,10 @@ TEST(testVio, robotMovingWithConstantVelocity) {
                                                cam_params.px(),
                                                cam_params.py(),
                                                baseline);
+  // Create frontend.
+  ImuFrontEnd imu_frontend(imu_params, imu_bias);
+
+  // Create backend.
   std::shared_ptr<VioBackEnd> vio =
       std::make_shared<VioBackEnd>(B_pose_camLrect,
                                    stereo_calibration,
@@ -209,14 +216,12 @@ TEST(testVio, robotMovingWithConstantVelocity) {
                                    imu_params,
                                    BackendOutputParams(false, 0, false),
                                    false);
-  vio->initStateAndSetPriors(VioNavStateTimestamped(t_start, initial_state));
-  ImuFrontEnd imu_frontend(imu_params, imu_bias);
-
   vio->registerImuBiasUpdateCallback(std::bind(
       &ImuFrontEnd::updateBias, std::ref(imu_frontend), std::placeholders::_1));
+  vio->initStateAndSetPriors(VioNavStateTimestamped(t_start, initial_state));
 
   // For each frame, add landmarks and optimize.
-  for (int64_t k = 1; k < num_key_frames; k++) {
+  for (FrameId k = 1; k < num_key_frames; k++) {
     // Time stamp for the current keyframe and the next frame.
     Timestamp timestamp_lkf = (k - 1) * time_step + t_start;
     Timestamp timestamp_k = k * time_step + t_start;
@@ -247,24 +252,25 @@ TEST(testVio, robotMovingWithConstantVelocity) {
     }
     LOG(INFO) << "at frame " << k << " nr factors: " << nrFactorsInSmoother;
 
-#ifdef USE_COMBINED_IMU_FACTOR
-    EXPECT_EQ(nrFactorsInSmoother,
-              3 + k + 8);  // 3 priors, 1 imu per time stamp, 8 smart factors
-#else
-    if (k == 1) {
+    if (imu_params.imu_preintegration_type_ ==
+        ImuPreintegrationType::kPreintegratedCombinedMeasurements) {
       EXPECT_EQ(nrFactorsInSmoother,
-                3 + 2 * k);  // 3 priors, 1 imu + 1 between per time stamp: we
-                             // do not include smart factors of length 1
+                3 + k + 8);  // 3 priors, 1 imu per time stamp, 8 smart factors
     } else {
-      EXPECT_EQ(nrFactorsInSmoother,
-                3 + 2 * k + 8);  // 3 priors, 1 imu + 1 between per time stamp,
-                                 // 8 smart factors
+      if (k == 1) {
+        EXPECT_EQ(nrFactorsInSmoother,
+                  3 + 2 * k);  // 3 priors, 1 imu + 1 between per time stamp: we
+                               // do not include smart factors of length 1
+      } else {
+        EXPECT_EQ(nrFactorsInSmoother,
+                  3 + 2 * k + 8);  // 3 priors, 1 imu + 1 between per time
+                                   // stamp, 8 smart factors
+      }
     }
-#endif
     // Check the results!
     const gtsam::Values& results = vio->getState();
 
-    for (int f_id = 0; f_id <= k; f_id++) {
+    for (FrameId f_id = 0; f_id <= k; f_id++) {
       Pose3 W_Pose_Blkf = results.at<gtsam::Pose3>(gtsam::Symbol('x', f_id));
       gtsam::Vector3 W_Vel_Blkf =
           results.at<gtsam::Vector3>(gtsam::Symbol('v', f_id));
@@ -352,7 +358,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   }
 
   // create vio
-  Pose3 B_pose_camLrect(Rot3::identity(), gtsam::Vector3::Zero());
+  Pose3 B_pose_camLrect;
   StereoCalibPtr stereo_calibration =
       boost::make_shared<gtsam::Cal3_S2Stereo>(cam_params.fx(),
                                                cam_params.fy(),
@@ -374,7 +380,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   input_vector.clear();
 
   // For each frame, add landmarks.
-  for(int64_t k = 1; k < num_key_frames; k++) {
+  for (int64_t k = 1; k < num_key_frames; k++) {
     // Time stamp for the current keyframe and the next frame.
     Timestamp timestamp_lkf = (k - 1) * time_step + t_start;
     Timestamp timestamp_k = k * time_step + t_start;
@@ -408,13 +414,13 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
 
   // Perform Bundle Adjustment
   std::vector<gtsam::Pose3> results =
-        vio->addInitialVisualStatesAndOptimize(input_vector);
+      vio->addInitialVisualStatesAndOptimize(input_vector);
 
-  CHECK_EQ(results.size(), num_key_frames -1);
+  CHECK_EQ(results.size(), num_key_frames - 1);
 
   // Check error (BA results start at origin, as convention)
   // The tolerance is on compounded error!! Not relative.
-  for (int f_id = 0; f_id < (num_key_frames-1); f_id++) {
+  for (int f_id = 0; f_id < (num_key_frames - 1); f_id++) {
     Pose3 W_Pose_Blkf = poses[1].first.compose(results.at(f_id));
     EXPECT_TRUE(assert_equal(
         poses[f_id + 1].first, W_Pose_Blkf, vioParams.smartNoiseSigma_));
