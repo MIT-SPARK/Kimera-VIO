@@ -272,7 +272,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
-  SmartStereoMeasurements smartStereoMeasurements_kf =
+  const SmartStereoMeasurements& smart_stereo_measurements_kf =
       status_smart_stereo_measurements_kf.second;
 
   // if stereo ransac failed, remove all right pixels:
@@ -287,7 +287,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   // extract relevant information from stereo frame
   LandmarkIds landmarks_kf;
   addStereoMeasurementsToFeatureTracks(
-      curr_kf_id_, smartStereoMeasurements_kf, &landmarks_kf);
+      curr_kf_id_, smart_stereo_measurements_kf, &landmarks_kf);
 
   if (VLOG_IS_ON(10)) {
     printFeatureTracks();
@@ -640,16 +640,16 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
   // TODO: feature tracks will grow unbounded.
 
   // Make sure the landmarks_kf vector is empty and has a suitable size.
-  landmarks_kf->clear();
-  landmarks_kf->reserve(stereoMeasurements_kf.size());
+  const size_t& n_stereo_measurements = stereoMeasurements_kf.size();
+  landmarks_kf->resize(n_stereo_measurements);
 
   // Store landmark ids.
-  for (size_t i = 0; i < stereoMeasurements_kf.size(); ++i) {
-    const LandmarkId& lmk_id_in_kf_i = stereoMeasurements_kf.at(i).first;
-    const StereoPoint2& stereo_px_i = stereoMeasurements_kf.at(i).second;
+  // TODO(Toni): the concept of feature tracks should not be in the backend...
+  for (size_t i = 0; i < n_stereo_measurements; ++i) {
+    const LandmarkId& lmk_id_in_kf_i = stereoMeasurements_kf[i].first;
+    const StereoPoint2& stereo_px_i = stereoMeasurements_kf[i].second;
 
-    // We filtered invalid lmks in the StereoTracker, so this should not
-    // happen.
+    // We filtered invalid lmks in the StereoTracker, so this should not happen.
     CHECK_NE(lmk_id_in_kf_i, -1) << "landmarkId_kf_i == -1?";
 
     // Thinner structure that only keeps landmarkIds.
@@ -659,7 +659,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
     DCHECK(std::find(landmarks_kf->begin(),
                      landmarks_kf->end(),
                      lmk_id_in_kf_i) == landmarks_kf->end());
-    landmarks_kf->push_back(lmk_id_in_kf_i);
+    (*landmarks_kf)[i] = lmk_id_in_kf_i;
 
     // Add features to vio->featureTracks_ if they are new.
     const FeatureTracks::iterator& feature_track_it =
@@ -667,7 +667,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
     if (feature_track_it == feature_tracks_.end()) {
       // New feature.
       VLOG(20) << "Creating new feature track for lmk: " << lmk_id_in_kf_i
-               << ".";
+               << '.';
       feature_tracks_.insert(
           std::make_pair(lmk_id_in_kf_i, FeatureTrack(frame_num, stereo_px_i)));
       ++landmark_count_;
