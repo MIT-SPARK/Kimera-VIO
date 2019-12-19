@@ -421,13 +421,6 @@ class VioBackEnd {
   // Reset state of debug info.
   void resetDebugInfo(DebugVioInfo* debug_info);
 
-  static gtsam::PreintegratedImuMeasurements
-  safeCastToPreintegratedImuMeasurements(const gtsam::PreintegrationType& pim);
-
-  static gtsam::PreintegratedCombinedMeasurements
-  safeCastToPreintegratedCombinedImuMeasurements(
-      const gtsam::PreintegrationType& pim);
-
  public:
   /// Getters
   // Thread-safe methods, but also the returns are const, so no problems.

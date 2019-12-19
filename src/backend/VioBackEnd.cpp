@@ -40,6 +40,7 @@
 
 // Only for gtNavState ...
 #include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"  // for safeCast
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
@@ -121,6 +122,9 @@ VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
 
   // Reset debug info.
   resetDebugInfo(&debug_info_);
+
+  // Print parameters if verbose
+  if (VLOG_IS_ON(1)) print();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -146,16 +150,6 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
       break;
     }
   }
-
-  // Update imu bias for the frontend! Note that this should be done asap
-  // ideally just when the optimization finishes, so that the frontend might
-  // start preintegrating the imu data using the newest bias!
-  VLOG(1) << "Backend: Update IMU Bias.";
-  CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
-                                      "update callback for at least the "
-                                      "frontend? Do so by using "
-                                      "registerImuBiasUpdateCallback function";
-  imu_bias_update_callback_(imu_bias_lkf_);
 
   if (VLOG_IS_ON(10)) {
     LOG(INFO) << "Latest backend IMU bias is: ";
@@ -272,7 +266,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   if (stereo_ransac_body_pose) {
     if (VLOG_IS_ON(10)) {
       LOG(INFO) << "VIO: adding between ";
-      (*stereo_ransac_body_pose).print();
+      stereo_ransac_body_pose->print();
     }
     addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
   }
@@ -282,8 +276,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
       status_smart_stereo_measurements_kf.second;
 
   // if stereo ransac failed, remove all right pixels:
-  TrackingStatus kfTrackingStatus_stereo =
-      status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
+  // TrackingStatus kfTrackingStatus_stereo =
+  //     status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
   // if(kfTrackingStatus_stereo == TrackingStatus::INVALID){
   //   for(size_t i = 0; i < smartStereoMeasurements_kf.size(); i++)
   //     smartStereoMeasurements_kf[i].uR =
@@ -300,7 +294,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   }
 
   // decide which factors to add
-  TrackingStatus kfTrackingStatus_mono =
+  const TrackingStatus& kfTrackingStatus_mono =
       status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch (kfTrackingStatus_mono) {
     case TrackingStatus::LOW_DISPARITY:  // vehicle is not moving
@@ -334,14 +328,14 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
 
 void VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
   bool use_stereo_btw_factor =
-      backend_params_.addBetweenStereoFactors_ == true &&
+      backend_params_.addBetweenStereoFactors_ &&
       input.stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
   addVisualInertialStateAndOptimize(
       input.timestamp_,  // Current time for fixed lag smoother.
       input.status_stereo_measurements_kf_,  // Vision data.
-      input.pim_,                            // Imu preintegrated data.
+      *CHECK_NOTNULL(input.pim_),            // Imu preintegrated data.
       use_stereo_btw_factor
           ? input.stereo_ransac_body_pose_
           : boost::none);  // optional: pose estimate from stereo ransac
@@ -749,7 +743,7 @@ void VioBackEnd::addImuFactor(const FrameId& from_id,
           << "Nominal IMU rate param cannot be 0.";
       // 1/sqrt(nominalImuRate_) to discretize, then
       // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
-      const double d = sqrt(pim.deltaTij()) / imu_params_.nominal_rate_;
+      const double d = std::sqrt(pim.deltaTij()) / imu_params_.nominal_rate_;
       Vector6 biasSigmas;
       biasSigmas.head<3>().setConstant(d * imu_params_.acc_walk_);
       biasSigmas.tail<3>().setConstant(d * imu_params_.gyro_walk_);
@@ -1132,6 +1126,13 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
   W_Vel_B_lkf_ = state_.at<Vector3>(gtsam::Symbol('v', cur_id));
   imu_bias_lkf_ =
       state_.at<gtsam::imuBias::ConstantBias>(gtsam::Symbol('b', cur_id));
+
+  VLOG(1) << "Backend: Update IMU Bias.";
+  CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
+                                      "update callback for at least the "
+                                      "frontend? Do so by using "
+                                      "registerImuBiasUpdateCallback function";
+  imu_bias_update_callback_(imu_bias_lkf_);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1986,40 +1987,6 @@ void VioBackEnd::resetDebugInfo(DebugVioInfo* debug_info) {
   debug_info->resetAddedFactorsStatistics();
   debug_info->nrElementsInMatrix_ = 0;
   debug_info->nrZeroElementsInMatrix_ = 0;
-}
-
-/* -------------------------------------------------------------------------- */
-gtsam::PreintegratedImuMeasurements
-VioBackEnd::safeCastToPreintegratedImuMeasurements(
-    const gtsam::PreintegrationType& pim) {
-  try {
-    return dynamic_cast<const gtsam::PreintegratedImuMeasurements&>(pim);
-  } catch (const std::bad_cast& e) {
-    LOG(ERROR) << "Seems that you are casting PreintegratedType to "
-                  "PreintegratedImuMeasurements, but this object is not "
-                  "a PreintegratedImuMeasurements!";
-    LOG(FATAL) << e.what();
-  } catch (...) {
-    LOG(FATAL) << "Exception caught when casting to "
-                  "PreintegratedImuMeasurements.";
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-gtsam::PreintegratedCombinedMeasurements
-VioBackEnd::safeCastToPreintegratedCombinedImuMeasurements(
-    const gtsam::PreintegrationType& pim) {
-  try {
-    return dynamic_cast<const gtsam::PreintegratedCombinedMeasurements&>(pim);
-  } catch (const std::bad_cast& e) {
-    LOG(ERROR) << "Seems that you are casting PreintegratedType to "
-                  "PreintegratedCombinedMeasurements, but this object is not "
-                  "a PreintegratedCombinedMeasurements!";
-    LOG(FATAL) << e.what();
-  } catch (...) {
-    LOG(FATAL) << "Exception caught when casting to "
-                  "PreintegratedCombinedMeasurements.";
-  }
 }
 
 /* -------------------------------------------------------------------------- */

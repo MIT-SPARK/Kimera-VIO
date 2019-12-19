@@ -2,7 +2,7 @@
 # Type of IMU preintegration:
 # 0: CombinedImuFactor
 # 1: ImuFactor
-imu_preintegration_type: 1
+imu_preintegration_type: 0
 
 # These are Euroc Dataset parameters
 # Sensor extrinsics wrt. the body-frame.

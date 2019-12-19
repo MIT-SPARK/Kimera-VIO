@@ -70,7 +70,8 @@ public:
  */
 class ImuFrontEnd {
 public:
- using PreintegrationType = gtsam::PreintegrationType;
+ using PimPtr = std::shared_ptr<gtsam::PreintegrationType>;
+ using PimUniquePtr = std::unique_ptr<gtsam::PreintegrationType>;
 
 public:
  KIMERA_POINTER_TYPEDEFS(ImuFrontEnd);
@@ -89,17 +90,14 @@ public:
  ~ImuFrontEnd() = default;
 
  /* ------------------------------------------------------------------------ */
- PreintegrationType preintegrateImuMeasurements(const ImuStampS& imu_stamps,
-                                                const ImuAccGyrS& imu_accgyr);
- PreintegrationType preintegrateImuMeasurements(const ImuStampS& imu_stamps,
-                                                const ImuAccGyr& imu_accgyr) =
-     delete;
- PreintegrationType preintegrateImuMeasurements(const ImuStamp& imu_stamps,
-                                                const ImuAccGyrS& imu_accgyr) =
-     delete;
- PreintegrationType preintegrateImuMeasurements(const ImuStamp& imu_stamps,
-                                                const ImuAccGyr& imu_accgyr) =
-     delete;
+ PimPtr preintegrateImuMeasurements(const ImuStampS& imu_stamps,
+                                    const ImuAccGyrS& imu_accgyr);
+ PimPtr preintegrateImuMeasurements(const ImuStampS& imu_stamps,
+                                    const ImuAccGyr& imu_accgyr) = delete;
+ PimPtr preintegrateImuMeasurements(const ImuStamp& imu_stamps,
+                                    const ImuAccGyrS& imu_accgyr) = delete;
+ PimPtr preintegrateImuMeasurements(const ImuStamp& imu_stamps,
+                                    const ImuAccGyr& imu_accgyr) = delete;
 
  /* ------------------------------------------------------------------------- */
  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,
@@ -170,6 +168,10 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // THREAD-SAFE.
+  inline ImuPreintegrationType getImuPreintegrationType() const {
+    return imu_params_.imu_preintegration_type_;
+  }
+
   inline gtsam::Vector3 getPreintegrationGravity() const {
     // TODO(Toni): why are we locking the imu_bias_mutex here???
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
@@ -177,17 +179,13 @@ public:
   }
 
   /* ------------------------------------------------------------------------ */
-  // THIS IS NOT THREAD-SAFE.
-  inline PreintegrationType getCurrentPIM() const { return *pim_; }
-
-  /* ------------------------------------------------------------------------ */
-  inline PreintegrationType::Params getGtsamImuParams() const {
+  inline gtsam::PreintegrationType::Params getGtsamImuParams() const {
     return *(pim_->params());
   }
 
   /* ------------------------------------------------------------------------ */
   // Convert parameters for imu preintegration from the given ImuParams.
-  static PreintegrationType::Params convertVioImuParamsToGtsam(
+  static gtsam::PreintegrationType::Params convertVioImuParamsToGtsam(
       const ImuParams& imu_params);
 
   static boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params>
@@ -201,7 +199,7 @@ public:
 
  private:
   ImuParams imu_params_;
-  std::unique_ptr<PreintegrationType> pim_ = nullptr;
+  PimUniquePtr pim_ = nullptr;
   ImuBias latest_imu_bias_;
   mutable std::mutex imu_bias_mutex_;
 };

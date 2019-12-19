@@ -154,7 +154,7 @@ Pipeline::Pipeline(const VioParams& params)
               output->stereo_frame_lkf_.getTimestamp(),
               output->status_stereo_measurements_,
               output->tracker_status_,
-              output->pim_,
+              CHECK_NOTNULL(output->pim_),
               output->relative_pose_body_stereo_));
         }
       });
@@ -598,7 +598,7 @@ bool Pipeline::initializeOnline(
     // This queue is used for the the backend optimization
     const ImuStampS& imu_stamps = stereo_imu_sync_packet.getImuStamps();
     const ImuAccGyrS& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
-    const gtsam::PreintegrationType& pim =
+    ImuFrontEnd::PimPtr pim =
         imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
     // This queue is used for the backend after initialization
     VLOG(2) << "Initialization: Push input payload to Backend.";

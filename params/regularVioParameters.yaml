@@ -28,7 +28,7 @@ rankTolerance: 1
 landmarkDistanceThreshold: 15
 outlierRejection: 8
 retriangulationThreshold: 0.001
-addBetweenStereoFactors: 1
+addBetweenStereoFactors: 0
 betweenRotationPrecision: 0 # Inverse of variance.
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 #OPTIMIZATION PARAMETERS

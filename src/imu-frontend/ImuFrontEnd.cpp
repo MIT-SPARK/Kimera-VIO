@@ -13,10 +13,12 @@
  * @author Luca Carlone
  */
 
+#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+
 #include <glog/logging.h>
 
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
@@ -80,7 +82,7 @@ void ImuFrontEnd::initializeImuFrontEnd(const ImuBias& imu_bias) {
 // NOT THREAD-SAFE
 // What happens if someone updates the bias in the middle of the
 // preintegration??
-ImuFrontEnd::PreintegrationType ImuFrontEnd::preintegrateImuMeasurements(
+ImuFrontEnd::PimPtr ImuFrontEnd::preintegrateImuMeasurements(
     const ImuStampS& imu_stamps,
     const ImuAccGyrS& imu_accgyr) {
   CHECK(pim_) << "Pim not initialized.";
@@ -108,7 +110,26 @@ ImuFrontEnd::PreintegrationType ImuFrontEnd::preintegrateImuMeasurements(
                                    imu_params_.imu_preintegration_type_)));
   }
 
-  return *pim_;
+  // Create a copy of the current pim, because the ImuFrontEnd pim will be
+  // reused over and over. Avoid object slicing by using the derived type of
+  // pim. All of this is to deal with gtsam's idiosyncracies with base classes.
+  // TODO(Toni): this copies might be quite expensive...
+  switch (imu_params_.imu_preintegration_type_) {
+    case ImuPreintegrationType::kPreintegratedCombinedMeasurements: {
+      return VIO::make_unique<gtsam::PreintegratedCombinedMeasurements>(
+          safeCastToPreintegratedCombinedImuMeasurements(*pim_));
+      break;
+    }
+    case ImuPreintegrationType::kPreintegratedImuMeasurements: {
+      return VIO::make_unique<gtsam::PreintegratedImuMeasurements>(
+          safeCastToPreintegratedImuMeasurements(*pim_));
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unknown IMU Preintegration Type.";
+      break;
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -140,8 +161,7 @@ gtsam::PreintegrationBase::Params ImuFrontEnd::convertVioImuParamsToGtsam(
   CHECK_GT(imu_params.acc_noise_, 0.0);
   CHECK_GT(imu_params.gyro_noise_, 0.0);
   CHECK_GT(imu_params.imu_integration_sigma_, 0.0);
-  PreintegrationType::Params preint_imu_params =
-      PreintegrationType::Params(imu_params.n_gravity_);
+  gtsam::PreintegrationBase::Params preint_imu_params(imu_params.n_gravity_);
   preint_imu_params.gyroscopeCovariance =
       std::pow(imu_params.gyro_noise_, 2.0) * Eigen::Matrix3d::Identity();
   preint_imu_params.accelerometerCovariance =
