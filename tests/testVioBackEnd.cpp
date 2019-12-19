@@ -179,7 +179,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
   tracker_status_valid.kfTrackingStatus_mono_ = TrackingStatus::VALID;
   tracker_status_valid.kfTrackingStatus_stereo_ = TrackingStatus::VALID;
 
-  std::vector<StatusStereoMeasurements> all_measurements;
+  std::vector<StatusStereoMeasurementsPtr> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
     gtsam::PinholeCamera<Cal3_S2> cam_left(poses[i].first, cam_params);
     gtsam::PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
@@ -191,8 +191,8 @@ TEST(testVio, robotMovingWithConstantVelocity) {
       EXPECT_DOUBLE_EQ(pt_left.y(), pt_right.y());
       measurement_frame.push_back(std::make_pair(l_id, pt_lr));
     }
-    all_measurements.push_back(
-        make_pair(tracker_status_valid, measurement_frame));
+    all_measurements.push_back(std::make_shared<StatusStereoMeasurements>(
+        std::make_pair(tracker_status_valid, measurement_frame)));
   }
 
   // create vio
@@ -341,7 +341,7 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   tracker_status_valid.kfTrackingStatus_mono_ = TrackingStatus::VALID;
   tracker_status_valid.kfTrackingStatus_stereo_ = TrackingStatus::VALID;
 
-  std::vector<StatusStereoMeasurements> all_measurements;
+  std::vector<StatusStereoMeasurementsPtr> all_measurements;
   for (int i = 0; i < num_key_frames; i++) {
     gtsam::PinholeCamera<Cal3_S2> cam_left(poses[i].first, cam_params);
     gtsam::PinholeCamera<Cal3_S2> cam_right(poses[i].second, cam_params);
@@ -353,8 +353,8 @@ TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
       EXPECT_DOUBLE_EQ(pt_left.y(), pt_right.y());
       measurement_frame.push_back(std::make_pair(l_id, pt_lr));
     }
-    all_measurements.push_back(
-        std::make_pair(tracker_status_valid, measurement_frame));
+    all_measurements.push_back(std::make_shared<StatusStereoMeasurements>(
+        std::make_pair(tracker_status_valid, measurement_frame)));
   }
 
   // create vio

@@ -34,7 +34,7 @@ struct FrontendOutput : public PipelinePayload {
   KIMERA_DELETE_COPY_CONSTRUCTORS(FrontendOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   FrontendOutput(const bool is_keyframe,
-                 const StatusStereoMeasurements& status_stereo_measurements,
+                 const StatusStereoMeasurementsPtr& status_stereo_measurements,
                  const TrackingStatus& tracker_status,
                  const gtsam::Pose3& relative_pose_body_stereo,
                  const StereoFrame& stereo_frame_lkf,
@@ -54,16 +54,14 @@ struct FrontendOutput : public PipelinePayload {
 
  public:
   const bool is_keyframe_;
-  const StatusStereoMeasurements status_stereo_measurements_;
+  const StatusStereoMeasurementsPtr status_stereo_measurements_;
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_stereo_;
   const StereoFrame stereo_frame_lkf_;
   const ImuFrontEnd::PimPtr pim_;
   const DebugTrackerInfo debug_tracker_info_;
 
-  inline DebugTrackerInfo getTrackerInfo() {
-    return debug_tracker_info_;
-  }
+  inline DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
 };
 
 }  // namespace VIO

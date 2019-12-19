@@ -33,7 +33,7 @@ struct InitializationInputPayload : public FrontendOutput {
   // Default constructor
   InitializationInputPayload(
       const bool is_keyframe,
-      const StatusStereoMeasurements& status_stereo_measurements,
+      const StatusStereoMeasurementsPtr& status_stereo_measurements,
       const TrackingStatus& tracker_status,
       const gtsam::Pose3& relative_pose_body_stereo,
       const StereoFrame& stereo_frame_lkf,

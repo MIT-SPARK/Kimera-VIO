@@ -334,8 +334,8 @@ void VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
   addVisualInertialStateAndOptimize(
       input.timestamp_,  // Current time for fixed lag smoother.
-      input.status_stereo_measurements_kf_,  // Vision data.
-      *CHECK_NOTNULL(input.pim_),            // Imu preintegrated data.
+      *CHECK_NOTNULL(input.status_stereo_measurements_kf_),  // Vision data.
+      *CHECK_NOTNULL(input.pim_),  // Imu preintegrated data.
       use_stereo_btw_factor
           ? input.stereo_ransac_body_pose_
           : boost::none);  // optional: pose estimate from stereo ransac

@@ -18,6 +18,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include "kimera-vio/common/vio_types.h"
+
 DEFINE_int32(save_frontend_images_option,
              0,
              "Display/Save images in frontend for debugging (only use if "
@@ -105,7 +107,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
   VLOG(10) << "Starting processStereoFrame...";
-  StatusStereoMeasurements status_stereo_measurements =
+  StatusStereoMeasurementsPtr status_stereo_measurements =
       processStereoFrame(stereoFrame_k, calLrectLkf_R_camLrectK_imu);
 
   CHECK(!stereoFrame_k_);  // processStereoFrame is setting this to nullptr!!!
@@ -120,7 +122,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
     CHECK(!stereoFrame_k_);
     CHECK(stereoFrame_lkf_->isKeyframe());
     LOG(INFO) << "Keyframe " << k
-              << " with: " << status_stereo_measurements.second.size()
+              << " with: " << status_stereo_measurements->second.size()
               << " smart measurements";
 
     ////////////////// DEBUG INFO FOR FRONT-END ////////////////////////////////
@@ -208,7 +210,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 /* -------------------------------------------------------------------------- */
 // FRONTEND WORKHORSE
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
-StatusStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
+StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     const StereoFrame& cur_frame,
     boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu) {
   VLOG(2) << "===================================================\n"
@@ -254,7 +256,7 @@ StatusStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   trackerStatusSummary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
 
   // This will be the info we actually care about
-  SmartStereoMeasurements smartStereoMeasurements;
+  SmartStereoMeasurementsUniquePtr smartStereoMeasurements = nullptr;
 
   const bool max_time_elapsed =
       UtilsOpenCV::NsecToSec(stereoFrame_k_->getTimestamp() -
@@ -407,11 +409,18 @@ StatusStereoMeasurements StereoVisionFrontEnd::processStereoFrame(
   stereoFrame_k_.reset();
   ++frame_count_;
   VLOG(2) << "Finished feature tracking.";
-  return std::make_pair(trackerStatusSummary_, smartStereoMeasurements);
+  return VIO::make_unique<StatusStereoMeasurements>(
+      std::make_pair(trackerStatusSummary_,
+                     // TODO(Toni): please, fix this, don't use std::pair...
+                     // copies, manyyyy copies: actually thousands of copies...
+                     smartStereoMeasurements ? *smartStereoMeasurements
+                                             : SmartStereoMeasurements()));
 }
 
 /* -------------------------------------------------------------------------- */
-SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
+// TODO(Toni): THIS FUNCTION CAN BE GREATLY OPTIMIZED...
+SmartStereoMeasurementsUniquePtr
+StereoVisionFrontEnd::getSmartStereoMeasurements(
     const StereoFrame& stereoFrame_kf) const {
   // Sanity check first.
   CHECK(stereoFrame_kf.isRectified())
@@ -428,7 +437,9 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
       stereoFrame_kf.right_keypoints_status_;
 
   // Pack information in landmark structure.
-  SmartStereoMeasurements smartStereoMeasurements;
+  SmartStereoMeasurementsUniquePtr smart_stereo_measurements =
+      VIO::make_unique<SmartStereoMeasurements>();
+  smart_stereo_measurements->reserve(landmarkId_kf.size());
   for (size_t i = 0; i < landmarkId_kf.size(); ++i) {
     if (landmarkId_kf.at(i) == -1) {
       continue;  // skip invalid points
@@ -450,11 +461,10 @@ SmartStereoMeasurements StereoVisionFrontEnd::getSmartStereoMeasurements(
       // precision!
       uR = rightKeypoints.at(i).x;
     }
-    gtsam::StereoPoint2 stereo_px(uL, uR, v);
-    smartStereoMeasurements.push_back(
-        std::make_pair(landmarkId_kf[i], stereo_px));
+    smart_stereo_measurements->push_back(
+        std::make_pair(landmarkId_kf[i], gtsam::StereoPoint2(uL, uR, v)));
   }
-  return smartStereoMeasurements;
+  return smart_stereo_measurements;
 }
 
 /* -------------------------------------------------------------------------- */

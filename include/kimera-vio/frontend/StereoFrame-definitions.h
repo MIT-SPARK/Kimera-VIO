@@ -23,22 +23,22 @@ namespace VIO {
 
 using SmartStereoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
 using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
+using SmartStereoMeasurementsUniquePtr =
+    std::unique_ptr<SmartStereoMeasurements>;
 using StatusStereoMeasurements =
     std::pair<TrackerStatusSummary, SmartStereoMeasurements>;
+using StatusStereoMeasurementsPtr = std::shared_ptr<StatusStereoMeasurements>;
 
 // TODO make enum class.
-enum Mesh2Dtype {VALIDKEYPOINTS, DENSE};
+enum Mesh2Dtype { VALIDKEYPOINTS, DENSE };
 
 ////////////////////////////////////////////////////////////////////////////////
-struct KeypointWithDepth{
-public:
+struct KeypointWithDepth {
+ public:
   KeypointWithDepth() = default;
-  KeypointWithDepth(const KeypointCV& p,
-                    const double& d)
-    : px(p),
-      depth(d) {}
+  KeypointWithDepth(const KeypointCV& p, const double& d) : px(p), depth(d) {}
 
-public:
+ public:
   KeypointCV px;
   double depth;
 };
@@ -49,4 +49,4 @@ using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
 enum class VisionSensorType { STEREO, RGBD };  // 0 for stereo and 1 for RGBD
 
-} // End of VIO namespace.
+}  // namespace VIO

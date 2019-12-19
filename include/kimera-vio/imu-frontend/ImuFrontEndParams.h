@@ -35,7 +35,6 @@ struct ImuParams : public PipelineParams {
   virtual void print() const override;
 
  public:
-  // TODO(Toni): this is currently not YAML parsed...
   ImuPreintegrationType imu_preintegration_type_ =
       ImuPreintegrationType::kPreintegratedCombinedMeasurements;
 

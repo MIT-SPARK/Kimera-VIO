@@ -125,7 +125,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Returns extracted left and right rectified features in a suitable format
   // for VIO.
-  SmartStereoMeasurements getSmartStereoMeasurements(
+  SmartStereoMeasurementsUniquePtr getSmartStereoMeasurements(
       const StereoFrame& stereoFrame_kf) const;
 
   /* ------------------------------------------------------------------------ */
@@ -151,7 +151,7 @@ public:
  private:
   /* ------------------------------------------------------------------------ */
   // Frontend main function.
-  StatusStereoMeasurements processStereoFrame(
+  StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
       boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
 

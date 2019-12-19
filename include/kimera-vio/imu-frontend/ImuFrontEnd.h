@@ -156,7 +156,7 @@ public:
   // Reset gravity value in pre-integration.
   // This is needed for the online initialization.
   // THREAD-SAFE.
-  inline void resetPreintegrationGravity(gtsam::Vector3 reset_value) {
+  inline void resetPreintegrationGravity(const gtsam::Vector3& reset_value) {
     LOG(WARNING) << "Resetting value of gravity in ImuFrontEnd to: "
                  << reset_value;
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
