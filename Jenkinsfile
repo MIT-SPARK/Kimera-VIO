@@ -57,7 +57,7 @@ pipeline {
 
                   // Compile summary results.
                   sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
-                    spark_vio_evaluation/html/data/V1_01_easy/S/results.yaml \
+                    spark_vio_evaluation/html/data/V1_01_easy/S/results_vio.yaml \
                     spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
 
                   // Copy performance website to Workspace
