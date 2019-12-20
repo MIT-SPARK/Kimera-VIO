@@ -2,13 +2,13 @@
  * Run the following command to mount EUROC dataset and be able to run VIO evaluation on it:
  * sudo docker run -it -u root --rm -d -p 8080:8080 -p 50000:50000 -v /home/sparklab/Datasets/euroc:/Datasets/euroc -v \
   jenkins-data:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock \
-  --env JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=\"default-src 'self'; script-src * 'unsafe-inline'; img-src \
+  --env JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=\"default-src 'self'; script-src * 'unsafe-eval' 'unsafe-inline'; img-src \
   'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';\"" \
   jenkinsci/blueocean
  * Periodically, you might need to clean disk space, run: `docker system prune -a` while running jenkins (but stop all jobs).
  * Also, backup: `docker cp <jenkins-container-name>:/var/jenkins_home ./jenkins_home`
  * If you want to enable HTML reports in Jenkins, further call:
- * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
+ * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-eval' 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
  * in the Script console in Jenkins' administration section.
  * TODO(Toni): change all spark_vio_evaluation/website/data into a Groovy String.
  */
@@ -88,7 +88,7 @@ pipeline {
                          yaxis: 'Time [ms]'
 
                     // Publish HTML website with Dygraphs and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/website/', reportFiles: 'vio_ape_euroc.html, vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_ape_euroc, vio_performance, EUROC Performance'])
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/website/', reportFiles: 'vio_ape_euroc.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_ape_euroc, EUROC Performance'])
 
                     // Archive the website
                     archiveArtifacts (
