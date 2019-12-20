@@ -94,5 +94,7 @@ RUN python3.6 -m pip install ipython prompt_toolkit
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
+# We use `pip install -e .` so that Jinja2 has access to the webiste template...
+# TODO(Toni): find a better way...
 RUN cd spark_vio_evaluation && python3.6 -m pip install -e .
 
