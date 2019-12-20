@@ -10,7 +10,7 @@
  * If you want to enable HTML reports in Jenkins, further call:
  * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
  * in the Script console in Jenkins' administration section.
- * TODO(Toni): change all spark_vio_evaluation/html/data into a Groovy String.
+ * TODO(Toni): change all spark_vio_evaluation/website/data into a Groovy String.
  */
 
 
@@ -25,6 +25,9 @@ pipeline {
                 filename 'Dockerfile'
                   args '-e WORKSPACE=$WORKSPACE'
               }
+          }
+          environment {
+            evaluator="/root/spark_vio_evaluation"
           }
           stages {
             stage('Build Release') {
@@ -47,28 +50,28 @@ pipeline {
                 wrap([$class: 'Xvfb']) {
                   // Copy params to Workspace
                   sh 'mkdir -p $WORKSPACE/spark_vio_evaluation/experiments'
-                    sh 'cp -r /root/spark_vio_evaluation/experiments/params $WORKSPACE/spark_vio_evaluation/experiments/'
+                  sh 'cp -r $evaluator/experiments/params $WORKSPACE/spark_vio_evaluation/experiments/'
 
                   // Run performance tests.
-                  // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/html/data
-                  sh '/root/spark_vio_evaluation/evaluation/main_evaluation.py -r -a -v \
+                  // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/website/data
+                  sh '$evaluator/evaluation/main_evaluation.py -r -a -v \
                     --save_plots --save_boxplots --save_results \
-                    /root/spark_vio_evaluation/experiments/jenkins_euroc.yaml'
+                    $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
-                  sh '/root/spark_vio_evaluation/evaluation/tools/performance_summary.py \
-                    spark_vio_evaluation/html/data/V1_01_easy/S/results_vio.yaml \
-                    spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv'
+                  sh '$evaluator/evaluation/tools/performance_summary.py \
+                    spark_vio_evaluation/website/data/V1_01_easy/S/results_vio.yaml \
+                    spark_vio_evaluation/website/data/V1_01_easy/S/vio_performance.csv'
 
                   // Copy performance website to Workspace
-                  sh 'cp -r /root/spark_vio_evaluation/html $WORKSPACE/spark_vio_evaluation/'
+                  sh 'cp -r $evaluator/website $WORKSPACE/spark_vio_evaluation/'
                 }
               }
               post {
                 success {
                     // Plot VIO performance.
                     plot csvFileName: 'plot-vio-performance-per-build.csv',
-                         csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/vio_performance.csv']],
+                         csvSeries: [[file: 'spark_vio_evaluation/website/data/V1_01_easy/S/vio_performance.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -77,7 +80,7 @@ pipeline {
 
                     // Plot VIO timing.
                     plot csvFileName: 'plot-vio-timing-per-build.csv',
-                         csvSeries: [[file: 'spark_vio_evaluation/html/data/V1_01_easy/S/output/output_timingOverall.csv']],
+                         csvSeries: [[file: 'spark_vio_evaluation/website/data/V1_01_easy/S/output/output_timingOverall.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -85,11 +88,11 @@ pipeline {
                          yaxis: 'Time [ms]'
 
                     // Publish HTML website with Dygraphs and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/html/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/website/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
 
                     // Archive the website
                     archiveArtifacts (
-                        artifacts: 'spark_vio_evaluation/html/data/**/*.*',
+                        artifacts: 'spark_vio_evaluation/website/data/**/*.*',
                         fingerprint: true
                         )
 
