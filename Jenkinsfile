@@ -59,7 +59,7 @@ pipeline {
                     $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
-                  sh '$evaluator/evaluation/tools/performance_summary.py \
+                  sh 'python3.6 $evaluator/evaluation/tools/performance_summary.py \
                     spark_vio_evaluation/website/data/V1_01_easy/S/results_vio.yaml \
                     spark_vio_evaluation/website/data/V1_01_easy/S/vio_performance.csv'
 
