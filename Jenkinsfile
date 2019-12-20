@@ -88,7 +88,7 @@ pipeline {
                          yaxis: 'Time [ms]'
 
                     // Publish HTML website with Dygraphs and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/website/', reportFiles: 'vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_performance, EUROC Performance'])
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/website/', reportFiles: 'vio_ape_euroc.html, vio_performance.html, plots.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'vio_ape_euroc, vio_performance, EUROC Performance'])
 
                     // Archive the website
                     archiveArtifacts (
