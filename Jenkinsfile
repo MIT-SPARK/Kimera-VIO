@@ -54,12 +54,12 @@ pipeline {
 
                   // Run performance tests.
                   // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/website/data
-                  sh '$evaluator/evaluation/main_evaluation.py -r -a -v \
+                  sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
                     --save_plots --save_boxplots --save_results \
                     $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
-                  sh '$evaluator/evaluation/tools/performance_summary.py \
+                  sh 'python3.6 $evaluator/evaluation/tools/performance_summary.py \
                     spark_vio_evaluation/website/data/V1_01_easy/S/results_vio.yaml \
                     spark_vio_evaluation/website/data/V1_01_easy/S/vio_performance.csv'
 
