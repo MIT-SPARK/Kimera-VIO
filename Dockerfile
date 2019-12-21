@@ -81,19 +81,20 @@ RUN cd Kimera-RPGO && \
       cmake .. && \
       make -j$(nproc)
 
-RUN apt-get update && apt-get install -y python-pip python-dev python-tk
+RUN apt-get update && apt-get install -y python3.6 python3.6-dev python3-pip python3-tk
 
 # Install evo-1 for evaluation
 # Hack to avoid Docker's cache when evo-1 master branch is updated.
 ADD https://api.github.com/repos/ToniRV/evo-1/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/evo-1.git
-RUN cd evo-1 && \
-      pip install .
+RUN cd evo-1 && python3.6 -m pip install .
 
 # Install spark_vio_evaluation
-RUN pip install ipython prompt_toolkit
+RUN python3.6 -m pip install ipython prompt_toolkit
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
 ADD https://api.github.com/repos/ToniRV/spark_vio_evaluation/git/refs/heads/master version.json
 RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
-RUN cd spark_vio_evaluation && pip install .
+# We use `pip install -e .` so that Jinja2 has access to the webiste template...
+# TODO(Toni): find a better way...
+RUN cd spark_vio_evaluation && python3.6 -m pip install -e .
 

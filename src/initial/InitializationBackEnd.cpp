@@ -52,7 +52,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   std::vector<BackendInput::UniquePtr> inputs_backend;
 
   // Create inputs for online gravity alignment
-  std::vector<gtsam::PreintegratedImuMeasurements> pims;
+  std::vector<ImuFrontEnd::PimPtr> pims;
   std::vector<double> delta_t_camera;
   // Iterate and fill backend input vector
   while (!output_frontend.empty()) {
@@ -164,7 +164,8 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
     // Features and IMU line up --> do iSAM update
     addInitialVisualState(
         input_iter.timestamp_,  // Current time for fixed lag smoother.
-        input_iter.status_stereo_measurements_kf_,  // Vision data.
+        *CHECK_NOTNULL(
+            input_iter.status_stereo_measurements_kf_),  // Vision data.
         use_stereo_btw_factor ? input_iter.stereo_ransac_body_pose_
                               : boost::none,
         0);

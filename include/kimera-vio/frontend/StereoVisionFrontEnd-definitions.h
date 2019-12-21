@@ -34,11 +34,12 @@ struct FrontendOutput : public PipelinePayload {
   KIMERA_DELETE_COPY_CONSTRUCTORS(FrontendOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   FrontendOutput(const bool is_keyframe,
-                 const StatusStereoMeasurements& status_stereo_measurements,
+                 const StatusStereoMeasurementsPtr& status_stereo_measurements,
                  const TrackingStatus& tracker_status,
                  const gtsam::Pose3& relative_pose_body_stereo,
                  const StereoFrame& stereo_frame_lkf,
-                 const ImuFrontEnd::PreintegratedImuMeasurements& pim,
+                 // Use rvalue reference: FrontendOutput owns pim now.
+                 const ImuFrontEnd::PimPtr& pim,
                  const DebugTrackerInfo& debug_tracker_info)
       : PipelinePayload(stereo_frame_lkf.getTimestamp()),
         is_keyframe_(is_keyframe),
@@ -46,23 +47,21 @@ struct FrontendOutput : public PipelinePayload {
         tracker_status_(tracker_status),
         relative_pose_body_stereo_(relative_pose_body_stereo),
         stereo_frame_lkf_(stereo_frame_lkf),
-        pim_(pim),
+        pim_(CHECK_NOTNULL(pim)),
         debug_tracker_info_(debug_tracker_info) {}
 
   virtual ~FrontendOutput() = default;
 
  public:
   const bool is_keyframe_;
-  const StatusStereoMeasurements status_stereo_measurements_;
+  const StatusStereoMeasurementsPtr status_stereo_measurements_;
   const TrackingStatus tracker_status_;
   const gtsam::Pose3 relative_pose_body_stereo_;
   const StereoFrame stereo_frame_lkf_;
-  const ImuFrontEnd::PreintegratedImuMeasurements pim_;
+  const ImuFrontEnd::PimPtr pim_;
   const DebugTrackerInfo debug_tracker_info_;
 
-  inline DebugTrackerInfo getTrackerInfo() {
-    return debug_tracker_info_;
-  }
+  inline DebugTrackerInfo getTrackerInfo() { return debug_tracker_info_; }
 };
 
 }  // namespace VIO

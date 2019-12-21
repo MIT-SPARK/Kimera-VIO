@@ -33,16 +33,15 @@ TEST(ImuFrontEnd, ImuFrontEndInitialization) {
   imu_params.gyro_noise_ = 1.0;
   imu_params.n_gravity_ << 1.0, 1.0, 1.0;
   imu_params.imu_integration_sigma_ = 1.0;
+  imu_params.imu_preintegration_type_ =
+      ImuPreintegrationType::kPreintegratedImuMeasurements;
   Vector3 bias_acc(1.0, 1.0, 1.0);
   Vector3 bias_gyr(1.0, 1.0, 1.0);
   ImuBias imu_bias(bias_acc, bias_gyr);
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
   EXPECT_TRUE(imu_frontend.getCurrentImuBias().equals(imu_bias));
-  EXPECT_TRUE(imu_frontend.getCurrentPIM().equals(
-      ImuFrontEnd::PreintegratedImuMeasurements(
-          boost::make_shared<ImuFrontEnd::PreintegratedImuMeasurements::Params>(
-              imu_frontend.getImuParams()),
-          imu_bias)));
+  EXPECT_EQ(imu_frontend.getImuPreintegrationType(),
+            ImuPreintegrationType::kPreintegratedImuMeasurements);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -68,9 +67,13 @@ TEST(ImuFrontEnd, UpdateBias) {
   imu_frontend.updateBias(updated_imu_bias);
   EXPECT_TRUE(imu_frontend.getCurrentImuBias().equals(updated_imu_bias));
   // Check that the updated bias does not reset pim!
-  auto pim = imu_frontend.getCurrentPIM();
-  EXPECT_TRUE(pim.biasHat().equals(imu_bias));
-  EXPECT_TRUE(!pim.biasHat().equals(updated_imu_bias));
+  ImuStampS imu_timestamps(1, 2);
+  imu_timestamps << 1.0, 2.0;
+  ImuAccGyrS imu_measurements(6, 2);
+  auto pim = imu_frontend.preintegrateImuMeasurements(imu_timestamps,
+                                                      imu_measurements);
+  EXPECT_TRUE(pim->biasHat().equals(imu_bias));
+  EXPECT_TRUE(!pim->biasHat().equals(updated_imu_bias));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -133,18 +136,25 @@ TEST(ImuFrontEnd, ResetPreintegration) {
   ImuBias imu_bias(bias_acc, bias_gyr);
   ImuFrontEnd imu_frontend(imu_params, imu_bias);
   // If we do not update the bias, both PIMs should be the same.
-  auto curr_pim = imu_frontend.getCurrentPIM();
+  ImuStampS imu_timestamps(1, 2);
+  imu_timestamps << 1.0, 2.0;
+  ImuAccGyrS imu_measurements(6, 2);
+  auto curr_pim = imu_frontend.preintegrateImuMeasurements(imu_timestamps,
+                                                           imu_measurements);
   imu_frontend.resetIntegrationWithCachedBias();
-  auto reseted_pim = imu_frontend.getCurrentPIM();
-  EXPECT_TRUE(reseted_pim.equals(curr_pim));
+  auto reseted_pim = imu_frontend.preintegrateImuMeasurements(imu_timestamps,
+                                                              imu_measurements);
+
+  EXPECT_TRUE(reseted_pim->equals(*curr_pim, 1e-8));
   // If we update the biases, the new PIM should reflect that.
   ImuBias updated_imu_bias = imu_bias.compose(imu_bias);  // Random composition.
   imu_frontend.updateBias(updated_imu_bias);
   imu_frontend.resetIntegrationWithCachedBias();
-  reseted_pim = imu_frontend.getCurrentPIM();
-  EXPECT_TRUE(reseted_pim.biasHat().equals(updated_imu_bias));
+  reseted_pim = imu_frontend.preintegrateImuMeasurements(imu_timestamps,
+                                                         imu_measurements);
+  EXPECT_TRUE(reseted_pim->biasHat().equals(updated_imu_bias));
   // Also expect that it is not the same as the previous pim.
-  EXPECT_TRUE(!reseted_pim.equals(curr_pim));
+  EXPECT_TRUE(!reseted_pim->equals(*curr_pim, 1e-8));
 }
 
 /* TODO(Toni): tests left:
