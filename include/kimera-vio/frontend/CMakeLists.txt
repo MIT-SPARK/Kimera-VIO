@@ -16,4 +16,3 @@ target_sources(KimeraVIO PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/Tracker.h"
   "${CMAKE_CURRENT_LIST_DIR}/VioFrontEndParams.h"
 )
-target_include_directories(KimeraVIO PRIVATE ${CMAKE_CURRENT_LIST_DIR})

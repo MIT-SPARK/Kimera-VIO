@@ -6,6 +6,3 @@ target_sources(KimeraVIO PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/PipelineModule.h"
   "${CMAKE_CURRENT_LIST_DIR}/PipelineParams.h"
 )
-
-target_include_directories(KimeraVIO PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-

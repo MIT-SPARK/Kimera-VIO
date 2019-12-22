@@ -16,5 +16,3 @@ target_sources(KimeraVIO
     "${CMAKE_CURRENT_LIST_DIR}/UtilsOpenCV.h"
     "${CMAKE_CURRENT_LIST_DIR}/YamlParser.h"
 )
-target_include_directories(KimeraVIO PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-

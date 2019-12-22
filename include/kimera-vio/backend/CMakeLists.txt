@@ -9,5 +9,3 @@ target_sources(KimeraVIO PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/VioBackEndModule.h"
   "${CMAKE_CURRENT_LIST_DIR}/VioBackEndFactory.h"
 )
-### Add include dirs
-target_include_directories(KimeraVIO PRIVATE ${CMAKE_CURRENT_LIST_DIR})

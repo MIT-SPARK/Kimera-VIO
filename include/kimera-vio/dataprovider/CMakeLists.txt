@@ -6,4 +6,3 @@ target_sources(KimeraVIO PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/EurocDataProvider.h"
   "${CMAKE_CURRENT_LIST_DIR}/KittiDataProvider.h"
   )
-target_include_directories(KimeraVIO PRIVATE ${CMAKE_CURRENT_LIST_DIR})
