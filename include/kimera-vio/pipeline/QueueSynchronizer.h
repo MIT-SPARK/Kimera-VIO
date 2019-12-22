@@ -79,7 +79,7 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
                  ThreadsafeQueue<T>* queue,
                  T* pipeline_payload,
                  std::string name_id,
-                 int max_iterations) {
+                 int max_iterations = 10) {
     CHECK_NOTNULL(queue);
     CHECK_NOTNULL(pipeline_payload);
     static_assert(
