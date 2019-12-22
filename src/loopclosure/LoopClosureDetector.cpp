@@ -771,7 +771,7 @@ void LoopClosureDetector::computeMatchedIndices(const FrameId& query_id,
   const size_t& n_matches = matches.size();
   i_query->reserve(n_matches);
   i_match->reserve(n_matches);
-  for (size_t i; i < n_matches; i++) {
+  for (size_t i = 0; i < n_matches; i++) {
     const DMatchVec& match = matches[i];
     CHECK_EQ(match.size(), 2);
     if (match[0].distance < lowe_ratio * match[1].distance) {
