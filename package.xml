@@ -4,7 +4,7 @@
   <version>0.0.1</version>
   <description>KimeraVIO</description>
 
-  <maintainer email="mhkabir@mit.edu"></maintainer>
+  <maintainer email="arosinol@mit.edu">Antoni Rosinol</maintainer>
   <license>BSD</license>
 
   <buildtool_depend>cmake</buildtool_depend>

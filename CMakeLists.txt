@@ -130,181 +130,151 @@ target_compile_features(KimeraVIO PUBLIC
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
 
+############################### TESTS ##########################################
 ### Add testing
 option(BUILD_TESTS "Build tests" ON)
 if(BUILD_TESTS)
 
-# Download and unpack googletest at configure time
-# TODO Consider doing the same for glog, gflags, although it might
-# make the command `cmake ..` a bit slow.
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake
-  external/googletest-download/CMakeLists.txt)
-execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download"
-    OUTPUT_QUIET)
-execute_process(COMMAND "${CMAKE_COMMAND}" --build .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download"
-    OUTPUT_QUIET)
+  # Download and unpack googletest at configure time
+  # TODO Consider doing the same for glog, gflags, although it might
+  # make the command `cmake ..` a bit slow.
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake
+    external/googletest-download/CMakeLists.txt)
+  execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download"
+      OUTPUT_QUIET)
+  execute_process(COMMAND "${CMAKE_COMMAND}" --build .
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download"
+      OUTPUT_QUIET)
 
-# Prevent GoogleTest from overriding our compiler/linker options
-# when building with Visual Studio
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  # Prevent GoogleTest from overriding our compiler/linker options
+  # when building with Visual Studio
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-# Add googletest directly to our build. This adds
-# the following targets: gtest, gtest_main, gmock
-# and gmock_main
-# Exclude these targets from installation with EXCLUDE_FROM_ALL
-# Check issue: https://github.com/google/googletest/issues/868
-add_subdirectory("${CMAKE_BINARY_DIR}/external/googletest-src"
-                 "${CMAKE_BINARY_DIR}/external/googletest-build"
-                 EXCLUDE_FROM_ALL)
+  # Add googletest directly to our build. This adds
+  # the following targets: gtest, gtest_main, gmock
+  # and gmock_main
+  # Exclude these targets from installation with EXCLUDE_FROM_ALL
+  # Check issue: https://github.com/google/googletest/issues/868
+  add_subdirectory("${CMAKE_BINARY_DIR}/external/googletest-src"
+                   "${CMAKE_BINARY_DIR}/external/googletest-build"
+                   EXCLUDE_FROM_ALL)
 
-# The gtest/gmock targets carry header search path
-# dependencies automatically when using CMake 2.8.11 or
-# later. Otherwise we have to add them here ourselves.
-if(CMAKE_VERSION VERSION_LESS 2.8.11)
-    include_directories("${gtest_SOURCE_DIR}/include"
-                        "${gmock_SOURCE_DIR}/include")
-endif()
+  # The gtest/gmock targets carry header search path
+  # dependencies automatically when using CMake 2.8.11 or
+  # later. Otherwise we have to add them here ourselves.
+  if(CMAKE_VERSION VERSION_LESS 2.8.11)
+      include_directories("${gtest_SOURCE_DIR}/include"
+                          "${gmock_SOURCE_DIR}/include")
+  endif()
 
-# Generate gtests.
-include(CTest)
-add_executable(testKimeraVIO
-  tests/testKimeraVIO.cpp
-  tests/testCameraParams.cpp
-  tests/testCodesignIdeas.cpp
-  tests/testFeatureSelector.cpp
-  tests/testFrame.cpp # NEEDS UPDATE
-  tests/testGeneralParallelPlaneRegularBasicFactor.cpp
-  tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
-  tests/testImuFrontEnd.cpp
-  tests/testKittiDataProvider.cpp # TODO
-  tests/testLoopClosureDetector.cpp
-  tests/testLogger.cpp
-  tests/testMesher.cpp # rotten
-  tests/testParallelPlaneRegularBasicFactor.cpp
-  tests/testParallelPlaneRegularTangentSpaceFactor.cpp
-  tests/testPointPlaneFactor.cpp
-  #tests/testRegularVioBackEnd.cpp # rotten
-  tests/testRegularVioBackEndParams.cpp
-  tests/testStereoFrame.cpp # NEEDS UPDATE
-  tests/testStereoVisionFrontEnd.cpp # NEEDS UPDATE
-  tests/testThreadsafeImuBuffer.cpp
-  tests/testThreadsafeQueue.cpp
-  tests/testThreadsafeTemporalBuffer.cpp
-  tests/testTimer.cpp
-  tests/testTracker.cpp
-  tests/testUtilsOpenCV.cpp
-  tests/testInitializationFromImu.cpp
-  tests/testVioBackEnd.cpp
-  tests/testVioBackEndParams.cpp
-  tests/testVioFrontEndParams.cpp
-  # tests/testVisualizer3D.cpp # NEEDS UPDATE
-  tests/testOnlineAlignment.cpp
-  )
+  # Generate gtests.
+  include(CTest)
+  add_executable(testKimeraVIO
+    tests/testKimeraVIO.cpp
+    tests/testCameraParams.cpp
+    tests/testCodesignIdeas.cpp
+    tests/testFeatureSelector.cpp
+    tests/testFrame.cpp # NEEDS UPDATE
+    tests/testGeneralParallelPlaneRegularBasicFactor.cpp
+    tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
+    tests/testImuFrontEnd.cpp
+    tests/testKittiDataProvider.cpp # TODO
+    tests/testLoopClosureDetector.cpp
+    tests/testLogger.cpp
+    tests/testMesher.cpp # rotten
+    tests/testParallelPlaneRegularBasicFactor.cpp
+    tests/testParallelPlaneRegularTangentSpaceFactor.cpp
+    tests/testPointPlaneFactor.cpp
+    #tests/testRegularVioBackEnd.cpp # rotten
+    tests/testRegularVioBackEndParams.cpp
+    tests/testStereoFrame.cpp # NEEDS UPDATE
+    tests/testStereoVisionFrontEnd.cpp # NEEDS UPDATE
+    tests/testThreadsafeImuBuffer.cpp
+    tests/testThreadsafeQueue.cpp
+    tests/testThreadsafeTemporalBuffer.cpp
+    tests/testTimer.cpp
+    tests/testTracker.cpp
+    tests/testUtilsOpenCV.cpp
+    tests/testInitializationFromImu.cpp
+    tests/testVioBackEnd.cpp
+    tests/testVioBackEndParams.cpp
+    tests/testVioFrontEndParams.cpp
+    # tests/testVisualizer3D.cpp # NEEDS UPDATE
+    tests/testOnlineAlignment.cpp
+    )
 
-target_link_libraries(testKimeraVIO gtest KimeraVIO::KimeraVIO)
+  target_link_libraries(testKimeraVIO gtest KimeraVIO::KimeraVIO)
 
-if(CMAKE_VERSION VERSION_LESS 3.10)
-  enable_testing()
-  include(FindGTest)
-  gtest_add_tests(testKimeraVIO "" AUTO)
-else()
-  include(GoogleTest)
-  gtest_discover_tests(testKimeraVIO)
-endif()
+  if(CMAKE_VERSION VERSION_LESS 3.10)
+    enable_testing()
+    include(FindGTest)
+    gtest_add_tests(testKimeraVIO "" AUTO)
+  else()
+    include(GoogleTest)
+    gtest_discover_tests(testKimeraVIO)
+  endif()
+endif(BUILD_TESTS)
 
-endif()
-
-#export(TARGETS KimeraVIO FILE KimeraVIO.cmake)
-#
-#
-#install(TARGETS KimeraVIO EXPORT stereoVioTargets
-#  LIBRARY DESTINATION lib
-#  ARCHIVE DESTINATION lib
-#  RUNTIME DESTINATION bin
-#  INCLUDES DESTINATION include
-#  )
-#install(EXPORT KimeraVIOTargets
-#  FILE KimeraVIOTargets.cmake
-#  NAMESPACE stereoVio::
-#  DESTINATION lib/cmake/KimeraVIO
-#  )
-
-#include(CMakePackageConfigHelpers)
-#write_basic_package_version_file("KimeraVIOConfigVersion.cmake"
-#  VERSION ${KimeraVIO_VERSION}
-#  COMPATIBILITY SameMajorVersion
-#)
-
-##############################################
-## Installation instructions
-#include(GNUInstallDirs)
-#
-## First of all, we need to install the library itself.
-#install(TARGETS KimeraVIO
-#    EXPORT KimeraVIO-export
-#    LIBRARY DESTINATION lib
-#    ARCHIVE DESTINATION lib
-#    INCLUDES DESTINATION include # We need this right?
-#)
-
-## This is required so that the exported target has the name KimeraVIO and not KimeraVIO
-#set_target_properties(KimeraVIO PROPERTIES EXPORT_NAME KimeraVIO)
-
-## TODO THIS SHOULD BE only the headers... aka include/
-##install(DIRECTORY src/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-#
-## Install headers of our dependencies, not sure if it works...
-#install(DIRECTORY ${GTSAM_INCLUDE_DIR} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-#install(DIRECTORY ${GFLAGS_INCLUDE_DIRS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-#install(DIRECTORY ${GLOG_INCLUDE_DIRS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-#
-## CMAKE_INSTALL_LIBDIR is lib usually
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/KimeraVIO)
-
+############################### INSTALL/EXPORT #################################
 ## We install the export that we defined above
 ## Export the targets to a script
 ## This will install the import script KimeraVIOTargets.cmake
 ## When findpackaged by other scripts, it will load the targets defined
 ## in the export KimeraVIO-export.
-#install(EXPORT KimeraVIO-export
-#  FILE KimeraVIOTargets.cmake
-#  NAMESPACE KimeraVIO::
-## It's usually a good idea to give CMake access to the version,
-## so that find_package can have a version specified.
-## Create a ConfigVersion.cmake file
-## It's usually a good idea to give CMake access to the version,
-## so that find_package can have a version specified.
-## Create a ConfigVersion.cmake file
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
+write_basic_package_version_file(${CMAKE_CURRENT_LIST_DIR}/cmake/KimeraVIOConfigVersion.cmake
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
 # Create KimeraVIOConfig.cmake with extra info from KimeraVIOConfig.cmake.in
 # This file is necessary to find_package the library KimeraVIO.
+set(INSTALL_CONFIGDIR lib/cmake/KimeraVIO)
 configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/KimeraVIOConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
     INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
-#
-## Install the config and configversion
-## Here you could also install custom cmake find modules
-#install(FILES
-#    ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
-#    ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
-#    DESTINATION ${INSTALL_CONFIGDIR}
-#)
 
 set(EXPORTED_DEPENDENCIES "")
 list(APPEND EXPORTED_DEPENDENCIES "glog::glog")
 list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
 
-export(TARGETS KimeraVIO ${EXPORTED_DEPENDENCIES}
-       FILE KimeraVIOTargets.cmake)
-export(PACKAGE KimeraVIO)
+option(EXPORT_KIMERA "Export KimeraVIO instead of installing it" OFF)
+if(EXPORT_KIMERA)
+  export(TARGETS KimeraVIO ${EXPORTED_DEPENDENCIES}
+         FILE KimeraVIOTargets.cmake)
+  export(PACKAGE KimeraVIO)
+else(EXPORT_KIMERA)
+  ## Installation instructions
+  include(GNUInstallDirs)
+
+  ## First of all, we need to install the library itself.
+  install(TARGETS KimeraVIO ${EXPORTED_DEPENDENCIES}
+      EXPORT KimeraVIO-export
+      LIBRARY DESTINATION lib
+      ARCHIVE DESTINATION lib
+      INCLUDES DESTINATION include # We need this right?
+      RUNTIME DESTINATION bin
+  )
+
+  install(EXPORT KimeraVIO-export
+    FILE
+      KimeraVIOTargets.cmake
+      #NAMESPACE
+      #KimeraVIO::
+    DESTINATION
+      ${INSTALL_CONFIGDIR}
+  )
+
+  ## Install the config and configversion
+  ## Here you could also install custom cmake find modules
+  install(FILES
+      ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
+      ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
+      DESTINATION ${INSTALL_CONFIGDIR}
+  )
+endif(EXPORT_KIMERA)
 
 ###############################################################################
 # Print configuration variables
@@ -321,18 +291,3 @@ if(NOT MSVC AND NOT XCODE_VERSION)
     message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
     message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
-
-#include(GNUInstallDirs)
-#install(TARGETS KimeraVIO
-#    EXPORT kimera-vio-export
-#    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#)
-#install(EXPORT kimera-vio-export
-#  FILE
-#    KimeraVIOTargets.cmake
-#    #NAMESPACE
-#    #NAKimeraVIO::
-#  DESTINATION
-#    ${CMAKE_INSTALL_LIBDIR}/cmake/KimeraVIO
-#)
