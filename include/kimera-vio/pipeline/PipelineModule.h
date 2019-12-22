@@ -562,13 +562,12 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
                      OutputQueue* output_queue,
                      const std::string& name_id,
                      const bool& parallel_run)
-      : MISO(input_queue, name_id, parallel_run) {}
+      : input_queue_(input_queue), MISO(output_queue, name_id, parallel_run) {}
   virtual ~SISOPipelineModule() = default;
 
   //! Override registering of output callbacks since this is only used for
   //! multiple output pipelines.
-  void registerCallback(
-      const typename MISO::OutputCallback& output_callback) override {
+  void registerCallback(const typename MISO::OutputCallback&) override {
     LOG(WARNING) << "SISO Pipeline Module does not use callbacks.";
   }
 
