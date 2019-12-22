@@ -128,15 +128,15 @@ class ThreadsafeNullQueue : public ThreadsafeQueue<T> {
   KIMERA_POINTER_TYPEDEFS(ThreadsafeNullQueue);
   KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeNullQueue);
   ThreadsafeNullQueue(const std::string& queue_id)
-      : ThreadsafeQueue<T>(queue_id){};
+      : ThreadsafeQueue<T>(queue_id) {}
   virtual ~ThreadsafeNullQueue() override = default;
 
   //! Do nothing
   // virtual bool push(const T& new_value) override { return true; }
-  virtual bool push(T new_value) override { return true; }
-  virtual bool popBlocking(T& value) override { return true; }
+  virtual bool push(T) override { return true; }
+  virtual bool popBlocking(T&) override { return true; }
   virtual std::shared_ptr<T> popBlocking() override { return nullptr; }
-  virtual bool pop(T& value) override { return true; }
+  virtual bool pop(T&) override { return true; }
   virtual std::shared_ptr<T> pop() override { return nullptr; }
 };
 
