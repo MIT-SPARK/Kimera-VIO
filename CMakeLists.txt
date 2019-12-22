@@ -58,44 +58,44 @@ add_library(KimeraVIO SHARED "")
 add_library(KimeraVIO::KimeraVIO ALIAS KimeraVIO)
 
 ### Add source code for data provider.
-include(include/kimera-vio/dataprovider/CMakeLists.txt)
-include(src/dataprovider/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/dataprovider)
+add_subdirectory(src/dataprovider)
 ### Add source code for frontend.
-include(include/kimera-vio/frontend/CMakeLists.txt)
-include(src/frontend/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/frontend)
+add_subdirectory(src/frontend)
 ### Add source code for backend.
-include(include/kimera-vio/backend/CMakeLists.txt)
-include(src/backend/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/backend)
+add_subdirectory(src/backend)
 ### Add source code for factors
-include(include/kimera-vio/factors/CMakeLists.txt)
-include(src/factors/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/factors)
+add_subdirectory(src/factors)
 ### Add source code for mesh
-include(include/kimera-vio/mesh/CMakeLists.txt)
-include(src/mesh/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/mesh)
+add_subdirectory(src/mesh)
 ### Add source code for initialization
-include(include/kimera-vio/initial/CMakeLists.txt)
-include(src/initial/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/initial)
+add_subdirectory(src/initial)
 ### Add source code for utils
-include(include/kimera-vio/utils/CMakeLists.txt)
-include(src/utils/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/utils)
+add_subdirectory(src/utils)
 ### Add source code for pipeline
-include(include/kimera-vio/pipeline/CMakeLists.txt)
-include(src/pipeline/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/pipeline)
+add_subdirectory(src/pipeline)
 ### Add source code for common
-include(include/kimera-vio/common/CMakeLists.txt)
-include(src/common/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/common)
+add_subdirectory(src/common)
 ### Add source code for loopclosure
-include(include/kimera-vio/loopclosure/CMakeLists.txt)
-include(src/loopclosure/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/loopclosure)
+add_subdirectory(src/loopclosure)
 ### Add source code for logging
-include(include/kimera-vio/logging/CMakeLists.txt)
-include(src/logging/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/logging)
+add_subdirectory(src/logging)
 ### Add source code for imu frontend
-include(include/kimera-vio/imu-frontend/CMakeLists.txt)
-include(src/imu-frontend/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/imu-frontend)
+add_subdirectory(src/imu-frontend)
 ### Add source code for visualizer.
-include(include/kimera-vio/visualizer/CMakeLists.txt)
-include(src/visualizer/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/visualizer)
+add_subdirectory(src/visualizer)
 
 target_link_libraries(KimeraVIO
   PRIVATE
@@ -114,7 +114,7 @@ target_include_directories(KimeraVIO
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
