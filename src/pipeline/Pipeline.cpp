@@ -152,9 +152,9 @@ Pipeline::Pipeline(const VioParams& params)
           //! Only push to backend input queue if it is a keyframe!
           backend_input_queue.push(VIO::make_unique<BackendInput>(
               output->stereo_frame_lkf_.getTimestamp(),
-              output->status_stereo_measurements_,
+              CHECK_NOTNULL(output->status_stereo_measurements_),
               output->tracker_status_,
-              output->pim_,
+              CHECK_NOTNULL(output->pim_),
               output->relative_pose_body_stereo_));
         }
       });
@@ -546,14 +546,11 @@ bool Pipeline::initializeOnline(
 
   // TODO(Sandro): Find a way to optimize this
   // Create ImuFrontEnd with non-zero gravity (zero bias)
-  // TODO(Toni): shouldn't this be done only once?
-  gtsam::PreintegratedImuMeasurements::Params imu_params =
-      ImuFrontEnd::convertImuParams(imu_params_);
   ImuFrontEnd imu_frontend_real(
-      imu_params,
+      imu_params_,
       gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
   CHECK_DOUBLE_EQ(imu_frontend_real.getPreintegrationGravity().norm(),
-                  imu_params.n_gravity.norm());
+                  imu_params_.n_gravity_.norm());
 
   // Enforce stereo frame as keyframe for initialization
   StereoFrame stereo_frame = stereo_imu_sync_packet.getStereoFrame();
@@ -602,7 +599,7 @@ bool Pipeline::initializeOnline(
     // This queue is used for the the backend optimization
     const ImuStampS& imu_stamps = stereo_imu_sync_packet.getImuStamps();
     const ImuAccGyrS& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
-    const gtsam::PreintegratedImuMeasurements& pim =
+    ImuFrontEnd::PimPtr pim =
         imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
     // This queue is used for the backend after initialization
     VLOG(2) << "Initialization: Push input payload to Backend.";
