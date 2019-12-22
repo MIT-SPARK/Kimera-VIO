@@ -114,7 +114,7 @@ class ThreadsafeQueueBase {
   mutable std::mutex mutex_;  //! mutable for empty() and copy-constructor.
   InternalQueue data_queue_;
   std::condition_variable data_cond_;
-  std::atomic_bool shutdown_ = {false};  //! flag for signaling queue shutdown.
+  std::atomic_bool shutdown_;  //! flag for signaling queue shutdown.
 };
 
 template <typename T>
@@ -202,6 +202,14 @@ class ThreadsafeNullQueue : public ThreadsafeQueue<T> {
   virtual bool pop(T&) override { return true; }
   virtual std::shared_ptr<T> pop() override { return nullptr; }
 };
+
+template <typename T>
+ThreadsafeQueueBase<T>::ThreadsafeQueueBase(const std::string& queue_id)
+    : mutex_(),
+      queue_id_(queue_id),
+      data_queue_(),
+      data_cond_(),
+      shutdown_(false) {}
 
 template <typename T>
 ThreadsafeQueue<T>::ThreadsafeQueue(const std::string& queue_id)
