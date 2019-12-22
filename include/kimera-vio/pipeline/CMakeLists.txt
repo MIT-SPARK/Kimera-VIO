@@ -5,4 +5,5 @@ target_sources(KimeraVIO PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/PipelinePayload.h"
   "${CMAKE_CURRENT_LIST_DIR}/PipelineModule.h"
   "${CMAKE_CURRENT_LIST_DIR}/PipelineParams.h"
+  "${CMAKE_CURRENT_LIST_DIR}/QueueSynchronizer.h"
 )
