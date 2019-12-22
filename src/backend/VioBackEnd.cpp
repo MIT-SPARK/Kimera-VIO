@@ -40,6 +40,7 @@
 
 // Only for gtNavState ...
 #include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"  // for safeCast
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
@@ -121,6 +122,9 @@ VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
 
   // Reset debug info.
   resetDebugInfo(&debug_info_);
+
+  // Print parameters if verbose
+  if (VLOG_IS_ON(1)) print();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -146,16 +150,6 @@ BackendOutput::UniquePtr VioBackEnd::spinOnce(const BackendInput& input) {
       break;
     }
   }
-
-  // Update imu bias for the frontend! Note that this should be done asap
-  // ideally just when the optimization finishes, so that the frontend might
-  // start preintegrating the imu data using the newest bias!
-  VLOG(1) << "Backend: Update IMU Bias.";
-  CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
-                                      "update callback for at least the "
-                                      "frontend? Do so by using "
-                                      "registerImuBiasUpdateCallback function";
-  imu_bias_update_callback_(imu_bias_lkf_);
 
   if (VLOG_IS_ON(10)) {
     LOG(INFO) << "Latest backend IMU bias is: ";
@@ -249,7 +243,7 @@ void VioBackEnd::initStateAndSetPriors(
 void VioBackEnd::addVisualInertialStateAndOptimize(
     const Timestamp& timestamp_kf_nsec,
     const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
-    const gtsam::PreintegratedImuMeasurements& pim,
+    const gtsam::PreintegrationType& pim,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose) {
   debug_info_.resetAddedFactorsStatistics();
 
@@ -272,18 +266,18 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   if (stereo_ransac_body_pose) {
     if (VLOG_IS_ON(10)) {
       LOG(INFO) << "VIO: adding between ";
-      (*stereo_ransac_body_pose).print();
+      stereo_ransac_body_pose->print();
     }
     addBetweenFactor(last_kf_id_, curr_kf_id_, *stereo_ransac_body_pose);
   }
 
   /////////////////// MANAGE VISION MEASUREMENTS ///////////////////////////
-  SmartStereoMeasurements smartStereoMeasurements_kf =
+  const SmartStereoMeasurements& smart_stereo_measurements_kf =
       status_smart_stereo_measurements_kf.second;
 
   // if stereo ransac failed, remove all right pixels:
-  TrackingStatus kfTrackingStatus_stereo =
-      status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
+  // TrackingStatus kfTrackingStatus_stereo =
+  //     status_smart_stereo_measurements_kf.first.kfTrackingStatus_stereo_;
   // if(kfTrackingStatus_stereo == TrackingStatus::INVALID){
   //   for(size_t i = 0; i < smartStereoMeasurements_kf.size(); i++)
   //     smartStereoMeasurements_kf[i].uR =
@@ -293,14 +287,14 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   // extract relevant information from stereo frame
   LandmarkIds landmarks_kf;
   addStereoMeasurementsToFeatureTracks(
-      curr_kf_id_, smartStereoMeasurements_kf, &landmarks_kf);
+      curr_kf_id_, smart_stereo_measurements_kf, &landmarks_kf);
 
   if (VLOG_IS_ON(10)) {
     printFeatureTracks();
   }
 
   // decide which factors to add
-  TrackingStatus kfTrackingStatus_mono =
+  const TrackingStatus& kfTrackingStatus_mono =
       status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch (kfTrackingStatus_mono) {
     case TrackingStatus::LOW_DISPARITY:  // vehicle is not moving
@@ -334,14 +328,14 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
 
 void VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
   bool use_stereo_btw_factor =
-      backend_params_.addBetweenStereoFactors_ == true &&
+      backend_params_.addBetweenStereoFactors_ &&
       input.stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
   addVisualInertialStateAndOptimize(
       input.timestamp_,  // Current time for fixed lag smoother.
-      input.status_stereo_measurements_kf_,  // Vision data.
-      input.pim_,                            // Imu preintegrated data.
+      *CHECK_NOTNULL(input.status_stereo_measurements_kf_),  // Vision data.
+      *CHECK_NOTNULL(input.pim_),  // Imu preintegrated data.
       use_stereo_btw_factor
           ? input.stereo_ransac_body_pose_
           : boost::none);  // optional: pose estimate from stereo ransac
@@ -646,16 +640,16 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
   // TODO: feature tracks will grow unbounded.
 
   // Make sure the landmarks_kf vector is empty and has a suitable size.
-  landmarks_kf->clear();
-  landmarks_kf->reserve(stereoMeasurements_kf.size());
+  const size_t& n_stereo_measurements = stereoMeasurements_kf.size();
+  landmarks_kf->resize(n_stereo_measurements);
 
   // Store landmark ids.
-  for (size_t i = 0; i < stereoMeasurements_kf.size(); ++i) {
-    const LandmarkId& lmk_id_in_kf_i = stereoMeasurements_kf.at(i).first;
-    const StereoPoint2& stereo_px_i = stereoMeasurements_kf.at(i).second;
+  // TODO(Toni): the concept of feature tracks should not be in the backend...
+  for (size_t i = 0; i < n_stereo_measurements; ++i) {
+    const LandmarkId& lmk_id_in_kf_i = stereoMeasurements_kf[i].first;
+    const StereoPoint2& stereo_px_i = stereoMeasurements_kf[i].second;
 
-    // We filtered invalid lmks in the StereoTracker, so this should not
-    // happen.
+    // We filtered invalid lmks in the StereoTracker, so this should not happen.
     CHECK_NE(lmk_id_in_kf_i, -1) << "landmarkId_kf_i == -1?";
 
     // Thinner structure that only keeps landmarkIds.
@@ -665,7 +659,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
     DCHECK(std::find(landmarks_kf->begin(),
                      landmarks_kf->end(),
                      lmk_id_in_kf_i) == landmarks_kf->end());
-    landmarks_kf->push_back(lmk_id_in_kf_i);
+    (*landmarks_kf)[i] = lmk_id_in_kf_i;
 
     // Add features to vio->featureTracks_ if they are new.
     const FeatureTracks::iterator& feature_track_it =
@@ -673,7 +667,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
     if (feature_track_it == feature_tracks_.end()) {
       // New feature.
       VLOG(20) << "Creating new feature track for lmk: " << lmk_id_in_kf_i
-               << ".";
+               << '.';
       feature_tracks_.insert(
           std::make_pair(lmk_id_in_kf_i, FeatureTrack(frame_num, stereo_px_i)));
       ++landmark_count_;
@@ -700,7 +694,7 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
 /// Value adders.
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::addImuValues(const FrameId& cur_id,
-                              const gtsam::PreintegratedImuMeasurements& pim) {
+                              const gtsam::PreintegrationType& pim) {
   gtsam::NavState navstate_lkf(W_Pose_B_lkf_, W_Vel_B_lkf_);
   gtsam::NavState navstate_k = pim.predict(navstate_lkf, imu_bias_lkf_);
 
@@ -716,48 +710,60 @@ void VioBackEnd::addImuValues(const FrameId& cur_id,
 /* -------------------------------------------------------------------------- */
 void VioBackEnd::addImuFactor(const FrameId& from_id,
                               const FrameId& to_id,
-                              const gtsam::PreintegratedImuMeasurements& pim) {
-#ifdef USE_COMBINED_IMU_FACTOR
-  new_imu_and_prior_factors_.push_back(
-      boost::make_shared<gtsam::CombinedImuFactor>(gtsam::Symbol('x', from_id),
-                                                   gtsam::Symbol('v', from_id),
-                                                   gtsam::Symbol('x', to_id),
-                                                   gtsam::Symbol('v', to_id),
-                                                   gtsam::Symbol('b', from_id),
-                                                   gtsam::Symbol('b', to_id),
-                                                   pim));
-#else
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::ImuFactor>(gtsam::Symbol('x', from_id),
-                                           gtsam::Symbol('v', from_id),
-                                           gtsam::Symbol('x', to_id),
-                                           gtsam::Symbol('v', to_id),
-                                           gtsam::Symbol('b', from_id),
-                                           pim));
+                              const gtsam::PreintegrationType& pim) {
+  switch (imu_params_.imu_preintegration_type_) {
+    case ImuPreintegrationType::kPreintegratedCombinedMeasurements: {
+      new_imu_prior_and_other_factors_.push_back(
+          boost::make_shared<gtsam::CombinedImuFactor>(
+              gtsam::Symbol('x', from_id),
+              gtsam::Symbol('v', from_id),
+              gtsam::Symbol('x', to_id),
+              gtsam::Symbol('v', to_id),
+              gtsam::Symbol('b', from_id),
+              gtsam::Symbol('b', to_id),
+              safeCastToPreintegratedCombinedImuMeasurements(pim)));
+      break;
+    }
+    case ImuPreintegrationType::kPreintegratedImuMeasurements: {
+      new_imu_prior_and_other_factors_.push_back(
+          boost::make_shared<gtsam::ImuFactor>(
+              gtsam::Symbol('x', from_id),
+              gtsam::Symbol('v', from_id),
+              gtsam::Symbol('x', to_id),
+              gtsam::Symbol('v', to_id),
+              gtsam::Symbol('b', from_id),
+              safeCastToPreintegratedImuMeasurements(pim)));
 
-  static const gtsam::imuBias::ConstantBias zero_bias(Vector3(0, 0, 0),
-                                                      Vector3(0, 0, 0));
+      static const gtsam::imuBias::ConstantBias zero_bias(Vector3(0, 0, 0),
+                                                          Vector3(0, 0, 0));
 
-  // Factor to discretize and move normalize by the interval between
-  // measurements:
-  CHECK_NE(imu_params_.nominal_rate_, 0.0)
-      << "Nominal IMU rate param cannot be 0.";
-  // 1/sqrt(nominalImuRate_) to discretize, then
-  // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
-  const double d = sqrt(pim.deltaTij()) / imu_params_.nominal_rate_;
-  Vector6 biasSigmas;
-  biasSigmas.head<3>().setConstant(d * imu_params_.acc_walk_);
-  biasSigmas.tail<3>().setConstant(d * imu_params_.gyro_walk_);
-  const gtsam::SharedNoiseModel& bias_noise_model =
-      gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
+      // Factor to discretize and move normalize by the interval between
+      // measurements:
+      CHECK_NE(imu_params_.nominal_rate_, 0.0)
+          << "Nominal IMU rate param cannot be 0.";
+      // 1/sqrt(nominalImuRate_) to discretize, then
+      // sqrt(pim_->deltaTij()/nominalImuRate_) to count the nr of measurements.
+      const double d = std::sqrt(pim.deltaTij()) / imu_params_.nominal_rate_;
+      Vector6 biasSigmas;
+      biasSigmas.head<3>().setConstant(d * imu_params_.acc_walk_);
+      biasSigmas.tail<3>().setConstant(d * imu_params_.gyro_walk_);
+      const gtsam::SharedNoiseModel& bias_noise_model =
+          gtsam::noiseModel::Diagonal::Sigmas(biasSigmas);
 
-  new_imu_prior_and_other_factors_.push_back(
-      boost::make_shared<gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>>(
-          gtsam::Symbol('b', from_id),
-          gtsam::Symbol('b', to_id),
-          zero_bias,
-          bias_noise_model));
-#endif
+      new_imu_prior_and_other_factors_.push_back(
+          boost::make_shared<
+              gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>>(
+              gtsam::Symbol('b', from_id),
+              gtsam::Symbol('b', to_id),
+              zero_bias,
+              bias_noise_model));
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unknown IMU Preintegration Type.";
+      break;
+    }
+  }
 
   debug_info_.imuR_lkf_kf = pim.deltaRij();
   debug_info_.numAddedImuF_++;
@@ -1120,6 +1126,13 @@ void VioBackEnd::updateStates(const FrameId& cur_id) {
   W_Vel_B_lkf_ = state_.at<Vector3>(gtsam::Symbol('v', cur_id));
   imu_bias_lkf_ =
       state_.at<gtsam::imuBias::ConstantBias>(gtsam::Symbol('b', cur_id));
+
+  VLOG(1) << "Backend: Update IMU Bias.";
+  CHECK(imu_bias_update_callback_) << "Did you forget to register the IMU bias "
+                                      "update callback for at least the "
+                                      "frontend? Do so by using "
+                                      "registerImuBiasUpdateCallback function";
+  imu_bias_update_callback_(imu_bias_lkf_);
 }
 
 /* -------------------------------------------------------------------------- */

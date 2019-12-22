@@ -129,7 +129,7 @@ $BUILD_PATH/stereoVIOEuroc \
   --parallel_run="$PARALLEL_RUN" \
   --logtostderr=1 \
   --colorlogtostderr=1 \
-  --log_prefix=0 \
+  --log_prefix=1 \
   --v=0 \
   --vmodule=Pipeline*=00 \
   --log_output="$LOG_OUTPUT" \
