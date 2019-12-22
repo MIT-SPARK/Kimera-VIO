@@ -27,13 +27,13 @@
 namespace VIO {
 
 template <typename T>
-class ThreadsafeQueue {
+class ThreadsafeQueueBase {
  public:
-  KIMERA_POINTER_TYPEDEFS(ThreadsafeQueue);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeQueue);
+  KIMERA_POINTER_TYPEDEFS(ThreadsafeQueueBase);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeQueueBase);
   typedef std::queue<std::shared_ptr<T>> InternalQueue;
-  ThreadsafeQueue(const std::string& queue_id);
-  virtual ~ThreadsafeQueue() = default;
+  ThreadsafeQueueBase(const std::string& queue_id);
+  virtual ~ThreadsafeQueueBase() = default;
 
   /** \brief Push by value. Returns false if the queue has been shutdown.
    * Not optimal, since it will make two move operations.
@@ -49,36 +49,35 @@ class ThreadsafeQueue {
    * push(const T&), non-copyable things will compile-complain.
    *
    */
-  virtual bool push(T new_value);
+  virtual bool push(T new_value) = 0;
 
   /** \brief Pop value. Waits for data to be available in the queue.
    * Returns false if the queue has been shutdown.
    */
-  // TODO(Toni): add a timer to avoid waiting forever...
-  virtual bool popBlocking(T& value);
+  virtual bool popBlocking(T& value) = 0;
 
   /** \brief Pop value. Waits for data to be available in the queue.
    * If the queue has been shutdown, it returns a null shared_ptr.
    */
-  virtual std::shared_ptr<T> popBlocking();
+  virtual std::shared_ptr<T> popBlocking() = 0;
 
   /** \brief Pop without blocking, just checks once if the queue is empty.
    * Returns true if the value could be retrieved, false otherwise.
    */
-  virtual bool pop(T& value);
+  virtual bool pop(T& value) = 0;
 
   /** \brief Pop without blocking, just checks once if the queue is empty.
    * Returns a shared_ptr to the value retrieved.
    * If the queue is empty or has been shutdown,
    * it returns a null shared_ptr.
    */
-  virtual std::shared_ptr<T> pop();
+  virtual std::shared_ptr<T> pop() = 0;
 
   /** \brief Swap queue with empty queue if not empty.
    * Returns true if values were retrieved.
    * Returns false if values were not retrieved.
    */
-  virtual bool batchPop(InternalQueue* output_queue);
+  virtual bool batchPop(InternalQueue* output_queue) = 0;
 
   void shutdown() {
     std::unique_lock<std::mutex> mlock(mutex_);
@@ -118,6 +117,70 @@ class ThreadsafeQueue {
   std::atomic_bool shutdown_ = {false};  //! flag for signaling queue shutdown.
 };
 
+template <typename T>
+class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
+ public:
+  using TQB = ThreadsafeQueueBase<T>;
+  KIMERA_POINTER_TYPEDEFS(ThreadsafeQueue);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(ThreadsafeQueue);
+  ThreadsafeQueue(const std::string& queue_id);
+  virtual ~ThreadsafeQueue() = default;
+
+  /** \brief Push by value. Returns false if the queue has been shutdown.
+   * Not optimal, since it will make two move operations.
+   * But it does the job: see Item 41 Effective Modern C++
+   *
+   * Alternatives:
+   *  Using both:
+   *  - push(const T&)
+   *  - with push(T&& ) rvalue to the queue using move semantics.
+   * Since there is no type deduction, T&& is NOT a universal
+   * reference (typename T is not at the level of the push function).
+   * Problem: virtual keyword will make push(T&&) be discarded for
+   * push(const T&), non-copyable things will compile-complain.
+   *
+   */
+  bool push(T new_value) override;
+
+  /** \brief Pop value. Waits for data to be available in the queue.
+   * Returns false if the queue has been shutdown.
+   */
+  // TODO(Toni): add a timer to avoid waiting forever...
+  bool popBlocking(T& value) override;
+
+  /** \brief Pop value. Waits for data to be available in the queue.
+   * If the queue has been shutdown, it returns a null shared_ptr.
+   */
+  std::shared_ptr<T> popBlocking() override;
+
+  /** \brief Pop without blocking, just checks once if the queue is empty.
+   * Returns true if the value could be retrieved, false otherwise.
+   */
+  bool pop(T& value) override;
+
+  /** \brief Pop without blocking, just checks once if the queue is empty.
+   * Returns a shared_ptr to the value retrieved.
+   * If the queue is empty or has been shutdown,
+   * it returns a null shared_ptr.
+   */
+  std::shared_ptr<T> pop() override;
+
+  /** \brief Swap queue with empty queue if not empty.
+   * Returns true if values were retrieved.
+   * Returns false if values were not retrieved.
+   */
+  bool batchPop(typename TQB::InternalQueue* output_queue) override;
+
+ public:
+  using TQB::queue_id_;
+
+ private:
+  using TQB::data_cond_;
+  using TQB::data_queue_;
+  using TQB::mutex_;
+  using TQB::shutdown_;
+};
+
 /**
  * @brief The ThreadsafeNullQueue class acts as a placeholder queue, but does
  * nothing. Useful for pipeline modules that do not require a queue.
@@ -142,11 +205,7 @@ class ThreadsafeNullQueue : public ThreadsafeQueue<T> {
 
 template <typename T>
 ThreadsafeQueue<T>::ThreadsafeQueue(const std::string& queue_id)
-    : mutex_(),
-      queue_id_(queue_id),
-      data_queue_(),
-      data_cond_(),
-      shutdown_(false) {}
+    : ThreadsafeQueueBase<T>(queue_id) {}
 
 template <typename T>
 bool ThreadsafeQueue<T>::push(T new_value) {
@@ -205,7 +264,7 @@ std::shared_ptr<T> ThreadsafeQueue<T>::pop() {
 }
 
 template <typename T>
-bool ThreadsafeQueue<T>::batchPop(InternalQueue* output_queue) {
+bool ThreadsafeQueue<T>::batchPop(typename TQB::InternalQueue* output_queue) {
   if (shutdown_) return false;
   CHECK_NOTNULL(output_queue);
   CHECK(output_queue->empty());
