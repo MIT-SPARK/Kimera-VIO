@@ -34,23 +34,36 @@
 namespace VIO {
 
 /**
- * @brief Abstraction of a pipeline module. Contains non-templated members.
- * 
- * Provides common algorithmic logic for a pipeline module base class.
+ * @brief The QueueSynchronizer class: a singleton class meant to
+ * synchronize threadsafe queues (ThreadsafeQueue).
  */
-class PipelineModuleBase {
- public:
-  KIMERA_POINTER_TYPEDEFS(PipelineModuleBase);
-  KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModuleBase);
+template<class T>
+class QueueSynchronizerBase {
+public:
+  KIMERA_POINTER_TYPEDEFS(QueueSynchronizerBase);
+  virtual bool syncQueue(const Timestamp& timestamp,
+                         ThreadsafeQueue<T>* queue,
+                         T* pipeline_payload,
+                         std::string name_id,
+                         int max_iterations = 10) = 0;
+  virtual ~QueueSynchronizerBase() = default;
+};
+
+template<class T>
+class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
+public:
+  KIMERA_POINTER_TYPEDEFS(SimpleQueueSynchronizer);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(SimpleQueueSynchronizer);
 
   /**
-   * @brief PipelineModuleBase
-   * @param
+   * @brief getInstance of a SimpleQueueSynchronizer
+   * @return a unique ptr to a simple queue synchronizer which can be casted
+   * to its base class for common interface as a QueueSynchronizer.
    */
-  PipelineModuleBase(const std::string& name_id, const bool& parallel_run)
-      : name_id_(name_id), parallel_run_(parallel_run) {}
-
-  virtual ~PipelineModuleBase() = default;
+  static SimpleQueueSynchronizer<T>& getInstance() {
+    static SimpleQueueSynchronizer synchronizer_instance_;
+    return synchronizer_instance_;
+  }
 
   /**
    * @brief Utility function to synchronize threadsafe queues.
@@ -70,18 +83,17 @@ class PipelineModuleBase {
    * we found a payload with the requested timestamp) or we failed because a
    * payload with an older timestamp was retrieved.
    */
-  template <class T>
-  static bool syncQueue(const Timestamp& timestamp,
-                        ThreadsafeQueue<T>* queue,
-                        T* pipeline_payload,
-                        std::string name_id,
-                        int max_iterations = 10) {
+  bool syncQueue(const Timestamp& timestamp,
+                 ThreadsafeQueue<T>* queue,
+                 T* pipeline_payload,
+                 std::string name_id,
+                 int max_iterations = 10) override {
     CHECK_NOTNULL(queue);
     CHECK_NOTNULL(pipeline_payload);
     static_assert(
-        std::is_base_of<PipelinePayload,
-                        typename std::pointer_traits<T>::element_type>::value,
-        "T must be a pointer to a class that derives from PipelinePayload.");
+          std::is_base_of<PipelinePayload,
+          typename std::pointer_traits<T>::element_type>::value,
+          "T must be a pointer to a class that derives from PipelinePayload.");
     // Look for the synchronized packet in payload queue
     Timestamp payload_timestamp = std::numeric_limits<Timestamp>::min();
     // Loop over payload timestamps until we reach the query timestamp
@@ -108,11 +120,45 @@ class PipelineModuleBase {
         << " - Requested timestamp: " << timestamp << '\n'
         << " - Actual timestamp:    " << payload_timestamp << '\n'
         << (i >= max_iterations ? "Reached max number of sync attempts: " +
-                                      std::to_string(max_iterations)
+                                  std::to_string(max_iterations)
                                 : "");
     CHECK(*pipeline_payload);
     return true;
   }
+
+private:
+  // TODO(Toni): don't make this guy a singleton... Rather send it around.
+  /// Non-constructible class, so make ctors private (copy ctors are deleted):
+  SimpleQueueSynchronizer() = default;
+  ~SimpleQueueSynchronizer() = default;
+};
+
+/**
+ * @brief Abstraction of a pipeline module. Contains non-templated members.
+ *
+ * Provides common algorithmic logic for a pipeline module base class.
+ */
+class PipelineModuleBase {
+ public:
+  KIMERA_POINTER_TYPEDEFS(PipelineModuleBase);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineModuleBase);
+
+  /**
+   * @brief PipelineModuleBase
+   * @param
+   */
+  PipelineModuleBase(const std::string& name_id, const bool& parallel_run)
+      : name_id_(name_id), parallel_run_(parallel_run) {}
+
+  virtual ~PipelineModuleBase() = default;
+
+  /**
+   * @brief Main spin function to be called by a thread and will return only
+   * when done (this is typically a while(!shutdown()) loop, see PipelineModule
+   * derived class.
+   * @return True if everything goes well.
+   */
+  virtual bool spin() = 0;
 
   /* ------------------------------------------------------------------------ */
   virtual inline void shutdown() {
@@ -135,6 +181,8 @@ class PipelineModuleBase {
   inline bool isWorking() const { return is_thread_working_ || hasWork(); }
 
  protected:
+  // TODO(Toni) Pass the specific queue synchronizer at the ctor level
+  // (kind of like visitor pattern), and use the queue synchronizer base class.
   /**
    * @brief Non-static wrapper around the static queue synchronizer.
    * this->name_id_ is used for the name_id parameter.
@@ -144,7 +192,7 @@ class PipelineModuleBase {
                  ThreadsafeQueue<T>* queue,
                  T* pipeline_payload,
                  int max_iterations = 10) {
-    return PipelineModuleBase::syncQueue(
+    return SimpleQueueSynchronizer<T>::getInstance().syncQueue(
         timestamp, queue, pipeline_payload, name_id_, max_iterations);
   }
   /**
@@ -211,7 +259,7 @@ class PipelineModule : public PipelineModuleBase {
    * we don't push to the output queue to save computation time.
    * @return True if everything goes well.
    */
-  bool spin() {
+  bool spin() override {
     LOG_IF(INFO, parallel_run_) << "Module: " << name_id_ << " - Spinning.";
     utils::StatsCollector timing_stats(name_id_ + " [ms]");
     while (!shutdown_) {

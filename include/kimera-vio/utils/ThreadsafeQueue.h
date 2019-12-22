@@ -26,8 +26,6 @@
 
 namespace VIO {
 
-class QueueSyncer {};
-
 template <typename T>
 class ThreadsafeQueue {
  public:
