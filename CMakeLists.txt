@@ -223,7 +223,7 @@ endif(BUILD_TESTS)
 ## When findpackaged by other scripts, it will load the targets defined
 ## in the export KimeraVIO-export.
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${CMAKE_CURRENT_LIST_DIR}/cmake/KimeraVIOConfigVersion.cmake
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
@@ -250,13 +250,19 @@ else(EXPORT_KIMERA)
   include(GNUInstallDirs)
 
   ## First of all, we need to install the library itself.
-  install(TARGETS KimeraVIO ${EXPORTED_DEPENDENCIES}
+  install(TARGETS KimeraVIO
       EXPORT KimeraVIO-export
       LIBRARY DESTINATION lib
       ARCHIVE DESTINATION lib
+      #PUBLIC_HEADER DESTINATION include # Perhaps use this, instead of installing include dir
       INCLUDES DESTINATION include # We need this right?
       RUNTIME DESTINATION bin
   )
+
+  install(
+    DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h")
 
   install(EXPORT KimeraVIO-export
     FILE
