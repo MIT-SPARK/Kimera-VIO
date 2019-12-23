@@ -17,9 +17,6 @@ RUN apt-get update && apt-get install -y git cmake
 # Install xvfb to provide a display to container for GUI related testing.
 RUN apt-get update && apt-get install -y xvfb
 
-# Install glog, gflags
-RUN apt-get update && apt-get install -y libgflags-dev libgoogle-glog-dev
-
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev
 RUN git clone https://github.com/borglab/gtsam.git
@@ -83,6 +80,9 @@ RUN chmod 600 ~/.ssh/id_rsa
 # Make sure your domain is accepted
 RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
+
+# Install glog, gflags
+RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
 
 # Install Kimera-VIO
 RUN git clone https://github.com/MIT-SPARK/Kimera-VIO.git
