@@ -17,6 +17,9 @@ RUN apt-get update && apt-get install -y git cmake
 # Install xvfb to provide a display to container for GUI related testing.
 RUN apt-get update && apt-get install -y xvfb
 
+# Install glog, gflags
+RUN apt-get update && apt-get install -y libgflags-dev libgoogle-glog-dev
+
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev
 RUN git clone https://github.com/borglab/gtsam.git

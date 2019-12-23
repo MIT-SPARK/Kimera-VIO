@@ -17,6 +17,9 @@ RUN apt-get update && apt-get install -y git cmake build-essential pkg-config
 # Install xvfb to provide a display to container for GUI realted testing.
 RUN apt-get update && apt-get install -y xvfb
 
+# Install glog, gflags
+RUN apt-get update && apt-get install -y libgflags-dev libgoogle-glog-dev
+
 # Install GTSAM
 RUN apt-get update && apt-get install -y libboost-all-dev libtbb-dev
 RUN git clone https://github.com/borglab/gtsam.git
@@ -97,4 +100,3 @@ RUN git clone https://github.com/ToniRV/spark_vio_evaluation.git
 # We use `pip install -e .` so that Jinja2 has access to the webiste template...
 # TODO(Toni): find a better way...
 RUN cd spark_vio_evaluation && python3.6 -m pip install -e .
-
