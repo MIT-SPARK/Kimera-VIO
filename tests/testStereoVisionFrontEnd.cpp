@@ -380,7 +380,9 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   fillStereoFrame(ref_stereo_frame);
   // Call the function!
   SmartStereoMeasurements ssm;
-  ssm = *CHECK_NOTNULL(st.getSmartStereoMeasurements(*ref_stereo_frame));
+  auto ssm_ptr = st.getSmartStereoMeasurements(*ref_stereo_frame);
+  CHECK(ssm_ptr);
+  ssm = *ssm_ptr;
 
   // Verify the correctness of the results!
   EXPECT_EQ(ssm.size(), num_valid + num_right_missing);
