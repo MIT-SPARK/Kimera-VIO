@@ -103,7 +103,7 @@ target_link_libraries(KimeraVIO
     Boost::boost
     ${OpenCV_LIBRARIES}
     gflags
-    glog::glog
+    glog
     gtsam
     gtsam_unstable
  )
@@ -131,7 +131,6 @@ target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
 ### Add testing
 option(BUILD_TESTS "Build tests" ON)
 if(BUILD_TESTS)
-
   # Download and unpack googletest at configure time
   # TODO Consider doing the same for glog, gflags, although it might
   # make the command `cmake ..` a bit slow.
@@ -200,7 +199,6 @@ if(BUILD_TESTS)
     # tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     )
-
   target_link_libraries(testKimeraVIO gtest KimeraVIO::KimeraVIO)
 
   if(CMAKE_VERSION VERSION_LESS 3.10)
@@ -220,43 +218,38 @@ endif(BUILD_TESTS)
 ## When findpackaged by other scripts, it will load the targets defined
 ## in the export KimeraVIO-export.
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY AnyNewerVersion
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion
 )
 
 # Create KimeraVIOConfig.cmake with extra info from KimeraVIOConfig.cmake.in
 # This file is necessary to find_package the library KimeraVIO.
 set(INSTALL_CONFIGDIR lib/cmake/KimeraVIO)
-configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/KimeraVIOConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
-    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
+configure_package_config_file(
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/KimeraVIOConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
+  INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
-option(EXPORT_KIMERA "Export KimeraVIO instead of installing it" OFF)
+option(EXPORT_KIMERA "Export KimeraVIO instead of installing it." OFF)
 if(EXPORT_KIMERA)
   export(TARGETS KimeraVIO
          FILE KimeraVIOTargets.cmake)
   export(PACKAGE KimeraVIO)
 else(EXPORT_KIMERA)
-  ## Installation instructions
   include(GNUInstallDirs)
-
   ## First of all, we need to install the library itself.
   install(TARGETS KimeraVIO
       EXPORT KimeraVIO-export
       LIBRARY DESTINATION lib
       ARCHIVE DESTINATION lib
-      #PUBLIC_HEADER DESTINATION include # Perhaps use this, instead of installing include dir
+      # Perhaps use this, instead of installing include dir
+      #PUBLIC_HEADER DESTINATION include
       INCLUDES DESTINATION include # We need this right?
       RUNTIME DESTINATION bin
   )
-
-  install(
-    DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
-    DESTINATION include
-    FILES_MATCHING PATTERN "*.h")
-
   install(EXPORT KimeraVIO-export
     FILE
       KimeraVIOTargets.cmake
@@ -265,9 +258,12 @@ else(EXPORT_KIMERA)
     DESTINATION
       ${INSTALL_CONFIGDIR}
   )
+  # Install header files
+  install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h")
 
   ## Install the config and configversion
-  ## Here you could also install custom cmake find modules
   install(FILES
       ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
       ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
@@ -275,7 +271,7 @@ else(EXPORT_KIMERA)
   )
 endif(EXPORT_KIMERA)
 
-###############################################################################
+################################################################################
 # Print configuration variables
 message(STATUS "===============================================================")
 message(STATUS "================  Configuration Options  ======================")
