@@ -22,7 +22,7 @@ pipeline {
         stage('Ubuntu 18.04') {
           agent {
               dockerfile {
-                filename 'Dockerfile'
+                filename 'Dockerfile_18_04'
                   args '-e WORKSPACE=$WORKSPACE'
               }
           }
