@@ -171,8 +171,14 @@ sudo make -j $(nproc)
 
 ## Glog/Gflags
 
+Linux
 ```bash
-sudo apt-get install libgoogle-glog-dev libgflags-dev
+sudo apt-get install libgflags-dev libgoogle-glog-dev
+```
+
+MacOS
+```bash
+brew install gflags glog
 ```
 
 ## Gtest
