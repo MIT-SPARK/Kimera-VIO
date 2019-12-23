@@ -60,6 +60,8 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   // Extract imu measurements between consecutive frames.
   static Timestamp timestamp_last_frame = 0;
   if (timestamp_last_frame == 0) {
+    // TODO(Toni): wouldn't it be better to get all IMU measurements up to this
+    // timestamp? We should add a method to the IMU buffer for that.
     VLOG(1) << "Skipping first frame, because we do not have a concept of "
                "a previous frame timestamp otherwise.";
     timestamp_last_frame = timestamp;
@@ -68,14 +70,15 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
 
   ImuMeasurements imu_meas;
   CHECK_LT(timestamp_last_frame, timestamp);
-  CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
-        imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-            timestamp_last_frame,
-            timestamp,
-            &imu_meas.timestamps_,
-            &imu_meas.acc_gyr_))
-      << "No IMU data from timestamp: " << timestamp
-      << " to timestamp: " << timestamp_last_frame;
+  while (utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable !=
+         imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+             timestamp_last_frame,
+             timestamp,
+             &imu_meas.timestamps_,
+             &imu_meas.acc_gyr_)) {
+    LOG_EVERY_N(WARNING, 10) << "No IMU data from timestamp: " << timestamp
+                             << " to timestamp: " << timestamp_last_frame;
+  }
   timestamp_last_frame = timestamp;
 
   VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
