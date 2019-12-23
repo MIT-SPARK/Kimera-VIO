@@ -1,5 +1,5 @@
 ### Add source code just for IDEs
-target_sources(KimeraVIO PRIVATE
+target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/RegularVioBackEnd-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/RegularVioBackEnd.h"
   "${CMAKE_CURRENT_LIST_DIR}/RegularVioBackEndParams.h"

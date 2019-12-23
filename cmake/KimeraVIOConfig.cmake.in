@@ -23,6 +23,6 @@ find_dependency(KimeraRPGO REQUIRED)
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
-if(NOT TARGET KimeraVIO)
+if(NOT TARGET kimera_vio)
   include("${KimeraVIO_CMAKE_DIR}/KimeraVIOTargets.cmake")
 endif()

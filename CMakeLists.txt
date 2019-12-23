@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.5)
-project(KimeraVIO VERSION 1.0 LANGUAGES CXX)
+project(kimera_vio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
 # Currently we do not have any custom find module...
@@ -49,10 +49,10 @@ execute_process(
 )
 
 ### Compile the code
-add_library(KimeraVIO SHARED "")
+add_library(kimera_vio SHARED "")
 # Add an alias so that library can be used inside the build tree,
 # e.g. when testing
-add_library(KimeraVIO::KimeraVIO ALIAS KimeraVIO)
+add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 
 ### Add source code for data provider.
 add_subdirectory(include/kimera-vio/dataprovider)
@@ -94,7 +94,7 @@ add_subdirectory(src/imu-frontend)
 add_subdirectory(include/kimera-vio/visualizer)
 add_subdirectory(src/visualizer)
 
-target_link_libraries(KimeraVIO
+target_link_libraries(kimera_vio
   PRIVATE
     opengv
     DBoW2::DBoW2
@@ -107,7 +107,7 @@ target_link_libraries(KimeraVIO
     gtsam
     gtsam_unstable
  )
-target_include_directories(KimeraVIO
+target_include_directories(kimera_vio
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
@@ -115,17 +115,17 @@ target_include_directories(KimeraVIO
     $<INSTALL_INTERFACE:include>
 )
 
-target_compile_options(KimeraVIO
+target_compile_options(kimera_vio
   PRIVATE -Wall -pipe
   PRIVATE -march=native
 )
 
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(KimeraVIO PUBLIC
+target_compile_features(kimera_vio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override)
 
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
+target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
 
 ############################### TESTS ##########################################
 ### Add testing
@@ -199,7 +199,7 @@ if(BUILD_TESTS)
     # tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     )
-  target_link_libraries(testKimeraVIO gtest KimeraVIO::KimeraVIO)
+  target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio)
 
   if(CMAKE_VERSION VERSION_LESS 3.10)
     enable_testing()
@@ -235,13 +235,13 @@ configure_package_config_file(
 
 option(EXPORT_KIMERA "Export KimeraVIO instead of installing it." OFF)
 if(EXPORT_KIMERA)
-  export(TARGETS KimeraVIO
+  export(TARGETS kimera_vio
          FILE KimeraVIOTargets.cmake)
-  export(PACKAGE KimeraVIO)
+  export(PACKAGE kimera_vio)
 else(EXPORT_KIMERA)
   include(GNUInstallDirs)
   ## First of all, we need to install the library itself.
-  install(TARGETS KimeraVIO
+  install(TARGETS kimera_vio
       EXPORT KimeraVIO-export
       LIBRARY DESTINATION lib
       ARCHIVE DESTINATION lib
@@ -254,7 +254,7 @@ else(EXPORT_KIMERA)
     FILE
       KimeraVIOTargets.cmake
     NAMESPACE
-      KimeraVIO::
+      kimera_vio::
     DESTINATION
       ${INSTALL_CONFIGDIR}
   )

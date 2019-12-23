@@ -1,5 +1,5 @@
 ### Add source code for IDEs
-target_sources(KimeraVIO PRIVATE
+target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/DataProviderInterface-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/DataProviderModule.h"
   "${CMAKE_CURRENT_LIST_DIR}/DataProviderInterface.h"
