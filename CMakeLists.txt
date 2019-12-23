@@ -28,7 +28,7 @@ if(NOT TARGET Boost::boost)
 endif()
 
 find_package(Gflags REQUIRED)
-find_package(Glog 0.4.0 REQUIRED)
+find_package(Glog 0.3.5 REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV 3.3.1 REQUIRED)
