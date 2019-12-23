@@ -27,6 +27,8 @@ if(NOT TARGET Boost::boost)
   INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
 endif()
 
+find_package(gflags REQUIRED)
+find_package(glog 0.4.0 REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV 3.3.1 REQUIRED)
@@ -45,11 +47,6 @@ execute_process(
   COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/vocabulary/ORBvoc.zip
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vocabulary
 )
-
-### External Dependencies
-include(ExternalProject)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
 
 ### Compile the code
 add_library(KimeraVIO SHARED "")
@@ -105,7 +102,7 @@ target_link_libraries(KimeraVIO
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES}
-    gflags::gflags
+    gflags
     glog::glog
     gtsam
     gtsam_unstable
@@ -236,13 +233,9 @@ configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/KimeraVIOConfig.cm
     INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
-set(EXPORTED_DEPENDENCIES "")
-list(APPEND EXPORTED_DEPENDENCIES "glog::glog")
-list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
-
 option(EXPORT_KIMERA "Export KimeraVIO instead of installing it" OFF)
 if(EXPORT_KIMERA)
-  export(TARGETS KimeraVIO ${EXPORTED_DEPENDENCIES}
+  export(TARGETS KimeraVIO
          FILE KimeraVIOTargets.cmake)
   export(PACKAGE KimeraVIO)
 else(EXPORT_KIMERA)
