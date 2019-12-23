@@ -214,35 +214,35 @@ endif(BUILD_TESTS)
 ############################### INSTALL/EXPORT #################################
 ## We install the export that we defined above
 ## Export the targets to a script
-## This will install the import script KimeraVIOTargets.cmake
+## This will install the import script kimera_vioTargets.cmake
 ## When findpackaged by other scripts, it will load the targets defined
-## in the export KimeraVIO-export.
+## in the export kimera_vio-export.
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfigVersion.cmake
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY AnyNewerVersion
 )
 
-# Create KimeraVIOConfig.cmake with extra info from KimeraVIOConfig.cmake.in
-# This file is necessary to find_package the library KimeraVIO.
-set(INSTALL_CONFIGDIR lib/cmake/KimeraVIO)
+# Create kimera_vioConfig.cmake with extra info from kimera_vioConfig.cmake.in
+# This file is necessary to find_package the library kimera_vio.
+set(INSTALL_CONFIGDIR lib/cmake/kimera_vio)
 configure_package_config_file(
-  ${CMAKE_CURRENT_LIST_DIR}/cmake/KimeraVIOConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/kimera_vioConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfig.cmake
   INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
-option(EXPORT_KIMERA "Export KimeraVIO instead of installing it." OFF)
+option(EXPORT_KIMERA "Export kimera_vio instead of installing it." OFF)
 if(EXPORT_KIMERA)
   export(TARGETS kimera_vio
-         FILE KimeraVIOTargets.cmake)
+         FILE kimera_vioTargets.cmake)
   export(PACKAGE kimera_vio)
 else(EXPORT_KIMERA)
   include(GNUInstallDirs)
   ## First of all, we need to install the library itself.
   install(TARGETS kimera_vio
-      EXPORT KimeraVIO-export
+      EXPORT kimera_vio-export
       LIBRARY DESTINATION lib
       ARCHIVE DESTINATION lib
       # Perhaps use this, instead of installing include dir
@@ -250,11 +250,9 @@ else(EXPORT_KIMERA)
       INCLUDES DESTINATION include # We need this right?
       RUNTIME DESTINATION bin
   )
-  install(EXPORT KimeraVIO-export
+  install(EXPORT kimera_vio-export
     FILE
-      KimeraVIOTargets.cmake
-    NAMESPACE
-      kimera_vio::
+      kimera_vioTargets.cmake
     DESTINATION
       ${INSTALL_CONFIGDIR}
   )
@@ -265,8 +263,10 @@ else(EXPORT_KIMERA)
 
   ## Install the config and configversion
   install(FILES
-      ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
-      ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
+      ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfig.cmake
+      ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfigVersion.cmake
+      ${CMAKE_CURRENT_LIST_DIR}/cmake/FindGflags.cmake
+      ${CMAKE_CURRENT_LIST_DIR}/cmake/FindGlog.cmake
       DESTINATION ${INSTALL_CONFIGDIR}
   )
 endif(EXPORT_KIMERA)
