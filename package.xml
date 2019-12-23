@@ -2,7 +2,7 @@
 <package format="2">
   <name>kimera_vio</name>
   <version>0.0.1</version>
-  <description>kimera_vio</description>
+  <description>KimeraVIO</description>
 
   <maintainer email="arosinol@mit.edu">Antoni Rosinol</maintainer>
   <license>BSD</license>
@@ -13,9 +13,9 @@
   <depend>GTSAM</depend>
   <depend>gflags</depend>
   <depend>glog</depend>
-  <depend>opencv3_catkin</depend>
-  <depend>opengv_catkin</depend>
-  <depend>dbow2_catkin</depend>
+  <depend>opencv</depend>
+  <depend>opengv</depend>
+  <depend>dbow2</depend>
   <export>
     <!-- Specify that this is not really a catkin package-->
     <build_type>cmake</build_type>
