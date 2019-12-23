@@ -87,8 +87,8 @@ struct MesherInput : public PipelinePayload {
       : PipelinePayload(timestamp),
         frontend_output_(frontend_payload),
         backend_output_(backend_payload) {
-    CHECK_NOTNULL(frontend_payload);
-    CHECK_NOTNULL(backend_payload);
+    CHECK(frontend_payload);
+    CHECK(backend_payload);
     CHECK_EQ(timestamp, frontend_payload->timestamp_);
     CHECK_EQ(timestamp, backend_payload->timestamp_);
   }
