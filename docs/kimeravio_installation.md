@@ -169,8 +169,14 @@ cmake ..
 sudo make -j $(nproc)
 ```
 
-## Glog, Gflags & Gtest
-Glog, Gflags, and Gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
+## Glog/Gflags
+
+```bash
+sudo apt-get install libgoogle-glog-dev libgflags-dev
+```
+
+## Gtest
+Gtest will be automatically downloaded using cmake.
 
 ## Install Kimera-VIO
 
