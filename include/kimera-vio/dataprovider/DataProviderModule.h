@@ -72,7 +72,7 @@ class DataProviderModule
                                          imu_measurement.acc_gyr_);
   }
 
-  // TODO(Toni): remove
+  // TODO(Toni): remove, register at ctor level.
   inline void registerVioPipelineCallback(const VioPipelineCallback& cb) {
     vio_pipeline_callback_ = cb;
   }

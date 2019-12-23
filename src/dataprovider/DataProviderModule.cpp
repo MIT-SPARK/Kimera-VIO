@@ -70,14 +70,46 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
 
   ImuMeasurements imu_meas;
   CHECK_LT(timestamp_last_frame, timestamp);
-  while (utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable !=
-         imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-             timestamp_last_frame,
-             timestamp,
-             &imu_meas.timestamps_,
-             &imu_meas.acc_gyr_)) {
-    LOG_EVERY_N(WARNING, 10) << "No IMU data from timestamp: " << timestamp
-                             << " to timestamp: " << timestamp_last_frame;
+  utils::ThreadsafeImuBuffer::QueryResult query_result =
+      utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
+  while (
+      (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+           timestamp_last_frame,
+           timestamp,
+           &imu_meas.timestamps_,
+           &imu_meas.acc_gyr_)) !=
+      utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
+    LOG_EVERY_N(WARNING, 10) << "No IMU data available. Reason:\n";
+    switch (query_result) {
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable: {
+        LOG(FATAL) << "We should not be inside this while loop if IMU data is "
+                      "available...";
+        break;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::kQueueShutdown: {
+        LOG(INFO)
+            << "IMU buffer was shutdown. Shutting down DataProviderModule.";
+        shutdown();
+        return nullptr;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable: {
+        LOG_EVERY_N(WARNING, 10)
+            << "No IMU data from last frame timestamp: " << timestamp_last_frame
+            << " to timestamp: " << timestamp;
+        continue;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
+        LOG_EVERY_N(WARNING, 10) << "Waiting for IMU data...";
+        continue;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::
+          kTooFewMeasurementsAvailable: {
+        LOG_EVERY_N(WARNING, 10)
+            << "Too few IMU measurements from last frame timestamp: "
+            << timestamp_last_frame << " to timestamp: " << timestamp;
+        continue;
+      }
+    }
   }
   timestamp_last_frame = timestamp;
 
