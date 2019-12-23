@@ -87,7 +87,7 @@ class Pipeline {
   // Register external callback to output the VIO backend results.
   inline void registerBackendOutputCallback(
       const VioBackEndModule::OutputCallback& callback) {
-    CHECK_NOTNULL(vio_backend_module_);
+    CHECK(vio_backend_module_);
     vio_backend_module_->registerCallback(callback);
   }
 
@@ -96,14 +96,14 @@ class Pipeline {
   // that type to go here instead.
   inline void registerFrontendOutputCallback(
       const StereoVisionFrontEndModule::OutputCallback& callback) {
-    CHECK_NOTNULL(vio_frontend_module_);
+    CHECK(vio_frontend_module_);
     vio_frontend_module_->registerCallback(callback);
   }
 
   // Register external callback to output mesher results.
   inline void registerMesherOutputCallback(
       const MesherModule::OutputCallback& callback) {
-    CHECK_NOTNULL(mesher_module_);
+    CHECK(mesher_module_);
     mesher_module_->registerCallback(callback);
   }
 

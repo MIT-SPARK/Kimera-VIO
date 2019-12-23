@@ -27,7 +27,8 @@ StereoVisionFrontEndModule::StereoVisionFrontEndModule(
 
 StereoVisionFrontEndModule::OutputUniquePtr
 StereoVisionFrontEndModule::spinOnce(StereoImuSyncPacket::UniquePtr input) {
-  return vio_frontend_->spinOnce(*CHECK_NOTNULL(input));
+  CHECK(input);
+  return vio_frontend_->spinOnce(*input);
 }
 
 //! Frontend Initialization

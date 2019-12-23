@@ -230,7 +230,7 @@ struct BackendInput : public PipelinePayload {
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         stereo_tracking_status_(stereo_tracking_status),
-        pim_(CHECK_NOTNULL(pim)),
+        pim_(pim),
         stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
 
   const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;

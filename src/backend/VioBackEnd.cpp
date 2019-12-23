@@ -332,10 +332,12 @@ void VioBackEnd::addVisualInertialStateAndOptimize(const BackendInput& input) {
       input.stereo_tracking_status_ == TrackingStatus::VALID;
   VLOG(10) << "Add visual inertial state and optimize.";
   VLOG_IF(10, use_stereo_btw_factor) << "Using stereo between factor.";
+  CHECK(input.status_stereo_measurements_kf_);
+  CHECK(input.pim_);
   addVisualInertialStateAndOptimize(
       input.timestamp_,  // Current time for fixed lag smoother.
-      *CHECK_NOTNULL(input.status_stereo_measurements_kf_),  // Vision data.
-      *CHECK_NOTNULL(input.pim_),  // Imu preintegrated data.
+      *input.status_stereo_measurements_kf_,  // Vision data.
+      *input.pim_,                            // Imu preintegrated data.
       use_stereo_btw_factor
           ? input.stereo_ransac_body_pose_
           : boost::none);  // optional: pose estimate from stereo ransac

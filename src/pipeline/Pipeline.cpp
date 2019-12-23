@@ -152,9 +152,9 @@ Pipeline::Pipeline(const VioParams& params)
           //! Only push to backend input queue if it is a keyframe!
           backend_input_queue.push(VIO::make_unique<BackendInput>(
               output->stereo_frame_lkf_.getTimestamp(),
-              CHECK_NOTNULL(output->status_stereo_measurements_),
+              output->status_stereo_measurements_,
               output->tracker_status_,
-              CHECK_NOTNULL(output->pim_),
+              output->pim_,
               output->relative_pose_body_stereo_));
         }
       });
@@ -168,6 +168,7 @@ Pipeline::Pipeline(const VioParams& params)
       FLAGS_visualize_lmk_type);
 
   //! Create backend
+  CHECK(backend_params_);
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
       &backend_input_queue_,
       parallel_run_,
@@ -175,7 +176,7 @@ Pipeline::Pipeline(const VioParams& params)
                                     // These two should be given by parameters.
                                     stereo_camera_->getLeftCamPose(),
                                     stereo_camera_->getStereoCalib(),
-                                    *CHECK_NOTNULL(backend_params_),
+                                    *backend_params_,
                                     imu_params_,
                                     backend_output_params,
                                     FLAGS_log_output));
@@ -265,7 +266,7 @@ Pipeline::~Pipeline() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
-  CHECK_NOTNULL(stereo_imu_sync_packet);
+  CHECK(stereo_imu_sync_packet);
   CHECK(!shutdown_) << "Pipeline is shutdown.";
   // Check if we have to re-initialize
   checkReInitialize(*stereo_imu_sync_packet);
