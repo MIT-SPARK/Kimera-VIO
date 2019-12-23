@@ -260,8 +260,8 @@ else(EXPORT_KIMERA)
   install(EXPORT KimeraVIO-export
     FILE
       KimeraVIOTargets.cmake
-      #NAMESPACE
-      #KimeraVIO::
+    NAMESPACE
+      KimeraVIO::
     DESTINATION
       ${INSTALL_CONFIGDIR}
   )
