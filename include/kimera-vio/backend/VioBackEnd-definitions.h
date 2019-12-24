@@ -223,20 +223,20 @@ struct BackendInput : public PipelinePayload {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   BackendInput(
       const Timestamp& timestamp_kf_nsec,
-      const StatusStereoMeasurements& status_stereo_measurements_kf,
+      const StatusStereoMeasurementsPtr& status_stereo_measurements_kf,
       const TrackingStatus& stereo_tracking_status,
-      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
+      const ImuFrontEnd::PimPtr& pim,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
       : PipelinePayload(timestamp_kf_nsec),
         status_stereo_measurements_kf_(status_stereo_measurements_kf),
         stereo_tracking_status_(stereo_tracking_status),
-        pim_(pim),
+        pim_(CHECK_NOTNULL(pim)),
         stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
 
-  const StatusStereoMeasurements status_stereo_measurements_kf_;
+  const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
   // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
   const TrackingStatus stereo_tracking_status_;
-  const gtsam::PreintegratedImuMeasurements pim_;
+  ImuFrontEnd::PimPtr pim_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
 
  public:
@@ -245,24 +245,24 @@ struct BackendInput : public PipelinePayload {
               << "Timestamp: " << timestamp_ << '\n'
               << "Status smart stereo measurements: "
               << "\n\t Meas size: "
-              << status_stereo_measurements_kf_.second.size();
+              << status_stereo_measurements_kf_->second.size();
 
     LOG(INFO)
         << "Mono Tracking Status: "
         << TrackerStatusSummary::asString(
-               status_stereo_measurements_kf_.first.kfTrackingStatus_mono_);
-    status_stereo_measurements_kf_.first.lkf_T_k_mono_.print(
+               status_stereo_measurements_kf_->first.kfTrackingStatus_mono_);
+    status_stereo_measurements_kf_->first.lkf_T_k_mono_.print(
         "\n\t Tracker Pose (mono): ");
     LOG(INFO)
         << "Stereo Tracking Status: "
         << TrackerStatusSummary::asString(
-               status_stereo_measurements_kf_.first.kfTrackingStatus_stereo_);
-    status_stereo_measurements_kf_.first.lkf_T_k_stereo_.print(
+               status_stereo_measurements_kf_->first.kfTrackingStatus_stereo_);
+    status_stereo_measurements_kf_->first.lkf_T_k_stereo_.print(
         "\n\t Tracker Pose (stereo): ");
 
     LOG(INFO) << "Stereo Tracking Status: "
               << TrackerStatusSummary::asString(stereo_tracking_status_);
-    pim_.print("PIM : ");
+    pim_->print("PIM : ");
     LOG_IF(INFO, stereo_ransac_body_pose_)
         << "Stereo Ransac Body Pose: " << *stereo_ransac_body_pose_;
   }

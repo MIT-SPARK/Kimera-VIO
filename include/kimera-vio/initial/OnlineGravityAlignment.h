@@ -28,13 +28,14 @@
 #include <gtsam/navigation/AHRSFactor.h>
 #include <gtsam/navigation/ImuFactor.h>
 
+#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/initial/OnlineGravityAlignment-definitions.h"
 
 namespace VIO {
 
 // Typedefs for online initialization
 typedef std::vector<gtsam::Pose3> AlignmentPoses;
-typedef std::vector<gtsam::PreintegratedImuMeasurements> AlignmentPims;
+typedef std::vector<ImuFrontEnd::PimPtr> AlignmentPims;
 typedef std::vector<VisualInertialFrame> VisualInertialFrames;
 typedef std::vector<gtsam::AHRSFactor::PreintegratedMeasurements>
     InitialAHRSPims;
