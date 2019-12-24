@@ -61,7 +61,7 @@ struct ReinitPacket {
     reinit_flag_ext_ = reinit_flag;
   }
   inline void resetReinitFlag() { reinit_flag_ext_ = false; }
-  inline void setReinitPose(gtsam::Pose3& external_pose) {
+  inline void setReinitPose(const gtsam::Pose3& external_pose) {
     W_Pose_Bext_ = external_pose;
   }
 
