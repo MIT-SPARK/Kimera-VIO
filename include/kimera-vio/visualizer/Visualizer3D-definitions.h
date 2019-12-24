@@ -48,9 +48,9 @@ struct VisualizerInput : public PipelinePayload {
         mesher_output_(mesher_output),
         backend_output_(backend_output),
         frontend_output_(frontend_output) {
-    CHECK_NOTNULL(mesher_output);
-    CHECK_NOTNULL(backend_output);
-    CHECK_NOTNULL(frontend_output);
+    CHECK(mesher_output);
+    CHECK(backend_output);
+    CHECK(frontend_output);
     CHECK_EQ(timestamp, mesher_output->timestamp_);
     CHECK_EQ(timestamp, frontend_output->timestamp_);
     CHECK_EQ(timestamp, backend_output->timestamp_);

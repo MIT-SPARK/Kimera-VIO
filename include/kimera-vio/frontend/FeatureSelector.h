@@ -22,7 +22,7 @@
 #include <random>
 
 // TODO clean number of include files, adds extra dependencies for ppl that
-// want to use this KimeraVIO library...
+// want to use this kimera_vio library...
 #include <gtsam/linear/GaussianFactorGraph.h>
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam/slam/RegularImplicitSchurFactor.h>

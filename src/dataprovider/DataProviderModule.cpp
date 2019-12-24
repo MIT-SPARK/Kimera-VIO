@@ -60,6 +60,8 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   // Extract imu measurements between consecutive frames.
   static Timestamp timestamp_last_frame = 0;
   if (timestamp_last_frame == 0) {
+    // TODO(Toni): wouldn't it be better to get all IMU measurements up to this
+    // timestamp? We should add a method to the IMU buffer for that.
     VLOG(1) << "Skipping first frame, because we do not have a concept of "
                "a previous frame timestamp otherwise.";
     timestamp_last_frame = timestamp;
@@ -68,14 +70,51 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
 
   ImuMeasurements imu_meas;
   CHECK_LT(timestamp_last_frame, timestamp);
-  CHECK(utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable ==
-        imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-            timestamp_last_frame,
-            timestamp,
-            &imu_meas.timestamps_,
-            &imu_meas.acc_gyr_))
-      << "No IMU data from timestamp: " << timestamp
-      << " to timestamp: " << timestamp_last_frame;
+  utils::ThreadsafeImuBuffer::QueryResult query_result =
+      utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
+  bool log_error_once = true;
+  while (
+      (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
+           timestamp_last_frame,
+           timestamp,
+           &imu_meas.timestamps_,
+           &imu_meas.acc_gyr_)) !=
+      utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
+    VLOG(1) << "No IMU data available. Reason:\n";
+    switch (query_result) {
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable: {
+        LOG(FATAL) << "We should not be inside this while loop if IMU data is "
+                      "available...";
+        break;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::kQueueShutdown: {
+        LOG(INFO)
+            << "IMU buffer was shutdown. Shutting down DataProviderModule.";
+        shutdown();
+        return nullptr;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable: {
+        LOG_EVERY_N(WARNING, 100)
+            << "No IMU data from last frame timestamp: " << timestamp_last_frame
+            << " to timestamp: " << timestamp;
+        continue;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
+        if (log_error_once) {
+          LOG(WARNING) << "Waiting for IMU data...";
+          log_error_once = false;
+        }
+        continue;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::
+          kTooFewMeasurementsAvailable: {
+        LOG_EVERY_N(WARNING, 100)
+            << "Too few IMU measurements from last frame timestamp: "
+            << timestamp_last_frame << " to timestamp: " << timestamp;
+        continue;
+      }
+    }
+  }
   timestamp_last_frame = timestamp;
 
   VLOG(10) << "////////////////////////////////////////// Creating packet!\n"

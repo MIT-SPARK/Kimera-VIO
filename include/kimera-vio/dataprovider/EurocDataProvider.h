@@ -51,7 +51,7 @@ class EurocDataProvider : public DataProviderInterface {
                     const std::string& frontend_params_path,
                     const std::string& lcd_params_path);
   // Ctor from gflags
-  explicit EurocDataProvider(const bool& parallel_run);
+  explicit EurocDataProvider();
   virtual ~EurocDataProvider();
 
  public:
@@ -181,9 +181,6 @@ class EurocDataProvider : public DataProviderInterface {
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";
   const std::string kImuName = "imu0";
-
-  //! Whether the dataset provider will run in parallel mode or not.
-  const bool parallel_run_;
 };
 
 }  // namespace VIO

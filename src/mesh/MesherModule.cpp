@@ -58,7 +58,8 @@ MesherModule::InputUniquePtr MesherModule::getInputPacket() {
 
 MesherModule::OutputUniquePtr MesherModule::spinOnce(
     MesherInput::UniquePtr input) {
-  return mesher_->spinOnce(*CHECK_NOTNULL(input));
+  CHECK(input);
+  return mesher_->spinOnce(*input);
 }
 
 void MesherModule::shutdownQueues() {

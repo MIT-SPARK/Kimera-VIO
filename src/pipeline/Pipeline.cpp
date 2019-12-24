@@ -152,9 +152,9 @@ Pipeline::Pipeline(const VioParams& params)
           //! Only push to backend input queue if it is a keyframe!
           backend_input_queue.push(VIO::make_unique<BackendInput>(
               output->stereo_frame_lkf_.getTimestamp(),
-              CHECK_NOTNULL(output->status_stereo_measurements_),
+              output->status_stereo_measurements_,
               output->tracker_status_,
-              CHECK_NOTNULL(output->pim_),
+              output->pim_,
               output->relative_pose_body_stereo_));
         }
       });
@@ -168,6 +168,7 @@ Pipeline::Pipeline(const VioParams& params)
       FLAGS_visualize_lmk_type);
 
   //! Create backend
+  CHECK(backend_params_);
   vio_backend_module_ = VIO::make_unique<VioBackEndModule>(
       &backend_input_queue_,
       parallel_run_,
@@ -175,7 +176,7 @@ Pipeline::Pipeline(const VioParams& params)
                                     // These two should be given by parameters.
                                     stereo_camera_->getLeftCamPose(),
                                     stereo_camera_->getStereoCalib(),
-                                    *CHECK_NOTNULL(backend_params_),
+                                    *backend_params_,
                                     imu_params_,
                                     backend_output_params,
                                     FLAGS_log_output));
@@ -265,7 +266,7 @@ Pipeline::~Pipeline() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
-  CHECK_NOTNULL(stereo_imu_sync_packet);
+  CHECK(stereo_imu_sync_packet);
   CHECK(!shutdown_) << "Pipeline is shutdown.";
   // Check if we have to re-initialize
   checkReInitialize(*stereo_imu_sync_packet);
@@ -304,6 +305,7 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
     // Run the pipeline sequentially.
     if (!parallel_run_) spinSequential();
   }
+
   return;
 }
 
@@ -416,9 +418,9 @@ void Pipeline::shutdown() {
   LOG(INFO) << "Shutting down VIO pipeline.";
   shutdown_ = true;
   stopThreads();
-  // if (parallel_run_) {
-  joinThreads();
-  //}
+  if (parallel_run_) {
+    joinThreads();
+  }
   LOG(INFO) << "Pipeline destructor finished.";
 }
 
@@ -836,6 +838,7 @@ void Pipeline::stopThreads() {
   LOG(INFO) << "Stopping workers and queues...";
 
   LOG(INFO) << "Stopping data provider module...";
+  CHECK(data_provider_module_);
   data_provider_module_->shutdown();
 
   LOG(INFO) << "Stopping backend module and queues...";
@@ -863,6 +866,9 @@ void Pipeline::stopThreads() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::joinThreads() {
+  LOG_IF(WARNING, !parallel_run_)
+      << "Asked to join threads while in sequential mode, this is ok, but "
+      << "should not happen.";
   LOG(INFO) << "Joining threads...";
 
   if (backend_thread_) {

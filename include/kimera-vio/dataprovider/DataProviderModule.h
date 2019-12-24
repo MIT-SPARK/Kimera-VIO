@@ -18,6 +18,8 @@
 #include <string>
 #include <utility>  // for move
 
+#include <glog/logging.h>
+
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/StereoMatchingParams.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
@@ -70,7 +72,7 @@ class DataProviderModule
                                          imu_measurement.acc_gyr_);
   }
 
-  // TODO(Toni): remove
+  // TODO(Toni): remove, register at ctor level.
   inline void registerVioPipelineCallback(const VioPipelineCallback& cb) {
     vio_pipeline_callback_ = cb;
   }

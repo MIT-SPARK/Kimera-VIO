@@ -169,8 +169,20 @@ cmake ..
 sudo make -j $(nproc)
 ```
 
-## Glog, Gflags & Gtest
-Glog, Gflags, and Gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
+## Glog/Gflags
+
+Linux
+```bash
+sudo apt-get install libgflags-dev libgoogle-glog-dev
+```
+
+MacOS
+```bash
+brew install gflags glog
+```
+
+## Gtest
+Gtest will be automatically downloaded using cmake.
 
 ## Bag-of-Words Vocabulary
 

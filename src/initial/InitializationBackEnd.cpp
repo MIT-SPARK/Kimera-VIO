@@ -162,10 +162,10 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
     VLOG(5) << "Adding initial visual state.";
     VLOG_IF(5, use_stereo_btw_factor) << "Using stereo between factor.";
     // Features and IMU line up --> do iSAM update
+    CHECK(input_iter.status_stereo_measurements_kf_);
     addInitialVisualState(
         input_iter.timestamp_,  // Current time for fixed lag smoother.
-        *CHECK_NOTNULL(
-            input_iter.status_stereo_measurements_kf_),  // Vision data.
+        *input_iter.status_stereo_measurements_kf_,  // Vision data.
         use_stereo_btw_factor ? input_iter.stereo_ransac_body_pose_
                               : boost::none,
         0);

@@ -75,9 +75,9 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
   // not take the last measurement into account (although it takes its stamp
   // into account!!!).
   auto tic_full_preint = utils::Timer::tic();
-  const ImuFrontEnd::PimPtr& pim =
-      CHECK_NOTNULL(imu_frontend_->preintegrateImuMeasurements(
-          input.getImuStamps(), input.getImuAccGyr()));
+  const ImuFrontEnd::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
+      input.getImuStamps(), input.getImuAccGyr());
+  CHECK(pim);
 
   auto full_preint_duration =
       utils::Timer::toc<std::chrono::microseconds>(tic_full_preint).count();

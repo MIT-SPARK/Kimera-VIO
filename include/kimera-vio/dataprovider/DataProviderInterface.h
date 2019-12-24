@@ -35,13 +35,24 @@ class DataProviderInterface {
   typedef std::function<void(const ImuMeasurements&)> ImuMultiInputCallback;
   typedef std::function<void(Frame::UniquePtr)> FrameInputCallback;
 
-  /** Regular ctor.
-   *   [in] initial_k: first frame id to be parsed.
-   *   [in] final_k: last frame id to be parsed.
-   *   [in] dataset_path: path to the Euroc dataset.
-   **/
+  /**
+   * @brief DataProviderInterface
+   * @param initial_k
+   * @param final_k
+   * @param parallel_run: if the pipeline should be run in parallel or
+   * sequential mode
+   * Params below are all paths.
+   * @param dataset_path
+   * @param left_cam_params_path
+   * @param right_cam_params_path
+   * @param imu_params_path
+   * @param backend_params_path
+   * @param frontend_params_path
+   * @param lcd_params_path
+   */
   DataProviderInterface(const int& initial_k,
                         const int& final_k,
+                        const bool& parallel_run,
                         const std::string& dataset_path,
                         const std::string& left_cam_params_path,
                         const std::string& right_cam_params_path,

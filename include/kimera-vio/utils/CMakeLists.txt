@@ -1,5 +1,5 @@
 ### Add includes for stereoVIO
-target_sources(KimeraVIO
+target_sources(kimera_vio
     PRIVATE
     "${CMAKE_CURRENT_LIST_DIR}/Accumulator.h"
     "${CMAKE_CURRENT_LIST_DIR}/Histogram.h"
@@ -16,5 +16,3 @@ target_sources(KimeraVIO
     "${CMAKE_CURRENT_LIST_DIR}/UtilsOpenCV.h"
     "${CMAKE_CURRENT_LIST_DIR}/YamlParser.h"
 )
-target_include_directories(KimeraVIO PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-

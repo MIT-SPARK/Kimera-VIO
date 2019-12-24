@@ -66,7 +66,8 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
 
 VisualizerModule::OutputUniquePtr VisualizerModule::spinOnce(
     VisualizerInput::UniquePtr input) {
-  return visualizer_->spinOnce(*CHECK_NOTNULL(input));
+  CHECK(input);
+  return visualizer_->spinOnce(*input);
 }
 
 void VisualizerModule::shutdownQueues() {

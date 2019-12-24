@@ -14,10 +14,10 @@
 
 #pragma once
 
+#include <stdlib.h>
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <stdlib.h>
 #include <string>
 
 #include <glog/logging.h>
@@ -29,19 +29,22 @@
 namespace VIO {
 
 class YamlParser {
-public:
- KIMERA_POINTER_TYPEDEFS(YamlParser);
+ public:
+  KIMERA_POINTER_TYPEDEFS(YamlParser);
 
- YamlParser(const std::string& filepath) : fs_() { openFile(filepath, &fs_); }
- ~YamlParser() { closeFile(&fs_); }
+  YamlParser(const std::string& filepath) : fs_(), filepath_(filepath) {
+    openFile(filepath, &fs_);
+  }
+  ~YamlParser() { closeFile(&fs_); }
 
- template <class T>
- void getYamlParam(const std::string& id, T* output) const {
-   CHECK(!id.empty());
-   const cv::FileNode& file_handle = fs_[id];
-   CHECK_NE(file_handle.type(), cv::FileNode::NONE)
-       << "Missing parameter: " << id.c_str();
-   file_handle >> *CHECK_NOTNULL(output);
+  template <class T>
+  void getYamlParam(const std::string& id, T* output) const {
+    CHECK(!id.empty());
+    const cv::FileNode& file_handle = fs_[id];
+    CHECK_NE(file_handle.type(), cv::FileNode::NONE)
+        << "Missing parameter: " << id.c_str()
+        << " in file: " << filepath_.c_str();
+    file_handle >> *CHECK_NOTNULL(output);
   }
 
   template <class T>
@@ -52,11 +55,13 @@ public:
     CHECK(!id_2.empty());
     const cv::FileNode& file_handle = fs_[id];
     CHECK_NE(file_handle.type(), cv::FileNode::NONE)
-        << "Missing parameter: " << id.c_str();
+        << "Missing parameter: " << id.c_str()
+        << " in file: " << filepath_.c_str();
     const cv::FileNode& file_handle_2 = file_handle[id_2];
     CHECK_NE(file_handle_2.type(), cv::FileNode::NONE)
         << "Missing nested parameter: " << id_2.c_str() << " inside "
-        << id.c_str();
+        << id.c_str() << '\n'
+        << " in file: " << filepath_.c_str();
     CHECK(file_handle.isMap())
         << "I think that if this is not a map, we can't use >>";
     file_handle_2 >> *CHECK_NOTNULL(output);
@@ -76,12 +81,13 @@ public:
         << " (remember that the first line should be: %YAML:1.0)";
   }
 
-  inline void closeFile(cv::FileStorage *fs) const {
+  inline void closeFile(cv::FileStorage* fs) const {
     CHECK_NOTNULL(fs)->release();
   }
 
-private:
+ private:
   cv::FileStorage fs_;
+  std::string filepath_;
 };
 
-} // namespace VIO
+}  // namespace VIO

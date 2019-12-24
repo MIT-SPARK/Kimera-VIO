@@ -10,6 +10,8 @@ if(NOT TARGET Boost::boost)
   INTERFACE_LINK_LIBRARIES "${Boost_LIBRARIES}"
   INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
 endif()
+find_dependency(Gflags REQUIRED)
+find_dependency(Glog 0.3.5 REQUIRED)
 find_dependency(GTSAM REQUIRED)
 find_dependency(OpenCV REQUIRED)
 find_dependency(opengv REQUIRED)
@@ -17,12 +19,10 @@ find_dependency(DBoW2 REQUIRED)
 find_dependency(KimeraRPGO REQUIRED)
 
 # We should set those right?
-#find_dependency(glog REQUIRED)
-#find_dependency(gflags REQUIRED)
 #find_dependency(Thread REQUIRED)
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
-if(NOT TARGET KimeraVIO)
-  include("${KimeraVIO_CMAKE_DIR}/KimeraVIOTargets.cmake")
+if(NOT TARGET kimera_vio)
+  include("${KimeraVIO_CMAKE_DIR}/kimera_vioTargets.cmake")
 endif()

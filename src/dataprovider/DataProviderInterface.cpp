@@ -23,6 +23,7 @@
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 
+DEFINE_bool(parallel_run, true, "Run VIO parallel or sequential");
 DEFINE_string(left_cam_params_path, "", "Path to Left Camera parameters.");
 DEFINE_string(right_cam_params_path, "", "Path to Right Camera parameters.");
 DEFINE_string(imu_params_path, "", "Path to IMU parameters.");
@@ -55,6 +56,7 @@ namespace VIO {
 DataProviderInterface::DataProviderInterface(
     const int& initial_k,
     const int& final_k,
+    const bool& parallel_run,
     const std::string& dataset_path,
     const std::string& left_cam_params_path,
     const std::string& right_cam_params_path,
@@ -73,6 +75,9 @@ DataProviderInterface::DataProviderInterface(
       frontend_params_path_(frontend_params_path),
       lcd_params_path_(lcd_params_path) {
   parseParams();
+
+  // Get whether we run the pipeline in parallel mode or in sequential mode;
+  pipeline_params_.parallel_run_ = parallel_run;
 
   // Start processing dataset from frame initial_k.
   // Useful to skip a bunch of images at the beginning (imu calibration).
@@ -95,6 +100,7 @@ DataProviderInterface::DataProviderInterface(
 DataProviderInterface::DataProviderInterface()
     : DataProviderInterface(FLAGS_initial_k,
                             FLAGS_final_k,
+                            FLAGS_parallel_run,
                             FLAGS_dataset_path,
                             FLAGS_left_cam_params_path,
                             FLAGS_right_cam_params_path,

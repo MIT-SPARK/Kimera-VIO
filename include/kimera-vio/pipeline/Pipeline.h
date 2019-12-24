@@ -44,10 +44,6 @@ class Pipeline {
   KIMERA_DELETE_COPY_CONSTRUCTORS(Pipeline);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // Typedefs
-  typedef std::function<void(const SpinOutputPacket&)>
-      KeyframeRateOutputCallback;
-
  public:
   explicit Pipeline(const VioParams& params);
 
@@ -88,15 +84,31 @@ class Pipeline {
   // Resumes all queues
   void resume();
 
-  // Callback to output the VIO backend results at keyframe rate.
-  // This callback also allows to
-  inline void registerKeyFrameRateOutputCallback(
-      KeyframeRateOutputCallback callback) {
-    keyframe_rate_output_callback_ = callback;
+  // Register external callback to output the VIO backend results.
+  inline void registerBackendOutputCallback(
+      const VioBackEndModule::OutputCallback& callback) {
+    CHECK(vio_backend_module_);
+    vio_backend_module_->registerCallback(callback);
   }
 
-  // Callback to output the LoopClosureDetector's loop-closure/PGO results.
-  inline void registerLcdPgoOutputCallback(
+  // Register external callback to output the VIO frontend results.
+  // TODO(marcus): once we have a base class for StereoVisionFrontend, we need 
+  // that type to go here instead.
+  inline void registerFrontendOutputCallback(
+      const StereoVisionFrontEndModule::OutputCallback& callback) {
+    CHECK(vio_frontend_module_);
+    vio_frontend_module_->registerCallback(callback);
+  }
+
+  // Register external callback to output mesher results.
+  inline void registerMesherOutputCallback(
+      const MesherModule::OutputCallback& callback) {
+    CHECK(mesher_module_);
+    mesher_module_->registerCallback(callback);
+  }
+
+  // Register external callback to output the LoopClosureDetector's results.
+  inline void registerLcdOutputCallback(
       const LcdModule::OutputCallback& callback) {
     if (lcd_module_) {
       lcd_module_->registerCallback(callback);
@@ -114,6 +126,7 @@ class Pipeline {
    */
   bool spin() {
     // Feed data to the pipeline
+    CHECK(data_provider_module_);
     return data_provider_module_->spin();
   }
 
@@ -180,12 +193,7 @@ class Pipeline {
   // Join threads to do a clean shutdown.
   void joinThreads();
 
- private:
-  //! Callbacks.
-  KeyframeRateOutputCallback keyframe_rate_output_callback_;
-
-  //! Parameters
-  // TODO(Toni): aren't all of these already in pipeline_params?
+  // Init Vio parameter
   VioBackEndParams::ConstPtr backend_params_;
   VioFrontEndParams frontend_params_;
   ImuParams imu_params_;

@@ -82,13 +82,7 @@ class Visualizer3D {
    */
   virtual VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input);
 
- private:
-  /* ------------------------------------------------------------------------ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static cv::Mat visualizeMesh2D(
-      const std::vector<cv::Vec6f>& triangulation2D,
-      const cv::Mat& img,
-      const KeypointsCV& extra_keypoints = KeypointsCV());
+  // TODO(marcus): Is there any reason the following two methods must be private?
 
   /* ------------------------------------------------------------------------ */
   // Visualize 2d mesh.
@@ -96,6 +90,14 @@ class Visualizer3D {
       const std::vector<cv::Vec6f>& triangulation_2D,
       const Frame& ref_frame);
 
+  /* ------------------------------------------------------------------------ */
+  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  static cv::Mat visualizeMesh2D(
+      const std::vector<cv::Vec6f>& triangulation2D,
+      const cv::Mat& img,
+      const KeypointsCV& extra_keypoints = KeypointsCV());
+
+ private:
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks.
   void visualizePoints3D(const PointsWithIdMap& points_with_id,

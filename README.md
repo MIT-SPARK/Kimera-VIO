@@ -66,7 +66,8 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
 - [OpenCV](https://github.com/opencv/opencv) >= 3.3.1
 - [OpenGV](https://github.com/laurentkneip/opengv)
-- [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
+- [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/)
+- [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
 - [DBoW2](https://github.com/dorian3d/DBoW2)
 - [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
 

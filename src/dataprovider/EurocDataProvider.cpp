@@ -43,17 +43,18 @@ EurocDataProvider::EurocDataProvider(const bool& parallel_run,
                                      const std::string& lcd_params_path)
     : DataProviderInterface(initial_k,
                             final_k,
+                            parallel_run,
                             dataset_path,
                             left_cam_params_path,
                             right_cam_params_path,
                             imu_params_path,
                             backend_params_path,
                             frontend_params_path,
-                            lcd_params_path),
-      parallel_run_(parallel_run) {}
+                            lcd_params_path) {}
 
-EurocDataProvider::EurocDataProvider(const bool& parallel_run)
-    : DataProviderInterface(), parallel_run_(parallel_run) {}
+/* -------------------------------------------------------------------------- */
+EurocDataProvider::EurocDataProvider()
+    : DataProviderInterface() {}
 
 /* -------------------------------------------------------------------------- */
 EurocDataProvider::~EurocDataProvider() {
@@ -75,7 +76,7 @@ bool EurocDataProvider::spin() {
   CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
   CHECK_GT(final_k_, initial_k_);
   while (spinOnce()) {
-    if (!parallel_run_) {
+    if (!pipeline_params_.parallel_run_) {
       return true;
     }
   }

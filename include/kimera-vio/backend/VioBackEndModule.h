@@ -50,7 +50,8 @@ class VioBackEndModule
   virtual ~VioBackEndModule() = default;
 
   virtual OutputUniquePtr spinOnce(BackendInput::UniquePtr input) {
-    return vio_backend_->spinOnce(*CHECK_NOTNULL(input));
+    CHECK(input);
+    return vio_backend_->spinOnce(*input);
   }
 
  public:

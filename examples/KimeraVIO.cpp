@@ -28,7 +28,6 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
-DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
 DEFINE_int32(dataset_type,
              0,
              "Type of parser to use:\n"
@@ -42,11 +41,11 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   // Build dataset parser.
-  std::unique_ptr<VIO::DataProviderInterface> dataset_parser;
+  VIO::DataProviderInterface::UniquePtr dataset_parser = nullptr;
   switch (FLAGS_dataset_type) {
     case 0: {
       dataset_parser =
-          VIO::make_unique<VIO::EurocDataProvider>(FLAGS_parallel_run);
+          VIO::make_unique<VIO::EurocDataProvider>();
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
@@ -57,7 +56,6 @@ int main(int argc, char* argv[]) {
     }
   }
   CHECK(dataset_parser);
-  dataset_parser->pipeline_params_.parallel_run_ = FLAGS_parallel_run;
 
   VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
 
@@ -78,7 +76,7 @@ int main(int argc, char* argv[]) {
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
-  if (FLAGS_parallel_run) {
+  if (dataset_parser->pipeline_params_.parallel_run_) {
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
                              std::move(dataset_parser));
@@ -95,6 +93,7 @@ int main(int argc, char* argv[]) {
     while (dataset_parser->spin()) {
       vio_pipeline.spin();
     };
+    vio_pipeline.shutdown();
     is_pipeline_successful = true;
   }
 
