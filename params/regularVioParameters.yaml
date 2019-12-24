@@ -1,12 +1,8 @@
 %YAML:1.0
-#IMU PARAMETERS
-gyroNoiseDensity: 0.00016968
-accNoiseDensity: 0.002
-gyroBiasSigma: 1.9393e-05
-accBiasSigma: 0.003
-imuIntegrationSigma: 1.0e-8
-n_gravity: [0.0, 0.0, -9.81]
-nominalImuRate: 0.005
+# Backend modality for regular VIO
+# 0: Structureless factors only, 4: SPR pipeline
+backend_modality: 0
+
 #INITIALIZATION PARAMETERS
 autoInitialize: 0
 roundOnAutoInitialize: 0
@@ -33,7 +29,7 @@ rankTolerance: 1
 landmarkDistanceThreshold: 15
 outlierRejection: 8
 retriangulationThreshold: 0.001
-addBetweenStereoFactors: 1
+addBetweenStereoFactors: 0
 betweenRotationPrecision: 0 # Inverse of variance.
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 #OPTIMIZATION PARAMETERS

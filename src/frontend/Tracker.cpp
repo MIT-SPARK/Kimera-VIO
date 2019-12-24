@@ -82,7 +82,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
     cur_frame->landmarksAge_.push_back(1);  // seen in a single (key)frame
     cur_frame->keypoints_.push_back(corners_with_scores.first.at(i));
     cur_frame->scores_.push_back(corners_with_scores.second.at(i));
-    cur_frame->versors_.push_back(Frame::CalibratePixel(
+    cur_frame->versors_.push_back(Frame::calibratePixel(
         corners_with_scores.first.at(i), cur_frame->cam_param_));
     ++landmark_count_;
   }
@@ -96,8 +96,10 @@ void Tracker::featureDetection(Frame* cur_frame) {
   /* --------------------------------------------------------------------------
    */
   std::pair<KeypointsCV, std::vector<double>> Tracker::featureDetection(
-      const Frame& cur_frame, const VioFrontEndParams& tracker_params,
-      const cv::Mat& cam_mask, const int need_n_corners) {
+      const Frame& cur_frame,
+      const VioFrontEndParams& tracker_params,
+      const cv::Mat& cam_mask,
+      const int need_n_corners) {
     // Create mask such that new keypoints are not close to old ones.
     cv::Mat mask;
     cam_mask.copyTo(mask);
@@ -112,9 +114,14 @@ void Tracker::featureDetection(Frame* cur_frame) {
     std::pair<KeypointsCV, std::vector<double>> corners_with_scores;
     if (need_n_corners > 0) {
       UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
-          cur_frame.img_, need_n_corners, tracker_params.quality_level_,
-          tracker_params.min_distance_, mask, tracker_params.block_size_,
-          tracker_params.use_harris_detector_, tracker_params.k_,
+          cur_frame.img_,
+          need_n_corners,
+          tracker_params.quality_level_,
+          tracker_params.min_distance_,
+          mask,
+          tracker_params.block_size_,
+          tracker_params.use_harris_detector_,
+          tracker_params.k_,
           &corners_with_scores);
     }
 
@@ -186,7 +193,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
           cur_frame->scores_.push_back(ref_frame->scores_[i_ref]);
           cur_frame->keypoints_.push_back(px_cur[i]);
           cur_frame->versors_.push_back(
-              Frame::CalibratePixel(px_cur[i], ref_frame->cam_param_));
+              Frame::calibratePixel(px_cur[i], ref_frame->cam_param_));
           ++n;
         }
         int maxAge = *std::max_element(
@@ -274,7 +281,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
     // Get the resulting transformation: a 3x4 matrix [R t].
     opengv::transformation_t best_transformation = ransac.model_coefficients_;
     gtsam::Pose3 camLrectlkf_P_camLrectkf =
-        UtilsOpenCV::Gvtrans2pose(best_transformation);
+        UtilsOpenCV::openGvTfToGtsamPose3(best_transformation);
 
     // TODO(Toni) @Luca?
     // check if we have to compensate for rectification (if we have a valid
@@ -393,7 +400,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
     // Get the resulting transformation: a 3x4 matrix [R t].
     opengv::transformation_t best_transformation = ransac.model_coefficients_;
     gtsam::Pose3 camLlkf_P_camLkf =
-        UtilsOpenCV::Gvtrans2pose(best_transformation);
+        UtilsOpenCV::openGvTfToGtsamPose3(best_transformation);
     // note: this always returns the identity rotation, hence we have to
     // substitute it:
     camLlkf_P_camLkf = gtsam::Pose3(R, camLlkf_P_camLkf.translation());
@@ -404,9 +411,9 @@ void Tracker::featureDetection(Frame* cur_frame) {
     if (ref_frame->cam_param_.R_rectify_.rows == 3 &&
         cur_frame->cam_param_.R_rectify_.rows == 3) {
       gtsam::Rot3 camLrect_R_camL_ref =
-          UtilsOpenCV::Cvmat2rot(ref_frame->cam_param_.R_rectify_);
+          UtilsOpenCV::cvMatToGtsamRot3(ref_frame->cam_param_.R_rectify_);
       gtsam::Rot3 camLrect_R_camL_cut =
-          UtilsOpenCV::Cvmat2rot(cur_frame->cam_param_.R_rectify_);
+          UtilsOpenCV::cvMatToGtsamRot3(cur_frame->cam_param_.R_rectify_);
       camLrectlkf_P_camLrectkf =
           gtsam::Pose3(camLrect_R_camL_ref, Point3()) * camLlkf_P_camLkf *
           gtsam::Pose3(camLrect_R_camL_cut.inverse(), Point3());
@@ -426,8 +433,10 @@ void Tracker::featureDetection(Frame* cur_frame) {
   /* --------------------------------------------------------------------------
    */
   std::pair<Vector3, Matrix3> Tracker::getPoint3AndCovariance(
-      const StereoFrame& stereoFrame, const gtsam::StereoCamera& stereoCam,
-      const size_t pointId, const Matrix3& stereoPtCov,
+      const StereoFrame& stereoFrame,
+      const gtsam::StereoCamera& stereoCam,
+      const size_t pointId,
+      const Matrix3& stereoPtCov,
       boost::optional<gtsam::Matrix3> Rmat) {
     gtsam::StereoPoint2 stereoPoint = gtsam::StereoPoint2(
         static_cast<double>(stereoFrame.left_keypoints_rectified_[pointId].x),
@@ -756,8 +765,8 @@ void Tracker::featureDetection(Frame* cur_frame) {
     debugInfo_.nrStereoPutatives_ = matches_ref_cur.size();
     debugInfo_.stereoRansacIters_ = ransac.iterations_;
 
-    return std::make_pair(status,
-                          UtilsOpenCV::Gvtrans2pose(best_transformation));
+    return std::make_pair(
+        status, UtilsOpenCV::openGvTfToGtsamPose3(best_transformation));
   }
 
   /* ------------------------------------------------------------------------ */
@@ -783,31 +792,31 @@ void Tracker::featureDetection(Frame* cur_frame) {
   /* --------------------------------------------------------------------------
    */
   void Tracker::checkStatusRightKeypoints(
-      const std::vector<Kstatus>& right_keypoints_status) {
+      const std::vector<KeypointStatus>& right_keypoints_status) {
     debugInfo_.nrValidRKP_ = 0;
     debugInfo_.nrNoLeftRectRKP_ = 0;
     debugInfo_.nrNoRightRectRKP_ = 0;
     debugInfo_.nrNoDepthRKP_ = 0;
     debugInfo_.nrFailedArunRKP_ = 0;
-    for (const Kstatus& right_keypoint_status : right_keypoints_status) {
+    for (const KeypointStatus& right_keypoint_status : right_keypoints_status) {
       switch (right_keypoint_status) {
-        case Kstatus::VALID: {
+        case KeypointStatus::VALID: {
           debugInfo_.nrValidRKP_++;
           break;
         }
-        case Kstatus::NO_LEFT_RECT: {
+        case KeypointStatus::NO_LEFT_RECT: {
           debugInfo_.nrNoLeftRectRKP_++;
           break;
         }
-        case Kstatus::NO_RIGHT_RECT: {
+        case KeypointStatus::NO_RIGHT_RECT: {
           debugInfo_.nrNoRightRectRKP_++;
           break;
         }
-        case Kstatus::NO_DEPTH: {
+        case KeypointStatus::NO_DEPTH: {
           debugInfo_.nrNoDepthRKP_++;
           break;
         }
-        case Kstatus::FAILED_ARUN: {
+        case KeypointStatus::FAILED_ARUN: {
           debugInfo_.nrFailedArunRKP_++;
           break;
         }
@@ -853,13 +862,13 @@ void Tracker::featureDetection(Frame* cur_frame) {
     // int.
     for (const size_t& i : outliers) {
       ref_stereoFrame.right_keypoints_status_.at(matches_ref_cur[i].first) =
-          Kstatus::FAILED_ARUN;
+          KeypointStatus::FAILED_ARUN;
       ref_stereoFrame.keypoints_depth_.at(matches_ref_cur[i].first) = 0.0;
       ref_stereoFrame.keypoints_3d_.at(matches_ref_cur[i].first) =
           Vector3::Zero();
 
       cur_stereoFrame.right_keypoints_status_.at(matches_ref_cur[i].second) =
-          Kstatus::FAILED_ARUN;
+          KeypointStatus::FAILED_ARUN;
       cur_stereoFrame.keypoints_depth_.at(matches_ref_cur[i].second) = 0.0;
       cur_stereoFrame.keypoints_3d_.at(matches_ref_cur[i].second) =
           Vector3::Zero();
@@ -925,8 +934,10 @@ void Tracker::featureDetection(Frame* cur_frame) {
       const size_t& ind_ref = matches_ref_cur_mono[i].first;
       const size_t& ind_cur = matches_ref_cur_mono[i].second;
       // At this point we already discarded keypoints with landmark = -1
-      if (ref_stereoFrame.right_keypoints_status_[ind_ref] == Kstatus::VALID &&
-          cur_stereoFrame.right_keypoints_status_[ind_cur] == Kstatus::VALID) {
+      if (ref_stereoFrame.right_keypoints_status_[ind_ref] ==
+              KeypointStatus::VALID &&
+          cur_stereoFrame.right_keypoints_status_[ind_cur] ==
+              KeypointStatus::VALID) {
         // Pair of points that has 3D in both stereoFrames.
         matches_ref_cur_stereo->push_back(matches_ref_cur_mono[i]);
       }
@@ -1014,10 +1025,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
     cv::waitKey(1);
 
     if (write_frame) {
-      std::string folderName = outputImagesPath_ + img_title + "-" +
-                               VioFrontEndParams::FeatureSelectionCriterionStr(
-                                   trackerParams_.featureSelectionCriterion_) +
-                               "/";
+      std::string folderName = outputImagesPath_ + img_title + "-" + "/";
       boost::filesystem::path trackerDir(folderName.c_str());
       boost::filesystem::create_directory(trackerDir);
       std::string img_name = folderName + "/trackerDisplay" + img_title + "_" +

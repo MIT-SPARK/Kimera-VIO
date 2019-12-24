@@ -35,65 +35,47 @@
 #include <gtsam/geometry/Point3.h>
 
 #include "kimera-vio/frontend/CameraParams.h"
+#include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
 
 ////////////////////////////////////////////////////////////////////////////
 // Class for storing/processing a single image
-class Frame {
+class Frame : public PipelinePayload {
  public:
+  // TODO(Toni): do it please.
+  // KIMERA_DELETE_COPY_CONSTRUCTORS(Frame);
+  KIMERA_POINTER_TYPEDEFS(Frame);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   // Constructors.
   /// @param img: does a shallow copy of the image by defaults,
   ///  if Frame should have ownership of the image, clone it.
   Frame(const FrameId& id,
-        const int64_t& timestamp,
+        const Timestamp& timestamp,
         const CameraParams& cam_param,
         const cv::Mat& img)
-      : id_(id),
-        timestamp_(timestamp),
+      : PipelinePayload(timestamp),
+        id_(id),
         cam_param_(cam_param),
         img_(img),
         isKeyframe_(false) {}
 
-  // TODO delete Frame copy constructor
-  // Copy constructor.
-  // Also does a shallow copy of the image!
-  Frame(const Frame& f)
-      : id_(f.id_),
-        timestamp_(f.timestamp_),
-        cam_param_(f.cam_param_),
-        img_(f.img_),
-        isKeyframe_(f.isKeyframe_),
-        keypoints_(f.keypoints_),
-        scores_(f.scores_),
-        landmarks_(f.landmarks_),
-        landmarksAge_(f.landmarksAge_),
-        versors_(f.versors_) {}
-
-  const FrameId id_;
-  const Timestamp timestamp_;
-
-  // These are non-const since they will be changed during rectification.
-  CameraParams cam_param_;
-
-  // Actual image stored by the class frame.
-  // This must be const otw, we have to reimplement the copy ctor to allow
-  // for deep copies.
-  const cv::Mat img_;
-
-  // Results of image processing.
-  bool isKeyframe_ = false;
-
-  // These containers must have same size.
-  KeypointsCV keypoints_;
-  std::vector<double> scores_;  // quality of extracted keypoints
-  LandmarkIds landmarks_;
-  std::vector<int>
-      landmarksAge_;        // how many consecutive *keyframes* saw the keypoint
-  BearingVectors versors_;  // in the ref frame of the UNRECTIFIED left frame
-  cv::Mat descriptors_;     // not currently used
-  std::vector<cv::Vec6f> triangulation2D_;
+  // TODO(TONI): delete all copy constructors!!
+  // Look at the waste of time this is :O
+  Frame(const Frame& frame)
+      : PipelinePayload(frame.timestamp_),
+        id_(frame.id_),
+        cam_param_(frame.cam_param_),
+        img_(frame.img_),
+        isKeyframe_(frame.isKeyframe_),
+        keypoints_(frame.keypoints_),
+        scores_(frame.scores_),
+        landmarks_(frame.landmarks_),
+        landmarksAge_(frame.landmarksAge_),
+        versors_(frame.versors_),
+        descriptors_(frame.descriptors_) {}
 
  public:
   /* ++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++ */
@@ -135,119 +117,6 @@ class Frame {
     }
   }
 
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  // It considers all valid keypoints for the mesh.
-  // Optionally, it returns a 2D mesh via its argument.
-  std::vector<cv::Vec6f> createMesh2D() const {
-    std::vector<size_t> selectedIndices(keypoints_.size());
-    // Fills selectedIndices with the indices of ALL keypoints: 0, 1, 2...
-    std::iota(selectedIndices.begin(), selectedIndices.end(), 0);
-    return createMesh2D(*this, selectedIndices);
-  }
-
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static std::vector<cv::Vec6f> createMesh2D(
-      const Frame& frame,
-      const std::vector<size_t>& selectedIndices) {
-    // Sanity check.
-    CHECK_EQ(frame.landmarks_.size(), frame.keypoints_.size())
-        << "Frame: wrong dimension for the landmarks";
-
-    cv::Size size = frame.img_.size();
-    cv::Rect2f rect(0, 0, size.width, size.height);
-
-    // Add points from Frame.
-    std::vector<cv::Point2f> keypointsToTriangulate;
-    for (const auto& i : selectedIndices) {
-      cv::Point2f kp_i(float(frame.keypoints_.at(i).x),
-                       float(frame.keypoints_.at(i).y));
-      if (frame.landmarks_.at(i) != -1 && rect.contains(kp_i)) {
-        // Only for valid keypoints (some keypoints may
-        // end up outside image after tracking which causes subdiv to crash).
-        keypointsToTriangulate.push_back(kp_i);
-      }
-    }
-    return createMesh2D(frame.img_.size(), &keypointsToTriangulate);
-  }
-
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  // Returns the actual keypoints used to perform the triangulation.
-  static std::vector<cv::Vec6f> createMesh2D(
-      const cv::Size& img_size,
-      std::vector<cv::Point2f>* keypoints_to_triangulate) {
-    CHECK_NOTNULL(keypoints_to_triangulate);
-    // Nothing to triangulate.
-    if (keypoints_to_triangulate->size() == 0) return std::vector<cv::Vec6f>();
-
-    // Rectangle to be used with Subdiv2D.
-    cv::Rect2f rect(0, 0, img_size.width, img_size.height);
-    cv::Subdiv2D subdiv(
-        rect);  // subdiv has the delaunay triangulation function
-
-    // TODO Luca: there are kpts outside image, probably from tracker. This
-    // check should be in the tracker.
-    // -> Make sure we only pass keypoints inside the image!
-    for (auto it = keypoints_to_triangulate->begin();
-         it != keypoints_to_triangulate->end();) {
-      if (!rect.contains(*it)) {
-        LOG(ERROR) << "createMesh2D - error, keypoint out of image frame.";
-        it = keypoints_to_triangulate->erase(it);
-        // Go backwards, otherwise it++ will jump one keypoint...
-      } else {
-        it++;
-      }
-    }
-
-    // Perform triangulation.
-    try {
-      subdiv.insert(*keypoints_to_triangulate);
-    } catch (...) {
-      LOG(FATAL) << "CreateMesh2D: subdiv.insert error (2).\n Keypoints to "
-                    "triangulate: "
-                 << keypoints_to_triangulate->size();
-    }
-
-    // getTriangleList returns some spurious triangle with vertices outside
-    // image
-    // TODO I think that the spurious triangles are due to ourselves sending
-    // keypoints out of the image... Compute actual triangulation.
-    std::vector<cv::Vec6f> triangulation2D;
-    subdiv.getTriangleList(triangulation2D);
-
-    // Retrieve "good triangles" (all vertices are inside image).
-    for (auto it = triangulation2D.begin(); it != triangulation2D.end();) {
-      if (!rect.contains(cv::Point2f((*it)[0], (*it)[1])) ||
-          !rect.contains(cv::Point2f((*it)[2], (*it)[3])) ||
-          !rect.contains(cv::Point2f((*it)[4], (*it)[5]))) {
-        it = triangulation2D.erase(it);
-        // Go backwards, otherwise it++ will jump one keypoint...
-      } else {
-        it++;
-      }
-    }
-    return triangulation2D;
-  }
-
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // NOT TESTED: get surf descriptors
-  //  void extractDescriptors()
-  //  {
-  //    int descriptor_radius = 5;
-  //
-  //    // Convert points to keypoints
-  //    std::vector<cv::KeyPoint> keypoints;
-  //    keypoints.reserve(keypoints_.size());
-  //    for (int i = 0; i < keypoints_.size(); i++) {
-  //      keypoints.push_back(cv::KeyPoint(keypoints_[i], 15));
-  //    }
-  //
-  //    cv::SurfDescriptorExtractor extractor;
-  //    extractor.compute(img_, keypoints, descriptors_);
-  //  }
-
   /* ----------------------- CONST FUNCTIONS -------------------------------- */
   // NOT TESTED: undistort and return
   //  cv::Mat undistortImage() const {
@@ -277,27 +146,30 @@ class Frame {
   KeypointsCV getValidKeypoints() const {
     // TODO: can we cache this result?
     KeypointsCV validKeypoints;
+    CHECK_EQ(landmarks_.size(), keypoints_.size());
     for (size_t i = 0; i < landmarks_.size(); i++) {
       if (landmarks_.at(i) != -1) {  // It is valid.
-        validKeypoints.push_back(keypoints_[i]);
+        validKeypoints.push_back(keypoints_.at(i));
       }
     }
     return validKeypoints;
   }
 
   /* ------------------------------------------------------------------------ */
-  LandmarkId findLmkIdFromPixel(
+  static LandmarkId findLmkIdFromPixel(
       const KeypointCV& px,
-      boost::optional<int&> idx_in_keypoints = boost::none) const {
+      const KeypointsCV& keypoints,
+      const LandmarkIds& landmarks,
+      boost::optional<int&> idx_in_keypoints = boost::none) {
     // Iterate over all current keypoints_.
-    for (int i = 0; i < keypoints_.size(); i++) {
+    for (int i = 0; i < keypoints.size(); i++) {
       // If we have found the pixel px in the set of keypoints, return the
       // landmark id of the keypoint and return the index of it at keypoints_.
-      if (keypoints_.at(i).x == px.x && keypoints_.at(i).y == px.y) {
+      if (keypoints.at(i).x == px.x && keypoints.at(i).y == px.y) {
         if (idx_in_keypoints) {
           *idx_in_keypoints = i;  // Return index.
         }
-        return landmarks_.at(i);
+        return landmarks.at(i);
       }
     }
     // We did not find the keypoint.
@@ -318,14 +190,14 @@ class Frame {
   }
 
   /* ------------------------------------------------------------------------ */
-  static Vector3 CalibratePixel(const KeypointCV& cv_px,
+  static Vector3 calibratePixel(const KeypointCV& cv_px,
                                 const CameraParams& cam_param) {
     // Calibrate pixel.
-    cv::Mat_<KeypointCV> uncalibrated_px(
-        1, 1);  // matrix of px with a single entry, i.e., a single pixel
+    // matrix of px with a single entry, i.e., a single pixel
+    cv::Mat_<KeypointCV> uncalibrated_px(1, 1);
     uncalibrated_px(0) = cv_px;
-    cv::Mat calibrated_px;
 
+    cv::Mat calibrated_px;
     if (cam_param.distortion_model_ == "radtan" ||
         cam_param.distortion_model_ == "radial-tangential") {
       // TODO optimize this in just one call, the s in Points is there for
@@ -364,8 +236,36 @@ class Frame {
     //  throw std::runtime_error("CalibratePixel: possible calibration
     //  mismatch");
     //}
-    return versor / versor.norm();  // return unit norm vector
+
+    // Return unit norm vector
+    return versor.normalized();
   }
+
+ public:
+  const FrameId id_;
+
+  // These are non-const since they will be changed during rectification.
+  // TODO(Toni): keep original and rectified params.
+  CameraParams cam_param_;
+
+  // Actual image stored by the class frame.
+  // This must be const otw, we have to reimplement the copy ctor to allow
+  // for deep copies.
+  const cv::Mat img_;
+
+  // Results of image processing.
+  bool isKeyframe_ = false;
+
+  // These containers must have same size.
+  KeypointsCV keypoints_;
+  std::vector<double> scores_;  // quality of extracted keypoints
+  LandmarkIds landmarks_;
+  //! How many consecutive *keyframes* saw the keypoint
+  std::vector<int> landmarksAge_;
+  //! in the ref frame of the UNRECTIFIED left frame
+  BearingVectors versors_;
+  //! Not currently used
+  cv::Mat descriptors_;
 };
 
 }  // namespace VIO

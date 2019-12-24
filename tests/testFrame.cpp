@@ -40,20 +40,22 @@ TEST(testFrame, constructor) {
   FrameId id = 0;
   Timestamp tmp = 123;
   const string imgName = string(FLAGS_test_data_path) + "/chessboard.png";
-  Frame f(id, tmp, CameraParams(),
-          UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
+  Frame f(
+      id, tmp, CameraParams(), UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
   ASSERT_EQ(f.id_, id);
   ASSERT_EQ(f.timestamp_, tmp);
   // check image:
   Mat img = imread(imgName, IMREAD_ANYCOLOR);
-  ASSERT_TRUE(UtilsOpenCV::CvMatCmp(f.img_, img));
+  ASSERT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(f.img_, img));
   ASSERT_TRUE(!f.isKeyframe_);  // false by default
   ASSERT_TRUE(CameraParams().equals(f.cam_param_));
 }
 
 /* ************************************************************************* */
 TEST(testFrame, ExtractCornersChessboard) {
-  Frame f(0, 0, CameraParams(),
+  Frame f(0,
+          0,
+          CameraParams(),
           UtilsOpenCV::ReadAndConvertToGrayScale(chessboardImgName));
   f.extractCorners();
   int numCorners_expected = 7 * 9;
@@ -113,7 +115,7 @@ TEST(testFrame, CalibratePixel) {
   // Calibrate, and uncalibrate the point, verify that we get the same point
   for (KeypointsCV::iterator iter = testPointsCV.begin();
        iter != testPointsCV.end(); iter++) {
-    Vector3 versor = Frame::CalibratePixel(*iter, camParams);
+    Vector3 versor = Frame::calibratePixel(*iter, camParams);
     ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
@@ -148,9 +150,11 @@ TEST(testFrame, DISABLED_CalibratePixel) {
     }
   }
   // Calibrate, and uncalibrate the point, verify that we get the same point
-  for (KeypointsCV::iterator iter = testPointsCV.begin(); iter !=
-testPointsCV.end(); iter++) { Vector3 versor = Frame::CalibratePixel(*iter,
-camParams); ASSERT_DOUBLE_EQ(versor.norm(), 1);
+  for (KeypointsCV::iterator iter = testPointsCV.begin();
+       iter != testPointsCV.end();
+       iter++) {
+    Vector3 versor = Frame::calibratePixel(*iter, camParams);
+    ASSERT_DOUBLE_EQ(versor.norm(), 1);
 
     // distort the pixel again
     versor = versor / versor(2);
@@ -175,73 +179,7 @@ TEST(testFrame, findLmkIdFromPixel) {
   }
   // check that if you query ith f.keypoints_ you get i+5
   for (int i = 0; i < f.keypoints_.size(); i++) {
-    ASSERT_EQ(f.findLmkIdFromPixel(f.keypoints_[i]), i + 5);
+    ASSERT_EQ(f.findLmkIdFromPixel(f.keypoints_[i], f.keypoints_, f.landmarks_),
+              i + 5);
   }
-}
-/* ************************************************************************* */
-TEST(testFrame, createMesh2D) {
-  // Construct a frame from image name.
-  FrameId id = 0;
-  Timestamp tmp = 123;
-  const string imgName = string(FLAGS_test_data_path) + "/chessboard_small.png";
-  Frame f(id, tmp, CameraParams(),
-          UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
-  f.extractCorners();
-  for (int i = 0; i < f.keypoints_.size();
-       i++) {  // populate landmark structure with fake data
-    f.landmarks_.push_back(i);
-  }
-
-  // Compute mesh.
-  const std::vector<Vec6f>& triangulation2D = f.createMesh2D();
-
-  // Expected triangulation
-  //  3 -- 2
-  //  | /  |
-  //  1 -- 0
-
-  // triangle 1:
-  Vec6f triangle1 = triangulation2D[0];
-  double triangle1_pt1_x = double(triangle1[0]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[2].x, triangle1_pt1_x);
-  double triangle1_pt1_y = double(triangle1[1]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[2].y, triangle1_pt1_y);
-  double triangle1_pt2_x = double(triangle1[2]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[1].x, triangle1_pt2_x);
-  double triangle1_pt2_y = double(triangle1[3]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[1].y, triangle1_pt2_y);
-  double triangle1_pt3_x = double(triangle1[4]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[3].x, triangle1_pt3_x);
-  double triangle1_pt3_y = double(triangle1[5]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[3].y, triangle1_pt3_y);
-
-  // triangle 2:
-  Vec6f triangle2 = triangulation2D[1];
-  double triangle2_pt1_x = double(triangle2[0]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[1].x, triangle2_pt1_x);
-  double triangle2_pt1_y = double(triangle2[1]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[1].y, triangle2_pt1_y);
-  double triangle2_pt2_x = double(triangle2[2]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[2].x, triangle2_pt2_x);
-  double triangle2_pt2_y = double(triangle2[3]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[2].y, triangle2_pt2_y);
-  double triangle2_pt3_x = double(triangle2[4]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[0].x, triangle2_pt3_x);
-  double triangle2_pt3_y = double(triangle2[5]);
-  ASSERT_DOUBLE_EQ(f.keypoints_[0].y, triangle2_pt3_y);
-}
-
-/* ************************************************************************* */
-TEST(testFrame, createMesh2D_noKeypoints) {
-  // Construct a frame from image name.
-  FrameId id = 0;
-  Timestamp tmp = 123;
-  const string imgName = string(FLAGS_test_data_path) + "/chessboard_small.png";
-  Frame f(id, tmp, CameraParams(),
-          UtilsOpenCV::ReadAndConvertToGrayScale(imgName));
-
-  // Compute mesh without points.
-  const vector<Vec6f>& triangulation2D = f.createMesh2D();
-
-  ASSERT_EQ(triangulation2D.size(), 0);
 }

@@ -21,36 +21,42 @@
 
 #include "kimera-vio/backend/VioBackEnd.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
 
 namespace VIO {
 
 class InitializationBackEnd : public VioBackEnd {
  public:
+  KIMERA_POINTER_TYPEDEFS(InitializationBackEnd);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(InitializationBackEnd);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  typedef ThreadsafeQueue<InitializationInputPayload::UniquePtr>::InternalQueue
+      InitializationQueue;
   /* ------------------------------------------------------------------------ */
   // Create and initialize InitializationBackEnd, without initiaing pose.
-  InitializationBackEnd(const gtsam::Pose3 &leftCamPose,
-                        const Cal3_S2 &leftCameraCalRectified,
-                        const double &baseline,
-                        const VioBackEndParams &vioParams,
+  InitializationBackEnd(const gtsam::Pose3& B_Pose_leftCam,
+                        const StereoCalibPtr& stereo_calibration,
+                        const VioBackEndParams& backend_params,
+                        const ImuParams& imu_params,
+                        const BackendOutputParams& backend_output_params,
                         const bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
-  ~InitializationBackEnd() = default;
+  virtual ~InitializationBackEnd() = default;
 
  public:
   /* ------------------------------------------------------------------------ */
   // Perform Bundle-Adjustment and initial gravity alignment
-  bool bundleAdjustmentAndGravityAlignment(
-      std::queue<InitializationInputPayload> &output_frontend,
-      gtsam::Vector3 *gyro_bias,
-      gtsam::Vector3 *g_iter_b0,
-      gtsam::NavState *init_navstate);
+  bool bundleAdjustmentAndGravityAlignment(InitializationQueue& output_frontend,
+                                           gtsam::Vector3* gyro_bias,
+                                           gtsam::Vector3* g_iter_b0,
+                                           gtsam::NavState* init_navstate);
 
  public:
   /* ------------------------------------------------------------------------ */
   std::vector<gtsam::Pose3> addInitialVisualStatesAndOptimize(
-      const std::vector<std::shared_ptr<VioBackEndInputPayload>> &input);
+      const std::vector<BackendInput::UniquePtr>& input);
 
  private:
   /* ------------------------------------------------------------------------ */
@@ -59,9 +65,8 @@ class InitializationBackEnd : public VioBackEnd {
   // [in] status_smart_stereo_measurements_kf, vision data.
   // [in] stereo_ransac_body_pose, inertial data.
   virtual void addInitialVisualState(
-      const Timestamp &timestamp_kf_nsec,
-      const StatusSmartStereoMeasurements &status_smart_stereo_measurements_kf,
-      std::vector<Plane> *planes,
+      const Timestamp& timestamp_kf_nsec,
+      const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
       boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
       const int verbosity);
 

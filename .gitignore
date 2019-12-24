@@ -4,17 +4,17 @@
 /matlab/result-*
 /scripts/**/*.txt
 /*/*.csv
-.ipynb_checkpoints
-.autosave
+*.ipynb_checkpoints
+*.autosave
 
 % Ignore VS code settings
-.vscode
+*.vscode
 
 % Ignore logged mesh ply
 *.ply
 
 % Ignore Mac stuff
-.DS_Store
+*.DS_Store
 
 % Remove recovery files from matlab.
 *~
@@ -24,5 +24,5 @@
 
 /scripts/*.yaml
 
-% ignore large vocabulary files (unzipped)
-/vocabulary/*.yml
+% Ignore large vocabulary files
+/vocabulary/*

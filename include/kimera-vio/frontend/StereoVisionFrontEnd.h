@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include <boost/shared_ptr.hpp> // used for opengv
 
 #include <opencv2/opencv.hpp>
@@ -36,12 +38,17 @@
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 #include "kimera-vio/utils/Timer.h"
 
+#include "kimera-vio/pipeline/PipelineModule.h"
+
 namespace VIO {
 
 class StereoVisionFrontEnd {
 public:
-  using StereoFrontEndInputPayload = StereoImuSyncPacket;
-  //using StereoFrontEndOutputPayload = VioBackEndInputPayload;
+ KIMERA_POINTER_TYPEDEFS(StereoVisionFrontEnd);
+ KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEnd);
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+ using StereoFrontEndInputPayload = StereoImuSyncPacket;
+ // using StereoFrontEndOutputPayload = VioBackEndInputPayload;
 
 public:
  StereoVisionFrontEnd(
@@ -49,31 +56,6 @@ public:
      const ImuBias& imu_initial_bias,
      const VioFrontEndParams& tracker_params = VioFrontEndParams(),
      bool log_output = false);
-
- /* ------------------------------------------------------------------------- */
- bool spin(ThreadsafeQueue<StereoFrontEndInputPayload>& input_queue,
-           ThreadsafeQueue<StereoFrontEndOutputPayload>& output_queue,
-           bool parallel_run = true);
-
- /* ------------------------------------------------------------------------- */
- // Shutdown spin.
- inline void shutdown() {
-   LOG_IF(WARNING, shutdown_) << "Shutdown requested, but Frontend was already "
-                                 "shutdown.";
-   LOG(INFO) << "Shutting down Frontend.";
-   shutdown_ = true;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Avoid shutdown of spin.
-  inline void restart() {
-    LOG(INFO) << "Resetting shutdown frontend flag to false.";
-    shutdown_ = false;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Query if thread is working and not waiting on input queue to be filled.
-  inline bool isWorking() const {return is_thread_working_;}
 
 public:
   /* ------------------------------------------------------------------------ */
@@ -102,8 +84,8 @@ public:
   // Prepare frontend for initial bundle adjustment for online alignment
   void prepareFrontendForOnlineAlignment() {
     LOG(WARNING) << "Preparing frontend for online alignment!\n";
-    updateAndResetImuBias(gtsam::imuBias::ConstantBias(
-                Vector3::Zero(), Vector3::Zero()));
+    updateAndResetImuBias(
+        gtsam::imuBias::ConstantBias(Vector3::Zero(), Vector3::Zero()));
     resetGravity(Vector3::Zero());
     forceFiveThreePointMethod(true);
     CHECK(force_53point_ransac_);
@@ -143,7 +125,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Returns extracted left and right rectified features in a suitable format
   // for VIO.
-  SmartStereoMeasurements getSmartStereoMeasurements(
+  SmartStereoMeasurementsUniquePtr getSmartStereoMeasurements(
       const StereoFrame& stereoFrame_kf) const;
 
   /* ------------------------------------------------------------------------ */
@@ -158,19 +140,18 @@ public:
 
   // private: // TODO: Fix access to this function. Is this thread safe???
   /* ------------------------------------------------------------------------ */
-  StereoFrontEndOutputPayload spinOnce(
-      const std::shared_ptr<StereoFrontEndInputPayload>& input);
+  FrontendOutput::UniquePtr spinOnce(const StereoFrontEndInputPayload& input);
 
   /* ------------------------------------------------------------------------ */
   // Get IMU Params for IMU Frontend.
   gtsam::PreintegratedImuMeasurements::Params getImuFrontEndParams() {
-    return imu_frontend_->getImuParams();
+    return imu_frontend_->getGtsamImuParams();
   }
 
  private:
   /* ------------------------------------------------------------------------ */
   // Frontend main function.
-  StatusSmartStereoMeasurements processStereoFrame(
+  StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
       boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
 
@@ -184,7 +165,7 @@ public:
   /* ------------------------------------------------------------------------ */
   // Static function to display output of stereo tracker
   static void printStatusStereoMeasurements(
-      const StatusSmartStereoMeasurements& statusStereoMeasurements);
+      const StatusStereoMeasurements& statusStereoMeasurements);
 
   // verbosity_ explanation (TODO: include this)
   /*
@@ -245,7 +226,6 @@ private:
   // TODO MAKE THESE GUYS std::unique_ptr, we do not want to have multiple
   // owners, instead they should be passed around.
   // Stereo Frames
-
   // Current frame
   std::shared_ptr<StereoFrame> stereoFrame_k_;
   // Last frame

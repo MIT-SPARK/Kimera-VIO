@@ -22,64 +22,48 @@
 
 #include <gtsam/slam/StereoFactor.h>
 
+#include "kimera-vio/backend/RegularVioBackEnd-definitions.h"
 #include "kimera-vio/backend/RegularVioBackEndParams.h"
+#include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/backend/VioBackEnd.h"
 
 namespace VIO {
 
-class RegularVioBackEnd: public VioBackEnd {
-public:
+class RegularVioBackEnd : public VioBackEnd {
+ public:
+  /* ------------------------------------------------------------------------ */
+  RegularVioBackEnd(const Pose3& B_Pose_leftCam,
+                    const StereoCalibPtr& stereo_calibration,
+                    const VioBackEndParams& backend_params,
+                    const ImuParams& imu_params,
+                    const BackendOutputParams& backend_output_params,
+                    const bool& log_output);
 
   /* ------------------------------------------------------------------------ */
-  // Defines the behaviour of this backend.
-  enum class BackendModality {
-    STRUCTURELESS = 0, // Only use structureless factors, equiv to normal Vio.
-    PROJECTION = 1, // Converts all structureless factors to projection factors.
-    STRUCTURELESS_AND_PROJECTION = 2, // Projection factors used for regularities.
-    PROJECTION_AND_REGULARITY = 3, // Projection Vio + regularity factors.
-    STRUCTURELESS_PROJECTION_AND_REGULARITY = 4 // All types of factors used.
-  };
+  virtual ~RegularVioBackEnd() = default;
 
-  /* ------------------------------------------------------------------------ */
-  RegularVioBackEnd(
-      const Pose3& leftCamPose,
-      const Cal3_S2& leftCameraCalRectified,
-      const double& baseline,
-      const VioNavState& initial_state_seed,
-      const Timestamp& timestamp,
-      const VioBackEndParams& vioParams = VioBackEndParams(),
-      const bool& log_timing = false,
-      const BackendModality& backend_modality =
-          BackendModality::STRUCTURELESS_PROJECTION_AND_REGULARITY);
-
-  /* ------------------------------------------------------------------------ */
-  ~RegularVioBackEnd() = default;
-
-public:
+ public:
   /* ------------------------------------------------------------------------ */
   virtual void addVisualInertialStateAndOptimize(
       const Timestamp& timestamp_kf_nsec,
-      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-      const gtsam::PreintegratedImuMeasurements& pim,
-      std::vector<Plane>* planes = nullptr,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none);
+      const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
+      const gtsam::PreintegrationType& pim,
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose =
+          boost::none) override;
 
-private:
+ private:
   typedef size_t Slot;
 
   // Type of handled regularities.
-  enum class RegularityType{
-    POINT_PLANE
-  };
+  enum class RegularityType { POINT_PLANE };
 
   using GenericProjectionFactor = gtsam::GenericStereoFactor<Pose3, Point3>;
   // Map from lmk ID to corresponding factor type, true: smart.
   using LmkIdIsSmart = gtsam::FastMap<LandmarkId, bool>;
 
   /// Members
-  // Decides which kind of functionality the backend exhibits.
-  const BackendModality backend_modality_;
-  LmkIdIsSmart lmk_id_is_smart_; // TODO GROWS UNBOUNDED, use the loop in getMapLmkIdsTo3dPointsInTimeHorizon();
+  LmkIdIsSmart lmk_id_is_smart_;  // TODO GROWS UNBOUNDED, use the loop in
+                                  // getMapLmkIdsTo3dPointsInTimeHorizon();
   typedef std::map<LandmarkId, RegularityType> LmkIdToRegularityTypeMap;
   typedef std::map<PlaneId, LmkIdToRegularityTypeMap> PlaneIdToLmkIdRegType;
   PlaneIdToLmkIdRegType plane_id_to_lmk_id_reg_type_;
@@ -96,7 +80,13 @@ private:
   // RAW parameters given by the user for the regulaVIO backend.
   const RegularVioBackEndParams regular_vio_params_;
 
-private:
+  // Planes in the scene
+  // TODO(Toni): CURRENTLY DISABLED
+  // We need to make a shared queue with the MeshSegmenter which will push plane
+  // hypothesis while the backend pulls them.
+  std::vector<Plane> planes_;
+
+ private:
   /* ------------------------------------------------------------------------ */
   void addLandmarksToGraph(const LandmarkIds& lmks_kf,
                            const LandmarkIds& lmk_ids_with_regularity);
@@ -113,18 +103,19 @@ private:
 
   /* ------------------------------------------------------------------------ */
   bool updateLmkIdIsSmart(const LandmarkId& lmk_id,
-                       const LandmarkIds& lmk_ids_with_regularity,
-                       LmkIdIsSmart* lmk_id_is_smart);
+                          const LandmarkIds& lmk_ids_with_regularity,
+                          LmkIdIsSmart* lmk_id_is_smart);
 
   /* ------------------------------------------------------------------------ */
   bool isSmartFactor3dPointGood(SmartStereoFactor::shared_ptr factor,
-                                 const size_t &min_num_of_observations);
+                                const size_t& min_num_of_observations);
 
   /* ------------------------------------------------------------------------ */
-  void updateExistingSmartFactor(const LandmarkId& lmk_id,
-                                 const std::pair<FrameId, StereoPoint2>& new_obs,
-                                 LandmarkIdSmartFactorMap* new_smart_factors,
-                                 SmartFactorMap* old_smart_factors);
+  void updateExistingSmartFactor(
+      const LandmarkId& lmk_id,
+      const std::pair<FrameId, StereoPoint2>& new_obs,
+      LandmarkIdSmartFactorMap* new_smart_factors,
+      SmartFactorMap* old_smart_factors);
   /* ------------------------------------------------------------------------ */
   bool convertSmartToProjectionFactor(
       const LandmarkId& lmk_id,
@@ -139,7 +130,7 @@ private:
       const LandmarkIds& lmk_ids_with_regularity);
 
   /* ------------------------------------------------------------------------ */
-  virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id);
+  virtual void deleteLmkFromExtraStructures(const LandmarkId& lmk_id) override;
 
   /* ------------------------------------------------------------------------ */
   void addProjectionFactor(
@@ -151,15 +142,16 @@ private:
   void addRegularityFactors(
       const Plane& plane,
       LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
-      std::vector<std::pair<Slot, LandmarkId>>* idx_of_point_plane_factors_to_add);
+      std::vector<std::pair<Slot, LandmarkId>>*
+          idx_of_point_plane_factors_to_add);
 
   /* ------------------------------------------------------------------------ */
   void removeOldRegularityFactors_Slow(
-    const std::vector<Plane>& planes,
-    const std::map<PlaneId, std::vector<std::pair<Slot, LandmarkId>>>&
-    map_idx_of_point_plane_factors_to_add,
-    PlaneIdToLmkIdRegType* plane_id_to_lmk_id_to_regularity_type_map,
-    gtsam::FactorIndices* delete_slots);
+      const std::vector<Plane>& planes,
+      const std::map<PlaneId, std::vector<std::pair<Slot, LandmarkId>>>&
+          map_idx_of_point_plane_factors_to_add,
+      PlaneIdToLmkIdRegType* plane_id_to_lmk_id_to_regularity_type_map,
+      gtsam::FactorIndices* delete_slots);
 
   /* ------------------------------------------------------------------------ */
   void fillDeleteSlots(
@@ -171,7 +163,8 @@ private:
   // Remove as well the factors that are going to be added in this iteration.
   void deleteNewSlots(
       const PlaneId& plane_key,
-      const std::vector<std::pair<Slot, LandmarkId>>& idx_of_point_plane_factors_to_add,
+      const std::vector<std::pair<Slot, LandmarkId>>&
+          idx_of_point_plane_factors_to_add,
       LmkIdToRegularityTypeMap* lmk_id_to_regularity_type_map,
       gtsam::NonlinearFactorGraph* new_imu_prior_and_other_factors_);
 
@@ -181,9 +174,9 @@ private:
   // norm_type = 1: Huber.
   // norm_type = 2: Tukey.
   void selectNormType(gtsam::SharedNoiseModel* noise_model_output,
-      const gtsam::SharedNoiseModel& noise_model_input,
-      const size_t& norm_type,
-      const double& norm_type_parameter);
+                      const gtsam::SharedNoiseModel& noise_model_input,
+                      const size_t& norm_type,
+                      const double& norm_type_parameter);
 
   /* ------------------------------------------------------------------------ */
   // Extract all lmk ids, wo repetition, from the set of planes.
@@ -194,7 +187,6 @@ private:
   // Update plane normal and distance if the plane could be found in the state.
   // Otherwise, erase the plane.
   void updatePlaneEstimates(std::vector<Plane>* planes);
-
 };
 
-} // namespace VIO
+}  // namespace VIO

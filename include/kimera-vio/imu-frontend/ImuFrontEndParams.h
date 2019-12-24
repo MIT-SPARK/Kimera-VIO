@@ -16,22 +16,38 @@
 
 #include <gtsam/base/Vector.h>
 
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/pipeline/PipelineParams.h"
+#include "kimera-vio/utils/Macros.h"
+
 namespace VIO {
 
-struct ImuParams {
+struct ImuParams : public PipelineParams {
  public:
-  double gyro_noise_;
-  double gyro_walk_;
-  double acc_noise_;
-  double acc_walk_;
-  double imu_shift_;  // Defined as t_imu = t_cam + imu_shift
+  KIMERA_POINTER_TYPEDEFS(ImuParams);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // TODO: n_gravity_ should not be in ImuParams
-  gtsam::Vector3 n_gravity_;
-  double imu_integration_sigma_;
+  ImuParams();
+  virtual ~ImuParams() = default;
 
  public:
-  void print() const;
+  virtual bool parseYAML(const std::string& filepath) override;
+  virtual void print() const override;
+
+ public:
+  ImuPreintegrationType imu_preintegration_type_ =
+      ImuPreintegrationType::kPreintegratedCombinedMeasurements;
+
+  double gyro_noise_ = 0.0;
+  double gyro_walk_ = 0.0;
+  double acc_noise_ = 0.0;
+  double acc_walk_ = 0.0;
+  double imu_shift_ = 0.0;  // Defined as t_imu = t_cam + imu_shift
+
+  double nominal_rate_ = 0.0;
+  double imu_integration_sigma_ = 0.0;
+
+  gtsam::Vector3 n_gravity_ = gtsam::Vector3();
 };
 
 }  // namespace VIO

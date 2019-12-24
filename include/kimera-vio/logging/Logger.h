@@ -25,6 +25,19 @@
 
 namespace VIO {
 
+/* -------------------------------------------------------------------------- */
+// Open files with name output_filename, and checks that it is valid
+static void OpenFile(const std::string& output_filename,
+                     std::ofstream* output_file,
+                     bool append_mode = false) {
+  CHECK_NOTNULL(output_file);
+  output_file->open(output_filename.c_str(),
+                    append_mode ? std::ios_base::app : std::ios_base::out);
+  output_file->precision(20);
+  CHECK(output_file->is_open()) << "Cannot open file: " << output_filename;
+  CHECK(output_file->good()) << "File in bad state: " << output_filename;
+}
+
 // Wrapper for std::ofstream to open/close it when created/destructed.
 class OfstreamWrapper {
  public:
@@ -51,7 +64,7 @@ class BackendLogger {
   BackendLogger();
   ~BackendLogger() = default;
 
-  void logBackendOutput(const VioBackEndOutputPayload& output);
+  void logBackendOutput(const BackendOutput& output);
   void displayInitialStateVioInfo(const gtsam::Vector3& n_gravity_,
                                   const gtsam::Pose3& W_Pose_B_Lkf,
                                   const VioNavState& initial_state_gt,
@@ -59,11 +72,11 @@ class BackendLogger {
                                   const Timestamp& timestamp_k) const;
 
  private:
-  void logBackendResultsCSV(const VioBackEndOutputPayload& output);
-  void logSmartFactorsStats(const VioBackEndOutputPayload& output);
-  void logBackendPimNavstates(const VioBackEndOutputPayload& output);
-  void logBackendFactorsStats(const VioBackEndOutputPayload& output);
-  void logBackendTiming(const VioBackEndOutputPayload& output);
+  void logBackendResultsCSV(const BackendOutput& output);
+  void logSmartFactorsStats(const BackendOutput& output);
+  void logBackendPimNavstates(const BackendOutput& output);
+  void logBackendFactorsStats(const BackendOutput& output);
+  void logBackendTiming(const BackendOutput& output);
 
  private:
   // Filenames to be saved in the output folder.
@@ -135,9 +148,9 @@ class LoopClosureDetectorLogger {
 
   void logTimestampMap(
       const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map);
-  void logLCDResult(const LoopClosureDetectorOutputPayload& lcd_output);
-  void logLoopClosure(const LoopClosureDetectorOutputPayload& lcd_output);
-  void logOptimizedTraj(const LoopClosureDetectorOutputPayload& lcd_output);
+  void logLCDResult(const LcdOutput& lcd_output);
+  void logLoopClosure(const LcdOutput& lcd_output);
+  void logOptimizedTraj(const LcdOutput& lcd_output);
   void logDebugInfo(const LcdDebugInfo& debug_info);
 
  private:

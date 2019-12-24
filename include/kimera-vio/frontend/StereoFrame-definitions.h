@@ -17,25 +17,28 @@
 #include <gtsam/geometry/StereoPoint2.h>
 
 #include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/frontend/Tracker-definitions.h"
 
 namespace VIO {
 
 using SmartStereoMeasurement = std::pair<LandmarkId, gtsam::StereoPoint2>;
 using SmartStereoMeasurements = std::vector<SmartStereoMeasurement>;
+using SmartStereoMeasurementsUniquePtr =
+    std::unique_ptr<SmartStereoMeasurements>;
+using StatusStereoMeasurements =
+    std::pair<TrackerStatusSummary, SmartStereoMeasurements>;
+using StatusStereoMeasurementsPtr = std::shared_ptr<StatusStereoMeasurements>;
 
 // TODO make enum class.
-enum Mesh2Dtype {VALIDKEYPOINTS, DENSE};
+enum Mesh2Dtype { VALIDKEYPOINTS, DENSE };
 
 ////////////////////////////////////////////////////////////////////////////////
-struct KeypointWithDepth{
-public:
+struct KeypointWithDepth {
+ public:
   KeypointWithDepth() = default;
-  KeypointWithDepth(const KeypointCV& p,
-                    const double& d)
-    : px(p),
-      depth(d) {}
+  KeypointWithDepth(const KeypointCV& p, const double& d) : px(p), depth(d) {}
 
-public:
+ public:
   KeypointCV px;
   double depth;
 };
@@ -44,4 +47,6 @@ using KeypointsWithDepth = std::vector<KeypointWithDepth>;
 // Definitions relevant to StereoFrame type.
 using Points3d = std::vector<Vector3, Eigen::aligned_allocator<Vector3>>;
 
-} // End of VIO namespace.
+enum class VisionSensorType { STEREO, RGBD };  // 0 for stereo and 1 for RGBD
+
+}  // namespace VIO

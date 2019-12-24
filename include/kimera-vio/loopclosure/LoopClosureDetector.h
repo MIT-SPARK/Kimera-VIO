@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <gtsam/geometry/Pose3.h>
@@ -28,8 +30,10 @@
 
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/logging/Logger.h"
+#include "kimera-vio/loopclosure/LcdThirdPartyWrapper.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
+#include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
 
 /* ------------------------------------------------------------------------ */
@@ -41,47 +45,34 @@ class RobustSolver;
 namespace VIO {
 
 /* ------------------------------------------------------------------------ */
-typedef std::function<void(const LoopClosureDetectorOutputPayload&)>
-    LoopClosurePGOCallback;
-
-/* ------------------------------------------------------------------------ */
 class LoopClosureDetector {
  public:
+  KIMERA_POINTER_TYPEDEFS(LoopClosureDetector);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetector);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   /* ------------------------------------------------------------------------ */
-  /* @brief Constructor: detects loop-closures and updates internal PGO.
+  /** @brief Constructor: detects loop-closures and updates internal PGO.
    * @param[in] lcd_params Parameters for the instance of LoopClosureDetector.
    * @param[in] log_output Output-logging flag. If set to true, the logger is
    *  instantiated and output/statistics are logged at every spinOnce().
    */
   LoopClosureDetector(const LoopClosureDetectorParams& lcd_params,
-                      const bool log_output = false);
+                      bool log_output);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Destructor.
-   */
   virtual ~LoopClosureDetector();
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Main spin function for the LoopClosureDetector pipeline.
-   * @param[in] input_queue A ThreadsafeQueue into which input payloads are
-   * pushed.
-   * @param[in] parallel_run The parallelized flag. If set to false, the spin
-   * won't loop and instead will return at the end of each run.
-   * @reutrn True if everything goes well.
-   */
-  bool spin(ThreadsafeQueue<LoopClosureDetectorInputPayload>& input_queue,
-            bool parallel_run = true);
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Processed a single input payload and runs it through the pipeline.
+  /** @brief Processed a single input payload and runs it through the pipeline.
    * @param[in] input A shared_ptr referencing an input payload.
    * @return The output payload from the pipeline.
    */
-  LoopClosureDetectorOutputPayload spinOnce(
-      const std::shared_ptr<LoopClosureDetectorInputPayload>& input);
+  virtual LcdOutput::UniquePtr spinOnce(const LcdInput& input);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Processed a single frame and adds it to relevant internal databases.
+  /** @brief Processed a single frame and adds it to relevant internal
+   * databases.
    * @param[in] stereo_frame A StereoFrame object with two images and a pose to
    * the body frame at a minimum. Other fields may also be populated.
    * @return The local ID of the frame after it is added to the databases.
@@ -89,7 +80,7 @@ class LoopClosureDetector {
   FrameId processAndAddFrame(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Runs all checks on a frame and determines whether it a loop-closure
+  /** @brief Runs all checks on a frame and determines whether it a loop-closure
       with a previous frame or not. Fills the LoopResult with this information.
    * @param[in] stereo_frame A stereo_frame that has already been "rewritten" by
    *  the pipeline to have ORB features and keypoints.
@@ -101,7 +92,7 @@ class LoopClosureDetector {
   bool detectLoop(const StereoFrame& stereo_frame, LoopResult* result);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Verify that the geometry between two frames is close enough to be
+  /** @brief Verify that the geometry between two frames is close enough to be
       considered a match, and generate a monocular transformation between them.
    * @param[in] query_id The frame ID of the query image in the database.
    * @param[in] match_id The frame ID of the match image in the databse.
@@ -114,7 +105,7 @@ class LoopClosureDetector {
                                   gtsam::Pose3* camCur_T_camRef_mono);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Determine the 3D pose betwen two frames.
+  /** @brief Determine the 3D pose betwen two frames.
    * @param[in] query_id The frame ID of the query image in the database.
    * @param[in] match_id The frame ID of the match image in the database.
    * @param[in] camCur_T_camRef_mono The relative pose between the match frame
@@ -129,37 +120,13 @@ class LoopClosureDetector {
                    gtsam::Pose3* bodyCur_T_bodyRef_stereo);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Shuts-down the LoopClosureDetector pipeline.
-   */
-  inline void shutdown() {
-    LOG_IF(WARNING, shutdown_) << "Shutdown requested, but LoopClosureDetector "
-                                  "was already shutdown.";
-    LOG(INFO) << "Shutting down LoopClosureDetector.";
-    shutdown_ = true;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Restarts the LoopClosureDetector pipeline.
-   */
-  inline void restart() {
-    LOG(INFO) << "Resetting shutdown LoopClosureDetector flag to false.";
-    shutdown_ = false;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Returns the working status of the thread.
-   * @return True if the thread is working, false otherwise.
-   */
-  inline bool isWorking() const { return is_thread_working_; }
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Gets a copy of the parameters of the LoopClosureDetector.
+  /** @brief Gets a copy of the parameters of the LoopClosureDetector.
    * @return The local parameters of the LoopClosureDetector.
    */
   inline LoopClosureDetectorParams getLCDParams() const { return lcd_params_; }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns a pointer to the parameters of the LoopClosureDetector.
+  /** @brief Returns a pointer to the parameters of the LoopClosureDetector.
    * @return A pointer to the parameters of the LoopClosureDetector.
    */
   inline LoopClosureDetectorParams* getLCDParamsMutable() {
@@ -167,7 +134,7 @@ class LoopClosureDetector {
   }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the RAW pointer to the BoW database.
+  /** @brief Returns the RAW pointer to the BoW database.
    * @return A pointer to the BoW database.
    *
    * WARNING: This is a potentially dangerous method to use because it requires
@@ -176,7 +143,7 @@ class LoopClosureDetector {
   inline const OrbDatabase* getBoWDatabase() const { return db_BoW_.get(); }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns a pointer to the database of LCDFrames.
+  /** @brief Returns a pointer to the database of LCDFrames.
    * @return A pointer to the LCDFrame database.
    *
    * WARNING: This is a potentially dangerous method to use because it requires
@@ -187,7 +154,7 @@ class LoopClosureDetector {
   }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the "intrinsics flag", which is true if the pipeline has
+  /** @brief Returns the "intrinsics flag", which is true if the pipeline has
    *  recieved the dimensions, principle point, and focal length of the images
    *  in the frames, as well as the transformation from body to camera.
    * @return True if the intrinsics have been recieved, false otherwise.
@@ -195,40 +162,28 @@ class LoopClosureDetector {
   inline const bool getIntrinsicsFlag() const { return set_intrinsics_; }
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the pose between the inertial world-reference frame and the
+  /** @brief Returns the pose between the inertial world-reference frame and the
    *  "map" frame, which is the error between the VIO and the PGO trajectories.
    * @return The pose of the map frame relative to the world frame.
    */
   const gtsam::Pose3 getWPoseMap() const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the values of the PGO, which is the full trajectory of the
+  /** @brief Returns the values of the PGO, which is the full trajectory of the
    *  PGO.
    * @return The gtsam::Values (poses) of the PGO.
    */
   const gtsam::Values getPGOTrajectory() const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Returns the Nonlinear-Factor-Graph from the PGO.
+  /** @brief Returns the Nonlinear-Factor-Graph from the PGO.
    * @return The gtsam::NonlinearFactorGraph of the optimized trajectory from
    *  the PGO.
    */
   const gtsam::NonlinearFactorGraph getPGOnfg() const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Registers an external callback to which output payloads are sent.
-   *  The callback is added to a vector of callbacks, enabling multiple
-   *  functions for each output payload.
-   * @param[in] callback A LoopClosurePGOCallback function which will parse
-   *  LoopClosureDetectorOutputPayload objects.
-   */
-  inline void registerLcdPgoOutputCallback(
-      const LoopClosurePGOCallback& callback) {
-    lcd_pgo_output_callbacks_.push_back(callback);
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Set the bool set_intrinsics as well as the parameter members
+  /** @brief Set the bool set_intrinsics as well as the parameter members
    *  representing the principle point, image dimensions, focal length and
    *  camera-to-body pose.
    * @param[in] stereo_frame A StereoFrame with the calibration and parameters
@@ -238,10 +193,15 @@ class LoopClosureDetector {
   void setIntrinsics(const StereoFrame& stereo_frame);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Set the OrbDatabase internal member.
+  /** @brief Set the OrbDatabase internal member.
    * @param[in] db An OrbDatabase object.
    */
   void setDatabase(const OrbDatabase& db);
+
+  /* @brief Set the vocabulary of the BoW detector.
+   * @param[in] voc An OrbVocabulary object.
+   */
+  void setVocabulary(const OrbVocabulary& voc);
 
   /* ------------------------------------------------------------------------ */
   /* @brief Prints parameters and other statistics on the LoopClosureDetector.
@@ -249,7 +209,7 @@ class LoopClosureDetector {
   void print() const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Clears all keypoints and features from an input StereoFrame and
+  /** @brief Clears all keypoints and features from an input StereoFrame and
    *  fills it with ORB features.
    * @param[in] keypoints A vector of KeyPoints representing the ORB keypoints
    *  identified by an ORB detector.
@@ -261,7 +221,7 @@ class LoopClosureDetector {
                                   StereoFrame* stereo_frame) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Creates an image with matched ORB features between two frames.
+  /** @brief Creates an image with matched ORB features between two frames.
    *  This is a utility for debugging the ORB feature matcher and isn't used
    *  in the main pipeline.
    * @param[in] query_img The image of the query frame in the database.
@@ -282,7 +242,7 @@ class LoopClosureDetector {
                                              bool cut_matches = false) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Gives the transform between two frames in the body frame given
+  /** @brief Gives the transform between two frames in the body frame given
    *  that same transform in the camera frame.
    * @param[in] camCur_T_camRef The relative pose between two frames in the
    *  camera coordinate frame.
@@ -294,7 +254,7 @@ class LoopClosureDetector {
                                      gtsam::Pose3* bodyCur_T_bodyRef) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief The inverse of transformCameraPoseToBodyPose.
+  /** @brief The inverse of transformCameraPoseToBodyPose.
    * @param[in] bodyCur_T_bodyRef The relative pose between two frames in the
    *  body coordinate frame.
    * @param[out] camCur_T_camRef The relative pose between two frames in the
@@ -305,7 +265,7 @@ class LoopClosureDetector {
                                      gtsam::Pose3* camCur_T_camRef) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Adds an odometry factor to the PGO and optimizes the trajectory.
+  /** @brief Adds an odometry factor to the PGO and optimizes the trajectory.
    *  No actual optimization is performed on the RPGO side for odometry.
    * @param[in] factor An OdometryFactor representing the backend's guess for
    *  odometry between two consecutive keyframes.
@@ -313,20 +273,20 @@ class LoopClosureDetector {
   void addOdometryFactorAndOptimize(const OdometryFactor& factor);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Adds a loop-closure factor to the PGO and optimizes the trajectory.
+  /** @brief Adds a loop-closure factor to the PGO and optimizes the trajectory.
    * @param[in] factor A LoopClosureFactor representing the relative pose
    *  between two frames that are not (necessarily) consecutive.
    */
   void addLoopClosureFactorAndOptimize(const LoopClosureFactor& factor);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Initializes the RobustSolver member with no prior, or a neutral
+  /** @brief Initializes the RobustSolver member with no prior, or a neutral
    *  starting pose.
    */
   void initializePGO();
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Initializes the RobustSolver member with an initial prior factor,
+  /** @brief Initializes the RobustSolver member with an initial prior factor,
    *  which can be the first OdometryFactor given by the backend.
    * @param[in] factor An OdometryFactor representing the pose between the
    *  initial state of the vehicle and the first keyframe.
@@ -335,42 +295,7 @@ class LoopClosureDetector {
 
  private:
   /* ------------------------------------------------------------------------ */
-  /* @brief Determines whether a frame meets the temoral constraint given by
-   *  a MatchIsland.
-   * @param[in] id The frame ID of the frame being processed in the database.
-   * @param[in] island A MatchIsland representing several potential matches.
-   * @return True if the constraint is met, false otherwise.
-   */
-  // TODO(marcus): unit tests
-  bool checkTemporalConstraint(const FrameId& id, const MatchIsland& island);
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Computes the various islands created by a QueryResult, which is
-   *  given by the OrbDatabase.
-   * @param[in] q A QueryResults object containing all the resulting possible
-   *  matches with a frame.
-   * @param[out] A vector of MatchIslands, each of which is an island of
-   *  nearby possible matches with the frame being queried.
-   * @return
-   */
-  // TODO(marcus): unit tests
-  void computeIslands(DBoW2::QueryResults& q,
-                      std::vector<MatchIsland>* islands) const;
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Compute the overall score of an island.
-   * @param[in] q A QueryResults object containing all the possible matches
-   *  with a frame.
-   * @param[in] start_id The frame ID that starts the island.
-   * @param[in] end_id The frame ID that ends the island.
-   * @reutrn The score of the island.
-   */
-  double computeIslandScore(const DBoW2::QueryResults& q,
-                            const FrameId& start_id,
-                            const FrameId& end_id) const;
-
-  /* ------------------------------------------------------------------------ */
-  /* @brief Computes the indices of keypoints that match between two frames.
+  /** @brief Computes the indices of keypoints that match between two frames.
    * @param[in] query_id The frame ID of the query frame in the database.
    * @param[in] match_id The frame ID of the match frame in the database.
    * @param[out] i_query A vector of indices that match in the query frame.
@@ -380,12 +305,12 @@ class LoopClosureDetector {
    */
   void computeMatchedIndices(const FrameId& query_id,
                              const FrameId& match_id,
-                             std::vector<unsigned int>* i_query,
-                             std::vector<unsigned int>* i_match,
+                             std::vector<FrameId>* i_query,
+                             std::vector<FrameId>* i_match,
                              bool cut_matches = false) const;
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Checks geometric verification and determines a pose with
+  /** @brief Checks geometric verification and determines a pose with
    *  a translation up to a scale factor between two frames, using Nister's
    *  five-point method.
    * @param[in] query_id The frame ID of the query frame in the database.
@@ -399,7 +324,7 @@ class LoopClosureDetector {
                                    gtsam::Pose3* camCur_T_camRef_mono);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Checks geometric verification and determines a pose that is
+  /** @brief Checks geometric verification and determines a pose that is
    *  "stereo" - correct in translation scale using Arun's three-point method.
    * @param[in] query_id The frame ID of the query frame in the database.
    * @param[in] match_id The frame ID of the match frame in the database.
@@ -411,7 +336,7 @@ class LoopClosureDetector {
                        gtsam::Pose3* bodyCur_T_bodyRef);
 
   /* ------------------------------------------------------------------------ */
-  /* @brief Checks geometric verification and determines a pose that is
+  /** @brief Checks geometric verification and determines a pose that is
    *  "stereo" - correct in translation scale using the median of all
    *  3D keypoints matched between the frames.
    * @param[in] query_id The frame ID of the query frame in the database.
@@ -425,17 +350,10 @@ class LoopClosureDetector {
                            gtsam::Pose3* bodyCur_T_bodyRef);
 
  private:
-  // Output callback(s).
-  std::vector<LoopClosurePGOCallback> lcd_pgo_output_callbacks_;
-
   // Parameter members
   LoopClosureDetectorParams lcd_params_;
   const bool log_output_ = {false};
   bool set_intrinsics_ = {false};
-
-  // Thread related members
-  std::atomic_bool shutdown_ = {false};
-  std::atomic_bool is_thread_working_ = {false};
 
   // ORB extraction and matching members
   cv::Ptr<cv::ORB> orb_feature_detector_;
@@ -447,10 +365,8 @@ class LoopClosureDetector {
   FrameIDTimestampMap timestamp_map_;
 
   // Store latest computed objects for temporal matching and nss scoring
+  LcdThirdPartyWrapper::UniquePtr lcd_tp_wrapper_;
   DBoW2::BowVector latest_bowvec_;
-  MatchIsland latest_matched_island_;
-  FrameId latest_query_id_;
-  int temporal_entries_;
 
   // Store camera parameters and StereoFrame stuff once
   gtsam::Pose3 B_Pose_camLrect_;
@@ -465,6 +381,130 @@ class LoopClosureDetector {
   // Logging members
   std::unique_ptr<LoopClosureDetectorLogger> logger_;
   LcdDebugInfo debug_info_;
+
+ private:
+  // Lcd typedefs
+  using DMatchVec = std::vector<cv::DMatch>;
+  using AdapterMono = opengv::relative_pose::CentralRelativeAdapter;
+  using SacProblemMono =
+      opengv::sac_problems::relative_pose::CentralRelativePoseSacProblem;
+  using AdapterStereo = opengv::point_cloud::PointCloudAdapter;
+  using SacProblemStereo =
+      opengv::sac_problems::point_cloud::PointCloudSacProblem;
 };  // class LoopClosureDetector
+
+enum class LoopClosureDetectorType {
+  //! Bag of Words approach
+  BoW = 0u,
+};
+
+class LcdFactory {
+ public:
+  KIMERA_POINTER_TYPEDEFS(LcdFactory);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdFactory);
+  LcdFactory() = delete;
+  virtual ~LcdFactory() = default;
+
+  static LoopClosureDetector::UniquePtr createLcd(
+      const LoopClosureDetectorType& lcd_type,
+      const LoopClosureDetectorParams& lcd_params,
+      bool log_output) {
+    switch (lcd_type) {
+      case LoopClosureDetectorType::BoW: {
+        return VIO::make_unique<LoopClosureDetector>(lcd_params, log_output);
+      }
+      default: {
+        LOG(FATAL) << "Requested loop closure detector type is not supported.\n"
+                   << "Currently supported loop closure detector types:\n"
+                   << "0: BoW \n but requested loop closure detector: "
+                   << static_cast<int>(lcd_type);
+      }
+    }
+  }
+};
+
+class LcdModule : public MIMOPipelineModule<LcdInput, LcdOutput> {
+ public:
+  KIMERA_POINTER_TYPEDEFS(LcdModule);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LcdModule);
+  using LcdFrontendInput = FrontendOutput::Ptr;
+  using LcdBackendInput = BackendOutput::Ptr;
+
+  LcdModule(bool parallel_run, LoopClosureDetector::UniquePtr lcd)
+      : MIMOPipelineModule<LcdInput, LcdOutput>("Lcd", parallel_run),
+        frontend_queue_("lcd_frontend_queue"),
+        backend_queue_("lcd_backend_queue"),
+        lcd_(std::move(lcd)) {}
+  virtual ~LcdModule() = default;
+
+  //! Callbacks to fill queues: they should be all lighting fast.
+  inline void fillFrontendQueue(const LcdFrontendInput& frontend_payload) {
+    frontend_queue_.push(frontend_payload);
+  }
+  inline void fillBackendQueue(const LcdBackendInput& backend_payload) {
+    backend_queue_.push(backend_payload);
+  }
+
+ protected:
+  //! Synchronize input queues.
+  inline InputUniquePtr getInputPacket() override {
+    // TODO(X): this is the same or very similar to the Mesher getInputPacket.
+    LcdBackendInput backend_payload;
+    bool queue_state = false;
+    if (PIO::parallel_run_) {
+      queue_state = backend_queue_.popBlocking(backend_payload);
+    } else {
+      queue_state = backend_queue_.pop(backend_payload);
+    }
+    if (!queue_state) {
+      LOG_IF(WARNING, PIO::parallel_run_)
+          << "Module: " << name_id_ << " - Backend queue is down";
+      VLOG_IF(1, !PIO::parallel_run_)
+          << "Module: " << name_id_ << " - Backend queue is empty or down";
+      return nullptr;
+    }
+    CHECK(backend_payload);
+    const Timestamp& timestamp = backend_payload->W_State_Blkf_.timestamp_;
+
+    // Look for the synchronized packet in frontend payload queue
+    // This should always work, because it should not be possible to have
+    // a backend payload without having a frontend one first!
+    LcdFrontendInput frontend_payload = nullptr;
+    PIO::syncQueue(timestamp, &frontend_queue_, &frontend_payload);
+    CHECK(frontend_payload);
+    CHECK(frontend_payload->is_keyframe_);
+
+    // Push the synced messages to the lcd's input queue
+    const StereoFrame& stereo_keyframe = frontend_payload->stereo_frame_lkf_;
+    const gtsam::Pose3& body_pose = backend_payload->W_State_Blkf_.pose_;
+    return VIO::make_unique<LcdInput>(
+        timestamp, backend_payload->cur_kf_id_, stereo_keyframe, body_pose);
+  }
+
+  OutputUniquePtr spinOnce(LcdInput::UniquePtr input) override {
+    return lcd_->spinOnce(*input);
+  }
+
+  //! Called when general shutdown of PipelineModule is triggered.
+  void shutdownQueues() override {
+    LOG(INFO) << "Shutting down queues for: " << name_id_;
+    frontend_queue_.shutdown();
+    backend_queue_.shutdown();
+  }
+
+  //! Checks if the module has work to do (should check input queues are empty)
+  bool hasWork() const override {
+    // We don't check frontend queue because it runs faster than backend queue.
+    return !backend_queue_.empty();
+  }
+
+ private:
+  //! Input Queues
+  ThreadsafeQueue<LcdFrontendInput> frontend_queue_;
+  ThreadsafeQueue<LcdBackendInput> backend_queue_;
+
+  //! Lcd implementation
+  LoopClosureDetector::UniquePtr lcd_;
+};
 
 }  // namespace VIO

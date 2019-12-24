@@ -1,5 +1,5 @@
 ### Add source code for stereoVIO
-target_sources(KimeraVIO
+target_sources(kimera_vio
     PRIVATE
       "${CMAKE_CURRENT_LIST_DIR}/Logger.cpp"
 )

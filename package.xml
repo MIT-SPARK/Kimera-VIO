@@ -1,19 +1,21 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>KimeraVIO</name>
+  <name>kimera_vio</name>
   <version>0.0.1</version>
   <description>KimeraVIO</description>
 
-  <maintainer email="mhkabir@mit.edu"></maintainer>
+  <maintainer email="arosinol@mit.edu">Antoni Rosinol</maintainer>
   <license>BSD</license>
 
   <buildtool_depend>cmake</buildtool_depend>
 
   <depend>KimeraRPGO</depend>
   <depend>GTSAM</depend>
-  <depend>opencv3_catkin</depend>
-  <depend>opengv_catkin</depend>
-  <depend>dbow2_catkin</depend>
+  <depend>gflags</depend>
+  <depend>glog</depend>
+  <depend>opencv</depend>
+  <depend>opengv</depend>
+  <depend>dbow2</depend>
   <export>
     <!-- Specify that this is not really a catkin package-->
     <build_type>cmake</build_type>

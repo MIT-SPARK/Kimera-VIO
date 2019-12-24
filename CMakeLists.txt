@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.5)
-project(KimeraVIO VERSION 1.0 LANGUAGES CXX)
+project(kimera_vio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
 # Currently we do not have any custom find module...
@@ -27,273 +27,285 @@ if(NOT TARGET Boost::boost)
   INTERFACE_INCLUDE_DIRECTORIES "${Boost_INCLUDE_DIRS}")
 endif()
 
+find_package(Gflags REQUIRED)
+find_package(Glog 0.3.5 REQUIRED)
 find_package(GTSAM REQUIRED)
 find_package(opengv REQUIRED)
 find_package(OpenCV 3.3.1 REQUIRED)
 find_package(DBoW2 REQUIRED)
+if(NOT TARGET DBoW2::DBoW2)
+  add_library(DBoW2::DBoW2 INTERFACE IMPORTED)
+  set_target_properties(DBoW2::DBoW2 PROPERTIES
+  INTERFACE_LINK_LIBRARIES "${DBoW2_LIBRARIES}"
+  INTERFACE_INCLUDE_DIRECTORIES "${DBoW2_INCLUDE_DIRS}")
+endif()
 find_package(KimeraRPGO REQUIRED)
-
-### Unzip the vocabularly file
-message(STATUS "Unpacking BoW Vocabulary File.")
-execute_process(
-  COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_SOURCE_DIR}/vocabulary/ORBvoc.zip
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/vocabulary
-)
 
 ### External Dependencies
 include(ExternalProject)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gflags.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/glog.cmake)
+
+### Download and unzip the vocabularly file
+# TODO(marcus): cannot use this with 16.04 because cmake version is too low.
+# ExternalProject_Add(ORBvoc
+#     PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary
+#     URL http://www.dropbox.com/s/lyo0qgbdxn6eg6o/ORBvoc.zip?dl=1
+#     CONFIGURE_COMMAND ""
+#     BUILD_COMMAND ""
+#     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory
+#       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
+#       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ &&
+#       ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
+# )
+
+if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.yml)
+  message(STATUS "Downloading vocabulary file from dropbox.")
+  file(DOWNLOAD
+       http://www.dropbox.com/s/lyo0qgbdxn6eg6o/ORBvoc.zip?dl=1
+       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.zip
+       SHOW_PROGRESS
+       STATUS orbvoc_download_success
+       TIMEOUT 60)
+  if(orbvoc_download_success)
+    message(STATUS "Unzipping vocabulary file.")
+    
+    execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.zip
+                            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/)
+    message(STATUS "Moving vocabulary file.")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc/
+                    ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/)
+    execute_process(COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc/)
+  else(orbvoc_download_success)
+    message(STATUS "Failed to download vocabulary file. Please download manually.")
+  endif(orbvoc_download_success)
+else()
+  message(STATUS "Vocabulary file exists, will not download.")
+endif()
 
 ### Compile the code
-add_library(KimeraVIO SHARED "")
+add_library(kimera_vio SHARED "")
 # Add an alias so that library can be used inside the build tree,
 # e.g. when testing
-add_library(KimeraVIO::KimeraVIO ALIAS KimeraVIO)
+add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 
 ### Add source code for data provider.
-include(include/kimera-vio/datasource/CMakeLists.txt)
-include(src/datasource/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/dataprovider)
+add_subdirectory(src/dataprovider)
 ### Add source code for frontend.
-include(include/kimera-vio/frontend/CMakeLists.txt)
-include(src/frontend/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/frontend)
+add_subdirectory(src/frontend)
 ### Add source code for backend.
-include(include/kimera-vio/backend/CMakeLists.txt)
-include(src/backend/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/backend)
+add_subdirectory(src/backend)
 ### Add source code for factors
-include(include/kimera-vio/factors/CMakeLists.txt)
-include(src/factors/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/factors)
+add_subdirectory(src/factors)
 ### Add source code for mesh
-include(include/kimera-vio/mesh/CMakeLists.txt)
-include(src/mesh/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/mesh)
+add_subdirectory(src/mesh)
 ### Add source code for initialization
-include(include/kimera-vio/initial/CMakeLists.txt)
-include(src/initial/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/initial)
+add_subdirectory(src/initial)
 ### Add source code for utils
-include(include/kimera-vio/utils/CMakeLists.txt)
-include(src/utils/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/utils)
+add_subdirectory(src/utils)
 ### Add source code for pipeline
-include(include/kimera-vio/pipeline/CMakeLists.txt)
-include(src/pipeline/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/pipeline)
+add_subdirectory(src/pipeline)
 ### Add source code for common
-include(include/kimera-vio/common/CMakeLists.txt)
-include(src/common/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/common)
+add_subdirectory(src/common)
 ### Add source code for loopclosure
-include(include/kimera-vio/loopclosure/CMakeLists.txt)
-include(src/loopclosure/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/loopclosure)
+add_subdirectory(src/loopclosure)
 ### Add source code for logging
-include(include/kimera-vio/logging/CMakeLists.txt)
-include(src/logging/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/logging)
+add_subdirectory(src/logging)
 ### Add source code for imu frontend
-include(include/kimera-vio/imu-frontend/CMakeLists.txt)
-include(src/imu-frontend/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/imu-frontend)
+add_subdirectory(src/imu-frontend)
 ### Add source code for visualizer.
-include(include/kimera-vio/visualizer/CMakeLists.txt)
-include(src/visualizer/CMakeLists.txt)
+add_subdirectory(include/kimera-vio/visualizer)
+add_subdirectory(src/visualizer)
 
-target_link_libraries(KimeraVIO
+target_link_libraries(kimera_vio
   PRIVATE
     opengv
-    DBoW2
+    DBoW2::DBoW2
     KimeraRPGO
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES}
-    gflags::gflags
-    glog::glog
+    gflags
+    glog
     gtsam
     gtsam_unstable
  )
-target_include_directories(KimeraVIO
+target_include_directories(kimera_vio
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
 
-target_compile_options(KimeraVIO
+target_compile_options(kimera_vio
   PRIVATE -Wall -pipe
   PRIVATE -march=native
 )
 
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(KimeraVIO PUBLIC
+target_compile_features(kimera_vio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override)
 
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
-target_link_libraries(stereoVIOEuroc PUBLIC KimeraVIO::KimeraVIO)
+target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
 
+############################### TESTS ##########################################
 ### Add testing
-# Download and unpack googletest at configure time
-# TODO Consider doing the same for glog, gflags, although it might
-# make the command `cmake ..` a bit slow.
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake
-  external/googletest-download/CMakeLists.txt)
-execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download" )
-execute_process(COMMAND "${CMAKE_COMMAND}" --build .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download" )
+option(BUILD_TESTS "Build tests" ON)
+if(BUILD_TESTS)
+  # Download and unpack googletest at configure time
+  # TODO Consider doing the same for glog, gflags, although it might
+  # make the command `cmake ..` a bit slow.
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gtest.cmake
+    external/googletest-download/CMakeLists.txt)
+  execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download"
+      OUTPUT_QUIET)
+  execute_process(COMMAND "${CMAKE_COMMAND}" --build .
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/external/googletest-download"
+      OUTPUT_QUIET)
 
-# Prevent GoogleTest from overriding our compiler/linker options
-# when building with Visual Studio
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  # Prevent GoogleTest from overriding our compiler/linker options
+  # when building with Visual Studio
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-# Add googletest directly to our build. This adds
-# the following targets: gtest, gtest_main, gmock
-# and gmock_main
-# Exclude these targets from installation with EXCLUDE_FROM_ALL
-# Check issue: https://github.com/google/googletest/issues/868
-add_subdirectory("${CMAKE_BINARY_DIR}/external/googletest-src"
-                 "${CMAKE_BINARY_DIR}/external/googletest-build"
-                 EXCLUDE_FROM_ALL)
+  # Add googletest directly to our build. This adds
+  # the following targets: gtest, gtest_main, gmock
+  # and gmock_main
+  # Exclude these targets from installation with EXCLUDE_FROM_ALL
+  # Check issue: https://github.com/google/googletest/issues/868
+  add_subdirectory("${CMAKE_BINARY_DIR}/external/googletest-src"
+                   "${CMAKE_BINARY_DIR}/external/googletest-build"
+                   EXCLUDE_FROM_ALL)
 
-# The gtest/gmock targets carry header search path
-# dependencies automatically when using CMake 2.8.11 or
-# later. Otherwise we have to add them here ourselves.
-if(CMAKE_VERSION VERSION_LESS 2.8.11)
-    include_directories("${gtest_SOURCE_DIR}/include"
-                        "${gmock_SOURCE_DIR}/include")
-endif()
+  # The gtest/gmock targets carry header search path
+  # dependencies automatically when using CMake 2.8.11 or
+  # later. Otherwise we have to add them here ourselves.
+  if(CMAKE_VERSION VERSION_LESS 2.8.11)
+      include_directories("${gtest_SOURCE_DIR}/include"
+                          "${gmock_SOURCE_DIR}/include")
+  endif()
 
-# Generate gtests.
-include(CTest)
-add_executable(testKimeraVIO
-  tests/testKimeraVIO.cpp
-  tests/testCameraParams.cpp
-  tests/testCodesignIdeas.cpp
-  tests/testFeatureSelector.cpp
-  tests/testFrame.cpp
-  tests/testGeneralParallelPlaneRegularBasicFactor.cpp
-  tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
-  tests/testImuFrontEnd.cpp
-  tests/testKittiDataProvider.cpp # TODO
-  tests/testLoopClosureDetector.cpp
-  tests/testLogger.cpp
-  # tests/testMesher.cpp # rotten
-  tests/testParallelPlaneRegularBasicFactor.cpp
-  tests/testParallelPlaneRegularTangentSpaceFactor.cpp
-  tests/testPointPlaneFactor.cpp
-  #tests/testRegularVioBackEnd.cpp # rotten
-  tests/testRegularVioBackEndParams.cpp
-  tests/testStereoFrame.cpp
-  tests/testStereoVisionFrontEnd.cpp
-  tests/testThreadsafeImuBuffer.cpp
-  tests/testThreadsafeQueue.cpp
-  tests/testThreadsafeTemporalBuffer.cpp
-  tests/testTimer.cpp
-  tests/testTracker.cpp
-  tests/testUtilsOpenCV.cpp
-  tests/testInitializationFromImu.cpp
-  tests/testVioBackEnd.cpp
-  tests/testVioBackEndParams.cpp
-  tests/testVioFrontEndParams.cpp
-  tests/testVisualizer3D.cpp
-  tests/testOnlineAlignment.cpp
-  )
+  # Generate gtests.
+  include(CTest)
+  add_executable(testKimeraVIO
+    tests/testKimeraVIO.cpp
+    tests/testCameraParams.cpp
+    tests/testCodesignIdeas.cpp
+    tests/testFeatureSelector.cpp
+    tests/testFrame.cpp # NEEDS UPDATE
+    tests/testGeneralParallelPlaneRegularBasicFactor.cpp
+    tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
+    tests/testImuFrontEnd.cpp
+    tests/testKittiDataProvider.cpp # TODO
+    tests/testLoopClosureDetector.cpp
+    tests/testLogger.cpp
+    tests/testMesher.cpp # rotten
+    tests/testParallelPlaneRegularBasicFactor.cpp
+    tests/testParallelPlaneRegularTangentSpaceFactor.cpp
+    tests/testPointPlaneFactor.cpp
+    #tests/testRegularVioBackEnd.cpp # rotten
+    tests/testRegularVioBackEndParams.cpp
+    tests/testStereoFrame.cpp # NEEDS UPDATE
+    tests/testStereoVisionFrontEnd.cpp # NEEDS UPDATE
+    tests/testThreadsafeImuBuffer.cpp
+    tests/testThreadsafeQueue.cpp
+    tests/testThreadsafeTemporalBuffer.cpp
+    tests/testTimer.cpp
+    tests/testTracker.cpp
+    tests/testUtilsOpenCV.cpp
+    tests/testInitializationFromImu.cpp
+    tests/testVioBackEnd.cpp
+    tests/testVioBackEndParams.cpp
+    tests/testVioFrontEndParams.cpp
+    # tests/testVisualizer3D.cpp # NEEDS UPDATE
+    tests/testOnlineAlignment.cpp
+    )
+  target_link_libraries(testKimeraVIO gtest kimera_vio::kimera_vio)
 
-target_link_libraries(testKimeraVIO gtest KimeraVIO::KimeraVIO)
+  if(CMAKE_VERSION VERSION_LESS 3.10)
+    enable_testing()
+    include(FindGTest)
+    gtest_add_tests(testKimeraVIO "" AUTO)
+  else()
+    include(GoogleTest)
+    gtest_discover_tests(testKimeraVIO)
+  endif()
+endif(BUILD_TESTS)
 
-if(CMAKE_VERSION VERSION_LESS 3.10)
-  enable_testing()
-  include(FindGTest)
-  gtest_add_tests(testKimeraVIO "" AUTO)
-else()
-  include(GoogleTest)
-  gtest_discover_tests(testKimeraVIO)
-endif()
-
-#export(TARGETS KimeraVIO FILE KimeraVIO.cmake)
-#
-#
-#install(TARGETS KimeraVIO EXPORT stereoVioTargets
-#  LIBRARY DESTINATION lib
-#  ARCHIVE DESTINATION lib
-#  RUNTIME DESTINATION bin
-#  INCLUDES DESTINATION include
-#  )
-#install(EXPORT KimeraVIOTargets
-#  FILE KimeraVIOTargets.cmake
-#  NAMESPACE stereoVio::
-#  DESTINATION lib/cmake/KimeraVIO
-#  )
-
-#include(CMakePackageConfigHelpers)
-#write_basic_package_version_file("KimeraVIOConfigVersion.cmake"
-#  VERSION ${KimeraVIO_VERSION}
-#  COMPATIBILITY SameMajorVersion
-#)
-
-##############################################
-## Installation instructions
-#include(GNUInstallDirs)
-#
-## First of all, we need to install the library itself.
-#install(TARGETS KimeraVIO
-#    EXPORT KimeraVIO-export
-#    LIBRARY DESTINATION lib
-#    ARCHIVE DESTINATION lib
-#    INCLUDES DESTINATION include # We need this right?
-#)
-
-## This is required so that the exported target has the name KimeraVIO and not KimeraVIO
-#set_target_properties(KimeraVIO PROPERTIES EXPORT_NAME KimeraVIO)
-
-## TODO THIS SHOULD BE only the headers... aka include/
-##install(DIRECTORY src/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-#
-## Install headers of our dependencies, not sure if it works...
-#install(DIRECTORY ${GTSAM_INCLUDE_DIR} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-#install(DIRECTORY ${GFLAGS_INCLUDE_DIRS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-#install(DIRECTORY ${GLOG_INCLUDE_DIRS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-#
-## CMAKE_INSTALL_LIBDIR is lib usually
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/KimeraVIO)
-
+############################### INSTALL/EXPORT #################################
 ## We install the export that we defined above
 ## Export the targets to a script
-## This will install the import script KimeraVIOTargets.cmake
+## This will install the import script kimera_vioTargets.cmake
 ## When findpackaged by other scripts, it will load the targets defined
-## in the export KimeraVIO-export.
-#install(EXPORT KimeraVIO-export
-#  FILE KimeraVIOTargets.cmake
-#  NAMESPACE KimeraVIO::
-## It's usually a good idea to give CMake access to the version,
-## so that find_package can have a version specified.
-## Create a ConfigVersion.cmake file
-## It's usually a good idea to give CMake access to the version,
-## so that find_package can have a version specified.
-## Create a ConfigVersion.cmake file
+## in the export kimera_vio-export.
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY AnyNewerVersion
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion
 )
 
-# Create KimeraVIOConfig.cmake with extra info from KimeraVIOConfig.cmake.in
-# This file is necessary to find_package the library KimeraVIO.
-configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/KimeraVIOConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
-    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
+# Create kimera_vioConfig.cmake with extra info from kimera_vioConfig.cmake.in
+# This file is necessary to find_package the library kimera_vio.
+set(INSTALL_CONFIGDIR lib/cmake/kimera_vio)
+configure_package_config_file(
+  ${CMAKE_CURRENT_LIST_DIR}/cmake/kimera_vioConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfig.cmake
+  INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
-#
-## Install the config and configversion
-## Here you could also install custom cmake find modules
-#install(FILES
-#    ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfig.cmake
-#    ${CMAKE_CURRENT_BINARY_DIR}/KimeraVIOConfigVersion.cmake
-#    DESTINATION ${INSTALL_CONFIGDIR}
-#)
 
-set(EXPORTED_DEPENDENCIES "")
-list(APPEND EXPORTED_DEPENDENCIES "glog::glog")
-list(APPEND EXPORTED_DEPENDENCIES "gflags::gflags")
+option(EXPORT_KIMERA "Export kimera_vio instead of installing it." OFF)
+if(EXPORT_KIMERA)
+  export(TARGETS kimera_vio
+         FILE kimera_vioTargets.cmake)
+  export(PACKAGE kimera_vio)
+else(EXPORT_KIMERA)
+  include(GNUInstallDirs)
+  ## First of all, we need to install the library itself.
+  install(TARGETS kimera_vio
+      EXPORT kimera_vio-export
+      LIBRARY DESTINATION lib
+      ARCHIVE DESTINATION lib
+      # Perhaps use this, instead of installing include dir
+      #PUBLIC_HEADER DESTINATION include
+      INCLUDES DESTINATION include # We need this right?
+      RUNTIME DESTINATION bin
+  )
+  install(EXPORT kimera_vio-export
+    FILE
+      kimera_vioTargets.cmake
+    DESTINATION
+      ${INSTALL_CONFIGDIR}
+  )
+  # Install header files
+  install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h")
 
-export(TARGETS KimeraVIO ${EXPORTED_DEPENDENCIES}
-       FILE KimeraVIOTargets.cmake)
-export(PACKAGE KimeraVIO)
+  ## Install the config and configversion
+  install(FILES
+      ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfig.cmake
+      ${CMAKE_CURRENT_BINARY_DIR}/kimera_vioConfigVersion.cmake
+      ${CMAKE_CURRENT_LIST_DIR}/cmake/FindGflags.cmake
+      ${CMAKE_CURRENT_LIST_DIR}/cmake/FindGlog.cmake
+      DESTINATION ${INSTALL_CONFIGDIR}
+  )
+endif(EXPORT_KIMERA)
 
-###############################################################################
+################################################################################
 # Print configuration variables
 message(STATUS "===============================================================")
 message(STATUS "================  Configuration Options  ======================")
@@ -308,18 +320,3 @@ if(NOT MSVC AND NOT XCODE_VERSION)
     message(STATUS "  C compilation flags (Release)           : ${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
     message(STATUS "  C++ compilation flags (Release)         : ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
-
-#include(GNUInstallDirs)
-#install(TARGETS KimeraVIO
-#    EXPORT kimera-vio-export
-#    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#)
-#install(EXPORT kimera-vio-export
-#  FILE
-#    KimeraVIOTargets.cmake
-#    #NAMESPACE
-#    #NAKimeraVIO::
-#  DESTINATION
-#    ${CMAKE_INSTALL_LIBDIR}/cmake/KimeraVIO
-#)

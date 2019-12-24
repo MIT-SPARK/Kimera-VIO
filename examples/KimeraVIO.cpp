@@ -20,64 +20,81 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include "kimera-vio/datasource/ETH_parser.h"
-#include "kimera-vio/datasource/KittiDataSource.h"
+#include "kimera-vio/dataprovider/EurocDataProvider.h"
+#include "kimera-vio/dataprovider/KittiDataProvider.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/pipeline/Pipeline.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
-DEFINE_bool(parallel_run, false, "Run parallelized pipeline.");
-DEFINE_int32(dataset_type, 0,
+DEFINE_int32(dataset_type,
+             0,
              "Type of parser to use:\n"
              "0: EuRoC\n"
              "1: Kitti");
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
   // Build dataset parser.
-  std::unique_ptr<VIO::DataProvider> dataset_parser;
+  VIO::DataProviderInterface::UniquePtr dataset_parser = nullptr;
   switch (FLAGS_dataset_type) {
     case 0: {
-      dataset_parser = VIO::make_unique<VIO::ETHDatasetParser>();
+      dataset_parser =
+          VIO::make_unique<VIO::EurocDataProvider>();
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
     } break;
-    default:
-    {
+    default: {
       LOG(FATAL) << "Unrecognized dataset type: " << FLAGS_dataset_type << "."
-                   << " 0: EuRoC, 1: Kitti.";
+                 << " 0: EuRoC, 1: Kitti.";
     }
   }
+  CHECK(dataset_parser);
 
-  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_,
-                             FLAGS_parallel_run);
+  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
 
   // Register callback to vio pipeline.
-  dataset_parser->registerVioCallback(
-      std::bind(&VIO::Pipeline::spin, &vio_pipeline, std::placeholders::_1));
+  dataset_parser->registerImuSingleCallback(
+      std::bind(&VIO::Pipeline::fillSingleImuQueue,
+                &vio_pipeline,
+                std::placeholders::_1));
+  dataset_parser->registerLeftFrameCallback(
+      std::bind(&VIO::Pipeline::fillLeftFrameQueue,
+                &vio_pipeline,
+                std::placeholders::_1));
+  dataset_parser->registerRightFrameCallback(
+      std::bind(&VIO::Pipeline::fillRightFrameQueue,
+                &vio_pipeline,
+                std::placeholders::_1));
 
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
-  if (FLAGS_parallel_run) {
+  if (dataset_parser->pipeline_params_.parallel_run_) {
     auto handle = std::async(std::launch::async,
-                             &VIO::DataProvider::spin,
+                             &VIO::DataProviderInterface::spin,
                              std::move(dataset_parser));
     auto handle_pipeline =
-        std::async(std::launch::async, &VIO::Pipeline::shutdownWhenFinished,
-                   &vio_pipeline);
+        std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
+    auto handle_shutdown = std::async(std::launch::async,
+                                      &VIO::Pipeline::shutdownWhenFinished,
+                                      &vio_pipeline);
     vio_pipeline.spinViz();
-    is_pipeline_successful = handle.get();
+    is_pipeline_successful = !handle.get();
+    handle_shutdown.get();
     handle_pipeline.get();
   } else {
-    is_pipeline_successful = dataset_parser->spin();
+    while (dataset_parser->spin()) {
+      vio_pipeline.spin();
+    };
+    vio_pipeline.shutdown();
+    is_pipeline_successful = true;
   }
 
   // Output stats.
@@ -85,7 +102,6 @@ int main(int argc, char *argv[]) {
   LOG(WARNING) << "Spin took: " << spin_duration.count() << " ms.";
   LOG(INFO) << "Pipeline successful? "
             << (is_pipeline_successful ? "Yes!" : "No!");
-  VIO::utils::Statistics::WriteAllSamplesToCsvFile("StatisticsVIO.csv");
 
   if (is_pipeline_successful) {
     // Log overall time of pipeline run.

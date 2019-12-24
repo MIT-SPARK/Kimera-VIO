@@ -32,24 +32,29 @@
 
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeImuBuffer.h"
 
 namespace VIO {
 
 class ImuData {
 public:
-  // Imu buffer with virtually infinite memory.
-  ImuData()
-    : imu_buffer_(-1) {}
+ KIMERA_POINTER_TYPEDEFS(ImuData);
+ KIMERA_DELETE_COPY_CONSTRUCTORS(ImuData);
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  // Checks for statistics..
-  double imu_rate_;
-  double nominal_imu_rate_;
-  double imu_rate_std_;
-  double imu_rate_maxMismatch_;
+ // Imu buffer with virtually infinite memory.
+ ImuData() : imu_buffer_(-1) {}
 
-  // Imu data.
-  utils::ThreadsafeImuBuffer imu_buffer_;
+ // Checks for statistics..
+ // TODO(Toni): remove these and put in params.
+ double imu_rate_;
+ double nominal_imu_rate_;
+ double imu_rate_std_;
+ double imu_rate_maxMismatch_;
+
+ // Imu data.
+ utils::ThreadsafeImuBuffer imu_buffer_;
 
 public:
   void print() const;
@@ -65,41 +70,36 @@ public:
  */
 class ImuFrontEnd {
 public:
-  #ifdef USE_COMBINED_IMU_FACTOR
-    using PreintegratedImuMeasurements = gtsam::PreintegratedCombinedMeasurements;
-  #else
-    using PreintegratedImuMeasurements = gtsam::PreintegratedImuMeasurements;
-  #endif
+ using PimPtr = std::shared_ptr<gtsam::PreintegrationType>;
+ using PimUniquePtr = std::unique_ptr<gtsam::PreintegrationType>;
+
 public:
-  /* ------------------------------------------------------------------------
-   * Class to do IMU preintegration.
-   * [in] imu_params: IMU parameters used for the preintegration.
-   * [in] imu_bias: IMU bias used to initialize PreintegratedImuMeasurements
-   * !! The user of this class must update the bias and reset the integration
-   * manually in order to preintegrate the IMU with the latest IMU bias coming
-   * from the backend optimization.
-   */
+ KIMERA_POINTER_TYPEDEFS(ImuFrontEnd);
+ KIMERA_DELETE_COPY_CONSTRUCTORS(ImuFrontEnd);
+ EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+ /* ------------------------------------------------------------------------
+  * Class to do IMU preintegration.
+  * [in] imu_params: IMU parameters used for the preintegration.
+  * [in] imu_bias: IMU bias used to initialize PreintegratedImuMeasurements
+  * !! The user of this class must update the bias and reset the integration
+  * manually in order to preintegrate the IMU with the latest IMU bias coming
+  * from the backend optimization.
+  */
  ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias);
- ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
-             const ImuBias& imu_bias);
  ~ImuFrontEnd() = default;
 
  /* ------------------------------------------------------------------------ */
- PreintegratedImuMeasurements preintegrateImuMeasurements(
-     const ImuStampS& imu_stamps,
-     const ImuAccGyrS& imu_accgyr);
- PreintegratedImuMeasurements preintegrateImuMeasurements(
-     const ImuStampS& imu_stamps,
-     const ImuAccGyr& imu_accgyr) = delete;
- PreintegratedImuMeasurements preintegrateImuMeasurements(
-     const ImuStamp& imu_stamps,
-     const ImuAccGyrS& imu_accgyr) = delete;
- PreintegratedImuMeasurements preintegrateImuMeasurements(
-     const ImuStamp& imu_stamps,
-     const ImuAccGyr& imu_accgyr) = delete;
+ PimPtr preintegrateImuMeasurements(const ImuStampS& imu_stamps,
+                                    const ImuAccGyrS& imu_accgyr);
+ PimPtr preintegrateImuMeasurements(const ImuStampS& imu_stamps,
+                                    const ImuAccGyr& imu_accgyr) = delete;
+ PimPtr preintegrateImuMeasurements(const ImuStamp& imu_stamps,
+                                    const ImuAccGyrS& imu_accgyr) = delete;
+ PimPtr preintegrateImuMeasurements(const ImuStamp& imu_stamps,
+                                    const ImuAccGyr& imu_accgyr) = delete;
 
- /* --------------------------------------------------------------------------
-  */
+ /* ------------------------------------------------------------------------- */
  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,
                                           const ImuAccGyrS& imu_accgyr);
  gtsam::Rot3 preintegrateGyroMeasurements(const ImuStampS& imu_stamps,
@@ -156,43 +156,52 @@ public:
   // Reset gravity value in pre-integration.
   // This is needed for the online initialization.
   // THREAD-SAFE.
-  inline void resetPreintegrationGravity(gtsam::Vector3 reset_value) {
+  inline void resetPreintegrationGravity(const gtsam::Vector3& reset_value) {
     LOG(WARNING) << "Resetting value of gravity in ImuFrontEnd to: "
                  << reset_value;
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
-    imu_params_.n_gravity = reset_value;
+    pim_->params()->n_gravity = reset_value;
+    CHECK(gtsam::assert_equal(pim_->params()->getGravity(), reset_value));
+    // TODO(Toni): should we update imu_params n_gravity for consistency?
+    // imu_params_.n_gravity_ = reset_value;
   }
 
   /* ------------------------------------------------------------------------ */
   // THREAD-SAFE.
+  inline ImuPreintegrationType getImuPreintegrationType() const {
+    return imu_params_.imu_preintegration_type_;
+  }
+
   inline gtsam::Vector3 getPreintegrationGravity() const {
     // TODO(Toni): why are we locking the imu_bias_mutex here???
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
-    return imu_params_.n_gravity;
+    return imu_params_.n_gravity_;
   }
 
   /* ------------------------------------------------------------------------ */
-  // THIS IS NOT THREAD-SAFE.
-  inline PreintegratedImuMeasurements getCurrentPIM() const {
-    return *pim_;
+  inline gtsam::PreintegrationType::Params getGtsamImuParams() const {
+    return *(pim_->params());
   }
 
   /* ------------------------------------------------------------------------ */
-  inline PreintegratedImuMeasurements::Params getImuParams() const {
-    return imu_params_;
-  }
+  // Convert parameters for imu preintegration from the given ImuParams.
+  static gtsam::PreintegrationType::Params convertVioImuParamsToGtsam(
+      const ImuParams& imu_params);
 
-private:
- void initializeImuFrontEnd(const ImuBias& imu_bias);
+  static boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params>
+  generateCombinedImuParams(const ImuParams& imu_params);
 
- // Set parameters for imu preintegration from the given ImuParams.
- PreintegratedImuMeasurements::Params setImuParams(const ImuParams& imu_params);
+  static boost::shared_ptr<gtsam::PreintegratedImuMeasurements::Params>
+  generateRegularImuParams(const ImuParams& imu_params);
 
-private:
- PreintegratedImuMeasurements::Params imu_params_;
- std::unique_ptr<PreintegratedImuMeasurements> pim_ = nullptr;
- ImuBias latest_imu_bias_;
- mutable std::mutex imu_bias_mutex_;
+ private:
+  void initializeImuFrontEnd(const ImuBias& imu_bias);
+
+ private:
+  ImuParams imu_params_;
+  PimUniquePtr pim_ = nullptr;
+  ImuBias latest_imu_bias_;
+  mutable std::mutex imu_bias_mutex_;
 };
 
 } // End of VIO namespace.

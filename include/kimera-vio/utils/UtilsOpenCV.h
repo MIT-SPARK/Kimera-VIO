@@ -91,19 +91,16 @@ public:
   static std::string typeToString(int type);
 
   /* ------------------------------------------------------------------------ */
-  // Open files with name output_filename, and checks that it is valid
-  static void OpenFile(const std::string &output_filename,
-                       std::ofstream *output_file, bool append_mode = false);
-
-  /* ------------------------------------------------------------------------ */
   // compares 2 cv::Mat
-  static bool CvMatCmp(const cv::Mat mat1, const cv::Mat mat2,
-                       const double tol = 1e-7);
+  static bool compareCvMatsUpToTol(const cv::Mat& mat1,
+                                   const cv::Mat& mat2,
+                                   const double& tol = 1e-7);
 
   /* ------------------------------------------------------------------------ */
   // comparse 2 cvPoints
-  static bool CvPointCmp(const cv::Point2f &p1, const cv::Point2f &p2,
-                         const double tol = 1e-7);
+  static bool CvPointCmp(const cv::Point2f& p1,
+                         const cv::Point2f& p2,
+                         const double& tol = 1e-7);
 
   /* ------------------------------------------------------------------------ */
   // Converts a gtsam::Unit3 to a cv::Point3d.
@@ -132,16 +129,28 @@ public:
   static std::pair<cv::Mat,cv::Mat> Pose2cvmats(const gtsam::Pose3& pose);
 
   /* ------------------------------------------------------------------------ */
+  // Converts a gtsam rotation in matrix form to a opencv mat.
+  static cv::Mat gtsamMatrix3ToCvMat(const gtsam::Matrix3& rot);
+
+  /* ------------------------------------------------------------------------ */
+  // Converts a gtsam translation to a opencv mat.
+  static cv::Mat gtsamVector3ToCvMat(const gtsam::Vector3& tran);
+
+  /* ------------------------------------------------------------------------ */
   // Converts a gtsam pose3 to a opencv Affine3d
-  static cv::Affine3f Pose2Affine3f(const gtsam::Pose3& pose);
+  static cv::Affine3d gtsamPose3ToCvAffine3d(const gtsam::Pose3& pose);
 
   /* ------------------------------------------------------------------------ */
   // Converts a rotation matrix and translation vector from opencv to gtsam pose3
-  static gtsam::Pose3 Cvmats2pose(const cv::Mat& R, const cv::Mat& T);
+  static gtsam::Pose3 cvMatsToGtsamPose3(const cv::Mat& R, const cv::Mat& T);
 
   /* ------------------------------------------------------------------------ */
   // Converts a 3x3 rotation matrix from opencv to gtsam Rot3
-  static gtsam::Rot3 Cvmat2rot(const cv::Mat& R);
+  static gtsam::Rot3 cvMatToGtsamRot3(const cv::Mat& R);
+
+  /* ------------------------------------------------------------------------ */
+  // Converts a 3x1 OpenCV matrix to gtsam Point3
+  static gtsam::Point3 cvMatToGtsamPoint3(const cv::Mat& cv_t);
 
   /* ------------------------------------------------------------------------ */
   // Converts a camera matrix from opencv to gtsam::Cal3_S2
@@ -153,27 +162,26 @@ public:
 
   /* ------------------------------------------------------------------------ */
   // converts an opengv transformation (3x4 [R t] matrix) to a gtsam::Pose3
-  static gtsam::Pose3 Gvtrans2pose(const opengv::transformation_t& RT);
+  static gtsam::Pose3 openGvTfToGtsamPose3(const opengv::transformation_t& RT);
 
   /* ------------------------------------------------------------------------ */
   // Crops pixel coordinates avoiding that it falls outside image
-  static cv::Point2f CropToSize(cv::Point2f px, cv::Size size);
+  static bool cropToSize(cv::Point2f* px, const cv::Size& size);
 
   /* ------------------------------------------------------------------------ */
   // crop to size and round pixel coordinates to integers
-  static cv::Point2f RoundAndCropToSize(cv::Point2f px, cv::Size size);
+  static bool roundAndCropToSize(cv::Point2f* px, const cv::Size& size);
 
   /* ------------------------------------------------------------------------ */
   // Get good features to track from image (wrapper for opencv
   // goodFeaturesToTrack)
-  static void ExtractCorners(
-      const cv::Mat& img,
-      std::vector<cv::Point2f>* corners,
-      const double& qualityLevel = 0.01,
-      const double& minDistance = 10,
-      const int blockSize = 3,
-      const double& k = 0.04,
-      const bool useHarrisDetector = false);
+  static bool ExtractCorners(const cv::Mat& img,
+                             std::vector<cv::Point2f>* corners,
+                             const double& qualityLevel = 0.01,
+                             const double& minDistance = 10,
+                             const int& blockSize = 3,
+                             const double& k = 0.04,
+                             const bool& useHarrisDetector = false);
 
   /* -------------------------------------------------------------------------- */
   template<typename T> struct myGreaterThanPtr {
@@ -188,13 +196,13 @@ public:
       const cv::Mat& image,
       const int& maxCorners,
       const double& qualityLevel,
-      double minDistance,
+      double minDistance,  // Not const because modified dkwhy inside...
       const cv::Mat& mask,
       const int& blockSize,
       const bool& useHarrisDetector,
       const double& harrisK,
       std::pair<std::vector<cv::Point2f>, std::vector<double>>*
-        corners_with_scores);
+          corners_with_scores);
 
   /* -------------------------------------------------------------------------- */
   // creates pose by aligning initial gravity vector estimates

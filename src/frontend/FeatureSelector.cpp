@@ -21,6 +21,7 @@
 #include <glog/logging.h>
 
 #include "kimera-vio/frontend/FeatureSelector.h"
+#include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 
 namespace VIO {
 
@@ -75,13 +76,17 @@ bool FeatureSelectorData::isEmpty() const {
 }  // empty if there are no poses in horizon
 
 //////////////////////////////////////////////////////////////////////////////
-FeatureSelector::FeatureSelector(const VioFrontEndParams& trackerParams,
-                                 const VioBackEndParams& vioParams) {
-  imuDeltaT_ = trackerParams.featureSelectionImuRate_;
+FeatureSelector::FeatureSelector(
+    const VioFrontEndParams& trackerParams,
+    const VioBackEndParams& vioParams,
+    const FeatureSelectorParams& feature_select_params) {
+  imuDeltaT_ = feature_select_params.featureSelectionImuRate_;
   // Variance, converted to discrete time, see ImuFactor.cpp
-  accVarianceDiscTime_ = pow(vioParams.accNoiseDensity_, 2) / imuDeltaT_;
+  // TODO(x): reenable
+  // accVarianceDiscTime_ = pow(vioParams.accNoiseDensity_, 2) / imuDeltaT_;
   // Variance, converted to discrete time, see CombinedImuFactor.cpp
-  biasAccVarianceDiscTime_ = pow(vioParams.accBiasSigma_, 2) * imuDeltaT_;
+  // TODO(x): reenable
+  // biasAccVarianceDiscTime_ = pow(vioParams.accBiasSigma_, 2) * imuDeltaT_;
   // Inverse of std of vision measurements
   sqrtInfoVision_ = 1 / vioParams.smartNoiseSigma_;  // TODO: this * 1000 should
                                                      // be fx of the calibration
@@ -89,13 +94,16 @@ FeatureSelector::FeatureSelector(const VioFrontEndParams& trackerParams,
   useStereo_ = trackerParams.useStereoTracking_;
   // Variance of integration noise, converted to discrete time, see
   // ImuFactor.cpp (?)
-  integrationVar_ = pow(vioParams.imuIntegrationSigma_, 2) * imuDeltaT_;
-  featureSelectionDefaultDepth_ = trackerParams.featureSelectionDefaultDepth_;
+  // TODO(X): should be like this, setting to 0 for now...
+  // integrationVar_ = pow(imu_params.imuIntegrationSigma_, 2) * imuDeltaT_;
+  integrationVar_ = 0;
+  featureSelectionDefaultDepth_ =
+      feature_select_params.featureSelectionDefaultDepth_;
   featureSelectionCosineNeighborhood_ =
-      trackerParams.featureSelectionCosineNeighborhood_;
+      feature_select_params.featureSelectionCosineNeighborhood_;
   landmarkDistanceThreshold_ = vioParams.landmarkDistanceThreshold_;
-  useLazyEvaluation_ = trackerParams.featureSelectionUseLazyEvaluation_;
-  useSuccessProbabilities_ = trackerParams.useSuccessProbabilities_;
+  useLazyEvaluation_ = feature_select_params.featureSelectionUseLazyEvaluation_;
+  useSuccessProbabilities_ = feature_select_params.useSuccessProbabilities_;
   print();
 }
 
@@ -113,8 +121,7 @@ void FeatureSelector::print() const {
             << featureSelectionCosineNeighborhood_ << '\n'
             << "landmarkDistanceThreshold_: " << landmarkDistanceThreshold_
             << '\n'
-            << "useLazyEvaluation_: " << useLazyEvaluation_ << '\n'
-            << "useSuccessProbabilities_: " << useSuccessProbabilities_;
+            << "useLazyEvaluation_: " << useLazyEvaluation_;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -149,9 +156,10 @@ FeatureSelector::featureSelectionLinearModel(
     const KeypointsCV& availableCorners,
     const std::vector<double>& successProbabilities,
     const std::vector<double>& availableCornersDistances,
-    const CameraParams& cam_param, const int need_n_corners,
+    const CameraParams& cam_param,
+    const int need_n_corners,
     const FeatureSelectorData& featureSelectionData,
-    const VioFrontEndParams::FeatureSelectionCriterion& criterion) const {
+    const FeatureSelectorParams::FeatureSelectionCriterion& criterion) const {
 #ifdef FEATURE_SELECTOR_DEBUG_COUT
   double startTime = UtilsOpenCV::GetTimeInSeconds();
 #endif
@@ -190,7 +198,7 @@ FeatureSelector::featureSelectionLinearModel(
   availableVersors.reserve(availableCorners.size());
   for (size_t l = 0; l < availableCorners.size(); l++)
     availableVersors.push_back(
-        Frame::CalibratePixel(availableCorners.at(l), cam_param));
+        Frame::calibratePixel(availableCorners.at(l), cam_param));
 
 #ifdef FEATURE_SELECTOR_DEBUG_COUT
   std::cout << "known points time: "
@@ -326,7 +334,7 @@ std::tuple<std::vector<size_t>, std::vector<double>, double>
 FeatureSelector::OrderByUpperBound(
     const gtsam::GaussianFactorGraph::shared_ptr& bestOmegaBar,
     const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
-    const VioFrontEndParams::FeatureSelectionCriterion& criterion) {
+    const FeatureSelectorParams::FeatureSelectionCriterion& criterion) {
   std::vector<double> upperBounds;
   upperBounds.reserve(N);  // for lazy evaluation
   size_t sizeBestOmegaBar = bestOmegaBar->size();
@@ -337,7 +345,7 @@ FeatureSelector::OrderByUpperBound(
   double gainOmegaBar;
   gtsam::VectorValues xx, yy;
   switch (criterion) {
-    case VioFrontEndParams::FeatureSelectionCriterion::MIN_EIG:
+    case FeatureSelectorParams::FeatureSelectionCriterion::MIN_EIG:
       // get eigenvector and smallest eigenvalue of bestOmegaBar
       boost::tie(rank, eigValue, eigVector) =
           SmallestEigs(bestOmegaBar->hessian().first);
@@ -353,7 +361,7 @@ FeatureSelector::OrderByUpperBound(
         upperBounds.push_back(eigValue + yy.norm());    //
       }
       break;
-    case VioFrontEndParams::FeatureSelectionCriterion::
+    case FeatureSelectorParams::FeatureSelectionCriterion::
         LOGDET:  // picks the best features that maximize the logdet of the
                  // covariance
       gainOmegaBar = EvaluateGain(
@@ -407,7 +415,7 @@ FeatureSelector::GreedyAlgorithm(
     const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
     const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
     const int need_n_corners,
-    const VioFrontEndParams::FeatureSelectionCriterion& criterion,
+    const FeatureSelectorParams::FeatureSelectionCriterion& criterion,
     const bool useLazyEval) {
   size_t N = Deltas.size();  // nr of available features
 
@@ -652,7 +660,7 @@ FeatureSelector::SmallestEigsSpectraShift(const gtsam::Matrix& M) {
 double FeatureSelector::EvaluateGain(
     const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
     const gtsam::HessianFactor::shared_ptr& Deltaj,
-    const VioFrontEndParams::FeatureSelectionCriterion& criterion,
+    const FeatureSelectorParams::FeatureSelectionCriterion& criterion,
     bool useDenseMatrices) {
   // augment graph
   size_t sizeOmegaBar = OmegaBar->size();
@@ -666,7 +674,7 @@ double FeatureSelector::EvaluateGain(
   int rank;
   gtsam::Vector eigVector;
   switch (criterion) {
-    case VioFrontEndParams::FeatureSelectionCriterion::
+    case FeatureSelectorParams::FeatureSelectionCriterion::
         MIN_EIG:  // picks the best features that maximize the smallest
                   // eigenvalue of the covariance
       if (!useDenseMatrices) {
@@ -684,7 +692,7 @@ double FeatureSelector::EvaluateGain(
             SmallestEigs(OmegaBar->hessian().first);
       }
       break;
-    case VioFrontEndParams::FeatureSelectionCriterion::
+    case FeatureSelectorParams::FeatureSelectionCriterion::
         LOGDET:  // picks the best features that maximize the logdet of the
                  // covariance
       if (!useDenseMatrices) {
@@ -1254,15 +1262,18 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
     std::shared_ptr<StereoFrame>&
         stereoFrame_km1,  // not constant since we discard nonselected lmks
     const SmartStereoMeasurements& smartStereoMeasurements,
-    const int& vio_cur_id, const int& saveImagesSelector,
-    const VioFrontEndParams::FeatureSelectionCriterion& criterion,
-    const int& nrFeaturesToSelect, const int& maxFeatureAge,
+    const int& vio_cur_id,
+    const int& saveImagesSelector,
+    const FeatureSelectorParams::FeatureSelectionCriterion& criterion,
+    const int& nrFeaturesToSelect,
+    const int& maxFeatureAge,
     const KeyframeToStampedPose& posesAtFutureKeyframes,
-    const gtsam::Matrix& curr_state_cov, const std::string& dataset_name,
+    const gtsam::Matrix& curr_state_cov,
+    const std::string& dataset_name,
     const Frame& frame_km1) {
   // ToDo init to invalid value.
   gtsam::Matrix currNavStateCovariance;
-  if (criterion != VioFrontEndParams::FeatureSelectionCriterion::QUALITY) {
+  if (criterion != FeatureSelectorParams::FeatureSelectionCriterion::QUALITY) {
     VLOG(100) << "Using feature selection criterion diff than QUALITY ";
     try {
       currNavStateCovariance = curr_state_cov;
@@ -1374,7 +1385,8 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
   if (newSmartStereoMeasurements.size() > need_nr_features) {
     // If we have to select something.
     //////////////////////////////////////////////////////////////////////////
-    if (criterion == VioFrontEndParams::FeatureSelectionCriterion::QUALITY) {
+    if (criterion ==
+        FeatureSelectorParams::FeatureSelectionCriterion::QUALITY) {
       // Features were already inserted in order of quality.
       for (size_t ii = 0; ii < need_nr_features; ii++) {
         // These are the landmarks we are going to select.
@@ -1383,7 +1395,7 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
 
       //////////////////////////////////////////////////////////////////////////
     } else if (criterion ==
-               VioFrontEndParams::FeatureSelectionCriterion::RANDOM) {
+               FeatureSelectorParams::FeatureSelectionCriterion::RANDOM) {
       // Reshuffle.
       for (size_t ii = 0; ii < newSmartStereoMeasurements.size(); ii++) {
         // These are the landmarks we are going to select.
@@ -1592,7 +1604,7 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
       // Create output folders:
       std::string folderName =
           "./result-FeatureSelection-" + dataset_name + "-" +
-          VioFrontEndParams::FeatureSelectionCriterionStr(criterion) + "/";
+          FeatureSelectorParams::FeatureSelectionCriterionStr(criterion) + "/";
       boost::filesystem::path stereoTrackerDir(folderName.c_str());
       boost::filesystem::create_directory(stereoTrackerDir);
       // Write image.
@@ -1601,9 +1613,9 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
       cv::imwrite(img_name, img);
 
       // Create output folders:
-      folderName = "./result-original-" + dataset_name + "-" +
-                   VioFrontEndParams::FeatureSelectionCriterionStr(criterion) +
-                   "/";
+      folderName =
+          "./result-original-" + dataset_name + "-" +
+          FeatureSelectorParams::FeatureSelectionCriterionStr(criterion) + "/";
       boost::filesystem::path originalImgDir(folderName.c_str());
       boost::filesystem::create_directory(originalImgDir);
 

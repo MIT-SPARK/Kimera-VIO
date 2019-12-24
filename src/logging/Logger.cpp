@@ -18,6 +18,8 @@
 #include <memory>
 #include <string>
 
+#include <gflags/gflags.h>
+
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
@@ -51,9 +53,9 @@ void OfstreamWrapper::openLogFile(const std::string& output_file_name,
                                   bool open_file_in_append_mode) {
   CHECK(!output_file_name.empty());
   LOG(INFO) << "Opening output file: " << output_file_name.c_str();
-  UtilsOpenCV::OpenFile(output_path_ + '/' + output_file_name,
-                        &ofstream_,
-                        open_file_in_append_mode);
+  OpenFile(output_path_ + '/' + output_file_name,
+           &ofstream_,
+           open_file_in_append_mode);
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -64,7 +66,7 @@ BackendLogger::BackendLogger()
       output_backend_factors_stats_csv_("output_backendFactors.csv"),
       output_backend_timing_csv_("output_backendTiming.csv") {}
 
-void BackendLogger::logBackendOutput(const VioBackEndOutputPayload& output) {
+void BackendLogger::logBackendOutput(const BackendOutput& output) {
   logBackendResultsCSV(output);
   logBackendFactorsStats(output);
   logBackendPimNavstates(output);
@@ -110,56 +112,51 @@ void BackendLogger::displayInitialStateVioInfo(
       << "stereoVIOExample: wrong initialization (ground truth initialization)";
 }
 
-void BackendLogger::logBackendResultsCSV(
-    const VioBackEndOutputPayload& vio_output) {
+void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
   // We log the poses in csv format for later alignement and analysis.
   std::ofstream& output_stream = output_poses_vio_csv_.ofstream_;
 
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "timestamp,x,y,z,qx,qy,qz,qw,vx,vy,vz,"
+    output_stream << "#timestamp,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
                   << "bgx,bgy,bgz,bax,bay,baz"
                   << std::endl;
     is_header_written = true;
   }
-  // TODO(marcus): everything on EVO and evaluation needs to change for the new
-  // qw before qx paradigm!
-  const auto& w_pose_blkf_trans =
-      vio_output.W_Pose_Blkf_.translation().transpose();
-  const auto& w_pose_blkf_rot = vio_output.W_Pose_Blkf_.rotation().quaternion();
-  const auto& w_vel_blkf = vio_output.W_Vel_Blkf_.transpose();
-  const auto& imu_bias_gyro = vio_output.imu_bias_lkf_.gyroscope().transpose();
-  const auto& imu_bias_acc =
-      vio_output.imu_bias_lkf_.accelerometer().transpose();
-  output_stream << vio_output.timestamp_kf_ << ","  //
-                << w_pose_blkf_trans.x() << ","     //
-                << w_pose_blkf_trans.y() << ","     //
-                << w_pose_blkf_trans.z() << ","     //
-                << w_pose_blkf_rot(1) << ","        // q_x
-                << w_pose_blkf_rot(2) << ","        // q_y
-                << w_pose_blkf_rot(3) << ","        // q_z
-                << w_pose_blkf_rot(0) << ","        // q_w
-                << w_vel_blkf(0) << ","             //
-                << w_vel_blkf(1) << ","             //
-                << w_vel_blkf(2) << ","             //
-                << imu_bias_gyro(0) << ","          //
-                << imu_bias_gyro(1) << ","          //
-                << imu_bias_gyro(2) << ","          //
-                << imu_bias_acc(0) << ","           //
-                << imu_bias_acc(1) << ","           //
-                << imu_bias_acc(2)                  //
+  const auto& cached_state = vio_output.W_State_Blkf_;
+  const auto& w_pose_blkf_trans = cached_state.pose_.translation().transpose();
+  const auto& w_pose_blkf_rot = cached_state.pose_.rotation().quaternion();
+  const auto& w_vel_blkf = cached_state.velocity_.transpose();
+  const auto& imu_bias_gyro = cached_state.imu_bias_.gyroscope().transpose();
+  const auto& imu_bias_acc = cached_state.imu_bias_.accelerometer().transpose();
+  output_stream << cached_state.timestamp_ << ","  //
+                << w_pose_blkf_trans.x() << ","    //
+                << w_pose_blkf_trans.y() << ","    //
+                << w_pose_blkf_trans.z() << ","    //
+                << w_pose_blkf_rot(0) << ","       // q_w
+                << w_pose_blkf_rot(1) << ","       // q_x
+                << w_pose_blkf_rot(2) << ","       // q_y
+                << w_pose_blkf_rot(3) << ","       // q_z
+                << w_vel_blkf(0) << ","            //
+                << w_vel_blkf(1) << ","            //
+                << w_vel_blkf(2) << ","            //
+                << imu_bias_gyro(0) << ","         //
+                << imu_bias_gyro(1) << ","         //
+                << imu_bias_gyro(2) << ","         //
+                << imu_bias_acc(0) << ","          //
+                << imu_bias_acc(1) << ","          //
+                << imu_bias_acc(2)                 //
                 << std::endl;
 }
 
-void BackendLogger::logSmartFactorsStats(
-    const VioBackEndOutputPayload& output) {
+void BackendLogger::logSmartFactorsStats(const BackendOutput& output) {
   std::ofstream& output_stream = output_smart_factors_stats_csv_.ofstream_;
 
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "cur_kf_id,timestamp_kf,numSF,"
+    output_stream << "#cur_kf_id,timestamp_kf,numSF,"
                   << "numValid,numDegenerate,numFarPoints,numOutliers,"
                   << "numCheirality,numNonInitialized,meanPixelError,"
                   << "maxPixelError,meanTrackLength,maxTrackLength,"
@@ -168,9 +165,8 @@ void BackendLogger::logSmartFactorsStats(
     is_header_written = true;
   }
 
-  output_stream << output.cur_kf_id_ << ","
-                << output.timestamp_kf_ << ","
-                << output.debug_info_.numSF_ << ","
+  output_stream << output.cur_kf_id_ << "," << output.W_State_Blkf_.timestamp_
+                << "," << output.debug_info_.numSF_ << ","
                 << output.debug_info_.numValid_ << ","
                 << output.debug_info_.numDegenerate_ << ","
                 << output.debug_info_.numFarPoints_ << ","
@@ -182,18 +178,16 @@ void BackendLogger::logSmartFactorsStats(
                 << output.debug_info_.meanTrackLength_ << ","
                 << output.debug_info_.maxTrackLength_ << ","
                 << output.debug_info_.nrElementsInMatrix_ << ","
-                << output.debug_info_.nrZeroElementsInMatrix_
-                << std::endl;
+                << output.debug_info_.nrZeroElementsInMatrix_ << std::endl;
 }
 
-void BackendLogger::logBackendPimNavstates(
-    const VioBackEndOutputPayload& output) {
+void BackendLogger::logBackendPimNavstates(const BackendOutput& output) {
   std::ofstream& output_stream = output_pim_navstates_csv_.ofstream_;
 
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "timestamp_kf,x,y,z,qw,qx,qy,qz,vx,vy,vz"
+    output_stream << "#timestamp_kf,x,y,z,qw,qx,qy,qz,vx,vy,vz"
                   << std::endl;
     is_header_written = true;
   }
@@ -203,27 +197,20 @@ void BackendLogger::logBackendPimNavstates(
   const gtsam::Quaternion& quaternion = pose.rotation().toQuaternion();
   const gtsam::Velocity3& velocity = output.debug_info_.navstate_k_.velocity();
 
-  output_stream << output.timestamp_kf_ << ","
-                << position.x() << ","
-                << position.y() << ","
-                << position.z() << ","
-                << quaternion.w() << ","
-                << quaternion.x() << ","
-                << quaternion.y() << ","
-                << quaternion.z() << ","
-                << velocity.x() << ","
-                << velocity.y() << ","
-                << velocity.z()
-                << std::endl;
+  output_stream << output.W_State_Blkf_.timestamp_ << "," << position.x() << ","
+                << position.y() << "," << position.z() << "," << quaternion.w()
+                << "," << quaternion.x() << "," << quaternion.y() << ","
+                << quaternion.z() << "," << velocity.x() << "," << velocity.y()
+                << "," << velocity.z() << std::endl;
 }
 
-void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {
+void BackendLogger::logBackendTiming(const BackendOutput& output) {
   std::ofstream& output_stream = output_backend_timing_csv_.ofstream_;
 
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "cur_kf_id,factorsAndSlotsTime,preUpdateTime,"
+    output_stream << "#cur_kf_id,factorsAndSlotsTime,preUpdateTime,"
                   << "updateTime,updateSlotTime,extraIterationsTime,"
                   << "linearizeTime,linearSolveTime,retractTime,"
                   << "linearizeMarginalizeTime,marginalizeTime"
@@ -246,14 +233,13 @@ void BackendLogger::logBackendTiming(const VioBackEndOutputPayload& output) {
                 << std::endl;
 }
 
-void BackendLogger::logBackendFactorsStats(
-    const VioBackEndOutputPayload& output) {
+void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
   std::ofstream& output_stream = output_backend_factors_stats_csv_.ofstream_;
 
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "cur_kf_id,numAddedSmartF,numAddedImuF,numAddedNoMotionF,"
+    output_stream << "#cur_kf_id,numAddedSmartF,numAddedImuF,numAddedNoMotionF,"
                   << "numAddedConstantF,numAddedBetweenStereoF,state_size,"
                   << "landmark_count"
                   << std::endl;
@@ -376,7 +362,7 @@ void FrontendLogger::logFrontendStats(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_stats << "timestamp_lkf,mono_status,stereo_status,"
+    output_stream_stats << "#timestamp_lkf,mono_status,stereo_status,"
                         << "nr_keypoints,nrDetectedFeatures,nrTrackerFeatures,"
                         << "nrMonoInliers,nrMonoPutatives,nrStereoInliers,"
                         << "nrStereoPutatives,monoRansacIters,"
@@ -437,9 +423,9 @@ void FrontendLogger::logFrontendRansac(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_mono << "timestamp_lkf,x,y,z,qw,qx,qy,qz"
+    output_stream_mono << "#timestamp_lkf,x,y,z,qw,qx,qy,qz"
                        << std::endl;
-    output_stream_stereo << "timestamp_lkf,x,y,z,qw,qx,qy,qz"
+    output_stream_stereo << "#timestamp_lkf,x,y,z,qw,qx,qy,qz"
                          << std::endl;
     is_header_written = true;
   }
@@ -487,6 +473,9 @@ void PipelineLogger::logPipelineOverallTiming(
   std::ofstream& outputFile_timingOverall_ = output_pipeline_timing_.ofstream_;
   outputFile_timingOverall_ << "vio_overall_time [ms]" << std::endl;
   outputFile_timingOverall_ << duration.count();
+
+  VIO::utils::Statistics::WriteAllSamplesToCsvFile(
+      FLAGS_output_path + '/' + "StatisticsVIO.csv");
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -501,21 +490,19 @@ void LoopClosureDetectorLogger::logTimestampMap(
   ts_map_ = ts_map;
 }
 
-void LoopClosureDetectorLogger::logLCDResult(
-    const LoopClosureDetectorOutputPayload& lcd_output) {
+void LoopClosureDetectorLogger::logLCDResult(const LcdOutput& lcd_output) {
   logLoopClosure(lcd_output);
   logOptimizedTraj(lcd_output);
 }
 
-void LoopClosureDetectorLogger::logLoopClosure(
-    const LoopClosureDetectorOutputPayload& lcd_output) {
+void LoopClosureDetectorLogger::logLoopClosure(const LcdOutput& lcd_output) {
   // We log loop-closure results in csv format.
   std::ofstream& output_stream_lcd = output_lcd_.ofstream_;
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_lcd << "timestamp_kf,timestamp_query,timestamp_match,isLoop,"
-                      << "matchKfId,queryKfId,px,py,pz,qw,qx,qy,qz"
+    output_stream_lcd << "#timestamp_kf,timestamp_query,timestamp_match,isLoop,"
+                      << "matchKfId,queryKfId,x,y,z,qw,qx,qy,qz"
                       << std::endl;
     is_header_written = true;
   }
@@ -540,8 +527,7 @@ void LoopClosureDetectorLogger::logLoopClosure(
                     << std::endl;
 }
 
-void LoopClosureDetectorLogger::logOptimizedTraj(
-    const LoopClosureDetectorOutputPayload& lcd_output) {
+void LoopClosureDetectorLogger::logOptimizedTraj(const LcdOutput& lcd_output) {
   // We close and reopen log file to clear contents completely.
   output_traj_.closeAndOpenLogFile();
   // We log the full optimized trajectory in csv format.
@@ -551,7 +537,7 @@ void LoopClosureDetectorLogger::logOptimizedTraj(
 
   bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_traj << "timestamp_kf,kf_id,x,y,z,qw,qx,qy,qz"
+    output_stream_traj << "#timestamp_kf,x,y,z,qw,qx,qy,qz"
                        << std::endl;
     is_header_written = true;
   }
@@ -564,7 +550,6 @@ void LoopClosureDetectorLogger::logOptimizedTraj(
     const gtsam::Quaternion& quat = pose.rotation().toQuaternion();
 
     output_stream_traj << ts_map_.at(i) << ","
-                       << i << ","
                        << trans.x() << ","
                        << trans.y() << ","
                        << trans.z() << ","
@@ -582,7 +567,7 @@ void LoopClosureDetectorLogger::logDebugInfo(const LcdDebugInfo& debug_info) {
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_status << "timestamp_kf,lcd_status,query_id,match_id,"
+    output_stream_status << "#timestamp_kf,lcd_status,query_id,match_id,"
                          << "mono_input_size,mono_inliers,mono_iters,"
                          << "stereo_input_size,stereo_inliers,stereo_iters,"
                          << "pgo_size,pgo_lc_count,pgo_lc_inliers"

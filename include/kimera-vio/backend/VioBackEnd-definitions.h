@@ -30,6 +30,8 @@
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/pipeline/PipelinePayload.h"
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
@@ -42,6 +44,7 @@ using gtsam::Point3;
 using gtsam::Pose3;
 using gtsam::Rot3;
 using gtsam::StereoPoint2;
+using StereoCalibPtr = gtsam::Cal3_S2Stereo::shared_ptr;
 
 #define INCREMENTAL_SMOOTHER
 //#define USE_COMBINED_IMU_FACTOR
@@ -68,6 +71,7 @@ using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // FeatureTrack
+// TODO(Toni): what is this doing here... should be in frontend at worst.
 class FeatureTrack {
  public:
   //! Observation: {FrameId, Px-Measurement}
@@ -92,6 +96,7 @@ class FeatureTrack {
 // Landmark id to measurements.
 // Key is the lmk_id and feature track the collection of pairs of
 // frame id and pixel location.
+// TODO(Toni): what is this doing here... should be in frontend at worst.
 using FeatureTracks = std::unordered_map<Key, FeatureTrack>;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -212,93 +217,120 @@ class DebugVioInfo {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-struct VioBackEndInputPayload {
-  VioBackEndInputPayload(
+struct BackendInput : public PipelinePayload {
+  KIMERA_POINTER_TYPEDEFS(BackendInput);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(BackendInput);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  BackendInput(
       const Timestamp& timestamp_kf_nsec,
-      const StatusSmartStereoMeasurements& status_smart_stereo_measurements_kf,
-      const TrackingStatus&
-          stereo_tracking_status,  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
-      const ImuFrontEnd::PreintegratedImuMeasurements& pim,
-      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none,
-      std::vector<Plane>* planes = nullptr)
-      : timestamp_kf_nsec_(timestamp_kf_nsec),
-        status_smart_stereo_measurements_kf_(
-            status_smart_stereo_measurements_kf),
+      const StatusStereoMeasurementsPtr& status_stereo_measurements_kf,
+      const TrackingStatus& stereo_tracking_status,
+      const ImuFrontEnd::PimPtr& pim,
+      boost::optional<gtsam::Pose3> stereo_ransac_body_pose = boost::none)
+      : PipelinePayload(timestamp_kf_nsec),
+        status_stereo_measurements_kf_(status_stereo_measurements_kf),
         stereo_tracking_status_(stereo_tracking_status),
         pim_(pim),
-        planes_(planes),
         stereo_ransac_body_pose_(stereo_ransac_body_pose) {}
-  const Timestamp timestamp_kf_nsec_;
-  const StatusSmartStereoMeasurements status_smart_stereo_measurements_kf_;
-  const TrackingStatus
-      stereo_tracking_status_;  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
-  // I believe we do not need EIGEN_MAKE_ALIGNED_OPERATOR_NEW for these members
-  // as they are dynamic eigen, not "fixed-size vectorizable matrices and
-  // vectors."
-  const gtsam::PreintegratedImuMeasurements pim_;
-  std::vector<Plane>* planes_;
+
+  const StatusStereoMeasurementsPtr status_stereo_measurements_kf_;
+  // stereo_vision_frontend_->trackerStatusSummary_.kfTrackingStatus_stereo_;
+  const TrackingStatus stereo_tracking_status_;
+  ImuFrontEnd::PimPtr pim_;
   boost::optional<gtsam::Pose3> stereo_ransac_body_pose_;
 
  public:
   void print() const {
     LOG(INFO) << "VioBackEnd Input Payload print:\n"
-              << "Timestamp: " << timestamp_kf_nsec_ << '\n'
+              << "Timestamp: " << timestamp_ << '\n'
               << "Status smart stereo measurements: "
               << "\n\t Meas size: "
-              << status_smart_stereo_measurements_kf_.second.size();
+              << status_stereo_measurements_kf_->second.size();
 
-    LOG(INFO) << "Mono Tracking Status: "
-              << TrackerStatusSummary::asString(
-                     status_smart_stereo_measurements_kf_.first
-                         .kfTrackingStatus_mono_);
-    status_smart_stereo_measurements_kf_.first.lkf_T_k_mono_.print(
+    LOG(INFO)
+        << "Mono Tracking Status: "
+        << TrackerStatusSummary::asString(
+               status_stereo_measurements_kf_->first.kfTrackingStatus_mono_);
+    status_stereo_measurements_kf_->first.lkf_T_k_mono_.print(
         "\n\t Tracker Pose (mono): ");
-    LOG(INFO) << "Stereo Tracking Status: "
-              << TrackerStatusSummary::asString(
-                     status_smart_stereo_measurements_kf_.first
-                         .kfTrackingStatus_stereo_);
-    status_smart_stereo_measurements_kf_.first.lkf_T_k_stereo_.print(
+    LOG(INFO)
+        << "Stereo Tracking Status: "
+        << TrackerStatusSummary::asString(
+               status_stereo_measurements_kf_->first.kfTrackingStatus_stereo_);
+    status_stereo_measurements_kf_->first.lkf_T_k_stereo_.print(
         "\n\t Tracker Pose (stereo): ");
 
     LOG(INFO) << "Stereo Tracking Status: "
               << TrackerStatusSummary::asString(stereo_tracking_status_);
-    pim_.print("PIM : ");
-    LOG_IF(INFO, planes_ != nullptr) << "Number of planes: " << planes_->size();
+    pim_->print("PIM : ");
     LOG_IF(INFO, stereo_ransac_body_pose_)
         << "Stereo Ransac Body Pose: " << *stereo_ransac_body_pose_;
   }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-struct VioBackEndOutputPayload {
+struct BackendOutput : public PipelinePayload {
+  KIMERA_POINTER_TYPEDEFS(BackendOutput);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(BackendOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  VioBackEndOutputPayload(
-      const Timestamp& timestamp_kf, const gtsam::Values state,
-      const gtsam::Pose3& W_Pose_Blkf, const Vector3& W_Vel_Blkf,
-      const gtsam::Pose3& B_Pose_leftCam, const ImuBias& imu_bias_lkf,
-      const gtsam::Matrix& state_covariance_lkf, const int& cur_kf_id,
-      const int& landmark_count, const DebugVioInfo& debug_info)
-      : timestamp_kf_(timestamp_kf),
+  BackendOutput(const Timestamp& timestamp_kf,
+                const gtsam::Values& state,
+                const gtsam::Pose3& W_Pose_Blkf,
+                const Vector3& W_Vel_Blkf,
+                const ImuBias& imu_bias_lkf,
+                const gtsam::Matrix& state_covariance_lkf,
+                const FrameId& cur_kf_id,
+                const int& landmark_count,
+                const DebugVioInfo& debug_info,
+                const PointsWithIdMap& landmarks_with_id_map,
+                const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map)
+      : PipelinePayload(timestamp_kf),
+        W_State_Blkf_(timestamp_kf, W_Pose_Blkf, W_Vel_Blkf, imu_bias_lkf),
         state_(state),
-        W_Pose_Blkf_(W_Pose_Blkf),
-        W_Vel_Blkf_(W_Vel_Blkf),
-        B_Pose_leftCam_(B_Pose_leftCam),
-        imu_bias_lkf_(imu_bias_lkf),
         state_covariance_lkf_(state_covariance_lkf),
         cur_kf_id_(cur_kf_id),
         landmark_count_(landmark_count),
-        debug_info_(debug_info) {}
+        debug_info_(debug_info),
+        landmarks_with_id_map_(landmarks_with_id_map),
+        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
+        graph_() {}
 
-  const Timestamp timestamp_kf_;
+  BackendOutput(const VioNavStateTimestamped& vio_navstate_timestamped,
+                const gtsam::Values& state,
+                const gtsam::Matrix& state_covariance_lkf,
+                const FrameId& cur_kf_id,
+                const int& landmark_count,
+                const DebugVioInfo& debug_info,
+                const PointsWithIdMap& landmarks_with_id_map,
+                const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map)
+      : PipelinePayload(vio_navstate_timestamped.timestamp_),
+        W_State_Blkf_(vio_navstate_timestamped),
+        state_(state),
+        state_covariance_lkf_(state_covariance_lkf),
+        cur_kf_id_(cur_kf_id),
+        landmark_count_(landmark_count),
+        debug_info_(debug_info),
+        landmarks_with_id_map_(landmarks_with_id_map),
+        lmk_id_to_lmk_type_map_(lmk_id_to_lmk_type_map),
+        graph_() {}
+
+  const VioNavStateTimestamped W_State_Blkf_;
   const gtsam::Values state_;
-  const gtsam::Pose3 W_Pose_Blkf_;
-  const Vector3 W_Vel_Blkf_;
-  const gtsam::Pose3 B_Pose_leftCam_;
-  const ImuBias imu_bias_lkf_;
   const gtsam::Matrix state_covariance_lkf_;
-  const int cur_kf_id_;
+  const FrameId cur_kf_id_;
   const int landmark_count_;
   const DebugVioInfo debug_info_;
+  const PointsWithIdMap landmarks_with_id_map_;
+  const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
+  const gtsam::NonlinearFactorGraph graph_;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+/** \brief The BackendType enum
+ *  - kStereoImu: vanilla backend type using Stereo and IMU
+ *  - kStructuralRegularities: the `regular VIO` backend, using structural
+ * regularities derived from the 3D Mesh.
+ */
+enum class BackendType { kStereoImu = 0, kStructuralRegularities = 1 };
 
 }  // namespace VIO

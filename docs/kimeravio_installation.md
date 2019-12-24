@@ -169,8 +169,28 @@ cmake ..
 sudo make -j $(nproc)
 ```
 
-## Glog, Gflags & Gtest
-Glog, Gflags, and Gtest will be automatically downloaded using cmake unless there is a system-wide installation found (gtest will always be downloaded).
+## Glog/Gflags
+
+Linux
+```bash
+sudo apt-get install libgflags-dev libgoogle-glog-dev
+```
+
+MacOS
+```bash
+brew install gflags glog
+```
+
+## Gtest
+Gtest will be automatically downloaded using cmake.
+
+## Bag-of-Words Vocabulary
+
+For loop closure detection, we use a bag-of-words method based on [DBoW2](https://github.com/dorian3d/DBoW2). This requires a vocabulary of visual words. If you wish to use the loop closure detection module, you must download a vocabulary file.
+
+We have packaged a large vocabulary made by the creators of [ORB_SLAM_2](https://github.com/raulmur/ORB_SLAM2) along with their license at [this location](https://www.dropbox.com/s/lyo0qgbdxn6eg6o/ORBvoc.zip?dl=0). Follow that link to download the files, and put them in the [vocabulary](/vocabulary/) directory.
+
+Alternatively, cmake will automatically download these files for you when you `make` Kimera-VIO. Follow the instructions below:
 
 ## Install Kimera-VIO
 

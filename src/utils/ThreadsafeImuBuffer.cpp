@@ -47,7 +47,8 @@ template <template <typename, typename> class Container, typename Type>
 using Aligned = Container<Type, Eigen::aligned_allocator<Type>>;
 
 ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::isDataAvailableUpToImpl(
-    Timestamp timestamp_ns_from, Timestamp timestamp_ns_to) const {
+    const Timestamp& timestamp_ns_from,
+    const Timestamp& timestamp_ns_to) const {
   CHECK_LT(timestamp_ns_from, timestamp_ns_to);
 
   if (buffer_.empty()) {
@@ -71,11 +72,12 @@ ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::isDataAvailableUpToImpl(
   return QueryResult::kDataAvailable;
 }
 
-void ThreadsafeImuBuffer::linearInterpolate(const Timestamp t0,
+void ThreadsafeImuBuffer::linearInterpolate(const Timestamp& t0,
                                             const ImuAccGyr& y0,
-                                            const Timestamp t1,
+                                            const Timestamp& t1,
                                             const ImuAccGyr& y1,
-                                            const Timestamp t, ImuAccGyr* y) {
+                                            const Timestamp& t,
+                                            ImuAccGyr* y) {
   CHECK_NOTNULL(y);
   CHECK_LE(t0, t);
   CHECK_LE(t, t1);
@@ -85,8 +87,10 @@ void ThreadsafeImuBuffer::linearInterpolate(const Timestamp t0,
 }
 
 ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::getImuDataBtwTimestamps(
-    Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
-    ImuStampS* imu_timestamps, ImuAccGyrS* imu_measurements,
+    const Timestamp& timestamp_ns_from,
+    const Timestamp& timestamp_ns_to,
+    ImuStampS* imu_timestamps,
+    ImuAccGyrS* imu_measurements,
     bool get_lower_bound) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
@@ -121,7 +125,7 @@ ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::getImuDataBtwTimestamps(
 
   for (size_t idx = 0u; idx < num_measurements; ++idx) {
     (*imu_timestamps)(idx) = between_values[idx].timestamp_;
-    (*imu_measurements).col(idx) = between_values[idx].imu_data_;
+    (*imu_measurements).col(idx) = between_values[idx].acc_gyr_;
   }
 
   return query_result;
@@ -129,8 +133,10 @@ ThreadsafeImuBuffer::QueryResult ThreadsafeImuBuffer::getImuDataBtwTimestamps(
 
 ThreadsafeImuBuffer::QueryResult
 ThreadsafeImuBuffer::getImuDataInterpolatedUpperBorder(
-    Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
-    ImuStampS* imu_timestamps, ImuAccGyrS* imu_measurements) {
+    const Timestamp& timestamp_ns_from,
+    const Timestamp& timestamp_ns_to,
+    ImuStampS* imu_timestamps,
+    ImuAccGyrS* imu_measurements) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
   DCHECK_LT(timestamp_ns_from, timestamp_ns_to);
@@ -164,8 +170,10 @@ ThreadsafeImuBuffer::getImuDataInterpolatedUpperBorder(
 
 ThreadsafeImuBuffer::QueryResult
 ThreadsafeImuBuffer::getImuDataInterpolatedBorders(
-    Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
-    ImuStampS* imu_timestamps, ImuAccGyrS* imu_measurements) {
+    const Timestamp& timestamp_ns_from,
+    const Timestamp& timestamp_ns_to,
+    ImuStampS* imu_timestamps,
+    ImuAccGyrS* imu_measurements) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);
   // Get data.
@@ -210,7 +218,8 @@ ThreadsafeImuBuffer::getImuDataInterpolatedBorders(
 }
 
 void ThreadsafeImuBuffer::interpolateValueAtTimestamp(
-    Timestamp timestamp_ns, ImuAccGyr* interpolated_imu_measurement) {
+    const Timestamp& timestamp_ns,
+    ImuAccGyr* interpolated_imu_measurement) {
   CHECK_NOTNULL(interpolated_imu_measurement);
   Timestamp pre_border_timestamp, post_border_timestamp;
   ImuMeasurement pre_border_value, post_border_value;
@@ -224,15 +233,20 @@ void ThreadsafeImuBuffer::interpolateValueAtTimestamp(
       << "The IMU buffer seems not to contain measurements at or after time: "
       << timestamp_ns;
   CHECK_EQ(post_border_timestamp, post_border_value.timestamp_);
-  linearInterpolate(pre_border_value.timestamp_, pre_border_value.imu_data_,
-                    post_border_value.timestamp_, post_border_value.imu_data_,
-                    timestamp_ns, interpolated_imu_measurement);
+  linearInterpolate(pre_border_value.timestamp_,
+                    pre_border_value.acc_gyr_,
+                    post_border_value.timestamp_,
+                    post_border_value.acc_gyr_,
+                    timestamp_ns,
+                    interpolated_imu_measurement);
 }
 
 ThreadsafeImuBuffer::QueryResult
 ThreadsafeImuBuffer::getImuDataInterpolatedBordersBlocking(
-    Timestamp timestamp_ns_from, Timestamp timestamp_ns_to,
-    Timestamp wait_timeout_nanoseconds, ImuStampS* imu_timestamps,
+    const Timestamp& timestamp_ns_from,
+    const Timestamp& timestamp_ns_to,
+    const Timestamp& wait_timeout_nanoseconds,
+    ImuStampS* imu_timestamps,
     ImuAccGyrS* imu_measurements) {
   CHECK_NOTNULL(imu_timestamps);
   CHECK_NOTNULL(imu_measurements);

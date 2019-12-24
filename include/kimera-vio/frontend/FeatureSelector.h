@@ -22,7 +22,7 @@
 #include <random>
 
 // TODO clean number of include files, adds extra dependencies for ppl that
-// want to use this KimeraVIO library...
+// want to use this kimera_vio library...
 #include <gtsam/linear/GaussianFactorGraph.h>
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam/slam/RegularImplicitSchurFactor.h>
@@ -102,7 +102,9 @@ public:
 
   // Constructor.
   FeatureSelector(const VioFrontEndParams& trackerParams = VioFrontEndParams(),
-                  const VioBackEndParams& vioParams = VioBackEndParams());
+                  const VioBackEndParams& vioParams = VioBackEndParams(),
+                  const FeatureSelectorParams& feature_select_params =
+                      FeatureSelectorParams());
 
   void print() const;
 
@@ -122,7 +124,7 @@ public:
       const CameraParams& cam_param,
       const int need_n_corners,
       const FeatureSelectorData& featureSelectionData,
-      const VioFrontEndParams::FeatureSelectionCriterion& criterion) const;
+      const FeatureSelectorParams::FeatureSelectionCriterion& criterion) const;
 
   /* ------------------------------------------------------------------------ */
   static bool Comparator(const std::pair<size_t,double>& l,
@@ -142,18 +144,19 @@ public:
       const gtsam::Matrix& A);
 
   /* ------------------------------------------------------------------------ */
-  static std::tuple< std::vector<size_t>,std::vector<double>,double >
-  OrderByUpperBound(const gtsam::GaussianFactorGraph::shared_ptr& bestOmegaBar,
-                    const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
-                    const VioFrontEndParams::FeatureSelectionCriterion& criterion);
+  static std::tuple<std::vector<size_t>, std::vector<double>, double>
+  OrderByUpperBound(
+      const gtsam::GaussianFactorGraph::shared_ptr& bestOmegaBar,
+      const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
+      const FeatureSelectorParams::FeatureSelectionCriterion& criterion);
 
   /* ------------------------------------------------------------------------ */
-  static std::pair< std::vector<size_t>,std::vector<double> >
-  GreedyAlgorithm(const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
-                  const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
-                  const int need_n_corners,
-                  const VioFrontEndParams::FeatureSelectionCriterion& criterion,
-                  const bool useLazyEval = true);
+  static std::pair<std::vector<size_t>, std::vector<double>> GreedyAlgorithm(
+      const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
+      const std::vector<gtsam::HessianFactor::shared_ptr>& Deltas,
+      const int need_n_corners,
+      const FeatureSelectorParams::FeatureSelectionCriterion& criterion,
+      const bool useLazyEval = true);
 
   /* ------------------------------------------------------------------------ */
   static boost::tuple<int, double, gtsam::Vector>
@@ -171,7 +174,7 @@ public:
   static double EvaluateGain(
       const gtsam::GaussianFactorGraph::shared_ptr& OmegaBar,
       const gtsam::HessianFactor::shared_ptr& Deltaj,
-      const VioFrontEndParams::FeatureSelectionCriterion& criterion,
+      const FeatureSelectorParams::FeatureSelectionCriterion& criterion,
       bool useDenseMatrices = true);
 
   /* ------------------------------------------------------------------------ */
@@ -240,12 +243,14 @@ public:
   /* ------------------------------------------------------------------------ */
   // Before starting feature selection: returns selected smart measurements
   // (included tracked ones) and actual time it took for the selection.
-  std::pair<SmartStereoMeasurements,double> splitTrackedAndNewFeatures_Select_Display(
-      std::shared_ptr<StereoFrame>& stereoFrame_km1, // not constant since we discard nonselected lmks
+  std::pair<SmartStereoMeasurements, double>
+  splitTrackedAndNewFeatures_Select_Display(
+      std::shared_ptr<StereoFrame>&
+          stereoFrame_km1,  // not constant since we discard nonselected lmks
       const SmartStereoMeasurements& smartStereoMeasurements,
       const int& vio_cur_id,
       const int& saveImagesSelector,
-      const VioFrontEndParams::FeatureSelectionCriterion& criterion,
+      const FeatureSelectorParams::FeatureSelectionCriterion& criterion,
       const int& nrFeaturesToSelect,
       const int& maxFeatureAge,
       const KeyframeToStampedPose& posesAtFutureKeyframes,

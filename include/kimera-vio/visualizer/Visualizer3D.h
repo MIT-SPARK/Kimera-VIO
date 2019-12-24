@@ -17,77 +17,37 @@
 #include <vector>
 
 #include <glog/logging.h>
+
+#include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/nonlinear/Values.h>
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/logging/Logger.h"
-#include "kimera-vio/mesh/Mesher.h"
-#include "kimera-vio/utils/ThreadsafeQueue.h"
-#include "kimera-vio/utils/UtilsOpenCV.h"
+#include "kimera-vio/mesh/Mesher-definitions.h"
+#include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 
 namespace VIO {
 
-enum class VisualizationType {
-  POINTCLOUD,    // visualize 3D VIO points  (no repeated point)
-  MESH2D,        // only visualizes 2D mesh on image
-  MESH2Dsparse,  // visualize a 2D mesh of (right-valid) keypoints discarding
-                 // triangles corresponding to non planar obstacles
-  MESH2DTo3Dsparse,  // same as MESH2DTo3D but filters out triangles
-                     // corresponding to non planar obstacles
-  NONE               // does not visualize map
-};
-
-template <class T>
-static bool getEstimateOfKey(const gtsam::Values& state, const gtsam::Key& key,
-                             T* estimate);
-
-struct VisualizerInputPayload {
-  VisualizerInputPayload(const gtsam::Pose3& pose,
-                         const StereoFrame& last_stereo_keyframe,
-                         const MesherOutputPayload& mesher_output_payload,
-                         const PointsWithIdMap& points_with_id_VIO,
-                         const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
-                         const std::vector<Plane>& planes,
-                         const gtsam::NonlinearFactorGraph& graph,
-                         const gtsam::Values& values);
-
-  const gtsam::Pose3 pose_;
-  const StereoFrame stereo_keyframe_;
-  const MesherOutputPayload mesher_output_payload_;
-  const PointsWithIdMap points_with_id_VIO_;
-  const LmkIdToLmkTypeMap lmk_id_to_lmk_type_map_;
-  const std::vector<Plane> planes_;
-  const gtsam::NonlinearFactorGraph graph_;
-  const gtsam::Values values_;
-};
-
-struct ImageToDisplay {
-  ImageToDisplay() = default;
-  ImageToDisplay(const std::string& name, const cv::Mat& image);
-
-  std::string name_;
-  cv::Mat image_;
-};
-
-struct VisualizerOutputPayload {
-  VisualizerOutputPayload() = default;
-  ~VisualizerOutputPayload() = default;
-  VisualizationType visualization_type_ = VisualizationType::NONE;
-  std::vector<ImageToDisplay> images_to_display_;
-  cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
-};
-
 class Visualizer3D {
  public:
-  Visualizer3D(VisualizationType viz_type, int backend_type);
-  ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; };
-
+  KIMERA_DELETE_COPY_CONSTRUCTORS(Visualizer3D);
+  KIMERA_POINTER_TYPEDEFS(Visualizer3D);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   typedef size_t LineNr;
   typedef std::uint64_t PlaneId;
   typedef std::map<LandmarkId, size_t> LmkIdToLineIdMap;
   typedef std::map<PlaneId, LmkIdToLineIdMap> PlaneIdMap;
+  typedef std::function<void(VisualizerOutput&)> DisplayCallback;
+
+  /**
+   * @brief Visualizer3D constructor
+   * @param viz_type: type of 3D visualization
+   * @param backend_type backend used so that we display the right info
+   */
+  Visualizer3D(const VisualizationType& viz_type,
+               const BackendType& backend_type);
+  virtual ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; };
 
   // Contains internal data for Visualizer3D window.
   struct WindowData {
@@ -110,56 +70,34 @@ class Visualizer3D {
   };
 
   /* ------------------------------------------------------------------------ */
-  // Spin for Visualizer3D. Calling shutdown stops the visualizer.
-  // Returns false when visualizer has been shutdown.
-  bool spin(ThreadsafeQueue<VisualizerInputPayload>& input_queue,
-            ThreadsafeQueue<VisualizerOutputPayload>& output_queue,
-            std::function<void(VisualizerOutputPayload&)> display,
-            bool parallel_run = true);
-
-  /* ------------------------------------------------------------------------ */
-  // Stops the visualization spin.
-  void shutdown();
-
-  /* ------------------------------------------------------------------------ */
-  // Resets the shutdown flag for visualization spin
-  void restart();
-
-  /* ------------------------------------------------------------------------ */
-  // Checks if the thread is working or if it is waiting for input queue.
-  inline bool isWorking() const { return is_thread_working_; }
-
-  /* ------------------------------------------------------------------------ */
   inline void registerMesh3dVizProperties(
-      Mesher::Mesh3dVizPropertiesSetterCallback cb) {
+      Mesh3dVizPropertiesSetterCallback cb) {
     mesh3d_viz_properties_callback_ = cb;
   }
 
-  /* ------------------------------------------------------------------------ */
-  // Returns true if visualization is ready, false otherwise.
-  // The actual visualization must be done in the main thread, and as such,
-  // it is not done here to separate visualization preparation from display.
-  bool visualize(const std::shared_ptr<VisualizerInputPayload>& input,
-                 VisualizerOutputPayload* output);
+  /**
+   * \brief Returns true if visualization is ready, false otherwise.
+   * The actual visualization must be done in the main thread, and as such,
+   * it is not done here to separate visualization preparation from display.
+   */
+  virtual VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input);
 
-  /* ------------------------------------------------------------------------ */
-  // Returns true if visualization is ready, false otherwise.
-  // The actual visualization must be done in the main thread, and as such,
-  // it is not done here to separate visualization preparation from display.
-  bool visualize(const VisualizerInputPayload& input,
-                 VisualizerOutputPayload* output);
-
-  /* ------------------------------------------------------------------------ */
-  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
-  static cv::Mat visualizeMesh2D(
-      const std::vector<cv::Vec6f>& triangulation2D, const cv::Mat& img,
-      const KeypointsCV& extra_keypoints = KeypointsCV());
+  // TODO(marcus): Is there any reason the following two methods must be private?
 
   /* ------------------------------------------------------------------------ */
   // Visualize 2d mesh.
   static cv::Mat visualizeMesh2DStereo(
-      const std::vector<cv::Vec6f>& triangulation_2D, const Frame& ref_frame);
+      const std::vector<cv::Vec6f>& triangulation_2D,
+      const Frame& ref_frame);
 
+  /* ------------------------------------------------------------------------ */
+  // Create a 2D mesh from 2D corners in an image, coded as a Frame class
+  static cv::Mat visualizeMesh2D(
+      const std::vector<cv::Vec6f>& triangulation2D,
+      const cv::Mat& img,
+      const KeypointsCV& extra_keypoints = KeypointsCV());
+
+ private:
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks.
   void visualizePoints3D(const PointsWithIdMap& points_with_id,
@@ -279,16 +217,17 @@ class Visualizer3D {
   void recordVideo();
 
   /* ------------------------------------------------------------------------ */
-  static Mesher::Mesh3DVizProperties texturizeMesh3D(
-      const Timestamp& image_timestamp, const cv::Mat& texture_image,
-      const Mesh2D& mesh_2d, const Mesh3D& mesh_3d) {
+  static Mesh3DVizProperties texturizeMesh3D(const Timestamp& image_timestamp,
+                                             const cv::Mat& texture_image,
+                                             const Mesh2D& mesh_2d,
+                                             const Mesh3D& mesh_3d) {
     // Dummy checks for valid data.
     CHECK(!texture_image.empty());
     CHECK_GE(mesh_2d.getNumberOfUniqueVertices(), 0);
     CHECK_GE(mesh_3d.getNumberOfUniqueVertices(), 0);
 
     // Let us fill the mesh 3d viz properties structure.
-    Mesher::Mesh3DVizProperties mesh_3d_viz_props;
+    Mesh3DVizProperties mesh_3d_viz_props;
 
     // Color all vertices in red. Each polygon will be colored according
     // to a mix of the three vertices colors I think...
@@ -378,18 +317,13 @@ class Visualizer3D {
  private:
   // Flags for visualization behaviour.
   const VisualizationType visualization_type_;
-  const int backend_type_;
+  const BackendType backend_type_;
 
   // Callbacks.
   // Mesh 3d visualization properties setter callback.
-  Mesher::Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
+  Mesh3dVizPropertiesSetterCallback mesh3d_viz_properties_callback_;
 
-  // Shutdown flag to stop the visualization spin.
-  std::atomic_bool shutdown_ = {false};
-  // Signals if the thread is working or waiting for input queue.
-  std::atomic_bool is_thread_working_ = {false};
-
-  std::deque<cv::Affine3f> trajectoryPoses3d_;
+  std::deque<cv::Affine3d> trajectory_poses_3d_;
 
   std::map<PlaneId, LineNr> plane_to_line_nr_map_;
   PlaneIdMap plane_id_map_;
@@ -399,6 +333,7 @@ class Visualizer3D {
   // widgets.
   WindowData window_data_;
 
+  //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;
 
   /* ------------------------------------------------------------------------ */

@@ -26,54 +26,55 @@ namespace VIO {
 
 /* -------------------------------------------------------------------------- */
 InitializationBackEnd::InitializationBackEnd(
-    const gtsam::Pose3 &leftCamPose,
-    const Cal3_S2 &leftCameraCalRectified,
-    const double &baseline,
-    const VioBackEndParams &vioParams,
+    const gtsam::Pose3& B_Pose_leftCam,
+    const StereoCalibPtr& stereo_calibration,
+    const VioBackEndParams& backend_params,
+    const ImuParams& imu_params,
+    const BackendOutputParams& backend_output_params,
     const bool log_output)
-    : VioBackEnd(leftCamPose,
-                 leftCameraCalRectified,
-                 baseline,
-                 vioParams,
+    : VioBackEnd(B_Pose_leftCam,
+                 stereo_calibration,
+                 backend_params,
+                 imu_params,
+                 backend_output_params,
                  log_output) {}
 
 /* ------------------------------------------------------------------------ */
 // Perform Bundle-Adjustment and initial gravity alignment
 bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
-    std::queue<InitializationInputPayload> &output_frontend,
-    gtsam::Vector3 *gyro_bias,
-    gtsam::Vector3 *g_iter_b0,
-    gtsam::NavState *init_navstate) {
+    InitializationQueue& output_frontend,
+    gtsam::Vector3* gyro_bias,
+    gtsam::Vector3* g_iter_b0,
+    gtsam::NavState* init_navstate) {
   // Logging
   VLOG(10) << "N frames for initial alignment: " << output_frontend.size();
   // Create inputs for backend
-  std::vector<std::shared_ptr<VioBackEndInputPayload>> inputs_backend;
+  std::vector<BackendInput::UniquePtr> inputs_backend;
 
   // Create inputs for online gravity alignment
-  std::vector<gtsam::PreintegratedImuMeasurements> pims;
+  std::vector<ImuFrontEnd::PimPtr> pims;
   std::vector<double> delta_t_camera;
   // Iterate and fill backend input vector
   while (!output_frontend.empty()) {
     // Create input for backend
-    std::shared_ptr<VioBackEndInputPayload> input_backend =
-        std::make_shared<VioBackEndInputPayload>(VioBackEndInputPayload(
-            output_frontend.front().stereo_frame_lkf_.getTimestamp(),
-            output_frontend.front().statusSmartStereoMeasurements_,
-            output_frontend.front().tracker_status_,
-            output_frontend.front().pim_,
-            output_frontend.front().relative_pose_body_stereo_,
-            nullptr));
-    inputs_backend.push_back(input_backend);
-    pims.push_back(output_frontend.front().pim_);
+    const InitializationInputPayload& init_input_payload =
+        *(*output_frontend.front());
+    inputs_backend.push_back(VIO::make_unique<BackendInput>(
+        init_input_payload.stereo_frame_lkf_.getTimestamp(),
+        init_input_payload.status_stereo_measurements_,
+        init_input_payload.tracker_status_,
+        init_input_payload.pim_,
+        init_input_payload.relative_pose_body_stereo_));
+    pims.push_back(init_input_payload.pim_);
     // Bookkeeping for timestamps
     Timestamp timestamp_kf =
-        output_frontend.front().stereo_frame_lkf_.getTimestamp();
+        init_input_payload.stereo_frame_lkf_.getTimestamp();
     delta_t_camera.push_back(
         UtilsOpenCV::NsecToSec(timestamp_kf - timestamp_lkf_));
     timestamp_lkf_ = timestamp_kf;
 
     // Check that all frames are keyframes (required)
-    CHECK(output_frontend.front().is_keyframe_);
+    CHECK(init_input_payload.is_keyframe_);
     // Pop from queue
     output_frontend.pop();
   }
@@ -84,7 +85,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
   // The first pim and ransac poses are lost, as in the Bundle
   // Adjustment we need observations of landmarks intra-frames.
   auto tic_ba = utils::Timer::tic();
-  std::vector<gtsam::Pose3> estimated_poses =
+  const std::vector<gtsam::Pose3>& estimated_poses =
       addInitialVisualStatesAndOptimize(inputs_backend);
   auto ba_duration =
       utils::Timer::toc<std::chrono::nanoseconds>(tic_ba).count() * 1e-9;
@@ -99,7 +100,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 
   // Run initial visual-inertial alignment(OGA)
   OnlineGravityAlignment initial_alignment(
-      estimated_poses, delta_t_camera, pims, vio_params_.n_gravity_);
+      estimated_poses, delta_t_camera, pims, imu_params_.n_gravity_);
   auto tic_oga = utils::Timer::tic();
   bool is_success = initial_alignment.alignVisualInertialEstimates(
       gyro_bias, g_iter_b0, init_navstate, true);
@@ -144,7 +145,7 @@ bool InitializationBackEnd::bundleAdjustmentAndGravityAlignment(
 /* -------------------------------------------------------------------------- */
 std::vector<gtsam::Pose3>
 InitializationBackEnd::addInitialVisualStatesAndOptimize(
-    const std::vector<std::shared_ptr<VioBackEndInputPayload>> &input) {
+    const std::vector<BackendInput::UniquePtr>& input) {
   CHECK(input.front());
 
   // Initial clear values.
@@ -154,18 +155,18 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
 
   // Insert relative poses for bundle adjustment
   for (int i = 0; i < input.size(); i++) {
-    auto input_iter = input[i];
+    const BackendInput& input_iter = *input[i];
     bool use_stereo_btw_factor =
-        vio_params_.addBetweenStereoFactors_ == true &&
-        input_iter->stereo_tracking_status_ == TrackingStatus::VALID;
+        backend_params_.addBetweenStereoFactors_ == true &&
+        input_iter.stereo_tracking_status_ == TrackingStatus::VALID;
     VLOG(5) << "Adding initial visual state.";
     VLOG_IF(5, use_stereo_btw_factor) << "Using stereo between factor.";
     // Features and IMU line up --> do iSAM update
+    CHECK(input_iter.status_stereo_measurements_kf_);
     addInitialVisualState(
-        input_iter->timestamp_kf_nsec_,  // Current time for fixed lag smoother.
-        input_iter->status_smart_stereo_measurements_kf_,  // Vision data.
-        input_iter->planes_,
-        use_stereo_btw_factor ? input_iter->stereo_ransac_body_pose_
+        input_iter.timestamp_,  // Current time for fixed lag smoother.
+        *input_iter.status_stereo_measurements_kf_,  // Vision data.
+        use_stereo_btw_factor ? input_iter.stereo_ransac_body_pose_
                               : boost::none,
         0);
     last_kf_id_ = curr_kf_id_;
@@ -186,7 +187,7 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
   // Perform Bundle Adjustment and retrieve body poses (b0_T_bk)
   // b0 is the initial body frame
   std::vector<gtsam::Pose3> estimated_poses = optimizeInitialVisualStates(
-      input.front()->timestamp_kf_nsec_, curr_kf_id_, vio_params_.numOptimize_);
+      input.front()->timestamp_, curr_kf_id_, backend_params_.numOptimize_);
 
   VLOG(10) << "Initial bundle adjustment completed.";
 
@@ -215,9 +216,8 @@ InitializationBackEnd::addInitialVisualStatesAndOptimize(
 // [in] status_smart_stereo_measurements_kf, vision data.
 // [in] stereo_ransac_body_pose, inertial data.
 void InitializationBackEnd::addInitialVisualState(
-    const Timestamp &timestamp_kf_nsec,
-    const StatusSmartStereoMeasurements &status_smart_stereo_measurements_kf,
-    std::vector<Plane> *planes,
+    const Timestamp& timestamp_kf_nsec,
+    const StatusStereoMeasurements& status_smart_stereo_measurements_kf,
     boost::optional<gtsam::Pose3> stereo_ransac_body_pose,
     const int verbosity_ = 0) {
   debug_info_.resetAddedFactorsStatistics();

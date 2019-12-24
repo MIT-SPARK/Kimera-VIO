@@ -13,10 +13,12 @@
  * @author Luca Carlone
  */
 
+#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+
 #include <glog/logging.h>
 
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
@@ -32,7 +34,7 @@ void ImuData::print() const {
 }
 
 ImuFrontEnd::ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias)
-    : imu_params_(setImuParams(imu_params)) {
+    : imu_params_(imu_params) {
   CHECK_GT(imu_params.acc_noise_, 0.0);
   CHECK_GT(imu_params.acc_walk_, 0.0);
   CHECK_GT(imu_params.gyro_noise_, 0.0);
@@ -43,17 +45,23 @@ ImuFrontEnd::ImuFrontEnd(const ImuParams& imu_params, const ImuBias& imu_bias)
   initializeImuFrontEnd(imu_bias);
 }
 
-ImuFrontEnd::ImuFrontEnd(const PreintegratedImuMeasurements::Params& imu_params,
-                         const ImuBias& imu_bias)
-    : imu_params_(imu_params) {
-  // TODO(Toni): this ctor doesn't check params... ADD CHECKS
-  initializeImuFrontEnd(imu_bias);
-}
-
 void ImuFrontEnd::initializeImuFrontEnd(const ImuBias& imu_bias) {
-  pim_ = VIO::make_unique<PreintegratedImuMeasurements>(
-      boost::make_shared<PreintegratedImuMeasurements::Params>(imu_params_),
-      imu_bias);
+  switch (imu_params_.imu_preintegration_type_) {
+    case ImuPreintegrationType::kPreintegratedCombinedMeasurements: {
+      pim_ = VIO::make_unique<gtsam::PreintegratedCombinedMeasurements>(
+          generateCombinedImuParams(imu_params_), imu_bias);
+      break;
+    }
+    case ImuPreintegrationType::kPreintegratedImuMeasurements: {
+      pim_ = VIO::make_unique<gtsam::PreintegratedImuMeasurements>(
+          generateRegularImuParams(imu_params_), imu_bias);
+      break;
+    }
+    default: {
+      LOG(ERROR) << "Unknown Imu frontend type.";
+      break;
+    }
+  }
   CHECK(pim_);
   {
     std::lock_guard<std::mutex> lock(imu_bias_mutex_);
@@ -61,11 +69,12 @@ void ImuFrontEnd::initializeImuFrontEnd(const ImuBias& imu_bias) {
   }
   if (VLOG_IS_ON(10)) {
     LOG(ERROR) << "IMU PREINTEGRATION PARAMS GIVEN TO IMU FRONTEND.";
-    imu_params_.print("");
+    imu_params_.print();
     LOG(ERROR) << "IMU BIAS GIVEN TO IMU FRONTEND AT CONSTRUCTION:\n "
                << getCurrentImuBias();
     LOG(ERROR) << "IMU PREINTEGRATION COVARIANCE: ";
-    pim_->print();
+    pim_->print("PIM type: " + std::to_string(VIO::to_underlying(
+                                   imu_params_.imu_preintegration_type_)));
   }
 }
 
@@ -73,8 +82,9 @@ void ImuFrontEnd::initializeImuFrontEnd(const ImuBias& imu_bias) {
 // NOT THREAD-SAFE
 // What happens if someone updates the bias in the middle of the
 // preintegration??
-gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
-    const ImuStampS& imu_stamps, const ImuAccGyrS& imu_accgyr) {
+ImuFrontEnd::PimPtr ImuFrontEnd::preintegrateImuMeasurements(
+    const ImuStampS& imu_stamps,
+    const ImuAccGyrS& imu_accgyr) {
   CHECK(pim_) << "Pim not initialized.";
   CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
   CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
@@ -96,15 +106,36 @@ gtsam::PreintegratedImuMeasurements ImuFrontEnd::preintegrateImuMeasurements(
   }
   if (VLOG_IS_ON(10)) {
     LOG(INFO) << "Finished preintegration: ";
-    pim_->print();
+    pim_->print("PIM type: " + std::to_string(VIO::to_underlying(
+                                   imu_params_.imu_preintegration_type_)));
   }
 
-  return *pim_;
+  // Create a copy of the current pim, because the ImuFrontEnd pim will be
+  // reused over and over. Avoid object slicing by using the derived type of
+  // pim. All of this is to deal with gtsam's idiosyncracies with base classes.
+  // TODO(Toni): this copies might be quite expensive...
+  switch (imu_params_.imu_preintegration_type_) {
+    case ImuPreintegrationType::kPreintegratedCombinedMeasurements: {
+      return VIO::make_unique<gtsam::PreintegratedCombinedMeasurements>(
+          safeCastToPreintegratedCombinedImuMeasurements(*pim_));
+      break;
+    }
+    case ImuPreintegrationType::kPreintegratedImuMeasurements: {
+      return VIO::make_unique<gtsam::PreintegratedImuMeasurements>(
+          safeCastToPreintegratedImuMeasurements(*pim_));
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unknown IMU Preintegration Type.";
+      break;
+    }
+  }
 }
 
 /* -------------------------------------------------------------------------- */
 gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
-    const ImuStampS& imu_stamps, const ImuAccGyrS& imu_accgyr) {
+    const ImuStampS& imu_stamps,
+    const ImuAccGyrS& imu_accgyr) {
   CHECK(imu_stamps.cols() >= 2) << "No Imu data found.";
   CHECK(imu_accgyr.cols() >= 2) << "No Imu data found.";
   std::lock_guard<std::mutex> lock(imu_bias_mutex_);
@@ -125,14 +156,12 @@ gtsam::Rot3 ImuFrontEnd::preintegrateGyroMeasurements(
 }
 
 /* -------------------------------------------------------------------------- */
-// Set parameters for imu factors.
-gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(
+gtsam::PreintegrationBase::Params ImuFrontEnd::convertVioImuParamsToGtsam(
     const ImuParams& imu_params) {
   CHECK_GT(imu_params.acc_noise_, 0.0);
   CHECK_GT(imu_params.gyro_noise_, 0.0);
   CHECK_GT(imu_params.imu_integration_sigma_, 0.0);
-  PreintegratedImuMeasurements::Params preint_imu_params =
-      PreintegratedImuMeasurements::Params(imu_params.n_gravity_);
+  gtsam::PreintegrationBase::Params preint_imu_params(imu_params.n_gravity_);
   preint_imu_params.gyroscopeCovariance =
       std::pow(imu_params.gyro_noise_, 2.0) * Eigen::Matrix3d::Identity();
   preint_imu_params.accelerometerCovariance =
@@ -143,14 +172,68 @@ gtsam::PreintegrationBase::Params ImuFrontEnd::setImuParams(
   // TODO(Toni): REMOVE HARDCODED
   preint_imu_params.use2ndOrderCoriolis = false;
 
-#ifdef USE_COMBINED_IMU_FACTOR
-  preint_imu_params.biasAccCovariance =
-      std::pow(vioParams.accBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-  preint_imu_params.biasOmegaCovariance =
-      std::pow(vioParams.gyroBiasSigma_, 2.0) * Eigen::Matrix3d::Identity();
-#endif
-
   return preint_imu_params;
+}
+
+boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params>
+ImuFrontEnd::generateCombinedImuParams(const ImuParams& imu_params) {
+  boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params>
+      combined_imu_params =
+          boost::make_shared<gtsam::PreintegratedCombinedMeasurements::Params>(
+              imu_params.n_gravity_);
+  gtsam::PreintegrationParams gtsam_imu_params =
+      ImuFrontEnd::convertVioImuParamsToGtsam(imu_params);
+  if (gtsam_imu_params.body_P_sensor) {
+    combined_imu_params->setBodyPSensor(*gtsam_imu_params.getBodyPSensor());
+  }
+  if (gtsam_imu_params.omegaCoriolis) {
+    combined_imu_params->setOmegaCoriolis(*gtsam_imu_params.getOmegaCoriolis());
+  }
+  combined_imu_params->setGyroscopeCovariance(
+      gtsam_imu_params.getGyroscopeCovariance());
+  combined_imu_params->setUse2ndOrderCoriolis(
+      gtsam_imu_params.getUse2ndOrderCoriolis());
+  combined_imu_params->setIntegrationCovariance(
+      gtsam_imu_params.getIntegrationCovariance());
+  combined_imu_params->setAccelerometerCovariance(
+      gtsam_imu_params.getAccelerometerCovariance());
+  ///< covariance of bias used for pre-integration
+  // TODO(Toni): how come we are initializing like this?
+  // We should parametrize perhaps this as well.
+  combined_imu_params->biasAccOmegaInt = gtsam::I_6x6;
+  ///< continuous-time "Covariance" describing
+  ///< accelerometer bias random walk
+  combined_imu_params->biasAccCovariance =
+      std::pow(imu_params.acc_walk_, 2.0) * Eigen::Matrix3d::Identity();
+  ///< continuous-time "Covariance" describing gyroscope bias random walk
+  combined_imu_params->biasOmegaCovariance =
+      std::pow(imu_params.gyro_walk_, 2.0) * Eigen::Matrix3d::Identity();
+  return combined_imu_params;
+}
+
+boost::shared_ptr<gtsam::PreintegratedImuMeasurements::Params>
+ImuFrontEnd::generateRegularImuParams(const ImuParams& imu_params) {
+  boost::shared_ptr<gtsam::PreintegratedImuMeasurements::Params>
+      regular_imu_params =
+          boost::make_shared<gtsam::PreintegratedImuMeasurements::Params>(
+              imu_params.n_gravity_);
+  gtsam::PreintegrationParams gtsam_imu_params =
+      ImuFrontEnd::convertVioImuParamsToGtsam(imu_params);
+  if (gtsam_imu_params.body_P_sensor) {
+    regular_imu_params->setBodyPSensor(*gtsam_imu_params.getBodyPSensor());
+  }
+  if (gtsam_imu_params.omegaCoriolis) {
+    regular_imu_params->setOmegaCoriolis(*gtsam_imu_params.getOmegaCoriolis());
+  }
+  regular_imu_params->setGyroscopeCovariance(
+      gtsam_imu_params.getGyroscopeCovariance());
+  regular_imu_params->setUse2ndOrderCoriolis(
+      gtsam_imu_params.getUse2ndOrderCoriolis());
+  regular_imu_params->setIntegrationCovariance(
+      gtsam_imu_params.getIntegrationCovariance());
+  regular_imu_params->setAccelerometerCovariance(
+      gtsam_imu_params.getAccelerometerCovariance());
+  return regular_imu_params;
 }
 
 }  // namespace VIO

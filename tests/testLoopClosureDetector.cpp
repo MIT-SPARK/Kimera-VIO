@@ -65,6 +65,10 @@ class LCDFixture :public ::testing::Test {
     LoopClosureDetectorParams params;
     params.parseYAML(lcd_test_data_path_+"/testLCDParameters.yaml");
 
+    FLAGS_vocabulary_path =
+        FLAGS_test_data_path +
+        std::string("/ForLoopClosureDetector/small_voc.yml.gz");
+
     lcd_detector_ = VIO::make_unique<LoopClosureDetector>(params, false);
 
     ref1_pose_ = gtsam::Pose3(
@@ -108,22 +112,20 @@ class LCDFixture :public ::testing::Test {
     std::string img_name_cur2_left = lcd_test_data_path_ + "/left_img_3.png";
     std::string img_name_cur2_right = lcd_test_data_path_ + "/right_img_3.png";
 
-    // Get ground truth camera relative poses
-    gtsam::Pose3 camL_Pose_camR =
-        cam_params_left.body_Pose_cam_.between(cam_params_right.body_Pose_cam_);
-
     // Initialize StereoFrame objects for reference and current frames
     VioFrontEndParams tp;
     Tracker tracker(tp);
 
     ref1_stereo_frame_ = VIO::make_unique<StereoFrame>(
-        id_ref1_, timestamp_ref1_,
+        id_ref1_,
+        timestamp_ref1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref1_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref1_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref1_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+            img_name_ref1_right, tp.stereo_matching_params_.equalize_image_),
+        cam_params_right,
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(ref1_stereo_frame_->getLeftFrameMutable());
     CHECK(ref1_stereo_frame_);
@@ -131,13 +133,15 @@ class LCDFixture :public ::testing::Test {
     ref1_stereo_frame_->sparseStereoMatching();
 
     cur1_stereo_frame_ = VIO::make_unique<StereoFrame>(
-        id_cur1_, timestamp_cur1_,
+        id_cur1_,
+        timestamp_cur1_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur1_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur1_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur1_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+            img_name_cur1_right, tp.stereo_matching_params_.equalize_image_),
+        cam_params_right,
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(cur1_stereo_frame_->getLeftFrameMutable());
     CHECK(cur1_stereo_frame_);
@@ -145,13 +149,15 @@ class LCDFixture :public ::testing::Test {
     cur1_stereo_frame_->sparseStereoMatching();
 
     ref2_stereo_frame_ = VIO::make_unique<StereoFrame>(
-        id_ref2_, timestamp_ref2_,
+        id_ref2_,
+        timestamp_ref2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref2_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_ref2_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_ref2_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+            img_name_ref2_right, tp.stereo_matching_params_.equalize_image_),
+        cam_params_right,
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(ref2_stereo_frame_->getLeftFrameMutable());
     CHECK(ref2_stereo_frame_);
@@ -159,13 +165,15 @@ class LCDFixture :public ::testing::Test {
     ref2_stereo_frame_->sparseStereoMatching();
 
     cur2_stereo_frame_ = VIO::make_unique<StereoFrame>(
-        id_cur2_, timestamp_cur2_,
+        id_cur2_,
+        timestamp_cur2_,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur2_left, tp.getStereoMatchingParams().equalize_image_),
+            img_name_cur2_left, tp.stereo_matching_params_.equalize_image_),
         cam_params_left,
         UtilsOpenCV::ReadAndConvertToGrayScale(
-            img_name_cur2_right, tp.getStereoMatchingParams().equalize_image_),
-        cam_params_right, camL_Pose_camR, tp.getStereoMatchingParams());
+            img_name_cur2_right, tp.stereo_matching_params_.equalize_image_),
+        cam_params_right,
+        tp.stereo_matching_params_);
 
     tracker.featureDetection(cur2_stereo_frame_->getLeftFrameMutable());
     CHECK(cur2_stereo_frame_);
@@ -228,8 +236,8 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
 
   // TODO(marcus): Don't need mutable frames!
 
-  Frame left_frame = stereo_frame.getLeftFrame();
-  Frame right_frame = stereo_frame.getRightFrame();
+  const Frame& left_frame = stereo_frame.getLeftFrame();
+  const Frame& right_frame = stereo_frame.getRightFrame();
 
   EXPECT_EQ(left_frame.keypoints_.size(), nfeatures);
   EXPECT_EQ(right_frame.keypoints_.size(), nfeatures);
@@ -239,7 +247,7 @@ TEST_F(LCDFixture, rewriteStereoFrameFeatures) {
   for (unsigned int i = 0; i < left_frame.keypoints_.size(); i++) {
     EXPECT_EQ(left_frame.keypoints_[i], keypoints[i].pt);
     EXPECT_EQ(left_frame.versors_[i],
-              Frame::CalibratePixel(keypoints[i].pt, left_frame.cam_param_));
+              Frame::calibratePixel(keypoints[i].pt, left_frame.cam_param_));
   }
 
   EXPECT_EQ(stereo_frame.keypoints_3d_.size(), nfeatures);
@@ -285,15 +293,8 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
   gtsam::Pose3 camRef1_T_camCur1_mono;
   lcd_detector_->geometricVerificationCheck(1, 0, &camRef1_T_camCur1_mono);
 
-  cv::Mat match_img = lcd_detector_->computeAndDrawMatchesBetweenFrames(
-      cur1_stereo_frame_->getLeftFrame().img_,
-      ref1_stereo_frame_->getLeftFrame().img_, 1, 0, false);
-
-  // TODO(marcus): get rid of this and switch to false on toscale flag
-  gtsam::Point3 unit_T_ref_to_cur = ref1_to_cur1_pose_.translation() /
-                                    ref1_to_cur1_pose_.translation().norm();
   gtsam::Pose3 ref_to_cur_gnd_truth_pose =
-      gtsam::Pose3(ref1_to_cur1_pose_.rotation(), unit_T_ref_to_cur);
+      gtsam::Pose3(ref1_to_cur1_pose_.rotation(), ref1_to_cur1_pose_.translation());
 
   gtsam::Pose3 bodyRef1_T_bodyCur1;
   lcd_detector_->transformCameraPoseToBodyPose(camRef1_T_camCur1_mono,
@@ -301,7 +302,7 @@ TEST_F(LCDFixture, geometricVerificationCheck) {
 
   std::pair<double, double> error =
       UtilsOpenCV::ComputeRotationAndTranslationErrors(
-          ref_to_cur_gnd_truth_pose, bodyRef1_T_bodyCur1, true);
+          ref_to_cur_gnd_truth_pose, bodyRef1_T_bodyCur1, false);
 
   EXPECT_LT(error.first, rot_tol);
   // TODO(marcus): This test doesn't pass with realistic error tolerances
@@ -480,52 +481,44 @@ TEST_F(LCDFixture, addLoopClosureFactorAndOptimize) {
 
 TEST_F(LCDFixture, spinOnce) {
   /* Test the full pipeline with one loop closure and full PGO optimization */
-  std::pair<double, double> error;
-
   CHECK(lcd_detector_);
   CHECK(ref1_stereo_frame_);
-  const std::shared_ptr<LoopClosureDetectorInputPayload> input_0 =
-    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_ref1_,
-      FrameId(1), *ref1_stereo_frame_, gtsam::Pose3());
-  LoopClosureDetectorOutputPayload output_0 = lcd_detector_->spinOnce(input_0);
+  LcdOutput::Ptr output_0 = lcd_detector_->spinOnce(LcdInput(
+      timestamp_ref1_, FrameId(1), *ref1_stereo_frame_, gtsam::Pose3()));
 
   CHECK(ref2_stereo_frame_);
-  const std::shared_ptr<LoopClosureDetectorInputPayload> input_1 =
-    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_ref2_,
-      FrameId(2), *ref2_stereo_frame_, gtsam::Pose3());
-  LoopClosureDetectorOutputPayload output_1 = lcd_detector_->spinOnce(input_1);
+  LcdOutput::Ptr output_1 = lcd_detector_->spinOnce(LcdInput(
+      timestamp_ref2_, FrameId(2), *ref2_stereo_frame_, gtsam::Pose3()));
 
   CHECK(cur1_stereo_frame_);
-  const std::shared_ptr<LoopClosureDetectorInputPayload> input_2 =
-    std::make_shared<LoopClosureDetectorInputPayload>(timestamp_cur1_,
-      FrameId(3), *cur1_stereo_frame_, gtsam::Pose3());
-  LoopClosureDetectorOutputPayload output_2 = lcd_detector_->spinOnce(input_2);
+  LcdOutput::Ptr output_2 = lcd_detector_->spinOnce(LcdInput(
+      timestamp_cur1_, FrameId(3), *cur1_stereo_frame_, gtsam::Pose3()));
 
-  EXPECT_EQ(output_0.is_loop_closure_, false);
-  EXPECT_EQ(output_0.timestamp_kf_, 0);
-  EXPECT_EQ(output_0.timestamp_query_, 0);
-  EXPECT_EQ(output_0.timestamp_match_, 0);
-  EXPECT_EQ(output_0.id_match_, 0);
-  EXPECT_EQ(output_0.id_recent_, 0);
-  EXPECT_EQ(output_0.states_.size(), 1);
-  EXPECT_EQ(output_0.nfg_.size(), 1);
+  EXPECT_EQ(output_0->is_loop_closure_, false);
+  EXPECT_EQ(output_0->timestamp_kf_, 0);
+  EXPECT_EQ(output_0->timestamp_query_, 0);
+  EXPECT_EQ(output_0->timestamp_match_, 0);
+  EXPECT_EQ(output_0->id_match_, 0);
+  EXPECT_EQ(output_0->id_recent_, 0);
+  EXPECT_EQ(output_0->states_.size(), 1);
+  EXPECT_EQ(output_0->nfg_.size(), 1);
 
-  EXPECT_EQ(output_1.is_loop_closure_, false);
-  EXPECT_EQ(output_1.timestamp_kf_, 0);
-  EXPECT_EQ(output_1.timestamp_query_, 0);
-  EXPECT_EQ(output_1.timestamp_match_, 0);
-  EXPECT_EQ(output_1.id_match_, 0);
-  EXPECT_EQ(output_1.id_recent_, 0);
-  EXPECT_EQ(output_1.states_.size(), 2);
-  EXPECT_EQ(output_1.nfg_.size(), 2);
+  EXPECT_EQ(output_1->is_loop_closure_, false);
+  EXPECT_EQ(output_1->timestamp_kf_, 0);
+  EXPECT_EQ(output_1->timestamp_query_, 0);
+  EXPECT_EQ(output_1->timestamp_match_, 0);
+  EXPECT_EQ(output_1->id_match_, 0);
+  EXPECT_EQ(output_1->id_recent_, 0);
+  EXPECT_EQ(output_1->states_.size(), 2);
+  EXPECT_EQ(output_1->nfg_.size(), 2);
 
-  EXPECT_EQ(output_2.is_loop_closure_, true);
-  EXPECT_EQ(output_2.timestamp_kf_, timestamp_cur1_);
-  EXPECT_EQ(output_2.timestamp_query_, timestamp_cur1_);
-  EXPECT_EQ(output_2.timestamp_match_, timestamp_ref1_);
-  EXPECT_EQ(output_2.id_match_, 0);
-  EXPECT_EQ(output_2.id_recent_, 2);
-  EXPECT_EQ(output_2.states_.size(), 3);
+  EXPECT_EQ(output_2->is_loop_closure_, true);
+  EXPECT_EQ(output_2->timestamp_kf_, timestamp_cur1_);
+  EXPECT_EQ(output_2->timestamp_query_, timestamp_cur1_);
+  EXPECT_EQ(output_2->timestamp_match_, timestamp_ref1_);
+  EXPECT_EQ(output_2->id_match_, 0);
+  EXPECT_EQ(output_2->id_recent_, 2);
+  EXPECT_EQ(output_2->states_.size(), 3);
 }
 
 }  // namespace VIO

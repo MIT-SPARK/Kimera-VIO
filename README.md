@@ -26,7 +26,7 @@ Kimera-VIO is a Visual Inertial Odometry pipeline for accurate State Estimation 
 We kindly ask to cite our paper if you find this library useful:
 
  - A. Rosinol, M. Abate, Y. Chang, L. Carlone. [**Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping**](https://arxiv.org/abs/1910.02490). arXiv preprint [arXiv:1910.02490](https://arxiv.org/abs/1910.02490).
- ```
+ ```bibtex
  @misc{Rosinol19arxiv-Kimera,
    title = {Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping},
    author = {Rosinol, Antoni and Abate, Marcus and Chang, Yun and Carlone, Luca},
@@ -66,7 +66,8 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 - [GTSAM](https://github.com/borglab/gtsam) >= 4.0
 - [OpenCV](https://github.com/opencv/opencv) >= 3.3.1
 - [OpenGV](https://github.com/laurentkneip/opengv)
-- [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/), [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
+- [Glog](http://rpg.ifi.uzh.ch/docs/glog.html), [Gflags](https://gflags.github.io/gflags/)
+- [Gtest](https://github.com/google/googletest/blob/master/googletest/docs/primer.md) (installed automagically).
 - [DBoW2](https://github.com/dorian3d/DBoW2)
 - [Kimera-RPGO](https://github.com/MIT-SPARK/Kimera-RPGO)
 
