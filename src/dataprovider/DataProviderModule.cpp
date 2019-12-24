@@ -72,6 +72,7 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   CHECK_LT(timestamp_last_frame, timestamp);
   utils::ThreadsafeImuBuffer::QueryResult query_result =
       utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
+  bool log_error_once = true;
   while (
       (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
            timestamp_last_frame,
@@ -79,7 +80,7 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
            &imu_meas.timestamps_,
            &imu_meas.acc_gyr_)) !=
       utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
-    LOG_EVERY_N(WARNING, 10) << "No IMU data available. Reason:\n";
+    VLOG(1) << "No IMU data available. Reason:\n";
     switch (query_result) {
       case utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable: {
         LOG(FATAL) << "We should not be inside this while loop if IMU data is "
@@ -93,18 +94,21 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
         return nullptr;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable: {
-        LOG_EVERY_N(WARNING, 10)
+        LOG_EVERY_N(WARNING, 100)
             << "No IMU data from last frame timestamp: " << timestamp_last_frame
             << " to timestamp: " << timestamp;
         continue;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
-        LOG_EVERY_N(WARNING, 10) << "Waiting for IMU data...";
+        if (log_error_once) {
+          LOG(WARNING) << "Waiting for IMU data...";
+          log_error_once = false;
+        }
         continue;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::
           kTooFewMeasurementsAvailable: {
-        LOG_EVERY_N(WARNING, 10)
+        LOG_EVERY_N(WARNING, 100)
             << "Too few IMU measurements from last frame timestamp: "
             << timestamp_last_frame << " to timestamp: " << timestamp;
         continue;
