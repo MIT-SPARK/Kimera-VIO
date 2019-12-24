@@ -64,6 +64,23 @@ RUN cd opengv/build && \
       -DEIGEN_INCLUDE_DIR=$DIRPATH/gtsam/gtsam/3rdparty/Eigen .. && \
       make -j$(nproc) install
 
+# Install DBoW2
+RUN git clone https://github.com/dorian3d/DBoW2.git
+RUN cd DBoW2 && \
+      mkdir build && \
+      cd build && \
+      cmake .. && \
+      make -j$(nproc) install
+
+# Install RobustPGO
+ADD https://api.github.com/repos/MIT-SPARK/Kimera-RPGO/git/refs/heads/master version.json
+RUN git clone https://github.com/MIT-SPARK/Kimera-RPGO.git
+RUN cd Kimera-RPGO && \
+      mkdir build && \
+      cd build && \
+      cmake .. && \
+      make -j$(nproc)
+
 # [Optional] Install spark_vio_evaluation from PyPI
 RUN apt-get update && apt-get install -y python-pip python-dev python-tk
 # Hack to avoid Docker's cache when spark_vio_evaluation master branch is updated.
@@ -80,6 +97,9 @@ RUN chmod 600 ~/.ssh/id_rsa
 # Make sure your domain is accepted
 RUN touch /root/.ssh/known_hosts
 RUN ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
+
+# Install glog, gflags
+RUN apt-get update && apt-get install -y libgflags2.2 libgflags-dev libgoogle-glog0v5 libgoogle-glog-dev
 
 # Install Kimera-VIO
 RUN git clone https://github.com/MIT-SPARK/Kimera-VIO.git

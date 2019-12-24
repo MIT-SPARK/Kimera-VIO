@@ -24,17 +24,18 @@
 
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 
-#include "VioBackEndParams.h"
 
 #include <gtsam/geometry/OrientedPlane3.h>
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/nonlinear/GaussNewtonOptimizer.h>
 #include <gtsam/slam/PriorFactor.h>
-#include "factors/PointPlaneFactor.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include "kimera-vio/backend/VioBackEndParams.h"
+#include "kimera-vio/factors/PointPlaneFactor.h"
 
 using namespace std;
 using namespace gtsam;
@@ -75,7 +76,7 @@ void setIsam2Params(const VioBackEndParams& vio_params,
   // isam_param->cacheLinearizedFactors = true;
   // isam_param->enableDetailedResults = true;   // only for debugging.
   isam_param->factorization = gtsam::ISAM2Params::CHOLESKY;  // QR
-  isam_param->print("isam_param");
+  // isam_param->print("isam_param");
   // isam_param.evaluateNonlinearError = true;  // only for debugging.
 }
 
@@ -420,21 +421,22 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
     smoother.update(graph, initial, timestamps, delete_slots);
     // Another extra iteration.
     for (size_t i = 0; i < 3; i++) {
-      smoother.update(gtsam::NonlinearFactorGraph(), gtsam::Values(),
+      smoother.update(gtsam::NonlinearFactorGraph(),
+                      gtsam::Values(),
                       gtsam::FixedLagSmoother::KeyTimestampMap(),
-                      gtsam::FastVector<size_t>());
+                      gtsam::FastVector<gtsam::FactorIndex>());
     }
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
-    std::cout << e.what();
+    LOG(ERROR) << e.what();
 
     const gtsam::Key& var = e.nearbyVariable();
     gtsam::Symbol symb(var);
 
-    std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
-              << "and index " << symb.index() << std::endl;
+    LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
+               << "and index " << symb.index();
 
     smoother.getFactors().print("Smoother's factors:\n[\n\t");
-    std::cout << " ]" << std::endl;
+    LOG(ERROR) << " ]";
 
     throw;
   }
@@ -492,21 +494,22 @@ TEST(testPointPlaneFactor, MultiplePlanesIncrementalOptimization) {
     smoother.update(graph, initial, timestamps, delete_slots);
     // Another extra iteration.
     for (size_t i = 0; i < 3; i++) {
-      smoother.update(gtsam::NonlinearFactorGraph(), gtsam::Values(),
+      smoother.update(gtsam::NonlinearFactorGraph(),
+                      gtsam::Values(),
                       gtsam::FixedLagSmoother::KeyTimestampMap(),
-                      gtsam::FastVector<size_t>());
+                      gtsam::FastVector<gtsam::FactorIndex>());
     }
   } catch (const gtsam::IndeterminantLinearSystemException& e) {
-    std::cout << e.what();
+    LOG(ERROR) << e.what();
 
     const gtsam::Key& var = e.nearbyVariable();
     gtsam::Symbol symb(var);
 
-    std::cout << "ERROR: Variable has type '" << symb.chr() << "' "
-              << "and index " << symb.index() << std::endl;
+    LOG(ERROR) << "ERROR: Variable has type '" << symb.chr() << "' "
+               << "and index " << symb.index();
 
     smoother.getFactors().print("Smoother's factors:\n[\n\t");
-    std::cout << " ]" << std::endl;
+    LOG(ERROR) << " ]";
 
     throw;
   }

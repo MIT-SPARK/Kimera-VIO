@@ -35,12 +35,9 @@
    limitations under the License.
 *********************************************************************************/
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
-
-#include "imu-frontend/ImuFrontEnd-definitions.h"
-#include "imu-frontend/ImuFrontEnd.h"
-#include "utils/ThreadsafeImuBuffer.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
+#include "kimera-vio/imu-frontend/ImuFrontEnd.h"
+#include "kimera-vio/utils/ThreadsafeImuBuffer.h"
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>

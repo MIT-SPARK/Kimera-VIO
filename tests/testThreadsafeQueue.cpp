@@ -22,7 +22,9 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
-#include "utils/ThreadsafeQueue.h"
+#include "kimera-vio/utils/ThreadsafeQueue.h"
+
+namespace VIO {
 
 void consumer(ThreadsafeQueue<std::string>& q,  // NOLINT
               const std::atomic_bool& kill_switch) {
@@ -170,3 +172,5 @@ TEST(testThreadsafeQueue, stress_test) {
   }
   VLOG(1) << "Threads joined.\n";
 }
+
+}  // namespace VIO

@@ -12,13 +12,17 @@
  * @author Antoni Rosinol
  */
 
-#include <glog/logging.h>
-#include <opencv2/core/core.hpp>
+#include "kimera-vio/mesh/Mesh.h"
 
-#include "mesh/Mesh.h"
+#include <glog/logging.h>
+
+#include <opencv2/core/core.hpp>
 
 namespace VIO {
 
+/**
+ * param[in]: polygon_dimension number of vertices per polygon (triangle = 3).
+ */
 template <typename VertexPositionType>
 Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
     : vertex_to_lmk_id_map_(),

@@ -35,12 +35,9 @@
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/slam/PriorFactor.h>
 
-//#include <gtsam/linear/VectorValues.h>
-//#include <gtsam/nonlinear/Marginals.h>
-
-#include "UtilsOpenCV.h"
-#include "initial/OnlineGravityAlignment.h"
-#include "utils/Timer.h"
+#include "kimera-vio/initial/OnlineGravityAlignment.h"
+#include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 // TODO(Sandro): Create YAML file for initialization and read in!
 DEFINE_double(gyroscope_residuals,
@@ -181,17 +178,17 @@ void OnlineGravityAlignment::constructVisualInertialFrames(
   for (int i = 0; i < pims.size(); i++) {
     // Get bk_gamma_bkp1, bk_alpha_bkp1, bk_beta_bkp1
     // pim.deltaXij() corresponds to bodyLkf_X_bodyK_imu
-    gtsam::NavState delta_state(pims.at(i).deltaXij());
+    gtsam::NavState delta_state(pims.at(i)->deltaXij());
     // Get delta_time_pim = t_kp1-t_k
-    const double delta_t_pim = pims.at(i).deltaTij();
+    const double delta_t_pim = pims.at(i)->deltaTij();
 #ifdef GTSAM_TANGENT_PREINTEGRATION
     // Get pre-integration Jacobian wrt. gyro_bias (dPIM = J * dbg)
-    gtsam::Matrix dbg_J_dPIM = pims.at(i).preintegrated_H_biasOmega();
+    gtsam::Matrix dbg_J_dPIM = pims.at(i)->preintegrated_H_biasOmega();
     // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
     gtsam::Matrix3 dbg_Jacobian_dR = gtsam::sub(dbg_J_dPIM, 0, 3, 0, 3);
 #else
     // Get rotation Jacobian wrt. gyro_bias (dR_bkp1 = J * dbg_bkp1)
-    gtsam::Matrix3 dbg_Jacobian_dR = pims.at(i).delRdelBiasOmega();
+    gtsam::Matrix3 dbg_Jacobian_dR = pims.at(i)->delRdelBiasOmega();
 #endif
 
     CHECK_GT(FLAGS_camera_pim_delta_difference,
@@ -408,7 +405,7 @@ void OnlineGravityAlignment::updateDeltaStates(
   // Repropagate measurements with first order approximation
   for (int i = 0; i < vi_frames->size(); i++) {
     // Update pre-integration with first-order approximation
-    gtsam::Vector9 correct_preintegrated = pims.at(i).biasCorrectedDelta(
+    gtsam::Vector9 correct_preintegrated = pims.at(i)->biasCorrectedDelta(
         gtsam::imuBias::ConstantBias(Vector3::Zero(), gyro_bias));
     // Retract delta state
     const gtsam::NavState bk_delta_state_bkp1 =
