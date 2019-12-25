@@ -9,17 +9,12 @@
 /**
  * @file   Tracker.h
  * @brief  Class describing temporal tracking
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 // TODO(Toni): put tracker in another folder.
-
 #pragma once
-
-#include <time.h>
-
-#include <boost/shared_ptr.hpp> // used for opengv
-#include <boost/filesystem.hpp> // to create folders
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -40,27 +35,19 @@
 
 namespace VIO {
 
-////////////////////////////////////////////////////////////////////////////////
 class Tracker {
 public:
   // Constructor
- Tracker(const VioFrontEndParams& trackerParams = VioFrontEndParams());
+ Tracker(const VioFrontEndParams& trackerParams);
 
  // Tracker parameters.
- const VioFrontEndParams trackerParams_;
-
- // This is not const as for debugging we want to redirect the image save path
- // where we like.
- std::string outputImagesPath_;
+ const VioFrontEndParams tracker_params_;
 
  // Mask for features.
  cv::Mat camMask_;
 
  // Counters.
  int landmark_count_;  // incremental id assigned to new landmarks
-
- // Debug info.
- DebugTrackerInfo debugInfo_;
 
 public:
   /* +++++++++++++++++++++ NONCONST FUNCTIONS +++++++++++++++++++++++++++++++ */
@@ -163,6 +150,13 @@ public:
  private:
   // Pixel offset for using center of image
   cv::Point2f pixelOffset_;
+
+  // Debug info.
+  DebugTrackerInfo debugInfo_;
+
+  // This is not const as for debugging we want to redirect the image save path
+  // where we like.
+  std::string outputImagesPath_;
 
   // Flags
   const int verbosity_;

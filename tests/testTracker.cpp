@@ -9,7 +9,8 @@
 /**
  * @file   testTracker.cpp
  * @brief  test Tracker
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <algorithm>
@@ -48,15 +49,21 @@ static string stereo_test_data_path(FLAGS_test_data_path +
 static const int repeat_times = 1;
 
 class TestTracker : public ::testing::Test {
- protected:
-  void SetUp() override {
+ public:
+  TestTracker() : tracker_params_(), tracker_(nullptr) {
     // Fix randomization seed (we use monte carlo runs here).
     srand(3);
     InitializeData();
+
+    // Initialize tracker.
+    tracker_params_.ransac_threshold_stereo_ = 0.3;
+    tracker_ = VIO::make_unique<Tracker>(tracker_params_);
   }
 
+ protected:
+  void SetUp() override {}
   // TODO deallocate dynamic memory here!
-  // void TearDown() override {}
+  void TearDown() override {}
 
   void InitializeData() {
     CameraParams cam_params_left, cam_params_right;
@@ -489,6 +496,11 @@ class TestTracker : public ::testing::Test {
     sampleCovariance = sampleCovariance / double(nrRuns - 1);
     return make_pair(sampleMean, sampleCovariance);
   }
+
+ protected:
+  // Perform Ransac
+  VioFrontEndParams tracker_params_;
+  std::unique_ptr<Tracker> tracker_;
 };
 
 /* ************************************************************************* */
@@ -639,12 +651,11 @@ TEST_F(TestTracker, geometricOutlierRejectionMonoGivenRotation) {
       }
 
       // Perform Ransac
-      Tracker tracker;
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
-          tracker.geometricOutlierRejectionMonoGivenRotation(ref_frame,
-                                                             cur_frame, R);
+          tracker_->geometricOutlierRejectionMonoGivenRotation(
+              ref_frame, cur_frame, R);
 
       EXPECT_EQ(tracking_status, TrackingStatus::VALID);
 
@@ -735,15 +746,11 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
         AddNoiseToStereoFrame(cur_stereo_frame, noise_sigma);
       }
 
-      // Perform Ransac
-      VioFrontEndParams trackerParams;
-      trackerParams.ransac_threshold_stereo_ = 0.3;
-      Tracker tracker(trackerParams);
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
-          tracker.geometricOutlierRejectionStereo(*ref_stereo_frame,
-                                                  *cur_stereo_frame);
+          tracker_->geometricOutlierRejectionStereo(*ref_stereo_frame,
+                                                    *cur_stereo_frame);
 
       // Check the correctness of the outlier rejection!
       for (int i = 0; i < inlier_num; i++) {
@@ -869,11 +876,10 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
       }
 
       // Perform Ransac
-      Tracker tracker;
       pair<TrackingStatus, Pose3> poseStatus;
       Matrix3 infoMat;
       tie(poseStatus, infoMat) =
-          tracker.geometricOutlierRejectionStereoGivenRotation(
+          tracker_->geometricOutlierRejectionStereoGivenRotation(
               *ref_stereo_frame, *cur_stereo_frame, R);
 
       TrackingStatus tracking_status = poseStatus.first;

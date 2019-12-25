@@ -18,6 +18,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <boost/filesystem.hpp>  // to create folders
+
 #include "kimera-vio/common/vio_types.h"
 
 DEFINE_int32(save_frontend_images_option,
@@ -51,7 +53,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
   // Instantiate IMU frontend.
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
 
-  if (VLOG_IS_ON(1)) tracker_.trackerParams_.print();
+  if (VLOG_IS_ON(1)) tracker_.tracker_params_.print();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -261,10 +263,10 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   const bool max_time_elapsed =
       UtilsOpenCV::NsecToSec(stereoFrame_k_->getTimestamp() -
                              last_keyframe_timestamp_) >=
-      tracker_.trackerParams_.intra_keyframe_time_;
+      tracker_.tracker_params_.intra_keyframe_time_;
   const size_t nr_valid_features = left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
-      nr_valid_features <= tracker_.trackerParams_.min_number_features_;
+      nr_valid_features <= tracker_.tracker_params_.min_number_features_;
 
   // Also if the user requires the keyframe to be enforced
   if (stereoFrame_k_->isKeyframe()) LOG(WARNING) << "User inforced keyframe!";
@@ -281,9 +283,9 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
     VLOG_IF(2, nr_features_low)
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
-        << tracker_.trackerParams_.min_number_features_ << ").";
+        << tracker_.tracker_params_.min_number_features_ << ").";
 
-    if (!tracker_.trackerParams_.useRANSAC_) {
+    if (!tracker_.tracker_params_.useRANSAC_) {
       trackerStatusSummary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
 
       if (VLOG_IS_ON(2)) {
@@ -300,7 +302,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       ////////////////// MONO geometric outlier rejection ////////////////
       std::pair<TrackingStatus, gtsam::Pose3> statusPoseMono;
       Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
-      if (tracker_.trackerParams_.ransac_use_2point_mono_ &&
+      if (tracker_.tracker_params_.ransac_use_2point_mono_ &&
           calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
         // 2-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMonoGivenRotation(
@@ -335,7 +337,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
 
       std::pair<TrackingStatus, gtsam::Pose3> statusPoseStereo;
       gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
-      if (tracker_.trackerParams_.ransac_use_1point_stereo_ &&
+      if (tracker_.tracker_params_.ransac_use_1point_stereo_ &&
           calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
         // 1-point RANSAC.
         std::tie(statusPoseStereo, infoMatStereoTranslation) =
@@ -451,11 +453,11 @@ StereoVisionFrontEnd::getSmartStereoMeasurements(
     const double& v = leftKeypoints.at(i).y;
     // Initialize to missing pixel information.
     double uR = std::numeric_limits<double>::quiet_NaN();
-    if (!tracker_.trackerParams_.useStereoTracking_) {
+    if (!tracker_.tracker_params_.useStereoTracking_) {
       LOG(WARNING) << "getSmartStereoMeasurements: dropping stereo information!"
                       " (set useStereoTracking_ = true to use it)";
     }
-    if (tracker_.trackerParams_.useStereoTracking_ &&
+    if (tracker_.tracker_params_.useStereoTracking_ &&
         rightKeypoints_status.at(i) == KeypointStatus::VALID) {
       // TODO implicit conversion float to double increases floating-point
       // precision!
