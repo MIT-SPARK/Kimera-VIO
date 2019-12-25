@@ -29,14 +29,6 @@ DEFINE_bool(log_mono_tracking_images, false,
             "Display/Save mono tracking rectified and unrectified images.");
 DEFINE_bool(log_stereo_matching_images, false,
             "Display/Save mono tracking rectified and unrectified images.");
-DEFINE_int32(save_frontend_images_option,
-             0,
-             "Display/Save images in frontend for debugging (only use if "
-             "in sequential mode, otherwise expect segfaults). "
-             "Values:\n"
-             " - 0: don't display or save images.\n"
-             " - 1: display images.\n"
-             " - 2: display and save images.");
 
 namespace VIO {
 
