@@ -148,8 +148,8 @@ class TestTracker : public ::testing::Test {
     f_ref->landmarks_.push_back(max_id + 1);
     f_cur->landmarks_.push_back(max_id + 1);
 
-    f_ref->landmarksAge_.push_back(0);
-    f_cur->landmarksAge_.push_back(1);
+    f_ref->landmarks_age_.push_back(0);
+    f_cur->landmarks_age_.push_back(1);
   }
 
   void ClearFrame(Frame* f) {
@@ -157,7 +157,7 @@ class TestTracker : public ::testing::Test {
     f->keypoints_.resize(0);
     f->scores_.resize(0);
     f->landmarks_.resize(0);
-    f->landmarksAge_.resize(0);
+    f->landmarks_age_.resize(0);
     f->versors_.resize(0);
   }
 
@@ -329,8 +329,8 @@ class TestTracker : public ::testing::Test {
     sf_ref->getLeftFrameMutable()->landmarks_.push_back(max_id + 1);
     sf_cur->getLeftFrameMutable()->landmarks_.push_back(max_id + 1);
 
-    sf_ref->getLeftFrameMutable()->landmarksAge_.push_back(0);
-    sf_cur->getLeftFrameMutable()->landmarksAge_.push_back(1);
+    sf_ref->getLeftFrameMutable()->landmarks_age_.push_back(0);
+    sf_cur->getLeftFrameMutable()->landmarks_age_.push_back(1);
 
     // Set sf->right_keypoints_status_
     sf_ref->right_keypoints_status_.push_back(KeypointStatus::VALID);

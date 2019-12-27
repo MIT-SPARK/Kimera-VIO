@@ -28,8 +28,7 @@ Tracker::Tracker(const VioFrontEndParams& trackerParams)
       // Only for debugging and visualization:
       landmark_count_(0),
       pixelOffset_(),
-      outputImagesPath_("./outputImages/"),
-      verbosity_(0) {}
+      outputImagesPath_("./outputImages/") {}
 
 // TODO(Toni) Optimize this function.
 void Tracker::featureDetection(Frame* cur_frame) {
@@ -42,7 +41,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
     // count nr of valid keypoints
     if (cur_frame->landmarks_.at(i) != -1) ++n_existing;
     // features that have been tracked so far have Age+1
-    cur_frame->landmarksAge_.at(i)++;
+    cur_frame->landmarks_age_.at(i)++;
   }
 
   // Detect new features in image.
@@ -55,8 +54,8 @@ void Tracker::featureDetection(Frame* cur_frame) {
   // If feature FeatureSelectionCriterion is quality, just extract what you
   // need:
   auto start_time_tic = utils::Timer::tic();
-  auto corners_with_scores = Tracker::featureDetection(
-      *cur_frame, tracker_params_, camMask_, nr_corners_needed);
+  const std::pair<KeypointsCV, std::vector<double>>& corners_with_scores =
+      Tracker::featureDetection(*cur_frame, camMask_, nr_corners_needed);
 
   debugInfo_.featureDetectionTime_ = utils::Timer::toc(start_time_tic).count();
   debugInfo_.extracted_corners_ = corners_with_scores.first.size();
@@ -68,7 +67,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
                                      // from the previous frame
   cur_frame->landmarks_.reserve(cur_frame->keypoints_.size() +
                                 corners_with_scores.first.size());
-  cur_frame->landmarksAge_.reserve(cur_frame->keypoints_.size() +
+  cur_frame->landmarks_age_.reserve(cur_frame->keypoints_.size() +
                                    corners_with_scores.first.size());
   cur_frame->keypoints_.reserve(cur_frame->keypoints_.size() +
                                 corners_with_scores.first.size());
@@ -81,7 +80,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
   // with scores.
   for (size_t i = 0; i < corners_with_scores.first.size(); i++) {
     cur_frame->landmarks_.push_back(landmark_count_);
-    cur_frame->landmarksAge_.push_back(1);  // seen in a single (key)frame
+    cur_frame->landmarks_age_.push_back(1);  // seen in a single (key)frame
     cur_frame->keypoints_.push_back(corners_with_scores.first.at(i));
     cur_frame->scores_.push_back(corners_with_scores.second.at(i));
     cur_frame->versors_.push_back(Frame::calibratePixel(
@@ -97,7 +96,6 @@ void Tracker::featureDetection(Frame* cur_frame) {
 
 std::pair<KeypointsCV, std::vector<double>> Tracker::featureDetection(
     const Frame& cur_frame,
-    const VioFrontEndParams& tracker_params,
     const cv::Mat& cam_mask,
     const int need_n_corners) {
   // Create mask such that new keypoints are not close to old ones.
@@ -107,7 +105,7 @@ std::pair<KeypointsCV, std::vector<double>> Tracker::featureDetection(
     if (cur_frame.landmarks_.at(i) != -1) {
       cv::circle(mask,
                  cur_frame.keypoints_.at(i),
-                 tracker_params.min_distance_,
+                 tracker_params_.min_distance_,
                  cv::Scalar(0),
                  CV_FILLED);
     }
@@ -119,12 +117,12 @@ std::pair<KeypointsCV, std::vector<double>> Tracker::featureDetection(
     UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
         cur_frame.img_,
         need_n_corners,
-        tracker_params.quality_level_,
-        tracker_params.min_distance_,
+        tracker_params_.quality_level_,
+        tracker_params_.min_distance_,
         mask,
-        tracker_params.block_size_,
-        tracker_params.use_harris_detector_,
-        tracker_params.k_,
+        tracker_params_.block_size_,
+        tracker_params_.use_harris_detector_,
+        tracker_params_.k_,
         &corners_with_scores);
   }
 
@@ -139,14 +137,17 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
   auto tic = utils::Timer::tic();
 
   // Fill up structure for reference pixels and their labels.
-  KeypointsCV px_ref;
+  KeypointsCV px_ref = ref_frame->keypoints_;
   std::vector<size_t> indices;
   indices.reserve(ref_frame->keypoints_.size());
   px_ref.reserve(ref_frame->keypoints_.size());
   for (size_t i = 0; i < ref_frame->keypoints_.size(); ++i) {
     if (ref_frame->landmarks_[i] != -1) {
+      // Current reference frame keypoint has a valid landmark.
       px_ref.push_back(ref_frame->keypoints_[i]);
       indices.push_back(i);
+    } else {
+
     }
   }
 
@@ -177,7 +178,7 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
 
     if (cur_frame->keypoints_.empty()) {  // Do we really need this check?
       cur_frame->landmarks_.reserve(px_ref.size());
-      cur_frame->landmarksAge_.reserve(px_ref.size());
+      cur_frame->landmarks_age_.reserve(px_ref.size());
       cur_frame->keypoints_.reserve(px_ref.size());
       cur_frame->scores_.reserve(px_ref.size());
       cur_frame->versors_.reserve(px_ref.size());
@@ -185,7 +186,7 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
         const size_t& i_ref = indices[i];
         // If we failed to track mark off that landmark
         if (!status[i] ||
-            ref_frame->landmarksAge_[i_ref] >
+            ref_frame->landmarks_age_[i_ref] >
                 tracker_params_
                     .maxFeatureAge_) {  // if we tracked keypoint and feature
           // track is not too long
@@ -195,7 +196,7 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
           continue;
         }
         cur_frame->landmarks_.push_back(ref_frame->landmarks_[i_ref]);
-        cur_frame->landmarksAge_.push_back(ref_frame->landmarksAge_[i_ref]);
+        cur_frame->landmarks_age_.push_back(ref_frame->landmarks_age_[i_ref]);
         cur_frame->scores_.push_back(ref_frame->scores_[i_ref]);
         cur_frame->keypoints_.push_back(px_cur[i]);
         cur_frame->versors_.push_back(
@@ -203,8 +204,8 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
         ++n;
       }
       int maxAge = *std::max_element(
-          cur_frame->landmarksAge_.begin(),
-          cur_frame->landmarksAge_
+          cur_frame->landmarks_age_.begin(),
+          cur_frame->landmarks_age_
               .end());  // max number of frames in which a feature is seen
       VLOG(10) << "featureTracking: frame " << cur_frame->id_
                << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
@@ -505,12 +506,10 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
                                                left_undist_rect_cam_mat.py(),
                                                ref_stereoFrame.getBaseline());
   // In the ref frame of the left camera.
-  gtsam::StereoCamera stereoCam = gtsam::StereoCamera(gtsam::Pose3(), K);
+  gtsam::StereoCamera stereoCam (gtsam::Pose3(), K);
 
   double timeMatchingAndAllocation_p = 0;
-  if (verbosity_ >= 5) {
-    timeMatchingAndAllocation_p = UtilsOpenCV::GetTimeInSeconds();
-  }
+  timeMatchingAndAllocation_p = UtilsOpenCV::GetTimeInSeconds();
 
   //============================================================================
   // CREATE DATA STRUCTURES
@@ -555,9 +554,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   }
 
   double timeCreatePointsAndCov_p = 0;
-  if (verbosity_ >= 5) {
-    timeCreatePointsAndCov_p = UtilsOpenCV::GetTimeInSeconds();
-  }
+  timeCreatePointsAndCov_p = UtilsOpenCV::GetTimeInSeconds();
 
   //============================================================================
   // VOTING
@@ -638,9 +635,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   //<< " relTran.size(): " << relTran.size() << std::endl;
 
   double timeVoting_p = 0;
-  if (verbosity_ >= 5) {
-    timeVoting_p = UtilsOpenCV::GetTimeInSeconds();
-  }
+  timeVoting_p = UtilsOpenCV::GetTimeInSeconds();
 
   VLOG(10) << "geometricOutlierRejectionStereoGivenRot: voting complete.";
 
@@ -1037,4 +1032,4 @@ cv::Mat Tracker::displayFrame(const Frame& ref_frame,
   return img_rgb;
 }
 
-} // End of VIO namespace.
+}  // namespace VIO

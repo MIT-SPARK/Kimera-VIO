@@ -111,7 +111,7 @@ class StereoVisionFrontEndFixture : public ::testing::Test {
   void clearFrame(Frame* f) {
     f->keypoints_.clear();
     f->landmarks_.clear();
-    f->landmarksAge_.clear();
+    f->landmarks_age_.clear();
     f->versors_.clear();
   }
 
@@ -485,10 +485,10 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
   // landmarks_, landmarksAge_, keypoints_, versors_
   const Frame &left_frame = sf.getLeftFrame();
   const int num_corners = left_frame.landmarks_.size();
-  EXPECT_EQ(num_corners, left_frame.landmarksAge_.size());
+  EXPECT_EQ(num_corners, left_frame.landmarks_age_.size());
   EXPECT_EQ(num_corners, left_frame.keypoints_.size());
   EXPECT_EQ(num_corners, left_frame.versors_.size());
-  for (auto lm : left_frame.landmarksAge_) {
+  for (auto lm : left_frame.landmarks_age_) {
     EXPECT_EQ(lm, 1);
   }
   for (auto lid : left_frame.landmarks_) {

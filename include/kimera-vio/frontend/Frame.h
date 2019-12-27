@@ -73,7 +73,7 @@ class Frame : public PipelinePayload {
         keypoints_(frame.keypoints_),
         scores_(frame.scores_),
         landmarks_(frame.landmarks_),
-        landmarksAge_(frame.landmarksAge_),
+        landmarks_age_(frame.landmarks_age_),
         versors_(frame.versors_),
         descriptors_(frame.descriptors_) {}
 
@@ -261,7 +261,7 @@ class Frame : public PipelinePayload {
   std::vector<double> scores_;  // quality of extracted keypoints
   LandmarkIds landmarks_;
   //! How many consecutive *keyframes* saw the keypoint
-  std::vector<int> landmarksAge_;
+  std::vector<int> landmarks_age_;
   //! in the ref frame of the UNRECTIFIED left frame
   BearingVectors versors_;
   //! Not currently used

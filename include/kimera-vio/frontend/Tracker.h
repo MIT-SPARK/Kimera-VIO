@@ -50,7 +50,6 @@ public:
  int landmark_count_;  // incremental id assigned to new landmarks
 
 public:
-  /* +++++++++++++++++++++ NONCONST FUNCTIONS +++++++++++++++++++++++++++++++ */
   void featureTracking(Frame* ref_frame,
                        Frame* cur_frame);
   void featureDetection(Frame* cur_frame);
@@ -108,7 +107,7 @@ public:
   static void findOutliers(
       const std::vector<std::pair<size_t, size_t>>& matches_ref_cur,
       std::vector<int> inliers,
-      std::vector<int> *outliers);
+      std::vector<int>* outliers);
 
   static void findMatchingKeypoints(
       const Frame& ref_frame,
@@ -131,9 +130,8 @@ public:
 
   // Returns landmark_count (updated from the new keypoints),
   // and nr or extracted corners.
-  static std::pair<KeypointsCV, std::vector<double>>
+  std::pair<KeypointsCV, std::vector<double>>
   featureDetection(const Frame& cur_frame,
-                   const VioFrontEndParams& trackerParams,
                    const cv::Mat& cam_mask,
                    const int need_n_corners);
 
@@ -157,9 +155,6 @@ public:
   // This is not const as for debugging we want to redirect the image save path
   // where we like.
   std::string outputImagesPath_;
-
-  // Flags
-  const int verbosity_;
 };
 
 }  // namespace VIO

@@ -106,7 +106,7 @@ class StereoFrameFixture : public ::testing::Test {
     int landmark_count_ = 0;
     for (size_t i = 0; i < sfnew->getLeftFrame().keypoints_.size(); i++) {
       sfnew->getLeftFrameMutable()->landmarks_.push_back(landmark_count_);
-      sfnew->getLeftFrameMutable()->landmarksAge_.push_back(
+      sfnew->getLeftFrameMutable()->landmarks_age_.push_back(
           5 * landmark_count_);  // seen in a single (key)frame
       sfnew->getLeftFrameMutable()->scores_.push_back(10 * landmark_count_);
       sfnew->getLeftFrameMutable()->versors_.push_back(
@@ -748,7 +748,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
               1e-5);  // scores do not get populated
   EXPECT_NEAR(0, sfnew->getRightFrame().landmarks_.size(),
               1e-5);  // landmarks_ do not get populated
-  EXPECT_NEAR(0, sfnew->getRightFrame().landmarksAge_.size(),
+  EXPECT_NEAR(0, sfnew->getRightFrame().landmarks_age_.size(),
               1e-5);  // landmarksAges do not get populated
   EXPECT_NEAR(0, sfnew->getRightFrame().versors_.size(),
               1e-5);  // landmarksAges do not get populated
