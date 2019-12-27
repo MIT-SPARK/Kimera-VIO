@@ -68,7 +68,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
   cur_frame->landmarks_.reserve(cur_frame->keypoints_.size() +
                                 corners_with_scores.first.size());
   cur_frame->landmarks_age_.reserve(cur_frame->keypoints_.size() +
-                                   corners_with_scores.first.size());
+                                    corners_with_scores.first.size());
   cur_frame->keypoints_.reserve(cur_frame->keypoints_.size() +
                                 corners_with_scores.first.size());
   cur_frame->scores_.reserve(cur_frame->scores_.size() +
@@ -137,7 +137,7 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
   auto tic = utils::Timer::tic();
 
   // Fill up structure for reference pixels and their labels.
-  KeypointsCV px_ref = ref_frame->keypoints_;
+  KeypointsCV px_ref;
   std::vector<size_t> indices;
   indices.reserve(ref_frame->keypoints_.size());
   px_ref.reserve(ref_frame->keypoints_.size());
@@ -146,8 +146,6 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
       // Current reference frame keypoint has a valid landmark.
       px_ref.push_back(ref_frame->keypoints_[i]);
       indices.push_back(i);
-    } else {
-
     }
   }
 
@@ -186,12 +184,11 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
         const size_t& i_ref = indices[i];
         // If we failed to track mark off that landmark
         if (!status[i] ||
-            ref_frame->landmarks_age_[i_ref] >
-                tracker_params_
-                    .maxFeatureAge_) {  // if we tracked keypoint and feature
+            // if we tracked keypoint and feature
+            ref_frame->landmarks_age_[i_ref] > tracker_params_.maxFeatureAge_) {
           // track is not too long
-          ref_frame->landmarks_[i_ref] =
-              -1;  // we are marking this bad in the ref_frame since features
+          // we are marking this bad in the ref_frame since features
+          ref_frame->landmarks_[i_ref] = -1;
           // in the ref frame guide feature detection later on
           continue;
         }
@@ -506,7 +503,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
                                                left_undist_rect_cam_mat.py(),
                                                ref_stereoFrame.getBaseline());
   // In the ref frame of the left camera.
-  gtsam::StereoCamera stereoCam (gtsam::Pose3(), K);
+  gtsam::StereoCamera stereoCam(gtsam::Pose3(), K);
 
   double timeMatchingAndAllocation_p = 0;
   timeMatchingAndAllocation_p = UtilsOpenCV::GetTimeInSeconds();
