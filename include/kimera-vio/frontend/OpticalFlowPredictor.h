@@ -15,27 +15,14 @@
 
 #pragma once
 
-#include <opencv2/highgui/highgui_c.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
-#include <gtsam/geometry/StereoCamera.h>
+#include <gtsam/geometry/Rot3.h>
 
-#include "kimera-vio/frontend/FeatureSelector.h"
-#include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/StereoFrame.h"
-#include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
-
-enum class OpticalFlowPredictorType {
-  kStatic = 0,
-  kRotational = 1,
-};
 
 class OpticalFlowPredictor {
  public:
@@ -128,28 +115,6 @@ class RotationalOpticalFlowPredictor : public OpticalFlowPredictor {
   const cv::Matx33f K_;
   const cv::Matx33f K_inverse_;
   gtsam::Rot3 inter_frame_rotation_;
-};
-
-class OpticalFlowPredictorFactory {
- public:
-  template <class... Args>
-  static OpticalFlowPredictor::UniquePtr makeOpticalFlowPredictor(
-      const OpticalFlowPredictorType& optical_flow_predictor_type,
-      Args&&... args) {
-    switch (optical_flow_predictor_type) {
-      case OpticalFlowPredictorType::kStatic: {
-        return VIO::make_unique<SillyOpticalFlowPredictor>();
-      }
-      case OpticalFlowPredictorType::kRotational: {
-        return VIO::make_unique<RotationalOpticalFlowPredictor>(
-            std::forward<Args>(args)...);
-      }
-      default: {
-        LOG(FATAL) << "Unknown OpticalFlowPredictorType: "
-                   << static_cast<int>(optical_flow_predictor_type);
-      }
-    }
-  }
 };
 
 }  // namespace VIO

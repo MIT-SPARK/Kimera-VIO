@@ -50,11 +50,11 @@ public:
  using StereoFrontEndInputPayload = StereoImuSyncPacket;
 
 public:
- StereoVisionFrontEnd(
-     const ImuParams& imu_params,
-     const ImuBias& imu_initial_bias,
-     const VioFrontEndParams& tracker_params = VioFrontEndParams(),
-     bool log_output = false);
+ StereoVisionFrontEnd(const ImuParams& imu_params,
+                      const ImuBias& imu_initial_bias,
+                      const VioFrontEndParams& tracker_params,
+                      const CameraParams& camera_params,
+                      bool log_output = false);
 
 public:
   /* ------------------------------------------------------------------------ */

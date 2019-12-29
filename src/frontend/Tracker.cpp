@@ -19,6 +19,7 @@
 #include <boost/filesystem.hpp>  // to create folders
 #include <boost/shared_ptr.hpp>  // used for opengv
 
+#include "kimera-vio/frontend/OpticalFlowPredictorFactory.h"
 #include "kimera-vio/utils/Timer.h"
 
 namespace VIO {

@@ -37,10 +37,11 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
     const VioFrontEndParams& tracker_params,
+    const CameraParams& camera_params,
     bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
-      tracker_(tracker_params),
+      tracker_(tracker_params, camera_params),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
       logger_(nullptr) {  // Only for debugging and visualization.

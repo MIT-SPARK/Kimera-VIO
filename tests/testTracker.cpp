@@ -56,7 +56,7 @@ class TestTracker : public ::testing::Test {
     InitializeData();
 
     // Initialize tracker.
-    tracker_ = VIO::make_unique<Tracker>(tracker_params_);
+    tracker_ = VIO::make_unique<Tracker>(tracker_params_, CameraParams());
   }
 
  protected:
@@ -600,7 +600,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       trackerParams.ransac_max_iterations_ = 1000;
       // trackerParams.ransac_probability_ = 0.8;
       trackerParams.ransac_randomize_ = false;
-      Tracker tracker(trackerParams);
+      Tracker tracker(trackerParams, CameraParams());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
@@ -789,7 +789,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
 
       VioFrontEndParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
-      Tracker tracker(trackerParams);
+      Tracker tracker(trackerParams, CameraParams());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =

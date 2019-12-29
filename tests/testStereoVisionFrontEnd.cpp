@@ -327,7 +327,8 @@ TEST_F(StereoVisionFrontEndFixture, getSmartStereoMeasurements) {
   ref_stereo_frame->setIsKeyframe(true);
   ref_stereo_frame->setIsRectified(true);
 
-  StereoVisionFrontEnd st(imu_params_, ImuBias{});
+  StereoVisionFrontEnd st(
+      imu_params_, ImuBias{}, VioFrontEndParams(), CameraParams());
 
   // Landmarks_, left_keypoints_rectified_, right_keypoints_rectified_,
   // rightKeypoints_status
@@ -474,7 +475,7 @@ TEST_F(StereoVisionFrontEndFixture, DISABLED_processFirstFrame) {
       loadCorners(synthetic_stereo_path + "/corners_normal_left.txt");
 
   // Call StereoVisionFrontEnd::Process first frame!
-  StereoVisionFrontEnd st(imu_params_, ImuBias(), p);
+  StereoVisionFrontEnd st(imu_params_, ImuBias(), p, cam_params_left);
   const StereoFrame &sf = st.processFirstStereoFrame(first_stereo_frame);
 
   // Check the following results:

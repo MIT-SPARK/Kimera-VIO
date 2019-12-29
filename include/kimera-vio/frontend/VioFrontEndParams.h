@@ -264,6 +264,25 @@ class VioFrontEndParams : public PipelineParams {
     min_number_features_ = static_cast<size_t>(min_number_features);
     yaml_parser.getYamlParam("useStereoTracking", &useStereoTracking_);
     yaml_parser.getYamlParam("disparityThreshold", &disparityThreshold_);
+
+    int optical_flow_predictor_type;
+    yaml_parser.getYamlParam("optical_flow_predictor_type",
+                             &optical_flow_predictor_type);
+    switch (optical_flow_predictor_type) {
+      case VIO::to_underlying(OpticalFlowPredictorType::kStatic): {
+        optical_flow_predictor_type_ = OpticalFlowPredictorType::kStatic;
+        break;
+      }
+      case VIO::to_underlying(OpticalFlowPredictorType::kRotational): {
+        optical_flow_predictor_type_ = OpticalFlowPredictorType::kRotational;
+        break;
+      }
+      default: {
+        LOG(FATAL) << "Unknown Optical Flow Predictor Type: "
+                   << optical_flow_predictor_type;
+      }
+    }
+
     return true;
   }
 

@@ -44,3 +44,7 @@ minNumberFeatures: 0
 useStereoTracking: 1
 display_time: 100
 disparityThreshold: 0.5
+# Type of optical flow predictor to aid feature tracking:
+# 0: Static - assumes no optical flow between images (aka static camera).
+# 1: Rotational - use IMU gyro to estimate optical flow.
+optical_flow_predictor_type: 1
