@@ -53,9 +53,6 @@ public:
  // Mask for features.
  cv::Mat camMask_;
 
- // Counters.
- int landmark_count_;  // incremental id assigned to new landmarks
-
 public:
   void featureTracking(Frame* ref_frame,
                        Frame* cur_frame);

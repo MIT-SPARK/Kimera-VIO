@@ -29,14 +29,12 @@ Tracker::Tracker(const VioFrontEndParams& tracker_params,
     : tracker_params_(tracker_params),
       camera_params_(camera_params),
       // Only for debugging and visualization:
-      landmark_count_(0),
       optical_flow_predictor_(nullptr),
       output_images_path_("./outputImages/") {
   optical_flow_predictor_ =
       OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
           tracker_params_.optical_flow_predictor_type_,
           camera_params_.camera_matrix_);
-  VIO::make_unique<SillyOpticalFlowPredictor>();
 }
 
 // TODO(Toni) Optimize this function.
@@ -87,14 +85,16 @@ void Tracker::featureDetection(Frame* cur_frame) {
 
   // TODO(Toni) Fix this loop, very unefficient. Use std::move over keypoints
   // with scores.
+  // Counters.
+  static int landmark_count;  // incremental id assigned to new landmarks
   for (size_t i = 0; i < corners_with_scores.first.size(); i++) {
-    cur_frame->landmarks_.push_back(landmark_count_);
+    cur_frame->landmarks_.push_back(landmark_count);
     cur_frame->landmarks_age_.push_back(1);  // seen in a single (key)frame
     cur_frame->keypoints_.push_back(corners_with_scores.first.at(i));
     cur_frame->scores_.push_back(corners_with_scores.second.at(i));
     cur_frame->versors_.push_back(Frame::calibratePixel(
         corners_with_scores.first.at(i), cur_frame->cam_param_));
-    ++landmark_count_;
+    ++landmark_count;
   }
   VLOG(10) << "featureExtraction: frame " << cur_frame->id_
            << ",  Nr tracked keypoints: " << nrExistingKeypoints
