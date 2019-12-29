@@ -24,6 +24,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "kimera-vio/frontend/OpticalFlowPredictor-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -309,6 +310,8 @@ class VioFrontEndParams : public PipelineParams {
   // others:
   // max disparity under which we consider the vehicle steady
   double disparityThreshold_ = 0.5;
+
+  OpticalFlowPredictorType optical_flow_predictor_type_;
 };
 
 } // namespace VIO
