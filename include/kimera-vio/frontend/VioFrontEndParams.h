@@ -181,6 +181,7 @@ class VioFrontEndParams : public PipelineParams {
            (min_number_features_ == tp2.min_number_features_) &&
            (useStereoTracking_ == tp2.useStereoTracking_) &&
            // others:
+           (optical_flow_predictor_type_ == tp2.optical_flow_predictor_type_) &&
            (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol);
   }
 
@@ -330,7 +331,8 @@ class VioFrontEndParams : public PipelineParams {
   // max disparity under which we consider the vehicle steady
   double disparityThreshold_ = 0.5;
 
-  OpticalFlowPredictorType optical_flow_predictor_type_;
+  OpticalFlowPredictorType optical_flow_predictor_type_ =
+      OpticalFlowPredictorType::kStatic;
 };
 
 } // namespace VIO
