@@ -48,7 +48,6 @@ public:
  KIMERA_DELETE_COPY_CONSTRUCTORS(StereoVisionFrontEnd);
  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
  using StereoFrontEndInputPayload = StereoImuSyncPacket;
- // using StereoFrontEndOutputPayload = VioBackEndInputPayload;
 
 public:
  StereoVisionFrontEnd(
@@ -234,12 +233,9 @@ private:
   std::shared_ptr<StereoFrame> stereoFrame_lkf_;
 
   // Counters.
-  // Frame counte.
   int frame_count_;
-  // keyframe counte.
   int keyframe_count_;
-  // Previous number of landmarks (used for what is new landmark.
-  int last_landmark_count_;
+
   // Timestamp of last keyframe.
   Timestamp last_keyframe_timestamp_;
 
@@ -259,10 +255,6 @@ private:
   // This is not const as for debugging we want to redirect the image save path
   // where we like
   std::string output_images_path_;
-
-  // Thread related members.
-  std::atomic_bool shutdown_ = {false};
-  std::atomic_bool is_thread_working_ = {false};
 
   // Frontend logger.
   std::unique_ptr<FrontendLogger> logger_;

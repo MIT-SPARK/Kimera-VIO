@@ -40,7 +40,6 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
-      last_landmark_count_(0),
       tracker_(tracker_params),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
@@ -391,7 +390,6 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     tracker_.checkStatusRightKeypoints(stereoFrame_k_->right_keypoints_status_);
 
     // Move on.
-    last_landmark_count_ = tracker_.landmark_count_;
     stereoFrame_lkf_ = stereoFrame_k_;
 
     // Get relevant info for keyframe.

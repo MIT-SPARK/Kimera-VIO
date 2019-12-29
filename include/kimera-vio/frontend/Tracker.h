@@ -28,12 +28,53 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 // implementation of feature selector, still within the tracker class
 #include <gtsam/nonlinear/Marginals.h>
 
 namespace VIO {
+
+class OpticalFlowPredictor {
+ public:
+  KIMERA_POINTER_TYPEDEFS(OpticalFlowPredictor);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(OpticalFlowPredictor);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  OpticalFlowPredictor() {}
+  virtual ~OpticalFlowPredictor() {}
+
+  virtual bool predictFlow() = 0;
+};
+
+/**
+ * @brief The SillyOpticalFlowPredictor class just assumes that the camera
+ * did not move and so the features on the previous frame remain at the same
+ * pixel positions in the current frame.
+ */
+class SillyOpticalFlowPredictor : public OpticalFlowPredictor {
+  KIMERA_POINTER_TYPEDEFS(SillyOpticalFlowPredictor);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(SillyOpticalFlowPredictor);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  SillyOpticalFlowPredictor() = default;
+  virtual ~SillyOpticalFlowPredictor() = default;
+
+  bool predictFlow() override {
+    // Fill up structure for reference pixels and their labels.
+    // KeypointsCV px_ref;
+    // std::vector<size_t> indices;
+    // indices.reserve(ref_frame->keypoints_.size());
+    // px_ref.reserve(ref_frame->keypoints_.size());
+    // for (size_t i = 0; i < ref_frame->keypoints_.size(); ++i) {
+    //  if (ref_frame->landmarks_[i] != -1) {
+    //    // Current reference frame keypoint has a valid landmark.
+    //    px_ref.push_back(ref_frame->keypoints_[i]);
+    //    indices.push_back(i);
+    //  }
+    //}
+    return true;
+  }
+};
 
 class Tracker {
 public:

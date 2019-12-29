@@ -137,80 +137,91 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
   auto tic = utils::Timer::tic();
 
   // Fill up structure for reference pixels and their labels.
+  const size_t& n_ref_kpts = ref_frame->keypoints_.size();
   KeypointsCV px_ref;
-  std::vector<size_t> indices;
-  indices.reserve(ref_frame->keypoints_.size());
-  px_ref.reserve(ref_frame->keypoints_.size());
+  std::vector<size_t> indices_of_valid_landmarks;
+  px_ref.reserve(n_ref_kpts);
+  indices_of_valid_landmarks.reserve(n_ref_kpts);
   for (size_t i = 0; i < ref_frame->keypoints_.size(); ++i) {
     if (ref_frame->landmarks_[i] != -1) {
       // Current reference frame keypoint has a valid landmark.
       px_ref.push_back(ref_frame->keypoints_[i]);
-      indices.push_back(i);
+      indices_of_valid_landmarks.push_back(i);
     }
   }
 
   // Setup termination criteria for optical flow.
-  std::vector<uchar> status;
-  std::vector<float> error;
-  cv::TermCriteria termcrit(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
-                            tracker_params_.klt_max_iter_,
-                            tracker_params_.klt_eps_);
+  static cv::TermCriteria kTerminationCriteria(
+      cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+      tracker_params_.klt_max_iter_,
+      tracker_params_.klt_eps_);
+  static cv::Size2i kKltWindowSize(tracker_params_.klt_win_size_,
+                                   tracker_params_.klt_win_size_);
 
   // Initialize to old locations
-  KeypointsCV px_cur = px_ref;
-  if (px_cur.size() > 0) {
-    // Do the actual tracking, so px_cur becomes the new pixel locations.
-    VLOG(2) << "Sarting Optical Flow Pyr LK tracking...";
-    cv::calcOpticalFlowPyrLK(ref_frame->img_,
-                             cur_frame->img_,
-                             px_ref,
-                             px_cur,
-                             status,
-                             error,
-                             cv::Size2i(tracker_params_.klt_win_size_,
-                                        tracker_params_.klt_win_size_),
-                             tracker_params_.klt_max_level_,
-                             termcrit,
-                             cv::OPTFLOW_USE_INITIAL_FLOW);
-    VLOG(2) << "Finished Optical Flow Pyr LK tracking.";
+  LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
 
-    if (cur_frame->keypoints_.empty()) {  // Do we really need this check?
-      cur_frame->landmarks_.reserve(px_ref.size());
-      cur_frame->landmarks_age_.reserve(px_ref.size());
-      cur_frame->keypoints_.reserve(px_ref.size());
-      cur_frame->scores_.reserve(px_ref.size());
-      cur_frame->versors_.reserve(px_ref.size());
-      for (size_t i = 0, n = 0; i < indices.size(); ++i) {
-        const size_t& i_ref = indices[i];
-        // If we failed to track mark off that landmark
-        if (!status[i] ||
-            // if we tracked keypoint and feature
-            ref_frame->landmarks_age_[i_ref] > tracker_params_.maxFeatureAge_) {
-          // track is not too long
-          // we are marking this bad in the ref_frame since features
-          ref_frame->landmarks_[i_ref] = -1;
-          // in the ref frame guide feature detection later on
-          continue;
-        }
-        cur_frame->landmarks_.push_back(ref_frame->landmarks_[i_ref]);
-        cur_frame->landmarks_age_.push_back(ref_frame->landmarks_age_[i_ref]);
-        cur_frame->scores_.push_back(ref_frame->scores_[i_ref]);
-        cur_frame->keypoints_.push_back(px_cur[i]);
-        cur_frame->versors_.push_back(
-            Frame::calibratePixel(px_cur[i], ref_frame->cam_param_));
-        ++n;
+  KeypointsCV px_cur = px_ref;
+
+  // Do the actual tracking, so px_cur becomes the new pixel locations.
+  VLOG(2) << "Sarting Optical Flow Pyr LK tracking...";
+
+  std::vector<uchar> status;
+  std::vector<float> error;
+  cv::calcOpticalFlowPyrLK(ref_frame->img_,
+                           cur_frame->img_,
+                           px_ref,
+                           px_cur,
+                           status,
+                           error,
+                           kKltWindowSize,
+                           tracker_params_.klt_max_level_,
+                           kTerminationCriteria,
+                           cv::OPTFLOW_USE_INITIAL_FLOW);
+  VLOG(2) << "Finished Optical Flow Pyr LK tracking.";
+
+  // TODO(Toni): use the error to further take only the best tracks?
+
+  // TODO(TONI): WTF is this doing? Are we always having empty keypoints??
+  if (cur_frame->keypoints_.empty()) {
+    // TODO(TOni): this is basically copying the whole px_ref into the
+    // current frame as well as the ref_frame information! Absolute nonsense.
+    cur_frame->landmarks_.reserve(px_ref.size());
+    cur_frame->landmarks_age_.reserve(px_ref.size());
+    cur_frame->keypoints_.reserve(px_ref.size());
+    cur_frame->scores_.reserve(px_ref.size());
+    cur_frame->versors_.reserve(px_ref.size());
+    for (size_t i = 0; i < indices_of_valid_landmarks.size(); ++i) {
+      // If we failed to track mark off that landmark
+      const size_t idx_valid_lmk = indices_of_valid_landmarks[i];
+      if (!status[i] ||
+          // if we tracked keypoint and feature
+          ref_frame->landmarks_age_[idx_valid_lmk] >
+              tracker_params_.maxFeatureAge_) {
+        // track is not too long
+        // we are marking this bad in the ref_frame since features
+        // in the ref frame guide feature detection later on
+        ref_frame->landmarks_[idx_valid_lmk] = -1;
+        continue;
       }
-      int maxAge = *std::max_element(
-          cur_frame->landmarks_age_.begin(),
-          cur_frame->landmarks_age_
-              .end());  // max number of frames in which a feature is seen
-      VLOG(10) << "featureTracking: frame " << cur_frame->id_
-               << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
-               << " (max: " << tracker_params_.maxFeaturesPerFrame_ << ")"
-               << " (max observed age of tracked features: " << maxAge
-               << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_
-               << ")";
+      cur_frame->landmarks_.push_back(ref_frame->landmarks_[idx_valid_lmk]);
+      cur_frame->landmarks_age_.push_back(
+          ref_frame->landmarks_age_[idx_valid_lmk]);
+      cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
+      cur_frame->keypoints_.push_back(px_cur[i]);
+      cur_frame->versors_.push_back(
+          Frame::calibratePixel(px_cur[i], ref_frame->cam_param_));
     }
+
+    // max number of frames in which a feature is seen
+    VLOG(10) << "featureTracking: frame " << cur_frame->id_
+             << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
+             << " (max: " << tracker_params_.maxFeaturesPerFrame_ << ")"
+             << " (max observed age of tracked features: "
+             << *std::max_element(cur_frame->landmarks_age_.begin(),
+                                  cur_frame->landmarks_age_.end())
+             << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_
+             << ")";
   }
 
   // Fill debug information
