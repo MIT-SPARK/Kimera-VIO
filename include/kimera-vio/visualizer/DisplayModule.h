@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/visualizer/Display.h"

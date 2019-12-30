@@ -15,6 +15,7 @@
 #include "kimera-vio/pipeline/Pipeline.h"
 
 #include <future>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -291,9 +292,9 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
     CHECK(is_launched_);
 
     // Initialize pipeline.
-    // TODO this is very brittle, because we are accumulating IMU data, but
-    // not using it for initialization, because accumulated and actual IMU data
-    // at init is the same...
+    // TODO(Toni) this is very brittle, because we are accumulating IMU data,
+    // but not using it for initialization, because accumulated and actual IMU
+    // data at init is the same...
     if (initialize(*stereo_imu_sync_packet)) {
       LOG(INFO) << "Before launching threads.";
       launchRemainingThreads();
@@ -304,7 +305,7 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
     }
   } else {
     // SEND INFO TO FRONTEND, here is when we are in nominal mode.
-    // TODO Warning: we do not accumulate IMU measurements for the first
+    // TODO(Toni) Warning: we do not accumulate IMU measurements for the first
     // packet... Spin.
     CHECK(is_initialized_);
 
@@ -349,7 +350,7 @@ void Pipeline::spinSequential() {
   if (display_module_) display_module_->spin();
 }
 
-// TODO: Adapt this function to be able to cope with new initialization
+// TODO(Toni): Adapt this function to be able to cope with new initialization
 /* -------------------------------------------------------------------------- */
 bool Pipeline::shutdownWhenFinished() {
   // This is a very rough way of knowing if we have finished...
@@ -465,7 +466,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO: Adapt and create better re-initialization (online) function
+// TODO(Toni): Adapt and create better re-initialization (online) function
 void Pipeline::checkReInitialize(
     const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Re-initialize pipeline if requested
@@ -551,7 +552,7 @@ bool Pipeline::initializeFromIMU(
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO (Toni): move this as much as possible inside initialization...
+// TODO(Toni): move this as much as possible inside initialization...
 bool Pipeline::initializeOnline(
     const StereoImuSyncPacket& stereo_imu_sync_packet) {
   int frame_id = stereo_imu_sync_packet.getStereoFrame().getFrameId();
@@ -573,7 +574,8 @@ bool Pipeline::initializeOnline(
   // Enforce stereo frame as keyframe for initialization
   StereoFrame stereo_frame = stereo_imu_sync_packet.getStereoFrame();
   stereo_frame.setIsKeyframe(true);
-  // TODO: this is copying the packet implicitly, just to set a flag to true.
+  // TODO(Toni): this is copying the packet implicitly, just to set a flag to
+  // true.
   StereoImuSyncPacket::UniquePtr stereo_imu_sync_init =
       VIO::make_unique<StereoImuSyncPacket>(
           stereo_frame,

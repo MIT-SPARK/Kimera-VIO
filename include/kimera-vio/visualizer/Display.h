@@ -40,7 +40,7 @@ class OpenCv3dDisplay : public DisplayBase {
   KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
 
   OpenCv3dDisplay();
-  virtual ~OpenCv3dDisplay() override = default;
+  ~OpenCv3dDisplay() override = default;
 
   // Spins renderers to display data using OpenCV imshow and viz3d
   // Displaying must be done in the main thread.
@@ -56,32 +56,34 @@ class OpenCv3dDisplay : public DisplayBase {
   static void keyboardCallback(const cv::viz::KeyboardEvent& event, void* t);
 
   // Keyboard callback to toggle freezing screen.
-  static void toggleFreezeScreenKeyboardCallback(const uchar code,
-                                                 WindowData& window_data);
+  static void toggleFreezeScreenKeyboardCallback(const uchar& code,
+                                                 WindowData* window_data);
 
   // Keyboard callback to set mesh representation.
-  static void setMeshRepresentation(const uchar code, WindowData& window_data);
+  static void setMeshRepresentation(const uchar& code, WindowData* window_data);
 
   // Keyboard callback to set mesh shading.
-  static void setMeshShadingCallback(const uchar code, WindowData& window_data);
+  static void setMeshShadingCallback(const uchar& code,
+                                     WindowData* window_data);
 
   // Keyboard callback to set mesh ambient.
-  static void setMeshAmbientCallback(const uchar code, WindowData& window_data);
+  static void setMeshAmbientCallback(const uchar& code,
+                                     WindowData* window_data);
 
   // Keyboard callback to set mesh lighting.
-  static void setMeshLightingCallback(const uchar code,
-                                      WindowData& window_data);
+  static void setMeshLightingCallback(const uchar& code,
+                                      WindowData* window_data);
 
   // Keyboard callback to get current viewer pose.
   static void getViewerPoseKeyboardCallback(const uchar& code,
-                                            WindowData& window_data);
+                                            WindowData* window_data);
 
   // Keyboard callback to get current screen size.
-  static void getCurrentWindowSizeKeyboardCallback(const uchar code,
-                                                   WindowData& window_data);
+  static void getCurrentWindowSizeKeyboardCallback(const uchar& code,
+                                                   WindowData* window_data);
 
   // Keyboard callback to get screenshot of current windodw.
-  static void getScreenshotCallback(const uchar code, WindowData& window_data);
+  static void getScreenshotCallback(const uchar& code, WindowData* window_data);
 
   // Record video sequence at a hardcoded directory relative to executable.
   void recordVideo();

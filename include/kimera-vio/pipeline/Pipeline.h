@@ -140,7 +140,7 @@ class Pipeline {
 
  private:
   // Initialize random seed for repeatability (only on the same machine).
-  // TODO Still does not make RANSAC REPEATABLE across different machines.
+  // TODO(Toni) Still does not make RANSAC REPEATABLE across different machines.
   inline void setDeterministicPipeline() const { srand(0); }
 
   // Initialize pipeline with desired option (flag).
@@ -204,7 +204,7 @@ class Pipeline {
   //! Data provider.
   DataProviderModule::UniquePtr data_provider_module_;
 
-  // TODO this should go to another class to avoid not having copy-ctor...
+  // TODO(Toni) this should go to another class to avoid not having copy-ctor...
   //! Frontend.
   StereoVisionFrontEndModule::UniquePtr vio_frontend_module_;
   std::unique_ptr<FeatureSelector> feature_selector_;
@@ -255,7 +255,6 @@ class Pipeline {
   std::unique_ptr<std::thread> mesher_thread_ = {nullptr};
   std::unique_ptr<std::thread> lcd_thread_ = {nullptr};
   std::unique_ptr<std::thread> visualizer_thread_ = {nullptr};
-
 };
 
 }  // namespace VIO

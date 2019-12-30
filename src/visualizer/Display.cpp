@@ -69,29 +69,30 @@ void OpenCv3dDisplay::keyboardCallback(const cv::viz::KeyboardEvent& event,
                                        void* t) {
   WindowData* window_data = static_cast<WindowData*>(t);
   if (event.action == cv::viz::KeyboardEvent::Action::KEY_DOWN) {
-    toggleFreezeScreenKeyboardCallback(event.code, *window_data);
-    setMeshRepresentation(event.code, *window_data);
-    setMeshShadingCallback(event.code, *window_data);
-    setMeshAmbientCallback(event.code, *window_data);
-    setMeshLightingCallback(event.code, *window_data);
-    getViewerPoseKeyboardCallback(event.code, *window_data);
-    getCurrentWindowSizeKeyboardCallback(event.code, *window_data);
-    getScreenshotCallback(event.code, *window_data);
+    toggleFreezeScreenKeyboardCallback(event.code, window_data);
+    setMeshRepresentation(event.code, window_data);
+    setMeshShadingCallback(event.code, window_data);
+    setMeshAmbientCallback(event.code, window_data);
+    setMeshLightingCallback(event.code, window_data);
+    getViewerPoseKeyboardCallback(event.code, window_data);
+    getCurrentWindowSizeKeyboardCallback(event.code, window_data);
+    getScreenshotCallback(event.code, window_data);
   }
 }
 
 // Keyboard callback to toggle freezing screen.
 void OpenCv3dDisplay::toggleFreezeScreenKeyboardCallback(
-    const uchar code,
-    WindowData& window_data) {
+    const uchar& code,
+    WindowData* window_data) {
+  CHECK_NOTNULL(window_data);
   if (code == 't') {
     LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
     bool freeze = false;
     freeze = !freeze;  // Toggle.
-    window_data.window_.spinOnce(1, true);
-    while (!window_data.window_.wasStopped()) {
+    window_data->window_.spinOnce(1, true);
+    while (!window_data->window_.wasStopped()) {
       if (freeze) {
-        window_data.window_.spinOnce(1, true);
+        window_data->window_.spinOnce(1, true);
       } else {
         break;
       }
@@ -100,93 +101,100 @@ void OpenCv3dDisplay::toggleFreezeScreenKeyboardCallback(
 }
 
 // Keyboard callback to set mesh representation.
-void OpenCv3dDisplay::setMeshRepresentation(const uchar code,
-                                            WindowData& window_data) {
+void OpenCv3dDisplay::setMeshRepresentation(const uchar& code,
+                                            WindowData* window_data) {
+  CHECK_NOTNULL(window_data);
   if (code == '0') {
     LOG(WARNING) << "Pressing " << code
                  << " sets mesh representation to "
                     "a point cloud.";
-    window_data.mesh_representation_ = 0u;
+    window_data->mesh_representation_ = 0u;
   } else if (code == '1') {
     LOG(WARNING) << "Pressing " << code
                  << " sets mesh representation to "
                     "a mesh.";
-    window_data.mesh_representation_ = 1u;
+    window_data->mesh_representation_ = 1u;
   } else if (code == '2') {
     LOG(WARNING) << "Pressing " << code
                  << " sets mesh representation to "
                     "a wireframe.";
-    window_data.mesh_representation_ = 2u;
+    window_data->mesh_representation_ = 2u;
   }
 }
 
 // Keyboard callback to set mesh shading.
-void OpenCv3dDisplay::setMeshShadingCallback(const uchar code,
-                                             WindowData& window_data) {
+void OpenCv3dDisplay::setMeshShadingCallback(const uchar& code,
+                                             WindowData* window_data) {
+  CHECK_NOTNULL(window_data);
   if (code == '4') {
     LOG(WARNING) << "Pressing " << code
                  << " sets mesh shading to "
                     "flat.";
-    window_data.mesh_shading_ = 0u;
+    window_data->mesh_shading_ = 0u;
   } else if (code == '5') {
     LOG(WARNING) << "Pressing " << code
                  << " sets mesh shading to "
                     "Gouraud.";
-    window_data.mesh_shading_ = 1u;
+    window_data->mesh_shading_ = 1u;
   } else if (code == '6') {
     LOG(WARNING) << "Pressing " << code
                  << " sets mesh shading to "
                     "Phong.";
-    window_data.mesh_shading_ = 2u;
+    window_data->mesh_shading_ = 2u;
   }
 }
 
 // Keyboard callback to set mesh ambient.
-void OpenCv3dDisplay::setMeshAmbientCallback(const uchar code,
-                                             WindowData& window_data) {
+void OpenCv3dDisplay::setMeshAmbientCallback(const uchar& code,
+                                             WindowData* window_data) {
+  CHECK_NOTNULL(window_data);
   if (code == 'a') {
-    window_data.mesh_ambient_ = !window_data.mesh_ambient_;
+    window_data->mesh_ambient_ = !window_data->mesh_ambient_;
     LOG(WARNING) << "Pressing " << code << " toggles mesh ambient."
-                 << " Now set to " << window_data.mesh_ambient_;
+                 << " Now set to " << window_data->mesh_ambient_;
   }
 }
 
 // Keyboard callback to set mesh lighting.
-void OpenCv3dDisplay::setMeshLightingCallback(const uchar code,
-                                              WindowData& window_data) {
+void OpenCv3dDisplay::setMeshLightingCallback(const uchar& code,
+                                              WindowData* window_data) {
+  CHECK_NOTNULL(window_data);
   if (code == 'l') {
-    window_data.mesh_lighting_ = !window_data.mesh_lighting_;
+    window_data->mesh_lighting_ = !window_data->mesh_lighting_;
     LOG(WARNING) << "Pressing " << code << " toggles mesh lighting."
-                 << " Now set to " << window_data.mesh_lighting_;
+                 << " Now set to " << window_data->mesh_lighting_;
   }
 }
 
 // Keyboard callback to get current viewer pose.
 void OpenCv3dDisplay::getViewerPoseKeyboardCallback(const uchar& code,
-                                                    WindowData& window_data) {
+                                                    WindowData* window_data) {
+  CHECK_NOTNULL(window_data);
   if (code == 'v') {
     LOG(INFO) << "Current viewer pose:\n"
               << "\tRodriguez vector: "
-              << window_data.window_.getViewerPose().rvec()
+              << window_data->window_.getViewerPose().rvec()
               << "\n\tAffine matrix: "
-              << window_data.window_.getViewerPose().matrix;
+              << window_data->window_.getViewerPose().matrix;
   }
 }
 
 // Keyboard callback to get current screen size.
 void OpenCv3dDisplay::getCurrentWindowSizeKeyboardCallback(
-    const uchar code,
-    WindowData& window_data) {
+    const uchar& code,
+    WindowData* window_data) {
+  CHECK_NOTNULL(window_data);
   if (code == 'w') {
     LOG(WARNING) << "Pressing " << code << " displays current window size:\n"
-                 << "\theight: " << window_data.window_.getWindowSize().height
-                 << "\twidth: " << window_data.window_.getWindowSize().width;
+                 << "\theight: " << window_data->window_.getWindowSize().height
+                 << "\twidth: " << window_data->window_.getWindowSize().width;
   }
 }
 
 // Keyboard callback to get screenshot of current windodw.
-void OpenCv3dDisplay::getScreenshotCallback(const uchar code,
-                                            WindowData& window_data) {
+void OpenCv3dDisplay::getScreenshotCallback(const uchar& code,
+                                            WindowData* window_data) {
+  CHECK_NOTNULL(window_data);
   if (code == 's') {
     int i = 0;
     std::string filename = "screenshot_3d_window" + std::to_string(i);
@@ -194,7 +202,7 @@ void OpenCv3dDisplay::getScreenshotCallback(const uchar code,
                  << " takes a screenshot of the "
                     "window, saved in: " +
                         filename;
-    window_data.window_.saveScreenshot(filename);
+    window_data->window_.saveScreenshot(filename);
   }
 }
 
