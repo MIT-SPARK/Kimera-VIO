@@ -152,11 +152,14 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
   // Setup termination criteria for optical flow.
   std::vector<uchar> status;
   std::vector<float> error;
-  cv::TermCriteria termcrit(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
-                            tracker_params_.klt_max_iter_,
-                            tracker_params_.klt_eps_);
+  static cv::TermCriteria termcrit(
+      cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+      tracker_params_.klt_max_iter_,
+      tracker_params_.klt_eps_);
 
   // Initialize to old locations
+  // TODO(Toni) initialize to estimated position using rotational optical flow
+  // and translational flow knowing depth...
   KeypointsCV px_cur = px_ref;
   if (px_cur.size() > 0) {
     // Do the actual tracking, so px_cur becomes the new pixel locations.
