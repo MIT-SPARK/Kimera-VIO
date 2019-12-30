@@ -76,12 +76,17 @@ struct VisualizerOutput {
   KIMERA_POINTER_TYPEDEFS(VisualizerOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  VisualizerOutput() = default;
+  VisualizerOutput()
+      : visualization_type_(VisualizationType::kNone),
+        images_to_display_(),
+        window_(nullptr) {
+    window_ = VIO::make_unique<cv::viz::Viz3d>("3D Visualizer");
+  }
   ~VisualizerOutput() = default;
 
-  VisualizationType visualization_type_ = VisualizationType::kNone;
+  VisualizationType visualization_type_;
   std::vector<ImageToDisplay> images_to_display_;
-  cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
+  std::unique_ptr<cv::viz::Viz3d> window_;
 };
 
 enum class VisualizerType {

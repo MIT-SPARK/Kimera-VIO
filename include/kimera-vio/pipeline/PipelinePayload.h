@@ -22,4 +22,16 @@ struct PipelinePayload {
   const Timestamp timestamp_;
 };
 
+/**
+ * @brief The NullPipelinePayload is an empty payload, used for those modules
+ * that do not return a payload, such as the display module, which only
+ * displays images and returns nothing.
+ */
+struct NullPipelinePayload : public PipelinePayload {
+  KIMERA_POINTER_TYPEDEFS(NullPipelinePayload);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(NullPipelinePayload);
+  explicit NullPipelinePayload() : PipelinePayload(Timestamp()) {}
+  virtual ~NullPipelinePayload() = default;
+};
+
 }  // namespace VIO

@@ -58,7 +58,7 @@ class Visualizer3D {
       // See issues in opencv git:
       // https://github.com/opencv/opencv/issues/11219 and many more...
       window_.close();
-    };
+    }
     cv::viz::Viz3d window_;
     cv::viz::Color cloud_color_;
     cv::viz::Color background_color_;
@@ -196,13 +196,6 @@ class Visualizer3D {
   /* ------------------------------------------------------------------------ */
   // Add pose to the previous trajectory.
   void addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam);
-
-  /* ------------------------------------------------------------------------ */
-  // Render window with drawn objects/widgets.
-  // @param wait_time Amount of time in milliseconds for the event loop to keep
-  // running.
-  // @param force_redraw If true, window renders.
-  void renderWindow(int wait_time = 1, bool force_redraw = true);
 
   /* ------------------------------------------------------------------------ */
   // Get a screenshot of the window.

@@ -341,19 +341,18 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
                      const bool& parallel_run)
       : MIMOPipelineModule<Input, Output>(name_id, parallel_run),
         input_queue_(input_queue) {
-    CHECK(input_queue_);
+    CHECK_NOTNULL(input_queue_);
   }
   virtual ~SIMOPipelineModule() = default;
 
  protected:
   /**
    * @brief getSyncedInputPacket Retrieves the input packet for processing.
-   * Just pops from a threadsafe queue that contains the input packets to be
-   * processed.
-   * @param[out] input_packet Parameter to be filled that is then used by the
-   * pipeline module's specific spinOnce.
-   * @return a boolean indicating whether the generation of the input packet was
-   * successful.
+   * Just pops from the input threadsafe queue that contains the input packets
+   * to be processed. Since this is a single input pipeline module (SISO),
+   * there is no need to sync queues.
+   * @return a pointer with the generated input packet. If the generation was
+   * unsuccessful, returns a nullptr.
    */
   typename PIO::InputUniquePtr getInputPacket() override {
     typename PIO::InputUniquePtr input = nullptr;
@@ -408,7 +407,7 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
                      const bool& parallel_run)
       : MIMOPipelineModule<Input, Output>(name_id, parallel_run),
         output_queue_(output_queue) {
-    CHECK(output_queue_);
+    CHECK_NOTNULL(output_queue_);
   }
   virtual ~MISOPipelineModule() = default;
 
@@ -439,7 +438,8 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
   OutputQueue* output_queue_;
 };
 
-// We explictly avoid using multiple inheritance check for excellent reference:
+// We explictly avoid using multiple inheritance (SISO is a MISO and a SIMO)
+// check for excellent reference:
 // https://isocpp.org/wiki/faq/multiple-inheritance
 // Since we would end in the "Dreaded Diamond of Death" inheritance
 // (anti-)pattern...
@@ -454,15 +454,19 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
   KIMERA_POINTER_TYPEDEFS(SISOPipelineModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(SISOPipelineModule);
 
+  using PIO = PipelineModule<Input, Output>;
   using MISO = MISOPipelineModule<Input, Output>;
-  using InputQueue = ThreadsafeQueue<typename MISO::InputUniquePtr>;
-  using OutputQueue = ThreadsafeQueue<typename MISO::OutputSharedPtr>;
+  using InputQueue = ThreadsafeQueue<typename PIO::InputUniquePtr>;
+  using OutputQueue = typename MISO::OutputQueue;
 
   SISOPipelineModule(InputQueue* input_queue,
                      OutputQueue* output_queue,
                      const std::string& name_id,
                      const bool& parallel_run)
-      : input_queue_(input_queue), MISO(output_queue, name_id, parallel_run) {}
+      : MISOPipelineModule<Input, Output>(output_queue, name_id, parallel_run),
+        input_queue_(input_queue) {
+    CHECK_NOTNULL(input_queue_);
+  }
   virtual ~SISOPipelineModule() = default;
 
   //! Override registering of output callbacks since this is only used for
@@ -474,12 +478,11 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
  protected:
   /**
    * @brief getSyncedInputPacket Retrieves the input packet for processing.
-   * Just pops from a threadsafe queue that contains the input packets to be
-   * processed.
-   * @param[out] input_packet Parameter to be filled that is then used by the
-   * pipeline module's specific spinOnce.
-   * @return a boolean indicating whether the generation of the input packet was
-   * successful.
+   * Just pops from the input threadsafe queue that contains the input packets
+   * to be processed. Since this is a single input pipeline module (SISO),
+   * there is no need to sync queues.
+   * @return a pointer with the generated input packet. If the generation was
+   * unsuccessful, returns a nullptr.
    */
   typename MISO::InputUniquePtr getInputPacket() override {
     typename MISO::InputUniquePtr input = nullptr;
@@ -502,7 +505,8 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
 
   //! Called when general shutdown of PipelineModule is triggered.
   void shutdownQueues() override {
-    input_queue_->shutdown() && MISO::shutdownQueues();
+    input_queue_->shutdown();
+    MISO::shutdownQueues();
   }
 
   //! Checks if the module has work to do (should check input queues are empty)

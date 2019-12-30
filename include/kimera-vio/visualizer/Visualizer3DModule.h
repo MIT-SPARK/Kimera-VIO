@@ -27,15 +27,19 @@
 namespace VIO {
 
 class VisualizerModule
-    : public MIMOPipelineModule<VisualizerInput, VisualizerOutput> {
+    : public MISOPipelineModule<VisualizerInput, VisualizerOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(VisualizerModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerModule);
+  using MISO = MISOPipelineModule<VisualizerInput, VisualizerOutput>;
+
   using VizFrontendInput = FrontendOutput::Ptr;
   using VizBackendInput = BackendOutput::Ptr;
   using VizMesherInput = MesherOutput::Ptr;
 
-  VisualizerModule(bool parallel_run, Visualizer3D::UniquePtr visualizer);
+  VisualizerModule(OutputQueue* output_queue,
+                   bool parallel_run,
+                   Visualizer3D::UniquePtr visualizer);
   virtual ~VisualizerModule() = default;
 
   //! Callbacks to fill queues: they should be all lighting fast.
@@ -73,6 +77,54 @@ class VisualizerModule
 
   //! Visualizer implementation
   Visualizer3D::UniquePtr visualizer_;
+};
+
+/**
+ * @brief The DisplayModule class receives a VisualizerOutput payload which
+ * contains images to be displayed and an opencv 3D visualizer to be spinned.
+ * Since spinning and displaying must be done in the main thread, the
+ * DisplayModule should spin in the main thread to avoid errors.
+ */
+class DisplayModule
+    : public SISOPipelineModule<VisualizerOutput, NullPipelinePayload> {
+ public:
+  KIMERA_POINTER_TYPEDEFS(DisplayModule);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(DisplayModule);
+
+  using SISO = SISOPipelineModule<VisualizerOutput, NullPipelinePayload>;
+  using InputQueue = ThreadsafeQueue<typename PIO::InputUniquePtr>;
+
+  DisplayModule(InputQueue* input_queue,
+                OutputQueue* output_queue,
+                bool parallel_run)
+      : SISO(input_queue, output_queue, "Display", parallel_run) {}
+  virtual ~DisplayModule() = default;
+
+  virtual OutputUniquePtr spinOnce(VisualizerOutput::UniquePtr input) {
+    CHECK(input);
+    spinDisplayOnce(*input);
+    return VIO::make_unique<NullPipelinePayload>();
+  }
+
+ private:
+  // Displaying must be done in the main thread.
+  void spinDisplayOnce(const VisualizerOutput& viz_output) const {
+    // Display 3D window.
+    if (viz_output.visualization_type_ != VisualizationType::kNone) {
+      LOG(ERROR) << "Spin Visualize 3D output.";
+      CHECK(viz_output.window_);
+      CHECK(!viz_output.window_->wasStopped());
+      // viz_output.window_->spinOnce(1, true);
+    }
+
+    // Display 2D images.
+    // TODO(Toni): consider creating named window!
+    for (const ImageToDisplay& img_to_display : viz_output.images_to_display_) {
+      cv::imshow(img_to_display.name_, img_to_display.image_);
+    }
+    VLOG(10) << "Spin Visualize 2D output.";
+    cv::waitKey(1);
+  }
 };
 
 }  // namespace VIO

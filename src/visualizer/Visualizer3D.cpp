@@ -356,7 +356,9 @@ VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
 
   // TODO avoid copying and use a std::unique_ptr! You need to pass window_data_
   // as a parameter to all the functions and set them as const.
-  output->window_ = window_data_.window_;
+  // TODO(Toni): alternatively, don't build the window_ here, do it in the
+  // display module!
+  *output->window_ = window_data_.window_;
 
   return output;
 }
@@ -851,10 +853,10 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image) {
     cam_widget_ptr = cv::viz::WCameraPosition(K, frustum_image, 1.0,
                                               cv::viz::Color::white());
   }
-  window_data_.window_.showWidget(
-      "Camera Pose with Frustum", cam_widget_ptr, trajectory_poses_3d_.back());
-  window_data_.window_.setWidgetPose("Camera Pose with Frustum",
-                                     trajectory_poses_3d_.back());
+  // window_data_.window_.showWidget("Camera Pose with Frustum",
+  // cam_widget_ptr); window_data_.window_.setWidgetPose("Camera Pose with
+  // Frustum",
+  //                                   trajectory_poses_3d_.back());
 
   // Option A: This does not work very well.
   // window_data_.window_.resetCameraViewpoint("Camera Pose with Frustum");
@@ -1060,16 +1062,6 @@ void Visualizer3D::addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam) {
       trajectory_poses_3d_.pop_front();
     }
   }
-}
-
-/* -------------------------------------------------------------------------- */
-/** Render window with drawn objects/widgets.
- * @param wait_time Amount of time in milliseconds for the event loop to keep
- * running.
- * @param force_redraw If true, window renders.
- */
-void Visualizer3D::renderWindow(int wait_time, bool force_redraw) {
-  window_data_.window_.spinOnce(wait_time, force_redraw);
 }
 
 /* -------------------------------------------------------------------------- */
