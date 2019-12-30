@@ -72,7 +72,7 @@ struct ImageToDisplay {
   cv::Mat image_;
 };
 
-typedef std::unique_ptr<cv::viz::Widget> WidgetPtr;
+typedef std::unique_ptr<cv::viz::Widget3D> WidgetPtr;
 typedef std::unordered_map<std::string, WidgetPtr> WidgetsMap;
 
 struct VisualizerOutput {
@@ -82,15 +82,14 @@ struct VisualizerOutput {
   VisualizerOutput()
       : visualization_type_(VisualizationType::kNone),
         images_to_display_(),
-        window_(nullptr) {
-    window_ = VIO::make_unique<cv::viz::Viz3d>("3D Visualizer");
-  }
+        widgets_(),
+        frustum_pose_() {}
   ~VisualizerOutput() = default;
 
   VisualizationType visualization_type_;
   std::vector<ImageToDisplay> images_to_display_;
   WidgetsMap widgets_;
-  std::unique_ptr<cv::viz::Viz3d> window_;
+  cv::Affine3d frustum_pose_;
 };
 
 enum class VisualizerType {

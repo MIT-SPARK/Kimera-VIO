@@ -40,6 +40,8 @@ class OpenCv3dDisplay : public DisplayBase {
   KIMERA_DELETE_COPY_CONSTRUCTORS(OpenCv3dDisplay);
 
   OpenCv3dDisplay();
+
+  // TODO(Toni): consider using `unregisterAllWindows`
   ~OpenCv3dDisplay() override = default;
 
   // Spins renderers to display data using OpenCV imshow and viz3d
@@ -54,6 +56,9 @@ class OpenCv3dDisplay : public DisplayBase {
 
   //! Sets the visualization properties of the 3D mesh.
   void setMeshProperties(WidgetsMap* widgets);
+
+  //! Sets a 3D Widget Pose, because Widget3D::setPose() doesn't work;
+  void setFrustumPose(const cv::Affine3d& frustum_pose);
 
   // Keyboard callback.
   static void keyboardCallback(const cv::viz::KeyboardEvent& event, void* t);

@@ -42,6 +42,7 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
     for (const auto& widget : viz_output->widgets_) {
       window_data_.window_.showWidget(widget.first, *(widget.second));
     }
+    setFrustumPose(viz_output->frustum_pose_);
     window_data_.window_.spinOnce(1, true);
   }
 }
@@ -68,9 +69,15 @@ OpenCv3dDisplay::OpenCv3dDisplay() : DisplayBase() {
                                   cv::viz::WCoordinateSystem());
 }
 
+void OpenCv3dDisplay::setFrustumPose(const cv::Affine3d& frustum_pose) {
+  static const std::string kFrustum = "Camera Pose with Frustum";
+  window_data_.window_.setWidgetPose(kFrustum, frustum_pose);
+}
+
 void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
   CHECK_NOTNULL(widgets);
-  auto mesh_iterator = widgets->find("Mesh");
+  static const std::string kMesh = "Mesh";
+  auto mesh_iterator = widgets->find(kMesh);
   if (mesh_iterator == widgets->end()) {
     LOG(WARNING) << "Missing Mesh in visualization's 3D widgets";
     return;

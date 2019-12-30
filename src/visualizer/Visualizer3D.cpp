@@ -342,6 +342,7 @@ VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
       input.frontend_output_->stereo_frame_lkf_.getBPoseCamLRect()));
   visualizeTrajectory3D(
       FLAGS_visualize_mesh_in_frustum ? mesh_2d_img : left_stereo_keyframe.img_,
+      &output->frustum_pose_,
       &output->widgets_);
   VLOG(10) << "Finished trajectory visualization.";
   return output;
@@ -801,7 +802,9 @@ void Visualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
 /* -------------------------------------------------------------------------- */
 // Visualize trajectory. Adds an image to the frustum if cv::Mat is not empty.
 void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
+                                         cv::Affine3d* frustum_pose,
                                          WidgetsMap* widgets_map) {
+  CHECK_NOTNULL(frustum_pose);
   CHECK_NOTNULL(widgets_map);
 
   if (trajectory_poses_3d_.size() == 0) {  // no points to visualize
@@ -810,17 +813,20 @@ void Visualizer3D::visualizeTrajectory3D(const cv::Mat& frustum_image,
 
   // Show current camera pose.
   static const cv::Matx33d K(458, 0.0, 360, 0.0, 458, 240, 0.0, 0.0, 1.0);
-  cv::viz::WCameraPosition cam_widget_ptr;
+  std::unique_ptr<cv::viz::WCameraPosition> cam_widget_ptr = nullptr;
   if (frustum_image.empty()) {
-    cam_widget_ptr = cv::viz::WCameraPosition(K, 1.0, cv::viz::Color::white());
+    cam_widget_ptr = VIO::make_unique<cv::viz::WCameraPosition>(
+        K, 1.0, cv::viz::Color::white());
   } else {
-    cam_widget_ptr = cv::viz::WCameraPosition(
+    cam_widget_ptr = VIO::make_unique<cv::viz::WCameraPosition>(
         K, frustum_image, 1.0, cv::viz::Color::white());
   }
-  // window_data_.window_.showWidget("Camera Pose with Frustum",
-  // cam_widget_ptr); window_data_.window_.setWidgetPose("Camera Pose with
-  // Frustum",
-  //                                   trajectory_poses_3d_.back());
+  CHECK(cam_widget_ptr);
+  // Normally you would use Widget3D.setPose(), or updatePose(), but it does not
+  // seem to work, so we send the pose to the display module, which then calls
+  // the window_.setWidgetPose()...
+  *frustum_pose = trajectory_poses_3d_.back();
+  (*widgets_map)["Camera Pose with Frustum"] = std::move(cam_widget_ptr);
 
   // Option A: This does not work very well.
   // window_data_.window_.resetCameraViewpoint("Camera Pose with Frustum");

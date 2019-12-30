@@ -165,6 +165,7 @@ class Visualizer3D {
   /* ------------------------------------------------------------------------ */
   // Visualize trajectory. Adds an image to the frustum if cv::Mat is not empty.
   void visualizeTrajectory3D(const cv::Mat& frustum_image,
+                             cv::Affine3d* frustum_pose,
                              WidgetsMap* widgets_map);
 
   /* ------------------------------------------------------------------------ */
