@@ -24,19 +24,22 @@
 
 namespace VIO {
 
-void OpenCv3dDisplay::spinOnce(const VisualizerOutput& viz_output) {
-  // Display 3D window.
-  spin3dWindow(viz_output);
+void OpenCv3dDisplay::spinOnce(VisualizerOutput::UniquePtr&& viz_output) {
+  CHECK(viz_output);
   // Display 2D images.
-  spin2dWindow(viz_output);
+  spin2dWindow(*viz_output);
+  // Display 3D window.
+  spin3dWindow(std::move(viz_output));
 }
 
 // Adds 3D widgets to the window, and displays it.
-void OpenCv3dDisplay::spin3dWindow(const VisualizerOutput& viz_output) {
-  if (viz_output.visualization_type_ != VisualizationType::kNone) {
+void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
+  CHECK(viz_output);
+  if (viz_output->visualization_type_ != VisualizationType::kNone) {
     CHECK(!window_data_.window_.wasStopped());
     // viz_output.window_->spinOnce(1, true);
-    for (const auto& widget : viz_output.widgets_) {
+    setMeshProperties(&viz_output->widgets_);
+    for (const auto& widget : viz_output->widgets_) {
       window_data_.window_.showWidget(widget.first, *(widget.second));
     }
     window_data_.window_.spinOnce(1, true);
@@ -65,6 +68,60 @@ OpenCv3dDisplay::OpenCv3dDisplay() : DisplayBase() {
                                   cv::viz::WCoordinateSystem());
 }
 
+void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {
+  CHECK_NOTNULL(widgets);
+  auto mesh_iterator = widgets->find("Mesh");
+  if (mesh_iterator == widgets->end()) {
+    LOG(WARNING) << "Missing Mesh in visualization's 3D widgets";
+    return;
+  }
+  WidgetPtr& mesh_widget = mesh_iterator->second;
+  // Decide mesh shading style.
+  switch (window_data_.mesh_shading_) {
+    case 0: {
+      mesh_widget->setRenderingProperty(cv::viz::SHADING,
+                                        cv::viz::SHADING_FLAT);
+      break;
+    }
+    case 1: {
+      mesh_widget->setRenderingProperty(cv::viz::SHADING,
+                                        cv::viz::SHADING_GOURAUD);
+      break;
+    }
+    case 2: {
+      mesh_widget->setRenderingProperty(cv::viz::SHADING,
+                                        cv::viz::SHADING_PHONG);
+      break;
+    }
+    default: { break; }
+  }
+
+  // Decide mesh representation style.
+  switch (window_data_.mesh_representation_) {
+    case 0: {
+      mesh_widget->setRenderingProperty(cv::viz::REPRESENTATION,
+                                        cv::viz::REPRESENTATION_POINTS);
+      mesh_widget->setRenderingProperty(cv::viz::POINT_SIZE, 8);
+      break;
+    }
+    case 1: {
+      mesh_widget->setRenderingProperty(cv::viz::REPRESENTATION,
+                                        cv::viz::REPRESENTATION_SURFACE);
+      break;
+    }
+    case 2: {
+      mesh_widget->setRenderingProperty(cv::viz::REPRESENTATION,
+                                        cv::viz::REPRESENTATION_WIREFRAME);
+      break;
+    }
+    default: { break; }
+  }
+  mesh_widget->setRenderingProperty(cv::viz::AMBIENT,
+                                    window_data_.mesh_ambient_);
+  mesh_widget->setRenderingProperty(cv::viz::LIGHTING,
+                                    window_data_.mesh_lighting_);
+}
+
 void OpenCv3dDisplay::keyboardCallback(const cv::viz::KeyboardEvent& event,
                                        void* t) {
   WindowData* window_data = static_cast<WindowData*>(t);
@@ -87,7 +144,7 @@ void OpenCv3dDisplay::toggleFreezeScreenKeyboardCallback(
   CHECK_NOTNULL(window_data);
   if (code == 't') {
     LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
-    bool freeze = false;
+    static bool freeze = false;
     freeze = !freeze;  // Toggle.
     window_data->window_.spinOnce(1, true);
     while (!window_data->window_.wasStopped()) {

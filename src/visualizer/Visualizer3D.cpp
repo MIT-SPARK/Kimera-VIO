@@ -608,60 +608,8 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
   cv_mesh.tcoords = tcoords.t();
   cv_mesh.texture = texture;
 
-  // Create a mesh widget.
-  std::unique_ptr<cv::viz::WMesh> mesh =
-      VIO::make_unique<cv::viz::WMesh>(cv_mesh);
-
-  // Decide mesh shading style.
-  // window_data_.mesh_shading_
-  switch (0) {
-    case 0: {
-      mesh->setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_FLAT);
-      break;
-    }
-    case 1: {
-      mesh->setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_GOURAUD);
-      break;
-    }
-    case 2: {
-      mesh->setRenderingProperty(cv::viz::SHADING, cv::viz::SHADING_PHONG);
-      break;
-    }
-    default: {
-      break;
-    }
-  }
-
-  // Decide mesh representation style.
-  // window_data_.mesh_representation_
-  switch (0) {
-    case 0: {
-      mesh->setRenderingProperty(cv::viz::REPRESENTATION,
-                                 cv::viz::REPRESENTATION_POINTS);
-      mesh->setRenderingProperty(cv::viz::POINT_SIZE, 8);
-      break;
-    }
-    case 1: {
-      mesh->setRenderingProperty(cv::viz::REPRESENTATION,
-                                 cv::viz::REPRESENTATION_SURFACE);
-      break;
-    }
-    case 2: {
-      mesh->setRenderingProperty(cv::viz::REPRESENTATION,
-                                 cv::viz::REPRESENTATION_WIREFRAME);
-      break;
-    }
-    default: {
-      break;
-    }
-  }
-  // window_data_.mesh_ambient_
-  mesh->setRenderingProperty(cv::viz::AMBIENT, false);
-  // window_data_.mesh_lighting_
-  mesh->setRenderingProperty(cv::viz::LIGHTING, false);
-
   // Plot mesh.
-  (*widgets)["Mesh"] = std::move(mesh);
+  (*widgets)["Mesh"] = VIO::make_unique<cv::viz::WMesh>(cv_mesh);
 }
 
 /* -------------------------------------------------------------------------- */

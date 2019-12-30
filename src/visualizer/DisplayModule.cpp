@@ -28,7 +28,7 @@ DisplayModule::DisplayModule(InputQueue* input_queue,
 DisplayModule::OutputUniquePtr DisplayModule::spinOnce(
     VisualizerOutput::UniquePtr input) {
   CHECK(input);
-  display_->spinOnce(*input);
+  display_->spinOnce(std::move(input));
   return VIO::make_unique<NullPipelinePayload>();
 }
 

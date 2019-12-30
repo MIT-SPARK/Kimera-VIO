@@ -31,7 +31,7 @@ class DisplayBase {
   virtual ~DisplayBase() = default;
 
   // Spins the display once to render the visualizer output.
-  virtual void spinOnce(const VisualizerOutput& viz_output) = 0;
+  virtual void spinOnce(VisualizerOutput::UniquePtr&& viz_output) = 0;
 };
 
 class OpenCv3dDisplay : public DisplayBase {
@@ -44,14 +44,17 @@ class OpenCv3dDisplay : public DisplayBase {
 
   // Spins renderers to display data using OpenCV imshow and viz3d
   // Displaying must be done in the main thread.
-  void spinOnce(const VisualizerOutput& viz_output) override;
+  void spinOnce(VisualizerOutput::UniquePtr&& viz_output) override;
 
+ private:
   // Adds 3D widgets to the window, and displays it.
-  void spin3dWindow(const VisualizerOutput& viz_output);
+  void spin3dWindow(VisualizerOutput::UniquePtr&& viz_output);
 
   void spin2dWindow(const VisualizerOutput& viz_output);
 
- private:
+  //! Sets the visualization properties of the 3D mesh.
+  void setMeshProperties(WidgetsMap* widgets);
+
   // Keyboard callback.
   static void keyboardCallback(const cv::viz::KeyboardEvent& event, void* t);
 
