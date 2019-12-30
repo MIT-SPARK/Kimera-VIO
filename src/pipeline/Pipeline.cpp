@@ -32,7 +32,7 @@
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
-#include "kimera-vio/visualizer/DisplayModule.h"
+#include "kimera-vio/visualizer/DisplayFactory.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 DEFINE_bool(log_output, false, "Log output to CSV files.");

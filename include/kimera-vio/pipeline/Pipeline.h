@@ -93,7 +93,7 @@ class Pipeline {
   }
 
   // Register external callback to output the VIO frontend results.
-  // TODO(marcus): once we have a base class for StereoVisionFrontend, we need 
+  // TODO(marcus): once we have a base class for StereoVisionFrontend, we need
   // that type to go here instead.
   inline void registerFrontendOutputCallback(
       const StereoVisionFrontEndModule::OutputCallback& callback) {
