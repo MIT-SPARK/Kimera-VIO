@@ -32,6 +32,7 @@
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/visualizer/DisplayModule.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 DEFINE_bool(log_output, false, "Log output to CSV files.");
@@ -232,7 +233,10 @@ Pipeline::Pipeline(const VioParams& params)
                   std::placeholders::_1));
     //! Actual displaying of visual data is done in the main thread.
     display_module_ = VIO::make_unique<DisplayModule>(
-        &display_input_queue_, &display_output_queue_, parallel_run_);
+        &display_input_queue_,
+        &display_output_queue_,
+        parallel_run_,
+        DisplayFactory::makeDisplay(DisplayType::kOpenCV));
   }
 
   if (FLAGS_use_lcd) {

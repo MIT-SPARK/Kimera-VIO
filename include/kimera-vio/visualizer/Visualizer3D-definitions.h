@@ -72,6 +72,9 @@ struct ImageToDisplay {
   cv::Mat image_;
 };
 
+typedef std::unique_ptr<cv::viz::Widget> WidgetPtr;
+typedef std::unordered_map<std::string, WidgetPtr> WidgetsMap;
+
 struct VisualizerOutput {
   KIMERA_POINTER_TYPEDEFS(VisualizerOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerOutput);
@@ -86,6 +89,7 @@ struct VisualizerOutput {
 
   VisualizationType visualization_type_;
   std::vector<ImageToDisplay> images_to_display_;
+  WidgetsMap widgets_;
   std::unique_ptr<cv::viz::Viz3d> window_;
 };
 
