@@ -26,8 +26,10 @@
 
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
+#include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 // implementation of feature selector, still within the tracker class
@@ -37,17 +39,19 @@ namespace VIO {
 
 class Tracker {
 public:
-  // Constructor
- Tracker(const VioFrontEndParams& trackerParams);
+ /**
+  * @brief Tracker tracks features from frame to frame.
+  * @param tracker_params Parameters for feature tracking
+  * @param camera_params Parameters for the camera used for tracking.
+  */
+ Tracker(const VioFrontEndParams& tracker_params,
+         const CameraParams& camera_params);
 
  // Tracker parameters.
  const VioFrontEndParams tracker_params_;
 
  // Mask for features.
  cv::Mat camMask_;
-
- // Counters.
- int landmark_count_;  // incremental id assigned to new landmarks
 
 public:
   void featureTracking(Frame* ref_frame,
@@ -143,18 +147,23 @@ public:
       boost::optional<gtsam::Matrix3> Rmat = boost::none);
 
   // Get tracker info
-  inline DebugTrackerInfo getTrackerDebugInfo() { return debugInfo_; }
+  inline DebugTrackerInfo getTrackerDebugInfo() { return debug_info_; }
 
  private:
-  // Pixel offset for using center of image
-  cv::Point2f pixelOffset_;
+  // Camera params for the camera used to track: currently we only use K if the
+  // rotational optical flow predictor is used
+  const CameraParams camera_params_;
+
+  // Feature tracking uses the optical flow predictor to have a better guess of
+  // where the features moved from frame to frame.
+  OpticalFlowPredictor::UniquePtr optical_flow_predictor_;
 
   // Debug info.
-  DebugTrackerInfo debugInfo_;
+  DebugTrackerInfo debug_info_;
 
   // This is not const as for debugging we want to redirect the image save path
   // where we like.
-  std::string outputImagesPath_;
+  std::string output_images_path_;
 };
 
 }  // namespace VIO

@@ -73,6 +73,10 @@ using LmkIdToLmkTypeMap = std::unordered_map<LandmarkId, LandmarkType>;
 // FeatureTrack
 // TODO(Toni): what is this doing here... should be in frontend at worst.
 class FeatureTrack {
+  // TODO(Toni): a feature track should have a landmark id...
+  // TODO(Toni): a feature track should contain a pixel measurement per frame
+  // but allow for multi-frame measurements at a time.
+  // TODO(Toni): add getters for feature track length
  public:
   //! Observation: {FrameId, Px-Measurement}
   std::vector<std::pair<FrameId, StereoPoint2>> obs_;
@@ -85,7 +89,7 @@ class FeatureTrack {
   }
 
   void print() const {
-    std::cout << "feature track with cameras: ";
+    LOG(INFO) << "Feature track with cameras: ";
     for (size_t i = 0; i < obs_.size(); i++) {
       std::cout << " " << obs_[i].first << " ";
     }

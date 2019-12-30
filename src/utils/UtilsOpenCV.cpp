@@ -125,6 +125,7 @@ std::pair<cv::Mat, cv::Mat> UtilsOpenCV::Pose2cvmats(const gtsam::Pose3& pose) {
   return std::make_pair(gtsamMatrix3ToCvMat(rot), gtsamVector3ToCvMat(tran));
 }
 
+// TODO(Toni): template this on type double, float etc.
 cv::Mat UtilsOpenCV::gtsamMatrix3ToCvMat(const gtsam::Matrix3& rot) {
   cv::Mat R = cv::Mat(3, 3, CV_64F);
   cv::eigen2cv(rot, R);

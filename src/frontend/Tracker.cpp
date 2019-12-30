@@ -19,16 +19,23 @@
 #include <boost/filesystem.hpp>  // to create folders
 #include <boost/shared_ptr.hpp>  // used for opengv
 
+#include "kimera-vio/frontend/OpticalFlowPredictorFactory.h"
 #include "kimera-vio/utils/Timer.h"
 
 namespace VIO {
 
-Tracker::Tracker(const VioFrontEndParams& trackerParams)
-    : tracker_params_(trackerParams),
+Tracker::Tracker(const VioFrontEndParams& tracker_params,
+                 const CameraParams& camera_params)
+    : tracker_params_(tracker_params),
+      camera_params_(camera_params),
       // Only for debugging and visualization:
-      landmark_count_(0),
-      pixelOffset_(),
-      outputImagesPath_("./outputImages/") {}
+      optical_flow_predictor_(nullptr),
+      output_images_path_("./outputImages/") {
+  optical_flow_predictor_ =
+      OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
+          tracker_params_.optical_flow_predictor_type_,
+          camera_params_.camera_matrix_);
+}
 
 // TODO(Toni) Optimize this function.
 void Tracker::featureDetection(Frame* cur_frame) {
@@ -48,7 +55,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
   // detect this much new corners if possible
   int nr_corners_needed =
       std::max(tracker_params_.maxFeaturesPerFrame_ - n_existing, 0);
-  debugInfo_.need_n_corners_ = nr_corners_needed;
+  debug_info_.need_n_corners_ = nr_corners_needed;
 
   ///////////////// FEATURE DETECTION //////////////////////
   // If feature FeatureSelectionCriterion is quality, just extract what you
@@ -57,8 +64,8 @@ void Tracker::featureDetection(Frame* cur_frame) {
   const std::pair<KeypointsCV, std::vector<double>>& corners_with_scores =
       Tracker::featureDetection(*cur_frame, camMask_, nr_corners_needed);
 
-  debugInfo_.featureDetectionTime_ = utils::Timer::toc(start_time_tic).count();
-  debugInfo_.extracted_corners_ = corners_with_scores.first.size();
+  debug_info_.featureDetectionTime_ = utils::Timer::toc(start_time_tic).count();
+  debug_info_.extracted_corners_ = corners_with_scores.first.size();
 
   ///////////////// STORE NEW KEYPOINTS  //////////////////////
   // Store features in our Frame
@@ -78,14 +85,16 @@ void Tracker::featureDetection(Frame* cur_frame) {
 
   // TODO(Toni) Fix this loop, very unefficient. Use std::move over keypoints
   // with scores.
+  // Counters.
+  static int landmark_count;  // incremental id assigned to new landmarks
   for (size_t i = 0; i < corners_with_scores.first.size(); i++) {
-    cur_frame->landmarks_.push_back(landmark_count_);
+    cur_frame->landmarks_.push_back(landmark_count);
     cur_frame->landmarks_age_.push_back(1);  // seen in a single (key)frame
     cur_frame->keypoints_.push_back(corners_with_scores.first.at(i));
     cur_frame->scores_.push_back(corners_with_scores.second.at(i));
     cur_frame->versors_.push_back(Frame::calibratePixel(
         corners_with_scores.first.at(i), cur_frame->cam_param_));
-    ++landmark_count_;
+    ++landmark_count;
   }
   VLOG(10) << "featureExtraction: frame " << cur_frame->id_
            << ",  Nr tracked keypoints: " << nrExistingKeypoints
@@ -137,88 +146,97 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
   auto tic = utils::Timer::tic();
 
   // Fill up structure for reference pixels and their labels.
+  const size_t& n_ref_kpts = ref_frame->keypoints_.size();
   KeypointsCV px_ref;
-  std::vector<size_t> indices;
-  indices.reserve(ref_frame->keypoints_.size());
-  px_ref.reserve(ref_frame->keypoints_.size());
+  std::vector<size_t> indices_of_valid_landmarks;
+  px_ref.reserve(n_ref_kpts);
+  indices_of_valid_landmarks.reserve(n_ref_kpts);
   for (size_t i = 0; i < ref_frame->keypoints_.size(); ++i) {
     if (ref_frame->landmarks_[i] != -1) {
       // Current reference frame keypoint has a valid landmark.
       px_ref.push_back(ref_frame->keypoints_[i]);
-      indices.push_back(i);
+      indices_of_valid_landmarks.push_back(i);
     }
   }
 
   // Setup termination criteria for optical flow.
-  std::vector<uchar> status;
-  std::vector<float> error;
-  static cv::TermCriteria termcrit(
+  static cv::TermCriteria kTerminationCriteria(
       cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
       tracker_params_.klt_max_iter_,
       tracker_params_.klt_eps_);
+  static cv::Size2i kKltWindowSize(tracker_params_.klt_win_size_,
+                                   tracker_params_.klt_win_size_);
 
   // Initialize to old locations
-  // TODO(Toni) initialize to estimated position using rotational optical flow
-  // and translational flow knowing depth...
-  KeypointsCV px_cur = px_ref;
-  if (px_cur.size() > 0) {
-    // Do the actual tracking, so px_cur becomes the new pixel locations.
-    VLOG(2) << "Sarting Optical Flow Pyr LK tracking...";
-    cv::calcOpticalFlowPyrLK(ref_frame->img_,
-                             cur_frame->img_,
-                             px_ref,
-                             px_cur,
-                             status,
-                             error,
-                             cv::Size2i(tracker_params_.klt_win_size_,
-                                        tracker_params_.klt_win_size_),
-                             tracker_params_.klt_max_level_,
-                             termcrit,
-                             cv::OPTFLOW_USE_INITIAL_FLOW);
-    VLOG(2) << "Finished Optical Flow Pyr LK tracking.";
+  LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
 
-    if (cur_frame->keypoints_.empty()) {  // Do we really need this check?
-      cur_frame->landmarks_.reserve(px_ref.size());
-      cur_frame->landmarks_age_.reserve(px_ref.size());
-      cur_frame->keypoints_.reserve(px_ref.size());
-      cur_frame->scores_.reserve(px_ref.size());
-      cur_frame->versors_.reserve(px_ref.size());
-      for (size_t i = 0, n = 0; i < indices.size(); ++i) {
-        const size_t& i_ref = indices[i];
-        // If we failed to track mark off that landmark
-        if (!status[i] ||
-            // if we tracked keypoint and feature
-            ref_frame->landmarks_age_[i_ref] > tracker_params_.maxFeatureAge_) {
-          // track is not too long
-          // we are marking this bad in the ref_frame since features
-          ref_frame->landmarks_[i_ref] = -1;
-          // in the ref frame guide feature detection later on
-          continue;
-        }
-        cur_frame->landmarks_.push_back(ref_frame->landmarks_[i_ref]);
-        cur_frame->landmarks_age_.push_back(ref_frame->landmarks_age_[i_ref]);
-        cur_frame->scores_.push_back(ref_frame->scores_[i_ref]);
-        cur_frame->keypoints_.push_back(px_cur[i]);
-        cur_frame->versors_.push_back(
-            Frame::calibratePixel(px_cur[i], ref_frame->cam_param_));
-        ++n;
+  KeypointsCV px_cur;
+  CHECK(optical_flow_predictor_->predictFlow(px_ref, &px_cur));
+
+  // Do the actual tracking, so px_cur becomes the new pixel locations.
+  VLOG(2) << "Sarting Optical Flow Pyr LK tracking...";
+
+  std::vector<uchar> status;
+  std::vector<float> error;
+  cv::calcOpticalFlowPyrLK(ref_frame->img_,
+                           cur_frame->img_,
+                           px_ref,
+                           px_cur,
+                           status,
+                           error,
+                           kKltWindowSize,
+                           tracker_params_.klt_max_level_,
+                           kTerminationCriteria,
+                           cv::OPTFLOW_USE_INITIAL_FLOW);
+  VLOG(2) << "Finished Optical Flow Pyr LK tracking.";
+
+  // TODO(Toni): use the error to further take only the best tracks?
+
+  // TODO(TONI): WTF is this doing? Are we always having empty keypoints??
+  if (cur_frame->keypoints_.empty()) {
+    // TODO(TOni): this is basically copying the whole px_ref into the
+    // current frame as well as the ref_frame information! Absolute nonsense.
+    cur_frame->landmarks_.reserve(px_ref.size());
+    cur_frame->landmarks_age_.reserve(px_ref.size());
+    cur_frame->keypoints_.reserve(px_ref.size());
+    cur_frame->scores_.reserve(px_ref.size());
+    cur_frame->versors_.reserve(px_ref.size());
+    for (size_t i = 0; i < indices_of_valid_landmarks.size(); ++i) {
+      // If we failed to track mark off that landmark
+      const size_t idx_valid_lmk = indices_of_valid_landmarks[i];
+      if (!status[i] ||
+          // if we tracked keypoint and feature
+          ref_frame->landmarks_age_[idx_valid_lmk] >
+              tracker_params_.maxFeatureAge_) {
+        // track is not too long
+        // we are marking this bad in the ref_frame since features
+        // in the ref frame guide feature detection later on
+        ref_frame->landmarks_[idx_valid_lmk] = -1;
+        continue;
       }
-      int maxAge = *std::max_element(
-          cur_frame->landmarks_age_.begin(),
-          cur_frame->landmarks_age_
-              .end());  // max number of frames in which a feature is seen
-      VLOG(10) << "featureTracking: frame " << cur_frame->id_
-               << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
-               << " (max: " << tracker_params_.maxFeaturesPerFrame_ << ")"
-               << " (max observed age of tracked features: " << maxAge
-               << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_
-               << ")";
+      cur_frame->landmarks_.push_back(ref_frame->landmarks_[idx_valid_lmk]);
+      cur_frame->landmarks_age_.push_back(
+          ref_frame->landmarks_age_[idx_valid_lmk]);
+      cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
+      cur_frame->keypoints_.push_back(px_cur[i]);
+      cur_frame->versors_.push_back(
+          Frame::calibratePixel(px_cur[i], ref_frame->cam_param_));
     }
+
+    // max number of frames in which a feature is seen
+    VLOG(10) << "featureTracking: frame " << cur_frame->id_
+             << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
+             << " (max: " << tracker_params_.maxFeaturesPerFrame_ << ")"
+             << " (max observed age of tracked features: "
+             << *std::max_element(cur_frame->landmarks_age_.begin(),
+                                  cur_frame->landmarks_age_.end())
+             << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_
+             << ")";
   }
 
   // Fill debug information
-  debugInfo_.nrTrackerFeatures_ = cur_frame->keypoints_.size();
-  debugInfo_.featureTrackingTime_ = utils::Timer::toc(tic).count();
+  debug_info_.nrTrackerFeatures_ = cur_frame->keypoints_.size();
+  debug_info_.featureTrackingTime_ = utils::Timer::toc(tic).count();
 }
 
 std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
@@ -307,10 +325,10 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   //      gtsam::Pose3(camLrect_R_camL_cut.inverse(),Point3());
   //}
 
-  debugInfo_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-  debugInfo_.nrMonoInliers_ = ransac.inliers_.size();
-  debugInfo_.nrMonoPutatives_ = matches_ref_cur.size();
-  debugInfo_.monoRansacIters_ = ransac.iterations_;
+  debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
+  debug_info_.nrMonoInliers_ = ransac.inliers_.size();
+  debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
+  debug_info_.monoRansacIters_ = ransac.iterations_;
 
   return std::make_pair(status, camLrectlkf_P_camLrectkf);
 }
@@ -434,10 +452,10 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
         gtsam::Pose3(camLrect_R_camL_cut.inverse(), Point3());
   }
 
-  debugInfo_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-  debugInfo_.nrMonoInliers_ = ransac.inliers_.size();
-  debugInfo_.nrMonoPutatives_ = matches_ref_cur.size();
-  debugInfo_.monoRansacIters_ = ransac.iterations_;
+  debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
+  debug_info_.nrMonoInliers_ = ransac.inliers_.size();
+  debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
+  debug_info_.monoRansacIters_ = ransac.iterations_;
 
   return std::make_pair(status, camLrectlkf_P_camLrectkf);
 }
@@ -693,10 +711,10 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
              << " timeTranslationComputation: "
              << timeTranslationComputation_p - timeVoting_p;
   }
-  debugInfo_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-  debugInfo_.nrStereoInliers_ = inliers.size();
-  debugInfo_.nrStereoPutatives_ = matches_ref_cur.size();
-  debugInfo_.stereoRansacIters_ = iterations;
+  debug_info_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
+  debug_info_.nrStereoInliers_ = inliers.size();
+  debug_info_.nrStereoPutatives_ = matches_ref_cur.size();
+  debug_info_.stereoRansacIters_ = iterations;
 
   return std::make_pair(
       std::make_pair(status, gtsam::Pose3(R, gtsam::Point3(t))),
@@ -762,10 +780,10 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   opengv::transformation_t best_transformation = ransac.model_coefficients_;
 
   // Fill debug info.
-  debugInfo_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-  debugInfo_.nrStereoInliers_ = ransac.inliers_.size();
-  debugInfo_.nrStereoPutatives_ = matches_ref_cur.size();
-  debugInfo_.stereoRansacIters_ = ransac.iterations_;
+  debug_info_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
+  debug_info_.nrStereoInliers_ = ransac.inliers_.size();
+  debug_info_.nrStereoPutatives_ = matches_ref_cur.size();
+  debug_info_.stereoRansacIters_ = ransac.iterations_;
 
   return std::make_pair(status,
                         UtilsOpenCV::openGvTfToGtsamPose3(best_transformation));
@@ -793,31 +811,31 @@ void Tracker::findOutliers(
 
 void Tracker::checkStatusRightKeypoints(
     const std::vector<KeypointStatus>& right_keypoints_status) {
-  debugInfo_.nrValidRKP_ = 0;
-  debugInfo_.nrNoLeftRectRKP_ = 0;
-  debugInfo_.nrNoRightRectRKP_ = 0;
-  debugInfo_.nrNoDepthRKP_ = 0;
-  debugInfo_.nrFailedArunRKP_ = 0;
+  debug_info_.nrValidRKP_ = 0;
+  debug_info_.nrNoLeftRectRKP_ = 0;
+  debug_info_.nrNoRightRectRKP_ = 0;
+  debug_info_.nrNoDepthRKP_ = 0;
+  debug_info_.nrFailedArunRKP_ = 0;
   for (const KeypointStatus& right_keypoint_status : right_keypoints_status) {
     switch (right_keypoint_status) {
       case KeypointStatus::VALID: {
-        debugInfo_.nrValidRKP_++;
+        debug_info_.nrValidRKP_++;
         break;
       }
       case KeypointStatus::NO_LEFT_RECT: {
-        debugInfo_.nrNoLeftRectRKP_++;
+        debug_info_.nrNoLeftRectRKP_++;
         break;
       }
       case KeypointStatus::NO_RIGHT_RECT: {
-        debugInfo_.nrNoRightRectRKP_++;
+        debug_info_.nrNoRightRectRKP_++;
         break;
       }
       case KeypointStatus::NO_DEPTH: {
-        debugInfo_.nrNoDepthRKP_++;
+        debug_info_.nrNoDepthRKP_++;
         break;
       }
       case KeypointStatus::FAILED_ARUN: {
-        debugInfo_.nrFailedArunRKP_++;
+        debug_info_.nrFailedArunRKP_++;
         break;
       }
     }
@@ -1021,7 +1039,7 @@ cv::Mat Tracker::displayFrame(const Frame& ref_frame,
   cv::waitKey(1);
 
   if (write_frame) {
-    std::string folderName = outputImagesPath_ + img_title + "-" + "/";
+    std::string folderName = output_images_path_ + img_title + "-" + "/";
     boost::filesystem::path trackerDir(folderName.c_str());
     boost::filesystem::create_directory(trackerDir);
     std::string img_name = folderName + "/trackerDisplay" + img_title + "_" +

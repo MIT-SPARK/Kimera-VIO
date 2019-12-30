@@ -34,6 +34,7 @@
 #include "kimera-vio/mesh/MesherModule.h"
 #include "kimera-vio/pipeline/Pipeline-definitions.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/visualizer/DisplayModule.h"
 #include "kimera-vio/visualizer/Visualizer3DModule.h"
 
 namespace VIO {
@@ -161,9 +162,6 @@ class Pipeline {
   // Initialize pipeline from online gravity alignment.
   bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  // Displaying must be done in the main thread.
-  void spinDisplayOnce(const VisualizerOutput::Ptr& viz_output) const;
-
   StatusStereoMeasurements featureSelect(
       const VioFrontEndParams& tracker_params,
       const FeatureSelectorParams& feature_selector_params,
@@ -230,8 +228,18 @@ class Pipeline {
   //! Loop Closure Detector
   LcdModule::UniquePtr lcd_module_;
 
-  //! Visualizer
+  //! Visualizer: builds images to be displayed
   VisualizerModule::UniquePtr visualizer_module_;
+
+  //! Thread-safe queue for the input to the display module
+  DisplayModule::InputQueue display_input_queue_;
+  //! Thread-safe queue for the output to the display module
+  //! This is a queue of NullPipelinePayload because the display module does
+  //! not return anything.
+  DisplayModule::OutputQueue display_output_queue_;
+
+  //! Displays actual images and 3D visualization
+  DisplayModule::UniquePtr display_module_;
 
   // Shutdown switch to stop pipeline, threads, and queues.
   std::atomic_bool shutdown_ = {false};

@@ -49,26 +49,6 @@ class Visualizer3D {
                const BackendType& backend_type);
   virtual ~Visualizer3D() { LOG(INFO) << "Visualizer3D destructor"; };
 
-  // Contains internal data for Visualizer3D window.
-  struct WindowData {
-    WindowData();
-    ~WindowData() {
-      // OpenCV 3d Viz has an issue that I can't resolve, it throws a segfault
-      // at the end of the program. Probably because of memory not released.
-      // See issues in opencv git:
-      // https://github.com/opencv/opencv/issues/11219 and many more...
-      window_.close();
-    };
-    cv::viz::Viz3d window_;
-    cv::viz::Color cloud_color_;
-    cv::viz::Color background_color_;
-    // Stores the user set mesh representation.
-    int mesh_representation_;
-    int mesh_shading_;
-    bool mesh_ambient_;
-    bool mesh_lighting_;
-  };
-
   /* ------------------------------------------------------------------------ */
   inline void registerMesh3dVizProperties(
       Mesh3dVizPropertiesSetterCallback cb) {
@@ -82,7 +62,8 @@ class Visualizer3D {
    */
   virtual VisualizerOutput::UniquePtr spinOnce(const VisualizerInput& input);
 
-  // TODO(marcus): Is there any reason the following two methods must be private?
+  // TODO(marcus): Is there any reason the following two methods must be
+  // private?
 
   /* ------------------------------------------------------------------------ */
   // Visualize 2d mesh.
@@ -101,40 +82,56 @@ class Visualizer3D {
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks.
   void visualizePoints3D(const PointsWithIdMap& points_with_id,
-                         const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map);
+                         const LmkIdToLmkTypeMap& lmk_id_to_lmk_type_map,
+                         WidgetsMap* widgets_map);
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
-  void visualizePlane(const PlaneId& plane_index, const double& n_x,
-                      const double& n_y, const double& n_z, const double& d,
+  void visualizePlane(const PlaneId& plane_index,
+                      const double& n_x,
+                      const double& n_y,
+                      const double& n_z,
+                      const double& d,
+                      WidgetsMap* widgets_map,
                       const bool& visualize_plane_label = true,
                       const int& cluster_id = 1);
 
   /* ------------------------------------------------------------------------ */
   // Draw a line in opencv.
-  void drawLine(const std::string& line_id, const double& from_x,
-                const double& from_y, const double& from_z, const double& to_x,
-                const double& to_y, const double& to_z);
+  void drawLine(const std::string& line_id,
+                const double& from_x,
+                const double& from_y,
+                const double& from_z,
+                const double& to_x,
+                const double& to_y,
+                const double& to_z,
+                WidgetsMap* widgets);
 
   /* ------------------------------------------------------------------------ */
-  void drawLine(const std::string& line_id, const cv::Point3d& pt1,
-                const cv::Point3d& pt2);
+  void drawLine(const std::string& line_id,
+                const cv::Point3d& pt1,
+                const cv::Point3d& pt2,
+                WidgetsMap* widgets);
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
-  void visualizeMesh3D(const cv::Mat& mapPoints3d, const cv::Mat& polygonsMesh);
+  void visualizeMesh3D(const cv::Mat& mapPoints3d,
+                       const cv::Mat& polygonsMesh,
+                       WidgetsMap* widgets);
 
   /* ------------------------------------------------------------------------ */
   // Visualize a 3D point cloud of unique 3D landmarks with its connectivity,
   // and provide color for each polygon.
-  void visualizeMesh3D(const cv::Mat& map_points_3d, const cv::Mat& colors,
+  void visualizeMesh3D(const cv::Mat& map_points_3d,
+                       const cv::Mat& colors,
                        const cv::Mat& polygons_mesh,
+                       WidgetsMap* widgets,
                        const cv::Mat& tcoords = cv::Mat(),
                        const cv::Mat& texture = cv::Mat());
 
   /* ------------------------------------------------------------------------ */
   /// Visualize a PLY from filename (absolute path).
-  void visualizePlyMesh(const std::string& filename);
+  void visualizePlyMesh(const std::string& filename, WidgetsMap* widgets);
 
   /* ------------------------------------------------------------------------ */
   /// Visualize a 3D point cloud of unique 3D landmarks with its connectivity.
@@ -150,8 +147,10 @@ class Visualizer3D {
   /// [in] color_mesh whether to color the mesh or not
   /// [in] timestamp to store the timestamp of the mesh when logging the mesh.
   void visualizeMesh3DWithColoredClusters(
-      const std::vector<Plane>& planes, const cv::Mat& map_points_3d,
+      const std::vector<Plane>& planes,
+      const cv::Mat& map_points_3d,
       const cv::Mat& polygons_mesh,
+      WidgetsMap* widgets,
       const bool visualize_mesh_with_colored_polygon_clusters = false,
       const Timestamp& timestamp = 0.0);
 
@@ -160,11 +159,13 @@ class Visualizer3D {
   // projected along the normal of the cluster.
   void visualizeConvexHull(const TriangleCluster& cluster,
                            const cv::Mat& map_points_3d,
-                           const cv::Mat& polygons_mesh);
+                           const cv::Mat& polygons_mesh,
+                           WidgetsMap* widgets);
 
   /* ------------------------------------------------------------------------ */
   // Visualize trajectory. Adds an image to the frustum if cv::Mat is not empty.
-  void visualizeTrajectory3D(const cv::Mat& frustum_image);
+  void visualizeTrajectory3D(const cv::Mat& frustum_image,
+                             WidgetsMap* widgets_map);
 
   /* ------------------------------------------------------------------------ */
   // Remove widget. True if successful, false if not.
@@ -177,7 +178,8 @@ class Visualizer3D {
                                  const gtsam::Point3& normal,
                                  const double& distance,
                                  const LandmarkId& lmk_id,
-                                 const gtsam::Point3& point);
+                                 const gtsam::Point3& point,
+                                 WidgetsMap* widgets);
 
   /* ------------------------------------------------------------------------ */
   // Remove line widgets from plane to lmks, for lines that are not pointing
@@ -198,25 +200,6 @@ class Visualizer3D {
   void addPoseToTrajectory(const gtsam::Pose3& current_pose_gtsam);
 
   /* ------------------------------------------------------------------------ */
-  // Render window with drawn objects/widgets.
-  // @param wait_time Amount of time in milliseconds for the event loop to keep
-  // running.
-  // @param force_redraw If true, window renders.
-  void renderWindow(int wait_time = 1, bool force_redraw = true);
-
-  /* ------------------------------------------------------------------------ */
-  // Get a screenshot of the window.
-  void getScreenshot(const std::string& filename);
-
-  /* ------------------------------------------------------------------------ */
-  // Useful for when testing on servers without display screen.
-  void setOffScreenRendering();
-
-  /* ------------------------------------------------------------------------ */
-  // Record video sequence at a hardcoded directory relative to executable.
-  void recordVideo();
-
-  /* ------------------------------------------------------------------------ */
   static Mesh3DVizProperties texturizeMesh3D(const Timestamp& image_timestamp,
                                              const cv::Mat& texture_image,
                                              const Mesh2D& mesh_2d,
@@ -231,8 +214,8 @@ class Visualizer3D {
 
     // Color all vertices in red. Each polygon will be colored according
     // to a mix of the three vertices colors I think...
-    mesh_3d_viz_props.colors_ = cv::Mat(mesh_3d.getNumberOfUniqueVertices(), 1,
-                                        CV_8UC3, cv::viz::Color::red());
+    mesh_3d_viz_props.colors_ = cv::Mat(
+        mesh_3d.getNumberOfUniqueVertices(), 1, CV_8UC3, cv::viz::Color::red());
 
     // Add texture to the mesh using the given image.
     // README: tcoords specify the texture coordinates of the 3d mesh wrt 2d
@@ -295,7 +278,8 @@ class Visualizer3D {
     // Add a column with a fixed color at the end so that we can specify an
     // "invalid" or "default" texture for those points which we do not want to
     // texturize.
-    static cv::Mat default_texture(texture_image.rows, texture_image.cols,
+    static cv::Mat default_texture(texture_image.rows,
+                                   texture_image.cols,
                                    texture_image.type(),
                                    cv::viz::Color::white());
     CHECK_EQ(texture_image.dims, default_texture.dims);
@@ -329,17 +313,18 @@ class Visualizer3D {
   PlaneIdMap plane_id_map_;
   std::map<PlaneId, bool> is_plane_id_in_window_;
 
-  // Holds all visualization data including the window which contains 3D
-  // widgets.
-  WindowData window_data_;
+  //! Colors
+  cv::viz::Color cloud_color_ = cv::viz::Color::white();
 
   //! Logging instance.
   std::unique_ptr<VisualizerLogger> logger_;
 
   /* ------------------------------------------------------------------------ */
   // Log mesh to ply file.
-  void logMesh(const cv::Mat& map_points_3d, const cv::Mat& colors,
-               const cv::Mat& polygons_mesh, const Timestamp& timestamp,
+  void logMesh(const cv::Mat& map_points_3d,
+               const cv::Mat& colors,
+               const cv::Mat& polygons_mesh,
+               const Timestamp& timestamp,
                bool log_accumulated_mesh = false);
 
   /* ------------------------------------------------------------------------ */
@@ -348,7 +333,8 @@ class Visualizer3D {
   // This will color the point with the color of the last plane having it.
   void colorMeshByClusters(const std::vector<Plane>& planes,
                            const cv::Mat& map_points_3d,
-                           const cv::Mat& polygons_mesh, cv::Mat* colors) const;
+                           const cv::Mat& polygons_mesh,
+                           cv::Mat* colors) const;
 
   /* ------------------------------------------------------------------------ */
   // Decide color of the cluster depending on its id.
@@ -359,9 +345,12 @@ class Visualizer3D {
   void drawLineFromPlaneToPoint(const std::string& line_id,
                                 const double& plane_n_x,
                                 const double& plane_n_y,
-                                const double& plane_n_z, const double& plane_d,
-                                const double& point_x, const double& point_y,
-                                const double& point_z);
+                                const double& plane_n_z,
+                                const double& plane_d,
+                                const double& point_x,
+                                const double& point_y,
+                                const double& point_z,
+                                WidgetsMap* widgets);
 
   /* ------------------------------------------------------------------------ */
   // Update line from lmk to plane center.
@@ -369,136 +358,11 @@ class Visualizer3D {
                                   const double& plane_n_x,
                                   const double& plane_n_y,
                                   const double& plane_n_z,
-                                  const double& plane_d, const double& point_x,
-                                  const double& point_y, const double& point_z);
-
-  /* ------------------------------------------------------------------------ */
-  // Keyboard callback.
-  static void keyboardCallback(const cv::viz::KeyboardEvent& event, void* t);
-
-  /* ------------------------------------------------------------------------ */
-  // Keyboard callback to toggle freezing screen.
-  static void toggleFreezeScreenKeyboardCallback(
-      const uchar code, Visualizer3D::WindowData& window_data) {
-    if (code == 't') {
-      LOG(WARNING) << "Pressing " << code << " toggles freezing screen.";
-      static bool freeze = false;
-      freeze = !freeze;  // Toggle.
-      window_data.window_.spinOnce(1, true);
-      while (!window_data.window_.wasStopped()) {
-        if (freeze) {
-          window_data.window_.spinOnce(1, true);
-        } else {
-          break;
-        }
-      }
-    }
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Keyboard callback to set mesh representation.
-  static void setMeshRepresentation(const uchar code,
-                                    Visualizer3D::WindowData& window_data) {
-    if (code == '0') {
-      LOG(WARNING) << "Pressing " << code
-                   << " sets mesh representation to "
-                      "a point cloud.";
-      window_data.mesh_representation_ = 0u;
-    } else if (code == '1') {
-      LOG(WARNING) << "Pressing " << code
-                   << " sets mesh representation to "
-                      "a mesh.";
-      window_data.mesh_representation_ = 1u;
-    } else if (code == '2') {
-      LOG(WARNING) << "Pressing " << code
-                   << " sets mesh representation to "
-                      "a wireframe.";
-      window_data.mesh_representation_ = 2u;
-    }
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Keyboard callback to set mesh shading.
-  static void setMeshShadingCallback(const uchar code,
-                                     Visualizer3D::WindowData& window_data) {
-    if (code == '4') {
-      LOG(WARNING) << "Pressing " << code
-                   << " sets mesh shading to "
-                      "flat.";
-      window_data.mesh_shading_ = 0u;
-    } else if (code == '5') {
-      LOG(WARNING) << "Pressing " << code
-                   << " sets mesh shading to "
-                      "Gouraud.";
-      window_data.mesh_shading_ = 1u;
-    } else if (code == '6') {
-      LOG(WARNING) << "Pressing " << code
-                   << " sets mesh shading to "
-                      "Phong.";
-      window_data.mesh_shading_ = 2u;
-    }
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Keyboard callback to set mesh ambient.
-  static void setMeshAmbientCallback(const uchar code,
-                                     Visualizer3D::WindowData& window_data) {
-    if (code == 'a') {
-      window_data.mesh_ambient_ = !window_data.mesh_ambient_;
-      LOG(WARNING) << "Pressing " << code << " toggles mesh ambient."
-                   << " Now set to " << window_data.mesh_ambient_;
-    }
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Keyboard callback to set mesh lighting.
-  static void setMeshLightingCallback(const uchar code,
-                                      Visualizer3D::WindowData& window_data) {
-    if (code == 'l') {
-      window_data.mesh_lighting_ = !window_data.mesh_lighting_;
-      LOG(WARNING) << "Pressing " << code << " toggles mesh lighting."
-                   << " Now set to " << window_data.mesh_lighting_;
-    }
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Keyboard callback to get current viewer pose.
-  static void getViewerPoseKeyboardCallback(
-      const uchar& code, Visualizer3D::WindowData& window_data) {
-    if (code == 'v') {
-      LOG(INFO) << "Current viewer pose:\n"
-                << "\tRodriguez vector: "
-                << window_data.window_.getViewerPose().rvec()
-                << "\n\tAffine matrix: "
-                << window_data.window_.getViewerPose().matrix;
-    }
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Keyboard callback to get current screen size.
-  static void getCurrentWindowSizeKeyboardCallback(
-      const uchar code, Visualizer3D::WindowData& window_data) {
-    if (code == 'w') {
-      LOG(WARNING) << "Pressing " << code << " displays current window size:\n"
-                   << "\theight: " << window_data.window_.getWindowSize().height
-                   << "\twidth: " << window_data.window_.getWindowSize().width;
-    }
-  }
-
-  /* ------------------------------------------------------------------------ */
-  // Keyboard callback to get screenshot of current windodw.
-  static void getScreenshotCallback(const uchar code,
-                                    Visualizer3D::WindowData& window_data) {
-    if (code == 's') {
-      static int i = 0;
-      std::string filename = "screenshot_3d_window" + std::to_string(i);
-      LOG(WARNING) << "Pressing " << code
-                   << " takes a screenshot of the "
-                      "window, saved in: " +
-                          filename;
-      window_data.window_.saveScreenshot(filename);
-    }
-  }
+                                  const double& plane_d,
+                                  const double& point_x,
+                                  const double& point_y,
+                                  const double& point_z,
+                                  WidgetsMap* widgets);
 };
 
 }  // namespace VIO

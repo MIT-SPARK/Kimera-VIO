@@ -22,20 +22,27 @@
 #include "kimera-vio/mesh/Mesher-definitions.h"
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 #include "kimera-vio/visualizer/Visualizer3D.h"
+
+#include <opencv2/highgui/highgui_c.h>
 
 namespace VIO {
 
 class VisualizerModule
-    : public MIMOPipelineModule<VisualizerInput, VisualizerOutput> {
+    : public MISOPipelineModule<VisualizerInput, VisualizerOutput> {
  public:
   KIMERA_POINTER_TYPEDEFS(VisualizerModule);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerModule);
+  using MISO = MISOPipelineModule<VisualizerInput, VisualizerOutput>;
+
   using VizFrontendInput = FrontendOutput::Ptr;
   using VizBackendInput = BackendOutput::Ptr;
   using VizMesherInput = MesherOutput::Ptr;
 
-  VisualizerModule(bool parallel_run, Visualizer3D::UniquePtr visualizer);
+  VisualizerModule(OutputQueue* output_queue,
+                   bool parallel_run,
+                   Visualizer3D::UniquePtr visualizer);
   virtual ~VisualizerModule() = default;
 
   //! Callbacks to fill queues: they should be all lighting fast.
