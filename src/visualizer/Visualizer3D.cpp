@@ -730,14 +730,14 @@ void Visualizer3D::visualizeConvexHull(const TriangleCluster& cluster,
     const int32_t& idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
 
     // Project points to new coord system
-    cv::Point3f new_map_point_1 =  // new_coordinates *
-                                   // map_points_3d.row(idx_1).t();
+    const cv::Point3f& new_map_point_1 =  // new_coordinates *
+                                          // map_points_3d.row(idx_1).t();
         map_points_3d.at<cv::Point3f>(idx_1);
-    cv::Point3f new_map_point_2 =  // new_coordinates *
-                                   // map_points_3d.row(idx_2).t();
+    const cv::Point3f& new_map_point_2 =  // new_coordinates *
+                                          // map_points_3d.row(idx_2).t();
         map_points_3d.at<cv::Point3f>(idx_2);
-    cv::Point3f new_map_point_3 =  // new_coordinates *
-                                   // map_points_3d.row(idx_3).t();
+    const cv::Point3f& new_map_point_3 =  // new_coordinates *
+                                          // map_points_3d.row(idx_3).t();
         map_points_3d.at<cv::Point3f>(idx_3);
 
     // Keep only 1st and 2nd component, aka the projection of the point on the
@@ -922,8 +922,9 @@ void Visualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
     // We have never drawn this line.
     // Store line nr (as line id).
     (*lmk_id_to_line_id_map_ptr)[lmk_id] = *line_nr_ptr;
-    std::string line_id = "Line " + std::to_string((int)plane_id_it->first) +
-                          std::to_string((int)(*line_nr_ptr));
+    std::string line_id = "Line " +
+                          std::to_string(static_cast<int>(plane_id_it->first)) +
+                          std::to_string(static_cast<int>(*line_nr_ptr));
     // Draw it.
     drawLineFromPlaneToPoint(line_id,
                              normal.x(),
@@ -939,8 +940,9 @@ void Visualizer3D::visualizePlaneConstraints(const PlaneId& plane_id,
   } else {
     // We have drawn this line before.
     // Update line.
-    std::string line_id = "Line " + std::to_string((int)plane_id_it->first) +
-                          std::to_string((int)lmk_id_to_line_id->second);
+    std::string line_id =
+        "Line " + std::to_string(static_cast<int>(plane_id_it->first)) +
+        std::to_string(static_cast<int>(lmk_id_to_line_id->second));
     updateLineFromPlaneToPoint(line_id,
                                normal.x(),
                                normal.y(),
@@ -968,9 +970,9 @@ void Visualizer3D::removeOldLines(const LandmarkIds& lmk_ids) {
         // We did not find the lmk_id of the current line in the list
         // of lmk_ids...
         // Delete the corresponding line.
-        std::string line_id = "Line " +
-                              std::to_string((int)plane_id_pair.first) +
-                              std::to_string((int)lmk_id_to_line_id_it->second);
+        std::string line_id =
+            "Line " + std::to_string(static_cast<int>(plane_id_pair.first)) +
+            std::to_string(static_cast<int>(lmk_id_to_line_id_it->second));
         removeWidget(line_id);
         // Delete the corresponding entry in the map from lmk id to line id.
         lmk_id_to_line_id_it =
@@ -989,8 +991,9 @@ void Visualizer3D::removePlaneConstraintsViz(const PlaneId& plane_id) {
   if (plane_id_it != plane_id_map_.end()) {
     VLOG(0) << "Removing line constraints for plane with id: " << plane_id;
     for (const auto& lmk_id_to_line_id : plane_id_it->second) {
-      std::string line_id = "Line " + std::to_string((int)plane_id_it->first) +
-                            std::to_string((int)lmk_id_to_line_id.second);
+      std::string line_id =
+          "Line " + std::to_string(static_cast<int>(plane_id_it->first)) +
+          std::to_string(static_cast<int>(lmk_id_to_line_id.second));
       removeWidget(line_id);
     }
     // Delete the corresponding entry in the map for this plane.
@@ -1086,9 +1089,9 @@ void Visualizer3D::colorMeshByClusters(const std::vector<Plane>& planes,
       size_t triangle_idx = std::round(triangle_id * 4);
       DCHECK_LE(triangle_idx + 3, polygons_mesh.rows)
           << "Visualizer3D: an id in triangle_ids_ is too large.";
-      int32_t idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
-      int32_t idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
-      int32_t idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
+      const int32_t& idx_1 = polygons_mesh.at<int32_t>(triangle_idx + 1);
+      const int32_t& idx_2 = polygons_mesh.at<int32_t>(triangle_idx + 2);
+      const int32_t& idx_3 = polygons_mesh.at<int32_t>(triangle_idx + 3);
       // Overrides potential previous color.
       colors->row(idx_1) = cluster_color;
       colors->row(idx_2) = cluster_color;
