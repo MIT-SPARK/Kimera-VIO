@@ -133,6 +133,8 @@ $BUILD_PATH/stereoVIOEuroc \
   --v=0 \
   --vmodule=Pipeline*=00 \
   --log_output="$LOG_OUTPUT" \
+  --save_frontend_images=1 \
+  --visualize_frontend_images=1 \
   --output_path="$OUTPUT_PATH"
 
 # If in debug mode, you can run gdb to trace problems.
