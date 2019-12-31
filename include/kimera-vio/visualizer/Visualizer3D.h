@@ -21,6 +21,9 @@
 #include <gtsam/geometry/Point3.h>
 #include <gtsam/geometry/Pose3.h>
 
+#include <opencv2/opencv.hpp>
+#include <opencv2/viz/types.hpp>
+
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/logging/Logger.h"
 #include "kimera-vio/mesh/Mesher-definitions.h"
@@ -204,100 +207,7 @@ class Visualizer3D {
   static Mesh3DVizProperties texturizeMesh3D(const Timestamp& image_timestamp,
                                              const cv::Mat& texture_image,
                                              const Mesh2D& mesh_2d,
-                                             const Mesh3D& mesh_3d) {
-    // Dummy checks for valid data.
-    CHECK(!texture_image.empty());
-    CHECK_GE(mesh_2d.getNumberOfUniqueVertices(), 0);
-    CHECK_GE(mesh_3d.getNumberOfUniqueVertices(), 0);
-
-    // Let us fill the mesh 3d viz properties structure.
-    Mesh3DVizProperties mesh_3d_viz_props;
-
-    // Color all vertices in red. Each polygon will be colored according
-    // to a mix of the three vertices colors I think...
-    mesh_3d_viz_props.colors_ = cv::Mat(
-        mesh_3d.getNumberOfUniqueVertices(), 1, CV_8UC3, cv::viz::Color::red());
-
-    // Add texture to the mesh using the given image.
-    // README: tcoords specify the texture coordinates of the 3d mesh wrt 2d
-    // image. As a small hack, we not only use the left_image as texture but we
-    // also horizontally concatenate a white image so we can set a white texture
-    // to those 3d mesh faces which should not have a texture. Below we init all
-    // tcoords to 0.99 (1.0) gives a weird texture... Meaning that all faces
-    // start with a default white texture, and then we change that texture to
-    // the right texture for each 2d triangle that has a corresponding 3d face.
-    Mesh2D::Polygon polygon;
-    std::vector<cv::Vec2d> tcoords(mesh_3d.getNumberOfUniqueVertices(),
-                                   cv::Vec2d(0.9, 0.9));
-    for (size_t i = 0; i < mesh_2d.getNumberOfPolygons(); i++) {
-      CHECK(mesh_2d.getPolygon(i, &polygon))
-          << "Could not retrieve 2d polygon.";
-
-      const LandmarkId& lmk0 = polygon.at(0).getLmkId();
-      const LandmarkId& lmk1 = polygon.at(1).getLmkId();
-      const LandmarkId& lmk2 = polygon.at(2).getLmkId();
-
-      // Returns indices of points in the 3D mesh corresponding to the vertices
-      // in the 2D mesh.
-      int p0_id, p1_id, p2_id;
-      if (mesh_3d.getVertex(lmk0, nullptr, &p0_id) &&
-          mesh_3d.getVertex(lmk1, nullptr, &p1_id) &&
-          mesh_3d.getVertex(lmk2, nullptr, &p2_id)) {
-        // Sanity check.
-        CHECK_LE(p0_id, tcoords.size());
-        CHECK_LE(p1_id, tcoords.size());
-        CHECK_LE(p2_id, tcoords.size());
-
-        // Get pixel coordinates of the vertices of the 2D mesh.
-        const auto& px0 = polygon.at(0).getVertexPosition();
-        const auto& px1 = polygon.at(1).getVertexPosition();
-        const auto& px2 = polygon.at(2).getVertexPosition();
-
-        // These pixels correspond to the tcoords in the image for the 3d mesh
-        // vertices.
-        VLOG(100) << "Pixel: with id: " << p0_id << ", x: " << px0.x
-                  << ", y: " << px0.y;
-        // We divide by 2.0 to account for fake default texture padded to the
-        // right of the texture_image.
-        tcoords.at(p0_id) = cv::Vec2d(px0.x / texture_image.cols / 2.0,
-                                      px0.y / texture_image.rows);
-        tcoords.at(p1_id) = cv::Vec2d(px1.x / texture_image.cols / 2.0,
-                                      px1.y / texture_image.rows);
-        tcoords.at(p2_id) = cv::Vec2d(px2.x / texture_image.cols / 2.0,
-                                      px2.y / texture_image.rows);
-        mesh_3d_viz_props.colors_.row(p0_id) = cv::viz::Color::white();
-        mesh_3d_viz_props.colors_.row(p1_id) = cv::viz::Color::white();
-        mesh_3d_viz_props.colors_.row(p2_id) = cv::viz::Color::white();
-      } else {
-        // If we did not find a corresponding 3D triangle for the 2D triangle
-        // leave tcoords and colors to the default values.
-        LOG_EVERY_N(ERROR, 1000) << "Polygon in 2d mesh did not have a "
-                                    "corresponding polygon in 3d mesh!";
-      }
-    }
-
-    // Add a column with a fixed color at the end so that we can specify an
-    // "invalid" or "default" texture for those points which we do not want to
-    // texturize.
-    static cv::Mat default_texture(texture_image.rows,
-                                   texture_image.cols,
-                                   texture_image.type(),
-                                   cv::viz::Color::white());
-    CHECK_EQ(texture_image.dims, default_texture.dims);
-    CHECK_EQ(texture_image.rows, default_texture.rows);
-    CHECK_EQ(texture_image.type(), default_texture.type());
-
-    cv::Mat texture;
-    // Padding actual texture with default texture, a bit hacky, but works.
-    cv::hconcat(texture_image, default_texture, texture);
-    mesh_3d_viz_props.texture_ = texture;
-
-    mesh_3d_viz_props.tcoords_ = cv::Mat(tcoords, true).reshape(2);
-    CHECK_EQ(mesh_3d_viz_props.tcoords_.size().height,
-             mesh_3d.getNumberOfUniqueVertices());
-
-    return mesh_3d_viz_props;
-  }
+                                             const Mesh3D& mesh_3d);
 
  private:
   // Flags for visualization behaviour.

@@ -24,6 +24,31 @@
 
 namespace VIO {
 
+OpenCv3dDisplay::OpenCv3dDisplay() : DisplayBase() {
+  if (VLOG_IS_ON(2)) {
+    window_data_.window_.setGlobalWarnings(true);
+  } else {
+    window_data_.window_.setGlobalWarnings(false);
+  }
+  window_data_.window_.registerKeyboardCallback(keyboardCallback,
+                                                &window_data_);
+  window_data_.window_.setBackgroundColor(window_data_.background_color_);
+  window_data_.window_.showWidget("Coordinate Widget",
+                                  cv::viz::WCoordinateSystem());
+
+  // TODO(Toni): not sure if we need this...
+  // See page 211:
+  // Learning OpenCV 3: Computer Vision in C++ with the OpenCV Library
+  LOG_IF(WARNING, cv::startWindowThread() == 0)
+      << "Could not start OpenCV window thread.";
+  cv::namedWindow("Mesh 2D");
+
+  // TODO(Toni): perhaps we want to use these in the future
+  // cv::createButton(nameb2, callbackButton,NULL,QT_CHECKBOX,0);
+  // cv::createTrackbar( "track2", NULL, &value2, 255, NULL);
+  // cv::setMouseCallback( "main2",on_mouse,NULL );
+}
+
 void OpenCv3dDisplay::spinOnce(VisualizerOutput::UniquePtr&& viz_output) {
   CHECK(viz_output);
   // Display 2D images.
@@ -48,25 +73,12 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
 }
 
 void OpenCv3dDisplay::spin2dWindow(const VisualizerOutput& viz_output) {
-  // TODO(Toni): consider creating named window!
   for (const ImageToDisplay& img_to_display : viz_output.images_to_display_) {
+    cv::namedWindow(img_to_display.name_);
     cv::imshow(img_to_display.name_, img_to_display.image_);
   }
   VLOG(10) << "Spin Visualize 2D output.";
-  cv::waitKey(1);
-}
-
-OpenCv3dDisplay::OpenCv3dDisplay() : DisplayBase() {
-  if (VLOG_IS_ON(2)) {
-    window_data_.window_.setGlobalWarnings(true);
-  } else {
-    window_data_.window_.setGlobalWarnings(false);
-  }
-  window_data_.window_.registerKeyboardCallback(keyboardCallback,
-                                                &window_data_);
-  window_data_.window_.setBackgroundColor(window_data_.background_color_);
-  window_data_.window_.showWidget("Coordinate Widget",
-                                  cv::viz::WCoordinateSystem());
+  cv::waitKey(1);  // Not needed because we are using startWindowThread()
 }
 
 void OpenCv3dDisplay::setFrustumPose(const cv::Affine3d& frustum_pose) {

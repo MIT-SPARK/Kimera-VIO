@@ -18,6 +18,8 @@
 
 #include <glog/logging.h>
 
+#include <opencv2/viz/widgets.hpp>
+
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
