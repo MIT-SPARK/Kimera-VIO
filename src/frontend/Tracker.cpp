@@ -1036,7 +1036,7 @@ cv::Mat Tracker::displayFrame(const Frame& ref_frame,
   }
 
   cv::imshow("Tracker img " + img_title, img_rgb);
-  // cv::waitKey(1);
+  cv::waitKey(1);
 
   if (write_frame) {
     std::string folderName = output_images_path_ + img_title + "-" + "/";
