@@ -85,7 +85,7 @@ struct VisualizerOutput {
       : visualization_type_(VisualizationType::kNone),
         images_to_display_(),
         widgets_(),
-        frustum_pose_() {}
+        frustum_pose_(cv::Affine3d::Identity()) {}
   ~VisualizerOutput() = default;
 
   VisualizationType visualization_type_;

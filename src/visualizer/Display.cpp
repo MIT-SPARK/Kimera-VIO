@@ -65,6 +65,7 @@ void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
     // viz_output.window_->spinOnce(1, true);
     setMeshProperties(&viz_output->widgets_);
     for (const auto& widget : viz_output->widgets_) {
+      CHECK(widget.second);
       window_data_.window_.showWidget(widget.first, *(widget.second));
     }
     setFrustumPose(viz_output->frustum_pose_);
@@ -83,7 +84,11 @@ void OpenCv3dDisplay::spin2dWindow(const VisualizerOutput& viz_output) {
 
 void OpenCv3dDisplay::setFrustumPose(const cv::Affine3d& frustum_pose) {
   static const std::string kFrustum = "Camera Pose with Frustum";
-  window_data_.window_.setWidgetPose(kFrustum, frustum_pose);
+  try {
+    window_data_.window_.setWidgetPose(kFrustum, frustum_pose);
+  } catch (...) {
+    LOG(ERROR) << "Setting widget pose for " << kFrustum << " failed.";
+  }
 }
 
 void OpenCv3dDisplay::setMeshProperties(WidgetsMap* widgets) {

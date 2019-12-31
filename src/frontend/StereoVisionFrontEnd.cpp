@@ -18,16 +18,20 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-DEFINE_bool(visualize_frontend_images, false,
-             "Display images in frontend logger for debugging (only use "
-             "if in sequential mode, otherwise expect segfaults). ");
-DEFINE_bool(save_frontend_images, false,
+DEFINE_bool(visualize_frontend_images,
+            false,
+            "Display images in frontend logger for debugging (only use "
+            "if in sequential mode, otherwise expect segfaults). ");
+DEFINE_bool(save_frontend_images,
+            false,
             "Save images in frontend logger to disk for debugging (only use "
             "if in sequential mode, otherwise expect segfaults). ");
 DEFINE_bool(log_feature_tracks, false, "Display/Save feature tracks images.");
-DEFINE_bool(log_mono_tracking_images, false,
+DEFINE_bool(log_mono_tracking_images,
+            false,
             "Display/Save mono tracking rectified and unrectified images.");
-DEFINE_bool(log_stereo_matching_images, false,
+DEFINE_bool(log_stereo_matching_images,
+            false,
             "Display/Save mono tracking rectified and unrectified images.");
 
 namespace VIO {
@@ -37,14 +41,15 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuBias& imu_initial_bias,
     const VioFrontEndParams& tracker_params,
     const CameraParams& camera_params,
+    DisplayQueue* display_queue,
     bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
       tracker_(tracker_params, camera_params),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
+      display_queue_(display_queue),
       logger_(nullptr) {  // Only for debugging and visualization.
-
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();
   }
@@ -369,14 +374,12 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
 
     // Log images if needed.
     if (logger_ &&
-          (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
-      if (FLAGS_log_feature_tracks)
-        sendFeatureTracksToLogger();
-      if (FLAGS_log_mono_tracking_images)
-        sendStereoMatchesToLogger();
-      if (FLAGS_log_stereo_matching_images)
-        sendMonoTrackingToLogger();
+        (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
+      if (FLAGS_log_feature_tracks) sendFeatureTracksToLogger();
+      if (FLAGS_log_mono_tracking_images) sendStereoMatchesToLogger();
+      if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
+    displayFeatureTracks();
 
     // Populate statistics.
     tracker_.checkStatusRightKeypoints(stereoFrame_k_->right_keypoints_status_);
@@ -460,14 +463,31 @@ StereoVisionFrontEnd::getSmartStereoMeasurements(
 }
 
 /* -------------------------------------------------------------------------- */
+void StereoVisionFrontEnd::displayFeatureTracks() const {
+  const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
+  cv::Mat img_left = tracker_.getTrackerImage(
+      stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
+  VisualizerOutput::UniquePtr visualizer_output =
+      VIO::make_unique<VisualizerOutput>();
+  ImageToDisplay tracker_image("Tracker Image", img_left);
+  visualizer_output->images_to_display_.push_back(tracker_image);
+  visualizer_output->visualization_type_ = VisualizationType::kNone;
+  CHECK(display_queue_);
+  display_queue_->push(std::move(visualizer_output));
+}
+
+/* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
   cv::Mat img_left = tracker_.getTrackerImage(
       stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
 
-  logger_->logFrontendImg(left_frame_k.id_, img_left,
-      "monoFeatureTracksLeft", "/monoFeatureTracksLeftImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(left_frame_k.id_,
+                          img_left,
+                          "monoFeatureTracksLeft",
+                          "/monoFeatureTracksLeftImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -511,13 +531,19 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
                                       right_frame_k.keypoints_,
                                       matches,
                                       false);  // true: random color
-  cv::putText(img_left_right, "S:" + std::to_string(keyframe_count_),
-              KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.6,
+  cv::putText(img_left_right,
+              "S:" + std::to_string(keyframe_count_),
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
               cv::Scalar(0, 255, 0));
 
-  logger_->logFrontendImg(left_frame_k.id_, img_left_right,
-      "stereoMatchingUnrectified", "/stereoMatchingUnrectifiedImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(left_frame_k.id_,
+                          img_left_right,
+                          "stereoMatchingUnrectified",
+                          "/stereoMatchingUnrectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
   //############################################################################
 
   // Display rectified, plot matches.
@@ -529,12 +555,18 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
       matches,
       false);  // true: random color
   cv::putText(img_left_right_rectified,
-              "S(Rect):" + std::to_string(keyframe_count_), KeypointCV(10, 15),
-              CV_FONT_HERSHEY_COMPLEX, 0.6, cv::Scalar(0, 255, 0));
+              "S(Rect):" + std::to_string(keyframe_count_),
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
+              cv::Scalar(0, 255, 0));
 
-  logger_->logFrontendImg(left_frame_k.id_, img_left_right_rectified,
-      "stereoMatchingRectified", "/stereoMatchingRectifiedImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(left_frame_k.id_,
+                          img_left_right_rectified,
+                          "stereoMatchingRectified",
+                          "/stereoMatchingRectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -568,12 +600,17 @@ void StereoVisionFrontEnd::sendMonoTrackingToLogger() const {
   cv::putText(img_left_lkf_kf,
               "M:" + std::to_string(keyframe_count_ - 1) + "-" +
                   std::to_string(keyframe_count_),
-              KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.6,
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
               cv::Scalar(0, 255, 0));
 
-  logger_->logFrontendImg(cur_left_frame.id_, img_left_lkf_kf,
-      "monoTrackingUnrectified", "/monoTrackingUnrectifiedImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(cur_left_frame.id_,
+                          img_left_lkf_kf,
+                          "monoTrackingUnrectified",
+                          "/monoTrackingUnrectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
   //############################################################################
 
   // Display rectified, plot matches.
@@ -587,12 +624,17 @@ void StereoVisionFrontEnd::sendMonoTrackingToLogger() const {
   cv::putText(img_left_lkf_kf_rectified,
               "M(Rect):" + std::to_string(keyframe_count_ - 1) + "-" +
                   std::to_string(keyframe_count_),
-              KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.6,
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
               cv::Scalar(0, 255, 0));
 
-  logger_->logFrontendImg(cur_left_frame.id_, img_left_lkf_kf_rectified,
-      "monoTrackingRectified", "/monoTrackingRectifiedImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(cur_left_frame.id_,
+                          img_left_lkf_kf_rectified,
+                          "monoTrackingRectified",
+                          "/monoTrackingRectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
   // TODO Visualization must be done in the main thread.
 }
 

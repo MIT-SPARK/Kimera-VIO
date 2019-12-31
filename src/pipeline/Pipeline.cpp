@@ -150,6 +150,7 @@ Pipeline::Pipeline(const VioParams& params)
                                             gtsam::imuBias::ConstantBias(),
                                             params.frontend_params_,
                                             params.camera_params_.at(0),
+                                            &display_input_queue_,
                                             FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerCallback(

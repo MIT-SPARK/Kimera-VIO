@@ -16,11 +16,11 @@
 // TODO(Toni): put tracker in another folder.
 #pragma once
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/highgui/highgui_c.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <gtsam/geometry/StereoCamera.h>
 
@@ -38,47 +38,44 @@
 namespace VIO {
 
 class Tracker {
-public:
- /**
-  * @brief Tracker tracks features from frame to frame.
-  * @param tracker_params Parameters for feature tracking
-  * @param camera_params Parameters for the camera used for tracking.
-  */
- Tracker(const VioFrontEndParams& tracker_params,
-         const CameraParams& camera_params);
+ public:
+  /**
+   * @brief Tracker tracks features from frame to frame.
+   * @param tracker_params Parameters for feature tracking
+   * @param camera_params Parameters for the camera used for tracking.
+   */
+  Tracker(const VioFrontEndParams& tracker_params,
+          const CameraParams& camera_params);
 
- // Tracker parameters.
- const VioFrontEndParams tracker_params_;
+  // Tracker parameters.
+  const VioFrontEndParams tracker_params_;
 
- // Mask for features.
- cv::Mat camMask_;
+  // Mask for features.
+  cv::Mat camMask_;
 
-public:
-  void featureTracking(Frame* ref_frame,
-                       Frame* cur_frame);
+ public:
+  void featureTracking(Frame* ref_frame, Frame* cur_frame);
   void featureDetection(Frame* cur_frame);
 
-  std::pair<TrackingStatus, gtsam::Pose3>
-  geometricOutlierRejectionMono(Frame* ref_frame,
-                                Frame* cur_frame);
+  std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
+      Frame* ref_frame,
+      Frame* cur_frame);
 
-  std::pair<TrackingStatus, gtsam::Pose3>
-  geometricOutlierRejectionStereo(StereoFrame& ref_frame,
-                                  StereoFrame& cur_frame);
+  std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionStereo(
+      StereoFrame& ref_frame,
+      StereoFrame& cur_frame);
 
   // Contrarily to the previous 2 this also returns a 3x3 covariance for the
   // translation estimate.
   std::pair<TrackingStatus, gtsam::Pose3>
-  geometricOutlierRejectionMonoGivenRotation(
-      Frame* ref_frame,
-      Frame* cur_frame,
-      const gtsam::Rot3& R);
+  geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
+                                             Frame* cur_frame,
+                                             const gtsam::Rot3& R);
 
-  std::pair< std::pair<TrackingStatus,gtsam::Pose3> , gtsam::Matrix3 >
-  geometricOutlierRejectionStereoGivenRotation(
-      StereoFrame& ref_stereoFrame,
-      StereoFrame& cur_stereoFrame,
-      const gtsam::Rot3& R);
+  std::pair<std::pair<TrackingStatus, gtsam::Pose3>, gtsam::Matrix3>
+  geometricOutlierRejectionStereoGivenRotation(StereoFrame& ref_stereoFrame,
+                                               StereoFrame& cur_stereoFrame,
+                                               const gtsam::Rot3& R);
 
   void removeOutliersMono(
       Frame* ref_frame,
@@ -134,12 +131,12 @@ public:
 
   // Returns landmark_count (updated from the new keypoints),
   // and nr or extracted corners.
-  std::pair<KeypointsCV, std::vector<double>>
-  featureDetection(const Frame& cur_frame,
-                   const cv::Mat& cam_mask,
-                   const int need_n_corners);
+  std::pair<KeypointsCV, std::vector<double>> featureDetection(
+      const Frame& cur_frame,
+      const cv::Mat& cam_mask,
+      const int need_n_corners);
 
-  static std::pair< Vector3, Matrix3 > getPoint3AndCovariance(
+  static std::pair<Vector3, Matrix3> getPoint3AndCovariance(
       const StereoFrame& stereoFrame,
       const gtsam::StereoCamera& stereoCam,
       const size_t pointId,

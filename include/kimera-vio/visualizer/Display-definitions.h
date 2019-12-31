@@ -16,6 +16,9 @@
 
 #include <opencv2/viz.hpp>
 
+#include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/visualizer/Visualizer3D-definitions.h"
+
 namespace VIO {
 
 /**
@@ -49,4 +52,5 @@ struct WindowData {
   bool mesh_lighting_;
 };
 
+typedef ThreadsafeQueue<VisualizerOutput::UniquePtr> DisplayQueue;
 }  // namespace VIO

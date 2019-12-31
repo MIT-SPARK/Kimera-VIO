@@ -24,6 +24,7 @@ StereoVisionFrontEnd::UniquePtr VisionFrontEndFactory::createFrontend(
     const ImuBias& imu_initial_bias,
     const VioFrontEndParams& frontend_params,
     const CameraParams& camera_params,
+    DisplayQueue* display_queue,
     bool log_output) {
   switch (frontend_type) {
     case FrontendType::StereoImu: {
@@ -31,6 +32,7 @@ StereoVisionFrontEnd::UniquePtr VisionFrontEndFactory::createFrontend(
                                                     imu_initial_bias,
                                                     frontend_params,
                                                     camera_params,
+                                                    display_queue,
                                                     log_output);
     }
     default: {

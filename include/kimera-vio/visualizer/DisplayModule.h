@@ -18,6 +18,7 @@
 
 #include "kimera-vio/pipeline/PipelineModule.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/visualizer/Display-definitions.h"
 #include "kimera-vio/visualizer/Display.h"
 #include "kimera-vio/visualizer/Visualizer3D-definitions.h"
 
@@ -36,9 +37,8 @@ class DisplayModule
   KIMERA_DELETE_COPY_CONSTRUCTORS(DisplayModule);
 
   using SISO = SISOPipelineModule<VisualizerOutput, NullPipelinePayload>;
-  using InputQueue = ThreadsafeQueue<typename PIO::InputUniquePtr>;
 
-  DisplayModule(InputQueue* input_queue,
+  DisplayModule(DisplayQueue* input_queue,
                 OutputQueue* output_queue,
                 bool parallel_run,
                 DisplayBase::UniquePtr&& display);

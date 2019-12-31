@@ -18,7 +18,7 @@
 
 namespace VIO {
 
-DisplayModule::DisplayModule(InputQueue* input_queue,
+DisplayModule::DisplayModule(DisplayQueue* input_queue,
                              OutputQueue* output_queue,
                              bool parallel_run,
                              DisplayBase::UniquePtr&& display)
