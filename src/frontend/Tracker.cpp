@@ -139,7 +139,9 @@ std::pair<KeypointsCV, std::vector<double>> Tracker::featureDetection(
 
 // TODO(Toni) a pity that this function is not const just because
 // it modifies debuginfo_...
-void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
+void Tracker::featureTracking(Frame* ref_frame,
+                              Frame* cur_frame,
+                              const gtsam::Rot3& inter_frame_rotation) {
   CHECK_NOTNULL(ref_frame);
   CHECK_NOTNULL(cur_frame);
   auto tic = utils::Timer::tic();
@@ -170,7 +172,8 @@ void Tracker::featureTracking(Frame* ref_frame, Frame* cur_frame) {
   LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
 
   KeypointsCV px_cur;
-  CHECK(optical_flow_predictor_->predictFlow(px_ref, &px_cur));
+  CHECK(optical_flow_predictor_->predictFlow(
+      px_ref, inter_frame_rotation, &px_cur));
 
   // Do the actual tracking, so px_cur becomes the new pixel locations.
   VLOG(2) << "Sarting Optical Flow Pyr LK tracking...";
@@ -994,11 +997,9 @@ double Tracker::computeMedianDisparity(const Frame& ref_frame,
   cv::Mat Tracker::getTrackerImage(
       const Frame& ref_frame,
       const Frame& cur_frame,
-      bool write_frame,
-      const std::string& img_title,
       const KeypointsCV& extra_corners_gray,
       const KeypointsCV& extra_corners_blue) const {
-    cv::Mat img_rgb = cv::Mat(cur_frame.img_.size(), CV_8U);
+    cv::Mat img_rgb(cur_frame.img_.size(), CV_8U);
     cv::cvtColor(cur_frame.img_, img_rgb, cv::COLOR_GRAY2RGB);
 
     static const cv::Scalar gray(255, 255, 255);

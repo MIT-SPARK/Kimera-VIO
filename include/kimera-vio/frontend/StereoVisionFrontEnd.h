@@ -155,7 +155,7 @@ class StereoVisionFrontEnd {
   // Frontend main function.
   StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
-      boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu = boost::none);
+      const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu);
 
   /* ------------------------------------------------------------------------ */
   inline static void logTrackingStatus(const TrackingStatus& status,

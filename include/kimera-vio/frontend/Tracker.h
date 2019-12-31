@@ -54,7 +54,9 @@ class Tracker {
   cv::Mat camMask_;
 
  public:
-  void featureTracking(Frame* ref_frame, Frame* cur_frame);
+  void featureTracking(Frame* ref_frame,
+                       Frame* cur_frame,
+                       const gtsam::Rot3& inter_frame_rotation);
   void featureDetection(Frame* cur_frame);
 
   std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
@@ -99,8 +101,6 @@ class Tracker {
   cv::Mat getTrackerImage(
       const Frame& ref_frame,
       const Frame& cur_frame,
-      bool write_frame = false,
-      const std::string& img_title = "",
       const KeypointsCV& extra_corners_gray = KeypointsCV(),
       const KeypointsCV& extra_corners_blue = KeypointsCV()) const;
 

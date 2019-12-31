@@ -41,6 +41,7 @@ class OpticalFlowPredictor {
    * @return true if flow could be determined successfully
    */
   virtual bool predictFlow(const KeypointsCV& prev_kps,
+                           const gtsam::Rot3& inter_frame_pose,
                            KeypointsCV* next_kps) = 0;
 };
 
@@ -58,6 +59,7 @@ class SillyOpticalFlowPredictor : public OpticalFlowPredictor {
   virtual ~SillyOpticalFlowPredictor() = default;
 
   bool predictFlow(const KeypointsCV& prev_kps,
+                   const gtsam::Rot3& inter_frame_pose,
                    KeypointsCV* next_kps) override {
     *CHECK_NOTNULL(next_kps) = prev_kps;
     return true;
@@ -78,18 +80,14 @@ class RotationalOpticalFlowPredictor : public OpticalFlowPredictor {
       : K_(K), K_inverse_(K.inv()) {}
   virtual ~RotationalOpticalFlowPredictor() = default;
 
-  inline bool updateInterFrameRotation(const gtsam::Rot3& rotation) {
-    inter_frame_rotation_ = rotation;
-  }
-
   bool predictFlow(const KeypointsCV& prev_kps,
+                   const gtsam::Rot3& inter_frame_pose,
                    KeypointsCV* next_kps) override {
     CHECK_NOTNULL(next_kps)->clear();
 
     // lf_R_f is a relative rotation which takes a vector from the last frame to
     // the current frame.
-    cv::Matx33f R =
-        UtilsOpenCV::gtsamMatrix3ToCvMat(inter_frame_rotation_.matrix());
+    cv::Matx33f R = UtilsOpenCV::gtsamMatrix3ToCvMat(inter_frame_pose.matrix());
     cv::Matx33f H = K_ * R * K_inverse_;
     const size_t n_kps = prev_kps.size();
     next_kps->resize(n_kps);
@@ -114,7 +112,6 @@ class RotationalOpticalFlowPredictor : public OpticalFlowPredictor {
  private:
   const cv::Matx33f K_;
   const cv::Matx33f K_inverse_;
-  gtsam::Rot3 inter_frame_rotation_;
 };
 
 }  // namespace VIO

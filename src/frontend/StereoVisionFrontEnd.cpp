@@ -218,7 +218,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
 StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     const StereoFrame& cur_frame,
-    boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu) {
+    const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu) {
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
           << cur_frame.getTimestamp() << " empirical framerate (sec): "
@@ -246,7 +246,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   // Track features from the previous frame
   Frame* left_frame_km1 = stereoFrame_km1_->getLeftFrameMutable();
   Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
-  tracker_.featureTracking(left_frame_km1, left_frame_k);
+  tracker_.featureTracking(
+      left_frame_km1, left_frame_k, calLrectLkf_R_camLrectKf_imu);
   //////////////////////////////////////////////////////////////////////////////
 
   // Not tracking at all in this phase.
@@ -299,10 +300,11 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       std::pair<TrackingStatus, gtsam::Pose3> statusPoseMono;
       Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
       if (tracker_.tracker_params_.ransac_use_2point_mono_ &&
-          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
+          !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::identity()) &&
+          !force_53point_ransac_) {
         // 2-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMonoGivenRotation(
-            left_frame_lkf, left_frame_k, *calLrectLkf_R_camLrectKf_imu);
+            left_frame_lkf, left_frame_k, calLrectLkf_R_camLrectKf_imu);
       } else {
         // 5-point RANSAC.
         statusPoseMono = tracker_.geometricOutlierRejectionMono(left_frame_lkf,
@@ -330,13 +332,14 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       std::pair<TrackingStatus, gtsam::Pose3> statusPoseStereo;
       gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
       if (tracker_.tracker_params_.ransac_use_1point_stereo_ &&
-          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
+          !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::identity()) &&
+          !force_53point_ransac_) {
         // 1-point RANSAC.
         std::tie(statusPoseStereo, infoMatStereoTranslation) =
             tracker_.geometricOutlierRejectionStereoGivenRotation(
                 *stereoFrame_lkf_,
                 *stereoFrame_k_,
-                *calLrectLkf_R_camLrectKf_imu);
+                calLrectLkf_R_camLrectKf_imu);
       } else {
         // 3-point RANSAC.
         statusPoseStereo = tracker_.geometricOutlierRejectionStereo(
@@ -465,8 +468,8 @@ StereoVisionFrontEnd::getSmartStereoMeasurements(
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::displayFeatureTracks() const {
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
-  cv::Mat img_left = tracker_.getTrackerImage(
-      stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
+  cv::Mat img_left =
+      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
   VisualizerOutput::UniquePtr visualizer_output =
       VIO::make_unique<VisualizerOutput>();
   ImageToDisplay tracker_image("Tracker Image", img_left);
@@ -479,8 +482,8 @@ void StereoVisionFrontEnd::displayFeatureTracks() const {
 /* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
-  cv::Mat img_left = tracker_.getTrackerImage(
-      stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
+  cv::Mat img_left =
+      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
 
   logger_->logFrontendImg(left_frame_k.id_,
                           img_left,
@@ -497,8 +500,8 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
   const Frame& right_frame_k(stereoFrame_k_->getRightFrame());
 
-  cv::Mat img_left = tracker_.getTrackerImage(
-      stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
+  cv::Mat img_left =
+      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
 
   if ((left_frame_k.img_.cols != right_frame_k.img_.cols) ||
       (left_frame_k.img_.rows != right_frame_k.img_.rows)) {
