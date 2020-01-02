@@ -20,6 +20,7 @@
 
 #include "kimera-vio/frontend/OpticalFlowPredictorFactory.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 namespace VIO {
 
@@ -60,8 +61,8 @@ void Tracker::featureDetection(Frame* cur_frame) {
   // If feature FeatureSelectionCriterion is quality, just extract what you
   // need:
   auto start_time_tic = utils::Timer::tic();
-  const std::pair<KeypointsCV, std::vector<double>>& corners_with_scores =
-      Tracker::featureDetection(*cur_frame, camMask_, nr_corners_needed);
+  const KeypointsWithScores& corners_with_scores =
+      Tracker::featureDetection(*cur_frame, cam_mask_, nr_corners_needed);
 
   debug_info_.featureDetectionTime_ = utils::Timer::toc(start_time_tic).count();
   debug_info_.extracted_corners_ = corners_with_scores.first.size();
@@ -102,10 +103,9 @@ void Tracker::featureDetection(Frame* cur_frame) {
            << "  (max: " << tracker_params_.maxFeaturesPerFrame_ << ")";
 }
 
-std::pair<KeypointsCV, std::vector<double>> Tracker::featureDetection(
-    const Frame& cur_frame,
-    const cv::Mat& cam_mask,
-    const int need_n_corners) {
+KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
+                                              const cv::Mat& cam_mask,
+                                              const int need_n_corners) {
   // Create mask such that new keypoints are not close to old ones.
   cv::Mat mask;
   cam_mask.copyTo(mask);
@@ -120,21 +120,195 @@ std::pair<KeypointsCV, std::vector<double>> Tracker::featureDetection(
   }
 
   // Find new features and corresponding scores.
-  std::pair<KeypointsCV, std::vector<double>> corners_with_scores;
+  KeypointsWithScores corners_with_scores;
   if (need_n_corners > 0) {
-    UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
-        cur_frame.img_,
-        need_n_corners,
-        tracker_params_.quality_level_,
-        tracker_params_.min_distance_,
-        mask,
-        tracker_params_.block_size_,
-        tracker_params_.use_harris_detector_,
-        tracker_params_.k_,
-        &corners_with_scores);
+    MyGoodFeaturesToTrackSubPix(cur_frame.img_,
+                                need_n_corners,
+                                tracker_params_.quality_level_,
+                                tracker_params_.min_distance_,
+                                mask,
+                                tracker_params_.block_size_,
+                                tracker_params_.use_harris_detector_,
+                                tracker_params_.k_,
+                                &corners_with_scores);
   }
 
   return corners_with_scores;
+}
+
+// TODO(Toni): VIT this function should be optimized and cleaned.
+// Use std::vector<std::pair<cv::Point2f, double>>
+// Or  std::vector<std::pair<KeypointCV, Score>> but not a pair of vectors.
+// Remove hardcoded parameters (there are a ton).
+void Tracker::MyGoodFeaturesToTrackSubPix(
+    const cv::Mat& image,
+    const int& max_corners,
+    const double& quality_level,
+    double min_distance,
+    const cv::Mat& mask,
+    const int& block_size,
+    const bool& use_harris_corners,
+    const double& harrisK,
+    KeypointsWithScores* corners_with_scores) {
+  CHECK_NOTNULL(corners_with_scores);
+  try {
+    // Get image of cornerness response, and get peaks for good features.
+    cv::Mat cornerness_response;
+    if (use_harris_corners) {
+      cv::cornerHarris(image, cornerness_response, block_size, 3, harrisK);
+    } else {
+      // Cornerness response corresponds to eigen values.
+      cv::cornerMinEigenVal(image, cornerness_response, block_size, 3);
+    }
+
+    // Cut off corners below quality level.
+    double max_val = 0;
+    double min_val;
+    cv::Point min_loc;
+    cv::Point max_loc;
+    cv::minMaxLoc(
+        cornerness_response, &min_val, &max_val, &min_loc, &max_loc, mask);
+
+    // Cut stuff below quality.
+    cv::threshold(cornerness_response,
+                  cornerness_response,
+                  max_val * quality_level,
+                  0,
+                  CV_THRESH_TOZERO);
+    cv::Mat tmp;
+    cv::dilate(cornerness_response, tmp, cv::Mat());
+
+    // Create corners.
+    std::vector<std::pair<const float*, float>> tmp_corners_scores;
+
+    // collect list of pointers to features - put them into temporary image
+    const cv::Size& img_size = image.size();
+    for (int y = 1; y < img_size.height - 1; y++) {
+      const float* thresholded_cornerness =
+          (const float*)cornerness_response.ptr(y);
+      const float* dilated_cornerness = (const float*)tmp.ptr(y);
+      const uchar* mask_data = mask.data ? mask.ptr(y) : nullptr;
+
+      for (int x = 1; x < img_size.width - 1; x++) {
+        const float& val = thresholded_cornerness[x];
+        // TODO this takes a ton of time 12ms each time...
+        if (val != 0 && val == dilated_cornerness[x] &&
+            (!mask_data || mask_data[x])) {
+          tmp_corners_scores.push_back(
+              std::make_pair(thresholded_cornerness + x, val));
+        }
+      }
+    }
+
+    std::sort(tmp_corners_scores.begin(),
+              tmp_corners_scores.end(),
+              myGreaterThanPtr<float>());
+
+    // Put sorted corner in other struct.
+    size_t j;
+    size_t total = tmp_corners_scores.size();
+    size_t ncorners = 0;
+
+    if (min_distance >= 1) {
+      // Partition the image into larger grids
+      int w = image.cols;
+      int h = image.rows;
+
+      const int cell_size = cvRound(min_distance);
+      const int grid_width = (w + cell_size - 1) / cell_size;
+      const int grid_height = (h + cell_size - 1) / cell_size;
+
+      std::vector<KeypointsCV> grid(grid_width * grid_height);
+
+      min_distance *= min_distance;
+
+      for (size_t i = 0; i < total; i++) {
+        int ofs = (int)((const uchar*)tmp_corners_scores[i].first -
+                        cornerness_response.data);
+        int y = (int)(ofs / cornerness_response.step);
+        int x = (int)((ofs - y * cornerness_response.step) / sizeof(float));
+        double eigVal = double(tmp_corners_scores[i].second);
+
+        bool good = true;
+
+        int x_cell = x / cell_size;
+        int y_cell = y / cell_size;
+
+        int x1 = x_cell - 1;
+        int y1 = y_cell - 1;
+        int x2 = x_cell + 1;
+        int y2 = y_cell + 1;
+
+        // boundary check
+        x1 = std::max(0, x1);
+        y1 = std::max(0, y1);
+        x2 = std::min(grid_width - 1, x2);
+        y2 = std::min(grid_height - 1, y2);
+
+        for (int yy = y1; yy <= y2; yy++) {
+          for (int xx = x1; xx <= x2; xx++) {
+            const KeypointsCV& m = grid[yy * grid_width + xx];
+
+            if (m.size()) {
+              for (j = 0; j < m.size(); j++) {
+                const float& dx = x - m[j].x;
+                const float& dy = y - m[j].y;
+
+                if (dx * dx + dy * dy < min_distance) {
+                  good = false;
+                  goto break_out;
+                }
+              }
+            }
+          }
+        }
+
+      break_out:
+
+        if (good) {
+          // printf("%d: %d %d -> %d %d, %d, %d -- %d %d %d %d, %d %d, c=%d\n",
+          //    i,x, y, x_cell, y_cell, (int)minDistance, cell_size,x1,y1,x2,y2,
+          //    grid_width,grid_height,c);
+          grid[y_cell * grid_width + x_cell].push_back(
+              KeypointCV((float)x, (float)y));
+          corners_with_scores->first.push_back(KeypointCV((float)x, (float)y));
+          corners_with_scores->second.push_back(eigVal);
+          ++ncorners;
+          if (max_corners > 0 && (int)ncorners == max_corners) {
+            break;
+          }
+        }
+      }
+    } else {
+      for (size_t i = 0; i < total; i++) {
+        int ofs = (int)((const uchar*)tmp_corners_scores[i].first -
+                        cornerness_response.data);
+        int y = (int)(ofs / cornerness_response.step);
+        int x = (int)((ofs - y * cornerness_response.step) / sizeof(float));
+        double eigVal = double(tmp_corners_scores[i].second);
+        corners_with_scores->first.push_back(cv::Point2f((float)x, (float)y));
+        corners_with_scores->second.push_back(eigVal);
+        ++ncorners;
+        if (max_corners > 0 && (int)ncorners == max_corners) {
+          break;
+        }
+      }
+    }
+
+    // subpixel accuracy: TODO: create function for the next 4 lines
+    // TODO(Toni): REMOVE all these hardcoded stuff...
+    static const cv::TermCriteria criteria(
+        CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+    static const cv::Size winSize(10, 10);
+    static const cv::Size zeroZone(-1, -1);
+
+    // TODO this takes a ton of time 27ms each time...
+    cv::cornerSubPix(
+        image, corners_with_scores->first, winSize, zeroZone, criteria);
+  } catch (...) {
+    // Corners remains empty.
+    LOG(WARNING) << "ExtractCorners: no corner found in image.";
+  }
 }
 
 // TODO(Toni) a pity that this function is not const just because
@@ -991,52 +1165,51 @@ double Tracker::computeMedianDisparity(const Frame& ref_frame,
   return disparity[center];
 }
 
-  /* -------------------------------------------------------------------------- */
-  // TODO this won't work in parallel mode, as visualization must be done in
-  // main thread.
-  cv::Mat Tracker::getTrackerImage(
-      const Frame& ref_frame,
-      const Frame& cur_frame,
-      const KeypointsCV& extra_corners_gray,
-      const KeypointsCV& extra_corners_blue) const {
-    cv::Mat img_rgb(cur_frame.img_.size(), CV_8U);
-    cv::cvtColor(cur_frame.img_, img_rgb, cv::COLOR_GRAY2RGB);
+/* -------------------------------------------------------------------------- */
+// TODO this won't work in parallel mode, as visualization must be done in
+// main thread.
+cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
+                                 const Frame& cur_frame,
+                                 const KeypointsCV& extra_corners_gray,
+                                 const KeypointsCV& extra_corners_blue) const {
+  cv::Mat img_rgb(cur_frame.img_.size(), CV_8U);
+  cv::cvtColor(cur_frame.img_, img_rgb, cv::COLOR_GRAY2RGB);
 
-    static const cv::Scalar gray(255, 255, 255);
-    static const cv::Scalar blue(255, 0, 0);
-    static const cv::Scalar red(0, 0, 255);
-    static const cv::Scalar green(0, 255, 0);
+  static const cv::Scalar gray(255, 255, 255);
+  static const cv::Scalar blue(255, 0, 0);
+  static const cv::Scalar red(0, 0, 255);
+  static const cv::Scalar green(0, 255, 0);
 
-    // Add extra corners if desired.
-    for (const auto& px_cur : extra_corners_gray) {
-      cv::circle(img_rgb, px_cur, 4, gray, 2);
-    }
-    for (const auto& px_cur : extra_corners_blue) {
-      cv::circle(img_rgb, px_cur, 4, blue, 2);
-    }
+  // Add extra corners if desired.
+  for (const auto& px_cur : extra_corners_gray) {
+    cv::circle(img_rgb, px_cur, 4, gray, 2);
+  }
+  for (const auto& px_cur : extra_corners_blue) {
+    cv::circle(img_rgb, px_cur, 4, blue, 2);
+  }
 
-    // Add all keypoints in cur_frame with the tracks.
-    for (size_t i = 0; i < cur_frame.keypoints_.size(); ++i) {
-      const cv::Point2f& px_cur = cur_frame.keypoints_.at(i);
-      if (cur_frame.landmarks_.at(i) == -1) {  // Untracked landmarks are red.
-        cv::circle(img_rgb, px_cur, 4, red, 2);
-      } else {
-        const auto& it = find(ref_frame.landmarks_.begin(),
-                              ref_frame.landmarks_.end(),
-                              cur_frame.landmarks_.at(i));
-        if (it != ref_frame.landmarks_.end()) {
-          // If feature was in previous frame, display tracked feature with
-          // green circle/line:
-          cv::circle(img_rgb, px_cur, 6, green, 1);
-          int nPos = std::distance(ref_frame.landmarks_.begin(), it);
-          const cv::Point2f& px_ref = ref_frame.keypoints_.at(nPos);
-          cv::line(img_rgb, px_cur, px_ref, green, 1);
-        } else {  // New feature tracks are blue.
-          cv::circle(img_rgb, px_cur, 6, blue, 1);
-        }
+  // Add all keypoints in cur_frame with the tracks.
+  for (size_t i = 0; i < cur_frame.keypoints_.size(); ++i) {
+    const cv::Point2f& px_cur = cur_frame.keypoints_.at(i);
+    if (cur_frame.landmarks_.at(i) == -1) {  // Untracked landmarks are red.
+      cv::circle(img_rgb, px_cur, 4, red, 2);
+    } else {
+      const auto& it = find(ref_frame.landmarks_.begin(),
+                            ref_frame.landmarks_.end(),
+                            cur_frame.landmarks_.at(i));
+      if (it != ref_frame.landmarks_.end()) {
+        // If feature was in previous frame, display tracked feature with
+        // green circle/line:
+        cv::circle(img_rgb, px_cur, 6, green, 1);
+        int nPos = std::distance(ref_frame.landmarks_.begin(), it);
+        const cv::Point2f& px_ref = ref_frame.keypoints_.at(nPos);
+        cv::line(img_rgb, px_cur, px_ref, green, 1);
+      } else {  // New feature tracks are blue.
+        cv::circle(img_rgb, px_cur, 6, blue, 1);
       }
     }
-    return img_rgb;
   }
+  return img_rgb;
+}
 
 }  // namespace VIO

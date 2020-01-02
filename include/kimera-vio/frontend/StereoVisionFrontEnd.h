@@ -116,10 +116,6 @@ class StereoVisionFrontEnd {
     CHECK_DOUBLE_EQ(getCurrentImuBias().gyroscope().norm(), gyro_bias.norm());
   }
 
-  /* ************************************************************************ */
-  // NOT THREAD-SAFE METHODS
-  /* ************************************************************************ */
-
   /* ------------------------------------------------------------------------ */
   // Frontend initialization.
   StereoFrame processFirstStereoFrame(const StereoFrame& firstFrame);
@@ -158,8 +154,20 @@ class StereoVisionFrontEnd {
       const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu);
 
   /* ------------------------------------------------------------------------ */
-  inline static void logTrackingStatus(const TrackingStatus& status,
-                                       const std::string& type = "mono") {
+  void outlierRejectionMono(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+                            Frame* left_frame_lkf,
+                            Frame* left_frame_k,
+                            TrackingStatusPose* status_pose_mono);
+
+  /* ------------------------------------------------------------------------ */
+  void outlierRejectionStereo(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+                              const StereoFrame::Ptr& left_frame_lkf,
+                              const StereoFrame::Ptr& left_frame_k,
+                              TrackingStatusPose* status_pose_stereo);
+
+  /* ------------------------------------------------------------------------ */
+  inline static void printTrackingStatus(const TrackingStatus& status,
+                                         const std::string& type = "mono") {
     LOG(INFO) << "Status " << type << ": "
               << TrackerStatusSummary::asString(status);
   }

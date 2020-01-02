@@ -184,27 +184,6 @@ public:
                              const bool& useHarrisDetector = false);
 
   /* -------------------------------------------------------------------------- */
-  template<typename T> struct myGreaterThanPtr {
-    bool operator() (const std::pair<const T*, T> a,
-                     const std::pair<const T*, T> b) const;
-  };
-
-  /* ------------------------------------------------------------------------ */
-  // Get good features to track from image
-  // (wrapper for opencv goodFeaturesToTrack)
-  static void MyGoodFeaturesToTrackSubPix(
-      const cv::Mat& image,
-      const int& maxCorners,
-      const double& qualityLevel,
-      double minDistance,  // Not const because modified dkwhy inside...
-      const cv::Mat& mask,
-      const int& blockSize,
-      const bool& useHarrisDetector,
-      const double& harrisK,
-      std::pair<std::vector<cv::Point2f>, std::vector<double>>*
-          corners_with_scores);
-
-  /* -------------------------------------------------------------------------- */
   // creates pose by aligning initial gravity vector estimates
   static gtsam::Rot3 AlignGravityVectors(
       const gtsam::Vector3& local_gravity_dir,
@@ -390,6 +369,16 @@ public:
   static void safeOpenCVFileStorage(cv::FileStorage* fs,
                                     const std::string& filename,
                                     const bool check_opened = true);
+};
+
+/* -------------------------------------------------------------------------- */
+// TODO(Toni): remove this aberration
+template <typename T>
+struct myGreaterThanPtr {
+  bool operator()(const std::pair<const T*, T> a,
+                  const std::pair<const T*, T> b) const {
+    return *(a.first) > *(b.first);
+  }
 };
 
 /* -------------------------------------------------------------------------- */

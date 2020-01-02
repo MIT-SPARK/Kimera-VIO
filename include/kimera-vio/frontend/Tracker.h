@@ -30,7 +30,6 @@
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/utils/Macros.h"
-#include "kimera-vio/utils/UtilsOpenCV.h"
 
 // implementation of feature selector, still within the tracker class
 #include <gtsam/nonlinear/Marginals.h>
@@ -39,6 +38,10 @@ namespace VIO {
 
 class Tracker {
  public:
+  KIMERA_POINTER_TYPEDEFS(Tracker);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(Tracker);
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   /**
    * @brief Tracker tracks features from frame to frame.
    * @param tracker_params Parameters for feature tracking
@@ -51,12 +54,26 @@ class Tracker {
   const VioFrontEndParams tracker_params_;
 
   // Mask for features.
-  cv::Mat camMask_;
+  cv::Mat cam_mask_;
 
  public:
   void featureTracking(Frame* ref_frame,
                        Frame* cur_frame,
                        const gtsam::Rot3& inter_frame_rotation);
+
+  // Get good features to track from image (wrapper for opencv
+  // goodFeaturesToTrack)
+  static void MyGoodFeaturesToTrackSubPix(
+      const cv::Mat& image,
+      const int& max_corners,
+      const double& quality_level,
+      double min_distance,  // Not const because modified dkwhy inside...
+      const cv::Mat& mask,
+      const int& blockSize,
+      const bool& useHarrisDetector,
+      const double& harrisK,
+      KeypointsWithScores* corners_with_scores);
+
   void featureDetection(Frame* cur_frame);
 
   std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
@@ -131,10 +148,9 @@ class Tracker {
 
   // Returns landmark_count (updated from the new keypoints),
   // and nr or extracted corners.
-  std::pair<KeypointsCV, std::vector<double>> featureDetection(
-      const Frame& cur_frame,
-      const cv::Mat& cam_mask,
-      const int need_n_corners);
+  KeypointsWithScores featureDetection(const Frame& cur_frame,
+                                       const cv::Mat& cam_mask,
+                                       const int need_n_corners);
 
   static std::pair<Vector3, Matrix3> getPoint3AndCovariance(
       const StereoFrame& stereoFrame,

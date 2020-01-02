@@ -46,7 +46,7 @@ class StereoFrame {
  public:
   // TODO(Toni) Do it pls...
   // KIMERA_DELETE_COPY_CONSTRUCTORS(StereoFrame);
-  // KIMERA_POINTER_TYPEDEFS(StereoFrame);
+  KIMERA_POINTER_TYPEDEFS(StereoFrame);
   // EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   StereoFrame(const FrameId& id,
