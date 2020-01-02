@@ -20,7 +20,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "kimera-vio/common/FilesystemUtils.h"
+#include "kimera-vio/utils/FilesystemUtils.h"
 
 namespace VIO {
 

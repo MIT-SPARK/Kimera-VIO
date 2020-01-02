@@ -22,6 +22,9 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
+#include <gtsam/base/Matrix.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/geometry/Rot3.h>
 #include <gtsam/geometry/StereoCamera.h>
 
 #include "kimera-vio/frontend/CameraParams.h"
@@ -29,6 +32,7 @@
 #include "kimera-vio/frontend/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
+#include "kimera-vio/frontend/VioFrontEndParams.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {

@@ -16,8 +16,8 @@
 
 #include <gtsam/geometry/Pose3.h>
 
+#include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/common/vio_types.h"
-#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 

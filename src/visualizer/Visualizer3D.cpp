@@ -26,7 +26,7 @@
 #include <opencv2/viz.hpp>
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
-#include "kimera-vio/common/FilesystemUtils.h"
+#include "kimera-vio/utils/FilesystemUtils.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsGTSAM.h"

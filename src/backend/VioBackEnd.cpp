@@ -38,8 +38,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-// Only for gtNavState ...
-#include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
+#include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"  // for safeCast
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
