@@ -144,7 +144,7 @@ void Tracker::MyGoodFeaturesToTrackSubPix(
     const cv::Mat& image,
     const int& max_corners,
     const double& quality_level,
-    double min_distance,
+    const double& min_distance,
     const cv::Mat& mask,
     const int& block_size,
     const bool& use_harris_corners,
@@ -209,18 +209,19 @@ void Tracker::MyGoodFeaturesToTrackSubPix(
     size_t total = tmp_corners_scores.size();
     size_t ncorners = 0;
 
-    if (min_distance >= 1) {
+    double min_distance_tmp = min_distance;
+    if (min_distance_tmp >= 1) {
       // Partition the image into larger grids
       int w = image.cols;
       int h = image.rows;
 
-      const int cell_size = cvRound(min_distance);
+      const int cell_size = cvRound(min_distance_tmp);
       const int grid_width = (w + cell_size - 1) / cell_size;
       const int grid_height = (h + cell_size - 1) / cell_size;
 
       std::vector<KeypointsCV> grid(grid_width * grid_height);
 
-      min_distance *= min_distance;
+      min_distance_tmp *= min_distance_tmp;
 
       for (size_t i = 0; i < total; i++) {
         int ofs = (int)((const uchar*)tmp_corners_scores[i].first -
@@ -254,7 +255,7 @@ void Tracker::MyGoodFeaturesToTrackSubPix(
                 const float& dx = x - m[j].x;
                 const float& dy = y - m[j].y;
 
-                if (dx * dx + dy * dy < min_distance) {
+                if (dx * dx + dy * dy < min_distance_tmp) {
                   good = false;
                   goto break_out;
                 }
@@ -286,7 +287,7 @@ void Tracker::MyGoodFeaturesToTrackSubPix(
         int y = (int)(ofs / cornerness_response.step);
         int x = (int)((ofs - y * cornerness_response.step) / sizeof(float));
         double eigVal = double(tmp_corners_scores[i].second);
-        corners_with_scores->first.push_back(cv::Point2f((float)x, (float)y));
+        corners_with_scores->first.push_back(KeypointCV((float)x, (float)y));
         corners_with_scores->second.push_back(eigVal);
         ++ncorners;
         if (max_corners > 0 && (int)ncorners == max_corners) {

@@ -68,7 +68,7 @@ class Tracker {
       const cv::Mat& image,
       const int& max_corners,
       const double& quality_level,
-      double min_distance,  // Not const because modified dkwhy inside...
+      const double& min_distance,  // Not const because modified dkwhy inside...
       const cv::Mat& mask,
       const int& blockSize,
       const bool& useHarrisDetector,
