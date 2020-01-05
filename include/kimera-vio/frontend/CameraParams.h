@@ -110,15 +110,7 @@ class CameraParams : public PipelineParams {
   //! List of Cameras which share field of view with this one: i.e. stereo.
   std::vector<CameraId> is_stereo_with_camera_ids_;
 
- private:
-  void parseDistortion(const YamlParser& yaml_parser);
-  static void parseImgSize(const YamlParser& yaml_parser, cv::Size* image_size);
-  static void parseFrameRate(const YamlParser& yaml_parser, double* frame_rate);
-  static void parseBodyPoseCam(const YamlParser& yaml_parser,
-                               gtsam::Pose3* body_Pose_cam);
-  static void parseCameraIntrinsics(const YamlParser& yaml_parser,
-                                    Intrinsics* intrinsics_);
-  // Convert distortion coefficients to OpenCV Format
+ public:
   static void convertDistortionVectorToMatrix(
       const std::vector<double>& distortion_coeffs,
       cv::Mat* distortion_coeffs_mat);
@@ -127,6 +119,15 @@ class CameraParams : public PipelineParams {
   static void createGtsamCalibration(const std::vector<double>& distortion,
                                      const Intrinsics& intrinsics,
                                      gtsam::Cal3DS2* calibration);
+
+ private:
+  void parseDistortion(const YamlParser& yaml_parser);
+  static void parseImgSize(const YamlParser& yaml_parser, cv::Size* image_size);
+  static void parseFrameRate(const YamlParser& yaml_parser, double* frame_rate);
+  static void parseBodyPoseCam(const YamlParser& yaml_parser,
+                               gtsam::Pose3* body_Pose_cam);
+  static void parseCameraIntrinsics(const YamlParser& yaml_parser,
+                                    Intrinsics* intrinsics_);
 };
 // TODO(Toni): this should be a base class, so that stereo camera is a specific
 // type of a multi camera sensor rig, or something along these lines.
