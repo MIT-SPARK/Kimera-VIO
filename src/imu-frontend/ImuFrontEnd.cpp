@@ -118,16 +118,13 @@ ImuFrontEnd::PimPtr ImuFrontEnd::preintegrateImuMeasurements(
     case ImuPreintegrationType::kPreintegratedCombinedMeasurements: {
       return VIO::make_unique<gtsam::PreintegratedCombinedMeasurements>(
           safeCastToPreintegratedCombinedImuMeasurements(*pim_));
-      break;
     }
     case ImuPreintegrationType::kPreintegratedImuMeasurements: {
       return VIO::make_unique<gtsam::PreintegratedImuMeasurements>(
           safeCastToPreintegratedImuMeasurements(*pim_));
-      break;
     }
     default: {
       LOG(FATAL) << "Unknown IMU Preintegration Type.";
-      break;
     }
   }
 }

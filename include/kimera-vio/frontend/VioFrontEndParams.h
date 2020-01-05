@@ -24,6 +24,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "kimera-vio/frontend/OpticalFlowPredictor-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -180,6 +181,7 @@ class VioFrontEndParams : public PipelineParams {
            (min_number_features_ == tp2.min_number_features_) &&
            (useStereoTracking_ == tp2.useStereoTracking_) &&
            // others:
+           (optical_flow_predictor_type_ == tp2.optical_flow_predictor_type_) &&
            (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol);
   }
 
@@ -263,6 +265,25 @@ class VioFrontEndParams : public PipelineParams {
     min_number_features_ = static_cast<size_t>(min_number_features);
     yaml_parser.getYamlParam("useStereoTracking", &useStereoTracking_);
     yaml_parser.getYamlParam("disparityThreshold", &disparityThreshold_);
+
+    int optical_flow_predictor_type;
+    yaml_parser.getYamlParam("optical_flow_predictor_type",
+                             &optical_flow_predictor_type);
+    switch (optical_flow_predictor_type) {
+      case VIO::to_underlying(OpticalFlowPredictorType::kStatic): {
+        optical_flow_predictor_type_ = OpticalFlowPredictorType::kStatic;
+        break;
+      }
+      case VIO::to_underlying(OpticalFlowPredictorType::kRotational): {
+        optical_flow_predictor_type_ = OpticalFlowPredictorType::kRotational;
+        break;
+      }
+      default: {
+        LOG(FATAL) << "Unknown Optical Flow Predictor Type: "
+                   << optical_flow_predictor_type;
+      }
+    }
+
     return true;
   }
 
@@ -309,6 +330,9 @@ class VioFrontEndParams : public PipelineParams {
   // others:
   // max disparity under which we consider the vehicle steady
   double disparityThreshold_ = 0.5;
+
+  OpticalFlowPredictorType optical_flow_predictor_type_ =
+      OpticalFlowPredictorType::kStatic;
 };
 
 } // namespace VIO

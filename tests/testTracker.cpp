@@ -9,7 +9,8 @@
 /**
  * @file   testTracker.cpp
  * @brief  test Tracker
- * @author Antoni Rosinol, Luca Carlone
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <algorithm>
@@ -48,15 +49,20 @@ static string stereo_test_data_path(FLAGS_test_data_path +
 static const int repeat_times = 1;
 
 class TestTracker : public ::testing::Test {
- protected:
-  void SetUp() override {
+ public:
+  TestTracker() : tracker_params_(), tracker_(nullptr) {
     // Fix randomization seed (we use monte carlo runs here).
     srand(3);
     InitializeData();
+
+    // Initialize tracker.
+    tracker_ = VIO::make_unique<Tracker>(tracker_params_, CameraParams());
   }
 
+ protected:
+  void SetUp() override {}
   // TODO deallocate dynamic memory here!
-  // void TearDown() override {}
+  void TearDown() override {}
 
   void InitializeData() {
     CameraParams cam_params_left, cam_params_right;
@@ -72,10 +78,14 @@ class TestTracker : public ::testing::Test {
     // Data for testing "geometricOutlierRejectionMono"
     // !!! TODO THIS IS ALLOCATING MEMORY BUT THERE IS NO DELETE !!!
     ref_frame =
-        new Frame(id_ref, timestamp_ref, cam_params_left,
+        new Frame(id_ref,
+                  timestamp_ref,
+                  cam_params_left,
                   UtilsOpenCV::ReadAndConvertToGrayScale(img_name_ref_left));
     cur_frame =
-        new Frame(id_cur, timestamp_cur, cam_params_left,
+        new Frame(id_cur,
+                  timestamp_cur,
+                  cam_params_left,
                   UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
     VioFrontEndParams tp;
@@ -107,16 +117,20 @@ class TestTracker : public ::testing::Test {
     cur_stereo_frame->sparseStereoMatching();  // only initialize rectification
   }
 
-  Vector3 IntersectVersorPlane(const Vector3& versor, const Vector3& PlaneN,
+  Vector3 IntersectVersorPlane(const Vector3& versor,
+                               const Vector3& PlaneN,
                                const double PlaneD) {
     // intersect versor with N'*x=d;
     double t = PlaneD / versor.dot(PlaneN);
     return t * versor;
   }
 
-  void AddKeypointsVersorsToFrames(Frame* f_ref, Frame* f_cur,
-                                   KeypointCV& pt_ref, KeypointCV& pt_cur,
-                                   Vector3& v_ref, Vector3& v_cur) {
+  void AddKeypointsVersorsToFrames(Frame* f_ref,
+                                   Frame* f_cur,
+                                   KeypointCV& pt_ref,
+                                   KeypointCV& pt_cur,
+                                   Vector3& v_ref,
+                                   Vector3& v_cur) {
     // Decide the largest landmark IDs for each frame!
     int max_id;
     if (f_ref->landmarks_.size() == 0 && f_cur->landmarks_.size() == 0) {
@@ -141,8 +155,8 @@ class TestTracker : public ::testing::Test {
     f_ref->landmarks_.push_back(max_id + 1);
     f_cur->landmarks_.push_back(max_id + 1);
 
-    f_ref->landmarksAge_.push_back(0);
-    f_cur->landmarksAge_.push_back(1);
+    f_ref->landmarks_age_.push_back(0);
+    f_cur->landmarks_age_.push_back(1);
   }
 
   void ClearFrame(Frame* f) {
@@ -150,7 +164,7 @@ class TestTracker : public ::testing::Test {
     f->keypoints_.resize(0);
     f->scores_.resize(0);
     f->landmarks_.resize(0);
-    f->landmarksAge_.resize(0);
+    f->landmarks_age_.resize(0);
     f->versors_.resize(0);
   }
 
@@ -159,15 +173,17 @@ class TestTracker : public ::testing::Test {
     default_random_engine generator;
     normal_distribution<double> distribution(0, noise_sigma);
     for (auto versor : f->versors_) {
-      versor =
-          versor + Vector3(distribution(generator), distribution(generator),
-                           distribution(generator));
+      versor = versor + Vector3(distribution(generator),
+                                distribution(generator),
+                                distribution(generator));
     }
   }
 
-  void AddPlanarInliersToFrame(Frame* f_ref, Frame* f_cur,
+  void AddPlanarInliersToFrame(Frame* f_ref,
+                               Frame* f_cur,
                                const Pose3 camRef_pose_camCur,
-                               const Vector3& PlaneN, const double PlaneD,
+                               const Vector3& PlaneN,
+                               const double PlaneD,
                                const int inlierNum) {
     CHECK_NOTNULL(f_ref);
     CHECK_NOTNULL(f_cur);
@@ -191,12 +207,13 @@ class TestTracker : public ::testing::Test {
           Point2(versor_cur[0] / versor_cur[2], versor_cur[1] / versor_cur[2]));
       KeypointCV pt_cur(pt_cur_gtsam.x(), pt_cur_gtsam.y());
 
-      AddKeypointsVersorsToFrames(f_ref, f_cur, pt_ref, pt_cur, versor_ref,
-                                  versor_cur);
+      AddKeypointsVersorsToFrames(
+          f_ref, f_cur, pt_ref, pt_cur, versor_ref, versor_cur);
     }
   }
 
-  void AddNonPlanarInliersToFrame(Frame* f_ref, Frame* f_cur,
+  void AddNonPlanarInliersToFrame(Frame* f_ref,
+                                  Frame* f_cur,
                                   const Pose3 camRef_pose_camCur,
                                   const vector<double>& depth_range,
                                   const int inlierNum) {
@@ -223,12 +240,14 @@ class TestTracker : public ::testing::Test {
           Point2(versor_cur[0] / versor_cur[2], versor_cur[1] / versor_cur[2]));
       KeypointCV pt_cur(pt_cur_gtsam.x(), pt_cur_gtsam.y());
 
-      AddKeypointsVersorsToFrames(f_ref, f_cur, pt_ref, pt_cur, versor_ref,
-                                  versor_cur);
+      AddKeypointsVersorsToFrames(
+          f_ref, f_cur, pt_ref, pt_cur, versor_ref, versor_cur);
     }
   }
 
-  void AddOutliersToFrame(Frame* f_ref, Frame* f_cur, Pose3 camRef_pose_camCur,
+  void AddOutliersToFrame(Frame* f_ref,
+                          Frame* f_cur,
+                          Pose3 camRef_pose_camCur,
                           int outlierNum) {
     for (int i = 0; i < outlierNum; i++) {
       while (true) {
@@ -255,16 +274,18 @@ class TestTracker : public ::testing::Test {
           continue;
         } else {
           // true outliers
-          AddKeypointsVersorsToFrames(f_ref, f_cur, pt_ref, pt_cur, versor_ref,
-                                      versor_cur);
+          AddKeypointsVersorsToFrames(
+              f_ref, f_cur, pt_ref, pt_cur, versor_ref, versor_cur);
           break;
         }
       }
     }
   }
 
-  void AddVersorsToStereoFrames(StereoFrame* sf_ref, StereoFrame* sf_cur,
-                                Vector3& v_ref, Vector3& v_cur) {
+  void AddVersorsToStereoFrames(StereoFrame* sf_ref,
+                                StereoFrame* sf_cur,
+                                Vector3& v_ref,
+                                Vector3& v_cur) {
     CHECK_NOTNULL(sf_ref);
     CHECK_NOTNULL(sf_cur);
     // Decide the largest landmark IDs for each frame!
@@ -290,10 +311,13 @@ class TestTracker : public ::testing::Test {
     Rot3 camLrect_R_camL = UtilsOpenCV::cvMatToGtsamRot3(
         sf_ref->getLeftFrame().cam_param_.R_rectify_);
     Cal3_S2 ref_left_undist_rect_cam_mat = sf_ref->getLeftUndistRectCamMat();
-    Cal3_S2Stereo::shared_ptr K_ref(new Cal3_S2Stereo(
-        ref_left_undist_rect_cam_mat.fx(), ref_left_undist_rect_cam_mat.fy(),
-        ref_left_undist_rect_cam_mat.skew(), ref_left_undist_rect_cam_mat.px(),
-        ref_left_undist_rect_cam_mat.py(), sf_ref->getBaseline()));
+    Cal3_S2Stereo::shared_ptr K_ref(
+        new Cal3_S2Stereo(ref_left_undist_rect_cam_mat.fx(),
+                          ref_left_undist_rect_cam_mat.fy(),
+                          ref_left_undist_rect_cam_mat.skew(),
+                          ref_left_undist_rect_cam_mat.px(),
+                          ref_left_undist_rect_cam_mat.py(),
+                          sf_ref->getBaseline()));
     StereoCamera stereoCam = StereoCamera(Pose3(), K_ref);
 
     StereoPoint2 sp2 = stereoCam.project(camLrect_R_camL.rotate(Point3(v_ref)));
@@ -304,10 +328,13 @@ class TestTracker : public ::testing::Test {
     camLrect_R_camL = UtilsOpenCV::cvMatToGtsamRot3(
         sf_cur->getLeftFrame().cam_param_.R_rectify_);
     Cal3_S2 cur_left_undist_rect_cam_mat = sf_cur->getLeftUndistRectCamMat();
-    Cal3_S2Stereo::shared_ptr K_cur(new Cal3_S2Stereo(
-        cur_left_undist_rect_cam_mat.fx(), cur_left_undist_rect_cam_mat.fy(),
-        cur_left_undist_rect_cam_mat.skew(), cur_left_undist_rect_cam_mat.px(),
-        cur_left_undist_rect_cam_mat.py(), sf_cur->getBaseline()));
+    Cal3_S2Stereo::shared_ptr K_cur(
+        new Cal3_S2Stereo(cur_left_undist_rect_cam_mat.fx(),
+                          cur_left_undist_rect_cam_mat.fy(),
+                          cur_left_undist_rect_cam_mat.skew(),
+                          cur_left_undist_rect_cam_mat.px(),
+                          cur_left_undist_rect_cam_mat.py(),
+                          sf_cur->getBaseline()));
     stereoCam = StereoCamera(Pose3(), K_cur);
 
     sp2 = stereoCam.project(camLrect_R_camL.rotate(Point3(v_cur)));
@@ -322,8 +349,8 @@ class TestTracker : public ::testing::Test {
     sf_ref->getLeftFrameMutable()->landmarks_.push_back(max_id + 1);
     sf_cur->getLeftFrameMutable()->landmarks_.push_back(max_id + 1);
 
-    sf_ref->getLeftFrameMutable()->landmarksAge_.push_back(0);
-    sf_cur->getLeftFrameMutable()->landmarksAge_.push_back(1);
+    sf_ref->getLeftFrameMutable()->landmarks_age_.push_back(0);
+    sf_cur->getLeftFrameMutable()->landmarks_age_.push_back(1);
 
     // Set sf->right_keypoints_status_
     sf_ref->right_keypoints_status_.push_back(KeypointStatus::VALID);
@@ -373,9 +400,11 @@ class TestTracker : public ::testing::Test {
     sf->right_keypoints_rectified_.clear();
   }
 
-  void AddOutliersToStereoFrame(StereoFrame* sf_ref, StereoFrame* sf_cur,
+  void AddOutliersToStereoFrame(StereoFrame* sf_ref,
+                                StereoFrame* sf_cur,
                                 Pose3 camRef_pose_camCur,
-                                vector<double>& depth_range, int outlierNum) {
+                                vector<double>& depth_range,
+                                int outlierNum) {
     CHECK_NOTNULL(sf_ref);
     CHECK_NOTNULL(sf_cur);
     for (int i = 0; i < outlierNum; i++) {
@@ -420,9 +449,11 @@ class TestTracker : public ::testing::Test {
     }
   }
 
-  void AddPlanarInliersToStereoFrame(StereoFrame* sf_ref, StereoFrame* sf_cur,
+  void AddPlanarInliersToStereoFrame(StereoFrame* sf_ref,
+                                     StereoFrame* sf_cur,
                                      const Pose3 camLeftRef_pose_camLeftCur,
-                                     const Vector3& PlaneN, const double PlaneD,
+                                     const Vector3& PlaneN,
+                                     const double PlaneD,
                                      const int inlierNum) {
     CHECK_NOTNULL(sf_ref);
     CHECK_NOTNULL(sf_cur);
@@ -452,14 +483,16 @@ class TestTracker : public ::testing::Test {
     default_random_engine generator;
     normal_distribution<double> distribution(0, noise_sigma);
     for (auto versor : sf->keypoints_3d_) {
-      Vector3 noise(distribution(generator), distribution(generator),
+      Vector3 noise(distribution(generator),
+                    distribution(generator),
                     distribution(generator));
       versor = versor + noise;
     }
   }
 
   pair<Vector3, Matrix3> monteCarloSampleCovariance(
-      const StereoCamera stereoCam, const StereoPoint2 stereoPoint,
+      const StereoCamera stereoCam,
+      const StereoPoint2 stereoPoint,
       const Matrix3 stereoPtCov) {
     Vector3 meanVector = stereoCam.backproject2(stereoPoint).vector();
     Vector3 sampleMean = Vector3::Zero();
@@ -489,6 +522,11 @@ class TestTracker : public ::testing::Test {
     sampleCovariance = sampleCovariance / double(nrRuns - 1);
     return make_pair(sampleMean, sampleCovariance);
   }
+
+ protected:
+  // Perform Ransac
+  VioFrontEndParams tracker_params_;
+  std::unique_ptr<Tracker> tracker_;
 };
 
 /* ************************************************************************* */
@@ -535,14 +573,18 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       if (is_planar) {
         Vector3 PlaneN(0.1, -0.1, 1);
         const double PlaneD = camRef_pose_camCur.translation().norm();
-        AddPlanarInliersToFrame(ref_frame, cur_frame, camRef_pose_camCur,
-                                PlaneN, PlaneD, inlier_num);
+        AddPlanarInliersToFrame(ref_frame,
+                                cur_frame,
+                                camRef_pose_camCur,
+                                PlaneN,
+                                PlaneD,
+                                inlier_num);
       } else {
         vector<double> depth_range;
         depth_range.push_back(camRef_pose_camCur.translation().norm());
         depth_range.push_back(10 * camRef_pose_camCur.translation().norm());
-        AddNonPlanarInliersToFrame(ref_frame, cur_frame, camRef_pose_camCur,
-                                   depth_range, inlier_num);
+        AddNonPlanarInliersToFrame(
+            ref_frame, cur_frame, camRef_pose_camCur, depth_range, inlier_num);
       }
 
       // add outliers
@@ -558,7 +600,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       trackerParams.ransac_max_iterations_ = 1000;
       // trackerParams.ransac_probability_ = 0.8;
       trackerParams.ransac_randomize_ = false;
-      Tracker tracker(trackerParams);
+      Tracker tracker(trackerParams, CameraParams());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
@@ -620,14 +662,18 @@ TEST_F(TestTracker, geometricOutlierRejectionMonoGivenRotation) {
       if (is_planar) {
         Vector3 PlaneN(0.1, -0.1, 1);
         const double PlaneD = camRef_pose_camCur.translation().norm();
-        AddPlanarInliersToFrame(ref_frame, cur_frame, camRef_pose_camCur,
-                                PlaneN, PlaneD, inlier_num);
+        AddPlanarInliersToFrame(ref_frame,
+                                cur_frame,
+                                camRef_pose_camCur,
+                                PlaneN,
+                                PlaneD,
+                                inlier_num);
       } else {
         vector<double> depth_range;
         depth_range.push_back(camRef_pose_camCur.translation().norm());
         depth_range.push_back(10 * camRef_pose_camCur.translation().norm());
-        AddNonPlanarInliersToFrame(ref_frame, cur_frame, camRef_pose_camCur,
-                                   depth_range, inlier_num);
+        AddNonPlanarInliersToFrame(
+            ref_frame, cur_frame, camRef_pose_camCur, depth_range, inlier_num);
       }
 
       // add outliers
@@ -639,12 +685,11 @@ TEST_F(TestTracker, geometricOutlierRejectionMonoGivenRotation) {
       }
 
       // Perform Ransac
-      Tracker tracker;
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
-          tracker.geometricOutlierRejectionMonoGivenRotation(ref_frame,
-                                                             cur_frame, R);
+          tracker_->geometricOutlierRejectionMonoGivenRotation(
+              ref_frame, cur_frame, R);
 
       EXPECT_EQ(tracking_status, TrackingStatus::VALID);
 
@@ -715,18 +760,25 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
         Vector3 PlaneN(0, 0, 1);
         const double PlaneD =
             camLeftRef_pose_camLeftCur.translation().norm() * 20;
-        AddPlanarInliersToStereoFrame(ref_stereo_frame, cur_stereo_frame,
-                                      camLeftRef_pose_camLeftCur, PlaneN,
-                                      PlaneD, inlier_num);
+        AddPlanarInliersToStereoFrame(ref_stereo_frame,
+                                      cur_stereo_frame,
+                                      camLeftRef_pose_camLeftCur,
+                                      PlaneN,
+                                      PlaneD,
+                                      inlier_num);
       } else {
-        AddNonPlanarInliersToStereoFrame(ref_stereo_frame, cur_stereo_frame,
+        AddNonPlanarInliersToStereoFrame(ref_stereo_frame,
+                                         cur_stereo_frame,
                                          camLeftRef_pose_camLeftCur,
-                                         depth_range, inlier_num);
+                                         depth_range,
+                                         inlier_num);
       }
 
       // add outliers
-      AddOutliersToStereoFrame(ref_stereo_frame, cur_stereo_frame,
-                               camLeftRef_pose_camLeftCur, depth_range,
+      AddOutliersToStereoFrame(ref_stereo_frame,
+                               cur_stereo_frame,
+                               camLeftRef_pose_camLeftCur,
+                               depth_range,
                                outlier_num);
 
       // add noise
@@ -735,10 +787,9 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
         AddNoiseToStereoFrame(cur_stereo_frame, noise_sigma);
       }
 
-      // Perform Ransac
       VioFrontEndParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
-      Tracker tracker(trackerParams);
+      Tracker tracker(trackerParams, CameraParams());
       TrackingStatus tracking_status;
       Pose3 estimated_pose;
       tie(tracking_status, estimated_pose) =
@@ -848,18 +899,25 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
         Vector3 PlaneN(0, 0, 1);
         const double PlaneD =
             camLeftRef_pose_camLeftCur.translation().norm() * 20;
-        AddPlanarInliersToStereoFrame(ref_stereo_frame, cur_stereo_frame,
-                                      camLeftRef_pose_camLeftCur, PlaneN,
-                                      PlaneD, inlier_num);
+        AddPlanarInliersToStereoFrame(ref_stereo_frame,
+                                      cur_stereo_frame,
+                                      camLeftRef_pose_camLeftCur,
+                                      PlaneN,
+                                      PlaneD,
+                                      inlier_num);
       } else {
-        AddNonPlanarInliersToStereoFrame(ref_stereo_frame, cur_stereo_frame,
+        AddNonPlanarInliersToStereoFrame(ref_stereo_frame,
+                                         cur_stereo_frame,
                                          camLeftRef_pose_camLeftCur,
-                                         depth_range, inlier_num);
+                                         depth_range,
+                                         inlier_num);
       }
 
       // add outliers
-      AddOutliersToStereoFrame(ref_stereo_frame, cur_stereo_frame,
-                               camLeftRef_pose_camLeftCur, depth_range,
+      AddOutliersToStereoFrame(ref_stereo_frame,
+                               cur_stereo_frame,
+                               camLeftRef_pose_camLeftCur,
+                               depth_range,
                                outlier_num);
 
       // add noise
@@ -869,11 +927,10 @@ TEST_F(TestTracker, geometricOutlierRejectionStereoGivenRotation) {
       }
 
       // Perform Ransac
-      Tracker tracker;
       pair<TrackingStatus, Pose3> poseStatus;
       Matrix3 infoMat;
       tie(poseStatus, infoMat) =
-          tracker.geometricOutlierRejectionStereoGivenRotation(
+          tracker_->geometricOutlierRejectionStereoGivenRotation(
               *ref_stereo_frame, *cur_stereo_frame, R);
 
       TrackingStatus tracking_status = poseStatus.first;
@@ -936,10 +993,13 @@ TEST_F(TestTracker, getPoint3AndCovariance) {
   // create stereo cam
   Cal3_S2 ref_left_undist_rect_cam_mat =
       ref_stereo_frame->getLeftUndistRectCamMat();
-  Cal3_S2Stereo::shared_ptr K(new Cal3_S2Stereo(
-      ref_left_undist_rect_cam_mat.fx(), ref_left_undist_rect_cam_mat.fy(),
-      ref_left_undist_rect_cam_mat.skew(), ref_left_undist_rect_cam_mat.px(),
-      ref_left_undist_rect_cam_mat.py(), ref_stereo_frame->getBaseline()));
+  Cal3_S2Stereo::shared_ptr K(
+      new Cal3_S2Stereo(ref_left_undist_rect_cam_mat.fx(),
+                        ref_left_undist_rect_cam_mat.fy(),
+                        ref_left_undist_rect_cam_mat.skew(),
+                        ref_left_undist_rect_cam_mat.px(),
+                        ref_left_undist_rect_cam_mat.py(),
+                        ref_stereo_frame->getBaseline()));
   StereoCamera stereoCam =
       StereoCamera(Pose3(), K);  // in the ref frame of the left camera
 
@@ -1198,8 +1258,8 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
   }
 
   vector<pair<size_t, size_t>> matches_ref_cur;
-  Tracker::findMatchingStereoKeypoints(*ref_stereo_frame, *cur_stereo_frame,
-                                       &matches_ref_cur);
+  Tracker::findMatchingStereoKeypoints(
+      *ref_stereo_frame, *cur_stereo_frame, &matches_ref_cur);
 
   // Check the correctness!
   EXPECT_EQ(matches_ref_cur.size(), (num_landmarks_common + 1) / 2);
@@ -1265,9 +1325,11 @@ TEST_F(TestTracker, mahalanobisDistance) {
     time3 += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
 
     EXPECT_NEAR(double(innovationMahalanobisNorm1),
-                double(innovationMahalanobisNorm2), 1e-2);
+                double(innovationMahalanobisNorm2),
+                1e-2);
     EXPECT_NEAR(double(innovationMahalanobisNorm1),
-                double(innovationMahalanobisNorm3), 1e-2);
+                double(innovationMahalanobisNorm3),
+                1e-2);
     EXPECT_NEAR(double(1 / dinv), double(O.determinant()), 1e-4);
   }
   VLOG(1) << "time1 (llt): " << time1 << '\n'

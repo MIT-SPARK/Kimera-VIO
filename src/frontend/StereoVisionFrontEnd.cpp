@@ -18,16 +18,22 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-DEFINE_bool(visualize_frontend_images, false,
-             "Display images in frontend logger for debugging (only use "
-             "if in sequential mode, otherwise expect segfaults). ");
-DEFINE_bool(save_frontend_images, false,
+#include "kimera-vio/utils/Timer.h"
+
+DEFINE_bool(visualize_frontend_images,
+            false,
+            "Display images in frontend logger for debugging (only use "
+            "if in sequential mode, otherwise expect segfaults). ");
+DEFINE_bool(save_frontend_images,
+            false,
             "Save images in frontend logger to disk for debugging (only use "
             "if in sequential mode, otherwise expect segfaults). ");
 DEFINE_bool(log_feature_tracks, false, "Display/Save feature tracks images.");
-DEFINE_bool(log_mono_tracking_images, false,
+DEFINE_bool(log_mono_tracking_images,
+            false,
             "Display/Save mono tracking rectified and unrectified images.");
-DEFINE_bool(log_stereo_matching_images, false,
+DEFINE_bool(log_stereo_matching_images,
+            false,
             "Display/Save mono tracking rectified and unrectified images.");
 
 namespace VIO {
@@ -36,15 +42,16 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
     const VioFrontEndParams& tracker_params,
+    const CameraParams& camera_params,
+    DisplayQueue* display_queue,
     bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
-      last_landmark_count_(0),
-      tracker_(tracker_params),
+      tracker_(tracker_params, camera_params),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
+      display_queue_(display_queue),
       logger_(nullptr) {  // Only for debugging and visualization.
-
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();
   }
@@ -52,7 +59,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
   // Instantiate IMU frontend.
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
 
-  if (VLOG_IS_ON(1)) tracker_.trackerParams_.print();
+  if (VLOG_IS_ON(1)) tracker_.tracker_params_.print();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -187,7 +194,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
   // Initialize mask: this is allocated but it does not play a role
   // in this function.
   cv::Size imgSize = left_frame->img_.size();
-  tracker_.camMask_ = cv::Mat(imgSize, CV_8UC1, cv::Scalar(255));
+  tracker_.cam_mask_ = cv::Mat(imgSize, CV_8UC1, cv::Scalar(255));
 
   // Perform feature detection.
   tracker_.featureDetection(left_frame);
@@ -213,7 +220,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
 StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     const StereoFrame& cur_frame,
-    boost::optional<gtsam::Rot3> calLrectLkf_R_camLrectKf_imu) {
+    const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu) {
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
           << cur_frame.getTimestamp() << " empirical framerate (sec): "
@@ -222,26 +229,22 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
           << " (timestamp diff: "
           << cur_frame.getTimestamp() - stereoFrame_km1_->getTimestamp() << ")";
 
-  double start_time = UtilsOpenCV::GetTimeInSeconds();
-  double time_to_clone_rect_params = 0;
-
   // TODO this copies the stereo frame!!
   stereoFrame_k_ = std::make_shared<StereoFrame>(cur_frame);
 
   // Copy rectification from previous frame to avoid recomputing it.
   // TODO avoid copying altogether...
+  auto start_time = utils::Timer::tic();
   stereoFrame_k_->cloneRectificationParameters(*stereoFrame_km1_);
-  time_to_clone_rect_params = UtilsOpenCV::GetTimeInSeconds() - start_time;
-
-  double timeSparseStereo = 0;
-  double timeGetMeasurements = 0;
+  double clone_rect_params_time = utils::Timer::toc(start_time).count();
 
   /////////////////////// TRACKING /////////////////////////////////////////////
   VLOG(2) << "Starting feature tracking...";
   // Track features from the previous frame
   Frame* left_frame_km1 = stereoFrame_km1_->getLeftFrameMutable();
   Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
-  tracker_.featureTracking(left_frame_km1, left_frame_k);
+  tracker_.featureTracking(
+      left_frame_km1, left_frame_k, calLrectLkf_R_camLrectKf_imu);
   //////////////////////////////////////////////////////////////////////////////
 
   // Not tracking at all in this phase.
@@ -254,13 +257,13 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   const bool max_time_elapsed =
       UtilsOpenCV::NsecToSec(stereoFrame_k_->getTimestamp() -
                              last_keyframe_timestamp_) >=
-      tracker_.trackerParams_.intra_keyframe_time_;
+      tracker_.tracker_params_.intra_keyframe_time_;
   const size_t nr_valid_features = left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
-      nr_valid_features <= tracker_.trackerParams_.min_number_features_;
+      nr_valid_features <= tracker_.tracker_params_.min_number_features_;
 
   // Also if the user requires the keyframe to be enforced
-  if (stereoFrame_k_->isKeyframe()) LOG(WARNING) << "User inforced keyframe!";
+  if (stereoFrame_k_->isKeyframe()) LOG(WARNING) << "User enforced keyframe!";
   // If max time elaspsed and not able to track feature -> create new keyframe
   if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
@@ -274,83 +277,42 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
     VLOG_IF(2, nr_features_low)
         << "Keyframe reason: low nr of features (" << nr_valid_features << " < "
-        << tracker_.trackerParams_.min_number_features_ << ").";
+        << tracker_.tracker_params_.min_number_features_ << ").";
 
-    if (!tracker_.trackerParams_.useRANSAC_) {
+    double sparse_stereo_time = 0;
+    if (!tracker_.tracker_params_.useRANSAC_) {
       trackerStatusSummary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
-
       if (VLOG_IS_ON(2)) {
-        logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_mono_, "mono");
+        printTrackingStatus(trackerStatusSummary_.kfTrackingStatus_mono_,
+                            "mono");
       }
-
       trackerStatusSummary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
-
       if (VLOG_IS_ON(2)) {
-        logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_,
-                          "stereo");
+        printTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_,
+                            "stereo");
       }
     } else {
-      ////////////////// MONO geometric outlier rejection ////////////////
-      std::pair<TrackingStatus, gtsam::Pose3> statusPoseMono;
+      // MONO geometric outlier rejection
+      TrackingStatusPose status_pose_mono;
       Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
-      if (tracker_.trackerParams_.ransac_use_2point_mono_ &&
-          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
-        // 2-point RANSAC.
-        statusPoseMono = tracker_.geometricOutlierRejectionMonoGivenRotation(
-            left_frame_lkf, left_frame_k, *calLrectLkf_R_camLrectKf_imu);
-      } else {
-        // 5-point RANSAC.
-        statusPoseMono = tracker_.geometricOutlierRejectionMono(left_frame_lkf,
-                                                                left_frame_k);
-        if (force_53point_ransac_)
-          LOG(WARNING) << "5-point RANSAC was enforced!";
-      }
+      outlierRejectionMono(calLrectLkf_R_camLrectKf_imu,
+                           left_frame_lkf,
+                           left_frame_k,
+                           &status_pose_mono);
 
-      // Set relative pose.
-      trackerStatusSummary_.kfTrackingStatus_mono_ = statusPoseMono.first;
-
-      if (VLOG_IS_ON(2))
-        logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_mono_, "mono");
-
-      if (statusPoseMono.first == TrackingStatus::VALID) {
-        trackerStatusSummary_.lkf_T_k_mono_ = statusPoseMono.second;
-      }
-
-      ////////////////// STEREO geometric outlier rejection ////////////////
+      // STEREO geometric outlier rejection
       // get 3D points via stereo
-      start_time = UtilsOpenCV::GetTimeInSeconds();
+      start_time = utils::Timer::tic();
       stereoFrame_k_->sparseStereoMatching();
-      timeSparseStereo = UtilsOpenCV::GetTimeInSeconds() - start_time;
+      sparse_stereo_time = utils::Timer::toc(start_time).count();
 
-      std::pair<TrackingStatus, gtsam::Pose3> statusPoseStereo;
-      gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
-      if (tracker_.trackerParams_.ransac_use_1point_stereo_ &&
-          calLrectLkf_R_camLrectKf_imu && !force_53point_ransac_) {
-        // 1-point RANSAC.
-        std::tie(statusPoseStereo, infoMatStereoTranslation) =
-            tracker_.geometricOutlierRejectionStereoGivenRotation(
-                *stereoFrame_lkf_,
-                *stereoFrame_k_,
-                *calLrectLkf_R_camLrectKf_imu);
-      } else {
-        // 3-point RANSAC.
-        statusPoseStereo = tracker_.geometricOutlierRejectionStereo(
-            *stereoFrame_lkf_, *stereoFrame_k_);
-        if (force_53point_ransac_)
-          LOG(WARNING) << "3-point RANSAC was enforced!";
-      }
-
-      // Set relative pose.
-      trackerStatusSummary_.kfTrackingStatus_stereo_ = statusPoseStereo.first;
-      trackerStatusSummary_.infoMatStereoTranslation_ =
-          infoMatStereoTranslation;
-
-      if (VLOG_IS_ON(2))
-        logTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_,
-                          "stereo");
-
-      if (statusPoseStereo.first == TrackingStatus::VALID) {
-        trackerStatusSummary_.lkf_T_k_stereo_ = statusPoseStereo.second;
+      TrackingStatusPose status_pose_stereo;
+      outlierRejectionStereo(calLrectLkf_R_camLrectKf_imu,
+                             stereoFrame_lkf_,
+                             stereoFrame_k_,
+                             &status_pose_stereo);
+      if (status_pose_stereo.first == TrackingStatus::VALID) {
+        trackerStatusSummary_.lkf_T_k_stereo_ = status_pose_stereo.second;
       }
     }
     // If its been long enough, make it a keyframe
@@ -363,36 +325,33 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
 
     // Get 3D points via stereo, including newly extracted
     // (this might be only for the visualization).
-    start_time = UtilsOpenCV::GetTimeInSeconds();
+    start_time = utils::Timer::tic();
     stereoFrame_k_->sparseStereoMatching();
-    timeSparseStereo += UtilsOpenCV::GetTimeInSeconds() - start_time;
+    sparse_stereo_time += utils::Timer::toc(start_time).count();
 
     // Log images if needed.
     if (logger_ &&
-          (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
-      if (FLAGS_log_feature_tracks)
-        sendFeatureTracksToLogger();
-      if (FLAGS_log_mono_tracking_images)
-        sendStereoMatchesToLogger();
-      if (FLAGS_log_stereo_matching_images)
-        sendMonoTrackingToLogger();
+        (FLAGS_visualize_frontend_images || FLAGS_save_frontend_images)) {
+      if (FLAGS_log_feature_tracks) sendFeatureTracksToLogger();
+      if (FLAGS_log_mono_tracking_images) sendStereoMatchesToLogger();
+      if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
+    displayFeatureTracks();
 
     // Populate statistics.
     tracker_.checkStatusRightKeypoints(stereoFrame_k_->right_keypoints_status_);
 
     // Move on.
-    last_landmark_count_ = tracker_.landmark_count_;
     stereoFrame_lkf_ = stereoFrame_k_;
 
     // Get relevant info for keyframe.
-    start_time = UtilsOpenCV::GetTimeInSeconds();
+    start_time = utils::Timer::tic();
     smartStereoMeasurements = getSmartStereoMeasurements(*stereoFrame_k_);
-    timeGetMeasurements = UtilsOpenCV::GetTimeInSeconds() - start_time;
+    double get_smart_stereo_meas_time = utils::Timer::toc(start_time).count();
 
-    VLOG(2) << "timeClone: " << time_to_clone_rect_params << '\n'
-            << "timeSparseStereo: " << timeSparseStereo << '\n'
-            << "timeGetMeasurements: " << timeGetMeasurements;
+    VLOG(2) << "timeClone: " << clone_rect_params_time << '\n'
+            << "timeSparseStereo: " << sparse_stereo_time << '\n'
+            << "timeGetMeasurements: " << get_smart_stereo_meas_time;
   } else {
     stereoFrame_k_->setIsKeyframe(false);
   }
@@ -408,6 +367,71 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                      // copies, manyyyy copies: actually thousands of copies...
                      smartStereoMeasurements ? *smartStereoMeasurements
                                              : SmartStereoMeasurements()));
+}
+
+void StereoVisionFrontEnd::outlierRejectionMono(
+    const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+    Frame* left_frame_lkf,
+    Frame* left_frame_k,
+    TrackingStatusPose* status_pose_mono) {
+  CHECK_NOTNULL(status_pose_mono);
+  if (tracker_.tracker_params_.ransac_use_2point_mono_ &&
+      !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::identity()) &&
+      !force_53point_ransac_) {
+    // 2-point RANSAC.
+    *status_pose_mono = tracker_.geometricOutlierRejectionMonoGivenRotation(
+        left_frame_lkf, left_frame_k, calLrectLkf_R_camLrectKf_imu);
+  } else {
+    // 5-point RANSAC.
+    *status_pose_mono =
+        tracker_.geometricOutlierRejectionMono(left_frame_lkf, left_frame_k);
+    LOG_IF(WARNING, force_53point_ransac_) << "5-point RANSAC was forced!";
+  }
+
+  // Set relative pose.
+  trackerStatusSummary_.kfTrackingStatus_mono_ = status_pose_mono->first;
+
+  if (VLOG_IS_ON(2)) {
+    printTrackingStatus(trackerStatusSummary_.kfTrackingStatus_mono_, "mono");
+  }
+
+  if (status_pose_mono->first == TrackingStatus::VALID) {
+    trackerStatusSummary_.lkf_T_k_mono_ = status_pose_mono->second;
+  }
+}
+
+void StereoVisionFrontEnd::outlierRejectionStereo(
+    const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+    const StereoFrame::Ptr& left_frame_lkf,
+    const StereoFrame::Ptr& left_frame_k,
+    TrackingStatusPose* status_pose_stereo) {
+  CHECK(left_frame_lkf);
+  CHECK(left_frame_k);
+  CHECK_NOTNULL(status_pose_stereo);
+
+  gtsam::Matrix infoMatStereoTranslation = gtsam::Matrix3::Zero();
+  if (tracker_.tracker_params_.ransac_use_1point_stereo_ &&
+      !calLrectLkf_R_camLrectKf_imu.equals(gtsam::Rot3::identity()) &&
+      !force_53point_ransac_) {
+    // 1-point RANSAC.
+    std::tie(*status_pose_stereo, infoMatStereoTranslation) =
+        tracker_.geometricOutlierRejectionStereoGivenRotation(
+            *stereoFrame_lkf_, *stereoFrame_k_, calLrectLkf_R_camLrectKf_imu);
+  } else {
+    // 3-point RANSAC.
+    *status_pose_stereo = tracker_.geometricOutlierRejectionStereo(
+        *stereoFrame_lkf_, *stereoFrame_k_);
+    if (force_53point_ransac_) LOG(WARNING) << "3-point RANSAC was enforced!";
+  }
+
+  // Set relative pose.
+  trackerStatusSummary_.kfTrackingStatus_stereo_ = status_pose_stereo->first;
+  trackerStatusSummary_.infoMatStereoTranslation_ = infoMatStereoTranslation;
+
+  if (VLOG_IS_ON(2)) {
+    printTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_,
+                        "stereo");
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -444,11 +468,11 @@ StereoVisionFrontEnd::getSmartStereoMeasurements(
     const double& v = leftKeypoints.at(i).y;
     // Initialize to missing pixel information.
     double uR = std::numeric_limits<double>::quiet_NaN();
-    if (!tracker_.trackerParams_.useStereoTracking_) {
+    if (!tracker_.tracker_params_.useStereoTracking_) {
       LOG(WARNING) << "getSmartStereoMeasurements: dropping stereo information!"
                       " (set useStereoTracking_ = true to use it)";
     }
-    if (tracker_.trackerParams_.useStereoTracking_ &&
+    if (tracker_.tracker_params_.useStereoTracking_ &&
         rightKeypoints_status.at(i) == KeypointStatus::VALID) {
       // TODO implicit conversion float to double increases floating-point
       // precision!
@@ -461,14 +485,31 @@ StereoVisionFrontEnd::getSmartStereoMeasurements(
 }
 
 /* -------------------------------------------------------------------------- */
+void StereoVisionFrontEnd::displayFeatureTracks() const {
+  const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
+  cv::Mat img_left =
+      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
+  VisualizerOutput::UniquePtr visualizer_output =
+      VIO::make_unique<VisualizerOutput>();
+  ImageToDisplay tracker_image("Tracker Image", img_left);
+  visualizer_output->images_to_display_.push_back(tracker_image);
+  visualizer_output->visualization_type_ = VisualizationType::kNone;
+  CHECK(display_queue_);
+  display_queue_->push(std::move(visualizer_output));
+}
+
+/* -------------------------------------------------------------------------- */
 void StereoVisionFrontEnd::sendFeatureTracksToLogger() const {
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
-  cv::Mat img_left = tracker_.getTrackerImage(
-      stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
+  cv::Mat img_left =
+      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
 
-  logger_->logFrontendImg(left_frame_k.id_, img_left,
-      "monoFeatureTracksLeft", "/monoFeatureTracksLeftImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(left_frame_k.id_,
+                          img_left,
+                          "monoFeatureTracksLeft",
+                          "/monoFeatureTracksLeftImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -478,8 +519,8 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
   const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
   const Frame& right_frame_k(stereoFrame_k_->getRightFrame());
 
-  cv::Mat img_left = tracker_.getTrackerImage(
-      stereoFrame_lkf_->getLeftFrame(), left_frame_k, false);
+  cv::Mat img_left =
+      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
 
   if ((left_frame_k.img_.cols != right_frame_k.img_.cols) ||
       (left_frame_k.img_.rows != right_frame_k.img_.rows)) {
@@ -512,13 +553,19 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
                                       right_frame_k.keypoints_,
                                       matches,
                                       false);  // true: random color
-  cv::putText(img_left_right, "S:" + std::to_string(keyframe_count_),
-              KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.6,
+  cv::putText(img_left_right,
+              "S:" + std::to_string(keyframe_count_),
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
               cv::Scalar(0, 255, 0));
 
-  logger_->logFrontendImg(left_frame_k.id_, img_left_right,
-      "stereoMatchingUnrectified", "/stereoMatchingUnrectifiedImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(left_frame_k.id_,
+                          img_left_right,
+                          "stereoMatchingUnrectified",
+                          "/stereoMatchingUnrectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
   //############################################################################
 
   // Display rectified, plot matches.
@@ -530,12 +577,18 @@ void StereoVisionFrontEnd::sendStereoMatchesToLogger() const {
       matches,
       false);  // true: random color
   cv::putText(img_left_right_rectified,
-              "S(Rect):" + std::to_string(keyframe_count_), KeypointCV(10, 15),
-              CV_FONT_HERSHEY_COMPLEX, 0.6, cv::Scalar(0, 255, 0));
+              "S(Rect):" + std::to_string(keyframe_count_),
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
+              cv::Scalar(0, 255, 0));
 
-  logger_->logFrontendImg(left_frame_k.id_, img_left_right_rectified,
-      "stereoMatchingRectified", "/stereoMatchingRectifiedImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(left_frame_k.id_,
+                          img_left_right_rectified,
+                          "stereoMatchingRectified",
+                          "/stereoMatchingRectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -569,12 +622,17 @@ void StereoVisionFrontEnd::sendMonoTrackingToLogger() const {
   cv::putText(img_left_lkf_kf,
               "M:" + std::to_string(keyframe_count_ - 1) + "-" +
                   std::to_string(keyframe_count_),
-              KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.6,
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
               cv::Scalar(0, 255, 0));
 
-  logger_->logFrontendImg(cur_left_frame.id_, img_left_lkf_kf,
-      "monoTrackingUnrectified", "/monoTrackingUnrectifiedImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(cur_left_frame.id_,
+                          img_left_lkf_kf,
+                          "monoTrackingUnrectified",
+                          "/monoTrackingUnrectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
   //############################################################################
 
   // Display rectified, plot matches.
@@ -588,12 +646,17 @@ void StereoVisionFrontEnd::sendMonoTrackingToLogger() const {
   cv::putText(img_left_lkf_kf_rectified,
               "M(Rect):" + std::to_string(keyframe_count_ - 1) + "-" +
                   std::to_string(keyframe_count_),
-              KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.6,
+              KeypointCV(10, 15),
+              CV_FONT_HERSHEY_COMPLEX,
+              0.6,
               cv::Scalar(0, 255, 0));
 
-  logger_->logFrontendImg(cur_left_frame.id_, img_left_lkf_kf_rectified,
-      "monoTrackingRectified", "/monoTrackingRectifiedImg/",
-      FLAGS_visualize_frontend_images, FLAGS_save_frontend_images);
+  logger_->logFrontendImg(cur_left_frame.id_,
+                          img_left_lkf_kf_rectified,
+                          "monoTrackingRectified",
+                          "/monoTrackingRectifiedImg/",
+                          FLAGS_visualize_frontend_images,
+                          FLAGS_save_frontend_images);
   // TODO Visualization must be done in the main thread.
 }
 
@@ -624,10 +687,10 @@ gtsam::Pose3 StereoVisionFrontEnd::getRelativePoseBodyStereo() const {
 void StereoVisionFrontEnd::printStatusStereoMeasurements(
     const StatusStereoMeasurements& statusStereoMeasurements) {
   LOG(INFO) << " SmartStereoMeasurements with status:";
-  logTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_mono_,
-                    "mono");
-  logTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_stereo_,
-                    "stereo");
+  printTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_mono_,
+                      "mono");
+  printTrackingStatus(statusStereoMeasurements.first.kfTrackingStatus_stereo_,
+                      "stereo");
   LOG(INFO) << " observing landmarks:";
   const SmartStereoMeasurements& smartStereoMeas =
       statusStereoMeasurements.second;

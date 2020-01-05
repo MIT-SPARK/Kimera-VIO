@@ -7,10 +7,9 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   StereoVisionFrontEnd.cpp
- * @brief  Class describing a stereo tracker
+ * @file   VisionFrontEndFactory.cpp
+ * @brief  Factory of vision frontends.
  * @author Antoni Rosinol
- * @author Luca Carlone
  */
 
 #include "kimera-vio/frontend/VisionFrontEndFactory.h"
@@ -24,11 +23,17 @@ StereoVisionFrontEnd::UniquePtr VisionFrontEndFactory::createFrontend(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
     const VioFrontEndParams& frontend_params,
+    const CameraParams& camera_params,
+    DisplayQueue* display_queue,
     bool log_output) {
   switch (frontend_type) {
     case FrontendType::StereoImu: {
-      return VIO::make_unique<StereoVisionFrontEnd>(
-          imu_params, imu_initial_bias, frontend_params, log_output);
+      return VIO::make_unique<StereoVisionFrontEnd>(imu_params,
+                                                    imu_initial_bias,
+                                                    frontend_params,
+                                                    camera_params,
+                                                    display_queue,
+                                                    log_output);
     }
     default: {
       LOG(FATAL) << "Requested fronetnd type is not supported.\n"

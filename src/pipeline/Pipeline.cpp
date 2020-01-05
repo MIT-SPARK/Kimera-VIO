@@ -15,6 +15,7 @@
 #include "kimera-vio/pipeline/Pipeline.h"
 
 #include <future>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -32,6 +33,7 @@
 #include "kimera-vio/mesh/MesherFactory.h"
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/visualizer/DisplayFactory.h"
 #include "kimera-vio/visualizer/Visualizer3DFactory.h"
 
 DEFINE_bool(log_output, false, "Log output to CSV files.");
@@ -106,6 +108,7 @@ Pipeline::Pipeline(const VioParams& params)
       imu_params_(params.imu_params_),
       mesher_module_(nullptr),
       visualizer_module_(nullptr),
+      display_module_(nullptr),
       frontend_thread_(nullptr),
       backend_thread_(nullptr),
       mesher_thread_(nullptr),
@@ -115,7 +118,9 @@ Pipeline::Pipeline(const VioParams& params)
       stereo_frontend_input_queue_("stereo_frontend_input_queue"),
       initialization_frontend_output_queue_(
           "initialization_frontend_output_queue"),
-      backend_input_queue_("backend_input_queue") {
+      backend_input_queue_("backend_input_queue"),
+      display_input_queue_("display_input_queue"),
+      display_output_queue_("display_output_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
 
   //! Create Stereo Camera
@@ -144,6 +149,8 @@ Pipeline::Pipeline(const VioParams& params)
                                             params.imu_params_,
                                             gtsam::imuBias::ConstantBias(),
                                             params.frontend_params_,
+                                            params.camera_params_.at(0),
+                                            &display_input_queue_,
                                             FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerCallback(
@@ -205,6 +212,8 @@ Pipeline::Pipeline(const VioParams& params)
 
   if (FLAGS_visualize) {
     visualizer_module_ = VIO::make_unique<VisualizerModule>(
+        //! Send ouput of visualizer to the display_input_queue_
+        &display_input_queue_,
         parallel_run_,
         VisualizerFactory::createVisualizer(
             VisualizerType::OpenCV,
@@ -225,8 +234,11 @@ Pipeline::Pipeline(const VioParams& params)
                   std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                   std::placeholders::_1));
     //! Actual displaying of visual data is done in the main thread.
-    visualizer_module_->registerCallback(std::bind(
-        &Pipeline::spinDisplayOnce, std::cref(*this), std::placeholders::_1));
+    display_module_ = VIO::make_unique<DisplayModule>(
+        &display_input_queue_,
+        &display_output_queue_,
+        parallel_run_,
+        DisplayFactory::makeDisplay(DisplayType::kOpenCV));
   }
 
   if (FLAGS_use_lcd) {
@@ -281,9 +293,9 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
     CHECK(is_launched_);
 
     // Initialize pipeline.
-    // TODO this is very brittle, because we are accumulating IMU data, but
-    // not using it for initialization, because accumulated and actual IMU data
-    // at init is the same...
+    // TODO(Toni) this is very brittle, because we are accumulating IMU data,
+    // but not using it for initialization, because accumulated and actual IMU
+    // data at init is the same...
     if (initialize(*stereo_imu_sync_packet)) {
       LOG(INFO) << "Before launching threads.";
       launchRemainingThreads();
@@ -294,7 +306,7 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
     }
   } else {
     // SEND INFO TO FRONTEND, here is when we are in nominal mode.
-    // TODO Warning: we do not accumulate IMU measurements for the first
+    // TODO(Toni) Warning: we do not accumulate IMU measurements for the first
     // packet... Spin.
     CHECK(is_initialized_);
 
@@ -312,8 +324,8 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
 // Returns whether the visualizer_ is running or not. While in parallel mode,
 // it does not return unless shutdown.
 bool Pipeline::spinViz() {
-  if (visualizer_module_) {
-    return visualizer_module_->spin();
+  if (display_module_) {
+    return display_module_->spin();
   }
   return true;
 }
@@ -335,9 +347,11 @@ void Pipeline::spinSequential() {
   if (lcd_module_) lcd_module_->spin();
 
   if (visualizer_module_) visualizer_module_->spin();
+
+  if (display_module_) display_module_->spin();
 }
 
-// TODO: Adapt this function to be able to cope with new initialization
+// TODO(Toni): Adapt this function to be able to cope with new initialization
 /* -------------------------------------------------------------------------- */
 bool Pipeline::shutdownWhenFinished() {
   // This is a very rough way of knowing if we have finished...
@@ -366,7 +380,8 @@ bool Pipeline::shutdownWhenFinished() {
             backend_input_queue_.empty() && !vio_backend_module_->isWorking() &&
             (mesher_module_ ? !mesher_module_->isWorking() : true) &&
             (lcd_module_ ? !lcd_module_->isWorking() : true) &&
-            (visualizer_module_ ? !visualizer_module_->isWorking() : true)))) {
+            (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
+            (display_module_ ? !display_module_->isWorking() : true)))) {
     VLOG(5) << "shutdown_: " << shutdown_ << '\n'
             << "VIO pipeline status: \n"
             << "Initialized? " << is_initialized_ << '\n'
@@ -389,6 +404,9 @@ bool Pipeline::shutdownWhenFinished() {
 
     VLOG_IF(5, visualizer_module_)
         << "Visualizer is working? " << visualizer_module_->isWorking();
+
+    VLOG_IF(5, display_module_)
+        << "Visualizer is working? " << display_module_->isWorking();
 
     std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
   }
@@ -449,7 +467,7 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO: Adapt and create better re-initialization (online) function
+// TODO(Toni): Adapt and create better re-initialization (online) function
 void Pipeline::checkReInitialize(
     const StereoImuSyncPacket& stereo_imu_sync_packet) {
   // Re-initialize pipeline if requested
@@ -475,7 +493,8 @@ void Pipeline::checkReInitialize(
     vio_backend_module_->restart();
     mesher_module_->restart();
     if (lcd_module_) lcd_module_->restart();
-    visualizer_module_->restart();
+    if (visualizer_module_) visualizer_module_->restart();
+    if (display_module_) display_module_->restart();
     // Resume pipeline
     resume();
     initialization_frontend_output_queue_.resume();
@@ -534,7 +553,7 @@ bool Pipeline::initializeFromIMU(
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO (Toni): move this as much as possible inside initialization...
+// TODO(Toni): move this as much as possible inside initialization...
 bool Pipeline::initializeOnline(
     const StereoImuSyncPacket& stereo_imu_sync_packet) {
   int frame_id = stereo_imu_sync_packet.getStereoFrame().getFrameId();
@@ -556,7 +575,8 @@ bool Pipeline::initializeOnline(
   // Enforce stereo frame as keyframe for initialization
   StereoFrame stereo_frame = stereo_imu_sync_packet.getStereoFrame();
   stereo_frame.setIsKeyframe(true);
-  // TODO: this is copying the packet implicitly, just to set a flag to true.
+  // TODO(Toni): this is copying the packet implicitly, just to set a flag to
+  // true.
   StereoImuSyncPacket::UniquePtr stereo_imu_sync_init =
       VIO::make_unique<StereoImuSyncPacket>(
           stereo_frame,
@@ -693,24 +713,6 @@ bool Pipeline::initializeOnline(
 }
 
 /* -------------------------------------------------------------------------- */
-void Pipeline::spinDisplayOnce(const VisualizerOutput::Ptr& viz_output) const {
-  // Display 3D window.
-  if (viz_output->visualization_type_ != VisualizationType::kNone) {
-    VLOG(10) << "Spin Visualize 3D output.";
-    // visualizer_output_payload->window_.spin();
-    CHECK(!viz_output->window_.wasStopped());
-    viz_output->window_.spinOnce(1, true);
-  }
-
-  // Display 2D images.
-  for (const ImageToDisplay& img_to_display : viz_output->images_to_display_) {
-    cv::imshow(img_to_display.name_, img_to_display.image_);
-  }
-  VLOG(10) << "Spin Visualize 2D output.";
-  cv::waitKey(1);
-}
-
-/* -------------------------------------------------------------------------- */
 StatusStereoMeasurements Pipeline::featureSelect(
     const VioFrontEndParams& tracker_params,
     const FeatureSelectorParams& feature_selector_params,
@@ -799,12 +801,10 @@ void Pipeline::launchRemainingThreads() {
           &LcdModule::spin, CHECK_NOTNULL(lcd_module_.get()));
     }
 
-    // TODO(Toni): visualizer thread is run in main thread.
-    //// Start visualizer_thread.
-    // if (visualizer_module_) {
-    //  visualizer_thread_ = VIO::make_unique<std::thread>(
-    //      &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
-    //}
+    if (visualizer_module_) {
+      visualizer_thread_ = VIO::make_unique<std::thread>(
+          &VisualizerModule::spin, CHECK_NOTNULL(visualizer_module_.get()));
+    }
 
     LOG(INFO) << "Backend, mesher and visualizer launched (parallel_run set to "
               << parallel_run_ << ").";
@@ -860,6 +860,9 @@ void Pipeline::stopThreads() {
 
   LOG(INFO) << "Stopping visualizer module and queues...";
   if (visualizer_module_) visualizer_module_->shutdown();
+
+  LOG(INFO) << "Stopping display module and queues...";
+  if (display_module_) display_module_->shutdown();
 
   LOG(INFO) << "Sent stop flag to all module and queues...";
 }

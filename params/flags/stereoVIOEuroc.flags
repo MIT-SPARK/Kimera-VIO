@@ -7,7 +7,7 @@
 --visualize_lmk_type=false
 --visualize_mesh=true
 --visualize_mesh_with_colored_polygon_clusters=false
---visualize_point_cloud=false
+--visualize_point_cloud=true
 --visualize_convex_hull=false
 --visualize_plane_constraints=false
 --visualize_planes=false

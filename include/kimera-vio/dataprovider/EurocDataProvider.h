@@ -26,6 +26,7 @@
 #include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
 
+#include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/dataprovider/DataProviderInterface-definitions.h"
 #include "kimera-vio/dataprovider/DataProviderInterface.h"
 #include "kimera-vio/frontend/Frame.h"

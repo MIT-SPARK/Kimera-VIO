@@ -18,9 +18,11 @@
 
 namespace VIO {
 
-VisualizerModule::VisualizerModule(bool parallel_run,
+VisualizerModule::VisualizerModule(OutputQueue* output_queue,
+                                   bool parallel_run,
                                    Visualizer3D::UniquePtr visualizer)
-    : MIMOPipelineModule<VisualizerInput, VisualizerOutput>("Visualizer",
+    : MISOPipelineModule<VisualizerInput, VisualizerOutput>(output_queue,
+                                                            "Visualizer",
                                                             parallel_run),
       frontend_queue_("visualizer_frontend_queue"),
       backend_queue_("visualizer_backend_queue"),
@@ -75,12 +77,16 @@ void VisualizerModule::shutdownQueues() {
   frontend_queue_.shutdown();
   backend_queue_.shutdown();
   mesher_queue_.shutdown();
+  // This shutdowns the output queue as well.
+  MISO::shutdownQueues();
 };
 
 //! Checks if the module has work to do (should check input queues are empty)
 bool VisualizerModule::hasWork() const {
-  LOG_IF(WARNING, mesher_queue_.empty() && !backend_queue_.empty())
-      << "Mesher queue is empty, yet backend queue is not!"
+  LOG_IF(WARNING,
+         mesher_queue_.empty() &&
+             (!backend_queue_.empty() || !frontend_queue_.empty()))
+      << "Mesher queue is empty, yet backend or frontend queue is not!"
          "This should not happen since Mesher runs at Backend pace!";
   // We don't check frontend queue because it runs faster than the other two
   // queues.

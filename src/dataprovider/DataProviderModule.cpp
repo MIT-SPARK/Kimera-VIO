@@ -94,7 +94,7 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
         return nullptr;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable: {
-        LOG_EVERY_N(WARNING, 100)
+        LOG_EVERY_N(WARNING, 1000)
             << "No IMU data from last frame timestamp: " << timestamp_last_frame
             << " to timestamp: " << timestamp;
         continue;

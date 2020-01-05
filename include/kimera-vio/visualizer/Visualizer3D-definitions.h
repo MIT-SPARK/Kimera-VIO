@@ -18,6 +18,8 @@
 
 #include <glog/logging.h>
 
+#include <opencv2/viz/widgets.hpp>
+
 #include <gtsam/geometry/Pose3.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 #include <gtsam/nonlinear/Values.h>
@@ -72,16 +74,24 @@ struct ImageToDisplay {
   cv::Mat image_;
 };
 
+typedef std::unique_ptr<cv::viz::Widget3D> WidgetPtr;
+typedef std::unordered_map<std::string, WidgetPtr> WidgetsMap;
+
 struct VisualizerOutput {
   KIMERA_POINTER_TYPEDEFS(VisualizerOutput);
   KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerOutput);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  VisualizerOutput() = default;
+  VisualizerOutput()
+      : visualization_type_(VisualizationType::kNone),
+        images_to_display_(),
+        widgets_(),
+        frustum_pose_(cv::Affine3d::Identity()) {}
   ~VisualizerOutput() = default;
 
-  VisualizationType visualization_type_ = VisualizationType::kNone;
+  VisualizationType visualization_type_;
   std::vector<ImageToDisplay> images_to_display_;
-  cv::viz::Viz3d window_ = cv::viz::Viz3d("3D Visualizer");
+  WidgetsMap widgets_;
+  cv::Affine3d frustum_pose_;
 };
 
 enum class VisualizerType {

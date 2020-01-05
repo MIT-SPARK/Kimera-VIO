@@ -1264,7 +1264,7 @@ StereoFrame::LandmarkInfo StereoFrame::getLandmarkInfo(
     if (left_frame_.landmarks_.at(ind) == i) {  // this is the desired landmark
       lInfo.keypoint = left_frame_.keypoints_.at(ind);
       lInfo.score = left_frame_.scores_.at(ind);
-      lInfo.age = left_frame_.landmarksAge_.at(ind);
+      lInfo.age = left_frame_.landmarks_age_.at(ind);
       lInfo.keypoint_3d = keypoints_3d_.at(ind);
       return lInfo;
     }

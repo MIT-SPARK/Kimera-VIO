@@ -32,6 +32,8 @@ class VisionFrontEndFactory {
       const ImuParams& imu_params,
       const ImuBias& imu_initial_bias,
       const VioFrontEndParams& frontend_params,
+      const CameraParams& camera_params,
+      DisplayQueue* display_queue,
       bool log_output);
 };
 

@@ -108,6 +108,7 @@ enum class TrackingStatus {
   INVALID,
   DISABLED
 };
+typedef std::pair<TrackingStatus, gtsam::Pose3> TrackingStatusPose;
 
 ////////////////////////////////////////////////////////////////////////////////
 class TrackerStatusSummary {
@@ -143,4 +144,7 @@ public:
   gtsam::Matrix3 infoMatStereoTranslation_;
 };
 
+typedef double KeypointScore;
+typedef std::vector<double> KeypointScores;
+typedef std::pair<KeypointsCV, KeypointScores> KeypointsWithScores;
 } // End of VIO namespace.

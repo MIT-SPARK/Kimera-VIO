@@ -42,6 +42,9 @@ pipeline {
               steps {
                 wrap([$class: 'Xvfb']) {
                   sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+
+                  // Process the CTest xml output
+                  junit 'build/testresults.xml'
                 }
               }
             }
@@ -135,6 +138,9 @@ pipeline {
               steps {
                 wrap([$class: 'Xvfb']) {
                   sh 'cd build && ./testKimeraVIO --gtest_output="xml:testresults.xml"'
+
+                  // Process the CTest xml output
+                  junit 'build/testresults.xml'
                 }
               }
             }
@@ -148,8 +154,6 @@ pipeline {
       node(null) {
         echo 'Jenkins Finished'
 
-        // Process the CTest xml output
-        junit 'build/testresults.xml'
 
         // Clear the source and build dirs before the next run
         deleteDir()

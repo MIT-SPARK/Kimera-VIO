@@ -33,6 +33,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 DECLARE_string(test_data_path);
@@ -635,8 +636,8 @@ TEST_F(UtilsOpenCVFixture, DISABLED_ExtractCornersChessboard) {
   std::vector<KeypointCV> actualCorners, actualCorners2;
   std::vector<double> actualScores;
   std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  UtilsOpenCV::MyGoodFeaturesToTrackSubPix(img, 100, 0.01, 10, Mat(), 3, false,
-                                           0.04, &corners_with_scores);
+  Tracker::MyGoodFeaturesToTrackSubPix(
+      img, 100, 0.01, 10, Mat(), 3, false, 0.04, &corners_with_scores);
 
   UtilsOpenCV::ExtractCorners(img, &actualCorners2);
 
@@ -657,7 +658,7 @@ TEST_F(UtilsOpenCVFixture, ExtractCornersImage) {
   cv::Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(real_img_path_);
 
   std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  UtilsOpenCV::MyGoodFeaturesToTrackSubPix(
+  Tracker::MyGoodFeaturesToTrackSubPix(
       img, 100, 0.01, 10, cv::Mat(), 3, false, 0.04, &corners_with_scores);
 
   std::vector<KeypointCV> actualCorners2;

@@ -14,9 +14,11 @@
 
 #include "kimera-vio/logging/Logger.h"
 
-#include <boost/foreach.hpp>
 #include <memory>
 #include <string>
+
+#include <boost/foreach.hpp>
+#include <boost/filesystem.hpp>  // to create folders
 
 #include <gflags/gflags.h>
 
