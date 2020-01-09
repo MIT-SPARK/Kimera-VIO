@@ -9,13 +9,13 @@
 
   <buildtool_depend>cmake</buildtool_depend>
 
-  <depend>kimera_rpgo</depend>
-  <depend>gflags</depend>
-  <depend>glog</depend>
+  <depend>dbow2</depend>
   <depend>gtsam</depend>
+  <depend>kimera_rpgo</depend>
+  <depend>libgflags-dev</depend>
+  <depend>libgoogle-glog-dev</depend>
   <depend>libopencv-dev</depend>
   <depend>opengv</depend>
-  <depend>dbow2</depend>
   <export>
     <!-- Specify that this is not really a catkin package-->
     <build_type>cmake</build_type>
