@@ -9,11 +9,11 @@
 
   <buildtool_depend>cmake</buildtool_depend>
 
-  <depend>KimeraRPGO</depend>
-  <depend>GTSAM</depend>
+  <depend>kimera_rpgo</depend>
   <depend>gflags</depend>
   <depend>glog</depend>
-  <depend>opencv</depend>
+  <depend>gtsam</depend>
+  <depend>libopencv-dev</depend>
   <depend>opengv</depend>
   <depend>dbow2</depend>
   <export>
@@ -21,4 +21,3 @@
     <build_type>cmake</build_type>
   </export>
 </package>
-
