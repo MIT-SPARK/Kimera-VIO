@@ -15,7 +15,7 @@
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
 #include <stdlib.h>
-#include <sys/time.h>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -563,10 +563,15 @@ std::int64_t UtilsOpenCV::SecToNsec(const double timeInSec) {
 /* -------------------------------------------------------------------------- */
 // (NOT TESTED): get current time in seconds
 double UtilsOpenCV::GetTimeInSeconds() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  int64_t time_usec = tv.tv_sec * (int64_t)1e6 + tv.tv_usec;
-  return ((double)time_usec * 1e-6);
+  // struct timeval tv;
+  // gettimeofday(&tv, NULL);
+  // int64_t time_usec = tv.tv_sec * (int64_t)1e6 + tv.tv_usec;
+  // return ((double)time_usec * 1e-6);
+  std::chrono::time_point<std::chrono::system_clock> s;
+  std::chrono::time_point<std::chrono::system_clock> s1;
+  s = std::chrono::system_clock::now();
+  double t_val = std::chrono::duration_cast<std::chrono::seconds>(s-s1).count();
+  return t_val;
 }
 /* -------------------------------------------------------------------------- */
 // given two gtsam::Pose3 computes the relative rotation and translation errors:

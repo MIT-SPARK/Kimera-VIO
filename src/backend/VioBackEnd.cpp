@@ -218,7 +218,14 @@ void VioBackEnd::initStateAndSetPriors(
             << " - Initial pose: " << W_Pose_B_lkf_ << '\n'
             << " - Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
             << " - Initial IMU bias: " << imu_bias_lkf_;
-
+  
+			  std::ofstream imuout("E:\\kimera_new\\imu_out.txt",std::ios::app);
+			  imuout << " - Initial pose: " <<  W_Pose_B_lkf_ << ","
+					 << " - Initial vel: "  << W_Vel_B_lkf_.transpose() << ","
+					 << " - Initial IMU bias: " << imu_bias_lkf_ << ",";
+  
+			  imuout.close();
+  
   // Can't add inertial prior factor until we have a state measurement.
   addInitialPriorFactors(curr_kf_id_);
 

@@ -1054,7 +1054,7 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
     // get depth from RGBD
     float depth_from_RGBD =
         depth_map_factor *
-        float(right_img_rectified_.at<u_int16_t>(round(left_rectified_i.y),
+        float(right_img_rectified_.at<unsigned short>(round(left_rectified_i.y),
                                                  round(left_rectified_i.x)));
 
     // get disparity from RGBD

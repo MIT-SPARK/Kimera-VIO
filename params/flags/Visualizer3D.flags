@@ -1,7 +1,7 @@
 #!/bin/bash
 # Visualizer 3D parameters.
 --mesh_shading=0
---mesh_representation=1
+--mesh_representation=0
 --set_mesh_lighting=true
 --set_mesh_ambient=false
 --log_mesh=false

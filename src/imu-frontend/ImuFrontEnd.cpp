@@ -14,7 +14,6 @@
  */
 
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
-
 #include <glog/logging.h>
 
 #include "kimera-vio/common/vio_types.h"
@@ -197,9 +196,9 @@ ImuFrontEnd::generateCombinedImuParams(const ImuParams& imu_params) {
       gtsam_imu_params.getIntegrationCovariance());
   combined_imu_params->setAccelerometerCovariance(
       gtsam_imu_params.getAccelerometerCovariance());
-  ///< covariance of bias used for pre-integration
-  // TODO(Toni): how come we are initializing like this?
-  // We should parametrize perhaps this as well.
+  /// < covariance of bias used for pre-integration
+  //  TODO(Toni): how come we are initializing like this?
+  //  We should parametrize perhaps this as well.
   combined_imu_params->biasAccOmegaInt = gtsam::I_6x6;
   ///< continuous-time "Covariance" describing
   ///< accelerometer bias random walk

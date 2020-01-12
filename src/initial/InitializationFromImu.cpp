@@ -49,6 +49,18 @@ VioNavState InitializationFromImu::getInitialStateEstimate(
 
   // Guess IMU bias. Assumes static vehicle!
   ImuBias imu_bias_guess = guessImuBias(mean_accgyr, local_gravity);
+   
+  //هنا بياخد المييين بتاع الماتريكس و يجمع علي اول تلاتة 
+  // يجمع اول تلاتة اليمينتس علي اللوكال جرافيتي اللي جابها
+  // الداتا بتاعة الجيروسكوب بتفضل زي ما هي يسطي
+  //ImuBias imu_bias_guess = guessImuBias(mean_accgyr, local_gravity);
+  //// write code here 
+  //std::ofstream imuout("E:\\kimera_new\\Kimera-VIO\\imu_out.txt",std::ios::app);
+  //imuout << initial_pose_guess << ","
+  //       << velocity_guess << ","
+  //       << imu_bias_guess << ",";
+  //
+  //imuout.close();
 
   // Return estimated state.
   return VioNavState(initial_pose_guess, velocity_guess, imu_bias_guess);

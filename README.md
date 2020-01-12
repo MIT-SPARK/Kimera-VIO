@@ -78,7 +78,13 @@ Tested on Mac, Ubuntu 14.04 & 16.04 & 18.04.
 ## Installation Instructions
 
 Find how to install Kimera-VIO and its dependencies here: **[Installation instructions](./docs/kimeravio_installation.md)**.
+ install Kimera-RPGO from the below link to build in windows
+  https://github.com/omarosamahu/Kimera-RPGO.git
+ install GTSAM from the below link to build in windows 
+  https://github.com/omarosamahu/gtsam.git
 
+ Note:
+  change pathes in CMakeSettings.json in both
 # 2. Usage
 
 ## General tips
@@ -170,5 +176,6 @@ Also, check [tips for development](./docs/tips_development.md) and our **[develo
 ![overall_chart](./docs/media/kimera_chart_23.jpeg)
 
 # 7. BSD License
+
 
 Kimera-VIO is open source under the BSD license, see the [LICENSE.BSD](LICENSE.BSD) file.

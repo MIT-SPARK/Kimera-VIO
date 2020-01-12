@@ -4,7 +4,7 @@
 
 # Specify path of the EuRoC dataset.
 # The path can be absolute, or relative to this file location.
-DATASET_PATH="/path/to/euroc/dataset"
+DATASET_PATH="E:/kimera-slam/SLAM-Data/Datasets/MH_05_difficult"
 
 # Specify: 1 to use Regular VIO, 0 to use Normal VIO with default parameters.
 USE_REGULAR_VIO=0
@@ -16,7 +16,7 @@ DATASET_TYPE=0
 PARALLEL_RUN=1
 
 # Specify: 1 to enable the LoopClosureDetector, 0 to not.
-USE_LCD=0
+USE_LCD=1
 
 # Specify: 1 to enable logging of output files, 0 to not.
 LOG_OUTPUT=0
@@ -89,8 +89,8 @@ fi
 
 # Change directory to parent path, in order to make this script
 # independent of where we call it from.
-parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
-cd "$parent_path"
+parent_path=$( cd  $(dirname ${BASH_SOURCE[0]}) ; pwd -P )
+cd $parent_path
 
 echo """ Launching:
 
@@ -106,11 +106,11 @@ echo """ Launching:
 # Execute stereoVIOEuroc with given flags.
 # The flag --help will provide you with information about what each flag
 # does.
-$BUILD_PATH/stereoVIOEuroc \
+E:/kimera_new/Kimera-VIO/out/build/x64-Release/stereoVIOEuroc.exe \
   --dataset_type="$DATASET_TYPE" \
   --dataset_path="$DATASET_PATH" \
   --initial_k=50 \
-  --final_k=2000 \
+  --final_k=20000 \
   --backend_type="$BACKEND_TYPE" \
   --left_cam_params_path="$PARAMS_PATH/LeftCameraParams.yaml" \
   --right_cam_params_path="$PARAMS_PATH/RightCameraParams.yaml" \
@@ -134,6 +134,7 @@ $BUILD_PATH/stereoVIOEuroc \
   --vmodule=Pipeline*=00 \
   --log_output="$LOG_OUTPUT" \
   --output_path="$OUTPUT_PATH"
+
 
 # If in debug mode, you can run gdb to trace problems.
 #export DATASET_PATH=/home/tonirv/datasets/euroc/EuRoC/V1_01_easy

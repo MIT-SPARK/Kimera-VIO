@@ -2,7 +2,7 @@
 # Mesher parameters.
 # General functionality for the mesher.
 --add_extra_lmks_from_stereo=true
---reduce_mesh_to_time_horizon=true
+--reduce_mesh_to_time_horizon=false
 --compute_per_vertex_normals=false
 
 # Visualization.
