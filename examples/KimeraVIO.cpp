@@ -35,6 +35,11 @@ DEFINE_int32(dataset_type,
              "1: Kitti");
 
 int main(int argc, char* argv[]) {
+  	  
+  
+
+  
+
   // Initialize Google's flags library.
   google::ParseCommandLineFlags(&argc, &argv, true);
   // Initialize Google's logging library.

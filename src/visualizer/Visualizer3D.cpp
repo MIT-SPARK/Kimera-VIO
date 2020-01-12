@@ -506,7 +506,7 @@ void Visualizer3D::visualizePoints3D(
   if (color_the_cloud) {
     cloud_widget = cv::viz::WCloud(point_cloud, point_cloud_color);
   }
-  cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 6);
+  cloud_widget.setRenderingProperty(cv::viz::POINT_SIZE, 1);
 
   window_data_.window_.showWidget("Point cloud.", cloud_widget);
 }
@@ -633,7 +633,7 @@ void Visualizer3D::visualizeMesh3D(const cv::Mat& map_points_3d,
     case 0: {
       mesh.setRenderingProperty(cv::viz::REPRESENTATION,
                                 cv::viz::REPRESENTATION_POINTS);
-      mesh.setRenderingProperty(cv::viz::POINT_SIZE, 8);
+      mesh.setRenderingProperty(cv::viz::POINT_SIZE, 1);
       break;
     }
     case 1: {

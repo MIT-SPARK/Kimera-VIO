@@ -1,0 +1,58 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "variables": [
+        
+      ],
+      "cmakeToolchain": "PATH_TO_TOOLCHAIN"
+    },
+    {
+      "name": "x64-Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "GTSAM_DIR",
+          "value": "PATH_TO_INSTALLED_GTSAM_DIR",
+          "type": "PATH"
+        },
+        {
+          "name": "DBoW2_DIR",
+          "value": "PATH_TO_INSTALLED_DBoW2_DIR",
+          "type": "PATH"
+        },
+        {
+          "name": "opengv_DIR",
+          "value": "PATH_TO_INSTALLED_opengv_DIR",
+          "type": "PATH"
+        },
+        {
+          "name": "KimeraRPGO_DIR",
+          "value": "PATH_TO_INSTALLED_KimeraRPGO_DIR",
+          "type": "PATH"
+        },
+        {
+          "name": "BUILD_TESTS",
+          "value": "False",
+          "type": "BOOL"
+        }
+      ],
+      "cmakeToolchain": "PATH_TO_TOOLCHAIN"
+    }
+  ]
+}

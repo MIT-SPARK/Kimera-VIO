@@ -168,7 +168,7 @@ bool EurocDataProvider::parseImuData(const std::string& input_dataset_path,
   Timestamp previous_timestamp = -1;
 
   // Read/store imu measurements, line by line.
-  ImuMeasurements imu_meas;
+  //ImuMeasurements imu_meas;
   CHECK(imu_single_callback_) << "Did you forget to register the IMU callback?";
   while (std::getline(fin, line)) {
     Timestamp timestamp = 0;

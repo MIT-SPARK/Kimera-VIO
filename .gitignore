@@ -26,3 +26,6 @@
 
 % Ignore large vocabulary files
 /vocabulary/*
+
+create_json.py
+vcpkg.py
