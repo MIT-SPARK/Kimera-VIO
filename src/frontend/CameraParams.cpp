@@ -14,10 +14,12 @@
 
 #include "kimera-vio/frontend/CameraParams.h"
 
-#include <iostream>
-#include <fstream>
-
 #include <gtsam/navigation/ImuBias.h>
+
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
 
 namespace VIO {
 
@@ -50,7 +52,8 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 
   // Create gtsam calibration object.
   // Calibration of a camera with radial distortion that also supports
-  createGtsamCalibration(distortion_coeff_, intrinsics_, &calibration_);
+  createGtsamCalibration(
+      distortion_model_, distortion_coeff_, intrinsics_, &distortion_);
 
   // P_ = R_rectify_ * camera_matrix_;
   return true;
@@ -146,30 +149,26 @@ void CameraParams::convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO(Toni) : Check if equidistant distortion is supported as well in gtsam.
-void CameraParams::createGtsamCalibration(const std::vector<double>& distortion,
+void CameraParams::createGtsamCalibration(const std::string& model,
+                                          const cv::Mat& distortion,
                                           const Intrinsics& intrinsics,
-                                          gtsam::Cal3DS2* calibration) {
-  CHECK_NOTNULL(calibration);
+                                          DistortionModelConstPtr* dm) {
+  CHECK_NOTNULL(dm);
   CHECK_GE(intrinsics.size(), 4);
-  CHECK_GE(distortion.size(), 4);
-  *calibration = gtsam::Cal3DS2(
-      intrinsics[0],   // fx
-      intrinsics[1],   // fy
-      0.0,             // skew
-      intrinsics[2],   // u0
-      intrinsics[3],   // v0
-      distortion[0],   // k1
-      distortion[1],   // k2
-      distortion[2],   // p1 (k3)
-      distortion[3]);  // p2 (k4)
+  std::vector<double> dist_vec;
+  for (size_t i = 0; i < distortion.total(); i++) {
+    dist_vec.push_back(distortion.at<double>(i));
+  }
+  if (DistortionModel::is_valid(model, dist_vec.size())) {
+    *dm = DistortionModel::make(model, intrinsics, dist_vec);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
 // Display all params.
 void CameraParams::print() const {
   std::string output;
-  for(size_t i = 0; i < intrinsics_.size(); i++) {
+  for (size_t i = 0; i < intrinsics_.size(); i++) {
     output += std::to_string(intrinsics_.at(i)) + " , ";
   }
   LOG(INFO) << "------------ Camera ID: " << camera_id_ << " -------------\n"
@@ -177,8 +176,13 @@ void CameraParams::print() const {
 
   LOG(INFO) << "body_Pose_cam_: \n" << body_Pose_cam_ << std::endl;
 
-  if (FLAGS_minloglevel < 1)
-    calibration_.print("\n gtsam calibration:\n");
+  if (FLAGS_minloglevel < 1) {
+    if (distortion_) {
+      distortion_->print();
+    } else {
+      LOG(INFO) << "no distortion model present yet!" << std::endl;
+    }
+  }
 
   LOG(INFO) << "frame_rate_: " << frame_rate_ << '\n'
             << "image_size_: width= " << image_size_.width
@@ -198,7 +202,8 @@ void CameraParams::print() const {
 
 /* -------------------------------------------------------------------------- */
 // Assert equality up to a tolerance.
-bool CameraParams::equals(const CameraParams& cam_par, const double& tol) const {
+bool CameraParams::equals(const CameraParams& cam_par,
+                          const double& tol) const {
   bool areIntrinsicEqual = true;
   for (size_t i = 0; i < intrinsics_.size(); i++) {
     if (std::fabs(intrinsics_[i] - cam_par.intrinsics_[i]) > tol) {
@@ -206,12 +211,16 @@ bool CameraParams::equals(const CameraParams& cam_par, const double& tol) const 
       break;
     }
   }
+  bool distortionMatches = (distortion_ && cam_par.distortion_ &&
+                            distortion_->equals(cam_par.distortion_)) ||
+                           (!distortion_ && !cam_par.distortion_);
+
   return camera_id_ == cam_par.camera_id_ && areIntrinsicEqual &&
          body_Pose_cam_.equals(cam_par.body_Pose_cam_, tol) &&
          (std::fabs(frame_rate_ - cam_par.frame_rate_) < tol) &&
          (image_size_.width == cam_par.image_size_.width) &&
          (image_size_.height == cam_par.image_size_.height) &&
-         calibration_.equals(cam_par.calibration_, tol) &&
+         distortionMatches &&
          UtilsOpenCV::compareCvMatsUpToTol(camera_matrix_,
                                            cam_par.camera_matrix_) &&
          UtilsOpenCV::compareCvMatsUpToTol(distortion_coeff_,

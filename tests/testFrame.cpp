@@ -16,6 +16,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <string>
+#include <vector>
 
 #include "kimera-vio/frontend/Frame.h"
 
@@ -121,7 +123,7 @@ TEST(testFrame, CalibratePixel) {
     // distort the pixel again
     versor = versor / versor(2);
     Point2 uncalibrated_px_actual =
-        camParams.calibration_.uncalibrate(Point2(versor(0), versor(1)));
+        camParams.distortion_->uncalibrate(Point2(versor(0), versor(1)));
     Point2 uncalibrated_px_expected = Point2(iter->x, iter->y);
     Point2 px_mismatch = uncalibrated_px_actual - uncalibrated_px_expected;
     ASSERT_TRUE(px_mismatch.vector().norm() < 0.5);
@@ -159,9 +161,9 @@ TEST(testFrame, DISABLED_CalibratePixel) {
     // distort the pixel again
     versor = versor / versor(2);
     Point2 uncalibrated_px_actual =
-camParams.calibration_.uncalibrate(Point2(versor(0), versor(1))); Point2
-uncalibrated_px_expected = Point2(iter->x, iter->y); Point2 px_mismatch =
-uncalibrated_px_actual - uncalibrated_px_expected;
+        camParams.distortion_->uncalibrate(Point2(versor(0), versor(1)));
+    Point2 uncalibrated_px_expected = Point2(iter->x, iter->y);
+    Point2 px_mismatch = uncalibrated_px_actual - uncalibrated_px_expected;
     ASSERT_TRUE(px_mismatch.vector().norm() < 0.5);
   }
 }

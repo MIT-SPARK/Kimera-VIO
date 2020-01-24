@@ -12,15 +12,14 @@
  * @author Antoni Rosinol, Luca Carlone
  */
 
-#pragma once
+#ifndef INCLUDE_KIMERA_VIO_FRONTEND_CAMERAPARAMS_H_
+#define INCLUDE_KIMERA_VIO_FRONTEND_CAMERAPARAMS_H_
 
-#include <string>
-#include <vector>
+#include "kimera-vio/distortion_models/DistortionModel.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
-#include <opencv2/core/core.hpp>
-
-#include <gtsam/geometry/Cal3DS2.h>
 #include <gtsam/geometry/Pose3.h>
+#include <opencv2/core/core.hpp>
 
 #include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/Macros.h"
@@ -48,7 +47,6 @@ class CameraParams : public PipelineParams {
         body_Pose_cam_(),
         frame_rate_(),
         image_size_(),
-        calibration_(),
         camera_matrix_(),
         distortion_model_(),
         distortion_coeff_(),
@@ -56,7 +54,8 @@ class CameraParams : public PipelineParams {
         undistRect_map_y_(),
         R_rectify_(),
         P_(),
-        is_stereo_with_camera_ids_() {}
+        is_stereo_with_camera_ids_(),
+        distortion_() {}
   virtual ~CameraParams() = default;
 
   /* ------------------------------------------------------------------------ */
@@ -70,6 +69,8 @@ class CameraParams : public PipelineParams {
   /* ------------------------------------------------------------------------ */
   // Assert equality up to a tolerance.
   bool equals(const CameraParams& cam_par, const double& tol = 1e-9) const;
+  // Assert calibration equality up to a tolerance
+  bool calibrationEquals(const CameraParams& cam_par, const double& tol) const;
 
  public:
   // Id of the camera
@@ -85,16 +86,16 @@ class CameraParams : public PipelineParams {
   double frame_rate_;
   cv::Size image_size_;
 
-  // GTSAM structures to calibrate points.
-  gtsam::Cal3DS2 calibration_;
-
   // OpenCV structures: For radial distortion and rectification.
   // needed to compute the undistorsion map.
   cv::Mat camera_matrix_;
 
-  // 5 parameters (last is zero): distortion_model: radial-tangential.
+  // clear-text string describing the distortion model
+  // "radtan" or "equistant"
   // TODO(Toni): USE ENUM CLASS, not std::string...
-  std::string distortion_model_;  // define default
+  std::string distortion_model_;
+
+  // up to 8 distortion coefficients, depending on the model
   cv::Mat distortion_coeff_;
 
   // TODO(Toni): don't use cv::Mat to store things of fixed size...
@@ -110,6 +111,9 @@ class CameraParams : public PipelineParams {
   //! List of Cameras which share field of view with this one: i.e. stereo.
   std::vector<CameraId> is_stereo_with_camera_ids_;
 
+  // pointer to actual gtsam model that can do uncalibration etc
+  DistortionModelConstPtr distortion_;
+
  private:
   void parseDistortion(const YamlParser& yaml_parser);
   static void parseImgSize(const YamlParser& yaml_parser, cv::Size* image_size);
@@ -124,12 +128,14 @@ class CameraParams : public PipelineParams {
       cv::Mat* distortion_coeffs_mat);
   static void convertIntrinsicsVectorToMatrix(const Intrinsics& intrinsics,
                                               cv::Mat* camera_matrix);
-  static void createGtsamCalibration(const std::vector<double>& distortion,
+  static void createGtsamCalibration(const std::string& distortion_model,
+                                     const cv::Mat& distortion,
                                      const Intrinsics& intrinsics,
-                                     gtsam::Cal3DS2* calibration);
+                                     DistortionModelConstPtr* dm);
 };
 // TODO(Toni): this should be a base class, so that stereo camera is a specific
 // type of a multi camera sensor rig, or something along these lines.
 typedef std::vector<CameraParams> MultiCameraParams;
 
 }  // namespace VIO
+#endif  // INCLUDE_KIMERA_VIO_FRONTEND_CAMERAPARAMS_H_

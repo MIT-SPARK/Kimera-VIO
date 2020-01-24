@@ -17,8 +17,8 @@
  * @author Luca Carlone
  */
 
-#include <boost/filesystem.hpp> // to create folders
 #include <glog/logging.h>
+#include <boost/filesystem.hpp>  // to create folders
 
 #include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
@@ -127,7 +127,8 @@ void FeatureSelector::print() const {
 /* ------------------------------------------------------------------------ */
 // Multiply hessian in hessian factor ptr by nonnegative double
 void FeatureSelector::MultiplyHessianInPlace(
-    gtsam::HessianFactor::shared_ptr Deltaj, const double c) {
+    gtsam::HessianFactor::shared_ptr Deltaj,
+    const double c) {
   if (c < 0)
     throw std::runtime_error(
         "MultiplyHessianInPlace: cannot multiply by negative number");
@@ -211,8 +212,11 @@ FeatureSelector::featureSelectionLinearModel(
     std::cout << "featureSelectionLinearModel: createDeltas" << std::endl;
   }
   std::vector<gtsam::HessianFactor::shared_ptr> Deltas =
-      createDeltas(availableVersors, availableCornersDistances,
-                   featureSelectionData, left_cameras, right_cameras);
+      createDeltas(availableVersors,
+                   availableCornersDistances,
+                   featureSelectionData,
+                   left_cameras,
+                   right_cameras);
 
 #ifdef FEATURE_SELECTOR_DEBUG_COUT
   std::cout << "createDeltas time: "
@@ -260,8 +264,8 @@ FeatureSelector::featureSelectionLinearModel(
   for (auto ind : selectedIndices)
     selectedCorners.push_back(availableCorners.at(ind));
 
-  return std::make_tuple(selectedCorners, selectedIndices,
-                         selectedMarginalGains);
+  return std::make_tuple(
+      selectedCorners, selectedIndices, selectedMarginalGains);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -603,7 +607,8 @@ boost::tuple<int, double, gtsam::Vector> FeatureSelector::SmallestEigsSpectra(
   Spectra::DenseSymMatProd<double> op(M);
 
   // Construct eigen solver object, requesting the largest three eigenvalues
-  Spectra::SymEigsSolver<double, Spectra::SMALLEST_MAGN,
+  Spectra::SymEigsSolver<double,
+                         Spectra::SMALLEST_MAGN,
                          Spectra::DenseSymMatProd<double>>
       eigs(&op, 1, round(M.cols() / 2));  //
 
@@ -634,7 +639,8 @@ FeatureSelector::SmallestEigsSpectraShift(const gtsam::Matrix& M) {
   // Construct matrix operation object using the wrapper class DenseGenMatProd
   Spectra::DenseSymShiftSolve<double> op(M);
 
-  Spectra::SymEigsShiftSolver<double, Spectra::LARGEST_MAGN,
+  Spectra::SymEigsShiftSolver<double,
+                              Spectra::LARGEST_MAGN,
                               Spectra::DenseSymShiftSolve<double>>
       eigs(&op, 1, round(M.cols() / 2), 0.0);
   eigs.init();
@@ -790,7 +796,8 @@ gtsam::JacobianFactor FeatureSelector::createPrior(
 /* ------------------------------------------------------------------------ */
 std::pair<gtsam::Matrix, gtsam::Matrix>
 FeatureSelector::createMatricesLinearImuFactor(
-    const StampedPose& poseStamped_i, const StampedPose& poseStamped_j) const {
+    const StampedPose& poseStamped_i,
+    const StampedPose& poseStamped_j) const {
   double Deltaij = poseStamped_j.timestampInSec -
                    poseStamped_i.timestampInSec;  // clearly in seconds
 
@@ -923,10 +930,14 @@ gtsam::GaussianFactorGraph FeatureSelector::createOmegaBarImuAndPrior(
 // Models measurement std and max distance 2) does not mode outliers, since we
 // "predict" ground truth measurements
 gtsam::HessianFactor::shared_ptr FeatureSelector::createLinearVisionFactor(
-    const gtsam::Point3& pworld_l, const Cameras& left_cameras,
-    const Cameras& right_cameras, double& debugFETime, double& debugSVDTime,
+    const gtsam::Point3& pworld_l,
+    const Cameras& left_cameras,
+    const Cameras& right_cameras,
+    double& debugFETime,
+    double& debugSVDTime,
     double& debugSchurTime,  // debug
-    const int keypointLife, bool hasRightPixel) const {
+    const int keypointLife,
+    bool hasRightPixel) const {
   // compute track lenght, depending on horizon and keypointLife
   size_t nrKeyframesInHorizon =
       std::min(left_cameras.size(), size_t(keypointLife));
@@ -1031,7 +1042,8 @@ gtsam::HessianFactor::shared_ptr FeatureSelector::createLinearVisionFactor(
 /* ------------------------------------------------------------------------ */
 gtsam::GaussianFactorGraph::shared_ptr FeatureSelector::createOmegaBar(
     const FeatureSelectorData& featureSelectionData,
-    const Cameras& left_cameras, const Cameras& right_cameras) const {
+    const Cameras& left_cameras,
+    const Cameras& right_cameras) const {
   // 1) add imu factors
 
 #ifdef FEATURE_SELECTOR_DEBUG_COUT
@@ -1069,9 +1081,14 @@ gtsam::GaussianFactorGraph::shared_ptr FeatureSelector::createOmegaBar(
         left_cameras.at(0).pose() *
         p_l_camL0;  // overload for tranform_from (converts to global frame)
     // add to graph
-    gtsam::HessianFactor::shared_ptr H_l = createLinearVisionFactor(
-        pworld_l, left_cameras, right_cameras, debugFETime, debugSVDTime,
-        debugSchurTime, featureSelectionData.keypointLife.at(l));
+    gtsam::HessianFactor::shared_ptr H_l =
+        createLinearVisionFactor(pworld_l,
+                                 left_cameras,
+                                 right_cameras,
+                                 debugFETime,
+                                 debugSVDTime,
+                                 debugSchurTime,
+                                 featureSelectionData.keypointLife.at(l));
     if (!H_l->empty())  // if not empty
       OmegaBar.push_back(H_l);
   }
@@ -1113,7 +1130,8 @@ std::vector<gtsam::HessianFactor::shared_ptr> FeatureSelector::createDeltas(
     const std::vector<gtsam::Vector3>& availableVersors,
     const std::vector<double>& availableCornersDistances,
     const FeatureSelectorData& featureSelectionData,
-    const Cameras& left_cameras, const Cameras& right_cameras) const {
+    const Cameras& left_cameras,
+    const Cameras& right_cameras) const {
   // sanity check:
   if (availableVersors.size() != availableCornersDistances.size())
     throw std::runtime_error("createDeltas: distance vector size mismatch");
@@ -1161,10 +1179,14 @@ std::vector<gtsam::HessianFactor::shared_ptr> FeatureSelector::createDeltas(
     double debugFETime = 0;
     double debugSVDTime = 0;
     double debugSchurTime = 0;
-    Deltas.push_back(createLinearVisionFactor(
-        pworld_l, left_cameras, right_cameras, debugFETime, debugSVDTime,
-        debugSchurTime, 1e9,  // infinite life
-        hasRightPixel));
+    Deltas.push_back(createLinearVisionFactor(pworld_l,
+                                              left_cameras,
+                                              right_cameras,
+                                              debugFETime,
+                                              debugSVDTime,
+                                              debugSchurTime,
+                                              1e9,  // infinite life
+                                              hasRightPixel));
   }
   return Deltas;
 }
@@ -1173,7 +1195,9 @@ std::vector<gtsam::HessianFactor::shared_ptr> FeatureSelector::createDeltas(
 // defined in terms of angle and maxDistance). If so returns a versor
 // corresponding to the direction to the point
 boost::optional<gtsam::Unit3> FeatureSelector::GetVersorIfInFOV(
-    const Camera& cam, const gtsam::Point3& pworld, const double& maxDistance) {
+    const Camera& cam,
+    const gtsam::Point3& pworld,
+    const double& maxDistance) {
   // check if a point p (expressed in global frame) falls in the FOV of the
   // camera cam, in which case the function returns a unit3 corresponding to the
   // direction at which p is observed
@@ -1205,7 +1229,9 @@ boost::optional<gtsam::Unit3> FeatureSelector::GetVersorIfInFOV(
  * Fixed size version
  */
 gtsam::SymmetricBlockMatrix FeatureSelector::SchurComplement(
-    const FBlocks& Fs, const gtsam::Matrix& E, const gtsam::Matrix3& P,
+    const FBlocks& Fs,
+    const gtsam::Matrix& E,
+    const gtsam::Matrix3& P,
     const gtsam::Vector& b) {
   // a single point is observed in m cameras
   size_t m = Fs.size();
@@ -1228,7 +1254,8 @@ gtsam::SymmetricBlockMatrix FeatureSelector::SchurComplement(
 
     // D = (Dx2) * ZDim
     augmentedHessian.setOffDiagonalBlock(
-        i, m,
+        i,
+        m,
         FiT * b.segment<ZDim>(ZDim * i)  // F' * b
             -
             FiT * (Ei_P *
@@ -1405,7 +1432,8 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
       // Randomized seed, but fixed if we fix srand.
       unsigned seedShuffle = rand();
       // Randomize order.
-      std::shuffle(selectedIndices.begin(), selectedIndices.end(),
+      std::shuffle(selectedIndices.begin(),
+                   selectedIndices.end(),
                    std::default_random_engine(seedShuffle));
       // Take only first need_nr_features.
       selectedIndices.resize(need_nr_features);
@@ -1468,8 +1496,8 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
       // featureSelectionData.print();
       const gtsam::Cal3_S2& K = stereoFrame_km1->getLeftUndistRectCamMat();
       CameraParams cam_param;
-      cam_param.calibration_ =
-          gtsam::Cal3DS2(K.fx(), K.fy(), 0.0, K.px(), K.py(), 0.0, 0.0);
+      cam_param.distortion_ =
+          DistortionModel::make_pinhole(K.fx(), K.fy(), K.px(), K.py());
       cam_param.camera_matrix_ = cv::Mat::eye(3, 3, CV_64F);
       cam_param.camera_matrix_.at<double>(0, 0) = K.fx();
       cam_param.camera_matrix_.at<double>(1, 1) = K.fy();
@@ -1486,7 +1514,9 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
               successProbabilities,             // in [0,1] for each corner
               newlyAvailableKeypointsDistance,  // 0 if not available
               cam_param,  // note: corners are undistorted and rectified
-              need_nr_features, featureSelectionData, criterion);
+              need_nr_features,
+              featureSelectionData,
+              criterion);
       featureSelectionTime = UtilsOpenCV::GetTimeInSeconds() - startTime;
       UtilsOpenCV::PrintVector<size_t>(selectedIndices, "selectedIndices");
       UtilsOpenCV::PrintVector<double>(selectedGains, "selectedGains");
@@ -1547,7 +1577,8 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
       trackedSmartStereoMeasurements;
   trackedAndSelectedSmartStereoMeasurements.insert(
       trackedAndSelectedSmartStereoMeasurements.end(),
-      newSmartStereoMeasurements.begin(), newSmartStereoMeasurements.end());
+      newSmartStereoMeasurements.begin(),
+      newSmartStereoMeasurements.end());
   VLOG(20) << "Nr features tracked & selected "
            << trackedAndSelectedSmartStereoMeasurements.size();
 
@@ -1565,8 +1596,11 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
     // 255, 255), 4,selectedLmks,remId); UtilsOpenCV::DrawSquaresInPlace(img,
     // trackedKeypoints, cv::Scalar(0, 255, 0),10,trackedLmks,remId);
     std::vector<int> emptyVect;
-    UtilsOpenCV::DrawCrossesInPlace(img, newlyAvailableKeypoints,
-                                    cv::Scalar(0, 0, 255), 0.4, emptyVect,
+    UtilsOpenCV::DrawCrossesInPlace(img,
+                                    newlyAvailableKeypoints,
+                                    cv::Scalar(0, 0, 255),
+                                    0.4,
+                                    emptyVect,
                                     remId);
     UtilsOpenCV::DrawCirclesInPlace(
         img, selectedKeypoints, cv::Scalar(0, 255, 255), 4, emptyVect, remId);
@@ -1591,7 +1625,9 @@ FeatureSelector::splitTrackedAndNewFeatures_Select_Display(
                 "kf:" + std::to_string(vio_cur_id) +
                     " #tracked:" + std::to_string(trackedLmks.size()) +
                     " #selected:" + std::to_string(selectedLmks.size()),
-                KeypointCV(10, 15), CV_FONT_HERSHEY_COMPLEX, 0.4,
+                KeypointCV(10, 15),
+                CV_FONT_HERSHEY_COMPLEX,
+                0.4,
                 cv::Scalar(0, 255, 255));
 
     VLOG(20) << "trackedKeypoints: " << trackedKeypoints.size()

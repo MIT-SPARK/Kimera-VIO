@@ -127,6 +127,12 @@ add_subdirectory(src/imu-frontend)
 ### Add source code for visualizer.
 add_subdirectory(include/kimera-vio/visualizer)
 add_subdirectory(src/visualizer)
+### Add source code for camera distortion models
+add_subdirectory(include/kimera-vio/distortion_models)
+add_subdirectory(src/distortion_models)
+### Add source code for gtsam distortion extensions
+add_subdirectory(include/kimera-vio/gtsam_distortion)
+add_subdirectory(src/gtsam_distortion)
 
 target_link_libraries(kimera_vio
   PRIVATE

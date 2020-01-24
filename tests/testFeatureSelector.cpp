@@ -27,6 +27,9 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <algorithm>
+#include <limits>
+#include <vector>
 
 #include "kimera-vio/frontend/FeatureSelector.h"
 
@@ -1059,9 +1062,8 @@ TEST(FeatureSelector, DISABLED_featureSelection) {
 
   // create camera params
   CameraParams cam_param;
-  cam_param.calibration_ =
-      Cal3DS2(Kreal.fx(), Kreal.fy(), 0.0, Kreal.px(), Kreal.py(), 0.0,
-              0.0);  // 0 skew and no distortion
+  cam_param.distortion_ = DistortionModel::make_pinhole(
+      Kreal.fx(), Kreal.fy(), Kreal.px(), Kreal.py());
   cam_param.camera_matrix_ = Mat::eye(3, 3, CV_64F);
   cam_param.camera_matrix_.at<double>(0, 0) = Kreal.fx();
   cam_param.camera_matrix_.at<double>(1, 1) = Kreal.fy();

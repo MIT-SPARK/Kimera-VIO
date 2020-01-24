@@ -187,7 +187,7 @@ class TestTracker : public ::testing::Test {
           camRef_pose_camCur.inverse().translation();
       versor_cur = versor_cur / versor_cur.norm();
 
-      Point2 pt_cur_gtsam = f_ref->cam_param_.calibration_.uncalibrate(
+      Point2 pt_cur_gtsam = f_ref->cam_param_.distortion_->uncalibrate(
           Point2(versor_cur[0] / versor_cur[2], versor_cur[1] / versor_cur[2]));
       KeypointCV pt_cur(pt_cur_gtsam.x(), pt_cur_gtsam.y());
 
@@ -219,7 +219,7 @@ class TestTracker : public ::testing::Test {
           camRef_pose_camCur.inverse().translation();
       versor_cur = versor_cur / versor_cur.norm();
 
-      Point2 pt_cur_gtsam = f_ref->cam_param_.calibration_.uncalibrate(
+      Point2 pt_cur_gtsam = f_ref->cam_param_.distortion_->uncalibrate(
           Point2(versor_cur[0] / versor_cur[2], versor_cur[1] / versor_cur[2]));
       KeypointCV pt_cur(pt_cur_gtsam.x(), pt_cur_gtsam.y());
 
