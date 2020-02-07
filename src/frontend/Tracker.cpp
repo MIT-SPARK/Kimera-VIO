@@ -1167,8 +1167,6 @@ double Tracker::computeMedianDisparity(const Frame& ref_frame,
 }
 
 /* -------------------------------------------------------------------------- */
-// TODO this won't work in parallel mode, as visualization must be done in
-// main thread.
 cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
                                  const Frame& cur_frame,
                                  const KeypointsCV& extra_corners_gray,

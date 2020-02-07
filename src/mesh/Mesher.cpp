@@ -1516,7 +1516,7 @@ void Mesher::createMesh2dVIO(
 }
 
 /* -------------------------------------------------------------------------- */
-// Create a 2D mesh from 2D corners in an image, coded as a Frame class
+// Create a 2D mesh from 2D corners in an image
 // Returns the actual keypoints used to perform the triangulation.
 std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
     const cv::Size& img_size,

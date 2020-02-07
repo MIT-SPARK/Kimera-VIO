@@ -115,8 +115,9 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
   // Main function for tracking.
   // Rotation used in 1 and 2 point ransac.
   VLOG(10) << "Starting processStereoFrame...";
-  StatusStereoMeasurementsPtr status_stereo_measurements =
-      processStereoFrame(stereoFrame_k, calLrectLkf_R_camLrectK_imu);
+  cv::Mat feature_tracks;
+  StatusStereoMeasurementsPtr status_stereo_measurements = processStereoFrame(
+      stereoFrame_k, calLrectLkf_R_camLrectK_imu, &feature_tracks);
 
   CHECK(!stereoFrame_k_);  // processStereoFrame is setting this to nullptr!!!
   VLOG(10) << "Finished processStereoFrame.";
@@ -160,6 +161,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
         getRelativePoseBodyStereo(),
         *stereoFrame_lkf_,
         pim,
+        feature_tracks,
         getTrackerInfo());
   } else {
     // We don't have a keyframe.
@@ -170,6 +172,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
                                             getRelativePoseBodyStereo(),
                                             *stereoFrame_lkf_,
                                             pim,
+                                            feature_tracks,
                                             getTrackerInfo());
   }
 }
@@ -220,7 +223,8 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 // THIS FUNCTION CAN BE GREATLY OPTIMIZED
 StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
     const StereoFrame& cur_frame,
-    const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu) {
+    const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+    cv::Mat* feature_tracks) {
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
           << cur_frame.getTimestamp() << " empirical framerate (sec): "
@@ -245,6 +249,10 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   Frame* left_frame_k = stereoFrame_k_->getLeftFrameMutable();
   tracker_.featureTracking(
       left_frame_km1, left_frame_k, calLrectLkf_R_camLrectKf_imu);
+
+  if (feature_tracks) {
+    *feature_tracks = displayFeatureTracks();
+  }
   //////////////////////////////////////////////////////////////////////////////
 
   // Not tracking at all in this phase.
@@ -336,7 +344,6 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       if (FLAGS_log_mono_tracking_images) sendStereoMatchesToLogger();
       if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
-    displayFeatureTracks();
 
     // Populate statistics.
     tracker_.checkStatusRightKeypoints(stereoFrame_k_->right_keypoints_status_);
@@ -485,17 +492,18 @@ StereoVisionFrontEnd::getSmartStereoMeasurements(
 }
 
 /* -------------------------------------------------------------------------- */
-void StereoVisionFrontEnd::displayFeatureTracks() const {
-  const Frame& left_frame_k(stereoFrame_k_->getLeftFrame());
-  cv::Mat img_left =
-      tracker_.getTrackerImage(stereoFrame_lkf_->getLeftFrame(), left_frame_k);
-  VisualizerOutput::UniquePtr visualizer_output =
-      VIO::make_unique<VisualizerOutput>();
-  ImageToDisplay tracker_image("Tracker Image", img_left);
-  visualizer_output->images_to_display_.push_back(tracker_image);
-  visualizer_output->visualization_type_ = VisualizationType::kNone;
-  CHECK(display_queue_);
-  display_queue_->push(std::move(visualizer_output));
+cv::Mat StereoVisionFrontEnd::displayFeatureTracks() const {
+  cv::Mat feature_tracks = tracker_.getTrackerImage(
+      stereoFrame_lkf_->getLeftFrame(), stereoFrame_k_->getLeftFrame());
+  if (display_queue_) {
+    VisualizerOutput::UniquePtr visualizer_output =
+        VIO::make_unique<VisualizerOutput>();
+    ImageToDisplay tracker_image("Tracker Image", feature_tracks);
+    visualizer_output->images_to_display_.push_back(tracker_image);
+    visualizer_output->visualization_type_ = VisualizationType::kNone;
+    display_queue_->push(std::move(visualizer_output));
+  }
+  return feature_tracks;
 }
 
 /* -------------------------------------------------------------------------- */

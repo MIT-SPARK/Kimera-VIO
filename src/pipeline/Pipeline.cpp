@@ -145,13 +145,14 @@ Pipeline::Pipeline(const VioParams& params)
   vio_frontend_module_ = VIO::make_unique<StereoVisionFrontEndModule>(
       &stereo_frontend_input_queue_,
       parallel_run_,
-      VisionFrontEndFactory::createFrontend(params.frontend_type_,
-                                            params.imu_params_,
-                                            gtsam::imuBias::ConstantBias(),
-                                            params.frontend_params_,
-                                            params.camera_params_.at(0),
-                                            &display_input_queue_,
-                                            FLAGS_log_output));
+      VisionFrontEndFactory::createFrontend(
+          params.frontend_type_,
+          params.imu_params_,
+          gtsam::imuBias::ConstantBias(),
+          params.frontend_params_,
+          params.camera_params_.at(0),
+          FLAGS_visualize ? &display_input_queue_ : nullptr,
+          FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerCallback(
       [&backend_input_queue](const FrontendOutput::Ptr& output) {
@@ -451,8 +452,8 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
       // identity! But if that is the case, create another autoInitialize value
       // for this case and send directly a identity pose...
       CHECK(!backend_params_->initial_ground_truth_state_.equals(VioNavState()))
-          << "Requested initialization from Ground-Truth pose but got an "
-             "identity pose: did you parse your ground-truth correctly?";
+         << "Requested initialization from Ground-Truth pose but got an "
+            "identity pose: did you parse your ground-truth correctly?";
       return initializeFromGroundTruth(
           stereo_imu_sync_packet, backend_params_->initial_ground_truth_state_);
     case 1:

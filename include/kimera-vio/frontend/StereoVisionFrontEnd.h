@@ -151,7 +151,8 @@ class StereoVisionFrontEnd {
   // Frontend main function.
   StatusStereoMeasurementsPtr processStereoFrame(
       const StereoFrame& cur_frame,
-      const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu);
+      const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
+      cv::Mat* feature_tracks);
 
   /* ------------------------------------------------------------------------ */
   void outlierRejectionMono(const gtsam::Rot3& calLrectLkf_R_camLrectKf_imu,
@@ -181,7 +182,7 @@ class StereoVisionFrontEnd {
   // Log, visualize and/or save the feature tracks on the current left frame
   void sendFeatureTracksToLogger() const;
 
-  void displayFeatureTracks() const;
+  cv::Mat displayFeatureTracks() const;
 
   // Log, visualize and/or save quality of temporal and stereo matching
   void sendStereoMatchesToLogger() const;
