@@ -10,7 +10,7 @@
  * If you want to enable HTML reports in Jenkins, further call:
  * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-eval' 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
  * in the Script console in Jenkins' administration section.
- * TODO(Toni): change all spark_vio_evaluation/website/data into a Groovy String.
+ * TODO(Toni): change all Kimera-VIO-Evaluation/website/data into a Groovy String.
  */
 
 
@@ -27,7 +27,7 @@ pipeline {
               }
           }
           environment {
-            evaluator="/root/spark_vio_evaluation"
+            evaluator="/root/Kimera-VIO-Evaluation"
           }
           stages {
             stage('Build Release') {
@@ -52,29 +52,29 @@ pipeline {
               steps {
                 wrap([$class: 'Xvfb']) {
                   // Copy params to Workspace
-                  sh 'mkdir -p $WORKSPACE/spark_vio_evaluation/experiments'
-                  sh 'cp -r $evaluator/experiments/params $WORKSPACE/spark_vio_evaluation/experiments/'
+                  sh 'mkdir -p $WORKSPACE/Kimera-VIO-Evaluation/experiments'
+                  sh 'cp -r $evaluator/experiments/params $WORKSPACE/Kimera-VIO-Evaluation/experiments/'
 
                   // Run performance tests.
-                  // In jenkins_euroc.yaml, set output path to #WORKSPACE/spark_vio_evaluation/website/data
+                  // In jenkins_euroc.yaml, set output path to #WORKSPACE/Kimera-VIO-Evaluation/website/data
                   sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
                     --save_plots --save_boxplots --save_results \
                     $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
                   sh 'python3.6 $evaluator/evaluation/tools/performance_summary.py \
-                    spark_vio_evaluation/website/data/V1_01_easy/S/results_vio.yaml \
-                    spark_vio_evaluation/website/data/V1_01_easy/S/vio_performance.csv'
+                    Kimera-VIO-Evaluation/website/data/V1_01_easy/S/results_vio.yaml \
+                    Kimera-VIO-Evaluation/website/data/V1_01_easy/S/vio_performance.csv'
 
                   // Copy performance website to Workspace
-                  sh 'cp -r $evaluator/website $WORKSPACE/spark_vio_evaluation/'
+                  sh 'cp -r $evaluator/website $WORKSPACE/Kimera-VIO-Evaluation/'
                 }
               }
               post {
                 success {
                     // Plot VIO performance.
                     plot csvFileName: 'plot-vio-performance-per-build.csv',
-                         csvSeries: [[file: 'spark_vio_evaluation/website/data/V1_01_easy/S/vio_performance.csv']],
+                         csvSeries: [[file: 'Kimera-VIO-Evaluation/website/data/V1_01_easy/S/vio_performance.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -83,7 +83,7 @@ pipeline {
 
                     // Plot VIO timing.
                     plot csvFileName: 'plot-vio-timing-per-build.csv',
-                         csvSeries: [[file: 'spark_vio_evaluation/website/data/V1_01_easy/S/output/output_timingOverall.csv']],
+                         csvSeries: [[file: 'Kimera-VIO-Evaluation/website/data/V1_01_easy/S/output/output_timingOverall.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -91,18 +91,18 @@ pipeline {
                          yaxis: 'Time [ms]'
 
                     // Publish HTML website with Dygraphs and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'spark_vio_evaluation/website/', reportFiles: 'vio_ape_euroc.html, plots.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'Kimera-VIO-Evaluation/website/', reportFiles: 'vio_ape_euroc.html, plots.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
 
                     // Archive the website
                     archiveArtifacts (
-                        artifacts: 'spark_vio_evaluation/website/data/**/*.*',
+                        artifacts: 'Kimera-VIO-Evaluation/website/data/**/*.*',
                         fingerprint: true
                         )
 
                     // Archive the params used in evaluation (if these are used is determined
-                    // by the experiments yaml file in spark_vio_evaluation)
+                    // by the experiments yaml file in Kimera-VIO-Evaluation)
                     archiveArtifacts (
-                        artifacts: 'spark_vio_evaluation/experiments/params/**/*.*',
+                        artifacts: 'Kimera-VIO-Evaluation/experiments/params/**/*.*',
                         fingerprint: true
                     )
                 }
