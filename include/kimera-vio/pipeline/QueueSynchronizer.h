@@ -33,11 +33,29 @@ template <class T>
 class QueueSynchronizerBase {
  public:
   KIMERA_POINTER_TYPEDEFS(QueueSynchronizerBase);
+  /**
+   * @brief Utility function to synchronize threadsafe queues.
+   *
+   * @param[in] timestamp Timestamp of the payload we want to retrieve from the
+   * queue
+   * @param[in] queue Threadsafe queue templated on a POINTER to a class that
+   * is derived from PipelinePayload (otw we cannot query what is its timestamp)
+   * @param[out] pipeline_payload Returns payload to be found in the given queue
+   * at the given timestamp.
+   * @param[in] max_iterations Number of times we try to find the payload at the
+   * given timestamp in the given queue.
+   * @param[in] callback User defined function to be called on each successful
+   * retrieval of a payload in the queue, the callback should be lighting fast!
+   * @return a boolean indicating whether the synchronizing was successful (i.e.
+   * we found a payload with the requested timestamp) or we failed because a
+   * payload with an older timestamp was retrieved.
+   */
   virtual bool syncQueue(const Timestamp& timestamp,
                          ThreadsafeQueue<T>* queue,
                          T* pipeline_payload,
                          std::string name_id,
-                         int max_iterations = 10) = 0;
+                         int max_iterations = 10,
+                         std::function<void(const T&)>* callback = nullptr) = 0;
   virtual ~QueueSynchronizerBase() = default;
 };
 
@@ -71,6 +89,8 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
    * at the given timestamp.
    * @param[in] max_iterations Number of times we try to find the payload at the
    * given timestamp in the given queue.
+   * @param[in] callback User defined function to be called on each successful
+   * retrieval of a payload in the queue, the callback should be lighting fast!
    * @return a boolean indicating whether the synchronizing was successful (i.e.
    * we found a payload with the requested timestamp) or we failed because a
    * payload with an older timestamp was retrieved.
@@ -79,7 +99,8 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
                  ThreadsafeQueue<T>* queue,
                  T* pipeline_payload,
                  std::string name_id,
-                 int max_iterations = 10) {
+                 int max_iterations = 10,
+                 std::function<void(const T&)>* callback = nullptr) {
     CHECK_NOTNULL(queue);
     CHECK_NOTNULL(pipeline_payload);
     static_assert(
@@ -102,6 +123,8 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
       }
       if (*pipeline_payload) {
         payload_timestamp = (*pipeline_payload)->timestamp_;
+        // Call any user defined callback at this point (should be fast!!).
+        if (callback) (*callback)(*pipeline_payload);
       } else {
         LOG(WARNING) << "Missing frontend payload for Module: " << name_id;
       }
