@@ -2,7 +2,9 @@ cmake_minimum_required (VERSION 3.5)
 project(kimera_vio VERSION 1.0 LANGUAGES CXX)
 
 # Make sure that custom modules like FindXXXX are found
-# Currently we do not have any custom find module...
+# Prefer to use system installation of gflags/glog
+set(GFLAGS_PREFER_EXPORTED_GFLAGS_CMAKE_CONFIGURATION FALSE)
+set(GLOG_PREFER_EXPORTED_GLOG_CMAKE_CONFIGURATION FALSE)
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)
 
 IF(APPLE)
