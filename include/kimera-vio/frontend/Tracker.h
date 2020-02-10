@@ -77,10 +77,15 @@ class Tracker {
 
   void featureDetection(Frame* cur_frame);
 
+
+  // TODO(Toni): this function is almost a replica of the Stereo version,
+  // factorize.
   std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionMono(
       Frame* ref_frame,
       Frame* cur_frame);
 
+  // TODO(Toni): this function is almost a replica of the Mono version,
+  // factorize.
   std::pair<TrackingStatus, gtsam::Pose3> geometricOutlierRejectionStereo(
       StereoFrame& ref_frame,
       StereoFrame& cur_frame);
@@ -178,6 +183,13 @@ class Tracker {
   // This is not const as for debugging we want to redirect the image save path
   // where we like.
   std::string output_images_path_;
+
+  // Monocular RANSACs
+  opengv::sac::Ransac<ProblemMono> mono_ransac_;
+  opengv::sac::Ransac<ProblemMonoGivenRot> mono_ransac_given_rot_;
+
+  // Stereo RANSAC
+  opengv::sac::Ransac<ProblemStereo> stereo_ransac_;
 };
 
 }  // namespace VIO

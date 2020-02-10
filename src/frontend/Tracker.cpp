@@ -35,6 +35,22 @@ Tracker::Tracker(const VisionFrontEndParams& tracker_params,
       OpticalFlowPredictorFactory::makeOpticalFlowPredictor(
           tracker_params_.optical_flow_predictor_type_,
           camera_params_.camera_matrix_);
+
+  // Setup Mono Ransac
+  mono_ransac_.threshold_ = tracker_params_.ransac_threshold_mono_;
+  mono_ransac_.max_iterations_ = tracker_params_.ransac_max_iterations_;
+  mono_ransac_.probability_ = tracker_params_.ransac_probability_;
+
+  // Setup Mono Ransac given Rotation
+  mono_ransac_given_rot_.threshold_ = tracker_params_.ransac_threshold_mono_;
+  mono_ransac_given_rot_.max_iterations_ =
+      tracker_params_.ransac_max_iterations_;
+  mono_ransac_given_rot_.probability_ = tracker_params_.ransac_probability_;
+
+  // Setup Stereo Ransac
+  stereo_ransac_.threshold_ = tracker_params_.ransac_threshold_stereo_;
+  stereo_ransac_.max_iterations_ = tracker_params_.ransac_max_iterations_;
+  stereo_ransac_.probability_ = tracker_params_.ransac_probability_;
 }
 
 // TODO(Toni) Optimize this function.
@@ -422,6 +438,8 @@ void Tracker::featureTracking(Frame* ref_frame,
   debug_info_.featureTrackingTime_ = utils::Timer::toc(tic).count();
 }
 
+// TODO(Toni): this function is almost a replica of the Stereo version,
+// factorize.
 std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
     Frame* ref_frame,
     Frame* cur_frame) {
@@ -432,35 +450,30 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   std::vector<std::pair<size_t, size_t>> matches_ref_cur;
   findMatchingKeypoints(*ref_frame, *cur_frame, &matches_ref_cur);
 
-  // Vector of bearing vectors.
+  // Get bearing vectors for open_gv.
+  const size_t& n_matches = matches_ref_cur.size();
   BearingVectors f_cur;
-  f_cur.reserve(matches_ref_cur.size());
+  f_cur.resize(n_matches);
   BearingVectors f_ref;
-  f_ref.reserve(matches_ref_cur.size());
-  for (const std::pair<size_t, size_t>& it : matches_ref_cur) {
+  f_ref.resize(n_matches);
+  for (size_t i = 0; i < n_matches; i++) {
     // TODO(Toni) (luca): if versors are only needed at keyframe,
     // do not compute every frame
-    f_ref.push_back(ref_frame->versors_.at(it.first));
-    f_cur.push_back(cur_frame->versors_.at(it.second));
+    const auto& match = matches_ref_cur[i];
+    f_ref[i] = ref_frame->versors_.at(match.first);
+    f_cur[i] = cur_frame->versors_.at(match.second);
   }
 
   // Setup problem.
   AdapterMono adapter(f_ref, f_cur);
-  std::shared_ptr<ProblemMono> problem =
-      std::make_shared<ProblemMono>(adapter,
-                                    ProblemMono::NISTER,
-                                    // last argument kills randomization
-                                    tracker_params_.ransac_randomize_);
-  opengv::sac::Ransac<ProblemMono> ransac;
-  ransac.sac_model_ = problem;
-  ransac.threshold_ = tracker_params_.ransac_threshold_mono_;
-  ransac.max_iterations_ = tracker_params_.ransac_max_iterations_;
-  ransac.probability_ = tracker_params_.ransac_probability_;
+  std::shared_ptr<ProblemMono> problem = std::make_shared<ProblemMono>(
+      adapter, ProblemMono::NISTER, tracker_params_.ransac_randomize_);
 
-  VLOG(10) << "geometricOutlierRejectionMono: starting 5-point RANSAC.";
+  // Update new problem for monocular ransac.
+  mono_ransac_.sac_model_ = problem;
 
   // Solve.
-  if (!ransac.computeModel(0)) {
+  if (!mono_ransac_.computeModel(0)) {
     VLOG(10) << "failure: 5pt RANSAC could not find a solution.";
     return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
@@ -472,13 +485,13 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   removeOutliersMono(ref_frame,
                      cur_frame,
                      matches_ref_cur,
-                     ransac.inliers_,
-                     ransac.iterations_);
+                     mono_ransac_.inliers_,
+                     mono_ransac_.iterations_);
 
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
-  if (ransac.inliers_.size() < tracker_params_.minNrMonoInliers_) {
-    VLOG(10) << "FEW_MATCHES: " << ransac.inliers_.size();
+  if (mono_ransac_.inliers_.size() < tracker_params_.minNrMonoInliers_) {
+    VLOG(10) << "FEW_MATCHES: " << mono_ransac_.inliers_.size();
     status = TrackingStatus::FEW_MATCHES;
   }
 
@@ -490,30 +503,16 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   }
 
   // Get the resulting transformation: a 3x4 matrix [R t].
-  opengv::transformation_t best_transformation = ransac.model_coefficients_;
-  gtsam::Pose3 camLrectlkf_P_camLrectkf =
-      UtilsOpenCV::openGvTfToGtsamPose3(best_transformation);
-
-  // TODO(Toni) @Luca?
-  // check if we have to compensate for rectification (if we have a valid
-  // R_rectify_ )
-  // if(ref_frame.cam_param_.R_rectify_.rows == 3 &&
-  // cur_frame.cam_param_.R_rectify_.rows == 3){
-  //  gtsam::Rot3 camLrect_R_camL_ref =
-  //  UtilsOpenCV::Cvmat2rot(ref_frame.cam_param_.R_rectify_); gtsam::Rot3
-  //  camLrect_R_camL_cut =
-  //  UtilsOpenCV::Cvmat2rot(cur_frame.cam_param_.R_rectify_);
-  //  camLrectlkf_P_camLrectkf =
-  //      gtsam::Pose3(camLrect_R_camL_ref,Point3()) * camLlkf_P_camLkf *
-  //      gtsam::Pose3(camLrect_R_camL_cut.inverse(),Point3());
-  //}
+  const opengv::transformation_t& best_transformation =
+      mono_ransac_.model_coefficients_;
 
   debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-  debug_info_.nrMonoInliers_ = ransac.inliers_.size();
+  debug_info_.nrMonoInliers_ = mono_ransac_.inliers_.size();
   debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
-  debug_info_.monoRansacIters_ = ransac.iterations_;
+  debug_info_.monoRansacIters_ = mono_ransac_.iterations_;
 
-  return std::make_pair(status, camLrectlkf_P_camLrectkf);
+  return std::make_pair(status,
+                        UtilsOpenCV::openGvTfToGtsamPose3(best_transformation));
 }
 
 std::pair<TrackingStatus, gtsam::Pose3>
@@ -544,65 +543,29 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
   std::shared_ptr<ProblemMonoGivenRot> problem =
       std::make_shared<ProblemMonoGivenRot>(adapter,
                                             tracker_params_.ransac_randomize_);
-  opengv::sac::Ransac<ProblemMonoGivenRot> ransac;
-  ransac.sac_model_ = problem;
-  ransac.threshold_ = tracker_params_.ransac_threshold_mono_;
-  ransac.max_iterations_ = tracker_params_.ransac_max_iterations_;
-  ransac.probability_ = tracker_params_.ransac_probability_;
+  mono_ransac_given_rot_.sac_model_ = problem;
 
   VLOG(10) << "geometricOutlierRejectionMonoGivenRot: starting 2-point RANSAC";
 
   // Solve.
-#ifdef sw_frontend
-  // TODO(Toni) this function has rotten because of the ifdef :(
-  // @Luca can we remove this ifdef and use a flag instead?
-  ////////////////////////////////////
-  // AMR: 2-point RANSAC
-  int actual_iterations;
-  std::vector<double> translation;
-  translation.resize(3);
-  std::vector<int> inliers =
-      cv::ransac_2_point(f_ref,
-                         f_cur,
-                         trackerParams_.ransac_max_iterations_,
-                         trackerParams_.ransac_threshold_mono_,
-                         trackerParams_.ransac_probability_,
-                         translation,
-                         actual_iterations);
-  gtsam::Matrix3 rot_mat = R.matrix();
-  Eigen::Matrix<double, 3, 4> myModel;
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) myModel(i, j) = rot_mat(i, j);
-    myModel(i, 3) = translation[i];
-  }
-  ransac.model_coefficients_ = myModel;
-  ransac.inliers_ = inliers;
-  ransac.iterations_ = actual_iterations;
-
-  VLOG(10)
-      << "geometricOutlierRejectionMonoGivenRot: RANSAC complete sw version";
-
-  ////////////////////////////////////
-#else
-  if (!ransac.computeModel(0)) {
-    VLOG(10) << "failure: 2pt RANSAC could not find a solution";
+  if (!mono_ransac_given_rot_.computeModel(0)) {
+    LOG(WARNING) << "2-point RANSAC could not find a solution!";
     return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
-
   VLOG(10) << "geometricOutlierRejectionMonoGivenRot: RANSAC complete";
-#endif
 
   // Remove outliers.
   removeOutliersMono(ref_frame,
                      cur_frame,
                      matches_ref_cur,
-                     ransac.inliers_,
-                     ransac.iterations_);
+                     mono_ransac_given_rot_.inliers_,
+                     mono_ransac_given_rot_.iterations_);
 
   // CHECK QUALITY OF TRACKING
   TrackingStatus status = TrackingStatus::VALID;
-  if (ransac.inliers_.size() < tracker_params_.minNrMonoInliers_) {
-    VLOG(10) << "FEW_MATCHES: " << ransac.inliers_.size();
+  if (mono_ransac_given_rot_.inliers_.size() <
+      tracker_params_.minNrMonoInliers_) {
+    VLOG(10) << "FEW_MATCHES: " << mono_ransac_given_rot_.inliers_.size();
     status = TrackingStatus::FEW_MATCHES;
   }
   double disparity = computeMedianDisparity(*ref_frame, *cur_frame);
@@ -614,7 +577,8 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
   }
 
   // Get the resulting transformation: a 3x4 matrix [R t].
-  opengv::transformation_t best_transformation = ransac.model_coefficients_;
+  opengv::transformation_t best_transformation =
+      mono_ransac_given_rot_.model_coefficients_;
   gtsam::Pose3 camLlkf_P_camLkf =
       UtilsOpenCV::openGvTfToGtsamPose3(best_transformation);
   // note: this always returns the identity rotation, hence we have to
@@ -636,9 +600,9 @@ Tracker::geometricOutlierRejectionMonoGivenRotation(Frame* ref_frame,
   }
 
   debug_info_.monoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-  debug_info_.nrMonoInliers_ = ransac.inliers_.size();
+  debug_info_.nrMonoInliers_ = mono_ransac_given_rot_.inliers_.size();
   debug_info_.nrMonoPutatives_ = matches_ref_cur.size();
-  debug_info_.monoRansacIters_ = ransac.iterations_;
+  debug_info_.monoRansacIters_ = mono_ransac_given_rot_.iterations_;
 
   return std::make_pair(status, camLrectlkf_P_camLrectkf);
 }
@@ -905,6 +869,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
       totalInfo.cast<double>());
 }
 
+// TODO(Toni): this function is almost a replica of the Mono version, factorize.
 std::pair<TrackingStatus, gtsam::Pose3>
 Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
                                          StereoFrame& cur_stereoFrame) {
@@ -918,13 +883,15 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
               " starting 3-point RANSAC (voting)";
 
   // Vector of 3D vectors
-  Points3d f_cur;
-  f_cur.reserve(matches_ref_cur.size());
-  Points3d f_ref;
-  f_ref.reserve(matches_ref_cur.size());
-  for (const std::pair<size_t, size_t>& it : matches_ref_cur) {
-    f_ref.push_back(ref_stereoFrame.keypoints_3d_.at(it.first));
-    f_cur.push_back(cur_stereoFrame.keypoints_3d_.at(it.second));
+  const size_t& n_matches = matches_ref_cur.size();
+  BearingVectors f_cur;
+  f_cur.resize(n_matches);
+  BearingVectors f_ref;
+  f_ref.resize(n_matches);
+  for (size_t i = 0; i < n_matches; i++) {
+    const auto& match = matches_ref_cur[i];
+    f_ref[i] = ref_stereoFrame.keypoints_3d_.at(match.first);
+    f_cur[i] = cur_stereoFrame.keypoints_3d_.at(match.second);
   }
 
   // Setup problem (3D-3D adapter) -
@@ -932,14 +899,12 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   AdapterStereo adapter(f_ref, f_cur);
   std::shared_ptr<ProblemStereo> problem = std::make_shared<ProblemStereo>(
       adapter, tracker_params_.ransac_randomize_);
-  opengv::sac::Ransac<ProblemStereo> ransac;
-  ransac.sac_model_ = problem;
-  ransac.threshold_ = tracker_params_.ransac_threshold_stereo_;
-  ransac.max_iterations_ = tracker_params_.ransac_max_iterations_;
-  ransac.probability_ = tracker_params_.ransac_probability_;
+
+  // Update new problem for stereo ransac.
+  stereo_ransac_.sac_model_ = problem;
 
   // Solve.
-  if (!ransac.computeModel(0)) {
+  if (!stereo_ransac_.computeModel(0)) {
     VLOG(10) << "failure: (Arun) RANSAC could not find a solution.";
     return std::make_pair(TrackingStatus::INVALID, gtsam::Pose3());
   }
@@ -950,24 +915,25 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   removeOutliersStereo(ref_stereoFrame,
                        cur_stereoFrame,
                        matches_ref_cur,
-                       ransac.inliers_,
-                       ransac.iterations_);
+                       stereo_ransac_.inliers_,
+                       stereo_ransac_.iterations_);
 
   // Check quality of tracking.
   TrackingStatus status = TrackingStatus::VALID;
-  if (ransac.inliers_.size() < tracker_params_.minNrStereoInliers_) {
-    VLOG(10) << "FEW_MATCHES: " << ransac.inliers_.size();
+  if (stereo_ransac_.inliers_.size() < tracker_params_.minNrStereoInliers_) {
+    VLOG(10) << "FEW_MATCHES: " << stereo_ransac_.inliers_.size();
     status = TrackingStatus::FEW_MATCHES;
   }
 
   // Get the resulting transformation: a 3x4 matrix [R t].
-  opengv::transformation_t best_transformation = ransac.model_coefficients_;
+  const opengv::transformation_t& best_transformation =
+      stereo_ransac_.model_coefficients_;
 
   // Fill debug info.
   debug_info_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
-  debug_info_.nrStereoInliers_ = ransac.inliers_.size();
+  debug_info_.nrStereoInliers_ = stereo_ransac_.inliers_.size();
   debug_info_.nrStereoPutatives_ = matches_ref_cur.size();
-  debug_info_.stereoRansacIters_ = ransac.iterations_;
+  debug_info_.stereoRansacIters_ = stereo_ransac_.iterations_;
 
   return std::make_pair(status,
                         UtilsOpenCV::openGvTfToGtsamPose3(best_transformation));
