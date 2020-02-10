@@ -5,8 +5,9 @@
   --env JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=\"default-src 'self'; script-src * 'unsafe-eval' 'unsafe-inline'; img-src \
   'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';\"" \
   jenkinsci/blueocean
- * Periodically, you might need to clean disk space, run: `docker system prune -a` while running jenkins (but stop all jobs).
- * Also, backup: `docker cp <jenkins-container-name>:/var/jenkins_home ./jenkins_home`
+ * Periodically backup: `docker cp <jenkins-container-name>:/var/jenkins_home ./jenkins_home`
+ * Also, you might need to clean disk space, run (WARNING will wipe up everything unless jenkins already runs):
+ * `docker system prune -a` while running jenkins (but stop all jobs).
  * If you want to enable HTML reports in Jenkins, further call:
  * System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "default-src 'self'; script-src * 'unsafe-eval' 'unsafe-inline'; img-src 'self'; style-src * 'unsafe-inline'; child-src 'self'; frame-src 'self'; object-src 'self';")
  * in the Script console in Jenkins' administration section.
