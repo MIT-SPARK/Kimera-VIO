@@ -74,7 +74,7 @@ TEST(testVisionFrontEndParams, TrackerParamParseYAML) {
   EXPECT_EQ(tp.ransac_probability_, 0.995);
   EXPECT_EQ(tp.ransac_randomize_, false);
 
-  EXPECT_EQ(tp.intra_keyframe_time_ns_, 0.5);
+  EXPECT_EQ(tp.intra_keyframe_time_ns_, 0.5 * 10e9);
   EXPECT_EQ(tp.min_number_features_, 100);
   EXPECT_EQ(tp.useStereoTracking_, 1);
   EXPECT_EQ(tp.disparityThreshold_, 1);
