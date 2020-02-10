@@ -297,13 +297,14 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   const TrackingStatus& kfTrackingStatus_mono =
       status_smart_stereo_measurements_kf.first.kfTrackingStatus_mono_;
   switch (kfTrackingStatus_mono) {
-    case TrackingStatus::LOW_DISPARITY:  // vehicle is not moving
-      if (VLOG_IS_ON(10)) {
-        printf("Add zero velocity and no motion factors\n");
-      }
+    // vehicle is not moving
+    case TrackingStatus::LOW_DISPARITY: {
+      LOG(WARNING)
+          << "Low disparity: adding zero velocity and no motion factors.";
       addZeroVelocityPrior(curr_kf_id_);
       addNoMotionFactor(last_kf_id_, curr_kf_id_);
       break;
+    }
 
       // This did not improve in any case
       //  case TrackingStatus::INVALID :// ransac failed hence we cannot
@@ -312,10 +313,12 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
       //    (monoRansac is INVALID)\n");}
       //    addConstantVelocityFactor(last_id_, cur_id_); break;
 
-    default:  // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : //
-              // we add features in VIO
+      // TrackingStatus::VALID, FEW_MATCHES, INVALID, DISABLED : //
+      // we add features in VIO
+    default: {
       addLandmarksToGraph(landmarks_kf);
       break;
+    }
   }
 
   // Why do we do this??
@@ -353,8 +356,8 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
   int n_updated_landmarks = 0;
   debug_info_.numAddedSmartF_ += landmarks_kf.size();
 
-  for (const LandmarkId& lm_id : landmarks_kf) {
-    FeatureTrack& ft = feature_tracks_.at(lm_id);
+  for (const LandmarkId& lmk_id : landmarks_kf) {
+    FeatureTrack& ft = feature_tracks_.at(lmk_id);
     if (ft.obs_.size() < 2) {  // we only insert feature tracks of length at
                                // least 2 (otherwise uninformative)
       continue;
@@ -362,25 +365,22 @@ void VioBackEnd::addLandmarksToGraph(const LandmarkIds& landmarks_kf) {
 
     if (!ft.in_ba_graph_) {
       ft.in_ba_graph_ = true;
-      addLandmarkToGraph(lm_id, ft);
+      addLandmarkToGraph(lmk_id, ft);
       ++n_new_landmarks;
     } else {
       const std::pair<FrameId, StereoPoint2> obs_kf = ft.obs_.back();
 
-      if (obs_kf.first != curr_kf_id_)  // sanity check
-        LOG(FATAL) << "addLandmarksToGraph: last obs is not from the current "
-                      "keyframe!\n";
+      LOG_IF(FATAL, obs_kf.first != curr_kf_id_)
+          << "addLandmarksToGraph: last obs is not from the current "
+             "keyframe!\n";
 
-      updateLandmarkInGraph(lm_id, obs_kf);
+      updateLandmarkInGraph(lmk_id, obs_kf);
       ++n_updated_landmarks;
     }
   }
 
-  if (VLOG_IS_ON(10)) {
-    std::cout << "Added " << n_new_landmarks << " new landmarks" << std::endl;
-    std::cout << "Updated " << n_updated_landmarks << " landmarks in graph"
-              << std::endl;
-  }
+  VLOG(10) << "Added " << n_new_landmarks << " new landmarks\n"
+           << "Updated " << n_updated_landmarks << " landmarks in graph";
 }
 
 /* --------------------------------------------------------------------------
@@ -394,10 +394,9 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
       boost::make_shared<SmartStereoFactor>(
           smart_noise_, smart_factors_params_, B_Pose_leftCam_);
 
-  if (VLOG_IS_ON(10)) {
-    std::cout << "Adding landmark with: " << ft.obs_.size()
-              << " landmarks to graph, with keys: ";
-  }
+  VLOG(10) << "Adding landmark with: " << ft.obs_.size()
+           << " landmarks to graph, with keys: ";
+
   if (VLOG_IS_ON(10)) {
     new_factor->print();
   }
@@ -412,6 +411,7 @@ void VioBackEnd::addLandmarkToGraph(const LandmarkId& lm_id,
   if (VLOG_IS_ON(10)) {
     std::cout << std::endl;
   }
+
   // add new factor to suitable structures:
   new_smart_factors_.insert(std::make_pair(lm_id, new_factor));
   old_smart_factors_.insert(
@@ -689,6 +689,10 @@ void VioBackEnd::addStereoMeasurementsToFeatureTracks(
       VLOG(20) << "Updating feature track for lmk: " << lmk_id_in_kf_i << ".";
       feature_track_it->second.obs_.push_back(
           std::make_pair(frame_num, stereo_px_i));
+
+      // TODO(Toni):
+      // Mark feature tracks that have been re-observed, so that we can delete
+      // the broken feature tracks efficiently.
     }
   }
 }

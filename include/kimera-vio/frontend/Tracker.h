@@ -64,7 +64,7 @@ class Tracker {
 
   // Get good features to track from image (wrapper for opencv
   // goodFeaturesToTrack)
-  static void MyGoodFeaturesToTrack(
+  static void findGoodFeaturesToTrack(
       const cv::Mat& image,
       const int& max_corners,
       const double& quality_level,
@@ -76,7 +76,6 @@ class Tracker {
       KeypointsWithScores* corners_with_scores);
 
   void featureDetection(Frame* cur_frame);
-
 
   // TODO(Toni): this function is almost a replica of the Stereo version,
   // factorize.
@@ -156,7 +155,7 @@ class Tracker {
   // and nr or extracted corners.
   KeypointsWithScores featureDetection(const Frame& cur_frame,
                                        const cv::Mat& cam_mask,
-                                       const int need_n_corners);
+                                       const int& need_n_corners);
 
   static std::pair<Vector3, Matrix3> getPoint3AndCovariance(
       const StereoFrame& stereoFrame,

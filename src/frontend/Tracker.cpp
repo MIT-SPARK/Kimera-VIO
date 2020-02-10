@@ -121,7 +121,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
 
 KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
                                               const cv::Mat& cam_mask,
-                                              const int need_n_corners) {
+                                              const int& need_n_corners) {
   // Create mask such that new keypoints are not close to old ones.
   cv::Mat mask;
   cam_mask.copyTo(mask);
@@ -138,15 +138,15 @@ KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
   // Find new features and corresponding scores.
   KeypointsWithScores corners_with_scores;
   if (need_n_corners > 0) {
-    MyGoodFeaturesToTrack(cur_frame.img_,
-                          need_n_corners,
-                          tracker_params_.quality_level_,
-                          tracker_params_.min_distance_,
-                          mask,
-                          tracker_params_.block_size_,
-                          tracker_params_.use_harris_detector_,
-                          tracker_params_.k_,
-                          &corners_with_scores);
+    findGoodFeaturesToTrack(cur_frame.img_,
+                            need_n_corners,
+                            tracker_params_.quality_level_,
+                            tracker_params_.min_distance_,
+                            mask,
+                            tracker_params_.block_size_,
+                            tracker_params_.use_harris_detector_,
+                            tracker_params_.k_,
+                            &corners_with_scores);
 
     // TODO this takes a ton of time 27ms each time...
     // Change window_size, and term_criteria to improve timing
@@ -171,15 +171,16 @@ KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
 // Use std::vector<std::pair<cv::Point2f, double>>
 // Or  std::vector<std::pair<KeypointCV, Score>> but not a pair of vectors.
 // Remove hardcoded parameters (there are a ton).
-void Tracker::MyGoodFeaturesToTrack(const cv::Mat& image,
-                                    const int& max_corners,
-                                    const double& quality_level,
-                                    const double& min_distance,
-                                    const cv::Mat& mask,
-                                    const int& block_size,
-                                    const bool& use_harris_corners,
-                                    const double& harrisK,
-                                    KeypointsWithScores* corners_with_scores) {
+void Tracker::findGoodFeaturesToTrack(
+    const cv::Mat& image,
+    const int& max_corners,
+    const double& quality_level,
+    const double& min_distance,
+    const cv::Mat& mask,
+    const int& block_size,
+    const bool& use_harris_corners,
+    const double& harrisK,
+    KeypointsWithScores* corners_with_scores) {
   CHECK_NOTNULL(corners_with_scores);
   try {
     // Get image of cornerness response, and get peaks for good features.
@@ -235,7 +236,6 @@ void Tracker::MyGoodFeaturesToTrack(const cv::Mat& image,
               myGreaterThanPtr<float>());
 
     // Put sorted corner in other struct.
-    size_t j;
     size_t total = tmp_corners_scores.size();
     size_t ncorners = 0;
 
@@ -281,7 +281,7 @@ void Tracker::MyGoodFeaturesToTrack(const cv::Mat& image,
             const KeypointsCV& m = grid[yy * grid_width + xx];
 
             if (m.size()) {
-              for (j = 0; j < m.size(); j++) {
+              for (size_t j = 0; j < m.size(); j++) {
                 const float& dx = x - m[j].x;
                 const float& dy = y - m[j].y;
 
@@ -1123,7 +1123,7 @@ double Tracker::computeMedianDisparity(const Frame& ref_frame,
   for (const std::pair<size_t, size_t>& rc : matches_ref_cur) {
     KeypointCV pxDiff =
         cur_frame.keypoints_[rc.second] - ref_frame.keypoints_[rc.first];
-    double pxDistance = sqrt(pxDiff.x * pxDiff.x + pxDiff.y * pxDiff.y);
+    double pxDistance = std::sqrt(pxDiff.x * pxDiff.x + pxDiff.y * pxDiff.y);
     disparity.push_back(pxDistance);
   }
 
@@ -1166,9 +1166,9 @@ cv::Mat Tracker::getTrackerImage(const Frame& ref_frame,
     if (cur_frame.landmarks_.at(i) == -1) {  // Untracked landmarks are red.
       cv::circle(img_rgb, px_cur, 4, red, 2);
     } else {
-      const auto& it = find(ref_frame.landmarks_.begin(),
-                            ref_frame.landmarks_.end(),
-                            cur_frame.landmarks_.at(i));
+      const auto& it = std::find(ref_frame.landmarks_.begin(),
+                                 ref_frame.landmarks_.end(),
+                                 cur_frame.landmarks_.at(i));
       if (it != ref_frame.landmarks_.end()) {
         // If feature was in previous frame, display tracked feature with
         // green circle/line:
