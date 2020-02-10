@@ -20,6 +20,14 @@ stripe_extra_rows: 2
 minPointDist: 0.1
 maxPointDist: 150
 bidirectionalMatching: 1
+
+# Subpixel corner refinement for the monocular case
+enable_subpixel_corner_finder: 1
+max_iters: 40
+epsilon_error: 0.001
+window_size: 10
+zero_zone: -1
+
 subpixelRefinementStereo: 1
 featureSelectionCriterion: 2
 featureSelectionHorizon: 1
