@@ -77,7 +77,7 @@ bool FeatureSelectorData::isEmpty() const {
 
 //////////////////////////////////////////////////////////////////////////////
 FeatureSelector::FeatureSelector(
-    const VioFrontEndParams& trackerParams,
+    const VisionFrontEndParams& trackerParams,
     const VioBackEndParams& vioParams,
     const FeatureSelectorParams& feature_select_params) {
   imuDeltaT_ = feature_select_params.featureSelectionImuRate_;

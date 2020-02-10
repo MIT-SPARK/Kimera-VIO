@@ -35,6 +35,7 @@
 
 #include "kimera-vio/frontend/Tracker.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 DECLARE_string(test_data_path);
 
@@ -413,7 +414,7 @@ TEST(testUtilsOpenCV, ExtractCornersWhiteWall) {
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, RoundToDigit2digits) {
   double x_expected = 1.14;  // rounded to the 2nd decimal digit
-  double x_actual = UtilsOpenCV::RoundToDigit(x);
+  double x_actual = UtilsNumerical::RoundToDigit(x);
   EXPECT_NEAR(x_expected, x_actual, tol_);
 }
 
@@ -442,35 +443,35 @@ TEST_F(UtilsOpenCVFixture, RoundUnit3) {
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, RoundToDigit3digits) {
   double x_expected = 1.142;  // rounded to the 3rd decimal digit
-  double x_actual = UtilsOpenCV::RoundToDigit(x, 3);
+  double x_actual = UtilsNumerical::RoundToDigit(x, 3);
   EXPECT_NEAR(x_expected, x_actual, tol_);
 }
 
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, RoundToDigitNeg2digits) {
   double x_expected = -1.14;  // rounded to the 2nd decimal digit
-  double x_actual = UtilsOpenCV::RoundToDigit(-x, 2);
+  double x_actual = UtilsNumerical::RoundToDigit(-x, 2);
   EXPECT_NEAR(x_expected, x_actual, tol_);
 }
 
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, RoundToDigitNeg3digits) {
   double x_expected = -1.142;  // rounded to the 3rd decimal digit!
-  double x_actual = UtilsOpenCV::RoundToDigit(-x, 3);
+  double x_actual = UtilsNumerical::RoundToDigit(-x, 3);
   EXPECT_NEAR(x_expected, x_actual, tol_);
 }
 
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, ToStringWithPrecisionPos4digits) {
   string str_expected("1.142");
-  string str_actual = UtilsOpenCV::To_string_with_precision(x, 4);
+  string str_actual = UtilsNumerical::To_string_with_precision(x, 4);
   EXPECT_EQ(str_expected.compare(str_actual), 0);
 }
 
 /* ************************************************************************** */
 TEST_F(UtilsOpenCVFixture, ToStringWithPrecisionNeg3digits) {
   string str_expected("-1.14");
-  string str_actual = UtilsOpenCV::To_string_with_precision(-x, 3);
+  string str_actual = UtilsNumerical::To_string_with_precision(-x, 3);
   EXPECT_EQ(str_expected.compare(str_actual), 0);
 }
 
@@ -478,14 +479,8 @@ TEST_F(UtilsOpenCVFixture, ToStringWithPrecisionNeg3digits) {
 TEST_F(UtilsOpenCVFixture, NsecToSec) {
   int64_t timestamp = 12345678;
   double sec_expected = 0.012345678;
-  double sec_actual = UtilsOpenCV::NsecToSec(timestamp);
+  double sec_actual = UtilsNumerical::NsecToSec(timestamp);
   EXPECT_NEAR(sec_expected, sec_actual, tol_);
-}
-
-/* ************************************************************************** */
-TEST(testUtilsOpenCV, GetTimeInSeconds) {
-  // I have no idea how to write test for it...
-  SUCCEED();
 }
 
 /* ************************************************************************** */
@@ -581,7 +576,7 @@ TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
   }
   // original image is in color and it is converted to gray
   {
-    Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
+    cv::Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
         string(FLAGS_test_data_path) + "lena.png");
     imwrite("lenaGrayScale.png", imageGray);
     EXPECT_EQ(imageGray.channels(), 1);
@@ -636,7 +631,7 @@ TEST_F(UtilsOpenCVFixture, DISABLED_ExtractCornersChessboard) {
   std::vector<KeypointCV> actualCorners, actualCorners2;
   std::vector<double> actualScores;
   std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  Tracker::MyGoodFeaturesToTrackSubPix(
+  Tracker::MyGoodFeaturesToTrack(
       img, 100, 0.01, 10, Mat(), 3, false, 0.04, &corners_with_scores);
 
   UtilsOpenCV::ExtractCorners(img, &actualCorners2);
@@ -658,7 +653,7 @@ TEST_F(UtilsOpenCVFixture, ExtractCornersImage) {
   cv::Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(real_img_path_);
 
   std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  Tracker::MyGoodFeaturesToTrackSubPix(
+  Tracker::MyGoodFeaturesToTrack(
       img, 100, 0.01, 10, cv::Mat(), 3, false, 0.04, &corners_with_scores);
 
   std::vector<KeypointCV> actualCorners2;

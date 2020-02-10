@@ -53,8 +53,6 @@ DEFINE_int32(viz_type,
              "keypoints in the left frame and filters out triangles \n"
              "2: NONE, does not visualize map.");
 
-DEFINE_bool(use_feature_selection, false, "Enable smart feature selection.");
-
 DEFINE_bool(deterministic_random_number_generator,
             false,
             "If true the random number generator will consistently output the "
@@ -100,7 +98,6 @@ Pipeline::Pipeline(const VioParams& params)
       stereo_camera_(nullptr),
       data_provider_module_(nullptr),
       vio_frontend_module_(nullptr),
-      feature_selector_(nullptr),
       vio_backend_module_(nullptr),
       lcd_module_(nullptr),
       backend_params_(params.backend_params_),
@@ -257,12 +254,6 @@ Pipeline::Pipeline(const VioParams& params)
         std::bind(&LcdModule::fillFrontendQueue,
                   std::ref(*CHECK_NOTNULL(lcd_module_.get())),
                   std::placeholders::_1));
-  }
-
-  // Instantiate feature selector: not used in vanilla implementation.
-  if (FLAGS_use_feature_selection) {
-    feature_selector_ =
-        VIO::make_unique<FeatureSelector>(frontend_params_, *backend_params_);
   }
 }
 
@@ -711,59 +702,6 @@ bool Pipeline::initializeOnline(
       }
     }
   }
-}
-
-/* -------------------------------------------------------------------------- */
-StatusStereoMeasurements Pipeline::featureSelect(
-    const VioFrontEndParams& tracker_params,
-    const FeatureSelectorParams& feature_selector_params,
-    const Timestamp& timestamp_k,
-    const Timestamp& timestamp_lkf,
-    const gtsam::Pose3& W_Pose_Blkf,
-    double* feature_selection_time,
-    std::shared_ptr<StereoFrame>& stereoFrame_km1,
-    const StatusStereoMeasurements& status_stereo_meas,
-    int cur_kf_id,
-    int save_image_selector,
-    const gtsam::Matrix& curr_state_cov,
-    const Frame& left_frame) {  // last one for visualization only
-  CHECK_NOTNULL(feature_selection_time);
-
-  // ------------ DATA ABOUT CURRENT AND FUTURE ROBOT STATE ------------- //
-  size_t nrKfInHorizon =
-      round(feature_selector_params.featureSelectionHorizon_ /
-            tracker_params.intra_keyframe_time_);
-  VLOG(100) << "nrKfInHorizon for selector: " << nrKfInHorizon;
-
-  // Future poses are gt and might be far from the vio pose: we have to
-  // attach the *relative* poses from the gt to the latest vio estimate.
-  // W_Pose_Bkf_gt    : ground truth pose at previous keyframe.
-  // vio->W_Pose_Blkf_: vio pose at previous keyframe.
-  // More important than the time, it is important that
-  // it is the same time as vio->W_Pose_Blkf_
-  KeyframeToStampedPose posesAtFutureKeyframes;
-  Pose3 W_Pose_Bkf_gt;
-
-  VLOG(100) << "Starting feature selection...";
-  SmartStereoMeasurements trackedAndSelectedSmartStereoMeasurements;
-  std::tie(trackedAndSelectedSmartStereoMeasurements, *feature_selection_time) =
-      feature_selector_->splitTrackedAndNewFeatures_Select_Display(
-          stereoFrame_km1,
-          status_stereo_meas.second,
-          cur_kf_id,
-          save_image_selector,
-          feature_selector_params.featureSelectionCriterion_,
-          feature_selector_params.featureSelectionNrCornersToSelect_,
-          tracker_params.maxFeatureAge_,
-          posesAtFutureKeyframes,
-          curr_state_cov,
-          "",
-          left_frame);  // last 2 are for visualization
-  VLOG(100) << "Feature selection completed.";
-
-  // Same status as before.
-  TrackerStatusSummary status = status_stereo_meas.first;
-  return std::make_pair(status, trackedAndSelectedSmartStereoMeasurements);
 }
 
 /* -------------------------------------------------------------------------- */

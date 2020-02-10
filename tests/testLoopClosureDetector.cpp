@@ -113,7 +113,7 @@ class LCDFixture :public ::testing::Test {
     std::string img_name_cur2_right = lcd_test_data_path_ + "/right_img_3.png";
 
     // Initialize StereoFrame objects for reference and current frames
-    VioFrontEndParams tp;
+    VisionFrontEndParams tp;
     Tracker tracker(tp, CameraParams());
 
     ref1_stereo_frame_ = VIO::make_unique<StereoFrame>(

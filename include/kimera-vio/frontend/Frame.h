@@ -160,12 +160,13 @@ class Frame : public PipelinePayload {
       const KeypointCV& px,
       const KeypointsCV& keypoints,
       const LandmarkIds& landmarks,
-      boost::optional<int&> idx_in_keypoints = boost::none) {
+      size_t* idx_in_keypoints = nullptr) {
     // Iterate over all current keypoints_.
-    for (int i = 0; i < keypoints.size(); i++) {
+    for (size_t i = 0; i < keypoints.size(); i++) {
       // If we have found the pixel px in the set of keypoints, return the
       // landmark id of the keypoint and return the index of it at keypoints_.
-      if (keypoints.at(i).x == px.x && keypoints.at(i).y == px.y) {
+      const KeypointCV& keypoint = keypoints.at(i);
+      if (keypoint.x == px.x && keypoint.y == px.y) {
         if (idx_in_keypoints) {
           *idx_in_keypoints = i;  // Return index.
         }
@@ -173,7 +174,6 @@ class Frame : public PipelinePayload {
       }
     }
     // We did not find the keypoint.
-    if (idx_in_keypoints) idx_in_keypoints = boost::optional<int&>();
     return -1;
   }
 

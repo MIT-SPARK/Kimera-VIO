@@ -108,7 +108,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
       gtsam::AHRSFactor::PreintegratedMeasurements ahrs_pim(
           biasHat, kMeasuredAccCovariance);
       for (size_t i = 0; i < (imu_meas.acc_gyr_.cols() - 1); ++i) {
-        double delta_t = UtilsOpenCV::NsecToSec(imu_meas.timestamps_(i + 1) -
+        double delta_t = UtilsNumerical::NsecToSec(imu_meas.timestamps_(i + 1) -
                                                 imu_meas.timestamps_(i));
         gtsam::Vector3 measured_omega = imu_meas.acc_gyr_.block(3, 6, i, i + 1);
         ahrs_pim.integrateMeasurement(measured_omega, delta_t);
@@ -117,7 +117,7 @@ class OnlineAlignmentFixture : public ::testing::Test {
       // Buffer for online alignment
       estimated_poses_.push_back(estimated_poses_[0].between(gt_pose_k));
       delta_t_poses_.push_back(
-          UtilsOpenCV::NsecToSec(timestamp_frame_k - timestamp_last_frame));
+          UtilsNumerical::NsecToSec(timestamp_frame_k - timestamp_last_frame));
       pims_.push_back(pim);
       ahrs_pim_.push_back(ahrs_pim);
       if (pims_.size() > n_frames_data) {
@@ -296,7 +296,7 @@ TEST_F(OnlineAlignmentFixture, DISABLED_GravityAlignmentRealData) {
   for (int i = 0; i < 30; i++) {
     static const std::string data_path(FLAGS_test_data_path +
                                        "/ForOnlineAlignment/real_data/");
-    int n_begin = int(UtilsOpenCV::RandomFloatGenerator(3000));
+    int n_begin = int(UtilsNumerical::RandomFloatGenerator(3000));
     int n_frames = 40;
     initializeOnlineAlignmentData(n_begin, n_frames, data_path);
 

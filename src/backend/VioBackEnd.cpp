@@ -42,6 +42,7 @@
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"  // for safeCast
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 DEFINE_bool(debug_graph_before_opt,
             false,
@@ -251,7 +252,7 @@ void VioBackEnd::addVisualInertialStateAndOptimize(
   ++curr_kf_id_;
 
   VLOG(1) << "VIO: adding keyframe " << curr_kf_id_
-          << " at timestamp:" << UtilsOpenCV::NsecToSec(timestamp_kf_nsec)
+          << " at timestamp:" << UtilsNumerical::NsecToSec(timestamp_kf_nsec)
           << " (nsec).";
 
   /////////////////// MANAGE IMU MEASUREMENTS ///////////////////////////

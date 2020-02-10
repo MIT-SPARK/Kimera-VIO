@@ -7,9 +7,10 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   testVioFrontEndParams.h
- * @brief  test VioFrontEndParams
- * @author Antoni Rosinol, Luca Carlone
+ * @file   testVisionFrontEndParams.h
+ * @brief  test VisionFrontEndParams
+ * @author Antoni Rosinol
+ * @author Luca Carlone
  */
 
 #include <algorithm>
@@ -23,22 +24,18 @@
 
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/Frame.h"
-#include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
 
 DECLARE_string(test_data_path);
 
-using namespace gtsam;
-using namespace std;
-using namespace VIO;
-
-static const double tol = 1e-7;
+namespace VIO {
 
 /* ************************************************************************* */
-TEST(testVioFrontEndParams, TrackerParamParseYAML) {
+TEST(testVisionFrontEndParams, TrackerParamParseYAML) {
   // check that YAML is parsed correctly
 
   // Test parseYAML
-  VioFrontEndParams tp;
+  VisionFrontEndParams tp;
   tp.parseYAML(FLAGS_test_data_path + "/ForTracker/trackerParameters.yaml");
 
   // Compare results!
@@ -77,14 +74,16 @@ TEST(testVioFrontEndParams, TrackerParamParseYAML) {
   EXPECT_EQ(tp.ransac_probability_, 0.995);
   EXPECT_EQ(tp.ransac_randomize_, false);
 
-  EXPECT_EQ(tp.intra_keyframe_time_, 0.5);
+  EXPECT_EQ(tp.intra_keyframe_time_ns_, 0.5);
   EXPECT_EQ(tp.min_number_features_, 100);
   EXPECT_EQ(tp.useStereoTracking_, 1);
   EXPECT_EQ(tp.disparityThreshold_, 1);
 }
 
 /* ************************************************************************** */
-TEST(testVioFrontEndParams, equals) {
-  VioFrontEndParams tp = VioFrontEndParams();
+TEST(testVisionFrontEndParams, equals) {
+  VisionFrontEndParams tp = VisionFrontEndParams();
   EXPECT_TRUE(tp.equals(tp));
 }
+
+}  // namespace VIO

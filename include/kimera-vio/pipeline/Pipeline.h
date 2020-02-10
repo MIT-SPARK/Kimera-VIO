@@ -26,7 +26,6 @@
 #include "kimera-vio/backend/VioBackEndModule.h"
 #include "kimera-vio/common/VioNavState.h"
 #include "kimera-vio/dataprovider/DataProviderModule.h"
-#include "kimera-vio/frontend/FeatureSelector.h"
 #include "kimera-vio/frontend/StereoImuSyncPacket.h"
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
 #include "kimera-vio/initial/InitializationBackEnd-definitions.h"
@@ -162,20 +161,6 @@ class Pipeline {
   // Initialize pipeline from online gravity alignment.
   bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
-  StatusStereoMeasurements featureSelect(
-      const VioFrontEndParams& tracker_params,
-      const FeatureSelectorParams& feature_selector_params,
-      const Timestamp& timestamp_k,
-      const Timestamp& timestamp_lkf,
-      const gtsam::Pose3& W_Pose_Blkf,
-      double* feature_selection_time,
-      std::shared_ptr<StereoFrame>& stereoFrame_km1,
-      const StatusStereoMeasurements& smart_stereo_meas,
-      int cur_kf_id,
-      int save_image_selector,
-      const gtsam::Matrix& curr_state_cov,
-      const Frame& left_frame);
-
   // Launch different threads with processes.
   void launchThreads();
 
@@ -193,7 +178,7 @@ class Pipeline {
 
   // Init Vio parameter
   VioBackEndParams::ConstPtr backend_params_;
-  VioFrontEndParams frontend_params_;
+  VisionFrontEndParams frontend_params_;
   ImuParams imu_params_;
   BackendType backend_type_;
   bool parallel_run_;
@@ -207,7 +192,6 @@ class Pipeline {
   // TODO(Toni) this should go to another class to avoid not having copy-ctor...
   //! Frontend.
   StereoVisionFrontEndModule::UniquePtr vio_frontend_module_;
-  std::unique_ptr<FeatureSelector> feature_selector_;
 
   //! Stereo vision frontend payloads.
   StereoVisionFrontEndModule::InputQueue stereo_frontend_input_queue_;

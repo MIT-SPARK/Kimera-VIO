@@ -54,7 +54,7 @@ class StereoVisionFrontEnd {
  public:
   StereoVisionFrontEnd(const ImuParams& imu_params,
                        const ImuBias& imu_initial_bias,
-                       const VioFrontEndParams& tracker_params,
+                       const VisionFrontEndParams& tracker_params,
                        const CameraParams& camera_params,
                        DisplayQueue* display_queue = nullptr,
                        bool log_output = false);

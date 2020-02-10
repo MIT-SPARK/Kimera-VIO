@@ -27,6 +27,7 @@
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/Tracker.h"
+#include "kimera-vio/utils/Timer.h"
 
 DECLARE_string(test_data_path);
 
@@ -88,7 +89,7 @@ class TestTracker : public ::testing::Test {
                   cam_params_left,
                   UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
-    VioFrontEndParams tp;
+    VisionFrontEndParams tp;
 
     ref_stereo_frame = new StereoFrame(
         id_ref,
@@ -525,7 +526,7 @@ class TestTracker : public ::testing::Test {
 
  protected:
   // Perform Ransac
-  VioFrontEndParams tracker_params_;
+  VisionFrontEndParams tracker_params_;
   std::unique_ptr<Tracker> tracker_;
 };
 
@@ -596,7 +597,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       }
 
       // Perform Ransac
-      VioFrontEndParams trackerParams = VioFrontEndParams();
+      VisionFrontEndParams trackerParams = VisionFrontEndParams();
       trackerParams.ransac_max_iterations_ = 1000;
       // trackerParams.ransac_probability_ = 0.8;
       trackerParams.ransac_randomize_ = false;
@@ -787,7 +788,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
         AddNoiseToStereoFrame(cur_stereo_frame, noise_sigma);
       }
 
-      VioFrontEndParams trackerParams;
+      VisionFrontEndParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
       Tracker tracker(trackerParams, CameraParams());
       TrackingStatus tracking_status;
@@ -1280,7 +1281,7 @@ TEST_F(TestTracker, FindMatchingStereoKeypoints) {
 
 /* ************************************************************************* */
 TEST_F(TestTracker, mahalanobisDistance) {
-  double timeBefore = 0;
+  auto timeBefore = VIO::utils::Timer::tic();
   double time1 = 0, time2 = 0, time3 = 0;
   for (size_t test = 0; test < 1000; test++) {
     // generate matrix
@@ -1293,19 +1294,19 @@ TEST_F(TestTracker, mahalanobisDistance) {
     Vector3f v = vd.cast<float>();
 
     // sol1 - SLOWER: sol2 x 2
-    timeBefore = UtilsOpenCV::GetTimeInSeconds();
+    timeBefore = VIO::utils::Timer::tic();
     Vector3f Omega_relTran_j = O.llt().solve(v);
     float innovationMahalanobisNorm1 = v.transpose() * Omega_relTran_j;
-    time1 += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
+    time1 += VIO::utils::Timer::toc(timeBefore).count();
 
     // sol2 - still 0.25 seconds for 200 features
-    timeBefore = UtilsOpenCV::GetTimeInSeconds();
+    timeBefore = VIO::utils::Timer::tic();
     Matrix3f infoMatSum = O.inverse();
     float innovationMahalanobisNorm2 = v.transpose() * infoMatSum * v;
-    time2 += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
+    time2 += VIO::utils::Timer::toc(timeBefore).count();
 
     // sol3 - still 0.25 seconds for 200 features
-    timeBefore = UtilsOpenCV::GetTimeInSeconds();
+    timeBefore = VIO::utils::Timer::tic();
     float dinv = 1 / (O(0, 0) * (O(1, 1) * O(2, 2) - O(1, 2) * O(2, 1)) -
                       O(1, 0) * (O(0, 1) * O(2, 2) - O(0, 2) * O(2, 1)) +
                       O(2, 0) * (O(0, 1) * O(1, 2) - O(1, 1) * O(0, 2)));
@@ -1322,7 +1323,7 @@ TEST_F(TestTracker, mahalanobisDistance) {
             (O(0, 0) * (O(1, 1) * v(2) - v(1) * O(2, 1)) -
              O(1, 0) * (O(0, 1) * v(2) - v(0) * O(2, 1)) +
              O(2, 0) * (O(0, 1) * v(1) - O(1, 1) * v(0)));
-    time3 += UtilsOpenCV::GetTimeInSeconds() - timeBefore;
+    time3 += VIO::utils::Timer::toc(timeBefore).count();
 
     EXPECT_NEAR(double(innovationMahalanobisNorm1),
                 double(innovationMahalanobisNorm2),

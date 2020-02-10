@@ -407,7 +407,9 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
       // Extract landmark id corresponding to this pixel.
       const LandmarkId& lmk_id(
           Frame::findLmkIdFromPixel(pixel, keypoints, landmarks));
-      CHECK_NE(lmk_id, -1);
+      CHECK_NE(lmk_id, -1) << "Could not find lmk_id: " << lmk_id
+                           << " for pixel: " << pixel
+                           << " in keypoints:\n " << keypoints;
 
       // Try to find this landmark id in points_with_id_map.
       const auto& lmk_it = points_with_id_map.find(lmk_id);

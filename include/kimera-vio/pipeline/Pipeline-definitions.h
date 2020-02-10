@@ -19,7 +19,7 @@
 #include "kimera-vio/frontend/Camera.h"
 #include "kimera-vio/frontend/CameraParams.h"
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
-#include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
 #include "kimera-vio/loopclosure/LoopClosureDetectorParams.h"
 
@@ -30,7 +30,7 @@ struct VioParams {
   ImuParams imu_params_;
   MultiCameraParams camera_params_;
   //! Pipeline Modules paramters
-  VioFrontEndParams frontend_params_;
+  VisionFrontEndParams frontend_params_;
   VioBackEndParams::Ptr backend_params_;
   LoopClosureDetectorParams lcd_params_;
   //! General Pipeline parameters

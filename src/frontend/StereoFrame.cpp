@@ -137,8 +137,10 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   if (verbosity > 0) {
     cv::Mat leftImgWithKeypoints =
         UtilsOpenCV::DrawCircles(left_frame_.img_, left_frame_.keypoints_);
-    showImagesSideBySide(leftImgWithKeypoints, right_frame_.img_,
-                         "unrectifiedLeftWithKeypoints_", verbosity);
+    showImagesSideBySide(leftImgWithKeypoints,
+                         right_frame_.img_,
+                         "unrectifiedLeftWithKeypoints_",
+                         verbosity);
   }
 
   CHECK(is_rectified_);
@@ -194,15 +196,23 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   StatusKeypointsCV right_keypoints_rectified;
   switch (sparse_stereo_params_.vision_sensor_type_) {
     case VisionSensorType::STEREO:
-      right_keypoints_rectified = getRightKeypointsRectified(
-          left_img_rectified_, right_img_rectified_, left_keypoints_rectified,
-          fx, getBaseline());
+      right_keypoints_rectified =
+          getRightKeypointsRectified(left_img_rectified_,
+                                     right_img_rectified_,
+                                     left_keypoints_rectified,
+                                     fx,
+                                     getBaseline());
       break;
     case VisionSensorType::RGBD:  // just use depth to "fake right pixel
                                   // matches"
-      right_keypoints_rectified = getRightKeypointsRectifiedRGBD(
-          left_img_rectified_, right_img_rectified_, left_keypoints_rectified,
-          fx, getBaseline(), getMapDepthFactor(), getMinDepthFactor());
+      right_keypoints_rectified =
+          getRightKeypointsRectifiedRGBD(left_img_rectified_,
+                                         right_img_rectified_,
+                                         left_keypoints_rectified,
+                                         fx,
+                                         getBaseline(),
+                                         getMapDepthFactor(),
+                                         getMinDepthFactor());
       break;
     default:
       LOG(FATAL) << "sparseStereoMatching: only works when "
@@ -217,13 +227,14 @@ void StereoFrame::sparseStereoMatching(const int verbosity) {
   if (verbosity > 0) {
     cv::Mat left_rectifiedWithKeypoints =
         UtilsOpenCV::DrawCircles(left_img_rectified_, left_keypoints_rectified);
-    drawEpipolarLines(left_rectifiedWithKeypoints, right_img_rectified_, 20,
-                      verbosity);
+    drawEpipolarLines(
+        left_rectifiedWithKeypoints, right_img_rectified_, 20, verbosity);
     cv::Mat right_rectifiedWithKeypoints = UtilsOpenCV::DrawCircles(
         right_img_rectified_, right_keypoints_rectified, keypoints_depth_);
     showImagesSideBySide(left_rectifiedWithKeypoints,
                          right_rectifiedWithKeypoints,
-                         "rectifiedWithKeypointsAndDepth_", verbosity);
+                         "rectifiedWithKeypointsAndDepth_",
+                         verbosity);
   }
 
   // Store point pixels and statuses: for visualization
@@ -501,7 +512,6 @@ void StereoFrame::setIsRectified(bool is_rectified) {
   is_rectified_ = is_rectified;
 }
 
-
 /* -------------------------------------------------------------------------- */
 // TODO: this should be in Mesher.
 // Removes triangles in the 2d mesh that have more than "max_keypoints_with_
@@ -537,8 +547,8 @@ void StereoFrame::filterTrianglesWithGradients(
   for (const cv::Vec6f& triangle : original_triangulation_2D) {
     // Find all pixels with a gradient higher than gradBound.
     std::vector<std::pair<KeypointCV, double>> keypoints_with_high_gradient =
-        UtilsOpenCV::FindHighIntensityInTriangle(img_grads, triangle,
-                                                 gradient_bound);
+        UtilsOpenCV::FindHighIntensityInTriangle(
+            img_grads, triangle, gradient_bound);
 
     // If no high-grad pixels exist,
     // then this triangle is assumed to be a plane.
@@ -690,8 +700,9 @@ void StereoFrame::computeRectificationParameters(
       << "camLrect_Pose_calRrect log: "
       << gtsam::Rot3::Logmap(camLrect_Pose_calRrect.rotation()).norm() << '\n'
       << "Vio constructor: camera poses do not seem to be rectified (rot)";
-  LOG_IF(FATAL, fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 ||
-                fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3)
+  LOG_IF(FATAL,
+         fabs(camLrect_Pose_calRrect.translation().y()) > 1e-3 ||
+             fabs(camLrect_Pose_calRrect.translation().z()) > 1e-3)
       << "Vio constructor: camera poses do not seem to be rectified (tran) \n"
       << "camLrect_Poe_calRrect: " << camLrect_Pose_calRrect;
 
@@ -784,7 +795,8 @@ void StereoFrame::getRightKeypointsLKunrectified() {
   std::vector<uchar> status;
   std::vector<float> error;
   cv::TermCriteria termcrit(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
-                            klt_max_iter, klt_max_iter);
+                            klt_max_iter,
+                            klt_max_iter);
 
   // Fill up structure for reference pixels and their labels
   KeypointsCV px_ref;
@@ -796,10 +808,16 @@ void StereoFrame::getRightKeypointsLKunrectified() {
   KeypointsCV px_cur = px_ref;
   if (px_cur.size() > 0) {
     // Do the actual tracking, so px_cur becomes the new pixel locations
-    cv::calcOpticalFlowPyrLK(ref_frame.img_, cur_frame.img_, px_ref, px_cur,
-                             status, error,
-                             cv::Size2i(klt_win_size, klt_win_size), 4,
-                             termcrit, cv::OPTFLOW_USE_INITIAL_FLOW);
+    cv::calcOpticalFlowPyrLK(ref_frame.img_,
+                             cur_frame.img_,
+                             px_ref,
+                             px_cur,
+                             status,
+                             error,
+                             cv::Size2i(klt_win_size, klt_win_size),
+                             4,
+                             termcrit,
+                             cv::OPTFLOW_USE_INITIAL_FLOW);
   } else {
     LOG(FATAL)
         << "computeStereo: no available keypoints for stereo computation";
@@ -886,9 +904,13 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
     double matchingVal_LR;
     std::tie(right_rectified_i_candidate, matchingVal_LR) =
         findMatchingKeypointRectified(
-            left_rectified, left_rectified_i, right_rectified,
-            sparseStereoParams_.templ_cols, sparseStereoParams_.templ_rows,
-            stripe_cols, stripe_rows,
+            left_rectified,
+            left_rectified_i,
+            right_rectified,
+            sparseStereoParams_.templ_cols,
+            sparseStereoParams_.templ_rows,
+            stripe_cols,
+            stripe_rows,
             sparseStereoParams_.toleranceTemplateMatching,
             writeImageLeftRightMatching);
 
@@ -952,9 +974,13 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
     // TODO remove tie, potential copies being made.
     std::tie(right_rectified_i_candidate, matchingVal_LR) =
         findMatchingKeypointRectified(
-            left_rectified, left_rectified_i, right_rectified,
+            left_rectified,
+            left_rectified_i,
+            right_rectified,
             sparse_stereo_params_.templ_cols_,
-            sparse_stereo_params_.templ_rows_, stripe_cols, stripe_rows,
+            sparse_stereo_params_.templ_rows_,
+            stripe_cols,
+            stripe_rows,
             sparse_stereo_params_.tolerance_template_matching_,
             writeImageLeftRightMatching);
 
@@ -1000,8 +1026,10 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
         UtilsOpenCV::DrawCircles(left_rectified, left_keypoints_rectified);
     cv::Mat imgR_withKeypoints =
         UtilsOpenCV::DrawCircles(right_rectified, right_keypoints_rectified);
-    showImagesSideBySide(imgL_withKeypoints, imgR_withKeypoints,
-                         "result_getRightKeypointsRectified", verbosity);
+    showImagesSideBySide(imgL_withKeypoints,
+                         imgR_withKeypoints,
+                         "result_getRightKeypointsRectified",
+                         verbosity);
   }
   return right_keypoints_rectified;
 }
@@ -1009,9 +1037,12 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectified(
 /* ---------------------------------------------------------------------------------------
  */
 StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
-    const cv::Mat left_rectified, const cv::Mat right_rectified,
-    const StatusKeypointsCV& left_keypoints_rectified, const double& fx,
-    const double& baseline, const double& depth_map_factor,
+    const cv::Mat left_rectified,
+    const cv::Mat right_rectified,
+    const StatusKeypointsCV& left_keypoints_rectified,
+    const double& fx,
+    const double& baseline,
+    const double& depth_map_factor,
     const double& min_depth) const {
   int verbosity = 0;
   bool writeImageLeftRightMatching = false;
@@ -1093,17 +1124,24 @@ StatusKeypointsCV StereoFrame::getRightKeypointsRectifiedRGBD(
         UtilsOpenCV::DrawCircles(left_rectified, left_keypoints_rectified);
     cv::Mat imgR_withKeypoints = UtilsOpenCV::DrawCircles(
         right_rectified_adapted, right_keypoints_rectified);
-    showImagesSideBySide(imgL_withKeypoints, imgR_withKeypoints,
-                         "result_getRightKeypointsRectified", verbosity);
+    showImagesSideBySide(imgL_withKeypoints,
+                         imgR_withKeypoints,
+                         "result_getRightKeypointsRectified",
+                         verbosity);
   }
   return right_keypoints_rectified;
 }
 
 /* -------------------------------------------------------------------------- */
 std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
-    const cv::Mat left_rectified, const KeypointCV& left_rectified_i,
-    const cv::Mat right_rectified, const int templ_cols, const int templ_rows,
-    const int stripe_cols, const int stripe_rows, const double tol_corr,
+    const cv::Mat left_rectified,
+    const KeypointCV& left_rectified_i,
+    const cv::Mat right_rectified,
+    const int templ_cols,
+    const int templ_rows,
+    const int stripe_cols,
+    const int stripe_rows,
+    const double tol_corr,
     const bool debugStereoMatching) const {
   /// correlation matrix
   int result_cols = stripe_cols - templ_cols + 1;
@@ -1232,9 +1270,10 @@ std::pair<StatusKeypointCV, double> StereoFrame::findMatchingKeypointRectified(
 
   // Refine keypoint with subpixel accuracy.
   if (sparse_stereo_params_.subpixel_refinement_) {
-    cv::TermCriteria criteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
-    cv::Size winSize(10, 10);
-    cv::Size zeroZone(-1, -1);
+    static const cv::TermCriteria criteria(
+        CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+    static const cv::Size winSize(10, 10);
+    static const cv::Size zeroZone(-1, -1);
     std::vector<cv::Point2f> corner;
     corner.push_back(match_px);  // make in correct format for cornerSubPix
     cv::cornerSubPix(right_rectified, corner, winSize, zeroZone, criteria);
@@ -1276,7 +1315,8 @@ StereoFrame::LandmarkInfo StereoFrame::getLandmarkInfo(
 /* -------------------------------------------------------------------------- */
 std::vector<double> StereoFrame::getDepthFromRectifiedMatches(
     StatusKeypointsCV& left_keypoints_rectified,
-    StatusKeypointsCV& right_keypoints_rectified, const double& fx,
+    StatusKeypointsCV& right_keypoints_rectified,
+    const double& fx,
     const double& b) const {
   // depth = fx * baseline / disparity (should be fx = focal * sensorsize)
   double fx_b = fx * b;
@@ -1346,8 +1386,8 @@ void StereoFrame::print() const {
 /* -------------------------------------------------------------------------- */
 void StereoFrame::showOriginal(const int verbosity) const {
   CHECK(!is_rectified_) << "showOriginal: but images are already rectified";
-  showImagesSideBySide(left_frame_.img_, right_frame_.img_,
-                       "original: left-right", verbosity);
+  showImagesSideBySide(
+      left_frame_.img_, right_frame_.img_, "original: left-right", verbosity);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1371,7 +1411,8 @@ void StereoFrame::showRectified(const int verbosity) const {
 
 /* -------------------------------------------------------------------------- */
 // TODO visualization (aka imshow/waitKey) must be done in the main thread...
-void StereoFrame::showImagesSideBySide(const cv::Mat imL, const cv::Mat imR,
+void StereoFrame::showImagesSideBySide(const cv::Mat imL,
+                                       const cv::Mat imR,
                                        const std::string& title,
                                        const int& verbosity) const {
   if (verbosity == 0) return;
@@ -1390,14 +1431,17 @@ void StereoFrame::showImagesSideBySide(const cv::Mat imL, const cv::Mat imR,
 }
 
 /* -------------------------------------------------------------------------- */
-cv::Mat StereoFrame::drawEpipolarLines(const cv::Mat img1, const cv::Mat img2,
+cv::Mat StereoFrame::drawEpipolarLines(const cv::Mat img1,
+                                       const cv::Mat img2,
                                        const int& numLines,
                                        const int& verbosity) const {
   cv::Mat canvas = UtilsOpenCV::ConcatenateTwoImages(img1, img2);
   int lineGap = canvas.rows / (numLines + 1);
   for (int l = 0; l < numLines; l++) {
     float yPos = (l + 1) * lineGap;
-    cv::line(canvas, cv::Point2f(0, yPos), cv::Point2f(canvas.cols - 1, yPos),
+    cv::line(canvas,
+             cv::Point2f(0, yPos),
+             cv::Point2f(canvas.cols - 1, yPos),
              cv::Scalar(0, 255, 0));
   }
   if (verbosity > 1) {
@@ -1420,9 +1464,11 @@ void StereoFrame::displayLeftRightMatches() const {
   for (size_t i = 0; i < left_frame_.keypoints_.size(); i++) {
     matches.push_back(cv::DMatch(i, i, 0));
   }
-  cv::Mat match_vis = UtilsOpenCV::DrawCornersMatches(
-      left_frame_.img_, left_frame_.keypoints_, right_frame_.img_,
-      right_frame_.keypoints_, matches);
+  cv::Mat match_vis = UtilsOpenCV::DrawCornersMatches(left_frame_.img_,
+                                                      left_frame_.keypoints_,
+                                                      right_frame_.img_,
+                                                      right_frame_.keypoints_,
+                                                      matches);
   cv::imshow("match_visualization", match_vis);
   cv::waitKey(1);
 }

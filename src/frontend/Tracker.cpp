@@ -24,7 +24,7 @@
 
 namespace VIO {
 
-Tracker::Tracker(const VioFrontEndParams& tracker_params,
+Tracker::Tracker(const VisionFrontEndParams& tracker_params,
                  const CameraParams& camera_params)
     : tracker_params_(tracker_params),
       camera_params_(camera_params),
@@ -122,15 +122,30 @@ KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
   // Find new features and corresponding scores.
   KeypointsWithScores corners_with_scores;
   if (need_n_corners > 0) {
-    MyGoodFeaturesToTrackSubPix(cur_frame.img_,
-                                need_n_corners,
-                                tracker_params_.quality_level_,
-                                tracker_params_.min_distance_,
-                                mask,
-                                tracker_params_.block_size_,
-                                tracker_params_.use_harris_detector_,
-                                tracker_params_.k_,
-                                &corners_with_scores);
+    MyGoodFeaturesToTrack(cur_frame.img_,
+                          need_n_corners,
+                          tracker_params_.quality_level_,
+                          tracker_params_.min_distance_,
+                          mask,
+                          tracker_params_.block_size_,
+                          tracker_params_.use_harris_detector_,
+                          tracker_params_.k_,
+                          &corners_with_scores);
+
+    // TODO this takes a ton of time 27ms each time...
+    // Change window_size, and term_criteria to improve timing
+    if (tracker_params_.enable_subpixel_corner_finder_) {
+      const auto& subpixel_params =
+          tracker_params_.subpixel_corner_finder_params_;
+      auto tic = utils::Timer::tic();
+      cv::cornerSubPix(cur_frame.img_,
+                       corners_with_scores.first,
+                       subpixel_params.window_size_,
+                       subpixel_params.zero_zone_,
+                       subpixel_params.term_criteria_);
+      VLOG(1) << "Corner Sub Pixel Refinement Timing [ms]: "
+              << utils::Timer::toc(tic).count();
+    }
   }
 
   return corners_with_scores;
@@ -140,16 +155,15 @@ KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
 // Use std::vector<std::pair<cv::Point2f, double>>
 // Or  std::vector<std::pair<KeypointCV, Score>> but not a pair of vectors.
 // Remove hardcoded parameters (there are a ton).
-void Tracker::MyGoodFeaturesToTrackSubPix(
-    const cv::Mat& image,
-    const int& max_corners,
-    const double& quality_level,
-    const double& min_distance,
-    const cv::Mat& mask,
-    const int& block_size,
-    const bool& use_harris_corners,
-    const double& harrisK,
-    KeypointsWithScores* corners_with_scores) {
+void Tracker::MyGoodFeaturesToTrack(const cv::Mat& image,
+                                    const int& max_corners,
+                                    const double& quality_level,
+                                    const double& min_distance,
+                                    const cv::Mat& mask,
+                                    const int& block_size,
+                                    const bool& use_harris_corners,
+                                    const double& harrisK,
+                                    KeypointsWithScores* corners_with_scores) {
   CHECK_NOTNULL(corners_with_scores);
   try {
     // Get image of cornerness response, and get peaks for good features.
@@ -295,17 +309,6 @@ void Tracker::MyGoodFeaturesToTrackSubPix(
         }
       }
     }
-
-    // subpixel accuracy: TODO: create function for the next 4 lines
-    // TODO(Toni): REMOVE all these hardcoded stuff...
-    static const cv::TermCriteria criteria(
-        CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
-    static const cv::Size winSize(10, 10);
-    static const cv::Size zeroZone(-1, -1);
-
-    // TODO this takes a ton of time 27ms each time...
-    cv::cornerSubPix(
-        image, corners_with_scores->first, winSize, zeroZone, criteria);
   } catch (...) {
     // Corners remains empty.
     LOG(WARNING) << "ExtractCorners: no corner found in image.";
@@ -355,6 +358,7 @@ void Tracker::featureTracking(Frame* ref_frame,
 
   std::vector<uchar> status;
   std::vector<float> error;
+  auto time_lukas_kanade_tic = utils::Timer::tic();
   cv::calcOpticalFlowPyrLK(ref_frame->img_,
                            cur_frame->img_,
                            px_ref,
@@ -365,6 +369,8 @@ void Tracker::featureTracking(Frame* ref_frame,
                            tracker_params_.klt_max_level_,
                            kTerminationCriteria,
                            cv::OPTFLOW_USE_INITIAL_FLOW);
+  VLOG(1) << "Optical Flow Timing [ms]: "
+          << utils::Timer::toc(time_lukas_kanade_tic).count();
   VLOG(2) << "Finished Optical Flow Pyr LK tracking.";
 
   // TODO(Toni): use the error to further take only the best tracks?
@@ -703,12 +709,13 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   // In the ref frame of the left camera.
   gtsam::StereoCamera stereoCam(gtsam::Pose3(), K);
 
-  double timeMatchingAndAllocation_p = 0;
-  timeMatchingAndAllocation_p = UtilsOpenCV::GetTimeInSeconds();
+  double timeMatchingAndAllocation_p =
+      utils::Timer::toc(start_time_tic).count();
 
   //============================================================================
   // CREATE DATA STRUCTURES
   //============================================================================
+  auto timeCreatePointsAndCov_p_tic = utils::Timer::tic();
   size_t nrMatches = matches_ref_cur.size();
   Vector3 f_ref_i, R_f_cur_i;
   Matrix3 cov_ref_i, cov_R_cur_i;
@@ -748,12 +755,14 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
     cov_relTranf.push_back(M.cast<float>());
   }
 
-  double timeCreatePointsAndCov_p = 0;
-  timeCreatePointsAndCov_p = UtilsOpenCV::GetTimeInSeconds();
+  double timeCreatePointsAndCov_p =
+      utils::Timer::toc(timeCreatePointsAndCov_p_tic).count();
 
   //============================================================================
   // VOTING
   //============================================================================
+  auto time_voting_tic = utils::Timer::tic();
+
   std::vector<std::vector<int>> coherentSet;
   // (THIS MUST BE RESIZE - fixed size) number of other translations
   // consistent with current one.
@@ -829,8 +838,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   //<< "timeMaxSet: " << timeMaxSet << std::endl
   //<< " relTran.size(): " << relTran.size() << std::endl;
 
-  double timeVoting_p = 0;
-  timeVoting_p = UtilsOpenCV::GetTimeInSeconds();
+  double time_voting_p = utils::Timer::toc(time_voting_tic).count();
 
   VLOG(10) << "geometricOutlierRejectionStereoGivenRot: voting complete.";
 
@@ -838,7 +846,7 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
   // OUTLIER REJECTION AND TRANSLATION COMPUTATION
   //============================================================================
   if (maxCoherentSetSize < 2) {
-    VLOG(10) << "failure: 1point RANSAC (voting) could not find a solution.";
+    LOG(WARNING) << "1-point RANSAC (voting) could not find a solution.";
     return std::make_pair(
         std::make_pair(TrackingStatus::INVALID, gtsam::Pose3()),
         gtsam::Matrix3::Zero());
@@ -879,14 +887,13 @@ Tracker::geometricOutlierRejectionStereoGivenRotation(
 
   // Fill debug info.
   if (VLOG_IS_ON(10)) {
-    double timeTranslationComputation_p =
+    double time_translation_computation_p =
         utils::Timer::toc(start_time_tic).count();
-    VLOG(10) << " timeMatchingAndAllocation: " << timeMatchingAndAllocation_p
-             << " timeCreatePointsAndCov: "
-             << timeCreatePointsAndCov_p - timeMatchingAndAllocation_p
-             << " timeVoting: " << timeVoting_p - timeCreatePointsAndCov_p
-             << " timeTranslationComputation: "
-             << timeTranslationComputation_p - timeVoting_p;
+    VLOG(10) << " Time MatchingAndAllocation: " << timeMatchingAndAllocation_p
+             << " Time CreatePointsAndCov: " << timeCreatePointsAndCov_p
+             << " Time Voting: " << time_voting_p
+             << " Time translation computation p: "
+             << time_translation_computation_p;
   }
   debug_info_.stereoRansacTime_ = utils::Timer::toc(start_time_tic).count();
   debug_info_.nrStereoInliers_ = inliers.size();

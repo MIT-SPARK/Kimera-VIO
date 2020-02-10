@@ -19,6 +19,7 @@
 #include <glog/logging.h>
 
 #include "kimera-vio/utils/Timer.h"
+#include "kimera-vio/utils/UtilsNumerical.h"
 
 DEFINE_bool(visualize_frontend_images,
             false,
@@ -41,7 +42,7 @@ namespace VIO {
 StereoVisionFrontEnd::StereoVisionFrontEnd(
     const ImuParams& imu_params,
     const ImuBias& imu_initial_bias,
-    const VioFrontEndParams& tracker_params,
+    const VisionFrontEndParams& tracker_params,
     const CameraParams& camera_params,
     DisplayQueue* display_queue,
     bool log_output)
@@ -228,8 +229,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   VLOG(2) << "===================================================\n"
           << "Frame number: " << frame_count_ << " at time "
           << cur_frame.getTimestamp() << " empirical framerate (sec): "
-          << UtilsOpenCV::NsecToSec(cur_frame.getTimestamp() -
-                                    stereoFrame_km1_->getTimestamp())
+          << UtilsNumerical::NsecToSec(cur_frame.getTimestamp() -
+                                       stereoFrame_km1_->getTimestamp())
           << " (timestamp diff: "
           << cur_frame.getTimestamp() - stereoFrame_km1_->getTimestamp() << ")";
 
@@ -253,6 +254,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   if (feature_tracks) {
     *feature_tracks = displayFeatureTracks();
   }
+  VLOG(2) << "Finished feature tracking.";
   //////////////////////////////////////////////////////////////////////////////
 
   // Not tracking at all in this phase.
@@ -263,9 +265,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   SmartStereoMeasurementsUniquePtr smartStereoMeasurements = nullptr;
 
   const bool max_time_elapsed =
-      UtilsOpenCV::NsecToSec(stereoFrame_k_->getTimestamp() -
-                             last_keyframe_timestamp_) >=
-      tracker_.tracker_params_.intra_keyframe_time_;
+      stereoFrame_k_->getTimestamp() - last_keyframe_timestamp_ >=
+      tracker_.tracker_params_.intra_keyframe_time_ns_;
   const size_t nr_valid_features = left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
       nr_valid_features <= tracker_.tracker_params_.min_number_features_;
@@ -278,8 +279,8 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
 
     VLOG(2) << "+++++++++++++++++++++++++++++++++++++++++++++++++++"
             << "Keyframe after: "
-            << UtilsOpenCV::NsecToSec(stereoFrame_k_->getTimestamp() -
-                                      last_keyframe_timestamp_)
+            << UtilsNumerical::NsecToSec(stereoFrame_k_->getTimestamp() -
+                                         last_keyframe_timestamp_)
             << " sec.";
 
     VLOG_IF(2, max_time_elapsed) << "Keyframe reason: max time elapsed.";
@@ -367,7 +368,6 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   stereoFrame_km1_ = stereoFrame_k_;
   stereoFrame_k_.reset();
   ++frame_count_;
-  VLOG(2) << "Finished feature tracking.";
   return VIO::make_unique<StatusStereoMeasurements>(
       std::make_pair(trackerStatusSummary_,
                      // TODO(Toni): please, fix this, don't use std::pair...

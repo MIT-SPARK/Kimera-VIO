@@ -67,7 +67,7 @@ if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.yml)
        TIMEOUT 60)
   if(orbvoc_download_success)
     message(STATUS "Unzipping vocabulary file.")
-    
+
     execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.zip
                             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/)
     message(STATUS "Moving vocabulary file.")
@@ -204,7 +204,7 @@ if(BUILD_TESTS)
     tests/testKimeraVIO.cpp
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
-    tests/testFeatureSelector.cpp
+    #tests/testFeatureSelector.cpp
     tests/testFrame.cpp # NEEDS UPDATE
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
     tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
@@ -229,7 +229,7 @@ if(BUILD_TESTS)
     tests/testInitializationFromImu.cpp
     tests/testVioBackEnd.cpp
     tests/testVioBackEndParams.cpp
-    tests/testVioFrontEndParams.cpp
+    tests/testVisionFrontEndParams.cpp
     # tests/testVisualizer3D.cpp # NEEDS UPDATE
     tests/testOnlineAlignment.cpp
     )

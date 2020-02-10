@@ -19,7 +19,7 @@
 
 #include "kimera-vio/backend/RegularVioBackEndParams.h"
 #include "kimera-vio/backend/VioBackEndParams.h"
-#include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 

@@ -37,7 +37,7 @@ using namespace VIO;
 using namespace cv;
 
 // default
-static const VioFrontEndParams trackerParams = VioFrontEndParams();
+static const VisionFrontEndParams trackerParams = VisionFrontEndParams();
 VioBackEndParams vioParams = VioBackEndParams();
 
 typedef PinholeCamera<Cal3_S2> Camera;
@@ -232,7 +232,7 @@ TEST(FeatureSelector, DISABLED_createMatricesLinearImuFactor) {
   StampedPose spose1 =
       StampedPose(Pose3(Rot3::Ypr(M_PI, 0.1, 0.3), Point3(1, 10, 1)), 0.5);
 
-  VioFrontEndParams trackerParams2 = VioFrontEndParams();
+  VisionFrontEndParams trackerParams2 = VisionFrontEndParams();
   FeatureSelectorParams feature_select_params;
   // fake imu rate to make problem simpler
   feature_select_params.featureSelectionImuRate_ = 0.1;

@@ -32,7 +32,7 @@
 #include "kimera-vio/frontend/OpticalFlowPredictor.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
-#include "kimera-vio/frontend/VioFrontEndParams.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -48,11 +48,11 @@ class Tracker {
    * @param tracker_params Parameters for feature tracking
    * @param camera_params Parameters for the camera used for tracking.
    */
-  Tracker(const VioFrontEndParams& tracker_params,
+  Tracker(const VisionFrontEndParams& tracker_params,
           const CameraParams& camera_params);
 
   // Tracker parameters.
-  const VioFrontEndParams tracker_params_;
+  const VisionFrontEndParams tracker_params_;
 
   // Mask for features.
   cv::Mat cam_mask_;
@@ -64,7 +64,7 @@ class Tracker {
 
   // Get good features to track from image (wrapper for opencv
   // goodFeaturesToTrack)
-  static void MyGoodFeaturesToTrackSubPix(
+  static void MyGoodFeaturesToTrack(
       const cv::Mat& image,
       const int& max_corners,
       const double& quality_level,
