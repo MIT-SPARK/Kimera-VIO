@@ -670,6 +670,12 @@ TEST_F(UtilsOpenCVFixture, ExtractCornersImage) {
   Tracker::findGoodFeaturesToTrack(
       img, 100, 0.01, 10, cv::Mat(), 3, false, 0.04, &corners_with_scores);
 
+  static const cv::TermCriteria criteria(
+      CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
+  static const cv::Size winSize(10, 10);
+  static const cv::Size zeroZone(-1, -1);
+  cv::cornerSubPix(img, corners_with_scores.first, winSize, zeroZone, criteria);
+
   std::vector<KeypointCV> actualCorners2;
   UtilsOpenCV::ExtractCorners(img, &actualCorners2);
 

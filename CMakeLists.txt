@@ -225,7 +225,7 @@ if(BUILD_TESTS)
     tests/testThreadsafeTemporalBuffer.cpp
     tests/testTimer.cpp
     tests/testTracker.cpp
-    # tests/testUtilsOpenCV.cpp
+    tests/testUtilsOpenCV.cpp
     tests/testInitializationFromImu.cpp
     tests/testVioBackEnd.cpp
     tests/testVioBackEndParams.cpp
