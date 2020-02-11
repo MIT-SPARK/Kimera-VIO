@@ -100,8 +100,7 @@ void Tracker::featureDetection(Frame* cur_frame) {
     // Incremental id assigned to new landmarks
     static LandmarkId lmk_id = 0;
     const CameraParams& cam_param = cur_frame->cam_param_;
-    for (size_t i = prev_nr_keypoints; i < new_nr_keypoints; ++i) {
-      const auto& corner = corners[i];
+    for (const KeypointCV& corner: corners) {
       cur_frame->landmarks_.push_back(lmk_id);
       // New keypoint, so seen in a single (key)frame so far.
       cur_frame->landmarks_age_.push_back(1u);
