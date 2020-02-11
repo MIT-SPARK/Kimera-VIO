@@ -19,6 +19,7 @@
 #include <random>
 
 #include <gtest/gtest.h>
+#include <gflags/gflags.h>
 
 #include "kimera-vio/mesh/Mesher.h"
 
