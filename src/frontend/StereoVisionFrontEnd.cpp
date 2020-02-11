@@ -289,18 +289,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
         << tracker_.tracker_params_.min_number_features_ << ").";
 
     double sparse_stereo_time = 0;
-    if (!tracker_.tracker_params_.useRANSAC_) {
-      trackerStatusSummary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
-      if (VLOG_IS_ON(2)) {
-        printTrackingStatus(trackerStatusSummary_.kfTrackingStatus_mono_,
-                            "mono");
-      }
-      trackerStatusSummary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
-      if (VLOG_IS_ON(2)) {
-        printTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_,
-                            "stereo");
-      }
-    } else {
+    if (tracker_.tracker_params_.useRANSAC_) {
       // MONO geometric outlier rejection
       TrackingStatusPose status_pose_mono;
       Frame* left_frame_lkf = stereoFrame_lkf_->getLeftFrameMutable();
@@ -322,6 +311,17 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
                              &status_pose_stereo);
       if (status_pose_stereo.first == TrackingStatus::VALID) {
         trackerStatusSummary_.lkf_T_k_stereo_ = status_pose_stereo.second;
+      }
+    } else {
+      trackerStatusSummary_.kfTrackingStatus_mono_ = TrackingStatus::DISABLED;
+      if (VLOG_IS_ON(2)) {
+        printTrackingStatus(trackerStatusSummary_.kfTrackingStatus_mono_,
+                            "mono");
+      }
+      trackerStatusSummary_.kfTrackingStatus_stereo_ = TrackingStatus::DISABLED;
+      if (VLOG_IS_ON(2)) {
+        printTrackingStatus(trackerStatusSummary_.kfTrackingStatus_stereo_,
+                            "stereo");
       }
     }
     // If its been long enough, make it a keyframe

@@ -34,8 +34,8 @@
 #include <gtest/gtest.h>
 
 #include "kimera-vio/frontend/Tracker.h"
-#include "kimera-vio/utils/UtilsOpenCV.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
+#include "kimera-vio/utils/UtilsOpenCV.h"
 
 DECLARE_string(test_data_path);
 
@@ -227,8 +227,15 @@ TEST_F(UtilsOpenCVFixture, Cvmat2rot) {
 /* ************************************************************************** */
 TEST(testUtilsOpenCV, Cvmat2Cal3S2) {
   // input CV Mat from MH_easy_01/cam0 (modified)
-  Mat M = (cv::Mat_<double>(3, 3) << 458.654, 0.01, 367.215, 0, 457.296,
-           248.375, 0, 0, 1);
+  Mat M = (cv::Mat_<double>(3, 3) << 458.654,
+           0.01,
+           367.215,
+           0,
+           457.296,
+           248.375,
+           0,
+           0,
+           1);
   // Expected output
   Cal3_S2 cal_expected(458.654, 457.296, 0.01, 367.215, 248.375);
   // Actual output
@@ -239,8 +246,15 @@ TEST(testUtilsOpenCV, Cvmat2Cal3S2) {
 /* ************************************************************************** */
 TEST(testUtilsOpenCV, Cal3S2ToCvmat) {
   // Expected output
-  Mat M = (cv::Mat_<double>(3, 3) << 458.654, 0.01, 367.215, 0, 457.296,
-           248.375, 0, 0, 1);
+  Mat M = (cv::Mat_<double>(3, 3) << 458.654,
+           0.01,
+           367.215,
+           0,
+           457.296,
+           248.375,
+           0,
+           0,
+           1);
   // actual output
   Cal3_S2 cal_expected(458.654, 457.296, 0.01, 367.215, 248.375);
   Mat Mactual = UtilsOpenCV::Cal3_S2ToCvmat(cal_expected);
@@ -631,7 +645,7 @@ TEST_F(UtilsOpenCVFixture, DISABLED_ExtractCornersChessboard) {
   std::vector<KeypointCV> actualCorners, actualCorners2;
   std::vector<double> actualScores;
   std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  Tracker::MyGoodFeaturesToTrack(
+  Tracker::findGoodFeaturesToTrack(
       img, 100, 0.01, 10, Mat(), 3, false, 0.04, &corners_with_scores);
 
   UtilsOpenCV::ExtractCorners(img, &actualCorners2);
@@ -653,21 +667,21 @@ TEST_F(UtilsOpenCVFixture, ExtractCornersImage) {
   cv::Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(real_img_path_);
 
   std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  Tracker::MyGoodFeaturesToTrack(
+  Tracker::findGoodFeaturesToTrack(
       img, 100, 0.01, 10, cv::Mat(), 3, false, 0.04, &corners_with_scores);
 
   std::vector<KeypointCV> actualCorners2;
   UtilsOpenCV::ExtractCorners(img, &actualCorners2);
 
-  EXPECT_NEAR(corners_with_scores.first.size(), actualCorners2.size(), 1e-3);
-  EXPECT_NEAR(corners_with_scores.first.size(),
-              corners_with_scores.second.size(), 1e-3);
+  EXPECT_EQ(corners_with_scores.first.size(), actualCorners2.size());
+  EXPECT_EQ(corners_with_scores.first.size(),
+            corners_with_scores.second.size());
 
   for (size_t i = 0; i < actualCorners2.size(); ++i) {
-    EXPECT_NEAR(corners_with_scores.first.at(i).x, actualCorners2.at(i).x,
-                1e-3);
-    EXPECT_NEAR(corners_with_scores.first.at(i).y, actualCorners2.at(i).y,
-                1e-3);
+    EXPECT_NEAR(
+        corners_with_scores.first.at(i).x, actualCorners2.at(i).x, 1e-3);
+    EXPECT_NEAR(
+        corners_with_scores.first.at(i).y, actualCorners2.at(i).y, 1e-3);
     if (i < actualCorners2.size() - 1) {
       EXPECT_LE(
           corners_with_scores.second.at(i + 1),
