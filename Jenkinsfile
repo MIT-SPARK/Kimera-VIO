@@ -59,7 +59,7 @@ pipeline {
                   // Run performance tests.
                   // In jenkins_euroc.yaml, set output path to #WORKSPACE/Kimera-VIO-Evaluation/website/data
                   sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
-                    --save_plots --save_boxplots --save_results \
+                    --save_plots --save_boxplots --save_results --write_website \
                     $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
