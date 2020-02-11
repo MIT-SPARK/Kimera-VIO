@@ -197,8 +197,8 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
 
   // Initialize mask: this is allocated but it does not play a role
   // in this function.
-  cv::Size imgSize = left_frame->img_.size();
-  tracker_.cam_mask_ = cv::Mat(imgSize, CV_8UC1, cv::Scalar(255));
+  tracker_.cam_mask_ = cv::Mat(
+      left_frame->img_.size(), CV_8UC1, cv::Scalar(255));
 
   // Perform feature detection.
   tracker_.featureDetection(left_frame);
@@ -267,7 +267,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   const bool max_time_elapsed =
       stereoFrame_k_->getTimestamp() - last_keyframe_timestamp_ >=
       tracker_.tracker_params_.intra_keyframe_time_ns_;
-  const size_t nr_valid_features = left_frame_k->getNrValidKeypoints();
+  const size_t& nr_valid_features = left_frame_k->getNrValidKeypoints();
   const bool nr_features_low =
       nr_valid_features <= tracker_.tracker_params_.min_number_features_;
 

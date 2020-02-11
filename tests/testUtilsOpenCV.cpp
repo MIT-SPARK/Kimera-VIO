@@ -640,67 +640,6 @@ TEST(testUtilsOpenCV, covariancebvx2xvb) {
 }
 
 /* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, DISABLED_ExtractCornersChessboard) {
-  Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(chess_img_path_);
-  std::vector<KeypointCV> actualCorners, actualCorners2;
-  std::vector<double> actualScores;
-  std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  Tracker::findGoodFeaturesToTrack(
-      img, 100, 0.01, 10, Mat(), 3, false, 0.04, &corners_with_scores);
-
-  UtilsOpenCV::ExtractCorners(img, &actualCorners2);
-
-  int numCorners_expected = 7 * 9;
-  EXPECT_NEAR(numCorners_expected, actualCorners.size(), 1e-3);
-  EXPECT_NEAR(numCorners_expected, actualCorners2.size(), 1e-3);
-  EXPECT_NEAR(actualCorners.size(), actualScores.size(), 1e-3);
-
-  for (size_t i = 0; i < actualCorners2.size(); ++i) {
-    EXPECT_NEAR(actualCorners.at(i).x, actualCorners2.at(i).x, 1e-3);
-    EXPECT_NEAR(actualCorners.at(i).y, actualCorners2.at(i).y, 1e-3);
-    EXPECT_NEAR(0.333333, actualScores.at(i), 1e-3);
-  }
-}
-
-/* ************************************************************************** */
-TEST_F(UtilsOpenCVFixture, ExtractCornersImage) {
-  cv::Mat img = UtilsOpenCV::ReadAndConvertToGrayScale(real_img_path_);
-
-  std::pair<std::vector<KeypointCV>, std::vector<double>> corners_with_scores;
-  Tracker::findGoodFeaturesToTrack(
-      img, 100, 0.01, 10, cv::Mat(), 3, false, 0.04, &corners_with_scores);
-
-  static const cv::TermCriteria criteria(
-      CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
-  static const cv::Size winSize(10, 10);
-  static const cv::Size zeroZone(-1, -1);
-  cv::cornerSubPix(img, corners_with_scores.first, winSize, zeroZone, criteria);
-
-  std::vector<KeypointCV> actualCorners2;
-  UtilsOpenCV::ExtractCorners(img, &actualCorners2);
-
-  EXPECT_EQ(corners_with_scores.first.size(), actualCorners2.size());
-  EXPECT_EQ(corners_with_scores.first.size(),
-            corners_with_scores.second.size());
-
-  for (size_t i = 0; i < actualCorners2.size(); ++i) {
-    EXPECT_NEAR(
-        corners_with_scores.first.at(i).x, actualCorners2.at(i).x, 1e-3);
-    EXPECT_NEAR(
-        corners_with_scores.first.at(i).y, actualCorners2.at(i).y, 1e-3);
-    if (i < actualCorners2.size() - 1) {
-      EXPECT_LE(
-          corners_with_scores.second.at(i + 1),
-          corners_with_scores.second.at(i));  // check that they are sorted
-    }
-  }
-  // check that smallest (last) score is greater than 0.01 (quality level) times
-  // the largest (first)
-  EXPECT_GE(corners_with_scores.second.at(actualCorners2.size() - 1),
-            0.01 * corners_with_scores.second.at(0));
-}
-
-/* ************************************************************************** */
 TEST(testUtilsOpenCV, VectorUnique) {
   std::vector<int> vactual{1, 2, 3, 1, 2, 3, 3, 4, 5, 4, 5, 6, 7};
   std::vector<int> vexpected{1, 2, 3, 4, 5, 6, 7};

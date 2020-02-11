@@ -90,46 +90,13 @@ class Frame : public PipelinePayload {
                       const double k = 0.04) {
     UtilsOpenCV::ExtractCorners(img_,
                                 &keypoints_,
+                                100,
                                 qualityLevel,
                                 minDistance,
                                 blockSize,
                                 k,
                                 useHarrisDetector);
   }
-
-  /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-  // NOT TESTED:
-  void setLandmarksToMinus1(const LandmarkIds& lmkIds) {
-    // TODO: this has quadratic complexity
-    for (const LandmarkId& lmkId : lmkIds) {
-      // For each landmark we want to discard.
-      bool found = false;
-      for (size_t ind = 0; ind < landmarks_.size(); ind++) {
-        // We look for it among landmarks_.
-        if (landmarks_.at(ind) == lmkId) {
-          // We found it, so we set it to -1.
-          landmarks_.at(ind) = -1;
-          found = true;
-          break;
-        }
-      }
-      CHECK(found) << "setLandmarksToMinus1: lmk not found";
-    }
-  }
-
-  /* ----------------------- CONST FUNCTIONS -------------------------------- */
-  // NOT TESTED: undistort and return
-  //  cv::Mat undistortImage() const {
-  //    cv::Mat undistortedImage,
-  //    undistortedCameraMatrix,undist_map_x,undist_map_y; cv::Size imageSize;
-  //    cv::initUndistortRectifyMap(cam_param_.camera_matrix_,
-  //    cam_param_.distortion_coeff_, cv::Mat(),
-  //        undistortedCameraMatrix, imageSize, CV_16SC2, undist_map_x,
-  //        undist_map_y);
-  //
-  //    cv::remap(img_, undistortedImage, undist_map_x, undist_map_y,
-  //    cv::INTER_LINEAR); return undistortedImage;
-  //  }
 
   /* ------------------------------------------------------------------------ */
   size_t getNrValidKeypoints() const {
@@ -261,7 +228,7 @@ class Frame : public PipelinePayload {
   std::vector<double> scores_;  // quality of extracted keypoints
   LandmarkIds landmarks_;
   //! How many consecutive *keyframes* saw the keypoint
-  std::vector<int> landmarks_age_;
+  std::vector<size_t> landmarks_age_;
   //! in the ref frame of the UNRECTIFIED left frame
   BearingVectors versors_;
   //! Not currently used

@@ -18,6 +18,8 @@
 
 #include <boost/shared_ptr.hpp>  // used for opengv
 
+#include <opencv2/features2d/features2d.hpp>
+
 #include "kimera-vio/frontend/OpticalFlowPredictorFactory.h"
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
@@ -60,9 +62,9 @@ void Tracker::featureDetection(Frame* cur_frame) {
   // features If ref_frame has zero features this simply detects
   // maxFeaturesPerFrame_ new features for cur_frame
   int n_existing = 0;  // count existing (tracked) features
-  for (size_t i = 0; i < cur_frame->landmarks_.size(); ++i) {
+  for (size_t i = 0u; i < cur_frame->landmarks_.size(); ++i) {
     // count nr of valid keypoints
-    if (cur_frame->landmarks_.at(i) != -1) ++n_existing;
+    if (cur_frame->landmarks_[i] != -1) ++n_existing;
     // features that have been tracked so far have Age+1
     cur_frame->landmarks_age_.at(i)++;
   }
@@ -74,79 +76,67 @@ void Tracker::featureDetection(Frame* cur_frame) {
   debug_info_.need_n_corners_ = nr_corners_needed;
 
   ///////////////// FEATURE DETECTION //////////////////////
-  // If feature FeatureSelectionCriterion is quality, just extract what you
-  // need:
+  // Actual feature detection: detects new keypoints where there are no
+  // currently tracked ones
   auto start_time_tic = utils::Timer::tic();
-  const KeypointsWithScores& corners_with_scores =
+  const KeypointsCV& corners =
       Tracker::featureDetection(*cur_frame, cam_mask_, nr_corners_needed);
+  const size_t& n_corners = corners.size();
 
   debug_info_.featureDetectionTime_ = utils::Timer::toc(start_time_tic).count();
-  debug_info_.extracted_corners_ = corners_with_scores.first.size();
+  debug_info_.extracted_corners_ = n_corners;
 
-  ///////////////// STORE NEW KEYPOINTS  //////////////////////
-  // Store features in our Frame
-  size_t nrExistingKeypoints =
-      cur_frame->keypoints_.size();  // for debug, these are the ones tracked
-                                     // from the previous frame
-  cur_frame->landmarks_.reserve(cur_frame->keypoints_.size() +
-                                corners_with_scores.first.size());
-  cur_frame->landmarks_age_.reserve(cur_frame->keypoints_.size() +
-                                    corners_with_scores.first.size());
-  cur_frame->keypoints_.reserve(cur_frame->keypoints_.size() +
-                                corners_with_scores.first.size());
-  cur_frame->scores_.reserve(cur_frame->scores_.size() +
-                             corners_with_scores.second.size());
-  cur_frame->versors_.reserve(cur_frame->keypoints_.size() +
-                              corners_with_scores.first.size());
+  if (n_corners > 0u) {
+    ///////////////// STORE NEW KEYPOINTS  //////////////////////
+    // Store features in our Frame
+    const size_t& prev_nr_keypoints = cur_frame->keypoints_.size();
+    const size_t& new_nr_keypoints = prev_nr_keypoints + n_corners;
+    cur_frame->landmarks_.reserve(new_nr_keypoints);
+    cur_frame->landmarks_age_.reserve(new_nr_keypoints);
+    cur_frame->keypoints_.reserve(new_nr_keypoints);
+    cur_frame->scores_.reserve(new_nr_keypoints);
+    cur_frame->versors_.reserve(new_nr_keypoints);
 
-  // TODO(Toni) Fix this loop, very unefficient. Use std::move over keypoints
-  // with scores.
-  // Counters.
-  static int landmark_count;  // incremental id assigned to new landmarks
-  for (size_t i = 0; i < corners_with_scores.first.size(); i++) {
-    cur_frame->landmarks_.push_back(landmark_count);
-    cur_frame->landmarks_age_.push_back(1);  // seen in a single (key)frame
-    cur_frame->keypoints_.push_back(corners_with_scores.first.at(i));
-    cur_frame->scores_.push_back(corners_with_scores.second.at(i));
-    cur_frame->versors_.push_back(Frame::calibratePixel(
-        corners_with_scores.first.at(i), cur_frame->cam_param_));
-    ++landmark_count;
+    // Incremental id assigned to new landmarks
+    static LandmarkId lmk_id = 0;
+    const CameraParams& cam_param = cur_frame->cam_param_;
+    for (size_t i = prev_nr_keypoints; i < new_nr_keypoints; ++i) {
+      const auto& corner = corners[i];
+      cur_frame->landmarks_.push_back(lmk_id);
+      // New keypoint, so seen in a single (key)frame so far.
+      cur_frame->landmarks_age_.push_back(1u);
+      cur_frame->keypoints_.push_back(corner);
+      cur_frame->scores_.push_back(0.0);  // NOT IMPLEMENTED
+      cur_frame->versors_.push_back(Frame::calibratePixel(corner, cam_param));
+      ++lmk_id;
+    }
+    VLOG(10) << "featureExtraction: frame " << cur_frame->id_
+             << ",  Nr tracked keypoints: " << prev_nr_keypoints
+             << ",  Nr extracted keypoints: " << n_corners
+             << ",  total: " << cur_frame->keypoints_.size()
+             << "  (max: " << tracker_params_.maxFeaturesPerFrame_ << ")";
+  } else {
+    LOG(WARNING) << "No corners extracted for frame with id: "
+                 << cur_frame->id_;
   }
-  VLOG(10) << "featureExtraction: frame " << cur_frame->id_
-           << ",  Nr tracked keypoints: " << nrExistingKeypoints
-           << ",  Nr extracted keypoints: " << corners_with_scores.first.size()
-           << ",  total: " << cur_frame->keypoints_.size()
-           << "  (max: " << tracker_params_.maxFeaturesPerFrame_ << ")";
 }
 
-KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
-                                              const cv::Mat& cam_mask,
-                                              const int& need_n_corners) {
-  // Create mask such that new keypoints are not close to old ones.
-  cv::Mat mask;
-  cam_mask.copyTo(mask);
-  for (size_t i = 0; i < cur_frame.keypoints_.size(); ++i) {
-    if (cur_frame.landmarks_.at(i) != -1) {
-      cv::circle(mask,
-                 cur_frame.keypoints_.at(i),
-                 tracker_params_.min_distance_,
-                 cv::Scalar(0),
-                 CV_FILLED);
-    }
-  }
+KeypointsCV Tracker::featureDetection(const Frame& cur_frame,
+                                      const cv::Mat& cam_mask,
+                                      const int& need_n_corners) {
+  // TODO(TONI) need to do grid based approach!
 
-  // Find new features and corresponding scores.
-  KeypointsWithScores corners_with_scores;
+  // Find new features.
+  KeypointsCV new_corners;
   if (need_n_corners > 0) {
-    findGoodFeaturesToTrack(cur_frame.img_,
-                            need_n_corners,
-                            tracker_params_.quality_level_,
-                            tracker_params_.min_distance_,
-                            mask,
-                            tracker_params_.block_size_,
-                            tracker_params_.use_harris_detector_,
-                            tracker_params_.k_,
-                            &corners_with_scores);
+    UtilsOpenCV::ExtractCorners(cur_frame.img_,
+                                &new_corners,
+                                need_n_corners,
+                                tracker_params_.quality_level_,
+                                tracker_params_.min_distance_,
+                                tracker_params_.block_size_,
+                                tracker_params_.k_,
+                                tracker_params_.use_harris_detector_);
 
     // TODO this takes a ton of time 27ms each time...
     // Change window_size, and term_criteria to improve timing
@@ -155,7 +145,7 @@ KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
           tracker_params_.subpixel_corner_finder_params_;
       auto tic = utils::Timer::tic();
       cv::cornerSubPix(cur_frame.img_,
-                       corners_with_scores.first,
+                       new_corners,
                        subpixel_params.window_size_,
                        subpixel_params.zero_zone_,
                        subpixel_params.term_criteria_);
@@ -164,171 +154,7 @@ KeypointsWithScores Tracker::featureDetection(const Frame& cur_frame,
     }
   }
 
-  return corners_with_scores;
-}
-
-// TODO(Toni): VIT this function should be optimized and cleaned.
-// Use std::vector<std::pair<cv::Point2f, double>>
-// Or  std::vector<std::pair<KeypointCV, Score>> but not a pair of vectors.
-// Remove hardcoded parameters (there are a ton).
-void Tracker::findGoodFeaturesToTrack(
-    const cv::Mat& image,
-    const int& max_corners,
-    const double& quality_level,
-    const double& min_distance,
-    const cv::Mat& mask,
-    const int& block_size,
-    const bool& use_harris_corners,
-    const double& harrisK,
-    KeypointsWithScores* corners_with_scores) {
-  CHECK_NOTNULL(corners_with_scores);
-  try {
-    // Get image of cornerness response, and get peaks for good features.
-    cv::Mat cornerness_response;
-    if (use_harris_corners) {
-      cv::cornerHarris(image, cornerness_response, block_size, 3, harrisK);
-    } else {
-      // Cornerness response corresponds to eigen values.
-      cv::cornerMinEigenVal(image, cornerness_response, block_size, 3);
-    }
-
-    // Cut off corners below quality level.
-    double max_val = 0;
-    double min_val;
-    cv::Point min_loc;
-    cv::Point max_loc;
-    cv::minMaxLoc(
-        cornerness_response, &min_val, &max_val, &min_loc, &max_loc, mask);
-
-    // Cut stuff below quality.
-    cv::threshold(cornerness_response,
-                  cornerness_response,
-                  max_val * quality_level,
-                  0,
-                  CV_THRESH_TOZERO);
-    cv::Mat tmp;
-    cv::dilate(cornerness_response, tmp, cv::Mat());
-
-    // Create corners.
-    std::vector<std::pair<const float*, float>> tmp_corners_scores;
-
-    // collect list of pointers to features - put them into temporary image
-    const cv::Size& img_size = image.size();
-    for (int y = 1; y < img_size.height - 1; y++) {
-      const float* thresholded_cornerness =
-          (const float*)cornerness_response.ptr(y);
-      const float* dilated_cornerness = (const float*)tmp.ptr(y);
-      const uchar* mask_data = mask.data ? mask.ptr(y) : nullptr;
-
-      for (int x = 1; x < img_size.width - 1; x++) {
-        const float& val = thresholded_cornerness[x];
-        // TODO this takes a ton of time 12ms each time...
-        if (val != 0 && val == dilated_cornerness[x] &&
-            (!mask_data || mask_data[x])) {
-          tmp_corners_scores.push_back(
-              std::make_pair(thresholded_cornerness + x, val));
-        }
-      }
-    }
-
-    std::sort(tmp_corners_scores.begin(),
-              tmp_corners_scores.end(),
-              myGreaterThanPtr<float>());
-
-    // Put sorted corner in other struct.
-    size_t total = tmp_corners_scores.size();
-    size_t ncorners = 0;
-
-    double min_distance_tmp = min_distance;
-    if (min_distance_tmp >= 1) {
-      // Partition the image into larger grids
-      int w = image.cols;
-      int h = image.rows;
-
-      const int cell_size = cvRound(min_distance_tmp);
-      const int grid_width = (w + cell_size - 1) / cell_size;
-      const int grid_height = (h + cell_size - 1) / cell_size;
-
-      std::vector<KeypointsCV> grid(grid_width * grid_height);
-
-      min_distance_tmp *= min_distance_tmp;
-
-      for (size_t i = 0; i < total; i++) {
-        int ofs = (int)((const uchar*)tmp_corners_scores[i].first -
-                        cornerness_response.data);
-        int y = (int)(ofs / cornerness_response.step);
-        int x = (int)((ofs - y * cornerness_response.step) / sizeof(float));
-        double eigVal = double(tmp_corners_scores[i].second);
-
-        bool good = true;
-
-        int x_cell = x / cell_size;
-        int y_cell = y / cell_size;
-
-        int x1 = x_cell - 1;
-        int y1 = y_cell - 1;
-        int x2 = x_cell + 1;
-        int y2 = y_cell + 1;
-
-        // boundary check
-        x1 = std::max(0, x1);
-        y1 = std::max(0, y1);
-        x2 = std::min(grid_width - 1, x2);
-        y2 = std::min(grid_height - 1, y2);
-
-        for (int yy = y1; yy <= y2; yy++) {
-          for (int xx = x1; xx <= x2; xx++) {
-            const KeypointsCV& m = grid[yy * grid_width + xx];
-
-            if (m.size()) {
-              for (size_t j = 0; j < m.size(); j++) {
-                const float& dx = x - m[j].x;
-                const float& dy = y - m[j].y;
-
-                if (dx * dx + dy * dy < min_distance_tmp) {
-                  good = false;
-                  goto break_out;
-                }
-              }
-            }
-          }
-        }
-
-      break_out:
-
-        if (good) {
-          // printf("%d: %d %d -> %d %d, %d, %d -- %d %d %d %d, %d %d, c=%d\n",
-          //    i,x, y, x_cell, y_cell, (int)minDistance, cell_size,x1,y1,x2,y2,
-          //    grid_width,grid_height,c);
-          grid[y_cell * grid_width + x_cell].push_back(
-              KeypointCV((float)x, (float)y));
-          corners_with_scores->first.push_back(KeypointCV((float)x, (float)y));
-          corners_with_scores->second.push_back(eigVal);
-          ++ncorners;
-          if (max_corners > 0 && (int)ncorners == max_corners) {
-            break;
-          }
-        }
-      }
-    } else {
-      for (size_t i = 0; i < total; i++) {
-        int ofs = (int)((const uchar*)tmp_corners_scores[i].first -
-                        cornerness_response.data);
-        int y = (int)(ofs / cornerness_response.step);
-        int x = (int)((ofs - y * cornerness_response.step) / sizeof(float));
-        double eigVal = double(tmp_corners_scores[i].second);
-        corners_with_scores->first.push_back(KeypointCV((float)x, (float)y));
-        corners_with_scores->second.push_back(eigVal);
-        ++ncorners;
-        if (max_corners > 0 && (int)ncorners == max_corners) {
-          break;
-        }
-      }
-    }
-  } catch (...) {
-    // Corners remains empty.
-    LOG(WARNING) << "ExtractCorners: no corner found in image.";
-  }
+  return new_corners;
 }
 
 // TODO(Toni) a pity that this function is not const just because
@@ -453,15 +279,15 @@ std::pair<TrackingStatus, gtsam::Pose3> Tracker::geometricOutlierRejectionMono(
   // Get bearing vectors for open_gv.
   const size_t& n_matches = matches_ref_cur.size();
   BearingVectors f_cur;
-  f_cur.resize(n_matches);
+  f_cur.reserve(n_matches);
   BearingVectors f_ref;
-  f_ref.resize(n_matches);
+  f_ref.reserve(n_matches);
   for (size_t i = 0; i < n_matches; i++) {
     // TODO(Toni) (luca): if versors are only needed at keyframe,
     // do not compute every frame
     const auto& match = matches_ref_cur[i];
-    f_ref[i] = ref_frame->versors_.at(match.first);
-    f_cur[i] = cur_frame->versors_.at(match.second);
+    f_ref.push_back(ref_frame->versors_.at(match.first));
+    f_cur.push_back(cur_frame->versors_.at(match.second));
   }
 
   // Setup problem.
@@ -885,13 +711,13 @@ Tracker::geometricOutlierRejectionStereo(StereoFrame& ref_stereoFrame,
   // Vector of 3D vectors
   const size_t& n_matches = matches_ref_cur.size();
   BearingVectors f_cur;
-  f_cur.resize(n_matches);
+  f_cur.reserve(n_matches);
   BearingVectors f_ref;
-  f_ref.resize(n_matches);
+  f_ref.reserve(n_matches);
   for (size_t i = 0; i < n_matches; i++) {
     const auto& match = matches_ref_cur[i];
-    f_ref[i] = ref_stereoFrame.keypoints_3d_.at(match.first);
-    f_cur[i] = cur_stereoFrame.keypoints_3d_.at(match.second);
+    f_ref.push_back(ref_stereoFrame.keypoints_3d_.at(match.first));
+    f_cur.push_back(cur_stereoFrame.keypoints_3d_.at(match.second));
   }
 
   // Setup problem (3D-3D adapter) -

@@ -247,30 +247,24 @@ bool UtilsOpenCV::roundAndCropToSize(cv::Point2f* px, const cv::Size& size) {
 /* -------------------------------------------------------------------------- */
 bool UtilsOpenCV::ExtractCorners(const cv::Mat& img,
                                  std::vector<cv::Point2f>* corners,
+                                 const int& max_n_corners,
                                  const double& qualityLevel,
                                  const double& minDistance,
                                  const int& blockSize,
                                  const double& k,
                                  const bool& useHarrisDetector) {
   CHECK_NOTNULL(corners)->clear();
-  // TODO(Toni): wtf are all these hardcoded things :(
-  // please remove...
-  static const cv::TermCriteria criteria(
-      CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 40, 0.001);
-  static const cv::Size winSize(10, 10);
-  static const cv::Size zeroZone(-1, -1);
   try {
     // Extract the corners
     cv::goodFeaturesToTrack(img,
                             *corners,
-                            100,
+                            max_n_corners,
                             qualityLevel,
                             minDistance,
                             cv::noArray(),
                             blockSize,
                             useHarrisDetector,
                             k);
-    cv::cornerSubPix(img, *corners, winSize, zeroZone, criteria);
   } catch (...) {
     LOG(ERROR) << "ExtractCorners: no corner found in image.";
     return false;

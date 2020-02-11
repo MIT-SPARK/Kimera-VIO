@@ -178,6 +178,7 @@ public:
   // goodFeaturesToTrack)
   static bool ExtractCorners(const cv::Mat& img,
                              std::vector<cv::Point2f>* corners,
+                             const int& max_n_corners = 100,
                              const double& qualityLevel = 0.01,
                              const double& minDistance = 10,
                              const int& blockSize = 3,
