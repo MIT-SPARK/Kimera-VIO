@@ -100,9 +100,9 @@ class StereoFrameFixture : public ::testing::Test {
         cam_params_right,
         tp.stereo_matching_params_);
 
-    sfnew->getLeftFrameMutable()->extractCorners();
-    sfnew->getLeftFrameMutable()->versors_.reserve(
-        sfnew->getLeftFrame().keypoints_.size());
+    Frame* left_frame = sfnew->getLeftFrameMutable();
+    UtilsOpenCV::ExtractCorners(left_frame->img_, &left_frame->keypoints_);
+    left_frame->versors_.reserve(sfnew->getLeftFrame().keypoints_.size());
     int landmark_count_ = 0;
     for (size_t i = 0; i < sfnew->getLeftFrame().keypoints_.size(); i++) {
       sfnew->getLeftFrameMutable()->landmarks_.push_back(landmark_count_);
@@ -242,7 +242,8 @@ TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
   // Synthetic experiments for findMatchingKeypointRectified
 
   // Extract keypoints from the left img!
-  sf->getLeftFrameMutable()->extractCorners();
+  Frame* left_frame = sf->getLeftFrameMutable();
+  UtilsOpenCV::ExtractCorners(left_frame->img_, &left_frame->keypoints_);
   cv::Mat left_img = sf->getLeftFrame().img_;
   const KeypointsCV& left_keypoints = sf->getLeftFrame().keypoints_;
   const int num_points = left_keypoints.size();
@@ -639,7 +640,8 @@ TEST_F(StereoFrameFixture, getDepthFromRectifiedMatches) {
 /* ************************************************************************* */
 TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
   // Extract keypoints from the left img!
-  sf->getLeftFrameMutable()->extractCorners();
+  Frame* left_frame = sf->getLeftFrameMutable();
+  UtilsOpenCV::ExtractCorners(left_frame->img_, &left_frame->keypoints_);
   cv::Mat left_img = sf->getLeftFrame().img_;
   const KeypointsCV& left_keypoints = sf->getLeftFrame().keypoints_;
   const int num_points = left_keypoints.size();
@@ -1161,7 +1163,8 @@ TEST_F(StereoFrameFixture, DISABLED_undistortFisheyeStereoFrame) {
   StatusKeypointsCV left_keypoints_rectified;
   Frame left_frame_fish = sf->getLeftFrame();
   Frame right_frame_fish = sf->getRightFrame();
-  left_frame_fish.extractCorners();
+  UtilsOpenCV::ExtractCorners(left_frame_fish.img_,
+                              &left_frame_fish.keypoints_);
   sf->undistortRectifyPoints(left_frame_fish.keypoints_,
                              left_frame_fish.cam_param_,
                              left_undistRectCameraMatrix_fisheye,

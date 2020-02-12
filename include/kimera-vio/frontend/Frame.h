@@ -78,26 +78,6 @@ class Frame : public PipelinePayload {
         descriptors_(frame.descriptors_) {}
 
  public:
-  /* ++++++++++++++++++++++ NONCONST FUNCTIONS ++++++++++++++++++++++++++++++ */
-  // ExtractCorners using goodFeaturesToTrack
-  // This is only used for testing purposes.
-  // TODO, define it in the tests, rather than here, as it distracts coders,
-  // since it is not actually used by the VIO pipeline.
-  void extractCorners(const double qualityLevel = 0.01,
-                      const double minDistance = 10,
-                      const int blockSize = 3,
-                      const bool useHarrisDetector = false,
-                      const double k = 0.04) {
-    UtilsOpenCV::ExtractCorners(img_,
-                                &keypoints_,
-                                100,
-                                qualityLevel,
-                                minDistance,
-                                blockSize,
-                                k,
-                                useHarrisDetector);
-  }
-
   /* ------------------------------------------------------------------------ */
   size_t getNrValidKeypoints() const {
     // TODO: can we cache this value?
