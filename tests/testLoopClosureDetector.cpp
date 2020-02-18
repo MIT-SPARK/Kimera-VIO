@@ -25,6 +25,7 @@
 #include "kimera-vio/frontend/Frame.h"
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/frontend/Tracker.h"
+#include "kimera-vio/frontend/FeatureDetector.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"
 
@@ -115,6 +116,7 @@ class LCDFixture :public ::testing::Test {
     // Initialize StereoFrame objects for reference and current frames
     VisionFrontEndParams tp;
     Tracker tracker(tp, CameraParams());
+    FeatureDetector feature_detector(tp);
 
     ref1_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_ref1_,
@@ -127,7 +129,7 @@ class LCDFixture :public ::testing::Test {
         cam_params_right,
         tp.stereo_matching_params_);
 
-    tracker.featureDetection(ref1_stereo_frame_->getLeftFrameMutable());
+    feature_detector.featureDetection(ref1_stereo_frame_->getLeftFrameMutable());
     CHECK(ref1_stereo_frame_);
     ref1_stereo_frame_->setIsKeyframe(true);
     ref1_stereo_frame_->sparseStereoMatching();
@@ -143,7 +145,7 @@ class LCDFixture :public ::testing::Test {
         cam_params_right,
         tp.stereo_matching_params_);
 
-    tracker.featureDetection(cur1_stereo_frame_->getLeftFrameMutable());
+    feature_detector.featureDetection(cur1_stereo_frame_->getLeftFrameMutable());
     CHECK(cur1_stereo_frame_);
     cur1_stereo_frame_->setIsKeyframe(true);
     cur1_stereo_frame_->sparseStereoMatching();
@@ -159,7 +161,7 @@ class LCDFixture :public ::testing::Test {
         cam_params_right,
         tp.stereo_matching_params_);
 
-    tracker.featureDetection(ref2_stereo_frame_->getLeftFrameMutable());
+    feature_detector.featureDetection(ref2_stereo_frame_->getLeftFrameMutable());
     CHECK(ref2_stereo_frame_);
     ref2_stereo_frame_->setIsKeyframe(true);
     ref2_stereo_frame_->sparseStereoMatching();
@@ -175,7 +177,7 @@ class LCDFixture :public ::testing::Test {
         cam_params_right,
         tp.stereo_matching_params_);
 
-    tracker.featureDetection(cur2_stereo_frame_->getLeftFrameMutable());
+    feature_detector.featureDetection(cur2_stereo_frame_->getLeftFrameMutable());
     CHECK(cur2_stereo_frame_);
     cur2_stereo_frame_->setIsKeyframe(true);
     cur2_stereo_frame_->sparseStereoMatching();

@@ -15,6 +15,7 @@ target_sources(kimera_vio PRIVATE
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndFactory.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker.h"
+  "${CMAKE_CURRENT_LIST_DIR}/FeatureDetector.h"
   "${CMAKE_CURRENT_LIST_DIR}/OpticalFlowPredictor-definitions.h"
   "${CMAKE_CURRENT_LIST_DIR}/OpticalFlowPredictor.h"
   "${CMAKE_CURRENT_LIST_DIR}/OpticalFlowPredictorFactory.h"

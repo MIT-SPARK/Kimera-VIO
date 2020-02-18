@@ -10,5 +10,6 @@ target_sources(kimera_vio
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndFactory.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/VisionFrontEndParams.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/Tracker.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/FeatureDetector.cpp"
 )
 

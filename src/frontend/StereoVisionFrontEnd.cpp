@@ -49,6 +49,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     : frame_count_(0),
       keyframe_count_(0),
       tracker_(tracker_params, camera_params),
+      feature_detector_(tracker_params),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
       display_queue_(display_queue),
@@ -195,13 +196,8 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
       << "Keypoints already present in first frame: please do not extract"
          " keypoints manually";
 
-  // Initialize mask: this is allocated but it does not play a role
-  // in this function.
-  tracker_.cam_mask_ = cv::Mat(
-      left_frame->img_.size(), CV_8UC1, cv::Scalar(255));
-
   // Perform feature detection.
-  tracker_.featureDetection(left_frame);
+  feature_detector_.featureDetection(left_frame);
 
   // Get 3D points via stereo.
   stereoFrame_k_->sparseStereoMatching();
@@ -330,7 +326,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
 
     // Perform feature detection (note: this must be after RANSAC,
     // since if we discard more features, we need to extract more)
-    tracker_.featureDetection(left_frame_k);
+    feature_detector_.featureDetection(left_frame_k);
 
     // Get 3D points via stereo, including newly extracted
     // (this might be only for the visualization).

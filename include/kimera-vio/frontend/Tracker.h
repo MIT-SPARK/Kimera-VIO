@@ -54,21 +54,10 @@ class Tracker {
   // Tracker parameters.
   const VisionFrontEndParams tracker_params_;
 
-  // Mask for features.
-  cv::Mat cam_mask_;
-
  public:
   void featureTracking(Frame* ref_frame,
                        Frame* cur_frame,
                        const gtsam::Rot3& inter_frame_rotation);
-
-  void featureDetection(Frame* cur_frame);
-
-  // Returns landmark_count (updated from the new keypoints),
-  // and nr or extracted corners.
-  KeypointsCV featureDetection(const Frame& cur_frame,
-                               const cv::Mat& cam_mask,
-                               const int& need_n_corners);
 
   // TODO(Toni): this function is almost a replica of the Stereo version,
   // factorize.

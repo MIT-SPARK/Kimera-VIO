@@ -30,6 +30,7 @@
 #include "kimera-vio/frontend/StereoVisionFrontEnd-definitions.h"
 #include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/Tracker.h"
+#include "kimera-vio/frontend/FeatureDetector.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd.h"
 #include "kimera-vio/imu-frontend/ImuFrontEndParams.h"
@@ -242,6 +243,9 @@ class StereoVisionFrontEnd {
 
   // Set of functionalities for tracking.
   Tracker tracker_;
+
+  // Create the feature detector
+  FeatureDetector feature_detector_;
 
   // IMU frontend.
   std::unique_ptr<ImuFrontEnd> imu_frontend_;
