@@ -12,7 +12,7 @@ WORKDIR $DIRPATH
 
 #Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
-RUN apt-get update && apt-get install -y git cmake build-essential pkg-config
+RUN apt-get update && apt-get install -y git cmake build-essential pkg-config htop
 
 # Install xvfb to provide a display to container for GUI realted testing.
 RUN apt-get update && apt-get install -y xvfb
