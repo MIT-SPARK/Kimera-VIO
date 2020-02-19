@@ -1605,7 +1605,9 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   // Rectangle to be used with Subdiv2D.
   static const cv::Rect2f rect(0.0, 0.0, img_size.width, img_size.height);
   // subdiv has the delaunay triangulation function
-  cv::Subdiv2D subdiv(rect);
+  static cv::Subdiv2D subdiv(rect);
+  subdiv.initDelaunay(rect);
+  // subdiv.swapEdges()
 
   // TODO Luca: there are kpts outside image, probably from tracker. This
   // check should be in the tracker.
@@ -1625,7 +1627,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
 
   // Perform triangulation.
   try {
-    subdiv.insert(*keypoints_to_triangulate);
+    subdiv.insert(keypoints_inside_image);
   } catch (...) {
     LOG(FATAL) << "CreateMesh2D: subdiv.insert error (2). "
                << "A point is outside of the triangulation specified rect...\n"
