@@ -55,10 +55,6 @@ pipeline {
             stage('Euroc Performance') {
               steps {
                 wrap([$class: 'Xvfb']) {
-                  // Copy params to Workspace
-                  sh 'mkdir -p $WORKSPACE/Kimera-VIO-Evaluation/experiments'
-                  sh 'cp -r $evaluator/experiments/params $WORKSPACE/Kimera-VIO-Evaluation/experiments/'
-
                   // Run performance tests.
                   // In jenkins_euroc.yaml, set output path to #WORKSPACE/Kimera-VIO-Evaluation/website/data
                   sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
@@ -106,7 +102,7 @@ pipeline {
                     // Archive the params used in evaluation (if these are used is determined
                     // by the experiments yaml file in Kimera-VIO-Evaluation)
                     archiveArtifacts (
-                        artifacts: 'Kimera-VIO-Evaluation/experiments/params/**/*.*',
+                        artifacts: '$WORKSPACE/params/**/*.*',
                         fingerprint: true
                     )
                 }
