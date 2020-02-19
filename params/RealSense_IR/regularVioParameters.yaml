@@ -6,7 +6,7 @@ gyroBiasSigma: 1.9393e-05
 accBiasSigma: 0.003
 imuIntegrationSigma: 1.0e-8
 n_gravity: [0.0, 0.0, -9.81]
-nominalImuRate: 0.01
+nominalImuRate: 0.005
 #INITIALIZATION PARAMETERS
 autoInitialize: 1
 roundOnAutoInitialize: 0
@@ -43,6 +43,6 @@ zeroVelocitySigma: 0.001
 noMotionPositionSigma: 0.001
 noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
-numOptimize: 1
+numOptimize: 0
 horizon: 6 # In seconds.
 useDogLeg: 0

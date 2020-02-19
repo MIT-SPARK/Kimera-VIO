@@ -1,10 +1,14 @@
 %YAML:1.0
-# Backend modality for regular VIO
-# 0: Structureless factors only, 4: SPR pipeline
-backend_modality: 0
-
+#IMU PARAMETERS
+gyroNoiseDensity: 0.00016968
+accNoiseDensity: 0.002
+gyroBiasSigma: 1.9393e-05
+accBiasSigma: 0.003
+imuIntegrationSigma: 1.0e-8
+n_gravity: [0.0, 0.0, -9.81]
+nominalImuRate: 0.005
 #INITIALIZATION PARAMETERS
-autoInitialize: 0
+autoInitialize: 1
 roundOnAutoInitialize: 0
 initialPositionSigma: 1e-05
 initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI
@@ -29,7 +33,7 @@ rankTolerance: 1
 landmarkDistanceThreshold: 15
 outlierRejection: 8
 retriangulationThreshold: 0.001
-addBetweenStereoFactors: 0
+addBetweenStereoFactors: 1
 betweenRotationPrecision: 0 # Inverse of variance.
 betweenTranslationPrecision: 100 # 1/(0.1*0.1)
 #OPTIMIZATION PARAMETERS
@@ -39,6 +43,6 @@ zeroVelocitySigma: 0.001
 noMotionPositionSigma: 0.001
 noMotionRotationSigma: 0.0001
 constantVelSigma: 0.01
-numOptimize: 1
-horizon: 5 # In seconds.
+numOptimize: 0
+horizon: 6 # In seconds.
 useDogLeg: 0

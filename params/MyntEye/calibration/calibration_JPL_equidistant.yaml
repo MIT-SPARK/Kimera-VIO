@@ -1,0 +1,72 @@
+# Calibration (Kalibr)
+# ----------------------------------------------------------------------------------
+# General Info
+responsible: Sandro Berchier
+date: 19.02.2019
+
+# Hardware
+camera_hardware: MyntEye S - JPL
+IMU_hardware: MyntEye S - JPL
+
+
+# Cameras
+# ----------------------------------------------------------------------------------
+# Rate:
+camera_rate_hz: 20
+
+# Camera Model:
+camera_model: pinhole
+distortion_model: equidistant
+
+# Resolution:
+camera_resolution: [752,480] # width, height
+
+# Left Camera Parameters:
+left_camera_intrinsics: [366.163,365.631,380.573,225.950] # fu, fv, cu, cv
+left_camera_distortion_coefficients: [-0.020476443,-0.007108226,0.002180580,-0.001192386] # k1, k2, k3, k4
+
+# Left Camera to IMU Transformation:
+left_camera_extrinsics: [-0.002506617, -0.999975268, 0.006571120, -0.003087790,
+                         0.999995111, -0.002494275, 0.001885736, 0.001692289,
+                         -0.001869299, 0.006575815, 0.999976632, -0.000023275, 
+                         0.000000000, 0.000000000, 0.000000000, 1.000000000]
+
+# Right Camera Parameters:
+right_camera_intrinsics: [367.032,366.632,379.304,236.659] # fu, fv, cu, cv
+right_camera_distortion_coefficients: [-0.019659843,-0.005079736,-0.001357391,0.000419038] # k1, k2, k3, k4
+
+# Right Camera to IMU Transformation:
+right_camera_extrinsics: [0.000468892, -0.999992519, 0.003839613, -0.004419063,
+                          0.999987552, 0.000487955, 0.004965573, 0.122004189,
+                          -0.004967410, 0.003837237, 0.999980300, -0.000145419, 
+                          0.000000000, 0.000000000, 0.000000000, 1.000000000]
+
+
+# Body
+# ----------------------------------------------------------------------------------
+# Transformation:
+calibration_to_body_frame: [1.000000000, 0.000000000, 0.000000000, 0.000000000,
+                            0.000000000, 1.000000000, 0.000000000, 0.000000000,
+                            0.000000000, 0.000000000, 1.000000000, 0.000000000, 
+                            0.000000000, 0.000000000, 0.000000000, 1.000000000]
+
+
+# IMU
+# ----------------------------------------------------------------------------------
+# Rate: 
+imu_rate_hz: 200
+
+# Timeshift: 
+imu_shift: 0.0 # t_imu0 = t_cam0 + imu_shift
+
+# Noise Model Parameters: (Static)
+gyroscope_noise_density: 0.104000000    # [ rad / s / sqrt(Hz) ]   ( gyro "white noise" )
+gyroscope_random_walk: 0.002430000       # [ rad / s^2 / sqrt(Hz) ] ( gyro bias diffusion )
+accelerometer_noise_density: 0.480000000  # [ m / s^2 / sqrt(Hz) ]   ( accel "white noise" )
+accelerometer_random_walk: 0.007000000    # [ m / s^3 / sqrt(Hz) ].  ( accel bias diffusion )
+
+# IMU to Body Transformation:
+imu_extrinsics: [1.000000000, 0.000000000, 0.000000000, 0.000000000,
+                 0.000000000, 1.000000000, 0.000000000, 0.000000000,
+                 0.000000000, 0.000000000, 1.000000000, 0.000000000, 
+                 0.000000000, 0.000000000, 0.000000000, 1.000000000]

@@ -1,0 +1,46 @@
+%YAML:1.0
+#TRACKER PARAMETERS
+klt_win_size: 24
+klt_max_iter: 30
+klt_max_level: 4
+klt_eps: 0.1
+maxFeatureAge: 10
+maxFeaturesPerFrame: 300
+quality_level: 0.001
+min_distance: 20
+block_size: 3
+use_harris_detector: 0
+k: 0.04
+equalizeImage: 0
+nominalBaseline: 0.11
+toleranceTemplateMatching: 0.15
+templ_cols: 101 #must be odd
+templ_rows: 11
+stripe_extra_rows: 0
+minPointDist: 0.5
+maxPointDist: 10
+bidirectionalMatching: 0
+subpixelRefinementStereo: 0
+featureSelectionCriterion: 0
+featureSelectionHorizon: 3
+featureSelectionNrCornersToSelect: 600
+featureSelectionImuRate: 0.005
+featureSelectionDefaultDepth: 2
+featureSelectionCosineNeighborhood: 0.984807753012208 # Rad
+featureSelectionUseLazyEvaluation: 1
+useSuccessProbabilities: 1
+useRANSAC: 1
+minNrMonoInliers: 10
+minNrStereoInliers: 5
+ransac_threshold_mono: 1e-06
+ransac_threshold_stereo: 1
+ransac_use_1point_stereo: 1
+ransac_use_2point_mono: 1
+ransac_max_iterations: 50
+ransac_probability: 0.995
+ransac_randomize: 0
+intra_keyframe_time: 0.2
+minNumberFeatures: 0
+useStereoTracking: 1
+display_time: 100
+disparityThreshold: 0.5
