@@ -86,9 +86,6 @@ endif()
 
 ### Compile the code
 add_library(kimera_vio SHARED "")
-# Add an alias so that library can be used inside the build tree,
-# e.g. when testing
-add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 
 ### Add source code for data provider.
 add_subdirectory(include/kimera-vio/dataprovider)
@@ -138,14 +135,16 @@ target_link_libraries(kimera_vio
   PUBLIC
     Boost::boost
     ${OpenCV_LIBRARIES}
-    gflags
-    glog
+    ${GFLAGS_LIBRARIES}
+    ${GLOG_LIBRARIES}
     gtsam
     gtsam_unstable
  )
 target_include_directories(kimera_vio
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
+    ${GFLAGS_INCLUDE_DIRS}
+    ${GLOG_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR}
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -159,6 +158,10 @@ target_compile_options(kimera_vio
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(kimera_vio PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override)
+
+# Add an alias so that library can be used inside the build tree,
+# e.g. when testing
+add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
