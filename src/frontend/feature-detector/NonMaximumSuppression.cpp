@@ -70,6 +70,12 @@ std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
       keypoints = anms::TopN(keyPoints, numRetPoints);
       break;
     };
+    case AnmsAlgorithmType::BrownANMS: {
+      VLOG(1) << "Running BrownANMS: "
+              << VIO::to_underlying(anms_algorithm_type_);
+      keypoints = anms::BrownANMS(keyPoints, numRetPoints);
+      break;
+    };
     case AnmsAlgorithmType::SDC: {
       VLOG(1) << "Running SDC: " << VIO::to_underlying(anms_algorithm_type_);
       keypoints =
