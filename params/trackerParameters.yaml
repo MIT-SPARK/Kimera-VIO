@@ -7,7 +7,7 @@ klt_eps: 0.1
 maxFeatureAge: 15
 maxFeaturesPerFrame: 800
 quality_level: 0.001
-min_distance: 20
+min_distance: 8
 block_size: 3
 use_harris_detector: 0
 k: 0.04

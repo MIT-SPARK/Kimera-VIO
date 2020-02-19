@@ -14,18 +14,12 @@
 
 #pragma once
 
-#include <opencv2/highgui/highgui_c.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/opencv.hpp>
-
 #include <Eigen/Eigen>
 
-#include "kimera-vio/frontend/Tracker-definitions.h"
 #include "kimera-vio/frontend/Frame.h"
 // TODO(Toni): remove, use instead FeatureDetectorParams
 #include "kimera-vio/frontend/VisionFrontEndParams.h"
+#include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/utils/Macros.h"
 
 namespace VIO {
@@ -54,6 +48,12 @@ class FeatureDetector {
   // TODO(TOni): should be debug feature detector info...
   // Debug info.
   DebugTrackerInfo debug_info_;
+
+  // NonMaximum Suppresion Algorithm to have homogeneous feature distributions
+  NonMaximumSuppression::UniquePtr non_max_suppression_;
+
+  // Actual feature detector
+  cv::Ptr<cv::Feature2D> feature_detector_;
 };
 
 }  // namespace VIO

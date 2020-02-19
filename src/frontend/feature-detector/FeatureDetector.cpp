@@ -4,18 +4,31 @@
  * @author Antoni Rosinol
  */
 
-#include "kimera-vio/frontend/FeatureDetector.h"
+#include "kimera-vio/frontend/feature-detector/FeatureDetector.h"
 
 #include <algorithm>
 
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"  // Just for ExtractCorners...
 
+#include "kimera-vio/frontend/feature-detector/anms/anms.h"  // REMOVE
+
+#include <numeric>
+
 namespace VIO {
 
-
 FeatureDetector::FeatureDetector(const VisionFrontEndParams& tracker_params)
-    : tracker_params_(tracker_params) {
+    : tracker_params_(tracker_params),
+      non_max_suppression_(nullptr),
+      feature_detector_() {
+  // TODO(Toni): parametrize actual non max suppression used (and whether we use
+  // bucketing or anms)
+  non_max_suppression_ =
+      VIO::make_unique<AdaptiveNonMaximumSuppression>(AnmsAlgorithmType::Ssc);
+
+  // Fast threshold. Usually this value is set to be in range [10,35]
+  int fastThresh = 1;
+  feature_detector_ = cv::FastFeatureDetector::create(fastThresh, true);
 }
 
 // TODO(Toni) Optimize this function.
@@ -87,20 +100,69 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
                                               const int& need_n_corners) {
   // TODO(TONI) need to do grid based approach!
 
+  //cv::namedWindow("Input Image", cv::WINDOW_AUTOSIZE);
+  //cv::imshow("Input Image", cur_frame.img_);
+
+  // The mask is interpreted as: 255 -> consider, 0 -> don't consider.
+  cv::Mat mask (cur_frame.img_.size(), CV_8U, cv::Scalar(255));
+  for (size_t i = 0u; i < cur_frame.keypoints_.size(); ++i) {
+    if (cur_frame.landmarks_.at(i) != -1) {
+      // Only mask keypoints that are being triangulated (I guess
+      // feature tracks? should be made more explicit)
+      cv::circle(mask,
+                 cur_frame.keypoints_.at(i),
+                 tracker_params_.min_distance_,
+                 cv::Scalar(0),
+                 CV_FILLED);
+    }
+  }
+
+  std::vector<cv::KeyPoint> keyPoints;  // vector to keep detected KeyPoints
+  feature_detector_->detect(cur_frame.img_, keyPoints, mask);
+  VLOG(1) << "Number of points detected : " << keyPoints.size();
+
+  //cv::Mat fastDetectionResults;  // draw FAST detections
+  //cv::drawKeypoints(cur_frame.img_,
+  //                  keyPoints,
+  //                  fastDetectionResults,
+  //                  cv::Scalar(94.0, 206.0, 165.0, 0.0));
+  //cv::namedWindow("FAST Detections", cv::WINDOW_AUTOSIZE);
+  //cv::imshow("FAST Detections", fastDetectionResults);
+  //cv::imshow("MASK Detections", mask);
+  //cv::waitKey(0);
+
+  VLOG(1) << "Need n corners: " << need_n_corners;
+  int numRetPoints = need_n_corners;
+  // int numRetPoints = 750;  // choose exact number of return points
+  // float percentage = 0.1; //or choose percentage of points to be return
+  // int numRetPoints = (int)keyPoints.size()*percentage;
+  float tolerance = 0.1;  // tolerance of the number of return points
+  std::vector<cv::KeyPoint>
+      sscKP = non_max_suppression_->suppressNonMax(keyPoints,
+                                                   numRetPoints,
+                                                   tolerance,
+                                                   cur_frame.img_.cols,
+                                                   cur_frame.img_.rows);
+
   // Find new features.
   KeypointsCV new_corners;
-  if (need_n_corners > 0) {
-    UtilsOpenCV::ExtractCorners(cur_frame.img_,
-                                &new_corners,
-                                need_n_corners,
-                                tracker_params_.quality_level_,
-                                tracker_params_.min_distance_,
-                                tracker_params_.block_size_,
-                                tracker_params_.k_,
-                                tracker_params_.use_harris_detector_);
+  new_corners.reserve(sscKP.size());
+  for (const cv::KeyPoint& kp : sscKP) {
+    new_corners.push_back(kp.pt);
+  }
+  // if (need_n_corners > 0) {
+  //  UtilsOpenCV::ExtractCorners(cur_frame.img_,
+  //                              &new_corners,
+  //                              need_n_corners, // THIS IS MAX CORNERS not
+  //                              tracker_params_.quality_level_,
+  //                              tracker_params_.min_distance_,
+  //                              tracker_params_.block_size_,
+  //                              tracker_params_.k_,
+  //                              tracker_params_.use_harris_detector_);
 
-    // TODO this takes a ton of time 27ms each time...
-    // Change window_size, and term_criteria to improve timing
+  // TODO this takes a ton of time 27ms each time...
+  // Change window_size, and term_criteria to improve timing
+  if (new_corners.size() > 0) {
     if (tracker_params_.enable_subpixel_corner_finder_) {
       const auto& subpixel_params =
           tracker_params_.subpixel_corner_finder_params_;
@@ -114,6 +176,7 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
               << utils::Timer::toc(tic).count();
     }
   }
+  //}
 
   return new_corners;
 }
