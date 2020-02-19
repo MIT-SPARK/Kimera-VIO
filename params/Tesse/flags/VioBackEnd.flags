@@ -1,0 +1,6 @@
+#!/bin/bash
+--debug_graph_before_opt=true
+--process_cheirality=true
+--max_number_of_cheirality_exceptions=5
+#--compute_state_covariance=true
+#--initialization_mode=1
