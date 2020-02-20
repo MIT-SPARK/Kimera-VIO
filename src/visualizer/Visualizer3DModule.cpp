@@ -33,6 +33,9 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   bool queue_state = false;
   VizMesherInput mesher_payload = nullptr;
   if (PIO::parallel_run_) {
+    // TODO(Toni): if the mesher_ is not running (it is optional) then there is
+    // no module filling this queue, and the visualizer gets stuck at this
+    // pop blocking :(
     queue_state = mesher_queue_.popBlocking(mesher_payload);
   } else {
     queue_state = mesher_queue_.pop(mesher_payload);

@@ -24,10 +24,10 @@ FeatureDetector::FeatureDetector(const VisionFrontEndParams& tracker_params)
   // TODO(Toni): parametrize actual non max suppression used (and whether we use
   // bucketing or anms)
   non_max_suppression_ =
-      VIO::make_unique<AdaptiveNonMaximumSuppression>(AnmsAlgorithmType::Ssc);
+      VIO::make_unique<AdaptiveNonMaximumSuppression>(AnmsAlgorithmType::RangeTree);
 
   // Fast threshold. Usually this value is set to be in range [10,35]
-  int fastThresh = 1;
+  int fastThresh = 10;
   feature_detector_ = cv::FastFeatureDetector::create(fastThresh, true);
 }
 
@@ -103,6 +103,11 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   //cv::namedWindow("Input Image", cv::WINDOW_AUTOSIZE);
   //cv::imshow("Input Image", cur_frame.img_);
 
+  // TODO(TONI): instead of using this mask, find all features,
+  // do max-suppression, and then remove those detections that are close to
+  // the already found ones, even you could cut feature tracks that are no longer
+  // good quality or visible early on if they don't have detected keypoints
+  // nearby by!
   // The mask is interpreted as: 255 -> consider, 0 -> don't consider.
   cv::Mat mask (cur_frame.img_.size(), CV_8U, cv::Scalar(255));
   for (size_t i = 0u; i < cur_frame.keypoints_.size(); ++i) {
@@ -137,7 +142,7 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   // float percentage = 0.1; //or choose percentage of points to be return
   // int numRetPoints = (int)keyPoints.size()*percentage;
   float tolerance = 0.1;  // tolerance of the number of return points
-  std::vector<cv::KeyPoint>
+  const std::vector<cv::KeyPoint>&
       sscKP = non_max_suppression_->suppressNonMax(keyPoints,
                                                    numRetPoints,
                                                    tolerance,

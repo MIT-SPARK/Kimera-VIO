@@ -47,10 +47,11 @@ class NonMaximumSuppression {
  */
 enum class AnmsAlgorithmType : unsigned int {
   TopN = 0,
-  SDC = 1,
-  KdTree = 2,
-  RangeTree = 3,
-  Ssc = 4,
+  BrownANMS = 1,
+  SDC = 2,
+  KdTree = 3,
+  RangeTree = 4,
+  Ssc = 5,
 };
 
 /**

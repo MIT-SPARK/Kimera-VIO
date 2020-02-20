@@ -90,6 +90,7 @@ DEFINE_int32(max_time_allowed_for_keyframe_callback,
 DEFINE_bool(use_lcd,
             false,
             "Enable LoopClosureDetector processing in pipeline.");
+DEFINE_bool(use_mesher, false, "Enable Mesh builder.");
 
 namespace VIO {
 
@@ -192,21 +193,23 @@ Pipeline::Pipeline(const VioParams& params)
                 std::placeholders::_1));
 
   // TODO(Toni): only create if used.
-  mesher_module_ = VIO::make_unique<MesherModule>(
-      parallel_run_,
-      MesherFactory::createMesher(
-          MesherType::PROJECTIVE,
-          MesherParams(stereo_camera_->getLeftCamPose(),
-                       params.camera_params_.at(0).image_size_)));
-  //! Register input callbacks
-  vio_backend_module_->registerCallback(
-      std::bind(&MesherModule::fillBackendQueue,
-                std::ref(*CHECK_NOTNULL(mesher_module_.get())),
-                std::placeholders::_1));
-  vio_frontend_module_->registerCallback(
-      std::bind(&MesherModule::fillFrontendQueue,
-                std::ref(*CHECK_NOTNULL(mesher_module_.get())),
-                std::placeholders::_1));
+  if (FLAGS_use_mesher) {
+    mesher_module_ = VIO::make_unique<MesherModule>(
+        parallel_run_,
+        MesherFactory::createMesher(
+            MesherType::PROJECTIVE,
+            MesherParams(stereo_camera_->getLeftCamPose(),
+                         params.camera_params_.at(0).image_size_)));
+    //! Register input callbacks
+    vio_backend_module_->registerCallback(
+        std::bind(&MesherModule::fillBackendQueue,
+                  std::ref(*CHECK_NOTNULL(mesher_module_.get())),
+                  std::placeholders::_1));
+    vio_frontend_module_->registerCallback(
+        std::bind(&MesherModule::fillFrontendQueue,
+                  std::ref(*CHECK_NOTNULL(mesher_module_.get())),
+                  std::placeholders::_1));
+  }
 
   if (FLAGS_visualize) {
     visualizer_module_ = VIO::make_unique<VisualizerModule>(
@@ -227,10 +230,12 @@ Pipeline::Pipeline(const VioParams& params)
         std::bind(&VisualizerModule::fillFrontendQueue,
                   std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                   std::placeholders::_1));
-    mesher_module_->registerCallback(
-        std::bind(&VisualizerModule::fillMesherQueue,
-                  std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
-                  std::placeholders::_1));
+    if (mesher_module_) {
+      mesher_module_->registerCallback(
+          std::bind(&VisualizerModule::fillMesherQueue,
+                    std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
+                    std::placeholders::_1));
+    }
     //! Actual displaying of visual data is done in the main thread.
     display_module_ = VIO::make_unique<DisplayModule>(
         &display_input_queue_,
@@ -443,8 +448,8 @@ bool Pipeline::initialize(const StereoImuSyncPacket& stereo_imu_sync_packet) {
       // identity! But if that is the case, create another autoInitialize value
       // for this case and send directly a identity pose...
       CHECK(!backend_params_->initial_ground_truth_state_.equals(VioNavState()))
-         << "Requested initialization from Ground-Truth pose but got an "
-            "identity pose: did you parse your ground-truth correctly?";
+          << "Requested initialization from Ground-Truth pose but got an "
+             "identity pose: did you parse your ground-truth correctly?";
       return initializeFromGroundTruth(
           stereo_imu_sync_packet, backend_params_->initial_ground_truth_state_);
     case 1:
@@ -483,7 +488,7 @@ void Pipeline::checkReInitialize(
     vio_frontend_module_->restart();
     CHECK(vio_backend_module_);
     vio_backend_module_->restart();
-    mesher_module_->restart();
+    if (mesher_module_) mesher_module_->restart();
     if (lcd_module_) lcd_module_->restart();
     if (visualizer_module_) visualizer_module_->restart();
     if (display_module_) display_module_->restart();
@@ -732,8 +737,10 @@ void Pipeline::launchRemainingThreads() {
     backend_thread_ = VIO::make_unique<std::thread>(
         &VioBackEndModule::spin, CHECK_NOTNULL(vio_backend_module_.get()));
 
+    if (mesher_module_) {
     mesher_thread_ = VIO::make_unique<std::thread>(
         &MesherModule::spin, CHECK_NOTNULL(mesher_module_.get()));
+    }
 
     if (lcd_module_) {
       lcd_thread_ = VIO::make_unique<std::thread>(
