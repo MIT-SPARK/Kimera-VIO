@@ -1603,7 +1603,8 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   if (keypoints_to_triangulate->size() == 0) return std::vector<cv::Vec6f>();
 
   // Rectangle to be used with Subdiv2D.
-  static const cv::Rect2f rect(0.0, 0.0, img_size.width, img_size.height);
+  // https://answers.opencv.org/question/180984/out-of-range-error-in-delaunay-triangulation/
+  static const cv::Rect rect(0, 0, img_size.width, img_size.height);
   // subdiv has the delaunay triangulation function
   static cv::Subdiv2D subdiv(rect);
   subdiv.initDelaunay(rect);
@@ -1629,13 +1630,18 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   try {
     subdiv.insert(keypoints_inside_image);
   } catch (...) {
+    // TODO(Toni): print the whole list of keypoints
+    LOG(ERROR) << "Keypoints supposedly inside the image:";
+    for (const KeypointCV& kp : keypoints_inside_image) {
+      LOG(ERROR) << "x: " << kp.x << ", y: " << kp.y;
+    }
     LOG(FATAL) << "CreateMesh2D: subdiv.insert error (2). "
                << "A point is outside of the triangulation specified rect...\n"
                << "Rectangle size (x, y, height, width): " << rect.x << ", "
                << rect.y << ", " << rect.height << ", " << rect.width << '\n'
                << "Keypoints to triangulate: "
                << keypoints_to_triangulate->size() << '\n'
-               << keypoints_to_triangulate;
+               << "Keypoints inside image: " << keypoints_inside_image.size();
   }
 
   // getTriangleList returns some spurious triangle with vertices outside
