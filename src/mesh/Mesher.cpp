@@ -1635,7 +1635,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
     for (const KeypointCV& kp : keypoints_inside_image) {
       LOG(ERROR) << "x: " << kp.x << ", y: " << kp.y;
     }
-    LOG(FATAL) << "CreateMesh2D: subdiv.insert error (2). "
+    LOG(ERROR) << "CreateMesh2D: subdiv.insert error (2). "
                << "A point is outside of the triangulation specified rect...\n"
                << "Rectangle size (x, y, height, width): " << rect.x << ", "
                << rect.y << ", " << rect.height << ", " << rect.width << '\n'
