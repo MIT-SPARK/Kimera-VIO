@@ -85,7 +85,11 @@ else()
 endif()
 
 ### Compile the code
-add_library(kimera_vio SHARED "")
+add_library(${PROJECT_NAME} SHARED "")
+
+# Add an alias so that library can be used inside the build tree,
+# e.g. when testing
+add_library(kimera_vio::kimera_vio ALIAS ${PROJECT_NAME})
 
 ### Add source code for data provider.
 add_subdirectory(include/kimera-vio/dataprovider)
@@ -127,7 +131,7 @@ add_subdirectory(src/imu-frontend)
 add_subdirectory(include/kimera-vio/visualizer)
 add_subdirectory(src/visualizer)
 
-target_link_libraries(kimera_vio
+target_link_libraries(${PROJECT_NAME}
   PRIVATE
     opengv
     DBoW2::DBoW2
@@ -140,7 +144,7 @@ target_link_libraries(kimera_vio
     gtsam
     gtsam_unstable
  )
-target_include_directories(kimera_vio
+target_include_directories(${PROJECT_NAME}
   PUBLIC
     ${OpenCV_INCLUDE_DIRS}
     ${GFLAGS_INCLUDE_DIRS}
@@ -150,18 +154,14 @@ target_include_directories(kimera_vio
     $<INSTALL_INTERFACE:include>
 )
 
-target_compile_options(kimera_vio
+target_compile_options(${PROJECT_NAME}
   PRIVATE -Wall -pipe
   PRIVATE -march=native
 )
 
 # We would just need to say cxx_std_11 if we were using cmake 3.8
-target_compile_features(kimera_vio PUBLIC
+target_compile_features(${PROJECT_NAME} PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override)
-
-# Add an alias so that library can be used inside the build tree,
-# e.g. when testing
-add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
@@ -274,13 +274,13 @@ configure_package_config_file(
 
 option(EXPORT_KIMERA "Export kimera_vio instead of installing it." OFF)
 if(EXPORT_KIMERA)
-  export(TARGETS kimera_vio
+  export(TARGETS ${PROJECT_NAME}
          FILE kimera_vioTargets.cmake)
-  export(PACKAGE kimera_vio)
+       export(PACKAGE ${PROJECT_NAME})
 else(EXPORT_KIMERA)
   include(GNUInstallDirs)
   ## First of all, we need to install the library itself.
-  install(TARGETS kimera_vio
+  install(TARGETS ${PROJECT_NAME}
       EXPORT kimera_vio-export
       LIBRARY DESTINATION lib
       ARCHIVE DESTINATION lib
