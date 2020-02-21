@@ -87,10 +87,6 @@ endif()
 ### Compile the code
 add_library(${PROJECT_NAME} SHARED "")
 
-# Add an alias so that library can be used inside the build tree,
-# e.g. when testing
-add_library(kimera_vio::kimera_vio ALIAS ${PROJECT_NAME})
-
 ### Add source code for data provider.
 add_subdirectory(include/kimera-vio/dataprovider)
 add_subdirectory(src/dataprovider)
@@ -162,6 +158,10 @@ target_compile_options(${PROJECT_NAME}
 # We would just need to say cxx_std_11 if we were using cmake 3.8
 target_compile_features(${PROJECT_NAME} PUBLIC
         cxx_auto_type cxx_constexpr cxx_range_for cxx_nullptr cxx_override)
+
+# Add an alias so that library can be used inside the build tree,
+# e.g. when testing
+add_library(kimera_vio::kimera_vio ALIAS kimera_vio)
 
 add_executable(stereoVIOEuroc ./examples/KimeraVIO.cpp)
 target_link_libraries(stereoVIOEuroc PUBLIC kimera_vio::kimera_vio)
