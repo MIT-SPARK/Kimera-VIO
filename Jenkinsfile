@@ -52,20 +52,16 @@ pipeline {
             stage('Euroc Performance') {
               steps {
                 wrap([$class: 'Xvfb']) {
-                  // Copy params to Workspace
-                  sh 'mkdir -p $WORKSPACE/Kimera-VIO-Evaluation/experiments'
-                  sh 'cp -r $evaluator/experiments/params $WORKSPACE/Kimera-VIO-Evaluation/experiments/'
-
                   // Run performance tests.
                   // In jenkins_euroc.yaml, set output path to #WORKSPACE/Kimera-VIO-Evaluation/website/data
                   sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
-                    --save_plots --save_boxplots --save_results \
+                    --save_plots --save_boxplots --save_results --write_website \
                     $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
                   sh 'python3.6 $evaluator/evaluation/tools/performance_summary.py \
-                    Kimera-VIO-Evaluation/website/data/V1_01_easy/S/results_vio.yaml \
-                    Kimera-VIO-Evaluation/website/data/V1_01_easy/S/vio_performance.csv'
+                    Kimera-VIO-Evaluation/website/data/V1_01_easy/Euroc/results_vio.yaml \
+                    Kimera-VIO-Evaluation/website/data/V1_01_easy/Euroc/vio_performance.csv'
 
                   // Copy performance website to Workspace
                   sh 'cp -r $evaluator/website $WORKSPACE/Kimera-VIO-Evaluation/'
@@ -75,7 +71,7 @@ pipeline {
                 success {
                     // Plot VIO performance.
                     plot csvFileName: 'plot-vio-performance-per-build.csv',
-                         csvSeries: [[file: 'Kimera-VIO-Evaluation/website/data/V1_01_easy/S/vio_performance.csv']],
+                         csvSeries: [[file: 'Kimera-VIO-Evaluation/website/data/V1_01_easy/Euroc/vio_performance.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -84,7 +80,7 @@ pipeline {
 
                     // Plot VIO timing.
                     plot csvFileName: 'plot-vio-timing-per-build.csv',
-                         csvSeries: [[file: 'Kimera-VIO-Evaluation/website/data/V1_01_easy/S/output/output_timingOverall.csv']],
+                         csvSeries: [[file: 'Kimera-VIO-Evaluation/website/data/V1_01_easy/Euroc/output/output_timingOverall.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -102,10 +98,12 @@ pipeline {
 
                     // Archive the params used in evaluation (if these are used is determined
                     // by the experiments yaml file in Kimera-VIO-Evaluation)
-                    archiveArtifacts (
-                        artifacts: 'Kimera-VIO-Evaluation/experiments/params/**/*.*',
-                        fingerprint: true
-                    )
+                    // TODO(Toni): not sure why this error:
+                    // Archiving artifacts ‘$WORKSPACE/params/**/*.*’ doesn’t match anything, but ‘params/**/*.*’ does. Perhaps that’s what you mean?
+                    //archiveArtifacts (
+                    //    artifacts: '$WORKSPACE/params/**/*.*',
+                    //    fingerprint: true
+                    //)
                 }
                 failure {
                   node(null) {
