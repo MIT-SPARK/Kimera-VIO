@@ -98,10 +98,12 @@ pipeline {
 
                     // Archive the params used in evaluation (if these are used is determined
                     // by the experiments yaml file in Kimera-VIO-Evaluation)
-                    archiveArtifacts (
-                        artifacts: '$WORKSPACE/params/**/*.*',
-                        fingerprint: true
-                    )
+                    // TODO(Toni): not sure why this error:
+                    // Archiving artifacts ‘$WORKSPACE/params/**/*.*’ doesn’t match anything, but ‘params/**/*.*’ does. Perhaps that’s what you mean?
+                    //archiveArtifacts (
+                    //    artifacts: '$WORKSPACE/params/**/*.*',
+                    //    fingerprint: true
+                    //)
                 }
                 failure {
                   node(null) {
