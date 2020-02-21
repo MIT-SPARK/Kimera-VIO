@@ -4,10 +4,10 @@ klt_win_size: 24
 klt_max_iter: 30
 klt_max_level: 4
 klt_eps: 0.1
-maxFeatureAge: 15
+maxFeatureAge: 25
 maxFeaturesPerFrame: 800
 quality_level: 0.001
-min_distance: 8
+min_distance: 20
 block_size: 3
 use_harris_detector: 0
 k: 0.04
@@ -21,6 +21,7 @@ minPointDist: 0.5
 maxPointDist: 10
 bidirectionalMatching: 0
 
+# Subpixel corner refinement for the monocular case
 enable_subpixel_corner_finder: 1
 max_iters: 40
 epsilon_error: 0.001
@@ -51,7 +52,6 @@ minNumberFeatures: 0
 useStereoTracking: 1
 display_time: 100
 disparityThreshold: 0.5
-
 # Type of optical flow predictor to aid feature tracking:
 # 0: Static - assumes no optical flow between images (aka static camera).
 # 1: Rotational - use IMU gyro to estimate optical flow.
