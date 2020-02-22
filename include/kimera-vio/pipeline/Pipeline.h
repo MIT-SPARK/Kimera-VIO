@@ -103,8 +103,12 @@ class Pipeline {
   // Register external callback to output mesher results.
   inline void registerMesherOutputCallback(
       const MesherModule::OutputCallback& callback) {
-    CHECK(mesher_module_);
-    mesher_module_->registerCallback(callback);
+    if (mesher_module_) {
+      mesher_module_->registerCallback(callback);
+    } else {
+      LOG(ERROR) << "Attempt to register Mesher output callback, but no "
+                 << "Mesher member is active in pipeline.";
+    }
   }
 
   // Register external callback to output the LoopClosureDetector's results.

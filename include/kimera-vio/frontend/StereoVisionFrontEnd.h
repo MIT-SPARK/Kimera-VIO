@@ -245,7 +245,7 @@ class StereoVisionFrontEnd {
   Tracker tracker_;
 
   // Create the feature detector
-  FeatureDetector feature_detector_;
+  FeatureDetector::UniquePtr feature_detector_;
 
   // IMU frontend.
   std::unique_ptr<ImuFrontEnd> imu_frontend_;

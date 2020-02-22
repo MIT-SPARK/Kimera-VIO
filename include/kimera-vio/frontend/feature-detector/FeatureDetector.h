@@ -17,12 +17,32 @@
 #include <Eigen/Eigen>
 
 #include "kimera-vio/frontend/Frame.h"
-// TODO(Toni): remove, use instead FeatureDetectorParams
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/utils/Macros.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
 
 namespace VIO {
+
+enum class FeatureDetectorType {
+  FAST = 0,
+  ORB = 1,
+  AGAST = 2,
+};
+
+struct FeatureDetectorParams {
+  //! Maximum amount of features to be detected per frame.
+  int max_features_per_frame_ = 400;
+  //! Whether to enable subpixel feature detection.
+  bool enable_subpixel_corner_refinement_ = true;
+  //! Parameters for subpixel refinement in case it is enabled.
+  SubPixelCornerFinderParams subpixel_corner_finder_params_;
+  //! Whether to enable non maximum suppression after feature detection.
+  bool enable_non_max_suppression = true;
+  AnmsAlgorithmType non_max_suppression_type = AnmsAlgorithmType::RangeTree;
+  //! Minimum distance between the already tracked features and the new
+  //! features to be detected. This avoids detections near tracked features.
+  int min_distance_btw_tracked_and_detected_features_ = 10;
+};
 
 class FeatureDetector {
  public:
@@ -30,7 +50,8 @@ class FeatureDetector {
   KIMERA_DELETE_COPY_CONSTRUCTORS(FeatureDetector);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  FeatureDetector(const VisionFrontEndParams& tracker_params);
+  FeatureDetector(const FeatureDetectorType& feature_detector_type,
+                  const FeatureDetectorParams& feature_detector_params);
   virtual ~FeatureDetector() = default;
 
  public:
@@ -42,17 +63,18 @@ class FeatureDetector {
   KeypointsCV featureDetection(const Frame& cur_frame,
                                const int& need_n_corners);
 
-  // TODO(TONI): should be detector params...
-  // Tracker parameters.
-  const VisionFrontEndParams tracker_params_;
+  // Parameters.
+  const FeatureDetectorParams feature_detector_params_;
+  const FeatureDetectorType feature_detector_type_;
+
   // TODO(TOni): should be debug feature detector info...
   // Debug info.
-  DebugTrackerInfo debug_info_;
+  // DebugTrackerInfo debug_info_;
 
   // NonMaximum Suppresion Algorithm to have homogeneous feature distributions
   NonMaximumSuppression::UniquePtr non_max_suppression_;
 
-  // Actual feature detector
+  // Actual feature detector implementation.
   cv::Ptr<cv::Feature2D> feature_detector_;
 };
 

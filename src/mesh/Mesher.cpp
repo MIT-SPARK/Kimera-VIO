@@ -1577,7 +1577,7 @@ void Mesher::createMesh2dVIO(
   LOG_IF(WARNING, pointsWithIdVIO.empty())
       << "List of Keypoints with associated Landmarks is empty.";
   for (const auto& point_with_id : pointsWithIdVIO) {
-    for (size_t j = 0; j < landmarks.size(); j++) {
+    for (size_t j = 0u; j < landmarks.size(); j++) {
       // If we are seeing a VIO point in left and right frame, add to keypoints
       // to generate the mesh in 2D.
       if (landmarks.at(j) == point_with_id.first &&
@@ -1604,7 +1604,7 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
 
   // Rectangle to be used with Subdiv2D.
   // https://answers.opencv.org/question/180984/out-of-range-error-in-delaunay-triangulation/
-  static const cv::Rect rect(0, 0, img_size.width, img_size.height);
+  static const cv::Rect2f rect(0.0, 0.0, img_size.width, img_size.height);
   // subdiv has the delaunay triangulation function
   static cv::Subdiv2D subdiv(rect);
   subdiv.initDelaunay(rect);
@@ -1617,7 +1617,14 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   keypoints_inside_image.reserve(keypoints_to_triangulate->size());
   for (const KeypointCV& kp : *keypoints_to_triangulate) {
     if (rect.contains(kp)) {
-      keypoints_inside_image.push_back(kp);
+      // TODO(Toni): weirdly enough rect.contains does not quite work with
+      // (-0.0 - epsilon) values... it still considers them inside...
+      if (kp.x >= 0.0 && kp.y >= 0.0) {
+        keypoints_inside_image.push_back(kp);
+      } else {
+        LOG(ERROR) << "Keypoint with negative coords: \n"
+                   << "x: " << kp.x << ", y:" << kp.y;
+      }
     } else {
       VLOG(1) << "createMesh2D - error, keypoint out of image frame: \n"
               << "Keypoint 2D: " << kp
@@ -1626,11 +1633,10 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
     }
   }
 
-  // Perform triangulation.
+  // Perform 2D Delaunay triangulation.
   try {
     subdiv.insert(keypoints_inside_image);
   } catch (...) {
-    // TODO(Toni): print the whole list of keypoints
     LOG(ERROR) << "Keypoints supposedly inside the image:";
     for (const KeypointCV& kp : keypoints_inside_image) {
       LOG(ERROR) << "x: " << kp.x << ", y: " << kp.y;
@@ -1652,17 +1658,24 @@ std::vector<cv::Vec6f> Mesher::createMesh2dImpl(
   subdiv.getTriangleList(triangulation2D);
 
   // Retrieve "good triangles" (all vertices are inside image).
-  for (auto it = triangulation2D.begin(); it != triangulation2D.end();) {
-    if (!rect.contains(cv::Point2f((*it)[0], (*it)[1])) ||
-        !rect.contains(cv::Point2f((*it)[2], (*it)[3])) ||
-        !rect.contains(cv::Point2f((*it)[4], (*it)[5]))) {
-      it = triangulation2D.erase(it);
-      // Go backwards, otherwise it++ will jump one keypoint...
+  std::vector<cv::Vec6f> good_triangulation;
+  good_triangulation.reserve(triangulation2D.size());
+  for (const cv::Vec6f& tri : triangulation2D) {
+    if (rect.contains(cv::Point2f(tri[0], tri[1])) &&
+        rect.contains(cv::Point2f(tri[2], tri[3])) &&
+        rect.contains(cv::Point2f(tri[4], tri[5]))) {
+      // Triangle with all vertices inside image
+      good_triangulation.push_back(tri);
     } else {
-      it++;
+      LOG(WARNING) << "Delaunay Triangle out of image (size: x: " << rect.x
+                   << ", y: " << rect.y << ", height: " << rect.height
+                   << ", width "<< rect.width << "\n Triangle: x, y: \n"
+                   << tri[0] << ", " << tri[1] << '\n'
+                   << tri[2] << ", " << tri[3] << '\n'
+                   << tri[4] << ", " << tri[5];
     }
   }
-  return triangulation2D;
+  return good_triangulation;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1713,7 +1726,7 @@ void Mesher::createMesh2dStereo(
   // Create mesh including indices of keypoints with valid 3D
   // (which have right px).
   std::vector<cv::Point2f> keypoints_for_mesh;
-  for (int i = 0; i < landmarks.size(); i++) {
+  for (size_t i = 0u; i < landmarks.size(); i++) {
     if (keypoints_status.at(i) == KeypointStatus::VALID &&
         landmarks.at(i) != -1) {
       // Add keypoints for mesh 2d.

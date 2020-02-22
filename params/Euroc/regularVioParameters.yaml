@@ -12,7 +12,7 @@ imuIntegrationSigma: 1.0e-8
 n_gravity: [0.0, 0.0, -9.81]
 nominalImuRate: 0.005
 #INITIALIZATION PARAMETERS
-autoInitialize: 0
+autoInitialize: 1
 roundOnAutoInitialize: 0
 initialPositionSigma: 1e-05
 initialRollPitchSigma: 0.174533 # 10.0/180.0*M_PI

@@ -17,18 +17,39 @@
 
 namespace VIO {
 
-FeatureDetector::FeatureDetector(const VisionFrontEndParams& tracker_params)
-    : tracker_params_(tracker_params),
+FeatureDetector::FeatureDetector(
+    const FeatureDetectorType& feature_detector_type,
+    const FeatureDetectorParams& feature_detector_params)
+    : feature_detector_type_(feature_detector_type),
+      feature_detector_params_(feature_detector_params),
       non_max_suppression_(nullptr),
       feature_detector_() {
-  // TODO(Toni): parametrize actual non max suppression used (and whether we use
-  // bucketing or anms)
-  non_max_suppression_ =
-      VIO::make_unique<AdaptiveNonMaximumSuppression>(AnmsAlgorithmType::RangeTree);
+  // TODO(Toni): parametrize as well whether we use bucketing or anms...
+  // Right now we asume we want anms not bucketing...
+  non_max_suppression_ = VIO::make_unique<AdaptiveNonMaximumSuppression>(
+        feature_detector_params.non_max_suppression_type);
 
+  // TODO(Toni): find a way to pass params here using args lists
   // Fast threshold. Usually this value is set to be in range [10,35]
   int fastThresh = 10;
-  feature_detector_ = cv::FastFeatureDetector::create(fastThresh, true);
+  switch (feature_detector_type) {
+    case FeatureDetectorType::FAST: {
+      feature_detector_ = cv::FastFeatureDetector::create(fastThresh, true);
+      break;
+    }
+    case FeatureDetectorType::ORB: {
+      feature_detector_ = cv::ORB::create();
+      break;
+    }
+    case FeatureDetectorType::AGAST: {
+      LOG(FATAL) << "AGAST feature detector not implemented.";
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unknown feature detector type: "
+                 << VIO::to_underlying(feature_detector_type);
+    }
+  }
 }
 
 // TODO(Toni) Optimize this function.
@@ -48,9 +69,9 @@ void FeatureDetector::featureDetection(Frame* cur_frame) {
 
   // Detect new features in image.
   // detect this much new corners if possible
-  int nr_corners_needed =
-      std::max(tracker_params_.maxFeaturesPerFrame_ - n_existing, 0);
-  debug_info_.need_n_corners_ = nr_corners_needed;
+  int nr_corners_needed = std::max(
+      feature_detector_params_.max_features_per_frame_ - n_existing, 0);
+  // debug_info_.need_n_corners_ = nr_corners_needed;
 
   ///////////////// FEATURE DETECTION //////////////////////
   // Actual feature detection: detects new keypoints where there are no
@@ -59,8 +80,9 @@ void FeatureDetector::featureDetection(Frame* cur_frame) {
   const KeypointsCV& corners = featureDetection(*cur_frame, nr_corners_needed);
   const size_t& n_corners = corners.size();
 
-  debug_info_.featureDetectionTime_ = utils::Timer::toc(start_time_tic).count();
-  debug_info_.extracted_corners_ = n_corners;
+  // debug_info_.featureDetectionTime_ =
+  // utils::Timer::toc(start_time_tic).count(); debug_info_.extracted_corners_ =
+  // n_corners;
 
   if (n_corners > 0u) {
     ///////////////// STORE NEW KEYPOINTS  //////////////////////
@@ -89,7 +111,8 @@ void FeatureDetector::featureDetection(Frame* cur_frame) {
              << ",  Nr tracked keypoints: " << prev_nr_keypoints
              << ",  Nr extracted keypoints: " << n_corners
              << ",  total: " << cur_frame->keypoints_.size()
-             << "  (max: " << tracker_params_.maxFeaturesPerFrame_ << ")";
+             << "  (max: " << feature_detector_params_.max_features_per_frame_
+             << ")";
   } else {
     LOG(WARNING) << "No corners extracted for frame with id: "
                  << cur_frame->id_;
@@ -100,23 +123,24 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
                                               const int& need_n_corners) {
   // TODO(TONI) need to do grid based approach!
 
-  //cv::namedWindow("Input Image", cv::WINDOW_AUTOSIZE);
-  //cv::imshow("Input Image", cur_frame.img_);
+  // cv::namedWindow("Input Image", cv::WINDOW_AUTOSIZE);
+  // cv::imshow("Input Image", cur_frame.img_);
 
   // TODO(TONI): instead of using this mask, find all features,
   // do max-suppression, and then remove those detections that are close to
-  // the already found ones, even you could cut feature tracks that are no longer
-  // good quality or visible early on if they don't have detected keypoints
-  // nearby by!
-  // The mask is interpreted as: 255 -> consider, 0 -> don't consider.
-  cv::Mat mask (cur_frame.img_.size(), CV_8U, cv::Scalar(255));
+  // the already found ones, even you could cut feature tracks that are no
+  // longer good quality or visible early on if they don't have detected
+  // keypoints nearby by! The mask is interpreted as: 255 -> consider, 0 ->
+  // don't consider.
+  cv::Mat mask(cur_frame.img_.size(), CV_8U, cv::Scalar(255));
   for (size_t i = 0u; i < cur_frame.keypoints_.size(); ++i) {
     if (cur_frame.landmarks_.at(i) != -1) {
       // Only mask keypoints that are being triangulated (I guess
       // feature tracks? should be made more explicit)
       cv::circle(mask,
                  cur_frame.keypoints_.at(i),
-                 tracker_params_.min_distance_,
+                 feature_detector_params_
+                     .min_distance_btw_tracked_and_detected_features_,
                  cv::Scalar(0),
                  CV_FILLED);
     }
@@ -126,15 +150,15 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   feature_detector_->detect(cur_frame.img_, keyPoints, mask);
   VLOG(1) << "Number of points detected : " << keyPoints.size();
 
-  //cv::Mat fastDetectionResults;  // draw FAST detections
-  //cv::drawKeypoints(cur_frame.img_,
+  // cv::Mat fastDetectionResults;  // draw FAST detections
+  // cv::drawKeypoints(cur_frame.img_,
   //                  keyPoints,
   //                  fastDetectionResults,
   //                  cv::Scalar(94.0, 206.0, 165.0, 0.0));
-  //cv::namedWindow("FAST Detections", cv::WINDOW_AUTOSIZE);
-  //cv::imshow("FAST Detections", fastDetectionResults);
-  //cv::imshow("MASK Detections", mask);
-  //cv::waitKey(0);
+  // cv::namedWindow("FAST Detections", cv::WINDOW_AUTOSIZE);
+  // cv::imshow("FAST Detections", fastDetectionResults);
+  // cv::imshow("MASK Detections", mask);
+  // cv::waitKey(0);
 
   VLOG(1) << "Need n corners: " << need_n_corners;
   int numRetPoints = need_n_corners;
@@ -142,14 +166,15 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   // float percentage = 0.1; //or choose percentage of points to be return
   // int numRetPoints = (int)keyPoints.size()*percentage;
   float tolerance = 0.1;  // tolerance of the number of return points
-  const std::vector<cv::KeyPoint>&
-      sscKP = non_max_suppression_->suppressNonMax(keyPoints,
-                                                   numRetPoints,
-                                                   tolerance,
-                                                   cur_frame.img_.cols,
-                                                   cur_frame.img_.rows);
+  const std::vector<cv::KeyPoint>& sscKP =
+      non_max_suppression_->suppressNonMax(keyPoints,
+                                           numRetPoints,
+                                           tolerance,
+                                           cur_frame.img_.cols,
+                                           cur_frame.img_.rows);
 
   // Find new features.
+  // TODO(Toni): we should be using cv::KeyPoint... not cv::Point2f...
   KeypointsCV new_corners;
   new_corners.reserve(sscKP.size());
   for (const cv::KeyPoint& kp : sscKP) {
@@ -168,9 +193,9 @@ KeypointsCV FeatureDetector::featureDetection(const Frame& cur_frame,
   // TODO this takes a ton of time 27ms each time...
   // Change window_size, and term_criteria to improve timing
   if (new_corners.size() > 0) {
-    if (tracker_params_.enable_subpixel_corner_finder_) {
+    if (feature_detector_params_.enable_subpixel_corner_refinement_) {
       const auto& subpixel_params =
-          tracker_params_.subpixel_corner_finder_params_;
+          feature_detector_params_.subpixel_corner_finder_params_;
       auto tic = utils::Timer::tic();
       cv::cornerSubPix(cur_frame.img_,
                        new_corners,

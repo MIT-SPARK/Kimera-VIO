@@ -82,26 +82,12 @@ class AdaptiveNonMaximumSuppression : public NonMaximumSuppression {
    * ANMS algorithm (not sure why someone would do that, but here it is).
    * @param anms_algorithm_type
    */
-  //inline void setAnmsAlgorithm(const AnmsAlgorithmType& anms_algorithm_type) {
-  //  anms_algorithm_type_ = anms_algorithm_type;
-  //}
-
-// #if CV_MAJOR_VERSION < 3  // Bucketing is no longer available in opencv3
-//   LOG(INFO) << "\nStart GridFAST" << endl;
-//   clock_t gridFASTStart = clock();
-//   vector<cv::KeyPoint> gridFASTKP =
-//       GridFAST(testImg,
-//                numRetPoints,
-//                7,
-//                4);  // change gridRows=7 and gridCols=4 parameters if necessary
-//   clock_t gridFASTTotalTime =
-//       double(clock() - gridFASTStart) * 1000 / (double)CLOCKS_PER_SEC;
-//   LOG(INFO) << "Finish GridFAST in " << gridFASTTotalTime << " miliseconds." << endl;
-// #endif
-
+  inline void setAnmsAlgorithm(const AnmsAlgorithmType& anms_algorithm_type) {
+    anms_algorithm_type_ = anms_algorithm_type;
+  }
 
  protected:
-  const AnmsAlgorithmType anms_algorithm_type_;
+  AnmsAlgorithmType anms_algorithm_type_;
 };
 
 }  // namespace VIO

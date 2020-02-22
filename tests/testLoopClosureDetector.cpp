@@ -116,7 +116,8 @@ class LCDFixture :public ::testing::Test {
     // Initialize StereoFrame objects for reference and current frames
     VisionFrontEndParams tp;
     Tracker tracker(tp, CameraParams());
-    FeatureDetector feature_detector(tp);
+    FeatureDetectorParams fdp;
+    FeatureDetector feature_detector(FeatureDetectorType::FAST, fdp);
 
     ref1_stereo_frame_ = VIO::make_unique<StereoFrame>(
         id_ref1_,

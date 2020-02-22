@@ -49,7 +49,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     : frame_count_(0),
       keyframe_count_(0),
       tracker_(tracker_params, camera_params),
-      feature_detector_(tracker_params),
+      feature_detector_(nullptr),
       trackerStatusSummary_(),
       output_images_path_("./outputImages/"),
       display_queue_(display_queue),
@@ -57,6 +57,19 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
   if (log_output) {
     logger_ = VIO::make_unique<FrontendLogger>();
   }
+
+  // Instantiate FeatureDetector
+  FeatureDetectorParams feature_detector_params_;
+  feature_detector_params_.enable_subpixel_corner_refinement_ =
+      tracker_params.enable_subpixel_corner_finder_;
+  feature_detector_params_.max_features_per_frame_ =
+      tracker_params.maxFeaturesPerFrame_;
+  feature_detector_params_.enable_non_max_suppression = true;
+  feature_detector_params_.min_distance_btw_tracked_and_detected_features_ =
+      tracker_params.min_distance_;
+  feature_detector_ = VIO::make_unique<FeatureDetector>(
+      FeatureDetectorType::FAST,
+      feature_detector_params_);
 
   // Instantiate IMU frontend.
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
@@ -197,7 +210,7 @@ StereoFrame StereoVisionFrontEnd::processFirstStereoFrame(
          " keypoints manually";
 
   // Perform feature detection.
-  feature_detector_.featureDetection(left_frame);
+  feature_detector_->featureDetection(left_frame);
 
   // Get 3D points via stereo.
   stereoFrame_k_->sparseStereoMatching();
@@ -326,7 +339,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
 
     // Perform feature detection (note: this must be after RANSAC,
     // since if we discard more features, we need to extract more)
-    feature_detector_.featureDetection(left_frame_k);
+    feature_detector_->featureDetection(left_frame_k);
 
     // Get 3D points via stereo, including newly extracted
     // (this might be only for the visualization).
