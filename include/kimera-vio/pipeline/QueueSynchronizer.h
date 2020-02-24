@@ -22,6 +22,7 @@
 #include "kimera-vio/pipeline/PipelinePayload.h"
 #include "kimera-vio/utils/Macros.h"
 #include "kimera-vio/utils/ThreadsafeQueue.h"
+#include "kimera-vio/utils/Timer.h"
 
 namespace VIO {
 
@@ -112,11 +113,14 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
     // Loop over payload timestamps until we reach the query timestamp
     // or we are past the asked timestamp (in which case, we failed).
     int i = 0;
+    static constexpr size_t timeout_ms = 500u;  // Wait 500ms at most!
     for (; i < max_iterations && timestamp > payload_timestamp; ++i) {
       // TODO(Toni): add a timer to avoid waiting forever...
-      if (!queue->popBlocking(*pipeline_payload)) {
-        LOG(ERROR) << name_id << "'s " << queue->queue_id_ << " is empty or "
-                   << "has been shutdown.";
+      if (!queue->popBlockingWithTimeout(*pipeline_payload, timeout_ms)) {
+        LOG(ERROR) << name_id << "'s " << queue->queue_id_ << " : \n"
+                   << queue->empty()
+            ? "Empty..."
+            : queue->isShutdown() ? "Shutdown..." : " Timeout...";
         return false;
       } else {
         VLOG(5) << "Popping from: " << queue->queue_id_;

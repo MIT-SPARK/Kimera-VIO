@@ -29,12 +29,7 @@ namespace VIO {
 
 AdaptiveNonMaximumSuppression::AdaptiveNonMaximumSuppression(
     const AnmsAlgorithmType& anms_algorithm_type)
-    : NonMaximumSuppression(), anms_algorithm_type_(anms_algorithm_type) {
-  LOG(ERROR) << "CTOR WITH ALGORITHM "
-             << VIO::to_underlying(anms_algorithm_type);
-  LOG(ERROR) << "CTOR WITH ALGORITHM "
-             << VIO::to_underlying(anms_algorithm_type_);
-};
+    : NonMaximumSuppression(), anms_algorithm_type_(anms_algorithm_type){};
 
 std::vector<cv::KeyPoint> AdaptiveNonMaximumSuppression::suppressNonMax(
     const std::vector<cv::KeyPoint>& keyPoints,

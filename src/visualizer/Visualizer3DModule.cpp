@@ -14,6 +14,9 @@
 
 #include "kimera-vio/visualizer/Visualizer3DModule.h"
 
+#include <string>
+#include <utility>
+
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 
 namespace VIO {
@@ -27,18 +30,20 @@ VisualizerModule::VisualizerModule(OutputQueue* output_queue,
       frontend_queue_("visualizer_frontend_queue"),
       backend_queue_("visualizer_backend_queue"),
       mesher_queue_(nullptr),
-      visualizer_(std::move(visualizer)) {}
-
-void VisualizerModule::fillMesherQueue(const VizMesherInput& mesher_payload) {
-  static bool is_init = false;
-  if (!is_init) {
-    // Instantiate mesher queue, since someone is trying to fill the
-    // optional mesher queue
+      visualizer_(std::move(visualizer)) {
+  if (visualizer_->visualization_type_ ==
+      VisualizationType::kMesh2dTo3dSparse) {
+    // Activate mesher queue if we are going to visualize the mesh.
     mesher_queue_ = VIO::make_unique<ThreadsafeQueue<VizMesherInput>>(
         "visualizer_mesher_queue");
-    is_init = true;
   }
-  CHECK(mesher_queue_);
+}
+
+void VisualizerModule::fillMesherQueue(const VizMesherInput& mesher_payload) {
+  CHECK(mesher_queue_)
+      << "Filling mesher queue without mesher_queue_ being "
+         "initialized... Make sure you tell the visualizer that"
+         "you want to viz the 3D mesh...";
   mesher_queue_->push(mesher_payload);
 }
 
@@ -76,7 +81,7 @@ VisualizerModule::InputUniquePtr VisualizerModule::getInputPacket() {
   VizMesherInput mesher_payload = nullptr;
   if (mesher_queue_) {
     // Mesher output is optional, only sync if callback registered.
-    PIO::syncQueue(timestamp, mesher_queue_.get(), &mesher_payload);
+    CHECK(PIO::syncQueue(timestamp, mesher_queue_.get(), &mesher_payload));
     CHECK(mesher_payload);
   }
 

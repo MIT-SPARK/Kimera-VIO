@@ -90,7 +90,6 @@ DEFINE_int32(max_time_allowed_for_keyframe_callback,
 DEFINE_bool(use_lcd,
             false,
             "Enable LoopClosureDetector processing in pipeline.");
-DEFINE_bool(use_mesher, false, "Enable Mesh builder.");
 
 namespace VIO {
 
@@ -168,8 +167,8 @@ Pipeline::Pipeline(const VioParams& params)
   //! Params for what the backend outputs.
   // TODO(Toni): put this into backend params.
   BackendOutputParams backend_output_params(
-      static_cast<VisualizationType>(FLAGS_viz_type) ==
-          VisualizationType::kMesh2dTo3dSparse,
+      static_cast<VisualizationType>(FLAGS_viz_type) !=
+          VisualizationType::kNone,
       FLAGS_min_num_obs_for_mesher_points,
       FLAGS_visualize_lmk_type);
 
@@ -193,7 +192,8 @@ Pipeline::Pipeline(const VioParams& params)
                 std::placeholders::_1));
 
   // TODO(Toni): only create if used.
-  if (FLAGS_use_mesher) {
+  if (static_cast<VisualizationType>(FLAGS_viz_type) ==
+      VisualizationType::kMesh2dTo3dSparse) {
     mesher_module_ = VIO::make_unique<MesherModule>(
         parallel_run_,
         MesherFactory::createMesher(
@@ -231,6 +231,7 @@ Pipeline::Pipeline(const VioParams& params)
                   std::ref(*CHECK_NOTNULL(visualizer_module_.get())),
                   std::placeholders::_1));
     if (mesher_module_) {
+      LOG(ERROR) << "REGISTER MESHER";
       mesher_module_->registerCallback(
           std::bind(&VisualizerModule::fillMesherQueue,
                     std::ref(*CHECK_NOTNULL(visualizer_module_.get())),

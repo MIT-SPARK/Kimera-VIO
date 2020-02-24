@@ -1449,7 +1449,7 @@ void VioBackEnd::setIsam2Params(const VioBackEndParams& vio_params,
   // iSAM2 SETTINGS
   gtsam::ISAM2GaussNewtonParams gauss_newton_params;
   // TODO remove this hardcoded value...
-  gauss_newton_params.wildfireThreshold = -1.0;
+  gauss_newton_params.wildfireThreshold = 0.0001;
   // gauss_newton_params.setWildfireThreshold(0.001);
 
   gtsam::ISAM2DoglegParams dogleg_params;
