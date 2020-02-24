@@ -125,7 +125,6 @@ $BUILD_PATH/stereoVIOEuroc \
   --flagfile="$PARAMS_PATH/flags/VioBackEnd.flags" \
   --flagfile="$PARAMS_PATH/flags/RegularVioBackEnd.flags" \
   --flagfile="$PARAMS_PATH/flags/Visualizer3D.flags" \
-  --flagfile="$PARAMS_PATH/flags/EthParser.flags" \
   --parallel_run="$PARALLEL_RUN" \
   --logtostderr=1 \
   --colorlogtostderr=1 \
@@ -139,5 +138,5 @@ $BUILD_PATH/stereoVIOEuroc \
 
 # If in debug mode, you can run gdb to trace problems.
 #export DATASET_PATH=/home/tonirv/datasets/euroc/EuRoC/V1_01_easy
-#gdb --args ../build/stereoVIOEuroc --flagfile="../params/flags/stereoVIOEuroc.flags" --flagfile="../params/flags/Mesher.flags" --flagfile="../params/flags/VioBackEnd.flags" --flagfile="../params/flags/RegularVioBackEnd.flags" --flagfile="../params/flags/Visualizer3D.flags" --flagfile="../params/flags/EthParser.flags" --logtostderr=1 --colorlogtostderr=1 --log_prefix=0 --dataset_path="$DATASET_PATH" --left_cam_params_path="../params/LeftCameraParams.yaml" --right_cam_params_path="../params/RightCameraParams.yaml" --imu_params_path="../params/ImuParams.yaml" --backend_params_path="$BACKEND_PARAMS_PATH" --initial_k=50 --final_k=2000 --frontend_params_path="" --lcd_params_path="" --vocabulary_path="../vocabulary/ORBvoc.yml" --use_lcd="0" --v=0 --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 --backend_type="0" --parallel_run="1" --dataset_type="0" --log_output="0" --output_path="../output_logs/"
+#gdb --args ../build/stereoVIOEuroc --flagfile="../params/flags/stereoVIOEuroc.flags" --flagfile="../params/flags/Mesher.flags" --flagfile="../params/flags/VioBackEnd.flags" --flagfile="../params/flags/RegularVioBackEnd.flags" --flagfile="../params/flags/Visualizer3D.flags" --logtostderr=1 --colorlogtostderr=1 --log_prefix=0 --dataset_path="$DATASET_PATH" --left_cam_params_path="../params/LeftCameraParams.yaml" --right_cam_params_path="../params/RightCameraParams.yaml" --imu_params_path="../params/ImuParams.yaml" --backend_params_path="$BACKEND_PARAMS_PATH" --initial_k=50 --final_k=2000 --frontend_params_path="" --lcd_params_path="" --vocabulary_path="../vocabulary/ORBvoc.yml" --use_lcd="0" --v=0 --vmodule=VioBackEnd=0,RegularVioBackEnd=0,Mesher=0,StereoVisionFrontEnd=0 --backend_type="0" --parallel_run="1" --dataset_type="0" --log_output="0" --output_path="../output_logs/"
 
