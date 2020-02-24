@@ -430,14 +430,14 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
   polygon.resize(3);
 
   // Iterate over the 2d mesh triangles.
-  for (size_t i = 0; i < mesh_2d_pixels.size(); i++) {
+  for (size_t i = 0u; i < mesh_2d_pixels.size(); i++) {
     const cv::Vec6f& triangle_2d = mesh_2d_pixels.at(i);
 
     // Iterate over each vertex (pixel) of the triangle.
     // Triangle_2d.rows = 3.
-    for (size_t j = 0; j < triangle_2d.rows / 2; j++) {
+    for (size_t j = 0u; j < triangle_2d.rows / 2u; j++) {
       // Extract pixel.
-      const cv::Point2f pixel(triangle_2d[j * 2], triangle_2d[j * 2 + 1]);
+      const cv::Point2f pixel(triangle_2d[j * 2u], triangle_2d[j * 2u + 1u]);
 
       // Extract landmark id corresponding to this pixel.
       const LandmarkId& lmk_id(
@@ -461,7 +461,7 @@ void Mesher::populate3dMesh(const std::vector<cv::Vec6f>& mesh_2d_pixels,
         if (mesh_2d != nullptr) {
           face.at(j) = Mesh2D::VertexType(lmk_id, pixel);
         }
-        static const size_t loop_end = triangle_2d.rows / 2 - 1;
+        static const size_t loop_end = triangle_2d.rows / 2u - 1u;
         if (j == loop_end) {
           // Last iteration.
           // Filter out bad polygons.
@@ -1363,8 +1363,7 @@ void Mesher::updateMesh3D(const PointsWithIdMap& points_with_id_VIO,
 
   // Get points in stereo camera that are not in vio but have lmk id:
   PointsWithIdMap points_with_id_stereo;
-  // TODO(Toni): put this in mesher params, and allow for only seeing stereo
-  // mesh
+  // TODO(Toni): allow for only seeing stereo mesh
   if (FLAGS_add_extra_lmks_from_stereo) {
     // Append vio points.
     // WARNING some stereo and vio lmks share the same id, so adding order

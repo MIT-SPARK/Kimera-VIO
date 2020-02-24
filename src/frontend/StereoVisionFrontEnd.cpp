@@ -261,6 +261,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       left_frame_km1, left_frame_k, calLrectLkf_R_camLrectKf_imu);
 
   if (feature_tracks) {
+    // TODO(Toni): these feature tracks are not outlier rejected...
     *feature_tracks = displayFeatureTracks();
   }
   VLOG(2) << "Finished feature tracking.";
@@ -271,7 +272,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
   trackerStatusSummary_.kfTrackingStatus_stereo_ = TrackingStatus::INVALID;
 
   // This will be the info we actually care about
-  SmartStereoMeasurementsUniquePtr smartStereoMeasurements = nullptr;
+  SmartStereoMeasurementsUniquePtr smart_stereo_measurements = nullptr;
 
   const bool max_time_elapsed =
       stereoFrame_k_->getTimestamp() - last_keyframe_timestamp_ >=
@@ -281,7 +282,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       nr_valid_features <= tracker_.tracker_params_.min_number_features_;
 
   // Also if the user requires the keyframe to be enforced
-  if (stereoFrame_k_->isKeyframe()) LOG(WARNING) << "User enforced keyframe!";
+  LOG_IF(WARNING, stereoFrame_k_->isKeyframe()) << "User enforced keyframe!";
   // If max time elaspsed and not able to track feature -> create new keyframe
   if (max_time_elapsed || nr_features_low || stereoFrame_k_->isKeyframe()) {
     ++keyframe_count_;  // mainly for debugging
@@ -363,7 +364,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
 
     // Get relevant info for keyframe.
     start_time = utils::Timer::tic();
-    smartStereoMeasurements = getSmartStereoMeasurements(*stereoFrame_k_);
+    smart_stereo_measurements = getSmartStereoMeasurements(*stereoFrame_k_);
     double get_smart_stereo_meas_time = utils::Timer::toc(start_time).count();
 
     VLOG(2) << "timeClone: " << clone_rect_params_time << '\n'
@@ -381,7 +382,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       std::make_pair(trackerStatusSummary_,
                      // TODO(Toni): please, fix this, don't use std::pair...
                      // copies, manyyyy copies: actually thousands of copies...
-                     smartStereoMeasurements ? *smartStereoMeasurements
+                     smart_stereo_measurements ? *smart_stereo_measurements
                                              : SmartStereoMeasurements()));
 }
 

@@ -85,8 +85,6 @@ void Tracker::featureTracking(Frame* ref_frame,
       cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
       tracker_params_.klt_max_iter_,
       tracker_params_.klt_eps_);
-  static cv::Size2i kKltWindowSize(tracker_params_.klt_win_size_,
-                                   tracker_params_.klt_win_size_);
 
   // Initialize to old locations
   LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
@@ -100,6 +98,8 @@ void Tracker::featureTracking(Frame* ref_frame,
 
   std::vector<uchar> status;
   std::vector<float> error;
+  static cv::Size2i klt_window_size(tracker_params_.klt_win_size_,
+                                    tracker_params_.klt_win_size_);
   auto time_lukas_kanade_tic = utils::Timer::tic();
   cv::calcOpticalFlowPyrLK(ref_frame->img_,
                            cur_frame->img_,
@@ -107,7 +107,7 @@ void Tracker::featureTracking(Frame* ref_frame,
                            px_cur,
                            status,
                            error,
-                           kKltWindowSize,
+                           klt_window_size,
                            tracker_params_.klt_max_level_,
                            kTerminationCriteria,
                            cv::OPTFLOW_USE_INITIAL_FLOW);
@@ -117,47 +117,51 @@ void Tracker::featureTracking(Frame* ref_frame,
 
   // TODO(Toni): use the error to further take only the best tracks?
 
-  // TODO(TONI): WTF is this doing? Are we always having empty keypoints??
-  if (cur_frame->keypoints_.empty()) {
-    // TODO(TOni): this is basically copying the whole px_ref into the
-    // current frame as well as the ref_frame information! Absolute nonsense.
-    cur_frame->landmarks_.reserve(px_ref.size());
-    cur_frame->landmarks_age_.reserve(px_ref.size());
-    cur_frame->keypoints_.reserve(px_ref.size());
-    cur_frame->scores_.reserve(px_ref.size());
-    cur_frame->versors_.reserve(px_ref.size());
-    for (size_t i = 0; i < indices_of_valid_landmarks.size(); ++i) {
-      // If we failed to track mark off that landmark
-      const size_t idx_valid_lmk = indices_of_valid_landmarks[i];
-      if (!status[i] ||
-          // if we tracked keypoint and feature
-          ref_frame->landmarks_age_[idx_valid_lmk] >
-              tracker_params_.maxFeatureAge_) {
-        // track is not too long
-        // we are marking this bad in the ref_frame since features
-        // in the ref frame guide feature detection later on
-        ref_frame->landmarks_[idx_valid_lmk] = -1;
-        continue;
-      }
-      cur_frame->landmarks_.push_back(ref_frame->landmarks_[idx_valid_lmk]);
-      cur_frame->landmarks_age_.push_back(
-          ref_frame->landmarks_age_[idx_valid_lmk]);
-      cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
-      cur_frame->keypoints_.push_back(px_cur[i]);
-      cur_frame->versors_.push_back(
-          Frame::calibratePixel(px_cur[i], ref_frame->cam_param_));
+  // At this point cur_frame should have no keypoints...
+  CHECK(cur_frame->keypoints_.empty());
+  CHECK(cur_frame->landmarks_.empty());
+  CHECK(cur_frame->landmarks_age_.empty());
+  CHECK(cur_frame->keypoints_.empty());
+  CHECK(cur_frame->scores_.empty());
+  CHECK(cur_frame->versors_.empty());
+  // TODO(TOni): this is basically copying the whole px_ref into the
+  // current frame as well as the ref_frame information! Absolute nonsense.
+  cur_frame->landmarks_.reserve(px_ref.size());
+  cur_frame->landmarks_age_.reserve(px_ref.size());
+  cur_frame->keypoints_.reserve(px_ref.size());
+  cur_frame->scores_.reserve(px_ref.size());
+  cur_frame->versors_.reserve(px_ref.size());
+  for (size_t i = 0u; i < indices_of_valid_landmarks.size(); ++i) {
+    // If we failed to track mark off that landmark
+    const size_t& idx_valid_lmk = indices_of_valid_landmarks[i];
+    const size_t& lmk_age = ref_frame->landmarks_age_[idx_valid_lmk];
+    const LandmarkId& lmk_id = ref_frame->landmarks_[idx_valid_lmk];
+    if (!status[i] ||
+        // if we tracked keypoint and feature
+        lmk_age > tracker_params_.maxFeatureAge_) {
+      // track is not too long
+      // we are marking this bad in the ref_frame since features
+      // in the ref frame guide feature detection later on
+      ref_frame->landmarks_[idx_valid_lmk] = -1;
+      continue;
     }
-
-    // max number of frames in which a feature is seen
-    VLOG(10) << "featureTracking: frame " << cur_frame->id_
-             << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
-             << " (max: " << tracker_params_.maxFeaturesPerFrame_ << ")"
-             << " (max observed age of tracked features: "
-             << *std::max_element(cur_frame->landmarks_age_.begin(),
-                                  cur_frame->landmarks_age_.end())
-             << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_
-             << ")";
+    cur_frame->landmarks_.push_back(lmk_id);
+    cur_frame->landmarks_age_.push_back(lmk_age);
+    cur_frame->scores_.push_back(ref_frame->scores_[idx_valid_lmk]);
+    cur_frame->keypoints_.push_back(px_cur[i]);
+    cur_frame->versors_.push_back(
+          Frame::calibratePixel(px_cur[i], ref_frame->cam_param_));
   }
+
+  // max number of frames in which a feature is seen
+  VLOG(10) << "featureTracking: frame " << cur_frame->id_
+           << ",  Nr tracked keypoints: " << cur_frame->keypoints_.size()
+           << " (max: " << tracker_params_.maxFeaturesPerFrame_ << ")"
+           << " (max observed age of tracked features: "
+           << *std::max_element(cur_frame->landmarks_age_.begin(),
+                                cur_frame->landmarks_age_.end())
+           << " vs. maxFeatureAge_: " << tracker_params_.maxFeatureAge_
+           << ")";
 
   // Fill debug information
   debug_info_.nrTrackerFeatures_ = cur_frame->keypoints_.size();

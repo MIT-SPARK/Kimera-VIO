@@ -199,7 +199,7 @@ Pipeline::Pipeline(const VioParams& params)
         MesherFactory::createMesher(
             MesherType::PROJECTIVE,
             MesherParams(stereo_camera_->getLeftCamPose(),
-                         params.camera_params_.at(0).image_size_)));
+                         params.camera_params_.at(0u).image_size_)));
     //! Register input callbacks
     vio_backend_module_->registerCallback(
         std::bind(&MesherModule::fillBackendQueue,

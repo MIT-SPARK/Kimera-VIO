@@ -95,24 +95,34 @@ Visualizer3D::Visualizer3D(const VisualizationType& viz_type,
 VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
     const VisualizerInput& input) {
   DCHECK(input.frontend_output_);
-  DCHECK(input.mesher_output_);
   DCHECK(input.backend_output_);
 
   VisualizerOutput::UniquePtr output = VIO::make_unique<VisualizerOutput>();
+
+  // Ensure we have mesher output if the user requested mesh visualization
+  // otherwise, switch to pointcloud visualization.
+  if (visualization_type_ == VisualizationType::kMesh2dTo3dSparse &&
+      !input.mesher_output_) {
+    LOG(ERROR) << "Mesh visualization requested, but no "
+                  "mesher output available. Switching to Pointcloud"
+                  "visualization only.";
+    visualization_type_ = VisualizationType::kPointcloud;
+  }
   output->visualization_type_ = visualization_type_;
 
   cv::Mat mesh_2d_img;  // Only for visualization.
   const Frame& left_stereo_keyframe =
       input.frontend_output_->stereo_frame_lkf_.getLeftFrame();
   switch (visualization_type_) {
-      // Computes and visualizes 3D mesh from 2D triangulation.
-      // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and
-      // inside the image triangles: all the ones with edges inside images as
-      // produced by cv::subdiv, which have uniform gradient (updateMesh3D also
-      // filters out geometrically) Sparsity comes from filtering out triangles
-      // corresponding to non planar obstacles which are assumed to have
-      // non-uniform gradient.
+    // Computes and visualizes 3D mesh from 2D triangulation.
+    // vertices: all leftframe kps with right-VALID (3D), lmkId != -1 and
+    // inside the image triangles: all the ones with edges inside images as
+    // produced by cv::subdiv, which have uniform gradient (updateMesh3D also
+    // filters out geometrically) Sparsity comes from filtering out triangles
+    // corresponding to non planar obstacles which are assumed to have
+    // non-uniform gradient.
     case VisualizationType::kMesh2dTo3dSparse: {
+      CHECK(input.mesher_output_);
       // Visualize 2d mesh.
       if (FLAGS_visualize_mesh_2d || FLAGS_visualize_mesh_in_frustum) {
         const ImageToDisplay& mesh_display = ImageToDisplay(
@@ -347,6 +357,7 @@ VisualizerOutput::UniquePtr Visualizer3D::spinOnce(
       &output->frustum_pose_,
       &output->widgets_);
   VLOG(10) << "Finished trajectory visualization.";
+
   return output;
 }
 

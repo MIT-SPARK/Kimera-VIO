@@ -211,7 +211,7 @@ class Visualizer3D {
 
  private:
   // Flags for visualization behaviour.
-  const VisualizationType visualization_type_;
+  VisualizationType visualization_type_;
   const BackendType backend_type_;
 
   // Callbacks.
