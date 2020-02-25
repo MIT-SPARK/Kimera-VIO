@@ -334,6 +334,7 @@ bool ThreadsafeQueue<T>::batchPop(typename TQB::InternalQueue* output_queue) {
   }
   lk.unlock();  // Unlock before notify.
   data_cond_.notify_one();
+  return success
 }
 
 }  // namespace VIO
