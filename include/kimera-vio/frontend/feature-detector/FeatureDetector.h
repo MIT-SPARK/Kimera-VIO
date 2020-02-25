@@ -17,18 +17,14 @@
 #include <Eigen/Eigen>
 
 #include "kimera-vio/frontend/Frame.h"
+#include "kimera-vio/frontend/VisionFrontEndParams.h"
+#include "kimera-vio/frontend/feature-detector/FeatureDetector-definitions.h"
 #include "kimera-vio/frontend/feature-detector/NonMaximumSuppression.h"
 #include "kimera-vio/utils/Macros.h"
-#include "kimera-vio/frontend/VisionFrontEndParams.h"
 
 namespace VIO {
 
-enum class FeatureDetectorType {
-  FAST = 0,
-  ORB = 1,
-  AGAST = 2,
-};
-
+// TODO(Toni): put in feature detector params!
 struct FeatureDetectorParams {
   //! Maximum amount of features to be detected per frame.
   int max_features_per_frame_ = 400;
@@ -64,8 +60,8 @@ class FeatureDetector {
                                const int& need_n_corners);
 
   // Parameters.
-  const FeatureDetectorParams feature_detector_params_;
   const FeatureDetectorType feature_detector_type_;
+  const FeatureDetectorParams feature_detector_params_;
 
   // TODO(TOni): should be debug feature detector info...
   // Debug info.
