@@ -19,6 +19,9 @@
 
 #include <glog/logging.h>
 
+#include "kimera-vio/common/vio_types.h"
+#include "kimera-vio/pipeline/PipelineParams.h"
+
 namespace VIO {
 
 SubPixelCornerFinderParams::SubPixelCornerFinderParams()
@@ -120,6 +123,30 @@ bool VisionFrontEndParams::parseYAML(const std::string& filepath) {
 
   if (enable_subpixel_corner_finder_) {
     subpixel_corner_finder_params_.parseYAML(filepath);
+  }
+
+  int feature_detector_type;
+  yaml_parser.getYamlParam("feature_detector_type", &feature_detector_type);
+  switch (feature_detector_type) {
+    case VIO::to_underlying(FeatureDetectorType::FAST): {
+      feature_detector_type_ = FeatureDetectorType::FAST;
+      break;
+    }
+    case VIO::to_underlying(FeatureDetectorType::ORB): {
+      feature_detector_type_ = FeatureDetectorType::ORB;
+      break;
+    }
+    case VIO::to_underlying(FeatureDetectorType::AGAST): {
+      feature_detector_type_ = FeatureDetectorType::AGAST;
+      break;
+    }
+    case VIO::to_underlying(FeatureDetectorType::GFTT): {
+      feature_detector_type_ = FeatureDetectorType::GFTT;
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Unknown Feature Detector Type: " << feature_detector_type;
+    }
   }
 
   yaml_parser.getYamlParam("maxFeaturesPerFrame", &maxFeaturesPerFrame_);

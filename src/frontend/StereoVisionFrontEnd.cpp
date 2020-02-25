@@ -58,6 +58,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
     logger_ = VIO::make_unique<FrontendLogger>();
   }
 
+  // TODO(Toni): separate feature tracker vs feature detector params!
   // Instantiate FeatureDetector
   FeatureDetectorParams feature_detector_params_;
   feature_detector_params_.enable_subpixel_corner_refinement_ =
@@ -68,8 +69,7 @@ StereoVisionFrontEnd::StereoVisionFrontEnd(
   feature_detector_params_.min_distance_btw_tracked_and_detected_features_ =
       tracker_params.min_distance_;
   feature_detector_ = VIO::make_unique<FeatureDetector>(
-      FeatureDetectorType::FAST,
-      feature_detector_params_);
+      tracker_params.feature_detector_type_, feature_detector_params_);
 
   // Instantiate IMU frontend.
   imu_frontend_ = VIO::make_unique<ImuFrontEnd>(imu_params, imu_initial_bias);
