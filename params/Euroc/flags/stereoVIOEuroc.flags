@@ -25,6 +25,3 @@
 --log_feature_tracks=true
 --log_mono_tracking_images=false
 --log_stereo_matching_images=false
-
-# Run Mesher to build per-frame/multi-frame meshes
---use_mesher=true

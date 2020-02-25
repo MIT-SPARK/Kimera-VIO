@@ -5,7 +5,16 @@ klt_max_iter: 30
 klt_max_level: 4
 klt_eps: 0.1
 maxFeatureAge: 25
+
+# Detector Params
+# 0: FAST
+# 1: ORB
+# 2: AGAST
+# 3: GFTT, aka Good Features To Track
+feature_detector_type: 3
 maxFeaturesPerFrame: 800
+
+# Good Features To Track specific parameters
 quality_level: 0.001
 min_distance: 20
 block_size: 3
