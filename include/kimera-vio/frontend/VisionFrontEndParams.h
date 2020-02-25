@@ -27,6 +27,7 @@
 
 #include "kimera-vio/frontend/OpticalFlowPredictor-definitions.h"
 #include "kimera-vio/frontend/StereoFrame.h"
+#include "kimera-vio/frontend/feature-detector/FeatureDetector-definitions.h"
 #include "kimera-vio/pipeline/PipelineParams.h"
 #include "kimera-vio/utils/UtilsNumerical.h"
 #include "kimera-vio/utils/YamlParser.h"
@@ -37,6 +38,7 @@ struct SubPixelCornerFinderParams : public PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(SubPixelCornerFinderParams);
   SubPixelCornerFinderParams();
+  virtual ~SubPixelCornerFinderParams() = default;
 
  public:
   void print() const;
@@ -77,6 +79,7 @@ struct VisionFrontEndParams : public PipelineParams {
       SubPixelCornerFinderParams();
 
   // Detection parameters
+  FeatureDetectorType feature_detector_type_ = FeatureDetectorType::FAST;
   int maxFeaturesPerFrame_ = 1000;
   double quality_level_ = 0.001;  // @TODO: add comments on each parameter
   double min_distance_ = 10.0;    // min distance to create mask around old
