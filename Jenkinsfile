@@ -53,25 +53,22 @@ pipeline {
               steps {
                 wrap([$class: 'Xvfb']) {
                   // Run performance tests.
-                  // In jenkins_euroc.yaml, set output path to #WORKSPACE/Kimera-VIO-Evaluation/website/data
+                  // In jenkins_euroc.yaml, set output path to $WORKSPACE/website/data
                   sh 'python3.6 $evaluator/evaluation/main_evaluation.py -r -a -v \
                     --save_plots --save_boxplots --save_results --write_website \
                     $evaluator/experiments/jenkins_euroc.yaml'
 
                   // Compile summary results.
                   sh 'python3.6 $evaluator/evaluation/tools/performance_summary.py \
-                    Kimera-VIO-Evaluation/website/data/V1_01_easy/Euroc/results_vio.yaml \
-                    Kimera-VIO-Evaluation/website/data/V1_01_easy/Euroc/vio_performance.csv'
-
-                  // Copy performance website to Workspace
-                  sh 'cp -r $evaluator/website $WORKSPACE/Kimera-VIO-Evaluation/'
+                    $WORKSPACE/website/data/V1_01_easy/Euroc/results_vio.yaml \
+                    $WORKSPACE/website/data/V1_01_easy/Euroc/vio_performance.csv'
                 }
               }
               post {
                 success {
                     // Plot VIO performance.
                     plot csvFileName: 'plot-vio-performance-per-build.csv',
-                         csvSeries: [[file: 'Kimera-VIO-Evaluation/website/data/V1_01_easy/Euroc/vio_performance.csv']],
+                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/vio_performance.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -80,7 +77,7 @@ pipeline {
 
                     // Plot VIO timing.
                     plot csvFileName: 'plot-vio-timing-per-build.csv',
-                         csvSeries: [[file: 'Kimera-VIO-Evaluation/website/data/V1_01_easy/Euroc/output/output_timingOverall.csv']],
+                         csvSeries: [[file: 'website/data/V1_01_easy/Euroc/output/output_timingOverall.csv']],
                          group: 'Euroc Performance',
                          numBuilds: '30',
                          style: 'line',
@@ -88,11 +85,11 @@ pipeline {
                          yaxis: 'Time [ms]'
 
                     // Publish HTML website with Dygraphs and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'Kimera-VIO-Evaluation/website/', reportFiles: 'vio_ape_euroc.html, plots.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
+                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'website/data', reportFiles: 'vio_ape_euroc.html, plots.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
 
                     // Archive the website
                     archiveArtifacts (
-                        artifacts: 'Kimera-VIO-Evaluation/website/data/**/*.*',
+                        artifacts: 'website/data/**/*.*',
                         fingerprint: true
                         )
 
