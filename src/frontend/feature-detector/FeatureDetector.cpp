@@ -11,8 +11,6 @@
 #include "kimera-vio/utils/Timer.h"
 #include "kimera-vio/utils/UtilsOpenCV.h"  // Just for ExtractCorners...
 
-#include "kimera-vio/frontend/feature-detector/anms/anms.h"  // REMOVE
-
 #include <numeric>
 
 namespace VIO {
@@ -30,11 +28,11 @@ FeatureDetector::FeatureDetector(
         feature_detector_params.non_max_suppression_type);
 
   // TODO(Toni): find a way to pass params here using args lists
-  // Fast threshold. Usually this value is set to be in range [10,35]
-  int fastThresh = 10;
   switch (feature_detector_type) {
     case FeatureDetectorType::FAST: {
-      feature_detector_ = cv::FastFeatureDetector::create(fastThresh, true);
+      // Fast threshold, usually in range [10, 35]
+      static constexpr int fast_thresh = 10;
+      feature_detector_ = cv::FastFeatureDetector::create(fast_thresh, true);
       break;
     }
     case FeatureDetectorType::ORB: {
@@ -43,6 +41,23 @@ FeatureDetector::FeatureDetector(
     }
     case FeatureDetectorType::AGAST: {
       LOG(FATAL) << "AGAST feature detector not implemented.";
+      break;
+    }
+    case FeatureDetectorType::GFTT: {
+      // TODO(Toni): parametrizeeee
+      static constexpr double quality_level = 0.01;
+      static constexpr double min_distance = 1;
+      static constexpr int block_size = 3;
+      static constexpr bool use_harris_detector = false;
+      static constexpr double k = 0.04;
+      // goodFeaturesToTrack detector.
+      feature_detector_ = cv::GFTTDetector::create(
+          feature_detector_params_.max_features_per_frame_,
+          quality_level,
+          min_distance,
+          block_size,
+          use_harris_detector,
+          k);
       break;
     }
     default: {
