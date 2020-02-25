@@ -153,12 +153,13 @@ std::vector<cv::KeyPoint> KdTree(std::vector<cv::KeyPoint> keyPoints,
 
   PointCloud<int> cloud;  // creating k-d tree with keypoints
   generatePointCloud(cloud, keyPoints);
-  typedef KDTreeSingleIndexAdaptor<L2_Simple_Adaptor<int, PointCloud<int> >,
-                                   PointCloud<int>,
-                                   2>
+  typedef nanoflann::KDTreeSingleIndexAdaptor<
+      nanoflann::L2_Simple_Adaptor<int, PointCloud<int> >,
+      PointCloud<int>,
+      2>
       my_kd_tree_t;
   my_kd_tree_t index(
-      2, cloud, KDTreeSingleIndexAdaptorParams(25 /* max leaf */));
+      2, cloud, nanoflann::KDTreeSingleIndexAdaptorParams(25 /* max leaf */));
   index.buildIndex();
 
   bool complete = false;
@@ -284,7 +285,7 @@ std::vector<cv::KeyPoint> RangeTree(std::vector<cv::KeyPoint> keyPoints,
         if (minx < 0) minx = 0;
         if (miny < 0) miny = 0;
 
-        std::std::vector<u16*>* he = treeANMS.search(minx, maxx, miny, maxy);
+        std::vector<u16*>* he = treeANMS.search(minx, maxx, miny, maxy);
         for (unsigned int j = 0; j < he->size(); j++)
           if (Included[(u64)(*he)[j]]) Included[(u64)(*he)[j]] = false;
         delete he;
