@@ -5,3 +5,4 @@ target_sources(kimera_vio
   "${CMAKE_CURRENT_LIST_DIR}/NonMaximumSuppression.cpp"
 )
 
+add_subdirectory(anms)
