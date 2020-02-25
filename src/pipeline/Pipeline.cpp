@@ -119,8 +119,7 @@ Pipeline::Pipeline(const VioParams& params)
       initialization_frontend_output_queue_(
           "initialization_frontend_output_queue"),
       backend_input_queue_("backend_input_queue"),
-      display_input_queue_("display_input_queue"),
-      display_output_queue_("display_output_queue") {
+      display_input_queue_("display_input_queue") {
   if (FLAGS_deterministic_random_number_generator) setDeterministicPipeline();
 
   //! Create Stereo Camera
@@ -236,7 +235,7 @@ Pipeline::Pipeline(const VioParams& params)
     //! Actual displaying of visual data is done in the main thread.
     display_module_ = VIO::make_unique<DisplayModule>(
         &display_input_queue_,
-        &display_output_queue_,
+        nullptr,
         parallel_run_,
         DisplayFactory::makeDisplay(DisplayType::kOpenCV));
   }
@@ -312,7 +311,8 @@ void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
 
     // Push to stereo frontend input queue.
     VLOG(2) << "Push input payload to Frontend.";
-    stereo_frontend_input_queue_.push(std::move(stereo_imu_sync_packet));
+    stereo_frontend_input_queue_.pushBlockingIfFull(
+        std::move(stereo_imu_sync_packet), 5u);
 
     // Run the pipeline sequentially.
     if (!parallel_run_) spinSequential();
