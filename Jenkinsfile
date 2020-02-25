@@ -67,7 +67,7 @@ pipeline {
                     Kimera-VIO-Evaluation/website/data/V1_01_easy/Euroc/vio_performance.csv'
 
                   // Copy performance website to Workspace
-                  sh 'cp -r $evaluator/website $WORKSPACE/Kimera-VIO-Evaluation/'
+                  sh 'cp -r $evaluator $WORKSPACE/Kimera-VIO-Evaluation/'
                 }
               }
               post {
@@ -91,7 +91,7 @@ pipeline {
                          yaxis: 'Time [ms]'
 
                     // Publish HTML website with Dygraphs and pdfs of VIO performance
-                    publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'Kimera-VIO-Evaluation/website/', reportFiles: 'vio_ape_euroc.html, plots.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
+                    publishHTML([allowMissing: false, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'Kimera-VIO-Evaluation/website/', reportFiles: 'vio_ape_euroc.html, plots.html, datasets.html, frontend.html', reportName: 'VIO Euroc Performance Report', reportTitles: 'Euroc Performance Overview, Euroc Performance Detailed, Raw VIO Output, VIO Frontend Stats'])
 
                     // Archive the website
                     archiveArtifacts (
