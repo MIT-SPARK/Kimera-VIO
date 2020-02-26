@@ -59,7 +59,7 @@ class TestDataProviderModule : public ::testing::Test {
         true,
         dummy_params);
     data_provider_module_->registerVioPipelineCallback(
-        std::bind(SaveOutput, this, std::placeholders::_1));
+        std::bind(SaveOutput, std::placeholders::_1));
   }
 
   // TODO deallocate dynamic memory here!
@@ -67,7 +67,7 @@ class TestDataProviderModule : public ::testing::Test {
     data_provider_module_->shutdown();
   }
 
-  void SaveOutput(StereoImuSyncPacket::UniquePtr sync_packet) {
+  static void SaveOutput(StereoImuSyncPacket::UniquePtr sync_packet) {
     output_queue.push(std::move(sync_packet));
   }
 
@@ -97,8 +97,11 @@ TEST_F(TestDataProviderModule, parallelStereoImuSyncPacket) {
   data_provider_module_->fillLeftFrameQueue(MakeDummyFrame(current_id++, ++current_time));
   data_provider_module_->fillRightFrameQueue(MakeDummyFrame(current_id++, current_time));
 
+  // Leave some time for p to finish its work.
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
   StereoImuSyncPacket::UniquePtr result; 
-  CHECK(output_queue.pop(result));
+  CHECK(output_queue.popBlocking(result));
   CHECK(result);
   EXPECT_EQ(current_time, result->timestamp_);
   EXPECT_EQ((FrameId)3, result->getStereoFrame().getFrameId());
