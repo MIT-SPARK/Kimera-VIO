@@ -51,6 +51,16 @@ class ThreadsafeQueueBase {
    */
   virtual bool push(T new_value) = 0;
 
+  /** * @brief pushBlockingIfFull pushes a value into the queue only if the
+   * queue is not filled with more than a given maximum size.
+   * @param new_value new value to add to the queue
+   * @param max_queue_size if the queue is filled with more than max_queue_size
+   * messages, it will not push to the queue, and it will wait for a consumer
+   * to remove messages.
+   * @return false if the queue has been shutdown
+   */
+  virtual bool pushBlockingIfFull(T new_value, size_t max_queue_size = 10u) = 0;
+
   /** \brief Pop value. Waits for data to be available in the queue.
    * Returns false if the queue has been shutdown.
    */
@@ -142,6 +152,16 @@ class ThreadsafeQueue : public ThreadsafeQueueBase<T> {
    */
   bool push(T new_value) override;
 
+  /** * @brief pushBlockingIfFull pushes a value into the queue only if the
+   * queue is not filled with more than a given maximum size.
+   * @param new_value new value to add to the queue
+   * @param max_queue_size if the queue is filled with more than max_queue_size
+   * messages, it will not push to the queue, and it will wait for a consumer
+   * to remove messages.
+   * @return false if the queue has been shutdown
+   */
+  bool pushBlockingIfFull(T new_value, size_t max_queue_size = 10u) override;
+
   /** \brief Pop value. Waits for data to be available in the queue.
    * Returns false if the queue has been shutdown.
    */
@@ -197,6 +217,7 @@ class ThreadsafeNullQueue : public ThreadsafeQueue<T> {
   //! Do nothing
   // virtual bool push(const T& new_value) override { return true; }
   virtual bool push(T) override { return true; }
+  virtual bool pushBlockingIfFull(T, size_t) { return true; };
   virtual bool popBlocking(T&) override { return true; }
   virtual std::shared_ptr<T> popBlocking() override { return nullptr; }
   virtual bool pop(T&) override { return true; }
@@ -230,6 +251,26 @@ bool ThreadsafeQueue<T>::push(T new_value) {
 }
 
 template <typename T>
+bool ThreadsafeQueue<T>::pushBlockingIfFull(T new_value,
+                                            size_t max_queue_size) {
+  if (shutdown_) return false;  // atomic, no lock needed.
+  std::shared_ptr<T> data(std::make_shared<T>(std::move(new_value)));
+  std::unique_lock<std::mutex> lk(mutex_);
+  size_t queue_size = data_queue_.size();
+  VLOG_IF(1, queue_size != 0) << "Queue with id: " << queue_id_
+                              << " is getting full, size: " << queue_size;
+  // Wait until the queue has space or shutdown requested.
+  data_cond_.wait(lk, [this, max_queue_size] {
+    return data_queue_.size() < max_queue_size || shutdown_;
+  });
+  if (shutdown_) return false;
+  data_queue_.push(data);
+  lk.unlock();  // Unlock before notify.
+  data_cond_.notify_one();
+  return true;
+}
+
+template <typename T>
 bool ThreadsafeQueue<T>::popBlocking(T& value) {
   std::unique_lock<std::mutex> lk(mutex_);
   // Wait until there is data in the queue or shutdown requested.
@@ -238,6 +279,8 @@ bool ThreadsafeQueue<T>::popBlocking(T& value) {
   if (shutdown_) return false;
   value = std::move(*data_queue_.front());
   data_queue_.pop();
+  lk.unlock();  // Unlock before notify.
+  data_cond_.notify_one();
   return true;
 }
 
@@ -248,26 +291,32 @@ std::shared_ptr<T> ThreadsafeQueue<T>::popBlocking() {
   if (shutdown_) return std::shared_ptr<T>(nullptr);
   std::shared_ptr<T> result = data_queue_.front();
   data_queue_.pop();
+  lk.unlock();  // Unlock before notify.
+  data_cond_.notify_one();
   return result;
 }
 
 template <typename T>
 bool ThreadsafeQueue<T>::pop(T& value) {
   if (shutdown_) return false;
-  std::lock_guard<std::mutex> lk(mutex_);
+  std::unique_lock<std::mutex> lk(mutex_);
   if (data_queue_.empty()) return false;
   value = std::move(*data_queue_.front());
   data_queue_.pop();
+  lk.unlock();  // Unlock before notify.
+  data_cond_.notify_one();
   return true;
 }
 
 template <typename T>
 std::shared_ptr<T> ThreadsafeQueue<T>::pop() {
   if (shutdown_) return std::shared_ptr<T>(nullptr);
-  std::lock_guard<std::mutex> lk(mutex_);
+  std::unique_lock<std::mutex> lk(mutex_);
   if (data_queue_.empty()) return std::shared_ptr<T>(nullptr);
   std::shared_ptr<T> result = data_queue_.front();
   data_queue_.pop();
+  lk.unlock();  // Unlock before notify.
+  data_cond_.notify_one();
   return result;
 }
 
@@ -277,13 +326,15 @@ bool ThreadsafeQueue<T>::batchPop(typename TQB::InternalQueue* output_queue) {
   CHECK_NOTNULL(output_queue);
   CHECK(output_queue->empty());
   //*output_queue = InternalQueue();
-  std::lock_guard<std::mutex> lk(mutex_);
-  if (data_queue_.empty()) {
-    return false;
-  } else {
+  std::unique_lock<std::mutex> lk(mutex_);
+  bool success = false;
+  if (!data_queue_.empty()) {
     data_queue_.swap(*output_queue);
-    return true;
+    success = true;
   }
+  lk.unlock();  // Unlock before notify.
+  data_cond_.notify_one();
+  return success;
 }
 
 }  // namespace VIO
