@@ -61,6 +61,19 @@ class DataProviderModule
     CHECK(right_frame);
     right_frame_queue_.push(std::move(right_frame));
   }
+  //! Callbacks to fill queues but they block if queues are getting full.
+  //! Blocking call in case you want to avoid overfilling the input queues.
+  //! This is useful when parsing datasets files, since parsing is much faster
+  //! than the pipeline. But this is not suitable for online scenarios where
+  //! you should not block the sensor processing.
+  inline void fillLeftFrameQueueBlocking(Frame::UniquePtr&& left_frame) {
+    CHECK(left_frame);
+    left_frame_queue_.pushBlockingIfFull(std::move(left_frame), 5u);
+  }
+  inline void fillRightFrameQueueBlocking(Frame::UniquePtr&& right_frame) {
+    CHECK(right_frame);
+    right_frame_queue_.pushBlockingIfFull(std::move(right_frame), 5u);
+  }
   //! Fill multiple IMU measurements at once
   inline void fillImuQueue(const ImuMeasurements& imu_measurements) {
     imu_data_.imu_buffer_.addMeasurements(imu_measurements.timestamps_,

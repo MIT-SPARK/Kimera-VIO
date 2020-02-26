@@ -64,12 +64,14 @@ int main(int argc, char* argv[]) {
       std::bind(&VIO::Pipeline::fillSingleImuQueue,
                 &vio_pipeline,
                 std::placeholders::_1));
+  // We use blocking variants to avoid overgrowing the input queues (use
+  // the non-blocking versions with real sensor streams)
   dataset_parser->registerLeftFrameCallback(
-      std::bind(&VIO::Pipeline::fillLeftFrameQueue,
+      std::bind(&VIO::Pipeline::fillLeftFrameQueueBlocking,
                 &vio_pipeline,
                 std::placeholders::_1));
   dataset_parser->registerRightFrameCallback(
-      std::bind(&VIO::Pipeline::fillRightFrameQueue,
+      std::bind(&VIO::Pipeline::fillRightFrameQueueBlocking,
                 &vio_pipeline,
                 std::placeholders::_1));
 
