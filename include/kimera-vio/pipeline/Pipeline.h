@@ -60,6 +60,18 @@ class Pipeline {
     CHECK(right_frame);
     data_provider_module_->fillRightFrameQueue(std::move(right_frame));
   }
+  //! Callbacks to fill queues but they block if queues are getting full.
+  //! Useful when parsing datasets, don't use with real sensors.
+  inline void fillLeftFrameQueueBlocking(Frame::UniquePtr left_frame) {
+    CHECK(data_provider_module_);
+    CHECK(left_frame);
+    data_provider_module_->fillLeftFrameQueueBlocking(std::move(left_frame));
+  }
+  inline void fillRightFrameQueueBlocking(Frame::UniquePtr right_frame) {
+    CHECK(data_provider_module_);
+    CHECK(right_frame);
+    data_provider_module_->fillRightFrameQueueBlocking(std::move(right_frame));
+  }
   //! Fill one IMU measurement at a time.
   inline void fillSingleImuQueue(const ImuMeasurement& imu_measurement) {
     CHECK(data_provider_module_);
@@ -221,10 +233,6 @@ class Pipeline {
 
   //! Thread-safe queue for the input to the display module
   DisplayModule::InputQueue display_input_queue_;
-  //! Thread-safe queue for the output to the display module
-  //! This is a queue of NullPipelinePayload because the display module does
-  //! not return anything.
-  DisplayModule::OutputQueue display_output_queue_;
 
   //! Displays actual images and 3D visualization
   DisplayModule::UniquePtr display_module_;

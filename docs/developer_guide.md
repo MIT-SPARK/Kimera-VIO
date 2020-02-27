@@ -48,7 +48,7 @@ bool UndistortImage(const cv::Mat& input_image, cv::Mat* output_image) const {
 
 ### Function signatures
 #### Parameter passing
-* Input values of primitive types (int, double, bool etc.) are passed by value.
+* Input values of primitive types (int, double, bool etc.) are **not** passed by value, but by `const &`. Although this code design choice is suboptimal, the performance improve of not doing so is minimal compared with the potential cost of missing a `const &` on a complex object.
 * Input values of complex types (classes etc) are passed by reference to const.
 * Input/Output values are passed by pointer.
 * Output values are passed by pointer.
