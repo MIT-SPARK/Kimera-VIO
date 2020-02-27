@@ -42,7 +42,6 @@ ransac_randomize: 0
 intra_keyframe_time: 0.2
 minNumberFeatures: 0
 useStereoTracking: 1
-display_time: 100
 disparityThreshold: 0.5
 #RGB-D PARAMETERS
 visionSensorType: 1
