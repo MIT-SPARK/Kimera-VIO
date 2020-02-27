@@ -48,8 +48,9 @@ class TestDataProviderModule : public ::testing::Test {
     // Create DataProvider
     VIO::StereoVisionFrontEndModule::InputQueue dummy_queue("unused");
     VIO::StereoMatchingParams dummy_params;
+    bool parallel = false;
     data_provider_module_ = VIO::make_unique<VIO::DataProviderModule>(
-        &dummy_queue, "Data Provider", true, dummy_params);
+        &dummy_queue, "Data Provider", parallel, dummy_params);
     data_provider_module_->registerVioPipelineCallback(
         std::bind(SaveOutput, std::placeholders::_1));
   }
@@ -70,13 +71,14 @@ class TestDataProviderModule : public ::testing::Test {
 };
 
 /* ************************************************************************* */
-TEST_F(TestDataProviderModule, parallelStereoImuSyncPacket) {
+TEST_F(TestDataProviderModule, basicSequentialCase) {
   VIO::FrameId current_id = 0;
   VIO::Timestamp current_time = 10;
   data_provider_module_->fillLeftFrameQueue(
       MakeDummyFrame(current_id++, ++current_time));
   data_provider_module_->fillRightFrameQueue(
       MakeDummyFrame(current_id++, current_time));
+  data_provider_module_->spin();
 
   size_t num_imu_to_make = 4;
   for (size_t i = 0; i < num_imu_to_make; i++) {
@@ -88,9 +90,10 @@ TEST_F(TestDataProviderModule, parallelStereoImuSyncPacket) {
       MakeDummyFrame(current_id++, ++current_time));
   data_provider_module_->fillRightFrameQueue(
       MakeDummyFrame(current_id++, current_time));
+  data_provider_module_->spin();
 
-  // Leave some time for p to finish its work.
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  // Leave some time for data_provider_module_ to finish its work.
+  // std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   VIO::StereoImuSyncPacket::UniquePtr result;
   CHECK(output_queue.popBlocking(result));
