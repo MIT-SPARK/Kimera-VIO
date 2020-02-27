@@ -353,9 +353,9 @@ TEST_F(StereoFrameFixture, findMatchingKeypointRectified) {
   }
   // make sure that at least some keypoints were valid (these are the ones we
   // are interested in)
-  EXPECT_NEAR(84, countValid, 1e-5);
+  EXPECT_EQ(82, countValid);
   // 7 is the number of offsets we try
-  EXPECT_NEAR(num_points * 7, totalKeypointsTested, 1e-5);
+  EXPECT_EQ(num_points * 7, totalKeypointsTested);
 }
 
 /* ************************************************************************* */
@@ -750,9 +750,9 @@ TEST_F(StereoFrameFixture, getRightKeypointsRectified) {
   }
   // make sure that at least some keypoints were valid (these are the ones we
   // are interested in)
-  EXPECT_NEAR(858, countValid, 1e-5);
+  EXPECT_EQ(849, countValid);
   // 7 is the number of offsets we try
-  EXPECT_NEAR(900, totalKeypointsTested, 1e-5);
+  EXPECT_EQ(900, totalKeypointsTested);
 }
 
 /* ************************************************************************* */
@@ -816,7 +816,7 @@ TEST_F(StereoFrameFixture, sparseStereoMatching) {
     }
   }
   // TODO(Toni): sometimes it is 68(lambda), sometimes 92 (Jenkins)?
-  EXPECT_NEAR(92, nrValid, 1e-5);
+  EXPECT_EQ(91, nrValid);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   // check that 3D point reprojects correctly to the two cameras:
