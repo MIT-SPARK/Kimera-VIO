@@ -58,7 +58,6 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   CHECK(right_frame_payload);
 
   // Extract imu measurements between consecutive frames.
-  static Timestamp timestamp_last_frame = 0;
   if (timestamp_last_frame == 0) {
     // TODO(Toni): wouldn't it be better to get all IMU measurements up to this
     // timestamp? We should add a method to the IMU buffer for that.

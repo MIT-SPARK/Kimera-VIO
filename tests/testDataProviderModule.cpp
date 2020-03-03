@@ -143,9 +143,10 @@ TEST_F(TestDataProviderModule, basicSequentialCase) {
   TEST_TIMEOUT_BEGIN
 
   VIO::FrameId current_id = 0;
-  VIO::Timestamp current_time = 110;  // 0 has special meaning, offset by 10
+  VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
   // First frame is needed for benchmarking, send it and spin
+  current_time = FillImuQueueN(current_time, 1);
   FillLeftRightQueue(++current_id, ++current_time);
   data_provider_module_->spin();
 
@@ -216,7 +217,7 @@ TEST_F(TestDataProviderModule, manyImuTest) {
   TEST_TIMEOUT_BEGIN
 
   VIO::FrameId current_id = 0;
-  VIO::Timestamp current_time = 210;  // 0 has special meaning, offset by 10
+  VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
   size_t base_imu_to_make = 10;
   current_time = FillImuQueueN(current_time, base_imu_to_make);
