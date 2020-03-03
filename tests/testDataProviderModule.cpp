@@ -46,8 +46,7 @@
             std::future_status::timeout);
 #endif
 static constexpr int default_timeout = 10000;
-static constexpr int no_timeout = std::numeric_limits<int64_t>::max();
-static constexpr int debugging = false;
+static constexpr int no_timeout = std::numeric_limits<int>::max();
 
 /* ************************************************************************** */
 // Testing data
@@ -167,9 +166,10 @@ TEST_F(TestDataProviderModule, basicSequentialCase) {
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(2),
             result->getStereoFrame().getFrameId());
-  EXPECT_EQ(num_imu_to_make, result->getImuStamps().size());
+  // +1 because it interpolates to the time frame
+  EXPECT_EQ(num_imu_to_make + 1, result->getImuStamps().size());
 
-  TEST_TIMEOUT_FAIL_END((debugging ? no_timeout : default_timeout))
+  TEST_TIMEOUT_FAIL_END(default_timeout)
 }
 
 /* ************************************************************************* */
@@ -207,9 +207,10 @@ TEST_F(TestDataProviderModule, noImuTest) {
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(num_frames_to_reject + 2),
             result->getStereoFrame().getFrameId());
-  EXPECT_EQ(1, result->getImuStamps().size());
+  // +1 because it interpolates to the time frame
+  EXPECT_EQ(1 + 1, result->getImuStamps().size());
 
-  TEST_TIMEOUT_FAIL_END((debugging ? no_timeout : default_timeout))
+  TEST_TIMEOUT_FAIL_END(default_timeout)
 }
 
 /* ************************************************************************* */
@@ -239,9 +240,44 @@ TEST_F(TestDataProviderModule, manyImuTest) {
     CHECK(result);
     EXPECT_EQ(static_cast<VIO::FrameId>(2 + i),
               result->getStereoFrame().getFrameId());
-    EXPECT_EQ(base_imu_to_make + i, result->getImuStamps().size());
+    // +1 because it interpolates to the time frame
+    EXPECT_EQ(base_imu_to_make + i + 1, result->getImuStamps().size());
   }
 
-  TEST_TIMEOUT_FAIL_END((debugging ? no_timeout : default_timeout))
+  TEST_TIMEOUT_FAIL_END(default_timeout)
+}
+
+/* ************************************************************************* */
+TEST_F(TestDataProviderModule, imageBeforeImuTest) {
+  TEST_TIMEOUT_BEGIN
+
+  VIO::FrameId current_id = 0;
+  VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
+
+  // First frame is needed for benchmarking, send it and spin
+  FillLeftRightQueue(++current_id, ++current_time);
+  data_provider_module_->spin();
+
+  EXPECT_TRUE(output_queue->empty());
+
+  size_t num_imu_to_make = 4;
+  current_time = FillImuQueueN(current_time, num_imu_to_make);
+
+  FillLeftRightQueue(++current_id, ++current_time);
+  // IMU and camera streams are not necessarily in sync
+  // Send an IMU packet after camera packets to signal no more IMU incoming
+  current_time = FillImuQueueN(current_time, 1);
+  data_provider_module_->spin();
+
+  VIO::StereoImuSyncPacket::UniquePtr result;
+  CHECK(output_queue->pop(result));
+  CHECK(result);
+  EXPECT_EQ(current_time - 1, result->timestamp_);
+  EXPECT_EQ(static_cast<VIO::FrameId>(2),
+            result->getStereoFrame().getFrameId());
+  // +1 because it interpolates to the time frame
+  EXPECT_EQ(num_imu_to_make + 1, result->getImuStamps().size());
+
+  TEST_TIMEOUT_FAIL_END(default_timeout)
 }
 
