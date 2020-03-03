@@ -57,6 +57,11 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   PIO::syncQueue(timestamp, &right_frame_queue_, &right_frame_payload);
   CHECK(right_frame_payload);
 
+  if (imu_data_.imu_buffer_.size() == 0) {
+    VLOG(1) << "No IMU measurements available yet, dropping this frame.";
+    return nullptr;
+  }
+
   // Extract imu measurements between consecutive frames.
   if (timestamp_last_frame == 0) {
     // TODO(Toni): wouldn't it be better to get all IMU measurements up to this
@@ -64,11 +69,6 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
     VLOG(1) << "Skipping first frame, because we do not have a concept of "
                "a previous frame timestamp otherwise.";
     timestamp_last_frame = timestamp;
-    return nullptr;
-  }
-
-  if (imu_data_.imu_buffer_.size() == 0) {
-    VLOG(1) << "No IMU measurements available yet.";
     return nullptr;
   }
 
@@ -99,9 +99,9 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable: {
         LOG_EVERY_N(WARNING, 1000)
-            << "No IMU data from last frame timestamp: " << timestamp_last_frame
-            << " to timestamp: " << timestamp;
-        continue;
+            << "IMU data has passed range from timestamp: "
+            << timestamp_last_frame << " to timestamp: " << timestamp;
+        return nullptr;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
         if (log_error_once) {

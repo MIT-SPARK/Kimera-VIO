@@ -180,6 +180,7 @@ TEST_F(TestDataProviderModule, noImuTest) {
   VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
   // First frame is needed for benchmarking, send it and spin
+  current_time = FillImuQueueN(current_time, 1);
   FillLeftRightQueue(++current_id, ++current_time);
   data_provider_module_->spin();
   EXPECT_TRUE(output_queue->empty());
@@ -190,7 +191,7 @@ TEST_F(TestDataProviderModule, noImuTest) {
   }
   current_time = FillImuQueueN(current_time, 1);
 
-  // Reject all the frames-- note that without the IMU, spin blocks forever
+  // Reject all the frames-- none have valid IMU data
   for (size_t i = 0; i < num_frames_to_reject; i++) {
     data_provider_module_->spin();
   }
@@ -199,7 +200,6 @@ TEST_F(TestDataProviderModule, noImuTest) {
   // now, a valid frame
   FillLeftRightQueue(++current_id, ++current_time);
   current_time = FillImuQueueN(current_time, 1);
-
   data_provider_module_->spin();
   VIO::StereoImuSyncPacket::UniquePtr result;
   CHECK(output_queue->pop(result));
@@ -209,6 +209,9 @@ TEST_F(TestDataProviderModule, noImuTest) {
             result->getStereoFrame().getFrameId());
   // +1 because it interpolates to the time frame
   EXPECT_EQ(1 + 1, result->getImuStamps().size());
+
+  // We need to cover the case where two frames are adjacent after
+  // initialization Do it again
 
   TEST_TIMEOUT_FAIL_END(default_timeout)
 }
@@ -255,18 +258,21 @@ TEST_F(TestDataProviderModule, imageBeforeImuTest) {
   VIO::FrameId current_id = 0;
   VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
-  // First frame is needed for benchmarking, send it and spin
+  // Drop any frame that appears before the IMU packets do
   FillLeftRightQueue(++current_id, ++current_time);
   data_provider_module_->spin();
-
   EXPECT_TRUE(output_queue->empty());
 
+  // Initial frame
   size_t num_imu_to_make = 4;
   current_time = FillImuQueueN(current_time, num_imu_to_make);
-
   FillLeftRightQueue(++current_id, ++current_time);
-  // IMU and camera streams are not necessarily in sync
-  // Send an IMU packet after camera packets to signal no more IMU incoming
+  data_provider_module_->spin();
+  EXPECT_TRUE(output_queue->empty());
+
+  // Valid frame
+  current_time = FillImuQueueN(current_time, num_imu_to_make);
+  FillLeftRightQueue(++current_id, ++current_time);
   current_time = FillImuQueueN(current_time, 1);
   data_provider_module_->spin();
 
@@ -274,7 +280,7 @@ TEST_F(TestDataProviderModule, imageBeforeImuTest) {
   CHECK(output_queue->pop(result));
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
-  EXPECT_EQ(static_cast<VIO::FrameId>(2),
+  EXPECT_EQ(static_cast<VIO::FrameId>(3),
             result->getStereoFrame().getFrameId());
   // +1 because it interpolates to the time frame
   EXPECT_EQ(num_imu_to_make + 1, result->getImuStamps().size());
