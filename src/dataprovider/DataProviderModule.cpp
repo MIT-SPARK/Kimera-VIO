@@ -67,6 +67,11 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
     return nullptr;
   }
 
+  if (imu_data_.imu_buffer_.size() == 0) {
+    VLOG(1) << "No IMU measurements available yet.";
+    return nullptr;
+  }
+
   ImuMeasurements imu_meas;
   CHECK_LT(timestamp_last_frame, timestamp);
   utils::ThreadsafeImuBuffer::QueryResult query_result =

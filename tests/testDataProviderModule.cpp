@@ -45,7 +45,7 @@
   ASSERT_EQ(futureResult.wait_for(std::chrono::milliseconds(X)), \
             std::future_status::timeout);
 #endif
-static constexpr int default_timeout = 10000;
+static constexpr int default_timeout = 100000;
 static constexpr int no_timeout = std::numeric_limits<int>::max();
 
 /* ************************************************************************** */
@@ -228,6 +228,7 @@ TEST_F(TestDataProviderModule, manyImuTest) {
     current_time = FillImuQueueN(current_time, base_imu_to_make + i);
     FillLeftRightQueue(++current_id, ++current_time);
   }
+  current_time = FillImuQueueN(current_time, base_imu_to_make);
 
   // First frame is needed for benchmarking, should produce nothing
   data_provider_module_->spin();
