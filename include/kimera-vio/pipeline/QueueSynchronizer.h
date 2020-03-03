@@ -103,7 +103,9 @@ class SimpleQueueSynchronizer : public QueueSynchronizerBase<T> {
       if (*pipeline_payload) {
         payload_timestamp = (*pipeline_payload)->timestamp_;
       } else {
-        LOG(WARNING) << "Missing frontend payload for Module: " << name_id;
+        LOG(WARNING)
+            << "Payload synchronization failed. Missing payload for Module: "
+            << name_id;
       }
     }
     CHECK_EQ(timestamp, payload_timestamp)
