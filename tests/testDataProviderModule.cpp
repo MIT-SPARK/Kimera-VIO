@@ -13,6 +13,7 @@
  * @author Luca Carlone
  */
 
+#include <future>
 #include <utility>
 
 #include <gflags/gflags.h>
@@ -25,7 +26,25 @@
 #include "kimera-vio/frontend/VisionFrontEndModule.h"
 #include "kimera-vio/dataprovider/DataProviderModule.h"
 
-DECLARE_string(test_data_path);
+// Timeout macros from Anton Lipov
+// http://antonlipov.blogspot.com/2015/08/how-to-timeout-tests-in-gtest.html
+#ifndef TEST_TIMEOUT_BEGIN
+#define TEST_TIMEOUT_BEGIN                           \
+  std::promise<bool> promisedFinished;               \
+  auto futureResult = promisedFinished.get_future(); \
+              std::thread([this](std::promise<bool>& finished) {
+#define TEST_TIMEOUT_FAIL_END(X)                                 \
+  finished.set_value(true);                                      \
+  }, std::ref(promisedFinished)).detach();           \
+  ASSERT_NE(futureResult.wait_for(std::chrono::milliseconds(X)), \
+            std::future_status::timeout);
+#define TEST_TIMEOUT_SUCCESS_END(X)                              \
+  finished.set_value(true);                                      \
+  }, std::ref(promisedFinished)).detach();           \
+  ASSERT_EQ(futureResult.wait_for(std::chrono::milliseconds(X)), \
+            std::future_status::timeout);
+#endif
+static constexpr int default_timeout = 10000;
 
 /* ************************************************************************** */
 // Testing data
@@ -89,12 +108,14 @@ class TestDataProviderModule : public ::testing::Test {
 
 /* ************************************************************************* */
 TEST_F(TestDataProviderModule, basicSequentialCase) {
+  TEST_TIMEOUT_BEGIN
+
   VIO::FrameId current_id = 0;
   VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
   // Fencepost frames with IMU data
-  data_provider_module_->fillImuQueue(
-      VIO::ImuMeasurement(++current_time, VIO::ImuAccGyr::Zero()));
+  // data_provider_module_->fillImuQueue(
+  //    VIO::ImuMeasurement(++current_time, VIO::ImuAccGyr::Zero()));
 
   data_provider_module_->fillLeftFrameQueue(
       MakeDummyFrame(++current_id, ++current_time));
@@ -125,5 +146,7 @@ TEST_F(TestDataProviderModule, basicSequentialCase) {
   EXPECT_EQ(static_cast<VIO::FrameId>(2),
             result->getStereoFrame().getFrameId());
   EXPECT_EQ(num_imu_to_make, result->getImuStamps().size());
+
+  TEST_TIMEOUT_FAIL_END(default_timeout)
 }
 
