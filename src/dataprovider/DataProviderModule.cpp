@@ -86,10 +86,12 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
       utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
     VLOG(1) << "No IMU data available. Reason:\n";
     switch (query_result) {
-      case utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable: {
-        LOG(FATAL) << "We should not be inside this while loop if IMU data is "
-                      "available...";
-        break;
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
+        if (log_error_once) {
+          LOG(WARNING) << "Waiting for IMU data...";
+          log_error_once = false;
+        }
+        continue;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kQueueShutdown: {
         LOG(INFO)
@@ -98,24 +100,23 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
         return nullptr;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable: {
-        LOG_EVERY_N(WARNING, 1000)
-            << "IMU data has passed range from timestamp: "
+        LOG(WARNING)
+            << "Asking for data before start of IMU stream, from timestamp: "
             << timestamp_last_frame << " to timestamp: " << timestamp;
         return nullptr;
       }
-      case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
-        if (log_error_once) {
-          LOG(WARNING) << "Waiting for IMU data...";
-          log_error_once = false;
-        }
-        continue;
-      }
       case utils::ThreadsafeImuBuffer::QueryResult::
           kTooFewMeasurementsAvailable: {
-        LOG_EVERY_N(WARNING, 100)
-            << "Too few IMU measurements from last frame timestamp: "
-            << timestamp_last_frame << " to timestamp: " << timestamp;
-        continue;
+        LOG(WARNING) << "No IMU measurements and IMU data stream already "
+                        "passed this region"
+                     << "from timestamp: " << timestamp_last_frame
+                     << " to timestamp: " << timestamp;
+        return nullptr;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable: {
+        LOG(FATAL) << "We should not be inside this while loop if IMU data is "
+                      "available...";
+        return nullptr;
       }
     }
   }
