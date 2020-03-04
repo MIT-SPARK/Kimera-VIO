@@ -173,7 +173,7 @@ TEST_F(TestDataProviderModule, basicSequentialCase) {
 }
 
 /* ************************************************************************* */
-TEST_F(TestDataProviderModule, noImuTest) {
+TEST_F(TestDataProviderModule, DISABLE_noImuTest) {
   TEST_TIMEOUT_BEGIN
 
   VIO::FrameId current_id = 0;
