@@ -131,16 +131,28 @@ bool DataProviderInterface::spin() {
   //  This one is dummy since it is filled with empty images, parameters,
   //  imu data, etc.
   //  b) Call the callbacks in order to send the data.
-  left_frame_callback_(
-      VIO::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
-  right_frame_callback_(
-      VIO::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
-  //! Usually you would use only one of these
-  imu_single_callback_(ImuMeasurement());
-  imu_multi_callback_(ImuMeasurements());
+  if (!shutdown_) {
+    left_frame_callback_(
+        VIO::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
+    right_frame_callback_(
+        VIO::make_unique<Frame>(0, 0, CameraParams(), cv::Mat()));
+    //! Usually you would use only one of these
+    imu_single_callback_(ImuMeasurement());
+    imu_multi_callback_(ImuMeasurements());
+  } else {
+    LOG(INFO) << "Not spinning DataProviderInterface, shutdown requested.";
+  }
 
   // 3) Once the dataset spin has finished, exit with false.
   return false;
+}
+
+void DataProviderInterface::shutdown() {
+  LOG_IF(ERROR, shutdown_)
+      << "Shutdown requested, but DataProviderInterface was already "
+         "shutdown.";
+  LOG(INFO) << "Shutting down DataProviderInterface.";
+  shutdown_ = true;
 }
 
 void DataProviderInterface::parseParams() {

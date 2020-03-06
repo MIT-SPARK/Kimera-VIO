@@ -131,11 +131,18 @@ class Pipeline {
     }
   }
 
+  // Register external callback to be called when the VIO pipeline shuts down.
+  inline void registerShutdownCallback(
+      const ShutdownPipelineCallback& callback) {
+    shutdown_pipeline_cb_ = callback;
+  }
+
   /**
    * @brief spin Spin the whole pipeline by spinning the data provider
    * If in sequential mode, it will return for each spin.
    * If in parallel mode, it will not return until the pipeline is shutdown.
-   * @return True if everything goes well.
+   * @return Data provider module state: false if finished or shutdown, true
+   * if working nominally (it does not return unless shutdown in parallel mode).
    */
   bool spin() {
     // Feed data to the pipeline
@@ -253,6 +260,9 @@ class Pipeline {
   std::atomic_bool shutdown_ = {false};
   std::atomic_bool is_initialized_ = {false};
   std::atomic_bool is_launched_ = {false};
+
+  //! Callback called when the VIO pipeline has shut down.
+  ShutdownPipelineCallback shutdown_pipeline_cb_;
 
   // TODO(Toni): Remove this?
   int init_frame_id_;

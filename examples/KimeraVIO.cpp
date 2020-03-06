@@ -44,8 +44,7 @@ int main(int argc, char* argv[]) {
   VIO::DataProviderInterface::UniquePtr dataset_parser = nullptr;
   switch (FLAGS_dataset_type) {
     case 0: {
-      dataset_parser =
-          VIO::make_unique<VIO::EurocDataProvider>();
+      dataset_parser = VIO::make_unique<VIO::EurocDataProvider>();
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
@@ -58,6 +57,10 @@ int main(int argc, char* argv[]) {
   CHECK(dataset_parser);
 
   VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
+
+  // Register callback to shutdown data provider in case VIO pipeline shutsdown.
+  vio_pipeline.registerShutdownCallback(
+      std::bind(&VIO::DataProviderInterface::shutdown, dataset_parser.get()));
 
   // Register callback to vio pipeline.
   dataset_parser->registerImuSingleCallback(
@@ -81,7 +84,7 @@ int main(int argc, char* argv[]) {
   if (dataset_parser->pipeline_params_.parallel_run_) {
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
-                             std::move(dataset_parser));
+                             dataset_parser.get());
     auto handle_pipeline =
         std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
     auto handle_shutdown = std::async(std::launch::async,
@@ -92,8 +95,8 @@ int main(int argc, char* argv[]) {
     handle_shutdown.get();
     handle_pipeline.get();
   } else {
-    while (dataset_parser->spin()) {
-      vio_pipeline.spin();
+    while (dataset_parser->spin() && vio_pipeline.spin()) {
+      /* well, nothing to do :) */
     };
     vio_pipeline.shutdown();
     is_pipeline_successful = true;

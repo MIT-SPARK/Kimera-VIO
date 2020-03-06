@@ -157,7 +157,10 @@ class PipelineModule : public PipelineModuleBase {
    * the input is taken from an input queue and processed into an output packet
    * which is sent to the output queue. If the module returns a nullptr, then
    * we don't push to the output queue to save computation time.
-   * @return True if everything goes well.
+   * @return False when shutdown requested, true while working nominally.
+   * Note that it only returns true if working in sequential mode,
+   * otherwise it will simply not return unless it is shutdown, in which case,
+   * it returns false.
    */
   bool spin() override {
     LOG_IF(INFO, parallel_run_) << "Module: " << name_id_ << " - Spinning.";
@@ -200,7 +203,7 @@ class PipelineModule : public PipelineModuleBase {
     }
     is_thread_working_ = false;
     LOG(INFO) << "Module: " << name_id_ << " - Successful shutdown.";
-    return true;
+    return false;
   }
 
  protected:
