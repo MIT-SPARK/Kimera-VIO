@@ -17,8 +17,7 @@
 namespace VIO {
 
 MesherModule::MesherModule(bool parallel_run, Mesher::UniquePtr mesher)
-    : MIMOPipelineModule<MesherInput, MesherOutput>("MesherModule",
-                                                    parallel_run),
+    : MIMOPipelineModule<MesherInput, MesherOutput>("Mesher", parallel_run),
       frontend_payload_queue_("mesher_frontend"),
       backend_payload_queue_("mesher_backend"),
       mesher_(std::move(mesher)) {}

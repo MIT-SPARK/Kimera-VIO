@@ -7,7 +7,7 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file   SparkVio.cpp
+ * @file   KimeraVIO.cpp
  * @brief  Example of VIO pipeline.
  * @author Antoni Rosinol
  * @author Luca Carlone

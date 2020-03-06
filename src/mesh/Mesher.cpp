@@ -23,6 +23,10 @@
 #include <algorithm>
 #include <opencv2/imgproc.hpp>
 
+// For serialization of meshes
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
@@ -173,8 +177,15 @@ DEFINE_int32(z_histogram_max_number_of_peaks_to_select,
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-Mesher::Mesher(const MesherParams& mesher_params)
-    : mesher_params_(mesher_params), mesh_3d_() {
+Mesher::Mesher(const MesherParams& mesher_params, const bool& serialize_meshes)
+    : mesher_params_(mesher_params),
+      mesh_2d_(),
+      mesh_3d_(),
+      mesher_logger_(nullptr) {
+  if (serialize_meshes) {
+    mesher_logger_ = VIO::make_unique<MesherLogger>();
+  }
+
   // Create z histogram.
   std::vector<int> hist_size = {FLAGS_z_histogram_bins};
   // We cannot use an array of doubles here bcs the function cv::calcHist asks
@@ -212,6 +223,11 @@ MesherOutput::UniquePtr Mesher::spinOnce(const MesherInput& input) {
       // These are more or less
       // the same info as mesh_2d_
       &(mesher_output_payload->mesh_2d_for_viz_));
+  // Serialize 3D Mesh if requested
+  if (mesher_logger_) {
+    mesher_logger_->serializeMesh(mesh_3d_, "mesh_3d");
+    mesher_logger_->serializeMesh(mesh_2d_, "mesh_2d");
+  }
   // TODO(Toni): remove these calls, since all info is in mesh_3d_...
   getVerticesMesh(&(mesher_output_payload->vertices_mesh_));
   getPolygonsMesh(&(mesher_output_payload->polygons_mesh_));

@@ -65,7 +65,6 @@ typedef Eigen::Matrix<double,3,4> transformation_t;
 
 // TODO remove most of these definitions...
 namespace VIO {
-
 // Holds the ids of the mesh triangles that should be clustered together.
 struct TriangleCluster {
   // Ids of the triangles in the cluster.
