@@ -95,6 +95,19 @@ class Mesher {
       const PointsWithIdMap& points_with_id_vio,
       LandmarkIds* lmk_ids) const;
 
+  /**
+   * @brief serializeMeshes Write meshes to file so that they can be loaded
+   * later (Note: the function is not const bcs serialize needs to be non-const)
+   * But we do not modify the meshes.
+   */
+  void serializeMeshes();
+
+  /**
+   * @brief deserializeMeshes Load meshes from a file where the meshes were
+   * previously serialized.
+   */
+  void deserializeMeshes();
+
   static std::vector<cv::Vec6f> createMesh2D(
       const Frame& frame,
       const std::vector<size_t>& selected_indices);
@@ -386,6 +399,7 @@ class Mesher {
 
   const MesherParams mesher_params_;
   std::unique_ptr<MesherLogger> mesher_logger_;
+  const bool serialize_meshes_;
 };
 
 }  // namespace VIO

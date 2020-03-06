@@ -133,14 +133,28 @@ class MesherLogger {
 
   /**
    * @brief serializeMesh logs the mesh into a file that can be later read.
-   * @param mesh Mesh to be serialized to file
+   * @param mesh Mesh to be serialized to file (this should be const, but the
+   * serialization function needs to be non-const to be able to deserialize).
    */
   template <typename T>
-  void serializeMesh(const Mesh<T>& mesh, const std::string& filename) const {
+  void serializeMesh(Mesh<T>& mesh, const std::string& filename) {
     std::ofstream mesh_file(output_path_ + '/' + filename);
     boost::archive::text_oarchive ar(mesh_file);
     ar << mesh;
     boost::serialization::serialize(ar, mesh, 0);
+  }
+
+  /**
+   * @brief deserializeMesh reads the serialized mesh from a file.
+   * @param filename File where the mesh was serialized
+   * @param mesh Mesh where to store deserialized data
+   */
+  template <typename T>
+  void deserializeMesh(const std::string& filename, Mesh<T>* mesh) const {
+    CHECK_NOTNULL(mesh);
+    std::ifstream mesh_file(output_path_ + '/' + filename);
+    boost::archive::text_iarchive ar(mesh_file);
+    ar >> *mesh;
   }
 
  protected:

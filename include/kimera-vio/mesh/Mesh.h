@@ -220,7 +220,7 @@ class Mesh {
     ar& vertices_mesh_;
     ar& vertices_mesh_normal_;
     ar& vertices_mesh_color_;
-    ar& polygon_dimension_;
+    ar& const_cast<size_t&>(polygon_dimension_);
   }
 
  private:
