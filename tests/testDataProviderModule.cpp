@@ -62,6 +62,9 @@ class TestDataProviderModule : public ::testing::Test {
   VIO::DataProviderModule* data_provider_module_ = nullptr;
 
   void SetUp() override {
+    // Clean up again in case something went wrong last time
+    TearDown();
+
     // Set google flags to assume image is already rectified--makes dummy params
     // easier
     int fake_argc = 2;
@@ -70,9 +73,6 @@ class TestDataProviderModule : public ::testing::Test {
     fake_argv[0] = "foo";
     fake_argv[1] = "--images_rectified";
     google::ParseCommandLineFlags(&fake_argc, &fake_argv, true);
-
-    // Clean up again in case something went wrong last time
-    TearDown();
 
     // Create the output queue
     output_queue = new VIO::StereoVisionFrontEndModule::InputQueue("output");
@@ -103,6 +103,14 @@ class TestDataProviderModule : public ::testing::Test {
       delete output_queue;
       output_queue = nullptr;
     }
+
+    // Reset google flags to defaults
+    int fake_argc = 2;
+    char** fake_argv =
+        reinterpret_cast<char**>(malloc(sizeof(char*) * fake_argc));
+    fake_argv[0] = "foo";
+    fake_argv[1] = "--noimages_rectified";
+    google::ParseCommandLineFlags(&fake_argc, &fake_argv, true);
   }
 
   VIO::Timestamp FillImuQueueN(const VIO::Timestamp& prev_timestamp,
