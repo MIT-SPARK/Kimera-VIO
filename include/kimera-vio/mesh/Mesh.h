@@ -219,7 +219,9 @@ class Mesh {
     ar& lmk_id_to_vertex_map_;
     ar& vertices_mesh_;
     ar& vertices_mesh_normal_;
+    ar& normals_computed_;
     ar& vertices_mesh_color_;
+    ar& polygons_mesh_;
     ar& const_cast<size_t&>(polygon_dimension_);
   }
 
