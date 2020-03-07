@@ -515,7 +515,7 @@ bool Pipeline::initializeFromIMU(
   // Guess pose from IMU, assumes vehicle to be static.
   VioNavState initial_state_estimate =
       InitializationFromImu::getInitialStateEstimate(
-          stereo_imu_sync_packet.getImuAccGyr(),
+          stereo_imu_sync_packet.getImuAccGyrs(),
           imu_params_.n_gravity_,
           backend_params_->roundOnAutoInitialize_);
 
@@ -561,7 +561,7 @@ bool Pipeline::initializeOnline(
       VIO::make_unique<StereoImuSyncPacket>(
           stereo_frame,
           stereo_imu_sync_packet.getImuStamps(),
-          stereo_imu_sync_packet.getImuAccGyr(),
+          stereo_imu_sync_packet.getImuAccGyrs(),
           stereo_imu_sync_packet.getReinitPacket());
 
   FrontendOutput::ConstPtr frontend_output = nullptr;
@@ -599,9 +599,9 @@ bool Pipeline::initializeOnline(
     // TODO(Sandro): Find a way to optimize this
     // This queue is used for the the backend optimization
     const ImuStampS& imu_stamps = stereo_imu_sync_packet.getImuStamps();
-    const ImuAccGyrS& imu_accgyr = stereo_imu_sync_packet.getImuAccGyr();
+    const ImuAccGyrS& imu_accgyrs = stereo_imu_sync_packet.getImuAccGyrs();
     ImuFrontEnd::PimPtr pim =
-        imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyr);
+        imu_frontend_real.preintegrateImuMeasurements(imu_stamps, imu_accgyrs);
     // This queue is used for the backend after initialization
     VLOG(2) << "Initialization: Push input payload to Backend.";
     backend_input_queue_.push(VIO::make_unique<BackendInput>(

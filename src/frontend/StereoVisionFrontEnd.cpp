@@ -76,7 +76,7 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
   // into account!!!).
   auto tic_full_preint = utils::Timer::tic();
   const ImuFrontEnd::PimPtr& pim = imu_frontend_->preintegrateImuMeasurements(
-      input.getImuStamps(), input.getImuAccGyr());
+      input.getImuStamps(), input.getImuAccGyrs());
   CHECK(pim);
 
   auto full_preint_duration =
