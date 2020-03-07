@@ -513,9 +513,11 @@ bool Pipeline::initializeFromIMU(
             << "--------------------";
 
   // Guess pose from IMU, assumes vehicle to be static.
+  ImuAccGyrS imu_accgyrs = stereo_imu_sync_packet.getImuAccGyrs();
+  ImuAccGyr imu_accgyr = imu_accgyrs.col(imu_accgyrs.cols()-1);
   VioNavState initial_state_estimate =
       InitializationFromImu::getInitialStateEstimate(
-          stereo_imu_sync_packet.getImuAccGyrs(),
+          imu_accgyr,
           imu_params_.n_gravity_,
           backend_params_->roundOnAutoInitialize_);
 
