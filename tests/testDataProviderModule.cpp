@@ -296,3 +296,43 @@ TEST_F(TestDataProviderModule, imageBeforeImuTest) {
   TEST_TIMEOUT_FAIL_END(default_timeout)
 }
 
+/* ************************************************************************* */
+TEST_F(TestDataProviderModule, imageBeforeImuDelayedSpinTest) {
+  TEST_TIMEOUT_BEGIN
+
+  VIO::FrameId current_id = 0;
+  VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
+
+  // Drop any frame that appears before the IMU packets do
+  FillLeftRightQueue(++current_id, ++current_time);
+
+  // Initial frame
+  size_t num_imu_to_make = 4;
+  current_time = FillImuQueueN(current_time, num_imu_to_make);
+  FillLeftRightQueue(++current_id, ++current_time);
+
+  // Valid frame
+  current_time = FillImuQueueN(current_time, num_imu_to_make);
+  FillLeftRightQueue(++current_id, ++current_time);
+  current_time = FillImuQueueN(current_time, 1);
+
+  // Reject first frame
+  data_provider_module_->spin();
+  EXPECT_TRUE(output_queue->empty());
+  // Second frame is initial frame
+  data_provider_module_->spin();
+  EXPECT_TRUE(output_queue->empty());
+  // Third frame should work
+  data_provider_module_->spin();
+
+  VIO::StereoImuSyncPacket::UniquePtr result;
+  CHECK(output_queue->pop(result));
+  CHECK(result);
+  EXPECT_EQ(current_time - 1, result->timestamp_);
+  EXPECT_EQ(static_cast<VIO::FrameId>(3),
+            result->getStereoFrame().getFrameId());
+  // +1 because it interpolates to the time frame
+  EXPECT_EQ(num_imu_to_make + 1, result->getImuStamps().size());
+
+  TEST_TIMEOUT_FAIL_END(default_timeout)
+}
