@@ -57,8 +57,8 @@ class TestDataProviderModule : public ::testing::Test {
   TestDataProviderModule() {  }
 
  protected:
-  VIO::StereoVisionFrontEndModule::InputQueue* output_queue = nullptr;
-  VIO::StereoVisionFrontEndModule::InputQueue* dummy_queue = nullptr;
+  VIO::StereoVisionFrontEndModule::InputQueue* output_queue_ = nullptr;
+  VIO::StereoVisionFrontEndModule::InputQueue* dummy_queue_ = nullptr;
   VIO::DataProviderModule* data_provider_module_ = nullptr;
 
   void SetUp() override {
@@ -75,17 +75,17 @@ class TestDataProviderModule : public ::testing::Test {
     google::ParseCommandLineFlags(&fake_argc, &fake_argv, true);
 
     // Create the output queue
-    output_queue = new VIO::StereoVisionFrontEndModule::InputQueue("output");
+    output_queue_ = new VIO::StereoVisionFrontEndModule::InputQueue("output");
 
     // Create the DataProviderModule
-    dummy_queue = new VIO::StereoVisionFrontEndModule::InputQueue("unused");
+    dummy_queue_ = new VIO::StereoVisionFrontEndModule::InputQueue("unused");
     VIO::StereoMatchingParams dummy_params;
     bool parallel = false;
     data_provider_module_ = new VIO::DataProviderModule(
-        dummy_queue, "Data Provider", parallel, dummy_params);
+        dummy_queue_, "Data Provider", parallel, dummy_params);
     data_provider_module_->registerVioPipelineCallback(
         [this](VIO::StereoImuSyncPacket::UniquePtr sync_packet) {
-          output_queue->push(std::move(sync_packet));
+          output_queue_->push(std::move(sync_packet));
         });
   }
 
@@ -95,13 +95,13 @@ class TestDataProviderModule : public ::testing::Test {
       delete data_provider_module_;
       data_provider_module_ = nullptr;
     }
-    if (dummy_queue != nullptr) {
-      delete dummy_queue;
-      dummy_queue = nullptr;
+    if (dummy_queue_ != nullptr) {
+      delete dummy_queue_;
+      dummy_queue_ = nullptr;
     }
-    if (output_queue != nullptr) {
-      delete output_queue;
-      output_queue = nullptr;
+    if (output_queue_ != nullptr) {
+      delete output_queue_;
+      output_queue_ = nullptr;
     }
 
     // Reset google flags to defaults
@@ -113,7 +113,7 @@ class TestDataProviderModule : public ::testing::Test {
     google::ParseCommandLineFlags(&fake_argc, &fake_argv, true);
   }
 
-  VIO::Timestamp FillImuQueueN(const VIO::Timestamp& prev_timestamp,
+  VIO::Timestamp fillImuQueueN(const VIO::Timestamp& prev_timestamp,
                                size_t num_imu_to_make) {
     VIO::Timestamp current_time = prev_timestamp;
     for (size_t i = 0; i < num_imu_to_make; i++) {
@@ -123,21 +123,21 @@ class TestDataProviderModule : public ::testing::Test {
     return current_time;
     }
 
-    void FillLeftRightQueue(const VIO::FrameId& frame_id,
+    void fillLeftRightQueue(const VIO::FrameId& frame_id,
                             const VIO::Timestamp& timestamp) {
       data_provider_module_->fillLeftFrameQueue(
-          MakeDummyFrame(frame_id, timestamp));
+          makeDummyFrame(frame_id, timestamp));
       data_provider_module_->fillRightFrameQueue(
-          MakeDummyFrame(frame_id, timestamp));
+          makeDummyFrame(frame_id, timestamp));
     }
 
-    VIO::Frame::UniquePtr MakeDummyFrame(const VIO::FrameId& frame_id,
+    VIO::Frame::UniquePtr makeDummyFrame(const VIO::FrameId& frame_id,
                                          const VIO::Timestamp& timestamp) {
       return VIO::make_unique<VIO::Frame>(
-          frame_id, timestamp, MakeDumyCameraParams(), cv::Mat());
+          frame_id, timestamp, makeDumyCameraParams(), cv::Mat());
     }
 
-    VIO::CameraParams MakeDumyCameraParams() {
+    VIO::CameraParams makeDumyCameraParams() {
       VIO::CameraParams dummy_params;
       dummy_params.R_rectify_ = cv::Mat::zeros(3, 3, CV_32F);
       dummy_params.P_ = cv::Mat::zeros(3, 3, CV_32F);
@@ -153,23 +153,23 @@ TEST_F(TestDataProviderModule, basicSequentialCase) {
   VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
   // First frame is needed for benchmarking, send it and spin
-  current_time = FillImuQueueN(current_time, 1);
-  FillLeftRightQueue(++current_id, ++current_time);
+  current_time = fillImuQueueN(current_time, 1);
+  fillLeftRightQueue(++current_id, ++current_time);
   data_provider_module_->spin();
 
-  EXPECT_TRUE(output_queue->empty());
+  EXPECT_TRUE(output_queue_->empty());
 
   size_t num_imu_to_make = 4;
-  current_time = FillImuQueueN(current_time, num_imu_to_make);
+  current_time = fillImuQueueN(current_time, num_imu_to_make);
 
-  FillLeftRightQueue(++current_id, ++current_time);
+  fillLeftRightQueue(++current_id, ++current_time);
   // IMU and camera streams are not necessarily in sync
   // Send an IMU packet after camera packets to signal no more IMU incoming
-  current_time = FillImuQueueN(current_time, 1);
+  current_time = fillImuQueueN(current_time, 1);
   data_provider_module_->spin();
 
   VIO::StereoImuSyncPacket::UniquePtr result;
-  CHECK(output_queue->pop(result));
+  CHECK(output_queue_->pop(result));
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(2),
@@ -188,29 +188,29 @@ TEST_F(TestDataProviderModule, noImuTest) {
   VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
   // First frame is needed for benchmarking, send it and spin
-  current_time = FillImuQueueN(current_time, 1);
-  FillLeftRightQueue(++current_id, ++current_time);
+  current_time = fillImuQueueN(current_time, 1);
+  fillLeftRightQueue(++current_id, ++current_time);
   data_provider_module_->spin();
-  EXPECT_TRUE(output_queue->empty());
+  EXPECT_TRUE(output_queue_->empty());
 
   size_t num_frames_to_reject = 6;
   for (size_t i = 0; i < num_frames_to_reject; i++) {
-    FillLeftRightQueue(++current_id, ++current_time);
+    fillLeftRightQueue(++current_id, ++current_time);
   }
-  current_time = FillImuQueueN(current_time, 1);
+  current_time = fillImuQueueN(current_time, 1);
 
   // Reject all the frames-- none have valid IMU data
   for (size_t i = 0; i < num_frames_to_reject; i++) {
     data_provider_module_->spin();
   }
-  EXPECT_TRUE(output_queue->empty());
+  EXPECT_TRUE(output_queue_->empty());
 
   // now, a valid frame
-  FillLeftRightQueue(++current_id, ++current_time);
-  current_time = FillImuQueueN(current_time, 1);
+  fillLeftRightQueue(++current_id, ++current_time);
+  current_time = fillImuQueueN(current_time, 1);
   data_provider_module_->spin();
   VIO::StereoImuSyncPacket::UniquePtr result;
-  CHECK(output_queue->pop(result));
+  CHECK(output_queue_->pop(result));
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(num_frames_to_reject + 2),
@@ -232,23 +232,23 @@ TEST_F(TestDataProviderModule, manyImuTest) {
   VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
   size_t base_imu_to_make = 10;
-  current_time = FillImuQueueN(current_time, base_imu_to_make);
-  FillLeftRightQueue(++current_id, ++current_time);
+  current_time = fillImuQueueN(current_time, base_imu_to_make);
+  fillLeftRightQueue(++current_id, ++current_time);
   size_t num_valid_frames = 10;
   for (size_t i = 0; i < num_valid_frames; i++) {
-    current_time = FillImuQueueN(current_time, base_imu_to_make + i);
-    FillLeftRightQueue(++current_id, ++current_time);
+    current_time = fillImuQueueN(current_time, base_imu_to_make + i);
+    fillLeftRightQueue(++current_id, ++current_time);
   }
-  current_time = FillImuQueueN(current_time, base_imu_to_make);
+  current_time = fillImuQueueN(current_time, base_imu_to_make);
 
   // First frame is needed for benchmarking, should produce nothing
   data_provider_module_->spin();
-  EXPECT_TRUE(output_queue->empty());
+  EXPECT_TRUE(output_queue_->empty());
 
   for (size_t i = 0; i < num_valid_frames; i++) {
     data_provider_module_->spin();
     VIO::StereoImuSyncPacket::UniquePtr result;
-    CHECK(output_queue->pop(result));
+    CHECK(output_queue_->pop(result));
     CHECK(result);
     EXPECT_EQ(static_cast<VIO::FrameId>(2 + i),
               result->getStereoFrame().getFrameId());
@@ -267,25 +267,25 @@ TEST_F(TestDataProviderModule, imageBeforeImuTest) {
   VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
   // Drop any frame that appears before the IMU packets do
-  FillLeftRightQueue(++current_id, ++current_time);
+  fillLeftRightQueue(++current_id, ++current_time);
   data_provider_module_->spin();
-  EXPECT_TRUE(output_queue->empty());
+  EXPECT_TRUE(output_queue_->empty());
 
   // Initial frame
   size_t num_imu_to_make = 4;
-  current_time = FillImuQueueN(current_time, num_imu_to_make);
-  FillLeftRightQueue(++current_id, ++current_time);
+  current_time = fillImuQueueN(current_time, num_imu_to_make);
+  fillLeftRightQueue(++current_id, ++current_time);
   data_provider_module_->spin();
-  EXPECT_TRUE(output_queue->empty());
+  EXPECT_TRUE(output_queue_->empty());
 
   // Valid frame
-  current_time = FillImuQueueN(current_time, num_imu_to_make);
-  FillLeftRightQueue(++current_id, ++current_time);
-  current_time = FillImuQueueN(current_time, 1);
+  current_time = fillImuQueueN(current_time, num_imu_to_make);
+  fillLeftRightQueue(++current_id, ++current_time);
+  current_time = fillImuQueueN(current_time, 1);
   data_provider_module_->spin();
 
   VIO::StereoImuSyncPacket::UniquePtr result;
-  CHECK(output_queue->pop(result));
+  CHECK(output_queue_->pop(result));
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(3),
@@ -304,29 +304,29 @@ TEST_F(TestDataProviderModule, imageBeforeImuDelayedSpinTest) {
   VIO::Timestamp current_time = 10;  // 0 has special meaning, offset by 10
 
   // Drop any frame that appears before the IMU packets do
-  FillLeftRightQueue(++current_id, ++current_time);
+  fillLeftRightQueue(++current_id, ++current_time);
 
   // Initial frame
   size_t num_imu_to_make = 4;
-  current_time = FillImuQueueN(current_time, num_imu_to_make);
-  FillLeftRightQueue(++current_id, ++current_time);
+  current_time = fillImuQueueN(current_time, num_imu_to_make);
+  fillLeftRightQueue(++current_id, ++current_time);
 
   // Valid frame
-  current_time = FillImuQueueN(current_time, num_imu_to_make);
-  FillLeftRightQueue(++current_id, ++current_time);
-  current_time = FillImuQueueN(current_time, 1);
+  current_time = fillImuQueueN(current_time, num_imu_to_make);
+  fillLeftRightQueue(++current_id, ++current_time);
+  current_time = fillImuQueueN(current_time, 1);
 
   // Reject first frame
   data_provider_module_->spin();
-  EXPECT_TRUE(output_queue->empty());
+  EXPECT_TRUE(output_queue_->empty());
   // Second frame is initial frame
   data_provider_module_->spin();
-  EXPECT_TRUE(output_queue->empty());
+  EXPECT_TRUE(output_queue_->empty());
   // Third frame should work
   data_provider_module_->spin();
 
   VIO::StereoImuSyncPacket::UniquePtr result;
-  CHECK(output_queue->pop(result));
+  CHECK(output_queue_->pop(result));
   CHECK(result);
   EXPECT_EQ(current_time - 1, result->timestamp_);
   EXPECT_EQ(static_cast<VIO::FrameId>(3),
