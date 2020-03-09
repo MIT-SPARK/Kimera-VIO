@@ -60,6 +60,7 @@ class TestDataProviderModule : public ::testing::Test {
   VIO::StereoVisionFrontEndModule::InputQueue* output_queue_ = nullptr;
   VIO::StereoVisionFrontEndModule::InputQueue* dummy_queue_ = nullptr;
   VIO::DataProviderModule* data_provider_module_ = nullptr;
+  static constexpr size_t IMU_TEST_BUNDLE_SIZE = 6;
 
   void SetUp() override {
     // Clean up again in case something went wrong last time
@@ -159,8 +160,7 @@ TEST_F(TestDataProviderModule, basicSequentialCase) {
 
   EXPECT_TRUE(output_queue_->empty());
 
-  size_t num_imu_to_make = 4;
-  current_time = fillImuQueueN(current_time, num_imu_to_make);
+  current_time = fillImuQueueN(current_time, IMU_TEST_BUNDLE_SIZE);
 
   fillLeftRightQueue(++current_id, ++current_time);
   // IMU and camera streams are not necessarily in sync
@@ -175,7 +175,7 @@ TEST_F(TestDataProviderModule, basicSequentialCase) {
   EXPECT_EQ(static_cast<VIO::FrameId>(2),
             result->getStereoFrame().getFrameId());
   // +1 because it interpolates to the time frame
-  EXPECT_EQ(num_imu_to_make + 1, result->getImuStamps().size());
+  EXPECT_EQ(IMU_TEST_BUNDLE_SIZE + 1, result->getImuStamps().size());
 
   TEST_TIMEOUT_FAIL_END(default_timeout)
 }
@@ -272,14 +272,13 @@ TEST_F(TestDataProviderModule, imageBeforeImuTest) {
   EXPECT_TRUE(output_queue_->empty());
 
   // Initial frame
-  size_t num_imu_to_make = 4;
-  current_time = fillImuQueueN(current_time, num_imu_to_make);
+  current_time = fillImuQueueN(current_time, IMU_TEST_BUNDLE_SIZE);
   fillLeftRightQueue(++current_id, ++current_time);
   data_provider_module_->spin();
   EXPECT_TRUE(output_queue_->empty());
 
   // Valid frame
-  current_time = fillImuQueueN(current_time, num_imu_to_make);
+  current_time = fillImuQueueN(current_time, IMU_TEST_BUNDLE_SIZE);
   fillLeftRightQueue(++current_id, ++current_time);
   current_time = fillImuQueueN(current_time, 1);
   data_provider_module_->spin();
@@ -291,7 +290,7 @@ TEST_F(TestDataProviderModule, imageBeforeImuTest) {
   EXPECT_EQ(static_cast<VIO::FrameId>(3),
             result->getStereoFrame().getFrameId());
   // +1 because it interpolates to the time frame
-  EXPECT_EQ(num_imu_to_make + 1, result->getImuStamps().size());
+  EXPECT_EQ(IMU_TEST_BUNDLE_SIZE + 1, result->getImuStamps().size());
 
   TEST_TIMEOUT_FAIL_END(default_timeout)
 }
@@ -307,12 +306,11 @@ TEST_F(TestDataProviderModule, imageBeforeImuDelayedSpinTest) {
   fillLeftRightQueue(++current_id, ++current_time);
 
   // Initial frame
-  size_t num_imu_to_make = 4;
-  current_time = fillImuQueueN(current_time, num_imu_to_make);
+  current_time = fillImuQueueN(current_time, IMU_TEST_BUNDLE_SIZE);
   fillLeftRightQueue(++current_id, ++current_time);
 
   // Valid frame
-  current_time = fillImuQueueN(current_time, num_imu_to_make);
+  current_time = fillImuQueueN(current_time, IMU_TEST_BUNDLE_SIZE);
   fillLeftRightQueue(++current_id, ++current_time);
   current_time = fillImuQueueN(current_time, 1);
 
@@ -332,7 +330,7 @@ TEST_F(TestDataProviderModule, imageBeforeImuDelayedSpinTest) {
   EXPECT_EQ(static_cast<VIO::FrameId>(3),
             result->getStereoFrame().getFrameId());
   // +1 because it interpolates to the time frame
-  EXPECT_EQ(num_imu_to_make + 1, result->getImuStamps().size());
+  EXPECT_EQ(IMU_TEST_BUNDLE_SIZE + 1, result->getImuStamps().size());
 
   TEST_TIMEOUT_FAIL_END(default_timeout)
 }
