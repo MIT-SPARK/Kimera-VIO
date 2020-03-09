@@ -109,7 +109,7 @@ class DataProviderModule
   ImuData imu_data_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
-  static constexpr Timestamp NO_FRAME_YET = 0;
+  static constexpr Timestamp kNoFrameYet = 0;
   Timestamp timestamp_last_frame;
   // TODO(Toni): remove these below
   StereoMatchingParams stereo_matching_params_;

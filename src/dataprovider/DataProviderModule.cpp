@@ -30,7 +30,7 @@ DataProviderModule::DataProviderModule(
       left_frame_queue_("data_provider_left_frame_queue"),
       right_frame_queue_("data_provider_right_frame_queue"),
       stereo_matching_params_(stereo_matching_params),
-      timestamp_last_frame(NO_FRAME_YET) {}
+      timestamp_last_frame(kNoFrameYet) {}
 
 DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   // Look for a left frame inside the queue.
@@ -64,7 +64,7 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   }
 
   // Extract imu measurements between consecutive frames.
-  if (timestamp_last_frame == NO_FRAME_YET) {
+  if (timestamp_last_frame == kNoFrameYet) {
     // TODO(Toni): wouldn't it be better to get all IMU measurements up to this
     // timestamp? We should add a method to the IMU buffer for that.
     VLOG(1) << "Skipping first frame, because we do not have a concept of "
