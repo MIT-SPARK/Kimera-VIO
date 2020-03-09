@@ -65,7 +65,7 @@ EurocDataProvider::~EurocDataProvider() {
 bool EurocDataProvider::spin() {
   // Parse the actual dataset first, then run it.
   static bool dataset_parsed = false;
-  if (!dataset_parsed) {
+  if (!shutdown_ && !dataset_parsed) {
     // Ideally we would parse at the ctor level, but the IMU callback needs
     // to be registered first.
     parse();
@@ -75,11 +75,12 @@ bool EurocDataProvider::spin() {
   // Spin.
   CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
   CHECK_GT(final_k_, initial_k_);
-  while (spinOnce()) {
+  while (!shutdown_ && spinOnce()) {
     if (!pipeline_params_.parallel_run_) {
       return true;
     }
   }
+  LOG_IF(INFO, shutdown_) << "EurocDataProvider shutdown requested.";
   return false;
 }
 

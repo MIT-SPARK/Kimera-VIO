@@ -39,4 +39,6 @@ struct VioParams {
   bool parallel_run_;
 };
 
+//! Callback called when the VIO pipeline has shut down.
+typedef std::function<void()> ShutdownPipelineCallback;
 }  // namespace VIO

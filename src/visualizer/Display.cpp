@@ -24,7 +24,11 @@
 
 namespace VIO {
 
-OpenCv3dDisplay::OpenCv3dDisplay() : DisplayBase() {
+OpenCv3dDisplay::OpenCv3dDisplay(
+    const ShutdownPipelineCallback& shutdown_pipeline_cb)
+    : DisplayBase(),
+      window_data_(),
+      shutdown_pipeline_cb_(shutdown_pipeline_cb) {
   if (VLOG_IS_ON(2)) {
     window_data_.window_.setGlobalWarnings(true);
   } else {
@@ -61,7 +65,10 @@ void OpenCv3dDisplay::spinOnce(VisualizerOutput::UniquePtr&& viz_output) {
 void OpenCv3dDisplay::spin3dWindow(VisualizerOutput::UniquePtr&& viz_output) {
   CHECK(viz_output);
   if (viz_output->visualization_type_ != VisualizationType::kNone) {
-    CHECK(!window_data_.window_.wasStopped());
+    if (window_data_.window_.wasStopped()) {
+      // Shutdown the pipeline!
+      shutdown_pipeline_cb_();
+    }
     // viz_output.window_->spinOnce(1, true);
     setMeshProperties(&viz_output->widgets_);
     for (const auto& widget : viz_output->widgets_) {
