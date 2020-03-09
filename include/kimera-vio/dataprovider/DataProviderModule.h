@@ -112,7 +112,7 @@ class DataProviderModule
   // TODO(Toni): remove these below
   StereoMatchingParams stereo_matching_params_;
   VioPipelineCallback vio_pipeline_callback_;
-  Timestamp timestamp_last_frame = 0;
+  Timestamp timestamp_last_frame;
 };
 
 }  // namespace VIO
