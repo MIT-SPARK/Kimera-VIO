@@ -103,12 +103,14 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
         LOG(WARNING)
             << "Asking for data before start of IMU stream, from timestamp: "
             << timestamp_last_frame << " to timestamp: " << timestamp;
+        // Ignore frames that happened before the earliest imu data
+        timestamp_last_frame = timestamp;
         return nullptr;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::
           kTooFewMeasurementsAvailable: {
-        LOG(WARNING) << "No IMU measurements and IMU data stream already "
-                        "passed this region"
+        LOG(WARNING) << "No IMU measurements here, and IMU data stream already "
+                        "passed this time region"
                      << "from timestamp: " << timestamp_last_frame
                      << " to timestamp: " << timestamp;
         return nullptr;
