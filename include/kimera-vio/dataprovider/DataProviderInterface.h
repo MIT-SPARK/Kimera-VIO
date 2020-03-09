@@ -75,6 +75,12 @@ class DataProviderInterface {
    */
   virtual bool spin();
 
+  /**
+   * @brief shutdown Call if you want to explicitly stop the data provider.
+   * This is thread-safe, since shutdown_ is an atomic bool.
+   */
+  void shutdown();
+
   // Register a callback function for IMU data
   inline void registerImuSingleCallback(
       const ImuSingleInputCallback& callback) {
@@ -126,6 +132,9 @@ class DataProviderInterface {
   const std::string backend_params_path_;
   const std::string frontend_params_path_;
   const std::string lcd_params_path_;
+
+  // Shutdown switch to stop data provider.
+  std::atomic_bool shutdown_ = {false};
 };
 
 }  // namespace VIO

@@ -17,8 +17,8 @@
 #include <memory>
 #include <string>
 
-#include <boost/foreach.hpp>
 #include <boost/filesystem.hpp>  // to create folders
+#include <boost/foreach.hpp>
 
 #include <gflags/gflags.h>
 
@@ -122,8 +122,7 @@ void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
   static bool is_header_written = false;
   if (!is_header_written) {
     output_stream << "#timestamp,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
-                  << "bgx,bgy,bgz,bax,bay,baz"
-                  << std::endl;
+                  << "bgx,bgy,bgz,bax,bay,baz" << std::endl;
     is_header_written = true;
   }
   const auto& cached_state = vio_output.W_State_Blkf_;
@@ -162,8 +161,7 @@ void BackendLogger::logSmartFactorsStats(const BackendOutput& output) {
                   << "numValid,numDegenerate,numFarPoints,numOutliers,"
                   << "numCheirality,numNonInitialized,meanPixelError,"
                   << "maxPixelError,meanTrackLength,maxTrackLength,"
-                  << "nrElementsInMatrix,nrZeroElementsInMatrix"
-                  << std::endl;
+                  << "nrElementsInMatrix,nrZeroElementsInMatrix" << std::endl;
     is_header_written = true;
   }
 
@@ -189,8 +187,7 @@ void BackendLogger::logBackendPimNavstates(const BackendOutput& output) {
   // First, write header, but only once.
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream << "#timestamp_kf,x,y,z,qw,qx,qy,qz,vx,vy,vz"
-                  << std::endl;
+    output_stream << "#timestamp_kf,x,y,z,qw,qx,qy,qz,vx,vy,vz" << std::endl;
     is_header_written = true;
   }
 
@@ -215,8 +212,7 @@ void BackendLogger::logBackendTiming(const BackendOutput& output) {
     output_stream << "#cur_kf_id,factorsAndSlotsTime,preUpdateTime,"
                   << "updateTime,updateSlotTime,extraIterationsTime,"
                   << "linearizeTime,linearSolveTime,retractTime,"
-                  << "linearizeMarginalizeTime,marginalizeTime"
-                  << std::endl;
+                  << "linearizeMarginalizeTime,marginalizeTime" << std::endl;
     is_header_written = true;
   }
 
@@ -231,8 +227,7 @@ void BackendLogger::logBackendTiming(const BackendOutput& output) {
                 << output.debug_info_.linearSolveTime_ << ","
                 << output.debug_info_.retractTime_ << ","
                 << output.debug_info_.linearizeMarginalizeTime_ << ","
-                << output.debug_info_.marginalizeTime_
-                << std::endl;
+                << output.debug_info_.marginalizeTime_ << std::endl;
 }
 
 void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
@@ -243,8 +238,7 @@ void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
   if (!is_header_written) {
     output_stream << "#cur_kf_id,numAddedSmartF,numAddedImuF,numAddedNoMotionF,"
                   << "numAddedConstantF,numAddedBetweenStereoF,state_size,"
-                  << "landmark_count"
-                  << std::endl;
+                  << "landmark_count" << std::endl;
     is_header_written = true;
   }
 
@@ -256,10 +250,13 @@ void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
                 << output.debug_info_.numAddedNoMotionF_ << ","
                 << output.debug_info_.numAddedConstantVelF_ << ","
                 << output.debug_info_.numAddedBetweenStereoF_ << ","
-                << output.state_.size() << ","
-                << output.landmark_count_
+                << output.state_.size() << "," << output.landmark_count_
                 << std::endl;
 }
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+
+MesherLogger::MesherLogger() : output_path_(FLAGS_output_path) {}
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 VisualizerLogger::VisualizerLogger()
@@ -353,10 +350,10 @@ FrontendLogger::FrontendLogger()
     : output_frontend_stats_("output_frontend_stats.csv"),
       output_frontend_ransac_mono_("output_frontend_ransac_mono.csv"),
       output_frontend_ransac_stereo_("output_frontend_ransac_stereo.csv"),
-      output_frontend_img_path_(FLAGS_output_path + "/frontend_images/"){
+      output_frontend_img_path_(FLAGS_output_path + "/frontend_images/") {
   // Create output directories for images.
-  boost::filesystem::create_directory(boost::filesystem::path(
-      output_frontend_img_path_.c_str()));
+  boost::filesystem::create_directory(
+      boost::filesystem::path(output_frontend_img_path_.c_str()));
   boost::filesystem::create_directory(boost::filesystem::path(
       (output_frontend_img_path_ + "monoFeatureTracksLeftImg").c_str()));
   boost::filesystem::create_directory(boost::filesystem::path(
@@ -388,45 +385,45 @@ void FrontendLogger::logFrontendStats(
                         << "featureDetectionTime,featureTrackingTime,"
                         << "monoRansacTime,stereoRansacTime,"
                         << "featureSelectionTime,extracted_corners,"
-                        << "need_n_corners"
-                        << std::endl;
+                        << "need_n_corners" << std::endl;
     is_header_written = true;
   }
 
-  output_stream_stats << timestamp_lkf << ","
-  // Mono status.
-                      << TrackerStatusSummary::asString(
-                              tracker_summary.kfTrackingStatus_mono_) << ","
-  // Stereo status.
-                      << TrackerStatusSummary::asString(
-                              tracker_summary.kfTrackingStatus_stereo_) << ","
-  // Nr of keypoints.
-                      << nrKeypoints << ","
-  // Feature detection, tracking and ransac.
-                      << tracker_info.nrDetectedFeatures_ << ","
-                      << tracker_info.nrTrackerFeatures_ << ","
-                      << tracker_info.nrMonoInliers_ << ","
-                      << tracker_info.nrMonoPutatives_ << ","
-                      << tracker_info.nrStereoInliers_ << ","
-                      << tracker_info.nrStereoPutatives_ << ","
-                      << tracker_info.monoRansacIters_ << ","
-                      << tracker_info.stereoRansacIters_ << ","
-  // Performance of sparse-stereo-matching and ransac.
-                      << tracker_info.nrValidRKP_ << ","
-                      << tracker_info.nrNoLeftRectRKP_ << ","
-                      << tracker_info.nrNoRightRectRKP_ << ","
-                      << tracker_info.nrNoDepthRKP_ << ","
-                      << tracker_info.nrFailedArunRKP_ << ","
-  // Info about timing.
-                      << tracker_info.featureDetectionTime_ << ","
-                      << tracker_info.featureTrackingTime_ << ","
-                      << tracker_info.monoRansacTime_ << ","
-                      << tracker_info.stereoRansacTime_ << ","
-  // Info about feature selector.
-                      << tracker_info.featureSelectionTime_ << ","
-                      << tracker_info.extracted_corners_ << ","
-                      << tracker_info.need_n_corners_
-                      << std::endl;
+  output_stream_stats
+      << timestamp_lkf
+      << ","
+      // Mono status.
+      << TrackerStatusSummary::asString(tracker_summary.kfTrackingStatus_mono_)
+      << ","
+      // Stereo status.
+      << TrackerStatusSummary::asString(
+             tracker_summary.kfTrackingStatus_stereo_)
+      << ","
+      // Nr of keypoints.
+      << nrKeypoints
+      << ","
+      // Feature detection, tracking and ransac.
+      << tracker_info.nrDetectedFeatures_ << ","
+      << tracker_info.nrTrackerFeatures_ << "," << tracker_info.nrMonoInliers_
+      << "," << tracker_info.nrMonoPutatives_ << ","
+      << tracker_info.nrStereoInliers_ << "," << tracker_info.nrStereoPutatives_
+      << "," << tracker_info.monoRansacIters_ << ","
+      << tracker_info.stereoRansacIters_
+      << ","
+      // Performance of sparse-stereo-matching and ransac.
+      << tracker_info.nrValidRKP_ << "," << tracker_info.nrNoLeftRectRKP_ << ","
+      << tracker_info.nrNoRightRectRKP_ << "," << tracker_info.nrNoDepthRKP_
+      << "," << tracker_info.nrFailedArunRKP_
+      << ","
+      // Info about timing.
+      << tracker_info.featureDetectionTime_ << ","
+      << tracker_info.featureTrackingTime_ << ","
+      << tracker_info.monoRansacTime_ << "," << tracker_info.stereoRansacTime_
+      << ","
+      // Info about feature selector.
+      << tracker_info.featureSelectionTime_ << ","
+      << tracker_info.extracted_corners_ << "," << tracker_info.need_n_corners_
+      << std::endl;
 }
 
 void FrontendLogger::logFrontendRansac(
@@ -440,10 +437,8 @@ void FrontendLogger::logFrontendRansac(
 
   static bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_mono << "#timestamp_lkf,x,y,z,qw,qx,qy,qz"
-                       << std::endl;
-    output_stream_stereo << "#timestamp_lkf,x,y,z,qw,qx,qy,qz"
-                         << std::endl;
+    output_stream_mono << "#timestamp_lkf,x,y,z,qw,qx,qy,qz" << std::endl;
+    output_stream_stereo << "#timestamp_lkf,x,y,z,qw,qx,qy,qz" << std::endl;
     is_header_written = true;
   }
 
@@ -453,15 +448,10 @@ void FrontendLogger::logFrontendRansac(
   const gtsam::Quaternion& mono_quat =
       relative_pose_body_mono.rotation().toQuaternion();
 
-  output_stream_mono << timestamp_lkf << ","
-                     << mono_tran.x() << ","
-                     << mono_tran.y() << ","
-                     << mono_tran.z() << ","
-                     << mono_quat.w() << ","
-                     << mono_quat.x() << ","
-                     << mono_quat.y() << ","
-                     << mono_quat.z()
-                     << std::endl;
+  output_stream_mono << timestamp_lkf << "," << mono_tran.x() << ","
+                     << mono_tran.y() << "," << mono_tran.z() << ","
+                     << mono_quat.w() << "," << mono_quat.x() << ","
+                     << mono_quat.y() << "," << mono_quat.z() << std::endl;
 
   // Log relative stereo poses; pose from previous keyframe to current keyframe,
   // in previous-keyframe coordinates. These are not cumulative trajectories.
@@ -469,14 +459,10 @@ void FrontendLogger::logFrontendRansac(
   const gtsam::Quaternion& stereo_quat =
       relative_pose_body_stereo.rotation().toQuaternion();
 
-  output_stream_stereo << timestamp_lkf   << ","
-                       << stereo_tran.x() << ","
-                       << stereo_tran.y() << ","
-                       << stereo_tran.z() << ","
-                       << stereo_quat.w() << ","
-                       << stereo_quat.x() << ","
-                       << stereo_quat.y() << ","
-                       << stereo_quat.z()
+  output_stream_stereo << timestamp_lkf << "," << stereo_tran.x() << ","
+                       << stereo_tran.y() << "," << stereo_tran.z() << ","
+                       << stereo_quat.w() << "," << stereo_quat.x() << ","
+                       << stereo_quat.y() << "," << stereo_quat.z()
                        << std::endl;
 }
 
@@ -489,7 +475,7 @@ void FrontendLogger::logFrontendImg(const FrameId& kf_id,
   // We save the images to the output folder so that they can be visualized.
 
   std::string img_name = output_frontend_img_path_ + dir_name +
-      img_name_prepend + std::to_string(kf_id) + ".png";
+                         img_name_prepend + std::to_string(kf_id) + ".png";
 
   // Show image.
   if (disp_img) {
@@ -515,8 +501,8 @@ void PipelineLogger::logPipelineOverallTiming(
   outputFile_timingOverall_ << "vio_overall_time [ms]" << std::endl;
   outputFile_timingOverall_ << duration.count();
 
-  VIO::utils::Statistics::WriteAllSamplesToCsvFile(
-      FLAGS_output_path + '/' + "StatisticsVIO.csv");
+  VIO::utils::Statistics::WriteAllSamplesToCsvFile(FLAGS_output_path + '/' +
+                                                   "StatisticsVIO.csv");
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -543,8 +529,7 @@ void LoopClosureDetectorLogger::logLoopClosure(const LcdOutput& lcd_output) {
   static bool is_header_written = false;
   if (!is_header_written) {
     output_stream_lcd << "#timestamp_kf,timestamp_query,timestamp_match,isLoop,"
-                      << "matchKfId,queryKfId,x,y,z,qw,qx,qy,qz"
-                      << std::endl;
+                      << "matchKfId,queryKfId,x,y,z,qw,qx,qy,qz" << std::endl;
     is_header_written = true;
   }
 
@@ -556,16 +541,11 @@ void LoopClosureDetectorLogger::logLoopClosure(const LcdOutput& lcd_output) {
                     << lcd_output.timestamp_query_ << ","
                     << lcd_output.timestamp_match_ << ","
                     << lcd_output.is_loop_closure_ << ","
-                    << lcd_output.id_match_ << ","
-                    << lcd_output.id_recent_ << ","
-                    << rel_trans.x() << ","
-                    << rel_trans.y() << ","
-                    << rel_trans.z() << ","
-                    << rel_quat.w() << ","
-                    << rel_quat.x() << ","
-                    << rel_quat.y() << ","
-                    << rel_quat.z()
-                    << std::endl;
+                    << lcd_output.id_match_ << "," << lcd_output.id_recent_
+                    << "," << rel_trans.x() << "," << rel_trans.y() << ","
+                    << rel_trans.z() << "," << rel_quat.w() << ","
+                    << rel_quat.x() << "," << rel_quat.y() << ","
+                    << rel_quat.z() << std::endl;
 }
 
 void LoopClosureDetectorLogger::logOptimizedTraj(const LcdOutput& lcd_output) {
@@ -578,8 +558,7 @@ void LoopClosureDetectorLogger::logOptimizedTraj(const LcdOutput& lcd_output) {
 
   bool is_header_written = false;
   if (!is_header_written) {
-    output_stream_traj << "#timestamp_kf,x,y,z,qw,qx,qy,qz"
-                       << std::endl;
+    output_stream_traj << "#timestamp_kf,x,y,z,qw,qx,qy,qz" << std::endl;
     is_header_written = true;
   }
 
@@ -590,15 +569,9 @@ void LoopClosureDetectorLogger::logOptimizedTraj(const LcdOutput& lcd_output) {
     const gtsam::Point3& trans = pose.translation();
     const gtsam::Quaternion& quat = pose.rotation().toQuaternion();
 
-    output_stream_traj << ts_map_.at(i) << ","
-                       << trans.x() << ","
-                       << trans.y() << ","
-                       << trans.z() << ","
-                       << quat.w() << ","
-                       << quat.x() << ","
-                       << quat.y() << ","
-                       << quat.z()
-                       << std::endl;
+    output_stream_traj << ts_map_.at(i) << "," << trans.x() << "," << trans.y()
+                       << "," << trans.z() << "," << quat.w() << "," << quat.x()
+                       << "," << quat.y() << "," << quat.z() << std::endl;
   }
 }
 
@@ -611,26 +584,22 @@ void LoopClosureDetectorLogger::logDebugInfo(const LcdDebugInfo& debug_info) {
     output_stream_status << "#timestamp_kf,lcd_status,query_id,match_id,"
                          << "mono_input_size,mono_inliers,mono_iters,"
                          << "stereo_input_size,stereo_inliers,stereo_iters,"
-                         << "pgo_size,pgo_lc_count,pgo_lc_inliers"
-                         << std::endl;
+                         << "pgo_size,pgo_lc_count,pgo_lc_inliers" << std::endl;
     is_header_written = true;
   }
 
   output_stream_status << debug_info.timestamp_ << ","
-                       << LoopResult::asString(
-                            debug_info.loop_result_.status_) << ","
-                       << debug_info.loop_result_.query_id_ << ","
+                       << LoopResult::asString(debug_info.loop_result_.status_)
+                       << "," << debug_info.loop_result_.query_id_ << ","
                        << debug_info.loop_result_.match_id_ << ","
                        << debug_info.mono_input_size_ << ","
                        << debug_info.mono_inliers_ << ","
                        << debug_info.mono_iter_ << ","
                        << debug_info.stereo_input_size_ << ","
                        << debug_info.stereo_inliers_ << ","
-                       << debug_info.stereo_iter_ << ","
-                       << debug_info.pgo_size_ << ","
-                       << debug_info.pgo_lc_count_ << ","
-                       << debug_info.pgo_lc_inliers_
-                       << std::endl;
+                       << debug_info.stereo_iter_ << "," << debug_info.pgo_size_
+                       << "," << debug_info.pgo_lc_count_ << ","
+                       << debug_info.pgo_lc_inliers_ << std::endl;
 }
 
 }  // namespace VIO

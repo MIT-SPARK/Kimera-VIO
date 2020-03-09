@@ -109,6 +109,7 @@ Pipeline::Pipeline(const VioParams& params)
       mesher_module_(nullptr),
       visualizer_module_(nullptr),
       display_module_(nullptr),
+      shutdown_pipeline_cb_(nullptr),
       frontend_thread_(nullptr),
       backend_thread_(nullptr),
       mesher_thread_(nullptr),
@@ -237,7 +238,8 @@ Pipeline::Pipeline(const VioParams& params)
         &display_input_queue_,
         nullptr,
         parallel_run_,
-        DisplayFactory::makeDisplay(DisplayType::kOpenCV));
+        DisplayFactory::makeDisplay(DisplayType::kOpenCV,
+                                    std::bind(&Pipeline::shutdown, this)));
   }
 
   if (FLAGS_use_lcd) {
@@ -278,44 +280,47 @@ Pipeline::~Pipeline() {
 /* -------------------------------------------------------------------------- */
 void Pipeline::spinOnce(StereoImuSyncPacket::UniquePtr stereo_imu_sync_packet) {
   CHECK(stereo_imu_sync_packet);
-  CHECK(!shutdown_) << "Pipeline is shutdown.";
-  // Check if we have to re-initialize
-  checkReInitialize(*stereo_imu_sync_packet);
-  // Initialize pipeline if not initialized
-  if (!is_initialized_) {
-    // Launch frontend thread
-    if (!is_launched_) {
-      launchFrontendThread();
-      is_launched_ = true;
-      init_frame_id_ = stereo_imu_sync_packet->getStereoFrame().getFrameId();
-    }
-    CHECK(is_launched_);
+  if (!shutdown_) {
+    // Check if we have to re-initialize
+    checkReInitialize(*stereo_imu_sync_packet);
+    // Initialize pipeline if not initialized
+    if (!is_initialized_) {
+      // Launch frontend thread
+      if (!is_launched_) {
+        launchFrontendThread();
+        is_launched_ = true;
+        init_frame_id_ = stereo_imu_sync_packet->getStereoFrame().getFrameId();
+      }
+      CHECK(is_launched_);
 
-    // Initialize pipeline.
-    // TODO(Toni) this is very brittle, because we are accumulating IMU data,
-    // but not using it for initialization, because accumulated and actual IMU
-    // data at init is the same...
-    if (initialize(*stereo_imu_sync_packet)) {
-      LOG(INFO) << "Before launching threads.";
-      launchRemainingThreads();
-      LOG(INFO) << " launching threads.";
-      is_initialized_ = true;
+      // Initialize pipeline.
+      // TODO(Toni) this is very brittle, because we are accumulating IMU data,
+      // but not using it for initialization, because accumulated and actual IMU
+      // data at init is the same...
+      if (initialize(*stereo_imu_sync_packet)) {
+        LOG(INFO) << "Before launching threads.";
+        launchRemainingThreads();
+        LOG(INFO) << " launching threads.";
+        is_initialized_ = true;
+      } else {
+        LOG(INFO) << "Not yet initialized...";
+      }
     } else {
-      LOG(INFO) << "Not yet initialized...";
+      // SEND INFO TO FRONTEND, here is when we are in nominal mode.
+      // TODO(Toni) Warning: we do not accumulate IMU measurements for the first
+      // packet... Spin.
+      CHECK(is_initialized_);
+
+      // Push to stereo frontend input queue.
+      VLOG(2) << "Push input payload to Frontend.";
+      stereo_frontend_input_queue_.pushBlockingIfFull(
+          std::move(stereo_imu_sync_packet), 5u);
+
+      // Run the pipeline sequentially.
+      if (!parallel_run_) spinSequential();
     }
   } else {
-    // SEND INFO TO FRONTEND, here is when we are in nominal mode.
-    // TODO(Toni) Warning: we do not accumulate IMU measurements for the first
-    // packet... Spin.
-    CHECK(is_initialized_);
-
-    // Push to stereo frontend input queue.
-    VLOG(2) << "Push input payload to Frontend.";
-    stereo_frontend_input_queue_.pushBlockingIfFull(
-        std::move(stereo_imu_sync_packet), 5u);
-
-    // Run the pipeline sequentially.
-    if (!parallel_run_) spinSequential();
+    LOG(WARNING) << "Not spinning pipeline as it's been shutdown.";
   }
 
   return;
@@ -357,10 +362,10 @@ bool Pipeline::shutdownWhenFinished() {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.
-  // Check every second if all queues are empty.
-  // Time to sleep between queries to the queues [in seconds].
+  // Check every 0.5 seconds if all queues are empty.
+  // Time to sleep between queries to the queues [in milliseconds].
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
-  static constexpr int sleep_time = 1;
+  static constexpr int sleep_time_ms = 500;
 
   bool lcd_and_lcd_input_finished = true;
   if (lcd_module_) {
@@ -408,7 +413,7 @@ bool Pipeline::shutdownWhenFinished() {
     VLOG_IF(5, display_module_)
         << "Visualizer is working? " << display_module_->isWorking();
 
-    std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
+    std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
   }
   LOG(INFO) << "Shutting down VIO, reason: input is empty and threads are "
                "idle.";
@@ -439,7 +444,12 @@ void Pipeline::shutdown() {
   if (parallel_run_) {
     joinThreads();
   }
-  LOG(INFO) << "Pipeline destructor finished.";
+  LOG(INFO) << "VIO Pipeline's threads shutdown successfully.";
+  if (shutdown_pipeline_cb_) {
+    LOG(INFO) << "Calling registered shutdown callbacks...";
+    shutdown_pipeline_cb_();
+  }
+  LOG(INFO) << "VIO Pipeline successful shutdown.";
 }
 
 /* -------------------------------------------------------------------------- */

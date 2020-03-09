@@ -22,6 +22,7 @@
 
 #include "kimera-vio/backend/VioBackEnd-definitions.h"
 #include "kimera-vio/loopclosure/LoopClosureDetector-definitions.h"
+#include "kimera-vio/mesh/Mesh.h"
 
 namespace VIO {
 
@@ -41,9 +42,11 @@ static void OpenFile(const std::string& output_filename,
 // Wrapper for std::ofstream to open/close it when created/destructed.
 class OfstreamWrapper {
  public:
+  KIMERA_POINTER_TYPEDEFS(OfstreamWrapper);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(OfstreamWrapper);
   OfstreamWrapper(const std::string& filename,
                   const bool& open_file_in_append_mode = false);
-  ~OfstreamWrapper();
+  virtual ~OfstreamWrapper();
   void closeAndOpenLogFile();
 
  public:
@@ -61,8 +64,10 @@ class OfstreamWrapper {
 
 class BackendLogger {
  public:
+  KIMERA_POINTER_TYPEDEFS(BackendLogger);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(BackendLogger);
   BackendLogger();
-  ~BackendLogger() = default;
+  virtual ~BackendLogger() = default;
 
   void logBackendOutput(const BackendOutput& output);
   void displayInitialStateVioInfo(const gtsam::Vector3& n_gravity_,
@@ -92,8 +97,10 @@ class BackendLogger {
 
 class FrontendLogger {
  public:
+  KIMERA_POINTER_TYPEDEFS(FrontendLogger);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(FrontendLogger);
   FrontendLogger();
-  ~FrontendLogger() = default;
+  virtual ~FrontendLogger() = default;
 
   void logFrontendStats(const Timestamp& timestamp_lkf,
                         const DebugTrackerInfo& tracker_info,
@@ -117,16 +124,63 @@ class FrontendLogger {
   std::string output_frontend_img_path_;
 };
 
+class MesherLogger {
+ public:
+  KIMERA_POINTER_TYPEDEFS(MesherLogger);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(MesherLogger);
+  MesherLogger();
+  virtual ~MesherLogger() = default;
+
+  /**
+   * @brief serializeMesh logs the mesh into a file that can be later read.
+   * @param mesh Mesh to be serialized to file (this should be const, but the
+   * serialization function needs to be non-const to be able to deserialize).
+   */
+  template <typename T>
+  void serializeMesh(Mesh<T>& mesh, const std::string& filename) {
+    std::ofstream mesh_file(output_path_ + '/' + filename);
+    boost::archive::text_oarchive ar(mesh_file);
+    ar << mesh;
+    boost::serialization::serialize(ar, mesh, 0);
+  }
+
+  /**
+   * @brief deserializeMesh reads the serialized mesh from a file.
+   * @param filename File where the mesh was serialized
+   * @param mesh Mesh where to store deserialized data
+   */
+  template <typename T>
+  void deserializeMesh(const std::string& filename, Mesh<T>* mesh) const {
+    CHECK_NOTNULL(mesh);
+    std::ifstream mesh_file(output_path_ + '/' + filename);
+    boost::archive::text_iarchive ar(mesh_file);
+    ar >> *mesh;
+  }
+
+ protected:
+  std::string output_path_;
+};
+
 class VisualizerLogger {
  public:
+  KIMERA_POINTER_TYPEDEFS(VisualizerLogger);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(VisualizerLogger);
   VisualizerLogger();
-  ~VisualizerLogger() = default;
+  virtual ~VisualizerLogger() = default;
 
   void logLandmarks(const PointsWithId& lmks);
   void logLandmarks(const cv::Mat& lmks);
+  /**
+   * @brief logMesh as a ply file
+   * @param lmks Landmarks (Vertices of the mesh)
+   * @param colors Colors of the vertices
+   * @param polygons_mesh  Mesh polygons
+   * @param timestamp the mesh timestamp
+   * @param log_accumulated_mesh whether to append the mesh vertices/faces
+   */
   void logMesh(const cv::Mat& lmks,
                const cv::Mat& colors,
-               const cv::Mat& mesh,
+               const cv::Mat& polygons_mesh,
                const double& timestamp,
                bool log_accumulated_mesh = false);
 
@@ -138,8 +192,10 @@ class VisualizerLogger {
 
 class PipelineLogger {
  public:
+  KIMERA_POINTER_TYPEDEFS(PipelineLogger);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(PipelineLogger);
   PipelineLogger();
-  ~PipelineLogger() = default;
+  virtual ~PipelineLogger() = default;
 
   void logPipelineOverallTiming(const std::chrono::milliseconds& duration);
 
@@ -150,8 +206,10 @@ class PipelineLogger {
 
 class LoopClosureDetectorLogger {
  public:
+  KIMERA_POINTER_TYPEDEFS(LoopClosureDetectorLogger);
+  KIMERA_DELETE_COPY_CONSTRUCTORS(LoopClosureDetectorLogger);
   LoopClosureDetectorLogger();
-  ~LoopClosureDetectorLogger() = default;
+  virtual ~LoopClosureDetectorLogger() = default;
 
   void logTimestampMap(
       const std::unordered_map<VIO::FrameId, VIO::Timestamp>& ts_map);
