@@ -223,7 +223,7 @@ bool ThreadsafeTemporalBuffer<ValueType, AllocatorType>::getValuesBetweenTimes(
   std::lock_guard<std::recursive_mutex> lock(mutex_);
 
   // Early exit if there are too few items.
-  if (size() < 3u) {
+  if (empty()) {
     return false;
   }
 

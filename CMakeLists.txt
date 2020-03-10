@@ -209,6 +209,7 @@ if(BUILD_TESTS)
     tests/testKimeraVIO.cpp
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
+    tests/testDataProviderModule.cpp
     tests/testFeatureSelector.cpp
     tests/testFrame.cpp # NEEDS UPDATE
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
