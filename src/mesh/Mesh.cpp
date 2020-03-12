@@ -28,7 +28,7 @@ Mesh<VertexPositionType>::Mesh(const size_t& polygon_dimension)
     : vertex_to_lmk_id_map_(),
       lmk_id_to_vertex_map_(),
       vertices_mesh_(0, 1, CV_32FC3),
-      vertices_mesh_normal_(0, 1),
+      vertices_mesh_normal_(),
       normals_computed_(false),
       vertices_mesh_color_(0, 1, CV_8UC3),
       polygons_mesh_(0, 1, CV_32SC1),
@@ -42,10 +42,9 @@ template <typename VertexPositionType>
 Mesh<VertexPositionType>::Mesh(const Mesh<VertexPositionType>& rhs_mesh)
     : vertex_to_lmk_id_map_(rhs_mesh.vertex_to_lmk_id_map_),
       lmk_id_to_vertex_map_(rhs_mesh.lmk_id_to_vertex_map_),
-      vertices_mesh_(rhs_mesh.vertices_mesh_.clone()),  // CLONING!
-      vertices_mesh_normal_(
-          rhs_mesh.vertices_mesh_normal_.clone()),  // CLONING!
-      normals_computed_(false),
+      vertices_mesh_(rhs_mesh.vertices_mesh_.clone()),        // CLONING!
+      vertices_mesh_normal_(rhs_mesh.vertices_mesh_normal_),  // COPYING!
+      normals_computed_(rhs_mesh.normals_computed_),
       vertices_mesh_color_(rhs_mesh.vertices_mesh_color_.clone()),  // CLONING!
       polygons_mesh_(rhs_mesh.polygons_mesh_.clone()),              // CLONING!
       polygon_dimension_(rhs_mesh.polygon_dimension_) {
@@ -65,7 +64,7 @@ Mesh<VertexPositionType>& Mesh<VertexPositionType>::operator=(
   lmk_id_to_vertex_map_ = rhs_mesh.lmk_id_to_vertex_map_;
   vertex_to_lmk_id_map_ = rhs_mesh.vertex_to_lmk_id_map_;
   vertices_mesh_ = rhs_mesh.vertices_mesh_.clone();
-  vertices_mesh_normal_ = rhs_mesh.vertices_mesh_normal_.clone();
+  vertices_mesh_normal_ = rhs_mesh.vertices_mesh_normal_;
   normals_computed_ = rhs_mesh.normals_computed_;
   vertices_mesh_color_ = rhs_mesh.vertices_mesh_color_.clone();
   polygons_mesh_ = rhs_mesh.polygons_mesh_.clone();
@@ -107,11 +106,14 @@ void Mesh<VertexPositionType>::addPolygonToMesh(const Polygon& polygon) {
 // vertices_mesh data structure.
 template <typename VertexPositionType>
 void Mesh<VertexPositionType>::updateMeshDataStructures(
-    const LandmarkId& lmk_id, const VertexPositionType& lmk_position,
+    const LandmarkId& lmk_id,
+    const VertexPositionType& lmk_position,
     std::map<VertexId, LandmarkId>* vertex_to_lmk_id_map,
     std::map<LandmarkId, VertexId>* lmk_id_to_vertex_map,
-    cv::Mat* vertices_mesh, cv::Mat_<VertexNormal>* vertices_mesh_normal,
-    cv::Mat* vertices_mesh_color, cv::Mat* polygon_mesh,
+    cv::Mat* vertices_mesh,
+    VertexNormals* vertices_mesh_normal,
+    cv::Mat* vertices_mesh_color,
+    cv::Mat* polygon_mesh,
     const VertexColorRGB& vertex_color) const {
   CHECK_NOTNULL(vertex_to_lmk_id_map);
   CHECK_NOTNULL(lmk_id_to_vertex_map);
@@ -165,7 +167,7 @@ bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx,
     return false;
   };
 
-  DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_normal_.rows);
+  DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_normal_.size());
   DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_color_.rows);
   size_t idx_in_polygon_mesh = polygon_idx * (polygon_dimension_ + 1);
   polygon->resize(polygon_dimension_);
@@ -178,7 +180,7 @@ bool Mesh<VertexPositionType>::getPolygon(const size_t& polygon_idx,
     polygon->at(j) = Vertex<VertexPositionType>(
         vertex_to_lmk_id_map_.at(row_id_pt_j),
         vertices_mesh_.at<VertexPositionType>(row_id_pt_j),
-        vertices_mesh_normal_.at<VertexNormal>(row_id_pt_j),
+        vertices_mesh_normal_.at(row_id_pt_j),
         vertices_mesh_color_.at<VertexColorRGB>(row_id_pt_j));
   }
   return true;
@@ -203,7 +205,7 @@ bool Mesh<VertexPosition>::getVertex(const LandmarkId& lmk_id,
   } else {
     // Construct and Return the vertex.
     const VertexId& vtx_id = vertex_it->second;
-    DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_normal_.rows);
+    DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_normal_.size());
     DCHECK_EQ(vertices_mesh_.rows, vertices_mesh_color_.rows);
     DCHECK_LT(vtx_id, vertices_mesh_.rows);
     if (vertex_id != nullptr) *vertex_id = vtx_id;
@@ -211,7 +213,7 @@ bool Mesh<VertexPosition>::getVertex(const LandmarkId& lmk_id,
       *vertex = Vertex<VertexPosition>(
           vertex_to_lmk_id_map_.at(vtx_id),
           vertices_mesh_.at<VertexPosition>(vtx_id),
-          vertices_mesh_normal_.at<VertexNormal>(vtx_id),
+          vertices_mesh_normal_.at(vtx_id),
           vertices_mesh_color_.at<VertexColorRGB>(vtx_id));
     return true;  // Meaning we found the vertex.
   }
@@ -264,22 +266,22 @@ void Mesh<VertexPositionType>::computePerVertexNormals() {
     const VertexId& p2_idx = lmk_id_to_vertex_map_.at(polygon.at(1).getLmkId());
     const VertexId& p3_idx = lmk_id_to_vertex_map_.at(polygon.at(2).getLmkId());
     /// Sum of normals per vertex
-    vertices_mesh_normal_.at<VertexNormal>(p1_idx) += normal;
-    vertices_mesh_normal_.at<VertexNormal>(p2_idx) += normal;
-    vertices_mesh_normal_.at<VertexNormal>(p3_idx) += normal;
+    vertices_mesh_normal_.at(p1_idx) += normal;
+    vertices_mesh_normal_.at(p2_idx) += normal;
+    vertices_mesh_normal_.at(p3_idx) += normal;
     /// Increase counts of normals added per vertex
     counts[p1_idx]++;
     counts[p2_idx]++;
     counts[p3_idx]++;
   }
 
-  DCHECK_EQ(counts.size(), vertices_mesh_normal_.rows);
+  DCHECK_EQ(counts.size(), vertices_mesh_normal_.size());
   // Average and normalize normals.
   // clang-format off
   // #pragma omp parallel for num_threads(params.omp_num_threads) schedule(static, params.omp_chunk_size)
   // clang-format on
-  for (int i = 0; i < vertices_mesh_normal_.rows; i++) {
-    VertexNormal& normal = vertices_mesh_normal_.at<VertexNormal>(i);
+  for (int i = 0; i < vertices_mesh_normal_.size(); i++) {
+    VertexNormal& normal = vertices_mesh_normal_.at(i);
     // Average
     normal /= counts[i];
     // Normalize
@@ -332,7 +334,7 @@ void Mesh<VertexPositionType>::convertPolygonsMeshToMat(
 template <typename VertexPositionType>
 void Mesh<VertexPositionType>::clearMesh() {
   vertices_mesh_ = cv::Mat(0, 1, CV_32FC3);
-  vertices_mesh_normal_ = cv::Mat_<VertexNormal>(0, 1);
+  vertices_mesh_normal_ = VertexNormals();
   vertices_mesh_color_ = cv::Mat(0, 1, CV_8UC3);
   polygons_mesh_ = cv::Mat(0, 1, CV_32SC1);
   vertex_to_lmk_id_map_.clear();

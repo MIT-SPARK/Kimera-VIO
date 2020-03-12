@@ -157,7 +157,10 @@ class PipelineModule : public PipelineModuleBase {
    * the input is taken from an input queue and processed into an output packet
    * which is sent to the output queue. If the module returns a nullptr, then
    * we don't push to the output queue to save computation time.
-   * @return True if everything goes well.
+   * @return False when shutdown requested, true while working nominally.
+   * Note that it only returns true if working in sequential mode,
+   * otherwise it will simply not return unless it is shutdown, in which case,
+   * it returns false.
    */
   bool spin() override {
     LOG_IF(INFO, parallel_run_) << "Module: " << name_id_ << " - Spinning.";
@@ -200,7 +203,7 @@ class PipelineModule : public PipelineModuleBase {
     }
     is_thread_working_ = false;
     LOG(INFO) << "Module: " << name_id_ << " - Successful shutdown.";
-    return true;
+    return false;
   }
 
  protected:
@@ -386,10 +389,19 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
 
 /** @brief MISOPipelineModule Multi Input Single Output (MISO) pipeline
  * module.
- * Receives Input packets via a threadsafe queue, and sends output packets
- * to a list of registered callbacks with a specific signature.
- * This is useful when there are multiple modules expecting results from this
- * module.
+ * This is still an abstract class and the user must implement the
+ * getInputPacket function that deals with the input.
+ * Potentially one can receive Input packets via a set of callbacks.
+ *
+ * The implementation side of MISO wrt MIMO is that the output is sent to
+ * a threadsafe queue, instead of a list of registered callbacks. This makes
+ * a clear contract for the behavior of this pipeline module.
+ *
+ * Note: OutputQueue is now optional, allowing to create MINO modules (aka
+ * Multi Input No Output). This is useful for modules like Display Module which
+ * receives data from other modules but just displays the data instead of
+ * transmitting information to other modules.
+ *
  */
 template <typename Input, typename Output>
 class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
@@ -407,14 +419,15 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
                      const bool& parallel_run)
       : MIMOPipelineModule<Input, Output>(name_id, parallel_run),
         output_queue_(output_queue) {
-    CHECK_NOTNULL(output_queue_);
+    LOG_IF(INFO, !output_queue_) << "MISO Pipeline Module: " << name_id
+                                 << " has no output queue registered.";
   }
   virtual ~MISOPipelineModule() = default;
 
   //! Override registering of output callbacks since this is only used for
   //! multiple output pipelines.
   void registerCallback(const typename MIMO::OutputCallback&) override {
-    LOG(WARNING) << "SISO Pipeline Module does not use callbacks.";
+    LOG(WARNING) << "MISO Pipeline Module does not use callbacks.";
   }
 
  protected:
@@ -427,11 +440,13 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
    */
   inline bool pushOutputPacket(
       typename MIMO::OutputUniquePtr output_packet) const override {
-    return output_queue_->push(std::move(output_packet));
+    return output_queue_ ? output_queue_->push(std::move(output_packet)) : true;
   }
 
   //! Called when general shutdown of PipelineModule is triggered.
-  void shutdownQueues() override { output_queue_->shutdown(); }
+  void shutdownQueues() override {
+    if (output_queue_) output_queue_->shutdown();
+  }
 
  private:
   //! Output
@@ -447,6 +462,10 @@ class MISOPipelineModule : public MIMOPipelineModule<Input, Output> {
  * Receives Input packets via a threadsafe queue, and sends output packets
  * to a threadsafe output queue.
  * This is the most standard and simplest pipeline module.
+ *
+ * Note: the output queue might be optional nullptr as it is optional (this is
+ * to allow SINO modules: aka single input no output modules like the Display
+ * Module that only consumes data to display it but does not return data.)
  */
 template <typename Input, typename Output>
 class SISOPipelineModule : public MISOPipelineModule<Input, Output> {

@@ -14,6 +14,9 @@
 
 #include "kimera-vio/mesh/MesherFactory.h"
 
+// If you want to serialize to a file to be able to later load that mesh.
+DEFINE_bool(serialize_mesh_2d3d, false, "Serialize 2D/3D Mesh to file.");
+
 namespace VIO {
 
 Mesher::UniquePtr MesherFactory::createMesher(
@@ -21,7 +24,7 @@ Mesher::UniquePtr MesherFactory::createMesher(
     const MesherParams& mesher_params) {
   switch (mesher_type) {
     case MesherType::PROJECTIVE: {
-      return VIO::make_unique<Mesher>(mesher_params);
+      return VIO::make_unique<Mesher>(mesher_params, FLAGS_serialize_mesh_2d3d);
     }
     default: {
       LOG(FATAL) << "Requested mesher type is not supported.\n"

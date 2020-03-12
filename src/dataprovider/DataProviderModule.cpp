@@ -29,7 +29,8 @@ DataProviderModule::DataProviderModule(
       imu_data_(),
       left_frame_queue_("data_provider_left_frame_queue"),
       right_frame_queue_("data_provider_right_frame_queue"),
-      stereo_matching_params_(stereo_matching_params) {}
+      stereo_matching_params_(stereo_matching_params),
+      timestamp_last_frame(kNoFrameYet) {}
 
 DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   // Look for a left frame inside the queue.
@@ -57,9 +58,13 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   PIO::syncQueue(timestamp, &right_frame_queue_, &right_frame_payload);
   CHECK(right_frame_payload);
 
+  if (imu_data_.imu_buffer_.size() == 0) {
+    VLOG(1) << "No IMU measurements available yet, dropping this frame.";
+    return nullptr;
+  }
+
   // Extract imu measurements between consecutive frames.
-  static Timestamp timestamp_last_frame = 0;
-  if (timestamp_last_frame == 0) {
+  if (timestamp_last_frame == kNoFrameYet) {
     // TODO(Toni): wouldn't it be better to get all IMU measurements up to this
     // timestamp? We should add a method to the IMU buffer for that.
     VLOG(1) << "Skipping first frame, because we do not have a concept of "
@@ -82,10 +87,12 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
       utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable) {
     VLOG(1) << "No IMU data available. Reason:\n";
     switch (query_result) {
-      case utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable: {
-        LOG(FATAL) << "We should not be inside this while loop if IMU data is "
-                      "available...";
-        break;
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
+        if (log_error_once) {
+          LOG(WARNING) << "Waiting for IMU data...";
+          log_error_once = false;
+        }
+        continue;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kQueueShutdown: {
         LOG(INFO)
@@ -94,24 +101,25 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
         return nullptr;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable: {
-        LOG_EVERY_N(WARNING, 1000)
-            << "No IMU data from last frame timestamp: " << timestamp_last_frame
-            << " to timestamp: " << timestamp;
-        continue;
-      }
-      case utils::ThreadsafeImuBuffer::QueryResult::kDataNotYetAvailable: {
-        if (log_error_once) {
-          LOG(WARNING) << "Waiting for IMU data...";
-          log_error_once = false;
-        }
-        continue;
+        LOG(WARNING)
+            << "Asking for data before start of IMU stream, from timestamp: "
+            << timestamp_last_frame << " to timestamp: " << timestamp;
+        // Ignore frames that happened before the earliest imu data
+        timestamp_last_frame = timestamp;
+        return nullptr;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::
           kTooFewMeasurementsAvailable: {
-        LOG_EVERY_N(WARNING, 100)
-            << "Too few IMU measurements from last frame timestamp: "
-            << timestamp_last_frame << " to timestamp: " << timestamp;
-        continue;
+        LOG(WARNING) << "No IMU measurements here, and IMU data stream already "
+                        "passed this time region"
+                     << "from timestamp: " << timestamp_last_frame
+                     << " to timestamp: " << timestamp;
+        return nullptr;
+      }
+      case utils::ThreadsafeImuBuffer::QueryResult::kDataAvailable: {
+        LOG(FATAL) << "We should not be inside this while loop if IMU data is "
+                      "available...";
+        return nullptr;
       }
     }
   }
