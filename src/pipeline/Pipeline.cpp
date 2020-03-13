@@ -506,7 +506,7 @@ void Pipeline::checkReInitialize(
     vio_frontend_module_->restart();
     CHECK(vio_backend_module_);
     vio_backend_module_->restart();
-    mesher_module_->restart();
+    if (mesher_module_) mesher_module_->restart();
     if (lcd_module_) lcd_module_->restart();
     if (visualizer_module_) visualizer_module_->restart();
     if (display_module_) display_module_->restart();
