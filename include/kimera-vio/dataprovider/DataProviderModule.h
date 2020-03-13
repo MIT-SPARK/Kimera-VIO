@@ -120,8 +120,8 @@ class DataProviderModule
   ImuData imu_data_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
-  static constexpr Timestamp kNoFrameYet = 0;
-  Timestamp timestamp_last_frame;
+  const Timestamp kNoFrameYet = 0;
+  Timestamp timestamp_last_frame_;
   // TODO(Toni): remove these below
   StereoMatchingParams stereo_matching_params_;
   VioPipelineCallback vio_pipeline_callback_;

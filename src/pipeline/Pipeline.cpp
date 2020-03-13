@@ -386,6 +386,7 @@ bool Pipeline::shutdownWhenFinished() {
             (mesher_module_ ? !mesher_module_->isWorking() : true) &&
             (lcd_module_ ? !lcd_module_->isWorking() : true) &&
             (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
+            display_input_queue_.empty() &&
             (display_module_ ? !display_module_->isWorking() : true)))) {
     VLOG(5) << "shutdown_: " << shutdown_ << '\n'
             << "VIO pipeline status: \n"
@@ -448,7 +449,11 @@ void Pipeline::shutdown() {
     shutdown_pipeline_cb_();
   }
 
-  // Second:
+  // Second: stop data provider
+  CHECK(data_provider_module_);
+  data_provider_module_->shutdown();
+
+  // Third: stop VIO's threads
   stopThreads();
   if (parallel_run_) {
     joinThreads();
@@ -852,15 +857,16 @@ void Pipeline::resume() {
 void Pipeline::stopThreads() {
   VLOG(1) << "Stopping workers and queues...";
 
-  CHECK(data_provider_module_);
-  data_provider_module_->shutdown();
-
+  // Shutdown Queues
+  initialization_frontend_output_queue_.shutdown();
+  stereo_frontend_input_queue_.shutdown();
   backend_input_queue_.shutdown();
+  display_input_queue_.shutdown();
+
   CHECK(vio_backend_module_);
   vio_backend_module_->shutdown();
 
-  // Shutdown workers and queues.
-  stereo_frontend_input_queue_.shutdown();
+  // Shutdown modules
   CHECK(vio_frontend_module_);
   vio_frontend_module_->shutdown();
 
@@ -868,6 +874,7 @@ void Pipeline::stopThreads() {
   if (lcd_module_) lcd_module_->shutdown();
   if (visualizer_module_) visualizer_module_->shutdown();
   if (display_module_) display_module_->shutdown();
+
 
   VLOG(1) << "Sent stop flag to all module and queues...";
 }

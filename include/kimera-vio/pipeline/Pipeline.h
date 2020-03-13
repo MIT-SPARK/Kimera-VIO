@@ -147,6 +147,7 @@ class Pipeline {
   bool spin() {
     // Feed data to the pipeline
     CHECK(data_provider_module_);
+    LOG(INFO) << "Spinning Kimera-VIO.";
     return data_provider_module_->spin();
   }
 
