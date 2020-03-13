@@ -60,11 +60,11 @@ class DataProviderModule
   }
 
   //! Callbacks to fill queues: they should be all lighting fast.
-  inline void fillLeftFrameQueue(Frame::UniquePtr&& left_frame) {
+  inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
     CHECK(left_frame);
     left_frame_queue_.push(std::move(left_frame));
   }
-  inline void fillRightFrameQueue(Frame::UniquePtr&& right_frame) {
+  inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
     CHECK(right_frame);
     right_frame_queue_.push(std::move(right_frame));
   }
