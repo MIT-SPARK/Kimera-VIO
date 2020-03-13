@@ -210,6 +210,9 @@ class Pipeline {
   // Join threads to do a clean shutdown.
   void joinThreads();
 
+  // Join a single thread.
+  void joinThread(const std::string& thread_name, std::thread* thread);
+
   // Init Vio parameter
   VioBackEndParams::ConstPtr backend_params_;
   VioFrontEndParams frontend_params_;

@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
     handle_pipeline.get();
   } else {
     while (dataset_parser->spin() && vio_pipeline.spin()) {
-      /* well, nothing to do :) */
+      continue;
     };
     vio_pipeline.shutdown();
     is_pipeline_successful = true;

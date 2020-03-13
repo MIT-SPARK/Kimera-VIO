@@ -28,7 +28,7 @@ bool CameraParams::parseYAML(const std::string& filepath) {
 
   yaml_parser.getYamlParam("camera_id", &camera_id_);
   CHECK(!camera_id_.empty()) << "Camera id cannot be empty.";
-  LOG(INFO) << "Parsing camera parameters for: " << camera_id_;
+  VLOG(1) << "Parsing camera parameters for: " << camera_id_;
 
   // Distortion parameters.
   parseDistortion(yaml_parser);

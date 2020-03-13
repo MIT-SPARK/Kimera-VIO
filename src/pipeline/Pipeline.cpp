@@ -440,16 +440,21 @@ void Pipeline::shutdown() {
                               "shutdown.";
   LOG(INFO) << "Shutting down VIO pipeline.";
   shutdown_ = true;
-  stopThreads();
-  if (parallel_run_) {
-    joinThreads();
-  }
-  LOG(INFO) << "VIO Pipeline's threads shutdown successfully.";
+
+  // First: call registered shutdown callbacks, these are typically to signal
+  // data providers that they should now die.
   if (shutdown_pipeline_cb_) {
     LOG(INFO) << "Calling registered shutdown callbacks...";
     shutdown_pipeline_cb_();
   }
-  LOG(INFO) << "VIO Pipeline successful shutdown.";
+
+  // Second:
+  stopThreads();
+  if (parallel_run_) {
+    joinThreads();
+  }
+  LOG(INFO) << "VIO Pipeline's threads shutdown successfully.\n"
+            << "VIO Pipeline successful shutdown.";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -845,36 +850,26 @@ void Pipeline::resume() {
 
 /* -------------------------------------------------------------------------- */
 void Pipeline::stopThreads() {
-  LOG(INFO) << "Stopping workers and queues...";
+  VLOG(1) << "Stopping workers and queues...";
 
-  LOG(INFO) << "Stopping data provider module...";
   CHECK(data_provider_module_);
   data_provider_module_->shutdown();
 
-  LOG(INFO) << "Stopping backend module and queues...";
   backend_input_queue_.shutdown();
   CHECK(vio_backend_module_);
   vio_backend_module_->shutdown();
 
   // Shutdown workers and queues.
-  LOG(INFO) << "Stopping frontend module and queues...";
   stereo_frontend_input_queue_.shutdown();
   CHECK(vio_frontend_module_);
   vio_frontend_module_->shutdown();
 
-  LOG(INFO) << "Stopping mesher module and queues...";
   if (mesher_module_) mesher_module_->shutdown();
-
-  LOG(INFO) << "Stopping loop closure module and queues...";
   if (lcd_module_) lcd_module_->shutdown();
-
-  LOG(INFO) << "Stopping visualizer module and queues...";
   if (visualizer_module_) visualizer_module_->shutdown();
-
-  LOG(INFO) << "Stopping display module and queues...";
   if (display_module_) display_module_->shutdown();
 
-  LOG(INFO) << "Sent stop flag to all module and queues...";
+  VLOG(1) << "Sent stop flag to all module and queues...";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -882,68 +877,30 @@ void Pipeline::joinThreads() {
   LOG_IF(WARNING, !parallel_run_)
       << "Asked to join threads while in sequential mode, this is ok, but "
       << "should not happen.";
-  LOG(INFO) << "Joining threads...";
+  VLOG(1) << "Joining threads...";
 
-  if (backend_thread_) {
-    LOG(INFO) << "Joining backend thread...";
-    if (backend_thread_->joinable()) {
-      backend_thread_->join();
-      LOG(INFO) << "Joined backend thread...";
+  joinThread("backend", backend_thread_.get());
+  joinThread("frontend", frontend_thread_.get());
+  joinThread("mesher", mesher_thread_.get());
+  joinThread("lcd", lcd_thread_.get());
+  joinThread("visualizer", visualizer_thread_.get());
+
+  VLOG(1) << "All threads joined.";
+}
+
+void Pipeline::joinThread(const std::string& thread_name, std::thread* thread) {
+  if (thread) {
+    VLOG(1) << "Joining " << thread_name.c_str() << " thread...";
+    if (thread->joinable()) {
+      thread->join();
+      VLOG(1) << "Joined " << thread_name.c_str() << " thread...";
     } else {
-      LOG_IF(ERROR, parallel_run_) << "Backend thread is not joinable...";
+      LOG_IF(ERROR, parallel_run_)
+          << thread_name.c_str() << " thread is not joinable...";
     }
   } else {
-    VLOG(1) << "No Backend thread, not joining.";
+    LOG(WARNING) << "No " << thread_name.c_str() << " thread, not joining.";
   }
-
-  if (frontend_thread_) {
-    LOG(INFO) << "Joining frontend thread...";
-    if (frontend_thread_->joinable()) {
-      frontend_thread_->join();
-      LOG(INFO) << "Joined frontend thread...";
-    } else {
-      LOG_IF(ERROR, parallel_run_) << "Frontend thread is not joinable...";
-    }
-  } else {
-    VLOG(1) << "No Frontend thread, not joining.";
-  }
-
-  if (mesher_thread_) {
-    LOG(INFO) << "Joining mesher thread...";
-    if (mesher_thread_->joinable()) {
-      mesher_thread_->join();
-      LOG(INFO) << "Joined mesher thread...";
-    } else {
-      LOG_IF(ERROR, parallel_run_) << "Mesher thread is not joinable...";
-    }
-  } else {
-  }
-
-  if (lcd_thread_) {
-    LOG(INFO) << "Joining loop closure thread...";
-    if (lcd_thread_->joinable()) {
-      lcd_thread_->join();
-      LOG(INFO) << "Joined loop closure thread...";
-    } else {
-      LOG_IF(ERROR, parallel_run_) << "Loop closure thread is not joinable...";
-    }
-  } else {
-    VLOG(1) << "No LCD thread, not joining.";
-  }
-
-  if (visualizer_thread_) {
-    LOG(INFO) << "Joining visualizer thread...";
-    if (visualizer_thread_->joinable()) {
-      visualizer_thread_->join();
-      LOG(INFO) << "Joined visualizer thread...";
-    } else {
-      LOG_IF(ERROR, parallel_run_) << "visualizer thread is not joinable...";
-    }
-  } else {
-    VLOG(1) << "No Visualizer thread, not joining.";
-  }
-
-  LOG(INFO) << "All threads joined.";
 }
 
 }  // namespace VIO
