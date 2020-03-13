@@ -336,12 +336,12 @@ void Tracker::featureTracking(Frame* ref_frame,
   }
 
   // Setup termination criteria for optical flow.
-  static const cv::TermCriteria kTerminationCriteria(
+  const cv::TermCriteria kTerminationCriteria(
         cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
         tracker_params_.klt_max_iter_,
         tracker_params_.klt_eps_);
-  static const cv::Size2i kKltWindowSize(tracker_params_.klt_win_size_,
-                                         tracker_params_.klt_win_size_);
+  const cv::Size2i kKltWindowSize(tracker_params_.klt_win_size_,
+                                  tracker_params_.klt_win_size_);
 
   // Initialize to old locations
   LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";
