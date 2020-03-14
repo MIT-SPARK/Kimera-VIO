@@ -857,22 +857,20 @@ void Pipeline::resume() {
 void Pipeline::stopThreads() {
   VLOG(1) << "Stopping workers and queues...";
 
-  // Shutdown Queues
-  initialization_frontend_output_queue_.shutdown();
-  stereo_frontend_input_queue_.shutdown();
-  backend_input_queue_.shutdown();
-  display_input_queue_.shutdown();
+  // initialization_frontend_output_queue_.shutdown();
 
+  backend_input_queue_.shutdown();
   CHECK(vio_backend_module_);
   vio_backend_module_->shutdown();
 
-  // Shutdown modules
+  stereo_frontend_input_queue_.shutdown();
   CHECK(vio_frontend_module_);
   vio_frontend_module_->shutdown();
 
   if (mesher_module_) mesher_module_->shutdown();
   if (lcd_module_) lcd_module_->shutdown();
   if (visualizer_module_) visualizer_module_->shutdown();
+  display_input_queue_.shutdown();
   if (display_module_) display_module_->shutdown();
 
 
