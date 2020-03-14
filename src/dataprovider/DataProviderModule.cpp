@@ -81,7 +81,8 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   utils::ThreadsafeImuBuffer::QueryResult query_result =
       utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
   bool log_error_once = true;
-  while (
+  LOG(INFO) << "Querying IMU buffer...";
+  while (!shutdown_ &&
       (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
            timestamp_last_frame_,
            timestamp,
@@ -98,7 +99,7 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
         continue;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kQueueShutdown: {
-        LOG(INFO)
+        LOG(WARNING)
             << "IMU buffer was shutdown. Shutting down DataProviderModule.";
         shutdown();
         return nullptr;
@@ -142,16 +143,18 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
            << "ACCGYR IMU: \n"
            << imu_meas.acc_gyr_;
 
-  CHECK(vio_pipeline_callback_);
-  vio_pipeline_callback_(VIO::make_unique<StereoImuSyncPacket>(
-      StereoFrame(left_frame_payload->id_,
-                  timestamp,
-                  *left_frame_payload,
-                  *right_frame_payload,
-                  stereo_matching_params_),  // TODO(Toni): these params should
-      // be given in PipelineParams.
-      imu_meas.timestamps_,
-      imu_meas.acc_gyr_));
+  if (!shutdown_) {
+    CHECK(vio_pipeline_callback_);
+    vio_pipeline_callback_(VIO::make_unique<StereoImuSyncPacket>(
+                             StereoFrame(left_frame_payload->id_,
+                                         timestamp,
+                                         *left_frame_payload,
+                                         *right_frame_payload,
+                                         stereo_matching_params_),  // TODO(Toni): these params should
+                             // be given in PipelineParams.
+                             imu_meas.timestamps_,
+                             imu_meas.acc_gyr_));
+  }
 
   // Push the synced messages to the frontend's input queue
   // TODO(Toni): should be a return like that, so that we pass the info to the
