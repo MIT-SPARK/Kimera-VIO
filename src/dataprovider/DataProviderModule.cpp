@@ -81,7 +81,6 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   utils::ThreadsafeImuBuffer::QueryResult query_result =
       utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
   bool log_error_once = true;
-  LOG(INFO) << "Querying IMU buffer...";
   while (!shutdown_ &&
       (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
            timestamp_last_frame_,
