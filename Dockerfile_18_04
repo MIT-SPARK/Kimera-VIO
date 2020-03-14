@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y git cmake build-essential pkg-config
 RUN apt-get update && apt-get install -y xvfb
 
 # Install GTSAM
+#
 RUN apt-get update && apt-get install -y libboost-all-dev libtbb-dev
 RUN git clone https://github.com/borglab/gtsam.git
 RUN cd gtsam && \
