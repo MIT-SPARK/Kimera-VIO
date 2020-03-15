@@ -66,7 +66,8 @@ Install [Intel Threaded Building Blocks (TBB)](http://www.threadingbuildingblock
 
 Clone GTSAM: `git clone git@github.com:borglab/gtsam.git`
 
-> (last tested with commit `0c3e05f375c03c5ff5218e708db416b38f4113c8`)
+> (last tested with commit `ee069286b447ff58b809423cc77c777a02abdfe5`)
+> Previously tested commits: `0c3e05f375c03c5ff5218e708db416b38f4113c8`
 
 Make build dir, and run `cmake`:
 
