@@ -388,7 +388,7 @@ bool Pipeline::shutdownWhenFinished() {
             (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
             display_input_queue_.empty() &&
             (display_module_ ? !display_module_->isWorking() : true)))) {
-    VLOG(5) << "shutdown_: " << shutdown_ << '\n'
+    LOG(INFO) << "shutdown_: " << shutdown_ << '\n'
             << "VIO pipeline status: \n"
             << "Initialized? " << is_initialized_ << '\n'
             << "Data provider is working? "
@@ -400,7 +400,21 @@ bool Pipeline::shutdownWhenFinished() {
             << "Backend Input queue empty? " << backend_input_queue_.empty()
             << '\n'
             << "Backend is working? "
-            << (is_initialized_ ? vio_backend_module_->isWorking() : false);
+            << (is_initialized_ ? vio_backend_module_->isWorking() : false)
+            << '\n'
+            << "Mesher is working? "
+            << (mesher_module_? mesher_module_->isWorking() : false)
+            << '\n'
+            << "LCD is working? "
+            << (lcd_module_? lcd_module_->isWorking() : false)
+            << '\n'
+            << "Visualizer is working? "
+            << (visualizer_module_ ? !visualizer_module_->isWorking() : false)
+            << '\n'
+            << "Display Input queue empty? " << display_input_queue_.empty()
+            << '\n'
+            << "Displayer is working? "
+            << (display_module_ ? !display_module_->isWorking() : false);
 
     VLOG_IF(5, mesher_module_)
         << "Mesher is working? " << mesher_module_->isWorking();
