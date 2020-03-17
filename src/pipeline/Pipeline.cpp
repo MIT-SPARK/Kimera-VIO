@@ -386,6 +386,7 @@ bool Pipeline::shutdownWhenFinished() {
             (mesher_module_ ? !mesher_module_->isWorking() : true) &&
             (lcd_module_ ? !lcd_module_->isWorking() : true) &&
             (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
+            display_input_queue_.empty() &&
             (display_module_ ? !display_module_->isWorking() : true)))) {
     VLOG(5) << "shutdown_: " << shutdown_ << '\n'
             << "VIO pipeline status: \n"
