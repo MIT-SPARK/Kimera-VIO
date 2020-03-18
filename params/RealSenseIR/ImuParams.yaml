@@ -4,7 +4,7 @@
 # 1: ImuFactor
 imu_preintegration_type: 1
 
-# These are Euroc Dataset parameters
+# Collected by Andrew Violette on 02/19/20
 # Sensor extrinsics wrt. the body-frame.
 T_BS:
   cols: 4
@@ -23,5 +23,5 @@ accelerometer_random_walk: 0.00147    # [ m / s^3 / sqrt(Hz) ].  ( accel bias di
 
 # Extra parameters
 imu_integration_sigma: 1.0e-8
-imu_time_shift: -0.008876836620543995
+imu_time_shift: 0.0
 n_gravity: [0.0, 0.0, -9.81]
