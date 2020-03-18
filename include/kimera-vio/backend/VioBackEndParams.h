@@ -73,8 +73,8 @@ class VioBackEndParams : public PipelineParams {
 
  public:
   virtual bool equals(const VioBackEndParams& vp2, double tol = 1e-8) const;
-  virtual void print() const;
-  virtual bool parseYAML(const std::string& filepath);
+  void print() const override;
+  bool parseYAML(const std::string& filepath) override;
 
  protected:
   bool parseYAMLVioBackEndParams(const YamlParser& yaml_parser);

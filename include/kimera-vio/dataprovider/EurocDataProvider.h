@@ -41,18 +41,12 @@ namespace VIO {
 class EurocDataProvider : public DataProviderInterface {
  public:
   // Ctor with params.
-  EurocDataProvider(const bool& parallel_run,
+  EurocDataProvider(const std::string& dataset_path,
                     const int& initial_k,
                     const int& final_k,
-                    const std::string& dataset_path,
-                    const std::string& left_cam_params_path,
-                    const std::string& right_cam_params_path,
-                    const std::string& imu_params_path,
-                    const std::string& backend_params_path,
-                    const std::string& frontend_params_path,
-                    const std::string& lcd_params_path);
+                    const VioParams& vio_params);
   // Ctor from gflags
-  explicit EurocDataProvider();
+  explicit EurocDataProvider(const VioParams& vio_params);
   virtual ~EurocDataProvider();
 
  public:
@@ -169,6 +163,8 @@ class EurocDataProvider : public DataProviderInterface {
   void clipFinalFrame();
 
  private:
+  VioParams pipeline_params_;
+
   /// Images data.
   // TODO(Toni): remove camera_names_ and camera_image_lists_...
   // This matches the names of the folders in the dataset
@@ -178,6 +174,10 @@ class EurocDataProvider : public DataProviderInterface {
 
   bool is_gt_available_;
   std::string dataset_name_;
+  std::string dataset_path_;
+
+  FrameId initial_k_;  // start frame
+  FrameId final_k_;    // end frame
 
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";

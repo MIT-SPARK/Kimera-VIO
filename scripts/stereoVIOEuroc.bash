@@ -112,13 +112,8 @@ $BUILD_PATH/stereoVIOEuroc \
   --initial_k=50 \
   --final_k=2000 \
   --backend_type="$BACKEND_TYPE" \
-  --left_cam_params_path="$PARAMS_PATH/LeftCameraParams.yaml" \
-  --right_cam_params_path="$PARAMS_PATH/RightCameraParams.yaml" \
-  --imu_params_path="$PARAMS_PATH/ImuParams.yaml" \
-  --backend_params_path="$PARAMS_PATH/regularVioParameters.yaml" \
-  --frontend_params_path="$PARAMS_PATH/trackerParameters.yaml" \
+  --params_folder_path="$PARAMS_PATH" \
   --use_lcd="$USE_LCD" \
-  --lcd_params_path="$PARAMS_PATH/LCDParameters.yaml" \
   --vocabulary_path="$VOCABULARY_PATH/ORBvoc.yml" \
   --flagfile="$PARAMS_PATH/flags/stereoVIOEuroc.flags" \
   --flagfile="$PARAMS_PATH/flags/Mesher.flags" \

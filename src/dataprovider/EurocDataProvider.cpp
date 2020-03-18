@@ -28,33 +28,54 @@
 #include "kimera-vio/frontend/StereoFrame.h"
 #include "kimera-vio/imu-frontend/ImuFrontEnd-definitions.h"
 
+DEFINE_string(dataset_path,
+              "/Users/Luca/data/MH_01_easy",
+              "Path of dataset (i.e. Euroc, /Users/Luca/data/MH_01_easy).");
+DEFINE_int64(initial_k,
+             50,
+             "Initial frame to start processing dataset, "
+             "previous frames will not be used.");
+DEFINE_int64(final_k,
+             10000,
+             "Final frame to finish processing dataset, "
+             "subsequent frames will not be used.");
+
 namespace VIO {
 
 /* -------------------------------------------------------------------------- */
-EurocDataProvider::EurocDataProvider(const bool& parallel_run,
+EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
                                      const int& initial_k,
                                      const int& final_k,
-                                     const std::string& dataset_path,
-                                     const std::string& left_cam_params_path,
-                                     const std::string& right_cam_params_path,
-                                     const std::string& imu_params_path,
-                                     const std::string& backend_params_path,
-                                     const std::string& frontend_params_path,
-                                     const std::string& lcd_params_path)
-    : DataProviderInterface(initial_k,
-                            final_k,
-                            parallel_run,
-                            dataset_path,
-                            left_cam_params_path,
-                            right_cam_params_path,
-                            imu_params_path,
-                            backend_params_path,
-                            frontend_params_path,
-                            lcd_params_path) {}
+                                     const VioParams& vio_params)
+    : DataProviderInterface(),
+      dataset_path_(dataset_path),
+      initial_k_(initial_k),
+      final_k_(final_k),
+      pipeline_params_(vio_params) {
+  // Start processing dataset from frame initial_k.
+  // Useful to skip a bunch of images at the beginning (imu calibration).
+  CHECK_GE(initial_k_, 0);
+  CHECK_GE(initial_k_, 10)
+      << "initial_k should be >= 10 for IMU bias initialization";
+
+  // Finish processing dataset at frame final_k.
+  // Last frame to process (to avoid processing the entire dataset),
+  // skip last frames.
+  CHECK_GT(final_k_, 0);
+
+  CHECK(final_k_ > initial_k_) << "Value for final_k (" << final_k_
+                               << ") is smaller than value for"
+                               << " initial_k (" << initial_k_ << ").";
+  LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
+            << final_k_;
+}
 
 /* -------------------------------------------------------------------------- */
-EurocDataProvider::EurocDataProvider()
-    : DataProviderInterface() {}
+EurocDataProvider::EurocDataProvider(const VioParams& vio_params)
+    : EurocDataProvider(FLAGS_dataset_path,
+                        FLAGS_initial_k,
+                        FLAGS_final_k,
+                        vio_params) {}
 
 /* -------------------------------------------------------------------------- */
 EurocDataProvider::~EurocDataProvider() {
@@ -645,4 +666,4 @@ void EurocDataProvider::print() const {
   LOG(INFO) << "-------------------------------------------------------------";
 }
 
-};  // namespace VIO
+}  // namespace VIO

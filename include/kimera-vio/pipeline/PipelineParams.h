@@ -17,7 +17,8 @@ namespace VIO {
 /**
  * @brief The PipelineParams base class
  * Sets a common base class for parameters of the pipeline
- * for easy parsing/printing.
+ * for easy parsing/printing. All parameters in VIO should inherit from
+ * this class and implement the print/parseYAML virtual functions.
  */
 class PipelineParams {
  public:

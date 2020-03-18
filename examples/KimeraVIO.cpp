@@ -40,11 +40,14 @@ int main(int argc, char* argv[]) {
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
+  // Parse VIO parameters from gflags.
+  VIO::VioParams vio_params(true);
+
   // Build dataset parser.
   VIO::DataProviderInterface::UniquePtr dataset_parser = nullptr;
   switch (FLAGS_dataset_type) {
     case 0: {
-      dataset_parser = VIO::make_unique<VIO::EurocDataProvider>();
+      dataset_parser = VIO::make_unique<VIO::EurocDataProvider>(vio_params);
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
@@ -56,7 +59,7 @@ int main(int argc, char* argv[]) {
   }
   CHECK(dataset_parser);
 
-  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
+  VIO::Pipeline vio_pipeline(vio_params);
 
   // Register callback to shutdown data provider in case VIO pipeline shutsdown.
   vio_pipeline.registerShutdownCallback(
@@ -81,7 +84,7 @@ int main(int argc, char* argv[]) {
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
-  if (dataset_parser->pipeline_params_.parallel_run_) {
+  if (vio_params.parallel_run_) {
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
                              dataset_parser.get());

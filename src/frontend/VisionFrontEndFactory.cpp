@@ -27,7 +27,7 @@ StereoVisionFrontEnd::UniquePtr VisionFrontEndFactory::createFrontend(
     DisplayQueue* display_queue,
     bool log_output) {
   switch (frontend_type) {
-    case FrontendType::StereoImu: {
+    case FrontendType::kStereoImu: {
       return VIO::make_unique<StereoVisionFrontEnd>(imu_params,
                                                     imu_initial_bias,
                                                     frontend_params,
