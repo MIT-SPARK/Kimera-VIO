@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <random>
 #include <boost/algorithm/string.hpp>
-#include <boost/random/mersenne_twister.hpp>
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
