@@ -146,13 +146,13 @@ Pipeline::Pipeline(const VioParams& params)
       &stereo_frontend_input_queue_,
       parallel_run_,
       VisionFrontEndFactory::createFrontend(
-                             params.frontend_type_,
-                             params.imu_params_,
-                             gtsam::imuBias::ConstantBias(),
-                             params.frontend_params_,
-                             params.camera_params_.at(0),
-                             FLAGS_visualize? &display_input_queue_ : nullptr,
-                             FLAGS_log_output));
+          params.frontend_type_,
+          params.imu_params_,
+          gtsam::imuBias::ConstantBias(),
+          params.frontend_params_,
+          params.camera_params_.at(0),
+          FLAGS_visualize ? &display_input_queue_ : nullptr,
+          FLAGS_log_output));
   auto& backend_input_queue = backend_input_queue_;  //! for the lambda below
   vio_frontend_module_->registerCallback(
       [&backend_input_queue](const FrontendOutput::Ptr& output) {
@@ -469,6 +469,7 @@ void Pipeline::shutdown() {
   // data providers that they should now die.
   if (shutdown_pipeline_cb_) {
     LOG(INFO) << "Calling registered shutdown callbacks...";
+    // Mind that this will raise a SIGSEGV seg fault if the callee is destroyed.
     shutdown_pipeline_cb_();
   }
 
@@ -878,7 +879,7 @@ void Pipeline::resume() {
 void Pipeline::stopThreads() {
   VLOG(1) << "Stopping workers and queues...";
 
-  // initialization_frontend_output_queue_.shutdown();
+  initialization_frontend_output_queue_.shutdown();
 
   backend_input_queue_.shutdown();
   CHECK(vio_backend_module_);
@@ -891,8 +892,10 @@ void Pipeline::stopThreads() {
   if (mesher_module_) mesher_module_->shutdown();
   if (lcd_module_) lcd_module_->shutdown();
   if (visualizer_module_) visualizer_module_->shutdown();
-  display_input_queue_.shutdown();
-  if (display_module_) display_module_->shutdown();
+  if (display_module_) {
+    display_input_queue_.shutdown();
+    display_module_->shutdown();
+  }
 
   VLOG(1) << "Sent stop flag to all module and queues...";
 }

@@ -24,10 +24,7 @@ class VioPipelineFixture : public ::testing::Test {
     buildPipeline(vio_params_);
   }
   ~VioPipelineFixture() override {
-    dataset_parser_->shutdown();
-    vio_pipeline_->shutdown();
-    dataset_parser_.reset();
-    vio_pipeline_.reset();
+    destroyPipeline();
   }
 
  protected:
@@ -37,12 +34,15 @@ class VioPipelineFixture : public ::testing::Test {
   void buildPipeline(const VioParams& vio_params) {
     constexpr int initial_k = 10;
     constexpr int final_k = 80;
+    // Needed in order to disconnect previous pipeline in case someone calls
+    // this function repeatedly within the same test.
+    destroyPipeline();
+    vio_pipeline_ = VIO::make_unique<Pipeline>(vio_params);
     dataset_parser_ = VIO::make_unique<EurocDataProvider>(
         FLAGS_test_data_path + "/MicroEurocDataset",
         initial_k,
         final_k,
         vio_params);
-    vio_pipeline_ = VIO::make_unique<Pipeline>(vio_params);
     connectVioPipeline();
   }
 
@@ -72,6 +72,14 @@ class VioPipelineFixture : public ::testing::Test {
                   std::placeholders::_1));
   }
 
+  void destroyPipeline() {
+    // First destroy the VIO pipeline (since this will call the shutdown of
+    // the dataset_parser)
+    vio_pipeline_.reset();
+    // Then destroy the dataset parser.
+    dataset_parser_.reset();
+  }
+
  protected:
   DataProviderInterface::UniquePtr dataset_parser_;
   Pipeline::UniquePtr vio_pipeline_;
@@ -83,6 +91,8 @@ TEST_F(VioPipelineFixture, SequentialStart) {
   buildPipeline(vio_params_);
   ASSERT_TRUE(vio_pipeline_);
   EXPECT_TRUE(vio_pipeline_->spin());
+  // If this segfaults, make sure you are deleting first the vio and then the
+  // dataset parser.
 }
 
 TEST_F(VioPipelineFixture, SequentialShutdown) {

@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
   VIO::VioParams vio_params(FLAGS_params_folder_path);
 
   // Build dataset parser.
-  VIO::DataProviderInterface::UniquePtr dataset_parser = nullptr;
+  VIO::DataProviderInterface::Ptr dataset_parser = nullptr;
   switch (FLAGS_dataset_type) {
     case 0: {
       dataset_parser = VIO::make_unique<VIO::EurocDataProvider>(vio_params);
@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
 
   // Register callback to shutdown data provider in case VIO pipeline shutsdown.
   vio_pipeline.registerShutdownCallback(
-      std::bind(&VIO::DataProviderInterface::shutdown, dataset_parser.get()));
+      std::bind(&VIO::DataProviderInterface::shutdown, dataset_parser));
 
   // Register callback to vio pipeline.
   dataset_parser->registerImuSingleCallback(
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
   if (vio_params.parallel_run_) {
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
-                             dataset_parser.get());
+                             dataset_parser);
     auto handle_pipeline =
         std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
     auto handle_shutdown = std::async(std::launch::async,
