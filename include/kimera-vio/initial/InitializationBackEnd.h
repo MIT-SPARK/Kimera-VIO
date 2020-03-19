@@ -43,7 +43,9 @@ class InitializationBackEnd : public VioBackEnd {
                         const bool log_output = false);
 
   /* ------------------------------------------------------------------------ */
-  virtual ~InitializationBackEnd() = default;
+  virtual ~InitializationBackEnd() {
+    LOG(INFO) << "Initialization Backend destructor called.";
+  }
 
  public:
   /* ------------------------------------------------------------------------ */

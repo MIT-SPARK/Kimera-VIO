@@ -147,6 +147,7 @@ class Pipeline {
   bool spin() {
     // Feed data to the pipeline
     CHECK(data_provider_module_);
+    LOG(INFO) << "Spinning Kimera-VIO.";
     return data_provider_module_->spin();
   }
 
@@ -209,6 +210,9 @@ class Pipeline {
 
   // Join threads to do a clean shutdown.
   void joinThreads();
+
+  // Join a single thread.
+  void joinThread(const std::string& thread_name, std::thread* thread);
 
   // Init Vio parameter
   VioBackEndParams::ConstPtr backend_params_;

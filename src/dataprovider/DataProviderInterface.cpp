@@ -54,6 +54,8 @@ DEFINE_string(dataset_path,
 namespace VIO {
 
 DataProviderInterface::DataProviderInterface(
+    // TODO(Toni): remove the initial/final_k, they are only needed for Euroc
+    // or rather for datasets that are parsed (not online run).
     const int& initial_k,
     const int& final_k,
     const bool& parallel_run,
@@ -93,8 +95,8 @@ DataProviderInterface::DataProviderInterface(
   CHECK(final_k_ > initial_k_)
       << "Value for final_k (" << final_k_ << ") is smaller than value for"
       << " initial_k (" << initial_k_ << ").";
-  LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
-            << final_k_;
+  VLOG(1) << "Running dataset between frame " << initial_k_ << " and frame "
+          << final_k_;
 }
 
 DataProviderInterface::DataProviderInterface()

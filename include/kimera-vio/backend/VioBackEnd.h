@@ -135,7 +135,7 @@ class VioBackEnd {
              const ImuParams& imu_params,
              const BackendOutputParams& backend_output_params,
              bool log_output);
-  virtual ~VioBackEnd() { LOG(INFO) << "Backend destructor called."; };
+  virtual ~VioBackEnd() { LOG(INFO) << "Backend destructor called."; }
 
  public:
   /* ------------------------------------------------------------------------ */
@@ -520,6 +520,9 @@ class VioBackEnd {
 
   //! Landmark count.
   int landmark_count_;
+
+  //! Number of Cheirality exceptions
+  size_t counter_of_exceptions_ = 0;
 
   //! Logger.
   const bool log_output_ = {false};

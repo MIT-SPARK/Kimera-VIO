@@ -164,6 +164,9 @@ class Tracker {
   inline DebugTrackerInfo getTrackerDebugInfo() { return debug_info_; }
 
  private:
+  // Incremental id assigned to new landmarks.
+  LandmarkId landmark_count_;
+
   // Camera params for the camera used to track: currently we only use K if the
   // rotational optical flow predictor is used
   const CameraParams camera_params_;
@@ -178,6 +181,7 @@ class Tracker {
   // This is not const as for debugging we want to redirect the image save path
   // where we like.
   std::string output_images_path_;
+
 };
 
 }  // namespace VIO
