@@ -66,8 +66,7 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
   CHECK(final_k_ > initial_k_) << "Value for final_k (" << final_k_
                                << ") is smaller than value for"
                                << " initial_k (" << initial_k_ << ").";
-  LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
-            << final_k_;
+  current_k_ = initial_k_;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -88,6 +87,7 @@ bool EurocDataProvider::spin() {
   if (!shutdown_ && !dataset_parsed_) {
     // Ideally we would parse at the ctor level, but the IMU callback needs
     // to be registered first.
+    LOG(INFO) << "Parsing Euroc dataset...";
     parse();
     dataset_parsed_ = true;
   }
@@ -96,6 +96,8 @@ bool EurocDataProvider::spin() {
     // Spin.
     CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
     CHECK_GT(final_k_, initial_k_);
+    LOG(INFO) << "Running dataset between frame " << initial_k_ << " and frame "
+              << final_k_;
     while (!shutdown_ && spinOnce()) {
       if (!pipeline_params_.parallel_run_) {
         return true;
@@ -109,8 +111,8 @@ bool EurocDataProvider::spin() {
 }
 
 bool EurocDataProvider::spinOnce() {
-  static FrameId k = initial_k_;
-  if (k >= final_k_) {
+  if (current_k_ >= final_k_) {
+    LOG(INFO) << "Finished spinning Euroc dataset.";
     return false;
   }
 
@@ -121,8 +123,8 @@ bool EurocDataProvider::spinOnce() {
   static const bool& equalize_image =
       pipeline_params_.frontend_params_.stereo_matching_params_.equalize_image_;
 
-  const Timestamp& timestamp_frame_k = timestampAtFrame(k);
-  VLOG(10) << "Sending left/right frames k= " << k
+  const Timestamp& timestamp_frame_k = timestampAtFrame(current_k_);
+  VLOG(10) << "Sending left/right frames k= " << current_k_
            << " with timestamp: " << timestamp_frame_k;
 
   // TODO(Toni): ideally only send cv::Mat raw images...:
@@ -130,28 +132,28 @@ bool EurocDataProvider::spinOnce() {
   // - make vio_pipeline actually equalize or transform images as necessary.
   CHECK(left_frame_callback_);
   left_frame_callback_(
-      VIO::make_unique<Frame>(k,
+      VIO::make_unique<Frame>(current_k_,
                               timestamp_frame_k,
                               // TODO(Toni): this info should be passed to
                               // the camera... not all the time here...
                               left_cam_info,
                               UtilsOpenCV::ReadAndConvertToGrayScale(
-                                  getLeftImgName(k), equalize_image)));
+                                  getLeftImgName(current_k_), equalize_image)));
   CHECK(right_frame_callback_);
   right_frame_callback_(
-      VIO::make_unique<Frame>(k,
+      VIO::make_unique<Frame>(current_k_,
                               timestamp_frame_k,
                               // TODO(Toni): this info should be passed to
                               // the camera... not all the time here...
                               right_cam_info,
                               UtilsOpenCV::ReadAndConvertToGrayScale(
-                                  getRightImgName(k), equalize_image)));
+                                  getRightImgName(current_k_), equalize_image)));
 
   // This is done directly when parsing the Imu data.
   // imu_single_callback_(imu_meas);
 
-  VLOG(10) << "Finished VIO processing for frame k = " << k;
-  k++;
+  VLOG(10) << "Finished VIO processing for frame k = " << current_k_;
+  current_k_++;
   return true;
 }
 

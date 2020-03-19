@@ -176,6 +176,7 @@ class EurocDataProvider : public DataProviderInterface {
   std::string dataset_name_;
   std::string dataset_path_;
 
+  FrameId current_k_;
   FrameId initial_k_;  // start frame
   FrameId final_k_;    // end frame
 

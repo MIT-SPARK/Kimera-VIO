@@ -37,6 +37,7 @@ class VioPipelineFixture : public ::testing::Test {
     // Needed in order to disconnect previous pipeline in case someone calls
     // this function repeatedly within the same test.
     destroyPipeline();
+    LOG(INFO) << "Building pipeline.";
     vio_pipeline_ = VIO::make_unique<Pipeline>(vio_params);
     dataset_parser_ = VIO::make_unique<EurocDataProvider>(
         FLAGS_test_data_path + "/MicroEurocDataset",
@@ -47,6 +48,7 @@ class VioPipelineFixture : public ::testing::Test {
   }
 
   void connectVioPipeline() {
+    LOG(INFO) << "Connecting pipeline.";
     CHECK(dataset_parser_);
     CHECK(vio_pipeline_);
 
@@ -73,6 +75,7 @@ class VioPipelineFixture : public ::testing::Test {
   }
 
   void destroyPipeline() {
+    LOG(INFO) << "Destroying pipeline.";
     // First destroy the VIO pipeline (since this will call the shutdown of
     // the dataset_parser)
     vio_pipeline_.reset();
@@ -164,9 +167,9 @@ TEST_F(VioPipelineFixture, ParallelSpinShutdownWhenFinished) {
                                     &VIO::Pipeline::shutdownWhenFinished,
                                     vio_pipeline_.get(),
                                     500);
-  EXPECT_FALSE(handle.get());
   EXPECT_TRUE(handle_shutdown.get());
   EXPECT_FALSE(handle_pipeline.get());
+  EXPECT_FALSE(handle.get());
 }
 
 }  // namespace VIO
