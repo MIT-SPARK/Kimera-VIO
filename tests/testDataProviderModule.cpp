@@ -56,47 +56,34 @@ static const double tol = 1e-7;
 
 class TestDataProviderModule : public ::testing::Test {
  public:
-  TestDataProviderModule() {  
+  TestDataProviderModule() {
     // Set google flags to assume image is already rectified--makes dummy params
     // easier
     FLAGS_images_rectified = true;
 
     // Create the output queue
-    output_queue_ = new VIO::StereoVisionFrontEndModule::InputQueue("output");
+    output_queue_ =
+        VIO::make_unique<VIO::StereoVisionFrontEndModule::InputQueue>("output");
 
     // Create the DataProviderModule
-    dummy_queue_ = new VIO::StereoVisionFrontEndModule::InputQueue("unused");
+    dummy_queue_ =
+        VIO::make_unique<VIO::StereoVisionFrontEndModule::InputQueue>("unused");
     VIO::StereoMatchingParams dummy_params;
     bool parallel = false;
-    data_provider_module_ = new VIO::DataProviderModule(
-        dummy_queue_, "Data Provider", parallel, dummy_params);
+    data_provider_module_ = VIO::make_unique<VIO::DataProviderModule>(
+        dummy_queue_.release(), "Data Provider", parallel, dummy_params);
     data_provider_module_->registerVioPipelineCallback(
         [this](VIO::StereoImuSyncPacket::UniquePtr sync_packet) {
           output_queue_->push(std::move(sync_packet));
         });
   }
 
-  ~TestDataProviderModule() { 
-    if (data_provider_module_ != nullptr) {
-      data_provider_module_->shutdown();
-      delete data_provider_module_;
-      data_provider_module_ = nullptr;
-    }
-    if (dummy_queue_ != nullptr) {
-      delete dummy_queue_;
-      dummy_queue_ = nullptr;
-    }
-    if (output_queue_ != nullptr) {
-      delete output_queue_;
-      output_queue_ = nullptr;
-    }
-    
-    FLAGS_images_rectified = false;
-  } 
+  ~TestDataProviderModule() { FLAGS_images_rectified = false; }
+
  protected:
-  VIO::StereoVisionFrontEndModule::InputQueue* output_queue_;
-  VIO::StereoVisionFrontEndModule::InputQueue* dummy_queue_;
-  VIO::DataProviderModule* data_provider_module_;
+  VIO::StereoVisionFrontEndModule::InputQueue::UniquePtr output_queue_;
+  VIO::StereoVisionFrontEndModule::InputQueue::UniquePtr dummy_queue_;
+  VIO::DataProviderModule::UniquePtr data_provider_module_;
   static constexpr size_t kImuTestBundleSize = 6;
 
   VIO::Timestamp fillImuQueueN(const VIO::Timestamp& prev_timestamp,
