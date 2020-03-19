@@ -48,15 +48,20 @@ TEST_F(ImuParamsFixture, defaultEquality) {
   // Compare
   EXPECT_EQ(default_imu_params, default_imu_params);
 
+  // Build default params 2
+  ImuParams default_imu_params_2;
+  // Compare
+  EXPECT_EQ(default_imu_params_2, default_imu_params);
+
   // Modify default
   ImuParams modified_imu_params;
   modified_imu_params.gyro_noise_ = 123.4;
   // Compare
-  EXPECT_FALSE(modified_imu_params != default_imu_params);
+  EXPECT_NE(modified_imu_params, default_imu_params);
 
   // Parse params, expect different from default.
   parseParamsManually();
-  EXPECT_FALSE(imu_params_ == default_imu_params);
+  EXPECT_EQ(imu_params_, default_imu_params);
 }
 
 TEST_F(ImuParamsFixture, defaultConstructorWithParsing) {

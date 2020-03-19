@@ -66,9 +66,9 @@ class CameraParams : public PipelineParams {
   virtual void print() const override;
 
   // Assert equality up to a tolerance.
-  bool equals(const CameraParams& cam_par,
-              const double& tol = 1e-9) const;
-  // Assert equality up to a tolerance.
+  bool equals(const CameraParams& cam_par, const double& tol = 1e-9) const;
+
+ protected:
   bool equals(const PipelineParams& rhs) const override {
     return equals(static_cast<const CameraParams&>(rhs), 1e-9);
   }

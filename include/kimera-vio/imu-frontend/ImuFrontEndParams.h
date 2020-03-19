@@ -33,6 +33,8 @@ struct ImuParams : public PipelineParams {
  public:
   bool parseYAML(const std::string& filepath) override;
   void print() const override;
+
+protected:
   bool equals(const PipelineParams& obj) const override;
 
  public:
@@ -48,7 +50,7 @@ struct ImuParams : public PipelineParams {
   double nominal_rate_ = 0.0;
   double imu_integration_sigma_ = 0.0;
 
-  gtsam::Vector3 n_gravity_ = gtsam::Vector3();
+  gtsam::Vector3 n_gravity_ = gtsam::Vector3::Zero();
 };
 
 }  // namespace VIO

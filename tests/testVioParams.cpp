@@ -26,36 +26,34 @@ namespace VIO {
 class VioParamsFixture : public ::testing::Test {
  public:
   VioParamsFixture() = default;
+  ~VioParamsFixture() override = default;
 
  protected:
-  virtual void SetUp() {}
-  virtual void TearDown() {}
+  void SetUp() override {}
+  void TearDown() override {}
 
   // Helper function
   void parseParamsManually() {
-    ImuParams imu_params;
     parsePipelineParams(FLAGS_test_data_path + "/EurocParams/ImuParams.yaml",
-                        &imu_params);
-    CameraParams left_cam_params;
+                        &imu_params_);
     parsePipelineParams(
         FLAGS_test_data_path + "/EurocParams/LeftCameraParams.yaml",
-        &left_cam_params);
-    CameraParams right_cam_params;
+        &left_cam_params_);
     parsePipelineParams(FLAGS_test_data_path +
                             "/EurocParams/RightCameraParams.yaml",
-                        &right_cam_params);
-    BackendParams backend_params;
+                        &right_cam_params_);
     parsePipelineParams(FLAGS_test_data_path +
                             "/EurocParams/BackendParams.yaml",
-                        &backend_params);
-    FrontendParams frontend_params;
+                        &backend_params_);
+    parsePipelineParams(FLAGS_test_data_path +
+                            "/EurocParams/BackendParams.yaml",
+                        &regular_backend_params_);
     parsePipelineParams(FLAGS_test_data_path +
                             "/EurocParams/FrontendParams.yaml",
-                        &frontend_params);
-    LoopClosureDetectorParams lcd_params;
+                        &frontend_params_);
     parsePipelineParams(FLAGS_test_data_path +
                             "/EurocParams/LcdParams.yaml",
-                        &lcd_params);
+                        &lcd_params_);
   }
 
   // Default Parms
@@ -63,6 +61,7 @@ class VioParamsFixture : public ::testing::Test {
   CameraParams left_cam_params_;
   CameraParams right_cam_params_;
   BackendParams backend_params_;
+  RegularVioBackEndParams regular_backend_params_;
   FrontendParams frontend_params_;
   LoopClosureDetectorParams lcd_params_;
 };
@@ -98,7 +97,8 @@ TEST_F(VioParamsFixture, defaultConstructorWithParsing) {
   EXPECT_EQ(vio_params.frontend_type_, FrontendType::kStereoImu);
   EXPECT_EQ(vio_params.backend_type_, BackendType::kStructuralRegularities);
   EXPECT_EQ(vio_params.parallel_run_, 1);
-  EXPECT_EQ(*vio_params.backend_params_, backend_params_);
+  EXPECT_EQ(*vio_params.backend_params_, regular_backend_params_);
+  EXPECT_NE(*vio_params.backend_params_, backend_params_);
   EXPECT_EQ(vio_params.frontend_params_, frontend_params_);
   EXPECT_EQ(vio_params.imu_params_, imu_params_);
   ASSERT_EQ(vio_params.camera_params_.size(), 2u);

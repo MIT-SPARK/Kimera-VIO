@@ -185,11 +185,6 @@ class FrontendParams : public PipelineParams {
            (fabs(disparityThreshold_ - tp2.disparityThreshold_) <= tol);
   }
 
-  virtual bool equals(const PipelineParams& obj) const {
-    const auto& rhs = static_cast<const FrontendParams&>(obj);
-    return equals(rhs, 1e-10);
-  }
-
   void print() const {
     LOG(INFO) << "&&&&&&&&&&&&&&&&&&&& TRACKER PARAMETERS "
                  "&&&&&&&&&&&&&&&&&&&&&&\n"
@@ -290,6 +285,13 @@ class FrontendParams : public PipelineParams {
     }
 
     return true;
+  }
+
+
+ protected:
+  bool equals(const PipelineParams& obj) const override {
+    const auto& rhs = static_cast<const FrontendParams&>(obj);
+    return equals(rhs, 1e-10);
   }
 
  public:

@@ -23,8 +23,13 @@ class VioPipelineFixture : public ::testing::Test {
     FLAGS_visualize = false;
     buildPipeline(vio_params_);
   }
+  ~VioPipelineFixture() override {
+    dataset_parser_->shutdown();
+    vio_pipeline_->shutdown();
+    dataset_parser_.reset();
+    vio_pipeline_.reset();
+  }
 
-  ~VioPipelineFixture() override {}
  protected:
   void SetUp() override {}
   void TearDown() override {}
@@ -147,7 +152,8 @@ TEST_F(VioPipelineFixture, ParallelSpinShutdownWhenFinished) {
       std::async(std::launch::async, &VIO::Pipeline::spin, vio_pipeline_.get());
   auto handle_shutdown = std::async(std::launch::async,
                                     &VIO::Pipeline::shutdownWhenFinished,
-                                    vio_pipeline_.get(), 500);
+                                    vio_pipeline_.get(),
+                                    500);
   EXPECT_FALSE(handle.get());
   EXPECT_TRUE(handle_shutdown.get());
   EXPECT_FALSE(handle_pipeline.get());
