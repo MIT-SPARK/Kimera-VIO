@@ -38,13 +38,12 @@ DEFINE_bool(log_stereo_matching_images,
 
 namespace VIO {
 
-StereoVisionFrontEnd::StereoVisionFrontEnd(
-    const ImuParams& imu_params,
-    const ImuBias& imu_initial_bias,
-    const FrontendParams& tracker_params,
-    const CameraParams& camera_params,
-    DisplayQueue* display_queue,
-    bool log_output)
+StereoVisionFrontEnd::StereoVisionFrontEnd(const ImuParams& imu_params,
+                                           const ImuBias& imu_initial_bias,
+                                           const FrontendParams& tracker_params,
+                                           const CameraParams& camera_params,
+                                           DisplayQueue* display_queue,
+                                           bool log_output)
     : frame_count_(0),
       keyframe_count_(0),
       tracker_(tracker_params, camera_params),
@@ -336,7 +335,7 @@ StatusStereoMeasurementsPtr StereoVisionFrontEnd::processStereoFrame(
       if (FLAGS_log_mono_tracking_images) sendStereoMatchesToLogger();
       if (FLAGS_log_stereo_matching_images) sendMonoTrackingToLogger();
     }
-    displayFeatureTracks();
+    if (display_queue_) displayFeatureTracks();
 
     // Populate statistics.
     tracker_.checkStatusRightKeypoints(stereoFrame_k_->right_keypoints_status_);
@@ -494,8 +493,12 @@ void StereoVisionFrontEnd::displayFeatureTracks() const {
   ImageToDisplay tracker_image("Tracker Image", img_left);
   visualizer_output->images_to_display_.push_back(tracker_image);
   visualizer_output->visualization_type_ = VisualizationType::kNone;
-  CHECK(display_queue_);
-  display_queue_->push(std::move(visualizer_output));
+  if (display_queue_) {
+    display_queue_->push(std::move(visualizer_output));
+  } else {
+    LOG(ERROR) << "Requested displayFeatureTracks, but no display_queue_ is "
+                  "available.";
+  }
 }
 
 /* -------------------------------------------------------------------------- */
