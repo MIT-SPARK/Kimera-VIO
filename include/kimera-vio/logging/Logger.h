@@ -93,6 +93,7 @@ class BackendLogger {
 
   gtsam::Pose3 W_Pose_Bprevkf_vio_;
   double timing_loggerBackend_;
+  bool is_header_written_ = false;
 };
 
 class FrontendLogger {
@@ -122,6 +123,7 @@ class FrontendLogger {
   OfstreamWrapper output_frontend_ransac_mono_;
   OfstreamWrapper output_frontend_ransac_stereo_;
   std::string output_frontend_img_path_;
+  bool is_header_written_ = false;
 };
 
 class MesherLogger {
@@ -159,6 +161,7 @@ class MesherLogger {
 
  protected:
   std::string output_path_;
+  bool is_header_written_ = false;
 };
 
 class VisualizerLogger {
@@ -188,6 +191,7 @@ class VisualizerLogger {
   // Filenames to be saved in the output folder.
   OfstreamWrapper output_mesh_;
   OfstreamWrapper output_landmarks_;
+  bool is_header_written_ = false;
 };
 
 class PipelineLogger {
@@ -202,6 +206,7 @@ class PipelineLogger {
  private:
   // Filenames to be saved in the output folder.
   OfstreamWrapper output_pipeline_timing_;
+  bool is_header_written_ = false;
 };
 
 class LoopClosureDetectorLogger {
@@ -224,6 +229,7 @@ class LoopClosureDetectorLogger {
   OfstreamWrapper output_traj_;
   OfstreamWrapper output_status_;
   FrameIDTimestampMap ts_map_;
+  bool is_header_written_ = false;
 };
 
 }  // namespace VIO

@@ -119,11 +119,10 @@ void BackendLogger::logBackendResultsCSV(const BackendOutput& vio_output) {
   std::ofstream& output_stream = output_poses_vio_csv_.ofstream_;
 
   // First, write header, but only once.
-  static bool is_header_written = false;
-  if (!is_header_written) {
+  if (!is_header_written_) {
     output_stream << "#timestamp,x,y,z,qw,qx,qy,qz,vx,vy,vz,"
                   << "bgx,bgy,bgz,bax,bay,baz" << std::endl;
-    is_header_written = true;
+    is_header_written_ = true;
   }
   const auto& cached_state = vio_output.W_State_Blkf_;
   const auto& w_pose_blkf_trans = cached_state.pose_.translation().transpose();
@@ -155,14 +154,13 @@ void BackendLogger::logSmartFactorsStats(const BackendOutput& output) {
   std::ofstream& output_stream = output_smart_factors_stats_csv_.ofstream_;
 
   // First, write header, but only once.
-  static bool is_header_written = false;
-  if (!is_header_written) {
+  if (!is_header_written_) {
     output_stream << "#cur_kf_id,timestamp_kf,numSF,"
                   << "numValid,numDegenerate,numFarPoints,numOutliers,"
                   << "numCheirality,numNonInitialized,meanPixelError,"
                   << "maxPixelError,meanTrackLength,maxTrackLength,"
                   << "nrElementsInMatrix,nrZeroElementsInMatrix" << std::endl;
-    is_header_written = true;
+    is_header_written_ = true;
   }
 
   output_stream << output.cur_kf_id_ << "," << output.W_State_Blkf_.timestamp_
@@ -185,10 +183,9 @@ void BackendLogger::logBackendPimNavstates(const BackendOutput& output) {
   std::ofstream& output_stream = output_pim_navstates_csv_.ofstream_;
 
   // First, write header, but only once.
-  static bool is_header_written = false;
-  if (!is_header_written) {
+  if (!is_header_written_) {
     output_stream << "#timestamp_kf,x,y,z,qw,qx,qy,qz,vx,vy,vz" << std::endl;
-    is_header_written = true;
+    is_header_written_ = true;
   }
 
   const gtsam::Pose3& pose = output.debug_info_.navstate_k_.pose();
@@ -207,13 +204,12 @@ void BackendLogger::logBackendTiming(const BackendOutput& output) {
   std::ofstream& output_stream = output_backend_timing_csv_.ofstream_;
 
   // First, write header, but only once.
-  static bool is_header_written = false;
-  if (!is_header_written) {
+  if (!is_header_written_) {
     output_stream << "#cur_kf_id,factorsAndSlotsTime,preUpdateTime,"
                   << "updateTime,updateSlotTime,extraIterationsTime,"
                   << "linearizeTime,linearSolveTime,retractTime,"
                   << "linearizeMarginalizeTime,marginalizeTime" << std::endl;
-    is_header_written = true;
+    is_header_written_ = true;
   }
 
   // Log timing for benchmarking and performance profiling.
@@ -234,12 +230,11 @@ void BackendLogger::logBackendFactorsStats(const BackendOutput& output) {
   std::ofstream& output_stream = output_backend_factors_stats_csv_.ofstream_;
 
   // First, write header, but only once.
-  static bool is_header_written = false;
-  if (!is_header_written) {
+  if (!is_header_written_) {
     output_stream << "#cur_kf_id,numAddedSmartF,numAddedImuF,numAddedNoMotionF,"
                   << "numAddedConstantF,numAddedBetweenStereoF,state_size,"
                   << "landmark_count" << std::endl;
-    is_header_written = true;
+    is_header_written_ = true;
   }
 
   // Log timing for benchmarking and performance profiling.
@@ -305,7 +300,6 @@ void VisualizerLogger::logMesh(const cv::Mat& lmks,
   // Number of faces in the mesh.
   int faces_count = std::round(mesh.rows / 4);
   // First, write header, but only once.
-  static bool is_header_written = false;
   if (!is_header_written || !log_accumulated_mesh) {
     output_mesh_stream << "ply\n"
                        << "format ascii 1.0\n"
@@ -374,8 +368,7 @@ void FrontendLogger::logFrontendStats(
   // We log frontend results in csv format.
   std::ofstream& output_stream_stats = output_frontend_stats_.ofstream_;
 
-  static bool is_header_written = false;
-  if (!is_header_written) {
+  if (!is_header_written_) {
     output_stream_stats << "#timestamp_lkf,mono_status,stereo_status,"
                         << "nr_keypoints,nrDetectedFeatures,nrTrackerFeatures,"
                         << "nrMonoInliers,nrMonoPutatives,nrStereoInliers,"
@@ -386,7 +379,7 @@ void FrontendLogger::logFrontendStats(
                         << "monoRansacTime,stereoRansacTime,"
                         << "featureSelectionTime,extracted_corners,"
                         << "need_n_corners" << std::endl;
-    is_header_written = true;
+    is_header_written_ = true;
   }
 
   output_stream_stats
@@ -435,11 +428,10 @@ void FrontendLogger::logFrontendRansac(
   std::ofstream& output_stream_stereo =
       output_frontend_ransac_stereo_.ofstream_;
 
-  static bool is_header_written = false;
-  if (!is_header_written) {
+  if (!is_header_written_) {
     output_stream_mono << "#timestamp_lkf,x,y,z,qw,qx,qy,qz" << std::endl;
     output_stream_stereo << "#timestamp_lkf,x,y,z,qw,qx,qy,qz" << std::endl;
-    is_header_written = true;
+    is_header_written_ = true;
   }
 
   // Log relative mono poses; pose from previous keyframe to current keyframe,
@@ -526,11 +518,10 @@ void LoopClosureDetectorLogger::logLoopClosure(const LcdOutput& lcd_output) {
   // We log loop-closure results in csv format.
   std::ofstream& output_stream_lcd = output_lcd_.ofstream_;
 
-  static bool is_header_written = false;
-  if (!is_header_written) {
+  if (!is_header_written_) {
     output_stream_lcd << "#timestamp_kf,timestamp_query,timestamp_match,isLoop,"
                       << "matchKfId,queryKfId,x,y,z,qw,qx,qy,qz" << std::endl;
-    is_header_written = true;
+    is_header_written_ = true;
   }
 
   const gtsam::Point3& rel_trans = lcd_output.relative_pose_.translation();
@@ -579,13 +570,12 @@ void LoopClosureDetectorLogger::logDebugInfo(const LcdDebugInfo& debug_info) {
   // We log the loop-closure result of every key frame in csv format.
   std::ofstream& output_stream_status = output_status_.ofstream_;
 
-  static bool is_header_written = false;
-  if (!is_header_written) {
+  if (!is_header_written_) {
     output_stream_status << "#timestamp_kf,lcd_status,query_id,match_id,"
                          << "mono_input_size,mono_inliers,mono_iters,"
                          << "stereo_input_size,stereo_inliers,stereo_iters,"
                          << "pgo_size,pgo_lc_count,pgo_lc_inliers" << std::endl;
-    is_header_written = true;
+    is_header_written_ = true;
   }
 
   output_stream_status << debug_info.timestamp_ << ","
