@@ -48,32 +48,18 @@
 static constexpr int default_timeout = 100000;
 static constexpr int no_timeout = std::numeric_limits<int>::max();
 
+DECLARE_bool(images_rectified);
+
 /* ************************************************************************** */
 // Testing data
 static const double tol = 1e-7;
 
 class TestDataProviderModule : public ::testing::Test {
  public:
-  TestDataProviderModule() {  }
-
- protected:
-  VIO::StereoVisionFrontEndModule::InputQueue* output_queue_ = nullptr;
-  VIO::StereoVisionFrontEndModule::InputQueue* dummy_queue_ = nullptr;
-  VIO::DataProviderModule* data_provider_module_ = nullptr;
-  static constexpr size_t kImuTestBundleSize = 6;
-
-  void SetUp() override {
-    // Clean up again in case something went wrong last time
-    TearDown();
-
+  TestDataProviderModule() {  
     // Set google flags to assume image is already rectified--makes dummy params
     // easier
-    int fake_argc = 2;
-    char** fake_argv =
-        reinterpret_cast<char**>(malloc(sizeof(char*) * fake_argc));
-    fake_argv[0] = "foo";
-    fake_argv[1] = "--images_rectified";
-    google::ParseCommandLineFlags(&fake_argc, &fake_argv, true);
+    FLAGS_images_rectified = true;
 
     // Create the output queue
     output_queue_ = new VIO::StereoVisionFrontEndModule::InputQueue("output");
@@ -90,7 +76,7 @@ class TestDataProviderModule : public ::testing::Test {
         });
   }
 
-  void TearDown() override {
+  ~TestDataProviderModule() { 
     if (data_provider_module_ != nullptr) {
       data_provider_module_->shutdown();
       delete data_provider_module_;
@@ -104,15 +90,14 @@ class TestDataProviderModule : public ::testing::Test {
       delete output_queue_;
       output_queue_ = nullptr;
     }
-
-    // Reset google flags to defaults
-    int fake_argc = 2;
-    char** fake_argv =
-        reinterpret_cast<char**>(malloc(sizeof(char*) * fake_argc));
-    fake_argv[0] = "foo";
-    fake_argv[1] = "--noimages_rectified";
-    google::ParseCommandLineFlags(&fake_argc, &fake_argv, true);
-  }
+    
+    FLAGS_images_rectified = false;
+  } 
+ protected:
+  VIO::StereoVisionFrontEndModule::InputQueue* output_queue_;
+  VIO::StereoVisionFrontEndModule::InputQueue* dummy_queue_;
+  VIO::DataProviderModule* data_provider_module_;
+  static constexpr size_t kImuTestBundleSize = 6;
 
   VIO::Timestamp fillImuQueueN(const VIO::Timestamp& prev_timestamp,
                                size_t num_imu_to_make) {
