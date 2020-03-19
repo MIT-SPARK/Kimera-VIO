@@ -120,8 +120,6 @@ class EurocDataProvider : public DataProviderInterface {
     return iter->second.getNumImages();
   }
   inline std::string getImgName(const std::string& id, const size_t& k) const {
-    CHECK_GT(camera_names_.size(), 0u);
-    const std::string& camera_name = camera_names_.at(0);
     const auto& iter = camera_image_lists_.find(id);
     CHECK(iter != camera_image_lists_.end());
     return iter->second.img_lists_.at(k).second;

@@ -49,6 +49,7 @@ EurocDataProvider::EurocDataProvider(const std::string& dataset_path,
                                      const VioParams& vio_params)
     : DataProviderInterface(),
       dataset_path_(dataset_path),
+      current_k_(std::numeric_limits<FrameId>::max()),
       initial_k_(initial_k),
       final_k_(final_k),
       pipeline_params_(vio_params) {
@@ -111,16 +112,16 @@ bool EurocDataProvider::spin() {
 }
 
 bool EurocDataProvider::spinOnce() {
+  CHECK_LT(current_k_, std::numeric_limits<FrameId>::max())
+      << "Are you sure you've initialized current_k_?";
   if (current_k_ >= final_k_) {
     LOG(INFO) << "Finished spinning Euroc dataset.";
     return false;
   }
 
-  static const CameraParams& left_cam_info =
-      pipeline_params_.camera_params_.at(0);
-  static const CameraParams& right_cam_info =
-      pipeline_params_.camera_params_.at(1);
-  static const bool& equalize_image =
+  const CameraParams& left_cam_info = pipeline_params_.camera_params_.at(0);
+  const CameraParams& right_cam_info = pipeline_params_.camera_params_.at(1);
+  const bool& equalize_image =
       pipeline_params_.frontend_params_.stereo_matching_params_.equalize_image_;
 
   const Timestamp& timestamp_frame_k = timestampAtFrame(current_k_);
@@ -140,14 +141,14 @@ bool EurocDataProvider::spinOnce() {
                               UtilsOpenCV::ReadAndConvertToGrayScale(
                                   getLeftImgName(current_k_), equalize_image)));
   CHECK(right_frame_callback_);
-  right_frame_callback_(
-      VIO::make_unique<Frame>(current_k_,
-                              timestamp_frame_k,
-                              // TODO(Toni): this info should be passed to
-                              // the camera... not all the time here...
-                              right_cam_info,
-                              UtilsOpenCV::ReadAndConvertToGrayScale(
-                                  getRightImgName(current_k_), equalize_image)));
+  right_frame_callback_(VIO::make_unique<Frame>(
+      current_k_,
+      timestamp_frame_k,
+      // TODO(Toni): this info should be passed to
+      // the camera... not all the time here...
+      right_cam_info,
+      UtilsOpenCV::ReadAndConvertToGrayScale(getRightImgName(current_k_),
+                                             equalize_image)));
 
   // This is done directly when parsing the Imu data.
   // imu_single_callback_(imu_meas);
@@ -408,7 +409,8 @@ bool EurocDataProvider::parseDataset() {
   // CHECK(sanityCheckCameraData(camera_names_, &camera_image_lists_));
 
   // Parse Ground-Truth data.
-  static const std::string ground_truth_name = "state_groundtruth_estimate0";
+  static constexpr std::string ground_truth_name =
+      "state_groundtruth_estimate0";
   is_gt_available_ = parseGTdata(dataset_path_, ground_truth_name);
 
   clipFinalFrame();
