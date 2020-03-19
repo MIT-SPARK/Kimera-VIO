@@ -409,7 +409,7 @@ bool EurocDataProvider::parseDataset() {
   // CHECK(sanityCheckCameraData(camera_names_, &camera_image_lists_));
 
   // Parse Ground-Truth data.
-  static constexpr std::string ground_truth_name =
+  static const std::string ground_truth_name =
       "state_groundtruth_estimate0";
   is_gt_available_ = parseGTdata(dataset_path_, ground_truth_name);
 
