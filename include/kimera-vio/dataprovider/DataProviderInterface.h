@@ -52,8 +52,12 @@ class DataProviderInterface {
   /**
    * @brief shutdown Call if you want to explicitly stop the data provider.
    * This is thread-safe, since shutdown_ is an atomic bool.
+   * NOTE: this is only setting the shutdown_ flag to any class inheriting from
+   * this one will have to implement the logic around the usage of shutdown_!
+   * See example usage in other DataProvider classes.
+   * Other classes might want to override the simple behavior of shutdown();
    */
-  void shutdown();
+  virtual void shutdown();
 
   // Register a callback function for IMU data
   inline void registerImuSingleCallback(

@@ -26,7 +26,8 @@ namespace VIO {
 
 Tracker::Tracker(const FrontendParams& tracker_params,
                  const CameraParams& camera_params)
-    : tracker_params_(tracker_params),
+    : landmark_count_(0),
+      tracker_params_(tracker_params),
       camera_params_(camera_params),
       // Only for debugging and visualization:
       optical_flow_predictor_(nullptr),
@@ -86,15 +87,14 @@ void Tracker::featureDetection(Frame* cur_frame) {
   // TODO(Toni) Fix this loop, very unefficient. Use std::move over keypoints
   // with scores.
   // Counters.
-  static int landmark_count;  // incremental id assigned to new landmarks
   for (size_t i = 0; i < corners_with_scores.first.size(); i++) {
-    cur_frame->landmarks_.push_back(landmark_count);
+    cur_frame->landmarks_.push_back(landmark_count_);
     cur_frame->landmarks_age_.push_back(1);  // seen in a single (key)frame
     cur_frame->keypoints_.push_back(corners_with_scores.first.at(i));
     cur_frame->scores_.push_back(corners_with_scores.second.at(i));
     cur_frame->versors_.push_back(Frame::calibratePixel(
         corners_with_scores.first.at(i), cur_frame->cam_param_));
-    ++landmark_count;
+    ++landmark_count_;
   }
   VLOG(10) << "featureExtraction: frame " << cur_frame->id_
            << ",  Nr tracked keypoints: " << nrExistingKeypoints
@@ -336,12 +336,12 @@ void Tracker::featureTracking(Frame* ref_frame,
   }
 
   // Setup termination criteria for optical flow.
-  static cv::TermCriteria kTerminationCriteria(
-      cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
-      tracker_params_.klt_max_iter_,
-      tracker_params_.klt_eps_);
-  static cv::Size2i kKltWindowSize(tracker_params_.klt_win_size_,
-                                   tracker_params_.klt_win_size_);
+  const cv::TermCriteria kTerminationCriteria(
+        cv::TermCriteria::COUNT + cv::TermCriteria::EPS,
+        tracker_params_.klt_max_iter_,
+        tracker_params_.klt_eps_);
+  const cv::Size2i kKltWindowSize(tracker_params_.klt_win_size_,
+                                  tracker_params_.klt_win_size_);
 
   // Initialize to old locations
   LOG_IF(ERROR, px_ref.size() == 0u) << "No keypoints in reference frame!";

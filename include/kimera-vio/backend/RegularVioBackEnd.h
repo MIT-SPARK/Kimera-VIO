@@ -85,6 +85,7 @@ class RegularVioBackEnd : public VioBackEnd {
   // We need to make a shared queue with the MeshSegmenter which will push plane
   // hypothesis while the backend pulls them.
   std::vector<Plane> planes_;
+  size_t nr_of_planes_ = 0;
 
  private:
   /* ------------------------------------------------------------------------ */

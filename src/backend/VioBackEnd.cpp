@@ -200,7 +200,8 @@ void VioBackEnd::registerImuBiasUpdateCallback(
   // Update imu bias just in case. This is useful specially because the
   // backend initializes the imu bias to some value. So whoever is asking
   // to register this callback should have the newest imu bias.
-  imu_bias_update_callback(imu_bias_lkf_);
+  CHECK(imu_bias_update_callback_);
+  imu_bias_update_callback_(imu_bias_lkf_);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -213,10 +214,10 @@ void VioBackEnd::initStateAndSetPriors(
   imu_bias_lkf_ = vio_nav_state_initial_seed.imu_bias_;
   imu_bias_prev_kf_ = vio_nav_state_initial_seed.imu_bias_;
 
-  LOG(INFO) << "Initial state seed: \n"
-            << " - Initial pose: " << W_Pose_B_lkf_ << '\n'
-            << " - Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
-            << " - Initial IMU bias: " << imu_bias_lkf_;
+  VLOG(2) << "Initial state seed: \n"
+          << " - Initial pose: " << W_Pose_B_lkf_ << '\n'
+          << " - Initial vel: " << W_Vel_B_lkf_.transpose() << '\n'
+          << " - Initial IMU bias: " << imu_bias_lkf_;
 
   // Can't add inertial prior factor until we have a state measurement.
   addInitialPriorFactors(curr_kf_id_);
@@ -1236,17 +1237,16 @@ void VioBackEnd::updateSmoother(Smoother::Result* result,
   }
 
   if (FLAGS_process_cheirality) {
-    static size_t counter_of_exceptions = 0;
     if (got_cheirality_exception) {
       LOG(WARNING) << "Starting processing cheirality exception # "
-                   << counter_of_exceptions;
-      counter_of_exceptions++;
+                   << counter_of_exceptions_;
+      counter_of_exceptions_++;
 
       // Restore smoother as it was before failure.
       *smoother_ = smoother_backup;
 
       // Limit the number of cheirality exceptions per run.
-      CHECK_LE(counter_of_exceptions,
+      CHECK_LE(counter_of_exceptions_,
                FLAGS_max_number_of_cheirality_exceptions);
 
       // Check that we have a landmark.
@@ -1301,7 +1301,7 @@ void VioBackEnd::updateSmoother(Smoother::Result* result,
       LOG(WARNING) << "Finished updateSmoother after handling "
                       "cheirality exception";
     } else {
-      counter_of_exceptions = 0;
+      counter_of_exceptions_ = 0;
     }
   }
 }

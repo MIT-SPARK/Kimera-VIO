@@ -96,9 +96,9 @@ FrontendOutput::UniquePtr StereoVisionFrontEnd::spinOnce(
       << " Hz. (" << full_preint_duration << " us).";
 
   // On the left camera rectified!!
-  static const gtsam::Rot3 body_Rot_cam =
+  const gtsam::Rot3 body_Rot_cam =
       stereoFrame_km1_->getBPoseCamLRect().rotation();
-  static const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
+  const gtsam::Rot3 cam_Rot_body = body_Rot_cam.inverse();
 
   // Relative rotation of the left cam rectified from the last keyframe to the
   // curr frame. pim.deltaRij() corresponds to bodyLkf_R_bodyK_imu
