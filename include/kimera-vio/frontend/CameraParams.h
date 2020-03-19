@@ -59,17 +59,19 @@ class CameraParams : public PipelineParams {
         is_stereo_with_camera_ids_() {}
   virtual ~CameraParams() = default;
 
-  /* ------------------------------------------------------------------------ */
   // Parse YAML file describing camera parameters.
   virtual bool parseYAML(const std::string& filepath) override;
 
-  /* ------------------------------------------------------------------------ */
   // Display all params.
   virtual void print() const override;
 
-  /* ------------------------------------------------------------------------ */
   // Assert equality up to a tolerance.
-  bool equals(const CameraParams& cam_par, const double& tol = 1e-9) const;
+  bool equals(const CameraParams& cam_par,
+              const double& tol = 1e-9) const;
+  // Assert equality up to a tolerance.
+  bool equals(const PipelineParams& rhs) const override {
+    return equals(static_cast<const CameraParams&>(rhs), 1e-9);
+  }
 
  public:
   // Id of the camera

@@ -57,8 +57,10 @@ class OnlineAlignmentFixture : public ::testing::Test {
                                      const std::string& dataset_path) {
     int initial_k = 0;
     int final_k = 0;
+    VioParams vio_params ("");
+    vio_params.parallel_run_ = true;
     dataset_ = VIO::make_unique<EurocDataProvider>(
-        true, initial_k, final_k, dataset_path, "", "", "", "", "", "");
+                 dataset_path, initial_k, final_k, vio_params);
 
     // Get GT poses and IMU pims.
     Timestamp timestamp_last_frame;

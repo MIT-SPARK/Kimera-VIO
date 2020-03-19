@@ -47,18 +47,6 @@ find_package(KimeraRPGO REQUIRED)
 include(ExternalProject)
 
 ### Download and unzip the vocabularly file
-# TODO(marcus): cannot use this with 16.04 because cmake version is too low.
-# ExternalProject_Add(ORBvoc
-#     PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary
-#     URL http://www.dropbox.com/s/lyo0qgbdxn6eg6o/ORBvoc.zip?dl=1
-#     CONFIGURE_COMMAND ""
-#     BUILD_COMMAND ""
-#     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory
-#       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
-#       ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ &&
-#       ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/src/ORBvoc/
-# )
-
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.yml)
   message(STATUS "Downloading vocabulary file from dropbox.")
   file(DOWNLOAD
@@ -69,7 +57,7 @@ if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.yml)
        TIMEOUT 60)
   if(orbvoc_download_success)
     message(STATUS "Unzipping vocabulary file.")
-    
+
     execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/ORBvoc.zip
                             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/vocabulary/)
     message(STATUS "Moving vocabulary file.")
@@ -207,6 +195,8 @@ if(BUILD_TESTS)
   include(CTest)
   add_executable(testKimeraVIO
     tests/testKimeraVIO.cpp
+    tests/testPipeline.cpp
+    tests/testVioParams.cpp
     tests/testCameraParams.cpp
     tests/testCodesignIdeas.cpp
     tests/testDataProviderModule.cpp
@@ -215,6 +205,7 @@ if(BUILD_TESTS)
     tests/testGeneralParallelPlaneRegularBasicFactor.cpp
     tests/testGeneralParallelPlaneRegularTangentSpaceFactor.cpp
     tests/testImuFrontEnd.cpp
+    tests/testImuParams.cpp
     tests/testKittiDataProvider.cpp # TODO
     tests/testLoopClosureDetector.cpp
     tests/testLogger.cpp

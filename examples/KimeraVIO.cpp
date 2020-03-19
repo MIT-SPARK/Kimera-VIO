@@ -28,11 +28,12 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
-DEFINE_int32(dataset_type,
-             0,
-             "Type of parser to use:\n"
-             "0: EuRoC\n"
-             "1: Kitti");
+DEFINE_int32(dataset_type, 0, "Type of parser to use:\n "
+                              "0: Euroc \n 1: Kitti (not supported).");
+DEFINE_string(
+    params_folder_path,
+    "../params/Euroc",
+    "Path to the folder containing the yaml files with the VIO parameters.");
 
 int main(int argc, char* argv[]) {
   // Initialize Google's flags library.
@@ -41,7 +42,7 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
 
   // Parse VIO parameters from gflags.
-  VIO::VioParams vio_params(true);
+  VIO::VioParams vio_params(FLAGS_params_folder_path);
 
   // Build dataset parser.
   VIO::DataProviderInterface::UniquePtr dataset_parser = nullptr;
@@ -92,7 +93,7 @@ int main(int argc, char* argv[]) {
         std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
     auto handle_shutdown = std::async(std::launch::async,
                                       &VIO::Pipeline::shutdownWhenFinished,
-                                      &vio_pipeline);
+                                      &vio_pipeline, 500);
     vio_pipeline.spinViz();
     is_pipeline_successful = !handle.get();
     handle_shutdown.get();

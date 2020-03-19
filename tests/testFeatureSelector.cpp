@@ -37,8 +37,8 @@ using namespace VIO;
 using namespace cv;
 
 // default
-static const VioFrontEndParams trackerParams = VioFrontEndParams();
-VioBackEndParams vioParams = VioBackEndParams();
+static const FrontendParams trackerParams = FrontendParams();
+BackendParams vioParams = BackendParams();
 
 typedef PinholeCamera<Cal3_S2> Camera;
 typedef vector<Camera> Cameras;
@@ -232,12 +232,12 @@ TEST(FeatureSelector, DISABLED_createMatricesLinearImuFactor) {
   StampedPose spose1 =
       StampedPose(Pose3(Rot3::Ypr(M_PI, 0.1, 0.3), Point3(1, 10, 1)), 0.5);
 
-  VioFrontEndParams trackerParams2 = VioFrontEndParams();
+  FrontendParams trackerParams2 = FrontendParams();
   FeatureSelectorParams feature_select_params;
   // fake imu rate to make problem simpler
   feature_select_params.featureSelectionImuRate_ = 0.1;
 
-  VioBackEndParams vioParams2 = VioBackEndParams();
+  BackendParams vioParams2 = BackendParams();
   vioParams2.smartNoiseSigma_ = 1000;
 
   Matrix Ai_actual, imuCov;
@@ -632,7 +632,7 @@ GaussianFactorGraph::shared_ptr createOmegaBarTest() {
   featureSelectionData.keypointLife.push_back(3);
 
   // instantiate selector
-  VioBackEndParams vp = VioBackEndParams();
+  BackendParams vp = BackendParams();
   vp.smartNoiseSigma_ = 1000;
   FeatureSelector f(trackerParams, vp);
   Cameras left_cameras, right_cameras;
@@ -1071,7 +1071,7 @@ TEST(FeatureSelector, DISABLED_featureSelection) {
   cam_param.distortion_model_ = "radtan";
 
   // create feature selector
-  VioBackEndParams vp = VioBackEndParams();
+  BackendParams vp = BackendParams();
   vp.smartNoiseSigma_ = 1000;
   FeatureSelector f(trackerParams, vp);
   // TEST 1

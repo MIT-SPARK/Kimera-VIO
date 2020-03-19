@@ -76,68 +76,68 @@ class LoopClosureDetectorParams : public PipelineParams {
       int fast_threshold = 20,
 
       double pgo_rot_threshold = 0.01,
-      double pgo_trans_threshold = 0.1)
-      : PipelineParams("Loop Closure Parameters"),
-        image_width_(image_width),
-        image_height_(image_height),
-        focal_length_(focal_length),
-        principle_point_(principle_point),
-
-        use_nss_(use_nss),
-        alpha_(alpha),
-        min_temporal_matches_(min_temporal_matches),
-        dist_local_(dist_local),
-        max_db_results_(max_db_results),
-        min_nss_factor_(min_nss_factor),
-        min_matches_per_group_(min_matches_per_group),
-        max_intragroup_gap_(max_intragroup_gap),
-        max_distance_between_groups_(max_distance_between_groups),
-        max_distance_between_queries_(max_distance_between_queries),
-
-        geom_check_(geom_check),
-        min_correspondences_(min_correspondences),
-        max_ransac_iterations_mono_(max_ransac_iterations_mono),
-        ransac_probability_mono_(ransac_probability_mono),
-        ransac_threshold_mono_(ransac_threshold_mono),
-        ransac_randomize_mono_(ransac_randomize_mono),
-        ransac_inlier_threshold_mono_(ransac_inlier_threshold_mono),
-
-        pose_recovery_option_(pose_recovery_option),
-        max_ransac_iterations_stereo_(max_ransac_iterations_stereo),
-        ransac_probability_stereo_(ransac_probability_stereo),
-        ransac_threshold_stereo_(ransac_threshold_stereo),
-        ransac_randomize_stereo_(ransac_randomize_stereo),
-        ransac_inlier_threshold_stereo_(ransac_inlier_threshold_stereo),
-        use_mono_rot_(use_mono_rot),
-
-        lowe_ratio_(lowe_ratio),
-        matcher_type_(matcher_type),
-
-        nfeatures_(nfeatures),
-        scale_factor_(scale_factor),
-        nlevels_(nlevels),
-        edge_threshold_(edge_threshold),
-        first_level_(first_level),
-        WTA_K_(WTA_K),
-        score_type_(score_type),
-        patch_sze_(patch_sze),
-        fast_threshold_(fast_threshold),
-
-        pgo_rot_threshold_(pgo_rot_threshold),
-        pgo_trans_threshold_(pgo_trans_threshold) {
-    // Trivial sanity checks:
-    CHECK(alpha_ > 0);
-    CHECK(nfeatures_ >= 100);  // TODO(marcus): add more checks, change this one
-  }
+      double pgo_trans_threshold = 0.1);
 
  public:
   virtual ~LoopClosureDetectorParams() = default;
 
   // NOTE: we cannot parse width, height principe pt and focal length from here.
   // Those are done via setIntrinsics() in real time in the first StereoFrame.
-  virtual bool parseYAML(const std::string& filepath) override;
+  bool parseYAML(const std::string& filepath) override;
 
-  virtual void print() const override;
+  void print() const override;
+
+  bool equals(const PipelineParams& obj) const override {
+    const auto& rhs = static_cast<const LoopClosureDetectorParams&>(obj);
+    return
+      image_width_ == rhs.image_width_ &&
+      image_height_ == rhs.image_height_ &&
+      focal_length_ == rhs.focal_length_ &&
+      principle_point_ == rhs.principle_point_ &&
+
+      use_nss_ == rhs.use_nss_ &&
+      alpha_== rhs.alpha_ &&
+      min_temporal_matches_== rhs.min_temporal_matches_ &&
+      dist_local_== rhs.dist_local_ &&
+      max_db_results_== rhs.max_db_results_ &&
+      min_nss_factor_== rhs.min_nss_factor_ &&
+      min_matches_per_group_== rhs.min_matches_per_group_ &&
+      max_intragroup_gap_== rhs.max_intragroup_gap_ &&
+      max_distance_between_groups_== rhs.max_distance_between_groups_ &&
+      max_distance_between_queries_== rhs.max_distance_between_queries_ &&
+
+      geom_check_== rhs.geom_check_ &&
+      min_correspondences_== rhs.min_correspondences_ &&
+      max_ransac_iterations_mono_== rhs.max_ransac_iterations_mono_ &&
+      ransac_probability_mono_== rhs.ransac_probability_mono_ &&
+      ransac_threshold_mono_== rhs.ransac_threshold_mono_ &&
+      ransac_randomize_mono_== rhs.ransac_randomize_mono_ &&
+      ransac_inlier_threshold_mono_== rhs.ransac_inlier_threshold_mono_ &&
+
+      pose_recovery_option_== rhs.pose_recovery_option_ &&
+      max_ransac_iterations_stereo_== rhs.max_ransac_iterations_stereo_ &&
+      ransac_probability_stereo_== rhs.ransac_probability_stereo_ &&
+      ransac_threshold_stereo_== rhs.ransac_threshold_stereo_ &&
+      ransac_randomize_stereo_== rhs.ransac_randomize_stereo_ &&
+      ransac_inlier_threshold_stereo_== rhs.ransac_inlier_threshold_stereo_ &&
+      use_mono_rot_== rhs.use_mono_rot_ &&
+
+      lowe_ratio_== rhs.lowe_ratio_ &&
+      matcher_type_== rhs.matcher_type_ &&
+
+      nfeatures_== rhs.nfeatures_ &&
+      scale_factor_== rhs.scale_factor_ &&
+      nlevels_== rhs.nlevels_ &&
+      edge_threshold_== rhs.edge_threshold_ &&
+      first_level_== rhs.first_level_ &&
+      WTA_K_== rhs.WTA_K_ &&
+      score_type_== rhs.score_type_ &&
+      patch_sze_== rhs.patch_sze_ &&
+      fast_threshold_== rhs.fast_threshold_ &&
+
+      pgo_rot_threshold_== rhs.pgo_rot_threshold_ &&
+      pgo_trans_threshold_== rhs.pgo_trans_threshold_;
+  }
 
  public:
   /////////////////////////// Camera intrinsic Params //////////////////////////

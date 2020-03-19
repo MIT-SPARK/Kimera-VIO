@@ -31,8 +31,9 @@ struct ImuParams : public PipelineParams {
   virtual ~ImuParams() = default;
 
  public:
-  virtual bool parseYAML(const std::string& filepath) override;
-  virtual void print() const override;
+  bool parseYAML(const std::string& filepath) override;
+  void print() const override;
+  bool equals(const PipelineParams& obj) const override;
 
  public:
   ImuPreintegrationType imu_preintegration_type_ =

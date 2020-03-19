@@ -65,7 +65,7 @@ namespace VIO {
 /* -------------------------------------------------------------------------- */
 VioBackEnd::VioBackEnd(const Pose3& B_Pose_leftCam,
                        const StereoCalibPtr& stereo_calibration,
-                       const VioBackEndParams& backend_params,
+                       const BackendParams& backend_params,
                        const ImuParams& imu_params,
                        const BackendOutputParams& backend_output_params,
                        bool log_output)
@@ -1438,7 +1438,7 @@ void VioBackEnd::updateNewSmartFactorsSlots(
 /* --------------------------------------------------------------------------
  */
 // Set parameters for ISAM 2 incremental smoother.
-void VioBackEnd::setIsam2Params(const VioBackEndParams& vio_params,
+void VioBackEnd::setIsam2Params(const BackendParams& vio_params,
                                 gtsam::ISAM2Params* isam_param) {
   CHECK_NOTNULL(isam_param);
   // iSAM2 SETTINGS
@@ -1490,7 +1490,7 @@ void VioBackEnd::setIsam2Params(const VioBackEndParams& vio_params,
  */
 // Set parameters for all the factors.
 void VioBackEnd::setFactorsParams(
-    const VioBackEndParams& vio_params,
+    const BackendParams& vio_params,
     gtsam::SharedNoiseModel* smart_noise,
     gtsam::SmartStereoProjectionParams* smart_factors_params,
     gtsam::SharedNoiseModel* no_motion_prior_noise,

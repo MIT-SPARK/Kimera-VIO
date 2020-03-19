@@ -85,21 +85,24 @@ EurocDataProvider::~EurocDataProvider() {
 /* -------------------------------------------------------------------------- */
 bool EurocDataProvider::spin() {
   // Parse the actual dataset first, then run it.
-  static bool dataset_parsed = false;
-  if (!shutdown_ && !dataset_parsed) {
+  if (!shutdown_ && !dataset_parsed_) {
     // Ideally we would parse at the ctor level, but the IMU callback needs
     // to be registered first.
     parse();
-    dataset_parsed = true;
+    dataset_parsed_ = true;
   }
 
-  // Spin.
-  CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
-  CHECK_GT(final_k_, initial_k_);
-  while (!shutdown_ && spinOnce()) {
-    if (!pipeline_params_.parallel_run_) {
-      return true;
+  if (dataset_parsed_) {
+    // Spin.
+    CHECK_EQ(pipeline_params_.camera_params_.size(), 2u);
+    CHECK_GT(final_k_, initial_k_);
+    while (!shutdown_ && spinOnce()) {
+      if (!pipeline_params_.parallel_run_) {
+        return true;
+      }
     }
+  } else {
+    LOG(ERROR) << "Euroc dataset was not parsed.";
   }
   LOG_IF(INFO, shutdown_) << "EurocDataProvider shutdown requested.";
   return false;
@@ -631,9 +634,12 @@ const InitializationPerformance EurocDataProvider::getInitializationPerformance(
 
 /* -------------------------------------------------------------------------- */
 Timestamp EurocDataProvider::timestampAtFrame(const FrameId& frame_number) {
-  DCHECK_LT(frame_number,
-            camera_image_lists_[camera_names_[0]].img_lists_.size());
-  return camera_image_lists_[camera_names_[0]].img_lists_[frame_number].first;
+  CHECK_GT(camera_names_.size(), 0);
+  CHECK_LT(frame_number,
+           camera_image_lists_.at(camera_names_[0]).img_lists_.size());
+  return camera_image_lists_.at(camera_names_[0])
+      .img_lists_[frame_number]
+      .first;
 }
 
 void EurocDataProvider::clipFinalFrame() {

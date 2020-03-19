@@ -48,11 +48,11 @@ class Tracker {
    * @param tracker_params Parameters for feature tracking
    * @param camera_params Parameters for the camera used for tracking.
    */
-  Tracker(const VioFrontEndParams& tracker_params,
+  Tracker(const FrontendParams& tracker_params,
           const CameraParams& camera_params);
 
   // Tracker parameters.
-  const VioFrontEndParams tracker_params_;
+  const FrontendParams tracker_params_;
 
   // Mask for features.
   cv::Mat cam_mask_;

@@ -101,8 +101,8 @@ public:
   bool useSuccessProbabilities_;
 
   // Constructor.
-  FeatureSelector(const VioFrontEndParams& trackerParams = VioFrontEndParams(),
-                  const VioBackEndParams& vioParams = VioBackEndParams(),
+  FeatureSelector(const FrontendParams& trackerParams = FrontendParams(),
+                  const BackendParams& vioParams = BackendParams(),
                   const FeatureSelectorParams& feature_select_params =
                       FeatureSelectorParams());
 

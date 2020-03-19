@@ -29,29 +29,11 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-DEFINE_bool(parallel_run, true, "Run VIO parallel or sequential");
-DEFINE_string(params_folder_path,
-              "../params/Euroc",
-              "Path to the folder containing yaml parameters.");
-DEFINE_int32(backend_type,
-             0,
-             "Type of vioBackEnd to use:\n"
-             "0: VioBackEnd\n"
-             "1: RegularVioBackEnd");
-DEFINE_int32(frontend_type,
-             0,
-             "Type of VIO Frontend to use:\n"
-             "0: StereoImu");
-
 namespace VIO {
 
-VioParams::VioParams(const bool& use_gflags)
-    : VioParams(use_gflags ? static_cast<FrontendType>(FLAGS_frontend_type)
-                           : FrontendType::kStereoImu,
-                use_gflags ? static_cast<BackendType>(FLAGS_backend_type)
-                           : BackendType::kStereoImu,
-                use_gflags ? FLAGS_parallel_run : true,
-                use_gflags ? FLAGS_params_folder_path : "",
+VioParams::VioParams(const std::string& params_folder_path)
+    : VioParams(params_folder_path,
+                "PipelineParams.yaml",
                 "ImuParams.yaml",
                 "LeftCameraParams.yaml",
                 "RightCameraParams.yaml",
@@ -59,10 +41,8 @@ VioParams::VioParams(const bool& use_gflags)
                 "BackendParams.yaml",
                 "LcdParams.yaml") {}
 
-VioParams::VioParams(const FrontendType& frontend_type,
-                     const BackendType& backend_type,
-                     const bool& parallel_run,
-                     const std::string& params_folder_path,
+VioParams::VioParams(const std::string& params_folder_path,
+                     const std::string& pipeline_params_filename,
                      const std::string& imu_params_filename,
                      const std::string& left_cam_params_filename,
                      const std::string& right_cam_params_filename,
@@ -74,12 +54,13 @@ VioParams::VioParams(const FrontendType& frontend_type,
       imu_params_(),
       camera_params_(),
       frontend_params_(),
-      backend_params_(),
+      backend_params_(std::make_shared<BackendParams>()),
       lcd_params_(),
-      frontend_type_(frontend_type),
-      backend_type_(backend_type),
-      parallel_run_(parallel_run),
+      frontend_type_(FrontendType::kStereoImu),
+      backend_type_(BackendType::kStructuralRegularities),
+      parallel_run_(true),
       // Filepaths, keep defaults unless you changed file names.
+      pipeline_params_filename_(pipeline_params_filename),
       imu_params_filename_(imu_params_filename),
       left_cam_params_filename_(left_cam_params_filename),
       right_cam_params_filename_(right_cam_params_filename),
@@ -96,6 +77,16 @@ VioParams::VioParams(const FrontendType& frontend_type,
 }
 
 bool VioParams::parseYAML(const std::string& folder_path) {
+  // Create a parser for pipeline params.
+  YamlParser yaml_parser(folder_path + '/' + pipeline_params_filename_);
+  int backend_type;
+  yaml_parser.getYamlParam("backend_type", &backend_type);
+  backend_type_ = static_cast<BackendType>(backend_type);
+  int frontend_type;
+  yaml_parser.getYamlParam("frontend_type", &frontend_type);
+  frontend_type_ = static_cast<FrontendType>(frontend_type);
+  yaml_parser.getYamlParam("parallel_run", &parallel_run_);
+
   // Parse IMU params
   parsePipelineParams(folder_path + '/' + imu_params_filename_, &imu_params_);
 
@@ -108,7 +99,7 @@ bool VioParams::parseYAML(const std::string& folder_path) {
   // Parse backend params, needs a bit of help with backend_type
   switch (backend_type_) {
     case BackendType::kStereoImu: {
-      backend_params_ = std::make_shared<VioBackEndParams>();
+      backend_params_ = std::make_shared<BackendParams>();
       break;
     }
     case BackendType::kStructuralRegularities: {

@@ -179,6 +179,9 @@ class EurocDataProvider : public DataProviderInterface {
   FrameId initial_k_;  // start frame
   FrameId final_k_;    // end frame
 
+  //! Flag to signal when the dataset has been parsed.
+  bool dataset_parsed_ = false;
+
   const std::string kLeftCamName = "cam0";
   const std::string kRightCamName = "cam1";
   const std::string kImuName = "imu0";

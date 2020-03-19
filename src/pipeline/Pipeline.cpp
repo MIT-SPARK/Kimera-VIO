@@ -358,14 +358,13 @@ void Pipeline::spinSequential() {
 
 // TODO(Toni): Adapt this function to be able to cope with new initialization
 /* -------------------------------------------------------------------------- */
-bool Pipeline::shutdownWhenFinished() {
+bool Pipeline::shutdownWhenFinished(const int& sleep_time_ms) {
   // This is a very rough way of knowing if we have finished...
   // Since threads might be in the middle of processing data while we
   // query if the queues are empty.
   // Check every 0.5 seconds if all queues are empty.
   // Time to sleep between queries to the queues [in milliseconds].
   LOG(INFO) << "Shutting down VIO pipeline once processing has finished.";
-  static constexpr int sleep_time_ms = 500;
 
   bool lcd_and_lcd_input_finished = true;
   if (lcd_module_) {
@@ -387,7 +386,7 @@ bool Pipeline::shutdownWhenFinished() {
             (lcd_module_ ? !lcd_module_->isWorking() : true) &&
             (visualizer_module_ ? !visualizer_module_->isWorking() : true) &&
             (display_module_ ? !display_module_->isWorking() : true)))) {
-    VLOG(5) << "shutdown_: " << shutdown_ << '\n'
+    LOG(ERROR) << "shutdown_: " << shutdown_ << '\n'
             << "VIO pipeline status: \n"
             << "Initialized? " << is_initialized_ << '\n'
             << "Data provider is working? "
@@ -660,7 +659,7 @@ bool Pipeline::initializeOnline(
 
       // Adjust parameters for Bundle Adjustment
       // TODO(Sandro): Create YAML file for initialization and read in!
-      VioBackEndParams backend_params_init(*backend_params_);
+      BackendParams backend_params_init(*backend_params_);
       backend_params_init.smartNoiseSigma_ =
           FLAGS_smart_noise_sigma_bundle_adjustment;
       backend_params_init.outlierRejection_ =
@@ -724,7 +723,7 @@ bool Pipeline::initializeOnline(
 
 /* -------------------------------------------------------------------------- */
 StatusStereoMeasurements Pipeline::featureSelect(
-    const VioFrontEndParams& tracker_params,
+    const FrontendParams& tracker_params,
     const FeatureSelectorParams& feature_selector_params,
     const Timestamp& timestamp_k,
     const Timestamp& timestamp_lkf,

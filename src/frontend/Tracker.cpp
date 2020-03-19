@@ -24,7 +24,7 @@
 
 namespace VIO {
 
-Tracker::Tracker(const VioFrontEndParams& tracker_params,
+Tracker::Tracker(const FrontendParams& tracker_params,
                  const CameraParams& camera_params)
     : tracker_params_(tracker_params),
       camera_params_(camera_params),
