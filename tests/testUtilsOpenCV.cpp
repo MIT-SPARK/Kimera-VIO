@@ -226,8 +226,15 @@ TEST_F(UtilsOpenCVFixture, Cvmat2rot) {
 /* ************************************************************************** */
 TEST(testUtilsOpenCV, Cvmat2Cal3S2) {
   // input CV Mat from MH_easy_01/cam0 (modified)
-  Mat M = (cv::Mat_<double>(3, 3) << 458.654, 0.01, 367.215, 0, 457.296,
-           248.375, 0, 0, 1);
+  Mat M = (cv::Mat_<double>(3, 3) << 458.654,
+           0.01,
+           367.215,
+           0,
+           457.296,
+           248.375,
+           0,
+           0,
+           1);
   // Expected output
   Cal3_S2 cal_expected(458.654, 457.296, 0.01, 367.215, 248.375);
   // Actual output
@@ -238,8 +245,15 @@ TEST(testUtilsOpenCV, Cvmat2Cal3S2) {
 /* ************************************************************************** */
 TEST(testUtilsOpenCV, Cal3S2ToCvmat) {
   // Expected output
-  Mat M = (cv::Mat_<double>(3, 3) << 458.654, 0.01, 367.215, 0, 457.296,
-           248.375, 0, 0, 1);
+  Mat M = (cv::Mat_<double>(3, 3) << 458.654,
+           0.01,
+           367.215,
+           0,
+           457.296,
+           248.375,
+           0,
+           0,
+           1);
   // actual output
   Cal3_S2 cal_expected(458.654, 457.296, 0.01, 367.215, 248.375);
   Mat Mactual = UtilsOpenCV::Cal3_S2ToCvmat(cal_expected);
@@ -570,10 +584,10 @@ TEST_F(UtilsOpenCVFixture, computeRTErrors_upToScale) {
 TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
   // original image is already gray, hence it remains the same
   {
-    Mat chessboardImg;
-    vector<KeypointCV> keypoints_expected;
-    tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
-    Mat chessboardImgGray =
+    cv::Mat chessboardImg;
+    std::vector<KeypointCV> keypoints_expected;
+    std::tie(chessboardImg, keypoints_expected) = cvCreateChessboard(30, 10, 8);
+    cv::Mat chessboardImgGray =
         UtilsOpenCV::ReadAndConvertToGrayScale("chessboard.png");
     EXPECT_EQ(chessboardImgGray.channels(), 1);
     EXPECT_TRUE(
@@ -581,22 +595,22 @@ TEST_F(UtilsOpenCVFixture, ReadAndConvertToGrayScale) {
   }
   // original image is in color and it is converted to gray
   {
-    Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
-        string(FLAGS_test_data_path) + "lena.png");
-    imwrite("lenaGrayScale.png", imageGray);
-    EXPECT_EQ(imageGray.channels(), 1);
+    cv::Mat img_gray = UtilsOpenCV::ReadAndConvertToGrayScale(
+        FLAGS_test_data_path + "/lena.png");
+    cv::imwrite("lenaGrayScale.png", img_gray);
+    EXPECT_EQ(img_gray.channels(), 1);
     // we read gray image we just wrote and make sure it is ok
-    Mat imgGrayWritten = imread("lenaGrayScale.png", IMREAD_ANYCOLOR);
-    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(imageGray, imgGrayWritten));
+    cv::Mat img_gray_written = imread("lenaGrayScale.png", IMREAD_ANYCOLOR);
+    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img_gray, img_gray_written));
   }
   // original image is already gray, hence it remains the same
   {
-    Mat img =
-        imread(string(FLAGS_test_data_path) + "testImage.png", IMREAD_ANYCOLOR);
-    Mat imageGray = UtilsOpenCV::ReadAndConvertToGrayScale(
-        string(FLAGS_test_data_path) + "testImage.png");
-    EXPECT_EQ(imageGray.channels(), 1);
-    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img, imageGray));
+    cv::Mat img =
+        cv::imread(FLAGS_test_data_path + "/testImage.png", IMREAD_ANYCOLOR);
+    cv::Mat img_gray = UtilsOpenCV::ReadAndConvertToGrayScale(
+        FLAGS_test_data_path + "/testImage.png");
+    EXPECT_EQ(img_gray.channels(), 1);
+    EXPECT_TRUE(UtilsOpenCV::compareCvMatsUpToTol(img, img_gray));
   }
 }
 
@@ -666,13 +680,14 @@ TEST_F(UtilsOpenCVFixture, ExtractCornersImage) {
 
   EXPECT_NEAR(corners_with_scores.first.size(), actualCorners2.size(), 1e-3);
   EXPECT_NEAR(corners_with_scores.first.size(),
-              corners_with_scores.second.size(), 1e-3);
+              corners_with_scores.second.size(),
+              1e-3);
 
   for (size_t i = 0; i < actualCorners2.size(); ++i) {
-    EXPECT_NEAR(corners_with_scores.first.at(i).x, actualCorners2.at(i).x,
-                1e-3);
-    EXPECT_NEAR(corners_with_scores.first.at(i).y, actualCorners2.at(i).y,
-                1e-3);
+    EXPECT_NEAR(
+        corners_with_scores.first.at(i).x, actualCorners2.at(i).x, 1e-3);
+    EXPECT_NEAR(
+        corners_with_scores.first.at(i).y, actualCorners2.at(i).y, 1e-3);
     if (i < actualCorners2.size() - 1) {
       EXPECT_LE(
           corners_with_scores.second.at(i + 1),
