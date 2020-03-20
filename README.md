@@ -30,7 +30,7 @@ We kindly ask to cite our paper if you find this library useful:
   @InProceedings{Rosinol19icra-Kimera,
      title = {Kimera: an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping},
      author = {Rosinol, Antoni and Abate, Marcus and Chang, Yun and Carlone, Luca},
-     year = {2019},
+     year = {2020},
      booktitle = {IEEE Intl. Conf. on Robotics and Automation (ICRA)},
      url = {https://github.com/MIT-SPARK/Kimera},
      pdf = {https://arxiv.org/pdf/1910.02490.pdf}
