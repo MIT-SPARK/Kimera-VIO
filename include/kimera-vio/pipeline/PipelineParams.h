@@ -17,12 +17,13 @@ namespace VIO {
 /**
  * @brief The PipelineParams base class
  * Sets a common base class for parameters of the pipeline
- * for easy parsing/printing.
+ * for easy parsing/printing. All parameters in VIO should inherit from
+ * this class and implement the print/parseYAML virtual functions.
  */
 class PipelineParams {
  public:
   KIMERA_POINTER_TYPEDEFS(PipelineParams);
-  PipelineParams(const std::string& name);
+  explicit PipelineParams(const std::string& name);
   virtual ~PipelineParams() = default;
 
  public:
@@ -32,9 +33,28 @@ class PipelineParams {
   // Parameters of the pipeline must specify how to be printed.
   virtual void print() const = 0;
 
+  // Parameters of the pipeline must specify how to be compard, they need
+  // to implement the equals function below.
+  friend bool operator==(const PipelineParams& lhs, const PipelineParams& rhs);
+  friend bool operator!=(const PipelineParams& lhs, const PipelineParams& rhs);
+
+ protected:
+  // Parameters of the pipeline must specify how to be compared.
+  virtual bool equals(const PipelineParams& obj) const = 0;
+
  public:
   std::string name_;
 };
+
+inline bool operator==(const PipelineParams& lhs, const PipelineParams& rhs) {
+  // Allow to compare only instances of the same dynamic type
+  return typeid(lhs) == typeid(rhs) &&
+      lhs.name_ == rhs.name_ &&
+      lhs.equals(rhs);
+}
+inline bool operator!=(const PipelineParams& lhs, const PipelineParams& rhs) {
+  return !(lhs == rhs);
+}
 
 template <class T>
 static void parsePipelineParams(const std::string& params_path,

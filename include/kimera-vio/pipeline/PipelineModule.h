@@ -65,15 +65,16 @@ class PipelineModuleBase {
     LOG_IF(WARNING, shutdown_)
         << "Module: " << name_id_
         << " - Shutdown requested, but was already shutdown.";
+    VLOG(1) << "Stopping module " << name_id_ << " and its queues...";
     shutdownQueues();
-    LOG(INFO) << "Module: " << name_id_ << " - Shutting down.";
+    VLOG(1) << "Module: " << name_id_ << " - Shutting down.";
     shutdown_ = true;
   }
 
   /* ------------------------------------------------------------------------ */
   inline void restart() {
-    LOG(INFO) << "Module: " << name_id_
-              << " - Resetting shutdown flag to false";
+    VLOG(1) << "Module: " << name_id_
+            << " - Resetting shutdown flag to false";
     shutdown_ = false;
   }
 
@@ -149,7 +150,7 @@ class PipelineModule : public PipelineModuleBase {
       : PipelineModuleBase(name_id, parallel_run) {}
 
   virtual ~PipelineModule() {
-    LOG(INFO) << name_id_ + " destructor called.";
+    VLOG(1) << name_id_ + " destructor called.";
   }
 
   /**
@@ -163,7 +164,7 @@ class PipelineModule : public PipelineModuleBase {
    * it returns false.
    */
   bool spin() override {
-    LOG_IF(INFO, parallel_run_) << "Module: " << name_id_ << " - Spinning.";
+    VLOG_IF(1, parallel_run_) << "Module: " << name_id_ << " - Spinning.";
     utils::StatsCollector timing_stats(name_id_ + " [ms]");
     while (!shutdown_) {
       // Get input data from queue by waiting for payload.
@@ -202,7 +203,7 @@ class PipelineModule : public PipelineModuleBase {
       }
     }
     is_thread_working_ = false;
-    LOG(INFO) << "Module: " << name_id_ << " - Successful shutdown.";
+    VLOG(1) << "Module: " << name_id_ << " - Successful shutdown.";
     return false;
   }
 
@@ -380,7 +381,9 @@ class SIMOPipelineModule : public MIMOPipelineModule<Input, Output> {
   void shutdownQueues() override { input_queue_->shutdown(); }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  bool hasWork() const override { return !input_queue_->empty(); }
+  bool hasWork() const override {
+    return !input_queue_->isShutdown() && !input_queue_->empty();
+  }
 
  private:
   //! Input
@@ -529,7 +532,9 @@ class SISOPipelineModule : public MISOPipelineModule<Input, Output> {
   }
 
   //! Checks if the module has work to do (should check input queues are empty)
-  bool hasWork() const override { return !input_queue_->empty(); }
+  bool hasWork() const override {
+    return !input_queue_->isShutdown() && !input_queue_->empty();
+  }
 
  private:
   //! Input

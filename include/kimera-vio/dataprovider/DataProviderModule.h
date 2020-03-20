@@ -60,11 +60,11 @@ class DataProviderModule
   }
 
   //! Callbacks to fill queues: they should be all lighting fast.
-  inline void fillLeftFrameQueue(Frame::UniquePtr&& left_frame) {
+  inline void fillLeftFrameQueue(Frame::UniquePtr left_frame) {
     CHECK(left_frame);
     left_frame_queue_.push(std::move(left_frame));
   }
-  inline void fillRightFrameQueue(Frame::UniquePtr&& right_frame) {
+  inline void fillRightFrameQueue(Frame::UniquePtr right_frame) {
     CHECK(right_frame);
     right_frame_queue_.push(std::move(right_frame));
   }
@@ -120,8 +120,8 @@ class DataProviderModule
   ImuData imu_data_;
   ThreadsafeQueue<Frame::UniquePtr> left_frame_queue_;
   ThreadsafeQueue<Frame::UniquePtr> right_frame_queue_;
-  static constexpr Timestamp kNoFrameYet = 0;
-  Timestamp timestamp_last_frame;
+  const Timestamp kNoFrameYet = 0;
+  Timestamp timestamp_last_frame_;
   // TODO(Toni): remove these below
   StereoMatchingParams stereo_matching_params_;
   VioPipelineCallback vio_pipeline_callback_;

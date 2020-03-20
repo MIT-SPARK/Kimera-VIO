@@ -88,7 +88,7 @@ class TestTracker : public ::testing::Test {
                   cam_params_left,
                   UtilsOpenCV::ReadAndConvertToGrayScale(img_name_cur_left));
 
-    VioFrontEndParams tp;
+    FrontendParams tp;
 
     ref_stereo_frame = new StereoFrame(
         id_ref,
@@ -525,7 +525,7 @@ class TestTracker : public ::testing::Test {
 
  protected:
   // Perform Ransac
-  VioFrontEndParams tracker_params_;
+  FrontendParams tracker_params_;
   std::unique_ptr<Tracker> tracker_;
 };
 
@@ -596,7 +596,7 @@ TEST_F(TestTracker, geometricOutlierRejectionMono) {
       }
 
       // Perform Ransac
-      VioFrontEndParams trackerParams = VioFrontEndParams();
+      FrontendParams trackerParams = FrontendParams();
       trackerParams.ransac_max_iterations_ = 1000;
       // trackerParams.ransac_probability_ = 0.8;
       trackerParams.ransac_randomize_ = false;
@@ -787,7 +787,7 @@ TEST_F(TestTracker, geometricOutlierRejectionStereo) {
         AddNoiseToStereoFrame(cur_stereo_frame, noise_sigma);
       }
 
-      VioFrontEndParams trackerParams;
+      FrontendParams trackerParams;
       trackerParams.ransac_threshold_stereo_ = 0.3;
       Tracker tracker(trackerParams, CameraParams());
       TrackingStatus tracking_status;

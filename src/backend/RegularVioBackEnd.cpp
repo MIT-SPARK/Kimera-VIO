@@ -99,7 +99,7 @@ namespace VIO {
 RegularVioBackEnd::RegularVioBackEnd(
     const Pose3& B_Pose_leftCam,
     const StereoCalibPtr& stereo_calibration,
-    const VioBackEndParams& backend_params,
+    const BackendParams& backend_params,
     const ImuParams& imu_params,
     const BackendOutputParams& backend_output_params,
     const bool& log_output)
@@ -363,14 +363,13 @@ void RegularVioBackEnd::addVisualInertialStateAndOptimize(
 
   // Sanity check: ensure no one is removing planes outside
   // updatePlaneEstimates.
-  static size_t nr_of_planes = 0;
-  CHECK_LE(nr_of_planes, planes_.size());
+  CHECK_LE(nr_of_planes_, planes_.size());
 
   // Update estimates of planes, and remove planes that are not in the state.
   VLOG(10) << "Starting updatePlaneEstimates...";
   updatePlaneEstimates(&planes_);
   VLOG(10) << "Finished updatePlaneEstimates.";
-  nr_of_planes = planes_.size();
+  nr_of_planes_ = planes_.size();
 
   // Reset list of factors to delete.
   // These are the smart factors that have been converted to projection factors

@@ -38,7 +38,7 @@ TEST(testVioFrontEndParams, TrackerParamParseYAML) {
   // check that YAML is parsed correctly
 
   // Test parseYAML
-  VioFrontEndParams tp;
+  FrontendParams tp;
   tp.parseYAML(FLAGS_test_data_path + "/ForTracker/trackerParameters.yaml");
 
   // Compare results!
@@ -85,6 +85,6 @@ TEST(testVioFrontEndParams, TrackerParamParseYAML) {
 
 /* ************************************************************************** */
 TEST(testVioFrontEndParams, equals) {
-  VioFrontEndParams tp = VioFrontEndParams();
+  FrontendParams tp = FrontendParams();
   EXPECT_TRUE(tp.equals(tp));
 }

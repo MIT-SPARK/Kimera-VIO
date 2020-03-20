@@ -18,24 +18,24 @@
 
 namespace VIO {
 
-VioBackEndParams::VioBackEndParams() : PipelineParams("Backend Parameters") {
+BackendParams::BackendParams() : PipelineParams("Backend Parameters") {
   // Trivial sanity checks.
   CHECK_GE(horizon_, 0);
   CHECK_GE(numOptimize_, 0);
 }
 
-bool VioBackEndParams::equals(const VioBackEndParams& vp2, double tol) const {
+bool BackendParams::equals(const BackendParams& vp2, double tol) const {
   return equalsVioBackEndParams(vp2, tol);
 }
 
-void VioBackEndParams::print() const { printVioBackEndParams(); }
+void BackendParams::print() const { printVioBackEndParams(); }
 
-bool VioBackEndParams::parseYAML(const std::string& filepath) {
+bool BackendParams::parseYAML(const std::string& filepath) {
   YamlParser yaml_parser(filepath);
   return parseYAMLVioBackEndParams(yaml_parser);
 }
 
-bool VioBackEndParams::parseYAMLVioBackEndParams(
+bool BackendParams::parseYAMLVioBackEndParams(
     const YamlParser& yaml_parser) {
   // INITIALIZATION
   yaml_parser.getYamlParam("autoInitialize", &autoInitialize_);
@@ -111,7 +111,7 @@ bool VioBackEndParams::parseYAMLVioBackEndParams(
   return true;
 }
 
-bool VioBackEndParams::equalsVioBackEndParams(const VioBackEndParams& vp2,
+bool BackendParams::equalsVioBackEndParams(const BackendParams& vp2,
                                               double tol) const {
   return
       // INITIALIZATION
@@ -150,7 +150,7 @@ bool VioBackEndParams::equalsVioBackEndParams(const VioBackEndParams& vp2,
       (useDogLeg_ == vp2.useDogLeg_);
 }
 
-void VioBackEndParams::printVioBackEndParams() const {
+void BackendParams::printVioBackEndParams() const {
   LOG(INFO) << "$$$$$$$$$$$$$$$$$$$$$ VIO PARAMETERS $$$$$$$$$$$$$$$$$$$$$\n"
             << "** INITIALIZATION parameters **\n"
             << "autoInitialize_: " << autoInitialize_ << '\n'

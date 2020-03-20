@@ -30,7 +30,7 @@ DataProviderModule::DataProviderModule(
       left_frame_queue_("data_provider_left_frame_queue"),
       right_frame_queue_("data_provider_right_frame_queue"),
       stereo_matching_params_(stereo_matching_params),
-      timestamp_last_frame(kNoFrameYet) {}
+      timestamp_last_frame_(kNoFrameYet) {}
 
 DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   // Look for a left frame inside the queue.
@@ -64,23 +64,26 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
   }
 
   // Extract imu measurements between consecutive frames.
-  if (timestamp_last_frame == kNoFrameYet) {
+  if (timestamp_last_frame_ == kNoFrameYet) {
     // TODO(Toni): wouldn't it be better to get all IMU measurements up to this
     // timestamp? We should add a method to the IMU buffer for that.
     VLOG(1) << "Skipping first frame, because we do not have a concept of "
                "a previous frame timestamp otherwise.";
-    timestamp_last_frame = timestamp;
+    timestamp_last_frame_ = timestamp;
     return nullptr;
   }
 
   ImuMeasurements imu_meas;
-  CHECK_LT(timestamp_last_frame, timestamp);
+  CHECK_LT(timestamp_last_frame_, timestamp)
+      << "Timestamps out of order:\n"
+      << " - Last Frame Timestamp = " << timestamp_last_frame_ << '\n'
+      << " - Current Timestamp = " << timestamp;
   utils::ThreadsafeImuBuffer::QueryResult query_result =
       utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable;
   bool log_error_once = true;
-  while (
+  while (!shutdown_ &&
       (query_result = imu_data_.imu_buffer_.getImuDataInterpolatedUpperBorder(
-           timestamp_last_frame,
+           timestamp_last_frame_,
            timestamp,
            &imu_meas.timestamps_,
            &imu_meas.acc_gyr_)) !=
@@ -95,7 +98,7 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
         continue;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::kQueueShutdown: {
-        LOG(INFO)
+        LOG(WARNING)
             << "IMU buffer was shutdown. Shutting down DataProviderModule.";
         shutdown();
         return nullptr;
@@ -103,16 +106,16 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
       case utils::ThreadsafeImuBuffer::QueryResult::kDataNeverAvailable: {
         LOG(WARNING)
             << "Asking for data before start of IMU stream, from timestamp: "
-            << timestamp_last_frame << " to timestamp: " << timestamp;
+            << timestamp_last_frame_ << " to timestamp: " << timestamp;
         // Ignore frames that happened before the earliest imu data
-        timestamp_last_frame = timestamp;
+        timestamp_last_frame_ = timestamp;
         return nullptr;
       }
       case utils::ThreadsafeImuBuffer::QueryResult::
           kTooFewMeasurementsAvailable: {
         LOG(WARNING) << "No IMU measurements here, and IMU data stream already "
                         "passed this time region"
-                     << "from timestamp: " << timestamp_last_frame
+                     << "from timestamp: " << timestamp_last_frame_
                      << " to timestamp: " << timestamp;
         return nullptr;
       }
@@ -123,7 +126,7 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
       }
     }
   }
-  timestamp_last_frame = timestamp;
+  timestamp_last_frame_ = timestamp;
 
   VLOG(10) << "////////////////////////////////////////// Creating packet!\n"
            << "STAMPS IMU rows : \n"
@@ -139,16 +142,18 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
            << "ACCGYR IMU: \n"
            << imu_meas.acc_gyr_;
 
-  CHECK(vio_pipeline_callback_);
-  vio_pipeline_callback_(VIO::make_unique<StereoImuSyncPacket>(
-      StereoFrame(left_frame_payload->id_,
-                  timestamp,
-                  *left_frame_payload,
-                  *right_frame_payload,
-                  stereo_matching_params_),  // TODO(Toni): these params should
-      // be given in PipelineParams.
-      imu_meas.timestamps_,
-      imu_meas.acc_gyr_));
+  if (!shutdown_) {
+    CHECK(vio_pipeline_callback_);
+    vio_pipeline_callback_(VIO::make_unique<StereoImuSyncPacket>(
+                             StereoFrame(left_frame_payload->id_,
+                                         timestamp,
+                                         *left_frame_payload,
+                                         *right_frame_payload,
+                                         stereo_matching_params_),  // TODO(Toni): these params should
+                             // be given in PipelineParams.
+                             imu_meas.timestamps_,
+                             imu_meas.acc_gyr_));
+  }
 
   // Push the synced messages to the frontend's input queue
   // TODO(Toni): should be a return like that, so that we pass the info to the
@@ -170,6 +175,7 @@ DataProviderModule::InputUniquePtr DataProviderModule::getInputPacket() {
 void DataProviderModule::shutdownQueues() {
   left_frame_queue_.shutdown();
   right_frame_queue_.shutdown();
+  imu_data_.imu_buffer_.shutdown();
   MISOPipelineModule::shutdownQueues();
 }
 

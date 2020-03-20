@@ -125,7 +125,7 @@ void CreateImuBuffer(VIO::utils::ThreadsafeImuBuffer& imu_buf,
 /* ************************************************************************* */
 TEST(testVio, robotMovingWithConstantVelocity) {
   // Additional parameters
-  VioBackEndParams vioParams;
+  BackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 30;  // we simulate points 20m away
   vioParams.horizon_ = 100;
 
@@ -287,7 +287,7 @@ TEST(testVio, robotMovingWithConstantVelocity) {
 // TODO(Sandro): Move this test to separate file!
 TEST(testVio, robotMovingWithConstantVelocityBundleAdjustment) {
   // Additional parameters
-  VioBackEndParams vioParams;
+  BackendParams vioParams;
   vioParams.landmarkDistanceThreshold_ = 100;  // we simulate points 30-40m away
   vioParams.horizon_ = 100;
   vioParams.smartNoiseSigma_ = 0.001;

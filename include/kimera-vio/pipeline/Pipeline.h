@@ -87,8 +87,14 @@ class Pipeline {
   // Run an endless loop until shutdown to visualize.
   bool spinViz();
 
-  // Shutdown the pipeline once all data has been consumed.
-  bool shutdownWhenFinished();
+  /**
+   * @brief shutdownWhenFinished
+   * Shutdown the pipeline once all data has been consumed.
+   * @param sleep_time_ms period of time between checks of vio status.
+   * @return true if shutdown succesful, false otherwise (never returns
+   * unless successful shutdown).
+   */
+  bool shutdownWhenFinished(const int& sleep_time_ms = 500);
 
   // Shutdown processing pipeline: stops and joins threads, stops queues.
   // And closes logfiles.
@@ -147,6 +153,7 @@ class Pipeline {
   bool spin() {
     // Feed data to the pipeline
     CHECK(data_provider_module_);
+    LOG(INFO) << "Spinning Kimera-VIO.";
     return data_provider_module_->spin();
   }
 
@@ -182,7 +189,7 @@ class Pipeline {
   bool initializeOnline(const StereoImuSyncPacket& stereo_imu_sync_packet);
 
   StatusStereoMeasurements featureSelect(
-      const VioFrontEndParams& tracker_params,
+      const FrontendParams& tracker_params,
       const FeatureSelectorParams& feature_selector_params,
       const Timestamp& timestamp_k,
       const Timestamp& timestamp_lkf,
@@ -210,9 +217,12 @@ class Pipeline {
   // Join threads to do a clean shutdown.
   void joinThreads();
 
+  // Join a single thread.
+  void joinThread(const std::string& thread_name, std::thread* thread);
+
   // Init Vio parameter
-  VioBackEndParams::ConstPtr backend_params_;
-  VioFrontEndParams frontend_params_;
+  BackendParams::ConstPtr backend_params_;
+  FrontendParams frontend_params_;
   ImuParams imu_params_;
   BackendType backend_type_;
   bool parallel_run_;

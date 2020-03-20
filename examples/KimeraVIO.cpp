@@ -28,11 +28,12 @@
 #include "kimera-vio/utils/Statistics.h"
 #include "kimera-vio/utils/Timer.h"
 
-DEFINE_int32(dataset_type,
-             0,
-             "Type of parser to use:\n"
-             "0: EuRoC\n"
-             "1: Kitti");
+DEFINE_int32(dataset_type, 0, "Type of parser to use:\n "
+                              "0: Euroc \n 1: Kitti (not supported).");
+DEFINE_string(
+    params_folder_path,
+    "../params/Euroc",
+    "Path to the folder containing the yaml files with the VIO parameters.");
 
 int main(int argc, char* argv[]) {
   // Initialize Google's flags library.
@@ -40,11 +41,14 @@ int main(int argc, char* argv[]) {
   // Initialize Google's logging library.
   google::InitGoogleLogging(argv[0]);
 
+  // Parse VIO parameters from gflags.
+  VIO::VioParams vio_params(FLAGS_params_folder_path);
+
   // Build dataset parser.
-  VIO::DataProviderInterface::UniquePtr dataset_parser = nullptr;
+  VIO::DataProviderInterface::Ptr dataset_parser = nullptr;
   switch (FLAGS_dataset_type) {
     case 0: {
-      dataset_parser = VIO::make_unique<VIO::EurocDataProvider>();
+      dataset_parser = VIO::make_unique<VIO::EurocDataProvider>(vio_params);
     } break;
     case 1: {
       dataset_parser = VIO::make_unique<VIO::KittiDataProvider>();
@@ -56,11 +60,11 @@ int main(int argc, char* argv[]) {
   }
   CHECK(dataset_parser);
 
-  VIO::Pipeline vio_pipeline(dataset_parser->pipeline_params_);
+  VIO::Pipeline vio_pipeline(vio_params);
 
   // Register callback to shutdown data provider in case VIO pipeline shutsdown.
   vio_pipeline.registerShutdownCallback(
-      std::bind(&VIO::DataProviderInterface::shutdown, dataset_parser.get()));
+      std::bind(&VIO::DataProviderInterface::shutdown, dataset_parser));
 
   // Register callback to vio pipeline.
   dataset_parser->registerImuSingleCallback(
@@ -81,22 +85,22 @@ int main(int argc, char* argv[]) {
   // Spin dataset.
   auto tic = VIO::utils::Timer::tic();
   bool is_pipeline_successful = false;
-  if (dataset_parser->pipeline_params_.parallel_run_) {
+  if (vio_params.parallel_run_) {
     auto handle = std::async(std::launch::async,
                              &VIO::DataProviderInterface::spin,
-                             dataset_parser.get());
+                             dataset_parser);
     auto handle_pipeline =
         std::async(std::launch::async, &VIO::Pipeline::spin, &vio_pipeline);
     auto handle_shutdown = std::async(std::launch::async,
                                       &VIO::Pipeline::shutdownWhenFinished,
-                                      &vio_pipeline);
+                                      &vio_pipeline, 500);
     vio_pipeline.spinViz();
     is_pipeline_successful = !handle.get();
     handle_shutdown.get();
     handle_pipeline.get();
   } else {
     while (dataset_parser->spin() && vio_pipeline.spin()) {
-      /* well, nothing to do :) */
+      continue;
     };
     vio_pipeline.shutdown();
     is_pipeline_successful = true;
